@@ -216,7 +216,7 @@ test_collect = do
     let [root, _parent] = r_cache_collect cached
     let tsig = Track.TrackSignal (Track.Control (Signal.signal [(0, 1)])) 0 1
     let extract = second (fmap extract_collect)
-        extract_collect (Derive.Collect wmap tsigs ldep) =
+        extract_collect (Derive.Collect wmap tsigs _env ldep) =
             (Seq.sort_on fst (map (first Stack.show_ui) (Map.toAscList wmap)),
                 tsigs, ldep)
 

@@ -7,10 +7,8 @@ import Util.Control
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 
-import qualified Perform.Pitch as Pitch
 
-
-cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
+cmd_raw_edit :: Cmd.Cmd
 cmd_raw_edit = EditUtil.raw_edit True
 
 cmd_val_edit :: Cmd.Cmd

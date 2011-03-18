@@ -20,6 +20,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Score as Score
 import qualified Derive.Scale as Scale
 
 import qualified Perform.Pitch as Pitch
@@ -27,12 +28,12 @@ import qualified Perform.Pitch as Pitch
 
 -- * raw edit
 
-raw_edit :: Bool -> Pitch.ScaleId -> Cmd.Cmd
-raw_edit zero_dur scale_id msg = do
+raw_edit :: Bool -> Cmd.Cmd
+raw_edit zero_dur msg = do
     fallthrough msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            note <- parse_key scale_id key
+            note <- parse_key key
             modify_event zero_dur False $ \txt ->
                 (modify_text_note note txt, False)
         (raw_key -> Just key) -> do
@@ -90,6 +91,16 @@ get_sel_pos = do
     (_, tracknum, track_id, pos) <- Selection.get_insert
     return (tracknum, track_id, pos)
 
+lookup_instrument :: (Cmd.M m) => m (Maybe Score.Instrument)
+lookup_instrument = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    Cmd.lookup_instrument block_id track_id
+
+get_scale_id :: (Cmd.M m) => m Pitch.ScaleId
+get_scale_id = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    Cmd.get_scale_id block_id track_id
+
 -- * msgs
 
 -- | Extract a key for method input.  [a-z0-9.-]
@@ -138,8 +149,9 @@ fallthrough msg = do
     (_, sel) <- Selection.get
     when (is_backspace && not (Types.sel_is_point sel)) Cmd.abort
 
-parse_key :: (Cmd.M m) => Pitch.ScaleId -> Pitch.InputKey -> m Pitch.Note
-parse_key scale_id input = do
+parse_key :: (Cmd.M m) => Pitch.InputKey -> m Pitch.Note
+parse_key input = do
+    scale_id <- get_scale_id
     let me = "EditUtil.parse_key"
     scale <- Cmd.get_scale me scale_id
     let msg = me ++ ": " ++ show input ++ " out of range for " ++ show scale_id

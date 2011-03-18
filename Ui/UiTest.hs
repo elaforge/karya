@@ -92,12 +92,10 @@ mkstate_id_ruler :: (State.M m) => BlockId -> RulerId
     -> [TrackSpec] -> m [TrackId]
 mkstate_id_ruler block_id ruler_id tracks = do
     State.set_project test_ns
-    let (ns, block_name) = Id.un_id (Id.unpack_id block_id)
-        mkid = Id.id ns
-    tids <- forM (zip [0..] tracks) $ \(i, track) -> do
-        State.create_track (mkid (block_name ++ ".t" ++ show i)) (mktrack track)
-
-    State.create_block (mkid block_name) $ mkblock "b1 title"
+    tids <- forM (zip [0..] tracks) $ \(i, track) ->
+        State.create_track (Id.unpack_id (mk_tid_block block_id i))
+            (mktrack track)
+    State.create_block (Id.unpack_id block_id) $ mkblock "b1 title"
         ((Block.RId ruler_id, 20)
             : [(Block.TId tid ruler_id, 40) | tid <- tids])
     State.set_skeleton block_id =<< parse_skeleton block_id
@@ -118,6 +116,16 @@ mkstate_view block_id tracks = do
     r <- mkstate block_id tracks
     mkview
     return r
+
+-- | Make a TrackId as mkstate does.  This is so tests can independently come
+-- up with the track IDs mkstate created just by knowing their tracknum.
+mk_tid :: TrackNum -> TrackId
+mk_tid = mk_tid_block default_block_id
+
+mk_tid_block :: BlockId -> TrackNum -> TrackId
+mk_tid_block block_id i =
+    Types.TrackId $ Id.id ns (block_name ++ ".t" ++ show i)
+    where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 -- * view
 

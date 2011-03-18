@@ -9,12 +9,9 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.NoteTrack as NoteTrack
-
 import qualified Derive.Derive as Derive
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
-import qualified Derive.Scale.Relative as Relative
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Pitch as Pitch
@@ -23,39 +20,6 @@ import qualified Perform.PitchSignal as PitchSignal
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Util.Graph_test as Graph_test
 
-
--- * cmds
-
-test_get_track_info = do
-    let tree = mk_track_tree
-            -- ["c0", ">inst1", "add #", "c1", ">inst2", "add c2"]
-            [ node ("c0", 0)
-                [ node ("c1", 3) [node ("add #", 2) [node (">inst1", 1) []]]
-                , node ("add c2", 5) [node (">inst2", 4) []]
-                ]
-            ]
-        proj_scale = Pitch.ScaleId "proj"
-    let tracknums = map Just [0..6] ++ [Nothing]
-    let res = map (Schema.get_track_info proj_scale tree) tracknums
-    equal (res!!0) (Just Schema.ControlTrack, Just inst1, proj_scale)
-    equal (res!!1)
-        (Just (Schema.NoteTrack (NoteTrack.ExistingTrack 2 Relative.scale_id)),
-            Just inst1, Relative.scale_id)
-    equal (res!!2) (Just Schema.PitchTrack, Just inst1, Relative.scale_id)
-    equal (res!!3) (Just Schema.ControlTrack, Just inst1, proj_scale)
-    equal (res!!4)
-        (Just (Schema.NoteTrack (NoteTrack.CreateTrack 4 proj_scale 5)),
-            Just inst2, proj_scale)
-    equal (res!!5) (Just Schema.ControlTrack, Just inst2, proj_scale)
-    -- Nothing tracknum, and invalid tracknum
-    equal (res!!6) (Nothing, Nothing, proj_scale)
-    equal (res!!7) (Nothing, Nothing, proj_scale)
-    where
-    inst1 = Score.Instrument "inst1"
-    inst2 = Score.Instrument "inst2"
-
-    mk_track_tree :: Tree.Forest (String, Int) -> State.TrackTree
-    mk_track_tree = map (fmap (uncurry mk_track_info))
 
 -- * compile
 

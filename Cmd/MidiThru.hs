@@ -46,6 +46,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import Cmd.InputNote (NoteId)
 import qualified Cmd.Msg as Msg
@@ -60,11 +61,13 @@ import Perform.Midi.Instrument (Addr)
 
 
 -- | Send midi thru, addressing it to the given Instrument.
-cmd_midi_thru :: Pitch.ScaleId -> Score.Instrument -> Cmd.Cmd
-cmd_midi_thru scale_id score_inst msg = do
+cmd_midi_thru :: Cmd.Cmd
+cmd_midi_thru msg = do
     input <- case msg of
         Msg.InputNote input -> return input
         _ -> Cmd.abort
+    score_inst <- Cmd.require =<< EditUtil.lookup_instrument
+    scale_id <- EditUtil.get_scale_id
     lookup_inst <- Cmd.get_lookup_midi_instrument
     -- I could try to get attrs from the inst track title, but I'm not sure
     -- how useful that will be.

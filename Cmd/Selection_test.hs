@@ -9,7 +9,7 @@ import qualified Cmd.Selection as Selection
 test_events_around = do
     let e_sel (_track_id, _range, (before, within, after)) =
             (map fst before, map fst within, map fst after)
-    let f evts sel_start sel_end = CmdTest.extract (map e_sel) id $
+    let f evts sel_start sel_end = CmdTest.extract (map e_sel) $
             CmdTest.run_tracks [("i", mkspec evts)] $ do
                 CmdTest.set_sel 1 sel_start 1 sel_end
                 Selection.events_around

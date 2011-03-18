@@ -290,7 +290,7 @@ lazy_derive_track :: (Derive.Derived derived) =>
     -> Parse.ParseExpr -> GetLastSample derived -> [Track.PosEvent]
     -> ([LEvent.LEvents derived], Derive.Collect, Derive.CacheState)
 lazy_derive_track state block_end dinfo parse get_last_sample events =
-    go (Derive.state_collect state) (Derive.state_cache_state state)
+    go (Derive.record_track_environ state) (Derive.state_cache_state state)
         Nothing [] events
     where
     go collect cache _ _ [] = ([], collect, cache)
@@ -319,11 +319,12 @@ lazy_derive_track state block_end dinfo parse get_last_sample events =
                     Nothing -> prev_sample
             Left _ -> prev_sample
 
-show_pos state pos = stack ++ ": " ++ Pretty.pretty now
-    where
-    now = Score.warp_pos pos (Derive.state_warp state)
-    stack = Seq.join ", " $ map Stack.unparse_ui_frame $
-        Stack.to_ui (Derive.state_stack state)
+-- show_pos :: Derive.State -> ScoreTime -> String
+-- show_pos state pos = stack ++ ": " ++ Pretty.pretty now
+--     where
+--     now = Score.warp_pos pos (Derive.state_warp state)
+--     stack = Seq.join ", " $ map Stack.unparse_ui_frame $
+--         Stack.to_ui (Derive.state_stack state)
 
 
 lazy_derive_event :: (Derive.Derived d) =>

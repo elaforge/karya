@@ -30,10 +30,9 @@ module Derive.Schema (
 
     -- * util
     , cmd_context
-    , get_track_info, TrackType(..)
+    , get_track_type, TrackType(..)
 
 #ifdef TESTING
-    , get_defaults
     , derive_tree
     , default_schema
 #endif
@@ -65,11 +64,9 @@ import qualified Cmd.PitchTrack as PitchTrack
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Note as Note
-import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Signal as Signal
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Instrument.MidiDb as MidiDb
@@ -109,7 +106,7 @@ cmd_context :: State.State
     -> MidiDb.LookupMidiInstrument -> Cmd.EditMode -> Bool -> Maybe TrackNum
     -> State.TrackTree -> CmdContext
 cmd_context ustate lookup_midi edit_mode kbd_entry focused_tracknum ttree =
-    CmdContext (State.state_default_inst ustate) (State.state_project_scale ustate) inst_addr lookup_midi edit_mode
+    CmdContext (State.state_default_inst ustate) inst_addr lookup_midi edit_mode
         kbd_entry focused_tracknum ttree
     where
     -- The thru cmd has to pick a single addr for a give inst, so let's just
@@ -141,19 +138,19 @@ default_cmds context = (cmds2, warns)
         Nothing -> ([], [])
         Just (NoteTrack ptrack) -> case edit_mode of
             Cmd.NoEdit -> ([], [])
-            Cmd.RawEdit -> ([NoteTrack.cmd_raw_edit maybe_inst scale_id], [])
+            Cmd.RawEdit -> ([NoteTrack.cmd_raw_edit], [])
             Cmd.ValEdit ->
-                ([NoteTrack.cmd_val_edit maybe_inst ptrack], [])
+                ([NoteTrack.cmd_val_edit ptrack], [])
             Cmd.MethodEdit ->
-                ([], [NoteTrack.cmd_method_edit maybe_inst ptrack])
+                ([], [NoteTrack.cmd_method_edit ptrack])
         Just PitchTrack -> case edit_mode of
             Cmd.NoEdit -> ([], [])
-            Cmd.RawEdit -> ([PitchTrack.cmd_raw_edit scale_id], [])
-            Cmd.ValEdit -> ([PitchTrack.cmd_val_edit scale_id], [])
+            Cmd.RawEdit -> ([PitchTrack.cmd_raw_edit], [])
+            Cmd.ValEdit -> ([PitchTrack.cmd_val_edit], [])
             Cmd.MethodEdit -> ([], [PitchTrack.cmd_method_edit])
         Just ControlTrack -> case edit_mode of
             Cmd.NoEdit -> ([], [])
-            Cmd.RawEdit -> ([], [ControlTrack.cmd_raw_edit scale_id])
+            Cmd.RawEdit -> ([], [ControlTrack.cmd_raw_edit])
             Cmd.ValEdit -> ([], [ControlTrack.cmd_val_edit])
             Cmd.MethodEdit -> ([], [ControlTrack.cmd_method_edit])
     (cmds2, warns) = case maybe_track_type of
@@ -164,51 +161,20 @@ default_cmds context = (cmds2, warns)
 
     add_with_note (note_cmds, cmds) = with_note note_cmds : cmds
     with_note cmds = NoteEntry.cmds_with_note kbd_entry (universal ++ cmds)
-    universal = PitchTrack.cmd_record_note_status scale_id : midi_thru
+    universal = [PitchTrack.cmd_record_note_status, MidiThru.cmd_midi_thru]
     edit_mode = ctx_edit_mode context
     kbd_entry = ctx_kbd_entry context
-    midi_thru =
-        maybe [] (\inst -> [MidiThru.cmd_midi_thru scale_id inst]) maybe_inst
-    (maybe_track_type, maybe_inst, scale_id) = get_defaults context
-
-get_defaults :: CmdContext
-    -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
-    -- ^ (focused_track_type, inst_to_use, scale_id_to_use)
-get_defaults context = (maybe_track_type, score_inst, scale_id)
-    where
-    (maybe_track_type, track_inst, scale_id) = get_track_info
-        (ctx_project_scale context) (ctx_track_tree context)
+    maybe_track_type = get_track_type (ctx_track_tree context)
         (ctx_focused_tracknum context)
-    score_inst = track_inst `mplus` ctx_default_inst context
 
--- | Find the type of a track and the instrument and scale in scope.
---
--- First search up the call stack, since this will yield a track that has scope
--- over the current one.  Otherwise search down, which may yield multiple
--- possibilities, but in many cases will find an appropriate one.
---
--- TODO: if this leads to weird guesses, maybe return Nothing if there are
--- two or more matches?
-get_track_info :: Pitch.ScaleId -> State.TrackTree -> Maybe TrackNum
-    -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
-get_track_info proj_scale _ Nothing = (Nothing, Nothing, proj_scale)
-get_track_info proj_scale track_tree (Just tracknum) =
+-- | Find the type of a track.
+get_track_type :: State.TrackTree -> Maybe TrackNum -> Maybe TrackType
+get_track_type _ Nothing = Nothing
+get_track_type track_tree (Just tracknum) =
     case Info.paths_of track_tree tracknum of
-        Nothing -> (Nothing, Nothing, proj_scale)
+        Nothing -> Nothing
         Just (track, parents, children) ->
-            let inst = find_inst (track : parents ++ children)
-                -- Only search parents for scale, since that would make one
-                -- set scale override the project scale for higher level
-                -- tracks.
-                scale_id = maybe proj_scale id $ find_scale (track : parents)
-            in (Just (track_type scale_id track parents (null children)),
-                inst, scale_id)
-    where
-    find_inst = msum . map inst_of
-    inst_of = TrackInfo.title_to_instrument . State.track_title
-    -- TODO if the scale is relative, this won't get the octave from the
-    -- enclosing scale
-    find_scale = msum . map (TrackInfo.title_to_scale . State.track_title)
+            Just (track_type track parents (null children))
 
 -- | Describe the type of a single track.  This is used to figure out what set
 -- of cmds should apply to a given track.
@@ -217,20 +183,20 @@ data TrackType =
     NoteTrack NoteTrack.PitchTrack | PitchTrack | ControlTrack
     deriving (Show, Eq)
 
-track_type :: Pitch.ScaleId -> State.TrackInfo -> [State.TrackInfo]
+track_type :: State.TrackInfo -> [State.TrackInfo]
     -> Bool -- ^ no_children
     -> TrackType
-track_type scale_id (State.TrackInfo _ _ tracknum) parents True =
-    NoteTrack pitch_track
+track_type (State.TrackInfo _ _ tracknum) parents True = NoteTrack pitch_track
     where
     pitch_track = case msum (map is_pitch parents) of
         Just pair -> pair
-        Nothing -> NoteTrack.CreateTrack tracknum scale_id (tracknum+1)
+        Nothing -> NoteTrack.CreateTrack tracknum (tracknum+1)
     is_pitch track = case TrackInfo.parse_control (State.track_title track) of
-        Right (TrackInfo.Pitch _ _) -> Just $
-            NoteTrack.ExistingTrack (State.track_tracknum track) scale_id
+        Right (TrackInfo.Pitch _ _) ->
+            Just $ NoteTrack.ExistingTrack (State.track_tracknum track)
+                (State.track_id track)
         _ -> Nothing
-track_type _ (State.TrackInfo title _ _) _ False =
+track_type (State.TrackInfo title _ _) _ False =
     case TrackInfo.parse_control title of
         Right (TrackInfo.Control _ _) -> ControlTrack
         Right (TrackInfo.Pitch _ _) -> PitchTrack

@@ -22,22 +22,27 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Stack as Stack
 
+import qualified Perform.Pitch as Pitch
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 
 
 -- | There are a few environ values that almost everything relies on.
-initial_environ :: TrackLang.Environ
-initial_environ = Map.fromList
+initial_environ :: Pitch.ScaleId -> Maybe Score.Instrument -> TrackLang.Environ
+initial_environ scale_id maybe_inst = Map.fromList $
+    inst ++
     -- Control interpolators rely on this.
     [ (TrackLang.v_srate, TrackLang.VNum 0.05)
     -- Looking up any val call relies on having a scale in scope.
-    , (TrackLang.v_scale, TrackLang.VScaleId Twelve.scale_id)
+    , (TrackLang.v_scale, TrackLang.VScaleId scale_id)
     , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
     ]
+    where
+    inst = case maybe_inst of
+        Just inst -> [(TrackLang.v_instrument, TrackLang.VInstrument inst)]
+        Nothing -> []
 
 -- | Derive with the cache.
 cached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
@@ -76,8 +81,10 @@ derive derive_cache damage block_id = do
     let constant = Derive.initial_constant ui_state
             (Schema.lookup_deriver schema_map ui_state) lookup_scale inst_calls
     scopes <- Cmd.gets Cmd.state_global_scopes
-    return $ Derive.derive constant scopes derive_cache damage
-        initial_environ (Call.eval_root_block block_id)
+    let env = initial_environ (State.state_project_scale ui_state)
+            (State.state_default_inst ui_state)
+    return $ Derive.derive constant scopes derive_cache damage env
+        (Call.eval_root_block block_id)
 
 get_lookup_inst_calls :: (Cmd.M m) =>
     m (Score.Instrument -> Maybe Derive.InstrumentCalls)
@@ -102,7 +109,7 @@ perform block_id result cache = do
         new_cache = Midi.Cache.perform (Stack.block block_id) cache
                 (Midi.Cache.EventDamage event_damage) midi_events
     return $ Cmd.Performance
-        (Derive.r_cache result) new_cache mempty
+        (Derive.r_cache result) new_cache (Derive.r_track_environ result) mempty
         (Derive.r_tempo result) (Derive.r_closest_warp result)
         (Derive.r_inv_tempo result) (Derive.r_track_signals result)
 

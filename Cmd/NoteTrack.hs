@@ -26,7 +26,6 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.Score as Score
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 
@@ -35,23 +34,19 @@ import qualified Instrument.MidiDb as MidiDb
 -- necessary.
 data PitchTrack =
     -- | Create a pitch track with (note_tracknum, scale_id, pitch_tracknum).
-    CreateTrack TrackNum Pitch.ScaleId TrackNum
-    | ExistingTrack TrackNum Pitch.ScaleId
+    CreateTrack TrackNum TrackNum
+    | ExistingTrack TrackNum TrackId
     deriving (Show, Eq)
 
-scale_of :: PitchTrack -> Pitch.ScaleId
-scale_of (CreateTrack _ scale_id _) = scale_id
-scale_of (ExistingTrack _ scale_id) = scale_id
-
-cmd_raw_edit :: Maybe Score.Instrument -> Pitch.ScaleId -> Cmd.Cmd
+cmd_raw_edit :: Cmd.Cmd
 cmd_raw_edit = raw_edit
 
 -- | The val edit for note tracks edits its pitch track (possibly creating it
 -- if necessary), and creates a blank event on the note track.  It may also
 -- edit multiple pitch tracks for chords, or record velocity in addition to
 -- pitch.  TODO not implemented yet
-cmd_val_edit :: Maybe Score.Instrument -> PitchTrack -> Cmd.Cmd
-cmd_val_edit inst pitch_track msg = do
+cmd_val_edit :: PitchTrack -> Cmd.Cmd
+cmd_val_edit pitch_track msg = do
     EditUtil.fallthrough msg
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     case msg of
@@ -60,14 +55,14 @@ cmd_val_edit inst pitch_track msg = do
                 -- TODO if I can find a vel track, put the vel there
                 (pitch_tracknum, track_id) <-
                     make_pitch_track (Just note_id) pitch_track
-                note <- EditUtil.parse_key (scale_of pitch_track) key
+                note <- EditUtil.parse_key key
                 PitchTrack.val_edit_at (pitch_tracknum, track_id, pos) note
                 -- TODO if I do chords, this will have to be the chosen note
                 -- track
-                ensure_exists =<< triggered_inst inst
+                ensure_exists =<< triggered_inst =<< EditUtil.lookup_instrument
             InputNote.PitchChange note_id key -> do
                 (tracknum, track_id) <- track_of note_id
-                note <- EditUtil.parse_key (scale_of pitch_track) key
+                note <- EditUtil.parse_key key
                 PitchTrack.val_edit_at (tracknum, track_id, pos) note
             InputNote.NoteOff note_id _vel -> do
                 delete_note_id note_id
@@ -91,15 +86,15 @@ cmd_val_edit inst pitch_track msg = do
         Cmd.set_wdev_state $ st { Cmd.wdev_note_track =
             Map.delete note_id (Cmd.wdev_note_track st) }
 
-cmd_method_edit :: Maybe Score.Instrument -> PitchTrack -> Cmd.Cmd
-cmd_method_edit inst pitch_track msg = do
+cmd_method_edit :: PitchTrack -> Cmd.Cmd
+cmd_method_edit pitch_track msg = do
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.method_key -> Just key) -> do
             (_, _, pos) <- EditUtil.get_sel_pos
             (tracknum, track_id) <- make_pitch_track Nothing pitch_track
             PitchTrack.method_edit_at (tracknum, track_id, pos) key
-            ensure_exists =<< triggered_inst inst
+            ensure_exists =<< triggered_inst =<< EditUtil.lookup_instrument
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -125,7 +120,8 @@ make_pitch_track :: (Cmd.M m) => Maybe InputNote.NoteId -> PitchTrack
 make_pitch_track maybe_note_id pitch_track = do
     block_id <- Cmd.get_focused_block
     (tracknum, tid) <- case pitch_track of
-        CreateTrack note_tracknum scale_id pitch_tracknum -> do
+        CreateTrack note_tracknum pitch_tracknum -> do
+            scale_id <- EditUtil.get_scale_id
             tid <- create_pitch_track block_id note_tracknum
                 (TrackInfo.scale_to_title scale_id) pitch_tracknum
             return (pitch_tracknum, tid)
@@ -179,17 +175,17 @@ remove :: (Cmd.M m) => EditUtil.SelPos -> m ()
 remove selpos =
     EditUtil.modify_event_at selpos False False (const (Nothing, False))
 
-raw_edit :: Maybe Score.Instrument -> Pitch.ScaleId -> Cmd.Cmd
-raw_edit inst scale_id msg = do
+raw_edit :: Cmd.Cmd
+raw_edit msg = do
     EditUtil.fallthrough msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            note <- EditUtil.parse_key scale_id key
-            zero_dur <- triggered_inst inst
+            note <- EditUtil.parse_key key
+            zero_dur <- triggered_inst =<< EditUtil.lookup_instrument
             EditUtil.modify_event zero_dur False $ \txt ->
                 (EditUtil.modify_text_note note txt, False)
         (EditUtil.raw_key -> Just key) -> do
-            zero_dur <- triggered_inst inst
+            zero_dur <- triggered_inst =<< EditUtil.lookup_instrument
             EditUtil.modify_event zero_dur False $ \txt ->
                 (EditUtil.modify_text_key key txt, False)
         _ -> Cmd.abort

@@ -77,6 +77,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -400,6 +401,7 @@ type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 data Performance = Performance {
     perf_derive_cache :: Derive.Cache
     , perf_midi_cache :: Midi.Cache.Cache
+    , perf_track_environ :: Derive.TrackEnviron
     -- | Score damage on top of the Performance, used by the derive cache.
     -- This is empty when the Performance is first created and collects
     -- thereafter.
@@ -610,8 +612,42 @@ block_config = do
     return $ Block.Config Config.bconfig_selection_colors
         Config.bconfig_bg_color track_box Config.bconfig_sb_box
 
--- * basic cmds
+-- ** environ
 
+get_scale_id :: (M m) => BlockId -> TrackId -> m Pitch.ScaleId
+get_scale_id block_id track_id = do
+    scale <- lookup_env block_id track_id TrackLang.v_scale
+    case scale of
+        Just (TrackLang.VScaleId scale_id) -> return scale_id
+        _ -> State.get_project_scale
+
+lookup_instrument :: (M m) => BlockId -> TrackId -> m (Maybe Score.Instrument)
+lookup_instrument block_id track_id = do
+    scale <- lookup_env block_id track_id TrackLang.v_instrument
+    case scale of
+        Just (TrackLang.VInstrument inst) -> return $ Just inst
+        _ -> State.gets State.state_default_inst
+
+-- | Lookup value from the deriver's Environ at the given block and track.
+-- See 'Derive.TrackEnviron' for details on the limitations here.
+--
+-- The lookup is done relative to the root block, which means that instruments
+-- and scales always default relative to the root.  I suppose I could think of
+-- some case where it would be better to look it up relative to some other
+-- block, but that seems way too complicated.  This means that the
+-- TrackEnvirons from other block derivations are never used.  That leads to
+-- a certain amount of void allocation, so maybe I should include a flag to
+-- turn off TrackEnviron recording?
+lookup_env :: (M m) => BlockId -> TrackId -> TrackLang.ValName
+    -> m (Maybe TrackLang.Val)
+lookup_env block_id track_id name = do
+    justm State.lookup_root_id $ \root_id -> do
+    justm (lookup_performance root_id) $ \perf -> do
+    let track_env = perf_track_environ perf
+    return $ Map.lookup name =<< Map.lookup (block_id, track_id) track_env
+
+
+-- * basic cmds
 
 -- | Quit the app immediately.
 cmd_quit :: CmdId
@@ -824,7 +860,6 @@ type SchemaDeriver d = BlockId -> State.StateId d
 -- | Information needed to decide what cmds should apply.
 data CmdContext = CmdContext {
     ctx_default_inst :: Maybe Score.Instrument
-    , ctx_project_scale :: Pitch.ScaleId
     , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
     , ctx_lookup_midi :: MidiDb.LookupMidiInstrument
     , ctx_edit_mode :: EditMode

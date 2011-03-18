@@ -33,7 +33,7 @@ cmd_insert_track_end :: (Cmd.M m) => m ()
 cmd_insert_track_end = Edit.insert_event "--" 0
 
 cmd_toggle_merged :: (Cmd.M m) => NoteTrack.PitchTrack -> m ()
-cmd_toggle_merged (NoteTrack.CreateTrack _ _ _) =
+cmd_toggle_merged (NoteTrack.CreateTrack {}) =
     Cmd.throw "no pitch track to collapse"
 cmd_toggle_merged (NoteTrack.ExistingTrack pitch_tracknum _) = do
     (block_id, note_tracknum, _, _) <- Selection.get_insert

@@ -31,16 +31,16 @@ import qualified Perform.Pitch as Pitch
 
 -- * entry
 
-cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
+cmd_raw_edit :: Cmd.Cmd
 cmd_raw_edit = EditUtil.raw_edit True
 
-cmd_val_edit :: Pitch.ScaleId -> Cmd.Cmd
-cmd_val_edit scale_id msg = do
+cmd_val_edit :: Cmd.Cmd
+cmd_val_edit msg = do
     EditUtil.fallthrough msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             sel_pos <- EditUtil.get_sel_pos
-            note <- EditUtil.parse_key scale_id key
+            note <- EditUtil.parse_key key
             val_edit_at sel_pos note
             Selection.advance
         (Msg.key_down -> Just Key.Backspace) -> do
@@ -67,11 +67,11 @@ method_edit_at selpos key = modify_event_at selpos $ \(method, val) ->
     ((EditUtil.modify_text_key key method, Just val), False)
 
 -- | Record the last note entered.  Should be called by 'with_note'.
-cmd_record_note_status :: Pitch.ScaleId -> Cmd.Cmd
-cmd_record_note_status scale_id msg = do
+cmd_record_note_status :: Cmd.Cmd
+cmd_record_note_status msg = do
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            note <- EditUtil.parse_key scale_id key
+            note <- EditUtil.parse_key key
             Cmd.set_status "note" (Just (Pitch.note_text note))
         _ -> return ()
     return Cmd.Continue
@@ -149,15 +149,14 @@ modify_note f text = do
 -- for safety.  But so I can select multiple pitch tracks or selected a merged
 -- note track, I skip non-pitch tracks.
 transpose_selection :: (Cmd.M m) => Pitch.Octave -> Integer -> m ()
-transpose_selection octaves degrees =
+transpose_selection octaves degrees = do
+    block_id <- Cmd.get_focused_block
     ModifyEvents.tracks_sorted $ \track_id events -> do
-        (scale_id, is_pitch) <- scale_of track_id
-        if not is_pitch
-            then return Nothing
-            else do
-                block_id <- Cmd.get_focused_block
-                Just <$> transpose_events block_id track_id scale_id
-                    octaves degrees events
+        is_pitch <- is_pitch_track track_id
+        if not is_pitch then return Nothing else do
+        scale_id <- Cmd.get_scale_id block_id track_id
+        Just <$> transpose_events block_id track_id scale_id
+            octaves degrees events
 
 transpose_events :: (Cmd.M m) => BlockId -> TrackId -> Pitch.ScaleId
     -> Pitch.Octave -> Integer -> [Track.PosEvent] -> m [Track.PosEvent]
@@ -178,21 +177,9 @@ transpose scale octaves degrees (pos, event) =
         Just text -> Just (pos, Event.set_string text event)
     where f = Derive.scale_transpose scale octaves degrees
 
--- | True if it's a pitch track.  It's worth trying to get scale ids for
--- non-pitch tracks, e.g. a note track will still have a scale id in scope.
---
--- TODO eventually this should be the only way to get the scale of a track,
--- and it should look into a env cache returned by derivation
-scale_of :: (State.M m) => TrackId -> m (Pitch.ScaleId, Bool)
-scale_of track_id = do
+is_pitch_track :: (State.M m) => TrackId -> m Bool
+is_pitch_track track_id = do
     title <- Track.track_title <$> State.get_track track_id
-    case TrackInfo.parse_control title of
-        Right (TrackInfo.Pitch ptype _) -> case ptype of
-            TrackInfo.PitchAbsolute (Just scale_id) ->
-                return (scale_id, True)
-            _ -> do
-                scale_id <- State.get_project_scale
-                return (scale_id, True)
-        _ -> do
-            scale_id <- State.get_project_scale
-            return (scale_id, False)
+    return $ case TrackInfo.parse_control title of
+        Right (TrackInfo.Pitch {}) -> True
+        _ -> False

@@ -43,9 +43,17 @@ CURRENT
   - add a Play.play_msgs function that plays the given msgs, normalizing so
     fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
   - cmd to save and load cache to disk
-
   - fix LPitch.note_to_degree
-  - fix the broken way Cmd.Schema infers scale and instrument
+
+  - Cmd.CmdId is inconsistent with State.StateId
+    if I convert, don't forget to remove CmdTest.CmdId
+  - rename State.state_project_scale to default_scale
+  - Call.with_scale is not quite right because it should replace an existing
+    scale scope.  So I think scopes have to have keys so they can be
+    replaced.
+  - mod bloom.dump.short doesn't emit warning for block w/o scale info
+    and what's up with the play for 3 seconds thing?
+  * fix the broken way Cmd.Schema infers scale and instrument
     Record env during derivation:
     When entering a track, save stack and env.  Then to lookup env just look
     for a stack ending with that track_id.  If >1, then just pick the first, or
@@ -61,9 +69,6 @@ CURRENT
     This opens the door for cmds depending on other kinds of env, though
     I can't think of any compelling uses at the moment.  Maybe snap selection
     by sample rate?
-
-    Move scale_of and instrument_of to Cmd.Cmd and use them instead of parsing
-    track titles.
 
   - storing TrackEvents without duration would make maintaining the no-overlap
     invariant easier.  E.g. have explicit 'off' events, otherwise each event

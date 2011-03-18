@@ -30,8 +30,7 @@ test_key_to_input = do
 test_cmds_with_note = do
     let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
     let key = CmdTest.key_down ','
-        run cstate cmd = CmdTest.extract id Log.msg_string $
-            CmdTest.run State.empty cstate cmd
+        run cstate cmd = CmdTest.extract id $ CmdTest.run State.empty cstate cmd
         input = Msg.InputNote
         -- key passed through to cmd_dummy
         through msg = Right (Just Cmd.Done, [show msg])

@@ -1,9 +1,14 @@
 -- | Utilities for cmd tests.
 module Cmd.CmdTest where
 import qualified Control.Monad.Identity as Identity
+import qualified Data.IORef as IORef
 import qualified Data.Map as Map
+import qualified System.IO.Unsafe as Unsafe
 
+import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Ranges as Ranges
+import qualified Util.Thread as Thread
 import qualified Midi.Midi as Midi
 
 import Ui
@@ -17,10 +22,16 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Simple as Simple
-import qualified Derive.Score as Score
+import qualified Cmd.TimeStep as TimeStep
 
-import qualified Perform.Pitch as Pitch
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
+
+import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Pitch as Pitch
+import qualified Perform.Transport as Transport
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
@@ -28,22 +39,35 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
 
 
+type CmdId = Cmd.CmdT Identity.Identity
+
 default_block_id = UiTest.default_block_id
 default_view_id = UiTest.default_view_id
 
 -- | Run cmd with the given tracks.
-run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdT Identity.Identity a -> Result a
+run_tracks :: [UiTest.TrackSpec] -> CmdId a -> Result a
 run_tracks track_specs = run ustate default_cmd_state
     where (_, ustate) = UiTest.run_mkview track_specs
 
 -- | Run a cmd and return everything you could possibly be interested in.
 -- Will be Nothing if the cmd aborted.
-run :: State.State -> Cmd.State -> Cmd.CmdT Identity.Identity a -> Result a
+run :: State.State -> Cmd.State -> CmdId a -> Result a
 run ustate cstate cmd = case Cmd.run_id ustate cstate cmd of
     (cmd_state2, _midi_msgs, logs, result) -> case result of
         Left err -> Left (show err)
         Right (val, ui_state2, _updates) ->
             Right (val, ui_state2, cmd_state2, logs)
+
+-- | Like 'run', but with a selection on track 1 at 0, and and note duration
+-- set to what will be a ScoreTime 1 with the ruler supplied by UiTest.
+run_sel :: TrackNum -> [UiTest.TrackSpec] -> CmdId a -> Result a
+run_sel tracknum track_specs cmd = run_tracks track_specs $ do
+    -- Add one because UiTest inserts a rule at track 0.
+    set_sel (tracknum+1) 0 (tracknum+1) 0
+    Cmd.modify_edit_state $ \st -> st { Cmd.state_note_duration = step }
+    cmd
+    where
+    step = TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
 
 type Result val =
     Either String (Maybe val, State.State, Cmd.State, [Log.Msg])
@@ -60,20 +84,18 @@ e_tracks :: Result _val -> Either String [(String, [Simple.Event])]
 e_tracks result = fmap ex $ e_ustate UiTest.extract_tracks id result
     where ex (val, logs) = (Log.trace_logs logs val)
 
-extract :: (val -> e_val) -> (Log.Msg -> e_log) -> Result val
-    -> Either String (Maybe e_val, [e_log])
-extract extract_val extract_log result = fmap ex (e_val result)
-    where
-    ex (val, logs) = (fmap extract_val val, map extract_log logs)
+extract :: (val -> e_val) -> Result val -> Either String (Maybe e_val, [String])
+extract extract_val result = fmap ex (e_val result)
+    where ex (val, logs) = (fmap extract_val val, map DeriveTest.show_log logs)
 
-eval :: State.State -> Cmd.State -> Cmd.CmdT Identity.Identity a -> a
+eval :: State.State -> Cmd.State -> CmdId a -> a
 eval ustate cstate cmd = case run ustate cstate cmd of
     Left err -> error $ "eval got StateError: " ++ show err
     Right (Nothing, _, _, _) -> error $ "eval: cmd aborted"
     Right (Just val, _, _, _) -> val
 
 -- | Run several cmds, threading the state through.
-thread :: State.State -> Cmd.State -> [Cmd.CmdT Identity.Identity a]
+thread :: State.State -> Cmd.State -> [CmdId a]
     -> Either String (State.State, Cmd.State)
 thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     where
@@ -83,6 +105,7 @@ thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
         Left err -> Left (show err)
     f (Left err) _ = Left err
 
+extract_logs :: Result a -> Either String (Maybe [String])
 extract_logs result = case result of
     Right (Just _, _, _, logs) -> Right (Just (map Log.msg_string logs))
     Right (Nothing, _, _, _) -> Right Nothing
@@ -160,3 +183,43 @@ m_note_on note_id nn vel = Msg.InputNote (note_on note_id nn vel)
 m_note_off note_id vel = Msg.InputNote (note_off note_id vel)
 m_control note_id cont val = Msg.InputNote (control note_id cont val)
 m_pitch note_id nn = Msg.InputNote (pitch note_id nn)
+
+
+-- * setup cmds
+
+set_scale :: (Cmd.M m) => BlockId -> BlockId -> TrackId -> Pitch.ScaleId -> m ()
+set_scale root_id block_id track_id scale_id =
+    set_env root_id block_id track_id
+        [(TrackLang.v_scale, TrackLang.VScaleId scale_id)]
+
+-- | Fake up just enough Performance to have environ in it.
+set_env :: (Cmd.M m) => BlockId -> BlockId -> TrackId
+    -> [(TrackLang.ValName, TrackLang.Val)] -> m ()
+set_env root_id block_id track_id environ = do
+    Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
+        Map.insert root_id (make_pthread perf)
+        (Cmd.state_performance_threads st) }
+    where
+    track_env = Map.singleton (block_id, track_id) (Map.fromList environ)
+    perf = Cmd.Performance mempty empty_midi_cache track_env mempty
+        dummy_tempo dummy_closest_warp dummy_inv_tempo
+        mempty
+
+make_pthread :: Cmd.Performance -> Cmd.PerformanceThread
+make_pthread perf = Unsafe.unsafePerformIO $ do
+    th <- Thread.start (return ())
+    selection_pos <- IORef.newIORef 0
+    return $ Cmd.PerformanceThread perf th selection_pos
+
+dummy_tempo :: Transport.TempoFunction
+dummy_tempo _ _ _ = []
+
+dummy_closest_warp :: Transport.ClosestWarpFunction
+dummy_closest_warp _ _ _ = Score.id_warp
+
+dummy_inv_tempo :: Transport.InverseTempoFunction
+dummy_inv_tempo _ = []
+
+empty_midi_cache :: Midi.Cache.Cache
+empty_midi_cache =
+    Midi.Cache.Cache (DeriveTest.make_midi_config []) Ranges.nothing []

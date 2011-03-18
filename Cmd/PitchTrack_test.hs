@@ -22,7 +22,7 @@ extract val = error $ "unexpected: " ++ show val
 test_cmd_val_edit = do
     let run track_specs cmd = run_sel track_specs cmd
         note = CmdTest.m_note_on 60 60 127
-        f = PitchTrack.cmd_val_edit Twelve.scale_id
+        f = PitchTrack.cmd_val_edit
 
     equal (run [("*", [])] (f note)) $
         Right [("*", [(0, 0, "4c")])]

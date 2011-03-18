@@ -409,6 +409,9 @@ set_project_scale :: (M m) => Pitch.ScaleId -> m ()
 set_project_scale scale_id = modify $ \st ->
     st { state_project_scale = scale_id }
 
+get_default_inst :: (M m) => m (Maybe Score.Instrument)
+get_default_inst = gets state_default_inst
+
 set_default_inst :: (M m) => Maybe Score.Instrument -> m ()
 set_default_inst inst = modify $ \st -> st { state_default_inst = inst }
 

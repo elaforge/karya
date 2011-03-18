@@ -297,17 +297,35 @@ data Collect = Collect {
     -- efficient when it inverts them to get playback position.
     collect_warp_map :: !TrackWarp.WarpMap
     , collect_track_signals :: !Track.TrackSignals
+    , collect_track_environ :: !TrackEnviron
     -- | Similar to 'state_local_damage', this is how a call records its
     -- dependencies.  After evaluation of a deriver, this will contain the
     -- dependencies of the most recent call.
     , collect_local_dep :: !LocalDep
     } deriving (Eq, Show)
 
--- TODO this is incorrect because TrackWarps can't just be appended
 instance Monoid.Monoid Collect where
-    mempty = Collect mempty mempty mempty
-    mappend (Collect warps1 signals1 deps1) (Collect warps2 signals2 deps2) =
-        Collect (warps1 <> warps2) (signals1 <> signals2) (deps1 <> deps2)
+    mempty = Collect mempty mempty mempty mempty
+    mappend (Collect warps1 signals1 env1 deps1)
+            (Collect warps2 signals2 env2 deps2) =
+        Collect (warps1 <> warps2) (signals1 <> signals2) (env1 <> env2)
+            (deps1 <> deps2)
+
+-- | Snapshots of the environ at each track.  This is used by the Cmd layer to
+-- figure out what the scale and instrument are for a given track.
+--
+-- Originally this was a map from Stacks to Environ (and only the changed
+-- parts).  The idea was that I could walk up the stack to find the Environ
+-- value in scope at a given point, and given Stack.Region, could even get
+-- e.g. per event instruments.  Unfortunately, while it's easy to do that
+-- on the Derive side, it seems really complicated and somewhat expensive to
+-- try to retrace a complete stack on every cmd.  Since this implementation
+-- doesn't store the entire stack, a track with a different instrument at
+-- different times will wind up with the last one.
+--
+-- This is a much simpler solution which will hopefully work well enough in
+-- practice.
+type TrackEnviron = Map.Map (BlockId, TrackId) TrackLang.Environ
 
 data CacheState = CacheState {
     state_cache :: !Cache -- modified
@@ -581,6 +599,7 @@ data Result = Result {
     , r_closest_warp :: !Transport.ClosestWarpFunction
     , r_inv_tempo :: !Transport.InverseTempoFunction
     , r_track_signals :: !Track.TrackSignals
+    , r_track_environ :: !TrackEnviron
 
     -- | The relevant parts of the final state should be extracted into the
     -- above fields, but returning the whole state can be useful for testing.
@@ -596,13 +615,14 @@ derive :: Constant -> [Scope] -> Cache -> ScoreDamage -> TrackLang.Environ
 derive constant scopes cache damage environ deriver =
     Result (merge_logs result logs) (state_cache (state_cache_state state))
         event_damage tempo_func closest_func inv_tempo_func
-        (collect_track_signals (state_collect state))
+        (collect_track_signals collect) (collect_track_environ collect)
         state
     where
     (result, state, logs) =
         run (initial_state scopes clean_cache damage environ constant) deriver
     clean_cache = clear_damage damage cache
-    warps = TrackWarp.collections (collect_warp_map (state_collect state))
+    collect = state_collect state
+    warps = TrackWarp.collections (collect_warp_map collect)
     tempo_func = TrackWarp.tempo_func warps
     closest_func = TrackWarp.closest_warp warps
     inv_tempo_func = TrackWarp.inverse_tempo_func warps
@@ -883,7 +903,7 @@ with_val :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
 with_val name val =
     local state_environ (\old st -> st { state_environ = old }) $ \st -> do
         environ <- insert_environ name val (state_environ st)
-        return (st { state_environ = environ })
+        return $ st { state_environ = environ }
 
 insert_environ :: (TrackLang.Typecheck val) => TrackLang.ValName
     -> val -> TrackLang.Environ -> Deriver TrackLang.Environ
@@ -893,6 +913,28 @@ insert_environ name val environ =
             ++ Pretty.pretty (TrackLang.to_val val)
             ++ ", expected " ++ Pretty.pretty typ
         Right environ2 -> return environ2
+
+
+-- | Figure out the current block and track, and record the current environ
+-- in the Collect.  This should be called only once per track.
+record_track_environ :: State -> Collect
+record_track_environ state = case stack of
+        Stack.Track tid : Stack.Block bid : _ ->
+            collect { collect_track_environ = insert bid tid }
+        _ -> collect
+    where
+    -- Strip the stack down to the most recent track and block, since it will
+    -- look like [tid, tid, tid, bid, ...].
+    stack = Seq.drop_dups is_track $ filter track_or_block $
+        Stack.innermost (state_stack state)
+    track_or_block (Stack.Track _) = True
+    track_or_block (Stack.Block _) = True
+    track_or_block _ = False
+    is_track (Stack.Track _) = True
+    is_track _ = False
+    collect = state_collect state
+    insert bid tid = Map.insert (bid, tid) (state_environ state)
+        (collect_track_environ collect)
 
 -- *** control
 

@@ -12,22 +12,10 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
-import qualified Cmd.TimeStep as TimeStep
-import qualified Derive.Scale.Twelve as Twelve
-
-import qualified Perform.Pitch as Pitch
 
 
 mkkey = CmdTest.make_key True
-
-run_sel track_specs cmd = CmdTest.e_tracks $
-    CmdTest.run_tracks track_specs $ do
-        CmdTest.set_sel 1 0 1 0
-        Cmd.modify_edit_state $ \st -> st { Cmd.state_note_duration = step }
-        cmd
-    where
-    -- Make sure edit tests below make the notes of the appropriate duration.
-    step = TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
+run_sel track_specs cmd = CmdTest.e_tracks $ CmdTest.run_sel 0 track_specs cmd
 
 -- | Thread a bunch of msgs through the command and return the final state
 -- and the selection position.
@@ -49,7 +37,7 @@ extract_sel (Right (ustate, cstate)) = (UiTest.extract_tracks ustate,
 extract_sel val = error $ "unexpected: " ++ show val
 
 test_cmd_raw_edit = do
-    let f = NoteTrack.cmd_raw_edit Nothing Twelve.scale_id
+    let f = NoteTrack.cmd_raw_edit
         run track_specs cmd = run_sel track_specs cmd
     -- Created event has dur according to ruler.
     equal (run [(">i", [])] (f (CmdTest.m_note_on 60 60 127))) $
@@ -66,10 +54,10 @@ test_cmd_raw_edit = do
         Right [(">i", [(0, 5, "")])]
 
 test_cmd_val_edit = do
-    let create_track = NoteTrack.CreateTrack 1 (Pitch.ScaleId "twelve") 2
+    let create_track = NoteTrack.CreateTrack 1 2
         run track_specs cmd = run_sel track_specs cmd
         note = CmdTest.m_note_on 60 60 127
-    let f = NoteTrack.cmd_val_edit Nothing create_track
+    let f = NoteTrack.cmd_val_edit create_track
     -- creates a new pitch track
     equal (run [(">i", [])] (f note)) $
         Right [(">i", [(0, 1, "")]), ("*twelve", [(0, 0, "4c")])]
@@ -77,8 +65,7 @@ test_cmd_val_edit = do
         Right [(">i", [(0, 1, "")]), ("*twelve", [(0, 0, "4c")]), ("mod", [])]
 
     -- modify existing track
-    let f = NoteTrack.cmd_val_edit Nothing
-            (NoteTrack.ExistingTrack 2 (Pitch.ScaleId "twelve"))
+    let f = NoteTrack.cmd_val_edit (NoteTrack.ExistingTrack 2 (UiTest.mk_tid 2))
         note_tracks = [(">i", [(0, 1, "")]), ("*", [(0, 0, "4d")])]
     -- both note and pitch get deleted
     equal (run note_tracks (f (mkkey Key.Backspace))) $
@@ -97,8 +84,8 @@ test_cmd_val_edit = do
     -- TODO later test chord input
 
 test_cmd_method_edit = do
-    let f = NoteTrack.cmd_method_edit Nothing
-            (NoteTrack.ExistingTrack 2 (Pitch.ScaleId ""))
+    let f = NoteTrack.cmd_method_edit
+            (NoteTrack.ExistingTrack 2 (UiTest.mk_tid 2))
         run track_specs cmd = run_sel track_specs cmd
         inst = (">i", [(0, 1, "")])
         note_track = [inst, ("*", [(0, 0, "4d")])]

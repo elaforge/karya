@@ -15,9 +15,7 @@ import Ui
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
-import qualified Cmd.Lang.LTrack as LTrack
 
-import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 
@@ -90,22 +88,19 @@ load inst_name = do
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
     track_id <- Cmd.require =<< State.event_track_at block_id tracknum
-    old_inst <- Cmd.require =<< fmap inst_type (LTrack.info block_id tracknum)
 
-    dealloc_instrument old_inst
+    -- TODO fix this, parse the title to look for an inst
+    -- old_inst <- Cmd.require =<< fmap inst_type (LTrack.info block_id tracknum)
+    -- dealloc_instrument old_inst
     dev <- Cmd.require_msg ("no device for " ++ show inst)  =<< device_of inst
     chan <- find_chan_for dev
     alloc_instrument inst [(dev, chan)]
 
     State.set_track_title track_id (TrackInfo.instrument_to_title inst)
     initialize inst chan
-    Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
-        ++ show (dev, chan) ++ " to " ++ show inst
-    where
-    inst_type (Schema.NoteTrack _, inst, _) = inst
-        -- maybe also accept control if there is just one inst
-        -- but then I'd need some way to know the track_id
-    inst_type _ = Nothing
+    Log.notice $ "allocating " ++ show (dev, chan) ++ " to " ++ show inst
+    -- Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
+    --     ++ show (dev, chan) ++ " to " ++ show inst
 
 
 -- * implementation
