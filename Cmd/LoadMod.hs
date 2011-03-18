@@ -48,7 +48,7 @@ create name ui_blocks = do
     let mkid = Id.id name
     (rid, track_rid) <- Create.ruler "meter_44"
         (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
-    block_ids <- mapM (uncurry (create_block mkid rid track_rid "ptq/c1"))
+    block_ids <- mapM (uncurry (create_block mkid rid track_rid ""))
         (zip [0..] ui_blocks)
     root <- create_order_block mkid rid track_rid block_ids
     State.set_root_id root
@@ -64,7 +64,8 @@ create_block mkid rid track_rid inst num ui_block =
 create_order_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId
     -> [BlockId] -> m BlockId
 create_order_block mkid rid track_rid block_ids =
-    make_block mkid rid track_rid "order" [("tempo", tempo), (">", events)]
+    make_block mkid rid track_rid "order"
+        [("tempo", tempo), (">ptq/c1", events), ("*twelve", [])]
     where
     tempo = [(0, Event.event ".1" 0)]
     events = [(n, Event.event (block_call bid) 1)
@@ -173,7 +174,7 @@ convert_pitch :: Note -> Maybe (String, String)
 convert_pitch (Note pitch _ _)
     | pitch == 0 = Nothing
     | otherwise =
-        Just ("*twelve", maybe "?" id (Map.lookup pitch degree_to_note))
+        Just ("*", maybe "?" id (Map.lookup pitch degree_to_note))
 
 convert_effect :: Effect -> Maybe (String, String)
 convert_effect (fx, arg)
