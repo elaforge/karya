@@ -1,6 +1,5 @@
 -- | Utilities for cmd tests.
 module Cmd.CmdTest where
-import qualified Control.Monad.Identity as Identity
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified System.IO.Unsafe as Unsafe
@@ -39,19 +38,17 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
 
 
-type CmdId = Cmd.CmdT Identity.Identity
-
 default_block_id = UiTest.default_block_id
 default_view_id = UiTest.default_view_id
 
 -- | Run cmd with the given tracks.
-run_tracks :: [UiTest.TrackSpec] -> CmdId a -> Result a
+run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_tracks track_specs = run ustate default_cmd_state
     where (_, ustate) = UiTest.run_mkview track_specs
 
 -- | Run a cmd and return everything you could possibly be interested in.
 -- Will be Nothing if the cmd aborted.
-run :: State.State -> Cmd.State -> CmdId a -> Result a
+run :: State.State -> Cmd.State -> Cmd.CmdId a -> Result a
 run ustate cstate cmd = case Cmd.run_id ustate cstate cmd of
     (cmd_state2, _midi_msgs, logs, result) -> case result of
         Left err -> Left (show err)
@@ -60,7 +57,7 @@ run ustate cstate cmd = case Cmd.run_id ustate cstate cmd of
 
 -- | Like 'run', but with a selection on track 1 at 0, and and note duration
 -- set to what will be a ScoreTime 1 with the ruler supplied by UiTest.
-run_sel :: TrackNum -> [UiTest.TrackSpec] -> CmdId a -> Result a
+run_sel :: TrackNum -> [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_sel tracknum track_specs cmd = run_tracks track_specs $ do
     -- Add one because UiTest inserts a rule at track 0.
     set_sel (tracknum+1) 0 (tracknum+1) 0
@@ -88,14 +85,14 @@ extract :: (val -> e_val) -> Result val -> Either String (Maybe e_val, [String])
 extract extract_val result = fmap ex (e_val result)
     where ex (val, logs) = (fmap extract_val val, map DeriveTest.show_log logs)
 
-eval :: State.State -> Cmd.State -> CmdId a -> a
+eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
 eval ustate cstate cmd = case run ustate cstate cmd of
     Left err -> error $ "eval got StateError: " ++ show err
     Right (Nothing, _, _, _) -> error $ "eval: cmd aborted"
     Right (Just val, _, _, _) -> val
 
 -- | Run several cmds, threading the state through.
-thread :: State.State -> Cmd.State -> [CmdId a]
+thread :: State.State -> Cmd.State -> [Cmd.CmdId a]
     -> Either String (State.State, Cmd.State)
 thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     where

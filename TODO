@@ -45,8 +45,7 @@ CURRENT
   - cmd to save and load cache to disk
   - fix LPitch.note_to_degree
 
-  - Cmd.CmdId is inconsistent with State.StateId
-    if I convert, don't forget to remove CmdTest.CmdId
+  * Cmd.CmdId is inconsistent with State.StateId
   * rename State.state_project_scale to default_scale
   - rename project to namespace
   - Derive.initial_state should get a default pitch from whatever scale is in

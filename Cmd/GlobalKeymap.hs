@@ -37,7 +37,6 @@
     events.
 -}
 module Cmd.GlobalKeymap where
-import qualified Control.Monad.Identity as Identity
 import qualified App.Config as Config
 
 import qualified Ui.Block as Block
@@ -111,7 +110,7 @@ player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
 
 -- | Quit is special because it's the only Cmd that returns Cmd.Quit.
 -- See how annoying it is to make a keymap by hand?
-quit_bindings :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]
+quit_bindings :: [Keymap.Binding (Cmd.CmdId)]
 quit_bindings = [(kspec, cspec) | kspec <- kspecs]
     where
     kspecs = [Keymap.key_spec mods (Keymap.Key (Key.KeyChar '\''))

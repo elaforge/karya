@@ -87,9 +87,11 @@ import qualified Perform.Pitch as Pitch
 -- | This makes Cmds more specific than they have to be, and doesn't let them
 -- run in other monads like IO.  It's unlikely to become a problem, but if it
 -- does, I'll have to stop using these aliases.
-type Cmd = Msg.Msg -> CmdId
+type Cmd = Msg.Msg -> CmdId Status
+type CmdId = CmdT Identity.Identity
+-- | Yes this is inconsistent with CmdId, but since IO is in the Prelude a type
+-- alias wouldn't help much.
 type CmdIO = CmdT IO Status
-type CmdId = CmdT Identity.Identity Status
 
 -- | Cmds used by the language system, which all run in Identity.
 type CmdL a = CmdT IO a
@@ -650,7 +652,7 @@ lookup_env block_id track_id name = do
 -- * basic cmds
 
 -- | Quit the app immediately.
-cmd_quit :: CmdId
+cmd_quit :: CmdId Status
 cmd_quit = return Quit
 
 -- | Log incoming msgs.

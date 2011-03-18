@@ -1,6 +1,4 @@
 module Cmd.Clip_test where
-import qualified Control.Monad.Identity as Identity
-
 import Util.Test
 import qualified Util.Log as Log
 
@@ -59,8 +57,8 @@ default_cmd_state = Cmd.empty_state
     }
 
 -- TODO there's no reason for this to be in IO
-run_io :: State.State -> Cmd.CmdT Identity.Identity a
-          -> IO (a, State.State, Cmd.State, [Log.Msg])
+run_io :: State.State -> Cmd.CmdId a
+    -> IO (a, State.State, Cmd.State, [Log.Msg])
 run_io ustate m = do
     return $ case run_clip ustate m of
         Right (res, ustate, cstate, msgs) -> case res of

@@ -358,7 +358,7 @@ hardcoded_io_cmds transport_info lang_session lang_dirs =
 
 
 -- | Get cmds according to the currently focused block and track.
-get_context_cmds :: Cmd.CmdT Identity.Identity Schema.ContextCmds
+get_context_cmds :: Cmd.CmdId Schema.ContextCmds
 get_context_cmds = do
     block_id <- Cmd.get_focused_block
     ustate <- State.get
