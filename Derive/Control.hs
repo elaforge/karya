@@ -49,12 +49,11 @@ d_control_track block_id track_id deriver = do
         return (TrackInfo.parse_control_expr (Track.track_title track))
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
-    eval_track block_id track_id expr ctype deriver
+    eval_track block_id track_id track expr ctype deriver
 
-eval_track :: BlockId -> TrackId -> TrackLang.Expr -> TrackInfo.ControlType
-    -> Derive.EventDeriver -> Derive.EventDeriver
-eval_track block_id track_id expr ctype deriver = do
-    track <- Derive.get_track track_id
+eval_track :: BlockId -> TrackId -> Track.Track -> TrackLang.Expr
+    -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
+eval_track block_id track_id track expr ctype deriver = do
     let events = Track.event_list (Track.track_events track)
     block_end <- Derive.get_block_dur block_id
     case ctype of
@@ -262,10 +261,10 @@ stash_signal track_id sig = do
         Nothing -> do
             signal <- case sig of
                 Left (_, deriver, smap) -> do
-                    sig <- Derive.setup_without_warp deriver
+                    sig <- Derive.in_real_time deriver
                     return $ Track.Pitch sig smap
                 Right (_, deriver) -> Track.Control . Signal.coerce <$>
-                    Derive.setup_without_warp deriver
+                    Derive.in_real_time deriver
             put_track_signal track_id (Track.TrackSignal signal 0 1)
 
 track_is_rendered :: TrackId -> Derive.Deriver Bool
