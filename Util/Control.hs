@@ -8,6 +8,7 @@ module Util.Control (
     , whenM, when_just, ifM
 
     , finally
+    , justm
 ) where
 import Control.Monad
 import qualified Control.Monad.Error.Class as Error
@@ -72,3 +73,11 @@ finally :: (Error.MonadError e m) => m a -> m () -> m a
 finally action handler =
     Error.catchError (action >>= \v -> handler >> return v) $
         \exc -> handler >> Error.throwError exc
+
+
+-- | This is sort of like a monad transformer, but the Maybe is on the inside
+-- instead of the outside.
+--
+-- What I really want here is MaybeT, but it requres explicit lifting...
+justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
+justm op1 op2 = maybe (return Nothing) op2 =<< op1

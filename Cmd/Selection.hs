@@ -418,13 +418,6 @@ lookup_selnum selnum =
     justm (State.get_selection view_id selnum) $ \sel ->
     return $ Just (view_id, sel)
 
--- | This is sort of like a monad transformer, but the Maybe is on the inside
--- instead of the outside.
---
--- What I really want here is MaybeT, but it requres explicit lifting...
-justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
-justm op1 op2 = maybe (return Nothing) op2 =<< op1
-
 -- ** selections in RealTime
 
 -- TODO too much hardcoded use of the focused selection means this might not
