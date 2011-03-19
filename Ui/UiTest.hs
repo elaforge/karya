@@ -91,7 +91,7 @@ mkstate_id block_id tracks = do
 mkstate_id_ruler :: (State.M m) => BlockId -> RulerId
     -> [TrackSpec] -> m [TrackId]
 mkstate_id_ruler block_id ruler_id tracks = do
-    State.set_project test_ns
+    State.set_namespace test_ns
     tids <- forM (zip [0..] tracks) $ \(i, track) ->
         State.create_track (Id.unpack_id (mk_tid_block block_id i))
             (mktrack track)

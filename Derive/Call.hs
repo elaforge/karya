@@ -585,7 +585,7 @@ lookup_val_call = lookup_with $ \scope -> case scope of
 lookup_block :: Derive.LookupCall Derive.NoteCall
 lookup_block (TrackLang.Symbol call_id) = do
     ui_state <- Derive.get_ui_state
-    let default_ns = State.state_project ui_state
+    let default_ns = State.state_namespace ui_state
         block_id = Types.BlockId (Id.make default_ns call_id)
     if block_id `Map.member` State.state_blocks ui_state
         then return $ Just $ c_block block_id

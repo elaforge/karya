@@ -59,10 +59,10 @@ import qualified App.Config as Config
 
 
 data State = State {
-    -- | The project name is used as the namespace of automatically created
-    -- IDs, so each project can import other projects without clashes.  The
-    -- save file is also derived from the project name.
-    state_project :: Id.Namespace
+    -- | The default namespace is used for automatically created IDs, so each
+    -- project can import other projects without clashes.  The save file is
+    -- also derived from the default namespace.
+    state_namespace :: Id.Namespace
     -- | Save into this directory by default.
     , state_project_dir :: String
     -- | Derivation can start from any block, but it's useful to know which
@@ -92,7 +92,7 @@ data State = State {
 -- TODO "initial_state" would be more consistent
 empty :: State
 empty = State {
-    state_project = "untitled"
+    state_namespace = "untitled"
     , state_project_dir = "save"
     , state_root = Nothing
     , state_views = Map.empty
@@ -390,11 +390,11 @@ verify_block block = do
     mapM_ get_track (Block.block_track_ids block)
     mapM_ get_ruler (Block.block_ruler_ids block)
 
-get_project :: (M m) => m Id.Namespace
-get_project = gets state_project
+get_namespace :: (M m) => m Id.Namespace
+get_namespace = gets state_namespace
 
-set_project :: (M m) => Id.Namespace -> m ()
-set_project ns = modify $ \st -> st { state_project = ns }
+set_namespace :: (M m) => Id.Namespace -> m ()
+set_namespace ns = modify $ \st -> st { state_namespace = ns }
 
 get_midi_config :: (M m) => m Instrument.Config
 get_midi_config = gets state_midi_config

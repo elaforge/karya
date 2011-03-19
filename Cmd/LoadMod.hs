@@ -44,7 +44,7 @@ import Util.Test
 
 create :: (State.M m) => String -> [UiBlock] -> m ()
 create name ui_blocks = do
-    State.set_project name
+    State.set_namespace name
     let mkid = Id.id name
     (rid, track_rid) <- Create.ruler "meter_44"
         (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])

@@ -53,7 +53,7 @@ merge_all block_id = do
 
 cmd_open_block :: (Cmd.M m) => m ()
 cmd_open_block = do
-    ns <- State.get_project
+    ns <- State.get_namespace
     let call_of = NoteTrack.block_call ns
     sel <- Selection.events
     forM_ sel $ \(_, _, events) -> forM_ events $ \(_, event) ->

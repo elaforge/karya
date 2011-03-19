@@ -348,7 +348,7 @@ redo = do
 -- them from the old state: Block and view configs.
 merge_undo_states :: State.State -> State.State -> State.State
 merge_undo_states old new = new {
-    State.state_project = State.state_project old
+    State.state_namespace = State.state_namespace old
     , State.state_project_dir = State.state_project_dir old
     , State.state_views = Map.mapWithKey
         (merge_view (State.state_views old)) (State.state_views new)
@@ -401,6 +401,6 @@ initialize_state = do
 sync_global_status :: (Cmd.M m) => m ()
 sync_global_status = do
     st <- State.get
-    Cmd.set_global_status "project" (State.state_project st)
+    Cmd.set_global_status "project" (State.state_namespace st)
     let (Pitch.ScaleId scale) = State.state_default_scale st
     Cmd.set_global_status "scale" scale

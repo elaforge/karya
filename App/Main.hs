@@ -103,7 +103,7 @@ parse_args argv = case argv of
     ["mod", fn] -> load_mod fn
     ["-a"] -> do
         Save.cmd_load "save/default"
-        State.set_project "untitled"
+        State.set_namespace "untitled"
         return Cmd.Done
     [fn] -> do
         Save.cmd_load fn

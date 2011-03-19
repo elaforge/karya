@@ -40,9 +40,9 @@ import qualified App.Config as Config
 -- new one.
 rename_project :: (State.M m) => Id.Namespace -> m ()
 rename_project ns = do
-    old_ns <- State.get_project
+    old_ns <- State.get_namespace
     renamespace old_ns ns
-    State.set_project ns
+    State.set_namespace ns
 
 -- | Rename all IDs in namespace @from@ to @to@.
 renamespace :: (State.M m) => Id.Namespace -> Id.Namespace -> m ()
@@ -115,7 +115,7 @@ block_from_template include_tracks = do
 -- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
 block :: (Cmd.M m) => RulerId -> m BlockId
 block ruler_id = do
-    ns <- State.get_project
+    ns <- State.get_namespace
     blocks <- State.gets State.state_blocks
     block_id <- require "block id" $ generate_block_id ns blocks
     b <- Cmd.create_block block_id ""
@@ -126,7 +126,7 @@ block ruler_id = do
 -- sub-derived.
 named_block :: (Cmd.M m) => String -> RulerId -> m BlockId
 named_block name ruler_id = do
-    ns <- State.get_project
+    ns <- State.get_namespace
     b <- Cmd.create_block (Id.id ns name) ""
         [Block.block_track (Block.RId ruler_id) Config.ruler_width]
     return b
@@ -348,7 +348,7 @@ ruler name ruler = do
 
 make_id :: (State.M m) => String -> m Id.Id
 make_id name = do
-    ns <- State.get_project
+    ns <- State.get_namespace
     return (Id.id ns name)
 
 -- | An overlay versions of a ruler has id ruler_id ++ suffix.

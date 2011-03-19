@@ -17,7 +17,7 @@ import qualified Cmd.Serialize as Serialize
 get_save_file :: (Cmd.M m) => m FilePath
 get_save_file = do
     dir <- State.gets State.state_project_dir
-    ns <- State.get_project
+    ns <- State.get_namespace
     return $ FilePath.combine dir (map sanitize ns)
     where sanitize c = if FilePath.isPathSeparator c then '_' else c
 
