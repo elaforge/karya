@@ -209,17 +209,29 @@ get_scale_id = Derive.require_val TrackLang.v_scale
 
 with_scale :: Derive.Scale -> Derive.Deriver d -> Derive.Deriver d
 with_scale scale = Derive.with_val TrackLang.v_scale (Scale.scale_id scale)
-    . Derive.with_scopes [Derive.ValScope (lookup_scale_val scale)]
+    . Derive.with_scope (\scope ->
+        scope { Derive.scope_val = set (Derive.scope_val scope) })
+    where set stype = stype { Derive.stype_scale = [lookup_scale_val scale] }
 
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val TrackLang.v_instrument
 
-with_instrument :: Score.Instrument -> Derive.Deriver d
-    -> Derive.Deriver d
+with_instrument :: Score.Instrument -> Derive.Deriver d -> Derive.Deriver d
 with_instrument inst deriver = do
-    scopes <- lookup_instrument_scopes inst
+    lookup_inst_calls <- Derive.gets
+        (Derive.state_instrument_calls . Derive.state_constant)
+    let inst_calls = maybe (Derive.InstrumentCalls [] []) id
+            (lookup_inst_calls inst)
     Derive.with_val TrackLang.v_instrument inst
-        (Derive.with_scopes scopes deriver)
+        (Derive.with_scope (with_scope inst_calls) deriver)
+    where
+    -- Replace the calls in the instrument scope type.
+    with_scope (Derive.InstrumentCalls notes vals) scope = scope
+        { Derive.scope_val = set_val vals (Derive.scope_val scope)
+        , Derive.scope_note = set_note notes (Derive.scope_note scope)
+        }
+    set_val vals stype = stype { Derive.stype_instrument = vals }
+    set_note notes stype = stype { Derive.stype_instrument = notes }
 
 -- | Derive with transformed Attributes.
 with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
@@ -562,25 +574,17 @@ c_equal = Derive.transformer "equal" $ \args deriver ->
 -- everything else with that name.
 lookup_note_call :: Derive.LookupCall Derive.NoteCall
 lookup_note_call call_id = do
-    lookups <- get_scopes $ \scope -> case scope of
-        Derive.NoteScope lookup -> Just lookup
-        _ -> Nothing
+    lookups <- get_scopes Derive.scope_note
     lookup_scopes (lookup_block : lookups) call_id
 
 lookup_control_call :: Derive.LookupCall Derive.ControlCall
-lookup_control_call = lookup_with $ \scope -> case scope of
-    Derive.ControlScope lookup -> Just lookup
-    _ -> Nothing
+lookup_control_call = lookup_with Derive.scope_control
 
 lookup_pitch_call :: Derive.LookupCall Derive.PitchCall
-lookup_pitch_call = lookup_with $ \scope -> case scope of
-    Derive.PitchScope lookup -> Just lookup
-    _ -> Nothing
+lookup_pitch_call = lookup_with Derive.scope_pitch
 
 lookup_val_call :: Derive.LookupCall Derive.ValCall
-lookup_val_call = lookup_with $ \scope -> case scope of
-    Derive.ValScope lookup -> Just lookup
-    _ -> Nothing
+lookup_val_call = lookup_with Derive.scope_val
 
 lookup_block :: Derive.LookupCall Derive.NoteCall
 lookup_block (TrackLang.Symbol call_id) = do
@@ -596,28 +600,21 @@ lookup_scale_val scale call_id =
     return $ Scale.scale_note_to_call scale (to_note call_id)
     where to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
--- | Find the scopes that an instrument should bring into scope.
-lookup_instrument_scopes :: Score.Instrument -> Derive.Deriver [Derive.Scope]
-lookup_instrument_scopes inst = do
-    inst_calls <- Derive.gets
-        (Derive.state_instrument_calls . Derive.state_constant)
-    return $ case inst_calls inst of
-        Nothing -> []
-        Just (Derive.InstrumentCalls note_calls val_calls) ->
-            map Derive.NoteScope note_calls ++ map Derive.ValScope val_calls
-
-lookup_with :: (Derive.Scope -> Maybe (Derive.LookupCall call))
+lookup_with :: (Derive.Scope -> Derive.ScopeType call)
     -> Derive.LookupCall call
 lookup_with get call_id = do
     lookups <- get_scopes get
     lookup_scopes lookups call_id
 
-get_scopes :: (Derive.Scope -> Maybe (Derive.LookupCall call))
+get_scopes :: (Derive.Scope -> Derive.ScopeType call)
     -> Derive.Deriver [Derive.LookupCall call]
 get_scopes get = do
-    scopes <- Derive.gets Derive.state_scopes
-    return $ Seq.map_maybe get scopes
+    Derive.ScopeType inst scale builtin <-
+        get <$> Derive.gets Derive.state_scope
+    return $ inst ++ scale ++ builtin
 
+-- | Convert a list of lookups into a single lookup by returning the first
+-- one to yield a Just.
 lookup_scopes :: [Derive.LookupCall call] -> Derive.LookupCall call
 lookup_scopes [] _ = return Nothing
 lookup_scopes (lookup:rest) call_id =

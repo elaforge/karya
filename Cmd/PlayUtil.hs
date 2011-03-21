@@ -80,10 +80,10 @@ derive derive_cache damage block_id = do
     inst_calls <- get_lookup_inst_calls
     let constant = Derive.initial_constant ui_state
             (Schema.lookup_deriver schema_map ui_state) lookup_scale inst_calls
-    scopes <- Cmd.gets Cmd.state_global_scopes
+    scope <- Cmd.gets Cmd.state_global_scope
     let env = initial_environ (State.state_default_scale ui_state)
             (State.state_default_inst ui_state)
-    return $ Derive.derive constant scopes derive_cache damage env
+    return $ Derive.derive constant scope derive_cache damage env
         (Call.eval_root_block block_id)
 
 get_lookup_inst_calls :: (Cmd.M m) =>

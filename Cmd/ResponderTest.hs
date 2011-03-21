@@ -37,7 +37,7 @@ mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.
 mk_cmd_state view_id = (Cmd.initial_state DeriveTest.default_db Map.empty
-    DeriveTest.default_scopes)
+    DeriveTest.default_scope)
         { Cmd.state_focused_view = Just view_id }
 
 -- | It would be nicer to have this happen automatically.

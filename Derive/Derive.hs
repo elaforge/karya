@@ -188,7 +188,7 @@ data State = State {
     , state_environ :: !TrackLang.Environ
     , state_warp :: !Score.Warp
     -- | Stack of calls currently in scope.
-    , state_scopes :: ![Scope]
+    , state_scope :: !Scope
 
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
@@ -207,9 +207,9 @@ data State = State {
     , state_constant :: !Constant
     }
 
-initial_state :: [Scope] -> Cache -> ScoreDamage -> TrackLang.Environ
+initial_state :: Scope -> Cache -> ScoreDamage -> TrackLang.Environ
     -> Constant -> State
-initial_state scopes cache score_damage environ constant = State
+initial_state scope cache score_damage environ constant = State
     { state_controls = initial_controls
     , state_pitches = Map.empty
     , state_pitch = PitchSignal.constant
@@ -217,7 +217,7 @@ initial_state scopes cache score_damage environ constant = State
 
     , state_environ = environ
     , state_warp = Score.id_warp
-    , state_scopes = scopes
+    , state_scope = scope
     , state_stack = Stack.empty
     , state_log_context = []
 
@@ -226,23 +226,58 @@ initial_state scopes cache score_damage environ constant = State
     , state_constant = constant
     }
 
+-- ** scope
+
+-- | This represents all calls in scope.  Different types of calls are in scope
+-- depending on the track type, except ValCalls, which are in scope everywhere.
+-- This is dynamic scope, not lexical scope.
+data Scope = Scope {
+    scope_note :: !(ScopeType NoteCall)
+    , scope_control :: !(ScopeType ControlCall)
+    , scope_pitch :: !(ScopeType PitchCall)
+    , scope_val :: !(ScopeType ValCall)
+    } deriving (Show)
+
+empty_scope :: Scope
+empty_scope = Scope empty_scope_type empty_scope_type empty_scope_type
+    empty_scope_type
+
+-- | An instrument or scale may put calls into scope.  If that instrument
+-- or scale is replaced with another, the old calls must be replaced with
+-- the new ones.
+--
+-- This is hard-coded for the types of scopes I currently use.  It would be
+-- more general to make this a Map from symbol to scopes, but since I only
+-- have three types at the moment, this is simpler.
+data ScopeType call = ScopeType {
+    stype_instrument :: ![LookupCall call]
+    , stype_scale :: ![LookupCall call]
+    , stype_builtin :: ![LookupCall call]
+    }
+
+empty_scope_type :: ScopeType call
+empty_scope_type = ScopeType [] [] []
+
+instance Show (ScopeType call) where
+    show (ScopeType inst scale builtin) =
+        "((ScopeType" ++ n inst ++ n scale ++ n builtin ++ "))"
+        where n = (" "++) . show . length
+
+-- | For flexibility, a scope is represented not by a map from symbols to
+-- derivers, but a function.  That way, it can inspect the CallId and return
+-- an appropriate call, as is the case for some scales.
+--
+-- It's in Deriver because this same type is used for at the top-level track
+-- derivation lookup, so it needs to look in the environment for the Scope.
+-- The lookup itself presumably won't use Deriver and will just be a return, as
+-- in 'make_lookup' or 'Derive.Call.lookup_scale_val'.
 type LookupCall call = TrackLang.CallId -> Deriver (Maybe call)
 
-data Scope =
-    NoteScope (LookupCall NoteCall)
-    | ControlScope (LookupCall ControlCall)
-    | PitchScope (LookupCall PitchCall)
-    | ValScope (LookupCall ValCall)
-
-instance Show Scope where
-    show scope = case scope of
-        NoteScope {} -> "((NoteScope))"
-        ControlScope {} -> "((ControlScope))"
-        PitchScope {} -> "((PitchScope))"
-        ValScope {} -> "((ValScope))"
-
+-- | In the common case, a scope is simply a static map.
 make_lookup :: Map.Map TrackLang.CallId call -> LookupCall call
 make_lookup cmap call_id = return $ Map.lookup call_id cmap
+
+-- ** constant
 
 data Constant = Constant {
     state_ui :: State.State
@@ -610,16 +645,16 @@ data Result = Result {
 --
 -- The derivation state is quite involved, so there are a lot of arguments
 -- here.
-derive :: Constant -> [Scope] -> Cache -> ScoreDamage -> TrackLang.Environ
+derive :: Constant -> Scope -> Cache -> ScoreDamage -> TrackLang.Environ
     -> EventDeriver -> Result
-derive constant scopes cache damage environ deriver =
+derive constant scope cache damage environ deriver =
     Result (merge_logs result logs) (state_cache (state_cache_state state))
         event_damage tempo_func closest_func inv_tempo_func
         (collect_track_signals collect) (collect_track_environ collect)
         state
     where
     (result, state, logs) =
-        run (initial_state scopes clean_cache damage environ constant) deriver
+        run (initial_state scope clean_cache damage environ constant) deriver
     clean_cache = clear_damage damage cache
     collect = state_collect state
     warps = TrackWarp.collections (collect_warp_map collect)
@@ -1054,9 +1089,11 @@ modify_pitch f (Just name) signal = local
     alter Nothing = Just signal
     alter (Just old) = Just (f old signal)
 
-with_scopes :: [Scope] -> Deriver a -> Deriver a
-with_scopes scopes = local state_scopes (\old st -> st { state_scopes = old })
-    (\st -> return $ st { state_scopes = scopes ++ state_scopes st })
+-- | Run the derivation with a modified scope.
+with_scope :: (Scope -> Scope) -> Deriver a -> Deriver a
+with_scope modify_scope =
+    local state_scope (\old st -> st { state_scope = old })
+    (\st -> return $ st { state_scope = modify_scope (state_scope st) })
 
 -- *** specializations
 

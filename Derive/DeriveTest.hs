@@ -66,7 +66,7 @@ run ui_state m =
     -- Make sure Derive.get_current_block_id, called by add_track_warp, doesn't
     -- throw.
     initial_stack = Stack.make [Stack.Block (UiTest.bid "fakeblock")]
-    derive_state = (Derive.initial_state default_scopes mempty
+    derive_state = (Derive.initial_state default_scope mempty
         mempty default_environ (default_constant ui_state))
             { Derive.state_stack = initial_stack }
 
@@ -156,7 +156,7 @@ derive_block_with with ui_state block_id = derive ui_state deriver
 
 derive :: State.State -> Derive.EventDeriver -> Derive.Result
 derive ui_state deriver =
-    Derive.derive (default_constant ui_state) default_scopes
+    Derive.derive (default_constant ui_state) default_scope
         mempty mempty default_environ deriver
 
 type Transform a = Derive.Deriver a -> Derive.Deriver a
@@ -172,7 +172,7 @@ derive_block_cache cache damage ui_state block_id =
 derive_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> Derive.EventDeriver -> Derive.Result
 derive_cache cache damage ui_state deriver =
-    Derive.derive (default_constant ui_state) default_scopes cache damage
+    Derive.derive (default_constant ui_state) default_scope cache damage
         default_environ deriver
 
 
@@ -185,8 +185,8 @@ set_defaults = State.set_midi_config default_midi_config
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale scale_id = Map.lookup scale_id Scale.All.scales
 
-default_scopes :: [Derive.Scope]
-default_scopes = Call.All.scopes
+default_scope :: Derive.Scope
+default_scope = Call.All.scope
 
 default_environ :: TrackLang.Environ
 default_environ = Map.fromList

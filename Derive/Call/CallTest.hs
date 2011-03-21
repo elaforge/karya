@@ -48,13 +48,20 @@ run_control events = extract $ DeriveTest.derive_tracks_tempo
 
 with_note_call :: String -> Derive.NoteCall
     -> Derive.Deriver a -> Derive.Deriver a
-with_note_call name call =
-    Derive.with_scopes [Derive.NoteScope (single_lookup name call)]
+with_note_call name call = Derive.with_scope $ \scope -> scope
+    { Derive.scope_note =
+        add_builtin (single_lookup name call) (Derive.scope_note scope) }
 
 with_val_call :: String -> Derive.ValCall
     -> Derive.Deriver a -> Derive.Deriver a
-with_val_call name call =
-    Derive.with_scopes [Derive.ValScope (single_lookup name call)]
+with_val_call name call = Derive.with_scope $ \scope -> scope
+    { Derive.scope_val =
+        add_builtin (single_lookup name call) (Derive.scope_val scope) }
+
+add_builtin :: Derive.LookupCall call -> Derive.ScopeType call
+    -> Derive.ScopeType call
+add_builtin lookup stype =
+    stype { Derive.stype_builtin = lookup : Derive.stype_builtin stype }
 
 single_lookup name call call_id
     | TrackLang.Symbol name == call_id = return $ Just call

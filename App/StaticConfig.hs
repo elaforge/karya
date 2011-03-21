@@ -28,7 +28,7 @@ data StaticConfig = StaticConfig {
     , config_global_cmds :: [Msg.Msg -> Cmd.CmdIO]
 
     -- | Default global namespace for deriver calls.
-    , config_global_scopes :: [Derive.Scope]
+    , config_global_scope :: Derive.Scope
 
     -- | Run this on startup, given the app's argv.  It can set up an initial
     -- block, load a given file, or do nothing.
@@ -58,7 +58,7 @@ empty = StaticConfig {
     , config_schema_map = Map.empty
     , config_local_lang_dirs = []
     , config_global_cmds = []
-    , config_global_scopes = []
+    , config_global_scope = Derive.empty_scope
     , config_setup_cmd = const (return Cmd.Done)
     , config_read_device_map = Map.empty
     , config_write_device_map = Map.empty

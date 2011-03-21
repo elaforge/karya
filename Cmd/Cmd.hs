@@ -227,7 +227,7 @@ data State = State {
     state_instrument_db :: Instrument.Db.Db
     , state_schema_map :: SchemaMap
     -- | Global namespace for deriver.
-    , state_global_scopes :: [Derive.Scope]
+    , state_global_scope :: Derive.Scope
     -- | Turn ScaleIds into Scales.
     , state_lookup_scale :: LookupScale
     -- | Copies by default go to a block+tracks with this project.
@@ -280,10 +280,10 @@ data State = State {
     , state_play_step :: TimeStep.TimeStep
     } deriving (Show, Generics.Typeable)
 
-initial_state inst_db schema_map global_scopes = State {
+initial_state inst_db schema_map global_scope = State {
     state_instrument_db = inst_db
     , state_schema_map = schema_map
-    , state_global_scopes = global_scopes
+    , state_global_scope = global_scope
     -- TODO later this should also be merged with static config
     , state_lookup_scale = LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
@@ -309,7 +309,7 @@ initial_state inst_db schema_map global_scopes = State {
     }
 
 empty_state :: State
-empty_state = initial_state Instrument.Db.empty Map.empty []
+empty_state = initial_state Instrument.Db.empty Map.empty Derive.empty_scope
 
 -- | Reset the parts of the State which are specific to a \"session\".  This
 -- should be called whenever an entirely new state is loaded.

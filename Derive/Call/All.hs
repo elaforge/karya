@@ -11,15 +11,16 @@ import qualified Derive.Call.Echo as Echo
 import qualified Derive.Call.Rambat as Rambat
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Idiom.String as String
+import qualified Derive.TrackLang as TrackLang
 
 
-scopes :: [Derive.Scope]
-scopes =
-    [ Derive.NoteScope $ Derive.make_lookup note_calls
-    , Derive.ControlScope $ Derive.make_lookup control_calls
-    , Derive.PitchScope $ Derive.make_lookup pitch_calls
-    , Derive.ValScope $ Derive.make_lookup val_calls
-    ]
+scope :: Derive.Scope
+scope = Derive.Scope (make_lookup note_calls) (make_lookup control_calls)
+    (make_lookup pitch_calls) (make_lookup val_calls)
+
+make_lookup :: Map.Map TrackLang.CallId call -> Derive.ScopeType call
+make_lookup cmap = Derive.empty_scope_type
+    { Derive.stype_builtin = [Derive.make_lookup cmap] }
 
 note_calls :: Derive.NoteCallMap
 note_calls = Map.unions [Note.note_calls, Echo.note_calls, Rambat.note_calls,
