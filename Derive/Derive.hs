@@ -31,6 +31,15 @@
     When 'Derive.Score.Event's are emitted they are also given the stack at the
     time of their derivation.  If there is a problem in performance, log msgs
     still have access to the stack.
+
+    TODO This module is way too big.  Unfortunately it's hard to split up
+    because of circular imports.  Anyone who directly or indirectly needs
+    Deriver (e.g. calls) needs to import Derive.  However, anything directly
+    or indirectly used by State must be imported by Derive.  Since State
+    is the central type that must hold anything that persists beyond the
+    evaluation of a single note, that winds up being a lot.  At one point I
+    tried to reign in the madness with hs-boot files, but that's an iatrogenic
+    cure since the hs-boot madness is worse.
 -}
 module Derive.Derive where
 import Prelude hiding (error)
@@ -296,9 +305,8 @@ data InstrumentCalls =
     InstrumentCalls [LookupCall NoteCall] [LookupCall ValCall]
 
 instance Show InstrumentCalls where
-    show (InstrumentCalls nlookups vlookups) = "((InstrumentCalls nlookups "
-        ++ show (length nlookups) ++ " vlookups " ++ show (length vlookups)
-        ++ "))"
+    show (InstrumentCalls nlookups vlookups) = "((InstrumentCalls note "
+        ++ show (length nlookups) ++ " val " ++ show (length vlookups) ++ "))"
 
 initial_constant :: State.State -> LookupDeriver -> LookupScale
     -> (Score.Instrument -> Maybe InstrumentCalls) -> Constant
@@ -653,8 +661,8 @@ derive constant scope cache damage environ deriver =
         (collect_track_signals collect) (collect_track_environ collect)
         state
     where
-    (result, state, logs) =
-        run (initial_state scope clean_cache damage environ constant) deriver
+    (result, state, logs) = run initial (with_inital_scope environ deriver)
+    initial = initial_state scope clean_cache damage environ constant
     clean_cache = clear_damage damage cache
     collect = state_collect state
     warps = TrackWarp.collections (collect_warp_map collect)
@@ -663,6 +671,19 @@ derive constant scope cache damage environ deriver =
     inv_tempo_func = TrackWarp.inverse_tempo_func warps
     event_damage = state_event_damage (state_cache_state state)
         <> score_to_event_damage warps damage
+
+-- | Given an environ, bring instrument and scale calls into scope.
+with_inital_scope :: TrackLang.Environ -> Deriver d -> Deriver d
+with_inital_scope env deriver = set_inst (set_scale deriver)
+    where
+    set_inst = case TrackLang.lookup_val TrackLang.v_instrument env of
+        Right inst -> with_instrument inst
+        _ -> id
+    set_scale = case TrackLang.lookup_val TrackLang.v_scale env of
+        Right scale_id -> \deriver -> do
+            scale <- get_scale scale_id
+            with_scale scale deriver
+        _ -> id
 
 -- | Convert ScoreDamage into EventDamage.
 --
@@ -949,7 +970,6 @@ insert_environ name val environ =
             ++ ", expected " ++ Pretty.pretty typ
         Right environ2 -> return environ2
 
-
 -- | Figure out the current block and track, and record the current environ
 -- in the Collect.  This should be called only once per track.
 record_track_environ :: State -> Collect
@@ -970,6 +990,31 @@ record_track_environ state = case stack of
     collect = state_collect state
     insert bid tid = Map.insert (bid, tid) (state_environ state)
         (collect_track_environ collect)
+
+with_scale :: Scale -> Deriver d -> Deriver d
+with_scale scale = with_val TrackLang.v_scale (scale_id scale)
+    . with_scope (\scope -> scope { scope_val = set (scope_val scope) })
+    where
+    set stype = stype { stype_scale = [lookup_scale_val scale] }
+    lookup_scale_val :: Scale -> LookupCall ValCall
+    lookup_scale_val scale call_id =
+        return $ scale_note_to_call scale (to_note call_id)
+        where to_note (TrackLang.Symbol sym) = Pitch.Note sym
+
+with_instrument :: Score.Instrument -> Deriver d -> Deriver d
+with_instrument inst deriver = do
+    lookup_inst_calls <- gets (state_instrument_calls . state_constant)
+    let inst_calls = maybe (InstrumentCalls [] []) id (lookup_inst_calls inst)
+    with_val TrackLang.v_instrument inst
+        (with_scope (set_scope inst_calls) deriver)
+    where
+    -- Replace the calls in the instrument scope type.
+    set_scope (InstrumentCalls notes vals) scope = scope
+        { scope_val = set_val vals (scope_val scope)
+        , scope_note = set_note notes (scope_note scope)
+        }
+    set_val vals stype = stype { stype_instrument = vals }
+    set_note notes stype = stype { stype_instrument = notes }
 
 -- *** control
 

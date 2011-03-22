@@ -126,10 +126,10 @@ pitch_call block_end track_id maybe_name ptype track_expr events deriver =
             TrackInfo.PitchRelative _ -> do
                 -- TODO previously I mangled the scale to set the octave, but
                 -- I can't do that now unless I put it in the ScaleId
-                return (Call.with_scale Relative.scale, Relative.scale)
+                return (Derive.with_scale Relative.scale, Relative.scale)
             TrackInfo.PitchAbsolute (Just scale_id) -> do
                 scale <- Derive.get_scale scale_id
-                return (Call.with_scale scale, scale)
+                return (Derive.with_scale scale, scale)
             TrackInfo.PitchAbsolute Nothing -> do
                 scale <- Call.get_scale
                 return (id, scale)

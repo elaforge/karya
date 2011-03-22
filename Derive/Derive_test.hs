@@ -293,6 +293,30 @@ test_tempo_compose = do
 
     -- TODO test when the subblock has a tempo too
 
+test_initial_environ = do
+    let extract = DeriveTest.extract
+            (PitchSignal.unsignal_degree . Score.event_pitch)
+    let run title pitch = extract $ DeriveTest.derive_tracks
+            [ (">", [(0, 1, "")])
+            , (title, [(0, 0, pitch)])
+            ]
+    -- picks up scale from initial environ
+    equal (run "*" "3c") ([[(0, 48)]], [])
+    -- calls replaced by semar calls
+    equal (run "*semar" "3c") ([[]], ["DeriveError: pitch call not found: 3c"])
+    -- just make sure semar actually works
+    equal (run "*semar" "1") ([[(0, 60)]], [])
+
+    -- I'd like to test inst, but it's just too hard.  I would have to get
+    -- DeriveTest.default_constant to get the inst lookup like
+    -- Cmd.PlayUtil.get_lookup_inst_calls
+    -- let env inst = Map.insert TrackLang.v_instrument
+    --         (TrackLang.VInstrument (Score.Instrument inst))
+    --         (DeriveTest.default_environ)
+    -- DeriveTest.derive_tracks_with (Derive.with_inital_scope (env "dmx/x"))
+    --         [ (">", [(0, 1, "sn")])
+    --         ]
+
 -- show_log msg
 --     | null (Log.msg_signal msg) = Log.format_msg msg
 --     | otherwise = "*** " ++ Log.msg_string msg ++ "\n"

@@ -207,31 +207,8 @@ lookup_scale = Derive.lookup_scale =<< get_scale_id
 get_scale_id :: Derive.Deriver Pitch.ScaleId
 get_scale_id = Derive.require_val TrackLang.v_scale
 
-with_scale :: Derive.Scale -> Derive.Deriver d -> Derive.Deriver d
-with_scale scale = Derive.with_val TrackLang.v_scale (Scale.scale_id scale)
-    . Derive.with_scope (\scope ->
-        scope { Derive.scope_val = set (Derive.scope_val scope) })
-    where set stype = stype { Derive.stype_scale = [lookup_scale_val scale] }
-
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val TrackLang.v_instrument
-
-with_instrument :: Score.Instrument -> Derive.Deriver d -> Derive.Deriver d
-with_instrument inst deriver = do
-    lookup_inst_calls <- Derive.gets
-        (Derive.state_instrument_calls . Derive.state_constant)
-    let inst_calls = maybe (Derive.InstrumentCalls [] []) id
-            (lookup_inst_calls inst)
-    Derive.with_val TrackLang.v_instrument inst
-        (Derive.with_scope (with_scope inst_calls) deriver)
-    where
-    -- Replace the calls in the instrument scope type.
-    with_scope (Derive.InstrumentCalls notes vals) scope = scope
-        { Derive.scope_val = set_val vals (Derive.scope_val scope)
-        , Derive.scope_note = set_note notes (Derive.scope_note scope)
-        }
-    set_val vals stype = stype { Derive.stype_instrument = vals }
-    set_note notes stype = stype { Derive.stype_instrument = notes }
 
 -- | Derive with transformed Attributes.
 with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
@@ -594,11 +571,6 @@ lookup_block (TrackLang.Symbol call_id) = do
     if block_id `Map.member` State.state_blocks ui_state
         then return $ Just $ c_block block_id
         else return Nothing
-
-lookup_scale_val :: Derive.Scale -> Derive.LookupCall Derive.ValCall
-lookup_scale_val scale call_id =
-    return $ Scale.scale_note_to_call scale (to_note call_id)
-    where to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 lookup_with :: (Derive.Scope -> Derive.ScopeType call)
     -> Derive.LookupCall call
