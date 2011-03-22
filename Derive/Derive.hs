@@ -222,7 +222,8 @@ initial_state scope cache score_damage environ constant = State
     { state_controls = initial_controls
     , state_pitches = Map.empty
     , state_pitch = PitchSignal.constant
-        (State.state_default_scale (state_ui constant)) Pitch.middle_degree
+        (State.state_default_scale (state_ui constant))
+        (PitchSignal.Degree Signal.invalid_pitch)
 
     , state_environ = environ
     , state_warp = Score.id_warp

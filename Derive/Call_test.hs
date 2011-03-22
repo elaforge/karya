@@ -62,6 +62,7 @@ test_c_equal = do
 test_assign_controls = do
     let run inst_title cont_title val = extract $ DeriveTest.derive_tracks
             [ (inst_title, [(0, 1, "")])
+            , ("*twelve", [(0, 0, "4c")])
             , (cont_title, [(0, 0, val)])
             ]
         extract = DeriveTest.extract e_event

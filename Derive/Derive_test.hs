@@ -18,6 +18,7 @@ import qualified Midi.Midi as Midi
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -396,8 +397,11 @@ test_real_to_score = do
 test_d_control_at = do
     let controls = Map.fromList [(Score.Control "cont",
             Signal.signal [(0, 1), (2, 2), (4, 0)])]
-    let set_controls = Derive.modify $ \st ->
-            st { Derive.state_controls = controls }
+        psig = PitchSignal.signal Twelve.scale_id [(0, (60, 60, 0))]
+    let set_controls = Derive.modify $ \st -> st
+            { Derive.state_controls = controls
+            , Derive.state_pitch = psig
+            }
     let run op = DeriveTest.extract_run extract $
             DeriveTest.run State.empty (set_controls >> op get)
             where
@@ -492,6 +496,7 @@ test_overlapping_controls = do
     -- up in its own channel.
     let res = DeriveTest.derive_tracks
             [ (inst_title, [(0, 1, ""), (1, 1, "")])
+            , ("*twelve", [(0, 0, "4c")])
             , ("cc1", [(0, 0, "0"), (1, 0, "1")])
             ]
     let (_, mmsgs, _) = DeriveTest.perform_defaults (Derive.r_events res)
@@ -508,6 +513,7 @@ test_overlapping_controls = do
     -- Event is far enough away for the control to not interfere.
     let res = DeriveTest.derive_tracks
             [ (inst_title, [(0, 1, ""), (5, 1, "")])
+            , ("*twelve", [(0, 0, "4c")])
             , ("cc1", [(0, 0, "0"), (5, 0, "1")])
             ]
     let (_, mmsgs, _) = DeriveTest.perform_defaults (Derive.r_events res)
