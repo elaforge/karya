@@ -30,7 +30,10 @@ public:
                 DPoint align = DPoint()) :
             utf8(utf8), font(font), size(size),
             align_x(align.x), align_y(align.y)
-        {}
+        {
+            // Make sure font_not_found doesn't creep in.
+            ASSERT(font >= 0);
+        }
         // This is owned by the glyph and must be freed explicitly.
         const char *utf8;
         Font font;

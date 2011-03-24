@@ -376,6 +376,18 @@ pitch_track_signal()
     return ts;
 }
 
+static void
+show_fonts()
+{
+    SymbolTable *t = SymbolTable::table();
+    char **fonts = t->fonts();
+    for (int i = 0; fonts[i]; i++) {
+        printf("%s\n", fonts[i]);
+        free(fonts[i]);
+    }
+    free(fonts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -475,7 +487,7 @@ main(int argc, char **argv)
     // xie2 radical, slant of dai4, CJK STROKE XG
     // radicals are at +31c0
     t->insert("xie", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xe3\x87\x82", t->font("LiSongPro"), 4)));
+        SymbolTable::Glyph("\xe3\x87\x82", t->font("LiSong Pro"), 4)));
 
     t->insert("1.", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
@@ -485,7 +497,7 @@ main(int argc, char **argv)
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(-.3, .2)),
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
 
-    Fl_Font em = t->font("Emmentaler-11");
+    Fl_Font em = t->font("Emmentaler 11");
     t->insert("sharp", SymbolTable::Symbol(
         SymbolTable::Glyph("a"),
         SymbolTable::Glyph("\xee\x84\x8e", em, 2, DPoint(.5, -.4))));
@@ -494,7 +506,7 @@ main(int argc, char **argv)
         SymbolTable::Glyph("\xee\x84\x8e", em, 2, DPoint(.5, -.4))));
 
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
-    // t->load("v-angle-double", "\xef\xb8\xbd", "LiSongPro", 4);
+    // t->load("v-angle-double", "\xef\xb8\xbd", "LiSong Pro", 4);
 
     // t->load("ding", "M", NULL, 10, IPoint(0, 0), IPoint(0, 0));
     // t->load("ding", "i", "Bali-Simbar-B", 28, IPoint(12, 18), IPoint(12, 10));
@@ -505,9 +517,6 @@ main(int argc, char **argv)
     // t->load("dang", "*", "Bali-Simbar-B", 16, IPoint(12, 2), IPoint(8, 0));
     // t->load("pepet", ")", "Bali-Simbar-B", 16);
 
-    // for (char **fonts = t->fonts(); *fonts; ++fonts) {
-    //     printf("%s\n", *fonts);
-    // }
     view.show();
 
     Fl::run();
