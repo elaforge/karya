@@ -85,6 +85,6 @@ instance Pretty.Pretty Context where
     pretty (Context block tracknum pos) = "{" ++ contents ++ "}"
         where
         contents = Seq.join " " (filter (not.null) [show_maybe "block" block,
-            show_maybe "tracknum" tracknum, show_maybe "pos" pos])
-        show_maybe _ Nothing = ""
-        show_maybe desc (Just x) = desc ++ "=" ++ show x
+            show_maybe "tracknum" tracknum, pretty_maybe "pos" pos])
+        show_maybe desc = maybe "" (\v -> desc ++ "=" ++ show v)
+        pretty_maybe desc = maybe "" (\v -> desc ++ "=" ++ Pretty.pretty v)

@@ -79,7 +79,7 @@ instance (Ord n) => Monoid.Monoid (Ranges n) where
     mappend _ Everything = Everything
     mappend (Ranges r1) (Ranges r2) = Ranges (merge r1 r2)
 
-instance (Show n) => Pretty.Pretty (Ranges n) where
+instance (Pretty.Pretty n) => Pretty.Pretty (Ranges n) where
     pretty (Ranges rs) = "[" ++ Seq.join ", " (map f rs) ++ "]"
-        where f (s, e) = show s ++ "--" ++ show e
+        where f (s, e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
     pretty Everything = "[*--*]"
