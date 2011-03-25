@@ -29,16 +29,13 @@ CURRENT
     a custom type
   better logging for cache
     * msgs should give context: which block were they deriving
-    - time to catch up to now
-    - why am I getting splice failed and succeeded at the same time?  is
-      midi not filtering out log msgs?
-    - reperformed msg should be 0-12s cached, 12-15s reperformed, 15-end cached
+    - CPU time to catch up to now
     derive
       - cache misses, clickable stack ranges
+      should misses be logged at notice?
     perform
-      - event damage, and total range
-      - seconds reperformed, seconds from cache, total seconds
-      - splice status
+      * reperformed msg should be 0-12s cached, 12-15s reperformed, 15-end
+        cached
   - lang level pretty print for events, esp collapsing the stack
   - add a Play.play_msgs function that plays the given msgs, normalizing so
     fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
@@ -54,8 +51,6 @@ CURRENT
   * Call.with_scale is not quite right because it should replace an existing
     scale scope.  So I think scopes have to have keys so they can be
     replaced.
-  - mod bloom.dump.short doesn't emit warning for block w/o scale info
-    and what's up with the play for 3 seconds thing?
   * fix the broken way Cmd.Schema infers scale and instrument
     Record env during derivation:
     When entering a track, save stack and env.  Then to lookup env just look

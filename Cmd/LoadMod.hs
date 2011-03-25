@@ -23,6 +23,7 @@ import qualified Ui.Types as Types
 import qualified Ui.State as State
 
 import qualified Derive.Schema as Schema
+import qualified Derive.Score as Score
 
 import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
@@ -52,6 +53,7 @@ create name ui_blocks = do
         (zip [0..] ui_blocks)
     root <- create_order_block mkid rid track_rid block_ids
     State.set_root_id root
+    State.set_default_inst (Just (Score.Instrument "ptq/c1"))
     Create.view root
     return ()
 
@@ -65,7 +67,7 @@ create_order_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId
     -> [BlockId] -> m BlockId
 create_order_block mkid rid track_rid block_ids =
     make_block mkid rid track_rid "order"
-        [("tempo", tempo), (">ptq/c1", events), ("*twelve", [])]
+        [("tempo", tempo), (">ptq/c1", events)]
     where
     tempo = [(0, Event.event ".1" 0)]
     events = [(n, Event.event (block_call bid) 1)

@@ -2,14 +2,13 @@
 module Perform.Midi.Cache (
     Cache(..), cache, cache_length, cache_messages, messages_from
     , EventDamage(..)
-    , cache_stats, is_splice_failure
-    , Chunks, ChunkNum, to_chunknum, cache_chunk_size, Chunk(..)
+    , cache_stats
+    , ChunkNum, to_chunknum, cache_chunk_size, Chunk(..)
     , perform
 ) where
-import qualified Data.Text as Text
-
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Then as Then
 
@@ -31,7 +30,7 @@ data Cache = Cache {
     -- chunks rederived due to a failed splice.  The reason is laziness, see
     -- 'cache_stats'.  This is just here to calculate stats after the fact.
     , cache_damage :: Ranges.Ranges ChunkNum
-    , cache_chunks :: Chunks
+    , cache_chunks :: [Chunk]
     } deriving (Show)
 
 cache :: Instrument.Config -> Cache
@@ -79,30 +78,23 @@ clip_before start = Then.filter (Midi.is_state . Midi.wmsg_msg)
 -- Since the splice failure is recorded in the log, and checking the logs
 -- forces the chunk, this function accepts the splice failure as an argument
 -- which is awkward but allows the caller to retain control over evaluation.
-cache_stats :: Maybe ChunkNum -> Cache -> (RealTime, RealTime)
+cache_stats :: Maybe ChunkNum -> Cache -> (Ranges.Ranges RealTime, RealTime)
     -- ^ (time re-performed, total time)
 cache_stats splice_failed_at cache = case splice_failed_at of
         Nothing -> stats (cache_damage cache)
         Just chunknum -> stats $
             Ranges.range chunknum nchunks <> cache_damage cache
     where
-    nchunks = fromIntegral (length (cache_chunks cache))
-    stats ranges = (chunks_duration (total ranges), chunks_duration nchunks)
-    total ranges = case Ranges.extract ranges of
-        Nothing -> nchunks
-        Just pairs -> sum (map (\(s, e) -> if e == s then 1 else e - s) pairs)
-
--- TODO yuck... shouldn't there be a better way of putting semi-structured data
--- in logs?  msg_key?
-is_splice_failure :: Log.Msg -> Bool
-is_splice_failure msg =
-    Text.pack "splice failed " `Text.isPrefixOf` Log.msg_text msg
+    nchunks = length (cache_chunks cache)
+    stats ranges = (to_dur ranges, chunks_duration nchunks)
+    to_dur = maybe Ranges.everything Ranges.sorted_ranges
+        . fmap (map convert) . Ranges.extract
+    convert (s, e) = (chunks_duration s, chunks_duration e)
 
 -- | Originally this was an IntMap which allows faster seeking to a a chunk,
 -- but it's essential that the chunk list be spine-lazy.  Since each chunk is
 -- a fixed period of time, the list should never get long enough for linear
 -- search to take a noticeable amount of time anyway.
-type Chunks = [Chunk]
 type ChunkNum = Int
 
 cache_chunk_size :: RealTime
@@ -121,6 +113,8 @@ chunks_time n = RealTime.mul cache_chunk_size (fromIntegral n)
 data Chunk = Chunk {
     chunk_messages :: Perform.MidiEvents
     , chunk_state :: Perform.State
+    -- | True if this marks where the splice failed.
+    , chunk_splice_failed :: Bool
     } deriving (Show)
 
 newtype EventDamage = EventDamage (Ranges.Ranges RealTime)
@@ -172,7 +166,7 @@ perform_cache _ config chunknum [] prev_state events _ =
     -- at the events.  This won't be true for the initially empty cache, but
     -- the case above should catch that.
 perform_cache _ _ _ chunks _ _ [] = chunks
-perform_cache stack config chunknum (cached : rest_cache) prev_state events
+perform_cache stack config chunknum (cached0 : rest_cache) prev_state events
         damage@((start, end) : rest_damage)
     | chunknum < start =
         cached : perform_rest (chunk_state cached) events damage
@@ -186,8 +180,7 @@ perform_cache stack config chunknum (cached : rest_cache) prev_state events
             -- Putting this note in the warns is a bit of a hack, but it's nice
             -- to see when a splice failed and why.  The other other cache
             -- stats can be derived from the damage ranges.
-            Just reason ->
-                cons_log ("splice failed because of " ++ reason) new_chunk
+            Just reason -> splice_failed reason new_chunk
                 : perform_chunks config (chunknum+1) (chunk_state new_chunk)
                     post_events
     | chunknum < end = new_chunk
@@ -196,11 +189,19 @@ perform_cache stack config chunknum (cached : rest_cache) prev_state events
     | otherwise = perform_cache stack config chunknum (cached : rest_cache)
         prev_state events rest_damage
     where
+    cached = cached0 { chunk_splice_failed = False }
     (new_chunk, post_events) = perform_chunk chunknum prev_state config events
     perform_rest = perform_cache stack config (chunknum+1) rest_cache
-    cons_log msg chunk =
-        chunk { chunk_messages = LEvent.Log log : chunk_messages chunk }
-        where log = Log.msg Log.Notice (Just stack) ("Perform cache: " ++ msg)
+    splice_failed reason chunk = chunk
+            { chunk_messages = LEvent.Log log : chunk_messages chunk
+            , chunk_splice_failed = True
+            }
+        where
+        log = Log.msg Log.Notice (Just stack) msg
+        msg = "splice failed because of " ++ reason ++ " at "
+            -- It's chunknum+1 because the splice fails at the boundary between
+            -- the end of this chunk and the start of the next one.
+            ++ Pretty.pretty (chunks_duration (chunknum+1))
 
 -- | Just keep performing chunks until I run out of events.
 perform_chunks :: Instrument.Config -> ChunkNum -> Perform.State
@@ -217,7 +218,7 @@ perform_chunks config chunknum prev_state events =
 perform_chunk :: ChunkNum -> Perform.State -> Instrument.Config
     -> Perform.Events -> (Chunk, Perform.Events)
 perform_chunk chunknum state config events =
-    (Chunk msgs (normalize_state end final_state), post)
+    (Chunk msgs (normalize_state end final_state) False, post)
     where
     (pre, post) = break (is_event False ((>=end) . Perform.event_start))
         (trim_events chunknum events)

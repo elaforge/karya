@@ -47,7 +47,7 @@ test_cached_performance = do
     -- Deleting events works.  Splice fails on perform because there is now
     -- no addr allocation since I deleted the only note.
     equal (compare_cached [(0, 1), (sz, 1)] [(sz, 1)] [(0, 1)])
-        ([], ["Perform cache: splice failed because of perform"])
+        ([], ["splice failed because of perform at 4s"])
 
     -- Splice succeeds this time because there is still a note in the previous
     -- chunk that sets up addr allocation.
