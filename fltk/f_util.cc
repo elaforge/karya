@@ -12,9 +12,6 @@
 #include "f_util.h"
 
 
-// enum { DAMAGE_ZOOM = FL_DAMAGE_USER1 };
-
-
 const char *
 show_key(int key)
 {
@@ -102,7 +99,10 @@ show_event_info(int ev)
         snprintf(buf, sizeof buf, "(%d, %d)", Fl::event_x(), Fl::event_y());
         break;
     case FL_KEYDOWN: case FL_KEYUP:
-        return show_key(Fl::event_key());
+        // Don't bother with Fl::event_length() because 'buf' isn't returned
+        // with an explicit length.
+        snprintf(buf, sizeof buf, "%s (\"%s\")",
+            show_key(Fl::event_key()), Fl::event_text());
         break;
     default:
         return "unknown";
