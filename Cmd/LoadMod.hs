@@ -18,6 +18,7 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.State as State
@@ -51,28 +52,40 @@ create name ui_blocks = do
         (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
     block_ids <- mapM (uncurry (create_block mkid rid track_rid ""))
         (zip [0..] ui_blocks)
-    root <- create_order_block mkid rid track_rid block_ids
+    root <- create_order_block mkid block_ids
     State.set_root_id root
     State.set_default_inst (Just (Score.Instrument "ptq/c1"))
     Create.view root
     return ()
 
 create_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId
-    -> String -> Int -> UiBlock -> m BlockId
-create_block mkid rid track_rid inst num ui_block =
-    make_block mkid rid track_rid ("b" ++ show num) (concatMap mktrack ui_block)
+    -> String -> Int -> UiBlock -> m (BlockId, BlockRows)
+create_block mkid rid track_rid inst num (ui_block, block_rows) = do
+    block_id <- make_block mkid rid track_rid ("b" ++ show num)
+        (concatMap mktrack ui_block)
+    return (block_id, block_rows)
     where mktrack (ntrack, ctracks) = (">" ++ inst, ntrack) : ctracks
 
-create_order_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId
-    -> [BlockId] -> m BlockId
-create_order_block mkid rid track_rid block_ids =
+create_order_block :: (State.M m) => (String -> Id.Id)
+    -> [(BlockId, BlockRows)] -> m BlockId
+create_order_block mkid block_ids = do
+    (rid, track_rid) <- Create.ruler "order"
+        (MakeRuler.ruler [order_meter block_rows])
     make_block mkid rid track_rid "order"
         [("tempo", tempo), (">ptq/c1", events)]
     where
-    tempo = [(0, Event.event ".1" 0)]
-    events = [(n, Event.event (block_call bid) 1)
-        | (n, bid) <- zip [0..] block_ids]
+    block_rows = map snd block_ids
+    tempo = [(0, Event.event "6" 0)]
+    starts = scanl (+) 0 block_rows
+    events =
+        [(fromIntegral start, Event.event (block_call bid) (fromIntegral dur))
+            | (start, (bid, dur)) <- zip starts block_ids]
     block_call = snd . Id.un_id . Id.unpack_id
+
+order_meter :: [BlockRows] -> Ruler.NameMarklist
+order_meter = MakeRuler.meter_ruler 1 . MakeRuler.D . map mkd
+    where
+    mkd dur = MakeRuler.D (replicate dur (MakeRuler.T 1))
 
 make_block :: (State.M m) => ([Char] -> Id.Id) -> RulerId -> RulerId -> String
     -> [(String, [Track.PosEvent])] -> m BlockId
@@ -94,17 +107,19 @@ test = do
     Right bs <- parse "test.dump"
     -- Right bs <- parse "bloom.dump"
     let bs2 = map (map_block (add_default_volume 1 38)) bs
-    pprint $ convert_blocks 0.25 (take 1 bs2)
+    pprint $ convert_blocks 1 bs2
     -- pprint $ convert_track (head (to_tracks (head bs)))
     -- pprint $ convert_notes (head (to_tracks (head bs)))
     -- where to_tracks (Block rows) = rotate (map (\(Row ns) -> ns)  rows)
 
 -- | An intermediate representation, between the row-oriented Block and
 -- State.State.
-type UiBlock = [(NoteTrack, [ControlTrack])]
+type UiBlock = ([(NoteTrack, [ControlTrack])], BlockRows)
 type NoteTrack = [Track.PosEvent]
 -- | (title, [event])
 type ControlTrack = (String, [Track.PosEvent])
+-- | How many rows in a block.
+type BlockRows = Int
 
 -- | Convert parsed Blocks into UiBlocks.  Each row is given the ScoreTime
 -- passed.
@@ -112,13 +127,20 @@ convert_blocks :: ScoreTime -> [Block] -> [UiBlock]
 convert_blocks row_time = map (map_times (*row_time)) . map convert_block
 
 map_times :: (ScoreTime -> ScoreTime) -> UiBlock -> UiBlock
-map_times f = map $ \(ntrack, ctracks) ->
+map_times f = first $ map $ \(ntrack, ctracks) ->
     (map modify ntrack, map (second (map (first f))) ctracks)
     where modify (pos, event) = (f pos, Event.modify_duration f event)
 
 convert_block :: Block -> UiBlock
-convert_block block = map convert_track (to_tracks block)
-    where to_tracks (Block rows) = rotate (map (\(Row ns) -> ns)  rows)
+convert_block (Block rows) = (map convert_track clipped, block_length)
+    where
+    to_tracks rows = rotate (map (\(Row ns) -> ns) rows)
+    tracks = to_tracks rows
+    block_length = maybe 0 id (Seq.minimum (map track_length tracks)) + 1
+    clipped = map (take block_length) tracks
+
+track_length :: [Note] -> BlockRows
+track_length = length . takeWhile (not . any (==cut_block) . note_effects)
 
 convert_track :: [Note] -> (NoteTrack, [ControlTrack])
 convert_track notes = (convert_notes notes, convert_controls notes)
@@ -129,13 +151,13 @@ convert_notes = Maybe.catMaybes . Then.mapAccumL go (Nothing, 0) final
     go (prev, at) note = ((next, at+1), event)
         where (event, next) = convert_note prev at note
     final (prev, at) =
-        [fst $ convert_note prev at (Note 0 0 [cut_effect])]
+        [fst $ convert_note prev at (Note 0 0 [cut_note])]
 
 convert_note :: Maybe Track.PosEvent -> ScoreTime -> Note
     -> (Maybe Track.PosEvent, Maybe Track.PosEvent)
 convert_note maybe_prev at (Note pitch _ effects)
     | pitch /= 0 = (note, Just (start, Event.event "" 0))
-    | any (== cut_effect) effects = (note, Nothing)
+    | any (== cut_note) effects = (note, Nothing)
     | otherwise = (Nothing, maybe_prev)
     where
     start = note_start effects at
@@ -185,7 +207,8 @@ convert_effect (fx, arg)
     | otherwise = Nothing
     where c = Pretty.show_float (Just 2) . (/127) . fromIntegral
 
-cut_effect = (0x0f, 0xff)
+cut_note = (0x0f, 0xff)
+cut_block = (0x0f, 0)
 fx_extended = 0x0e
 fx_vibrato = 0x04
 fx_volume = 0x0c

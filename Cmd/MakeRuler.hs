@@ -43,6 +43,7 @@ meter_marklist = "meter"
 
 -- | The mark color defaults to mostly transparent so it looks nice on overlay
 -- rulers.
+mcolor :: Double -> Double -> Double -> Color.Color
 mcolor r g b = Color.rgba r g b 0.35
 
 -- | Configs for marks in order of increasing rank.
@@ -114,6 +115,7 @@ regular_subdivision ns = foldr subdivide (T 1) (reverse ns)
 
 -- ** predefined meters
 
+m44, m332 :: Meter
 m44 = regular_subdivision [4, 4, 4, 4]
 m332 = repeat 4 $ subdivide 4 $ subdivide_dur $ D (map T [3, 3, 2])
 
