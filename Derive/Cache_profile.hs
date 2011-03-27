@@ -10,6 +10,7 @@ import qualified System.CPUTime as CPUTime
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Util.Ranges as Ranges
 import Util.Test
 
 import Ui
@@ -23,7 +24,6 @@ import qualified Derive.Cache_test as Cache_test
 import qualified Derive.Derive as Derive
 import qualified Derive.Derive_profile as Derive_profile
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Cache as Midi.Cache
@@ -139,7 +139,7 @@ rederive_midi initial_state modifications = do
         where Derive.EventDamage d = Derive.r_event_damage result
 
 cached_perform :: Midi.Cache.Cache -> Midi.Cache.EventDamage -> Derive.Events
-    -> (Midi.Cache.Cache, (RealTime, RealTime))
+    -> (Midi.Cache.Cache, (Ranges.Ranges RealTime, RealTime))
 cached_perform cache damage events = (out, Midi.Cache.cache_stats splice out)
     where
     perf_events = Convert.convert DeriveTest.default_lookup_scale
@@ -148,8 +148,7 @@ cached_perform cache damage events = (out, Midi.Cache.cache_stats splice out)
         cache damage perf_events
     splice = fmap fst $
         List.find is_failure (zip [0..] (Midi.Cache.cache_chunks out))
-    is_failure (_, chunk) = any Midi.Cache.is_splice_failure
-        (LEvent.logs_of (Midi.Cache.chunk_messages chunk))
+    is_failure (_, chunk) = Midi.Cache.chunk_splice_failed chunk
 
 -- | Rederive and check correctness.
 rederive_check = undefined
