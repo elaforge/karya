@@ -496,8 +496,7 @@ set_track_size view_id (visible_track, visible_time) =
 -- ** selections
 
 -- | Get @view_id@'s selection at @selnum@, or Nothing if there is none.
-get_selection :: (M m) => ViewId -> Types.SelNum
-    -> m (Maybe Types.Selection)
+get_selection :: (M m) => ViewId -> Types.SelNum -> m (Maybe Types.Selection)
 get_selection view_id selnum = do
     view <- get_view view_id
     return (Map.lookup selnum (Block.view_selections view))
@@ -598,16 +597,14 @@ event_end block_id = do
 get_skeleton :: (M m) => BlockId -> m Skeleton.Skeleton
 get_skeleton block_id = Block.block_skeleton <$> get_block block_id
 
-set_skeleton :: (M m) => BlockId -> Skeleton.Skeleton
-    -> m ()
+set_skeleton :: (M m) => BlockId -> Skeleton.Skeleton -> m ()
 set_skeleton block_id skel =
     modify_block block_id (\block -> block { Block.block_skeleton = skel })
 
 -- | Toggle the given edge in the block's skeleton.  If a cycle would be
 -- created, refuse to add the edge and return False.  The edge is in (parent,
 -- child) order.
-toggle_skeleton_edge :: (M m) => BlockId
-    -> (TrackNum, TrackNum) -> m Bool
+toggle_skeleton_edge :: (M m) => BlockId -> (TrackNum, TrackNum) -> m Bool
 toggle_skeleton_edge block_id edge = do
     block <- get_block block_id
     when_just (verify_edge block edge) (throw . ("toggle: " ++))
@@ -728,8 +725,7 @@ _resolve tracknums trees = foldr cat_tree ([], []) $ map go trees
 
 -- ** tracks
 
-insert_track :: (M m) => BlockId -> TrackNum
-    -> Block.BlockTrack -> m ()
+insert_track :: (M m) => BlockId -> TrackNum -> Block.BlockTrack -> m ()
 insert_track block_id tracknum track = do
     block <- get_block block_id
     views <- get_views_of block_id
@@ -762,14 +758,12 @@ remove_track block_id tracknum = do
 -- This is inconsistent with 'insert_track' and 'remove_track' which clip to
 -- range, but is convenient in practice.
 -- TODO why?
-block_track_at :: (M m) => BlockId -> TrackNum
-    -> m (Maybe Block.BlockTrack)
+block_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.BlockTrack)
 block_track_at block_id tracknum = do
     block <- get_block block_id
     return $ Seq.at (Block.block_tracks block) tracknum
 
-track_at :: (M m) => BlockId -> TrackNum
-    -> m (Maybe Block.TracklikeId)
+track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.TracklikeId)
 track_at block_id tracknum = do
     maybe_track <- block_track_at block_id tracknum
     return $ fmap Block.tracklike_id maybe_track
@@ -781,8 +775,7 @@ event_track_at block_id tracknum = do
     return $ Block.track_id_of =<< maybe_track
 
 -- | Like 'event_track_at' but throws if it's not there.
-get_event_track_at :: (M m) =>
-    String -> BlockId -> TrackNum -> m TrackId
+get_event_track_at :: (M m) => String -> BlockId -> TrackNum -> m TrackId
 get_event_track_at caller block_id tracknum =
     maybe (throw msg) return =<< event_track_at block_id tracknum
     where
@@ -819,8 +812,7 @@ modify_block_track block_id tracknum modify = do
         (Block.block_tracks block) tracknum modify
     modify_block block_id $ \b -> b { Block.block_tracks = btracks }
 
-toggle_track_flag :: (M m) => BlockId -> TrackNum
-    -> Block.TrackFlag -> m ()
+toggle_track_flag :: (M m) => BlockId -> TrackNum -> Block.TrackFlag -> m ()
 toggle_track_flag block_id tracknum flag =
     modify_track_flags block_id tracknum toggle
     where
@@ -861,8 +853,7 @@ unmerge_track block_id tracknum = do
         remove_track_flag block_id tracknum Block.Collapse
     set_merged_tracks block_id tracknum []
 
-set_merged_tracks :: (M m) => BlockId -> TrackNum
-    -> [TrackId] -> m ()
+set_merged_tracks :: (M m) => BlockId -> TrackNum -> [TrackId] -> m ()
 set_merged_tracks block_id tracknum merged =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_merged = merged }
@@ -915,8 +906,7 @@ set_block_title block_id title =
     modify_block block_id (\block -> block { Block.block_title = title })
 
 -- | Set a status variable on a view.
-set_view_status :: (M m) => ViewId -> String -> Maybe String
-    -> m ()
+set_view_status :: (M m) => ViewId -> String -> Maybe String -> m ()
 set_view_status view_id key val =
     modify_view view_id $ \view -> view { Block.view_status =
         Map.alter (const val) key (Block.view_status view) }
@@ -968,8 +958,7 @@ modify_track_render :: (M m) => TrackId
 modify_track_render track_id f = _modify_track track_id $ \track ->
     track { Track.track_render = f (Track.track_render track) }
 
-set_render_style :: (M m) => Track.RenderStyle -> TrackId
-    -> m ()
+set_render_style :: (M m) => Track.RenderStyle -> TrackId -> m ()
 set_render_style style track_id = modify_track_render track_id $
     \render -> render { Track.render_style = style }
 
@@ -997,24 +986,21 @@ insert_events track_id pos_evts =
     insert_sorted_events track_id (Seq.sort_on fst pos_evts)
 
 -- | Like 'insert_events', but more efficient and dangerous.
-insert_sorted_events :: (M m) =>
-    TrackId -> [(ScoreTime, Event.Event)] -> m ()
+insert_sorted_events :: (M m) => TrackId -> [(ScoreTime, Event.Event)] -> m ()
 insert_sorted_events track_id pos_evts = _modify_events track_id $ \events ->
     (Track.insert_sorted_events pos_evts events, _events_updates pos_evts)
 
 insert_event :: (M m) => TrackId -> ScoreTime -> Event.Event -> m ()
 insert_event track_id pos evt = insert_sorted_events track_id [(pos, evt)]
 
-get_events :: (M m) => TrackId -> ScoreTime -> ScoreTime
-    -> m [Track.PosEvent]
+get_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m [Track.PosEvent]
 get_events track_id start end = do
     events <- Track.track_events <$> get_track track_id
     return (_events_in_range start end events)
 
 -- | Remove any events whose starting positions fall within the half-open
 -- range given, or under the point if the selection is a point.
-remove_events :: (M m) => TrackId -> ScoreTime -> ScoreTime
-    -> m ()
+remove_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m ()
 remove_events track_id start end
     | start == end = remove_event track_id start
     | otherwise = remove_event_range track_id start end
@@ -1029,8 +1015,7 @@ remove_event track_id pos = _modify_events track_id $ \events ->
 
 -- | Remove any events whose starting positions strictly fall within the
 -- half-open range given.
-remove_event_range :: (M m) =>
-    TrackId -> ScoreTime -> ScoreTime -> m ()
+remove_event_range :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m ()
 remove_event_range track_id start end =
     _modify_events track_id $ \events ->
         let evts = Track.events_in_range start end events
@@ -1135,8 +1120,7 @@ remove_marklist :: (M m) => RulerId -> TrackNum -> m ()
 remove_marklist ruler_id n = modify_ruler ruler_id $ \ruler -> ruler
     { Ruler.ruler_marklists = Seq.remove_at (Ruler.ruler_marklists ruler) n }
 
-modify_ruler :: (M m) => RulerId -> (Ruler.Ruler -> Ruler.Ruler)
-    -> m ()
+modify_ruler :: (M m) => RulerId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
 modify_ruler ruler_id f = do
     ruler <- get_ruler ruler_id
     modify $ \st ->
