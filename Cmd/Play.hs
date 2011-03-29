@@ -150,7 +150,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         Midi.Play.play transport_info block_id (LEvent.events_of msgs)
 
     ui_state <- State.get
-    Trans.liftIO $ Thread.start_logged "play position updater" $ updater_thread
+    Trans.liftIO $ Thread.start $ updater_thread
         updater_ctl transport_info (Cmd.perf_inv_tempo perf) start ui_state
     Cmd.modify_state $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
@@ -202,8 +202,8 @@ cmd_play_msg msg = do
                 Trans.liftIO $ Sync.set_track_signals ui_state track_signals
             _ -> return ()
     derive_status_color status = case status of
-        Msg.StartedDeriving -> Config.busy_color
-        Msg.Deriving -> Color.brightness 1.5 Config.busy_color
+        Msg.Deriving -> Config.busy_color
+        Msg.OutOfDate -> Color.brightness 1.5 Config.busy_color
         Msg.DeriveFailed -> Config.warning_color
         Msg.DeriveComplete _ -> Config.box_color
 

@@ -42,7 +42,7 @@ instance Pretty.Pretty Msg where
     pretty (InputNote msg) = "Input: " ++ show msg
     pretty msg = show msg
 
-data DeriveStatus = Deriving | StartedDeriving | DeriveFailed
+data DeriveStatus = OutOfDate | Deriving | DeriveFailed
     | DeriveComplete Track.TrackSignals
     deriving (Show)
 

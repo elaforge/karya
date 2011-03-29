@@ -44,8 +44,8 @@ import qualified Perform.Midi.Cache as Midi.Cache
 
 -- | The background derive threads will wait this many seconds before starting
 -- up, to avoid working too hard during an edit.
-derive_wait_focused :: Double
-derive_wait_focused = 1
+derive_wait :: Double
+derive_wait = 1
 
 type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
 
@@ -154,9 +154,9 @@ generate_performance (send_status, root_id, sel) block_id = do
 evaluate_performance :: SendStatus -> Cmd.SelectionPosition -> BlockId
     -> Cmd.Performance -> IO ()
 evaluate_performance send_status selection_pos block_id perf = do
+    send_status block_id Msg.OutOfDate
+    Thread.delay derive_wait
     send_status block_id Msg.Deriving
-    Thread.delay derive_wait_focused
-    send_status block_id Msg.StartedDeriving
     let cache = Cmd.perf_midi_cache perf
     evaluate_midi block_id cache selection_pos False 0
         (zip [0..] (Midi.Cache.cache_chunks cache))
