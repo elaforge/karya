@@ -8,7 +8,6 @@ import qualified Data.Functor.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Sequence as Sequence
-import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified System.IO as IO
 
@@ -97,15 +96,11 @@ type ProcessM = State.StateT State Identity.Identity
 -- catch and timing.
 process_msg :: State -> Log.Msg -> (Maybe StyledText, State)
 process_msg state msg = run $ suppress_last msg $ do
-    maybe_msg <- timer_filter msg
-    case maybe_msg of
-        Nothing -> return Nothing
-        Just msg -> do
-            let styled = format_msg msg
-            filt <- State.gets state_filter
-            return $ if eval_filter filt msg (style_text styled)
-                then Just styled
-                else Nothing
+    let styled = format_msg msg
+    filt <- State.gets state_filter
+    return $ if eval_filter filt msg (style_text styled)
+        then Just styled
+        else Nothing
     where
     run = flip State.runState state
 
@@ -123,29 +118,6 @@ suppress_last msg process = do
                 st { state_last_displayed = Just (msg, 0) }
             return result
     where matches m1 m2 = Log.msg_text m1 == Log.msg_text m2
-
--- | Filter out timer msgs that don't have a minimum time from the previous
--- timing, and prepend the interval and bump the priority to Warn if they do.
-timer_filter :: Log.Msg -> ProcessM (Maybe Log.Msg)
-timer_filter msg
-    | is_timer = do
-        last_timing <- State.gets state_last_timing
-        State.modify $ \st -> st { state_last_timing = Just msg }
-        case last_timing of
-            Nothing -> return Nothing
-            Just last_msg -> return (timing_msg last_msg)
-    | otherwise = return (Just msg)
-    where
-    is_timer = Log.msg_prio msg == Log.Timer
-    timing_msg last_msg
-        | not (Log.is_first_timer msg) && diff >= timing_diff_threshold = Just $
-            msg { Log.msg_text =
-                Text.unwords [Text.pack (show diff), Log.msg_text msg]
-            , Log.msg_prio = Log.Warn
-            }
-        | otherwise = Nothing
-        where
-        diff = Log.msg_date msg `Time.diffUTCTime` Log.msg_date last_msg
 
 catch_patterns :: [CatchPattern] -> String -> Status -> Status
 catch_patterns patterns text old

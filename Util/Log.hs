@@ -12,7 +12,6 @@ module Util.Log (
     , Msg(..), msg_string, Prio(..), State(..)
     , msg, msg_srcpos, initialized_msg, initialized_msg_srcpos
     , timer, debug, notice, warn, error
-    , is_first_timer, first_timer_prefix
     , timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     , debug_stack, notice_stack, warn_stack, error_stack
     , debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos
@@ -27,6 +26,9 @@ module Util.Log (
     -- * serialization
     , format_msg
     , serialize_msg, deserialize_msg
+
+    -- * util
+    , time_eval
 ) where
 import Prelude hiding (error, log)
 import qualified Control.Applicative as Applicative
@@ -41,6 +43,7 @@ import qualified Data.Generics as Generics
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Debug.Trace as Trace
+import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe  as Unsafe
 import Text.Printf (printf)
@@ -164,29 +167,27 @@ log_stack :: (LogMonad m) => Prio -> SrcPos.SrcPos -> Stack.Stack -> String
 log_stack prio srcpos stack text =
     write =<< make_msg srcpos prio (Just stack) text
 
-timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
+debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     :: (LogMonad m) => SrcPos.SrcPos -> String -> m ()
-timer_srcpos = log Timer
 debug_srcpos = log Debug
 notice_srcpos = log Notice
 warn_srcpos = log Warn
 error_srcpos = log Error
 
-timer, debug, notice, warn, error :: (LogMonad m) => String -> m ()
-timer = timer_srcpos Nothing
+debug, notice, warn, error :: (LogMonad m) => String -> m ()
 debug = debug_srcpos Nothing
 notice = notice_srcpos Nothing
 warn = warn_srcpos Nothing
 error = error_srcpos Nothing
 
-is_first_timer :: Msg -> Bool
-is_first_timer (Msg { msg_prio = Timer, msg_text = text }) =
-    Text.pack first_timer_prefix `Text.isPrefixOf` text
-is_first_timer _ = False
+timer :: (Trans.MonadIO m) => String -> m ()
+timer = timer_srcpos Nothing
 
--- | Prepend to a timer msg after an expected delay, like waiting on input.
-first_timer_prefix :: String
-first_timer_prefix = "first_timer: "
+timer_srcpos :: (Trans.MonadIO m) => SrcPos.SrcPos -> String -> m ()
+timer_srcpos srcpos log_msg = Trans.liftIO $ do
+    n <- CPUTime.getCPUTime
+    putStrLn $ show (cpu_to_sec n) ++ " " ++ SrcPos.show_srcpos srcpos
+        ++ ": " ++ log_msg
 
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
@@ -303,3 +304,16 @@ serialize_msg = show
 
 deserialize_msg :: String -> IO (Either Exception.SomeException Msg)
 deserialize_msg log_msg = Exception.try (readIO log_msg)
+
+-- * util
+
+-- | Run an action and report the time in CPU seconds.
+time_eval :: (DeepSeq.NFData a) => a -> IO Double
+time_eval op = do
+    start_cpu <- CPUTime.getCPUTime
+    op `DeepSeq.deepseq` return ()
+    end_cpu <- CPUTime.getCPUTime
+    return $ cpu_to_sec (end_cpu - start_cpu)
+
+cpu_to_sec :: Integer -> Double
+cpu_to_sec s = fromIntegral s / fromIntegral (10^12)

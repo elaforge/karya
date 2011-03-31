@@ -30,7 +30,7 @@ sync sync_func send_status ui_from ui_to cmd_state cmd_updates = do
         Right updates -> do
             unless (null updates) $
                 Log.debug $ "updates: " ++ show updates
-            Log.timer "got diff updates"
+            -- Log.timer "got diff updates"
             err <- sync_func ui_to updates
             case err of
                 Nothing -> return ()

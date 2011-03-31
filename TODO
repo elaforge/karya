@@ -96,7 +96,7 @@ CURRENT
     - write my own Deriver monad to try to avoid lifting overhead
     - see if the cache filtering logs is causing significant copying and remove
 
-  - remove the log timer stuff
+  * remove the log timer stuff
   - maybe I could split CacheState into the writable portion, in Collect, and
     the read-only cache from the previous run, in Constant
   - remember about caching tracks, how can I make a track into a call?

@@ -3,7 +3,6 @@ import qualified Data.Map as Map
 
 import Util.Test
 import qualified Util.Log as Log
-import qualified Data.Time as Time
 
 import qualified LogView.Process as Process
 
@@ -23,23 +22,6 @@ test_process_msg = do
     msg <- Log.initialized_msg Log.Debug "hi"
     equal (f state msg)
         (Nothing, Just "*\thi\n")
-
-    let day = Time.UTCTime (Time.ModifiedJulianDay 42)
-        timing t = fmap (\m -> m { Log.msg_date = t })
-            (Log.initialized_msg Log.Timer "hello")
-    msg0 <- timing (day 0)
-    msg1 <- timing (day 0.01)
-    msg2 <- timing (day 1)
-
-    -- first timer is suppressed
-    equal (f state msg0)
-        (Just msg0, Nothing)
-    -- below threshold
-    equal (f (state { Process.state_last_timing = Just msg0 }) msg1)
-        (Just msg1, Nothing)
-    -- above threshold, and timing prepended
-    equal (f (state { Process.state_last_timing = Just msg0 }) msg2)
-        (Just msg2, Just "***\t1s hello\n")
 
 test_regex_style = do
     let f = Process.run_formatter
