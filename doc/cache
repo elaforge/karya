@@ -112,7 +112,7 @@ I previously kept track of which controls over which ranges a call depended by
 instrumenting the signal access functions to put control name and access range
 in the LocalDep in the same way that blocks do.  I rejected it not only because
 was it even more complicated, but imposed overhead on all calls, caching or
-not.  So I simply assume that all events calls on all controls, and in the
+not.  So I simply assume that all events depend on all controls, and in the
 range of the call itself.  This obviously derives more than is necessary for
 calls which don't care about a particular signal, and less than necessary for
 calls that depend on signal outside of their range.  The latter is a bigger

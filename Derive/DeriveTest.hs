@@ -289,6 +289,10 @@ note_on_times :: [(Integer, Midi.Message)]
 note_on_times mmsgs =
     [(ts, nn, vel) | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel)) <- mmsgs]
 
+extract_midi :: Perform.MidiEvents -> [(Integer, Midi.Message)]
+extract_midi events = [(RealTime.to_milliseconds ts, msg)
+    | Midi.WriteMessage _ ts msg <- LEvent.events_of events]
+
 
 -- * call
 

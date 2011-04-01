@@ -14,6 +14,35 @@ CURRENT
   run timing tests with bloom
     - compile with optimization and make sure it rederives fast
     - edit bits and make sure it rederives extra fast
+
+    - lang cmds to fix time signature
+  - ruler for LoadMod order list not exactly convenient... but maybe I just
+    need event snap?
+  - LoadMod should make narrower tracks, start collapsed
+  - Create.view should size it to fit the block being created
+
+  * fixing the long block b15 caused too much to be cached and the tempo is
+    weird
+
+  + Get rid of perform cache, and hence need for EventDamage.
+    yet another problem with the cache: a delete that changes the length of
+    a block will generate the wrong EventDamage because the warp for that
+    block has changed.  This cache stuff is just too error-prone.
+
+    * add a perform_from that drops until >= given time
+    * report how long it takes to play the first msgs, that reflects dropping
+    * prime by forcing the first few score events, and report how long that
+      takes
+    - remove selection_pos
+    - Note tracks no longer have to write local damage, only control ones.
+      - remove state_event_damage
+  - see if ControlDamage is affected by the same problems (deleted events)
+    as EventDamage
+
+  - select ^a first selects *rest* of track
+  - ability to set default tempo
+  - ^M uncollapses all tracks?
+  - block title takes up space and I'm not using it, can it collapse?
   * changing a merged track doesn't change visually
   * BlockC.insert_track passes a null merged so you can't make a view with
     tracks already merged

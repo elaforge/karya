@@ -3,14 +3,11 @@
 -- This module is about performance, correctness is tested in
 -- "Derive.Cache_test".
 module Derive.Cache_profile where
-import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 import qualified Data.Time as Time
 import qualified System.CPUTime as CPUTime
 
 import Util.Control
-import qualified Util.Pretty as Pretty
-import qualified Util.Ranges as Ranges
 import Util.Test
 
 import Ui
@@ -24,11 +21,6 @@ import qualified Derive.Cache_test as Cache_test
 import qualified Derive.Derive as Derive
 import qualified Derive.Derive_profile as Derive_profile
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Stack as Stack
-
-import qualified Perform.Midi.Cache as Midi.Cache
-import qualified Perform.Midi.Cache_test as Midi.Cache_test
-import qualified Perform.Midi.Convert as Convert
 
 
 profile_normal = do
@@ -38,24 +30,11 @@ profile_normal = do
             ("b1.0." ++ show block ++ ".t1") pos
     rederive ui_state [modify 0 2, modify 1 0, modify 4 4]
 
-profile_midi_normal = do
-    let ui_state = UiTest.exec State.empty
-            (Derive_profile.make_nested_controls 10 3 128)
-        modify block pos = modify_note ("b1.0." ++ show block ++ ".t0")
-            ("b1.0." ++ show block ++ ".t1") pos
-    rederive_midi ui_state [modify 0 2, modify 1 0, modify 4 4]
-
 profile_small = do
     let ui_state = UiTest.exec State.empty
             (Derive_profile.make_nested_controls 4 3 128)
     -- pprint (Map.keys (State.state_tracks ui_state))
     rederive ui_state [modify_pitch "b1.0.0.t1" 2]
-
-profile_midi_small = do
-    let ui_state = UiTest.exec State.empty
-            (Derive_profile.make_nested_controls 4 3 128)
-    -- pprint (UiTest.simplify ui_state)
-    rederive_midi ui_state [modify_pitch "b1.0.0.t1" 2]
 
 modify_note :: (State.M m) => String -> String -> ScoreTime -> m ()
 modify_note note_tid pitch_tid pos = do
@@ -100,55 +79,6 @@ eval_derivation cache state1 state2 updates = do
     damage = Cache.score_damage state1 state2 updates
     result = DeriveTest.derive_block_cache cache damage state2 (UiTest.bid "b1")
     events = Derive.r_events result
-
-rederive_midi :: State.State -> [State.StateId ()] -> IO ()
-rederive_midi initial_state modifications = do
-    start_cpu <- CPUTime.getCPUTime
-    start <- now
-    go (start_cpu, start) initial_state mempty
-        initial_midi (return () : modifications)
-    where
-    initial_midi = Midi.Cache.cache Derive_profile.midi_config
-    go _ _ _ _ [] = return ()
-    go start_times state1 derive_cache midi_cache (modify:rest) = do
-        let section = Derive_profile.time_section start_times
-        let (_, state2, updates) = Cache_test.run state1 modify
-        cached <- section "cached" $ do
-            eval_derivation derive_cache state1 state2 updates
-
-        (cached_midi, stats) <- section "cached midi" $ do
-            let (out, stats) = cached_perform midi_cache
-                    (event_damage cached) (Derive.r_events cached)
-                msgs = Midi.Cache.cache_messages out
-            force msgs
-            return ((out, stats), msgs)
-        putStrLn $ "stats: " ++ Pretty.pretty stats
-
-        (uncached_midi, _) <- section "uncached midi" $ do
-            let (out, stats) = cached_perform initial_midi
-                    (event_damage cached) (Derive.r_events cached)
-                msgs = Midi.Cache.cache_messages out
-            force msgs
-            return ((out, stats), msgs)
-        equal (Midi.Cache_test.diff_msgs cached_midi uncached_midi)
-            []
-
-        go start_times state2 (Derive.r_cache cached) cached_midi rest
-
-    event_damage result = Midi.Cache.EventDamage d
-        where Derive.EventDamage d = Derive.r_event_damage result
-
-cached_perform :: Midi.Cache.Cache -> Midi.Cache.EventDamage -> Derive.Events
-    -> (Midi.Cache.Cache, (Ranges.Ranges RealTime, RealTime))
-cached_perform cache damage events = (out, Midi.Cache.cache_stats splice out)
-    where
-    perf_events = Convert.convert DeriveTest.default_lookup_scale
-        DeriveTest.default_lookup_inst events
-    out = Midi.Cache.perform (Stack.block UiTest.default_block_id)
-        cache damage perf_events
-    splice = fmap fst $
-        List.find is_failure (zip [0..] (Midi.Cache.cache_chunks out))
-    is_failure (_, chunk) = Midi.Cache.chunk_splice_failed chunk
 
 -- | Rederive and check correctness.
 rederive_check = undefined

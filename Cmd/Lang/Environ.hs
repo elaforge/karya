@@ -59,7 +59,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
-import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Instrument.Db as Db
 import Cmd.Lang.Global
 

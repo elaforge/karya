@@ -18,15 +18,8 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Midi.Perform
-import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.RealTime as RealTime
 
-
--- * performance
-
-get_midi_cache :: BlockId -> Cmd.CmdL Midi.Cache.Cache
-get_midi_cache block_id =
-    Cmd.perf_midi_cache <$> Cmd.get_performance block_id
 
 -- * derive
 
@@ -35,18 +28,6 @@ get_midi_cache block_id =
 -- | Clear out all caches and rederive from scratch for the given block.
 rederive :: BlockId -> Cmd.CmdL ()
 rederive = PlayUtil.clear_cache
-
--- | Compare performances with and without the midi cache.
-compare_cached_midi :: BlockId
-    -> Cmd.CmdL [Either Midi.WriteMessage Midi.WriteMessage]
-compare_cached_midi block_id = do
-    result <- PlayUtil.cached_derive block_id
-    uncached <- PlayUtil.uncached_perform block_id result
-    cached <- PlayUtil.cached_perform block_id result
-    return $ diff_events cached uncached
-    where
-    diff_events perf1 perf2 = Seq.diff (==) (msgs perf1) (msgs perf2)
-    msgs = LEvent.events_of . Midi.Cache.cache_messages . Cmd.perf_midi_cache
 
 compare_cached_events :: BlockId
     -> Cmd.CmdL [Either Simple.ScoreEvent Simple.ScoreEvent]
@@ -83,8 +64,8 @@ block_uncached_events block_id = Derive.r_events <$> uncached_derive block_id
 -- | Derive all the way to MIDI.
 block_midi :: BlockId -> Cmd.CmdL Midi.Perform.MidiEvents
 block_midi block_id = do
-    perf <- PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id
-    return $ Midi.Cache.cache_messages (Cmd.perf_midi_cache perf)
+    perf <- PlayUtil.performance <$> PlayUtil.cached_derive block_id
+    PlayUtil.perform_from perf 0
 
 -- * selection
 
@@ -92,13 +73,6 @@ block_midi block_id = do
 -- selection.
 sel_events :: Cmd.CmdL Derive.Events
 sel_events = get_sel block_events Score.event_start
-
-sel_midi :: Cmd.CmdL Midi.Perform.MidiEvents
-sel_midi = get_sel perf Midi.wmsg_ts
-    where
-    perf bid = do
-        p <- PlayUtil.cached_perform bid =<< PlayUtil.cached_derive bid
-        return $ Midi.Cache.messages_from 0 $ Cmd.perf_midi_cache p
 
 -- | Easier to read midi.
 simple_midi :: Cmd.CmdL Midi.Perform.MidiEvents
@@ -133,10 +107,3 @@ convert events = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
     return $ Midi.Convert.convert lookup_scale lookup_inst events
-
--- * midi
-
-get_chunk :: Int -> Cmd.CmdT IO Midi.Cache.Chunk
-get_chunk n = do
-    cache <- get_midi_cache =<< Cmd.get_focused_block
-    return $ Midi.Cache.cache_chunks cache !! n

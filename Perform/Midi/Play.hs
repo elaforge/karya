@@ -5,6 +5,7 @@ import Control.Monad
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
@@ -17,32 +18,36 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 
+import qualified Derive.LEvent as LEvent
+
+
+type Messages = [LEvent.LEvent Midi.WriteMessage]
 
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
-play :: Transport.Info -> BlockId -> [Midi.WriteMessage]
+play :: Transport.Info -> BlockId -> Messages
     -> IO (Transport.PlayControl, Transport.UpdaterControl)
 play transport_info block_id midi_msgs = do
     state <- Transport.state transport_info block_id
     let ts_offset = Transport.state_time_offset state
         -- Catch msgs up to realtime.
-        ts_midi_msgs = map (Midi.add_timestamp ts_offset) midi_msgs
+        ts_midi_msgs = map (fmap (Midi.add_timestamp ts_offset)) midi_msgs
     Thread.start_logged "render midi" (player_thread state ts_midi_msgs)
     return (Transport.state_play_control state,
         Transport.state_updater_control state)
 
-player_thread :: Transport.State -> [Midi.WriteMessage] -> IO ()
-player_thread state midi_msgs = do
+player_thread :: Transport.State -> Messages -> IO ()
+player_thread state msgs = do
     let name = show (Transport.state_block_id state)
-    Log.notice $ "play block " ++ name ++ " starting at "
-        ++ show (Transport.state_time_offset state)
-    play_msgs state Set.empty midi_msgs
+    secs <- Log.time_eval (take 10 msgs)
+    Log.notice $ "play block " ++ name
+        ++ " initialize: " ++ Pretty.pretty (RealTime.seconds secs)
+    play_msgs state Set.empty msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Transport.state_send_status state
                 (Transport.state_block_id state) (Transport.Died (show exc))
     Transport.player_stopped (Transport.state_updater_control state)
     Log.notice $ "render score " ++ show name ++ " complete"
-
 
 -- * implementation
 
@@ -55,9 +60,10 @@ write_ahead = RealTime.seconds 1
 
 -- | @devs@ keeps track of devices that have been seen, so I know which devices
 -- to reset.
-play_msgs :: Transport.State -> AddrsSeen -> [Midi.WriteMessage] -> IO ()
+play_msgs :: Transport.State -> AddrsSeen -> Messages -> IO ()
 play_msgs state addrs_seen msgs = do
     let write_midi = Transport.state_midi_writer state
+        write_msg = LEvent.either write_midi Log.write
     -- Make sure that I get a consistent play, not affected by previous
     -- control states.
     -- send_all write_midi new_devs Midi.ResetAllCcontrols
@@ -66,10 +72,11 @@ play_msgs state addrs_seen msgs = do
     -- write_ahead ahead of now.
     now <- Transport.state_get_current_time state
     let until = now + (RealTime.mul write_ahead 2)
-    let (chunk, rest) = span ((<until) . Midi.wmsg_ts) msgs
+    let (chunk, rest) =
+            span (LEvent.either ((<until) . Midi.wmsg_ts) (const True))  msgs
     -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
-    mapM_ write_midi chunk
-    addrs_seen <- return (update_addrs addrs_seen chunk)
+    mapM_ write_msg chunk
+    addrs_seen <- return (update_addrs addrs_seen (LEvent.events_of chunk))
 
     let timeout = if null rest then RealTime.mul write_ahead 2 else write_ahead
     stop <- Transport.check_for_stop (RealTime.to_seconds timeout)

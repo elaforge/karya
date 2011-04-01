@@ -6,7 +6,6 @@ import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Ranges as Ranges
 import qualified Util.Thread as Thread
 import qualified Midi.Midi as Midi
 
@@ -27,7 +26,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Transport as Transport
@@ -198,9 +196,8 @@ set_env root_id block_id track_id environ = do
         (Cmd.state_performance_threads st) }
     where
     track_env = Map.singleton (block_id, track_id) (Map.fromList environ)
-    perf = Cmd.Performance mempty empty_midi_cache track_env mempty
-        dummy_tempo dummy_closest_warp dummy_inv_tempo
-        mempty
+    perf = Cmd.Performance mempty [] track_env mempty
+        dummy_tempo dummy_closest_warp dummy_inv_tempo mempty
 
 make_pthread :: Cmd.Performance -> Cmd.PerformanceThread
 make_pthread perf = Unsafe.unsafePerformIO $ do
@@ -216,7 +213,3 @@ dummy_closest_warp _ _ _ = Score.id_warp
 
 dummy_inv_tempo :: Transport.InverseTempoFunction
 dummy_inv_tempo _ = []
-
-empty_midi_cache :: Midi.Cache.Cache
-empty_midi_cache =
-    Midi.Cache.Cache (DeriveTest.make_midi_config []) Ranges.nothing []

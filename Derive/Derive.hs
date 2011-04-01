@@ -373,36 +373,32 @@ type TrackEnviron = Map.Map (BlockId, TrackId) TrackLang.Environ
 
 data CacheState = CacheState {
     state_cache :: !Cache -- modified
-    , state_event_damage :: !EventDamage -- appended to
     , state_score_damage :: !ScoreDamage -- constant
     , state_control_damage :: !ControlDamage
 
-    -- | This is an evil hack.  Derivers must return 'EventDamage' for reasons
-    -- described in its haddock.  However, damage is a concept local to the
-    -- caching subsystem, and it's a hassle to have every transformer deal with
-    -- a @(derived, EventDamage)@ pair instead of plain @derived@.  So instead,
-    -- Cache maintains the event damage by modifying this value.  Event tracks
-    -- will pull it out and merge it into the global 'state_event_damage', and
-    -- control tracks will pull it out and merge it into the appropriate
-    -- ControlDamage.  If they forget, then bad things happen, but this code
-    -- should be restricted to the track derivers.
+    -- | This is an evil hack.  Derivers must return 'EventDamage' so the
+    -- caller can know which bits they rederived.  However, damage is a concept
+    -- local to the caching subsystem and it's a hassle to have every
+    -- transformer deal with a @(derived, EventDamage)@ pair instead of plain
+    -- @derived@.  So instead, Cache maintains the event damage by modifying
+    -- this value.  Control tracks will pull it out and merge it into the
+    -- appropriate ControlDamage.  If they forget, then bad things happen, but
+    -- this code should be restricted to the track derivers.
     --
-    -- So yes, this is implicitly returning a value by modifying a global.
-    -- TODO move this to Collect?
+    -- It's like Collect but isn't stored there as documented in Collect.
     , state_local_damage :: !EventDamage
     } deriving (Show)
 
 instance Monoid.Monoid CacheState where
     mempty = CacheState {
         state_cache = mempty
-        , state_event_damage = EventDamage mempty
         , state_score_damage = mempty
         , state_control_damage = ControlDamage mempty
         , state_local_damage = EventDamage mempty
         }
-    mappend (CacheState cache1 event1 score1 control1 local1)
-            (CacheState cache2 event2 score2 control2 local2) =
-        CacheState (cache1 <> cache2) (event1 <> event2) (score1 <> score2)
+    mappend (CacheState cache1 score1 control1 local1)
+            (CacheState cache2 score2 control2 local2) =
+        CacheState (cache1 <> cache2) (score1 <> score2)
             (control1 <> control2) (local1 <> local2)
 
 initial_cache_state :: Cache -> ScoreDamage -> CacheState
@@ -637,8 +633,6 @@ add_text_context context s =
 data Result = Result {
     r_events :: !Events
     , r_cache :: !Cache
-    -- | Ranges which were rederived on this derivation.
-    , r_event_damage :: !EventDamage
     , r_tempo :: !Transport.TempoFunction
     , r_closest_warp :: !Transport.ClosestWarpFunction
     , r_inv_tempo :: !Transport.InverseTempoFunction
@@ -658,7 +652,7 @@ derive :: Constant -> Scope -> Cache -> ScoreDamage -> TrackLang.Environ
     -> EventDeriver -> Result
 derive constant scope cache damage environ deriver =
     Result (merge_logs result logs) (state_cache (state_cache_state state))
-        event_damage tempo_func closest_func inv_tempo_func
+        tempo_func closest_func inv_tempo_func
         (collect_track_signals collect) (collect_track_environ collect)
         state
     where
@@ -670,8 +664,6 @@ derive constant scope cache damage environ deriver =
     tempo_func = TrackWarp.tempo_func warps
     closest_func = TrackWarp.closest_warp warps
     inv_tempo_func = TrackWarp.inverse_tempo_func warps
-    event_damage = state_event_damage (state_cache_state state)
-        <> score_to_event_damage warps damage
 
 -- | Given an environ, bring instrument and scale calls into scope.
 with_inital_scope :: TrackLang.Environ -> Deriver d -> Deriver d
@@ -685,44 +677,6 @@ with_inital_scope env deriver = set_inst (set_scale deriver)
             scale <- get_scale scale_id
             with_scale scale deriver
         _ -> id
-
--- | Convert ScoreDamage into EventDamage.
---
--- Local damage is obtained by recording the output of generators within the
--- score damage range.  This is essential to handle generators that produce
--- events outside of their range on the score.  However, it doesn't capture
--- events which were deleted, or modifications that don't produce track damage
--- ranges at all, like title changes.
---
--- Deleted events will always have score damage in their former positions, but
--- unfortunately have the same problem: if they produced score events outside
--- of the ui event range, those events won't be covered under event damage
--- after rederivation.
---
--- TODO A way to do this right would be to look at the previous score events
--- and take a diff, but at the moment I can't think of how to do that
--- efficiently.
-score_to_event_damage :: TrackWarp.Collections -> ScoreDamage
-    -> EventDamage
-score_to_event_damage warpcs score =
-    EventDamage $ Monoid.mconcat (block_ranges ++ track_ranges)
-    where
-    block_ranges = map block_damage (Set.elems (sdamage_blocks score))
-    block_damage block_id = Ranges.ranges
-        [(TrackWarp.tw_start tw, TrackWarp.tw_end tw)
-            | tw <- warpcs, TrackWarp.tw_block tw == block_id]
-
-    track_ranges = map track_damage (Map.assocs (sdamage_tracks score))
-    track_damage (track_id, ranges) =
-        Ranges.ranges $ case Ranges.extract ranges of
-            Nothing -> [(TrackWarp.tw_start tw, TrackWarp.tw_end tw)
-                | tw <- warpcs, track_id `elem` TrackWarp.tw_tracks tw]
-            Just pairs -> concatMap warp pairs
-        where
-        warp (start, end) =
-            [(Score.warp_pos start w, Score.warp_pos end w) | w <- warps]
-        warps = [TrackWarp.tw_warp tw | tw <- warpcs,
-            track_id `elem` TrackWarp.tw_tracks tw]
 
 modify :: (State -> State) -> Deriver ()
 modify f = (DeriveT . lift) $ do
@@ -794,10 +748,6 @@ insert_local_damage damage = modify_cache_state $ \st ->
 put_local_damage :: EventDamage -> Deriver ()
 put_local_damage damage = modify_cache_state $ \st ->
     st { state_local_damage = damage }
-
-insert_event_damage :: EventDamage -> Deriver ()
-insert_event_damage damage = modify_cache_state $ \st ->
-    st { state_event_damage = damage <> state_event_damage st }
 
 with_control_damage :: EventDamage -> Deriver derived -> Deriver derived
 with_control_damage (EventDamage damage) = local_cache_state
@@ -1555,6 +1505,9 @@ newtype Cache = Cache (Map.Map Stack.Stack CacheEntry)
     deriving (Monoid.Monoid, Show)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
+
+cache_size :: Cache -> Int
+cache_size (Cache c) = Map.size c
 
 -- finding prefixes becomes trivial, but lookup is probably slower
 -- or a 'Map.Map Stack.Frame (Either CacheEntry Cache)'

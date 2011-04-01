@@ -114,6 +114,7 @@ data State = State {
     , state_get_current_time :: IO RealTime
     }
 
+state :: Info -> BlockId -> IO State
 state (Info chan writer abort get_ts) block_id = do
     ts <- get_ts
     play_control <- fmap PlayControl STM.newEmptyTMVarIO

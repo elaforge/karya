@@ -155,12 +155,8 @@ d_note_track block_id track_id = do
     -- aren't.  Should they be?
     let pos_events = Track.event_list (Track.track_events track)
     block_end <- Derive.get_block_dur block_id
-
-    -- derive_notes block_end pos_events
-
     result <- Call.apply_transformer info track_expr
         (derive_notes block_end pos_events)
-    Derive.insert_event_damage =<< Derive.take_local_damage
     return result
     where info = (Call.note_dinfo, Derive.dummy_call_info "note track")
 

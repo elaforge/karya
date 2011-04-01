@@ -127,6 +127,9 @@ mk_tid_block block_id i =
     Types.TrackId $ Id.id ns (block_name ++ ".t" ++ show i)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
+mk_tid_name :: String -> TrackNum -> TrackId
+mk_tid_name block_name = mk_tid_block (bid block_name)
+
 -- * view
 
 select :: (State.M m) => ViewId -> Types.Selection -> m ()

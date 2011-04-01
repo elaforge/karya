@@ -157,6 +157,9 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args =
         -- changed region actually extends to the *next* sample.  But
         -- I don't know what that is here, so rely on the control deriver
         -- to do that.  Ugh, not too pretty.
+        -- TODO and in the case of note tracks, this is no longer needed
+        -- since I no longer emit EventDamage.  But I think only a thunk is
+        -- stored if it's never retrieved.
         Derive.insert_local_damage (EventDamage (derived_range derived))
         return (return derived, Nothing)
     non_caching False = return (func args, Nothing)

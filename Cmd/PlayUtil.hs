@@ -17,12 +17,11 @@ import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Midi.Convert as Convert
-import qualified Perform.Midi.Cache as Midi.Cache
-import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Stack as Stack
+import qualified Derive.LEvent as LEvent
+-- import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Db
@@ -54,17 +53,6 @@ cached_derive block_id = do
 uncached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
 uncached_derive block_id = derive mempty mempty block_id
 
-cached_perform :: (Cmd.M m) => BlockId -> Derive.Result -> m Cmd.Performance
-cached_perform block_id result = do
-    midi_config <- State.get_midi_config
-    midi_cache <- get_midi_cache midi_config <$> Cmd.lookup_performance block_id
-    perform block_id result midi_cache
-
-uncached_perform :: (Cmd.M m) => BlockId -> Derive.Result -> m Cmd.Performance
-uncached_perform block_id result = do
-    midi_config <- State.get_midi_config
-    perform block_id result (Midi.Cache.cache midi_config)
-
 clear_cache :: (Cmd.M m) => BlockId -> m ()
 clear_cache block_id =
     Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
@@ -92,26 +80,26 @@ get_lookup_inst_calls = do
     inst_db <- Cmd.gets Cmd.state_instrument_db
     return $ fmap MidiDb.info_inst_calls . Instrument.Db.db_lookup inst_db
 
--- | Convert a block ID into MIDI msgs and log msgs.  The logs are not
--- immediately written to preserve laziness on the returned MIDI msgs.
--- This is actually called from ResponderSync, when it kicks off background
--- derivation.  By the time 'cmd_play' pulls out the Performance, it should be
--- at least partially evaluated.
-perform :: (Cmd.M m) => BlockId -> Derive.Result -> Midi.Cache.Cache
-    -> m Cmd.Performance
-perform block_id result cache = do
+performance :: Derive.Result -> Cmd.Performance
+performance result = Cmd.Performance (Derive.r_cache result)
+    (Derive.r_events result)
+    (Derive.r_track_environ result) mempty (Derive.r_tempo result)
+    (Derive.r_closest_warp result) (Derive.r_inv_tempo result)
+    (Derive.r_track_signals result)
+
+perform_from :: (Cmd.M m) => Cmd.Performance -> RealTime -> m Perform.MidiEvents
+perform_from perf start = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
-    let midi_events = Convert.convert lookup_scale lookup_inst
-            (Derive.r_events result)
+    midi_config <- State.get_midi_config
+    let events = Convert.convert lookup_scale lookup_inst
+            (events_from start (Cmd.perf_events perf))
+    return $ fst $ Perform.perform Perform.initial_state midi_config events
 
-    let Derive.EventDamage event_damage = Derive.r_event_damage result
-        new_cache = Midi.Cache.perform (Stack.block block_id) cache
-                (Midi.Cache.EventDamage event_damage) midi_events
-    return $ Cmd.Performance
-        (Derive.r_cache result) new_cache (Derive.r_track_environ result) mempty
-        (Derive.r_tempo result) (Derive.r_closest_warp result)
-        (Derive.r_inv_tempo result) (Derive.r_track_signals result)
+events_from :: RealTime -> Derive.Events -> Derive.Events
+events_from start =
+    map (fmap (\e -> e { Score.event_start = Score.event_start e - start }))
+    . dropWhile (LEvent.either ((<start) . Score.event_start) (const True))
 
 -- | Perform some events with no caching or anything.  For interactive
 -- debugging.
@@ -124,16 +112,6 @@ perform_events events = do
         Convert.convert lookup_scale lookup_inst events
 
 -- * util
-
--- | The MIDI cache depends on the inst config.  If it changes, the cache must
--- be cleared.
-get_midi_cache :: Instrument.Config -> Maybe Cmd.Performance -> Midi.Cache.Cache
-get_midi_cache config maybe_perf = case maybe_perf of
-    Nothing -> empty
-    Just perf ->
-        let cache = Cmd.perf_midi_cache perf
-        in if config == Midi.Cache.cache_config cache then cache else empty
-    where empty = Midi.Cache.cache config
 
 get_derive_cache :: Maybe Cmd.Performance -> (Derive.Cache, Derive.ScoreDamage)
 get_derive_cache Nothing = (mempty, mempty)

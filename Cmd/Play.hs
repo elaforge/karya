@@ -97,13 +97,11 @@ import qualified Ui.Sync as Sync
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Derive.LEvent as LEvent
-
 import qualified Perform.Transport as Transport
-import qualified Perform.Midi.Cache as Cache
 import qualified Perform.Midi.Play as Midi.Play
 
 import qualified App.Config as Config
@@ -142,12 +140,10 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         Just _ -> Cmd.throw "player already running"
         _ -> return ()
     perf <- get_performance block_id
-
-    -- TODO previously I would print the logs again... reinstate that?
     start <- find_realtime perf block_id start_track start_pos
-    let msgs = Cache.messages_from start (Cmd.perf_midi_cache perf)
+    msgs <- PlayUtil.perform_from perf start
     (play_ctl, updater_ctl) <- Trans.liftIO $
-        Midi.Play.play transport_info block_id (LEvent.events_of msgs)
+        Midi.Play.play transport_info block_id msgs
 
     ui_state <- State.get
     Trans.liftIO $ Thread.start $ updater_thread
@@ -166,7 +162,7 @@ find_realtime perf block_id maybe_track_id pos = do
         maybe_track_id
     case msum (map tempo track_ids) of
         Nothing -> Cmd.throw $ show block_id ++ " " ++ show track_ids
-            ++ " has no tempo information, so it probably failde to derive."
+            ++ " has no tempo information, so it probably failed to derive."
         Just realtime -> return realtime
     where tempo tid = Seq.head $ Cmd.perf_tempo perf block_id tid pos
 

@@ -12,19 +12,14 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Data.IORef as IORef
-import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
-import Text.Printf (printf)
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
-
-import qualified Midi.Midi as Midi
 
 import Ui
 import qualified Ui.State as State
@@ -37,9 +32,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Cache as Derive.Cache
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
-import qualified Derive.Stack as Stack
-import qualified Perform.Midi.Cache as Midi.Cache
+import qualified Perform.RealTime as RealTime
 
 
 -- | The background derive threads will wait this many seconds before starting
@@ -129,13 +122,12 @@ generate_performance :: PerfInfo -> BlockId -> Cmd.CmdT IO ()
 generate_performance (send_status, root_id, sel) block_id = do
     old_thread <- fmap Cmd.pthread_id <$> Cmd.lookup_pthread block_id
     when_just old_thread (Trans.liftIO . Concurrent.killThread)
-    maybe_perf <- (Just <$>
-        (PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id))
+    derived <- (Just <$> PlayUtil.cached_derive block_id)
         `Error.catchError` \err -> do
             when (Cmd.is_abort err) $
                 Log.warn $ "Error performing: " ++ show err
             return Nothing
-    case maybe_perf of
+    case PlayUtil.performance <$> derived of
         Nothing -> Trans.liftIO $ send_status block_id Msg.DeriveFailed
         Just perf -> do
             root_sel <- maybe (return Nothing) (Selection.lookup_block_insert)
@@ -143,73 +135,22 @@ generate_performance (send_status, root_id, sel) block_id = do
             let cur = maybe 0
                     (Selection.relative_realtime_point perf root_sel) sel
             selection_pos <- Trans.liftIO $ IORef.newIORef cur
-            th <- Trans.liftIO $ do
-                Log.notice_stack (Stack.block block_id) "start deriving"
-                Thread.start $ evaluate_performance send_status selection_pos
-                    block_id perf
+            th <- Trans.liftIO $ Thread.start $
+                evaluate_performance send_status block_id perf
             let pthread = Cmd.PerformanceThread perf th selection_pos
             Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
                 Map.insert block_id pthread (Cmd.state_performance_threads st) }
 
-evaluate_performance :: SendStatus -> Cmd.SelectionPosition -> BlockId
-    -> Cmd.Performance -> IO ()
-evaluate_performance send_status selection_pos block_id perf = do
+evaluate_performance :: SendStatus -> BlockId -> Cmd.Performance -> IO ()
+evaluate_performance send_status block_id perf = do
     send_status block_id Msg.OutOfDate
     Thread.delay derive_wait
     send_status block_id Msg.Deriving
-    let cache = Cmd.perf_midi_cache perf
-    evaluate_midi block_id cache selection_pos False 0
-        (zip [0..] (Midi.Cache.cache_chunks cache))
+    secs <- Log.time_eval (Cmd.perf_inv_tempo perf 0)
+    Log.notice $ show block_id ++ ": primed evaluation in "
+        ++ Pretty.pretty (RealTime.seconds secs)
     send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
 
--- | Evaluate all chunks before 'eval_until'.  If I hit a splice failed msg,
--- log the overall cache stats.  Otherwise, cache stats can only be logged
--- once I'm out of chunks.
-evaluate_midi :: BlockId -> Midi.Cache.Cache -> Cmd.SelectionPosition -> Bool
-    -> RealTime -> [(Int, Midi.Cache.Chunk)] -> IO ()
-evaluate_midi block_id cache _ logged_stats _ [] =
-    when (not logged_stats) $ log_stats block_id Nothing cache
-evaluate_midi block_id cache selection_pos logged_stats eval_pos chunks = do
-    pos <- Cmd.read_selection selection_pos
-    let eval_until = max pos eval_pos
-    -- when (pos > eval_pos) $
-    --     Log.notice $ block_id ++ "jumping forward to cursor: " ++ show pos
-    let (pre, post) = break ((>=eval_until) . chunk_time . snd) chunks
-    mapM_ evaluate_chunk (map snd pre)
-    let splice_failed = fst <$>
-            List.find (Midi.Cache.chunk_splice_failed . snd) pre
-    when (not logged_stats && Maybe.isJust splice_failed) $
-        log_stats block_id splice_failed cache
-    -- Log.notice $ block_id ++ "eval until " ++ Pretty.pretty eval_pos
-    -- The delay here should be long enough to go easy on the GC but short
-    -- enough to have a good chance of having already evaluated the output
-    -- before the user hits "play".
-    -- TODO skip the delay for cached chunks
-    when (not (null post)) $
-        Thread.delay 0.5
-    evaluate_midi block_id cache selection_pos
-        (logged_stats || Maybe.isJust splice_failed)
-        (eval_until + Midi.Cache.cache_chunk_size) post
-
-log_stats :: BlockId -> Maybe Midi.Cache.ChunkNum -> Midi.Cache.Cache -> IO ()
-log_stats block_id splice_failed_at cache = do
-    Log.notice_stack (Stack.block block_id) $ printf
-        "midi reperformed: %s, total %s, cache damage: %s"
-        (Pretty.pretty reperformed) (Pretty.pretty total)
-        (Pretty.pretty (Midi.Cache.cache_damage cache))
-    where (reperformed, total) = Midi.Cache.cache_stats splice_failed_at cache
-
-chunk_time :: Midi.Cache.Chunk -> RealTime
-chunk_time chunk = case LEvent.events_of (Midi.Cache.chunk_messages chunk) of
-    [] -> 0
-    wmsg : _ -> Midi.wmsg_ts wmsg
-
-evaluate_chunk :: Midi.Cache.Chunk -> IO ()
-evaluate_chunk chunk = mapM_ eval (Midi.Cache.chunk_messages chunk)
-    where
-    eval (LEvent.Log log) = Log.write log
-    -- Midi.WriteMessage is strict, so deepseq is unnecessary.
-    eval (LEvent.Event midi) = midi `seq` return ()
 
 -- * selection
 

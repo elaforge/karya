@@ -51,6 +51,13 @@ test_score_damage = do
     equal (f ustate ustate [Update.TrackUpdate tid Update.TrackBg])
         (mk [] [] [])
 
+    let create = UiTest.mkstate "b1" [(">", [(0, 1, ""), (1, 1, "")])]
+        modify = State.remove_event (UiTest.mk_tid_name "b1" 0) 0
+    equal (score_damage create (return ())) (mk [] [] [])
+    equal (score_damage create modify)
+        (mk [(UiTest.mk_tid_name "b1" 0, Ranges.ranges [(0, 1)])]
+            [UiTest.bid "b1"] [])
+
 test_clear_damage = do
     let mkdamage tracks blocks = Derive.ScoreDamage
             (Map.fromList tracks) Set.empty (Set.fromList blocks)
@@ -78,7 +85,6 @@ test_no_damage = do
     strings_like (r_cache_logs cached) ["using cache"]
     -- make sure there's stuff in the cache now
     check (not (null (r_cache_stacks cached)))
-    equal (r_event_damage cached) (Just [])
 
 test_add_remove = do
     -- Make sure I get event damage from adding and removing event.
@@ -91,12 +97,10 @@ test_add_remove = do
     let (_, cached, uncached) = compare_cached create $
             State.remove_event (UiTest.tid "top.t1") 1
     equal (diff_events cached uncached) []
-    equal (r_event_damage cached) (Just [(2, 4)])
 
     let (_, cached, uncached) = compare_cached create $
             State.insert_event (UiTest.tid "top.t1") 4 (Event.event "" 1)
     equal (diff_events cached uncached) []
-    equal (r_event_damage cached) (Just [(8, 10)])
 
 test_block_damage = do
     let create = mkblocks
@@ -110,13 +114,11 @@ test_block_damage = do
     let (_, cached, uncached) = compare_cached create $
             State.add_track_flag (UiTest.bid "sub") 1 Block.Mute
     equal (diff_events cached uncached) []
-    equal (r_event_damage cached) (Just [(0, 2), (4, 6)])
 
     -- Plain old event modification works too.
     let (_, cached, uncached) = compare_cached create $
             State.insert_event (UiTest.tid "sub.t0") 0 (Event.event "" 0.5)
     equal (diff_events cached uncached) []
-    equal (r_event_damage cached) (Just [(0, 2), (4, 6)])
 
 r_logs :: Derive.Result -> [String]
 r_logs = map DeriveTest.show_log_stack . snd . LEvent.partition
@@ -132,10 +134,9 @@ test_failed_sub_track = do
             ]
     let (_, cached, uncached) = compare_cached create $
             State.set_track_title (UiTest.tid "sub.t1") "*broken"
+    -- TODO shouldn't I be checking this?
     pprint (r_logs cached)
     equal (diff_events cached uncached) []
-    equal (r_event_damage cached)
-        (Just [(0, 2), (5, 6)])
 
 test_has_score_damage = do
     let create = mkblocks
@@ -155,7 +156,6 @@ test_has_score_damage = do
         , "top.t0 2-3: * using cache"
         , toplevel_rederived
         ]
-    equal (r_event_damage cached) (Just [(1, 2)])
 
 test_callee_damage = do
     -- test callee damage: sub-block is damaged, it should be rederived
@@ -178,7 +178,6 @@ test_callee_damage = do
             Just [UiTest.bid "subsub"])
         ]
     -- sub is 1-3, its first elt should be 1-2, except I replaced it with .5
-    equal (r_event_damage cached) (Just [(1, 1.5)])
 
     -- A change to subsub means the top's "sub" call rederives as well.
     let (_, cached, uncached) = compare_cached parent_sub $
@@ -189,8 +188,6 @@ test_callee_damage = do
         , "sub.t0 1-2: * rederived * sub-block damage"
         , toplevel_rederived
         ]
-    -- subsub is at realtime position 2-3
-    equal (r_event_damage cached) (Just [(2, 3)])
 
 parent_sub = mkblocks
     [ ("top", [(">i", [(0, 1, ""), (1, 2, "sub")])])
@@ -258,7 +255,6 @@ test_control_damage = do
         , "top.t0 1-2: * using cache"
         , toplevel_rederived
         ]
-    equal (r_event_damage cached) (Just [(2, 2)])
 
     -- only the  affected event is rederived
     let (_, cached, uncached) = compare_cached create $
@@ -269,7 +265,6 @@ test_control_damage = do
         , "top.t0 1-2: * rederived * control damage"
         , toplevel_rederived
         ]
-    equal (r_event_damage cached) (Just [(1, 2)])
 
     -- if the change damages a greater control area, it should affect the event
     let (_, cached, uncached) = compare_cached create $
@@ -280,7 +275,6 @@ test_control_damage = do
         , "top.t0 1-2: * rederived * control damage"
         , toplevel_rederived
         ]
-    equal (r_event_damage cached) (Just [(0, 2)])
 
 test_tempo_damage = do
     let create = mkblocks
@@ -322,9 +316,6 @@ r_cache_logs :: Derive.Result -> [String]
 r_cache_logs = map DeriveTest.show_log_stack . filter DeriveTest.cache_msg
     . snd . LEvent.partition . Derive.r_events
 
-r_event_damage r = Ranges.extract ranges
-    where Derive.EventDamage ranges = Derive.r_event_damage r
-
 log_with_stack :: Log.Msg -> String
 log_with_stack msg = Log.msg_string msg
     -- Pretty.pretty (Log.msg_stack msg) ++ ": " ++ Log.msg_string msg
@@ -357,7 +348,7 @@ mkblocks block_tracks = do
         UiTest.mkstate bid tracks
     return $ UiTest.bid (fst (head block_tracks))
 
--- Derive with and without the cache, and make sure the cache fired and the
+-- | Derive with and without the cache, and make sure the cache fired and the
 -- results are the same.  Returns (result before modification, cached,
 -- uncached).  The pre-modification result is occaisionally useful to check
 -- logs.
@@ -372,6 +363,15 @@ compare_cached create modify = (result1, cached, uncached)
     cached = DeriveTest.derive_block_cache (Derive.r_cache result1)
         damage state2 bid
     uncached = DeriveTest.derive_block_cache mempty mempty state2 bid
+    updates = case Diff.diff cmd_updates state1 state2 of
+        Left err -> error ("diff error: " ++ err)
+        Right diff_updates -> diff_updates
+
+score_damage :: State.StateId a -> State.StateId b -> Derive.ScoreDamage
+score_damage create modify = Cache.score_damage state1 state2 updates
+    where
+    (_, state1) = UiTest.run State.empty create
+    (_, state2, cmd_updates) = run state1 modify
     updates = case Diff.diff cmd_updates state1 state2 of
         Left err -> error ("diff error: " ++ err)
         Right diff_updates -> diff_updates

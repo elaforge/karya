@@ -78,7 +78,6 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
-import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
@@ -402,7 +401,7 @@ type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 -- its evaluation.
 data Performance = Performance {
     perf_derive_cache :: Derive.Cache
-    , perf_midi_cache :: Midi.Cache.Cache
+    , perf_events :: Derive.Events
     , perf_track_environ :: Derive.TrackEnviron
     -- | Score damage on top of the Performance, used by the derive cache.
     -- This is empty when the Performance is first created and collects
@@ -417,7 +416,7 @@ data Performance = Performance {
 
 instance Show Performance where
     show perf = "((Performance " ++ Pretty.pretty len ++ "))"
-        where len = Midi.Cache.cache_length (perf_midi_cache perf)
+        where len = Derive.cache_size (perf_derive_cache perf)
 
 data PerformanceThread = PerformanceThread {
     pthread_perf :: Performance

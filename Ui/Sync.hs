@@ -56,7 +56,7 @@ sync state updates = do
     -- Technically I can also cancel out all TrackUpdates that only apply to
     -- newly created views, but this optimization is probably not worth it.
     result <- State.run state $ do_updates (Update.sort updates)
-    Log.timer $ "synced updates: " ++ show (length updates)
+    -- Log.timer $ "synced updates: " ++ show (length updates)
     return $ case result of
         Left err -> Just err
         -- I reuse State.StateT for convenience, but run_update should
