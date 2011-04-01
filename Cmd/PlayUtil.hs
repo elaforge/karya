@@ -80,13 +80,6 @@ get_lookup_inst_calls = do
     inst_db <- Cmd.gets Cmd.state_instrument_db
     return $ fmap MidiDb.info_inst_calls . Instrument.Db.db_lookup inst_db
 
-performance :: Derive.Result -> Cmd.Performance
-performance result = Cmd.Performance (Derive.r_cache result)
-    (Derive.r_events result)
-    (Derive.r_track_environ result) mempty (Derive.r_tempo result)
-    (Derive.r_closest_warp result) (Derive.r_inv_tempo result)
-    (Derive.r_track_signals result)
-
 perform_from :: (Cmd.M m) => Cmd.Performance -> RealTime -> m Perform.MidiEvents
 perform_from perf start = do
     lookup_scale <- Cmd.get_lookup_scale

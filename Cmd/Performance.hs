@@ -6,7 +6,7 @@
 -- needed:  enough so that playing will probably be lag free, but not so much
 -- to do too much unnecessary work (specifically, stressing the GC leads to
 -- UI latency).
-module Cmd.Performance (SendStatus, update_performance) where
+module Cmd.Performance (SendStatus, update_performance, performance) where
 import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Monad.Error as Error
@@ -120,7 +120,7 @@ generate_performance send_status block_id = do
             when (Cmd.is_abort err) $
                 Log.warn $ "Error performing: " ++ show err
             return Nothing
-    case PlayUtil.performance <$> derived of
+    case performance <$> derived of
         Nothing -> Trans.liftIO $ send_status block_id Msg.DeriveFailed
         Just perf -> do
             th <- Trans.liftIO $ Thread.start $
@@ -138,3 +138,11 @@ evaluate_performance send_status block_id perf = do
     Log.notice $ show block_id ++ ": primed evaluation in "
         ++ Pretty.pretty (RealTime.seconds secs)
     send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
+
+-- | Constructor for 'Cmd.Performance'.
+performance :: Derive.Result -> Cmd.Performance
+performance result = Cmd.Performance (Derive.r_cache result)
+    (Derive.r_events result)
+    (Derive.r_track_environ result) mempty (Derive.r_tempo result)
+    (Derive.r_closest_warp result) (Derive.r_inv_tempo result)
+    (Derive.r_track_signals result)

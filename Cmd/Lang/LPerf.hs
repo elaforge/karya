@@ -10,6 +10,7 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
+import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Derive as Derive
@@ -64,7 +65,7 @@ block_uncached_events block_id = Derive.r_events <$> uncached_derive block_id
 -- | Derive all the way to MIDI.
 block_midi :: BlockId -> Cmd.CmdL Midi.Perform.MidiEvents
 block_midi block_id = do
-    perf <- PlayUtil.performance <$> PlayUtil.cached_derive block_id
+    perf <- Performance.performance <$> PlayUtil.cached_derive block_id
     PlayUtil.perform_from perf 0
 
 -- * selection
