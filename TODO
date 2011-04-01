@@ -33,7 +33,7 @@ CURRENT
     * report how long it takes to play the first msgs, that reflects dropping
     * prime by forcing the first few score events, and report how long that
       takes
-    - remove selection_pos
+    * remove selection_pos
     - Note tracks no longer have to write local damage, only control ones.
       - remove state_event_damage
   - see if ControlDamage is affected by the same problems (deleted events)
@@ -74,6 +74,10 @@ CURRENT
   * Cmd.CmdId is inconsistent with State.StateId
   * rename State.state_project_scale to default_scale
   * rename project to namespace
+  - use functional references to make some of this record update stuff nicer?
+    - fclabels: rename record fields, use setL and setL
+    - lenses: got some magic for working with StateT?  don't understand yet
+    - data-accessor
   * Derive.initial_state should get a default pitch from whatever scale is in
     the environ... or no default pitch at all
   * initial environ should also set scopes

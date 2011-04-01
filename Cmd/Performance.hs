@@ -11,7 +11,6 @@ import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
-import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -28,7 +27,6 @@ import qualified Ui.Update as Update
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Msg as Msg
-import qualified Cmd.Selection as Selection
 
 import qualified Derive.Cache as Derive.Cache
 import qualified Derive.Derive as Derive
@@ -41,8 +39,6 @@ derive_wait :: Double
 derive_wait = 1
 
 type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
-
-type PerfInfo = (SendStatus, Maybe BlockId, Maybe Selection.Point)
 
 -- | Update 'Cmd.state_performance_threads'.  This means applying any new
 -- ScoreDamage to them, halting performance of blocks which have changed, and
@@ -57,12 +53,9 @@ update_performance send_status ui_from ui_to cmd_state updates = do
         let damage = Derive.Cache.score_damage ui_from ui_to updates
         kill_obsolete_threads damage
         insert_score_damage damage
-        sel <- Selection.lookup_insert
         focused <- Cmd.lookup_focused_block
-        let perf_info = (send_status, State.state_root ui_to, sel)
-        when_just focused (regenerate_performance perf_info)
-        when_just (State.state_root ui_to) (regenerate_performance perf_info)
-        when_just sel (update_selection_pos (State.state_root ui_to))
+        when_just focused (regenerate_performance send_status)
+        when_just (State.state_root ui_to) (regenerate_performance send_status)
         return Cmd.Done
     mapM_ Log.write logs
     case result of
@@ -95,11 +88,11 @@ insert_score_damage damage = Cmd.modify_state $ \st ->
 
 -- * performance evaluation
 
-regenerate_performance :: PerfInfo -> BlockId -> Cmd.CmdT IO ()
-regenerate_performance perf_info block_id = do
+regenerate_performance :: SendStatus -> BlockId -> Cmd.CmdT IO ()
+regenerate_performance send_status block_id = do
     threads <- Cmd.gets Cmd.state_performance_threads
     if needs_regeneration threads block_id
-        then generate_performance perf_info block_id
+        then generate_performance send_status block_id
         else return ()
 
 -- | A block should be rederived only if the it doesn't already have
@@ -118,8 +111,8 @@ needs_regeneration threads block_id = case Map.lookup block_id threads of
 -- Pull previous caches from the existing performance, if any.  Use them to
 -- generate a new performance, kick off a thread for it, and insert the new
 -- PerformanceThread.
-generate_performance :: PerfInfo -> BlockId -> Cmd.CmdT IO ()
-generate_performance (send_status, root_id, sel) block_id = do
+generate_performance :: SendStatus -> BlockId -> Cmd.CmdT IO ()
+generate_performance send_status block_id = do
     old_thread <- fmap Cmd.pthread_id <$> Cmd.lookup_pthread block_id
     when_just old_thread (Trans.liftIO . Concurrent.killThread)
     derived <- (Just <$> PlayUtil.cached_derive block_id)
@@ -130,14 +123,9 @@ generate_performance (send_status, root_id, sel) block_id = do
     case PlayUtil.performance <$> derived of
         Nothing -> Trans.liftIO $ send_status block_id Msg.DeriveFailed
         Just perf -> do
-            root_sel <- maybe (return Nothing) (Selection.lookup_block_insert)
-                root_id
-            let cur = maybe 0
-                    (Selection.relative_realtime_point perf root_sel) sel
-            selection_pos <- Trans.liftIO $ IORef.newIORef cur
             th <- Trans.liftIO $ Thread.start $
                 evaluate_performance send_status block_id perf
-            let pthread = Cmd.PerformanceThread perf th selection_pos
+            let pthread = Cmd.PerformanceThread perf th
             Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
                 Map.insert block_id pthread (Cmd.state_performance_threads st) }
 
@@ -150,18 +138,3 @@ evaluate_performance send_status block_id perf = do
     Log.notice $ show block_id ++ ": primed evaluation in "
         ++ Pretty.pretty (RealTime.seconds secs)
     send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
-
-
--- * selection
-
-update_selection_pos :: Maybe BlockId -> Selection.Point -> Cmd.CmdT IO ()
-update_selection_pos root_id focused_sel = do
-    -- for the selection in the focused block, find out what RealTime that
-    -- means to each block_id in the performances, and send that
-    threads <- Cmd.gets Cmd.state_performance_threads
-    forM_ (Map.elems threads) $ \pthread -> do
-        let perf = Cmd.pthread_perf pthread
-        root_sel <- maybe (return Nothing) (Selection.lookup_block_insert)
-            root_id
-        let pos = Selection.relative_realtime_point perf root_sel focused_sel
-        Trans.liftIO $ Cmd.write_selection pos (Cmd.pthread_selection pthread)

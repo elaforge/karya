@@ -1,6 +1,5 @@
 -- | Utilities for cmd tests.
 module Cmd.CmdTest where
-import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified System.IO.Unsafe as Unsafe
 
@@ -202,8 +201,7 @@ set_env root_id block_id track_id environ = do
 make_pthread :: Cmd.Performance -> Cmd.PerformanceThread
 make_pthread perf = Unsafe.unsafePerformIO $ do
     th <- Thread.start (return ())
-    selection_pos <- IORef.newIORef 0
-    return $ Cmd.PerformanceThread perf th selection_pos
+    return $ Cmd.PerformanceThread perf th
 
 dummy_tempo :: Transport.TempoFunction
 dummy_tempo _ _ _ = []

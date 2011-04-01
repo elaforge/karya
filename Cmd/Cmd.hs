@@ -40,7 +40,6 @@ import qualified Control.Monad.State.Strict as MonadState
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
 import qualified Data.Generics as Generics
-import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 
 import Util.Control
@@ -421,23 +420,11 @@ instance Show Performance where
 data PerformanceThread = PerformanceThread {
     pthread_perf :: Performance
     , pthread_id :: Concurrent.ThreadId
-    , pthread_selection :: SelectionPosition
     }
 
 instance Show PerformanceThread where
-    show (PerformanceThread perf th_id _) =
+    show (PerformanceThread perf th_id) =
         "((PerformanceThread " ++ show th_id ++ " perf " ++ show perf ++ "))"
-
--- | This is used to communicate with the performance thread and tell it where
--- the selection is, so it can prepare the performance as appropriate.
-type SelectionPosition = IORef.IORef RealTime
-
-read_selection :: SelectionPosition -> IO RealTime
-read_selection selection_pos =
-    IORef.atomicModifyIORef selection_pos (\a -> (a, a))
-
-write_selection :: RealTime -> SelectionPosition -> IO ()
-write_selection pos selection_pos = IORef.writeIORef selection_pos pos
 
 data HistoryEntry = HistoryEntry {
     hist_name :: String
