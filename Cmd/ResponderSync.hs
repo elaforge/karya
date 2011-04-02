@@ -1,7 +1,6 @@
 {- | Subset of the responder that handles syncing from State.State to the UI.
 -}
 module Cmd.ResponderSync (Sync, sync) where
-import Control.Monad
 import qualified Util.Log as Log
 
 import qualified Ui.Diff as Diff
@@ -28,9 +27,8 @@ sync sync_func send_status ui_from ui_to cmd_state cmd_updates = do
     updates <- case Diff.diff cmd_updates ui_from ui_to of
         Left err -> Log.error ("diff error: " ++ err) >> return []
         Right updates -> do
-            unless (null updates) $
-                Log.debug $ "updates: " ++ show updates
-            -- Log.timer "got diff updates"
+            -- unless (null updates) $
+            --     Log.debug $ "updates: " ++ show updates
             err <- sync_func ui_to updates
             case err of
                 Nothing -> return ()
