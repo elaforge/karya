@@ -3,6 +3,7 @@ import qualified Data.Map as Map
 
 import Util.Test
 import qualified Util.Log as Log
+import qualified Util.Regex as Regex
 
 import qualified LogView.Process as Process
 
@@ -13,15 +14,21 @@ test_render_status = do
     pprint (f status)
 
 test_process_msg = do
-    let state = Process.initial_state ""
-        f state msg =
-            (Process.state_last_timing new_state,
-                fmap (fst . Process.extract_style) styled)
-            where (styled, new_state) = Process.process_msg state msg
+    let state = (Process.initial_state "")
+            { Process.state_catch_patterns =
+                    [("catch", Regex.make "^catch me: (.*), (.*)")]
+            }
+        f state msg = (fmap (fst . Process.extract_style) styled)
+            where styled = fst $ Process.process_msg state msg
 
+    -- test general formatting
     msg <- Log.initialized_msg Log.Debug "hi"
-    equal (f state msg)
-        (Nothing, Just "*\thi\n")
+    equal (f state msg) (Just "*\thi\n")
+
+    -- test catch patterns
+    msg <- Log.initialized_msg Log.Debug "catch me: title, stuff"
+    equal (Process.state_status $ snd $ Process.process_msg state msg)
+        (Map.fromList [("title", "stuff")])
 
 test_regex_style = do
     let f = Process.run_formatter

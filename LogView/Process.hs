@@ -28,7 +28,7 @@ timing_diff_threshold = 0.5
 
 data State = State {
     state_filter :: Filter
-    -- | Msgs matching this regex have their matching groups put put in the
+    -- | Msgs matching this regex have their matching groups put in the
     -- status line.
     , state_catch_patterns :: [CatchPattern]
     , state_status :: Status
@@ -39,13 +39,11 @@ data State = State {
     -- | Last displayed msg, along with the number of times it has been seen.
     -- Used to suppress duplicate msgs.
     , state_last_displayed :: Maybe (Log.Msg, Int)
-    -- | Last timing message.
-    , state_last_timing :: Maybe Log.Msg
     } deriving (Show)
 
 initial_state :: String -> State
 initial_state filt = State
-    (compile_filter filt) [] Map.empty Sequence.empty Nothing Nothing
+    (compile_filter filt) [] Map.empty Sequence.empty Nothing
 
 add_msg :: Int -> Log.Msg -> State -> State
 add_msg history msg state = state { state_cached_msgs = seq }
@@ -98,6 +96,9 @@ process_msg :: State -> Log.Msg -> (Maybe StyledText, State)
 process_msg state msg = run $ suppress_last msg $ do
     let styled = format_msg msg
     filt <- State.gets state_filter
+    State.modify $ \st -> st { state_status =
+        catch_patterns (state_catch_patterns state) (Log.msg_string msg)
+            (state_status state) }
     return $ if eval_filter filt msg (style_text styled)
         then Just styled
         else Nothing
