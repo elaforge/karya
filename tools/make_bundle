@@ -41,8 +41,8 @@ else
     mv "$binpath.run" "$binpath"
     if [[ -n $icon ]]; then
         mkdir -p $binpath.app/Contents/Resources
-        cp $icon $binpath.app/Contents/Resources/icon.icns
-        icon_info="<key>CFBundleIconFile</key> <string>icon.icns</string>"
+        cp $icon $binpath.app/Contents/Resources/icon
+        icon_info="<key>CFBundleIconFile</key> <string>icon</string>"
     fi
 fi
 
