@@ -171,8 +171,12 @@ data View = View {
     view_block :: BlockId
     , view_rect :: Types.Rect
 
-    -- | These two are derived from view_rect, but cached here so pure code
-    -- doesn't have to call to the UI and import BlockC.
+    -- | Pixel width and height of the track area of the view, i.e. view_rect
+    -- with scrollbars and other things subtracted.
+    --
+    -- These two are derived from view_rect, but only fltk knows the width of
+    -- all the various widgets, so it's cached here so pure code doesn't have
+    -- to call to the UI and import BlockC.
     , view_visible_track :: Int
     , view_visible_time :: Int
 
@@ -210,15 +214,34 @@ show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
 
 -- | Return how much track is in view.
 visible_time :: View -> ScoreTime
-visible_time view =
-    pixels_to_track_pos (view_zoom view) (view_visible_time view)
+visible_time view = Types.zoom_to_time (view_zoom view) (view_visible_time view)
 
 visible_track :: View -> Types.Width
 visible_track = view_visible_track
 
-pixels_to_track_pos :: Types.Zoom -> Int -> ScoreTime
-pixels_to_track_pos zoom pixels =
-    Types.double_to_score (fromIntegral pixels / Types.zoom_factor zoom)
+-- | Get the visible track widths, taking collapsed tracks into account.
+--
+-- TODO get rid of this grodiness by moving collapsed tracks back into haskell
+visible_track_widths :: Block -> View -> [Types.Width]
+visible_track_widths block view =
+    zipWith size_of (view_tracks view) (block_tracks block)
+    where
+    size_of vtrack btrack
+        | Collapse `elem` track_flags btrack = 3
+        | otherwise = track_view_width vtrack
+
+-- | If the given Rect is the visible area, expand it to be what the
+-- 'view_rect' would be for that visible area.  Use this to set the visible
+-- area to a certain size.
+set_visible_rect :: View -> Types.Rect -> Types.Rect
+set_visible_rect view rect = rect
+    -- Add a bit of padding to look nicer.
+    { Types.rect_w = Types.rect_w rect + dw + 2
+    , Types.rect_h = Types.rect_h rect + dh
+    }
+    where
+    dw = Types.rect_w (view_rect view) - view_visible_track view
+    dh = Types.rect_h (view_rect view) - view_visible_time view
 
 data TrackView = TrackView {
     track_view_width :: Types.Width

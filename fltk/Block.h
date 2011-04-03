@@ -140,20 +140,8 @@ public:
             return track_tile.track_at(tracknum-1);
     }
     int tracks() const { return track_tile.tracks() + 1; }
-    int get_track_width(int tracknum) {
-        if (tracknum == 0)
-            return this->ruler_track->w();
-        else
-            return track_tile.get_track_width(tracknum-1);
-    }
-    void set_track_width(int tracknum, int width) {
-        if (tracknum == 0)
-            this->set_ruler_width(width);
-        else {
-            track_tile.set_track_width(tracknum-1, width);
-            skel_display.set_width(tracknum-1, width);
-        }
-    }
+    int get_track_width(int tracknum);
+    void set_track_width(int tracknum, int width);
 
 private:
     BlockModelConfig model_config;

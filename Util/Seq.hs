@@ -84,6 +84,19 @@ modify_at xs i f = case post of
         (elt:rest) -> (pre ++ f elt : rest)
     where (pre, post) = splitAt i xs
 
+-- | Similar to 'modify_at', but will insert an element for an out of range
+-- positive index.  The list will be extended with 'deflt', and the modify
+-- function passed a Nothing.
+update_at :: a -> Int -> (Maybe a -> a) -> [a] -> [a]
+update_at deflt i f xs
+    | i < 0 = error $ "Seq.update_at: negative index " ++ show i
+    | otherwise = go i xs
+    where
+    go 0 [] = [f Nothing]
+    go 0 (x:xs) = f (Just x) : xs
+    go i [] = deflt : go (i-1) []
+    go i (x:xs) = x : go (i-1) xs
+
 -- * min max
 
 minimum_on :: (Ord ord) => (a -> ord) -> [a] -> Maybe a

@@ -12,9 +12,8 @@ import qualified Ui.Types as Types
 import qualified Ui.Key as Key
 
 
--- | Technically MsgClose and whatnot don't have ctx_track and ctx_pos, but
--- it's easier to give everyone Context.
--- These all derive Ord so they can go in Sets and Maps.
+-- | Technically not all UiMsgs have a Context, but it's easier to give
+-- everyone a Context since it can be all Nothing anyway.
 data UiMsg = UiMsg Context Msg
     deriving (Show)
 
@@ -26,8 +25,7 @@ data Context = Context
     } deriving (Show)
 
 -- | Corresponds to UiMsg::MsgType enum.
-data Msg = MsgEvent Data | UiUpdate UiUpdate
-    | MsgClose
+data Msg = MsgEvent Data | UiUpdate UiUpdate | MsgClose
     deriving (Eq, Ord, Show)
 
 -- | These are generated when the UI is manipulated directly and makes changes
@@ -42,6 +40,8 @@ data UiUpdate =
     -- | Size of entire block window, and (visible_track, visible_time).
     | UpdateViewResize Types.Rect (Int, Int)
     | UpdateTrackWidth Types.Width
+    -- | Give screen dimensions: screen number, total screens, rect
+    | UpdateScreenSize Int Int Types.Rect
     deriving (Eq, Ord, Show)
 
 -- TODO this makes partial selectors... would it be better to split this up?

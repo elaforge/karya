@@ -11,6 +11,8 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  - move Types.Rect to Util.Rect
+  - put collapsed state back into haskell
   run timing tests with bloom
     - compile with optimization and make sure it rederives fast
     - edit bits and make sure it rederives extra fast
@@ -20,11 +22,12 @@ CURRENT
     need event snap?
   - LoadMod should make narrower tracks, start collapsed
   - Create.view should size it to fit the block being created
+  * zoom to fit cmd
+  - Util.Seq.modify_at, change arg order to put list at last
 
-  * fixing the long block b15 caused too much to be cached and the tempo is
-    weird
-
-  + Get rid of perform cache, and hence need for EventDamage.
+  - derive cache msgs are only logged on play... can I have performance do
+    that?
+  * Get rid of perform cache, and hence need for EventDamage.
     yet another problem with the cache: a delete that changes the length of
     a block will generate the wrong EventDamage because the warp for that
     block has changed.  This cache stuff is just too error-prone.
@@ -34,14 +37,12 @@ CURRENT
     * prime by forcing the first few score events, and report how long that
       takes
     * remove selection_pos
-    - Note tracks no longer have to write local damage, only control ones.
-      - remove state_event_damage
+  - Note tracks no longer have to write local damage, only control ones.
   - see if ControlDamage is affected by the same problems (deleted events)
     as EventDamage
 
   - select ^a first selects *rest* of track
   - ability to set default tempo
-  - ^M uncollapses all tracks?
   - block title takes up space and I'm not using it, can it collapse?
   * changing a merged track doesn't change visually
   * BlockC.insert_track passes a null merged so you can't make a view with

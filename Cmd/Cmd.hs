@@ -46,6 +46,7 @@ import Util.Control
 import qualified Util.Logger as Logger
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Block as Block
@@ -257,6 +258,8 @@ data State = State {
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
     , state_focused_view :: Maybe ViewId
+    -- | This contains a Rect for each screen.
+    , state_screens :: [Types.Rect]
 
     -- | This is similar to 'Ui.Block.view_status', except that it's global
     -- instead of per-view.  So changes are logged with a special prefix so
@@ -295,6 +298,7 @@ initial_state inst_db schema_map global_scope = State {
 
     , state_keys_down = Map.empty
     , state_focused_view = Nothing
+    , state_screens = []
     , state_global_status = Map.empty
 
     , state_wdev_state = empty_wdev_state
@@ -463,6 +467,13 @@ modify_state f = do
 modify_edit_state :: (M m) => (EditState -> EditState) -> m ()
 modify_edit_state f =
     modify_state $ \st -> st { state_edit = f (state_edit st) }
+
+-- | Return the rect of the screen closest to the given point.
+get_screen :: (M m) => (Int, Int) -> m Types.Rect
+get_screen point = do
+    screens <- gets state_screens
+    return $ maybe Types.empty_rect id $
+        Seq.minimum_on (Types.rect_distance point) screens
 
 lookup_pthread :: (M m) => BlockId -> m (Maybe PerformanceThread)
 lookup_pthread block_id = Map.lookup block_id <$> gets state_performance_threads
@@ -755,22 +766,32 @@ cmd_record_ui_updates msg = do
 
 ui_update :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
 ui_update ctx@(UiMsg.Context (Just view_id) track _pos) update = case update of
-    UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
-    UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
-    UiMsg.UpdateViewResize rect track_size -> do
-        view <- State.get_view view_id
-        when (rect /= Block.view_rect view) $
-            State.set_view_rect view_id rect
-        when (track_size /= view_track_size view) $
-            State.set_track_size view_id track_size
-    UiMsg.UpdateTrackWidth width -> case track of
-        Just tracknum -> State.set_track_width view_id tracknum width
-        Nothing -> State.throw $ show update ++ " with no track: " ++ show ctx
-    _ -> return ()
+        UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
+        UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
+        UiMsg.UpdateViewResize rect track_size -> do
+            view <- State.get_view view_id
+            when (rect /= Block.view_rect view) $
+                State.set_view_rect view_id rect
+            when (track_size /= view_track_size view) $
+                State.set_track_size view_id track_size
+        UiMsg.UpdateTrackWidth width -> case track of
+            Just tracknum -> State.set_track_width view_id tracknum width
+            Nothing -> State.throw $
+                show update ++ " with no track: " ++ show ctx
+        -- Handled by 'ui_update_state'.
+        UiMsg.UpdateInput {} -> return ()
+        -- Handled below.
+        UiMsg.UpdateScreenSize {} -> return ()
     where
     view_track_size v = (Block.view_visible_track v, Block.view_visible_time v)
-ui_update ctx update =
-    State.throw $ show update ++ " with no view_id: " ++ show ctx
+ui_update ctx update = case update of
+        UiMsg.UpdateScreenSize screen screens rect -> modify_state $ \st ->
+            st { state_screens =
+                set_screen screen screens rect (state_screens st) }
+        _ -> State.throw $ show update ++ " with no view_id: " ++ show ctx
+    where
+    set_screen screen screens rect = take screens
+        . Seq.update_at Types.empty_rect screen (const rect)
 
 -- | Except when it's a block update, I have to update the block to update
 -- the other views.  So this Cmd goes in with the normal Cmds.
@@ -800,8 +821,9 @@ ui_update_state ctx@(UiMsg.Context (Just view_id) _track _pos) update =
         -- UiMsg.UpdateTrackScroll hpos -> sync_zoom_status view_id
         UiMsg.UpdateZoom _zoom -> sync_zoom_status view_id
         _ -> return ()
-ui_update_state ctx update =
-    State.throw $ show update ++ " with no view_id: " ++ show ctx
+ui_update_state ctx update = case update of
+    UiMsg.UpdateScreenSize {} -> return ()
+    _ -> State.throw $ show update ++ " with no view_id: " ++ show ctx
 
 update_input ctx block_id text = case UiMsg.ctx_track ctx of
     Just tracknum -> do

@@ -2,6 +2,7 @@
 module Cmd.ViewConfig where
 
 import Ui
+import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
@@ -11,10 +12,6 @@ import qualified Cmd.Selection as Selection
 
 
 -- * zoom
-
-set_zoom view_id zoom = do
-    State.set_zoom view_id zoom
-    Cmd.sync_zoom_status view_id
 
 cmd_modify_zoom :: (Cmd.M m) => (Double -> Double) -> ViewId -> m ()
 cmd_modify_zoom f view_id = do
@@ -43,6 +40,31 @@ zoom_around (Types.Zoom offset factor) pos f =
 zoom_pos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime
 zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 
+set_zoom :: (Cmd.M m) => ViewId -> Types.Zoom -> m ()
+set_zoom view_id zoom = do
+    State.set_zoom view_id zoom
+    Cmd.sync_zoom_status view_id
+
+-- * resize
+
+resize_to_fit :: (Cmd.M m) => ViewId -> m ()
+resize_to_fit view_id = do
+    view <- State.get_view view_id
+    screen <- Cmd.get_screen (Types.rect_upper_left (Block.view_rect view))
+    rect <- view_rect view
+    State.set_view_rect view_id $ Types.rect_intersect screen $
+        Block.set_visible_rect view rect
+
+-- | Get the View's Rect, resized to fit its contents.  Its position is
+-- unchanged.
+view_rect :: (State.M m) => Block.View -> m Types.Rect
+view_rect view = do
+    block_end <- State.event_end (Block.view_block view)
+    block <- State.get_block (Block.view_block view)
+    let (x, y) = Types.rect_upper_left (Block.view_rect view)
+        w = sum $ drop 1 (Block.visible_track_widths block view)
+        h = Types.zoom_to_pixels (Block.view_zoom view) block_end
+    return $ Types.Rect x y w h
 
 -- * misc
 

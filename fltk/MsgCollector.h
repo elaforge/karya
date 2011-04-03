@@ -68,6 +68,14 @@ with ^click or something
 
 
 // This struct is simple so it can be serialized to haskell.
+//
+// It's actually a union and the meaning of the various fields change
+// depending on the 'type' field.
+//
+// TODO it would be easier to understand if I made bits actual unions, but
+// I'm not totally sure what the FFI would think of that, and it's not so
+// bad if the only code that cares is fltk/MsgCollector.cc and
+// UiMsg/UiMsgC.hsc.
 struct UiMsg {
     // It's always initialized manually, but STL needs a default constructor.
     UiMsg();
@@ -86,11 +94,23 @@ struct UiMsg {
         // 'msg_close' are update notifications and may also have args in the
         // "update msg args" section.
         msg_track_scroll, msg_zoom, msg_view_resize,
-        msg_track_width, msg_close
+        msg_track_width, msg_close,
+        // One will be emitted for each screen on on startup and when screens
+        // have been added or removed.
+        // Will set 'update_rect' to the screen size,
+        // 'width_scroll_visible_track' to screen number, and 'visible_time' to
+        // the total screens.
+        msg_screen_size
     };
-    // Keep this up to date with UiMsg::MsgType
+    static const char **msg_type_names() {
+        static const char *names[] = { "event", "input",
+            "track_scroll", "zoom", "view_resize",
+            "track_width", "close",
+            "screen_size" };
+        return names;
+    }
 
-
+    // Type tag for this union.
     MsgType type;
 
     // Fields from the various fltk event_*() functions, used for 'msg_event'.
@@ -146,6 +166,17 @@ public:
     void window_update(BlockViewWindow *view, UiMsg::MsgType type);
     void window_update(BlockViewWindow *view, UiMsg::MsgType type,
             int tracknum);
+
+    // Send one msg_screen_size msg for each screen.
+    //
+    // It's called on startup from Ui/c_interface.cc:initialize
+    //
+    // TODO this should be attached to a callback that gets called whenever
+    // a screen is added or removed, but fltk doesn't support this.  I could
+    // cache the screen count and constantly poll for changes, but fltk doesn't
+    // even notice when screens change.
+    // filed STR 2600
+    void screen_update();
 
     UiMsg *msgs_ptr() {
         // The C++ standard says vector is supposed to use a contiguous array:

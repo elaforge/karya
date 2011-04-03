@@ -41,3 +41,10 @@ d2c = Coerce.unsafeCoerce
 
 c2d :: C.CDouble -> Double
 c2d = Coerce.unsafeCoerce
+
+-- | Conversion that clamps at INT_MIN / INT_MAX.
+d2i :: Double -> Int
+d2i d = floor (clamp min_int max_int d)
+    where
+    max_int = fromIntegral (maxBound :: Int)
+    min_int = fromIntegral (minBound :: Int)

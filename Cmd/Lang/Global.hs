@@ -77,6 +77,9 @@ import qualified App.Config as Config
 block :: Cmd.CmdL BlockId
 block = Cmd.get_focused_block
 
+view :: Cmd.CmdL ViewId
+view = Cmd.get_focused_view
+
 -- | Some oprators to more conveniently string together monadic and non-monadic
 -- functions in the REPL.
 --

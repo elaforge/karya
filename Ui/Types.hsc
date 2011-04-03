@@ -31,8 +31,44 @@ data Rect = Rect {
     , rect_w :: Int
     , rect_h :: Int
     } deriving (Eq, Ord, Show, Read)
+
+rect_r, rect_b :: Rect -> Int
 rect_r rect = rect_x rect + rect_w rect
 rect_b rect = rect_y rect + rect_h rect
+
+rect_upper_left :: Rect -> (Int, Int)
+rect_upper_left (Rect x y _ _) = (x, y)
+
+empty_rect :: Rect
+empty_rect = Rect 0 0 0 0
+
+-- | Distance from a point to a rectangle.
+rect_distance :: (Int, Int) -> Rect -> Double
+rect_distance (px, py) (Rect x y w h)
+    | x <= px && px < r && y <= py && py < b = 0
+    | x <= px && px < r = fromIntegral $
+        min (abs (y - py)) (abs (b - py))
+    | y <= py && py < b = fromIntegral $
+        min (abs (x - px)) (abs ((x+w) - px))
+    | otherwise = dist (x, y) `min` dist (r, y)
+        `min` dist (r, b) `min` dist (x, b)
+    where
+    r = x + w
+    b = y + h
+    dist = point_distance (px, py)
+
+-- | Find the intersection of two rectangles.
+rect_intersect :: Rect -> Rect -> Rect
+rect_intersect r1 r2 = Rect rx ry (max 0 (rr-rx)) (max 0 (rb-ry))
+    where
+    rx = max (rect_x r1) (rect_x r2)
+    ry = max (rect_y r1) (rect_y r2)
+    rr = min (rect_r r1) (rect_r r2)
+    rb = min (rect_b r1) (rect_b r2)
+
+point_distance :: (Int, Int) -> (Int, Int) -> Double
+point_distance (x1, y1) (x2, y2) =
+    sqrt $ fromIntegral (x2-x1) ** 2 + fromIntegral (y2-y1) ** 2
 
 instance Storable Rect where
     sizeOf _ = #size IRect
@@ -64,6 +100,17 @@ instance Storable Zoom where
     poke zoomp (Zoom offset factor) = do
         (#poke ZoomInfo, offset) zoomp offset
         (#poke ZoomInfo, factor) zoomp (Num.d2c factor)
+
+-- | Convert a position at a given zoom factor to a pixel position.  Doesn't
+-- take the zoom offset into account.
+zoom_to_pixels :: Zoom -> ScoreTime -> Int
+zoom_to_pixels zoom pos = Num.d2i $ score_to_double pos * zoom_factor zoom
+
+-- | Convert a pixel position to a ScoreTime at the given zoom factor.  Doesn't
+-- take the zoom offset into account.
+zoom_to_time :: Zoom -> Int -> ScoreTime
+zoom_to_time zoom pixels =
+    double_to_score (fromIntegral pixels / zoom_factor zoom)
 
 -- * ScoreTime
 

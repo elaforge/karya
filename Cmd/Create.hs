@@ -368,6 +368,7 @@ ids_for ns parent code =
     [Id.id ns (dotted parent ++ code ++ show n) | n <- [0..]]
     where dotted s = if null s then "" else s ++ "."
 
+require :: (State.M m) => String -> Maybe a -> m a
 require msg = maybe (State.throw $ "somehow can't find ID for " ++ msg) return
 
 -- TODO I also need the screen dimensions to do this right.  Before I go

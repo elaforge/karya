@@ -15,6 +15,7 @@ initialize()
 {
     // DEBUG("lock");
     Fl::lock();
+    global_msg_collector()->screen_update();
 }
 
 void

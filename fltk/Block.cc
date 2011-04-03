@@ -501,6 +501,8 @@ BlockView::insert_track_view(int tracknum, TrackView *track, int width)
         if (replaced != this->no_ruler)
             track_tile.insert_track(0, replaced, replaced->w());
         this->ruler_track->set_zoom(this->zoom);
+        // Changing the ruler will change the track area.
+        global_msg_collector()->block_update(this, UiMsg::msg_view_resize);
     } else {
         track_tile.insert_track(tracknum - 1, track, width);
         this->track_tile.set_zoom(this->zoom);
@@ -553,6 +555,30 @@ BlockView::set_track_signal(int tracknum, const TrackSignal &tsig)
     if (collapsed)
         collapsed->set_track_signal(tsig);
 }
+
+
+int
+BlockView::get_track_width(int tracknum)
+{
+    if (tracknum == 0)
+        return this->ruler_track->w();
+    else
+        return track_tile.get_track_width(tracknum-1);
+}
+
+
+void
+BlockView::set_track_width(int tracknum, int width)
+{
+    if (tracknum == 0) {
+        this->set_ruler_width(width);
+        global_msg_collector()->block_update(this, UiMsg::msg_view_resize);
+    } else {
+        track_tile.set_track_width(tracknum-1, width);
+        skel_display.set_width(tracknum-1, width);
+    }
+}
+
 
 
 // private

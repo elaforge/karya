@@ -29,12 +29,7 @@ UiMsg::free()
 inline std::ostream &
 operator<<(std::ostream &os, const UiMsg &m)
 {
-    // Keep this up to date with UiMsg::MsgType
-    static const char *msg_type_names[] = { "event", "input",
-        "track_scroll", "zoom", "view_resize",
-        "track_width", "close" };
-
-    os << '<' << msg_type_names[m.type];
+    os << '<' << UiMsg::msg_type_names()[m.type];
     if (m.type == UiMsg::msg_event) {
         os << "=" << show_event(m.event)
             << " key=" << show_key(m.key)
@@ -48,6 +43,8 @@ operator<<(std::ostream &os, const UiMsg &m)
     if (m.type == UiMsg::msg_view_resize) {
         os << " track=(" << m.width_scroll_visible_track
             << ", " << m.visible_time << ")";
+    } else if (m.type == UiMsg::msg_screen_size) {
+        os << " " << m.width_scroll_visible_track << "/" << m.visible_time;
     } else {
         os << " width=" << m.width_scroll_visible_track;
     }
@@ -181,6 +178,9 @@ set_update_args(UiMsg &m, BlockView *view, UiMsg::MsgType type)
     case UiMsg::msg_event:
         ASSERT(false); // it's not an update so this shouldn't have been called
         break;
+    case UiMsg::msg_screen_size:
+        ASSERT(false); // you should have called screen_update()
+        break;
     }
 }
 
@@ -238,12 +238,31 @@ MsgCollector::window_update(BlockViewWindow *view, UiMsg::MsgType type,
     this->push(m);
 }
 
+
+void
+MsgCollector::screen_update()
+{
+    int screens = Fl::screen_count();
+    for (int screen = 0; screen < screens; screen++) {
+        int x, y, w, h;
+        UiMsg m;
+        Fl::screen_xywh(x, y, w, h, screen);
+        m.type = UiMsg::msg_screen_size;
+        m.width_scroll_visible_track = screen;
+        m.visible_time = screens;
+        m.update_rect = new IRect(x, y, w, h);
+        this->push(m);
+    }
+}
+
+
 MsgCollector *
 global_msg_collector()
 {
     static MsgCollector m;
     return &m;
 }
+
 
 void
 MsgCollector::clear()
@@ -252,6 +271,7 @@ MsgCollector::clear()
         msgs[i].free(); // yay pointers
     msgs.clear();
 }
+
 
 void
 MsgCollector::push(const UiMsg &m)
