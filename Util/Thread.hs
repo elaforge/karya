@@ -22,10 +22,10 @@ handle_thread :: String -> IO a -> IO ()
 handle_thread name op = do
     thread_id <- Concurrent.myThreadId
     let thread_name = show thread_id ++ " " ++ name ++ ": "
-    Log.notice $ thread_name ++ "started"
+    Log.debug $ thread_name ++ "started"
     result <- Exception.try op
     case result of
-        Right _ -> Log.notice $ thread_name ++ "completed"
+        Right _ -> Log.debug $ thread_name ++ "completed"
         Left err -> Log.warn $ thread_name ++ "died: "
             ++ show (err :: Exception.SomeException)
 
