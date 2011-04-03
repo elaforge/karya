@@ -19,6 +19,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 
 import Util.Test
+import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
@@ -55,7 +56,7 @@ test_create_resize_destroy_view = do
         State.set_block_title (Block.view_block view) "new block!"
         State.set_track_title t_track1_id "new track"
     state <- io_human "view moves over, gets bigger" $ run state $ do
-        State.set_view_rect t_view_id (Types.Rect 400 400 400 400)
+        State.set_view_rect t_view_id (Rect.xywh 400 400 400 400)
     io_human "view is destroyed" $ run state $ do
         State.destroy_view t_view_id
     return ()
@@ -66,9 +67,7 @@ test_create_two_views = do
         b2 <- create_block "b2" $ UiTest.mkblock ""
             [(Block.RId t_ruler_id, 20), (Block.TId t_track1_id t_ruler_id, 30)]
         v2 <- create_view "v2" $
-            Block.view b2
-                (UiTest.default_rect
-                    { Types.rect_x = 300, Types.rect_y = 20 })
+            Block.view b2 (Rect.move 300 20 UiTest.default_rect)
                 UiTest.default_zoom
         State.set_track_title t_track1_id "hi there"
     return ()

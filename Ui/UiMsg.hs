@@ -5,6 +5,7 @@ module Ui.UiMsg where
 import Text.Printf
 
 import qualified Util.Pretty as Pretty
+import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import Ui
@@ -38,10 +39,10 @@ data UiUpdate =
     | UpdateTrackScroll Types.Width
     | UpdateZoom Types.Zoom
     -- | Size of entire block window, and (visible_track, visible_time).
-    | UpdateViewResize Types.Rect (Int, Int)
+    | UpdateViewResize Rect.Rect (Int, Int)
     | UpdateTrackWidth Types.Width
     -- | Give screen dimensions: screen number, total screens, rect
-    | UpdateScreenSize Int Int Types.Rect
+    | UpdateScreenSize Int Int Rect.Rect
     deriving (Eq, Ord, Show)
 
 -- TODO this makes partial selectors... would it be better to split this up?

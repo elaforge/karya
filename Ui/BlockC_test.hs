@@ -4,6 +4,7 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 
+import qualified Util.Rect as Rect
 import Util.Test
 
 import qualified Ui.Color as Color
@@ -46,7 +47,7 @@ send = Ui.send_action
 test_create_set_size = do
     view <- create_empty_view
     io_human "move and change size" $
-        BlockC.set_size view (Types.Rect 200 200 200 200)
+        BlockC.set_size view (Rect.xywh 200 200 200 200)
     io_human "view is destroyed" $
         send $ BlockC.destroy_view view
 

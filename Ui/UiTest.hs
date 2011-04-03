@@ -4,6 +4,7 @@ import qualified Data.Map as Map
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified System.IO as IO
+import qualified Util.Rect as Rect
 
 import qualified Ui.Color as Color
 
@@ -28,7 +29,7 @@ pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 -- (10, 50) seems to be the smallest x,y os x will accept.  Apparently
 -- fltk's sizes don't take the menu bar into account, which is about 44 pixels
 -- high, so a y of 44 is the minimum.
-default_rect = Types.Rect 10 50 200 200
+default_rect = Rect.xywh 10 50 200 200
 
 default_divider = Block.Divider Color.blue
 

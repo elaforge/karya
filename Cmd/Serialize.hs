@@ -23,9 +23,10 @@ import qualified Data.Time as Time
 
 import qualified System.IO as IO
 
+import qualified Util.Binary
 import qualified Util.File as File
 import qualified Util.PPrint as PPrint
-import qualified Util.Binary
+import qualified Util.Rect as Rect
 
 import qualified Midi.Midi as Midi
 
@@ -272,7 +273,7 @@ instance Binary Block.View where
                 return (Block.View a b 0 0 c d e f g h)
             1 -> do
                 block <- get :: Get Types.BlockId
-                rect <- get :: Get Types.Rect
+                rect <- get :: Get Rect.Rect
                 visible_track <- get :: Get Int
                 visible_time <- get :: Get Int
                 config <- get :: Get Block.ViewConfig
@@ -290,10 +291,11 @@ instance Binary Block.TrackView where
     put (Block.TrackView a) = put a
     get = get >>= \a -> return (track_view a)
 
-instance Binary Types.Rect where
-    put (Types.Rect a b c d) = put a >> put b >> put c >> put d
+instance Binary Rect.Rect where
+    put r = put (Rect.rx r) >> put (Rect.ry r) >> put (Rect.rw r)
+        >> put (Rect.rh r)
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Types.Rect a b c d)
+        return (Rect.xywh a b c d)
 
 instance Binary Block.ViewConfig where
     put (Block.ViewConfig a b c d e) = put_version 2

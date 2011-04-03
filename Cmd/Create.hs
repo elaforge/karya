@@ -18,6 +18,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
+import qualified Util.Rect as Rect
 
 import Ui
 import qualified Ui.Block as Block
@@ -374,7 +375,7 @@ require msg = maybe (State.throw $ "somehow can't find ID for " ++ msg) return
 -- TODO I also need the screen dimensions to do this right.  Before I go
 -- too far here, though, I'll want to think about proper window manager stuff.
 -- If I just allow the placement function to be passed as an arg...
-find_rect (w, h) rects = Types.Rect right bottom w h
+find_rect (w, h) rects = Rect.xywh right bottom w h
     where
-    right = maximum $ 0 : map Types.rect_r rects
+    right = maximum $ 0 : map Rect.rr rects
     bottom = 10

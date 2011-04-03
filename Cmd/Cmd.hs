@@ -46,6 +46,7 @@ import Util.Control
 import qualified Util.Logger as Logger
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import Ui
@@ -259,7 +260,7 @@ data State = State {
     -- a particular block or track will address these.
     , state_focused_view :: Maybe ViewId
     -- | This contains a Rect for each screen.
-    , state_screens :: [Types.Rect]
+    , state_screens :: [Rect.Rect]
 
     -- | This is similar to 'Ui.Block.view_status', except that it's global
     -- instead of per-view.  So changes are logged with a special prefix so
@@ -469,11 +470,11 @@ modify_edit_state f =
     modify_state $ \st -> st { state_edit = f (state_edit st) }
 
 -- | Return the rect of the screen closest to the given point.
-get_screen :: (M m) => (Int, Int) -> m Types.Rect
+get_screen :: (M m) => (Int, Int) -> m Rect.Rect
 get_screen point = do
     screens <- gets state_screens
-    return $ maybe Types.empty_rect id $
-        Seq.minimum_on (Types.rect_distance point) screens
+    return $ maybe Rect.empty id $
+        Seq.minimum_on (Rect.distance point) screens
 
 lookup_pthread :: (M m) => BlockId -> m (Maybe PerformanceThread)
 lookup_pthread block_id = Map.lookup block_id <$> gets state_performance_threads
@@ -791,7 +792,7 @@ ui_update ctx update = case update of
         _ -> State.throw $ show update ++ " with no view_id: " ++ show ctx
     where
     set_screen screen screens rect = take screens
-        . Seq.update_at Types.empty_rect screen (const rect)
+        . Seq.update_at Rect.empty screen (const rect)
 
 -- | Except when it's a block update, I have to update the block to update
 -- the other views.  So this Cmd goes in with the normal Cmds.

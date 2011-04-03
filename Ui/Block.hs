@@ -1,6 +1,7 @@
 module Ui.Block where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
+import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import Ui
@@ -169,7 +170,7 @@ data View = View {
     -- TODO Views that point to a BlockId not in state_blocks should be
     -- destroyed.
     view_block :: BlockId
-    , view_rect :: Types.Rect
+    , view_rect :: Rect.Rect
 
     -- | Pixel width and height of the track area of the view, i.e. view_rect
     -- with scrollbars and other things subtracted.
@@ -202,7 +203,7 @@ instance DeepSeq.NFData View where
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites
 -- view_tracks, and maybe more in the future.
-view :: BlockId -> Types.Rect -> Types.Zoom -> View
+view :: BlockId -> Rect.Rect -> Types.Zoom -> View
 view block_id rect zoom =
     -- view_visible_track and view_visible_time are unknown, but will
     -- be filled in when the new view emits its initial resize msg.
@@ -233,15 +234,15 @@ visible_track_widths block view =
 -- | If the given Rect is the visible area, expand it to be what the
 -- 'view_rect' would be for that visible area.  Use this to set the visible
 -- area to a certain size.
-set_visible_rect :: View -> Types.Rect -> Types.Rect
+set_visible_rect :: View -> Rect.Rect -> Rect.Rect
 set_visible_rect view rect = rect
     -- Add a bit of padding to look nicer.
-    { Types.rect_w = Types.rect_w rect + dw + 2
-    , Types.rect_h = Types.rect_h rect + dh
+    { Rect.rw = Rect.rw rect + dw + 2
+    , Rect.rh = Rect.rh rect + dh
     }
     where
-    dw = Types.rect_w (view_rect view) - view_visible_track view
-    dh = Types.rect_h (view_rect view) - view_visible_time view
+    dw = Rect.rw (view_rect view) - view_visible_track view
+    dh = Rect.rh (view_rect view) - view_visible_time view
 
 data TrackView = TrackView {
     track_view_width :: Types.Width

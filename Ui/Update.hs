@@ -3,6 +3,7 @@ module Ui.Update where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
 import qualified Util.Ranges as Ranges
+import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import Ui
@@ -23,7 +24,7 @@ data Update
 data ViewUpdate =
     CreateView
     | DestroyView
-    | ViewSize Types.Rect
+    | ViewSize Rect.Rect
     | ViewConfig Block.ViewConfig
     | Status String
     | TrackScroll Types.Width

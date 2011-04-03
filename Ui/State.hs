@@ -38,6 +38,7 @@ import qualified Util.Logger as Logger
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Rect as Rect
 import qualified Util.Tree as Tree
 
 import Ui
@@ -481,7 +482,7 @@ set_track_scroll :: (M m) => ViewId -> Types.Width -> m ()
 set_track_scroll view_id offset =
     modify_view view_id (\view -> view { Block.view_track_scroll = offset })
 
-set_view_rect :: (M m) => ViewId -> Types.Rect -> m ()
+set_view_rect :: (M m) => ViewId -> Rect.Rect -> m ()
 set_view_rect view_id rect =
     modify_view view_id (\view -> view { Block.view_rect = rect })
 

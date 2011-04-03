@@ -4,6 +4,7 @@ import Foreign
 import Foreign.C
 import qualified Data.Maybe as Maybe
 import Util.Control
+import qualified Util.Rect as Rect
 
 import Ui
 import qualified Ui.BlockC as BlockC
@@ -56,7 +57,7 @@ peek_msg msgp = do
     visible_time <- (#peek UiMsg, visible_time) msgp :: IO CInt
     czoom <- (#peek UiMsg, update_zoom) msgp :: IO (Ptr Types.Zoom)
     zoom <- maybePeek peek czoom
-    crect <- (#peek UiMsg, update_rect) msgp :: IO (Ptr Types.Rect)
+    crect <- (#peek UiMsg, update_rect) msgp :: IO (Ptr Rect.Rect)
     rect <- maybePeek peek crect
     let update_args = (text, i width, i visible_time, zoom, rect)
 
@@ -72,7 +73,7 @@ peek_msg msgp = do
     where i = fromIntegral
 
 -- | Data for a 'UiMsg.UiUpdate'.
-type UpdateArgs = (Maybe String, Int, Int, Maybe Types.Zoom, Maybe Types.Rect)
+type UpdateArgs = (Maybe String, Int, Int, Maybe Types.Zoom, Maybe Rect.Rect)
 
 -- | Data for a 'UiMsg.Data'.
 type EventArgs = (Int, Int, Int, Bool, Int, Int, Int)

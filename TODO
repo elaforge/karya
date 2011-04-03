@@ -11,7 +11,7 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
-  - move Types.Rect to Util.Rect
+  * move Types.Rect to Util.Rect
   - put collapsed state back into haskell
   run timing tests with bloom
     - compile with optimization and make sure it rederives fast

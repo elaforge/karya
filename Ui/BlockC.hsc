@@ -52,6 +52,7 @@ import Foreign
 import Foreign.C
 
 import Util.Control
+import qualified Util.Rect as Rect
 
 import Ui
 import qualified Ui.Color as Color
@@ -114,7 +115,7 @@ get_id viewp = do
 
 -- | Create an empty block view with the given configs.  Tracks must be
 -- inserted separately.
-create_view :: ViewId -> String -> Types.Rect -> Block.ViewConfig
+create_view :: ViewId -> String -> Rect.Rect -> Block.ViewConfig
     -> Block.Config -> Fltk ()
 create_view view_id window_title rect view_config block_config = do
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
@@ -126,7 +127,7 @@ create_view view_id window_title rect view_config block_config = do
                 c_create (i x) (i y) (i w) (i h) titlep configp view_configp
         return $ Map.insert view_id viewp ptr_map
     where
-    Types.Rect x y w h = rect
+    (x, y, w, h) = (Rect.rx rect, Rect.ry rect, Rect.rw rect, Rect.rh rect)
     i = Util.c_int
 
 foreign import ccall "create"
@@ -144,25 +145,13 @@ foreign import ccall "destroy"
 
 -- ** Set other attributes
 
--- TODO unused now that window moves are sent in msgs, remove this?
-{-
-get_size :: ViewId -> Fltk Types.Rect
-get_size view_id = do
-    viewp <- get_ptr view_id
-    sz <- allocaArray 4 $ \sizep -> do
-        c_get_size viewp sizep
-        peekArray 4 sizep
-    let [x, y, w, h] = map fromIntegral sz
-    return (Types.Rect (x, y) (w, h))
-foreign import ccall unsafe "get_size"
-    c_get_size :: Ptr CView -> Ptr CInt -> IO ()
--}
-
-set_size :: ViewId -> Types.Rect -> Fltk ()
-set_size view_id (Types.Rect x y w h) = do
+set_size :: ViewId -> Rect.Rect -> Fltk ()
+set_size view_id rect = do
     viewp <- get_ptr view_id
     c_set_size viewp (i x) (i y) (i w) (i h)
-    where i = Util.c_int
+    where
+    i = Util.c_int
+    (x, y, w, h) = (Rect.rx rect, Rect.ry rect, Rect.rw rect, Rect.rh rect)
 foreign import ccall "set_size"
     c_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt -> IO ()
 

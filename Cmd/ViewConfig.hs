@@ -1,5 +1,6 @@
 -- | Cmds related to view level state.
 module Cmd.ViewConfig where
+import qualified Util.Rect as Rect
 
 import Ui
 import qualified Ui.Block as Block
@@ -50,21 +51,21 @@ set_zoom view_id zoom = do
 resize_to_fit :: (Cmd.M m) => ViewId -> m ()
 resize_to_fit view_id = do
     view <- State.get_view view_id
-    screen <- Cmd.get_screen (Types.rect_upper_left (Block.view_rect view))
+    screen <- Cmd.get_screen (Rect.upper_left (Block.view_rect view))
     rect <- view_rect view
-    State.set_view_rect view_id $ Types.rect_intersect screen $
+    State.set_view_rect view_id $ Rect.intersection screen $
         Block.set_visible_rect view rect
 
 -- | Get the View's Rect, resized to fit its contents.  Its position is
 -- unchanged.
-view_rect :: (State.M m) => Block.View -> m Types.Rect
+view_rect :: (State.M m) => Block.View -> m Rect.Rect
 view_rect view = do
     block_end <- State.event_end (Block.view_block view)
     block <- State.get_block (Block.view_block view)
-    let (x, y) = Types.rect_upper_left (Block.view_rect view)
+    let (x, y) = Rect.upper_left (Block.view_rect view)
         w = sum $ drop 1 (Block.visible_track_widths block view)
         h = Types.zoom_to_pixels (Block.view_zoom view) block_end
-    return $ Types.Rect x y w h
+    return $ Rect.xywh x y w h
 
 -- * misc
 
