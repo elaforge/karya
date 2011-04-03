@@ -112,14 +112,14 @@ TrackTile::time_end() const
 ScoreTime
 TrackTile::view_end() const
 {
-    return this->zoom.to_trackpos(this->h() - this->title_height)
+    return this->zoom.to_time(this->h() - this->title_height)
         + this->zoom.offset;
 }
 
 ScoreTime
 TrackTile::visible_time() const
 {
-    return this->zoom.to_trackpos(this->h() - this->title_height);
+    return this->zoom.to_time(this->h() - this->title_height);
 }
 
 int

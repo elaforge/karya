@@ -96,7 +96,7 @@ BlockView::handle(int evt)
 {
     if (evt == FL_MOUSEWHEEL) {
         if (Fl::event_dy()) {
-            ScoreTime scroll = this->zoom.to_trackpos(
+            ScoreTime scroll = this->zoom.to_time(
                     Fl::event_dy() * mousewheel_time_scale);
             ScoreTime old = this->zoom.offset;
             set_zoom(ZoomInfo(this->zoom.offset + scroll, this->zoom.factor));
@@ -279,7 +279,7 @@ BlockView::set_zoom(const ZoomInfo &zoom)
     // Actually, it's important to be able to scroll down to areas without
     // events, so I'm going to comment this out for now.
     // int track_h = track_tile.h() - view_config.track_title_height;
-    // ScoreTime height = zoom.to_trackpos(track_h);
+    // ScoreTime height = zoom.to_time(track_h);
     // ScoreTime max_pos = std::max(ScoreTime(0), track_tile.time_end() - height);
     //
     // this->zoom = ZoomInfo(clamp(ScoreTime(0), max_pos, zoom.offset),
@@ -301,7 +301,7 @@ BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
     // a pixel boundary.  Otherwise, some events may move 1 pixel while others
     // move 2 pixels, which messes up the blit-oriented scrolling.
     clamped.offset = std::max(ScoreTime(0), clamped.offset);
-    ScoreTime visible = clamped.to_trackpos(track_tile.visible_pixels().y);
+    ScoreTime visible = clamped.to_time(track_tile.visible_pixels().y);
     ScoreTime max_offset = track_tile.time_end() - visible;
     clamped.offset = clamp(ScoreTime(0), max_offset, clamped.offset);
     if (clamped == this->zoom)

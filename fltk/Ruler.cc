@@ -153,8 +153,8 @@ OverlayRuler::draw_marklists()
         return;
     int y = this->y() + 1; // avoid bevel
 
-    ScoreTime start = this->zoom.to_trackpos(clip.y - y);
-    ScoreTime end = start + this->zoom.to_trackpos(clip.h);
+    ScoreTime start = this->zoom.to_time(clip.y - y);
+    ScoreTime end = start + this->zoom.to_time(clip.h);
     start = start + this->zoom.offset;
     end = end + this->zoom.offset;
     // DEBUG("RULER CLIP: " << start << "--" << end << ", "
@@ -359,7 +359,7 @@ RulerTrackView::draw()
                 ruler.last_offset - ruler.zoom.offset);
         if (scroll > 0) { // Contents moved up, bottom is damaged.
             ScoreTime bottom = ruler.zoom.offset
-                + ruler.zoom.to_trackpos(draw_area.h);
+                + ruler.zoom.to_time(draw_area.h);
             this->ruler.damage_range(bottom - shift_pos, bottom);
             draw_area.y = draw_area.b() - scroll;
             draw_area.h = scroll;

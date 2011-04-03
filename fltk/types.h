@@ -154,7 +154,7 @@ struct ZoomInfo {
 
     // Given the current zoom, this many pixels corresponds to how much
     // trackpos?
-    ScoreTime to_trackpos(int pixels) const {
+    ScoreTime to_time(int pixels) const {
         return ScoreTime(double(pixels) / factor);
     }
 

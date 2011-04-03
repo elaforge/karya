@@ -297,7 +297,7 @@ EventTrackView::draw()
         ScoreTime shift_pos = std::max(
                 zoom.offset - last_offset, last_offset - zoom.offset);
         if (scroll > 0) { // Contents moved up, bottom is damaged.
-            ScoreTime bottom = zoom.offset + zoom.to_trackpos(draw_area.h);
+            ScoreTime bottom = zoom.offset + zoom.to_time(draw_area.h);
             this->overlay_ruler.damage_range(bottom - shift_pos, bottom);
             draw_area.y = draw_area.b() - scroll;
             draw_area.h = scroll;
@@ -362,8 +362,8 @@ EventTrackView::draw_area()
     IRect clip = clip_rect(rect(this));
     int y = this->y() + 1; // top pixel is a bevel
 
-    ScoreTime start = this->zoom.to_trackpos(clip.y - y);
-    ScoreTime end = start + this->zoom.to_trackpos(clip.h);
+    ScoreTime start = this->zoom.to_time(clip.y - y);
+    ScoreTime end = start + this->zoom.to_time(clip.h);
     start = start + this->zoom.offset;
     end = end + this->zoom.offset;
     // DEBUG("TRACK CLIP: " << start << "--" << end << ", "
