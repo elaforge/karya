@@ -22,8 +22,8 @@ CURRENT
     need event snap?
   - LoadMod should make narrower tracks, start collapsed
   - Create.view should size it to fit the block being created
-  * zoom to fit cmd
-  - Util.Seq.modify_at, change arg order to put list at last
+  - zoom to fit cmd
+  * Util.Seq.modify_at, change arg order to put list at last
 
   - derive cache msgs are only logged on play... can I have performance do
     that?

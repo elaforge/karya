@@ -279,7 +279,7 @@ test_alter_track = do
         let set_ruler track = Block.modify_id track (Block.set_rid rid)
         State.modify_block t_block_id $ \block -> block
             { Block.block_tracks =
-                Seq.modify_at (Block.block_tracks block) 1 set_ruler }
+                Seq.modify_at 1 set_ruler (Block.block_tracks block) }
     return ()
 
 test_selection = do

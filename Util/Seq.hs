@@ -78,8 +78,8 @@ remove_at xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
 
 -- | Modify element at an index by applying a function to it.  If the index is
 -- out of range, nothing happens.
-modify_at :: [a] -> Int -> (a -> a) -> [a]
-modify_at xs i f = case post of
+modify_at :: Int -> (a -> a) -> [a] -> [a]
+modify_at i f xs = case post of
         [] -> pre
         (elt:rest) -> (pre ++ f elt : rest)
     where (pre, post) = splitAt i xs
