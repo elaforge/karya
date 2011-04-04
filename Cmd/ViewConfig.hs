@@ -14,11 +14,6 @@ import qualified Cmd.Selection as Selection
 
 -- * zoom
 
-cmd_modify_zoom :: (Cmd.M m) => (Double -> Double) -> ViewId -> m ()
-cmd_modify_zoom f view_id = do
-    zoom <- State.get_zoom view_id
-    set_zoom view_id (zoom { Types.zoom_factor = f (Types.zoom_factor zoom) })
-
 cmd_zoom_around_insert :: (Cmd.M m) => (Double -> Double) -> m ()
 cmd_zoom_around_insert f = do
     (view_id, (_, _, pos)) <- Selection.get_any_insert
@@ -45,6 +40,20 @@ set_zoom :: (Cmd.M m) => ViewId -> Types.Zoom -> m ()
 set_zoom view_id zoom = do
     State.set_zoom view_id zoom
     Cmd.sync_zoom_status view_id
+
+modify_factor :: (Cmd.M m) => ViewId -> (Double -> Double) -> m ()
+modify_factor view_id f = do
+    zoom <- State.get_zoom view_id
+    set_zoom view_id (zoom { Types.zoom_factor = f (Types.zoom_factor zoom) })
+
+-- | Set zoom on the given view to make the entire block visible.
+zoom_to_fit :: (Cmd.M m) => ViewId -> m ()
+zoom_to_fit view_id = do
+    view <- State.get_view view_id
+    block_end <- State.event_end (Block.view_block view)
+    let pixels = Block.view_visible_time view
+    let factor = fromIntegral pixels / Types.score_to_double block_end
+    modify_factor view_id (const factor)
 
 -- * resize
 

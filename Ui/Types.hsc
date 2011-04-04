@@ -26,6 +26,8 @@ type SelNum = Int
 
 -- * rect
 
+-- | It's an orphan, but hscs are annoying to work with from ghci, so let's
+-- just have it live here for now.
 instance Storable Rect.Rect where
     sizeOf _ = #size IRect
     alignment _ = #{alignment IRect}
