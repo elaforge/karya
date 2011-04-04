@@ -331,7 +331,7 @@ test_insert_into_selection = do
     return ()
 
 insert_track bid tracknum tracklike_id width =
-    State.insert_track bid tracknum (Block.block_track tracklike_id width)
+    State.insert_track bid tracknum (Block.track tracklike_id width)
 
 -- * util
 

@@ -220,7 +220,7 @@ show_block block_id = do
     return $ printf "%s %s\n%s"
         (show (Block.block_title block)) (show block_id) (show_list tracks)
 
-show_block_track :: Block.BlockTrack -> Cmd.CmdL String
+show_block_track :: Block.Track -> Cmd.CmdL String
 show_block_track track = do
     tracklike <- show_tracklike (Block.tracklike_id track)
     return $ printf "%s\n\t(flags %s) (merged %s)" tracklike
@@ -314,7 +314,7 @@ insert_track track_id tracknum = do
     block_id <- Cmd.get_focused_block
     ruler_id <- Create.get_ruler_id block_id tracknum
     State.insert_track block_id tracknum
-        (Block.block_track (Block.TId track_id ruler_id) Config.track_width)
+        (Block.track (Block.TId track_id ruler_id) Config.track_width)
 
 -- ** events
 

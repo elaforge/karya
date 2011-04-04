@@ -93,8 +93,8 @@ make_block mkid rid track_rid name tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, (title, events)) -> do
         State.create_track (mkid (name ++ ".t" ++ show i)) $
             Track.track title events Config.track_bg Config.render_config
-    let block_tracks = Block.block_track (Block.RId rid) 20
-            : [Block.block_track (Block.TId tid track_rid) 40 | tid <- tids]
+    let block_tracks = Block.track (Block.RId rid) 20
+            : [Block.track (Block.TId tid track_rid) 40 | tid <- tids]
     block_id <- State.create_block (mkid name) $
         Block.block Block.default_config ""  block_tracks Config.schema
     State.set_skeleton block_id =<<

@@ -111,13 +111,12 @@ convert_block (id_name, title, tracks) = do
         State.create_block (Id.read_id id_name)
             (Block.block config title tracks Config.schema)
 
-convert_track :: (State.M m) => Track -> m Block.BlockTrack
+convert_track :: (State.M m) => Track -> m Block.Track
 convert_track (id_name, title, events) = do
     let pos_events = map convert_event events
     track_id <- State.create_track (Id.read_id id_name) $
         Track.track title pos_events Config.track_bg Config.render_config
-    return $ Block.block_track
-        (Block.TId track_id State.no_ruler) Config.track_width
+    return $ Block.track (Block.TId track_id State.no_ruler) Config.track_width
 
 convert_event :: Event -> Track.PosEvent
 convert_event (start, dur, text) =

@@ -183,13 +183,13 @@ instance Binary Block.Block where
                 config <- get :: Get Block.Config
                 track_widths <- get :: Get [(Block.TracklikeId, Types.Width)]
                 schema_id <- get :: Get Types.SchemaId
-                let tracks = map (uncurry Block.block_track) track_widths
+                let tracks = map (uncurry Block.track) track_widths
                 return $ Block.Block title config tracks Skeleton.empty
                     schema_id
             3 -> do
                 title <- get :: Get String
                 config <- get :: Get Block.Config
-                tracks <- get :: Get [Block.BlockTrack]
+                tracks <- get :: Get [Block.Track]
                 skel <- get :: Get Skeleton.Skeleton
                 schema_id <- get :: Get Types.SchemaId
                 return $ Block.Block title config tracks skel schema_id
@@ -207,8 +207,8 @@ instance Binary Skeleton.Skeleton where
     put (Skeleton.Skeleton a) = put a
     get = get >>= \a -> return (Skeleton.Skeleton a)
 
-instance Binary Block.BlockTrack where
-    put (Block.BlockTrack a b c d) = put_version 1
+instance Binary Block.Track where
+    put (Block.Track a b c d) = put_version 1
         >> put a >> put b >> put c >> put d
     get = do
         v <- get_version
@@ -220,14 +220,14 @@ instance Binary Block.BlockTrack where
                 _ <- get :: Get (Maybe TrackNum)
                 _ <- get :: Get Bool
                 _ <- get :: Get Bool
-                return $ Block.BlockTrack id width [] []
+                return $ Block.Track id width [] []
             1 -> do
                 id <- get :: Get Block.TracklikeId
                 width <- get :: Get Types.Width
                 flags <- get :: Get [Block.TrackFlag]
                 merged <- get :: Get [Types.TrackId]
-                return $ Block.BlockTrack id width flags merged
-            _ -> version_error "Block.BlockTrack" v
+                return $ Block.Track id width flags merged
+            _ -> version_error "Block.Track" v
 
 instance Binary Block.TrackFlag where
     put (Block.Collapse) = putWord8 0

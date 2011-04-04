@@ -600,7 +600,7 @@ set_edit_box color char = do
     block_ids <- State.get_all_block_ids
     forM_ block_ids $ \bid -> State.set_edit_box bid color char
 
-create_block :: (M m) => Id.Id -> String -> [Block.BlockTrack] -> m BlockId
+create_block :: (M m) => Id.Id -> String -> [Block.Track] -> m BlockId
 create_block block_id title tracks = do
     config <- block_config
     -- TODO get a default schema?

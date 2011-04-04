@@ -124,8 +124,8 @@ no_ruler :: RulerId
 no_ruler = Types.RulerId (Id.global "_no_ruler_")
 
 -- | A non-existent ruler, ready for inclusion into create_block's track list.
-no_ruler_track :: Block.BlockTrack
-no_ruler_track = Block.block_track (Block.RId no_ruler) 0
+no_ruler_track :: Block.Track
+no_ruler_track = Block.track (Block.RId no_ruler) 0
 
 -- * StateT monadic access
 
@@ -726,7 +726,7 @@ _resolve tracknums trees = foldr cat_tree ([], []) $ map go trees
 
 -- ** tracks
 
-insert_track :: (M m) => BlockId -> TrackNum -> Block.BlockTrack -> m ()
+insert_track :: (M m) => BlockId -> TrackNum -> Block.Track -> m ()
 insert_track block_id tracknum track = do
     block <- get_block block_id
     views <- get_views_of block_id
@@ -755,11 +755,11 @@ remove_track block_id tracknum = do
         }
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
--- | Get the BlockTrack at @tracknum@, or Nothing if its out of range.
+-- | Get the Track at @tracknum@, or Nothing if its out of range.
 -- This is inconsistent with 'insert_track' and 'remove_track' which clip to
 -- range, but is convenient in practice.
 -- TODO why?
-block_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.BlockTrack)
+block_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.Track)
 block_track_at block_id tracknum = do
     block <- get_block block_id
     return $ Seq.at (Block.block_tracks block) tracknum
@@ -798,7 +798,7 @@ get_tracklike track = case track of
 
 -- *** block track
 
-get_block_track :: (M m) => BlockId -> TrackNum -> m Block.BlockTrack
+get_block_track :: (M m) => BlockId -> TrackNum -> m Block.Track
 get_block_track block_id tracknum = do
     block <- get_block block_id
     let msg = "State.get_block_track: bad tracknum for " ++ show block_id
@@ -806,7 +806,7 @@ get_block_track block_id tracknum = do
     maybe (throw msg) return (Seq.at (Block.block_tracks block) tracknum)
 
 modify_block_track :: (M m) => BlockId -> TrackNum
-    -> (Block.BlockTrack -> Block.BlockTrack) -> m ()
+    -> (Block.Track -> Block.Track) -> m ()
 modify_block_track block_id tracknum modify = do
     block <- get_block block_id
     btracks <- modify_at "modify_block_track"

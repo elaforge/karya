@@ -157,7 +157,7 @@ dump_blocks ustate =
 
 mkblock :: String -> [(Block.TracklikeId, Types.Width)] -> Block.Block
 mkblock title tracks = Block.block Block.default_config
-    title (map (uncurry Block.block_track) tracks) Config.schema
+    title (map (uncurry Block.track) tracks) Config.schema
 
 -- * track
 

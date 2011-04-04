@@ -120,7 +120,7 @@ block ruler_id = do
     blocks <- State.gets State.state_blocks
     block_id <- require "block id" $ generate_block_id ns blocks
     b <- Cmd.create_block block_id ""
-        [Block.block_track (Block.RId ruler_id) Config.ruler_width]
+        [Block.track (Block.RId ruler_id) Config.ruler_width]
     return b
 
 -- | Create a block with the given ID name.  Useful for blocks meant to be
@@ -129,7 +129,7 @@ named_block :: (Cmd.M m) => String -> RulerId -> m BlockId
 named_block name ruler_id = do
     ns <- State.get_namespace
     b <- Cmd.create_block (Id.id ns name) ""
-        [Block.block_track (Block.RId ruler_id) Config.ruler_width]
+        [Block.track (Block.RId ruler_id) Config.ruler_width]
     return b
 
 -- | Delete a block and any views it appears in.  Also delete any tracks
@@ -213,7 +213,7 @@ track_ruler block_id ruler_id tracknum width = do
     track_id <- require "track id" $ generate_track_id block_id "t" tracks
     tid <- State.create_track track_id (empty_track "")
     State.insert_track block_id tracknum
-        (Block.block_track (Block.TId tid ruler_id) width)
+        (Block.track (Block.TId tid ruler_id) width)
     return tid
 
 -- | Like 'track_ruler', but copy the ruler from the track to the left.
@@ -238,7 +238,7 @@ named_track block_id ruler_id tracknum name title = do
         State.throw $ "track " ++ show ident ++ " already exists"
     tid <- State.create_track ident (empty_track title)
     State.insert_track block_id tracknum
-        (Block.block_track (Block.TId tid ruler_id) Config.track_width)
+        (Block.track (Block.TId tid ruler_id) Config.track_width)
     return tid
 
 remove_selected_tracks :: (Cmd.M m) => m ()

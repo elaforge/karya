@@ -180,7 +180,7 @@ selection_sub_state (tracknums, _, start, end) = do
             State.create_track (Id.unpack_id track_id)
                 (events_in_range start end track)
         forM_ (zip [1..] tracks) $ \(n, track) ->
-            State.insert_track b n $ Block.block_track
+            State.insert_track b n $ Block.track
                 (Block.set_rid State.no_ruler (Block.tracklike_id track))
                 (Block.track_width track)
 

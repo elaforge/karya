@@ -275,7 +275,7 @@ diff_block block_id block1 block2 = do
 
 -- | True if the tracks flags differ in an a way that will require
 -- rederivation.
-flags_differ :: Block.BlockTrack -> Block.BlockTrack -> Bool
+flags_differ :: Block.Track -> Block.Track -> Bool
 flags_differ track1 track2 = relevant track1 /= relevant track2
     where
     relevant = filter flag . Block.track_flags

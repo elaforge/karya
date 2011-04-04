@@ -129,7 +129,7 @@ shift_tracknum block tracknum shift
 -- | Get the tracknums from a block that should be selectable.
 selectable_tracks :: Block.Block -> [TrackNum]
 selectable_tracks block = do
-    (i, track@(Block.BlockTrack { Block.tracklike_id = Block.TId _ _}))
+    (i, track@(Block.Track { Block.tracklike_id = Block.TId _ _}))
         <- zip [0..] (Block.block_tracks block)
     guard (Block.Collapse `notElem` Block.track_flags track)
     return i

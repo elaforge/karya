@@ -16,22 +16,19 @@ import qualified App.Config as Config
 
 -- * block model
 
-data GenericBlock track = Block {
+data Block = Block {
     block_title :: String
     , block_config :: Config
-    , block_tracks :: [track]
+    , block_tracks :: [Track]
     , block_skeleton :: Skeleton.Skeleton
     , block_schema :: SchemaId
     } deriving (Eq, Show, Read)
 
-instance DeepSeq.NFData (GenericBlock track) where
+instance DeepSeq.NFData Block where
     -- I don't bother to force anything deep, but there isn't much data down
     -- there anyway.
     rnf (Block title config tracks skel schema) =
         title `seq` config `seq` tracks `seq` skel `seq` schema `seq` ()
-
-type Block = GenericBlock BlockTrack
-type DisplayBlock = GenericBlock DisplayTrack
 
 block_tracklike_ids :: Block -> [TracklikeId]
 block_tracklike_ids = map tracklike_id . block_tracks
@@ -42,7 +39,7 @@ block_track_ids = track_ids_of . block_tracklike_ids
 block_ruler_ids :: Block -> [RulerId]
 block_ruler_ids = ruler_ids_of . block_tracklike_ids
 
-block :: Config -> String  -> [BlockTrack] -> SchemaId -> Block
+block :: Config -> String  -> [Track] -> SchemaId -> Block
 block config title tracks schema_id =
     Block title config tracks Skeleton.empty schema_id
 
@@ -59,7 +56,11 @@ default_config = Config
     Config.bconfig_selection_colors Config.bconfig_bg_color
     Config.bconfig_track_box Config.bconfig_sb_box
 
-data BlockTrack = BlockTrack {
+-- | Like 'Track.Track', this has per-track data, but unlike Track.Track,
+-- this is data that can vary per-block.
+--
+-- This is the higher level track that is visible at the haskell level.
+data Track = Track {
     tracklike_id :: TracklikeId
     -- | The current width is in the View, but this width is a default if
     -- a new View is created from this Block.
@@ -71,11 +72,13 @@ data BlockTrack = BlockTrack {
     , track_merged :: [TrackId]
     } deriving (Eq, Show, Read)
 
--- | Construct a 'BlockTrack' with defaults.
-block_track :: TracklikeId -> Types.Width -> BlockTrack
-block_track tracklike_id width = BlockTrack tracklike_id width [] []
+-- | Construct a 'Track' with defaults.
+track :: TracklikeId -> Types.Width -> Track
+track tracklike_id width = Track tracklike_id width [] []
 
--- | Similar to Track.Track, except this data can vary per-block.
+-- | This is the low-level representation of a track, which directly
+-- corresponds with what is displayed by the UI.  The DisplayTracks should be
+-- derivable from a 'Block' deterministically.
 data DisplayTrack = DisplayTrack {
     dtrack_tracklike_id :: TracklikeId
     , dtrack_merged :: [TrackId]
@@ -101,7 +104,7 @@ block_display_tracks :: Block -> [(DisplayTrack, Types.Width)]
 block_display_tracks block =
     [(block_track_config t, track_width t) | t <- block_tracks block]
 
-block_track_config :: BlockTrack -> DisplayTrack
+block_track_config :: Track -> DisplayTrack
 block_track_config btrack =
     DisplayTrack (tracklike_id btrack) (track_merged btrack) status brightness
         (Collapse `elem` track_flags btrack)
@@ -113,7 +116,7 @@ flags_to_status flags
     | Mute `elem` flags = (Just ('M', Config.mute_color), 0.75)
     | otherwise = (Nothing, 1)
 
-modify_id :: BlockTrack -> (TracklikeId -> TracklikeId) -> BlockTrack
+modify_id :: Track -> (TracklikeId -> TracklikeId) -> Track
 modify_id track f = track { tracklike_id = f (tracklike_id track) }
 
 data TracklikeId =
