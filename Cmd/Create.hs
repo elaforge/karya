@@ -26,6 +26,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
@@ -47,7 +48,7 @@ rename_project ns = do
 
 -- | Rename all IDs in namespace @from@ to @to@.
 renamespace :: (State.M m) => Id.Namespace -> Id.Namespace -> m ()
-renamespace from to = State.map_ids set_ns
+renamespace from to = Transform.map_ids set_ns
     where
     set_ns ident
         | ns == from = Id.id to name

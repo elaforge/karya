@@ -43,6 +43,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
@@ -205,7 +206,7 @@ state_to_namespace state ns = do
     state2 <- set_namespace ns state
     global_st <- State.get
     merged <- State.throw_either "merge states"
-        (State.merge_states global_st state2)
+        (Transform.merge_states global_st state2)
     State.put merged
 
 -- | Set all the IDs in the state to be in the given namespace, except rulers.
@@ -217,9 +218,9 @@ set_namespace ns state = do
             where (_, name) = Id.un_id ident
         state2 = state { State.state_rulers = Map.empty }
     State.throw_either "set to clip namespace" $ State.exec state2 $ do
-        State.map_view_ids set
-        State.map_block_ids set
-        State.map_track_ids set
+        Transform.map_view_ids set
+        Transform.map_block_ids set
+        Transform.map_track_ids set
 
 get_clip_namespace :: (Cmd.M m) => m Id.Namespace
 get_clip_namespace = Cmd.gets Cmd.state_clip_namespace
