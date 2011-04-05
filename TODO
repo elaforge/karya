@@ -53,15 +53,12 @@ CURRENT
     for tempo track, I can interpret the last sample as 1/1 instead of 0/1
     think about how I can use it to write sekaran
 
-  - cmd to resize certain tracks, e.g. shrink down 'vel' tracks
   - scrolling is slow with more than a few events onscreen
-  - Ranges.to_pairs or whatever is confusing how it returns Nothing, use
-    a custom type
   better logging for cache
     * msgs should give context: which block were they deriving
-    - CPU time to catch up to now
+    * CPU time to catch up to now
     derive
-      - cache misses, clickable stack ranges
+      * cache misses, clickable stack ranges
       should misses be logged at notice?
     perform
       * reperformed msg should be 0-12s cached, 12-15s reperformed, 15-end
@@ -167,10 +164,6 @@ CURRENT
       - reimplement various functions like integrate and resample, bsearches
         must be linear
       - make linear searches faster for e.g. warp by dropping warp in the past
-    - Performance evaluator should strip out the logs and replace the chunk
-      with logs filtered out, perhaps even compact into an unboxed type.
-      So the Cache must be mutable.
-
     - split writable CacheState from readonly?
 
     AppendList / MergeList for Derive.Stream
@@ -207,8 +200,6 @@ CURRENT
     Improve logging so that I can see, given a change, which areas of score
     were rederived, and then what range of midi was reperformed.
 
-  - to be consistent, change Timestamp.from_millis to millis
-
   - Can I make cached signal more efficient by merging the signals before
     stashing it?  Of course laziness means that this won't actually happen
     until the next time the cache is demanded, unless I force it.
@@ -234,21 +225,17 @@ Also, I want to turn a new cmd on or off.  But I can do this just by adding
 or removing from the cmd list.
 
 UNSORTED
-  - bug: clicking close on a window caused a bad view id exception
   - implement inst Cmd lookup, in same vein as call lookup
   - for control track entry, typing numbers puts them right of decimal, typing
     backtick enters a 1
-  - create a set of profiles and a custom target to run them, so I can run them
+  * create a set of profiles and a custom target to run them, so I can run them
     regularly and watch for regressions.  Maybe run them when tests run.
   - use capslock for kbd entry mode
   - flag for unpitched instruments, so they don't get pitch tracks
     I think I'd want to do a reverse map through the keymap to get the attrs
     This also gets to the per-song config issue, since I want per-song or
     per-track key -> call bindings.
-  - what's with the extra leading pb 0 on save/drum?
   - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
-  - put timing info in rederive msgs, see how long derivation took
-  - why does track merge / unmerge cause splice failures?
   - get rid of Diff.track_diff by doing all diffs in the main diff, and
     avoid sending msgs back to the UI by having ui msgs cancel updates.
 
@@ -293,10 +280,6 @@ UNSORTED
     modified
 
   - set_render_style should trigger a rederive to get the track signal
-  - Can I not sync collapsed tracks?  I think the best is to implement
-    collapse at hs level, then an expand can trigger a rederive.
-    Also it would be nice to not rederive signal for tracks that haven't
-    changed, maybe tracks in calls above the modified one?
   - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util
     or at least think about how to implement pengumbang and pengisep
@@ -316,15 +299,15 @@ UNSORTED
 
     Wait until I want to add JACK or alsa support.
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
-  - midi thru doesn't pick up default inst
+  * midi thru doesn't pick up default inst
     empty scale defaults in Derive, but not in Cmd
-  - cmd to resize window to fit tracks
+  * cmd to resize window to fit tracks
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
   - insert and delete time should use the selection if non-point
 
   - should tab in raw edit mode go to method?  how to go back then?
-  - select track, st3 style select block, track
+  * select track, st3 style select block, track
 
   track management:
     - resize a bunch of tracks at once
@@ -344,7 +327,7 @@ MILESTONES
     + tracklang complete with set of basic calls
     - midi record / integrator
     - dense / efficient control signals
-    - lazy signals / lazy deriver
+    + lazy signals / lazy deriver
     + derive cache
       - transformer caching
     * symbolic score
@@ -450,19 +433,10 @@ cleanup:
 
 performance:
   Cmd
-    - try to figure out why editing is so laggy
+    * try to figure out why editing is so laggy
       profile to find out were the time is going
     - If a msg aborts or doesn't run any cmds, don't bother to run diff.
       Except that hardly ever happens if I do shortcut thru.
-    random little hangs are annoying.  figure out what's going on.  GC?
-      - timer can summarize one responder loop cycle?
-      - get diff results is really slow
-      from yi bug:
-        * GHC triggers a major GC everytime Yi becomes active whenever user
-        resumes typing
-        * Major GC takes increasingly long time as number of object grows (as
-        expected)
-        So, we have to iron out all memory leaks.
     - cache track cmds for each track, update when the track title or skeleton
       changes
   Derive
@@ -491,24 +465,24 @@ performance:
         entire track.
       - once I know what I'm doing with transformers, fix up negative duration
         postproc
-    - derivation down to a Either is synchronous with the sync makes for laggy
+    * derivation down to a Either is synchronous with the sync makes for laggy
       UI.  If I can't make derivation lazy, I can at least fill in the
       Performance in the background, perhaps with a SampleVar
     - why does "get" produce so much garbage?
     - at_linear is called a lot by compose, by compose_warp, by d_warp
       can I make this more efficient?
 
-    - maybe split Derive.State into dynamic and static portions?
+    * maybe split Derive.State into dynamic and static portions?
     - or maybe it's the control deriver creating a huge list of signal
       chunks, which is then all forced at once since merge needs them all.
-    - to control lazy evaluation, emit log msg every n sec of derivation
+    * to control lazy evaluation, emit log msg every n sec of derivation
     - Parallelize derivation with strategies.  Can I spark subderivations?
   Perform
     - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
       memory?  If I make Messages a storable vector, I'd have to hash the wdev
       or something.
   - send style id to c++ instead of all the style elements
-  - strictify some basic datatypes with ! and {-# UNPACK #-}:
+  * strictify some basic datatypes with ! and {-# UNPACK #-}:
     Ui.Event, Midi.Message, Perform.Midi.Instrument.Instrument
   - collapsing a track shouldn't trigger a rederive
 
@@ -587,8 +561,7 @@ fltk:
     - only capture drag on a plain drag with no modifiers
 
 libfltk:
-  + fltk 1.3 Fl_Display_Text has alignment bugs, and too slow
-    + sent mail to list
+  * fltk 1.3 Fl_Display_Text has alignment bugs, and too slow
 
 logview:
   - haskell and c++ use the same machine readable format
@@ -680,12 +653,6 @@ REPL repl language static config
   - could add syntax mangling, but probably better to add it to the mangler
     so it works for everyone
   - pass -fobject-code to avoid trying to recompile files?
-  - Recompiling for static config is not so attractive because it takes so long
-    to link, around 17s including hint.  Also, I need to preserve state
-    between compiles.  hs-plugins should be much faster, but it doesn't work
-    with modern ghc.
-    - figure out how yi does it
-    - ask dons about how to update hs-plugins
 
 save undo history / incremental saving
   I can't just serialize the undo states because then I lose sharing on
@@ -745,11 +712,11 @@ Cmd:
     - trackerlike note entry: entered events are all as long as the block
       (merge will clip them to the next event)
     - map selection through function
-    - transpose selection
+    * transpose selection
     - controller edit mode accepts two numbers and moves on, no spaces
     - a legato command that always goes to the next note would still be useful
    - swap tracks keeping skeleton up to date
-   - double / halve events under selection
+   * double / halve events under selection
    - stretch events in selection to another length (need two selections?)
   Cmd.Selection
   Cmd.TimeStep
@@ -769,8 +736,6 @@ Cmd:
 
   Cmd.Play
     - play loops
-    smarter background derivation
-      - don't derive while a key or mouse button is down
     - start playing from top of displayed area
     - start playing from this block' position in the root block
 
@@ -801,9 +766,6 @@ Derive:
       or maybe, lookup val calls in current inst analogous to current scale
       Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
       in generate_note?
-
-      - drum tracks with symbols
-      - custom attributes
 
   - implement postproc calls
     - framework for determining scope of a postproc: per inst, per track,
@@ -867,20 +829,15 @@ Derive:
   - sustain signal, to control staccato vs. legato
   TrackLang tracklang
     * TrackLang.optional args should be able to pass Nothing if arg is not given
-    - Derive.Call.map_asc_events, I need Seq.merge_asc_lists for this.
+    * Derive.Call.map_asc_events, I need Seq.merge_asc_lists for this.
     - make sure signal derivation doesn't do calls
-    - implement call by arg name e.g. "delay time=%xyz"
+    * implement call by arg name e.g. "delay time=%xyz"
     * implement control calls
     - implement block level calls in block title
     - other attributes in block title, e.g. "alias=?squiggle? | xyz"?
     * support pitch signals, e.g. "tune-to %*some-sig" but that requires named
       pitch signals
-
     * implement sub-calls with TVal return type
-      Now I have so many call maps, can I merge them?
-        - relative control and pitch
-        - note, control, and pitch
-        - tval
 
   - dynamics controls:
     - volume, velocity, and breath map directly to midi vals
@@ -909,7 +866,7 @@ Derive:
     This means Derive has to have access to the rulers.
 
   deriver customization
-    - bind symbol names, e.g. bind specific-trill to local 'tr' symbol
+    * bind symbol names, e.g. bind specific-trill to local 'tr' symbol
     - set dynamic env vals, especially if a family of derivers use the same
       argument names for analogous behaviour, e.g. 'tr-speed'
     - make it easy to add haskell derivers, tracklang must remain simple
@@ -923,8 +880,6 @@ Derive:
   - block-level calls
   - x = _ will unset x
 
-  - Cmd: after entering 'x = y' event, can it automatically set dur=0?
-
   - come up with a syntax for Ui.Event preproc calls
     >inst1 | echo < preproc1 < preproc2
   - also I can have a post-parse "macro" preproc pass, this is more suited
@@ -935,8 +890,6 @@ Derive:
   - When looking for the next note on, I should skip notes which are just
     'statements' that produce no notes.  That way a var set won't interrupt
     the pitch sig.
-
-  - implement automatic block splitting as described in doc/tracklang
   - some kind of notation for replacing the track interpreter, e.g.
     TrackId -> EventDeriver.
     This could be used to implement macros, and also preproc.
@@ -1053,11 +1006,9 @@ Derive:
      -- title (tracknum): inst_name, allocation, [control tracks]
      Inst (track 1): fm8/inst1, fm8:0,1,2, [vel {hide 2}, pedal {show 3}]
 
-  - suspend automatic derivation while there's a note down?  use Cmd.Mod
-    instead of the note_id map since it should be more reliable.
-  - block derivation memoization / caching
-  - set instrument within note track, controller within control track
-  - separate instrument track, as a kind of controller track
+  * block derivation memoization / caching
+  * set instrument within note track
+  - set controller within control track?
   - instrument aliases to make a shorthand for setting instrument, and also
     setting keyswitch on current instrument
 
@@ -1098,7 +1049,6 @@ Instrument DB:
   - search lang supports - to exclude a term
   - bug: discarded insts still in index
   - ability to edit tags, esp. add "favorite rating"
-  - now that PatchTemplate is gone, maybe I can use a simpler storage format
   - standardized tags
   - put file in a tag so I can search on it
     I can also use it to create a *.txt file with custom info
@@ -1148,5 +1098,3 @@ future:
     e.g. portmidi?  Maybe the ability to send midi to e.g. local apps in
     standalone mode?  Or would be be better to support vst?
   - sync via jack with e.g. ardour, rosegarden
-  - vst interface
-  - liblash would let me save plugin / jack configuration
