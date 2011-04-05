@@ -45,7 +45,6 @@ void set_title(BlockViewWindow *view, const char *title);
 void set_status(BlockViewWindow *view, const char *status);
 void set_display_track(BlockViewWindow *view, int tracknum,
         DisplayTrack *dtrack);
-void collapse_track(BlockViewWindow *view, int tracknum, char collapse);
 
 // tracks
 

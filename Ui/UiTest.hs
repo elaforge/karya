@@ -106,16 +106,17 @@ parse_skeleton block_id = do
     tracks <- State.get_track_info block_id
     return $ Schema.default_parser tracks
 
-mkview :: (State.M m) => m ViewId
-mkview = do
+mkview :: (State.M m) => BlockId -> m ViewId
+mkview block_id = do
     view_id <- State.create_view (Id.unpack_id default_view_id) $
-        Block.view default_block_id default_rect default_zoom
+        Block.view block_id default_rect default_zoom
     State.set_track_size view_id (400, 800)
     return view_id
 
-mkstate_view block_id tracks = do
-    r <- mkstate block_id tracks
-    mkview
+mkstate_view :: (State.M m) => String -> [TrackSpec] -> m [TrackId]
+mkstate_view block_name tracks = do
+    r <- mkstate block_name tracks
+    mkview (bid block_name)
     return r
 
 -- | Make a TrackId as mkstate does.  This is so tests can independently come

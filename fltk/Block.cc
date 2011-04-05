@@ -12,12 +12,6 @@
 // Actually, it's ok if it overlaps, since it's just the status field.
 static const int mac_resizer_width = 0;
 
-// Collapsed tracks are replaced with this.
-// Thanks to c++'s initialization order mess, I can't use
-// Config::abbreviation_color here.
-static const DividerConfig collapsed_track(Color(0, 0, 255));
-static const int collapsed_width = 3;
-
 // Multiply mousewheel scroll pixels by this.
 static const double mousewheel_time_scale = 3;
 static const double mousewheel_track_scale = 3;
@@ -390,10 +384,6 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
         t = new DividerView(*track.divider);
     }
     this->insert_track_view(tracknum, t, width);
-    if (static_cast<size_t>(tracknum) < this->collapsed_tracks.size()) {
-        collapsed_tracks.insert(
-            collapsed_tracks.begin() + tracknum, BlockView::CollapsedTrack());
-    }
 }
 
 
@@ -409,14 +399,6 @@ BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
         TrackView *t = track_tile.remove_track(tracknum-1);
         t->finalize_callbacks(finalizer);
         delete t;
-
-        // Make sure to finalize a track hiding in collapsed.
-        TrackView *collapsed = vector_get(collapsed_tracks, tracknum).track;
-        if (collapsed) {
-            collapsed->finalize_callbacks(finalizer);
-            delete collapsed;
-        }
-        vector_erase(this->collapsed_tracks, tracknum);
 
         this->update_scrollbars();
         // I don't want to delete the track from the skeleton because if this
@@ -446,55 +428,6 @@ BlockView::set_display_track(int tracknum, const DisplayTrack &dtrack)
                 dtrack.status_color);
     }
     this->track_at(tracknum)->set_event_brightness(dtrack.event_brightness);
-}
-
-
-void
-BlockView::collapse_track(int tracknum, bool collapse)
-{
-    // This adding and removing tracks is normally done from haskell, so some
-    // fiddly work needs to be done to save and restore track attributes.
-    // I initially implemented it at the haskell level, but keeping both sides
-    // tracknums in sync seemed to error-prone.
-    ASSERT(0 <= tracknum && tracknum < this->tracks());
-    if (tracknum == 0)
-        return; // can't collapse the ruler, sorry
-
-    while (this->collapsed_tracks.size() <= static_cast<size_t>(tracknum))
-        collapsed_tracks.push_back(BlockView::CollapsedTrack());
-
-    if (bool(collapsed_tracks[tracknum].track) == collapse)
-        return;
-    if (collapse) {
-        int width = this->get_track_width(tracknum);
-        TrackView *t = track_tile.remove_track(tracknum-1);
-        TrackView *collapsed = new DividerView(collapsed_track);
-        this->insert_track_view(tracknum, collapsed, collapsed_width);
-
-        DisplayTrack display;
-        this->skel_display.get_status(tracknum-1,
-                &display.status, &display.status_color);
-        this->skel_display.set_width(tracknum-1, collapsed_width);
-        // Keep the status color as a reminder about the collapsed track.
-        if (display.status)
-            skel_display.set_status(tracknum-1, ' ', display.status_color);
-        else
-            skel_display.set_status(tracknum-1, '\0', Color());
-
-        collapsed_tracks[tracknum] = BlockView::CollapsedTrack(t, width);
-        collapsed_tracks[tracknum].display = display;
-    } else {
-        BlockView::CollapsedTrack collapsed = collapsed_tracks[tracknum];
-        TrackView *t = track_tile.remove_track(tracknum-1);
-        delete t;
-        this->insert_track_view(tracknum, collapsed.track, collapsed.width);
-
-        this->skel_display.set_width(tracknum-1, collapsed.width);
-        this->skel_display.set_status(tracknum-1,
-                collapsed.display.status, collapsed.display.status_color);
-        collapsed_tracks[tracknum] = BlockView::CollapsedTrack(NULL, 0);
-    }
-    this->update_scrollbars();
 }
 
 
@@ -547,9 +480,6 @@ BlockView::update_track(int tracknum, const Tracklike &track,
         FinalizeCallback finalizer, ScoreTime start, ScoreTime end)
 {
     this->track_at(tracknum)->update(track, finalizer, start, end);
-    TrackView *collapsed = vector_get(collapsed_tracks, tracknum).track;
-    if (collapsed)
-        collapsed->update(track, finalizer, start, end);
     this->update_scrollbars();
 }
 
@@ -558,9 +488,6 @@ void
 BlockView::set_track_signal(int tracknum, const TrackSignal &tsig)
 {
     this->track_at(tracknum)->set_track_signal(tsig);
-    TrackView *collapsed = vector_get(collapsed_tracks, tracknum).track;
-    if (collapsed)
-        collapsed->set_track_signal(tsig);
 }
 
 

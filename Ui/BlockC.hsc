@@ -247,12 +247,8 @@ set_display_track view_id tracknum dtrack = do
     viewp <- get_ptr view_id
     with dtrack $ \dtrackp ->
         c_set_display_track viewp (Util.c_int tracknum) dtrackp
-    c_collapse_track viewp (Util.c_int tracknum)
-        (fromBool (Block.dtrack_collapsed dtrack))
 foreign import ccall "set_display_track"
     c_set_display_track :: Ptr CView -> CInt -> Ptr Block.DisplayTrack -> IO ()
-foreign import ccall "collapse_track"
-    c_collapse_track :: Ptr CView -> CInt -> CChar -> IO ()
 
 -- * Track operations
 
@@ -427,7 +423,7 @@ instance Storable Block.DisplayTrack where
     peek = error "no peek for DisplayTrack"
     poke = poke_display_track
 
-poke_display_track dtrackp (Block.DisplayTrack _ _ status brightness _) = do
+poke_display_track dtrackp (Block.DisplayTrack _ _ status brightness) = do
     let (statusc, status_color) = maybe ('\NUL', Color.black) id status
     (#poke DisplayTrack, status) dtrackp statusc
     (#poke DisplayTrack, status_color) dtrackp status_color

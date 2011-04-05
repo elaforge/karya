@@ -126,6 +126,10 @@ track_diff old new = either (const []) id $ run $ mapM_ (uncurry3 diff_track)
 -- TrackView in view_tracks of the new state, it should get the width given in
 -- the view.
 --
+-- But wait!  There's more!  If it's a collapsed track then the
+-- track_view_width is not the visible width, so don't emit TrackWidth updates
+-- in that case.
+--
 -- This is yet more crap to support view-local track width...
 munge_updates :: State.State -> [Update.Update] -> [Update.Update]
 munge_updates state updates = updates ++ munged
@@ -136,6 +140,11 @@ munge_updates state updates = updates ++ munged
     munged = concatMap set_width width_info
     -- TODO instead of adding a TrackWidth, modify the InsertTrack?
     set_width (old_width, block_id, tracknum) = do
+        block <- maybe [] (:[]) $ Map.lookup block_id (State.state_blocks state)
+        -- Abort if it's a collapsed track, you can't resize those anyway.
+        case Seq.at (Block.block_tracks block) tracknum of
+            Just track | Block.Collapse `elem` Block.track_flags track -> mzero
+            _ -> return ()
         (view_id, view) <- filter ((==block_id) . Block.view_block . snd)
             (Map.assocs (State.state_views state))
         let new_width = maybe old_width Block.track_view_width $
@@ -189,8 +198,8 @@ diff_view st1 st2 view_id view1 view2 = do
     -- 'Seq.indexed_pairs' is run again on the Blocks to actually delete or
     -- insert tracks.
 
-    tracks1 <- track_info view_id view1 st1
-    tracks2 <- track_info view_id view2 st2
+    tracks1 <- track_views view_id view1 st1
+    tracks2 <- track_views view_id view2 st2
     let pairs = Seq.indexed_pairs_on fst tracks1 tracks2
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of
         (Just (_, tview1), Just (_, tview2)) ->
@@ -226,10 +235,13 @@ diff_track_view view_id tracknum tview1 tview2 = do
         change [Update.ViewUpdate view_id
             (Update.TrackWidth tracknum (Block.track_view_width tview2))]
 
--- | Pair the Tracklikes from the Block with the TrackViews from the View.
-track_info :: ViewId ->  Block.View -> State.State
+-- | Get TrackViews.  The State is needed because they must be first modified
+-- with respect to the Tracks, in the same way as the DisplayTracks.
+--
+-- They are paired with TracklikeIds so indexed_pairs can match them up.
+track_views :: ViewId -> Block.View -> State.State
     -> DiffM [(Block.TracklikeId, Block.TrackView)]
-track_info view_id view st =
+track_views view_id view st =
     case Map.lookup block_id (State.state_blocks st) of
         Nothing -> throw $ show block_id ++ " of " ++ show view_id
             ++ " has no referent"

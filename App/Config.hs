@@ -122,6 +122,10 @@ ruler_width = 18
 track_width :: Types.Width
 track_width = 30
 
+-- | Width of the divider that represents a collapsed track.
+collapsed_width :: Types.Width
+collapsed_width = 3
+
 render_config = Track.RenderConfig Track.NoRender render_color
 render_color = Color.rgba 0.65 0.65 0.8 0.5
 

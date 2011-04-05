@@ -1,6 +1,7 @@
 module Ui.Block where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
+
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
@@ -84,7 +85,6 @@ data DisplayTrack = DisplayTrack {
     , dtrack_merged :: [TrackId]
     , dtrack_status :: Maybe (Char, Color.Color)
     , dtrack_event_brightness :: Double
-    , dtrack_collapsed :: Bool
     } deriving (Eq, Show, Read)
 
 -- | Most of these only make sense for event tracks.
@@ -98,17 +98,34 @@ data TrackFlag =
     | Mute
     deriving (Eq, Show, Read)
 
--- | Convert logical block level tracks to display tracks.  Return the
--- track creation width since it doesn't belong in DisplayTrack.
+-- | Convert logical block level tracks to display tracks.
+--
+-- The track creation width is needed by 'Ui.Diff' when it wants to create
+-- a new track, but isn't part of the DisplayTrack.  This is because a change
+-- of creation width shouldn't result in a Update.DisplayTrack.
 block_display_tracks :: Block -> [(DisplayTrack, Types.Width)]
-block_display_tracks block =
-    [(block_track_config t, track_width t) | t <- block_tracks block]
+block_display_tracks = map display_track . block_tracks
 
-block_track_config :: Track -> DisplayTrack
-block_track_config btrack =
-    DisplayTrack (tracklike_id btrack) (track_merged btrack) status brightness
-        (Collapse `elem` track_flags btrack)
-    where (status, brightness) = flags_to_status (track_flags btrack)
+display_track :: Track -> (DisplayTrack, Types.Width)
+display_track track =
+    (DisplayTrack tracklike (track_merged track) status brightness, width)
+    where
+    (status, brightness) = flags_to_status (track_flags track)
+    (tracklike, width)
+        | Collapse `elem` track_flags track =
+            (DId (Divider Config.abbreviation_color), Config.collapsed_width)
+        | otherwise = (tracklike_id track, track_width track)
+
+-- | Similar to 'display_track', this returns the TrackView as it is actually
+-- displayed at the UI level.  Since TrackView is so much simpler, it's the
+-- same type.
+--
+-- You'll need to call this to know the \"real\" track width.
+track_view :: Track -> TrackView -> TrackView
+track_view track tview
+    | Collapse `elem` track_flags track =
+        tview { track_view_width = Config.collapsed_width }
+    | otherwise = tview
 
 flags_to_status :: [TrackFlag] -> (Maybe (Char, Color.Color), Double)
 flags_to_status flags
@@ -223,17 +240,6 @@ visible_time view = Types.zoom_to_time (view_zoom view) (view_visible_time view)
 visible_track :: View -> Types.Width
 visible_track = view_visible_track
 
--- | Get the visible track widths, taking collapsed tracks into account.
---
--- TODO get rid of this grodiness by moving collapsed tracks back into haskell
-visible_track_widths :: Block -> View -> [Types.Width]
-visible_track_widths block view =
-    zipWith size_of (view_tracks view) (block_tracks block)
-    where
-    size_of vtrack btrack
-        | Collapse `elem` track_flags btrack = 3
-        | otherwise = track_view_width vtrack
-
 -- | If the given Rect is the visible area, expand it to be what the
 -- 'view_rect' would be for that visible area.  Use this to set the visible
 -- area to a certain size.
@@ -247,9 +253,12 @@ set_visible_rect view rect = rect
     dw = Rect.rw (view_rect view) - view_visible_track view
     dh = Rect.rh (view_rect view) - view_visible_time view
 
+-- | Per-view track settings.
 data TrackView = TrackView {
+    -- | The actual track width in this View.  However, if the track is
+    -- collapsed, the width will be fixed and this will be the remain the same
+    -- for when the track is expanded.  See 'track_view'.
     track_view_width :: Types.Width
-    -- TODO add track_view_collapsed here
     } deriving (Eq, Ord, Show, Read)
 
 -- | These are defaults for newly created blocks.

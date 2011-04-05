@@ -115,7 +115,6 @@ public:
     void insert_track(int tracknum, const Tracklike &track, int width);
     void remove_track(int tracknum, FinalizeCallback finalizer);
     void set_display_track(int tracknum, const DisplayTrack &dtrack);
-    void collapse_track(int tracknum, bool collapse);
 
 private:
     void insert_track_view(int tracknum, TrackView *track, int width);
@@ -147,18 +146,6 @@ private:
     BlockModelConfig model_config;
     BlockViewConfig view_config;
     ZoomInfo zoom;
-    // Save a collapsed track so it can be expanded later.
-    struct CollapsedTrack {
-        // Uncollapsed tracks have empty CollapsedTrack.
-        CollapsedTrack() : track(NULL) {}
-        CollapsedTrack(TrackView *track, int width) : track(track), width(width)
-        {}
-        DisplayTrack display;
-        TrackView *track;
-        int width;
-    };
-    // Indexed by tracknum, with track==NULL if this tracknum isn't collapsed.
-    std::vector<CollapsedTrack> collapsed_tracks;
     // The ruler track gets this when there's "nothing" in it.
     TrackView *no_ruler;
 

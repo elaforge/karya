@@ -166,6 +166,19 @@ test_set_track_flags = do
         State.toggle_track_flag t_block_id 1 Block.Mute
     return ()
 
+test_adjacent_collapsed_tracks = do
+    state <- run State.empty $
+        UiTest.mkstate_view t_block [("1", []), ("2", []), ("3", [])]
+    state <- io_human "collapse track 1" $ run state $ do
+        State.toggle_track_flag t_block_id 1 Block.Collapse
+    state <- io_human "collapse track 2" $ run state $ do
+        State.toggle_track_flag t_block_id 2 Block.Collapse
+    state <- io_human "collapse track 3" $ run state $ do
+        State.toggle_track_flag t_block_id 3 Block.Collapse
+    state <- io_human "expand track 2" $ run state $ do
+        State.toggle_track_flag t_block_id 2 Block.Collapse
+    return ()
+
 test_set_track_merge = do
     let ([t1, t2], state) = UiTest.run_mkview
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])
@@ -337,8 +350,9 @@ insert_track bid tracknum tracklike_id width =
 
 set_selection view_id sel = State.set_selection view_id 0 (Just sel)
 
+t_block = "b1"
 t_ruler_id = Types.RulerId (mkid "r1")
-t_block_id = Types.BlockId (mkid "b1")
+t_block_id = Types.BlockId (mkid t_block)
 t_track1_id = Types.TrackId (mkid "b1.t1")
 t_view_id = Types.ViewId (mkid "v1")
 

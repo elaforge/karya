@@ -12,7 +12,7 @@ search then none of this is necessary.
 
 CURRENT
   * move Types.Rect to Util.Rect
-  - put collapsed state back into haskell
+  * put collapsed state back into haskell
   run timing tests with bloom
     - compile with optimization and make sure it rederives fast
     - edit bits and make sure it rederives extra fast
@@ -427,7 +427,7 @@ cleanup:
     manual inclusion of $(UI_HS) in the deps
   - remove Util.Log -> Perform.Warning import by translating IDs into strings?
     On the other hand, it's not unreasonable for logs to use other data types
-  - having collapsed state in c++ is kind of error-prone, should I go back to
+  * having collapsed state in c++ is kind of error-prone, should I go back to
     trying to put it in haskell?
   error prone things:
     - setting some state like project directly through State won't update
@@ -597,7 +597,7 @@ logview:
   - tabs are not lining up properly
   - option to wrap lines or not?
   - hide or display various attrs: date, file, function, ...
-  - collapse duplicate lines
+  * collapse duplicate lines
 
 Ui:
   Track

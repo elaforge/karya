@@ -249,8 +249,8 @@ run_update (Update.TrackUpdate track_id update) = do
         ustate <- State.get
         block <- State.get_block block_id
         let merged = case Seq.at (Block.block_tracks block) tracknum of
-                Just btrack ->
-                    events_of_track_ids ustate (Block.track_merged btrack)
+                Just track ->
+                    events_of_track_ids ustate (Block.track_merged track)
                 Nothing -> []
         fmap sequence_ $ forM view_ids $ \view_id -> case update of
             Update.TrackEvents low high ->
