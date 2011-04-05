@@ -18,12 +18,19 @@ struct SkeletonConfig {
     int *children;
 };
 
+// Display the arrows for the skeleton tree.
+//
+// Since the arrows line up with the tracks below them, this must be kept
+// in sync with the state of the tracks.  However, I also want the skeleton
+// to remain the same until told otherwise, so I don't modify it when new
+// tracks are added or removed, and it's not fatal for the config to point to
+// out of range tracknums.
 class SkeletonDisplay : public Fl_Box {
 public:
     SkeletonDisplay(int X, int Y, int W, int H);
     void resize(int x, int y, int w, int h);
     void set_config(
-            const SkeletonConfig &config, const std::vector<int> &widths);
+        const SkeletonConfig &config, const std::vector<int> &widths);
     void set_status(int tracknum, char status, Color color);
     void get_status(int tracknum, char *status, Color *color);
     void set_width(int tracknum, int width);

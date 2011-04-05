@@ -419,6 +419,11 @@ BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
         vector_erase(this->collapsed_tracks, tracknum);
 
         this->update_scrollbars();
+        // I don't want to delete the track from the skeleton because if this
+        // is a replace then the skeleton can be preserved.  This happens when
+        // a track is collapsed.  Otherwise, the skeleton is out of date and
+        // there should be a set_skeleton soon.
+        this->skel_display.set_width(tracknum-1, 0);
     } else if (this->tracks() == 1) {
         if (this->ruler_track != this->no_ruler) {
             TrackView *t = this->replace_ruler_track(this->no_ruler, 0);
@@ -506,6 +511,8 @@ BlockView::insert_track_view(int tracknum, TrackView *track, int width)
     } else {
         track_tile.insert_track(tracknum - 1, track, width);
         this->track_tile.set_zoom(this->zoom);
+        // Restore the width as per the comment in 'remove_track'.
+        this->skel_display.set_width(tracknum-1, width);
     }
     this->update_scrollbars();
 }
