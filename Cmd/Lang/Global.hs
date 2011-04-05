@@ -179,15 +179,16 @@ tid = Types.TrackId . Id.read_id
 show_state :: Cmd.CmdL String
 show_state = do
     (State.State project dir root views blocks tracks rulers _midi_conf
-        proj_scale default_inst) <- State.get
+        (State.Default scale inst tempo)) <- State.get
     -- midi config showed by show_midi_config
     let f fm = show_list (map show (Map.keys fm))
     return $ show_record
         [ ("project", project), ("dir", dir) , ("root", show root)
         , ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
-        , ("scale", show proj_scale)
-        , ("default_inst", show default_inst)
+        , ("scale", show scale)
+        , ("inst", show inst)
+        , ("tempo", show tempo)
         ]
 
 -- ** views

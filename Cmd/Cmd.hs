@@ -619,14 +619,14 @@ get_scale_id block_id track_id = do
     scale <- lookup_env block_id track_id TrackLang.v_scale
     case scale of
         Just (TrackLang.VScaleId scale_id) -> return scale_id
-        _ -> State.get_default_scale
+        _ -> State.get_default State.default_scale
 
 lookup_instrument :: (M m) => BlockId -> TrackId -> m (Maybe Score.Instrument)
 lookup_instrument block_id track_id = do
     scale <- lookup_env block_id track_id TrackLang.v_instrument
     case scale of
         Just (TrackLang.VInstrument inst) -> return $ Just inst
-        _ -> State.gets State.state_default_inst
+        _ -> State.get_default State.default_instrument
 
 -- | Lookup value from the deriver's Environ at the given block and track.
 -- See 'Derive.TrackEnviron' for details on the limitations here.

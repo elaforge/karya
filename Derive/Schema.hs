@@ -41,6 +41,7 @@ import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
+import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Tree
 
@@ -106,8 +107,8 @@ cmd_context :: State.State
     -> MidiDb.LookupMidiInstrument -> Cmd.EditMode -> Bool -> Maybe TrackNum
     -> State.TrackTree -> CmdContext
 cmd_context ustate lookup_midi edit_mode kbd_entry focused_tracknum ttree =
-    CmdContext (State.state_default_inst ustate) inst_addr lookup_midi edit_mode
-        kbd_entry focused_tracknum ttree
+    CmdContext (State.default_instrument (State.state_default ustate))
+        inst_addr lookup_midi edit_mode kbd_entry focused_tracknum ttree
     where
     -- The thru cmd has to pick a single addr for a give inst, so let's just
     -- pick the lowest one.
@@ -215,8 +216,9 @@ derive_tree :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
 derive_tree block_id tree = do
     -- d_tempo sets up some stuff that every block needs, so add one if a block
     -- doesn't have at least one top level tempo.
+    tempo <- State.default_tempo . State.state_default <$> Derive.get_ui_state
     let with_default_tempo = if has_nontempo_track tree
-            then Derive.d_tempo block_id Nothing (Signal.constant 1) else id
+            then Derive.d_tempo block_id Nothing (Signal.constant tempo) else id
     with_default_tempo (derive_tracks block_id tree)
 
 -- | Does this tree have any non-tempo tracks at the top level?

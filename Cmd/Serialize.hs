@@ -44,6 +44,7 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified App.Config as Config
@@ -117,24 +118,12 @@ instance Binary SaveState where
             _ -> version_error "SaveState" v
 
 instance Binary State.State where
-    put (State.State a b c d e f g h i j) = put_version 4
+    put (State.State a b c d e f g h i) = put_version 5
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
-        >> put i >> put j
+        >> put i
     get = do
         v <- get_version
         case v of
-            3 -> do
-                proj <- get :: Get String
-                dir <- get :: Get String
-                views <- get :: Get (Map.Map Types.ViewId Block.View)
-                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
-                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
-                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
-                midi_config <- get :: Get Instrument.Config
-                default_scale <- get :: Get Pitch.ScaleId
-                default_inst <- get :: Get (Maybe Score.Instrument)
-                return $ State.State proj dir Nothing views blocks tracks
-                    rulers midi_config default_scale default_inst
             4 -> do
                 proj <- get :: Get String
                 dir <- get :: Get String
@@ -147,8 +136,32 @@ instance Binary State.State where
                 default_scale <- get :: Get Pitch.ScaleId
                 default_inst <- get :: Get (Maybe Score.Instrument)
                 return $ State.State proj dir root views blocks tracks rulers
-                    midi_config default_scale default_inst
+                    midi_config (State.Default default_scale default_inst 1)
+            5 -> do
+                proj <- get :: Get String
+                dir <- get :: Get String
+                root <- get :: Get (Maybe BlockId)
+                views <- get :: Get (Map.Map Types.ViewId Block.View)
+                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
+                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
+                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
+                midi_config <- get :: Get Instrument.Config
+                defaults <- get :: Get State.Default
+                return $ State.State proj dir root views blocks tracks rulers
+                    midi_config defaults
             _ -> version_error "State.State" v
+
+instance Binary State.Default where
+    put (State.Default a b c) = put_version 0 >> put a >> put b >> put c
+    get = do
+        v <- get_version
+        case v of
+            0 -> do
+                scale <- get :: Get Pitch.ScaleId
+                inst <- get :: Get (Maybe Score.Instrument)
+                tempo <- get :: Get Signal.Y
+                return $ State.Default scale inst tempo
+            _ -> version_error "State.Default" v
 
 instance Binary Pitch.ScaleId where
     put (Pitch.ScaleId a) = put a

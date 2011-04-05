@@ -397,7 +397,8 @@ setup_big = do
     State.insert_events t1_vel (take 100 (mkvels (cycle (reverse vels))))
 
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
-    State.set_default_inst (Just (Score.Instrument "fm8/bass"))
+    State.modify_default $ \d ->
+        d { State.default_instrument = Just (Score.Instrument "fm8/bass") }
     State.set_selection view Config.insert_selnum
         (Just (Types.point_selection 0 0))
     return Cmd.Done

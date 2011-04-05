@@ -98,7 +98,8 @@ ruler_bg = Color.rgb 1 0.85 0.5
 
 -- * defaults
 
--- | Default scale id for new projects.
+-- | Default scale id for new projects.  It's a string so I don't have import
+-- anything.
 default_scale_id :: String
 default_scale_id = "twelve"
 

@@ -54,7 +54,8 @@ create name ui_blocks = do
         (zip [0..] ui_blocks)
     root <- create_order_block mkid block_ids
     State.set_root_id root
-    State.set_default_inst (Just (Score.Instrument "ptq/c1"))
+    State.modify_default $ \d ->
+        d { State.default_instrument = Just (Score.Instrument "ptq/c1") }
     Create.view root
     return ()
 

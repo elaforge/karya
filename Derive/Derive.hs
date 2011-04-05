@@ -221,8 +221,7 @@ initial_state :: Scope -> Cache -> ScoreDamage -> TrackLang.Environ
 initial_state scope cache score_damage environ constant = State
     { state_controls = initial_controls
     , state_pitches = Map.empty
-    , state_pitch = PitchSignal.constant
-        (State.state_default_scale (state_ui constant))
+    , state_pitch = PitchSignal.constant (State.default_scale deflt)
         (PitchSignal.Degree Signal.invalid_pitch)
 
     , state_environ = environ
@@ -235,6 +234,7 @@ initial_state scope cache score_damage environ constant = State
     , state_cache_state = initial_cache_state cache score_damage
     , state_constant = constant
     }
+    where deflt = State.state_default (state_ui constant)
 
 -- ** scope
 

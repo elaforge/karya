@@ -402,5 +402,5 @@ sync_global_status :: (Cmd.M m) => m ()
 sync_global_status = do
     st <- State.get
     Cmd.set_global_status "project" (State.state_namespace st)
-    let (Pitch.ScaleId scale) = State.state_default_scale st
+    let (Pitch.ScaleId scale) = State.default_scale (State.state_default st)
     Cmd.set_global_status "scale" scale

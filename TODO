@@ -43,7 +43,7 @@ CURRENT
     as EventDamage
 
   * select ^a first selects *rest* of track
-  - ability to set default tempo
+  * ability to set default tempo
   - block title takes up space and I'm not using it, can it collapse?
   * changing a merged track doesn't change visually
   * BlockC.insert_track passes a null merged so you can't make a view with

@@ -54,6 +54,7 @@ import qualified Ui.Update as Update
 
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified App.Config as Config
@@ -82,12 +83,7 @@ data State = State {
 
     -- | This maps the midi instruments used in this State to their Addrs.
     , state_midi_config :: Instrument.Config
-    -- | Automatically created pitch tracks will have this scale.  MIDI thru
-    -- will also use it when a scale can't be derived from focus.
-    , state_default_scale :: Pitch.ScaleId
-    -- | This instrument is present in the initial environment, so it will be
-    -- the instrument in scope in abscence of any others.
-    , state_default_inst :: Maybe Score.Instrument
+    , state_default :: Default
     } deriving (Read, Show, Generics.Typeable)
 
 -- TODO "initial_state" would be more consistent
@@ -100,19 +96,39 @@ empty = State {
     , state_blocks = Map.empty
     , state_tracks = Map.empty
     , state_rulers = ruler_map
-
     , state_midi_config = Instrument.config []
-    , state_default_scale = Pitch.ScaleId Config.default_scale_id
-    , state_default_inst = Nothing
+    , state_default = initial_default
     }
     where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
 
 instance DeepSeq.NFData State where
-    rnf (State proj dir root views blocks tracks rulers midi_conf scale inst) =
+    rnf (State proj dir root views blocks tracks rulers midi_conf deflt) =
         proj `seq` dir `seq` root
         `seq` DeepSeq.rnf views `seq` DeepSeq.rnf blocks
         `seq` DeepSeq.rnf tracks `seq` DeepSeq.rnf rulers
-        `seq` midi_conf `seq` scale `seq` inst `seq` ()
+        `seq` midi_conf `seq` DeepSeq.rnf deflt
+
+-- | Initial values for derivation.
+data Default = Default {
+    -- | Automatically created pitch tracks will have this scale.  MIDI thru
+    -- will also use it when a scale can't be derived from focus.
+    default_scale :: Pitch.ScaleId
+    -- | This instrument is present in the initial environment, so it will be
+    -- the instrument in scope in abscence of any others.
+    , default_instrument :: Maybe Score.Instrument
+    -- | A toplevel block without a tempo track will get this tempo.
+    , default_tempo :: Signal.Y
+    } deriving (Read, Show, Generics.Typeable)
+
+initial_default :: Default
+initial_default = Default {
+    default_scale = Pitch.ScaleId Config.default_scale_id
+    , default_instrument = Nothing
+    , default_tempo = 1
+    }
+
+instance DeepSeq.NFData Default where
+    rnf (Default scale inst tempo) = scale `seq` inst `seq` tempo `seq` ()
 
 -- | Since all TracklikeIds must have a ruler, all States have a special empty
 -- ruler that can be used in a \"no ruler\" situation.
@@ -403,18 +419,11 @@ get_midi_config = gets state_midi_config
 set_midi_config :: (M m) => Instrument.Config -> m ()
 set_midi_config config = modify $ \st -> st { state_midi_config = config }
 
-get_default_scale :: (M m) => m Pitch.ScaleId
-get_default_scale = gets state_default_scale
+get_default :: (M m) => (Default -> a) -> m a
+get_default f = f <$> gets state_default
 
-set_default_scale :: (M m) => Pitch.ScaleId -> m ()
-set_default_scale scale_id = modify $ \st ->
-    st { state_default_scale = scale_id }
-
-get_default_inst :: (M m) => m (Maybe Score.Instrument)
-get_default_inst = gets state_default_inst
-
-set_default_inst :: (M m) => Maybe Score.Instrument -> m ()
-set_default_inst inst = modify $ \st -> st { state_default_inst = inst }
+modify_default :: (M m) => (Default -> Default) -> m ()
+modify_default f = modify $ \st -> st { state_default = f (state_default st) }
 
 -- * root
 
