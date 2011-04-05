@@ -650,7 +650,7 @@ lookup_env block_id track_id name = do
 -- * basic cmds
 
 -- | Quit the app immediately.
-cmd_quit :: CmdId Status
+cmd_quit :: (M m) => m Status
 cmd_quit = return Quit
 
 -- | Log incoming msgs.

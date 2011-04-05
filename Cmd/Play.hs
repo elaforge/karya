@@ -168,9 +168,8 @@ find_realtime perf block_id maybe_track_id pos = do
 
 cmd_stop :: Cmd.CmdIO
 cmd_stop = do
-    ctl <- Cmd.get_state >>= maybe (Cmd.throw "player thread not running")
-        return . Cmd.state_play_control
-    Trans.liftIO $ Transport.stop_player ctl
+    maybe_ctl <- Cmd.gets Cmd.state_play_control
+    when_just maybe_ctl (void . Trans.liftIO . Transport.stop_player)
     return Cmd.Done
 
 -- | Respond to msgs about derivation and playing status.

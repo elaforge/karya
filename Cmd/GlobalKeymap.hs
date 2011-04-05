@@ -70,27 +70,31 @@ global_cmds = [Keymap.make_cmd cmd_map]
 io_cmds :: Transport.Info -> [Msg.Msg -> Cmd.CmdIO]
 io_cmds transport_info =
     [ Keymap.make_cmd io_cmd_map
-    , Keymap.make_cmd (player_bindings transport_info)
+    -- player_bindings wants an arg, but I want to run 'make_cmd_map' as a CAF
+    -- so I can easily print the errors once on startup, and also be assured
+    -- that the map is only built once.  Otherwise I think I have to thread
+    -- io_cmds through the responder state which is a bit annoying.
+    , Keymap.make_cmd $ fst $ Keymap.make_cmd_map $
+        player_bindings transport_info
     ]
 
 -- * io cmds
 
 (io_cmd_map, io_cmd_map_errors) = Keymap.make_cmd_map $ concat
-    [ command_only 'S' "save" cmd_save
-    , command_only 'L' "load" cmd_load
-    , bind_char ' ' "stop play" Play.cmd_stop
-    ]
+    [file_bindings, quit_bindings]
 
-cmd_save, cmd_load :: Cmd.CmdT IO ()
-cmd_save = Save.get_save_file >>= Save.cmd_save
-cmd_load = Save.get_save_file >>= Save.cmd_load
+file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
+file_bindings = concat
+    [ command_only 'S' "save" (Save.cmd_save =<< Save.get_save_file)
+    , command_only 'L' "load" (Save.cmd_load =<< Save.get_save_file)
+    ]
 
 -- | This is unfortunate.  In order to construct the cmd map only once, I want
 -- it to be a CAF.  However, these Cmds take an argument, which means I need to
 -- either have the CmdMap map to Cmds that take an argument, or recreate the
 -- map on each call.  Since there are not many cmds, I opt for the latter.
-player_bindings :: Transport.Info -> Keymap.CmdMap (Cmd.CmdT IO)
-player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
+player_bindings :: Transport.Info -> [Keymap.Binding (Cmd.CmdT IO)]
+player_bindings transport_info = concat
     [ bind_key Key.Enter "play block" (Play.cmd_play_focused transport_info)
     , bind_mod [Shift] Key.Enter "play from insert"
         (Play.cmd_play_from_insert transport_info)
@@ -98,24 +102,25 @@ player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
         (Play.cmd_play_from_previous_step transport_info)
     , bind_mod [Shift, PrimaryCommand] Key.Enter "play from previous root step"
         (Play.cmd_play_from_previous_root_step transport_info)
-    ]
-
--- * pure cmds
-
-(cmd_map, cmd_map_errors) = Keymap.make_cmd_map $ concat
-    [ quit_bindings, mouse_bindings, selection_bindings, view_config_bindings
-    , block_config_bindings, edit_bindings, pitch_bindings
-    , create_bindings, clip_bindings
+    , bind_char ' ' "stop play" Play.cmd_stop
     ]
 
 -- | Quit is special because it's the only Cmd that returns Cmd.Quit.
 -- See how annoying it is to make a keymap by hand?
-quit_bindings :: [Keymap.Binding (Cmd.CmdId)]
+quit_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 quit_bindings = [(kspec, cspec) | kspec <- kspecs]
     where
     kspecs = [Keymap.key_spec mods (Keymap.Key (Key.KeyChar '\''))
         | mods <- Keymap.expand_mods [PrimaryCommand]]
-    cspec = Keymap.cspec "quit" (const Cmd.cmd_quit)
+    cspec = Keymap.cspec "quit" $ const (Play.cmd_stop >> Cmd.cmd_quit)
+
+-- * pure cmds
+
+(cmd_map, cmd_map_errors) = Keymap.make_cmd_map $ concat
+    [ mouse_bindings, selection_bindings, view_config_bindings
+    , block_config_bindings, edit_bindings, pitch_bindings
+    , create_bindings, clip_bindings
+    ]
 
 -- | I bind the mouse by device rather than function, since I can't detect
 -- overlaps as easily for mouse bindings.

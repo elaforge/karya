@@ -2,6 +2,7 @@
 -}
 module Util.Control (
     (<$>), (<*>), (<*), (*>), (<|>)
+    , void
     , first, second
     , (<>), mempty
     , while, while_
@@ -18,6 +19,10 @@ import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty)
 import qualified Text.ParserCombinators.Parsec as P
 
+
+-- | TODO remove when I upgrade and Control.Monad has this
+void :: (Monad m) => m a -> m ()
+void = (>> return ())
 
 -- | Like the Arrow combinators, but specialized to functions for clearer
 -- error messages.
