@@ -195,16 +195,19 @@ io_equal_srcpos srcpos io_val expected = do
 -- Only a human can check these things.
 io_human :: String -> IO a -> IO a
 io_human = io_human_srcpos Nothing
+
+io_human_srcpos :: SrcPos.SrcPos -> String -> IO a -> IO a
 io_human_srcpos srcpos expected_msg op = do
     putStrLn $ "should see: " ++ expected_msg
     human_getch
     result <- op
-    putStr $ "  ... ok? "
+    putStr $ "  ... ok (y/n/q)? "
     c <- human_getch
     putChar '\n'
-    if c /= 'y'
-        then failure_srcpos srcpos $ "didn't see " ++ show expected_msg
-        else success_srcpos srcpos $ "saw " ++ show expected_msg
+    case c of
+        'y' -> success_srcpos srcpos $ "saw " ++ show expected_msg
+        'q' -> error "quit test"
+        _ -> failure_srcpos srcpos $ "didn't see " ++ show expected_msg
     return result
 
 
