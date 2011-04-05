@@ -179,6 +179,21 @@ test_adjacent_collapsed_tracks = do
         State.toggle_track_flag t_block_id 2 Block.Collapse
     return ()
 
+test_created_merged = do
+    state <- io_human "already has merged track" $ run State.empty $ do
+        [t1, t2] <- UiTest.mkstate_view t_block
+            [ ("t1", [(0, 1, "n1"), (2, 1, "")])
+            , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
+            ]
+        State.merge_track t_block_id 1 2
+    state <- io_human "merge" $ run state $ do
+        State.merge_track t_block_id 1 2
+    state <- io_human "unmerge" $ run state $ do
+        State.unmerge_track t_block_id 1
+    state <- io_human "merge" $ run state $ do
+        State.merge_track t_block_id 1 2
+    return ()
+
 test_set_track_merge = do
     let ([t1, t2], state) = UiTest.run_mkview
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])

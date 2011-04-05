@@ -81,7 +81,7 @@ track tracklike_id width = Track tracklike_id width [] []
 -- corresponds with what is displayed by the UI.  The DisplayTracks should be
 -- derivable from a 'Block' deterministically.
 data DisplayTrack = DisplayTrack {
-    dtrack_tracklike_id :: TracklikeId
+    dtracklike_id :: TracklikeId
     , dtrack_merged :: [TrackId]
     , dtrack_status :: Maybe (Char, Color.Color)
     , dtrack_event_brightness :: Double

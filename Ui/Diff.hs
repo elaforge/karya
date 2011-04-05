@@ -265,7 +265,7 @@ diff_block block_id block1 block2 = do
 
     let (dtracks1, dtracks2) = (Block.block_display_tracks block1,
             Block.block_display_tracks block2)
-    let pairs = Seq.indexed_pairs_on (Block.dtrack_tracklike_id . fst)
+    let pairs = Seq.indexed_pairs_on (Block.dtracklike_id . fst)
             dtracks1 dtracks2
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of
         (Just _, Nothing) -> change [block_update $ Update.RemoveTrack i2]

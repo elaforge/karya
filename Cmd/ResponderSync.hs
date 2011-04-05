@@ -10,6 +10,10 @@ import qualified Ui.Update as Update
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Performance as Performance
 
+-- import Control.Monad
+-- import qualified Control.Monad.Trans as Trans
+-- import qualified Util.PPrint as PPrint
+
 
 type Sync = State.State -> [Update.Update] -> IO (Maybe State.StateError)
 
@@ -28,7 +32,7 @@ sync sync_func send_status ui_from ui_to cmd_state cmd_updates = do
         Left err -> Log.error ("diff error: " ++ err) >> return []
         Right updates -> do
             -- unless (null updates) $
-            --     Log.debug $ "updates: " ++ show updates
+            --     Trans.liftIO $ putStrLn $ "update: " ++ PPrint.pshow updates
             err <- sync_func ui_to updates
             case err of
                 Nothing -> return ()

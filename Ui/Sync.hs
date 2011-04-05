@@ -139,10 +139,9 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
 
-    let track_ids = Block.block_tracklike_ids block
-    ctracks <- mapM State.get_tracklike track_ids
-    let widths = map Block.track_view_width (Block.view_tracks view)
-    titles <- mapM track_title track_ids
+    let dtracks = Block.block_display_tracks block
+    tracklikes <- mapM (State.get_tracklike . Block.dtracklike_id . fst) dtracks
+    titles <- mapM track_title (Block.block_tracklike_ids block)
 
     let sels = Block.view_selections view
     csels <- mapM (\(selnum, sel) -> to_csel view_id selnum (Just sel))
@@ -157,11 +156,10 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.create_view view_id title (Block.view_rect view)
             (Block.view_config view) (Block.block_config block)
 
-        let tracks = map fst (Block.block_display_tracks block)
-        let track_info = List.zip5 [0..] tracks ctracks widths titles
-        forM_ track_info $ \(tracknum, dtrack, ctrack, width, title) -> do
+        let track_info = List.zip4 [0..] dtracks tracklikes titles
+        forM_ track_info $ \(tracknum, (dtrack, width), tracklike, title) -> do
             let merged = events_of_track_ids ustate (Block.dtrack_merged dtrack)
-            BlockC.insert_track view_id tracknum ctrack merged width
+            BlockC.insert_track view_id tracknum tracklike merged width
             unless (null title) $
                 BlockC.set_track_title view_id tracknum title
             BlockC.set_display_track view_id tracknum dtrack
@@ -208,7 +206,7 @@ run_update (Update.BlockUpdate block_id update) = do
         Update.RemoveTrack tracknum -> return $
             mapM_ (flip BlockC.remove_track tracknum) view_ids
         Update.InsertTrack tracknum width dtrack -> do
-            let tid = Block.dtrack_tracklike_id dtrack
+            let tid = Block.dtracklike_id dtrack
             ctrack <- State.get_tracklike tid
             ustate <- State.get
             return $ forM_ view_ids $ \view_id -> do
@@ -225,7 +223,7 @@ run_update (Update.BlockUpdate block_id update) = do
                         BlockC.set_display_track view_id tracknum dtrack
                     _ -> return ()
         Update.DisplayTrack tracknum dtrack -> do
-            let tracklike_id = Block.dtrack_tracklike_id dtrack
+            let tracklike_id = Block.dtracklike_id dtrack
             tracklike <- State.get_tracklike tracklike_id
             ustate <- State.get
             return $ forM_ view_ids $ \view_id -> do
