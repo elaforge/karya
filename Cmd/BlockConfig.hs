@@ -40,7 +40,7 @@ get_clicked_track msg = case Cmd.msg_to_mod msg of
     _ -> Cmd.abort
 
 -- | Merge all adjacent note/pitch pairs.
-merge_all :: (Cmd.M m) => BlockId -> m ()
+merge_all :: (State.M m) => BlockId -> m ()
 merge_all block_id = do
     tree <- State.get_track_tree block_id
     let collapse = Seq.map_maybe collapsable (Tree.paths tree)

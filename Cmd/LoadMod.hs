@@ -26,6 +26,7 @@ import qualified Ui.State as State
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 
+import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
 
@@ -36,8 +37,6 @@ import Util.Test
 
 -- not implemented:
 -- - initial tempo and tempo changes, along with frames / row
--- - all blocks are given the same length in the order block, so longer blocks
--- will play faster
 -- - instruments (one instrument is hardcoded)
 -- - most effects
 -- - order list, so repeats are expanded
@@ -95,11 +94,12 @@ make_block mkid rid track_rid name tracks = do
         State.create_track (mkid (name ++ ".t" ++ show i)) $
             Track.track title events Config.track_bg Config.render_config
     let block_tracks = Block.track (Block.RId rid) 20
-            : [Block.track (Block.TId tid track_rid) 40 | tid <- tids]
+            : [Block.track (Block.TId tid track_rid) 25 | tid <- tids]
     block_id <- State.create_block (mkid name) $
         Block.block Block.default_config ""  block_tracks Config.schema
     State.set_skeleton block_id =<<
         Schema.default_parser <$> State.get_track_info block_id
+    BlockConfig.merge_all block_id
     return block_id
 
 -- * convert

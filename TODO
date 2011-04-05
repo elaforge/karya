@@ -16,11 +16,10 @@ CURRENT
   run timing tests with bloom
     - compile with optimization and make sure it rederives fast
     - edit bits and make sure it rederives extra fast
-
     - lang cmds to fix time signature
   - ruler for LoadMod order list not exactly convenient... but maybe I just
     need event snap?
-  - LoadMod should make narrower tracks, start collapsed
+  * LoadMod should make narrower tracks, start collapsed
   - Create.view should size it to fit the block being created
   * zoom to fit cmd
   * Util.Seq.modify_at, change arg order to put list at last
