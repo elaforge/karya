@@ -92,14 +92,17 @@ cmd_track_all selnum = do
     tracks <- length . Block.block_tracks <$> State.get_block block_id
     State.set_selection view_id selnum (Just (select_track_all dur tracks sel))
 
+-- | Progressive selection: select the rest of the track, then the entire
+-- track, then the whole block.
 select_track_all :: ScoreTime -> TrackNum -> Types.Selection -> Types.Selection
 select_track_all dur tracks sel
     | sel == select_tracks = select_all
-    | otherwise = select_tracks
+    | sel == select_rest = select_tracks
+    | otherwise = select_rest
     where
+    select_rest = sel { Types.sel_cur_pos = dur }
+    select_tracks = sel { Types.sel_start_pos = 0, Types.sel_cur_pos = dur }
     select_all = Types.selection 0 0 tracks dur
-    select_tracks = sel
-        { Types.sel_start_pos = 0, Types.sel_cur_pos = dur }
 
 
 -- | Shift the selection along selectable tracks, clipping if it's out of

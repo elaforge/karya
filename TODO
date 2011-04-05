@@ -42,7 +42,7 @@ CURRENT
   - see if ControlDamage is affected by the same problems (deleted events)
     as EventDamage
 
-  - select ^a first selects *rest* of track
+  * select ^a first selects *rest* of track
   - ability to set default tempo
   - block title takes up space and I'm not using it, can it collapse?
   * changing a merged track doesn't change visually
