@@ -65,7 +65,7 @@ run ui_state m =
     where
     -- Make sure Derive.get_current_block_id, called by add_track_warp, doesn't
     -- throw.
-    initial_stack = Stack.make [Stack.Block (UiTest.bid "fakeblock")]
+    initial_stack = Stack.from_outermost [Stack.Block (UiTest.bid "fakeblock")]
     derive_state = (Derive.initial_state default_scope mempty
         mempty default_environ (default_constant ui_state))
             { Derive.state_stack = initial_stack }
@@ -369,7 +369,7 @@ mkevent (start, dur, text, controls, inst) =
         ++ zip (map (:"2") ['a'..'z']) [60.5..]
 
 fake_stack :: Stack.Stack
-fake_stack = Stack.make
+fake_stack = Stack.from_outermost
     [ Stack.Block (UiTest.bid "fakeblock")
     , Stack.Track (UiTest.tid "faketrack")
     , Stack.Region 42 43

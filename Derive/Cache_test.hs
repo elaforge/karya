@@ -66,7 +66,8 @@ test_clear_damage = do
     let f damage stack = Map.keys $ uncache $
             Derive.clear_damage damage (mkcache stack)
 
-    let stack = Stack.make [block "top", track "t", call "c", region 1 2]
+    let stack = Stack.from_outermost
+            [block "top", track "t", call "c", region 1 2]
     equal (f (mkdamage [] []) stack) [stack]
     equal (f (mkdamage [] [UiTest.bid "top"]) stack) []
     equal (f (mkdamage [(UiTest.tid "t", Ranges.range 2 3)] []) stack) [stack]

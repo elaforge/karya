@@ -3,12 +3,16 @@ module Derive.Call.Note where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+
 import Util.Control
+import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Event as Event
 
 import qualified Derive.Call as Call
+import qualified Derive.CallSig as CallSig
+import Derive.CallSig (required)
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.TrackLang as TrackLang
@@ -25,6 +29,7 @@ note_calls = Derive.make_calls
     -- to handle the args version.
     , ("n", c_note)
     , ("=", Call.c_equal)
+    , ("clip", c_clip)
     ]
 
 -- * note call
@@ -36,7 +41,8 @@ note_calls = Derive.make_calls
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
-    (Just $ Derive.GeneratorCall generate Derive.NonCachingGenerator Nothing)
+    (Just $ Derive.GeneratorCall generate Derive.NonCachingGenerator
+        (const Nothing))
     (Just $ Derive.TransformerCall transform Derive.NonIncremental)
     where
     generate args = case process (Derive.passed_vals args) of
@@ -127,3 +133,31 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
         TrackLang.VRelativeAttr rel_attr ->
             (inst, attrs ++ [rel_attr], invalid)
         _ -> (inst, attrs, arg : invalid)
+
+-- * clip
+
+-- | Call a block, but clip it instead of stretching it to fit the event.
+--
+-- This is useful to cut a certain sequence short, for example to substitute
+-- a different ending.
+--
+-- It's not necessarily super easy to use because the callee block may not be
+-- in the same time scale as the calling block.  TODO wait until I actually
+-- start using this to see if it's worth coming up with a solution for that.
+c_clip :: Derive.NoteCall
+c_clip = Call.block_call get_block_id $ Derive.caching_generator "clip" $
+    \args -> CallSig.call1 args (required "block_id") $ \sym -> do
+        block_id <- maybe
+            (Derive.throw $ "block not found: " ++ Pretty.pretty sym) return
+            =<< Call.symbol_to_block_id sym
+        sub_dur <- Derive.get_block_dur block_id
+        let event_dur = Derive.info_stretch (Derive.passed_info args)
+        end <- Derive.score_to_real 1
+        let factor = 1 / event_dur * sub_dur
+        takeWhile (before end) <$>
+            Derive.d_stretch factor (Call.d_block block_id)
+    where
+    before end = LEvent.either ((<end) . Score.event_start) (const True)
+    get_block_id (ns, args) = case Derive.passed_vals args of
+        TrackLang.VSymbol sym : _ -> Just (Call.make_block_id ns sym)
+        _ -> Nothing

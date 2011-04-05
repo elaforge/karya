@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Derive.Stack (
-    Stack, empty, make, block, add, member, outermost, innermost
+    Stack, empty, from_outermost, from_innermost
+    , block, add, member, outermost, innermost
     , Frame(..)
     , show_ui
 
@@ -36,12 +37,15 @@ newtype Stack = Stack [Frame]
 empty :: Stack
 empty = Stack []
 
-make :: [Frame] -> Stack
-make = Stack . reverse
+from_outermost :: [Frame] -> Stack
+from_outermost = Stack . reverse
+
+from_innermost :: [Frame] -> Stack
+from_innermost = Stack
 
 -- | Make a Stack with a single block.
 block :: BlockId -> Stack
-block = make . (:[]) . Block
+block = from_innermost . (:[]) . Block
 
 add :: Frame -> Stack -> Stack
 add frame (Stack stack) = Stack (frame:stack)

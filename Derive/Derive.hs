@@ -69,6 +69,7 @@ import qualified Util.SrcPos as SrcPos
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
@@ -468,7 +469,7 @@ data CallInfo derived = CallInfo {
     , info_block_end :: ScoreTime
 
     -- | These are not warped, so they are still in track score time.
-    , info_track_pos :: (ScoreTime, ScoreTime)
+    , info_track_pos :: (ScoreTime, ScoreTime) -- (start, duration)
     , info_track_prev :: [Track.PosEvent]
     , info_track_next :: [Track.PosEvent]
     }
@@ -481,9 +482,7 @@ data CallInfo derived = CallInfo {
 -- Stretch for a 0 dur note is considered 1, not infinity, to avoid
 -- problems with division by 0.
 info_stretch :: CallInfo derived -> ScoreTime
-info_stretch (CallInfo { info_track_pos = (s, e) }) =
-    if start == end then 1 else end - start
-    where (start, end) = (min s e, max s e)
+info_stretch = snd . info_track_pos
 
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither to generators for that matter.
@@ -538,8 +537,17 @@ data GeneratorCall derived = GeneratorCall {
     gcall_func :: GeneratorFunc derived
     , gcall_type :: GeneratorType
     -- | Block calls should put their BlockId on the stack instead of the call
-    -- name.  Unfortunately by the time I get into 'd_block' it's too late.
-    , gcall_block :: Maybe BlockId
+    -- name.
+    --
+    -- It gets the args and default namespace in case the block to call is
+    -- named in an argument.  This is all very awkward and it would be nicer to
+    -- put the 'with_stack_block' into 'Call.d_block', but at that point the
+    -- generate cache has already been called, and it really needs to have the
+    -- block already on the stack.
+    --
+    -- The arguments are uncurried just so it's more convenient to use with
+    -- 'const'.
+    , gcall_block :: (Id.Namespace, PassedArgs derived) -> Maybe BlockId
     }
 
 -- | args -> deriver
@@ -564,14 +572,16 @@ generator1 name func = generator name ((LEvent.one <$>) . func)
 stream_generator :: (Derived derived) =>
     String -> GeneratorFunc derived -> Call derived
 stream_generator name func =
-    Call name (Just (GeneratorCall func NonCachingGenerator Nothing)) Nothing
+    Call name (Just (GeneratorCall func NonCachingGenerator (const Nothing)))
+        Nothing
 
 -- | Like 'stream_generator', but set the CachingGenerator flag, which will
 -- turn on caching for this generator.
 caching_generator :: (Derived derived) =>
     String -> GeneratorFunc derived -> Call derived
 caching_generator name func =
-    Call name (Just (GeneratorCall func CachingGenerator Nothing)) Nothing
+    Call name (Just (GeneratorCall func CachingGenerator (const Nothing)))
+        Nothing
 
 -- *** transformer
 

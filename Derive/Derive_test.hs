@@ -56,7 +56,7 @@ test_basic = do
     equal (note_on_keys mmsgs) [60, 61]
     equal logs []
     where
-    mkstack (s, e) = Stack.make
+    mkstack (s, e) = Stack.from_outermost
         [ Stack.Block (UiTest.bid "b1")
         , Stack.Track (UiTest.tid "b1.t1"), Stack.Track (UiTest.tid "b1.t0")
         , Stack.Call "note", Stack.Region s e, Stack.Call "note"
@@ -120,7 +120,7 @@ test_stack = do
             Stack.Region s e]
         sub s e = [block "sub", track "sub.t0", call "note",
             Stack.Region s e, call "note"]
-    equal stacks $ map Stack.make
+    equal stacks $ map Stack.from_outermost
         [ b0 0 1 ++ [Stack.Call "note"]
         , b0 1 2 ++ sub 0 1
         , b0 1 2 ++ sub 1 2

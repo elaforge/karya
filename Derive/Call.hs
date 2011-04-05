@@ -410,11 +410,13 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
                     return (fb_call, [val])
 
     env <- Derive.gets Derive.state_environ
+    ns <- State.state_namespace <$> Derive.get_ui_state
     let args = Derive.PassedArgs vals env call_id cinfo
-    let with_stack = case Derive.gcall_block =<< Derive.call_generator call of
+        gen = Derive.call_generator call
+        with_stack = case (($ (ns, args)) . Derive.gcall_block) =<< gen of
             Just block_id -> Derive.with_stack_block block_id
             Nothing -> Derive.with_stack_call (Derive.call_name call)
-    with_stack $ case Derive.call_generator call of
+    with_stack $ case gen of
         -- Just (Derive.GeneratorCall gen _ _) -> gen args
         Just gen -> do
             cache <- Derive.gets Derive.state_cache_state
@@ -480,14 +482,18 @@ fallback_call_id = TrackLang.Symbol ""
 -- * block call
 
 c_block :: BlockId -> Derive.NoteCall
-c_block block_id = add_block $ Derive.caching_generator "block" $ \args ->
-    if null (Derive.passed_vals args)
-        then d_block block_id
-        else Derive.throw_arg_error "args for block call not implemented yet"
-    where
-    add_block call =
-        call { Derive.call_generator = add <$> Derive.call_generator call }
-        where add gcall = gcall { Derive.gcall_block = Just block_id }
+c_block block_id = block_call (const (Just block_id)) $
+    Derive.caching_generator "block" $ \args ->
+        if null (Derive.passed_vals args)
+            then d_block block_id
+            else Derive.throw_arg_error
+                "args for block call not implemented yet"
+
+block_call :: ((Id.Namespace, Derive.PassedArgs d) -> Maybe BlockId)
+    -> Derive.Call d -> Derive.Call d
+block_call f call =
+    call { Derive.call_generator = add <$> Derive.call_generator call }
+    where add gcall = gcall { Derive.gcall_block = f }
 
 d_block :: BlockId -> Derive.EventDeriver
 d_block block_id = do
@@ -564,13 +570,20 @@ lookup_val_call :: Derive.LookupCall Derive.ValCall
 lookup_val_call = lookup_with Derive.scope_val
 
 lookup_block :: Derive.LookupCall Derive.NoteCall
-lookup_block (TrackLang.Symbol call_id) = do
+lookup_block sym = fmap c_block <$> symbol_to_block_id sym
+
+symbol_to_block_id :: TrackLang.Symbol -> Derive.Deriver (Maybe BlockId)
+symbol_to_block_id sym = do
     ui_state <- Derive.get_ui_state
-    let default_ns = State.state_namespace ui_state
-        block_id = Types.BlockId (Id.make default_ns call_id)
-    if block_id `Map.member` State.state_blocks ui_state
-        then return $ Just $ c_block block_id
-        else return Nothing
+    let ns = State.state_namespace ui_state
+        block_id = make_block_id ns sym
+    return $ if block_id `Map.member` State.state_blocks ui_state
+        then Just block_id
+        else Nothing
+
+make_block_id :: Id.Namespace -> TrackLang.Symbol -> BlockId
+make_block_id namespace (TrackLang.Symbol call) =
+    Types.BlockId (Id.make namespace call)
 
 lookup_with :: (Derive.Scope -> Derive.ScopeType call)
     -> Derive.LookupCall call

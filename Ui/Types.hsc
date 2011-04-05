@@ -76,8 +76,8 @@ zoom_to_time zoom pixels =
 -- is dependent on the score context.  ScoreTime units can be negative, but
 -- blocks only display events at >=0 ScoreTime.
 newtype ScoreTime = ScoreTime Double
-    deriving (Num, Enum, Real, Floating, Fractional, RealFrac, RealFloat,
-        Eq, Ord, Show, Read, NFData)
+    deriving (Num, Enum, Show, Real, Floating, Fractional, RealFrac, RealFloat,
+        Eq, Ord, Read, NFData)
 
 instance Storable ScoreTime where
     sizeOf _ = #size ScoreTime
@@ -87,6 +87,11 @@ instance Storable ScoreTime where
         return (ScoreTime v)
     poke posp (ScoreTime pos) =
         (#poke ScoreTime, _val) posp pos
+
+-- TODO this would be more consistent with RealTime and nicer on the eyes, but
+-- then I have to write a Read for it.
+-- instance Show ScoreTime where
+--     show (ScoreTime t) = show t ++ "t"
 
 instance Pretty.Pretty ScoreTime where
     -- t is for time, since RealTime uses s for seconds

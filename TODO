@@ -917,7 +917,7 @@ Derive:
       't *n1 *n2 *n3 |' runs deriver three times with three different
       pitches.
 
-    - Implement clip-call:
+    * Implement clip-call:
       Undo the call stretching, this should be efficient because of stretch
       combining:
 
