@@ -1,13 +1,15 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances #-}
 {- | Functions to save and load the midi db.
 
     Unlike in 'Cmd.Serialize', I don't bother with versions here, because this
     is intended to be just a cache.
 -}
-module Instrument.Serialize where
+module Instrument.Serialize (serialize, unserialize) where
 import qualified Control.Exception as Exception
-import qualified Data.Time as Time
 import qualified Data.Binary as Binary
 import Data.Binary (Binary, get, put, getWord8, putWord8)
+import qualified Data.Map as Map
+import qualified Data.Time as Time
 
 import qualified Util.File as File
 
@@ -20,43 +22,56 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
 
 
-data SavedDb = SavedDb {
-    save_creation_date :: Time.UTCTime
-    , save_midi_db :: MidiDb.SerializableMidiDb
-    , save_index :: Search.Index
-    } deriving (Show)
-saved_db midi_db index = do
-    utc <- Time.getCurrentTime
-    return $ SavedDb utc midi_db index
-
-serialize :: FilePath -> MidiDb.SerializableMidiDb -> Search.Index -> IO ()
-serialize fname midi_db index = do
-    saved <- saved_db midi_db index
+-- | Serialize instrument definitions to a file.  Since the @code@ parameter
+-- is unserializable code, it will be stripped off.
+serialize :: FilePath -> [MidiDb.SynthDesc code] -> IO ()
+serialize fname synths = do
+    saved <- saved_db synths
     File.backup_file fname
     Binary.encodeFile fname saved
 
-unserialize :: FilePath -> IO (Either Exception.SomeException SavedDb)
-unserialize fname = Exception.try $ do
-    st <- Binary.decodeFile fname
-    -- Cheap strict decode, as in Cmd.Serialize.
-    length (show st) `seq` return st
+-- | Unserialize instrument definitions.  Since the code was stripped off by
+-- 'serialize', it must be provided on a per-patch basis to reconstitute the
+-- definitions.
+unserialize :: (Instrument.Patch -> code) -> FilePath
+    -> IO (Either Exception.SomeException
+        (Time.UTCTime, [MidiDb.SynthDesc code]))
+unserialize code_for fname = Exception.try $ do
+    SavedDb (time, db) <- Binary.decodeFile fname
+    return (time, make_synths code_for db)
+
 
 -- * implementation
 
-instance Binary SavedDb where
-    put (SavedDb a b c) = put a >> put b >> put c
-    get = get >>= \a -> get >>= \b -> get >>= \c -> return (SavedDb a b c)
+newtype Db = Db [MidiDb.SynthDesc ()]
+    deriving (Binary)
+
+make_db :: [MidiDb.SynthDesc code] -> Db
+make_db synths = Db [(synth, strip patches) | (synth, patches) <- synths]
+    where
+    strip (MidiDb.PatchMap patches) = MidiDb.PatchMap $
+        Map.map (\(p, _) -> (p, ())) patches
+
+make_synths :: (Instrument.Patch -> code) -> Db -> [MidiDb.SynthDesc code]
+make_synths code_for (Db synths) =
+    [(synth, insert patches) | (synth, patches) <- synths]
+    where
+    insert (MidiDb.PatchMap patches) = MidiDb.PatchMap $
+        Map.map (\(p, _) -> (p, code_for p)) patches
+
+newtype SavedDb = SavedDb (Time.UTCTime, Db)
+    deriving (Binary)
+
+saved_db :: [MidiDb.SynthDesc code] -> IO SavedDb
+saved_db synths = do
+    utc <- Time.getCurrentTime
+    return $ SavedDb (utc, make_db synths)
+
+-- * instances
 
 instance Binary Search.Index where
     put (Search.Index a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (Search.Index a b)
-
-
--- ** MidiDb
-
-instance Binary MidiDb.SerializableMidiDb where
-    put (MidiDb.SerializableMidiDb a) = put a
-    get = get >>= \a -> return (MidiDb.SerializableMidiDb a)
 
 instance Binary Instrument.Synth where
     put (Instrument.Synth a b c) = put a >> put b >> put c
@@ -67,16 +82,16 @@ instance Binary Control.Control where
     put (Control.Control a) = put a
     get = get >>= \a -> return (Control.Control a)
 
-instance Binary MidiDb.UnresolvedPatchMap where
-    put (MidiDb.UnresolvedPatchMap a) = put a
-    get = get >>= \a -> return (MidiDb.UnresolvedPatchMap a)
+instance Binary (MidiDb.PatchMap ()) where
+    put (MidiDb.PatchMap a) = put a
+    get = get >>= \a -> return (MidiDb.PatchMap a)
 
 instance Binary Instrument.Patch where
-    put (Instrument.Patch a b c d e f g h) = put a >> put b >> put c >> put d
-        >> put e >> put f >> put g >> put h
+    put (Instrument.Patch a b c d e f) = put a >> put b >> put c
+        >> put d >> put e >> put f
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
-        get >>= \f -> get >>= \g -> get >>= \h ->
-            return (Instrument.Patch a b c d e f g h)
+        get >>= \f ->
+            return (Instrument.Patch a b c d e f)
 
 instance Binary Instrument.Instrument where
     put (Instrument.Instrument a b c d e f g h i) = put a >> put b >> put c

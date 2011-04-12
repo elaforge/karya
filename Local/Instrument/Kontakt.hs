@@ -4,21 +4,26 @@
 -- figure out how to parse .nki files or something.
 module Local.Instrument.Kontakt where
 import Derive.Attrs
+import qualified Derive.Derive as Derive
+import qualified Derive.Instrument.Drums as Drums
+
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.MidiDb as MidiDb
+
+import qualified App.MidiInst as MidiInst
 
 
-load :: FilePath -> IO MidiDb.SynthDesc
-load _dir = return $
-    MidiDb.softsynth "kkt" (Just "loop1") (-12, 12) patches [] id
+load :: FilePath -> IO [MidiInst.SynthDesc]
+load _dir = return $ MidiInst.make $
+    (MidiInst.softsynth "kkt" (Just "loop1") (-12, 12) [])
+        { MidiInst.extra_patches = MidiInst.with_code hang_code patches
+        }
 
 patches =
     [ inst "hang1" hang_keymap
     , inst "hang2" hang_keymap
     ]
 
-inst name ks = Instrument.set_note_calls hang_calls $
-    Instrument.set_keyswitches ks $
+inst name ks = Instrument.set_keyswitches ks $
     Instrument.patch $ Instrument.instrument name [] (-12, 12)
 
 hang_keymap =
@@ -27,4 +32,6 @@ hang_keymap =
     , (no_attrs, 36)
     ]
 
-hang_calls = ["Derive.Instrument.Drums.hang"]
+hang_code = MidiInst.empty_code
+    { MidiInst.note_calls = [Derive.make_lookup Drums.hang]
+    }

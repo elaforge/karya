@@ -34,7 +34,7 @@ inst_info inst = do
             (Map.findWithDefault [] inst (Instrument.config_alloc midi_config))
     return $ show_inst inst ++ ": " ++ maybe "<not found>" show_info maybe_info
 
-show_instrument_info :: [Instrument.Addr] -> MidiDb.Info -> String
+show_instrument_info :: [Instrument.Addr] -> Cmd.MidiInfo -> String
 show_instrument_info addrs info = unlines
     [ "keyswitches: " ++ show_keyswitch_map
         (Instrument.patch_keyswitches (MidiDb.info_patch info))

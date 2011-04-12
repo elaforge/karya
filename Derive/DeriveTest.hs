@@ -17,6 +17,8 @@ import Ui
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
+import qualified Cmd.Cmd as Cmd
+
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
@@ -39,7 +41,8 @@ import qualified Perform.RealTime as RealTime
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
-import qualified Instrument.Search as Search
+
+import qualified App.MidiInst as MidiInst
 
 
 scale_id = Twelve.scale_id
@@ -323,8 +326,7 @@ d_note = do
 -- * inst
 
 make_lookup_inst :: [Instrument.Patch] -> MidiDb.LookupMidiInstrument
-make_lookup_inst patches = MidiDb.lookup_midi (fst (MidiDb.midi_db [sdesc]))
-    where sdesc = MidiDb.softsynth "s" (Just "wdev") (-2, 2) patches [] id
+make_lookup_inst patches = Instrument.Db.db_lookup_midi (make_db patches)
 
 make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
 make_midi_config config = Instrument.config
@@ -334,11 +336,16 @@ make_midi_config config = Instrument.config
 default_lookup_inst :: MidiDb.LookupMidiInstrument
 default_lookup_inst = make_lookup_inst default_patches
 
-default_db :: Instrument.Db.Db
-default_db = Instrument.Db.db midi_db Search.empty_index
+default_db :: Cmd.InstrumentDb
+default_db = make_db default_patches
+
+make_db :: [Instrument.Patch] -> Cmd.InstrumentDb
+make_db patches = Instrument.Db.db midi_db
     where
-    midi_db = fst $ MidiDb.midi_db
-        [MidiDb.softsynth "s" Nothing (-2, 2) default_patches [] id]
+    sdescs = MidiInst.make $ (MidiInst.softsynth "s" (Just "wdev") (-2, 2) [])
+        { MidiInst.extra_patches =
+            map (\p -> (p, MidiInst.empty_code)) patches }
+    midi_db = fst $ MidiDb.midi_db sdescs
 
 default_patches :: [Instrument.Patch]
 default_patches =

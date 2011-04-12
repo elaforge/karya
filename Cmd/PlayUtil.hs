@@ -79,7 +79,8 @@ get_lookup_inst_calls :: (Cmd.M m) =>
     m (Score.Instrument -> Maybe Derive.InstrumentCalls)
 get_lookup_inst_calls = do
     inst_db <- Cmd.gets Cmd.state_instrument_db
-    return $ fmap MidiDb.info_inst_calls . Instrument.Db.db_lookup inst_db
+    return $ fmap (Cmd.inst_calls . MidiDb.info_code)
+        . Instrument.Db.db_lookup inst_db
 
 perform_from :: (Cmd.M m) => Cmd.Performance -> RealTime -> m Perform.MidiEvents
 perform_from perf start = do

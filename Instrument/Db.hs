@@ -12,49 +12,41 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Instrument.MidiDb as MidiDb
-import qualified Instrument.Search as Search
 
 
 -- * Db
 
 -- | Static config type for the instrument db.
-data Db = Db {
-    -- | Search for Score instruments.
-    db_search :: Search.Search
+data Db code = Db {
     -- | Specialized version of db_lookup that returns a Midi instrument.
-    , db_lookup_midi :: MidiDb.LookupMidiInstrument
+    db_lookup_midi :: MidiDb.LookupMidiInstrument
     -- | Lookup a score instrument.
-    , db_lookup :: Score.Instrument -> Maybe MidiDb.Info
+    , db_lookup :: Score.Instrument -> Maybe (MidiDb.Info code)
 
-    -- | Internal use.  It's probably not necessary to expose these, but they
-    -- can be handy for testing.
-    , db_midi_db :: MidiDb.MidiDb
-    , db_index :: Search.Index
+    -- | Internal use.  It's probably not necessary to expose this, but it can
+    -- be handy for testing.
+    , db_midi_db :: MidiDb.MidiDb code
     }
 
-empty :: Db
+empty :: Db code
 empty = Db {
-    db_search = const []
-    , db_lookup_midi = \_ _ -> Nothing
+    db_lookup_midi = \_ _ -> Nothing
     , db_lookup = const Nothing
     , db_midi_db = MidiDb.empty
-    , db_index = Search.make_index MidiDb.empty
     }
 
 -- | So Cmd.State can be showable, for debugging.
-instance Show Db where
+instance Show (Db code) where
     show _ = "((InstrumentDb))"
 
 type MakeInitialize = Midi.Channel -> Instrument.InitializePatch
 
-db :: MidiDb.MidiDb -> Search.Index -> Db
-db midi_db extra_index = Db
-    (Search.search index)
-    (MidiDb.lookup_midi midi_db)
-    (MidiDb.lookup_instrument midi_db)
-    midi_db
-    index
-    where index = Search.merge_indices (Search.make_index midi_db) extra_index
+db :: MidiDb.MidiDb code -> Db code
+db midi_db = Db {
+    db_lookup_midi = MidiDb.lookup_midi midi_db
+    , db_lookup = MidiDb.lookup_instrument midi_db
+    , db_midi_db = midi_db
+    }
 
-size :: Db -> Int
+size :: Db code -> Int
 size db = MidiDb.size (db_midi_db db)

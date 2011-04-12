@@ -1,7 +1,11 @@
 # TODO BUGS
 # - .depend needs 'touch .depend' to bootstrap.
 # - All hs depends on build/hspp though none state that.  So 'make build/hspp'
-#	is also necessary for bootstrap.
+#   is also necessary for bootstrap.
+# - hsc deps not automatically derived.  If a hs file imports an hsc then ghc
+#   --make won't figure out to run hsc2hs on the hsc first.   Instead I am
+#   forced to put the hsc deps in the Makefile prerequisites, but there's
+#   nothing keeping that up to date.
 #
 # The situation with flags is getting out of control.  Problems:
 #
@@ -243,7 +247,7 @@ BROWSER_OBJ = Instrument/Browser.hs \
 BROWSER_HS = Instrument/BrowserC.hs
 
 .PHONY: $(BUILD)/browser
-$(BUILD)/browser: $(BROWSER_OBJ) $(BROWSER_HS)
+$(BUILD)/browser: $(BROWSER_OBJ) $(BROWSER_HS) Ui/Types.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
 	$(BUNDLE)
 

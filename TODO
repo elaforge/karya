@@ -225,7 +225,7 @@ Also, I want to turn a new cmd on or off.  But I can do this just by adding
 or removing from the cmd list.
 
 UNSORTED
-  - implement inst Cmd lookup, in same vein as call lookup
+  + implement inst Cmd lookup, in same vein as call lookup
   - for control track entry, typing numbers puts them right of decimal, typing
     backtick enters a 1
   * create a set of profiles and a custom target to run them, so I can run them

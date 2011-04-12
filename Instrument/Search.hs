@@ -57,7 +57,7 @@ merge_indices (Index keys0 inv0) (Index keys1 inv1) =
     merge_keys = Map.unionWith merge_vals
     merge_vals = Map.unionWith (++)
 
-make_index :: MidiDb.MidiDb -> Index
+make_index :: MidiDb.MidiDb code -> Index
 make_index midi_db =
     Index (Map.map Map.multimap (Map.multimap idx)) (Map.fromList inv_idx)
     where
@@ -95,7 +95,7 @@ query_matches (Index idx _) query = map with_tag query
         Just vals -> concat $ map snd $ filter ((val `List.isInfixOf`) . fst)
             (Map.assocs vals)
 
-inverted_index :: MidiDb.MidiDb -> [(Score.Instrument, [Instrument.Tag])]
+inverted_index :: MidiDb.MidiDb code -> [(Score.Instrument, [Instrument.Tag])]
 inverted_index (MidiDb.MidiDb synths) = inst_tags2
     where
     all_tags = concat [synth_tags synth patches
@@ -110,14 +110,14 @@ inverted_index (MidiDb.MidiDb synths) = inst_tags2
     inst_tags2 = [(inst, tags) | (Just inst, tags) <- inst_tags1]
 
 -- | Get tags for the synth, including automatically generated synth tags.
-synth_tags :: Instrument.Synth -> MidiDb.PatchMap -> [[Instrument.Tag]]
+synth_tags :: Instrument.Synth -> MidiDb.PatchMap code -> [[Instrument.Tag]]
 synth_tags synth patches = map (stags++) (patch_tags patches)
     where
     stags = tag synth_tag (Instrument.synth_name synth)
         : control_tags (Instrument.synth_control_map synth)
 
 -- | Get tags for the patch, including automatically generated ones.
-patch_tags :: MidiDb.PatchMap -> [[Instrument.Tag]]
+patch_tags :: MidiDb.PatchMap code -> [[Instrument.Tag]]
 patch_tags (MidiDb.PatchMap patches) = map ptags (Map.assocs patches)
     where
     ptags (inst_name, (patch, _)) = Instrument.tag name_tag inst_name

@@ -15,7 +15,7 @@ import qualified Instrument.Db
 -- * static config
 
 data StaticConfig = StaticConfig {
-    config_instrument_db :: Instrument.Db.Db
+    config_instrument_db :: Cmd.InstrumentDb
     , config_schema_map :: Schema.SchemaMap
     -- | Path to directories containing Local.Lang modules.  They will be
     -- included in the lang namespace.

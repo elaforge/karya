@@ -3,6 +3,7 @@ import qualified Data.Map as Map
 
 import Util.Test
 
+import qualified Cmd.Cmd as Cmd
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
@@ -42,8 +43,8 @@ t_patches = fst $ MidiDb.patch_map $ map mkpatch
 t_synth2 = Instrument.set_device "fm8 dev" $ Instrument.synth "fm8" []
 t_patches2 = MidiDb.wildcard_patch_map (mkpatch ("none", "fm", []))
 
-mkpatch (name, cat, conts) = (Instrument.patch inst)
-    { Instrument.patch_tags = tags }
+mkpatch (name, cat, conts) = (patch, Cmd.empty_code)
     where
     tags = map (uncurry Instrument.tag) [("category", cat)]
     inst = Instrument.instrument name conts (-2, 2)
+    patch = (Instrument.patch inst) { Instrument.patch_tags = tags }

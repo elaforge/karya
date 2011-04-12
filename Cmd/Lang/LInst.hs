@@ -36,7 +36,7 @@ all_notes_off = do
     let notes_off chan = Midi.ChannelMessage chan Midi.AllNotesOff
     sequence_ [Cmd.midi dev (notes_off chan) | (dev, chan) <- addrs]
 
-lookup :: String -> Cmd.CmdL (Maybe MidiDb.Info)
+lookup :: String -> Cmd.CmdL (Maybe Cmd.MidiInfo)
 lookup = Cmd.lookup_instrument_info . Score.Instrument
 
 -- | Deallocate the old allocation, and set it to the new one.  Meant for

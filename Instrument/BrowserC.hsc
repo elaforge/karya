@@ -11,8 +11,7 @@ type Window = Fltk.Window MsgType
 
 
 create :: Int -> Int -> Int -> Int -> IO (Fltk.Window MsgType)
-create x y w h = do
-    (Fltk.create_window decode_type c_create_browser x y w h)
+create x y w h = Fltk.create_window decode_type c_create_browser x y w h
 
 foreign import ccall "create_browser"
     c_create_browser :: CInt -> CInt -> CInt -> CInt -> FunPtr Fltk.MsgCallback

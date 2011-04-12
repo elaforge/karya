@@ -3,9 +3,10 @@ module Local.Instrument.Vl1m where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Word as Word
-import System.FilePath ((</>))
 import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 
+import Util.Control
 import qualified Util.File as File
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
@@ -13,15 +14,24 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Control as Control
 
-import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 
+import qualified App.MidiInst as MidiInst
 
--- In fast mode, just parse the patch file and return built-in patches.
--- In slow mode, scan the directory of sysex dumps.
-load dir = Parse.patch_file (dir </> "vl1") >>= MidiDb.logged_patch_map synth
-load_slow dir = parse_dir (dir </> "vl1_vc") >>= MidiDb.logged_patch_map synth
 
+db_name = "vl1"
+
+load :: FilePath -> IO [MidiInst.SynthDesc]
+load = MidiInst.load_db (const MidiInst.empty_code) db_name
+
+-- | Read the patch file, scan the sysex dir, and save the results in a cache.
+make_db :: FilePath -> IO ()
+make_db dir = do
+    patches <- (++) <$>
+        Parse.patch_file (dir </> "vl1") <*> parse_dir (dir </> "vl1_vc")
+    MidiInst.save_patches synth patches db_name dir
+
+synth :: Instrument.Synth
 synth = Instrument.set_device "vl1" $ Instrument.synth "vl1" []
 
 parse_dir :: FilePath -> IO [Instrument.Patch]

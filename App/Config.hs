@@ -36,9 +36,9 @@ instrument_dir = "inst_db"
 lang_dir :: FilePath
 lang_dir = local_dir </> "Lang"
 
--- | Where to look for the instrument db cache.
-instrument_db_cache :: FilePath
-instrument_db_cache = instrument_dir </> "inst.db"
+-- | Directory for instruments with slow patch loading to save their caches.
+instrument_cache_dir :: FilePath
+instrument_cache_dir = "db"
 
 -- * lang
 

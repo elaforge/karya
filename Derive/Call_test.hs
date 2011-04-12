@@ -2,11 +2,14 @@ module Derive.Call_test where
 import Util.Test
 import qualified Util.Seq as Seq
 
+import qualified Cmd.Cmd as Cmd
+
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.CallSig as CallSig
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Derive as Derive
+import qualified Derive.Instrument.Drums as Drums
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -14,6 +17,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.PitchSignal as PitchSignal
 
 import qualified Instrument.MidiDb as MidiDb
+import qualified App.MidiInst as MidiInst
 
 
 test_c_block = do
@@ -178,12 +182,17 @@ add_one :: Derive.ValCall
 add_one = Derive.ValCall "add" $ \args -> CallSig.call1 args
     (CallSig.required "v") $ \val -> return (TrackLang.VNum (val + 1))
 
-patch = Instrument.set_note_calls ["Derive.Instrument.Drums.traps"] $
-    Instrument.set_keymap [(Attrs.snare, 42)] $
-        Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))
-(midi_db, _) = MidiDb.midi_db [sdesc]
-    where sdesc = MidiDb.softsynth "s" (Just "wdev") (-2, 2) [patch] [] id
-lookup_inst = fmap MidiDb.info_inst_calls . MidiDb.lookup_instrument midi_db
+patch = Instrument.set_keymap [(Attrs.snare, 42)] $
+    Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))
+(midi_db, _) = MidiDb.midi_db sdescs
+    -- where sdesc = MidiInst.softsynth "s" (Just "wdev") (-2, 2) [patch] [] id
+    where
+    sdescs = MidiInst.make $ (MidiInst.softsynth "s" (Just "wdev") (-2, 2) [])
+        { MidiInst.extra_patches = [(patch, code)] }
+    code = MidiInst.empty_code
+        { MidiInst.note_calls = [Derive.make_lookup Drums.traps] }
+lookup_inst = fmap (Cmd.inst_calls . MidiDb.info_code)
+    . MidiDb.lookup_instrument midi_db
 
 set_inst_calls :: (Score.Instrument -> Maybe Derive.InstrumentCalls)
     -> Derive.Deriver d -> Derive.Deriver d

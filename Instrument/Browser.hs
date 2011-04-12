@@ -7,6 +7,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified System.IO as IO
 import Text.Printf
 
 import qualified Util.Pretty as Pretty
@@ -16,6 +17,7 @@ import qualified Util.Fltk as Fltk
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
+import qualified Cmd.Cmd as Cmd
 
 import qualified Instrument.BrowserC as BrowserC
 
@@ -30,32 +32,38 @@ import qualified Local.Instrument
 import qualified App.Config as Config
 import qualified App.SendCmd as SendCmd
 
--- import Util.PPrint
--- import qualified Instrument.Search_test
-
 
 main :: IO ()
 main = SendCmd.initialize $ do
     app_dir <- Config.get_app_dir
-    putStrLn "Loading instruments..."
+    putStr "Loading instruments... "
+    IO.hFlush IO.stdout
     db <- Local.Instrument.load app_dir
-    putStrLn $ "Loaded " ++ show (Db.size db)
-    -- let db = Db.db Instrument.Search_test.midi_db Search.empty_index
+    putStrLn $ show (Db.size db)
     win <- BrowserC.create 50 50 400 200
-    Concurrent.forkIO $ handle_msgs win db
+    let index_db = Db db (Search.make_index (Db.db_midi_db db))
+    Concurrent.forkIO $ handle_msgs win index_db
         `Exception.finally` putStrLn "handler thread died"
     Fltk.run
+
+-- | Bundle a Db along with its search index.
+data Db = Db {
+    db_db :: Cmd.InstrumentDb
+    , db_index :: Search.Index
+    }
+
+search :: Db -> Search.Search
+search = Search.search . db_index
 
 data State = State {
     state_displayed :: [Score.Instrument]
     }
 
-handle_msgs :: BrowserC.Window -> Db.Db -> IO ()
+handle_msgs :: BrowserC.Window -> Db -> IO ()
 handle_msgs win db = do
     displayed <- State.liftIO $ process_query win db [] ""
     flip State.evalStateT (State displayed) $ forever $ do
         (Fltk.Msg typ text) <- State.liftIO $ get_msg (Fltk.win_chan win)
-        -- State.liftIO $ print (typ, text)
         case typ of
             BrowserC.Select -> State.liftIO $ show_info win db text
             BrowserC.Choose -> State.liftIO $ choose_instrument text
@@ -70,15 +78,15 @@ handle_msgs win db = do
 get_msg msg_chan = STM.atomically $ STM.readTChan msg_chan
 
 -- | Look up the instrument, generate a info sheet on it, and send to the UI.
-show_info :: BrowserC.Window -> Db.Db -> String -> IO ()
+show_info :: BrowserC.Window -> Db -> String -> IO ()
 show_info win db inst_name = Fltk.send_action $ BrowserC.set_info win info
     where
     info = maybe ("not found: " ++ show inst_name) id $ do
         let score_inst = read_inst inst_name
-        info <- Db.db_lookup db score_inst
+        info <- Db.db_lookup (db_db db) score_inst
         return $ info_of db score_inst info
 
-info_of :: Db.Db -> Score.Instrument -> MidiDb.Info -> String
+info_of :: Db -> Score.Instrument -> MidiDb.Info code -> String
 info_of db score_inst (MidiDb.Info synth patch _) =
     printf "%s -- %s -- %s\n\n" synth_name name dev
         ++ info_sections
@@ -93,13 +101,13 @@ info_of db score_inst (MidiDb.Info synth patch _) =
             ]
     where
     Instrument.Synth synth_name maybe_dev synth_cmap = synth
-    Instrument.Patch inst _ _ triggered initialize keyswitches _ text = patch
+    Instrument.Patch inst triggered initialize keyswitches _ text = patch
     flags = if triggered then ["triggered"] else []
     dev = maybe "<no default device>" (\(Midi.WriteDevice s) -> s) maybe_dev
     name = let n = Instrument.inst_name inst in if null n then "*" else n
     inst_cmap = Instrument.inst_control_map inst
     tags = maybe "" tags_info $
-        Search.tags_of (Db.db_index db) score_inst
+        Search.tags_of (db_index db) score_inst
 
 -- | Pretty print Keyswitches
 show_keyswitches :: Instrument.KeyswitchMap -> String
@@ -152,11 +160,11 @@ choose_instrument inst_name = do
         putStrLn $ "response: " ++ response
 
 -- | Find instruments that match the query, and update the UI incrementally.
-process_query :: BrowserC.Window -> Db.Db -> [Score.Instrument] -> String
+process_query :: BrowserC.Window -> Db -> [Score.Instrument] -> String
     -> IO [Score.Instrument]
 process_query win db displayed query = do
     -- putStrLn $ "query: " ++ show (Search.parse query)
-    let matches = Db.db_search db (Search.parse query)
+    let matches = search db (Search.parse query)
         diff = Seq.indexed_pairs (==) displayed matches
     forM_ diff $ \(i, old, new) -> case (old, new) of
         (Nothing, Just inst) -> Fltk.send_action $

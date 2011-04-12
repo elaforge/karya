@@ -1,11 +1,11 @@
 -- | Image-Line's Morphine softsynth.
 module Local.Instrument.Morphine where
-import qualified Instrument.MidiDb as MidiDb
+import qualified App.MidiInst as MidiInst
 
 
-load :: FilePath -> IO MidiDb.SynthDesc
-load _dir = return $
-    MidiDb.softsynth "morph" (Just "loop1") (-12, 12) [] controls id
+load :: FilePath -> IO [MidiInst.SynthDesc]
+load _dir = return $ MidiInst.make $
+    MidiInst.softsynth "morph" (Just "loop1") (-12, 12) controls
 
 controls =
     [

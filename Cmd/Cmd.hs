@@ -224,7 +224,7 @@ log_event block_id track_id (pos, event) = "{s" ++ show frame ++ "}"
 data State = State {
     -- Config type variables that change never or rarely.  These come from the
     -- static config.
-    state_instrument_db :: Instrument.Db.Db
+    state_instrument_db :: InstrumentDb
     , state_schema_map :: SchemaMap
     -- | Global namespace for deriver.
     , state_global_scope :: Derive.Scope
@@ -368,6 +368,13 @@ empty_edit_state = EditState {
     , state_edit_box = Config.bconfig_track_box
     }
 
+-- | These enable various commands to edit event text.  What exactly val,
+-- and method mean are dependent on the schema, but I expect the definitions
+-- in Cmd.NoteTrack and Cmd.ControlTrack will be universal.
+data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
+
+-- *** midi devices
+
 data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.MidiThru:
     -- | Last pb val for each Addr.
@@ -400,6 +407,8 @@ empty_wdev_state = WriteDeviceState
 
 type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 
+-- *** performance
+
 -- | This holds the final performance for a given block.  It is used to
 -- actually play music, and poked and prodded in a separate thread to control
 -- its evaluation.
@@ -431,15 +440,33 @@ instance Show PerformanceThread where
     show (PerformanceThread perf th_id) =
         "((PerformanceThread " ++ show th_id ++ " perf " ++ show perf ++ "))"
 
+-- *** instrument
+
+-- | The code part of an instrument, i.e. the calls and cmds it brings into
+-- scope.
+--
+-- This has to be in Cmd.Cmd for circular import reasons.
+data InstrumentCode = InstrumentCode {
+    inst_calls :: Derive.InstrumentCalls
+    , inst_cmds :: [Cmd]
+    }
+
+empty_code :: InstrumentCode
+empty_code = InstrumentCode (Derive.InstrumentCalls [] []) []
+
+-- | Instantiate the MidiDb with the code types.  The only reason the MidiDb
+-- types have the type parameter is so I can define them in their own module
+-- without getting circular imports.
+type InstrumentDb = Instrument.Db.Db InstrumentCode
+type MidiInfo = MidiDb.Info InstrumentCode
+type SynthDesc = MidiDb.SynthDesc InstrumentCode
+
+-- *** misc
+
 data HistoryEntry = HistoryEntry {
     hist_name :: String
     , hist_state :: State.State
     } deriving (Show, Generics.Typeable)
-
--- | These enable various commands to edit event text.  What exactly val,
--- and method mean are dependent on the schema, but I expect the definitions
--- in Cmd.NoteTrack and Cmd.ControlTrack will be universal.
-data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
@@ -454,6 +481,7 @@ data Modifier = KeyMod Key.Key
 
 mouse_mod_btn (MouseMod btn _) = Just btn
 mouse_mod_btn _ = Nothing
+
 
 -- ** state access
 
@@ -541,7 +569,7 @@ get_lookup_midi_instrument :: (M m) => m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument =
     gets (Instrument.Db.db_lookup_midi . state_instrument_db)
 
-lookup_instrument_info :: (M m) => Score.Instrument -> m (Maybe MidiDb.Info)
+lookup_instrument_info :: (M m) => Score.Instrument -> m (Maybe MidiInfo)
 lookup_instrument_info inst = do
     inst_db <- gets state_instrument_db
     return $ Instrument.Db.db_lookup inst_db inst

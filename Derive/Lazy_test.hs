@@ -1,10 +1,6 @@
 module Derive.Lazy_test where
-import Control.Monad
-import qualified Data.List as List
-import qualified Data.Map as Map
 import Util.Control
 import Util.Test
-import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.State as State
@@ -15,8 +11,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
-import qualified Derive.TrackWarp as TrackWarp
 
 
 bid = UiTest.default_block_id
@@ -24,6 +18,8 @@ bid = UiTest.default_block_id
 -- Most of these tests can't actually test the evaluation order.  I could stick
 -- in unsafePerformIOs modifying IORefs, but for now I put a trace on the track
 -- derive.
+
+-- TODO make the tests do actual testing
 
 test_everything = do
     -- Run a complete derive through performance, with and without cache.  Make

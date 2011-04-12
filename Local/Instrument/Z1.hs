@@ -5,17 +5,28 @@ import qualified Data.List as List
 import qualified Data.Word as Word
 import System.FilePath ((</>))
 
+import Util.Control
 import qualified Util.Seq as Seq
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 
+import qualified App.MidiInst as MidiInst
 
-load dir = Parse.patch_file (dir </> "z1") >>= MidiDb.logged_patch_map synth
-load_slow dir = Parse.parse_sysex_dir korg_sysex (dir </> "z1_sysex")
-    >>= MidiDb.logged_patch_map synth
 
+db_name = "z1"
+
+load :: FilePath -> IO [MidiInst.SynthDesc]
+load = MidiInst.load_db (const MidiInst.empty_code) db_name
+
+make_db :: FilePath -> IO ()
+make_db dir = do
+    patches <- (++) <$>
+        Parse.patch_file (dir </> "z1")
+        <*> Parse.parse_sysex_dir korg_sysex (dir </> "z1_sysex")
+    MidiInst.save_patches synth patches db_name dir
+
+synth :: Instrument.Synth
 synth = Instrument.set_device "z1" $ Instrument.synth "z1" synth_controls
 
 synth_controls =
