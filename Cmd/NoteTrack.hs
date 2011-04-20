@@ -59,7 +59,7 @@ cmd_val_edit pitch_track msg = do
                 PitchTrack.val_edit_at (pitch_tracknum, track_id, pos) note
                 -- TODO if I do chords, this will have to be the chosen note
                 -- track
-                ensure_exists =<< triggered_inst =<< EditUtil.lookup_instrument
+                ensure_exists
             InputNote.PitchChange note_id key -> do
                 (tracknum, track_id) <- track_of note_id
                 note <- EditUtil.parse_key key
@@ -94,7 +94,7 @@ cmd_method_edit pitch_track msg = do
             (_, _, pos) <- EditUtil.get_sel_pos
             (tracknum, track_id) <- make_pitch_track Nothing pitch_track
             PitchTrack.method_edit_at (tracknum, track_id, pos) key
-            ensure_exists =<< triggered_inst =<< EditUtil.lookup_instrument
+            ensure_exists
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -167,9 +167,8 @@ generator_of = Seq.strip . last . Seq.split "|"
 
 -- * implementation
 
-ensure_exists :: (Cmd.M m) => Bool -> m ()
-ensure_exists zero_dur =
-    EditUtil.modify_event zero_dur True $ \txt -> (Just txt, False)
+ensure_exists :: (Cmd.M m) => m ()
+ensure_exists = modify_event True $ \txt -> (Just txt, False)
 
 remove :: (Cmd.M m) => EditUtil.SelPos -> m ()
 remove selpos =
@@ -181,12 +180,10 @@ raw_edit msg = do
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key key
-            zero_dur <- triggered_inst =<< EditUtil.lookup_instrument
-            EditUtil.modify_event zero_dur False $ \txt ->
+            modify_event False $ \txt ->
                 (EditUtil.modify_text_note note txt, False)
         (EditUtil.raw_key -> Just key) -> do
-            zero_dur <- triggered_inst =<< EditUtil.lookup_instrument
-            EditUtil.modify_event zero_dur False $ \txt ->
+            modify_event False $ \txt ->
                 (EditUtil.modify_text_key key txt, False)
         _ -> Cmd.abort
     return Cmd.Done
@@ -199,3 +196,8 @@ triggered_inst (Just inst) = do
     maybe_info <- Cmd.lookup_instrument_info inst
     return $ maybe False (Instrument.patch_triggered . MidiDb.info_patch)
             maybe_info
+
+modify_event :: (Cmd.M m) => Bool -> (String -> (Maybe String, Bool)) -> m ()
+modify_event modify_dur f = do
+    zero_dur <- triggered_inst =<< EditUtil.lookup_instrument
+    EditUtil.modify_event zero_dur modify_dur f
