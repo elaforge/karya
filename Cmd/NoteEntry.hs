@@ -103,7 +103,7 @@ lower_keys = make_key_map 0 "zsxdcvgbhnjm,"
 make_key_map :: Pitch.Octave -> [Char] -> [(Char, Pitch.InputKey)]
 make_key_map oct = map mk_input . zip [0..]
     where
-    mk_input (n, c) = (Keymap.hardcoded_kbd_layout Map.! c,
+    mk_input (n, c) = (Keymap.physical_key c,
         Pitch.InputKey (fromIntegral (oct*12+n)))
 
 -- ** midi

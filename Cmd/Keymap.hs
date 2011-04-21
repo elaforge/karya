@@ -231,21 +231,49 @@ data Bindable = Key Key.Key
 
 -- * key layout
 
--- This way I can set up the mapping relative to key position and have it come
--- out right for both qwerty and dvorak.  It makes the overlapping-ness of
--- non-mapped keys hard to predict though.
+-- | Map a physical key, written relative to USA qwerty layout, to whatever
+-- character that key actually emits (if the layout is already USA qwerty then
+-- it's id of course).  This is for layouts which should be done based on
+-- physical key position, like piano-style keyboards.  It makes the
+-- overlapping-ness of non-mapped keys hard to predict though.
+--
+-- Since it's intended to map literal key characters, there is no accomodation
+-- for failure.  Really this should be done at compile time, so it's
+-- conceptually a compile time error.
+--
+-- TODO isn't there some way I can get this at compile time?  template haskell?
+physical_key :: Char -> Char
+physical_key c =
+    maybe (error $ "Keymap.physical_key " ++ show c ++ " not found") id $
+        Map.lookup c hardcoded_kbd_layout
 
+
+qwerty :: [Char]
 qwerty = "1234567890-="
     ++ "qwertyuiop[]\\"
     ++ "asdfghjkl;'"
     ++ "zxcvbnm,./"
 
+    ++ "!@#$%^&*()_+"
+    ++ "QWERTYUIOP{}|"
+    ++ "ASDFGHJKL;\""
+    ++ "ZXCVBNM<>?"
+
+-- | Not just dvorak, but my slightly modified version.
+dvorak :: [Char]
 dvorak = "1234567890-="
     ++ "',.pyfgcrl[]\\"
     ++ "aoeuidhtns/"
     ++ ";qjkxbmwvz"
 
+    ++ "!@#$%^&*()_+"
+    ++ "\"<>PYFGCRL{}|"
+    ++ "AOEUIDHTNS?"
+    ++ ":QJKXBMWVZ"
+
+qwerty_to_dvorak :: Map.Map Char Char
 qwerty_to_dvorak = Map.fromList (zip qwerty dvorak)
+
 -- TODO presumably this should eventually be easier to change
 hardcoded_kbd_layout :: Map.Map Char Char
 hardcoded_kbd_layout = qwerty_to_dvorak
