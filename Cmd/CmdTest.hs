@@ -46,11 +46,12 @@ run_tracks track_specs = run ustate default_cmd_state
 -- | Run a cmd and return everything you could possibly be interested in.
 -- Will be Nothing if the cmd aborted.
 run :: State.State -> Cmd.State -> Cmd.CmdId a -> Result a
-run ustate cstate cmd = case Cmd.run_id ustate cstate cmd of
-    (cmd_state2, _midi_msgs, logs, result) -> case result of
+run ustate cmd_state0 cmd = Result val cmd_state logs midi_msgs
+    where
+    (cmd_state, midi_msgs, logs, result) = Cmd.run_id ustate cmd_state0 cmd
+    val = case result of
         Left err -> Left (show err)
-        Right (val, ui_state2, _updates) ->
-            Right (val, ui_state2, cmd_state2, logs)
+        Right (val, ui_state, _updates) -> Right (val, ui_state)
 
 -- | Like 'run', but with a selection on track 1 at 0, and and note duration
 -- set to what will be a ScoreTime 1 with the ruler supplied by UiTest.
@@ -63,16 +64,20 @@ run_sel tracknum track_specs cmd = run_tracks track_specs $ do
     where
     step = TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
 
-type Result val =
-    Either String (Maybe val, State.State, Cmd.State, [Log.Msg])
-
-e_val :: Result val -> Either String (Maybe val, [Log.Msg])
-e_val = fmap (\(v, _, _, logs) -> (v, logs))
+data Result val = Result {
+    -- | Nothing means it aborted.
+    result_val :: Either String (Maybe val, State.State)
+    , result_cmd_state :: Cmd.State
+    , result_logs :: [Log.Msg]
+    , result_midi :: [(Midi.WriteDevice, Midi.Message)]
+    }
 
 e_ustate :: (State.State -> e_val) -> (Log.Msg -> e_log) -> Result _val
     -> Either String (e_val, [e_log])
-e_ustate e_ustate e_log = fmap $ \(_, ustate, _, logs) ->
-    (e_ustate ustate, map e_log logs)
+e_ustate e_ustate e_log res = case result_val res of
+    Left err -> Left err
+    Right (_, ui_state) ->
+        Right (e_ustate ui_state, map e_log (result_logs res))
 
 e_tracks :: Result _val -> Either String [(String, [Simple.Event])]
 e_tracks result = fmap ex $ e_ustate UiTest.extract_tracks id result
@@ -80,13 +85,16 @@ e_tracks result = fmap ex $ e_ustate UiTest.extract_tracks id result
 
 extract :: (val -> e_val) -> Result val -> Either String (Maybe e_val, [String])
 extract extract_val result = fmap ex (e_val result)
-    where ex (val, logs) = (fmap extract_val val, map DeriveTest.show_log logs)
+    where
+    ex (val, logs) = (fmap extract_val val, map DeriveTest.show_log logs)
+    e_val :: Result val -> Either String (Maybe val, [Log.Msg])
+    e_val res = either Left (\(v, _) -> Right (v, result_logs res)) (result_val res)
 
 eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
-eval ustate cstate cmd = case run ustate cstate cmd of
+eval ustate cstate cmd = case result_val (run ustate cstate cmd) of
     Left err -> error $ "eval got StateError: " ++ show err
-    Right (Nothing, _, _, _) -> error $ "eval: cmd aborted"
-    Right (Just val, _, _, _) -> val
+    Right (Nothing, _) -> error $ "eval: cmd aborted"
+    Right (Just val, _) -> val
 
 -- | Run several cmds, threading the state through.
 thread :: State.State -> Cmd.State -> [Cmd.CmdId a]
@@ -94,16 +102,10 @@ thread :: State.State -> Cmd.State -> [Cmd.CmdId a]
 thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     where
     f (Right (ustate, cstate)) cmd = case run ustate cstate cmd of
-        Right (_val, ustate2, cstate2, logs) ->
+        Result (Right (_, ustate2)) cstate2 logs _ ->
             Log.trace_logs logs $ Right (ustate2, cstate2)
-        Left err -> Left (show err)
+        Result (Left err) _ _ _ -> Left (show err)
     f (Left err) _ = Left err
-
-extract_logs :: Result a -> Either String (Maybe [String])
-extract_logs result = case result of
-    Right (Just _, _, _, logs) -> Right (Just (map Log.msg_string logs))
-    Right (Nothing, _, _, _) -> Right Nothing
-    Left err -> Left (show err)
 
 set_sel :: (Cmd.M m) => Types.TrackNum -> ScoreTime -> Types.TrackNum
     -> ScoreTime -> m ()

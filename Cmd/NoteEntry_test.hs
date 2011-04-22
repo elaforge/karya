@@ -60,16 +60,11 @@ test_cmds_with_note = do
         (through key)
 
     -- test midi_entry (details tested in InputNote_test)
-
     equal (run st (f True (CmdTest.make_midi (Midi.NoteOn 25 20))))
         (through $ input (CmdTest.note_on 25 25 20))
     equal (run st (f True (CmdTest.make_midi (Midi.NoteOff 25 20))))
         (through $ input (CmdTest.note_off 25 20))
 
 with_key :: Msg.Msg -> Cmd.State
-with_key key =
-    extract $ CmdTest.run State.empty CmdTest.default_cmd_state
-        (Cmd.cmd_record_keys key)
-    where
-    extract (Right (_, _, cmd_state, _)) = cmd_state
-    extract val = error $ "with_keys: " ++ show val
+with_key key = CmdTest.result_cmd_state $
+    CmdTest.run State.empty CmdTest.default_cmd_state (Cmd.cmd_record_keys key)

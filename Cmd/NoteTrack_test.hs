@@ -38,7 +38,7 @@ extract_sel val = error $ "unexpected: " ++ show val
 
 test_cmd_raw_edit = do
     let f = NoteTrack.cmd_raw_edit
-        run track_specs cmd = run_sel track_specs cmd
+        run = run_sel
     -- Created event has dur according to ruler.
     equal (run [(">i", [])] (f (CmdTest.m_note_on 60 60 127))) $
         Right [(">i", [(0, 1, "(4c)")])]
@@ -55,7 +55,7 @@ test_cmd_raw_edit = do
 
 test_cmd_val_edit = do
     let create_track = NoteTrack.CreateTrack 1 2
-        run track_specs cmd = run_sel track_specs cmd
+        run = run_sel
         note = CmdTest.m_note_on 60 60 127
     let f = NoteTrack.cmd_val_edit create_track
     -- creates a new pitch track
@@ -86,7 +86,7 @@ test_cmd_val_edit = do
 test_cmd_method_edit = do
     let f = NoteTrack.cmd_method_edit
             (NoteTrack.ExistingTrack 2 (UiTest.mk_tid 2))
-        run track_specs cmd = run_sel track_specs cmd
+        run = run_sel
         inst = (">i", [(0, 1, "")])
         note_track = [inst, ("*", [(0, 0, "4d")])]
     equal (run note_track (f (mkkey (Key.KeyChar 'x')))) $

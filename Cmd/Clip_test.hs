@@ -59,12 +59,15 @@ default_cmd_state = Cmd.empty_state
 -- TODO there's no reason for this to be in IO
 run_io :: State.State -> Cmd.CmdId a
     -> IO (a, State.State, Cmd.State, [Log.Msg])
-run_io ustate m = do
-    return $ case run_clip ustate m of
-        Right (res, ustate, cstate, msgs) -> case res of
+run_io ustate m = return (extract (run_clip ustate m))
+    where
+    extract res = case CmdTest.result_val res of
+        Right (maybe_val, ustate) -> case maybe_val of
             Nothing -> error "abort"
-            Just val -> (val, ustate, cstate, msgs)
+            Just val -> (val, ustate, CmdTest.result_cmd_state res,
+                CmdTest.result_logs res)
         Left err -> error $ "state error: " ++ show err
+
 
 extract_events (_, _, tracks) = map (\(_, _, a) -> a) tracks
 mksel a b c d = Just (Types.Selection a b c d)

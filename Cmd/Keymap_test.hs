@@ -20,7 +20,9 @@ test_make_cmd_map = do
 test_make_cmd = do
     let (cmd_map, _) = Keymap.make_cmd_map binds
     let cmd = Keymap.make_cmd cmd_map
-    let run mods msg = CmdTest.extract_logs $
+    let extract (Just _, logs) = Just logs
+        extract (Nothing, _) = Nothing
+    let run mods msg = fmap extract $ CmdTest.extract id $
             CmdTest.run State.empty cstate (cmd msg)
             where
             cstate = Cmd.empty_state { Cmd.state_keys_down = state_mods }
