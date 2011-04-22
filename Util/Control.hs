@@ -6,7 +6,7 @@ module Util.Control (
     , first, second
     , (<>), mempty
     , while, while_
-    , whenM, when_just, ifM
+    , whenM, unlessM, when_just, ifM
 
     , finally
     , justm
@@ -54,6 +54,11 @@ whenM :: (Monad m) => m Bool -> m a -> m ()
 whenM cond op = do
     b <- cond
     if b then op >> return () else return ()
+
+unlessM :: (Monad m) => m Bool -> m a -> m ()
+unlessM cond op = do
+    b <- cond
+    if b then return () else op >> return ()
 
 when_just :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
 when_just val f = maybe (return ()) f val

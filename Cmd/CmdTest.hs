@@ -40,8 +40,10 @@ default_view_id = UiTest.default_view_id
 
 -- | Run cmd with the given tracks.
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
-run_tracks track_specs = run ustate default_cmd_state
-    where (_, ustate) = UiTest.run_mkview track_specs
+run_tracks track_specs =
+    run (DeriveTest.with_instrument ustate) default_cmd_state
+    where
+    (_, ustate) = UiTest.run_mkview track_specs
 
 -- | Run a cmd and return everything you could possibly be interested in.
 -- Will be Nothing if the cmd aborted.

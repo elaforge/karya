@@ -11,6 +11,50 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  - cmd-tab out of app results in a hanging MetaL
+    Less error prone if every cmd sends a bitmap of modifiers?
+  - send style id to c++ instead of all the style elements
+  - automate the manual tests
+  - trade Data.Binary for cereal, to get rid of the horrible strict unserialize
+    hack.  Don't rely on built-in serialize / deserialize class while I'm at it
+  - make Derive.Lazy_test actually do tests
+  - implement inst Cmd lookup, in same vein as call lookup
+    motivation?
+    I want to assign keys for ornaments, typing in raw entry mode is annoying
+    Another posibility is to hook into the NoteInput stuff.  I also want thru
+    to happen.  Should I add an InputNote type?  I don't think I need too,
+    the entry cmd can also do the thru.
+
+    3 things to keep in sync: keymap [(attr, key)], call map [(sym, attr)],
+    cmd map [(key, sym)].  But the inst definition can't import the cmd
+    or call modules.
+    * refactor schema cmds so there is just one cmd that dispatches on sub cmds
+    * hook up inst cmds into the responder.  Should go before other cmds so
+      they can shadow, but after kbd entry, so they don't all have to check
+      for kbd entry.  So this means Schema.default_cmds.
+    * keymap cmds for drumaxx
+      * keymap cmd to emit the note along with proper midi thru (both key down
+        and key up)
+      * needs to pay attention to EditMode!
+    - keyswitch cmds for hang
+      - NoteTrack uses Cmd.state_text
+      - keyswitch cmd to emit note along with thru for default pitch
+      - get default pitch, vel, attrs by looking at current or previous note
+        in the derive output
+      - make seeks on derive output more efficient with a lazy index, can use
+        this for Play as well
+      - later, use this for a "play line" cmd
+
+  - Implement >inst as setting the null call instead of env.instrument.
+    That way the inst has control over the interpretation of e.g. attributes
+    and pitch slide (to implement piano style retrigger)
+
+    or maybe, lookup val calls in current inst analogous to current scale
+    Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
+    in generate_note?
+    Not quite, I can already do that, but it's probably not worth the bother,
+    overhead for every single note.
+
   * move Types.Rect to Util.Rect
   * put collapsed state back into haskell
   run timing tests with bloom

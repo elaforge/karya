@@ -126,7 +126,9 @@ extract_key f (Msg.key_down -> Just key) = if ok then Just key else Nothing
 extract_key _ _ = Nothing
 
 
--- | When edit mode is on, the edit cmds tend to catch all msgs.  However, some
+-- | Let keys that have a modifier down fall through.
+--
+-- When edit mode is on, the edit cmds tend to catch all msgs.  However, some
 -- msgs should go through anyway.
 fallthrough :: (Cmd.M m) => Msg.Msg -> m ()
 fallthrough msg = do

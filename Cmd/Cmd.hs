@@ -655,9 +655,12 @@ set_edit_box color char = do
     forM_ block_ids $ \bid -> State.set_edit_box bid color char
 
 is_val_edit :: (M m) => m Bool
-is_val_edit = do
-    st <- gets state_edit
-    return $ not (state_kbd_entry st) && state_edit_mode st == ValEdit
+is_val_edit = (== ValEdit) <$> gets (state_edit_mode . state_edit)
+    -- st <- gets state_edit
+    -- return $ not (state_kbd_entry st) && state_edit_mode st == ValEdit
+
+is_kbd_entry :: (M m) => m Bool
+is_kbd_entry = gets (state_kbd_entry . state_edit)
 
 -- ** environ
 

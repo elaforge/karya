@@ -181,9 +181,17 @@ derive_cache cache damage ui_state deriver =
 
 -- ** defaults
 
+with_instrument :: State.State -> State.State
+with_instrument state = state
+    { State.state_midi_config = default_midi_config
+    , State.state_default = (State.state_default state)
+        { State.default_instrument = Just (Score.Instrument "s/1")
+        }
+    }
+
 -- | Set UI state defaults that every derivation should have.
 set_defaults :: (State.M m) => m ()
-set_defaults = State.set_midi_config default_midi_config
+set_defaults = State.modify with_instrument
 
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale scale_id = Map.lookup scale_id Scale.All.scales

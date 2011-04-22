@@ -67,6 +67,11 @@ key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state key)))) =
     Just (state == UiMsg.KeyDown, key)
 key _ = Nothing
 
+key_char :: Msg -> Maybe (Bool, Char)
+key_char msg = case key msg of
+    Just (down, Key.KeyChar c) -> Just (down, c)
+    _ -> Nothing
+
 key_down :: Msg -> Maybe Key.Key
 key_down msg = case key msg of
     Just (True, k) -> Just k

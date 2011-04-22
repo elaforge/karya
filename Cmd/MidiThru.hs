@@ -39,6 +39,7 @@
 module Cmd.MidiThru where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 
@@ -165,3 +166,19 @@ pb_of = List.foldl' f
 
 with_addr :: Addr -> Midi.ChannelMessage -> (Midi.WriteDevice, Midi.Message)
 with_addr (wdev, chan) msg = (wdev, Midi.ChannelMessage chan msg)
+
+
+-- * util
+
+-- | Send a ChannelMessage to the lowest addr of the current instrument.  This
+-- bypasses all of the WriteDeviceState stuff so it won't cooperate with
+-- addr allocation, but hopefully this won't cause problems for simple uses
+-- like keymapped instruments.
+channel_message :: (Cmd.M m) => Midi.ChannelMessage -> m ()
+channel_message msg = do
+    inst <- Cmd.require =<< EditUtil.lookup_instrument
+    alloc <- Instrument.config_alloc <$> State.get_midi_config
+    let addr = Seq.head $ Map.get [] inst alloc
+    case addr of
+        Just (wdev, chan) -> Cmd.midi wdev (Midi.ChannelMessage chan msg)
+        Nothing -> return ()
