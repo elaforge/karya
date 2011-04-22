@@ -7,7 +7,6 @@
 module Cmd.NoteEntry where
 import Control.Monad
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Midi.Midi as Midi
@@ -31,6 +30,13 @@ import qualified Perform.Pitch as Pitch
 -- cmd, but only has to convert the input once and doesn't need tricks to
 -- make sure a converted key winds up with Done.
 --
+-- Another way to do this would be place this as a transformer at the front of
+-- the responder, to transform keystrokes and MIDI keys into InputNotes.  That
+-- way, other Cmds don't have to worry about state_kbd_entry.  However, it
+-- would either require a privileged position for the transformer, or an
+-- additional Cmd feature to re-emits a new Msg.  In addition, it would
+-- preclude the ability to shadow it and catch MIDI msgs for other purposes.
+--
 -- TODO it might be nicer to do the scale mapping here.  It would mean one
 -- extra mapping here and one less mapping in MidiThru.  The scale lookup would
 -- become a little messier since I'd need to lookup input to mapped input and
@@ -53,18 +59,12 @@ cmds_with_note kbd_entry cmds msg = do
     midi_note <- midi_input msg
     let maybe_new_msg = kbd_note `mplus` midi_note
     case maybe_new_msg of
+        Just Nothing -> return Cmd.Done
         Just (Just new_msg) -> do
-            forM_ cmds (\cmd -> Cmd.catch_abort (cmd new_msg))
+            Cmd.run_subs cmds new_msg
             return Cmd.Done -- I mapped a key, so I must be done
         Just Nothing -> return Cmd.Done
-        -- I'm assuming this is only applied to those who want the InputNotes.
-        Nothing -> do
-            -- Non-mapped msgs should still fall through.
-            -- This is basically a little emulation of the responder cycle,
-            -- which makes me think I'm doing the wrong thing here.  Oh well.
-            status <- fmap Maybe.catMaybes $
-                forM cmds (\cmd -> Cmd.catch_abort (cmd msg))
-            return $ if Cmd.Done `elem` status then Cmd.Done else Cmd.Continue
+        Nothing -> Cmd.run_subs cmds msg
 
 are_modifiers_down :: (Cmd.M m) => m Bool
 are_modifiers_down = fmap (not . Set.null) Keymap.mods_down

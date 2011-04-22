@@ -91,6 +91,7 @@ save_db :: [MidiDb.SynthDesc code] -> FilePath -> FilePath -> IO ()
 save_db synths db_name app_dir = Serialize.serialize
     (app_dir </> Config.instrument_cache_dir </> db_name <.> "db") synths
 
+-- | Specialized version of 'save_db' that takes a list of Patches.
 save_patches :: Instrument.Synth -> [Instrument.Patch] -> FilePath -> FilePath
     -> IO ()
 save_patches synth patches db_name app_dir = do

@@ -19,25 +19,19 @@
 module Derive.Schema (
     -- Re-export schema types from Cmd, to pretend they're defined here.
     -- * types
-    Schema(..), SchemaDeriver
-    , CmdContext(..), ContextCmds, SchemaMap
+    Schema(..), SchemaDeriver, SchemaMap
 
     -- * lookup
-    , lookup_deriver, get_cmds
+    , lookup_deriver
 
     -- * parser
     , default_parser
-
-    -- * util
-    , cmd_context
-    , get_track_type, TrackType(..)
 
 #ifdef TESTING
     , derive_tree
     , default_schema
 #endif
 ) where
-import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
@@ -50,17 +44,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 
-import qualified Cmd.Cmd as Cmd
-import Cmd.Cmd (Schema(..), SchemaDeriver, CmdContext(..), ContextCmds,
-    SchemaMap)
-import qualified Cmd.ControlTrack as ControlTrack
-import qualified Cmd.Info as Info
-import qualified Cmd.Keymap as Keymap
-import qualified Cmd.MidiThru as MidiThru
-import qualified Cmd.NoteEntry as NoteEntry
-import qualified Cmd.NoteTrack as NoteTrack
-import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
-import qualified Cmd.PitchTrack as PitchTrack
+import Cmd.Cmd (Schema(..), SchemaDeriver, SchemaMap)
 
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
@@ -68,9 +52,6 @@ import qualified Derive.Note as Note
 import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Signal as Signal
-import qualified Perform.Midi.Instrument as Instrument
-
-import qualified Instrument.MidiDb as MidiDb
 
 import qualified App.Config as Config
 
@@ -92,118 +73,13 @@ lookup_deriver schema_map ui_state block_id = State.eval ui_state $ do
         (merge_schemas hardcoded_schemas schema_map)
     schema_deriver schema block_id
 
--- | A block's Schema also implies a set of Cmds, possibly based on the
--- focused track.  This is so that e.g. control tracks use control editing keys
--- and note tracks use note entry keys, and they can set up the midi thru
--- mapping appropriately.
-get_cmds :: SchemaMap -> CmdContext -> SchemaId -> ContextCmds
-get_cmds schema_map context schema_id =
-    case Map.lookup schema_id (merge_schemas hardcoded_schemas schema_map) of
-        Nothing -> ([], [])
-        Just schema -> schema_cmds schema context
-
--- | Constructor for 'CmdContext'.
-cmd_context :: State.State
-    -> MidiDb.LookupMidiInstrument -> Cmd.EditMode -> Bool -> Maybe TrackNum
-    -> State.TrackTree -> CmdContext
-cmd_context ustate lookup_midi edit_mode kbd_entry focused_tracknum ttree =
-    CmdContext (State.default_instrument (State.state_default ustate))
-        inst_addr lookup_midi edit_mode kbd_entry focused_tracknum ttree
-    where
-    -- The thru cmd has to pick a single addr for a give inst, so let's just
-    -- pick the lowest one.
-    mconfig = State.state_midi_config ustate
-    inst_map = Map.fromList [ (inst, minimum addrs)
-        | (inst, addrs) <- Map.toList (Instrument.config_alloc mconfig)
-        , not (null addrs) ]
-    inst_addr = flip Map.lookup inst_map
-
 
 -- * default schema
 
 -- | The default schema is supposed to be simple but useful, and rather
 -- trackerlike.
 default_schema :: Schema
-default_schema = Schema default_schema_deriver default_cmds
-
--- ** cmds
-
--- | This decides what track-specific commands are in scope based on the
--- current focus and information in the CmdContext.
---
--- TODO lookup scale here and return an error if it can't be found?
-default_cmds :: CmdContext -> ContextCmds
-default_cmds context = (cmds2, warns)
-    where
-    cmds1 = add_with_note $ case maybe_track_type of
-        Nothing -> ([], [])
-        Just (NoteTrack ptrack) -> case edit_mode of
-            Cmd.NoEdit -> ([], [])
-            Cmd.RawEdit -> ([NoteTrack.cmd_raw_edit], [])
-            Cmd.ValEdit ->
-                ([NoteTrack.cmd_val_edit ptrack], [])
-            Cmd.MethodEdit ->
-                ([], [NoteTrack.cmd_method_edit ptrack])
-        Just PitchTrack -> case edit_mode of
-            Cmd.NoEdit -> ([], [])
-            Cmd.RawEdit -> ([PitchTrack.cmd_raw_edit], [])
-            Cmd.ValEdit -> ([PitchTrack.cmd_val_edit], [])
-            Cmd.MethodEdit -> ([], [PitchTrack.cmd_method_edit])
-        Just ControlTrack -> case edit_mode of
-            Cmd.NoEdit -> ([], [])
-            Cmd.RawEdit -> ([], [ControlTrack.cmd_raw_edit])
-            Cmd.ValEdit -> ([], [ControlTrack.cmd_val_edit])
-            Cmd.MethodEdit -> ([], [ControlTrack.cmd_method_edit])
-    (cmds2, warns) = case maybe_track_type of
-        Just (NoteTrack ptrack) ->
-            let (cmd_map, keymap_warns) = NoteTrackKeymap.make_keymap ptrack
-            in (cmds1 ++ [Keymap.make_cmd cmd_map], keymap_warns)
-        _ -> (cmds1, [])
-
-    add_with_note (note_cmds, cmds) = with_note note_cmds : cmds
-    with_note cmds = NoteEntry.cmds_with_note kbd_entry (universal ++ cmds)
-    universal = [PitchTrack.cmd_record_note_status, MidiThru.cmd_midi_thru]
-    edit_mode = ctx_edit_mode context
-    kbd_entry = ctx_kbd_entry context
-    maybe_track_type = get_track_type (ctx_track_tree context)
-        (ctx_focused_tracknum context)
-
--- | Find the type of a track.
-get_track_type :: State.TrackTree -> Maybe TrackNum -> Maybe TrackType
-get_track_type _ Nothing = Nothing
-get_track_type track_tree (Just tracknum) =
-    case Info.paths_of track_tree tracknum of
-        Nothing -> Nothing
-        Just (track, parents, children) ->
-            Just (track_type track parents (null children))
-
--- | Describe the type of a single track.  This is used to figure out what set
--- of cmds should apply to a given track.
-data TrackType =
-    -- | NoteTrack is paired with the first pitch track found for it.
-    NoteTrack NoteTrack.PitchTrack | PitchTrack | ControlTrack
-    deriving (Show, Eq)
-
-track_type :: State.TrackInfo -> [State.TrackInfo]
-    -> Bool -- ^ no_children
-    -> TrackType
-track_type (State.TrackInfo _ _ tracknum) parents True = NoteTrack pitch_track
-    where
-    pitch_track = case msum (map is_pitch parents) of
-        Just pair -> pair
-        Nothing -> NoteTrack.CreateTrack tracknum (tracknum+1)
-    is_pitch track = case TrackInfo.parse_control (State.track_title track) of
-        Right (TrackInfo.Pitch _ _) ->
-            Just $ NoteTrack.ExistingTrack (State.track_tracknum track)
-                (State.track_id track)
-        _ -> Nothing
-track_type (State.TrackInfo title _ _) _ False =
-    case TrackInfo.parse_control title of
-        Right (TrackInfo.Control _ _) -> ControlTrack
-        Right (TrackInfo.Pitch _ _) -> PitchTrack
-        -- Default to a control track if it's unparseable.
-        _ -> ControlTrack
-
+default_schema = Schema default_schema_deriver
 
 -- ** default schema deriver
 

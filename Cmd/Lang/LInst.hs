@@ -57,7 +57,6 @@ alloc inst_name chans = do
         =<< device_of inst
     alloc_instrument inst [(wdev, c) | c <- chans]
 
-
 inst_info :: String -> Cmd.CmdL String
 inst_info inst_name = Info.inst_info (Score.Instrument inst_name)
 

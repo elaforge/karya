@@ -96,6 +96,10 @@ type CmdIO = CmdT IO Status
 -- | Cmds used by the language system, which all run in Identity.
 type CmdL a = CmdT IO a
 
+-- | Quit is not exported, so that only 'cmd_quit' here has permission to
+-- return it.
+data Status = Done | Continue | Quit deriving (Eq, Show, Generics.Typeable)
+
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
 -- just to make things uniform.
 type RunCmd cmd_m val_m a =
@@ -133,9 +137,17 @@ run_id :: State.State -> State -> CmdT Identity.Identity a -> CmdVal (Maybe a)
 run_id ui_state cmd_state cmd =
     Identity.runIdentity (run Nothing ui_state cmd_state (fmap Just cmd))
 
--- | Quit is not exported, so that only 'cmd_quit' here has permission to
--- return it.
-data Status = Done | Continue | Quit deriving (Eq, Show, Generics.Typeable)
+-- | Run a set of Cmds as a single Cmd.  The first one to return Done or Quit
+-- will return.  Cmds can use this to dispatch to other Cmds.
+run_subs :: [Cmd] -> Cmd
+run_subs [] _ = return Continue
+run_subs (cmd:cmds) msg = do
+    status <- catch_abort (cmd msg)
+    case status of
+        Nothing -> run_subs cmds msg
+        Just Continue -> run_subs cmds msg
+        Just Done -> return Done
+        Just Quit -> return Quit
 
 -- * CmdT and operations
 
@@ -493,10 +505,6 @@ modify_state f = do
     st <- get_state
     put_state $! f st
 
-modify_edit_state :: (M m) => (EditState -> EditState) -> m ()
-modify_edit_state f =
-    modify_state $ \st -> st { state_edit = f (state_edit st) }
-
 -- | Return the rect of the screen closest to the given point.
 get_screen :: (M m) => (Int, Int) -> m Rect.Rect
 get_screen point = do
@@ -619,15 +627,6 @@ set_wdev_state :: (M m) => WriteDeviceState -> m ()
 set_wdev_state wdev_state =
     modify_state $ \st -> st { state_wdev_state = wdev_state }
 
--- | At the Ui level, the edit box is per-block, but I use it to indicate edit
--- mode, which is global.  So it gets stored in Cmd.State and must be synced
--- with new blocks.
-set_edit_box :: (M m) => Color.Color -> Char -> m ()
-set_edit_box color char = do
-    modify_edit_state $ \st -> st { state_edit_box = (color, char) }
-    block_ids <- State.get_all_block_ids
-    forM_ block_ids $ \bid -> State.set_edit_box bid color char
-
 create_block :: (M m) => Id.Id -> String -> [Block.Track] -> m BlockId
 create_block block_id title tracks = do
     config <- block_config
@@ -640,6 +639,26 @@ block_config = do
     return $ Block.Config Config.bconfig_selection_colors
         Config.bconfig_bg_color track_box Config.bconfig_sb_box
 
+-- *** EditState
+
+modify_edit_state :: (M m) => (EditState -> EditState) -> m ()
+modify_edit_state f =
+    modify_state $ \st -> st { state_edit = f (state_edit st) }
+
+-- | At the Ui level, the edit box is per-block, but I use it to indicate edit
+-- mode, which is global.  So it gets stored in Cmd.State and must be synced
+-- with new blocks.
+set_edit_box :: (M m) => Color.Color -> Char -> m ()
+set_edit_box color char = do
+    modify_edit_state $ \st -> st { state_edit_box = (color, char) }
+    block_ids <- State.get_all_block_ids
+    forM_ block_ids $ \bid -> State.set_edit_box bid color char
+
+is_val_edit :: (M m) => m Bool
+is_val_edit = do
+    st <- gets state_edit
+    return $ not (state_kbd_entry st) && state_edit_mode st == ValEdit
+
 -- ** environ
 
 get_scale_id :: (M m) => BlockId -> TrackId -> m Pitch.ScaleId
@@ -651,8 +670,8 @@ get_scale_id block_id track_id = do
 
 lookup_instrument :: (M m) => BlockId -> TrackId -> m (Maybe Score.Instrument)
 lookup_instrument block_id track_id = do
-    scale <- lookup_env block_id track_id TrackLang.v_instrument
-    case scale of
+    inst_val <- lookup_env block_id track_id TrackLang.v_instrument
+    case inst_val of
         Just (TrackLang.VInstrument inst) -> return $ Just inst
         _ -> State.get_default State.default_instrument
 
@@ -703,7 +722,7 @@ cmd_record_keys msg = do
             Log.warn $ "keydown for " ++ show mod ++ " already in modifiers"
         modify_keys (Map.insert key mod)
         -- mods <- keys_down
-        -- Log.debug $ "keydown " ++ show (Map.elems mods)
+        -- Log.warn $ "keydown " ++ show (Map.elems mods)
     delete_mod mod = do
         let key = strip_modifier mod
         mods <- keys_down
@@ -711,7 +730,7 @@ cmd_record_keys msg = do
             Log.warn $ "keyup for " ++ show mod ++ " not in modifiers"
         modify_keys (Map.delete key)
         -- mods <- keys_down
-        -- Log.debug $ "keyup " ++ show (Map.elems mods)
+        -- Log.warn $ "keyup " ++ show (Map.elems mods)
     modify_keys f = modify_state $ \st ->
         st { state_keys_down = f (state_keys_down st) }
 
@@ -880,12 +899,7 @@ type SchemaMap = Map.Map SchemaId Schema
 -- | A Schema attaches a number of things to a Block.
 data Schema = Schema {
     schema_deriver :: SchemaDeriver Derive.EventDeriver
-    -- | Get a set of Cmds that are applicable within the given CmdContext.
-    , schema_cmds :: CmdContext -> ContextCmds
     }
-
--- | (cmds to be run, warnings)
-type ContextCmds = ([Cmd], [String])
 
 -- | So Cmd.State can be showable, for debugging.
 instance Show Schema where
@@ -893,16 +907,3 @@ instance Show Schema where
 
 -- | A SchemaDeriver generates a Deriver from a given Block.
 type SchemaDeriver d = BlockId -> State.StateId d
-
--- ** cmd types
-
--- | Information needed to decide what cmds should apply.
-data CmdContext = CmdContext {
-    ctx_default_inst :: Maybe Score.Instrument
-    , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
-    , ctx_lookup_midi :: MidiDb.LookupMidiInstrument
-    , ctx_edit_mode :: EditMode
-    , ctx_kbd_entry :: Bool
-    , ctx_focused_tracknum :: Maybe TrackNum
-    , ctx_track_tree :: State.TrackTree
-    }

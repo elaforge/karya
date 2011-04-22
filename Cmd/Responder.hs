@@ -19,7 +19,6 @@ module Cmd.Responder (
 ) where
 
 import Control.Monad
-import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Cont as Cont
 import qualified Control.Monad.Trans as Trans
 import qualified Control.Concurrent.STM as STM
@@ -36,7 +35,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
 import Ui
-import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.UiMsg as UiMsg
@@ -51,8 +49,7 @@ import qualified Cmd.Lang as Lang
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Play as Play
 import qualified Cmd.ResponderSync as ResponderSync
-
-import qualified Derive.Schema as Schema
+import qualified Cmd.Track as Track
 
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
@@ -303,28 +300,19 @@ run_cmds rstate msg = do
 run_core_cmds :: State -> Msg.Msg
     -> (RType -> ResponderM (State.State, Cmd.State)) -> ResponderM RType
 run_core_cmds rstate msg exit = do
-    -- Log.timer "run core cmds"
     let ui_from = state_ui rstate
         cmd_state = state_cmd rstate
 
     -- Run ui records first so they can't get aborted by other cmds.
     (ui_from, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
         ui_from cmd_state [Cmd.cmd_record_ui_updates]
-    -- Log.timer "ran record updates"
     let ui_to = ui_from
 
     -- Focus commands and the rest of the pure commands come first so text
     -- entry can override io bound commands.
-    (context_cmds, warns) <- Trans.liftIO $
-        eval "get context cmds" ui_from cmd_state ([], []) get_context_cmds
-    Trans.liftIO $ forM_ warns $ \warn ->
-        Log.warn $ "getting context cmds: " ++ warn
-
-    -- Log.timer ("ran get focus cmds: " ++ show (length context_cmds))
-    let id_cmds = context_cmds ++ hardcoded_cmds ++ GlobalKeymap.global_cmds
+    let id_cmds = Track.track_cmd : hardcoded_cmds ++ GlobalKeymap.global_cmds
     (ui_to, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
         ui_to cmd_state id_cmds
-    -- Log.timer "ran pure cmds"
 
     let config = state_static_config rstate
     -- Certain commands require IO.  Rather than make everything IO,
@@ -335,7 +323,6 @@ run_core_cmds rstate msg exit = do
                 (StaticConfig.config_local_lang_dirs config)
     (ui_to, cmd_state) <- do_run exit Cmd.run_io rstate msg ui_from
         ui_to cmd_state io_cmds
-    -- Log.timer "ran io cmds"
 
     return (Right (Cmd.Continue, ui_from, ui_to), cmd_state)
 
@@ -354,36 +341,6 @@ hardcoded_io_cmds transport_info lang_session lang_dirs =
     [ Lang.cmd_language lang_session lang_dirs
     , Play.cmd_play_msg
     ] ++ GlobalKeymap.io_cmds transport_info
-
-
--- | Get cmds according to the currently focused block and track.
-get_context_cmds :: Cmd.CmdId Schema.ContextCmds
-get_context_cmds = do
-    block_id <- Cmd.get_focused_block
-    ustate <- State.get
-    tracknum <- Cmd.get_insert_tracknum
-    lookup_midi <- Cmd.get_lookup_midi_instrument
-    cmd_state <- Cmd.get_state
-    track_tree <- State.get_track_tree block_id
-
-    let edit_state = Cmd.state_edit cmd_state
-    let context = Schema.cmd_context ustate lookup_midi
-            (Cmd.state_edit_mode edit_state) (Cmd.state_kbd_entry edit_state)
-            tracknum track_tree
-    schema_map <- Cmd.get_schema_map
-    block <- State.get_block block_id
-    return $ Schema.get_cmds schema_map context (Block.block_schema block)
-
--- | Run the cmd just for its value.
-eval err_msg ui_state cmd_state abort_val cmd = do
-    let (_, _, logs, ui_res) = Identity.runIdentity $
-            Cmd.run abort_val ui_state cmd_state cmd
-    mapM_ Log.write logs
-    case ui_res of
-        Right (val, _, _) -> return val
-        Left err -> do
-            Log.error $ "ui error in " ++ show err_msg ++ ": " ++ show err
-            return abort_val
 
 -- | ui_from is needed since this can abort with an RType as soon as it gets
 -- a non Continue status.

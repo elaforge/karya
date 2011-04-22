@@ -170,7 +170,7 @@ from_key oct down (Pitch.InputKey nn)
 
 -- | Convert an Input to MIDI.
 to_midi :: Control.PbRange -> Midi.PitchBendValue
-    -> Map.Map NoteId Midi.Key  -> Input
+    -> Map.Map NoteId Midi.Key -> Input
     -> ([Midi.ChannelMessage], Map.Map NoteId Midi.Key)
 to_midi pb_range prev_pb id_to_key input = case input of
         NoteOn note_id (Pitch.InputKey nn) vel -> note_on note_id nn vel
