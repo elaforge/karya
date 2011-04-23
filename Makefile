@@ -70,7 +70,7 @@ LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD) $(ARCH)
 # for it.
 # INTERPRETER_PLUGINS links the plugins library for a haskell interpreter.
 # It links faster than hint but leaks memory.  And it's broken.
-SEQ_INTERPRETER := -DINTERPRETER_HINT
+SEQ_INTERPRETER := $(if $(hint), -DINTERPRETER_HINT)
 
 # without hint: make -j3 build/seq  9.06s user 1.17s system 99% cpu 10.333 total
 # with hint: make -j3 build/seq  18.89s user 1.90s system 98% cpu 21.125 total
