@@ -5,6 +5,7 @@ import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.CallSig as CallSig
 import qualified Derive.DeriveTest as DeriveTest
@@ -154,6 +155,7 @@ test_val_call = do
     let extract = DeriveTest.extract (DeriveTest.e_control "cont")
     let run evt = extract $ DeriveTest.derive_tracks_with with_add1
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
+        with_add1 = CallTest.with_val_call "add1" add_one
     equal (run "foobar")
         ([Just []], ["DeriveError: control call not found: foobar"])
     equal (run "set 1")
@@ -165,6 +167,10 @@ test_val_call = do
     let (res, logs) = run "set (add1 1 2)"
     equal res [Just []]
     strings_like logs ["too many arguments"]
+    where
+    add_one :: Derive.ValCall
+    add_one = Derive.ValCall "add" $ \args -> CallSig.call1 args
+        (CallSig.required "v") $ \val -> return (TrackLang.VNum (val + 1))
 
 test_inst_call = do
     let extract = DeriveTest.extract (Score.attrs_list . Score.event_attributes)
@@ -176,11 +182,16 @@ test_inst_call = do
     equal (run ">s/with-call")
         ([["snare"]], [])
 
-with_add1 = CallTest.with_val_call "add1" add_one
-
-add_one :: Derive.ValCall
-add_one = Derive.ValCall "add" $ \args -> CallSig.call1 args
-    (CallSig.required "v") $ \val -> return (TrackLang.VNum (val + 1))
+test_recursive_call = do
+    let extract = DeriveTest.extract DeriveTest.e_event
+    let result = extract $ DeriveTest.derive_tracks_with with_recur
+            [(">", [(0, 1, "recur")])]
+        with_recur = CallTest.with_note_call "recur" recursive
+    equal result ([], ["DeriveError: call stack too deep: recursive"])
+    where
+    recursive :: Derive.NoteCall
+    recursive = Derive.stream_generator "recursive" $
+        \args -> Call.reapply args [TrackLang.call "recur"]
 
 patch = Instrument.set_keymap [(Attrs.snare, 42)] $
     Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))

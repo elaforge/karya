@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Derive.Stack (
-    Stack, empty, from_outermost, from_innermost
+    Stack, empty, length, from_outermost, from_innermost
     , block, add, member, outermost, innermost
     , Frame(..)
     , show_ui
@@ -11,6 +11,8 @@ module Derive.Stack (
     -- * ui
     , UiFrame, to_ui, unparse_ui_frame, parse_ui_frame
 ) where
+import Prelude hiding (length)
+import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
 
@@ -36,6 +38,9 @@ newtype Stack = Stack [Frame]
 
 empty :: Stack
 empty = Stack []
+
+length :: Stack -> Int
+length (Stack f) = Prelude.length f
 
 from_outermost :: [Frame] -> Stack
 from_outermost = Stack . reverse

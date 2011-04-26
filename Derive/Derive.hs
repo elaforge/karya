@@ -1170,9 +1170,14 @@ with_stack_call name = with_stack (Stack.Call name)
 
 with_stack :: Stack.Frame -> Deriver a -> Deriver a
 with_stack frame = local
-    state_stack (\old st -> st { state_stack = old })
-    (\st -> return $ st { state_stack = Stack.add frame (state_stack st) })
-
+    state_stack (\old st -> st { state_stack = old }) $ \st -> do
+        when (Stack.length (state_stack st) > max_depth) $
+            throw $ "call stack too deep: " ++ Pretty.pretty frame
+        return $ st { state_stack = Stack.add frame (state_stack st) }
+    where max_depth = 30
+    -- A recursive loop will result in an unfriendly hang.  So limit the total
+    -- nesting depth to catch those.  I could disallow all recursion, but this
+    -- is more general.
 
 -- ** track warps
 
