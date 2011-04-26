@@ -175,7 +175,7 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args =
         cur_cache <- state_cache <$> Derive.get_cache_state
         let stream = either (const mempty) id result
         let new_cache = insert_generator stack collect stream cur_cache
-        Log.debug $ "rederived generator because of "
+        Log.notice $ "rederived generator because of "
             -- This destroys laziness, though I'm not sure why since the
             -- log msg shouldn't be forced until the msgs already have been
             -- forced themselves.
