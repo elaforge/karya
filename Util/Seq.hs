@@ -286,6 +286,17 @@ drop_initial_dups key (x:xs@(next:_))
     | otherwise = x:rest
     where rest = drop_initial_dups key xs
 
+-- | A specialized drop where the predicate can return Nothing for "don't
+-- know".  Unknowns will not be dropped if the first known after them is not
+-- dropped (f x == Just False).  If there are only unknowns, they are all kept.
+drop_unknown :: (a -> Maybe Bool) -> [a] -> [a]
+drop_unknown f xs = case rest of
+    [] -> xs
+    y : ys
+        | f y == Just False -> xs
+        | otherwise -> drop_unknown f ys
+    where rest = dropWhile ((==Nothing) . f) xs
+
 unique :: Ord a => [a] -> [a]
 unique = unique_on id
 

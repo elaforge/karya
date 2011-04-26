@@ -6,6 +6,7 @@
 module Cmd.PlayUtil where
 import qualified Data.Map as Map
 import Util.Control
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.State as State
@@ -21,7 +22,6 @@ import qualified Perform.Midi.Perform as Perform
 
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
--- import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Db
@@ -94,7 +94,8 @@ perform_from perf start = do
 events_from :: RealTime -> Derive.Events -> Derive.Events
 events_from start =
     map (fmap (\e -> e { Score.event_start = Score.event_start e - start }))
-    . dropWhile (LEvent.either ((<start) . Score.event_start) (const True))
+    . Seq.drop_unknown -- keep log msgs before an event after 'start'
+        (LEvent.either (Just . (<start) . Score.event_start) (const Nothing))
 
 -- | Perform some events with no caching or anything.  For interactive
 -- debugging.

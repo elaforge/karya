@@ -41,6 +41,7 @@ import qualified Cmd.Info as Info
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Play as Play
+import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Save as Save
 import qualified Cmd.Simple as Simple
