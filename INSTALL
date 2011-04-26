@@ -1,6 +1,6 @@
     haskell deps, from hackage
 
-deepseq, data-ordlist, binary, storablevector
+deepseq, data-ordlist, cereal, storablevector
 dlist -- Perform.SignalBase
 parsec-2
 text, stm, network

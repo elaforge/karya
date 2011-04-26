@@ -37,8 +37,8 @@ cmd_load fname = do
     let unserialize = if ".text" `List.isSuffixOf` fname
             then Serialize.unserialize_text else Serialize.unserialize
     try_state <- Trans.liftIO $ unserialize fname
-    state <- either (\exc -> Cmd.throw $
-            "unserializing " ++ show fname ++ ": " ++ show exc)
+    state <- either (\err -> Cmd.throw $
+            "unserializing " ++ show fname ++ ": " ++ err)
         return try_state
     Log.notice $ "state loaded from " ++ show fname
 

@@ -1,5 +1,5 @@
 module Cmd.Serialize_test where
-import qualified Data.Binary as Binary
+import qualified Data.Serialize as Serialize
 
 import Util.Test
 import Ui
@@ -27,5 +27,5 @@ test_negative_zero = do
     equal (recode (0 :: ScoreTime)) 0
     equal (recode (-0 :: ScoreTime)) (-0.0)
 
-recode :: Binary.Binary a => a -> a
-recode = Binary.decode . Binary.encode
+recode :: (Serialize.Serialize a) => a -> a
+recode = either error id . Serialize.decode . Serialize.encode

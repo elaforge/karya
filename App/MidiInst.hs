@@ -108,6 +108,6 @@ load_db code_for db_name app_dir = do
         (app_dir </> Config.instrument_cache_dir </> db_name <.> "db")
     case saved of
         Left err -> do
-            Log.warn $ "Error loading instrument db: " ++ show err
+            Log.warn $ "Error loading instrument db: " ++ err
             return []
         Right (_time, synths) -> return synths

@@ -1,11 +1,11 @@
-module Util.Binary where
-import Data.Binary (Binary, get, put)
+module Util.Serialize where
+import Data.Serialize (Serialize, get, put)
 import qualified Data.Word as Word
 
--- | Data.Binary doesn't support -0.0, so this works around that.
+-- | Data.Serialize doesn't support -0.0, so this works around that.
 newtype NDouble = NDouble Double
 
-instance Binary NDouble where
+instance Serialize NDouble where
     put (NDouble d) = put (decode_double d)
     get = get >>= return . NDouble . encode_double
 

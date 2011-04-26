@@ -1,5 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
--- Extensions needed for the Binary Block.Block instance.
+{-# LANGUAGE ScopedTypeVariables #-} -- needed for SomeException
 {- | Serialize and unserialize all the data types used by Ui.State.State.
 
     Types that I think might change have versions.  If the type changes,
@@ -13,17 +12,17 @@
 module Cmd.Serialize where
 
 import qualified Control.Exception as Exception
-
 import qualified Data.Array.IArray as IArray
-import qualified Data.Binary as Binary
-import Data.Binary (Binary, Get, get, put, getWord8, putWord8)
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
+import qualified Data.Serialize as Serialize
+import Data.Serialize (Serialize, Get, get, put, getWord8, putWord8)
 import qualified Data.Time as Time
 
 import qualified System.IO as IO
 
-import qualified Util.Binary
+import qualified Util.Serialize
+import Util.Control
 import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
@@ -50,10 +49,10 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified App.Config as Config
 
 
-serialize :: (Binary a) => FilePath -> a -> IO ()
+serialize :: (Serialize a) => FilePath -> a -> IO ()
 serialize fname state = do
     File.backup_file fname
-    Binary.encodeFile fname state
+    ByteString.writeFile fname $ Serialize.encode state
 
 serialize_text :: (Show a) => FilePath -> a -> IO ()
 serialize_text fname state = do
@@ -67,22 +66,16 @@ serialize_pretty_text fname state = do
     File.backup_file fname
     IO.writeFile fname (PPrint.pshow state)
 
-unserialize :: (Show a, Binary a) =>
-    FilePath -> IO (Either Exception.SomeException a)
-unserialize fname = Exception.try $ do
-    st <- Binary.decodeFile fname
-    -- Data.Binary is lazy, but I want errors parsing to get caught right here.
-    -- The correct thing to do would be to use the binary-strict package, but
-    -- it's not drop-in and this is expedient.
-    -- Come to think of it, this probably kills off most of Data.Binary's
-    -- vaunted blazing speed.
-    length (show st) `seq` return st
+unserialize :: (Show a, Serialize a) => FilePath -> IO (Either String a)
+unserialize fname = Serialize.decode <$> ByteString.readFile fname
 
-unserialize_text :: (Read a) =>
-    FilePath -> IO (Either Exception.SomeException a)
+unserialize_text :: (Read a) => FilePath -> IO (Either String a)
 unserialize_text fname = do
     ui_str <- IO.readFile fname
-    Exception.try $ readIO ui_str
+    result <- Exception.try $ readIO ui_str
+    return $ case result of
+        Left (exc :: Exception.SomeException) -> Left (show exc)
+        Right val -> Right val
 
 
 -- * data types
@@ -96,8 +89,8 @@ save_state ui_state = do
     utc <- Time.getCurrentTime
     return (SaveState ui_state utc)
 
-put_version n = Binary.putWord8 n
-get_version = Binary.getWord8
+put_version n = Serialize.putWord8 n
+get_version = Serialize.getWord8
 
 throw = error
 version_error typ ver = throw $
@@ -105,7 +98,7 @@ version_error typ ver = throw $
 
 -- * binary instances
 
-instance Binary SaveState where
+instance Serialize SaveState where
     put (SaveState a b) = put_version 0
         >> put a >> put b
     get = do
@@ -117,7 +110,7 @@ instance Binary SaveState where
                 return (SaveState ui_state date)
             _ -> version_error "SaveState" v
 
-instance Binary State.State where
+instance Serialize State.State where
     put (State.State a b c d e f g h i) = put_version 5
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
         >> put i
@@ -151,7 +144,7 @@ instance Binary State.State where
                     midi_config defaults
             _ -> version_error "State.State" v
 
-instance Binary State.Default where
+instance Serialize State.Default where
     put (State.Default a b c) = put_version 0 >> put a >> put b >> put c
     get = do
         v <- get_version
@@ -163,29 +156,29 @@ instance Binary State.Default where
                 return $ State.Default scale inst tempo
             _ -> version_error "State.Default" v
 
-instance Binary Pitch.ScaleId where
+instance Serialize Pitch.ScaleId where
     put (Pitch.ScaleId a) = put a
     get = get >>= \a -> return (Pitch.ScaleId a)
 
-instance Binary Id.Id where
+instance Serialize Id.Id where
     put ident = put (Id.un_id ident)
     get = get >>= \(a, b) -> return (Id.id a b)
 
 -- ** Block
 
-instance Binary Types.BlockId where
+instance Serialize Types.BlockId where
     put (Types.BlockId a) = put a
     get = get >>= \a -> return (Types.BlockId a)
 
-instance Binary Types.ViewId where
+instance Serialize Types.ViewId where
     put (Types.ViewId a) = put a
     get = get >>= \a -> return (Types.ViewId a)
 
-instance Binary Types.SchemaId where
+instance Serialize Types.SchemaId where
     put (Types.SchemaId a) = put a
     get = get >>= \a -> return (Types.SchemaId a)
 
-instance Binary Block.Block where
+instance Serialize Block.Block where
     put (Block.Block a b c d e) = put_version 3
         >> put a >> put b >> put c >> put d >> put e
     get = do
@@ -210,17 +203,17 @@ instance Binary Block.Block where
 
 -- Everything in the block config is either derived from the Cmd.State or is
 -- hardcoded.
-instance Binary Block.Config where
+instance Serialize Block.Config where
     put _ = put ()
     get = do
         _ <- get :: Get ()
         return Block.default_config
 
-instance Binary Skeleton.Skeleton where
+instance Serialize Skeleton.Skeleton where
     put (Skeleton.Skeleton a) = put a
     get = get >>= \a -> return (Skeleton.Skeleton a)
 
-instance Binary Block.Track where
+instance Serialize Block.Track where
     put (Block.Track a b c d) = put_version 1
         >> put a >> put b >> put c >> put d
     get = do
@@ -242,7 +235,7 @@ instance Binary Block.Track where
                 return $ Block.Track id width flags merged
             _ -> version_error "Block.Track" v
 
-instance Binary Block.TrackFlag where
+instance Serialize Block.TrackFlag where
     put (Block.Collapse) = putWord8 0
     put (Block.Solo) = putWord8 1
     put (Block.Mute) = putWord8 2
@@ -257,7 +250,7 @@ instance Binary Block.TrackFlag where
 tid = Block.TId :: Types.TrackId -> Types.RulerId -> Block.TracklikeId
 rid = Block.RId :: Types.RulerId -> Block.TracklikeId
 did = Block.DId :: Block.Divider -> Block.TracklikeId
-instance Binary Block.TracklikeId where
+instance Serialize Block.TracklikeId where
     put (Block.TId a b) = putWord8 0 >> put a >> put b
     put (Block.RId a) = putWord8 1 >> put a
     put (Block.DId a) = putWord8 2 >> put a
@@ -270,11 +263,11 @@ instance Binary Block.TracklikeId where
             _ -> fail "no parse for Block.TracklikeId"
 
 divider = Block.Divider :: Color.Color -> Block.Divider
-instance Binary Block.Divider where
+instance Serialize Block.Divider where
     put (Block.Divider a) = put a
     get = get >>= \a -> return (divider a)
 
-instance Binary Block.View where
+instance Serialize Block.View where
     put (Block.View a b c d e f g h i j) = put_version 1
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
         >> put i >> put j
@@ -300,17 +293,17 @@ instance Binary Block.View where
             _ -> version_error "Block.View" v
 
 track_view = Block.TrackView :: Types.Width -> Block.TrackView
-instance Binary Block.TrackView where
+instance Serialize Block.TrackView where
     put (Block.TrackView a) = put a
     get = get >>= \a -> return (track_view a)
 
-instance Binary Rect.Rect where
+instance Serialize Rect.Rect where
     put r = put (Rect.rx r) >> put (Rect.ry r) >> put (Rect.rw r)
         >> put (Rect.rh r)
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (Rect.xywh a b c d)
 
-instance Binary Block.ViewConfig where
+instance Serialize Block.ViewConfig where
     put (Block.ViewConfig a b c d e) = put_version 2
         >> put a >> put b >> put c >> put d >> put e
     get = do
@@ -327,37 +320,37 @@ instance Binary Block.ViewConfig where
             _ -> version_error "Block.ViewConfig" v
 
 zoom = Types.Zoom :: ScoreTime -> Double -> Types.Zoom
-instance Binary Types.Zoom where
+instance Serialize Types.Zoom where
     put (Types.Zoom a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (zoom a b)
 
 selection = Types.Selection :: TrackNum -> ScoreTime -> TrackNum
     -> ScoreTime -> Types.Selection
-instance Binary Types.Selection where
+instance Serialize Types.Selection where
     put (Types.Selection a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (selection a b c d)
 
 -- ** Types, Color, Font
 
-instance Binary ScoreTime where
-    put (Types.ScoreTime a) = put (Util.Binary.NDouble a)
-    get = get >>= \(Util.Binary.NDouble a) -> return (Types.ScoreTime a)
+instance Serialize ScoreTime where
+    put (Types.ScoreTime a) = put (Util.Serialize.NDouble a)
+    get = get >>= \(Util.Serialize.NDouble a) -> return (Types.ScoreTime a)
 
-instance Binary Color.Color where
+instance Serialize Color.Color where
     put (Color.Color a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (Color.Color a b c d)
 
 text_style = Font.EventStyle :: Font.Font -> [Font.FontFace] -> Int
     -> Color.Color -> Font.EventStyle
-instance Binary Font.EventStyle where
+instance Serialize Font.EventStyle where
     put (Font.EventStyle a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (text_style a b c d)
 
 -- TODO store as strings?
-instance Binary Font.Font where
+instance Serialize Font.Font where
     put Font.Helvetica = putWord8 0
     put Font.Times = putWord8 1
     put Font.Courier = putWord8 2
@@ -369,7 +362,7 @@ instance Binary Font.Font where
             2 -> return Font.Courier
             _ -> fail "no parse for Font.Font"
 
-instance Binary Font.FontFace where
+instance Serialize Font.FontFace where
     put Font.Bold = putWord8 0
     put Font.Italic = putWord8 1
     get = do
@@ -381,11 +374,11 @@ instance Binary Font.FontFace where
 
 -- ** Ruler
 
-instance Binary Types.RulerId where
+instance Serialize Types.RulerId where
     put (Types.RulerId a) = put a
     get = get >>= \a -> return (Types.RulerId a)
 
-instance Binary Ruler.Ruler where
+instance Serialize Ruler.Ruler where
     put (Ruler.Ruler a b c d e f) = put_version 1
         >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
@@ -411,13 +404,13 @@ instance Binary Ruler.Ruler where
             _ -> version_error "Ruler.Ruler" v
 
 marklist = Ruler.Marklist :: IArray.Array Int Ruler.PosMark -> Ruler.Marklist
-instance Binary Ruler.Marklist where
+instance Serialize Ruler.Marklist where
     put (Ruler.Marklist a) = put a
     get = get >>= \a -> return (marklist a)
 
 mark = Ruler.Mark :: Int -> Int -> Color.Color -> String -> Double -> Double
     -> Ruler.Mark
-instance Binary Ruler.Mark where
+instance Serialize Ruler.Mark where
     put (Ruler.Mark a b c d e f) = put a >> put b >> put c >> put d >> put e
         >> put f
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
@@ -425,11 +418,11 @@ instance Binary Ruler.Mark where
 
 -- ** Track
 
-instance Binary Types.TrackId where
+instance Serialize Types.TrackId where
     put (Types.TrackId a) = put a
     get = get >>= \a -> return (Types.TrackId a)
 
-instance Binary Track.Track where
+instance Serialize Track.Track where
     put (Track.Track a b c d) = put_version 1 >>
         put a >> put b >> put c >> put d
     get = do
@@ -448,7 +441,7 @@ instance Binary Track.Track where
                 return $ Track.Track title events bg render
             _ -> version_error "Track.Track" v
 
-instance Binary Track.RenderConfig where
+instance Serialize Track.RenderConfig where
     put (Track.RenderConfig a b) = put_version 0 >> put a >> put b
     get = do
         v <- get_version
@@ -459,7 +452,7 @@ instance Binary Track.RenderConfig where
                 return $ Track.RenderConfig style color
             _ -> version_error "Track.RenderConfig" v
 
-instance Binary Track.RenderStyle where
+instance Serialize Track.RenderStyle where
     put Track.NoRender = putWord8 0
     put Track.Line = putWord8 1
     put Track.Filled = putWord8 2
@@ -473,7 +466,7 @@ instance Binary Track.RenderStyle where
 
 track_events = Track.TrackEvents :: Map.Map ScoreTime Event.Event
     -> Track.TrackEvents
-instance Binary Track.TrackEvents where
+instance Serialize Track.TrackEvents where
     put (Track.TrackEvents a) = put_version 0 >> put a
     get = do
         v <- get_version
@@ -483,7 +476,7 @@ instance Binary Track.TrackEvents where
 
 -- ** Event
 
-instance Binary Event.Event where
+instance Serialize Event.Event where
     put (Event.Event text dur style) = do
         put text
         put dur
@@ -494,13 +487,13 @@ instance Binary Event.Event where
         style <- get :: Get Event.StyleId
         return $ Event.Event text dur style
 
-instance Binary Event.StyleId where
+instance Serialize Event.StyleId where
     put (Event.StyleId a) = put a
     get = fmap Event.StyleId get
 
 -- ** Midi.Instrument
 
-instance Binary Instrument.Config where
+instance Serialize Instrument.Config where
     put (Instrument.Config a) = put_version 3 >> put a
     get = do
         v <- get_version
@@ -514,21 +507,21 @@ instance Binary Instrument.Config where
                 return $ Instrument.Config alloc
             _ -> version_error "Instrument.Config" v
 
-instance Binary Score.Instrument where
+instance Serialize Score.Instrument where
     put (Score.Instrument a) = put a
     get = fmap Score.Instrument get
 
 -- ** Midi
 
-instance Binary Midi.ReadDevice where
+instance Serialize Midi.ReadDevice where
     put (Midi.ReadDevice a) = put a
     get = get >>= \a -> return (Midi.ReadDevice a)
 
-instance Binary Midi.WriteDevice where
+instance Serialize Midi.WriteDevice where
     put (Midi.WriteDevice a) = put a
     get = get >>= \a -> return (Midi.WriteDevice a)
 
-instance Binary Midi.Message where
+instance Serialize Midi.Message where
     put (Midi.ChannelMessage a b) = putWord8 0 >> put a >> put b
     put (Midi.CommonMessage a) = putWord8 1 >> put a
     put (Midi.RealtimeMessage a) = putWord8 2 >> put a
@@ -543,7 +536,7 @@ instance Binary Midi.Message where
                 return (Midi.UnknownMessage a b c)
             _ -> fail "no parse for Midi.Message"
 
-instance Binary Midi.ChannelMessage where
+instance Serialize Midi.ChannelMessage where
     put (Midi.NoteOff a b) = putWord8 0 >> put a >> put b
     put (Midi.NoteOn a b) = putWord8 1 >> put a >> put b
     put (Midi.Aftertouch a b) = putWord8 2 >> put a >> put b
@@ -574,7 +567,7 @@ instance Binary Midi.ChannelMessage where
                 return (Midi.UndefinedChannelMode a b)
             _ -> fail "no parse for Midi.ChannelMessage"
 
-instance Binary Midi.CommonMessage where
+instance Serialize Midi.CommonMessage where
     put (Midi.SystemExclusive a b) = putWord8 0 >> put a >> put b
     put (Midi.SongPositionPointer a) = putWord8 1 >> put a
     put (Midi.SongSelect a) = putWord8 2 >> put a
@@ -592,7 +585,7 @@ instance Binary Midi.CommonMessage where
             5 -> get >>= \a -> return (Midi.UndefinedCommon a)
             _ -> fail "no parse for Midi.CommonMessage"
 
-instance Binary Midi.RealtimeMessage where
+instance Serialize Midi.RealtimeMessage where
     put Midi.TimingClock = putWord8 0
     put Midi.Start = putWord8 1
     put Midi.Continue = putWord8 2
@@ -614,6 +607,6 @@ instance Binary Midi.RealtimeMessage where
 
 -- ** misc
 
-instance Binary Time.UTCTime where
+instance Serialize Time.UTCTime where
     put time = put (show time)
     get = get >>= return . read
