@@ -357,6 +357,9 @@ data EditState = EditState {
     , state_note_duration :: TimeStep.TimeStep
     -- | If this is Rewind, create notes with negative durations.
     , state_note_direction :: TimeStep.Direction
+    -- | New notes get this text by default.  This way, you can enter a series
+    -- of notes with the same attributes, or whatever.
+    , state_note_text :: String
     -- | Transpose note entry on the keyboard by this many octaves.  It's by
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
@@ -374,6 +377,7 @@ empty_edit_state = EditState {
         TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
     , state_note_duration = TimeStep.BlockEnd
     , state_note_direction = TimeStep.Advance
+    , state_note_text = ""
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4
 
@@ -656,11 +660,14 @@ set_edit_box color char = do
 
 is_val_edit :: (M m) => m Bool
 is_val_edit = (== ValEdit) <$> gets (state_edit_mode . state_edit)
-    -- st <- gets state_edit
-    -- return $ not (state_kbd_entry st) && state_edit_mode st == ValEdit
 
 is_kbd_entry :: (M m) => m Bool
 is_kbd_entry = gets (state_kbd_entry . state_edit)
+
+set_note_text :: (M m) => String -> m ()
+set_note_text txt = do
+    modify_edit_state $ \st -> st { state_note_text = txt }
+    set_status "txt" (if null txt then Nothing else Just txt)
 
 -- ** environ
 

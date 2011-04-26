@@ -59,7 +59,7 @@ cmd_val_edit pitch_track msg = do
                 PitchTrack.val_edit_at (pitch_tracknum, track_id, pos) note
                 -- TODO if I do chords, this will have to be the chosen note
                 -- track
-                ensure_exists
+                create_event
             InputNote.PitchChange note_id key -> do
                 (tracknum, track_id) <- track_of note_id
                 note <- EditUtil.parse_key key
@@ -94,7 +94,7 @@ cmd_method_edit pitch_track msg = do
             (_, _, pos) <- EditUtil.get_sel_pos
             (tracknum, track_id) <- make_pitch_track Nothing pitch_track
             PitchTrack.method_edit_at (tracknum, track_id, pos) key
-            ensure_exists
+            create_event
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -167,8 +167,10 @@ generator_of = Seq.strip . last . Seq.split "|"
 
 -- * implementation
 
-ensure_exists :: (Cmd.M m) => m ()
-ensure_exists = modify_event True $ \txt -> (Just txt, False)
+create_event :: (Cmd.M m) => m ()
+create_event = do
+    txt <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
+    modify_event True (const (Just txt, False))
 
 remove :: (Cmd.M m) => EditUtil.SelPos -> m ()
 remove selpos =

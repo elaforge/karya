@@ -13,12 +13,16 @@ search then none of this is necessary.
 CURRENT
   - cmd-tab out of app results in a hanging MetaL
     Less error prone if every cmd sends a bitmap of modifiers?
+  - Perform.Midi.Perform: should be possible to lead keyswitches as long as
+    they don't precede the previous NoteOn, since I think samplers will only
+    switch on the next NoteOn
   - send style id to c++ instead of all the style elements
   - automate the manual tests
   - trade Data.Binary for cereal, to get rid of the horrible strict unserialize
     hack.  Don't rely on built-in serialize / deserialize class while I'm at it
+  - block status line should display Symbols
   - make Derive.Lazy_test actually do tests
-  - implement inst Cmd lookup, in same vein as call lookup
+  * implement inst Cmd lookup, in same vein as call lookup
     motivation?
     I want to assign keys for ornaments, typing in raw entry mode is annoying
     Another posibility is to hook into the NoteInput stuff.  I also want thru
@@ -36,14 +40,13 @@ CURRENT
       * keymap cmd to emit the note along with proper midi thru (both key down
         and key up)
       * needs to pay attention to EditMode!
-    - keyswitch cmds for hang
-      - NoteTrack uses Cmd.state_text
-      - keyswitch cmd to emit note along with thru for default pitch
-      - get default pitch, vel, attrs by looking at current or previous note
-        in the derive output
-      - make seeks on derive output more efficient with a lazy index, can use
-        this for Play as well
-      - later, use this for a "play line" cmd
+    * keyswitch cmds for hang
+      * NoteTrack uses Cmd.state_text
+      * keyswitch cmd to emit note along with thru for default pitch
+      * it hangs when adding a pitch track for kkt/hang1, after keyswitches cmd
+        apparently not related
+  - cmd to play current line, or play current or previous note
+  - make seeks on derive output more efficient with a lazy index
 
   - Implement >inst as setting the null call instead of env.instrument.
     That way the inst has control over the interpretation of e.g. attributes
@@ -269,16 +272,13 @@ Also, I want to turn a new cmd on or off.  But I can do this just by adding
 or removing from the cmd list.
 
 UNSORTED
-  + implement inst Cmd lookup, in same vein as call lookup
+  * implement inst Cmd lookup, in same vein as call lookup
   - for control track entry, typing numbers puts them right of decimal, typing
     backtick enters a 1
   * create a set of profiles and a custom target to run them, so I can run them
     regularly and watch for regressions.  Maybe run them when tests run.
   - use capslock for kbd entry mode
   - flag for unpitched instruments, so they don't get pitch tracks
-    I think I'd want to do a reverse map through the keymap to get the attrs
-    This also gets to the per-song config issue, since I want per-song or
-    per-track key -> call bindings.
   - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
   - get rid of Diff.track_diff by doing all diffs in the main diff, and
     avoid sending msgs back to the UI by having ui msgs cancel updates.

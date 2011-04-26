@@ -12,8 +12,6 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.NoteTrack as NoteTrack
 
-import qualified Util.Log as Log
-
 
 -- * keymap
 
@@ -25,7 +23,7 @@ keymaps :: (Cmd.M m) => [(Char, String, Midi.Key)] -> Msg.Msg -> m Cmd.Status
 keymaps inputs = \msg -> do
     unlessM Cmd.is_kbd_entry Cmd.abort
     EditUtil.fallthrough msg
-    (down, char) <- Cmd.require $ Msg.key_char msg
+    (down, char) <- Cmd.require $ Msg.char msg
     -- Do nothing but return Done if there is no mapping for this key.  That
     -- way this cmd captures all keystrokes and completely shadows the normal
     -- kbd entry.  Otherwise, it's confusing when some keys fall through and
@@ -47,30 +45,35 @@ keymap_down :: (Cmd.M m) => String -> Midi.Key -> m ()
 keymap_down note key = do
     whenM Cmd.is_val_edit $
         NoteTrack.modify_event True $ const (Just note, True)
-    MidiThru.channel_message (Midi.NoteOn key 64)
+    MidiThru.channel_messages True [Midi.NoteOn key 64]
 
 keymap_up :: (Cmd.M m) => Midi.Key -> m ()
-keymap_up key = MidiThru.channel_message (Midi.NoteOff key 64)
+keymap_up key = MidiThru.channel_messages True [Midi.NoteOff key 64]
 
 -- * keyswitch
 
--- emit raw keyswitch, then call cmd_midi_thru with InputNote.NoteOn
+-- | Create a Cmd to set keyswitches.
+--
+-- This simply sets the note text for subsequent notes, and also configures the
+-- instrument to play in the given keyswitch.
+--
+-- TODO this just emits keyswitches for every addr and emits the redundantly.
+-- This is simpler but it would be more correct to use WriteDeviceState to emit
+-- them only when needed.  However, it's more complicated because then I need
+-- a current attrs (Map Instrument Attrs) along with current note text, so
+-- MidiThru can use the attrs to find the keyswitch.
+--
+-- TODO if I can pull the current or previous note out of the derive then I
+-- could use that to play an example note.  Wait until I have a "play current
+-- line" framework up for that.
 keyswitches :: (Cmd.M m) => [(Char, String, Midi.Key)]
     -> Msg.Msg -> m Cmd.Status
-keyswitches inputs = undefined
-
-keyswitch :: (Cmd.M m) => Char -> String -> Midi.Key -> [Keymap.Binding m]
-keyswitch char text midi_key = Keymap.bind_char char ("keyswitch " ++ text)
-    (input_keyswitch text midi_key)
-
--- | Set note switch, emit keyswitch and note at current pitch.
-input_keyswitch :: (Cmd.M m) => String -> Midi.Key -> m ()
-input_keyswitch text key = do
-    Cmd.modify_edit_state $ \st -> st { Cmd.state_note_text = text }
-    -- TODO how to find out current pitch?
-    let chan = 0
-        wdev = undefined
-    -- TODO find out current addr
-    Cmd.midi wdev (Midi.ChannelMessage chan (Midi.NoteOn key 64))
-    Cmd.midi wdev (Midi.ChannelMessage chan (Midi.NoteOff key 64))
-    return ()
+keyswitches inputs = \msg -> do
+    EditUtil.fallthrough msg
+    char <- Cmd.require $ Msg.char_down msg
+    (note, key) <- Cmd.require $ Map.lookup char to_note
+    MidiThru.channel_messages False [Midi.NoteOn key 64, Midi.NoteOff key 64]
+    Cmd.set_note_text note
+    return Cmd.Done
+    where
+    to_note = Map.fromList [(char, (note, key)) | (char, note, key) <- inputs]

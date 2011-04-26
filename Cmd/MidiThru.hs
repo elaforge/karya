@@ -170,15 +170,19 @@ with_addr (wdev, chan) msg = (wdev, Midi.ChannelMessage chan msg)
 
 -- * util
 
--- | Send a ChannelMessage to the lowest addr of the current instrument.  This
--- bypasses all of the WriteDeviceState stuff so it won't cooperate with
--- addr allocation, but hopefully this won't cause problems for simple uses
--- like keymapped instruments.
-channel_message :: (Cmd.M m) => Midi.ChannelMessage -> m ()
-channel_message msg = do
+-- | Send ChannelMessages to the addrs (or just the lowest addr) of the current
+-- instrument.  This bypasses all of the WriteDeviceState stuff so it won't
+-- cooperate with addr allocation, but hopefully this won't cause problems for
+-- simple uses like keymapped instruments.
+channel_messages :: (Cmd.M m) => Bool -> [Midi.ChannelMessage] -> m ()
+channel_messages first_addr msgs = do
+    addrs <- get_addrs
+    let addrs2 = if first_addr then take 1 addrs else addrs
+    sequence_ [Cmd.midi wdev (Midi.ChannelMessage chan msg)
+        | (wdev, chan) <- addrs2, msg <- msgs]
+
+get_addrs :: (Cmd.M m) => m [Addr]
+get_addrs = do
     inst <- Cmd.require =<< EditUtil.lookup_instrument
     alloc <- Instrument.config_alloc <$> State.get_midi_config
-    let addr = Seq.head $ Map.get [] inst alloc
-    case addr of
-        Just (wdev, chan) -> Cmd.midi wdev (Midi.ChannelMessage chan msg)
-        Nothing -> return ()
+    return $ Map.get [] inst alloc
