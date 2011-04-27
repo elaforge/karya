@@ -125,7 +125,6 @@ send_derive_status loopback block_id status =
 
 respond_loop :: State -> MsgReader -> IO ()
 respond_loop rstate msg_reader = do
-    -- Log.timer "---------- responder loop"
     msg <- msg_reader
     (quit, rstate) <- respond rstate msg
     unless quit (respond_loop rstate msg_reader)
@@ -221,7 +220,7 @@ run_responder = Logger.run . flip Cont.runContT return
 -}
 respond :: State -> Msg.Msg -> IO (Bool, State)
 respond rstate msg = do
-    -- Log.timer $ ++ "received msg: " ++ Pretty.pretty msg
+    -- putStrLn $ "msg: " ++ Pretty.pretty msg
     ((res, cmd_state), updates) <- run_responder (run_cmds rstate msg)
     rstate <- return $ rstate { state_cmd = cmd_state }
     (status, rstate) <- case res of
@@ -229,7 +228,6 @@ respond rstate msg = do
             Log.warn $ "responder: " ++ Pretty.pretty err
             return (Cmd.Continue, rstate)
         Right (status, ui_from, ui_to) -> do
-            -- Log.timer "cmds complete"
             cmd_state <- return $ fix_cmd_state ui_to cmd_state
             (updates, ui_state, cmd_state) <-
                 ResponderSync.sync (state_sync rstate)

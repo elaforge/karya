@@ -668,8 +668,6 @@ BlockViewWindow::handle(int evt)
     if (evt == FL_KEYDOWN || evt == FL_KEYUP) {
         // The fact I got it means I have focus.
         global_msg_collector()->event(evt);
-        if (this->testing && Fl::event_key() == FL_Escape)
-            return false; // this will wind up closing the window
         return true;
     }
 
