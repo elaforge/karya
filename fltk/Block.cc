@@ -149,7 +149,6 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool _update_all)
     title.resize(wx, wy, w(), vconfig.block_title_height);
     status_line.resize(wx, h() - vconfig.status_size,
             w() - mac_resizer_width, vconfig.status_size);
-    status_line.textsize(vconfig.status_size - 4);
     body.resize(wx, wy + title.h(),
             w(), h() - title.h() - status_line.h());
     body_resize_group.resize(body.x() + vconfig.sb_size, body.y(),

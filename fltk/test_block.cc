@@ -427,7 +427,7 @@ main(int argc, char **argv)
     // view2.testing = true;
     // view2.show();
 
-    view.block.set_status("no status yet");
+    view.block.set_status("ABC`tamil-i` ABC `xie`");
     view.block.set_title("hi there");
 
     // view.block.insert_track(0, Tracklike(&ruler), 20);

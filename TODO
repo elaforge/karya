@@ -16,14 +16,15 @@ CURRENT
     Yes, but it doesn't solve the same problem with alpha keys.  And I can no
     longer bind ControlL and ControlR separately.  That's not a big loss, but
     ask on fltk list first.
+    Can I know when the app gets focus and clear out kbd state?
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn
   - send style id to c++ instead of all the style elements
   - automate the manual tests
-  + trade Data.Binary for cereal, to get rid of the horrible strict unserialize
-    hack.  Don't rely on built-in serialize / deserialize class while I'm at it
-  - block status line should display Symbols
+  - don't rely on built-in serialize / deserialize classes
+    Ask on the list first.
+  * block status line should display Symbols
   - make Derive.Lazy_test actually do tests
   * implement inst Cmd lookup, in same vein as call lookup
     motivation?

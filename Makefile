@@ -112,7 +112,7 @@ BUNDLE = tools/make_bundle $@
 
 FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	Event.o P9Scrollbar.o SimpleScroll.o SeqInput.o MsgCollector.o \
-	SkeletonDisplay.o SymbolTable.o \
+	SkeletonDisplay.o SymbolTable.o SymbolOutput.o \
 	f_util.o alpha_draw.o types.o config.o
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 

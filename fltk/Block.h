@@ -36,6 +36,7 @@ skel_box  skel_display  ruler_group _____________        track_group
 #include "SimpleScroll.h"
 #include "SeqScrollbar.h"
 #include "SeqInput.h"
+#include "SymbolOutput.h"
 
 #include "config.h"
 #include "types.h"
@@ -150,7 +151,7 @@ private:
     TrackView *no_ruler;
 
     SeqInput title;
-    Fl_Output status_line;
+    SymbolOutput status_line;
     Fl_Tile body;
         // Dummy group to limit body tile drag to the ruler track.
         Fl_Group body_resize_group;

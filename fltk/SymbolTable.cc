@@ -102,6 +102,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
     size_t i, j;
 
     fl_font(font, size);
+    fl_color(FL_BLACK);
     // Keep track of the current bounding box.
     IPoint box(0, fl_height() - fl_descent());
 
@@ -111,6 +112,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
         if (j >= text.size())
             break;
 
+        // Draw text before ``s.
         fl_font(font, size);
         box.x += draw_text(text.c_str() + start, i-start-1,
             IPoint(pos.x + box.x, pos.y), measure);
@@ -118,9 +120,11 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
         SymbolMap::const_iterator it =
             this->symbol_map.find(text.substr(i, j-i));
         if (it == symbol_map.end()) {
+            // Unclosed `, draw the rest.
             box.x += draw_text(text.c_str() + i - 1, j-i + 2,
                 IPoint(pos.x + box.x, pos.y), measure);
         } else {
+            // Draw symbol inside ``s.
             IRect sym_box = this->measure_symbol(it->second, size);
             // The box measures the actual bounding box of the symbol.  Clip
             // out the spacing inserted by the characters by translating back
@@ -137,6 +141,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
         }
         start = j + 1;
     }
+    // Draw trailing text.
     fl_font(font, size);
     if (start < text.size()) {
         box.x += draw_text(text.c_str() + start, text.size() - start,
