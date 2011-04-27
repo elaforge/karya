@@ -174,7 +174,7 @@ derive_control block_end track_expr events = do
     deriver :: Derive.ControlDeriver
     deriver = do
         state <- Derive.get
-        let (stream, collect, cache) = Call.lazy_derive_track
+        let (stream, collect, cache) = Call.derive_track
                 state block_end dinfo Parse.parse_num_expr last_sample events
         Derive.modify $ \st -> st {
             Derive.state_collect = collect, Derive.state_cache_state = cache }
@@ -197,7 +197,7 @@ derive_pitch block_end track_expr events = do
     where
     deriver = do
         state <- Derive.get
-        let (stream, collect, cache) = Call.lazy_derive_track
+        let (stream, collect, cache) = Call.derive_track
                 state block_end dinfo Parse.parse_expr last_sample events
         Derive.modify $ \st -> st {
             Derive.state_collect = collect, Derive.state_cache_state = cache }

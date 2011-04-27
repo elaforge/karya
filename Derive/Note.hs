@@ -163,7 +163,7 @@ d_note_track block_id track_id = do
 derive_notes :: ScoreTime -> [Track.PosEvent] -> Derive.EventDeriver
 derive_notes block_end events = do
     state <- Derive.get
-    let (event_groups, collect, cache) = Call.lazy_derive_track
+    let (event_groups, collect, cache) = Call.derive_track
             state block_end Call.note_dinfo Parse.parse_expr
             (\_ _ -> Nothing) events
     Derive.modify $ \st -> st {

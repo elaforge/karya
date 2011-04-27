@@ -225,7 +225,7 @@ with_attrs f deriver = do
 -- next lists.
 eval_one :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
 eval_one start dur expr =
-    Derive.d_place start dur (apply_toplevel (note_dinfo, cinfo) expr)
+    Derive.d_place start dur (eval_expr (note_dinfo, cinfo) expr)
     where
     -- TODO use pretty instead of show
     cinfo = Derive.dummy_call_info ("eval_one: " ++ show expr)
@@ -233,13 +233,23 @@ eval_one start dur expr =
 -- | Apply an expr with the current call info.
 reapply :: Derive.PassedArgs Score.Event -> TrackLang.Expr
     -> Derive.EventDeriver
-reapply args expr = apply_toplevel (note_dinfo, cinfo) expr
+reapply args expr = eval_expr (note_dinfo, cinfo) expr
     where cinfo = Derive.passed_info args
 
 -- | A version of 'eval' specialized to evaluate note calls.
 eval_note :: Pitch.Note -> Derive.Deriver Pitch.Degree
 eval_note note = CallSig.cast ("eval note " ++ show note)
     =<< eval (TrackLang.val_call (Pitch.note_text note))
+
+-- | Evaluate a single expression.
+eval_expr :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
+    -> Derive.LogsDeriver derived
+eval_expr info expr = do
+    state <- Derive.get
+    let (res, logs, collect, cache) = apply_toplevel state info expr
+    Derive.modify $ \st -> st
+        { Derive.state_collect = collect, Derive.state_cache_state = cache }
+    return $ Derive.merge_logs res logs
 
 -- | Evaluate the root block in a performance.  Making this an ordinary call
 -- means it participates in the derive cache just like all other calls.
@@ -274,11 +284,11 @@ type Info derived = (DeriveInfo derived, Derive.CallInfo derived)
 type GetLastSample d =
     Maybe (RealTime, Derive.Elem d) -> d -> Maybe (RealTime, Derive.Elem d)
 
-lazy_derive_track :: (Derive.Derived derived) =>
+derive_track :: (Derive.Derived derived) =>
     Derive.State -> ScoreTime -> DeriveInfo derived
     -> Parse.ParseExpr -> GetLastSample derived -> [Track.PosEvent]
     -> ([LEvent.LEvents derived], Derive.Collect, Derive.CacheState)
-lazy_derive_track state block_end dinfo parse get_last_sample events =
+derive_track state block_end dinfo parse get_last_sample events =
     go (Derive.record_track_environ state) (Derive.state_cache_state state)
         Nothing [] events
     where
@@ -292,7 +302,7 @@ lazy_derive_track state block_end dinfo parse get_last_sample events =
         where
         (result, logs, next_collect, next_cache) =
             -- trace ("derive " ++ show_pos state (fst cur) ++ "**") $
-            lazy_derive_event
+            derive_event
                 (state {Derive.state_collect = collect,
                     Derive.state_cache_state = cache})
                 block_end dinfo parse prev_sample prev cur rest
@@ -316,7 +326,7 @@ lazy_derive_track state block_end dinfo parse get_last_sample events =
 --         Stack.to_ui (Derive.state_stack state)
 
 
-lazy_derive_event :: (Derive.Derived d) =>
+derive_event :: (Derive.Derived d) =>
     Derive.State -> ScoreTime -> DeriveInfo d -> Parse.ParseExpr
     -> Maybe (RealTime, Derive.Elem d)
     -> [Track.PosEvent] -- ^ previous events, in reverse order
@@ -324,7 +334,7 @@ lazy_derive_event :: (Derive.Derived d) =>
     -> [Track.PosEvent] -- ^ following events
     -> (Either Derive.DeriveError (LEvent.LEvents d), [Log.Msg],
         Derive.Collect, Derive.CacheState)
-lazy_derive_event st block_end dinfo parse prev_val prev
+derive_event st block_end dinfo parse prev_val prev
         cur@(pos, event) next
     | Event.event_bs event == B.pack "--" =
         (Right mempty, [], Derive.state_collect st, Derive.state_cache_state st)
@@ -334,7 +344,7 @@ lazy_derive_event st block_end dinfo parse prev_val prev
         Right expr -> run_call expr
     where
     parse_error msg = Log.msg Log.Warn (Just (Derive.state_stack st)) msg
-    run_call expr = lazy_apply_toplevel state (dinfo, cinfo) expr
+    run_call expr = apply_toplevel state (dinfo, cinfo) expr
 
     state = st {
         Derive.state_stack =
@@ -362,11 +372,11 @@ lazy_derive_event st block_end dinfo parse prev_val prev
     evt0 = Event.modify_duration (/stretch) (snd cur)
 
 -- | Apply a toplevel expression.
-lazy_apply_toplevel :: (Derive.Derived d) => Derive.State -> Info d
+apply_toplevel :: (Derive.Derived d) => Derive.State -> Info d
     -> TrackLang.Expr
     -> (Either Derive.DeriveError (LEvent.LEvents d), [Log.Msg],
         Derive.Collect, Derive.CacheState)
-lazy_apply_toplevel state info expr = case Seq.break_last expr of
+apply_toplevel state info expr = case Seq.break_last expr of
         (transform_calls, Just generator_call) -> run $
             apply_transformer info transform_calls $
                 apply_generator info generator_call
@@ -378,16 +388,6 @@ lazy_apply_toplevel state info expr = case Seq.break_last expr of
             Derive.state_cache_state state)
     err = Log.msg Log.Warn (Just (Derive.state_stack state))
         "event with no calls at all (this shouldn't happen)"
-
--- | Apply a toplevel expression.
-apply_toplevel :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
-    -> Derive.LogsDeriver derived
-apply_toplevel info expr = do
-    state <- Derive.get
-    let (res, logs, collect, cache) = lazy_apply_toplevel state info expr
-    Derive.modify $ \st -> st {
-        Derive.state_collect = collect, Derive.state_cache_state = cache }
-    return $ Derive.merge_logs res logs
 
 apply_generator :: (Derive.Derived derived) => Info derived -> TrackLang.Call
     -> Derive.LogsDeriver derived
