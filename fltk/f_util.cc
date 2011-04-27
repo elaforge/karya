@@ -92,7 +92,7 @@ show_event(int ev)
 const char *
 show_event_info(int ev)
 {
-    static char buf[1024];
+    static char buf[128];
     switch (ev) {
     case FL_PUSH: case FL_DRAG: case FL_RELEASE: case FL_MOVE:
     case FL_MOUSEWHEEL:
@@ -108,6 +108,39 @@ show_event_info(int ev)
         return "unknown";
         break;
     }
+    return buf;
+}
+
+
+const char *
+show_event_state(int state)
+{
+    static char buf[128];
+    *buf = '\0';
+    if (state & FL_SHIFT)
+        strcat(buf, "shift+");
+    if (state & FL_CAPS_LOCK)
+        strcat(buf, "caps_lock+");
+    if (state & FL_CTRL)
+        strcat(buf, "ctrl+");
+    if (state & FL_ALT)
+        strcat(buf, "alt+");
+    if (state & FL_NUM_LOCK)
+        strcat(buf, "num_lock+");
+    if (state & FL_META)
+        strcat(buf, "meta+");
+    if (state & FL_SCROLL_LOCK)
+        strcat(buf, "scroll_lock+");
+    if (state & FL_BUTTON1)
+        strcat(buf, "button1+");
+    if (state & FL_BUTTON2)
+        strcat(buf, "button2+");
+    if (state & FL_BUTTON3)
+        strcat(buf, "button3+");
+    if (strlen(buf) == 0)
+        return "NONE";
+    else
+        buf[strlen(buf)-1] = '\0';
     return buf;
 }
 
