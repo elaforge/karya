@@ -226,9 +226,7 @@ with_attrs f deriver = do
 eval_one :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
 eval_one start dur expr =
     Derive.d_place start dur (eval_expr (note_dinfo, cinfo) expr)
-    where
-    -- TODO use pretty instead of show
-    cinfo = Derive.dummy_call_info ("eval_one: " ++ show expr)
+    where cinfo = Derive.dummy_call_info ("eval_one: " ++ Pretty.pretty expr)
 
 -- | Apply an expr with the current call info.
 reapply :: Derive.PassedArgs Score.Event -> TrackLang.Expr

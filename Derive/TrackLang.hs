@@ -353,6 +353,14 @@ type Expr = [Call]
 data Call = Call CallId [Term] deriving (Eq, Show)
 data Term = ValCall Call | Literal Val deriving (Eq, Show)
 
+instance Pretty.Pretty Call where
+    pretty (Call call_id terms) =
+        Pretty.pretty call_id ++ if null terms then ""
+            else " " ++ Seq.join " " (map Pretty.pretty terms)
+instance Pretty.Pretty Term where
+    pretty (ValCall call) = "(" ++ Pretty.pretty call ++ ")"
+    pretty (Literal val) = Pretty.pretty val
+
 instance DeepSeq.NFData Call where
     rnf (Call call_id terms) = call_id `seq` DeepSeq.rnf terms
 instance DeepSeq.NFData Term where
