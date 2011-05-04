@@ -47,7 +47,10 @@ peek_msg msgp = do
     x <- (#peek UiMsg, x) msgp :: IO CInt
     y <- (#peek UiMsg, y) msgp :: IO CInt
     key <- (#peek UiMsg, key) msgp :: IO CInt
-    let evt_args = (i event, i button, i clicks, is_click /= 0, i x, i y, i key)
+    modifier_state <- (#peek UiMsg, modifier_state) msgp :: IO CInt
+    is_repeat <- toBool <$> ((#peek UiMsg, is_repeat) msgp :: IO CChar)
+    let event_args = (i event, i button, i clicks, is_click /= 0, i x, i y,
+            key, modifier_state, is_repeat)
 
     -- UiUpdate args
     ctext <- (#peek UiMsg, update_text) msgp :: IO CString
@@ -69,19 +72,20 @@ peek_msg msgp = do
     pos <- (#peek UiMsg, pos) msgp
 
     context <- make_context viewp has_tracknum tracknum has_pos pos
-    return $ make_msg type_num context evt_args update_args
+    return $ make_msg type_num context event_args update_args
     where i = fromIntegral
 
 -- | Data for a 'UiMsg.UiUpdate'.
 type UpdateArgs = (Maybe String, Int, Int, Maybe Types.Zoom, Maybe Rect.Rect)
 
 -- | Data for a 'UiMsg.Data'.
-type EventArgs = (Int, Int, Int, Bool, Int, Int, Int)
+type EventArgs = (Int, Int, Int, Bool, Int, Int, CInt, CInt, Bool)
 
 make_msg :: CInt -> UiMsg.Context -> EventArgs -> UpdateArgs -> UiMsg.UiMsg
-make_msg type_num context evt_args update_args =
+make_msg type_num context event_args update_args =
     UiMsg.UiMsg context $ case type_num of
-        (#const UiMsg::msg_event) -> UiMsg.MsgEvent (decode_msg_event evt_args)
+        (#const UiMsg::msg_event) ->
+            UiMsg.MsgEvent (decode_msg_event event_args)
         (#const UiMsg::msg_close) -> UiMsg.MsgClose
         _ -> UiMsg.UiUpdate (decode_update type_num update_args)
 
@@ -116,17 +120,15 @@ make_context viewp has_tracknum tracknum has_pos pos
     to_maybe b val = if b then Just val else Nothing
 
 decode_msg_event :: EventArgs -> UiMsg.Data
-decode_msg_event (event, button, clicks, is_click, x, y, key) = msg
-    where
-    mouse state = UiMsg.Mouse state (x, y) 0 False
-    kbd state = UiMsg.Kbd state (Key.Unknown 0)
-    aux = UiMsg.AuxMsg
-    partial_msg = case event of
+decode_msg_event (event, button, clicks, is_click, x, y, key, mod_state,
+        is_repeat) =
+    case event of
         (#const FL_PUSH) -> mouse (UiMsg.MouseDown button)
         (#const FL_DRAG) -> mouse (UiMsg.MouseDrag button)
         (#const FL_RELEASE) -> mouse (UiMsg.MouseUp button)
         (#const FL_MOVE) -> mouse UiMsg.MouseMove
-        (#const FL_KEYDOWN) -> kbd UiMsg.KeyDown
+        (#const FL_KEYDOWN) -> kbd
+            (if is_repeat then UiMsg.KeyRepeat else UiMsg.KeyDown)
         (#const FL_KEYUP) -> kbd UiMsg.KeyUp
 
         (#const FL_ENTER) -> aux UiMsg.Enter
@@ -139,8 +141,9 @@ decode_msg_event (event, button, clicks, is_click, x, y, key) = msg
         (#const FL_HIDE) -> aux UiMsg.Hide
         (#const FL_SHOW) -> aux UiMsg.Show
         _ -> UiMsg.Unhandled event
-    msg = case partial_msg of
-        UiMsg.Mouse {} -> partial_msg
-            { UiMsg.mouse_clicks = clicks, UiMsg.mouse_is_click = is_click }
-        UiMsg.Kbd state _ -> UiMsg.Kbd state (Key.decode_key key)
-        _ -> partial_msg
+    where
+    mouse state = UiMsg.Mouse state (Key.decode_modifiers mod_state) (x, y)
+        clicks is_click
+    kbd state = UiMsg.Kbd state (Key.decode_modifiers mod_state)
+        (Key.decode_key key)
+    aux = UiMsg.AuxMsg

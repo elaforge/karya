@@ -45,6 +45,7 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Logger as Logger
 import qualified Util.Log as Log
+import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -266,7 +267,7 @@ data State = State {
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
     -- The key is the modifier stripped of extraneous info, like mousedown
-    -- position, the value has complete info.
+    -- position.  The value has complete info.
     , state_keys_down :: Map.Map Modifier Modifier
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
@@ -484,7 +485,7 @@ data HistoryEntry = HistoryEntry {
     , hist_state :: State.State
     } deriving (Show, Generics.Typeable)
 
-data Modifier = KeyMod Key.Key
+data Modifier = KeyMod Key.Modifier
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
     -- The block is not recorded.  You can't drag across blocks so you know any
     -- click must apply to the focused block.
@@ -718,31 +719,40 @@ cmd_log msg = do
 
 -- | Record keydowns into the 'State' modifier map.
 cmd_record_keys :: Cmd
-cmd_record_keys msg = do
-    case msg_to_mod msg of
-        Nothing -> return ()
-        Just (True, mod) -> insert_mod mod
-        Just (False, mod) -> delete_mod mod
-    return Continue
+cmd_record_keys msg = cont $ when_just (msg_to_mod msg) $ \(down, mb_mod) -> do
+    mods <- keys_down
+    -- The kbd model is that absolute sets of modifiers are sent over, but the
+    -- other modifiers take downs and ups and incrementally modify the state.
+    -- It's rather awkward, but keyups and keydowns may be missed if focus
+    -- has left the app.
+    let mods2 = set_key_mods mods
+    mods3 <- case (down, mb_mod) of
+        (True, Just mod) -> insert mod mods2
+        (False, Just mod) -> delete mod mods2
+        _ -> return mods2
+    -- when (not (Map.null mods3)) $
+    -- Log.warn $ (if down then "keydown " else "keyup ")
+    --     ++ show (Map.elems mods3)
+    modify_state $ \st -> st { state_keys_down = mods3 }
     where
-    insert_mod mod = do
+    cont = (>> return Continue)
+    insert mod mods = do
         let key = strip_modifier mod
-        mods <- keys_down
         when (key `Map.member` mods) $
             Log.warn $ "keydown for " ++ show mod ++ " already in modifiers"
-        modify_keys (Map.insert key mod)
-        -- mods <- keys_down
-        -- Log.warn $ "keydown " ++ show (Map.elems mods)
-    delete_mod mod = do
+        return $ Map.insert key mod mods
+    delete mod mods = do
         let key = strip_modifier mod
-        mods <- keys_down
         when (key `Map.notMember` mods) $
             Log.warn $ "keyup for " ++ show mod ++ " not in modifiers"
-        modify_keys (Map.delete key)
-        -- mods <- keys_down
-        -- Log.warn $ "keyup " ++ show (Map.elems mods)
-    modify_keys f = modify_state $ \st ->
-        st { state_keys_down = f (state_keys_down st) }
+        return $ Map.delete key mods
+    set_key_mods mods = case msg_to_key_mods msg of
+        Just kmods -> Map.insert_list [(KeyMod c, KeyMod c) | c <- kmods] $
+            Map.filter not_key_mod mods
+        Nothing -> mods
+    not_key_mod (KeyMod _) = False
+    not_key_mod _ = True
+
 
 -- | Take a modifier to its key in the modifier map which has extra info like
 -- mouse down position stripped.
@@ -750,27 +760,37 @@ strip_modifier :: Modifier -> Modifier
 strip_modifier (MouseMod btn _) = MouseMod btn Nothing
 strip_modifier mod = mod
 
-modifier_key :: Modifier -> Maybe Char
-modifier_key (KeyMod (Key.KeyChar c)) = Just c
+modifier_key :: Modifier -> Maybe Key.Modifier
+modifier_key (KeyMod m) = Just m
 modifier_key _ = Nothing
 
+-- | Get the set of Key.Modifiers from the msg.
+msg_to_key_mods :: Msg.Msg -> Maybe [Key.Modifier]
+msg_to_key_mods msg = case msg of
+    Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent evt)) -> case evt of
+        UiMsg.Kbd _ mods _ -> Just mods
+        UiMsg.Mouse { UiMsg.mouse_modifiers = mods } -> Just mods
+        _ -> Nothing
+    _ -> Nothing
+
 -- | Convert a Msg to (is_key_down, Modifier).
-msg_to_mod :: Msg.Msg -> Maybe (Bool, Modifier)
+msg_to_mod :: Msg.Msg -> Maybe (Bool, Maybe Modifier)
 msg_to_mod msg = case msg of
     Msg.Ui (UiMsg.UiMsg context (UiMsg.MsgEvent evt)) -> case evt of
-        UiMsg.Kbd state key -> case state of
-            UiMsg.KeyDown -> Just (True, KeyMod key)
-            UiMsg.KeyUp -> Just (False, KeyMod key)
+        UiMsg.Kbd state _ _ -> case state of
+            UiMsg.KeyDown -> Just (True, Nothing)
+            UiMsg.KeyUp -> Just (False, Nothing)
+            _ -> Nothing
         UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseDown btn } ->
-            Just (True, MouseMod btn (mouse_context context))
+            Just (True, Just $ MouseMod btn (mouse_context context))
         UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseUp btn } ->
-            Just (False, MouseMod btn (mouse_context context))
+            Just (False, Just $ MouseMod btn (mouse_context context))
         _ -> Nothing
     Msg.Midi (Midi.ReadMessage { Midi.rmsg_msg = msg }) -> case msg of
         Midi.ChannelMessage chan (Midi.NoteOn key _vel) ->
-            Just (True, MidiMod chan key)
+            Just (True, Just $ MidiMod chan key)
         Midi.ChannelMessage chan (Midi.NoteOff key _vel) ->
-            Just (False, MidiMod chan key)
+            Just (False, Just $ MidiMod chan key)
         _ -> Nothing
     _ -> Nothing
     where
@@ -794,7 +814,7 @@ cmd_record_active msg = case msg of
     -- view will put the focus back on the old one.
     is_up (UiMsg.MsgEvent (UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseUp _ }))
         = True
-    is_up (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyUp _)) = True
+    is_up (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyUp _ _)) = True
     is_up _ = False
 
 set_focused_view :: (M m) => ViewId -> m ()

@@ -32,8 +32,6 @@ data Msg = MsgEvent Data | UiUpdate UiUpdate | MsgClose
 -- | These are generated when the UI is manipulated directly and makes changes
 -- to its own state.  They are like Ui.Update except in the opposide direction:
 -- fltk telling haskell what changes occurred.
-
--- TODO include the arg vals so I don't have to call back into fltk
 data UiUpdate =
     UpdateInput String
     | UpdateTrackScroll Types.Width
@@ -45,19 +43,25 @@ data UiUpdate =
     | UpdateScreenSize Int Int Rect.Rect
     deriving (Eq, Ord, Show)
 
--- TODO this makes partial selectors... would it be better to split this up?
 data Data =
+    -- | (state, modifiers, coords, clicks, is_click)
+    -- As per fltk, 0 is the first click, 1 is a double click, etc.
     Mouse
         { mouse_state :: MouseState
+        , mouse_modifiers :: [Key.Modifier]
         , mouse_coords :: (Int, Int)
         -- | As per fltk, 0 is the first click, 1 is a double click, etc.
         , mouse_clicks :: Int
         , mouse_is_click :: Bool
         }
-    | Kbd KbdState Key.Key
+    | Kbd KbdState [Key.Modifier] Key.Key
     | AuxMsg AuxMsg
     | Unhandled Int
     deriving (Eq, Ord, Show)
+    -- The presence of [Key.Modifier] in Kbd and Mouse is ugly because it's
+    -- only for cmd_record_keys.  All the rest should use Cmd.state_keys_down.
+    -- TODO maybe this should move to MsgEvent so FOCUS can update the
+    -- modifiers?  Doesn't matter as long as fltk doesn't support it.
 
 data AuxMsg = Enter | Leave | Focus | Unfocus | Shortcut | Deactivate
     | Activate | Hide | Show
@@ -66,17 +70,19 @@ data AuxMsg = Enter | Leave | Focus | Unfocus | Shortcut | Deactivate
 data MouseState = MouseMove | MouseDrag MouseButton
     | MouseDown MouseButton | MouseUp MouseButton
     deriving (Eq, Ord, Show)
-data KbdState = KeyDown | KeyUp deriving (Eq, Ord, Show)
+data KbdState = KeyDown | KeyRepeat | KeyUp deriving (Eq, Ord, Show)
 
 type MouseButton = Int
 
 instance Pretty.Pretty UiMsg where
     pretty ui_msg = case ui_msg of
         UiMsg ctx (MsgEvent mdata) -> case mdata of
-            Mouse mstate coords clicks is_click ->
-                printf "Mouse: %s %s %s click: %s %d" (show mstate)
-                    (show coords) (Pretty.pretty ctx) (show is_click) clicks
-            Kbd kstate key -> printf "Kbd: %s %s" (show kstate) (show key)
+            Mouse mstate mods coords clicks is_click ->
+                printf "Mouse: %s %s %s %s click: %s %d" (show mstate)
+                    (show mods) (show coords) (Pretty.pretty ctx)
+                    (show is_click) clicks
+            Kbd kstate mods key -> printf "Kbd: %s %s %s" (show kstate)
+                (show mods) (show key)
             AuxMsg msg -> printf "Aux: %s %s" (show msg) (Pretty.pretty ctx)
             Unhandled x -> printf "Unhandled: %d" x
         UiMsg ctx msg ->

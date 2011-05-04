@@ -11,6 +11,7 @@ import qualified Data.Set as Set
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
+import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Cmd as Cmd
@@ -49,12 +50,7 @@ cmds_with_note kbd_entry cmds msg = do
     kbd_note <- if kbd_entry && not has_mods
         then do
             octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
-            repeat <- Keymap.is_repeat msg
-            -- Just Nothing makes the repeats get eaten here, but make sure to
-            -- only suppress them if this key would have generated a note.
-            return $ case kbd_input octave msg of
-                Nothing -> Nothing
-                Just new_msg -> if repeat then Just Nothing else Just new_msg
+            return $ kbd_input octave msg
         else return Nothing
     midi_note <- midi_input msg
     let maybe_new_msg = kbd_note `mplus` midi_note
@@ -76,8 +72,12 @@ are_modifiers_down = fmap (not . Set.null) Keymap.mods_down
 -- nothing to do.  Just Just means there was input and something should be done
 -- with it.
 kbd_input :: Pitch.Octave -> Msg.Msg -> Maybe (Maybe Msg.Msg)
-kbd_input octave (Msg.key -> Just (down, key)) =
-    (fmap . fmap) Msg.InputNote (key_to_input octave down key)
+kbd_input octave (Msg.key -> Just (down, key)) = case down of
+    -- Just Nothing makes the repeats get eaten here, but make sure to only
+    -- suppress them if this key would have generated a note.
+    UiMsg.KeyRepeat -> Just Nothing
+    _ -> (fmap . fmap) Msg.InputNote
+        (key_to_input octave (down==UiMsg.KeyDown) key)
 kbd_input _ _ = Nothing
 
 key_to_input :: Pitch.Octave -> Bool -> Key.Key -> Maybe (Maybe InputNote.Input)

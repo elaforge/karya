@@ -272,28 +272,30 @@ should_record_history = any (not . Update.is_view_update)
 
 run_cmds :: State -> Msg.Msg -> ResponderM RType
 run_cmds rstate msg = do
-    (result, cmd_state) <- Cont.callCC $ \exit -> run_core_cmds rstate msg exit
-    -- Record the keys last, so they show up in the next cycle's keys_down,
-    -- but not this one.  This is so you can tell the difference between a
-    -- key down and a key repeat.
-    -- To save me from stuck keys, this gets run even if the cmd throws.
-    -- Changes made to cmd_state are discarded after an exception.
-    -- This matches the behaviour of the ui state.
+    cstate <- record_keys rstate msg
+    (result, cmd_state) <- Cont.callCC $ \exit ->
+        run_core_cmds (rstate { state_cmd = cstate }) msg exit
     cmd_state <- return $
         either (const (state_cmd rstate)) (const cmd_state) result
-    -- Yeah, I pass the old ui state, but cmd_record_keys shouldn't be touching
-    -- that anyway.
-    let (recorded_cstate, _, rec_logs, rec_result) = Cmd.run_id
-            (state_ui rstate) cmd_state (Cmd.cmd_record_keys msg)
+    return $ case result of
+        Left _ -> (result, cmd_state)
+        Right (status, ui_from, ui_to) ->
+            (Right (status, ui_from, ui_to), cmd_state)
+
+-- | Run the record keys cmd separately.  It would be nicer just to stick it
+-- on the front of the cmd list, but then if one of the cmds threw an
+-- exception, the key recording would also be reverted.
+record_keys :: State -> Msg.Msg -> ResponderM Cmd.State
+record_keys rstate msg = do
     Trans.liftIO $ do
-        mapM_ Log.write rec_logs
-        case rec_result of
+        mapM_ Log.write logs
+        case result of
             Left err -> Log.error ("record keys error: " ++ show err)
             _ -> return ()
-    return $ case result of
-        Left _ -> (result, recorded_cstate)
-        Right (status, ui_from, ui_to) ->
-            (Right (status, ui_from, ui_to), recorded_cstate)
+    return cstate
+    where
+    (cstate, _, logs, result) = Cmd.run_id (state_ui rstate) (state_cmd rstate)
+        (Cmd.cmd_record_keys msg)
 
 run_core_cmds :: State -> Msg.Msg
     -> (RType -> ResponderM (State.State, Cmd.State)) -> ResponderM RType

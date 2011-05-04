@@ -5,9 +5,9 @@ import Util.Control
 
 import qualified Midi.Midi as Midi
 
+import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
-import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.NoteTrack as NoteTrack
@@ -23,7 +23,7 @@ keymaps :: (Cmd.M m) => [(Char, String, Midi.Key)] -> Msg.Msg -> m Cmd.Status
 keymaps inputs = \msg -> do
     unlessM Cmd.is_kbd_entry Cmd.abort
     EditUtil.fallthrough msg
-    (down, char) <- Cmd.require $ Msg.char msg
+    (kstate, char) <- Cmd.require $ Msg.char msg
     -- Do nothing but return Done if there is no mapping for this key.  That
     -- way this cmd captures all keystrokes and completely shadows the normal
     -- kbd entry.  Otherwise, it's confusing when some keys fall through and
@@ -35,8 +35,10 @@ keymaps inputs = \msg -> do
         Nothing -> return Cmd.Done
         Just (note, key) -> do
             -- Log.warn $ show (down, char, note, key, repeat)
-            unlessM (Keymap.is_repeat msg) $
-                if down then keymap_down note key else keymap_up key
+            case kstate of
+                UiMsg.KeyRepeat -> return ()
+                UiMsg.KeyDown -> keymap_down note key
+                UiMsg.KeyUp -> keymap_up key
             return Cmd.Done
     where
     to_note = Map.fromList [(char, (note, key)) | (char, note, key) <- inputs]

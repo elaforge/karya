@@ -35,8 +35,8 @@ cmd_toggle_edge msg = do
     -- TODO: set selection so you can chain these
 
 get_clicked_track :: (Cmd.M m) => Msg.Msg -> m TrackNum
-get_clicked_track msg = case Cmd.msg_to_mod msg of
-    Just (True, Cmd.MouseMod _ (Just (tracknum, _))) -> return tracknum
+get_clicked_track msg = case (Msg.mouse_down msg, Msg.context_track_pos msg) of
+    (True, Just (tracknum, _)) -> return tracknum
     _ -> Cmd.abort
 
 -- | Merge all adjacent note/pitch pairs.

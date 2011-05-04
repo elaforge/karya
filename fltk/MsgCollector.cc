@@ -33,6 +33,8 @@ operator<<(std::ostream &os, const UiMsg &m)
     if (m.type == UiMsg::msg_event) {
         os << "=" << show_event(m.event)
             << " key=" << show_key(m.key)
+            << (m.is_repeat ? "[r]" : "")
+            << " mods=" << show_event_state(m.modifier_state)
             << " button=" << m.button << " clicks=" << m.clicks
             << " is_click=" << m.is_click
             << " xy=(" << m.x << ", " << m.y << ")";
@@ -133,6 +135,8 @@ set_msg_from_event(UiMsg &m, int evt)
     m.key = Fl::event_text()[0];
     if (!isprint(m.key)) // shift or backspace or some such
         m.key = Fl::event_key();
+    m.modifier_state = Fl::event_state();
+    m.is_repeat = false; // this may be set to true by push()
 }
 
 
@@ -274,15 +278,18 @@ MsgCollector::clear()
 
 
 void
-MsgCollector::push(const UiMsg &m)
+MsgCollector::push(UiMsg &m)
 {
     if (m.type == UiMsg::msg_event) {
         // Supppress keyups that have no keydown.  This can happen when focus
         // switches: the focused widget will eat the keydown to switch focus,
         // and whoever gets the focus (Block) will get a lone keyup.
-        if (m.event == FL_KEYDOWN)
-            this->keys_down.insert(m.key);
-        else if (m.event == FL_KEYUP) {
+        if (m.event == FL_KEYDOWN) {
+            if (this->keys_down.find(m.key) != keys_down.end())
+                m.is_repeat = true;
+            else
+                this->keys_down.insert(m.key);
+        } else if (m.event == FL_KEYUP) {
             if (this->keys_down.find(m.key) == this->keys_down.end())
                 return;
             this->keys_down.erase(m.key);

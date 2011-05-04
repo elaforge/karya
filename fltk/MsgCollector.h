@@ -117,6 +117,8 @@ struct UiMsg {
     int event;
     int button, clicks, is_click, x, y;
     int key;
+    int modifier_state;
+    char is_repeat;
 
     // Update msg args.  They're pointers to make haskell happy, but that means
     // I need to delete them in the destructor.
@@ -190,7 +192,7 @@ public:
     bool log_collected;
 
 private:
-    void push(const UiMsg &m);
+    void push(UiMsg &m);
     std::vector<UiMsg> msgs;
 
     // Keep track of which keys are down, to suppress spurious key ups.

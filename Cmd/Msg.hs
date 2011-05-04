@@ -1,7 +1,5 @@
 module Cmd.Msg where
-import qualified Data.Char as Char
 import qualified System.IO as IO
-
 import qualified Util.Pretty as Pretty
 
 import Ui
@@ -62,38 +60,35 @@ mouse_down msg = case mouse msg of
     Just (UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseDown _ }) -> True
     _ -> False
 
-key :: Msg -> Maybe (Bool, Key.Key)
-key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state key)))) =
-    Just (state == UiMsg.KeyDown, key)
+key :: Msg -> Maybe (UiMsg.KbdState, Key.Key)
+key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state _ key)))) =
+    Just (state, key)
 key _ = Nothing
 
 key_down :: Msg -> Maybe Key.Key
 key_down msg = case key msg of
-    Just (True, k) -> Just k
+    Just (UiMsg.KeyDown, k) -> Just k
     _ -> Nothing
 
-char :: Msg -> Maybe (Bool, Char)
+char :: Msg -> Maybe (UiMsg.KbdState, Char)
 char msg = case key msg of
-    Just (down, Key.KeyChar c) -> Just (down, c)
+    Just (state, Key.KeyChar c) -> Just (state, c)
     _ -> Nothing
 
 char_down :: Msg -> Maybe Char
 char_down msg = case char msg of
-    Just (True, c) -> Just c
+    Just (UiMsg.KeyDown, c) -> Just c
     _ -> Nothing
 
 midi :: Msg -> Maybe Midi.Message
 midi (Midi (Midi.ReadMessage { Midi.rmsg_msg = msg })) = Just msg
 midi _ = Nothing
 
-alphanum (Key.KeyChar c)
-    | Char.isAlphaNum c = Just c
-    | otherwise = Nothing
-alphanum _ = Nothing
-
+context :: Msg -> Maybe UiMsg.Context
 context (Ui (UiMsg.UiMsg context _)) = Just context
 context _ = Nothing
 
+context_track_pos :: Msg -> Maybe (TrackNum, ScoreTime)
 context_track_pos msg = do
     context <- context msg
     case context of

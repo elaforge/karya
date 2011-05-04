@@ -54,6 +54,18 @@ show_key(int key)
         K(Menu, menu);
         K(Num_Lock, num_lock);
         K(KP_Enter, kp_enter);
+        K(F + 1, f1);
+        K(F + 2, f2);
+        K(F + 3, f3);
+        K(F + 4, f4);
+        K(F + 5, f5);
+        K(F + 6, f6);
+        K(F + 7, f7);
+        K(F + 8, f8);
+        K(F + 9, f9);
+        K(F + 10, f10);
+        K(F + 11, f11);
+        K(F + 12, f12);
         #undef K
         }
         return e;

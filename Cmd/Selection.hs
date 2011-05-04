@@ -179,14 +179,14 @@ cmd_snap_selection btn selnum extend msg = do
 mouse_drag :: (Cmd.M m) => Int -> Msg.Msg
     -> m (TrackNum, ScoreTime, TrackNum, ScoreTime)
 mouse_drag btn msg = do
-    (mod, (mouse_tracknum, mouse_pos)) <- Cmd.require (mouse_mod msg)
+    (down, mod, (mouse_tracknum, mouse_pos)) <- Cmd.require (mouse_mod msg)
     msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
     keys_down <- Cmd.keys_down
     -- The button down should be the same one as expected.
     when (msg_btn /= btn) Cmd.abort
     let (down_tracknum, down_pos) =
-            case Map.lookup (Cmd.strip_modifier mod) keys_down of
-                Just (Cmd.MouseMod _btn (Just down_at)) -> down_at
+            case (down, Map.lookup (Cmd.strip_modifier mod) keys_down) of
+                (False, Just (Cmd.MouseMod _ (Just down_at))) -> down_at
                 -- If it's not already held down, it starts here.
                 _ -> (mouse_tracknum, mouse_pos)
     return (down_tracknum, down_pos, mouse_tracknum, mouse_pos)
@@ -277,16 +277,17 @@ selection_status sel = Pretty.show_float (Just 3) start
 
 -- ** mouse
 
-mouse_mod :: Msg.Msg -> Maybe (Cmd.Modifier, (TrackNum, ScoreTime))
+-- | (mouse_down, mouse_modifier, (mouse_track, mouse_pos))
+mouse_mod :: Msg.Msg -> Maybe (Bool, Cmd.Modifier, (TrackNum, ScoreTime))
 mouse_mod msg = do
     mouse <- Msg.mouse msg
-    btn <- case UiMsg.mouse_state mouse of
-        UiMsg.MouseDown btn -> Just btn
-        UiMsg.MouseDrag btn -> Just btn
-        UiMsg.MouseUp btn -> Just btn
+    (down, btn) <- case UiMsg.mouse_state mouse of
+        UiMsg.MouseDown btn -> Just (True, btn)
+        UiMsg.MouseDrag btn -> Just (False, btn)
+        UiMsg.MouseUp btn -> Just (False, btn)
         _ -> Nothing
     track_pos <- Msg.context_track_pos msg
-    return $ (Cmd.MouseMod btn (Just track_pos), track_pos)
+    return $ (down, Cmd.MouseMod btn (Just track_pos), track_pos)
 
 -- * util
 

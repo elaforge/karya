@@ -30,6 +30,7 @@ test_key_to_input = do
 test_cmds_with_note = do
     let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
     let key = CmdTest.key_down ','
+        ctrl_key = CmdTest.make_key_mods [Key.Control] True
         run cstate cmd = CmdTest.extract id $ CmdTest.run State.empty cstate cmd
         input = Msg.InputNote
         -- key passed through to cmd_dummy
@@ -39,8 +40,9 @@ test_cmds_with_note = do
     -- test kbd entry
 
     -- abort when a modifier is down
-    equal (run (with_key (CmdTest.make_key True Key.ControlL)) (f True key))
-        (through key)
+    let ckey = ctrl_key (Key.KeyChar ',')
+    equal (run (with_key (ctrl_key Key.ControlL)) (f True ckey))
+        (through ckey)
 
     let st = Cmd.empty_state
     equal (run st (f True key))

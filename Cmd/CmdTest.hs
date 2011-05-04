@@ -149,21 +149,24 @@ default_synth = Instrument.set_device "test" $ Instrument.synth "synth" []
 
 empty_context = UiMsg.Context Nothing Nothing Nothing
 
-make_key :: Bool -> Key.Key -> Msg.Msg
-make_key down k = Msg.Ui
-    (UiMsg.UiMsg empty_context (UiMsg.MsgEvent (UiMsg.Kbd state k)))
+make_key_mods :: [Key.Modifier] -> Bool -> Key.Key -> Msg.Msg
+make_key_mods mods down k = Msg.Ui
+    (UiMsg.UiMsg empty_context (UiMsg.MsgEvent (UiMsg.Kbd state mods k)))
     where state = if down then UiMsg.KeyDown else UiMsg.KeyUp
+
+make_key :: Bool -> Key.Key -> Msg.Msg
+make_key = make_key_mods []
 
 key_down = make_key True . Key.KeyChar
 key_up = make_key False . Key.KeyChar
 backspace = make_key True Key.Backspace
 
 mouse down btn = Msg.Ui $ UiMsg.UiMsg empty_context $
-    UiMsg.MsgEvent (UiMsg.Mouse state (42, 2) 0 True)
+    UiMsg.MsgEvent (UiMsg.Mouse state [] (42, 2) 0 True)
     where state = if down then UiMsg.MouseDown btn else UiMsg.MouseUp btn
 
 drag btn = Msg.Ui $ UiMsg.UiMsg empty_context $
-    UiMsg.MsgEvent (UiMsg.Mouse (UiMsg.MouseDrag btn) (42, 2) 0 False)
+    UiMsg.MsgEvent (UiMsg.Mouse (UiMsg.MouseDrag btn) [] (42, 2) 0 False)
 
 make_midi :: Midi.ChannelMessage -> Msg.Msg
 make_midi chan_msg = Msg.Midi $

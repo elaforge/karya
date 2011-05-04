@@ -39,14 +39,10 @@ test_make_cmd = do
     equal (run_char [] '2') (did_run "2" "cmd2")
     equal (run_char [] '3') no_run
 
-    equal (run_char [Key.ShiftL] '1') no_run
-    equal (run_char [Key.ShiftL] '3') (did_run "s-3" "cmd1")
-    equal (run_char [Key.ShiftR] '3') (did_run "s-3" "cmd1")
-    equal (run_char [Key.MetaL] '1') (did_run "c-1" "cmd1")
-    equal (run_char [Key.MetaL, Key.ShiftR] '1') (did_run "cs-1" "cmd1")
-
-    -- overlapping keys
-    equal (run_char [Key.KeyChar '1'] '2') (did_run "2" "cmd2")
+    equal (run_char [Key.Shift] '1') no_run
+    equal (run_char [Key.Shift] '3') (did_run "s-3" "cmd1")
+    equal (run_char [Key.Meta] '1') (did_run "c-1" "cmd1")
+    equal (run_char [Key.Meta, Key.Shift] '1') (did_run "cs-1" "cmd1")
 
     -- key up aborts
     equal (run [] (CmdTest.key_up '1')) aborted
@@ -57,7 +53,8 @@ test_make_cmd = do
         (did_run "chord-12" "cmd1")
     equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse False 2)) aborted
     -- bind_drag binds both the click and the drag
-    equal (run [] (CmdTest.mouse True 3)) (did_run "drag-3" "cmd1")
+    equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.mouse True 3))
+        (did_run "drag-3" "cmd1")
     equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.drag 3))
         (did_run "drag-3" "cmd1")
 

@@ -11,12 +11,7 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
-  - cmd-tab out of app results in a hanging MetaL
-    Less error prone if every cmd sends a bitmap of modifiers?
-    Yes, but it doesn't solve the same problem with alpha keys.  And I can no
-    longer bind ControlL and ControlR separately.  That's not a big loss, but
-    ask on fltk list first.
-    Can I know when the app gets focus and clear out kbd state?
+  * cmd-tab out of app results in a hanging MetaL
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn

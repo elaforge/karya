@@ -70,9 +70,10 @@ bind_click smods btn clicks desc cmd =
 -- click and drag bound to different commands, but I don't have any yet.
 bind_drag :: (Cmd.M m) => [SimpleMod] -> UiMsg.MouseButton -> String
     -> (Msg.Msg -> m a) -> [Binding m]
-bind_drag smods btn desc cmd = bind smods (Click btn 0) desc cmd
-    -- You can't have a drag without having that button down!
-    ++ bind (Mouse btn : smods) (Drag btn) desc cmd
+bind_drag smods btn desc cmd =
+    bind mods (Click btn 0) desc cmd ++ bind mods (Drag btn) desc cmd
+    -- You can't have a click or drag without having that button down!
+    where mods = Mouse btn : smods
 
 -- | Bind a key with the given modifiers.
 bind :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
@@ -147,12 +148,12 @@ data SimpleMod =
 
 -- | TODO This is a hardcoded mac layout, when I support other platforms
 -- it'll have to be configurable.
-simple_mod_map :: [(SimpleMod, [Key.Key])]
+simple_mod_map :: [(SimpleMod, [Key.Modifier])]
 simple_mod_map =
-    [ (Shift, [Key.ShiftL, Key.ShiftR])
-    , (PrimaryCommand, [Key.MetaL, Key.MetaR])
-    -- AltL is the mac's option key.
-    , (SecondaryCommand, [Key.ControlL, Key.ControlR, Key.AltL, Key.AltR])
+    [ (Shift, [Key.Shift])
+    , (PrimaryCommand, [Key.Meta])
+    -- Alt is the mac's option key.
+    , (SecondaryCommand, [Key.Control, Key.Alt])
     ]
 
 simple_to_mods :: SimpleMod -> [Cmd.Modifier]
@@ -196,16 +197,9 @@ mods_down = do
     mods <- fmap (filter is_mod . Map.keys) Cmd.keys_down
     return $ Set.fromList mods
     where
-    is_mod (Cmd.KeyMod key) = Set.member key Key.modifiers
+    is_mod (Cmd.KeyMod _) = True
     is_mod (Cmd.MidiMod _ _) = False
     is_mod (Cmd.MouseMod _ _) = True
-
--- | True if this msg is a repeat keydown.
-is_repeat :: (Cmd.M m) => Msg.Msg -> m Bool
-is_repeat (Msg.key -> Just (True, key)) = do
-    keys_down <- Cmd.keys_down
-    return $ Cmd.KeyMod key `Map.member` keys_down
-is_repeat _ = return False
 
 msg_to_bindable :: Msg.Msg -> Maybe Bindable
 msg_to_bindable msg = case msg of

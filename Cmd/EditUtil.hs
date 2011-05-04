@@ -137,10 +137,8 @@ fallthrough msg = do
     -- Except shift, of course.  Oh, and midi, otherwise a note off would
     -- always fall through.
     let is_mod mod = case mod of
-            Cmd.KeyMod k -> case k of
-                Key.KeyChar _ -> False
-                Key.ShiftL -> False
-                Key.ShiftR -> False
+            Cmd.KeyMod m -> case m of
+                Key.Shift -> False
                 _ -> True
             Cmd.MidiMod _ _ -> False
             _ -> True
