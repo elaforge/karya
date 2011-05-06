@@ -3,6 +3,8 @@
 import sys, os, re, datetime, subprocess
 
 
+write_files = True
+
 profiles = [
     'Derive_profile.profile_big_block',
     'Derive_profile.profile_nested_controls',
@@ -11,20 +13,29 @@ profiles = [
     ['notes', 'control', 'complex', 'multiplex']]
 
 def main():
+    global write_files
+    if '-n' in sys.argv[1:]:
+        write_files = False
     date = datetime.datetime.now().strftime('%y-%m-%d')
     mach_readable = []
     for prof in profiles:
         dir = os.path.join('prof/summary', prof)
         subprocess.call(['mkdir', '-p', dir])
         summary = run(prof)
-        open(os.path.join(dir, date), 'w').write(
-            '%s\n' % alist_to_str(summary))
+        write(os.path.join(dir, date), 'w', alist_to_str(summary) + '\n')
         summary = [('profile', prof), ('date', date)] + summary
         mach_readable.append(summary)
-    fp = open('prof/summary/machine_readable', 'a')
-    for summary in mach_readable:
-        fp.write(str(summary) + '\n')
-    fp.close()
+    summary = '\n'.join(map(str, mach_readable)) + '\n'
+    write('prof/summary/machine_readable', 'a', summary)
+
+def write(path, mode, content):
+    if write_files:
+        fp = open(path, mode)
+        fp.write(content)
+        fp.close()
+    else:
+        print '----', path
+        print content
 
 def alist_to_str(alist):
     return ', '.join('%s: %s' % (k, v) for (k, v) in alist)
