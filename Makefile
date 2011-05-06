@@ -19,10 +19,6 @@
 # Fixable as soon as I can get rid of -m I think.
 #
 # - tests and profiles are separate targets and require different flags
-#
-# - ghc generates only 32 bit, but new OS X gcc defaults to 64 bit, so I have
-# to pass -m32 to gcc and -optc-m32 etc. to ghc.
-# Might be fixable in newer ghc, but I might want 32 bit anyway.
 
 ### c++ flags
 
@@ -33,10 +29,6 @@ OPT := $(CXX_DEBUG)
 # Global -D flags for all C compilers.
 DEFINE := -DMAC_OS_X_VERSION_MAX_ALLOWED=1060 \
 	-DMAC_OS_X_VERSION_MIN_REQUIRED=1050
-
-# Current ghc only compiles in 32 bit mode.  Newer ghc compiles 64 bit I think,
-# but I'm afraid it will take up much more memory.
-ARCH := -m32
 
 MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
 CINCLUDE := -Ifltk -I.
@@ -56,9 +48,9 @@ LIBFLTK_1_3_LD := /usr/local/src/fltk-dev/fltk-1.3/lib/libfltk.a \
 LIBFLTK_1_3_INC := -I/usr/local/src/fltk-dev/fltk-1.3/
 
 FLTK_CXX := $(LIBFLTK_1_3_INC) $(LIBFLTK_D)
-CXXFLAGS := $(FLTK_CXX) $(DEFINE) $(OPT) $(CINCLUDE) $(ARCH) -Wall
+CXXFLAGS := $(FLTK_CXX) $(DEFINE) $(OPT) $(CINCLUDE) -Wall
 
-LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD) $(ARCH)
+LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD)
 
 
 ### ghc flags
@@ -83,20 +75,15 @@ HTEST := -fhpc
 # Flags to compile the profiles.
 HPROFILE := -prof -auto-all -caf-all -O2
 
-# HLDFLAGS := $(LDFLAGS)
-# TODO ghc doesn't accept -m32 like gcc and ld do.
-# GHC 6.12 adds these flags already, but I think 7 doesn't.
-HLDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD) -optc-m32 -opta-m32 -optl-m32
+HLDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD) -rtsopts
 
-GHC := ghc-6.12.3
+GHC := ghc-7.0.3
 # Used by haddock to find system docs, but it doesn't work anyway.
 # TODO Fix this someday.
-GHC_LIB := /Library/Frameworks/GHC.framework/Versions/612/usr/lib/ghc-6.12.3
+GHC_LIB := /Library/Frameworks/GHC.framework/Versions/7.0.3-x86_64/usr/lib/ghc-7.0.3
 
 # hspp adds filename and lineno to various logging and testing functions.
-HFLAGS := -threaded -W -fwarn-tabs \
-	$(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
-	-optc -ggdb -optl -ggdb \
+HFLAGS := -threaded -W -fwarn-tabs $(CINCLUDE) -i../lib -pgml g++ \
 	-F -pgmF build/hspp
 
 ### misc variables
@@ -329,8 +316,8 @@ tags: $(ALL_HS)
 # have to break it out into its components which is brittle.  Can I patch
 # hsc2hs to take a --cflags arg and include all flags literally?
 %.hs: %.hsc
-	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $(FLTK_CXX) \
-		$(DEFINE) --cflag=$(ARCH) $(PORTMIDI_I) $<
+	hsc2hs -c g++ --cflag -Wno-invalid-offsetof \
+		$(CINCLUDE) $(FLTK_CXX) $(DEFINE) $(PORTMIDI_I) $<
 	@# hsc2hs stil includes INCLUDE but ghc 6.12 doesn't like that
 	grep -v INCLUDE $@ >$@.tmp
 	mv $@.tmp $@

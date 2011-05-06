@@ -48,8 +48,10 @@ unique :: (Ord a) => [(a, b)] -> (Map.Map a b, [(a, b)])
 unique assocs = (Map.fromList pairs, concat rest)
     where
     -- List.sort is stable, so only the first keys will make it into the map.
-    separate = unzip . map (\((k, v):rest) -> ((k, v), rest))
-        . List.groupBy ((==) `on` fst) . List.sortBy (compare `on` fst)
+    separate = unzip . map pair . List.groupBy ((==) `on` fst)
+        . List.sortBy (compare `on` fst)
+    pair (x:xs) = (x, xs)
+    pair [] = error "[]: List.groupBy violated its postcondition"
     (pairs, rest) = separate assocs
 
 -- | Given two maps, pair up the elements in @map1@ with a samed-keyed element

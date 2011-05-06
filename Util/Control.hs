@@ -2,7 +2,6 @@
 -}
 module Util.Control (
     (<$>), (<*>), (<*), (*>), (<|>)
-    , void
     , first, second
     , (<>), mempty
     , while, while_
@@ -11,18 +10,11 @@ module Util.Control (
     , finally
     , justm
 ) where
-import Control.Monad
 import qualified Control.Monad.Error.Class as Error
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
-import qualified Control.Applicative as Applicative
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty)
-import qualified Text.ParserCombinators.Parsec as P
 
-
--- | TODO remove when I upgrade and Control.Monad has this
-void :: (Monad m) => m a -> m ()
-void = (>> return ())
 
 -- | Like the Arrow combinators, but specialized to functions for clearer
 -- error messages.
@@ -68,15 +60,6 @@ ifM cond consequent alternative = do
     b <- cond
     if b then consequent else alternative
 
-
--- Parsec2 doesn't have these, but parsec3 does.
-instance Applicative.Applicative (P.GenParser s a) where
-    pure = return
-    (<*>) = ap
-
-instance Applicative.Alternative (P.GenParser s a) where
-    empty = mzero
-    (<|>) = mplus
 
 -- | Finally a finally for MonadError.
 finally :: (Error.MonadError e m) => m a -> m () -> m a
