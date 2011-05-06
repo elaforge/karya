@@ -1,3 +1,4 @@
+-- | Ranges are half-open.
 module Util.Ranges (
     Ranges, extract, ranges, sorted_ranges, range, point, everything, nothing
     , overlapping
@@ -69,9 +70,11 @@ merge r1 [] = r1
 merge r1@((s1, e1) : rest1) r2@((s2, e2) : rest2)
     | e1 < s2 = (s1, e1) : merge rest1 r2
     | e2 < s1 = (s2, e2) : merge r1 rest2
-    | s1 >= s2 && e1 <= e2 = merge rest1 r2
-    | s2 >= s1 && e2 <= e1 = merge r1 rest2
-    | otherwise = (min s1 s2, max e1 e2) : merge rest1 rest2
+    | s1 >= s2 && e1 <= e2 = merge rest1 r2 -- 1 within 2
+    | s2 >= s1 && e2 <= e1 = merge r1 rest2 -- 2 within 1
+    | e1 > e2 = merge (merged : rest1) rest2
+    | otherwise = merge rest1 (merged : rest2)
+    where merged = (min s1 s2, max e1 e2)
 
 instance (Ord n) => Monoid.Monoid (Ranges n) where
     mempty = Ranges []
