@@ -1,4 +1,5 @@
 module Cmd.ResponderTest where
+import Control.Monad
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as TVar
 import qualified Data.Map as Map
@@ -46,18 +47,21 @@ set_midi_config = State.set_midi_config DeriveTest.default_midi_config
 
 type States = (State.State, Cmd.State)
 
-respond :: States -> [Msg.Msg]
+respond :: Bool -> States -> [Msg.Msg]
     -> IO ([[Update.Update]], [[Midi.WriteMessage]], States)
-respond states msgs = respond_delay states (zip msgs (repeat 0))
+respond print_timing states msgs =
+    respond_delay print_timing states (zip msgs (repeat 0))
 
-respond_delay :: States -> [(Msg.Msg, Double)]
+respond_delay :: Bool -> States -> [(Msg.Msg, Double)]
     -> IO ([[Update.Update]], [[Midi.WriteMessage]], States)
-respond_delay states [] = return ([], [], states)
-respond_delay states ((msg, delay):msgs) = do
+respond_delay _ states [] = return ([], [], states)
+respond_delay print_timing states ((msg, delay):msgs) = do
     ((updates, midi, states), secs) <- timer $ respond_msg states msg
-    Printf.printf "%s -> lag: %.2fs\n" (Pretty.pretty msg) secs
+    when print_timing $
+        Printf.printf "%s -> lag: %.2fs\n" (Pretty.pretty msg) secs
     Thread.delay delay
-    (rest_updates, rest_midi, final_states) <- respond_delay states msgs
+    (rest_updates, rest_midi, final_states) <-
+        respond_delay print_timing states msgs
     force updates
     force midi
     return (updates : rest_updates, midi : rest_midi, final_states)

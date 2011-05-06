@@ -40,7 +40,7 @@ profile_edits_middle = do
             (CmdTest.m_note_off 0 127, 1)]
         keys = concat $ take 4 $ repeat alter_note
     (updates, _mthru, states) <-
-        ResponderTest.respond_delay (ui_state, cmd_state) (wait ++ keys)
+        ResponderTest.respond_delay True (ui_state, cmd_state) (wait ++ keys)
     return ()
 
 profile_null_cmd = do
@@ -49,7 +49,7 @@ profile_null_cmd = do
     let states = ResponderTest.mkstates [(">i", [(0, 0, "")])]
     let key = keypress Key.ShiftL
     let keys = take (10*1024) (cycle key)
-    (_, cpu) <- timer $ ResponderTest.respond states keys
+    (_, cpu) <- timer $ ResponderTest.respond False states keys
     printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
 
 profile_selection = do
@@ -66,7 +66,7 @@ profile_selection = do
     let one_cycle = take (256*2) (cycle (keypress Key.Down))
             ++ take (256*2) (cycle (keypress Key.Up))
     let keys = take (10*1024) (cycle one_cycle)
-    (_, cpu) <- timer $ ResponderTest.respond states keys
+    (_, cpu) <- timer $ ResponderTest.respond False states keys
     printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
 
 keypress k = [CmdTest.make_key True k, CmdTest.make_key False k]
@@ -78,7 +78,7 @@ profile_thru = do
     let key = [CmdTest.make_midi (Midi.NoteOn 60 20),
             CmdTest.make_midi (Midi.NoteOff 60 20)]
         keys = take ncmds (cycle key)
-    ((_, midi, _), cpu) <- timer $ ResponderTest.respond states keys
+    ((_, midi, _), cpu) <- timer $ ResponderTest.respond False states keys
     printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / fromIntegral ncmds)
     print (length midi)
 
