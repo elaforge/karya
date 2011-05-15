@@ -237,62 +237,62 @@ log_event block_id track_id (pos, event) = "{s" ++ show frame ++ "}"
 data State = State {
     -- Config type variables that change never or rarely.  These come from the
     -- static config.
-    state_instrument_db :: InstrumentDb
-    , state_schema_map :: SchemaMap
+    state_instrument_db :: !InstrumentDb
+    , state_schema_map :: !SchemaMap
     -- | Global namespace for deriver.
-    , state_global_scope :: Derive.Scope
+    , state_global_scope :: !Derive.Scope
     -- | Turn ScaleIds into Scales.
-    , state_lookup_scale :: LookupScale
+    , state_lookup_scale :: !LookupScale
     -- | Copies by default go to a block+tracks with this project.
-    , state_clip_namespace :: Id.Namespace
+    , state_clip_namespace :: !Id.Namespace
 
     -- Automatically maintained state.  This means only a few cmds should
     -- modify these.
 
     -- | History.
-    , state_history :: ([HistoryEntry], [HistoryEntry])
+    , state_history :: !([HistoryEntry], [HistoryEntry])
     -- | Set to True to disable history recording.  Useful so undo and
     -- save/load cmds aren't recorded.  TODO should go in cmd return val.
-    , state_skip_history_record :: Bool
+    , state_skip_history_record :: !Bool
 
     -- Playing and derivation.
 
     -- | Transport control channel for the player, if one is running.
-    , state_play_control :: Maybe Transport.PlayControl
+    , state_play_control :: !(Maybe Transport.PlayControl)
     -- | As soon as any event changes are made to a block, its performance is
     -- recalculated (in the background) and stored here, so play can be started
     -- without latency.
-    , state_performance_threads :: Map.Map BlockId PerformanceThread
+    , state_performance_threads :: !(Map.Map BlockId PerformanceThread)
 
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
     -- The key is the modifier stripped of extraneous info, like mousedown
     -- position.  The value has complete info.
-    , state_keys_down :: Map.Map Modifier Modifier
+    , state_keys_down :: !(Map.Map Modifier Modifier)
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
-    , state_focused_view :: Maybe ViewId
+    , state_focused_view :: !(Maybe ViewId)
     -- | This contains a Rect for each screen.
-    , state_screens :: [Rect.Rect]
+    , state_screens :: ![Rect.Rect]
 
     -- | This is similar to 'Ui.Block.view_status', except that it's global
     -- instead of per-view.  So changes are logged with a special prefix so
     -- logview can catch them.  Really I only need this map to suppress log
     -- spam.
-    , state_global_status :: Map.Map String String
+    , state_global_status :: !(Map.Map String String)
 
     -- External device tracking.
     -- | Midi state of WriteDevices.
-    , state_wdev_state :: WriteDeviceState
+    , state_wdev_state :: !WriteDeviceState
     -- | Midi state of ReadDevices, including configuration like pitch bend
     -- range.
-    , state_rdev_state :: ReadDeviceState
+    , state_rdev_state :: !ReadDeviceState
 
-    , state_edit :: EditState
+    , state_edit :: !EditState
 
     -- | Some play commands can start playing from a short distance before the
     -- cursor.
-    , state_play_step :: TimeStep.TimeStep
+    , state_play_step :: !TimeStep.TimeStep
     } deriving (Show, Generics.Typeable)
 
 initial_state inst_db schema_map global_scope = State {
@@ -347,27 +347,27 @@ instance Show LookupScale where
 -- | Editing state, modified in the course of editing.
 data EditState = EditState {
     -- | Edit mode enables various commands that write to tracks.
-    state_edit_mode :: EditMode
+    state_edit_mode :: !EditMode
     -- | Use the alphanumeric keys to enter notes instead of midi input.
-    , state_kbd_entry :: Bool
+    , state_kbd_entry :: !Bool
     -- | Default time step for cursor movement.
-    , state_step :: TimeStep.TimeStep
+    , state_step :: !TimeStep.TimeStep
     -- | Used for note duration.  It's separate from 'state_step' to allow
     -- for tracker-style note entry where newly entered notes extend to the
     -- next note or the end of the block.
-    , state_note_duration :: TimeStep.TimeStep
+    , state_note_duration :: !TimeStep.TimeStep
     -- | If this is Rewind, create notes with negative durations.
-    , state_note_direction :: TimeStep.Direction
+    , state_note_direction :: !TimeStep.Direction
     -- | New notes get this text by default.  This way, you can enter a series
     -- of notes with the same attributes, or whatever.
-    , state_note_text :: String
+    , state_note_text :: !String
     -- | Transpose note entry on the keyboard by this many octaves.  It's by
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
-    , state_kbd_entry_octave :: Pitch.Octave
+    , state_kbd_entry_octave :: !Pitch.Octave
 
     -- | See 'set_edit_box'.
-    , state_edit_box :: (Color.Color, Char)
+    , state_edit_box :: !(Color.Color, Char)
     } deriving (Show, Generics.Typeable)
 
 empty_edit_state :: EditState
@@ -395,27 +395,27 @@ data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
 data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.MidiThru:
     -- | Last pb val for each Addr.
-    wdev_pb :: Map.Map Instrument.Addr Midi.PitchBendValue
+    wdev_pb :: !(Map.Map Instrument.Addr Midi.PitchBendValue)
     -- | NoteId currently playing in each Addr.  An Addr may have >1 NoteId.
-    , wdev_note_addr :: Map.Map InputNote.NoteId Instrument.Addr
+    , wdev_note_addr :: !(Map.Map InputNote.NoteId Instrument.Addr)
     -- | The note id is not guaranteed to have any relationship to the key,
     -- so the MIDI NoteOff needs to know what key the MIDI NoteOn used.
-    , wdev_note_key :: Map.Map InputNote.NoteId Midi.Key
+    , wdev_note_key :: !(Map.Map InputNote.NoteId Midi.Key)
     -- | Map an addr to a number that increases when it's assigned a note.
     -- This is used along with 'wdev_serial' to implement addr round-robin.
-    , wdev_addr_serial :: Map.Map Instrument.Addr Integer
-    , wdev_serial :: Integer
+    , wdev_addr_serial :: !(Map.Map Instrument.Addr Integer)
+    , wdev_serial :: !Integer
 
     -- Used by Cmd.PitchTrack:
     -- | NoteIds being entered into which pitch tracks.  When entering a chord,
     -- a PitchChange uses this to know which pitch track to update.
-    , wdev_note_track :: Map.Map InputNote.NoteId (BlockId, TrackNum)
+    , wdev_note_track :: !(Map.Map InputNote.NoteId (BlockId, TrackNum))
 
     -- Used by no one, yet:  (TODO should someone use this?)
     -- | Remember the current inst of each addr.  More than one instrument or
     -- keyswitch can share the same addr, so I need to keep track which one is
     -- active to minimize switches.
-    , wdev_addr_inst :: Map.Map Instrument.Addr Instrument.Instrument
+    , wdev_addr_inst :: !(Map.Map Instrument.Addr Instrument.Instrument)
     } deriving (Eq, Show, Generics.Typeable)
 
 empty_wdev_state :: WriteDeviceState
@@ -430,18 +430,18 @@ type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 -- actually play music, and poked and prodded in a separate thread to control
 -- its evaluation.
 data Performance = Performance {
-    perf_derive_cache :: Derive.Cache
-    , perf_events :: Derive.Events
+    perf_derive_cache :: !Derive.Cache
+    , perf_events :: !Derive.Events
     , perf_track_environ :: Derive.TrackEnviron
     -- | Score damage on top of the Performance, used by the derive cache.
     -- This is empty when the Performance is first created and collects
     -- thereafter.
-    , perf_score_damage :: Derive.ScoreDamage
+    , perf_score_damage :: !Derive.ScoreDamage
 
-    , perf_tempo :: Transport.TempoFunction
-    , perf_closest_warp :: Transport.ClosestWarpFunction
-    , perf_inv_tempo :: Transport.InverseTempoFunction
-    , perf_track_signals :: Track.TrackSignals
+    , perf_tempo :: !Transport.TempoFunction
+    , perf_closest_warp :: !Transport.ClosestWarpFunction
+    , perf_inv_tempo :: !Transport.InverseTempoFunction
+    , perf_track_signals :: !Track.TrackSignals
     }
 
 instance Show Performance where
@@ -449,8 +449,8 @@ instance Show Performance where
         where len = Derive.cache_size (perf_derive_cache perf)
 
 data PerformanceThread = PerformanceThread {
-    pthread_perf :: Performance
-    , pthread_id :: Concurrent.ThreadId
+    pthread_perf :: !Performance
+    , pthread_id :: !Concurrent.ThreadId
     }
 
 instance Show PerformanceThread where
@@ -464,8 +464,8 @@ instance Show PerformanceThread where
 --
 -- This has to be in Cmd.Cmd for circular import reasons.
 data InstrumentCode = InstrumentCode {
-    inst_calls :: Derive.InstrumentCalls
-    , inst_cmds :: [Cmd]
+    inst_calls :: !Derive.InstrumentCalls
+    , inst_cmds :: ![Cmd]
     }
 
 empty_code :: InstrumentCode
@@ -481,8 +481,8 @@ type SynthDesc = MidiDb.SynthDesc InstrumentCode
 -- *** misc
 
 data HistoryEntry = HistoryEntry {
-    hist_name :: String
-    , hist_state :: State.State
+    hist_name :: !String
+    , hist_state :: !State.State
     } deriving (Show, Generics.Typeable)
 
 data Modifier = KeyMod Key.Modifier
@@ -928,7 +928,7 @@ type SchemaMap = Map.Map SchemaId Schema
 
 -- | A Schema attaches a number of things to a Block.
 data Schema = Schema {
-    schema_deriver :: SchemaDeriver Derive.EventDeriver
+    schema_deriver :: !(SchemaDeriver Derive.EventDeriver)
     }
 
 -- | So Cmd.State can be showable, for debugging.

@@ -12,7 +12,7 @@ search then none of this is necessary.
 
 CURRENT
   - rename State.event_end -> block_end_event, block_end_ruler
-  - strictify Cmd.Cmd.State fields
+  * strictify Cmd.Cmd.State fields
   - double click no longer working to open a sub block
   note transformer, sekaran, pitches below notes
     * schema uses Tree instead of BlockId, TrackId
