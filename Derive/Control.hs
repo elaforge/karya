@@ -24,6 +24,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Derive.Call as Call
+import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as Parse
@@ -136,7 +137,7 @@ pitch_call block_end maybe_track_id maybe_name ptype track_expr events deriver =
                 scale <- Derive.get_scale scale_id
                 return (Derive.with_scale scale, scale)
             TrackInfo.PitchAbsolute Nothing -> do
-                scale <- Call.get_scale
+                scale <- Util.get_scale
                 return (id, scale)
         let scale_map = Scale.scale_map scale
             derive = derive_pitch block_end track_expr events

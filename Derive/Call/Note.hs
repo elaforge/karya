@@ -14,7 +14,7 @@ import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
-import qualified Derive.Call as Call
+import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.TrackLang as TrackLang
@@ -32,7 +32,7 @@ note_calls = Derive.make_calls
     -- Since you can never call "" with arguments, I need a non-null form
     -- to handle the args version.
     , ("n", c_note)
-    , ("=", Call.c_equal)
+    , ("=", Util.c_equal)
     ]
 
 -- * note call

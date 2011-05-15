@@ -31,8 +31,8 @@ import qualified Util.Num as Num
 
 import Ui
 
-import qualified Derive.Call as Call
 import Derive.CallSig (optional, required, control)
+import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
@@ -62,8 +62,8 @@ c_absolute_trill = Derive.transformer "absolute_trill" $
     \args deriver -> CallSig.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
-        neighbor_sig <- Call.to_signal neighbor
-        speed_sig <- Call.to_signal speed
+        neighbor_sig <- Util.to_signal neighbor
+        speed_sig <- Util.to_signal speed
         absolute_trill (Derive.passed_range args) neighbor_sig speed_sig deriver
 
 absolute_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
@@ -90,8 +90,8 @@ c_score_trill = Derive.transformer "score_trill" $
     \args deriver -> CallSig.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
-        neighbor_sig <- Call.to_signal neighbor
-        speed_sig <- Call.to_signal speed
+        neighbor_sig <- Util.to_signal neighbor
+        speed_sig <- Util.to_signal speed
         score_trill (Derive.passed_range args) neighbor_sig speed_sig deriver
 
 score_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
@@ -124,14 +124,14 @@ pitch_calls = Derive.make_calls
 
 c_pitch_absolute_trill :: Derive.PitchCall
 c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args -> do
-    args <- Call.default_relative_note args
+    args <- Util.default_relative_note args
     CallSig.call3 args
         (required "degree",
             optional "neighbor" (control "trill-neighbor" 1),
             optional "speed" (control "trill-speed" 14)) $
         \degree neighbor speed -> do
-            speed_sig <- Call.to_signal speed
-            neighbor_sig <- Call.to_signal neighbor
+            speed_sig <- Util.to_signal speed
+            neighbor_sig <- Util.to_signal neighbor
             next_event <- Derive.score_to_real (Derive.passed_next args)
             start <- Derive.passed_real args
             pitch_absolute_trill start degree speed_sig neighbor_sig next_event
@@ -139,7 +139,7 @@ c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args -> do
 pitch_absolute_trill :: RealTime -> Pitch.Degree -> Signal.Control
     -> Signal.Control -> RealTime -> Derive.Deriver PitchSignal.PitchSignal
 pitch_absolute_trill start degree speed neighbor dur = do
-    scale <- Call.get_scale
+    scale <- Util.get_scale
     let all_transitions = pos_at_speed speed start
     let transitions = integral_cycles (start + dur) all_transitions
     return $ PitchSignal.drop_before start $ PitchSignal.sig_add

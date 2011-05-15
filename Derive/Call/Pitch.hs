@@ -7,8 +7,8 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import Ui
-import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
+import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.CallSig as CallSig
 import qualified Derive.TrackLang as TrackLang
@@ -55,7 +55,7 @@ relative_call degree =
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
-    [ ("=", Call.c_equal)
+    [ ("=", Util.c_equal)
     , ("", c_note_set)
     , ("set", c_note_set)
     , ("i", c_note_linear)
@@ -69,7 +69,7 @@ pitch_calls = Derive.make_calls
 c_note_set :: Derive.PitchCall
 c_note_set = Derive.generator1 "note_set" $ \args -> CallSig.call1 args
     (required "val") $ \degree -> do
-        scale_id <- Call.get_scale_id
+        scale_id <- Util.get_scale_id
         pos <- Derive.passed_real args
         return $ PitchSignal.signal scale_id
             [(pos, PitchSignal.degree_to_y degree)]
@@ -82,7 +82,7 @@ c_note_linear = Derive.generator1 "note_linear" $ \args ->
                 Derive.throw "can't set to previous val when there was none"
             Just (_, prev_y) -> do
                 pos <- Derive.passed_real args
-                scale_id <- Call.get_scale_id
+                scale_id <- Util.get_scale_id
                 return $ PitchSignal.signal scale_id [(pos, prev_y)]
         _ -> CallSig.call1 args (required "degree") $ \degree ->
             pitch_interpolate id degree args
@@ -101,8 +101,8 @@ c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
             Just n -> do
                 next <- Derive.score_to_real n
                 return $ min (start + RealTime.seconds time) next
-        scale_id <- Call.get_scale_id
-        srate <- Call.get_srate
+        scale_id <- Util.get_scale_id
+        srate <- Util.get_srate
         case Derive.passed_prev_val args of
                 Nothing -> do
                     Log.warn "no previous value to slide from"
@@ -119,13 +119,13 @@ c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
 -- [time /Number/ @.3@] Duration of ornament, in seconds.
 c_neighbor :: Derive.PitchCall
 c_neighbor = Derive.generator1 "neighbor" $ \args -> do
-    args <- Call.default_relative_note args
+    args <- Util.default_relative_note args
     CallSig.call3 args (required "degree", optional "neighbor" 1,
         optional "time" 0.1) $ \degree neighbor time -> do
             start <- Derive.passed_real args
             let end = start + RealTime.seconds time
-            scale_id <- Call.get_scale_id
-            srate <- Call.get_srate
+            scale_id <- Util.get_scale_id
+            srate <- Util.get_srate
             return $ interpolator srate id scale_id True
                 start (Pitch.Degree neighbor + degree) end degree
 
@@ -136,8 +136,8 @@ pitch_interpolate :: (Double -> Signal.Y) -> Pitch.Degree
     -> Derive.Deriver PitchSignal.PitchSignal
 pitch_interpolate f degree args = do
     start <- Derive.passed_real args
-    scale_id <- Call.get_scale_id
-    srate <- Call.get_srate
+    scale_id <- Util.get_scale_id
+    srate <- Util.get_srate
     case Derive.passed_prev_val args of
         Nothing -> do
             Log.warn $ "no previous val to interpolate from"
@@ -148,7 +148,7 @@ pitch_interpolate f degree args = do
                 prev (PitchSignal.y_to_degree prev_y) start degree
 
 -- | TODO more efficient version without the intermediate list
-interpolator :: RealTime -> (Double -> Double) -> Call.PitchInterpolator
+interpolator :: RealTime -> (Double -> Double) -> Util.PitchInterpolator
 interpolator srate f scale_id include_initial x0 y0 x1 y1
     -- Don't bother generating a bunch of constant points.
     | y0 == y1 = PitchSignal.signal scale_id (take 1 sig)

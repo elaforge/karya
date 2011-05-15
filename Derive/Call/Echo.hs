@@ -12,9 +12,9 @@ module Derive.Call.Echo where
 import Ui
 import qualified Ui.Types as Types
 
-import qualified Derive.Call as Call
 import Derive.CallSig (optional, required_control, control)
 import qualified Derive.CallSig as CallSig
+import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
@@ -37,7 +37,7 @@ note_calls = Derive.make_calls
 c_delay :: Derive.NoteCall
 c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
     (optional "time" (required_control "delay-time")) $ \time ->
-    Call.with_controls args [time] $ \[time] ->
+    Util.with_controls args [time] $ \[time] ->
         Derive.d_at (Types.ScoreTime time) deriver
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
@@ -61,7 +61,7 @@ c_echo = Derive.transformer "echo" $ \args deriver -> CallSig.call3 args
     ( optional "delay" (control "echo-delay" 1)
     , optional "feedback" (control "echo-feedback" 0.4)
     , optional "times" (control "echo-times" 1)) $ \delay feedback times ->
-    Call.with_controls args [delay, feedback, times] $
+    Util.with_controls args [delay, feedback, times] $
         \[delay, feedback, times] ->
             echo (Signal.y_to_score delay) feedback (floor times) deriver
 
@@ -88,7 +88,7 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
     , optional "feedback" (control "echo-feedback" 0.4)
     , optional "times" (control "echo-times" 1)) $ \delay feedback times -> do
         events <- deriver
-        (result, ()) <- Call.map_signals
+        (result, ()) <- Util.map_signals
             [delay, feedback, times] [] (\[delay, feedback, times] [] ->
                 go delay feedback times) () events
         return $ Derive.merge_asc_events result

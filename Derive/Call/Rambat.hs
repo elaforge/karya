@@ -4,8 +4,9 @@ import Ui
 
 import Derive.CallSig (optional, control)
 import qualified Derive.CallSig as CallSig
-import qualified Derive.Derive as Derive
 import qualified Derive.Call as Call
+import qualified Derive.Call.Util as Util
+import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -38,7 +39,7 @@ c_tick = Derive.stream_generator "tick" $ \args -> CallSig.call2 args
     , optional "vel" (control "tick-velocity" 0.5)) $ \time vel ->
     case (Derive.passed_prev_begin args, Derive.passed_next_begin args) of
         (Just ppos, Just npos) ->
-            Call.with_controls args [time, vel] $ \[time, vel] ->
+            Util.with_controls args [time, vel] $ \[time, vel] ->
                 tick (Signal.y_to_real time) vel ppos npos
         (Nothing, Just _) -> Derive.throw "no previous event"
         _ -> Derive.throw "no next event"

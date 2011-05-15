@@ -7,8 +7,8 @@ import qualified Util.Set as Set
 
 import Ui
 
-import qualified Derive.Call as Call
 import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (control, optional)
 import qualified Derive.Derive as Derive
@@ -46,11 +46,10 @@ c_guzheng strings = Derive.transformer "guzheng" $ \args deriver ->
     , optional "release" (control "guzheng-release" 0.5)
     , optional "delay" (control "guzheng-delay" 0)) $
     \attack release delay -> do
-        srate <- Call.get_srate
+        srate <- Util.get_srate
         events <- deriver
         let linear = Call.Pitch.interpolator srate id
         string_idiom linear linear strings attack delay release events
-        -- Call.cue output
 
 -- | A string idiom in the style of stopped strings like the violin family.
 -- Strings instantly jump to their pitches.
@@ -59,13 +58,12 @@ c_violin strings = Derive.transformer "violin" $ \args deriver ->
     CallSig.call1 args
     (optional "delay" (control "string-delay" 0)) $
     \delay -> do
-        srate <- Call.get_srate
+        srate <- Util.get_srate
         events <- deriver
         let linear = Call.Pitch.interpolator srate id
             attack = TrackLang.ConstantControl 0
             release = TrackLang.ConstantControl 0
         string_idiom linear linear strings attack delay release events
-        -- Call.cue output
 
 
 -- | Post-process events to play them in a monophonic string-like idiom.
@@ -90,20 +88,20 @@ c_violin strings = Derive.transformer "violin" $ \args deriver ->
 -- TODO It would be possible to have a polyphonic effect by allowing more than
 -- one stopped string at a time.
 string_idiom ::
-    Call.PitchInterpolator -- ^ interpolator to draw the attack curve
-    -> Call.PitchInterpolator -- ^ draw the release curve
+    Util.PitchInterpolator -- ^ interpolator to draw the attack curve
+    -> Util.PitchInterpolator -- ^ draw the release curve
     -> [Pitch.Degree] -- ^ Pitches of open strings.
     -> TrackLang.Control -- ^ Attack time.
     -> TrackLang.Control -- ^ Release delay.
     -> TrackLang.Control -- ^ Time for string to return to its open pitch.
     -> Derive.Events -> Derive.EventDeriver
 string_idiom attack_interpolator release_interpolator open_strings attack delay
-        release all_events = Call.head all_events $ \event events ->
+        release all_events = Util.head all_events $ \event events ->
     case initial_state open_strings event of
         Nothing -> Derive.throw $ "initial degree below lowest string: "
             ++ show (Score.initial_pitch event)
         Just state -> do
-            (result, final) <- Call.map_signals [attack, delay, release] []
+            (result, final) <- Util.map_signals [attack, delay, release] []
                 (\[attack, delay, release] [] ->
                     process attack_interpolator release_interpolator
                         (attack, delay, release))
@@ -116,7 +114,7 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
 -- down to its open position) and emit it.
 -- If the note falls on the string in use, bend that string up to the note to
 -- be played and emit it.
-process :: Call.PitchInterpolator -> Call.PitchInterpolator
+process :: Util.PitchInterpolator -> Util.PitchInterpolator
     -> (Signal.Y, Signal.Y, Signal.Y) -> State -> Score.Event
     -> Derive.Deriver ([Score.Event], State)
 process attack_interpolator release_interpolator
@@ -140,7 +138,7 @@ process attack_interpolator release_interpolator
     degree = Score.initial_pitch event
 
 -- | Bend the event up to the next note.
-attack :: Call.PitchInterpolator -> RealTime -> Pitch.Degree -> RealTime
+attack :: Util.PitchInterpolator -> RealTime -> Pitch.Degree -> RealTime
     -> Score.Event -> Score.Event
 attack interpolator time degree next_event event =
     merge_curve interpolator start_x start_y next_event degree event
@@ -149,7 +147,7 @@ attack interpolator time degree next_event event =
     start_y = Score.degree_at start_x event
 
 -- | Bend the event down to the given degree.
-release :: Call.PitchInterpolator -> RealTime -> RealTime -> Pitch.Degree
+release :: Util.PitchInterpolator -> RealTime -> RealTime -> Pitch.Degree
     -> RealTime -> Score.Event -> Score.Event
 release interpolator delay time degree next_event event =
     merge_curve interpolator start_x start_y (start_x + time) degree event
@@ -157,7 +155,7 @@ release interpolator delay time degree next_event event =
     start_x = next_event + delay
     start_y = Score.degree_at start_x event
 
-merge_curve :: Call.PitchInterpolator -> RealTime -> Pitch.Degree
+merge_curve :: Util.PitchInterpolator -> RealTime -> Pitch.Degree
     -> RealTime -> Pitch.Degree -> Score.Event -> Score.Event
 merge_curve interpolator x0 y0 x1 y1 event
     | y0 == y1 = event

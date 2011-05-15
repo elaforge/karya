@@ -5,9 +5,9 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import Ui
-import qualified Derive.Call as Call
 import Derive.CallSig (required, optional)
 import qualified Derive.CallSig as CallSig
+import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 
 import qualified Perform.RealTime as RealTime
@@ -24,7 +24,7 @@ import qualified Perform.Signal as Signal
 
 control_calls :: Derive.ControlCallMap
 control_calls = Derive.make_calls
-    [ ("=", Call.c_equal)
+    [ ("=", Util.c_equal)
     -- Fallback call will take val-call output.
     , ("", c_set)
     , ("set", c_set)
@@ -65,7 +65,7 @@ c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
             Just n -> do
                 next <- Derive.score_to_real n
                 return $ min (start + RealTime.seconds time) next
-        srate <- Call.get_srate
+        srate <- Util.get_srate
         case Derive.passed_prev_val args of
                 Nothing -> do
                     Log.warn "no previous value to slide from"
@@ -85,7 +85,7 @@ control_interpolate :: (Double -> Signal.Y) -> Signal.Y
     -> Derive.PassedArgs Signal.Control -> Derive.Deriver Signal.Control
 control_interpolate f val args = do
     start <- Derive.passed_real args
-    srate <- Call.get_srate
+    srate <- Util.get_srate
     case Derive.passed_prev_val args of
         Nothing -> do
             -- This can happen a lot when the control track is sliced, and is
@@ -96,7 +96,7 @@ control_interpolate f val args = do
             interpolator srate f False prev prev_val start val
 
 -- | TODO more efficient version without the intermediate list
-interpolator :: RealTime -> (Double -> Double) -> Call.ControlInterpolator
+interpolator :: RealTime -> (Double -> Double) -> Util.ControlInterpolator
 interpolator srate f include_initial x0 y0 x1 y1
     | include_initial = Signal.signal sig
     | otherwise = Signal.signal (drop 1 sig)

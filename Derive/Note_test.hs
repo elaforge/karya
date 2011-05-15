@@ -1,13 +1,6 @@
 module Derive.Note_test where
-import qualified Util.Log as Log
 import Util.Test
 
-import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
-import qualified Ui.UiTest as UiTest
-
-import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 
 
