@@ -70,7 +70,7 @@ c_note_set :: Derive.PitchCall
 c_note_set = Derive.generator1 "note_set" $ \args -> CallSig.call1 args
     (required "val") $ \degree -> do
         scale_id <- Call.get_scale_id
-        pos <- Derive.now
+        pos <- Derive.passed_real args
         return $ PitchSignal.signal scale_id
             [(pos, PitchSignal.degree_to_y degree)]
 
@@ -81,7 +81,7 @@ c_note_linear = Derive.generator1 "note_linear" $ \args ->
             Nothing ->
                 Derive.throw "can't set to previous val when there was none"
             Just (_, prev_y) -> do
-                pos <- Derive.now
+                pos <- Derive.passed_real args
                 scale_id <- Call.get_scale_id
                 return $ PitchSignal.signal scale_id [(pos, prev_y)]
         _ -> CallSig.call1 args (required "degree") $ \degree ->
@@ -95,7 +95,7 @@ c_note_exponential = Derive.generator1 "note_exponential" $ \args ->
 c_note_slide :: Derive.PitchCall
 c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
     (required "degree", optional "time" 0.1) $ \degree time -> do
-        start <- Derive.now
+        start <- Derive.passed_real args
         end <- case Derive.passed_next_begin args of
             Nothing -> return $ start + RealTime.seconds time
             Just n -> do
@@ -122,7 +122,7 @@ c_neighbor = Derive.generator1 "neighbor" $ \args -> do
     args <- Call.default_relative_note args
     CallSig.call3 args (required "degree", optional "neighbor" 1,
         optional "time" 0.1) $ \degree neighbor time -> do
-            start <- Derive.now
+            start <- Derive.passed_real args
             let end = start + RealTime.seconds time
             scale_id <- Call.get_scale_id
             srate <- Call.get_srate
@@ -135,7 +135,7 @@ pitch_interpolate :: (Double -> Signal.Y) -> Pitch.Degree
     -> Derive.PassedArgs PitchSignal.PitchSignal
     -> Derive.Deriver PitchSignal.PitchSignal
 pitch_interpolate f degree args = do
-    start <- Derive.now
+    start <- Derive.passed_real args
     scale_id <- Call.get_scale_id
     srate <- Call.get_srate
     case Derive.passed_prev_val args of

@@ -97,8 +97,8 @@ test_relative_control = do
     let (events, logs) = DeriveTest.extract extract $ DeriveTest.derive_tracks
             [ (">", [(0, 5, "")])
             , ("*twelve", [(0, 0, "4c")])
-            , ("add cont", [(0, 0, "1")])
             , ("cont", [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])
+            , ("add cont", [(0, 0, "1")])
             ]
         extract = (\sig -> map (at sig) [0..5])
             . (Map.! Score.Control "cont") . Score.event_controls
@@ -110,8 +110,8 @@ test_relative_control = do
     let (events, logs) = DeriveTest.extract Score.event_controls $
             DeriveTest.derive_tracks
                 [ (">", [(0, 10, "")])
-                , ("cont", [(0, 0, "1")])
                 , ("add cont", [(0, 0, "1")])
+                , ("cont", [(0, 0, "1")])
                 ]
     let controls = Map.union Derive.initial_controls $
             Map.fromList [(Score.Control "cont", Signal.signal [(0, 1)])]
@@ -122,8 +122,8 @@ test_relative_pitch = do
     let f track = DeriveTest.extract Score.event_pitch $
             DeriveTest.derive_tracks
                 [ (">", [(0, 10, "")])
-                , ("add #", track)
                 , ("*twelve", [(0, 0, "4c")])
+                , ("add #", track)
                 ]
         base = 60
     let mksig = PitchSignal.signal (Pitch.ScaleId "twelve")
@@ -138,8 +138,8 @@ test_relative_pitch = do
     let (pitches, logs) = DeriveTest.extract Score.event_pitch $
             DeriveTest.derive_tracks
                 [ (">", [(0, 10, "")])
-                , ("*twelve", [(0, 0, "4c")])
                 , ("add #", [(0, 0, "1")])
+                , ("*twelve", [(0, 0, "4c")])
                 ]
     equal pitches [mksig [(0, (base, base, 0))]]
     -- no warning because of default pitch
@@ -159,29 +159,34 @@ test_stash_signal = do
             e_tsig (Track.TrackSignal sig shift stretch) =
                 (sig, shift, stretch)
 
-    equal (run [itrack, (ctrack, False)]) []
-    equal (run [itrack, (ctrack, True)]) [(csig, 0, 1)]
+    equal (run [(ctrack, False), itrack]) []
+    equal (run [(ctrack, True), itrack]) [(csig, 0, 1)]
     -- constant tempo stretches track sig
-    equal (run [(("tempo", [(0, 0, "2")]), False), itrack, (ctrack, True)])
+    equal (run [(("tempo", [(0, 0, "2")]), False), (ctrack, True), itrack])
         [(Track.Control (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)]
     -- tempo track also gets an unwarped track sig
-    equal (run [(("tempo", [(0, 0, "2")]), True), itrack, (ctrack, True)])
+    equal (run [(("tempo", [(0, 0, "2")]), True), (ctrack, True), itrack])
         [ (Track.Control (Signal.signal [(0, 2)]), 0, 1)
         , (Track.Control (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)]
 
     -- but a complicated tempo forces a rederive so output is still in RealTime
-    equal (run [(("tempo", [(0, 0, "2"), (4, 0, "i 1")]), False), itrack,
-            (ctrack, True)])
+    equal (run [(("tempo", [(0, 0, "2"), (4, 0, "i 1")]), False),
+            (ctrack, True), itrack])
         [(csig, 0, 1)]
 
     let ptrack = ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
         psig = Track.Pitch (PitchSignal.signal Twelve.scale_id
                 [(0, (60, 60, 0)), (1, (62, 62, 0))])
             (Scale.scale_map Twelve.scale)
-    equal (run [itrack, (ptrack, False)]) []
-    equal (run [itrack, (ptrack, True)]) [(psig, 0, 1)]
+    equal (run [(ptrack, False), itrack]) []
+    equal (run [(ptrack, True), itrack]) [(psig, 0, 1)]
+
+    -- Subtracks should be rendered, even though they're never evaluated as
+    -- a whole.
+    equal (run [itrack, (ctrack, True)]) [(csig, 0, 1)]
 
 
+-- | Make a UI state with render on for the tracks paired with True.
 mkstate :: BlockId -> [(UiTest.TrackSpec, Bool)] -> State.State
 mkstate bid tracks = snd $ UiTest.run State.empty $ do
     tids <- UiTest.mkstate_id bid

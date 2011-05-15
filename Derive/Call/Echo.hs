@@ -37,7 +37,7 @@ note_calls = Derive.make_calls
 c_delay :: Derive.NoteCall
 c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
     (optional "time" (required_control "delay-time")) $ \time ->
-    Call.with_controls [time] $ \[time] ->
+    Call.with_controls args [time] $ \[time] ->
         Derive.d_at (Types.ScoreTime time) deriver
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
@@ -61,8 +61,9 @@ c_echo = Derive.transformer "echo" $ \args deriver -> CallSig.call3 args
     ( optional "delay" (control "echo-delay" 1)
     , optional "feedback" (control "echo-feedback" 0.4)
     , optional "times" (control "echo-times" 1)) $ \delay feedback times ->
-    Call.with_controls [delay, feedback, times] $ \[delay, feedback, times] ->
-        echo (Signal.y_to_score delay) feedback (floor times) deriver
+    Call.with_controls args [delay, feedback, times] $
+        \[delay, feedback, times] ->
+            echo (Signal.y_to_score delay) feedback (floor times) deriver
 
 echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver -> Derive.EventDeriver
 echo delay feedback times deriver
@@ -95,10 +96,12 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
     go delay feedback times () event = return
         (echo_event (RealTime.seconds delay) feedback (floor times) event, ())
 
+-- TODO this modifies the signals to shift by the given amount of time, which
+-- is inefficient if there is a lot of signal data.  I could store a shift
+-- with the event or the signals, but I'm not sure that would actually be
+-- more efficient unless the signals are shifted more than once.
 echo_event :: RealTime -> Double -> Int -> Score.Event -> [Score.Event]
 echo_event delay feedback times event = event : map (echo event) [1..times]
     where
     echo event n = Score.modify_velocity (*feedback^n) $ Score.move (+d) event
         where d = delay * RealTime.seconds (fromIntegral n)
-    -- about efficiency... should be ok with lazy signals?  Or clip signals
-    -- on event creation?

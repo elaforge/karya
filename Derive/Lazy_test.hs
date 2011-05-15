@@ -67,7 +67,7 @@ test_one = do
 test_lazy = print $
     -- if I can take results from an infinite score, the derivation is lazy
     fmap (take 5) $ DeriveTest.extract_run ex $ DeriveTest.run State.empty $
-        Note.derive_notes 10 [UiTest.mkevent (n, 1, "") | n <- [0..]]
+        Note.derive_notes 10 [] [UiTest.mkevent (n, 1, "") | n <- [0..]]
     where ex = map Score.event_start . LEvent.events_of
 
 test_two = do

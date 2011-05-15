@@ -52,7 +52,7 @@ note_to_call note = note_call <$>
 note_call :: (Double -> Double) -> Derive.ValCall
 note_call ratio = Derive.ValCall "ratio" $ \args -> CallSig.call1 args
     (optional "hz" 0) $ \hz -> do
-        nn <- get_nn_at source_name =<< Derive.now
+        nn <- get_nn_at source_name =<< Derive.passed_real args
         let out_hz = ratio (Pitch.nn_to_hz nn) + hz
             Pitch.NoteNumber out = Pitch.hz_to_nn out_hz
         return $ TrackLang.VDegree (Pitch.Degree out)

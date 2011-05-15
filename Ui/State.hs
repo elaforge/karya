@@ -544,7 +544,7 @@ get_track_info block_id = do
     block <- get_block block_id
     state <- get
     return [TrackInfo (Track.track_title track) tid i
-        | (i, tid, track) <- _tracks_of block (state_tracks state)]
+        | (i, tid, track) <- _track_tree_tracks_of block (state_tracks state)]
 
 get_track_tree :: (M m) => BlockId -> m TrackTree
 get_track_tree block_id = do
@@ -552,7 +552,7 @@ get_track_tree block_id = do
     tracks <- get_track_info block_id
     ntracks <- fmap (length . Block.block_tracklike_ids) (get_block block_id)
     let by_tracknum = Map.fromList $ zip (map track_tracknum tracks) tracks
-    let (resolved, missing) = _resolve by_tracknum
+    let (resolved, missing) = _track_tree_resolve by_tracknum
             (Skeleton.to_forest ntracks skel)
     -- Rulers and dividers should show up as missing.  They're ok as long as
     -- they have no edges.
@@ -593,25 +593,51 @@ track_tree_mutes muted forest = map f forest
     add_mute info = (info, track_tracknum info `elem` muted)
 
 
-_tracks_of :: Block.Block -> Map.Map TrackId Track.Track
+_track_tree_tracks_of :: Block.Block -> Map.Map TrackId Track.Track
     -> [(TrackNum, TrackId, Track.Track)]
-_tracks_of block tracks = do
+_track_tree_tracks_of block tracks = do
     (i, Block.TId tid _) <- Seq.enumerate (Block.block_tracklike_ids block)
     track <- maybe mzero (:[]) (Map.lookup tid tracks)
     return (i, tid, track)
 
-_resolve :: Map.Map TrackNum TrackInfo -> Tree.Forest TrackNum
+_track_tree_resolve :: Map.Map TrackNum TrackInfo -> Tree.Forest TrackNum
     -> (Tree.Forest TrackInfo, [TrackNum])
-_resolve tracknums trees = foldr cat_tree ([], []) $ map go trees
+_track_tree_resolve tracknums trees = foldr cat_tree ([], []) $ map go trees
     where
     go (Tree.Node tracknum subs) = case Map.lookup tracknum tracknums of
         Nothing -> (Nothing, [tracknum])
         Just track_info ->
-            let (subforest, missing) = _resolve tracknums subs
+            let (subforest, missing) = _track_tree_resolve tracknums subs
             in (Just (Tree.Node track_info subforest), missing)
     cat_tree (maybe_tree, missing) (forest, all_missing) = case maybe_tree of
         Nothing -> (forest, missing ++ all_missing)
         Just tree -> (tree : forest, missing ++ all_missing)
+
+
+type EventsTree = [EventsNode]
+type EventsNode = Tree.Tree TrackEvents
+
+data TrackEvents = TrackEvents {
+    tevents_title :: String
+    , tevents_events :: Track.TrackEvents
+    -- | Tracks often extend beyond the end of the last event.  The derivers
+    -- need to know the track end to get the controls of the last note, and for
+    -- the block stretch hack.
+    , tevents_end :: ScoreTime
+    -- | If this TrackEvents is from a real track, then its evaluation can
+    -- generate a render signal as a side-effect.
+    , tevents_track_id :: Maybe TrackId
+    } deriving (Show)
+
+events_tree :: (M m) => ScoreTime -> TrackTree -> m EventsTree
+events_tree block_end tree = mapM resolve tree
+    where
+    resolve (Tree.Node (TrackInfo title track_id _) subs) =
+        Tree.Node <$> make title track_id <*> mapM resolve subs
+    make title track_id = do
+        track <- get_track track_id
+        return $ TrackEvents title (Track.track_events track) block_end
+            (Just track_id)
 
 -- ** tracks
 

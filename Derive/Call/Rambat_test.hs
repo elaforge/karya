@@ -17,8 +17,7 @@ test_tick = do
         pitch e = let Pitch.Degree p = Score.initial_pitch e in p
     let run evts tracks = extract $ DeriveTest.derive_tracks $
             ("tempo", [(0, 0, ".5")])
-            : (DeriveTest.default_inst_title, evts)
-            : tracks
+            : tracks ++ [(DeriveTest.default_inst_title, evts)]
     let vel = Derive.default_velocity
 
     let (_evts, logs) = run

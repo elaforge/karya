@@ -1,8 +1,71 @@
 module Derive.Note_test where
+import qualified Util.Log as Log
 import Util.Test
 
+import qualified Ui.Skeleton as Skeleton
+import qualified Ui.State as State
+import qualified Ui.UiTest as UiTest
+
+import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 
+
+test_sub_tracks = do
+    let run tracks =
+            DeriveTest.derive_tracks tracks
+                -- (set_skel (length tracks)) tracks
+        -- with_subs = CallTest.with_note_call "subs" c_subs
+        -- set_skel ntracks state = either (error . show) id $
+        --     State.exec state $ State.set_skeleton UiTest.default_block_id $
+        --         -- go left to right
+        --         Skeleton.make (zip [1..ntracks] [2..ntracks])
+
+    let extract_c e = (DeriveTest.e_event e, DeriveTest.e_control "c1" e,
+            DeriveTest.e_control "c2" e)
+    let (events, logs) = DeriveTest.extract extract_c $ run
+            [ (">", [(0, 2, "--1"), (2, 2, "--2")])
+            , ("c1", [(0, 0, "0"), (1, 0, "1"), (2, 0, "2")])
+            , ("c2", [(0, 0, "3"), (6, 0, "4"), (7, 0, "5")])
+            ]
+    equal logs []
+    -- Unfortunately the comment is lost since the expression is recreated
+    -- from the parsed version.
+    equal events
+        [ ((0, 2, ""), Just [(0, 0), (1, 1)], Just [(0, 3)])
+        -- (2 2) included since it matches start, (0, 3) included since it's
+        -- the previous sample.  (6, 4) included since (7, 0, "5") pushes the
+        -- end of the block past it.  (7, 0, "5") itself is clipped off since
+        -- it's right at the end of the block.
+        , ((2, 2, ""), Just [(2, 2)], Just [(0, 3), (6, 4)])
+        ]
+
+    let extract_p e = (DeriveTest.e_event e, DeriveTest.e_pitch e)
+    let (events, logs) = DeriveTest.extract extract_p $ run
+            [ (">", [(0, 2, ""), (2, 2, "")])
+            , ("*", [(0, 0, "4c"), (2, 0, "4d"), (3, 0, "4e")])
+            ]
+    equal logs []
+    equal events
+        [ ((0, 2, ""), [(0, 60)])
+        , ((2, 2, ""), [(2, 62), (3, 64)])
+        ]
+
+    -- controls that straddle the note are properly sliced and clipped
+    let (events, _logs) = DeriveTest.extract extract_p $ run
+            [ (">", [(0, 2, ""), (2, 2, "")])
+            , ("*", [(0, 0, "4c"), (4, 0, "i (4d)")])
+            ]
+    equal events
+        [ ((0, 2, ""), [(0, 60), (1, 60.5)])
+        , ((2, 2, ""), [(2, 61), (3, 61.5)])
+        ]
+
+-- c_subs :: Derive.NoteCall
+-- c_subs = Derive.generator "subs" $ \args -> do
+--     let subs = Derive.info_sub_tracks (Derive.passed_info args)
+--     Log.warn $ show subs
+--     return []
 
 -- * derivers
 

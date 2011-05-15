@@ -57,7 +57,7 @@ pitch_tracks pitch_events =
 
 run deriver = extract $ DeriveTest.derive_note $
     Derive.with_constant_pitch Nothing (Pitch.Degree 60) $
-    deriver DeriveTest.d_note
+    deriver (DeriveTest.d_note 0 1)
 con = Signal.constant
 
 extract = DeriveTest.extract_events_only

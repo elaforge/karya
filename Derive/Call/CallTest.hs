@@ -16,7 +16,7 @@ import qualified Derive.Score as Score
 transform :: (Derive.EventDeriver -> Derive.EventDeriver) -> Derive.Result
 transform trans = DeriveTest.derive State.empty $
     Derive.with_constant_pitch Nothing (Pitch.Degree 60) $
-    trans DeriveTest.d_note
+    trans (DeriveTest.d_note 0 1)
 
 run_pitch :: [(Double, String)] -> [(PitchSignal.X, PitchSignal.Y)]
 run_pitch = run_with_scale "twelve"

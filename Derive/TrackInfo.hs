@@ -139,11 +139,11 @@ is_relative (Control (Just _) _) = True
 is_relative (Pitch (PitchRelative _) _) = True
 is_relative _ = False
 
--- | Note tracks are defined as tracks without children.  But if I'm trying to
--- figure out a skeleton in the first place I need to guess which one is the
--- note track.
-looks_like_note_track :: String -> Bool
-looks_like_note_track = maybe False (const True) . title_to_instrument
+is_note_track :: String -> Bool
+is_note_track = maybe False (const True) . title_to_instrument
+
+is_control_track :: String -> Bool
+is_control_track = not . is_note_track
 
 is_tempo_track :: String -> Bool
 is_tempo_track = (=="tempo")

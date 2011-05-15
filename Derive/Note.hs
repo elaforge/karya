@@ -129,9 +129,11 @@
 -}
 module Derive.Note where
 import qualified Data.ByteString.Char8 as B
+import qualified Data.Tree as Tree
 import Util.Control
 
 import Ui
+import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Derive.Call as Call
@@ -144,30 +146,29 @@ import qualified Derive.TrackLang as TrackLang
 -- * note track
 
 -- | Top level deriver for note tracks.
-d_note_track :: BlockId -> TrackId -> Derive.EventDeriver
-d_note_track block_id track_id = do
-    track <- Derive.get_track track_id
-    if null (Track.track_title track) then return mempty else do
-    track_expr <- case Parse.parse_expr (B.pack (Track.track_title track)) of
+d_note_track :: State.EventsNode -> Derive.EventDeriver
+d_note_track (Tree.Node track subs) = do
+    let title = State.tevents_title track
+    if null title then return mempty else do
+    track_expr <- case Parse.parse_expr (B.pack title) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return (preprocess_title expr)
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
-    let pos_events = Track.event_list (Track.track_events track)
-    block_end <- Derive.get_block_dur block_id
-    result <- Call.apply_transformer info track_expr
-        (derive_notes block_end pos_events)
-    return result
+    let pos_events = Track.event_list (State.tevents_events track)
+    Call.apply_transformer info track_expr
+        (derive_notes (State.tevents_end track) subs pos_events)
     where info = (Call.note_dinfo, Derive.dummy_call_info "note track")
 
-derive_notes :: ScoreTime -> [Track.PosEvent] -> Derive.EventDeriver
-derive_notes block_end events = do
+derive_notes :: ScoreTime -> State.EventsTree -> [Track.PosEvent]
+    -> Derive.EventDeriver
+derive_notes block_end subs events = do
     state <- Derive.get
     let (event_groups, collect, cache) = Call.derive_track
             state block_end Call.note_dinfo Parse.parse_expr
-            (\_ _ -> Nothing) events
-    Derive.modify $ \st -> st {
-        Derive.state_collect = collect, Derive.state_cache_state = cache }
+            (\_ _ -> Nothing) subs events
+    Derive.modify $ \st -> st
+        { Derive.state_collect = collect, Derive.state_cache_state = cache }
     return $ Derive.merge_asc_events event_groups
 
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.

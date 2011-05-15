@@ -13,7 +13,7 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 
-import qualified Derive.Call as Call
+import qualified Derive.Call.Block as Block
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 import qualified Derive.TrackLang as TrackLang
@@ -73,7 +73,7 @@ derive derive_cache damage block_id = do
         env = initial_environ (State.default_scale deflt)
             (State.default_instrument deflt)
     return $ Derive.derive constant scope derive_cache damage env
-        (Call.eval_root_block block_id)
+        (Block.eval_root_block block_id)
 
 get_lookup_inst_calls :: (Cmd.M m) =>
     m (Score.Instrument -> Maybe Derive.InstrumentCalls)

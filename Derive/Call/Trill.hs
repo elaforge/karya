@@ -64,15 +64,15 @@ c_absolute_trill = Derive.transformer "absolute_trill" $
     \neighbor speed -> do
         neighbor_sig <- Call.to_signal neighbor
         speed_sig <- Call.to_signal speed
-        absolute_trill neighbor_sig speed_sig deriver
+        absolute_trill (Derive.passed_range args) neighbor_sig speed_sig deriver
 
-absolute_trill :: Signal.Control -> Signal.Control
+absolute_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
     -> Derive.EventDeriver -> Derive.EventDeriver
-absolute_trill neighbor speed deriver = do
-    real_start <- Derive.now
-    real_end <- Derive.score_to_real 1
-    let all_transitions = pos_at_speed speed real_start
-    let transitions = integral_cycles real_end all_transitions
+absolute_trill (s_start, s_end) neighbor speed deriver = do
+    start <- Derive.score_to_real s_start
+    end <- Derive.score_to_real s_end
+    let all_transitions = pos_at_speed speed start
+    let transitions = integral_cycles end all_transitions
     trill_from_transitions transitions neighbor deriver
 
 pos_at_speed :: Signal.Control -> RealTime -> [RealTime]
@@ -92,27 +92,24 @@ c_score_trill = Derive.transformer "score_trill" $
     \neighbor speed -> do
         neighbor_sig <- Call.to_signal neighbor
         speed_sig <- Call.to_signal speed
-        score_trill (Derive.info_stretch (Derive.passed_info args))
-            neighbor_sig speed_sig deriver
+        score_trill (Derive.passed_range args) neighbor_sig speed_sig deriver
 
-score_trill :: ScoreTime -> Signal.Control -> Signal.Control
+score_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
     -> Derive.EventDeriver -> Derive.EventDeriver
-score_trill stretch neighbor speed deriver = do
-    all_transitions <- score_pos_at_speed stretch speed 0 1
-    let transitions = integral_cycles 1 all_transitions
+score_trill (start, end) neighbor speed deriver = do
+    all_transitions <- score_pos_at_speed speed start end
+    let transitions = integral_cycles end all_transitions
     real_transitions <- mapM Derive.score_to_real transitions
     trill_from_transitions real_transitions neighbor deriver
 
-score_pos_at_speed :: ScoreTime -> Signal.Control -> ScoreTime -> ScoreTime
+score_pos_at_speed :: Signal.Control -> ScoreTime -> ScoreTime
     -> Derive.Deriver [ScoreTime]
-score_pos_at_speed stretch sig pos end
+score_pos_at_speed sig pos end
     | pos > end = return []
     | otherwise = do
         real <- Derive.score_to_real pos
-        -- If the event stretch is 2, I can double the speed to put it in
-        -- score time wrt the track.
-        let speed = Signal.y_to_score (Signal.at real sig) * stretch
-        rest <- score_pos_at_speed stretch sig (pos + recip speed) end
+        let speed = Signal.y_to_score (Signal.at real sig)
+        rest <- score_pos_at_speed sig (pos + recip speed) end
         return (pos : rest)
 
 
@@ -135,14 +132,13 @@ c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args -> do
         \degree neighbor speed -> do
             speed_sig <- Call.to_signal speed
             neighbor_sig <- Call.to_signal neighbor
-            next_event <- maybe (return 1) Derive.score_to_real
-                (Derive.passed_next_begin args)
-            pitch_absolute_trill degree speed_sig neighbor_sig next_event
+            next_event <- Derive.score_to_real (Derive.passed_next args)
+            start <- Derive.passed_real args
+            pitch_absolute_trill start degree speed_sig neighbor_sig next_event
 
-pitch_absolute_trill :: Pitch.Degree -> Signal.Control -> Signal.Control
-    -> RealTime -> Derive.Deriver PitchSignal.PitchSignal
-pitch_absolute_trill degree speed neighbor dur = do
-    start <- Derive.now
+pitch_absolute_trill :: RealTime -> Pitch.Degree -> Signal.Control
+    -> Signal.Control -> RealTime -> Derive.Deriver PitchSignal.PitchSignal
+pitch_absolute_trill start degree speed neighbor dur = do
     scale <- Call.get_scale
     let all_transitions = pos_at_speed speed start
     let transitions = integral_cycles (start + dur) all_transitions

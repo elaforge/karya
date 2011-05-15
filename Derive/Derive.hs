@@ -152,7 +152,6 @@ instance Derived Score.Event where
 -- ** control
 
 type ControlDeriver = LogsDeriver Signal.Control
--- type Control = Signal.Control
 
 instance Derived Signal.Control where
     type Elem Signal.Control = Signal.Y
@@ -167,7 +166,6 @@ instance Derived Signal.Control where
 -- ** pitch
 
 type PitchDeriver = LogsDeriver PitchSignal.PitchSignal
--- type Pitch = PitchSignal.PitchSignal
 
 instance Derived PitchSignal.PitchSignal where
     type Elem PitchSignal.PitchSignal = PitchSignal.Y
@@ -418,76 +416,76 @@ type ControlCallMap = Map.Map TrackLang.CallId ControlCall
 type PitchCallMap = Map.Map TrackLang.CallId PitchCall
 type ValCallMap = Map.Map TrackLang.CallId ValCall
 
-passed_event :: PassedArgs derived -> Event.Event
+passed_event :: PassedArgs derived -> Track.PosEvent
 passed_event = info_event . passed_info
-
-passed_next_events :: PassedArgs derived -> [Track.PosEvent]
-passed_next_events = info_next_events . passed_info
-
-passed_prev_events :: PassedArgs derived -> [Track.PosEvent]
-passed_prev_events = info_prev_events . passed_info
-
-passed_next_begin :: PassedArgs derived -> Maybe ScoreTime
-passed_next_begin = fmap fst . first_event . passed_next_events
-
-passed_prev_begin :: PassedArgs derived -> Maybe ScoreTime
-passed_prev_begin = fmap fst . first_event . passed_prev_events
-
--- | Get the next event beginning.  Intended to be used by calls to determine
--- their extent, especially control calls, which have no explicit duration.
-first_event :: [Track.PosEvent] -> Maybe Track.PosEvent
-first_event ((pos, evt) : _) = Just (pos, evt)
-first_event _ = Nothing
 
 -- | Get the previous derived val.  This is used by control derivers so they
 -- can interpolate from the previous sample.
 passed_prev_val :: PassedArgs derived -> Maybe (RealTime, Elem derived)
 passed_prev_val args = info_prev_val (passed_info args)
 
+-- | Get the start of the next event, if there is one.  Used by calls to
+-- determine their extent, especially control calls, which have no explicit
+-- duration.
+passed_next_begin :: PassedArgs d -> Maybe ScoreTime
+passed_next_begin = fmap fst . Seq.head . info_next_events . passed_info
+
+passed_next :: PassedArgs d -> ScoreTime
+passed_next args = case info_next_events info of
+        [] -> info_block_end info
+        (pos, _) : _ -> pos
+    where info = passed_info args
+
+passed_prev_begin :: PassedArgs d -> Maybe ScoreTime
+passed_prev_begin = fmap fst . Seq.head . info_prev_events . passed_info
+
+passed_range :: PassedArgs d -> (ScoreTime, ScoreTime)
+passed_range args = (pos, pos + Event.event_duration event)
+    where (pos, event) = passed_event args
+
+passed_real_range :: PassedArgs d -> Deriver (RealTime, RealTime)
+passed_real_range args = (,) <$> score_to_real start <*> score_to_real end
+    where (start, end) = passed_range args
+
+-- TODO crummy name, come up with a better one
+passed_score :: PassedArgs d -> ScoreTime
+passed_score = fst . passed_event
+
+passed_real :: PassedArgs d -> Deriver RealTime
+passed_real = score_to_real . passed_score
+
 -- | Additional data for a call.  This part is invariant for all calls on
 -- an event.
 --
 -- Not used at all for val calls.  The events not used for transform calls.
+-- TODO make separate types so the irrelevent data need not be passed
 data CallInfo derived = CallInfo {
+    -- | The expression currently being evaluated.  Why I need this is
+    -- documented in 'Derive.Call.Note.inverting_call'.
+    info_expr :: !TrackLang.Expr
     -- The below is not used at all for val calls, and the events are not
     -- used for transform calls.  It might be cleaner to split those out, but
     -- too much bother.
 
     -- | Hack so control calls have access to the previous sample, since
     -- they tend to want to interpolate from that value.
-    info_prev_val :: !(Maybe (RealTime, Elem derived))
+    , info_prev_val :: !(Maybe (RealTime, Elem derived))
 
-    -- | These are warped into normalized time.
-    --
-    -- Calls can use this to interpret score times, which are intended to be
-    -- in track score time.
-    , info_event :: !Event.Event
-    , info_prev_events :: [Track.PosEvent]
-    , info_next_events :: [Track.PosEvent]
+    , info_event :: !Track.PosEvent
+    , info_prev_events :: ![Track.PosEvent]
+    , info_next_events :: ![Track.PosEvent]
     -- | If there is no next event, you might want to fall back on the end of
-    -- the block.
-    , info_block_end :: ScoreTime
+    -- the block.  This is in normalized time!
+    , info_block_end :: !ScoreTime
 
-    -- | These are not warped, so they are still in track score time.
-    , info_track_pos :: (ScoreTime, ScoreTime) -- (start, duration)
-    , info_track_prev :: [Track.PosEvent]
-    , info_track_next :: [Track.PosEvent]
+    -- | The track tree below note tracks.  Not given for control tracks.
+    , info_sub_tracks :: !State.EventsTree
     }
-
--- | The deriver was stretched by the reciprocal of this number to put it
--- into normalized 0--1 time (i.e. this is the absolute value of the event's
--- duration).  Calls can multiply by this to get durations in the context of
--- the track.
---
--- Stretch for a 0 dur note is considered 1, not infinity, to avoid
--- problems with division by 0.
-info_stretch :: CallInfo derived -> ScoreTime
-info_stretch = snd . info_track_pos
 
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither to generators for that matter.
 dummy_call_info :: String -> CallInfo derived
-dummy_call_info text = CallInfo Nothing (Event.event s 1) [] [] 1 (0, 1) [] []
+dummy_call_info text = CallInfo [] Nothing (0, Event.event s 1) [] [] 1 []
     where s = if null text then "<no-event>" else "<" ++ text ++ ">"
 
 -- | A Call will be called as either a generator or a transformer, depending on
@@ -599,6 +597,7 @@ transformer :: (Derived derived) =>
 transformer name func = Call
     name Nothing (Just (TransformerCall func NonIncremental))
 
+-- *** note transformer
 
 -- *** misc TODO find a home
 
@@ -1195,9 +1194,8 @@ add_new_track_warp :: Maybe TrackId -> Deriver ()
 add_new_track_warp track_id = do
     stack <- gets state_stack
     block_id <- get_current_block_id
-    start <- now
-    time_end <- get_block_dur block_id
-    end <- score_to_real time_end
+    start <- score_to_real 0
+    end <- score_to_real =<< get_block_dur block_id
     warp <- gets state_warp
     let tw = Left $ TrackWarp.TrackWarp (start, end, warp, block_id, track_id)
     modify_collect $ \st -> st { collect_warp_map =
@@ -1215,9 +1213,6 @@ score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do
     warp <- gets state_warp
     return (Score.warp_pos pos warp)
-
-now :: Deriver RealTime
-now = score_to_real 0
 
 real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
@@ -1296,13 +1291,12 @@ d_control_at shift deriver = do
 -- TODO what to do about blocks with multiple tempo tracks?  I think it would
 -- be best to stretch the block to the first one.  I could break out
 -- stretch_to_1 and have compile apply it to only the first tempo track.
-d_tempo :: BlockId -> Maybe TrackId -> Signal.Tempo -> Deriver a -> Deriver a
-d_tempo block_id maybe_track_id signal deriver = do
+d_tempo :: ScoreTime -> Maybe TrackId -> Signal.Tempo -> Deriver a -> Deriver a
+d_tempo block_dur maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
     root <- is_root_block
     stretch_to_1 <- if root then return id
         else do
-            block_dur <- get_block_dur block_id
             real_dur <- with_warp (const warp) (score_to_real block_dur)
             -- Log.debug $ "dur, global dur "
             --     ++ show (block_id, block_dur, real_dur)
@@ -1347,10 +1341,8 @@ tempo_to_warp sig
 -- ** track
 
 -- | This does setup common to all track derivation, namely recording the tempo
--- warp and putting the track in the stack, and then calls the specific track
--- deriver.  This is because every track except tempo tracks should be wrapped
--- with this.  It doesn't actually affect the warp since that's already in
--- the environment.
+-- warp, and then calls the specific track deriver.  Every track except tempo
+-- tracks should be wrapped with this.
 track_setup :: TrackId -> Deriver d -> Deriver d
 track_setup track_id deriver = add_track_warp track_id >> deriver
 

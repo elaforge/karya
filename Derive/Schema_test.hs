@@ -29,8 +29,8 @@ test_compile = do
 
     let derive track = DeriveTest.extract id $ DeriveTest.derive_tracks
             [ ("tempo", [(0, 0, "2")])
-            , (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , track
+            , (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("c1", [(0, 0, "3"), (1, 0, "2"), (2, 0, "1")])
             ]
 
@@ -72,11 +72,13 @@ test_parse = do
     -- They're both controls, with no instrument track.
     skel_equal (f ["", ""]) (mkskel [(0, 1)])
     skel_equal (f [">i1"]) (mkskel [])
-    skel_equal (f [">i1", "c1", "c2"]) (mkskel [(2, 1), (1, 0)])
-    skel_equal (f ["c1", ">i1", "c2"]) (mkskel [(0, 2), (2, 1)])
-    skel_equal
-        (f ["c1", "tempo", "c2", ">i1", "c3", "tempo", ">i2", "c4"])
-        (mkskel [(1, 2), (2, 4), (4, 3), (5, 7), (7, 6)])
+    skel_equal (f [">i1", "c1", "c2"]) (mkskel [(0, 1), (1, 2)])
+
+    skel_equal (f ["c1", ">i1", "c2"]) (mkskel [(0, 1), (1, 2)])
+    skel_equal (f ["c0", ">i1", "c1", ">i2", "tempo", ">i3"])
+        (mkskel [(0, 1), (1, 2), (0, 3), (4, 5)])
+    skel_equal (f [">i1", "c1", ">i2", "c2"])
+        (mkskel [(0, 1), (2, 3)])
     where
     skel_equal (Skeleton.Skeleton g1) (Skeleton.Skeleton g2) =
         Graph_test.graph_equal g1 g2

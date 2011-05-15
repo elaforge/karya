@@ -1,0 +1,74 @@
+Transforms operate on derivers.  They can change the environment to encourage
+the deriver to produce a certain output.  For instance, they can modify the
+pitch to transpose the derived music, or modify the warp to delay it.
+
+Since the controls must be evaluated and in the environment for the notes to
+pick them up, by the time the note track is being evaluated it's too late to
+change them.  So a 'delay' transform on a note may delay the note itself but
+will not affect the controls.  Sometimes this is desired, e.g. if you delay a
+note during a decrescendo you may not want the decrescendo to move with the
+note, but sometimes it isn't, e.g. if you delay a note its pitch should
+probably be delayed as well.
+
+So what is needed is for the transform to be placed "above" the note, e.g.
+(decrescendo (delay (pitch (note)))).  This can be written in terms of tracks,
+but it's awkward, because they delay, which is logically part of the note
+track, must be split into two tracks, like so:
+
+dynamics        transform       pitch   note
+1               delay           4c      ""
+                |                       |
+i 0             V                       V
+
+It's not clear what the duration of 'delay' means, and the fact that it
+applies to the "" note two tracks below it.  So there's a concept of track
+inversion, which is an automatic transformation from this:
+
+note    pitch
+t | n   4c
+|
+V
+
+To this:
+
+note    pitch   (note)
+t       4c      n
+|               |
+V               V
+
+If there are tracks below the note track, they are sliced horizontally in the
+range of the note being evaluated, and the generator part of the note is put
+in a new "track" below them.
+
+Inverting calls check for the presence of subtracks, and if found, do the
+slicing described above and reinsert themselves below their subtracks, hence
+inverting the call structure.
+
+If one of the intervening tracks is a note track that also has a call, it will
+in turn insert itself below the inverted call, and this will continue until
+the recursion limit is hit.  So don't do that.
+
+Note that inversion is not appropriate for all calls.  For instance, any call
+that needs to know the pitch of the note after it must be evaluated below the
+pitch track of its neighbor note.  With an uninverted note track, the pitch
+track is evaluated in entirety before any notes, so that information is
+available, but when the note call is inverted, the pitch track is sliced up
+and evaluated piecemeal with each note that it applies to.  So the pitch of
+the following note is not available yet.  This means you can't mix calls that
+want signals from their neighbors with calls that want to transform the
+controls of a note.  This is awkward, but I'll see if it's a problem in
+practice before trying to come up with a solution.
+
+There is a function, Derive.Call.Note.inverting_call, that will convert
+a call into an inverting call.
+
+
+However, if a note transform call can sensibly have its own duration then it
+may be appropriate in a separate track with a note track beneath them.  For
+instance, a tuplet call can stretch the notes below it to its own duration:
+
+transform       pitch   note
+tuplet          4c      ""
+|               4d      ""
+|               4e      ""
+V

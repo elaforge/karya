@@ -6,8 +6,8 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 
 import Util.Control
-import Util.Test
 import qualified Util.Log as Log
+import Util.Test
 
 import Ui
 import qualified Ui.State as State
@@ -46,7 +46,6 @@ test_basic = do
 
     -- 2: conversion to midi perf events
     let evt = (,,,) "1"
-    -- ks key numbers are from DeriveTest.default_ksmap
     equal (map extract_perf_event perf_events)
         [ evt 0 16 (mkstack (0, 16))
         , evt 16 16 (mkstack (16, 32))
@@ -58,7 +57,11 @@ test_basic = do
     where
     mkstack (s, e) = Stack.from_outermost
         [ Stack.Block (UiTest.bid "b1")
-        , Stack.Track (UiTest.tid "b1.t1"), Stack.Track (UiTest.tid "b1.t0")
+        , Stack.Track (UiTest.tid "b1.t0")
+        -- track title and event for note track
+        , Stack.Call "note", Stack.Region s e, Stack.Call "note"
+        , Stack.Track (UiTest.tid "b1.t1")
+        -- track title and event for inverted note track
         , Stack.Call "note", Stack.Region s e, Stack.Call "note"
         ]
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
@@ -134,16 +137,16 @@ test_track_environ = do
                 Map.lookup TrackLang.v_scale env,
                 Map.lookup TrackLang.v_instrument env)
     let res = DeriveTest.derive_blocks
-            [ ("b", [(">i1", [(0, 1, "sub")]), ("*semar", [(0, 0, "1")])])
+            [ ("b", [("*semar", [(0, 0, "1")]), (">i1", [(0, 1, "sub")])])
             , ("sub", [(">", [(0, 1, "")]), ("*", [(0, 0, "2")])])
             ]
-    let inst s = Just $ TrackLang.VInstrument $ Score.Instrument s
+    let inst = Just $ TrackLang.VInstrument $ Score.Instrument "i1"
         scale = Just $ TrackLang.VScaleId $ Pitch.ScaleId "semar"
     equal (extract res)
-        [ (UiTest.bid "b", UiTest.tid "b.t0", scale, inst "i1")
-        , (UiTest.bid "b", UiTest.tid "b.t1", scale, Nothing)
-        , (UiTest.bid "sub", UiTest.tid "sub.t0", scale, inst "i1")
-        , (UiTest.bid "sub", UiTest.tid "sub.t1", scale, inst "i1")
+        [ (UiTest.bid "b", UiTest.tid "b.t0", scale, Nothing)
+        , (UiTest.bid "b", UiTest.tid "b.t1", scale, inst)
+        , (UiTest.bid "sub", UiTest.tid "sub.t0", scale, inst)
+        , (UiTest.bid "sub", UiTest.tid "sub.t1", scale, inst)
         ]
 
 test_simple_subderive = do
@@ -166,17 +169,19 @@ test_subderive = do
             , ("sub", [(">i2", [(1, 1, "--sub1")])])
             , ("empty", [(">i", [])])
             ]
+    -- I used to test recursive call, but now that the block call doesn't
+    -- catch that explicitly it means I get random crap before it finally
+    -- aborts due to the call stack limit.
     let (events, msgs) = DeriveTest.r_split $ run
-            [(0, 1, "nosuch"), (1, 1, "empty"), (2, 1, "b0"), (3, 1, "--x")]
+            [(0, 1, "nosuch"), (1, 1, "empty"), (3, 1, "--x")]
     -- errors don't stop derivation
     equal (map DeriveTest.e_event events) [(1.5, 0.5, "--x")]
-    strings_like (map Log.msg_string msgs)
-        ["call not found: nosuch", "block with zero duration",
-            "recursive block"]
+    strings_like (map DeriveTest.show_log msgs)
+        ["call not found: nosuch", "block with zero duration"]
+
     equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
         [ "test/b0 test/b0.t1 0-1"
         , "test/b0 test/b0.t1 1-2: test/empty * *"
-        , "test/b0 test/b0.t1 2-3: test/b0 * *"
         ]
 
     let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
@@ -216,7 +221,7 @@ test_subderive_timing = do
 test_subderive_error = do
     let run evts = extract_events $ DeriveTest.derive_blocks
             [ ("b0", [ (">i1", evts) ])
-            , ("sub", [(">", []), ("blah *error syntax", [(1, 1, "--sub1")])])
+            , ("sub", [("blah *error syntax", [(1, 1, "--sub1")]), (">", [])])
             ]
     let (events, logs) = run [(0, 1, "sub")]
     equal events []
@@ -227,8 +232,8 @@ test_subderive_multiple = do
     let res = DeriveTest.derive_blocks
             [ ("b0",
                 [ ("tempo", [(0, 0, "2")])
-                , (inst_title, [(0, 8, "sub")])
                 , ("vel", [(0, 0, "1"), (8, 0, "i 0")])
+                , (inst_title, [(0, 8, "sub")])
                 ])
             , ("sub",
                 [ (">", [(0, 1, "--1-1"), (1, 1, "--1-2")])
@@ -330,7 +335,7 @@ test_initial_environ = do
 test_warp_ops = do
     let run op = DeriveTest.eval State.empty (op record)
         record = do
-            x0 <- Derive.now
+            x0 <- Derive.score_to_real 0
             x1 <- Derive.score_to_real 2
             return [x0, x1]
 
@@ -539,7 +544,7 @@ test_control = do
 
     -- Cursory checks, more detailed checks are in more Note_test and
     -- Control_test.
-    equal logs []
+    equal (map DeriveTest.show_log logs) []
     equal (fst $ extract_events res) [(0, 1, ""), (1, 1, "")]
     equal (length perf_events) 2
 
@@ -568,8 +573,8 @@ test_tempo = do
     let f tempo_track =
             DeriveTest.extract extract $ DeriveTest.derive_tracks
                 [ ("tempo", tempo_track)
-                , (">", [(0, 10, "--1"), (10, 10, "--2"), (20, 10, "--3")])
                 , ("*twelve", [(0, 10, "5a"), (10, 10, "5b"), (20, 10, "5c")])
+                , (">", [(0, 10, "--1"), (10, 10, "--2"), (20, 10, "--3")])
                 ]
         -- floor_event :: (Double, Double, String) -> (Integer, Integer, String)
         -- floor_event (start, dur, text) = (floor start, floor dur, text)
@@ -610,7 +615,6 @@ test_named_pitch = do
 test_block_end = do
     -- Make sure the pitch for the sub block event is trimmed to the end
     -- of the block, since there's no next event for it.
-    -- let (events, _) = DeriveTest.e_val $ DeriveTest.derive_blocks
     let extract = PitchSignal.unsignal_degree . Score.event_pitch
     let res = DeriveTest.extract extract $ DeriveTest.derive_blocks
             [ ("p",

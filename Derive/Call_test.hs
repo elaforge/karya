@@ -21,28 +21,6 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified App.MidiInst as MidiInst
 
 
-test_c_block = do
-    -- This also tests Derive.Call.Note.lookup_note_call
-    let run evts = DeriveTest.extract DeriveTest.e_everything $
-            DeriveTest.derive_blocks
-                [ ("b1", [(">", evts)])
-                , ("sub", [(">", [(0, 22, "--sub")])])
-                ]
-    let (evts, logs) = run [(0, 1, "nosuch")]
-    equal evts []
-    strings_like logs ["call not found: nosuch"]
-
-    strings_like (snd (run [(0, 1, "sub >arg")]))
-        ["args for block call not implemented yet"]
-
-    -- subderived stuff is stretched and placed, inherits instrument
-    let (evts, logs) = run [(0, 1, "sub"), (1, 2, "n >i +a | sub")]
-    equal logs []
-    equal evts
-        [ (0, 1, "--sub", Nothing, [])
-        , (1, 2, "--sub", Just "i", ["a"])
-        ]
-
 test_c_equal = do
     -- Test the '=' call, but also test the special parsing Derive.Note deriver
     -- eval in general.
@@ -66,9 +44,9 @@ test_c_equal = do
 
 test_assign_controls = do
     let run inst_title cont_title val = extract $ DeriveTest.derive_tracks
-            [ (inst_title, [(0, 1, "")])
+            [ (cont_title, [(0, 0, val)])
             , ("*twelve", [(0, 0, "4c")])
-            , (cont_title, [(0, 0, val)])
+            , (inst_title, [(0, 1, "")])
             ]
         extract = DeriveTest.extract e_event
         e_event e = (head (PitchSignal.unsignal_degree (Score.event_pitch e)),

@@ -103,6 +103,11 @@ data Val =
     | VNotGiven
     deriving (Eq, Show)
 
+-- | The Pretty instance for val should, like the haskell-level (Show, Read)
+-- pair, produce a string that the parser can turn back into the original
+-- value.  Except for values which have no literal syntax, such as VDegree.
+--
+-- The reason why is documented in 'Derive.Call.Note.inverting_call'.
 instance Pretty.Pretty Val where
     pretty val = case val of
             VNum d -> show_num d
@@ -140,7 +145,6 @@ type ValName = Symbol
 
 newtype Symbol = Symbol String deriving (Eq, Ord, Show)
 instance Pretty.Pretty Symbol where
-    pretty (Symbol "") = "<null>"
     pretty (Symbol s) = s
 
 type Control = ControlRef Signal.Y
@@ -348,7 +352,7 @@ lookup_val name environ = case Map.lookup name environ of
 
 -- * parsing
 
--- | The only operator is @|@, so a list of lists suffices for an AST.
+-- | The only operator is @|@, so a list suffices for an AST.
 type Expr = [Call]
 data Call = Call CallId [Term] deriving (Eq, Show)
 data Term = ValCall Call | Literal Val deriving (Eq, Show)

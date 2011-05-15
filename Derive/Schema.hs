@@ -24,6 +24,9 @@ module Derive.Schema (
     -- * lookup
     , lookup_deriver
 
+    -- * derive
+    , derive_tracks
+
     -- * parser
     , default_parser
 
@@ -43,6 +46,7 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 
 import Cmd.Cmd (Schema(..), SchemaDeriver, SchemaMap)
 
@@ -84,47 +88,66 @@ default_schema = Schema default_schema_deriver
 -- ** default schema deriver
 
 default_schema_deriver :: SchemaDeriver Derive.EventDeriver
-default_schema_deriver block_id =
-    fmap (derive_tree block_id) (State.get_track_tree_mutes block_id)
+default_schema_deriver block_id = do
+    block <- State.get_block block_id
+    info_tree <- State.get_track_tree block_id
+    block_end <- State.event_end block_id
+    let mutes_tree = State.track_tree_mutes
+            (State.muted_tracknums block info_tree) info_tree
+    tree <- State.events_tree block_end info_tree
+    return $ derive_tree block_end (strip_mutes mutes_tree tree)
+
+-- | Strip the events out of muted tracks.  If the tracks themselves were
+-- stripped out it looks like there are orphans.  This way they are just tracks
+-- that produce nothing.
+--
+-- It's ugly how the two trees are zipped up, but otherwise I have yet another
+-- type for EventTreeMutes or hairy parameterization just for this one
+-- function.
+strip_mutes :: State.TrackTreeMutes -> State.EventsTree -> State.EventsTree
+strip_mutes mutes tree = zipWith mute_node mutes tree
+    where
+    mute_node (Tree.Node (_, muted) ms) (Tree.Node track ts) =
+        Tree.Node (if muted then mute track else track) (strip_mutes ms ts)
+    mute track = track { State.tevents_events = Track.empty_events }
 
 -- | Transform a deriver skeleton into a real deriver.
-derive_tree :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
-derive_tree block_id tree = do
+derive_tree :: ScoreTime -> State.EventsTree -> Derive.EventDeriver
+derive_tree block_end tree = do
     -- d_tempo sets up some stuff that every block needs, so add one if a block
     -- doesn't have at least one top level tempo.
     tempo <- State.default_tempo . State.state_default <$> Derive.get_ui_state
     let with_default_tempo = if has_nontempo_track tree
-            then Derive.d_tempo block_id Nothing (Signal.constant tempo) else id
-    with_default_tempo (derive_tracks block_id tree)
+            then Derive.d_tempo block_end Nothing (Signal.constant tempo)
+            else id
+    with_default_tempo (derive_tracks tree)
 
 -- | Does this tree have any non-tempo tracks at the top level?
 --
 -- To ensure that every track is associated with a TrackWarp, I can't have
 -- tracks that don't have a tempo track above them.  Those tracks implicitly
 -- have an id warp, so this just makes that explicit.
-has_nontempo_track :: State.TrackTreeMutes -> Bool
-has_nontempo_track = any $ \(Tree.Node (track, _) _) ->
-    not $ TrackInfo.is_tempo_track (State.track_title track)
+has_nontempo_track :: State.EventsTree -> Bool
+has_nontempo_track = any $ \(Tree.Node track _) ->
+    not $ TrackInfo.is_tempo_track (State.tevents_title track)
 
--- | Derive a set of \"top-level\" tracks and merge their results.
-derive_tracks :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
-derive_tracks block_id tree = Derive.d_merge (map with_track tree)
+-- | Derive an EventsTree.
+derive_tracks :: State.EventsTree -> Derive.EventDeriver
+derive_tracks tree = Derive.d_merge (map with_track tree)
     where
-    with_track tree@(Tree.Node (track, _) _) =
-        Derive.with_stack_track (State.track_id track)
-            (derive_track block_id tree)
+    with_track tree@(Tree.Node track _) =
+        stack (State.tevents_track_id track) (derive_track tree)
+    stack (Just track_id) = Derive.with_stack_track track_id
+    stack Nothing = id
 
--- | Derive a single track and any tracks below it.
-derive_track :: BlockId -> Tree.Tree (State.TrackInfo, Bool)
-    -> Derive.EventDeriver
-derive_track block_id (Tree.Node (_, True) subs)
-    | null subs = return []
-    | otherwise = derive_tracks block_id subs
-derive_track block_id (Tree.Node (State.TrackInfo _ track_id _, False) subs)
-    | null subs =
-        Derive.track_setup track_id (Note.d_note_track block_id track_id)
-    | otherwise = Control.d_control_track block_id track_id
-        (derive_tracks block_id subs)
+-- | Derive a single track node and any tracks below it.
+derive_track :: State.EventsNode -> Derive.EventDeriver
+derive_track node@(Tree.Node track subs)
+    | TrackInfo.is_note_track (State.tevents_title track) =
+        track_setup (Note.d_note_track node)
+    | otherwise = Control.d_control_track node (derive_tracks subs)
+    where
+    track_setup = maybe id Derive.track_setup (State.tevents_track_id track)
 
 
 -- * parser
@@ -132,8 +155,8 @@ derive_track block_id (Tree.Node (State.TrackInfo _ track_id _, False) subs)
 -- | A parser figures out a skeleton based on track titles and position.
 --
 -- Tracks starting with '>' are instrument tracks, the rest are control tracks.
--- The control tracks scope over the next instrument track to the left.
 -- A track titled \"tempo\" scopes over all tracks to its right.
+-- Below that, tracks scope left to right.
 --
 -- This should take arguments to apply to instrument and control tracks.
 --
@@ -143,31 +166,25 @@ default_parser = Skeleton.make
     . Util.Tree.edges . map (fmap State.track_tracknum) . parse_to_tree
 
 -- | [c0 tempo1 i1 c1 tempo2 c2 i2 c3] ->
--- [c0, tempo1 (c1 . i1), tempo2 (c2 . c3 . i2)]
+-- [c0, tempo1 (i1 c1), tempo2 (c2 c2 c3)]
 parse_to_tree :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
-parse_to_tree tracks = concatMap parse_tempo_group $
-    Seq.split_with (TrackInfo.is_tempo_track . State.track_title) tracks
+parse_to_tree tracks = concatMap parse_tempo_group groups
+    where
+    groups =
+        Seq.split_with (TrackInfo.is_tempo_track . State.track_title) tracks
 
 parse_tempo_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
-parse_tempo_group [] = []
-parse_tempo_group (track:tracks)
-    | TrackInfo.is_tempo_track (State.track_title track) =
-        [Tree.Node track (parse_note_groups tracks)]
-    | otherwise = parse_note_groups (track:tracks)
-
--- | [c1 i1 c2 c3] -> c1 . c3 . c2 . i1
-parse_note_groups :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
-parse_note_groups tracks = case inst_groups of
+parse_tempo_group tracks = case groups of
         [] -> []
-        global : rest -> descend (concatMap parse_note_group rest) global
+        non_note : ngroups ->
+            descend non_note (concatMap parse_note_group ngroups)
     where
-    inst_groups = Seq.split_with
-        (TrackInfo.looks_like_note_track . State.track_title) tracks
+    groups = Seq.split_with (TrackInfo.is_note_track . State.track_title)
+        tracks
 
 parse_note_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
-parse_note_group [] = []
-parse_note_group (track:tracks) = descend [Tree.Node track []] (reverse tracks)
+parse_note_group tracks = descend tracks []
 
-descend :: Tree.Forest a -> [a] -> Tree.Forest a
-descend bottom [] = bottom
-descend bottom (track:tracks) = [Tree.Node track (descend bottom tracks)]
+descend :: [a] -> Tree.Forest a -> Tree.Forest a
+descend [] bottom = bottom
+descend (track:tracks) bottom = [Tree.Node track (descend tracks bottom)]

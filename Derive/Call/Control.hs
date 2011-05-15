@@ -36,7 +36,7 @@ control_calls = Derive.make_calls
 c_set :: Derive.ControlCall
 c_set = Derive.generator1 "set" $ \args -> CallSig.call1 args
     (required "val") $ \val -> do
-        pos <- Derive.now
+        pos <- Derive.passed_real args
         return $ Signal.signal [(pos, val)]
 
 c_linear :: Derive.ControlCall
@@ -46,7 +46,7 @@ c_linear = Derive.generator1 "linear" $ \args ->
             Nothing -> Derive.throw
                 "can't set to previous val when there was none"
             Just (_, prev_y) -> do
-                pos <- Derive.now
+                pos <- Derive.passed_real args
                 return $ Signal.signal [(pos, prev_y)]
         _ -> CallSig.call1 args (required "val") $ \val ->
             control_interpolate id val args
@@ -59,7 +59,7 @@ c_exponential = Derive.generator1 "exponential" $ \args ->
 c_slide :: Derive.ControlCall
 c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
     (required "val", optional "time" 0.1) $ \val time -> do
-        start <- Derive.now
+        start <- Derive.passed_real args
         end <- case Derive.passed_next_begin args of
             Nothing -> return $ start + RealTime.seconds time
             Just n -> do
@@ -84,11 +84,13 @@ control_interpolate :: (Double -> Signal.Y) -> Signal.Y
     -- -> Derive.PassedArgs Signal.Control -> Derive.ControlDeriver
     -> Derive.PassedArgs Signal.Control -> Derive.Deriver Signal.Control
 control_interpolate f val args = do
-    start <- Derive.now
+    start <- Derive.passed_real args
     srate <- Call.get_srate
     case Derive.passed_prev_val args of
         Nothing -> do
-            Log.warn "no previous value to interpolate from"
+            -- This can happen a lot when the control track is sliced, and is
+            -- nothing to worry about.
+            -- Log.warn "no previous value to interpolate from"
             return $ Signal.signal [(start, val)]
         Just (prev, prev_val) -> return $
             interpolator srate f False prev prev_val start val

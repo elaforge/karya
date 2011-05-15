@@ -11,6 +11,119 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  - rename State.event_end -> block_end_event, block_end_ruler
+  - strictify Cmd.Cmd.State fields
+  - double click no longer working to open a sub block
+  note transformer, sekaran, pitches below notes
+    * schema uses Tree instead of BlockId, TrackId
+      That way I can eval tracks without creating blocks, tracks, etc.
+      Can I adapt State.TrackTree to this purpose?
+      * No, add a new State.EventsTree
+      - find out what the track derivers use block_id and track_id for
+        - Derive.Note: block_id for get_block_dur, ultimately so generate note
+          can get control to the end of the block... if it's clipping children
+          it needs it too.  If I'm faking up tracks I need an end too, so put
+          the block end in the State.EventsTree
+        - Derive.Control
+          - block_id: get_block_dur, passes to d_tempo which wants block dur
+          for block stretch
+          - track_id: track_events, need track render style for sigs,
+          put_track_signal uses it to record the signal
+          So, include a Maybe TrackId for real tracks
+        - Schema: Derive.track_setup for track warps
+        If control tracks are evaluated in slices, how do I evaluate for the
+        render signal?  I could put the slices, but they overlap.  I suppose
+        that's ok, later if I don't want to copy the signal again I can pass
+        [Signal] to C++, but only if necessary.
+      Can I eliminate TrackTreeMutes by just stripping the muted tracks?  No,
+      because a control track with no subs is an error.  But I don't want
+      to put mutes into the subs, otherwise slice has to deal with it.
+        - note track: all tracks beneath should be removed too
+        - control: can be removed, its children spliced into parent
+    How does a nested NoteTransformer work?  The upper one puts the event at
+    the bottom, and that gets sliced just like any other, and then the second
+    events get put below *that*.  Then when it gets to the first one, it's no
+    longer the bottom, so it thinks its a NoteTransformer, so it continues
+    ad infinitum.
+
+    If the NoteTransformer is 'tuplet' then it gets looked up in the environ
+    and called as normal.  But what if it's a note generator like 'n'?  It
+    needs to say "if there are subs, then slice, otherwise generate", but if
+    they are different types with different PassedArgs, I don't think I can
+    do that.  I think they have to be the same namespace, because I don't
+    want to have to put every single note call in as a NoteTransformer as well.
+
+    Then I just put the subtracks into NoteGenerator.  Calls can decide based
+    on the presence of subtracks whether to slice or generate.
+    Recursion is not a problem for e.g. tuples because they don't put
+    themselves at the bottom of the slice.  So maybe a NoteGenerator looks
+    in its own namespace.  Then if there is no match, it looks for a Generator,
+    and if one is found, slice-substitutes.
+
+    Or, I could just build the behaviour into "" and other calls have to
+    implement it or delegate to "".  This seems simpler than having complicated
+    lookup and building the substitute into the eval function.
+
+    I could have different types by just having different ""s.  The call type
+    can be the same if I put subs in PassedArgs, but the return type is
+    different: Events vs. [(ScoreTime, ScoreTime, Deriver Events].  But then,
+    plain Events can be represented as [(0, 1, e)].
+
+    If I had different namespaces then 't' without children would be a name
+    error, or could be a different call entirely, with the same namespace it
+    must be a runtime error.  But different namespaces means a whole new
+    track type: new types in Derive, new call types, lookup types, section in
+    Derive.Note.  Same namespace means changing EventDeriver return type and
+    another helper function to return [(0, 1, return events)].
+
+    * add track tree to Ui.State
+    * adjust schema to use it, and strip mutes
+    * note tracks determined from title, not if it has children
+    * add subs to PassedArgs
+    * slice returns EventsTree
+    * evaluate EventsTree -> EventDeriver
+    * generate note calls slice and evaluates subs if it has them
+    eliminate normalized time, calls evaluate in track time
+      * hunt down Derive.now and 'Derive.score_to_real 1'
+      * d_block now needs to do shift and stretch since eval track doesn't
+    * write test for subs with note
+    * fix Derive.Call.Note.c_clip
+    * block calls should invert like the others, move 'invert' to common place
+      and let calls use it
+      * circular imports if I import Derive.Schema from Derive.Call
+        because Derive.Call -> Derive.Schema -> Derive.Note -> Derive.Call
+        but if c_block is to use inverse
+        can I move c_block out of Call?  Well, it's built in to
+        lookup_note_call, but that's only used by note_dinfo, which can be
+        moved out, so:
+        - lookup_note_call along with c_block moves to Derive.Call.Note
+          Derive.Note now imports Derive.Call.Note, which means so does Schema
+          Schema -> Derive.Note -> Call.Note -> Schema
+
+          cycle:
+          Call(invert) -> Schema -> Note -> Call
+        Currently it's ok because
+          Call.Note(invert) -> Schema -> Note -> Call
+          Problem is Derive.Note needs *direct* access to c_block, unlike other
+          calls.  But I think I can break this if I put Call.lookup_block into
+          the scopes from the derive environ, then remove it from
+          lookup_note_call.  Now it's
+
+          invert must not be imported by Schema -> Derive.Note -> Call
+          Call.Block -> invert
+          Call.Note -> invert
+          invert -> Schema -> Note -> Call
+    * make sure lookup_block is in the default scopes
+    + switch skeleton parser to go parent->child to the right, ensure tests pass
+    - what happpens with derive cache with an inverted control track?
+    - make echo and delay transformers work without munging Score.Events
+
+    - change EventDeriver to return [(shift, stretch, deriver)]
+    - write tuplet call that uses that (+, *, d) triple (name it!)
+    - write test for tuplet
+    - make sure subtracks generate track warps and signal renders
+  - Ui.SymbolC uses Codec.Binary.UTF8.String which requires utf-string package
+    Why didn't it use Data.Text coding like Ui.Event?
   * cmd-tab out of app results in a hanging MetaL
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
     they don't precede the previous NoteOn, since I think samplers will only
@@ -71,8 +184,6 @@ CURRENT
   * Util.Seq.modify_at, change arg order to put list at last
   - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
 
-  - derive cache msgs are only logged on play... can I have performance do
-    that?
   * Get rid of perform cache, and hence need for EventDamage.
     yet another problem with the cache: a delete that changes the length of
     a block will generate the wrong EventDamage because the warp for that
@@ -122,6 +233,7 @@ CURRENT
     - fclabels: rename record fields, use setL and setL
     - lenses: got some magic for working with StateT?  don't understand yet
     - data-accessor
+    - comonad-transformers also has Data.Lens
   * Derive.initial_state should get a default pitch from whatever scale is in
     the environ... or no default pitch at all
   * initial environ should also set scopes

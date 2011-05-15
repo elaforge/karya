@@ -1,4 +1,5 @@
 {-# LANGUAGE PatternGuards, TupleSections, GeneralizedNewtypeDeriving #-}
+-- | TODO clean this module up wrt to exported functions
 module Ui.Track where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
@@ -89,6 +90,9 @@ make_scale_map = ScaleMap . map ValName . List.sort . map (\(a, b) -> (b, a))
 make_track_events :: [PosEvent] -> TrackEvents
 make_track_events = TrackEvents . Map.fromList
 
+empty_events :: TrackEvents
+empty_events = TrackEvents Map.empty
+
 set_events :: TrackEvents -> Track -> Track
 set_events events track = modify_events (const events) track
 
@@ -124,8 +128,11 @@ time_end events = maybe 0 event_max (last_event events)
     I can change the types to Word64 to store ScoreTime's.  Then maybe I can
     implement toDescList with foldl?
 -}
-newtype TrackEvents = TrackEvents (Map.Map ScoreTime Event.Event)
+newtype TrackEvents = TrackEvents EventMap
     deriving (DeepSeq.NFData, Eq, Show, Read)
+
+type EventMap = Map.Map ScoreTime Event.Event
+
 
 -- | Create a TrackEvents.  The input must be in ascending order!
 event_map_asc :: [PosEvent] -> TrackEvents
@@ -134,7 +141,6 @@ event_map_asc pos_events = TrackEvents (Map.fromAscList pos_events)
 te_map (TrackEvents evts) = evts
 -- Not in Functor because this should be private.
 emap f (TrackEvents evts) = TrackEvents (f evts)
-empty_events = TrackEvents Map.empty
 
 events_length :: TrackEvents -> Int
 events_length = Map.size . te_map
@@ -258,18 +264,33 @@ split_range start end events =
     (Map.toDescList pre, Map.toAscList within, Map.toAscList post)
     where (pre, within, post) = _split_range start end (te_map events)
 
+-- | Get events in the given range, plus surrounding.  If there is no event at
+-- 'start', the previous event will be included.  The event after 'end' is
+-- always included.
+track_events_around :: ScoreTime -> ScoreTime -> TrackEvents -> TrackEvents
+track_events_around start end = emap (split_around start end)
+
+split_around :: ScoreTime -> ScoreTime -> EventMap -> EventMap
+split_around start end events = above (below within)
+    where
+    (pre, within, post) = Map.split3 start end events
+    below m
+        | Just (lowest, _) <- Map.find_min within, lowest == start = m
+        | otherwise =
+            maybe m (\(pos, evt) -> Map.insert pos evt m) (Map.find_max pre)
+    above m = maybe m (\(pos, evt) -> Map.insert pos evt m) (Map.find_min post)
+
 split_lookup :: ScoreTime -> TrackEvents
     -> ([PosEvent], Maybe PosEvent, [PosEvent])
 split_lookup pos events =
     (Map.toDescList pre, fmap (pos,) at, Map.toAscList post)
     where (pre, at, post) = Map.splitLookup pos (te_map events)
 
-_split_range :: ScoreTime -> ScoreTime -> Map.Map ScoreTime Event.Event
-    -> (Map.Map ScoreTime Event.Event, Map.Map ScoreTime Event.Event,
-        Map.Map ScoreTime Event.Event)
-_split_range start end emap = (pre2, within3, post2)
+_split_range :: ScoreTime -> ScoreTime -> EventMap
+    -> (EventMap, EventMap, EventMap)
+_split_range start end events = (pre2, within3, post2)
     where
-    (pre, within, post) = Map.split3 start end emap
+    (pre, within, post) = Map.split3 start end events
     (within2, post2) = case Map.find_min post of
         Just (pos, evt) | pos == end && Event.is_negative evt ->
             (Map.insert pos evt within, Map.delete pos post)

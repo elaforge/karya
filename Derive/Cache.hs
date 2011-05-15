@@ -136,13 +136,12 @@ control_damage = undefined
 cached_generator :: (Derive.Derived derived) => CacheState -> Stack.Stack
     -> Derive.GeneratorCall derived -> Derive.PassedArgs derived
     -> Derive.Deriver (Derive.LogsDeriver derived, Maybe Cache)
-cached_generator state stack (Derive.GeneratorCall func gtype _) args =
+cached_generator state stack (Derive.GeneratorCall func gtype _) args = do
+    (start, end) <- Derive.passed_real_range args
     case gtype of
         Derive.NonCachingGenerator ->
-            non_caching =<< has_damage state stack
+            non_caching (has_damage start end state stack)
         Derive.CachingGenerator -> do
-            start <- Derive.now
-            end <- Derive.score_to_real 1
             generate $ find_generator_cache stack (Ranges.range start end)
                 (state_score_damage state) (state_control_damage state)
                 (state_cache state)
@@ -211,21 +210,16 @@ derived_range events = case (Seq.head derived, Seq.last derived) of
 -- | Figure out if this event lies within damaged range, whether score or
 -- control.
 --
--- This is called on every non-caching generator, which is most of them, and
--- 'Derive.score_to_real' is already called too often, so I go to some effort
--- to only call it if I already know there isn't score damage.  TODO profile
--- and see if it actually makes a difference.  It's a lazy language, right?
+-- This is called on every non-caching generator, which is most of them, so
+-- it should make an effort to be efficient.
 --
 -- This is never called for deleted events so it can't get damage for them,
 -- but there's a hack for that: 'Derive.Derive.score_to_event_damage'.
-has_damage :: CacheState -> Stack.Stack -> Derive.Deriver Bool
-has_damage state stack
-    | score = return True
-    | no_control_damage = return False
-    | otherwise = do
-        start <- Derive.now
-        end <- Derive.score_to_real 1
-        return $ case Derive.state_control_damage state of
+has_damage :: RealTime -> RealTime -> CacheState -> Stack.Stack -> Bool
+has_damage start end state stack
+    | score = True
+    | no_control_damage = False
+    | otherwise = case Derive.state_control_damage state of
             ControlDamage dmg -> Ranges.overlapping (Ranges.range start end) dmg
     where
     no_control_damage = Derive.state_control_damage state

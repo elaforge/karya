@@ -20,7 +20,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 
 import qualified Derive.Call.All as Call.All
-import qualified Derive.Call as Call
+import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.All as Scale.All
@@ -133,16 +133,25 @@ derive_tracks_tempo tracks = derive_tracks (("tempo", [(0, 0, "1")]) : tracks)
 
 derive_tracks_with :: Transform Derive.Events -> [UiTest.TrackSpec]
     -> Derive.Result
-derive_tracks_with with tracks =
-    derive_blocks_with with [(UiTest.default_block_name, tracks)]
+derive_tracks_with with = derive_tracks_with_ui with id
+
+-- | Variant that lets you modify both the Deriver state and the UI state.
+-- You can't modify the UI state inside the deriver state because the UI state
+-- is embedded in default_lookup_deriver and will revert as soon as a block is
+-- called.  TODO if I get rid of schemas this may change
+derive_tracks_with_ui :: Transform Derive.Events -> TransformUi
+    -> [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_with_ui with transform_ui tracks = derive_blocks_with_ui
+    with transform_ui [(UiTest.default_block_name, tracks)]
 
 -- | Create multiple blocks, and derive the first one.
 derive_blocks :: [(String, [UiTest.TrackSpec])] -> Derive.Result
-derive_blocks = derive_blocks_with id
+derive_blocks = derive_blocks_with_ui id id
 
-derive_blocks_with :: Transform Derive.Events -> [(String, [UiTest.TrackSpec])]
-    -> Derive.Result
-derive_blocks_with with block_tracks = derive_block_with with ui_state bid
+derive_blocks_with_ui :: Transform Derive.Events -> TransformUi
+    -> [(String, [UiTest.TrackSpec])] -> Derive.Result
+derive_blocks_with_ui with transform_ui block_tracks =
+    derive_block_with with (transform_ui ui_state) bid
     where
     (_, ui_state) = UiTest.run State.empty $ do
         forM_ block_tracks $ \(bid, tracks) -> UiTest.mkstate bid tracks
@@ -155,7 +164,7 @@ derive_block = derive_block_with id
 derive_block_with :: Transform Derive.Events -> State.State
     -> BlockId -> Derive.Result
 derive_block_with with ui_state block_id = derive ui_state deriver
-    where deriver = with (Call.eval_root_block block_id)
+    where deriver = with (Call.Block.eval_root_block block_id)
 
 derive :: State.State -> Derive.EventDeriver -> Derive.Result
 derive ui_state deriver =
@@ -163,6 +172,7 @@ derive ui_state deriver =
         mempty mempty default_environ deriver
 
 type Transform a = Derive.Deriver a -> Derive.Deriver a
+type TransformUi = State.State -> State.State
 
 -- ** derive with cache
 
@@ -170,7 +180,7 @@ derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> BlockId -> Derive.Result
 derive_block_cache cache damage ui_state block_id =
     derive_cache cache damage ui_state deriver
-    where deriver = Call.eval_root_block block_id
+    where deriver = Call.Block.eval_root_block block_id
 
 derive_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> Derive.EventDeriver -> Derive.Result
@@ -277,6 +287,9 @@ e_control :: String -> Score.Event -> Maybe [(RealTime, Signal.Y)]
 e_control cont event = fmap Signal.unsignal $
     Map.lookup (Score.Control cont) (Score.event_controls event)
 
+e_pitch :: Score.Event -> [(RealTime, PitchSignal.Degree)]
+e_pitch = PitchSignal.unsignal_degree . Score.event_pitch
+
 -- ** extract log msgs
 
 show_log_stack :: Log.Msg -> String
@@ -304,7 +317,6 @@ extract_midi :: Perform.MidiEvents -> [(Integer, Midi.Message)]
 extract_midi events = [(RealTime.to_milliseconds ts, msg)
     | Midi.WriteMessage _ ts msg <- LEvent.events_of events]
 
-
 -- * call
 
 passed_args :: String -> [TrackLang.Val] -> Derive.PassedArgs derived
@@ -317,10 +329,10 @@ passed_args call vals = Derive.PassedArgs vals Map.empty
 empty_lookup_deriver :: Derive.LookupDeriver
 empty_lookup_deriver = const (Right (return mempty))
 
-d_note :: Derive.EventDeriver
-d_note = do
-    start <- Derive.now
-    end <- Derive.score_to_real 1
+d_note :: ScoreTime -> ScoreTime -> Derive.EventDeriver
+d_note s_start dur = do
+    start <- Derive.score_to_real s_start
+    end <- Derive.score_to_real (s_start + dur)
     inst <- Derive.lookup_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes

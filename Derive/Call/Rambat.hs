@@ -21,6 +21,9 @@ note_calls = Derive.make_calls
 -- precedes the following note, and is one step above or one step below
 -- depending on the preceding note.
 --
+-- This is not an inverting call since it needs know the pitches of the
+-- previous and following notes.
+--
 -- TODO damping
 --
 -- [time /Control/ @%tick-time,.2@] Time from the grace note to the following
@@ -35,7 +38,7 @@ c_tick = Derive.stream_generator "tick" $ \args -> CallSig.call2 args
     , optional "vel" (control "tick-velocity" 0.5)) $ \time vel ->
     case (Derive.passed_prev_begin args, Derive.passed_next_begin args) of
         (Just ppos, Just npos) ->
-            Call.with_controls [time, vel] $ \[time, vel] ->
+            Call.with_controls args [time, vel] $ \[time, vel] ->
                 tick (Signal.y_to_real time) vel ppos npos
         (Nothing, Just _) -> Derive.throw "no previous event"
         _ -> Derive.throw "no next event"
