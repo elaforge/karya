@@ -300,9 +300,7 @@ setup_generate gen = do
     case gen of
         "simple" -> Derive_profile.make_simple 200
         "nested" -> Derive_profile.make_nested_controls 8 3 64
-            >> return []
         "nested-small" -> Derive_profile.make_nested_controls 8 1 64
-            >> return []
         "control" -> Derive_profile.make_big_control 15000
         "shared" -> Derive_profile.make_shared_control 2000
         _ -> error gen

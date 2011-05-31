@@ -68,6 +68,7 @@ test_parse = do
             [mk_track_info name n | (n, name) <- Seq.enumerate titles]
     let mkskel = Skeleton.make
     let f = Schema.default_parser . mktracks
+    let note_bottom = Schema.note_bottom_parser . mktracks
 
     -- They're both controls, with no instrument track.
     skel_equal (f ["", ""]) (mkskel [(0, 1)])
@@ -79,6 +80,12 @@ test_parse = do
         (mkskel [(0, 1), (1, 2), (0, 3), (4, 5)])
     skel_equal (f [">i1", "c1", ">i2", "c2"])
         (mkskel [(0, 1), (2, 3)])
+
+    -- note-bottom parser
+    skel_equal (note_bottom ["tempo", "*p", "c1", ">i1", "c2", ">i2"])
+        (mkskel [(0, 1), (1, 2), (2, 3), (0, 4), (4, 5)])
+    skel_equal (note_bottom ["c1", ">i1", "c2"])
+        (mkskel [(0, 1), (0, 2)])
     where
     skel_equal (Skeleton.Skeleton g1) (Skeleton.Skeleton g2) =
         Graph_test.graph_equal g1 g2

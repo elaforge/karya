@@ -1,23 +1,21 @@
 module Derive.Derive_profile where
 import Control.Monad
 import qualified Data.Time as Time
-import qualified Text.Printf as Printf
 import qualified System.IO as IO
 import qualified System.Mem as Mem
+import qualified Text.Printf as Printf
 
+import qualified Util.CPUTime as CPUTime
 import Util.Control
-import Util.CPUTime as CPUTime
+import Util.Test
 
-import Ui
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Create as Create
-
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-
-import Util.Test
+import qualified Derive.Schema as Schema
 
 
 -- q=90 means 1.5 quarters / sec
@@ -29,13 +27,13 @@ import Util.Test
 -- | Make a giant block with simple non-overlapping controls and tempo changes.
 profile_big_block = derive_profile $ make_simple 2000
 
-make_simple :: (State.M m) => Int -> m [TrackId]
+make_simple :: (State.M m) => Int -> m ()
 make_simple size =
     mkblock $ make_tempo size
         : note_tracks inst1 0 ++ note_tracks inst1 2 ++ note_tracks inst2 4
     where
     note_tracks name offset = map (track_take size . track_drop offset)
-        [note_track name, simple_pitch_track, vel_track]
+        [simple_pitch_track, vel_track, note_track name]
 
 
 -- | Block with a control controlling multiple note tracks.  Intended to
@@ -48,9 +46,9 @@ make_shared_control size = mkblock $
         : track_set 0 ++ track_set 2 -- ++ track_set 4
     where
     track_set offset = map (track_take size . track_drop offset)
-        [ note_track inst1
-        , simple_pitch_track
+        [ simple_pitch_track
         , vel_track
+        , note_track inst1
         ]
 
 -- | Block with non-tempered scale so pitches can't share.  Intended to profile
@@ -59,9 +57,9 @@ profile_nontempered = derive_profile $ make_nontempered 1000
     where
     make_nontempered size = mkblock $ map (track_until size)
             [ make_tempo (floor size)
-            , note_track inst1
             , nontempered_pitch_track
             , vel_track
+            , note_track inst1
             ]
 
 -- | Giant control track with lots of samples.  Intended to profile control
@@ -69,8 +67,8 @@ profile_nontempered = derive_profile $ make_nontempered 1000
 profile_control = derive_profile $ make_big_control 15000
 
 make_big_control size = mkblock $ map (track_until size)
-    [ (inst1, [(0, size, "")])
-    , mod_track
+    [ mod_track
+    , (inst1, [(0, size, "")])
     ]
 
 profile_nested_simple = derive_profile $ make_nested_notes 10 3 60
@@ -82,13 +80,13 @@ profile_nested_nocontrol = derive_profile $
 profile_size = derive_size $ make_nested_controls 10 3 60
 
 make_nested_notes :: (State.M m) => Int -> Int -> Int -> m ()
-make_nested_notes = make_nested [note_track inst1, simple_pitch_track]
+make_nested_notes = make_nested [simple_pitch_track, note_track inst1]
 
 make_nested_controls :: (State.M m) => Int -> Int -> Int -> m ()
 make_nested_controls = make_nested
-    [ note_track inst1
-    , simple_pitch_track
+    [ simple_pitch_track
     , mod_track
+    , note_track inst1
     ]
 
 -- | Try to generate a "normal" score.  This means a lightly nested structure,
@@ -112,8 +110,15 @@ make_nested bottom_tracks size depth bottom_size = do
         forM_ sub_bids $ \sub -> go ruler_id sub (depth-1)
 
 default_block = UiTest.default_block_name
-mkblock :: (State.M m) => [UiTest.TrackSpec] -> m [TrackId]
-mkblock = UiTest.mkstate default_block
+
+mkblock :: (State.M m) => [UiTest.TrackSpec] -> m ()
+mkblock tracks = do
+    UiTest.mkstate default_block tracks
+    tinfo <- State.get_track_info UiTest.default_block_id
+    -- Track slicing makes things much slower.  I should profile that too, but
+    -- let's profile without it first.
+    State.set_skeleton UiTest.default_block_id $
+        Schema.note_bottom_parser tinfo
 
 -- * implementation
 

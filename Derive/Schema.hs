@@ -28,7 +28,7 @@ module Derive.Schema (
     , derive_tracks
 
     -- * parser
-    , default_parser
+    , default_parser, note_bottom_parser
 
 #ifdef TESTING
     , derive_tree
@@ -162,16 +162,28 @@ derive_track node@(Tree.Node track subs)
 --
 -- TODO do something special with embedded rulers and dividers
 default_parser :: [State.TrackInfo] -> Skeleton.Skeleton
-default_parser = Skeleton.make
-    . Util.Tree.edges . map (fmap State.track_tracknum) . parse_to_tree
+default_parser = make_skeleton . parse_to_tree False
+
+-- | The note-bottom parser puts note tracks at the bottom:
+--
+-- @[tempo c1 i1 c2 i2] -> [tempo1 (c1 i1) (c2 i2)]@
+--
+-- This is useful when you don't want to invoke slicing.
+note_bottom_parser :: [State.TrackInfo] -> Skeleton.Skeleton
+note_bottom_parser = make_skeleton . parse_to_tree True
+
+make_skeleton :: Tree.Forest State.TrackInfo -> Skeleton.Skeleton
+make_skeleton =
+    Skeleton.make . Util.Tree.edges . map (fmap State.track_tracknum)
 
 -- | [c0 tempo1 i1 c1 tempo2 c2 i2 c3] ->
 -- [c0, tempo1 (i1 c1), tempo2 (c2 c2 c3)]
-parse_to_tree :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
-parse_to_tree tracks = concatMap parse_tempo_group groups
+parse_to_tree :: Bool -> [State.TrackInfo] -> Tree.Forest State.TrackInfo
+parse_to_tree reversed tracks = concatMap parse groups
     where
     groups =
         Seq.split_with (TrackInfo.is_tempo_track . State.track_title) tracks
+    parse = if reversed then reverse_tempo_group else parse_tempo_group
 
 parse_tempo_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
 parse_tempo_group tracks = case groups of
@@ -181,6 +193,16 @@ parse_tempo_group tracks = case groups of
     where
     groups = Seq.split_with (TrackInfo.is_note_track . State.track_title)
         tracks
+
+reverse_tempo_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
+reverse_tempo_group [] = []
+reverse_tempo_group (track:tracks) =
+    [Tree.Node track $ concatMap parse_note_group (shift groups)]
+    where
+    groups = Seq.split_with (TrackInfo.is_note_track . State.track_title)
+        tracks
+    shift (group : (note : rest) : gs) = (group ++ [note]) : shift (rest : gs)
+    shift gs = gs
 
 parse_note_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
 parse_note_group tracks = descend tracks []
