@@ -5,9 +5,9 @@
 module Derive.Cache_profile where
 import qualified Data.Monoid as Monoid
 import qualified Data.Time as Time
-import qualified System.CPUTime as CPUTime
 
 import Util.Control
+import qualified Util.CPUTime as CPUTime
 import Util.Test
 
 import Ui

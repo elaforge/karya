@@ -1,11 +1,12 @@
 module Derive.Derive_profile where
 import Control.Monad
 import qualified Data.Time as Time
-import qualified System.CPUTime as CPUTime
 import qualified Text.Printf as Printf
 import qualified System.IO as IO
+import qualified System.Mem as Mem
 
 import Util.Control
+import Util.CPUTime as CPUTime
 
 import Ui
 import qualified Ui.State as State
@@ -17,8 +18,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 
 import Util.Test
-
-import qualified System.Mem as Mem
 
 
 -- q=90 means 1.5 quarters / sec

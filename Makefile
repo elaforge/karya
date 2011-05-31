@@ -64,7 +64,7 @@ LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD)
 # It links faster than hint but leaks memory.  And it's broken.
 SEQ_INTERPRETER := $(if $(hint), -DINTERPRETER_HINT)
 
-# without hint: make -j3 build/seq  9.06s user 1.17s system 99% cpu 10.333 total
+# w/o hint: make -j3 build/seq  9.06s user 1.17s system 99% cpu 10.333 total
 # with hint: make -j3 build/seq  18.89s user 1.90s system 98% cpu 21.125 total
 SEQ_FLAGS := $(SEQ_INTERPRETER) $(SEQ_OPT)
 
@@ -152,8 +152,17 @@ $(BUILD)/test_block: fltk/test_block.o fltk/fltk.a
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(BUNDLE)
 
+# I rely on ghc --make to decide what to recompile, so I don't need to put the
+# dependencies in the Makefile.  Unfortunately, this doesn't work for *.hsc
+# files that must be converted to *.hs.  I have to add those to the dep line
+# explicitly.
+
 UI_HSC := $(wildcard Ui/*.hsc)
-UI_HS := $(UI_HSC:hsc=hs)
+
+# Ok so Util/CPUTime.hs is not technically a UI file but it's imported by the
+# tests.
+# TODO grody, maybe I should just make everything depend on ALL_HSC?
+UI_HS := $(UI_HSC:hsc=hs) Util/CPUTime.hs
 UI_OBJS := Ui/c_interface.o
 
 COREMIDI_OBJS := Midi/core_midi.o
