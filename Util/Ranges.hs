@@ -50,14 +50,14 @@ nothing = Ranges []
 -- * functions
 
 overlapping :: (Ord n) => Ranges n -> Ranges n -> Bool
-overlapping Everything _ = True
-overlapping _ Everything = True
+overlapping Everything r2 = r2 /= nothing
+overlapping r1 Everything = r1 /= nothing
 overlapping (Ranges r1) (Ranges r2) = go r1 r2
     where
     go [] _ = False
     go _ [] = False
     go r1@((s1, e1) : rest1) r2@((s2, e2) : rest2)
-        -- It's important that zero width ranges can still overlap, overwise
+        -- It's important that zero width ranges can still overlap, otherwise
         -- zero width track damage won't invalidate any caches.
         | s1 == s2 = True
         | e1 <= s2 = go rest1 r2
