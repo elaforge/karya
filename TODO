@@ -1,3 +1,15 @@
+- iterm2 can do 256 color mode?  but ^[ emits a /, and backspace emits delete,
+  and it seems slow at scrolling
+
+use fixed-binary instead of Doubles for ScoreTime and RealTime:
+  reasons to do it:
+    - get rid of custom implementation in Perform.RealTime
+    - get rid of half-open except start==end hack for ranges, a point selection
+      is simple (start, start+1).
+  reasons not to do it:
+    - what to do about -0?  I could disallow 0 dur events and make control
+      events have an eta dur
+
 - patch for hsc2hs for #alignment
 - hsc2hs accepts slightly different flags from the c compiler which makes it a
   pain to write the make rule.  It should take --cflags='xyz' which is passed
@@ -11,7 +23,12 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  - replace Util.map_maybe with Maybe.mapMaybes
+  - why does haskell-src-exts throw an exception for Ambiguous fixity?
+  - look for Ranges.extract to replace with Ranges.fmap
   - rename State.event_end -> block_end_event, block_end_ruler
+  - see about optimizing Derive.with_* functions to return id when the value
+    is empty.  Can I restrict to Monoid and use (==mempty)?
   * strictify Cmd.Cmd.State fields
   - double click no longer working to open a sub block
   note transformer, sekaran, pitches below notes
@@ -114,14 +131,39 @@ CURRENT
           Call.Note -> invert
           invert -> Schema -> Note -> Call
     * make sure lookup_block is in the default scopes
-    + switch skeleton parser to go parent->child to the right, ensure tests pass
-    - what happpens with derive cache with an inverted control track?
-    - make echo and delay transformers work without munging Score.Events
+    * switch skeleton parser to go parent->child to the right, ensure tests
+      pass
+    * what happpens with derive cache with an inverted control track?
+      remove Derive.CachingGenerator, make cached_generator into a call
+      transformer so it can go beneath the inversion
+      Emitting control damage:
+        The thing is to expand score damage.  I could do that after derivation
+        of the signal.  Is there anything else control damage gets?  I don't
+        think so.
+        So after slice, I have a fragment of a control track.  If it's changed,
+        the score damage turns into control damage, and the generator below
+        rederives.
+      * implement Cache.get_control_damage
+        * It needs the track range, but that's only available at the slice.
+          So maybe track range should be part of the track EventTree
+      * implement Cache.get_tempo_damage
+      * tests for control damage
+      * now cached_generator doesn't need to calculate or return damage, so
+        remove that
+      * try a profile to see if it helped
+        not significantly
+      * now cached_generator doesn't need to be called at derive_track level
+        make it into a call transformer like inverting_call
+      * local damage is gone, remove from records and docs
+      * profile again, for fun
+      * now test_inverted_control_damage should pass
+    * make echo and delay transformers work without munging Score.Events
 
     - change EventDeriver to return [(shift, stretch, deriver)]
     - write tuplet call that uses that (+, *, d) triple (name it!)
     - write test for tuplet
     - make sure subtracks generate track warps and signal renders
+      fix Control_test.test_stash_signal
   - Ui.SymbolC uses Codec.Binary.UTF8.String which requires utf-string package
     Why didn't it use Data.Text coding like Ui.Event?
   * cmd-tab out of app results in a hanging MetaL

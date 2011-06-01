@@ -44,8 +44,7 @@ note_calls = Derive.make_calls
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
-    (Just $ Derive.GeneratorCall (inverting_call generate)
-        Derive.NonCachingGenerator (const Nothing))
+    (Just $ Derive.GeneratorCall (inverting_call generate) (const Nothing))
     (Just $ Derive.TransformerCall transform Derive.NonIncremental)
     where
     generate args = case process (Derive.passed_vals args) of
@@ -105,7 +104,8 @@ trimmed_pitch start end =
 -- It would be nice to strip out deriver-only controls, but without specific
 -- annotation I can't know which ones those are.  Presumably laziness will
 -- do its thing?
-trimmed_controls :: RealTime -> RealTime -> Score.ControlMap -> Score.ControlMap
+trimmed_controls :: RealTime -> RealTime -> Score.ControlMap
+    -> Score.ControlMap
 trimmed_controls start end controls = Map.map trim controls
     where trim = Signal.truncate end . Signal.drop_before start
 
@@ -179,12 +179,14 @@ slice start end text dur = map go
     where
     go (Tree.Node track subs) = Tree.Node (slice_t track)
         (if null subs then [Tree.Node insert []] else map go subs)
-    insert = State.TrackEvents ">" (Track.make_track_events [event]) end Nothing
+    insert = State.TrackEvents ">" (Track.make_track_events [event]) end
+        Nothing (Just (start, start + dur))
     event = (start, Event.event text dur)
     slice_t track = track
         { State.tevents_events =
             Track.track_events_around start end (State.tevents_events track)
         , State.tevents_end = end
+        , State.tevents_range = Just (start, start + dur)
         -- , State.tevents_track_id = Nothing
         -- TODO if I strip it, then the stack misses track ids, but how do
         -- I omit warp and signal?

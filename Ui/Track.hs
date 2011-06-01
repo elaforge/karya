@@ -190,8 +190,14 @@ split pos (TrackEvents events) = (Map.toDescList pre, Map.toAscList post)
     where (pre, post) = Map.split2 pos events
 
 -- | Events at or after @pos@.
+events_at_after :: ScoreTime -> TrackEvents -> [PosEvent]
+events_at_after pos track_events = snd (split pos track_events)
+
+-- | Events after @pos@.
 events_after :: ScoreTime -> TrackEvents -> [PosEvent]
-events_after pos track_events = snd (split pos track_events)
+events_after pos track_events = case events_at_after pos track_events of
+    (p, _) : rest | p == pos -> rest
+    events -> events
 
 -- | This is like 'split', but if there isn't an event exactly at the pos and
 -- the previous event is positive (i.e. has a chance of overlapping), include
@@ -205,7 +211,7 @@ split_at_before pos events
 
 -- | An event exactly at the given pos, or Nothing.
 event_at :: ScoreTime -> TrackEvents -> Maybe Event.Event
-event_at pos track_events = case events_after pos track_events of
+event_at pos track_events = case events_at_after pos track_events of
     ((epos, event):_) | epos == pos -> Just event
     _ -> Nothing
 

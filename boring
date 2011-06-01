@@ -34,7 +34,7 @@ _stub.[ch]$
 ^Ui/TrackC.hs$
 ^Ui/Types.hs$
 ^Ui/UiMsgC.hs$
-
+^Util/CPUTime.hs$
 
 # darcs default boring regexps:
 \.hi$

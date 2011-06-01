@@ -618,16 +618,24 @@ type EventsTree = [EventsNode]
 type EventsNode = Tree.Tree TrackEvents
 
 data TrackEvents = TrackEvents {
-    tevents_title :: String
-    , tevents_events :: Track.TrackEvents
+    tevents_title :: !String
+    , tevents_events :: !Track.TrackEvents
     -- | Tracks often extend beyond the end of the last event.  The derivers
     -- need to know the track end to get the controls of the last note, and for
     -- the block stretch hack.
-    , tevents_end :: ScoreTime
+    , tevents_end :: !ScoreTime
     -- | If this TrackEvents is from a real track, then its evaluation can
     -- generate a render signal as a side-effect.
-    , tevents_track_id :: Maybe TrackId
+    , tevents_track_id :: !(Maybe TrackId)
+    -- | If the track is sliced and doesn't represent a complete track, its
+    -- range is here.
+    , tevents_range :: !TrackRange
     } deriving (Show)
+
+-- | Used by "Derive.Cache": due to inverting calls, a control track may be
+-- sliced to a shorter range.  In that case, I shouldn't bother with damage
+-- outside of its range.
+type TrackRange = Maybe (ScoreTime, ScoreTime)
 
 events_tree :: (M m) => ScoreTime -> TrackTree -> m EventsTree
 events_tree block_end tree = mapM resolve tree
@@ -637,7 +645,7 @@ events_tree block_end tree = mapM resolve tree
     make title track_id = do
         track <- get_track track_id
         return $ TrackEvents title (Track.track_events track) block_end
-            (Just track_id)
+            (Just track_id) Nothing
 
 -- ** tracks
 

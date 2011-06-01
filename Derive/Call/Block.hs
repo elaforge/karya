@@ -7,16 +7,16 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Pretty as Pretty
-
 import Ui
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 
+import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
-import qualified Derive.CallSig as CallSig
-import Derive.CallSig (required)
 import qualified Derive.Call.Note as Note
+import Derive.CallSig (required)
+import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -46,7 +46,8 @@ lookup_block sym = fmap c_block <$> symbol_to_block_id sym
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = block_call (const (Just block_id)) $
-    Derive.caching_generator "block" (Note.inverting_call run)
+    Derive.stream_generator "block" $ Note.inverting_call $
+        Cache.caching_call run
     where
     run args
         | null (Derive.passed_vals args) =
@@ -116,16 +117,17 @@ make_block_id namespace (TrackLang.Symbol call) =
 -- in the same time scale as the calling block.  TODO wait until I actually
 -- start using this to see if it's worth coming up with a solution for that.
 c_clip :: Derive.NoteCall
-c_clip = block_call get_block_id $ Derive.caching_generator "clip" $
-    Note.inverting_call $ \args -> CallSig.call1 args (required "block_id") $
-    \sym -> do
+c_clip = block_call get_block_id $ Derive.stream_generator "clip" $
+    Note.inverting_call $ Cache.caching_call $ \args ->
+    CallSig.call1 args (required "block_id") $ \sym -> do
         block_id <- maybe
             (Derive.throw $ "block not found: " ++ Pretty.pretty sym) return
             =<< symbol_to_block_id sym
         sub_dur <- Derive.get_block_dur block_id
         (_, end) <- Derive.passed_real_range args
         takeWhile (before end) <$>
-            Derive.d_place (Derive.passed_score args) sub_dur (d_block block_id)
+            Derive.d_place (Derive.passed_score args) sub_dur
+                (d_block block_id)
     where
     before end = LEvent.either ((<end) . Score.event_start) (const True)
     get_block_id (ns, args) = case Derive.passed_vals args of

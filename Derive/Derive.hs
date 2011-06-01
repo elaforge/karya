@@ -331,9 +331,6 @@ default_velocity = 0.79
 -- | These are things that collect throughout derivation, and are cached in
 -- addition to the derived values.  Effectively they are return values
 -- alongside the values.
---
--- 'state_local_damage' also collects, but isn't recorded by the cache since
--- by definition a cached call returns no damage.
 data Collect = Collect {
     -- | Remember the warp signal for each track.  A warp usually applies to
     -- a set of tracks, so remembering them together will make the updater more
@@ -341,9 +338,8 @@ data Collect = Collect {
     collect_warp_map :: !TrackWarp.WarpMap
     , collect_track_signals :: !Track.TrackSignals
     , collect_track_environ :: !TrackEnviron
-    -- | Similar to 'state_local_damage', this is how a call records its
-    -- dependencies.  After evaluation of a deriver, this will contain the
-    -- dependencies of the most recent call.
+    -- | This is how a call records its dependencies.  After evaluation of
+    -- a deriver, this will contain the dependencies of the most recent call.
     , collect_local_dep :: !LocalDep
     } deriving (Eq, Show)
 
@@ -374,18 +370,6 @@ data CacheState = CacheState {
     state_cache :: !Cache -- modified
     , state_score_damage :: !ScoreDamage -- constant
     , state_control_damage :: !ControlDamage
-
-    -- | This is an evil hack.  Derivers must return 'EventDamage' so the
-    -- caller can know which bits they rederived.  However, damage is a concept
-    -- local to the caching subsystem and it's a hassle to have every
-    -- transformer deal with a @(derived, EventDamage)@ pair instead of plain
-    -- @derived@.  So instead, Cache maintains the event damage by modifying
-    -- this value.  Control tracks will pull it out and merge it into the
-    -- appropriate ControlDamage.  If they forget, then bad things happen, but
-    -- this code should be restricted to the track derivers.
-    --
-    -- It's like Collect but isn't stored there as documented in Collect.
-    , state_local_damage :: !EventDamage
     } deriving (Show)
 
 instance Monoid.Monoid CacheState where
@@ -393,12 +377,11 @@ instance Monoid.Monoid CacheState where
         state_cache = mempty
         , state_score_damage = mempty
         , state_control_damage = ControlDamage mempty
-        , state_local_damage = EventDamage mempty
         }
-    mappend (CacheState cache1 score1 control1 local1)
-            (CacheState cache2 score2 control2 local2) =
+    mappend (CacheState cache1 score1 control1)
+            (CacheState cache2 score2 control2) =
         CacheState (cache1 <> cache2) (score1 <> score2)
-            (control1 <> control2) (local1 <> local2)
+            (control1 <> control2)
 
 initial_cache_state :: Cache -> ScoreDamage -> CacheState
 initial_cache_state cache score_damage = mempty {
@@ -533,7 +516,6 @@ data PassedArgs derived = PassedArgs {
 
 data GeneratorCall derived = GeneratorCall {
     gcall_func :: GeneratorFunc derived
-    , gcall_type :: GeneratorType
     -- | Block calls should put their BlockId on the stack instead of the call
     -- name.
     --
@@ -570,16 +552,7 @@ generator1 name func = generator name ((LEvent.one <$>) . func)
 stream_generator :: (Derived derived) =>
     String -> GeneratorFunc derived -> Call derived
 stream_generator name func =
-    Call name (Just (GeneratorCall func NonCachingGenerator (const Nothing)))
-        Nothing
-
--- | Like 'stream_generator', but set the CachingGenerator flag, which will
--- turn on caching for this generator.
-caching_generator :: (Derived derived) =>
-    String -> GeneratorFunc derived -> Call derived
-caching_generator name func =
-    Call name (Just (GeneratorCall func CachingGenerator (const Nothing)))
-        Nothing
+    Call name (Just (GeneratorCall func (const Nothing))) Nothing
 
 -- *** transformer
 
@@ -743,28 +716,11 @@ get_cache_state = gets state_cache_state
 put_cache :: Cache -> Deriver ()
 put_cache cache = modify_cache_state $ \st -> st { state_cache = cache }
 
-take_local_damage :: Deriver EventDamage
-take_local_damage = do
-    old <- get_cache_state
-    modify_cache_state $ \st ->
-        st { state_local_damage = EventDamage mempty }
-    return $ state_local_damage old
-
-insert_local_damage :: EventDamage -> Deriver ()
-insert_local_damage damage = modify_cache_state $ \st ->
-    st { state_local_damage = damage <> state_local_damage st }
-
-put_local_damage :: EventDamage -> Deriver ()
-put_local_damage damage = modify_cache_state $ \st ->
-    st { state_local_damage = damage }
-
-with_control_damage :: EventDamage -> Deriver derived -> Deriver derived
-with_control_damage (EventDamage damage) = local_cache_state
+with_control_damage :: ControlDamage -> Deriver derived -> Deriver derived
+with_control_damage damage = local_cache_state
     state_control_damage
     (\old st -> st { state_control_damage = old })
-    (\st -> st { state_control_damage = insert (state_control_damage st) })
-    where
-    insert (ControlDamage ranges) = ControlDamage (ranges <> damage)
+    (\st -> st { state_control_damage = damage })
 
 add_block_dep :: BlockId -> Deriver ()
 add_block_dep block_id = modify_collect $ \st ->
@@ -774,13 +730,14 @@ add_block_dep block_id = modify_collect $ \st ->
 
 -- | Both track warps and local deps are used as dynamic return values (aka
 -- modifying a variable to \"return\" something).  When evaluating a cached
--- generator, the caller wants to know the callee's track warps and local deps,
--- without getting them mixed up with its own warps and deps.  So run a deriver
--- in an empty environment, and restore it afterwards.
+-- generator, the caller wants to know the callee's track warps and local
+-- deps, without getting them mixed up with its own warps and deps.  So run
+-- a deriver in an empty environment, and restore it afterwards.
 --
 -- This catches and returns any exception rather than rethrowing because the
 -- caller wants the Collect regardless of whether there was an exception or
 -- not.
+--
 -- TODO I would think it shouldn't need to catch because the Collect after
 -- an exception should be mempty anyway, but something's not quite right
 -- because not catching breaks Cache_test.test_failed_sub_track
@@ -800,8 +757,8 @@ local_cache_state :: (CacheState -> st) -> (st -> CacheState -> CacheState)
 local_cache_state from_state to_state modify_state = local
     (from_state . state_cache_state)
     (\old st -> st { state_cache_state = to_state old (state_cache_state st) })
-    (\st ->
-        return $ st { state_cache_state = modify_state (state_cache_state st) })
+    (\st -> return $ st
+        { state_cache_state = modify_state (state_cache_state st) })
 
 modify_cache_state :: (CacheState -> CacheState) -> Deriver ()
 modify_cache_state f = modify $ \st ->
@@ -1539,12 +1496,6 @@ data CallType derived = CachedGenerator !Collect !(LEvent.LEvents derived)
 
 newtype GeneratorDep = GeneratorDep (Set.Set BlockId)
     deriving (Monoid.Monoid, Show, Eq)
-
-data GeneratorType =
-    CachingGenerator
-    -- | This generator is so cheap it should skip the cache entirely.
-    | NonCachingGenerator
-    deriving (Show)
 
 data TransformerType =
     -- | An incremental transformer can recompute a fragment of its result

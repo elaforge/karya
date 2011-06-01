@@ -270,14 +270,8 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
         with_stack = case (($ (ns, args)) . Derive.gcall_block) =<< gen of
             Just block_id -> Derive.with_stack_block block_id
             Nothing -> Derive.with_stack_call (Derive.call_name call)
-    with_stack $ case gen of
-        -- Just (Derive.GeneratorCall gen _ _) -> gen args
-        Just gen -> do
-            cache <- Derive.gets Derive.state_cache_state
-            stack <- Derive.gets Derive.state_stack
-            (deriver, new_cache) <- Cache.cached_generator cache stack gen args
-            when_just new_cache Derive.put_cache
-            deriver
+    with_stack $ case Derive.gcall_func <$> Derive.call_generator call of
+        Just call -> call args
         Nothing -> Derive.throw $ "non-generator in generator position: "
             ++ Derive.call_name call
 

@@ -1,7 +1,8 @@
 {-# LANGUAGE CPP #-}
 module Derive.Cache (
-    cached_transformer, cached_generator
+    cached_transformer, caching_call
     , score_damage
+    , get_control_damage, get_tempo_damage
 
 #ifdef TESTING
     , find_generator_cache
@@ -19,17 +20,21 @@ import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Block as Block
-import qualified Ui.State as State
 import qualified Ui.Diff as Diff
+import qualified Ui.State as State
+import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
+import Derive.Derive
+       (CacheState(..), Cache(..), CacheEntry(..), CallType(..),
+        GeneratorDep(..), TransformerType(..), ScoreDamage(..),
+        DamageRanges, EventDamage(..), ControlDamage(..))
 import qualified Derive.Derive as Derive
-import Derive.Derive (
-    CacheState(..), Cache(..), CacheEntry(..), CallType(..)
-    , GeneratorDep(..), TransformerType(..)
-    , ScoreDamage(..), DamageRanges, EventDamage(..), ControlDamage(..))
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
+
+import qualified Perform.RealTime as RealTime
 
 
 -- * cached_transformer
@@ -45,16 +50,15 @@ import qualified Derive.Stack as Stack
 -- damage out.  That's ok because incremental recomputation only applies to
 -- postproc style transformers that evaluate the deriver anyway.
 --
--- This doesn't use score or control damage like 'cached_generator' since it
+-- This doesn't use score or control damage like 'caching_call' since it
 -- evaluates the underlying deriver regardless.
 cached_transformer :: (Derive.Derived derived) => Cache -> Stack.Stack
     -> Derive.TransformerCall derived -> Derive.PassedArgs derived
     -> Derive.LogsDeriver derived
     -> Derive.Deriver (Derive.LogsDeriver derived, Maybe Cache)
-cached_transformer cache stack (Derive.TransformerCall call ttype)
+cached_transformer _cache _stack (Derive.TransformerCall call _ttype)
         args deriver =
-    case ttype of
-        _ -> return (call args deriver, Nothing)
+    return (call args deriver, Nothing)
 
 {-
         -- NonIncremental -> return (call args deriver, Nothing)
@@ -124,56 +128,32 @@ control_damage = undefined
 -}
 
 
--- * cached_generator
+-- * caching_call
 
 -- | If the given generator has a cache entry, relevant derivation context is
 -- the same as the cache entry's, and there is no damage under the generator,
 -- I can reuse the cached values for it.  This is effectively a kind of
 -- memoization.  If the generator is called, the results will be put in the
 -- cache before being returned.
---
--- This is called around each generator, or possibly a group of generators.
-cached_generator :: (Derive.Derived derived) => CacheState -> Stack.Stack
-    -> Derive.GeneratorCall derived -> Derive.PassedArgs derived
-    -> Derive.Deriver (Derive.LogsDeriver derived, Maybe Cache)
-cached_generator state stack (Derive.GeneratorCall func gtype _) args = do
+caching_call :: (Derive.PassedArgs d -> Derive.EventDeriver)
+    -> (Derive.PassedArgs d -> Derive.EventDeriver)
+caching_call call args = do
     (start, end) <- Derive.passed_real_range args
-    case gtype of
-        Derive.NonCachingGenerator ->
-            non_caching (has_damage start end state stack)
-        Derive.CachingGenerator -> do
-            generate $ find_generator_cache stack (Ranges.range start end)
-                (state_score_damage state) (state_control_damage state)
-                (state_cache state)
+    cache <- Derive.gets Derive.state_cache_state
+    stack <- Derive.gets Derive.state_stack
+    generate stack $ find_generator_cache stack (Ranges.range start end)
+        (state_score_damage cache) (state_control_damage cache)
+        (state_cache cache)
     where
-    -- A non-caching generator should just be called normally.  However, I need
-    -- to emit event damage if it was rederived because of score or control
-    -- damage.  Otherwise, damage on a track of non-caching generators would
-    -- never produce EventDamage.
-    non_caching True = do
-        derived <- func args
-        -- In the case of samples, this range is not accurate, since the
-        -- changed region actually extends to the *next* sample.  But
-        -- I don't know what that is here, so rely on the control deriver
-        -- to do that.  Ugh, not too pretty.
-        -- TODO and in the case of note tracks, this is no longer needed
-        -- since I no longer emit EventDamage.  But I think only a thunk is
-        -- stored if it's never retrieved.
-        Derive.insert_local_damage (EventDamage (derived_range derived))
-        return (return derived, Nothing)
-    non_caching False = return (func args, Nothing)
-    generate (Right (collect, cached)) = do
-        Log.debug $ "using cache (" ++ show (LEvent.length cached)
-            ++ " vals)"
+    generate _ (Right (collect, cached)) = do
+        Log.debug $ "using cache (" ++ show (LEvent.length cached) ++ " vals)"
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
         Derive.modify_collect (collect <>)
-        return (return cached, Nothing)
-    generate (Left reason) = do
-        (result, collect) <- with_collect (func args)
+        return cached
+    generate stack (Left reason) = do
+        (result, collect) <- with_collect (call args)
         cur_cache <- state_cache <$> Derive.get_cache_state
-        let stream = either (const mempty) id result
-        let new_cache = insert_generator stack collect stream cur_cache
         Log.notice $ "rederived generator because of "
             -- This destroys laziness, though I'm not sure why since the
             -- log msg shouldn't be forced until the msgs already have been
@@ -184,7 +164,10 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args = do
                 Right _ -> ""
         case result of
             Left exc -> Error.throwError exc
-            Right stream -> return (return stream, Just new_cache)
+            Right stream -> do
+                Derive.modify_cache_state $ \st -> st { Derive.state_cache =
+                    insert_generator stack collect stream cur_cache }
+                return stream
 
     -- To get the deps of just the deriver below me, I have to clear out
     -- the local deps.  But this call is itself collecting deps for another
@@ -194,48 +177,6 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args = do
         Derive.modify $ \st ->
             st { Derive.state_collect = collect <> Derive.state_collect st }
         return (result, collect)
-
--- | Sort through the events for the derived chunks and figure out the range
--- they cover.
-derived_range :: (Derive.Derived d) => LEvent.LEvents d
-    -> Ranges.Ranges RealTime
-derived_range events = case (Seq.head derived, Seq.last derived) of
-        (Just hd, Just tl) -> Ranges.range
-            (fst (Derive.derived_range hd)) (snd (Derive.derived_range tl))
-        _ -> Ranges.nothing
-    where
-    derived = filter (not . Derive.derived_null) $
-        Seq.map_maybe LEvent.event events
-
--- | Figure out if this event lies within damaged range, whether score or
--- control.
---
--- This is called on every non-caching generator, which is most of them, so
--- it should make an effort to be efficient.
---
--- This is never called for deleted events so it can't get damage for them,
--- but there's a hack for that: 'Derive.Derive.score_to_event_damage'.
-has_damage :: RealTime -> RealTime -> CacheState -> Stack.Stack -> Bool
-has_damage start end state stack
-    | score = True
-    | no_control_damage = False
-    | otherwise = case Derive.state_control_damage state of
-            ControlDamage dmg -> Ranges.overlapping (Ranges.range start end) dmg
-    where
-    no_control_damage = Derive.state_control_damage state
-        == ControlDamage Ranges.nothing
-    score
-        -- Scan the stack for damaged tids before converting to UiFrames.
-        -- TODO profile and see if this really helps.
-        | not (any (`Map.member` damaged_tracks)
-            [tid | Stack.Track tid <- Stack.innermost stack]) = False
-        | otherwise = any overlapping (Stack.to_ui stack)
-    overlapping (_, Just tid, Just (s, e)) =
-        case Map.lookup tid damaged_tracks of
-            Nothing -> False
-            Just range -> Ranges.overlapping range (Ranges.range s e)
-    overlapping _ = False
-    damaged_tracks = sdamage_tracks (Derive.state_score_damage state)
 
 find_generator_cache :: (Derive.Derived derived) =>
     Stack.Stack -> Ranges.Ranges RealTime -> ScoreDamage -> ControlDamage
@@ -274,6 +215,106 @@ insert_generator stack collect stream (Cache cache) =
         (CachedGenerator collect (filter is_event stream))
     is_event (LEvent.Event _) = True
     is_event _ = False
+
+-- * get_control_damage
+
+-- | ControlDamage works in this manner:
+--
+-- ScoreDamage on a control track is expanded to include the previous to the
+-- next event, since control calls generally generate samples based on their
+-- previous event, and possibly the next one.  Since control tracks may depend
+-- on other control tracks, controls beneath the damaged one will also expand
+-- the damage to include previous and next events in the same way.
+get_control_damage :: TrackId -> State.TrackRange
+    -> Derive.Deriver ControlDamage
+get_control_damage track_id range = do
+    control <- Derive.state_control_damage <$> Derive.get_cache_state
+    extend_damage track_id range =<< if control == mempty
+        then score_to_control track_id range . Derive.state_score_damage
+            =<< Derive.get_cache_state
+        else return control
+
+-- | Since the warp is the integral of the tempo track, damage on the tempo
+-- track will affect all events after it.  The tempo track shouldn't be sliced
+-- so TrackRange doesn't apply.
+get_tempo_damage :: TrackId -> Derive.Deriver ControlDamage
+get_tempo_damage track_id = do
+    control <- Derive.state_control_damage <$> Derive.get_cache_state
+    extend <$> if control == mempty
+        then score_to_control track_id Nothing . Derive.state_score_damage
+            =<< Derive.get_cache_state
+        else return control
+    where
+    extend (Derive.ControlDamage ranges) = Derive.ControlDamage $
+        case Ranges.extract ranges of
+            Nothing -> Ranges.everything
+            Just [] -> Ranges.nothing
+            Just ((s, _) : _) -> Ranges.range s RealTime.max
+
+score_to_control :: TrackId -> State.TrackRange -> ScoreDamage
+    -> Derive.Deriver ControlDamage
+score_to_control track_id range score =
+    ControlDamage <$> damage_to_real damage
+    where
+    damage = in_range $ maybe Ranges.nothing id $
+        Map.lookup track_id (Derive.sdamage_tracks score)
+    in_range = maybe id (Ranges.intersection . uncurry Ranges.range) range
+
+-- | Extend the given ControlDamage as described in 'get_control_damage'.
+-- Somewhat tricky because I also want to clip the damage to the track range,
+-- if any.  This is so a sliced control track below an unsliced one won't
+-- bother figuring out damage outside its range.
+extend_damage :: TrackId -> State.TrackRange -> ControlDamage
+    -> Derive.Deriver ControlDamage
+extend_damage track_id range (ControlDamage damage)
+    | damage == mempty = return (ControlDamage damage)
+    | otherwise = do
+        events <- Track.track_events <$> Derive.get_track track_id
+        -- Empty tracks could not have contributed to further damage.
+        if events == Track.empty_events
+            then return (ControlDamage damage)
+            else do
+                sdamage <- damage_to_score damage
+                Log.warn $ "extend from: " ++ show sdamage ++ " -> "
+                    ++ show (extend range sdamage events)
+                ControlDamage <$> damage_to_real (extend range sdamage events)
+    where
+    extend Nothing damage events = Ranges.fmap (Just . ext events) damage
+    extend (Just range) damage events =
+        Ranges.fmap (range_ext range events) damage
+    range_ext track_range events range
+        | in_range track_range range = Just (ext events range)
+        | otherwise = Nothing
+        where
+        in_range (track_s, track_e) (s, e) = s >= track_s && e <= track_e
+    ext events (s, e) = (event_at_before s events, event_after e events)
+
+    event_at_before p events = case Track.split p events of
+        (_, (at, _) : _) | p == at -> p
+        ((prev, _) : _, _) -> prev
+        _ -> p
+    event_after p events = maybe Types.big_score fst $
+        Seq.head (Track.events_after p events)
+
+damage_to_real :: Ranges.Ranges ScoreTime
+    -> Derive.Deriver (Ranges.Ranges RealTime)
+damage_to_real r = case Ranges.extract r of
+    Nothing -> return Ranges.everything
+    Just rs -> Ranges.sorted_ranges <$>
+        mapM (\(s, e) -> (,) <$> convert s <*> convert e) rs
+    where
+    convert t
+        -- Ugh.  I don't really want to get the RealTime of Types.big_score.
+        | t == Types.big_score = return RealTime.max
+        | otherwise =  Derive.score_to_real t
+
+damage_to_score :: Ranges.Ranges RealTime
+    -> Derive.Deriver (Ranges.Ranges ScoreTime)
+damage_to_score r = case Ranges.extract r of
+    Nothing -> return Ranges.everything
+    Just rs -> Ranges.sorted_ranges <$>
+        mapM (\(s, e) -> (,) <$>
+            Derive.real_to_score s <*> Derive.real_to_score e) rs
 
 -- * types
 

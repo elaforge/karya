@@ -1,8 +1,10 @@
 -- | Ranges are half-open.
 module Util.Ranges (
-    Ranges, extract, ranges, sorted_ranges, range, point, everything, nothing
-    , overlapping
+    Ranges, fmap, extract
+    , ranges, sorted_ranges, range, point, everything, nothing
+    , overlapping, intersection
 ) where
+import Prelude hiding (fmap)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
@@ -12,6 +14,12 @@ import qualified Util.Seq as Seq
 
 data Ranges n = Ranges [(n, n)] | Everything
     deriving (Eq, Show)
+
+-- | It has a different type from the real fmap, but it wants to be an fmap.
+fmap :: (Ord b) => ((a, a) -> Maybe (b, b)) -> Ranges a -> Ranges b
+fmap f r = case extract r of
+    Nothing -> everything
+    Just pairs -> sorted_ranges (Seq.map_maybe f pairs)
 
 -- | Nothing means an everything range.
 extract :: Ranges n -> Maybe [(n, n)]
@@ -63,6 +71,20 @@ overlapping (Ranges r1) (Ranges r2) = go r1 r2
         | e1 <= s2 = go rest1 r2
         | e2 <= s1 = go r1 rest2
         | otherwise = True
+
+intersection :: (Ord n) => Ranges n -> Ranges n -> Ranges n
+intersection Everything r2 = r2
+intersection r1 Everything = r1
+intersection (Ranges r1) (Ranges r2) = Ranges (go r1 r2)
+    where
+    go [] _ = []
+    go _ [] = []
+    go r1@((s1, e1) : rest1) r2@((s2, e2) : rest2)
+        | s1 == s2 = (s1, min e1 e2) : rest
+        | e1 <= s2 = go rest1 r2
+        | e2 <= s1 = go r1 rest2
+        | otherwise = (max s1 s2, min e1 e2) : rest
+        where rest = if e1 < e2 then go rest1 r2 else go r1 rest2
 
 merge :: (Ord n) => [(n, n)] -> [(n, n)] -> [(n, n)]
 merge [] r2 = r2

@@ -94,7 +94,7 @@ move_events point shift events = merged
     -- of the track"?
     end = Track.time_end events + 1
     shifted = map (\(pos, evt) -> (pos+shift, evt))
-        (Track.events_after point events)
+        (Track.events_at_after point events)
     merged = Track.insert_sorted_events shifted
         (Track.remove_events point end events)
 

@@ -103,6 +103,10 @@ score_to_double (ScoreTime p) = p
 double_to_score :: Double -> ScoreTime
 double_to_score = ScoreTime
 
+-- | Used for (hacky) situations where I need a \"maximum\" score time.
+big_score :: ScoreTime
+big_score = ScoreTime (2^52)
+
 -- * ID
 
 -- | Reference to a Block.  Use this to look up Blocks in the State.

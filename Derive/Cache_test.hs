@@ -27,6 +27,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -72,7 +73,8 @@ test_clear_damage = do
     equal (f (mkdamage [] [UiTest.bid "top"]) stack) []
     equal (f (mkdamage [(UiTest.tid "t", Ranges.range 2 3)] []) stack) [stack]
     equal (f (mkdamage [(UiTest.tid "t", Ranges.range 1 3)] []) stack) []
-    equal (f (mkdamage [(UiTest.tid "top", Ranges.range 1 3)] []) stack) [stack]
+    equal (f (mkdamage [(UiTest.tid "top", Ranges.range 1 3)] []) stack)
+        [stack]
 
 -- * cached generators
 
@@ -234,8 +236,8 @@ test_collect = do
         , mk_gdep ["top", "sub"]
         ))
 
--- If I modify a control in a certain place, say a pitch track, I don't want it
--- to derive the whole control.  Then it will damage the whole control and
+-- If I modify a control in a certain place, say a pitch track, I don't want
+-- it to derive the whole control.  Then it will damage the whole control and
 -- force everything below it to rederive.  I want it to emit control damage
 -- for only the bit of control signal that actually changed.
 test_control_damage = do
@@ -267,7 +269,8 @@ test_control_damage = do
         , toplevel_rederived
         ]
 
-    -- if the change damages a greater control area, it should affect the event
+    -- if the change damages a greater control area, it should affect the
+    -- event
     let (_, cached, uncached) = compare_cached create $
             State.insert_event (UiTest.tid "top.t0") 0 (Event.event ".5" 0)
     equal (diff_events cached uncached) []
@@ -277,29 +280,64 @@ test_control_damage = do
         , toplevel_rederived
         ]
 
--- I want the first call to the block call to not cache, but the sceond call
+test_get_control_damage = do
+    let f tracks s e = run tracks (get_control_damage Nothing (mkdamage s e))
+    equal (f [] 0 0) (Right (Just [(0, 0)]))
+    equal (f [(0, 0, "0")] 0 0)
+        (Right (Just [(0, RealTime.max)]))
+    equal (f [(0, 0, "0"), (4, 0, "0")] 0 0)
+        (Right (Just [(0, 4)]))
+    equal (f [(0, 0, "0"), (4, 0, "0")] 1 0)
+        (Right (Just [(0, 4)]))
+    equal (f [(0, 0, "0"), (4, 0, "0"), (8, 0, "0")] 3 5)
+        (Right (Just [(0, 8)]))
+    equal (f [(0, 0, "0"), (4, 0, "0"), (8, 0, "0")] 4 4)
+        (Right (Just [(4, 8)]))
+    where
+    get_control_damage range score_damage = do
+        Derive.modify_cache_state $ \st ->
+            st { Derive.state_score_damage = score_damage }
+        Cache.get_control_damage (UiTest.mk_tid 0) range
+    extract = DeriveTest.extract_run $
+        \(Derive.ControlDamage r) -> Ranges.extract r
+    run events d = extract $ DeriveTest.run
+        (snd (UiTest.run_mkstate [("cont", events)])) d
+    mkdamage s e = Derive.ScoreDamage
+        (Map.singleton (UiTest.mk_tid 0) (Ranges.range s e))
+        mempty mempty
+
+-- I want the first call to the block call to not cache, but the second call
 -- should.  Unfortunately the cache is done before inversion.  So instead of
 -- putting the cache in as generator type, I could simply call it from within
 -- the call itself.
 -- TODO fix this
--- test_inverted_control_damage = do
---     let create = mkblocks
---             [ ("top",
---                 [ (">i", [(0, 1, "sub"), (1, 1, "sub")])
---                 , ("c1", [(0, 0, "1")])
---                 ])
---             , ("sub", [(">i", [(0, 1, "")])])
---             ]
---
---     -- only the  affected event is rederived
---     let (_, cached, uncached) = compare_cached create $
---             State.insert_event (UiTest.tid "top.t1") 1 (Event.event ".5" 0)
---     equal (diff_events cached uncached) []
---     strings_like (r_cache_logs cached)
---         [ "top.t0 0-1: * using cache"
---         , "top.t0 1-2: * rederived * control damage"
---         , toplevel_rederived
---         ]
+test_inverted_control_damage = do
+    let create = mkblocks
+            [ ("top",
+                [ (">i", [(0, 1, "sub"), (1, 1, "sub")])
+                , ("c1", [(0, 0, "1")])
+                ])
+            , ("sub", [(">i", [(0, 1, "")])])
+            ]
+
+    -- only the  affected event is rederived
+    let (_, cached, uncached) = compare_cached create $
+            State.insert_event (UiTest.tid "top.t1") 1 (Event.event ".5" 0)
+    equal (diff_events cached uncached) []
+    strings_like (r_cache_logs cached)
+        [ "top.t0 0-1: * using cache"
+        -- This is "not in cache" instead of "control damage" for subtle
+        -- reasons.  Since t1 is inverted below t0, the cache entry is
+        -- [t0, 1-2, t1, 1-2].  Since the damage is at [t1, 1-1],
+        -- Derive.clear_damage will match and kill it.  Ultimately this is
+        -- because t0 is in the stack as depending on t1 via a calling
+        -- relationship, while if t1 were above t0 there is no such direct
+        -- relationship and ControlDamage is needed.
+        --
+        -- Wow.
+        , "top.t0 1-2: * rederived * not in cache"
+        , toplevel_rederived
+        ]
 
 test_tempo_damage = do
     let create = mkblocks
