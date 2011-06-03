@@ -149,6 +149,10 @@ events_length = Map.size . te_map
 map_events :: (PosEvent -> PosEvent) -> TrackEvents -> TrackEvents
 map_events f events = emap (Map.fromList . map f . Map.toList) events
 
+map_sorted_events :: (PosEvent -> PosEvent) -> TrackEvents -> TrackEvents
+map_sorted_events f events =
+    emap (Map.fromAscList . map f . Map.toAscList) events
+
 sort_events :: [PosEvent] -> [PosEvent]
 sort_events = Seq.sort_on event_start
 

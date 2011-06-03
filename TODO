@@ -23,6 +23,10 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  - opt-click not working for skeleton
+  - double click no longer working to open a sub block
+  - shift-S solos, but can't unsolo
+  - hlint
   - replace Util.map_maybe with Maybe.mapMaybes
   - why does haskell-src-exts throw an exception for Ambiguous fixity?
   - look for Ranges.extract to replace with Ranges.fmap
@@ -30,7 +34,6 @@ CURRENT
   - see about optimizing Derive.with_* functions to return id when the value
     is empty.  Can I restrict to Monoid and use (==mempty)?
   * strictify Cmd.Cmd.State fields
-  - double click no longer working to open a sub block
   note transformer, sekaran, pitches below notes
     * schema uses Tree instead of BlockId, TrackId
       That way I can eval tracks without creating blocks, tracks, etc.
@@ -159,9 +162,12 @@ CURRENT
       * now test_inverted_control_damage should pass
     * make echo and delay transformers work without munging Score.Events
 
-    - change EventDeriver to return [(shift, stretch, deriver)]
-    - write tuplet call that uses that (+, *, d) triple (name it!)
-    - write test for tuplet
+    * change EventDeriver to return [(shift, stretch, deriver)]
+      main thing is that sub-track eval returns that
+      So Schema.derive_tracks must return that, but that's not even necessary
+      because I can call derive_tracks for each event.
+    * write tuplet call that uses that (+, *, d) triple (name it!)
+    * write test for tuplet
     - make sure subtracks generate track warps and signal renders
       fix Control_test.test_stash_signal
   - Ui.SymbolC uses Codec.Binary.UTF8.String which requires utf-string package

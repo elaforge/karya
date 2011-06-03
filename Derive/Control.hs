@@ -43,7 +43,7 @@ type Control = Signal.Control
 -- | Top level deriver for control tracks.
 d_control_track :: State.EventsNode
     -> Derive.EventDeriver -> Derive.EventDeriver
-d_control_track (Tree.Node track subs) deriver = do
+d_control_track (Tree.Node track _) deriver = do
     let title = State.tevents_title track
     if null title then deriver else do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
