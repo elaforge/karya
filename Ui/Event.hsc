@@ -25,10 +25,9 @@
 module Ui.Event where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Array.IArray as IArray
-import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Encoding
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Internal as Internal
+import qualified Data.ByteString.UTF8 as UTF8
 import Foreign
 import Foreign.C
 
@@ -46,18 +45,15 @@ data Event = Event {
 instance DeepSeq.NFData Event where
     rnf (Event bs dur style) = bs `seq` dur `seq` style `seq` ()
 
-event_text :: Event -> Text.Text
-event_text = Encoding.decodeUtf8 . event_bs
-
 -- | Manual event constructor.
 event :: String -> ScoreTime -> Event
-event text dur = Event (B.pack text) dur default_style
+event text dur = Event (UTF8.fromString text) dur default_style
 
 event_string :: Event -> String
-event_string = B.unpack . event_bs
+event_string = UTF8.toString . event_bs
 
 set_string :: String -> Event -> Event
-set_string s evt = evt { event_bs = B.pack s }
+set_string s evt = evt { event_bs = UTF8.fromString s }
 
 set_duration :: ScoreTime -> Event -> Event
 set_duration dur event = event { event_duration = dur }

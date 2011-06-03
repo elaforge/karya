@@ -1,11 +1,11 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 module Ui.SymbolC (get_fonts, insert_symbol) where
-import qualified Codec.Binary.UTF8.String as UTF8.String
-import qualified Data.Char as Char
+import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Maybe as Maybe
 import Foreign
 import Foreign.C
 
+import qualified Ui.Event as Event
 import qualified Ui.Util as Util
 import qualified Ui.Symbol as Symbol
 
@@ -68,13 +68,12 @@ instance Storable GlyphC where
     sizeOf _ = #size SymbolTable::Glyph
     alignment _ = #{alignment SymbolTable::Glyph}
     poke glyphp (GlyphC str font size align_x align_y) = do
-        encoded <- newCString (encode_utf8 str)
+        encoded <- encode_utf8 str
         (#poke SymbolTable::Glyph, utf8) glyphp encoded
         (#poke SymbolTable::Glyph, font) glyphp font
         (#poke SymbolTable::Glyph, size) glyphp size
         (#poke SymbolTable::Glyph, align_x) glyphp align_x
         (#poke SymbolTable::Glyph, align_y) glyphp align_y
 
--- | This is less efficient than the one in Ui.Event, but a lot less scary.
-encode_utf8 :: String -> String
-encode_utf8 = map (Char.chr . fromIntegral) . UTF8.String.encode
+encode_utf8 :: String -> IO CString
+encode_utf8 = Event.unpackCString0 . UTF8.fromString

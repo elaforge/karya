@@ -28,7 +28,6 @@ CURRENT
   * shift-S solos, but can't unsolo
   * hlint
   * replace Util.map_maybe with Maybe.mapMaybes
-  - why does haskell-src-exts throw an exception for Ambiguous fixity?
   * rename State.event_end -> block_end_event, block_end_ruler
   - see about optimizing Derive.with_* functions to return id when the value
     is empty.  Can I restrict to Monoid and use (==mempty)?
@@ -169,7 +168,7 @@ CURRENT
     * write test for tuplet
     - make sure subtracks generate track warps and signal renders
       fix Control_test.test_stash_signal
-  - Ui.SymbolC uses Codec.Binary.UTF8.String which requires utf-string package
+  * Ui.SymbolC uses Codec.Binary.UTF8.String which requires utf-string package
     Why didn't it use Data.Text coding like Ui.Event?
   * cmd-tab out of app results in a hanging MetaL
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
