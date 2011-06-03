@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
 {- | A schema is a transformation from a block to a deriver.  It may intuit the
     deriver solely from the structure of the block, or it may ignore the block
     entirely if it's specialized to one particular shape of block.

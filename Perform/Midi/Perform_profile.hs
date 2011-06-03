@@ -83,10 +83,10 @@ perform :: [Perform.Event] -> ([Midi.WriteMessage], [String])
 perform = split_logs . fst
     . Perform.perform Perform.initial_state midi_config . map LEvent.Event
 
-split_logs = second (map (DeriveTest.show_log)) . LEvent.partition
+split_logs = second (map DeriveTest.show_log) . LEvent.partition
 
 run_multiple arg action = forM_ [1..6] $ \n -> do
-    putStr $ (show n) ++ ": "
+    putStr $ show n ++ ": "
     IO.hFlush IO.stdout
     print_timer (show n) (action arg)
 

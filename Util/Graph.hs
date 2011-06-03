@@ -11,7 +11,7 @@ import qualified Util.Array as Array
 import qualified Util.Seq as Seq
 
 build :: [Edge] -> Graph
-build edges = buildG (0, maximum (-1 : (map (\(x, y) -> max x y) edges))) edges
+build edges = buildG (0, maximum (-1 : map (\(x, y) -> max x y) edges)) edges
 
 
 -- | Roots are all vertices with no parents.

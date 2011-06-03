@@ -42,7 +42,7 @@ type PbRange = (Integer, Integer)
 
 -- | Convert from a control to a function that creates its MIDI message.
 control_constructor :: ControlMap -> Control
-    -> (Maybe (Signal.Y -> Midi.ChannelMessage))
+    -> Maybe (Signal.Y -> Midi.ChannelMessage)
 control_constructor cmap cont = msum
     [ Map.lookup cont special_controls
     , fmap make_midi_cc (Map.lookup cont cmap)
@@ -53,7 +53,7 @@ make_midi_cc :: Midi.Control -> Signal.Y -> Midi.ChannelMessage
 make_midi_cc cnum val = Midi.ControlChange cnum (val_to_cc val)
 
 special_controls = Map.fromList
-    [ (c_aftertouch, \val -> Midi.ChannelPressure (val_to_cc val))
+    [ (c_aftertouch, Midi.ChannelPressure . val_to_cc)
     -- Don't include pitch becase it's handled separately.
     -- doing c_poly_aftertouch is a bit trickier because it needs a note number
     ]

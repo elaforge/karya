@@ -73,11 +73,11 @@ modify_events f = modify_pos_events (\_ evt -> f evt)
 -- | Modify the start time and duration of the selected events.
 pos_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
 pos_dur f = events $ \(pos, event) ->
-    Just $ (f pos, Event.modify_duration f event)
+    Just (f pos, Event.modify_duration f event)
 
 pos_dur_sorted :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
 pos_dur_sorted f = events_sorted $ \(pos, event) ->
-    Just $ (f pos, Event.modify_duration f event)
+    Just (f pos, Event.modify_duration f event)
 
 -- | Move everything at or after @start@ by @shift@.
 move_track_events :: (State.M m) => ScoreTime -> ScoreTime -> TrackId -> m ()

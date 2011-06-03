@@ -113,4 +113,4 @@ interpolator srate f include_initial x0 y0 x1 y1
 -- approaching.
 expon :: Double -> Double -> Double
 expon n x = x**exp
-    where exp = if n >= 0 then n else (1 / abs n)
+    where exp = if n >= 0 then n else 1 / abs n

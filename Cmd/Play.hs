@@ -124,14 +124,14 @@ cmd_play_from_previous_step transport_info = do
     step <- Cmd.gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
-    cmd_play transport_info block_id (Just track_id, (maybe 0 id prev))
+    cmd_play transport_info block_id (Just track_id, maybe 0 id prev)
 
 cmd_play_from_previous_root_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_root_step transport_info = do
     (block_id, tracknum, track_id, pos) <- Selection.get_root_insert
     step <- Cmd.gets Cmd.state_play_step
     prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
-    cmd_play transport_info block_id (Just track_id, (maybe 0 id prev))
+    cmd_play transport_info block_id (Just track_id, maybe 0 id prev)
 
 cmd_play :: Transport.Info -> BlockId -> (Maybe TrackId, ScoreTime) -> Cmd.CmdIO
 cmd_play transport_info block_id (start_track, start_pos) = do
@@ -258,14 +258,14 @@ updater_loop state = do
 
     let active_sels = Set.fromList
             [(view_id, map fst num_pos) | (view_id, num_pos) <- play_pos]
-    mapM_ Sync.clear_play_position $ map fst $
+    mapM_ (Sync.clear_play_position . fst) $
         Set.toList (Set.difference (updater_active_sels state) active_sels)
     state <- return $ state { updater_active_sels = active_sels }
 
     stopped <- Transport.check_player_stopped (updater_ctl state)
     if stopped || null block_pos
-        then mapM_ Sync.clear_play_position $
-            map fst (Set.toList (updater_active_sels state))
+        then mapM_ (Sync.clear_play_position . fst) $
+            Set.toList (updater_active_sels state)
         else Thread.delay 0.05 >> updater_loop state
 
 

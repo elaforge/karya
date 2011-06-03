@@ -114,6 +114,5 @@ inverse_tempo_func track_warps ts = do
     (block_id, track_ids, Just pos) <- track_pos
     return (block_id, [(track_id, pos) | track_id <- track_ids])
     where
-    track_pos = [(tw_block tw, tw_tracks tw, unwarp ts (tw_warp tw)) |
-            tw <- track_warps, tw_start tw <= ts && ts < tw_end tw]
-    unwarp ts warp = Score.unwarp_pos ts warp
+    track_pos = [(tw_block tw, tw_tracks tw, Score.unwarp_pos ts (tw_warp tw))
+        | tw <- track_warps, tw_start tw <= ts && ts < tw_end tw]

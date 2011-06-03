@@ -52,7 +52,7 @@ uncached_derive = PlayUtil.uncached_derive
 derive_tempo :: BlockId -> Cmd.CmdL [[(BlockId, [(TrackId, ScoreTime)])]]
 derive_tempo block_id = do
     result <- PlayUtil.cached_derive block_id
-    return $ map (Derive.r_inv_tempo result) (map RealTime.seconds [0..10])
+    return $ map (Derive.r_inv_tempo result . RealTime.seconds) [0..10]
 
 -- * block
 

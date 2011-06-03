@@ -30,7 +30,7 @@ read_binary fn = do
 list_dir :: FilePath -> IO [FilePath]
 list_dir dir = do
     fns <- Directory.getDirectoryContents dir
-    return $ map (dir </>) $ filter ((/=".") . take 1) $ fns
+    return $ map (dir </>) $ filter ((/=".") . take 1) fns
 
 recursive_list_dir :: (FilePath -> Bool) -> FilePath -> IO [FilePath]
 recursive_list_dir descend dir = do

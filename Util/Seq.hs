@@ -77,7 +77,7 @@ remove_at xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
 modify_at :: Int -> (a -> a) -> [a] -> [a]
 modify_at i f xs = case post of
         [] -> pre
-        (elt:rest) -> (pre ++ f elt : rest)
+        (elt:rest) -> pre ++ f elt : rest
     where (pre, post) = splitAt i xs
 
 -- | Similar to 'modify_at', but will insert an element for an out of range
@@ -357,7 +357,7 @@ split_with f xs = map reverse (go f xs [])
 
 -- | Split 'xs' on 'sep', dropping 'sep' from the result.
 split :: (Eq a) => [a] -> [a] -> [[a]]
-split [] _ = error $ "Util.Seq.split: empty separator"
+split [] _ = error "Util.Seq.split: empty separator"
 split sep xs = go sep xs
     where
     go sep xs
@@ -374,7 +374,7 @@ split_t sep xs = case split sep xs of
 
 -- | Like 'split', but only split once.
 split1 :: (Eq a) => [a] -> [a] -> ([a], [a])
-split1 [] _ = error $ "Util.Seq.split1: empty seperator"
+split1 [] _ = error "Util.Seq.split1: empty seperator"
 split1 sep xs = (pre, drop (length sep) post)
     where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
 

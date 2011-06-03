@@ -215,7 +215,7 @@ p_ident until = do
     -- TODO attoparsec docs say it's faster to do the check manually, profile
     -- and see if it makes a difference.
     ident <- A.takeWhile1 (A.notInClass (until ++ " |="))
-    when (not (valid_identifier ident)) $
+    unless (valid_identifier ident) $
         fail $ "invalid chars in identifier; only [a-z0-9-] are accepted: "
             ++ show ident
     return ident

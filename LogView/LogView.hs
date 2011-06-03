@@ -85,7 +85,7 @@ main = do
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (opts, n, []) -> return (opts, n)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
-    when (not (null args)) $
+    unless (null args) $
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
 

@@ -26,7 +26,7 @@ interpret :: [String] -> Maybe (Cmd.CmdT IO String)
 interpret toks = case toks of
         -- Called by logview.
         ["s", str] | Just arg <- val str -> action $ Global.s arg
-        ["unerror"] -> action $ Global.unerror
+        ["unerror"] -> action Global.unerror
         ["collapse", int] | Just arg <- val int -> action $ Global.collapse arg
         ["expand", int] | Just arg <- val int -> action $ Global.expand arg
 

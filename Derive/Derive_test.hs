@@ -195,12 +195,12 @@ test_subderive = do
     let b0 pos = (UiTest.bid "b0",
             [(UiTest.tid "b0.t0", pos), (UiTest.tid "b0.t1", pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", pos)])
-    equal (map (inv_tempo res) (map RealTime.seconds [0, 2 .. 10]))
+    equal (map (inv_tempo res) [0, 2 .. 10])
         [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16], []]
 
     -- For eyeball verification.
     -- pprint (r_events res)
-    -- pprint $ zip [0,2..] $ map inv_tempo (map RealTime.seconds [0, 2 .. 10])
+    -- pprint $ zip [0,2..] $ map (inv_tempo res) [0, 2 .. 10]
     -- pprint $ Derive.state_track_warps state
 
 test_subderive_timing = do
@@ -261,8 +261,8 @@ test_multiple_subderive = do
     equal (fst (DeriveTest.extract Score.event_instrument res))
         (replicate 3 (Just (Score.Instrument "i1")))
 
-    let pos = map (inv_tempo res) (map RealTime.seconds [0..6])
-    let b0 pos = (UiTest.bid "b0", [(UiTest.tid ("b0.t0"), pos)])
+    let pos = map (inv_tempo res) [0..6]
+    let b0 pos = (UiTest.bid "b0", [(UiTest.tid "b0.t0", pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", pos)])
     equal (map List.sort pos)
         [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0], [b0 3, sub 0.5]
@@ -351,7 +351,7 @@ test_warp_ops = do
     let plain = Score.signal_to_warp $
             Signal.signal [(RealTime.seconds n, n) | n <- [0..100]]
         slow = Score.signal_to_warp $
-            Signal.signal [(RealTime.seconds n, (n*2)) | n <- [0..40]]
+            Signal.signal [(RealTime.seconds n, n*2) | n <- [0..40]]
 
 
     equal (run (Derive.d_warp plain)) $ Right [0, 2]
@@ -437,7 +437,7 @@ test_tempo_funcs1 = do
 
     -- [(BlockId, [(TrackId, ScoreTime)])]
     let b0 pos = (bid, [(t_tid, pos), (tid1, pos)])
-    equal (map (inv_tempo res) (map RealTime.seconds [0, 2 .. 10]))
+    equal (map (inv_tempo res) [0, 2 .. 10])
         [[b0 0], [b0 4], [b0 8], [b0 12], [b0 16], []]
 
     equal (map (Derive.r_tempo res bid t_tid) [0, 2 .. 10])
@@ -459,7 +459,7 @@ test_tempo_funcs2 = do
     let b0 pos = (bid, [(t_tid1, pos), (tid1, pos)])
         b1 pos = (bid, [(t_tid2, pos), (tid2, pos)])
 
-    equal (map (inv_tempo res) (map RealTime.seconds [0, 2, 4, 6]))
+    equal (map (inv_tempo res) [0, 2, 4, 6])
         [[b0 0, b1 0], [b0 4, b1 2], [b0 8, b1 4], [b0 12, b1 6]]
 
     -- test multiple tempo
@@ -467,8 +467,9 @@ test_tempo_funcs2 = do
 
 -- | Map through inv tempo and sort the results since their order isn't
 -- relevant.
-inv_tempo :: Derive.Result -> RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
+inv_tempo :: Derive.Result -> Double -> [(BlockId, [(TrackId, ScoreTime)])]
 inv_tempo res = map (second List.sort) . List.sort . Derive.r_inv_tempo res
+    . RealTime.seconds
 
 test_tempo_funcs_multiple_subblocks = do
     -- A single score time can imply multiple real times.
@@ -562,7 +563,7 @@ test_make_inverse_tempo_func = do
         with_block pos = [(UiTest.default_block_id, [(track_id, pos)])]
     -- Fast tempo means ScoreTime passes quickly relative to Timestamps.
     -- Second 2 at tempo 2 is trackpos 4, which is past the end of the block.
-    equal (map f (map RealTime.seconds [0..2]))
+    equal (map (f . RealTime.seconds) [0..2])
         [with_block 0, with_block 2, []]
 
 test_tempo = do

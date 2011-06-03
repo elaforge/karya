@@ -26,7 +26,7 @@ draw :: Skeleton -> String
 draw (Skeleton graph) = Graph.draw graph
 
 lonely_vertex :: Skeleton -> TrackNum -> Bool
-lonely_vertex (Skeleton graph) tracknum = Graph.lonely_vertex graph tracknum
+lonely_vertex (Skeleton graph) = Graph.lonely_vertex graph
 
 flatten :: Skeleton -> [(TrackNum, TrackNum)]
 flatten (Skeleton graph) = Graph.edges graph

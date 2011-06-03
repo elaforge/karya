@@ -87,10 +87,10 @@ order_meter = MakeRuler.meter_ruler 1 . MakeRuler.D . map mkd
     where
     mkd dur = MakeRuler.D (replicate dur (MakeRuler.T 1))
 
-make_block :: (State.M m) => ([Char] -> Id.Id) -> RulerId -> RulerId -> String
+make_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId -> String
     -> [(String, [Track.PosEvent])] -> m BlockId
 make_block mkid rid track_rid name tracks = do
-    tids <- forM (zip [0..] tracks) $ \(i, (title, events)) -> do
+    tids <- forM (zip [0..] tracks) $ \(i, (title, events)) ->
         State.create_track (mkid (name ++ ".t" ++ show i)) $
             Track.track title events Config.track_bg Config.render_config
     let block_tracks = Block.track (Block.RId rid) 20
@@ -125,7 +125,7 @@ type BlockRows = Int
 -- | Convert parsed Blocks into UiBlocks.  Each row is given the ScoreTime
 -- passed.
 convert_blocks :: ScoreTime -> [Block] -> [UiBlock]
-convert_blocks row_time = map (map_times (*row_time)) . map convert_block
+convert_blocks row_time = map (map_times (*row_time) . convert_block)
 
 map_times :: (ScoreTime -> ScoreTime) -> UiBlock -> UiBlock
 map_times f = first $ map $ \(ntrack, ctracks) ->
@@ -192,7 +192,7 @@ convert_controls notes = Map.assocs cont_vals
     to_event (pos, val) = (pos, Event.event val 0)
 
 note_controls :: Note -> [(String, String)]
-note_controls note = maybe [] (:[]) (convert_pitch note)
+note_controls note = Maybe.maybeToList (convert_pitch note)
     ++ Maybe.mapMaybe convert_effect (note_effects note)
 
 convert_pitch :: Note -> Maybe (String, String)
@@ -217,7 +217,7 @@ ex_cut = 0xc3
 fx_delay = 0x1f
 
 rotate :: [[a]] -> [[a]]
-rotate xs = maybe [] (: rotate (map tail xs)) (sequence (map Seq.head xs))
+rotate xs = maybe [] (: rotate (map tail xs)) (mapM Seq.head xs)
 
 degree_to_note :: Map.Map Int String
 degree_to_note = Map.fromList $ zip [0..127] notes

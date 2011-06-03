@@ -108,7 +108,7 @@ import qualified Perform.Pitch as Pitch
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
 eval_one :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
-eval_one start dur expr = do
+eval_one start dur expr =
     Derive.d_place start dur (eval_expr (note_dinfo, cinfo) expr)
     where cinfo = Derive.dummy_call_info ("eval_one: " ++ Pretty.pretty expr)
 
@@ -216,7 +216,7 @@ derive_event st block_end dinfo parse prev_val subs prev cur@(pos, event) next
             Derive.state_collect st, Derive.state_cache_state st)
         Right expr -> run_call expr
     where
-    parse_error msg = Log.msg Log.Warn (Just (Derive.state_stack st)) msg
+    parse_error = Log.msg Log.Warn (Just (Derive.state_stack st))
     run_call expr = apply_toplevel state (dinfo, cinfo expr) expr
 
     state = st {

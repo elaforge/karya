@@ -72,7 +72,7 @@ do_updates updates = do
     Trans.liftIO (Ui.send_action (sequence_ actions))
 
 set_track_signals :: State.State -> Track.TrackSignals -> IO ()
-set_track_signals state track_signals = do
+set_track_signals state track_signals =
     case State.eval state tracknums of
         Left err ->
             -- This could happen if track_signals had a stale track_id.  That
@@ -173,7 +173,7 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
 
-run_update (Update.ViewUpdate view_id update) = do
+run_update (Update.ViewUpdate view_id update) =
     case update of
         -- The previous equation matches CreateView, but ghc warning doesn't
         -- figure that out.
@@ -293,7 +293,7 @@ events_of_track_ids ustate track_ids = Maybe.mapMaybe events_of track_ids
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
     tracks = State.state_tracks ustate
 
-to_csel :: ViewId -> Types.SelNum -> Maybe (Types.Selection)
+to_csel :: ViewId -> Types.SelNum -> Maybe Types.Selection
     -> State.StateT IO (Maybe BlockC.CSelection)
 to_csel view_id selnum maybe_sel = do
     view <- State.get_view view_id

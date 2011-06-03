@@ -24,7 +24,7 @@ test_at = do
 test_clip_min_max = do
     let sig = mksig [(1, (1, 5, 0.5))]
     let f v = unsig $ PitchSignal.clip_max v sig
-    equal (map f (map Pitch.Degree [0..6]))
+    equal (map (f . Pitch.Degree) [0..6])
         (map (\d -> [(1, (1, 5, d))]) [0, 0, 0.25, 0.5, 0.5, 0.5, 0.5])
 
 test_sig_add = do

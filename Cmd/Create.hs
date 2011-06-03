@@ -120,18 +120,16 @@ block ruler_id = do
     ns <- State.get_namespace
     blocks <- State.gets State.state_blocks
     block_id <- require "block id" $ generate_block_id ns blocks
-    b <- Cmd.create_block block_id ""
+    Cmd.create_block block_id ""
         [Block.track (Block.RId ruler_id) Config.ruler_width]
-    return b
 
 -- | Create a block with the given ID name.  Useful for blocks meant to be
 -- sub-derived.
 named_block :: (Cmd.M m) => String -> RulerId -> m BlockId
 named_block name ruler_id = do
     ns <- State.get_namespace
-    b <- Cmd.create_block (Id.id ns name) ""
+    Cmd.create_block (Id.id ns name) ""
         [Block.track (Block.RId ruler_id) Config.ruler_width]
-    return b
 
 -- | Delete a block and any views it appears in.  Also delete any tracks
 -- that only appeared in that block.

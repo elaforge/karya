@@ -100,7 +100,7 @@ strings_like_srcpos srcpos gotten expected
     | otherwise = mapM_ (uncurry string_like) (Seq.padded_zip gotten expected)
     where
     string_like Nothing Nothing =
-        failure_srcpos srcpos $ "Nothing, Nothing shouldn't happen"
+        failure_srcpos srcpos "Nothing, Nothing shouldn't happen"
     string_like Nothing (Just reg) =
         failure_srcpos srcpos $ "gotten list too short: expected " ++ show reg
     string_like (Just gotten) Nothing =
@@ -201,7 +201,7 @@ io_human_srcpos srcpos expected_msg op = do
     putStrLn $ "should see: " ++ expected_msg
     human_getch
     result <- op
-    putStr $ "  ... ok (y/n/q)? "
+    putStr "  ... ok (y/n/q)? "
     c <- human_getch
     putChar '\n'
     case c of
@@ -303,4 +303,4 @@ human_getch = do
             mode <- IO.hGetBuffering IO.stdin
             IO.hSetBuffering IO.stdin IO.NoBuffering
             do { c <- getChar; putChar ' '; return c}
-                `Exception.finally` (IO.hSetBuffering IO.stdin mode)
+                `Exception.finally` IO.hSetBuffering IO.stdin mode

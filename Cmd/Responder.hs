@@ -152,7 +152,7 @@ accept_loop socket output_chan = forever $ catch_io_errors $ do
     msg <- read_until hdl Config.message_complete_token
     STM.atomically $ TChan.writeTChan output_chan (hdl, msg)
 
-catch_io_errors = Exception.handle $ \(exc :: IOError) -> do
+catch_io_errors = Exception.handle $ \(exc :: IOError) ->
     Log.warn $ "caught exception from socket read: " ++ show exc
 
 read_until :: IO.Handle -> String -> IO String

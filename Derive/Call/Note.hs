@@ -138,8 +138,7 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
 -- * tuplet
 
 c_tuplet :: Derive.NoteCall
-c_tuplet = Derive.stream_generator "tuplet" $ \args -> do
-    place (stretched args)
+c_tuplet = Derive.stream_generator "tuplet" $ \args -> place (stretched args)
     where
     stretched args = map stretch $ Seq.sort_on (\(s, _, _) -> s) events
         where

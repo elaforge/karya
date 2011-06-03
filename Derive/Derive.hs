@@ -1,8 +1,9 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards, ScopedTypeVariables #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Derived
+{-# LANGUAGE OverloadedStrings #-}
 {- | Main module for the deriver monad.
 
     Derivers are always in DeriveT, even if they don't need its facilities.
@@ -607,8 +608,7 @@ add_context context s = Seq.join " / " (reverse context) ++ ": " ++ s
 add_text_context :: [String] -> Text.Text -> Text.Text
 add_text_context [] s = s
 add_text_context context s =
-    Text.intercalate (Text.pack " / ") (map Text.pack (reverse context))
-        `Text.append` (Text.pack ": ") `Text.append` s
+    Text.intercalate " / " (map Text.pack (reverse context)) <> ": " <> s
 
 -- * monadic ops
 
@@ -951,7 +951,7 @@ control_at_score cont pos = control_at cont =<< score_to_real pos
 control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
 control_at cont pos = do
     controls <- gets state_controls
-    return $ fmap (\sig -> Signal.at pos sig) (Map.lookup cont controls)
+    return $ fmap (Signal.at pos) (Map.lookup cont controls)
 
 pitch_at_score :: ScoreTime -> Deriver PitchSignal.Y
 pitch_at_score pos = pitch_at =<< score_to_real pos
@@ -1024,7 +1024,7 @@ with_relative_pitch maybe_name sig_op signal deriver = do
     if old == PitchSignal.empty
         then do
             -- This shouldn't happen normally because of the default pitch.
-            Log.warn $
+            Log.warn
                 "relative pitch applied when no absolute pitch is in scope"
             deriver
         else modify_pitch sig_op maybe_name signal deriver
@@ -1258,7 +1258,7 @@ d_tempo block_dur maybe_track_id signal deriver = do
             -- Log.debug $ "dur, global dur "
             --     ++ show (block_id, block_dur, real_dur)
             when (block_dur == 0) $
-                throw $ "can't derive a block with zero duration"
+                throw "can't derive a block with zero duration"
             return (d_stretch (1 / RealTime.to_score real_dur))
     stretch_to_1 $ d_warp warp $ do
         add_new_track_warp maybe_track_id

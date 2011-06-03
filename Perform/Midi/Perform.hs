@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
     midi events.
 
@@ -32,7 +31,6 @@
 -}
 module Perform.Midi.Perform where
 import qualified Control.DeepSeq as DeepSeq
-import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -240,8 +238,7 @@ allot_event inst_addrs state (event, ichan) =
             Nothing -> (state, LEvent.Log no_alloc)
     where
     inst = event_instrument event
-    update addr state = update_avail addr state
-    update_avail addr state = state { ast_available =
+    update addr state = state { ast_available =
             Map.insert addr (event_end event) (ast_available state) }
     update_map addr state = state { ast_allotted =
         Map.insert (inst, ichan) addr (ast_allotted state) }
@@ -254,9 +251,7 @@ steal_addr :: InstAddrs -> Instrument.Instrument -> AllotState
 steal_addr inst_addrs inst state =
     case Map.lookup (Instrument.inst_score inst) inst_addrs of
         Just addrs -> let avail = zip addrs (map mlookup addrs)
-            in if null avail then Nothing -- no addrs assigned
-                else let (addr, _) = List.minimumBy (compare `on` snd) avail
-                in Just addr
+            in fst <$> Seq.minimum_on snd avail
         _ -> Nothing
     where
     mlookup addr = Map.findWithDefault 0 addr (ast_available state)
@@ -511,7 +506,7 @@ create_leading_cc prev_note_off start sig pos_vals =
     -- Don't go before the previous note, but don't go after the start of this
     -- note, in case the previous note ends after this one begins.
     tweak t = max (min prev_note_off start) (t - control_lead_time)
-    initial = ((tweak start), Signal.at start sig)
+    initial = (tweak start, Signal.at start sig)
 
 -- * post process
 

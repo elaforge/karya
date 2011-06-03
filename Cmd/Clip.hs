@@ -105,7 +105,7 @@ cmd_paste_overwrite = do
 cmd_paste_merge :: (Cmd.M m) => m ()
 cmd_paste_merge = do
     (_start, _end, track_ids, clip_events) <- paste_info
-    forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
+    forM_  (zip track_ids clip_events) $ \(track_id, events) ->
         State.insert_events track_id events
 
 -- | Like 'cmd_paste_merge', except don't merge events that overlap with
@@ -129,7 +129,7 @@ cmd_paste_insert = do
     -- Only shift the tracks that are in clip_events.
     mapM_ (ModifyEvents.move_track_events start (end-start))
         (map fst (zip track_ids clip_events))
-    forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
+    forM_  (zip track_ids clip_events) $ \(track_id, events) ->
         State.insert_events track_id events
 
 

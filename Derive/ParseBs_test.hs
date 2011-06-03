@@ -8,9 +8,9 @@ import qualified Util.Pretty as Pretty
 
 import qualified Derive.Score as Score
 import qualified Derive.ParseBs as Parse
-import Derive.TrackLang (Call(..), Term(..))
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (AttrMode(..), ControlRef(..), Symbol(..), Val(..))
+import Derive.TrackLang (AttrMode(..), ControlRef(..), Symbol(..), Val(..),
+    Call(..), Term(..))
 
 import qualified Perform.Pitch as Pitch
 

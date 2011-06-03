@@ -184,7 +184,7 @@ raw_edit msg = do
             note <- EditUtil.parse_key key
             modify_event False $ \txt ->
                 (EditUtil.modify_text_note note txt, False)
-        (EditUtil.raw_key -> Just key) -> do
+        (EditUtil.raw_key -> Just key) ->
             modify_event False $ \txt ->
                 (EditUtil.modify_text_key key txt, False)
         _ -> Cmd.abort

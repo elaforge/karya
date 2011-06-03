@@ -62,7 +62,7 @@ cmd1, cmd2 :: Cmd.CmdId ()
 cmd1 = Log.notice "cmd1"
 cmd2 = Log.notice "cmd2"
 
-binds :: [Keymap.Binding (Cmd.CmdId)]
+binds :: [Keymap.Binding Cmd.CmdId]
 binds = concat
     [ Keymap.bind_key (Key.KeyChar '1') "1" cmd1
     , Keymap.bind_key (Key.KeyChar '1') "12" cmd1

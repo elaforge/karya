@@ -26,7 +26,7 @@ matches (Regex _ reg) str = PCRE.matchTest reg str
 -- | Return (complete_match, [group_match]).
 find_groups :: Regex -> String -> [(String, [String])]
 find_groups (Regex _ reg) str =
-    Maybe.catMaybes $ map extract (PCRE.matchAllText reg str)
+    Maybe.mapMaybe extract (PCRE.matchAllText reg str)
     where
     extract arr = case map fst (IArray.elems arr) of
         (h:rest) -> Just (h, rest)

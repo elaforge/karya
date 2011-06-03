@@ -83,7 +83,7 @@ e_ustate e_ustate e_log res = case result_val res of
 
 e_tracks :: Result _val -> Either String [(String, [Simple.Event])]
 e_tracks result = fmap ex $ e_ustate UiTest.extract_tracks id result
-    where ex (val, logs) = (Log.trace_logs logs val)
+    where ex (val, logs) = Log.trace_logs logs val
 
 extract :: (val -> e_val) -> Result val -> Either String (Maybe e_val, [String])
 extract extract_val result = fmap ex (e_val result)
@@ -95,7 +95,7 @@ extract extract_val result = fmap ex (e_val result)
 eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
 eval ustate cstate cmd = case result_val (run ustate cstate cmd) of
     Left err -> error $ "eval got StateError: " ++ show err
-    Right (Nothing, _) -> error $ "eval: cmd aborted"
+    Right (Nothing, _) -> error "eval: cmd aborted"
     Right (Just val, _) -> val
 
 -- | Run several cmds, threading the state through.
@@ -196,7 +196,7 @@ set_scale root_id block_id track_id scale_id =
 -- | Fake up just enough Performance to have environ in it.
 set_env :: (Cmd.M m) => BlockId -> BlockId -> TrackId
     -> [(TrackLang.ValName, TrackLang.Val)] -> m ()
-set_env root_id block_id track_id environ = do
+set_env root_id block_id track_id environ =
     Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
         Map.insert root_id (make_pthread perf)
         (Cmd.state_performance_threads st) }

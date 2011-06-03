@@ -50,7 +50,7 @@ convert :: Derive.LookupScale -> MidiDb.LookupMidiInstrument -> Derive.Events
 convert lookup_scale lookup_inst events = go Set.empty Nothing events
     where
     go _ _ [] = []
-    go state prev ((LEvent.Log log) : rest) =
+    go state prev (LEvent.Log log : rest) =
         LEvent.Log log : go state prev rest
     go state prev (LEvent.Event event : rest) =
         maybe [] ((:[]) . LEvent.Event) maybe_event ++ logs

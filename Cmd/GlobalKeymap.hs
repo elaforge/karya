@@ -47,8 +47,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap (bind_key, bind_char, bind_mod, bind_click, bind_drag,
-    command, command_char, command_only)
-import Cmd.Keymap (SimpleMod(..))
+    command, command_char, command_only, SimpleMod(..))
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Clip as Clip

@@ -144,7 +144,7 @@ busy_wait ops = go ops 2
 
 -- | This runs the derivation several times to minimize the creation cost.
 derive_profile :: State.StateId a -> IO ()
-derive_profile create = sequence_ $ replicate 6 $
+derive_profile create = replicateM_ 6 $
     run_profile False (UiTest.exec State.empty create)
 
 run_profile :: Bool -> State.State -> IO ()

@@ -15,7 +15,7 @@ main = do
     hdl <- case args of
         [] -> return IO.stdin
         [fn] -> IO.openFile fn IO.ReadMode
-        _ -> error $ "usage: logcat [filename]"
+        _ -> error "usage: logcat [filename]"
     IO.hSetBuffering hdl IO.LineBuffering
     forever $ do
         line <- IO.hGetLine hdl

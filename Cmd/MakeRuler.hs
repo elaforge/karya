@@ -101,7 +101,7 @@ subdivide :: Int -> Meter -> Meter
 subdivide n = replace_t (const (D (replicate n (T 1))))
 
 subdivide_dur :: Meter -> Meter
-subdivide_dur = replace_t (\n -> (D (replicate (floor n) (T 1))))
+subdivide_dur = replace_t (\n -> D (replicate (floor n) (T 1)))
 
 repeat :: Int -> Meter -> Meter
 repeat n meter = D $ replicate n meter
@@ -156,7 +156,7 @@ marks_to_ruler marks = Ruler.marklist meter_marklist pos_marks
     -- they're at their final positions.
     durs = mark_durs marks
     mark dur rank name =
-        let (color, width, pixels) = meter_ranks !! (min rank ranks)
+        let (color, width, pixels) = meter_ranks !! min rank ranks
             zoom = if dur == 0
                 then 0
                 else fromIntegral pixels / realToFrac dur

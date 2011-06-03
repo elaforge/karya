@@ -82,7 +82,7 @@ merge_updates state updates = concatMap propagate updates
         | (track_id, merged_ids) <- track_to_merged, merged_id <- merged_ids]
     propagate (Update.TrackUpdate track_id update)
         | is_event_update update =
-            map (\tid -> (Update.TrackUpdate tid update)) merges_this
+            map (\tid -> Update.TrackUpdate tid update) merges_this
         | otherwise = []
         where merges_this = Map.get [] track_id merged_to_track
     propagate _ = []
@@ -142,7 +142,8 @@ munge_updates state updates = updates ++ munged
     munged = concatMap set_width width_info
     -- TODO instead of adding a TrackWidth, modify the InsertTrack?
     set_width (old_width, block_id, tracknum) = do
-        block <- maybe [] (:[]) $ Map.lookup block_id (State.state_blocks state)
+        block <- Maybe.maybeToList $
+            Map.lookup block_id (State.state_blocks state)
         -- Abort if it's a collapsed track, you can't resize those anyway.
         case Seq.at (Block.block_tracks block) tracknum of
             Just track | Block.Collapse `elem` Block.track_flags track -> mzero
@@ -306,9 +307,9 @@ diff_track track_id track1 track2 = do
     when (unequal Track.track_title) $
         change [track_update $ Update.TrackTitle (Track.track_title track2)]
     when (unequal Track.track_bg) $
-        change [track_update $ Update.TrackBg]
+        change [track_update Update.TrackBg]
     when (unequal Track.track_render) $
-        change [track_update $ Update.TrackRender]
+        change [track_update Update.TrackRender]
 
 diff_ruler :: RulerId -> Ruler.Ruler -> Ruler.Ruler -> DiffM ()
 diff_ruler ruler_id ruler1 ruler2 = do

@@ -287,7 +287,7 @@ mouse_mod msg = do
         UiMsg.MouseUp btn -> Just (False, btn)
         _ -> Nothing
     track_pos <- Msg.context_track_pos msg
-    return $ (down, Cmd.MouseMod btn (Just track_pos), track_pos)
+    return (down, Cmd.MouseMod btn (Just track_pos), track_pos)
 
 -- * util
 

@@ -127,7 +127,7 @@ run abort_val ustate cstate cmd = do
 -- a convenient way to have a uniform return type with 'run' (provided it is
 -- run in IO).
 run_id_io :: RunCmd Identity.Identity IO Status
-run_id_io ui_state cmd_state cmd = do
+run_id_io ui_state cmd_state cmd =
     return $ Identity.runIdentity (run Continue ui_state cmd_state cmd)
 
 run_io :: RunCmd IO IO Status
@@ -698,8 +698,8 @@ lookup_instrument block_id track_id = do
 -- turn off TrackEnviron recording?
 lookup_env :: (M m) => BlockId -> TrackId -> TrackLang.ValName
     -> m (Maybe TrackLang.Val)
-lookup_env block_id track_id name = do
-    justm State.lookup_root_id $ \root_id -> do
+lookup_env block_id track_id name =
+    justm State.lookup_root_id $ \root_id ->
     justm (lookup_performance root_id) $ \perf -> do
     let track_env = perf_track_environ perf
     return $ Map.lookup name =<< Map.lookup (block_id, track_id) track_env

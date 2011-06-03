@@ -43,7 +43,7 @@ cmd_val_edit msg = do
             note <- EditUtil.parse_key key
             val_edit_at sel_pos note
             Selection.advance
-        (Msg.key_down -> Just Key.Backspace) -> do
+        (Msg.key_down -> Just Key.Backspace) ->
             EditUtil.modify_event False True (const (Nothing, True))
         _ -> Cmd.abort
     return Cmd.Done
@@ -164,7 +164,7 @@ transpose_events block_id track_id scale_id octaves degrees events = do
     scale <- Cmd.get_scale "transpose_selection" scale_id
     let transposed = map (transpose scale octaves degrees) events
         failed = [event | (event, Nothing) <- zip events transposed]
-    when (not (null failed)) $
+    unless (null failed) $
         Cmd.throw $ "transpose failed on events at: "
             ++ Seq.join ", " (map (Cmd.log_event block_id track_id) failed)
     return $ Maybe.catMaybes transposed

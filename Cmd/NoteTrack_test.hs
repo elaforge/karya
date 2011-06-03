@@ -25,7 +25,7 @@ thread track_specs cmd msgs =
     extract_sel $ CmdTest.thread ustate CmdTest.default_cmd_state cmds
     where
     (_, ustate) = UiTest.run_mkview track_specs
-    cmds = (CmdTest.set_sel 1 0 1 0 >> return Cmd.Done) : map (cmd$) msgs
+    cmds = (CmdTest.set_sel 1 0 1 0 >> return Cmd.Done) : map cmd msgs
 
 -- drop 1 is for set_sel above, and should really be in 'thread'.
 extract_sel (Right (ustate, cstate)) = (UiTest.extract_tracks ustate,

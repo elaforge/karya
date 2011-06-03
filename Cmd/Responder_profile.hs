@@ -38,7 +38,7 @@ profile_edits_middle = do
             (CmdTest.make_key False Key.ShiftL, 4)]
         alter_note = [(CmdTest.m_note_on 0 64 127, 1),
             (CmdTest.m_note_off 0 127, 1)]
-        keys = concat $ take 4 $ repeat alter_note
+        keys = concat $ replicate 4 alter_note
     (updates, _mthru, states) <-
         ResponderTest.respond_delay True (ui_state, cmd_state) (wait ++ keys)
     return ()

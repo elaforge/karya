@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards, ViewPatterns #-}
+{-# LANGUAGE ViewPatterns #-}
 -- | Utilities to deal with track titles.
 --
 -- Like Derive.Schema, this module is used by both Cmd and Derive.
@@ -8,14 +8,15 @@
 -- addition to the Schema need to agree on how they are parsed.
 module Derive.TrackInfo where
 import qualified Data.ByteString.Char8 as B
+import qualified Data.Maybe as Maybe
 
-import qualified Util.Seq as Seq
 import qualified Util.Pretty as Pretty
-
+import qualified Util.Seq as Seq
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Scale.Relative as Relative
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Pitch as Pitch
 
 
@@ -96,10 +97,11 @@ unparse_control_vals ctype = case ctype of
         Pitch ptype name ->
             let pname = maybe [] (\(Score.Control c) -> [sym c]) name
             in case ptype of
-                PitchRelative call -> [TrackLang.VSymbol call, sym "*"] ++ pname
+                PitchRelative call ->
+                    [TrackLang.VSymbol call, sym "*"] ++ pname
                 PitchAbsolute (Just (Pitch.ScaleId scale_id)) ->
-                    [sym ('*':scale_id)] ++ pname
-                PitchAbsolute Nothing -> [sym "*"] ++ pname
+                    sym ('*':scale_id) : pname
+                PitchAbsolute Nothing -> sym "*" : pname
         Tempo -> [sym "tempo"]
     where
     sym = TrackLang.VSymbol . TrackLang.Symbol
@@ -140,7 +142,7 @@ is_relative (Pitch (PitchRelative _) _) = True
 is_relative _ = False
 
 is_note_track :: String -> Bool
-is_note_track = maybe False (const True) . title_to_instrument
+is_note_track = Maybe.isJust . title_to_instrument
 
 is_control_track :: String -> Bool
 is_control_track = not . is_note_track

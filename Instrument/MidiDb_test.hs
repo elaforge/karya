@@ -22,7 +22,7 @@ test_lookup_midi = do
         hang = kkt_inst "hang1"
     equal (f "kkt/hang1" ["slap"]) $
         Just (hang { Instrument.inst_keyswitch = ks 38 },
-            (Score.attributes ["slap"]))
+            Score.attributes ["slap"])
     equal (f "kkt/hang1" []) $
         Just (hang { Instrument.inst_keyswitch = ks 36 },
             Score.no_attrs)

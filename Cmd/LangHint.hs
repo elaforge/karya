@@ -73,9 +73,9 @@ type LangType = State.State -> Cmd.State -> IO (Cmd.CmdVal String)
 run :: [Interpreter.ModuleName] -> State.State -> Cmd.State -> String
     -> Interpreter.Interpreter (Cmd.CmdT IO String)
 run local_mods ui_state cmd_state text = do
-    Interpreter.loadModules $ ["Cmd.Lang.Environ"] ++ local_mods
+    Interpreter.loadModules $ "Cmd.Lang.Environ" : local_mods
     Interpreter.setTopLevelModules ["Cmd.Lang.Environ"]
-    Interpreter.setImports $ ["Prelude"] ++ local_mods
+    Interpreter.setImports $ "Prelude" : local_mods
 
     cmd_func <- Interpreter.interpret (mangle_code text)
         (Interpreter.as :: LangType)

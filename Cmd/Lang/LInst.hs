@@ -124,7 +124,7 @@ send_initialization :: Instrument.InitializePatch
 send_initialization init inst dev chan = case init of
     Instrument.InitializeMidi msgs -> do
         Log.notice $ "sending midi init: " ++ Pretty.pretty msgs
-        mapM_ ((Cmd.midi dev) . Midi.set_channel chan) msgs
+        mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
     Instrument.InitializeMessage msg ->
         -- TODO warn doesn't seem quite right for this...
         Log.warn $ "initialize instrument " ++ show inst ++ ": " ++ msg

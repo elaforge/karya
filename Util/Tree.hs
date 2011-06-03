@@ -43,5 +43,4 @@ first_leaf (Node _ (child : _)) = first_leaf child
 leaves :: Forest a -> [Tree a]
 leaves trees = do
     tree <- trees
-    sub <- if (null (subForest tree)) then [tree] else leaves (subForest tree)
-    return sub
+    if null (subForest tree) then [tree] else leaves (subForest tree)

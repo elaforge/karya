@@ -92,7 +92,7 @@ query_matches (Index idx _) query = map with_tag query
     where
     with_tag (key, val) = case Map.lookup key idx of
         Nothing -> []
-        Just vals -> concat $ map snd $ filter ((val `List.isInfixOf`) . fst)
+        Just vals -> concatMap snd $ filter ((val `List.isInfixOf`) . fst)
             (Map.assocs vals)
 
 inverted_index :: MidiDb.MidiDb code -> [(Score.Instrument, [Instrument.Tag])]

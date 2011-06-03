@@ -94,7 +94,7 @@ run_msg prev_ts (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg))
     case msg of
         Midi.NoteOff key _ -> ifM (is_active addr key)
             (note_off addr ts key)
-            (warn $ "note off not preceded by note on")
+            (warn "note off not preceded by note on")
         Midi.NoteOn key vel -> ifM (is_active addr key)
             (do warn "double note on"
                 note_off addr ts key

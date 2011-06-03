@@ -145,12 +145,12 @@ lookup_instrument = Derive.lookup_val TrackLang.v_instrument
 c_equal :: (Derive.Derived derived) => Derive.Call derived
 c_equal = Derive.transformer "equal" $ \args deriver ->
     case Derive.passed_vals args of
-        [TrackLang.VSymbol assignee, val] -> do
+        [TrackLang.VSymbol assignee, val] ->
             Derive.with_val assignee val deriver
         [control -> Just assignee, TrackLang.VControl val] -> do
             sig <- to_signal val
             Derive.with_control assignee sig deriver
-        [control -> Just assignee, TrackLang.VNum val] -> do
+        [control -> Just assignee, TrackLang.VNum val] ->
             Derive.with_control assignee (Signal.constant val) deriver
         [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
             sig <- to_pitch_signal val

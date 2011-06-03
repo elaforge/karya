@@ -100,7 +100,7 @@ load_block fn = read_block fn >>= Clip.state_to_clip
 
 read_block :: FilePath -> Cmd.CmdL State.State
 read_block fn = do
-    simple_block <- Trans.liftIO $ (readIO =<< readFile fn :: IO Block)
+    simple_block <- Trans.liftIO (readIO =<< readFile fn :: IO Block)
     convert_block simple_block
 
 convert_block :: (Cmd.M m) => Block -> m State.State

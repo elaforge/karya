@@ -2,23 +2,20 @@
 module Perform.Midi.Play (play) where
 import qualified Control.Exception as Exception
 import Control.Monad
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Midi.CC as CC
 import qualified Midi.Midi as Midi
-
 import Ui
-
+import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
-
-import qualified Derive.LEvent as LEvent
 
 
 type Messages = [LEvent.LEvent Midi.WriteMessage]
@@ -71,7 +68,7 @@ play_msgs state addrs_seen msgs = do
     -- This should make the buffer always be between write_ahead*2 and
     -- write_ahead ahead of now.
     now <- Transport.state_get_current_time state
-    let until = now + (RealTime.mul write_ahead 2)
+    let until = now + RealTime.mul write_ahead 2
     let (chunk, rest) =
             span (LEvent.either ((<until) . Midi.wmsg_ts) (const True))  msgs
     -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
@@ -113,7 +110,7 @@ update_addrs :: AddrsSeen -> [Midi.WriteMessage] -> AddrsSeen
 update_addrs addrs_seen wmsgs = Set.size addrs_seen' `seq` addrs_seen'
     where
     addrs_seen' = Set.union addrs_seen
-        (Set.fromList (Seq.map_maybe wmsg_addr wmsgs))
+        (Set.fromList (Maybe.mapMaybe wmsg_addr wmsgs))
 
 wmsg_addr :: Midi.WriteMessage -> Maybe Instrument.Addr
 wmsg_addr (Midi.WriteMessage dev _ (Midi.ChannelMessage chan _)) =

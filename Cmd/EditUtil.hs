@@ -36,7 +36,7 @@ raw_edit zero_dur msg = do
             note <- parse_key key
             modify_event zero_dur False $ \txt ->
                 (modify_text_note note txt, False)
-        (raw_key -> Just key) -> do
+        (raw_key -> Just key) ->
             modify_event zero_dur False $ \txt ->
                 (modify_text_key key txt, False)
         _ -> Cmd.abort

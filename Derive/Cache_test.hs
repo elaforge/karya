@@ -6,6 +6,7 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 import Util.Test
@@ -380,8 +381,8 @@ r_cache_logs = map DeriveTest.show_log_stack . filter DeriveTest.cache_msg
     . snd . LEvent.partition . Derive.r_events
 
 log_with_stack :: Log.Msg -> String
-log_with_stack msg = Log.msg_string msg
-    -- Pretty.pretty (Log.msg_stack msg) ++ ": " ++ Log.msg_string msg
+log_with_stack msg =
+    Pretty.pretty (Log.msg_stack msg) ++ ": " ++ Log.msg_string msg
 
 r_cache_collect :: Derive.Result -> [(String, Maybe Derive.Collect)]
 r_cache_collect result = Seq.sort_on fst

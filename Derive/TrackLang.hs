@@ -323,7 +323,7 @@ put_val name val environ = case maybe_old of
         | otherwise -> Left (type_of old_val)
     where
     maybe_old = Map.lookup name environ
-    new_val = case (to_val val) of
+    new_val = case to_val val of
         VRelativeAttr rel_attr -> VAttributes $
             case maybe_old of
                 Just (VAttributes attrs) -> set_attr rel_attr attrs

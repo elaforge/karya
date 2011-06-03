@@ -51,7 +51,7 @@ cached_derive block_id = do
     derive cache damage block_id
 
 uncached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
-uncached_derive block_id = derive mempty mempty block_id
+uncached_derive = derive mempty mempty
 
 clear_cache :: (Cmd.M m) => BlockId -> m ()
 clear_cache block_id =
@@ -82,14 +82,10 @@ get_lookup_inst_calls = do
     return $ fmap (Cmd.inst_calls . MidiDb.info_code)
         . Instrument.Db.db_lookup inst_db
 
-perform_from :: (Cmd.M m) => Cmd.Performance -> RealTime -> m Perform.MidiEvents
-perform_from perf start = do
-    lookup_scale <- Cmd.get_lookup_scale
-    lookup_inst <- Cmd.get_lookup_midi_instrument
-    midi_config <- State.get_midi_config
-    let events = Convert.convert lookup_scale lookup_inst
-            (events_from start (Cmd.perf_events perf))
-    return $ fst $ Perform.perform Perform.initial_state midi_config events
+perform_from :: (Cmd.M m) => Cmd.Performance -> RealTime
+    -> m Perform.MidiEvents
+perform_from perf start =
+    perform_events (events_from start (Cmd.perf_events perf))
 
 events_from :: RealTime -> Derive.Events -> Derive.Events
 events_from start =

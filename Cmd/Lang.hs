@@ -83,7 +83,7 @@ cmd_language session lang_dirs msg = do
         IO.hClose response_hdl
     return $ if response == Fast.magic_quit_string then Cmd.Quit else Cmd.Done
     where
-    catch_io_errors = Exception.handle $ \(exc :: IOError) -> do
+    catch_io_errors = Exception.handle $ \(exc :: IOError) ->
         Log.warn $ "caught exception from socket write: " ++ show exc
 
 get_local_modules :: FilePath -> Cmd.CmdT IO [String]

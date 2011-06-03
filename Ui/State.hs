@@ -558,8 +558,8 @@ get_track_tree block_id = do
             (Skeleton.to_forest ntracks skel)
     -- Rulers and dividers should show up as missing.  They're ok as long as
     -- they have no edges.
-    let really_missing = filter (not . (Skeleton.lonely_vertex skel)) missing
-    when (not (null really_missing)) $
+    let really_missing = filter (not . Skeleton.lonely_vertex skel) missing
+    unless (null really_missing) $
         throw $ "skeleton of " ++ show block_id
             ++ " names missing tracknums: " ++ show really_missing
     return resolved
@@ -604,7 +604,7 @@ _track_tree_tracks_of block tracks = do
 
 _track_tree_resolve :: Map.Map TrackNum TrackInfo -> Tree.Forest TrackNum
     -> (Tree.Forest TrackInfo, [TrackNum])
-_track_tree_resolve tracknums trees = foldr cat_tree ([], []) $ map go trees
+_track_tree_resolve tracknums = foldr cat_tree ([], []) . map go
     where
     go (Tree.Node tracknum subs) = case Map.lookup tracknum tracknums of
         Nothing -> (Nothing, [tracknum])
@@ -864,7 +864,7 @@ create_track id track = get >>= insert (Types.TrackId id) track state_tracks
 destroy_track :: (M m) => TrackId -> m ()
 destroy_track track_id = do
     blocks <- blocks_with_track track_id
-    forM_ blocks $ \(block_id, tracks) -> forM_ tracks $ \(tracknum, _) -> do
+    forM_ blocks $ \(block_id, tracks) -> forM_ tracks $ \(tracknum, _) ->
         remove_track block_id tracknum
     modify $ \st -> st { state_tracks = Map.delete track_id (state_tracks st) }
 
@@ -964,7 +964,7 @@ map_events_sorted track_id start end f = _modify_events track_id $ \events ->
 _events_in_range :: ScoreTime -> ScoreTime -> Track.TrackEvents
     -> [Track.PosEvent]
 _events_in_range start end events
-    | start == end = maybe [] ((:[]) . ((,) start))
+    | start == end = maybe [] ((:[]) . (,) start)
         (Track.event_at start events)
     | otherwise = Track.events_in_range start end events
 

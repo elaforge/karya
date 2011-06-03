@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
 {- | Derivers for control tracks.
 
     Interpolation methods:
@@ -104,10 +103,9 @@ control_call track control maybe_op control_deriver deriver = do
     maybe_track_id = State.tevents_track_id track
     with_damage = with_control_damage maybe_track_id
         (State.tevents_range track)
-    with_control signal deriver = do
-        case maybe_op of
-            Nothing -> Derive.with_control control signal deriver
-            Just op -> Derive.with_control_operator control op signal deriver
+    with_control signal deriver = case maybe_op of
+        Nothing -> Derive.with_control control signal deriver
+        Just op -> Derive.with_control_operator control op signal deriver
 
 to_display :: TrackResults Signal.Control -> Signal.Display
 to_display (sig, _) = Signal.coerce sig
@@ -242,7 +240,7 @@ stash_signal :: Maybe TrackId
 stash_signal Nothing _ = return ()
 stash_signal (Just track_id) sig = do
     rendered <- track_is_rendered track_id
-    if not rendered then return () else do
+    when rendered $ do
     maybe_linear <- linear_tempo
     case maybe_linear of
         Just (shift, stretch) -> do

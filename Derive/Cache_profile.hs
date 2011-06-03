@@ -42,7 +42,7 @@ modify_note note_tid pitch_tid pos = do
     State.insert_event (UiTest.tid pitch_tid) pos (Event.event "1c" 0)
 
 modify_pitch :: (State.M m) => String -> ScoreTime -> m ()
-modify_pitch pitch_tid pos = do
+modify_pitch pitch_tid pos =
     State.insert_event (UiTest.tid pitch_tid) pos (Event.event "1c" 0)
 
 
@@ -57,7 +57,7 @@ rederive initial_state modifications = do
     go start_times state1 cache (modify:rest) = do
         let section = Derive_profile.time_section start_times
         let (_, state2, updates) = Cache_test.run state1 modify
-        cached <- section "cached" $ do
+        cached <- section "cached" $
             eval_derivation cache state1 state2 updates
 
         uncached <- section "uncached" $ do

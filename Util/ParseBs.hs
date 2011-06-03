@@ -90,7 +90,7 @@ p_unsigned_float = do
     if (B.null i && B.null f) then mzero else do
     case (dec i, dec f) of
         (Just i', Just f') -> return $ fromIntegral i'
-            + fromIntegral f' / fromIntegral (10 ^ (B.length f))
+            + fromIntegral f' / fromIntegral (10 ^ B.length f)
         _ -> mzero
     <?> "unsigned float"
     where
@@ -117,4 +117,4 @@ p_nat = do
 
 -- | A word of non-space chars.
 p_word :: Parser B.ByteString
-p_word = A.takeWhile1 (\c -> c /= ' ')
+p_word = A.takeWhile1 (/= ' ')

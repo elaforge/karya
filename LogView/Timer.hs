@@ -23,7 +23,7 @@ main = do
             IO.hSetBuffering hdl IO.LineBuffering
             IO.hSeek hdl IO.SeekFromEnd 0
             return hdl
-        _ -> error $ "usage: timer [filename]"
+        _ -> error "usage: timer [filename]"
     msgs <- Chan.newChan
     Thread.start_logged "tail_hdl" (tail_hdl msgs hdl)
     (last_date, _) <- Chan.readChan msgs

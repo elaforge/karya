@@ -245,7 +245,7 @@ test_pitch_curve = do
         (chan [Midi.PitchBend 0.5, Midi.NoteOn 42 100, Midi.NoteOff 42 100])
 
     equal (f (event [(1, 42), (1.5, 42.5), (1.75, 43), (1.9, 43.5), (2, 44)]))
-        (chan $
+        (chan
             [ Midi.PitchBend 0, Midi.NoteOn 42 100
             , Midi.PitchBend 0.5
             , Midi.NoteOff 42 100
@@ -301,7 +301,7 @@ perform_notes :: [(Perform.Event, Instrument.Addr)]
 perform_notes = split_logs . fst
     . Perform.perform_notes Perform.empty_perform_state . map LEvent.Event
 
-split_logs = second (map (DeriveTest.show_log)) . LEvent.partition
+split_logs = second (map DeriveTest.show_log) . LEvent.partition
 
 -- * post process
 
@@ -485,7 +485,7 @@ test_allot = do
 
 test_allot_warn = do
     let inst_addrs = Instrument.config_alloc midi_config1
-    let extract (LEvent.Event (e, (Midi.WriteDevice dev, chan))) = Left $
+    let extract (LEvent.Event (e, (Midi.WriteDevice dev, chan))) = Left
             (Instrument.inst_name (Perform.event_instrument e), dev, chan)
         extract (LEvent.Log msg) = Right $ DeriveTest.show_log msg
     let f = map extract . allot inst_addrs

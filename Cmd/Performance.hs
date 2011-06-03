@@ -92,9 +92,8 @@ insert_score_damage damage = Cmd.modify_state $ \st ->
 regenerate_performance :: SendStatus -> BlockId -> Cmd.CmdT IO ()
 regenerate_performance send_status block_id = do
     threads <- Cmd.gets Cmd.state_performance_threads
-    if needs_regeneration threads block_id
-        then generate_performance send_status block_id
-        else return ()
+    when (needs_regeneration threads block_id) $
+        generate_performance send_status block_id
 
 -- | A block should be rederived only if the it doesn't already have
 -- a performance or its performance has damage.

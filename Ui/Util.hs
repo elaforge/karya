@@ -1,4 +1,3 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
 {- | Utilities for the SomethingC layer.
 
     - Fltk monad
@@ -35,7 +34,7 @@ in_range desc lo hi n
         ++ show lo ++ "--" ++ show hi ++ ")"
 
 c_int :: Int -> CInt
-c_int i = fromIntegral i -- c ints should be at least as big as hs ones
+c_int = fromIntegral -- c ints should be at least as big as hs ones
 
 c_nat :: Int -> CInt
 c_nat = c_int -- I don't check for > 0 yet, I should catch the c++ exception

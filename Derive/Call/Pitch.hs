@@ -33,7 +33,7 @@ degree_call :: Pitch.Note
     -> Derive.ValCall
 degree_call note degree add_hz =
     Derive.ValCall ("degree: " ++ Pitch.note_text note) $ \args ->
-        CallSig.call2 args (optional "frac" 0, optional "hz" 0) $ \frac hz -> do
+        CallSig.call2 args (optional "frac" 0, optional "hz" 0) $ \frac hz ->
             return $ TrackLang.VDegree $
                 add_hz (degree + Pitch.Degree (frac/100)) hz
 
@@ -140,7 +140,7 @@ pitch_interpolate f degree args = do
     srate <- Util.get_srate
     case Derive.passed_prev_val args of
         Nothing -> do
-            Log.warn $ "no previous val to interpolate from"
+            Log.warn "no previous val to interpolate from"
             return $ PitchSignal.signal scale_id
                 [(start, PitchSignal.degree_to_y degree)]
         Just (prev, prev_y) -> return $

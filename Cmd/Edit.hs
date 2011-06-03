@@ -106,7 +106,7 @@ cmd_join_events = mapM_ process =<< Selection.events_around
     where
         -- If I only selected one, join with the next.  Otherwise, join
         -- selected events.
-    process (track_id, _, (_, [evt1], (evt2:_))) = join track_id evt1 evt2
+    process (track_id, _, (_, [evt1], evt2:_)) = join track_id evt1 evt2
     process (track_id, _, (_, evts@(_ : _ : _), _)) =
         join track_id (head evts) (last evts)
     process _ = return ()

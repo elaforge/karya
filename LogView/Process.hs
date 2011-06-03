@@ -66,7 +66,7 @@ type CatchPattern = (String, Regex.Regex)
 
 type Status = Map.Map String String
 render_status :: Status -> StyledText
-render_status status = run_formatter $ do
+render_status status = run_formatter $
     sequence_ $ List.intersperse (with_style style_divider " || ")
         (map format_status (Map.assocs status))
 
@@ -191,10 +191,10 @@ emit_stack stack =
     where fmt frame = "{s " ++ show (Stack.unparse_ui_frame frame) ++ "}"
 
 emit_msg_text :: Style -> String -> Formatter
-emit_msg_text style text = with_style style text
+emit_msg_text = with_style
 
 msg_text_regexes :: [(Regex.Regex, Style)]
-msg_text_regexes = map (\(reg, style) -> (Regex.make reg, style))
+msg_text_regexes = map (first Regex.make)
     [ ("\\([bvt]id \".*?\"\\)", style_emphasis)
     ] ++ clickable_braces
 
@@ -215,7 +215,7 @@ type Style = Char
 
 render_styles :: [(String, [Style])] -> StyledText
 render_styles styles =
-    StyledText (concat (map fst styles)) (concat (map snd styles))
+    StyledText (concatMap fst styles) (concatMap snd styles)
 
 style_plain, style_warn, style_clickable, style_emphasis, style_divider,
     style_func_name, style_filename :: Style

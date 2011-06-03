@@ -5,15 +5,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 
 test_sub_tracks = do
-    let run tracks =
-            DeriveTest.derive_tracks tracks
-                -- (set_skel (length tracks)) tracks
-        -- with_subs = CallTest.with_note_call "subs" c_subs
-        -- set_skel ntracks state = either (error . show) id $
-        --     State.exec state $ State.set_skeleton UiTest.default_block_id $
-        --         -- go left to right
-        --         Skeleton.make (zip [1..ntracks] [2..ntracks])
-
+    let run = DeriveTest.derive_tracks
     let extract_c e = (DeriveTest.e_event e, DeriveTest.e_control "c1" e,
             DeriveTest.e_control "c2" e)
     let (events, logs) = DeriveTest.extract extract_c $ run

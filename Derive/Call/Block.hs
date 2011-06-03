@@ -36,10 +36,7 @@ eval_root_block :: BlockId -> Derive.EventDeriver
     -- Derive.d_tempo does a bit of magic to stretch all blocks to length 1,
     -- except the root one.  The root block should operate in real time, so
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
-eval_root_block block_id = do
-    -- b <- Derive.get_block block_id
-    -- Derive.throw $ "ho: " ++ show (Block.block_skeleton b)
-    Call.eval_one 0 1 [call_from_block_id block_id]
+eval_root_block block_id = Call.eval_one 0 1 [call_from_block_id block_id]
 
 lookup_block :: Derive.LookupCall Derive.NoteCall
 lookup_block sym = fmap c_block <$> symbol_to_block_id sym

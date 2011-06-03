@@ -94,7 +94,7 @@ empty_events :: TrackEvents
 empty_events = TrackEvents Map.empty
 
 set_events :: TrackEvents -> Track -> Track
-set_events events track = modify_events (const events) track
+set_events events = modify_events (const events)
 
 modify_events :: (TrackEvents -> TrackEvents) -> Track -> Track
 modify_events f track@(Track { track_events = events }) =
@@ -147,11 +147,10 @@ events_length = Map.size . te_map
 
 -- | Map a function across the events in TrackEvents.
 map_events :: (PosEvent -> PosEvent) -> TrackEvents -> TrackEvents
-map_events f events = emap (Map.fromList . map f . Map.toList) events
+map_events f = emap (Map.fromList . map f . Map.toList)
 
 map_sorted_events :: (PosEvent -> PosEvent) -> TrackEvents -> TrackEvents
-map_sorted_events f events =
-    emap (Map.fromAscList . map f . Map.toAscList) events
+map_sorted_events f = emap (Map.fromAscList . map f . Map.toAscList)
 
 sort_events :: [PosEvent] -> [PosEvent]
 sort_events = Seq.sort_on event_start
@@ -171,8 +170,7 @@ insert_sorted_events pos_events events =
 
 -- | Like 'insert_sorted_events' but safer and less efficient.
 insert_events :: [PosEvent] -> TrackEvents -> TrackEvents
-insert_events pos_events events =
-    insert_sorted_events (sort_events pos_events) events
+insert_events pos_events = insert_sorted_events (sort_events pos_events)
 
 from_events, from_sorted_events :: [PosEvent] -> TrackEvents
 from_events evts = insert_events evts empty_events
@@ -186,7 +184,7 @@ remove_events start end track_events =
 
 -- | Remove an event if it occurs exactly at the given pos.
 remove_event :: ScoreTime -> TrackEvents -> TrackEvents
-remove_event pos track_events = emap (Map.delete pos) track_events
+remove_event pos = emap (Map.delete pos)
 
 -- | Return the events before the given @pos@, and the events at and after it.
 split :: ScoreTime -> TrackEvents -> ([PosEvent], [PosEvent])

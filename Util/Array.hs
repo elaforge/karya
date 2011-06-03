@@ -24,7 +24,7 @@ in_bounds i a = let (low, high) = IArray.bounds a in low <= i && i <= high
 
 -- | Find the index of the first element >= the given element in the sorted
 -- array.
-bsearch a elt = bsearch_with (<=) a elt
+bsearch = bsearch_with (<=)
 
 bsearch_on key a elt = bsearch_with (\elt e1 -> (elt <= key e1)) a elt
 
