@@ -35,10 +35,6 @@ range_ start step = go 0
 key_on :: (a -> k) -> [a] -> [(k, a)]
 key_on f xs = zip (map f xs) xs
 
--- | Map a function which may not have a return value.
-map_maybe :: (a -> Maybe b) -> [a] -> [b]
-map_maybe f = Maybe.catMaybes . map f
-
 -- * permutations
 
 -- | The cartesian product of a list of lists.  E.g.
@@ -242,7 +238,7 @@ indexed_pairs_on key xs ys = indexed_pairs (\a b -> key a == key b) xs ys
 -- | Left if the val was in the left list but not the right, Right for the
 -- converse.
 diff :: (a -> b -> Bool) -> [a] -> [b] -> [Either a b]
-diff eq xs ys = map_maybe f (equal_pairs eq xs ys)
+diff eq xs ys = Maybe.mapMaybe f (equal_pairs eq xs ys)
     where
     f (Just a, Nothing) = Just (Left a)
     f (Nothing, Just a) = Just (Right a)

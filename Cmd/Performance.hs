@@ -7,17 +7,18 @@
 -- to do too much unnecessary work (specifically, stressing the GC leads to
 -- UI latency).
 module Cmd.Performance (SendStatus, update_performance, performance) where
-import Control.Monad
 import qualified Control.Concurrent as Concurrent
+import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
+
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import Ui
@@ -25,8 +26,8 @@ import qualified Ui.State as State
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Msg as Msg
+import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Cache as Derive.Cache
 import qualified Derive.Derive as Derive
@@ -70,7 +71,7 @@ kill_obsolete_threads (Derive.ScoreDamage _ track_blocks blocks) = do
     threads <- Cmd.gets Cmd.state_performance_threads
     let block_ids = Set.toList (Set.union track_blocks blocks)
     let thread_ids = map Cmd.pthread_id $
-            Seq.map_maybe (flip Map.lookup threads) block_ids
+            Maybe.mapMaybe (flip Map.lookup threads) block_ids
     Trans.liftIO $ mapM_ Concurrent.killThread thread_ids
 
 -- | Since caches are stored per-block, score damage is also per-block.

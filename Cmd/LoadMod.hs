@@ -193,7 +193,7 @@ convert_controls notes = Map.assocs cont_vals
 
 note_controls :: Note -> [(String, String)]
 note_controls note = maybe [] (:[]) (convert_pitch note)
-    ++ Seq.map_maybe convert_effect (note_effects note)
+    ++ Maybe.mapMaybe convert_effect (note_effects note)
 
 convert_pitch :: Note -> Maybe (String, String)
 convert_pitch (Note pitch _ _)

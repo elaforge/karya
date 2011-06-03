@@ -1,10 +1,10 @@
 module Ui.Block where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
@@ -147,14 +147,14 @@ track_id_of :: TracklikeId -> Maybe TrackId
 track_id_of (TId tid _) = Just tid
 track_id_of _ = Nothing
 
-track_ids_of = Seq.map_maybe track_id_of
+track_ids_of = Maybe.mapMaybe track_id_of
 
 ruler_id_of :: TracklikeId -> Maybe RulerId
 ruler_id_of (TId _ rid) = Just rid
 ruler_id_of (RId rid) = Just rid
 ruler_id_of _ = Nothing
 
-ruler_ids_of = Seq.map_maybe ruler_id_of
+ruler_ids_of = Maybe.mapMaybe ruler_id_of
 
 set_rid rid (TId tid _) = TId tid rid
 set_rid rid (RId _) = RId rid
@@ -170,14 +170,14 @@ track_of :: Tracklike -> Maybe Track.Track
 track_of (T track _) = Just track
 track_of _ = Nothing
 
-tracks_of = Seq.map_maybe track_of
+tracks_of = Maybe.mapMaybe track_of
 
 ruler_of :: Tracklike -> Maybe Ruler.Ruler
 ruler_of (T _ ruler) = Just ruler
 ruler_of (R ruler) = Just ruler
 ruler_of _ = Nothing
 
-rulers_of = Seq.map_maybe ruler_of
+rulers_of = Maybe.mapMaybe ruler_of
 
 -- | A divider separating tracks.
 -- Defined here in Block since it's so trivial.

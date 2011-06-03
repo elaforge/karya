@@ -31,22 +31,22 @@ import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
-import qualified App.Config as Config
-
 import Ui
-import qualified Ui.Ui as Ui
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
-import qualified Ui.Track as Track
 import qualified Ui.State as State
-import qualified Ui.Update as Update
+import qualified Ui.Track as Track
 import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
+import qualified Ui.Update as Update
 
-import qualified Util.Log as Log
+import qualified App.Config as Config
 
 
 -- | Sync with the ui by applying the given updates to it.
@@ -288,7 +288,7 @@ block_window_title :: ViewId -> BlockId -> String
 block_window_title view_id block_id = show block_id ++ " -- " ++ show view_id
 
 events_of_track_ids :: State.State -> [TrackId] -> [Track.TrackEvents]
-events_of_track_ids ustate track_ids = Seq.map_maybe events_of track_ids
+events_of_track_ids ustate track_ids = Maybe.mapMaybe events_of track_ids
     where
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
     tracks = State.state_tracks ustate

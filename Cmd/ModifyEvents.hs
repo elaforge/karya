@@ -1,9 +1,9 @@
 -- | Utilities to modify events in tracks.
 module Cmd.ModifyEvents where
 import Control.Monad
-import Util.Control
-import qualified Util.Seq as Seq
+import qualified Data.Maybe as Maybe
 
+import Util.Control
 import Ui
 import qualified Ui.Event as Event
 import qualified Ui.State as State
@@ -22,7 +22,7 @@ events f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
         State.remove_events track_id start end
-        State.insert_events track_id (Seq.map_maybe f events)
+        State.insert_events track_id (Maybe.mapMaybe f events)
 
 -- | This is like 'events'.  It's more efficient but the modify function must
 -- promise to return events in sorted order.
@@ -31,7 +31,7 @@ events_sorted f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
         State.remove_events track_id start end
-        State.insert_sorted_events track_id (Seq.map_maybe f events)
+        State.insert_sorted_events track_id (Maybe.mapMaybe f events)
 
 -- | Map a function over the selected events, passing the track id.  Unlike
 -- 'events', returning Nothing will leave the track unchanged.
@@ -103,12 +103,12 @@ move_events point shift events = merged
 map_track_sorted :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent)
     -> TrackId -> m ()
 map_track_sorted f track_id = State.modify_track_events track_id $
-    Track.from_sorted_events . Seq.map_maybe f . Track.event_list
+    Track.from_sorted_events . Maybe.mapMaybe f . Track.event_list
 
 map_track :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent)
     -> TrackId -> m ()
 map_track f track_id = State.modify_track_events track_id $
-    Track.from_events . Seq.map_maybe f . Track.event_list
+    Track.from_events . Maybe.mapMaybe f . Track.event_list
 
 -- | Mostly convenient for REPL use.
 for_track :: (Cmd.M m) => TrackId -> (Track.PosEvent -> Maybe Track.PosEvent)

@@ -4,24 +4,21 @@ import Prelude hiding (lookup)
 import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-
 import Ui
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
-
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
-
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
-
 import qualified Instrument.MidiDb as MidiDb
 
 
@@ -150,7 +147,7 @@ dealloc_instrument inst = do
 schema_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
     titles <- fmap (map State.track_title) (State.get_track_info block_id)
-    return $ Seq.map_maybe TrackInfo.title_to_instrument titles
+    return $ Maybe.mapMaybe TrackInfo.title_to_instrument titles
 
 -- | Try to automatically create an instrument config based on the instruments
 -- found in the given block.  It simply gives each instrument on a device a

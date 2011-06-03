@@ -3,6 +3,7 @@
 module Cmd.BlockConfig where
 import Control.Monad
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
@@ -17,9 +18,9 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Msg as Msg
+import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 import qualified Cmd.ViewConfig as ViewConfig
-import qualified Cmd.NoteTrack as NoteTrack
 
 
 -- * block
@@ -43,7 +44,7 @@ get_clicked_track msg = case (Msg.mouse_down msg, Msg.context_track_pos msg) of
 merge_all :: (State.M m) => BlockId -> m ()
 merge_all block_id = do
     tree <- State.get_track_tree block_id
-    let collapse = Seq.map_maybe collapsable (Tree.paths tree)
+    let collapse = Maybe.mapMaybe collapsable (Tree.paths tree)
     mapM_ (uncurry (State.merge_track block_id)) collapse
     where
     collapsable (track, parent : _, [])

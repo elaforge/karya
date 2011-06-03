@@ -136,7 +136,7 @@ get_marks marklists names =
     where
     matching = case names of
         AllMarklists -> map snd marklists
-        NamedMarklists names -> Seq.map_maybe (flip lookup marklists) names
+        NamedMarklists names -> Maybe.mapMaybe (flip lookup marklists) names
 
 
 match :: MarkMatch -> Matcher

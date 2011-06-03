@@ -2,20 +2,20 @@
 module Local.Instrument.Vl1m where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Word as Word
+
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.File as File
 import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
-
-import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Control as Control
-
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Parse as Parse
-
 import qualified App.MidiInst as MidiInst
 
 
@@ -129,10 +129,11 @@ element :: [Word.Word8] -> ElementInfo
 element bytes = ((pb_up, pb_down), name, c_groups)
     where
     (pb_up, pb_down) =
-        (Parse.from_signed_7bit (bytes!!12), Parse.from_signed_7bit (bytes!!13))
+        (Parse.from_signed_7bit (bytes!!12),
+            Parse.from_signed_7bit (bytes!!13))
     -- doc says 231~240
     name = Seq.strip $ Parse.to_string $ take 10 $ drop 231 bytes
-    controls = Seq.map_maybe (get_control bytes) vl1_control_map
+    controls = Maybe.mapMaybe (get_control bytes) vl1_control_map
     c_groups = [(cc, map fst grp)
         | (cc, grp) <- Seq.keyed_group_on snd controls]
 

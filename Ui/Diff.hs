@@ -7,11 +7,13 @@ module Ui.Diff (diff, track_diff) where
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
-import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
+import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+
 import qualified Util.Logger as Logger
 import qualified Util.Map as Map
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Block as Block
@@ -70,7 +72,7 @@ merge_updates :: State.State -> [Update.Update] -> [Update.Update]
 merge_updates state updates = concatMap propagate updates
     where
     -- For each track update, find tracks that have it in merged
-    track_to_merged = Seq.map_maybe merged_ids_of
+    track_to_merged = Maybe.mapMaybe merged_ids_of
         (concatMap Block.block_tracks (Map.elems (State.state_blocks state)))
     merged_ids_of track = case Block.tracklike_id track of
         Block.TId track_id _ -> Just (track_id, Block.track_merged track)

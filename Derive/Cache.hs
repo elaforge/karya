@@ -11,6 +11,7 @@ module Derive.Cache (
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -333,12 +334,12 @@ score_damage ui_from ui_to updates =
     -- Updates, but should still trigger a re-derive.
     track_updates = Diff.track_diff ui_from ui_to
     tracks = Map.fromListWith (<>) $
-        Seq.map_maybe Update.track_changed (track_updates ++ updates)
+        Maybe.mapMaybe Update.track_changed (track_updates ++ updates)
     track_blocks = Set.fromList $ map fst $ State.find_tracks track_of_block
         (State.state_blocks ui_to)
     track_of_block (Block.TId tid _) = Map.member tid tracks
     track_of_block _ = False
-    blocks = Set.fromList (Seq.map_maybe Update.block_changed updates)
+    blocks = Set.fromList (Maybe.mapMaybe Update.block_changed updates)
 
 lookup_cache :: (Derive.Derived derived) =>
     Stack.Stack -> Cache -> Maybe (CallType derived)

@@ -5,10 +5,10 @@
 module Cmd.Edit where
 import Control.Monad
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -23,7 +23,6 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Pitch as Pitch
-
 import qualified App.Config as Config
 
 
@@ -187,7 +186,7 @@ cmd_delete_time = do
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min pos start) (track_end + 1)
                 State.insert_sorted_events track_id
-                    (Seq.map_maybe (delete_time start end) evts)
+                    (Maybe.mapMaybe (delete_time start end) evts)
 
 -- | Modify the event to delete the time from @start@ to @end@, shortening it
 -- if @start@ falls within the event's duration.

@@ -27,7 +27,7 @@ CURRENT
   - double click no longer working to open a sub block
   - shift-S solos, but can't unsolo
   - hlint
-  - replace Util.map_maybe with Maybe.mapMaybes
+  * replace Util.map_maybe with Maybe.mapMaybes
   - why does haskell-src-exts throw an exception for Ambiguous fixity?
   - look for Ranges.extract to replace with Ranges.fmap
   - rename State.event_end -> block_end_event, block_end_ruler

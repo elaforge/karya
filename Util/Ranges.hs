@@ -6,6 +6,7 @@ module Util.Ranges (
 ) where
 import Prelude hiding (fmap)
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 
 import qualified Util.Pretty as Pretty
@@ -19,7 +20,7 @@ data Ranges n = Ranges [(n, n)] | Everything
 fmap :: (Ord b) => ((a, a) -> Maybe (b, b)) -> Ranges a -> Ranges b
 fmap f r = case extract r of
     Nothing -> everything
-    Just pairs -> sorted_ranges (Seq.map_maybe f pairs)
+    Just pairs -> sorted_ranges (Maybe.mapMaybe f pairs)
 
 -- | Nothing means an everything range.
 extract :: Ranges n -> Maybe [(n, n)]

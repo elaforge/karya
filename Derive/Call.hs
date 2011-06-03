@@ -79,6 +79,7 @@
 -}
 module Derive.Call where
 import qualified Data.ByteString.Char8 as B
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
@@ -185,7 +186,7 @@ derive_track state block_end dinfo parse get_last_sample subs events =
             Left err -> [LEvent.Log (Derive.error_to_warn err)]
         sample = case result of
             Right derived ->
-                case Seq.last (Seq.map_maybe LEvent.event derived) of
+                case Seq.last (Maybe.mapMaybe LEvent.event derived) of
                     Just elt -> get_last_sample prev_sample elt
                     Nothing -> prev_sample
             Left _ -> prev_sample

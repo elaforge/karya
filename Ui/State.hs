@@ -22,22 +22,24 @@ module Ui.State where
 import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
-import qualified Control.Monad.Trans as Trans
-import Control.Monad.Trans (lift)
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as State
+import qualified Control.Monad.Trans as Trans
+import Control.Monad.Trans (lift)
+
 import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Rect as Rect
+import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
 import Ui
@@ -52,9 +54,9 @@ import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Derive.Score as Score
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import qualified Perform.Midi.Instrument as Instrument
 
 import qualified App.Config as Config
 
@@ -953,8 +955,8 @@ map_events_sorted track_id start end f = _modify_events track_id $ \events ->
         deleted = if start == end
             then Track.remove_event start events
             else Track.remove_events start end events
-        starts = map Track.event_min $ Seq.map_maybe Seq.head [old, new]
-        ends = map Track.event_max $ Seq.map_maybe Seq.last [old, new]
+        starts = map Track.event_min $ Maybe.mapMaybe Seq.head [old, new]
+        ends = map Track.event_max $ Maybe.mapMaybe Seq.last [old, new]
         updates = if null starts || null ends then []
             else [(minimum starts, maximum ends)]
     in (Track.insert_sorted_events new deleted, updates)
