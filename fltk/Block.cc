@@ -670,9 +670,6 @@ BlockViewWindow::handle(int evt)
         return true;
     }
 
-    // if (evt == FL_MOVE) {
-    //     std::cerr << "m\t" << Fl::event_x() << "\t" << Fl::event_y() << '\n';
-    // }
     bool accepted = false;
     if (evt == FL_PUSH || evt == FL_MOVE || evt == FL_MOUSEWHEEL) {
         // see if someone else wants it

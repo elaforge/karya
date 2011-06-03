@@ -25,7 +25,7 @@ search then none of this is necessary.
 CURRENT
   - opt-click not working for skeleton
   - double click no longer working to open a sub block
-  - shift-S solos, but can't unsolo
+  * shift-S solos, but can't unsolo
   * hlint
   * replace Util.map_maybe with Maybe.mapMaybes
   - why does haskell-src-exts throw an exception for Ambiguous fixity?

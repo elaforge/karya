@@ -133,8 +133,13 @@ set_msg_from_event(UiMsg &m, int evt)
     // I originally called tolower() since haskell already knows shift is down,
     // but it's less error-prone to send characters in their correct form.
     m.key = Fl::event_text()[0];
-    if (!isprint(m.key)) // shift or backspace or some such
+    if (!isprint(m.key)) {
+        // shift or backspace or some such
         m.key = Fl::event_key();
+        // TODO work around fltk bug
+        if (Fl::event_state() & FL_SHIFT)
+            m.key = toupper(m.key);
+    }
     m.modifier_state = Fl::event_state();
     m.is_repeat = false; // this may be set to true by push()
 }
