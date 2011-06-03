@@ -109,8 +109,9 @@ player_bindings transport_info = concat
 quit_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 quit_bindings = [(kspec, cspec) | kspec <- kspecs]
     where
-    kspecs = [Keymap.key_spec mods (Keymap.Key (Key.KeyChar '\''))
-        | mods <- Keymap.expand_mods [PrimaryCommand]]
+    kspecs = [Keymap.key_spec mods key
+        | mods <- Keymap.expand_mods key [PrimaryCommand]]
+    key = Keymap.Key (Key.KeyChar '\'')
     cspec = Keymap.cspec "quit" $ const (Play.cmd_stop >> Cmd.cmd_quit)
 
 -- * pure cmds

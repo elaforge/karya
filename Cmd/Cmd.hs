@@ -731,8 +731,8 @@ cmd_record_keys msg = cont $ when_just (msg_to_mod msg) $ \(down, mb_mod) -> do
         (False, Just mod) -> delete mod mods2
         _ -> return mods2
     -- when (not (Map.null mods3)) $
-    -- Log.warn $ (if down then "keydown " else "keyup ")
-    --     ++ show (Map.elems mods3)
+    --     Log.warn $ (if down then "keydown " else "keyup ")
+    --         ++ show (Map.elems mods3)
     modify_state $ \st -> st { state_keys_down = mods3 }
     where
     cont = (>> return Continue)

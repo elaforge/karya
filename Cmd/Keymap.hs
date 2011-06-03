@@ -71,22 +71,29 @@ bind_click smods btn clicks desc cmd =
 bind_drag :: (Cmd.M m) => [SimpleMod] -> UiMsg.MouseButton -> String
     -> (Msg.Msg -> m a) -> [Binding m]
 bind_drag smods btn desc cmd =
-    bind mods (Click btn 0) desc cmd ++ bind mods (Drag btn) desc cmd
-    -- You can't have a click or drag without having that button down!
-    where mods = Mouse btn : smods
+    bind smods (Click btn 0) desc cmd ++ bind smods (Drag btn) desc cmd
 
 -- | Bind a key with the given modifiers.
 bind :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
     -> (Msg.Msg -> m a) -> [Binding m]
 bind smods bindable desc bcmd =
-    [(key_spec mods bindable, cspec desc cmd) | mods <- expand_mods smods]
+    [(key_spec mods bindable, cspec desc cmd)
+        | mods <- expand_mods bindable smods]
     where cmd msg = bcmd msg >> return Cmd.Done
 
 -- ** util
 
-expand_mods :: [SimpleMod] -> [[Cmd.Modifier]]
-expand_mods [] = [[]]
-expand_mods smods = Seq.cartesian (map simple_to_mods smods)
+expand_mods :: Bindable -> [SimpleMod] -> [[Cmd.Modifier]]
+expand_mods bindable smods
+    | null result = [[]]
+    | otherwise = result
+    where
+    result = Seq.cartesian (map simple_to_mods (prefix ++ smods))
+    -- You can't have a click or drag without having that button down!
+    prefix = case bindable of
+        Click n _ -> [Mouse n]
+        Drag n -> [Mouse n]
+        _ -> []
 
 char_shift :: Char -> [SimpleMod] -> [SimpleMod]
 char_shift c mods
@@ -113,7 +120,10 @@ make_cmd cmd_map msg = do
     bindable <- Cmd.require (msg_to_bindable msg)
     mods <- mods_down
     case Map.lookup (KeySpec mods bindable) cmd_map of
-        Nothing -> return Cmd.Continue
+        Nothing -> do
+            -- Log.warn $ "key " ++ show (mods, bindable) ++ " not in "
+            --     ++ show (Map.keys cmd_map)
+            return Cmd.Continue
         Just (CmdSpec name cmd) -> do
             Log.debug $ "running command " ++ show name
             cmd msg
@@ -158,7 +168,8 @@ simple_mod_map =
 
 simple_to_mods :: SimpleMod -> [Cmd.Modifier]
 simple_to_mods (Mouse btn) = [Cmd.MouseMod btn Nothing]
-simple_to_mods simple = maybe [] (map Cmd.KeyMod) (lookup simple simple_mod_map)
+simple_to_mods simple =
+    maybe [] (map Cmd.KeyMod) (lookup simple simple_mod_map)
 
 -- ** Binding
 

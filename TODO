@@ -23,8 +23,8 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
-  - opt-click not working for skeleton
-  - double click no longer working to open a sub block
+  * opt-click not working for skeleton
+  * double click no longer working to open a sub block
   * shift-S solos, but can't unsolo
   * hlint
   * replace Util.map_maybe with Maybe.mapMaybes
