@@ -469,17 +469,17 @@ set_play_box block_id color = do
         (Block.block_config block) { Block.config_sb_box = (color, ' ') }
 
 -- | Get the end of the block according to the ruler.  This means that if the
--- block has no rulers (e.g. a clipboard block) then ruler_end will be 0.
-ruler_end :: (M m) => BlockId -> m ScoreTime
-ruler_end block_id = do
+-- block has no rulers (e.g. a clipboard block) then block_ruler_end will be 0.
+block_ruler_end :: (M m) => BlockId -> m ScoreTime
+block_ruler_end block_id = do
     block <- get_block block_id
     case Block.block_ruler_ids block of
         [] -> return 0
         ruler_id : _ -> Ruler.time_end <$> get_ruler ruler_id
 
 -- | Get the end of the block according to the last event of the block.
-event_end :: (M m) => BlockId -> m ScoreTime
-event_end block_id = do
+block_event_end :: (M m) => BlockId -> m ScoreTime
+block_event_end block_id = do
     block <- get_block block_id
     track_ends <- mapM track_end (Block.block_track_ids block)
     return $ maximum (0 : track_ends)

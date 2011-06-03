@@ -1274,14 +1274,14 @@ is_root_block = do
         _ -> False
 
 -- | Sub-derived blocks are stretched according to their length, and this
--- function defines the length of a block.  'event_end' seems the most
--- intuitive, but then you can't make blocks with trailing space.  You can
--- work around it though by appending a comment dummy event.
+-- function defines the length of a block.  'State.block_event_end' seems the
+-- most intuitive, but then you can't make blocks with trailing space.  You
+-- can work around it though by appending a comment dummy event.
 get_block_dur :: BlockId -> Deriver ScoreTime
 get_block_dur block_id = do
     ui_state <- get_ui_state
     either (throw . ("get_block_dur: "++) . show) return
-        (State.eval ui_state (State.event_end block_id))
+        (State.eval ui_state (State.block_event_end block_id))
 
 tempo_to_warp :: Signal.Tempo -> Score.Warp
 tempo_to_warp sig

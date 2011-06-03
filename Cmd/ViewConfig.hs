@@ -50,7 +50,7 @@ modify_factor view_id f = do
 zoom_to_fit :: (Cmd.M m) => ViewId -> m ()
 zoom_to_fit view_id = do
     view <- State.get_view view_id
-    block_end <- State.event_end (Block.view_block view)
+    block_end <- State.block_event_end (Block.view_block view)
     let pixels = Block.view_visible_time view
     let factor = fromIntegral pixels / Types.score_to_double block_end
     modify_factor view_id (const factor)
@@ -69,7 +69,7 @@ resize_to_fit view_id = do
 -- unchanged.
 view_rect :: (State.M m) => Block.View -> m Rect.Rect
 view_rect view = do
-    block_end <- State.event_end (Block.view_block view)
+    block_end <- State.block_event_end (Block.view_block view)
     block <- State.get_block (Block.view_block view)
     let (x, y) = Rect.upper_left (Block.view_rect view)
         -- Don't forget to drop the ruler.

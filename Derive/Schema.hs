@@ -90,7 +90,7 @@ default_schema_deriver :: SchemaDeriver Derive.EventDeriver
 default_schema_deriver block_id = do
     block <- State.get_block block_id
     info_tree <- State.get_track_tree block_id
-    block_end <- State.event_end block_id
+    block_end <- State.block_event_end block_id
     let mutes_tree = State.track_tree_mutes
             (State.muted_tracknums block info_tree) info_tree
     tree <- State.events_tree block_end info_tree

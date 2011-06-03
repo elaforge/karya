@@ -29,8 +29,7 @@ CURRENT
   * hlint
   * replace Util.map_maybe with Maybe.mapMaybes
   - why does haskell-src-exts throw an exception for Ambiguous fixity?
-  - look for Ranges.extract to replace with Ranges.fmap
-  - rename State.event_end -> block_end_event, block_end_ruler
+  * rename State.event_end -> block_end_event, block_end_ruler
   - see about optimizing Derive.with_* functions to return id when the value
     is empty.  Can I restrict to Monoid and use (==mempty)?
   * strictify Cmd.Cmd.State fields

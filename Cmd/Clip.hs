@@ -283,6 +283,6 @@ get_paste_area = do
     -- If the clip block has any rulers or anything, I skip them.
     let clip_track_ids =
             take (length tracknums) (Block.block_track_ids clip_block)
-    clip_end <- State.event_end clip_block_id
+    clip_end <- State.block_event_end clip_block_id
     return (track_ids, clip_track_ids, start,
         if start == end then start + clip_end else end)
