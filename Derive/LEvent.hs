@@ -33,15 +33,6 @@ either :: (d -> a) -> (Log.Msg -> a) -> LEvent d -> a
 either f _ (Event event) = f event
 either _ f (Log log) = f log
 
-extract_events :: Stream (LEvent d) -> ([d], [LEvent d2])
-extract_events [] = ([], [])
-extract_events (x:xs) =
-    let (ds, logs) = extract_events xs
-    in case x of
-        Event d -> (d : ds, logs)
-        -- TODO is there a way to do this without making a new Log?
-        Log msg -> (ds, Log msg : logs)
-
 events_of :: [LEvent d] -> [d]
 events_of [] = []
 events_of (Event e : rest) = e : events_of rest
@@ -51,7 +42,6 @@ logs_of :: [LEvent d] -> [Log.Msg]
 logs_of [] = []
 logs_of (Event _ : rest) = logs_of rest
 logs_of (Log log : rest) = log : logs_of rest
-
 
 partition :: Stream (LEvent d) -> ([d], [Log.Msg])
 partition = Seq.partition_either . map to_either

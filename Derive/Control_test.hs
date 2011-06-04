@@ -13,7 +13,6 @@ import qualified Ui.Track as Track
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -51,8 +50,7 @@ test_track_expression = do
         ([[(0, (60, 60, 0)), (2, (60, 62, 0.5)), (4, (60, 62, 1))]], [])
 
 test_derive_control = do
-    let ex (sig, logs) = (Signal.unsignal sig,
-            map DeriveTest.show_log (LEvent.logs_of logs))
+    let ex (sig, logs) = (Signal.unsignal sig, map DeriveTest.show_log logs)
     let derive events = DeriveTest.extract_run ex $ DeriveTest.run State.empty
             (Control.derive_control 10 [] (map UiTest.mkevent events))
     equal (derive [(0, 0, "1"), (1, 0, "2")])
@@ -184,6 +182,9 @@ test_stash_signal = do
     -- Subtracks should be rendered, even though they're never evaluated as
     -- a whole.
     equal (run [itrack, (ctrack, True)]) [(csig, 0, 1)]
+
+    equal (run [itrack, (ptrack, True)])
+        [(psig, 0, 1)]
 
 
 -- | Make a UI state with render on for the tracks paired with True.

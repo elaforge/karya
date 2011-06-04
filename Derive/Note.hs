@@ -130,13 +130,14 @@
 module Derive.Note where
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Tree as Tree
-import Util.Control
 
+import Util.Control
 import Ui
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Derive.Call as Call
+import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
@@ -156,9 +157,17 @@ d_note_track (Tree.Node track subs) = do
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
     let pos_events = Track.event_list (State.tevents_events track)
+    stash_sub_signals subs
     Call.apply_transformer info track_expr
         (derive_notes (State.tevents_end track) subs pos_events)
     where info = (Call.note_dinfo, Derive.dummy_call_info "note track")
+
+stash_sub_signals :: State.EventsTree -> Derive.Deriver ()
+stash_sub_signals subs = do
+    let tracks = concatMap Tree.flatten subs
+    sigs <- mapM Control.track_signal tracks
+    Control.put_track_signals [(track_id, tsig) | (Just track_id, Just tsig)
+        <- zip (map State.tevents_track_id tracks) sigs]
 
 derive_notes :: ScoreTime -> State.EventsTree -> [Track.PosEvent]
     -> Derive.EventDeriver

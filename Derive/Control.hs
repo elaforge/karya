@@ -16,6 +16,9 @@ import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
 import Util.Control
+import qualified Util.Log as Log
+import qualified Util.Map as Map
+
 import Ui
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -112,32 +115,22 @@ to_display (sig, _) = Signal.coerce sig
     -- I discard the logs since I think if there is anything interesting it
     -- will be logged in the "real" derivation.
 
-merge_logs :: Derive.Events -> Derive.EventDeriver
+merge_logs :: [Log.Msg] -> Derive.EventDeriver
     -> Derive.EventDeriver
 merge_logs logs deriver = do
     events <- deriver
-    return $ Derive.merge_events logs events
+    return $ Derive.merge_events (map LEvent.Log logs) events
 
 pitch_call :: ScoreTime -> State.TrackEvents -> Maybe Score.Control
     -> TrackInfo.PitchType -> TrackLang.Expr -> [Track.PosEvent]
     -> Derive.EventDeriver -> Derive.EventDeriver
-pitch_call block_end track maybe_name ptype track_expr events
+pitch_call block_end track maybe_name ptype expr events
         deriver =
     track_setup maybe_track_id $ do
-        (with_scale, scale) <- case ptype of
-            TrackInfo.PitchRelative _ -> do
-                -- TODO previously I mangled the scale to set the octave, but
-                -- I can't do that now unless I put it in the ScaleId
-                return (Derive.with_scale Relative.scale, Relative.scale)
-            TrackInfo.PitchAbsolute (Just scale_id) -> do
-                scale <- Derive.get_scale scale_id
-                return (Derive.with_scale scale, scale)
-            TrackInfo.PitchAbsolute Nothing -> do
-                scale <- Util.get_scale
-                return (id, scale)
+        (scale, new_scale) <- get_scale ptype
         let scale_map = Scale.scale_map scale
-            derive = derive_pitch block_end track_expr events
-        with_scale $ case ptype of
+            derive = derive_pitch block_end expr events
+        (if new_scale then Derive.with_scale scale else id) $ case ptype of
             TrackInfo.PitchRelative op -> do
                 (signal, logs) <- derive
                 stash_signal maybe_track_id
@@ -156,6 +149,19 @@ pitch_call block_end track maybe_name ptype track_expr events
         (State.tevents_range track)
     to_psig (sig, _) = sig
 
+get_scale :: TrackInfo.PitchType -> Derive.Deriver (Scale.Scale, Bool)
+get_scale ptype = case ptype of
+    TrackInfo.PitchRelative _ -> do
+        -- TODO previously I mangled the scale to set the octave, but
+        -- I can't do that now unless I put it in the ScaleId
+        return (Relative.scale, True)
+    TrackInfo.PitchAbsolute (Just scale_id) -> do
+        scale <- Derive.get_scale scale_id
+        return (scale, True)
+    TrackInfo.PitchAbsolute Nothing -> do
+        scale <- Util.get_scale
+        return (scale, False)
+
 track_setup :: Maybe TrackId -> Derive.Deriver d -> Derive.Deriver d
 track_setup = maybe id Derive.track_setup
 
@@ -171,26 +177,24 @@ with_control_damage maybe_track_id range = maybe id get_damage maybe_track_id
 -- | Split the signal chunks and log msgs of the 'LEvent.LEvents' stream.
 -- Return signal chunks merged into a signal, the logs cast to Score.Event
 -- logs.
-type TrackResults sig = (sig, Derive.Events)
+type TrackResults sig = (sig, [Log.Msg])
 
--- | Create a deriver for a track with control events in it.  The deriver will
--- be run once in an unwarped context to generate signal for rendering (if its
--- track is being rendered), and once in the normal context for the signal to
--- place in the environment.
+-- | Derive the signal of a control track.
 derive_control :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
     -> Derive.Deriver (TrackResults Signal.Control)
-derive_control block_end track_expr events = do
+derive_control block_end expr events = do
     stream <- Call.apply_transformer
-        (dinfo, Derive.dummy_call_info "control track") track_expr deriver
-    let (signal_chunks, logs) = LEvent.extract_events stream
+        (dinfo, Derive.dummy_call_info "control track") expr deriver
+    let (signal_chunks, logs) = LEvent.partition stream
         signal = Signal.merge signal_chunks
     return (signal, logs)
     where
     deriver :: Derive.ControlDeriver
     deriver = do
         state <- Derive.get
-        let (stream, collect, cache) = Call.derive_track
-                state block_end dinfo Parse.parse_num_expr last_sample [] events
+        let (stream, collect, cache) =
+                Call.derive_track state block_end dinfo Parse.parse_num_expr
+                    last_sample [] events
         Derive.modify $ \st -> st {
             Derive.state_collect = collect, Derive.state_cache_state = cache }
         -- I can use concat instead of merge_asc_events because the signals
@@ -202,10 +206,10 @@ derive_control block_end track_expr events = do
 
 derive_pitch :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
     -> Derive.Deriver (TrackResults Pitch)
-derive_pitch block_end track_expr events = do
+derive_pitch block_end expr events = do
     stream <- Call.apply_transformer
-        (dinfo, Derive.dummy_call_info "pitch track") track_expr deriver
-    let (signal_chunks, logs) = LEvent.extract_events stream
+        (dinfo, Derive.dummy_call_info "pitch track") expr deriver
+    let (signal_chunks, logs) = LEvent.partition stream
         signal = PitchSignal.merge signal_chunks
     return (signal, logs)
     where
@@ -275,6 +279,52 @@ linear_tempo = do
         else Nothing
 
 put_track_signal :: TrackId -> Track.TrackSignal -> Derive.Deriver ()
-put_track_signal track_id tsig = Derive.modify_collect $ \st ->
+put_track_signal track_id tsig = put_track_signals [(track_id, tsig)]
+
+put_track_signals :: [(TrackId, Track.TrackSignal)] -> Derive.Deriver ()
+put_track_signals [] = return ()
+put_track_signals tracks = Derive.modify_collect $ \st ->
     st { Derive.collect_track_signals =
-        Map.insert track_id tsig (Derive.collect_track_signals st) }
+        Map.insert_list tracks (Derive.collect_track_signals st) }
+
+-- * track_signal
+
+-- | Derive just the rendered track signal from a track, if this track is to
+-- be rendered.  This is like 'eval_track' but specialized to derive only the
+-- signal.  The track signal is normally stashed as a side-effect of control
+-- track evaluation, but tracks below a note track are not evaluated normally.
+track_signal :: State.TrackEvents -> Derive.Deriver (Maybe Track.TrackSignal)
+track_signal track
+    | null title = return Nothing
+    | otherwise = do
+        rendered <- maybe (return False) track_is_rendered
+            (State.tevents_track_id track)
+        if not rendered then return Nothing else do
+        (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
+            return (TrackInfo.parse_control_expr title)
+        Just <$> eval_signal track expr ctype
+    where
+    title = State.tevents_title track
+
+eval_signal :: State.TrackEvents -> TrackLang.Expr
+    -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal
+eval_signal track expr ctype = do
+    let events = Track.event_list (State.tevents_events track)
+        block_end = State.tevents_end track
+    case ctype of
+        TrackInfo.Tempo -> do
+            (sig, logs) <- derive_control block_end expr events
+            mapM_ Log.write logs
+            return $ control_sig sig
+        TrackInfo.Control _ _ -> do
+            (sig, logs) <- derive_control block_end expr events
+            mapM_ Log.write logs
+            return $ control_sig sig
+        TrackInfo.Pitch ptype _ -> do
+            (sig, logs) <- derive_pitch block_end expr events
+            mapM_ Log.write logs
+            (scale, _) <- get_scale ptype
+            return $ pitch_sig sig (Scale.scale_map scale)
+    where
+    control_sig sig = Track.TrackSignal (Track.Control (Signal.coerce sig)) 0 1
+    pitch_sig sig smap = Track.TrackSignal (Track.Pitch sig smap) 0 1
