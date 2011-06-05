@@ -120,7 +120,7 @@ make_context viewp has_tracknum tracknum has_pos pos
     to_maybe b val = if b then Just val else Nothing
 
 decode_msg_event :: EventArgs -> UiMsg.Data
-decode_msg_event (event, button, clicks, is_click, x, y, key, mod_state,
+decode_msg_event (event, button, clicks, is_click, x, y, key_code, mod_state,
         is_repeat) =
     case event of
         (#const FL_PUSH) -> mouse (UiMsg.MouseDown button)
@@ -142,8 +142,7 @@ decode_msg_event (event, button, clicks, is_click, x, y, key, mod_state,
         (#const FL_SHOW) -> aux UiMsg.Show
         _ -> UiMsg.Unhandled event
     where
-    mouse state = UiMsg.Mouse state (Key.decode_modifiers mod_state) (x, y)
-        clicks is_click
-    kbd state = UiMsg.Kbd state (Key.decode_modifiers mod_state)
-        (Key.decode_key key)
+    mouse state = UiMsg.Mouse state mods (x, y) clicks is_click
+    (mods, key) = Key.decode mod_state key_code
+    kbd state = UiMsg.Kbd state mods key
     aux = UiMsg.AuxMsg

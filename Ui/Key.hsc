@@ -1,6 +1,7 @@
 module Ui.Key where
 import Prelude hiding (Left, Right)
 import Data.Bits ((.&.))
+import qualified Data.Char as Char
 import Foreign.C
 
 
@@ -20,6 +21,16 @@ data Modifier = Shift | CapsLock | Control | Alt | NumLock | Meta | ScrollLock
 
 -- Actually just need FL/Fl_Enumerations.H
 #include "c_interface.h"
+
+-- | The cmd binding assumes that shifted chars will also be uppercase, but
+-- fltk can't be trusted to do that consistently.
+decode :: CInt -> CInt -> ([Modifier], Key)
+decode mcode kcode = (mods, if Shift `elem` mods then toupper key else key)
+    where
+    mods = decode_modifiers mcode
+    key = decode_key kcode
+    toupper (KeyChar c) = KeyChar (Char.toUpper c)
+    toupper k = k
 
 decode_key :: CInt -> Key
 decode_key code
