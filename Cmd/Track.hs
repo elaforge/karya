@@ -54,7 +54,8 @@ get_track_cmds = do
     -- active, so they go last.
     return $ icmds ++ note_cmd : tcmds ++ kcmds
 
-lookup_instrument_cmds :: (Cmd.M m) => BlockId -> TrackId -> m (Maybe [Cmd.Cmd])
+lookup_instrument_cmds :: (Cmd.M m) => BlockId -> TrackId
+    -> m (Maybe [Cmd.Cmd])
 lookup_instrument_cmds block_id track_id =
     justm (Cmd.lookup_instrument block_id track_id) $ \inst ->
     justm (Cmd.lookup_instrument_info inst) $ \info ->
@@ -114,14 +115,19 @@ get_track_type :: State.TrackTree -> TrackNum -> Maybe TrackType
 get_track_type track_tree tracknum = case Info.paths_of track_tree tracknum of
     Nothing -> Nothing
     Just (track, parents, children) ->
-        Just (track_type track parents (null children))
+        Just (track_type_of track parents children)
 
-track_type :: State.TrackInfo -> [State.TrackInfo]
-    -> Bool -- ^ no_children
+track_type_of :: State.TrackInfo -> [State.TrackInfo] -> [State.TrackInfo]
     -> TrackType
-track_type (State.TrackInfo _ _ tracknum) parents True = NoteTrack pitch_track
+track_type_of (State.TrackInfo title _ tracknum) parents children
+    | TrackInfo.is_note_track title = NoteTrack pitch_track
+    | otherwise = case TrackInfo.parse_control title of
+        Right (TrackInfo.Control _ _) -> ControlTrack
+        Right (TrackInfo.Pitch _ _) -> PitchTrack
+        -- Default to a control track if it's unparseable.
+        _ -> ControlTrack
     where
-    pitch_track = case msum (map is_pitch parents) of
+    pitch_track = case msum (map is_pitch (children ++ parents)) of
         Just pair -> pair
         Nothing -> NoteTrack.CreateTrack tracknum (tracknum+1)
     is_pitch track = case TrackInfo.parse_control (State.track_title track) of
@@ -129,9 +135,3 @@ track_type (State.TrackInfo _ _ tracknum) parents True = NoteTrack pitch_track
             Just $ NoteTrack.ExistingTrack (State.track_tracknum track)
                 (State.track_id track)
         _ -> Nothing
-track_type (State.TrackInfo title _ _) _ False =
-    case TrackInfo.parse_control title of
-        Right (TrackInfo.Control _ _) -> ControlTrack
-        Right (TrackInfo.Pitch _ _) -> PitchTrack
-        -- Default to a control track if it's unparseable.
-        _ -> ControlTrack

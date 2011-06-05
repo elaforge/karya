@@ -24,7 +24,7 @@ search then none of this is necessary.
 
 CURRENT
   - ^T not working to insert and splice a track?
-  - note entry and pitch track detection messed up with sub-pitch tracks
+  * note entry and pitch track detection messed up with sub-pitch tracks
   * no event in parent note track should not suppress children... or
     should I put them in the parent track?
   * opt-click not working for skeleton
