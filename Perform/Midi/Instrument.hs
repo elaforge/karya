@@ -173,9 +173,9 @@ data Patch = Patch {
     , patch_triggered :: Bool
     , patch_initialize :: InitializePatch
     -- | Keyswitches available to this instrument, if any.  Each of these is
-    -- considered its own instrument, like synth\/inst\/ks.  A keyswitch key may
-    -- occur more than once, and a name of \"\" is used when the instrument is
-    -- looked up without a keyswitch.
+    -- considered its own instrument, like synth\/inst\/ks.  A keyswitch key
+    -- may occur more than once, and a name of \"\" is used when the
+    -- instrument is looked up without a keyswitch.
     , patch_keyswitches :: KeyswitchMap
     -- | Key-value pairs used to index the patch.
     , patch_tags :: [Tag]
