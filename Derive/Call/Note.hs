@@ -145,8 +145,8 @@ c_tuplet = Derive.stream_generator "tuplet" $ \args -> place (stretched args)
         events = sub_events args
         (start, end) = Derive.passed_range args
         event_end = Seq.maximum (map (\(off, dur, _) -> off + dur) events)
-        factor = (end - start) / maybe 1 id event_end
-        stretch (off, _, d) = (off*factor + start, factor, d)
+        factor = (end - start) / maybe 1 (subtract start) event_end
+        stretch (off, _, d) = ((off-start) * factor + start, factor, d)
 
 -- * util
 

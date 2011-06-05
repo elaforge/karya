@@ -25,6 +25,7 @@ test_tuplet = do
         set_skel state = UiTest.exec state $
             State.set_skeleton UiTest.default_block_id $
                 Skeleton.make [(1, 2), (2, 3)]
+
     let tracks =
             [ (">", [(0, 12, "t")])
             , ("*twelve", [(0, 0, "4c"), (3, 0, "4d"), (6, 0, "4e")])
@@ -58,6 +59,17 @@ test_tuplet = do
         , (2, 4, [(0, -1)])
         ]
 
+    let tracks =
+            [ (">", [(12, 12, "t")])
+            , (">", [(12, 3, ""), (15, 3, ""), (18, 3, "")])
+            ]
+    equal (run tracks)
+        [ (12, 4, [(0, -1)])
+        , (16, 4, [(0, -1)])
+        , (20, 4, [(0, -1)])
+        ]
+
+    -- not really testing tuplet: make sure empty tracks are stripped
     equal (run [(">", [(0, 1, "")]), (">", []), ("*twelve", [(0, 0, "4c")])])
         [(0, 1, [(0, 60)])]
 
