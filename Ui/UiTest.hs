@@ -132,10 +132,16 @@ mk_tid_block block_id i =
 mk_tid_name :: String -> TrackNum -> TrackId
 mk_tid_name block_name = mk_tid_block (bid block_name)
 
+-- ** from dump
+
+from_dump :: Simple.Block -> (BlockId, State.State)
+from_dump dump = run State.empty (Simple.make_block Block.default_config dump)
+
 -- * view
 
 select :: (State.M m) => ViewId -> Types.Selection -> m ()
-select view_id sel = State.set_selection view_id Config.insert_selnum (Just sel)
+select view_id sel =
+    State.set_selection view_id Config.insert_selnum (Just sel)
 
 select_point :: (State.M m) => ViewId -> TrackNum -> ScoreTime -> m ()
 select_point view_id tracknum pos =
@@ -145,7 +151,7 @@ select_point view_id tracknum pos =
 
 extract_tracks :: State.State -> [(String, [Simple.Event])]
 extract_tracks ustate = map (\(_, title, events) -> (title, events)) tracks
-    where (_, _, tracks) = eval ustate (Simple.dump_block default_block_id)
+    where (_, _, tracks, _) = eval ustate (Simple.dump_block default_block_id)
 
 dump_block :: State.State -> BlockId -> Simple.Block
 dump_block ustate block_id = eval ustate (Simple.dump_block block_id)

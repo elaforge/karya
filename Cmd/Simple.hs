@@ -4,11 +4,13 @@
 -}
 module Cmd.Simple where
 import qualified Control.Monad.Trans as Trans
+import qualified Data.Tree as Tree
 
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -18,20 +20,20 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Score as Score
-import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
-import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
 
 import qualified App.Config as Config
 
 
--- | TODO should it have a ruler?  otherwise they come in without a ruler... but
--- copy and paste can't copy and paste the ruler...
+-- | TODO should it have a ruler?  Otherwise they come in without a ruler...
+-- but copy and paste can't copy and paste the ruler.
 --
--- (id_name, title, tracks)
-type Block = (String, String, [Track])
+-- (id_name, title, tracks, skeleton)
+type Block = (String, String, [Track], [(Int, Int)])
 
 -- | (id_name, title, events)
 type Track = (String, String, [Event])
@@ -75,7 +77,16 @@ dump_block block_id = do
     block <- State.get_block block_id
     let track_ids = Block.block_track_ids block
     tracks <- mapM dump_track track_ids
-    return (show block_id, Block.block_title block, tracks)
+    tree <- State.get_track_tree block_id
+    return (Id.id_string block_id, Block.block_title block, tracks,
+        to_skel tree)
+    where
+    to_skel = concatMap go
+        where
+        go (Tree.Node track subs) =
+            [(num track, num (Tree.rootLabel sub)) | sub <- subs]
+            ++ to_skel subs
+    num = State.track_tracknum
 
 dump_track :: (State.M m) => TrackId -> m Track
 dump_track track_id = do
@@ -84,7 +95,7 @@ dump_track track_id = do
 
 simplify_track :: TrackId -> Track.Track -> Track
 simplify_track track_id track =
-    (show track_id, Track.track_title track, map event events)
+    (Id.id_string track_id, Track.track_title track, map event events)
     where events = Track.event_list (Track.track_events track)
 
 dump_selection :: Cmd.CmdL [(TrackId, [Event])]
@@ -104,12 +115,17 @@ read_block fn = do
     convert_block simple_block
 
 convert_block :: (Cmd.M m) => Block -> m State.State
-convert_block (id_name, title, tracks) = do
+convert_block block = do
     config <- Cmd.block_config
-    State.exec_rethrow "convert block" State.empty $ do
-        tracks <- mapM convert_track tracks
-        State.create_block (Id.read_id id_name)
-            (Block.block config title tracks Config.schema)
+    State.exec_rethrow "convert block" State.empty (make_block config block)
+
+make_block :: (State.M m) => Block.Config -> Block -> m BlockId
+make_block config (id_name, title, tracks, skel) = do
+    tracks <- mapM convert_track tracks
+    block_id <- State.create_block (Id.read_id id_name)
+        (Block.block config title tracks Config.schema)
+    State.set_skeleton block_id (Skeleton.make skel)
+    return block_id
 
 convert_track :: (State.M m) => Track -> m Block.Track
 convert_track (id_name, title, events) = do

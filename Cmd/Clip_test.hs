@@ -46,6 +46,7 @@ with_clip state cstate = State.error_either "with_clip" $
 
 run_clip ustate cmd = CmdTest.run ustate default_cmd_state cmd
 
+extract_block :: BlockId -> CmdVal a -> (a, Simple.Block, [Log.Msg])
 extract_block block_id (val, ustate, _cstate, logs) = (val, block, logs)
     where Right block = State.eval ustate (Simple.dump_block block_id)
 
@@ -56,9 +57,10 @@ default_cmd_state = Cmd.empty_state
     , Cmd.state_focused_view = Just UiTest.default_view_id
     }
 
+type CmdVal a = (a, State.State, Cmd.State, [Log.Msg])
+
 -- TODO there's no reason for this to be in IO
-run_io :: State.State -> Cmd.CmdId a
-    -> IO (a, State.State, Cmd.State, [Log.Msg])
+run_io :: State.State -> Cmd.CmdId a -> IO (CmdVal a)
 run_io ustate m = return (extract (run_clip ustate m))
     where
     extract res = case CmdTest.result_val res of
@@ -69,9 +71,14 @@ run_io ustate m = return (extract (run_clip ustate m))
         Left err -> error $ "state error: " ++ show err
 
 
-extract_events (_, _, tracks) = map (\(_, _, a) -> a) tracks
+extract_events :: Simple.Block -> [[Simple.Event]]
+extract_events (_, _, tracks, _) = map (\(_, _, a) -> a) tracks
+
+mksel :: TrackNum -> ScoreTime -> TrackNum -> ScoreTime
+    -> Maybe Types.Selection
 mksel a b c d = Just (Types.Selection a b c d)
 
+run_sel :: State.State -> Maybe Types.Selection -> Cmd.CmdId a -> IO (CmdVal a)
 run_sel ustate sel cmd = run_io ustate $ do
     State.set_selection UiTest.default_view_id Config.insert_selnum sel
     cmd

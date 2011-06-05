@@ -3,7 +3,7 @@ module Ui.Id (
     Ident(..)
 
     -- * construction
-    , Id, Namespace, id, make, is_identifier, read_id, show_id
+    , Id, Namespace, id, make, is_identifier, read_id, show_id, id_string
     , read_ident, show_ident
 
     -- * deconstruction
@@ -83,6 +83,9 @@ read_id s = let (pre, post) = break (=='/') s in (id pre (drop 1 post))
 
 show_id :: Id -> String
 show_id (Id (ns, ident)) = ns ++ "/" ++ ident
+
+id_string :: (Ident a) => a -> String
+id_string = show_id . unpack_id
 
 id_name (Id (_, name)) = name
 id_namespace (Id (ns, _)) = ns
