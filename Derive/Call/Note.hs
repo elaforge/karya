@@ -170,6 +170,9 @@ c_tuplet = Derive.stream_generator "tuplet" $ \args -> place (stretched args)
 --
 -- The second is that CallInfo has to keep the expression in
 -- 'Derive.Derive.info_info_expr'.
+--
+-- TODO don't invert the call if there are subtracks but after slicing they
+-- are empty
 inverting_call :: (Derive.PassedArgs d -> Derive.EventDeriver)
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
 inverting_call call args = case Derive.info_sub_tracks info of
@@ -199,6 +202,12 @@ invert subs start end next_start text = do
 -- | Slice the tracks below me to lie within start and end, and put
 -- a note track with a single event of given string at the bottom.
 --
+-- Tracks thare are empty as a result of slicing are omitted from the output.
+-- This is necessary for note tracks because otherwise empty ones will stop
+-- evaluation entirely.  It's not necessary for control tracks, but I'm being
+-- consistent by stripping them too.  If the track title has some effect the
+-- results might be inconsistent, but I'm not sure that will be real problem.
+--
 -- Also strip the TrackIds out of the result.  TrackIds are used to record
 -- the tempo map and signal for rendering.  Sliced segments are evaluated
 -- piecemeal, overlap with each other if there is a previous sample, and
@@ -219,7 +228,7 @@ slice :: ScoreTime -> ScoreTime
     -- ^ if given, text and duration of inserted event, which may be shorter
     -- than end-start
     -> State.EventsTree -> State.EventsTree
-slice start end insert_event = map go
+slice start end insert_event = concatMap strip . map go
     where
     go (Tree.Node track subs) = Tree.Node (slice_t track)
         (if null subs then insert else map go subs)
@@ -245,6 +254,11 @@ slice start end insert_event = map go
             Track.from_sorted_events (Track.events_in_range start end es)
         | otherwise = Track.track_events_around start end es
         where es = State.tevents_events track
+
+    strip (Tree.Node track subs)
+        | State.tevents_events track == Track.empty_events =
+            concatMap strip subs
+        | otherwise = [Tree.Node track (concatMap strip subs)]
 
 -- ** note slice
 
@@ -276,6 +290,14 @@ place = Derive.d_merge . map (\(off, dur, d) -> Derive.d_place off dur d)
 -- Technically the children of the note track don't need to be sliced, since
 -- if it is inverting it will do that anyway.  But slicing lets me shift fewer
 -- events, so it's probably a good idea anyway.
+--
+-- Since empty slices are removed from the output, an empty sub note track
+-- will be excluded from derivation and won't cause an inverting call to
+-- recurse endlessly.  However, if the parent track is empty then nothing can
+-- be done because this point will never even be reached.
+--
+-- For that to work I think the track deriver would have to check for sub
+-- note events that aren't covered by any super event, and \"promote\" them.
 slice_notes :: ScoreTime -> ScoreTime -> State.EventsTree
     -> [(ScoreTime, ScoreTime, State.EventsTree)]
     -- ^ @(shift, stretch, tree)@, in unsorted order
@@ -304,4 +326,3 @@ slice_notes start end =
         , State.tevents_range = fmap (\(s, e) -> (s-shift, e-shift))
             (State.tevents_range track)
         }
-

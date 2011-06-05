@@ -12,7 +12,6 @@
 -}
 module Derive.Control where
 import Control.Monad
-import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
 import Util.Control

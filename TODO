@@ -25,7 +25,7 @@ search then none of this is necessary.
 CURRENT
   - ^T not working to insert and splice a track?
   - note entry and pitch track detection messed up with sub-pitch tracks
-  - no event in parent note track should not suppress children... or
+  * no event in parent note track should not suppress children... or
     should I put them in the parent track?
   * opt-click not working for skeleton
   * double click no longer working to open a sub block
@@ -1118,9 +1118,9 @@ Derive:
       to cause it to skip the downbeat, but how can I do this in a non-ad-hoc
       way?  If I can insert a per-project block deriver I can add it as an arg.
 
-    - Implement tuplet:
+    * Implement tuplet:
       't *n1 *n2 *n3 |' runs deriver three times with three different
-      pitches.
+      pitches. (Didn't wind up doing it that way.)
 
     * Implement clip-call:
       Undo the call stretching, this should be efficient because of stretch

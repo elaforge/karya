@@ -58,12 +58,20 @@ test_tuplet = do
         , (2, 4, [(0, -1)])
         ]
 
+    equal (run [(">", [(0, 1, "")]), (">", []), ("*twelve", [(0, 0, "4c")])])
+        [(0, 1, [(0, 60)])]
 
 test_slice_notes = do
     let extract = map (\(s, e, t) -> (s, e, extract_tree t))
     let f s e t = Seq.sort_on (\(s, _, _) -> s) $ extract $
             Note.slice_notes s e t
         t0 = make_tree [Tree.Node (make_notes 0 "ab") []]
+
+    -- no sub tracks works too
+    equal (f 0 1 (make_tree [Tree.Node (make_notes 0 "abc") []]))
+        [(0, 1, [Tree.Node (make_notes 0 "a") []])]
+
+    -- simple sub tracks
     equal (f 0 2 t0)
         [ (0, 1, [Tree.Node (">", [(0, 1, "a")]) []])
         , (1, 1, [Tree.Node (">", [(0, 1, "b")]) []])
@@ -74,6 +82,13 @@ test_slice_notes = do
     -- no note tracks, no output
     equal (f 0 1 (make_tree [Tree.Node (make_controls "c" [0..6]) []]))
         []
+
+    -- empty note track is ignored
+    equal (f 0 1 (make_tree [Tree.Node (make_notes 0 "abc")
+            [Tree.Node (make_notes 0 "")
+                [Tree.Node (make_controls "c" [0]) []]]]))
+        [(0, 1, [Tree.Node (make_notes 0 "a")
+            [Tree.Node (make_controls "c" [0]) []]])]
 
     -- make sure parent track order doesn't get messed up
     equal (f 0 1 (make_tree [Tree.Node (make_controls "c1" [0..6])
