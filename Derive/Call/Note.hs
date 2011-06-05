@@ -190,14 +190,23 @@ invert :: State.EventsTree -> ScoreTime -> ScoreTime -> ScoreTime -> String
     -> Derive.EventDeriver
 invert subs start end next_start text = do
     -- Log.warn $ "invert " ++ show (start, end, next_start)
-    -- let i = Derive.passed_info args
-    -- let st = Derive.info_stretch i
-    -- Log.warn $ "args: " ++ show (Derive.info_warp i)
-
     let sliced = slice start next_start (Just (text, end-start)) subs
-    -- Log.warn $ "range: " ++ show (start, end, next_start)
-    -- Log.warn $ "sliced: " ++ PPrint.pshow sliced
+    when_just (non_bottom_note_track sliced) $ \track ->
+        Derive.throw $ "inverting below note track: "
+            ++ Pretty.pretty (State.tevents_track_id track)
     Schema.derive_tracks sliced
+
+-- | An inverting call above another note track will lead to an infinite loop
+-- if there are overlapping sub-events that also invert, or confusing results
+-- if there are non-overlapping or non-inverting sub-events.  Either way, I
+-- don't think I want it.
+non_bottom_note_track :: State.EventsTree -> Maybe State.TrackEvents
+non_bottom_note_track tree = Seq.head (concatMap go tree)
+    where
+    go (Tree.Node track subs)
+        | TrackInfo.is_note_track (State.tevents_title track)
+            && not (null subs) = [track]
+        | otherwise = concatMap go subs
 
 -- | Slice the tracks below me to lie within start and end, and put
 -- a note track with a single event of given string at the bottom.

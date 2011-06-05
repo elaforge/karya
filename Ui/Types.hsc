@@ -9,6 +9,7 @@ import Foreign.C
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
+
 import qualified Ui.Id as Id
 
 
@@ -135,6 +136,12 @@ instance Show ViewId where show = Id.show_ident
 instance Show SchemaId where show = Id.show_ident
 instance Show TrackId where show = Id.show_ident
 instance Show RulerId where show = Id.show_ident
+
+instance Pretty.Pretty BlockId where pretty = show
+instance Pretty.Pretty ViewId where pretty = show
+instance Pretty.Pretty SchemaId where pretty = show
+instance Pretty.Pretty TrackId where pretty = show
+instance Pretty.Pretty RulerId where pretty = show
 
 instance Read BlockId where readPrec = Id.read_ident undefined
 instance Read ViewId where readPrec = Id.read_ident undefined
