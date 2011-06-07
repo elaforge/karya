@@ -613,17 +613,17 @@ add_text_context context s =
 -- * monadic ops
 
 data Result = Result {
-    r_events :: !Events
-    , r_cache :: !Cache
-    , r_tempo :: !Transport.TempoFunction
-    , r_closest_warp :: !Transport.ClosestWarpFunction
-    , r_inv_tempo :: !Transport.InverseTempoFunction
-    , r_track_signals :: !Track.TrackSignals
-    , r_track_environ :: !TrackEnviron
+    r_events :: Events
+    , r_cache :: Cache
+    , r_tempo :: Transport.TempoFunction
+    , r_closest_warp :: Transport.ClosestWarpFunction
+    , r_inv_tempo :: Transport.InverseTempoFunction
+    , r_track_signals :: Track.TrackSignals
+    , r_track_environ :: TrackEnviron
 
     -- | The relevant parts of the final state should be extracted into the
     -- above fields, but returning the whole state can be useful for testing.
-    , r_state :: !State
+    , r_state :: State
     }
 
 -- | Kick off a derivation.
@@ -1516,14 +1516,14 @@ type DamageRanges = Ranges.Ranges RealTime
 -- | Modified ranges in the score.
 data ScoreDamage = ScoreDamage {
     -- | Damaged ranges in tracks.
-    sdamage_tracks :: Map.Map TrackId (Ranges.Ranges ScoreTime)
+    sdamage_tracks :: !(Map.Map TrackId (Ranges.Ranges ScoreTime))
     -- | The blocks with damaged tracks.  Calls depend on blocks
     -- ('GeneratorDep') rather than tracks, so it's convenient to keep the
     -- blocks here.  This is different than block damage because a damaged
     -- block will invalidate all caches below it, but a block with damaged
     -- tracks must be called but may still have valid caches within.
-    , sdamage_track_blocks :: Set.Set BlockId
-    , sdamage_blocks :: Set.Set BlockId
+    , sdamage_track_blocks :: !(Set.Set BlockId)
+    , sdamage_blocks :: !(Set.Set BlockId)
     } deriving (Eq, Show)
 
 instance Monoid.Monoid ScoreDamage where
@@ -1568,36 +1568,36 @@ type LookupScale = Pitch.ScaleId -> Maybe Scale
 type Transpose = Pitch.Octave -> Integer -> Pitch.Note -> Maybe Pitch.Note
 
 data Scale = Scale {
-    scale_id :: Pitch.ScaleId
+    scale_id :: !Pitch.ScaleId
     -- | A pattern describing what the scale notes look like.  Used only for
     -- error msgs (i.e. parse errors) so it should be human readable and
     -- doesn't have to follow any particular syntax.  A regex is recommended
     -- though.
-    , scale_pattern :: String
+    , scale_pattern :: !String
     -- | This is passed to the UI so it knows what to call scale degrees when
     -- rendering a pitch signal with this scale.
-    , scale_map :: Track.ScaleMap
+    , scale_map :: !Track.ScaleMap
 
     -- | If a scale uses 'Symbol.Symbol's, it can include the definitions here
     -- so they are close to their use.  This symbol list should be loaded as
     -- soon as possible, which means program startup for hardcoded scales.
-    , scale_symbols :: [Symbol.Symbol]
+    , scale_symbols :: ![Symbol.Symbol]
 
     -- | Transpose a Note by a given number of octaves and integral degrees.
     -- Will be nothing if the pitch is out of range, or the scale doesn't have
     -- octaves.
-    , scale_transpose :: Transpose
+    , scale_transpose :: !Transpose
 
     -- | Used by derivation.
-    , scale_note_to_call :: Pitch.Note -> Maybe ValCall
+    , scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
 
     -- | Used by note input.
-    , scale_input_to_note :: Pitch.InputKey -> Maybe Pitch.Note
+    , scale_input_to_note :: !(Pitch.InputKey -> Maybe Pitch.Note)
     -- | Used by MIDI thru.  This is a shortcut for
     -- @degree_to_nn . note_to_degree . input_to_note@ but can be implemented
     -- more efficiently by the scale.
-    , scale_input_to_nn :: Pitch.InputKey -> Maybe Pitch.NoteNumber
+    , scale_input_to_nn :: !(Pitch.InputKey -> Maybe Pitch.NoteNumber)
 
     -- | Used by conversion before performance.
-    , scale_degree_to_nn :: Pitch.Degree -> Maybe Pitch.NoteNumber
+    , scale_degree_to_nn :: !(Pitch.Degree -> Maybe Pitch.NoteNumber)
     }
