@@ -258,7 +258,7 @@ extract_stream e_event =
         . filter interesting . Derive.r_events
     where
     interesting (LEvent.Log log) = interesting_log log
-    interesting _ = False
+    interesting _ = True
     to_either (LEvent.Event e) = Left e
     to_either (LEvent.Log m) = Right m
 
@@ -322,9 +322,6 @@ extract_midi events = [(RealTime.to_milliseconds ts, msg)
 passed_args :: String -> [TrackLang.Val] -> Derive.PassedArgs derived
 passed_args call vals = Derive.PassedArgs vals Map.empty
     (TrackLang.Symbol call) (Derive.dummy_call_info "DeriveTest")
-
--- derive_note :: Derive.Deriver a -> Derive.Result a
--- derive_note = derive State.empty
 
 empty_lookup_deriver :: Derive.LookupDeriver
 empty_lookup_deriver = const (Right (return mempty))
