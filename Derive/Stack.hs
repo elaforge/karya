@@ -9,7 +9,7 @@ module Derive.Stack (
     , track_regions
 
     -- * ui
-    , UiFrame, to_ui, unparse_ui_frame, parse_ui_frame
+    , UiFrame, to_ui, unparse_ui_frame, unparse_ui_frame_, parse_ui_frame
 ) where
 import Prelude hiding (length)
 import qualified Prelude
@@ -138,6 +138,18 @@ unparse_ui_frame (bid, maybe_tid, maybe_range) =
     where
     bid_s = Id.show_id (Id.unpack_id bid)
     tid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_tid
+    range_s = maybe "*"
+        (\(from, to) -> float from ++ "-" ++ float to) maybe_range
+    float = Parse.show_float (Just 2)
+
+-- | This is like 'unparse_ui_frame' except it omits the namespaces for a less
+-- cluttered but potentially ambiguous output.
+unparse_ui_frame_ :: UiFrame -> String
+unparse_ui_frame_ (bid, maybe_tid, maybe_range) =
+    Seq.join " " [bid_s, tid_s, range_s]
+    where
+    bid_s = Id.id_name (Id.unpack_id bid)
+    tid_s = maybe "*" (Id.id_name . Id.unpack_id) maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from ++ "-" ++ float to) maybe_range
     float = Parse.show_float (Just 2)

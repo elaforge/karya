@@ -32,7 +32,7 @@ big things
   - complete Idiom.Wind
 
 CURRENT
-  + make Derive.Lazy_test actually do tests
+  * make Derive.Lazy_test actually do tests
   custom Deriver monad, see if it's faster
     search for all instances of catchError and do something about them
       - Derive.with_empty_collect

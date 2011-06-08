@@ -79,6 +79,11 @@ run_mkview track_specs =
 mkstate :: (State.M m) => String -> [TrackSpec] -> m [TrackId]
 mkstate block_name tracks = mkstate_id (bid block_name) tracks
 
+mkblocks :: (State.M m) => [(String, [TrackSpec])] -> m [BlockId]
+mkblocks blocks = do
+    forM_ blocks $ \(bid, tracks) -> mkstate bid tracks
+    return $ map (bid . fst) blocks
+
 mkstate_id :: (State.M m) => BlockId -> [TrackSpec] -> m [TrackId]
 mkstate_id block_id tracks = do
     let (ns, block_name) = Id.un_id (Id.unpack_id block_id)

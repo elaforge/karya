@@ -1,24 +1,23 @@
 module Derive.DeriveTest where
-import Control.Monad
 import qualified Data.ByteString.Char8 as B
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-
 import Ui
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
-
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
@@ -30,18 +29,16 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.PitchSignal as PitchSignal
-import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
-
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Pitch as Pitch
+import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
-
 import qualified App.MidiInst as MidiInst
 
 
@@ -61,17 +58,20 @@ pitch_interpolate x0 y0 x1 y1 =
 
 run :: State.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
-run ui_state m =
-    case Derive.run derive_state m of
-        (Left err, _, _logs) -> Left (Pretty.pretty err)
-        (Right val, state, logs) -> Right (val, state, logs)
+run ui_state m = run_ ui_state (Derive.with_stack_block bid m)
     where
     -- Make sure Derive.get_current_block_id, called by add_track_warp, doesn't
     -- throw.
-    initial_stack = Stack.from_outermost [Stack.Block (UiTest.bid "fakeblock")]
+    bid = UiTest.bid "DeriveTest.run fakeblock"
+
+run_ :: State.State -> Derive.Deriver a
+    -> Either String (a, Derive.State, [Log.Msg])
+run_ ui_state m = case Derive.run derive_state m of
+        (Left err, _, _logs) -> Left (Pretty.pretty err)
+        (Right val, state, logs) -> Right (val, state, logs)
+    where
     derive_state = (Derive.initial_state default_scope mempty
         mempty default_environ (default_constant ui_state))
-            { Derive.state_stack = initial_stack }
 
 extract_run :: (a -> b) -> Either String (a, Derive.State, [Log.Msg])
     -> Either String b
@@ -88,11 +88,12 @@ eval ui_state m = extract_run id (run ui_state m)
 
 -- * perform
 
-perform_block :: [UiTest.TrackSpec] -> ([(Integer, Midi.Message)], [String])
+type Midi = (Integer, Midi.Message)
+
+perform_block :: [UiTest.TrackSpec] -> ([Midi], [String])
 perform_block tracks = perform_blocks [(UiTest.default_block_name, tracks)]
 
-perform_blocks :: [(String, [UiTest.TrackSpec])]
-    -> ([(Integer, Midi.Message)], [String])
+perform_blocks :: [(String, [UiTest.TrackSpec])] -> ([Midi], [String])
 perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     where
     (_, mmsgs, logs) = perform default_lookup_inst default_midi_config
@@ -100,21 +101,19 @@ perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     result = derive_blocks blocks
 
 perform :: MidiDb.LookupMidiInstrument -> Instrument.Config -> Derive.Events
-    -> ([Perform.Event], [(Integer, Midi.Message)], [Log.Msg])
+    -> ([Perform.Event], [Midi], [Log.Msg])
 perform lookup_inst midi_config events =
     (fst (LEvent.partition perf_events), mmsgs, filter interesting_log logs)
     where
     (perf_events, perf) = perform_stream lookup_inst midi_config events
     (mmsgs, logs) = LEvent.partition perf
 
-perform_defaults :: Derive.Events
-    -> ([Perform.Event], [(Integer, Midi.Message)], [Log.Msg])
+perform_defaults :: Derive.Events -> ([Perform.Event], [Midi], [Log.Msg])
 perform_defaults = perform default_lookup_inst default_midi_config
 
 perform_stream :: MidiDb.LookupMidiInstrument -> Instrument.Config
     -> Derive.Events
-    -> ([LEvent.LEvent Perform.Event],
-        [LEvent.LEvent (Integer, Midi.Message)])
+    -> ([LEvent.LEvent Perform.Event], [LEvent.LEvent Midi])
 perform_stream lookup_inst midi_config events = (perf_events, mmsgs)
     where
     perf_events = Convert.convert default_lookup_scale lookup_inst events
@@ -148,13 +147,17 @@ derive_tracks_with_ui with transform_ui tracks = derive_blocks_with_ui
 derive_blocks :: [(String, [UiTest.TrackSpec])] -> Derive.Result
 derive_blocks = derive_blocks_with_ui id id
 
+derive_blocks_with   :: Transform Derive.Events
+    -> [(String, [UiTest.TrackSpec])] -> Derive.Result
+derive_blocks_with with = derive_blocks_with_ui with id
+
 derive_blocks_with_ui :: Transform Derive.Events -> TransformUi
     -> [(String, [UiTest.TrackSpec])] -> Derive.Result
 derive_blocks_with_ui with transform_ui block_tracks =
     derive_block_with with (transform_ui ui_state) bid
     where
     (_, ui_state) = UiTest.run State.empty $ do
-        forM_ block_tracks $ \(bid, tracks) -> UiTest.mkstate bid tracks
+        UiTest.mkblocks block_tracks
         set_defaults
     bid = UiTest.bid (fst (head block_tracks))
 
@@ -187,6 +190,12 @@ derive_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
 derive_cache cache damage ui_state deriver =
     Derive.derive (default_constant ui_state) default_scope cache damage
         default_environ deriver
+
+make_damage :: String -> TrackNum -> ScoreTime -> ScoreTime
+    -> Derive.ScoreDamage
+make_damage block tracknum s e = Derive.ScoreDamage
+    (Map.singleton (UiTest.mk_tid_name block tracknum) (Ranges.range s e))
+    (Set.singleton (UiTest.bid block)) mempty
 
 
 -- ** defaults

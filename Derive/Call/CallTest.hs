@@ -52,6 +52,12 @@ with_note_call name call = Derive.with_scope $ \scope -> scope
     { Derive.scope_note =
         add_builtin (single_lookup name call) (Derive.scope_note scope) }
 
+with_control_call :: String -> Derive.ControlCall
+    -> Derive.Deriver a -> Derive.Deriver a
+with_control_call name call = Derive.with_scope $ \scope -> scope
+    { Derive.scope_control =
+        add_builtin (single_lookup name call) (Derive.scope_control scope) }
+
 with_val_call :: String -> Derive.ValCall
     -> Derive.Deriver a -> Derive.Deriver a
 with_val_call name call = Derive.with_scope $ \scope -> scope
@@ -63,6 +69,7 @@ add_builtin :: Derive.LookupCall call -> Derive.ScopeType call
 add_builtin lookup stype =
     stype { Derive.stype_builtin = lookup : Derive.stype_builtin stype }
 
+single_lookup :: String -> call -> Derive.LookupCall call
 single_lookup name call call_id
     | TrackLang.Symbol name == call_id = return $ Just call
     | otherwise = return Nothing

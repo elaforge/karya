@@ -1,6 +1,7 @@
 module Util.Thread (
     start, start_logged
     , delay
+    , timeout
     , take_tmvar_timeout
 ) where
 import qualified Control.Concurrent as Concurrent
@@ -35,6 +36,16 @@ start = Concurrent.forkIO
 -- | Delay in seconds.  I can never remember what units 'threadDelay' is in.
 delay :: Double -> IO ()
 delay secs = Concurrent.threadDelay (floor (1000000 * secs))
+
+timeout :: Double -> IO a -> IO (Maybe a)
+timeout secs action = do
+    mval <- Concurrent.newEmptyMVar
+    th1 <- Concurrent.forkIO (Concurrent.putMVar mval =<< fmap Just action)
+    th2 <- Concurrent.forkIO (delay secs >> Concurrent.putMVar mval Nothing)
+    val <- Concurrent.takeMVar mval
+    Concurrent.killThread th1
+    Concurrent.killThread th2
+    return val
 
 -- | Isn't there a simpler way to do this?  All I really want to do is return
 -- when a shared value has changed, or it's timed out.
