@@ -591,8 +591,8 @@ type LookupDeriver = BlockId -> Either State.StateError EventDeriver
 instance (Functor m, Monad m) => Log.LogMonad (DeriveT m) where
     write = DeriveT . lift . lift . Log.write
     initialize_msg msg = do
-        -- If the msg was created by *_stack (for instance, by 'catch_warn'),
-        -- it may already have a stack.
+        -- If the msg was created by *_stack it may already have a stack.
+        -- TODO does this actually happen?
         stack <- maybe (gets state_stack) return (Log.msg_stack msg)
         context <- gets state_log_context
         return $ msg {
@@ -678,13 +678,21 @@ gets f = fmap f get
 -- | This is a little different from Reader.local because only a portion of
 -- the state is used Reader-style.
 -- TODO split State into dynamically scoped portion and use Reader for that.
+--
+-- Note that this doesn't restore the state on an exception.  I think this
+-- is ok because exceptions are always \"caught\" at the event evaluation
+-- level since it runs each one separately.  Since the state dynamic state
+-- (i.e. except Collect) from the sub derivation is discarded, whatever state
+-- it's in after the exception shouldn't matter.
 local :: (State -> b) -> (b -> State -> State)
     -> (State -> Deriver State) -> Deriver a -> Deriver a
-local from_state to_state modify_state deriver = do
+local from_state restore_state modify_state deriver = do
     old <- gets from_state
     new <- modify_state =<< get
     put new
-    deriver `finally` modify (to_state old)
+    result <- deriver
+    modify (restore_state old)
+    return result
 
 -- ** state access
 
@@ -741,12 +749,12 @@ add_block_dep block_id = modify_collect $ \st ->
 -- TODO I would think it shouldn't need to catch because the Collect after
 -- an exception should be mempty anyway, but something's not quite right
 -- because not catching breaks Cache_test.test_failed_sub_track
-with_empty_collect :: Deriver a -> Deriver (Either DeriveError a, Collect)
+with_empty_collect :: Deriver a -> Deriver (a, Collect)
 with_empty_collect deriver = do
     old <- gets state_collect
     new <- (\st -> return $ st { state_collect = mempty }) =<< get
     put new
-    result <- (fmap Right deriver) `Error.catchError` (return . Left)
+    result <- deriver
     collect <- gets state_collect
     modify (\st -> st { state_collect = old })
     return (result, collect)
@@ -831,12 +839,6 @@ with_msg :: String -> Deriver a -> Deriver a
 with_msg msg = local state_log_context
     (\old st -> st { state_log_context = old })
     (\st -> return $ st { state_log_context = msg : state_log_context st })
-
--- | If the derive throws, turn the error into a warning and return a default
--- value.
-catch_warn :: Deriver a -> Deriver a -> Deriver a
-catch_warn deflt deriver = Error.catchError deriver $
-    \err -> Log.write (error_to_warn err) >> deflt
 
 error_to_warn :: DeriveError -> Log.Msg
 error_to_warn (DeriveError srcpos stack val) = Log.msg_srcpos srcpos Log.Warn

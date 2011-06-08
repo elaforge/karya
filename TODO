@@ -22,7 +22,7 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 big things
-  + solution for sekaran, aka pitches below notes
+  * solution for sekaran, aka pitches below notes
   - lazy signals
   / tracks as calls
   - try out hsplugins
@@ -32,14 +32,25 @@ big things
   - complete Idiom.Wind
 
 CURRENT
+  + make Derive.Lazy_test actually do tests
+  custom Deriver monad, see if it's faster
+    search for all instances of catchError and do something about them
+      - Derive.with_empty_collect
+      - all 'local's, so all with_*
+        But if an exit can't be caught, then it doesn't matter.  State is
+        restored when a call fails because it was run with a separate state.
+    - figure out ContT and how to integrate a continuation into DeriveM
+    - replace Deriver and profile
+
+  - why does save trigger a rederive?
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn
   - send style id to c++ instead of all the style elements
   - automate the manual tests
   - don't rely on built-in serialize / deserialize classes
-    Ask on the list first.
-  - make Derive.Lazy_test actually do tests
+    This is a hassle because I'd have to copy/paste at least the Integer and
+    UTF8 serialization.
   - cmd to play current line, or play current or previous note
   - make seeks on derive output more efficient with a lazy index
 
@@ -89,14 +100,6 @@ CURRENT
       peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
 
   performance:
-    - try using call/cc instead of either T
-      Will require figuring out Derive.with_empty_collect when I get rid of
-      catchError
-      Also all 'local's no longer restore, which might be ok for the way the
-      schema uses them, but seems error-prone in general (e.g. in
-      a transformer).  Maybe I can catch errors by passing the continuation
-      in a Reader, and using 'local' there too?
-    - write my own Deriver monad to try to avoid lifting overhead
     - see if the cache filtering logs is causing significant copying and remove
 
   - maybe I could split CacheState into the writable portion, in Collect, and

@@ -7,10 +7,9 @@ module Util.Control (
     , while, while_
     , whenM, unlessM, when_just, ifM
 
-    , finally
+    -- , finally
     , justm
 ) where
-import qualified Control.Monad.Error.Class as Error
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty)
@@ -60,13 +59,11 @@ ifM cond consequent alternative = do
     b <- cond
     if b then consequent else alternative
 
-
--- | Finally a finally for MonadError.
-finally :: (Error.MonadError e m) => m a -> m () -> m a
-finally action handler =
-    Error.catchError (action >>= \v -> handler >> return v) $
-        \exc -> handler >> Error.throwError exc
-
+-- -- | Finally a finally for MonadError.
+-- finally :: (Error.MonadError e m) => m a -> m () -> m a
+-- finally action handler =
+--     Error.catchError (action >>= \v -> handler >> return v) $
+--         \exc -> handler >> Error.throwError exc
 
 -- | This is sort of like a monad transformer, but the Maybe is on the inside
 -- instead of the outside.

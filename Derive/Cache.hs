@@ -9,7 +9,6 @@ module Derive.Cache (
 #endif
 ) where
 import Control.Monad
-import qualified Control.Monad.Error as Error
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -160,20 +159,18 @@ caching_call call args = do
             -- log msg shouldn't be forced until the msgs already have been
             -- forced themselves.
             -- ++ show (LEvent.length stream) ++ " vals) because of "
-            ++ reason ++ case result of
-                Left exc -> "  Raised: " ++ show exc
-                Right _ -> ""
-        case result of
-            Left exc -> Error.throwError exc
-            Right stream -> do
-                Derive.modify_cache_state $ \st -> st { Derive.state_cache =
-                    insert_generator stack collect stream cur_cache }
-                return stream
+            ++ reason
+        Derive.modify_cache_state $ \st -> st { Derive.state_cache =
+            insert_generator stack collect result cur_cache }
+        return result
 
     -- To get the deps of just the deriver below me, I have to clear out
     -- the local deps.  But this call is itself collecting deps for another
     -- call, so I have to merge the sub-deps back in before returning.
     with_collect deriver = do
+        -- TODO Do I want to run deriver a sub derivation so I can put an
+        -- empty cache if it failed?  Otherwise I think maybe a failed
+        -- event will continue to produce its old value.
         (result, collect) <- Derive.with_empty_collect deriver
         Derive.modify $ \st ->
             st { Derive.state_collect = collect <> Derive.state_collect st }
