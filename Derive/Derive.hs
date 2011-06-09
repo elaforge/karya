@@ -4,12 +4,12 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Derived
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Rank2Types #-}
 {- | Main module for the deriver monad.
 
-    Derivers are always in DeriveT, even if they don't need its facilities.
-    This makes them more regular to compose.  The convention is to prepend
-    deriver names with 'd_', so if the deriver is normally implemented purely,
-    a d_ version can be made simply by composing 'return'.
+    The convention is to prepend deriver names with 'd_', so if the deriver is
+    normally implemented purely, a d_ version can be made simply by composing
+    'return'.
 
     I have a similar sort of setup to nyquist, with a \"transformation
     environment\" that functions can look at to implement behavioral
@@ -47,11 +47,6 @@ import Prelude hiding (error)
 import qualified Prelude
 import qualified Control.Applicative as Applicative
 import Control.Monad
-import qualified Control.Monad.Error as Error
-import qualified Control.Monad.Identity as Identity
-import qualified Control.Monad.State.Strict as Monad.State
-import qualified Control.Monad.Trans as Trans
-import Control.Monad.Trans (lift)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -88,30 +83,94 @@ import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
 
 
--- * DeriveT
+-- * Deriver internals
 
-newtype DeriveT m a = DeriveT (DeriveStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
-run_derive_t (DeriveT m) = m
+type Logs = [Log.Msg]
 
-instance (Functor m, Monad m) => Applicative.Applicative (DeriveT m) where
-    pure = return
-    (<*>) = ap
+newtype Deriver a = Deriver { _runD :: forall r.
+    State -> Logs -> Failure r -> Success a r -> RunResult r }
 
-type DeriveStack m = Error.ErrorT DeriveError
-    (Monad.State.StateT State
-        (Log.LogT m))
+type Failure r = State -> Logs -> DeriveError -> RunResult r
+type Success a r = State -> Logs -> a -> RunResult r
+type RunResult a = (Either DeriveError a, State, Logs)
 
-type Deriver a = DeriveT Identity.Identity a
+{-# INLINE returnC #-}
+returnC :: a -> Deriver a
+returnC a = Deriver $ \st logs _ win -> win st logs a
+
+{-# INLINE bindC #-}
+bindC :: Deriver a -> (a -> Deriver b) -> Deriver b
+bindC m f = Deriver $ \st1 logs1 lose win ->
+    _runD m st1 logs1 lose (\st2 logs2 a -> _runD (f a) st2 logs2 lose win)
+
+{-# INLINE apC #-}
+apC :: Deriver (a -> b) -> Deriver a -> Deriver b
+apC mf ma = do
+    f <- mf
+    a <- ma
+    return (f a)
+
+{-# INLINE fmapC #-}
+fmapC :: (a -> b) -> Deriver a -> Deriver b
+fmapC f m = Deriver $ \st1 logs1 lose win ->
+    _runD m st1 logs1 lose (\st2 logs2 a -> win st2 logs2 (f a))
+
+_throw :: DeriveError -> Deriver a
+_throw err = Deriver $ \st logs lose _ -> lose st logs err
+
+{-# INLINE modify #-}
+modify :: (State -> State) -> Deriver ()
+modify f = Deriver $ \st logs _ win -> win (f st) logs ()
+
+{-# INLINE get #-}
+get :: Deriver State
+get = Deriver $ \st logs _ win -> win st logs st
+
+{-# INLINE gets #-}
+gets :: (State -> a) -> Deriver a
+gets f = f <$> get
+
+{-# INLINE put #-}
+put :: State -> Deriver ()
+put st = Deriver $ \_ logs _ win -> win st logs ()
+
+instance Functor Deriver where
+    fmap = fmapC
+
+instance Applicative.Applicative Deriver where
+    pure = returnC
+    (<*>) = apC
+
+instance Monad Deriver where
+    return = returnC
+    (>>=) = bindC
+    fail = throw
+
+instance Log.LogMonad Deriver where
+    write msg = Deriver $ \st logs _ win -> win st (msg:logs) ()
+    initialize_msg msg = do
+        -- If the msg was created by *_stack (for instance, by 'catch_warn'),
+        -- it may already have a stack.
+        stack <- maybe (gets state_stack) return (Log.msg_stack msg)
+        context <- gets state_log_context
+        return $ msg {
+            Log.msg_stack = Just stack
+            , Log.msg_text = add_text_context context (Log.msg_text msg)
+            }
+        where
+        add_text_context :: [String] -> Text.Text -> Text.Text
+        add_text_context [] s = s
+        add_text_context context s =
+            Text.intercalate " / " (map Text.pack (reverse context))
+                <> ": " <> s
 
 run :: State -> Deriver a -> (Either DeriveError a, State, [Log.Msg])
-run derive_state m = (err, state2, logs)
-    where
-    ((err, state2), logs) = (Identity.runIdentity
-        . Log.run
-        . flip Monad.State.runStateT derive_state
-        . Error.runErrorT
-        . run_derive_t) m
+run state m = _runD m state []
+    (\st logs err -> (Left err, st, reverse logs))
+    (\st logs a -> (Right a, st, reverse logs))
+
+
+-- ** events
 
 class (Show (Elem derived), Eq (Elem derived), Show derived) =>
         Derived derived where
@@ -127,8 +186,6 @@ class (Show (Elem derived), Eq (Elem derived), Show derived) =>
 type LogsDeriver d = Deriver (LEvent.LEvents d)
 type Stream d = LEvent.Stream d
 type EventStream d = LEvent.Stream (LEvent.LEvent d)
-
--- ** events
 
 type EventDeriver = LogsDeriver Score.Event
 
@@ -588,28 +645,6 @@ make_calls = Map.fromList . map (first TrackLang.Symbol)
 -- the appropriate deriver.  It's created by 'Schema.lookup_deriver'.
 type LookupDeriver = BlockId -> Either State.StateError EventDeriver
 
-instance (Functor m, Monad m) => Log.LogMonad (DeriveT m) where
-    write = DeriveT . lift . lift . Log.write
-    initialize_msg msg = do
-        -- If the msg was created by *_stack it may already have a stack.
-        -- TODO does this actually happen?
-        stack <- maybe (gets state_stack) return (Log.msg_stack msg)
-        context <- gets state_log_context
-        return $ msg {
-            Log.msg_stack = Just stack
-            , Log.msg_text = add_text_context context (Log.msg_text msg)
-            }
-
-add_context :: [String] -> String -> String
-add_context [] s = s
-add_context context s = Seq.join " / " (reverse context) ++ ": " ++ s
-
--- duplicated code, ugh
-add_text_context :: [String] -> Text.Text -> Text.Text
-add_text_context [] s = s
-add_text_context context s =
-    Text.intercalate " / " (map Text.pack (reverse context)) <> ": " <> s
-
 -- * monadic ops
 
 data Result = Result {
@@ -659,21 +694,6 @@ with_inital_scope env deriver = set_inst (set_scale deriver)
             scale <- get_scale scale_id
             with_scale scale deriver
         _ -> id
-
-modify :: (State -> State) -> Deriver ()
-modify f = (DeriveT . lift) $ do
-    old <- Monad.State.get
-    Monad.State.put $ f old
-
-put :: State -> Deriver ()
-put st = (DeriveT . lift) (Monad.State.put st)
-
--- The Monad polymorphism is required for the LogMonad instance.
-get :: (Functor m, Monad m) => DeriveT m State
-get = (DeriveT . lift) Monad.State.get
-
-gets :: (Functor m, Monad m) => (State -> a) -> DeriveT m a
-gets f = fmap f get
 
 -- | This is a little different from Reader.local because only a portion of
 -- the state is used Reader-style.
@@ -789,10 +809,6 @@ instance Pretty.Pretty ErrorVal where
     pretty (Error s) = s
     pretty (CallError err) = Pretty.pretty err
 
-instance Error.Error DeriveError where
-    strMsg _ = DeriveError Nothing Stack.empty
-        (Error "Why are you calling fail?  Don't do that!")
-
 data CallError =
     -- | arg number, arg name, expected type, received val
     TypeError Int String TrackLang.Type (Maybe TrackLang.Val)
@@ -822,7 +838,8 @@ throw_arg_error :: String -> Deriver a
 throw_arg_error = throw_arg_error_srcpos Nothing
 
 throw_arg_error_srcpos :: SrcPos.SrcPos -> String -> Deriver a
-throw_arg_error_srcpos srcpos = throw_error_srcpos srcpos . CallError . ArgError
+throw_arg_error_srcpos srcpos =
+    throw_error_srcpos srcpos . CallError . ArgError
 
 throw_error :: ErrorVal -> Deriver a
 throw_error = throw_error_srcpos Nothing
@@ -830,7 +847,7 @@ throw_error = throw_error_srcpos Nothing
 throw_error_srcpos :: SrcPos.SrcPos -> ErrorVal -> Deriver a
 throw_error_srcpos srcpos err = do
     stack <- gets state_stack
-    Error.throwError (DeriveError srcpos stack err)
+    _throw (DeriveError srcpos stack err)
 
 require :: String -> Maybe a -> Deriver a
 require msg = maybe (throw msg) return
@@ -1315,7 +1332,7 @@ setup_without_warp = in_real_time
 get_ui_state :: Deriver State.State
 get_ui_state = gets (state_ui . state_constant)
 
--- | Because DeriveT is not a UiStateMonad.
+-- | Because Deriver is not a UiStateMonad.
 --
 -- TODO I suppose it could be, but then I'd be tempted to make
 -- a ReadOnlyUiStateMonad.  And I'd have to merge the exceptions.
