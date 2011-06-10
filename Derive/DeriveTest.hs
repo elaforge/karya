@@ -21,6 +21,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Twelve as Twelve
@@ -58,7 +59,7 @@ pitch_interpolate x0 y0 x1 y1 =
 
 run :: State.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
-run ui_state m = run_ ui_state (Derive.with_stack_block bid m)
+run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
     where
     -- Make sure Derive.get_current_block_id, called by add_track_warp, doesn't
     -- throw.

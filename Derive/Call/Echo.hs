@@ -65,11 +65,12 @@ c_echo = Derive.transformer "echo" $ \args deriver -> CallSig.call3 args
         \[delay, feedback, times] ->
             echo (Signal.y_to_score delay) feedback (floor times) deriver
 
-echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver -> Derive.EventDeriver
+echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver
+    -> Derive.EventDeriver
 echo delay feedback times deriver
     | times <= 0 = deriver
     | otherwise = Derive.d_merge [deriver,
-        Derive.d_control_at delay (Derive.d_at delay (scale_vel feedback
+        Derive.shift_control delay (Derive.d_at delay (scale_vel feedback
             (echo delay feedback (times - 1) deriver)))]
 
 scale_vel :: Signal.Y -> Derive.EventDeriver -> Derive.EventDeriver

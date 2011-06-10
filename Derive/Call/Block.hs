@@ -18,6 +18,7 @@ import qualified Derive.Call.Note as Note
 import Derive.CallSig (required)
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -69,7 +70,7 @@ d_block block_id = do
         Nothing -> Derive.throw "block_id not found"
         _ -> return ()
     -- Record a dependency on this block.
-    Derive.add_block_dep block_id
+    Internal.add_block_dep block_id
     -- This check disabled since a block will show up in the stack twice if it
     -- is inverted.  I'm still protected from recursion by the stack limit.
     -- -- Since there is no branching, any recursion will be endless.

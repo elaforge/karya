@@ -23,6 +23,7 @@ import qualified Ui.Update as Update
 import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -296,7 +297,7 @@ test_get_control_damage = do
         (Right (Just [(4, 8)]))
     where
     get_control_damage range score_damage = do
-        Derive.modify_cache_state $ \st ->
+        Internal.modify_cache_state $ \st ->
             st { Derive.state_score_damage = score_damage }
         Cache.get_control_damage (UiTest.mk_tid 0) range
     extract = DeriveTest.extract_run $

@@ -48,14 +48,13 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import Cmd.Cmd (Schema(..), SchemaDeriver, SchemaMap)
-
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Note as Note
 import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Signal as Signal
-
 import qualified App.Config as Config
 
 
@@ -117,7 +116,7 @@ derive_tree block_end tree = do
     -- doesn't have at least one top level tempo.
     tempo <- State.default_tempo . State.state_default <$> Derive.get_ui_state
     let with_default_tempo = if has_nontempo_track tree
-            then Derive.d_tempo block_end Nothing (Signal.constant tempo)
+            then Internal.d_tempo block_end Nothing (Signal.constant tempo)
             else id
     with_default_tempo (derive_tracks tree)
 
@@ -136,7 +135,7 @@ derive_tracks tree = Derive.d_merge (map with_track tree)
     where
     with_track tree@(Tree.Node track _) =
         stack (State.tevents_track_id track) (derive_track tree)
-    stack (Just track_id) = Derive.with_stack_track track_id
+    stack (Just track_id) = Internal.with_stack_track track_id
     stack Nothing = id
 
 -- | Derive a single track node and any tracks below it.
@@ -146,7 +145,7 @@ derive_track node@(Tree.Node track subs)
         track_setup (Note.d_note_track node)
     | otherwise = Control.d_control_track node (derive_tracks subs)
     where
-    track_setup = maybe id Derive.track_setup (State.tevents_track_id track)
+    track_setup = maybe id Internal.track_setup (State.tevents_track_id track)
 
 
 -- * parser

@@ -26,6 +26,7 @@ import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Scale as Scale
@@ -76,19 +77,20 @@ tempo_call :: ScoreTime -> Maybe TrackId
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
 tempo_call block_end maybe_track_id sig_deriver deriver = do
-    (signal, logs) <- Derive.setup_without_warp sig_deriver
+    (signal, logs) <- Internal.setup_without_warp sig_deriver
     when_just maybe_track_id $ \track_id -> do
         rendered <- track_is_rendered track_id
         when rendered $
             put_track_signal track_id $
                 Track.TrackSignal (Track.Control (Signal.coerce signal)) 0 1
     merge_logs logs $ with_damage $
-        Derive.d_tempo block_end maybe_track_id (Signal.coerce signal) deriver
+        Internal.d_tempo block_end maybe_track_id (Signal.coerce signal)
+            deriver
     where
     with_damage = maybe id get_damage maybe_track_id
     get_damage track_id deriver = do
         damage <- Cache.get_tempo_damage track_id
-        Derive.with_control_damage damage deriver
+        Internal.with_control_damage damage deriver
 
 control_call :: State.TrackEvents -> Score.Control -> Maybe TrackLang.CallId
     -> Derive.Deriver (TrackResults Signal.Control)
@@ -162,7 +164,7 @@ get_scale ptype = case ptype of
         return (scale, False)
 
 track_setup :: Maybe TrackId -> Derive.Deriver d -> Derive.Deriver d
-track_setup = maybe id Derive.track_setup
+track_setup = maybe id Internal.track_setup
 
 with_control_damage :: Maybe TrackId -> State.TrackRange -> Derive.Deriver d
     -> Derive.Deriver d
@@ -170,7 +172,7 @@ with_control_damage maybe_track_id range = maybe id get_damage maybe_track_id
     where
     get_damage track_id deriver = do
         damage <- Cache.get_control_damage track_id range
-        Derive.with_control_damage damage deriver
+        Internal.with_control_damage damage deriver
 
 
 -- | Split the signal chunks and log msgs of the 'LEvent.LEvents' stream.
@@ -282,7 +284,7 @@ put_track_signal track_id tsig = put_track_signals [(track_id, tsig)]
 
 put_track_signals :: [(TrackId, Track.TrackSignal)] -> Derive.Deriver ()
 put_track_signals [] = return ()
-put_track_signals tracks = Derive.modify_collect $ \st ->
+put_track_signals tracks = Internal.modify_collect $ \st ->
     st { Derive.collect_track_signals =
         Map.insert_list tracks (Derive.collect_track_signals st) }
 

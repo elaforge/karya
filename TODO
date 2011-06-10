@@ -41,11 +41,11 @@ CURRENT
         restored when a call fails because it was run with a separate state.
     * figure out ContT and how to integrate a continuation into DeriveM
     * replace Deriver and profile
-    - further split DeriveLib into DeriveInternal, which is functions used by
+    * further split DeriveLib into DeriveInternal, which is functions used by
       Derive.Call, but not user calls, has things like:
       record_track_environ, cache functions, add_track_warps,
-      d_tempo, track_setup, 
-    - make a Derive/Deriver subdir
+      d_tempo, track_setup
+    * make a Derive/Deriver subdir
     - rename DeriveError -> Error
     - can I remove Derived method derive_events?
     * add INLINE pragmas and profile

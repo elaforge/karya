@@ -23,6 +23,7 @@ import qualified Derive.Call.Note as Call.Note
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.Schema as Schema
@@ -178,8 +179,8 @@ test_1_schema = do
     let ustate = flat_block 20
     -- Since I'm not calling Block.eval_root_block I need to set the stack
     -- manually.
-    (log, deriver) <- with_logging $ Derive.with_stack_block default_block_id $
-        UiTest.eval ustate $
+    (log, deriver) <- with_logging $
+        Internal.with_stack_block default_block_id $ UiTest.eval ustate $
             Cmd.schema_deriver Schema.default_schema default_block_id
     let result = DeriveTest.run_ ustate deriver
     print $ extract_run 5 result

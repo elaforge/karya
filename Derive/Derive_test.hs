@@ -2,34 +2,34 @@
     piece together a complete deriver.
 -}
 module Derive.Derive_test where
-import qualified Data.Map as Map
 import qualified Data.List as List
+import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Log as Log
 import Util.Test
 
+import qualified Midi.Midi as Midi
 import Ui
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
-import qualified Midi.Midi as Midi
-
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
+import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Perform as Perform
 
 
 test_basic = do
@@ -354,35 +354,36 @@ test_warp_ops = do
             Signal.signal [(RealTime.seconds n, n*2) | n <- [0..40]]
 
 
-    equal (run (Derive.d_warp plain)) $ Right [0, 2]
-    equal (run (Derive.d_at 2 . Derive.d_warp plain)) $ Right [2, 4]
-    equal (run (Derive.d_stretch 2 . Derive.d_warp plain)) $
+    equal (run (Internal.d_warp plain)) $ Right [0, 2]
+    equal (run (Derive.d_at 2 . Internal.d_warp plain)) $ Right [2, 4]
+    equal (run (Derive.d_stretch 2 . Internal.d_warp plain)) $
         Right [0, 4]
 
-    equal (run (Derive.d_warp plain . Derive.d_warp plain)) $
+    equal (run (Internal.d_warp plain . Internal.d_warp plain)) $
         Right [0, 2]
-    equal (run (Derive.d_warp plain . Derive.d_warp slow)) $
+    equal (run (Internal.d_warp plain . Internal.d_warp slow)) $
         Right [0, 4]
-    equal (run (Derive.d_warp slow . Derive.d_warp plain)) $
+    equal (run (Internal.d_warp slow . Internal.d_warp plain)) $
         Right [0, 4]
-    equal (run (Derive.d_warp slow . Derive.d_warp slow)) $
+    equal (run (Internal.d_warp slow . Internal.d_warp slow)) $
         Right [0, 8]
-    equal (run (Derive.d_stretch 2 . Derive.d_warp slow)) $
+    equal (run (Derive.d_stretch 2 . Internal.d_warp slow)) $
         Right [0, 8]
-    equal (run (Derive.d_stretch 2 . Derive.d_warp slow . Derive.d_warp slow)) $
-            Right [0, 16]
+    equal (run (Derive.d_stretch 2 . Internal.d_warp slow
+            . Internal.d_warp slow)) $
+        Right [0, 16]
 
     -- If you start at 1, but time is twice as slow, you really start at 2.
     -- But that is backwards.  Twice as slow time starts at 1.
-    equal (run (Derive.d_at 1 . Derive.d_warp slow)) $ Right [1, 5]
-    equal (run (Derive.d_warp slow . Derive.d_at 1)) $ Right [2, 6]
+    equal (run (Derive.d_at 1 . Internal.d_warp slow)) $ Right [1, 5]
+    equal (run (Internal.d_warp slow . Derive.d_at 1)) $ Right [2, 6]
     equal (run (Derive.d_at 1 . Derive.d_stretch 2)) $ Right [1, 5]
     equal (run (Derive.d_stretch 2 . Derive.d_at 1)) $ Right [2, 6]
 
-    equal (run (Derive.d_at 1 . Derive.d_stretch 2 . Derive.d_warp slow)) $
+    equal (run (Derive.d_at 1 . Derive.d_stretch 2 . Internal.d_warp slow)) $
             Right [1, 9]
-    equal (run (Derive.d_at 1 . Derive.d_stretch 2 . Derive.d_warp slow
-        . Derive.d_warp slow)) $
+    equal (run (Derive.d_at 1 . Derive.d_stretch 2 . Internal.d_warp slow
+        . Internal.d_warp slow)) $
             Right [1, 17]
 
 test_real_to_score = do
@@ -394,12 +395,12 @@ test_real_to_score = do
     equal (f (Derive.d_stretch 5 . Derive.d_at 5) 1) (Right 1)
     let slow = Score.signal_to_warp $
             Signal.signal [(0, 0), (1, 2), (2, 4), (3, 6), (100, 200)]
-    equal (f (Derive.d_warp slow . Derive.d_stretch 5 . Derive.d_at 5) 1)
+    equal (f (Internal.d_warp slow . Derive.d_stretch 5 . Derive.d_at 5) 1)
         (Right 1)
-    equal (f (Derive.d_stretch 5 . Derive.d_at 5 . Derive.d_warp slow) 1)
+    equal (f (Derive.d_stretch 5 . Derive.d_at 5 . Internal.d_warp slow) 1)
         (Right 1)
 
-test_d_control_at = do
+test_shift_control = do
     let controls = Map.fromList [(Score.Control "cont",
             Signal.signal [(0, 1), (2, 2), (4, 0)])]
         psig = PitchSignal.signal Twelve.scale_id [(0, (60, 60, 0))]
@@ -419,7 +420,7 @@ test_d_control_at = do
                     PitchSignal.unsignal pitch)
     equal (run id) $ Right
         ([(0, 1), (2, 2), (4, 0)], [(0, (60, 60, 0))])
-    equal (run $ Derive.d_control_at 2) $ Right
+    equal (run $ Derive.shift_control 2) $ Right
         ([(2, 1), (4, 2), (6, 0)], [(2, (60, 60, 0))])
 
 track_specs =
@@ -556,7 +557,7 @@ test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
     -- TODO and it belongs in TrackWarp_test now
     let track_id = Types.TrackId (UiTest.mkid "warp")
-        warp = Derive.tempo_to_warp (Signal.constant 2)
+        warp = Internal.tempo_to_warp (Signal.constant 2)
         track_warps = [TrackWarp.Collection
                 0 2 UiTest.default_block_id [track_id] warp]
     let f = TrackWarp.inverse_tempo_func track_warps

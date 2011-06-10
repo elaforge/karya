@@ -26,11 +26,12 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
+import qualified Derive.Derive as Derive
 import Derive.Derive
        (CacheState(..), Cache(..), CacheEntry(..), CallType(..),
         GeneratorDep(..), TransformerType(..), ScoreDamage(..),
         EventDamage(..), ControlDamage(..))
-import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
 
@@ -80,7 +81,7 @@ cached_transformer _cache _stack (Derive.TransformerCall call _ttype)
         (damage, cached) <- case lookup_transformer stack cache of
             Nothing -> return (entire_range sub_result, mempty)
             Just cached -> do
-                local <- Derive.state_local_damage <$> Derive.get_cache_state
+                local <- Derive.state_local_damage <$> Internal.get_cache_state
                 cont <- control_damage control_deps
                 return (expand_for_context context cached (local <> cont),
                     cached)
@@ -98,7 +99,7 @@ cached_transformer _cache _stack (Derive.TransformerCall call _ttype)
 -- for details.
 get_recorded_tdep :: Derive.Deriver TransformerDep
 get_recorded_tdep = undefined
-    -- gdep <- collect_local_dep <$> Derive.get_cache_state
+    -- gdep <- collect_local_dep <$> Internal.get_cache_state
     -- return $ TransformerDep (gdep_controls gdep)
 
 lookup_transformer :: (Derive.Derived derived) =>
@@ -149,18 +150,18 @@ caching_call call args = do
         Log.debug $ "using cache (" ++ show (LEvent.length cached) ++ " vals)"
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
-        Derive.modify_collect (collect <>)
+        Internal.modify_collect (collect <>)
         return cached
     generate stack (Left reason) = do
         (result, collect) <- with_collect (call args)
-        cur_cache <- state_cache <$> Derive.get_cache_state
+        cur_cache <- state_cache <$> Internal.get_cache_state
         Log.notice $ "rederived generator because of "
             -- This destroys laziness, though I'm not sure why since the
             -- log msg shouldn't be forced until the msgs already have been
             -- forced themselves.
             -- ++ show (LEvent.length stream) ++ " vals) because of "
             ++ reason
-        Derive.modify_cache_state $ \st -> st { Derive.state_cache =
+        Internal.modify_cache_state $ \st -> st { Derive.state_cache =
             insert_generator stack collect result cur_cache }
         return result
 
@@ -171,7 +172,7 @@ caching_call call args = do
         -- TODO Do I want to run deriver a sub derivation so I can put an
         -- empty cache if it failed?  Otherwise I think maybe a failed
         -- event will continue to produce its old value.
-        (result, collect) <- Derive.with_empty_collect deriver
+        (result, collect) <- Internal.with_empty_collect deriver
         Derive.modify $ \st ->
             st { Derive.state_collect = collect <> Derive.state_collect st }
         return (result, collect)
@@ -226,10 +227,10 @@ insert_generator stack collect stream (Cache cache) =
 get_control_damage :: TrackId -> State.TrackRange
     -> Derive.Deriver ControlDamage
 get_control_damage track_id range = do
-    control <- Derive.state_control_damage <$> Derive.get_cache_state
+    control <- Derive.state_control_damage <$> Internal.get_cache_state
     extend_damage track_id range =<< if control == mempty
         then score_to_control track_id range . Derive.state_score_damage
-            =<< Derive.get_cache_state
+            =<< Internal.get_cache_state
         else return control
 
 -- | Since the warp is the integral of the tempo track, damage on the tempo
@@ -237,10 +238,10 @@ get_control_damage track_id range = do
 -- so TrackRange doesn't apply.
 get_tempo_damage :: TrackId -> Derive.Deriver ControlDamage
 get_tempo_damage track_id = do
-    control <- Derive.state_control_damage <$> Derive.get_cache_state
+    control <- Derive.state_control_damage <$> Internal.get_cache_state
     extend <$> if control == mempty
         then score_to_control track_id Nothing . Derive.state_score_damage
-            =<< Derive.get_cache_state
+            =<< Internal.get_cache_state
         else return control
     where
     extend (Derive.ControlDamage ranges) = Derive.ControlDamage $

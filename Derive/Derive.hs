@@ -5,7 +5,13 @@
     "Derive.DeriveLib" an overview of derivation in general.
 -}
 module Derive.Derive (
-    module Derive.Deriver.Internal, module Derive.Deriver.Lib
+    module Derive.Deriver.Monad
+    , module Derive.Deriver.Lib
+    , module Derive.Deriver.Internal
 ) where
-import Derive.Deriver.Internal
+import Derive.Deriver.Monad
 import Derive.Deriver.Lib
+import Derive.Deriver.Internal (
+    real_to_score, score_to_real, d_at, d_stretch, d_place, in_real_time
+    , get_block_dur
+    )

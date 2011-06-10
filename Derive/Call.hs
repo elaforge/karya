@@ -90,6 +90,7 @@ import qualified Ui.Track as Track
 import qualified Derive.Cache as Cache
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
@@ -158,7 +159,7 @@ derive_track :: (Derive.Derived derived) =>
     -> State.EventsTree -> [Track.PosEvent]
     -> ([LEvent.LEvents derived], Derive.Collect, Derive.CacheState)
 derive_track state block_end dinfo parse get_last_sample subs events =
-    go (Derive.record_track_environ state) (Derive.state_cache_state state)
+    go (Internal.record_track_environ state) (Derive.state_cache_state state)
         Nothing [] events
     where
     go collect cache _ _ [] = ([], collect, cache)
@@ -265,8 +266,8 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
     let args = Derive.PassedArgs vals env call_id cinfo
         gen = Derive.call_generator call
         with_stack = case (($ (ns, args)) . Derive.gcall_block) =<< gen of
-            Just block_id -> Derive.with_stack_block block_id
-            Nothing -> Derive.with_stack_call (Derive.call_name call)
+            Just block_id -> Internal.with_stack_block block_id
+            Nothing -> Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.gcall_func <$> Derive.call_generator call of
         Just call -> call args
         Nothing -> Derive.throw $ "non-generator in generator position: "
@@ -286,11 +287,11 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
     let cached = Cache.cached_transformer
             (Derive.state_cache (Derive.state_cache_state state))
             (Derive.state_stack state)
-    let with_stack = Derive.with_stack_call (Derive.call_name call)
+    let with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
         Just trans -> do
             (transformed, new_cache) <- cached trans args new_deriver
-            when_just new_cache Derive.put_cache
+            when_just new_cache Internal.put_cache
             transformed
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             ++ Derive.call_name call
