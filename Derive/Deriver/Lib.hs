@@ -123,9 +123,9 @@ with_msg msg = Internal.local state_log_context
     (\old st -> st { state_log_context = old })
     (\st -> return $ st { state_log_context = msg : state_log_context st })
 
-error_to_warn :: DeriveError -> Log.Msg
-error_to_warn (DeriveError srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
-    (Just stack) ("DeriveError: " ++ Pretty.pretty val)
+error_to_warn :: Error -> Log.Msg
+error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
+    (Just stack) ("Error: " ++ Pretty.pretty val)
 
 
 -- * state access
@@ -485,7 +485,7 @@ run_sub state deriver =
     (merge_logs result logs, state_collect state2, state_cache_state state2)
     where (result, state2, logs) = run state deriver
 
-merge_logs :: Either DeriveError (LEvent.LEvents d) -> [Log.Msg]
+merge_logs :: Either Error (LEvent.LEvents d) -> [Log.Msg]
     -> LEvent.LEvents d
 merge_logs result logs = case result of
     Left err -> map LEvent.Log (logs ++ [error_to_warn err])

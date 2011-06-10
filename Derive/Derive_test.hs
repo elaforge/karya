@@ -309,7 +309,7 @@ test_initial_environ = do
     -- picks up scale from initial environ
     equal (run "*" "3c") ([[(0, 48)]], [])
     -- calls replaced by semar calls
-    equal (run "*semar" "3c") ([[]], ["DeriveError: pitch call not found: 3c"])
+    equal (run "*semar" "3c") ([[]], ["Error: pitch call not found: 3c"])
     -- just make sure semar actually works
     equal (run "*semar" "1") ([[(0, 60)]], [])
 

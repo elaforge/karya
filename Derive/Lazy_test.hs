@@ -147,7 +147,7 @@ test_everything = do
     print (take 5 midi)
     -- Make sure errors make it all the way through.
     equal (take 1 [msg | Right msg <- take 5 midi])
-        ["DeriveError: note call not found: bad"]
+        ["Error: note call not found: bad"]
     evaluated <- get_log log
     equal evaluated
         ["b1 b1.t1 0-1 note at: 0s", "sub sub.t0 0-1 note at: 2s"]

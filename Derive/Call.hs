@@ -203,7 +203,7 @@ derive_event :: (Derive.Derived d) =>
     -> [Track.PosEvent] -- ^ previous events, in reverse order
     -> Track.PosEvent -- ^ cur event
     -> [Track.PosEvent] -- ^ following events
-    -> (Either Derive.DeriveError (LEvent.LEvents d), [Log.Msg],
+    -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg],
         Derive.Collect, Derive.CacheState)
 derive_event st block_end dinfo parse prev_val subs prev cur@(pos, event) next
     | Event.event_bs event == B.pack "--" =
@@ -226,7 +226,7 @@ derive_event st block_end dinfo parse prev_val subs prev cur@(pos, event) next
 -- | Apply a toplevel expression.
 apply_toplevel :: (Derive.Derived d) => Derive.State -> Info d
     -> TrackLang.Expr
-    -> (Either Derive.DeriveError (LEvent.LEvents d), [Log.Msg],
+    -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg],
         Derive.Collect, Derive.CacheState)
 apply_toplevel state info expr = case Seq.break_last expr of
         (transform_calls, Just generator_call) -> run $

@@ -23,5 +23,5 @@ test_ratio = do
             , ("*ratio", [(0, 0, "1/1")])
             , ("*twelve #ratio-source", [(0, 0, "4c")])
             ])
-        ([[]], ["DeriveError: ratio scale requires a Control \"ratio-source\" "
+        ([[]], ["Error: ratio scale requires a Control \"ratio-source\" "
             ++ "pitch signal"])

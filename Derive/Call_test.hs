@@ -135,7 +135,7 @@ test_val_call = do
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
         with_add1 = CallTest.with_val_call "add1" add_one
     equal (run "foobar")
-        ([Just []], ["DeriveError: control call not found: foobar"])
+        ([Just []], ["Error: control call not found: foobar"])
     equal (run "set 1")
         ([Just [(0, 1)]], [])
     equal (run "set (add1 1)")
@@ -156,7 +156,7 @@ test_inst_call = do
             (set_inst_calls lookup_inst)
             [(inst, [(0, 1, "sn")])]
     equal (run ">s/1")
-        ([], ["DeriveError: note call not found: sn"])
+        ([], ["Error: note call not found: sn"])
     equal (run ">s/with-call")
         ([["snare"]], [])
 
@@ -165,7 +165,7 @@ test_recursive_call = do
     let result = extract $ DeriveTest.derive_tracks_with with_recur
             [(">", [(0, 1, "recur")])]
         with_recur = CallTest.with_note_call "recur" recursive
-    equal result ([], ["DeriveError: call stack too deep: recursive"])
+    equal result ([], ["Error: call stack too deep: recursive"])
     where
     recursive :: Derive.NoteCall
     recursive = Derive.stream_generator "recursive" $

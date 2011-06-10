@@ -46,7 +46,7 @@ CURRENT
       record_track_environ, cache functions, add_track_warps,
       d_tempo, track_setup
     * make a Derive/Deriver subdir
-    - rename DeriveError -> Error
+    * rename DeriveError -> Error
     * can I remove Derived method derive_events?
     * add INLINE pragmas and profile
 

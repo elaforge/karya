@@ -30,7 +30,7 @@ test_c_clip = do
     let extract = DeriveTest.extract DeriveTest.e_event
         run tracks = extract $ DeriveTest.derive_blocks tracks
     equal (run [("b1", [(">", [(0, 1, "clip b2")])])])
-        ([], ["DeriveError: block not found: b2"])
+        ([], ["Error: block not found: b2"])
     -- make sure out of range notes are clipped
     equal (run
         [ ("b1", [(">", [(0, 1, "clip b2")])])

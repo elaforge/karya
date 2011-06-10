@@ -31,7 +31,7 @@ module Derive.Deriver.Monad (
     , modify, get, gets, put, run
 
     -- * error
-    , DeriveError(..), ErrorVal(..), CallError(..)
+    , Error(..), ErrorVal(..), CallError(..)
     , throw, throw_srcpos, throw_arg_error, throw_arg_error_srcpos
     , throw_error, throw_error_srcpos
 
@@ -96,7 +96,6 @@ module Derive.Deriver.Monad (
 import qualified Control.Applicative as Applicative
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as Monad.State
-import qualified Control.Monad.Error as Error
 
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -138,9 +137,9 @@ type Logs = [Log.Msg]
 newtype Deriver a = Deriver { _runD :: forall r.
     State -> Logs -> Failure r -> Success a r -> RunResult r }
 
-type Failure r = State -> Logs -> DeriveError -> RunResult r
+type Failure r = State -> Logs -> Error -> RunResult r
 type Success a r = State -> Logs -> a -> RunResult r
-type RunResult a = (Either DeriveError a, State, Logs)
+type RunResult a = (Either Error a, State, Logs)
 
 {-# INLINE returnC #-}
 returnC :: a -> Deriver a
@@ -163,7 +162,7 @@ fmapC :: (a -> b) -> Deriver a -> Deriver b
 fmapC f m = Deriver $ \st1 logs1 lose win ->
     _runD m st1 logs1 lose (\st2 logs2 a -> win st2 logs2 (f a))
 
-_throw :: DeriveError -> Deriver a
+_throw :: Error -> Deriver a
 _throw err = Deriver $ \st logs lose _ -> lose st logs err
 
 {-# INLINE modify #-}
@@ -212,7 +211,7 @@ instance Log.LogMonad Deriver where
             Text.intercalate " / " (map Text.pack (reverse context))
                 <> ": " <> s
 
-run :: State -> Deriver a -> (Either DeriveError a, State, [Log.Msg])
+run :: State -> Deriver a -> (Either Error a, State, [Log.Msg])
 run state m = _runD m state []
     (\st logs err -> (Left err, st, reverse logs))
     (\st logs a -> (Right a, st, reverse logs))
@@ -220,19 +219,19 @@ run state m = _runD m state []
 
 -- * error
 
-data DeriveError = DeriveError SrcPos.SrcPos Stack.Stack ErrorVal
+data Error = Error SrcPos.SrcPos Stack.Stack ErrorVal
     deriving (Eq, Show)
 
-instance Pretty.Pretty DeriveError where
-    pretty (DeriveError srcpos stack val) = "<DeriveError "
+instance Pretty.Pretty Error where
+    pretty (Error srcpos stack val) = "<Error "
         ++ SrcPos.show_srcpos srcpos ++ " " ++ Pretty.pretty stack ++ ": "
         ++ Pretty.pretty val ++ ">"
 
-data ErrorVal = Error String | CallError CallError
+data ErrorVal = GenericError String | CallError CallError
     deriving (Eq, Show)
 
 instance Pretty.Pretty ErrorVal where
-    pretty (Error s) = s
+    pretty (GenericError s) = s
     pretty (CallError err) = Pretty.pretty err
 
 data CallError =
@@ -255,10 +254,10 @@ instance Pretty.Pretty CallError where
         CallNotFound call_id -> "CallNotFound: " ++ Pretty.pretty call_id
 
 throw :: String -> Deriver a
-throw msg = throw_error (Error msg)
+throw msg = throw_error (GenericError msg)
 
 throw_srcpos :: SrcPos.SrcPos -> String -> Deriver a
-throw_srcpos srcpos msg = throw_error_srcpos srcpos (Error msg)
+throw_srcpos srcpos msg = throw_error_srcpos srcpos (GenericError msg)
 
 throw_arg_error :: String -> Deriver a
 throw_arg_error = throw_arg_error_srcpos Nothing
@@ -273,7 +272,7 @@ throw_error = throw_error_srcpos Nothing
 throw_error_srcpos :: SrcPos.SrcPos -> ErrorVal -> Deriver a
 throw_error_srcpos srcpos err = do
     stack <- gets state_stack
-    _throw (DeriveError srcpos stack err)
+    _throw (Error srcpos stack err)
 
 
 -- * derived types
