@@ -26,7 +26,7 @@ module Ui.Event where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Array.IArray as IArray
 import qualified Data.ByteString.Char8 as B
-import qualified Data.ByteString.Internal as Internal
+import qualified Data.ByteString.Unsafe as Unsafe
 import qualified Data.ByteString.UTF8 as UTF8
 import Foreign
 import Foreign.C
@@ -131,10 +131,8 @@ poke_event eventp (Event text dur style_id) = do
 -- | Unpack the bytestring to a null-terminated cstring, in malloc'd space.
 -- ByteString only has an alloca version of this.
 unpackCString0 :: B.ByteString -> IO CString
-unpackCString0 bs = do
-    let (fptr, offset, len) = Internal.toForeignPtr bs
-    stringp <- mallocBytes (len + 1)
-    withForeignPtr fptr $ \ptr ->
-        Internal.memcpy stringp (ptr `plusPtr` offset) (fromIntegral len)
-    poke (stringp `plusPtr` len) (0 :: Word8)
-    return (castPtr stringp)
+unpackCString0 bs = Unsafe.unsafeUseAsCStringLen bs $ \(str, len) -> do
+    new <- mallocBytes (len+1)
+    copyBytes new str len
+    poke (new `plusPtr` len) (0 :: Word8)
+    return new
