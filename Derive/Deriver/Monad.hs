@@ -286,8 +286,6 @@ class (Show (Elem derived), Eq (Elem derived), Show derived) =>
     -- that right now.
     from_cache_entry :: CacheEntry -> Maybe (CallType derived)
     to_cache_entry :: CallType derived -> CacheEntry
-    derived_range :: derived -> (RealTime, RealTime)
-    derived_null :: derived -> Bool
 
 type LogsDeriver d = Deriver (LEvent.LEvents d)
 type Stream d = LEvent.Stream d
@@ -297,8 +295,8 @@ type EventStream d = LEvent.Stream (LEvent.LEvent d)
 
 type EventDeriver = LogsDeriver Score.Event
 
--- | This might seem like an inefficient way to represent the Event stream, but
--- I can't think of how to make it better.
+-- | This might seem like an inefficient way to represent the Event stream,
+-- but I can't think of how to make it better.
 --
 -- Each call generates a chunk [Event], and the chunks are then joined with
 -- 'd_merge_asc'.  This means every cons is copied once, but I think this is
@@ -312,8 +310,6 @@ instance Derived Score.Event where
     from_cache_entry (CachedEvents ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedEvents
-    derived_range event = (Score.event_start event, Score.event_end event)
-    derived_null _ = False
 
 -- ** control
 
@@ -324,10 +320,6 @@ instance Derived Signal.Control where
     from_cache_entry (CachedControl ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedControl
-    derived_range sig = case (Signal.first sig, Signal.last sig) of
-        (Just (s, _), Just (e, _)) -> (s, e)
-        _ -> (0, 0) -- TODO ummm?
-    derived_null = Signal.null
 
 -- ** pitch
 
@@ -338,10 +330,6 @@ instance Derived PitchSignal.PitchSignal where
     from_cache_entry (CachedPitch ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedPitch
-    derived_range sig = case (PitchSignal.first sig, PitchSignal.last sig) of
-        (Just (s, _), Just (e, _)) -> (s, e)
-        _ -> (0, 0)
-    derived_null = PitchSignal.null
 
 
 -- * state
