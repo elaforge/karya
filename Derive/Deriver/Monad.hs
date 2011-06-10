@@ -72,7 +72,7 @@ module Derive.Deriver.Monad (
     , generator, generator1, stream_generator
 
     -- ** transformer
-    , TransformerCall(..), TransformerType(..)
+    , TransformerCall(..)
     , transformer
 
     -- * cache
@@ -81,7 +81,7 @@ module Derive.Deriver.Monad (
     -- ** cache types
     -- $cache_doc
     , Cache(..), cache_size
-    , CacheEntry(..), CallType(..)
+    , CacheEntry(..), CallType
     , GeneratorDep(..)
 
     -- ** damage
@@ -682,31 +682,17 @@ stream_generator name func =
 
 -- ** transformer
 
-data TransformerCall derived = TransformerCall {
+newtype TransformerCall derived = TransformerCall {
     tcall_func :: TransformerFunc derived
-    , tcall_type :: TransformerType
     }
 
 -- | args -> deriver -> deriver
 type TransformerFunc derived =
     PassedArgs derived -> LogsDeriver derived -> LogsDeriver derived
 
-data TransformerType =
-    -- | An incremental transformer can recompute a fragment of its result
-    -- from a fragment of its input.  It optionally requires a number of
-    -- (before, after) events or samples as context.
-    Incremental (Int, Int)
-    -- | Non-incremental transformers either don't evaluate their input (e.g.
-    -- they simply modify the environment like a control), or they must
-    -- re-process their entire input every time any part of it changes.  In
-    -- either case, they bypass caching.
-    | NonIncremental
-    deriving (Show)
-
 transformer :: (Derived derived) =>
     String -> TransformerFunc derived -> Call derived
-transformer name func = Call
-    name Nothing (Just (TransformerCall func NonIncremental))
+transformer name func = Call name Nothing (Just (TransformerCall func))
 
 
 -- * cache
@@ -760,8 +746,7 @@ data CacheEntry =
 
 -- | The type here should match the type of the stack it's associated with,
 -- but I'm not quite up to those type gymnastics yet.
-data CallType derived = CachedGenerator !Collect !(LEvent.LEvents derived)
-    deriving (Show)
+type CallType derived = (Collect, LEvent.LEvents derived)
 
 -- ** deps
 

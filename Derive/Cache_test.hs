@@ -64,7 +64,7 @@ test_score_damage = do
 test_clear_damage = do
     let mkdamage tracks blocks = Derive.ScoreDamage
             (Map.fromList tracks) Set.empty (Set.fromList blocks)
-        empty = Derive.CachedEvents (Derive.CachedGenerator mempty [])
+        empty = Derive.CachedEvents (mempty, [])
         mkcache stack = Derive.Cache $ Map.singleton stack empty
     let f damage stack = Map.keys $ uncache $
             Derive.clear_damage damage (mkcache stack)
@@ -391,8 +391,7 @@ r_cache_collect result = Seq.sort_on fst
         | (stack, ctype) <- Map.assocs cmap]
     where
     cmap = uncache (Derive.r_cache result)
-    collect (Derive.CachedEvents (Derive.CachedGenerator collect _)) =
-        Just collect
+    collect (Derive.CachedEvents (collect, _)) = Just collect
     collect _ = Nothing
 
 r_cache_deps :: Derive.Result -> [(String, Maybe [BlockId])]

@@ -466,8 +466,7 @@ d_merge :: [EventDeriver] -> EventDeriver
 d_merge [d] = d -- TODO this optimization lets exceptions through... do I care?
 d_merge derivers = do
     state <- get
-    -- Since track warp mappend is plain concat, if I don't clear the collect
-    -- I will get duplicate entries.
+    -- Clear collect so they can be merged back without worrying about dups.
     let cleared = state { state_collect = mempty }
     let (streams, collects, caches) =
             List.unzip3 (map (run_sub cleared) derivers)

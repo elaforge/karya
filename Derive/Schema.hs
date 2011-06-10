@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
-{- | A schema is a transformation from a block to a deriver.  It may intuit the
-    deriver solely from the structure of the block, or it may ignore the block
-    entirely if it's specialized to one particular shape of block.
+{- | A schema is a transformation from a block to a deriver.  It may intuit
+    the deriver solely from the structure of the block, or it may ignore the
+    block entirely if it's specialized to one particular shape of block.
 
     The \"schema\" step is so that each block doesn't need to have its own
     deriver ID hardcoded into it.  Instead, many blocks can share a \"schema\"

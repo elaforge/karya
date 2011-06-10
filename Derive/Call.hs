@@ -87,7 +87,6 @@ import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
-import qualified Derive.Cache as Cache
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -283,16 +282,9 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
     call <- with_call call_id (info_name dinfo) (info_lookup dinfo)
     env <- Derive.gets Derive.state_environ
     let args = Derive.PassedArgs vals env call_id cinfo
-    state <- Derive.get
-    let cached = Cache.cached_transformer
-            (Derive.state_cache (Derive.state_cache_state state))
-            (Derive.state_stack state)
     let with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
-        Just trans -> do
-            (transformed, new_cache) <- cached trans args new_deriver
-            when_just new_cache Internal.put_cache
-            transformed
+        Just trans -> Derive.tcall_func trans args new_deriver
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             ++ Derive.call_name call
 

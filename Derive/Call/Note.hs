@@ -46,7 +46,7 @@ note_calls = Derive.make_calls
 c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
     (Just $ Derive.GeneratorCall (inverting_call generate) (const Nothing))
-    (Just $ Derive.TransformerCall transform Derive.NonIncremental)
+    (Just $ Derive.TransformerCall transform)
     where
     generate args = case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->

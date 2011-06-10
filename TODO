@@ -23,9 +23,11 @@ search then none of this is necessary.
 
 big things
   * solution for sekaran, aka pitches below notes
-  - lazy signals
+  / lazy signals
   / tracks as calls
   - try out hsplugins
+  - record chords
+  - record continuum
   / transformer cache
   - compact signals in tracks
   - complete TunedJust
@@ -33,23 +35,11 @@ big things
 
 CURRENT
   * make Derive.Lazy_test actually do tests
-  custom Deriver monad, see if it's faster
-    search for all instances of catchError and do something about them
-      * Derive.with_empty_collect
-      * all 'local's, so all with_*
-        But if an exit can't be caught, then it doesn't matter.  State is
-        restored when a call fails because it was run with a separate state.
-    * figure out ContT and how to integrate a continuation into DeriveM
-    * replace Deriver and profile
-    * further split DeriveLib into DeriveInternal, which is functions used by
-      Derive.Call, but not user calls, has things like:
-      record_track_environ, cache functions, add_track_warps,
-      d_tempo, track_setup
-    * make a Derive/Deriver subdir
-    * rename DeriveError -> Error
-    * can I remove Derived method derive_events?
-    * add INLINE pragmas and profile
-
+  * custom Deriver monad
+  * remove transformer cache
+  - get control derivation going forward
+  - clean up Ui.Track
+  - remove schema
   - why does save trigger a rederive?
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
     they don't precede the previous NoteOn, since I think samplers will only
@@ -71,9 +61,6 @@ CURRENT
   - Create.view should size it to fit the block being created
   - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
 
-  - see if ControlDamage is affected by the same problems (deleted events)
-    as EventDamage
-
   - block title takes up space and I'm not using it, can it collapse?
   - fix tempo track: maybe interpret last sample as slope 1 instead of slope 0
 
@@ -94,8 +81,6 @@ CURRENT
     invariant easier.  E.g. have explicit 'off' events, otherwise each event
     extends to the next one.  It means after merging I have to clear redundant
     offs, but that's easier right?
-  - using default Data.Binary instances to serialize is not good for
-    compatibility in the long run
   - in the abscence of the ability to drag events, cmd to move start of event
     to current point, or set start and end if it's a range
   - lang cmd to show state hierarchically... or does it already exist?
@@ -131,7 +116,7 @@ CURRENT
     once.
 
   lazy deriver
-    - I still don't understand what's going on with exceptions but it seems
+    * I still don't understand what's going on with exceptions but it seems
       to be working.  Figure this out later, esp Derive.with_empty_collect
     - the log filter in Derive.Cache.insert_generator seems really bad.  Try
       to prove that with profiles, and then remove it.  Use a log-suppression
@@ -155,10 +140,11 @@ CURRENT
         beginning, seems like this would be faster if I could skip chunks.
       - see if a Merge constructor can reduce copying
       - can I cache length and range in AppendList?  does it matter?
-      - insert parallelism?  maybe the evaluator can do that when it sees Merge?
+      - insert parallelism?  maybe the evaluator can do that when it sees
+        Merge?
 
-    - when I save the cache for signal tracks, can I save a (Signal, Logs) pair
-      to save space?
+    - when I save the cache for signal tracks, can I save a (Signal, Logs)
+      pair to save space?
 
   - make tracks into calls, so they cache and the sub-run stuff works the same
     with them as other calls
@@ -215,8 +201,6 @@ UNSORTED
   - get rid of Diff.track_diff by doing all diffs in the main diff, and
     avoid sending msgs back to the UI by having ui msgs cancel updates.
 
-  - why does logview go to 100 cpu?
-    put some prints in there to see what it's doing when it does that
   - now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
   - after creating a new track, focus should go to its title
@@ -295,11 +279,11 @@ MILESTONES
     * scales and keyswitches
     + efficient thru
     + tracklang complete with set of basic calls
+    - dynamic loading using hsplugins
     - midi record / integrator
     - dense / efficient control signals
     + lazy signals / lazy deriver
-    + derive cache
-      - transformer caching
+    * derive cache
     * symbolic score
     - save undo history
     - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
@@ -409,13 +393,14 @@ performance:
     - lazy signals
       - check out 'at' and 'bsearch' occurrances and see if they can use tails
       - There are lots of lookups in the tempo map
-    - see if making a version of Derive.local that's non-monadic in the modifier
-      has any effect on performance
+    - see if making a version of Derive.local that's non-monadic in the
+      modifier has any effect on performance
     - to get arrival beats to work right with the control track, I think I can
       make the 'set' control track call set from (prev, cur) instead of just
-      cur.  It will make simultaneious samples, but they should be ok.
+      cur.  It will make simultaneous samples, but they should be ok.
     derive cache
-      - c_block should only cache if the block has > a certain number of events.
+      - c_block should only cache if the block has > a certain number of
+        events.
       - implement tracks as generators so they can be cached too
       - I won't rederive cached generators if they have control damage outside
         of the event range.  But there's nothing stopping a generator from

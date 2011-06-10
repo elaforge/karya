@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 module Derive.Cache (
-    cached_transformer, caching_call
+    caching_call
     , score_damage
     , get_control_damage, get_tempo_damage
 
@@ -28,105 +28,13 @@ import qualified Ui.Update as Update
 
 import qualified Derive.Derive as Derive
 import Derive.Derive
-       (CacheState(..), Cache(..), CacheEntry(..), CallType(..),
-        GeneratorDep(..), TransformerType(..), ScoreDamage(..),
-        EventDamage(..), ControlDamage(..))
+       (CacheState(..), Cache(..), CallType, ScoreDamage(..),
+        ControlDamage(..))
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
 
 import qualified Perform.RealTime as RealTime
-
-
--- * cached_transformer
-
--- | If the given transformer supports incremental recomputation and has cached
--- values, recompute based on the input events and EventDamage.  Regardless,
--- the new values will be be put in the cache before being returned.
---
--- This is called around each transformer, at the block level, track level, or
--- even at the evnt level.
---
--- EventDamage requires that you evaluate the the deriver to get the events and
--- damage out.  That's ok because incremental recomputation only applies to
--- postproc style transformers that evaluate the deriver anyway.
---
--- This doesn't use score or control damage like 'caching_call' since it
--- evaluates the underlying deriver regardless.
-cached_transformer :: (Derive.Derived derived) => Cache -> Stack.Stack
-    -> Derive.TransformerCall derived -> Derive.PassedArgs derived
-    -> Derive.LogsDeriver derived
-    -> Derive.Deriver (Derive.LogsDeriver derived, Maybe Cache)
-cached_transformer _cache _stack (Derive.TransformerCall call _ttype)
-        args deriver =
-    return (call args deriver, Nothing)
-
-{-
-        -- NonIncremental -> return (call args deriver, Nothing)
-        -- Incremental context -> recompute context
-    where
-    -- call the sub-deriver
-    -- pull out EventDamage from the state
-    -- add in ranges implied by any changed control deps
-    -- recompute the transformer in those areas, expanded by its context
-    recompute context = do
-        -- Yes, this evaluates the deriver.  But by being NonIncremental, the
-        -- transformer has asserted that it's going to do that anyway.
-        -- This means that NonIncremental transformers should not modify the
-        -- environment before they evaluate, otherwise the environment will
-        -- lack control damage and some generators that should have been
-        -- rederived may be retrieved from cache instead.
-        sub_result <- deriver
-        TransformerDep control_deps <- get_recorded_tdep
-        (damage, cached) <- case lookup_transformer stack cache of
-            Nothing -> return (entire_range sub_result, mempty)
-            Just cached -> do
-                local <- Derive.state_local_damage <$> Internal.get_cache_state
-                cont <- control_damage control_deps
-                return (expand_for_context context cached (local <> cont),
-                    cached)
-        result <- recompute_regions damage call args cached sub_result
-        case result of
-            Left err -> return (Left err, Nothing)
-            Right new_deriver -> do
-                -- Expanded modified area should replace existing damage.
-                Derive.put_local_damage damage
-                derived <- new_deriver
-                let new_cache = put_transformer_cache stack derived cache
-                return (Right (return derived), Just new_cache)
-
--- | Get the deps of the last evaluated call.  See 'Derive.collect_local_dep'
--- for details.
-get_recorded_tdep :: Derive.Deriver TransformerDep
-get_recorded_tdep = undefined
-    -- gdep <- collect_local_dep <$> Internal.get_cache_state
-    -- return $ TransformerDep (gdep_controls gdep)
-
-lookup_transformer :: (Derive.Derived derived) =>
-    Stack.Stack -> Cache -> Maybe derived
-lookup_transformer stack cache = undefined
-
-put_transformer_cache :: (Derive.Derived derived) => Stack.Stack -> derived
-    -> Cache -> Cache
-put_transformer_cache = undefined
-
-entire_range :: (Derive.Derived derived) => derived -> EventDamage
-entire_range = undefined
-
-recompute_regions :: (Derive.Derived derived) =>
-    EventDamage -> Derive.TransformerFunc derived
-    -> Derive.PassedArgs derived -> derived -> derived
-    -> Derive.Deriver (Either TrackLang.TypeError (Derive.Deriver derived))
-recompute_regions damage call args cached derived = undefined
-
-expand_for_context :: (Int, Int) -> derived -> EventDamage -> EventDamage
-expand_for_context (pre, post) derived damage = undefined
-
--- | Compare the current state of the controls with the given control deps,
--- and return damage ranges for those that don't match.
-control_damage :: ControlDeps -> Derive.Deriver EventDamage
-control_damage = undefined
--}
 
 
 -- * caching_call
@@ -183,7 +91,7 @@ find_generator_cache :: (Derive.Derived derived) =>
 find_generator_cache stack event_range score_damage
         (ControlDamage control_damage) cache = do
     (collect, stream) <- maybe (Left "not in cache") Right
-        (lookup_generator stack cache)
+        (lookup_cache stack cache)
     let Derive.GeneratorDep block_deps = Derive.collect_local_dep collect
     let damaged_blocks = Set.union
             (sdamage_track_blocks score_damage) (sdamage_blocks score_damage)
@@ -192,14 +100,6 @@ find_generator_cache stack event_range score_damage
     when (Ranges.overlapping control_damage event_range) $
         Left "control damage"
     return (collect, stream)
-
-lookup_generator :: (Derive.Derived derived) =>
-    Stack.Stack -> Cache -> Maybe (Derive.Collect, LEvent.LEvents derived)
-lookup_generator stack cache = do
-    ctype <- lookup_cache stack cache
-    case ctype of
-        CachedGenerator collect stream -> Just (collect, stream)
-        _ -> Nothing
 
 insert_generator :: (Derive.Derived derived) =>
     Stack.Stack -> Derive.Collect -> LEvent.LEvents derived -> Cache -> Cache
@@ -210,8 +110,7 @@ insert_generator stack collect stream (Cache cache) =
     -- TODO filter log msgs so I don't get logs about cache misses back with
     -- the cache hit.  This is unsatisfactory because it copies the stream.
     -- Better solution?
-    entry = Derive.to_cache_entry
-        (CachedGenerator collect (filter is_event stream))
+    entry = Derive.to_cache_entry (collect, (filter is_event stream))
     is_event (LEvent.Event _) = True
     is_event _ = False
 
@@ -316,8 +215,6 @@ damage_to_score r = case Ranges.extract r of
             Derive.real_to_score s <*> Derive.real_to_score e) rs
 
 -- * types
-
--- when the types can be put in their own module, these should go there
 
 -- | Constructor for ScoreDamage.
 --
