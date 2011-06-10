@@ -35,18 +35,18 @@
 
     - If I don't parameterize Val I wind up with separate VEventDeriver,
     VPitchDeriver, etc. constructors.  Every call that takes a deriver must
-    validate the type and there is no static guarantee that event deriver calls
-    won't wind up the pitch deriver symbol table.  It seems nice that the
-    CallMap and Environ can all be replaced with a single symbol table, but in
-    practice they should have different calls available so they would need to
-    be separated anyway.
+    validate the type and there is no static guarantee that event deriver
+    calls won't wind up the pitch deriver symbol table.  It seems nice that
+    the CallMap and Environ can all be replaced with a single symbol table,
+    but in practice they represent different scopes, so they would need to be
+    separated anyway.
 
     - If I do parameterize Val, I need some complicated typeclass gymnastics
     and a lot of redundant Typecheck instances to make the new VDeriver type
     fit in with the calling scheme.  I have to differentiate PassedVals, which
-    includev VDeriver, from Vals, which don't, so Environ can remain
-    unparameterized.  Otherwise I would need a separate Environ per track,
-    and copy over vals which should be shared, like srate.  The implication is
+    include VDeriver, from Vals, which don't, so Environ can remain
+    unparameterized.  Otherwise I would need a separate Environ per track, and
+    copy over vals which should be shared, like srate.  The implication is
     that Environ should really have dynamically typed deriver vals.
 
     - Replacing @a | b | c@ with @a (b (c))@ is appealing, but if the deriver
@@ -72,10 +72,6 @@
     I don't have any uses in mind for that, and /haskell/ is supposed to be
     the real language.  I should focus more on making it easy to write your own
     calls in haskell.
-
-    - Making derivers first class would likely mean dropping \"consumed\"
-    unless I can stuff it into an environ value or something.  I don't mind
-    that though, because I don't have any convincing uses for it yet either.
 -}
 module Derive.Call where
 import qualified Data.ByteString.Char8 as B

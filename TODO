@@ -35,12 +35,20 @@ CURRENT
   * make Derive.Lazy_test actually do tests
   custom Deriver monad, see if it's faster
     search for all instances of catchError and do something about them
-      - Derive.with_empty_collect
-      - all 'local's, so all with_*
+      * Derive.with_empty_collect
+      * all 'local's, so all with_*
         But if an exit can't be caught, then it doesn't matter.  State is
         restored when a call fails because it was run with a separate state.
-    - figure out ContT and how to integrate a continuation into DeriveM
-    - replace Deriver and profile
+    * figure out ContT and how to integrate a continuation into DeriveM
+    * replace Deriver and profile
+    - further split DeriveLib into DeriveInternal, which is functions used by
+      Derive.Call, but not user calls, has things like:
+      record_track_environ, cache functions, add_track_warps,
+      d_tempo, track_setup, 
+    - make a Derive/Deriver subdir
+    - rename DeriveError -> Error
+    - can I remove Derived method derive_events?
+    * add INLINE pragmas and profile
 
   - why does save trigger a rederive?
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as

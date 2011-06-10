@@ -29,7 +29,7 @@ import qualified Ui.Update as Update
 import Derive.Derive
        (CacheState(..), Cache(..), CacheEntry(..), CallType(..),
         GeneratorDep(..), TransformerType(..), ScoreDamage(..),
-        DamageRanges, EventDamage(..), ControlDamage(..))
+        EventDamage(..), ControlDamage(..))
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
