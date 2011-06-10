@@ -430,12 +430,12 @@ instance Serialize Track.Track where
         case v of
             0 -> do
                 title <- get :: Get String
-                events <- get :: Get Track.TrackEvents
+                events <- get :: Get Track.Events
                 bg <- get :: Get Color.Color
                 return $ Track.Track title events bg Config.render_config
             1 -> do
                 title <- get :: Get String
-                events <- get :: Get Track.TrackEvents
+                events <- get :: Get Track.Events
                 bg <- get :: Get Color.Color
                 render <- get :: Get Track.RenderConfig
                 return $ Track.Track title events bg render
@@ -464,15 +464,15 @@ instance Serialize Track.RenderStyle where
             2 -> return Track.Filled
             _ -> fail "no parse for Track.RenderStyle"
 
-track_events = Track.TrackEvents :: Map.Map ScoreTime Event.Event
-    -> Track.TrackEvents
-instance Serialize Track.TrackEvents where
-    put (Track.TrackEvents a) = put_version 0 >> put a
+track_events = Track.Events :: Map.Map ScoreTime Event.Event
+    -> Track.Events
+instance Serialize Track.Events where
+    put (Track.Events a) = put_version 0 >> put a
     get = do
         v <- get_version
         case v of
             0 -> get >>= \a -> return (track_events a)
-            _ -> version_error "Track.TrackEvents" v
+            _ -> version_error "Track.Events" v
 
 -- ** Event
 

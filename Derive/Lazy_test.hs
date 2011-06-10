@@ -191,7 +191,7 @@ test_2_root = do
     let ustate = flat_block 20
     (log, deriver) <- with_logging $ Block.eval_root_block default_block_id
     let result = DeriveTest.run_ ustate deriver
-    print $ (extract_run 5) result
+    print $ extract_run 5 result
     evaluated <- get_log log
     equal (length evaluated) 5
 

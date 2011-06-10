@@ -139,7 +139,7 @@ extract_tree = map $ \(Tree.Node track subs) ->
         (State.tevents_title track, extract_track (State.tevents_events track))
         (extract_tree subs)
 
-extract_track :: Track.TrackEvents -> [Event]
+extract_track :: Track.Events -> [Event]
 extract_track events =
     [(p, Event.event_duration e, Event.event_string e)
         | (p, e) <- Track.event_list events]

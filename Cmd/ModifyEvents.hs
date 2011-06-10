@@ -86,7 +86,7 @@ move_track_events start shift track_id = State.modify_track_events track_id $
 
 -- | All events starting at and after a point to the end are shifted by the
 -- given amount.
-move_events :: ScoreTime -> ScoreTime -> Track.TrackEvents -> Track.TrackEvents
+move_events :: ScoreTime -> ScoreTime -> Track.Events -> Track.Events
 move_events point shift events = merged
     where
     -- If the last event has 0 duration, the selection will not include it.

@@ -17,6 +17,8 @@ import qualified Perform.Signal as Signal
 import qualified Perform.PitchSignal as PitchSignal
 
 
+-- * track
+
 type PosEvent = (ScoreTime, Event.Event)
 
 -- | Constructor for tests, analogous to 'Event.event'.
@@ -38,6 +40,7 @@ track title events bg render =
 instance DeepSeq.NFData Track where
     rnf (Track title events bg render) = title `seq` DeepSeq.rnf events
         `seq` bg `seq` render `seq` ()
+
 
 -- * track signal
 
@@ -84,6 +87,7 @@ newtype ValName = ValName (Double, String) deriving (Show, Eq)
 
 make_scale_map :: [(String, Double)] -> ScaleMap
 make_scale_map = ScaleMap . map ValName . List.sort . map (\(a, b) -> (b, a))
+
 
 -- * track events
 

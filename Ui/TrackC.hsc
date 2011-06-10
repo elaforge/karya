@@ -31,7 +31,7 @@ import qualified Perform.Signal as Signal
 -- | Since converting a Track requires both a track and merged events, poke
 -- needs two args.  So keep it out of Storable to prevent accidental use of
 -- 'with'.
-with_track :: Track.Track -> [Track.TrackEvents] -> (Ptr Track.Track -> IO a)
+with_track :: Track.Track -> [Track.Events] -> (Ptr Track.Track -> IO a)
     -> IO a
 with_track track event_lists f = allocaBytes size $ \trackp -> do
     (#poke EventTrackConfig, bg_color) trackp (Track.track_bg track)
@@ -44,14 +44,14 @@ with_track track event_lists f = allocaBytes size $ \trackp -> do
     -- allocaBytesAligned is not exported from Foreign.Marshal.Alloc
     -- align = #{alignment EventTrackConfig}
 
-poke_find_events :: Ptr Track.Track -> [Track.TrackEvents] -> IO ()
+poke_find_events :: Ptr Track.Track -> [Track.Events] -> IO ()
 poke_find_events trackp event_lists = do
     let time_end = maximum (0 : map Track.time_end event_lists)
     find_events <- make_find_events event_lists
     (#poke EventTrackConfig, find_events) trackp find_events
     (#poke EventTrackConfig, time_end) trackp time_end
 
-make_find_events :: [Track.TrackEvents] -> IO (FunPtr FindEvents)
+make_find_events :: [Track.Events] -> IO (FunPtr FindEvents)
 make_find_events events = Util.make_fun_ptr "find_events" $
     c_make_find_events (cb_find_events events)
 
@@ -140,7 +140,7 @@ encode_style style = case style of
 type FindEvents = Ptr ScoreTime -> Ptr ScoreTime -> Ptr (Ptr ScoreTime)
     -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
 
-cb_find_events :: [Track.TrackEvents] -> FindEvents
+cb_find_events :: [Track.Events] -> FindEvents
 cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
     start <- peek startp
     end <- peek endp

@@ -161,13 +161,14 @@ derive_track state block_end dinfo parse get_last_sample subs events =
     go (Internal.record_track_environ state) (Derive.state_cache_state state)
         Nothing [] events
     where
+    -- I want it so that when state is forced, the events will be forced in
+    -- order.  So each state should seq from the previous chunk of events.
     go collect cache _ _ [] = ([], collect, cache)
     go collect cache prev_sample prev (cur : rest) =
         -- TODO is this no longer tail recursive because it has to keep
         -- final_modify around?  Can I improve it with an accumulator?  Does it
         -- matter if the events are lazily consumed?
-        (map LEvent.Log logs : score_events : rest_events,
-            last_collect, last_cache)
+        (events, last_collect, last_cache)
         where
         (result, logs, next_collect, next_cache) =
             -- trace ("derive " ++ show_pos state (fst cur) ++ "**") $
@@ -175,6 +176,7 @@ derive_track state block_end dinfo parse get_last_sample subs events =
                 (state { Derive.state_collect = collect,
                     Derive.state_cache_state = cache })
                 block_end dinfo parse prev_sample subs prev cur rest
+        events = map LEvent.Log logs : score_events : rest_events
         (rest_events, last_collect, last_cache) = go next_collect next_cache
             sample (cur:prev) rest
         score_events = case result of

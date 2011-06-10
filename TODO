@@ -440,7 +440,7 @@ symbolic score
 fltk:
   - some kind of special highlight to indicate the active block
   - rethrow c++ exceptions as FltkError
-  - bug: somehow capslock keydown is sent sometimes
+  * bug: somehow capslock keydown is sent sometimes
   - auto add pitch track when a track title input is expanded crashes with
     assertion error 'title->w() == body->w()'
     solution: text entry is collapsed by track add, remove, or resize

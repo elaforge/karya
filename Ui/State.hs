@@ -621,7 +621,7 @@ type EventsNode = Tree.Tree TrackEvents
 
 data TrackEvents = TrackEvents {
     tevents_title :: !String
-    , tevents_events :: !Track.TrackEvents
+    , tevents_events :: !Track.Events
     -- | Tracks often extend beyond the end of the last event.  The derivers
     -- need to know the track end to get the controls of the last note, and for
     -- the block stretch hack.
@@ -889,7 +889,7 @@ set_render_style style track_id = modify_track_render track_id $
     \render -> render { Track.render_style = style }
 
 modify_track_events :: (M m) => TrackId
-    -> (Track.TrackEvents -> Track.TrackEvents) -> m ()
+    -> (Track.Events -> Track.Events) -> m ()
 modify_track_events track_id f = do
     _modify_track track_id (Track.modify_events f)
     update $ Update.TrackUpdate track_id Update.TrackAllEvents
@@ -961,7 +961,7 @@ map_events_sorted track_id start end f = _modify_events track_id $ \events ->
             else [(minimum starts, maximum ends)]
     in (Track.insert_sorted_events new deleted, updates)
 
-_events_in_range :: ScoreTime -> ScoreTime -> Track.TrackEvents
+_events_in_range :: ScoreTime -> ScoreTime -> Track.Events
     -> [Track.PosEvent]
 _events_in_range start end events
     | start == end = maybe [] ((:[]) . (,) start)
@@ -989,7 +989,7 @@ _modify_track track_id f = do
     _set_track track_id (f track)
 
 _modify_events :: (M m) => TrackId
-    -> (Track.TrackEvents -> (Track.TrackEvents, [(ScoreTime, ScoreTime)]))
+    -> (Track.Events -> (Track.Events, [(ScoreTime, ScoreTime)]))
     -> m ()
 _modify_events track_id f = do
     track <- get_track track_id
