@@ -286,6 +286,7 @@ show_step step direction = dir_s : case step of
     TimeStep.RelativeMark mlists match ->
         "rel mark:" ++ show_marklists mlists ++ "/" ++ show_match match
     TimeStep.BlockEnd -> "end"
+    TimeStep.EventEdge -> "evt"
     where
     dir_s = case direction of
         TimeStep.Advance -> '+'

@@ -3,15 +3,17 @@
     It's used to advance a cursor, snap a selection, set a note duration, etc.
 -}
 module Cmd.TimeStep where
-import qualified Data.Maybe as Maybe
 import qualified Data.Fixed as Fixed
+import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 
 
 -- | A variable time step, used to find out how much to advance
@@ -20,8 +22,6 @@ import qualified Ui.State as State
 -- TODO I'm not real happy about the structure here, it's awkward how absolute
 -- and relative mark are split up.  Wait until I add a few more snaps before
 -- changing the design
---
--- - snap to event begin/end
 --
 -- - snap to named marks (aka cue points)
 data TimeStep =
@@ -33,6 +33,8 @@ data TimeStep =
     | RelativeMark MarklistMatch MarkMatch
     -- | Until the end or beginning of the block.
     | BlockEnd
+    -- | Until event edges.
+    | EventEdge
     deriving (Show, Read)
 
 data MarklistMatch = AllMarklists | NamedMarklists [Ruler.MarklistName]
@@ -84,11 +86,21 @@ get_points :: (State.M m) =>
     TimeStep -> BlockId -> TrackNum -> ScoreTime -> m (Maybe [ScoreTime])
 get_points step block_id tracknum pos = do
     block <- State.get_block block_id
+    events <- get_events block_id tracknum
     case relevant_ruler block tracknum of
         Nothing -> return Nothing
         Just ruler_id -> do
             ruler <- State.get_ruler ruler_id
-            return $ Just $ all_points step (Ruler.ruler_marklists ruler) pos
+            return $ Just $
+                all_points step (Ruler.ruler_marklists ruler) events pos
+
+get_events :: (State.M m) => BlockId -> TrackNum -> m [Events.PosEvent]
+get_events block_id tracknum = do
+    maybe_track_id <- State.event_track_at block_id tracknum
+    case maybe_track_id of
+        Just track_id -> Events.ascending . Track.track_events <$>
+            State.get_track track_id
+        Nothing -> return []
 
 -- | Get the ruler that applies to the given track.  Search left for the
 -- closest ruler that has all the given marklist names.  This includes ruler
@@ -107,21 +119,26 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
 --
 -- If it's a problem I can cache it.
 all_points :: TimeStep -> [(Ruler.MarklistName, Ruler.Marklist)]
-    -> ScoreTime -> [ScoreTime]
-all_points step marklists pos = case step of
+    -> [Events.PosEvent] -> ScoreTime -> [ScoreTime]
+all_points step marklists events pos = case step of
         Absolute incr ->
             -- fmod is in a bizarre place
             Seq.range (Fixed.mod' pos incr) end incr
         AbsoluteMark names matcher -> matches names matcher
         RelativeMark names matcher -> shift (matches names matcher)
         BlockEnd -> [0, end]
+        EventEdge -> event_points events
     where
-    end = Maybe.fromMaybe 0 $ Seq.maximum (map (Ruler.last_pos . snd) marklists)
+    end = Maybe.fromMaybe 0 $
+        Seq.maximum (map (Ruler.last_pos . snd) marklists)
     matches names matcher = match_all matcher
         (get_marks marklists names)
     shift points = case find_before_equal pos points of
         Just p | p < pos -> map (+ (pos-p)) points
         _ -> points
+    event_points [] = []
+    event_points (e:es) =
+        Events.event_min e : Events.event_max e : event_points es
 
 match_all :: MarkMatch -> [(ScoreTime, Ruler.Mark)] -> [ScoreTime]
 match_all (MatchRank rank skips) marks = stride (skips+1) $ map fst matches

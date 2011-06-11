@@ -34,6 +34,9 @@ big things
   - complete Idiom.Wind
 
 CURRENT
+  * event edge TimeStep
+  - merged TimeSteps
+  - automate the manual tests
   * make Derive.Lazy_test actually do tests
   * custom Deriver monad
   * remove transformer cache
@@ -45,7 +48,6 @@ CURRENT
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn
   - send style id to c++ instead of all the style elements
-  - automate the manual tests
   - don't rely on built-in serialize / deserialize classes
     This is a hassle because I'd have to copy/paste at least the Integer and
     UTF8 serialization.
