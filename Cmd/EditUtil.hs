@@ -6,9 +6,9 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -20,9 +20,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Derive.Score as Score
 import qualified Derive.Scale as Scale
-
+import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 
 
@@ -52,7 +51,7 @@ get_event modify_dur track_id pos dur = do
     track <- State.get_track track_id
     let modify = if modify_dur then Event.set_duration dur else id
     return $ maybe (Event.event "" dur) modify
-        (Track.event_at pos (Track.track_events track))
+        (Events.at pos (Track.track_events track))
 
 modify_event :: (Cmd.M m) =>
     Bool -> Bool -> (String -> (Maybe String, Bool)) -> m ()

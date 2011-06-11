@@ -133,8 +133,8 @@ import qualified Data.Tree as Tree
 
 import Util.Control
 import Ui
+import qualified Ui.Events as Events
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Derive.Call as Call
 import qualified Derive.Control as Control
@@ -156,7 +156,7 @@ d_note_track (Tree.Node track subs) = do
         Right expr -> return (preprocess_title expr)
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
-    let pos_events = Track.event_list (State.tevents_events track)
+    let pos_events = Events.ascending (State.tevents_events track)
     stash_sub_signals subs
     Call.apply_transformer info track_expr
         (derive_notes (State.tevents_end track) subs pos_events)
@@ -169,7 +169,7 @@ stash_sub_signals subs = do
     Control.put_track_signals [(track_id, tsig) | (Just track_id, Just tsig)
         <- zip (map State.tevents_track_id tracks) sigs]
 
-derive_notes :: ScoreTime -> State.EventsTree -> [Track.PosEvent]
+derive_notes :: ScoreTime -> State.EventsTree -> [Events.PosEvent]
     -> Derive.EventDeriver
 derive_notes block_end subs events = do
     state <- Derive.get

@@ -40,6 +40,7 @@ import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -287,7 +288,7 @@ track_title _ = return ""
 block_window_title :: ViewId -> BlockId -> String
 block_window_title view_id block_id = show block_id ++ " -- " ++ show view_id
 
-events_of_track_ids :: State.State -> [TrackId] -> [Track.Events]
+events_of_track_ids :: State.State -> [TrackId] -> [Events.Events]
 events_of_track_ids ustate track_ids = Maybe.mapMaybe events_of track_ids
     where
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)

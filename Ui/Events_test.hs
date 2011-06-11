@@ -1,16 +1,18 @@
-module Ui.Track_test where
+module Ui.Events_test where
 import Util.Test
 
+import Ui
 import qualified Ui.Event as Event
-import qualified Ui.Track as Track
+import qualified Ui.Events as Events
 
 
 -- TODO improve tests
 
 test_split_range = do
-    let extract (a, b, c) = (map fst a, map fst b, map fst c)
-    let f start end evts = extract $ Track.split_range start end
-            (track_events [(p, d, show p) | (p, d) <- evts])
+    let extract (a, b, c) = (map fst (Events.descending a),
+            map fst (Events.ascending b), map fst (Events.ascending c))
+    let f start end evts = extract $ Events.split_range start end
+            (make [(p, d, show p) | (p, d) <- evts])
     equal (f 1 2 [(0, 1), (1, 1), (2, 1), (3, 1)])
         ([0], [1], [2, 3])
     equal (f 1 2 [(0, 0.5), (1, -0.5), (2, 1), (3, 1)])
@@ -29,8 +31,8 @@ test_split_range = do
 
 
 test_split_at_before = do
-    let e1 = track_events [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
-    let f pos = let (pre, post) = Track.split_at_before pos e1
+    let e1 = make [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
+    let f pos = let (pre, post) = Events.split_at_before pos e1
             in (map fst pre, map fst post)
     equal (f 0) ([], [0, 1, 2])
     equal (f 0.5) ([], [0, 1, 2])
@@ -39,7 +41,7 @@ test_split_at_before = do
 
 test_insert_events = do
     let f evts0 evts1 = extract $
-            Track.insert_events (mkevents evts0) (track_events evts1)
+            Events.insert_events (pos_events evts0) (make evts1)
 
     equal (f [(0, 1, "a0")] [(3, 1, "b0")])
         [(0, 1, "a0"), (3, 1, "b0")]
@@ -59,8 +61,9 @@ test_insert_events = do
 
 test_insert_negative_events = do
     let f evts0 evts1 = extract $
-            Track.insert_events (mkevents evts0) (track_events evts1)
-    equal (f [(1, -1, "a0")] [(2, -0.5, "b0")]) [(1, -1, "a0"), (2, -0.5, "b0")]
+            Events.insert_events (pos_events evts0) (make evts1)
+    equal (f
+        [(1, -1, "a0")] [(2, -0.5, "b0")]) [(1, -1, "a0"), (2, -0.5, "b0")]
     equal (f [(1, -1, "a0")] [(2, -2, "b0")]) [(1, -1, "a0"), (2, -1, "b0")]
     equal (f [(0, 2, "a0"), (2, 2, "a1")] [(1, -1, "b0")])
         [(0, 1, "a0"), (1, 0, "b0"), (2, 2, "a1")]
@@ -70,7 +73,7 @@ test_insert_negative_events = do
         [(1.25, 0.25, "a0"), (2, -0.5, "b0")]
 
 test_clip_events = do
-    let f = map extract_event .  Track.clip_events . mkevents
+    let f = map extract_event .  Events.clip_events . pos_events
     equal (f [(0, 1, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
     equal (f [(0, 2, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
     equal (f [(1, -1, "a"), (2, -1, "b")]) [(1, -1, "a"), (2, -1, "b")]
@@ -81,11 +84,11 @@ test_clip_events = do
     equal (f [(0, 0.5, "a0"), (1, -5, "b0")]) [(0, 0.5, "a0"), (1, -0.5, "b0")]
 
 test_remove_events = do
-    let te1 = track_events [(0, 0, "0"), (16, 1, "16")]
+    let te1 = make [(0, 0, "0"), (16, 1, "16")]
     -- able to remove 0 dur events
-    equal (extract $ Track.remove_event 0 te1) [(16, 1, "16")]
+    equal (extract $ Events.remove_event 0 te1) [(16, 1, "16")]
 
-    let f = Track.remove_events
+    let f = Events.remove_events
     -- doesn't include end of range
     equal (extract $ f 0 16 te1) [(16, 1, "16")]
     -- get it all
@@ -96,19 +99,24 @@ test_remove_events = do
 
 -- * util
 
-track_events = Track.make_track_events . mkevents
-mkevents = map (\(pos, dur, text) -> (pos, Event.event text dur))
+type Event = (ScoreTime, ScoreTime, String)
+
+make :: [Event] -> Events.Events
+make = Events.make . pos_events
+
+pos_events :: [Event] -> [Events.PosEvent]
+pos_events = map (\(pos, dur, text) -> (pos, Event.event text dur))
 
 extract_text (_, event) = Event.event_string event
 extract_event (pos, evt) =
     (pos, Event.event_duration evt, Event.event_string evt)
-extract = map extract_event . Track.event_list
+extract = map extract_event . Events.ascending
 
 no_overlaps = check . not . events_overlap
 events_overlap track = any (uncurry overlaps)
-    (zip (Track.event_list track) (drop 1 (Track.event_list track)))
+    (zip (Events.ascending track) (drop 1 (Events.ascending track)))
 
 overlaps evt1 evt2 =
     -- They don't overlap and they aren't simultaneous (the second condition is
     -- needed for zero duration events).
-    Track.event_end evt1 > fst evt2 || fst evt1 >= fst evt2
+    Events.event_end evt1 > fst evt2 || fst evt1 >= fst evt2

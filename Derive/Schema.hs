@@ -43,9 +43,9 @@ import qualified Util.Tree
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import Cmd.Cmd (Schema(..), SchemaDeriver, SchemaMap)
 import qualified Derive.Control as Control
@@ -107,7 +107,7 @@ strip_mutes mutes tree = zipWith mute_node mutes tree
     where
     mute_node (Tree.Node (_, muted) ms) (Tree.Node track ts) =
         Tree.Node (if muted then mute track else track) (strip_mutes ms ts)
-    mute track = track { State.tevents_events = Track.empty_events }
+    mute track = track { State.tevents_events = Events.empty }
 
 -- | Transform a deriver skeleton into a real deriver.
 derive_tree :: ScoreTime -> State.EventsTree -> Derive.EventDeriver

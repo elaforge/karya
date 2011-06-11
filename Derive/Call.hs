@@ -84,8 +84,8 @@ import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
@@ -155,7 +155,7 @@ type GetLastSample d =
 derive_track :: (Derive.Derived derived) =>
     Derive.State -> ScoreTime -> DeriveInfo derived
     -> Parse.ParseExpr -> GetLastSample derived
-    -> State.EventsTree -> [Track.PosEvent]
+    -> State.EventsTree -> [Events.PosEvent]
     -> ([LEvent.LEvents derived], Derive.Collect, Derive.CacheState)
 derive_track state block_end dinfo parse get_last_sample subs events =
     go (Internal.record_track_environ state) (Derive.state_cache_state state)
@@ -201,9 +201,9 @@ derive_event :: (Derive.Derived d) =>
     Derive.State -> ScoreTime -> DeriveInfo d -> Parse.ParseExpr
     -> Maybe (RealTime, Derive.Elem d)
     -> State.EventsTree
-    -> [Track.PosEvent] -- ^ previous events, in reverse order
-    -> Track.PosEvent -- ^ cur event
-    -> [Track.PosEvent] -- ^ following events
+    -> [Events.PosEvent] -- ^ previous events, in reverse order
+    -> Events.PosEvent -- ^ cur event
+    -> [Events.PosEvent] -- ^ following events
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg],
         Derive.Collect, Derive.CacheState)
 derive_event st block_end dinfo parse prev_val subs prev cur@(pos, event) next

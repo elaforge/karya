@@ -45,11 +45,12 @@ import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
-import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Internal (score_to_real)
+import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -368,7 +369,7 @@ make_calls = Map.fromList . map (first TrackLang.Symbol)
 
 -- ** passed args
 
-passed_event :: PassedArgs derived -> Track.PosEvent
+passed_event :: PassedArgs derived -> Events.PosEvent
 passed_event = info_event . passed_info
 
 -- | Get the previous derived val.  This is used by control derivers so they

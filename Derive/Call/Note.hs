@@ -11,8 +11,8 @@ import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -63,7 +63,7 @@ c_note = Derive.Call "note"
 -- ** generate
 
 generate_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
-    -> Track.PosEvent -> ScoreTime -> Derive.EventDeriver
+    -> Events.PosEvent -> ScoreTime -> Derive.EventDeriver
 generate_note n_inst rel_attrs (pos, event) next_start = do
     start <- Derive.score_to_real pos
     end <- Derive.score_to_real (pos + Event.event_duration event)
@@ -246,7 +246,7 @@ slice start end insert_event = concatMap strip . map go
         Just (text, dur) -> [Tree.Node (make text dur) []]
     make text dur =
         State.TrackEvents ">"
-            (Track.make_track_events [(start, Event.event text dur)])
+            (Events.singleton start (Event.event text dur))
             end Nothing (Just (start, end))
     slice_t track = track
         { State.tevents_events = events track
@@ -259,13 +259,12 @@ slice start end insert_event = concatMap strip . map go
     -- Note tracks don't include pre and post events like control tracks.
     events track
         | TrackInfo.is_note_track (State.tevents_title track) =
-            -- TODO ugly, Track needs a more logical design
-            Track.from_sorted_events (Track.events_in_range start end es)
-        | otherwise = Track.track_events_around start end es
+            Events.in_range start end es
+        | otherwise = Events.around start end es
         where es = State.tevents_events track
 
     strip (Tree.Node track subs)
-        | State.tevents_events track == Track.empty_events =
+        | State.tevents_events track == Events.empty =
             concatMap strip subs
         | otherwise = [Tree.Node track (concatMap strip subs)]
 
@@ -319,17 +318,17 @@ slice_notes start end =
         | otherwise = [(track : parents, ntrack, nsubs)
             | (parents, ntrack, nsubs) <- concatMap note_tracks subs]
     slice_track (parents, track, subs) =
-        map (slice_event (make_tree parents)) events
+        map (slice_event (make_tree parents)) (Events.ascending events)
         where
-        events = Track.events_in_range start end (State.tevents_events track)
+        events = Events.in_range start end (State.tevents_events track)
         make_tree [] = [Tree.Node track subs]
         make_tree (p:ps) = [Tree.Node p (make_tree ps)]
     slice_event tree event = (s, e - s, slice s e Nothing tree)
-        where (s, e) = (Track.event_start event, Track.event_end event)
+        where (s, e) = (Events.event_start event, Events.event_end event)
     shift (shift, stretch, tree) =
         (shift, stretch, map (fmap (shift_tree shift)) tree)
     shift_tree shift track = track
-        { State.tevents_events = Track.map_sorted_events
+        { State.tevents_events = Events.map_sorted
             (\(p, e) -> (p - shift, e)) (State.tevents_events track)
         , State.tevents_end = State.tevents_end track - shift
         , State.tevents_range = fmap (\(s, e) -> (s-shift, e-shift))

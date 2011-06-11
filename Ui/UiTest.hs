@@ -1,26 +1,23 @@
 module Ui.UiTest where
-import qualified Data.Map as Map
-
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
+import qualified Data.Map as Map
 import qualified System.IO as IO
+
 import qualified Util.Rect as Rect
-
-import qualified Ui.Color as Color
-
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
-import qualified Derive.Schema as Schema
-
 import qualified Cmd.Simple as Simple
-
+import qualified Derive.Schema as Schema
 import qualified App.Config as Config
 
 
@@ -180,12 +177,12 @@ event_track_2 = mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
 mktrack :: TrackSpec -> Track.Track
 mktrack (title, triplets) = Track.modify_events
-    (Track.insert_events (map mkevent triplets)) (empty_track title)
+    (Events.insert_events (map mkevent triplets)) (empty_track title)
 empty_track title = Track.track title [] Config.track_bg Config.render_config
 
 -- * event
 
-mkevent :: (Double, Double, String) -> Track.PosEvent
+mkevent :: (Double, Double, String) -> Events.PosEvent
 mkevent (pos, dur, text) = (realToFrac pos, Event.event text (realToFrac dur))
 
 -- * ruler

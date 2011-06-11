@@ -12,27 +12,26 @@ import qualified Util.Map as Map
 import qualified Util.ParseBs as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import Util.Test
 import qualified Util.Then as Then
 
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
-import qualified Ui.State as State
-
-import qualified Derive.Schema as Schema
-import qualified Derive.Score as Score
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
 
+import qualified Derive.Schema as Schema
+import qualified Derive.Score as Score
 import qualified App.Config as Config
-
-import Util.Test
 
 
 -- not implemented:
@@ -88,7 +87,7 @@ order_meter = MakeRuler.meter_ruler 1 . MakeRuler.D . map mkd
     mkd dur = MakeRuler.D (replicate dur (MakeRuler.T 1))
 
 make_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId -> String
-    -> [(String, [Track.PosEvent])] -> m BlockId
+    -> [(String, [Events.PosEvent])] -> m BlockId
 make_block mkid rid track_rid name tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, (title, events)) ->
         State.create_track (mkid (name ++ ".t" ++ show i)) $
@@ -116,9 +115,9 @@ test = do
 -- | An intermediate representation, between the row-oriented Block and
 -- State.State.
 type UiBlock = ([(NoteTrack, [ControlTrack])], BlockRows)
-type NoteTrack = [Track.PosEvent]
+type NoteTrack = [Events.PosEvent]
 -- | (title, [event])
-type ControlTrack = (String, [Track.PosEvent])
+type ControlTrack = (String, [Events.PosEvent])
 -- | How many rows in a block.
 type BlockRows = Int
 
@@ -154,8 +153,8 @@ convert_notes = Maybe.catMaybes . Then.mapAccumL go (Nothing, 0) final
     final (prev, at) =
         [fst $ convert_note prev at (Note 0 0 [cut_note])]
 
-convert_note :: Maybe Track.PosEvent -> ScoreTime -> Note
-    -> (Maybe Track.PosEvent, Maybe Track.PosEvent)
+convert_note :: Maybe Events.PosEvent -> ScoreTime -> Note
+    -> (Maybe Events.PosEvent, Maybe Events.PosEvent)
 convert_note maybe_prev at (Note pitch _ effects)
     | pitch /= 0 = (note, Just (start, Event.event "" 0))
     | any (== cut_note) effects = (note, Nothing)

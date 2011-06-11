@@ -42,6 +42,7 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
@@ -300,14 +301,14 @@ divider color = Block.DId (Block.Divider color)
 show_track :: TrackId -> Cmd.CmdL String
 show_track track_id = do
     track <- State.get_track track_id
-    return $ PPrint.pshow (track { Track.track_events = Track.empty_events })
-        ++ "Events: " ++ show (Track.events_length (Track.track_events track))
+    return $ PPrint.pshow (track { Track.track_events = Events.empty })
+        ++ "Events: " ++ show (Events.length (Track.track_events track))
 
 show_events :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Simple.Event]
 show_events track_id start end = do
     track <- State.get_track track_id
-    return $ (map Simple.event
-        . Track.events_in_range start end . Track.track_events) track
+    return $ (map Simple.event . Events.ascending
+        . Events.in_range start end . Track.track_events) track
 
 -- | Insert a track that already exists.
 insert_track :: TrackId -> TrackNum -> Cmd.CmdL ()

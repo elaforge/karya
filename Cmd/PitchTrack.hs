@@ -10,9 +10,9 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -159,7 +159,7 @@ transpose_selection octaves degrees = do
             octaves degrees events
 
 transpose_events :: (Cmd.M m) => BlockId -> TrackId -> Pitch.ScaleId
-    -> Pitch.Octave -> Integer -> [Track.PosEvent] -> m [Track.PosEvent]
+    -> Pitch.Octave -> Integer -> [Events.PosEvent] -> m [Events.PosEvent]
 transpose_events block_id track_id scale_id octaves degrees events = do
     scale <- Cmd.get_scale "transpose_selection" scale_id
     let transposed = map (transpose scale octaves degrees) events
@@ -169,8 +169,8 @@ transpose_events block_id track_id scale_id octaves degrees events = do
             ++ Seq.join ", " (map (Cmd.log_event block_id track_id) failed)
     return $ Maybe.catMaybes transposed
 
-transpose :: Derive.Scale -> Pitch.Octave -> Integer -> Track.PosEvent
-    -> Maybe Track.PosEvent
+transpose :: Derive.Scale -> Pitch.Octave -> Integer -> Events.PosEvent
+    -> Maybe Events.PosEvent
 transpose scale octaves degrees (pos, event) =
     case modify_note f (Event.event_string event) of
         Nothing -> Nothing

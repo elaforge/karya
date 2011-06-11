@@ -13,6 +13,7 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -115,13 +116,13 @@ cmd_join_events = mapM_ process =<< Selection.events_around
         -- should be ok.
         case (Event.is_negative evt1, Event.is_negative evt2) of
             (False, False) -> do
-                let end = Track.event_end (pos2, evt2)
+                let end = Events.event_end (pos2, evt2)
                 State.remove_events track_id pos1 end
                 -- If evt2 is zero dur, the above half-open range won't get it.
                 State.remove_event track_id pos2
                 State.insert_event track_id pos1 (set_dur (end - pos1) evt1)
             (True, True) -> do
-                let start = Track.event_end (pos1, evt1)
+                let start = Events.event_end (pos1, evt1)
                 State.remove_events track_id start pos2
                 State.remove_event track_id pos2
                 State.insert_event track_id pos2 (set_dur (start - pos2) evt2)
@@ -141,7 +142,7 @@ cmd_insert_time = do
     (start, end) <- expand_range tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id -> do
         track <- State.get_track track_id
-        case Track.split_at_before start (Track.track_events track) of
+        case Events.split_at_before start (Track.track_events track) of
             (_, []) -> return ()
             (_, evts@((pos, _):_)) -> do
                 track_end <- State.track_end track_id
@@ -155,19 +156,19 @@ cmd_insert_time = do
 --
 -- TODO both insert_time and delete_time could be faster by just mapping the
 -- shift once the overlapping events are done, but it's probably not worth it.
-insert_time :: ScoreTime -> ScoreTime -> Track.PosEvent -> Track.PosEvent
+insert_time :: ScoreTime -> ScoreTime -> Events.PosEvent -> Events.PosEvent
 insert_time start end event@(pos, evt)
     | Event.is_positive evt = insertp
     | otherwise = insertn
     where
     shift = end - start
     insertp
-        | pos < start && Track.event_end event <= start = event
+        | pos < start && Events.event_end event <= start = event
         | pos < start = (pos, Event.modify_duration (+shift) evt)
         | otherwise = (pos + shift, evt)
     insertn
         | pos <= start = event
-        | Track.event_end event < start =
+        | Events.event_end event < start =
             (pos + shift, Event.modify_duration (subtract shift) evt)
         | otherwise = (pos + shift, evt)
 
@@ -179,7 +180,7 @@ cmd_delete_time = do
     (start, end) <- expand_range tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id -> do
         track <- State.get_track track_id
-        case Track.split_at_before start (Track.track_events track) of
+        case Events.split_at_before start (Track.track_events track) of
             (_, []) -> return ()
             (_, evts@((pos, _):_)) -> do
                 track_end <- State.track_end track_id
@@ -190,25 +191,26 @@ cmd_delete_time = do
 
 -- | Modify the event to delete the time from @start@ to @end@, shortening it
 -- if @start@ falls within the event's duration.
-delete_time :: ScoreTime -> ScoreTime -> Track.PosEvent -> Maybe Track.PosEvent
+delete_time :: ScoreTime -> ScoreTime -> Events.PosEvent
+    -> Maybe Events.PosEvent
 delete_time start end event@(pos, evt)
     | Event.is_positive evt = deletep
     | otherwise = deleten
     where
     shift = end - start
     deletep
-        | pos < start && Track.event_end event <= start = Just event
+        | pos < start && Events.event_end event <= start = Just event
         | pos < start =
             Just (pos, Event.modify_duration
-                (subtract (min (Track.event_end event - start) shift)) evt)
+                (subtract (min (Events.event_end event - start) shift)) evt)
         | pos < end = Nothing
         | otherwise = Just (pos - shift, evt)
     deleten
         | pos <= start = Just event
         | pos <= end = Nothing
-        | Track.event_end event < end =
+        | Events.event_end event < end =
             Just (pos - shift, Event.modify_duration
-                (+ min shift (end - Track.event_end event)) evt)
+                (+ min shift (end - Events.event_end event)) evt)
         | otherwise = Just (pos - shift, evt)
 
 -- | If the range is a point, then expand it to one timestep.

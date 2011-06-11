@@ -11,8 +11,8 @@ import qualified Util.Thread as Thread
 
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -242,7 +242,7 @@ mk_logging_call log_var  = Derive.stream_generator "logging-note" $
     Call.Note.inverting_call $ \args ->
         c_note log_var (Derive.passed_event args) (Derive.passed_next args)
 
-c_note :: Log -> Track.PosEvent -> ScoreTime -> Derive.EventDeriver
+c_note :: Log -> Events.PosEvent -> ScoreTime -> Derive.EventDeriver
 c_note log_mvar (pos, event) next_start = do
     start <- Derive.score_to_real pos
     end <- Derive.score_to_real (pos + Event.event_duration event)

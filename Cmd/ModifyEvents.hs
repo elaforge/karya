@@ -6,8 +6,8 @@ import qualified Data.Maybe as Maybe
 import Util.Control
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
@@ -17,7 +17,7 @@ import qualified Cmd.Selection as Selection
 
 -- | Map a function over the selected events.  Returning Nothing will remove
 -- the event.
-events :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent) -> m ()
+events :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent) -> m ()
 events f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
@@ -26,7 +26,8 @@ events f = do
 
 -- | This is like 'events'.  It's more efficient but the modify function must
 -- promise to return events in sorted order.
-events_sorted :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent) -> m ()
+events_sorted :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
+    -> m ()
 events_sorted f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
@@ -36,14 +37,14 @@ events_sorted f = do
 -- | Map a function over the selected events, passing the track id.  Unlike
 -- 'events', returning Nothing will leave the track unchanged.
 tracks :: (Cmd.M m) =>
-    (TrackId -> [Track.PosEvent] -> m (Maybe [Track.PosEvent])) -> m ()
+    (TrackId -> [Events.PosEvent] -> m (Maybe [Events.PosEvent])) -> m ()
 tracks f = tracks_sorted $ \track_id events ->
-    fmap Track.sort_events <$> f track_id events
+    fmap Events.sort <$> f track_id events
 
 -- | As with 'events_sorted', this is a more efficient version for sorted
 -- events.
 tracks_sorted :: (Cmd.M m) =>
-    (TrackId -> [Track.PosEvent] -> m (Maybe [Track.PosEvent])) -> m ()
+    (TrackId -> [Events.PosEvent] -> m (Maybe [Events.PosEvent])) -> m ()
 tracks_sorted f = do
     track_events <- Selection.events
     forM_ track_events $ \(track_id, (start, end), events) -> do
@@ -86,31 +87,31 @@ move_track_events start shift track_id = State.modify_track_events track_id $
 
 -- | All events starting at and after a point to the end are shifted by the
 -- given amount.
-move_events :: ScoreTime -> ScoreTime -> Track.Events -> Track.Events
+move_events :: ScoreTime -> ScoreTime -> Events.Events -> Events.Events
 move_events point shift events = merged
     where
     -- If the last event has 0 duration, the selection will not include it.
     -- Ick.  Maybe I need a less error-prone way to say "select until the end
     -- of the track"?
-    end = Track.time_end events + 1
+    end = Events.time_end events + 1
     shifted = map (\(pos, evt) -> (pos+shift, evt))
-        (Track.events_at_after point events)
-    merged = Track.insert_sorted_events shifted
-        (Track.remove_events point end events)
+        (Events.at_after point events)
+    merged = Events.insert_sorted_events shifted
+        (Events.remove_events point end events)
 
 -- * util
 
-map_track_sorted :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent)
+map_track_sorted :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
     -> TrackId -> m ()
 map_track_sorted f track_id = State.modify_track_events track_id $
-    Track.from_sorted_events . Maybe.mapMaybe f . Track.event_list
+    Events.make_sorted . Maybe.mapMaybe f . Events.ascending
 
-map_track :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent)
+map_track :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
     -> TrackId -> m ()
 map_track f track_id = State.modify_track_events track_id $
-    Track.from_events . Maybe.mapMaybe f . Track.event_list
+    Events.make . Maybe.mapMaybe f . Events.ascending
 
 -- | Mostly convenient for REPL use.
-for_track :: (Cmd.M m) => TrackId -> (Track.PosEvent -> Maybe Track.PosEvent)
+for_track :: (Cmd.M m) => TrackId -> (Events.PosEvent -> Maybe Events.PosEvent)
     -> m ()
 for_track = flip map_track

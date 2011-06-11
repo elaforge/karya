@@ -46,6 +46,7 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
@@ -621,7 +622,7 @@ type EventsNode = Tree.Tree TrackEvents
 
 data TrackEvents = TrackEvents {
     tevents_title :: !String
-    , tevents_events :: !Track.Events
+    , tevents_events :: !Events.Events
     -- | Tracks often extend beyond the end of the last event.  The derivers
     -- need to know the track end to get the controls of the last note, and for
     -- the block stretch hack.
@@ -889,7 +890,7 @@ set_render_style style track_id = modify_track_render track_id $
     \render -> render { Track.render_style = style }
 
 modify_track_events :: (M m) => TrackId
-    -> (Track.Events -> Track.Events) -> m ()
+    -> (Events.Events -> Events.Events) -> m ()
 modify_track_events track_id f = do
     _modify_track track_id (Track.modify_events f)
     update $ Update.TrackUpdate track_id Update.TrackAllEvents
@@ -904,8 +905,8 @@ modify_track_events track_id f = do
 -- select an event at a certain point (functions use the singular), and select
 -- events in the relaxed half-open range (functions use the plural).
 
--- | Insert events into track_id as per 'Track.insert_events'.
-insert_events :: (M m) => TrackId -> [Track.PosEvent] -> m ()
+-- | Insert events into track_id as per 'Events.insert_events'.
+insert_events :: (M m) => TrackId -> [Events.PosEvent] -> m ()
 insert_events track_id pos_evts =
     -- Calculating updates is easiest if it's sorted, and insert likes sorted
     -- anyway.
@@ -914,12 +915,12 @@ insert_events track_id pos_evts =
 -- | Like 'insert_events', but more efficient and dangerous.
 insert_sorted_events :: (M m) => TrackId -> [(ScoreTime, Event.Event)] -> m ()
 insert_sorted_events track_id pos_evts = _modify_events track_id $ \events ->
-    (Track.insert_sorted_events pos_evts events, _events_updates pos_evts)
+    (Events.insert_sorted_events pos_evts events, _events_updates pos_evts)
 
 insert_event :: (M m) => TrackId -> ScoreTime -> Event.Event -> m ()
 insert_event track_id pos evt = insert_sorted_events track_id [(pos, evt)]
 
-get_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m [Track.PosEvent]
+get_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m [Events.PosEvent]
 get_events track_id start end = do
     events <- Track.track_events <$> get_track track_id
     return (_events_in_range start end events)
@@ -934,43 +935,44 @@ remove_events track_id start end
 -- | Remove a single event at @pos@, if there is one.
 remove_event :: (M m) => TrackId -> ScoreTime -> m ()
 remove_event track_id pos = _modify_events track_id $ \events ->
-    case Track.event_at pos events of
+    case Events.at pos events of
         Nothing -> (events, [])
         Just evt ->
-            (Track.remove_event pos events, _events_updates [(pos, evt)])
+            (Events.remove_event pos events, _events_updates [(pos, evt)])
 
 -- | Remove any events whose starting positions strictly fall within the
 -- half-open range given.
 remove_event_range :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m ()
 remove_event_range track_id start end =
     _modify_events track_id $ \events ->
-        let evts = Track.events_in_range start end events
-        in (Track.remove_events start end events, _events_updates evts)
+        let evts = Events.ascending (Events.in_range start end events)
+        in (Events.remove_events start end events, _events_updates evts)
 
 map_events_sorted :: (M m) => TrackId -> ScoreTime -> ScoreTime
-    -> ([Track.PosEvent] -> [Track.PosEvent]) -> m ()
+    -> ([Events.PosEvent] -> [Events.PosEvent]) -> m ()
 map_events_sorted track_id start end f = _modify_events track_id $ \events ->
     let old = _events_in_range start end events
         new = f old
         deleted = if start == end
-            then Track.remove_event start events
-            else Track.remove_events start end events
-        starts = map Track.event_min $ Maybe.mapMaybe Seq.head [old, new]
-        ends = map Track.event_max $ Maybe.mapMaybe Seq.last [old, new]
+            then Events.remove_event start events
+            else Events.remove_events start end events
+        starts = map Events.event_min $ Maybe.mapMaybe Seq.head [old, new]
+        ends = map Events.event_max $ Maybe.mapMaybe Seq.last [old, new]
         updates = if null starts || null ends then []
             else [(minimum starts, maximum ends)]
-    in (Track.insert_sorted_events new deleted, updates)
+    in (Events.insert_sorted_events new deleted, updates)
 
-_events_in_range :: ScoreTime -> ScoreTime -> Track.Events
-    -> [Track.PosEvent]
+_events_in_range :: ScoreTime -> ScoreTime -> Events.Events
+    -> [Events.PosEvent]
 _events_in_range start end events
     | start == end = maybe [] ((:[]) . (,) start)
-        (Track.event_at start events)
-    | otherwise = Track.events_in_range start end events
+        (Events.at start events)
+    | otherwise = Events.ascending (Events.in_range start end events)
 
 -- | Get the end of the last event of the block.
 track_end :: (M m) => TrackId -> m ScoreTime
-track_end track_id = Track.track_time_end <$> get_track track_id
+track_end track_id =
+    Events.time_end . Track.track_events <$> get_track track_id
 
 -- | Emit track updates for all tracks.  Use this when events have changed but
 -- I don't know which ones, e.g. when loading a file or restoring a previous
@@ -989,7 +991,7 @@ _modify_track track_id f = do
     _set_track track_id (f track)
 
 _modify_events :: (M m) => TrackId
-    -> (Track.Events -> (Track.Events, [(ScoreTime, ScoreTime)]))
+    -> (Events.Events -> (Events.Events, [(ScoreTime, ScoreTime)]))
     -> m ()
 _modify_events track_id f = do
     track <- get_track track_id
@@ -998,10 +1000,10 @@ _modify_events track_id f = do
     mapM_ update [Update.TrackUpdate track_id (Update.TrackEvents start end)
         | (start, end) <- updates]
 
-_events_updates :: [Track.PosEvent] -> [(ScoreTime, ScoreTime)]
+_events_updates :: [Events.PosEvent] -> [(ScoreTime, ScoreTime)]
 _events_updates [] = []
 _events_updates evts =
-    [(Track.event_min (head evts), Track.event_max (last evts))]
+    [(Events.event_min (head evts), Events.event_max (last evts))]
 
 _set_track track_id track = modify $ \st -> st
     { state_tracks = Map.adjust (const track) track_id (state_tracks st) }

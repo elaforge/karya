@@ -9,6 +9,7 @@ import qualified Data.Tree as Tree
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
@@ -53,7 +54,7 @@ from_score (Types.ScoreTime d) = d
 from_real :: RealTime -> Double
 from_real = RealTime.to_seconds
 
-event :: Track.PosEvent -> Event
+event :: Events.PosEvent -> Event
 event (start, event) = (from_score start,
     from_score (Event.event_duration event), Event.event_string event)
 
@@ -96,7 +97,7 @@ dump_track track_id = do
 simplify_track :: TrackId -> Track.Track -> Track
 simplify_track track_id track =
     (Id.id_string track_id, Track.track_title track, map event events)
-    where events = Track.event_list (Track.track_events track)
+    where events = Events.ascending (Track.track_events track)
 
 dump_selection :: Cmd.CmdL [(TrackId, [Event])]
 dump_selection = do
@@ -134,6 +135,6 @@ convert_track (id_name, title, events) = do
         Track.track title pos_events Config.track_bg Config.render_config
     return $ Block.track (Block.TId track_id State.no_ruler) Config.track_width
 
-convert_event :: Event -> Track.PosEvent
+convert_event :: Event -> Events.PosEvent
 convert_event (start, dur, text) =
     (Types.ScoreTime start, Event.event text (Types.ScoreTime dur))

@@ -32,28 +32,31 @@
 -}
 module Cmd.Cmd where
 import qualified Control.Applicative as Applicative
-import Control.Monad
 import qualified Control.Concurrent as Concurrent
+import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as MonadState
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
+
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Logger as Logger
 import qualified Util.Log as Log
+import qualified Util.Logger as Logger
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
+import qualified Midi.Midi as Midi
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -62,27 +65,25 @@ import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
-import qualified Midi.Midi as Midi
-
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Perform.Transport as Transport
-import qualified Instrument.Db
-import qualified Instrument.MidiDb as MidiDb
-
-import qualified App.Config as Config
-
-import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Transport as Transport
+
+import qualified Instrument.Db
+import qualified Instrument.MidiDb as MidiDb
+import qualified App.Config as Config
 
 
 -- | This makes Cmds more specific than they have to be, and doesn't let them
@@ -224,7 +225,7 @@ require_msg :: (M m) => String -> Maybe a -> m a
 require_msg msg = maybe (throw msg) return
 
 -- | Log an event so that it can be clicked on in logview.
-log_event :: BlockId -> TrackId -> Track.PosEvent -> String
+log_event :: BlockId -> TrackId -> Events.PosEvent -> String
 log_event block_id track_id (pos, event) = "{s" ++ show frame ++ "}"
     where
     range = Just (pos, pos + Event.event_duration event)

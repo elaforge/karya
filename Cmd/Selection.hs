@@ -16,13 +16,14 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -34,9 +35,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Score as Score
-
 import qualified Perform.Transport as Transport
-
 import qualified App.Config as Config
 
 
@@ -501,8 +500,8 @@ point_to_real tempo (Just (block_id, _, track_id, pos)) =
 -- range because these functions may select more events than lie strictly
 -- within the selection.
 type SelectedAround = [(TrackId, (ScoreTime, ScoreTime),
-    ([Track.PosEvent], [Track.PosEvent], [Track.PosEvent]))]
-type SelectedEvents = [(TrackId, (ScoreTime, ScoreTime), [Track.PosEvent])]
+    ([Events.PosEvent], [Events.PosEvent], [Events.PosEvent]))]
+type SelectedEvents = [(TrackId, (ScoreTime, ScoreTime), [Events.PosEvent])]
 
 -- | 'events_around' is the default selection behaviour.
 events :: (Cmd.M m) => m SelectedEvents
@@ -516,9 +515,12 @@ strict_events_around :: (Cmd.M m) => Types.SelNum -> m SelectedAround
 strict_events_around selnum = do
     (_, track_ids, start, end) <- tracks_selnum selnum
     tracks <- mapM State.get_track track_ids
-    return [(track_id, (start, end),
-        Track.split_range start end (Track.track_events track))
-            | (track_id, track) <- zip track_ids tracks]
+    let split events =
+            (Events.descending pre, Events.ascending within,
+                Events.ascending post)
+            where (pre, within, post) = Events.split_range start end events
+    return [(track_id, (start, end), split (Track.track_events track))
+        | (track_id, track) <- zip track_ids tracks]
 
 -- | Get events in the selection, but if no events are selected, expand it
 -- to include a previous positive event or a following negative one.  If both
@@ -544,10 +546,10 @@ events_around_selnum selnum = do
         | otherwise = (before, [], after)
         where
         start_equal = maybe False ((==sel_start) . fst) (Seq.head after)
-        take_prev = maybe False Track.event_positive (Seq.head before)
-        take_next = maybe False Track.event_negative (Seq.head after)
+        take_prev = maybe False Events.positive (Seq.head before)
+        take_next = maybe False Events.negative (Seq.head after)
     expand _ selected = selected
-    expand_range (_, [evt], _) _ = (Track.event_min evt, Track.event_max evt)
+    expand_range (_, [evt], _) _ = (Events.event_min evt, Events.event_max evt)
     expand_range _ range = range
 
 extract_events :: SelectedAround -> SelectedEvents

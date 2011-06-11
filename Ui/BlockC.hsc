@@ -61,6 +61,7 @@ import qualified Ui.Util as Util
 import Ui.Util (Fltk)
 
 import qualified Ui.Block as Block
+import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
@@ -252,7 +253,7 @@ foreign import ccall "set_display_track"
 
 -- * Track operations
 
-insert_track :: ViewId -> TrackNum -> Block.Tracklike -> [Track.Events]
+insert_track :: ViewId -> TrackNum -> Block.Tracklike -> [Events.Events]
     -> Types.Width -> Fltk ()
 insert_track view_id tracknum tracklike merged width = do
     viewp <- get_ptr view_id
@@ -267,7 +268,7 @@ remove_track view_id tracknum = do
         c_remove_track viewp (Util.c_int tracknum) finalize
 
 update_track :: ViewId -> TrackNum -> Block.Tracklike
-    -> [Track.Events] -> ScoreTime -> ScoreTime -> Fltk ()
+    -> [Events.Events] -> ScoreTime -> ScoreTime -> Fltk ()
 update_track view_id tracknum tracklike merged start end = do
     viewp <- get_ptr view_id
     with_finalizer $ \finalize ->
@@ -278,7 +279,7 @@ update_track view_id tracknum tracklike merged start end = do
 
 -- | Like 'update_track' except update everywhere.
 update_entire_track :: ViewId -> TrackNum -> Block.Tracklike
-    -> [Track.Events] -> Fltk ()
+    -> [Events.Events] -> Fltk ()
 update_entire_track view_id tracknum tracklike merged =
     -- -1 is special cased in c++.
     update_track view_id tracknum tracklike merged (-1) (-1)
@@ -320,7 +321,7 @@ with_finalizer = Exception.bracket make_free_fun_ptr Util.free_fun_ptr
 
 -- | Convert a Tracklike into the set of pointers that c++ knows it as.
 -- A set of event lists can be merged into event tracks.
-with_tracklike :: [Track.Events] -> Block.Tracklike
+with_tracklike :: [Events.Events] -> Block.Tracklike
     -> (Ptr TracklikePtr -> Ptr Ruler.Marklist -> CInt -> IO ()) -> IO ()
 with_tracklike merged_events tracklike f = case tracklike of
     Block.T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->

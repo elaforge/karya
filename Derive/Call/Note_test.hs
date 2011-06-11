@@ -5,9 +5,9 @@ import qualified Util.Seq as Seq
 import Util.Test
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Call.Note as Note
@@ -139,10 +139,10 @@ extract_tree = map $ \(Tree.Node track subs) ->
         (State.tevents_title track, extract_track (State.tevents_events track))
         (extract_tree subs)
 
-extract_track :: Track.Events -> [Event]
+extract_track :: Events.Events -> [Event]
 extract_track events =
     [(p, Event.event_duration e, Event.event_string e)
-        | (p, e) <- Track.event_list events]
+        | (p, e) <- Events.ascending events]
 
 make_tree :: Tree.Forest (String, [Event]) -> State.EventsTree
 make_tree = map $ \(Tree.Node (title, events) subs) ->
@@ -150,7 +150,7 @@ make_tree = map $ \(Tree.Node (title, events) subs) ->
 
 make_track :: String -> [Event] -> State.TrackEvents
 make_track title events = State.TrackEvents title
-    (Track.make_track_events
+    (Events.make
         [(start, Event.event text dur) | (start, dur, text) <- events])
     100 Nothing Nothing
 

@@ -19,6 +19,7 @@ import qualified Util.Log as Log
 import qualified Util.Map as Map
 
 import Ui
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
@@ -57,7 +58,7 @@ d_control_track (Tree.Node track _) deriver = do
 eval_track :: State.TrackEvents -> TrackLang.Expr
     -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
 eval_track track expr ctype deriver = do
-    let events = Track.event_list (State.tevents_events track)
+    let events = Events.ascending (State.tevents_events track)
         block_end = State.tevents_end track
     case ctype of
         TrackInfo.Tempo -> do
@@ -123,7 +124,7 @@ merge_logs logs deriver = do
     return $ Derive.merge_events (map LEvent.Log logs) events
 
 pitch_call :: ScoreTime -> State.TrackEvents -> Maybe Score.Control
-    -> TrackInfo.PitchType -> TrackLang.Expr -> [Track.PosEvent]
+    -> TrackInfo.PitchType -> TrackLang.Expr -> [Events.PosEvent]
     -> Derive.EventDeriver -> Derive.EventDeriver
 pitch_call block_end track maybe_name ptype expr events
         deriver =
@@ -181,7 +182,7 @@ with_control_damage maybe_track_id range = maybe id get_damage maybe_track_id
 type TrackResults sig = (sig, [Log.Msg])
 
 -- | Derive the signal of a control track.
-derive_control :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
+derive_control :: ScoreTime -> TrackLang.Expr -> [Events.PosEvent]
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control block_end expr events = do
     stream <- Call.apply_transformer
@@ -205,7 +206,7 @@ derive_control block_end expr events = do
     dinfo = Call.DeriveInfo Call.lookup_control_call "control"
     last_sample prev chunk = Signal.last chunk `mplus` prev
 
-derive_pitch :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
+derive_pitch :: ScoreTime -> TrackLang.Expr -> [Events.PosEvent]
     -> Derive.Deriver (TrackResults Pitch)
 derive_pitch block_end expr events = do
     stream <- Call.apply_transformer
@@ -310,7 +311,7 @@ track_signal track
 eval_signal :: State.TrackEvents -> TrackLang.Expr
     -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal
 eval_signal track expr ctype = do
-    let events = Track.event_list (State.tevents_events track)
+    let events = Events.ascending (State.tevents_events track)
         block_end = State.tevents_end track
     case ctype of
         TrackInfo.Tempo -> do

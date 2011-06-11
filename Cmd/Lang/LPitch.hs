@@ -6,11 +6,12 @@
 -- generic places.
 module Cmd.Lang.LPitch where
 import Control.Monad
+
 import Util.Control
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
@@ -31,9 +32,9 @@ import qualified Perform.Pitch as Pitch
 -- TODO these should invert position of control events too
 to_negative, to_positive :: Cmd.CmdL ()
 to_negative = ModifyEvents.events_sorted $ \evt ->
-    Just $ if Track.event_negative evt then evt else negate_event evt
+    Just $ if Events.negative evt then evt else negate_event evt
 to_positive = ModifyEvents.events_sorted $ \evt ->
-    Just $ if Track.event_positive evt then evt else negate_event evt
+    Just $ if Events.positive evt then evt else negate_event evt
 
 negate_event (pos, evt) =
     (pos + Event.event_duration evt, Event.modify_duration negate evt)
@@ -55,7 +56,7 @@ to_relative note_s = ModifyEvents.tracks_sorted $ \track_id events -> do
         val -> Cmd.throw $ "not an absolute pitch track: " ++ show val
 
 track_to_degree :: (Cmd.M m) => Pitch.Note -> TrackId -> Pitch.ScaleId
-    -> [Track.PosEvent] -> m [Track.PosEvent]
+    -> [Events.PosEvent] -> m [Events.PosEvent]
 track_to_degree base_note track_id scale_id events = do
     let name = "LPitch.track_to_degree"
     scale <- Cmd.get_scale name scale_id

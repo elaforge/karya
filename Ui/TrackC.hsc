@@ -17,6 +17,7 @@ import qualified Util.Then as Then
 
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Track as Track
 import qualified Ui.Util as Util
 
@@ -31,7 +32,7 @@ import qualified Perform.Signal as Signal
 -- | Since converting a Track requires both a track and merged events, poke
 -- needs two args.  So keep it out of Storable to prevent accidental use of
 -- 'with'.
-with_track :: Track.Track -> [Track.Events] -> (Ptr Track.Track -> IO a)
+with_track :: Track.Track -> [Events.Events] -> (Ptr Track.Track -> IO a)
     -> IO a
 with_track track event_lists f = allocaBytes size $ \trackp -> do
     (#poke EventTrackConfig, bg_color) trackp (Track.track_bg track)
@@ -44,14 +45,14 @@ with_track track event_lists f = allocaBytes size $ \trackp -> do
     -- allocaBytesAligned is not exported from Foreign.Marshal.Alloc
     -- align = #{alignment EventTrackConfig}
 
-poke_find_events :: Ptr Track.Track -> [Track.Events] -> IO ()
+poke_find_events :: Ptr Track.Track -> [Events.Events] -> IO ()
 poke_find_events trackp event_lists = do
-    let time_end = maximum (0 : map Track.time_end event_lists)
+    let time_end = maximum (0 : map Events.time_end event_lists)
     find_events <- make_find_events event_lists
     (#poke EventTrackConfig, find_events) trackp find_events
     (#poke EventTrackConfig, time_end) trackp time_end
 
-make_find_events :: [Track.Events] -> IO (FunPtr FindEvents)
+make_find_events :: [Events.Events] -> IO (FunPtr FindEvents)
 make_find_events events = Util.make_fun_ptr "find_events" $
     c_make_find_events (cb_find_events events)
 
@@ -140,7 +141,7 @@ encode_style style = case style of
 type FindEvents = Ptr ScoreTime -> Ptr ScoreTime -> Ptr (Ptr ScoreTime)
     -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
 
-cb_find_events :: [Track.Events] -> FindEvents
+cb_find_events :: [Events.Events] -> FindEvents
 cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
     start <- peek startp
     end <- peek endp
@@ -160,10 +161,10 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
     -- the first one.  The same goes for the last event, in case it has
     -- negative duration and the text goes above.
     --
-    -- Almost, but not quite the same as 'Track.in_range_around'.
+    -- Almost, but not quite the same as 'Events.in_range_around'.
     in_range start end events =
         take 1 pre ++ Then.takeWhile1 ((<=end) . fst) post
-        where (pre, post) = Track.split start events
+        where (pre, post) = Events.split start events
 
 foreign import ccall "wrapper"
     c_make_find_events :: FindEvents -> IO (FunPtr FindEvents)

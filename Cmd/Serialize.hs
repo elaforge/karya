@@ -16,23 +16,25 @@ import qualified Data.Array.IArray as IArray
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Serialize as Serialize
-import Data.Serialize (Serialize, Get, get, put, getWord8, putWord8)
+import Data.Serialize
+       (Serialize, Get, get, put, getWord8, putWord8)
 import qualified Data.Time as Time
+import qualified Data.Word as Word
 
 import qualified System.IO as IO
 
-import qualified Util.Serialize
 import Util.Control
 import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
+import qualified Util.Serialize
 
 import qualified Midi.Midi as Midi
-
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Font as Font
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
@@ -42,9 +44,9 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Derive.Score as Score
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import qualified Perform.Midi.Instrument as Instrument
 
 import qualified App.Config as Config
 
@@ -89,11 +91,14 @@ save_state ui_state = do
     utc <- Time.getCurrentTime
     return (SaveState ui_state utc)
 
+put_version :: Word.Word8 -> Serialize.Put
 put_version n = Serialize.putWord8 n
+
+get_version :: Get Word.Word8
 get_version = Serialize.getWord8
 
-throw = error
-version_error typ ver = throw $
+version_error :: String -> Word.Word8 -> a
+version_error typ ver = error $
     "unknown version " ++ show ver ++ " for " ++ show typ
 
 -- * binary instances
@@ -430,12 +435,12 @@ instance Serialize Track.Track where
         case v of
             0 -> do
                 title <- get :: Get String
-                events <- get :: Get Track.Events
+                events <- get :: Get Events.Events
                 bg <- get :: Get Color.Color
                 return $ Track.Track title events bg Config.render_config
             1 -> do
                 title <- get :: Get String
-                events <- get :: Get Track.Events
+                events <- get :: Get Events.Events
                 bg <- get :: Get Color.Color
                 render <- get :: Get Track.RenderConfig
                 return $ Track.Track title events bg render
@@ -464,15 +469,15 @@ instance Serialize Track.RenderStyle where
             2 -> return Track.Filled
             _ -> fail "no parse for Track.RenderStyle"
 
-track_events = Track.Events :: Map.Map ScoreTime Event.Event
-    -> Track.Events
-instance Serialize Track.Events where
-    put (Track.Events a) = put_version 0 >> put a
+instance Serialize Events.Events where
+    put (Events.Events a) = put_version 0 >> put a
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> return (track_events a)
-            _ -> version_error "Track.Events" v
+            0 -> do
+                events <- get :: Get (Map.Map ScoreTime Event.Event)
+                return $ Events.Events events
+            _ -> version_error "Events.Events" v
 
 -- ** Event
 

@@ -94,9 +94,6 @@ module Derive.Deriver.Monad (
     , LookupScale, Transpose
 ) where
 import qualified Control.Applicative as Applicative
-import qualified Control.Monad.Identity as Identity
-import qualified Control.Monad.State as Monad.State
-
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
@@ -106,13 +103,14 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
-import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Symbol as Symbol
@@ -588,9 +586,9 @@ data CallInfo derived = CallInfo {
     -- they tend to want to interpolate from that value.
     , info_prev_val :: !(Maybe (RealTime, Elem derived))
 
-    , info_event :: !Track.PosEvent
-    , info_prev_events :: ![Track.PosEvent]
-    , info_next_events :: ![Track.PosEvent]
+    , info_event :: !Events.PosEvent
+    , info_prev_events :: ![Events.PosEvent]
+    , info_next_events :: ![Events.PosEvent]
     -- | If there is no next event, you might want to fall back on the end of
     -- the block.  This is in normalized time!
     , info_block_end :: !ScoreTime

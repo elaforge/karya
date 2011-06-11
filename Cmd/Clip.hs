@@ -35,10 +35,10 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
@@ -118,7 +118,7 @@ cmd_paste_soft_merge = do
         State.insert_events track_id $
             filter (not . overlaps track_events) events
     where
-    overlaps events (pos, _) = Maybe.isJust (Track.event_overlapping pos events)
+    overlaps events (pos, _) = Maybe.isJust (Events.overlapping pos events)
 
 -- | Insert the events after pushing events after the selection down by
 -- the inserted length, which is the minimum of the insert selection and the
@@ -189,9 +189,10 @@ selection_sub_state (tracknums, _, start, end) = do
 -- by the offset of the selection.
 events_in_range :: ScoreTime -> ScoreTime -> Track.Track -> Track.Track
 events_in_range start end track =
-    track { Track.track_events =
-        Track.event_map_asc [(pos-start, evt) | (pos, evt) <- events] }
-    where events = Track.events_in_range start end (Track.track_events track)
+    track { Track.track_events = shift (Track.track_events track) }
+    where
+    shift = Events.map_sorted (\(pos, evt) -> (pos-start, evt))
+        . Events.in_range start end
 
 -- *** namespace
 
@@ -247,26 +248,26 @@ destroy_namespace ns = do
 -- grouped by track.  The clipboard events are clipped to start--end and
 -- shifted into the paste range.
 paste_info :: (Cmd.M m) =>
-    m (ScoreTime, ScoreTime, [TrackId], [[Track.PosEvent]])
+    m (ScoreTime, ScoreTime, [TrackId], [[Events.PosEvent]])
 paste_info = do
     (track_ids, clip_track_ids, start, end) <- get_paste_area
     clip_events <- mapM (clip_track_events start end) clip_track_ids
     return (start, end, track_ids, clip_events)
 
 clip_track_events :: (State.M m) =>
-    ScoreTime -> ScoreTime -> TrackId -> m [Track.PosEvent]
+    ScoreTime -> ScoreTime -> TrackId -> m [Events.PosEvent]
 clip_track_events start end track_id = do
     track <- State.get_track track_id
     let events = clip_events (end-start)
-            (Track.event_list (Track.track_events track))
+            (Events.ascending (Track.track_events track))
         shifted = map (\(pos, evt) -> (pos+start, evt)) events
     return shifted
 
-clip_events :: ScoreTime -> [Track.PosEvent] -> [Track.PosEvent]
+clip_events :: ScoreTime -> [Events.PosEvent] -> [Events.PosEvent]
 clip_events _ [] = []
 clip_events point (event@(pos, evt):events)
     | pos >= point = []
-    | Track.event_end event > point =
+    | Events.event_end event > point =
         [(pos, Event.modify_duration (\d -> min d (point - pos)) evt)]
     | otherwise = event : clip_events point events
 

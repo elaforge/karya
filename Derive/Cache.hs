@@ -21,15 +21,16 @@ import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
-import qualified Derive.Derive as Derive
 import Derive.Derive
        (CacheState(..), Cache(..), CallType, ScoreDamage(..),
         ControlDamage(..))
+import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
@@ -169,7 +170,7 @@ extend_damage track_id range (ControlDamage damage)
     | otherwise = do
         events <- Track.track_events <$> Derive.get_track track_id
         -- Empty tracks could not have contributed to further damage.
-        if events == Track.empty_events
+        if events == Events.empty
             then return (ControlDamage damage)
             else do
                 sdamage <- damage_to_score damage
@@ -187,12 +188,12 @@ extend_damage track_id range (ControlDamage damage)
         in_range (track_s, track_e) (s, e) = s >= track_s && e <= track_e
     ext events (s, e) = (event_at_before s events, event_after e events)
 
-    event_at_before p events = case Track.split p events of
+    event_at_before p events = case Events.split p events of
         (_, (at, _) : _) | p == at -> p
         ((prev, _) : _, _) -> prev
         _ -> p
     event_after p events = maybe Types.big_score fst $
-        Seq.head (Track.events_after p events)
+        Seq.head (Events.after p events)
 
 damage_to_real :: Ranges.Ranges ScoreTime
     -> Derive.Deriver (Ranges.Ranges RealTime)

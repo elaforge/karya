@@ -38,7 +38,7 @@ CURRENT
   * custom Deriver monad
   * remove transformer cache
   - get control derivation going forward
-  - clean up Ui.Track
+  * clean up Ui.Track
   - remove schema
   - why does save trigger a rederive?
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
