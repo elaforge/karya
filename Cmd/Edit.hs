@@ -8,7 +8,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -275,29 +274,10 @@ cmd_invert_step_direction = do
 sync_step_status :: (Cmd.M m) => m ()
 sync_step_status = do
     st <- Cmd.gets Cmd.state_edit
-    Cmd.set_global_status "step" $
-        show_step (Cmd.state_step st) (Cmd.state_note_direction st)
-
-show_step :: TimeStep.TimeStep -> TimeStep.Direction -> String
-show_step step direction = dir_s : case step of
-    TimeStep.Absolute pos -> "abs:" ++ show pos
-    TimeStep.AbsoluteMark mlists match ->
-        "mark:" ++ show_marklists mlists ++ "/" ++ show_match match
-    TimeStep.RelativeMark mlists match ->
-        "rel mark:" ++ show_marklists mlists ++ "/" ++ show_match match
-    TimeStep.BlockEnd -> "end"
-    TimeStep.EventEdge -> "evt"
-    where
-    dir_s = case direction of
-        TimeStep.Advance -> '+'
-        TimeStep.Rewind -> '-'
-
-show_match :: TimeStep.MarkMatch -> String
-show_match (TimeStep.MatchRank rank skips) =
-    "r" ++ show rank ++ "+" ++ show skips
-
-show_marklists TimeStep.AllMarklists = "all"
-show_marklists (TimeStep.NamedMarklists mlists) = Seq.join "," mlists
+    let status = TimeStep.show_step (Just (Cmd.state_note_direction st))
+            (Cmd.state_step st)
+    Cmd.set_global_status "step" status
+    Cmd.set_status "step" (Just status)
 
 cmd_modify_octave :: (Cmd.M m) => (Pitch.Octave -> Pitch.Octave) -> m ()
 cmd_modify_octave f = do

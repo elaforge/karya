@@ -7,7 +7,9 @@ import qualified Data.Fixed as Fixed
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
@@ -35,6 +37,7 @@ data TimeStep =
     | BlockEnd
     -- | Until event edges.
     | EventEdge
+    | Merge [TimeStep]
     deriving (Show, Read)
 
 data MarklistMatch = AllMarklists | NamedMarklists [Ruler.MarklistName]
@@ -47,6 +50,28 @@ type Matcher = [(ScoreTime, Ruler.Mark)] -> Maybe ScoreTime
 
 data Direction = Advance | Rewind deriving (Eq, Show)
 
+
+show_step :: Maybe Direction -> TimeStep -> String
+show_step direction step = dir_s ++ case step of
+    Absolute pos -> "abs:" ++ Pretty.pretty pos
+    AbsoluteMark mlists match ->
+        "mark:" ++ show_marklists mlists ++ show_match match
+    RelativeMark mlists match ->
+        "rel:" ++ show_marklists mlists ++ show_match match
+    BlockEnd -> "end"
+    EventEdge -> "evt"
+    Merge ts -> Seq.join ";" (map (show_step Nothing) ts)
+    where
+    dir_s = case direction of
+        Just Advance -> "+"
+        Just Rewind -> "-"
+        Nothing -> ""
+    show_match (MatchRank rank skips) = "r" ++ show rank ++ "+" ++ show skips
+    show_marklists AllMarklists = ""
+    show_marklists (NamedMarklists mlists) = Seq.join "," mlists ++ "/"
+
+
+-- * snap
 
 -- | Given a pos, the point on a timestep at or previous to that pos.  If there
 -- was no snap point, the pos is return unchanged.
@@ -92,7 +117,7 @@ get_points step block_id tracknum pos = do
         Just ruler_id -> do
             ruler <- State.get_ruler ruler_id
             return $ Just $
-                all_points step (Ruler.ruler_marklists ruler) events pos
+                all_points (Ruler.ruler_marklists ruler) events pos step
 
 get_events :: (State.M m) => BlockId -> TrackNum -> m [Events.PosEvent]
 get_events block_id tracknum = do
@@ -118,9 +143,9 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
 -- lists and generating the garbage is a problem when dragging.
 --
 -- If it's a problem I can cache it.
-all_points :: TimeStep -> [(Ruler.MarklistName, Ruler.Marklist)]
-    -> [Events.PosEvent] -> ScoreTime -> [ScoreTime]
-all_points step marklists events pos = case step of
+all_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> [Events.PosEvent]
+    -> ScoreTime -> TimeStep -> [ScoreTime]
+all_points marklists events pos step = Seq.drop_dups id $ case step of
         Absolute incr ->
             -- fmod is in a bizarre place
             Seq.range (Fixed.mod' pos incr) end incr
@@ -128,6 +153,8 @@ all_points step marklists events pos = case step of
         RelativeMark names matcher -> shift (matches names matcher)
         BlockEnd -> [0, end]
         EventEdge -> event_points events
+        Merge ts -> Seq.merge_asc_lists id $
+            map (all_points marklists events pos) ts
     where
     end = Maybe.fromMaybe 0 $
         Seq.maximum (map (Ruler.last_pos . snd) marklists)

@@ -35,7 +35,7 @@ big things
 
 CURRENT
   * event edge TimeStep
-  - merged TimeSteps
+  * merged TimeSteps
   - automate the manual tests
   * make Derive.Lazy_test actually do tests
   * custom Deriver monad
