@@ -123,12 +123,15 @@ public:
             const RulerConfig &ruler_config);
     void resize(int x, int y, int w, int h);
     virtual SeqInput &title_widget() { return *this->title_input; }
-    virtual const char *get_title() const { return this->title_input->value(); }
+    virtual const char *get_title() const {
+        return this->title_input->value();
+    }
     virtual void set_title(const char *title) {
         this->title_input->set_text(title);
     }
     void set_zoom(const ZoomInfo &new_zoom);
-    virtual void set_selection(int selnum, int tracknum, const Selection &sel) {
+    virtual void set_selection(int selnum, int tracknum, const Selection &sel)
+    {
         overlay_ruler.set_selection(selnum, tracknum, sel);
     }
     virtual void set_event_brightness(double d);
@@ -138,6 +141,7 @@ public:
     // For the moment, only EventTracks can draw a signal.
     virtual void set_track_signal(const TrackSignal &tsig);
     virtual void finalize_callbacks(FinalizeCallback finalizer);
+    virtual std::string dump() const;
 
 protected:
     void draw();

@@ -139,9 +139,17 @@ public:
         else
             return track_tile.track_at(tracknum-1);
     }
+    const TrackView *track_at(int tracknum) const {
+        if (tracknum == 0)
+            return ruler_track;
+        else
+            return track_tile.track_at(tracknum-1);
+    }
     int tracks() const { return track_tile.tracks() + 1; }
-    int get_track_width(int tracknum);
+    int get_track_width(int tracknum) const;
     void set_track_width(int tracknum, int width);
+
+    const char *dump() const;
 
 private:
     BlockModelConfig model_config;

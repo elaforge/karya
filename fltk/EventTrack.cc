@@ -1,3 +1,4 @@
+#include <sstream>
 #include <math.h>
 #include "config.h"
 #include "util.h"
@@ -721,4 +722,13 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     } else {
         return text_rect;
     }
+}
+
+
+std::string
+EventTrackView::dump() const
+{
+    std::ostringstream out;
+    out << "event " << show_string(this->get_title());
+    return out.str();
 }

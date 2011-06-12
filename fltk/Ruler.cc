@@ -392,3 +392,9 @@ RulerTrackView::draw()
     else
         this->update_child(this->ruler);
 }
+
+std::string
+RulerTrackView::dump() const
+{
+    return "ruler";
+}

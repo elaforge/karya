@@ -282,4 +282,10 @@ i_show_children(const BlockViewWindow *w, int nlevels)
     return show_children(w, nlevels, 0);
 }
 
+const char *
+dump_view(const BlockViewWindow *view)
+{
+    return view->block.dump();
+}
+
 }

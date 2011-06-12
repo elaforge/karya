@@ -33,8 +33,7 @@ void get_size(BlockViewWindow *view, int *sz);
 void set_view_config(BlockViewWindow *view, BlockViewConfig *config);
 void set_zoom(BlockViewWindow *view, const ZoomInfo *zoom);
 void set_track_scroll(BlockViewWindow *view, int pixels);
-void set_selection(BlockViewWindow *view, int selnum,
-        const Selection *sel);
+void set_selection(BlockViewWindow *view, int selnum, const Selection *sel);
 void set_track_selection(BlockViewWindow *view, int selnum, int tracknum,
         const Selection *sel);
 void bring_to_front(BlockViewWindow *view);
@@ -71,5 +70,6 @@ char **get_fonts();
 // debugging
 
 const char *i_show_children(const BlockViewWindow *w, int nlevels);
+const char *dump_view(const BlockViewWindow *view);
 
 }

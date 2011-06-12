@@ -39,3 +39,10 @@ DividerView::draw()
     ClipArea c(r);
     TrackView::draw();
 }
+
+
+std::string
+DividerView::dump() const
+{
+    return "divider";
+}

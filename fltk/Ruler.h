@@ -124,7 +124,8 @@ public:
     explicit RulerTrackView(const RulerConfig &config);
     virtual Fl_Box &title_widget();
     virtual void set_zoom(const ZoomInfo &zoom);
-    virtual void set_selection(int selnum, int tracknum, const Selection &sel) {
+    virtual void set_selection(int selnum, int tracknum, const Selection &sel)
+    {
         ruler.set_selection(selnum, tracknum, sel);
     }
     virtual ScoreTime time_end() const { return ruler.time_end(); }
@@ -133,6 +134,7 @@ public:
     virtual void finalize_callbacks(FinalizeCallback finalizer) {
         ruler.finalize_callbacks(finalizer);
     }
+    virtual std::string dump() const;
 
 protected:
     void draw();

@@ -519,5 +519,7 @@ main(int argc, char **argv)
 
     view.show();
 
+    std::cout << view.block.dump() << '\n';
+
     Fl::run();
 }

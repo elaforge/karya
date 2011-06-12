@@ -194,6 +194,20 @@ show_widget(const Fl_Widget *w)
 }
 
 
+std::ostream &
+operator<<(std::ostream &os, const show_string &s)
+{
+    os << '"';
+    for (const char *c = s.s; *c; c++) {
+        if (*c == '"')
+            os << "\\\"";
+        else
+            os << *c;
+    }
+    return os << '"';
+}
+
+
 void
 print_widget(const Fl_Widget *w)
 {

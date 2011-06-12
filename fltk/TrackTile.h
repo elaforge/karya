@@ -60,7 +60,8 @@ public:
     // A track is a (title, body) pair, minus the track_pad.
     int tracks() const { return floor(children()/2.0); }
     TrackView *track_at(int tracknum);
-    int get_track_width(int tracknum);
+    const TrackView *track_at(int tracknum) const;
+    int get_track_width(int tracknum) const;
     void set_track_width(int tracknum, int width);
 
     // Return the track currently being dragged right now, or -1.

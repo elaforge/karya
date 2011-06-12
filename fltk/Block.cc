@@ -1,3 +1,4 @@
+#include <sstream>
 #include "util.h"
 #include "f_util.h"
 
@@ -491,7 +492,7 @@ BlockView::set_track_signal(int tracknum, const TrackSignal &tsig)
 
 
 int
-BlockView::get_track_width(int tracknum)
+BlockView::get_track_width(int tracknum) const
 {
     if (tracknum == 0)
         return this->ruler_track->w();
@@ -512,6 +513,26 @@ BlockView::set_track_width(int tracknum, int width)
     }
 }
 
+const char *
+BlockView::dump() const
+{
+    std::ostringstream out;
+    static std::string outs;
+
+    out << '(' << this->x() << ' ' << this->y() << ' ' << this->w()
+        << ' ' << this->h() << ' ' << show_string(this->get_title())
+        << " (";
+    for (int i = 0; i < this->tracks(); i++) {
+        out << '(' << this->get_track_width(i) << ' '
+            << this->track_at(i)->dump()
+            << ") ";
+    }
+
+    out << "))";
+
+    outs = out.str();
+    return outs.c_str();
+}
 
 
 // private

@@ -190,8 +190,17 @@ TrackTile::track_at(int tracknum)
 }
 
 
+const TrackView *
+TrackTile::track_at(int tracknum) const
+{
+    ASSERT(0 <= tracknum && tracknum < tracks());
+    // Widgets alternate [title0, track0, title1, track1, ... box]
+    return dynamic_cast<const TrackView *>(child(tracknum*2 + 1));
+}
+
+
 int
-TrackTile::get_track_width(int tracknum)
+TrackTile::get_track_width(int tracknum) const
 {
     return this->track_at(tracknum)->w();
 }

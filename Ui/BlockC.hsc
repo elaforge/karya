@@ -41,7 +41,7 @@ module Ui.BlockC (
     , set_track_title
 
     -- * debugging
-    , show_children
+    , show_children, dump
 ) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
@@ -360,6 +360,14 @@ show_children view_id = do
     c_show_children viewp (Util.c_int (-1)) >>= peekCString
 foreign import ccall "i_show_children"
     c_show_children :: Ptr CView -> CInt -> IO CString
+
+dump :: IO [(ViewId, String)]
+dump = do
+    views <- Map.toList <$> MVar.readMVar view_id_to_ptr
+    dumps <- mapM (c_dump_view . snd) views
+    dumps <- mapM peekCString dumps
+    return $ zip (map fst views) dumps
+foreign import ccall "dump_view" c_dump_view :: Ptr CView -> IO CString
 
 -- * storable
 

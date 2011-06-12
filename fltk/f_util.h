@@ -3,6 +3,8 @@
 #ifndef __F_UTIL_H
 #define __F_UTIL_H
 
+#include <ostream>
+
 #include <FL/Fl.H>
 #include <FL/fl_draw.H>
 #include <FL/Fl_Widget.H>
@@ -39,6 +41,14 @@ const char *show_event_state(int state);
 const char *show_damage(uchar d);
 const char *show_widget(const Fl_Widget *w);
 const char *show_children(const Fl_Widget *w, int nlevels=-1, int recurse=0);
+
+class show_string {
+public:
+    show_string(const char *s) : s(s) {}
+    const char *s;
+};
+
+std::ostream &operator<<(std::ostream &os, const show_string &s);
 
 void print_widget(const Fl_Widget *w);
 void print_children(const Fl_Widget *w, int nlevels=-1, int recurse = 0);
