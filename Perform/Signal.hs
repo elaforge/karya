@@ -55,31 +55,36 @@
     - implement a more efficient map_signal_accum and see if it helps
 -}
 module Perform.Signal (
+    -- * types
     Signal(Signal), sig_vec
     , X, Y, x_to_y, y_to_real, y_to_score
     , tempo_srate
+
+    -- * constants
     , invalid_pitch, empty
     , Tempo, Warp, Control, NoteNumber, Display
 
+    -- * construction / deconstruction
     , signal, unsignal
     , constant, length, null
     , log_signal
     , coerce
 
+    -- * access
     , at, at_linear, is_constant, sample
     , first, last
 
+    -- * transformation
     , merge
     , sig_add, sig_subtract, sig_multiply
+    -- ** scalar transformation
     , sig_max, sig_min, clip_max, clip_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift, scale
     , truncate, drop_before
     , map_x, map_y
-
+    -- ** special functions
     , inverse_at, compose, integrate
-    , integrate_segment -- export for testing
-
     , equal, pitches_share
 ) where
 import Prelude hiding (last, truncate, length, null)
@@ -346,6 +351,24 @@ inverse_at pos sig
     (x1, y1) = V.index vec i
 
 -- | Compose the first signal with the second.
+--
+-- Actually, only the X points from the first warp are used in the output, so
+-- the input signals must be at a constant sample rate.  This is different
+-- from the variable sampling used all the other signals, but is compatible
+-- with the output of 'integrate'.
+--
+-- It also means that the output will have length equal to that of the first
+-- argument.  Since the second argument is likely the warp of a sub-block,
+-- it will be shorter, and hence not result in a warp that is too short for
+-- its score.
+--
+-- TODO That also implies there's wasted work when warp outside of the
+-- sub-block's range is calculated.  Solutions to that are either to clip the
+-- output to the length of the second argument (but this will cause incorrect
+-- results if the sub-block wants RealTime outside its range), or, once again,
+-- to make signals lazy.
+--
+-- TODO Wait, what if the warps don't line up at 0?  Does that happen?
 compose :: Warp -> Warp -> Warp
 compose f g = Signal $ SignalBase.map_y go (sig_vec g)
     where go y = SignalBase.at_linear (y_to_real y) (sig_vec f)
@@ -354,17 +377,23 @@ compose f g = Signal $ SignalBase.map_y go (sig_vec g)
 
 -- | Integrate the signal.
 --
--- The sample points are linear interpolated.
+-- Since the output will have more samples than the input, this needs
+-- a sampling rate.  The sampling rate determines the resolution of the tempo
+-- track.  So it can probably be fairly low resolution before having
+-- a noticeable impact.
+--
+-- The last sample of a signal is supposed to extend indefinitely, which
+-- means that the output of 'integrate' should extend indefinitely at
+-- a constant slope.  But since signals are strict, I can't have infinite
+-- signals.  So this integrate will only be accurate up until the final sample
+-- of the tempo given, and it's up to the caller to ensure that this range
+-- is enough.  To this end, the tempo track deriver in "Derive.Control" has
+-- a hack to ensure a sample at the end of the track.
 integrate :: X -> Tempo -> Warp
 integrate srate = modify_vec (SignalBase.map_signal_accum go final 0)
     where
     go accum x0 y0 x1 y1 = integrate_segment srate accum x0 y0 x1 y1
-    -- TODO for now only append a few seconds of samples to extend the
-    -- integration.  This means a tempo track will only extend this far
-    -- past the last sample, which is clearly not good, but when signals are
-    -- lazy this can extend indefinitely and the problem goes away.
-    padding = 100
-    final accum (x, y) = snd $ integrate_segment srate accum x y (x+padding) y
+    final accum (x, _) = [(x, accum)]
 
 integrate_segment :: X -> Y -> X -> Y -> X -> Y -> (Y, [(X, Y)])
 integrate_segment srate accum x0 y0 x1 _y1

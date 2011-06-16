@@ -28,6 +28,7 @@ control_calls = Derive.make_calls
     -- Fallback call will take val-call output.
     , ("", c_set)
     , ("set", c_set)
+    , ("set-prev", c_set_prev)
     , ("i", c_linear)
     , ("e", c_exponential)
     , ("s", c_slide)
@@ -38,6 +39,16 @@ c_set = Derive.generator1 "set" $ \args -> CallSig.call1 args
     (required "val") $ \val -> do
         pos <- Derive.passed_real args
         return $ Signal.signal [(pos, val)]
+
+c_set_prev :: Derive.ControlCall
+c_set_prev = Derive.generator "set-prev" $ \args -> CallSig.call0 args $
+    case Derive.passed_prev_val args of
+        Nothing -> return []
+        Just (prev_x, prev_y) -> do
+            pos <- Derive.passed_real args
+            return $ if pos > prev_x
+                then [Signal.signal [(pos, prev_y)]]
+                else []
 
 c_linear :: Derive.ControlCall
 c_linear = Derive.generator1 "linear" $ \args ->

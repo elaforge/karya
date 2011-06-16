@@ -1,8 +1,6 @@
 module Perform.Signal_test where
 import qualified Util.Seq as Seq
 import Util.Test
-
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -42,10 +40,7 @@ test_compose = do
         mksig [(0, 0), (1, 2), (2, 4), (3, 6), (100, 6)]
 
 test_integrate = do
-        -- strip off the padding that integrate appends
-    let f samples = take nxs $ unsig $ Signal.integrate 1 (mksig samples)
-            where nxs = floor (RealTime.to_seconds (fst (last samples))) + 1
-
+    let f samples = unsig $ Signal.integrate 1 (mksig samples)
     equal (f [(0, 1), (3, 2)])
         [(0, 0), (1, 1), (2, 2), (3, 3)]
     equal (f [(1, 1), (3, 2)])
@@ -73,7 +68,8 @@ test_pitches_share = do
     equal (Signal.pitches_share False 1 2 1 (sig [(0, 1)]) 1 (sig [(1, 1)]))
         False
     -- Except when one note is in decay.
-    equal (Signal.pitches_share True 1 2 1 (sig [(0, 1)]) 1 (sig [(1, 1)])) True
+    equal (Signal.pitches_share True 1 2 1 (sig [(0, 1)]) 1 (sig [(1, 1)]))
+        True
 
     -- Not an integral difference.
     equal (f 1 3 (sig [(1, 60.01)]) (sig [(1, 61)])) False

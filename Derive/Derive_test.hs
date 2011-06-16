@@ -160,6 +160,7 @@ test_simple_subderive = do
         , (2, 0.5, "--1"), (2.5, 0.5, "--2")
         ]
 
+
 test_subderive = do
     let run evts = DeriveTest.derive_blocks
             [ ("b0",
@@ -578,8 +579,6 @@ test_tempo = do
                 , ("*twelve", [(0, 10, "5a"), (10, 10, "5b"), (20, 10, "5c")])
                 , (">", [(0, 10, "--1"), (10, 10, "--2"), (20, 10, "--3")])
                 ]
-        -- floor_event :: (Double, Double, String) -> (Integer, Integer, String)
-        -- floor_event (start, dur, text) = (floor start, floor dur, text)
 
     equal (f [(0, 0, "2")]) $
         ([(0, 5, "--1"), (5, 5, "--2"), (10, 5, "--3")], [])

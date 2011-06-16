@@ -5,6 +5,7 @@ use fixed-binary instead of Doubles for ScoreTime and RealTime:
     - get rid of custom implementation in Perform.RealTime
     - get rid of half-open except start==end hack for ranges, a point selection
       is simple (start, start+1).
+    - RealTime.to_seconds is big on the profile
   reasons not to do it:
     - what to do about -0?  I could disallow 0 dur events and make control
       events have an eta dur
@@ -34,9 +35,14 @@ big things
   - complete Idiom.Wind
 
 CURRENT
+  * fix tempo track: maybe interpret last sample as slope 1 instead of slope 0
+    I think I need the trailing thing so integrate works.  So integrate has
+    to make that last sample assumption, along with compose.
+    Two functions have to cooperate: integrate and compose
+    * write test that demonstrates problem
   * event edge TimeStep
   * merged TimeSteps
-  - automate the manual tests
+  + automate the manual tests
   * make Derive.Lazy_test actually do tests
   * custom Deriver monad
   * remove transformer cache
@@ -64,7 +70,6 @@ CURRENT
   - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
 
   - block title takes up space and I'm not using it, can it collapse?
-  - fix tempo track: maybe interpret last sample as slope 1 instead of slope 0
 
   - scrolling is slow with more than a few events onscreen
   - lang level pretty print for events, esp collapsing the stack
@@ -99,7 +104,6 @@ CURRENT
 
   - maybe I could split CacheState into the writable portion, in Collect, and
     the read-only cache from the previous run, in Constant
-  - remember about caching tracks, how can I make a track into a call?
 
   / instead of building log dup suppressing logic into various functions, e.g.
     allot, maybe I can add 'key' field to Log.Msg and suppress dup keys?
@@ -220,8 +224,6 @@ UNSORTED
     - include root block in set_global_status, but I should do this from an
       always-run post cmd to avoid a separate Cmd.set_root_id.  Can I apply
       this to other State attrs too?
-
-  - I really need to fix Signal.integrate
 
   - I think PitchSignals may need to be reworked.  They should be (Note, Note,
     Frac).  Otherwise, it's not clear what to call 4a# vs. 4ab.  I can still

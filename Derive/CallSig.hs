@@ -72,17 +72,7 @@ required_control name = TrackLang.Control (Score.Control name)
 
 -- * extract and call
 
--- | Each call function will typecheck and call a function.  For the @_error@
--- variants, the function may also check the args and return Left, which will
--- be converted into an ArgError.
---
--- This is because call evaluation procedes in one pass to check types and
--- another to actually call the derivers.  I suppose I could do all the
--- checking in DeriveT, but this way I can keep the exceptions separate.
---
--- TODO However with extensible exceptions couldn't I do this more cleanly?
--- And I think if events consumed depends on deriver processing then this will
--- be necessary.
+-- | Each call function will typecheck and call a function.
 call0 :: PassedArgs y -> Derive.Deriver a -> Derive.Deriver a
 call0 vals f = check_args vals [] >> f
 

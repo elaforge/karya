@@ -164,8 +164,9 @@ test_stash_signal = do
         [(Track.Control (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)]
     -- tempo track also gets an unwarped track sig
     equal (run [(("tempo", [(0, 0, "2")]), True), (ctrack, True), itrack])
-        [ (Track.Control (Signal.signal [(0, 2)]), 0, 1)
-        , (Track.Control (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)]
+        [ (Track.Control (Signal.signal [(0, 2), (1, 2)]), 0, 1)
+        , (Track.Control (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)
+        ]
 
     -- but a complicated tempo forces a rederive so output is still in RealTime
     equal (run [(("tempo", [(0, 0, "2"), (4, 0, "i 1")]), False),

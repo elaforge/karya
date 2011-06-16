@@ -12,6 +12,7 @@
 -}
 module Derive.Control where
 import Control.Monad
+import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -19,6 +20,7 @@ import qualified Util.Log as Log
 import qualified Util.Map as Map
 
 import Ui
+import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -58,11 +60,9 @@ d_control_track (Tree.Node track _) deriver = do
 eval_track :: State.TrackEvents -> TrackLang.Expr
     -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
 eval_track track expr ctype deriver = do
-    let events = Events.ascending (State.tevents_events track)
-        block_end = State.tevents_end track
     case ctype of
         TrackInfo.Tempo -> do
-            let control_deriver = derive_control block_end expr events
+            let control_deriver = derive_control block_end expr tempo_events
             tempo_call block_end (State.tevents_track_id track)
                 control_deriver deriver
         TrackInfo.Control maybe_op control -> do
@@ -71,6 +71,17 @@ eval_track track expr ctype deriver = do
             control_call track control maybe_op control_deriver deriver
         TrackInfo.Pitch ptype maybe_name ->
             pitch_call block_end track maybe_name ptype expr events deriver
+    where
+    -- This is a hack due to the way the tempo track works.  Further notes
+    -- are on the 'Perform.Signal.integrate' doc.
+    tempo_events = Events.ascending $
+        if Maybe.isNothing (Events.at block_end evts)
+            then Events.insert_events set_prev evts
+            else evts
+    set_prev = [(block_end, Event.event "set-prev" 0)]
+    events = Events.ascending evts
+    block_end = State.tevents_end track
+    evts = State.tevents_events track
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
