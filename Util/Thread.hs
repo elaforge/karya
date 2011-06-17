@@ -7,6 +7,7 @@ module Util.Thread (
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
+import qualified System.Timeout as Timeout
 
 import qualified Util.Log as Log
 
@@ -38,14 +39,7 @@ delay :: Double -> IO ()
 delay secs = Concurrent.threadDelay (floor (1000000 * secs))
 
 timeout :: Double -> IO a -> IO (Maybe a)
-timeout secs action = do
-    mval <- Concurrent.newEmptyMVar
-    th1 <- Concurrent.forkIO (Concurrent.putMVar mval =<< fmap Just action)
-    th2 <- Concurrent.forkIO (delay secs >> Concurrent.putMVar mval Nothing)
-    val <- Concurrent.takeMVar mval
-    Concurrent.killThread th1
-    Concurrent.killThread th2
-    return val
+timeout secs = Timeout.timeout (round (secs * 1000000))
 
 -- | Isn't there a simpler way to do this?  All I really want to do is return
 -- when a shared value has changed, or it's timed out.
