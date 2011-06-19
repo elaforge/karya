@@ -91,10 +91,8 @@ tempo_call :: ScoreTime -> Maybe TrackId
 tempo_call block_end maybe_track_id sig_deriver deriver = do
     (signal, logs) <- Internal.setup_without_warp sig_deriver
     when_just maybe_track_id $ \track_id -> do
-        rendered <- track_is_rendered track_id
-        when rendered $
-            put_track_signal track_id $
-                Track.TrackSignal (Track.Control (Signal.coerce signal)) 0 1
+        put_track_signal track_id $ Right $
+            Track.TrackSignal (Track.Control (Signal.coerce signal)) 0 1
     merge_logs logs $ with_damage $
         Internal.d_tempo block_end maybe_track_id (Signal.coerce signal)
             deriver
@@ -137,8 +135,7 @@ merge_logs logs deriver = do
 pitch_call :: ScoreTime -> State.TrackEvents -> Maybe Score.Control
     -> TrackInfo.PitchType -> TrackLang.Expr -> [Events.PosEvent]
     -> Derive.EventDeriver -> Derive.EventDeriver
-pitch_call block_end track maybe_name ptype expr events
-        deriver =
+pitch_call block_end track maybe_name ptype expr events deriver =
     track_setup maybe_track_id $ do
         (scale, new_scale) <- get_scale ptype
         let scale_map = Scale.scale_map scale
@@ -250,36 +247,41 @@ derive_pitch block_end expr events = do
 stash_signal :: Maybe TrackId
     -> Either (Pitch, Derive.Deriver Pitch, Track.ScaleMap)
         (Signal.Signal y, Derive.Deriver Signal.Display)
-    -- ^ Either a PitchSignal or a control signal.  Both a signal and a deriver
-    -- to produce the signal are provided.  If the block has no warp the
-    -- already derived signal can be reused, otherwise it must be rederived.
+    -- ^ Either a PitchSignal or a control signal.  Both a signal and
+    -- a deriver to produce the signal are provided.  If the block has no warp
+    -- the already derived signal can be reused, otherwise it must be
+    -- rederived.
     -> Derive.Deriver ()
 stash_signal Nothing _ = return ()
 stash_signal (Just track_id) sig = do
-    rendered <- track_is_rendered track_id
-    when rendered $ do
     maybe_linear <- linear_tempo
     case maybe_linear of
         Just (shift, stretch) -> do
             let tsig = case sig of
                     Left (psig, _, smap) -> Track.Pitch psig smap
                     Right (csig, _) -> Track.Control (Signal.coerce csig)
-            put_track_signal track_id (Track.TrackSignal tsig shift stretch)
+            put_track_signal track_id $ Right $
+                Track.TrackSignal tsig shift stretch
         Nothing -> do
-            signal <- case sig of
+            signal <- run_sub $ case sig of
                 Left (_, deriver, smap) -> do
                     sig <- Derive.in_real_time deriver
                     return $ Track.Pitch sig smap
                 Right (_, deriver) -> Track.Control . Signal.coerce <$>
                     Derive.in_real_time deriver
-            put_track_signal track_id (Track.TrackSignal signal 0 1)
+            put_track_signal track_id
+                (fmap (\s -> Track.TrackSignal s 0 1) signal)
 
-track_is_rendered :: TrackId -> Derive.Deriver Bool
-track_is_rendered track_id = do
-    track <- Derive.get_track track_id
-    return $ case Track.render_style (Track.track_render track) of
-        Track.NoRender -> False
-        _ -> True
+-- | Ensure the computation runs lazily by detaching it from the state.  This
+-- is important because the track signal will not necessarily be demanded.
+-- Details in 'Ui.Track.TrackSignals'.
+run_sub :: Derive.Deriver a -> Derive.Deriver (Either [Log.Msg] a)
+run_sub d = do
+    state <- Derive.get
+    let (result, _, logs) = Derive.run state d
+    return $ case result of
+        Right val -> Right val
+        Left err -> Left $ Derive.error_to_warn err : logs
 
 -- | Return (shift, stretch) if the tempo is linear.  This relies on an
 -- optimization in 'Derive.d_tempo' to notice when the tempo is constant and
@@ -291,10 +293,12 @@ linear_tempo = do
         then Just (Score.warp_shift warp, Score.warp_stretch warp)
         else Nothing
 
-put_track_signal :: TrackId -> Track.TrackSignal -> Derive.Deriver ()
+put_track_signal :: TrackId -> Either [Log.Msg] Track.TrackSignal
+    -> Derive.Deriver ()
 put_track_signal track_id tsig = put_track_signals [(track_id, tsig)]
 
-put_track_signals :: [(TrackId, Track.TrackSignal)] -> Derive.Deriver ()
+put_track_signals :: [(TrackId, Either [Log.Msg] Track.TrackSignal)]
+    -> Derive.Deriver ()
 put_track_signals [] = return ()
 put_track_signals tracks = Internal.modify_collect $ \st ->
     st { Derive.collect_track_signals =
@@ -306,18 +310,17 @@ put_track_signals tracks = Internal.modify_collect $ \st ->
 -- be rendered.  This is like 'eval_track' but specialized to derive only the
 -- signal.  The track signal is normally stashed as a side-effect of control
 -- track evaluation, but tracks below a note track are not evaluated normally.
-track_signal :: State.TrackEvents -> Derive.Deriver (Maybe Track.TrackSignal)
+track_signal :: State.TrackEvents
+    -> Derive.Deriver (Either [Log.Msg] Track.TrackSignal)
 track_signal track
-    | null title = return Nothing
+    | null title = return $ Left []
     | otherwise = do
-        rendered <- maybe (return False) track_is_rendered
-            (State.tevents_track_id track)
-        if not rendered then return Nothing else do
+        -- Note tracks don't have signals.
+        if TrackInfo.is_note_track title then return (Left []) else do
         (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
             return (TrackInfo.parse_control_expr title)
-        Just <$> eval_signal track expr ctype
-    where
-    title = State.tevents_title track
+        run_sub $ eval_signal track expr ctype
+    where title = State.tevents_title track
 
 eval_signal :: State.TrackEvents -> TrackLang.Expr
     -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal

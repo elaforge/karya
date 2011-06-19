@@ -254,10 +254,13 @@ force x = x `DeepSeq.deepseq` return ()
 
 -- | Print a list with newlines between its elements.
 plist :: Show a => [a] -> IO ()
+plist [] = putStrLn "[]"
 plist xs = do
     mapM_ (\(i, x) -> putStr (show i ++ ": ") >> print x) (Seq.enumerate xs)
     putChar '\n'
+
 pslist :: [String] -> IO ()
+pslist [] = putStrLn "[]"
 pslist xs = putStr $
     concatMap (\(i, x) -> printf "%02d. %s\n" i x) (Seq.enumerate xs)
 

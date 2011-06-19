@@ -32,9 +32,11 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import Ui
@@ -74,7 +76,7 @@ do_updates updates = do
 
 set_track_signals :: State.State -> Track.TrackSignals -> IO ()
 set_track_signals state track_signals =
-    case State.eval state tracknums of
+    case State.eval state get_track_info of
         Left err ->
             -- This could happen if track_signals had a stale track_id.  That
             -- could happen if I deleted a track before the deriver came back
@@ -82,18 +84,23 @@ set_track_signals state track_signals =
             -- TODO but I should just filter out the bad track_id in that case
             Log.warn $ "getting tracknums of track_signals: " ++ show err
         Right val -> Ui.send_action $ forM_ val $
-            \(view_id, tracknum, tsig) ->
-                BlockC.set_track_signal view_id tracknum tsig
+            \(view_id, tracknum, result) -> case result of
+                Left logs -> mapM_ Log.write $
+                    prefix view_id tracknum logs
+                Right tsig -> BlockC.set_track_signal view_id tracknum tsig
     where
-    tracknums :: State.StateId [(ViewId, TrackNum, Track.TrackSignal)]
-    tracknums =
-        fmap concat $ forM (Map.assocs track_signals) $ \(track_id, tsig) ->
-            tracknums_of track_id tsig
-    tracknums_of track_id tsig = do
+    prefix view_id tracknum = Log.add_prefix $ Text.pack $
+        "getting track signal for " ++ Pretty.pretty (view_id, tracknum)
+    get_track_info ::
+        State.StateId [(ViewId, TrackNum, Either [Log.Msg] Track.TrackSignal)]
+    get_track_info =
+        fmap concat $ forM (Map.assocs track_signals) $ \(track_id, result) ->
+            tracknums_of track_id result
+    tracknums_of track_id result = do
         blocks <- State.blocks_with_track track_id
         fmap concat $ forM blocks $ \(block_id, tracks) -> do
             view_ids <- Map.keys <$> State.get_views_of block_id
-            return [(view_id, tracknum, tsig)
+            return [(view_id, tracknum, result)
                 | (tracknum, Block.TId tid _) <- tracks,
                     tid == track_id, view_id <- view_ids]
 

@@ -1,11 +1,9 @@
 module Derive.Control_test where
-import Control.Monad
 import qualified Data.Map as Map
 
 import Util.Test
 import qualified Util.Log as Log
 
-import Ui
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Track as Track
@@ -145,54 +143,44 @@ test_relative_pitch = do
 
 test_stash_signal = do
     -- make sure that TrackSignals are recorded when control tracks are derived
-    let itrack = ((">i", []), False)
+    let itrack = (">i", [])
         ctrack = ("cont", [(0, 0, "1"), (1, 0, "0")])
         csig = Track.Control $ Signal.signal [(0, 1), (1, 0)]
-    let run tracks = extract $ DeriveTest.derive_block ui_state bid
-            where
-            bid = UiTest.bid "b1"
-            ui_state = mkstate bid tracks
-            extract r = Log.trace_logs (snd $ DeriveTest.r_split r)
-                (map e_tsig (Map.elems (Derive.r_track_signals r)))
-            e_tsig (Track.TrackSignal sig shift stretch) =
-                (sig, shift, stretch)
+    let run = extract . DeriveTest.derive_tracks
+        extract r = Log.trace_logs (snd $ DeriveTest.r_split r)
+            (map e_tsig (Map.elems (Derive.r_track_signals r)))
+        e_tsig result = case result of
+            Left logs -> Left $ map DeriveTest.show_log logs
+            Right (Track.TrackSignal sig shift stretch) ->
+                Right (sig, shift, stretch)
+    let tsig samples p x = Right (Track.Control (Signal.signal samples), p, x)
 
-    equal (run [(ctrack, False), itrack]) []
-    equal (run [(ctrack, True), itrack]) [(csig, 0, 1)]
+    equal (run [ctrack, itrack]) [Right (csig, 0, 1)]
     -- constant tempo stretches track sig
-    equal (run [(("tempo", [(0, 0, "2")]), False), (ctrack, True), itrack])
-        [(Track.Control (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)]
-    -- tempo track also gets an unwarped track sig
-    equal (run [(("tempo", [(0, 0, "2")]), True), (ctrack, True), itrack])
-        [ (Track.Control (Signal.signal [(0, 2), (1, 2)]), 0, 1)
-        , (Track.Control (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)
+    -- tempo track itself is unstretched
+    equal (run [("tempo", [(0, 0, "2")]), ctrack, itrack]) $
+        [ tsig [(0, 2), (1, 2)] 0 1
+        , tsig [(0, 1), (0.5, 0)] 0 0.5
         ]
 
-    -- but a complicated tempo forces a rederive so output is still in RealTime
-    equal (run [(("tempo", [(0, 0, "2"), (4, 0, "i 1")]), False),
-            (ctrack, True), itrack])
-        [(csig, 0, 1)]
+    -- but a complicated tempo forces a rederive so output is still in
+    -- RealTime
+    equal (run [("tempo", [(0, 0, "2"), (4, 0, "i 1")]), ctrack, itrack])
+        [ tsig [(0, 2), (1, 1.75), (2, 1.5), (3, 1.25), (4, 1)] 0 1
+        , tsig [(0, 1), (1, 0)] 0 1
+        ]
 
+    -- pitch tracks work too
     let ptrack = ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
         psig = Track.Pitch (PitchSignal.signal Twelve.scale_id
                 [(0, (60, 60, 0)), (1, (62, 62, 0))])
             (Scale.scale_map Twelve.scale)
-    equal (run [(ptrack, False), itrack]) []
-    equal (run [(ptrack, True), itrack]) [(psig, 0, 1)]
+    equal (run [ptrack, itrack]) [Right (psig, 0, 1)]
+
 
     -- Subtracks should be rendered, even though they're never evaluated as
     -- a whole.
-    equal (run [itrack, (ctrack, True)]) [(csig, 0, 1)]
-
-    equal (run [itrack, (ptrack, True)])
-        [(psig, 0, 1)]
-
-
--- | Make a UI state with render on for the tracks paired with True.
-mkstate :: BlockId -> [(UiTest.TrackSpec, Bool)] -> State.State
-mkstate bid tracks = snd $ UiTest.run State.empty $ do
-    tids <- UiTest.mkstate_id bid
-        [(title, evts) | ((title, evts), _) <- tracks]
-    forM_ [tid | (tid, (_, True)) <- zip tids tracks] $ \tid ->
-        State.modify_track_render tid $ \render ->
-            render { Track.render_style = Track.Filled }
+    equal (run [itrack, ctrack]) [Right (csig, 0, 1)]
+    equal (run [itrack, ("$ broken", [(0, 0, "0")])]) []
+    equal (run [itrack, itrack]) []
+    equal (run [itrack, ptrack]) [Right (psig, 0, 1)]

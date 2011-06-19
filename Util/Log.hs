@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings #-}
 {- | Functions for logging.
 
     Log msgs are used to report everything from errors and debug msgs to status
@@ -16,6 +17,7 @@ module Util.Log (
     , debug_stack, notice_stack, warn_stack, error_stack
     , debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos
         , error_stack_srcpos
+    , add_prefix
     , trace_logs
     -- * LogT monad
     , LogMonad(..)
@@ -39,15 +41,18 @@ import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Control.Monad.Writer.Lazy as Writer
+
 import qualified Data.Generics as Generics
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Debug.Trace as Trace
+
 import qualified System.IO as IO
 import qualified System.IO.Unsafe  as Unsafe
 import Text.Printf (printf)
 
 import qualified Util.AppendList as AppendList
+import Util.Control
 import qualified Util.CPUTime as CPUTime
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -204,6 +209,10 @@ debug_stack = debug_stack_srcpos Nothing
 notice_stack = notice_stack_srcpos Nothing
 warn_stack = warn_stack_srcpos Nothing
 error_stack = error_stack_srcpos Nothing
+
+-- | Prefix msgs with the given string.
+add_prefix :: Text.Text -> [Msg] -> [Msg]
+add_prefix pref = map $ \m -> m { msg_text = pref <> ": " <> msg_text m }
 
 -- | Write log msgs with 'trace', for debugging.
 trace_logs :: [Msg] -> a -> a

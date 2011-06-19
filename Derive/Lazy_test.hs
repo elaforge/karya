@@ -158,6 +158,24 @@ perform result = map (LEvent.either Left (Right . DeriveTest.show_log)) $
         DeriveTest.default_midi_config (Derive.r_events result)
 
 
+test_track_signal = do
+    -- Ensure that track signals are only derived twice if the TrackSignal is
+    -- actually inspected.
+    let ustate = snd $ UiTest.run_mkstate
+            [ ("tempo", [(0, 0, "1"), (1, 0, ".5")])
+            , ("c1", [(0, 0, "0")])
+            , (">", [(0, 1, "")])
+            ]
+    (log, res) <- derive_block ustate
+    let t1_derived = length . filter ("b1.t1" `List.isInfixOf`) <$> get_log log
+    -- force just the events
+    print (DeriveTest.extract Score.event_controls res)
+    io_equal t1_derived 1
+    -- force the track signals as well
+    print (Derive.r_track_signals res)
+    io_equal t1_derived 2
+
+
 -- * lazy checks
 
 -- This set of test_#_* test the laziness at various points of the derivation.
@@ -232,6 +250,9 @@ put_log log msg = MVar.modifyMVar_ log (\msgs -> return (msg:msgs))
 
 get_log :: Log -> IO [String]
 get_log = fmap reverse . MVar.readMVar
+
+print_log :: Log -> IO ()
+print_log log = pslist =<< get_log log
 
 with_calls :: Log -> Derive.Deriver a -> Derive.Deriver a
 with_calls mvar = CallTest.with_note_call "" (mk_logging_call mvar)

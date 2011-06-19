@@ -166,8 +166,9 @@ stash_sub_signals :: State.EventsTree -> Derive.Deriver ()
 stash_sub_signals subs = do
     let tracks = concatMap Tree.flatten subs
     sigs <- mapM Control.track_signal tracks
-    Control.put_track_signals [(track_id, tsig) | (Just track_id, Just tsig)
-        <- zip (map State.tevents_track_id tracks) sigs]
+    Control.put_track_signals
+        [(track_id, tsig) | (Just track_id, tsig)
+            <- zip (map State.tevents_track_id tracks) sigs]
 
 derive_notes :: ScoreTime -> State.EventsTree -> [Events.PosEvent]
     -> Derive.EventDeriver
