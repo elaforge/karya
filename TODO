@@ -34,7 +34,31 @@ big things
   - complete TunedJust
   - complete Idiom.Wind
 
-CURRENT
+UNSORTED
+  - LPitch.to_relative was broken by notes as calls, fix it
+    For this I need the pitch signal of a pitch track, from the root block if
+    there is tricky context.  So I think I can save TrackSignals for all
+    control tracks, not just rendered ones.  Of course, they will be in
+    RealTime so I either need to map through that track's warp, or do them
+    all like display tracks so they have their own trivial warp.
+    The other option is try to not rederive non-displayed signals.  That means
+    either a separate spot for them and always look through the TrackWarps, or
+    an unwarped flag.  This seems like it could be a win because most of the
+    time those signals won't be needed so it seems like a shame to derive all
+    control tracks twice.  Provided non-trivial tempo, presumably a lot of
+    blocks will have constant tempo.
+
+    It's a cache, can I use laziness?  Store the rederived signal, but if
+    it's not demanded then rederivation doesn't happen.  This just requires
+    turning off the render signal check.
+    So try that and then write a test in Lazy_test to make sure signals
+    are only derived twice when I look at the TrackSignal.
+
+  - insert and delete time should use the selection if non-point
+  - in the abscence of the ability to drag events, cmd to move start of event
+    to current point, or set start and end if it's a range
+  + automate the manual tests
+    wait until hpc+pgmF is fixed
   * fix tempo track: maybe interpret last sample as slope 1 instead of slope 0
     I think I need the trailing thing so integrate works.  So integrate has
     to make that last sample assumption, along with compose.
@@ -42,41 +66,27 @@ CURRENT
     * write test that demonstrates problem
   * event edge TimeStep
   * merged TimeSteps
-  + automate the manual tests
   * make Derive.Lazy_test actually do tests
   * custom Deriver monad
   * remove transformer cache
-  - get control derivation going forward
   * clean up Ui.Track
-  - remove schema
-  - why does save trigger a rederive?
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn
-  - send style id to c++ instead of all the style elements
   - don't rely on built-in serialize / deserialize classes
     This is a hassle because I'd have to copy/paste at least the Integer and
     UTF8 serialization.
-  - cmd to play current line, or play current or previous note
-  - make seeks on derive output more efficient with a lazy index
-
-  run timing tests with bloom
-    - compile with optimization and make sure it rederives fast
-    - edit bits and make sure it rederives extra fast
-    - lang cmds to fix time signature
-  - ruler for LoadMod order list not exactly convenient... but maybe I just
-    need event snap?
-  - Create.view should size it to fit the block being created
-  - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
+    But I could reduce size and get rid of Util.Serialize by encoding doubles
+    directly.  Size might become more important when I save the undo history.
+  - lang cmds to modify time signature, test with bloom
 
   - block title takes up space and I'm not using it, can it collapse?
 
-  - scrolling is slow with more than a few events onscreen
-  - lang level pretty print for events, esp collapsing the stack
-  - add a Play.play_msgs function that plays the given msgs, normalizing so
-    fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
-  - cmd to save and load cache to disk
-  - fix LPitch.note_to_degree
+  wait until I want it
+    - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
+    - Create.view should size it to fit the block being created
+    - do tuplets by setting local ruler?
+    - lang cmd to show state hierarchically... or does it already exist?
 
   - use functional references to make some of this record update stuff nicer?
     - fclabels: rename record fields, use setL and setL
@@ -88,19 +98,6 @@ CURRENT
     invariant easier.  E.g. have explicit 'off' events, otherwise each event
     extends to the next one.  It means after merging I have to clear redundant
     offs, but that's easier right?
-  - in the abscence of the ability to drag events, cmd to move start of event
-    to current point, or set start and end if it's a range
-  - lang cmd to show state hierarchically... or does it already exist?
-  - do tuplets by setting local ruler?
-  make midi msgs smaller:
-    - last step of performer is to compact into vector
-    how many msgs in e.g. the ptrio?
-      127130, [pno 9205, flute 63748, clarinet 54177]
-      5367 for bloom
-      peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
-
-  performance:
-    - see if the cache filtering logs is causing significant copying and remove
 
   - maybe I could split CacheState into the writable portion, in Collect, and
     the read-only cache from the previous run, in Constant
@@ -121,68 +118,84 @@ CURRENT
     the filter at perform time, maybe better for cache since it only happens
     once.
 
-  lazy deriver
-    * I still don't understand what's going on with exceptions but it seems
-      to be working.  Figure this out later, esp Derive.with_empty_collect
-    - the log filter in Derive.Cache.insert_generator seems really bad.  Try
-      to prove that with profiles, and then remove it.  Use a log-suppression
-      framework to filter them before they are emitted?  Is that really more
-      efficient?
-    - see if I can make signal tracks happen lazy, or at least in order, by
-      not threading Collect and CacheState.  Collect is just LocalDep, which is
-      just (Set BlockId)
+  - remove or simplify Schema
+    But I need to make sure I don't need it first and can implement a totally
+    different language, e.g. gongche.  Having a way to switch default deriver
+    and cmds still seems useful.
+    Of course, I also want to be able to mix score styles, so I don't want to
+    make gongche a total island.  Can I integrate warp tempo as a note
+    transformer?
 
-    lazy signals:
-      - see if I can make control tracks truly lazy by making signals lazy
-      - reimplement various functions like integrate and resample, bsearches
-        must be linear
-      - make linear searches faster for e.g. warp by dropping warp in the past
-    - split writable CacheState from readonly?
+  planning
+    Composition of score fragments.  I think I want to display subderived
+    notes within the call event.  And then some way to put edits on top of it.
 
+  debugging
+    - lang level pretty print for events, esp collapsing the stack
+    - cmd to save and load cache to disk
+    - add a Play.play_msgs function that plays the given msgs, normalizing so
+      fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
+
+  lazy signals:
+    - see if I can make control tracks truly lazy by making signals lazy
+    - reimplement various functions like integrate and resample, bsearches
+      must be linear
+    - make linear searches faster for e.g. warp by dropping warp in the past
+    - can make integrate output infinite and remove set-prev hack
+
+  performance
+    - get control derivation going forward
+      What I really care about is that it's traversing the events efficiently.
+      Maybe don't thread Collect and CacheState.  Collect is just LocalDep,
+      which is just (Set BlockId).
+    - scrolling is slow with more than a few events onscreen
+    - send style id to c++ instead of all the style elements
+    packed midi, encode to storable vector
+      - last step of performer is to compact into vector
+      but I'm not sure this will much help
+      The main thing is how to encode the device.  I think I can hash it.  Or
+      use OS X persistent device ID?
+      how many msgs in e.g. the ptrio?
+        127130, [pno 9205, flute 63748, clarinet 54177]
+        5367 for bloom
+        peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
     AppendList / MergeList for Derive.Stream
       - switch to AppendList and try to get garbage down
         Avoid copying sublists returned by block calls and cache hits
-      - Midi.Cache.trim_events is a linear scan on all events from the
-        beginning, seems like this would be faster if I could skip chunks.
+      - play from cursor is a linear scan on all events from the beginning,
+        seems like this would be faster if I could skip chunks.
       - see if a Merge constructor can reduce copying
       - can I cache length and range in AppendList?  does it matter?
       - insert parallelism?  maybe the evaluator can do that when it sees
         Merge?
+    - make seeks on derive output more efficient with a lazy index
+    cache
+      - Can I make cached signal more efficient by merging the signals before
+        stashing it?  Of course laziness means that this won't actually happen
+        until the next time the cache is demanded, unless I force it.
+      - see if the cache filtering logs is causing significant copying and
+        remove
+    - make tracks into calls, so they cache and the sub-run stuff works the
+      same with them as other calls
+      It would be nice to make them calls in the scopes, so they can be
+      rebound like other calls.  This is effectively moving the Schema into
+      calls.  Then I can entirely get rid of it.
+      - move Schema.default_schema_deriver into c_block
+      - make Schema.derive_track into a call
+      The thing is block takes 'BlockId' and track takes (BlockId, TreeNode),
+      not CallArgs.  And it doesn't make sense to call from the tracks anyway,
+      so maybe not in Scopes.
+      Not much point to trying to put it in Environ or Scope since it's
+      a different type, but it could be dynamically scoped with the others, eg
+      Derive.state_schema :: (BlockId -> 
+      Basically it's the schema, but dynamicly scoped rather than attached to
+      blocks.  I can't actually see how dynamic scope makes sense, it should be
+      attached to blocks.  So keep it how it is, but call through generator
+      cache.
 
-    - when I save the cache for signal tracks, can I save a (Signal, Logs)
-      pair to save space?
-
-  - make tracks into calls, so they cache and the sub-run stuff works the same
-    with them as other calls
-    It would be nice to make them calls in the scopes, so they can be
-    rebound like other calls.  This is effectively moving the Schema into
-    calls.  Then I can entirely get rid of it.
-    - move Schema.default_schema_deriver into c_block
-    - make Schema.derive_track into a call
-    The thing is block takes 'BlockId' and track takes (BlockId, TreeNode),
-    not CallArgs.  And it doesn't make sense to call from the tracks anyway,
-    so maybe not in Scopes.
-    Not much point to trying to put it in Environ or Scope since it's
-    a different type, but it could be dynamically scoped with the others, eg
-    Derive.state_schema :: (BlockId -> 
-    Basically it's the schema, but dynamicly scoped rather than attached to
-    blocks.  I can't actually see how dynamic scope makes sense, it should be
-    attached to blocks.  So keep it how it is, but call through generator
-    cache.
-
-    I want to do better tests about speed vs. space, cache hits and misses.
-    Improve logging so that I can see, given a change, which areas of score
-    were rederived, and then what range of midi was reperformed.
-
-  - Can I make cached signal more efficient by merging the signals before
-    stashing it?  Of course laziness means that this won't actually happen
-    until the next time the cache is demanded, unless I force it.
-  - when the dust settles, look into removing or simplifying Schema
-
-  - packed midi, encode to storable vector
-    but I'm not sure this will much help
-    The main thing is how to encode the device.  I think I can hash it.  Or
-    use OS X persistent device ID?
+      I want to do better tests about speed vs. space, cache hits and misses.
+      Improve logging so that I can see, given a change, which areas of score
+      were rederived.
 
   profiles
     - profile edits (with and without auto-rederive)
@@ -192,25 +205,31 @@ CURRENT
       - transformers: simple nested score with a couple of transformers over
         the entire thing
 
+  cleanup
+    - get rid of Diff.track_diff by doing all diffs in the main diff, and
+      avoid sending msgs back to the UI by having ui msgs cancel updates.
+    - now that the signal deriver is gone, I can also get rid of ignore_tempo,
+      unless I want to use it for a lilypond backend or something
+
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
 
-Also, I want to turn a new cmd on or off.  But I can do this just by adding
-or removing from the cmd list.
+  input:
+    - For control track entry, typing numbers puts them right of decimal,
+      typing backtick enters a 1.  Or, enter values in two digit hex.
+    - use capslock for kbd entry mode
+    - flag for unpitched instruments, so they don't get pitch tracks
+    - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
 
-UNSORTED
-  - for control track entry, typing numbers puts them right of decimal, typing
-    backtick enters a 1
-  - use capslock for kbd entry mode
-  - flag for unpitched instruments, so they don't get pitch tracks
-  - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
-  - get rid of Diff.track_diff by doing all diffs in the main diff, and
-    avoid sending msgs back to the UI by having ui msgs cancel updates.
+  play:
+    - cmd to play current line, or play current or previous note
+    - start playing n notes previous, then cmds to step forward and back,
+      note-by-note, so playback can be controlled manually.
+      I could use the playback selection to indicate where it is.
+    - playback should have multiple lines when a block is derived multiple
+      times have a set of playback selnums?
+    - put a multiplier on play's timestamps to implement a play speed control
 
-  - now that the signal deriver is gone, I can also get rid of ignore_tempo,
-    unless I want to use it for a lilypond backend or something
-  - after creating a new track, focus should go to its title
-  - put a multiplier on play's timestamps to implement a play speed control
   - If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
   * need a concept of a "root" block.  This block is used for:
@@ -244,13 +263,10 @@ UNSORTED
     modified
 
   - set_render_style should trigger a rederive to get the track signal
-  - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util
     or at least think about how to implement pengumbang and pengisep
   - subblock derivation for control tracks
 
-  - playback should have multiple lines when a block is derived multiple times
-    have a set of playback selnums?
   / should be able to rescan midi devices when something new is plugged in
     Centralize midi implementation functions in a record, include scan and
     open/close, record is stored in Cmd state.
@@ -265,7 +281,6 @@ UNSORTED
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
-  - insert and delete time should use the selection if non-point
 
   track management:
     - resize a bunch of tracks at once
@@ -442,6 +457,7 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - after creating a new track, focus should go to its title
   - some kind of special highlight to indicate the active block
   - rethrow c++ exceptions as FltkError
   * bug: somehow capslock keydown is sent sometimes
