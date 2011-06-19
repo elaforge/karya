@@ -69,11 +69,8 @@ SEQ_INTERPRETER := $(if $(hint), -DINTERPRETER_HINT)
 SEQ_FLAGS := $(SEQ_INTERPRETER) $(SEQ_OPT)
 
 
-# Flags to compile the tests.
-HTEST := -fhpc
-
 # Flags to compile the profiles.
-HPROFILE := -prof -auto-all -caf-all -O2
+HPROFILE := -prof -O
 
 HLDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD) -rtsopts
 
@@ -282,7 +279,7 @@ $(TBUILD)/RunTests.hs: $(ALL_HS)
 $(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HS) $(UI_OBJS) \
 		$(COREMIDI_OBJS) fltk/fltk.a
 	$(TEST_CMDLINE) -i -i$(TBUILD):. -odir $(TBUILD) -hidir $(TBUILD) \
-		$(TBUILD)/RunTests.hs $(HTEST) -o $@
+		$(TBUILD)/RunTests.hs -fhpc -o $@
 	rm -f *.tix # this sticks around and breaks hpc
 	rm -f test.output # this gets reset on each new test run
 
@@ -315,6 +312,7 @@ interactive: $(TBUILD)/RunTests
 
 ### misc ###
 
+.PHONY: tags
 tags: $(ALL_HS)
 	hasktags --ignore-close-implementation --ctags $^
 	sort tags >tags.sorted
