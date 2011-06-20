@@ -23,15 +23,8 @@ import qualified Perform.Pitch as Pitch
 -- * track info
 
 data ControlType =
-    -- | > control
-    -- > + control
     Control (Maybe TrackLang.CallId) Score.Control
-    -- | > *scale
-    -- > *scale pitch_control
-    -- > + *
-    -- > + * pitch_control
     | Pitch PitchType (Maybe Score.Control)
-    -- | > tempo
     | Tempo
     deriving (Show)
 
@@ -95,16 +88,17 @@ unparse_control_vals ctype = case ctype of
             Nothing -> [sym control]
             Just op -> [TrackLang.VSymbol op, sym control]
         Pitch ptype name ->
-            let pname = maybe [] (\(Score.Control c) -> [sym c]) name
+            let pname = sym ('#' : maybe "" uncontrol name)
+                opt = maybe [] (const [pname]) name
             in case ptype of
-                PitchRelative call ->
-                    [TrackLang.VSymbol call, sym "*"] ++ pname
+                PitchRelative call -> [TrackLang.VSymbol call, pname]
                 PitchAbsolute (Just (Pitch.ScaleId scale_id)) ->
-                    sym ('*':scale_id) : pname
-                PitchAbsolute Nothing -> sym "*" : pname
+                    sym ('*':scale_id) : opt
+                PitchAbsolute Nothing -> sym "*" : opt
         Tempo -> [sym "tempo"]
     where
     sym = TrackLang.VSymbol . TrackLang.Symbol
+    uncontrol (Score.Control c) = c
 
 -- ** util
 
