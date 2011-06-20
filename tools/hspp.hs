@@ -30,24 +30,35 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 
--- | module_name, sym
-data Macro = SrcposMacro (Maybe String) String
-    deriving (Show)
+data Macro = SrcposMacro {
+    -- | If Just, in this module the symbol will be matched unqualified, since
+    -- that is how it will be called.  For functions which are always called
+    -- unqualified, this is Nothing.
+    m_home_module :: Maybe String
+    -- | A list of possible qualifications that may prefix the symbol.
+    -- Normally this is the C of \"A.B.C\", but some symbols may be imported
+    -- under multiple names.
+    , m_qualifications :: [String]
+    -- | The symbol itself, which will get a _srcpos suffix and be supplied
+    -- a SrcPos argument.
+    , m_sym :: String
+    } deriving (Show)
 
 -- These are substituted everywhere.
 global_macros :: [Macro]
-global_macros = map (SrcposMacro (Just "Util.Log"))
+global_macros = map (SrcposMacro (Just "Util.Log") ["Log"])
     [ "msg", "initialized_msg"
     , "debug", "notice", "warn", "error", "timer"
     , "debug_stack", "notice_stack", "warn_stack", "error_stack"
     ]
-    ++ map (SrcposMacro (Just "Derive.Derive"))
+    ++ map (SrcposMacro (Just "Derive.Deriver.Internal")
+            ["Derive", "Internal"])
     [ "throw", "throw_error", "throw_arg_error"
     ]
 
 -- These are only substituted in test modules.
 test_macros :: [Macro]
-test_macros = map (SrcposMacro Nothing)
+test_macros = map (SrcposMacro Nothing [])
     [ "equal", "strings_like", "left_like", "io_human", "throws", "check"
     , "check_msg"]
 
@@ -96,17 +107,14 @@ find_macro macros func_name mod token
     | any matches macros = Just (token ++ "_srcpos")
     | otherwise = Nothing
     where
-    matches (SrcposMacro Nothing sym) = unqualified_match sym
-    matches (SrcposMacro (Just macro_mod) sym)
+    matches (SrcposMacro Nothing _ sym) = unqualified_match sym
+    matches (SrcposMacro (Just macro_mod) quals sym)
         | mod == macro_mod = unqualified_match sym
-        | otherwise = token == mod_to_token macro_mod sym
+        | otherwise = any (token==) (qualified_symbol quals sym)
     -- Match an unqualified symbol, but not inside the function itself, other
     -- wise this would replace the function definition!
     unqualified_match sym = Just token /= func_name && token == sym
-    mod_to_token mod sym
-        | null qualification = sym
-        | otherwise = qualification ++ "." ++ sym
-        where qualification = maybe "" id $ Seq.last (Seq.split "." mod)
+    qualified_symbol quals sym = [q ++ "." ++ sym | q <- quals]
 
 fn_to_module :: FilePath -> String
 fn_to_module = map repl . FilePath.dropExtension
@@ -189,19 +197,22 @@ smart_lines text = line : smart_lines rest
 -- * tests
 
 test_find_macro = do
-    let f mod token macro_mod = Maybe.isJust $
-            find_macro [SrcposMacro macro_mod "f"] (Just "qq") mod token
+    let f mod token macro_mod quals = Maybe.isJust $
+            find_macro [SrcposMacro macro_mod quals "f"] (Just "qq") mod token
     -- If module isn't set, look for 'f'.
-    check (not (f "A.B" "B.f" Nothing))
-    check (f "A.B" "f" Nothing)
+    check (not (f "A.B" "B.f" Nothing []))
+    check (f "A.B" "f" Nothing [])
 
     -- In another module, look for 'B.f'
-    check (f "Q" "B.f" (Just "A.B"))
-    check (not (f "Q" "f" (Just "A.B")))
+    check (f "Q" "B.f" (Just "A.B") ["B"])
+    check (not (f "Q" "f" (Just "A.B") ["B"]))
+    -- or C.f
+    check (f "Q" "C.f" (Just "A.B") ["B", "C"])
+    check (not (f "Q" "D.f" (Just "A.B") ["B", "C"]))
 
     -- In same module, look for 'f'
-    check (f "A.B" "f" (Just "A.B"))
-    check (not (f "A.B" "B.f" (Just "A.B")))
+    check (f "A.B" "f" (Just "A.B") ["A"])
+    check (not (f "A.B" "B.f" (Just "A.B") ["A"]))
 
 test_annotate = do
     pprint $ annotate ["module X (", "foo", ") where",
