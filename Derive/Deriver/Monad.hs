@@ -27,7 +27,7 @@
     since the hs-boot madness is worse.
 -}
 module Derive.Deriver.Monad (
-    Deriver
+    Deriver, RunResult
     , modify, get, gets, put, run
 
     -- * error
@@ -209,7 +209,7 @@ instance Log.LogMonad Deriver where
             Text.intercalate " / " (map Text.pack (reverse context))
                 <> ": " <> s
 
-run :: State -> Deriver a -> (Either Error a, State, [Log.Msg])
+run :: State -> Deriver a -> RunResult a
 run state m = _runD m state []
     (\st logs err -> (Left err, st, reverse logs))
     (\st logs a -> (Right a, st, reverse logs))
@@ -221,9 +221,9 @@ data Error = Error SrcPos.SrcPos Stack.Stack ErrorVal
     deriving (Eq, Show)
 
 instance Pretty.Pretty Error where
-    pretty (Error srcpos stack val) = "<Error "
-        ++ SrcPos.show_srcpos srcpos ++ " " ++ Pretty.pretty stack ++ ": "
-        ++ Pretty.pretty val ++ ">"
+    pretty (Error srcpos stack val) =
+        SrcPos.show_srcpos srcpos ++ " " ++ Pretty.pretty stack ++ ": "
+        ++ Pretty.pretty val
 
 data ErrorVal = GenericError String | CallError CallError
     deriving (Eq, Show)

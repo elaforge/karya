@@ -5,9 +5,10 @@ import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
-import qualified Midi.Midi as Midi
 
+import qualified Midi.Midi as Midi
 import Ui
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -31,7 +32,6 @@ import qualified Perform.Transport as Transport
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
-
 import qualified App.Config as Config
 
 
@@ -42,17 +42,15 @@ default_view_id = UiTest.default_view_id
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_tracks track_specs =
     run (DeriveTest.with_instrument ustate) default_cmd_state
-    where
-    (_, ustate) = UiTest.run_mkview track_specs
+    where (_, ustate) = UiTest.run_mkview track_specs
 
 -- | Run a cmd and return everything you could possibly be interested in.
--- Will be Nothing if the cmd aborted.
 run :: State.State -> Cmd.State -> Cmd.CmdId a -> Result a
 run ustate cmd_state0 cmd = Result val cmd_state logs midi_msgs
     where
     (cmd_state, midi_msgs, logs, result) = Cmd.run_id ustate cmd_state0 cmd
     val = case result of
-        Left err -> Left (show err)
+        Left err -> Left (Pretty.pretty err)
         Right (val, ui_state, _updates) -> Right (val, ui_state)
 
 -- | Like 'run', but with a selection on track 1 at 0, and and note duration
@@ -67,7 +65,7 @@ run_sel tracknum track_specs cmd = run_tracks track_specs $ do
     step = TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
 
 data Result val = Result {
-    -- | Nothing means it aborted.
+    -- | A Nothing val means it aborted.
     result_val :: Either String (Maybe val, State.State)
     , result_cmd_state :: Cmd.State
     , result_logs :: [Log.Msg]
@@ -85,12 +83,14 @@ e_tracks :: Result _val -> Either String [(String, [Simple.Event])]
 e_tracks result = fmap ex $ e_ustate UiTest.extract_tracks id result
     where ex (val, logs) = Log.trace_logs logs val
 
-extract :: (val -> e_val) -> Result val -> Either String (Maybe e_val, [String])
+extract :: (val -> e_val) -> Result val
+    -> Either String (Maybe e_val, [String])
 extract extract_val result = fmap ex (e_val result)
     where
     ex (val, logs) = (fmap extract_val val, map DeriveTest.show_log logs)
     e_val :: Result val -> Either String (Maybe val, [Log.Msg])
-    e_val res = either Left (\(v, _) -> Right (v, result_logs res)) (result_val res)
+    e_val res = either Left (\(v, _) -> Right (v, result_logs res))
+        (result_val res)
 
 eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
 eval ustate cstate cmd = case result_val (run ustate cstate cmd) of

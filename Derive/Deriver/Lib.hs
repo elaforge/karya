@@ -65,6 +65,9 @@ import qualified Perform.Transport as Transport
 
 -- * derive
 
+-- This should probably be in Internal, but can't due to a circular dependency
+-- with score_to_real.
+
 data Result = Result {
     r_events :: Events
     , r_cache :: Cache
@@ -83,17 +86,20 @@ data Result = Result {
 --
 -- The derivation state is quite involved, so there are a lot of arguments
 -- here.
-derive :: Constant -> Scope -> Cache -> ScoreDamage -> TrackLang.Environ
-    -> EventDeriver -> Result
+derive :: Constant -> Scope -> Cache -> ScoreDamage
+    -> TrackLang.Environ -> Deriver a -> RunResult a
 derive constant scope cache damage environ deriver =
+    run state (with_initial_scope environ deriver)
+    where
+    state = initial_state scope (clear_damage damage cache) damage environ              constant
+
+extract_result :: RunResult Events -> Result
+extract_result (result, state, logs) =
     Result (merge_logs result logs) (state_cache (state_cache_state state))
         tempo_func closest_func inv_tempo_func
         (collect_track_signals collect) (collect_track_environ collect)
         state
     where
-    (result, state, logs) = run initial (with_inital_scope environ deriver)
-    initial = initial_state scope clean_cache damage environ constant
-    clean_cache = clear_damage damage cache
     collect = state_collect state
     warps = TrackWarp.collections (collect_warp_map collect)
     tempo_func = TrackWarp.tempo_func warps
@@ -101,8 +107,8 @@ derive constant scope cache damage environ deriver =
     inv_tempo_func = TrackWarp.inverse_tempo_func warps
 
 -- | Given an environ, bring instrument and scale calls into scope.
-with_inital_scope :: TrackLang.Environ -> Deriver d -> Deriver d
-with_inital_scope env deriver = set_inst (set_scale deriver)
+with_initial_scope :: TrackLang.Environ -> Deriver d -> Deriver d
+with_initial_scope env deriver = set_inst (set_scale deriver)
     where
     set_inst = case TrackLang.lookup_val TrackLang.v_instrument env of
         Right inst -> with_instrument inst

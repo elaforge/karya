@@ -22,6 +22,7 @@ import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive as Derive
@@ -154,7 +155,7 @@ transpose_selection octaves degrees = do
     ModifyEvents.tracks_sorted $ \track_id events -> do
         is_pitch <- is_pitch_track track_id
         if not is_pitch then return Nothing else do
-        scale_id <- Cmd.get_scale_id block_id track_id
+        scale_id <- Perf.get_scale_id block_id track_id
         Just <$> transpose_events block_id track_id scale_id
             octaves degrees events
 

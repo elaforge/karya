@@ -171,7 +171,7 @@ derive_block_with with ui_state block_id = derive ui_state deriver
     where deriver = with (Call.Block.eval_root_block block_id)
 
 derive :: State.State -> Derive.EventDeriver -> Derive.Result
-derive ui_state deriver =
+derive ui_state deriver = Derive.extract_result $
     Derive.derive (default_constant ui_state) default_scope
         mempty mempty default_environ deriver
 
@@ -188,7 +188,7 @@ derive_block_cache cache damage ui_state block_id =
 
 derive_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> Derive.EventDeriver -> Derive.Result
-derive_cache cache damage ui_state deriver =
+derive_cache cache damage ui_state deriver = Derive.extract_result $
     Derive.derive (default_constant ui_state) default_scope cache damage
         default_environ deriver
 

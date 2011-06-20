@@ -74,7 +74,6 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -223,6 +222,9 @@ require = maybe abort return
 -- | Like 'require', but throw an exception with the given msg.
 require_msg :: (M m) => String -> Maybe a -> m a
 require_msg msg = maybe (throw msg) return
+
+require_right :: (M m) => (err -> String) -> Either err a -> m a
+require_right str = either (throw . str) return
 
 -- | Log an event so that it can be clicked on in logview.
 log_event :: BlockId -> TrackId -> Events.PosEvent -> String
@@ -519,10 +521,12 @@ get_screen point = do
         Seq.minimum_on (Rect.distance point) screens
 
 lookup_pthread :: (M m) => BlockId -> m (Maybe PerformanceThread)
-lookup_pthread block_id = Map.lookup block_id <$> gets state_performance_threads
+lookup_pthread block_id =
+    Map.lookup block_id <$> gets state_performance_threads
 
 lookup_performance :: (M m) => BlockId -> m (Maybe Performance)
-lookup_performance block_id = fmap (fmap pthread_perf) (lookup_pthread block_id)
+lookup_performance block_id =
+    fmap (fmap pthread_perf) (lookup_pthread block_id)
 
 get_performance :: (M m) => BlockId -> m Performance
 get_performance block_id = require =<< lookup_performance block_id
@@ -671,39 +675,6 @@ set_note_text txt = do
     modify_edit_state $ \st -> st { state_note_text = txt }
     set_status "txt" (if null txt then Nothing else Just txt)
 
--- ** environ
-
-get_scale_id :: (M m) => BlockId -> TrackId -> m Pitch.ScaleId
-get_scale_id block_id track_id = do
-    scale <- lookup_env block_id track_id TrackLang.v_scale
-    case scale of
-        Just (TrackLang.VScaleId scale_id) -> return scale_id
-        _ -> State.get_default State.default_scale
-
-lookup_instrument :: (M m) => BlockId -> TrackId -> m (Maybe Score.Instrument)
-lookup_instrument block_id track_id = do
-    inst_val <- lookup_env block_id track_id TrackLang.v_instrument
-    case inst_val of
-        Just (TrackLang.VInstrument inst) -> return $ Just inst
-        _ -> State.get_default State.default_instrument
-
--- | Lookup value from the deriver's Environ at the given block and track.
--- See 'Derive.TrackEnviron' for details on the limitations here.
---
--- The lookup is done relative to the root block, which means that instruments
--- and scales always default relative to the root.  I suppose I could think of
--- some case where it would be better to look it up relative to some other
--- block, but that seems way too complicated.  This means that the
--- TrackEnvirons from other block derivations are never used.  That leads to
--- a certain amount of void allocation, so maybe I should include a flag to
--- turn off TrackEnviron recording?
-lookup_env :: (M m) => BlockId -> TrackId -> TrackLang.ValName
-    -> m (Maybe TrackLang.Val)
-lookup_env block_id track_id name =
-    justm State.lookup_root_id $ \root_id ->
-    justm (lookup_performance root_id) $ \perf -> do
-    let track_env = perf_track_environ perf
-    return $ Map.lookup name =<< Map.lookup (block_id, track_id) track_env
 
 
 -- * basic cmds

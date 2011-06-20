@@ -61,7 +61,12 @@ clear_cache block_id =
 -- | Derive the contents of the given block to score events.
 derive :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage -> BlockId
     -> m Derive.Result
-derive derive_cache damage block_id = do
+derive cache damage block_id =
+    Derive.extract_result <$> run cache damage (Block.eval_root_block block_id)
+
+run :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage
+    -> Derive.Deriver a -> m (Derive.RunResult a)
+run cache damage deriver = do
     schema_map <- Cmd.get_schema_map
     ui_state <- State.get
     lookup_scale <- Cmd.get_lookup_scale
@@ -72,8 +77,7 @@ derive derive_cache damage block_id = do
     let deflt = State.state_default ui_state
         env = initial_environ (State.default_scale deflt)
             (State.default_instrument deflt)
-    return $ Derive.derive constant scope derive_cache damage env
-        (Block.eval_root_block block_id)
+    return $ Derive.derive constant scope cache damage env deriver
 
 get_lookup_inst_calls :: (Cmd.M m) =>
     m (Score.Instrument -> Maybe Derive.InstrumentCalls)

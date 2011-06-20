@@ -35,7 +35,11 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - LPitch.to_relative was broken by notes as calls, fix it
+  - should Signal.at args be flipped?
+  - bug: changing an event on a track with only one extends dmg to track_end,
+    and then real_to_score fails
+  - mv hspp to Util so I can have its tests run normally
+  * LPitch.to_relative was broken by notes as calls, fix it
     For this I need the pitch signal of a pitch track, from the root block if
     there is tricky context.  So I think I can save TrackSignals for all
     control tracks, not just rendered ones.  Of course, they will be in

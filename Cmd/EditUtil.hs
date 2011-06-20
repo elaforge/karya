@@ -17,6 +17,7 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
@@ -93,12 +94,12 @@ get_sel_pos = do
 lookup_instrument :: (Cmd.M m) => m (Maybe Score.Instrument)
 lookup_instrument = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    Cmd.lookup_instrument block_id track_id
+    Perf.lookup_instrument block_id track_id
 
 get_scale_id :: (Cmd.M m) => m Pitch.ScaleId
 get_scale_id = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    Cmd.get_scale_id block_id track_id
+    Perf.get_scale_id block_id track_id
 
 -- * msgs
 

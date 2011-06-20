@@ -1,20 +1,20 @@
 -- | Get track-specific Cmds.
 module Cmd.Track where
 import Control.Monad
+
 import Util.Control
 import qualified Util.Log as Log
-
 import Ui
 import qualified Ui.State as State
-
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Info as Info
 import qualified Cmd.ControlTrack as ControlTrack
+import qualified Cmd.Info as Info
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
+import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 
 import qualified Derive.TrackInfo as TrackInfo
@@ -57,7 +57,7 @@ get_track_cmds = do
 lookup_instrument_cmds :: (Cmd.M m) => BlockId -> TrackId
     -> m (Maybe [Cmd.Cmd])
 lookup_instrument_cmds block_id track_id =
-    justm (Cmd.lookup_instrument block_id track_id) $ \inst ->
+    justm (Perf.lookup_instrument block_id track_id) $ \inst ->
     justm (Cmd.lookup_instrument_info inst) $ \info ->
     return $ Just $ Cmd.inst_cmds (MidiDb.info_code info)
 
