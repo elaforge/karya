@@ -630,15 +630,14 @@ data TrackEvents = TrackEvents {
     -- | If this TrackEvents is from a real track, then its evaluation can
     -- generate a render signal as a side-effect.
     , tevents_track_id :: !(Maybe TrackId)
-    -- | If the track is sliced and doesn't represent a complete track, its
-    -- range is here.
-    , tevents_range :: !TrackRange
+    -- | Range of the track.  This may be past the end of the last event since
+    -- it's the range of the block as a whole.
+    --
+    -- Used by "Derive.Cache": due to inverting calls, a control track may be
+    -- sliced to a shorter range.  In that case, I shouldn't bother with
+    -- damage outside of its range.
+    , tevents_range :: !(ScoreTime, ScoreTime)
     } deriving (Show)
-
--- | Used by "Derive.Cache": due to inverting calls, a control track may be
--- sliced to a shorter range.  In that case, I shouldn't bother with damage
--- outside of its range.
-type TrackRange = Maybe (ScoreTime, ScoreTime)
 
 events_tree :: (M m) => ScoreTime -> TrackTree -> m EventsTree
 events_tree block_end tree = mapM resolve tree
@@ -648,7 +647,7 @@ events_tree block_end tree = mapM resolve tree
     make title track_id = do
         track <- get_track track_id
         return $ TrackEvents title (Track.track_events track) block_end
-            (Just track_id) Nothing
+            (Just track_id) (0, block_end)
 
 -- ** tracks
 

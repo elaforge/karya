@@ -247,11 +247,11 @@ slice start end insert_event = concatMap strip . map go
     make text dur =
         State.TrackEvents ">"
             (Events.singleton start (Event.event text dur))
-            end Nothing (Just (start, end))
+            end Nothing (start, end)
     slice_t track = track
         { State.tevents_events = events track
         , State.tevents_end = end
-        , State.tevents_range = Just (start, end)
+        , State.tevents_range = (start, end)
         -- , State.tevents_track_id = Nothing
         -- TODO if I strip it, then the stack misses track ids, but how do
         -- I omit warp and signal?
@@ -331,6 +331,6 @@ slice_notes start end =
         { State.tevents_events = Events.map_sorted
             (\(p, e) -> (p - shift, e)) (State.tevents_events track)
         , State.tevents_end = State.tevents_end track - shift
-        , State.tevents_range = fmap (\(s, e) -> (s-shift, e-shift))
+        , State.tevents_range = (\(s, e) -> (s-shift, e-shift))
             (State.tevents_range track)
         }

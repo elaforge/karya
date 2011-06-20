@@ -35,7 +35,7 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - bug: changing an event on a track with only one extends dmg to track_end,
+  * bug: changing an event on a track with only one extends dmg to track_end,
     and then real_to_score fails
   * mv hspp to Util so I can have its tests run normally
   * LPitch.to_relative was broken by notes as calls, fix it

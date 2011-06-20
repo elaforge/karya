@@ -16,7 +16,7 @@ module Ui.Events (
 
     -- * events
     , Events(..)
-    , empty, length, time_end
+    , empty, length, time_begin, time_end
 
     -- ** list conversion
     , singleton
@@ -31,7 +31,7 @@ module Ui.Events (
     , remove_events, remove_event
 
     -- ** lookup
-    , at, overlapping, last
+    , at, overlapping, first, last
 
     -- ** split
     , split_range
@@ -93,8 +93,11 @@ empty = Events Map.empty
 length :: Events -> Int
 length = Map.size . get
 
+time_begin :: Events -> ScoreTime
+time_begin = maybe 0 event_min . first
+
 time_end :: Events -> ScoreTime
-time_end events = maybe 0 event_max (last events)
+time_end = maybe 0 event_max . last
 
 -- ** list conversion
 
@@ -165,6 +168,9 @@ overlapping pos events
     | (prev:_) <- pre, event_end prev > pos = Just prev
     | otherwise = Nothing
     where (pre, post) = split pos events
+
+first :: Events -> Maybe PosEvent
+first (Events events) = Map.find_min events
 
 -- | Final event, if there is one.
 last :: Events -> Maybe PosEvent

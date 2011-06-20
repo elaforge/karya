@@ -29,7 +29,6 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -286,13 +285,13 @@ test_control_damage = do
         ]
 
 test_get_control_damage = do
-    let f tracks s e = run tracks (get_control_damage Nothing (mkdamage s e))
+    let f tracks s e = run tracks (get_control_damage (0, 10) (mkdamage s e))
     equal (f [] 0 0) (Right (Just [(0, 0)]))
     equal (f [(0, 0, "0")] 0 0)
-        (Right (Just [(0, RealTime.max)]))
+        (Right (Just [(0, 10)]))
     equal (f [(0, 0, "0"), (4, 0, "0")] 0 0)
         (Right (Just [(0, 4)]))
-    equal (f [(0, 0, "0"), (4, 0, "0")] 1 0)
+    equal (f [(0, 0, "0"), (4, 0, "0")] 1 1)
         (Right (Just [(0, 4)]))
     equal (f [(0, 0, "0"), (4, 0, "0"), (8, 0, "0")] 3 5)
         (Right (Just [(0, 8)]))

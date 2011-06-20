@@ -24,13 +24,12 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
+import qualified Derive.Derive as Derive
 import Derive.Derive
        (CacheState(..), Cache(..), CallType, ScoreDamage(..),
         ControlDamage(..))
-import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
@@ -124,23 +123,23 @@ insert_generator stack collect stream (Cache cache) =
 -- previous event, and possibly the next one.  Since control tracks may depend
 -- on other control tracks, controls beneath the damaged one will also expand
 -- the damage to include previous and next events in the same way.
-get_control_damage :: TrackId -> State.TrackRange
+get_control_damage :: TrackId -> (ScoreTime, ScoreTime)
     -> Derive.Deriver ControlDamage
-get_control_damage track_id range = do
+get_control_damage track_id track_range = do
     control <- Derive.state_control_damage <$> Internal.get_cache_state
-    extend_damage track_id range =<< if control == mempty
-        then score_to_control track_id range . Derive.state_score_damage
+    extend_damage track_id track_range =<< if control == mempty
+        then score_to_control track_id track_range . Derive.state_score_damage
             =<< Internal.get_cache_state
         else return control
 
 -- | Since the warp is the integral of the tempo track, damage on the tempo
--- track will affect all events after it.  The tempo track shouldn't be sliced
--- so TrackRange doesn't apply.
-get_tempo_damage :: TrackId -> Derive.Deriver ControlDamage
-get_tempo_damage track_id = do
+-- track will affect all events after it.
+get_tempo_damage :: TrackId -> (ScoreTime, ScoreTime)
+    -> Derive.Deriver ControlDamage
+get_tempo_damage track_id track_range = do
     control <- Derive.state_control_damage <$> Internal.get_cache_state
     extend <$> if control == mempty
-        then score_to_control track_id Nothing . Derive.state_score_damage
+        then score_to_control track_id track_range . Derive.state_score_damage
             =<< Internal.get_cache_state
         else return control
     where
@@ -150,22 +149,22 @@ get_tempo_damage track_id = do
             Just [] -> Ranges.nothing
             Just ((s, _) : _) -> Ranges.range s RealTime.max
 
-score_to_control :: TrackId -> State.TrackRange -> ScoreDamage
+score_to_control :: TrackId -> (ScoreTime, ScoreTime) -> ScoreDamage
     -> Derive.Deriver ControlDamage
-score_to_control track_id range score =
+score_to_control track_id track_range score =
     ControlDamage <$> damage_to_real damage
     where
     damage = in_range $ maybe Ranges.nothing id $
         Map.lookup track_id (Derive.sdamage_tracks score)
-    in_range = maybe id (Ranges.intersection . uncurry Ranges.range) range
+    in_range = Ranges.intersection $ uncurry Ranges.range track_range
 
 -- | Extend the given ControlDamage as described in 'get_control_damage'.
 -- Somewhat tricky because I also want to clip the damage to the track range,
 -- if any.  This is so a sliced control track below an unsliced one won't
 -- bother figuring out damage outside its range.
-extend_damage :: TrackId -> State.TrackRange -> ControlDamage
+extend_damage :: TrackId -> (ScoreTime, ScoreTime) -> ControlDamage
     -> Derive.Deriver ControlDamage
-extend_damage track_id range (ControlDamage damage)
+extend_damage track_id (track_s, track_e) (ControlDamage damage)
     | damage == mempty = return (ControlDamage damage)
     | otherwise = do
         events <- Track.track_events <$> Derive.get_track track_id
@@ -174,38 +173,26 @@ extend_damage track_id range (ControlDamage damage)
             then return (ControlDamage damage)
             else do
                 sdamage <- damage_to_score damage
-                Log.warn $ "extend from: " ++ show sdamage ++ " -> "
-                    ++ show (extend range sdamage events)
-                ControlDamage <$> damage_to_real (extend range sdamage events)
+                ControlDamage <$> damage_to_real (extend sdamage events)
     where
-    extend Nothing damage events = Ranges.fmap (Just . ext events) damage
-    extend (Just range) damage events =
-        Ranges.fmap (range_ext range events) damage
-    range_ext track_range events range
-        | in_range track_range range = Just (ext events range)
+    extend damage events = Ranges.fmap (extend1 events) damage
+    extend1 events (s, e)
+        | s >= track_s && e <= track_e =
+            Just (event_at_before s events, event_after e events)
         | otherwise = Nothing
-        where
-        in_range (track_s, track_e) (s, e) = s >= track_s && e <= track_e
-    ext events (s, e) = (event_at_before s events, event_after e events)
-
     event_at_before p events = case Events.split p events of
         (_, (at, _) : _) | p == at -> p
         ((prev, _) : _, _) -> prev
         _ -> p
-    event_after p events = maybe Types.big_score fst $
-        Seq.head (Events.after p events)
+    event_after p events = maybe track_e fst $ Seq.head (Events.after p events)
 
 damage_to_real :: Ranges.Ranges ScoreTime
     -> Derive.Deriver (Ranges.Ranges RealTime)
 damage_to_real r = case Ranges.extract r of
     Nothing -> return Ranges.everything
     Just rs -> Ranges.sorted_ranges <$>
-        mapM (\(s, e) -> (,) <$> convert s <*> convert e) rs
-    where
-    convert t
-        -- Ugh.  I don't really want to get the RealTime of Types.big_score.
-        | t == Types.big_score = return RealTime.max
-        | otherwise =  Derive.score_to_real t
+        mapM (\(s, e) -> (,) <$>
+            Derive.score_to_real s <*> Derive.score_to_real e) rs
 
 damage_to_score :: Ranges.Ranges RealTime
     -> Derive.Deriver (Ranges.Ranges ScoreTime)

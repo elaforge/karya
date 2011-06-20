@@ -67,7 +67,7 @@ eval_track track expr ctype deriver = do
                 control_deriver deriver
         TrackInfo.Control maybe_op control -> do
             let control_deriver = derive_control block_end expr events
-            -- track is passed just for TrackId and TrackRange
+            -- track is passed just for TrackId and track range
             control_call track control maybe_op control_deriver deriver
         TrackInfo.Pitch ptype maybe_name ->
             pitch_call block_end track maybe_name ptype expr events deriver
@@ -99,7 +99,7 @@ tempo_call block_end maybe_track_id sig_deriver deriver = do
     where
     with_damage = maybe id get_damage maybe_track_id
     get_damage track_id deriver = do
-        damage <- Cache.get_tempo_damage track_id
+        damage <- Cache.get_tempo_damage track_id (0, block_end)
         Internal.with_control_damage damage deriver
 
 control_call :: State.TrackEvents -> Score.Control -> Maybe TrackLang.CallId
@@ -175,12 +175,13 @@ get_scale ptype = case ptype of
 track_setup :: Maybe TrackId -> Derive.Deriver d -> Derive.Deriver d
 track_setup = maybe id Internal.track_setup
 
-with_control_damage :: Maybe TrackId -> State.TrackRange -> Derive.Deriver d
-    -> Derive.Deriver d
-with_control_damage maybe_track_id range = maybe id get_damage maybe_track_id
+with_control_damage :: Maybe TrackId -> (ScoreTime, ScoreTime)
+    -> Derive.Deriver d -> Derive.Deriver d
+with_control_damage maybe_track_id track_range =
+    maybe id get_damage maybe_track_id
     where
     get_damage track_id deriver = do
-        damage <- Cache.get_control_damage track_id range
+        damage <- Cache.get_control_damage track_id track_range
         Internal.with_control_damage damage deriver
 
 
