@@ -18,16 +18,13 @@
 --
 -- - Since annotations are per-line, @x = x@ won't replace @x@, but that's
 -- a silly definition anyway.
-import qualified Data.List as List
+module Util.Hspp where
 import qualified Data.Char as Char
-import qualified Data.Maybe as Maybe
+import qualified Data.List as List
 import qualified System.Environment
 import qualified System.FilePath as FilePath
 
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
-
-import Util.Test
 
 
 data Macro = SrcposMacro {
@@ -186,40 +183,10 @@ smart_lines text = line : smart_lines rest
     where
     (line, rest) = break_line text
     break_line ('\\' : '\n' : rest)
-        | "\\" `List.isPrefixOf` Seq.lstrip rest =
+        | "\\" `List.isPrefixOf` dropWhile Char.isSpace rest =
             let (pre, post) = break_line rest in ('\\' : '\n' : pre, post)
         | otherwise = ("\\", rest)
     break_line ('\n' : rest) = ("", rest)
-    break_line (c : rest) = let (pre, post) = break_line rest in (c : pre, post)
+    break_line (c : rest) = let (pre, post) = break_line rest
+        in (c : pre, post)
     break_line "" = ("", "")
-
-
--- * tests
-
-test_find_macro = do
-    let f mod token macro_mod quals = Maybe.isJust $
-            find_macro [SrcposMacro macro_mod quals "f"] (Just "qq") mod token
-    -- If module isn't set, look for 'f'.
-    check (not (f "A.B" "B.f" Nothing []))
-    check (f "A.B" "f" Nothing [])
-
-    -- In another module, look for 'B.f'
-    check (f "Q" "B.f" (Just "A.B") ["B"])
-    check (not (f "Q" "f" (Just "A.B") ["B"]))
-    -- or C.f
-    check (f "Q" "C.f" (Just "A.B") ["B", "C"])
-    check (not (f "Q" "D.f" (Just "A.B") ["B", "C"]))
-
-    -- In same module, look for 'f'
-    check (f "A.B" "f" (Just "A.B") ["A"])
-    check (not (f "A.B" "B.f" (Just "A.B") ["A"]))
-
-test_annotate = do
-    pprint $ annotate ["module X (", "foo", ") where",
-        "foo = bar", "bar, buz :: Baz", "bar a b = a b", "x = 10"]
-
-test_smart_lines = do
-    let f = smart_lines
-    equal (f "1\n2") ["1", "2"]
-    equal (f "1 \"hello\\\n  \\there\" f\n2\n")
-        ["1 \"hello\\\n  \\there\" f", "2"]

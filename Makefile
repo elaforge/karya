@@ -131,8 +131,9 @@ include .depend
 build/fixdeps: tools/fixdeps.hs
 	$(GHC) -o $@ $^
 
-build/hspp: tools/hspp.hs
-	$(GHC) -O2 --make -W -o $@ $^
+.PHONY: $(BUILD)/hspp
+$(BUILD)/hspp:
+	$(GHC) -O2 --make -W -main-is Util.Hspp -o $@ Util/Hspp.hs
 
 .PHONY: clean
 clean:
