@@ -106,9 +106,8 @@ test_cache = do
             ]
     let ustate = mkblock 10
         derive cache damage = do
-            log <- MVar.newMVar []
-            let deriver = with_calls log $
-                    Call.Block.eval_root_block (UiTest.bid "top")
+            (log, deriver) <- with_logging $
+                Call.Block.eval_root_block (UiTest.bid "top")
             return (log, DeriveTest.derive_cache cache damage ustate deriver)
     (log, res1) <- derive mempty mempty
     equal (extract_start res1) (map (Left . RealTime.seconds) [0..10])
@@ -123,7 +122,7 @@ test_cache = do
 
     (log, res2) <- derive (Derive.r_cache res1)
         (DeriveTest.make_damage "top" 0 1 3)
-    print $ take 2 $ extract_start res2
+    print $ take 1 $ extract_start res2
     -- Only the first damaged event was rederived.
     evaluated <- get_log log
     equal (length evaluated) 1
@@ -144,9 +143,9 @@ test_everything = do
             ]
     (log, res) <- derive_block ustate
     let midi = perform res
-    print (take 5 midi)
+    print (take 4 midi)
     -- Make sure errors make it all the way through.
-    equal (take 1 [msg | Right msg <- take 5 midi])
+    equal (take 1 [msg | Right msg <- midi])
         ["Error: note call not found: bad"]
     evaluated <- get_log log
     equal evaluated

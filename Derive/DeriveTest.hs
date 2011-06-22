@@ -61,27 +61,30 @@ run :: State.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
 run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
     where
-    -- Make sure Derive.get_current_block_id, called by add_track_warp, doesn't
-    -- throw.
+    -- Make sure Derive.get_current_block_id, called by add_new_track_warp,
+    -- doesn't throw.
     bid = UiTest.bid "DeriveTest.run fakeblock"
 
+-- | Run without a fake stack.
 run_ :: State.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
 run_ ui_state m = case Derive.run derive_state m of
         (Left err, _, _logs) -> Left (Pretty.pretty err)
         (Right val, state, logs) -> Right (val, state, logs)
     where
-    derive_state = (Derive.initial_state default_scope mempty
-        mempty default_environ (default_constant ui_state))
+    derive_state = Derive.initial_state default_scope
+        default_environ (default_constant ui_state mempty mempty)
 
 extract_run :: (a -> b) -> Either String (a, Derive.State, [Log.Msg])
     -> Either String b
 extract_run _ (Left err) = Left err
 extract_run f (Right (val, _, msgs)) = Right $ trace_logs msgs (f val)
 
-default_constant ui_state =
+default_constant   :: State.State -> Derive.Cache -> Derive.ScoreDamage
+    -> Derive.Constant
+default_constant ui_state cache damage =
     Derive.initial_constant ui_state (default_lookup_deriver ui_state)
-        default_lookup_scale (const Nothing)
+        default_lookup_scale (const Nothing) cache damage
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval ui_state m = extract_run id (run ui_state m)
@@ -172,8 +175,8 @@ derive_block_with with ui_state block_id = derive ui_state deriver
 
 derive :: State.State -> Derive.EventDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result $
-    Derive.derive (default_constant ui_state) default_scope
-        mempty mempty default_environ deriver
+    Derive.derive (default_constant ui_state mempty mempty) default_scope
+        default_environ deriver
 
 type Transform a = Derive.Deriver a -> Derive.Deriver a
 type TransformUi = State.State -> State.State
@@ -189,8 +192,9 @@ derive_block_cache cache damage ui_state block_id =
 derive_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> Derive.EventDeriver -> Derive.Result
 derive_cache cache damage ui_state deriver = Derive.extract_result $
-    Derive.derive (default_constant ui_state) default_scope cache damage
-        default_environ deriver
+    Derive.derive constant default_scope default_environ deriver
+    where
+    constant = default_constant ui_state cache damage
 
 make_damage :: String -> TrackNum -> ScoreTime -> ScoreTime
     -> Derive.ScoreDamage

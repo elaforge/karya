@@ -73,11 +73,12 @@ run cache damage deriver = do
     inst_calls <- get_lookup_inst_calls
     let constant = Derive.initial_constant ui_state
             (Schema.lookup_deriver schema_map ui_state) lookup_scale inst_calls
+            cache damage
     scope <- Cmd.gets Cmd.state_global_scope
     let deflt = State.state_default ui_state
         env = initial_environ (State.default_scale deflt)
             (State.default_instrument deflt)
-    return $ Derive.derive constant scope cache damage env deriver
+    return $ Derive.derive constant scope env deriver
 
 get_lookup_inst_calls :: (Cmd.M m) =>
     m (Score.Instrument -> Maybe Derive.InstrumentCalls)

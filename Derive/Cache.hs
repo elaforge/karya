@@ -28,8 +28,7 @@ import qualified Ui.Update as Update
 
 import qualified Derive.Derive as Derive
 import Derive.Derive
-       (CacheState(..), Cache(..), CallType, ScoreDamage(..),
-        ControlDamage(..))
+       (Cache(..), CallType, ScoreDamage(..), ControlDamage(..))
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
@@ -48,29 +47,29 @@ caching_call :: (Derive.PassedArgs d -> Derive.EventDeriver)
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
 caching_call call args = do
     (start, end) <- Derive.passed_real_range args
-    cache <- Derive.gets Derive.state_cache_state
-    stack <- Derive.gets Derive.state_stack
+    st <- Derive.get
+    let cdamage = Derive.state_control_damage st
+        sdamage = Derive.state_score_damage (Derive.state_constant st)
+        stack = Derive.state_stack st
     generate stack $ find_generator_cache stack (Ranges.range start end)
-        (state_score_damage cache) (state_control_damage cache)
-        (state_cache cache)
+        sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
         Log.debug $ "using cache (" ++ show (LEvent.length cached) ++ " vals)"
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
-        Internal.modify_collect (collect <>)
+        Internal.merge_collect collect
         return cached
     generate stack (Left reason) = do
         (result, collect) <- with_collect (call args)
-        cur_cache <- state_cache <$> Internal.get_cache_state
         Log.notice $ "rederived generator because of "
             -- This destroys laziness, though I'm not sure why since the
             -- log msg shouldn't be forced until the msgs already have been
             -- forced themselves.
             -- ++ show (LEvent.length stream) ++ " vals) because of "
             ++ reason
-        Internal.modify_cache_state $ \st -> st { Derive.state_cache =
-            insert_generator stack collect result cur_cache }
+        Internal.merge_collect $
+            mempty { Derive.collect_cache = make_cache stack collect result }
         return result
 
     -- To get the deps of just the deriver below me, I have to clear out
@@ -101,18 +100,19 @@ find_generator_cache stack event_range score_damage
         Left "control damage"
     return (collect, stream)
 
-insert_generator :: (Derive.Derived derived) =>
-    Stack.Stack -> Derive.Collect -> LEvent.LEvents derived -> Cache -> Cache
-insert_generator stack collect stream (Cache cache) =
-    Cache $ Map.insert stack entry cache
+make_cache :: (Derive.Derived d) => Stack.Stack -> Derive.Collect
+    -> LEvent.LEvents d -> Cache
+make_cache stack collect stream = Cache $ Map.singleton stack entry
     where
     -- TODO clear out other bits of cache that this overlaps with
     -- TODO filter log msgs so I don't get logs about cache misses back with
     -- the cache hit.  This is unsatisfactory because it copies the stream.
     -- Better solution?
-    entry = Derive.to_cache_entry (collect, (filter is_event stream))
+    stripped = collect { Derive.collect_cache = mempty }
+    entry = Derive.to_cache_entry (stripped, filter is_event stream)
     is_event (LEvent.Event _) = True
     is_event _ = False
+
 
 -- * get_control_damage
 
@@ -126,10 +126,11 @@ insert_generator stack collect stream (Cache cache) =
 get_control_damage :: TrackId -> (ScoreTime, ScoreTime)
     -> Derive.Deriver ControlDamage
 get_control_damage track_id track_range = do
-    control <- Derive.state_control_damage <$> Internal.get_cache_state
+    st <- Derive.get
+    let control = Derive.state_control_damage st
+        score = Derive.state_score_damage (Derive.state_constant st)
     extend_damage track_id track_range =<< if control == mempty
-        then score_to_control track_id track_range . Derive.state_score_damage
-            =<< Internal.get_cache_state
+        then score_to_control track_id track_range score
         else return control
 
 -- | Since the warp is the integral of the tempo track, damage on the tempo
@@ -137,10 +138,11 @@ get_control_damage track_id track_range = do
 get_tempo_damage :: TrackId -> (ScoreTime, ScoreTime)
     -> Derive.Deriver ControlDamage
 get_tempo_damage track_id track_range = do
-    control <- Derive.state_control_damage <$> Internal.get_cache_state
+    st <- Derive.get
+    let control = Derive.state_control_damage st
+        score = Derive.state_score_damage (Derive.state_constant st)
     extend <$> if control == mempty
-        then score_to_control track_id track_range . Derive.state_score_damage
-            =<< Internal.get_cache_state
+        then score_to_control track_id track_range score
         else return control
     where
     extend (Derive.ControlDamage ranges) = Derive.ControlDamage $

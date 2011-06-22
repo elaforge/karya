@@ -12,12 +12,13 @@
 -}
 module Derive.Control where
 import Control.Monad
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Monoid as Monoid
 import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Map as Map
 
 import Ui
 import qualified Ui.Event as Event
@@ -203,11 +204,10 @@ derive_control block_end expr events = do
     deriver :: Derive.ControlDeriver
     deriver = do
         state <- Derive.get
-        let (stream, collect, cache) =
+        let (stream, collects) = unzip $
                 Call.derive_track state block_end dinfo Parse.parse_num_expr
                     last_sample [] events
-        Derive.modify $ \st -> st {
-            Derive.state_collect = collect, Derive.state_cache_state = cache }
+        Internal.merge_collect (Monoid.mconcat collects)
         -- I can use concat instead of merge_asc_events because the signals
         -- will be merged with Signal.merge and I don't care if the logs
         -- are a little out of order.
@@ -226,10 +226,9 @@ derive_pitch block_end expr events = do
     where
     deriver = do
         state <- Derive.get
-        let (stream, collect, cache) = Call.derive_track
+        let (stream, collects) = unzip $ Call.derive_track
                 state block_end dinfo Parse.parse_expr last_sample [] events
-        Derive.modify $ \st -> st {
-            Derive.state_collect = collect, Derive.state_cache_state = cache }
+        Internal.merge_collect (Monoid.mconcat collects)
         return (concat stream)
     dinfo = Call.DeriveInfo Call.lookup_pitch_call "pitch"
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
@@ -301,9 +300,8 @@ put_track_signal track_id tsig = put_track_signals [(track_id, tsig)]
 put_track_signals :: [(TrackId, Either [Log.Msg] Track.TrackSignal)]
     -> Derive.Deriver ()
 put_track_signals [] = return ()
-put_track_signals tracks = Internal.modify_collect $ \st ->
-    st { Derive.collect_track_signals =
-        Map.insert_list tracks (Derive.collect_track_signals st) }
+put_track_signals tracks = Internal.merge_collect $ mempty
+    { Derive.collect_track_signals = Map.fromList tracks }
 
 -- * track_signal
 

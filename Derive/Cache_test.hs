@@ -23,7 +23,6 @@ import qualified Ui.Update as Update
 import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -218,7 +217,7 @@ test_collect = do
     let tsig = Right $
             Track.TrackSignal (Track.Control (Signal.signal [(0, 1)])) 0 1
     let extract = second (fmap extract_collect)
-        extract_collect (Derive.Collect wmap tsigs _env ldep) =
+        extract_collect (Derive.Collect wmap tsigs _env ldep _cache) =
             (Seq.sort_on fst (map (first Stack.show_ui) (Map.toAscList wmap)),
                 tsigs, ldep)
 
@@ -299,8 +298,9 @@ test_get_control_damage = do
         (Right (Just [(4, 8)]))
     where
     get_control_damage range score_damage = do
-        Internal.modify_cache_state $ \st ->
-            st { Derive.state_score_damage = score_damage }
+        let set c = c { Derive.state_score_damage = score_damage }
+        Derive.modify $ \st ->
+            st { Derive.state_constant = set (Derive.state_constant st) }
         Cache.get_control_damage (UiTest.mk_tid 0) range
     extract = DeriveTest.extract_run $
         \(Derive.ControlDamage r) -> Ranges.extract r
@@ -387,6 +387,7 @@ log_with_stack :: Log.Msg -> String
 log_with_stack msg =
     Pretty.pretty (Log.msg_stack msg) ++ ": " ++ Log.msg_string msg
 
+-- | Pull the collects out of the cache, pairing them up with the cache keys.
 r_cache_collect :: Derive.Result -> [(String, Maybe Derive.Collect)]
 r_cache_collect result = Seq.sort_on fst
     [(DeriveTest.show_stack (Just stack), collect ctype)

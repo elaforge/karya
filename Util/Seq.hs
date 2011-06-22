@@ -187,6 +187,12 @@ padded_zip [] bs = zip (repeat Nothing) (map Just bs)
 padded_zip as [] = zip (map Just as) (repeat Nothing)
 padded_zip (a:as) (b:bs) = (Just a, Just b) : padded_zip as bs
 
+zip_around :: [a] -> [([a], a, [a])]
+zip_around = go []
+    where
+    go _ [] = []
+    go prev (x:xs) = (prev, x, xs) : go (x:prev) xs
+
 {-
 pairs :: [a] -> [(a, a)]
 pairs (x0 : x1 : xs) = (x0, x1) : pairs xs

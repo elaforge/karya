@@ -33,7 +33,6 @@
 module Derive.Deriver.Lib where
 import qualified Prelude
 import Prelude hiding (error)
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 
@@ -49,8 +48,8 @@ import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
-import Derive.Deriver.Internal (score_to_real)
 import qualified Derive.Deriver.Internal as Internal
+import Derive.Deriver.Internal (score_to_real)
 import Derive.Deriver.Monad
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -86,16 +85,15 @@ data Result = Result {
 --
 -- The derivation state is quite involved, so there are a lot of arguments
 -- here.
-derive :: Constant -> Scope -> Cache -> ScoreDamage
-    -> TrackLang.Environ -> Deriver a -> RunResult a
-derive constant scope cache damage environ deriver =
+derive :: Constant -> Scope -> TrackLang.Environ -> Deriver a -> RunResult a
+derive constant scope environ deriver =
     run state (with_initial_scope environ deriver)
-    where
-    state = initial_state scope (clear_damage damage cache) damage environ              constant
+    where state = initial_state scope environ constant
 
 extract_result :: RunResult Events -> Result
 extract_result (result, state, logs) =
-    Result (merge_logs result logs) (state_cache (state_cache_state state))
+    Result (merge_logs result logs)
+        (collect_cache collect <> state_cache (state_constant state))
         tempo_func closest_func inv_tempo_func
         (collect_track_signals collect) (collect_track_environ collect)
         state
@@ -470,25 +468,21 @@ with_event event = Internal.local state_stack
 -- | The EventDerivers run as sub-derivers and the results are mappended, which
 -- lets them to interleave their work or run in parallel.
 d_merge :: [EventDeriver] -> EventDeriver
-d_merge [d] = d -- TODO this optimization lets exceptions through... do I care?
+d_merge [d] = d
 d_merge derivers = do
     state <- get
     -- Clear collect so they can be merged back without worrying about dups.
     let cleared = state { state_collect = mempty }
-    let (streams, collects, caches) =
-            List.unzip3 (map (run_sub cleared) derivers)
+    let (streams, collects) = unzip (map (run_sub cleared) derivers)
     modify $ \st -> st
-        { state_collect = Monoid.mconcat (state_collect state : collects)
-        , state_cache_state = Monoid.mconcat caches
-        }
+        { state_collect = Monoid.mconcat (state_collect state : collects) }
     return (Seq.merge_lists _event_start streams)
 
-type PureResult d = (Stream (LEvent.LEvent d), Collect, CacheState)
+type PureResult d = (Stream (LEvent.LEvent d), Collect)
 
 -- | Run the given deriver and return the relevant data.
 run_sub :: State -> LogsDeriver derived -> PureResult derived
-run_sub state deriver =
-    (merge_logs result logs, state_collect state2, state_cache_state state2)
+run_sub state deriver = (merge_logs result logs, state_collect state2)
     where (result, state2, logs) = run state deriver
 
 merge_logs :: Either Error (LEvent.LEvents d) -> [Log.Msg]

@@ -129,6 +129,7 @@
 -}
 module Derive.Note where
 import qualified Data.ByteString.Char8 as B
+import qualified Data.Monoid as Monoid
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -139,6 +140,7 @@ import qualified Ui.State as State
 import qualified Derive.Call as Call
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -174,11 +176,10 @@ derive_notes :: ScoreTime -> State.EventsTree -> [Events.PosEvent]
     -> Derive.EventDeriver
 derive_notes block_end subs events = do
     state <- Derive.get
-    let (event_groups, collect, cache) = Call.derive_track
+    let (event_groups, collects) = unzip $ Call.derive_track
             state block_end Call.note_dinfo Parse.parse_expr
             (\_ _ -> Nothing) subs events
-    Derive.modify $ \st -> st
-        { Derive.state_collect = collect, Derive.state_cache_state = cache }
+    Internal.merge_collect (Monoid.mconcat collects)
     return $ Derive.merge_asc_events event_groups
 
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.

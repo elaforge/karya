@@ -124,9 +124,10 @@ eval_expr :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
     -> Derive.LogsDeriver derived
 eval_expr info expr = do
     state <- Derive.get
-    let (res, logs, collect, cache) = apply_toplevel state info expr
-    Derive.modify $ \st -> st
-        { Derive.state_collect = collect, Derive.state_cache_state = cache }
+    let (res, logs, collect) = apply_toplevel state info expr
+    -- I guess this could set collect to mempty and then merge it back in,
+    -- but I think this is the same with less work.
+    Derive.modify $ \st -> st { Derive.state_collect = collect }
     return $ Derive.merge_logs res logs
 
 -- ** eval implementation
@@ -156,33 +157,23 @@ derive_track :: (Derive.Derived derived) =>
     Derive.State -> ScoreTime -> DeriveInfo derived
     -> Parse.ParseExpr -> GetLastSample derived
     -> State.EventsTree -> [Events.PosEvent]
-    -> ([LEvent.LEvents derived], Derive.Collect, Derive.CacheState)
+    -> [(LEvent.LEvents derived, Derive.Collect)]
+    -- -> ([LEvent.LEvents derived], Derive.Collect)
 derive_track state block_end dinfo parse get_last_sample subs events =
-    go (Internal.record_track_environ state) (Derive.state_cache_state state)
-        Nothing [] events
+    ([], Internal.record_track_environ state) : go Nothing [] events
     where
-    -- I want it so that when state is forced, the events will be forced in
-    -- order.  So each state should seq from the previous chunk of events.
-    go collect cache _ _ [] = ([], collect, cache)
-    go collect cache prev_sample prev (cur : rest) =
-        -- TODO is this no longer tail recursive because it has to keep
-        -- final_modify around?  Can I improve it with an accumulator?  Does it
-        -- matter if the events are lazily consumed?
-        (events, last_collect, last_cache)
+    go _ _ [] = []
+    go prev_sample prev (cur : rest) =
+        (events, collect) : go next_sample (cur : prev) rest
         where
-        (result, logs, next_collect, next_cache) =
+        (result, logs, collect) =
             -- trace ("derive " ++ show_pos state (fst cur) ++ "**") $
-            derive_event
-                (state { Derive.state_collect = collect,
-                    Derive.state_cache_state = cache })
-                block_end dinfo parse prev_sample subs prev cur rest
-        events = map LEvent.Log logs : score_events : rest_events
-        (rest_events, last_collect, last_cache) = go next_collect next_cache
-            sample (cur:prev) rest
-        score_events = case result of
+            derive_event state block_end dinfo parse prev_sample subs
+                prev cur rest
+        events = map LEvent.Log logs ++ case result of
             Right stream -> stream
             Left err -> [LEvent.Log (Derive.error_to_warn err)]
-        sample = case result of
+        next_sample = case result of
             Right derived ->
                 case Seq.last (Maybe.mapMaybe LEvent.event derived) of
                     Just elt -> get_last_sample prev_sample elt
@@ -204,14 +195,12 @@ derive_event :: (Derive.Derived d) =>
     -> [Events.PosEvent] -- ^ previous events, in reverse order
     -> Events.PosEvent -- ^ cur event
     -> [Events.PosEvent] -- ^ following events
-    -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg],
-        Derive.Collect, Derive.CacheState)
+    -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
 derive_event st block_end dinfo parse prev_val subs prev cur@(pos, event) next
     | Event.event_bs event == B.pack "--" =
-        (Right mempty, [], Derive.state_collect st, Derive.state_cache_state st)
+        (Right mempty, [], Derive.state_collect st)
     | otherwise = case parse (Event.event_bs event) of
-        Left err -> (Right mempty, [parse_error err],
-            Derive.state_collect st, Derive.state_cache_state st)
+        Left err -> (Right mempty, [parse_error err], Derive.state_collect st)
         Right expr -> run_call expr
     where
     parse_error = Log.msg Log.Warn (Just (Derive.state_stack st))
@@ -227,18 +216,15 @@ derive_event st block_end dinfo parse prev_val subs prev cur@(pos, event) next
 -- | Apply a toplevel expression.
 apply_toplevel :: (Derive.Derived d) => Derive.State -> Info d
     -> TrackLang.Expr
-    -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg],
-        Derive.Collect, Derive.CacheState)
+    -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
 apply_toplevel state info expr = case Seq.break_last expr of
         (transform_calls, Just generator_call) -> run $
             apply_transformer info transform_calls $
                 apply_generator info generator_call
-        _ -> (Right mempty, [err],
-            Derive.state_collect state, Derive.state_cache_state state)
+        _ -> (Right mempty, [err], Derive.state_collect state)
     where
     run d = case Derive.run state d of
-        (result, state, logs) -> (result, logs, Derive.state_collect state,
-            Derive.state_cache_state state)
+        (result, state, logs) -> (result, logs, Derive.state_collect state)
     err = Log.msg Log.Warn (Just (Derive.state_stack state))
         "event with no calls at all (this shouldn't happen)"
 

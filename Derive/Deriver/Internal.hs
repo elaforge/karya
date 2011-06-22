@@ -43,8 +43,9 @@ local from_state restore_state modify_state deriver = do
     modify (restore_state old)
     return result
 
-modify_collect :: (Collect -> Collect) -> Deriver ()
-modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
+-- | Collect is only ever accumulated.
+merge_collect :: Collect -> Deriver ()
+merge_collect c = modify $ \st -> st { state_collect = c <> state_collect st }
 
 
 -- * environ
@@ -59,12 +60,13 @@ insert_environ name val environ =
         Right environ2 -> return environ2
 
 -- | Figure out the current block and track, and record the current environ
--- in the Collect.  This should be called only once per track.
+-- in the Collect.  It only need be recorded once per track.
 record_track_environ :: State -> Collect
 record_track_environ state = case stack of
         Stack.Track tid : Stack.Block bid : _ ->
-            collect { collect_track_environ = insert bid tid }
-        _ -> collect
+            mempty { collect_track_environ =
+                Map.singleton (bid, tid) (state_environ state) }
+        _ -> mempty
     where
     -- Strip the stack down to the most recent track and block, since it will
     -- look like [tid, tid, tid, bid, ...].
@@ -75,43 +77,19 @@ record_track_environ state = case stack of
     track_or_block _ = False
     is_track (Stack.Track _) = True
     is_track _ = False
-    collect = state_collect state
-    insert bid tid = Map.insert (bid, tid) (state_environ state)
-        (collect_track_environ collect)
 
 
 -- * cache
 
-local_cache_state :: (CacheState -> st) -> (st -> CacheState -> CacheState)
-    -> (CacheState -> CacheState)
-    -> Deriver a -> Deriver a
-local_cache_state from_state to_state modify_state = local
-    (from_state . state_cache_state)
-    (\old st -> st { state_cache_state = to_state old (state_cache_state st) })
-    (\st -> return $ st
-        { state_cache_state = modify_state (state_cache_state st) })
-
-modify_cache_state :: (CacheState -> CacheState) -> Deriver ()
-modify_cache_state f = modify $ \st ->
-    st { state_cache_state = f (state_cache_state st) }
-
-get_cache_state :: Deriver CacheState
-get_cache_state = gets state_cache_state
-
-put_cache :: Cache -> Deriver ()
-put_cache cache = modify_cache_state $ \st -> st { state_cache = cache }
-
 with_control_damage :: ControlDamage -> Deriver derived -> Deriver derived
-with_control_damage damage = local_cache_state
+with_control_damage damage = local
     state_control_damage
     (\old st -> st { state_control_damage = old })
-    (\st -> st { state_control_damage = damage })
+    (\st -> return $ st { state_control_damage = damage })
 
 add_block_dep :: BlockId -> Deriver ()
-add_block_dep block_id = modify_collect $ \st ->
-    st { collect_local_dep = insert (collect_local_dep st) }
-    where
-    insert (GeneratorDep blocks) = GeneratorDep (Set.insert block_id blocks)
+add_block_dep block_id = merge_collect $ mempty
+    { collect_local_dep = GeneratorDep (Set.singleton block_id) }
 
 -- | Both track warps and local deps are used as dynamic return values (aka
 -- modifying a variable to \"return\" something).  When evaluating a cached
@@ -277,8 +255,8 @@ is_root_block = do
 add_track_warp :: TrackId -> Deriver ()
 add_track_warp track_id = do
     stack <- gets state_stack
-    modify_collect $ \st -> st { collect_warp_map =
-        Map.insert stack (Right track_id) (collect_warp_map st) }
+    merge_collect $ mempty
+        { collect_warp_map = Map.singleton stack (Right track_id) }
 
 -- | Start a new track warp for the current block_id.
 --
@@ -292,8 +270,7 @@ add_new_track_warp track_id = do
     end <- score_to_real =<< get_block_dur block_id
     warp <- gets state_warp
     let tw = Left $ TrackWarp.TrackWarp (start, end, warp, block_id, track_id)
-    modify_collect $ \st -> st { collect_warp_map =
-        Map.insert stack tw (collect_warp_map st) }
+    merge_collect $ mempty { collect_warp_map = Map.singleton stack tw }
 
 -- | Sub-derived blocks are stretched according to their length, and this
 -- function defines the length of a block.  'State.block_event_end' seems the

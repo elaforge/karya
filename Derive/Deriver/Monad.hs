@@ -75,9 +75,6 @@ module Derive.Deriver.Monad (
     , TransformerCall(..)
     , transformer
 
-    -- * cache
-    , CacheState(..), initial_cache_state
-
     -- ** cache types
     -- $cache_doc
     , Cache(..), cache_size
@@ -85,13 +82,16 @@ module Derive.Deriver.Monad (
     , GeneratorDep(..)
 
     -- ** damage
-    , ScoreDamage(..), clear_damage
+    , ScoreDamage(..)
     , EventDamage(..), ControlDamage(..)
 
     -- * scale
     -- $scale_doc
     , Scale(..)
     , LookupScale, Transpose
+
+    -- * testing
+    , clear_damage
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Data.Map as Map
@@ -349,6 +349,7 @@ data State = State {
     , state_warp :: !Score.Warp
     -- | Stack of calls currently in scope.
     , state_scope :: !Scope
+    , state_control_damage :: !ControlDamage
 
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
@@ -360,16 +361,13 @@ data State = State {
 
     -- | This data is generally written to, and only read in special places.
     , state_collect :: !Collect
-    -- | Data pertaining to the deriver cache.
-    , state_cache_state :: !CacheState
 
     -- | This data is constant throughout the derivation.
     , state_constant :: !Constant
     }
 
-initial_state :: Scope -> Cache -> ScoreDamage -> TrackLang.Environ
-    -> Constant -> State
-initial_state scope cache score_damage environ constant = State
+initial_state :: Scope -> TrackLang.Environ -> Constant -> State
+initial_state scope environ constant = State
     { state_controls = initial_controls
     , state_pitches = Map.empty
     , state_pitch = PitchSignal.constant (State.default_scale deflt)
@@ -378,11 +376,11 @@ initial_state scope cache score_damage environ constant = State
     , state_environ = environ
     , state_warp = Score.id_warp
     , state_scope = scope
+    , state_control_damage = mempty
     , state_stack = Stack.empty
     , state_log_context = []
 
     , state_collect = mempty
-    , state_cache_state = initial_cache_state cache score_damage
     , state_constant = constant
     }
     where deflt = State.state_default (state_ui constant)
@@ -457,18 +455,25 @@ data Constant = Constant {
     , state_lookup_scale :: LookupScale
     -- | Get the calls that should be in scope with a certain instrument.
     , state_instrument_calls :: Score.Instrument -> Maybe InstrumentCalls
+    -- | Cache from the last derivation.
+    , state_cache :: !Cache
+    , state_score_damage :: !ScoreDamage
     }
 
 initial_constant :: State.State -> LookupDeriver -> LookupScale
-    -> (Score.Instrument -> Maybe InstrumentCalls) -> Constant
-initial_constant ui_state lookup_deriver lookup_scale inst_calls = Constant
-    { state_ui = ui_state
-    , state_lookup_deriver = lookup_deriver
-    , state_control_op_map = default_control_op_map
-    , state_pitch_op_map = default_pitch_op_map
-    , state_lookup_scale = lookup_scale
-    , state_instrument_calls = inst_calls
-    }
+    -> (Score.Instrument -> Maybe InstrumentCalls)
+    -> Cache -> ScoreDamage -> Constant
+initial_constant ui_state lookup_deriver lookup_scale inst_calls cache damage =
+    Constant
+        { state_ui = ui_state
+        , state_lookup_deriver = lookup_deriver
+        , state_control_op_map = default_control_op_map
+        , state_pitch_op_map = default_pitch_op_map
+        , state_lookup_scale = lookup_scale
+        , state_instrument_calls = inst_calls
+        , state_cache = clear_damage damage cache
+        , state_score_damage = damage
+        }
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
 -- can bring a set of note calls and val calls into scope, via the 'Scope'
@@ -528,14 +533,17 @@ data Collect = Collect {
     -- | This is how a call records its dependencies.  After evaluation of
     -- a deriver, this will contain the dependencies of the most recent call.
     , collect_local_dep :: !GeneratorDep
-    } deriving (Eq, Show)
+
+    -- | New caches accumulating over the course of the derivation.
+    , collect_cache :: !Cache
+    } deriving (Show)
 
 instance Monoid.Monoid Collect where
-    mempty = Collect mempty mempty mempty mempty
-    mappend (Collect warps1 signals1 env1 deps1)
-            (Collect warps2 signals2 env2 deps2) =
+    mempty = Collect mempty mempty mempty mempty mempty
+    mappend (Collect warps1 signals1 env1 deps1 cache1)
+            (Collect warps2 signals2 env2 deps2 cache2) =
         Collect (warps1 <> warps2) (signals1 <> signals2) (env1 <> env2)
-            (deps1 <> deps2)
+            (deps1 <> deps2) (cache1 <> cache2)
 
 -- | Snapshots of the environ at each track.  This is used by the Cmd layer to
 -- figure out what the scale and instrument are for a given track.
@@ -692,31 +700,6 @@ transformer :: (Derived derived) =>
     String -> TransformerFunc derived -> Call derived
 transformer name func = Call name Nothing (Just (TransformerCall func))
 
-
--- * cache
-
-data CacheState = CacheState {
-    state_cache :: !Cache -- modified
-    , state_score_damage :: !ScoreDamage -- constant
-    , state_control_damage :: !ControlDamage
-    } deriving (Show)
-
-instance Monoid.Monoid CacheState where
-    mempty = CacheState {
-        state_cache = mempty
-        , state_score_damage = mempty
-        , state_control_damage = ControlDamage mempty
-        }
-    mappend (CacheState cache1 score1 control1)
-            (CacheState cache2 score2 control2) =
-        CacheState (cache1 <> cache2) (score1 <> score2)
-            (control1 <> control2)
-
-initial_cache_state :: Cache -> ScoreDamage -> CacheState
-initial_cache_state cache score_damage = mempty {
-    state_cache = cache
-    , state_score_damage = score_damage
-    }
 
 -- ** cache types
 

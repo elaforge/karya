@@ -35,6 +35,27 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  * organize derive state for parallization
+    It should be possible to run every call on a track in parallel.
+    So I have unthread the state.  So this means put the previous cache
+    in Constant and put the current cache state in collect.  Then break
+    the state thread and mappend on the collects.  This implies an extra
+    intermediate list of all the collects, and then all the empty collects
+    returned by the vast majority of calls.
+
+    The original system where the call simply doesn't modify the collect is
+    replaced by the call returning an empty collect.  But since I pass those
+    all as mempty, they should all be the same empty collect, so no extra
+    garbage.  But then I call a lot of mappends that has to check that all
+    those fields are empty.  Probably pretty fast all the same though.
+
+    But... I can't cache collect if the cache is inside collect!  It means
+    I don't need to cache the cache a deriver returns because it will be
+    merged and kept at the top level.
+
+    But... control damage needs to move into dynamic now.
+
+  - split off Dynamic from Derive.State
   * bug: changing an event on a track with only one extends dmg to track_end,
     and then real_to_score fails
   * mv hspp to Util so I can have its tests run normally
@@ -57,7 +78,6 @@ UNSORTED
     So try that and then write a test in Lazy_test to make sure signals
     are only derived twice when I look at the TrackSignal.
 
-  - insert and delete time should use the selection if non-point
   - in the abscence of the ability to drag events, cmd to move start of event
     to current point, or set start and end if it's a range
   + automate the manual tests
@@ -90,36 +110,6 @@ UNSORTED
     - Create.view should size it to fit the block being created
     - do tuplets by setting local ruler?
     - lang cmd to show state hierarchically... or does it already exist?
-
-  - use functional references to make some of this record update stuff nicer?
-    - fclabels: rename record fields, use setL and setL
-    - lenses: got some magic for working with StateT?  don't understand yet
-    - data-accessor
-    - comonad-transformers also has Data.Lens
-      ask kmett about comonad-transformers
-  - storing TrackEvents without duration would make maintaining the no-overlap
-    invariant easier.  E.g. have explicit 'off' events, otherwise each event
-    extends to the next one.  It means after merging I have to clear redundant
-    offs, but that's easier right?
-
-  - maybe I could split CacheState into the writable portion, in Collect, and
-    the read-only cache from the previous run, in Constant
-
-  / instead of building log dup suppressing logic into various functions, e.g.
-    allot, maybe I can add 'key' field to Log.Msg and suppress dup keys?
-    Who else produces dups?  Convert does.  But isn't it more efficient to just
-    not emit?
-    - convert and perform want to suppress the same msgs for the current
-      derivation
-    - Perform.Midi.Cache.is_splice_failure is just a better way to identify
-      the msg than text
-    - cache wants to suppress all cache msgs until end of cached block
-    The problem is that it's hard to know the boundaries of the current
-    derivation, especially if there are multiple blocks being derived
-    simultaneously.  I would have to put a block id key.  On the other hand,
-    filtering in place knows that.  The extra copy is actually no worse than
-    the filter at perform time, maybe better for cache since it only happens
-    once.
 
   - remove or simplify Schema
     But I need to make sure I don't need it first and can implement a totally
@@ -190,7 +180,7 @@ UNSORTED
       so maybe not in Scopes.
       Not much point to trying to put it in Environ or Scope since it's
       a different type, but it could be dynamically scoped with the others, eg
-      Derive.state_schema :: (BlockId -> 
+      Derive.state_schema :: (BlockId ->
       Basically it's the schema, but dynamicly scoped rather than attached to
       blocks.  I can't actually see how dynamic scope makes sense, it should be
       attached to blocks.  So keep it how it is, but call through generator
@@ -213,6 +203,35 @@ UNSORTED
       avoid sending msgs back to the UI by having ui msgs cancel updates.
     - now that the signal deriver is gone, I can also get rid of ignore_tempo,
       unless I want to use it for a lilypond backend or something
+    - maybe I could split CacheState into the writable portion, in Collect, and
+      the read-only cache from the previous run, in Constant
+
+    / instead of building log dup suppressing logic into various functions,
+      e.g.  allot, maybe I can add 'key' field to Log.Msg and suppress dup
+      keys?  Who else produces dups?  Convert does.  But isn't it more
+      efficient to just not emit?
+      - convert and perform want to suppress the same msgs for the current
+        derivation
+      - Perform.Midi.Cache.is_splice_failure is just a better way to identify
+        the msg than text
+      - cache wants to suppress all cache msgs until end of cached block
+      The problem is that it's hard to know the boundaries of the current
+      derivation, especially if there are multiple blocks being derived
+      simultaneously.  I would have to put a block id key.  On the other hand,
+      filtering in place knows that.  The extra copy is actually no worse than
+      the filter at perform time, maybe better for cache since it only happens
+      once.
+
+    - use functional references to make some of this record update stuff nicer?
+      - fclabels: rename record fields, use setL and setL
+      - lenses: got some magic for working with StateT?  don't understand yet
+      - data-accessor
+      - comonad-transformers also has Data.Lens
+        ask kmett about comonad-transformers
+    - storing TrackEvents without duration would make maintaining the
+      no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
+      each event extends to the next one.  It means after merging I have to
+      clear redundant offs, but that's easier right?
 
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
@@ -220,7 +239,6 @@ UNSORTED
   input:
     - For control track entry, typing numbers puts them right of decimal,
       typing backtick enters a 1.  Or, enter values in two digit hex.
-    - use capslock for kbd entry mode
     - flag for unpitched instruments, so they don't get pitch tracks
     - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
 
@@ -256,6 +274,9 @@ UNSORTED
     Remember that some scales may not have well defined degrees and may really
     be in NNs, e.g. a ratio relative scale.  They can't have a notion of
     transposition though.
+
+    What is the use of enharmonics?  Express the current scale.  In some
+    non-equal-tempered scales they are different pitches.
 
   - I think if the same TrackId appears in multiple places, it will be derived
     redundantly.  I should be able to cache the signal output in a TrackSignal.
@@ -380,7 +401,7 @@ bugs:
   - hint refuses to compile when a module emits a warning
 
 cleanup:
-  - cleanup Ui.Track: event_list -> all_events?
+  * cleanup Ui.Track: event_list -> all_events?
   - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
     manual inclusion of $(UI_HS) in the deps
   - remove Util.Log -> Perform.Warning import by translating IDs into strings?
@@ -671,7 +692,7 @@ Cmd:
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
-    - trackerlike note entry: entered events are all as long as the block
+    * trackerlike note entry: entered events are all as long as the block
       (merge will clip them to the next event)
     - map selection through function
     - controller edit mode accepts two numbers and moves on, no spaces
@@ -680,7 +701,7 @@ Cmd:
    - stretch events in selection to another length (need two selections?)
   Cmd.Selection
   Cmd.TimeStep
-    - snap to event begin/end
+    * snap to event begin/end
 
   Cmd.NoteTrack
     - record velocity if there is a velocity track
@@ -697,7 +718,7 @@ Cmd:
   Cmd.Play
     - play loops
     - start playing from top of displayed area
-    - start playing from this block' position in the root block
+    - start playing from this block's position in the root block
 
   Undo
     - undo as a tree?  On modification, split the undo tree instead of throwing
@@ -724,8 +745,8 @@ Derive:
       and pitch slide (to implement piano style retrigger)
 
       or maybe, lookup val calls in current inst analogous to current scale
-      Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
-      in generate_note?
+      Maybe I can get rid of the Instrument.inst_control_map if I do the
+      mapping in generate_note?
 
   - implement postproc calls
     - framework for determining scope of a postproc: per inst, per track,
