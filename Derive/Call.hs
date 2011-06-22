@@ -157,19 +157,24 @@ derive_track :: (Derive.Derived derived) =>
     Derive.State -> ScoreTime -> DeriveInfo derived
     -> Parse.ParseExpr -> GetLastSample derived
     -> State.EventsTree -> [Events.PosEvent]
-    -> [(LEvent.LEvents derived, Derive.Collect)]
-    -- -> ([LEvent.LEvents derived], Derive.Collect)
+    -- -> [(LEvent.LEvents derived, Derive.Collect)]
+    -> ([LEvent.LEvents derived], Derive.Collect)
 derive_track state block_end dinfo parse get_last_sample subs events =
-    ([], Internal.record_track_environ state) : go Nothing [] events
+    go (Internal.record_track_environ state) Nothing [] events
     where
-    go _ _ [] = []
-    go prev_sample prev (cur : rest) =
-        (events, collect) : go next_sample (cur : prev) rest
+    -- This threads the collect through each event.  I would prefer to map and
+    -- mconcat, but it's also quite a bit slower.
+    go collect _ _ [] = ([], collect)
+    go collect prev_sample prev (cur : rest) =
+        (events : rest_events, final_collect)
         where
-        (result, logs, collect) =
+        (result, logs, next_collect) =
             -- trace ("derive " ++ show_pos state (fst cur) ++ "**") $
-            derive_event state block_end dinfo parse prev_sample subs
+            derive_event (state { Derive.state_collect = collect })
+                block_end dinfo parse prev_sample subs
                 prev cur rest
+        (rest_events, final_collect) =
+            go next_collect next_sample (cur : prev) rest
         events = map LEvent.Log logs ++ case result of
             Right stream -> stream
             Left err -> [LEvent.Log (Derive.error_to_warn err)]
@@ -186,7 +191,6 @@ derive_track state block_end dinfo parse get_last_sample subs events =
 --     now = Score.warp_pos pos (Derive.state_warp state)
 --     stack = Seq.join ", " $ map Stack.unparse_ui_frame $
 --         Stack.to_ui (Derive.state_stack state)
-
 
 derive_event :: (Derive.Derived d) =>
     Derive.State -> ScoreTime -> DeriveInfo d -> Parse.ParseExpr

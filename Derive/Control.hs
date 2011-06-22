@@ -14,12 +14,10 @@ module Derive.Control where
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Monoid as Monoid
 import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Log as Log
-
 import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -204,10 +202,9 @@ derive_control block_end expr events = do
     deriver :: Derive.ControlDeriver
     deriver = do
         state <- Derive.get
-        let (stream, collects) = unzip $
-                Call.derive_track state block_end dinfo Parse.parse_num_expr
-                    last_sample [] events
-        Internal.merge_collect (Monoid.mconcat collects)
+        let (stream, collect) = Call.derive_track state block_end dinfo
+                Parse.parse_num_expr last_sample [] events
+        Internal.merge_collect collect
         -- I can use concat instead of merge_asc_events because the signals
         -- will be merged with Signal.merge and I don't care if the logs
         -- are a little out of order.
@@ -226,9 +223,9 @@ derive_pitch block_end expr events = do
     where
     deriver = do
         state <- Derive.get
-        let (stream, collects) = unzip $ Call.derive_track
+        let (stream, collect) = Call.derive_track
                 state block_end dinfo Parse.parse_expr last_sample [] events
-        Internal.merge_collect (Monoid.mconcat collects)
+        Internal.merge_collect collect
         return (concat stream)
     dinfo = Call.DeriveInfo Call.lookup_pitch_call "pitch"
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
