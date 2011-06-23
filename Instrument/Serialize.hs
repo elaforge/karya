@@ -5,20 +5,15 @@
     is intended to be just a cache.
 -}
 module Instrument.Serialize (serialize, unserialize) where
-import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
-import qualified Data.Serialize as Serialize
-import Data.Serialize (Serialize, get, put, getWord8, putWord8)
+import Data.Serialize (getWord8, putWord8)
 import qualified Data.Time as Time
 
-import Util.Control
-import qualified Util.File as File
-
-import qualified Cmd.Serialize () -- get the Serialize instances
+import Util.Serialize (Serialize, get, put)
+import qualified Cmd.Serialize
 import qualified Derive.Score as Score
-import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Control as Control
-
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
 
@@ -26,10 +21,7 @@ import qualified Instrument.Search as Search
 -- | Serialize instrument definitions to a file.  Since the @code@ parameter
 -- is unserializable code, it will be stripped off.
 serialize :: FilePath -> [MidiDb.SynthDesc code] -> IO ()
-serialize fname synths = do
-    saved <- saved_db synths
-    File.backup_file fname
-    ByteString.writeFile fname $ Serialize.encode saved
+serialize fname synths = Cmd.Serialize.serialize fname =<< saved_db synths
 
 -- | Unserialize instrument definitions.  Since the code was stripped off by
 -- 'serialize', it must be provided on a per-patch basis to reconstitute the
@@ -37,7 +29,7 @@ serialize fname synths = do
 unserialize :: (Instrument.Patch -> code) -> FilePath
     -> IO (Either String (Time.UTCTime, [MidiDb.SynthDesc code]))
 unserialize code_for fname = do
-    result <- Serialize.decode <$> ByteString.readFile fname
+    result <- Cmd.Serialize.unserialize fname
     return $ case result of
         Right (SavedDb (time, db)) -> Right (time, make_synths code_for db)
         Left err -> Left err

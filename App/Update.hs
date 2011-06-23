@@ -7,6 +7,7 @@ import qualified System.IO as IO
 import qualified Cmd.Serialize as Serialize
 
 
+main :: IO ()
 main = do
     args <- Environment.getArgs
     case args of
@@ -19,10 +20,13 @@ update from_fn to_fn = do
     case either_state of
         Left exc -> err_msg $
             "Error reading " ++ show from_fn ++ ": " ++ show exc
-        Right state -> Serialize.serialize to_fn state
+        Right (Serialize.SaveState st dt) ->
+            Serialize.serialize to_fn (Serialize.SaveState st dt)
 
+err_msg :: String -> IO ()
 err_msg = IO.hPutStrLn IO.stderr
 
+fail_with :: String -> IO ()
 fail_with msg = do
     err_msg msg
     Exit.exitWith (Exit.ExitFailure 1)

@@ -15,9 +15,7 @@ import qualified Control.Exception as Exception
 import qualified Data.Array.IArray as IArray
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
-import qualified Data.Serialize as Serialize
-import Data.Serialize
-       (Serialize, Get, get, put, getWord8, putWord8)
+import Data.Serialize (Get, Put, getWord8, putWord8)
 import qualified Data.Time as Time
 import qualified Data.Word as Word
 
@@ -27,7 +25,8 @@ import Util.Control
 import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
-import qualified Util.Serialize
+import qualified Util.Serialize as Serialize
+import Util.Serialize (Serialize, get, put)
 
 import qualified Midi.Midi as Midi
 import Ui
@@ -68,8 +67,16 @@ serialize_pretty_text fname state = do
     File.backup_file fname
     IO.writeFile fname (PPrint.pshow state)
 
-unserialize :: (Show a, Serialize a) => FilePath -> IO (Either String a)
-unserialize fname = Serialize.decode <$> ByteString.readFile fname
+unserialize :: (Serialize a) => FilePath -> IO (Either String a)
+unserialize fname = do
+    result <- Serialize.decode <$> ByteString.readFile fname
+    -- This is subtle.  Apparently Serialize.decode can still throw an
+    -- exception unless the contents of the Either is forced to whnf.
+    case result of
+        Left e -> return (Left e)
+        Right e -> return (Right e)
+    `Exception.catch` \(exc :: Exception.SomeException) ->
+        return $ Left $ "exception: " ++ show exc
 
 unserialize_text :: (Read a) => FilePath -> IO (Either String a)
 unserialize_text fname = do
@@ -91,11 +98,11 @@ save_state ui_state = do
     utc <- Time.getCurrentTime
     return (SaveState ui_state utc)
 
-put_version :: Word.Word8 -> Serialize.Put
-put_version n = Serialize.putWord8 n
+put_version :: Word.Word8 -> Put
+put_version n = putWord8 n
 
 get_version :: Get Word.Word8
-get_version = Serialize.getWord8
+get_version = getWord8
 
 version_error :: String -> Word.Word8 -> a
 version_error typ ver = error $
@@ -209,10 +216,8 @@ instance Serialize Block.Block where
 -- Everything in the block config is either derived from the Cmd.State or is
 -- hardcoded.
 instance Serialize Block.Config where
-    put _ = put ()
-    get = do
-        _ <- get :: Get ()
-        return Block.default_config
+    put _ = return ()
+    get = return Block.default_config
 
 instance Serialize Skeleton.Skeleton where
     put (Skeleton.Skeleton a) = put a
@@ -339,8 +344,8 @@ instance Serialize Types.Selection where
 -- ** Types, Color, Font
 
 instance Serialize ScoreTime where
-    put (Types.ScoreTime a) = put (Util.Serialize.NDouble a)
-    get = get >>= \(Util.Serialize.NDouble a) -> return (Types.ScoreTime a)
+    put (Types.ScoreTime a) = put a
+    get = Types.ScoreTime <$> get
 
 instance Serialize Color.Color where
     put (Color.Color a b c d) = put a >> put b >> put c >> put d

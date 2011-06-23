@@ -9,22 +9,19 @@ module App.MidiInst (
     , save_db, save_patches, load_db
 ) where
 import System.FilePath ((</>), (<.>))
+
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-
 import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (SynthDesc)
-
 import qualified Derive.Derive as Derive
-
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
-
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Serialize as Serialize
-
 import qualified App.Config as Config
 
 
@@ -67,8 +64,8 @@ with_empty_code :: [Instrument.Patch] -> [(Instrument.Patch, Code)]
 with_empty_code = with_code empty_code
 
 make :: Softsynth -> [SynthDesc]
-make (Softsynth name device pb_range controls extra_patches modify_patch code) =
-    [(synth, pmap <> extra)]
+make (Softsynth name device pb_range controls extra_patches modify_patch code)
+    = [(synth, pmap <> extra)]
     where
     (extra, _) = MidiDb.patch_map (map (second make_code) extra_patches)
     (synth, wildcard_patch) =
@@ -104,10 +101,11 @@ save_patches synth patches db_name app_dir = do
 
 load_db :: (Instrument.Patch -> Code) -> FilePath -> FilePath -> IO [SynthDesc]
 load_db code_for db_name app_dir = do
-    saved <- Serialize.unserialize (make_code . code_for)
-        (app_dir </> Config.instrument_cache_dir </> db_name <.> "db")
+    let file = app_dir </> Config.instrument_cache_dir </> db_name <.> "db"
+    saved <- Serialize.unserialize (make_code . code_for) file
     case saved of
         Left err -> do
-            Log.warn $ "Error loading instrument db: " ++ err
+            Log.warn $ "Error loading instrument db " ++ show file ++ ": "
+                ++ Seq.strip err
             return []
         Right (_time, synths) -> return synths

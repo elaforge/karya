@@ -1,7 +1,7 @@
 module Cmd.Serialize_test where
-import qualified Data.Serialize as Serialize
-
+import qualified Util.Serialize
 import Util.Test
+
 import Ui
 
 import qualified Ui.UiTest as UiTest
@@ -27,5 +27,5 @@ test_negative_zero = do
     equal (recode (0 :: ScoreTime)) 0
     equal (recode (-0 :: ScoreTime)) (-0.0)
 
-recode :: (Serialize.Serialize a) => a -> a
-recode = either error id . Serialize.decode . Serialize.encode
+recode :: (Util.Serialize.Serialize a) => a -> a
+recode = either error id . Util.Serialize.decode . Util.Serialize.encode
