@@ -48,9 +48,9 @@ caching_call :: (Derive.PassedArgs d -> Derive.EventDeriver)
 caching_call call args = do
     (start, end) <- Derive.passed_real_range args
     st <- Derive.get
-    let cdamage = Derive.state_control_damage st
+    let cdamage = Derive.state_control_damage (Derive.state_dynamic st)
         sdamage = Derive.state_score_damage (Derive.state_constant st)
-        stack = Derive.state_stack st
+        stack = Derive.state_stack (Derive.state_dynamic st)
     generate stack $ find_generator_cache stack (Ranges.range start end)
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
@@ -127,7 +127,7 @@ get_control_damage :: TrackId -> (ScoreTime, ScoreTime)
     -> Derive.Deriver ControlDamage
 get_control_damage track_id track_range = do
     st <- Derive.get
-    let control = Derive.state_control_damage st
+    let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
     extend_damage track_id track_range =<< if control == mempty
         then score_to_control track_id track_range score
@@ -139,7 +139,7 @@ get_tempo_damage :: TrackId -> (ScoreTime, ScoreTime)
     -> Derive.Deriver ControlDamage
 get_tempo_damage track_id track_range = do
     st <- Derive.get
-    let control = Derive.state_control_damage st
+    let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
     extend <$> if control == mempty
         then score_to_control track_id track_range score

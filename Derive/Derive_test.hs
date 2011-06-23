@@ -405,7 +405,7 @@ test_shift_control = do
     let controls = Map.fromList [(Score.Control "cont",
             Signal.signal [(0, 1), (2, 2), (4, 0)])]
         psig = PitchSignal.signal Twelve.scale_id [(0, (60, 60, 0))]
-    let set_controls = Derive.modify $ \st -> st
+    let set_controls = DeriveTest.modify_dynamic $ \st -> st
             { Derive.state_controls = controls
             , Derive.state_pitch = psig
             }
@@ -413,8 +413,8 @@ test_shift_control = do
             DeriveTest.run State.empty (set_controls >> op get)
             where
             get = do
-                conts <- Derive.gets Derive.state_controls
-                psig <- Derive.gets Derive.state_pitch
+                conts <- Internal.get_dynamic Derive.state_controls
+                psig <- Internal.get_dynamic Derive.state_pitch
                 return (conts, psig)
             extract (conts, pitch) =
                 (Signal.unsignal (snd (head (Map.toList conts))),

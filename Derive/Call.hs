@@ -207,13 +207,16 @@ derive_event st block_end dinfo parse prev_val subs prev cur@(pos, event) next
         Left err -> (Right mempty, [parse_error err], Derive.state_collect st)
         Right expr -> run_call expr
     where
-    parse_error = Log.msg Log.Warn (Just (Derive.state_stack st))
+    parse_error = Log.msg Log.Warn $
+        Just (Derive.state_stack (Derive.state_dynamic st))
     run_call expr = apply_toplevel state (dinfo, cinfo expr) expr
 
     state = st {
-        Derive.state_stack =
-            Stack.add (Stack.Region pos (pos + Event.event_duration event))
-                (Derive.state_stack st)
+        Derive.state_dynamic = (Derive.state_dynamic st)
+            { Derive.state_stack = Stack.add
+                (Stack.Region pos (pos + Event.event_duration event))
+                (Derive.state_stack (Derive.state_dynamic st))
+            }
         }
     cinfo expr = Derive.CallInfo expr prev_val cur prev next block_end subs
 
@@ -229,7 +232,8 @@ apply_toplevel state info expr = case Seq.break_last expr of
     where
     run d = case Derive.run state d of
         (result, state, logs) -> (result, logs, Derive.state_collect state)
-    err = Log.msg Log.Warn (Just (Derive.state_stack state))
+    err = Log.msg Log.Warn
+        (Just (Derive.state_stack (Derive.state_dynamic state)))
         "event with no calls at all (this shouldn't happen)"
 
 apply_generator :: (Derive.Derived derived) => Info derived -> TrackLang.Call
@@ -252,7 +256,7 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
                         (info_name dinfo) (info_lookup dinfo)
                     return (fb_call, [val])
 
-    env <- Derive.gets Derive.state_environ
+    env <- Internal.get_dynamic Derive.state_environ
     ns <- State.state_namespace <$> Derive.get_ui_state
     let args = Derive.PassedArgs vals env call_id cinfo
         gen = Derive.call_generator call
@@ -272,7 +276,7 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
     vals <- mapM eval args
     let new_deriver = apply_transformer info calls deriver
     call <- with_call call_id (info_name dinfo) (info_lookup dinfo)
-    env <- Derive.gets Derive.state_environ
+    env <- Internal.get_dynamic Derive.state_environ
     let args = Derive.PassedArgs vals env call_id cinfo
     let with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
@@ -289,7 +293,7 @@ eval (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
 apply :: TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
     -> Derive.Deriver TrackLang.Val
 apply call_id call args = do
-    env <- Derive.gets Derive.state_environ
+    env <- Internal.get_dynamic Derive.state_environ
     vals <- mapM eval args
     let args = Derive.PassedArgs vals env call_id
             (Derive.dummy_call_info "val-call")
@@ -337,7 +341,7 @@ get_scopes :: (Derive.Scope -> Derive.ScopeType call)
     -> Derive.Deriver [Derive.LookupCall call]
 get_scopes get = do
     Derive.ScopeType inst scale builtin <-
-        get <$> Derive.gets Derive.state_scope
+        get <$> Internal.get_dynamic Derive.state_scope
     return $ inst ++ scale ++ builtin
 
 -- | Convert a list of lookups into a single lookup by returning the first

@@ -43,7 +43,8 @@ module Derive.Deriver.Monad (
     , ControlDeriver, PitchDeriver
 
     -- * state
-    , State(..), initial_state, initial_controls, default_velocity
+    , State(..), initial_state
+    , Dynamic(..), initial_controls, default_velocity
 
     -- ** scope
     , Scope(..), empty_scope, ScopeType(..), empty_scope_type
@@ -196,8 +197,9 @@ instance Log.LogMonad Deriver where
     initialize_msg msg = do
         -- If the msg was created by *_stack (for instance, by 'catch_warn'),
         -- it may already have a stack.
-        stack <- maybe (gets state_stack) return (Log.msg_stack msg)
-        context <- gets state_log_context
+        stack <- maybe (gets (state_stack . state_dynamic)) return
+            (Log.msg_stack msg)
+        context <- gets (state_log_context . state_dynamic)
         return $ msg {
             Log.msg_stack = Just stack
             , Log.msg_text = add_text_context context (Log.msg_text msg)
@@ -269,7 +271,7 @@ throw_error = throw_error_srcpos Nothing
 
 throw_error_srcpos :: SrcPos.SrcPos -> ErrorVal -> Deriver a
 throw_error_srcpos srcpos err = do
-    stack <- gets state_stack
+    stack <- gets (state_stack . state_dynamic)
     _throw (Error srcpos stack err)
 
 
@@ -332,9 +334,26 @@ instance Derived PitchSignal.PitchSignal where
 -- * state
 
 data State = State {
-    -- Signal environment.  These form a dynamically scoped environment that
-    -- applies to generated events inside its scope.
+    -- | This data is modified in a dynamically scoped way, for
+    -- sub-derivations.
+    state_dynamic :: Dynamic
+    -- | This data is mappended.  It functions like an implicit return value.
+    , state_collect :: !Collect
+    -- | This data is constant throughout the derivation.
+    , state_constant :: !Constant
+    }
 
+initial_state :: Scope -> TrackLang.Environ -> Constant -> State
+initial_state scope environ constant = State
+    { state_dynamic = initial_dynamic
+        (State.state_default (state_ui constant)) scope environ
+    , state_collect = mempty
+    , state_constant = constant
+    }
+
+-- | This is a dynamically scoped environment that applies to generated events
+-- inside its scope.
+data Dynamic = Dynamic {
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
     state_controls :: !Score.ControlMap
@@ -358,16 +377,10 @@ data State = State {
     -- | This is a free-form stack which can be used to prefix log msgs with
     -- a certain string.
     , state_log_context :: ![String]
-
-    -- | This data is generally written to, and only read in special places.
-    , state_collect :: !Collect
-
-    -- | This data is constant throughout the derivation.
-    , state_constant :: !Constant
     }
 
-initial_state :: Scope -> TrackLang.Environ -> Constant -> State
-initial_state scope environ constant = State
+initial_dynamic :: State.Default -> Scope -> TrackLang.Environ -> Dynamic
+initial_dynamic deflt scope environ = Dynamic
     { state_controls = initial_controls
     , state_pitches = Map.empty
     , state_pitch = PitchSignal.constant (State.default_scale deflt)
@@ -379,11 +392,7 @@ initial_state scope environ constant = State
     , state_control_damage = mempty
     , state_stack = Stack.empty
     , state_log_context = []
-
-    , state_collect = mempty
-    , state_constant = constant
     }
-    where deflt = State.state_default (state_ui constant)
 
 -- | Initial control environment.
 initial_controls :: Score.ControlMap

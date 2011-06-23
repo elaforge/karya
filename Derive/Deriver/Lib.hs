@@ -147,7 +147,7 @@ lookup_scale scale_id = do
     -- Defaulting the scale here means that relative pitch tracks don't need
     -- to mention their scale.
     scale_id <- if scale_id == Pitch.default_scale_id
-        then gets (PitchSignal.sig_scale . state_pitch)
+        then Internal.get_dynamic (PitchSignal.sig_scale . state_pitch)
         else return scale_id
     lookup_scale <- gets (state_lookup_scale . state_constant)
     return $ lookup_scale scale_id
@@ -158,7 +158,7 @@ lookup_scale scale_id = do
 lookup_val :: forall a. (TrackLang.Typecheck a) =>
     TrackLang.ValName -> Deriver (Maybe a)
 lookup_val name = do
-    environ <- gets state_environ
+    environ <- Internal.get_dynamic state_environ
     let return_type = TrackLang.to_type (Prelude.error "lookup_val" :: a)
     case TrackLang.lookup_val name environ of
             Left TrackLang.NotFound -> return Nothing
@@ -221,14 +221,14 @@ with_instrument inst deriver = do
 -- want to index them in ScoreTime you will have to call 'score_to_real'.
 -- 'control_at_score' does that for you.
 get_control :: Score.Control -> Deriver (Maybe Signal.Control)
-get_control cont = Map.lookup cont <$> gets state_controls
+get_control cont = Map.lookup cont <$> Internal.get_dynamic state_controls
 
 control_at_score :: Score.Control -> ScoreTime -> Deriver (Maybe Signal.Y)
 control_at_score cont pos = control_at cont =<< score_to_real pos
 
 control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
 control_at cont pos = do
-    controls <- gets state_controls
+    controls <- Internal.get_dynamic state_controls
     return $ fmap (Signal.at pos) (Map.lookup cont controls)
 
 pitch_at_score :: ScoreTime -> Deriver PitchSignal.Y
@@ -236,14 +236,14 @@ pitch_at_score pos = pitch_at =<< score_to_real pos
 
 pitch_at :: RealTime -> Deriver PitchSignal.Y
 pitch_at pos = do
-    psig <- gets state_pitch
+    psig <- Internal.get_dynamic state_pitch
     return (PitchSignal.at pos psig)
 
 pitch_degree_at :: RealTime -> Deriver Pitch.Degree
 pitch_degree_at pos = PitchSignal.y_to_degree <$> pitch_at pos
 
 get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.PitchSignal)
-get_named_pitch name = Map.lookup name <$> gets state_pitches
+get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
 
 named_pitch_at :: Score.Control -> RealTime -> Deriver (Maybe PitchSignal.Y)
 named_pitch_at name pos = do
@@ -274,7 +274,7 @@ with_control_operator cont c_op signal deriver = do
 with_relative_control :: Score.Control -> ControlOp -> Signal.Control
     -> Deriver a -> Deriver a
 with_relative_control cont op signal deriver = do
-    controls <- gets state_controls
+    controls <- Internal.get_dynamic state_controls
     let msg = "relative control applied when no absolute control is in scope: "
     case Map.lookup cont controls of
         Nothing -> do
@@ -291,14 +291,14 @@ with_pitch = modify_pitch (flip const)
 with_constant_pitch :: Maybe Score.Control -> Pitch.Degree
     -> Deriver a -> Deriver a
 with_constant_pitch maybe_name degree deriver = do
-    pitch <- gets state_pitch
+    pitch <- Internal.get_dynamic state_pitch
     with_pitch maybe_name
         (PitchSignal.constant (PitchSignal.sig_scale pitch) degree) deriver
 
 with_relative_pitch :: Maybe Score.Control
     -> PitchOp -> PitchSignal.Relative -> Deriver a -> Deriver a
 with_relative_pitch maybe_name sig_op signal deriver = do
-    old <- gets state_pitch
+    old <- Internal.get_dynamic state_pitch
     if old == PitchSignal.empty
         then do
             -- This shouldn't happen normally because of the default pitch.

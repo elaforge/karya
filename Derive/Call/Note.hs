@@ -75,7 +75,7 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
         Nothing -> Derive.lookup_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
-    st <- Derive.get
+    st <- Derive.gets Derive.state_dynamic
     real_next <- Derive.score_to_real next_start
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         -- Perform.Midi.Convert flattens the entire pitch signal, so it's best

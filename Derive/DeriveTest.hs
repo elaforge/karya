@@ -340,19 +340,24 @@ passed_args call vals = Derive.PassedArgs vals Map.empty
 empty_lookup_deriver :: Derive.LookupDeriver
 empty_lookup_deriver = const (Right (return mempty))
 
-d_note :: ScoreTime -> ScoreTime -> Derive.EventDeriver
-d_note s_start dur = do
+c_note :: ScoreTime -> ScoreTime -> Derive.EventDeriver
+c_note s_start dur = do
     start <- Derive.score_to_real s_start
     end <- Derive.score_to_real (s_start + dur)
     inst <- Derive.lookup_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
-    st <- Derive.get
+    st <- Derive.gets Derive.state_dynamic
     let controls = Derive.state_controls st
         pitch_sig = Derive.state_pitch st
     return $ LEvent.one $ LEvent.Event $
         Score.Event start (end-start) (B.pack "evt") controls pitch_sig
             Stack.empty inst attrs
+
+-- | Not supposed to do this in general, but it's ok for tests.
+modify_dynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()
+modify_dynamic f = Derive.modify $ \st ->
+    st { Derive.state_dynamic = f (Derive.state_dynamic st) }
 
 -- * inst
 

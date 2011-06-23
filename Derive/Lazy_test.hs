@@ -267,7 +267,7 @@ c_note log_mvar (pos, event) next_start = do
     start <- Derive.score_to_real pos
     end <- Derive.score_to_real (pos + Event.event_duration event)
     inst <- Derive.lookup_val TrackLang.v_instrument
-    st <- Derive.get
+    st <- Derive.gets Derive.state_dynamic
     real_next <- Derive.score_to_real next_start
     let controls = Call.Note.trimmed_controls start real_next
             (Derive.state_controls st)
@@ -284,7 +284,7 @@ c_set :: Log -> Derive.ControlCall
 c_set log_mvar = Derive.generator1 "set" $ \args -> CallSig.call1 args
     (CallSig.required "val") $ \val -> do
         pos <- Derive.passed_real args
-        st <- Derive.get
+        st <- Derive.gets Derive.state_dynamic
         let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $
                 stack ++ " control at: " ++ Pretty.pretty pos
             stack = Stack.unparse_ui_frame_ $ last $

@@ -25,6 +25,9 @@ import qualified Perform.Signal as Signal
 
 -- * generic state access
 
+get_dynamic :: (Dynamic -> a) -> Deriver a
+get_dynamic f = gets (f . state_dynamic)
+
 -- | This is a little different from Reader.local because only a portion of
 -- the state is used Reader-style.
 --
@@ -33,20 +36,21 @@ import qualified Perform.Signal as Signal
 -- level since it runs each one separately.  Since the state dynamic state
 -- (i.e. except Collect) from the sub derivation is discarded, whatever state
 -- it's in after the exception shouldn't matter.
-local :: (State -> b) -> (b -> State -> State)
-    -> (State -> Deriver State) -> Deriver a -> Deriver a
+local :: (Dynamic -> b) -> (b -> Dynamic -> Dynamic)
+    -> (Dynamic -> Deriver Dynamic) -> Deriver a -> Deriver a
 local from_state restore_state modify_state deriver = do
-    old <- gets from_state
-    new <- modify_state =<< get
-    put new
+    st <- get
+    let old = from_state (state_dynamic st)
+    new <- modify_state (state_dynamic st)
+    put $ st { state_dynamic = new }
     result <- deriver
-    modify (restore_state old)
+    modify $ \st -> st { state_dynamic =
+        restore_state old (state_dynamic st) }
     return result
 
 -- | Collect is only ever accumulated.
 merge_collect :: Collect -> Deriver ()
 merge_collect c = modify $ \st -> st { state_collect = c <> state_collect st }
-
 
 -- * environ
 
@@ -64,14 +68,14 @@ insert_environ name val environ =
 record_track_environ :: State -> Collect
 record_track_environ state = case stack of
         Stack.Track tid : Stack.Block bid : _ ->
-            mempty { collect_track_environ =
-                Map.singleton (bid, tid) (state_environ state) }
+            mempty { collect_track_environ = Map.singleton (bid, tid)
+                (state_environ (state_dynamic state)) }
         _ -> mempty
     where
     -- Strip the stack down to the most recent track and block, since it will
     -- look like [tid, tid, tid, bid, ...].
     stack = Seq.drop_dups is_track $ filter track_or_block $
-        Stack.innermost (state_stack state)
+        Stack.innermost (state_stack (state_dynamic state))
     track_or_block (Stack.Track _) = True
     track_or_block (Stack.Block _) = True
     track_or_block _ = False
@@ -111,7 +115,7 @@ with_empty_collect deriver = do
 
 get_current_block_id :: Deriver BlockId
 get_current_block_id = do
-    stack <- gets state_stack
+    stack <- get_dynamic state_stack
     case [bid | Stack.Block bid <- Stack.innermost stack] of
         [] -> throw "no blocks in stack"
         block_id : _ -> return block_id
@@ -146,12 +150,12 @@ with_stack frame = local
 
 score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do
-    warp <- gets state_warp
+    warp <- get_dynamic state_warp
     return (Score.warp_pos pos warp)
 
 real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
-    warp <- gets state_warp
+    warp <- get_dynamic state_warp
     maybe (throw $ "real_to_score out of range: " ++ show pos) return
         (Score.unwarp_pos pos warp)
 
@@ -243,7 +247,7 @@ min_tempo = 0.001
 
 is_root_block :: Deriver Bool
 is_root_block = do
-    stack <- gets state_stack
+    stack <- get_dynamic state_stack
     let blocks = [bid | Stack.Block bid <- Stack.outermost stack]
     return $ case blocks of
         [] -> True
@@ -254,7 +258,7 @@ is_root_block = do
 
 add_track_warp :: TrackId -> Deriver ()
 add_track_warp track_id = do
-    stack <- gets state_stack
+    stack <- get_dynamic state_stack
     merge_collect $ mempty
         { collect_warp_map = Map.singleton stack (Right track_id) }
 
@@ -264,11 +268,11 @@ add_track_warp track_id = do
 -- warped for that block so it can install the new warp.
 add_new_track_warp :: Maybe TrackId -> Deriver ()
 add_new_track_warp track_id = do
-    stack <- gets state_stack
+    stack <- get_dynamic state_stack
     block_id <- get_current_block_id
     start <- score_to_real 0
     end <- score_to_real =<< get_block_dur block_id
-    warp <- gets state_warp
+    warp <- get_dynamic state_warp
     let tw = Left $ TrackWarp.TrackWarp (start, end, warp, block_id, track_id)
     merge_collect $ mempty { collect_warp_map = Map.singleton stack tw }
 

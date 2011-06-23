@@ -285,7 +285,7 @@ run_sub d = do
 -- give it 'Score.id_warp_signal'.
 linear_tempo :: Derive.Deriver (Maybe (ScoreTime, ScoreTime))
 linear_tempo = do
-    warp <- Derive.gets Derive.state_warp
+    warp <- Internal.get_dynamic Derive.state_warp
     return $ if Score.warp_signal warp == Score.id_warp_signal
         then Just (Score.warp_shift warp, Score.warp_stretch warp)
         else Nothing
