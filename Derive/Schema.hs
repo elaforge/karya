@@ -142,10 +142,10 @@ derive_tracks tree = Derive.d_merge (map with_track tree)
 derive_track :: State.EventsNode -> Derive.EventDeriver
 derive_track node@(Tree.Node track subs)
     | TrackInfo.is_note_track (State.tevents_title track) =
-        track_setup (Note.d_note_track node)
+        Internal.track_setup track (Note.d_note_track node)
+    -- I'd like track_setup up here, but tempo tracks are treated differently,
+    -- so it goes inside d_control_track.
     | otherwise = Control.d_control_track node (derive_tracks subs)
-    where
-    track_setup = maybe id Internal.track_setup (State.tevents_track_id track)
 
 
 -- * parser

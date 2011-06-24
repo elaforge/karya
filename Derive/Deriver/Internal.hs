@@ -290,10 +290,12 @@ get_block_dur block_id = do
 -- * track
 
 -- | This does setup common to all track derivation, namely recording the
--- tempo warp, and then calls the specific track deriver.  Every track except
--- tempo tracks should be wrapped with this.
-track_setup :: TrackId -> Deriver d -> Deriver d
-track_setup track_id deriver = add_track_warp track_id >> deriver
+-- tempo warp, and then calls the specific track deriver.  Every track with
+-- a track ID except tempo tracks should call this.
+track_setup :: State.TrackEvents -> Deriver d -> Deriver d
+track_setup track deriver = do
+    when_just (State.tevents_track_id track) add_track_warp
+    deriver
 
 -- | This is a version of 'track_setup' for the tempo track.  It doesn't
 -- record the track warp, see 'd_tempo' for why.

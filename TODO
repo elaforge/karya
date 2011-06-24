@@ -35,6 +35,7 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  * pitch signal for save/tuplet is displaying funny
   * organize derive state for parallization
     It should be possible to run every call on a track in parallel.
     So I have unthread the state.  So this means put the previous cache
@@ -270,6 +271,11 @@ UNSORTED
 
     What is the use of enharmonics?  Express the current scale.  In some
     non-equal-tempered scales they are different pitches.
+
+    - figure out what to do about relative pitches
+      PitchSignal.sig_add
+      Can no longer use (+), it has to use a scale provided transpose
+    - change PitchSignal.Y to (Word16, Word16, Float)
 
   - I think if the same TrackId appears in multiple places, it will be derived
     redundantly.  I should be able to cache the signal output in a TrackSignal.

@@ -637,6 +637,10 @@ data TrackEvents = TrackEvents {
     -- sliced to a shorter range.  In that case, I shouldn't bother with
     -- damage outside of its range.
     , tevents_range :: !(ScoreTime, ScoreTime)
+    -- | True if this is a sliced track.  That means it's a fragment of
+    -- a track and so certain track-level things, like recording a track
+    -- signal, should be skipped.
+    , tevents_sliced :: Bool
     } deriving (Show)
 
 events_tree :: (M m) => ScoreTime -> TrackTree -> m EventsTree
@@ -647,7 +651,7 @@ events_tree block_end tree = mapM resolve tree
     make title track_id = do
         track <- get_track track_id
         return $ TrackEvents title (Track.track_events track) block_end
-            (Just track_id) (0, block_end)
+            (Just track_id) (0, block_end) False
 
 -- ** tracks
 

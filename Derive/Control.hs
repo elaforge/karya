@@ -58,15 +58,13 @@ d_control_track (Tree.Node track _) deriver = do
 
 eval_track :: State.TrackEvents -> TrackLang.Expr
     -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
-eval_track track expr ctype deriver = do
+eval_track track expr ctype deriver =
     case ctype of
         TrackInfo.Tempo -> do
             let control_deriver = derive_control block_end expr tempo_events
-            tempo_call block_end (State.tevents_track_id track)
-                control_deriver deriver
+            tempo_call block_end track control_deriver deriver
         TrackInfo.Control maybe_op control -> do
             let control_deriver = derive_control block_end expr events
-            -- track is passed just for TrackId and track range
             control_call track control maybe_op control_deriver deriver
         TrackInfo.Pitch ptype maybe_name ->
             pitch_call block_end track maybe_name ptype expr events deriver
@@ -84,18 +82,20 @@ eval_track track expr ctype deriver = do
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
-tempo_call :: ScoreTime -> Maybe TrackId
+tempo_call :: ScoreTime -> State.TrackEvents
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
-tempo_call block_end maybe_track_id sig_deriver deriver = do
+tempo_call block_end track sig_deriver deriver = do
     (signal, logs) <- Internal.setup_without_warp sig_deriver
-    when_just maybe_track_id $ \track_id -> do
-        put_track_signal track_id $ Right $
-            Track.TrackSignal (Track.Control (Signal.coerce signal)) 0 1
+    when_just maybe_track_id $ \track_id ->
+        unless (State.tevents_sliced track) $
+            put_track_signal track_id $ Right $
+                Track.TrackSignal (Track.Control (Signal.coerce signal)) 0 1
     merge_logs logs $ with_damage $
         Internal.d_tempo block_end maybe_track_id (Signal.coerce signal)
             deriver
     where
+    maybe_track_id = State.tevents_track_id track
     with_damage = maybe id get_damage maybe_track_id
     get_damage track_id deriver = do
         damage <- Cache.get_tempo_damage track_id (0, block_end)
@@ -105,9 +105,8 @@ control_call :: State.TrackEvents -> Score.Control -> Maybe TrackLang.CallId
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
 control_call track control maybe_op control_deriver deriver = do
-    (signal, logs) <- track_setup maybe_track_id control_deriver
-    stash_signal maybe_track_id
-        (Right (signal, to_display <$> control_deriver))
+    (signal, logs) <- Internal.track_setup track control_deriver
+    stash_signal track (Right (signal, to_display <$> control_deriver))
     -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'control_deriver'.  To make these parallelize, I need
     -- to run control_deriver as a sub-derive, then mappend the Collect.
@@ -135,20 +134,20 @@ pitch_call :: ScoreTime -> State.TrackEvents -> Maybe Score.Control
     -> TrackInfo.PitchType -> TrackLang.Expr -> [Events.PosEvent]
     -> Derive.EventDeriver -> Derive.EventDeriver
 pitch_call block_end track maybe_name ptype expr events deriver =
-    track_setup maybe_track_id $ do
+    Internal.track_setup track $ do
         (scale, new_scale) <- get_scale ptype
         let scale_map = Scale.scale_map scale
             derive = derive_pitch block_end expr events
         (if new_scale then Derive.with_scale scale else id) $ case ptype of
             TrackInfo.PitchRelative op -> do
                 (signal, logs) <- derive
-                stash_signal maybe_track_id
+                stash_signal track
                     (Left (signal, to_psig <$> derive, scale_map))
                 merge_logs logs $ with_damage $
                     Derive.with_pitch_operator maybe_name op signal deriver
             _ -> do
                 (signal, logs) <- derive
-                stash_signal maybe_track_id
+                stash_signal track
                     (Left (signal, to_psig <$> derive, scale_map))
                 merge_logs logs $ with_damage $
                     Derive.with_pitch maybe_name signal deriver
@@ -170,9 +169,6 @@ get_scale ptype = case ptype of
     TrackInfo.PitchAbsolute Nothing -> do
         scale <- Util.get_scale
         return (scale, False)
-
-track_setup :: Maybe TrackId -> Derive.Deriver d -> Derive.Deriver d
-track_setup = maybe id Internal.track_setup
 
 with_control_damage :: Maybe TrackId -> (ScoreTime, ScoreTime)
     -> Derive.Deriver d -> Derive.Deriver d
@@ -241,7 +237,7 @@ derive_pitch block_end expr events = do
 -- redundantly.  However, I think the proper way to solve this is to cache
 -- the signals and avoid recalculating the control track at all.  Perhaps just
 -- add a warped signal to TrackSignal?
-stash_signal :: Maybe TrackId
+stash_signal :: State.TrackEvents
     -> Either (Pitch, Derive.Deriver Pitch, Track.ScaleMap)
         (Signal.Signal y, Derive.Deriver Signal.Display)
     -- ^ Either a PitchSignal or a control signal.  Both a signal and
@@ -249,25 +245,29 @@ stash_signal :: Maybe TrackId
     -- the already derived signal can be reused, otherwise it must be
     -- rederived.
     -> Derive.Deriver ()
-stash_signal Nothing _ = return ()
-stash_signal (Just track_id) sig = do
-    maybe_linear <- linear_tempo
-    case maybe_linear of
-        Just (shift, stretch) -> do
-            let tsig = case sig of
-                    Left (psig, _, smap) -> Track.Pitch psig smap
-                    Right (csig, _) -> Track.Control (Signal.coerce csig)
-            put_track_signal track_id $ Right $
-                Track.TrackSignal tsig shift stretch
-        Nothing -> do
-            signal <- run_sub $ case sig of
-                Left (_, deriver, smap) -> do
-                    sig <- Derive.in_real_time deriver
-                    return $ Track.Pitch sig smap
-                Right (_, deriver) -> Track.Control . Signal.coerce <$>
-                    Derive.in_real_time deriver
-            put_track_signal track_id
-                (fmap (\s -> Track.TrackSignal s 0 1) signal)
+stash_signal track sig =
+    case (State.tevents_track_id track, State.tevents_sliced track) of
+        (Just track_id, False) -> stash track_id
+        _ -> return ()
+    where
+    stash track_id = do
+        maybe_linear <- linear_tempo
+        case maybe_linear of
+            Just (shift, stretch) -> do
+                let tsig = case sig of
+                        Left (psig, _, smap) -> Track.Pitch psig smap
+                        Right (csig, _) -> Track.Control (Signal.coerce csig)
+                put_track_signal track_id $ Right $
+                    Track.TrackSignal tsig shift stretch
+            Nothing -> do
+                signal <- run_sub $ case sig of
+                    Left (_, deriver, smap) -> do
+                        sig <- Derive.in_real_time deriver
+                        return $ Track.Pitch sig smap
+                    Right (_, deriver) -> Track.Control . Signal.coerce <$>
+                        Derive.in_real_time deriver
+                put_track_signal track_id
+                    (fmap (\s -> Track.TrackSignal s 0 1) signal)
 
 -- | Ensure the computation runs lazily by detaching it from the state.  This
 -- is important because the track signal will not necessarily be demanded.

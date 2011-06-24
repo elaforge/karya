@@ -2,16 +2,14 @@
 module Cmd.Lang.LPerf where
 import Util.Control
 import qualified Util.Seq as Seq
-
-import Ui
-
 import qualified Midi.Midi as Midi
-
+import Ui
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Selection as Selection
-import qualified Cmd.Simple as Simple
+import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayUtil as PlayUtil
+import qualified Cmd.Selection as Selection
+import qualified Cmd.Simple as Simple
 
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -21,6 +19,9 @@ import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.RealTime as RealTime
 
+
+get_perf :: Cmd.CmdL Cmd.Performance
+get_perf = Cmd.require =<< Perf.lookup_root_performance
 
 -- * derive
 
