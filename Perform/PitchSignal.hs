@@ -122,6 +122,7 @@ modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y)
 modify_vec f sig = sig { sig_vec = f (sig_vec sig) }
 
 type X = SignalBase.X
+
 -- | Each sample is @(from, to, at)@, where @at@ is a normalized value between
 -- 0 and 1 describing how far between @from@ and @to@ the value is.  @from@ and
 -- @to@ are really Degree, but are Floats here to save space.
@@ -134,6 +135,7 @@ type X = SignalBase.X
 -- method.  Still, the list is variable length and StorableVector can't do
 -- that.
 type Y = (Float, Float, Float)
+
 instance SignalBase.Signal Y
 
 instance Storable.Storable (X, Y) where

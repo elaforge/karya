@@ -6,21 +6,21 @@ module Derive.Cache_profile where
 import qualified Data.Monoid as Monoid
 import qualified Data.Time as Time
 
-import Util.Control
 import qualified Util.CPUTime as CPUTime
+import Util.Control
 import Util.Test
 
 import Ui
+import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
-import qualified Derive.Cache as Cache
 import qualified Derive.Cache_test as Cache_test
 import qualified Derive.Derive as Derive
-import qualified Derive.Derive_profile as Derive_profile
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Derive_profile as Derive_profile
 
 
 profile_normal = do
@@ -70,17 +70,15 @@ rederive initial_state modifications = do
 
         go start_times state2 (Derive.r_cache cached) rest
 
-eval_derivation :: Derive.Cache -> State.State -> State.State -> [Update.Update]
-    -> IO (Derive.Result, Derive.Events)
+eval_derivation :: Derive.Cache -> State.State -> State.State
+    -> [Update.Update] -> IO (Derive.Result, Derive.Events)
 eval_derivation cache state1 state2 updates = do
     force events
     return (result, events)
     where
-    damage = Cache.score_damage state1 state2 updates
-    result = DeriveTest.derive_block_cache cache damage state2 (UiTest.bid "b1")
+    damage = Diff.derive_diff state1 state2 updates
+    result = DeriveTest.derive_block_cache cache damage state2
+        (UiTest.bid "b1")
     events = Derive.r_events result
-
--- | Rederive and check correctness.
-rederive_check = undefined
 
 now = fmap Time.utctDayTime Time.getCurrentTime

@@ -3,16 +3,20 @@ to make it display the second state.
 
 This is unpleasantly complicated and subtle.  I wish I knew a better way!
 -}
-module Ui.Diff (diff, track_diff) where
+module Ui.Diff (diff, derive_diff) where
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
+import qualified Control.Monad.Writer as Writer
 
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
+import Util.Control
 import qualified Util.Logger as Logger
 import qualified Util.Map as Map
+import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
 import Ui
@@ -24,6 +28,8 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
+import qualified Derive.Deriver.Monad as Derive
+
 
 type DiffError = String
 
@@ -32,6 +38,7 @@ type DiffM a = Logger.LoggerT Update.Update
 
 throw :: String -> DiffM a
 throw = Error.throwError
+
 change :: [Update.Update] -> DiffM ()
 change = Logger.logs
 
@@ -52,12 +59,12 @@ diff cmd_updates st1 st2 = fmap postproc $ run $ do
     --         (State.state_views st2)
     --     visible_blocks = Map.filterWithKey (\k _v -> k `elem` visible_ids)
     --         (State.state_blocks st2)
-    mapM_ (uncurry3 diff_block)
-        (Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2))
-    mapM_ (uncurry3 diff_track)
-        (Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2))
-    mapM_ (uncurry3 diff_ruler)
-        (Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2))
+    mapM_ (uncurry3 diff_block) $
+        Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2)
+    mapM_ (uncurry3 diff_track) $
+        Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
+    mapM_ (uncurry3 diff_ruler) $
+        Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2)
     where
     postproc updates = cmd_updates ++ merge_updates st2 cmd_updates
         ++ munge_updates st2 updates
@@ -89,33 +96,6 @@ merge_updates state updates = concatMap propagate updates
     is_event_update (Update.TrackEvents {}) = True
     is_event_update Update.TrackAllEvents = True
     is_event_update _ = False
-
--- | Find only the TrackUpdates between two states.
---
--- The new state is diffed with the old state to emit updates to keep the UI
--- in sync.  But wait, some changes come from the UI and shouldn't be
--- sent back to it, so the UI originating changes are first applied to the
--- state, and *then* the diff is run.
---
--- But I also use Updates to see which bits of state have changed to invalidate
--- the cache, and for that I *do* need to include the UI originating changes.
--- In addition the requirements are slightly different: I care about changes
--- not directly related to UI changes like track flag changes, and don't care
--- about ones that are purely visual, like hidden tracks.  Also, I care about
--- changes to blocks which aren't visible, while the UI diff doesn't.
---
--- Another approach would be to have flag changes explicitly store diffs, like
--- event track changes.  This won't work for chages from the UI, but I have
--- explicit notification of those too.  It seems like if I took this to its
--- logical conclusion I could eliminate the diff altogether, but at the cost
--- of missing updates.  And diff isn't necessarily super expensive.
---
--- TODO Since I need to do all the diffing anyway, I might as well do it all
--- at once.  The redundant Updates can be canceled out by UiMsgs before being
--- sent back to the UI.
-track_diff :: State.State -> State.State -> [Update.Update]
-track_diff old new = either (const []) id $ run $ mapM_ (uncurry3 diff_track)
-    (Map.zip_intersection (State.state_tracks old) (State.state_tracks new))
 
 -- | This is a nasty little case that falls out of how I'm doing diffs:
 -- First the view diff runs, which detects changed track widths.
@@ -163,7 +143,8 @@ diff_views st1 st2 views1 views2 = do
     change $ map (flip Update.ViewUpdate Update.DestroyView) $
         Map.keys (Map.difference views1 views2)
     let new_views = Map.difference views2 views1
-    change $ map (flip Update.ViewUpdate Update.CreateView) (Map.keys new_views)
+    change $ map (flip Update.ViewUpdate Update.CreateView)
+        (Map.keys new_views)
     mapM_ (uncurry3 (diff_view st1 st2))
         (Map.zip_intersection views1 views2)
 
@@ -280,24 +261,6 @@ diff_block block_id block1 block2 = do
             [block_update $ Update.DisplayTrack i2 dtrack2]
         _ -> return ()
 
-    -- The TrackFlags update is for rederivation, not syncing with the GUI.
-    let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
-    let tpairs = Seq.indexed_pairs_on Block.tracklike_id ts1 ts2
-    forM_ tpairs $ \(_, t1, t2) -> case (t1, t2) of
-        (Just track1, Just track2) | flags_differ track1 track2 ->
-            change [block_update Update.TrackFlags]
-        _ -> return ()
-
--- | True if the tracks flags differ in an a way that will require
--- rederivation.
-flags_differ :: Block.Track -> Block.Track -> Bool
-flags_differ track1 track2 = relevant track1 /= relevant track2
-    where
-    relevant = filter flag . Block.track_flags
-    flag Block.Collapse = False
-    flag Block.Mute = True
-    flag Block.Solo = True
-
 diff_track :: TrackId -> Track.Track -> Track.Track -> DiffM ()
 diff_track track_id track1 track2 = do
     -- Track events updates are collected directly by the State.State functions
@@ -319,6 +282,82 @@ diff_ruler ruler_id ruler1 ruler2 = do
     -- and only check names.
     when (ruler1 /= ruler2) $
         change [Update.RulerUpdate ruler_id]
+
+-- * derive diff
+
+type DeriveDiffM a = Writer.WriterT Derive.ScoreDamage Identity.Identity a
+
+run_derive_diff :: DeriveDiffM () -> Derive.ScoreDamage
+run_derive_diff = snd . Identity.runIdentity . Writer.runWriterT
+
+-- | This diff is meant to determine score damage for the block, which
+-- determines what will have to be rederived, if anything.
+--
+-- It differs from 'diff' in that it cares about differences at the
+-- 'Block.Track' rather than the 'Block.DisplayTrack' level.  So a collapsed
+-- track shouldn't trigger a rederive even though at the DisplayTrack level it
+-- adds and removes a track, and a solo or mute should trigger a rederive.
+--
+-- This is repeating some work done in 'diff', but is cleaner than reusing
+-- 'diff' output because of the above differences.
+derive_diff :: State.State -> State.State -> [Update.Update]
+    -> Derive.ScoreDamage
+derive_diff st1 st2 updates = postproc $ run_derive_diff $ do
+    mapM_ (uncurry3 derive_diff_block) $
+        Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2)
+    mapM_ (uncurry3 derive_diff_track) $
+        Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
+    where postproc = postproc_damage st2 . (updates_damage updates <>)
+
+-- | Fill in 'Derive.sdamage_track_blocks'.
+postproc_damage :: State.State -> Derive.ScoreDamage -> Derive.ScoreDamage
+postproc_damage state (Derive.ScoreDamage tracks _ blocks) =
+    Derive.ScoreDamage tracks track_blocks blocks
+    where
+    track_blocks = Set.fromList $ map fst $ State.find_tracks track_of_block
+        (State.state_blocks state)
+    track_of_block (Block.TId tid _) = Map.member tid tracks
+    track_of_block _ = False
+
+updates_damage :: [Update.Update] -> Derive.ScoreDamage
+updates_damage updates = mempty { Derive.sdamage_tracks = tracks }
+    where
+    tracks = Map.fromListWith (<>) $
+        Maybe.mapMaybe Update.track_changed updates
+
+derive_diff_block :: BlockId -> Block.Block -> Block.Block -> DeriveDiffM ()
+derive_diff_block block_id block1 block2 = do
+    let unequal f = unequal_on f block1 block2
+    when (unequal Block.block_title || unequal Block.block_skeleton)
+        block_damage
+
+    let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
+    let tpairs = Seq.indexed_pairs_on Block.tracklike_id ts1 ts2
+    forM_ tpairs $ \(_, t1, t2) -> case (t1, t2) of
+        (Just track1, Just track2)
+            | flags_differ track1 track2 -> block_damage
+            | otherwise -> return ()
+        _ -> block_damage
+    where
+    block_damage =
+        Writer.tell $ mempty { Derive.sdamage_blocks = Set.singleton block_id }
+
+-- | True if the tracks flags differ in an a way that will require
+-- rederivation.
+flags_differ :: Block.Track -> Block.Track -> Bool
+flags_differ track1 track2 = relevant track1 /= relevant track2
+    where
+    relevant = filter flag . Block.track_flags
+    flag Block.Collapse = False
+    flag Block.Mute = True
+    flag Block.Solo = True
+
+derive_diff_track :: TrackId -> Track.Track -> Track.Track -> DeriveDiffM ()
+derive_diff_track track_id track1 track2 =
+    when (unequal_on Track.track_title track1 track2) $
+        Writer.tell $ mempty { Derive.sdamage_tracks =
+            Map.singleton track_id Ranges.everything }
+
 
 -- * util
 

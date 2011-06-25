@@ -22,6 +22,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
 import Ui
+import qualified Ui.Diff as Diff
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
@@ -29,7 +30,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
 
-import qualified Derive.Cache as Derive.Cache
 import qualified Derive.Derive as Derive
 import qualified Perform.RealTime as RealTime
 
@@ -45,13 +45,13 @@ type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
 -- ScoreDamage to them, halting performance of blocks which have changed, and
 -- starting a performance for the focused block.
 --
--- The majority of the calls here will bring neither score damage nor a changed
--- view id, and thus this will do nothing.
+-- The majority of the calls here will bring neither score damage nor
+-- a changed view id, and thus this will do nothing.
 update_performance :: SendStatus -> State.State -> State.State -> Cmd.State
     -> [Update.Update] -> IO Cmd.State
-update_performance send_status ui_from ui_to cmd_state updates = do
+update_performance send_status ui_pre ui_to cmd_state updates = do
     (cmd_state, _, logs, result) <- Cmd.run_io ui_to cmd_state $ do
-        let damage = Derive.Cache.score_damage ui_from ui_to updates
+        let damage = Diff.derive_diff ui_pre ui_to updates
         kill_obsolete_threads damage
         insert_score_damage damage
         focused <- Cmd.lookup_focused_block

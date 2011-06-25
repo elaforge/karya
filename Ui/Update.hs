@@ -19,7 +19,7 @@ data Update
     -- | Since I expect rulers to be changed infrequently, the only kind of
     -- ruler update is a full update.
     | RulerUpdate RulerId
-    deriving (Show, Generics.Typeable)
+    deriving (Eq, Show, Generics.Typeable)
 
 data ViewUpdate =
     CreateView
@@ -34,7 +34,7 @@ data ViewUpdate =
     -- | Bring the window to the front.  Unlike most other updates, this is
     -- recorded directly and is not reflected in Ui.State.
     | BringToFront
-    deriving Show
+    deriving (Eq, Show)
 
 data BlockUpdate
     = BlockTitle String
@@ -45,12 +45,7 @@ data BlockUpdate
     -- | Unlike a TrackUpdate, these settings are local to the block, not
     -- global to this track in all its blocks.
     | DisplayTrack TrackNum Block.DisplayTrack
-    -- | Unlike other Updates, this isn't meant to be synced to the GUI.  It's
-    -- a hint to the cache system, via 'block_changed'.  I don't really care
-    -- *which* track changed flags, because any flag change damages the entire
-    -- block.
-    | TrackFlags
-    deriving (Show)
+    deriving (Eq, Show)
 
 -- | track, low_pos, high_pos
 data TrackUpdate
@@ -60,7 +55,7 @@ data TrackUpdate
     | TrackTitle String
     | TrackBg
     | TrackRender
-    deriving (Show)
+    deriving (Eq, Show)
 
 instance DeepSeq.NFData Update where
     rnf update = case update of

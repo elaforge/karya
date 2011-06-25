@@ -33,32 +33,6 @@ import qualified Perform.Signal as Signal
 
 -- * other functions
 
-test_score_damage = do
-    let bid = UiTest.default_block_id
-        ([tid], ustate) = UiTest.run_mkstate [("t1", [])]
-        mk tracks track_blocks blocks =
-            Derive.ScoreDamage (Map.fromList tracks) (Set.fromList track_blocks)
-                (Set.fromList blocks)
-    let f = Cache.score_damage
-
-    equal (f ustate ustate []) (mk [] [] [])
-    equal (f ustate (snd $ UiTest.run_mkstate [("t2", [])]) [])
-        (mk [(UiTest.tid "b1.t0", Ranges.everything)] [UiTest.bid "b1"] [])
-    equal (f ustate ustate [Update.BlockUpdate bid (Update.BlockTitle "ho")])
-        (mk [] [] [UiTest.bid "b1"])
-
-    equal (f ustate ustate [Update.TrackUpdate tid Update.TrackAllEvents])
-        (mk [(UiTest.tid "b1.t0", Ranges.everything)] [UiTest.bid "b1"] [])
-    equal (f ustate ustate [Update.TrackUpdate tid Update.TrackBg])
-        (mk [] [] [])
-
-    let create = UiTest.mkstate "b1" [(">", [(0, 1, ""), (1, 1, "")])]
-        modify = State.remove_event (UiTest.mk_tid_name "b1" 0) 0
-    equal (score_damage create (return ())) (mk [] [] [])
-    equal (score_damage create modify)
-        (mk [(UiTest.mk_tid_name "b1" 0, Ranges.ranges [(0, 1)])]
-            [UiTest.bid "b1"] [])
-
 test_clear_damage = do
     let mkdamage tracks blocks = Derive.ScoreDamage
             (Map.fromList tracks) Set.empty (Set.fromList blocks)
@@ -426,7 +400,7 @@ compare_cached create modify = (result1, cached, uncached)
     (bid, state1) = UiTest.run State.empty create
     result1 = DeriveTest.derive_block_cache mempty mempty state1 bid
     (_, state2, cmd_updates) = run state1 modify
-    damage = Cache.score_damage state1 state2 updates
+    damage = Diff.derive_diff state1 state2 updates
     cached = DeriveTest.derive_block_cache (Derive.r_cache result1)
         damage state2 bid
     uncached = DeriveTest.derive_block_cache mempty mempty state2 bid
@@ -435,7 +409,7 @@ compare_cached create modify = (result1, cached, uncached)
         Right diff_updates -> diff_updates
 
 score_damage :: State.StateId a -> State.StateId b -> Derive.ScoreDamage
-score_damage create modify = Cache.score_damage state1 state2 updates
+score_damage create modify = Diff.derive_diff state1 state2 updates
     where
     (_, state1) = UiTest.run State.empty create
     (_, state2, cmd_updates) = run state1 modify

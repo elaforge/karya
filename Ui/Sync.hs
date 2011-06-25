@@ -148,7 +148,8 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
     block <- State.get_block (Block.view_block view)
 
     let dtracks = Block.block_display_tracks block
-    tracklikes <- mapM (State.get_tracklike . Block.dtracklike_id . fst) dtracks
+    tracklikes <- mapM (State.get_tracklike . Block.dtracklike_id . fst)
+        dtracks
     titles <- mapM track_title (Block.block_tracklike_ids block)
 
     let sels = Block.view_selections view
@@ -166,7 +167,8 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
 
         let track_info = List.zip4 [0..] dtracks tracklikes titles
         forM_ track_info $ \(tracknum, (dtrack, width), tracklike, title) -> do
-            let merged = events_of_track_ids ustate (Block.dtrack_merged dtrack)
+            let merged = events_of_track_ids ustate
+                    (Block.dtrack_merged dtrack)
             BlockC.insert_track view_id tracknum tracklike merged width
             unless (null title) $
                 BlockC.set_track_title view_id tracknum title
@@ -241,7 +243,6 @@ run_update (Update.BlockUpdate block_id update) = do
                 -- This is unnecessary if I just collapsed the track, but
                 -- no big deal.
                 BlockC.update_entire_track view_id tracknum tracklike merged
-        Update.TrackFlags -> return (return ())
 
 run_update (Update.TrackUpdate track_id update) = do
     blocks <- State.blocks_with_track track_id

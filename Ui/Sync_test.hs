@@ -18,11 +18,12 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 
-import Util.Test
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
+import Util.Test
 
 import qualified Ui.Block as Block
+import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
@@ -32,10 +33,9 @@ import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
-import qualified Ui.Update as Update
-
 import qualified Ui.UiTest as UiTest
 import Ui.UiTest (mkid)
+import qualified Ui.Update as Update
 
 -- TODO
 -- test_error

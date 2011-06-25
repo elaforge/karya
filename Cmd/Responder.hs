@@ -116,7 +116,7 @@ run_setup_cmd loopback ui_state cmd_state cmd = do
             return (ui_state, updates)
     (_, ui_state, cmd_state) <-
         ResponderSync.sync Sync.sync (send_derive_status loopback)
-            ui_state ui_to cmd_state updates
+            ui_state ui_state ui_to cmd_state updates
     return (ui_state, cmd_state)
 
 send_derive_status :: Loopback -> BlockId -> Msg.DeriveStatus -> IO ()
@@ -232,7 +232,7 @@ respond rstate msg = do
             (updates, ui_state, cmd_state) <-
                 ResponderSync.sync (state_sync rstate)
                     (send_derive_status (state_loopback rstate))
-                    ui_from ui_to cmd_state updates
+                    (state_ui rstate) ui_from ui_to cmd_state updates
             cmd_state <- return $ record_history updates ui_from cmd_state
             return (status,
                 rstate { state_cmd = cmd_state, state_ui = ui_state })

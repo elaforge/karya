@@ -1,16 +1,15 @@
 module Cmd.Msg where
 import qualified System.IO as IO
-import qualified Util.Pretty as Pretty
 
+import qualified Util.Pretty as Pretty
+import qualified Midi.Midi as Midi
 import Ui
 import qualified Ui.Key as Key
 import qualified Ui.Track as Track
 import qualified Ui.UiMsg as UiMsg
 
-import qualified Midi.Midi as Midi
-
-import qualified Perform.Transport as Transport
 import qualified Cmd.InputNote as InputNote
+import qualified Perform.Transport as Transport
 
 
 data Msg =
@@ -92,6 +91,7 @@ context_track_pos :: Msg -> Maybe (TrackNum, ScoreTime)
 context_track_pos msg = do
     context <- context msg
     case context of
-        UiMsg.Context { UiMsg.ctx_track = Just track, UiMsg.ctx_pos = Just pos }
+        UiMsg.Context
+                { UiMsg.ctx_track = Just track, UiMsg.ctx_pos = Just pos }
             -> Just (track, pos)
         _ -> Nothing

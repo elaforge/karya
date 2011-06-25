@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 module Derive.Cache (
     caching_call
-    , score_damage
     , get_control_damage, get_tempo_damage
 
 #ifdef TESTING
@@ -10,7 +9,6 @@ module Derive.Cache (
 ) where
 import Control.Monad
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -19,12 +17,8 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
 import Ui
-import qualified Ui.Block as Block
-import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
-import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Update as Update
 
 import qualified Derive.Derive as Derive
 import Derive.Derive
@@ -205,26 +199,6 @@ damage_to_score r = case Ranges.extract r of
             Derive.real_to_score s <*> Derive.real_to_score e) rs
 
 -- * types
-
--- | Constructor for ScoreDamage.
---
--- Updating a track will damage not only the track itself, but also the blocks
--- the track belongs to.
-score_damage :: State.State -> State.State -> [Update.Update]
-    -> Derive.ScoreDamage
-score_damage ui_from ui_to updates =
-    Derive.ScoreDamage tracks track_blocks blocks
-    where
-    -- When track title changes come from the UI they aren't emitted as
-    -- Updates, but should still trigger a re-derive.
-    track_updates = Diff.track_diff ui_from ui_to
-    tracks = Map.fromListWith (<>) $
-        Maybe.mapMaybe Update.track_changed (track_updates ++ updates)
-    track_blocks = Set.fromList $ map fst $ State.find_tracks track_of_block
-        (State.state_blocks ui_to)
-    track_of_block (Block.TId tid _) = Map.member tid tracks
-    track_of_block _ = False
-    blocks = Set.fromList (Maybe.mapMaybe Update.block_changed updates)
 
 lookup_cache :: (Derive.Derived derived) =>
     Stack.Stack -> Cache -> Maybe (CallType derived)

@@ -757,6 +757,7 @@ data ScoreDamage = ScoreDamage {
     -- block will invalidate all caches below it, but a block with damaged
     -- tracks must be called but may still have valid caches within.
     , sdamage_track_blocks :: !(Set.Set BlockId)
+    -- | Blocks which are entirely damaged.
     , sdamage_blocks :: !(Set.Set BlockId)
     } deriving (Eq, Show)
 

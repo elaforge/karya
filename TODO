@@ -35,6 +35,12 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  + should no longer need to rederive for a collapse/expand
+    But it's because collapsing the track means removing the track and adding
+    a divider.  So the problem is that damage comes off the low level diff,
+    when it should be working against a higher level one.
+    Only now it doesn't restore the signal when the track is expanded again.
+    So BlockC.insert_track needs TrackSignals for that.
   * pitch signal for save/tuplet is displaying funny
   * organize derive state for parallization
     It should be possible to run every call on a track in parallel.
@@ -311,11 +317,6 @@ UNSORTED
 
   - editing for "pattern list" block
 
-OTHER
-  - problem with pianoteq: if the same note occurs on two channels, one
-    will be dropped.  Report to pianoteq.  I could work around, but it won't
-    occur with real multitimbral instruments anyway.
-
 MILESTONES
   0.1
     * scales and keyswitches
@@ -389,7 +390,6 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
-  - #(poke Mispeled, field) fieldp field results in compiler bus error
   - keymap collisions are logged twice
   - Create.rename_project loses the merged tracks
   - bizarre hint importing requirements in Cmd.LanguageEnviron
@@ -1071,3 +1071,9 @@ future:
     e.g. portmidi?  Maybe the ability to send midi to e.g. local apps in
     standalone mode?  Or would be be better to support vst?
   - sync via jack with e.g. ardour, rosegarden
+
+OTHER
+  - #(poke Mispeled, field) fieldp field results in compiler bus error
+  - problem with pianoteq: if the same note occurs on two channels, one
+    will be dropped.  Report to pianoteq.  I could work around, but it won't
+    occur with real multitimbral instruments anyway.

@@ -213,7 +213,8 @@ partition2 f g (x:xs)
 
 -- | Pair @a@ elements up with @b@ elements.  If they are equal according to
 -- @eq@, they'll both be Just in the result.  If an @a@ is deleted going from
--- @a@ to @b@, it will be Nothing, and vice versa for @b@.
+-- @a@ to @b@, it will be Nothing, and vice versa for @b@.  You should never
+-- get @(Nothing, Nothing)@.
 --
 -- Kind of like an edit distance, or a diff.
 equal_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Maybe a, Maybe b)]
