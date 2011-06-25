@@ -343,7 +343,8 @@ setup_normal = do
 
     mod <- Create.track bid 4
     State.insert_events mod $ map (control_event . UiTest.mkevent)
-        [(0, 0, "0"), (1, 0, "i 1"), (2, 0, "i 0"), (2.5, 0, "1"), (3, 0, ".5")]
+        [(0, 0, "0"), (1, 0, "i 1"), (2, 0, "i 0"), (2.5, 0, "1"),
+            (3, 0, ".5")]
     State.set_track_title mod "modulation"
     State.modify_track_render mod $ \render ->
         render { Track.render_style = Track.Filled }

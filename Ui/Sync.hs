@@ -53,12 +53,17 @@ import qualified App.Config as Config
 
 
 -- | Sync with the ui by applying the given updates to it.
-sync :: State.State -> [Update.Update] -> IO (Maybe State.StateError)
-sync state updates = do
+--
+-- TrackSignals are passed separately instead of going through diff because
+-- they're special: they exist in Cmd.State and not in Ui.State.  It's rather
+-- unpleasant, but as long as it's only TrackSignals then I can deal with it.
+sync :: Track.TrackSignals -> State.State -> [Update.Update]
+    -> IO (Maybe State.StateError)
+sync track_signals state updates = do
     -- TODO: TrackUpdates can overlap.  Merge them together here.
     -- Technically I can also cancel out all TrackUpdates that only apply to
     -- newly created views, but this optimization is probably not worth it.
-    result <- State.run state $ do_updates (Update.sort updates)
+    result <- State.run state $ do_updates track_signals (Update.sort updates)
     -- Log.timer $ "synced updates: " ++ show (length updates)
     return $ case result of
         Left err -> Just err
@@ -68,41 +73,45 @@ sync state updates = do
         -- express this in the type?
         Right _ -> Nothing
 
-do_updates :: [Update.Update] -> State.StateT IO ()
-do_updates updates = do
-    actions <- mapM run_update updates
+do_updates :: Track.TrackSignals -> [Update.Update] -> State.StateT IO ()
+do_updates track_signals updates = do
+    actions <- mapM (run_update track_signals) updates
     -- Trans.liftIO $ putStrLn ("run updates: " ++ show updates)
     Trans.liftIO (Ui.send_action (sequence_ actions))
 
 set_track_signals :: State.State -> Track.TrackSignals -> IO ()
 set_track_signals state track_signals =
-    case State.eval state get_track_info of
+    case State.eval state rendering_tracks of
         Left err ->
             -- This could happen if track_signals had a stale track_id.  That
             -- could happen if I deleted a track before the deriver came back
             -- with its signal.
             -- TODO but I should just filter out the bad track_id in that case
             Log.warn $ "getting tracknums of track_signals: " ++ show err
-        Right val -> Ui.send_action $ forM_ val $
-            \(view_id, tracknum, result) -> case result of
-                Left logs -> mapM_ Log.write $
-                    prefix view_id tracknum logs
-                Right tsig -> BlockC.set_track_signal view_id tracknum tsig
+        Right tracks -> Ui.send_action $ forM_ tracks set_tsig
     where
+    set_tsig (view_id, track_id, tracknum) =
+        case Map.lookup track_id track_signals of
+            Just (Right tsig) -> BlockC.set_track_signal view_id tracknum tsig
+            Just (Left logs) -> mapM_ Log.write $ prefix view_id tracknum logs
+            Nothing -> return ()
     prefix view_id tracknum = Log.add_prefix $ Text.pack $
         "getting track signal for " ++ Pretty.pretty (view_id, tracknum)
-    get_track_info ::
-        State.StateId [(ViewId, TrackNum, Either [Log.Msg] Track.TrackSignal)]
-    get_track_info =
-        fmap concat $ forM (Map.assocs track_signals) $ \(track_id, result) ->
-            tracknums_of track_id result
-    tracknums_of track_id result = do
-        blocks <- State.blocks_with_track track_id
-        fmap concat $ forM blocks $ \(block_id, tracks) -> do
-            view_ids <- Map.keys <$> State.get_views_of block_id
-            return [(view_id, tracknum, result)
-                | (tracknum, Block.TId tid _) <- tracks,
-                    tid == track_id, view_id <- view_ids]
+
+    rendering_tracks :: State.StateId [(ViewId, TrackId, TrackNum)]
+    rendering_tracks = do
+        view_ids <- Map.keys <$> State.gets State.state_views
+        blocks <- mapM (State.block_of_view) view_ids
+        btracks <- mapM get_tracks blocks
+        return $ do
+            (view_id, tracks) <- zip view_ids btracks
+            ((tracknum, track_id), track) <- tracks
+            guard (wants_tsig track)
+            return (view_id, track_id, tracknum)
+    get_tracks block = zip track_ids <$> mapM (State.get_track . snd) track_ids
+        where
+        track_ids = [(tracknum, tid) | (tracknum, Block.TId tid _)
+            <- zip [0..] (Block.block_tracklike_ids block)]
 
 -- | The play position selection bypasses all the usual State -> Diff -> Sync
 -- stuff for a direct write to the UI.
@@ -142,8 +151,10 @@ clear_play_position view_id = Ui.send_action $
 -- | Generate an IO action that applies the update to the UI.
 --
 -- CreateView Updates will modify the State to add the ViewPtr.
-run_update :: Update.Update -> State.StateT IO (IO ())
-run_update (Update.ViewUpdate view_id Update.CreateView) = do
+--
+-- This has to be the longest haskell function ever.
+run_update :: Track.TrackSignals -> Update.Update -> State.StateT IO (IO ())
+run_update _ (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
 
@@ -165,8 +176,8 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.create_view view_id title (Block.view_rect view)
             (Block.view_config view) (Block.block_config block)
 
-        let track_info = List.zip4 [0..] dtracks tracklikes titles
-        forM_ track_info $ \(tracknum, (dtrack, width), tracklike, title) -> do
+        let tinfo = List.zip4 [0..] dtracks tracklikes titles
+        forM_ tinfo $ \(tracknum, (dtrack, width), tracklike, title) -> do
             let merged = events_of_track_ids ustate
                     (Block.dtrack_merged dtrack)
             BlockC.insert_track view_id tracknum tracklike merged width
@@ -183,7 +194,7 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
 
-run_update (Update.ViewUpdate view_id update) =
+run_update _ (Update.ViewUpdate view_id update) =
     case update of
         -- The previous equation matches CreateView, but ghc warning doesn't
         -- figure that out.
@@ -204,7 +215,7 @@ run_update (Update.ViewUpdate view_id update) =
         Update.BringToFront -> return $ BlockC.bring_to_front view_id
 
 -- Block ops apply to every view with that block.
-run_update (Update.BlockUpdate block_id update) = do
+run_update track_signals (Update.BlockUpdate block_id update) = do
     view_ids <- fmap Map.keys (State.get_views_of block_id)
     case update of
         Update.BlockTitle title -> return $
@@ -216,21 +227,25 @@ run_update (Update.BlockUpdate block_id update) = do
         Update.RemoveTrack tracknum -> return $
             mapM_ (flip BlockC.remove_track tracknum) view_ids
         Update.InsertTrack tracknum width dtrack -> do
-            let tid = Block.dtracklike_id dtrack
-            ctrack <- State.get_tracklike tid
+            let tlike_id = Block.dtracklike_id dtrack
+            ctrack <- State.get_tracklike tlike_id
             ustate <- State.get
             return $ forM_ view_ids $ \view_id -> do
                 let merged = events_of_track_ids ustate
                         (Block.dtrack_merged dtrack)
                 BlockC.insert_track view_id tracknum ctrack merged width
-                case ctrack of
+                case (tlike_id, ctrack) of
                     -- Configure new track.  This is analogous to the initial
                     -- config in CreateView.
-                    Block.T t _ -> do
+                    (Block.TId tid _, Block.T t _) -> do
                         unless (null (Track.track_title t)) $
                             BlockC.set_track_title view_id tracknum
                                 (Track.track_title t)
                         BlockC.set_display_track view_id tracknum dtrack
+                        case Map.lookup tid track_signals of
+                            Just (Right tsig) | wants_tsig t ->
+                                BlockC.set_track_signal view_id tracknum tsig
+                            _ -> return ()
                     _ -> return ()
         Update.DisplayTrack tracknum dtrack -> do
             let tracklike_id = Block.dtracklike_id dtrack
@@ -244,12 +259,12 @@ run_update (Update.BlockUpdate block_id update) = do
                 -- no big deal.
                 BlockC.update_entire_track view_id tracknum tracklike merged
 
-run_update (Update.TrackUpdate track_id update) = do
+run_update _ (Update.TrackUpdate track_id update) = do
     blocks <- State.blocks_with_track track_id
-    let track_info = [(block_id, tracknum, tid)
+    let tinfo = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
     -- lookup DisplayTrack and pair with the tracks
-    fmap sequence_ $ forM track_info $ \(block_id, tracknum, tracklike_id) -> do
+    fmap sequence_ $ forM tinfo $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
 
@@ -276,17 +291,22 @@ run_update (Update.TrackUpdate track_id update) = do
                 return $ BlockC.update_entire_track view_id tracknum tracklike
                     merged
 
-run_update (Update.RulerUpdate ruler_id) = do
+run_update _ (Update.RulerUpdate ruler_id) = do
     blocks <- State.blocks_with_ruler ruler_id
-    let track_info = [(block_id, tracknum, tid)
+    let tinfo = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
-    fmap sequence_ $ forM track_info $ \(block_id, tracknum, tracklike_id) -> do
+    fmap sequence_ $ forM tinfo $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
         -- A ruler track doesn't have merged events so don't bother to look for
         -- them.
         fmap sequence_ $ forM view_ids $ \view_id -> return $
             BlockC.update_entire_track view_id tracknum tracklike []
+
+-- | Don't send a track signal to a track unless it actually wants to draw it.
+wants_tsig :: Track.Track -> Bool
+wants_tsig track =
+    Track.render_style (Track.track_render track) /= Track.NoRender
 
 track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)

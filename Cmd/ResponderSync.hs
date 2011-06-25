@@ -1,16 +1,22 @@
 {- | Subset of the responder that handles syncing from State.State to the UI.
 -}
 module Cmd.ResponderSync (Sync, sync) where
+import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+
 import qualified Util.Log as Log
+import Ui
 import qualified Ui.Diff as Diff
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Performance as Performance
 
 
-type Sync = State.State -> [Update.Update] -> IO (Maybe State.StateError)
+type Sync = Track.TrackSignals -> State.State -> [Update.Update]
+    -> IO (Maybe State.StateError)
 
 -- | Sync @state2@ to the UI.
 --
@@ -32,7 +38,8 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates = do
         Right updates -> do
             -- unless (null updates) $
             --     Trans.liftIO $ putStrLn $ "update: " ++ PPrint.pshow updates
-            err <- sync_func ui_to updates
+            let tsigs = get_track_signals (State.state_root ui_to) cmd_state
+            err <- sync_func tsigs ui_to updates
             case err of
                 Nothing -> return ()
                 Just err -> Log.error $ "syncing updates: " ++ show err
@@ -42,6 +49,12 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates = do
     cmd_state <- Performance.update_performance
         send_status ui_pre ui_to cmd_state updates
     return (updates, ui_to, cmd_state)
+
+get_track_signals :: Maybe BlockId -> Cmd.State -> Track.TrackSignals
+get_track_signals maybe_root st = Maybe.fromMaybe Map.empty $ do
+    root <- maybe_root
+    pthread <- Map.lookup root (Cmd.state_performance_threads st)
+    return $ Cmd.perf_track_signals (Cmd.pthread_perf pthread)
 
 -- | This should be run before every sync, since if errors get to sync they'll
 -- result in bad UI display, a C++ exception, or maybe even a segfault (but C++

@@ -69,8 +69,10 @@ public:
             ScoreTime start, ScoreTime end)
     {}
 
-    virtual void set_track_signal(const TrackSignal &tsig)
-    {}
+    virtual void set_track_signal(const TrackSignal &tsig) {
+        DEBUG("WARNING: got a track signal on a track type that doesn't "
+            "support it!");
+    }
 
     // This is called before the object is deleted.
     virtual void finalize_callbacks(FinalizeCallback finalizer) {}

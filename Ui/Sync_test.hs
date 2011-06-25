@@ -17,6 +17,7 @@ module Ui.Sync_test where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
+import qualified Data.Map as Map
 
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -36,6 +37,7 @@ import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import Ui.UiTest (mkid)
 import qualified Ui.Update as Update
+
 
 -- TODO
 -- test_error
@@ -399,7 +401,7 @@ sync st1 st2 cmd_updates = do
     let updates = right $ Diff.diff cmd_updates st1 st2
     pmlist "cmd updates" cmd_updates
     pmlist "updates" updates
-    result <- Sync.sync st2 updates
+    result <- Sync.sync Map.empty st2 updates
     case result of
         Just err -> putStrLn $ "err: " ++ show err
         Nothing -> putStrLn "synced"

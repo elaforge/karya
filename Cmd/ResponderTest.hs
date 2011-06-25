@@ -86,7 +86,7 @@ make_rstate update_chan midi_chan (ui_state, cmd_state) =
         (Transport.Info send_status write_midi abort_midi get_now_ts)
         lang_session loopback dummy_sync
     where
-    dummy_sync _ updates = do
+    dummy_sync _ _ updates = do
         put_val update_chan updates
         return Nothing
     -- I suppose I should loop them back and respond again?
