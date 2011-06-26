@@ -131,6 +131,9 @@ public:
     virtual ScoreTime time_end() const { return ruler.time_end(); }
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,
             ScoreTime start, ScoreTime end);
+    virtual void set_track_signal(const TrackSignal &tsig) {
+        DEBUG("WARNING: got a track signal on a ruler track!");
+    }
     virtual void finalize_callbacks(FinalizeCallback finalizer) {
         ruler.finalize_callbacks(finalizer);
     }

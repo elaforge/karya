@@ -118,8 +118,8 @@ quit_bindings = [(kspec, cspec) | kspec <- kspecs]
 
 (cmd_map, cmd_map_errors) = Keymap.make_cmd_map $ concat
     [ mouse_bindings, selection_bindings, view_config_bindings
-    , block_config_bindings, edit_bindings, pitch_bindings
-    , create_bindings, clip_bindings
+    , block_config_bindings, edit_state_bindings, event_bindings
+    , pitch_bindings, create_bindings, clip_bindings
     ]
 
 -- | I bind the mouse by device rather than function, since I can't detect
@@ -192,12 +192,9 @@ block_config_bindings = concat
         (BlockConfig.merge_all =<< Cmd.get_focused_block)
     ]
 
--- delete = remove events and move following events back
--- clear = just remove events
-
 -- | Global bindings for edit type things.
-edit_bindings :: (Cmd.M m) => [Keymap.Binding m]
-edit_bindings = concat
+edit_state_bindings :: (Cmd.M m) => [Keymap.Binding m]
+edit_state_bindings = concat
     [ bind_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
     , bind_mod [PrimaryCommand] Key.Escape "toggle raw edit"
         Edit.cmd_toggle_raw_edit
@@ -206,16 +203,8 @@ edit_bindings = concat
     , bind_mod [Shift] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
 
-    -- Unlike other event editing commands, you don't have to be in insert mode
-    -- to remove events.  Maybe I'll change that later.
-    , command Key.Backspace "clear selected" Edit.cmd_clear_selected
-    , bind_mod [PrimaryCommand] Key.Down "insert time" Edit.cmd_insert_time
-    , bind_mod [PrimaryCommand] Key.Up "delete time" Edit.cmd_delete_time
-
     , command_char 'u' "undo" Edit.undo
     , command_char 'r' "redo" Edit.redo
-
-    , command_char 'j' "join events" Edit.cmd_join_events
 
     -- The convention from MakeRuler is: 0 = block, 1 = block section,
     -- 2 = whole, 3 = quarter, 4 = 16th, etc.  Since it goes to /4 after
@@ -241,6 +230,22 @@ edit_bindings = concat
     step_rank rank skips = Edit.set_step_rank
         (TimeStep.AbsoluteMark meter (TimeStep.MatchRank rank skips))
         rank skips
+
+-- delete = remove events and move following events back
+-- clear = just remove events
+
+event_bindings :: (Cmd.M m) => [Keymap.Binding m]
+event_bindings = concat
+    -- J = move previous event down, K = move next event up.
+    [ command_char 'J' "move event forward" Edit.cmd_move_event_forward
+    , command_char 'K' "move event back" Edit.cmd_move_event_back
+    -- Unlike other event editing commands, you don't have to be in insert
+    -- mode to remove events.  Maybe I'll change that later.
+    , command Key.Backspace "clear selected" Edit.cmd_clear_selected
+    , bind_mod [PrimaryCommand] Key.Down "insert time" Edit.cmd_insert_time
+    , bind_mod [PrimaryCommand] Key.Up "delete time" Edit.cmd_delete_time
+    , command_char 'j' "join events" Edit.cmd_join_events
+    ]
 
 -- | Bindings which work on pitch tracks.  The reason this is global rather
 -- than in pitch track keymaps is that it's handy to select multiple tracks

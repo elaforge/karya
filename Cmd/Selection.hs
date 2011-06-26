@@ -342,11 +342,17 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     operations like \"play from selection\"), there is a choice of taking the
     point from the beginning of the selection, the end, or the 'sel_cur_pos',
     which is the dragged-to point.  The convention, established by
-    'point_pos' and 'point_track', is to take the first point.
+    'selection_point' and 'point_track', is to take the first point.
 -}
 
-point_pos :: Types.Selection -> ScoreTime
-point_pos sel = min (Types.sel_start_pos sel) (Types.sel_cur_pos sel)
+-- | Get the \"point\" position of a Selection.
+selection_point :: Types.Selection -> ScoreTime
+selection_point sel =
+    point_pos (Types.sel_start_pos sel) (Types.sel_cur_pos sel)
+
+-- | Given a selection start and end, give the \"point\" position for it.
+point_pos :: ScoreTime -> ScoreTime -> ScoreTime
+point_pos = min
 
 point_track :: Types.Selection -> TrackNum
 point_track sel = min (Types.sel_start_track sel) (Types.sel_cur_track sel)
@@ -381,7 +387,8 @@ lookup_any_selnum_insert :: (Cmd.M m) => Types.SelNum
 lookup_any_selnum_insert selnum =
     justm (lookup_selnum selnum) $ \(view_id, sel) -> do
         block_id <- State.block_id_of_view view_id
-        return $ Just (view_id, (block_id, point_track sel, point_pos sel))
+        return $ Just
+            (view_id, (block_id, point_track sel, selection_point sel))
 
 -- | Given a block, get the selection on it, if any.  If there are multiple
 -- views, take the one with the alphabetically first ViewId.
@@ -395,7 +402,8 @@ lookup_block_insert block_id = do
         view_id : _ ->
             justm (State.get_selection view_id Config.insert_selnum) $ \sel ->
             justm (sel_track block_id sel) $ \track_id ->
-            return $ Just (block_id, point_track sel, track_id, point_pos sel)
+            return $ Just
+                (block_id, point_track sel, track_id, selection_point sel)
 
 -- | Get the point track of a selection.
 sel_track :: (State.M m) => BlockId -> Types.Selection -> m (Maybe TrackId)
@@ -506,6 +514,10 @@ type SelectedEvents = [(TrackId, (ScoreTime, ScoreTime), [Events.PosEvent])]
 -- | 'events_around' is the default selection behaviour.
 events :: (Cmd.M m) => m SelectedEvents
 events = fmap extract_events events_around
+    where
+    extract_events :: SelectedAround -> SelectedEvents
+    extract_events = map $ \(track_id, range, (_, within, _)) ->
+        (track_id, range, within)
 
 events_around :: (Cmd.M m) => m SelectedAround
 events_around = events_around_selnum Config.insert_selnum
@@ -551,10 +563,6 @@ events_around_selnum selnum = do
     expand _ selected = selected
     expand_range (_, [evt], _) _ = (Events.event_min evt, Events.event_max evt)
     expand_range _ range = range
-
-extract_events :: SelectedAround -> SelectedEvents
-extract_events = map $ \(track_id, range, (_, within, _)) ->
-    (track_id, range, within)
 
 -- ** select tracks
 

@@ -135,8 +135,9 @@ evaluate_performance send_status block_id perf = do
     Thread.delay derive_wait
     send_status block_id Msg.Deriving
     secs <- Log.time_eval (Cmd.perf_inv_tempo perf 0)
-    Log.notice $ show block_id ++ ": primed evaluation in "
-        ++ Pretty.pretty (RealTime.seconds secs)
+    when (secs >= 0.5) $
+        Log.notice $ show block_id ++ ": primed evaluation in "
+            ++ Pretty.pretty (RealTime.seconds secs)
     send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
 
 -- | Constructor for 'Cmd.Performance'.

@@ -30,7 +30,7 @@ make_keymap pitch_track = Keymap.make_cmd_map $ concat
 -- If it's more convenient, I could remove any existing "--" events before
 -- inserting the new one.
 cmd_insert_track_end :: (Cmd.M m) => m ()
-cmd_insert_track_end = Edit.insert_event "--" 0
+cmd_insert_track_end = Edit.cmd_insert_event "--" 0
 
 cmd_toggle_merged :: (Cmd.M m) => NoteTrack.PitchTrack -> m ()
 cmd_toggle_merged (NoteTrack.CreateTrack {}) =

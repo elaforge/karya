@@ -7,7 +7,10 @@ import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -77,10 +80,42 @@ edit_color mode = case mode of
 -- * universal event cmds
 
 -- | Insert an event at the current insert pos.
-insert_event :: (Cmd.M m) => String -> ScoreTime -> m ()
-insert_event text dur = do
+cmd_insert_event :: (Cmd.M m) => String -> ScoreTime -> m ()
+cmd_insert_event text dur = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_events track_id [(pos, Event.event text dur)]
+
+-- | Different from insert/delete time since it only modifies one event.
+-- Move back the next event, or move down the previous event.  If the
+-- selection is non-zero, the event's duration will be modified to the
+-- selection.
+cmd_move_event_forward :: (Cmd.M m) => m ()
+cmd_move_event_forward = move_event $ \pos events ->
+    case Events.split pos events of
+        (_, (epos, _) : _) | pos == epos -> Nothing
+        (prev : _, _) -> Just prev
+        _ -> Nothing
+
+cmd_move_event_back :: (Cmd.M m) => m ()
+cmd_move_event_back = move_event $ \pos events ->
+    case Seq.head (Events.at_after pos events) of
+        Just (epos, _) | epos == pos -> Nothing
+        Just next -> Just next
+        Nothing -> Nothing
+
+move_event :: (Cmd.M m) =>
+    (ScoreTime -> Events.Events -> Maybe Events.PosEvent) -> m ()
+move_event get_event = do
+    (_, track_ids, start, end) <- Selection.tracks
+    let pos = Selection.point_pos start end
+        dur = abs (end - start)
+    forM_ track_ids $ \track_id -> do
+        events <- Track.track_events <$> State.get_track track_id
+        when_just (get_event pos events) $ \(old_pos, event) -> do
+            State.remove_event track_id old_pos
+            State.insert_event track_id pos $
+                if dur == 0 then event else set_dur dur event
+
 
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note, whichever is shorter.
@@ -101,6 +136,9 @@ cmd_modify_dur f = ModifyEvents.modify_events $ \evt ->
     where apply dur = if dur == 0 then dur else f dur
 
 -- | If there is a following event, delete it and extend this one to its end.
+--
+-- Since 0 dur events are neven lengthened, joining control events simply
+-- deletes the later ones.
 cmd_join_events :: (Cmd.M m) => m ()
 cmd_join_events = mapM_ process =<< Selection.events_around
     where
@@ -126,11 +164,12 @@ cmd_join_events = mapM_ process =<< Selection.events_around
                 State.remove_event track_id pos2
                 State.insert_event track_id pos2 (set_dur (start - pos2) evt2)
             _ -> return () -- no sensible way to join these
-    -- Zero dur events are never lengthened.  This means that joining control
-    -- events simply deletes the later ones.
-    set_dur dur evt
-        | Event.event_duration evt == 0 = evt
-        | otherwise = Event.set_duration dur evt
+
+-- | Zero dur events are never lengthened.
+set_dur :: ScoreTime -> Event.Event -> Event.Event
+set_dur dur evt
+    | Event.event_duration evt == 0 = evt
+    | otherwise = Event.set_duration dur evt
 
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.  If the selection is

@@ -68,11 +68,7 @@ public:
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,
             ScoreTime start, ScoreTime end)
     {}
-
-    virtual void set_track_signal(const TrackSignal &tsig) {
-        DEBUG("WARNING: got a track signal on a track type that doesn't "
-            "support it!");
-    }
+    virtual void set_track_signal(const TrackSignal &tsig) = 0;
 
     // This is called before the object is deleted.
     virtual void finalize_callbacks(FinalizeCallback finalizer) {}
@@ -96,6 +92,9 @@ class DividerView : public TrackView {
 public:
     explicit DividerView(const DividerConfig &config);
     bool track_resizable() const { return false; }
+    virtual void set_track_signal(const TrackSignal &tsig) {
+        DEBUG("WARNING: got a track signal on a divider track!");
+    }
     virtual Fl_Box &title_widget() { return *this->title_box; }
     virtual std::string dump() const;
 protected:
