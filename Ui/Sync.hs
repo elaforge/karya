@@ -105,13 +105,16 @@ set_track_signals state track_signals =
         btracks <- mapM get_tracks blocks
         return $ do
             (view_id, tracks) <- zip view_ids btracks
-            ((tracknum, track_id), track) <- tracks
-            guard (wants_tsig track)
+            ((tracknum, track_id, flags), track) <- tracks
+            guard (wants_tsig flags track)
             return (view_id, track_id, tracknum)
-    get_tracks block = zip track_ids <$> mapM (State.get_track . snd) track_ids
+    get_tracks block = zip triples <$> mapM State.get_track track_ids
         where
-        track_ids = [(tracknum, tid) | (tracknum, Block.TId tid _)
-            <- zip [0..] (Block.block_tracklike_ids block)]
+        track_ids = [tid | (_, tid, _) <- triples]
+        triples = [(tracknum, tid, Block.track_flags track) |
+            (tracknum,
+                track@(Block.Track { Block.tracklike_id = Block.TId tid _ }))
+            <- zip [0..] (Block.block_tracks block)]
 
 -- | The play position selection bypasses all the usual State -> Diff -> Sync
 -- stuff for a direct write to the UI.
@@ -154,11 +157,16 @@ clear_play_position view_id = Ui.send_action $
 --
 -- This has to be the longest haskell function ever.
 run_update :: Track.TrackSignals -> Update.Update -> State.StateT IO (IO ())
-run_update _ (Update.ViewUpdate view_id Update.CreateView) = do
+run_update track_signals (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
 
     let dtracks = Block.block_display_tracks block
+        btracks = Block.block_tracks block
+        tlike_ids = map Block.tracklike_id btracks
+    -- It's important to get the tracklikes from the dtracks, not the
+    -- tlike_ids.  That's because the dtracks will have already turned
+    -- Collapsed tracks into Dividers.
     tracklikes <- mapM (State.get_tracklike . Block.dtracklike_id . fst)
         dtracks
     titles <- mapM track_title (Block.block_tracklike_ids block)
@@ -175,16 +183,8 @@ run_update _ (Update.ViewUpdate view_id Update.CreateView) = do
         let title = block_window_title view_id (Block.view_block view)
         BlockC.create_view view_id title (Block.view_rect view)
             (Block.view_config view) (Block.block_config block)
-
-        let tinfo = List.zip4 [0..] dtracks tracklikes titles
-        forM_ tinfo $ \(tracknum, (dtrack, width), tracklike, title) -> do
-            let merged = events_of_track_ids ustate
-                    (Block.dtrack_merged dtrack)
-            BlockC.insert_track view_id tracknum tracklike merged width
-            unless (null title) $
-                BlockC.set_track_title view_id tracknum title
-            BlockC.set_display_track view_id tracknum dtrack
-
+        mapM_ (create_track ustate)
+            (List.zip6 [0..] dtracks btracks tlike_ids tracklikes titles)
         unless (null (Block.block_title block)) $
             BlockC.set_title view_id (Block.block_title block)
         BlockC.set_skeleton view_id (Block.block_skeleton block)
@@ -193,6 +193,25 @@ run_update _ (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.set_status view_id (Block.show_status view)
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
+    where
+    -- It's kind of dumb how scattered the track info is.  But this is about
+    -- the only place where it's needed all together.
+    create_track ustate (tracknum, (dtrack, width), btrack, tlike_id, tlike,
+            title) = do
+        let merged = events_of_track_ids ustate
+                (Block.dtrack_merged dtrack)
+        BlockC.insert_track view_id tracknum tlike merged width
+        unless (null title) $
+            BlockC.set_track_title view_id tracknum title
+        BlockC.set_display_track view_id tracknum dtrack
+        case (tlike, tlike_id) of
+            (Block.T t _, Block.TId tid _) ->
+                case Map.lookup tid track_signals of
+                    Just (Right tsig)
+                        | wants_tsig (Block.track_flags btrack) t ->
+                            BlockC.set_track_signal view_id tracknum tsig
+                    _ -> return ()
+            _ -> return ()
 
 run_update _ (Update.ViewUpdate view_id update) =
     case update of
@@ -226,27 +245,8 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
             mapM_ (flip BlockC.set_skeleton skel) view_ids
         Update.RemoveTrack tracknum -> return $
             mapM_ (flip BlockC.remove_track tracknum) view_ids
-        Update.InsertTrack tracknum width dtrack -> do
-            let tlike_id = Block.dtracklike_id dtrack
-            ctrack <- State.get_tracklike tlike_id
-            ustate <- State.get
-            return $ forM_ view_ids $ \view_id -> do
-                let merged = events_of_track_ids ustate
-                        (Block.dtrack_merged dtrack)
-                BlockC.insert_track view_id tracknum ctrack merged width
-                case (tlike_id, ctrack) of
-                    -- Configure new track.  This is analogous to the initial
-                    -- config in CreateView.
-                    (Block.TId tid _, Block.T t _) -> do
-                        unless (null (Track.track_title t)) $
-                            BlockC.set_track_title view_id tracknum
-                                (Track.track_title t)
-                        BlockC.set_display_track view_id tracknum dtrack
-                        case Map.lookup tid track_signals of
-                            Just (Right tsig) | wants_tsig t ->
-                                BlockC.set_track_signal view_id tracknum tsig
-                            _ -> return ()
-                    _ -> return ()
+        Update.InsertTrack tracknum width dtrack ->
+            create_track view_ids tracknum width dtrack
         Update.DisplayTrack tracknum dtrack -> do
             let tracklike_id = Block.dtracklike_id dtrack
             tracklike <- State.get_tracklike tracklike_id
@@ -258,6 +258,39 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
                 -- This is unnecessary if I just collapsed the track, but
                 -- no big deal.
                 BlockC.update_entire_track view_id tracknum tracklike merged
+    where
+    create_track view_ids tracknum width dtrack = do
+        let tlike_id = Block.dtracklike_id dtrack
+        ctrack <- State.get_tracklike tlike_id
+        ustate <- State.get
+
+        -- I need to get this for wants_tsig.
+        mb_btrack <- fmap (\b -> Seq.at (Block.block_tracks b) tracknum)
+            (State.get_block block_id)
+        flags <- case mb_btrack of
+            Nothing -> do
+                Trans.liftIO $ Log.warn $
+                    "InsertTrack with tracknum that's not in the block's "
+                    ++ "tracks: " ++ show update
+                return []
+            Just btrack -> return (Block.track_flags btrack)
+        return $ forM_ view_ids $ \view_id -> do
+            let merged = events_of_track_ids ustate
+                    (Block.dtrack_merged dtrack)
+            BlockC.insert_track view_id tracknum ctrack merged width
+            case (tlike_id, ctrack) of
+                -- Configure new track.  This is analogous to the initial
+                -- config in CreateView.
+                (Block.TId tid _, Block.T t _) -> do
+                    unless (null (Track.track_title t)) $
+                        BlockC.set_track_title view_id tracknum
+                            (Track.track_title t)
+                    BlockC.set_display_track view_id tracknum dtrack
+                    case Map.lookup tid track_signals of
+                        Just (Right tsig) | wants_tsig flags t ->
+                            BlockC.set_track_signal view_id tracknum tsig
+                        _ -> return ()
+                _ -> return ()
 
 run_update _ (Update.TrackUpdate track_id update) = do
     blocks <- State.blocks_with_track track_id
@@ -304,9 +337,10 @@ run_update _ (Update.RulerUpdate ruler_id) = do
             BlockC.update_entire_track view_id tracknum tracklike []
 
 -- | Don't send a track signal to a track unless it actually wants to draw it.
-wants_tsig :: Track.Track -> Bool
-wants_tsig track =
+wants_tsig :: [Block.TrackFlag] -> Track.Track -> Bool
+wants_tsig flags track =
     Track.render_style (Track.track_render track) /= Track.NoRender
+    && Block.Collapse `notElem` flags
 
 track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)
