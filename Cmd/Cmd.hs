@@ -258,15 +258,6 @@ data State = State {
     -- save/load cmds aren't recorded.  TODO should go in cmd return val.
     , state_skip_history_record :: !Bool
 
-    -- Playing and derivation.
-
-    -- | Transport control channel for the player, if one is running.
-    , state_play_control :: !(Maybe Transport.PlayControl)
-    -- | As soon as any event changes are made to a block, its performance is
-    -- recalculated (in the background) and stored here, so play can be started
-    -- without latency.
-    , state_performance_threads :: !(Map.Map BlockId PerformanceThread)
-
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
     -- The key is the modifier stripped of extraneous info, like mousedown
@@ -283,6 +274,7 @@ data State = State {
     -- logview can catch them.  Really I only need this map to suppress log
     -- spam.
     , state_global_status :: !(Map.Map String String)
+    , state_play :: !PlayState
 
     -- External device tracking.
     -- | Midi state of WriteDevices.
@@ -290,12 +282,7 @@ data State = State {
     -- | Midi state of ReadDevices, including configuration like pitch bend
     -- range.
     , state_rdev_state :: !ReadDeviceState
-
     , state_edit :: !EditState
-
-    -- | Some play commands can start playing from a short distance before the
-    -- cursor.
-    , state_play_step :: !TimeStep.TimeStep
     } deriving (Show, Generics.Typeable)
 
 initial_state inst_db schema_map global_scope = State {
@@ -310,21 +297,16 @@ initial_state inst_db schema_map global_scope = State {
     , state_history = ([], [])
     , state_skip_history_record = False
 
-    , state_play_control = Nothing
-    , state_performance_threads = Map.empty
-
     , state_keys_down = Map.empty
     , state_focused_view = Nothing
     , state_screens = []
     , state_global_status = Map.empty
+    , state_play = initial_play_state
 
     , state_wdev_state = empty_wdev_state
     , state_rdev_state = Map.empty
 
     , state_edit = empty_edit_state
-
-    , state_play_step =
-        TimeStep.RelativeMark TimeStep.AllMarklists (TimeStep.MatchRank 1 0)
     }
 
 empty_state :: State
@@ -336,7 +318,8 @@ reinit_state :: State -> State
 reinit_state cstate = cstate
     { state_history = ([], [])
     -- TODO kill performance threads
-    , state_performance_threads = Map.empty
+    , state_play = initial_play_state
+        { state_play_step = state_play_step (state_play cstate) }
     -- This is essential, otherwise lots of cmds break on the bad reference.
     , state_focused_view = Nothing
     , state_edit = empty_edit_state
@@ -346,6 +329,28 @@ reinit_state cstate = cstate
 newtype LookupScale = LookupScale Derive.LookupScale
 instance Show LookupScale where
     show _ = "((LookupScale))"
+
+-- | State concerned derivation, performance, and playing the performance.
+data PlayState = PlayState {
+    -- | Transport control channel for the player, if one is running.
+    state_play_control :: !(Maybe Transport.PlayControl)
+    -- | As soon as any event changes are made to a block, its performance is
+    -- recalculated (in the background) and stored here, so play can be
+    -- started without latency.
+    , state_performance_threads :: !(Map.Map BlockId PerformanceThread)
+
+    -- | Some play commands can start playing from a short distance before the
+    -- cursor.
+    , state_play_step :: !TimeStep.TimeStep
+    } deriving (Show, Generics.Typeable)
+
+initial_play_state :: PlayState
+initial_play_state = PlayState
+    { state_play_control = Nothing
+    , state_performance_threads = Map.empty
+    , state_play_step =
+        TimeStep.RelativeMark TimeStep.AllMarklists (TimeStep.MatchRank 1 0)
+    }
 
 -- | Editing state, modified in the course of editing.
 data EditState = EditState {
@@ -513,6 +518,10 @@ modify_state f = do
     st <- get_state
     put_state $! f st
 
+modify_play_state :: (M m) => (PlayState -> PlayState) -> m ()
+modify_play_state f = modify_state $ \st ->
+    st { state_play = f (state_play st) }
+
 -- | Return the rect of the screen closest to the given point.
 get_screen :: (M m) => (Int, Int) -> m Rect.Rect
 get_screen point = do
@@ -522,7 +531,7 @@ get_screen point = do
 
 lookup_pthread :: (M m) => BlockId -> m (Maybe PerformanceThread)
 lookup_pthread block_id =
-    Map.lookup block_id <$> gets state_performance_threads
+    Map.lookup block_id <$> gets (state_performance_threads . state_play)
 
 lookup_performance :: (M m) => BlockId -> m (Maybe Performance)
 lookup_performance block_id =

@@ -188,7 +188,8 @@ m_pitch note_id nn = Msg.InputNote (pitch note_id nn)
 
 -- * setup cmds
 
-set_scale :: (Cmd.M m) => BlockId -> BlockId -> TrackId -> Pitch.ScaleId -> m ()
+set_scale :: (Cmd.M m) => BlockId -> BlockId -> TrackId -> Pitch.ScaleId
+    -> m ()
 set_scale root_id block_id track_id scale_id =
     set_env root_id block_id track_id
         [(TrackLang.v_scale, TrackLang.VScaleId scale_id)]
@@ -197,7 +198,7 @@ set_scale root_id block_id track_id scale_id =
 set_env :: (Cmd.M m) => BlockId -> BlockId -> TrackId
     -> [(TrackLang.ValName, TrackLang.Val)] -> m ()
 set_env root_id block_id track_id environ =
-    Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
+    Cmd.modify_play_state $ \st -> st { Cmd.state_performance_threads =
         Map.insert root_id (make_pthread perf)
         (Cmd.state_performance_threads st) }
     where

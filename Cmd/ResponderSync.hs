@@ -53,7 +53,8 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates = do
 get_track_signals :: Maybe BlockId -> Cmd.State -> Track.TrackSignals
 get_track_signals maybe_root st = Maybe.fromMaybe Map.empty $ do
     root <- maybe_root
-    pthread <- Map.lookup root (Cmd.state_performance_threads st)
+    pthread <- Map.lookup root $ Cmd.state_performance_threads $
+        Cmd.state_play st
     return $ Cmd.perf_track_signals (Cmd.pthread_perf pthread)
 
 -- | This should be run before every sync, since if errors get to sync they'll

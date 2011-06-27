@@ -68,7 +68,7 @@ update_performance send_status ui_pre ui_to cmd_state updates = do
 -- needed for the next performance.
 kill_obsolete_threads :: Derive.ScoreDamage -> Cmd.CmdT IO ()
 kill_obsolete_threads (Derive.ScoreDamage _ track_blocks blocks) = do
-    threads <- Cmd.gets Cmd.state_performance_threads
+    threads <- Cmd.gets (Cmd.state_performance_threads . Cmd.state_play)
     let block_ids = Set.toList (Set.union track_blocks blocks)
     let thread_ids = map Cmd.pthread_id $
             Maybe.mapMaybe (flip Map.lookup threads) block_ids
@@ -78,7 +78,7 @@ kill_obsolete_threads (Derive.ScoreDamage _ track_blocks blocks) = do
 -- It accumulates in an existing performance and is cleared when a new
 -- performance is created from the old one.
 insert_score_damage :: Derive.ScoreDamage -> Cmd.CmdT IO ()
-insert_score_damage damage = Cmd.modify_state $ \st ->
+insert_score_damage damage = Cmd.modify_play_state $ \st ->
     st { Cmd.state_performance_threads =
         Map.map update_pthread (Cmd.state_performance_threads st) }
     where
@@ -126,8 +126,9 @@ generate_performance send_status block_id = do
             th <- Trans.liftIO $ Thread.start $
                 evaluate_performance send_status block_id perf
             let pthread = Cmd.PerformanceThread perf th
-            Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
-                Map.insert block_id pthread (Cmd.state_performance_threads st) }
+            Cmd.modify_play_state $ \st ->
+                st { Cmd.state_performance_threads = Map.insert block_id
+                    pthread (Cmd.state_performance_threads st) }
 
 evaluate_performance :: SendStatus -> BlockId -> Cmd.Performance -> IO ()
 evaluate_performance send_status block_id perf = do

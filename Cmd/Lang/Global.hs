@@ -148,7 +148,7 @@ set_note_duration step = Cmd.modify_edit_state $ \st ->
 set_play_step :: Cmd.CmdL ()
 set_play_step = do
     step <- Cmd.get_current_step
-    Cmd.modify_state $ \st -> st { Cmd.state_play_step = step }
+    Cmd.modify_play_state $ \st -> st { Cmd.state_play_step = step }
 
 show_octave :: Cmd.CmdL Pitch.Octave
 show_octave = _cmd_state (Cmd.state_kbd_entry_octave . Cmd.state_edit)

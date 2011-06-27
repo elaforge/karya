@@ -121,7 +121,7 @@ cmd_play_from_insert transport_info = do
 
 cmd_play_from_previous_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_step transport_info = do
-    step <- Cmd.gets Cmd.state_play_step
+    step <- Cmd.state_play_step <$> get
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
     cmd_play transport_info block_id (Just track_id, maybe 0 id prev)
@@ -129,14 +129,15 @@ cmd_play_from_previous_step transport_info = do
 cmd_play_from_previous_root_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_root_step transport_info = do
     (block_id, tracknum, track_id, pos) <- Selection.get_root_insert
-    step <- Cmd.gets Cmd.state_play_step
+    step <- Cmd.state_play_step <$> get
     prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
     cmd_play transport_info block_id (Just track_id, maybe 0 id prev)
 
-cmd_play :: Transport.Info -> BlockId -> (Maybe TrackId, ScoreTime) -> Cmd.CmdIO
+cmd_play :: Transport.Info -> BlockId -> (Maybe TrackId, ScoreTime)
+    -> Cmd.CmdIO
 cmd_play transport_info block_id (start_track, start_pos) = do
-    cmd_state <- Cmd.get_state
-    case Cmd.state_play_control cmd_state of
+    state <- get
+    case Cmd.state_play_control state of
         Just _ -> Cmd.throw "player already running"
         _ -> return ()
     perf <- get_performance block_id
@@ -148,7 +149,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     ui_state <- State.get
     Trans.liftIO $ Thread.start $ updater_thread
         updater_ctl transport_info (Cmd.perf_inv_tempo perf) start ui_state
-    Cmd.modify_state $ \st -> st { Cmd.state_play_control = Just play_ctl }
+    modify $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
 
 -- | Given a block, track, and time, find the realtime at that position.  If
@@ -168,7 +169,7 @@ find_realtime perf block_id maybe_track_id pos = do
 
 cmd_stop :: Cmd.CmdIO
 cmd_stop = do
-    maybe_ctl <- Cmd.gets Cmd.state_play_control
+    maybe_ctl <- Cmd.state_play_control <$> get
     when_just maybe_ctl (void . Trans.liftIO . Transport.stop_player)
     return Cmd.Done
 
@@ -186,7 +187,7 @@ cmd_play_msg msg = do
         -- Either the performer has declared itself stopped, or the updater
         -- has declared it stopped.  In any case, I don't need a transport
         -- to tell it what to do anymore.
-        Transport.Stopped -> Cmd.modify_state $ \st ->
+        Transport.Stopped -> modify $ \st ->
             st { Cmd.state_play_control = Nothing }
         Transport.Died err_msg -> Log.warn ("player died: " ++ err_msg)
     derive_status_msg block_id status = do
@@ -206,11 +207,16 @@ cmd_play_msg msg = do
 
 get_performance :: (Cmd.M m) => BlockId -> m Cmd.Performance
 get_performance block_id = do
-    threads <- Cmd.gets Cmd.state_performance_threads
+    threads <- Cmd.state_performance_threads <$> get
     case Map.lookup block_id threads of
         Nothing -> State.throw $ "no performance for block " ++ show block_id
         Just pthread -> return $ Cmd.pthread_perf pthread
 
+get :: (Cmd.M m) => m Cmd.PlayState
+get = Cmd.gets Cmd.state_play
+
+modify :: (Cmd.M m) => (Cmd.PlayState -> Cmd.PlayState) -> m ()
+modify = Cmd.modify_play_state
 
 -- ** updater
 

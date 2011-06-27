@@ -55,7 +55,7 @@ uncached_derive = derive mempty mempty
 
 clear_cache :: (Cmd.M m) => BlockId -> m ()
 clear_cache block_id =
-    Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
+    Cmd.modify_play_state $ \st -> st { Cmd.state_performance_threads =
         Map.delete block_id (Cmd.state_performance_threads st) }
 
 -- | Derive the contents of the given block to score events.
