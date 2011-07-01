@@ -46,7 +46,7 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates = do
             return updates
 
     -- Kick off the background derivation threads.
-    cmd_state <- Performance.update_performance
+    cmd_state <- Performance.update_performance Performance.default_derive_wait
         send_status ui_pre ui_to cmd_state updates
     return (updates, ui_to, cmd_state)
 

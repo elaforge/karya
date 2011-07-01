@@ -11,6 +11,7 @@ import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
 
+import Ui
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
@@ -28,6 +29,9 @@ import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 
 
+type States = (State.State, Cmd.State)
+
+mkstates :: [UiTest.TrackSpec] -> States
 mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
     where
     ui_state = UiTest.exec State.empty $ do
@@ -37,6 +41,7 @@ mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
 
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.
+mk_cmd_state :: ViewId -> Cmd.State
 mk_cmd_state view_id = (Cmd.initial_state DeriveTest.default_db Map.empty
     DeriveTest.default_scope)
         { Cmd.state_focused_view = Just view_id }
@@ -44,8 +49,6 @@ mk_cmd_state view_id = (Cmd.initial_state DeriveTest.default_db Map.empty
 -- | It would be nicer to have this happen automatically.
 set_midi_config :: State.StateId ()
 set_midi_config = State.set_midi_config DeriveTest.default_midi_config
-
-type States = (State.State, Cmd.State)
 
 respond :: Bool -> States -> [Msg.Msg]
     -> IO ([[Update.Update]], [[Midi.WriteMessage]], States)
@@ -66,19 +69,44 @@ respond_delay print_timing states ((msg, delay):msgs) = do
     force midi
     return (updates : rest_updates, midi : rest_midi, final_states)
 
--- The updates are normally forced by syncing to the UI, but since that doesn't
--- happen here, they should be forced by the caller.
+-- | The updates are normally forced by syncing to the UI, but since that
+-- doesn't happen here, they should be forced by the caller.
 respond_msg :: States -> Msg.Msg
     -> IO ([Update.Update], [Midi.WriteMessage], States)
 respond_msg states msg = do
     update_chan <- new_chan
     midi_chan <- new_chan
     let rstate = make_rstate update_chan midi_chan states
-    (_, rstate) <- Responder.respond rstate msg
+    (_quit, rstate) <- Responder.respond rstate msg
     midi <- get_vals midi_chan
     updates <- get_vals update_chan
     return (concat updates, midi,
         (Responder.state_ui rstate, Responder.state_cmd rstate))
+
+{-
+TODO have respond collect into a Result, and return Responder.State so it
+can be threaded manually.
+
+-- give an initial rstate, then feed it through, return [Result], throw away
+-- rstate
+
+data Result = Result {
+    -- | A Nothing val means it aborted.
+    result_cmd_state :: Cmd.State
+    , result_ui_state :: State.State
+    , result_logs :: [Log.Msg]
+    , result_midi :: [(Midi.WriteDevice, Midi.Message)]
+    , result_updates :: [Update.Update]
+    }
+
+respond_msg1 midi_chan update_chan rstate msg = do
+    (_quit, rstate) <- Responder.respond rstate msg
+    midi <- get_vals midi_chan
+    updates <- get_vals update_chan
+    let result =  Result (Responder.state_cmd rstate)
+            (Responder.state_ui rstate) (logs) midi updates
+    return (result, rstate)
+-}
 
 make_rstate update_chan midi_chan (ui_state, cmd_state) =
     Responder.State StaticConfig.empty

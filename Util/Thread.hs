@@ -1,6 +1,6 @@
 module Util.Thread (
     start, start_logged
-    , delay
+    , Seconds, delay
     , timeout
     , take_tmvar_timeout
 ) where
@@ -34,8 +34,10 @@ handle_thread name op = do
 start :: IO () -> IO Concurrent.ThreadId
 start = Concurrent.forkIO
 
+type Seconds = Double
+
 -- | Delay in seconds.  I can never remember what units 'threadDelay' is in.
-delay :: Double -> IO ()
+delay :: Seconds -> IO ()
 delay secs = Concurrent.threadDelay (floor (1000000 * secs))
 
 timeout :: Double -> IO a -> IO (Maybe a)

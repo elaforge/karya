@@ -6,7 +6,9 @@
 -- needed:  enough so that playing will probably be lag free, but not so much
 -- to do too much unnecessary work (specifically, stressing the GC leads to
 -- UI latency).
-module Cmd.Performance (SendStatus, update_performance, performance) where
+module Cmd.Performance (SendStatus, update_performance, default_derive_wait
+    , performance
+) where
 import qualified Control.Concurrent as Concurrent
 import Control.Monad
 import qualified Control.Monad.Error as Error
@@ -34,11 +36,6 @@ import qualified Derive.Derive as Derive
 import qualified Perform.RealTime as RealTime
 
 
--- | The background derive threads will wait this many seconds before starting
--- up, to avoid working too hard during an edit.
-derive_wait :: Double
-derive_wait = 1
-
 type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
 
 -- | Update 'Cmd.state_performance_threads'.  This means applying any new
@@ -47,22 +44,28 @@ type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
 --
 -- The majority of the calls here will bring neither score damage nor
 -- a changed view id, and thus this will do nothing.
-update_performance :: SendStatus -> State.State -> State.State -> Cmd.State
-    -> [Update.Update] -> IO Cmd.State
-update_performance send_status ui_pre ui_to cmd_state updates = do
+update_performance :: Thread.Seconds -> SendStatus -> State.State
+    -> State.State -> Cmd.State -> [Update.Update] -> IO Cmd.State
+update_performance wait send_status ui_pre ui_to cmd_state updates = do
     (cmd_state, _, logs, result) <- Cmd.run_io ui_to cmd_state $ do
         let damage = Diff.derive_diff ui_pre ui_to updates
         kill_obsolete_threads damage
         insert_score_damage damage
         focused <- Cmd.lookup_focused_block
-        when_just focused (regenerate_performance send_status)
-        when_just (State.state_root ui_to) (regenerate_performance send_status)
+        when_just focused (regenerate_performance wait send_status)
+        when_just (State.state_root ui_to)
+            (regenerate_performance wait send_status)
         return Cmd.Done
     mapM_ Log.write logs
     case result of
         Left err -> Log.error $ "ui error deriving: " ++ show err
         _ -> return ()
     return cmd_state
+
+-- | The background derive threads will wait this many seconds before starting
+-- up, to avoid working too hard during an edit.
+default_derive_wait :: Thread.Seconds
+default_derive_wait = 1
 
 -- | This doesn't remove the PerformanceThreads because their caches are still
 -- needed for the next performance.
@@ -89,11 +92,12 @@ insert_score_damage damage = Cmd.modify_play_state $ \st ->
 
 -- * performance evaluation
 
-regenerate_performance :: SendStatus -> BlockId -> Cmd.CmdT IO ()
-regenerate_performance send_status block_id = do
-    threads <- Cmd.gets Cmd.state_performance_threads
+regenerate_performance :: Thread.Seconds -> SendStatus -> BlockId
+    -> Cmd.CmdT IO ()
+regenerate_performance wait send_status block_id = do
+    threads <- Cmd.gets (Cmd.state_performance_threads . Cmd.state_play)
     when (needs_regeneration threads block_id) $
-        generate_performance send_status block_id
+        generate_performance wait send_status block_id
 
 -- | A block should be rederived only if the it doesn't already have
 -- a performance or its performance has damage.
@@ -111,8 +115,9 @@ needs_regeneration threads block_id = case Map.lookup block_id threads of
 -- Pull previous caches from the existing performance, if any.  Use them to
 -- generate a new performance, kick off a thread for it, and insert the new
 -- PerformanceThread.
-generate_performance :: SendStatus -> BlockId -> Cmd.CmdT IO ()
-generate_performance send_status block_id = do
+generate_performance :: Thread.Seconds -> SendStatus -> BlockId
+    -> Cmd.CmdT IO ()
+generate_performance wait send_status block_id = do
     old_thread <- fmap Cmd.pthread_id <$> Cmd.lookup_pthread block_id
     when_just old_thread (Trans.liftIO . Concurrent.killThread)
     derived <- (Just <$> PlayUtil.cached_derive block_id)
@@ -124,16 +129,17 @@ generate_performance send_status block_id = do
         Nothing -> Trans.liftIO $ send_status block_id Msg.DeriveFailed
         Just perf -> do
             th <- Trans.liftIO $ Thread.start $
-                evaluate_performance send_status block_id perf
+                evaluate_performance wait send_status block_id perf
             let pthread = Cmd.PerformanceThread perf th
             Cmd.modify_play_state $ \st ->
                 st { Cmd.state_performance_threads = Map.insert block_id
                     pthread (Cmd.state_performance_threads st) }
 
-evaluate_performance :: SendStatus -> BlockId -> Cmd.Performance -> IO ()
-evaluate_performance send_status block_id perf = do
+evaluate_performance :: Thread.Seconds -> SendStatus -> BlockId
+    -> Cmd.Performance -> IO ()
+evaluate_performance wait send_status block_id perf = do
     send_status block_id Msg.OutOfDate
-    Thread.delay derive_wait
+    Thread.delay wait
     send_status block_id Msg.Deriving
     secs <- Log.time_eval (Cmd.perf_inv_tempo perf 0)
     when (secs >= 0.5) $

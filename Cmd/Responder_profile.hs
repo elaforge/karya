@@ -1,12 +1,9 @@
 module Cmd.Responder_profile where
 import qualified Data.Map as Map
 
-import qualified Midi.Midi as Midi
-
-import Util.Test
 import qualified Util.Log as Log
-import qualified Util.Thread as Thread
-
+import Util.Test
+import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -39,7 +36,7 @@ profile_edits_middle = do
         alter_note = [(CmdTest.m_note_on 0 64 127, 1),
             (CmdTest.m_note_off 0 127, 1)]
         keys = concat $ replicate 4 alter_note
-    (updates, _mthru, states) <-
+    (_updates, _mthru, _states) <-
         ResponderTest.respond_delay True (ui_state, cmd_state) (wait ++ keys)
     return ()
 
@@ -59,8 +56,8 @@ profile_selection = do
             Map.insert (UiTest.rid "b1.r0") (UiTest.mkruler 256 1)
                 (State.state_rulers ui_state) }
     let cmd_state2 = modify_edit_state cmd_state $ \st -> st
-            { Cmd.state_step = TimeStep.AbsoluteMark TimeStep.AllMarklists
-                (TimeStep.MatchRank 3 0)
+            { Cmd.state_step = TimeStep.step
+                (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
             }
     let states = (ui_state2, cmd_state2)
     let one_cycle = take (256*2) (cycle (keypress Key.Down))
