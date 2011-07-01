@@ -258,7 +258,7 @@ expand_range (tracknum:_) start end
     | start == end = do
         block_id <- Cmd.get_focused_block
         step <- Cmd.get_current_step
-        pos <- TimeStep.step_from step TimeStep.Advance block_id tracknum end
+        pos <- TimeStep.advance step block_id tracknum end
         return (start, maybe end id pos)
     | otherwise = return (start, end)
 expand_range [] start end = return (start, end)
@@ -272,29 +272,34 @@ cmd_clear_selected = do
         then State.remove_event track_id start
         else State.remove_events track_id start end
 
-set_step_rank :: (Cmd.M m) => TimeStep.TimeStep -> Int -> Int -> m ()
+-- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank and skips
+-- to the given ones.  Otherwise, set it to the deflt.
+set_step_rank :: (Cmd.M m) => TimeStep.TimeStep
+    -> TimeStep.Rank -> TimeStep.Skip -> m ()
 set_step_rank deflt rank skip = do
     Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_step = set (Cmd.state_step st) }
+        st { Cmd.state_step = set (TimeStep.to_list (Cmd.state_step st)) }
     sync_step_status
     where
-    set (TimeStep.AbsoluteMark names (TimeStep.MatchRank _ _)) =
-        TimeStep.AbsoluteMark names (TimeStep.MatchRank rank skip)
-    set (TimeStep.RelativeMark names (TimeStep.MatchRank _ _)) =
-        TimeStep.RelativeMark names (TimeStep.MatchRank rank skip)
+    set [(TimeStep.AbsoluteMark names _, _)] =
+        TimeStep.time_step skip (TimeStep.AbsoluteMark names rank)
+    set [(TimeStep.RelativeMark names _, _)] =
+        TimeStep.time_step skip (TimeStep.RelativeMark names rank)
     set _ = deflt
 
+-- | Toggle between absolute and relative mark step.
 toggle_mark_step :: (Cmd.M m) => m ()
 toggle_mark_step = do
     Cmd.modify_edit_state $ \st ->
         st { Cmd.state_step = toggle (Cmd.state_step st) }
     sync_step_status
     where
-    toggle (TimeStep.AbsoluteMark names matcher) =
-        TimeStep.RelativeMark names matcher
-    toggle (TimeStep.RelativeMark names matcher) =
-        TimeStep.AbsoluteMark names matcher
-    toggle step = step
+    toggle step = case TimeStep.to_list step of
+        [(TimeStep.AbsoluteMark names rank, skip)] ->
+            TimeStep.time_step skip (TimeStep.RelativeMark names rank)
+        [(TimeStep.RelativeMark names rank, skip)] ->
+            TimeStep.time_step skip (TimeStep.AbsoluteMark names rank)
+        _ -> step
 
 set_step :: (Cmd.M m) => TimeStep.TimeStep -> m ()
 set_step step = do

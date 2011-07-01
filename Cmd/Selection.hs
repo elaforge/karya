@@ -294,7 +294,8 @@ step_from :: (Cmd.M m) => TrackNum -> ScoreTime -> TimeStep.Direction
     -> TimeStep.TimeStep -> m ScoreTime
 step_from tracknum pos direction step = do
     block_id <- Cmd.get_focused_block
-    next <- TimeStep.step_from step direction block_id tracknum pos
+    next <- TimeStep.step_from (TimeStep.direction direction) step block_id
+        tracknum pos
     let msg = case direction of
             TimeStep.Advance -> "advance to "
             TimeStep.Rewind -> "rewind from "

@@ -349,7 +349,8 @@ initial_play_state = PlayState
     { state_play_control = Nothing
     , state_performance_threads = Map.empty
     , state_play_step =
-        TimeStep.RelativeMark TimeStep.AllMarklists (TimeStep.MatchRank 1 0)
+        TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 1)
+    , state_step_performance = Nothing
     }
 
 -- | Editing state, modified in the course of editing.
@@ -383,8 +384,8 @@ empty_edit_state = EditState {
     state_edit_mode = NoEdit
     , state_kbd_entry = False
     , state_step =
-        TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
-    , state_note_duration = TimeStep.BlockEnd
+        TimeStep.step (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
+    , state_note_duration = TimeStep.step TimeStep.BlockEnd
     , state_note_direction = TimeStep.Advance
     , state_note_text = ""
     -- This should put middle C in the center of the kbd entry keys.
