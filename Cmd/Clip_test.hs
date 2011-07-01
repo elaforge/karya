@@ -64,7 +64,7 @@ run_io :: State.State -> Cmd.CmdId a -> IO (CmdVal a)
 run_io ustate m = return (extract (run_clip ustate m))
     where
     extract res = case CmdTest.result_val res of
-        Right (maybe_val, ustate) -> case maybe_val of
+        Right (maybe_val, ustate, _) -> case maybe_val of
             Nothing -> error "abort"
             Just val -> (val, ustate, CmdTest.result_cmd_state res,
                 CmdTest.result_logs res)

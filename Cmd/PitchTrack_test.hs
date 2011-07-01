@@ -13,14 +13,14 @@ import qualified Ui.UiTest as UiTest
 import qualified Perform.Pitch as Pitch
 
 
-run_sel track_specs cmd = CmdTest.e_tracks $
+run_tracks track_specs cmd = CmdTest.trace_logs $ CmdTest.e_tracks $
     CmdTest.run_tracks track_specs $ CmdTest.set_sel 1 0 1 0 >> cmd
 
 extract (Right (Just Cmd.Done, tracks, logs)) = Log.trace_logs logs tracks
 extract val = error $ "unexpected: " ++ show val
 
 test_cmd_val_edit = do
-    let run track_specs cmd = run_sel track_specs cmd
+    let run track_specs cmd = run_tracks track_specs cmd
         note = CmdTest.m_note_on 60 60 127
         f = PitchTrack.cmd_val_edit
 
@@ -32,7 +32,7 @@ test_cmd_val_edit = do
         Right [("*", [])]
 
 test_cmd_method_edit = do
-    let run track_specs cmd = run_sel track_specs cmd
+    let run track_specs cmd = run_tracks track_specs cmd
         f key = PitchTrack.cmd_method_edit key
     equal (run [("*", [])] (f (CmdTest.key_down 'x'))) $
         Right [("*", [(0, 0, "x ")])]
@@ -51,7 +51,7 @@ test_cmd_method_edit = do
         Right [("*", [(0, 0, "x y")])]
 
     -- tab falls through, does not create an event with tab
-    equal (run_sel [] (f (CmdTest.make_key True Key.Tab))) $
+    equal (run_tracks [] (f (CmdTest.make_key True Key.Tab))) $
         Right []
 
 test_parse = do

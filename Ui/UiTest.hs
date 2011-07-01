@@ -17,6 +17,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.Simple as Simple
+import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Schema as Schema
 import qualified App.Config as Config
 
@@ -191,8 +192,17 @@ default_ruler = mkruler 256 1
 no_ruler = mkruler 0 0
 ruler_until pos = ruler [Ruler.marklist "until" [(pos, Ruler.null_mark)]]
 
+-- | TimeStep to step by 1 ScoreTime on the default ruler.
+step1 :: TimeStep.TimeStep
+step1 = steps 0
+steps n = TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 n)
+
+-- | Create a ruler with a 4/4 "meter" marklist with the given number of marks
+-- at the given distance.  Marks are rank [1, 2, 2, ...].
+mkruler :: Int -> ScoreTime -> Ruler.Ruler
 mkruler marks dist = Ruler.Ruler [marklist marks dist] ruler_bg
     True False False False
+
 ruler mlists = Ruler.Ruler mlists ruler_bg True False False False
 ruler_bg = Color.rgb 1 0.85 0.5
 marklist n dist = Ruler.marklist "meter" (take n $ zip [0, dist ..] m44)

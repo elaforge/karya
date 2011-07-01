@@ -1,27 +1,34 @@
 -- | Utilities for cmd tests.
 module Cmd.CmdTest where
 import qualified Data.Map as Map
+import qualified Debug.Trace as Trace
 import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
 import Ui
+import qualified Ui.Diff as Diff
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
+import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Perf as Perf
+import qualified Cmd.Performance as Performance
 import qualified Cmd.Simple as Simple
-import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Call.All as Call.All
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -38,6 +45,16 @@ import qualified App.Config as Config
 default_block_id = UiTest.default_block_id
 default_view_id = UiTest.default_view_id
 
+-- * running cmds
+
+data Result val = Result {
+    -- | A Nothing val means it aborted.
+    result_val :: Either String (Maybe val, State.State, [Update.Update])
+    , result_cmd_state :: Cmd.State
+    , result_logs :: [Log.Msg]
+    , result_midi :: [(Midi.WriteDevice, Midi.Message)]
+    }
+
 -- | Run cmd with the given tracks.
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_tracks track_specs =
@@ -51,52 +68,66 @@ run ustate cmd_state0 cmd = Result val cmd_state logs midi_msgs
     (cmd_state, midi_msgs, logs, result) = Cmd.run_id ustate cmd_state0 cmd
     val = case result of
         Left err -> Left (Pretty.pretty err)
-        Right (val, ui_state, _updates) -> Right (val, ui_state)
+        Right v -> Right v
 
--- | Like 'run', but with a selection on track 1 at 0, and and note duration
--- set to what will be a ScoreTime 1 with the ruler supplied by UiTest.
+-- | Run a Cmd and return just the value.
+eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
+eval ustate cstate cmd = case result_val (run ustate cstate cmd) of
+    Left err -> error $ "eval got StateError: " ++ show err
+    Right (Nothing, _, _) -> error "eval: cmd aborted"
+    Right (Just val, _, _) -> val
+
+-- | Like 'run', but with a selection on the given track at 0 and note
+-- duration set to what will be a ScoreTime 1 with the ruler supplied by
+-- UiTest.
 run_sel :: TrackNum -> [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_sel tracknum track_specs cmd = run_tracks track_specs $ do
     -- Add one because UiTest inserts a rule at track 0.
     set_sel (tracknum+1) 0 (tracknum+1) 0
-    Cmd.modify_edit_state $ \st -> st { Cmd.state_note_duration = step }
     cmd
+
+run_again :: Result a -> Cmd.CmdId a -> Result a
+run_again res cmd = case result_val res of
+    Left _ -> res
+    Right (_, ustate, _) -> run ustate (result_cmd_state res) cmd
+
+update_perf :: State.State -> Result val -> IO (Result val)
+update_perf ui_from result = case result_val result of
+    Right (_, ui_to, updates) -> do
+        cmd_state <- update_performance ui_from ui_to
+            (result_cmd_state result) updates
+        Thread.delay 0.2
+        return $ result { result_cmd_state = cmd_state }
+    _ -> return result
+
+-- | Run a DeriveTest extractor on a CmdTest Result.
+extract_derive :: (Score.Event -> a) -> Result _a -> ([a], [String])
+extract_derive ex = DeriveTest.extract ex . extract_derive_result
+
+-- | Reconstruct a Derive.Result from the root performance, or throw an
+-- exception if there is a problem getting it.
+extract_derive_result :: Result a -> Derive.Result
+extract_derive_result res = case result_val res of
+        Right (_, ustate, _) -> eval ustate (result_cmd_state res) mkres
+        Left err -> error $ "can't extract_derive_result from error result: "
+            ++ err
     where
-    step = TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
+    mkres = do
+        Cmd.Performance cache events track_env _damage tempo closest_warp
+            inv_tempo tsigs <- Perf.get_root
+        return $ Derive.Result events cache tempo closest_warp inv_tempo tsigs
+            track_env
+            (error "can't fake a Derive.State for an extracted Result")
 
-data Result val = Result {
-    -- | A Nothing val means it aborted.
-    result_val :: Either String (Maybe val, State.State)
-    , result_cmd_state :: Cmd.State
-    , result_logs :: [Log.Msg]
-    , result_midi :: [(Midi.WriteDevice, Midi.Message)]
-    }
-
-e_ustate :: (State.State -> e_val) -> (Log.Msg -> e_log) -> Result _val
-    -> Either String (e_val, [e_log])
-e_ustate e_ustate e_log res = case result_val res of
-    Left err -> Left err
-    Right (_, ui_state) ->
-        Right (e_ustate ui_state, map e_log (result_logs res))
-
-e_tracks :: Result _val -> Either String [(String, [Simple.Event])]
-e_tracks result = fmap ex $ e_ustate UiTest.extract_tracks id result
-    where ex (val, logs) = Log.trace_logs logs val
-
-extract :: (val -> e_val) -> Result val
-    -> Either String (Maybe e_val, [String])
-extract extract_val result = fmap ex (e_val result)
-    where
-    ex (val, logs) = (fmap extract_val val, map DeriveTest.show_log logs)
-    e_val :: Result val -> Either String (Maybe val, [Log.Msg])
-    e_val res = either Left (\(v, _) -> Right (v, result_logs res))
-        (result_val res)
-
-eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
-eval ustate cstate cmd = case result_val (run ustate cstate cmd) of
-    Left err -> error $ "eval got StateError: " ++ show err
-    Right (Nothing, _) -> error "eval: cmd aborted"
-    Right (Just val, _) -> val
+update_performance :: State.State -> State.State -> Cmd.State
+    -> [Update.Update] -> IO Cmd.State
+update_performance ui_from ui_to cmd_state cmd_updates = do
+    updates <- case Diff.diff cmd_updates ui_from ui_to of
+        Left err -> error $ "diff error: " ++ err
+        Right updates -> return updates
+    Performance.update_performance 0
+        send_status ui_from ui_to cmd_state updates
+    where send_status _bid _status = return ()
 
 -- | Run several cmds, threading the state through.
 thread :: State.State -> Cmd.State -> [Cmd.CmdId a]
@@ -104,10 +135,30 @@ thread :: State.State -> Cmd.State -> [Cmd.CmdId a]
 thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     where
     f (Right (ustate, cstate)) cmd = case run ustate cstate cmd of
-        Result (Right (_, ustate2)) cstate2 logs _ ->
+        Result (Right (_, ustate2, _)) cstate2 logs _ ->
             Log.trace_logs logs $ Right (ustate2, cstate2)
         Result (Left err) _ _ _ -> Left (show err)
     f (Left err) _ = Left err
+
+default_cmd_state :: Cmd.State
+default_cmd_state =
+    (Cmd.initial_state DeriveTest.default_db Map.empty Call.All.scope)
+        { Cmd.state_focused_view = Just default_view_id
+        , Cmd.state_edit = default_edit_state
+        , Cmd.state_play = default_play_state
+        }
+
+default_play_state :: Cmd.PlayState
+default_play_state =
+    Cmd.initial_play_state { Cmd.state_play_step = UiTest.step1 }
+
+default_edit_state :: Cmd.EditState
+default_edit_state = Cmd.initial_edit_state
+    { Cmd.state_step = UiTest.step1
+    , Cmd.state_note_duration = UiTest.step1
+    }
+
+-- ** cmds
 
 set_sel :: (Cmd.M m) => Types.TrackNum -> ScoreTime -> Types.TrackNum
     -> ScoreTime -> m ()
@@ -115,16 +166,64 @@ set_sel t0 p0 t1 p1 = do
     let sel = Types.selection t0 p0 t1 p1
     State.set_selection UiTest.default_view_id Config.insert_selnum (Just sel)
 
-default_cmd_state = Cmd.empty_state
-    { Cmd.state_focused_view = Just default_view_id
-    }
+set_sel_point :: (Cmd.M m) => Types.TrackNum -> ScoreTime -> m ()
+set_sel_point tracknum pos = State.set_selection UiTest.default_view_id
+    Config.insert_selnum (Just (Types.point_selection tracknum pos))
 
+
+-- * extractors
+
+-- | Run this on either 'extract' or 'extract_state' when you don't care about
+-- the logs.
+trace_logs :: Either a (b, [String]) -> Either a b
+trace_logs res = case res of
+    Right (b, logs) -> (if null logs then id else trace logs) (Right b)
+    Left a -> Left a
+    where
+    trace = Trace.trace . Seq.strip . unlines . ("\tlogged:":)
+
+-- ** val
+
+extract :: (val -> e_val) -> Result val
+    -> Either String (Maybe e_val, [String])
+extract extract_val result = fmap ex (e_val result)
+    where
+    ex (val, logs) = (fmap extract_val val, map DeriveTest.show_log logs)
+    e_val :: Result val -> Either String (Maybe val, [Log.Msg])
+    e_val res = either Left (\(v, _, _) -> Right (v, result_logs res))
+        (result_val res)
+
+-- ** state
+
+type Extract e = State.State -> Cmd.State -> e
+
+-- | Get something out of the Result from one of the states.
+extract_state :: (State.State -> Cmd.State -> e) -> Result val
+    -> Either String (e, [String])
+extract_state f res = case result_val res of
+    Right (_, ustate, _) ->
+        Right (f ustate (result_cmd_state res),
+            map DeriveTest.show_log (result_logs res))
+    Left err -> Left err
+
+e_tracks :: Result a -> Either String ([(String, [Simple.Event])], [String])
+e_tracks = extract_state $ \state _ -> UiTest.extract_tracks state
+
+extract_ui :: State.StateId e -> Result v -> Either String (e, [String])
+extract_ui m = extract_state $ \state _ -> UiTest.eval state m
+
+-- * inst db
+
+-- TODO see about getting rid of the inst stuff in favor of using the code
+-- from DeriveTest
 
 -- | Configure ustate and cstate with the given instruments.
+set_insts :: [String] -> State.State -> Cmd.State -> (State.State, Cmd.State)
 set_insts inst_names ustate cstate =
     (ustate { State.state_midi_config = default_midi_config inst_names},
         cstate { Cmd.state_instrument_db = make_inst_db inst_names })
 
+make_inst_db :: [String] -> Instrument.Db.Db code
 make_inst_db inst_names = Instrument.Db.empty
     { Instrument.Db.db_lookup_midi = make_lookup inst_names }
 

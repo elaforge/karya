@@ -15,7 +15,8 @@ import qualified Cmd.Simple as Simple
 
 
 mkkey = CmdTest.make_key True
-run_sel track_specs cmd = CmdTest.e_tracks $ CmdTest.run_sel 0 track_specs cmd
+run track_specs cmd = CmdTest.trace_logs $
+    CmdTest.e_tracks $ CmdTest.run_sel 0 track_specs cmd
 
 -- | Thread a bunch of msgs through the command and return the final state
 -- and the selection position.
@@ -38,7 +39,6 @@ extract_sel val = error $ "unexpected: " ++ show val
 
 test_cmd_raw_edit = do
     let f = NoteTrack.cmd_raw_edit
-        run = run_sel
     -- Created event has dur according to ruler.
     equal (run [(">i", [])] (f (CmdTest.m_note_on 60 60 127))) $
         Right [(">i", [(0, 1, "(4c)")])]
@@ -55,7 +55,6 @@ test_cmd_raw_edit = do
 
 test_cmd_val_edit = do
     let create_track = NoteTrack.CreateTrack 1 2
-        run = run_sel
         note = CmdTest.m_note_on 60 60 127
     let f = NoteTrack.cmd_val_edit create_track
     -- creates a new pitch track
@@ -65,7 +64,8 @@ test_cmd_val_edit = do
         Right [(">i", [(0, 1, "")]), ("*twelve", [(0, 0, "4c")]), ("mod", [])]
 
     -- modify existing track
-    let f = NoteTrack.cmd_val_edit (NoteTrack.ExistingTrack 2 (UiTest.mk_tid 2))
+    let f = NoteTrack.cmd_val_edit
+            (NoteTrack.ExistingTrack 2 (UiTest.mk_tid 2))
         note_tracks = [(">i", [(0, 1, "")]), ("*", [(0, 0, "4d")])]
     -- both note and pitch get deleted
     equal (run note_tracks (f (mkkey Key.Backspace))) $
@@ -78,15 +78,14 @@ test_cmd_val_edit = do
         on nn = CmdTest.m_note_on nn (fromIntegral nn) 127
         off nn = CmdTest.m_note_off nn 127
     equal (thread empty_tracks f [on 60, off 60])
-        ([(">i", [(0, 255, "")]), ("*", [(0, 0, "4c")])], (1, 1))
+        ([(">i", [(0, 1, "")]), ("*", [(0, 0, "4c")])], (1, 1))
     equal (thread empty_tracks f [on 60, on 61, off 60, off 61]) $
-        ([(">i", [(0, 255, "")]), ("*", [(0, 0, "4c#")])], (1, 1))
+        ([(">i", [(0, 1, "")]), ("*", [(0, 0, "4c#")])], (1, 1))
     -- TODO later test chord input
 
 test_cmd_method_edit = do
     let f = NoteTrack.cmd_method_edit
             (NoteTrack.ExistingTrack 2 (UiTest.mk_tid 2))
-        run = run_sel
         inst = (">i", [(0, 1, "")])
         note_track = [inst, ("*", [(0, 0, "4d")])]
     equal (run note_track (f (mkkey (Key.KeyChar 'x')))) $

@@ -17,11 +17,10 @@ mkkey = CmdTest.make_key True
 cstate = Cmd.empty_state
 
 test_track_ruler = do
-    let f tracknum = Create.track_ruler CmdTest.default_block_id State.no_ruler
-            tracknum 20
-        run track_specs cmd = CmdTest.e_tracks $
+    let f tracknum = Create.track_ruler CmdTest.default_block_id
+            State.no_ruler tracknum 20
+        run track_specs cmd = CmdTest.trace_logs $ CmdTest.e_tracks $
             CmdTest.run_tracks track_specs cmd
-
     equal (run [] (f 0)) $ Right [("", [])]
     equal (run [] (f 10)) $ Right [("", [])]
     equal (run [("1", [])] (f 10)) $ Right [("1", []), ("", [])]
