@@ -46,6 +46,7 @@ test_step_from_points = do
     equal (f (-1) 2) (Just 1)
     equal (f (-2) 1.5) (Just 0)
     equal (f (-2) 2.5) (Just 1)
-    equal (f (-3) 1.5) (Just 0)
+    equal (f (-3) 1.5) Nothing
     equal (f 1 1.5) (Just 2)
-    equal (f 100 1.5) (Just 10)
+    equal (f 100 1.5) Nothing
+    equal (f 1 10) Nothing

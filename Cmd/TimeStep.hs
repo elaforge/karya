@@ -152,14 +152,9 @@ step_from_points :: Int -> ScoreTime -> [ScoreTime] -> Maybe ScoreTime
 step_from_points n pos points = go =<< find_around pos points
     where
     go (pre, p, post)
-        | n < 0 = at (if p == pos then pre else p:pre) (abs n - 1)
+        | n < 0 = Seq.at (if p == pos then pre else p:pre) (abs n - 1)
         | n == 0 = Just p
-        | otherwise = at (p:post) n
-    at [] _ = Nothing
-    at [x] _ = Just x
-    at (x:xs) n
-        | n <= 0 = Just x
-        | otherwise = at xs (n-1)
+        | otherwise = Seq.at (p:post) n
 
 find_around :: (Ord a) => a -> [a] -> Maybe ([a], a, [a])
 find_around pos = List.find close . Seq.zip_around []
