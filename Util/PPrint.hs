@@ -15,12 +15,7 @@ import qualified Text.PrettyPrint as PrettyPrint
 pprint :: Show a => a -> IO ()
 pprint = putStrLn . pshow
 
-is_str (HsModule _ _ _ _ [HsPatBind _ _ (HsUnGuardedRhs rhs) _]) = case rhs of
-    HsLit (HsString s) -> Just s
-    HsCon (Special HsUnitCon) -> Just ""
-    _ -> Nothing
-is_str _ = Nothing
-
+pp_style :: PrettyPrint.Style
 pp_style = PrettyPrint.style
     { PrettyPrint.ribbonsPerLine = 1, PrettyPrint.lineLength = 80 }
 
@@ -28,16 +23,22 @@ pprint_mode = prettyPrintStyleMode pp_style defaultMode
 
 -- Yay for copy and paste.  TODO clean this up a bit.
 
--- | Pretty show.
-pshow :: Show a => a -> String
-pshow v = dedent $ case parseModule ("value = " ++ s) of
+-- | Pretty up a string containing a parseable haskell value.
+pshows :: String -> String
+pshows s = dedent $ case parseModule ("value = " ++ s) of
         ParseOk m -> tidy (pprint_mode m)
         ParseFailed _ _   -> s
     where
-    s = show v
     tidy x = case readPrec_to_S skipBoring 0 x of
         [((), tail)] -> "   " ++ tail
         _            -> s
+
+pprints :: String -> IO ()
+pprints = putStr . pshows
+
+-- | Pretty show.
+pshow :: (Show a) => a -> String
+pshow = pshows . show
 
 -- | Pretty print the given value, unless it's a string, in which case return
 -- it unchanged.
@@ -53,12 +54,18 @@ str_pshow v = dedent $ case parseModule ("value = " ++ s) of
         [((), tail)] -> "   " ++ tail
         _            -> s
 
+is_str (HsModule _ _ _ _ [HsPatBind _ _ (HsUnGuardedRhs rhs) _]) = case rhs of
+    HsLit (HsString s) -> Just s
+    HsCon (Special HsUnitCon) -> Just ""
+    _ -> Nothing
+is_str _ = Nothing
+
 skipBoring :: ReadPrec ()
 skipBoring =
     do { Ident "value" <- lexP; Punc  "=" <- lexP; return () } <++
         do { lexP; skipBoring }
 
-
+dedent :: String -> String
 dedent s = unlines $ map (drop indent) slines
     where
     indent = minimum $ 80 : map (length . takeWhile Char.isSpace) slines
