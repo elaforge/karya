@@ -37,16 +37,35 @@ test_all_points = do
     equal (f (merge 0 BlockEnd
             (mk 0 (AbsoluteMark AllMarklists 0))))
         [0, 5, 10, 15]
+
+    equal (f (merge 0 EventEnd (mk 0 EventStart))) [2, 3, 4, 5]
     -- TODO test different mark ranks
 
 test_step_from_points = do
-    let f n pos = TimeStep.step_from_points n pos [0..10]
+    let f n pos = TimeStep.step_from_points n pos [1..4]
+    equal (f 1 0) (Just 1)
+    equal (f 2 0) (Just 2)
+    equal (f 1 1) (Just 2)
+    equal (f 1 1.5) (Just 2)
+    equal (f 2 1) (Just 3)
+    equal (f 4 1) Nothing
+    equal (f 1 4) Nothing
+
+    equal (f 0 0) (Just 1)
+    equal (f 0 1) (Just 1)
     equal (f 0 1.5) (Just 1)
+    equal (f 0 5) (Just 4)
+
+    equal (f (-1) 0) Nothing
+    equal (f (-1) 1) Nothing
     equal (f (-1) 1.5) (Just 1)
     equal (f (-1) 2) (Just 1)
-    equal (f (-2) 1.5) (Just 0)
-    equal (f (-2) 2.5) (Just 1)
-    equal (f (-3) 1.5) Nothing
-    equal (f 1 1.5) (Just 2)
-    equal (f 100 1.5) Nothing
-    equal (f 1 10) Nothing
+    equal (f (-2) 2) Nothing
+    equal (f (-1) 5) (Just 4)
+
+test_find_before_equal = do
+    let f n = TimeStep.find_before_equal n [1..4]
+    equal (f 0) Nothing
+    equal (f 1) (Just 1)
+    equal (f 1.5) (Just 1)
+    equal (f 2) (Just 2)

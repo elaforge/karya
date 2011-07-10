@@ -15,7 +15,7 @@ module Cmd.TimeStep (
     , step_from, rewind, advance, direction
 
     -- * for testing
-    , step_from_points, all_points
+    , all_points, step_from_points, find_before_equal
 ) where
 import qualified Data.Fixed as Fixed
 import qualified Data.List as List
@@ -119,9 +119,7 @@ snap step block_id tracknum prev_pos pos = do
     -- 'pos' is the pos to snap, prev_pos is what we want to snap to
     maybe_points <- get_points step block_id tracknum
         (Maybe.fromMaybe pos prev_pos)
-    -- 'step_from 0' also achieves this, but doing it directly might be more
-    -- efficient.
-    return $ Maybe.fromMaybe pos $ find_before_equal pos =<< maybe_points
+    return $ Maybe.fromMaybe pos $ step_from_points 0 pos =<< maybe_points
 
 -- * step
 
@@ -148,19 +146,26 @@ direction Rewind = -1
 
 -- * implementation
 
+-- | Step @n@ times from the given time.  Positive is forward, negative is
+-- backward.  0 snaps to the nearest <= pos, or the next one if there is no
+-- previous.
 step_from_points :: Int -> ScoreTime -> [ScoreTime] -> Maybe ScoreTime
 step_from_points n pos points = go =<< find_around pos points
     where
-    go (pre, p, post)
-        | n < 0 = Seq.at (if p == pos then pre else p:pre) (abs n - 1)
-        | n == 0 = Just p
-        | otherwise = Seq.at (p:post) n
+    go (pre, post)
+        | n < 0 = Seq.at pre (abs n - 1)
+        | n == 0 = case post of
+            (next : _) | pos == next -> Just pos
+            _ -> Seq.head (if null pre then post else pre)
+        | otherwise = case post of
+            (next : rest) | pos == next -> Seq.at rest (n - 1)
+            _ -> Seq.at post (n - 1)
 
-find_around :: (Ord a) => a -> [a] -> Maybe ([a], a, [a])
-find_around pos = List.find close . Seq.zip_around []
+find_around :: (Ord a) => a -> [a] -> Maybe ([a], [a])
+find_around pos = List.find close . Seq.zipper []
     where
-    close (_, p, _) | p == pos = True
-    close (_, p, next : _) | p < pos && pos < next = True
+    close (_, []) = True
+    close (_, next : _) | next >= pos = True
     close _ = False
 
 get_events :: (State.M m) => BlockId -> TrackNum -> m [Events.PosEvent]
@@ -204,7 +209,7 @@ get_points step block_id tracknum pos = do
 all_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> [Events.PosEvent]
     -> ScoreTime -> TimeStep -> [ScoreTime]
 all_points marklists events pos (TimeStep steps) = Seq.drop_dups id $
-    Seq.merge_asc_lists id $ map (step_points marklists events pos) steps
+    Seq.merge_lists id $ map (step_points marklists events pos) steps
 
 step_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> [Events.PosEvent]
     -> ScoreTime -> (Step, Skip) -> [ScoreTime]

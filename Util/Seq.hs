@@ -187,9 +187,11 @@ padded_zip [] bs = zip (repeat Nothing) (map Just bs)
 padded_zip as [] = zip (map Just as) (repeat Nothing)
 padded_zip (a:as) (b:bs) = (Just a, Just b) : padded_zip as bs
 
-zip_around :: [a] -> [a] -> [([a], a, [a])]
-zip_around _ [] = []
-zip_around prev (x:xs) = (prev, x, xs) : zip_around (x:prev) xs
+-- | Return the reversed inits paired with the tails.  This is like a zipper
+-- moving focus along the input list.
+zipper :: [a] -> [a] -> [([a], [a])]
+zipper prev [] = [(prev, [])]
+zipper prev lst@(x:xs) = (prev, lst) : zipper (x:prev) xs
 
 {-
 pairs :: [a] -> [(a, a)]
