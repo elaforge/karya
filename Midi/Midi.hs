@@ -180,7 +180,7 @@ data ChannelMessage =
     | PitchBend !PitchBendValue
     -- | channel mode messages (special control values)
     | AllSoundOff
-    | ResetAllCcontrols
+    | ResetAllControls
     | LocalControl !Bool
     | AllNotesOff
     | UndefinedChannelMode !Word8 !Word8

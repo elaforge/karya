@@ -555,7 +555,7 @@ instance Serialize Midi.ChannelMessage where
     put (Midi.ChannelPressure a) = putWord8 5 >> put a
     put (Midi.PitchBend a) = putWord8 6 >> put a
     put Midi.AllSoundOff = putWord8 7
-    put Midi.ResetAllCcontrols = putWord8 8
+    put Midi.ResetAllControls = putWord8 8
     put (Midi.LocalControl a) = putWord8 9 >> put a
     put Midi.AllNotesOff = putWord8 10
     put (Midi.UndefinedChannelMode a b) = putWord8 11 >> put a >> put b
@@ -570,7 +570,7 @@ instance Serialize Midi.ChannelMessage where
             5 -> get >>= \a -> return (Midi.ChannelPressure a)
             6 -> get >>= \a -> return (Midi.PitchBend a)
             7 -> return Midi.AllSoundOff
-            8 -> return Midi.ResetAllCcontrols
+            8 -> return Midi.ResetAllControls
             9 -> get >>= \a -> return (Midi.LocalControl a)
             10 -> return Midi.AllNotesOff
             11 -> get >>= \a -> get >>= \b ->

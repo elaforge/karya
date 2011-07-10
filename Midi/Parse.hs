@@ -32,7 +32,7 @@ decode bytes
         _ -> error $ "not reached: " ++ show st
     channel_mode_msg = case d1 of
         0x78 -> AllSoundOff
-        0x79 -> ResetAllCcontrols
+        0x79 -> ResetAllControls
         0x7a -> LocalControl (d2 /= 0)
         0x7b -> AllNotesOff
         _ -> UndefinedChannelMode d1 d2
@@ -66,7 +66,7 @@ encode (ChannelMessage chan msg) = B.pack [join4 st chan, d1, d2]
         PitchBend v -> let (d1, d2) = encode_pb v in (0xe, d1, d2)
         -- channel mode msgs
         AllSoundOff -> (0xb, 0x78, 0)
-        ResetAllCcontrols -> (0xb, 0x79, 0)
+        ResetAllControls -> (0xb, 0x79, 0)
         LocalControl on -> (0xb, 0x7a, if on then 0xff else 0)
         AllNotesOff -> (0xb, 0x7b, 0)
         _ -> error $ "unknown ChannelMessage " ++ show msg
