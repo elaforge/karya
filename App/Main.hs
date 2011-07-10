@@ -188,7 +188,7 @@ main = initialize $ \lang_socket midi_chan -> do
     quit_request <- MVar.newMVar ()
 
     args <- System.Environment.getArgs
-    let write_midi = make_write_midi
+    let write_midi = make_write_midi True
             (StaticConfig.config_write_device_map static_config) wdev_map
         setup_cmd = StaticConfig.config_setup_cmd static_config args
         abort_midi = MidiImp.abort
@@ -229,10 +229,14 @@ main = initialize $ \lang_socket midi_chan -> do
             -- It would be possible to restart the responder, but chances are
             -- good it would just die again.
         `Exception.finally` Ui.quit_ui_thread quit_request
-
     Ui.event_loop quit_request msg_chan
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.error $ "ui died from exception: " ++ show exc
+
+    abort_midi
+    let quiet_write = make_write_midi False
+            (StaticConfig.config_write_device_map static_config) wdev_map
+    all_notes_off quiet_write (Map.keys wdev_map)
     Log.notice "app quitting"
 
 -- | Tell the UI layer about the given Symbols.  Warnings are logged for
@@ -248,6 +252,13 @@ load_symbols syms = do
                 ++ ", fonts not found: " ++ show missing
     Log.notice $ "loaded " ++ show (length syms) ++ " symbols"
 
+all_notes_off :: (Midi.WriteMessage -> IO ()) -> [Midi.WriteDevice] -> IO ()
+all_notes_off write_midi devs = mapM_ write_midi (concat (map msgs devs))
+    where
+    msgs dev = map (Midi.WriteMessage dev 0) (concat (map off [0..15]))
+    off chan = [Midi.ChannelMessage chan Midi.AllNotesOff,
+            Midi.ChannelMessage chan Midi.ResetAllControls]
+
 {-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do
     rmsg <- fmap remap_rmsg (STM.atomically (STM.readTChan midi_chan))
@@ -259,6 +270,8 @@ process_thru :: Midi.ReadMessage -> [(Midi.WriteDevice, Midi.Message)]
 process_thru rmsg = [(Midi.WriteDevice "fm8", Midi.rmsg_msg rmsg)]
 -}
 
+remap_read_message :: Map.Map Midi.ReadDevice Midi.ReadDevice
+    -> Midi.ReadMessage -> Midi.ReadMessage
 remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
     rmsg { Midi.rmsg_dev = Map.get dev dev dev_map }
 
@@ -267,12 +280,13 @@ open_read_devices :: Map.Map Midi.ReadDevice MidiImp.ReadDeviceId
 open_read_devices rdev_map rdevs = forM_ rdevs $ \rdev ->
     MidiImp.connect_read_device rdev (rdev_map Map.! rdev)
 
-make_write_midi :: Map.Map Midi.WriteDevice Midi.WriteDevice
+make_write_midi :: Bool -> Map.Map Midi.WriteDevice Midi.WriteDevice
     -> MidiImp.WriteMap -> Midi.WriteMessage -> IO ()
-make_write_midi wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
+make_write_midi noisy wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
     let real_wdev = Map.get wdev wdev wdev_map
-    Printf.printf "PLAY %s->%s %s: %s\n" (Midi.un_write_device wdev)
-        (Midi.un_write_device real_wdev) (Pretty.pretty ts) (show msg)
+    when noisy $
+        Printf.printf "PLAY %s->%s %s: %s\n" (Midi.un_write_device wdev)
+            (Midi.un_write_device real_wdev) (Pretty.pretty ts) (show msg)
     case Map.lookup real_wdev write_map of
         Nothing -> Log.error $ show real_wdev ++ " not in devs: "
             ++ show (Map.keys write_map)
