@@ -1,69 +1,88 @@
-{- | This is stolen from gleb.alexeev\@gmail.com's ipprint package on hackage.
+{- | This is based on gleb.alexeev\@gmail.com's ipprint package on hackage.
+
     I'm not just using it directly because I want to pass custom formatting
     flags because my terminal is 80 chars wide, not the 137-whatever default.
 -}
-module Util.PPrint where
+module Util.PPrint (
+    pprint, pshow, str_pshow
+    , pshows, pprints
+) where
 import qualified Data.Char as Char
-
-import Language.Haskell.Parser
-import Language.Haskell.Pretty
+import qualified Data.Maybe as Maybe
+import qualified Language.Haskell.Parser as Parser
+import qualified Language.Haskell.Pretty as Pretty
 import Language.Haskell.Syntax
-import Text.Read
+
 import qualified Text.PrettyPrint as PrettyPrint
 
 
-pprint :: Show a => a -> IO ()
-pprint = putStrLn . pshow
+-- * showable
 
-pp_style :: PrettyPrint.Style
-pp_style = PrettyPrint.style
-    { PrettyPrint.ribbonsPerLine = 1, PrettyPrint.lineLength = 80 }
-
-pprint_mode = prettyPrintStyleMode pp_style defaultMode
-
--- Yay for copy and paste.  TODO clean this up a bit.
-
--- | Pretty up a string containing a parseable haskell value.
-pshows :: String -> String
-pshows s = dedent $ case parseModule ("value = " ++ s) of
-        ParseOk m -> tidy (pprint_mode m)
-        ParseFailed _ _   -> s
-    where
-    tidy x = case readPrec_to_S skipBoring 0 x of
-        [((), tail)] -> "   " ++ tail
-        _            -> s
-
-pprints :: String -> IO ()
-pprints = putStr . pshows
+pprint :: (Show a) => a -> IO ()
+pprint = putStr . pshow
 
 -- | Pretty show.
 pshow :: (Show a) => a -> String
 pshow = pshows . show
 
 -- | Pretty print the given value, unless it's a string, in which case return
--- it unchanged.
-str_pshow :: Show a => a -> String
-str_pshow v = dedent $ case parseModule ("value = " ++ s) of
-        ParseOk m -> case is_str m of
-            Just s -> s
-            Nothing -> tidy (pprint_mode m)
-        ParseFailed _ _   -> s
+-- it unchanged.  As a special case for "Cmd.Lang", @()@ becomes \"\".
+str_pshow :: (Show a) => a -> String
+str_pshow = parse format . show
     where
-    s = show v
-    tidy x = case readPrec_to_S skipBoring 0 x of
-        [((), tail)] -> "   " ++ tail
-        _            -> s
+    format m = Maybe.fromMaybe (format_parsed m) (is_str m)
+    is_str (HsModule _ _ _ _ [HsPatBind _ _ (HsUnGuardedRhs rhs) _]) =
+        case rhs of
+            HsLit (HsString s) -> Just s
+            HsCon (Special HsUnitCon) -> Just ""
+            _ -> Nothing
+    is_str _ = Nothing
 
-is_str (HsModule _ _ _ _ [HsPatBind _ _ (HsUnGuardedRhs rhs) _]) = case rhs of
-    HsLit (HsString s) -> Just s
-    HsCon (Special HsUnitCon) -> Just ""
-    _ -> Nothing
-is_str _ = Nothing
+-- * String
 
-skipBoring :: ReadPrec ()
-skipBoring =
-    do { Ident "value" <- lexP; Punc  "=" <- lexP; return () } <++
-        do { lexP; skipBoring }
+-- | Pretty up a string containing a parseable haskell value.
+pshows :: String -> String
+pshows = parse format_parsed
+
+pprints :: String -> IO ()
+pprints = putStr . pshows
+
+
+-- * implementation
+
+parse :: (HsModule -> String) -> String -> String
+parse format s = case Parser.parseModule ("value = " ++ s) of
+    Parser.ParseOk m -> format m
+    Parser.ParseFailed _ _   -> s
+
+format_parsed :: HsModule -> String
+format_parsed = strip_boilerplate . pprint_mode
+
+strip_boilerplate :: String -> String
+strip_boilerplate = dedent . ("    "++) . strip_match "value="
+    . dropWhile (/='\n') -- Strip module line and "value =".
+    -- Prefix 4 spaces since this is how much will have been stripped from
+    -- the first line, namely " = ", and make this line up vertically with the
+    -- following lines.  If it fit on one line, it'll be "value = " which is
+    -- not 4 characters but it doesn't matter because there's no following
+    -- line.
+
+strip_match :: String -> String -> String
+strip_match pattern str = go pattern str
+    where
+    go "" s = strip s
+    go _ "" = ""
+    go (p:ps) s = case strip s of
+        c : cs | p == c -> go ps cs
+        _ -> str
+
+strip = dropWhile Char.isSpace
+
+pprint_mode :: (Pretty.Pretty a) => a -> String
+pprint_mode = Pretty.prettyPrintStyleMode pp_style Pretty.defaultMode
+    where
+    pp_style = PrettyPrint.style
+        { PrettyPrint.ribbonsPerLine = 1, PrettyPrint.lineLength = 80 }
 
 dedent :: String -> String
 dedent s = unlines $ map (drop indent) slines
