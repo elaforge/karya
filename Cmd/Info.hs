@@ -11,6 +11,7 @@ import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 import qualified Text.Printf as Printf
 
+import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Tree
 
@@ -29,9 +30,8 @@ import qualified Instrument.MidiDb as MidiDb
 inst_info :: (Cmd.M m) => Score.Instrument -> m String
 inst_info inst = do
     maybe_info <- Cmd.lookup_instrument_info inst
-    midi_config <- State.get_midi_config
-    let show_info = show_instrument_info
-            (Map.findWithDefault [] inst (Instrument.config_alloc midi_config))
+    alloc <- State.get_midi_alloc
+    let show_info = show_instrument_info (Map.findWithDefault [] inst alloc)
     return $ show_inst inst ++ ": " ++ maybe "<not found>" show_info maybe_info
 
 show_instrument_info :: [Instrument.Addr] -> Cmd.MidiInfo -> String
@@ -99,9 +99,7 @@ get_track_status block_id ttree tracknum = case note_track_of ttree tracknum of
     Just (inst, note_tracknum) -> do
         let controls = control_tracks_of ttree note_tracknum
         track_descs <- show_track_status block_id controls
-        midi_config <- State.get_midi_config
-        let addrs = Map.findWithDefault [] inst
-                (Instrument.config_alloc midi_config)
+        addrs <- Map.findWithDefault [] inst <$> State.get_midi_alloc
         let title = TrackInfo.instrument_to_title inst
         return $ Printf.printf "%s at %d: %s -- [%s]" title note_tracknum
             (show_addrs addrs) (Seq.join ", " track_descs)

@@ -76,13 +76,13 @@ cmd_midi_thru msg = do
     let pb_range = Instrument.inst_pitch_bend_range inst
 
     scale <- Cmd.get_scale "cmd_midi_thu" scale_id
-    input <- maybe (Cmd.throw $ show scale_id ++ " doesn't have " ++ show input)
+    input <- maybe
+        (Cmd.throw $ show scale_id ++ " doesn't have " ++ show input)
         return (map_scale scale input)
 
     -- TODO if the wdev is in a certain scale, then I'll have to map the
     -- pitch here
-    config <- State.get_midi_config
-    let addrs = Map.get [] score_inst (Instrument.config_alloc config)
+    addrs <- Map.get [] score_inst <$> State.get_midi_alloc
     wdev_state <- Cmd.get_wdev_state
     let (thru_msgs, maybe_wdev_state) =
             input_to_midi pb_range wdev_state addrs input
@@ -184,5 +184,4 @@ channel_messages first_addr msgs = do
 get_addrs :: (Cmd.M m) => m [Addr]
 get_addrs = do
     inst <- Cmd.require =<< EditUtil.lookup_instrument
-    alloc <- Instrument.config_alloc <$> State.get_midi_config
-    return $ Map.get [] inst alloc
+    Map.get [] inst <$> State.get_midi_alloc

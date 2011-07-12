@@ -27,9 +27,8 @@ import qualified Instrument.MidiDb as MidiDb
 -- | Send AllNotesOff msgs to all inst addr.
 all_notes_off :: Cmd.CmdL ()
 all_notes_off = do
-    config <- State.get_midi_config
-    let addrs = Seq.unique $ concat $
-            Map.elems (Instrument.config_alloc config)
+    alloc <- State.get_midi_alloc
+    let addrs = Seq.unique $ concat $ Map.elems alloc
     let notes_off chan = Midi.ChannelMessage chan Midi.AllNotesOff
     sequence_ [Cmd.midi dev (notes_off chan) | (dev, chan) <- addrs]
 
@@ -59,8 +58,8 @@ inst_info inst_name = Info.inst_info (Score.Instrument inst_name)
 
 all_inst_info :: Cmd.CmdL String
 all_inst_info = do
-    config <- State.get_midi_config
-    info <- mapM Info.inst_info (Map.keys (Instrument.config_alloc config))
+    alloc <- State.get_midi_alloc
+    info <- mapM Info.inst_info (Map.keys alloc)
     return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n\n" info
 
 -- | Steps to load a new instrument.  All of them are optional, depending on
@@ -103,7 +102,7 @@ load inst_name = do
 
 find_chan_for :: Midi.WriteDevice -> Cmd.CmdL Midi.Channel
 find_chan_for dev = do
-    alloc <- fmap Instrument.config_alloc State.get_midi_config
+    alloc <- State.get_midi_alloc
     let addrs = map ((,) dev) [0..15]
         taken = concat (Map.elems alloc)
     let match = fmap snd $ List.find (not . (`elem` taken)) addrs
