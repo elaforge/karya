@@ -1,15 +1,15 @@
 module Cmd.PitchTrack_test where
-import Util.Test
 import qualified Util.Log as Log
+import Util.Test
+import qualified Ui.Key as Key
+import qualified Ui.UiMsg as UiMsg
+import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.PitchTrack as PitchTrack
 
 import qualified Derive.Scale.Twelve as Twelve
-
-import qualified Ui.Key as Key
-import qualified Ui.UiTest as UiTest
 import qualified Perform.Pitch as Pitch
 
 
@@ -51,7 +51,7 @@ test_cmd_method_edit = do
         Right [("*", [(0, 0, "x y")])]
 
     -- tab falls through, does not create an event with tab
-    equal (run_tracks [] (f (CmdTest.make_key True Key.Tab))) $
+    equal (run_tracks [] (f (CmdTest.make_key UiMsg.KeyDown Key.Tab))) $
         Right []
 
 test_parse = do

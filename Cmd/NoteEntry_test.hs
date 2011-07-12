@@ -1,16 +1,15 @@
 module Cmd.NoteEntry_test where
-import Util.Test
-
-import qualified Midi.Midi as Midi
 import qualified Util.Log as Log
-
+import Util.Test
+import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.State as State
+import qualified Ui.UiMsg as UiMsg
 
-import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.NoteEntry as NoteEntry
-import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Msg as Msg
+import qualified Cmd.NoteEntry as NoteEntry
 
 
 test_key_to_input = do
@@ -30,8 +29,9 @@ test_key_to_input = do
 test_cmds_with_note = do
     let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
     let key = CmdTest.key_down ','
-        ctrl_key = CmdTest.make_key_mods [Key.Control] True
-        run cstate cmd = CmdTest.extract id $ CmdTest.run State.empty cstate cmd
+        ctrl_key = CmdTest.make_key_mods [Key.Control] UiMsg.KeyDown
+        run cstate cmd = CmdTest.extract id $
+            CmdTest.run State.empty cstate cmd
         input = Msg.InputNote
         -- key passed through to cmd_dummy
         through msg = Right (Just Cmd.Done, [show msg])

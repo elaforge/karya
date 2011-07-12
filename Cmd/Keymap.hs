@@ -56,7 +56,13 @@ command_only char =
 
 -- | Bind a key with the given modifiers.
 bind_mod :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a -> [Binding m]
-bind_mod smods bindable desc cmd = bind smods (Key bindable) desc (const cmd)
+bind_mod smods key desc cmd = bind smods (Key False key) desc (const cmd)
+
+-- | Like 'bind_mod', but the binding will be retriggered on key repeat.
+bind_repeatable :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a
+    -> [Binding m]
+bind_repeatable smods key desc cmd =
+    bind smods (Key True key) desc (const cmd)
 
 -- | 'bind_click' passes the Msg to the cmd, since mouse cmds are more likely
 -- to want the msg to find out where the click was.  @clicks@ is 1 for a single
@@ -77,11 +83,18 @@ bind_drag smods btn desc cmd =
 bind :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
     -> (Msg.Msg -> m a) -> [Binding m]
 bind smods bindable desc bcmd =
-    [(key_spec mods bindable, cspec desc cmd)
-        | mods <- expand_mods bindable smods]
+    [ (key_spec mods bind, cspec desc cmd)
+    | bind <- expand_bindable bindable
+    , mods <- expand_mods bindable smods
+    ]
     where cmd msg = bcmd msg >> return Cmd.Done
 
 -- ** util
+
+-- | A binding that accepts a KeyRepeat should also accept a KeyDown.
+expand_bindable :: Bindable -> [Bindable]
+expand_bindable (Key True key) = [Key False key, Key True key]
+expand_bindable b = [b]
 
 expand_mods :: Bindable -> [SimpleMod] -> [[Cmd.Modifier]]
 expand_mods bindable smods
@@ -214,7 +227,7 @@ mods_down = do
 
 msg_to_bindable :: Msg.Msg -> Maybe Bindable
 msg_to_bindable msg = case msg of
-    (Msg.key_down -> Just key) -> Just $ Key key
+    (get_key -> Just (is_repeat, key)) -> Just $ Key is_repeat key
     (Msg.mouse -> Just mouse) -> case UiMsg.mouse_state mouse of
         UiMsg.MouseDown btn -> Just $ Click btn (UiMsg.mouse_clicks mouse)
         UiMsg.MouseDrag btn -> Just $ Drag btn
@@ -222,8 +235,15 @@ msg_to_bindable msg = case msg of
     (Msg.midi -> Just (Midi.ChannelMessage chan (Midi.NoteOn key _))) ->
         Just $ Note chan key
     _ -> Nothing
+    where
+    get_key msg = case Msg.key msg of
+        Just (UiMsg.KeyDown, k) -> Just (False, k)
+        Just (UiMsg.KeyRepeat, k) -> Just (True, k)
+        _ -> Nothing
 
-data Bindable = Key Key.Key
+data Bindable =
+    -- | Key IsRepeat Key
+    Key Bool Key.Key
     -- | Click MouseButton Clicks
     | Click UiMsg.MouseButton Int
     | Drag UiMsg.MouseButton

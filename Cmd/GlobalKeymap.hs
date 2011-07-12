@@ -48,8 +48,8 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap
-       (bind_key, bind_char, bind_mod, bind_click, bind_drag, command,
-        command_char, command_only, SimpleMod(..))
+       (bind_key, bind_char, bind_mod, bind_repeatable, bind_click,
+        bind_drag, command, command_char, command_only, SimpleMod(..))
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
@@ -111,7 +111,7 @@ quit_bindings = [(kspec, cspec) | kspec <- kspecs]
     where
     kspecs = [Keymap.key_spec mods key
         | mods <- Keymap.expand_mods key [PrimaryCommand]]
-    key = Keymap.Key (Key.KeyChar '\'')
+    key = Keymap.Key False (Key.KeyChar '\'')
     cspec = Keymap.cspec "quit" $ const (Play.cmd_stop >> Cmd.cmd_quit)
 
 -- * pure cmds
@@ -147,24 +147,24 @@ mouse_bindings = concat
 
 selection_bindings :: (Cmd.M m) => [Keymap.Binding m]
 selection_bindings = concat
-    [ bind_mod [] Key.Down "advance selection"
+    [ bind_repeatable [] Key.Down "advance selection"
         (Selection.cmd_step_selection selnum TimeStep.Advance False)
-    , bind_mod [Shift] Key.Down "extend advance selection"
+    , bind_repeatable [Shift] Key.Down "extend advance selection"
         (Selection.cmd_step_selection selnum TimeStep.Advance True)
 
-    , bind_mod [] Key.Up "rewind selection"
+    , bind_repeatable [] Key.Up "rewind selection"
         (Selection.cmd_step_selection selnum TimeStep.Rewind False)
-    , bind_mod [Shift] Key.Up "extend rewind selection"
+    , bind_repeatable [Shift] Key.Up "extend rewind selection"
         (Selection.cmd_step_selection selnum TimeStep.Rewind True)
 
-    , bind_mod [] Key.Right "shift selection right"
+    , bind_repeatable [] Key.Right "shift selection right"
         (Selection.cmd_shift_selection selnum 1 False)
-    , bind_mod [Shift] Key.Right "extend shift selection right"
+    , bind_repeatable [Shift] Key.Right "extend shift selection right"
         (Selection.cmd_shift_selection selnum 1 True)
 
-    , bind_mod [] Key.Left "shift selection left"
+    , bind_repeatable [] Key.Left "shift selection left"
         (Selection.cmd_shift_selection selnum (-1) False)
-    , bind_mod [Shift] Key.Left "extend shift selection left"
+    , bind_repeatable [Shift] Key.Left "extend shift selection left"
         (Selection.cmd_shift_selection selnum (-1) True)
 
     , bind_mod [PrimaryCommand] (Key.KeyChar 'a') "select track / all"
@@ -174,9 +174,10 @@ selection_bindings = concat
 
 step_play_bindings :: (Cmd.M m) => [Keymap.Binding m]
 step_play_bindings = concat
-    [ bind_mod [PrimaryCommand] Key.Down "advance step play"
+    [ bind_repeatable [PrimaryCommand] Key.Down "advance step play"
         StepPlay.cmd_set_or_advance
-    , bind_mod [PrimaryCommand] Key.Up "rewind step play" StepPlay.cmd_rewind
+    , bind_repeatable [PrimaryCommand] Key.Up "rewind step play"
+        StepPlay.cmd_rewind
     ]
 
 view_config_bindings :: (Cmd.M m) => [Keymap.Binding m]

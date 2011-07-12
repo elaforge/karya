@@ -35,11 +35,11 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - fix-imports bug: two line comment in Cmd.Play lost its first line
+  * fix-imports bug: two line comment in Cmd.Play lost its first line
   * shift-space should emit all notes off even if there is no step play active
     or maybe space when it's not playing
   * use State.get_midi_alloc in more places?
-  - Keymap doesn't support KeyRepeat, I should be able to tag certain cmds as
+  * Keymap doesn't support KeyRepeat, I should be able to tag certain cmds as
     being repeatable
   - need EventStart / EventEnd TimeSteps that work across all tracks
   - CmdTest.run_again is crummy because the fail of Left is confusing and

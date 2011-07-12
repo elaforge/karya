@@ -1,9 +1,9 @@
 module Cmd.NoteTrack_test where
 import Util.Test
-
 import Ui
-import qualified Ui.Types as Types
 import qualified Ui.Key as Key
+import qualified Ui.Types as Types
+import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -14,7 +14,7 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
 
 
-mkkey = CmdTest.make_key True
+mkkey = CmdTest.make_key UiMsg.KeyDown
 run track_specs cmd = CmdTest.trace_logs $
     CmdTest.e_tracks $ CmdTest.run_sel 0 track_specs cmd
 

@@ -6,6 +6,7 @@ import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.State as State
+import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -31,8 +32,8 @@ profile_edits_middle = do
             (\st -> st { Cmd.state_edit_mode = Cmd.ValEdit })
     -- pprint (UiTest.dump_block ui_state edit_block)
 
-    let wait = [(CmdTest.make_key True Key.ShiftL, 0.1),
-            (CmdTest.make_key False Key.ShiftL, 4)]
+    let wait = [(CmdTest.make_key UiMsg.KeyDown Key.ShiftL, 0.1),
+            (CmdTest.make_key UiMsg.KeyUp Key.ShiftL, 4)]
         alter_note = [(CmdTest.m_note_on 0 64 127, 1),
             (CmdTest.m_note_off 0 127, 1)]
         keys = concat $ replicate 4 alter_note
@@ -66,7 +67,8 @@ profile_selection = do
     (_, cpu) <- timer $ ResponderTest.respond False states keys
     printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
 
-keypress k = [CmdTest.make_key True k, CmdTest.make_key False k]
+keypress k =
+    [CmdTest.make_key UiMsg.KeyDown k, CmdTest.make_key UiMsg.KeyDown k]
 
 profile_thru = do
     let (ui_state, cmd_state) = ResponderTest.mkstates [(">i", [(0, 0, "")])]

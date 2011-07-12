@@ -23,20 +23,10 @@ test_make_cmd_map = do
 test_make_cmd = do
     let (cmd_map, _) = Keymap.make_cmd_map binds
     let cmd = Keymap.make_cmd cmd_map
-    let extract = map DeriveTest.show_log . CmdTest.result_logs
-    let run_cmd mods msg = CmdTest.run State.empty cstate (cmd msg)
-            where
-            cstate = Cmd.empty_state { Cmd.state_keys_down = state_mods }
-            state_mods = Map.fromList [(m, m) | m <- mods ++ extra_mods]
-            -- A click or drag implies that mouse button must be down.
-            extra_mods = case fmap UiMsg.mouse_state (Msg.mouse msg) of
-                Just (UiMsg.MouseDown b) -> [Cmd.MouseMod b Nothing]
-                Just (UiMsg.MouseDrag b) -> [Cmd.MouseMod b Nothing]
-                _ -> []
-        no_run = []
+    let no_run = []
         did_run cname cmdlog = ["running command " ++ show cname, cmdlog]
         aborted = Right (Nothing, [])
-    let run mods msg = extract (run_cmd mods msg)
+    let run mods msg = extract_logs (run_cmd cmd mods msg)
     let run_char mods char = run (map Cmd.KeyMod mods) (CmdTest.key_down char)
     -- pprint $ zip (Map.keys cmd_map)
     --     (map (\(Keymap.CmdSpec name _) -> name) (Map.elems cmd_map))
@@ -51,13 +41,13 @@ test_make_cmd = do
     equal (run_char [Key.Meta, Key.Shift] '1') (did_run "cs-1" "cmd1")
 
     -- key up aborts
-    equal (CmdTest.extract id (run_cmd [] (CmdTest.key_up '1'))) aborted
+    equal (CmdTest.extract id (run_cmd cmd [] (CmdTest.key_up '1'))) aborted
 
     -- mouse chording and dragging
     equal (run [] (CmdTest.mouse True 2)) no_run
     equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse True 2))
         (did_run "chord-12" "cmd1")
-    equal (CmdTest.extract id (run_cmd [Cmd.MouseMod 1 Nothing]
+    equal (CmdTest.extract id (run_cmd cmd [Cmd.MouseMod 1 Nothing]
             (CmdTest.mouse False 2)))
         aborted
     -- bind_drag binds both the click and the drag
@@ -65,6 +55,37 @@ test_make_cmd = do
         (did_run "drag-3" "cmd1")
     equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.drag 3))
         (did_run "drag-3" "cmd1")
+
+test_key_repeat = do
+    let (cmd_map, _) = Keymap.make_cmd_map $ concat
+            [ Keymap.bind_key (Key.KeyChar '1') "1" cmd1
+            , Keymap.bind_repeatable [] (Key.KeyChar '2') "2" cmd2
+            ]
+    let cmd = Keymap.make_cmd cmd_map
+    let run repeat char = extract_logs $ run_cmd cmd []
+            (CmdTest.make_key
+                (if repeat then UiMsg.KeyRepeat else UiMsg.KeyDown)
+                (Key.KeyChar char))
+    equal (run False '1') ["running command \"1\"", "cmd1"]
+    equal (run True '1') []
+    equal (run False '2') ["running command \"2\"", "cmd2"]
+    equal (run True '2') ["running command \"2\"", "cmd2"]
+
+
+extract_logs :: CmdTest.Result val -> [String]
+extract_logs = map DeriveTest.show_log . CmdTest.result_logs
+
+run_cmd :: (Msg.Msg -> Cmd.CmdId a) -> [Cmd.Modifier] -> Msg.Msg
+    -> CmdTest.Result a
+run_cmd cmd mods msg = CmdTest.run State.empty cstate (cmd msg)
+    where
+    cstate = Cmd.empty_state { Cmd.state_keys_down = state_mods }
+    state_mods = Map.fromList [(m, m) | m <- mods ++ extra_mods]
+    -- A click or drag implies that mouse button must be down.
+    extra_mods = case fmap UiMsg.mouse_state (Msg.mouse msg) of
+        Just (UiMsg.MouseDown b) -> [Cmd.MouseMod b Nothing]
+        Just (UiMsg.MouseDrag b) -> [Cmd.MouseMod b Nothing]
+        _ -> []
 
 cmd1, cmd2 :: Cmd.CmdId ()
 cmd1 = Log.notice "cmd1"

@@ -1,19 +1,10 @@
 module Cmd.Create_test where
 import Util.Test
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
-
-import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
 
-
-
-mksel = Types.point_selection
-mkkey = CmdTest.make_key True
-
-cstate = Cmd.empty_state
 
 test_track_ruler = do
     let f tracknum = Create.track_ruler UiTest.default_block_id
