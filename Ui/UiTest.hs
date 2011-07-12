@@ -16,8 +16,10 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
+import qualified Cmd.Serialize as Serialize
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
+
 import qualified Derive.Schema as Schema
 import qualified App.Config as Config
 
@@ -42,11 +44,27 @@ rid = Types.RulerId . mkid
 
 default_zoom = Config.zoom
 
+-- | Save the state to disk, so I can load it into the app and see it.
+save :: State.State -> FilePath -> IO ()
+save ui_state fname = do
+    save_state <- Serialize.save_state ui_state
+    Serialize.serialize fname save_state
+
 -- * mkstate
 
+type BlockSpec = (String, [TrackSpec])
+
+-- | Often tests work with a single block, or a single view.  To make them
+-- less verbose, there is a default block and view so functions can omit the
+-- parameter if convenient.
+default_block_id :: BlockId
 default_block_id = bid default_block_name
+
+default_block_name :: String
 default_block_name = "b1"
-default_view_id = vid "v1"
+
+default_view_id :: ViewId
+default_view_id = mk_vid default_block_id
 
 -- | Return the val and state, throwing an IO error on an exception.  Intended
 -- for tests that don't expect to fail here.
@@ -77,10 +95,13 @@ run_mkview track_specs =
 mkstate :: (State.M m) => String -> [TrackSpec] -> m [TrackId]
 mkstate block_name tracks = mkstate_id (bid block_name) tracks
 
-mkblocks :: (State.M m) => [(String, [TrackSpec])] -> m [BlockId]
+mkblocks :: (State.M m) => [BlockSpec] -> m [BlockId]
 mkblocks blocks = do
     forM_ blocks $ \(bid, tracks) -> mkstate bid tracks
     return $ map (bid . fst) blocks
+
+mkviews :: (State.M m) => [BlockSpec] -> m [ViewId]
+mkviews blocks = mapM mkview =<< mkblocks blocks
 
 mkstate_id :: (State.M m) => BlockId -> [TrackSpec] -> m [TrackId]
 mkstate_id block_id tracks = do
@@ -111,7 +132,7 @@ parse_skeleton block_id = do
 
 mkview :: (State.M m) => BlockId -> m ViewId
 mkview block_id = do
-    view_id <- State.create_view (Id.unpack_id default_view_id) $
+    view_id <- State.create_view (Id.unpack_id (mk_vid block_id)) $
         Block.view block_id default_rect default_zoom
     State.set_track_size view_id (400, 800)
     return view_id
@@ -121,6 +142,13 @@ mkstate_view block_name tracks = do
     r <- mkstate block_name tracks
     mkview (bid block_name)
     return r
+
+mk_vid :: BlockId -> ViewId
+mk_vid block_id = Types.ViewId $ Id.id ns ("v." ++ block_name)
+    where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
+
+mk_vid_name :: String -> ViewId
+mk_vid_name = mk_vid . bid
 
 -- | Make a TrackId as mkstate does.  This is so tests can independently come
 -- up with the track IDs mkstate created just by knowing their tracknum.
@@ -133,7 +161,7 @@ mk_tid_block block_id i =
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 mk_tid_name :: String -> TrackNum -> TrackId
-mk_tid_name block_name = mk_tid_block (bid block_name)
+mk_tid_name = mk_tid_block . bid
 
 -- ** from dump
 

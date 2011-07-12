@@ -277,8 +277,8 @@ cmd_clear_selected = do
 set_step_rank :: (Cmd.M m) => TimeStep.TimeStep
     -> TimeStep.Rank -> TimeStep.Skip -> m ()
 set_step_rank deflt rank skip = do
-    Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_step = set (TimeStep.to_list (Cmd.state_step st)) }
+    Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step =
+        set (TimeStep.to_list (Cmd.state_time_step st)) }
     sync_step_status
     where
     set [(TimeStep.AbsoluteMark names _, _)] =
@@ -291,7 +291,7 @@ set_step_rank deflt rank skip = do
 toggle_mark_step :: (Cmd.M m) => m ()
 toggle_mark_step = do
     Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_step = toggle (Cmd.state_step st) }
+        st { Cmd.state_time_step = toggle (Cmd.state_time_step st) }
     sync_step_status
     where
     toggle step = case TimeStep.to_list step of
@@ -303,7 +303,7 @@ toggle_mark_step = do
 
 set_step :: (Cmd.M m) => TimeStep.TimeStep -> m ()
 set_step step = do
-    Cmd.modify_edit_state $ \st -> st { Cmd.state_step = step }
+    Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
     sync_step_status
 
 cmd_invert_step_direction :: (Cmd.M m) => m ()
@@ -319,7 +319,7 @@ sync_step_status :: (Cmd.M m) => m ()
 sync_step_status = do
     st <- Cmd.gets Cmd.state_edit
     let status = TimeStep.show_step (Just (Cmd.state_note_direction st))
-            (Cmd.state_step st)
+            (Cmd.state_time_step st)
     Cmd.set_global_status "step" status
     Cmd.set_status "step" (Just status)
 

@@ -21,7 +21,7 @@ import qualified Perform.RealTime as RealTime
 
 
 get_perf :: Cmd.CmdL Cmd.Performance
-get_perf = Cmd.require =<< Perf.lookup_root_performance
+get_perf = Cmd.require =<< Perf.lookup_root
 
 -- * derive
 
@@ -67,7 +67,7 @@ block_uncached_events block_id = Derive.r_events <$> uncached_derive block_id
 block_midi :: BlockId -> Cmd.CmdL Midi.Perform.MidiEvents
 block_midi block_id = do
     perf <- Performance.performance <$> PlayUtil.cached_derive block_id
-    PlayUtil.perform_from perf 0
+    PlayUtil.perform_from 0 perf
 
 -- * selection
 

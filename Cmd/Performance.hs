@@ -33,6 +33,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Derive as Derive
+import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.RealTime as RealTime
 
 
@@ -122,7 +123,7 @@ generate_performance wait send_status block_id = do
     when_just old_thread (Trans.liftIO . Concurrent.killThread)
     derived <- (Just <$> PlayUtil.cached_derive block_id)
         `Error.catchError` \err -> do
-            when (Cmd.is_abort err) $
+            when (is_abort err) $
                 Log.warn $ "Error performing: " ++ show err
             return Nothing
     case performance <$> derived of
@@ -134,6 +135,9 @@ generate_performance wait send_status block_id = do
             Cmd.modify_play_state $ \st ->
                 st { Cmd.state_performance_threads = Map.insert block_id
                     pthread (Cmd.state_performance_threads st) }
+    where
+    is_abort State.Abort = True
+    is_abort _ = False
 
 evaluate_performance :: Thread.Seconds -> SendStatus -> BlockId
     -> Cmd.Performance -> IO ()
@@ -151,6 +155,12 @@ evaluate_performance wait send_status block_id perf = do
 performance :: Derive.Result -> Cmd.Performance
 performance result = Cmd.Performance (Derive.r_cache result)
     (Derive.r_events result)
-    (Derive.r_track_environ result) mempty (Derive.r_tempo result)
+    (Derive.r_track_environ result) mempty
+    -- tempo
+    (warps result)
+    (Derive.r_tempo result)
     (Derive.r_closest_warp result) (Derive.r_inv_tempo result)
     (Derive.r_track_signals result)
+    where
+    warps = TrackWarp.collections .  Derive.collect_warp_map
+        . Derive.state_collect . Derive.r_state

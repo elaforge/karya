@@ -79,6 +79,7 @@ module Cmd.Play where
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
+
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -97,13 +98,13 @@ import qualified Ui.Sync as Sync
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Perf as Perf
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Perform.Transport as Transport
 import qualified Perform.Midi.Play as Midi.Play
-
+import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 
 
@@ -123,14 +124,14 @@ cmd_play_from_previous_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_step transport_info = do
     step <- Cmd.state_play_step <$> get
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
-    prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
+    prev <- TimeStep.rewind step block_id tracknum pos
     cmd_play transport_info block_id (Just track_id, maybe 0 id prev)
 
 cmd_play_from_previous_root_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_root_step transport_info = do
     (block_id, tracknum, track_id, pos) <- Selection.get_root_insert
     step <- Cmd.state_play_step <$> get
-    prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
+    prev <- TimeStep.rewind step block_id tracknum pos
     cmd_play transport_info block_id (Just track_id, maybe 0 id prev)
 
 cmd_play :: Transport.Info -> BlockId -> (Maybe TrackId, ScoreTime)
@@ -141,8 +142,8 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         Just _ -> Cmd.throw "player already running"
         _ -> return ()
     perf <- get_performance block_id
-    start <- find_realtime perf block_id start_track start_pos
-    msgs <- PlayUtil.perform_from perf start
+    start <- Perf.find_realtime perf block_id start_track start_pos
+    msgs <- PlayUtil.perform_from start perf
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs
 
@@ -151,21 +152,6 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         updater_ctl transport_info (Cmd.perf_inv_tempo perf) start ui_state
     modify $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
-
--- | Given a block, track, and time, find the realtime at that position.  If
--- the track is Nothing, use the first track that has tempo information.  This
--- is necessary because if a track is muted it will have no tempo, but it's
--- confusing if playing from a muted track fails.
-find_realtime :: (Cmd.M m) => Cmd.Performance -> BlockId -> Maybe TrackId
-    -> ScoreTime -> m RealTime
-find_realtime perf block_id maybe_track_id pos = do
-    track_ids <- maybe (State.track_ids_of block_id) (return . (:[]))
-        maybe_track_id
-    case msum (map tempo track_ids) of
-        Nothing -> Cmd.throw $ show block_id ++ " " ++ show track_ids
-            ++ " has no tempo information, so it probably failed to derive."
-        Just realtime -> return realtime
-    where tempo tid = Seq.head $ Cmd.perf_tempo perf block_id tid pos
 
 cmd_stop :: Cmd.CmdIO
 cmd_stop = do
@@ -255,11 +241,10 @@ updater_loop :: UpdaterState -> IO ()
 updater_loop state = do
     now <- subtract (updater_offset state) <$> updater_get_now state
     let block_pos = updater_inv_tempo_func state now
-    play_pos <- either
-        (\err -> Log.error ("state error in updater: " ++ show err)
-            >> return [])
-        return
-        (State.eval (updater_ui_state state) (block_pos_to_play_pos block_pos))
+    let fail err = Log.error ("state error in updater: " ++ show err)
+            >> return []
+    play_pos <- either fail return $ State.eval (updater_ui_state state) $
+        Perf.find_play_pos (updater_inv_tempo_func state) now
     Sync.set_play_position play_pos
 
     let active_sels = Set.fromList
@@ -274,27 +259,6 @@ updater_loop state = do
             Set.toList (updater_active_sels state)
         else Thread.delay 0.05 >> updater_loop state
 
-
--- | Do all the annoying shuffling around to convert the deriver-oriented
--- blocks and tracks to the view-oriented views and tracknums.
-block_pos_to_play_pos :: (State.M m) => [(BlockId, [(TrackId, ScoreTime)])]
-    -> m [(ViewId, [(TrackNum, Maybe ScoreTime)])]
-block_pos_to_play_pos block_pos = fmap concat (mapM convert block_pos)
-
-convert :: (State.M m) => (BlockId, [(TrackId, ScoreTime)])
-    -> m [(ViewId, [(TrackNum, Maybe ScoreTime)])]
-convert (block_id, track_pos) = do
-    view_ids <- fmap Map.keys (State.get_views_of block_id)
-    block <- State.get_block block_id
-    let tracknum_pos = concatMap (tracknums_of block) track_pos
-    return [(view_id, tracknum_pos) | view_id <- view_ids]
-
-tracknums_of :: Block.Block -> (TrackId, ScoreTime)
-    -> [(TrackNum, Maybe ScoreTime)]
-tracknums_of block (track_id, pos) =
-    [ (tracknum, Just pos)
-    | (tracknum, Block.TId tid _) <- zip [0..] (Block.block_tracklike_ids block)
-    , tid == track_id ]
 
 
 -- * util

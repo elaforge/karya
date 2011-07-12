@@ -135,10 +135,11 @@ highlight_error (bid, maybe_tid, maybe_range) = do
 -- * show / modify cmd state
 
 show_step :: Cmd.CmdL TimeStep.TimeStep
-show_step = _cmd_state (Cmd.state_step . Cmd.state_edit)
+show_step = Cmd.gets (Cmd.state_time_step . Cmd.state_edit)
 
 set_step :: TimeStep.TimeStep -> Cmd.CmdL ()
-set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_step = step }
+set_step step = Cmd.modify_edit_state $
+    \st -> st { Cmd.state_time_step = step }
 
 set_note_duration :: TimeStep.TimeStep -> Cmd.CmdL ()
 set_note_duration step = Cmd.modify_edit_state $ \st ->
@@ -151,7 +152,7 @@ set_play_step = do
     Cmd.modify_play_state $ \st -> st { Cmd.state_play_step = step }
 
 show_octave :: Cmd.CmdL Pitch.Octave
-show_octave = _cmd_state (Cmd.state_kbd_entry_octave . Cmd.state_edit)
+show_octave = Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
 set_octave :: Pitch.Octave -> Cmd.CmdL ()
 set_octave n = Edit.cmd_modify_octave (const n) >> return ()
 
@@ -430,7 +431,3 @@ indent = "  "
 
 show_list :: [String] -> String
 show_list xs = concatMap (\(i, x) -> printf "%d. %s\n" i x) (Seq.enumerate xs)
-
-
-_cmd_state :: (Cmd.State -> a) -> Cmd.CmdL a
-_cmd_state = flip fmap Cmd.get_state

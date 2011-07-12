@@ -74,6 +74,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -205,33 +206,10 @@ instance (Functor m, Monad m) => Applicative.Applicative (CmdT m) where
 
 type MidiThru = (Midi.WriteDevice, Midi.Message)
 
-is_abort :: State.StateError -> Bool
-is_abort State.Abort = True
-is_abort _ = False
-
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
 throw :: (M m) => String -> m a
 throw = State.throw
-
--- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
--- conditions that don't fit into a Keymap.
-require :: (M m) => Maybe a -> m a
-require = maybe abort return
-
--- | Like 'require', but throw an exception with the given msg.
-require_msg :: (M m) => String -> Maybe a -> m a
-require_msg msg = maybe (throw msg) return
-
-require_right :: (M m) => (err -> String) -> Either err a -> m a
-require_right str = either (throw . str) return
-
--- | Log an event so that it can be clicked on in logview.
-log_event :: BlockId -> TrackId -> Events.PosEvent -> String
-log_event block_id track_id (pos, event) = "{s" ++ show frame ++ "}"
-    where
-    range = Just (pos, pos + Event.event_duration event)
-    frame = Stack.unparse_ui_frame (block_id, Just track_id, range)
 
 -- * State
 
@@ -306,7 +284,7 @@ initial_state inst_db schema_map global_scope = State {
     , state_wdev_state = empty_wdev_state
     , state_rdev_state = Map.empty
 
-    , state_edit = empty_edit_state
+    , state_edit = initial_edit_state
     }
 
 empty_state :: State
@@ -322,7 +300,7 @@ reinit_state cstate = cstate
         { state_play_step = state_play_step (state_play cstate) }
     -- This is essential, otherwise lots of cmds break on the bad reference.
     , state_focused_view = Nothing
-    , state_edit = empty_edit_state
+    , state_edit = initial_edit_state
     }
 
 -- | This is a hack so I can use the default Show instance for 'State'.
@@ -338,10 +316,34 @@ data PlayState = PlayState {
     -- recalculated (in the background) and stored here, so play can be
     -- started without latency.
     , state_performance_threads :: !(Map.Map BlockId PerformanceThread)
-
     -- | Some play commands can start playing from a short distance before the
     -- cursor.
     , state_play_step :: !TimeStep.TimeStep
+    -- | Contain a StepState if step play is active.  Managed in
+    -- "Cmd.StepPlay".
+    , state_step :: !(Maybe StepState)
+    } deriving (Show, Generics.Typeable)
+
+-- | Step play is a way of playing back the performance in non-realtime.
+data StepState = StepState {
+    -- * constant
+    -- | It's necessary to keep track of the track for which step play was
+    -- initiated, since a single block may have multiple tempos.
+    step_tracknum :: !TrackNum
+    , step_view_id :: !ViewId
+    -- | Step play started here.  When you rewind before this the StepState
+    -- needs to be regenerated.
+    , step_beginning :: !ScoreTime
+    -- | Needed for tempo mapping.
+    , step_performance :: !Performance
+
+    -- * modified
+    -- | Events before the step play position, in descending order.
+    -- This, along with 'step_after' is a simple zipper to make seeking around
+    -- the midi msgs efficient.
+    , step_before :: ![Midi.WriteMessage]
+    -- | Events after the step play position, in asceding order.
+    , step_after :: ![Midi.WriteMessage]
     } deriving (Show, Generics.Typeable)
 
 initial_play_state :: PlayState
@@ -349,8 +351,8 @@ initial_play_state = PlayState
     { state_play_control = Nothing
     , state_performance_threads = Map.empty
     , state_play_step =
-        TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 1)
-    , state_step_performance = Nothing
+        TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 2)
+    , state_step = Nothing
     }
 
 -- | Editing state, modified in the course of editing.
@@ -360,10 +362,10 @@ data EditState = EditState {
     -- | Use the alphanumeric keys to enter notes instead of midi input.
     , state_kbd_entry :: !Bool
     -- | Default time step for cursor movement.
-    , state_step :: !TimeStep.TimeStep
-    -- | Used for note duration.  It's separate from 'state_step' to allow
-    -- for tracker-style note entry where newly entered notes extend to the
-    -- next note or the end of the block.
+    , state_time_step :: !TimeStep.TimeStep
+    -- | Used for note duration.  It's separate from 'state_time_step' to
+    -- allow for tracker-style note entry where newly entered notes extend to
+    -- the next note or the end of the block.
     , state_note_duration :: !TimeStep.TimeStep
     -- | If this is Rewind, create notes with negative durations.
     , state_note_direction :: !TimeStep.Direction
@@ -379,11 +381,11 @@ data EditState = EditState {
     , state_edit_box :: !(Color.Color, Char)
     } deriving (Show, Generics.Typeable)
 
-empty_edit_state :: EditState
-empty_edit_state = EditState {
+initial_edit_state :: EditState
+initial_edit_state = EditState {
     state_edit_mode = NoEdit
     , state_kbd_entry = False
-    , state_step =
+    , state_time_step =
         TimeStep.step (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
     , state_note_duration = TimeStep.step TimeStep.BlockEnd
     , state_note_direction = TimeStep.Advance
@@ -438,6 +440,10 @@ type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 -- | This holds the final performance for a given block.  It is used to
 -- actually play music, and poked and prodded in a separate thread to control
 -- its evaluation.
+--
+-- This is basically the same as Derive.Result.  I could make them be the
+-- same, but Performance wasn't always the same and may not be the same in the
+-- future.
 data Performance = Performance {
     perf_derive_cache :: !Derive.Cache
     , perf_events :: !Derive.Events
@@ -447,6 +453,10 @@ data Performance = Performance {
     -- thereafter.
     , perf_score_damage :: !Derive.ScoreDamage
 
+    -- | TODO The tempo functions are derived from the warps, so I should
+    -- probably get rid of them.  It turns out to be handy to have the warps
+    -- for debugging.
+    , perf_warps :: ![TrackWarp.Collection]
     , perf_tempo :: !Transport.TempoFunction
     , perf_closest_warp :: !Transport.ClosestWarpFunction
     , perf_inv_tempo :: !Transport.InverseTempoFunction
@@ -564,7 +574,7 @@ lookup_focused_block = do
         Nothing -> return Nothing
 
 get_current_step :: (M m) => m TimeStep.TimeStep
-get_current_step = gets (state_step . state_edit)
+get_current_step = gets (state_time_step . state_edit)
 
 -- | Get the leftmost track covered by the insert selection, which is
 -- considered the "focused" track by convention.
@@ -686,6 +696,34 @@ set_note_text txt = do
     set_status "txt" (if null txt then Nothing else Just txt)
 
 
+-- * util
+
+-- | Log an event so that it can be clicked on in logview.
+log_event :: BlockId -> TrackId -> Events.PosEvent -> String
+log_event block_id track_id (pos, event) = "{s" ++ show frame ++ "}"
+    where
+    range = Just (pos, pos + Event.event_duration event)
+    frame = Stack.unparse_ui_frame (block_id, Just track_id, range)
+
+-- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
+-- conditions that don't fit into a Keymap.
+require :: (M m) => Maybe a -> m a
+require = maybe abort return
+
+-- | Like 'require', but throw an exception with the given msg.
+require_msg :: (M m) => String -> Maybe a -> m a
+require_msg msg = maybe (throw msg) return
+
+require_right :: (M m) => (err -> String) -> Either err a -> m a
+require_right str = either (throw . str) return
+
+-- | Turn off all sounding notes and reset all controls.
+all_notes_off :: (M m) => m ()
+all_notes_off = do
+    addrs <- concat . Map.elems <$> State.get_midi_alloc
+    forM_ addrs $ \(dev, chan) -> do
+        midi dev (Midi.ChannelMessage chan Midi.AllNotesOff)
+        midi dev (Midi.ChannelMessage chan Midi.ResetAllControls)
 
 -- * basic cmds
 

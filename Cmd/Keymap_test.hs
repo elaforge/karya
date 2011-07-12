@@ -12,6 +12,8 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 
+import qualified Derive.DeriveTest as DeriveTest
+
 
 test_make_cmd_map = do
     let (_, errors) = Keymap.make_cmd_map binds
@@ -21,10 +23,8 @@ test_make_cmd_map = do
 test_make_cmd = do
     let (cmd_map, _) = Keymap.make_cmd_map binds
     let cmd = Keymap.make_cmd cmd_map
-    let extract (Just _, logs) = Just logs
-        extract (Nothing, _) = Nothing
-    let run mods msg = fmap extract $ CmdTest.extract id $
-            CmdTest.run State.empty cstate (cmd msg)
+    let extract = map DeriveTest.show_log . CmdTest.result_logs
+    let run_cmd mods msg = CmdTest.run State.empty cstate (cmd msg)
             where
             cstate = Cmd.empty_state { Cmd.state_keys_down = state_mods }
             state_mods = Map.fromList [(m, m) | m <- mods ++ extra_mods]
@@ -33,10 +33,10 @@ test_make_cmd = do
                 Just (UiMsg.MouseDown b) -> [Cmd.MouseMod b Nothing]
                 Just (UiMsg.MouseDrag b) -> [Cmd.MouseMod b Nothing]
                 _ -> []
-        no_run = Right (Just [])
-        aborted = Right Nothing
-        did_run cname cmdlog =
-            Right (Just ["running command " ++ show cname, cmdlog])
+        no_run = []
+        did_run cname cmdlog = ["running command " ++ show cname, cmdlog]
+        aborted = Right (Nothing, [])
+    let run mods msg = extract (run_cmd mods msg)
     let run_char mods char = run (map Cmd.KeyMod mods) (CmdTest.key_down char)
     -- pprint $ zip (Map.keys cmd_map)
     --     (map (\(Keymap.CmdSpec name _) -> name) (Map.elems cmd_map))
@@ -51,13 +51,15 @@ test_make_cmd = do
     equal (run_char [Key.Meta, Key.Shift] '1') (did_run "cs-1" "cmd1")
 
     -- key up aborts
-    equal (run [] (CmdTest.key_up '1')) aborted
+    equal (CmdTest.extract id (run_cmd [] (CmdTest.key_up '1'))) aborted
 
     -- mouse chording and dragging
     equal (run [] (CmdTest.mouse True 2)) no_run
     equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse True 2))
         (did_run "chord-12" "cmd1")
-    equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse False 2)) aborted
+    equal (CmdTest.extract id (run_cmd [Cmd.MouseMod 1 Nothing]
+            (CmdTest.mouse False 2)))
+        aborted
     -- bind_drag binds both the click and the drag
     equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.mouse True 3))
         (did_run "drag-3" "cmd1")

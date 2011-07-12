@@ -87,19 +87,26 @@ get_lookup_inst_calls = do
     return $ fmap (Cmd.inst_calls . MidiDb.info_code)
         . Instrument.Db.db_lookup inst_db
 
-perform_from :: (Cmd.M m) => Cmd.Performance -> RealTime
+perform_from :: (Cmd.M m) => RealTime -> Cmd.Performance
     -> m Perform.MidiEvents
-perform_from perf start =
-    perform_events (events_from start (Cmd.perf_events perf))
+perform_from start = perform_events . shift_events start
+    . events_from start . Cmd.perf_events
+
+-- | Like 'perform_from', but don't shift the events so that @start@ == 0.
+absolute_perform_from :: (Cmd.M m) => RealTime -> Cmd.Performance
+    -> m Perform.MidiEvents
+absolute_perform_from start = perform_events . events_from start
+    . Cmd.perf_events
+
+shift_events :: RealTime -> Derive.Events -> Derive.Events
+shift_events start =
+    map (fmap (\e -> e { Score.event_start = Score.event_start e - start }))
 
 events_from :: RealTime -> Derive.Events -> Derive.Events
 events_from start =
-    map (fmap (\e -> e { Score.event_start = Score.event_start e - start }))
-    . Seq.drop_unknown -- keep log msgs before an event after 'start'
+    Seq.drop_unknown -- keep log msgs before an event after 'start'
         (LEvent.either (Just . (<start) . Score.event_start) (const Nothing))
 
--- | Perform some events with no caching or anything.  For interactive
--- debugging.
 perform_events :: (Cmd.M m) => Derive.Events -> m Perform.MidiEvents
 perform_events events = do
     lookup_scale <- Cmd.get_lookup_scale

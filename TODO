@@ -35,6 +35,48 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - shift-space should emit all notes off even if there is no step play active
+    or maybe space when it's not playing
+  - use State.get_midi_alloc in more places?
+  - Keymap doesn't support KeyRepeat, I should be able to tag certain cmds as
+    being repeatable
+  - need EventStart / EventEnd TimeSteps that work across all tracks
+  - CmdTest.run_again is crummy because the fail of Left is confusing and
+    makes the result non-polymorphic
+  - why does the track in StepPlay_test put notes on channel 1?
+  - find someplace to document that when a Cmd throws, the UI state is
+    reverted but the Cmd state is not
+  - rename State.block_of_view -> block_of
+  - overlapping key bindings are not detected between io and pure cmds
+  - rename Key.KeyChar -> Key.Char
+  - use fixed-list for with_control?
+  * start playing n notes previous, then cmds to step forward and back,
+    note-by-note, so playback can be controlled manually.
+    I could use the playback selection to indicate where it is.
+
+    key goes to selection - state_play_step
+    down/up skips to next/prev event begin, plays all msgs in the range
+    need:
+    * step_play_selnum / step_play_color, send to fltk
+    * step_play cmd to set step play cursor
+    * step_play_forward does score_to_real on old and new pos, select
+      performance in that range and send it thru.
+    * Lazy index or zipper for the performer output so I can go forward
+      and back efficiently.  But play wants to skip performance for events
+      before the play point.  If I do that then I can't step before the
+      start point, but I don't have to go through the whole score to reverse
+      it.  The problem is I want to go backwards, and perform doesn't work
+      that way.
+
+      So, start at the given point and retain a reference to the beginning,
+      and step through forwards.  Since there is only one, it can go in
+      Cmd.State and not Performance.  At first, just don't allow step back
+      before the beginning, later I can have it restart the performance from
+      a certain distance back.  However, I think I have to reset midi state
+      because otherwise notes may be in different channels.  I may have to do
+      a reset anyway when stepping back, because midi is not really good at
+      going backwards either.
+
   - I can collapse tracks but can't uncollapse them since I can't get
     selection focus on them.  Maybe a command-click on the divider?
   * should no longer need to rederive for a collapse/expand

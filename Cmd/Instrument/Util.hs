@@ -1,15 +1,14 @@
 -- | Functions for instrument cmds.
 module Cmd.Instrument.Util where
 import qualified Data.Map as Map
+
 import Util.Control
-
 import qualified Midi.Midi as Midi
-
 import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
-import qualified Cmd.Msg as Msg
 import qualified Cmd.MidiThru as MidiThru
+import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
 
 
@@ -34,7 +33,6 @@ keymaps inputs = \msg -> do
     case Map.lookup char to_note of
         Nothing -> return Cmd.Done
         Just (note, key) -> do
-            -- Log.warn $ show (down, char, note, key, repeat)
             case kstate of
                 UiMsg.KeyRepeat -> return ()
                 UiMsg.KeyDown -> keymap_down note key

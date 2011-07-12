@@ -116,3 +116,12 @@ inverse_tempo_func track_warps ts = do
     where
     track_pos = [(tw_block tw, tw_tracks tw, Score.unwarp_pos ts (tw_warp tw))
         | tw <- track_warps, tw_start tw <= ts && ts < tw_end tw]
+
+    -- TODO Comment is obsolete, but I may want to add it back in if I go
+    -- back to using 'Perf.find_play_pos' for the step playback.
+    --
+    -- The guard is for @ts <= tw_end tw@ rather than @<@ which would be
+    -- consistent with the rest of the half-open ranges.  However, it's
+    -- convenient to have the RealTime corresponding to the end of the last
+    -- msg produce a ScoreTime.  Specifically, "Cmd.StepPlay" wants to do
+    -- this.

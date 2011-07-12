@@ -568,6 +568,20 @@ test_make_inverse_tempo_func = do
     equal (map (f . RealTime.seconds) [0..2])
         [with_block 0, with_block 2, []]
 
+test_tempo_roundtrip = do
+    let track_id = Types.TrackId (UiTest.mkid "warp")
+        warp = Internal.tempo_to_warp (Signal.constant 0.987)
+        track_warps = [TrackWarp.Collection
+                0 10 UiTest.default_block_id [track_id] warp]
+    let inv = TrackWarp.inverse_tempo_func track_warps
+        tempo = TrackWarp.tempo_func track_warps
+    let rtimes = concatMap (tempo UiTest.default_block_id track_id) [0..3]
+        stimes = concatMap inv rtimes
+    pprint rtimes
+    pprint stimes
+    -- expected failure
+    -- equal (map snd (concatMap snd stimes)) [0..3]
+
 test_tempo = do
     let extract = e_floor . DeriveTest.e_event
         e_floor (start, dur, text) =

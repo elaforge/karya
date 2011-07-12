@@ -4,11 +4,15 @@
     about the results of later stages.
 -}
 module Cmd.Perf where
+import Control.Monad
 import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
+
 import Ui
+import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
@@ -23,6 +27,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import qualified Perform.Transport as Transport
 
 
 -- * notes
@@ -52,7 +57,7 @@ derive deriver = do
 -- in the root block's performance.
 lookup_signal :: (Cmd.M m) => TrackId -> m (Maybe Track.TrackSignal)
 lookup_signal track_id = do
-    maybe_perf <- lookup_root_performance
+    maybe_perf <- lookup_root
     return $ do
         perf <- maybe_perf
         result <- Map.lookup track_id (Cmd.perf_track_signals perf)
@@ -117,12 +122,58 @@ lookup_instrument block_id track_id = do
 lookup_env :: (Cmd.M m) => BlockId -> TrackId -> TrackLang.ValName
     -> m (Maybe TrackLang.Val)
 lookup_env block_id track_id name =
-    justm lookup_root_performance $ \perf -> do
+    justm lookup_root $ \perf -> do
     let track_env = Cmd.perf_track_environ perf
     return $ Map.lookup name =<< Map.lookup (block_id, track_id) track_env
 
 
+-- * play
+
+-- | Given a block, track, and time, find the realtime at that position.  If
+-- the track is Nothing, use the first track that has tempo information.  This
+-- is necessary because if a track is muted it will have no tempo, but it's
+-- confusing if playing from a muted track fails.
+find_realtime :: (Cmd.M m) => Cmd.Performance -> BlockId -> Maybe TrackId
+    -> ScoreTime -> m RealTime
+find_realtime perf block_id maybe_track_id pos = do
+    track_ids <- maybe (State.track_ids_of block_id) (return . (:[]))
+        maybe_track_id
+    case msum (map tempo track_ids) of
+        Nothing -> Cmd.throw $ show block_id ++ " " ++ show track_ids
+            ++ " has no tempo information, so it probably failed to derive."
+        Just realtime -> return realtime
+    where tempo tid = Seq.head $ Cmd.perf_tempo perf block_id tid pos
+
+
+find_play_pos :: (State.M m) => Transport.InverseTempoFunction
+    -> RealTime -> m [(ViewId, [(TrackNum, ScoreTime)])]
+find_play_pos inv_tempo = block_pos_to_play_pos . inv_tempo
+
+-- | Do all the annoying shuffling around to convert the deriver-oriented
+-- blocks and tracks to the view-oriented views and tracknums.
+block_pos_to_play_pos :: (State.M m) => [(BlockId, [(TrackId, ScoreTime)])]
+    -> m [(ViewId, [(TrackNum, ScoreTime)])]
+block_pos_to_play_pos block_pos = fmap concat (mapM convert block_pos)
+
+convert :: (State.M m) => (BlockId, [(TrackId, ScoreTime)])
+    -> m [(ViewId, [(TrackNum, ScoreTime)])]
+convert (block_id, track_pos) = do
+    view_ids <- fmap Map.keys (State.get_views_of block_id)
+    block <- State.get_block block_id
+    let tracknum_pos = concatMap (tracknums_of block) track_pos
+    return [(view_id, tracknum_pos) | view_id <- view_ids]
+
+tracknums_of :: Block.Block -> (TrackId, ScoreTime) -> [(TrackNum, ScoreTime)]
+tracknums_of block (track_id, pos) =
+    [ (tracknum, pos)
+    | (tracknum, Block.TId tid _)
+        <- zip [0..] (Block.block_tracklike_ids block)
+    , tid == track_id ]
+
 -- * util
 
-lookup_root_performance :: (Cmd.M m) => m (Maybe Cmd.Performance)
-lookup_root_performance = justm State.lookup_root_id Cmd.lookup_performance
+lookup_root :: (Cmd.M m) => m (Maybe Cmd.Performance)
+lookup_root = justm State.lookup_root_id Cmd.lookup_performance
+
+get_root :: (Cmd.M m) => m Cmd.Performance
+get_root = Cmd.require_msg "no root performance" =<< lookup_root

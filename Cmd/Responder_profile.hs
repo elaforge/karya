@@ -56,7 +56,7 @@ profile_selection = do
             Map.insert (UiTest.rid "b1.r0") (UiTest.mkruler 256 1)
                 (State.state_rulers ui_state) }
     let cmd_state2 = modify_edit_state cmd_state $ \st -> st
-            { Cmd.state_step = TimeStep.step
+            { Cmd.state_time_step = TimeStep.step
                 (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
             }
     let states = (ui_state2, cmd_state2)

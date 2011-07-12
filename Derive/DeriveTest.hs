@@ -240,6 +240,10 @@ default_lookup_deriver ui_state = Schema.lookup_deriver Map.empty ui_state
 trace_logs :: [Log.Msg] -> a -> a
 trace_logs logs = Log.trace_logs (filter interesting_log logs)
 
+trace_low_prio :: [Log.Msg] -> [Log.Msg]
+trace_low_prio msgs = Log.trace_logs low high
+    where (high, low) = List.partition interesting_log msgs
+
 -- | Tests generally shouldn't depend on logs below a certain priority since
 -- those don't indicate anything interesting.
 interesting_log :: Log.Msg -> Bool

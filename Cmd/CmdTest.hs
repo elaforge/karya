@@ -42,9 +42,6 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
 
 
-default_block_id = UiTest.default_block_id
-default_view_id = UiTest.default_view_id
-
 -- * running cmds
 
 data Result val = Result {
@@ -63,9 +60,9 @@ run_tracks track_specs =
 
 -- | Run a cmd and return everything you could possibly be interested in.
 run :: State.State -> Cmd.State -> Cmd.CmdId a -> Result a
-run ustate cmd_state0 cmd = Result val cmd_state logs midi_msgs
+run ustate1 cstate1 cmd = Result val cstate2 logs midi_msgs
     where
-    (cmd_state, midi_msgs, logs, result) = Cmd.run_id ustate cmd_state0 cmd
+    (cstate2, midi_msgs, logs, result) = Cmd.run_id ustate1 cstate1 cmd
     val = case result of
         Left err -> Left (Pretty.pretty err)
         Right v -> Right v
@@ -113,7 +110,7 @@ extract_derive_result res = case result_val res of
             ++ err
     where
     mkres = do
-        Cmd.Performance cache events track_env _damage tempo closest_warp
+        Cmd.Performance cache events track_env _damage _warps tempo closest_warp
             inv_tempo tsigs <- Perf.get_root
         return $ Derive.Result events cache tempo closest_warp inv_tempo tsigs
             track_env
@@ -143,7 +140,7 @@ thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
 default_cmd_state :: Cmd.State
 default_cmd_state =
     (Cmd.initial_state DeriveTest.default_db Map.empty Call.All.scope)
-        { Cmd.state_focused_view = Just default_view_id
+        { Cmd.state_focused_view = Just UiTest.default_view_id
         , Cmd.state_edit = default_edit_state
         , Cmd.state_play = default_play_state
         }
@@ -154,7 +151,7 @@ default_play_state =
 
 default_edit_state :: Cmd.EditState
 default_edit_state = Cmd.initial_edit_state
-    { Cmd.state_step = UiTest.step1
+    { Cmd.state_time_step = UiTest.step1
     , Cmd.state_note_duration = UiTest.step1
     }
 
@@ -166,9 +163,15 @@ set_sel t0 p0 t1 p1 = do
     let sel = Types.selection t0 p0 t1 p1
     State.set_selection UiTest.default_view_id Config.insert_selnum (Just sel)
 
-set_sel_point :: (Cmd.M m) => Types.TrackNum -> ScoreTime -> m ()
-set_sel_point tracknum pos = State.set_selection UiTest.default_view_id
-    Config.insert_selnum (Just (Types.point_selection tracknum pos))
+set_point_sel :: (Cmd.M m) => Types.TrackNum -> ScoreTime -> m ()
+set_point_sel = set_point_sel_block UiTest.default_block_name
+
+-- | Set a point selection on the default view of the given block name.
+set_point_sel_block :: (Cmd.M m) => String -> Types.TrackNum -> ScoreTime
+    -> m ()
+set_point_sel_block block_name tracknum pos = State.set_selection view_id
+        Config.insert_selnum (Just (Types.point_selection tracknum pos))
+    where view_id = UiTest.mk_vid_name block_name
 
 
 -- * extractors
@@ -182,16 +185,16 @@ trace_logs res = case res of
     where
     trace = Trace.trace . Seq.strip . unlines . ("\tlogged:":)
 
+e_logs :: Result a -> [String]
+e_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio . result_logs
+
 -- ** val
 
 extract :: (val -> e_val) -> Result val
-    -> Either String (Maybe e_val, [String])
-extract extract_val result = fmap ex (e_val result)
-    where
-    ex (val, logs) = (fmap extract_val val, map DeriveTest.show_log logs)
-    e_val :: Result val -> Either String (Maybe val, [Log.Msg])
-    e_val res = either Left (\(v, _, _) -> Right (v, result_logs res))
-        (result_val res)
+    -> Either String ((Maybe e_val), [String])
+extract f res = case result_val res of
+        Right (val, _, _) -> Right (fmap f val, e_logs res)
+        Left err -> Left err
 
 -- ** state
 
@@ -201,10 +204,9 @@ type Extract e = State.State -> Cmd.State -> e
 extract_state :: (State.State -> Cmd.State -> e) -> Result val
     -> Either String (e, [String])
 extract_state f res = case result_val res of
-    Right (_, ustate, _) ->
-        Right (f ustate (result_cmd_state res),
-            map DeriveTest.show_log (result_logs res))
-    Left err -> Left err
+        Right (_, ustate, _) ->
+            Right (f ustate (result_cmd_state res), e_logs res)
+        Left err -> Left err
 
 e_tracks :: Result a -> Either String ([(String, [Simple.Event])], [String])
 e_tracks = extract_state $ \state _ -> UiTest.extract_tracks state
@@ -303,7 +305,7 @@ set_env root_id block_id track_id environ =
     where
     track_env = Map.singleton (block_id, track_id) (Map.fromList environ)
     perf = Cmd.Performance mempty [] track_env mempty
-        dummy_tempo dummy_closest_warp dummy_inv_tempo mempty
+        [] dummy_tempo dummy_closest_warp dummy_inv_tempo mempty
 
 make_pthread :: Cmd.Performance -> Cmd.PerformanceThread
 make_pthread perf = Unsafe.unsafePerformIO $ do

@@ -63,18 +63,22 @@ mouse_select = 1
 
 -- | SelNum of the insertion selection.
 insert_selnum :: Types.SelNum
-insert_selnum = 0
-
 error_selnum :: Types.SelNum
-error_selnum = 3
-error_selnum_color :: Color.Color
-error_selnum_color = make_selection_color Color.red
-
+step_play_selnum :: Types.SelNum
 -- | SelNum of the play position indicator.
 play_position_selnum :: Types.SelNum
-play_position_selnum = 4
-play_position_color :: Color.Color
-play_position_color = make_selection_color Color.purple
+
+[ (insert_selnum, _)
+    , _, _ -- I don't do anything with these selections yet.
+    , (error_selnum, error_selection_color)
+    , (play_position_selnum, play_selection_color)
+    , (step_play_selnum, _)
+    ] = zip [0..] bconfig_selection_colors
+
+bconfig_selection_colors :: [Color.Color]
+bconfig_selection_colors = map make_selection_color
+    [Color.blue, Color.green, Color.yellow, Color.red, Color.purple,
+        Color.turquoise]
 
 
 -- * colors
@@ -148,10 +152,6 @@ make_selection_color = Color.alpha 0.3 . Color.brightness 1.25
 
 -- * hardcoded configs
 
-bconfig_selection_colors =
-    [sel Color.blue, sel Color.green, sel Color.yellow, error_selnum_color,
-        play_position_color]
-    where sel = make_selection_color
 bconfig_bg_color = Color.gray8
 bconfig_track_box = (box_color, ' ')
 bconfig_sb_box = (box_color, ' ')

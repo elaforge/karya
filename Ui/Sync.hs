@@ -122,17 +122,16 @@ set_track_signals state track_signals =
 -- This is because it happens asynchronously and would be noisy and inefficient
 -- to work into the responder loop, and isn't part of the usual state that
 -- should be saved anyway.
-set_play_position :: [(ViewId, [(TrackNum, Maybe ScoreTime)])] -> IO ()
+set_play_position :: [(ViewId, [(TrackNum, ScoreTime)])] -> IO ()
 set_play_position block_sels = Ui.send_action $ sequence_
     [ BlockC.set_track_selection False view_id
-        Config.play_position_selnum tracknum (sel_at pos)
+        Config.play_position_selnum tracknum (Just (sel_at pos))
     | (view_id, track_pos) <- block_sels, (tracknum, pos) <- track_pos
     ]
     where
-    sel_at maybe_pos = case maybe_pos of
-        Nothing -> Nothing
-        Just pos -> Just $ BlockC.CSelection Config.play_position_color
-            (Types.Selection 0 pos 0 pos)
+    sel_at pos = BlockC.CSelection Config.play_selection_color
+        (Types.selection 0 pos 0 pos)
+        -- The 0s are dummy values since set_track_selection ignores them.
 
 clear_play_position :: ViewId -> IO ()
 clear_play_position view_id = Ui.send_action $

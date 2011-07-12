@@ -302,6 +302,9 @@ get_midi_config = gets state_midi_config
 set_midi_config :: (M m) => Instrument.Config -> m ()
 set_midi_config config = modify $ \st -> st { state_midi_config = config }
 
+get_midi_alloc :: (M m) => m (Map.Map Score.Instrument [Instrument.Addr])
+get_midi_alloc = Instrument.config_alloc <$> get_midi_config
+
 get_default :: (M m) => (Default -> a) -> m a
 get_default f = f <$> gets state_default
 

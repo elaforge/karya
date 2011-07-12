@@ -37,30 +37,30 @@
     events.
 -}
 module Cmd.GlobalKeymap where
-import qualified App.Config as Config
-
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
-import qualified Cmd.Keymap as Keymap
-import Cmd.Keymap (bind_key, bind_char, bind_mod, bind_click, bind_drag,
-    command, command_char, command_only, SimpleMod(..))
-
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Clip as Clip
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Keymap as Keymap
+import Cmd.Keymap
+       (bind_key, bind_char, bind_mod, bind_click, bind_drag, command,
+        command_char, command_only, SimpleMod(..))
+import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
+import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified Perform.Transport as Transport
+import qualified App.Config as Config
 
 
 global_cmds :: [Cmd.Cmd]
@@ -117,9 +117,9 @@ quit_bindings = [(kspec, cspec) | kspec <- kspecs]
 -- * pure cmds
 
 (cmd_map, cmd_map_errors) = Keymap.make_cmd_map $ concat
-    [ mouse_bindings, selection_bindings, view_config_bindings
-    , block_config_bindings, edit_state_bindings, event_bindings
-    , pitch_bindings, create_bindings, clip_bindings
+    [ mouse_bindings, selection_bindings, step_play_bindings
+    , view_config_bindings, block_config_bindings, edit_state_bindings
+    , event_bindings, pitch_bindings, create_bindings, clip_bindings
     ]
 
 -- | I bind the mouse by device rather than function, since I can't detect
@@ -171,6 +171,14 @@ selection_bindings = concat
         (Selection.cmd_track_all selnum)
     ]
     where selnum = Config.insert_selnum
+
+step_play_bindings :: (Cmd.M m) => [Keymap.Binding m]
+step_play_bindings = concat
+    [ bind_mod [PrimaryCommand] Key.Down "advance step play"
+        StepPlay.cmd_set_or_advance
+    , bind_mod [PrimaryCommand] Key.Up "rewind step play" StepPlay.cmd_rewind
+    , bind_mod [Shift] (Key.KeyChar ' ') "clear step play" StepPlay.cmd_clear
+    ]
 
 view_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
 view_config_bindings = concat
@@ -239,12 +247,12 @@ event_bindings = concat
     -- J = move previous event down, K = move next event up.
     [ command_char 'J' "move event forward" Edit.cmd_move_event_forward
     , command_char 'K' "move event back" Edit.cmd_move_event_back
+    , command_char 'j' "insert time" Edit.cmd_insert_time
+    , command_char 'k' "delete time" Edit.cmd_delete_time
     -- Unlike other event editing commands, you don't have to be in insert
     -- mode to remove events.  Maybe I'll change that later.
     , command Key.Backspace "clear selected" Edit.cmd_clear_selected
-    , bind_mod [PrimaryCommand] Key.Down "insert time" Edit.cmd_insert_time
-    , bind_mod [PrimaryCommand] Key.Up "delete time" Edit.cmd_delete_time
-    , command_char 'j' "join events" Edit.cmd_join_events
+    , command_char 'o' "join events" Edit.cmd_join_events
     ]
 
 -- | Bindings which work on pitch tracks.  The reason this is global rather

@@ -14,7 +14,7 @@ extern const Color abbreviation_color;
 extern const Color event_trigger_color;
 
 enum {
-    max_selections = 5,
+    max_selections = 6,
     font = FL_HELVETICA
 };
 
