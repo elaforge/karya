@@ -36,7 +36,7 @@ big things
 
 UNSORTED
   - fix-imports bug: two line comment in Cmd.Play lost its first line
-  - shift-space should emit all notes off even if there is no step play active
+  * shift-space should emit all notes off even if there is no step play active
     or maybe space when it's not playing
   * use State.get_midi_alloc in more places?
   - Keymap doesn't support KeyRepeat, I should be able to tag certain cmds as

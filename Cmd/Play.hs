@@ -81,6 +81,7 @@ import Control.Monad
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -101,6 +102,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
+import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Midi.Play as Midi.Play
@@ -151,6 +153,17 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     Trans.liftIO $ Thread.start $ updater_thread
         updater_ctl transport_info (Cmd.perf_inv_tempo perf) start ui_state
     modify $ \st -> st { Cmd.state_play_control = Just play_ctl }
+    return Cmd.Done
+
+-- | Context sensitive stop that stops whatever is going on.  First it stops
+-- realtime play, then step play, and then it just sends all notes off.
+cmd_context_stop :: Cmd.CmdIO
+cmd_context_stop = do
+    playing <- Maybe.isJust . Cmd.state_play_control <$> get
+    if playing then cmd_stop else do
+    step_playing <- Cmd.gets (Maybe.isJust . Cmd.state_step . Cmd.state_play)
+    if step_playing then (StepPlay.cmd_clear >> return Cmd.Done) else do
+    Cmd.all_notes_off
     return Cmd.Done
 
 cmd_stop :: Cmd.CmdIO

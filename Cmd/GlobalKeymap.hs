@@ -101,7 +101,7 @@ player_bindings transport_info = concat
         (Play.cmd_play_from_previous_step transport_info)
     , bind_mod [Shift, PrimaryCommand] Key.Enter "play from previous root step"
         (Play.cmd_play_from_previous_root_step transport_info)
-    , bind_char ' ' "stop play" Play.cmd_stop
+    , bind_char ' ' "stop" Play.cmd_context_stop
     ]
 
 -- | Quit is special because it's the only Cmd that returns Cmd.Quit.
@@ -177,7 +177,6 @@ step_play_bindings = concat
     [ bind_mod [PrimaryCommand] Key.Down "advance step play"
         StepPlay.cmd_set_or_advance
     , bind_mod [PrimaryCommand] Key.Up "rewind step play" StepPlay.cmd_rewind
-    , bind_mod [Shift] (Key.KeyChar ' ') "clear step play" StepPlay.cmd_clear
     ]
 
 view_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
