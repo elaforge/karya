@@ -43,7 +43,7 @@ UNSORTED
     being repeatable
   * need EventStart / EventEnd TimeSteps that work across all tracks
   * step play on block two shows its selection on block one
-  - CmdTest.run_again is crummy because the fail of Left is confusing and
+  * CmdTest.run_again is crummy because the fail of Left is confusing and
     makes the result non-polymorphic
   - why does the track in StepPlay_test put notes on channel 1?
   - find someplace to document that when a Cmd throws, the UI state is
@@ -221,7 +221,7 @@ UNSORTED
       It would be nice to make them calls in the scopes, so they can be
       rebound like other calls.  This is effectively moving the Schema into
       calls.  Then I can entirely get rid of it.
-      - move Schema.default_schema_deriver into c_block
+      * move Schema.default_schema_deriver into c_block
       - make Schema.derive_track into a call
       The thing is block takes 'BlockId' and track takes (BlockId, TreeNode),
       not CallArgs.  And it doesn't make sense to call from the tracks anyway,
@@ -239,7 +239,7 @@ UNSORTED
       were rederived.
 
   profiles
-    - profile edits (with and without auto-rederive)
+    profile edits
       - without auto-rederive
       - with auto-rederive, derive to end
     - derivation
@@ -247,11 +247,9 @@ UNSORTED
         the entire thing
 
   cleanup
-    - get rid of Diff.track_diff by doing all diffs in the main diff, and
-      avoid sending msgs back to the UI by having ui msgs cancel updates.
     - now that the signal deriver is gone, I can also get rid of ignore_tempo,
       unless I want to use it for a lilypond backend or something
-    - maybe I could split CacheState into the writable portion, in Collect, and
+    * maybe I could split CacheState into the writable portion, in Collect, and
       the read-only cache from the previous run, in Constant
 
     / instead of building log dup suppressing logic into various functions,
@@ -292,7 +290,7 @@ UNSORTED
 
   play:
     - cmd to play current line, or play current or previous note
-    - start playing n notes previous, then cmds to step forward and back,
+    * start playing n notes previous, then cmds to step forward and back,
       note-by-note, so playback can be controlled manually.
       I could use the playback selection to indicate where it is.
     - playback should have multiple lines when a block is derived multiple
@@ -314,7 +312,7 @@ UNSORTED
       this to other State attrs too?
 
   - I think PitchSignals may need to be reworked.  They should be (Note, Note,
-    Frac).  Otherwise, it's not clear what to call 4a# vs. 4ab.  I can still
+    Frac).  Otherwise, it's not clear what to call 4a# vs. 4bb.  I can still
     use numbers (Ints this time) as indices into a table of names, but e.g.
     (4c 50) will have to become (4c, 4c#, 0.5) instead of (60.5, 60.5, 0).
     But this means displaying the signal will become more straightforward.
@@ -438,7 +436,7 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
-  - keymap collisions are logged twice
+  * keymap collisions are logged twice
   - Create.rename_project loses the merged tracks
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   * track down ghc rts crashes, assertion failure

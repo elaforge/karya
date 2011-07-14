@@ -52,7 +52,7 @@ test_cmd_method_edit = do
 
     -- tab falls through, does not create an event with tab
     equal (run_tracks [] (f (CmdTest.make_key UiMsg.KeyDown Key.Tab))) $
-        Right []
+        Left "aborted"
 
 test_parse = do
     let f = PitchTrack.parse

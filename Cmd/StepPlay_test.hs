@@ -82,9 +82,9 @@ test_move = do
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
 
     -- Ran out of notes.
-    failed <- return $ CmdTest.run_again res StepPlay.cmd_advance
-    equal (e_midi failed) []
-    left_like (CmdTest.extract_ui get_sel failed) "can't advance for step play"
+    res <- return $ CmdTest.run_again res StepPlay.cmd_advance
+    equal (e_midi res) []
+    left_like (CmdTest.extract_ui get_sel res) "can't advance for step play"
 
     -- Rewind then forward.
     res <- return $ CmdTest.run_again res StepPlay.cmd_rewind

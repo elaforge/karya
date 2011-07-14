@@ -46,11 +46,19 @@ import qualified App.Config as Config
 
 data Result val = Result {
     -- | A Nothing val means it aborted.
-    result_val :: Either String (Maybe val, State.State, [Update.Update])
+    result_val :: Either String (Maybe val)
     , result_cmd_state :: Cmd.State
+    , result_ui_state :: State.State
+    , result_updates :: [Update.Update]
     , result_logs :: [Log.Msg]
     , result_midi :: [(Midi.WriteDevice, Midi.Message)]
     }
+
+result_failed :: Result a -> Maybe String
+result_failed res = case result_val res of
+    Right (Just _) -> Nothing
+    Right Nothing -> Just "aborted"
+    Left err -> Just err
 
 -- | Run cmd with the given tracks.
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
@@ -60,19 +68,19 @@ run_tracks track_specs =
 
 -- | Run a cmd and return everything you could possibly be interested in.
 run :: State.State -> Cmd.State -> Cmd.CmdId a -> Result a
-run ustate1 cstate1 cmd = Result val cstate2 logs midi_msgs
+run ustate1 cstate1 cmd = Result val cstate2 ustate2 updates logs midi_msgs
     where
     (cstate2, midi_msgs, logs, result) = Cmd.run_id ustate1 cstate1 cmd
-    val = case result of
-        Left err -> Left (Pretty.pretty err)
-        Right v -> Right v
+    (val, ustate2, updates) = case result of
+        Left err -> (Left (Pretty.pretty err), ustate1, [])
+        Right (v, ustate2, updates) -> (Right v, ustate2, updates)
 
 -- | Run a Cmd and return just the value.
 eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
 eval ustate cstate cmd = case result_val (run ustate cstate cmd) of
     Left err -> error $ "eval got StateError: " ++ show err
-    Right (Nothing, _, _) -> error "eval: cmd aborted"
-    Right (Just val, _, _) -> val
+    Right Nothing -> error "eval: cmd aborted"
+    Right (Just val) -> val
 
 -- | Like 'run', but with a selection on the given track at 0 and note
 -- duration set to what will be a ScoreTime 1 with the ruler supplied by
@@ -83,19 +91,15 @@ run_sel tracknum track_specs cmd = run_tracks track_specs $ do
     set_sel (tracknum+1) 0 (tracknum+1) 0
     cmd
 
-run_again :: Result a -> Cmd.CmdId a -> Result a
-run_again res cmd = case result_val res of
-    Left _ -> res
-    Right (_, ustate, _) -> run ustate (result_cmd_state res) cmd
+run_again :: Result a -> Cmd.CmdId b -> Result b
+run_again res = run (result_ui_state res) (result_cmd_state res)
 
 update_perf :: State.State -> Result val -> IO (Result val)
-update_perf ui_from result = case result_val result of
-    Right (_, ui_to, updates) -> do
-        cmd_state <- update_performance ui_from ui_to
-            (result_cmd_state result) updates
-        Thread.delay 0.2
-        return $ result { result_cmd_state = cmd_state }
-    _ -> return result
+update_perf ui_from res = do
+    cmd_state <- update_performance ui_from (result_ui_state res)
+        (result_cmd_state res) (result_updates res)
+    Thread.delay 0.2
+    return $ res { result_cmd_state = cmd_state }
 
 -- | Run a DeriveTest extractor on a CmdTest Result.
 extract_derive :: (Score.Event -> a) -> Result _a -> ([a], [String])
@@ -104,11 +108,11 @@ extract_derive ex = DeriveTest.extract ex . extract_derive_result
 -- | Reconstruct a Derive.Result from the root performance, or throw an
 -- exception if there is a problem getting it.
 extract_derive_result :: Result a -> Derive.Result
-extract_derive_result res = case result_val res of
-        Right (_, ustate, _) -> eval ustate (result_cmd_state res) mkres
-        Left err -> error $ "can't extract_derive_result from error result: "
-            ++ err
+extract_derive_result res =
+    maybe (eval (result_ui_state res) (result_cmd_state res) mkres)
+        (error . (msg++)) (result_failed res)
     where
+    msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
         Cmd.Performance cache events track_env _damage _warps tempo closest_warp
             inv_tempo tsigs <- Perf.get_root
@@ -126,15 +130,16 @@ update_performance ui_from ui_to cmd_state cmd_updates = do
         send_status ui_from ui_to cmd_state updates
     where send_status _bid _status = return ()
 
--- | Run several cmds, threading the state through.
+-- | Run several cmds, threading the state through.  The first cmd that fails
+-- aborts the whole operation.
 thread :: State.State -> Cmd.State -> [Cmd.CmdId a]
     -> Either String (State.State, Cmd.State)
 thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     where
     f (Right (ustate, cstate)) cmd = case run ustate cstate cmd of
-        Result (Right (_, ustate2, _)) cstate2 logs _ ->
+        Result (Right _) cstate2 ustate2 _ logs _ ->
             Log.trace_logs logs $ Right (ustate2, cstate2)
-        Result (Left err) _ _ _ -> Left (show err)
+        Result (Left err) _ _ _ _ _ -> Left (show err)
     f (Left err) _ = Left err
 
 default_cmd_state :: Cmd.State
@@ -190,23 +195,24 @@ e_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio . result_logs
 
 -- ** val
 
+-- | Extract the value from a cmd.  This is meant to be used as the single
+-- check on a cmd operation, so it also returns logs and whether the cmd
+-- failed or not (the latter is mandatory since otherwise there is no value).
 extract :: (val -> e_val) -> Result val
     -> Either String ((Maybe e_val), [String])
 extract f res = case result_val res of
-        Right (val, _, _) -> Right (fmap f val, e_logs res)
-        Left err -> Left err
+    Right val -> Right (fmap f val, e_logs res)
+    Left err -> Left err
 
 -- ** state
 
-type Extract e = State.State -> Cmd.State -> e
-
--- | Get something out of the Result from one of the states.
+-- | Get something out of the Result from one of the states.  Like 'extract',
+-- this is meant to be used as the single check on a cmd operation.
 extract_state :: (State.State -> Cmd.State -> e) -> Result val
     -> Either String (e, [String])
-extract_state f res = case result_val res of
-        Right (_, ustate, _) ->
-            Right (f ustate (result_cmd_state res), e_logs res)
-        Left err -> Left err
+extract_state f res = maybe
+    (Right (f (result_ui_state res) (result_cmd_state res), e_logs res))
+    Left (result_failed res)
 
 e_tracks :: Result a -> Either String ([(String, [Simple.Event])], [String])
 e_tracks = extract_state $ \state _ -> UiTest.extract_tracks state

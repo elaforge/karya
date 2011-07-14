@@ -44,8 +44,6 @@ clip_id = Types.BlockId (Id.id clip_ns Config.clip_block_name)
 with_clip state cstate = State.error_either "with_clip" $
     State.exec state (Clip.state_to_namespace cstate clip_ns)
 
-run_clip ustate cmd = CmdTest.run ustate default_cmd_state cmd
-
 extract_block :: BlockId -> CmdVal a -> (a, Simple.Block, [Log.Msg])
 extract_block block_id (val, ustate, _cstate, logs) = (val, block, logs)
     where Right block = State.eval ustate (Simple.dump_block block_id)
@@ -59,16 +57,17 @@ default_cmd_state = Cmd.empty_state
 
 type CmdVal a = (a, State.State, Cmd.State, [Log.Msg])
 
--- TODO there's no reason for this to be in IO
-run_io :: State.State -> Cmd.CmdId a -> IO (CmdVal a)
-run_io ustate m = return (extract (run_clip ustate m))
+-- TODO integrate into CmdTest extract functions
+run_cmd :: State.State -> Cmd.CmdId a -> CmdVal a
+run_cmd ustate m = extract (run_clip ustate m)
     where
     extract res = case CmdTest.result_val res of
-        Right (maybe_val, ustate, _) -> case maybe_val of
-            Nothing -> error "abort"
-            Just val -> (val, ustate, CmdTest.result_cmd_state res,
+        Right (Just val) ->
+            (val, CmdTest.result_ui_state res, CmdTest.result_cmd_state res,
                 CmdTest.result_logs res)
+        Right Nothing -> error "aborted"
         Left err -> error $ "state error: " ++ show err
+    run_clip ustate cmd = CmdTest.run ustate default_cmd_state cmd
 
 
 extract_events :: Simple.Block -> [[Simple.Event]]
@@ -78,8 +77,8 @@ mksel :: TrackNum -> ScoreTime -> TrackNum -> ScoreTime
     -> Maybe Types.Selection
 mksel a b c d = Just (Types.Selection a b c d)
 
-run_sel :: State.State -> Maybe Types.Selection -> Cmd.CmdId a -> IO (CmdVal a)
-run_sel ustate sel cmd = run_io ustate $ do
+run_sel :: State.State -> Maybe Types.Selection -> Cmd.CmdId a -> CmdVal a
+run_sel ustate sel cmd = run_cmd ustate $ do
     State.set_selection UiTest.default_view_id Config.insert_selnum sel
     cmd
 
@@ -88,7 +87,9 @@ set_sel sel = State.set_selection
 
 -- * copy
 
-run_copy ustate sel cmd = fmap
+run_copy :: State.State -> Maybe Types.Selection -> Cmd.CmdId a
+    -> [[Simple.Event]]
+run_copy ustate sel cmd =
     (extract_events . state_val . extract_block clip_id)
     (run_sel ustate sel cmd)
 
@@ -96,22 +97,22 @@ test_cmd_copy_selection = do
     let state = events_state
     let run = run_copy state
 
-    io_equal (run (mksel 1 4 1 8) Clip.cmd_copy_selection)
+    equal (run (mksel 1 4 1 8) Clip.cmd_copy_selection)
         [[(0, 2, "e12")]]
     -- I get the same event, but also the empty space before it.
     -- Events are not clipped.
-    io_equal (run (mksel 1 1 1 5) Clip.cmd_copy_selection)
+    equal (run (mksel 1 1 1 5) Clip.cmd_copy_selection)
         [[(3, 2, "e12")]]
 
-    io_equal (run (mksel 1 1 2 5) Clip.cmd_copy_selection)
+    equal (run (mksel 1 1 2 5) Clip.cmd_copy_selection)
         [ [(3, 2, "e12")]
         , [(0, 2, "e21")]
         ]
 
 test_namespace_ops = do
-    let run state cmd = do fmap (\(_, state, _, _) -> state) (run_io state cmd)
+    let run state cmd = (\(_, state, _, _) -> state) (run_cmd state cmd)
 
-    state <- run events_state $ do
+    state <- return $ run events_state $ do
         set_sel $ mksel 1 1 2 4
         Clip.cmd_copy_selection
     -- TODO it's too hard at the moment to make sure they have been set, so
@@ -120,18 +121,22 @@ test_namespace_ops = do
     pprint (snd (State.verify state))
     check_msg $ valid_state state
 
-    state <- run state $ Clip.clear_clip
+    state <- return $ run state $ Clip.clear_clip
     pprint (UiTest.block_structure state)
     check_msg $ valid_state state
 
+valid_state :: State.State -> (Bool, String)
 valid_state state = (null msgs, show msgs)
     where (_, msgs) = State.verify state
 
 -- * paste
 
-run_paste state sel cmd = fmap
-    (extract_events . state_val . extract_block UiTest.default_block_id)
-    (run_sel state sel cmd)
+-- | This is in IO to make binding over the previous @res@ more convenient
+-- in the tests.
+run_paste :: State.State -> Maybe Types.Selection -> Cmd.CmdId a
+    -> IO [[Simple.Event]]
+run_paste state sel = return . extract_events . state_val
+    . extract_block UiTest.default_block_id . run_sel state sel
 
 test_cmd_paste_overwrite = do
     state <- with_clip events_state clip_state
