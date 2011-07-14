@@ -29,7 +29,8 @@ selnum = Config.step_play_selnum
 
 cmd_set_or_advance :: (Cmd.M m) => m ()
 cmd_set_or_advance =
-    maybe cmd_set (const cmd_advance) =<< Selection.lookup_selnum selnum
+    maybe (cmd_set >> cmd_advance) (const cmd_advance)
+        =<< Selection.lookup_selnum selnum
 
 -- | Place the play step position at the 'Cmd.state_play_step' before the
 -- insert point and prepare the performance.
@@ -42,6 +43,7 @@ cmd_set = do
     -- failing
     start <- Maybe.fromMaybe sel_pos <$>
         TimeStep.rewind step block_id tracknum sel_pos
+    start <- TimeStep.snap play_step block_id tracknum Nothing start
     cmd_set_at view_id tracknum track_id start
 
 cmd_set_at :: (Cmd.M m) => ViewId -> TrackNum -> TrackId -> ScoreTime -> m ()
@@ -132,10 +134,10 @@ move forward = do
     -- each point and then emit the msgs necessary to restore that state,
     -- I'll implement that if it turns out I want it.
     when forward (play_msgs msgs)
-    where
-    play_step :: TimeStep.TimeStep
-    play_step = TimeStep.merge 0 (TimeStep.EventEnd TimeStep.AllTracks) $
-        TimeStep.step (TimeStep.EventStart TimeStep.AllTracks)
+
+play_step :: TimeStep.TimeStep
+play_step = TimeStep.merge 0 (TimeStep.EventEnd TimeStep.AllTracks) $
+    TimeStep.step (TimeStep.EventStart TimeStep.AllTracks)
 
 get_selection :: (Cmd.M m) => m (ScoreTime, BlockId)
 get_selection = do
