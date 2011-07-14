@@ -547,7 +547,7 @@ mksignal = Signal.signal . interpolate
     interpolate ((x0, y0) : rest@((x1, y1) : _))
         | x0 >= x1 = interpolate rest
         | otherwise = [(x, SignalBase.y_at (d x0) y0 (d x1) y1 (d x))
-            | x <- Seq.range x0 (x1-1) 1] ++ interpolate rest
+            | x <- Seq.rangeEnd x0 (x1-1) 1] ++ interpolate rest
     interpolate val = val
     d = SignalBase.x_to_double
 

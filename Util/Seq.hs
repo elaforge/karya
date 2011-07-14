@@ -21,6 +21,15 @@ range :: (Num a, Ord a) => a -> a -> a -> [a]
 range start end step = go 0
     where
     go i
+        | val > end = []
+        | otherwise = val : go (i+1)
+        where val = start + (i*step)
+
+-- | Like 'range', but includes the end.
+rangeEnd :: (Num a, Ord a) => a -> a -> a -> [a]
+rangeEnd start end step = go 0
+    where
+    go i
         | val >= end = [end]
         | otherwise = val : go (i+1)
         where val = start + (i*step)

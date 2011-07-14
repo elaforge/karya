@@ -692,9 +692,12 @@ remove_track block_id tracknum = do
 -- range, but is convenient in practice.
 -- TODO why?
 block_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.Track)
-block_track_at block_id tracknum = do
-    block <- get_block block_id
-    return $ Seq.at (Block.block_tracks block) tracknum
+block_track_at block_id tracknum
+    | tracknum < 0 =
+        throw $ "block_track_at: negative tracknum " ++ show tracknum
+    | otherwise = do
+        block <- get_block block_id
+        return $ Seq.at (Block.block_tracks block) tracknum
 
 track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.TracklikeId)
 track_at block_id tracknum = do
@@ -706,6 +709,13 @@ event_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe TrackId)
 event_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
     return $ Block.track_id_of =<< maybe_track
+
+-- | Like 'track_at', but only for event tracks.  It defaults to 'no_ruler'
+-- if the tracknum is out of range or doesn't have a ruler.
+ruler_track_at :: (M m) => BlockId -> TrackNum -> m RulerId
+ruler_track_at block_id tracknum = do
+    maybe_track <- track_at block_id tracknum
+    return $ Maybe.fromMaybe no_ruler $ Block.ruler_id_of =<< maybe_track
 
 -- | Like 'event_track_at' but throws if it's not there.
 get_event_track_at :: (M m) => String -> BlockId -> TrackNum -> m TrackId

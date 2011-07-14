@@ -18,7 +18,7 @@ import qualified App.Config as Config
 
 test_display_track = do
     let ([tid1, tid2], st1) = UiTest.run_mkstate [(">", []), ("*", [])]
-        rid = UiTest.rid "b1.r0"
+        rid = UiTest.default_ruler_id
         st2 = UiTest.exec st1 (State.merge_track UiTest.default_block_id 1 2)
     equal (diff st1 st2) $ Right
         [ Update.BlockUpdate bid (Update.DisplayTrack 1

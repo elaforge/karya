@@ -66,6 +66,9 @@ default_block_name = "b1"
 default_view_id :: ViewId
 default_view_id = mk_vid default_block_id
 
+default_ruler_id :: RulerId
+default_ruler_id = rid "r1"
+
 -- | Return the val and state, throwing an IO error on an exception.  Intended
 -- for tests that don't expect to fail here.
 run :: State.State -> State.StateId a -> (a, State.State)
@@ -105,9 +108,10 @@ mkviews blocks = mapM mkview =<< mkblocks blocks
 
 mkstate_id :: (State.M m) => BlockId -> [TrackSpec] -> m [TrackId]
 mkstate_id block_id tracks = do
-    let (ns, block_name) = Id.un_id (Id.unpack_id block_id)
-    ruler_id <- State.create_ruler (Id.id ns (block_name ++ ".r0"))
-        default_ruler
+    maybe_rid <- State.lookup_ruler default_ruler_id
+    ruler_id <- maybe
+        (State.create_ruler (Id.unpack_id default_ruler_id) default_ruler)
+        (const (return default_ruler_id)) maybe_rid
     mkstate_id_ruler block_id ruler_id tracks
 
 -- | Like 'mkstate_id', but uses the provided ruler instead of creating its

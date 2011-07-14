@@ -1,10 +1,8 @@
 module Cmd.TimeStep_test where
 
 import Util.Test
-import qualified Ui.Event as Event
-import qualified Ui.Ruler as Ruler
+import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
-
 import qualified Cmd.TimeStep as TimeStep
 import Cmd.TimeStep (Step(..), MarklistMatch(..), EventEdge(..))
 
@@ -26,34 +24,33 @@ test_show_step = do
             (merge 0 (EventStart CurrentTrack) (mk 0 (EventEnd CurrentTrack))))
         "start;end"
 
-test_all_points = do
-    let f = TimeStep.all_points mlists [events] 3
-        events = [(2, Event.event "" 1), (4, Event.event "" 1)]
-        mlists = [Ruler.marklist "meter"
-            [(p, Ruler.null_mark) | p <- [0, 5, 10, 15]]]
-        start = EventStart CurrentTrack
-        end = EventEnd CurrentTrack
-    equal (f (mk 0 BlockEnd)) [0, 15]
-    equal (f (mk 0 start)) [2, 4]
-    equal (f (mk 0 end)) [3, 5]
-    equal (f (mk 0 (RelativeMark AllMarklists 0))) [3, 8, 13, 18]
-    equal (f (merge 0 BlockEnd (mk 0 start))) [0, 2, 4, 15]
-    equal (f (merge 0 BlockEnd (mk 0 (AbsoluteMark AllMarklists 0))))
-        [0, 5, 10, 15]
-
-    equal (f (merge 0 end (mk 0 start))) [2, 3, 4, 5]
-    -- TODO test different mark ranks
-
 test_get_points = do
-    let ustate = snd $ UiTest.run_mkstate
-            [ (">", [(0, 1, "a"), (2, 1, "b")])
-            , ("c", [(0, 0, "1"), (5, 0, "2")])
-            ]
-    let f step pos = UiTest.eval ustate $
+    let ustate = UiTest.exec State.empty $ do
+            UiTest.mkstate UiTest.default_block_name
+                [ (">", [(0, 1, "a"), (2, 1, "b")])
+                , ("c", [(0, 0, "1"), (5, 0, "2")])
+                ]
+            State.modify_ruler UiTest.default_ruler_id $
+                const (UiTest.mkruler 8 1)
+    let f pos step = UiTest.eval ustate $
             TimeStep.get_points step UiTest.default_block_id 1 pos
-    equal (f (mk 0 (EventStart CurrentTrack)) 0) (Just [0, 2])
-    equal (f (mk 0 (EventStart AllTracks)) 0) (Just [0, 2, 5])
-    equal (f (merge 0 (EventEnd AllTracks) (mk 0 (EventStart AllTracks))) 0)
+    equal (f 0 (mk 0 (Absolute 32))) (Just [0])
+    equal (f 3 (mk 0 (Absolute 32))) (Just [3])
+    equal (f 0 (mk 0 (Absolute 3))) (Just [0, 3, 6])
+    equal (f 1 (mk 0 (Absolute 3))) (Just [1, 4, 7])
+    equal (f 0 (mk 1 (Absolute 3))) (Just [0, 6])
+    equal (f 0 (mk 0 (AbsoluteMark AllMarklists 1))) (Just [0, 4])
+    equal (f 1 (mk 0 (AbsoluteMark AllMarklists 1))) (Just [0, 4])
+    equal (f 0 (mk 0 (AbsoluteMark AllMarklists 2))) (Just [0..7])
+    equal (f 0 (mk 1 (AbsoluteMark AllMarklists 2))) (Just [0, 2, 4, 6])
+    equal (f 0 (mk 0 (RelativeMark AllMarklists 1))) (Just [0, 4])
+    equal (f 1 (mk 0 (RelativeMark AllMarklists 1))) (Just [1, 5])
+    equal (f 0 (mk 0 BlockEnd)) (Just [0, 7])
+    equal (f 0 (mk 0 (EventStart CurrentTrack))) (Just [0, 2])
+    equal (f 0 (mk 0 (EventStart AllTracks))) (Just [0, 2, 5])
+    equal (f 0 (mk 0 (EventEnd CurrentTrack))) (Just [1, 3])
+    -- merged
+    equal (f 0 (merge 0 (EventEnd AllTracks) (mk 0 (EventStart AllTracks))))
         (Just [0, 1, 2, 3, 5])
 
 test_step_from_points = do

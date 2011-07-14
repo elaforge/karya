@@ -15,7 +15,7 @@ module Cmd.TimeStep (
     , step_from, rewind, advance, direction
 
     -- * for testing
-    , get_points, all_points, step_from_points, find_before_equal
+    , get_points, step_from_points, find_before_equal
 ) where
 import qualified Data.Fixed as Fixed
 import qualified Data.List as List
@@ -26,7 +26,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import Ui
-import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
@@ -181,43 +180,40 @@ get_events block_id tracknum = do
             State.get_track track_id
         Nothing -> return []
 
--- | Get the ruler that applies to the given track.  Search left for the
--- closest ruler that has all the given marklist names.  This includes ruler
--- tracks and the rulers of event tracks.
-relevant_ruler :: Block.Block -> TrackNum -> Maybe RulerId
-relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
-    where
-    in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $
-        zip [0..] (Block.block_tracklike_ids block)
-
 -- ** get_points
 
 get_points :: (State.M m) =>
     TimeStep -> BlockId -> TrackNum -> ScoreTime -> m (Maybe [ScoreTime])
 get_points time_step@(TimeStep steps) block_id tracknum pos = do
-    block <- State.get_block block_id
-    events <- mapM (get_events block_id) =<< case wants of
+    events <- mapM (get_events block_id) =<< case wants_edges of
         Nothing -> return []
         Just AllTracks -> do
             tracks <- State.tracks block_id
             return [0..tracks-1]
         Just CurrentTrack -> return [tracknum]
-    -- TODO only get ruler if needed
-    case relevant_ruler block tracknum of
-        Nothing -> return Nothing
-        Just ruler_id -> do
-            ruler <- State.get_ruler ruler_id
-            return $ Just $ all_points
-                (Ruler.ruler_marklists ruler) events pos time_step
+    ruler <- if wants_ruler then get_ruler else return (Just [])
+    return $ case ruler of
+        Nothing -> Nothing
+        Just marklists -> Just $ all_points marklists events pos time_step
     where
     edges = Maybe.mapMaybe (edge_of . fst) steps
-    wants = if null edges then Nothing else Just $ List.foldl1' combine edges
+    wants_edges =
+        if null edges then Nothing else Just $ List.foldl1' combine edges
     combine AllTracks _ = AllTracks
     combine _ AllTracks = AllTracks
     combine _ _ = CurrentTrack
     edge_of (EventStart edge) = Just edge
     edge_of (EventEnd edge) = Just edge
     edge_of _ = Nothing
+    wants_ruler = List.foldl' (||) False $ flip map steps $ \s -> case s of
+        (Absolute {}, _) -> True
+        (AbsoluteMark {}, _) -> True
+        (RelativeMark {}, _) -> True
+        (BlockEnd, _) -> True
+        _ -> False
+    get_ruler = do
+        ruler_id <- State.ruler_track_at block_id tracknum
+        Just . Ruler.ruler_marklists <$> State.get_ruler ruler_id
 
 -- | The approach is to enumerate all possible matches from the beginning of
 -- the block and then pick the right one.  This is inefficient because it
@@ -236,16 +232,14 @@ all_points marklists events pos (TimeStep steps) = Seq.drop_dups id $
 step_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> [[Events.PosEvent]]
     -> ScoreTime -> (Step, Skip) -> [ScoreTime]
 step_points marklists events pos (step, skip) = stride skip $ case step of
-        Absolute incr ->
             -- fmod is in a bizarre place
-            Seq.range (Fixed.mod' pos incr) end incr
+        Absolute incr -> Seq.range (Fixed.mod' pos incr) end incr
         AbsoluteMark names matcher -> matches names matcher
         RelativeMark names matcher -> shift (matches names matcher)
         BlockEnd -> [0, end]
         EventStart {} -> Seq.merge_lists id $
             map (map Events.event_start) events
-        EventEnd {} -> Seq.merge_lists id $
-            map (map Events.event_end) events
+        EventEnd {} -> Seq.merge_lists id $ map (map Events.event_end) events
     where
     end = Maybe.fromMaybe 0 $
         Seq.maximum (map (Ruler.last_pos . snd) marklists)
