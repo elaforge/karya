@@ -42,6 +42,7 @@ UNSORTED
   * Keymap doesn't support KeyRepeat, I should be able to tag certain cmds as
     being repeatable
   * need EventStart / EventEnd TimeSteps that work across all tracks
+  * step play on block two shows its selection on block one
   - CmdTest.run_again is crummy because the fail of Left is confusing and
     makes the result non-polymorphic
   - why does the track in StepPlay_test put notes on channel 1?
@@ -51,6 +52,7 @@ UNSORTED
   - overlapping key bindings are not detected between io and pure cmds
   - rename Key.KeyChar -> Key.Char
   - use fixed-list for with_control?
+  - lax rewind for StepPlay
   - implement backward StepPlay
   * start playing n notes previous, then cmds to step forward and back,
     note-by-note, so playback can be controlled manually.

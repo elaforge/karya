@@ -116,7 +116,7 @@ move forward = do
     -- Cmd.Play.updater_loop keeps track of the previous selections so it
     -- can emit the right clears, but I take the easy way out here.  When I
     -- support discontiguous selections I might have to do the same here.
-    view_ids <- State.get_all_view_ids
+    view_ids <- Map.keys <$> State.get_views_of block_id
     clear_selections view_ids
     set_selections view_ids end
     -- If I want to get accurate playback positions, I need to call
