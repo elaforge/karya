@@ -76,7 +76,7 @@ cmd_advance_insert =
 cmd_shift_selection :: (Cmd.M m) => Types.SelNum -> TrackNum -> Bool -> m ()
 cmd_shift_selection selnum shift extend = do
     view_id <- Cmd.get_focused_view
-    block <- State.block_of_view view_id
+    block <- State.block_of view_id
     sel <- Cmd.require =<< State.get_selection view_id selnum
     let sel' = shift_sel block shift sel
     select_and_scroll view_id selnum
@@ -86,7 +86,7 @@ cmd_track_all :: (Cmd.M m) => Types.SelNum -> m ()
 cmd_track_all selnum = do
     view_id <- Cmd.get_focused_view
     sel <- Cmd.require =<< State.get_selection view_id selnum
-    block_id <- State.block_id_of_view view_id
+    block_id <- State.block_id_of view_id
     dur <- State.block_event_end block_id
     tracks <- length . Block.block_tracks <$> State.get_block block_id
     State.set_selection view_id selnum (Just (select_track_all dur tracks sel))
@@ -265,7 +265,7 @@ sync_selection_status :: (Cmd.M m) => ViewId -> m ()
 sync_selection_status view_id = do
     maybe_sel <- State.get_selection view_id Config.insert_selnum
     Cmd.set_view_status view_id "sel" (fmap selection_status maybe_sel)
-    block_id <- State.block_id_of_view view_id
+    block_id <- State.block_id_of view_id
     when_just maybe_sel $
         Info.set_inst_status block_id . Types.sel_cur_track
 
@@ -387,7 +387,7 @@ lookup_any_selnum_insert :: (Cmd.M m) => Types.SelNum
     -> m (Maybe (ViewId, AnyPoint))
 lookup_any_selnum_insert selnum =
     justm (lookup_selnum selnum) $ \(view_id, sel) -> do
-        block_id <- State.block_id_of_view view_id
+        block_id <- State.block_id_of view_id
         return $ Just
             (view_id, (block_id, point_track sel, selection_point sel))
 
@@ -466,7 +466,7 @@ get_root_insert = maybe get_insert return =<< rootsel
 relative_realtime :: (Cmd.M m) => BlockId -> m (RealTime, RealTime)
 relative_realtime root_id = do
     (view_id, sel) <- get
-    block_id <- State.block_id_of_view view_id
+    block_id <- State.block_id_of view_id
     track_id <- Cmd.require =<< sel_track block_id sel
     maybe_root_sel <- lookup_block_insert root_id
     perf <- Cmd.get_performance root_id
@@ -480,7 +480,7 @@ relative_realtime root_id = do
 local_realtime :: (Cmd.M m) => m (BlockId, RealTime, RealTime)
 local_realtime = do
     (view_id, sel) <- get
-    block_id <- State.block_id_of_view view_id
+    block_id <- State.block_id_of view_id
     track_id <- Cmd.require =<< sel_track block_id sel
     perf <- Cmd.get_performance block_id
     let (start, end) = Types.sel_range sel
@@ -593,7 +593,7 @@ tracks_selnum selnum = do
 strict_tracks_selnum :: (Cmd.M m) => Types.SelNum -> m SelectedTracks
 strict_tracks_selnum selnum = do
     (view_id, sel) <- get_selnum selnum
-    block_id <- State.block_id_of_view view_id
+    block_id <- State.block_id_of view_id
     tracklikes <- mapM (State.track_at block_id) (Types.sel_tracknums sel)
     let (tracknums, track_ids) = unzip
             [(i, track_id) | (i, Just (Block.TId track_id _))

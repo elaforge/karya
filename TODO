@@ -48,7 +48,7 @@ UNSORTED
   - why does the track in StepPlay_test put notes on channel 1?
   - find someplace to document that when a Cmd throws, the UI state is
     reverted but the Cmd state is not
-  - rename State.block_of_view -> block_of
+  * rename State.block_of_view -> block_of
   - overlapping key bindings are not detected between io and pure cmds
   - rename Key.KeyChar -> Key.Char
   - use fixed-list for with_control?

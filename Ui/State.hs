@@ -449,11 +449,11 @@ destroy_block block_id = do
             else state_root st
         }
 
-block_of_view :: (M m) => ViewId -> m Block.Block
-block_of_view view_id = get_block . Block.view_block =<< get_view view_id
+block_of :: (M m) => ViewId -> m Block.Block
+block_of view_id = get_block . Block.view_block =<< get_view view_id
 
-block_id_of_view :: (M m) => ViewId -> m BlockId
-block_id_of_view view_id = Block.view_block <$> get_view view_id
+block_id_of :: (M m) => ViewId -> m BlockId
+block_id_of view_id = Block.view_block <$> get_view view_id
 
 set_block_config :: (M m) => BlockId -> Block.Config -> m ()
 set_block_config block_id config =

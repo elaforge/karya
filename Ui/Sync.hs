@@ -101,7 +101,7 @@ set_track_signals state track_signals =
     rendering_tracks :: State.StateId [(ViewId, TrackId, TrackNum)]
     rendering_tracks = do
         view_ids <- Map.keys <$> State.gets State.state_views
-        blocks <- mapM (State.block_of_view) view_ids
+        blocks <- mapM (State.block_of) view_ids
         btracks <- mapM get_tracks blocks
         return $ do
             (view_id, tracks) <- zip view_ids btracks

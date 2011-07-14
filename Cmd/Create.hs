@@ -171,7 +171,7 @@ generate_view_id block_id views =
 -- views.
 destroy_view :: (State.M m) => ViewId -> m ()
 destroy_view view_id = do
-    block_id <- State.block_id_of_view view_id
+    block_id <- State.block_id_of view_id
     State.destroy_view view_id
     orphans <- orphan_blocks
     when (block_id `elem` orphans) $

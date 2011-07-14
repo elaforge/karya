@@ -51,7 +51,7 @@ cmd_set_at view_id tracknum track_id pos = do
     State.set_selection view_id selnum (Just (Types.selection 0 pos 999 pos))
     -- put the performance into the state
     perf <- Perf.get_root
-    block_id <- State.block_id_of_view view_id
+    block_id <- State.block_id_of view_id
     start_real <- Perf.find_realtime perf block_id (Just track_id) pos
     msgs <- PlayUtil.absolute_perform_from start_real perf
     -- Log.debug $ "putting a step at " ++ show (pos, start_real)
@@ -142,7 +142,7 @@ play_step = TimeStep.merge 0 (TimeStep.EventEnd TimeStep.AllTracks) $
 get_selection :: (Cmd.M m) => m (ScoreTime, BlockId)
 get_selection = do
     (view_id, sel) <- Selection.get_selnum selnum
-    block_id <- State.block_id_of_view view_id
+    block_id <- State.block_id_of view_id
     return (Selection.selection_point sel, block_id)
 
 play_msgs :: (Cmd.M m) => [Midi.WriteMessage] -> m ()
