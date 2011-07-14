@@ -579,9 +579,9 @@ muted_tracknums block tree
     | null solo = mute
     | otherwise = map fst tracks List.\\ soloed
     where
-    tracks = [(i, track)
-        | (i, track) <- Seq.enumerate (Block.block_tracks block),
-        is_track track]
+    tracks =
+        [(i, track) | (i, track) <- Seq.enumerate (Block.block_tracks block),
+            is_track track]
     is_track track = case Block.tracklike_id track of
         Block.TId {} -> True
         _ -> False

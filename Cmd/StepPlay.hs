@@ -134,8 +134,8 @@ move forward = do
     when forward (play_msgs msgs)
     where
     play_step :: TimeStep.TimeStep
-    play_step = TimeStep.merge 0 TimeStep.EventEnd $
-        TimeStep.step TimeStep.EventStart
+    play_step = TimeStep.merge 0 (TimeStep.EventEnd TimeStep.AllTracks) $
+        TimeStep.step (TimeStep.EventStart TimeStep.AllTracks)
 
 get_selection :: (Cmd.M m) => m (ScoreTime, BlockId)
 get_selection = do

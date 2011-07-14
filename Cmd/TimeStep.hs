@@ -5,7 +5,7 @@
 module Cmd.TimeStep (
     -- * TimeStep
     TimeStep, Skip, time_step, step, merge, to_list
-    , Step(..)
+    , Step(..), EventEdge(..)
     , MarklistMatch(..), Rank
     , Direction(..)
     , show_step
@@ -15,7 +15,7 @@ module Cmd.TimeStep (
     , step_from, rewind, advance, direction
 
     -- * for testing
-    , all_points, step_from_points, find_before_equal
+    , get_points, all_points, step_from_points, find_before_equal
 ) where
 import qualified Data.Fixed as Fixed
 import qualified Data.List as List
@@ -43,7 +43,7 @@ newtype TimeStep = TimeStep [(Step, Skip)]
 
 -- | Natural number.  Skip this many Steps.  So a skip of 0 will match at
 -- every point the Step matches, and a skip of 1 will match every other point.
-type Skip = Int -- positive
+type Skip = Int
 
 time_step :: Skip -> Step -> TimeStep
 time_step skip step = TimeStep [(step, abs skip)]
@@ -72,9 +72,12 @@ data Step =
     | BlockEnd
     -- | Until event edges.  EventStart is after EventEnd if the duration is
     -- negative.
-    | EventStart
-    | EventEnd
+    | EventStart EventEdge
+    | EventEnd EventEdge
     deriving (Eq, Show, Read)
+
+-- | Events of which tracks the event time step should snap to.
+data EventEdge = CurrentTrack | AllTracks deriving (Eq, Show, Read)
 
 data MarklistMatch = AllMarklists | NamedMarklists [Ruler.MarklistName]
     deriving (Eq, Show, Read)
@@ -95,8 +98,8 @@ show_step direction (TimeStep steps) = dir_s ++ Seq.join ";" (map show1 steps)
             RelativeMark mlists match ->
                 "rel:" ++ show_marklists mlists ++ show_match match
             BlockEnd -> "end"
-            EventStart -> "start"
-            EventEnd -> "end"
+            EventStart edge -> "start" ++ show_edge edge
+            EventEnd edge -> "end" ++ show_edge edge
     show_skip skip = if skip > 0 then show (skip+1) ++ "*" else ""
     dir_s = case direction of
         Just Advance -> "+"
@@ -105,6 +108,8 @@ show_step direction (TimeStep steps) = dir_s ++ Seq.join ";" (map show1 steps)
     show_match rank = "r" ++ show rank
     show_marklists AllMarklists = ""
     show_marklists (NamedMarklists mlists) = Seq.join "," mlists ++ "/"
+    show_edge CurrentTrack = ""
+    show_edge AllTracks = "s"
 
 
 -- * snap
@@ -189,15 +194,30 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
 
 get_points :: (State.M m) =>
     TimeStep -> BlockId -> TrackNum -> ScoreTime -> m (Maybe [ScoreTime])
-get_points step block_id tracknum pos = do
+get_points time_step@(TimeStep steps) block_id tracknum pos = do
     block <- State.get_block block_id
-    events <- get_events block_id tracknum
+    events <- mapM (get_events block_id) =<< case wants of
+        Nothing -> return []
+        Just AllTracks -> do
+            tracks <- State.tracks block_id
+            return [0..tracks-1]
+        Just CurrentTrack -> return [tracknum]
+    -- TODO only get ruler if needed
     case relevant_ruler block tracknum of
         Nothing -> return Nothing
         Just ruler_id -> do
             ruler <- State.get_ruler ruler_id
-            return $ Just $
-                all_points (Ruler.ruler_marklists ruler) events pos step
+            return $ Just $ all_points
+                (Ruler.ruler_marklists ruler) events pos time_step
+    where
+    edges = Maybe.mapMaybe (edge_of . fst) steps
+    wants = if null edges then Nothing else Just $ List.foldl1' combine edges
+    combine AllTracks _ = AllTracks
+    combine _ AllTracks = AllTracks
+    combine _ _ = CurrentTrack
+    edge_of (EventStart edge) = Just edge
+    edge_of (EventEnd edge) = Just edge
+    edge_of _ = Nothing
 
 -- | The approach is to enumerate all possible matches from the beginning of
 -- the block and then pick the right one.  This is inefficient because it
@@ -206,12 +226,14 @@ get_points step block_id tracknum pos = do
 -- lists and generating the garbage is a problem when dragging.
 --
 -- If it's a problem I can cache it.
-all_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> [Events.PosEvent]
+--
+-- This relies on 'get_points' to give it the proper values.
+all_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> [[Events.PosEvent]]
     -> ScoreTime -> TimeStep -> [ScoreTime]
 all_points marklists events pos (TimeStep steps) = Seq.drop_dups id $
     Seq.merge_lists id $ map (step_points marklists events pos) steps
 
-step_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> [Events.PosEvent]
+step_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> [[Events.PosEvent]]
     -> ScoreTime -> (Step, Skip) -> [ScoreTime]
 step_points marklists events pos (step, skip) = stride skip $ case step of
         Absolute incr ->
@@ -220,8 +242,10 @@ step_points marklists events pos (step, skip) = stride skip $ case step of
         AbsoluteMark names matcher -> matches names matcher
         RelativeMark names matcher -> shift (matches names matcher)
         BlockEnd -> [0, end]
-        EventStart -> map Events.event_start events
-        EventEnd -> map Events.event_end events
+        EventStart {} -> Seq.merge_lists id $
+            map (map Events.event_start) events
+        EventEnd {} -> Seq.merge_lists id $
+            map (map Events.event_end) events
     where
     end = Maybe.fromMaybe 0 $
         Seq.maximum (map (Ruler.last_pos . snd) marklists)
