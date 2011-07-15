@@ -41,29 +41,12 @@ thread_zipper fs xs = snd $ List.mapAccumL go (True, [], xs) fs
         zipper = if forward then StepPlay.zip_forward
             else StepPlay.zip_backward
 
--- testt0 = do
---     let simple_block =
---             [ (">s/1", [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")])
---             , ("*twelve", [(p, 0, n) | (p, n) <- zip (Seq.range 0 3 1)
---                 ["4c", "4d", "4e", "4f"]])
---             ]
---         ustate = DeriveTest.with_instrument $ snd $
---             UiTest.run_mkview simple_block
---         cstate = CmdTest.default_cmd_state
---     let e_midi = map snd . CmdTest.result_midi
---     res <- CmdTest.update_perf ustate $ CmdTest.run ustate cstate (return ())
---     res <- CmdTest.run_again res $ do
---         perf <- Perf.get_root
---         return (Cmd.perf_events perf)
---     pprint (CmdTest.extract id res)
-
 test_move = do
     res <- prepare_blocks UiTest.default_block_name simple_block
-
     -- run cmd_set, verify selection is there
     res <- return $ CmdTest.run_again res $ do
-            CmdTest.set_point_sel 1 3
-            StepPlay.cmd_set
+        CmdTest.set_point_sel 1 3
+        StepPlay.cmd_set
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 2, [])
 
     res <- return $ CmdTest.run_again res StepPlay.cmd_advance

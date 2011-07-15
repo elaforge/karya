@@ -45,7 +45,6 @@ UNSORTED
   * step play on block two shows its selection on block one
   * CmdTest.run_again is crummy because the fail of Left is confusing and
     makes the result non-polymorphic
-  - why does the track in StepPlay_test put notes on channel 1?
   - find someplace to document that when a Cmd throws, the UI state is
     reverted but the Cmd state is not
   * rename State.block_of_view -> block_of
