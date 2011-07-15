@@ -1,18 +1,18 @@
 module Ui.Key where
-import Prelude hiding (Left, Right)
+import Prelude hiding (Char, Left, Right)
 import Data.Bits ((.&.))
 import qualified Data.Char as Char
 import Foreign.C
 
 
 -- | A keystroke, which is not just a character but also back
-data Key = KeyChar Char
+data Key = Char Char.Char
     | Escape | Backspace | Tab | Enter | Print | KScrollLock
     | Pause | Insert | Home | PageUp | Delete | End | PageDown
     | Left | Up | Right | Down
     | ShiftL | ShiftR | ControlL | ControlR | KCapsLock | AltL | AltR
     | MetaL | MetaR | Menu | KNumLock | KPEnter
-    | Keypad Char
+    | Keypad Char.Char
     | Unknown Int
     deriving (Eq, Ord, Read, Show)
 
@@ -29,7 +29,7 @@ decode mcode kcode = (mods, if Shift `elem` mods then toupper key else key)
     where
     mods = decode_modifiers mcode
     key = decode_key kcode
-    toupper (KeyChar c) = KeyChar (Char.toUpper c)
+    toupper (Char c) = Char (Char.toUpper c)
     toupper k = k
 
 decode_key :: CInt -> Key
@@ -37,7 +37,7 @@ decode_key code
     | code /= (#const FL_KP_Enter)
         && (#const FL_KP) < code && code <= (#const FL_KP_Last)
             = Keypad (toEnum (fromIntegral (code - (#const FL_KP))))
-    | code <= 127 = KeyChar (toEnum (fromIntegral code))
+    | code <= 127 = Char (toEnum (fromIntegral code))
     | otherwise = case code of
         (#const FL_Escape) -> Escape
         (#const FL_BackSpace) -> Backspace

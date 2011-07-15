@@ -71,7 +71,7 @@ key_down msg = case key msg of
 
 char :: Msg -> Maybe (UiMsg.KbdState, Char)
 char msg = case key msg of
-    Just (state, Key.KeyChar c) -> Just (state, c)
+    Just (state, Key.Char c) -> Just (state, c)
     _ -> Nothing
 
 char_down :: Msg -> Maybe Char

@@ -49,7 +49,7 @@ UNSORTED
     reverted but the Cmd state is not
   * rename State.block_of_view -> block_of
   - overlapping key bindings are not detected between io and pure cmds
-  - rename Key.KeyChar -> Key.Char
+  * rename Key.KeyChar -> Key.Char
   - use fixed-list for with_control?
   - lax rewind for StepPlay
   - implement backward StepPlay

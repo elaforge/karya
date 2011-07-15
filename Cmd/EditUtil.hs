@@ -121,7 +121,7 @@ extract_key f (Msg.key_down -> Just key) = if ok then Just key else Nothing
     where
     ok = case key of
         Key.Backspace -> True
-        Key.KeyChar c | f c -> True
+        Key.Char c | f c -> True
         _ -> False
 extract_key _ _ = Nothing
 
@@ -165,8 +165,8 @@ parse_key input = do
 modify_text_key :: Key.Key -> String -> Maybe String
 modify_text_key key s = case key of
     Key.Backspace -> backspace s
-    Key.KeyChar ' ' | null s -> Just ""
-    Key.KeyChar c | Char.isPrint c -> Just (s ++ [c])
+    Key.Char ' ' | null s -> Just ""
+    Key.Char c | Char.isPrint c -> Just (s ++ [c])
     _ -> Just s
 
 backspace :: String -> Maybe String

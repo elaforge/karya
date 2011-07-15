@@ -80,8 +80,9 @@ kbd_input octave (Msg.key -> Just (down, key)) = case down of
         (key_to_input octave (down==UiMsg.KeyDown) key)
 kbd_input _ _ = Nothing
 
-key_to_input :: Pitch.Octave -> Bool -> Key.Key -> Maybe (Maybe InputNote.Input)
-key_to_input oct down (Key.KeyChar c) =
+key_to_input :: Pitch.Octave -> Bool -> Key.Key
+    -> Maybe (Maybe InputNote.Input)
+key_to_input oct down (Key.Char c) =
     (fmap . fmap) (InputNote.from_key oct down) (Map.lookup c note_map)
 -- Special keys can fall through.
 key_to_input _ _ _ = Nothing

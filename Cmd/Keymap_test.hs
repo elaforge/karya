@@ -58,14 +58,14 @@ test_make_cmd = do
 
 test_key_repeat = do
     let (cmd_map, _) = Keymap.make_cmd_map $ concat
-            [ Keymap.bind_key (Key.KeyChar '1') "1" cmd1
-            , Keymap.bind_repeatable [] (Key.KeyChar '2') "2" cmd2
+            [ Keymap.bind_key (Key.Char '1') "1" cmd1
+            , Keymap.bind_repeatable [] (Key.Char '2') "2" cmd2
             ]
     let cmd = Keymap.make_cmd cmd_map
     let run repeat char = extract_logs $ run_cmd cmd []
             (CmdTest.make_key
                 (if repeat then UiMsg.KeyRepeat else UiMsg.KeyDown)
-                (Key.KeyChar char))
+                (Key.Char char))
     equal (run False '1') ["running command \"1\"", "cmd1"]
     equal (run True '1') []
     equal (run False '2') ["running command \"2\"", "cmd2"]
@@ -93,13 +93,13 @@ cmd2 = Log.notice "cmd2"
 
 binds :: [Keymap.Binding Cmd.CmdId]
 binds = concat
-    [ Keymap.bind_key (Key.KeyChar '1') "1" cmd1
-    , Keymap.bind_key (Key.KeyChar '1') "12" cmd1
-    , Keymap.bind_key (Key.KeyChar '2') "2" cmd2
-    , Keymap.bind_mod [Keymap.Shift] (Key.KeyChar '3') "s-3" cmd1
-    , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.KeyChar '1') "c-1" cmd1
+    [ Keymap.bind_key (Key.Char '1') "1" cmd1
+    , Keymap.bind_key (Key.Char '1') "12" cmd1
+    , Keymap.bind_key (Key.Char '2') "2" cmd2
+    , Keymap.bind_mod [Keymap.Shift] (Key.Char '3') "s-3" cmd1
+    , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.Char '1') "c-1" cmd1
     , Keymap.bind_mod [Keymap.PrimaryCommand, Keymap.Shift]
-        (Key.KeyChar '1') "cs-1" cmd1
+        (Key.Char '1') "cs-1" cmd1
     , Keymap.bind_click [Keymap.Mouse 1] 2 1 "chord-12" (const cmd1)
     , Keymap.bind_drag [] 3 "drag-3" (const cmd1)
     ]

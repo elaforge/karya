@@ -42,9 +42,9 @@ test_cmd_raw_edit = do
     -- Created event has dur according to ruler.
     equal (run [(">i", [])] (f (CmdTest.m_note_on 60 60 127))) $
         Right [(">i", [(0, 1, "(4c)")])]
-    equal (run [(">i", [])] (f (mkkey (Key.KeyChar ' ')))) $
+    equal (run [(">i", [])] (f (mkkey (Key.Char ' ')))) $
         Right [(">i", [(0, 1, "")])]
-    equal (run [(">i", [])] (f (mkkey (Key.KeyChar 'x')))) $
+    equal (run [(">i", [])] (f (mkkey (Key.Char 'x')))) $
         Right [(">i", [(0, 1, "x")])]
     equal (run [(">i", [(0, 5, "")])] (f (mkkey Key.Backspace))) $
         Right [(">i", [])]
@@ -88,7 +88,7 @@ test_cmd_method_edit = do
             (NoteTrack.ExistingTrack 2 (UiTest.mk_tid 2))
         inst = (">i", [(0, 1, "")])
         note_track = [inst, ("*", [(0, 0, "4d")])]
-    equal (run note_track (f (mkkey (Key.KeyChar 'x')))) $
+    equal (run note_track (f (mkkey (Key.Char 'x')))) $
         Right [inst, ("*", [(0, 0, "x (4d)")])]
     equal (run [inst, ("*", [(0, 0, "x (4d)")])] (f (mkkey Key.Backspace))) $
         Right [inst, ("*", [(0, 0, "4d")])]

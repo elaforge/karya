@@ -264,8 +264,8 @@ make_key_mods mods state k = Msg.Ui
 make_key :: UiMsg.KbdState -> Key.Key -> Msg.Msg
 make_key = make_key_mods []
 
-key_down = make_key UiMsg.KeyDown . Key.KeyChar
-key_up = make_key UiMsg.KeyUp . Key.KeyChar
+key_down = make_key UiMsg.KeyDown . Key.Char
+key_up = make_key UiMsg.KeyUp . Key.Char
 backspace = make_key UiMsg.KeyDown Key.Backspace
 
 mouse down btn = Msg.Ui $ UiMsg.UiMsg empty_context $

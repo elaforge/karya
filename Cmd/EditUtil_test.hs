@@ -13,7 +13,7 @@ import qualified Derive.Scale.Semar as Semar
 
 
 test_modify_text_key = do
-    let f c = EditUtil.modify_text_key (Key.KeyChar c)
+    let f c = EditUtil.modify_text_key (Key.Char c)
     equal (f 'c' "a") (Just "ac")
     equal (f ' ' "a") (Just "a ")
     equal (f ' ' "") (Just "")

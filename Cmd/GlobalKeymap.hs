@@ -111,7 +111,7 @@ quit_bindings = [(kspec, cspec) | kspec <- kspecs]
     where
     kspecs = [Keymap.key_spec mods key
         | mods <- Keymap.expand_mods key [PrimaryCommand]]
-    key = Keymap.Key False (Key.KeyChar '\'')
+    key = Keymap.Key False (Key.Char '\'')
     cspec = Keymap.cspec "quit" $ const (Play.cmd_stop >> Cmd.cmd_quit)
 
 -- * pure cmds
@@ -167,7 +167,7 @@ selection_bindings = concat
     , bind_repeatable [Shift] Key.Left "extend shift selection left"
         (Selection.cmd_shift_selection selnum (-1) True)
 
-    , bind_mod [PrimaryCommand] (Key.KeyChar 'a') "select track / all"
+    , bind_mod [PrimaryCommand] (Key.Char 'a') "select track / all"
         (Selection.cmd_track_all selnum)
     ]
     where selnum = Config.insert_selnum

@@ -13,7 +13,7 @@ import qualified Cmd.NoteEntry as NoteEntry
 
 
 test_key_to_input = do
-    let k = Key.KeyChar
+    let k = Key.Char
     let f = NoteEntry.key_to_input
     equal (f 4 True (k '\'')) (Just (Just (CmdTest.note_on 60 60 100)))
     equal (f 4 True (k ',')) (Just (Just (CmdTest.note_on 62 62 100)))
@@ -40,7 +40,7 @@ test_cmds_with_note = do
     -- test kbd entry
 
     -- abort when a modifier is down
-    let ckey = ctrl_key (Key.KeyChar ',')
+    let ckey = ctrl_key (Key.Char ',')
     equal (run (with_key (ctrl_key Key.ControlL)) (f True ckey))
         (through ckey)
 
