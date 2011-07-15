@@ -8,6 +8,7 @@
 -- TODO echo and delay are broken here because they will delay even things that
 -- should not be delayed, like a global volume control
 module Derive.Call.Echo where
+import Data.FixedList (Cons(..), Nil(..))
 
 import Ui
 import qualified Ui.Types as Types
@@ -37,7 +38,7 @@ note_calls = Derive.make_calls
 c_delay :: Derive.NoteCall
 c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
     (optional "time" (required_control "delay-time")) $ \time ->
-    Util.with_controls args [time] $ \[time] ->
+    Util.with_controls args (time :. Nil) $ \(time :. Nil) ->
         Derive.d_at (Types.ScoreTime time) deriver
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
@@ -61,8 +62,8 @@ c_echo = Derive.transformer "echo" $ \args deriver -> CallSig.call3 args
     ( optional "delay" (control "echo-delay" 1)
     , optional "feedback" (control "echo-feedback" 0.4)
     , optional "times" (control "echo-times" 1)) $ \delay feedback times ->
-    Util.with_controls args [delay, feedback, times] $
-        \[delay, feedback, times] ->
+    Util.with_controls args (delay :. feedback :. times :. Nil) $
+        \(delay :. feedback :. times :. Nil) ->
             echo (Signal.y_to_score delay) feedback (floor times) deriver
 
 echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver
@@ -90,8 +91,9 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
     , optional "times" (control "echo-times" 1)) $ \delay feedback times -> do
         events <- deriver
         (result, ()) <- Util.map_signals
-            [delay, feedback, times] [] (\[delay, feedback, times] [] ->
-                go delay feedback times) () events
+            (delay :. feedback :. times :. Nil) Nil
+                (\(delay :. feedback :. times :. Nil) Nil ->
+                    go delay feedback times) () events
         return $ Derive.merge_asc_events result
     where
     go delay feedback times () event = return

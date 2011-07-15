@@ -1,4 +1,5 @@
 module Derive.Call.Rambat where
+import Data.FixedList (Cons(..), Nil(..))
 
 import Ui
 
@@ -39,8 +40,9 @@ c_tick = Derive.stream_generator "tick" $ \args -> CallSig.call2 args
     , optional "vel" (control "tick-velocity" 0.5)) $ \time vel ->
     case (Derive.passed_prev_begin args, Derive.passed_next_begin args) of
         (Just ppos, Just npos) ->
-            Util.with_controls args [time, vel] $ \[time, vel] ->
-                tick (Signal.y_to_real time) vel ppos npos
+            Util.with_controls args (time :. vel :. Nil) $
+                \(time :. vel :. Nil) ->
+                    tick (Signal.y_to_real time) vel ppos npos
         (Nothing, Just _) -> Derive.throw "no previous event"
         _ -> Derive.throw "no next event"
 

@@ -1,5 +1,6 @@
     haskell deps, from hackage
 
+fixed-list-0.1.5
 deepseq, data-ordlist, cereal, storablevector
 dlist -- Perform.SignalBase
 parsec-2

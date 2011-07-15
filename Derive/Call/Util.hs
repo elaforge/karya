@@ -2,6 +2,9 @@
 -- | Utilities for calls.
 module Derive.Call.Util where
 import Prelude hiding (head)
+import qualified Data.FixedList as FixedList
+import qualified Data.Traversable as Traversable
+
 import Util.Control
 
 import Ui
@@ -35,11 +38,12 @@ type ControlInterpolator = Bool -- ^ include the initial sample or not
     -> RealTime -> Signal.Y -> RealTime -> Signal.Y
     -> Signal.Control
 
-with_controls :: Derive.PassedArgs d -> [TrackLang.Control]
-    -> ([Signal.Y] -> Derive.Deriver a) -> Derive.Deriver a
+with_controls :: (FixedList.FixedList list) => Derive.PassedArgs d
+    -> list TrackLang.Control -> (list Signal.Y -> Derive.Deriver a)
+    -> Derive.Deriver a
 with_controls args controls f = do
     now <- Derive.passed_real args
-    f =<< mapM (control_at now) controls
+    f =<< Traversable.mapM (control_at now) controls
 
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.
@@ -191,10 +195,9 @@ head (LEvent.Event event : rest) f = f event rest
 
 -- | Map a function with state over events and lookup pitch and controls vals
 -- for each event.  Exceptions are not caught.
---
--- TODO needs a length encoded vector to be safer.
-map_signals :: [TrackLang.Control] -> [TrackLang.PitchControl]
-    -> ([Signal.Y] -> [Pitch.Degree] -> state -> Score.Event
+map_signals :: (FixedList.FixedList cs, FixedList.FixedList ps) =>
+    cs TrackLang.Control -> ps TrackLang.PitchControl
+    -> (cs Signal.Y -> ps Pitch.Degree -> state -> Score.Event
         -> Derive.Deriver ([Score.Event], state))
     -> state -> Derive.Events -> Derive.Deriver ([Derive.Events], state)
 map_signals controls pitch_controls f state events = go state events
@@ -205,19 +208,8 @@ map_signals controls pitch_controls f state events = go state events
         return ([log] : rest_vals, final_state)
     go state (LEvent.Event event : rest) = do
         let pos = Score.event_start event
-        control_vals <- mapM (control_at pos) controls
-        pitch_vals <- mapM (degree_at pos) pitch_controls
+        control_vals <- Traversable.mapM (control_at pos) controls
+        pitch_vals <- Traversable.mapM (degree_at pos) pitch_controls
         (val, next_state) <- f control_vals pitch_vals state event
         (rest_vals, final_state) <- go next_state rest
         return (map LEvent.Event val : rest_vals, final_state)
-
-{-
-What I would really like is:
-
-map_signals :: Vec TrackLang.Control clen -> Vec TrackLang.PitchControl plen
-    -> (state -> Vec Signal.Y clen -> Vec Pitch.Degree plen -> Score.Event
-        -> Derive.Deriver (state, result))
-    -> state -> [Score.Event] -> Derive.Deriver (state, [result])
-
-then access with 'f (c1 :, c2 :, ()) (p1 :, ()) = ...'
--}

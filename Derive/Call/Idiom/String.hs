@@ -1,20 +1,21 @@
 -- | Post-processing to apply a string idiom.
 module Derive.Call.Idiom.String where
+import Data.FixedList (Cons(..), Nil(..))
 import qualified Data.Set as Set
+
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Set as Set
 
 import Ui
-
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (control, optional)
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Score as Score
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -101,10 +102,11 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
         Nothing -> Derive.throw $ "initial degree below lowest string: "
             ++ show (Score.initial_pitch event)
         Just state -> do
-            (result, final) <- Util.map_signals [attack, delay, release] []
-                (\[attack, delay, release] [] ->
-                    process attack_interpolator release_interpolator
-                        (attack, delay, release))
+            (result, final) <- Util.map_signals
+                (attack :. delay :. release :. Nil) Nil
+                    (\(attack :. delay :. release :. Nil) Nil ->
+                        process attack_interpolator release_interpolator
+                            (attack, delay, release))
                 state events
             return $ Derive.merge_asc_events result
                 ++ [LEvent.Event $ state_event final]
