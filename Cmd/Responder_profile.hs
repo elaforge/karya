@@ -45,7 +45,7 @@ profile_null_cmd = do
     -- Test a msg that matches no cmds so I can see how much garbage it
     -- produces by itself.
     let states = ResponderTest.mkstates [(">i", [(0, 0, "")])]
-    let key = keypress Key.ShiftL
+    let key = CmdTest.keypress Key.ShiftL
     let keys = take (10*1024) (cycle key)
     (_, cpu) <- timer $ ResponderTest.respond False states keys
     printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
@@ -61,14 +61,11 @@ profile_selection = do
                 (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
             }
     let states = (ui_state2, cmd_state2)
-    let one_cycle = take (256*2) (cycle (keypress Key.Down))
-            ++ take (256*2) (cycle (keypress Key.Up))
+    let one_cycle = take (256*2) (cycle (CmdTest.keypress Key.Down))
+            ++ take (256*2) (cycle (CmdTest.keypress Key.Up))
     let keys = take (10*1024) (cycle one_cycle)
     (_, cpu) <- timer $ ResponderTest.respond False states keys
     printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
-
-keypress k =
-    [CmdTest.make_key UiMsg.KeyDown k, CmdTest.make_key UiMsg.KeyDown k]
 
 profile_thru = do
     let (ui_state, cmd_state) = ResponderTest.mkstates [(">i", [(0, 0, "")])]

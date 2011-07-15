@@ -27,8 +27,6 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
 
-import qualified Perform.RealTime as RealTime
-
 
 -- * caching_call
 
@@ -135,15 +133,16 @@ get_tempo_damage track_id track_range = do
     st <- Derive.get
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
-    extend <$> if control == mempty
+    extend =<< if control == mempty
         then score_to_control track_id track_range score
         else return control
     where
-    extend (Derive.ControlDamage ranges) = Derive.ControlDamage $
+    extend (Derive.ControlDamage ranges) = Derive.ControlDamage <$>
         case Ranges.extract ranges of
-            Nothing -> Ranges.everything
-            Just [] -> Ranges.nothing
-            Just ((s, _) : _) -> Ranges.range s RealTime.max
+            Nothing -> return Ranges.everything
+            Just [] -> return Ranges.nothing
+            Just ((s, _) : _) ->
+                Ranges.range s <$> Derive.score_to_real (snd track_range)
 
 score_to_control :: TrackId -> (ScoreTime, ScoreTime) -> ScoreDamage
     -> Derive.Deriver ControlDamage

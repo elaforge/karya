@@ -168,11 +168,11 @@ set_sel t0 p0 t1 p1 = do
     let sel = Types.selection t0 p0 t1 p1
     State.set_selection UiTest.default_view_id Config.insert_selnum (Just sel)
 
-set_point_sel :: (Cmd.M m) => Types.TrackNum -> ScoreTime -> m ()
+set_point_sel :: (State.M m) => Types.TrackNum -> ScoreTime -> m ()
 set_point_sel = set_point_sel_block UiTest.default_block_name
 
 -- | Set a point selection on the default view of the given block name.
-set_point_sel_block :: (Cmd.M m) => String -> Types.TrackNum -> ScoreTime
+set_point_sel_block :: (State.M m) => String -> Types.TrackNum -> ScoreTime
     -> m ()
 set_point_sel_block block_name tracknum pos = State.set_selection view_id
         Config.insert_selnum (Just (Types.point_selection tracknum pos))
@@ -263,6 +263,12 @@ make_key_mods mods state k = Msg.Ui
 
 make_key :: UiMsg.KbdState -> Key.Key -> Msg.Msg
 make_key = make_key_mods []
+
+keypress :: Key.Key -> [Msg.Msg]
+keypress k = [make_key UiMsg.KeyDown k, make_key UiMsg.KeyUp k]
+
+keypresses :: [Key.Key] -> [Msg.Msg]
+keypresses = concatMap keypress
 
 key_down = make_key UiMsg.KeyDown . Key.Char
 key_up = make_key UiMsg.KeyUp . Key.Char

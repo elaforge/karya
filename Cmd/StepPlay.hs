@@ -39,8 +39,6 @@ cmd_set = do
     step <- Cmd.gets (Cmd.state_play_step . Cmd.state_play)
     (block_id, tracknum, track_id, sel_pos) <- Selection.get_insert
     view_id <- Cmd.get_focused_view
-    -- TODO need a lax rewind that will go to the earliest point instead of
-    -- failing
     start <- Maybe.fromMaybe sel_pos <$>
         TimeStep.rewind step block_id tracknum sel_pos
     start <- TimeStep.snap play_step block_id tracknum Nothing start

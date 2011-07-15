@@ -327,7 +327,8 @@ test_tempo_damage = do
                 [ (">i", [(0, 1, "")]) ])
             ]
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "top.t0") 1 (Event.event "2" 0)
+            State.insert_event (UiTest.mk_tid_name "top" 0) 1
+                (Event.event "2" 0)
     equal (diff_events cached uncached) []
     -- first is cached, second and third are not
     strings_like (r_cache_logs cached)
@@ -336,6 +337,17 @@ test_tempo_damage = do
         , "top.t1 2-3: * rederived"
         , toplevel_rederived
         ]
+
+test_extend_tempo_damage = do
+    -- Make sure control damage emitted by 'get_tempo_damage' is reasonable.
+    let create = mkblocks [(UiTest.default_block_name,
+            [ ("tempo", [(0, 0, "1")])
+            , (">i", [(0, 1, ""), (1, 1, "")])
+            , ("modulation", [(0, 1, "0")])
+            ])]
+    let (_, cached, uncached) = compare_cached create $
+            State.insert_event (UiTest.mk_tid 0) 0 (Event.event "2" 0)
+    equal (diff_events cached uncached) []
 
 -- ** support
 

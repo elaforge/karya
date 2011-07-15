@@ -25,6 +25,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
+import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
@@ -339,7 +340,7 @@ load_mod fn = do
     State.set_midi_config $ make_midi_config "loop1" [("ptq/c1", [0..8])]
     return Cmd.Done
 
-setup_normal :: Cmd.CmdIO
+setup_normal :: (Cmd.M m) => m Cmd.Status
 setup_normal = do
     (bid, vid) <- empty_block
     t0 <- Create.track bid 2
@@ -379,7 +380,7 @@ setup_normal = do
         | arrival_beats = (pos + 1, Event.modify_duration negate evt)
         | otherwise = (pos, evt)
 
-setup_big :: Cmd.CmdIO
+setup_big :: (Cmd.M m) => m Cmd.Status
 setup_big = do
     (b, view) <- empty_block
     t0 <- Create.track b 2
@@ -416,6 +417,7 @@ setup_big = do
         (Just (Types.point_selection 0 0))
     return Cmd.Done
 
+empty_block :: (Cmd.M m) => m (BlockId, ViewId)
 empty_block = do
     (rid, over_rid) <- Create.ruler "meter_44"
         (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])

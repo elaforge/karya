@@ -35,6 +35,11 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - bug: edit track title, then delete, then type a letter and it all comes
+    back
+    can't repro now
+  * editing tempo results in {s "untitled/b0 untitled/b0.t1 *"} Error:
+    real_to_score out of range: 9.223372036854775e12s
   * fix-imports bug: two line comment in Cmd.Play lost its first line
   * shift-space should emit all notes off even if there is no step play active
     or maybe space when it's not playing
@@ -51,7 +56,6 @@ UNSORTED
   - overlapping key bindings are not detected between io and pure cmds
   * rename Key.KeyChar -> Key.Char
   - use fixed-list for with_control?
-  - lax rewind for StepPlay
   - implement backward StepPlay
   * start playing n notes previous, then cmds to step forward and back,
     note-by-note, so playback can be controlled manually.

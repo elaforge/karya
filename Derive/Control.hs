@@ -124,8 +124,7 @@ to_display (sig, _) = Signal.coerce sig
     -- I discard the logs since I think if there is anything interesting it
     -- will be logged in the "real" derivation.
 
-merge_logs :: [Log.Msg] -> Derive.EventDeriver
-    -> Derive.EventDeriver
+merge_logs :: [Log.Msg] -> Derive.EventDeriver -> Derive.EventDeriver
 merge_logs logs deriver = do
     events <- deriver
     return $ Derive.merge_events (map LEvent.Log logs) events
