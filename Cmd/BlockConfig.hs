@@ -8,7 +8,6 @@ import qualified Data.Maybe as Maybe
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Util.Tree as Tree
 
 import Ui
 import qualified Ui.Block as Block
@@ -20,6 +19,7 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
+import qualified Cmd.Track as Track
 import qualified Cmd.ViewConfig as ViewConfig
 
 
@@ -44,13 +44,14 @@ get_clicked_track msg = case (Msg.mouse_down msg, Msg.context_track_pos msg) of
 merge_all :: (State.M m) => BlockId -> m ()
 merge_all block_id = do
     tree <- State.get_track_tree block_id
-    let collapse = Maybe.mapMaybe collapsable (Tree.paths tree)
+    tracks <- State.tracks block_id
+    let collapse = Maybe.mapMaybe (collapsable tree) [0..tracks-1]
     mapM_ (uncurry (State.merge_track block_id)) collapse
     where
-    collapsable (track, parent : _, [])
-        | num parent == num track + 1 = Just (num track, num parent)
-    collapsable _ = Nothing
-    num = State.track_tracknum
+    collapsable tree tracknum = case Track.get_track_type tree tracknum of
+        Just (Track.NoteTrack (NoteTrack.ExistingTrack pitch_tracknum _)) ->
+            Just (tracknum, pitch_tracknum)
+        _ -> Nothing
 
 cmd_open_block :: (Cmd.M m) => m ()
 cmd_open_block = do
