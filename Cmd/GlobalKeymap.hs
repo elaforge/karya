@@ -196,8 +196,8 @@ block_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
 block_config_bindings = concat
     [ bind_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
     , bind_char 'S' "toggle solo" (BlockConfig.cmd_toggle_flag Block.Solo)
-    , command_only 'M' "merge all tracks"
-        (BlockConfig.merge_all =<< Cmd.get_focused_block)
+    , command_only 'M' "toggle merge all"
+        (BlockConfig.toggle_merge_all =<< Cmd.get_focused_block)
     ]
 
 -- | Global bindings for edit type things.

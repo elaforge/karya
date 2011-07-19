@@ -40,18 +40,26 @@ get_clicked_track msg = case (Msg.mouse_down msg, Msg.context_track_pos msg) of
     (True, Just (tracknum, _)) -> return tracknum
     _ -> Cmd.abort
 
--- | Merge all adjacent note/pitch pairs.
-merge_all :: (State.M m) => BlockId -> m ()
-merge_all block_id = do
+-- | Merge all adjacent note/pitch pairs.  If they're already all merged,
+-- unmerge them all.
+toggle_merge_all :: (State.M m) => BlockId -> m ()
+toggle_merge_all block_id = do
     tree <- State.get_track_tree block_id
     tracks <- State.tracks block_id
     let collapse = Maybe.mapMaybe (collapsable tree) [0..tracks-1]
-    mapM_ (uncurry (State.merge_track block_id)) collapse
+    let merged b (tracknum, _) = (b &&) <$> track_merged block_id tracknum
+    ifM (foldM merged True collapse)
+        (mapM_ (State.unmerge_track block_id) (map fst collapse))
+        (mapM_ (uncurry (State.merge_track block_id)) collapse)
     where
     collapsable tree tracknum = case Track.get_track_type tree tracknum of
         Just (Track.NoteTrack (NoteTrack.ExistingTrack pitch_tracknum _)) ->
             Just (tracknum, pitch_tracknum)
         _ -> Nothing
+
+track_merged :: (State.M m) => BlockId -> TrackNum -> m Bool
+track_merged block_id tracknum =
+    not . null . Block.track_merged <$> State.get_block_track block_id tracknum
 
 cmd_open_block :: (Cmd.M m) => m ()
 cmd_open_block = do
