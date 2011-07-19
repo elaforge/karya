@@ -62,7 +62,8 @@ zip_intersection map1 map2 =
     [(k, v1, v2) | (k, v1) <- Map.assocs map1, Just v2 <- [Map.lookup k map2]]
     -- I could implement with 'pairs', but it would be less efficient.
 
--- | Pair up elements from each map with equal keys.
+-- | Pair up elements from each map with equal keys.  @(k, Nothing, Nothing)@
+-- will never appear in the output.
 pairs :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, Maybe v1, Maybe v2)]
 pairs map0 map1 = pair_sorted (Map.toAscList map0) (Map.toAscList map1)
     where

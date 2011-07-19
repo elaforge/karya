@@ -52,6 +52,7 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
+import qualified Midi.State
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -327,23 +328,15 @@ data PlayState = PlayState {
 -- | Step play is a way of playing back the performance in non-realtime.
 data StepState = StepState {
     -- * constant
-    -- | It's necessary to keep track of the track for which step play was
-    -- initiated, since a single block may have multiple tempos.
-    step_tracknum :: !TrackNum
-    , step_view_id :: !ViewId
-    -- | Step play started here.  When you rewind before this the StepState
-    -- needs to be regenerated.
-    , step_beginning :: !ScoreTime
-    -- | Needed for tempo mapping.
-    , step_performance :: !Performance
+    -- | Keep track of the view step play was started in, so I know where to
+    -- display the selection.
+    step_view_id :: !ViewId
 
     -- * modified
-    -- | Events before the step play position, in descending order.
-    -- This, along with 'step_after' is a simple zipper to make seeking around
-    -- the midi msgs efficient.
-    , step_before :: ![Midi.WriteMessage]
-    -- | Events after the step play position, in asceding order.
-    , step_after :: ![Midi.WriteMessage]
+    -- | MIDI states before the step play position, in descending order.
+    , step_before :: ![(ScoreTime, Midi.State.State)]
+    -- | MIDI states after the step play position, in asceding order.
+    , step_after :: ![(ScoreTime, Midi.State.State)]
     } deriving (Show, Generics.Typeable)
 
 initial_play_state :: PlayState

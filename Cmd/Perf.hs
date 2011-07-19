@@ -144,6 +144,13 @@ find_realtime perf block_id maybe_track_id pos = do
         Just realtime -> return realtime
     where tempo tid = Seq.head $ Cmd.perf_tempo perf block_id tid pos
 
+-- | Like 'find_realtime', but do multiple at once.
+find_realtimes :: Cmd.Performance -> BlockId -> TrackId
+    -> [ScoreTime] -> [(ScoreTime, RealTime)]
+find_realtimes perf block_id track_id ps =
+    [(p, t) | (p, (t:_))
+        <- zip ps (map (Cmd.perf_tempo perf block_id track_id) ps)]
+
 
 find_play_pos :: (State.M m) => Transport.InverseTempoFunction
     -> RealTime -> m [(ViewId, [(TrackNum, ScoreTime)])]

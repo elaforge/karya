@@ -55,7 +55,7 @@ UNSORTED
   - overlapping key bindings are not detected between io and pure cmds
   * rename Key.KeyChar -> Key.Char
   * use fixed-list for with_control?
-  - implement backward StepPlay
+  * implement backward StepPlay
   * start playing n notes previous, then cmds to step forward and back,
     note-by-note, so playback can be controlled manually.
     I could use the playback selection to indicate where it is.

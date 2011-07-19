@@ -13,9 +13,10 @@ module Cmd.TimeStep (
     -- * step
     , snap
     , step_from, rewind, advance, direction
+    , get_points
 
     -- * for testing
-    , get_points, step_from_points, find_before_equal
+    , step_from_points, find_before_equal
 ) where
 import qualified Data.Fixed as Fixed
 import qualified Data.List as List

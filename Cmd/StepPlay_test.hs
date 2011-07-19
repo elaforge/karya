@@ -1,11 +1,13 @@
 module Cmd.StepPlay_test where
-import qualified Data.List as List
+import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Midi.Midi as Midi
+import qualified Midi.State
 import Ui
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -14,32 +16,46 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.StepPlay as StepPlay
+import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.TrackWarp as TrackWarp
+import qualified Perform.RealTime as RealTime
 
 
-test_zip_forward = do
-    let f = StepPlay.zip_forward
-    equal (f (>2) [-1, -2] [])
-        ([], [-1, -2], [])
-    equal (f (>2) [-1, -2] [0..4])
-        ([0, 1, 2], [2, 1, 0, -1, -2], [3, 4])
-    equal (f (>99) [-1, -2] [0..4])
-        ([0..4], [4, 3 .. -2], [])
+test_make_states = do
+    let chan_msgs msgs = [Midi.WriteMessage (Midi.WriteDevice "dev") t
+            (Midi.ChannelMessage 0 m) | (t, m) <- msgs]
+    let f ts msgs = map extract $
+            StepPlay.make_states (map RealTime.seconds ts) (chan_msgs msgs)
+        extract (Midi.State.State chans) = Map.elems $
+            Map.map (Map.toList . Midi.State.chan_notes)  chans
+    let msgs =
+            [ (0, Midi.NoteOn 60 100)
+            , (1, Midi.NoteOff 60 0)
+            , (1, Midi.NoteOn 61 100)
+            , (2, Midi.NoteOff 61 0)
+            ]
+    equal (f [0, 1, 2] msgs)
+        [ [[(60, 100)]]
+        , [[(61, 100)]]
+        , [[]]
+        ]
 
-test_zipper = do
-    equal (thread_zipper [(>3), (<=1), const False] [0..6])
-        [[0, 1, 2, 3], [3, 2], [2, 3, 4, 5, 6]]
-
-thread_zipper :: [a -> Bool] -> [a] -> [[a]]
-thread_zipper fs xs = snd $ List.mapAccumL go (True, [], xs) fs
-    where
-    go (forward, pre1, post1) f = ((not forward, pre2, post2), vals)
-        where
-        (vals, pre2, post2) = zipper f pre1 post1
-        zipper = if forward then StepPlay.zip_forward
-            else StepPlay.zip_backward
+test_move_to = do
+    res <- prepare_blocks UiTest.default_block_name simple_block
+    let sel_from p = do
+        res <- return $ CmdTest.run_again res $ do
+            CmdTest.set_point_sel 1 p
+            Cmd.modify_play_state $ \st -> st { Cmd.state_play_step =
+                TimeStep.step (TimeStep.Absolute 1) }
+            StepPlay.cmd_set
+        return (e_midi res, CmdTest.extract_ui get_sel res)
+    -- Ensure that cmd_set picks the previous step pos, rounding downward
+    -- if the match isn't exact.
+    io_equal (sel_from 2) ([Midi.NoteOn 62 100], Right ((Just 1), []))
+    io_equal (sel_from 1) ([Midi.NoteOn 60 100], Right ((Just 0), []))
+    io_equal (sel_from 0) ([Midi.NoteOn 60 100], Right ((Just 0), []))
+    io_equal (sel_from 1.5) ([Midi.NoteOn 60 100], Right ((Just 0), []))
 
 test_move = do
     res <- prepare_blocks UiTest.default_block_name simple_block
@@ -47,21 +63,15 @@ test_move = do
     res <- return $ CmdTest.run_again res $ do
         CmdTest.set_point_sel 1 3
         StepPlay.cmd_set
+    equal (e_midi res) [Midi.NoteOn 64 100]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 2, [])
 
     res <- return $ CmdTest.run_again res StepPlay.cmd_advance
-    -- TODO missing pitchbend because it's too early
-    -- but I think I need midi state to do this properly
-    equal (e_midi res)
-        [ Midi.ChannelMessage 0 (Midi.NoteOn 64 100)
-        ]
+    equal (e_midi res) [Midi.NoteOff 64 0, Midi.NoteOn 65 100]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 3, [])
 
     res <- return $ CmdTest.run_again res StepPlay.cmd_advance
-    equal (e_midi res)
-        [ Midi.ChannelMessage 0 (Midi.NoteOff 64 100)
-        , Midi.ChannelMessage 0 (Midi.NoteOn 65 100)
-        ]
+    equal (e_midi res) [Midi.NoteOff 65 0]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
 
     -- Ran out of notes.
@@ -69,36 +79,22 @@ test_move = do
     equal (e_midi res) []
     left_like (CmdTest.extract_ui get_sel res) "can't advance for step play"
 
-    -- Rewind then forward.
+    -- Rewind
     res <- return $ CmdTest.run_again res StepPlay.cmd_rewind
-    equal (map snd (CmdTest.result_midi res)) []
+    equal (e_midi res) [Midi.NoteOn 65 100]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 3, [])
+
+    -- Go back forward to make sure zipping is zipping properly.
     res <- return $ CmdTest.run_again res StepPlay.cmd_advance
-    equal (e_midi res)
-        [ Midi.ChannelMessage 0 (Midi.NoteOff 64 100)
-        , Midi.ChannelMessage 0 (Midi.NoteOn 65 100)
-        ]
+    equal (e_midi res) [Midi.NoteOff 65 0]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
 
-test_reset = do
-    res <- prepare_blocks UiTest.default_block_name simple_block
+{-
+These test the more complicated version that puts the selections in the right
+spots for all blocks.  Disabled since that won't work anyway until I can do
+discontiguous selections.
 
-    -- run cmd_set, verify selection is there
-    res <- return $ CmdTest.run_again res $ do
-            CmdTest.set_point_sel 1 3
-            StepPlay.cmd_set
-    equal (CmdTest.extract_ui get_sel res) $ Right (Just 2, [])
-
-    res <- return $ CmdTest.run_again res StepPlay.cmd_rewind
-    equal (CmdTest.extract_ui get_sel res) $ Right (Just 1, [])
-
-    res <- return $ CmdTest.run_again res StepPlay.cmd_advance
-    equal (CmdTest.extract_ui get_sel res) $ Right (Just 2, [])
-    equal (e_midi res)
-        [ Midi.ChannelMessage 0 (Midi.NoteOn 62 100)
-        ]
-
-test_nested = do
+-- test_nested = do
     res <- prepare_blocks "sub"
         [ ("b", [(">", [(0, 8, "sub"), (8, 8, "sub")])])
         , ("sub", simple_tracks)
@@ -120,7 +116,7 @@ test_nested = do
     pprint (CmdTest.extract_ui (get_block_sel "b") res)
     pprint (e_midi res)
 
-test_tempo = do
+-- test_tempo = do
     res <- prepare_blocks UiTest.default_block_name
         [(UiTest.default_block_name,
             ("tempo", [(0, 0, ".987")]) : simple_tracks)]
@@ -148,9 +144,11 @@ test_tempo = do
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 2, [])
     -- res <- return $ CmdTest.run_again res StepPlay.cmd_advance
     -- equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
+-}
 
 
-e_midi = map snd . CmdTest.result_midi
+e_midi :: CmdTest.Result val -> [Midi.ChannelMessage]
+e_midi = Maybe.mapMaybe Midi.channel_message . map snd . CmdTest.result_midi
 
 simple_block :: [UiTest.BlockSpec]
 simple_block = [(UiTest.default_block_name, simple_tracks)]
@@ -173,8 +171,7 @@ prepare_blocks focus blocks = CmdTest.update_perf ustate $
     cstate = CmdTest.default_cmd_state
         { Cmd.state_focused_view = Just (UiTest.mk_vid_name focus) }
 
-step_state = CmdTest.extract_state $
-    \_ st -> Cmd.state_step (Cmd.state_play st)
+step_state = Cmd.state_step . Cmd.state_play . CmdTest.result_cmd_state
 
 get_sel :: (State.M m) => m (Maybe ScoreTime)
 get_sel = fmap Types.sel_cur_pos <$>
