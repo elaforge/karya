@@ -218,14 +218,15 @@ edit_state_bindings = concat
     -- 2 = whole, 3 = quarter, 4 = 16th, etc.  Since it goes to /4 after
     -- rank 2, I use a skip to keep the note divisions binary.
     , command_char '0' "step rank 0+0" (step_rank 0 0) -- block
-    , command_char '9' "step rank 1+0" (step_rank 1 0) -- block section
-    , command_char '1' "step rank 2+0" (step_rank 2 0) -- whole
-    , command_char '2' "step rank 3+1" (step_rank 3 1) -- half
-    , command_char '3' "step rank 3+0" (step_rank 3 0) -- 4th
-    , command_char '4' "step rank 4+1" (step_rank 4 1) -- 8th
-    , command_char '5' "step rank 4+0" (step_rank 4 0) -- 16th
-    , command_char '6' "step rank 5+1" (step_rank 5 1) -- 32nd
-    , command_char '7' "step_rank 6+0" (step_rank 6 0) -- 64th
+    , command_char '1' "step rank 1+0" (step_rank 1 0) -- block section
+    , command_char '2' "step rank 2+0" (step_rank 2 0) -- whole
+    , command_char '3' "step rank 3+1" (step_rank 3 1) -- half
+    , command_char '4' "step rank 3+0" (step_rank 3 0) -- 4th
+    , command_char '5' "step rank 4+1" (step_rank 4 1) -- 8th
+    , command_char '6' "step rank 4+0" (step_rank 4 0) -- 16th
+    , command_char '7' "step rank 5+1" (step_rank 5 1) -- 32nd
+    , command_char '8' "step_rank 6+0" (step_rank 6 0) -- 64th
+    , command_char '9' "step_rank 7+0" (step_rank 7 0) -- 256th
     , command_only '`' "toggle step mode" Edit.toggle_mark_step
 
     , command_only '~' "invert step" Edit.cmd_invert_step_direction
