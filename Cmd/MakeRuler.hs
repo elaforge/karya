@@ -19,10 +19,10 @@ import qualified Data.List as List
 import Data.Ratio
 
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Types as Types
 
 import qualified App.Config as Config
 
@@ -83,26 +83,44 @@ as_overlay ruler = ruler
 meter_ruler :: Double -> Meter -> Ruler.NameMarklist
 meter_ruler stretch meter = marks_to_ruler (meter_marks stretch meter)
 
+-- | Like 'meter_ruler', but stretch the meter to fit in the given duration.
+fit_ruler :: ScoreTime -> Meter -> Ruler.NameMarklist
+fit_ruler dur meter = meter_ruler stretch meter
+    where stretch = Types.score_to_double dur / realToFrac (meter_length meter)
+
 -- | A Meter is a structured description of how a unit of time is broken up
 -- into hiererchical sections.  A 'T' represents a mark with the given
 -- duration, and a 'D' is a group of Meters.  The rank of each mark is
 -- determined by its nesting depth.
+--
+-- The duration is represented as a Ratio so it remains independent of the
+-- eventual block length.  It will be multiplied into an actual ScoreTime
+-- by 'meter_marks'.
 --
 -- A Meter can be created either by declaring it outright, or by declaring
 -- a simpler Meter and further subdividing it.
 data Meter = T (Ratio Integer) | D [Meter]
     deriving (Eq, Show)
 
+-- | Map the given function over all @T@s in the given Meter.
 replace_t :: (Ratio Integer -> Meter) -> Meter -> Meter
 replace_t f (D ts) = D (map (replace_t f) ts)
 replace_t f (T x) = f x
 
+-- | Subdivide each mark into the given number @D@s.  The duration of each
+-- mark is lost as each one is unconditionally replaced with the given number
+-- of bars.  This has the effect of putting one layer of subdivision under
+-- the current structure, provided all @T@s are 1.
 subdivide :: Int -> Meter -> Meter
 subdivide n = replace_t (const (D (replicate n (T 1))))
 
+-- | Subdivide each mark into a number of divisions equal to its whole number
+-- value.  This has the effect of creating a layer of structure according to
+-- the durations of the @T@s and reducing @T@s to duration 1.
 subdivide_dur :: Meter -> Meter
 subdivide_dur = replace_t (\n -> D (replicate (floor n) (T 1)))
 
+-- | Create a layer that repeats the given meter a certain number of times.
 repeat :: Int -> Meter -> Meter
 repeat n meter = D $ replicate n meter
 
@@ -113,12 +131,18 @@ regular_subdivision :: [Int] -> Meter
     -- small divisions on the right, so reverse the list.
 regular_subdivision ns = foldr subdivide (T 1) (reverse ns)
 
+meter_length :: Meter -> Ratio Integer
+meter_length (D ms) = sum (map meter_length ms)
+meter_length (T d) = d
+
 -- ** predefined meters
 
 m44, m332 :: Meter
 m44 = regular_subdivision [4, 4, 4, 4]
 m332 = repeat 4 $ subdivide 4 $ subdivide_dur $ D (map T [3, 3, 2])
 
+-- | It's easier to visualize a meter as a list of its ranks.
+mshow :: Meter -> [Int]
 mshow = map snd . meter_marks 1
 
 

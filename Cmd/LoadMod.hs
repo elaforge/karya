@@ -98,7 +98,7 @@ make_block mkid rid track_rid name tracks = do
         Block.block Block.default_config ""  block_tracks Config.schema
     State.set_skeleton block_id =<<
         Schema.default_parser <$> State.get_track_info block_id
-    BlockConfig.merge_all block_id
+    BlockConfig.toggle_merge_all block_id
     return block_id
 
 -- * convert

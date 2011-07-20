@@ -6,6 +6,8 @@
 module Util.PPrint (
     pprint, pshow, str_pshow
     , pshows, pprints
+    -- * util
+    , record, list
 ) where
 import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
@@ -14,6 +16,9 @@ import qualified Language.Haskell.Pretty as Pretty
 import Language.Haskell.Syntax
 
 import qualified Text.PrettyPrint as PrettyPrint
+import qualified Text.Printf as Printf
+
+import qualified Util.Seq as Seq
 
 
 -- * showable
@@ -46,6 +51,23 @@ pshows = parse format_parsed
 
 pprints :: String -> IO ()
 pprints = putStr . pshows
+
+-- * util
+
+-- | pprint does ok for records, but it doesn't work so well if I want to print
+-- part of the record, or change the types.  A real record system for haskell
+-- would probably fix this.
+record :: [(String, String)] -> String
+record = concatMap $ \(k, v) ->
+    let s = Seq.strip v in Printf.printf "%s:%s\n" k
+            (if '\n' `elem` s then '\n' : indent_lines s else ' ' : s)
+
+indent_lines = Seq.rstrip . unlines . map (indent++) . lines
+indent = "  "
+
+list :: [String] -> String
+list xs = concatMap (\(i, x) -> Printf.printf "%d. %s\n" i x)
+    (zip [0 :: Int ..] xs)
 
 
 -- * implementation

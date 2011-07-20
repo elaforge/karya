@@ -35,7 +35,6 @@ import qualified Midi.Synth ()
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Map as Map
-import qualified Util.Pretty as Pretty
 import qualified Util.PPrint as PPrint
 
 import Ui
@@ -44,7 +43,6 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -64,6 +62,7 @@ import qualified Cmd.Lang.LEvent ()
 import qualified Cmd.Lang.LInst as LInst
 import qualified Cmd.Lang.LPerf ()
 import qualified Cmd.Lang.LPitch ()
+import qualified Cmd.Lang.LRuler ()
 import qualified Cmd.Lang.LTrack ()
 
 import qualified Derive.Stack as Stack
@@ -183,8 +182,8 @@ show_state = do
     (State.State project dir root views blocks tracks rulers _midi_conf
         (State.Default scale inst tempo)) <- State.get
     -- midi config showed by show_midi_config
-    let f fm = show_list (map show (Map.keys fm))
-    return $ show_record
+    let f fm = PPrint.list (map show (Map.keys fm))
+    return $ PPrint.record
         [ ("project", project), ("dir", dir) , ("root", show root)
         , ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
@@ -221,7 +220,7 @@ show_block block_id = do
     block <- State.get_block block_id
     tracks <- mapM show_block_track (Block.block_tracks block)
     return $ printf "%s %s\n%s"
-        (show (Block.block_title block)) (show block_id) (show_list tracks)
+        (show (Block.block_title block)) (show block_id) (PPrint.list tracks)
 
 show_block_track :: Block.Track -> Cmd.CmdL String
 show_block_track track = do
@@ -329,73 +328,6 @@ selected_events = undefined
 close_event :: Cmd.CmdL Event.Event
 close_event = undefined
 
--- ** rulers
-
-{- Examples:
-Create.ruler [MakeRuler.meter_ruler 16 MakeRuler.m44] "meter_44"
-
-replace_marklist (rid "r1") "meter" (MakeRuler.meter_ruler 16 MakeRuler.m44)
-copy_marklist "meter" (rid "r1") (rid "r1.overlay")
--}
-
-show_ruler :: RulerId -> Cmd.CmdL String
-show_ruler ruler_id = do
-    (Ruler.Ruler mlists bg show_names use_alpha align_to_bottom full_width) <-
-        State.get_ruler ruler_id
-    return $ show_record
-        [ ("bg", show bg)
-        , ("show_names", show show_names), ("use_alpha", show use_alpha)
-        , ("full_width", show full_width)
-        , ("align_to_bottom", show align_to_bottom)
-        , ("marklists", show_list (map fst mlists))
-        ]
-
-show_marklist :: RulerId -> Ruler.MarklistName -> Cmd.CmdL String
-show_marklist ruler_id marklist_name = do
-    mlist <- get_marklist ruler_id marklist_name
-    return $ show_list $
-        map (\(pos, m) -> printf "%s - %s" (show pos) (Pretty.pretty m))
-            (Ruler.forward mlist 0)
-
-get_marklist :: RulerId -> Ruler.MarklistName -> Cmd.CmdL Ruler.Marklist
-get_marklist ruler_id marklist_name = do
-    ruler <- State.get_ruler ruler_id
-    case lookup marklist_name (Ruler.ruler_marklists ruler) of
-        Nothing -> Cmd.throw $
-            "no marklist " ++ show marklist_name ++ " in " ++ show ruler_id
-        Just mlist -> return mlist
-
-replace_marklist :: RulerId -> Ruler.NameMarklist -> Cmd.CmdL ()
-replace_marklist ruler_id (name, mlist) = do
-    ruler <- State.get_ruler ruler_id
-    i <- case List.findIndex ((==name) . fst) (Ruler.ruler_marklists ruler) of
-        Nothing -> return 0
-        Just i -> State.remove_marklist ruler_id i >> return i
-    State.insert_marklist ruler_id i (name, mlist)
-
-copy_marklist :: Ruler.MarklistName -> RulerId -> RulerId
-    -> Cmd.CmdL ()
-copy_marklist marklist_name from_ruler_id to_ruler_id = do
-    mlist <- get_marklist from_ruler_id marklist_name
-    replace_marklist to_ruler_id (marklist_name, mlist)
-
--- | Replace the rulers in the block with the given ruler_id.  If there is an
--- overlay version, it will be given to all but the first track.
-replace_ruler :: RulerId -> BlockId -> Cmd.CmdL ()
-replace_ruler ruler_id block_id = do
-    _ <- State.get_ruler ruler_id -- Just make sure it exists.
-    let overlay_id = Create.add_overlay_suffix ruler_id
-    overlay_id <- fmap (maybe ruler_id (const overlay_id)) $
-        State.lookup_ruler overlay_id
-    State.modify_block block_id $ \block -> block
-        { Block.block_tracks = map_head_tail
-            (set_r ruler_id) (set_r overlay_id) (Block.block_tracks block)
-        }
-    where
-    map_head_tail _ _ [] = []
-    map_head_tail f g (x:xs) = f x : map g xs
-    set_r ruler_id track = Block.modify_id track (Block.set_rid ruler_id)
-
 -- * time
 
 sel_to_real :: Cmd.CmdL [RealTime]
@@ -416,18 +348,3 @@ sel_to_real = do
 -- | Called from the browser.
 load_instrument :: String -> Cmd.CmdL ()
 load_instrument = LInst.load
-
--- * util
-
--- | pprint does ok for records, but it doesn't work so well if I want to print
--- part of the record, or change the types.  A real record system for haskell
--- would probably fix this.
-show_record :: [(String, String)] -> String
-show_record = concatMap $ \(k, v) ->
-    let s = Seq.strip v in printf "%s:%s\n" k
-            (if '\n' `elem` s then '\n' : indent_lines s else ' ' : s)
-indent_lines = Seq.rstrip . unlines . map (indent++) . lines
-indent = "  "
-
-show_list :: [String] -> String
-show_list xs = concatMap (\(i, x) -> printf "%d. %s\n" i x) (Seq.enumerate xs)
