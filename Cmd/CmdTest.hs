@@ -35,8 +35,6 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Transport as Transport
-
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
@@ -114,10 +112,9 @@ extract_derive_result res =
     where
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
-        Cmd.Performance cache events track_env _damage _warps tempo closest_warp
-            inv_tempo tsigs <- Perf.get_root
-        return $ Derive.Result events cache tempo closest_warp inv_tempo tsigs
-            track_env
+        Cmd.Performance cache events track_env _damage warps tsigs
+            <- Perf.get_root
+        return $ Derive.Result events cache warps tsigs track_env
             (error "can't fake a Derive.State for an extracted Result")
 
 update_performance :: State.State -> State.State -> Cmd.State
@@ -316,19 +313,9 @@ set_env root_id block_id track_id environ =
         (Cmd.state_performance_threads st) }
     where
     track_env = Map.singleton (block_id, track_id) (Map.fromList environ)
-    perf = Cmd.Performance mempty [] track_env mempty
-        [] dummy_tempo dummy_closest_warp dummy_inv_tempo mempty
+    perf = Cmd.Performance mempty [] track_env mempty [] mempty
 
 make_pthread :: Cmd.Performance -> Cmd.PerformanceThread
 make_pthread perf = Unsafe.unsafePerformIO $ do
     th <- Thread.start (return ())
     return $ Cmd.PerformanceThread perf th
-
-dummy_tempo :: Transport.TempoFunction
-dummy_tempo _ _ _ = []
-
-dummy_closest_warp :: Transport.ClosestWarpFunction
-dummy_closest_warp _ _ _ = Score.id_warp
-
-dummy_inv_tempo :: Transport.InverseTempoFunction
-dummy_inv_tempo _ = []

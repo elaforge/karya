@@ -59,7 +59,6 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
-import qualified Perform.Transport as Transport
 
 
 -- * derive
@@ -67,12 +66,14 @@ import qualified Perform.Transport as Transport
 -- This should probably be in Internal, but can't due to a circular dependency
 -- with score_to_real.
 
+-- | Package up the results of a derivation.
+--
+-- NOTE TO SELF: Don't put bangs on this and then be surprised when the
+-- laziness tests fail, you doofus.
 data Result = Result {
     r_events :: Events
     , r_cache :: Cache
-    , r_tempo :: Transport.TempoFunction
-    , r_closest_warp :: Transport.ClosestWarpFunction
-    , r_inv_tempo :: Transport.InverseTempoFunction
+    , r_track_warps :: TrackWarp.Collections
     , r_track_signals :: Track.TrackSignals
     , r_track_environ :: TrackEnviron
 
@@ -94,15 +95,11 @@ extract_result :: RunResult Events -> Result
 extract_result (result, state, logs) =
     Result (merge_logs result logs)
         (collect_cache collect <> state_cache (state_constant state))
-        tempo_func closest_func inv_tempo_func
-        (collect_track_signals collect) (collect_track_environ collect)
+        warps (collect_track_signals collect) (collect_track_environ collect)
         state
     where
     collect = state_collect state
     warps = TrackWarp.collections (collect_warp_map collect)
-    tempo_func = TrackWarp.tempo_func warps
-    closest_func = TrackWarp.closest_warp warps
-    inv_tempo_func = TrackWarp.inverse_tempo_func warps
 
 -- | Given an environ, bring instrument and scale calls into scope.
 with_initial_scope :: TrackLang.Environ -> Deriver d -> Deriver d

@@ -30,6 +30,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import qualified Perform.Transport as Transport
 
 
 test_basic = do
@@ -159,7 +160,6 @@ test_simple_subderive = do
         [ (0, 1, "--1"), (1, 1, "--2")
         , (2, 0.5, "--1"), (2.5, 0.5, "--2")
         ]
-
 
 test_subderive = do
     let run evts = DeriveTest.derive_blocks
@@ -430,7 +430,7 @@ test_tempo_funcs1 = do
     equal (map (inv_tempo res) [0, 2 .. 10])
         [[b0 0], [b0 4], [b0 8], [b0 12], [b0 16], []]
 
-    equal (map (Derive.r_tempo res bid t_tid) [0, 2 .. 10])
+    equal (map (r_tempo res bid t_tid) [0, 2 .. 10])
         (map ((:[]) . RealTime.seconds) [0..5])
 
 test_tempo_funcs2 = do
@@ -442,9 +442,9 @@ test_tempo_funcs2 = do
         bid = UiTest.bid "b0"
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_logs res) []
-    equal (map (Derive.r_tempo res bid t_tid1) [0, 2 .. 10])
+    equal (map (r_tempo res bid t_tid1) [0, 2 .. 10])
         (map ((:[]) . RealTime.seconds) [0..5])
-    equal (map (Derive.r_tempo res bid t_tid2) [0, 2 .. 10])
+    equal (map (r_tempo res bid t_tid2) [0, 2 .. 10])
         (map ((:[]) . RealTime.seconds) [0, 2 .. 10])
     let b0 pos = (bid, [(t_tid1, pos), (tid1, pos)])
         b1 pos = (bid, [(t_tid2, pos), (tid2, pos)])
@@ -458,7 +458,7 @@ test_tempo_funcs2 = do
 -- | Map through inv tempo and sort the results since their order isn't
 -- relevant.
 inv_tempo :: Derive.Result -> Double -> [(BlockId, [(TrackId, ScoreTime)])]
-inv_tempo res = map (second List.sort) . List.sort . Derive.r_inv_tempo res
+inv_tempo res = map (second List.sort) . List.sort . r_inv_tempo res
     . RealTime.seconds
 
 test_tempo_funcs_multiple_subblocks = do
@@ -467,7 +467,7 @@ test_tempo_funcs_multiple_subblocks = do
             [ ("parent", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
             , ("sub", [(">i", [(0, 1, "")])])
             ]
-    equal (Derive.r_tempo res (UiTest.bid "sub") (UiTest.tid "sub.t0") 0.5)
+    equal (r_tempo res (UiTest.bid "sub") (UiTest.tid "sub.t0") 0.5)
         [0.5, 1.5]
 
 test_fractional_pitch = do
@@ -677,6 +677,12 @@ test_block_end = do
 --         [])
 
 -- * util
+
+r_tempo :: Derive.Result -> Transport.TempoFunction
+r_tempo = TrackWarp.tempo_func . Derive.r_track_warps
+
+r_inv_tempo :: Derive.Result -> Transport.InverseTempoFunction
+r_inv_tempo = TrackWarp.inverse_tempo_func . Derive.r_track_warps
 
 inst_title = DeriveTest.default_inst_title
 

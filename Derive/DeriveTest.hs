@@ -97,7 +97,7 @@ type Midi = (Integer, Midi.Message)
 perform_block :: [UiTest.TrackSpec] -> ([Midi], [String])
 perform_block tracks = perform_blocks [(UiTest.default_block_name, tracks)]
 
-perform_blocks :: [(String, [UiTest.TrackSpec])] -> ([Midi], [String])
+perform_blocks :: [UiTest.BlockSpec] -> ([Midi], [String])
 perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     where
     (_, mmsgs, logs) = perform default_lookup_inst default_midi_config
@@ -148,15 +148,15 @@ derive_tracks_with_ui with transform_ui tracks = derive_blocks_with_ui
     with transform_ui [(UiTest.default_block_name, tracks)]
 
 -- | Create multiple blocks, and derive the first one.
-derive_blocks :: [(String, [UiTest.TrackSpec])] -> Derive.Result
+derive_blocks :: [UiTest.BlockSpec] -> Derive.Result
 derive_blocks = derive_blocks_with_ui id id
 
-derive_blocks_with   :: Transform Derive.Events
-    -> [(String, [UiTest.TrackSpec])] -> Derive.Result
+derive_blocks_with   :: Transform Derive.Events -> [UiTest.BlockSpec]
+    -> Derive.Result
 derive_blocks_with with = derive_blocks_with_ui with id
 
 derive_blocks_with_ui :: Transform Derive.Events -> TransformUi
-    -> [(String, [UiTest.TrackSpec])] -> Derive.Result
+    -> [UiTest.BlockSpec] -> Derive.Result
 derive_blocks_with_ui with transform_ui block_tracks =
     derive_block_with with (transform_ui ui_state) bid
     where

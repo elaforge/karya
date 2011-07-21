@@ -445,20 +445,22 @@ data Performance = Performance {
     -- This is empty when the Performance is first created and collects
     -- thereafter.
     , perf_score_damage :: !Derive.ScoreDamage
-
-    -- | TODO The tempo functions are derived from the warps, so I should
-    -- probably get rid of them.  It turns out to be handy to have the warps
-    -- for debugging.
     , perf_warps :: ![TrackWarp.Collection]
-    , perf_tempo :: !Transport.TempoFunction
-    , perf_closest_warp :: !Transport.ClosestWarpFunction
-    , perf_inv_tempo :: !Transport.InverseTempoFunction
     , perf_track_signals :: !Track.TrackSignals
     }
 
 instance Show Performance where
     show perf = "((Performance " ++ Pretty.pretty len ++ "))"
         where len = Derive.cache_size (perf_derive_cache perf)
+
+perf_tempo :: Performance -> Transport.TempoFunction
+perf_tempo = TrackWarp.tempo_func . perf_warps
+
+perf_inv_tempo :: Performance -> Transport.InverseTempoFunction
+perf_inv_tempo = TrackWarp.inverse_tempo_func . perf_warps
+
+perf_closest_warp :: Performance -> Transport.ClosestWarpFunction
+perf_closest_warp = TrackWarp.closest_warp . perf_warps
 
 data PerformanceThread = PerformanceThread {
     pthread_perf :: !Performance

@@ -14,6 +14,7 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Midi.Perform
@@ -53,7 +54,8 @@ uncached_derive = PlayUtil.uncached_derive
 derive_tempo :: BlockId -> Cmd.CmdL [[(BlockId, [(TrackId, ScoreTime)])]]
 derive_tempo block_id = do
     result <- PlayUtil.cached_derive block_id
-    return $ map (Derive.r_inv_tempo result . RealTime.seconds) [0..10]
+    return $ map (TrackWarp.inverse_tempo_func (Derive.r_track_warps result)
+        . RealTime.seconds) [0..10]
 
 -- * block
 
