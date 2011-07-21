@@ -52,14 +52,11 @@ d_control_track (Tree.Node track _) deriver = do
     if null title then deriver else do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
         return (TrackInfo.parse_control_expr title)
-    -- TODO event calls are evaluated in normalized time, but track calls
-    -- aren't.  Should they be?
     eval_track track expr ctype deriver
 
 eval_track :: State.TrackEvents -> TrackLang.Expr
     -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
-eval_track track expr ctype deriver =
-    case ctype of
+eval_track track expr ctype deriver = case ctype of
         TrackInfo.Tempo -> do
             let control_deriver = derive_control block_end expr tempo_events
             tempo_call block_end track control_deriver deriver

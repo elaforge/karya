@@ -224,9 +224,8 @@ d_tempo block_dur maybe_track_id signal deriver = do
             real_dur <- with_warp (const warp) (score_to_real block_dur)
             -- Log.debug $ "dur, global dur "
             --     ++ show (block_id, block_dur, real_dur)
-            when (block_dur == 0) $
-                throw "can't derive a block with zero duration"
-            return (d_stretch (1 / RealTime.to_score real_dur))
+            return $ if block_dur == 0 then id
+                else d_stretch (1 / RealTime.to_score real_dur)
     stretch_to_1 $ d_warp warp $ do
         add_new_track_warp maybe_track_id
         deriver

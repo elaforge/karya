@@ -175,15 +175,12 @@ test_subderive = do
     -- aborts due to the call stack limit.
     let (events, msgs) = DeriveTest.r_split $ run
             [(0, 1, "nosuch"), (1, 1, "empty"), (3, 1, "--x")]
-    -- errors don't stop derivation
+    -- errors don't stop derivation, and an empty sub-block is ignored
     equal (map DeriveTest.e_event events) [(1.5, 0.5, "--x")]
-    strings_like (map DeriveTest.show_log msgs)
-        ["call not found: nosuch", "block with zero duration"]
+    strings_like (map DeriveTest.show_log msgs) ["call not found: nosuch"]
 
     equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
-        [ "test/b0 test/b0.t1 0-1"
-        , "test/b0 test/b0.t1 1-2: test/empty * *"
-        ]
+        ["test/b0 test/b0.t1 0-1"]
 
     let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
         (events, msgs) = DeriveTest.r_split res
@@ -323,15 +320,6 @@ test_initial_environ = do
     -- DeriveTest.derive_tracks_with (Derive.with_inital_scope (env "dmx/x"))
     --         [ (">", [(0, 1, "sn")])
     --         ]
-
--- show_log msg
---     | null (Log.msg_signal msg) = Log.format_msg msg
---     | otherwise = "*** " ++ Log.msg_string msg ++ "\n"
---         ++ show_sig (Log.msg_signal msg)
--- 
--- show_sig sig =
---     Seq.join "\n" [showf x ++ "\t -> " ++ showf y | (x, y) <- sig]
---     where showf f = Numeric.showFFloat (Just 3) f ""
 
 test_warp_ops = do
     let run op = DeriveTest.eval State.empty (op record)
