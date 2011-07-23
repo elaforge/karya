@@ -2,12 +2,36 @@ module Ui.State_test where
 import qualified Data.Map as Map
 
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import Util.Test
 
 import qualified Ui.Block as Block
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
+
+test_skeleton_cycles = do
+    let bid = UiTest.default_block_id
+    let extract = either (Left . Pretty.pretty) Right
+    let run ntracks m = extract $ State.eval State.empty $ do
+            UiTest.mkstate UiTest.default_block_name
+                [('t' : show n, []) | n <- [0..ntracks]]
+            State.set_skeleton bid Skeleton.empty
+            m
+    equal (run 1 (State.toggle_skeleton_edge bid (1, 1))) (Right False)
+    equal (run 1 (State.toggle_skeleton_edge bid (1, 10)))
+        (Left "toggle: edge points to track out of range")
+    equal (run 1 (State.toggle_skeleton_edge bid (0, 1)))
+        (Left "toggle: edge points to non-event track")
+    equal (run 1 (State.toggle_skeleton_edge bid (1, 2))) (Right True)
+    left_like (run 1 (State.add_edges bid [(1, 1)]))
+        "would have caused a cycle"
+    left_like (run 1 (State.add_edges bid [(1, 2), (2, 1)]))
+        "would have caused a cycle"
+    left_like (run 1 (State.add_edges bid [(0, 1), (1, 2)]))
+        "edge points to non-event track"
+    equal (run 1 (State.add_edges bid [(1, 2)])) (Right ())
 
 test_verify = do
     let broken = simple_state

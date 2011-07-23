@@ -28,12 +28,12 @@ find p trees = case List.find (p . rootLabel) trees of
 
 -- | Find the first matching depthwise matching element and the path to reach
 -- it.  The parents list is ordered immediate to distant.
-find_with_parents :: (a -> Bool) -> Forest a -> Maybe (Tree a, [a])
+find_with_parents :: (a -> Bool) -> Forest a -> Maybe (Tree a, [Tree a])
 find_with_parents f trees = msum (map (go []) trees)
     where
     go parents tree@(Node val subs)
         | f val = Just (tree, parents)
-        | otherwise = msum (map (go (val : parents)) subs)
+        | otherwise = msum (map (go (tree : parents)) subs)
 
 -- | Find the first leaf, always taking the leftmost branch.
 first_leaf :: Tree a -> a

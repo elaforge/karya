@@ -41,7 +41,7 @@ toggle_edge edge graph
 
 -- | Splice @from@ into the graph above @to@.  That means both @from@ and @to@
 -- are detached from their parents, @from@ is relinked to @to@'s old parents,
--- and @from@ is linked to @to@.
+-- and @from@ is linked to @to@.  May produce a cycle.
 --
 -- This operation should be idempotent.
 splice :: Edge -> Graph -> Graph
@@ -54,8 +54,13 @@ splice (from, to) graph =
     parents = [p | (p, cs) <- IArray.assocs graph, to `elem` cs]
 
 would_make_cycle :: Edge -> Graph -> Bool
-would_make_cycle (from, to) graph =
-    Array.in_bounds from graph && Array.in_bounds to graph && path graph to from
+would_make_cycle (from, to) graph = from == to
+    || (Array.in_bounds from graph
+        && Array.in_bounds to graph && path graph to from)
+
+has_cycle :: Graph -> Bool
+has_cycle graph = any (not . null . Tree.subForest) (scc graph)
+    || any (uncurry (==)) (edges graph)
 
 has_edge :: Edge -> Graph -> Bool
 has_edge (from, to) graph = Array.in_bounds from graph && to `elem` graph!from

@@ -494,13 +494,17 @@ get_skeleton :: (M m) => BlockId -> m Skeleton.Skeleton
 get_skeleton block_id = Block.block_skeleton <$> get_block block_id
 
 set_skeleton :: (M m) => BlockId -> Skeleton.Skeleton -> m ()
-set_skeleton block_id skel =
-    modify_block block_id (\block -> block { Block.block_skeleton = skel })
+set_skeleton block_id skel = modify_skeleton block_id (const skel)
+
+modify_skeleton :: (M m) => BlockId
+    -> (Skeleton.Skeleton -> Skeleton.Skeleton) -> m ()
+modify_skeleton block_id f = modify_block block_id $
+    \block -> block { Block.block_skeleton = f (Block.block_skeleton block) }
 
 -- | Toggle the given edge in the block's skeleton.  If a cycle would be
 -- created, refuse to add the edge and return False.  The edge is in (parent,
 -- child) order.
-toggle_skeleton_edge :: (M m) => BlockId -> (TrackNum, TrackNum) -> m Bool
+toggle_skeleton_edge :: (M m) => BlockId -> Skeleton.Edge -> m Bool
 toggle_skeleton_edge block_id edge = do
     block <- get_block block_id
     when_just (verify_edge block edge) (throw . ("toggle: " ++))
@@ -511,23 +515,39 @@ toggle_skeleton_edge block_id edge = do
             set_block block_id $ block { Block.block_skeleton = new_skel }
             return True
 
+-- | Add the edges to the skeleton.  Throw if they would produce a cycle.
+add_edges :: (M m) => BlockId -> [Skeleton.Edge] -> m ()
+add_edges block_id edges = do
+    skel <- get_skeleton block_id
+    block <- get_block block_id
+    when_just (msum (map (verify_edge block) edges))
+        (throw . ("add_adges: " ++))
+    maybe (throw $ "add_edges " ++ show edges ++ " to " ++ show skel
+            ++ " would have caused a cycle")
+        (set_skeleton block_id) (Skeleton.add_edges edges skel)
+
+remove_edges :: (M m) => BlockId -> [Skeleton.Edge] -> m ()
+remove_edges block_id edges =
+    modify_skeleton block_id (Skeleton.remove_edges edges)
+
 -- | Splice the given edge into the skeleton.  That means the given child will
 -- be unlinked from its parent and relinked to the given parent, and the given
 -- parent will be linked to the old child's parent.
 -- This is not a toggle, so it should be idempotent.
-splice_skeleton :: (M m) => BlockId -> (TrackNum, TrackNum) -> m ()
+splice_skeleton :: (M m) => BlockId -> Skeleton.Edge -> m ()
 splice_skeleton block_id edge = do
     block <- get_block block_id
     when_just (verify_edge block edge) (throw . ("splice: " ++))
-    let skel = Block.block_skeleton block
-    set_block block_id $
-        block { Block.block_skeleton = Skeleton.splice edge skel }
+    maybe (throw $ "splice_skeleton: " ++ show edge
+            ++ " would have caused a cycle")
+        (set_skeleton block_id)
+        (Skeleton.splice edge (Block.block_skeleton block))
 
-verify_edge :: Block.Block -> (TrackNum, TrackNum) -> Maybe String
+verify_edge :: Block.Block -> Skeleton.Edge -> Maybe String
 verify_edge block (from, to) = case (Seq.at tracks from, Seq.at tracks to) of
-    (Just t1, Just t2) -> case (Block.tracklike_id t1, Block.tracklike_id t2) of
+    (Just t, Just u) -> case (Block.tracklike_id t, Block.tracklike_id u) of
         (Block.TId {}, Block.TId {}) -> Nothing
-        _ -> Just "edge points to non event track"
+        _ -> Just "edge points to non-event track"
     _ -> Just "edge points to track out of range"
     where tracks = Block.block_tracks block
 

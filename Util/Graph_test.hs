@@ -14,6 +14,7 @@ test_toggle_edge = do
     eq (f (0, 1) (build [])) (Just (build [(0, 1)]))
     eq (f (0, 1) (build [(0, 1)])) (Just (build []))
     eq (f (0, 1) (build [(1, 0)])) Nothing
+    eq (f (1, 1) (build [])) Nothing
 
 test_splice = do
     let f = Util.Graph.splice
