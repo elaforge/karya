@@ -63,7 +63,7 @@ cmds_with_note kbd_entry cmds msg = do
         Nothing -> Cmd.run_subs cmds msg
 
 are_modifiers_down :: (Cmd.M m) => m Bool
-are_modifiers_down = fmap (not . Set.null) Keymap.mods_down
+are_modifiers_down = fmap (not . Set.null) (Keymap.mods_down False)
 
 -- ** kbd
 

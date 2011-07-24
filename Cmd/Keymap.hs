@@ -9,21 +9,27 @@
     Keymaps provide an efficient way to respond to a useful subset of Msgs,
     i.e.  those which are considered 'key down' type msgs.  The exact
     definition is in 'Bindable'.
+
+    Keys are bound using 'SimpleMod's, which are higher level than the ones in
+    "Ui.Key".  This provides allows some abstraction between they key bindings
+    and which actual modifiers those imply, and allows the conflation of
+    multiple modifiers.  In addition, Shift is stripped for 'Key.Char's, since
+    the shift is already reflected in the character itself.  So while Shift
+    may be included binding e.g. Key.Enter, it must not be included when
+    binding letter keys.
 -}
 module Cmd.Keymap where
-import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
-
-import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Msg as Msg
 
 
 -- * building
@@ -33,10 +39,8 @@ bind_key :: (Cmd.M m) => Key.Key -> String -> m a -> [Binding m]
 bind_key = bind_mod []
 
 -- | Bind a char with no modifiers.
---
--- Binding functions that take Char will add a Shift if it's uppercase.
 bind_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
-bind_char char = bind_mod (char_shift char []) (Key.Char char)
+bind_char char = bind_mod [] (Key.Char char)
 
 -- | Many cmds are mapped to both a plain keystroke and command key version.
 -- This is a little unusual, but it means the command can still be invoked when
@@ -51,8 +55,7 @@ command_char char desc cmd =
 
 -- | But some commands are too dangerous to get a plain keystroke version.
 command_only :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
-command_only char =
-    bind_mod (char_shift char [PrimaryCommand]) (Key.Char char)
+command_only char = bind_mod [PrimaryCommand] (Key.Char char)
 
 -- | Bind a key with the given modifiers.
 bind_mod :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a -> [Binding m]
@@ -108,11 +111,6 @@ expand_mods bindable smods
         Drag n -> [Mouse n]
         _ -> []
 
-char_shift :: Char -> [SimpleMod] -> [SimpleMod]
-char_shift c mods
-    | Char.isUpper c = Shift : mods
-    | otherwise = mods
-
 -- * CmdMap
 
 -- | Create a CmdMap for efficient lookup and return warnings encountered
@@ -131,7 +129,7 @@ make_cmd_map bindings = (Map.fromList bindings, warns)
 make_cmd :: (Cmd.M m) => CmdMap m -> Msg.Msg -> m Cmd.Status
 make_cmd cmd_map msg = do
     bindable <- Cmd.require (msg_to_bindable msg)
-    mods <- mods_down
+    mods <- mods_down (Maybe.isJust (Msg.char msg))
     case Map.lookup (KeySpec mods bindable) cmd_map of
         Nothing -> do
             -- Log.warn $ "key " ++ show (mods, bindable) ++ " not in "
@@ -150,8 +148,6 @@ make_cmd cmd_map msg = do
 -- Things you have to inspect the Msg directly for:
 --
 -- - differentiate ShiftL and ShiftR
---
--- - chorded keys
 --
 -- - use option on the mac
 data SimpleMod =
@@ -216,12 +212,15 @@ overlaps bindings =
 -- | Return the mods currently down, stripping out non-modifier keys and notes,
 -- so that overlapping keys will still match.  Mouse mods are not filtered, so
 -- each mouse chord can be bound individually.
-mods_down :: (Cmd.M m) => m (Set.Set Cmd.Modifier)
-mods_down = do
+--
+-- Shift is excluded for Key.Char, since the shifted state is represented in
+-- the Char itself.
+mods_down :: (Cmd.M m) => Bool -> m (Set.Set Cmd.Modifier)
+mods_down is_char = do
     mods <- fmap (filter is_mod . Map.keys) Cmd.keys_down
     return $ Set.fromList mods
     where
-    is_mod (Cmd.KeyMod _) = True
+    is_mod (Cmd.KeyMod mod) = not (is_char && mod == Key.Shift)
     is_mod (Cmd.MidiMod _ _) = False
     is_mod (Cmd.MouseMod _ _) = True
 
