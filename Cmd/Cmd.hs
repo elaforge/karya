@@ -818,7 +818,7 @@ msg_to_mod msg = case msg of
 cmd_record_active :: Cmd
 cmd_record_active msg = case msg of
     Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_block = Just view_id })
-        msg) | not (is_up msg) -> do
+        msg) | not (is_up msg || is_close msg) -> do
             set_focused_view view_id
             return $ case msg of
                UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus) -> Done
@@ -827,14 +827,17 @@ cmd_record_active msg = case msg of
     where
     -- If mouse ups and key ups set focus then the key up after creating a new
     -- view will put the focus back on the old one.
-    is_up (UiMsg.MsgEvent (UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseUp _ }))
-        = True
+    is_up (UiMsg.MsgEvent (UiMsg.Mouse
+        { UiMsg.mouse_state = UiMsg.MouseUp _ })) = True
     is_up (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyUp _ _)) = True
     is_up _ = False
+    is_close UiMsg.MsgClose = True
+    is_close _ = False
 
 set_focused_view :: (M m) => ViewId -> m ()
 set_focused_view view_id = do
     -- Log.debug $ "active view is " ++ show view_id
+    set_status "focus" (Just (show view_id))
     modify_state $ \st -> st { state_focused_view = Just view_id }
 
 -- Responds to the UI's request to close a window.
