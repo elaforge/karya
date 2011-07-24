@@ -120,7 +120,7 @@ cc_map = [(n, "cc" ++ show n) | n <- [0..127]] ++
     , (10, "pan")
     , (64, "damper-pedal")
     , (65, "portamento-pedal")
-    , (66, "sustenuto-pedal")
+    , (66, "sostenuto-pedal")
     , (67, "soft-pedal")
     ]
 

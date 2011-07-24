@@ -254,6 +254,8 @@ event_bindings = concat
     -- mode to remove events.  Maybe I'll change that later.
     , command Key.Backspace "clear selected" Edit.cmd_clear_selected
     , command_char 'o' "join events" Edit.cmd_join_events
+
+    , bind_char '_' "insert track end" Edit.cmd_insert_track_end
     ]
 
 -- | Bindings which work on pitch tracks.  The reason this is global rather

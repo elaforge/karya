@@ -85,6 +85,14 @@ cmd_insert_event text dur = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_events track_id [(pos, Event.event text dur)]
 
+-- | This can be used to extend the length of a block so when it is subderived
+-- it has the right length.
+--
+-- If it's more convenient, I could remove any existing "--" events before
+-- inserting the new one.
+cmd_insert_track_end :: (Cmd.M m) => m ()
+cmd_insert_track_end = cmd_insert_event "--" 0
+
 -- | Different from insert/delete time since it only modifies one event.
 -- Move back the next event, or move down the previous event.  If the
 -- selection is non-zero, the event's duration will be modified to the

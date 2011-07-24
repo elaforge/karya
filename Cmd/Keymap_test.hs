@@ -35,10 +35,10 @@ test_make_cmd = do
     equal (run_char [] '2') (did_run "2" "cmd2")
     equal (run_char [] '3') no_run
 
-    equal (run_char [Key.Shift] '1') no_run
-    equal (run_char [Key.Shift] '3') (did_run "s-3" "cmd1")
+    equal (run_char [Key.Shift] '!') no_run
+    equal (run_char [Key.Shift] '#') (did_run "s-3" "cmd1")
     equal (run_char [Key.Meta] '1') (did_run "c-1" "cmd1")
-    equal (run_char [Key.Meta, Key.Shift] '1') (did_run "cs-1" "cmd1")
+    equal (run_char [Key.Meta, Key.Shift] '!') (did_run "cs-1" "cmd1")
 
     -- key up aborts
     equal (CmdTest.extract id (run_cmd cmd [] (CmdTest.key_up '1'))) aborted
@@ -96,10 +96,9 @@ binds = concat
     [ Keymap.bind_key (Key.Char '1') "1" cmd1
     , Keymap.bind_key (Key.Char '1') "12" cmd1
     , Keymap.bind_key (Key.Char '2') "2" cmd2
-    , Keymap.bind_mod [Keymap.Shift] (Key.Char '3') "s-3" cmd1
+    , Keymap.bind_mod [] (Key.Char '#') "s-3" cmd1
     , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.Char '1') "c-1" cmd1
-    , Keymap.bind_mod [Keymap.PrimaryCommand, Keymap.Shift]
-        (Key.Char '1') "cs-1" cmd1
+    , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.Char '!') "cs-1" cmd1
     , Keymap.bind_click [Keymap.Mouse 1] 2 1 "chord-12" (const cmd1)
     , Keymap.bind_drag [] 3 "drag-3" (const cmd1)
     ]
