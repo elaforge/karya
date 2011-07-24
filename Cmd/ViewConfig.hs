@@ -63,7 +63,10 @@ resize_to_fit view_id = do
     screen <- Cmd.get_screen (Rect.upper_left (Block.view_rect view))
     rect <- view_rect view
     State.set_view_rect view_id $ Rect.intersection screen $
-        Block.set_visible_rect view rect
+        scootch screen $ Block.set_visible_rect view rect
+    where
+    scootch screen r =
+        Rect.move (min (Rect.rx r) (Rect.rr screen - Rect.rw r)) (Rect.ry r) r
 
 -- | Get the View's Rect, resized to fit its contents.  Its position is
 -- unchanged.

@@ -28,7 +28,7 @@ big things
 
 UNSORTED
   * '_' not working to insert end of block, should also work in control tracks
-  - open new views sized to their content
+  * open new views sized to their content
   - bug: sometimes space didn't cancel playback when I open block then play
   - bug: I think new windows don't get focus sometimes, add a "focus" status
     line to make it easier to notice

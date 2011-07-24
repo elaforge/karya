@@ -282,7 +282,8 @@ create_bindings = concat
     , command_only 'H' "splice track above" Create.splice_above
     , command_only 'd' "delete tracks" Create.destroy_selected_tracks
 
-    , command_only 'n' "create view" (Create.view =<< Cmd.get_focused_block)
+    , command_only 'n' "create view"
+        (Create.fitted_view =<< Cmd.get_focused_block)
     -- For the moment, never destroy blocks when closing the view.
     , command_only 'w' "destroy view"
         (State.destroy_view =<< Cmd.get_focused_view)

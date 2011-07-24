@@ -69,8 +69,8 @@ cmd_open_block = do
     forM_ sel $ \(_, _, events) -> forM_ events $ \(_, event) ->
         when_just (call_of (Event.event_string event)) $ \block_id -> do
             views <- State.get_views_of block_id
-            maybe (Create.view block_id >> return ()) ViewConfig.bring_to_front
-                (Seq.head (Map.keys views))
+            maybe (Create.fitted_view block_id >> return ())
+                ViewConfig.bring_to_front (Seq.head (Map.keys views))
 
 -- * track
 

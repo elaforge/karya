@@ -161,6 +161,35 @@ view block_id = do
         . Map.elems . State.state_views)
     State.create_view view_id $ Block.view block_id rect Config.zoom
 
+-- | This is like 'view', but tries to fit the view size to its contents.
+--
+-- It's in Cmd.M since it needs the screen dimensions.
+fitted_view :: (Cmd.M m) => BlockId -> m ViewId
+fitted_view block_id = do
+    -- This is similar to ViewConfig.resize_to_fit, but not the same.  The
+    -- reason is that resize_to_fit relies on Block.view_visible_track/block
+    -- being set, which is in turn because the haskell layer doesn't track
+    -- the size of the various widgets and so it has to wait for fltk to tell
+    -- it after the view has been created.  So instead I add up the default
+    -- sizes, which only works before the view has been created.
+    --
+    -- It's gross, but still probably better than tracking a whole bunch of
+    -- fltk state that I don't otherwise need.
+    views <- State.get_views_of block_id
+    view_id <- require "view id" $ generate_view_id block_id views
+    block <- State.get_block block_id
+    block_end <- State.block_event_end block_id
+    let tviews = map (Block.TrackView . Block.track_width)
+            (Block.block_tracks block)
+    let w = sum $ map Block.track_view_width $
+            zipWith Block.track_view (Block.block_tracks block) tviews
+        h = Types.zoom_to_pixels Config.zoom block_end
+    rects <- State.gets (map Block.view_rect . Map.elems . State.state_views)
+    screen <- Cmd.get_screen (0, 0) -- just pick the main screen for now
+    let dimensions = (w + Block.default_wpadding, h + Block.default_hpadding)
+    let vrect = find_screen_rect dimensions rects screen
+    State.create_view view_id $ Block.view block_id vrect Config.zoom
+
 block_view :: (Cmd.M m) => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view
 
@@ -406,10 +435,15 @@ ids_for ns parent code =
 require :: (State.M m) => String -> Maybe a -> m a
 require msg = maybe (State.throw $ "somehow can't find ID for " ++ msg) return
 
--- TODO I also need the screen dimensions to do this right.  Before I go
--- too far here, though, I'll want to think about proper window manager stuff.
--- If I just allow the placement function to be passed as an arg...
+find_rect :: (Int, Int) -> [Rect.Rect] -> Rect.Rect
 find_rect (w, h) rects = Rect.xywh right bottom w h
     where
     right = maximum $ 0 : map Rect.rr rects
+    bottom = 10
+
+find_screen_rect :: (Int, Int) -> [Rect.Rect] -> Rect.Rect -> Rect.Rect
+find_screen_rect (w, h) rects screen =
+    Rect.intersection screen (Rect.xywh right bottom w h)
+    where
+    right = min (maximum (0 : map Rect.rr rects) ) (Rect.rr screen - w)
     bottom = 10

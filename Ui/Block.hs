@@ -196,7 +196,7 @@ data View = View {
     -- with scrollbars and other things subtracted.
     --
     -- These two are derived from view_rect, but only fltk knows the width of
-    -- all the various widgets, so it's cached here so pure code doesn't have
+    -- all the various widgets.  It's cached here so pure code doesn't have
     -- to call to the UI and import BlockC.
     , view_visible_track :: Int
     , view_visible_time :: Int
@@ -235,7 +235,8 @@ show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
 
 -- | Return how much track is in view.
 visible_time :: View -> ScoreTime
-visible_time view = Types.zoom_to_time (view_zoom view) (view_visible_time view)
+visible_time view =
+    Types.zoom_to_time (view_zoom view) (view_visible_time view)
 
 visible_track :: View -> Types.Width
 visible_track = view_visible_track
@@ -252,6 +253,15 @@ set_visible_rect view rect = rect
     where
     dw = Rect.rw (view_rect view) - view_visible_track view
     dh = Rect.rh (view_rect view) - view_visible_time view
+
+-- | The actual window size is this much larger than the sum of the widths
+-- of the tracks, but only after first creation, when 'view_visible_track'
+-- has not yet been set by the UI.
+default_wpadding, default_hpadding :: Int
+default_wpadding = Config.vconfig_sb_size + 2
+default_hpadding = Config.vconfig_skel_height
+    + Config.vconfig_block_title_height + Config.vconfig_track_title_height
+    + Config.vconfig_status_size + Config.vconfig_sb_size
 
 -- | Per-view track settings.
 data TrackView = TrackView {
