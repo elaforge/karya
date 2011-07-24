@@ -61,8 +61,11 @@ remove tracknum = map_skel (Graph.remove_vertex tracknum)
 toggle_edge :: Edge -> Skeleton -> Maybe Skeleton
 toggle_edge edge (Skeleton graph) = Skeleton <$> Graph.toggle_edge edge graph
 
-splice :: Edge -> Skeleton -> Maybe Skeleton
-splice edge = acyclic . map_skel (Graph.splice edge)
+splice_above :: TrackNum -> TrackNum -> Skeleton -> Maybe Skeleton
+splice_above new to = acyclic . map_skel (Graph.splice_above new to)
+
+splice_below :: TrackNum -> TrackNum -> Skeleton -> Maybe Skeleton
+splice_below new to = acyclic . map_skel (Graph.splice_below new to)
 
 acyclic :: Skeleton -> Maybe Skeleton
 acyclic skel@(Skeleton graph)

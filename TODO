@@ -27,12 +27,26 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - sub block playback display is gone, maybe has to do with empty block at
+  - easy way to create a marker on the ruler
+  * ^T creates a track below, but what about one above?
+  * sub block playback display is gone, maybe has to do with empty block at
     end?
-  - step play not working in save/bloom
+  * step play not working in save/bloom
   - fltk bug: quick tempo yields low-res signal, which gets wiped out by the
     selection and not redrawn
   - there should be a way for play to bring up blocks as they are played
+    Why no emit playback for newly created view?
+    Because for the updater to know the views, I'd have to have some
+    communication from the responder thread, but it's blocked on user input.
+    Ultimately the mutable variable is the view map.
+    So, always emit to a certain view, and then set_selection_pos ignores
+    ViewIds not in the map?  How do I know which block that view corresponds
+    to?  Or I could just send the (BlockId, [ViewId]) map to the updater after
+    each respond.  But now I need the updater to be able to emit view creates.
+    It has to send a msg to the responder when it gets to a new block.
+    Getting complicated but it is nice to see the score as it plays.
+  - at one point, space didn't kill the playback updater thread, what could
+    cause that to happen?
   * editing tempo results in {s "untitled/b0 untitled/b0.t1 *"} Error:
     real_to_score out of range: 9.223372036854775e12s
   * fix-imports bug: two line comment in Cmd.Play lost its first line

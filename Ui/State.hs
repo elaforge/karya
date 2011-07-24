@@ -530,26 +530,35 @@ remove_edges :: (M m) => BlockId -> [Skeleton.Edge] -> m ()
 remove_edges block_id edges =
     modify_skeleton block_id (Skeleton.remove_edges edges)
 
--- | Splice the given edge into the skeleton.  That means the given child will
--- be unlinked from its parent and relinked to the given parent, and the given
--- parent will be linked to the old child's parent.
--- This is not a toggle, so it should be idempotent.
-splice_skeleton :: (M m) => BlockId -> Skeleton.Edge -> m ()
-splice_skeleton block_id edge = do
+splice_skeleton_above, splice_skeleton_below
+    :: (M m) => BlockId -> TrackNum -> TrackNum -> m ()
+splice_skeleton_above = _splice_skeleton True
+splice_skeleton_below = _splice_skeleton False
+
+-- | Splice the given tracknum into the skeleton, either above or below
+-- the @to@ tracknum.  What this means exactly is documented in
+-- 'Util.Graph.splice_above' and 'Util.Graph.slice_below'.
+_splice_skeleton :: (M m) => Bool -> BlockId -> TrackNum -> TrackNum -> m ()
+_splice_skeleton above block_id new to = do
     block <- get_block block_id
-    when_just (verify_edge block edge) (throw . ("splice: " ++))
-    maybe (throw $ "splice_skeleton: " ++ show edge
+    when_just (msum (map (verify_track block) [new, to]))
+        (throw . ("splice: " ++))
+    let splice = if above then Skeleton.splice_above else Skeleton.splice_below
+    maybe (throw $ "splice_skeleton: " ++ show (new, to)
             ++ " would have caused a cycle")
-        (set_skeleton block_id)
-        (Skeleton.splice edge (Block.block_skeleton block))
+        (set_skeleton block_id) (splice new to (Block.block_skeleton block))
+
+verify_track :: Block.Block -> TrackNum -> Maybe String
+verify_track block tracknum =
+    case Seq.at (Block.block_tracks block) tracknum of
+        Nothing -> Just $ "tracknum out of range: " ++ show tracknum
+        Just t -> case Block.tracklike_id t of
+            Block.TId {} -> Nothing
+            _ -> Just $ "edge points to non-event track: " ++ show t
 
 verify_edge :: Block.Block -> Skeleton.Edge -> Maybe String
-verify_edge block (from, to) = case (Seq.at tracks from, Seq.at tracks to) of
-    (Just t, Just u) -> case (Block.tracklike_id t, Block.tracklike_id u) of
-        (Block.TId {}, Block.TId {}) -> Nothing
-        _ -> Just "edge points to non-event track"
-    _ -> Just "edge points to track out of range"
-    where tracks = Block.block_tracks block
+verify_edge block (from, to) =
+    mplus (verify_track block from) (verify_track block to)
 
 -- *** TrackTree
 

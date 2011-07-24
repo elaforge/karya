@@ -14,6 +14,7 @@ import Prelude hiding (lookup)
 import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
@@ -125,8 +126,9 @@ shift_tracknum block tracknum shift
     selectable = selectable_tracks block
     find_track [] = tracknum
     find_track tracks@(first:_) =
-        maybe tracknum id $ Seq.head $ drop abs_shift tracks
-        where abs_shift = if tracknum /= first then abs shift - 1 else abs shift
+        Maybe.fromMaybe tracknum $ Seq.head $ drop abs_shift tracks
+        where
+        abs_shift = if tracknum /= first then abs shift - 1 else abs shift
 
 -- | Get the tracknums from a block that should be selectable.
 selectable_tracks :: Block.Block -> [TrackNum]

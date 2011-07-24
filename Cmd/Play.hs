@@ -223,8 +223,7 @@ modify = Cmd.modify_play_state
 -- Note that this goes directly to the UI through Sync, bypassing the usual
 -- state diff folderol.
 updater_thread :: Transport.UpdaterControl -> Transport.Info
-    -> Transport.InverseTempoFunction -> RealTime -> State.State
-    -> IO ()
+    -> Transport.InverseTempoFunction -> RealTime -> State.State -> IO ()
 updater_thread ctl transport_info inv_tempo_func start ui_state = do
     -- Send Playing and Stopped msgs to the responder for all visible blocks.
     let block_ids = Seq.unique $ Map.elems (Map.map Block.view_block
@@ -253,7 +252,6 @@ data UpdaterState = UpdaterState {
 updater_loop :: UpdaterState -> IO ()
 updater_loop state = do
     now <- subtract (updater_offset state) <$> updater_get_now state
-    let block_pos = updater_inv_tempo_func state now
     let fail err = Log.error ("state error in updater: " ++ show err)
             >> return []
     play_pos <- either fail return $ State.eval (updater_ui_state state) $
@@ -267,11 +265,10 @@ updater_loop state = do
     state <- return $ state { updater_active_sels = active_sels }
 
     stopped <- Transport.check_player_stopped (updater_ctl state)
-    if stopped || null block_pos
+    if stopped || null (updater_inv_tempo_func state now)
         then mapM_ (Sync.clear_play_position . fst) $
             Set.toList (updater_active_sels state)
         else Thread.delay 0.05 >> updater_loop state
-
 
 
 -- * util

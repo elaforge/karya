@@ -16,9 +16,12 @@ import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Rect as Rect
+import qualified Util.Seq as Seq
+import qualified Util.Tree as Tree
 
 import Ui
 import qualified Ui.Block as Block
@@ -30,8 +33,8 @@ import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Selection as Selection
 import qualified Cmd.MakeRuler as MakeRuler
+import qualified Cmd.Selection as Selection
 
 import qualified App.Config as Config
 
@@ -179,30 +182,56 @@ destroy_view view_id = do
 
 -- * track
 
+-- | Create a track and splice it below the current one.  The track will
+-- be inserted to the right of the selected track.
+splice_below :: (Cmd.M m) => m TrackId
+splice_below = do
+    (block_id, tracknum, _, _) <- Selection.get_insert
+    track_id <- track block_id (tracknum+1)
+    State.splice_skeleton_below block_id (tracknum+1) tracknum
+    return track_id
+
+-- | Create a track and make it parent to the current one along with its
+-- siblings.  If the selected track has no parent, the new track will become
+-- parent to all toplevel tracks and be placed at tracknum 1.  Otherwise, it
+-- will be inserted to the right of the parent.
+splice_above :: (Cmd.M m) => m TrackId
+splice_above = do
+    (block_id, tracknum, _, _) <- Selection.get_insert
+    tree <- State.get_track_tree block_id
+    (_, parents) <- Cmd.require_msg
+        ("splice_above: tracknum not in tree: " ++ show tracknum) $
+        Tree.find_with_parents ((==tracknum) . num) tree
+    let new_tracknum = maybe 1 ((+1) . num . Tree.rootLabel) (Seq.head parents)
+    let bump n = if n >= new_tracknum then n + 1 else n
+    let parent = bump . num . Tree.rootLabel <$> Seq.head parents
+    track_id <- track block_id new_tracknum
+    -- Splice above means splice below the parent!
+    case parent of
+        Just parent ->
+            State.splice_skeleton_below block_id new_tracknum parent
+        Nothing -> do
+            -- No parent?  Becomes the parent of all toplevel tracks.
+            let toplevel = map ((+1) . num . Tree.rootLabel) tree
+            State.add_edges block_id (map ((,) new_tracknum) toplevel)
+    return track_id
+    where num = State.track_tracknum
+
 -- | Insert a track after the selection, or just append one if there isn't one.
 -- This is useful for empty blocks which of course have no selection.
-insert_track :: (Cmd.M m) => Bool -> m TrackId
-insert_track splice = do
-    view_id <- Cmd.get_focused_view
-    maybe_sel <- State.get_selection view_id Config.insert_selnum
-    case maybe_sel of
-        Nothing -> append_track
-        Just _ -> insert_track_after_selection splice
+insert_track :: (Cmd.M m) => m TrackId
+insert_track = maybe append_track (const insert_track_after_selection)
+    =<< Selection.lookup_insert
 
 append_track :: (Cmd.M m) => m TrackId
 append_track = do
     block_id <- Cmd.get_focused_block
     track block_id 99999
 
-insert_track_after_selection :: (Cmd.M m) => Bool -> m TrackId
-insert_track_after_selection splice = do
+insert_track_after_selection :: (Cmd.M m) => m TrackId
+insert_track_after_selection = do
     (_, (block_id, tracknum, _)) <- Selection.get_any_insert
-    block <- State.get_block block_id
-    let new_tracknum = track_after block tracknum
-    track_id <- track block_id new_tracknum
-    when splice $
-        State.splice_skeleton block_id (new_tracknum, tracknum)
-    return track_id
+    track block_id (tracknum + 1)
 
 -- | Tracks look like \"ns/b0.t0\", etc.
 track_ruler :: (State.M m) =>
@@ -318,6 +347,11 @@ clip_tracknum block_id tracknum = do
     tracks <- State.tracks block_id
     return $ max 0 (min tracks tracknum)
 
+-- | Get the track to the right of the given tracknum.  This isn't just (+1)
+-- because it skips collapsed tracks.
+--
+-- TODO Currently unused.  At one time I thought newly added tracks should
+-- skip collapsed ones, but now I don't think so.
 track_after :: Block.Block -> TrackNum -> TrackNum
 track_after block tracknum
     -- It must already be the rightmost tracknum.
@@ -325,6 +359,7 @@ track_after block tracknum
     | otherwise = next_tracknum
     where next_tracknum = Selection.shift_tracknum block tracknum 1
 
+empty_track :: String -> Track.Track
 empty_track title = Track.track title [] Config.track_bg Config.render_config
 
 generate_track_id :: BlockId -> String -> Map.Map TrackId _a -> Maybe Id.Id

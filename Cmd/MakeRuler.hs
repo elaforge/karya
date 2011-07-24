@@ -47,7 +47,7 @@ mcolor :: Double -> Double -> Double -> Color.Color
 mcolor r g b = Color.rgba r g b 0.35
 
 -- | Configs for marks in order of increasing rank.
--- (color, width, zoom_pixels)
+-- @(color, width, zoom_pixels)@
 --
 -- @zoom_pixels@ is how many pixels of space a mark at this rank must have
 -- between its neighbors before it appears.
@@ -55,7 +55,7 @@ meter_ranks :: [(Color.Color, Int, Int)]
 meter_ranks =
     [ (mcolor 0.3 0.3 0.3, 3, 0)    -- block begin and end
     , (mcolor 0.0 0.0 0.0, 3, 8)    -- block section
-    , (mcolor 0.4 0.3 0.0, 2, 8)    -- whole
+    , (mcolor 0.4 0.3 0.0, 2, 8)    -- measure / whole
     , (mcolor 1.0 0.4 0.2, 2, 8)    -- quarter
     , (mcolor 1.0 0.2 0.7, 1, 8)    -- 16th
     , (mcolor 0.1 0.5 0.1, 1, 8)    -- 64th

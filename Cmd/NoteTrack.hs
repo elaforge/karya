@@ -144,7 +144,7 @@ create_pitch_track :: (State.M m) => BlockId
 create_pitch_track block_id note_tracknum title tracknum = do
     tid <- Create.track block_id tracknum
     -- Link note track underneath newly created pitch track.
-    State.splice_skeleton block_id (tracknum, note_tracknum)
+    State.splice_skeleton_below block_id tracknum note_tracknum
     State.set_track_title tid title
     return tid
 

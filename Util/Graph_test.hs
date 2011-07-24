@@ -16,20 +16,33 @@ test_toggle_edge = do
     eq (f (0, 1) (build [(1, 0)])) Nothing
     eq (f (1, 1) (build [])) Nothing
 
-test_splice = do
-    let f = Util.Graph.splice
-    graph_equal (f (2, 1) (build [(0, 1)])) (build [(0, 2), (2, 1)])
-    graph_equal (f (3, 2) (build [(0, 2), (2, 1)]))
+test_splice_above = do
+    let f = Util.Graph.splice_above
+
+    graph_equal (f 0 1 (build [(1, 2), (1, 3)]))
+        (build [(0, 1), (1, 2), (1, 3)])
+    graph_equal (f 2 1 (build [(0, 1)])) (build [(0, 2), (2, 1)])
+    graph_equal (f 3 2 (build [(0, 2), (2, 1)]))
         (build [(0, 3), (3, 2), (2, 1)])
-    graph_equal (f (5, 2) xgraph)
+    graph_equal (f 5 2 xgraph)
         (build [(0, 5), (4, 5), (5, 2), (2, 3), (2, 1)])
 
     -- finally a place I could use quickcheck...
-    let idempotent edge graph =
-            graph_equal (f edge (f edge graph)) (f edge graph)
-    idempotent (5, 2) xgraph
-    idempotent (1, 2) (build [(0, 1), (1, 3), (0, 2), (2, 4)])
-    idempotent (3, 2) (build [(0, 1), (1, 3), (0, 2), (2, 4)])
+    let idempotent new p graph =
+            graph_equal (f new p (f new p graph)) (f new p graph)
+    idempotent 5 2 xgraph
+    idempotent 1 2 (build [(0, 1), (1, 3), (0, 2), (2, 4)])
+    idempotent 3 2 (build [(0, 1), (1, 3), (0, 2), (2, 4)])
+
+test_splice_below = do
+    let f = Util.Graph.splice_below
+    graph_equal (f 1 0 (build [])) (build [(0, 1)])
+    graph_equal (f 2 1 (build [(0, 1), (1, 3), (1, 4)]))
+        (build [(0, 1), (1, 2), (2, 3), (2, 4)])
+    graph_equal (f 1 2 (build [(2, 0), (2, 3)]))
+        (build [(2, 1), (1, 0), (1, 3)])
+    graph_equal (Util.Graph.splice_above 1 2 (build [(2, 0), (2, 3)]))
+        (build [(1, 2), (2, 0), (2, 3)])
 
 test_add_edges = do
     let f = Util.Graph.add_edges

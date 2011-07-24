@@ -151,7 +151,7 @@ find_realtimes perf block_id track_id ps =
     [(p, t) | (p, (t:_))
         <- zip ps (map (Cmd.perf_tempo perf block_id track_id) ps)]
 
-
+-- | Take a RealTime to all the ScoreTimes it corresponds to, if any.
 find_play_pos :: (State.M m) => Transport.InverseTempoFunction
     -> RealTime -> m [(ViewId, [(TrackNum, ScoreTime)])]
 find_play_pos inv_tempo = block_pos_to_play_pos . inv_tempo

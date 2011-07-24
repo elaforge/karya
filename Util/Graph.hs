@@ -39,19 +39,27 @@ toggle_edge edge graph
     | would_make_cycle edge graph = Nothing
     | otherwise = Just $ add_edges [edge] graph
 
--- | Splice @from@ into the graph above @to@.  That means both @from@ and @to@
--- are detached from their parents, @from@ is relinked to @to@'s old parents,
--- and @from@ is linked to @to@.  May produce a cycle.
+-- | Splice @new@ into the graph above @to@.  The parents of @to@ are detached
+-- from it and re-attached to @new@.  Then @new@ is attached above @to@.
 --
 -- This operation should be idempotent.
-splice :: Edge -> Graph -> Graph
-splice (from, to) graph =
-    -- If I don't filter p/=from, a duplicate splice will cause a vertex to
+splice_above :: Vertex -> Vertex -> Graph -> Graph
+splice_above new to graph =
+    -- If I don't filter p/=new, a duplicate splice will cause a vertex to
     -- loop back to itself.
-    add_edges ((from, to) : [(p, from) | p <- parents, p /= from]) $
+    add_edges ((new, to) : [(p, new) | p <- parents, p /= new]) $
         remove_edges [(p, to) | p <- parents] graph
-    where
-    parents = [p | (p, cs) <- IArray.assocs graph, to `elem` cs]
+    where parents = [p | (p, cs) <- IArray.assocs graph, to `elem` cs]
+
+-- | Splice @new@ into the graph below @to@.  The children of @to@ are
+-- detached and re-attached to @new@.  Then @to@ is attached above @new@.
+--
+-- This operation should be idempotent.
+splice_below :: Vertex -> Vertex -> Graph -> Graph
+splice_below new to graph =
+    add_edges ((to, new) : [(new, c) | c <- children, c /= new]) $
+        remove_edges (map ((,) to) children) graph
+    where children = if Array.in_bounds to graph then graph!to else []
 
 would_make_cycle :: Edge -> Graph -> Bool
 would_make_cycle (from, to) graph = from == to

@@ -1,7 +1,15 @@
 module Cmd.Create_test where
+import qualified Data.List as List
+
+import Util.Control
 import Util.Test
+import Ui
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
+
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
 
@@ -15,6 +23,46 @@ test_track_ruler = do
     equal (run [] (f 10)) $ Right [("", [])]
     equal (run [("1", [])] (f 10)) $ Right [("1", []), ("", [])]
     equal (run [("1", [])] (f 0)) $ Right [("", []), ("1", [])]
+
+test_splice_above = do
+    let run = run_skel Create.splice_above
+    -- Splice the new track above 2.
+    equal (run 2 [(1, 2)] 2) (Right ([('1', 'x'), ('x', '2')], []))
+
+    -- No track above, becomes parent to all toplevel tracks.
+    equal (run 2 [] 2) (Right ([('x', '1'), ('x', '2')], []))
+    equal (run 3 [(1, 2)] 1) (Right ([('x', '1'), ('x', '3'), ('1', '2')], []))
+
+    -- Track above, becomes parent to siblings.
+    equal (run 5 [(1, 2), (2, 3), (2, 4)] 3)
+        (Right ([('1', '2'), ('2', 'x'), ('x', '3'), ('x', '4')], []))
+    -- Make sure it goes to the right of the parent.
+    equal (run 5 [(1, 3), (3, 4)] 3)
+        (Right ([('1', 'x'), ('x', '3'), ('3', '4')], []))
+
+test_splice_below = do
+    let run = run_skel Create.splice_below
+    equal (run 2 [] 2) (Right ([('2', 'x')], []))
+    equal (run 4 [(2, 1), (2, 4)] 2)
+        (Right ([('2', 'x'), ('x', '1'), ('x', '4')], []))
+
+run_skel :: Cmd.CmdId a -> Int -> [Skeleton.Edge] -> TrackNum
+    -> Either String ([(Char, Char)], [String])
+run_skel m ntracks skel sel = extract $ CmdTest.run_tracks tracks $ do
+    State.set_skeleton UiTest.default_block_id (Skeleton.make skel)
+    CmdTest.set_point_sel sel 0
+    m
+    where
+    tracks = [(show (n+1), []) | n <- [0..ntracks-1]]
+    extract_skel ustate = UiTest.eval ustate $ do
+        skel <- List.sort . Skeleton.flatten <$>
+            State.get_skeleton UiTest.default_block_id
+        mapM (\(t1, t2) -> (,) <$> replace t1 <*> replace t2) skel
+    replace n = do
+        tid <- State.get_event_track_at "" UiTest.default_block_id n
+        title <- Track.track_title <$> State.get_track tid
+        return $ head $ if null title then "x" else title
+    extract = CmdTest.extract_state $ \ustate _ -> extract_skel ustate
 
 -- test_track = do
     -- TODO actually test the ruler stuff too

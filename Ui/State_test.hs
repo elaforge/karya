@@ -20,10 +20,10 @@ test_skeleton_cycles = do
             State.set_skeleton bid Skeleton.empty
             m
     equal (run 1 (State.toggle_skeleton_edge bid (1, 1))) (Right False)
-    equal (run 1 (State.toggle_skeleton_edge bid (1, 10)))
-        (Left "toggle: edge points to track out of range")
-    equal (run 1 (State.toggle_skeleton_edge bid (0, 1)))
-        (Left "toggle: edge points to non-event track")
+    left_like (run 1 (State.toggle_skeleton_edge bid (1, 10)))
+        "toggle: tracknum out of range"
+    left_like (run 1 (State.toggle_skeleton_edge bid (0, 1)))
+        "toggle: edge points to non-event track"
     equal (run 1 (State.toggle_skeleton_edge bid (1, 2))) (Right True)
     left_like (run 1 (State.add_edges bid [(1, 1)]))
         "would have caused a cycle"
