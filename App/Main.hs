@@ -343,11 +343,21 @@ load_mod fn = do
 setup_normal :: (Cmd.M m) => m Cmd.Status
 setup_normal = do
     (bid, vid) <- empty_block
-    t0 <- Create.track bid 2
-    State.insert_events t0 $ map (note_event . UiTest.mkevent)
+    -- tempo is track 1
+
+    mod <- Create.track bid 2
+    State.insert_events mod $ map (control_event . UiTest.mkevent)
+        [(0, 0, "0"), (1, 0, "i 1"), (2, 0, "i 0"), (2.5, 0, "1"),
+            (3, 0, ".5")]
+    State.set_track_title mod "modulation"
+    State.modify_track_render mod $ \render ->
+        render { Track.render_style = Track.Filled }
+
+    note <- Create.track bid 3
+    State.insert_events note $ map (note_event . UiTest.mkevent)
         [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")]
-    State.set_track_title t0 ">fm8/bass"
-    pitch <- Create.track bid 3
+    State.set_track_title note ">fm8/bass"
+    pitch <- Create.track bid 4
     State.insert_events pitch $ map (control_event . UiTest.mkevent)
         [(0, 0, "`tr` (5c) 2 3"), (1, 0, "n (5d)"), (2, 0, "5e"),
             (3, 0, "i (5f)")]
@@ -356,16 +366,8 @@ setup_normal = do
         render { Track.render_style = Track.Line }
     State.set_track_width vid 3 50
 
-    mod <- Create.track bid 4
-    State.insert_events mod $ map (control_event . UiTest.mkevent)
-        [(0, 0, "0"), (1, 0, "i 1"), (2, 0, "i 0"), (2.5, 0, "1"),
-            (3, 0, ".5")]
-    State.set_track_title mod "modulation"
-    State.modify_track_render mod $ \render ->
-        render { Track.render_style = Track.Filled }
-
-    -- tempo 1 -> *twelve 3 -> mod -> >fm8/bass 2
-    State.set_skeleton bid $ Skeleton.make [(1, 4), (4, 3), (3, 2)]
+    -- tempo 1 -> mod -> note -> pitch
+    State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3), (3, 4)]
 
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
     State.set_selection vid Config.insert_selnum
