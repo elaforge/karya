@@ -143,9 +143,10 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     case Cmd.state_play_control state of
         Just _ -> Cmd.throw "player already running"
         _ -> return ()
-    perf <- get_performance block_id
+    perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
+        =<< Cmd.lookup_performance block_id
     start <- Perf.find_realtime perf block_id start_track start_pos
-    msgs <- PlayUtil.perform_from start perf
+    msgs <- PlayUtil.shift_messages start <$> PlayUtil.perform_from start perf
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs
 
@@ -203,13 +204,6 @@ cmd_play_msg msg = do
         Msg.DeriveComplete _ -> Config.box_color
 
 -- * implementation
-
-get_performance :: (Cmd.M m) => BlockId -> m Cmd.Performance
-get_performance block_id = do
-    threads <- Cmd.state_performance_threads <$> get
-    case Map.lookup block_id threads of
-        Nothing -> State.throw $ "no performance for block " ++ show block_id
-        Just pthread -> return $ Cmd.pthread_perf pthread
 
 get :: (Cmd.M m) => m Cmd.PlayState
 get = Cmd.gets Cmd.state_play

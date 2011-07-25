@@ -5,25 +5,24 @@
 -- TODO needs a better name
 module Cmd.PlayUtil where
 import qualified Data.Map as Map
+
 import Util.Control
 import qualified Util.Seq as Seq
-
+import qualified Midi.Midi as Midi
 import Ui
 import qualified Ui.State as State
-
 import qualified Cmd.Cmd as Cmd
-
 import qualified Derive.Call.Block as Block
-import qualified Derive.Score as Score
-import qualified Derive.Schema as Schema
-import qualified Derive.TrackLang as TrackLang
-import qualified Perform.Midi.Convert as Convert
-import qualified Perform.Midi.Perform as Perform
-
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Schema as Schema
+import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Midi.Convert as Convert
+import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
+
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 
@@ -89,18 +88,10 @@ get_lookup_inst_calls = do
 
 perform_from :: (Cmd.M m) => RealTime -> Cmd.Performance
     -> m Perform.MidiEvents
-perform_from start = perform_events . shift_events start
-    . events_from start . Cmd.perf_events
+perform_from start = perform_events . events_from start . Cmd.perf_events
 
--- | Like 'perform_from', but don't shift the events so that @start@ == 0.
-absolute_perform_from :: (Cmd.M m) => RealTime -> Cmd.Performance
-    -> m Perform.MidiEvents
-absolute_perform_from start = perform_events . events_from start
-    . Cmd.perf_events
-
-shift_events :: RealTime -> Derive.Events -> Derive.Events
-shift_events start =
-    map (fmap (\e -> e { Score.event_start = Score.event_start e - start }))
+shift_messages :: RealTime -> Perform.MidiEvents -> Perform.MidiEvents
+shift_messages start = map (fmap (Midi.add_timestamp (-start)))
 
 events_from :: RealTime -> Derive.Events -> Derive.Events
 events_from start =

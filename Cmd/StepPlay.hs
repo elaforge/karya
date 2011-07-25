@@ -71,7 +71,7 @@ initialize view_id block_id tracknum track_id pos = do
     let (score_steps, real_steps) = unzip $
             Perf.find_realtimes perf block_id track_id steps
     start <- Cmd.require_msg "no valid step points" (Seq.head real_steps)
-    msgs <- LEvent.events_of <$> PlayUtil.absolute_perform_from start perf
+    msgs <- LEvent.events_of <$> PlayUtil.perform_from start perf
     Cmd.modify_play_state $ \st -> st { Cmd.state_step = Just $ Cmd.StepState
         view_id [] (zip score_steps (make_states real_steps msgs)) }
     where

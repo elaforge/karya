@@ -13,21 +13,6 @@
     Convert by 'MidiDb.LookupMidiInstrument' so that the Perform.Events can get
     their slightly different Instruments.  It's up to the conversion code to
     convert an arbitrary set of attributes into a keyswitch.
-
-    Misc notes:
-
-    Not knowing the next event remains a problem.  If I clip the signal to the
-    end of the block I may miss control changes during the decay.  While
-    unfortunate, this isn't fatal, so oh well.
-
-    I can't know the next score event because it might be a call.  I would have
-    to evaluate the next event to get the current event, and that leads to
-    evaluating from back to front... and then I have the same problem with the
-    previous event.
-
-    The performer can't know the next event because it might be in the next
-    chunk.  That means evaluating the chunks back to front, with the same
-    problem.
 -}
 module Perform.Midi.Perform where
 import qualified Control.DeepSeq as DeepSeq

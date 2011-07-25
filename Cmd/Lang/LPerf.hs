@@ -78,11 +78,23 @@ block_midi block_id = do
 sel_events :: Cmd.CmdL Derive.Events
 sel_events = get_sel block_events Score.event_start
 
--- | Easier to read midi.
-simple_midi :: Cmd.CmdL Midi.Perform.MidiEvents
-    -> Cmd.CmdL [(RealTime, Midi.Message)]
-simple_midi = fmap (map f . LEvent.events_of)
-    where f wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
+-- * play from
+
+events_from :: Cmd.CmdL [Score.Event]
+events_from = do
+    (block_id, _, track_id, pos) <- Selection.get_insert
+    perf <- Cmd.get_performance block_id
+    start <- Perf.find_realtime perf block_id (Just track_id) pos
+    return $ LEvent.events_of $
+        PlayUtil.events_from start (Cmd.perf_events perf)
+
+perform_from :: Cmd.CmdL Midi.Perform.MidiEvents
+perform_from = do
+    (block_id, _, track_id, pos) <- Selection.get_insert
+    perf <- Cmd.get_performance block_id
+    start <- Perf.find_realtime perf block_id (Just track_id) pos
+    msgs <- PlayUtil.perform_from start perf
+    return msgs
 
 -- ** implementation
 
@@ -111,3 +123,10 @@ convert events = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
     return $ Midi.Convert.convert lookup_scale lookup_inst events
+
+-- * util
+
+-- | Reduce MIDI to an easier to read form.
+simple_midi :: Midi.Perform.MidiEvents -> [(RealTime, Midi.Message)]
+simple_midi = map f . LEvent.events_of
+    where f wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
