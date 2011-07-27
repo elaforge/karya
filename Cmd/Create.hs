@@ -58,6 +58,10 @@ renamespace from to = Transform.map_ids set_ns
         | otherwise = ident
         where (ns, name) = Id.un_id ident
 
+rename_ruler :: (State.M m) => RulerId -> RulerId -> m ()
+rename_ruler ruler_id new_name = Transform.map_ruler_ids $ \id ->
+    if Types.RulerId id == ruler_id then Id.unpack_id new_name else id
+
 -- | Find tracks which are not found in any block.  Probably used to pass them
 -- to State.destroy_track for \"gc\".
 orphan_tracks :: (State.M m) => m [TrackId]

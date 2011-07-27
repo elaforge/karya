@@ -38,6 +38,15 @@ Create.ruler [MakeRuler.meter_ruler 16 MakeRuler.m44] "meter_44"
 
 replace_marklist (rid "r1") "meter" (MakeRuler.meter_ruler 16 MakeRuler.m44)
 copy_marklist "meter" (rid "r1") (rid "r1.overlay")
+
+block >>= LRuler.set_meter $ MakeRuler.repeat 2 $
+  MakeRuler.regular_subdivision [3, 5, 4, 4]
+block >>= LRuler.set_meter $ MakeRuler.regular_subdivision [4, 2, 3, 4]
+
+Make a new ruler:
+
+assign_new "new-ruler" (map bid [...])
+
 -}
 
 show_ruler :: RulerId -> Cmd.CmdL String
@@ -81,6 +90,32 @@ copy_marklist :: Ruler.MarklistName -> RulerId -> RulerId -> Cmd.CmdL ()
 copy_marklist marklist_name from_ruler_id to_ruler_id = do
     mlist <- get_marklist from_ruler_id marklist_name
     replace_marklist to_ruler_id (marklist_name, mlist)
+
+-- | Make a new ruler that's a copy of the ruler of the first block, and then
+-- assign that ruler to all the blocks.
+assign_new :: String -> [BlockId] -> Cmd.CmdL ()
+assign_new name block_ids = do
+    ruler <- State.get_ruler =<< ruler_of
+        =<< Cmd.require (Seq.head block_ids)
+    (ruler_id, overlay_id) <- Create.ruler name ruler
+    mapM_ (set_block ruler_id overlay_id) block_ids
+
+set_block :: RulerId -> RulerId -> BlockId -> Cmd.CmdL ()
+set_block ruler_id overlay_id block_id = modify_tracks block_id set
+    where
+    set (Block.TId tid _) = Block.TId tid overlay_id
+    set (Block.RId _) = Block.RId ruler_id
+    set t = t
+
+modify_tracks :: BlockId -> (Block.TracklikeId -> Block.TracklikeId)
+    -> Cmd.CmdL ()
+modify_tracks block_id f = State.modify_block block_id $ \block ->
+    block { Block.block_tracks = map modify (Block.block_tracks block) }
+    where modify t = t { Block.tracklike_id = f (Block.tracklike_id t) }
+
+ruler_of :: BlockId -> Cmd.CmdL RulerId
+ruler_of block_id = Cmd.require
+    =<< Seq.head <$> Block.block_ruler_ids <$> State.get_block block_id
 
 -- | Replace the rulers in the block with the given ruler_id.  If there is an
 -- overlay version, it will be given to all but the first track.

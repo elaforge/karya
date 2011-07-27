@@ -176,7 +176,7 @@ UNSORTED
     UTF8 serialization.
     But I could reduce size and get rid of Util.Serialize by encoding doubles
     directly.  Size might become more important when I save the undo history.
-  - lang cmds to modify time signature, test with bloom
+  * lang cmds to modify time signature, test with bloom
 
   - block title takes up space and I'm not using it, can it collapse?
 
