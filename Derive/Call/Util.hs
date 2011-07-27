@@ -1,5 +1,13 @@
 {-# LANGUAGE ViewPatterns #-}
--- | Utilities for calls.
+{- | Utilities for calls.
+
+    The convention for calls is that there is a function @c_something@ which
+    is type NoteCall or ControlCall or whatever.  It then extracts what is
+    needed from the PassedArgs and passes those values to a function
+    @something@ which is of type EventDeriver or ControlDeriver or whatever.
+    The idea is that PassedArgs is a large dependency and it should be reduced
+    immediately to what is needed.
+-}
 module Derive.Call.Util where
 import Prelude hiding (head)
 import qualified Data.FixedList as FixedList
@@ -96,6 +104,27 @@ to_pitch_signal control = case control of
 
 degree_at :: RealTime -> TrackLang.PitchControl -> Derive.Deriver Pitch.Degree
 degree_at pos control = PitchSignal.y_to_degree <$> pitch_at pos control
+
+-- * note
+
+degree :: RealTime -> Derive.Deriver Pitch.Degree
+degree = Derive.degree_at
+
+velocity :: RealTime -> Derive.Deriver Signal.Y
+velocity pos =
+    maybe Derive.default_velocity id <$> Derive.control_at Score.c_velocity pos
+
+with_pitch :: PitchSignal.Degree -> Derive.Deriver a -> Derive.Deriver a
+with_pitch = Derive.with_constant_pitch Nothing
+
+with_velocity :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
+with_velocity = Derive.with_control Score.c_velocity . Signal.constant
+
+simple_note :: PitchSignal.Degree -> Signal.Y -> Derive.EventDeriver
+simple_note pitch velocity = with_pitch pitch $ with_velocity velocity note
+
+note :: Derive.EventDeriver
+note = Call.eval_one 0 1 [TrackLang.call ""]
 
 -- * call transformers
 

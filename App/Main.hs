@@ -51,6 +51,7 @@ import qualified Cmd.Lang as Lang
 import qualified Cmd.LoadMod as LoadMod
 
 import qualified Derive.Call.All as Call.All
+import qualified Derive.Call.Symbols as Call.Symbols
 import qualified Derive.Scale.Symbols as Scale.Symbols
 import qualified Derive.Instrument.Symbols as Instrument.Symbols
 
@@ -209,8 +210,8 @@ main = initialize $ \lang_socket midi_chan -> do
     get_msg <- Responder.create_msg_reader
         remap_rmsg midi_chan lang_socket msg_chan loopback_chan
 
-    load_symbols Scale.Symbols.symbols
-    load_symbols Instrument.Symbols.symbols
+    load_symbols $ Call.Symbols.symbols ++ Scale.Symbols.symbols
+        ++ Instrument.Symbols.symbols
 
     session <- Lang.make_session
     Thread.start_logged "interpreter" $ do

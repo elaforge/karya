@@ -885,8 +885,11 @@ set_view_status view_id key val =
 
 -- ** util
 
+set_block :: (M m) => BlockId -> Block.Block -> m ()
 set_block block_id block = modify $ \st -> st
     { state_blocks = Map.adjust (const block) block_id (state_blocks st) }
+
+modify_block :: (M m) => BlockId -> (Block.Block -> Block.Block) -> m ()
 modify_block block_id f = do
     block <- get_block block_id
     set_block block_id (f block)

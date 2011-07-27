@@ -27,13 +27,12 @@
 -}
 module Derive.Call.Trill where
 import qualified Data.List as List
+
 import qualified Util.Num as Num
-
 import Ui
-
-import Derive.CallSig (optional, required, control)
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
+import Derive.CallSig (optional, required, control)
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 
@@ -64,7 +63,8 @@ c_absolute_trill = Derive.transformer "absolute_trill" $
     \neighbor speed -> do
         neighbor_sig <- Util.to_signal neighbor
         speed_sig <- Util.to_signal speed
-        absolute_trill (Derive.passed_range args) neighbor_sig speed_sig deriver
+        absolute_trill (Derive.passed_range args) neighbor_sig speed_sig
+            deriver
 
 absolute_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
     -> Derive.EventDeriver -> Derive.EventDeriver
@@ -76,7 +76,8 @@ absolute_trill (s_start, s_end) neighbor speed deriver = do
     trill_from_transitions transitions neighbor deriver
 
 pos_at_speed :: Signal.Control -> RealTime -> [RealTime]
-pos_at_speed sig pos = pos : pos_at_speed sig (pos + Signal.y_to_real (1/speed))
+pos_at_speed sig pos =
+    pos : pos_at_speed sig (pos + Signal.y_to_real (1/speed))
     where speed = Signal.at pos sig
 
 -- | Trill in score time.  Unlike 'c_absolute_trill', the trill rate will be
@@ -84,7 +85,8 @@ pos_at_speed sig pos = pos : pos_at_speed sig (pos + Signal.y_to_real (1/speed))
 --
 -- [neighbor /Control/] Alternate with this relative pitch.
 --
--- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per score unit.
+-- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per score
+-- unit.
 c_score_trill :: Derive.NoteCall
 c_score_trill = Derive.transformer "score_trill" $
     \args deriver -> CallSig.call2 args

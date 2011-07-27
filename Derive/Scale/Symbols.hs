@@ -58,7 +58,6 @@ staff_symbols =
     , Symbol.Symbol "sharp2" False [g "\xe125" 2]
     , Symbol.Symbol "flat" False [g "\xe11a" 2]
     , Symbol.Symbol "flat2" False [g "\xe123" 2]
-    , Symbol.Symbol "tr" False [g "\xe17a" 2]
     ]
     where g str size = Symbol.Glyph str (Just "Emmentaler 11") size (0, 0)
 

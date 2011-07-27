@@ -27,6 +27,16 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  * mordent call
+  - some ornaments should be scale aware, which means scales should have
+    a notion of diatonic transposition
+  - save repl history along with current song, so you can search for previous
+    cmds
+  - cmd to strip redundant controls and empty tracks
+  - transpose octave cmd
+  - is it possible to have a more symbolic control track, e.g. pedal with
+    ped and *, or maybe a ped event where it's down until event end?
+  - undo rederives everything, which is super slow on a big score
   * '_' not working to insert end of block, should also work in control tracks
   * open new views sized to their content
   - bug: sometimes space didn't cancel playback when I open block then play
@@ -35,9 +45,9 @@ UNSORTED
   * pedal 0 omitted from end of bloom 1st mvt
   - bug: still a focus bug when opening new blocks
   - damper pedal causes all notes to extend until the pedal comes up, should
-    the performer know about that?
-  - pianoteq channels are independent wrt pitch bend but not for controls,
-    should I have a special performer flag for it?
+    the performer know about that?  Is there anything that this breaks?
+    I don't think so, it affects channel allotment so notes could be
+    improperly joined, but mixing pedal and multiplexing seems rare enough.
   - easy way to create a marker on the ruler
   * ^T creates a track below, but what about one above?
   * sub block playback display is gone, maybe has to do with empty block at

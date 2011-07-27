@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances #-}
 {- | Main module for the deriver monad.
 
     TODO update Derive\/README, move it to doc\/, and link from here
@@ -236,8 +236,8 @@ pitch_at pos = do
     psig <- Internal.get_dynamic state_pitch
     return (PitchSignal.at pos psig)
 
-pitch_degree_at :: RealTime -> Deriver Pitch.Degree
-pitch_degree_at pos = PitchSignal.y_to_degree <$> pitch_at pos
+degree_at :: RealTime -> Deriver Pitch.Degree
+degree_at pos = PitchSignal.y_to_degree <$> pitch_at pos
 
 get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.PitchSignal)
 get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
@@ -340,16 +340,6 @@ lookup_pitch_control_op c_op = do
     maybe (throw ("unknown pitch op: " ++ show c_op)) return
         (Map.lookup c_op op_map)
 
--- *** specializations
-
-velocity_at :: ScoreTime -> Deriver Signal.Y
-velocity_at pos = do
-    vel <- control_at Score.c_velocity =<< score_to_real pos
-    return $ maybe default_velocity id vel
-
-with_velocity :: Signal.Control -> Deriver a -> Deriver a
-with_velocity = with_control Score.c_velocity
-
 
 -- ** with_scope
 
@@ -400,6 +390,9 @@ passed_range args = (pos, pos + Event.event_duration event)
 passed_real_range :: PassedArgs d -> Deriver (RealTime, RealTime)
 passed_real_range args = (,) <$> score_to_real start <*> score_to_real end
     where (start, end) = passed_range args
+
+passed_extent :: PassedArgs d -> (ScoreTime, ScoreTime)
+passed_extent = (\(p, e) -> (p, Event.event_duration e)) . passed_event
 
 -- TODO crummy name, come up with a better one
 passed_score :: PassedArgs d -> ScoreTime
@@ -503,11 +496,10 @@ _event_start :: LEvent.LEvent Score.Event -> RealTime
 _event_start (LEvent.Log _) = 0
 _event_start (LEvent.Event event) = Score.event_start event
 
--- -- | unused monoidal interface
--- instance Monoid.Monoid EventDeriver where
---     mempty = return empty_stream
---     mappend d1 d2 = d_merge [d1, d2]
---     mconcat = d_merge
+instance Monoid.Monoid EventDeriver where
+    mempty = return []
+    mappend d1 d2 = d_merge [d1, d2]
+    mconcat = d_merge
 
 
 -- * negative duration
