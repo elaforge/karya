@@ -29,11 +29,11 @@ big things
 UNSORTED
   * mordent call
   - some ornaments should be scale aware, which means scales should have
-    a notion of diatonic transposition
+    a notion of diatonic transposition.  That means I need 'key' in the
+    environ.  Along with some nicer environ setting syntax.
   - save repl history along with current song, so you can search for previous
     cmds
   - cmd to strip redundant controls and empty tracks
-  - transpose octave cmd
   - is it possible to have a more symbolic control track, e.g. pedal with
     ped and *, or maybe a ped event where it's down until event end?
   - undo rederives everything, which is super slow on a big score
@@ -80,7 +80,7 @@ UNSORTED
   * step play on block two shows its selection on block one
   * CmdTest.run_again is crummy because the fail of Left is confusing and
     makes the result non-polymorphic
-  - find someplace to document that when a Cmd throws, the UI state is
+  * find someplace to document that when a Cmd throws, the UI state is
     reverted but the Cmd state is not
   * rename State.block_of_view -> block_of
   - overlapping key bindings are not detected between io and pure cmds

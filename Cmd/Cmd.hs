@@ -1,21 +1,32 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
 {- | Core CmdT monad that cmds run in.
 
+    A Cmd is what user actions turn into.  The main thing they do is edit
+    'Ui.State.State', or Cmd 'State', but a special subset can also do IO
+    actions like saving and loading files.
+
+    The Cmd monad has two kinds of exeptions: abort or throw.  Abort means
+    that the Cmd decided that it's not the proper Cmd for this Msg (keystroke,
+    mouse movement, whatever) and another Cmd should get a crack at it.  Throw
+    means that the Cmd failed.  When an exception is thrown, the ui and cmd
+    states are rolled back and midi output is discarded.
+
     Cmds should be in the monad @(Cmd.M m) => m ...@.
 
-    They have to be polymorphic because they run in both IO and Identity.
-    IO because some cmds such saving and loading files require IO, and Identity
+    They have to be polymorphic because they run in both IO and Identity.  IO
+    because some cmds such saving and loading files require IO, and Identity
     because the rest don't.  REPL cmds run in IO so they can load and save,
     and the result is that any cmd that wants to be used from both Identity
     cmds (bound to keystrokes) and the REPL must be polymorphic in the monad.
 
     Formerly this was @(Monad m) => CmdT m ...@, but with the upgrade to mtl2
     Functor would have to be added to the class context, but only some of the
-    time.  Rather than deal such messiness, there's a class @Cmd.M@ that brings
-    in Functor and Applicative as superclasses.
+    time.  Rather than deal such messiness, there's a class @Cmd.M@ that
+    brings in Functor and Applicative as superclasses.
 
     It's all a bit messy and unpleasant and should be technically unnecessary
-    since Identity monads should be able to run in IO anyway.  Other solutions:
+    since Identity monads should be able to run in IO anyway.  Other
+    solutions:
 
     - Run all cmds in IO.  I don't think I actually get anything from
     disallowing IO.  It seems like a nice property to be able to always e.g.
@@ -118,11 +129,12 @@ run abort_val ustate cstate cmd = do
         (Log.run . Logger.run . flip MonadState.runStateT cstate
             . State.run ustate . run_cmd_t)
         cmd
-    -- An Abort is just like if the cmd immediately returned Continue, except
-    -- that log msgs are kept.  Normally 'abort_val' will be Continue, but
-    -- obviously if 'cmd' doesn't return Status it can't be.
+    -- Any kind of error rolls back state and discards midi, but not log msgs.
+    -- Normally 'abort_val' will be Continue, but obviously if 'cmd' doesn't
+    -- return Status it can't be.
     return $ case ui_result of
         Left State.Abort -> (cstate, [], logs, Right (abort_val, ustate, []))
+        Left _ -> (cstate, [], logs, ui_result)
         _ -> (cstate2, midi, logs, ui_result)
 
 -- | Run the given command in Identity, but return it in IO, just as
