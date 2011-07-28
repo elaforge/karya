@@ -130,7 +130,8 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
             // out the spacing inserted by the characters by translating back
             // by the box's offsets.
             // DEBUG("draw " << text << " sym " << sym_box << ", pos " << pos
-            //         << " -> " << IPoint(pos.x + box.x - sym_box.x, pos.y + sym_box.y));
+            //         << " -> " << IPoint(pos.x + box.x - sym_box.x,
+            //           pos.y + sym_box.y));
             if (!measure) {
                 draw_glyphs(
                     IPoint(pos.x + box.x - sym_box.x, pos.y + sym_box.y),
@@ -256,7 +257,7 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
     // Clip the extra spacing back off.  If the symbol extends before or above
     // the insertion point, this will be negative, meaning it should be shifted
     // forward.
-    box.x = box.x - size;
+    box.x -= size;
     // Since this measure the pixels directly, it doesn't understand the glyph
     // baseline.  So glyphs that stick down a little will be out of line with
     // non-symbol text.  If it looks really ugly, I can disable vertical
@@ -264,6 +265,10 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
     if (sym.absolute_y) {
         box.y = 0;
     } else {
+        // The box is the bounding box of the glyph, but I want the amounts
+        // to translate the glyph to place it nicely.  Since I drew the glyph
+        // at a baseline of size*2, the box tells me how far from that
+        // baseline it actually appears.
         box.y = size*2 - box.b();
         box.y -= text_pad_bottom;
         box.h += text_pad_bottom + text_pad_top;
