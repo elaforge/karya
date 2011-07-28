@@ -27,7 +27,6 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  * mordent call
   - some ornaments should be scale aware, which means scales should have
     a notion of diatonic transposition.  That means I need 'key' in the
     environ.  Along with some nicer environ setting syntax.
@@ -37,24 +36,16 @@ UNSORTED
   - is it possible to have a more symbolic control track, e.g. pedal with
     ped and *, or maybe a ped event where it's down until event end?
   - undo rederives everything, which is super slow on a big score
-  * '_' not working to insert end of block, should also work in control tracks
-  * open new views sized to their content
+    I think I'm going to need to switch to a diff based undo.  I need to do
+    this anyway to save undo.  If I extend Updates to include the actual
+    changes, then they can be used for UI changes, ScoreDamage, and undo.
+
   - bug: sometimes space didn't cancel playback when I open block then play
-  * bug: I think new windows don't get focus sometimes, add a "focus" status
-    line to make it easier to notice
-  * pedal 0 omitted from end of bloom 1st mvt
   - bug: still a focus bug when opening new blocks
-  - damper pedal causes all notes to extend until the pedal comes up, should
-    the performer know about that?  Is there anything that this breaks?
-    I don't think so, it affects channel allotment so notes could be
-    improperly joined, but mixing pedal and multiplexing seems rare enough.
+  - at one point, space didn't kill the playback updater thread, what could
+    cause that to happen?
+
   - easy way to create a marker on the ruler
-  * ^T creates a track below, but what about one above?
-  * sub block playback display is gone, maybe has to do with empty block at
-    end?
-  * step play not working in save/bloom
-  - fltk bug: quick tempo yields low-res signal, which gets wiped out by the
-    selection and not redrawn
   - there should be a way for play to bring up blocks as they are played
     Why no emit playback for newly created view?
     Because for the updater to know the views, I'd have to have some
@@ -66,129 +57,19 @@ UNSORTED
     each respond.  But now I need the updater to be able to emit view creates.
     It has to send a msg to the responder when it gets to a new block.
     Getting complicated but it is nice to see the score as it plays.
-  - at one point, space didn't kill the playback updater thread, what could
-    cause that to happen?
-  * editing tempo results in {s "untitled/b0 untitled/b0.t1 *"} Error:
-    real_to_score out of range: 9.223372036854775e12s
-  * fix-imports bug: two line comment in Cmd.Play lost its first line
-  * shift-space should emit all notes off even if there is no step play active
-    or maybe space when it's not playing
-  * use State.get_midi_alloc in more places?
-  * Keymap doesn't support KeyRepeat, I should be able to tag certain cmds as
-    being repeatable
-  * need EventStart / EventEnd TimeSteps that work across all tracks
-  * step play on block two shows its selection on block one
-  * CmdTest.run_again is crummy because the fail of Left is confusing and
-    makes the result non-polymorphic
-  * find someplace to document that when a Cmd throws, the UI state is
-    reverted but the Cmd state is not
-  * rename State.block_of_view -> block_of
   - overlapping key bindings are not detected between io and pure cmds
-  * rename Key.KeyChar -> Key.Char
-  * use fixed-list for with_control?
-  * implement backward StepPlay
-  * start playing n notes previous, then cmds to step forward and back,
-    note-by-note, so playback can be controlled manually.
-    I could use the playback selection to indicate where it is.
-
-    key goes to selection - state_play_step
-    down/up skips to next/prev event begin, plays all msgs in the range
-    need:
-    * step_play_selnum / step_play_color, send to fltk
-    * step_play cmd to set step play cursor
-    * step_play_forward does score_to_real on old and new pos, select
-      performance in that range and send it thru.
-    * Lazy index or zipper for the performer output so I can go forward
-      and back efficiently.  But play wants to skip performance for events
-      before the play point.  If I do that then I can't step before the
-      start point, but I don't have to go through the whole score to reverse
-      it.  The problem is I want to go backwards, and perform doesn't work
-      that way.
-
-      So, start at the given point and retain a reference to the beginning,
-      and step through forwards.  Since there is only one, it can go in
-      Cmd.State and not Performance.  At first, just don't allow step back
-      before the beginning, later I can have it restart the performance from
-      a certain distance back.  However, I think I have to reset midi state
-      because otherwise notes may be in different channels.  I may have to do
-      a reset anyway when stepping back, because midi is not really good at
-      going backwards either.
 
   - I can collapse tracks but can't uncollapse them since I can't get
     selection focus on them.  Maybe a command-click on the divider?
-  * should no longer need to rederive for a collapse/expand
-    But it's because collapsing the track means removing the track and adding
-    a divider.  So the problem is that damage comes off the low level diff,
-    when it should be working against a higher level one.
-    Only now it doesn't restore the signal when the track is expanded again.
-    So BlockC.insert_track needs TrackSignals for that.
-  * pitch signal for save/tuplet is displaying funny
-  * organize derive state for parallization
-    It should be possible to run every call on a track in parallel.
-    So I have unthread the state.  So this means put the previous cache
-    in Constant and put the current cache state in collect.  Then break
-    the state thread and mappend on the collects.  This implies an extra
-    intermediate list of all the collects, and then all the empty collects
-    returned by the vast majority of calls.
-
-    The original system where the call simply doesn't modify the collect is
-    replaced by the call returning an empty collect.  But since I pass those
-    all as mempty, they should all be the same empty collect, so no extra
-    garbage.  But then I call a lot of mappends that has to check that all
-    those fields are empty.  Probably pretty fast all the same though.
-
-    But... I can't cache collect if the cache is inside collect!  It means
-    I don't need to cache the cache a deriver returns because it will be
-    merged and kept at the top level.
-
-    But... control damage needs to move into dynamic now.
-
-  * split off Dynamic from Derive.State
-  * bug: changing an event on a track with only one extends dmg to track_end,
-    and then real_to_score fails
-  * mv hspp to Util so I can have its tests run normally
-  * LPitch.to_relative was broken by notes as calls, fix it
-    For this I need the pitch signal of a pitch track, from the root block if
-    there is tricky context.  So I think I can save TrackSignals for all
-    control tracks, not just rendered ones.  Of course, they will be in
-    RealTime so I either need to map through that track's warp, or do them
-    all like display tracks so they have their own trivial warp.
-    The other option is try to not rederive non-displayed signals.  That means
-    either a separate spot for them and always look through the TrackWarps, or
-    an unwarped flag.  This seems like it could be a win because most of the
-    time those signals won't be needed so it seems like a shame to derive all
-    control tracks twice.  Provided non-trivial tempo, presumably a lot of
-    blocks will have constant tempo.
-
-    It's a cache, can I use laziness?  Store the rederived signal, but if
-    it's not demanded then rederivation doesn't happen.  This just requires
-    turning off the render signal check.
-    So try that and then write a test in Lazy_test to make sure signals
-    are only derived twice when I look at the TrackSignal.
-
-  * in the abscence of the ability to drag events, cmd to move start of event
-    to current point, or set start and end if it's a range
   + automate the manual tests
     wait until hpc+pgmF is fixed
-  * fix tempo track: maybe interpret last sample as slope 1 instead of slope 0
-    I think I need the trailing thing so integrate works.  So integrate has
-    to make that last sample assumption, along with compose.
-    Two functions have to cooperate: integrate and compose
-    * write test that demonstrates problem
-  * event edge TimeStep
-  * merged TimeSteps
-  * make Derive.Lazy_test actually do tests
-  * custom Deriver monad
-  * remove transformer cache
-  * clean up Ui.Track
-  * don't rely on built-in serialize / deserialize classes
-    This is a hassle because I'd have to copy/paste at least the Integer and
-    UTF8 serialization.
-    But I could reduce size and get rid of Util.Serialize by encoding doubles
-    directly.  Size might become more important when I save the undo history.
-  * lang cmds to modify time signature, test with bloom
 
-  - block title takes up space and I'm not using it, can it collapse?
+  fltk
+    - fltk bug: quick tempo yields low-res signal, which gets wiped out by the
+      selection and not redrawn
+    - block title takes up space and I'm not using it, can it collapse?
+    - scrollbars mostly just taking up space, have them as transparent
+      overlays?
 
   wait until I want it
     - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
@@ -196,48 +77,15 @@ UNSORTED
     - do tuplets by setting local ruler?
     - lang cmd to show state hierarchically... or does it already exist?
 
-  - remove or simplify Schema
-    But I need to make sure I don't need it first and can implement a totally
-    different language, e.g. gongche.  Having a way to switch default deriver
-    and cmds still seems useful.
-    Of course, I also want to be able to mix score styles, so I don't want to
-    make gongche a total island.  Can I integrate warp tempo as a note
-    transformer?
-
   debugging
     - lang level pretty print for events, esp collapsing the stack
     - cmd to save and load cache to disk
     - add a Play.play_msgs function that plays the given msgs, normalizing so
       fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
 
-  lazy signals:
-    - see if I can make control tracks truly lazy by making signals lazy
-    - reimplement various functions like integrate and resample, bsearches
-      must be linear
-    - make linear searches faster for e.g. warp by dropping warp in the past
-    - can make integrate output infinite and remove set-prev hack
-
   performance
     - scrolling is slow with more than a few events onscreen
     - send style id to c++ instead of all the style elements
-    packed midi, encode to storable vector
-      - last step of performer is to compact into vector
-      but I'm not sure this will much help
-      The main thing is how to encode the device.  I think I can hash it.  Or
-      use OS X persistent device ID?
-      how many msgs in e.g. the ptrio?
-        127130, [pno 9205, flute 63748, clarinet 54177]
-        5367 for bloom
-        peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
-    AppendList / MergeList for Derive.Stream
-      - switch to AppendList and try to get garbage down
-        Avoid copying sublists returned by block calls and cache hits
-      - play from cursor is a linear scan on all events from the beginning,
-        seems like this would be faster if I could skip chunks.
-      - see if a Merge constructor can reduce copying
-      - can I cache length and range in AppendList?  does it matter?
-      - insert parallelism?  maybe the evaluator can do that when it sees
-        Merge?
     - make seeks on derive output more efficient with a lazy index
     cache
       - Can I make cached signal more efficient by merging the signals before
@@ -267,12 +115,6 @@ UNSORTED
       Improve logging so that I can see, given a change, which areas of score
       were rederived.
 
-    - fair amount of garbage generated by SignalBase.bsearch_above, I think
-      this is because it has to box the values when it pulls them out.  But
-      it's really just comparing to a Double, so I should be able to do the
-      operation unboxed.  But decide about lazy signals before going nuts on
-      this.  If I revert to linear search then none of this is necessary.
-
   profiles
     profile edits
       - without auto-rederive
@@ -284,9 +126,6 @@ UNSORTED
   cleanup
     - now that the signal deriver is gone, I can also get rid of ignore_tempo,
       unless I want to use it for a lilypond backend or something
-    * maybe I could split CacheState into the writable portion, in Collect, and
-      the read-only cache from the previous run, in Constant
-
     / instead of building log dup suppressing logic into various functions,
       e.g.  allot, maybe I can add 'key' field to Log.Msg and suppress dup
       keys?  Who else produces dups?  Convert does.  But isn't it more
@@ -324,10 +163,6 @@ UNSORTED
     - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
 
   play:
-    * cmd to play current line, or play current or previous note
-    * start playing n notes previous, then cmds to step forward and back,
-      note-by-note, so playback can be controlled manually.
-      I could use the playback selection to indicate where it is.
     - playback should have multiple lines when a block is derived multiple
       times have a set of playback selnums?
     - put a multiplier on play's timestamps to implement a play speed control
@@ -395,8 +230,6 @@ UNSORTED
   track management:
     - resize a bunch of tracks at once
     - collapse tracks down to minimum width?
-
-  - editing for "pattern list" block
 
 MILESTONES
   0.1
@@ -513,6 +346,15 @@ performance:
     - cache track cmds for each track, update when the track title or skeleton
       changes
   Derive
+    AppendList / MergeList for Derive.Stream
+      - switch to AppendList and try to get garbage down
+        Avoid copying sublists returned by block calls and cache hits
+      - play from cursor is a linear scan on all events from the beginning,
+        seems like this would be faster if I could skip chunks.
+      - see if a Merge constructor can reduce copying
+      - can I cache length and range in AppendList?  does it matter?
+      - insert parallelism?  maybe the evaluator can do that when it sees
+        Merge?
     - lazy signals
       - check out 'at' and 'bsearch' occurrances and see if they can use tails
       - There are lots of lookups in the tempo map
@@ -528,17 +370,14 @@ performance:
       - I won't rederive cached generators if they have control damage outside
         of the event range.  But there's nothing stopping a generator from
         reading ahead or behind... come up with some kind of solution for this.
-      - more efficient version of Derive.concat_derived for events, maybe use
-        AppendList
     implement incremental transformer caching, if necessary
-      - tempo damage should damage all events after the tempo change point
-        Actually, I should treat integration as a incremental transformer.
-        Then the tempo damage works because it expands the damaged region
-        itself.  Otherwise, any change to tempo will have to re-integrate the
-        entire track.
       - once I know what I'm doing with transformers, fix up negative duration
         postproc
-    - why does "get" produce so much garbage?
+    - fair amount of garbage generated by SignalBase.bsearch_above, I think
+      this is because it has to box the values when it pulls them out.  But
+      it's really just comparing to a Double, so I should be able to do the
+      operation unboxed.  But decide about lazy signals before going nuts on
+      this.  If I revert to linear search then none of this is necessary.
     - at_linear is called a lot by compose, by compose_warp, by d_warp
       can I make this more efficient?
 
@@ -549,6 +388,15 @@ performance:
     - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
       memory?  If I make Messages a storable vector, I'd have to hash the wdev
       or something.
+    packed midi, encode to storable vector
+      - last step of performer is to compact into vector
+      but I'm not sure this will much help
+      The main thing is how to encode the device.  I think I can hash it.  Or
+      use OS X persistent device ID?
+      how many msgs in e.g. the ptrio?
+        127130, [pno 9205, flute 63748, clarinet 54177]
+        5367 for bloom
+        peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
   - send style id to c++ instead of all the style elements
   - collapsing a track shouldn't trigger a rederive
 
@@ -817,6 +665,19 @@ Cmd:
     - gzip save files
 
 Derive:
+  - remove or simplify Schema
+    But I need to make sure I don't need it first and can implement a totally
+    different language, e.g. gongche.  Having a way to switch default deriver
+    and cmds still seems useful.
+    Of course, I also want to be able to mix score styles, so I don't want to
+    make gongche a total island.  Can I integrate warp tempo as a note
+    transformer?
+  lazy signals:
+    - see if I can make control tracks truly lazy by making signals lazy
+    - reimplement various functions like integrate and resample, bsearches
+      must be linear
+    - make linear searches faster for e.g. warp by dropping warp in the past
+    - can make integrate output infinite and remove set-prev hack
   instrument
     - per-project short aliases for inst names so you can fit them in tracks
       easily
@@ -1067,6 +928,10 @@ Derive:
   - merge block level changes with derivation
 
 Perform:
+  - damper pedal causes all notes to extend until the pedal comes up, should
+    the performer know about that?  Is there anything that this breaks?
+    I don't think so, it affects channel allotment so notes could be
+    improperly joined, but mixing pedal and multiplexing seems rare enough.
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn
