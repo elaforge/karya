@@ -308,7 +308,7 @@ empty_state = initial_state Instrument.Db.empty Map.empty Derive.empty_scope
 reinit_state :: State -> State
 reinit_state cstate = cstate
     { state_history = ([], [])
-    -- TODO kill performance threads
+    -- Performance threads should have been killed by the caller.
     , state_play = initial_play_state
         { state_play_step = state_play_step (state_play cstate) }
     -- This is essential, otherwise lots of cmds break on the bad reference.
