@@ -1,6 +1,4 @@
 module Derive.Call.Ornament where
-import Control.Monad
-
 import Util.Control
 import Ui
 import qualified Derive.Call.Note as Note
@@ -25,9 +23,12 @@ note_calls = Derive.make_calls
 -- TODO not scale aware.  It seems like I should have some diatonic awareness,
 -- so I could ask the scale for a diatonic transposition.
 c_mordent :: Double -> Derive.NoteCall
-c_mordent deflt = Derive.stream_generator "mordent" $ Note.inverting_call $
-    \args -> CallSig.call1 args (optional "neighbor" deflt)
-        (mordent grace_dur (Derive.passed_extent args) 0.3 . Pitch.Degree)
+c_mordent default_neighbor = Derive.stream_generator "mordent" $
+    Note.inverting_call $ \args -> CallSig.call2 args
+    (optional "neighbor" default_neighbor, optional "vel" 0.3) $
+    \neighbor vel ->
+        mordent grace_dur (Derive.passed_extent args) vel
+            (Pitch.Degree neighbor)
     where grace_dur = RealTime.seconds (1/12)
 
 mordent :: RealTime -> (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Degree
@@ -44,9 +45,14 @@ mordent grace_dur (start, dur) velocity_scale neighbor = do
 
 grace_notes :: RealTime -> [(RealTime, Derive.EventDeriver)]
     -> Derive.EventDeriver
-grace_notes start notes = Derive.d_merge =<< placed
+grace_notes start notes = Derive.d_merge placed
     where
-    placed = forM (zip pos notes) $ \(p, (dur, d)) ->
-        Derive.d_place <$> Derive.real_to_score (start - p) <*>
-            Derive.real_to_score dur <*> return d
+    placed = map (\(p, (dur, deriver)) -> place (start - p) dur deriver)
+        (zip pos notes)
     pos = reverse $ drop 1 $ scanl (+) 0 $ map fst notes
+
+place :: RealTime -> RealTime -> Derive.Deriver d -> Derive.Deriver d
+place start dur d = do
+    rstart <- Derive.real_to_score start
+    rend <- Derive.real_to_score (start + dur)
+    Derive.d_place rstart (rend - rstart) d
