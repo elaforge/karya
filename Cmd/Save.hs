@@ -6,11 +6,10 @@ import qualified Data.List as List
 import qualified System.FilePath as FilePath
 
 import qualified Util.Log as Log
-
 import qualified Ui.State as State
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Play as Play
 import qualified Cmd.Serialize as Serialize
 
 
@@ -43,6 +42,7 @@ cmd_load fname = do
     Log.notice $ "state loaded from " ++ show fname
 
     State.modify (const (Serialize.save_ui_state state))
+    Play.cmd_stop
     Cmd.modify_state Cmd.reinit_state
     Edit.initialize_state
 

@@ -97,8 +97,7 @@ responder static_config msg_reader write_midi abort_midi get_now setup_cmd
             lang_session loopback Sync.sync
     respond_loop rstate msg_reader
     where
-    send_status block_id status =
-        loopback (Msg.Transport (Transport.Status block_id status))
+    send_status = loopback . Msg.Transport
 
 -- | A special run-and-sync that runs before the respond loop gets started.
 run_setup_cmd :: Loopback -> State.State -> Cmd.State -> Cmd.CmdIO

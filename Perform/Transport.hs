@@ -14,11 +14,7 @@ import qualified Derive.Score as Score
 
 -- | These go back to the responder loop from the render thread to notify it
 -- about the transport's state.
--- TODO BlockId isn't used, but could be conceivably useful for logging, or
--- to differentiate between multiple backends, so leave it in for now
-data Status = Status BlockId PlayerStatus deriving (Eq, Show)
-data PlayerStatus = Playing | Stopped | Died String
-    -- TODO later have play status so it can move the selection
+data Status = Playing | Stopped | Died String
     deriving (Eq, Show)
 
 -- | Data needed by the player thread.  This is created during app setup and
@@ -26,7 +22,7 @@ data PlayerStatus = Playing | Stopped | Died String
 -- started, it's incorporated into the play 'State'.
 data Info = Info {
     -- | Send status messages back to the responder loop.
-    info_send_status :: BlockId -> PlayerStatus -> IO ()
+    info_send_status :: Status -> IO ()
     , info_midi_writer :: Midi.WriteMessage -> IO ()
     -- | Action that will abort any pending midi msgs written with the midi
     -- writer.
@@ -100,7 +96,7 @@ type InverseTempoFunction = RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
 -- This is read-only, and shouldn't need to be modified.
 data State = State {
     -- | Communicate out of the Player.
-    state_send_status :: BlockId -> PlayerStatus -> IO ()
+    state_send_status :: Status -> IO ()
     -- | Communicate into the Player.
     , state_play_control :: PlayControl
     , state_updater_control :: UpdaterControl

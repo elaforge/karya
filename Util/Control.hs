@@ -5,7 +5,7 @@ module Util.Control (
     , first, second
     , (<>), mempty
     , while, while_
-    , whenM, unlessM, when_just, ifM
+    , whenM, unlessM, when_just, if_just, ifM
 
     -- , finally
     , justm
@@ -53,6 +53,10 @@ unlessM cond op = do
 
 when_just :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
 when_just val f = maybe (return ()) f val
+
+-- | 'maybe' with arguments juggled around to be convenient in a do block.
+if_just :: Maybe a -> (a -> b) -> b -> b
+if_just m consequent alternative = maybe alternative consequent m
 
 ifM :: (Monad m) => m Bool -> m a -> m a -> m a
 ifM cond consequent alternative = do

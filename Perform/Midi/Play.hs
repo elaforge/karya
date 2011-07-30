@@ -41,8 +41,7 @@ player_thread state msgs = do
         ++ " initialize: " ++ Pretty.pretty (RealTime.seconds secs)
     play_msgs state Set.empty msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
-            Transport.state_send_status state
-                (Transport.state_block_id state) (Transport.Died (show exc))
+            Transport.state_send_status state (Transport.Died (show exc))
     Transport.player_stopped (Transport.state_updater_control state)
     Log.notice $ "render score " ++ show name ++ " complete"
 

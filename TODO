@@ -41,9 +41,9 @@ UNSORTED
     this anyway to save undo.  If I extend Updates to include the actual
     changes, then they can be used for UI changes, ScoreDamage, and undo.
 
-  - bug: sometimes space didn't cancel playback when I open block then play
+  * bug: sometimes space didn't cancel playback when I open block then play
   - bug: still a focus bug when opening new blocks
-  - at one point, space didn't kill the playback updater thread, what could
+  * at one point, space didn't kill the playback updater thread, what could
     cause that to happen?
 
   - easy way to create a marker on the ruler
