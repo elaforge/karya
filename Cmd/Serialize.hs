@@ -34,7 +34,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Font as Font
+import qualified Ui.Style as Style
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
@@ -46,8 +46,6 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-
-import qualified App.Config as Config
 
 
 serialize :: (Serialize a) => FilePath -> a -> IO ()
@@ -352,36 +350,6 @@ instance Serialize Color.Color where
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (Color.Color a b c d)
 
-text_style = Font.EventStyle :: Font.Font -> [Font.FontFace] -> Int
-    -> Color.Color -> Font.EventStyle
-instance Serialize Font.EventStyle where
-    put (Font.EventStyle a b c d) = put a >> put b >> put c >> put d
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (text_style a b c d)
-
--- TODO store as strings?
-instance Serialize Font.Font where
-    put Font.Helvetica = putWord8 0
-    put Font.Times = putWord8 1
-    put Font.Courier = putWord8 2
-    get = do
-        tag_ <- getWord8
-        case tag_ of
-            0 -> return Font.Helvetica
-            1 -> return Font.Times
-            2 -> return Font.Courier
-            _ -> fail "no parse for Font.Font"
-
-instance Serialize Font.FontFace where
-    put Font.Bold = putWord8 0
-    put Font.Italic = putWord8 1
-    get = do
-        tag_ <- getWord8
-        case tag_ of
-            0 -> return Font.Bold
-            1 -> return Font.Italic
-            _ -> fail "no parse for Font.FontFace"
-
 -- ** Ruler
 
 instance Serialize Types.RulerId where
@@ -438,17 +406,12 @@ instance Serialize Track.Track where
     get = do
         v <- get_version
         case v of
-            0 -> do
-                title <- get :: Get String
-                events <- get :: Get Events.Events
-                bg <- get :: Get Color.Color
-                return $ Track.Track title events bg Config.render_config
             1 -> do
                 title <- get :: Get String
                 events <- get :: Get Events.Events
-                bg <- get :: Get Color.Color
+                color <- get :: Get Color.Color
                 render <- get :: Get Track.RenderConfig
-                return $ Track.Track title events bg render
+                return $ Track.Track title events color render
             _ -> version_error "Track.Track" v
 
 instance Serialize Track.RenderConfig where
@@ -494,12 +457,8 @@ instance Serialize Event.Event where
     get = do
         text <- get :: Get ByteString.ByteString
         dur <- get :: Get ScoreTime
-        style <- get :: Get Event.StyleId
+        style <- get :: Get Style.StyleId
         return $ Event.Event text dur style
-
-instance Serialize Event.StyleId where
-    put (Event.StyleId a) = put a
-    get = fmap Event.StyleId get
 
 -- ** Midi.Instrument
 

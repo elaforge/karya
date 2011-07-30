@@ -67,6 +67,10 @@ void insert_symbol(const char *name, int absolute_y,
 int get_font(const char *name);
 char **get_fonts();
 
+// styles
+
+void insert_style(StyleId id, EventStyle *style);
+
 // debugging
 
 const char *i_show_children(const BlockViewWindow *w, int nlevels);

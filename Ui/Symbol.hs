@@ -1,15 +1,18 @@
--- | A Symbol is a bit of text enclosed in ``s, such as `sharp`.  When rendered,
--- it's turned into a special graphic that may be made up of multiple glyphs
--- from different fonts.  The intent is to be able to write symbols in plain
--- ascii but have them rendered in an attractive way on the score.
---
--- Symbols are rendered at the UI level and are generally static, so instead of
--- sending the symbol data over every time I want to draw one, the UI level
--- maintains a mapping between symbol names and data on how to render them.
---
--- This module is split from "Ui.SymbolC" so importers can avoid a C dependency.
-module Ui.Symbol where
+{- | A Symbol is a bit of text enclosed in ``s, such as `sharp`.  When
+    rendered, it's turned into a special graphic that may be made up of
+    multiple glyphs from different fonts.  The intent is to be able to write
+    symbols in plain ascii but have them rendered in an attractive way on the
+    score.
 
+    Symbols are rendered at the UI level and are generally static, so instead
+    of sending the symbol data over every time I want to draw one, the UI
+    level maintains a mapping between symbol names and data on how to render
+    them.
+
+    This module is split from "Ui.SymbolC" so importers can avoid
+    a C dependency.
+-}
+module Ui.Symbol where
 
 -- | Make a simple symbol with only text.
 simple :: String -> String -> Symbol
@@ -45,7 +48,8 @@ data Glyph = Glyph {
     -- | Unicode characters that make up the glyph.
     glyph_chars :: String
     , glyph_font :: Maybe Font
-    -- | Relative size.  This is added to the font size when the glyph is drawn.
+    -- | Relative size.  This is added to the font size when the glyph is
+    -- drawn.
     , glyph_size :: Int
     -- | This is scaled by the font size and added to the position of the
     -- glyph.

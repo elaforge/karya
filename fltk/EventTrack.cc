@@ -15,7 +15,7 @@
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()
 
 // The color of events at a non-zero rank is scaled by this.
-static const double rank_brightness = 1.5;
+static const double rank_brightness = 1.35;
 // The color of events with a negative duration is scaled by this.
 static const double negative_duration_brightness = .85;
 
@@ -420,7 +420,8 @@ EventTrackView::draw_area()
         int y0 = std::min(offsets[i], offsets[i] + height);
         int y1 = std::max(offsets[i], offsets[i] + height);
 
-        Color c = event.color.brightness(this->brightness);
+        Color c = StyleTable::table()->get(event.style_id)
+            ->event_color.brightness(this->brightness);
         if (event.duration < ScoreTime(0))
             c = c.brightness(negative_duration_brightness);
         fl_color(color_to_fl(c));
@@ -532,12 +533,13 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
             // event text.
             if (lower != upper) {
                 lower_size = SymbolTable::table()->draw(
-                    lower, IPoint(min_x, offset-1), font, size);
+                    lower, IPoint(min_x, offset-1), font, size, FL_BLACK);
                 fl_line(min_x, offset, min_x + lower_size.x, offset);
             }
             upper_size = SymbolTable::table()->measure(upper, font, size);
             SymbolTable::table()->draw(
-                upper, IPoint(max_x - upper_size.x, offset-1), font, size);
+                upper, IPoint(max_x - upper_size.x, offset-1), font, size,
+                FL_BLACK);
             fl_line(max_x - upper_size.x, offset, max_x, offset);
             text_height = std::max(lower_size.y, upper_size.y);
         }
@@ -638,13 +640,13 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     // small notes I'll have to come up with some other mechanism, like color
     // coding.
 
-    const Fl_Font font = Config::font;
-    const int size = Config::font_size::event;
+    const EventStyle *style = StyleTable::table()->get(event.style_id);
 
     IRect text_rect(0, 0, 0, 0);
     bool draw_text = false;
     if (event.text) {
-        IPoint box = SymbolTable::table()->measure(event.text, font, size);
+        IPoint box = SymbolTable::table()->measure(
+            event.text, style->font, style->size);
         text_rect.w = box.x;
         text_rect.h = box.y;
         // Text goes above the trigger line for negative events, plus spacing.
@@ -695,16 +697,17 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     }
 
     if (draw_text) {
+        Fl_Color c;
         if (rank)
-            fl_color(color_to_fl(
-                        Color(0, 0, 0).brightness(rank_brightness)));
+            c = color_to_fl(style->text_color.brightness(rank_brightness));
         else
-            fl_color(FL_BLACK);
+            c = color_to_fl(style->text_color);
         // Due to boundary issues, drawing text that touches the bottom of a
         // box means drawing one above the bottom.  I don't totally understand
         // this.
         SymbolTable::table()->draw(std::string(event.text),
-            IPoint(text_rect.x, text_rect.b() - 1), font, size);
+            IPoint(text_rect.x, text_rect.b() - 1), style->font, style->size,
+            c);
         if (!rank) {
             if (text_rect.w > w() - 4) {
                 // If the text is too long it gets truncated with a blue

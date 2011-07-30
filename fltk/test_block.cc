@@ -144,55 +144,52 @@ static TrackData t1_events;
 void t1_set()
 {
     TrackData &e = t1_events;
-    Color eventc = Color(200, 200, 170);
-    EventStyle style;
-    style.font = FL_HELVETICA;
-    style.size = 9;
+    StyleId style = 0;
 
     // e.push_back(EventInfo(ScoreTime(5),
-    //     Event("`tamil-i`", ScoreTime(16), eventc, style), 0));
+    //     Event("`tamil-i`", ScoreTime(16), style), 0));
     // e.push_back(EventInfo(ScoreTime(0),
-    //     Event("15`1^`", ScoreTime(16), eventc, style), 0));
+    //     Event("15`1^`", ScoreTime(16), style), 0));
     // e.push_back(EventInfo(ScoreTime(32),
-    //     Event("15`1^`m", ScoreTime(-16), eventc, style), 0));
+    //     Event("15`1^`m", ScoreTime(-16), style), 0));
 
     e.push_back(EventInfo(ScoreTime(0),
-        Event("`1^`", ScoreTime(16), eventc, style), 0));
+        Event("`1^`", ScoreTime(16), style), 0));
     e.push_back(EventInfo(ScoreTime(16),
-        Event("a`tamil-i``xie`", ScoreTime(16), eventc, style), 0));
+        Event("a`tamil-i``xie`", ScoreTime(16), style), 0));
     e.push_back(EventInfo(ScoreTime(32),
-        Event("`nosym`", ScoreTime(4), eventc, style), 0));
+        Event("`nosym`", ScoreTime(4), style), 0));
     e.push_back(EventInfo(ScoreTime(36),
-        Event("overlap", ScoreTime(4), eventc, style), 0));
+        Event("overlap", ScoreTime(4), style), 0));
     e.push_back(EventInfo(ScoreTime(44),
-        Event("6--", ScoreTime(4), eventc, style), 0));
+        Event("6--", ScoreTime(4), style), 0));
     e.push_back(EventInfo(ScoreTime(50),
-        Event("mis`match", ScoreTime(4), eventc, style), 0));
+        Event("mis`match", ScoreTime(4), style), 0));
     e.push_back(EventInfo(ScoreTime(128),
-        Event("late!", ScoreTime(64), eventc, style), 0));
+        Event("late!", ScoreTime(64), style), 0));
     // coincident with rank 0
     e.push_back(EventInfo(ScoreTime(128),
-        Event("bg1", ScoreTime(8), eventc, style), 1));
+        Event("bg1", ScoreTime(8), style), 1));
     // overlaps with rank 0
     e.push_back(EventInfo(ScoreTime(160),
-        Event("bg2", ScoreTime(8), eventc, style), 1));
+        Event("bg2", ScoreTime(8), style), 1));
     e.push_back(EventInfo(ScoreTime(164),
-        Event("bg2.5", ScoreTime(8), eventc, style), 1));
+        Event("bg2.5", ScoreTime(8), style), 1));
     // coincedent with end of rank 0
     e.push_back(EventInfo(ScoreTime(128+64),
-        Event("bg3", ScoreTime(0), eventc, style), 1));
+        Event("bg3", ScoreTime(0), style), 1));
     // doesn't overlap rank 0
     e.push_back(EventInfo(ScoreTime(230),
-        Event("bg4", ScoreTime(0), eventc, style), 0));
+        Event("bg4", ScoreTime(0), style), 0));
 
     /*
     e.push_back(EventInfo(ScoreTime(0*8),
-        Event("main", ScoreTime(8), eventc, style), 0));
+        Event("main", ScoreTime(8), style), 0));
     for (int i = 0; i < 100; i++) {
         char buf[32];
         sprintf(buf, "e%d", i);
         e.push_back(EventInfo(ScoreTime(i*8),
-            Event(strdup(buf), ScoreTime(8), eventc, style), 1));
+            Event(strdup(buf), ScoreTime(8), style), 1));
     }
     */
 
@@ -475,6 +472,9 @@ main(int argc, char **argv)
                 1, ScoreTime(64), 4, ScoreTime(0)));
     */
 
+    StyleTable::table()->put(0, EventStyle(FL_HELVETICA, 12, Color::black,
+        Color(200, 200, 170)));
+
     // Technically the Glyphs should use heap space, not constants, since they
     // will be freed if there is a duplicate symbol.  But I don't care for a
     // test.
@@ -504,6 +504,8 @@ main(int argc, char **argv)
     t->insert("flat", SymbolTable::Symbol(
         SymbolTable::Glyph("a"),
         SymbolTable::Glyph("\xee\x84\x8e", em, 2, DPoint(.5, -.4))));
+    t->insert("mordent", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xee\x86\x8c", em, 4, DPoint(0, 0))));
 
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
     // t->load("v-angle-double", "\xef\xb8\xbd", "LiSong Pro", 4);

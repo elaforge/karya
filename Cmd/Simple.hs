@@ -132,7 +132,7 @@ convert_track :: (State.M m) => Track -> m Block.Track
 convert_track (id_name, title, events) = do
     let pos_events = map convert_event events
     track_id <- State.create_track (Id.read_id id_name) $
-        Track.track title pos_events Config.track_bg Config.render_config
+        Track.track title pos_events
     return $ Block.track (Block.TId track_id State.no_ruler) Config.track_width
 
 convert_event :: Event -> Events.PosEvent

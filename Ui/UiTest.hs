@@ -211,7 +211,7 @@ event_track_2 = mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 mktrack :: TrackSpec -> Track.Track
 mktrack (title, triplets) = Track.modify_events
     (Events.insert_events (map mkevent triplets)) (empty_track title)
-empty_track title = Track.track title [] Config.track_bg Config.render_config
+empty_track title = Track.track title []
 
 -- * event
 

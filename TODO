@@ -85,7 +85,6 @@ UNSORTED
 
   performance
     - scrolling is slow with more than a few events onscreen
-    - send style id to c++ instead of all the style elements
     - make seeks on derive output more efficient with a lazy index
     cache
       - Can I make cached signal more efficient by merging the signals before
@@ -397,7 +396,7 @@ performance:
         127130, [pno 9205, flute 63748, clarinet 54177]
         5367 for bloom
         peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
-  - send style id to c++ instead of all the style elements
+  * send style id to c++ instead of all the style elements
   - collapsing a track shouldn't trigger a rederive
 
 symbolic score

@@ -96,13 +96,13 @@ draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size)
 
 IPoint
 SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
-        bool measure) const
+        Fl_Color color, bool measure) const
 {
     size_t start = 0;
     size_t i, j;
 
     fl_font(font, size);
-    fl_color(FL_BLACK);
+    fl_color(color);
     // Keep track of the current bounding box.
     IPoint box(0, fl_height() - fl_descent());
 

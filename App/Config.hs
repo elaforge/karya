@@ -6,10 +6,9 @@ import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
 import qualified Util.File as File
-
-import qualified Ui.Id as Id
 import qualified Ui.Color as Color
-import qualified Ui.Track as Track
+import qualified Ui.Id as Id
+import qualified Ui.Style as Style
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
@@ -131,7 +130,7 @@ track_width = 30
 collapsed_width :: Types.Width
 collapsed_width = 3
 
-render_config = Track.RenderConfig Track.NoRender render_color
+render_color :: Color.Color
 render_color = Color.rgba 0.65 0.65 0.8 0.5
 
 -- | SchemaId of the default hardcoded schema.  This should probably go in
@@ -152,6 +151,9 @@ make_selection_color = Color.alpha 0.3 . Color.brightness 1.25
 
 -- * hardcoded configs
 
+-- These are for 'Ui.Block.Config' and 'Ui.Block.ViewConfig', using them
+-- directly would cause a circular import.
+
 bconfig_bg_color = Color.gray8
 bconfig_track_box = (box_color, ' ')
 bconfig_sb_box = (box_color, ' ')
@@ -163,3 +165,18 @@ vconfig_track_title_height = 20
 vconfig_skel_height = 16
 vconfig_sb_size = 12
 vconfig_status_size = 16
+
+-- * event style
+
+-- | Like Symbols, these are sent to the UI layer at startup and then remain
+-- static.
+styles :: [Style.Style]
+styles =
+    [ Style.Style Style.Helvetica [] 12 Color.black event
+    , Style.Style Style.Helvetica [Style.Italic] 12 Color.black event
+    ]
+    where event = Color.rgb 0.9 0.9 0.7
+
+default_style, italic_style :: Style.StyleId
+default_style = Style.StyleId 0
+italic_style = Style.StyleId 1

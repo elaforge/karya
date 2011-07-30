@@ -11,13 +11,10 @@ import qualified Ui.Events as Events
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
+import qualified App.Config as Config
 
 
 -- * track
-
--- -- | Constructor for tests, analogous to 'Event.event'.
--- event :: ScoreTime -> ScoreTime -> String -> PosEvent
--- event start dur txt = (start, Event.event txt dur)
 
 data Track = Track {
     track_title :: !String
@@ -26,10 +23,10 @@ data Track = Track {
     , track_render :: !RenderConfig
     } deriving (Eq, Show, Read)
 
--- | Construct an empty Track.
-track :: String -> [Events.PosEvent] -> Color.Color -> RenderConfig -> Track
-track title events bg render =
-    Track title (Events.insert_events events Events.empty) bg render
+-- | Construct a new Track.
+track :: String -> [Events.PosEvent] -> Track
+track title events = Track title (Events.insert_events events Events.empty)
+    Config.track_bg no_render
 
 instance DeepSeq.NFData Track where
     rnf track = DeepSeq.rnf (track_events track) `seq` ()
@@ -47,6 +44,9 @@ data RenderConfig = RenderConfig {
     render_style :: !RenderStyle
     , render_color :: !Color.Color
     } deriving (Eq, Show, Read)
+
+no_render :: RenderConfig
+no_render = RenderConfig NoRender Config.render_color
 
 data RenderStyle = NoRender | Line | Filled
     deriving (Eq, Show, Read)

@@ -28,8 +28,8 @@ get_fonts = do
 foreign import ccall "get_fonts" c_get_fonts :: IO (Ptr CString)
 
 
--- | Insert the given symbol into the symbol map.  Return any missing Fonts.  If
--- the return is non-null, the symbol wasn't inserted.
+-- | Insert the given symbol into the symbol map.  Return any missing Fonts.
+-- If the return is non-null, the symbol wasn't inserted.
 insert_symbol :: Symbol.Symbol -> IO [Symbol.Font]
 insert_symbol (Symbol.Symbol name absolute_y glyphs) = do
     maybe_glyphcs <- mapM glyph_to_glyphc glyphs

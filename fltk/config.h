@@ -5,10 +5,12 @@
 
 #include <FL/Enumerations.H>
 #include "util.h"
+#include "types.h"
 
 namespace Config {
 
-// This color signifies that some content has been omitted due to lack of space.
+// This color signifies that some content has been omitted due to lack of
+// space.
 extern const Color abbreviation_color;
 // Mark the playing end of events with this.
 extern const Color event_trigger_color;
@@ -20,7 +22,6 @@ enum {
 
 namespace font_size {
     enum {
-        event = 12,
         input = 12,
         ruler = 9,
         track_status = 12,

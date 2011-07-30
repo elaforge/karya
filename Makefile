@@ -95,9 +95,9 @@ BUNDLE = tools/make_bundle $@
 ### objects and binaries
 
 FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
-	Event.o P9Scrollbar.o SimpleScroll.o SeqInput.o MsgCollector.o \
-	SkeletonDisplay.o SymbolTable.o SymbolOutput.o \
-	f_util.o alpha_draw.o types.o config.o
+	P9Scrollbar.o SimpleScroll.o SeqInput.o MsgCollector.o \
+	SkeletonDisplay.o StyleTable.o SymbolTable.o SymbolOutput.o \
+	f_util.o alpha_draw.o types.o config.o util.o
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
 BINARIES := $(addprefix $(BUILD)/, seq send repl browser make_db dump update \

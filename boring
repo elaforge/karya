@@ -27,9 +27,9 @@ _stub.[ch]$
 ^Ui/BlockC.hs$
 ^Ui/Color.hs$
 ^Ui/Event.hs$
-^Ui/Font.hs$
 ^Ui/Key.hs$
 ^Ui/RulerC.hs$
+^Ui/Style.hs$
 ^Ui/SymbolC.hs$
 ^Ui/TrackC.hs$
 ^Ui/Types.hs$

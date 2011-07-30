@@ -273,6 +273,14 @@ get_fonts()
     return SymbolTable::table()->fonts();
 }
 
+// styles
+
+void
+insert_style(StyleId id, EventStyle *style)
+{
+    StyleTable::table()->put(id, *style);
+}
+
 
 // debugging
 

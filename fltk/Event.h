@@ -12,6 +12,7 @@ Events have a start and duration ScoreTime.  The duration can be 0.
 
 #include "util.h"
 #include "types.h"
+#include "StyleTable.h"
 
 
 // Events are immutable.  They are never modified in place, so they don't need
@@ -21,10 +22,10 @@ Events have a start and duration ScoreTime.  The duration can be 0.
 struct Event {
     // This has a default contsructor so I can assign it by value into
     // the EventTrackModel::Events map.
-    Event() : duration(0), color(0, 0, 0) {}
-    Event(const char *text, ScoreTime duration, Color color,
-            const EventStyle &style, bool align_to_bottom = false) :
-        text(text), duration(duration), color(color), style(style)
+    Event() : duration(0), style_id(0) {}
+    Event(const char *text, ScoreTime duration, StyleId style_id,
+            bool align_to_bottom = false) :
+        text(text), duration(duration), style_id(style_id)
     {}
     bool is_negative() const {
         return duration < ScoreTime(0) || duration.negative_zero();
@@ -34,8 +35,7 @@ struct Event {
     // This won't be modified, but will be freed, so const_cast for that.
     const char *text;
     ScoreTime duration;
-    Color color;
-    EventStyle style;
+    StyleId style_id;
 };
 
 #endif

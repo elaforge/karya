@@ -8,10 +8,12 @@ symbols = staff_symbols
 
 staff_symbols :: [Symbol.Symbol]
 staff_symbols =
-    [ Symbol.Symbol "tr" False [g "\xe17a" 2]
-    , Symbol.Symbol "mordent" False [g "\xe18c" 2]
-    , Symbol.Symbol "rmordent" False [g "\xe18d" 2]
-    , Symbol.Symbol "mordent2" False [g "\xe18e" 2]
-    , Symbol.Symbol "rmordent2" False [g "\xe18f" 2]
+    [ symbol "tr" "\xe17a"
+    , symbol "mordent" "\xe18c"
+    , symbol "rmordent" "\xe18d"
+    , symbol "mordent2" "\xe18e"
+    , symbol "rmordent2" "\xe18f"
     ]
-    where g str size = Symbol.Glyph str (Just "Emmentaler 11") size (0, 0)
+    where
+    symbol name str = Symbol.Symbol name False [glyph str]
+    glyph str = Symbol.Glyph str (Just "Emmentaler 11") 4 (0, 0)

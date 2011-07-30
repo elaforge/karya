@@ -154,6 +154,8 @@ struct Color {
                     scale(double(b), 255.0, d-1), a);
         }
     }
+
+    static const Color black, white;
 };
 
 inline std::ostream &

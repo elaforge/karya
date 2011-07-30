@@ -24,5 +24,5 @@ SymbolOutput::draw()
     Fl_Box::draw();
     IPoint p(x() + 2, y() + Config::font_size::track_status);
     SymbolTable::table()->draw(this->text, p,
-        Config::font, Config::font_size::track_status);
+        Config::font, Config::font_size::track_status, FL_BLACK);
 }

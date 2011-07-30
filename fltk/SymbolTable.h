@@ -81,7 +81,7 @@ public:
     // been drawn if measure is true.  The bounding box includes ascenders but
     // doesn't include descenders, because those can generally overlap.
     IPoint draw(const string &text, IPoint pos, Font font, Size size,
-        bool measure = false) const;
+        Fl_Color color, bool measure = false) const;
 
     // Specialization for 'draw' that just measures.
     IPoint measure(const string &text, Font font, Size size) const;

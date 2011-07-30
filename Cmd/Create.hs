@@ -393,7 +393,7 @@ track_after block tracknum
     where next_tracknum = Selection.shift_tracknum block tracknum 1
 
 empty_track :: String -> Track.Track
-empty_track title = Track.track title [] Config.track_bg Config.render_config
+empty_track title = Track.track title []
 
 generate_track_id :: BlockId -> String -> Map.Map TrackId _a -> Maybe Id.Id
 generate_track_id block_id code tracks =

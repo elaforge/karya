@@ -30,8 +30,6 @@ import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
-import qualified Ui.Symbol as Symbol
-import qualified Ui.SymbolC as SymbolC
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
@@ -58,6 +56,7 @@ import qualified Derive.Instrument.Symbols as Instrument.Symbols
 import qualified Instrument.Db as Db
 
 import qualified App.Config as Config
+import qualified App.LoadConfig as LoadConfig
 import qualified App.StaticConfig as StaticConfig
 
 import qualified Local.Instrument
@@ -210,8 +209,9 @@ main = initialize $ \lang_socket midi_chan -> do
     get_msg <- Responder.create_msg_reader
         remap_rmsg midi_chan lang_socket msg_chan loopback_chan
 
-    load_symbols $ Call.Symbols.symbols ++ Scale.Symbols.symbols
+    LoadConfig.symbols $ Call.Symbols.symbols ++ Scale.Symbols.symbols
         ++ Instrument.Symbols.symbols
+    LoadConfig.styles Config.styles
 
     session <- Lang.make_session
     Thread.start_logged "interpreter" $ do
@@ -240,19 +240,6 @@ main = initialize $ \lang_socket midi_chan -> do
             (StaticConfig.config_write_device_map static_config) wdev_map
     all_notes_off quiet_write (Map.keys wdev_map)
     Log.notice "app quitting"
-
--- | Tell the UI layer about the given Symbols.  Warnings are logged for
--- Symbols that couldn't be loaded.
---
--- TODO should probably go in a more general place, once I know where that is
-load_symbols :: [Symbol.Symbol] -> IO ()
-load_symbols syms = do
-    forM_ syms $ \sym -> do
-        missing <- SymbolC.insert_symbol sym
-        when (not (null missing)) $
-            Log.warn $ "failed to load symbol " ++ show (Symbol.sym_name sym)
-                ++ ", fonts not found: " ++ show missing
-    Log.notice $ "loaded " ++ show (length syms) ++ " symbols"
 
 all_notes_off :: (Midi.WriteMessage -> IO ()) -> [Midi.WriteDevice] -> IO ()
 all_notes_off write_midi devs = mapM_ write_midi (concat (map msgs devs))
