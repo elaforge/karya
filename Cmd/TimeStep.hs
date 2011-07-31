@@ -5,7 +5,7 @@
 module Cmd.TimeStep (
     -- * TimeStep
     TimeStep, Skip, time_step, step, merge, to_list
-    , Step(..), EventEdge(..)
+    , Step(..), Tracks(..)
     , MarklistMatch(..), Rank
     , Direction(..)
     , show_step
@@ -72,12 +72,13 @@ data Step =
     | BlockEnd
     -- | Until event edges.  EventStart is after EventEnd if the duration is
     -- negative.
-    | EventStart EventEdge
-    | EventEnd EventEdge
+    | EventStart Tracks
+    | EventEnd Tracks
     deriving (Eq, Show, Read)
 
 -- | Events of which tracks the event time step should snap to.
-data EventEdge = CurrentTrack | AllTracks deriving (Eq, Show, Read)
+data Tracks = CurrentTrack | AllTracks | TrackNums [TrackNum]
+    deriving (Eq, Show, Read)
 
 data MarklistMatch = AllMarklists | NamedMarklists [Ruler.MarklistName]
     deriving (Eq, Show, Read)
@@ -98,8 +99,8 @@ show_step direction (TimeStep steps) = dir_s ++ Seq.join ";" (map show1 steps)
             RelativeMark mlists match ->
                 "rel:" ++ show_marklists mlists ++ show_match match
             BlockEnd -> "end"
-            EventStart edge -> "start" ++ show_edge edge
-            EventEnd edge -> "end" ++ show_edge edge
+            EventStart tracks -> "start" ++ show_tracks tracks
+            EventEnd tracks -> "end" ++ show_tracks tracks
     show_skip skip = if skip > 0 then show (skip+1) ++ "*" else ""
     dir_s = case direction of
         Just Advance -> "+"
@@ -108,8 +109,9 @@ show_step direction (TimeStep steps) = dir_s ++ Seq.join ";" (map show1 steps)
     show_match rank = "r" ++ show rank
     show_marklists AllMarklists = ""
     show_marklists (NamedMarklists mlists) = Seq.join "," mlists ++ "/"
-    show_edge CurrentTrack = ""
-    show_edge AllTracks = "s"
+    show_tracks CurrentTrack = ""
+    show_tracks AllTracks = "s"
+    show_tracks (TrackNums tracks) = "s:" ++ Seq.join "," (map show tracks)
 
 
 -- * snap
@@ -186,26 +188,15 @@ get_events block_id tracknum = do
 get_points :: (State.M m) =>
     TimeStep -> BlockId -> TrackNum -> ScoreTime -> m (Maybe [ScoreTime])
 get_points time_step@(TimeStep steps) block_id tracknum pos = do
-    events <- mapM (get_events block_id) =<< case wants_edges of
-        Nothing -> return []
-        Just AllTracks -> do
-            tracks <- State.tracks block_id
-            return [0..tracks-1]
-        Just CurrentTrack -> return [tracknum]
+    all_tracknums <- State.tracks block_id
+    track_events <- mapM (get_events block_id) [0..all_tracknums-1]
+
     ruler <- if wants_ruler then get_ruler else return (Just [])
     return $ case ruler of
         Nothing -> Nothing
-        Just marklists -> Just $ all_points marklists events pos time_step
+        Just marklists -> Just $
+            all_points marklists tracknum track_events pos time_step
     where
-    edges = Maybe.mapMaybe (edge_of . fst) steps
-    wants_edges =
-        if null edges then Nothing else Just $ List.foldl1' combine edges
-    combine AllTracks _ = AllTracks
-    combine _ AllTracks = AllTracks
-    combine _ _ = CurrentTrack
-    edge_of (EventStart edge) = Just edge
-    edge_of (EventEnd edge) = Just edge
-    edge_of _ = Nothing
     wants_ruler = List.foldl' (||) False $ flip map steps $ \s -> case s of
         (Absolute {}, _) -> True
         (AbsoluteMark {}, _) -> True
@@ -225,23 +216,28 @@ get_points time_step@(TimeStep steps) block_id tracknum pos = do
 -- If it's a problem I can cache it.
 --
 -- This relies on 'get_points' to give it the proper values.
-all_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> [[Events.PosEvent]]
-    -> ScoreTime -> TimeStep -> [ScoreTime]
-all_points marklists events pos (TimeStep steps) = Seq.drop_dups id $
-    Seq.merge_lists id $ map (step_points marklists events pos) steps
+all_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> TrackNum
+    -> [[Events.PosEvent]] -> ScoreTime -> TimeStep -> [ScoreTime]
+all_points marklists cur events pos (TimeStep steps) = Seq.drop_dups id $
+    Seq.merge_lists id $ map (step_points marklists cur events pos) steps
 
-step_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> [[Events.PosEvent]]
-    -> ScoreTime -> (Step, Skip) -> [ScoreTime]
-step_points marklists events pos (step, skip) = stride skip $ case step of
+step_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> TrackNum
+    -> [[Events.PosEvent]] -> ScoreTime -> (Step, Skip) -> [ScoreTime]
+step_points marklists cur events pos (step, skip) = stride skip $ case step of
             -- fmod is in a bizarre place
         Absolute incr -> Seq.range (Fixed.mod' pos incr) end incr
         AbsoluteMark names matcher -> matches names matcher
         RelativeMark names matcher -> shift (matches names matcher)
         BlockEnd -> [0, end]
-        EventStart {} -> Seq.merge_lists id $
-            map (map Events.event_start) events
-        EventEnd {} -> Seq.merge_lists id $ map (map Events.event_end) events
+        EventStart tracks -> Seq.merge_lists id $
+            map (map Events.event_start) (track_events tracks)
+        EventEnd tracks -> Seq.merge_lists id $ map (map Events.event_end)
+            (track_events tracks)
     where
+    track_events AllTracks = events
+    track_events CurrentTrack = maybe [] (:[]) (Seq.at events cur)
+    track_events (TrackNums tracknums) =
+        Maybe.mapMaybe (Seq.at events) tracknums
     end = Maybe.fromMaybe 0 $
         Seq.maximum (map (Ruler.last_pos . snd) marklists)
     matches names matcher = match_all matcher

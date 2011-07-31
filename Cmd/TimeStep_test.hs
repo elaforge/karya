@@ -1,10 +1,12 @@
 module Cmd.TimeStep_test where
-
+import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.TimeStep as TimeStep
-import Cmd.TimeStep (Step(..), MarklistMatch(..), EventEdge(..))
+import Cmd.TimeStep (Step(..), MarklistMatch(..), Tracks(..))
 
 
 mk = TimeStep.time_step
@@ -48,10 +50,16 @@ test_get_points = do
     equal (f 0 (mk 0 BlockEnd)) (Just [0, 7])
     equal (f 0 (mk 0 (EventStart CurrentTrack))) (Just [0, 2])
     equal (f 0 (mk 0 (EventStart AllTracks))) (Just [0, 2, 5])
+    equal (f 0 (mk 0 (EventStart (TrackNums [1])))) (Just [0, 2])
+    equal (f 0 (mk 0 (EventStart (TrackNums [1, 2])))) (Just [0, 2, 5])
     equal (f 0 (mk 0 (EventEnd CurrentTrack))) (Just [1, 3])
     -- merged
-    equal (f 0 (merge 0 (EventEnd AllTracks) (mk 0 (EventStart AllTracks))))
-        (Just [0, 1, 2, 3, 5])
+    let merged ts1 ts2 = (f 0 (merge 0 ts1 (mk 0 ts2)), Seq.drop_dups id <$>
+            (Seq.merge <$> f 0 (mk 0 ts1) <*> f 0 (mk 0 ts2)))
+    uncurry equal $ merged (EventEnd AllTracks) (EventStart AllTracks)
+    uncurry equal $ merged (EventEnd AllTracks) (EventStart (TrackNums [1]))
+    uncurry equal $
+        merged (EventStart (TrackNums [1])) (EventEnd (TrackNums [2]))
 
 test_step_from_points = do
     let f n pos = TimeStep.step_from_points n pos [1..4]
