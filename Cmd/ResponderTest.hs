@@ -124,8 +124,7 @@ make_rstate update_chan midi_chan (ui_state, cmd_state) =
     abort_midi = return ()
     write_midi msg = put_val midi_chan msg
     get_now_ts = return 0
-    send_status block_id status =
-        loopback (Msg.Transport (Transport.Status block_id status))
+    send_status status = loopback (Msg.Transport status)
 
 new_chan = TVar.newTVarIO []
 
