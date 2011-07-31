@@ -5,7 +5,7 @@
     sound given the complexities of midi state, but it's a starting point.
 -}
 module Cmd.StepPlay (
-    cmd_set_or_advance, cmd_set, cmd_clear, cmd_advance, cmd_rewind
+    cmd_set_or_advance, cmd_set, cmd_here, cmd_clear, cmd_advance, cmd_rewind
 
 #ifdef TESTING
     , selnum, make_states
@@ -52,6 +52,13 @@ cmd_set = do
     start <- Maybe.fromMaybe sel_pos <$>
         TimeStep.rewind step block_id tracknum sel_pos
     move_to block_id start
+
+cmd_here :: (Cmd.M m) => m ()
+cmd_here = do
+    (block_id, tracknum, track_id, sel_pos) <- Selection.get_insert
+    view_id <- Cmd.get_focused_view
+    initialize view_id block_id tracknum track_id sel_pos
+    move_to block_id sel_pos
 
 
 -- | Puts MIDI states at every step point along the block.  Then set will zip

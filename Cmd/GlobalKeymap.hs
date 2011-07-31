@@ -174,10 +174,11 @@ selection_bindings = concat
 
 step_play_bindings :: (Cmd.M m) => [Keymap.Binding m]
 step_play_bindings = concat
-    [ bind_repeatable [PrimaryCommand] Key.Down "advance step play"
+    [ bind_repeatable [PrimaryCommand] Key.Down "step play advance"
         StepPlay.cmd_set_or_advance
-    , bind_repeatable [PrimaryCommand] Key.Up "rewind step play"
+    , bind_repeatable [PrimaryCommand] Key.Up "step play rewind"
         StepPlay.cmd_rewind
+    , bind_mod [PrimaryCommand] Key.Right "step play here" StepPlay.cmd_here
     ]
 
 view_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
