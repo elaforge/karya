@@ -343,6 +343,9 @@ data StepState = StepState {
     -- | Keep track of the view step play was started in, so I know where to
     -- display the selection.
     step_view_id :: !ViewId
+    -- | If step play only applies to a few tracks, list them.  If null,
+    -- step play applies to all tracks.
+    , step_tracknums :: [TrackNum]
 
     -- * modified
     -- | MIDI states before the step play position, in descending order.

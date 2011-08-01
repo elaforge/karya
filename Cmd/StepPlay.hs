@@ -31,34 +31,48 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
+
 import qualified App.Config as Config
 
 
 selnum :: Types.SelNum
 selnum = Config.step_play_selnum
 
-cmd_set_or_advance :: (Cmd.M m) => m ()
-cmd_set_or_advance =
-    maybe cmd_set (const cmd_advance) =<< Selection.lookup_selnum selnum
+cmd_set_or_advance :: (Cmd.M m) => Bool -> m ()
+cmd_set_or_advance play_selected_tracks =
+    maybe (cmd_set play_selected_tracks) (const cmd_advance)
+        =<< Selection.lookup_selnum selnum
 
 -- | Place the play step position at the 'Cmd.state_play_step' before the
 -- insert point and prepare the performance.
-cmd_set :: (Cmd.M m) => m ()
-cmd_set = do
-    (block_id, tracknum, track_id, sel_pos) <- Selection.get_insert
-    view_id <- Cmd.get_focused_view
-    initialize view_id block_id tracknum track_id sel_pos
-    step <- Cmd.gets (Cmd.state_play_step . Cmd.state_play)
-    start <- Maybe.fromMaybe sel_pos <$>
-        TimeStep.rewind step block_id tracknum sel_pos
-    move_to block_id start
+cmd_set :: (Cmd.M m) => Bool -> m ()
+cmd_set = set True
 
-cmd_here :: (Cmd.M m) => m ()
-cmd_here = do
+cmd_here :: (Cmd.M m) => Bool -> m ()
+cmd_here = set False
+
+-- | Prepare the step play performance and emit MIDI for the initial position.
+set :: (Cmd.M m) => Bool -- ^ Rewind from the selection pos by the play step.
+    -> Bool -- ^ Filter events to include only the ones on the selected
+    -- tracks.  This is like rederiving with those tracks soloed but doesn't
+    -- require a full rederive.
+    -> m ()
+set step_back play_selected_tracks = do
     (block_id, tracknum, track_id, sel_pos) <- Selection.get_insert
     view_id <- Cmd.get_focused_view
-    initialize view_id block_id tracknum track_id sel_pos
-    move_to block_id sel_pos
+    play_tracks <- if play_selected_tracks
+        then Types.sel_tracknums . snd <$> Selection.get
+        else return []
+    initialize view_id block_id tracknum track_id sel_pos play_tracks
+    start <- if step_back
+        then do
+            step <- Cmd.gets (Cmd.state_play_step . Cmd.state_play)
+            Maybe.fromMaybe sel_pos <$>
+                TimeStep.rewind step block_id tracknum sel_pos
+        else return sel_pos
+    move_to block_id start
 
 
 -- | Puts MIDI states at every step point along the block.  Then set will zip
@@ -70,20 +84,39 @@ cmd_here = do
 -- reinitialize from there.  I'll do that only if this simpler approach has
 -- problems.
 initialize :: (Cmd.M m) => ViewId -> BlockId -> TrackNum -> TrackId
-    -> ScoreTime -> m ()
-initialize view_id block_id tracknum track_id pos = do
+    -> ScoreTime -> [TrackNum] -> m ()
+initialize view_id block_id tracknum track_id pos play_tracks = do
     perf <- Perf.get_root
     steps <- Cmd.require_msg "can't get event starts for step play"
         =<< TimeStep.get_points play_step block_id tracknum pos
     let (score_steps, real_steps) = unzip $
             Perf.find_realtimes perf block_id track_id steps
     start <- Cmd.require_msg "no valid step points" (Seq.head real_steps)
-    msgs <- LEvent.events_of <$> PlayUtil.perform_from start perf
-    Cmd.modify_play_state $ \st -> st { Cmd.state_step = Just $ Cmd.StepState
-        view_id [] (zip score_steps (make_states real_steps msgs)) }
+
+    filter_tracks <- if null play_tracks then return id
+        else do
+            play_ids <- Maybe.catMaybes <$>
+                mapM (State.event_track_at block_id) play_tracks
+            return $ filter $ LEvent.either (from_track play_ids) (const False)
+    msgs <- fmap LEvent.events_of $ PlayUtil.perform_events $ filter_tracks $
+        PlayUtil.events_from start $ Cmd.perf_events perf
+
+    Cmd.modify_play_state $ \st -> st { Cmd.state_step = Just $
+        Cmd.StepState view_id play_tracks []
+            (zip score_steps (make_states real_steps msgs)) }
     where
-    play_step = TimeStep.merge 0 (TimeStep.EventEnd TimeStep.AllTracks) $
-        TimeStep.step (TimeStep.EventStart TimeStep.AllTracks)
+    play_step = TimeStep.merge 0 (TimeStep.EventEnd step_tracks) $
+        TimeStep.step (TimeStep.EventStart step_tracks)
+    step_tracks = if null play_tracks then TimeStep.AllTracks
+        else TimeStep.TrackNums play_tracks
+
+-- | True if the event was from one of these tracks.
+from_track :: [TrackId] -> Score.Event -> Bool
+from_track track_ids event = any (`elem` track_ids) $
+    Maybe.mapMaybe track_of $ Stack.innermost (Score.event_stack event)
+    where
+    track_of (Stack.Track tid) = Just tid
+    track_of _ = Nothing
 
 make_states :: [RealTime] -> [Midi.WriteMessage] -> [Midi.State.State]
 make_states ts msgs = snd $ List.mapAccumL go (Midi.State.empty, msgs) ts
@@ -109,10 +142,11 @@ cmd_rewind = move False
 
 move :: (Cmd.M m) => Bool -> m ()
 move forward = do
+    step_state <- Cmd.require =<< get
     let msg = "can't " ++ (if forward then "advance" else "rewind")
             ++ " for step play"
     (view_id, prev_state, pos, state) <- Cmd.require_msg msg
-        =<< zip_state forward
+        =<< zip_state step_state forward
     block_id <- State.block_id_of view_id
     -- If I want to get accurate playback positions, I need to call
     -- find_play_pos on the RealTime.  However, converting ScoreTime ->
@@ -120,7 +154,7 @@ move forward = do
     -- and the inaccuracy messes up time step.  In any case, I don't support
     -- discontiguous play selections yet, so I don't need to get this right.
     view_ids <- Map.keys <$> State.get_views_of block_id
-    set_selections view_ids pos
+    set_selections view_ids pos (Cmd.step_tracknums step_state)
     let msgs = Midi.State.diff prev_state state
     mapM_ (uncurry Cmd.midi) msgs
 
@@ -135,13 +169,12 @@ move_to block_id pos = do
     put $ Just $
         step_state { Cmd.step_before = before, Cmd.step_after = after }
     view_ids <- Map.keys <$> State.get_views_of block_id
-    set_selections view_ids pos
+    set_selections view_ids pos (Cmd.step_tracknums step_state)
     mapM_ (uncurry Cmd.midi) $ Midi.State.diff Midi.State.empty mstate
 
-zip_state :: (Cmd.M m) => Bool ->
+zip_state :: (Cmd.M m) => Cmd.StepState -> Bool ->
     m (Maybe (ViewId, Midi.State.State, ScoreTime, Midi.State.State))
-zip_state forward = do
-    step_state <- Cmd.require =<< get
+zip_state step_state forward = do
     let zipper = (Cmd.step_before step_state, Cmd.step_after step_state)
         (before, after) = if forward
             then zip_forward zipper else zip_backward zipper
@@ -175,10 +208,14 @@ zip_until _ (before, []) = (before, [])
 zip_head :: ([a], [a]) -> Maybe a
 zip_head = Seq.head . snd
 
-set_selections :: (State.M m) => [ViewId] -> ScoreTime -> m ()
-set_selections view_ids pos = sequence_
+set_selections :: (State.M m) => [ViewId] -> ScoreTime -> [TrackNum] -> m ()
+set_selections view_ids pos tracks = sequence_
     [State.set_selection view_id selnum (sel pos) | view_id <- view_ids]
-    where sel pos = Just $ Types.selection 0 pos 999 pos
+    where
+    -- I can't display disjoint selections so assume the tracks are
+    -- contiguous.
+    sel pos = Just $ if null tracks then Types.selection 0 pos 999 pos
+        else Types.selection (minimum tracks) pos (maximum tracks) pos
 
 get :: (Cmd.M m) => m (Maybe Cmd.StepState)
 get = Cmd.gets (Cmd.state_step . Cmd.state_play)

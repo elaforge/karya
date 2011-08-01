@@ -48,7 +48,7 @@ test_move_to = do
             CmdTest.set_point_sel 1 p
             Cmd.modify_play_state $ \st -> st { Cmd.state_play_step =
                 TimeStep.step (TimeStep.Absolute 1) }
-            StepPlay.cmd_set
+            StepPlay.cmd_set False
         return (e_midi res, CmdTest.extract_ui get_sel res)
     -- Ensure that cmd_set picks the previous step pos, rounding downward
     -- if the match isn't exact.
@@ -62,7 +62,7 @@ test_move = do
     -- run cmd_set, verify selection is there
     res <- return $ CmdTest.run_again res $ do
         CmdTest.set_point_sel 1 3
-        StepPlay.cmd_set
+        StepPlay.cmd_set False
     equal (e_midi res) [Midi.NoteOn 64 100]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 2, [])
 
@@ -89,6 +89,18 @@ test_move = do
     equal (e_midi res) [Midi.NoteOff 65 0]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
 
+test_move_tracks = do
+    res <- prepare_blocks UiTest.default_block_name
+        [(UiTest.default_block_name,
+            note_track ["4c", "4d", "4e"] ++ note_track ["5c", "5d", "5e"])]
+    -- run cmd_set, verify selection is there
+    res <- return $ CmdTest.run_again res $ do
+        CmdTest.set_point_sel 2 3
+        StepPlay.cmd_set True
+    equal (e_midi res) [Midi.NoteOn 64 100]
+    -- Ensure the selection is only on one track.
+    equal (CmdTest.extract_ui get_sel_tracks res) $ Right (Just (2, [2]), [])
+
 {-
 These test the more complicated version that puts the selections in the right
 spots for all blocks.  Disabled since that won't work anyway until I can do
@@ -101,7 +113,7 @@ discontiguous selections.
         ]
     res <- return $ CmdTest.run_again res $ do
             CmdTest.set_point_sel_block "sub" 1 3
-            StepPlay.cmd_set
+            StepPlay.cmd_set False
     pprint (CmdTest.extract_ui (get_block_sel "sub") res)
     pprint (CmdTest.extract_ui (get_block_sel "b") res)
     res <- return $ CmdTest.run_again res StepPlay.cmd_advance
@@ -122,7 +134,7 @@ discontiguous selections.
             ("tempo", [(0, 0, ".987")]) : simple_tracks)]
     res <- return $ CmdTest.run_again res $ do
             CmdTest.set_point_sel 2 2
-            StepPlay.cmd_set
+            StepPlay.cmd_set False
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 1, [])
     res <- return $ CmdTest.run_again res StepPlay.cmd_advance
 
@@ -154,12 +166,15 @@ simple_block :: [UiTest.BlockSpec]
 simple_block = [(UiTest.default_block_name, simple_tracks)]
 
 simple_tracks :: [UiTest.TrackSpec]
-simple_tracks =
-    [ (">s/1", [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")])
-    , ("*twelve", [(p, 0, n) | (p, n) <- zip (Seq.range 0 3 1)
-        ["4c", "4d", "4e", "4f"]])
-        -- 0   1   2   3
-        -- 60, 62, 64, 65
+simple_tracks = note_track
+    ["4c", "4d", "4e", "4f"]
+    -- 0   1   2   3
+    -- 60  62  64  65
+
+note_track :: [String] -> [UiTest.TrackSpec]
+note_track notes =
+    [ (">s/1", [(n, 1, "") | n <- [0 .. fromIntegral (length notes - 1)]])
+    , ("*twelve", [(p, 0, n) | (p, n) <- zip (Seq.range_ 0 1) notes])
     ]
 
 prepare_blocks :: String -> [UiTest.BlockSpec] -> IO (CmdTest.Result ())
@@ -175,6 +190,10 @@ step_state = Cmd.state_step . Cmd.state_play . CmdTest.result_cmd_state
 
 get_sel :: (State.M m) => m (Maybe ScoreTime)
 get_sel = fmap Types.sel_cur_pos <$>
+    State.get_selection UiTest.default_view_id StepPlay.selnum
+
+get_sel_tracks :: (State.M m) => m (Maybe (ScoreTime, [TrackNum]))
+get_sel_tracks = fmap (\s -> (Types.sel_cur_pos s, Types.sel_tracknums s)) <$>
     State.get_selection UiTest.default_view_id StepPlay.selnum
 
 get_block_sel :: (State.M m) => String -> m (Maybe ScoreTime)
