@@ -33,7 +33,7 @@ import qualified Instrument.MidiDb as MidiDb
 -- | Indicate the pitch track of a note track, or how to create one if
 -- necessary.
 data PitchTrack =
-    -- | Create a pitch track with (note_tracknum, scale_id, pitch_tracknum).
+    -- | Create a pitch track with (note_tracknum, pitch_tracknum).
     CreateTrack TrackNum TrackNum
     | ExistingTrack TrackNum TrackId
     deriving (Show, Eq)

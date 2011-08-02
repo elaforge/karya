@@ -14,10 +14,18 @@ import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Keymap as Keymap
+import qualified Cmd.NoteTrack as NoteTrack
+import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 
 
 main :: IO ()
-main = putStrLn $ html_fmt $ extract GlobalKeymap.all_cmd_map
+main = mapM_ putStrLn
+    [ "<html> <head> <title> keymaps </title> </head> <body>"
+    , html_fmt "global" $ extract GlobalKeymap.all_cmd_map
+    , html_fmt "note track" $ extract $ fst $
+        NoteTrackKeymap.make_keymap (NoteTrack.CreateTrack 0 0)
+    , "</body> </html>"
+    ]
 
 type CmdMap = Keymap.CmdMap (Cmd.CmdT Identity.Identity)
 type Binds = [(String, [Keymap.KeySpec])]
@@ -84,8 +92,8 @@ show_binding name keyspecs = Seq.join2 " - " mods name
 
 -- * html fmt
 
-html_fmt :: Binds -> String
-html_fmt binds = columns "keymap" 3 (map (uncurry html_binding) binds)
+html_fmt :: String -> Binds -> String
+html_fmt title binds = columns title 3 (map (uncurry html_binding) binds)
 
 columns :: String -> Int -> [String] -> String
 columns title n contents = unlines $
