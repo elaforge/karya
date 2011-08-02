@@ -18,29 +18,30 @@ module Cmd.Responder (
     , respond, State(..)
 ) where
 
-import Control.Monad
-import qualified Control.Monad.Cont as Cont
-import qualified Control.Monad.Trans as Trans
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
+import Control.Monad
+import qualified Control.Monad.Cont as Cont
+import qualified Control.Monad.Trans as Trans
+
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Network
 import qualified System.IO as IO
 
-import qualified Util.Logger as Logger
 import qualified Util.Log as Log
+import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
+import qualified Midi.Midi as Midi
 import Ui
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
-import qualified Midi.Midi as Midi
-import qualified Perform.Transport as Transport
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
@@ -51,6 +52,7 @@ import qualified Cmd.Play as Play
 import qualified Cmd.ResponderSync as ResponderSync
 import qualified Cmd.Track as Track
 
+import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 
@@ -89,19 +91,21 @@ responder static_config msg_reader write_midi abort_midi get_now setup_cmd
             (StaticConfig.config_schema_map static_config)
             (StaticConfig.config_global_scope static_config)
         cmd = setup_cmd >> Edit.initialize_state >> return Cmd.Done
+    updater_state <- MVar.newMVar State.empty
     (ui_state, cmd_state) <-
-        run_setup_cmd loopback State.empty cmd_state cmd
+        run_setup_cmd loopback State.empty cmd_state updater_state cmd
     let rstate = State static_config ui_state cmd_state write_midi
-            (Transport.Info send_status write_midi abort_midi get_now)
+            (Transport.Info send_status write_midi abort_midi get_now
+                updater_state)
             lang_session loopback Sync.sync
     respond_loop rstate msg_reader
     where
     send_status = loopback . Msg.Transport
 
 -- | A special run-and-sync that runs before the respond loop gets started.
-run_setup_cmd :: Loopback -> State.State -> Cmd.State -> Cmd.CmdIO
-    -> IO (State.State, Cmd.State)
-run_setup_cmd loopback ui_state cmd_state cmd = do
+run_setup_cmd :: Loopback -> State.State -> Cmd.State
+    -> MVar.MVar State.State -> Cmd.CmdIO -> IO (State.State, Cmd.State)
+run_setup_cmd loopback ui_state cmd_state updater_state cmd = do
     (cmd_state, _, logs, result) <- Cmd.run_io ui_state cmd_state cmd
     mapM_ Log.write logs
     (ui_to, updates) <- case result of
@@ -114,7 +118,7 @@ run_setup_cmd loopback ui_state cmd_state cmd = do
             return (ui_state, updates)
     (_, ui_state, cmd_state) <-
         ResponderSync.sync Sync.sync (send_derive_status loopback)
-            ui_state ui_state ui_to cmd_state updates
+            ui_state ui_state ui_to cmd_state updates updater_state
     return (ui_state, cmd_state)
 
 send_derive_status :: Loopback -> BlockId -> Msg.DeriveStatus -> IO ()
@@ -231,6 +235,7 @@ respond rstate msg = do
                 ResponderSync.sync (state_sync rstate)
                     (send_derive_status (state_loopback rstate))
                     (state_ui rstate) ui_from ui_to cmd_state updates
+                    (Transport.info_state (state_transport_info rstate))
             cmd_state <- return $ record_history updates ui_from cmd_state
             return (status,
                 rstate { state_cmd = cmd_state, state_ui = ui_state })
@@ -321,7 +326,6 @@ run_core_cmds rstate msg exit = do
                 (StaticConfig.config_local_lang_dirs config)
     (ui_to, cmd_state) <- do_run exit Cmd.run_io rstate msg ui_from
         ui_to cmd_state io_cmds
-
     return (Right (Cmd.Continue, ui_from, ui_to), cmd_state)
 
 -- | Everyone always gets these commands.

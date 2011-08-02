@@ -2,13 +2,14 @@
     performer.  Extensive description is in the Cmd.Play docstring.
 -}
 module Perform.Transport where
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Data.IORef as IORef
 
 import qualified Util.Thread as Thread
-
-import Ui
 import qualified Midi.Midi as Midi
+import Ui
+import qualified Ui.State as State
 import qualified Derive.Score as Score
 
 
@@ -29,6 +30,9 @@ data Info = Info {
     , info_midi_abort :: IO ()
     -- | Get current RealTime according to timing system.
     , info_get_current_time :: IO RealTime
+    -- | A mutable map of the currently active views, so the responder can
+    -- tell the updater thread which views are currently opened.
+    , info_state :: MVar.MVar State.State
     }
 
 -- * Transport control

@@ -1,6 +1,8 @@
 {- | Subset of the responder that handles syncing from State.State to the UI.
 -}
 module Cmd.ResponderSync (Sync, sync) where
+import qualified Control.Concurrent.MVar as MVar
+import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -26,9 +28,10 @@ sync :: Sync -> Performance.SendStatus
     -> State.State -- ^ state before UiMsg.UiUpdates have been applied
     -> State.State -- ^ state before Cmd was run
     -> State.State -- ^ current state
-    -> Cmd.State -> [Update.Update]
+    -> Cmd.State -> [Update.Update] -> MVar.MVar State.State
     -> IO ([Update.Update], State.State, Cmd.State)
-sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates = do
+sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
+        updater_state = do
     -- I'd catch problems closer to their source if I did this from run_cmds,
     -- but it's nice to see that it's definitely happening before syncs.
     ui_to <- verify_state ui_to
@@ -38,6 +41,8 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates = do
         Right updates -> do
             -- unless (null updates) $
             --     Trans.liftIO $ putStrLn $ "update: " ++ PPrint.pshow updates
+            when (any modified_view updates) $
+                MVar.modifyMVar_ updater_state (const (return ui_to))
             let tsigs = get_track_signals (State.state_root ui_to) cmd_state
             err <- sync_func tsigs ui_to updates
             case err of
@@ -71,3 +76,10 @@ verify_state state = do
             Log.error $ "state error while verifying: " ++ show err
             return state
         Right state2 -> return state2
+
+modified_view :: Update.Update -> Bool
+modified_view (Update.ViewUpdate _ update) = case update of
+    Update.CreateView {} -> True
+    Update.DestroyView {} -> True
+    _ -> False
+modified_view _ = False

@@ -30,6 +30,7 @@ UNSORTED
   * step play only the selected tracks
   * print out a table of the keymap
   - error reporting off by one in .hsc
+  - move selected tracks to clicked position
   - some ornaments should be scale aware, which means scales should have
     a notion of diatonic transposition.  That means I need 'key' in the
     environ.  Actually, named pitch track.
@@ -48,18 +49,18 @@ UNSORTED
   * at one point, space didn't kill the playback updater thread, what could
     cause that to happen?
 
+  - to make a "hand" track work, i.e. a note track with multiple note tracks
+    beneath it, I need to have sub notes derive when the supertrack is empty.
+    So do the slicing at the track level: event with duration slices events
+    in its range, event with duration 0 slices the event that lines up, and
+    events left over are evaluated as their own tracks.
+    This means slicing moves to derive_track instead of being per-call.
+    I think that should be ok?  Inverting calls still need to be marked since
+    they do more magic.  Triplet still needs 'sub_events' but it doesn't have
+    the ability to get notes outside its range, even if it wanted to.  In fact
+    I think the stuff in Derive.Call.Note doesn't change at all.
+
   - easy way to create a marker on the ruler
-  - there should be a way for play to bring up blocks as they are played
-    Why no emit playback for newly created view?
-    Because for the updater to know the views, I'd have to have some
-    communication from the responder thread, but it's blocked on user input.
-    Ultimately the mutable variable is the view map.
-    So, always emit to a certain view, and then set_selection_pos ignores
-    ViewIds not in the map?  How do I know which block that view corresponds
-    to?  Or I could just send the (BlockId, [ViewId]) map to the updater after
-    each respond.  But now I need the updater to be able to emit view creates.
-    It has to send a msg to the responder when it gets to a new block.
-    Getting complicated but it is nice to see the score as it plays.
   * overlapping key bindings are not detected between io and pure cmds
 
   - I can collapse tracks but can't uncollapse them since I can't get
@@ -79,6 +80,10 @@ UNSORTED
     * Create.view should size it to fit the block being created
     - do tuplets by setting local ruler?
     - lang cmd to show state hierarchically... or does it already exist?
+    / there should be a way for play to bring up blocks as they are played
+      It's hard to know what blocks to auto-show, and I'd need yet another
+      play mode, and a way to communicate new view ids back to the responder,
+      so let's wait until I really want it.
 
   debugging
     - lang level pretty print for events, esp collapsing the stack

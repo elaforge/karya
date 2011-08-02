@@ -76,6 +76,7 @@
     clears the updater control.
 -}
 module Cmd.Play where
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
@@ -148,9 +149,8 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs
 
-    ui_state <- State.get
     Trans.liftIO $ Thread.start $ updater_thread
-        updater_ctl transport_info (Cmd.perf_inv_tempo perf) start ui_state
+        updater_ctl transport_info (Cmd.perf_inv_tempo perf) start
     modify $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
 
@@ -216,14 +216,14 @@ modify = Cmd.modify_play_state
 -- Note that this goes directly to the UI through Sync, bypassing the usual
 -- state diff folderol.
 updater_thread :: Transport.UpdaterControl -> Transport.Info
-    -> Transport.InverseTempoFunction -> RealTime -> State.State -> IO ()
-updater_thread ctl transport_info inv_tempo_func start ui_state = do
+    -> Transport.InverseTempoFunction -> RealTime -> IO ()
+updater_thread ctl transport_info inv_tempo_func start = do
     let get_now = Transport.info_get_current_time transport_info
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
     offset <- get_now
     let state = UpdaterState ctl (offset - start) get_now
-            inv_tempo_func Set.empty ui_state
+            inv_tempo_func Set.empty (Transport.info_state transport_info)
     let send status = Transport.info_send_status transport_info status
     Exception.bracket_ (send Transport.Playing) (send Transport.Stopped)
         (updater_loop state)
@@ -234,7 +234,7 @@ data UpdaterState = UpdaterState {
     , updater_get_now :: IO RealTime
     , updater_inv_tempo_func :: Transport.InverseTempoFunction
     , updater_active_sels :: Set.Set (ViewId, [TrackNum])
-    , updater_ui_state :: State.State
+    , updater_ui_state :: MVar.MVar State.State
     }
 
 updater_loop :: UpdaterState -> IO ()
@@ -242,7 +242,8 @@ updater_loop state = do
     now <- subtract (updater_offset state) <$> updater_get_now state
     let fail err = Log.error ("state error in updater: " ++ show err)
             >> return []
-    play_pos <- either fail return $ State.eval (updater_ui_state state) $
+    ui_state <- MVar.readMVar (updater_ui_state state)
+    play_pos <- either fail return $ State.eval ui_state $
         Perf.find_play_pos (updater_inv_tempo_func state) now
     Sync.set_play_position play_pos
 
