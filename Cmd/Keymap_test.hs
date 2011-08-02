@@ -17,8 +17,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_make_cmd_map = do
     let (_, errors) = Keymap.make_cmd_map binds
-    strings_like errors
-        ["cmds overlap* KeySpec *Char '1'*: 1, KeySpec *Char '1'*: 12"]
+    strings_like errors ["cmds overlap* [1: 1, 1: 12]"]
 
 test_make_cmd = do
     let (cmd_map, _) = Keymap.make_cmd_map binds

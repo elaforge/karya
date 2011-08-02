@@ -37,6 +37,9 @@
     events.
 -}
 module Cmd.GlobalKeymap where
+import qualified Control.Monad.Identity as Identity
+import Util.Control
+
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -63,12 +66,12 @@ import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 
 
-global_cmds :: [Cmd.Cmd]
-global_cmds = [Keymap.make_cmd cmd_map]
+pure_cmds :: [Cmd.Cmd]
+pure_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map pure_bindings))]
 
 io_cmds :: Transport.Info -> [Msg.Msg -> Cmd.CmdIO]
 io_cmds transport_info =
-    [ Keymap.make_cmd io_cmd_map
+    [ Keymap.make_cmd (fst (Keymap.make_cmd_map io_bindings))
     -- player_bindings wants an arg, but I want to run 'make_cmd_map' as a CAF
     -- so I can easily print the errors once on startup, and also be assured
     -- that the map is only built once.  Otherwise I think I have to thread
@@ -77,10 +80,22 @@ io_cmds transport_info =
         player_bindings transport_info
     ]
 
+-- | 'all_cmd_map' is not useful for actual cmds since the cmds themselves
+-- have been stripped, but it's still useful to find keymap collisions and
+-- print a global keymap.
+all_cmd_map :: Keymap.CmdMap (Cmd.CmdT Identity.Identity)
+cmd_map_errors  :: [String]
+(all_cmd_map, cmd_map_errors) =
+    -- Pure cmds bind before IO cmds since they are extendable.
+    Keymap.make_cmd_map (pure_bindings ++ map strip io_bindings)
+    where
+    strip = second $ \(Keymap.CmdSpec name _) ->
+        Keymap.CmdSpec name (const (return Cmd.Done))
+
 -- * io cmds
 
-(io_cmd_map, io_cmd_map_errors) = Keymap.make_cmd_map $ concat
-    [file_bindings, quit_bindings]
+io_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
+io_bindings = concat [file_bindings, quit_bindings]
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
@@ -116,7 +131,8 @@ quit_bindings = [(kspec, cspec) | kspec <- kspecs]
 
 -- * pure cmds
 
-(cmd_map, cmd_map_errors) = Keymap.make_cmd_map $ concat
+pure_bindings :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]
+pure_bindings = concat
     [ mouse_bindings, selection_bindings, step_play_bindings
     , view_config_bindings, block_config_bindings, edit_state_bindings
     , event_bindings, pitch_bindings, create_bindings, clip_bindings

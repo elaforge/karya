@@ -110,7 +110,7 @@ test = do
     pprint $ convert_blocks 1 bs2
     -- pprint $ convert_track (head (to_tracks (head bs)))
     -- pprint $ convert_notes (head (to_tracks (head bs)))
-    -- where to_tracks (Block rows) = rotate (map (\(Row ns) -> ns)  rows)
+    -- where to_tracks (Block rows) = Seq.rotate (map (\(Row ns) -> ns)  rows)
 
 -- | An intermediate representation, between the row-oriented Block and
 -- State.State.
@@ -134,7 +134,7 @@ map_times f = first $ map $ \(ntrack, ctracks) ->
 convert_block :: Block -> UiBlock
 convert_block (Block rows) = (map convert_track clipped, block_length)
     where
-    to_tracks rows = rotate (map (\(Row ns) -> ns) rows)
+    to_tracks rows = Seq.rotate (map (\(Row ns) -> ns) rows)
     tracks = to_tracks rows
     block_length = maybe 0 id (Seq.minimum (map track_length tracks)) + 1
     clipped = map (take block_length) tracks
@@ -214,9 +214,6 @@ fx_vibrato = 0x04
 fx_volume = 0x0c
 ex_cut = 0xc3
 fx_delay = 0x1f
-
-rotate :: [[a]] -> [[a]]
-rotate xs = maybe [] (: rotate (map tail xs)) (mapM Seq.head xs)
 
 degree_to_note :: Map.Map Int String
 degree_to_note = Map.fromList $ zip [0..127] notes

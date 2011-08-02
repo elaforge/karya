@@ -272,6 +272,23 @@ partition_either (x:xs) =
         Left l -> (l:ls, rs)
         Right r -> (ls, r:rs)
 
+-- | Take a list of rows to a list of columns.  Similar to zip, the result is
+-- trimmed to the length of the shortest row.
+rotate :: [[a]] -> [[a]]
+rotate xs = maybe [] (: rotate (map tail xs)) (mapM head xs)
+
+-- | Similar to 'rotate', except that the result is the length of the longest
+-- row and missing columns is Nothing.
+rotate2 :: [[a]] -> [[Maybe a]]
+rotate2 xs
+    | all Maybe.isNothing heads = []
+    | otherwise = heads : rotate2 (map tl xs)
+    where
+    heads = map head xs
+    tl [] = []
+    tl (_:xs) = xs
+
+
 -- ** extracting sublists
 
 -- | Total variants of unsafe list operations.
@@ -401,6 +418,12 @@ split_commas = map strip . split ","
 -- | Concat a list with 'sep' in between.
 join :: [a] -> [[a]] -> [a]
 join sep = concat . List.intersperse sep
+
+-- | Binary join, but drops null values.
+join2 :: [a] -> [a] -> [a] -> [a]
+join2 _ a [] = a
+join2 _ [] b = b
+join2 sep a b = a ++ sep ++ b
 
 replace1 :: (Eq a) => a -> [a] -> [a] -> [a]
 replace1 from to xs = concatMap (\v -> if v == from then to else [v]) xs

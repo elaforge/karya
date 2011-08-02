@@ -161,7 +161,7 @@ UI_HSC := $(wildcard Ui/*.hsc)
 # tests.
 # TODO grody, maybe I should just make everything depend on ALL_HSC?
 UI_HS := $(UI_HSC:hsc=hs) Util/CPUTime.hs
-UI_OBJS := Ui/c_interface.o
+UI_OBJS := Ui/c_interface.o fltk/fltk.a
 
 COREMIDI_OBJS := Midi/core_midi.o
 
@@ -171,11 +171,11 @@ ALL_HS = $(shell tools/all_hs.py)
 
 SEQ_CMDLINE = $(GHC) $(HFLAGS) \
 	--make -main-is App.Main App/Main.hs \
-	$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) $(HLDFLAGS)
+	$(UI_OBJS) $(COREMIDI_OBJS) $(MIDI_LIBS) $(HLDFLAGS)
 
 # PHONY convinces make to always run ghc, which figures out deps on its own
 .PHONY: $(BUILD)/seq
-$(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
+$(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS)
 	$(SEQ_CMDLINE) $(SEQ_FLAGS) -o $@
 	$(BUNDLE) doc/seq.icns
 
@@ -195,6 +195,20 @@ $(BUILD)/send: App/Send.hs
 .PHONY: $(BUILD)/repl
 $(BUILD)/repl: App/Repl.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
+
+### misc
+
+# PrintKeymap wants the global keymap, which winds up importing cmds that
+# directly call UI level functions.  Even though it doesn't call the cmds,
+# they're packaged together with the keybindings, so I wind up having to
+# link in all that stuff anyway.
+.PHONY: $(BUILD)/PrintKeymap
+$(BUILD)/PrintKeymap: App/PrintKeymap.hs $(UI_OBJS)
+	$(GHC) $(HFLAGS) --make -main-is App.PrintKeymap $^ $(HLDFLAGS) -o $@
+
+.PHONY: doc/keymap.html
+doc/keymap.html: $(BUILD)/PrintKeymap
+	$^ >$@
 
 ### saved state
 
@@ -219,7 +233,8 @@ $(BUILD)/logview: $(LOGVIEW_OBJ) Ui/Color.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
 	$(BUNDLE)
 
-$(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o fltk/f_util.o
+$(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o \
+		fltk/f_util.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(BUNDLE)
 
@@ -271,14 +286,14 @@ doc: $(ALL_HSC)
 ### tests ###
 
 TEST_CMDLINE = $(GHC) $(HFLAGS) --make -DTESTING \
-	$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) $(HLDFLAGS)
+	$(UI_OBJS) $(COREMIDI_OBJS) $(MIDI_LIBS) $(HLDFLAGS)
 
 # Compiles with -odir and -hidir into $(TBUILD)/ because they are compiled with
 # different flags.
 $(TBUILD)/RunTests.hs: $(ALL_HS)
 	test/generate_run_tests.py $@ $(filter %_test.hs, $(ALL_HS))
 $(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HS) $(UI_OBJS) \
-		$(COREMIDI_OBJS) fltk/fltk.a
+		$(COREMIDI_OBJS)
 	$(TEST_CMDLINE) -i -i$(TBUILD):. -odir $(TBUILD) -hidir $(TBUILD) \
 		$(TBUILD)/RunTests.hs -fhpc -o $@
 	rm -f *.tix # this sticks around and breaks hpc
@@ -289,12 +304,12 @@ $(PBUILD)/RunProfile.hs: $(ALL_HS)
 
 .PHONY: $(PBUILD)/RunProfile
 $(PBUILD)/RunProfile: $(PBUILD)/RunProfile.hs $(UI_HS) $(UI_OBJS) \
-		$(COREMIDI_OBJS) fltk/fltk.a
+		$(COREMIDI_OBJS)
 	$(TEST_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
 		$(PBUILD)/RunProfile.hs -o $@ $(HPROFILE)
 
 .PHONY: $(PBUILD)/seq
-$(PBUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
+$(PBUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS)
 	$(SEQ_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
 		$(HPROFILE) -o $@
 	$(BUNDLE) doc/seq.icns

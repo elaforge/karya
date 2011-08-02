@@ -4,6 +4,8 @@ import Data.Bits ((.&.))
 import qualified Data.Char as Char
 import Foreign.C
 
+import qualified Util.Pretty as Pretty
+
 
 -- | A keystroke, which is not just a character but also back
 data Key = Char Char.Char
@@ -18,6 +20,10 @@ data Key = Char Char.Char
 
 data Modifier = Shift | CapsLock | Control | Alt | NumLock | Meta | ScrollLock
     deriving (Eq, Ord, Read, Show)
+
+instance Pretty.Pretty Key where
+    pretty (Char c) = c : ""
+    pretty key = map Char.toLower (show key)
 
 -- Actually just need FL/Fl_Enumerations.H
 #include "c_interface.h"

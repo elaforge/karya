@@ -82,8 +82,7 @@ responder static_config msg_reader write_midi abort_midi get_now setup_cmd
         lang_session loopback = do
     Log.debug "start responder"
     -- Report keymap overlaps.
-    mapM_ Log.warn
-        (GlobalKeymap.io_cmd_map_errors ++ GlobalKeymap.cmd_map_errors)
+    mapM_ Log.warn GlobalKeymap.cmd_map_errors
 
     let cmd_state = Cmd.initial_state
             (StaticConfig.config_instrument_db static_config)
@@ -309,9 +308,9 @@ run_core_cmds rstate msg exit = do
 
     -- Focus commands and the rest of the pure commands come first so text
     -- entry can override io bound commands.
-    let id_cmds = Track.track_cmd : hardcoded_cmds ++ GlobalKeymap.global_cmds
+    let pure_cmds = Track.track_cmd : hardcoded_cmds ++ GlobalKeymap.pure_cmds
     (ui_to, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
-        ui_to cmd_state id_cmds
+        ui_to cmd_state pure_cmds
 
     let config = state_static_config rstate
     -- Certain commands require IO.  Rather than make everything IO,

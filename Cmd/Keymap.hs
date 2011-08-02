@@ -19,12 +19,15 @@
     binding letter keys.
 -}
 module Cmd.Keymap where
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
@@ -118,8 +121,9 @@ expand_mods bindable smods
 make_cmd_map :: (Monad m) => [Binding m] -> (CmdMap m, [String])
 make_cmd_map bindings = (Map.fromList bindings, warns)
     where
-    warns = ["cmds overlap, picking the last one: " ++ Seq.join ", " cmds
-        | cmds <- overlaps bindings]
+    warns = map warn (overlaps bindings)
+    warn cmds = "cmds overlap, picking the last one: ["
+        ++ Seq.join ", " cmds ++ "]"
 
 -- | Create a cmd that dispatches into the given CmdMap.
 --
@@ -207,7 +211,8 @@ type CmdMap m = Map.Map KeySpec (CmdSpec m)
 overlaps :: [Binding m] -> [[String]]
 overlaps bindings =
     [map cmd_name grp | grp <- Seq.group_on fst bindings, length grp > 1]
-    where cmd_name (kspec, CmdSpec name _) = show kspec ++ ": " ++ name
+    where
+    cmd_name (kspec, CmdSpec name _) = Pretty.pretty kspec ++ ": " ++ name
 
 -- | Return the mods currently down, stripping out non-modifier keys and notes,
 -- so that overlapping keys will still match.  Mouse mods are not filtered, so
@@ -251,6 +256,39 @@ data Bindable =
     -- which can be set by the static config.
     | Note Midi.Channel Midi.Key
     deriving (Eq, Ord, Show, Read)
+
+
+-- * pretty printing
+
+instance Pretty.Pretty KeySpec where
+    pretty (KeySpec mods bindable) =
+        Seq.join2 " " (show_mods mods) (show_bindable True bindable)
+        where show_mods = Seq.join " + " . map show_mod . Set.toList
+
+show_mod :: Cmd.Modifier -> String
+show_mod m = case m of
+    -- TODO this is only true on OS X
+    Cmd.KeyMod Key.Meta -> "cmd"
+    Cmd.KeyMod Key.Control -> "ctrl"
+    Cmd.KeyMod mod -> map Char.toLower (show mod)
+    Cmd.MouseMod button _ -> "mouse " ++ show button
+    Cmd.MidiMod chan key -> "midi " ++ show key ++ " chan " ++ show chan
+
+instance Pretty.Pretty Bindable where
+    pretty = show_bindable True
+
+show_bindable :: Bool -> Bindable -> String
+show_bindable show_repeatable b = case b of
+    Key is_repeat key -> Pretty.pretty key
+        ++ if show_repeatable && is_repeat then " (repeatable)" else ""
+    Click button times -> click_times times ++ "click " ++ show button
+    Drag button -> "drag " ++ show button
+    Note chan key -> "midi " ++ show key ++ " channel " ++ show chan
+    where
+    click_times 0 = ""
+    click_times 1 = "double-"
+    click_times 2 = "triple-"
+    click_times n = show n ++ "-"
 
 
 -- * key layout
