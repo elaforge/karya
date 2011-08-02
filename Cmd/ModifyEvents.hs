@@ -5,6 +5,7 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import Ui
+import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -15,9 +16,11 @@ import qualified Cmd.Selection as Selection
 
 -- * main modification
 
+type Event = Events.PosEvent -> Maybe Events.PosEvent
+
 -- | Map a function over the selected events.  Returning Nothing will remove
 -- the event.
-events :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent) -> m ()
+events :: (Cmd.M m) => Event -> m ()
 events f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
@@ -26,25 +29,29 @@ events f = do
 
 -- | This is like 'events'.  It's more efficient but the modify function must
 -- promise to return events in sorted order.
-events_sorted :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
-    -> m ()
+events_sorted :: (Cmd.M m) => Event -> m ()
 events_sorted f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
         State.remove_events track_id start end
         State.insert_sorted_events track_id (Maybe.mapMaybe f events)
 
+selection, selection_sorted :: (Cmd.M m) =>
+    ([Events.PosEvent] -> [Events.PosEvent]) -> m ()
+selection = undefined
+selection_sorted = undefined
+
 -- | Map a function over the selected events, passing the track id.  Unlike
 -- 'events', returning Nothing will leave the track unchanged.
-tracks :: (Cmd.M m) =>
-    (TrackId -> [Events.PosEvent] -> m (Maybe [Events.PosEvent])) -> m ()
+type Track m = TrackId -> [Events.PosEvent] -> m (Maybe [Events.PosEvent])
+
+tracks :: (Cmd.M m) => Track m -> m ()
 tracks f = tracks_sorted $ \track_id events ->
     fmap Events.sort <$> f track_id events
 
 -- | As with 'events_sorted', this is a more efficient version for sorted
 -- events.
-tracks_sorted :: (Cmd.M m) =>
-    (TrackId -> [Events.PosEvent] -> m (Maybe [Events.PosEvent])) -> m ()
+tracks_sorted :: (Cmd.M m) => Track m -> m ()
 tracks_sorted f = do
     track_events <- Selection.events
     forM_ track_events $ \(track_id, (start, end), events) -> do
@@ -54,6 +61,15 @@ tracks_sorted f = do
                 State.remove_events track_id start end
                 State.insert_sorted_events track_id new_events
             Nothing -> return ()
+
+-- | Like 'tracks', but maps over an entire block.
+block_tracks :: (Cmd.M m) => BlockId -> Track m -> m ()
+block_tracks block_id f = do
+    track_ids <- Block.block_track_ids <$> State.get_block block_id
+    forM_ track_ids $ \track_id -> do
+        events <- State.get_all_events track_id
+        maybe (return ()) (State.modify_events track_id . const . Events.make)
+            =<< f track_id events
 
 -- * convenience
 
@@ -82,7 +98,7 @@ pos_dur_sorted f = events_sorted $ \(pos, event) ->
 
 -- | Move everything at or after @start@ by @shift@.
 move_track_events :: (State.M m) => ScoreTime -> ScoreTime -> TrackId -> m ()
-move_track_events start shift track_id = State.modify_track_events track_id $
+move_track_events start shift track_id = State.modify_events track_id $
     \events -> move_events start shift events
 
 -- | All events starting at and after a point to the end are shifted by the
@@ -103,12 +119,12 @@ move_events point shift events = merged
 
 map_track_sorted :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
     -> TrackId -> m ()
-map_track_sorted f track_id = State.modify_track_events track_id $
+map_track_sorted f track_id = State.modify_events track_id $
     Events.make_sorted . Maybe.mapMaybe f . Events.ascending
 
 map_track :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
     -> TrackId -> m ()
-map_track f track_id = State.modify_track_events track_id $
+map_track f track_id = State.modify_events track_id $
     Events.make . Maybe.mapMaybe f . Events.ascending
 
 -- | Mostly convenient for REPL use.

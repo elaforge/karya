@@ -32,10 +32,10 @@ UNSORTED
   - error reporting off by one in .hsc
   - some ornaments should be scale aware, which means scales should have
     a notion of diatonic transposition.  That means I need 'key' in the
-    environ.  Along with some nicer environ setting syntax.
+    environ.  Actually, named pitch track.
   - save repl history along with current song, so you can search for previous
     cmds
-  - cmd to strip redundant controls and empty tracks
+  * cmd to strip redundant controls and empty tracks
   - is it possible to have a more symbolic control track, e.g. pedal with
     ped and *, or maybe a ped event where it's down until event end?
   - undo rederives everything, which is super slow on a big score
@@ -76,7 +76,7 @@ UNSORTED
 
   wait until I want it
     - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
-    - Create.view should size it to fit the block being created
+    * Create.view should size it to fit the block being created
     - do tuplets by setting local ruler?
     - lang cmd to show state hierarchically... or does it already exist?
 

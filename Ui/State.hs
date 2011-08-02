@@ -247,6 +247,14 @@ modify f = do
     put $! f state
 
 
+-- * global
+
+all_block_ids :: (M m) => m [BlockId]
+all_block_ids = Map.keys . state_blocks <$> get
+
+all_track_ids :: (M m) => m [TrackId]
+all_track_ids = Map.keys . state_tracks <$> get
+
 -- * misc
 
 -- | Unfortunately there are some invariants to protect within State.  This
@@ -909,7 +917,8 @@ create_track :: (M m) => Id.Id -> Track.Track -> m TrackId
 create_track id track = get >>= insert (Types.TrackId id) track state_tracks
     (\tracks st -> st { state_tracks = tracks })
 
--- | Destroy the track and remove it from all the blocks it's in.
+-- | Destroy the track and remove it from all the blocks it's in.  No-op if
+-- the TrackId doesn't exist.
 destroy_track :: (M m) => TrackId -> m ()
 destroy_track track_id = do
     blocks <- blocks_with_track track_id
@@ -917,12 +926,15 @@ destroy_track track_id = do
         remove_track block_id tracknum
     modify $ \st -> st { state_tracks = Map.delete track_id (state_tracks st) }
 
-modify_track_title :: (M m) => TrackId -> (String -> String) -> m ()
-modify_track_title track_id f = _modify_track track_id $ \track ->
-    track { Track.track_title = f (Track.track_title track) }
+get_track_title :: (M m) => TrackId -> m String
+get_track_title = (Track.track_title <$>) . get_track
 
 set_track_title :: (M m) => TrackId -> String -> m ()
 set_track_title track_id text = modify_track_title track_id (const text)
+
+modify_track_title :: (M m) => TrackId -> (String -> String) -> m ()
+modify_track_title track_id f = _modify_track track_id $ \track ->
+    track { Track.track_title = f (Track.track_title track) }
 
 set_track_bg :: (M m) => TrackId -> Color.Color -> m ()
 set_track_bg track_id color = _modify_track track_id $ \track ->
@@ -936,12 +948,6 @@ modify_track_render track_id f = _modify_track track_id $ \track ->
 set_render_style :: (M m) => Track.RenderStyle -> TrackId -> m ()
 set_render_style style track_id = modify_track_render track_id $
     \render -> render { Track.render_style = style }
-
-modify_track_events :: (M m) => TrackId
-    -> (Events.Events -> Events.Events) -> m ()
-modify_track_events track_id f = do
-    _modify_track track_id (Track.modify_events f)
-    update $ Update.TrackUpdate track_id Update.TrackAllEvents
 
 -- ** events
 
@@ -972,6 +978,14 @@ get_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m [Events.PosEvent]
 get_events track_id start end = do
     events <- Track.track_events <$> get_track track_id
     return (_events_in_range start end events)
+
+get_all_events :: (M m) => TrackId -> m [Events.PosEvent]
+get_all_events = (Events.ascending . Track.track_events <$>) . get_track
+
+modify_events :: (M m) => TrackId -> (Events.Events -> Events.Events) -> m ()
+modify_events track_id f = do
+    _modify_track track_id (Track.modify_events f)
+    update $ Update.TrackUpdate track_id Update.TrackAllEvents
 
 -- | Remove any events whose starting positions fall within the half-open
 -- range given, or under the point if the selection is a point.
