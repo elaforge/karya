@@ -1,7 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 module Perform.Midi.Play (play) where
+import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import Control.Monad
+
+import qualified Data.IORef as IORef
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
@@ -25,27 +28,48 @@ type Messages = [LEvent.LEvent Midi.WriteMessage]
 play :: Transport.Info -> BlockId -> Messages
     -> IO (Transport.PlayControl, Transport.UpdaterControl)
 play transport_info block_id midi_msgs = do
-    state <- Transport.state transport_info block_id
-    let ts_offset = Transport.state_time_offset state
+    state <- make_state transport_info block_id
+    let ts_offset = state_time_offset state
         -- Catch msgs up to realtime.
         ts_midi_msgs = map (fmap (Midi.add_timestamp ts_offset)) midi_msgs
     Thread.start_logged "render midi" (player_thread state ts_midi_msgs)
-    return (Transport.state_play_control state,
-        Transport.state_updater_control state)
+    return (state_play_control state, state_updater_control state)
 
-player_thread :: Transport.State -> Messages -> IO ()
+player_thread :: State -> Messages -> IO ()
 player_thread state msgs = do
-    let name = show (Transport.state_block_id state)
+    let name = show (state_block_id state)
     secs <- Log.time_eval (take 10 msgs)
     Log.notice $ "play block " ++ name
         ++ " initialize: " ++ Pretty.pretty (RealTime.seconds secs)
     play_msgs state Set.empty msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
-            Transport.state_send_status state (Transport.Died (show exc))
-    Transport.player_stopped (Transport.state_updater_control state)
+            Transport.info_send_status (state_info state)
+                (Transport.Died (show exc))
+    Transport.player_stopped (state_updater_control state)
     Log.notice $ "render score " ++ show name ++ " complete"
 
 -- * implementation
+
+-- | Access to info that's needed by a particular run of the player.
+-- This is read-only, and shouldn't need to be modified.
+data State = State {
+    -- | Communicate into the Player.
+    state_play_control :: Transport.PlayControl
+    , state_updater_control :: Transport.UpdaterControl
+    , state_block_id :: BlockId
+
+    -- | When play started.  Timestamps relative to the block start should be
+    -- added to this to get absolute Timestamps.
+    , state_time_offset :: RealTime
+    , state_info :: Transport.Info
+    }
+
+make_state :: Transport.Info -> BlockId -> IO State
+make_state info block_id = do
+    ts <- Transport.info_get_current_time info
+    play_control <- fmap Transport.PlayControl STM.newEmptyTMVarIO
+    updater_control <- fmap Transport.UpdaterControl (IORef.newIORef False)
+    return $ State play_control updater_control block_id ts info
 
 type AddrsSeen = Set.Set Instrument.Addr
 
@@ -56,9 +80,9 @@ write_ahead = RealTime.seconds 1
 
 -- | @devs@ keeps track of devices that have been seen, so I know which devices
 -- to reset.
-play_msgs :: Transport.State -> AddrsSeen -> Messages -> IO ()
+play_msgs :: State -> AddrsSeen -> Messages -> IO ()
 play_msgs state addrs_seen msgs = do
-    let write_midi = Transport.state_midi_writer state
+    let write_midi = Transport.info_midi_writer (state_info state)
         write_msg = LEvent.either write_midi Log.write
     -- Make sure that I get a consistent play, not affected by previous
     -- control states.
@@ -66,7 +90,7 @@ play_msgs state addrs_seen msgs = do
 
     -- This should make the buffer always be between write_ahead*2 and
     -- write_ahead ahead of now.
-    now <- Transport.state_get_current_time state
+    now <- Transport.info_get_current_time (state_info state)
     let until = now + RealTime.mul write_ahead 2
     let (chunk, rest) =
             span (LEvent.either ((<until) . Midi.wmsg_ts) (const True))  msgs
@@ -76,10 +100,10 @@ play_msgs state addrs_seen msgs = do
 
     let timeout = if null rest then RealTime.mul write_ahead 2 else write_ahead
     stop <- Transport.check_for_stop (RealTime.to_seconds timeout)
-        (Transport.state_play_control state)
+        (state_play_control state)
     case (stop, rest) of
         (True, _) -> do
-            Transport.state_midi_abort state
+            Transport.info_midi_abort (state_info state)
             reset_midi write_midi now addrs_seen
         (_, []) -> send_all write_midi addrs_seen now (Midi.PitchBend 0)
         _ -> play_msgs state addrs_seen rest
