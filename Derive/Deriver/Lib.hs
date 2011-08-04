@@ -458,6 +458,7 @@ with_event event = Internal.local state_stack
 -- | The EventDerivers run as sub-derivers and the results are mappended, which
 -- lets them to interleave their work or run in parallel.
 d_merge :: [EventDeriver] -> EventDeriver
+d_merge [] = mempty
 d_merge [d] = d
 d_merge derivers = do
     state <- get

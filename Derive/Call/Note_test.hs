@@ -1,19 +1,11 @@
 module Derive.Call.Note_test where
-import qualified Data.Tree as Tree
-
-import qualified Util.Seq as Seq
 import Util.Test
-import Ui
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.Call.Note as Note
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-
 import qualified Perform.PitchSignal as PitchSignal
 
 
@@ -72,95 +64,3 @@ test_tuplet = do
     -- not really testing tuplet: make sure empty tracks are stripped
     equal (run [(">", [(0, 1, "")]), (">", []), ("*twelve", [(0, 0, "4c")])])
         [(0, 1, [(0, 60)])]
-
-test_slice_notes = do
-    let extract = map (\(s, e, t) -> (s, e, extract_tree t))
-    let f s e t = Seq.sort_on (\(s, _, _) -> s) $ extract $
-            Note.slice_notes s e t
-        t0 = make_tree [Tree.Node (make_notes 0 "ab") []]
-
-    -- no sub tracks works too
-    equal (f 0 1 (make_tree [Tree.Node (make_notes 0 "abc") []]))
-        [(0, 1, [Tree.Node (make_notes 0 "a") []])]
-
-    -- simple sub tracks
-    equal (f 0 2 t0)
-        [ (0, 1, [Tree.Node (">", [(0, 1, "a")]) []])
-        , (1, 1, [Tree.Node (">", [(0, 1, "b")]) []])
-        ]
-    equal (f 0 1 t0)
-        [(0, 1, [Tree.Node (">", [(0, 1, "a")]) []])]
-
-    -- no note tracks, no output
-    equal (f 0 1 (make_tree [Tree.Node (make_controls "c" [0..6]) []]))
-        []
-
-    -- empty note track is ignored
-    equal (f 0 1 (make_tree [Tree.Node (make_notes 0 "abc")
-            [Tree.Node (make_notes 0 "")
-                [Tree.Node (make_controls "c" [0]) []]]]))
-        [(0, 1, [Tree.Node (make_notes 0 "a")
-            [Tree.Node (make_controls "c" [0]) []]])]
-
-    -- make sure parent track order doesn't get messed up
-    equal (f 0 1 (make_tree [Tree.Node (make_controls "c1" [0..6])
-            [Tree.Node (make_controls "c2" [0..6])
-                [Tree.Node (make_notes 0 "a") []]]]))
-        [ (0, 1, [Tree.Node (make_controls "c1" [0, 1])
-            [Tree.Node (make_controls "c2" [0, 1])
-                [Tree.Node (">", [(0, 1, "a")]) []]]])
-        ]
-
-    -- simple child control slicing
-    equal (f 1 2 (make_tree [Tree.Node (make_notes 0 "abc")
-            [Tree.Node (make_controls "c" [0..6]) []]]))
-        [(1, 1, [Tree.Node (">", [(0, 1, "b")])
-            [Tree.Node (make_controls "c" [1, 2]) []]])]
-    let t1 = make_tree
-            [ Tree.Node (make_controls "c1" [0..4])
-                [Tree.Node (make_notes 1 "ab")
-                    [Tree.Node (make_controls "c2" [0..4]) []]]
-            , Tree.Node (make_notes 1 "cd") []
-            ]
-    equal (f 1 3 t1)
-        [ (1, 1, [Tree.Node (make_controls "c1" [1, 2])
-                    [Tree.Node (">", [(0, 1, "a")])
-                        [Tree.Node (make_controls "c2" [1, 2]) []]]])
-        , (1, 1, [Tree.Node (">", [(0, 1, "c")]) []])
-        , (2, 1, [Tree.Node (make_controls "c1" [2, 3])
-                    [Tree.Node (">", [(0, 1, "b")])
-                        [Tree.Node (make_controls "c2" [2, 3]) []]]])
-        , (2, 1, [Tree.Node (">", [(0, 1, "d")]) []])
-        ]
-
-extract_tree :: State.EventsTree -> Tree.Forest (String, [Event])
-extract_tree = map $ \(Tree.Node track subs) ->
-    Tree.Node
-        (State.tevents_title track, extract_track (State.tevents_events track))
-        (extract_tree subs)
-
-extract_track :: Events.Events -> [Event]
-extract_track events =
-    [(p, Event.event_duration e, Event.event_string e)
-        | (p, e) <- Events.ascending events]
-
-make_tree :: Tree.Forest (String, [Event]) -> State.EventsTree
-make_tree = map $ \(Tree.Node (title, events) subs) ->
-    Tree.Node (make_track title events) (make_tree subs)
-
-make_track :: String -> [Event] -> State.TrackEvents
-make_track title events = State.TrackEvents title tevents
-    100 Nothing (Events.time_begin tevents, Events.time_end tevents) False
-    where
-    tevents = (Events.make
-        [(start, Event.event text dur) | (start, dur, text) <- events])
-
-make_controls :: String -> [Int] -> (String, [Event])
-make_controls title vals =
-    (title, zipWith (\start val -> (start, 0, show val)) [0..] vals)
-
-make_notes :: ScoreTime -> String -> (String, [Event])
-make_notes offset notes =
-    (">", zipWith (\start note -> (start, 1, note : "")) [offset..] notes)
-
-type Event = (ScoreTime, ScoreTime, String)

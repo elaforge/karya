@@ -130,7 +130,7 @@ eval_expr info expr = do
     Derive.modify $ \st -> st { Derive.state_collect = collect }
     return $ Derive.merge_logs res logs
 
--- ** eval implementation
+-- * derive_track
 
 data DeriveInfo derived = DeriveInfo {
     -- | TODO If I could get rid of this I could make functions like 'eval_one'
@@ -157,7 +157,6 @@ derive_track :: (Derive.Derived derived) =>
     Derive.State -> ScoreTime -> DeriveInfo derived
     -> Parse.ParseExpr -> GetLastSample derived
     -> State.EventsTree -> [Events.PosEvent]
-    -- -> [(LEvent.LEvents derived, Derive.Collect)]
     -> ([LEvent.LEvents derived], Derive.Collect)
 derive_track state block_end dinfo parse get_last_sample subs events =
     go (Internal.record_track_environ state) Nothing [] events
@@ -185,6 +184,7 @@ derive_track state block_end dinfo parse get_last_sample subs events =
                     Nothing -> prev_sample
             Left _ -> prev_sample
 
+-- Used with trace to observe laziness.
 -- show_pos :: Derive.State -> ScoreTime -> String
 -- show_pos state pos = stack ++ ": " ++ Pretty.pretty now
 --     where

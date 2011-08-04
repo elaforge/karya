@@ -1,22 +1,19 @@
 module Derive.Call_test where
-import Util.Test
 import qualified Util.Seq as Seq
-
+import Util.Test
 import qualified Cmd.Cmd as Cmd
-
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.CallSig as CallSig
-import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Instrument.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
-import qualified Derive.Instrument.Util as Util
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.PitchSignal as PitchSignal
-
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.MidiInst as MidiInst
 

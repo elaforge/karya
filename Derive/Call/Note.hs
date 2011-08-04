@@ -19,6 +19,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
+import qualified Derive.Slice as Slice
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
@@ -190,7 +191,8 @@ invert :: State.EventsTree -> ScoreTime -> ScoreTime -> ScoreTime -> String
     -> Derive.EventDeriver
 invert subs start end next_start text = do
     -- Log.warn $ "invert " ++ show (start, end, next_start)
-    let sliced = slice start next_start (Just (text, end-start)) subs
+    let sliced = Slice.slice False start next_start (Just (text, end-start))
+            subs
     when_just (non_bottom_note_track sliced) $ \track ->
         Derive.throw $ "inverting below note track: "
             ++ Pretty.pretty (State.tevents_track_id track)
@@ -208,64 +210,6 @@ non_bottom_note_track tree = Seq.head (concatMap go tree)
             && not (null subs) = [track]
         | otherwise = concatMap go subs
 
--- | Slice the tracks below me to lie within start and end, and put
--- a note track with a single event of given string at the bottom.
---
--- Tracks thare are empty as a result of slicing are omitted from the output.
--- This is necessary for note tracks because otherwise empty ones will stop
--- evaluation entirely.  It's not necessary for control tracks, but I'm being
--- consistent by stripping them too.  If the track title has some effect the
--- results might be inconsistent, but I'm not sure that will be real problem.
---
--- Also strip the TrackIds out of the result.  TrackIds are used to record
--- the tempo map and signal for rendering.  Sliced segments are evaluated
--- piecemeal, overlap with each other if there is a previous sample, and
--- may be evaluated in a different warp than the track.
-
--- TODO the problem is that I'm slicing the event tracks, but also slicing out
--- the note track event, so it can no longer see prev and next events, and
--- can't see their pitches.  I can get the former by supplying prev and next,
--- but the latter has a problem if the pitches haven't been evaluated yet.
---
--- Ornaments like tick need to either predict the pitch of the next note,
--- pre-evaluate it, or be under the pitch track.  Prediction is going to lead
--- to inconsistent results, and pre-evaluation could lead to recursion and
--- confusingness.  So for the moment I just insist that the order of evaluation
--- be correct.  Hopefully inversion will only be a special case.
-slice :: ScoreTime -> ScoreTime
-    -> Maybe (String, ScoreTime)
-    -- ^ if given, text and duration of inserted event, which may be shorter
-    -- than end-start
-    -> State.EventsTree -> State.EventsTree
-slice start end insert_event = concatMap strip . map go
-    where
-    go (Tree.Node track subs) = Tree.Node (slice_t track)
-        (if null subs then insert else map go subs)
-    insert = case insert_event of
-        Nothing -> []
-        Just (text, dur) -> [Tree.Node (make text dur) []]
-    make text dur =
-        State.TrackEvents ">"
-            (Events.singleton start (Event.event text dur))
-            end Nothing (start, end) True
-    slice_t track = track
-        { State.tevents_events = events track
-        , State.tevents_end = end
-        , State.tevents_range = (start, end)
-        , State.tevents_sliced = True
-        }
-    -- Note tracks don't include pre and post events like control tracks.
-    events track
-        | TrackInfo.is_note_track (State.tevents_title track) =
-            Events.in_range start end es
-        | otherwise = Events.around start end es
-        where es = State.tevents_events track
-
-    strip (Tree.Node track subs)
-        | State.tevents_events track == Events.empty =
-            concatMap strip subs
-        | otherwise = [Tree.Node track (concatMap strip subs)]
-
 -- ** note slice
 
 type Event = (ScoreTime, ScoreTime, Derive.EventDeriver)
@@ -276,59 +220,10 @@ sub_events :: Derive.PassedArgs d -> [Event]
 sub_events args
     | null subs = []
     | otherwise = [(shift, stretch, Schema.derive_tracks sliced)
-        | (shift, stretch, sliced) <- slice_notes start end subs]
+        | (shift, stretch, sliced) <- Slice.slice_notes start end subs]
     where
     (start, end) = Derive.passed_range args
     subs = Derive.info_sub_tracks (Derive.passed_info args)
 
 place :: [Event] -> Derive.EventDeriver
 place = Derive.d_merge . map (\(off, dur, d) -> Derive.d_place off dur d)
-
--- | Expect a note track somewhere in the tree.  Slice the tracks above and
--- below it to each of its events.
---
--- The shift of each Event will be subtracted from the track events, so they
--- start at 0.  Note that there will be negative control events if they lie
--- before the note.
---
--- If there are no note tracks, return [].
---
--- Technically the children of the note track don't need to be sliced, since
--- if it is inverting it will do that anyway.  But slicing lets me shift fewer
--- events, so it's probably a good idea anyway.
---
--- Since empty slices are removed from the output, an empty sub note track
--- will be excluded from derivation and won't cause an inverting call to
--- recurse endlessly.  However, if the parent track is empty then nothing can
--- be done because this point will never even be reached.
---
--- For that to work I think the track deriver would have to check for sub
--- note events that aren't covered by any super event, and \"promote\" them.
-slice_notes :: ScoreTime -> ScoreTime -> State.EventsTree
-    -> [(ScoreTime, ScoreTime, State.EventsTree)]
-    -- ^ @(shift, stretch, tree)@, in unsorted order
-slice_notes start end =
-    map shift . concatMap slice_track . concatMap note_tracks
-    where
-    note_tracks (Tree.Node track subs)
-        | TrackInfo.is_note_track (State.tevents_title track) =
-            [([], track, subs)]
-        | otherwise = [(track : parents, ntrack, nsubs)
-            | (parents, ntrack, nsubs) <- concatMap note_tracks subs]
-    slice_track (parents, track, subs) =
-        map (slice_event (make_tree parents)) (Events.ascending events)
-        where
-        events = Events.in_range start end (State.tevents_events track)
-        make_tree [] = [Tree.Node track subs]
-        make_tree (p:ps) = [Tree.Node p (make_tree ps)]
-    slice_event tree event = (s, e - s, slice s e Nothing tree)
-        where (s, e) = (Events.event_start event, Events.event_end event)
-    shift (shift, stretch, tree) =
-        (shift, stretch, map (fmap (shift_tree shift)) tree)
-    shift_tree shift track = track
-        { State.tevents_events = Events.map_sorted
-            (\(p, e) -> (p - shift, e)) (State.tevents_events track)
-        , State.tevents_end = State.tevents_end track - shift
-        , State.tevents_range = (\(s, e) -> (s-shift, e-shift))
-            (State.tevents_range track)
-        }

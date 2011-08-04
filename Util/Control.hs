@@ -3,7 +3,7 @@
 module Util.Control (
     (<$>), (<*>), (<*), (*>), (<|>)
     , first, second
-    , (<>), mempty
+    , (<>), mempty, mconcat
     , while, while_
     , whenM, unlessM, when_just, if_just, ifM
 
@@ -12,7 +12,7 @@ module Util.Control (
 ) where
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import qualified Data.Monoid as Monoid
-import Data.Monoid (mempty)
+import Data.Monoid (mempty, mconcat)
 
 
 -- | Like the Arrow combinators, but specialized to functions for clearer

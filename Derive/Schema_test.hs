@@ -2,6 +2,7 @@ module Derive.Schema_test where
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
+import qualified Util.Graph_test as Graph_test
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -9,16 +10,15 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
+import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 
-import qualified Perform.Signal as Signal
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
-
-import qualified Derive.DeriveTest as DeriveTest
-import qualified Util.Graph_test as Graph_test
+import qualified Perform.Signal as Signal
 
 
 -- * compile
@@ -60,6 +60,51 @@ test_compile = do
     equal (pitches events) [psig 1, psig 2, psig 6]
     where
     mksig = Signal.signal
+
+test_extract_orphans = do
+    let extract = fst . DeriveTest.extract Score.event_start
+    let run tracks = extract $ derive_tracks_with with_calls tracks
+        with_calls = CallTest.with_note_call "show" show_subs
+    -- uncovered events are still played
+    equal (run
+            [ (">1", [(1, 1, "show")])
+            , (">2", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            ])
+        [0, 2]
+    -- as above, but with tuplet, verify it gets the correct subs
+    equal (run
+            [ (">", [(1, 4, "t")])
+            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, ""), (5, 1, "")])
+            ])
+        [0, 1, 3, 5]
+    -- 0 dur captures the matching event below
+    equal (run
+            [ (">", [(1, 0, "show")])
+            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            ])
+        [0, 2]
+    -- empty track above is ignored completely
+    equal (run
+            [ (">", [])
+            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            ])
+        [0, 1, 2]
+    where
+    show_subs :: Derive.NoteCall
+    show_subs = Derive.stream_generator "show" $ \_args -> do
+        -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
+        -- Log.warn $ show (Slice_test.extract_tree subs)
+        return []
+
+derive_tracks_with :: DeriveTest.Transform Derive.Events -> [UiTest.TrackSpec]
+    -> Derive.Result
+derive_tracks_with with tracks =
+    DeriveTest.derive_tracks_with_ui with set_skel tracks
+    where
+    set_skel state = UiTest.exec state $ State.set_skeleton
+        UiTest.default_block_id (linear_skel (length tracks))
+    linear_skel n =
+        Skeleton.make [(x, y) | (x, Just y) <- Seq.zip_next [1..n]]
 
 -- * parse
 

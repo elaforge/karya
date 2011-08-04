@@ -185,7 +185,7 @@ d_warp warp deriver
     | Score.is_id_warp warp = deriver
     | Score.warp_stretch warp <= 0 =
         throw $ "stretch <= 0: " ++ Pretty.pretty (Score.warp_stretch warp)
-            ++ "(shift: " ++ Pretty.pretty (Score.warp_shift warp) ++ ")"
+            ++ " (shift: " ++ Pretty.pretty (Score.warp_shift warp) ++ ")"
     | otherwise = local state_warp (\w st -> st { state_warp = w })
         (\st -> return $
             st { state_warp = Score.compose_warps (state_warp st) warp })

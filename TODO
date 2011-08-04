@@ -27,6 +27,9 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - more places can use Events.range
+  - remove Events.event_ prefix
+  - add arpeggio note transformer
   * step play only the selected tracks
   * print out a table of the keymap
   - error reporting off by one in .hsc
@@ -34,8 +37,6 @@ UNSORTED
   - some ornaments should be scale aware, which means scales should have
     a notion of diatonic transposition.  That means I need 'key' in the
     environ.  Actually, named pitch track.
-  - save repl history along with current song, so you can search for previous
-    cmds
   * cmd to strip redundant controls and empty tracks
   - is it possible to have a more symbolic control track, e.g. pedal with
     ped and *, or maybe a ped event where it's down until event end?
@@ -49,7 +50,7 @@ UNSORTED
   * at one point, space didn't kill the playback updater thread, what could
     cause that to happen?
 
-  - to make a "hand" track work, i.e. a note track with multiple note tracks
+  * to make a "hand" track work, i.e. a note track with multiple note tracks
     beneath it, I need to have sub notes derive when the supertrack is empty.
     So do the slicing at the track level: event with duration slices events
     in its range, event with duration 0 slices the event that lines up, and
@@ -84,6 +85,8 @@ UNSORTED
       It's hard to know what blocks to auto-show, and I'd need yet another
       play mode, and a way to communicate new view ids back to the responder,
       so let's wait until I really want it.
+    - save repl history along with current song, so you can search for
+      previous cmds
 
   debugging
     - lang level pretty print for events, esp collapsing the stack

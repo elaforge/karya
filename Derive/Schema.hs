@@ -52,6 +52,7 @@ import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Note as Note
+import qualified Derive.Slice as Slice
 import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Signal as Signal
@@ -131,7 +132,7 @@ has_nontempo_track = any $ \(Tree.Node track _) ->
 
 -- | Derive an EventsTree.
 derive_tracks :: State.EventsTree -> Derive.EventDeriver
-derive_tracks tree = Derive.d_merge (map with_track tree)
+derive_tracks tree = mconcat (map with_track tree)
     where
     with_track tree@(Tree.Node track _) =
         stack (State.tevents_track_id track) (derive_track tree)
@@ -142,7 +143,10 @@ derive_tracks tree = Derive.d_merge (map with_track tree)
 derive_track :: State.EventsNode -> Derive.EventDeriver
 derive_track node@(Tree.Node track subs)
     | TrackInfo.is_note_track (State.tevents_title track) =
-        Internal.track_setup track (Note.d_note_track node)
+        let orphans = Slice.extract_orphans track subs
+        -- Unfortunately d_merge isn't able to optimize merging with mempty.
+        in (if null orphans then id else (<> derive_tracks orphans))
+            (Internal.track_setup track (Note.d_note_track node))
     -- I'd like track_setup up here, but tempo tracks are treated differently,
     -- so it goes inside d_control_track.
     | otherwise = Control.d_control_track node (derive_tracks subs)

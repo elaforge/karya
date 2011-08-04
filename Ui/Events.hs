@@ -10,7 +10,7 @@
 -}
 module Ui.Events (
     -- * PosEvent
-    PosEvent, event_start, event_end, event_min, event_max
+    PosEvent, event_start, event_end, event_min, event_max, range
     , positive, negative
     , sort
 
@@ -71,6 +71,9 @@ event_end (pos, evt) = pos + Event.event_duration evt
 event_min, event_max :: PosEvent -> ScoreTime
 event_min e@(pos, _) = min pos (event_end e)
 event_max e@(pos, _) = max pos (event_end e)
+
+range :: PosEvent -> (ScoreTime, ScoreTime)
+range e = (event_min e, event_max e)
 
 positive, negative :: PosEvent -> Bool
 positive = Event.is_positive . snd
