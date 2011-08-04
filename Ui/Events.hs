@@ -10,7 +10,7 @@
 -}
 module Ui.Events (
     -- * PosEvent
-    PosEvent, event_start, event_end, event_min, event_max, range
+    PosEvent, start, end, min, max, range
     , positive, negative
     , sort
 
@@ -45,13 +45,13 @@ module Ui.Events (
     , clip_events
 #endif
 ) where
-import Prelude hiding (last, length)
+import qualified Prelude
+import Prelude hiding (last, length, min, max)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Ui.Event as Event
 
@@ -60,20 +60,20 @@ import qualified Ui.Event as Event
 
 type PosEvent = (ScoreTime, Event.Event)
 
-event_start :: PosEvent -> ScoreTime
-event_start = fst
+start :: PosEvent -> ScoreTime
+start = fst
 
 -- | Return the position at the end of the event.  Could be before @pos@ if
 -- the event has a negative duration.
-event_end :: PosEvent -> ScoreTime
-event_end (pos, evt) = pos + Event.event_duration evt
+end :: PosEvent -> ScoreTime
+end (pos, evt) = pos + Event.event_duration evt
 
-event_min, event_max :: PosEvent -> ScoreTime
-event_min e@(pos, _) = min pos (event_end e)
-event_max e@(pos, _) = max pos (event_end e)
+min, max :: PosEvent -> ScoreTime
+min e@(pos, _) = Prelude.min pos (end e)
+max e@(pos, _) = Prelude.max pos (end e)
 
 range :: PosEvent -> (ScoreTime, ScoreTime)
-range e = (event_min e, event_max e)
+range e = (min e, max e)
 
 positive, negative :: PosEvent -> Bool
 positive = Event.is_positive . snd
@@ -81,11 +81,11 @@ negative = Event.is_negative . snd
 
 -- overlaps :: ScoreTime -> PosEvent -> Bool
 -- overlaps p e@(pos, evt)
---     | Event.is_positive evt = p == pos || p >= pos && p < event_end e
---     | otherwise = p == pos || p <= pos && p > event_end e
+--     | Event.is_positive evt = p == pos || p >= pos && p < end e
+--     | otherwise = p == pos || p <= pos && p > end e
 
 sort :: [PosEvent] -> [PosEvent]
-sort = Seq.sort_on event_start
+sort = Seq.sort_on start
 
 
 -- * events
@@ -97,10 +97,10 @@ length :: Events -> Int
 length = Map.size . get
 
 time_begin :: Events -> ScoreTime
-time_begin = maybe 0 event_min . first
+time_begin = maybe 0 min . first
 
 time_end :: Events -> ScoreTime
-time_end = maybe 0 event_max . last
+time_end = maybe 0 max . last
 
 -- ** list conversion
 
@@ -167,8 +167,8 @@ at pos = Map.lookup pos . get
 -- | Like 'at', but return an event that overlaps the given pos.
 overlapping :: ScoreTime -> Events -> Maybe PosEvent
 overlapping pos events
-    | (next:_) <- post, fst next == pos || event_end next < pos = Just next
-    | (prev:_) <- pre, event_end prev > pos = Just prev
+    | (next:_) <- post, fst next == pos || end next < pos = Just next
+    | (prev:_) <- pre, end prev > pos = Just prev
     | otherwise = Nothing
     where (pre, post) = split pos events
 
@@ -289,7 +289,7 @@ _split_range start end events = (pre2, within3, post2)
 --         Nothing -> within
 --         Just (pos, evt) -> Map.insert pos (clip_event (end-pos) evt) within
 --     clip_event max_dur evt =
---         evt { Event.event_duration = min max_dur (Event.event_duration evt) }
+--         evt { Event.event_duration = Prelude.min max_dur (Event.event_duration evt) }
 
 
 -- | Merge @evts2@ into @evts1@.  Events that overlap other events will be
@@ -311,8 +311,8 @@ merge (Events evts1) (Events evts2)
         overlapping `Map.union2` evts1 `Map.union2` evts2
     where
     -- minimal overlapping range
-    start = max (event_min (Map.findMin evts1)) (event_min (Map.findMin evts2))
-    end = min (event_max (Map.findMax evts2)) (event_max (Map.findMax evts2))
+    start = Prelude.max (min (Map.findMin evts1)) (min (Map.findMin evts2))
+    end = Prelude.min (max (Map.findMax evts2)) (max (Map.findMax evts2))
     overlapping = Map.fromAscList $ clip_events $ Seq.merge_on fst
         (ascending (around start end (Events evts2)))
         (ascending (around start end (Events evts1)))
@@ -334,13 +334,13 @@ clip_events = map clip_duration . Seq.zip_neighbors . Seq.drop_initial_dups fst
                 -- If the following event is negative it will clip, but don't
                 -- pass its pos.  That will leave a 0 dur event, but will
                 -- prevent overlapping.
-            | event_end cur > next_pos = set_dur (next_pos - cur_pos)
+            | end cur > next_pos = set_dur (next_pos - cur_pos)
             | otherwise = cur
         clip_from_prev prev@(prev_pos, _)
-            | positive prev = if event_end prev > event_end cur
-                then set_dur (min (-0) (event_end prev - cur_pos))
+            | positive prev = if end prev > end cur
+                then set_dur (Prelude.min (-0) (end prev - cur_pos))
                 else cur
-            | otherwise = if event_end cur < prev_pos
+            | otherwise = if end cur < prev_pos
                 then set_dur (prev_pos - cur_pos)
                 else cur
         set_dur dur = (cur_pos, cur_evt { Event.event_duration = dur })

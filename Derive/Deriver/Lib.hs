@@ -383,9 +383,11 @@ passed_next args = case info_next_events info of
 passed_prev_begin :: PassedArgs d -> Maybe ScoreTime
 passed_prev_begin = fmap fst . Seq.head . info_prev_events . passed_info
 
+-- | Range of the called event.  Note that range is the minimum to maximum,
+-- which is not the same as the start and end if the event has negative
+-- duration.
 passed_range :: PassedArgs d -> (ScoreTime, ScoreTime)
-passed_range args = (pos, pos + Event.event_duration event)
-    where (pos, event) = passed_event args
+passed_range = Events.range . passed_event
 
 passed_real_range :: PassedArgs d -> Deriver (RealTime, RealTime)
 passed_real_range args = (,) <$> score_to_real start <*> score_to_real end

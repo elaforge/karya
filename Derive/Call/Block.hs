@@ -122,7 +122,7 @@ c_clip = block_call get_block_id $ Derive.stream_generator "clip" $
             (Derive.throw $ "block not found: " ++ Pretty.pretty sym) return
             =<< symbol_to_block_id sym
         sub_dur <- Derive.get_block_dur block_id
-        (_, end) <- Derive.passed_real_range args
+        end <- Derive.score_to_real (snd (Derive.passed_range args))
         takeWhile (before end) <$>
             Derive.d_place (Derive.passed_score args) sub_dur
                 (d_block block_id)

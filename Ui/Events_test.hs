@@ -119,4 +119,4 @@ events_overlap track = any (uncurry overlaps)
 overlaps evt1 evt2 =
     -- They don't overlap and they aren't simultaneous (the second condition is
     -- needed for zero duration events).
-    Events.event_end evt1 > fst evt2 || fst evt1 >= fst evt2
+    Events.end evt1 > fst evt2 || fst evt1 >= fst evt2

@@ -267,7 +267,7 @@ clip_events :: ScoreTime -> [Events.PosEvent] -> [Events.PosEvent]
 clip_events _ [] = []
 clip_events point (event@(pos, evt):events)
     | pos >= point = []
-    | Events.event_end event > point =
+    | Events.end event > point =
         [(pos, Event.modify_duration (\d -> min d (point - pos)) evt)]
     | otherwise = event : clip_events point events
 

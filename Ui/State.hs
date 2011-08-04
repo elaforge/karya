@@ -1018,8 +1018,8 @@ map_events_sorted track_id start end f = _modify_events track_id $ \events ->
         deleted = if start == end
             then Events.remove_event start events
             else Events.remove_events start end events
-        starts = map Events.event_min $ Maybe.mapMaybe Seq.head [old, new]
-        ends = map Events.event_max $ Maybe.mapMaybe Seq.last [old, new]
+        starts = map Events.min $ Maybe.mapMaybe Seq.head [old, new]
+        ends = map Events.max $ Maybe.mapMaybe Seq.last [old, new]
         updates = if null starts || null ends then []
             else [(minimum starts, maximum ends)]
     in (Events.insert_sorted_events new deleted, updates)
@@ -1064,8 +1064,7 @@ _modify_events track_id f = do
 
 _events_updates :: [Events.PosEvent] -> [(ScoreTime, ScoreTime)]
 _events_updates [] = []
-_events_updates evts =
-    [(Events.event_min (head evts), Events.event_max (last evts))]
+_events_updates evts = [(Events.min (head evts), Events.max (last evts))]
 
 _set_track track_id track = modify $ \st -> st
     { state_tracks = Map.adjust (const track) track_id (state_tracks st) }

@@ -230,8 +230,8 @@ step_points marklists cur events pos (step, skip) = stride skip $ case step of
         RelativeMark names matcher -> shift (matches names matcher)
         BlockEnd -> [0, end]
         EventStart tracks -> Seq.merge_lists id $
-            map (map Events.event_start) (track_events tracks)
-        EventEnd tracks -> Seq.merge_lists id $ map (map Events.event_end)
+            map (map Events.start) (track_events tracks)
+        EventEnd tracks -> Seq.merge_lists id $ map (map Events.end)
             (track_events tracks)
     where
     track_events AllTracks = events

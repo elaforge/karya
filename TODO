@@ -27,8 +27,8 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - more places can use Events.range
-  - remove Events.event_ prefix
+  * more places can use Events.range
+  * remove Events.event_ prefix
   - add arpeggio note transformer
   * step play only the selected tracks
   * print out a table of the keymap

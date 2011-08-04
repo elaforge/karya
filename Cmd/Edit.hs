@@ -161,13 +161,13 @@ cmd_join_events = mapM_ process =<< Selection.events_around
         -- should be ok.
         case (Event.is_negative evt1, Event.is_negative evt2) of
             (False, False) -> do
-                let end = Events.event_end (pos2, evt2)
+                let end = Events.end (pos2, evt2)
                 State.remove_events track_id pos1 end
                 -- If evt2 is zero dur, the above half-open range won't get it.
                 State.remove_event track_id pos2
                 State.insert_event track_id pos1 (set_dur (end - pos1) evt1)
             (True, True) -> do
-                let start = Events.event_end (pos1, evt1)
+                let start = Events.end (pos1, evt1)
                 State.remove_events track_id start pos2
                 State.remove_event track_id pos2
                 State.insert_event track_id pos2 (set_dur (start - pos2) evt2)
@@ -209,12 +209,12 @@ insert_time start end event@(pos, evt)
     where
     shift = end - start
     insertp
-        | pos < start && Events.event_end event <= start = event
+        | pos < start && Events.end event <= start = event
         | pos < start = (pos, Event.modify_duration (+shift) evt)
         | otherwise = (pos + shift, evt)
     insertn
         | pos <= start = event
-        | Events.event_end event < start =
+        | Events.end event < start =
             (pos + shift, Event.modify_duration (subtract shift) evt)
         | otherwise = (pos + shift, evt)
 
@@ -245,18 +245,18 @@ delete_time start end event@(pos, evt)
     where
     shift = end - start
     deletep
-        | pos < start && Events.event_end event <= start = Just event
+        | pos < start && Events.end event <= start = Just event
         | pos < start =
             Just (pos, Event.modify_duration
-                (subtract (min (Events.event_end event - start) shift)) evt)
+                (subtract (min (Events.end event - start) shift)) evt)
         | pos < end = Nothing
         | otherwise = Just (pos - shift, evt)
     deleten
         | pos <= start = Just event
         | pos <= end = Nothing
-        | Events.event_end event < end =
+        | Events.end event < end =
             Just (pos - shift, Event.modify_duration
-                (+ min shift (end - Events.event_end event)) evt)
+                (+ min shift (end - Events.end event)) evt)
         | otherwise = Just (pos - shift, evt)
 
 -- | If the range is a point, then expand it to one timestep.

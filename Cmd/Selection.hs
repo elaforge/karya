@@ -564,7 +564,7 @@ events_around_selnum selnum = do
         take_prev = maybe False Events.positive (Seq.head before)
         take_next = maybe False Events.negative (Seq.head after)
     expand _ selected = selected
-    expand_range (_, [evt], _) _ = (Events.event_min evt, Events.event_max evt)
+    expand_range (_, [evt], _) _ = Events.range evt
     expand_range _ range = range
 
 -- ** select tracks
