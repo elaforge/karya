@@ -339,7 +339,7 @@ data PlayState = PlayState {
 
 -- | Step play is a way of playing back the performance in non-realtime.
 data StepState = StepState {
-    -- * constant
+    -- - constant
     -- | Keep track of the view step play was started in, so I know where to
     -- display the selection.
     step_view_id :: !ViewId
@@ -347,7 +347,7 @@ data StepState = StepState {
     -- step play applies to all tracks.
     , step_tracknums :: [TrackNum]
 
-    -- * modified
+    -- - modified
     -- | MIDI states before the step play position, in descending order.
     , step_before :: ![(ScoreTime, Midi.State.State)]
     -- | MIDI states after the step play position, in asceding order.

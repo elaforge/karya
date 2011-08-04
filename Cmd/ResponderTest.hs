@@ -1,8 +1,11 @@
 module Cmd.ResponderTest where
-import Control.Monad
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as TVar
+import Control.Monad
+
 import qualified Data.Map as Map
+import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Printf as Printf
 
 import qualified Util.Pretty as Pretty
@@ -10,7 +13,6 @@ import Util.Test
 import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
-
 import Ui
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -22,9 +24,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Responder as Responder
 
 import qualified Derive.DeriveTest as DeriveTest
-
 import qualified Perform.Transport as Transport
-
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 
@@ -109,11 +109,11 @@ respond_msg1 midi_chan update_chan rstate msg = do
 -}
 
 make_rstate update_chan midi_chan (ui_state, cmd_state) =
-    Responder.State StaticConfig.empty
-        ui_state cmd_state write_midi
-        (Transport.Info send_status write_midi abort_midi get_now_ts)
+    Responder.State StaticConfig.empty ui_state cmd_state write_midi info
         lang_session loopback dummy_sync
     where
+    info = Transport.Info send_status write_midi abort_midi get_now_ts
+        (Unsafe.unsafePerformIO (MVar.newMVar State.empty))
     dummy_sync _ _ updates = do
         put_val update_chan updates
         return Nothing
