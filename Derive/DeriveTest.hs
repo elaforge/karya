@@ -51,10 +51,10 @@ scale_id = Twelve.scale_id
 pitch_interpolate :: RealTime -> Float -> RealTime -> Float
     -> [(RealTime, PitchSignal.Y)]
 pitch_interpolate x0 y0 x1 y1 =
-    drop 1 [(x, (y0, y1, Num.d2f (to_n x))) | x <- Seq.rangeEnd x0 x1 1]
+    drop 1 [(x, (y0, y1, Num.d2f (to_n x))) | x <- Seq.range_end x0 x1 1]
     where
     to_n x = RealTime.to_seconds (x - x0) /
-        fromIntegral (length (Seq.rangeEnd x0 x1 1) - 1)
+        fromIntegral (length (Seq.range_end x0 x1 1) - 1)
 
 -- * run
 

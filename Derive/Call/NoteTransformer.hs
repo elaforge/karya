@@ -1,7 +1,5 @@
 -- | Note calls that transform other note calls.
 module Derive.Call.NoteTransformer where
-import qualified Data.List as List
-
 import Util.Control
 import qualified Util.Seq as Seq
 import Ui
@@ -51,8 +49,7 @@ arpeggio arp time deriver = do
     (events, logs) <- LEvent.partition <$> deriver
     sort <- case arp of
         Up -> return $ Seq.sort_on Score.initial_pitch
-        Down -> return $ List.sortBy $ \a b ->
-            compare (Score.initial_pitch b) (Score.initial_pitch a)
+        Down -> return $ Seq.reverse_sort_on Score.initial_pitch
         Random -> Derive.throw "Random arpeggio not supported yet"
     let arpeggiated = zipWith (\offset event -> Score.move_start offset event)
             (Seq.range_ 0 time) (sort events)

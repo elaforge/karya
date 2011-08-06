@@ -154,7 +154,7 @@ interpolator srate f scale_id include_initial x0 y0 x1 y1
     | y0 == y1 = PitchSignal.signal scale_id (take 1 sig)
     | otherwise = PitchSignal.signal scale_id sig
     where
-    sig = let s = [(x, (fy0, fy1, y_of x)) | x <- Seq.rangeEnd x0 x1 srate]
+    sig = let s = [(x, (fy0, fy1, y_of x)) | x <- Seq.range_end x0 x1 srate]
         in if include_initial then s else drop 1 s
     y_of = Num.d2f . f . Num.normalize (secs x0) (secs x1) . secs
     secs = RealTime.to_seconds

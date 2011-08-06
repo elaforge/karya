@@ -1,5 +1,5 @@
 module Util.Seq where
-import Prelude hiding (head, last)
+import Prelude hiding (head, tail, last)
 import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -26,8 +26,8 @@ range start end step = go 0
         where val = start + (i*step)
 
 -- | Like 'range', but includes the end.
-rangeEnd :: (Num a, Ord a) => a -> a -> a -> [a]
-rangeEnd start end step = go 0
+range_end :: (Num a, Ord a) => a -> a -> a -> [a]
+range_end start end step = go 0
     where
     go i
         | val >= end = [end]
@@ -102,7 +102,7 @@ update_at deflt i f xs
     go i [] = deflt : go (i-1) []
     go i (x:xs) = x : go (i-1) xs
 
--- * min max
+-- * min / max
 
 minimum_on :: (Ord ord) => (a -> ord) -> [a] -> Maybe a
 minimum_on _ [] = Nothing
@@ -124,8 +124,13 @@ maximum xs = Just (List.maximum xs)
 
 -- * ordered lists
 
+-- | Sort on a cheap key function.
 sort_on :: (Ord b) => (a -> b) -> [a] -> [a]
 sort_on = Ordered.sortOn'
+
+-- | Like 'sort_on', but sort highest-to-lowest.
+reverse_sort_on :: (Ord b) => (a -> b) -> [a] -> [a]
+reverse_sort_on f = List.sortBy $ \a b -> compare (f b) (f a)
 
 -- | Merge sorted lists.  If two elements compare equal, the one from the left
 -- list comes first.
@@ -148,13 +153,6 @@ merge_asc_lists key = foldr go []
     where
     go [] ys = ys
     go (x:xs) ys = x : merge_on key xs ys
-
--- | Handy to merge or sort a descending list.
-reverse_compare :: (Ord a) => a -> a -> Ordering
-reverse_compare a b = case compare a b of
-    LT -> GT
-    EQ -> EQ
-    GT -> LT
 
 -- * grouping
 
@@ -201,24 +199,6 @@ padded_zip (a:as) (b:bs) = (Just a, Just b) : padded_zip as bs
 zipper :: [a] -> [a] -> [([a], [a])]
 zipper prev [] = [(prev, [])]
 zipper prev lst@(x:xs) = (prev, lst) : zipper (x:prev) xs
-
-{-
-pairs :: [a] -> [(a, a)]
-pairs (x0 : x1 : xs) = (x0, x1) : pairs xs
-pairs _ = []
-
-unpairs :: [(a, a)] -> [a]
-unpairs ((x0, x1) : xs) = x0 : x1 : unpairs xs
-unpairs [] = []
-
-partition2 :: (a -> Bool) -> (a -> Bool) -> [a] -> ([a], [a], [a])
-partition2 _ _ [] = ([], [], [])
-partition2 f g (x:xs)
-    | f x = (x : fs, gs, rest)
-    | g x = (fs, x : gs, rest)
-    | otherwise = (fs, gs, x : rest)
-    where (fs, gs, rest) = partition2 f g xs
--}
 
 -- | Pair @a@ elements up with @b@ elements.  If they are equal according to
 -- @eq@, they'll both be Just in the result.  If an @a@ is deleted going from
@@ -275,7 +255,7 @@ partition_either (x:xs) =
 -- | Take a list of rows to a list of columns.  Similar to zip, the result is
 -- trimmed to the length of the shortest row.
 rotate :: [[a]] -> [[a]]
-rotate xs = maybe [] (: rotate (map tail xs)) (mapM head xs)
+rotate xs = maybe [] (: rotate (map List.tail xs)) (mapM head xs)
 
 -- | Similar to 'rotate', except that the result is the length of the longest
 -- row and missing columns is Nothing.
@@ -298,8 +278,12 @@ head (x:_) = Just x
 last [] = Nothing
 last xs = Just (List.last xs)
 
--- | Drop adjacent elts if they are equal after applying the key function.  The
--- first elt is kept.
+tail :: [a] -> Maybe [a]
+tail [] = Nothing
+tail (_:xs) = Just xs
+
+-- | Drop adjacent elts if they are equal after applying the key function.
+-- The first elt is kept.
 drop_dups :: (Eq k) => (a -> k) -> [a] -> [a]
 drop_dups _ [] = []
 drop_dups key (x:xs) = x : map snd (filter (not . equal) (zip (x:xs) xs))
@@ -349,6 +333,7 @@ rdrop n = either (const []) id . foldr f (Left n)
 rdrop_while :: (a -> Bool) -> [a] -> [a]
 rdrop_while f = foldr (\x xs -> if null xs && f x then [] else x:xs) []
 
+lstrip, rstrip, strip :: String -> String
 lstrip = dropWhile Char.isSpace
 rstrip = rdrop_while Char.isSpace
 strip = rstrip . lstrip
@@ -365,16 +350,6 @@ break_last :: [a] -> ([a], Maybe a)
 break_last [] = ([], Nothing)
 break_last [x] = ([], Just x)
 break_last (x:xs) = let (first, last) = break_last xs in (x:first, last)
-
-break_then :: (a -> Bool) -> ([a] -> ([a], rest)) -> [a] -> ([a], rest)
-break_then f cont (x:xs)
-    | f x = let (pre, post) = cont (x:xs) in (pre, post)
-    | otherwise = let (pre, post) = break_then f cont xs in (x:pre, post)
-break_then _ cont [] = cont []
-
--- | Break right after the function returns True.
-break1 :: (a -> Bool) -> [a] -> ([a], [a])
-break1 f = break_then f (splitAt 1)
 
 -- | Split @xs@ before places where @f@ matches.
 --
@@ -411,10 +386,6 @@ split1 [] _ = error "Util.Seq.split1: empty seperator"
 split1 sep xs = (pre, drop (length sep) post)
     where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
 
--- | Split on commas and strip whitespace.
-split_commas :: String -> [String]
-split_commas = map strip . split ","
-
 -- | Concat a list with 'sep' in between.
 join :: [a] -> [[a]] -> [a]
 join sep = concat . List.intersperse sep
@@ -425,25 +396,11 @@ join2 _ a [] = a
 join2 _ [] b = b
 join2 sep a b = a ++ sep ++ b
 
-replace1 :: (Eq a) => a -> [a] -> [a] -> [a]
-replace1 from to xs = concatMap (\v -> if v == from then to else [v]) xs
-
--- | Replace sublists in 'xs'.  'repl' is given the tails of 'xs' and can
--- return (replacement, rest_of_xs) or Nothing.
-replaceWith :: ([a] -> Maybe ([a], [a])) -> [a] -> [a]
-replaceWith _ [] = []
-replaceWith repl xs = case repl xs of
-    Just (insert, rest) -> insert ++ replaceWith repl rest
-    Nothing -> List.head xs : replaceWith repl (tail xs)
-
--- | Replace sublist 'val' with 'repl' in the given list.
-replace val repl = replaceWith (replaceVal val repl)
-
--- | Helper for replaceWith to replace a constant sublist 'val' with 'repl'.
-replaceVal val repl xs
-    | val `List.isPrefixOf` xs = Just (repl, drop (length val) xs)
-    | otherwise = Nothing
-
+-- | Split the list on the points where the given function returns true.
+--
+-- This is similar to 'groupBy', except this is defined to compare adjacent
+-- elements.  'groupBy' actually compares to the first element of each group.
+-- E.g. you can't group numeric runs with @groupBy (\a b -> b > a+1)@.
 split_between :: (a -> a -> Bool) -> [a] -> [[a]]
 split_between _ [] = []
 split_between f xs = pre : split_between f post
@@ -454,3 +411,20 @@ break_between f (x1 : xs@(x2:_))
     | f x1 x2 = ([x1], xs)
     | otherwise = let (pre, post) = break_between f xs in (x1 : pre, post)
 break_between _ xs = (xs, [])
+
+
+-- * replace
+
+-- | Replace sublist @from@ with @to@ in the given list.
+replace :: (Eq a) => [a] -> [a] -> [a] -> [a]
+replace from to = go
+    where
+    len = length from
+    go [] = []
+    go lst@(x:xs)
+        | from `List.isPrefixOf` lst = to ++ go (drop len lst)
+        | otherwise = x : go xs
+
+-- | Replace occurrances of an element with zero or more other elements.
+replace1 :: (Eq a) => a -> [a] -> [a] -> [a]
+replace1 from to xs = concatMap (\v -> if v == from then to else [v]) xs

@@ -5,10 +5,8 @@ module Cmd.Lang.Fast where
 import qualified Data.Char as Char
 
 import qualified Util.PPrint as PPrint
-import qualified Util.Seq as Seq
-
+import qualified Util.Then as Then
 import qualified Ui.State as State
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Lang.Global as Global
@@ -96,6 +94,6 @@ lex_fancy s = case lex s of
     [(tok1, '.':rest1)] ->
         [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lex_fancy rest1]
     [("(", rest)] ->
-        let (pre, post) = Seq.break1 (==')') rest
+        let (pre, post) = Then.break1 (==')') rest
         in [('(' : pre, post)]
     val -> val

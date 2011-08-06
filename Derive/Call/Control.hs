@@ -112,7 +112,7 @@ interpolator srate f include_initial x0 y0 x1 y1
     | include_initial = Signal.signal sig
     | otherwise = Signal.signal (drop 1 sig)
     where
-    sig = [(x, y_of x) | x <- Seq.rangeEnd x0 x1 srate]
+    sig = [(x, y_of x) | x <- Seq.range_end x0 x1 srate]
     y_of = Num.scale y0 y1 . f . Num.normalize (secs x0) (secs x1) . secs
     secs = RealTime.to_seconds
 
