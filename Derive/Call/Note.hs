@@ -33,7 +33,6 @@ note_calls = Derive.make_calls
     -- Since you can never call "" with arguments, I need a non-null form
     -- to handle the args version.
     , ("n", c_note)
-    , ("t", c_tuplet)
     , ("=", Util.c_equal)
     ]
 
@@ -136,19 +135,6 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
         _ -> (inst, attrs, arg : invalid)
 
 
--- * tuplet
-
-c_tuplet :: Derive.NoteCall
-c_tuplet = Derive.stream_generator "tuplet" $ \args -> place (stretched args)
-    where
-    stretched args = map stretch $ Seq.sort_on (\(s, _, _) -> s) events
-        where
-        events = sub_events args
-        (start, end) = Derive.passed_range args
-        event_end = Seq.maximum (map (\(off, dur, _) -> off + dur) events)
-        factor = (end - start) / maybe 1 (subtract start) event_end
-        stretch (off, _, d) = ((off-start) * factor + start, factor, d)
-
 -- * util
 
 -- Utilities for note calls.
@@ -225,5 +211,13 @@ sub_events args
     (start, end) = Derive.passed_range args
     subs = Derive.info_sub_tracks (Derive.passed_info args)
 
+-- | Place and merge a list of Events.
+--
+-- Since event calls are not normalized 0--1, this start and duration are
+-- added to and multiplied with the event's start and duration.  So you can't
+-- just do @place . sub_events@ to derive sub events as-is.
+--
+-- TODO This is error-prone, would it be better to have 'sub_events' normalize
+-- the derivers it returns?
 place :: [Event] -> Derive.EventDeriver
 place = Derive.d_merge . map (\(off, dur, d) -> Derive.d_place off dur d)

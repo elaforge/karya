@@ -27,9 +27,23 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - set on multiple events shouldn't affect 0 dur ones, so I can set duration
+    of multiple note tracks without messing up the control tracks in between
+  - 3 kinds of event operations:
+    - move start - ?
+    - move end - set_duration
+    - move both - set_duration with non-point selection
+  - more easily create 0 dur note transformers, maybe space to create it then
+    open raw edit?  Or a way to set a 0 step?
+  - It would be more efficient to move events around if their controls were
+    normalized to start from their beginning, so that you never have to modify
+    the signals.  Of course, it's only worth it if events tend to get moved
+    more than once.
   * more places can use Events.range
   * remove Events.event_ prefix
-  - add arpeggio note transformer
+  * add arpeggio note transformer
+  - implement randomness, based on seed and pos
+  - some way to get symbol feedback instantly to make it easier to compose them
   * step play only the selected tracks
   * print out a table of the keymap
   - error reporting off by one in .hsc

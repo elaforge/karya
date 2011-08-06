@@ -63,7 +63,8 @@ test_compile = do
 
 test_extract_orphans = do
     let extract = fst . DeriveTest.extract Score.event_start
-    let run tracks = extract $ derive_tracks_with with_calls tracks
+    let run tracks = extract $
+            DeriveTest.linear_derive_tracks with_calls tracks
         with_calls = CallTest.with_note_call "show" show_subs
     -- uncovered events are still played
     equal (run
@@ -95,16 +96,6 @@ test_extract_orphans = do
         -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
         -- Log.warn $ show (Slice_test.extract_tree subs)
         return []
-
-derive_tracks_with :: DeriveTest.Transform Derive.Events -> [UiTest.TrackSpec]
-    -> Derive.Result
-derive_tracks_with with tracks =
-    DeriveTest.derive_tracks_with_ui with set_skel tracks
-    where
-    set_skel state = UiTest.exec state $ State.set_skeleton
-        UiTest.default_block_id (linear_skel (length tracks))
-    linear_skel n =
-        Skeleton.make [(x, y) | (x, Just y) <- Seq.zip_next [1..n]]
 
 -- * parse
 

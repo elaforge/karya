@@ -14,6 +14,7 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import Ui
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
@@ -187,6 +188,23 @@ derive ui_state deriver = Derive.extract_result $
 type Transform a = Derive.Deriver a -> Derive.Deriver a
 type TransformUi = State.State -> State.State
 
+-- ** derive utils
+
+-- | Derive tracks but with a linear skeleton.  Good for testing note
+-- transformers since the default skeleton parsing won't create those.
+linear_derive_tracks :: Transform Derive.Events -> [UiTest.TrackSpec]
+    -> Derive.Result
+linear_derive_tracks with tracks =
+    derive_tracks_with_ui with (linear_skel tracks) tracks
+
+linear_skel :: [UiTest.TrackSpec] -> State.State -> State.State
+linear_skel tracks =
+    set_skel [(x, y) | (x, Just y) <- Seq.zip_next [1..length tracks]]
+
+set_skel :: [Skeleton.Edge] -> State.State -> State.State
+set_skel skel state = UiTest.exec state $
+    State.set_skeleton UiTest.default_block_id (Skeleton.make skel)
+
 -- ** derive with cache
 
 derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
@@ -316,6 +334,10 @@ e_control cont event = fmap Signal.unsignal $
 
 e_pitch :: Score.Event -> [(RealTime, PitchSignal.Degree)]
 e_pitch = PitchSignal.unsignal_degree . Score.event_pitch
+
+-- | (start, dur, pitch), the melodic essentials of a note.
+e_note :: Score.Event -> (RealTime, RealTime, PitchSignal.Degree)
+e_note e = (Score.event_start e, Score.event_duration e, Score.initial_pitch e)
 
 -- ** extract log msgs
 

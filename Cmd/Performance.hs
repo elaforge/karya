@@ -97,6 +97,8 @@ regenerate_performance :: Thread.Seconds -> SendStatus -> BlockId
     -> Cmd.CmdT IO ()
 regenerate_performance wait send_status block_id = do
     threads <- Cmd.gets (Cmd.state_performance_threads . Cmd.state_play)
+    -- when_just (why_regenerate threads block_id) $ \why ->
+    --     Log.warn $ "regen because " ++ why
     when (needs_regeneration threads block_id) $
         generate_performance wait send_status block_id
 
@@ -110,6 +112,17 @@ needs_regeneration threads block_id = case Map.lookup block_id threads of
         -- relevant to this one.  But in that case it should hit the caches
         -- and be cheap all the same.
         Cmd.perf_score_damage (Cmd.pthread_perf pthread) /= mempty
+
+-- why_regenerate :: Map.Map BlockId Cmd.PerformanceThread -> BlockId
+--     -> Maybe String
+-- why_regenerate threads block_id = case Map.lookup block_id threads of
+--     Nothing -> Just "block_id not in threads"
+--     Just pthread
+--         | damage pthread /= mempty ->
+--             Just $ "score damage: " ++ show (damage pthread)
+--         | otherwise -> Nothing
+--     where
+--     damage = Cmd.perf_score_damage . Cmd.pthread_perf
 
 -- | Start a new performance thread.
 --

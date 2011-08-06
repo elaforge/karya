@@ -7,6 +7,7 @@ import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Call.Rambat as Rambat
@@ -30,8 +31,8 @@ make_lookup cmap = Derive.empty_scope_type
 
 note_calls :: Derive.NoteCallMap
 note_calls = Map.unions [Block.note_calls, Echo.note_calls, Note.note_calls,
-    Ornament.note_calls, Rambat.note_calls, String.note_calls,
-    Trill.note_calls]
+    NoteTransformer.note_calls, Ornament.note_calls, Rambat.note_calls,
+    String.note_calls, Trill.note_calls]
 
 control_calls :: Derive.ControlCallMap
 control_calls = Map.unions [Control.control_calls]
