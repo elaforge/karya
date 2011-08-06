@@ -50,30 +50,32 @@ foreign import ccall "insert_symbol"
     c_insert_symbol :: CString -> CInt -> Ptr GlyphC -> CInt -> IO ()
 
 glyph_to_glyphc :: Symbol.Glyph -> IO (Maybe GlyphC)
-glyph_to_glyphc (Symbol.Glyph chars maybe_font size (x, y)) = do
+glyph_to_glyphc (Symbol.Glyph chars maybe_font size (x, y) rotation) = do
     cfont <- maybe (return (#const Config::font))
         (\f -> withCString f c_get_font) maybe_font
     return $ if cfont == (#const SymbolTable::font_not_found)
         then Nothing
-        else Just $ GlyphC chars cfont size x y
+        else Just $ GlyphC chars cfont size x y rotation
 
 foreign import ccall "get_font" c_get_font :: CString -> IO CFont
 
 
 type CFont = CInt
 
-data GlyphC = GlyphC String CFont Int Double Double deriving (Show)
+data GlyphC = GlyphC String CFont Int Double Double Int
+    deriving (Show)
 
 instance Storable GlyphC where
     sizeOf _ = #size SymbolTable::Glyph
     alignment _ = #{alignment SymbolTable::Glyph}
-    poke glyphp (GlyphC str font size align_x align_y) = do
+    poke glyphp (GlyphC str font size align_x align_y rotate) = do
         encoded <- encode_utf8 str
         (#poke SymbolTable::Glyph, utf8) glyphp encoded
         (#poke SymbolTable::Glyph, font) glyphp font
         (#poke SymbolTable::Glyph, size) glyphp size
         (#poke SymbolTable::Glyph, align_x) glyphp align_x
         (#poke SymbolTable::Glyph, align_y) glyphp align_y
+        (#poke SymbolTable::Glyph, rotate) glyphp rotate
 
 encode_utf8 :: String -> IO CString
 encode_utf8 = Event.unpackCString0 . UTF8.fromString

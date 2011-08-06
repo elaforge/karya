@@ -54,12 +54,16 @@ dotted_numbers = map dot_above cs ++ map dot2_above
 
 staff_symbols :: [Symbol.Symbol]
 staff_symbols =
-    [ Symbol.Symbol "sharp" False [g "\xe10e" 1]
-    , Symbol.Symbol "sharp2" False [g "\xe125" 2]
-    , Symbol.Symbol "flat" False [g "\xe11a" 2]
-    , Symbol.Symbol "flat2" False [g "\xe123" 2]
+    [ Symbol.symbol "sharp" [g "\xe10e" 1]
+    , Symbol.symbol "sharp2" [g "\xe125" 2]
+    , Symbol.symbol "flat" [g "\xe11a" 2]
+    , Symbol.symbol "flat2" [g "\xe123" 2]
     ]
-    where g str size = Symbol.Glyph str (Just "Emmentaler 11") size (0, 0)
+    where
+    g str size = (Symbol.glyph str)
+        { Symbol.glyph_font = Just "Emmentaler 11"
+        , Symbol.glyph_size = size
+        }
 
 
 -- * 工尺譜 gongchepu for 南管
@@ -78,20 +82,20 @@ gongchepu =
     , Symbol.simple "up" "㇀" -- \x31c0
     , Symbol.simple "L" "㇄" -- \x31c4
     -- \x2020 at least until I can make a better one
-    , Symbol.Symbol "dagger" True [Symbol.Glyph "†" Nothing 4 (0, 0)]
-    , Symbol.Symbol "wu1" True
-        [ g wu (0, 0)
-        , g dian (-0.5, 0)
+    , placed "dagger" [(Symbol.glyph "†") { Symbol.glyph_size = 4 }]
+    , placed "wu1"
+        [ glyph_at wu (0, 0)
+        , glyph_at dian (-0.5, 0)
         ]
-    , Symbol.Symbol "wu666" True
-        [ g wu (0, 0)
-        , g dian (-0.5, 0)
-        , g dian (0, 0.5)
+    , placed "wu666"
+        [ glyph_at wu (0, 0)
+        , glyph_at dian (-0.5, 0)
+        , glyph_at dian (0, 0.5)
         ]
-    , Symbol.Symbol "wu866" True
-        [ g wu (0, 0)
-        , g dian (-0.5, 0.2)
-        , g dian (-0.5, -0.2)
+    , placed "wu866"
+        [ glyph_at wu (0, 0)
+        , glyph_at dian (-0.5, 0.2)
+        , glyph_at dian (-0.5, -0.2)
         ]
 
     -- meter
@@ -99,6 +103,7 @@ gongchepu =
     , Symbol.simple "dian" dian
     ]
     where
-    g str = Symbol.Glyph str Nothing 0
+    placed name glyphs = Symbol.Symbol name True glyphs
+    glyph_at str align = (Symbol.glyph str) { Symbol.glyph_align = align }
     dian = "、"
     wu = "ㄨ"

@@ -27,9 +27,9 @@ public:
 
     struct Glyph {
         Glyph(const char *utf8, Font font = Config::font, Size size = 0,
-                DPoint align = DPoint()) :
+                DPoint align = DPoint(), int rotate = 0) :
             utf8(utf8), font(font), size(size),
-            align_x(align.x), align_y(align.y)
+            align_x(align.x), align_y(align.y), rotate(rotate)
         {
             // Make sure font_not_found doesn't creep in.
             ASSERT(font >= 0);
@@ -42,7 +42,11 @@ public:
         // Move the glyph by the alignment scaled by the size.
         // This would be a DPoint but haskell likes simple types.
         double align_x, align_y;
+        // Rotate the glyph by degrees.
+        int rotate;
     };
+
+    // A Symbol is a group of glyphs.
     struct Symbol {
         Symbol() {}
         Symbol(const Glyph &g1) {

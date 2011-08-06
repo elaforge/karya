@@ -13,6 +13,8 @@
 
 
 static const bool arrival_beats = false;
+// Turn this off just draw a single event.
+static const bool draw_lots_of_stuff = true;
 
 
 Color selection_colors[] = {
@@ -424,26 +426,30 @@ main(int argc, char **argv)
     // view2.testing = true;
     // view2.show();
 
-    view.block.set_status("ABC`tamil-i` ABC `xie`");
-    view.block.set_title("hi there");
+    if (draw_lots_of_stuff) {
+        // view.block.insert_track(0, Tracklike(&ruler), 20);
+        // view.block.insert_track(1, Tracklike(&divider), 10);
+        view.block.insert_track(1, Tracklike(&empty_track, &truler), 60);
+        view.block.insert_track(2, Tracklike(&track1, &truler), 130);
+        view.block.insert_track(3, Tracklike(&track2, &truler), 40);
+        view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
+        view.block.insert_track(5, Tracklike(&track2, &truler), 80);
 
-    // view.block.insert_track(0, Tracklike(&ruler), 20);
-    // view.block.insert_track(1, Tracklike(&divider), 10);
-    view.block.insert_track(1, Tracklike(&empty_track, &truler), 60);
-    view.block.insert_track(2, Tracklike(&track1, &truler), 130);
-    view.block.insert_track(3, Tracklike(&track2, &truler), 40);
-    view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
-    // view.block.insert_track(5, Tracklike(&track2, &truler), 80);
+        view.block.set_status("ABC`tamil-i` ABC `xie`");
+        view.block.set_title("hi there");
 
-    TrackSignal *pitch_tsig = pitch_track_signal();
-    view.block.set_track_signal(1, *pitch_tsig);
-    TrackSignal *control_tsig = control_track_signal();
-    view.block.set_track_signal(2, *control_tsig);
-    view.block.set_track_signal(3, *control_tsig);
+        TrackSignal *pitch_tsig = pitch_track_signal();
+        view.block.set_track_signal(1, *pitch_tsig);
+        TrackSignal *control_tsig = control_track_signal();
+        view.block.set_track_signal(2, *control_tsig);
+        view.block.set_track_signal(3, *control_tsig);
 
-    int pairs[] = {0, 3, 3, 2, 2, 1};
-    SkeletonConfig skel = skeleton_config(pairs, 3);
-    view.block.set_skeleton(skel);
+        int pairs[] = {0, 3, 3, 2, 2, 1};
+        SkeletonConfig skel = skeleton_config(pairs, 3);
+        view.block.set_skeleton(skel);
+    } else {
+        view.block.insert_track(1, Tracklike(&track1, &truler), 130);
+    }
 
     DisplayTrack dtrack;
     dtrack.status = 'M';
@@ -506,6 +512,13 @@ main(int argc, char **argv)
         SymbolTable::Glyph("\xee\x84\x8e", em, 2, DPoint(.5, -.4))));
     t->insert("mordent", SymbolTable::Symbol(
         SymbolTable::Glyph("\xee\x86\x8c", em, 4, DPoint(0, 0))));
+    t->insert("arp-up", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xee\x86\x8a", em, 8, DPoint(-.14, -.62), 0),
+        SymbolTable::Glyph("\xee\x86\x8e", em, 4, DPoint(0, 0), 90)));
+
+    t->insert("arp-down", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xee\x86\x89", em, 8, DPoint(-.14, .25), 0),
+        SymbolTable::Glyph("\xee\x86\x8e", em, 4, DPoint(0, 0), 90)));
 
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
     // t->load("v-angle-double", "\xef\xb8\xbd", "LiSong Pro", 4);

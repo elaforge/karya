@@ -179,11 +179,13 @@ test_track_signal = do
 -- This should really be in Ui.SymbolC_test, but I'm lazy.
 test_symbols = do
     let sym = Symbol.Symbol "1^" True
-            [Symbol.Glyph "1" Nothing 0 (0, 0),
-                Symbol.Glyph "•" Nothing 0 (0.2, -0.6)]
+            [ Symbol.glyph "1"
+            , (Symbol.glyph "•") { Symbol.glyph_align = (0.2, -0.6) }
+            ]
 
-    io_equal (SymbolC.insert_symbol (Symbol.simple_font "x" "y" "no such font"))
-        ["no such font"]
+    let bad_font = Symbol.symbol "x"
+            [(Symbol.glyph "y") { Symbol.glyph_font = Just "no such font" }]
+    io_equal (SymbolC.insert_symbol bad_font) ["no such font"]
     io_equal (SymbolC.insert_symbol sym) []
     -- do it twice and make sure the memory from the first one is freed
     io_equal (SymbolC.insert_symbol sym) []

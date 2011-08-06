@@ -59,7 +59,7 @@ SymbolTable::insert(const string &name, const Symbol &sym)
 // Draw the given text and return its width.
 static double
 draw_text(const char *text, int n, IPoint pos, bool measure,
-    DPoint align = DPoint(0, 0))
+    DPoint align = DPoint(), int rotate = 0)
 {
     if (n == 0)
         return 0;
@@ -67,7 +67,7 @@ draw_text(const char *text, int n, IPoint pos, bool measure,
 
     pos = pos + IPoint(align.x * fl_size(), align.y * fl_size());
     if (!measure)
-        fl_draw(text, n, pos.x, pos.y);
+        fl_draw(rotate, text, n, pos.x, pos.y);
     return fl_width(text, n);
 }
 
@@ -89,7 +89,7 @@ draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size)
     {
         set_font(*glyph, size);
         draw_text(glyph->utf8, strlen(glyph->utf8), pos, false,
-            DPoint(glyph->align_x, glyph->align_y));
+            DPoint(glyph->align_x, glyph->align_y), glyph->rotate);
     }
 }
 
