@@ -127,14 +127,15 @@ move_event get_event = do
 
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note, whichever is shorter.
---
--- To make it easy to create legato, if a point selection matches an event,
--- modify the previous event instead of setting the current one to 0 duration.
-cmd_set_duration :: (Cmd.M m) => m ()
-cmd_set_duration = do
+cmd_set_duration :: (Cmd.M m) =>
+    Bool -- ^ zero dur events are not affected unless this is true
+    -> m ()
+cmd_set_duration affect_zero_dur = do
     (_, sel) <- Selection.get
     ModifyEvents.modify_pos_events $ \pos event ->
-        Event.set_duration (snd (Types.sel_range sel) - pos) event
+        if affect_zero_dur || Event.event_duration event /= 0
+            then Event.set_duration (snd (Types.sel_range sel) - pos) event
+            else event
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.

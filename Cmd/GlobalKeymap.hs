@@ -279,6 +279,9 @@ event_bindings = concat
     , command Key.Backspace "clear selected" Edit.cmd_clear_selected
     , command_char 'o' "join events" Edit.cmd_join_events
 
+    , command_char 's' "set dur" (Edit.cmd_set_duration False)
+    , command_char 'S' "force set dur" (Edit.cmd_set_duration True)
+
     , bind_char '_' "insert track end" Edit.cmd_insert_track_end
     ]
 

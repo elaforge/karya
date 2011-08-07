@@ -27,7 +27,7 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - set on multiple events shouldn't affect 0 dur ones, so I can set duration
+  * set on multiple events shouldn't affect 0 dur ones, so I can set duration
     of multiple note tracks without messing up the control tracks in between
   - 3 kinds of event operations:
     - move start - ?
