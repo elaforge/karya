@@ -100,7 +100,8 @@ columns title n contents = unlines $
     [ "<table width=100%>"
     , Printf.printf "<tr> <th colspan=%d> %s </th> </tr>" n title
     , "<tr>"
-    ] ++ ["<td>" ++ t ++ "</td>" | t <- tables] ++ ["</tr>", "</table>"]
+    ] ++ ["<td valign=top>" ++ t ++ "</td>" | t <- tables]
+    ++ ["</tr>", "</table>"]
     where
     size = fromIntegral (length contents) / fromIntegral n
     tables = map fmt_table (chunk (ceiling size) contents)
