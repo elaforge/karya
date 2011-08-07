@@ -979,6 +979,9 @@ get_events track_id start end = do
     events <- Track.track_events <$> get_track track_id
     return (_events_in_range start end events)
 
+get_event :: (M m) => TrackId -> ScoreTime -> m (Maybe Events.PosEvent)
+get_event track_id pos = Seq.head <$> get_events track_id pos pos
+
 get_all_events :: (M m) => TrackId -> m [Events.PosEvent]
 get_all_events = (Events.ascending . Track.track_events <$>) . get_track
 

@@ -385,6 +385,11 @@ data EditState = EditState {
     -- of notes per octave.
     , state_kbd_entry_octave :: !Pitch.Octave
 
+    -- | A LIFO queue of recent notes or transforms, to make it easier to
+    -- re-enter them.  Each has an integer key associated with it so they can
+    -- remain bound to the same key even if their LIFO position changes.
+    , state_recent_notes :: ![(Int, RecentNote)]
+
     -- | See 'set_edit_box'.
     , state_edit_box :: !(Color.Color, Char)
     } deriving (Show, Generics.Typeable)
@@ -400,7 +405,7 @@ initial_edit_state = EditState {
     , state_note_text = ""
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4
-
+    , state_recent_notes = []
     , state_edit_box = Config.bconfig_track_box
     }
 
@@ -408,6 +413,12 @@ initial_edit_state = EditState {
 -- and method mean are dependent on the schema, but I expect the definitions
 -- in Cmd.NoteTrack and Cmd.ControlTrack will be universal.
 data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
+
+data RecentNote =
+    -- | Bool is true if the event was zero dur.
+    RecentNote String Bool
+    | RecentTransform String
+    deriving (Show, Eq)
 
 -- *** midi devices
 

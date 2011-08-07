@@ -4,6 +4,7 @@
 -}
 module Cmd.Edit where
 import Control.Monad
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -21,6 +22,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
@@ -32,21 +34,28 @@ import qualified App.Config as Config
 cmd_toggle_raw_edit, cmd_toggle_val_edit,
     cmd_toggle_method_edit, cmd_toggle_kbd_entry :: (Cmd.M m) => m ()
 
-cmd_toggle_raw_edit = modify_edit_mode $ \m -> case m of
-    Cmd.RawEdit -> Cmd.NoEdit
-    _ -> Cmd.RawEdit
+cmd_toggle_raw_edit = do
+    whenM ((== Cmd.RawEdit) <$> get_mode) record_recent_note
+    modify_edit_mode $ \m -> case m of
+        Cmd.RawEdit -> Cmd.NoEdit
+        _ -> Cmd.RawEdit
 
 -- | Unlike the other toggle commands, val edit, being the \"default\" toggle,
 -- always turns other modes off.  So you can't switch directly from some other
 -- kind of edit to val edit.
-cmd_toggle_val_edit = modify_edit_mode $ \m -> case m of
-    Cmd.NoEdit -> Cmd.ValEdit
-    _ -> Cmd.NoEdit
+cmd_toggle_val_edit = do
+    whenM ((== Cmd.RawEdit) <$> get_mode) record_recent_note
+    modify_edit_mode $ \m -> case m of
+        Cmd.NoEdit -> Cmd.ValEdit
+        _ -> Cmd.NoEdit
 
 cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of
     Cmd.MethodEdit -> Cmd.ValEdit
     Cmd.ValEdit -> Cmd.MethodEdit
     _ -> m
+
+get_mode :: (Cmd.M m) => m Cmd.EditMode
+get_mode = Cmd.gets (Cmd.state_edit_mode . Cmd.state_edit)
 
 -- | Turn on kbd entry mode, putting a K in the edit box as a reminder.  This
 -- is orthogonal to the previous edit modes.
@@ -80,8 +89,8 @@ edit_color mode = case mode of
 -- * universal event cmds
 
 -- | Insert an event at the current insert pos.
-cmd_insert_event :: (Cmd.M m) => String -> ScoreTime -> m ()
-cmd_insert_event text dur = do
+insert_event :: (Cmd.M m) => String -> ScoreTime -> m ()
+insert_event text dur = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_events track_id [(pos, Event.event text dur)]
 
@@ -91,7 +100,7 @@ cmd_insert_event text dur = do
 -- If it's more convenient, I could remove any existing "--" events before
 -- inserting the new one.
 cmd_insert_track_end :: (Cmd.M m) => m ()
-cmd_insert_track_end = cmd_insert_event "--" 0
+cmd_insert_track_end = insert_event "--" 0
 
 -- | Different from insert/delete time since it only modifies one event.
 -- Move back the next event, or move down the previous event.  If the
@@ -385,6 +394,64 @@ sync_octave_status = do
     -- places.
     Cmd.set_status "8ve" (Just (show octave))
     Cmd.set_global_status "8ve" (show octave)
+
+
+-- * recent note
+
+cmd_insert_recent :: (Cmd.M m) => Int -> m ()
+cmd_insert_recent num = do
+    recent <- Cmd.gets (Cmd.state_recent_notes . Cmd.state_edit)
+    insert_recent =<< Cmd.require (lookup num recent)
+
+insert_recent :: (Cmd.M m) => Cmd.RecentNote -> m ()
+insert_recent (Cmd.RecentNote text is_zero) =
+    EditUtil.modify_event is_zero True (const (Just text, True))
+insert_recent (Cmd.RecentTransform text) = do
+    pos <- EditUtil.get_sel_pos
+    EditUtil.modify_event_at pos True False $ \s ->
+        (Just (text ++ " |" ++ (if null s then "" else " " ++ s)), False)
+
+-- | Try to record the current event in the LIFO recent note queue, as
+-- documented in 'Cmd.state_recent_notes'.
+record_recent_note :: (Cmd.M m) => m ()
+record_recent_note = do
+    (_, _, track_id, pos) <- Selection.get_insert
+    maybe_event <- State.get_event track_id pos
+    when_just (recent_note =<< snd <$> maybe_event) $ \note -> do
+        Cmd.modify_edit_state $ \st -> st { Cmd.state_recent_notes =
+            record_recent note (Cmd.state_recent_notes st) }
+        sync_recent
+
+recent_note :: Event.Event -> Maybe Cmd.RecentNote
+recent_note event
+    | null post = let note = Seq.strip pre
+        in if null note then Nothing
+            else Just $ Cmd.RecentNote note (Event.event_duration event == 0)
+    | otherwise = let trans = Seq.strip pre
+        in if null trans then Nothing else Just (Cmd.RecentTransform trans)
+    where (pre, post) = break (=='|') (Seq.strip (Event.event_string event))
+
+record_recent :: Cmd.RecentNote -> [(Int, Cmd.RecentNote)]
+    -> [(Int, Cmd.RecentNote)]
+record_recent note recent0 = (key, note) : recent
+    where
+    recent = take (max_recent - 1) (filter ((/=note) . snd) recent0)
+    key = Maybe.fromMaybe (length recent) $
+        (fst <$> List.find ((==note) . snd) recent0)
+        `mplus`
+        Seq.head (filter (`notElem` (map fst recent)) [1..max_recent])
+    max_recent = 4
+
+sync_recent :: (Cmd.M m) => m ()
+sync_recent = do
+    recent <- Cmd.gets (Cmd.state_recent_notes . Cmd.state_edit)
+    Cmd.set_global_status "recent" $
+        Seq.join ", " (map show_recent (Seq.sort_on fst recent))
+    where
+    show_recent (num, note) = show num ++ ": " ++ case note of
+        Cmd.RecentNote s _ -> s
+        Cmd.RecentTransform s -> s ++ "|"
+
 
 -- * undo / redo
 
