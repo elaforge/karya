@@ -339,11 +339,8 @@ tags: $(ALL_HS)
 # have to break it out into its components which is brittle.  Can I patch
 # hsc2hs to take a --cflags arg and include all flags literally?
 %.hs: %.hsc
-	hsc2hs -c g++ --cflag -Wno-invalid-offsetof \
+	hsc2hs -c g++ --cflag -Wno-invalid-offsetof -I$(GHC_LIB)/include \
 		$(CINCLUDE) $(FLTK_CXX) $(DEFINE) $(PORTMIDI_I) $<
-	@# hsc2hs stil includes INCLUDE but ghc 6.12 doesn't like that
-	grep -v INCLUDE $@ >$@.tmp
-	mv $@.tmp $@
 
 
 ### portmidi ###
