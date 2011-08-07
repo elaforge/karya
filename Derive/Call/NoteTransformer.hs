@@ -41,7 +41,7 @@ c_real_arpeggio :: Arpeggio -> Derive.NoteCall
 c_real_arpeggio arp = Derive.stream_generator "arpeggio" $ \args ->
     CallSig.call1 args (optional "time" 0.1) $ \time ->
         arpeggio arp (RealTime.seconds time)
-            (Note.place [(0, 1, d) | (_, _, d) <- Note.sub_events args])
+            (Note.place [(p, 1, d) | (p, _, d) <- Note.sub_events args])
 
 -- | Shift each note by a successive amount.
 arpeggio :: Arpeggio -> RealTime -> Derive.EventDeriver -> Derive.EventDeriver
