@@ -137,6 +137,45 @@ cmd_set_duration affect_zero_dur = do
             then Event.set_duration (snd (Types.sel_range sel) - pos) event
             else event
 
+-- | Move only the beginning of an event.  As is usual for zero duration
+-- events, their duration will not be changed so this is equivalent to a move.
+--
+-- Other cmds are biased towards the previous event, i.e. they affect the
+-- previous event if nothing is selected.  This cmd is a little different:
+-- if it overlaps with an event, it will affect that one.  Otherwise, it
+-- affects the next positive event or the previous negative event.  The idea
+-- is that it's not very useful to clip an event to 0 by moving it past its
+-- end, so let's not do that.
+--
+-- Unlike 'cmd_set_duration', I can't think of a way for this to make sense
+-- with a non-point selection, so it uses the point position.
+--
+-- TODO for zero duration events, this is equivalent to 'cmd_move_event_back'.
+-- I'm not totally happy about the overlap, is there a more orthogonal
+-- organization?
+cmd_set_beginning :: (Cmd.M m) => m ()
+cmd_set_beginning = do
+    (_, sel) <- Selection.get
+    (_, track_ids, _, _) <- Selection.tracks
+    let pos = Selection.selection_point sel
+    forM_ track_ids $ \track_id -> do
+        (pre, post) <- Events.split pos . Track.track_events <$>
+            State.get_track track_id
+        let set = set_beginning track_id pos
+        case (Seq.head pre, Seq.head post) of
+            (Just prev, _) | Events.overlaps pos prev -> set prev
+            (_, Just next) | Events.overlaps pos next -> set next
+            (_, Just next) | Events.positive next -> set next
+            (Just prev, _) | Events.negative prev -> set prev
+            _ -> return ()
+    where
+    set_beginning track_id start (pos, event) = do
+        let end = (if Event.is_positive event then max else min)
+                (Events.end (pos, event)) start
+            dur = if Event.event_duration event == 0 then 0 else end - start
+        State.remove_event track_id pos
+        State.insert_event track_id start (Event.set_duration dur event)
+
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
 cmd_modify_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()

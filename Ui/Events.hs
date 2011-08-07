@@ -11,7 +11,7 @@
 module Ui.Events (
     -- * PosEvent
     PosEvent, start, end, min, max, range
-    , positive, negative
+    , positive, negative, overlaps
     , sort
 
     -- * events
@@ -79,10 +79,10 @@ positive, negative :: PosEvent -> Bool
 positive = Event.is_positive . snd
 negative = Event.is_negative . snd
 
--- overlaps :: ScoreTime -> PosEvent -> Bool
--- overlaps p e@(pos, evt)
---     | Event.is_positive evt = p == pos || p >= pos && p < end e
---     | otherwise = p == pos || p <= pos && p > end e
+overlaps :: ScoreTime -> PosEvent -> Bool
+overlaps p e@(pos, evt)
+    | Event.is_positive evt = p == pos || p >= pos && p < end e
+    | otherwise = p == pos || p <= pos && p > end e
 
 sort :: [PosEvent] -> [PosEvent]
 sort = Seq.sort_on start

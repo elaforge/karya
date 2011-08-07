@@ -280,7 +280,8 @@ event_bindings = concat
     , command_char 'o' "join events" Edit.cmd_join_events
 
     , command_char 's' "set dur" (Edit.cmd_set_duration False)
-    , command_char 'S' "force set dur" (Edit.cmd_set_duration True)
+    , bind_char 'S' "force set dur" (Edit.cmd_set_duration True)
+    , bind_char 'b' "set beginning" Edit.cmd_set_beginning
 
     , bind_char '_' "insert track end" Edit.cmd_insert_track_end
     ]
@@ -317,7 +318,8 @@ create_bindings = concat
     , command_only 'W' "destroy block"
         (Create.destroy_block =<< Cmd.get_focused_block)
     , command_only 'b' "create block" (Create.block_from_template False)
-    , command_only 'B' "create block template" (Create.block_from_template True)
+    , command_only 'B' "create block template"
+        (Create.block_from_template True)
     ]
 
 clip_bindings :: (Cmd.M m) => [Keymap.Binding m]
