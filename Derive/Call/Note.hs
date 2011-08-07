@@ -205,19 +205,16 @@ type Event = (ScoreTime, ScoreTime, Derive.EventDeriver)
 sub_events :: Derive.PassedArgs d -> [Event]
 sub_events args
     | null subs = []
-    | otherwise = [(shift, stretch, Schema.derive_tracks sliced)
+    | otherwise = [(shift, stretch, derive stretch sliced)
         | (shift, stretch, sliced) <- Slice.slice_notes start end subs]
     where
     (start, end) = Derive.passed_range args
     subs = Derive.info_sub_tracks (Derive.passed_info args)
+    -- The events have been shifted back to 0 by 'Slice.slice_notes', but
+    -- are still their original lengths.  Stretch them back to 1 so Events
+    -- are normalized.
+    derive stretch = Derive.d_stretch (recip stretch) . Schema.derive_tracks
 
 -- | Place and merge a list of Events.
---
--- Since event calls are not normalized 0--1, this start and duration are
--- added to and multiplied with the event's start and duration.  So you can't
--- just do @place . sub_events@ to derive sub events as-is.
---
--- TODO This is error-prone, would it be better to have 'sub_events' normalize
--- the derivers it returns?
 place :: [Event] -> Derive.EventDeriver
 place = Derive.d_merge . map (\(off, dur, d) -> Derive.d_place off dur d)

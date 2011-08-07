@@ -32,7 +32,8 @@ c_tuplet = Derive.stream_generator "tuplet" $ \args ->
         (start, end) = Derive.passed_range args
         event_end = Seq.maximum (map (\(off, dur, _) -> off + dur) events)
         factor = (end - start) / maybe 1 (subtract start) event_end
-        stretch (off, _, d) = ((off-start) * factor + start, factor, d)
+        stretch (off, stretch, d) =
+            ((off-start) * factor + start, stretch*factor, d)
 
 
 data Arpeggio = Down | Up | Random deriving (Show)
@@ -41,7 +42,7 @@ c_real_arpeggio :: Arpeggio -> Derive.NoteCall
 c_real_arpeggio arp = Derive.stream_generator "arpeggio" $ \args ->
     CallSig.call1 args (optional "time" 0.1) $ \time ->
         arpeggio arp (RealTime.seconds time)
-            (Note.place [(p, 1, d) | (p, _, d) <- Note.sub_events args])
+            (Note.place (Note.sub_events args))
 
 -- | Shift each note by a successive amount.
 arpeggio :: Arpeggio -> RealTime -> Derive.EventDeriver -> Derive.EventDeriver
