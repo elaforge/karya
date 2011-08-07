@@ -42,8 +42,9 @@ test_cmd_raw_edit = do
     -- Created event has dur according to ruler.
     equal (run [(">i", [])] (f (CmdTest.m_note_on 60 60 127))) $
         Right [(">i", [(0, 1, "(4c)")])]
+    -- Space creates a zero-dur note.
     equal (run [(">i", [])] (f (mkkey (Key.Char ' ')))) $
-        Right [(">i", [(0, 1, "")])]
+        Right [(">i", [(0, 0, "")])]
     equal (run [(">i", [])] (f (mkkey (Key.Char 'x')))) $
         Right [(">i", [(0, 1, "x")])]
     equal (run [(">i", [(0, 5, "")])] (f (mkkey Key.Backspace))) $

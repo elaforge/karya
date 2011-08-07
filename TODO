@@ -29,8 +29,15 @@ big things
 UNSORTED
   * set on multiple events shouldn't affect 0 dur ones, so I can set duration
     of multiple note tracks without messing up the control tracks in between
-  - more easily create 0 dur note transformers, maybe space to create it then
-    open raw edit?  Or a way to set a 0 step?
+  easier ways to enter special notation:
+    - when exiting edit more, remember the current event and have a key to
+      insert that.
+    - special " event will repeat the previous one, with the same args
+      if args follow ", the " will repeat the call with new args
+      Problem with this is that inserting something else in the middle will
+      mess it up, but it also has advantages...
+  * more easily create 0 dur note transformers, maybe space to create it then
+    open raw edit?  Or a way to set a 0 step?  Space in raw edit.
   - It would be more efficient to move events around if their controls were
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved

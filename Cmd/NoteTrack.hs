@@ -3,6 +3,14 @@
 
     This module is sister to 'Derive.Note' since it edits events that
     Derive.Note parses.
+
+    Notes:
+
+    Note event are usually given a duration of the current time step.  If a
+    "trigger only" instrument (e.g. percussion) is in scope, they are created
+    with zero duration.  Also, starting a raw edit with space will create a
+    zero duration event.  This is useful because some note transformers only
+    transform other notes and don't need a duration of their own.
 -}
 module Cmd.NoteTrack where
 import qualified Data.Map as Map
@@ -170,7 +178,7 @@ generator_of = Seq.strip . last . Seq.split "|"
 create_event :: (Cmd.M m) => m ()
 create_event = do
     txt <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
-    modify_event True (const (Just txt, False))
+    modify_event False True (const (Just txt, False))
 
 remove :: (Cmd.M m) => EditUtil.SelPos -> m ()
 remove selpos =
@@ -182,10 +190,13 @@ raw_edit msg = do
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key key
-            modify_event False $ \txt ->
+            modify_event False False $ \txt ->
                 (EditUtil.modify_text_note note txt, False)
         (EditUtil.raw_key -> Just key) ->
-            modify_event False $ \txt ->
+            -- Create a zero length event on a space.  'modify_text_key' will
+            -- eat a lone space, so this is an easy way to create
+            -- a zero-length note.
+            modify_event (key == Key.Char ' ') False $ \txt ->
                 (EditUtil.modify_text_key key txt, False)
         _ -> Cmd.abort
     return Cmd.Done
@@ -199,7 +210,8 @@ triggered_inst (Just inst) = do
     return $ maybe False (Instrument.patch_triggered . MidiDb.info_patch)
             maybe_info
 
-modify_event :: (Cmd.M m) => Bool -> (String -> (Maybe String, Bool)) -> m ()
-modify_event modify_dur f = do
-    zero_dur <- triggered_inst =<< EditUtil.lookup_instrument
-    EditUtil.modify_event zero_dur modify_dur f
+modify_event :: (Cmd.M m) => Bool -> Bool -> (String
+    -> (Maybe String, Bool)) -> m ()
+modify_event zero_dur modify_dur f = do
+    trigger_inst <- triggered_inst =<< EditUtil.lookup_instrument
+    EditUtil.modify_event (zero_dur || trigger_inst) modify_dur f
