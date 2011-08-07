@@ -157,7 +157,7 @@ cmd_set_beginning :: (Cmd.M m) => m ()
 cmd_set_beginning = do
     (_, sel) <- Selection.get
     (_, track_ids, _, _) <- Selection.tracks
-    let pos = Selection.selection_point sel
+    let pos = Selection.point sel
     forM_ track_ids $ \track_id -> do
         (pre, post) <- Events.split pos . Track.track_events <$>
             State.get_track track_id

@@ -345,12 +345,12 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     operations like \"play from selection\"), there is a choice of taking the
     point from the beginning of the selection, the end, or the 'sel_cur_pos',
     which is the dragged-to point.  The convention, established by
-    'selection_point' and 'point_track', is to take the first point.
+    'point' and 'point_track', is to take the first point.
 -}
 
 -- | Get the \"point\" position of a Selection.
-selection_point :: Types.Selection -> ScoreTime
-selection_point sel =
+point :: Types.Selection -> ScoreTime
+point sel =
     point_pos (Types.sel_start_pos sel) (Types.sel_cur_pos sel)
 
 -- | Given a selection start and end, give the \"point\" position for it.
@@ -391,7 +391,7 @@ lookup_any_selnum_insert selnum =
     justm (lookup_selnum selnum) $ \(view_id, sel) -> do
         block_id <- State.block_id_of view_id
         return $ Just
-            (view_id, (block_id, point_track sel, selection_point sel))
+            (view_id, (block_id, point_track sel, point sel))
 
 -- | Given a block, get the selection on it, if any.  If there are multiple
 -- views, take the one with the alphabetically first ViewId.
@@ -405,8 +405,7 @@ lookup_block_insert block_id = do
         view_id : _ ->
             justm (State.get_selection view_id Config.insert_selnum) $ \sel ->
             justm (sel_track block_id sel) $ \track_id ->
-            return $ Just
-                (block_id, point_track sel, track_id, selection_point sel)
+            return $ Just (block_id, point_track sel, track_id, point sel)
 
 -- | Get the point track of a selection.
 sel_track :: (State.M m) => BlockId -> Types.Selection -> m (Maybe TrackId)
@@ -566,6 +565,7 @@ events_around_selnum selnum = do
     expand _ selected = selected
     expand_range (_, [evt], _) _ = Events.range evt
     expand_range _ range = range
+
 
 -- ** select tracks
 
