@@ -16,7 +16,9 @@ clamp low high = min high . max low
 -- | Confine the given value lie between the first two arguments, but using
 -- modulus, not clamping.
 restrict :: (Real a) => a -> a -> a -> a
-restrict low high = (+low) . (`fmod` (high-low)) . (subtract low)
+restrict low high
+    | high == low = const low -- avoid dividing by 0 in fmod
+    | otherwise = (+low) . (`fmod` (high-low)) . (subtract low)
 
 -- | Scale @v@, which is between 0 and 1 inclusive, to be between @low@ and
 -- @high@.  If @v@ is not in the 0--1 range, the result will be out of the
