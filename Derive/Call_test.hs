@@ -1,6 +1,9 @@
 module Derive.Call_test where
+import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
@@ -167,6 +170,18 @@ test_recursive_call = do
     recursive :: Derive.NoteCall
     recursive = Derive.stream_generator "recursive" $
         \args -> Call.reapply args [TrackLang.call "recur"]
+
+test_repeat = do
+    let run events = DeriveTest.e_logs $
+            DeriveTest.derive_tracks_with with_show [(">", events)]
+        with_show = CallTest.with_note_call "show" c_show
+    equal (run [(0, 1, "\"")]) ["Error: note call not found: \""]
+    equal (run [(0, 1, "show 1"), (1, 1, "\""), (2, 1, "\" 2")])
+        ["[1]", "[1]", "[2]"]
+    where
+    c_show = Derive.stream_generator "show" $ \args -> do
+        Log.warn $ Pretty.pretty (Derive.passed_vals args)
+        return []
 
 patch = Instrument.set_keymap [(Attrs.snare, 42)] $
     Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))

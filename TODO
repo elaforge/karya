@@ -32,7 +32,7 @@ UNSORTED
   easier ways to enter special notation:
     * when exiting edit mode, remember the current event and have a key to
       insert that.
-    - special " event will repeat the previous one, with the same args
+    * special " event will repeat the previous one, with the same args
       if args follow ", the " will repeat the call with new args
       Problem with this is that inserting something else in the middle will
       mess it up, but it also has advantages...

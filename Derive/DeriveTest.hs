@@ -310,8 +310,8 @@ r_split = second (filter interesting_log) . LEvent.partition . Derive.r_events
 r_logs :: Derive.Result -> [String]
 r_logs = snd . extract id
 
-e_logs :: Derive.Result -> [Log.Msg]
-e_logs = filter interesting_log . LEvent.logs_of . Derive.r_events
+e_logs :: Derive.Result -> [String]
+e_logs = map show_log . trace_low_prio . LEvent.logs_of . Derive.r_events
 
 e_event :: Score.Event -> (RealTime, RealTime, String)
 e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)

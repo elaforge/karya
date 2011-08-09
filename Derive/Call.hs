@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {- | Basic module for call evaluation.
 
     It should also have Deriver utilities that could go in Derive, but are more
@@ -159,21 +160,21 @@ derive_track :: (Derive.Derived derived) =>
     -> State.EventsTree -> [Events.PosEvent]
     -> ([LEvent.LEvents derived], Derive.Collect)
 derive_track state block_end dinfo parse get_last_sample subs events =
-    go (Internal.record_track_environ state) Nothing [] events
+    go (Internal.record_track_environ state) Nothing "" [] events
     where
     -- This threads the collect through each event.  I would prefer to map and
     -- mconcat, but it's also quite a bit slower.
-    go collect _ _ [] = ([], collect)
-    go collect prev_sample prev (cur : rest) =
+    go collect _ _ _ [] = ([], collect)
+    go collect prev_sample repeat_call prev (cur : rest) =
         (events : rest_events, final_collect)
         where
         (result, logs, next_collect) =
             -- trace ("derive " ++ show_pos state (fst cur) ++ "**") $
             derive_event (state { Derive.state_collect = collect })
-                block_end dinfo parse prev_sample subs
+                block_end dinfo parse prev_sample repeat_call subs
                 prev cur rest
         (rest_events, final_collect) =
-            go next_collect next_sample (cur : prev) rest
+            go next_collect next_sample next_repeat_call (cur : prev) rest
         events = map LEvent.Log logs ++ case result of
             Right stream -> stream
             Left err -> [LEvent.Log (Derive.error_to_warn err)]
@@ -183,6 +184,8 @@ derive_track state block_end dinfo parse get_last_sample subs events =
                     Just elt -> get_last_sample prev_sample elt
                     Nothing -> prev_sample
             Left _ -> prev_sample
+        next_repeat_call =
+            repeat_call_of repeat_call (Event.event_bs (snd cur))
 
 -- Used with trace to observe laziness.
 -- show_pos :: Derive.State -> ScoreTime -> String
@@ -195,22 +198,23 @@ derive_track state block_end dinfo parse get_last_sample subs events =
 derive_event :: (Derive.Derived d) =>
     Derive.State -> ScoreTime -> DeriveInfo d -> Parse.ParseExpr
     -> Maybe (RealTime, Derive.Elem d)
+    -> B.ByteString -- ^ repeat call, substituted with @"@
     -> State.EventsTree
     -> [Events.PosEvent] -- ^ previous events, in reverse order
     -> Events.PosEvent -- ^ cur event
     -> [Events.PosEvent] -- ^ following events
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-derive_event st block_end dinfo parse prev_val subs prev cur@(pos, event) next
-    | Event.event_bs event == B.pack "--" =
-        (Right mempty, [], Derive.state_collect st)
-    | otherwise = case parse (Event.event_bs event) of
+derive_event st block_end dinfo parse prev_sample repeat_call subs prev
+        cur@(pos, event) next
+    | text == "--" = (Right mempty, [], Derive.state_collect st)
+    | otherwise = case parse (substitute_repeat repeat_call text) of
         Left err -> (Right mempty, [parse_error err], Derive.state_collect st)
         Right expr -> run_call expr
     where
+    text = Event.event_bs event
     parse_error = Log.msg Log.Warn $
         Just (Derive.state_stack (Derive.state_dynamic st))
     run_call expr = apply_toplevel state (dinfo, cinfo expr) expr
-
     state = st {
         Derive.state_dynamic = (Derive.state_dynamic st)
             { Derive.state_stack = Stack.add
@@ -218,7 +222,25 @@ derive_event st block_end dinfo parse prev_val subs prev cur@(pos, event) next
                 (Derive.state_stack (Derive.state_dynamic st))
             }
         }
-    cinfo expr = Derive.CallInfo expr prev_val cur prev next block_end subs
+    cinfo expr = Derive.CallInfo expr prev_sample cur prev next block_end subs
+
+-- | Replace @"@ with the previous non-@"@ call, if there was one.
+--
+-- Another approach would be to have @"@ as a plain call that looks at
+-- previous events.  However I would have to unparse the args to re-eval,
+-- and would have to do the same macro expansion stuff as I do here.
+substitute_repeat :: B.ByteString -> B.ByteString -> B.ByteString
+substitute_repeat prev text
+    | B.null prev = text
+    | text == B.singleton '"' = prev
+    | B.takeWhile (/=' ') text == "\"" =
+        B.takeWhile (/=' ') prev <> B.drop 1 text
+    | otherwise = text
+
+repeat_call_of :: B.ByteString -> B.ByteString -> B.ByteString
+repeat_call_of prev cur
+    | not (B.null cur) && B.takeWhile (/=' ') cur /= "\"" = cur
+    | otherwise = prev
 
 -- | Apply a toplevel expression.
 apply_toplevel :: (Derive.Derived d) => Derive.State -> Info d
