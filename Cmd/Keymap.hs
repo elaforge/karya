@@ -310,13 +310,15 @@ physical_key c =
         Map.lookup c hardcoded_kbd_layout
 
 
-qwerty :: [Char]
-qwerty = "1234567890-="
+qwerty, qwerty_lower, qwerty_upper :: [Char]
+qwerty = qwerty_lower ++ qwerty_upper
+qwerty_lower
+    = "1234567890-="
     ++ "qwertyuiop[]\\"
     ++ "asdfghjkl;'"
     ++ "zxcvbnm,./"
-
-    ++ "!@#$%^&*()_+"
+qwerty_upper
+    = "!@#$%^&*()_+"
     ++ "QWERTYUIOP{}|"
     ++ "ASDFGHJKL;\""
     ++ "ZXCVBNM<>?"

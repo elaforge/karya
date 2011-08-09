@@ -1,9 +1,7 @@
 module App.PrintKeymap where
 import qualified Control.Monad.Identity as Identity
-import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-
 import qualified Text.Printf as Printf
 
 import Util.Control
@@ -39,9 +37,11 @@ sort :: Binds -> Binds
 sort = Seq.sort_on (map key . snd)
     where
     key (Keymap.KeySpec mods bindable) = (bindable_key bindable, mods)
-    bindable_key (Keymap.Key is_repeat (Key.Char c)) =
-        Keymap.Key is_repeat (Key.Char (Char.toLower c))
-    bindable_key k = k
+    bindable_key k@(Keymap.Key _ (Key.Char c)) =
+        (Map.findWithDefault (Map.size key_order + 1) c key_order, k)
+    bindable_key k = (Map.size key_order + 2, k)
+    key_order = Map.fromList $
+        zip Keymap.qwerty_lower [0,2..] ++ zip Keymap.qwerty_upper [1,3..]
 
 group :: [(Keymap.KeySpec, Keymap.CmdSpec m)] -> [(String, [Keymap.KeySpec])]
 group = map (second (map fst)) . Seq.keyed_group_on (name_of . snd)

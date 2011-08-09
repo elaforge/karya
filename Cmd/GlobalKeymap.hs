@@ -287,7 +287,7 @@ event_bindings = concat
     , bind_char '!' "insert recent 1" (Edit.cmd_insert_recent 1)
     , bind_char '@' "insert recent 2" (Edit.cmd_insert_recent 2)
     , bind_char '#' "insert recent 3" (Edit.cmd_insert_recent 3)
-    , bind_char '$' "insert recent 3" (Edit.cmd_insert_recent 4)
+    , bind_char '$' "insert recent 4" (Edit.cmd_insert_recent 4)
     ]
 
 -- | Bindings which work on pitch tracks.  The reason this is global rather
