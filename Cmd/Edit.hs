@@ -146,6 +146,23 @@ cmd_set_duration affect_zero_dur = do
             then Event.set_duration (snd (Types.sel_range sel) - pos) event
             else event
 
+-- | Toggle duration between zero and non-zero.
+--
+-- If the event is non-zero, then make it zero.  Otherwise, set its end to the
+-- cursor.  Unless the cursor is on the event start, and then extend it by
+-- a timestep.
+cmd_toggle_zero_duration :: (Cmd.M m) => m ()
+cmd_toggle_zero_duration = do
+    (_, sel) <- Selection.get
+    let point = Selection.point sel
+    (_, end) <- expand_range [Selection.point_track sel] point point
+    ModifyEvents.modify_pos_events $ toggle end point
+    where
+    toggle end point pos event
+        | Event.event_duration event /= 0 = Event.set_duration 0 event
+        | pos == point = Event.set_duration (end - pos) event
+        | otherwise = Event.set_duration (point - pos) event
+
 -- | Move only the beginning of an event.  As is usual for zero duration
 -- events, their duration will not be changed so this is equivalent to a move.
 --
@@ -316,7 +333,7 @@ expand_range (tracknum:_) start end
         block_id <- Cmd.get_focused_block
         step <- Cmd.get_current_step
         pos <- TimeStep.advance step block_id tracknum end
-        return (start, maybe end id pos)
+        return (start, Maybe.fromMaybe end pos)
     | otherwise = return (start, end)
 expand_range [] start end = return (start, end)
 

@@ -36,6 +36,8 @@ UNSORTED
       if args follow ", the " will repeat the call with new args
       Problem with this is that inserting something else in the middle will
       mess it up, but it also has advantages...
+  * I think force set duration is not that useful, replace with toggle
+    zero-dur?
   * more easily create 0 dur note transformers, maybe space to create it then
     open raw edit?  Or a way to set a 0 step?  Space in raw edit.
   - focus bug switching focus to app

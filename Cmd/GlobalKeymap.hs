@@ -280,7 +280,7 @@ event_bindings = concat
     , command_char 'o' "join events" Edit.cmd_join_events
 
     , bind_char 'd' "set dur" (Edit.cmd_set_duration False)
-    , bind_char 'D' "force set dur" (Edit.cmd_set_duration True)
+    , bind_char 'D' "toggle zero-dur" Edit.cmd_toggle_zero_duration
     , bind_char 'b' "set beginning" Edit.cmd_set_beginning
 
     , bind_char '_' "insert track end" Edit.cmd_insert_track_end
