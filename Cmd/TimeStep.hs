@@ -18,11 +18,11 @@ module Cmd.TimeStep (
     -- * for testing
     , step_from_points, find_before_equal
 ) where
-import qualified Data.Fixed as Fixed
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -224,8 +224,7 @@ all_points marklists cur events pos (TimeStep steps) = Seq.drop_dups id $
 step_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> TrackNum
     -> [[Events.PosEvent]] -> ScoreTime -> (Step, Skip) -> [ScoreTime]
 step_points marklists cur events pos (step, skip) = stride skip $ case step of
-            -- fmod is in a bizarre place
-        Absolute incr -> Seq.range (Fixed.mod' pos incr) end incr
+        Absolute incr -> Seq.range (Num.fmod pos incr) end incr
         AbsoluteMark names matcher -> matches names matcher
         RelativeMark names matcher -> shift (matches names matcher)
         BlockEnd -> [0, end]

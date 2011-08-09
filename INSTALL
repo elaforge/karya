@@ -13,6 +13,11 @@ bytestring
 attoparsec
 utf8-string -- used by Ui.SymbolC
 
+-- random
+mersenne-random-pure64
+hashable
+random-shuffle
+
     installed separately:
 libpcre library from http://www.pcre.org
 lilypond, for some fonts

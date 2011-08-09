@@ -2,15 +2,21 @@
 -- | Miscellaneous functions on numbers.  Things that could have gone in
 -- Numeric.
 module Util.Num where
-import qualified GHC.Types as Types
-import qualified GHC.Prim as Prim
+import qualified Data.Fixed as Fixed
 import qualified Foreign.C as C
+import qualified GHC.Prim as Prim
+import qualified GHC.Types as Types
 import qualified Unsafe.Coerce as Coerce
 
 
--- | Restrict a value to be between @low@ and @high@.
+-- | Clamp a value to be between @low@ and @high@.
 clamp :: (Ord a) => a -> a -> a -> a
 clamp low high = min high . max low
+
+-- | Confine the given value lie between the first two arguments, but using
+-- modulus, not clamping.
+restrict :: (Real a) => a -> a -> a -> a
+restrict low high = (+low) . (`fmod` (high-low)) . (subtract low)
 
 -- | Scale @v@, which is between 0 and 1 inclusive, to be between @low@ and
 -- @high@.  If @v@ is not in the 0--1 range, the result will be out of the
@@ -26,6 +32,11 @@ normalize low high v
     | low == high && v == low = 0
     | otherwise = (v-low) / (high-low)
 
+infixl 7 `fmod` -- match `mod`
+
+-- | fmod is in a bizarre place.
+fmod :: (Real a) => a -> a -> a
+fmod = Fixed.mod'
 
 -- | realToFrac doesn't preserve the special float values and is inefficient.
 d2f :: Double -> Float

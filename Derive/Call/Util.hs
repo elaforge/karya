@@ -9,13 +9,22 @@
     immediately to what is needed.
 -}
 module Derive.Call.Util where
-import Prelude hiding (head)
 import qualified Data.FixedList as FixedList
+import qualified Data.Hashable as Hashable
+import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.Traversable as Traversable
 
+import qualified System.Random.Mersenne.Pure64 as Pure64
+
 import Util.Control
+import qualified Util.Num as Num
+import qualified Util.Random as Random
+import qualified Util.Seq as Seq
 
 import Ui
+import qualified Ui.Id as Id
+import qualified Ui.Types as Types
 
 import qualified Derive.Call as Call
 import qualified Derive.CallSig as CallSig
@@ -23,6 +32,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -152,13 +162,13 @@ with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
 with_attrs f deriver = do
     -- Attributes should always be in the default environ so this shouldn't
     -- abort.
-    attrs <- Derive.require_val TrackLang.v_attributes
+    attrs <- Derive.get_val TrackLang.v_attributes
     Derive.with_val TrackLang.v_attributes (f attrs) deriver
 
--- ** derive ops
+-- * state access
 
 get_srate :: Derive.Deriver RealTime
-get_srate = RealTime.seconds <$> Derive.require_val TrackLang.v_srate
+get_srate = RealTime.seconds <$> Derive.get_val TrackLang.v_srate
 
 get_scale :: Derive.Deriver Scale.Scale
 get_scale = Derive.get_scale =<< get_scale_id
@@ -167,10 +177,51 @@ lookup_scale :: Derive.Deriver (Maybe Scale.Scale)
 lookup_scale = Derive.lookup_scale =<< get_scale_id
 
 get_scale_id :: Derive.Deriver Pitch.ScaleId
-get_scale_id = Derive.require_val TrackLang.v_scale
+get_scale_id = Derive.get_val TrackLang.v_scale
 
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val TrackLang.v_instrument
+
+-- ** random
+
+class Random a where
+    -- | Infinite list of random numbers.  These are deterministic in that
+    -- they depend on the current track, current call position, and the random
+    -- seed.
+    randoms :: Derive.Deriver [a]
+instance Random Double where randoms = _make_randoms Pure64.randomDouble
+instance Random Int where randoms = _make_randoms Pure64.randomInt
+
+-- | Infinite list of random numbers in the given range.
+randoms_in :: (Real a, Random a) => a -> a -> Derive.Deriver [a]
+randoms_in low high = map (Num.restrict low high) <$> randoms
+
+random :: (Random a) => Derive.Deriver a
+random = head <$> randoms
+
+random_in :: (Random a, Real a) => a -> a -> Derive.Deriver a
+random_in low high = Num.restrict low high <$> random
+
+shuffle :: [a] -> Derive.Deriver [a]
+shuffle xs = Random.shuffle xs <$> randoms
+
+_make_randoms :: (Pure64.PureMT -> (a, Pure64.PureMT)) -> Derive.Deriver [a]
+_make_randoms f = do
+    pos <- maybe 0 fst . Seq.head . Maybe.mapMaybe Stack.region_of
+        . Stack.innermost <$> Derive.get_stack
+    gen <- _random_generator pos
+    return $ List.unfoldr (Just . f) gen
+
+_random_generator :: ScoreTime -> Derive.Deriver Pure64.PureMT
+_random_generator pos = do
+    seed <- Derive.lookup_val TrackLang.v_seed :: Derive.Deriver (Maybe Double)
+    track_id <- Seq.head . Maybe.mapMaybe Stack.track_of . Stack.innermost <$>
+        Derive.get_stack
+    let track = maybe 0 (Hashable.hash . Id.show_id . Id.unpack_id) track_id
+        cseed = Hashable.hash track
+            `Hashable.hashWithSalt` Maybe.fromMaybe 0 seed
+            `Hashable.hashWithSalt` Types.score_to_double pos
+    return $ Pure64.pureMT (fromIntegral cseed)
 
 
 -- * c_equal
@@ -215,12 +266,12 @@ c_equal = Derive.transformer "equal" $ \args deriver ->
 -- from transformers.
 
 -- | Head of an LEvent list.
-head :: Derive.EventStream d
+event_head :: Derive.EventStream d
     -> (d -> Derive.EventStream d -> Derive.LogsDeriver d)
     -> Derive.LogsDeriver d
-head [] _ = return []
-head (log@(LEvent.Log _) : rest) f = (log:) <$> head rest f
-head (LEvent.Event event : rest) f = f event rest
+event_head [] _ = return []
+event_head (log@(LEvent.Log _) : rest) f = (log:) <$> event_head rest f
+event_head (LEvent.Event event : rest) f = f event rest
 
 -- | Map a function with state over events and lookup pitch and controls vals
 -- for each event.  Exceptions are not caught.

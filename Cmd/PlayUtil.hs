@@ -36,6 +36,7 @@ initial_environ scale_id maybe_inst = Map.fromList $
     -- Looking up any val call relies on having a scale in scope.
     , (TrackLang.v_scale, TrackLang.VScaleId scale_id)
     , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
+    , (TrackLang.v_seed, TrackLang.VNum 0)
     ]
     where
     inst = case maybe_inst of

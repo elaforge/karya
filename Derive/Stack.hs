@@ -2,6 +2,7 @@
 module Derive.Stack (
     Stack, empty, length, from_outermost, from_innermost
     , block, add, member, outermost, innermost
+    , block_of, track_of, region_of, call_of
     , Frame(..)
     , show_ui
 
@@ -63,6 +64,22 @@ outermost (Stack s) = reverse s
 
 innermost :: Stack -> [Frame]
 innermost (Stack s) = s
+
+block_of :: Frame -> Maybe BlockId
+block_of (Block b) = Just b
+block_of _ = Nothing
+
+track_of :: Frame -> Maybe TrackId
+track_of (Track t) = Just t
+track_of _ = Nothing
+
+region_of :: Frame -> Maybe (ScoreTime, ScoreTime)
+region_of (Region s e) = Just (s, e)
+region_of _ = Nothing
+
+call_of :: Frame -> Maybe String
+call_of (Call s) = Just s
+call_of _ = Nothing
 
 data Frame =
     Block BlockId

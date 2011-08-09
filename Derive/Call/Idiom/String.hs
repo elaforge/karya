@@ -97,7 +97,7 @@ string_idiom ::
     -> TrackLang.Control -- ^ Time for string to return to its open pitch.
     -> Derive.Events -> Derive.EventDeriver
 string_idiom attack_interpolator release_interpolator open_strings attack delay
-        release all_events = Util.head all_events $ \event events ->
+        release all_events = Util.event_head all_events $ \event events ->
     case initial_state open_strings event of
         Nothing -> Derive.throw $ "initial degree below lowest string: "
             ++ show (Score.initial_pitch event)

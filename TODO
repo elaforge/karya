@@ -48,7 +48,7 @@ UNSORTED
   * more places can use Events.range
   * remove Events.event_ prefix
   * add arpeggio note transformer
-  - implement randomness, based on seed and pos
+  * implement randomness, based on seed and pos
   - some way to get symbol feedback instantly to make it easier to compose them
   * step play only the selected tracks
   * print out a table of the keymap

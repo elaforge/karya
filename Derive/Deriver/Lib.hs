@@ -53,6 +53,7 @@ import Derive.Deriver.Internal (score_to_real)
 import Derive.Deriver.Monad
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
@@ -132,6 +133,9 @@ error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
 
 -- * state access
 
+get_stack :: Deriver Stack.Stack
+get_stack = gets (state_stack . state_dynamic)
+
 -- ** scale
 
 -- | Lookup a scale_id or throw.
@@ -166,9 +170,8 @@ lookup_val name = do
             Right v -> return (Just v)
 
 -- | Like 'lookup_val', but throw if the value isn't present.
-require_val :: forall a. (TrackLang.Typecheck a) =>
-    TrackLang.ValName -> Deriver a
-require_val name = do
+get_val :: forall a. (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver a
+get_val name = do
     val <- lookup_val name
     maybe (throw $ "environ val not found: " ++ Pretty.pretty name) return val
 
