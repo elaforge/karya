@@ -27,6 +27,11 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - rename score_to_real -> real, real_to_score -> score
+  - Editing a control over the entire score has a big lag between each
+    keystroke.  Shouldn't it be waiting for a second to begin derivation?
+  - randomize any control by having the 'set' call look for the -rnd control
+  - does setting controls in the track title not work? "> | start-rnd = .1"
   * set on multiple events shouldn't affect 0 dur ones, so I can set duration
     of multiple note tracks without messing up the control tracks in between
   easier ways to enter special notation:

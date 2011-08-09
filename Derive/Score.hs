@@ -92,6 +92,10 @@ duration f event = event { event_duration = f (event_duration event) }
 
 -- *** control
 
+-- | Get control value at the given time.
+control :: ControlMap -> Control -> RealTime -> Signal.Y
+control controls c pos = maybe 0 (Signal.at pos) (Map.lookup c controls)
+
 move_controls :: RealTime -> Event -> Event
 move_controls shift event = event
     { event_controls = Map.map (Signal.shift shift) (event_controls event)
@@ -288,12 +292,21 @@ newtype Control = Control String deriving (Eq, Ord, Show, DeepSeq.NFData)
 
 -- ** controls
 
--- Some standard controls.  The MIDI deriver should understand them.
+-- | Converted into velocity or breath depending on the instrument.
+c_pressure :: Control
+c_pressure = Control "p"
 
--- TODO this could be converted into velocity or breath depending on the
--- instrument.
-c_pressure = Control "pres"
+-- | Scale note duration.
+c_sustain :: Control
+c_sustain = Control "sustain"
 
+c_start_rnd, c_dur_rnd, c_vel_rnd :: Control
+c_start_rnd = Control "start-rnd"
+c_dur_rnd = Control "dur-rnd"
+c_vel_rnd = Control "vel-rnd"
+
+-- | MIDI controls.
+c_velocity, c_breath :: Control
 c_velocity = Control "vel"
 c_breath = Control "breath"
 

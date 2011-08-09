@@ -6,6 +6,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
 import Util.Control
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -24,6 +25,7 @@ import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -81,12 +83,27 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
         -- Perform.Midi.Convert flattens the entire pitch signal, so it's best
         -- to always trim the pitch to avoid extra work.
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
+    let sustain = maybe 1 (RealTime.seconds . Signal.at start)
+            (Map.lookup Score.c_sustain controls)
+    (start, end) <- randomized controls start ((end - start) * sustain + start)
     return $! LEvent.one $! LEvent.Event $!
-        Score.Event start (end - start) (Event.event_bs event) controls
-            pitch_sig (Derive.state_stack st) inst (apply rel_attrs attrs)
+        Score.Event start (end - start) (Event.event_bs event)
+            controls pitch_sig (Derive.state_stack st) inst
+            (apply rel_attrs attrs)
     where
     apply rel_attrs attrs =
         List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs
+
+-- | Interpret the c_start_rnd and c_dur_rnd controls.
+randomized :: Score.ControlMap -> RealTime -> RealTime
+    -> Derive.Deriver (RealTime, RealTime)
+randomized controls start end = do
+    let start_r = Score.control controls Score.c_start_rnd start
+        dur_r = Score.control controls Score.c_dur_rnd start
+    if start_r == 0 && dur_r == 0 then return (start, end) else do
+    r1 : r2 : _ <- Util.randoms
+    return (start + RealTime.seconds (Num.restrict (-start_r) start_r r1),
+        end + RealTime.seconds (Num.restrict (-dur_r) dur_r r2))
 
 -- | In a note track, the pitch signal for each note is constant as soon as the
 -- next note begins.  Otherwise, it looks like each note changes pitch during
