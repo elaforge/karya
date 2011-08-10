@@ -264,11 +264,11 @@ mk_logging_call log_var  = Derive.stream_generator "logging-note" $
 
 c_note :: Log -> Events.PosEvent -> ScoreTime -> Derive.EventDeriver
 c_note log_mvar (pos, event) next_start = do
-    start <- Derive.score_to_real pos
-    end <- Derive.score_to_real (pos + Event.event_duration event)
+    start <- Derive.real pos
+    end <- Derive.real (pos + Event.event_duration event)
     inst <- Derive.lookup_val TrackLang.v_instrument
     st <- Derive.gets Derive.state_dynamic
-    real_next <- Derive.score_to_real next_start
+    real_next <- Derive.real next_start
     let controls = Call.Note.trimmed_controls start real_next
             (Derive.state_controls st)
         pitch_sig = Derive.state_pitch st

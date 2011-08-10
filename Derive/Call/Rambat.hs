@@ -45,9 +45,9 @@ c_tick = Derive.stream_generator "tick" $ \args -> CallSig.call2 args
 
 tick :: RealTime -> Signal.Y -> ScoreTime -> ScoreTime -> Derive.EventDeriver
 tick time vel prev next = do
-    prev_pitch <- Derive.degree_at =<< Derive.score_to_real prev
-    next_pitch <- Derive.degree_at =<< Derive.score_to_real next
-    next_vel <- Util.velocity =<< Derive.score_to_real next
+    prev_pitch <- Derive.degree_at =<< Derive.real prev
+    next_pitch <- Derive.degree_at =<< Derive.real next
+    next_vel <- Util.velocity =<< Derive.real next
     let transpose = if prev_pitch <= next_pitch then -1 else 1
     (start, dur) <- stretch prev next time
     Derive.d_place start dur $
@@ -58,10 +58,10 @@ tick time vel prev next = do
 stretch :: ScoreTime -> ScoreTime -> RealTime
     -> Derive.Deriver (ScoreTime, ScoreTime)
 stretch prev next offset = do
-    real_prev <- Derive.score_to_real prev
-    real_next <- Derive.score_to_real next
+    real_prev <- Derive.real prev
+    real_next <- Derive.real next
     -- Try to use the offset, but use the midpoint if there isn't room.
     let real_pos = max (real_next - offset)
             ((real_prev + real_next) `RealTime.div` 2)
-    pos <- Derive.real_to_score real_pos
+    pos <- Derive.score real_pos
     return (pos, next - pos)

@@ -142,7 +142,7 @@ get_tempo_damage track_id track_range = do
             Nothing -> return Ranges.everything
             Just [] -> return Ranges.nothing
             Just ((s, _) : _) ->
-                Ranges.range s <$> Derive.score_to_real (snd track_range)
+                Ranges.range s <$> Derive.real (snd track_range)
 
 score_to_control :: TrackId -> (ScoreTime, ScoreTime) -> ScoreDamage
     -> Derive.Deriver ControlDamage
@@ -186,16 +186,14 @@ damage_to_real :: Ranges.Ranges ScoreTime
 damage_to_real r = case Ranges.extract r of
     Nothing -> return Ranges.everything
     Just rs -> Ranges.sorted_ranges <$>
-        mapM (\(s, e) -> (,) <$>
-            Derive.score_to_real s <*> Derive.score_to_real e) rs
+        mapM (\(s, e) -> (,) <$> Derive.real s <*> Derive.real e) rs
 
 damage_to_score :: Ranges.Ranges RealTime
     -> Derive.Deriver (Ranges.Ranges ScoreTime)
 damage_to_score r = case Ranges.extract r of
     Nothing -> return Ranges.everything
     Just rs -> Ranges.sorted_ranges <$>
-        mapM (\(s, e) -> (,) <$>
-            Derive.real_to_score s <*> Derive.real_to_score e) rs
+        mapM (\(s, e) -> (,) <$> Derive.score s <*> Derive.score e) rs
 
 -- * types
 

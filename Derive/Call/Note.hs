@@ -67,8 +67,8 @@ c_note = Derive.Call "note"
 generate_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
     -> Events.PosEvent -> ScoreTime -> Derive.EventDeriver
 generate_note n_inst rel_attrs (pos, event) next_start = do
-    start <- Derive.score_to_real pos
-    end <- Derive.score_to_real (pos + Event.event_duration event)
+    start <- Derive.real pos
+    end <- Derive.real (pos + Event.event_duration event)
     -- Note that due to negative durations, the end could be before the start.
     -- What this really means is that the sounding duration of the note depends
     -- on the next one, which should be sorted out later by post processing.
@@ -78,7 +78,7 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
     st <- Derive.gets Derive.state_dynamic
-    real_next <- Derive.score_to_real next_start
+    real_next <- Derive.real next_start
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         -- Perform.Midi.Convert flattens the entire pitch signal, so it's best
         -- to always trim the pitch to avoid extra work.

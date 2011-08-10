@@ -12,6 +12,6 @@ module Derive.Derive (
 import Derive.Deriver.Monad
 import Derive.Deriver.Lib
 import Derive.Deriver.Internal (
-    real_to_score, score_to_real, d_at, d_stretch, d_place, in_real_time
+    score, real, d_at, d_stretch, d_place, in_real_time
     , get_block_dur
     )

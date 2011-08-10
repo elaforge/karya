@@ -74,7 +74,7 @@ c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
         end <- case Derive.passed_next_begin args of
             Nothing -> return $ start + RealTime.seconds time
             Just n -> do
-                next <- Derive.score_to_real n
+                next <- Derive.real n
                 return $ min (start + RealTime.seconds time) next
         srate <- Util.get_srate
         case Derive.passed_prev_val args of

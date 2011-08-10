@@ -69,8 +69,8 @@ c_absolute_trill = Derive.transformer "absolute_trill" $
 absolute_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
     -> Derive.EventDeriver -> Derive.EventDeriver
 absolute_trill (s_start, s_end) neighbor speed deriver = do
-    start <- Derive.score_to_real s_start
-    end <- Derive.score_to_real s_end
+    start <- Derive.real s_start
+    end <- Derive.real s_end
     let all_transitions = pos_at_speed speed start
     let transitions = integral_cycles end all_transitions
     trill_from_transitions transitions neighbor deriver
@@ -101,7 +101,7 @@ score_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
 score_trill (start, end) neighbor speed deriver = do
     all_transitions <- score_pos_at_speed speed start end
     let transitions = integral_cycles end all_transitions
-    real_transitions <- mapM Derive.score_to_real transitions
+    real_transitions <- mapM Derive.real transitions
     trill_from_transitions real_transitions neighbor deriver
 
 score_pos_at_speed :: Signal.Control -> ScoreTime -> ScoreTime
@@ -109,7 +109,7 @@ score_pos_at_speed :: Signal.Control -> ScoreTime -> ScoreTime
 score_pos_at_speed sig pos end
     | pos > end = return []
     | otherwise = do
-        real <- Derive.score_to_real pos
+        real <- Derive.real pos
         let speed = Signal.y_to_score (Signal.at real sig)
         rest <- score_pos_at_speed sig (pos + recip speed) end
         return (pos : rest)
@@ -134,7 +134,7 @@ c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args -> do
         \degree neighbor speed -> do
             speed_sig <- Util.to_signal speed
             neighbor_sig <- Util.to_signal neighbor
-            next_event <- Derive.score_to_real (Derive.passed_next args)
+            next_event <- Derive.real (Derive.passed_next args)
             start <- Derive.passed_real args
             pitch_absolute_trill start degree speed_sig neighbor_sig next_event
 

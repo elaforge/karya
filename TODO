@@ -27,7 +27,7 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - rename score_to_real -> real, real_to_score -> score
+  * rename score_to_real -> real, real_to_score -> score
   - Editing a control over the entire score has a big lag between each
     keystroke.  Shouldn't it be waiting for a second to begin derivation?
   - randomize any control by having the 'set' call look for the -rnd control

@@ -34,7 +34,7 @@ c_mordent default_neighbor = Derive.stream_generator "mordent" $
 mordent :: RealTime -> (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Degree
     -> Derive.EventDeriver
 mordent grace_dur (start, dur) velocity_scale neighbor = do
-    pos <- Derive.score_to_real start
+    pos <- Derive.real start
     pitch <- Util.degree pos
     vel <- (*velocity_scale) <$> Util.velocity pos
     grace_notes pos
@@ -53,6 +53,6 @@ grace_notes start notes = Derive.d_merge placed
 
 place :: RealTime -> RealTime -> Derive.Deriver d -> Derive.Deriver d
 place start dur d = do
-    rstart <- Derive.real_to_score start
-    rend <- Derive.real_to_score (start + dur)
+    rstart <- Derive.score start
+    rend <- Derive.score (start + dur)
     Derive.d_place rstart (rend - rstart) d

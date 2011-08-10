@@ -377,8 +377,8 @@ empty_lookup_deriver = const (Right (return mempty))
 
 c_note :: ScoreTime -> ScoreTime -> Derive.EventDeriver
 c_note s_start dur = do
-    start <- Derive.score_to_real s_start
-    end <- Derive.score_to_real (s_start + dur)
+    start <- Derive.real s_start
+    end <- Derive.real (s_start + dur)
     inst <- Derive.lookup_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes

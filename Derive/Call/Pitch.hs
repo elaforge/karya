@@ -99,7 +99,7 @@ c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
         end <- case Derive.passed_next_begin args of
             Nothing -> return $ start + RealTime.seconds time
             Just n -> do
-                next <- Derive.score_to_real n
+                next <- Derive.real n
                 return $ min (start + RealTime.seconds time) next
         scale_id <- Util.get_scale_id
         srate <- Util.get_srate

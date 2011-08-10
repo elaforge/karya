@@ -148,15 +148,15 @@ with_stack frame = local
 
 -- * warp
 
-score_to_real :: ScoreTime -> Deriver RealTime
-score_to_real pos = do
+real :: ScoreTime -> Deriver RealTime
+real pos = do
     warp <- get_dynamic state_warp
     return (Score.warp_pos pos warp)
 
-real_to_score :: RealTime -> Deriver ScoreTime
-real_to_score pos = do
+score :: RealTime -> Deriver ScoreTime
+score pos = do
     warp <- get_dynamic state_warp
-    maybe (throw $ "real_to_score out of range: " ++ show pos) return
+    maybe (throw $ "score: out of range: " ++ show pos) return
         (Score.unwarp_pos pos warp)
 
 in_real_time :: Deriver a -> Deriver a
@@ -222,7 +222,7 @@ d_tempo block_dur maybe_track_id signal deriver = do
     root <- is_root_block
     stretch_to_1 <- if root then return id
         else do
-            real_dur <- with_warp (const warp) (score_to_real block_dur)
+            real_dur <- with_warp (const warp) (real block_dur)
             -- Log.debug $ "dur, global dur "
             --     ++ show (block_id, block_dur, real_dur)
             return $ if block_dur == 0 then id
@@ -270,8 +270,8 @@ add_new_track_warp :: Maybe TrackId -> Deriver ()
 add_new_track_warp track_id = do
     stack <- get_dynamic state_stack
     block_id <- get_current_block_id
-    start <- score_to_real 0
-    end <- score_to_real =<< get_block_dur block_id
+    start <- real 0
+    end <- real =<< get_block_dur block_id
     warp <- get_dynamic state_warp
     let tw = Left $ TrackWarp.TrackWarp (start, end, warp, block_id, track_id)
     merge_collect $ mempty { collect_warp_map = Map.singleton stack tw }

@@ -49,7 +49,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Derive.Deriver.Internal as Internal
-import Derive.Deriver.Internal (score_to_real)
+import Derive.Deriver.Internal (real)
 import Derive.Deriver.Monad
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -65,7 +65,7 @@ import qualified Perform.Signal as Signal
 -- * derive
 
 -- This should probably be in Internal, but can't due to a circular dependency
--- with score_to_real.
+-- with 'real'.
 
 -- | Package up the results of a derivation.
 --
@@ -218,13 +218,13 @@ with_instrument inst deriver = do
 -- ** control
 
 -- | Return an entire signal.  Remember, signals are in RealTime, so if you
--- want to index them in ScoreTime you will have to call 'score_to_real'.
+-- want to index them in ScoreTime you will have to call 'real'.
 -- 'control_at_score' does that for you.
 get_control :: Score.Control -> Deriver (Maybe Signal.Control)
 get_control cont = Map.lookup cont <$> Internal.get_dynamic state_controls
 
 control_at_score :: Score.Control -> ScoreTime -> Deriver (Maybe Signal.Y)
-control_at_score cont pos = control_at cont =<< score_to_real pos
+control_at_score cont pos = control_at cont =<< real pos
 
 control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
 control_at cont pos = do
@@ -232,7 +232,7 @@ control_at cont pos = do
     return $ fmap (Signal.at pos) (Map.lookup cont controls)
 
 pitch_at_score :: ScoreTime -> Deriver PitchSignal.Y
-pitch_at_score pos = pitch_at =<< score_to_real pos
+pitch_at_score pos = pitch_at =<< real pos
 
 pitch_at :: RealTime -> Deriver PitchSignal.Y
 pitch_at pos = do
@@ -393,7 +393,7 @@ passed_range :: PassedArgs d -> (ScoreTime, ScoreTime)
 passed_range = Events.range . passed_event
 
 passed_real_range :: PassedArgs d -> Deriver (RealTime, RealTime)
-passed_real_range args = (,) <$> score_to_real start <*> score_to_real end
+passed_real_range args = (,) <$> real start <*> real end
     where (start, end) = passed_range args
 
 passed_extent :: PassedArgs d -> (ScoreTime, ScoreTime)
@@ -404,7 +404,7 @@ passed_score :: PassedArgs d -> ScoreTime
 passed_score = fst . passed_event
 
 passed_real :: PassedArgs d -> Deriver RealTime
-passed_real = score_to_real . passed_score
+passed_real = real . passed_score
 
 
 -- * postproc
@@ -414,7 +414,7 @@ passed_real = score_to_real . passed_score
 -- do this yet, so I can leave these here for the moment.
 shift_control :: ScoreTime -> Deriver a -> Deriver a
 shift_control shift deriver = do
-    real <- score_to_real shift
+    real <- real shift
     Internal.local (\st -> (state_controls st, state_pitch st))
         (\(controls, pitch) st -> st { state_controls = controls,
             state_pitch = pitch })
