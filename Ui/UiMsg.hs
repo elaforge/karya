@@ -19,7 +19,7 @@ data UiMsg = UiMsg Context Msg
     deriving (Show)
 
 data Context = Context
-    { ctx_block :: Maybe ViewId
+    { ctx_view :: Maybe ViewId
     -- | Index into block tracks.
     , ctx_track :: Maybe TrackNum
     , ctx_pos :: Maybe ScoreTime
@@ -81,17 +81,18 @@ instance Pretty.Pretty UiMsg where
                 printf "Mouse: %s %s %s %s click: %s %d" (show mstate)
                     (show mods) (show coords) (Pretty.pretty ctx)
                     (show is_click) clicks
-            Kbd kstate mods key -> printf "Kbd: %s %s %s" (show kstate)
-                (show mods) (show key)
+            Kbd kstate mods key -> printf "Kbd: %s %s %s %s" (show kstate)
+                (show mods) (show key) (Pretty.pretty ctx)
             AuxMsg msg -> printf "Aux: %s %s" (show msg) (Pretty.pretty ctx)
             Unhandled x -> printf "Unhandled: %d" x
         UiMsg ctx msg ->
             printf "Other Event: %s %s" (show msg) (Pretty.pretty ctx)
 
 instance Pretty.Pretty Context where
-    pretty (Context block tracknum pos) = "{" ++ contents ++ "}"
+    pretty (Context view_id tracknum pos) = "{" ++ contents ++ "}"
         where
-        contents = Seq.join " " (filter (not.null) [show_maybe "block" block,
-            show_maybe "tracknum" tracknum, pretty_maybe "pos" pos])
+        contents = Seq.join " " (filter (not.null)
+            [show_maybe "view_id" view_id, show_maybe "tracknum" tracknum,
+                pretty_maybe "pos" pos])
         show_maybe desc = maybe "" (\v -> desc ++ "=" ++ show v)
         pretty_maybe desc = maybe "" (\v -> desc ++ "=" ++ Pretty.pretty v)

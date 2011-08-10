@@ -1,4 +1,5 @@
 module Cmd.Msg where
+import qualified Data.Map as Map
 import qualified System.IO as IO
 
 import qualified Util.Pretty as Pretty
@@ -37,11 +38,18 @@ instance Pretty.Pretty Msg where
     pretty (Ui msg) = "Ui: " ++ Pretty.pretty msg
     pretty (Midi msg) = "Midi: " ++ Pretty.pretty msg
     pretty (InputNote msg) = "Input: " ++ show msg
+    pretty (DeriveStatus bid status) = "DeriveStatus: " ++ show bid ++ ": "
+        ++ Pretty.pretty status
     pretty msg = show msg
 
 data DeriveStatus = OutOfDate | Deriving | DeriveFailed
     | DeriveComplete Track.TrackSignals
     deriving (Show)
+
+instance Pretty.Pretty DeriveStatus where
+    pretty (DeriveComplete signals) =
+        "DeriveComplete " ++ Pretty.pretty (Map.keys signals)
+    pretty status = show status
 
 -- * views
 

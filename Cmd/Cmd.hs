@@ -843,7 +843,7 @@ msg_to_mod msg = case msg of
 -- | Keep 'state_focused_view' up to date.
 cmd_record_active :: Cmd
 cmd_record_active msg = case msg of
-    Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_block = Just view_id })
+    Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_view = Just view_id })
         msg) | not (is_up msg || is_close msg) -> do
             set_focused_view view_id
             return $ case msg of
@@ -862,14 +862,15 @@ cmd_record_active msg = case msg of
 
 set_focused_view :: (M m) => ViewId -> m ()
 set_focused_view view_id = do
-    -- Log.debug $ "active view is " ++ show view_id
-    set_status "focus" (Just (show view_id))
-    modify_state $ \st -> st { state_focused_view = Just view_id }
+    focus <- gets state_focused_view
+    unless (focus == Just view_id) $ do
+        set_status "focus" (Just (show view_id))
+        modify_state $ \st -> st { state_focused_view = Just view_id }
 
 -- Responds to the UI's request to close a window.
 cmd_close_window :: Cmd
 cmd_close_window (Msg.Ui (UiMsg.UiMsg
-        (UiMsg.Context { UiMsg.ctx_block = Just view_id }) UiMsg.MsgClose)) =
+        (UiMsg.Context { UiMsg.ctx_view = Just view_id }) UiMsg.MsgClose)) =
     State.destroy_view view_id >> return Done
 cmd_close_window _ = return Continue
 
