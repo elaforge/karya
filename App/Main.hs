@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, CPP #-}
 -- | Sequencer.
 --
 -- Dumadak tan wenten alangan.
@@ -35,9 +35,14 @@ import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
 import qualified Midi.Midi as Midi
+
 -- This is the actual midi implementation.  This is the only module that should
 -- depend on the implementation, so switching backends is relatively easy.
+#if defined(CORE_MIDI)
 import qualified Midi.CoreMidi as MidiImp
+#else
+import qualified Midi.StubMidi as MidiImp
+#endif
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create

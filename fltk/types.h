@@ -1,10 +1,12 @@
 #ifndef __TYPES_H
 #define __TYPES_H
 
-#include "util.h"
 #include <ostream>
 #include <algorithm>
 #include <math.h>
+#include <limits.h>
+#include "util.h"
+
 
 // Pass the addresses of callbacks to this before they are replaced.  Won't be
 // valid outside of the specific function that passes it, such as update() or

@@ -20,37 +20,42 @@
 #
 # - tests and profiles are separate targets and require different flags
 
-### c++ flags
 
-CXX_DEBUG := -ggdb
-CXX_OPT := -O2
-OPT := $(CXX_DEBUG)
+FLTK_CONFIG := /usr/local/src/fltk-1.3/fltk-config
+
+### OS dependent variables.
+
+OS := $(shell uname)
+ifeq ($(OS), Linux)
 
 # Global -D flags for all C compilers.
+DEFINE :=
+MIDI_OBJS :=
+MIDI_LIBS :=
+# Default to the stub driver.
+MIDI_DRIVER :=
+
+else ifeq ($(OS), Darwin)
+
 DEFINE := -DMAC_OS_X_VERSION_MAX_ALLOWED=1060 \
 	-DMAC_OS_X_VERSION_MIN_REQUIRED=1050
-
+MIDI_OBJS := Midi/core_midi.o
 MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
+MIDI_DRIVER := -DCORE_MIDI
+
+endif
+
+
+### c++ flags
+
+OPT := -ggdb # -O2
 CINCLUDE := -Ifltk -I.
 
-# Flags for all versions.
-FLTK_LD := -lpthread -framework Carbon -framework ApplicationServices \
-    -framework AudioToolbox
-LIBFLTK_D := -D_THREAD_SAFE -D_REENTRANT
+FLTK_LD := $(shell $(FLTK_CONFIG) --ldflags)
+FLTK_C := $(shell $(FLTK_CONFIG) --cflags)
 
-# vanilla fltk
-LIBFLTK_INC := -I/usr/local/include -I/usr/local/include/FL/images
-LIBFLTK_LD := -L/usr/local/lib -lfltk
-
-# cocoa fltk
-LIBFLTK_1_3_LD := /usr/local/src/fltk-dev/fltk-1.3/lib/libfltk.a \
-	-framework Cocoa
-LIBFLTK_1_3_INC := -I/usr/local/src/fltk-dev/fltk-1.3/
-
-FLTK_CXX := $(LIBFLTK_1_3_INC) $(LIBFLTK_D)
-CXXFLAGS := $(FLTK_CXX) $(DEFINE) $(OPT) $(CINCLUDE) -Wall
-
-LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD)
+CXXFLAGS := $(FLTK_C) $(DEFINE) $(OPT) $(CINCLUDE) -Wall
+LDFLAGS := $(FLTK_LD)
 
 
 ### ghc flags
@@ -66,18 +71,20 @@ SEQ_INTERPRETER := $(if $(hint), -DINTERPRETER_HINT)
 
 # w/o hint: make -j3 build/seq  9.06s user 1.17s system 99% cpu 10.333 total
 # with hint: make -j3 build/seq  18.89s user 1.90s system 98% cpu 21.125 total
-SEQ_FLAGS := $(SEQ_INTERPRETER) $(SEQ_OPT)
+SEQ_FLAGS := $(SEQ_INTERPRETER) $(SEQ_OPT) $(MIDI_DRIVER)
 
 
 # Flags to compile the profiles.
 HPROFILE := -prof -O
+HLDFLAGS := $(FLTK_LD) -rtsopts
 
-HLDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD) -rtsopts
-
+### this changes with the ghc version
 GHC := ghc-7.0.3
 # Used by haddock to find system docs, but it doesn't work anyway.
 # TODO Fix this someday.
-GHC_LIB := /Library/Frameworks/GHC.framework/Versions/7.0.3-x86_64/usr/lib/ghc-7.0.3
+# Crazy hack, the first line from ghc-pkg contains the lib dir.  There must
+# be a better way to do this.
+GHC_LIB := $(shell dirname `ghc-pkg list | head -1`)
 
 # hspp adds filename and lineno to various logging and testing functions.
 HFLAGS := -threaded -W -fwarn-tabs $(CINCLUDE) -i../lib -pgml g++ \
@@ -163,29 +170,27 @@ UI_HSC := $(wildcard Ui/*.hsc)
 UI_HS := $(UI_HSC:hsc=hs) Util/CPUTime.hs
 UI_OBJS := Ui/c_interface.o fltk/fltk.a
 
-COREMIDI_OBJS := Midi/core_midi.o
-
 ALL_HS = $(shell tools/all_hs.py)
 
 ### main app
 
 SEQ_CMDLINE = $(GHC) $(HFLAGS) \
 	--make -main-is App.Main App/Main.hs \
-	$(UI_OBJS) $(COREMIDI_OBJS) $(MIDI_LIBS) $(HLDFLAGS)
+	$(UI_OBJS) $(MIDI_OBJS) $(MIDI_LIBS) $(HLDFLAGS)
 
 # PHONY convinces make to always run ghc, which figures out deps on its own
 .PHONY: $(BUILD)/seq
-$(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS)
+$(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(MIDI_OBJS)
 	$(SEQ_CMDLINE) $(SEQ_FLAGS) -o $@
 	$(BUNDLE) doc/seq.icns
 
 ### midi
 
 .PHONY: $(BUILD)/test_core_midi
-$(BUILD)/test_core_midi: $(UI_HS) $(COREMIDI_OBJS)
+$(BUILD)/test_core_midi: $(UI_HS) $(MIDI_OBJS)
 	$(GHC) $(HFLAGS) --make \
 		-main-is Midi.TestCoreMidi Midi/TestCoreMidi.hs -o $@ \
-		$(COREMIDI_OBJS) $(MIDI_LIBS)
+		$(MIDI_OBJS) $(MIDI_LIBS)
 
 ### repl
 
@@ -286,14 +291,13 @@ doc: $(ALL_HSC)
 ### tests ###
 
 TEST_CMDLINE = $(GHC) $(HFLAGS) --make -DTESTING \
-	$(UI_OBJS) $(COREMIDI_OBJS) $(MIDI_LIBS) $(HLDFLAGS)
+	$(UI_OBJS) $(MIDI_OBJS) $(MIDI_LIBS) $(HLDFLAGS)
 
 # Compiles with -odir and -hidir into $(TBUILD)/ because they are compiled with
 # different flags.
 $(TBUILD)/RunTests.hs: $(ALL_HS)
 	test/generate_run_tests.py $@ $(filter %_test.hs, $(ALL_HS))
-$(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HS) $(UI_OBJS) \
-		$(COREMIDI_OBJS)
+$(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HS) $(UI_OBJS) $(MIDI_OBJS)
 	$(TEST_CMDLINE) -i -i$(TBUILD):. -odir $(TBUILD) -hidir $(TBUILD) \
 		$(TBUILD)/RunTests.hs -fhpc -o $@
 	rm -f *.tix # this sticks around and breaks hpc
@@ -303,13 +307,12 @@ $(PBUILD)/RunProfile.hs: $(ALL_HS)
 	test/generate_run_tests.py $@ $(filter %_profile.hs, $(ALL_HS))
 
 .PHONY: $(PBUILD)/RunProfile
-$(PBUILD)/RunProfile: $(PBUILD)/RunProfile.hs $(UI_HS) $(UI_OBJS) \
-		$(COREMIDI_OBJS)
+$(PBUILD)/RunProfile: $(PBUILD)/RunProfile.hs $(UI_HS) $(UI_OBJS) $(MIDI_OBJS)
 	$(TEST_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
 		$(PBUILD)/RunProfile.hs -o $@ $(HPROFILE)
 
 .PHONY: $(PBUILD)/seq
-$(PBUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS)
+$(PBUILD)/seq: $(UI_HS) $(UI_OBJS) $(MIDI_OBJS)
 	$(SEQ_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
 		$(HPROFILE) -o $@
 	$(BUNDLE) doc/seq.icns
@@ -340,8 +343,7 @@ tags: $(ALL_HS)
 # hsc2hs to take a --cflags arg and include all flags literally?
 %.hs: %.hsc
 	hsc2hs -c g++ --cflag -Wno-invalid-offsetof -I$(GHC_LIB)/include \
-		$(CINCLUDE) $(FLTK_CXX) $(DEFINE) $(PORTMIDI_I) $<
-
+		$(CINCLUDE) $(FLTK_C) $(DEFINE) $<
 
 ### portmidi ###
 # I'm not using this now, but may use it again in the future

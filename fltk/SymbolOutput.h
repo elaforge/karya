@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string>
 
-#include <FL/FL_Box.H>
+#include <FL/Fl_Box.H>
 
 
 // This is like Fl_Output, except it understands `` symbols.

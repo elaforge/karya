@@ -2,7 +2,7 @@
     Fancy alpha-channel using draw routines.
 */
 #include <FL/Fl_Image.H>
-#include <FL/Fl_draw.H>
+#include <FL/fl_draw.H>
 
 #include "f_util.h"
 #include "alpha_draw.h"

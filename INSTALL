@@ -11,7 +11,7 @@ hint
 
 bytestring
 attoparsec
-utf8-string -- used by Ui.SymbolC
+utf8-string -- used by Ui.Event
 
 -- random
 mersenne-random-pure64
@@ -22,6 +22,8 @@ random-shuffle
 libpcre library from http://www.pcre.org
 lilypond, for some fonts
     cp LilyPond.app/Contents/Resources/share/lilypond/current/fonts/otf/emmentaler* ~/Library/Fonts
+or
+    cp /usr/share/lilypond/<version>/fonts/otf/ ... ?
 
     fltk
 

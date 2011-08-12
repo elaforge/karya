@@ -1,8 +1,9 @@
 #ifndef __UTIL_H
 #define __UTIL_H
 
+#include <string.h>
 #include <utility>
-#include <geom_util.h>
+#include "geom_util.h"
 
 using namespace geom_util;
 
