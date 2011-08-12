@@ -15,7 +15,7 @@ initialize()
 {
     // DEBUG("lock");
     Fl::lock();
-    global_msg_collector()->screen_update();
+    MsgCollector::get()->screen_update();
 }
 
 void
@@ -38,7 +38,7 @@ get_ui_msgs(UiMsg **msgs)
     // Turn vector into c-array.  C++ standard says vector is supposed to
     // use a contiguous array:
     // http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#69
-    MsgCollector *m = global_msg_collector();
+    MsgCollector *m = MsgCollector::get();
     *msgs = m->msgs_ptr();
     return m->msgs_size();
 }
@@ -46,7 +46,7 @@ get_ui_msgs(UiMsg **msgs)
 void
 clear_ui_msgs()
 {
-    global_msg_collector()->clear();
+    MsgCollector::get()->clear();
 }
 
 
@@ -257,20 +257,20 @@ insert_symbol(const char *name, int absolute_y,
     for (int i = 0; i < glyphs_len; i++) {
         sym.glyphs.push_back(glyphs[i]);
     }
-    SymbolTable::table()->insert(string(strdup(name)), sym);
+    SymbolTable::get()->insert(string(strdup(name)), sym);
 }
 
 
 int // Font is Fl_Font, which is just int
 get_font(const char *name)
 {
-    return SymbolTable::table()->font(name);
+    return SymbolTable::get()->font(name);
 }
 
 char **
 get_fonts()
 {
-    return SymbolTable::table()->fonts();
+    return SymbolTable::get()->fonts();
 }
 
 // styles
@@ -278,7 +278,7 @@ get_fonts()
 void
 insert_style(StyleId id, EventStyle *style)
 {
-    StyleTable::table()->put(id, *style);
+    StyleTable::get()->put(id, *style);
 }
 
 

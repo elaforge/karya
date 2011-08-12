@@ -239,6 +239,8 @@ public:
     // If true, log all collected msgs for debugging.
     bool log_collected;
 
+    static MsgCollector *get();
+
 private:
     void push(UiMsg &m);
     std::vector<UiMsg> msgs;
@@ -246,5 +248,3 @@ private:
     // Keep track of which keys are down, to suppress spurious key ups.
     std::set<int> keys_down;
 };
-
-MsgCollector *global_msg_collector();

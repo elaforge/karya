@@ -96,7 +96,7 @@ public:
     // If this is called before the window is shown, it will crash horribly.
     IRect measure_symbol(const Symbol &sym, Size size) const;
 
-    static SymbolTable *table();
+    static SymbolTable *get();
 private:
     typedef std::map<string, Symbol> SymbolMap;
     SymbolMap symbol_map;

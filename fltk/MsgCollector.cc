@@ -299,7 +299,7 @@ MsgCollector::screen_update()
 
 
 MsgCollector *
-global_msg_collector()
+MsgCollector::get()
 {
     static MsgCollector m;
     return &m;

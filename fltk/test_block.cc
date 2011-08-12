@@ -298,7 +298,7 @@ static void
 handle_argv(int argc, char **argv)
 {
     if (argc > 1 && strcmp(argv[1], "log") == 0)
-        global_msg_collector()->log_collected = true;
+        MsgCollector::get()->log_collected = true;
 }
 
 static TrackSignal *
@@ -378,7 +378,7 @@ pitch_track_signal()
 static void
 show_fonts()
 {
-    SymbolTable *t = SymbolTable::table();
+    SymbolTable *t = SymbolTable::get();
     char **fonts = t->fonts();
     for (int i = 0; fonts[i]; i++) {
         printf("%s\n", fonts[i]);
@@ -478,13 +478,13 @@ main(int argc, char **argv)
                 1, ScoreTime(64), 4, ScoreTime(0)));
     */
 
-    StyleTable::table()->put(0, EventStyle(FL_HELVETICA, 12, Color::black,
+    StyleTable::get()->put(0, EventStyle(FL_HELVETICA, 12, Color::black,
         Color(200, 200, 170)));
 
     // Technically the Glyphs should use heap space, not constants, since they
     // will be freed if there is a duplicate symbol.  But I don't care for a
     // test.
-    SymbolTable *t = SymbolTable::table();
+    SymbolTable *t = SymbolTable::get();
     t->insert("tamil-i", SymbolTable::Symbol(
         SymbolTable::Glyph("\xe0\xae\x87", NULL, 4)));
     // t->load("yen", "\xc2\xa5");

@@ -420,7 +420,7 @@ EventTrackView::draw_area()
         int y0 = std::min(offsets[i], offsets[i] + height);
         int y1 = std::max(offsets[i], offsets[i] + height);
 
-        Color c = StyleTable::table()->get(event.style_id)
+        Color c = StyleTable::get()->get(event.style_id)
             ->event_color.brightness(this->brightness);
         if (event.duration < ScoreTime(0))
             c = c.brightness(negative_duration_brightness);
@@ -532,12 +532,12 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
             // on the left because that one is more likely to overlap with
             // event text.
             if (lower != upper) {
-                lower_size = SymbolTable::table()->draw(
+                lower_size = SymbolTable::get()->draw(
                     lower, IPoint(min_x, offset-1), font, size, FL_BLACK);
                 fl_line(min_x, offset, min_x + lower_size.x, offset);
             }
-            upper_size = SymbolTable::table()->measure(upper, font, size);
-            SymbolTable::table()->draw(
+            upper_size = SymbolTable::get()->measure(upper, font, size);
+            SymbolTable::get()->draw(
                 upper, IPoint(max_x - upper_size.x, offset-1), font, size,
                 FL_BLACK);
             fl_line(max_x - upper_size.x, offset, max_x, offset);
@@ -640,12 +640,12 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     // small notes I'll have to come up with some other mechanism, like color
     // coding.
 
-    const EventStyle *style = StyleTable::table()->get(event.style_id);
+    const EventStyle *style = StyleTable::get()->get(event.style_id);
 
     IRect text_rect(0, 0, 0, 0);
     bool draw_text = false;
     if (event.text) {
-        IPoint box = SymbolTable::table()->measure(
+        IPoint box = SymbolTable::get()->measure(
             event.text, style->font, style->size);
         text_rect.w = box.x;
         text_rect.h = box.y;
@@ -705,7 +705,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         // Due to boundary issues, drawing text that touches the bottom of a
         // box means drawing one above the bottom.  I don't totally understand
         // this.
-        SymbolTable::table()->draw(std::string(event.text),
+        SymbolTable::get()->draw(std::string(event.text),
             IPoint(text_rect.x, text_rect.b() - 1), style->font, style->size,
             c);
         if (!rank) {

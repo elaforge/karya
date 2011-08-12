@@ -177,9 +177,9 @@ SeqInput::changed_cb(Fl_Widget *_w, void *vp)
     BlockViewWindow *view = static_cast<BlockViewWindow *>(self->window());
     for (int i = 0; i < view->block.tracks(); i++) {
         if (&view->block.track_at(i)->title_widget() == self) {
-            global_msg_collector()->update(UiMsg::msg_input, i);
+            MsgCollector::get()->update(UiMsg::msg_input, i);
             return;
         }
     }
-    global_msg_collector()->update(UiMsg::msg_input);
+    MsgCollector::get()->update(UiMsg::msg_input);
 }

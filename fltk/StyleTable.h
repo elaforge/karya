@@ -23,7 +23,7 @@ class StyleTable {
 public:
     const EventStyle *get(StyleId id) const;
     void put(StyleId id, const EventStyle &style);
-    static StyleTable *table();
+    static StyleTable *get();
 
 private:
     std::vector<EventStyle> stable;

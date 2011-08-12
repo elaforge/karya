@@ -24,7 +24,7 @@ StyleTable::put(StyleId id, const EventStyle &style)
 
 
 StyleTable *
-StyleTable::table()
+StyleTable::get()
 {
     static StyleTable table;
     return &table;

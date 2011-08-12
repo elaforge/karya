@@ -96,14 +96,14 @@ BlockView::handle(int evt)
             ScoreTime old = this->zoom.offset;
             set_zoom(ZoomInfo(this->zoom.offset + scroll, this->zoom.factor));
             if (this->zoom.offset != old)
-                global_msg_collector()->block_update(this, UiMsg::msg_zoom);
+                MsgCollector::get()->block_update(this, UiMsg::msg_zoom);
         }
         if (Fl::event_dx()) {
             int scroll_y = Fl::event_dx() * mousewheel_track_scale;
             int old = this->get_track_scroll();
             this->set_track_scroll(old + scroll_y);
             if (this->get_track_scroll() != old) {
-                global_msg_collector()->block_update(
+                MsgCollector::get()->block_update(
                     this, UiMsg::msg_track_scroll);
             }
 
@@ -440,7 +440,7 @@ BlockView::insert_track_view(int tracknum, TrackView *track, int width)
             track_tile.insert_track(0, replaced, replaced->w());
         this->ruler_track->set_zoom(this->zoom);
         // Changing the ruler will change the track area.
-        global_msg_collector()->block_update(this, UiMsg::msg_resize);
+        MsgCollector::get()->block_update(this, UiMsg::msg_resize);
     } else {
         track_tile.insert_track(tracknum - 1, track, width);
         this->track_tile.set_zoom(this->zoom);
@@ -506,7 +506,7 @@ BlockView::set_track_width(int tracknum, int width)
 {
     if (tracknum == 0) {
         this->set_ruler_width(width);
-        global_msg_collector()->block_update(this, UiMsg::msg_resize);
+        MsgCollector::get()->block_update(this, UiMsg::msg_resize);
     } else {
         track_tile.set_track_width(tracknum-1, width);
         skel_display.set_width(tracknum-1, width);
@@ -567,7 +567,7 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     ZoomInfo new_zoom(ScoreTime(end.scale(time_offset)),
             self->get_zoom().factor);
     if (new_zoom != self->get_zoom()) {
-        global_msg_collector()->block_update(self, UiMsg::msg_zoom);
+        MsgCollector::get()->block_update(self, UiMsg::msg_zoom);
         self->set_zoom_attr(new_zoom);
     }
 
@@ -582,7 +582,7 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     if (self->track_scroll.get_offset() != new_offset) {
         self->track_scroll.set_offset(new_offset);
         self->skel_display_scroll.set_offset(new_offset);
-        global_msg_collector()->block_update(self, UiMsg::msg_track_scroll);
+        MsgCollector::get()->block_update(self, UiMsg::msg_track_scroll);
     }
 
     if (Fl::event() == FL_RELEASE)
@@ -619,13 +619,13 @@ BlockView::track_tile_cb(Fl_Widget *w, void *vp)
             self->skel_display.set_width(i-1, self->get_track_width(i));
         // Don't spam out updates until a release.
         if (Fl::event() == FL_RELEASE)
-            global_msg_collector()->block_update(
+            MsgCollector::get()->block_update(
                 self, UiMsg::msg_track_width, i);
     }
     // body tile drags could resize the skel_display, which will change the
     // visible track area.
     if (w == &self->body && Fl::event() == FL_RELEASE)
-        global_msg_collector()->block_update(self, UiMsg::msg_resize);
+        MsgCollector::get()->block_update(self, UiMsg::msg_resize);
 }
 
 
@@ -635,7 +635,7 @@ static void
 block_view_window_cb(Fl_Window *win, void *p)
 {
     BlockViewWindow *view = static_cast<BlockViewWindow *>(win);
-    global_msg_collector()->window_update(view, UiMsg::msg_close);
+    MsgCollector::get()->window_update(view, UiMsg::msg_close);
     if (view->testing) {
         view->hide();
     }
@@ -671,7 +671,7 @@ void
 BlockViewWindow::resize(int X, int Y, int W, int H)
 {
     Fl_Window::resize(X, Y, W, H);
-    global_msg_collector()->window_update(this, UiMsg::msg_resize);
+    MsgCollector::get()->window_update(this, UiMsg::msg_resize);
 }
 
 
@@ -680,14 +680,14 @@ BlockViewWindow::handle(int evt)
 {
     if (evt == FL_SHOW) {
         // Send an initial resize to inform the haskell layer about dimensions.
-        global_msg_collector()->window_update(this, UiMsg::msg_resize);
+        MsgCollector::get()->window_update(this, UiMsg::msg_resize);
     }
     if (this->testing && evt == FL_KEYDOWN && Fl::event_key() == FL_Escape) {
         this->hide();
     }
     if (evt == FL_KEYDOWN || evt == FL_KEYUP) {
         // The fact I got it means I have focus.
-        global_msg_collector()->event(evt);
+        MsgCollector::get()->event(evt);
         return true;
     }
 
@@ -703,11 +703,11 @@ BlockViewWindow::handle(int evt)
             Fl::focus(this);
             // fall through
         case FL_DRAG: case FL_RELEASE:
-            global_msg_collector()->event(evt);
+            MsgCollector::get()->event(evt);
             break;
         case FL_FOCUS:
             // This is sent *before* the widget becomes Fl::focus().
-            global_msg_collector()->event(evt, this);
+            MsgCollector::get()->event(evt, this);
             break;
         }
         return true;

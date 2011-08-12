@@ -296,8 +296,8 @@ SymbolTable::measure_symbol(const Symbol &sym, Size size) const
 
 
 SymbolTable *
-SymbolTable::table()
+SymbolTable::get()
 {
-    static SymbolTable *table = new SymbolTable();
-    return table;
+    static SymbolTable table = SymbolTable();
+    return &table;
 }
