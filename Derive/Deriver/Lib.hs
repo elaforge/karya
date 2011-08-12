@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances #-}
+{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
 {- | Main module for the deriver monad.
 
     TODO update Derive\/README, move it to doc\/, and link from here

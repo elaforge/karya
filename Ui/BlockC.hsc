@@ -50,6 +50,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Foreign
 import Foreign.C
+import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
 import qualified Util.Rect as Rect
@@ -68,6 +69,7 @@ import qualified Ui.RulerC as RulerC
 import qualified Ui.Track as Track
 import qualified Ui.TrackC as TrackC
 
+
 #include "c_interface.h"
 -- This is from http://haskell.org/haskellwiki/FFI_cook_book.  Is there a
 -- better way?  I dunno, but this is clever and looks like it should work.
@@ -83,7 +85,7 @@ data CView
 -- not well represented by a persistent functional state.
 view_id_to_ptr :: MVar.MVar (Map.Map ViewId (Foreign.Ptr CView))
 {-# NOINLINE view_id_to_ptr #-}
-view_id_to_ptr = Foreign.unsafePerformIO (MVar.newMVar Map.empty)
+view_id_to_ptr = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
 
 -- TODO have a BlockC exception type
 -- also, turn c++ exceptions into this exception

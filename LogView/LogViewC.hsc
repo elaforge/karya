@@ -4,6 +4,7 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Foreign
 import Foreign.C
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Control
 
@@ -41,7 +42,7 @@ send_action act = do
 
 acts_mvar :: Concurrent.MVar [a]
 {-# NOINLINE acts_mvar #-}
-acts_mvar = unsafePerformIO (Concurrent.newMVar [])
+acts_mvar = Unsafe.unsafePerformIO (Concurrent.newMVar [])
 
 foreign import ccall "initialize" c_initialize :: IO ()
 foreign import ccall "ui_wait" c_wait :: IO ()

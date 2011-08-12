@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import qualified Data.Serialize as Serialize
 import Data.Serialize (Get, getWord8, putWord8)
 import qualified Data.Set as Set
+import qualified System.IO.Unsafe as Unsafe
 
 import Foreign
 
@@ -74,7 +75,7 @@ encode_float :: Float -> Word32
 encode_float = _encodef
 
 _encodef :: (Storable float, Storable word) => float -> word
-_encodef d = unsafePerformIO $ alloca $ \buf -> do
+_encodef d = Unsafe.unsafePerformIO $ alloca $ \buf -> do
     poke (castPtr buf) d
     peek buf
 
@@ -85,7 +86,7 @@ decode_float :: Word32 -> Float
 decode_float = _decodef
 
 _decodef :: (Storable float, Storable word) => word -> float
-_decodef word = unsafePerformIO $ alloca $ \buf -> do
+_decodef word = Unsafe.unsafePerformIO $ alloca $ \buf -> do
     poke (castPtr buf) word
     peek buf
 
