@@ -19,19 +19,28 @@ data UiMsg = UiMsg Context Msg
     deriving (Show)
 
 data Context = Context
-    { ctx_view :: Maybe ViewId
+    { ctx_focus :: Maybe ViewId
     -- | Index into block tracks.
     , ctx_track :: Maybe TrackNum
     , ctx_pos :: Maybe ScoreTime
     } deriving (Show)
 
 -- | Corresponds to UiMsg::MsgType enum.
-data Msg = MsgEvent Data | UiUpdate UiUpdate | MsgClose
+--
+-- Each UiUpdate has a ViewId which is separate from the focus.  This is
+-- because they can happen to an unfocused view, e.g. on OS X UpdateViewResize
+-- and UpdateClose.
+data Msg =
+    MsgEvent MsgEvent
+    | UiUpdate ViewId UiUpdate
+    -- | Give screen dimensions: screen number, total screens, rect.  This
+    -- is a UiUpdate but it doesn't have a ViewId.
+    | UpdateScreenSize Int Int Rect.Rect
     deriving (Eq, Ord, Show)
 
 -- | These are generated when the UI is manipulated directly and makes changes
--- to its own state.  They are like Ui.Update except in the opposide direction:
--- fltk telling haskell what changes occurred.
+-- to its own state.  They are like Ui.Update except in the opposide
+-- direction: fltk telling haskell what changes occurred.
 data UiUpdate =
     UpdateInput String
     | UpdateTrackScroll Types.Width
@@ -39,11 +48,12 @@ data UiUpdate =
     -- | Size of entire block window, and (visible_track, visible_time).
     | UpdateViewResize Rect.Rect (Int, Int)
     | UpdateTrackWidth Types.Width
-    -- | Give screen dimensions: screen number, total screens, rect
-    | UpdateScreenSize Int Int Rect.Rect
+    -- | The given view was closed.
+    | UpdateClose
     deriving (Eq, Ord, Show)
 
-data Data =
+-- | MsgType.msg_event, which is a fltk event.
+data MsgEvent =
     -- | (state, modifiers, coords, clicks, is_click)
     -- As per fltk, 0 is the first click, 1 is a double click, etc.
     Mouse
@@ -63,6 +73,7 @@ data Data =
     -- TODO maybe this should move to MsgEvent so FOCUS can update the
     -- modifiers?  Doesn't matter as long as fltk doesn't support it.
 
+-- | Most of these are unused, but are included here for completeness.
 data AuxMsg = Enter | Leave | Focus | Unfocus | Shortcut | Deactivate
     | Activate | Hide | Show
     deriving (Eq, Ord, Show)
@@ -89,10 +100,10 @@ instance Pretty.Pretty UiMsg where
             printf "Other Event: %s %s" (show msg) (Pretty.pretty ctx)
 
 instance Pretty.Pretty Context where
-    pretty (Context view_id tracknum pos) = "{" ++ contents ++ "}"
+    pretty (Context focus tracknum pos) = "{" ++ contents ++ "}"
         where
         contents = Seq.join " " (filter (not.null)
-            [show_maybe "view_id" view_id, show_maybe "tracknum" tracknum,
+            [show_maybe "focus" focus, show_maybe "tracknum" tracknum,
                 pretty_maybe "pos" pos])
         show_maybe desc = maybe "" (\v -> desc ++ "=" ++ show v)
         pretty_maybe desc = maybe "" (\v -> desc ++ "=" ++ Pretty.pretty v)

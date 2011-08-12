@@ -57,7 +57,7 @@ instance Pretty.Pretty DeriveStatus where
 -- to read cases, use the view functions here.  They can be conveniently used
 -- with the ViewPatterns feature.
 
-mouse :: Msg -> Maybe UiMsg.Data
+mouse :: Msg -> Maybe UiMsg.MsgEvent
 mouse (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent mouse@(UiMsg.Mouse {})))) =
     Just mouse
 mouse _ = Nothing

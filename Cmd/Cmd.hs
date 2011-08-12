@@ -843,22 +843,13 @@ msg_to_mod msg = case msg of
 -- | Keep 'state_focused_view' up to date.
 cmd_record_active :: Cmd
 cmd_record_active msg = case msg of
-    Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_view = Just view_id })
-        msg) | not (is_up msg || is_close msg) -> do
-            set_focused_view view_id
-            return $ case msg of
-               UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus) -> Done
-               _ -> Continue
+    Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_focus = Just view_id }) msg)
+            -> do
+        set_focused_view view_id
+        return $ case msg of
+           UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus) -> Done
+           _ -> Continue
     _ -> return Continue
-    where
-    -- If mouse ups and key ups set focus then the key up after creating a new
-    -- view will put the focus back on the old one.
-    is_up (UiMsg.MsgEvent (UiMsg.Mouse
-        { UiMsg.mouse_state = UiMsg.MouseUp _ })) = True
-    is_up (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyUp _ _)) = True
-    is_up _ = False
-    is_close UiMsg.MsgClose = True
-    is_close _ = False
 
 set_focused_view :: (M m) => ViewId -> m ()
 set_focused_view view_id = do
@@ -867,13 +858,6 @@ set_focused_view view_id = do
         set_status "focus" (Just (show view_id))
         modify_state $ \st -> st { state_focused_view = Just view_id }
 
--- Responds to the UI's request to close a window.
-cmd_close_window :: Cmd
-cmd_close_window (Msg.Ui (UiMsg.UiMsg
-        (UiMsg.Context { UiMsg.ctx_view = Just view_id }) UiMsg.MsgClose)) =
-    State.destroy_view view_id >> return Done
-cmd_close_window _ = return Continue
-
 -- | Catch 'UiMsg.UiUpdate's from the UI, and modify the state accordingly to
 -- reflect the UI state.
 --
@@ -881,48 +865,62 @@ cmd_close_window _ = return Continue
 -- UiUpdates report changes that have already occurred directly on the UI, so
 -- syncing them would be redundant.
 cmd_record_ui_updates :: Cmd
-cmd_record_ui_updates msg = do
-    (ctx, update) <- require (update_of msg)
-    ui_update ctx update
-    -- return Continue to give 'cmd_update_ui_state' a crack at it
-    return Continue
-
-ui_update :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
-ui_update ctx@(UiMsg.Context (Just view_id) track _pos) update = case update of
-        UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
-        UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
-        UiMsg.UpdateViewResize rect track_size -> do
-            view <- State.get_view view_id
-            when (rect /= Block.view_rect view) $
-                State.set_view_rect view_id rect
-            when (track_size /= view_track_size view) $
-                State.set_track_size view_id track_size
-        UiMsg.UpdateTrackWidth width -> case track of
-            Just tracknum -> State.set_track_width view_id tracknum width
-            Nothing -> State.throw $
-                show update ++ " with no track: " ++ show ctx
-        -- Handled by 'ui_update_state'.
-        UiMsg.UpdateInput {} -> return ()
-        -- Handled below.
-        UiMsg.UpdateScreenSize {} -> return ()
-    where
-    view_track_size v = (Block.view_visible_track v, Block.view_visible_time v)
-ui_update ctx update = case update of
-        UiMsg.UpdateScreenSize screen screens rect -> modify_state $ \st ->
-            st { state_screens =
-                set_screen screen screens rect (state_screens st) }
-        _ -> State.throw $ show update ++ " with no view_id: " ++ show ctx
+cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg _
+        (UiMsg.UpdateScreenSize screen screens rect))) = do
+    modify_state $ \st -> st
+        { state_screens = set_screen screen screens rect (state_screens st) }
+    return Done
     where
     set_screen screen screens rect = take screens
         . Seq.update_at Rect.empty screen (const rect)
+cmd_record_ui_updates msg = do
+    (ctx, view_id, update) <- require (update_of msg)
+    ui_update (UiMsg.ctx_track ctx) view_id update
+    -- return Continue to give 'cmd_update_ui_state' a crack at it
+    return Continue
+
+ui_update :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> CmdId ()
+ui_update maybe_tracknum view_id update = case update of
+    UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
+    UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
+    UiMsg.UpdateViewResize rect track_size -> do
+        view <- State.get_view view_id
+        when (rect /= Block.view_rect view) $ State.set_view_rect view_id rect
+        let sz = (Block.view_visible_track view, Block.view_visible_time view)
+        when (track_size /= sz) $ State.set_track_size view_id track_size
+    UiMsg.UpdateTrackWidth width -> case maybe_tracknum of
+        Just tracknum -> State.set_track_width view_id tracknum width
+        Nothing -> State.throw $ "update with no track: " ++ show update
+    -- Handled by 'ui_update_state'.
+    UiMsg.UpdateClose -> return ()
+    UiMsg.UpdateInput {} -> return ()
 
 -- | Except when it's a block update, I have to update the block to update
 -- the other views.  So this Cmd goes in with the normal Cmds.
 cmd_update_ui_state :: Cmd
 cmd_update_ui_state msg = do
-    (ctx, update) <- require (update_of msg)
-    ui_update_state ctx update
+    (ctx, view_id, update) <- require (update_of msg)
+    ui_update_state (UiMsg.ctx_track ctx) view_id update
     return Done
+
+ui_update_state :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> CmdId ()
+ui_update_state maybe_tracknum view_id update = case update of
+    UiMsg.UpdateInput text -> do
+        view <- State.get_view view_id
+        update_input (Block.view_block view) text
+    -- UiMsg.UpdateTrackScroll hpos -> sync_zoom_status view_id
+    UiMsg.UpdateZoom _ -> sync_zoom_status view_id
+    UiMsg.UpdateClose -> State.destroy_view view_id
+    _ -> return ()
+    where
+    update_input block_id text = case maybe_tracknum of
+        Just tracknum -> do
+            track_id <- State.event_track_at block_id tracknum
+            case track_id of
+                Just track_id -> State.set_track_title track_id text
+                Nothing -> State.throw $ show (UiMsg.UpdateInput text)
+                    ++ " on non-event track " ++ show tracknum
+        Nothing -> State.set_block_title block_id text
 
 sync_zoom_status :: (M m) => ViewId -> m ()
 sync_zoom_status view_id = do
@@ -935,30 +933,8 @@ show_zoom_status (Types.Zoom offset factor) =
     '+' : Pretty.show_float (Just 3) offset
     ++ '*' : Pretty.show_float (Just 1) factor
 
-ui_update_state :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
-ui_update_state ctx@(UiMsg.Context (Just view_id) _track _pos) update =
-    case update of
-        UiMsg.UpdateInput text -> do
-            view <- State.get_view view_id
-            update_input ctx (Block.view_block view) text
-        -- UiMsg.UpdateTrackScroll hpos -> sync_zoom_status view_id
-        UiMsg.UpdateZoom _zoom -> sync_zoom_status view_id
-        _ -> return ()
-ui_update_state ctx update = case update of
-    UiMsg.UpdateScreenSize {} -> return ()
-    _ -> State.throw $ show update ++ " with no view_id: " ++ show ctx
-
-update_input ctx block_id text = case UiMsg.ctx_track ctx of
-    Just tracknum -> do
-        track_id <- State.event_track_at block_id tracknum
-        case track_id of
-            Just track_id -> State.set_track_title track_id text
-            Nothing -> State.throw $ show (UiMsg.UpdateInput text) ++ " for "
-                ++ show ctx ++ " on non-event track " ++ show tracknum
-    Nothing -> State.set_block_title block_id text
-
-update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate update))) =
-    Just (ctx, update)
+update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id update))) =
+    Just (ctx, view_id, update)
 update_of _ = Nothing
 
 -- * schema types

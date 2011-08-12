@@ -7,101 +7,119 @@
 
 // UiMsg /////////////////////
 
-UiMsg::UiMsg() :
-    // Update args
-    update_text(0), width_scroll_visible_track(0), visible_time(0),
-    update_zoom(0), update_rect(0),
-    // Context
-    view(0), has_tracknum(false), has_pos(false), pos(0)
-{}
-
 void
 UiMsg::free()
 {
-    if (update_text)
-        delete[] update_text;
-    if (update_zoom)
-        delete update_zoom;
-    if (update_rect)
-        delete update_rect;
+    if (msg_input == type && input.text)
+        ::free(input.text);
+    else if (msg_zoom == type && zoom.zoom)
+        delete zoom.zoom;
+    else if (msg_resize == type && resize.rect)
+        delete resize.rect;
+    else if (msg_screen_size == type && screen.rect)
+        delete screen.rect;
 }
 
-inline std::ostream &
+
+std::ostream &
 operator<<(std::ostream &os, const UiMsg &m)
 {
-    os << '<' << UiMsg::msg_type_names()[m.type];
-    if (m.type == UiMsg::msg_event) {
-        os << "=" << show_event(m.event)
-            << " key=" << show_key(m.key)
-            << (m.is_repeat ? "[r]" : "")
-            << " mods=" << show_event_state(m.modifier_state)
-            << " button=" << m.button << " clicks=" << m.clicks
-            << " is_click=" << m.is_click
-            << " xy=(" << m.x << ", " << m.y << ")";
+    os << '<' << UiMsg::msg_type_names()[m.type] << ' ' << m.context << ' ';
+    switch (m.type) {
+    case UiMsg::msg_event:
+        os << m.event;
+        break;
+    case UiMsg::msg_input:
+        os << "text=\"" << m.input.text << '"';
+        break;
+    case UiMsg::msg_track_scroll:
+        os << m.track_scroll.scroll;
+        break;
+    case UiMsg::msg_zoom:
+        os << *m.zoom.zoom;
+        break;
+    case UiMsg::msg_resize:
+        os << *m.resize.rect << " track=(" << m.resize.visible_track
+            << ", " << m.resize.visible_time << ")";
+        break;
+    case UiMsg::msg_track_width:
+        os << m.track_width.width;
+        break;
+    case UiMsg::msg_close:
+        break;
+    case UiMsg::msg_screen_size:
+        os << *m.screen.rect << " "
+            << m.screen.screen << "/" << m.screen.screens;
+        break;
     }
+    return os << '>';
+}
 
-    if (m.update_text)
-        os << " text=\"" << m.update_text << '"';
-    if (m.type == UiMsg::msg_view_resize) {
-        os << " track=(" << m.width_scroll_visible_track
-            << ", " << m.visible_time << ")";
-    } else if (m.type == UiMsg::msg_screen_size) {
-        os << " " << m.width_scroll_visible_track << "/" << m.visible_time;
-    } else {
-        os << " width=" << m.width_scroll_visible_track;
-    }
-    if (m.update_zoom)
-        os << " zoom=" << *m.update_zoom;
-    if (m.update_rect)
-        os << " rect=" << *m.update_rect;
 
-    if (m.view)
-        os << " view=\"" << m.view->block.get_title() << '"';
-    if (m.has_tracknum)
-        os << " tracknum=" << m.tracknum;
-    if (m.has_pos)
-        os << " pos=" << m.pos;
-    os << '>';
-    return os;
+std::ostream &
+operator<<(std::ostream &os, const UiMsg::Context &c)
+{
+    os << '{';
+    if (c.focus)
+        os << "f='" << c.focus->block.get_title() << "' ";
+    if (c.view)
+        os << "v='" << c.view->block.get_title() << "' ";
+    if (c.has_tracknum)
+        os << "t=" << c.tracknum << ' ';
+    if (c.has_pos)
+        os << "p=" << c.pos << ' ';
+    return os << '}';
+}
+
+
+std::ostream &
+operator<<(std::ostream &os, const UiMsg::Event &m)
+{
+    return os << show_event(m.event)
+        << " key=" << show_key(m.key)
+        << (m.is_repeat ? "[r]" : "")
+        << " mods=" << show_event_state(m.modifier_state)
+        << " button=" << m.button << " clicks=" << m.clicks
+        << " is_click=" << m.is_click
+        << " xy=(" << m.x << ", " << m.y << ")";
 }
 
 
 static void
-set_msg_context(BlockViewWindow *view, bool track_drag, UiMsg &m)
+set_context(UiMsg::Context &m, BlockViewWindow *view)
 {
-    if (view) {
-        m.view = view;
-    } else {
-        for (Fl_Window *win = Fl::first_window(); win;
-                win = Fl::next_window(win))
-        {
-            // Events are reported relative to the window.
-            IRect r = rect(win);
-            r.x = r.y = 0;
-            if (Fl::event_inside(r.x, r.y, r.w, r.h)) {
-                m.view = dynamic_cast<BlockViewWindow *>(win);
-                break;
-            }
-        }
-        if (!m.view)
-            return;
+    m.view = view;
+    Fl_Widget *focus = Fl::focus();
+    if (focus) {
+        while (focus && focus->window())
+            focus = focus->window();
+        m.focus = dynamic_cast<BlockViewWindow *>(focus);
+        ASSERT(m.focus); // all windows should be BlockViewWindows
     }
+}
 
+
+static void
+set_context(UiMsg::Context &m, BlockViewWindow *view, bool track_drag)
+{
+    set_context(m, view);
+    if (!m.focus)
+        return;
     TrackView *t = 0;
     if (track_drag) {
         m.has_tracknum = true;
         int xpos = 0;
         m.tracknum = 0;
-        for (int i = 0; i < m.view->block.tracks(); i++) {
-            t = m.view->block.track_at(i);
+        for (int i = 0; i < m.focus->block.tracks(); i++) {
+            t = m.focus->block.track_at(i);
             if (t->x() <= Fl::event_x() && Fl::event_x() > xpos) {
                 m.tracknum = i;
                 xpos = t->x();
             }
         }
     } else {
-        for (int i = 0; i < m.view->block.tracks(); i++) {
-            t = m.view->block.track_at(i);
+        for (int i = 0; i < m.focus->block.tracks(); i++) {
+            t = m.focus->block.track_at(i);
             if (Fl::event_inside(t) || Fl::event_inside(&t->title_widget())) {
                 m.has_tracknum = true;
                 m.tracknum = i;
@@ -115,14 +133,14 @@ set_msg_context(BlockViewWindow *view, bool track_drag, UiMsg &m)
     if (t && (track_drag || Fl::event_inside(t))) {
         int y = Fl::event_y() - t->y();
         m.has_pos = true;
-        const ZoomInfo &zoom = m.view->block.get_zoom();
+        const ZoomInfo &zoom = m.focus->block.get_zoom();
         m.pos = zoom.to_time(y) + zoom.offset;
     }
 }
 
 
 static void
-set_msg_from_event(UiMsg &m, int evt)
+set_event(UiMsg::Event &m, int evt)
 {
     m.event = evt;
     m.button = Fl::event_button();
@@ -143,43 +161,41 @@ set_msg_from_event(UiMsg &m, int evt)
 
 
 static void
-set_update_args(UiMsg &m, BlockView *view, UiMsg::MsgType type)
+set_update(UiMsg &m, UiMsg::MsgType type)
 {
+    BlockView *block = &m.context.focus->block;
     switch (type) {
     case UiMsg::msg_input:
         {
             const char *s;
-            if (m.has_tracknum)
-                s = view->track_at(m.tracknum)->get_title();
+            if (m.context.has_tracknum)
+                s = block->track_at(m.context.tracknum)->get_title();
             else
-                s = view->get_title();
-            if (s) {
-                char *text = new char[strlen(s) + 1];
-                strcpy(text, s);
-                m.update_text = text;
-            }
+                s = block->get_title();
+            if (s)
+                m.input.text = strdup(s);
         }
         break;
     case UiMsg::msg_track_scroll:
-        m.width_scroll_visible_track = view->get_track_scroll();
+        m.track_scroll.scroll = block->get_track_scroll();
         break;
     case UiMsg::msg_zoom:
-        m.update_zoom = new ZoomInfo(view->get_zoom());
+        m.zoom.zoom = new ZoomInfo(block->get_zoom());
         break;
-    case UiMsg::msg_view_resize:
-        m.update_rect = new IRect(rect(view->window()));
+    case UiMsg::msg_resize:
         {
-            IPoint track_size = view->get_track_size();
-            m.width_scroll_visible_track = track_size.x;
-            m.visible_time = track_size.y;
+            m.resize.rect = new IRect(rect(block->window()));
+            IPoint track_size = block->get_track_size();
+            m.resize.visible_track = track_size.x;
+            m.resize.visible_time = track_size.y;
         }
         break;
     case UiMsg::msg_track_width:
-        ASSERT(m.has_tracknum);
-        m.width_scroll_visible_track = view->get_track_width(m.tracknum);
+        ASSERT(m.context.has_tracknum);
+        m.track_width.width = block->get_track_width(m.context.tracknum);
         break;
     case UiMsg::msg_close:
-        ASSERT(m.view); // should have been set by caller
+        ASSERT(m.context.view); // should have been set by caller
         break;
     case UiMsg::msg_event:
         ASSERT(false); // it's not an update so this shouldn't have been called
@@ -198,8 +214,34 @@ MsgCollector::event(int evt, BlockViewWindow *view, bool track_drag)
 {
     UiMsg m;
     m.type = UiMsg::msg_event;
-    set_msg_from_event(m, evt);
-    set_msg_context(view, track_drag, m);
+    set_context(m.context, view, track_drag);
+    // Special hack for FOCUS: in this case the passed view is the focus, not
+    // an associated view.  In fact, FL_FOCUS is the only thing that should
+    // call event() with a non-NULL view.
+    if (FL_FOCUS == evt) {
+        m.context.focus = view;
+        m.context.view = NULL;
+    }
+    set_event(m.event, evt);
+    this->push(m);
+}
+
+
+void
+MsgCollector::update(UiMsg::MsgType type)
+{
+    this->window_update(NULL, type);
+}
+
+void
+MsgCollector::update(UiMsg::MsgType type, int tracknum)
+{
+    UiMsg m;
+    m.type = type;
+    set_context(m.context, NULL);
+    m.context.has_tracknum = true;
+    m.context.tracknum = tracknum;
+    set_update(m, type);
     this->push(m);
 }
 
@@ -216,7 +258,14 @@ void
 MsgCollector::block_update(Fl_Widget *w, UiMsg::MsgType type, int tracknum)
 {
     BlockViewWindow *win = static_cast<BlockViewWindow *>(w->window());
-    this->window_update(win, type, tracknum);
+    UiMsg m;
+    m.type = type;
+    set_context(m.context, NULL);
+    m.context.view = win;
+    m.context.has_tracknum = true;
+    m.context.tracknum = tracknum;
+    set_update(m, type);
+    this->push(m);
 }
 
 
@@ -225,24 +274,11 @@ MsgCollector::window_update(BlockViewWindow *view, UiMsg::MsgType type)
 {
     UiMsg m;
     m.type = type;
-    m.view = view;
-    set_update_args(m, &view->block, type);
+    set_context(m.context, view);
+    set_update(m, type);
     this->push(m);
 }
 
-
-void
-MsgCollector::window_update(BlockViewWindow *view, UiMsg::MsgType type,
-        int tracknum)
-{
-    UiMsg m;
-    m.type = type;
-    m.view = view;
-    m.has_tracknum = true;
-    m.tracknum = tracknum;
-    set_update_args(m, &view->block, type);
-    this->push(m);
-}
 
 
 void
@@ -254,9 +290,9 @@ MsgCollector::screen_update()
         UiMsg m;
         Fl::screen_xywh(x, y, w, h, screen);
         m.type = UiMsg::msg_screen_size;
-        m.width_scroll_visible_track = screen;
-        m.visible_time = screens;
-        m.update_rect = new IRect(x, y, w, h);
+        m.screen.screen = screen;
+        m.screen.screens = screens;
+        m.screen.rect = new IRect(x, y, w, h);
         this->push(m);
     }
 }
@@ -286,15 +322,15 @@ MsgCollector::push(UiMsg &m)
         // Supppress keyups that have no keydown.  This can happen when focus
         // switches: the focused widget will eat the keydown to switch focus,
         // and whoever gets the focus (Block) will get a lone keyup.
-        if (m.event == FL_KEYDOWN) {
-            if (this->keys_down.find(m.key) != keys_down.end())
-                m.is_repeat = true;
+        if (m.event.event == FL_KEYDOWN) {
+            if (this->keys_down.find(m.event.key) != keys_down.end())
+                m.event.is_repeat = true;
             else
-                this->keys_down.insert(m.key);
-        } else if (m.event == FL_KEYUP) {
-            if (this->keys_down.find(m.key) == this->keys_down.end())
+                this->keys_down.insert(m.event.key);
+        } else if (m.event.event == FL_KEYUP) {
+            if (this->keys_down.find(m.event.key) == this->keys_down.end())
                 return;
-            this->keys_down.erase(m.key);
+            this->keys_down.erase(m.event.key);
         }
     }
     this->msgs.push_back(m);

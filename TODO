@@ -27,7 +27,10 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - change fltk UiMsg to a union
+  * change fltk UiMsg to a union
+  - rename global_msg_collector to MsgCollector::get(), same with *Table
+  - simplify global_msg_collector() calls
+  - move internal Cmds like cmd_record_ui_updates to Cmd.Internal
   * rename score_to_real -> real, real_to_score -> score
   - root block window name gets a *?  or if I won't have window names visible,
     put this in the view status line

@@ -17,7 +17,7 @@ get_ui_msgs :: IO [UiMsg.UiMsg]
 get_ui_msgs = with nullPtr $ \msgspp -> do
     count <- c_get_ui_msgs msgspp
     msgsp <- peek msgspp
-    msgs <- peekArray (fromIntegral count) msgsp
+    msgs <- peekArray (int count) msgsp
     c_clear_ui_msgs
     return msgs
 
@@ -37,92 +37,61 @@ instance Storable UiMsg.UiMsg where
     peek = peek_msg
     poke = error "UiMsg poke unimplemented"
 
+peek_msg :: Ptr UiMsg.UiMsg -> IO UiMsg.UiMsg
 peek_msg msgp = do
-    -- MsgEvent data
     type_num <- (#peek UiMsg, type) msgp :: IO CInt
-    event <- (#peek UiMsg, event) msgp :: IO CInt
-    button <- (#peek UiMsg, button) msgp :: IO CInt
-    clicks <- (#peek UiMsg, clicks) msgp :: IO CInt
-    is_click <- (#peek UiMsg, is_click) msgp :: IO CInt
-    x <- (#peek UiMsg, x) msgp :: IO CInt
-    y <- (#peek UiMsg, y) msgp :: IO CInt
-    key <- (#peek UiMsg, key) msgp :: IO CInt
-    modifier_state <- (#peek UiMsg, modifier_state) msgp :: IO CInt
-    is_repeat <- toBool <$> ((#peek UiMsg, is_repeat) msgp :: IO CChar)
-    let event_args = (i event, i button, i clicks, is_click /= 0, i x, i y,
-            key, modifier_state, is_repeat)
+    (context, maybe_view_id) <- peek_context msgp
+    UiMsg.UiMsg context <$> case type_num of
+        (#const UiMsg::msg_event) -> UiMsg.MsgEvent <$> peek_event msgp
+        (#const UiMsg::msg_screen_size) -> do
+            rect <- (#peek UiMsg, screen.rect) msgp :: IO Rect.Rect
+            screen <- int <$> (#peek UiMsg, screen.screen) msgp :: IO Int
+            screens <- int <$> (#peek UiMsg, screen.screens) msgp :: IO Int
+            return $ UiMsg.UpdateScreenSize screen screens rect
+        _ -> do
+            view_id <- maybe
+                (error $ "got a null view_id from a ui update: "
+                    ++ show type_num)
+                return maybe_view_id
+            UiMsg.UiUpdate view_id <$> peek_ui_update type_num msgp
 
-    -- UiUpdate args
-    ctext <- (#peek UiMsg, update_text) msgp :: IO CString
-    text <- maybePeek peekCString ctext
-    -- Big grody union, described in MsgCollector.h.
-    width <- (#peek UiMsg, width_scroll_visible_track) msgp :: IO CInt
-    visible_time <- (#peek UiMsg, visible_time) msgp :: IO CInt
-    czoom <- (#peek UiMsg, update_zoom) msgp :: IO (Ptr Types.Zoom)
-    zoom <- maybePeek peek czoom
-    crect <- (#peek UiMsg, update_rect) msgp :: IO (Ptr Rect.Rect)
-    rect <- maybePeek peek crect
-    let update_args = (text, i width, i visible_time, zoom, rect)
+peek_context :: Ptr UiMsg.UiMsg -> IO (UiMsg.Context, Maybe ViewId)
+peek_context msgp = do
+    focusp <- (#peek UiMsg, context.focus) msgp :: IO (Ptr BlockC.CView)
+    focus <- get_id focusp
+    viewp <- (#peek UiMsg, context.view) msgp :: IO (Ptr BlockC.CView)
+    view <- get_id viewp
 
-    -- UiMsg Context
-    viewp <- (#peek UiMsg, view) msgp :: IO (Ptr BlockC.CView)
-    has_tracknum <- toBool <$> ((#peek UiMsg, has_tracknum) msgp :: IO CChar)
-    tracknum <- (#peek UiMsg, tracknum) msgp :: IO CInt
-    has_pos <- toBool <$> ((#peek UiMsg, has_pos) msgp :: IO CChar)
-    pos <- (#peek UiMsg, pos) msgp
-
-    context <- make_context viewp has_tracknum tracknum has_pos pos
-    return $ make_msg type_num context event_args update_args
-    where i = fromIntegral
-
--- | Data for a 'UiMsg.UiUpdate'.
-type UpdateArgs = (Maybe String, Int, Int, Maybe Types.Zoom, Maybe Rect.Rect)
-
--- | Data for a 'UiMsg.Data'.
-type EventArgs = (Int, Int, Int, Bool, Int, Int, CInt, CInt, Bool)
-
-make_msg :: CInt -> UiMsg.Context -> EventArgs -> UpdateArgs -> UiMsg.UiMsg
-make_msg type_num context event_args update_args =
-    UiMsg.UiMsg context $ case type_num of
-        (#const UiMsg::msg_event) ->
-            UiMsg.MsgEvent (decode_msg_event event_args)
-        (#const UiMsg::msg_close) -> UiMsg.MsgClose
-        _ -> UiMsg.UiUpdate (decode_update type_num update_args)
-
-decode_update :: CInt -> UpdateArgs -> UiMsg.UiUpdate
-decode_update typ (text, width, visible_time, zoom, rect) = case typ of
-    (#const UiMsg::msg_input) -> UiMsg.UpdateInput (Maybe.fromMaybe "" text)
-    (#const UiMsg::msg_track_scroll) -> UiMsg.UpdateTrackScroll width
-    (#const UiMsg::msg_zoom) -> UiMsg.UpdateZoom
-        (require "UpdateZoom with null zoom" zoom)
-    (#const UiMsg::msg_view_resize) -> UiMsg.UpdateViewResize
-        (require "UpdateViewResize with null rect" rect)
-        (width, visible_time)
-    (#const UiMsg::msg_track_width) -> UiMsg.UpdateTrackWidth width
-    (#const UiMsg::msg_screen_size) -> UiMsg.UpdateScreenSize
-        width visible_time (require "ScreenSize without rect" rect)
-    -- msg_event and msg_close handled above
-    _ -> error $ "unknown UiMsg type: " ++ show typ
-
-require :: String -> Maybe a -> a
-require msg = Maybe.fromMaybe (BlockC.throw msg)
-
-make_context :: Ptr BlockC.CView -> Bool -> CInt -> Bool -> ScoreTime
-    -> IO UiMsg.Context
-make_context viewp has_tracknum tracknum has_pos pos
-    | viewp == nullPtr = return $ context Nothing
-    | otherwise = do
-        view_id <- BlockC.get_id viewp
-        return $ context (Just view_id)
+    has_tracknum <- toBool <$>
+        ((#peek UiMsg, context.has_tracknum) msgp :: IO CChar)
+    ctracknum <- (#peek UiMsg, context.tracknum) msgp :: IO CInt
+    let tracknum = to_maybe has_tracknum (int ctracknum)
+    has_pos <- toBool <$> ((#peek UiMsg, context.has_pos) msgp :: IO CChar)
+    cpos <- (#peek UiMsg, context.pos) msgp
+    let pos = to_maybe has_pos cpos
+    return (UiMsg.Context focus tracknum pos, view)
     where
-    context view = UiMsg.Context view
-        (to_maybe has_tracknum (fromIntegral tracknum)) (to_maybe has_pos pos)
     to_maybe b val = if b then Just val else Nothing
+    get_id p
+        | p == nullPtr = return Nothing
+        | otherwise = Just <$> BlockC.get_id p
 
-decode_msg_event :: EventArgs -> UiMsg.Data
-decode_msg_event (event, button, clicks, is_click, x, y, key_code, mod_state,
-        is_repeat) =
-    case event of
+peek_event :: Ptr UiMsg.UiMsg -> IO UiMsg.MsgEvent
+peek_event msgp = do
+    event <- int <$> (#peek UiMsg, event.event) msgp :: IO Int
+    button <- int <$> (#peek UiMsg, event.button) msgp :: IO Int
+    clicks <- int <$> (#peek UiMsg, event.clicks) msgp :: IO Int
+    is_click <- toBool <$> ((#peek UiMsg, event.is_click) msgp :: IO CInt)
+    x <- int <$> (#peek UiMsg, event.x) msgp :: IO Int
+    y <- int <$> (#peek UiMsg, event.y) msgp :: IO Int
+    key_code <- (#peek UiMsg, event.key) msgp :: IO CInt
+    modifier_state <- (#peek UiMsg, event.modifier_state) msgp :: IO CInt
+    is_repeat <- toBool <$> ((#peek UiMsg, event.is_repeat) msgp :: IO CChar)
+    let mouse state = UiMsg.Mouse state mods (x, y) clicks is_click
+        (mods, key) = Key.decode modifier_state key_code
+        kbd state = UiMsg.Kbd state mods key
+        aux = UiMsg.AuxMsg
+    return $ case event of
         (#const FL_PUSH) -> mouse (UiMsg.MouseDown button)
         (#const FL_DRAG) -> mouse (UiMsg.MouseDrag button)
         (#const FL_RELEASE) -> mouse (UiMsg.MouseUp button)
@@ -141,8 +110,29 @@ decode_msg_event (event, button, clicks, is_click, x, y, key_code, mod_state,
         (#const FL_HIDE) -> aux UiMsg.Hide
         (#const FL_SHOW) -> aux UiMsg.Show
         _ -> UiMsg.Unhandled event
-    where
-    mouse state = UiMsg.Mouse state mods (x, y) clicks is_click
-    (mods, key) = Key.decode mod_state key_code
-    kbd state = UiMsg.Kbd state mods key
-    aux = UiMsg.AuxMsg
+
+peek_ui_update :: CInt -> Ptr UiMsg.UiMsg -> IO UiMsg.UiUpdate
+peek_ui_update type_num msgp = case type_num of
+    (#const UiMsg::msg_input) -> do
+        ctext <- (#peek UiMsg, input.text) msgp :: IO CString
+        text <- maybePeek peekCString ctext
+        return $ UiMsg.UpdateInput (Maybe.fromMaybe "" text)
+    (#const UiMsg::msg_track_scroll) -> do
+        scroll <- int <$> (#peek UiMsg, track_scroll.scroll) msgp :: IO Int
+        return $ UiMsg.UpdateTrackScroll scroll
+    (#const UiMsg::msg_zoom) -> do
+        zoom <- (#peek UiMsg, zoom.zoom) msgp :: IO Types.Zoom
+        return $ UiMsg.UpdateZoom zoom
+    (#const UiMsg::msg_resize) -> do
+        rect <- (#peek UiMsg, resize.rect) msgp :: IO Rect.Rect
+        track <- int <$> (#peek UiMsg, resize.visible_track) msgp :: IO Int
+        time <- int <$> (#peek UiMsg, resize.visible_track) msgp :: IO Int
+        return $ UiMsg.UpdateViewResize rect (track, time)
+    (#const UiMsg::msg_track_width) -> do
+        width <- int <$> (#peek UiMsg, track_width.width) msgp :: IO Int
+        return $ UiMsg.UpdateTrackWidth width
+    (#const UiMsg::msg_close) -> return UiMsg.UpdateClose
+    _ -> error $ "unknown UiMsg type: " ++ show type_num
+
+int :: CInt -> Int
+int = fromIntegral

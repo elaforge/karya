@@ -78,7 +78,7 @@ with ^click or something
 // UiMsg/UiMsgC.hsc.
 struct UiMsg {
     // It's always initialized manually, but STL needs a default constructor.
-    UiMsg();
+    UiMsg() {}
 
     // This is like the destructor, but isn't since this structure owns
     // pointers and is stored in a vector.  MsgCollect::clear should call this.
@@ -93,13 +93,10 @@ struct UiMsg {
         // Block changed msgs all have 'view' set.  All these except
         // 'msg_close' are update notifications and may also have args in the
         // "update msg args" section.
-        msg_track_scroll, msg_zoom, msg_view_resize,
+        msg_track_scroll, msg_zoom, msg_resize,
         msg_track_width, msg_close,
         // One will be emitted for each screen on on startup and when screens
         // have been added or removed.
-        // Will set 'update_rect' to the screen size,
-        // 'width_scroll_visible_track' to screen number, and 'visible_time' to
-        // the total screens.
         msg_screen_size
     };
     static const char **msg_type_names() {
@@ -110,41 +107,90 @@ struct UiMsg {
         return names;
     }
 
-    // Type tag for this union.
+    // Type tag.
     MsgType type;
 
+    // Every msg has context.
+    struct Context {
+        Context() : focus(0), view(0), has_tracknum(false), tracknum(0),
+            has_pos(0), pos(0)
+        {}
+
+        // View with focus.
+        BlockViewWindow *focus;
+        // View to which this event applies, if any.
+        BlockViewWindow *view;
+        // Mouse was over this track.
+        // Actually a bool, but haskell FFI doesn't support bools.
+        char has_tracknum;
+        int tracknum;
+        // If it was over a ruler or event track, has_pos=true and it was at
+        // this pos.
+        char has_pos; // as has_tracknum
+        ScoreTime pos;
+    } context;
+
     // Fields from the various fltk event_*() functions, used for 'msg_event'.
-    int event;
-    int button, clicks, is_click, x, y;
-    int key;
-    int modifier_state;
-    char is_repeat;
+    struct Event {
+        // Event() : event(0), button(0), clicks(0), x(0), y(0), is_click(0),
+        //     key(0), modifier_state(0), is_repeat(0)
+        // {}
+        int event;
+        int button, clicks, x, y;
+        char is_click;
+        int key;
+        int modifier_state;
+        char is_repeat;
+    };
 
-    // Update msg args.  They're pointers to make haskell happy, but that means
-    // I need to delete them in the destructor.
-    char *update_text;
-    // Set by msg_track_width, msg_track_scroll, and msg_view_resize.  This
-    // should be a union but it's easier on the haskell side if it's not.
-    int width_scroll_visible_track;
-    // Also set by msg_view_resize.
-    int visible_time;
-    ZoomInfo *update_zoom;
-    // Set by msg_view_resize.
-    IRect *update_rect;
+    struct Resize {
+        // Resize() : rect(0), visible_track(0), visible_time(0) {}
+        IRect *rect;
+        int visible_track, visible_time;
+    };
 
-    // Every msg may have context.
-    // Block that event occurred in.
-    BlockViewWindow *view;
-    // Mouse was over this track.
-    char has_tracknum; // actually a bool, but haskell FFI doesn't support bools
-    int tracknum;
-    // If it was over a ruler or event track, has_pos=true and it was at this
-    // pos.
-    char has_pos; // as has_tracknum
-    ScoreTime pos;
+    struct Zoom {
+        // Zoom() : zoom(0) {}
+        ZoomInfo *zoom;
+    };
+
+    struct TrackWidth {
+        // TrackWidth() : width(0) {}
+        int width;
+    };
+
+    struct TrackScroll {
+        // TrackScroll() : scroll(0) {}
+        int scroll;
+    };
+
+    // If context.has_track, this is a track title update, otherwise it's
+    // the block title.
+    struct Input {
+        // Input() : text(0) {}
+        char *text;
+    };
+
+    struct ScreenSize {
+        // ScreenSize() : rect(0), screen(0), screens(0) {}
+        IRect *rect;
+        int screen, screens;
+    };
+
+    union {
+        Event event;
+        Input input;
+        TrackScroll track_scroll;
+        Zoom zoom;
+        Resize resize;
+        TrackWidth track_width;
+        ScreenSize screen;
+    };
 };
 
 std::ostream &operator<<(std::ostream &os, const UiMsg &m);
+std::ostream &operator<<(std::ostream &os, const UiMsg::Context &m);
+std::ostream &operator<<(std::ostream &os, const UiMsg::Event &m);
 
 
 class MsgCollector {
@@ -156,6 +202,8 @@ public:
     // set the tracknum and pos.
     void event(int evt, BlockViewWindow *view = 0, bool track_drag = false);
 
+    void update(UiMsg::MsgType type);
+    void update(UiMsg::MsgType type, int tracknum);
     // There are 'block' and 'window' variants, with and without a tracknum.
     // The 'window' variant is necessary because the Fl_Widget::window() of a
     // window is not itself, but the parent window or NULL, and sometimes it's
@@ -166,8 +214,8 @@ public:
     void block_update(Fl_Widget *w, UiMsg::MsgType type, int tracknum);
 
     void window_update(BlockViewWindow *view, UiMsg::MsgType type);
-    void window_update(BlockViewWindow *view, UiMsg::MsgType type,
-            int tracknum);
+    // void window_update(BlockViewWindow *view, UiMsg::MsgType type,
+    //         int tracknum);
 
     // Send one msg_screen_size msg for each screen.
     //
