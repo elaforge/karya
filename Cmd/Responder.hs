@@ -46,6 +46,7 @@ import qualified Ui.Update as Update
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.GlobalKeymap as GlobalKeymap
+import qualified Cmd.Internal as Internal
 import qualified Cmd.Lang as Lang
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Play as Play
@@ -297,8 +298,8 @@ record_keys rstate msg = do
             _ -> return ()
     return cstate
     where
-    (cstate, _, logs, result) = Cmd.run_id (state_ui rstate) (state_cmd rstate)
-        (Cmd.cmd_record_keys msg)
+    (cstate, _, logs, result) = Cmd.run_id
+        (state_ui rstate) (state_cmd rstate) (Internal.cmd_record_keys msg)
 
 run_core_cmds :: State -> Msg.Msg
     -> (RType -> ResponderM (State.State, Cmd.State)) -> ResponderM RType
@@ -308,7 +309,7 @@ run_core_cmds rstate msg exit = do
 
     -- Run ui records first so they can't get aborted by other cmds.
     (ui_from, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
-        ui_from cmd_state [Cmd.cmd_record_ui_updates]
+        ui_from cmd_state [Internal.cmd_record_ui_updates]
     let ui_to = ui_from
 
     -- Focus commands and the rest of the pure commands come first so text
@@ -330,11 +331,7 @@ run_core_cmds rstate msg exit = do
 
 -- | Everyone always gets these commands.
 hardcoded_cmds :: [Cmd.Cmd]
-hardcoded_cmds =
-    -- Special Cmds that record info about the incoming msgs.
-    [ Cmd.cmd_update_ui_state, Cmd.cmd_record_active
-    -- , Cmd.cmd_log
-    ]
+hardcoded_cmds = [Internal.cmd_update_ui_state, Internal.cmd_record_focus]
 
 -- | And these special commands that run in IO.
 hardcoded_io_cmds transport_info lang_session lang_dirs =

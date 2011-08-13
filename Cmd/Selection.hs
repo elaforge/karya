@@ -32,6 +32,7 @@ import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
+import qualified Cmd.Internal as Internal
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
@@ -186,7 +187,7 @@ mouse_drag btn msg = do
     -- The button down should be the same one as expected.
     when (msg_btn /= btn) Cmd.abort
     let (down_tracknum, down_pos) =
-            case (down, Map.lookup (Cmd.strip_modifier mod) keys_down) of
+            case (down, Map.lookup (Internal.strip_modifier mod) keys_down) of
                 (False, Just (Cmd.MouseMod _ (Just down_at))) -> down_at
                 -- If it's not already held down, it starts here.
                 _ -> (mouse_tracknum, mouse_pos)
@@ -227,7 +228,7 @@ auto_scroll view_id sel = do
     State.set_zoom view_id $
         (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
     State.set_track_scroll view_id track_offset
-    Cmd.sync_zoom_status view_id
+    Internal.sync_zoom_status view_id
 
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at
 -- a rate determined by how far past the bottom the pointer is.

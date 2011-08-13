@@ -127,7 +127,7 @@ quit_bindings = [(kspec, cspec) | kspec <- kspecs]
     kspecs = [Keymap.key_spec mods key
         | mods <- Keymap.expand_mods key [PrimaryCommand]]
     key = Keymap.Key False (Key.Char '\'')
-    cspec = Keymap.cspec "quit" $ const (Play.cmd_stop >> Cmd.cmd_quit)
+    cspec = Keymap.cspec "quit" $ const (Play.cmd_stop >> return Cmd.Quit)
 
 -- * pure cmds
 

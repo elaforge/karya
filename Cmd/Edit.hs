@@ -23,6 +23,7 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
+import qualified Cmd.Internal as Internal
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
@@ -544,7 +545,7 @@ initialize_state = do
     sync_step_status
     sync_global_status
     mapM_ Selection.sync_selection_status =<< State.get_all_view_ids
-    mapM_ Cmd.sync_zoom_status =<< State.get_all_view_ids
+    mapM_ Internal.sync_zoom_status =<< State.get_all_view_ids
     -- Emit track updates for all tracks, since I don't know where events have
     -- changed.
     State.update_all_tracks

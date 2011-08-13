@@ -1,7 +1,6 @@
 -- | Cmds related to view level state.
 module Cmd.ViewConfig where
 import qualified Util.Rect as Rect
-
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.State as State
@@ -9,6 +8,7 @@ import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Internal as Internal
 import qualified Cmd.Selection as Selection
 
 
@@ -39,7 +39,7 @@ zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 set_zoom :: (Cmd.M m) => ViewId -> Types.Zoom -> m ()
 set_zoom view_id zoom = do
     State.set_zoom view_id zoom
-    Cmd.sync_zoom_status view_id
+    Internal.sync_zoom_status view_id
 
 modify_factor :: (Cmd.M m) => ViewId -> (Double -> Double) -> m ()
 modify_factor view_id f = do

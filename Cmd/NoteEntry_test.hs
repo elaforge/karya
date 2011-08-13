@@ -8,6 +8,7 @@ import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Internal as Internal
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteEntry as NoteEntry
 
@@ -24,7 +25,6 @@ test_key_to_input = do
     equal (f 4 True (k 'a')) (Just Nothing)
     equal (f 4 True (k '[')) Nothing
     equal (f 4 True Key.Backspace) Nothing
-
 
 test_cmds_with_note = do
     let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
@@ -69,4 +69,5 @@ test_cmds_with_note = do
 
 with_key :: Msg.Msg -> Cmd.State
 with_key key = CmdTest.result_cmd_state $
-    CmdTest.run State.empty CmdTest.default_cmd_state (Cmd.cmd_record_keys key)
+    CmdTest.run State.empty CmdTest.default_cmd_state
+        (Internal.cmd_record_keys key)
