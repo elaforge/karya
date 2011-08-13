@@ -10,7 +10,7 @@ TrackView::handle(int evt)
     // Capture drags, so that even if they go out of the bounds of the track
     // tile or the window I still send drag events from this track.
     if (evt == FL_PUSH || evt == FL_DRAG || evt == FL_RELEASE) {
-        MsgCollector::get()->event(evt, NULL, evt == FL_DRAG);
+        MsgCollector::get()->event(evt, evt == FL_DRAG);
         return 1;
     }
     return Fl_Group::handle(evt);

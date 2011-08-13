@@ -73,90 +73,116 @@ operator<<(std::ostream &os, const UiMsg::Context &c)
 
 
 std::ostream &
-operator<<(std::ostream &os, const UiMsg::Event &m)
+operator<<(std::ostream &os, const UiMsg::Event &e)
 {
-    return os << show_event(m.event)
-        << " key=" << show_key(m.key)
-        << (m.is_repeat ? "[r]" : "")
-        << " mods=" << show_event_state(m.modifier_state)
-        << " button=" << m.button << " clicks=" << m.clicks
-        << " is_click=" << m.is_click
-        << " xy=(" << m.x << ", " << m.y << ")";
+    return os << show_event(e.event)
+        << " key=" << show_key(e.key)
+        << (e.is_repeat ? "[r]" : "")
+        << " mods=" << show_event_state(e.modifier_state)
+        << " button=" << e.button << " clicks=" << e.clicks
+        << " is_click=" << e.is_click
+        << " xy=(" << e.x << ", " << e.y << ")";
 }
 
+// Context ///////////////////
 
 static void
-set_context(UiMsg::Context &m, BlockViewWindow *view)
+set_context(UiMsg::Context &c, BlockViewWindow *view)
 {
-    m.view = view;
+    c.view = view;
     Fl_Widget *focus = Fl::focus();
     if (focus) {
         while (focus && focus->window())
             focus = focus->window();
-        m.focus = dynamic_cast<BlockViewWindow *>(focus);
-        ASSERT(m.focus); // all windows should be BlockViewWindows
+        c.focus = dynamic_cast<BlockViewWindow *>(focus);
+        ASSERT(c.focus); // all windows should be BlockViewWindows
     }
 }
 
 
 static void
-set_context(UiMsg::Context &m, BlockViewWindow *view, bool track_drag)
+set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
 {
-    set_context(m, view);
-    if (!m.focus)
+    set_context(c, view);
+    if (!c.focus)
         return;
     TrackView *t = 0;
     if (track_drag) {
-        m.has_tracknum = true;
+        c.has_tracknum = true;
         int xpos = 0;
-        m.tracknum = 0;
-        for (int i = 0; i < m.focus->block.tracks(); i++) {
-            t = m.focus->block.track_at(i);
+        c.tracknum = 0;
+        for (int i = 0; i < c.focus->block.tracks(); i++) {
+            t = c.focus->block.track_at(i);
             if (t->x() <= Fl::event_x() && Fl::event_x() > xpos) {
-                m.tracknum = i;
+                c.tracknum = i;
                 xpos = t->x();
             }
         }
     } else {
-        for (int i = 0; i < m.focus->block.tracks(); i++) {
-            t = m.focus->block.track_at(i);
+        for (int i = 0; i < c.focus->block.tracks(); i++) {
+            t = c.focus->block.track_at(i);
             if (Fl::event_inside(t) || Fl::event_inside(&t->title_widget())) {
-                m.has_tracknum = true;
-                m.tracknum = i;
+                c.has_tracknum = true;
+                c.tracknum = i;
                 break;
             }
         }
-        if (!m.has_tracknum)
+        if (!c.has_tracknum)
             return;
     }
 
     if (t && (track_drag || Fl::event_inside(t))) {
         int y = Fl::event_y() - t->y();
-        m.has_pos = true;
-        const ZoomInfo &zoom = m.focus->block.get_zoom();
-        m.pos = zoom.to_time(y) + zoom.offset;
+        c.has_pos = true;
+        const ZoomInfo &zoom = c.focus->block.get_zoom();
+        c.pos = zoom.to_time(y) + zoom.offset;
     }
 }
 
 
-static void
-set_event(UiMsg::Event &m, int evt)
+// Context constructors.  These are not real constructors because I don't
+// want Context() to do complicated stuff like figure out focus due to value
+// semantics.
+
+static UiMsg::Context
+context(BlockViewWindow *view)
 {
-    m.event = evt;
-    m.button = Fl::event_button();
-    m.clicks = Fl::event_clicks();
-    m.is_click = Fl::event_is_click();
-    m.x = Fl::event_x();
-    m.y = Fl::event_y();
+    UiMsg::Context c;
+    set_context(c, view);
+    return c;
+}
+
+
+static UiMsg::Context
+context(BlockViewWindow *view, int tracknum)
+{
+    UiMsg::Context c;
+    set_context(c, view);
+    c.has_tracknum = true;
+    c.tracknum = tracknum;
+    return c;
+}
+
+// Other update data /////////
+
+static void
+set_event(UiMsg::Event &e, int evt)
+{
+    e.event = evt;
+    e.button = Fl::event_button();
+    e.clicks = Fl::event_clicks();
+    e.is_click = Fl::event_is_click();
+    e.x = Fl::event_x();
+    e.y = Fl::event_y();
     // I originally called tolower() since haskell already knows shift is down,
     // but it's less error-prone to send characters in their correct form.
-    m.key = Fl::event_text()[0];
-    if (!isprint(m.key)) {
+    e.key = Fl::event_text()[0];
+    if (!isprint(e.key)) {
         // shift or backspace or some such
-        m.key = Fl::event_key();
+        e.key = Fl::event_key();
     }
-    m.modifier_state = Fl::event_state();
-    m.is_repeat = false; // this may be set to true by push()
+    e.modifier_state = Fl::event_state();
+    e.is_repeat = false; // this may be set to true by push()
 }
 
 
@@ -210,75 +236,61 @@ set_update(UiMsg &m, UiMsg::MsgType type)
 // MsgCollector //////////////
 
 void
-MsgCollector::event(int evt, BlockViewWindow *view, bool track_drag)
+MsgCollector::event(int evt, bool track_drag)
 {
     UiMsg m;
     m.type = UiMsg::msg_event;
-    set_context(m.context, view, track_drag);
-    // Special hack for FOCUS: in this case the passed view is the focus, not
-    // an associated view.  In fact, FL_FOCUS is the only thing that should
-    // call event() with a non-NULL view.
-    if (FL_FOCUS == evt) {
-        m.context.focus = view;
-        m.context.view = NULL;
-    }
+    set_event_context(m.context, NULL, track_drag);
     set_event(m.event, evt);
     this->push(m);
 }
 
+void
+MsgCollector::focus(BlockViewWindow *focus)
+{
+    UiMsg m;
+    m.type = UiMsg::msg_event;
+    m.context.focus = focus;
+    set_event(m.event, FL_FOCUS);
+    this->push(m);
+}
 
 void
 MsgCollector::update(UiMsg::MsgType type)
 {
-    this->window_update(NULL, type);
+    push_update(type, context(NULL));
 }
 
-void
-MsgCollector::update(UiMsg::MsgType type, int tracknum)
+
+static BlockViewWindow *
+window(Fl_Widget *w)
 {
-    UiMsg m;
-    m.type = type;
-    set_context(m.context, NULL);
-    m.context.has_tracknum = true;
-    m.context.tracknum = tracknum;
-    set_update(m, type);
-    this->push(m);
+    if (w)
+        return static_cast<BlockViewWindow *>(w->window());
+    else
+        return NULL;
 }
 
 
 void
-MsgCollector::block_update(Fl_Widget *w, UiMsg::MsgType type)
+MsgCollector::block(UiMsg::MsgType type, Fl_Widget *w)
 {
-    BlockViewWindow *win = static_cast<BlockViewWindow *>(w->window());
-    this->window_update(win, type);
+    push_update(type, context(window(w)));
 }
 
 
 void
-MsgCollector::block_update(Fl_Widget *w, UiMsg::MsgType type, int tracknum)
+MsgCollector::track(UiMsg::MsgType type, Fl_Widget *w, int tracknum)
 {
-    BlockViewWindow *win = static_cast<BlockViewWindow *>(w->window());
-    UiMsg m;
-    m.type = type;
-    set_context(m.context, NULL);
-    m.context.view = win;
-    m.context.has_tracknum = true;
-    m.context.tracknum = tracknum;
-    set_update(m, type);
-    this->push(m);
+    push_update(type, context(window(w), tracknum));
 }
 
 
 void
-MsgCollector::window_update(BlockViewWindow *view, UiMsg::MsgType type)
+MsgCollector::view(UiMsg::MsgType type, BlockViewWindow *view)
 {
-    UiMsg m;
-    m.type = type;
-    set_context(m.context, view);
-    set_update(m, type);
-    this->push(m);
+    push_update(type, context(view));
 }
-
 
 
 void
@@ -295,6 +307,17 @@ MsgCollector::screen_update()
         m.screen.rect = new IRect(x, y, w, h);
         this->push(m);
     }
+}
+
+
+void
+MsgCollector::push_update(UiMsg::MsgType type, const UiMsg::Context &c)
+{
+    UiMsg m;
+    m.type = type;
+    m.context = c;
+    set_update(m, type);
+    this->push(m);
 }
 
 

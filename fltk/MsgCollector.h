@@ -156,32 +156,28 @@ std::ostream &operator<<(std::ostream &os, const UiMsg::Event &m);
 class MsgCollector {
 public:
     MsgCollector() : log_collected(false) {}
-    // Normally 'view' will be intuited from the mouse position, but
-    // you can override that by passing it explicitly.
     // 'track_drag' will assume you are dragging from a track and always
     // set the tracknum and pos.
-    void event(int evt, BlockViewWindow *view = 0, bool track_drag = false);
+    void event(int evt, bool track_drag = false);
+    // FL_FOCUS events are special because they are send *before* the
+    // focus is changed.
+    void focus(BlockViewWindow *focus);
 
+    // Updates.  For updates that carry Context, there are methods to provide
+    // the relevant data.
     void update(UiMsg::MsgType type);
-    void update(UiMsg::MsgType type, int tracknum);
-    // There are 'block' and 'window' variants, with and without a tracknum.
-    // The 'window' variant is necessary because the Fl_Widget::window() of a
-    // window is not itself, but the parent window or NULL, and sometimes it's
-    // more convenient to pass the BlockViewWindow directly.
-
-    // 'view' and 'w' are const, but adding it causes const trickle.
-    void block_update(Fl_Widget *w, UiMsg::MsgType type);
-    void block_update(Fl_Widget *w, UiMsg::MsgType type, int tracknum);
-    void window_update(BlockViewWindow *view, UiMsg::MsgType type);
+    void block(UiMsg::MsgType type, Fl_Widget *w);
+    void track(UiMsg::MsgType type, Fl_Widget *w, int tracknum);
+    void view(UiMsg::MsgType type, BlockViewWindow *view);
 
     // Send one msg_screen_size msg for each screen.
     //
     // It's called on startup from Ui/c_interface.cc:initialize
     //
-    // TODO this should be attached to a callback that gets called whenever
-    // a screen is added or removed, but fltk doesn't support this.  I could
-    // cache the screen count and constantly poll for changes, but fltk doesn't
-    // even notice when screens change.
+    // TODO this should be attached to a callback that gets called whenever a
+    // screen is added or removed, but fltk doesn't support this.  I could
+    // cache the screen count and constantly poll for changes, but fltk
+    // doesn't even notice when screens change.
     // filed STR 2600
     void screen_update();
 
@@ -199,6 +195,7 @@ public:
     static MsgCollector *get();
 
 private:
+    void push_update(UiMsg::MsgType type, const UiMsg::Context &c);
     void push(UiMsg &m);
     std::vector<UiMsg> msgs;
 
