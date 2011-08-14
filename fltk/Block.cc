@@ -86,6 +86,12 @@ BlockView::BlockView(int X, int Y, int W, int H,
 }
 
 
+BlockView::~BlockView()
+{
+    delete no_ruler;
+}
+
+
 int
 BlockView::handle(int evt)
 {

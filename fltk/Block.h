@@ -82,6 +82,7 @@ public:
     BlockView(int X, int Y, int W, int H,
             const BlockModelConfig &model_config,
             const BlockViewConfig &view_config);
+    ~BlockView();
 
     int handle(int evt);
     void resize(int X, int Y, int W, int H);
