@@ -27,6 +27,9 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - fix arg order for Util.Seq list indexing functions
+  - if I put hsc2hs output in build/hsc then I could get rid of hacks in
+    boring, all_hs.py, etc.
   * change fltk UiMsg to a union
   * rename global_msg_collector to MsgCollector::get(), same with *Table
   * simplify global_msg_collector() calls
@@ -34,7 +37,7 @@ UNSORTED
   * rename score_to_real -> real, real_to_score -> score
   - root block window name gets a *?  or if I won't have window names visible,
     put this in the view status line
-  - send focused view over explicitly on every msg
+  * send focused view over explicitly on every msg
   - Editing a control over the entire score has a big lag between each
     keystroke.  Shouldn't it be waiting for a second to begin derivation?
   - randomize any control by having the 'set' call look for the -rnd control
@@ -52,7 +55,7 @@ UNSORTED
     zero-dur?
   * more easily create 0 dur note transformers, maybe space to create it then
     open raw edit?  Or a way to set a 0 step?  Space in raw edit.
-  - focus bug switching focus to app
+  * focus bug switching focus to app
   - It would be more efficient to move events around if their controls were
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved

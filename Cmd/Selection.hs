@@ -186,11 +186,12 @@ mouse_drag btn msg = do
     keys_down <- Cmd.keys_down
     -- The button down should be the same one as expected.
     when (msg_btn /= btn) Cmd.abort
-    let (down_tracknum, down_pos) =
-            case (down, Map.lookup (Internal.strip_modifier mod) keys_down) of
-                (False, Just (Cmd.MouseMod _ (Just down_at))) -> down_at
-                -- If it's not already held down, it starts here.
-                _ -> (mouse_tracknum, mouse_pos)
+    let mouse_down = Map.lookup (Internal.strip_modifier mod) keys_down
+    let (down_tracknum, down_pos) = case (down, mouse_down) of
+            (False, Just (Cmd.MouseMod _ (Just (tnum, UiMsg.Track pos)))) ->
+                (tnum, pos)
+            -- If it's not already held down, it starts here.
+            _ -> (mouse_tracknum, mouse_pos)
     return (down_tracknum, down_pos, mouse_tracknum, mouse_pos)
 
 -- * implementation
@@ -288,8 +289,9 @@ mouse_mod msg = do
         UiMsg.MouseDrag btn -> Just (False, btn)
         UiMsg.MouseUp btn -> Just (False, btn)
         _ -> Nothing
-    track_pos <- Msg.context_track_pos msg
-    return (down, Cmd.MouseMod btn (Just track_pos), track_pos)
+    (tracknum, pos) <- Msg.context_track_pos msg
+    return (down, Cmd.MouseMod btn (Just (tracknum, UiMsg.Track pos)),
+        (tracknum, pos))
 
 -- * util
 

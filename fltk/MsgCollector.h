@@ -76,7 +76,7 @@ struct UiMsg {
 
     // Every msg has context.
     struct Context {
-        Context() : focus(0), view(0), has_tracknum(false), tracknum(0),
+        Context() : focus(0), view(0), has_tracknum(0), tracknum(0),
             has_pos(0), pos(0)
         {}
 

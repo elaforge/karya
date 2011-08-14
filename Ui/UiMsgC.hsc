@@ -64,17 +64,22 @@ peek_context msgp = do
 
     has_tracknum <- toBool <$>
         ((#peek UiMsg, context.has_tracknum) msgp :: IO CChar)
-    ctracknum <- (#peek UiMsg, context.tracknum) msgp :: IO CInt
-    let tracknum = to_maybe has_tracknum (int ctracknum)
+    tracknum <- int <$> (#peek UiMsg, context.tracknum) msgp :: IO Int
     has_pos <- toBool <$> ((#peek UiMsg, context.has_pos) msgp :: IO CChar)
     cpos <- (#peek UiMsg, context.pos) msgp
-    let pos = to_maybe has_pos cpos
-    return (UiMsg.Context focus tracknum pos, view)
+    let track = decode_track has_tracknum tracknum has_pos cpos
+    return (UiMsg.Context focus track, view)
     where
-    to_maybe b val = if b then Just val else Nothing
     get_id p
         | p == nullPtr = return Nothing
         | otherwise = Just <$> BlockC.get_id p
+
+decode_track :: Bool -> Int -> Bool -> ScoreTime
+    -> Maybe (TrackNum, UiMsg.Track)
+decode_track has_tracknum tracknum  has_pos pos
+    | has_tracknum && has_pos = Just (tracknum, UiMsg.Track pos)
+    | has_tracknum = Just (tracknum, UiMsg.SkeletonDisplay)
+    | otherwise = Nothing
 
 peek_event :: Ptr UiMsg.UiMsg -> IO UiMsg.MsgEvent
 peek_event msgp = do

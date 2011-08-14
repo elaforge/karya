@@ -91,9 +91,9 @@ msg_to_mod msg = case msg of
             UiMsg.KeyUp -> Just (False, Nothing)
             _ -> Nothing
         UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseDown btn } ->
-            Just (True, Just $ Cmd.MouseMod btn (mouse_context context))
+            Just (True, Just $ Cmd.MouseMod btn (UiMsg.ctx_track context))
         UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseUp btn } ->
-            Just (False, Just $ Cmd.MouseMod btn (mouse_context context))
+            Just (False, Just $ Cmd.MouseMod btn (UiMsg.ctx_track context))
         _ -> Nothing
     Msg.Midi (Midi.ReadMessage { Midi.rmsg_msg = msg }) -> case msg of
         Midi.ChannelMessage chan (Midi.NoteOn key _vel) ->
@@ -102,10 +102,6 @@ msg_to_mod msg = case msg of
             Just (False, Just $ Cmd.MidiMod chan key)
         _ -> Nothing
     _ -> Nothing
-    where
-    mouse_context (UiMsg.Context
-        { UiMsg.ctx_track = Just n, UiMsg.ctx_pos = Just pos }) = Just (n, pos)
-    mouse_context _ = Nothing
 
 -- * focus
 
@@ -146,7 +142,7 @@ cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg _
         . Seq.update_at Rect.empty screen (const rect)
 cmd_record_ui_updates msg = do
     (ctx, view_id, update) <- Cmd.require (update_of msg)
-    ui_update (UiMsg.ctx_track ctx) view_id update
+    ui_update (fst <$> UiMsg.ctx_track ctx) view_id update
     -- return Continue to give 'cmd_update_ui_state' a crack at it
     return Cmd.Continue
 
@@ -172,7 +168,7 @@ ui_update maybe_tracknum view_id update = case update of
 cmd_update_ui_state :: Cmd.Cmd
 cmd_update_ui_state msg = do
     (ctx, view_id, update) <- Cmd.require (update_of msg)
-    ui_update_state (UiMsg.ctx_track ctx) view_id update
+    ui_update_state (fst <$> UiMsg.ctx_track ctx) view_id update
     return Cmd.Done
 
 ui_update_state :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> Cmd.CmdId ()

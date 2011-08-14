@@ -100,6 +100,8 @@ set_context(UiMsg::Context &c, BlockViewWindow *view)
 }
 
 
+// track_drag means this is part of a drag that started on a track, so it
+// should continue to provide tracknum context no matter where the cursor is.
 static void
 set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
 {
@@ -107,21 +109,28 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
     if (!c.focus)
         return;
     TrackView *t = 0;
+    int tracks = c.focus->block.tracks();
     if (track_drag) {
         c.has_tracknum = true;
-        int xpos = 0;
-        c.tracknum = 0;
-        for (int i = 0; i < c.focus->block.tracks(); i++) {
+        // If it's not to the left of any track it must be the rightmost one.
+        c.tracknum = tracks - 1;
+        for (int i = 0; i < tracks; i++) {
             t = c.focus->block.track_at(i);
-            if (t->x() <= Fl::event_x() && Fl::event_x() > xpos) {
+            if (Fl::event_x() <= t->x() + t->w()) {
                 c.tracknum = i;
-                xpos = t->x();
+                break;
             }
         }
     } else {
-        for (int i = 0; i < c.focus->block.tracks(); i++) {
+        for (int i = 0; i < tracks; i++) {
             t = c.focus->block.track_at(i);
-            if (Fl::event_inside(t) || Fl::event_inside(&t->title_widget())) {
+            // Detect if an event is within a track, where a track extends up
+            // to the block title, including the skeleton display.  This means
+            // clicks on the track_box are considered on track 0, but this
+            // seems potentially useful.
+            if (c.focus->block.title_bottom() <= Fl::event_y()
+                    && Fl::event_y() < c.focus->block.status_top()
+                    && Fl::event_x() <= t->x() + t->w()) {
                 c.has_tracknum = true;
                 c.tracknum = i;
                 break;
@@ -141,8 +150,7 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
 
 
 // Context constructors.  These are not real constructors because I don't
-// want Context() to do complicated stuff like figure out focus due to value
-// semantics.
+// want Context() to do complicated stuff like figure out focus.
 
 static UiMsg::Context
 context(BlockViewWindow *view)

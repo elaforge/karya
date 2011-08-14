@@ -151,6 +151,9 @@ public:
     void set_track_width(int tracknum, int width);
 
     const char *dump() const;
+    // Methods just so the MsgCollector can know if the mouse is in a track.
+    int title_bottom() const { return title.y() + title.h(); }
+    int status_top() const { return status_line.y(); }
 
 private:
     BlockModelConfig model_config;

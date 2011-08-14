@@ -252,7 +252,7 @@ default_synth = Instrument.set_device "test" $ Instrument.synth "synth" []
 -- * msg
 
 empty_context :: UiMsg.Context
-empty_context = UiMsg.Context Nothing Nothing Nothing
+empty_context = UiMsg.Context Nothing Nothing
 
 make_key_mods :: [Key.Modifier] -> UiMsg.KbdState -> Key.Key -> Msg.Msg
 make_key_mods mods state k = Msg.Ui

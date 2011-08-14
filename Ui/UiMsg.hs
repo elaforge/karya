@@ -21,9 +21,20 @@ data UiMsg = UiMsg Context Msg
 data Context = Context
     { ctx_focus :: Maybe ViewId
     -- | Index into block tracks.
-    , ctx_track :: Maybe TrackNum
-    , ctx_pos :: Maybe ScoreTime
+    , ctx_track :: Maybe (TrackNum, Track)
     } deriving (Show)
+
+-- | Whether the context is on the track itself or the skeleton display above
+-- the track.
+--
+-- There are a few cases where there is a track but no position and it
+-- *doesn't* mean SkeletonDisplay, namely UpdateTrackWidth and UpdateInput.
+-- However, those cases are handled in a specific place while Track goes on
+-- to become a mouse Modifier, so I don't mind if the former is a little
+-- awkward for the benefit of the latter.
+data Track = Track ScoreTime | SkeletonDisplay
+    deriving (Eq, Ord, Read, Show)
+    -- (Eq, Ord, Read) needed because this is in Cmd.Modifier
 
 -- | Corresponds to UiMsg::MsgType enum.
 --
@@ -100,10 +111,14 @@ instance Pretty.Pretty UiMsg where
             printf "Other Event: %s %s" (show msg) (Pretty.pretty ctx)
 
 instance Pretty.Pretty Context where
-    pretty (Context focus tracknum pos) = "{" ++ contents ++ "}"
+    pretty (Context focus track) = "{" ++ contents ++ "}"
         where
-        contents = Seq.join " " (filter (not.null)
-            [show_maybe "focus" focus, show_maybe "tracknum" tracknum,
-                pretty_maybe "pos" pos])
+        contents = Seq.join " " $ filter (not.null)
+            [show_maybe "focus" focus, maybe "" show_track track]
+        show_track (tnum, track) =
+            "track=" ++ show tnum ++ ":" ++ Pretty.pretty track
         show_maybe desc = maybe "" (\v -> desc ++ "=" ++ show v)
-        pretty_maybe desc = maybe "" (\v -> desc ++ "=" ++ Pretty.pretty v)
+
+instance Pretty.Pretty Track where
+    pretty (Track pos) = "(track " ++ Pretty.pretty pos ++ ")"
+    pretty SkeletonDisplay = "skel"

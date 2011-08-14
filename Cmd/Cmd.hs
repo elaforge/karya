@@ -525,16 +525,17 @@ data HistoryEntry = HistoryEntry {
     } deriving (Show, Generics.Typeable)
 
 data Modifier = KeyMod Key.Modifier
-    -- | Mouse button, and (tracknum, pos) in went down at, if any.
-    -- The block is not recorded.  You can't drag across blocks so you know any
-    -- click must apply to the focused block.
-    | MouseMod UiMsg.MouseButton (Maybe (TrackNum, ScoreTime))
+    -- | Mouse button, and track it went down at, if any.  The block is not
+    -- recorded.  You can't drag across blocks so you know any click must
+    -- apply to the focused block.
+    | MouseMod UiMsg.MouseButton (Maybe (TrackNum, UiMsg.Track))
     -- | Only chan and key are stored.  While it may be useful to map according
     -- to the device, this code doesn't know which devices are available.
     -- Block or track level handlers can query the device themselves.
     | MidiMod Midi.Channel Midi.Key
     deriving (Eq, Ord, Show, Read)
 
+mouse_mod_btn :: Modifier -> Maybe UiMsg.MouseButton
 mouse_mod_btn (MouseMod btn _) = Just btn
 mouse_mod_btn _ = Nothing
 

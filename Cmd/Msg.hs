@@ -96,10 +96,13 @@ context (Ui (UiMsg.UiMsg context _)) = Just context
 context _ = Nothing
 
 context_track_pos :: Msg -> Maybe (TrackNum, ScoreTime)
-context_track_pos msg = do
-    context <- context msg
-    case context of
-        UiMsg.Context
-                { UiMsg.ctx_track = Just track, UiMsg.ctx_pos = Just pos }
-            -> Just (track, pos)
-        _ -> Nothing
+context_track_pos msg = context msg >>= \c -> case c of
+    UiMsg.Context { UiMsg.ctx_track = Just (track, UiMsg.Track pos) } ->
+        Just (track, pos)
+    _ -> Nothing
+
+context_skeleton :: Msg -> Maybe TrackNum
+context_skeleton msg = context msg >>= \c -> case c of
+    UiMsg.Context { UiMsg.ctx_track = Just (track, UiMsg.SkeletonDisplay) } ->
+        Just track
+    _ -> Nothing
