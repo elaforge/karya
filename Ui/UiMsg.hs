@@ -89,12 +89,10 @@ data AuxMsg = Enter | Leave | Focus | Unfocus | Shortcut | Deactivate
     | Activate | Hide | Show
     deriving (Eq, Ord, Show)
 
-data MouseState = MouseMove | MouseDrag MouseButton
-    | MouseDown MouseButton | MouseUp MouseButton
+data MouseState = MouseMove | MouseDrag Types.MouseButton
+    | MouseDown Types.MouseButton | MouseUp Types.MouseButton
     deriving (Eq, Ord, Show)
 data KbdState = KeyDown | KeyRepeat | KeyUp deriving (Eq, Ord, Show)
-
-type MouseButton = Int
 
 instance Pretty.Pretty UiMsg where
     pretty ui_msg = case ui_msg of

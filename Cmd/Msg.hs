@@ -1,4 +1,5 @@
 module Cmd.Msg where
+import Control.Monad
 import qualified Data.Map as Map
 import qualified System.IO as IO
 
@@ -95,14 +96,10 @@ context :: Msg -> Maybe UiMsg.Context
 context (Ui (UiMsg.UiMsg context _)) = Just context
 context _ = Nothing
 
-context_track_pos :: Msg -> Maybe (TrackNum, ScoreTime)
-context_track_pos msg = context msg >>= \c -> case c of
-    UiMsg.Context { UiMsg.ctx_track = Just (track, UiMsg.Track pos) } ->
-        Just (track, pos)
-    _ -> Nothing
+context_track :: Msg -> Maybe (TrackNum, UiMsg.Track)
+context_track = UiMsg.ctx_track <=< context
 
-context_skeleton :: Msg -> Maybe TrackNum
-context_skeleton msg = context msg >>= \c -> case c of
-    UiMsg.Context { UiMsg.ctx_track = Just (track, UiMsg.SkeletonDisplay) } ->
-        Just track
+context_track_pos :: Msg -> Maybe (TrackNum, ScoreTime)
+context_track_pos msg = context_track msg >>= \(tracknum, t) -> case t of
+    UiMsg.Track pos -> Just (tracknum, pos)
     _ -> Nothing

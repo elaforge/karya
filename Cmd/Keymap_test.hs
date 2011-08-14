@@ -43,16 +43,16 @@ test_make_cmd = do
     equal (CmdTest.extract id (run_cmd cmd [] (CmdTest.key_up '1'))) aborted
 
     -- mouse chording and dragging
-    equal (run [] (CmdTest.mouse True 2)) no_run
-    equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse True 2))
+    equal (run [] (CmdTest.mouse True 2 0 0)) no_run
+    equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse True 2 0 0))
         (did_run "chord-12" "cmd1")
     equal (CmdTest.extract id (run_cmd cmd [Cmd.MouseMod 1 Nothing]
-            (CmdTest.mouse False 2)))
+            (CmdTest.mouse False 2 0 0)))
         aborted
     -- bind_drag binds both the click and the drag
-    equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.mouse True 3))
+    equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.mouse True 3 0 0))
         (did_run "drag-3" "cmd1")
-    equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.drag 3))
+    equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.drag 3 0 0))
         (did_run "drag-3" "cmd1")
 
 test_key_repeat = do
@@ -98,6 +98,7 @@ binds = concat
     , Keymap.bind_mod [] (Key.Char '#') "s-3" cmd1
     , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.Char '1') "c-1" cmd1
     , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.Char '!') "cs-1" cmd1
-    , Keymap.bind_click [Keymap.Mouse 1] 2 1 "chord-12" (const cmd1)
-    , Keymap.bind_drag [] 3 "drag-3" (const cmd1)
+    , Keymap.bind_click [Keymap.Mouse 1] 2 Keymap.OnTrack 1 "chord-12"
+        (const cmd1)
+    , Keymap.bind_drag [] 3 Keymap.OnTrack "drag-3" (const cmd1)
     ]

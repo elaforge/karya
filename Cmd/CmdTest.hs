@@ -271,12 +271,18 @@ key_down = make_key UiMsg.KeyDown . Key.Char
 key_up = make_key UiMsg.KeyUp . Key.Char
 backspace = make_key UiMsg.KeyDown Key.Backspace
 
-mouse down btn = Msg.Ui $ UiMsg.UiMsg empty_context $
+mouse :: Bool -> Types.MouseButton -> TrackNum -> ScoreTime -> Msg.Msg
+mouse down btn track pos = Msg.Ui $ UiMsg.UiMsg context $
     UiMsg.MsgEvent (UiMsg.Mouse state [] (42, 2) 0 True)
-    where state = if down then UiMsg.MouseDown btn else UiMsg.MouseUp btn
+    where
+    state = if down then UiMsg.MouseDown btn else UiMsg.MouseUp btn
+    context = UiMsg.Context Nothing (Just (track, UiMsg.Track pos))
 
-drag btn = Msg.Ui $ UiMsg.UiMsg empty_context $
+drag :: Types.MouseButton -> TrackNum -> ScoreTime -> Msg.Msg
+drag btn track pos = Msg.Ui $ UiMsg.UiMsg context $
     UiMsg.MsgEvent (UiMsg.Mouse (UiMsg.MouseDrag btn) [] (42, 2) 0 False)
+    where
+    context = UiMsg.Context Nothing (Just (track, UiMsg.Track pos))
 
 make_midi :: Midi.ChannelMessage -> Msg.Msg
 make_midi chan_msg = Msg.Midi $

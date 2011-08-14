@@ -30,7 +30,9 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
+import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
@@ -73,17 +75,17 @@ bind_repeatable smods key desc cmd =
 -- | 'bind_click' passes the Msg to the cmd, since mouse cmds are more likely
 -- to want the msg to find out where the click was.  @clicks@ is 1 for a single
 -- click, 2 for a double click, etc.
-bind_click :: (Cmd.M m) => [SimpleMod] -> UiMsg.MouseButton -> Int -> String
-    -> (Msg.Msg -> m a) -> [Binding m]
-bind_click smods btn clicks desc cmd =
-    bind smods (Click btn (clicks-1)) desc cmd
+bind_click :: (Cmd.M m) => [SimpleMod] -> Types.MouseButton -> MouseOn -> Int
+    -> String -> (Msg.Msg -> m a) -> [Binding m]
+bind_click smods btn on clicks desc cmd =
+    bind smods (Click btn on (clicks-1)) desc cmd
 
 -- | A 'bind_drag' binds both the click and the drag.  It's conceivable to have
 -- click and drag bound to different commands, but I don't have any yet.
-bind_drag :: (Cmd.M m) => [SimpleMod] -> UiMsg.MouseButton -> String
-    -> (Msg.Msg -> m a) -> [Binding m]
-bind_drag smods btn desc cmd =
-    bind smods (Click btn 0) desc cmd ++ bind smods (Drag btn) desc cmd
+bind_drag :: (Cmd.M m) => [SimpleMod] -> Types.MouseButton -> MouseOn
+    -> String -> (Msg.Msg -> m a) -> [Binding m]
+bind_drag smods btn on desc cmd =
+    bind smods (Click btn on 0) desc cmd ++ bind smods (Drag btn on) desc cmd
 
 -- | Bind a key with the given modifiers.
 bind :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
@@ -110,8 +112,8 @@ expand_mods bindable smods
     result = Seq.cartesian (map simple_to_mods (prefix ++ smods))
     -- You can't have a click or drag without having that button down!
     prefix = case bindable of
-        Click n _ -> [Mouse n]
-        Drag n -> [Mouse n]
+        Click n _ _ -> [Mouse n]
+        Drag n _ -> [Mouse n]
         _ -> []
 
 -- * CmdMap
@@ -164,7 +166,7 @@ data SimpleMod =
     -- different than Mod1 stuff.  Maybe static config user-added commands.
     | SecondaryCommand
     -- | Having mouse here allows for mouse button chording.
-    | Mouse UiMsg.MouseButton
+    | Mouse Types.MouseButton
     deriving (Eq, Ord, Show)
 
 -- * implementation
@@ -233,13 +235,14 @@ msg_to_bindable :: Msg.Msg -> Maybe Bindable
 msg_to_bindable msg = case msg of
     (get_key -> Just (is_repeat, key)) -> Just $ Key is_repeat key
     (Msg.mouse -> Just mouse) -> case UiMsg.mouse_state mouse of
-        UiMsg.MouseDown btn -> Just $ Click btn (UiMsg.mouse_clicks mouse)
-        UiMsg.MouseDrag btn -> Just $ Drag btn
+        UiMsg.MouseDown btn -> Just $ Click btn on (UiMsg.mouse_clicks mouse)
+        UiMsg.MouseDrag btn -> Just $ Drag btn on
         _ -> Nothing
     (Msg.midi -> Just (Midi.ChannelMessage chan (Midi.NoteOn key _))) ->
         Just $ Note chan key
     _ -> Nothing
     where
+    on = maybe Elsewhere mouse_on (Msg.context msg)
     get_key msg = case Msg.key msg of
         Just (UiMsg.KeyDown, k) -> Just (False, k)
         Just (UiMsg.KeyRepeat, k) -> Just (True, k)
@@ -249,13 +252,28 @@ data Bindable =
     -- | Key IsRepeat Key
     Key Bool Key.Key
     -- | Click MouseButton Clicks
-    | Click UiMsg.MouseButton Int
-    | Drag UiMsg.MouseButton
+    | Click Types.MouseButton MouseOn Int
+    | Drag Types.MouseButton MouseOn
     -- | Channel can be used to restrict bindings to a certain keyboard.  This
     -- should probably be something more abstract though, such as a device
     -- which can be set by the static config.
     | Note Midi.Channel Midi.Key
     deriving (Eq, Ord, Show, Read)
+
+-- | Where a click or drag occurred.
+data MouseOn = OnTrack | OnSkeleton | Elsewhere
+    deriving (Eq, Ord, Show, Read)
+
+mouse_on :: UiMsg.Context -> MouseOn
+mouse_on = maybe Elsewhere on . UiMsg.ctx_track
+    where
+    on (_, UiMsg.Track {}) = OnTrack
+    on (_, UiMsg.SkeletonDisplay) = OnSkeleton
+
+instance Pretty.Pretty MouseOn where
+    pretty OnTrack = "track"
+    pretty OnSkeleton = "skeleton"
+    pretty Elsewhere = "elsewhere"
 
 
 -- * pretty printing
@@ -281,8 +299,9 @@ show_bindable :: Bool -> Bindable -> String
 show_bindable show_repeatable b = case b of
     Key is_repeat key -> Pretty.pretty key
         ++ if show_repeatable && is_repeat then " (repeatable)" else ""
-    Click button times -> click_times times ++ "click " ++ show button
-    Drag button -> "drag " ++ show button
+    Click button on times -> click_times times ++ "click "
+        ++ show button ++ " on " ++ Pretty.pretty on
+    Drag button on -> "drag " ++ show button ++ " on " ++ Pretty.pretty on
     Note chan key -> "midi " ++ show key ++ " channel " ++ show chan
     where
     click_times 0 = ""

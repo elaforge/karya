@@ -18,12 +18,16 @@ import qualified Ui.Id as Id
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 
+-- A few type synonyms for more descriptive signatures.
+
 -- | Index into a block's tracks.
 type TrackNum = Int
 -- | Width of a track in pixels.
 type Width = Int
 -- | Index into the the selection list.
 type SelNum = Int
+-- | Mouse button number.
+type MouseButton = Int
 
 -- * rect
 

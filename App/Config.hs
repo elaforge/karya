@@ -10,7 +10,6 @@ import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Ui.Style as Style
 import qualified Ui.Types as Types
-import qualified Ui.UiMsg as UiMsg
 
 import qualified Perform.Midi.Control as Control
 
@@ -55,7 +54,7 @@ message_complete_token = "\n\NUL"
 -- * input
 
 -- | This is the primary mouse button, used to set the insertion selection.
-mouse_select :: UiMsg.MouseButton
+mouse_select :: Types.MouseButton
 mouse_select = 1
 
 -- * selnums

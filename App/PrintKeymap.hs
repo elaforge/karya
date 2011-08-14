@@ -58,7 +58,7 @@ strip_keyspecs = map stripm . strip_drag . strip_repeatable
     strip_drag mods
         | any is_drag mods = filter is_drag mods
         | otherwise = mods
-    is_drag (Keymap.KeySpec _ (Keymap.Drag _)) = True
+    is_drag (Keymap.KeySpec _ (Keymap.Drag {})) = True
     is_drag _ = False
     strip_repeatable mods
         | any is_repeatable mods = filter is_repeatable mods

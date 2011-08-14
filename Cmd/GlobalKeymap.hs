@@ -142,24 +142,28 @@ pure_bindings = concat
 -- overlaps as easily for mouse bindings.
 mouse_bindings :: (Cmd.M m) => [Keymap.Binding m]
 mouse_bindings = concat
-    [ bind_drag [] Config.mouse_select "snap drag selection"
-        (Selection.cmd_snap_selection Config.mouse_select Config.insert_selnum
-            False)
-    , bind_drag [Shift] Config.mouse_select "snap drag selection"
-        (Selection.cmd_snap_selection Config.mouse_select Config.insert_selnum
-            True)
-    , bind_drag [PrimaryCommand] Config.mouse_select "drag selection"
-        (Selection.cmd_mouse_selection Config.mouse_select Config.insert_selnum
-            False)
-    , bind_drag [Shift, PrimaryCommand] Config.mouse_select "extend selection"
-        (Selection.cmd_mouse_selection Config.mouse_select Config.insert_selnum
-            True)
-    -- TODO I'm not supposed to use SecondaryCommand for the built in keymap.
-    , bind_click [SecondaryCommand] Config.mouse_select 1
-        "toggle skeleton edge" BlockConfig.cmd_toggle_edge
-    , bind_click [] Config.mouse_select 2 "open block"
+    [ bind_drag [] btn Keymap.OnTrack "snap drag selection"
+        (Selection.cmd_snap_selection btn Config.insert_selnum False)
+    , bind_drag [Shift] btn Keymap.OnTrack "snap drag selection"
+        (Selection.cmd_snap_selection btn Config.insert_selnum True)
+    , bind_drag [PrimaryCommand] btn Keymap.OnTrack "drag selection"
+        (Selection.cmd_mouse_selection btn Config.insert_selnum False)
+    , bind_drag [Shift, PrimaryCommand] btn Keymap.OnTrack "extend selection"
+        (Selection.cmd_mouse_selection btn Config.insert_selnum True)
+
+    , bind_click [] btn Keymap.OnTrack 2 "open block"
         (const BlockConfig.cmd_open_block)
+
+    -- TODO without a track_drag equivalent for skeleton clicks, this
+    -- will interfere with the OnTrack bind_drag when you drag into the
+    -- track.
+    , bind_drag [] btn Keymap.OnSkeleton "select track"
+        (Selection.cmd_select_track btn Config.insert_selnum)
+    , bind_click [PrimaryCommand] btn Keymap.OnSkeleton 1
+        "toggle skeleton edge" BlockConfig.cmd_toggle_edge
     ]
+    where
+    btn = Config.mouse_select
 
 selection_bindings :: (Cmd.M m) => [Keymap.Binding m]
 selection_bindings = concat

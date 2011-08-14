@@ -43,6 +43,8 @@ import qualified App.Config as Config
 
 -- * cmds
 
+-- ** modify existing selection
+
 -- | Advance the given selection by the current step.
 -- Require: active block, insert_selection is set
 --
@@ -143,11 +145,24 @@ merge_sel :: Types.Selection -> Types.Selection -> Types.Selection
 merge_sel (Types.Selection strack spos _ _) (Types.Selection _ _ ctrack cpos) =
     Types.Selection strack spos ctrack cpos
 
+-- ** set selection from clicks
+
+-- | Select clicked on track.
+cmd_select_track :: (Cmd.M m) => Types.MouseButton -> Types.SelNum -> Msg.Msg
+    -> m ()
+cmd_select_track btn selnum msg = do
+    view_id <- Cmd.get_focused_view
+    ((down_tracknum, _), (mouse_tracknum, _)) <- mouse_drag btn msg
+    dur <- State.block_event_end =<< State.block_id_of view_id
+    State.set_selection view_id selnum $
+        Just (Types.selection down_tracknum dur mouse_tracknum 0)
+
 -- | Set the selection based on a click or drag.
 cmd_mouse_selection :: (Cmd.M m) =>
-    Int -> Types.SelNum -> Bool -> Msg.Msg -> m ()
+    Types.MouseButton -> Types.SelNum -> Bool -> Msg.Msg -> m ()
 cmd_mouse_selection btn selnum extend msg = do
-    (down_tracknum, down_pos, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
+    ((down_tracknum, down_pos), (mouse_tracknum, mouse_pos))
+        <- mouse_drag_pos btn msg
     view_id <- Cmd.get_focused_view
     old_sel <- State.get_selection view_id selnum
     let (start_tracknum, start_pos) = case (extend, old_sel) of
@@ -158,10 +173,10 @@ cmd_mouse_selection btn selnum extend msg = do
 
 -- | Like 'cmd_mouse_selection', but snap the selection to the current time
 -- step.
-cmd_snap_selection :: (Cmd.M m) => Int -> Types.SelNum -> Bool
+cmd_snap_selection :: (Cmd.M m) => Types.MouseButton -> Types.SelNum -> Bool
     -> Msg.Msg -> m ()
 cmd_snap_selection btn selnum extend msg = do
-    (down_tracknum, _, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
+    ((down_tracknum, _), (mouse_tracknum, mouse_pos)) <- mouse_drag_pos btn msg
     block_id <- Cmd.get_focused_block
     step <- Cmd.get_current_step
     view_id <- Cmd.get_focused_view
@@ -177,22 +192,32 @@ cmd_snap_selection btn selnum extend msg = do
             _ -> error "Cmd.Selection: not reached"
     select_and_scroll view_id selnum sel
 
--- | Get the dragged range, or abort if this isn't a drag Msg.
-mouse_drag :: (Cmd.M m) => Int -> Msg.Msg
-    -> m (TrackNum, ScoreTime, TrackNum, ScoreTime)
+-- | Like 'mouse_drag' but specialized for drags on the track.
+mouse_drag_pos :: (Cmd.M m) => Types.MouseButton -> Msg.Msg
+    -> m ((TrackNum, ScoreTime), (TrackNum, ScoreTime))
+mouse_drag_pos btn msg = do
+    ((num1, t1), (num2, t2)) <- mouse_drag btn msg
+    case (t1, t2) of
+        (UiMsg.Track p1, UiMsg.Track p2) -> return ((num1, p1), (num2, p2))
+        _ -> Cmd.abort
+
+-- | Get the clicked or dragged range, or abort if this isn't a drag Msg.
+-- This accepts clicks as well, and considers them an empty range.
+mouse_drag :: (Cmd.M m) => Types.MouseButton -> Msg.Msg
+    -> m ((TrackNum, UiMsg.Track), (TrackNum, UiMsg.Track))
+    -- ^ (mouse down at, mouse currently at)
 mouse_drag btn msg = do
-    (down, mod, (mouse_tracknum, mouse_pos)) <- Cmd.require (mouse_mod msg)
+    (is_down, mod, mouse_at) <- Cmd.require (mouse_mod msg)
     msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
-    keys_down <- Cmd.keys_down
     -- The button down should be the same one as expected.
     when (msg_btn /= btn) Cmd.abort
+    keys_down <- Cmd.keys_down
     let mouse_down = Map.lookup (Internal.strip_modifier mod) keys_down
-    let (down_tracknum, down_pos) = case (down, mouse_down) of
-            (False, Just (Cmd.MouseMod _ (Just (tnum, UiMsg.Track pos)))) ->
-                (tnum, pos)
+    let down_at = case (is_down, mouse_down) of
+            (False, Just (Cmd.MouseMod _ (Just track))) -> track
             -- If it's not already held down, it starts here.
-            _ -> (mouse_tracknum, mouse_pos)
-    return (down_tracknum, down_pos, mouse_tracknum, mouse_pos)
+            _ -> mouse_at
+    return (down_at, mouse_at)
 
 -- * implementation
 
@@ -281,7 +306,7 @@ selection_status sel = Pretty.show_float (Just 3) start
 -- ** mouse
 
 -- | (mouse_down, mouse_modifier, (mouse_track, mouse_pos))
-mouse_mod :: Msg.Msg -> Maybe (Bool, Cmd.Modifier, (TrackNum, ScoreTime))
+mouse_mod :: Msg.Msg -> Maybe (Bool, Cmd.Modifier, (TrackNum, UiMsg.Track))
 mouse_mod msg = do
     mouse <- Msg.mouse msg
     (down, btn) <- case UiMsg.mouse_state mouse of
@@ -289,9 +314,8 @@ mouse_mod msg = do
         UiMsg.MouseDrag btn -> Just (False, btn)
         UiMsg.MouseUp btn -> Just (False, btn)
         _ -> Nothing
-    (tracknum, pos) <- Msg.context_track_pos msg
-    return (down, Cmd.MouseMod btn (Just (tracknum, UiMsg.Track pos)),
-        (tracknum, pos))
+    track <- Msg.context_track msg
+    return (down, Cmd.MouseMod btn (Just track), track)
 
 -- * util
 
