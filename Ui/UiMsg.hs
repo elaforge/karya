@@ -20,7 +20,8 @@ data UiMsg = UiMsg Context Msg
 
 data Context = Context
     { ctx_focus :: Maybe ViewId
-    -- | Index into block tracks.
+    -- | Index into block tracks.  The TrackNum will be one greater than the
+    -- last track if the cursor has moved beyond it.
     , ctx_track :: Maybe (TrackNum, Track)
     } deriving (Show)
 

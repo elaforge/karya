@@ -75,13 +75,18 @@ operator<<(std::ostream &os, const UiMsg::Context &c)
 std::ostream &
 operator<<(std::ostream &os, const UiMsg::Event &e)
 {
-    return os << show_event(e.event)
-        << " key=" << show_key(e.key)
-        << (e.is_repeat ? "[r]" : "")
-        << " mods=" << show_event_state(e.modifier_state)
-        << " button=" << e.button << " clicks=" << e.clicks
-        << " is_click=" << e.is_click
-        << " xy=(" << e.x << ", " << e.y << ")";
+    os << show_event(e.event);
+    if (FL_KEYDOWN == e.event || FL_KEYUP == e.event) {
+        os << " key=" << show_key(e.key)
+            << (e.is_repeat ? "[r]" : "");
+    }
+    os << " mods=" << show_event_state(e.modifier_state);
+    if (FL_PUSH == e.event || FL_DRAG == e.event || FL_RELEASE == e.event) {
+        os << " button=" << e.button << " clicks=" << e.clicks
+            << " is_click=" << e.is_click
+            << " xy=(" << e.x << ", " << e.y << ")";
+    }
+    return os;
 }
 
 // Context ///////////////////
@@ -110,10 +115,14 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
         return;
     TrackView *t = 0;
     int tracks = c.focus->block.tracks();
-    if (track_drag) {
-        c.has_tracknum = true;
-        // If it's not to the left of any track it must be the rightmost one.
-        c.tracknum = tracks - 1;
+
+    // This implementation means that dragging upward from the status bar
+    // will start to select tracks, which ok I think.
+    c.has_tracknum = track_drag || Fl::event_y() < c.focus->block.status_top();
+    // If it's not to the left of any track and has_tracknum, it must be
+    // rightmost+1.
+    c.tracknum = tracks;
+    if (c.has_tracknum) {
         for (int i = 0; i < tracks; i++) {
             t = c.focus->block.track_at(i);
             if (Fl::event_x() <= t->x() + t->w()) {
@@ -121,26 +130,11 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
                 break;
             }
         }
-    } else {
-        for (int i = 0; i < tracks; i++) {
-            t = c.focus->block.track_at(i);
-            // Detect if an event is within a track, where a track extends up
-            // to the block title, including the skeleton display.  This means
-            // clicks on the track_box are considered on track 0, but this
-            // seems potentially useful.
-            if (c.focus->block.title_bottom() <= Fl::event_y()
-                    && Fl::event_y() < c.focus->block.status_top()
-                    && Fl::event_x() <= t->x() + t->w()) {
-                c.has_tracknum = true;
-                c.tracknum = i;
-                break;
-            }
-        }
-        if (!c.has_tracknum)
-            return;
     }
 
-    if (t && (track_drag || Fl::event_inside(t))) {
+    // If the event is right of 'tracks', 't' will be left as 'tracks - 1',
+    // which is the correct behaviour for dragging a selection.
+    if (t && track_drag) {
         int y = Fl::event_y() - t->y();
         c.has_pos = true;
         const ZoomInfo &zoom = c.focus->block.get_zoom();
