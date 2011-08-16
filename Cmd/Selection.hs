@@ -153,9 +153,13 @@ cmd_select_track :: (Cmd.M m) => Types.MouseButton -> Types.SelNum -> Msg.Msg
 cmd_select_track btn selnum msg = do
     view_id <- Cmd.get_focused_view
     ((down_tracknum, _), (mouse_tracknum, _)) <- mouse_drag btn msg
+    select_tracks selnum view_id down_tracknum mouse_tracknum
+
+select_tracks :: (State.M m) => Types.SelNum -> ViewId -> TrackNum -> TrackNum
+    -> m ()
+select_tracks selnum view_id from to = do
     dur <- State.block_event_end =<< State.block_id_of view_id
-    State.set_selection view_id selnum $
-        Just (Types.selection down_tracknum dur mouse_tracknum 0)
+    State.set_selection view_id selnum $ Just (Types.selection from dur to 0)
 
 -- | Set the selection based on a click or drag.
 cmd_mouse_selection :: (Cmd.M m) =>

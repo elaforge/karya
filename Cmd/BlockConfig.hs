@@ -32,11 +32,13 @@ cmd_toggle_edge :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_toggle_edge msg = do
     (block_id, sel_tracknum, _, _) <- Selection.get_insert
     clicked_tracknum <- Cmd.require $ clicked_track msg
-    let edge = (clicked_tracknum, sel_tracknum)
+    -- The click order goes in the arrow direction, caller-to-callee.
+    let edge = (sel_tracknum, clicked_tracknum)
     success <- State.toggle_skeleton_edge block_id edge
-    unless success $
-        Log.warn $ "refused to add cycle-creating edge: " ++ show edge
-    -- TODO: set selection so you can chain these
+    let shift = clicked_tracknum - sel_tracknum
+    if success
+        then Selection.cmd_shift_selection Config.insert_selnum shift False
+        else Log.warn $ "refused to add cycle-creating edge: " ++ show edge
 
 clicked_track :: Msg.Msg -> Maybe TrackNum
 clicked_track msg = case (Msg.mouse_down msg, Msg.context_track msg) of
@@ -95,7 +97,6 @@ cmd_move_tracks msg = do
         moves = (if shift > 0 then reverse else id) (zip tracknums [to..])
     mapM_ (uncurry (move_track block_id)) moves
     Selection.cmd_shift_selection Config.insert_selnum shift False
-
 
 move_track :: (State.M m) => BlockId -> TrackNum -> TrackNum -> m ()
 move_track block_id from to = do
