@@ -119,9 +119,8 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
     // This implementation means that dragging upward from the status bar
     // will start to select tracks, which ok I think.
     c.has_tracknum = track_drag || Fl::event_y() < c.focus->block.status_top();
-    // If it's not to the left of any track and has_tracknum, it must be
-    // rightmost+1.
-    c.tracknum = tracks;
+    // Count an event past the rightmost track as the rightmost track.
+    c.tracknum = tracks - 1;
     if (c.has_tracknum) {
         for (int i = 0; i < tracks; i++) {
             t = c.focus->block.track_at(i);

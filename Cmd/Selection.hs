@@ -217,11 +217,14 @@ mouse_drag btn msg = do
             (False, Just (Cmd.MouseMod _ (Just track))) -> track
             -- If it's not already held down, it starts here.
             _ -> mouse_at
-    -- Clip a drag past the last track to the last track, callers here treat
-    -- it as the same.
-    tracks <- State.tracks =<< Cmd.get_focused_block
-    let clamp (tnum, track) = (min (tracks-1) tnum, track)
-    return (clamp down_at, clamp mouse_at)
+    -- MsgCollector is back to clamping at track-1, but leave this in in
+    -- case I change my mind again.
+    -- -- Clip a drag past the last track to the last track, callers here treat
+    -- -- it as the same.
+    -- tracks <- State.tracks =<< Cmd.get_focused_block
+    -- let clamp (tnum, track) = (min (tracks-1) tnum, track)
+    -- return (clamp down_at, clamp mouse_at)
+    return (down_at, mouse_at)
 
 -- * implementation
 
