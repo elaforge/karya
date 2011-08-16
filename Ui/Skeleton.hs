@@ -72,5 +72,8 @@ acyclic skel@(Skeleton graph)
     | Graph.has_cycle graph = Nothing
     | otherwise = Just skel
 
+move :: TrackNum -> TrackNum -> Skeleton -> Maybe Skeleton
+move from to (Skeleton graph) = Skeleton <$> Graph.move from to graph
+
 map_skel :: (Graph.Graph -> Graph.Graph) -> Skeleton -> Skeleton
 map_skel f (Skeleton graph) = Skeleton (f graph)

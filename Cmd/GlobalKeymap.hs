@@ -161,6 +161,8 @@ mouse_bindings = concat
         (Selection.cmd_select_track btn Config.insert_selnum)
     , bind_click [PrimaryCommand] btn Keymap.OnSkeleton 1
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
+    , bind_click [Shift] btn Keymap.OnSkeleton 1 "move tracks"
+        BlockConfig.cmd_move_tracks
     ]
     where
     btn = Config.mouse_select

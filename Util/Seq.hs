@@ -81,6 +81,13 @@ insert_at xs i x = let (pre, post) = splitAt i xs in pre ++ (x : post)
 remove_at :: [a] -> Int -> [a]
 remove_at xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
 
+-- | Like 'remove_at' but return the removed element as well.
+take_at :: [a] -> Int -> Maybe (a, [a])
+take_at xs i = case post of
+        v : vs -> Just (v, pre ++ vs)
+        [] -> Nothing
+    where (pre, post) = splitAt i xs
+
 -- | Modify element at an index by applying a function to it.  If the index is
 -- out of range, nothing happens.
 modify_at :: Int -> (a -> a) -> [a] -> [a]
@@ -101,6 +108,14 @@ update_at deflt i f xs
     go 0 (x:xs) = f (Just x) : xs
     go i [] = deflt : go (i-1) []
     go i (x:xs) = x : go (i-1) xs
+
+-- | Move an element from one index to another, or Nothing if the @from@
+-- index was out of range.
+move :: Int -> Int -> [a] -> Maybe [a]
+move from to xs = do
+    (x, dropped) <- take_at xs from
+    return $ insert_at dropped to x
+
 
 -- * min / max
 

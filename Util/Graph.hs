@@ -114,7 +114,7 @@ remove_vertex vertex graph
 -- to it.  It will be removed from the list of roots.
 unlink_vertex :: Int -> Graph -> Graph
 unlink_vertex vertex graph =
-    IArray.amap (Seq.replace1 v (graph IArray.! v)) graph // [(v, [])]
+    IArray.amap (Seq.replace1 v (graph!v)) graph // [(v, [])]
     where v = Array.assert_in_bounds "unlink_vertex" vertex graph
 
 
@@ -134,3 +134,16 @@ strip_indices def = go 0
     go prev lst@((i, v):xs)
         | prev < i = def : go (prev+1) lst
         | otherwise = v : go (prev+1) xs
+
+-- | Move a vertex.  The graph remains the same, but the @from@ vertex number
+-- will be changed to @to@ and vice versa.
+move :: Vertex -> Vertex -> Graph -> Maybe Graph
+move from to graph = fmap move $ Array.check to =<< Array.check from graph
+    where
+    -- Swap array elements.  Then swap all referents
+    move graph
+        | from == to = graph
+        | otherwise =
+            amap relink $ graph // [(from, graph!to), (to, graph!from)]
+    relink v = if v == from then to else if v == to then from else v
+    amap f = IArray.amap (map f)

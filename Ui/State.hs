@@ -246,6 +246,8 @@ modify f = do
     state <- get
     put $! f state
 
+require :: (M m) => String -> Maybe a -> m a
+require err = maybe (throw err) return
 
 -- * global
 
@@ -757,7 +759,7 @@ ruler_track_at block_id tracknum = do
 -- | Like 'event_track_at' but throws if it's not there.
 get_event_track_at :: (M m) => String -> BlockId -> TrackNum -> m TrackId
 get_event_track_at caller block_id tracknum =
-    maybe (throw msg) return =<< event_track_at block_id tracknum
+    require msg =<< event_track_at block_id tracknum
     where
     msg = caller ++ ": tracknum " ++ show tracknum ++ " not in "
         ++ show block_id
@@ -782,7 +784,7 @@ get_block_track block_id tracknum = do
     block <- get_block block_id
     let msg = "State.get_block_track: bad tracknum for " ++ show block_id
             ++ ": " ++ show tracknum
-    maybe (throw msg) return (Seq.at (Block.block_tracks block) tracknum)
+    require msg $ Seq.at (Block.block_tracks block) tracknum
 
 modify_block_track :: (M m) => BlockId -> TrackNum
     -> (Block.Track -> Block.Track) -> m ()

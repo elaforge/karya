@@ -72,7 +72,7 @@ UNSORTED
   * step play only the selected tracks
   * print out a table of the keymap
   * error reporting off by one in .hsc
-  - move selected tracks to clicked position
+  * move selected tracks to clicked position
   - some ornaments should be scale aware, which means scales should have
     a notion of diatonic transposition.  That means I need 'key' in the
     environ.  Actually, named pitch track.

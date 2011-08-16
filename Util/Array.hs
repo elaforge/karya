@@ -20,6 +20,12 @@ assert_in_bounds msg i a
 in_bounds :: (IArray.IArray a e, IArray.Ix i) => i -> a i e -> Bool
 in_bounds i a = let (low, high) = IArray.bounds a in low <= i && i <= high
 
+-- | Just the array if the index is in bounds.
+check :: (IArray.IArray a e, IArray.Ix i) => i -> a i e -> Maybe (a i e)
+check i a
+    | in_bounds i a = Just a
+    | otherwise = Nothing
+
 -- ** searching
 
 -- | Find the index of the first element >= the given element in the sorted

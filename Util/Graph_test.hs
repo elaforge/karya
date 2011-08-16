@@ -102,6 +102,21 @@ test_remove_vertex = do
     -- 1 3  1 2
     graph_equal (f 2 xgraph) (build [(0, 1), (0, 2), (3, 1), (3, 2)])
 
+test_move = do
+    let f = Util.Graph.move
+        g = build [(0, 1), (1, 2)]
+        g2 = build [(0, 1), (1, 2), (2, 3)]
+
+    equal (f 5 0 g) Nothing
+    equal (f 0 5 g) Nothing
+    -- array [(0,[1]),(1,[2]),(2,[])]       0 -> 1 -> 2
+    --      2 0
+    -- array [(0,[]), (1,[0]),(2,[1])       2 -> 1 -> 0
+    equal (f 2 0 g) (Just (build [(2, 1), (1, 0)]))
+    --      2 1
+    -- array [(0,[2]),(1,[]), (2,[1])       0 -> 2 -> 1
+    equal (f 2 1 g) (Just (build [(0, 2), (2, 1)]))
+
 graph_equal graph1 graph2
     | norm graph1 == norm graph2 = success $ "graph == " ++ show graph1
     | otherwise = failure $ "graph " ++ show graph1 ++ ":\n"

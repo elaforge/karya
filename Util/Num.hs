@@ -20,6 +20,9 @@ restrict low high
     | high == low = const low -- avoid dividing by 0 in fmod
     | otherwise = (+low) . (`fmod` (high-low)) . (subtract low)
 
+in_range :: (Ord a) => a -> a -> a -> Bool
+in_range low high x = low <= x && x < high
+
 -- | Scale @v@, which is between 0 and 1 inclusive, to be between @low@ and
 -- @high@.  If @v@ is not in the 0--1 range, the result will be out of the
 -- low--high range.

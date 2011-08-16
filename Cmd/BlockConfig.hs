@@ -12,6 +12,7 @@ import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
@@ -22,23 +23,25 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.Track as Track
 import qualified Cmd.ViewConfig as ViewConfig
 
+import qualified App.Config as Config
+
 
 -- * block
 
 cmd_toggle_edge :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_toggle_edge msg = do
-    (block_id, sel_track_num, _, _) <- Selection.get_insert
-    clicked_track_num <- get_clicked_track msg
-    let edge = (clicked_track_num, sel_track_num)
+    (block_id, sel_tracknum, _, _) <- Selection.get_insert
+    clicked_tracknum <- Cmd.require $ clicked_track msg
+    let edge = (clicked_tracknum, sel_tracknum)
     success <- State.toggle_skeleton_edge block_id edge
     unless success $
         Log.warn $ "refused to add cycle-creating edge: " ++ show edge
     -- TODO: set selection so you can chain these
 
-get_clicked_track :: (Cmd.M m) => Msg.Msg -> m TrackNum
-get_clicked_track msg = case (Msg.mouse_down msg, Msg.context_track_pos msg) of
-    (True, Just (tracknum, _)) -> return tracknum
-    _ -> Cmd.abort
+clicked_track :: Msg.Msg -> Maybe TrackNum
+clicked_track msg = case (Msg.mouse_down msg, Msg.context_track msg) of
+    (True, Just (tracknum, _)) -> Just tracknum
+    _ -> Nothing
 
 -- | Merge all adjacent note/pitch pairs.  If they're already all merged,
 -- unmerge them all.
@@ -78,3 +81,42 @@ cmd_toggle_flag :: (Cmd.M m) => Block.TrackFlag -> m ()
 cmd_toggle_flag flag = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     State.toggle_track_flag block_id tracknum flag
+
+-- | Move selected tracks to the left of the clicked track.
+cmd_move_tracks :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_move_tracks msg = do
+    (tracknums, _, _, _) <- Selection.tracks
+    block_id <- Cmd.get_focused_block
+    clicked_tracknum <- Cmd.require $ clicked_track msg
+    tracks <- State.tracks block_id
+    let to = min clicked_tracknum (tracks - length tracknums)
+    from <- Cmd.require (Seq.head tracknums)
+    let shift = to - from
+        moves = (if shift > 0 then reverse else id) (zip tracknums [to..])
+    mapM_ (uncurry (move_track block_id)) moves
+    Selection.cmd_shift_selection Config.insert_selnum shift False
+
+
+move_track :: (State.M m) => BlockId -> TrackNum -> TrackNum -> m ()
+move_track block_id from to = do
+    block <- State.get_block block_id
+    let msg = "move_track: from index " ++ show from ++ " out of range"
+    State.modify_block block_id . const =<< State.require msg
+        (move_block_track from to block)
+    views <- Map.keys <$> State.get_views_of block_id
+    forM_ views $ \view_id -> do
+        view <- State.get_view view_id
+        State.modify_view view_id . const =<< State.require msg
+            (move_view_track from to view)
+
+move_block_track :: TrackNum -> TrackNum -> Block.Block -> Maybe Block.Block
+move_block_track from to block = do
+    tracks <- Seq.move from to (Block.block_tracks block)
+    skel <- Skeleton.move from to (Block.block_skeleton block)
+    return $ block
+        { Block.block_tracks = tracks, Block.block_skeleton = skel }
+
+move_view_track :: TrackNum -> TrackNum -> Block.View -> Maybe Block.View
+move_view_track from to view = do
+    tracks <- Seq.move from to (Block.view_tracks view)
+    return $ view { Block.view_tracks = tracks }
