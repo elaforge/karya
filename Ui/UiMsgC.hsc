@@ -130,7 +130,7 @@ peek_ui_update type_num msgp = case type_num of
     (#const UiMsg::msg_resize) -> do
         rect <- peek =<< (#peek UiMsg, resize.rect) msgp
         track <- int <$> (#peek UiMsg, resize.visible_track) msgp :: IO Int
-        time <- int <$> (#peek UiMsg, resize.visible_track) msgp :: IO Int
+        time <- int <$> (#peek UiMsg, resize.visible_time) msgp :: IO Int
         return $ UiMsg.UpdateViewResize rect (track, time)
     (#const UiMsg::msg_track_width) -> do
         width <- int <$> (#peek UiMsg, track_width.width) msgp :: IO Int
