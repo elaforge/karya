@@ -701,13 +701,12 @@ insert_track :: (M m) => BlockId -> TrackNum -> Block.Track -> m ()
 insert_track block_id tracknum track = do
     block <- get_block block_id
     views <- get_views_of block_id
-    let tracks = Block.block_tracks block
-        tracks' = Seq.insert_at tracks tracknum track
+    let tracks = Seq.insert_at tracknum track (Block.block_tracks block)
         -- Make sure the views are up to date.
         views' = Map.map
             (insert_into_view tracknum (Block.track_width track)) views
     set_block block_id $ block
-        { Block.block_tracks = tracks'
+        { Block.block_tracks = tracks
         , Block.block_skeleton =
             Skeleton.insert tracknum (Block.block_skeleton block)
         }
@@ -716,15 +715,14 @@ insert_track block_id tracknum track = do
 remove_track :: (M m) => BlockId -> TrackNum -> m ()
 remove_track block_id tracknum = do
     block <- get_block block_id
-    views <- get_views_of block_id
-    let tracks' = Seq.remove_at (Block.block_tracks block) tracknum
-        views' = Map.map (remove_from_view tracknum) views
+    let tracks = Seq.remove_at tracknum (Block.block_tracks block)
+    views <- Map.map (remove_from_view tracknum) <$> get_views_of block_id
     set_block block_id $ block
-        { Block.block_tracks = tracks'
+        { Block.block_tracks = tracks
         , Block.block_skeleton =
             Skeleton.remove tracknum (Block.block_skeleton block)
         }
-    modify $ \st -> st { state_views = Map.union views' (state_views st) }
+    modify $ \st -> st { state_views = Map.union views (state_views st) }
 
 -- | Get the Track at @tracknum@, or Nothing if its out of range.
 -- This is inconsistent with 'insert_track' and 'remove_track' which clip to
@@ -851,8 +849,8 @@ track_id_tracknums block_id track_id = do
 -- Insert a new track into Block.view_tracks, moving selections as
 -- appropriate.  @tracknum@ is clipped to be in range.
 insert_into_view tracknum width view = view
-    { Block.view_tracks = Seq.insert_at (Block.view_tracks view) tracknum
-        (Block.TrackView width)
+    { Block.view_tracks = Seq.insert_at tracknum (Block.TrackView width)
+        (Block.view_tracks view)
     , Block.view_selections =
         Map.map (insert_into_selection tracknum) (Block.view_selections view)
     }
@@ -860,7 +858,7 @@ insert_into_view tracknum width view = view
 -- Remove @tracknum@ from Block.view_tracks, moving selections as
 -- appropriate.  Ignored if @tracknum@ is out of range.
 remove_from_view tracknum view = view
-    { Block.view_tracks = Seq.remove_at (Block.view_tracks view) tracknum
+    { Block.view_tracks = Seq.remove_at tracknum (Block.view_tracks view)
     , Block.view_selections = Map.mapMaybe
         (remove_from_selection tracknum) (Block.view_selections view)
     }
@@ -1108,11 +1106,11 @@ insert_marklist :: (M m) =>
     RulerId -> Int -> (Ruler.MarklistName, Ruler.Marklist) -> m ()
 insert_marklist ruler_id i marklist = modify_ruler ruler_id $ \ruler ->
     ruler { Ruler.ruler_marklists =
-        Seq.insert_at (Ruler.ruler_marklists ruler) i marklist }
+        Seq.insert_at i marklist (Ruler.ruler_marklists ruler) }
 
 remove_marklist :: (M m) => RulerId -> TrackNum -> m ()
 remove_marklist ruler_id n = modify_ruler ruler_id $ \ruler -> ruler
-    { Ruler.ruler_marklists = Seq.remove_at (Ruler.ruler_marklists ruler) n }
+    { Ruler.ruler_marklists = Seq.remove_at n (Ruler.ruler_marklists ruler) }
 
 modify_ruler :: (M m) => RulerId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
 modify_ruler ruler_id f = do

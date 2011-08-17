@@ -73,17 +73,17 @@ at_err msg xs n = Maybe.fromMaybe
 
 -- | Insert @x@ into @xs@ at index @i@.  If @i@ is out of range, insert at the
 -- beginning or end of the list.
-insert_at :: [a] -> Int -> a -> [a]
-insert_at xs i x = let (pre, post) = splitAt i xs in pre ++ (x : post)
+insert_at :: Int -> a -> [a] -> [a]
+insert_at i x xs = let (pre, post) = splitAt i xs in pre ++ (x : post)
 
 -- | Remove the element at the given index.  Do nothing if the index is out
 -- of range.
-remove_at :: [a] -> Int -> [a]
-remove_at xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
+remove_at :: Int -> [a] -> [a]
+remove_at i xs = let (pre, post) = splitAt i xs in pre ++ drop 1 post
 
 -- | Like 'remove_at' but return the removed element as well.
-take_at :: [a] -> Int -> Maybe (a, [a])
-take_at xs i = case post of
+take_at :: Int -> [a] -> Maybe (a, [a])
+take_at i xs = case post of
         v : vs -> Just (v, pre ++ vs)
         [] -> Nothing
     where (pre, post) = splitAt i xs
@@ -113,8 +113,8 @@ update_at deflt i f xs
 -- index was out of range.
 move :: Int -> Int -> [a] -> Maybe [a]
 move from to xs = do
-    (x, dropped) <- take_at xs from
-    return $ insert_at dropped to x
+    (x, dropped) <- take_at from xs
+    return $ insert_at to x dropped
 
 
 -- * min / max

@@ -31,7 +31,7 @@ UNSORTED
   * evidentally views after UpdateClose are not being removed from views?
   * cmd_toggle_edge: should go in the same direction as the arrow, and should
     set the selection so you can chain it
-  - fix arg order for Util.Seq list indexing functions
+  * fix arg order for Util.Seq list indexing functions
   - if I put hsc2hs output in build/hsc then I could get rid of hacks in
     boring, all_hs.py, etc.
   - logview: some kind of indicator that a dup msg was suppressed
