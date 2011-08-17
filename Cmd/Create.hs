@@ -175,7 +175,8 @@ fitted_view block_id = do
     -- being set, which is in turn because the haskell layer doesn't track
     -- the size of the various widgets and so it has to wait for fltk to tell
     -- it after the view has been created.  So instead I add up the default
-    -- sizes, which only works before the view has been created.
+    -- sizes, which only works before the view has been created since that
+    -- pesky user hasn't had a chance to change them yet.
     --
     -- It's gross, but still probably better than tracking a whole bunch of
     -- fltk state that I don't otherwise need.
@@ -190,7 +191,8 @@ fitted_view block_id = do
         h = Types.zoom_to_pixels Config.zoom block_end
     rects <- State.gets (map Block.view_rect . Map.elems . State.state_views)
     screen <- Cmd.get_screen (0, 0) -- just pick the main screen for now
-    let dimensions = (w + Block.default_wpadding, h + Block.default_hpadding)
+    let dimensions = (w + Block.default_track_padding,
+            h + Block.default_time_padding)
     let vrect = find_screen_rect dimensions rects screen
     State.create_view view_id $ Block.view block_id vrect Config.zoom
 

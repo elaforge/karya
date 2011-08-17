@@ -27,7 +27,8 @@ cmd_zoom_around view_id pos f = do
     zoom <- State.get_zoom view_id
     set_zoom view_id (zoom_around zoom pos f)
 
-zoom_around :: Types.Zoom -> Types.ScoreTime -> (Double -> Double) -> Types.Zoom
+zoom_around :: Types.Zoom -> Types.ScoreTime -> (Double -> Double)
+    -> Types.Zoom
 zoom_around (Types.Zoom offset factor) pos f =
     Types.Zoom (zoom_pos offset pos (Types.ScoreTime factor)
         (Types.ScoreTime newf)) newf
@@ -76,11 +77,11 @@ view_rect view = do
     block <- State.get_block (Block.view_block view)
     let (x, y) = Rect.upper_left (Block.view_rect view)
         -- Don't forget to drop the ruler.
-        w = sum $ map Block.track_view_width $ drop 1 $
+        w = sum $ map Block.track_view_width $
             zipWith Block.track_view
                 (Block.block_tracks block) (Block.view_tracks view)
         h = Types.zoom_to_pixels (Block.view_zoom view) block_end
-    return $ Rect.xywh x y w h
+    return $ Rect.xywh x y (max w 40) (max h 40)
 
 -- * misc
 

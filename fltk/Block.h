@@ -98,7 +98,11 @@ public:
     // Get and set trackwise scrolling, in pixels.
     int get_track_scroll() const;
     void set_track_scroll(int offset);
-    IPoint get_track_size() const { return track_tile.visible_pixels(); }
+    IPoint get_track_size() const {
+        IPoint p = track_tile.visible_pixels();
+        p.x += ruler_track->w();
+        return p;
+    }
 
     void set_selection(int selnum, const Selection &sel);
     // This is different from 'set_selection' because it only sets or clears

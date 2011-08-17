@@ -257,9 +257,9 @@ set_visible_rect view rect = rect
 -- | The actual window size is this much larger than the sum of the widths
 -- of the tracks, but only after first creation, when 'view_visible_track'
 -- has not yet been set by the UI.
-default_wpadding, default_hpadding :: Int
-default_wpadding = Config.vconfig_sb_size + 2
-default_hpadding = Config.vconfig_skel_height
+default_time_padding, default_track_padding :: Int
+default_time_padding = Config.vconfig_sb_size + 2
+default_track_padding = Config.vconfig_skel_height
     + Config.vconfig_block_title_height + Config.vconfig_track_title_height
     + Config.vconfig_status_size + Config.vconfig_sb_size
 
