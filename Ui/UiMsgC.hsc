@@ -4,7 +4,6 @@ import Foreign
 import Foreign.C
 import qualified Data.Maybe as Maybe
 import Util.Control
-import qualified Util.Rect as Rect
 
 import Ui
 import qualified Ui.BlockC as BlockC
@@ -44,7 +43,7 @@ peek_msg msgp = do
     UiMsg.UiMsg context <$> case type_num of
         (#const UiMsg::msg_event) -> UiMsg.MsgEvent <$> peek_event msgp
         (#const UiMsg::msg_screen_size) -> do
-            rect <- (#peek UiMsg, screen.rect) msgp :: IO Rect.Rect
+            rect <- peek =<< (#peek UiMsg, screen.rect) msgp
             screen <- int <$> (#peek UiMsg, screen.screen) msgp :: IO Int
             screens <- int <$> (#peek UiMsg, screen.screens) msgp :: IO Int
             return $ UiMsg.UpdateScreenSize screen screens rect
@@ -129,7 +128,7 @@ peek_ui_update type_num msgp = case type_num of
         zoom <- (#peek UiMsg, zoom.zoom) msgp :: IO Types.Zoom
         return $ UiMsg.UpdateZoom zoom
     (#const UiMsg::msg_resize) -> do
-        rect <- (#peek UiMsg, resize.rect) msgp :: IO Rect.Rect
+        rect <- peek =<< (#peek UiMsg, resize.rect) msgp
         track <- int <$> (#peek UiMsg, resize.visible_track) msgp :: IO Int
         time <- int <$> (#peek UiMsg, resize.visible_track) msgp :: IO Int
         return $ UiMsg.UpdateViewResize rect (track, time)
