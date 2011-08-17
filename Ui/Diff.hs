@@ -247,8 +247,8 @@ diff_block block_id block1 block2 = do
         change [block_update $
             Update.BlockSkeleton (Block.block_skeleton block2)]
 
-    let (dtracks1, dtracks2) = (Block.block_display_tracks block1,
-            Block.block_display_tracks block2)
+    let (dtracks1, dtracks2) = (Block.block_display_tracks block1 Nothing,
+            Block.block_display_tracks block2 Nothing)
     let pairs = Seq.indexed_pairs_on (Block.dtracklike_id . fst)
             dtracks1 dtracks2
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of

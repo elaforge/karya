@@ -65,13 +65,16 @@ test_create_resize_destroy_view = do
 
 test_create_two_views = do
     state <- run_setup
-    state <- io_human "view created, track title changes" $ run state $ do
+    _state <- io_human "view created, has big track, track title changes" $
+            run state $ do
         b2 <- create_block "b2" $ UiTest.mkblock ""
-            [(Block.RId t_ruler_id, 20), (Block.TId t_track1_id t_ruler_id, 30)]
+            [(Block.RId t_ruler_id, 20),
+                (Block.TId t_track1_id t_ruler_id, 30)]
         v2 <- create_view "v2" $
             Block.view b2 (Rect.move 300 20 UiTest.default_rect)
                 UiTest.default_zoom
-        State.set_track_title t_track1_id "hi there"
+        State.set_track_title t_track1_id "title changed!"
+        State.set_track_width v2 1 300
     return ()
 
 test_set_view_config = do

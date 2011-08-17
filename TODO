@@ -27,7 +27,7 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - ^R doing crazy things to the rect for bloom-short
+  * ^R doing crazy things to the rect for bloom-short
   * evidentally views after UpdateClose are not being removed from views?
   * cmd_toggle_edge: should go in the same direction as the arrow, and should
     set the selection so you can chain it

@@ -105,7 +105,6 @@ test_remove_vertex = do
 test_move = do
     let f = Util.Graph.move
         g = build [(0, 1), (1, 2)]
-        g2 = build [(0, 1), (1, 2), (2, 3)]
 
     equal (f 5 0 g) Nothing
     equal (f 0 5 g) Nothing

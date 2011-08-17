@@ -103,15 +103,21 @@ data TrackFlag =
 -- The track creation width is needed by 'Ui.Diff' when it wants to create
 -- a new track, but isn't part of the DisplayTrack.  This is because a change
 -- of creation width shouldn't result in a Update.DisplayTrack.
-block_display_tracks :: Block -> [(DisplayTrack, Types.Width)]
-block_display_tracks = map display_track . block_tracks
+--
+-- Also takes a view in case the view already has track widths set.
+block_display_tracks :: Block -> Maybe View -> [(DisplayTrack, Types.Width)]
+-- block_display_tracks block view = map display_track . block_tracks
+block_display_tracks block view =
+    map (uncurry display_track) (zip (block_tracks block) tviews)
+    where tviews = map Just (maybe [] view_tracks view) ++ repeat Nothing
 
-display_track :: Track -> (DisplayTrack, Types.Width)
-display_track track =
-    (DisplayTrack tracklike (track_merged track) status brightness, width)
+display_track :: Track -> Maybe TrackView -> (DisplayTrack, Types.Width)
+display_track track tview =
+    (DisplayTrack tracklike (track_merged track) status brightness,
+        maybe default_width track_view_width tview)
     where
     (status, brightness) = flags_to_status (track_flags track)
-    (tracklike, width)
+    (tracklike, default_width)
         | Collapse `elem` track_flags track =
             (DId (Divider Config.abbreviation_color), Config.collapsed_width)
         | otherwise = (tracklike_id track, track_width track)
@@ -264,7 +270,7 @@ default_track_padding = Config.vconfig_skel_height
     + Config.vconfig_status_size + Config.vconfig_sb_size
 
 -- | Per-view track settings.
-data TrackView = TrackView {
+newtype TrackView = TrackView {
     -- | The actual track width in this View.  However, if the track is
     -- collapsed, the width will be fixed and this will be the remain the same
     -- for when the track is expanded.  See 'track_view'.

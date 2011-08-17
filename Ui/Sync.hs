@@ -160,7 +160,7 @@ run_update track_signals (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
 
-    let dtracks = Block.block_display_tracks block
+    let dtracks = Block.block_display_tracks block (Just view)
         btracks = Block.block_tracks block
         tlike_ids = map Block.tracklike_id btracks
     -- It's important to get the tracklikes from the dtracks, not the

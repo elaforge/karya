@@ -66,6 +66,7 @@ resize_to_fit view_id = do
     State.set_view_rect view_id $ Rect.intersection screen $
         scootch screen $ Block.set_visible_rect view rect
     where
+    -- Move the rect over so it fits on the screen.
     scootch screen r =
         Rect.move (min (Rect.rx r) (Rect.rr screen - Rect.rw r)) (Rect.ry r) r
 
