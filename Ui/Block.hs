@@ -106,21 +106,20 @@ data TrackFlag =
 --
 -- Also takes a view in case the view already has track widths set.
 block_display_tracks :: Block -> Maybe View -> [(DisplayTrack, Types.Width)]
--- block_display_tracks block view = map display_track . block_tracks
 block_display_tracks block view =
     map (uncurry display_track) (zip (block_tracks block) tviews)
     where tviews = map Just (maybe [] view_tracks view) ++ repeat Nothing
 
 display_track :: Track -> Maybe TrackView -> (DisplayTrack, Types.Width)
 display_track track tview =
-    (DisplayTrack tracklike (track_merged track) status brightness,
-        maybe default_width track_view_width tview)
+    (DisplayTrack tracklike (track_merged track) status brightness, width)
     where
     (status, brightness) = flags_to_status (track_flags track)
-    (tracklike, default_width)
+    (tracklike, width)
         | Collapse `elem` track_flags track =
             (DId (Divider Config.abbreviation_color), Config.collapsed_width)
-        | otherwise = (tracklike_id track, track_width track)
+        | otherwise = (tracklike_id track,
+            maybe (track_width track) track_view_width tview)
 
 -- | Similar to 'display_track', this returns the TrackView as it is actually
 -- displayed at the UI level.  Since TrackView is so much simpler, it's the
