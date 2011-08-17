@@ -1,19 +1,3 @@
-use fixed-binary instead of Doubles for ScoreTime and RealTime:
-  reasons to do it:
-    - get rid of custom implementation in Perform.RealTime
-    - get rid of half-open except start==end hack for ranges, a point selection
-      is simple (start, start+1).
-    - RealTime.to_seconds is big on the profile
-  reasons not to do it:
-    - what to do about -0?  I could disallow 0 dur events and make control
-      events have an eta dur
-
-- patch for hsc2hs for #alignment
-- hsc2hs accepts slightly different flags from the c compiler which makes it a
-  pain to write the make rule.  It should take --cflags='xyz' which is passed
-  literally to the compiler.
-* also patch to not put in #include pragmas
-
 big things
   * solution for sekaran, aka pitches below notes
   / lazy signals
@@ -27,57 +11,23 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  * ^R doing crazy things to the rect for bloom-short
-  * evidentally views after UpdateClose are not being removed from views?
-  * cmd_toggle_edge: should go in the same direction as the arrow, and should
-    set the selection so you can chain it
-  * fix arg order for Util.Seq list indexing functions
   - if I put hsc2hs output in build/hsc then I could get rid of hacks in
     boring, all_hs.py, etc.
   - logview: some kind of indicator that a dup msg was suppressed
-  * change fltk UiMsg to a union
-  * rename global_msg_collector to MsgCollector::get(), same with *Table
-  * simplify global_msg_collector() calls
-  * move internal Cmds like cmd_record_ui_updates to Cmd.Internal
-  * rename score_to_real -> real, real_to_score -> score
   - root block window name gets a *?  or if I won't have window names visible,
     put this in the view status line
-  * send focused view over explicitly on every msg
   - Editing a control over the entire score has a big lag between each
     keystroke.  Shouldn't it be waiting for a second to begin derivation?
   - randomize any control by having the 'set' call look for the -rnd control
   - does setting controls in the track title not work? "> | start-rnd = .1"
-  * set on multiple events shouldn't affect 0 dur ones, so I can set duration
-    of multiple note tracks without messing up the control tracks in between
-  easier ways to enter special notation:
-    * when exiting edit mode, remember the current event and have a key to
-      insert that.
-    * special " event will repeat the previous one, with the same args
-      if args follow ", the " will repeat the call with new args
-      Problem with this is that inserting something else in the middle will
-      mess it up, but it also has advantages...
-  * I think force set duration is not that useful, replace with toggle
-    zero-dur?
-  * more easily create 0 dur note transformers, maybe space to create it then
-    open raw edit?  Or a way to set a 0 step?  Space in raw edit.
-  * focus bug switching focus to app
   - It would be more efficient to move events around if their controls were
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved
     more than once.
-  * more places can use Events.range
-  * remove Events.event_ prefix
-  * add arpeggio note transformer
-  * implement randomness, based on seed and pos
   - some way to get symbol feedback instantly to make it easier to compose them
-  * step play only the selected tracks
-  * print out a table of the keymap
-  * error reporting off by one in .hsc
-  * move selected tracks to clicked position
   - some ornaments should be scale aware, which means scales should have
     a notion of diatonic transposition.  That means I need 'key' in the
     environ.  Actually, named pitch track.
-  * cmd to strip redundant controls and empty tracks
   - is it possible to have a more symbolic control track, e.g. pedal with
     ped and *, or maybe a ped event where it's down until event end?
   - undo rederives everything, which is super slow on a big score
@@ -85,24 +35,7 @@ UNSORTED
     this anyway to save undo.  If I extend Updates to include the actual
     changes, then they can be used for UI changes, ScoreDamage, and undo.
 
-  * bug: sometimes space didn't cancel playback when I open block then play
-  - bug: still a focus bug when opening new blocks
-  * at one point, space didn't kill the playback updater thread, what could
-    cause that to happen?
-
-  * to make a "hand" track work, i.e. a note track with multiple note tracks
-    beneath it, I need to have sub notes derive when the supertrack is empty.
-    So do the slicing at the track level: event with duration slices events
-    in its range, event with duration 0 slices the event that lines up, and
-    events left over are evaluated as their own tracks.
-    This means slicing moves to derive_track instead of being per-call.
-    I think that should be ok?  Inverting calls still need to be marked since
-    they do more magic.  Triplet still needs 'sub_events' but it doesn't have
-    the ability to get notes outside its range, even if it wanted to.  In fact
-    I think the stuff in Derive.Call.Note doesn't change at all.
-
   - easy way to create a marker on the ruler
-  * overlapping key bindings are not detected between io and pure cmds
 
   - I can collapse tracks but can't uncollapse them since I can't get
     selection focus on them.  Maybe a command-click on the divider?
@@ -118,7 +51,6 @@ UNSORTED
 
   wait until I want it
     - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
-    * Create.view should size it to fit the block being created
     - do tuplets by setting local ruler?
     - lang cmd to show state hierarchically... or does it already exist?
     / there should be a way for play to bring up blocks as they are played
@@ -309,6 +241,29 @@ MILESTONES
 
 ----------------------------------------------------------------------
 
+external
+  - send a patch to improve Random.Shuffle?
+  - patch for hsc2hs for #alignment
+  - hsc2hs accepts slightly different flags from the c compiler which makes it
+    a pain to write the make rule.  It should take --cflags='xyz' which is
+    passed literally to the compiler.
+  srcloc_annotate pragma
+    1.31 vs. 5.80, 4.60 for dummy, so just using pgmf already kills perf
+    I think a ghc pragma is needed.
+    - read up on how jhc does it
+    - ask ghc-users if it's a good idea
+    - figure out how to implement pragmas in ghc
+
+use fixed-binary instead of Doubles for ScoreTime and RealTime:
+  reasons to do it:
+    - get rid of custom implementation in Perform.RealTime
+    - get rid of half-open except start==end hack for ranges, a point selection
+      is simple (start, start+1).
+    - RealTime.to_seconds is big on the profile
+  reasons not to do it:
+    - what to do about -0?  I could disallow 0 dur events and make control
+      events have an eta dur
+
 hs plugins:
   How can the plugins link against the core quickly?  They shouldn't link the
   actual code because they are compiled as separate objects.  But to save
@@ -354,7 +309,6 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
-  * keymap collisions are logged twice
   - Create.rename_project loses the merged tracks
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   * track down ghc rts crashes, assertion failure
@@ -364,7 +318,6 @@ bugs:
   - hint refuses to compile when a module emits a warning
 
 cleanup:
-  * cleanup Ui.Track: event_list -> all_events?
   - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
     manual inclusion of $(UI_HS) in the deps
   - remove Util.Log -> Perform.Warning import by translating IDs into strings?
@@ -447,7 +400,6 @@ performance:
         127130, [pno 9205, flute 63748, clarinet 54177]
         5367 for bloom
         peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
-  * send style id to c++ instead of all the style elements
   - collapsing a track shouldn't trigger a rederive
 
 symbolic score
@@ -462,7 +414,6 @@ fltk:
   - after creating a new track, focus should go to its title
   - some kind of special highlight to indicate the active block
   - rethrow c++ exceptions as FltkError
-  * bug: somehow capslock keydown is sent sometimes
   - auto add pitch track when a track title input is expanded crashes with
     assertion error 'title->w() == body->w()'
     solution: text entry is collapsed by track add, remove, or resize
@@ -670,16 +621,12 @@ Cmd:
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
-    * trackerlike note entry: entered events are all as long as the block
       (merge will clip them to the next event)
     - map selection through function
     - controller edit mode accepts two numbers and moves on, no spaces
     - a legato command that always goes to the next note would still be useful
    - swap tracks keeping skeleton up to date
    - stretch events in selection to another length (need two selections?)
-  Cmd.Selection
-  Cmd.TimeStep
-    * snap to event begin/end
 
   Cmd.NoteTrack
     - record velocity if there is a velocity track
