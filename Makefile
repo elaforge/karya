@@ -23,6 +23,11 @@
 
 FLTK_CONFIG := /usr/local/src/fltk-1.3/fltk-config
 
+# Directory for built binaries.
+BUILD := build
+TBUILD := $(BUILD)/test
+PBUILD := $(BUILD)/profile
+
 ### OS dependent variables.
 
 OS := $(shell uname)
@@ -88,14 +93,9 @@ GHC_LIB := $(shell dirname `ghc-pkg list | head -1`)
 
 # hspp adds filename and lineno to various logging and testing functions.
 HFLAGS := -threaded -W -fwarn-tabs $(CINCLUDE) -i../lib -pgml g++ \
-	-F -pgmF build/hspp
+	-F -pgmF $(BUILD)/hspp
 
 ### misc variables
-
-# Directory for built binaries.
-BUILD := build
-TBUILD := $(BUILD)/test
-PBUILD := $(BUILD)/profile
 
 BUNDLE = tools/make_bundle $@
 
@@ -128,14 +128,14 @@ all:
 	tools/make_all $(BINARIES) $(TEST_BINARIES)
 
 .PHONY: dep
-dep: build/fixdeps
-	g++ -MM $(CXXFLAGS) */*.cc | build/fixdeps >.depend
+dep: $(BUILD)/fixdeps
+	g++ -MM $(CXXFLAGS) */*.cc | $(BUILD)/fixdeps >.depend
 	printf '\n\n# hsc deps:\n' >>.depend
 	tools/hscdeps.py $(CINCLUDE) -I$(GHC_LIB)/include */*.hsc >>.depend
 
 include .depend
 
-build/fixdeps: tools/fixdeps.hs
+$(BUILD)/fixdeps: tools/fixdeps.hs
 	$(GHC) -o $@ $^
 
 .PHONY: $(BUILD)/hspp
