@@ -61,23 +61,25 @@ peek_context msgp = do
     viewp <- (#peek UiMsg, context.view) msgp :: IO (Ptr BlockC.CView)
     view <- get_id viewp
 
-    has_tracknum <- toBool <$>
-        ((#peek UiMsg, context.has_tracknum) msgp :: IO CChar)
+    track_type <- (#peek UiMsg, context.track_type) msgp :: IO CChar
     tracknum <- int <$> (#peek UiMsg, context.tracknum) msgp :: IO Int
     has_pos <- toBool <$> ((#peek UiMsg, context.has_pos) msgp :: IO CChar)
     cpos <- (#peek UiMsg, context.pos) msgp
-    let track = decode_track has_tracknum tracknum has_pos cpos
+    let track = decode_track track_type tracknum has_pos cpos
     return (UiMsg.Context focus track, view)
     where
     get_id p
         | p == nullPtr = return Nothing
         | otherwise = Just <$> BlockC.get_id p
 
-decode_track :: Bool -> Int -> Bool -> ScoreTime
+decode_track :: CChar -> Int -> Bool -> ScoreTime
     -> Maybe (TrackNum, UiMsg.Track)
-decode_track has_tracknum tracknum  has_pos pos
-    | has_tracknum && has_pos = Just (tracknum, UiMsg.Track pos)
-    | has_tracknum = Just (tracknum, UiMsg.SkeletonDisplay)
+decode_track track_type tracknum has_pos pos
+    | track_type == (#const UiMsg::track_divider) =
+        Just (tracknum, UiMsg.Divider)
+    | track_type /= 0 && has_pos = Just (tracknum, UiMsg.Track pos)
+    | track_type /= 0 =
+        Just (tracknum, UiMsg.SkeletonDisplay)
     | otherwise = Nothing
 
 peek_event :: Ptr UiMsg.UiMsg -> IO UiMsg.MsgEvent

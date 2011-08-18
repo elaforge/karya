@@ -163,6 +163,9 @@ mouse_bindings = concat
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
     , bind_click [Shift] btn Keymap.OnSkeleton 1 "move tracks"
         BlockConfig.cmd_move_tracks
+
+    , bind_click [Shift] btn Keymap.OnDivider 1 "expand collapsed"
+        BlockConfig.cmd_expand_track
     ]
     where
     btn = Config.mouse_select
@@ -226,6 +229,8 @@ block_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
 block_config_bindings = concat
     [ bind_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
     , bind_char 'S' "toggle solo" (BlockConfig.cmd_toggle_flag Block.Solo)
+    , command_only 'C' "toggle collapse"
+        (BlockConfig.cmd_toggle_flag Block.Collapse)
     , command_only 'M' "toggle merge all"
         (BlockConfig.toggle_merge_all =<< Cmd.get_focused_block)
     ]

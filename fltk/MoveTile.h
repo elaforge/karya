@@ -1,22 +1,21 @@
-/*
-Differences from Fl_Tile:
-When dragging, only resize the widget to the left.  The widgets to the right
-get moved, except the rightmost widget, which resizes as normal (it's intended
-to be a padding widget to take up the unused space).
+/* Differences from Fl_Tile:
+    When dragging, only resize the widget to the left.  The widgets to the
+    right get moved, except the rightmost widget, which resizes as normal
+    (it's intended to be a padding widget to take up the unused space).
 
-The children should always be sorted left to right, top to bottom.  There is
-a protected method 'sort_children' that subclasses should call after inserting
-widgets.  Unfortunately FLTK's 'insert' is not virtual so this can't be done
-automatically.
+    The children should always be sorted left to right, top to bottom.  There
+    is a protected method 'sort_children' that subclasses should call after
+    inserting widgets.  Unfortunately FLTK's 'insert' is not virtual so this
+    can't be done automatically.
 
-Some children may be marked as non-resizable ("stiff").  They are never
-resized, and their entire area can be dragged.
+    Some children may be marked as non-resizable ("stiff").  They are never
+    resized, and their entire area can be dragged.
 
-The callback is called when things are dragged.
+    The callback is called when things are dragged.
 
-BUGS:
-If the grab areas overlap it gets confused.  So minimum size should be
-> 2*grab_area.
+    BUGS:
+    If the grab areas overlap it gets confused.  So minimum size should be
+    > 2*grab_area.
 */
 
 #ifndef __MOVE_TILE_H

@@ -33,7 +33,7 @@ data Context = Context
 -- However, those cases are handled in a specific place while Track goes on
 -- to become a mouse Modifier, so I don't mind if the former is a little
 -- awkward for the benefit of the latter.
-data Track = Track ScoreTime | SkeletonDisplay
+data Track = Track ScoreTime | SkeletonDisplay | Divider
     deriving (Eq, Ord, Read, Show)
     -- (Eq, Ord, Read) needed because this is in Cmd.Modifier
 
@@ -119,5 +119,6 @@ instance Pretty.Pretty Context where
         show_maybe desc = maybe "" (\v -> desc ++ "=" ++ show v)
 
 instance Pretty.Pretty Track where
-    pretty (Track pos) = "(track " ++ Pretty.pretty pos ++ ")"
+    pretty (Track pos) = "track:" ++ Pretty.pretty pos
+    pretty Divider = "div"
     pretty SkeletonDisplay = "skel"

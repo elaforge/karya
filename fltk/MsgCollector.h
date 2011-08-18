@@ -76,7 +76,7 @@ struct UiMsg {
 
     // Every msg has context.
     struct Context {
-        Context() : focus(0), view(0), has_tracknum(0), tracknum(0),
+        Context() : focus(0), view(0), track_type(track_none), tracknum(0),
             has_pos(0), pos(0)
         {}
 
@@ -87,14 +87,18 @@ struct UiMsg {
         // in c++, so make it an optional field here.
         BlockViewWindow *view;
         // Mouse was over this track.
-        // Actually a bool, but haskell FFI doesn't support bools.
-        char has_tracknum;
+        // Should be a TrackType.
+        char track_type;
         int tracknum;
         // If it was over a ruler or event track, has_pos=true and it was at
         // this pos.
-        char has_pos; // as has_tracknum
+        char has_pos; // haskell FFI doesn't have bool
         ScoreTime pos;
     } context;
+    // This goes in track_type and doubles as a boolean.  Since only click
+    // events can apply to a divider, this can be interpreted as a boolean for
+    // non-click events and only differentiate dividers for clicks.
+    enum TrackType { track_none = 0, track_normal, track_divider };
 
     // WARNING:
     // Union members can't have constructors, so make extra sure all fields

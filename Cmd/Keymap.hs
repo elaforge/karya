@@ -261,17 +261,19 @@ data Bindable =
     deriving (Eq, Ord, Show, Read)
 
 -- | Where a click or drag occurred.
-data MouseOn = OnTrack | OnSkeleton | Elsewhere
+data MouseOn = OnTrack | OnDivider | OnSkeleton | Elsewhere
     deriving (Eq, Ord, Show, Read)
 
 mouse_on :: UiMsg.Context -> MouseOn
 mouse_on = maybe Elsewhere on . UiMsg.ctx_track
     where
     on (_, UiMsg.Track {}) = OnTrack
+    on (_, UiMsg.Divider) = OnDivider
     on (_, UiMsg.SkeletonDisplay) = OnSkeleton
 
 instance Pretty.Pretty MouseOn where
     pretty OnTrack = "track"
+    pretty OnDivider = "divider"
     pretty OnSkeleton = "skeleton"
     pretty Elsewhere = "elsewhere"
 

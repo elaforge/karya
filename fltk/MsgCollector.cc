@@ -64,8 +64,13 @@ operator<<(std::ostream &os, const UiMsg::Context &c)
         os << "f='" << c.focus->block.get_title() << "' ";
     if (c.view)
         os << "v='" << c.view->block.get_title() << "' ";
-    if (c.has_tracknum)
-        os << "t=" << c.tracknum << ' ';
+    if (c.track_type) {
+        if (c.track_type == UiMsg::track_divider)
+            os << "div";
+        else
+            os << "t";
+        os << "=" << c.tracknum << ' ';
+    }
     if (c.has_pos)
         os << "p=" << c.pos << ' ';
     return os << '}';
@@ -110,6 +115,8 @@ set_context(UiMsg::Context &c, BlockViewWindow *view)
 static void
 set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
 {
+    static const int divider_pad = 3;
+
     set_context(c, view);
     if (!c.focus)
         return;
@@ -118,17 +125,42 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
 
     // This implementation means that dragging upward from the status bar
     // will start to select tracks, which ok I think.
-    c.has_tracknum = track_drag || Fl::event_y() < c.focus->block.status_top();
-    // Count an event past the rightmost track as the rightmost track.
-    c.tracknum = tracks - 1;
-    if (c.has_tracknum) {
-        for (int i = 0; i < tracks; i++) {
+    if (track_drag || Fl::event_y() < c.focus->block.status_top())
+        c.track_type = UiMsg::track_normal;
+    if (c.track_type) {
+        int i = 0;
+        for (; i < tracks; i++) {
+            // This is a special hack that makes it easier to click dividers,
+            // since typically they're narrow.  MoveTile will grab clicks
+            // within a certain range to make them easier to drag, so do the
+            // same thing for non-move clicks.
+            if (i+1 < tracks) {
+                t = c.focus->block.track_at(i+1);
+                int x = Fl::event_x() + divider_pad;
+                if (dynamic_cast<DividerView *>(t)
+                        && x >= t->x() && x <= t->x() + t->w())
+                {
+                    i++;
+                    break;
+                }
+            }
+            if (i > 0) {
+                t = c.focus->block.track_at(i-1);
+                int x = Fl::event_x() - divider_pad;
+                if (dynamic_cast<DividerView *>(t) && x <= t->x() + t->w()) {
+                    i--;
+                    break;
+                }
+            }
             t = c.focus->block.track_at(i);
             if (Fl::event_x() <= t->x() + t->w()) {
-                c.tracknum = i;
                 break;
             }
         }
+        // Count an event past the rightmost track as the rightmost track.
+        c.tracknum = std::min(i, tracks-1);
+        if (dynamic_cast<DividerView *>(t))
+            c.track_type = UiMsg::track_divider;
     }
 
     // If the event is right of 'tracks', 't' will be left as 'tracks - 1',
@@ -159,7 +191,7 @@ context(BlockViewWindow *view, int tracknum)
 {
     UiMsg::Context c;
     set_context(c, view);
-    c.has_tracknum = true;
+    c.track_type = true;
     c.tracknum = tracknum;
     return c;
 }
@@ -195,7 +227,7 @@ set_update(UiMsg &m, UiMsg::MsgType type)
     case UiMsg::msg_input:
         {
             const char *s;
-            if (m.context.has_tracknum)
+            if (m.context.track_type)
                 s = block->track_at(m.context.tracknum)->get_title();
             else
                 s = block->get_title();
@@ -218,7 +250,7 @@ set_update(UiMsg &m, UiMsg::MsgType type)
         }
         break;
     case UiMsg::msg_track_width:
-        ASSERT(m.context.has_tracknum);
+        ASSERT(m.context.track_type);
         m.track_width.width = block->get_track_width(m.context.tracknum);
         break;
     case UiMsg::msg_close:

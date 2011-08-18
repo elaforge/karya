@@ -84,6 +84,12 @@ cmd_toggle_flag flag = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     State.toggle_track_flag block_id tracknum flag
 
+cmd_expand_track :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_expand_track msg = do
+    block_id <- Cmd.get_focused_block
+    tracknum <- Cmd.require (clicked_track msg)
+    State.remove_track_flag block_id tracknum Block.Collapse
+
 -- | Move selected tracks to the left of the clicked track.
 cmd_move_tracks :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_move_tracks msg = do

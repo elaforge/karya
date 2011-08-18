@@ -11,6 +11,8 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - after an uncollapse, it doesn't redraw the selection that was underneath
+  - a collapse should push the selection out
   - if I put hsc2hs output in build/hsc then I could get rid of hacks in
     boring, all_hs.py, etc.
   - logview: some kind of indicator that a dup msg was suppressed
@@ -37,7 +39,7 @@ UNSORTED
 
   - easy way to create a marker on the ruler
 
-  - I can collapse tracks but can't uncollapse them since I can't get
+  * I can collapse tracks but can't uncollapse them since I can't get
     selection focus on them.  Maybe a command-click on the divider?
   + automate the manual tests
     wait until hpc+pgmF is fixed
@@ -48,6 +50,8 @@ UNSORTED
     - block title takes up space and I'm not using it, can it collapse?
     - scrollbars mostly just taking up space, have them as transparent
       overlays?
+    - skeleton display has leveled steps to make it easier to see who is
+      below who.  Only if a track has multiple children.
 
   wait until I want it
     - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?

@@ -93,6 +93,10 @@ MoveTile::handle(int evt)
     static BoolPoint drag_state(false, false);
     static IPoint drag_from(0, 0);
 
+    // Let modified clicks through so a shift-click on a stiff child will
+    // emit a msg.
+    if (Fl::event_state() & (FL_SHIFT | FL_CTRL | FL_ALT | FL_META))
+        return Fl_Group::handle(evt);
     IPoint mouse = mouse_pos();
 
     switch (evt) {

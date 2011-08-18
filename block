@@ -1,0 +1,2 @@
+#!/bin/sh
+make build/test_block && build/test_block "$@"
