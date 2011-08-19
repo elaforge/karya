@@ -26,7 +26,7 @@ instance Pretty.Pretty Key where
     pretty key = map Char.toLower (show key)
 
 -- Actually just need FL/Fl_Enumerations.H
-#include "c_interface.h"
+#include "Ui/c_interface.h"
 
 -- | The cmd binding assumes that shifted chars will also be uppercase, but
 -- fltk can't be trusted to do that consistently.

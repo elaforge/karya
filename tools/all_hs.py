@@ -1,10 +1,9 @@
 #!/usr/bin/python
-"""Return all the haskell library modules below this directory.  Automatically
-excludes .hs files generated from .hsc ones.
+"""Return all the haskell library modules below this directory.
 
 Args:
     notest - exclude *_test.hs and *Test.hs
-    hsc_as_hs - replace .hsc files with their .hs equivalents
+    hsc_as_hs - replace .hsc files with their .hs equivalents, in build/hsc
     nomain - exclude modules with no name, or named Main
 """
 
@@ -26,15 +25,15 @@ def main():
         fnames[:] = filter(capword, fnames)
     os.path.walk('.', accum, None)
 
-    hs_files = [fn for fn in hs_files if fn+'c' not in hsc_files]
-    fns = [fn[2:] for fn in hs_files + hsc_files]
+    if hsc_as_hs:
+        hsc_files = [os.path.join('build/hsc', fn.replace('.hsc', '.hs'))
+            for fn in hsc_files]
+    fns = [os.path.normpath(fn) for fn in hs_files + hsc_files]
     fns.sort()
     if notest:
         fns = filter(lambda fn: not is_test(fn), fns)
     if nomain:
         fns = filter(lambda fn: not is_main(fn), fns)
-    if hsc_as_hs:
-        fns = [fn.replace('.hsc', '.hs') for fn in fns]
     print ' '.join(fns)
 
 def is_test(fn):

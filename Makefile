@@ -13,11 +13,6 @@
 #
 # - seq, test_block, logview, test_logview, browser, test_browser need fltk
 #
-# - hsc2hs needs the same flags the apps that the generated files will need
-# (practically, it just means LIBFLTK), but hsc2hs does't accept flags in the
-# same format as gcc.
-# Fixable as soon as I can get rid of -m I think.
-#
 # - tests and profiles are separate targets and require different flags
 
 
@@ -27,6 +22,7 @@ FLTK_CONFIG := /usr/local/src/fltk-1.3/fltk-config
 BUILD := build
 TBUILD := $(BUILD)/test
 PBUILD := $(BUILD)/profile
+HSC := $(BUILD)/hsc
 
 ### OS dependent variables.
 
@@ -92,8 +88,11 @@ GHC := ghc-7.0.3
 GHC_LIB := $(shell dirname `ghc-pkg list | head -1`)
 
 # hspp adds filename and lineno to various logging and testing functions.
-HFLAGS := -threaded -W -fwarn-tabs $(CINCLUDE) -i../lib -pgml g++ \
+HFLAGS := -threaded -W -fwarn-tabs $(CINCLUDE) -i$(HSC):. -pgml g++ \
 	-F -pgmF $(BUILD)/hspp
+# Unfortunately you can append to the ghc path but not prepend, so rules that
+# want to prepend have to use -i -ifoo:$(GHC_PATH)
+GHC_PATH := $(HSC):.
 
 ### misc variables
 
@@ -131,7 +130,7 @@ all:
 dep: $(BUILD)/fixdeps
 	g++ -MM $(CXXFLAGS) */*.cc | $(BUILD)/fixdeps >.depend
 	printf '\n\n# hsc deps:\n' >>.depend
-	tools/hscdeps.py $(CINCLUDE) -I$(GHC_LIB)/include */*.hsc >>.depend
+	tools/hscdeps.py $(CINCLUDE) -I$(GHC_LIB)/include $(HSC) */*.hsc >>.depend
 
 include .depend
 
@@ -145,9 +144,7 @@ $(BUILD)/hspp:
 .PHONY: clean
 clean:
 	rm -f `find . -name '*.o' -or -name '*.hi' -or -name '*.pyc'` \
-		fltk/fltk.a \
-		$(UI_HS) $(PORTMIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  \
-		hpc/* seq_language
+		fltk/fltk.a haddock/*  hpc/* seq_language
 	rm -rf $(BUILD)/* .hpc
 
 fltk/fltk.a: $(FLTK_OBJS)
@@ -162,32 +159,30 @@ $(BUILD)/test_block: fltk/test_block.o fltk/fltk.a
 # files that must be converted to *.hs.  I have to add those to the dep line
 # explicitly.
 
-UI_HSC := $(wildcard Ui/*.hsc)
-
 # Ok so Util/CPUTime.hs is not technically a UI file but it's imported by the
 # tests.
 # TODO grody, maybe I should just make everything depend on ALL_HSC?
-UI_HS := $(UI_HSC:hsc=hs) Util/CPUTime.hs
+UI_HSC := $(addprefix $(HSC)/, $(wildcard Ui/*.hsc))
+UI_HSC := $(UI_HSC:hsc=hs) Util/CPUTime.hs
 UI_OBJS := Ui/c_interface.o fltk/fltk.a
 
 ALL_HS = $(shell tools/all_hs.py)
 
 ### main app
 
-SEQ_CMDLINE = $(GHC) $(HFLAGS) \
-	--make -main-is App.Main App/Main.hs \
+SEQ_CMDLINE = $(GHC) $(HFLAGS) --make -main-is App.Main App/Main.hs \
 	$(UI_OBJS) $(MIDI_OBJS) $(MIDI_LIBS) $(HLDFLAGS)
 
 # PHONY convinces make to always run ghc, which figures out deps on its own
 .PHONY: $(BUILD)/seq
-$(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(MIDI_OBJS)
+$(BUILD)/seq: $(UI_HSC) $(UI_OBJS) $(MIDI_OBJS)
 	$(SEQ_CMDLINE) $(SEQ_FLAGS) -o $@
 	$(BUNDLE) doc/seq.icns
 
 ### midi
 
 .PHONY: $(BUILD)/test_core_midi
-$(BUILD)/test_core_midi: $(UI_HS) $(MIDI_OBJS)
+$(BUILD)/test_core_midi: $(UI_HSC) $(MIDI_OBJS)
 	$(GHC) $(HFLAGS) --make \
 		-main-is Midi.TestCoreMidi Midi/TestCoreMidi.hs -o $@ \
 		$(MIDI_OBJS) $(MIDI_LIBS)
@@ -227,14 +222,13 @@ $(BUILD)/update: App/Update.hs
 
 ### logview
 
-LOGVIEW_OBJ = LogView/LogView.hs LogView/LogViewC.hs \
-	LogView/interface.o LogView/logview_ui.o
-LOGVIEW_HS = LogView/LogViewC.hs
-
-.PHONY: $(BUILD)/logview
+LOGVIEW_PREREQ := LogView/LogView.hs LogView/interface.o LogView/logview_ui.o
 # depend on Color because of Util.Log -> Peform.Warning import grossness
 # someday I should remove that
-$(BUILD)/logview: $(LOGVIEW_OBJ) Ui/Color.hs
+LOGVIEW_HSC := $(HSC)/LogView/LogViewC.hs $(HSC)/Ui/Color.hs
+
+.PHONY: $(BUILD)/logview
+$(BUILD)/logview: $(LOGVIEW_PREREQ) $(LOGVIEW_HSC)
 	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
 	$(BUNDLE)
 
@@ -255,13 +249,13 @@ $(BUILD)/logcat: LogView/LogCat.hs
 
 ### browser
 
-BROWSER_OBJ = Instrument/Browser.hs \
+BROWSER_PREREQ = Instrument/Browser.hs \
 	Instrument/interface.o Instrument/browser_ui.o \
 	Util/fltk_interface.o
-BROWSER_HS = Instrument/BrowserC.hs
+BROWSER_HSC = $(HSC)/Instrument/BrowserC.hs
 
 .PHONY: $(BUILD)/browser
-$(BUILD)/browser: $(BROWSER_OBJ) $(BROWSER_HS) Ui/Types.hs
+$(BUILD)/browser: $(BROWSER_PREREQ) $(BROWSER_HSC) Ui/Types.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
 	$(BUNDLE)
 
@@ -279,7 +273,7 @@ sense:
 
 ### doc
 
-ALL_HSC := $(patsubst %.hsc, %.hs, $(filter %.hsc, $(ALL_HS)))
+ALL_HSC := $(patsubst %.hsc, $(HSC)/%.hs, $(filter %.hsc, $(ALL_HS)))
 
 .PHONY: doc
 doc: $(ALL_HSC)
@@ -297,9 +291,9 @@ TEST_CMDLINE = $(GHC) $(HFLAGS) --make -DTESTING \
 # different flags.
 $(TBUILD)/RunTests.hs: $(ALL_HS)
 	test/generate_run_tests.py $@ $(filter %_test.hs, $(ALL_HS))
-$(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HS) $(UI_OBJS) $(MIDI_OBJS)
-	$(TEST_CMDLINE) -i -i$(TBUILD):. -odir $(TBUILD) -hidir $(TBUILD) \
-		$(TBUILD)/RunTests.hs -fhpc -o $@
+$(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HSC) $(UI_OBJS) $(MIDI_OBJS)
+	$(TEST_CMDLINE) -i -i$(TBUILD):$(GHC_PATH) -odir $(TBUILD) \
+		-hidir $(TBUILD) $(TBUILD)/RunTests.hs -fhpc -o $@
 	rm -f *.tix # this sticks around and breaks hpc
 	rm -f test.output # this gets reset on each new test run
 
@@ -307,14 +301,14 @@ $(PBUILD)/RunProfile.hs: $(ALL_HS)
 	test/generate_run_tests.py $@ $(filter %_profile.hs, $(ALL_HS))
 
 .PHONY: $(PBUILD)/RunProfile
-$(PBUILD)/RunProfile: $(PBUILD)/RunProfile.hs $(UI_HS) $(UI_OBJS) $(MIDI_OBJS)
-	$(TEST_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
-		$(PBUILD)/RunProfile.hs -o $@ $(HPROFILE)
+$(PBUILD)/RunProfile: $(PBUILD)/RunProfile.hs $(UI_HSC) $(UI_OBJS) $(MIDI_OBJS)
+	$(TEST_CMDLINE) -i -i$(PBUILD):$(GHC_PATH) -odir $(PBUILD) \
+		-hidir $(PBUILD) $(PBUILD)/RunProfile.hs -o $@ $(HPROFILE)
 
 .PHONY: $(PBUILD)/seq
-$(PBUILD)/seq: $(UI_HS) $(UI_OBJS) $(MIDI_OBJS)
-	$(SEQ_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
-		$(HPROFILE) -o $@
+$(PBUILD)/seq: $(UI_HSC) $(UI_OBJS) $(MIDI_OBJS)
+	$(SEQ_CMDLINE) -i -i$(PBUILD):$(GHC_PATH) -odir $(PBUILD) \
+		-hidir $(PBUILD) $(HPROFILE) -o $@
 	$(BUNDLE) doc/seq.icns
 
 .PHONY: profile
@@ -338,12 +332,10 @@ tags: $(ALL_HS)
 	(echo -e '!_TAG_FILE_SORTED\t1\t ~'; cat tags.sorted) >tags
 	rm tags.sorted
 
-# TODO hsc2hs can't use the CXXFLAGS since it chokes on flags like -m.  So I
-# have to break it out into its components which is brittle.  Can I patch
-# hsc2hs to take a --cflags arg and include all flags literally?
-%.hs: %.hsc
+$(HSC)/%.hs: %.hsc
+	@mkdir -p $(shell dirname $@)
 	hsc2hs -c g++ --cflag -Wno-invalid-offsetof -I$(GHC_LIB)/include \
-		$(CINCLUDE) $(FLTK_C) $(DEFINE) $<
+		$(CINCLUDE) $(FLTK_C) $(DEFINE) $< -o $@
 
 ### portmidi ###
 # I'm not using this now, but may use it again in the future
@@ -355,6 +347,6 @@ tags: $(ALL_HS)
 # PORTMIDI_HS := $(PORTMIDI_HSC:hsc=hs)
 #
 # .PHONY: $(BUILD)/test_portmidi
-# $(BUILD)/test_portmidi: Midi/PortMidi.hs $(UI_HS)
+# $(BUILD)/test_portmidi: Midi/PortMidi.hs $(UI_HSC)
 # 	$(GHC) $(HFLAGS) --make \
 # 		-main-is Midi.TestMidi Midi/TestMidi.hs $(MIDI_LIBS) -o $@

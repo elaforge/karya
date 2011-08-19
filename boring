@@ -20,22 +20,6 @@ _stub.[ch]$
 
 ^build/
 
-# .hs generated from .hsc
-^Instrument/BrowserC.hs$
-^LogView/LogViewC.hs$
-^Midi/PortMidi.hs$
-^Ui/BlockC.hs$
-^Ui/Color.hs$
-^Ui/Event.hs$
-^Ui/Key.hs$
-^Ui/RulerC.hs$
-^Ui/Style.hs$
-^Ui/SymbolC.hs$
-^Ui/TrackC.hs$
-^Ui/Types.hs$
-^Ui/UiMsgC.hs$
-^Util/CPUTime.hs$
-
 # darcs default boring regexps:
 \.hi$
 \.hi-boot$

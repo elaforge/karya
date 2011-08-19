@@ -70,7 +70,7 @@ import qualified Ui.Track as Track
 import qualified Ui.TrackC as TrackC
 
 
-#include "c_interface.h"
+#include "Ui/c_interface.h"
 -- This is from http://haskell.org/haskellwiki/FFI_cook_book.  Is there a
 -- better way?  I dunno, but this is clever and looks like it should work.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)

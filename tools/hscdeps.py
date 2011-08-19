@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""usage: hscdeps.py [ hsc_flags ] a.hsc b.hsc ...
+"""usage: hscdeps.py [ hsc_flags ] hsc_output_dir a.hsc b.hsc ...
+
 Print makefile style deps for all the headers the given hscs depend on.
 """
 
@@ -7,18 +8,23 @@ import sys, os, re, subprocess
 
 def main():
     hscs, hsc_flags = partition(lambda s: s.endswith('.hsc'), sys.argv[1:])
+    output_dir = hsc_flags[-1]
+    hsc_flags = hsc_flags[:-1]
     assert hscs, "no .hsc files given"
     # intermediate hsc c file to the .hs file which should be rebuilt if the
     # deps change
     intermediate_to_hs = {}
 
-    cmd = ['hsc2hs', '--no-compile'] + hsc_flags
+    path = lambda fn: os.path.join(output_dir, fn)
+    hsc2hs = ['hsc2hs', '--no-compile'] + hsc_flags
     for hsc in hscs:
-        res = subprocess.call(cmd + [hsc])
+        subprocess.call(['mkdir', '-p', os.path.dirname(path(hsc))])
+        cmd = hsc2hs + [hsc, '-o', path(hsc).replace('.hsc', '.hs')]
+        res = subprocess.call(cmd)
         if res != 0:
             print >>sys.stderr, 'cmd failed:', cmd
             return 1
-        intermediate_to_hs['%s_hsc_make.c' % hsc[:-4]] = hsc[:-1]
+        intermediate_to_hs[path('%s_hsc_make.c' % hsc[:-4])] = path(hsc[:-1])
     output = []
     try:
         include_flags = [f for f in hsc_flags if f.startswith('-I')]

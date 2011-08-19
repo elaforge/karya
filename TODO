@@ -13,7 +13,7 @@ big things
 UNSORTED
   - after an uncollapse, it doesn't redraw the selection that was underneath
   - a collapse should push the selection out
-  - if I put hsc2hs output in build/hsc then I could get rid of hacks in
+  * if I put hsc2hs output in build/hsc then I could get rid of hacks in
     boring, all_hs.py, etc.
   - logview: some kind of indicator that a dup msg was suppressed
   - root block window name gets a *?  or if I won't have window names visible,
@@ -248,9 +248,6 @@ MILESTONES
 external
   - send a patch to improve Random.Shuffle?
   - patch for hsc2hs for #alignment
-  - hsc2hs accepts slightly different flags from the c compiler which makes it
-    a pain to write the make rule.  It should take --cflags='xyz' which is
-    passed literally to the compiler.
   srcloc_annotate pragma
     1.31 vs. 5.80, 4.60 for dummy, so just using pgmf already kills perf
     I think a ghc pragma is needed.

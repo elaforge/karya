@@ -25,7 +25,7 @@ import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
 
-#include "c_interface.h"
+#include "Ui/c_interface.h"
 -- See comment in BlockC.hsc.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 

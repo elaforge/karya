@@ -5,7 +5,7 @@ import Foreign.C
 
 import qualified Util.Fltk as Fltk
 
-#include "interface.h"
+#include "Instrument/interface.h"
 
 type Window = Fltk.Window MsgType
 

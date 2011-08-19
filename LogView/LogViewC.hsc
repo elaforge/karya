@@ -8,7 +8,7 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Control
 
-#include "interface.h"
+#include "LogView/interface.h"
 
 
 -- TODO This is mostly the same as the Ui.Ui and fltk interface stuff.
