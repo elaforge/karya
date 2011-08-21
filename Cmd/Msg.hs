@@ -1,6 +1,5 @@
 module Cmd.Msg where
 import Control.Monad
-import qualified Data.Map as Map
 import qualified System.IO as IO
 
 import qualified Util.Pretty as Pretty
@@ -11,6 +10,8 @@ import qualified Ui.Track as Track
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.InputNote as InputNote
+import qualified Derive.Derive as Derive
+import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Transport as Transport
 
 
@@ -43,14 +44,38 @@ instance Pretty.Pretty Msg where
         ++ Pretty.pretty status
     pretty msg = show msg
 
-data DeriveStatus = OutOfDate | Deriving | DeriveFailed
-    | DeriveComplete Track.TrackSignals
+data DeriveStatus =
+    -- | The current derivation is out of date, but work has not yet started
+    -- on a replacement.
+    OutOfDate | Deriving | DeriveComplete !Performance
     deriving (Show)
 
-instance Pretty.Pretty DeriveStatus where
-    pretty (DeriveComplete signals) =
-        "DeriveComplete " ++ Pretty.pretty (Map.keys signals)
-    pretty status = show status
+instance Pretty.Pretty DeriveStatus where pretty = show
+
+-- Performance should be in "Cmd.Cmd", but that would be a circular import.
+
+-- | This holds the final performance for a given block.  It is used to
+-- actually play music, and poked and prodded in a separate thread to control
+-- its evaluation.
+--
+-- This is basically the same as Derive.Result.  I could make them be the
+-- same, but Performance wasn't always the same and may not be the same in the
+-- future.
+data Performance = Performance {
+    perf_derive_cache :: Derive.Cache
+    , perf_events :: Derive.Events
+    , perf_track_environ :: Derive.TrackEnviron
+    -- | Score damage on top of the Performance, used by the derive cache.
+    -- This is empty when the Performance is first created and collects
+    -- thereafter.
+    , perf_score_damage :: Derive.ScoreDamage
+    , perf_warps :: [TrackWarp.Collection]
+    , perf_track_signals :: Track.TrackSignals
+    }
+
+instance Show Performance where
+    show perf = "((Performance " ++ Pretty.pretty len ++ "))"
+        where len = Derive.cache_size (perf_derive_cache perf)
 
 -- * views
 

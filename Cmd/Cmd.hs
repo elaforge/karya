@@ -41,7 +41,9 @@
 
     Unfortunately cmds also use getDirectoryContents, forkIO, killThread, etc.
 -}
-module Cmd.Cmd where
+module Cmd.Cmd (
+    module Cmd.Cmd, Performance(..)
+) where
 import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent as Concurrent
 import Control.Monad
@@ -57,7 +59,6 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
-import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
@@ -71,13 +72,13 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
+import Cmd.Msg (Performance(..)) -- avoid a circular import
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Derive as Derive
@@ -324,10 +325,18 @@ instance Show LookupScale where
 data PlayState = PlayState {
     -- | Transport control channel for the player, if one is running.
     state_play_control :: !(Maybe Transport.PlayControl)
-    -- | As soon as any event changes are made to a block, its performance is
-    -- recalculated (in the background) and stored here, so play can be
-    -- started without latency.
-    , state_performance_threads :: !(Map.Map BlockId PerformanceThread)
+    -- | When changes are made to a block, its performance will be
+    -- recalculated in the background.  When the Performance is forced
+    -- \"enough\", it will replace the existing performance in
+    -- 'state_performance', if any.  This means there will be a window in
+    -- which the performance is out of date, but this is better than hanging
+    -- the responder every time it touches an insufficiently lazy part of
+    -- the performance.
+    , state_performance :: !(Map.Map BlockId Performance)
+    -- | Keep track of current thread working on each performance.  If a
+    -- new performance is needed before the old one is complete, it can be
+    -- killed off.
+    , state_performance_threads :: !(Map.Map BlockId Concurrent.ThreadId)
     -- | Some play commands can start playing from a short distance before the
     -- cursor.
     , state_play_step :: !TimeStep.TimeStep
@@ -356,6 +365,7 @@ data StepState = StepState {
 initial_play_state :: PlayState
 initial_play_state = PlayState
     { state_play_control = Nothing
+    , state_performance = Map.empty
     , state_performance_threads = Map.empty
     , state_play_step =
         TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 2)
@@ -455,29 +465,6 @@ type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 
 -- *** performance
 
--- | This holds the final performance for a given block.  It is used to
--- actually play music, and poked and prodded in a separate thread to control
--- its evaluation.
---
--- This is basically the same as Derive.Result.  I could make them be the
--- same, but Performance wasn't always the same and may not be the same in the
--- future.
-data Performance = Performance {
-    perf_derive_cache :: !Derive.Cache
-    , perf_events :: !Derive.Events
-    , perf_track_environ :: Derive.TrackEnviron
-    -- | Score damage on top of the Performance, used by the derive cache.
-    -- This is empty when the Performance is first created and collects
-    -- thereafter.
-    , perf_score_damage :: !Derive.ScoreDamage
-    , perf_warps :: ![TrackWarp.Collection]
-    , perf_track_signals :: !Track.TrackSignals
-    }
-
-instance Show Performance where
-    show perf = "((Performance " ++ Pretty.pretty len ++ "))"
-        where len = Derive.cache_size (perf_derive_cache perf)
-
 perf_tempo :: Performance -> Transport.TempoFunction
 perf_tempo = TrackWarp.tempo_func . perf_warps
 
@@ -486,15 +473,6 @@ perf_inv_tempo = TrackWarp.inverse_tempo_func . perf_warps
 
 perf_closest_warp :: Performance -> Transport.ClosestWarpFunction
 perf_closest_warp = TrackWarp.closest_warp . perf_warps
-
-data PerformanceThread = PerformanceThread {
-    pthread_perf :: !Performance
-    , pthread_id :: !Concurrent.ThreadId
-    }
-
-instance Show PerformanceThread where
-    show (PerformanceThread perf th_id) =
-        "((PerformanceThread " ++ show th_id ++ " perf " ++ show perf ++ "))"
 
 -- *** instrument
 
@@ -561,13 +539,9 @@ get_screen point = do
     return $ maybe Rect.empty id $
         Seq.minimum_on (Rect.distance point) screens
 
-lookup_pthread :: (M m) => BlockId -> m (Maybe PerformanceThread)
-lookup_pthread block_id =
-    Map.lookup block_id <$> gets (state_performance_threads . state_play)
-
 lookup_performance :: (M m) => BlockId -> m (Maybe Performance)
 lookup_performance block_id =
-    fmap (fmap pthread_perf) (lookup_pthread block_id)
+    Map.lookup block_id <$> gets (state_performance . state_play)
 
 get_performance :: (M m) => BlockId -> m Performance
 get_performance block_id = require =<< lookup_performance block_id

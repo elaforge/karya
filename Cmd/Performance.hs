@@ -1,5 +1,5 @@
 -- | This module manages the performance of music, specifically the creation
--- of 'Cmd.Cmd.PerformanceThread's.
+-- of performance threads.
 --
 -- Performance is relative to a toplevel block, so each block has its own set
 -- of caches.  Since performance is lazy, a separate thread will force it as
@@ -11,7 +11,6 @@ module Cmd.Performance (SendStatus, update_performance, default_derive_wait
 ) where
 import qualified Control.Concurrent as Concurrent
 import Control.Monad
-import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Map as Map
@@ -20,6 +19,7 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
@@ -68,101 +68,101 @@ update_performance wait send_status ui_pre ui_to cmd_state updates = do
 default_derive_wait :: Thread.Seconds
 default_derive_wait = 1
 
--- | This doesn't remove the PerformanceThreads because their caches are still
--- needed for the next performance.
 kill_obsolete_threads :: Derive.ScoreDamage -> Cmd.CmdT IO ()
 kill_obsolete_threads (Derive.ScoreDamage _ track_blocks blocks) = do
     threads <- Cmd.gets (Cmd.state_performance_threads . Cmd.state_play)
     let block_ids = Set.toList (Set.union track_blocks blocks)
-    let thread_ids = map Cmd.pthread_id $
-            Maybe.mapMaybe (flip Map.lookup threads) block_ids
-    Trans.liftIO $ mapM_ Concurrent.killThread thread_ids
+    Trans.liftIO $ mapM_ Concurrent.killThread $
+        Maybe.mapMaybe (flip Map.lookup threads) block_ids
+    Cmd.modify_play_state $ \st -> st { Cmd.state_performance_threads =
+        Map.delete_keys block_ids (Cmd.state_performance_threads st) }
 
 -- | Since caches are stored per-block, score damage is also per-block.
 -- It accumulates in an existing performance and is cleared when a new
 -- performance is created from the old one.
 insert_score_damage :: Derive.ScoreDamage -> Cmd.CmdT IO ()
 insert_score_damage damage = Cmd.modify_play_state $ \st ->
-    st { Cmd.state_performance_threads =
-        Map.map update_pthread (Cmd.state_performance_threads st) }
+    st { Cmd.state_performance = Map.map update (Cmd.state_performance st) }
     where
-    update_pthread th = th { Cmd.pthread_perf = update (Cmd.pthread_perf th) }
     update perf =
         perf { Cmd.perf_score_damage = damage <> Cmd.perf_score_damage perf }
 
 
 -- * performance evaluation
 
-regenerate_performance :: Thread.Seconds -> SendStatus -> BlockId
-    -> Cmd.CmdT IO ()
-regenerate_performance wait send_status block_id = do
-    threads <- Cmd.gets (Cmd.state_performance_threads . Cmd.state_play)
-    -- when_just (why_regenerate threads block_id) $ \why ->
-    --     Log.warn $ "regen because " ++ why
-    when (needs_regeneration threads block_id) $
-        generate_performance wait send_status block_id
-
 -- | A block should be rederived only if the it doesn't already have
 -- a performance or its performance has damage.
-needs_regeneration :: Map.Map BlockId Cmd.PerformanceThread -> BlockId -> Bool
-needs_regeneration threads block_id = case Map.lookup block_id threads of
-    Nothing -> True
-    Just pthread ->
-        -- It could be this damage is on a parent block and hence not
-        -- relevant to this one.  But in that case it should hit the caches
-        -- and be cheap all the same.
-        Cmd.perf_score_damage (Cmd.pthread_perf pthread) /= mempty
+--
+-- It could be this damage is on a parent block and hence not relevant to this
+-- one.  But in that case it should hit the caches and be cheap all the same.
+regenerate_performance :: Thread.Seconds -> SendStatus -> BlockId
+    -> Cmd.CmdT IO ()
+regenerate_performance wait send_status block_id =
+    whenM (needs_regenerate block_id) $
+        generate_performance wait send_status block_id
 
--- why_regenerate :: Map.Map BlockId Cmd.PerformanceThread -> BlockId
---     -> Maybe String
--- why_regenerate threads block_id = case Map.lookup block_id threads of
---     Nothing -> Just "block_id not in threads"
---     Just pthread
---         | damage pthread /= mempty ->
---             Just $ "score damage: " ++ show (damage pthread)
---         | otherwise -> Nothing
---     where
---     damage = Cmd.perf_score_damage . Cmd.pthread_perf
+needs_regenerate :: (Cmd.M m) => BlockId -> m Bool
+needs_regenerate block_id = do
+    perf <- Cmd.lookup_performance block_id
+    th <- lookup_thread block_id
+    return $ case (perf, th) of
+        (Nothing, Nothing) -> True
+        -- Regen if there's damage, but only if there isn't already a thread.
+        -- Otherwise it's an endless loop and the thread never has a chance
+        -- to fill the performance.
+        (Just perf, Nothing) -> Cmd.perf_score_damage perf /= mempty
+        _ -> False
 
 -- | Start a new performance thread.
 --
 -- Pull previous caches from the existing performance, if any.  Use them to
 -- generate a new performance, kick off a thread for it, and insert the new
--- PerformanceThread.
+-- thread into 'Cmd.state_performance_threads'.
 generate_performance :: Thread.Seconds -> SendStatus -> BlockId
     -> Cmd.CmdT IO ()
 generate_performance wait send_status block_id = do
-    old_thread <- fmap Cmd.pthread_id <$> Cmd.lookup_pthread block_id
+    old_thread <- lookup_thread block_id
     when_just old_thread (Trans.liftIO . Concurrent.killThread)
-    derived <- (Just <$> PlayUtil.cached_derive block_id)
-        `Error.catchError` \err -> do
-            when (is_abort err) $
-                Log.warn $ "Error performing: " ++ show err
-            return Nothing
-    case performance <$> derived of
-        Nothing -> Trans.liftIO $ send_status block_id Msg.DeriveFailed
-        Just perf -> do
-            th <- Trans.liftIO $ Thread.start $
-                evaluate_performance wait send_status block_id perf
-            let pthread = Cmd.PerformanceThread perf th
-            Cmd.modify_play_state $ \st ->
-                st { Cmd.state_performance_threads = Map.insert block_id
-                    pthread (Cmd.state_performance_threads st) }
+    ui_state <- State.get
+    cmd_state <- Cmd.get_state
+    th <- Trans.liftIO $ Thread.start $
+        performance_thread ui_state cmd_state wait send_status block_id
+    Cmd.modify_play_state $ \st ->
+        st { Cmd.state_performance_threads = Map.insert block_id
+             th (Cmd.state_performance_threads st) }
+
+lookup_thread :: (Cmd.M m) => BlockId -> m (Maybe Concurrent.ThreadId)
+lookup_thread block_id = Map.lookup block_id <$>
+    Cmd.gets (Cmd.state_performance_threads . Cmd.state_play)
+
+performance_thread :: State.State -> Cmd.State
+    -> Thread.Seconds -> SendStatus -> BlockId -> IO ()
+performance_thread ui_state cmd_state wait send_status block_id = do
+    send_status block_id Msg.OutOfDate
+    case res of
+        -- These errors indicate not that derivation failed, but that the cmd
+        -- threw before it even got started, which should never happen.
+        Left err -> Log.error $
+            "derivation for " ++ show block_id ++ " failed: " ++ show err
+        Right  (Nothing, _, _) ->
+            Log.error $ "derivation for " ++ show block_id ++ " aborted"
+        Right  (Just derive_result, _, _) ->
+            evaluate_performance wait send_status block_id
+                (performance derive_result)
     where
-    is_abort State.Abort = True
-    is_abort _ = False
+    (_, _, _, res) = Cmd.run_id ui_state cmd_state $
+        PlayUtil.cached_derive block_id
 
 evaluate_performance :: Thread.Seconds -> SendStatus -> BlockId
     -> Cmd.Performance -> IO ()
 evaluate_performance wait send_status block_id perf = do
-    send_status block_id Msg.OutOfDate
     Thread.delay wait
     send_status block_id Msg.Deriving
     secs <- Log.time_eval (Cmd.perf_inv_tempo perf 0)
     when (secs >= 0.5) $
         Log.notice $ show block_id ++ ": primed evaluation in "
             ++ Pretty.pretty (RealTime.seconds secs)
-    send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
+    send_status block_id $ Msg.DeriveComplete perf
 
 -- | Constructor for 'Cmd.Performance'.
 performance :: Derive.Result -> Cmd.Performance

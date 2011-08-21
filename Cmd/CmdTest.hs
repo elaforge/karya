@@ -1,5 +1,6 @@
 -- | Utilities for cmd tests.
 module Cmd.CmdTest where
+import qualified Control.Concurrent.Chan as Chan
 import qualified Data.Map as Map
 import qualified Debug.Trace as Trace
 import qualified System.IO.Unsafe as Unsafe
@@ -96,7 +97,6 @@ update_perf :: State.State -> Result val -> IO (Result val)
 update_perf ui_from res = do
     cmd_state <- update_performance ui_from (result_ui_state res)
         (result_cmd_state res) (result_updates res)
-    Thread.delay 0.2
     return $ res { result_cmd_state = cmd_state }
 
 -- | Run a DeriveTest extractor on a CmdTest Result.
@@ -123,9 +123,22 @@ update_performance ui_from ui_to cmd_state cmd_updates = do
     updates <- case Diff.diff cmd_updates ui_from ui_to of
         Left err -> error $ "diff error: " ++ err
         Right updates -> return updates
-    Performance.update_performance 0
-        send_status ui_from ui_to cmd_state updates
-    where send_status _bid _status = return ()
+    chan <- Chan.newChan
+    cstate <- Performance.update_performance 0
+        (\bid status -> Chan.writeChan chan (bid, status))
+        ui_from ui_to cmd_state updates
+    -- This will delay until the perform thread has derived enough of the
+    -- performance to hand over.
+    (block_id, perf) <- read_perf chan
+    let insert st = st { Cmd.state_performance = Map.insert block_id perf
+            (Cmd.state_performance st) }
+    return $ cstate { Cmd.state_play = insert (Cmd.state_play cstate) }
+    where
+    read_perf chan = do
+        (block_id, status) <- Chan.readChan chan
+        case status of
+            Msg.DeriveComplete perf -> return (block_id, perf)
+            _ -> read_perf chan
 
 -- | Run several cmds, threading the state through.  The first cmd that fails
 -- aborts the whole operation.
@@ -314,14 +327,13 @@ set_scale root_id block_id track_id scale_id =
 set_env :: (Cmd.M m) => BlockId -> BlockId -> TrackId
     -> [(TrackLang.ValName, TrackLang.Val)] -> m ()
 set_env root_id block_id track_id environ =
-    Cmd.modify_play_state $ \st -> st { Cmd.state_performance_threads =
-        Map.insert root_id (make_pthread perf)
-        (Cmd.state_performance_threads st) }
+    Cmd.modify_play_state $ \st -> st
+        { Cmd.state_performance_threads = Map.insert root_id
+            (Unsafe.unsafePerformIO (Thread.start (return ())))
+            (Cmd.state_performance_threads st)
+        , Cmd.state_performance = Map.insert root_id perf
+            (Cmd.state_performance st)
+        }
     where
     track_env = Map.singleton (block_id, track_id) (Map.fromList environ)
     perf = Cmd.Performance mempty [] track_env mempty [] mempty
-
-make_pthread :: Cmd.Performance -> Cmd.PerformanceThread
-make_pthread perf = Unsafe.unsafePerformIO $ do
-    th <- Thread.start (return ())
-    return $ Cmd.PerformanceThread perf th

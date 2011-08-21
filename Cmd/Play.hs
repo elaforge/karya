@@ -81,6 +81,7 @@ import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
@@ -192,14 +193,17 @@ cmd_play_msg msg = do
     derive_status_msg block_id status = do
         State.set_play_box block_id (derive_status_color status)
         case status of
-            Msg.DeriveComplete track_signals -> do
+            Msg.DeriveComplete perf -> do
+                Cmd.modify_play_state $ \st ->
+                    st { Cmd.state_performance = Map.insert block_id
+                         perf (Cmd.state_performance st) }
                 ui_state <- State.get
-                Trans.liftIO $ Sync.set_track_signals ui_state track_signals
+                Trans.liftIO $ Sync.set_track_signals ui_state
+                    (Cmd.perf_track_signals perf)
             _ -> return ()
     derive_status_color status = case status of
-        Msg.Deriving -> Config.busy_color
         Msg.OutOfDate -> Color.brightness 1.5 Config.busy_color
-        Msg.DeriveFailed -> Config.warning_color
+        Msg.Deriving -> Config.busy_color
         Msg.DeriveComplete _ -> Config.box_color
 
 -- * implementation

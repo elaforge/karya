@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
+{-# LANGUAGE CPP #-}
 {- | The responder is the main event loop on the haskell side.
 
     It receives msgs (described in Cmd.Msg) multiplexed through a set of
@@ -14,8 +15,9 @@
 module Cmd.Responder (
     create_msg_reader, responder
 
-    -- for tests
+#ifdef TESTING
     , respond, State(..)
+#endif
 ) where
 
 import qualified Control.Concurrent.MVar as MVar
@@ -344,7 +346,8 @@ hardcoded_io_cmds transport_info lang_session lang_dirs =
 do_run :: (Monad m) => (RType -> ResponderM (State.State, Cmd.State))
     -> Cmd.RunCmd m IO Cmd.Status
     -> State -> Msg.Msg -> State.State -> State.State -> Cmd.State
-    -> [Msg.Msg -> Cmd.CmdT m Cmd.Status] -> ResponderM (State.State, Cmd.State)
+    -> [Msg.Msg -> Cmd.CmdT m Cmd.Status]
+    -> ResponderM (State.State, Cmd.State)
 do_run exit runner rstate msg ui_from ui_state cmd_state cmds = do
     res <- Trans.liftIO $ run_cmd_list [] (state_midi_writer rstate) ui_state
         cmd_state runner (map ($msg) cmds)

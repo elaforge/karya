@@ -18,7 +18,7 @@ UNSORTED
   - logview: some kind of indicator that a dup msg was suppressed
   - root block window name gets a *?  or if I won't have window names visible,
     put this in the view status line
-  - Editing a control over the entire score has a big lag between each
+  * Editing a control over the entire score has a big lag between each
     keystroke.  Shouldn't it be waiting for a second to begin derivation?
   - randomize any control by having the 'set' call look for the -rnd control
   - does setting controls in the track title not work? "> | start-rnd = .1"
