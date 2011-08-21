@@ -1,2 +1,2 @@
 #!/bin/sh
-exec ghci -DTESTING -hidir build/test -odir build/test
+exec ghci -DTESTING -hidir build/test -odir build/test -ibuild/hsc
