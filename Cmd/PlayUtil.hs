@@ -94,9 +94,13 @@ perform_from start = perform_events . events_from start . Cmd.perf_events
 shift_messages :: RealTime -> Perform.MidiEvents -> Perform.MidiEvents
 shift_messages start = map (fmap (Midi.add_timestamp (-start)))
 
+-- | As a special case, a start <= 0 will get all events, including negative
+-- ones.  This is so notes pushed before 0 won't be clipped on a play from 0.
 events_from :: RealTime -> Derive.Events -> Derive.Events
-events_from start =
-    Seq.drop_unknown -- keep log msgs before an event after 'start'
+events_from start
+    | start <= 0 = id
+    -- keep log msgs before an event after 'start'
+    | otherwise = Seq.drop_unknown
         (LEvent.either (Just . (<start) . Score.event_start) (const Nothing))
 
 perform_events :: (Cmd.M m) => Derive.Events -> m Perform.MidiEvents
