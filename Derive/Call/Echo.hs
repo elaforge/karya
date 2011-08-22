@@ -89,12 +89,8 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
     ( optional "delay" (control "echo-delay" 1)
     , optional "feedback" (control "echo-feedback" 0.4)
     , optional "times" (control "echo-times" 1)) $ \delay feedback times -> do
-        events <- deriver
-        (result, ()) <- Util.map_signals
-            (delay :. feedback :. times :. Nil) Nil
-                (\(delay :. feedback :. times :. Nil) Nil ->
-                    go delay feedback times) () events
-        return $ Derive.merge_asc_events result
+        Util.map_controls_asc (delay :. feedback :. times :. Nil) () deriver $
+            \(delay :. feedback :. times :. Nil) -> go delay feedback times
     where
     go delay feedback times () event = return
         (echo_event (RealTime.seconds delay) feedback (floor times) event, ())

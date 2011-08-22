@@ -10,6 +10,7 @@
 -}
 module Derive.Call.Util where
 import qualified Data.FixedList as FixedList
+import Data.FixedList (Nil(..))
 import qualified Data.Hashable as Hashable
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -253,7 +254,7 @@ c_equal = Derive.transformer "equal" $ \args deriver ->
         | otherwise = Just (Just c)
     pitch _ = Nothing
 
--- * map score events
+-- * postproc utils
 
 -- Functions here force a Deriver into its LEvent.LEvents and process them
 -- directly, and then repackage them as a Deriver.  This can accomplish
@@ -273,14 +274,40 @@ event_head [] _ = return []
 event_head (log@(LEvent.Log _) : rest) f = (log:) <$> event_head rest f
 event_head (LEvent.Event event : rest) f = f event rest
 
+-- | Specialization of 'map_controls' where the transformation will return
+-- events in ascending order.
+map_controls_asc :: (FixedList.FixedList cs) => cs TrackLang.Control
+    -> state -> Derive.EventDeriver
+    -> (cs Signal.Y -> state -> Score.Event
+        -> Derive.Deriver ([Score.Event], state))
+    -> Derive.EventDeriver
+map_controls_asc controls state deriver f = do
+    events <- deriver
+    (result, _) <- map_controls controls state events f
+    return $ Derive.merge_asc_events result
+
+-- | Specialization of 'map_controls_pitches' with no pitch signals.  Also,
+-- the mapped function is not in Deriver since you are expected to be
+-- depending only on the control values.
+map_controls :: (FixedList.FixedList cs) => cs TrackLang.Control
+    -> state -> Derive.Events
+    -> (cs Signal.Y -> state -> Score.Event
+        -> Derive.Deriver ([Score.Event], state))
+    -> Derive.Deriver ([Derive.Events], state)
+map_controls controls state events f =
+    map_controls_pitches controls Nil state events $ \cs Nil -> f cs
+
 -- | Map a function with state over events and lookup pitch and controls vals
 -- for each event.  Exceptions are not caught.
-map_signals :: (FixedList.FixedList cs, FixedList.FixedList ps) =>
+--
+-- This is the most general transformer map over events.
+map_controls_pitches :: (FixedList.FixedList cs, FixedList.FixedList ps) =>
     cs TrackLang.Control -> ps TrackLang.PitchControl
+    -> state -> Derive.Events
     -> (cs Signal.Y -> ps Pitch.Degree -> state -> Score.Event
         -> Derive.Deriver ([Score.Event], state))
-    -> state -> Derive.Events -> Derive.Deriver ([Derive.Events], state)
-map_signals controls pitch_controls f state events = go state events
+    -> Derive.Deriver ([Derive.Events], state)
+map_controls_pitches controls pitch_controls state events f = go state events
     where
     go state [] = return ([], state)
     go state (log@(LEvent.Log _) : rest) = do

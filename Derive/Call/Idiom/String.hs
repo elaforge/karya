@@ -102,12 +102,11 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
         Nothing -> Derive.throw $ "initial degree below lowest string: "
             ++ show (Score.initial_pitch event)
         Just state -> do
-            (result, final) <- Util.map_signals
-                (attack :. delay :. release :. Nil) Nil
-                    (\(attack :. delay :. release :. Nil) Nil ->
+            (result, final) <- Util.map_controls
+                (attack :. delay :. release :. Nil) state events $
+                    \(attack :. delay :. release :. Nil) ->
                         process attack_interpolator release_interpolator
-                            (attack, delay, release))
-                state events
+                            (attack, delay, release)
             return $ Derive.merge_asc_events result
                 ++ [LEvent.Event $ state_event final]
 
