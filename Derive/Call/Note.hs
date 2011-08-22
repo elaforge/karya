@@ -95,6 +95,10 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
         List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs
 
 -- | Interpret the c_start_rnd and c_dur_rnd controls.
+--
+-- This only ever makes notes shorter.  Otherwise, it's very easy for
+-- previously non-overlapping notes to become overlapping and MIDI doesn't
+-- like that.
 randomized :: Score.ControlMap -> RealTime -> RealTime
     -> Derive.Deriver (RealTime, RealTime)
 randomized controls start end = do
@@ -102,8 +106,8 @@ randomized controls start end = do
         dur_r = Score.control controls Score.c_dur_rnd start
     if start_r == 0 && dur_r == 0 then return (start, end) else do
     r1 : r2 : _ <- Util.randoms
-    return (start + RealTime.seconds (Num.restrict (-start_r) start_r r1),
-        end + RealTime.seconds (Num.restrict (-dur_r) dur_r r2))
+    return (start + RealTime.seconds (Num.restrict 0 start_r r1),
+        end + RealTime.seconds (Num.restrict (-dur_r) 0 r2))
 
 -- | In a note track, the pitch signal for each note is constant as soon as the
 -- next note begins.  Otherwise, it looks like each note changes pitch during
