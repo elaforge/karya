@@ -1,0 +1,3 @@
+#!/bin/sh
+# ghci with flags to import test modules
+exec command ghci -DTESTING -hidir build/test -odir build/test -ibuild/hsc
