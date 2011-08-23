@@ -1,9 +1,7 @@
 -- | Basic calls for control tracks.
 module Derive.Call.Control where
-import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -81,12 +79,9 @@ c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
                 next <- Derive.real n
                 return $ min (start + RealTime.seconds time) next
         srate <- Util.get_srate
-        case Derive.passed_prev_val args of
-                Nothing -> do
-                    Log.warn "no previous value to slide from"
-                    return $ Signal.signal [(start, val)]
-                Just (_, prev_y) -> return $
-                    interpolator srate id True start prev_y end val
+        return $ case Derive.passed_prev_val args of
+            Nothing -> Signal.signal [(start, val)]
+            Just (_, prev_y) -> interpolator srate id True start prev_y end val
 
 -- | Unlike most control events, this uses a duration.  Set the control to the
 -- given value for the event's duration, and reset to the old value
@@ -112,13 +107,11 @@ control_interpolate :: (Double -> Signal.Y) -> Signal.Y
 control_interpolate f val args = do
     start <- Derive.passed_real args
     srate <- Util.get_srate
-    case Derive.passed_prev_val args of
-        Nothing -> do
-            -- This can happen a lot when the control track is sliced, and is
-            -- nothing to worry about.
-            -- Log.warn "no previous value to interpolate from"
-            return $ Signal.signal [(start, val)]
-        Just (prev, prev_val) -> return $
+    return $ case Derive.passed_prev_val args of
+        -- This can happen a lot when the control track is sliced, and is
+        -- nothing to worry about.
+        Nothing -> Signal.signal [(start, val)]
+        Just (prev, prev_val) ->
             interpolator srate f False prev prev_val start val
 
 -- | TODO more efficient version without the intermediate list

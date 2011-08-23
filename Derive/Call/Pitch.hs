@@ -1,7 +1,6 @@
 -- | Create val calls for scale degrees.
 module Derive.Call.Pitch where
 
-import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -9,10 +8,10 @@ import qualified Util.Seq as Seq
 import Ui
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Util as Util
-import qualified Derive.Derive as Derive
 import qualified Derive.CallSig as CallSig
-import qualified Derive.TrackLang as TrackLang
 import Derive.CallSig (optional, required)
+import qualified Derive.Derive as Derive
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
@@ -103,14 +102,11 @@ c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
                 return $ min (start + RealTime.seconds time) next
         scale_id <- Util.get_scale_id
         srate <- Util.get_srate
-        case Derive.passed_prev_val args of
-                Nothing -> do
-                    Log.warn "no previous value to slide from"
-                    return $ PitchSignal.signal scale_id
-                        [(start, PitchSignal.degree_to_y degree)]
-                Just (_, prev_y) -> return $
-                    interpolator srate id scale_id True
-                        start (PitchSignal.y_to_degree prev_y) end degree
+        return $ case Derive.passed_prev_val args of
+            Nothing -> PitchSignal.signal scale_id
+                [(start, PitchSignal.degree_to_y degree)]
+            Just (_, prev_y) -> interpolator srate id scale_id True
+                start (PitchSignal.y_to_degree prev_y) end degree
 
 -- | Emit a quick slide from a neighboring pitch in absolute time.
 --
@@ -138,14 +134,11 @@ pitch_interpolate f degree args = do
     start <- Derive.passed_real args
     scale_id <- Util.get_scale_id
     srate <- Util.get_srate
-    case Derive.passed_prev_val args of
-        Nothing -> do
-            Log.warn "no previous val to interpolate from"
-            return $ PitchSignal.signal scale_id
-                [(start, PitchSignal.degree_to_y degree)]
-        Just (prev, prev_y) -> return $
-            interpolator srate f scale_id False
-                prev (PitchSignal.y_to_degree prev_y) start degree
+    return $ case Derive.passed_prev_val args of
+        Nothing -> PitchSignal.signal scale_id
+            [(start, PitchSignal.degree_to_y degree)]
+        Just (prev, prev_y) -> interpolator srate f scale_id False
+            prev (PitchSignal.y_to_degree prev_y) start degree
 
 -- | TODO more efficient version without the intermediate list
 interpolator :: RealTime -> (Double -> Double) -> Util.PitchInterpolator
