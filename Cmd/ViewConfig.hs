@@ -54,7 +54,7 @@ zoom_to_fit view_id = do
     block_end <- State.block_event_end (Block.view_block view)
     let pixels = Block.view_visible_time view
     let factor = fromIntegral pixels / Types.score_to_double block_end
-    modify_factor view_id (const factor)
+    set_zoom view_id (Types.Zoom 0 factor)
 
 -- * resize
 
