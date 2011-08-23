@@ -176,8 +176,7 @@ ui_update_state maybe_tracknum view_id update = case update of
     UiMsg.UpdateInput text -> do
         view <- State.get_view view_id
         update_input (Block.view_block view) text
-    -- UiMsg.UpdateTrackScroll hpos -> sync_zoom_status view_id
-    UiMsg.UpdateZoom _ -> sync_zoom_status view_id
+    UiMsg.UpdateZoom {} -> sync_zoom_status view_id
     UiMsg.UpdateClose -> State.destroy_view view_id
     _ -> return ()
     where

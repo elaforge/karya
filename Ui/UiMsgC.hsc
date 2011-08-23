@@ -127,7 +127,7 @@ peek_ui_update type_num msgp = case type_num of
         scroll <- int <$> (#peek UiMsg, track_scroll.scroll) msgp :: IO Int
         return $ UiMsg.UpdateTrackScroll scroll
     (#const UiMsg::msg_zoom) -> do
-        zoom <- (#peek UiMsg, zoom.zoom) msgp :: IO Types.Zoom
+        zoom <- peek =<< (#peek UiMsg, zoom.zoom) msgp :: IO Types.Zoom
         return $ UiMsg.UpdateZoom zoom
     (#const UiMsg::msg_resize) -> do
         rect <- peek =<< (#peek UiMsg, resize.rect) msgp
