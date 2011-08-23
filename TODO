@@ -11,6 +11,8 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - bug: scrolling sets zoom to 0
+  - zoom to fit should set track scroll to 0
   - try to make TrackEnviron lazy
   - after an uncollapse, it doesn't redraw the selection that was underneath
   - a collapse should push the selection out
@@ -23,6 +25,7 @@ UNSORTED
     keystroke.  Shouldn't it be waiting for a second to begin derivation?
   - randomize any control by having the 'set' call look for the -rnd control
   - does setting controls in the track title not work? "> | start-rnd = .1"
+    should be "> | %start-rnd = .1" I think?
   - It would be more efficient to move events around if their controls were
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved

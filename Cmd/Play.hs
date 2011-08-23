@@ -150,8 +150,14 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs
 
-    Trans.liftIO $ Thread.start $ updater_thread
-        updater_ctl transport_info (Cmd.perf_inv_tempo perf) start
+    ui_state <- State.get
+    Trans.liftIO $ do
+        -- Pass the current state in the MVar.  ResponderSync will keep it up
+        -- to date afterwards, but only if blocks are added or removed.
+        MVar.modifyMVar_ (Transport.info_state transport_info)
+            (const (return ui_state))
+        Thread.start $ updater_thread
+            updater_ctl transport_info (Cmd.perf_inv_tempo perf) start
     modify $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
 
