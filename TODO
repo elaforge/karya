@@ -12,7 +12,7 @@ big things
 
 UNSORTED
   * bug: scrolling sets zoom to 0
-  - scrolling the window without giving it focus causes a segfault
+  * scrolling the window without giving it focus causes a segfault
   * zoom to fit should set track scroll to 0
   - try to make TrackEnviron lazy
   - after an uncollapse, it doesn't redraw the selection that was underneath

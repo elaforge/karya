@@ -222,7 +222,8 @@ set_event(UiMsg::Event &e, int evt)
 static void
 set_update(UiMsg &m, UiMsg::MsgType type)
 {
-    BlockView *block = &m.context.focus->block;
+    ASSERT(m.context.view); // have to explicitly set view for updates
+    BlockView *block = &m.context.view->block;
     switch (type) {
     case UiMsg::msg_input:
         {
