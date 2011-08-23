@@ -15,6 +15,7 @@ staff_symbols =
     , symbol "rmordent2" "\xe18f"
     , Symbol.symbol "arp-up" [arp, glyph_at 8 (-0.14, -0.62) arp_arrow_up]
     , Symbol.symbol "arp-down" [arp, glyph_at 8 (-0.14, 0.25) arp_arrow_down]
+    , symbol "ped" "\xe1b7"
     ]
     where
     symbol name str = Symbol.Symbol name False [glyph str]

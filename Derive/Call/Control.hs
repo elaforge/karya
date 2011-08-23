@@ -5,9 +5,9 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import Ui
-import Derive.CallSig (required, optional)
-import qualified Derive.CallSig as CallSig
 import qualified Derive.Call.Util as Util
+import qualified Derive.CallSig as CallSig
+import Derive.CallSig (required, optional)
 import qualified Derive.Derive as Derive
 
 import qualified Perform.RealTime as RealTime
@@ -32,6 +32,10 @@ control_calls = Derive.make_calls
     , ("i", c_linear)
     , ("e", c_exponential)
     , ("s", c_slide)
+
+    -- not sure which one I'll like better
+    , ("`ped`", c_pedal)
+    , ("h", c_pedal)
     ]
 
 c_set :: Derive.ControlCall
@@ -84,6 +88,17 @@ c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
                 Just (_, prev_y) -> return $
                     interpolator srate id True start prev_y end val
 
+-- | Unlike most control events, this uses a duration.  Set the control to the
+-- given value for the event's duration, and reset to the old value
+-- afterwards.
+--
+-- Mostly makes sense with pedal type controls.
+c_pedal :: Derive.ControlCall
+c_pedal = Derive.generator1 "pedal" $ \args -> CallSig.call1 args
+    (optional "val" 1) $ \val -> do
+        (start, end) <- Derive.passed_real_range args
+        let prev = maybe 0 snd (Derive.passed_prev_val args)
+        return $ Signal.signal [(start, val), (end, prev)]
 
 -- * control util
 
