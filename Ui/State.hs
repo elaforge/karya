@@ -232,7 +232,8 @@ instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     get = StateT State.get
     put st = StateT (State.put st)
     update upd
-        | Update.invertable upd = (StateT . lift) (Logger.log upd)
+        | Update.invertable upd || Update.is_view_update upd =
+            (StateT . lift) (Logger.log upd)
         -- See Cmd.Undo about this particular grossness.
         | otherwise = throw $
             "due to Undo restrictions, can't record a non-invertable Update: "
