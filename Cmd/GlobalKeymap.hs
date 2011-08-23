@@ -38,8 +38,8 @@
 -}
 module Cmd.GlobalKeymap where
 import qualified Control.Monad.Identity as Identity
-import Util.Control
 
+import Util.Control
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -60,6 +60,7 @@ import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
+import qualified Cmd.Undo as Undo
 import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified Perform.Transport as Transport
@@ -246,8 +247,8 @@ edit_state_bindings = concat
     , bind_mod [Shift] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
 
-    , command_char 'u' "undo" Edit.undo
-    , command_char 'r' "redo" Edit.redo
+    , command_char 'u' "undo" Undo.undo
+    , command_char 'r' "redo" Undo.redo
 
     -- The convention from MakeRuler is: 0 = block, 1 = block section,
     -- 2 = whole, 3 = quarter, 4 = 16th, etc.  Since it goes to /4 after

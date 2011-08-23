@@ -54,6 +54,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Play as Play
 import qualified Cmd.ResponderSync as ResponderSync
 import qualified Cmd.Track as Track
+import qualified Cmd.Undo as Undo
 
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
@@ -189,8 +190,8 @@ run_responder = Logger.run . flip Cont.runContT return
     with it.  If the cmd returns Abort or Continue, go to the next, if it
     returns Done, repeat the loop, and if it returns Quit, break out of the
     loop.  Then pass the ui state before all of this along with the final ui
-    state to Sync so the UI can be updated.  The old ui state is also passed to
-    'record_history' for undo recording.
+    state to Sync so the UI can be updated.  The old ui state is also passed
+    to 'Undo.record_history' for undo recording.
 
     The complications:
 
@@ -226,7 +227,7 @@ run_responder = Logger.run . flip Cont.runContT return
 respond :: State -> Msg.Msg -> IO (Bool, State)
 respond rstate msg = do
     -- putStrLn $ "msg: " ++ Pretty.pretty msg
-    ((res, cmd_state), updates) <- run_responder (run_cmds rstate msg)
+    ((res, cmd_state), cmd_updates) <- run_responder (run_cmds rstate msg)
     rstate <- return $ rstate { state_cmd = cmd_state }
     (status, rstate) <- case res of
         Left err -> do
@@ -234,12 +235,13 @@ respond rstate msg = do
             return (Cmd.Continue, rstate)
         Right (status, ui_from, ui_to) -> do
             cmd_state <- return $ fix_cmd_state ui_to cmd_state
-            (updates, ui_state, cmd_state) <-
+            (all_updates, ui_state, cmd_state) <-
                 ResponderSync.sync (state_sync rstate)
                     (send_derive_status (state_loopback rstate))
-                    (state_ui rstate) ui_from ui_to cmd_state updates
+                    (state_ui rstate) ui_from ui_to cmd_state cmd_updates
                     (Transport.info_state (state_transport_info rstate))
-            cmd_state <- return $ record_history updates ui_from cmd_state
+            cmd_state <- return $
+                Undo.record_history cmd_updates all_updates ui_from cmd_state
             return (status,
                 rstate { state_cmd = cmd_state, state_ui = ui_state })
     return (status == Cmd.Quit, rstate)
@@ -250,31 +252,6 @@ fix_cmd_state ui_state cmd_state = case Cmd.state_focused_view cmd_state of
     Just focus | focus `Map.notMember` State.state_views ui_state ->
         cmd_state { Cmd.state_focused_view = Nothing }
     _ -> cmd_state
-
--- ** undo
-
--- Do the traditional thing where an action deletes the redo buffer.
--- At some point I could think about a real branching history, but not now.
-record_history :: [Update.Update] -> State.State -> Cmd.State -> Cmd.State
-record_history updates old_state cmd_state
-    | not skip && should_record_history updates = cmd_state
-        { Cmd.state_history = new_hist, Cmd.state_skip_history_record = False }
-    | skip = cmd_state { Cmd.state_skip_history_record = False }
-        -- Be careful to not modify it when I don't need to, otherwise this
-        -- can build up unevaluated thunks until the history is forced.
-    | otherwise = cmd_state
-    where
-    skip = Cmd.state_skip_history_record cmd_state
-    cmd_name = "none yet"
-    hist = fst (Cmd.state_history cmd_state)
-    new_hist = (Cmd.HistoryEntry cmd_name old_state : hist, [])
-
--- TODO I'd like to be able to undo only non-view changes, leaving the view
--- where it is.  Or undo only the view changes, which means zoom and selection.
--- Or rather, view changes could be recorded in a separate undo history.
--- It would also be nice to only undo within a selected area.
-should_record_history :: [Update.Update] -> Bool
-should_record_history = any (not . Update.is_view_update)
 
 run_cmds :: State -> Msg.Msg -> ResponderM RType
 run_cmds rstate msg = do
@@ -316,15 +293,16 @@ run_core_cmds rstate msg exit = do
 
     -- Focus commands and the rest of the pure commands come first so text
     -- entry can override io bound commands.
-    let pure_cmds = Track.track_cmd : hardcoded_cmds ++ GlobalKeymap.pure_cmds
+    let pure_cmds =
+            StaticConfig.config_global_cmds (state_static_config rstate)
+            ++ hardcoded_cmds ++ GlobalKeymap.pure_cmds
     (ui_to, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
         ui_to cmd_state pure_cmds
 
     let config = state_static_config rstate
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
-    let io_cmds = StaticConfig.config_global_cmds config
-            ++ hardcoded_io_cmds (state_transport_info rstate)
+    let io_cmds = hardcoded_io_cmds (state_transport_info rstate)
                 (state_session rstate)
                 (StaticConfig.config_local_lang_dirs config)
     (ui_to, cmd_state) <- do_run exit Cmd.run_io rstate msg ui_from
@@ -333,9 +311,12 @@ run_core_cmds rstate msg exit = do
 
 -- | Everyone always gets these commands.
 hardcoded_cmds :: [Cmd.Cmd]
-hardcoded_cmds = [Internal.cmd_update_ui_state, Internal.cmd_record_focus]
+hardcoded_cmds =
+    [Track.track_cmd, Internal.cmd_update_ui_state, Internal.cmd_record_focus]
 
 -- | And these special commands that run in IO.
+hardcoded_io_cmds :: Transport.Info -> Lang.Session -> [FilePath]
+    -> [Msg.Msg -> Cmd.CmdIO]
 hardcoded_io_cmds transport_info lang_session lang_dirs =
     [ Lang.cmd_language lang_session lang_dirs
     , Play.cmd_play_msg

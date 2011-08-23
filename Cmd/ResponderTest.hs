@@ -6,6 +6,7 @@ import qualified Control.Concurrent.STM.TVar as TVar
 import Control.Monad
 
 import qualified Data.Map as Map
+import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Printf as Printf
 
@@ -82,6 +83,9 @@ get_perf chan = do
             return (block_id, perf)
         _ -> get_perf chan
 
+result_states :: Result -> States
+result_states result = (CmdTest.result_ui_state r, CmdTest.result_cmd_state r)
+    where r = result_cmd result
 
 -- * thread
 
@@ -100,16 +104,30 @@ thread_delay print_timing states ((msg, delay):msgs) = do
     when print_timing $
         Printf.printf "%s -> lag: %.2fs\n" (Pretty.pretty msg) secs
     Thread.delay delay
-    let c = result_cmd result
-        next_states = (CmdTest.result_ui_state c, CmdTest.result_cmd_state c)
-    (result:) <$> thread_delay print_timing next_states msgs
+    (result:) <$> thread_delay print_timing (result_states result) msgs
+
+-- | Respond to a single Cmd.  This can be used to test cmds in the full
+-- responder context without having to fiddle around with keymaps.
+respond_cmd :: States -> Cmd.CmdId a -> IO Result
+respond_cmd states cmd = _respond states (Just (mkcmd cmd)) magic
+    where
+    mkcmd cmd msg
+        | is_magic msg = cmd >> return Cmd.Done
+        | otherwise = return Cmd.Continue
+    is_magic (Msg.Socket _ "MAGIC!!") = True
+    is_magic _ = False
+    magic = Msg.Socket IO.stdout "MAGIC!!"
 
 respond1 :: States -> Msg.Msg -> IO Result
-respond1 (ustate, cstate) msg = do
+respond1 states = _respond states Nothing
+
+_respond :: States -> Maybe Cmd.Cmd -> Msg.Msg -> IO Result
+_respond (ustate, cstate) cmd msg = do
     update_chan <- new_chan
     midi_chan <- new_chan
     loopback_chan <- Chan.newChan
-    let rstate = make_rstate update_chan midi_chan loopback_chan ustate cstate
+    let rstate = make_rstate update_chan midi_chan loopback_chan
+            ustate cstate cmd
     (_quit, rstate) <- Responder.respond rstate msg
     -- Updates and MIDI are normally forced by syncing with the UI and MIDI
     -- driver, so force explicitly here.  Not sure if this really makes
@@ -125,11 +143,14 @@ respond1 (ustate, cstate) msg = do
 
 make_rstate :: TVar.TVar [[Update.Update]]
     -> TVar.TVar [Midi.WriteMessage] -> Chan.Chan Msg.Msg
-    -> State.State -> Cmd.State -> Responder.State
-make_rstate update_chan midi_chan loopback_chan ui_state cmd_state =
-    Responder.State StaticConfig.empty ui_state cmd_state write_midi info
-        lang_session loopback dummy_sync
+    -> State.State -> Cmd.State -> Maybe Cmd.Cmd
+    -> Responder.State
+make_rstate update_chan midi_chan loopback_chan ui_state cmd_state cmd =
+    Responder.State config ui_state cmd_state write_midi info lang_session
+        loopback dummy_sync
     where
+    config = StaticConfig.empty
+        { StaticConfig.config_global_cmds = maybe [] (:[]) cmd }
     info = Transport.Info send_status write_midi abort_midi get_now_ts
         (Unsafe.unsafePerformIO (MVar.newMVar State.empty))
     dummy_sync _ _ updates = do

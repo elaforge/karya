@@ -11,6 +11,7 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - try to make TrackEnviron lazy
   - after an uncollapse, it doesn't redraw the selection that was underneath
   - a collapse should push the selection out
   * if I put hsc2hs output in build/hsc then I could get rid of hacks in
@@ -32,7 +33,7 @@ UNSORTED
     environ.  Actually, named pitch track.
   - is it possible to have a more symbolic control track, e.g. pedal with
     ped and *, or maybe a ped event where it's down until event end?
-  - undo rederives everything, which is super slow on a big score
+  * undo rederives everything, which is super slow on a big score
     I think I'm going to need to switch to a diff based undo.  I need to do
     this anyway to save undo.  If I extend Updates to include the actual
     changes, then they can be used for UI changes, ScoreDamage, and undo.

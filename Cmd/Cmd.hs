@@ -498,8 +498,8 @@ type SynthDesc = MidiDb.SynthDesc InstrumentCode
 -- *** misc
 
 data HistoryEntry = HistoryEntry {
-    hist_name :: !String
-    , hist_state :: !State.State
+    hist_state :: !State.State
+    , hist_updates :: ![Update.Update]
     } deriving (Show, Generics.Typeable)
 
 data Modifier = KeyMod Key.Modifier

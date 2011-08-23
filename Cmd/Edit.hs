@@ -5,15 +5,11 @@
 module Cmd.Edit where
 import Control.Monad
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import Ui
-import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -471,68 +467,7 @@ sync_recent = do
         Cmd.RecentTransform s -> s ++ "|"
 
 
--- * undo / redo
-
--- TODO if I want to remember the name of the state from the undo, I'll have
--- to stick it in the history: (past, future, now_name)
-
-undo :: (Cmd.M m) => m ()
-undo = do
-    (past, future) <- Cmd.gets Cmd.state_history
-    now <- State.get
-    case past of
-        (prev:rest) -> do
-            Cmd.modify_state $ \st -> st
-                { Cmd.state_history = (rest, Cmd.HistoryEntry "" now : future)
-                , Cmd.state_skip_history_record = True }
-            State.put (Cmd.hist_state prev)
-            State.modify $ \st -> merge_undo_states st (Cmd.hist_state prev)
-            initialize_state
-        [] -> Log.notice "no past to undo"
-
-redo :: (Cmd.M m) => m ()
-redo = do
-    (past, future) <- Cmd.gets Cmd.state_history
-    now <- State.get
-    case future of
-        (next:rest) -> do
-            Cmd.modify_state $ \st -> st
-                { Cmd.state_history = (Cmd.HistoryEntry "" now : past, rest)
-                , Cmd.state_skip_history_record = True }
-            State.modify $ \st -> merge_undo_states st (Cmd.hist_state next)
-            initialize_state
-        [] -> Log.notice "no future to redo"
-
--- | There are certain parts of the state that I don't want to undo, so inherit
--- them from the old state: Block and view configs.
-merge_undo_states :: State.State -> State.State -> State.State
-merge_undo_states old new = new {
-    State.state_namespace = State.state_namespace old
-    , State.state_project_dir = State.state_project_dir old
-    , State.state_views = Map.mapWithKey
-        (merge_view (State.state_views old)) (State.state_views new)
-    , State.state_blocks = Map.mapWithKey
-        (merge_block (State.state_blocks old)) (State.state_blocks new)
-    , State.state_midi_config = State.state_midi_config old
-    }
-
-hist_status :: (Cmd.M m) => m ()
-hist_status = do
-    (past, future) <- Cmd.gets Cmd.state_history
-    Log.debug $ "past length: " ++ show (length past)
-        ++ ", future length: " ++ show (length future)
-
-merge_view :: Map.Map ViewId Block.View -> ViewId -> Block.View -> Block.View
-merge_view old_views view_id new = case Map.lookup view_id old_views of
-    Nothing -> new
-    Just old -> new { Block.view_config = Block.view_config old }
-
-merge_block :: Map.Map BlockId Block.Block
-    -> BlockId -> Block.Block -> Block.Block
-merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
-    Nothing -> new
-    Just old -> new { Block.block_config = Block.block_config old }
-
+-- * sync
 
 -- | Sync UI state up with Cmd state and schedule UI updates.
 initialize_state :: (Cmd.M m) => m ()

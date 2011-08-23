@@ -231,7 +231,12 @@ class (Applicative.Applicative m, Monad m) => M m where
 instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     get = StateT State.get
     put st = StateT (State.put st)
-    update upd = (StateT . lift) (Logger.log upd)
+    update upd
+        | Update.invertable upd = (StateT . lift) (Logger.log upd)
+        -- See Cmd.Undo about this particular grossness.
+        | otherwise = throw $
+            "due to Undo restrictions, can't record a non-invertable Update: "
+            ++ show upd
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
 
 instance (Functor m, Monad m) => Applicative.Applicative (StateT m) where
