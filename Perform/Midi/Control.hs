@@ -130,7 +130,11 @@ cc_map = [(n, "cc" ++ show n) | n <- [0..127]] ++
 universal_control_map :: ControlMap
 universal_control_map = control_map cc_map
 
+c_breath :: Control
+c_breath = Control "breath"
+
 -- Pull one out as a symbol for tests.
+c_mod :: String
 c_mod = "modulation"
 
 -- * util

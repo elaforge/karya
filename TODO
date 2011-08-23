@@ -759,7 +759,7 @@ Derive:
 
   - dynamics controls:
     - volume, velocity, and breath map directly to midi vals
-    - pres is continuous volume, maps to velocity or breath depending on inst
+    * pres is continuous volume, maps to velocity or breath depending on inst
     - vel is attack volume, maps to velocity or breath but is only sampled at
       the beginning of the note
   - to cut the middle out of a pattern: a cut signal that disabled derivation

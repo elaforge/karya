@@ -105,11 +105,18 @@ events_from start
 
 perform_events :: (Cmd.M m) => Derive.Events -> m Perform.MidiEvents
 perform_events events = do
+    midi_config <- State.get_midi_config
+    lookup <- get_convert_lookup
+    return $ fst $ Perform.perform Perform.initial_state midi_config $
+        Convert.convert lookup events
+
+get_convert_lookup :: (Cmd.M m) => m Convert.Lookup
+get_convert_lookup = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
-    midi_config <- State.get_midi_config
-    return $ fst $ Perform.perform Perform.initial_state midi_config $
-        Convert.convert lookup_scale lookup_inst events
+    lookup_info <- Cmd.gets (Instrument.Db.db_lookup . Cmd.state_instrument_db)
+    return $ Convert.Lookup lookup_scale lookup_inst
+        (fmap MidiDb.info_patch . lookup_info)
 
 -- * util
 

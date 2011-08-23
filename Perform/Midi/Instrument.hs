@@ -167,10 +167,7 @@ data Patch = Patch {
     -- The patch_instrument is not necessarily the same as the one eventually
     -- used in performance, because e.g. synth controls can get added in.
     patch_instrument :: Instrument
-    -- | If true, this patch doesn't pay attention to duration.  E.g., drum
-    -- samples may not pay attention to note off.  The UI can use this to
-    -- create zero duration events for this patch.
-    , patch_triggered :: Bool
+    , patch_flags :: Set.Set Flag
     , patch_initialize :: InitializePatch
     -- | Keyswitches available to this instrument, if any.  Each of these is
     -- considered its own instrument, like synth\/inst\/ks.  A keyswitch key
@@ -185,7 +182,7 @@ data Patch = Patch {
 
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Instrument -> Patch
-patch inst = Patch inst False NoInitialization (KeyswitchMap []) [] ""
+patch inst = Patch inst Set.empty NoInitialization (KeyswitchMap []) [] ""
 
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
@@ -197,8 +194,25 @@ set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
 set_keymap kmap patch = patch { patch_instrument = (patch_instrument patch)
     { inst_keymap = Map.fromList kmap } }
 
-set_triggered :: Patch -> Patch
-set_triggered patch = patch { patch_triggered = True }
+set_flag :: Flag -> Patch -> Patch
+set_flag flag patch =
+    patch { patch_flags = Set.insert flag (patch_flags patch) }
+
+has_flag :: Flag -> Patch -> Bool
+has_flag flag = Set.member flag . patch_flags
+
+-- | Various instrument flags.
+data Flag =
+    -- | Patch doesn't pay attention to duration.  E.g., drum samples may not
+    -- pay attention to note off.  The UI can use this to create zero duration
+    -- events for this patch.
+    Triggered
+    -- | Patch uses continuous pressure control, instead of trigger velocity.
+    -- This is used to support the @p@ control.  Percussive instruments like
+    -- pianos map it to MIDI velocity, and continuous instruments like winds
+    -- always have maximum velocity and max @p@ to breath.
+    | Pressure
+    deriving (Eq, Ord, Show)
 
 -- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
 -- a piority for those mapping.  For example, if {pizz} is before {cresc}, then

@@ -350,6 +350,7 @@ setup_normal = do
     State.insert_events note $ map (note_event . UiTest.mkevent)
         [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")]
     State.set_track_title note ">fm8/bass"
+
     pitch <- Create.track bid 4
     State.insert_events pitch $ map (control_event . UiTest.mkevent)
         [(0, 0, "`tr` (5c) 2 3"), (1, 0, "n (5d)"), (2, 0, "5e"),
@@ -359,8 +360,13 @@ setup_normal = do
         render { Track.render_style = Track.Line }
     State.set_track_width vid 3 50
 
+    vel <- Create.track bid 5
+    State.insert_events vel $ map (control_event . UiTest.mkevent)
+        [(0, 0, ".7"), (1, 0, ".4")]
+    State.set_track_title vel "p"
+
     -- tempo 1 -> mod -> note -> pitch
-    State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3), (3, 4)]
+    State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3), (3, 4), (4, 5)]
 
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
     State.set_selection vid Config.insert_selnum
@@ -380,8 +386,8 @@ setup_big = do
     (b, view) <- empty_block
     t0 <- Create.track b 2
     State.set_track_title t0 ">fm8/bass"
-    t0_vel <- Create.track b 3
-    State.set_track_title t0_vel "velocity"
+    t0_p <- Create.track b 3
+    State.set_track_title t0_p "p"
 
     let notes = [0, 3, 2, 5, 3, 6, 4, 7]
         vels = [1, 0.9, 0.8, 0.7, 0.6, 0.4, 0.3, 0.2]
@@ -395,15 +401,15 @@ setup_big = do
             [(i*0.25, 0, show vel) | (i, vel) <- zip [0..] vels]
 
     State.insert_events t0 (take 100 (mknotes (cycle (map ((,) 5) notes))))
-    State.insert_events t0_vel (take 100 (mkvels (cycle vels)))
+    State.insert_events t0_p (take 100 (mkvels (cycle vels)))
 
     t1 <- Create.track b 4
     State.set_track_title t1 ">fm8/bass"
-    t1_vel <- Create.track b 5
-    State.set_track_title t1_vel "velocity"
+    t1_p <- Create.track b 5
+    State.set_track_title t1_p "p"
     State.insert_events t1
         (take 100 (mknotes (cycle (reverse (map ((,) 6) notes)))))
-    State.insert_events t1_vel (take 100 (mkvels (cycle (reverse vels))))
+    State.insert_events t1_p (take 100 (mkvels (cycle (reverse vels))))
 
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
     State.modify_default $ \d ->

@@ -85,6 +85,9 @@ type LookupMidiInstrument = Score.Attributes -> Score.Instrument
 data Info code = Info {
     info_synth :: Instrument.Synth
     , info_patch :: Instrument.Patch
+    -- | Instruments can have Cmds and deriver calls, but those types can't
+    -- be referenced directly here for to avoid circular imports.  The
+    -- complete definition is in 'Cmd.Cmd.MidiInfo'.
     , info_code :: code
     } deriving (Show)
 

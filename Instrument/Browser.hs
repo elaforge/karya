@@ -1,32 +1,32 @@
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
-import Control.Monad
-import qualified Control.Exception as Exception
-import qualified Control.Monad.State as State
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
+import qualified Control.Exception as Exception
+import Control.Monad
+import qualified Control.Monad.State as State
+
 import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Set as Set
+
 import qualified System.IO as IO
 import Text.Printf
 
+import qualified Util.Fltk as Fltk
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.Fltk as Fltk
 
 import qualified Midi.Midi as Midi
-
-import qualified Derive.Score as Score
 import qualified Cmd.Cmd as Cmd
-
+import qualified Derive.Score as Score
+import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.BrowserC as BrowserC
-
 import qualified Instrument.Db as Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 import qualified Instrument.Search as Search
-import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Local.Instrument
 import qualified App.Config as Config
@@ -101,8 +101,8 @@ info_of db score_inst (MidiDb.Info synth patch _) =
             ]
     where
     Instrument.Synth synth_name maybe_dev synth_cmap = synth
-    Instrument.Patch inst triggered initialize keyswitches _ text = patch
-    flags = if triggered then ["triggered"] else []
+    Instrument.Patch inst pflags initialize keyswitches _ text = patch
+    flags = map show (Set.toList pflags)
     dev = maybe "<no default device>" (\(Midi.WriteDevice s) -> s) maybe_dev
     name = let n = Instrument.inst_name inst in if null n then "*" else n
     inst_cmap = Instrument.inst_control_map inst

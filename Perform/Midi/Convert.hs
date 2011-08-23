@@ -42,12 +42,16 @@ import qualified Instrument.MidiDb as MidiDb
 -- TODO warnings about:
 -- - Instrument has a control that's not in its control map.
 
+data Lookup = Lookup {
+    lookup_scale :: Derive.LookupScale
+    , lookup_inst :: MidiDb.LookupMidiInstrument
+    , lookup_patch :: Score.Instrument -> Maybe Instrument.Patch
+    }
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: Derive.LookupScale -> MidiDb.LookupMidiInstrument -> Derive.Events
-    -> [LEvent.LEvent Perform.Event]
-convert lookup_scale lookup_inst events = go Set.empty Nothing events
+convert :: Lookup -> Derive.Events -> [LEvent.LEvent Perform.Event]
+convert lookup events = go Set.empty Nothing events
     where
     go _ _ [] = []
     go state prev (LEvent.Log log : rest) =
@@ -58,7 +62,7 @@ convert lookup_scale lookup_inst events = go Set.empty Nothing events
         where
         (maybe_event, warns, next_state) = run_convert state
             (Score.event_stack event)
-            (convert_event lookup_scale lookup_inst prev event)
+            (convert_event lookup prev event)
         logs = map (LEvent.Log . warn_to_log) warns
 
 -- | Convert a Warning into an appropriate log msg.
@@ -69,20 +73,24 @@ warn_to_log (Warning.Warning msg stack maybe_range) =
     -- TODO It would be more useful to append the range to the stack, but
     -- I would have to convert real -> score.
 
-
-convert_event :: Derive.LookupScale -> MidiDb.LookupMidiInstrument
-    -> Maybe RealTime -> Score.Event -> ConvertT Perform.Event
-convert_event lookup_scale lookup_inst maybe_prev event = do
+convert_event :: Lookup -> Maybe RealTime -> Score.Event
+    -> ConvertT Perform.Event
+convert_event lookup maybe_prev event = do
     -- Sorted is a postcondition of the deriver.
     when_just maybe_prev $ \prev -> when (Score.event_start event < prev) $
         warn $ "start time less than previous of " ++ Pretty.pretty prev
     score_inst <- require "instrument" (Score.event_instrument event)
-    (midi_inst, maybe_key) <- convert_inst lookup_inst score_inst
+    (midi_inst, maybe_key) <- convert_inst (lookup_inst lookup) score_inst
         (Score.event_attributes event)
+    patch <- require ("patch in instrument db: " ++ show score_inst) $
+        lookup_patch lookup score_inst
     pitch <- case maybe_key of
-        Nothing -> convert_pitch lookup_scale (Score.event_pitch event)
+        Nothing -> convert_pitch (lookup_scale lookup)
+            (Score.event_pitch event)
         Just key -> return $ Signal.constant (fromIntegral key)
-    let controls = convert_controls (Score.event_controls event)
+    let controls = convert_controls
+            (Instrument.has_flag Instrument.Pressure patch)
+            (Score.event_controls event)
     return $ Perform.Event midi_inst
         (Score.event_start event) (Score.event_duration event)
         controls pitch (Score.event_stack event)
@@ -123,11 +131,15 @@ get_inst inst Nothing = do
             require ("midi instrument in instrument db: " ++ show inst
                 ++ " (further warnings suppressed)") Nothing
 
--- | They're both newtypes so this should boil down to id.
--- I could filter out the ones MIDI doesn't handle but laziness should do its
--- thing.  TODO unless that prevents timely GC?
-convert_controls :: Score.ControlMap -> Perform.ControlMap
-convert_controls = Map.mapKeys (\(Score.Control c) -> Control.Control c)
+convert_controls :: Bool -> Score.ControlMap -> Perform.ControlMap
+convert_controls pressure = resolve_p .  Map.mapKeys cc
+    where
+    resolve_p cmap = case Map.lookup (cc Score.c_pressure) cmap of
+        Nothing -> cmap
+        Just sig -> Map.insert
+            (if pressure then Control.c_breath else Control.c_velocity) sig
+            cmap
+    cc (Score.Control c) = Control.Control c
 
 convert_pitch :: Derive.LookupScale -> PitchSignal.PitchSignal
     -> ConvertT Signal.NoteNumber

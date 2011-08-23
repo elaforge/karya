@@ -120,9 +120,8 @@ perform_events = PlayUtil.perform_events
 
 convert :: Derive.Events -> Cmd.CmdL [LEvent.LEvent Midi.Perform.Event]
 convert events = do
-    lookup_scale <- Cmd.get_lookup_scale
-    lookup_inst <- Cmd.get_lookup_midi_instrument
-    return $ Midi.Convert.convert lookup_scale lookup_inst events
+    lookup <- PlayUtil.get_convert_lookup
+    return $ Midi.Convert.convert lookup events
 
 -- * util
 

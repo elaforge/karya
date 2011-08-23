@@ -14,9 +14,9 @@
 -}
 module Cmd.NoteTrack where
 import qualified Data.Map as Map
-import qualified Util.Control as Control
-import qualified Util.Seq as Seq
 
+import Util.Control
+import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
@@ -31,9 +31,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.Score as Score
-
+import qualified Derive.TrackInfo as TrackInfo
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 
@@ -74,7 +73,7 @@ cmd_val_edit pitch_track msg = do
                 PitchTrack.val_edit_at (tracknum, track_id, pos) note
             InputNote.NoteOff note_id _vel -> do
                 delete_note_id note_id
-                Control.whenM all_keys_up Selection.advance
+                whenM all_keys_up Selection.advance
             InputNote.Control _ _ _ -> return ()
         (Msg.key_down -> Just Key.Backspace) -> do
             remove (tracknum, track_id, pos)
@@ -205,10 +204,9 @@ raw_edit msg = do
 -- so I can make the duration 0.
 triggered_inst :: (Cmd.M m) => Maybe Score.Instrument -> m Bool
 triggered_inst Nothing = return False -- don't know, but guess it's not
-triggered_inst (Just inst) = do
-    maybe_info <- Cmd.lookup_instrument_info inst
-    return $ maybe False (Instrument.patch_triggered . MidiDb.info_patch)
-            maybe_info
+triggered_inst (Just inst) =
+    maybe False (Instrument.has_flag Instrument.Triggered . MidiDb.info_patch)
+        <$> Cmd.lookup_instrument_info inst
 
 modify_event :: (Cmd.M m) => Bool -> Bool -> (String
     -> (Maybe String, Bool)) -> m ()

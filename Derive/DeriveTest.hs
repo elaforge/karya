@@ -127,7 +127,10 @@ perform_stream :: MidiDb.LookupMidiInstrument -> Instrument.Config
     -> ([LEvent.LEvent Perform.Event], [LEvent.LEvent Midi])
 perform_stream lookup_inst midi_config events = (perf_events, mmsgs)
     where
-    perf_events = Convert.convert default_lookup_scale lookup_inst events
+    perf_events = Convert.convert lookup events
+    -- Inconsistent since patch is different from inst lookup, but meh...
+    lookup = Convert.Lookup
+        default_lookup_scale lookup_inst default_lookup_patch
     (midi, _) = Perform.perform Perform.initial_state midi_config perf_events
     mmsgs = map (fmap extract_m) midi
     extract_m wmsg =
@@ -396,16 +399,28 @@ modify_dynamic f = Derive.modify $ \st ->
 
 -- * inst
 
-make_lookup_inst :: [Instrument.Patch] -> MidiDb.LookupMidiInstrument
-make_lookup_inst patches = Instrument.Db.db_lookup_midi (make_db patches)
-
 make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
 make_midi_config config = Instrument.config
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
     where mkaddr chan = (Midi.WriteDevice "wdev", chan)
 
+default_convert_lookup :: Convert.Lookup
+default_convert_lookup = Convert.Lookup
+    default_lookup_scale default_lookup_inst default_lookup_patch
+
 default_lookup_inst :: MidiDb.LookupMidiInstrument
 default_lookup_inst = make_lookup_inst default_patches
+
+default_lookup_patch :: Score.Instrument -> Maybe Instrument.Patch
+default_lookup_patch = make_lookup_patch default_patches
+
+make_lookup_inst :: [Instrument.Patch] -> MidiDb.LookupMidiInstrument
+make_lookup_inst patches = Instrument.Db.db_lookup_midi (make_db patches)
+
+make_lookup_patch :: [Instrument.Patch]
+    -> (Score.Instrument -> Maybe Instrument.Patch)
+make_lookup_patch patches =
+    fmap MidiDb.info_patch . Instrument.Db.db_lookup (make_db patches)
 
 default_db :: Cmd.InstrumentDb
 default_db = make_db default_patches

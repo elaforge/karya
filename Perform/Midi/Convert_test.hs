@@ -44,8 +44,7 @@ mklog = LEvent.Log  . Log.msg Log.Warn Nothing
 mkevent start text inst =
     DeriveTest.mkevent (start, 1, text, [], Score.Instrument inst)
 convert = show_logs extract_event
-    . Convert.convert DeriveTest.default_lookup_scale
-        DeriveTest.default_lookup_inst
+    . Convert.convert DeriveTest.default_convert_lookup
 
 extract_event e = (RealTime.to_seconds (Perform.event_start e),
     Signal.unsignal (Perform.event_pitch e))

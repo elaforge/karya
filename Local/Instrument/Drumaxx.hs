@@ -13,7 +13,7 @@ load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
     (MidiInst.softsynth "dmx" (Just "dmx") (-24, 24) [])
         { MidiInst.modify_patch =
-            Instrument.set_triggered . Instrument.set_keymap
+            Instrument.set_flag Instrument.Triggered . Instrument.set_keymap
                 [(Drums.note_attrs n, key) | (n, key) <- notes]
         , MidiInst.code = MidiInst.empty_code
             { MidiInst.note_calls = [Drums.make_calls (map fst notes)]

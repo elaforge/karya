@@ -87,6 +87,17 @@ instance Serialize Instrument.Patch where
         get >>= \f ->
             return (Instrument.Patch a b c d e f)
 
+instance Serialize Instrument.Flag where
+    put Instrument.Triggered = putWord8 0
+    put Instrument.Pressure = putWord8 1
+    get = do
+        tag <- getWord8
+        case tag of
+            0 -> return Instrument.Triggered
+            1 -> return Instrument.Pressure
+            _ -> fail "no parse for Instrument.Flag"
+
+
 instance Serialize Instrument.Instrument where
     put (Instrument.Instrument a b c d e f g h i) = put a >> put b >> put c
         >> put d >> put e >> put f >> put g >> put h >> put i
