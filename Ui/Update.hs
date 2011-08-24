@@ -66,17 +66,6 @@ instance DeepSeq.NFData Update where
 
 -- * functions
 
--- | True if an Update is the same when inverted.  A precondition for
--- "Cmd.Undo".
-invertable :: Update -> Bool
-invertable (TrackUpdate _ update) = case update of
-    TrackEvents {} -> True
-    TrackAllEvents -> True
-    TrackBg -> True
-    TrackRender -> True
-    _ -> False
-invertable _ = False
-
 -- | Updates which purely manipulate the view are treated differently by undo.
 is_view_update :: Update -> Bool
 is_view_update update = case update of

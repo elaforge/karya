@@ -241,7 +241,7 @@ respond rstate msg = do
                     (state_ui rstate) ui_from ui_to cmd_state cmd_updates
                     (Transport.info_state (state_transport_info rstate))
             cmd_state <- return $
-                Undo.record_history cmd_updates all_updates ui_from cmd_state
+                Undo.record_history all_updates ui_from cmd_state
             return (status,
                 rstate { state_cmd = cmd_state, state_ui = ui_state })
     return (status == Cmd.Quit, rstate)
