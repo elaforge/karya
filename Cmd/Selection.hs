@@ -260,8 +260,9 @@ select_and_scroll view_id selnum sel = do
 auto_scroll :: (Cmd.M m) => ViewId -> Types.Selection -> m ()
 auto_scroll view_id sel = do
     view <- State.get_view view_id
+    block <- State.get_block (Block.view_block view)
     let zoom_offset = auto_time_scroll view sel
-        track_offset = auto_track_scroll view sel
+        track_offset = auto_track_scroll block view sel
     State.set_zoom view_id $
         (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
     State.set_track_scroll view_id track_offset
@@ -283,14 +284,15 @@ auto_time_scroll view sel
         (visible_pixels / Types.zoom_factor (Block.view_zoom view))
     visible_pixels = 30
 
-auto_track_scroll :: Block.View -> Types.Selection -> Types.Width
-auto_track_scroll view sel
+auto_track_scroll :: Block.Block -> Block.View -> Types.Selection
+    -> Types.Width
+auto_track_scroll block view sel
     | track_end > view_end = track_end - visible
     | track_start < view_start = track_start
     | otherwise = view_start
     where
     -- Pesky ruler track doesn't count towards the track scroll.
-    widths = map Block.track_view_width (drop 1 (Block.view_tracks view))
+    widths = map Block.display_track_width (drop 1 (Block.block_tracks block))
     track_start = sum (take (cur_tracknum-1) widths)
     track_end = sum (take cur_tracknum widths)
     view_start = Block.view_track_scroll view

@@ -18,7 +18,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Performance as Performance
 
 
-type Sync = Track.TrackSignals -> State.State -> [Update.Update]
+type Sync = Track.TrackSignals -> State.State -> [Update.DisplayUpdate]
     -> IO (Maybe State.StateError)
 
 -- | Sync @state2@ to the UI.
@@ -29,32 +29,34 @@ sync :: Sync -> Performance.SendStatus
     -> State.State -- ^ state before UiMsg.UiUpdates have been applied
     -> State.State -- ^ state before Cmd was run
     -> State.State -- ^ current state
-    -> Cmd.State -> [Update.Update] -> MVar.MVar State.State
-    -> IO ([Update.Update], State.State, Cmd.State)
+    -> Cmd.State -> [Update.CmdUpdate] -> MVar.MVar State.State
+    -> IO ([Update.CmdUpdate], State.State, Cmd.State)
 sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
         updater_state = do
     -- I'd catch problems closer to their source if I did this from run_cmds,
     -- but it's nice to see that it's definitely happening before syncs.
-    ui_to <- verify_state ui_to
+    verify_state ui_to
 
-    updates <- case Diff.diff cmd_updates ui_from ui_to of
+    cmd_updates <- case Diff.diff cmd_updates ui_from ui_to of
         Left err -> Log.error ("diff error: " ++ err) >> return []
-        Right updates -> do
-            -- unless (null updates) $
-            --     Trans.liftIO $ putStrLn $ "update: " ++ PPrint.pshow updates
-            when (any modified_view updates) $
+        Right (cmd_updates, display_updates) -> do
+            -- unless (null display_updates) $
+            --     Trans.liftIO $ putStrLn $ "update: "
+            --          ++ PPrint.pshow display_updates
+            when (any modified_view cmd_updates) $
                 MVar.modifyMVar_ updater_state (const (return ui_to))
             let tsigs = get_track_signals (State.state_root ui_to) cmd_state
-            err <- sync_func tsigs ui_to updates
+            err <- sync_func tsigs ui_to display_updates
             case err of
                 Nothing -> return ()
                 Just err -> Log.error $ "syncing updates: " ++ show err
-            return updates
+            return cmd_updates
 
     -- Kick off the background derivation threads.
-    cmd_state <- Performance.update_performance Performance.default_derive_wait
-        send_status ui_pre ui_to cmd_state updates
-    return (updates, ui_to, cmd_state)
+    cmd_state <- Performance.update_performance
+        Performance.default_derive_wait send_status ui_pre ui_to cmd_state
+        cmd_updates
+    return (cmd_updates, ui_to, cmd_state)
 
 get_track_signals :: Maybe BlockId -> Cmd.State -> Track.TrackSignals
 get_track_signals maybe_root st = Maybe.fromMaybe Map.empty $ do
@@ -66,18 +68,12 @@ get_track_signals maybe_root st = Maybe.fromMaybe Map.empty $ do
 -- result in bad UI display, a C++ exception, or maybe even a segfault (but C++
 -- args should be protected by ASSERTs).
 --
--- If there was any need, Cmd.State verification could go here too.
-verify_state :: State.State -> IO State.State
-verify_state state = do
-    let (res, logs) = State.verify state
-    mapM_ Log.write logs
-    case res of
-        Left err -> do
-            Log.error $ "state error while verifying: " ++ show err
-            return state
-        Right state2 -> return state2
+-- If there were a need, Cmd.State verification could go here too.
+verify_state :: State.State -> IO ()
+verify_state state = when_just (State.verify state) $ \err ->
+    Log.error $ "state error while verifying: " ++ show err
 
-modified_view :: Update.Update -> Bool
+modified_view :: Update.CmdUpdate -> Bool
 modified_view (Update.ViewUpdate _ update) = case update of
     Update.CreateView {} -> True
     Update.DestroyView {} -> True

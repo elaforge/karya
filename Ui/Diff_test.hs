@@ -19,19 +19,40 @@ import qualified App.Config as Config
 test_display_track = do
     let ([tid1, tid2], st1) = UiTest.run_mkstate [(">", []), ("*", [])]
         rid = UiTest.default_ruler_id
-        st2 = UiTest.exec st1 (State.merge_track UiTest.default_block_id 1 2)
-    equal (diff st1 st2) $ Right
-        [ Update.BlockUpdate bid (Update.DisplayTrack 1
-            (Block.DisplayTrack (Block.TId tid1 rid) [tid2] Nothing 1))
+        st2 = UiTest.exec st1 (State.merge_track bid 1 2)
+    let Right (cmd_updates, display_updates) = diff st1 st2
+    equal cmd_updates
+        [ Update.BlockUpdate bid (Update.BlockTrack 1
+            (Block.Track (Block.TId tid1 rid) 40 [] [tid2]))
+        , Update.BlockUpdate bid (Update.BlockTrack 2
+            (Block.Track (Block.TId tid2 rid) 40 [Block.Collapse] []))
+        ]
+
+    let div = Block.DId (Block.Divider Config.abbreviation_color)
+    equal display_updates
+        [ Update.BlockUpdate bid $ Update.BlockTrack 1 $
+            Block.DisplayTrack (Block.TId tid1 rid) 40 [tid2] Nothing 1
         , Update.BlockUpdate bid (Update.RemoveTrack 2)
-        , Update.BlockUpdate bid (Update.InsertTrack 2 3
-            (Block.DisplayTrack
-                (Block.DId (Block.Divider Config.abbreviation_color))
-                [] Nothing 1))
+        , Update.BlockUpdate bid $ Update.InsertTrack 2 $
+            Block.DisplayTrack div 3 [] Nothing 1
         ]
     -- TODO add more tests if I modify Diff
 
-diff :: State.State -> State.State -> Either String [Update.Update]
+test_merge_updates = do
+    let ([tid1, tid2], st) = UiTest.run State.empty $ do
+            tids <- UiTest.mkstate UiTest.default_block_name
+                [(">", []), ("*", [])]
+            State.merge_track bid 1 2
+            return tids
+    equal (Diff.diff [Update.TrackUpdate tid2 Update.TrackAllEvents] st st) $
+        Right
+            ([Update.TrackUpdate tid2 Update.TrackAllEvents],
+            [ Update.TrackUpdate tid2 Update.TrackAllEvents
+            , Update.TrackUpdate tid1 Update.TrackAllEvents
+            ])
+
+diff :: State.State -> State.State
+    -> Either String ([Update.CmdUpdate], [Update.DisplayUpdate])
 diff = Diff.diff []
 
 

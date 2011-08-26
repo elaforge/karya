@@ -178,9 +178,9 @@ read_until hdl boundary = go ""
 -- | (cstate, Either error (status, ui_from, ui_to))
 type RType = (Either State.StateError (Cmd.Status, State.State, State.State),
     Cmd.State)
-type ResponderM a = Cont.ContT RType (Logger.LoggerT Update.Update IO) a
+type ResponderM a = Cont.ContT RType (Logger.LoggerT Update.CmdUpdate IO) a
 
-run_responder :: ResponderM RType -> IO (RType, [Update.Update])
+run_responder :: ResponderM RType -> IO (RType, [Update.CmdUpdate])
 run_responder = Logger.run . flip Cont.runContT return
 
 {- | The flow control makes this all way more complicated than I want it to be.
@@ -235,13 +235,13 @@ respond rstate msg = do
             return (Cmd.Continue, rstate)
         Right (status, ui_from, ui_to) -> do
             cmd_state <- return $ fix_cmd_state ui_to cmd_state
-            (all_updates, ui_state, cmd_state) <-
+            (updates, ui_state, cmd_state) <-
                 ResponderSync.sync (state_sync rstate)
                     (send_derive_status (state_loopback rstate))
                     (state_ui rstate) ui_from ui_to cmd_state cmd_updates
                     (Transport.info_state (state_transport_info rstate))
             cmd_state <- return $
-                Undo.record_history all_updates ui_from cmd_state
+                Undo.record_history updates ui_from cmd_state
             return (status,
                 rstate { state_cmd = cmd_state, state_ui = ui_state })
     return (status == Cmd.Quit, rstate)
@@ -341,10 +341,10 @@ do_run exit runner rstate msg ui_from ui_state cmd_state cmds = do
             exit (Right (status, ui_from, ui_state), cmd_state)
         Left err -> exit (Left err, cmd_state)
 
-run_cmd_list :: (Monad m) => [Update.Update] -> MidiWriter -> State.State
+run_cmd_list :: (Monad m) => [Update.CmdUpdate] -> MidiWriter -> State.State
     -> Cmd.State -> Cmd.RunCmd m IO Cmd.Status -> [Cmd.CmdT m Cmd.Status]
     -> IO (Either State.StateError
-        (Cmd.Status, State.State, Cmd.State, [Update.Update]))
+        (Cmd.Status, State.State, Cmd.State, [Update.CmdUpdate]))
 run_cmd_list updates0 write_midi ui_state cmd_state runner (cmd:cmds) = do
     (cmd_state, midi, logs, ui_result) <- runner ui_state cmd_state cmd
     sequence_ [write_midi (Midi.WriteMessage dev 0 msg)

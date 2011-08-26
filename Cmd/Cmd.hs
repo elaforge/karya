@@ -121,7 +121,7 @@ type RunCmd cmd_m val_m a =
 
 -- | The result of running a Cmd.
 type CmdVal a = (State, [MidiThru], [Log.Msg],
-    Either State.StateError (a, State.State, [Update.Update]))
+    Either State.StateError (a, State.State, [Update.CmdUpdate]))
 
 run :: (Monad m) => a -> RunCmd m m a
 run abort_val ustate cstate cmd = do
@@ -499,7 +499,7 @@ type SynthDesc = MidiDb.SynthDesc InstrumentCode
 
 data HistoryEntry = HistoryEntry {
     hist_state :: !State.State
-    , hist_updates :: ![Update.Update]
+    , hist_updates :: ![Update.CmdUpdate]
     } deriving (Show, Generics.Typeable)
 
 data Modifier = KeyMod Key.Modifier

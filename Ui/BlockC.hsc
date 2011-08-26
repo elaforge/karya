@@ -37,7 +37,6 @@ module Ui.BlockC (
     -- ** Track operations
     , insert_track, remove_track, update_track, update_entire_track
     , set_track_signal
-    , set_track_width
     , set_track_title
 
     -- * debugging
@@ -340,13 +339,6 @@ data TracklikePtr =
     | RPtr (Ptr Ruler.Ruler)
     | DPtr (Ptr Block.Divider)
 
-set_track_width :: ViewId -> TrackNum -> Types.Width -> Fltk ()
-set_track_width view_id tracknum width = do
-    viewp <- get_ptr view_id
-    c_set_track_width viewp (Util.c_int tracknum) (Util.c_int width)
-foreign import ccall "set_track_width"
-    c_set_track_width :: Ptr CView -> CInt -> CInt -> IO ()
-
 set_track_title :: ViewId -> TrackNum -> String -> Fltk ()
 set_track_title view_id tracknum title = do
     viewp <- get_ptr view_id
@@ -434,11 +426,12 @@ instance Storable Block.DisplayTrack where
     peek = error "no peek for DisplayTrack"
     poke = poke_display_track
 
-poke_display_track dtrackp (Block.DisplayTrack _ _ status brightness) = do
+poke_display_track dtrackp (Block.DisplayTrack _ width _ status bright) = do
     let (statusc, status_color) = maybe ('\NUL', Color.black) id status
-    (#poke DisplayTrack, status) dtrackp statusc
+    (#poke DisplayTrack, event_brightness) dtrackp bright
+    (#poke DisplayTrack, width) dtrackp width
     (#poke DisplayTrack, status_color) dtrackp status_color
-    (#poke DisplayTrack, event_brightness) dtrackp brightness
+    (#poke DisplayTrack, status) dtrackp statusc
 
 -- ** skeleton
 

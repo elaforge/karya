@@ -213,6 +213,8 @@ TrackTile::set_track_width(int tracknum, int width)
     TrackView *track = this->track_at(tracknum);
     if (track->track_resizable())
         width = std::max(this->minimum_size.x, width);
+    if (track->w() == width)
+        return;
 
     Fl_Widget &title = track->title_widget();
     title.size(width, title.h());

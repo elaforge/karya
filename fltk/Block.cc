@@ -213,6 +213,8 @@ void
 BlockView::set_ruler_width(int width)
 {
     ASSERT(0 <= width);
+    if (this->ruler_track->w() == width)
+        return;
 
     int x = this->ruler_track->x();
     this->body.position(x + ruler_track->w(), body.y(), x + width, body.y());
@@ -433,6 +435,7 @@ BlockView::set_display_track(int tracknum, const DisplayTrack &dtrack)
                 dtrack.status_color);
     }
     this->track_at(tracknum)->set_event_brightness(dtrack.event_brightness);
+    this->set_track_width(tracknum, dtrack.width);
 }
 
 

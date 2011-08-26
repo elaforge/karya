@@ -33,17 +33,6 @@ test_skeleton_cycles = do
         "edge points to non-event track"
     equal (run 1 (State.add_edges bid [(1, 2)])) (Right ())
 
-test_verify = do
-    let broken = simple_state
-            { State.state_views = Map.map f (State.state_views simple_state) }
-        f view = view { Block.view_tracks = [] }
-        (Right unbroken, logs) = State.verify broken
-
-    -- reports and fixes view problem
-    equal (map Log.msg_string logs)
-        ["block has 2 tracks while view has 0, fixing"]
-    equal (snd (State.verify unbroken)) []
-
 test_muted_tracknums = do
     let (_, st) = UiTest.run_mkstate
             [("tempo", []), (">i1", []), ("c1", []), (">i2", [])]

@@ -57,7 +57,7 @@ import qualified App.Config as Config
 -- TrackSignals are passed separately instead of going through diff because
 -- they're special: they exist in Cmd.State and not in Ui.State.  It's rather
 -- unpleasant, but as long as it's only TrackSignals then I can deal with it.
-sync :: Track.TrackSignals -> State.State -> [Update.Update]
+sync :: Track.TrackSignals -> State.State -> [Update.DisplayUpdate]
     -> IO (Maybe State.StateError)
 sync track_signals state updates = do
     -- TODO: TrackUpdates can overlap.  Merge them together here.
@@ -73,7 +73,8 @@ sync track_signals state updates = do
         -- express this in the type?
         Right _ -> Nothing
 
-do_updates :: Track.TrackSignals -> [Update.Update] -> State.StateT IO ()
+do_updates :: Track.TrackSignals -> [Update.DisplayUpdate]
+    -> State.StateT IO ()
 do_updates track_signals updates = do
     actions <- mapM (run_update track_signals) updates
     -- Trans.liftIO $ putStrLn ("run updates: " ++ show updates)
@@ -155,19 +156,19 @@ clear_play_position view_id = Ui.send_action $
 -- CreateView Updates will modify the State to add the ViewPtr.
 --
 -- This has to be the longest haskell function ever.
-run_update :: Track.TrackSignals -> Update.Update -> State.StateT IO (IO ())
-run_update track_signals (Update.ViewUpdate view_id Update.CreateView) = do
+run_update :: Track.TrackSignals -> Update.DisplayUpdate
+    -> State.StateT IO (IO ())
+run_update track_signals (Update.ViewUpdate view_id (Update.CreateView _)) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
 
-    let dtracks = Block.block_display_tracks block (Just view)
+    let dtracks = map Block.display_track (Block.block_tracks block)
         btracks = Block.block_tracks block
         tlike_ids = map Block.tracklike_id btracks
     -- It's important to get the tracklikes from the dtracks, not the
     -- tlike_ids.  That's because the dtracks will have already turned
     -- Collapsed tracks into Dividers.
-    tracklikes <- mapM (State.get_tracklike . Block.dtracklike_id . fst)
-        dtracks
+    tracklikes <- mapM (State.get_tracklike . Block.dtracklike_id) dtracks
     titles <- mapM track_title (Block.block_tracklike_ids block)
 
     let sels = Block.view_selections view
@@ -189,17 +190,17 @@ run_update track_signals (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.set_skeleton view_id (Block.block_skeleton block)
         forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
             BlockC.set_selection True view_id selnum csel
-        BlockC.set_status view_id (Block.show_status view)
+        BlockC.set_status view_id (Block.show_status (Block.view_status view))
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
     where
     -- It's kind of dumb how scattered the track info is.  But this is about
     -- the only place where it's needed all together.
-    create_track ustate (tracknum, (dtrack, width), btrack, tlike_id, tlike,
-            title) = do
+    create_track ustate (tracknum, dtrack, btrack, tlike_id, tlike, title) = do
         let merged = events_of_track_ids ustate
                 (Block.dtrack_merged dtrack)
-        BlockC.insert_track view_id tracknum tlike merged width
+        BlockC.insert_track view_id tracknum tlike merged
+            (Block.dtrack_width dtrack)
         unless (null title) $
             BlockC.set_track_title view_id tracknum title
         BlockC.set_display_track view_id tracknum dtrack
@@ -216,17 +217,16 @@ run_update _ (Update.ViewUpdate view_id update) =
     case update of
         -- The previous equation matches CreateView, but ghc warning doesn't
         -- figure that out.
-        Update.CreateView -> error "run_update: notreached"
+        Update.CreateView {} -> error "run_update: notreached"
         Update.DestroyView -> return (BlockC.destroy_view view_id)
         Update.ViewSize rect -> return (BlockC.set_size view_id rect)
         Update.ViewConfig config -> return
             (BlockC.set_view_config view_id config)
-        Update.Status status -> return (BlockC.set_status view_id status)
+        Update.Status status ->
+            return $ BlockC.set_status view_id (Block.show_status status)
         Update.TrackScroll offset ->
             return (BlockC.set_track_scroll view_id offset)
         Update.Zoom zoom -> return (BlockC.set_zoom view_id zoom)
-        Update.TrackWidth tracknum width -> return $
-            BlockC.set_track_width view_id tracknum width
         Update.Selection selnum maybe_sel -> do
             csel <- to_csel view_id selnum maybe_sel
             return $ BlockC.set_selection True view_id selnum csel
@@ -244,11 +244,10 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
             mapM_ (flip BlockC.set_skeleton skel) view_ids
         Update.RemoveTrack tracknum -> return $
             mapM_ (flip BlockC.remove_track tracknum) view_ids
-        Update.InsertTrack tracknum width dtrack ->
-            create_track view_ids tracknum width dtrack
-        Update.DisplayTrack tracknum dtrack -> do
-            let tracklike_id = Block.dtracklike_id dtrack
-            tracklike <- State.get_tracklike tracklike_id
+        Update.InsertTrack tracknum dtrack ->
+            create_track view_ids tracknum dtrack
+        Update.BlockTrack tracknum dtrack  -> do
+            tracklike <- State.get_tracklike (Block.dtracklike_id dtrack)
             ustate <- State.get
             return $ forM_ view_ids $ \view_id -> do
                 BlockC.set_display_track view_id tracknum dtrack
@@ -258,7 +257,7 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
                 -- no big deal.
                 BlockC.update_entire_track view_id tracknum tracklike merged
     where
-    create_track view_ids tracknum width dtrack = do
+    create_track view_ids tracknum dtrack = do
         let tlike_id = Block.dtracklike_id dtrack
         ctrack <- State.get_tracklike tlike_id
         ustate <- State.get
@@ -276,7 +275,8 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
         return $ forM_ view_ids $ \view_id -> do
             let merged = events_of_track_ids ustate
                     (Block.dtrack_merged dtrack)
-            BlockC.insert_track view_id tracknum ctrack merged width
+            BlockC.insert_track view_id tracknum ctrack merged
+                (Block.dtrack_width dtrack)
             case (tlike_id, ctrack) of
                 -- Configure new track.  This is analogous to the initial
                 -- config in CreateView.

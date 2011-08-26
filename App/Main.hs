@@ -358,7 +358,7 @@ setup_normal = do
     State.set_track_title pitch "*twelve"
     State.modify_track_render pitch $ \render ->
         render { Track.render_style = Track.Line }
-    State.set_track_width vid 3 50
+    State.set_track_width bid 3 50
 
     vel <- Create.track bid 5
     State.insert_events vel $ map (control_event . UiTest.mkevent)
@@ -427,7 +427,7 @@ empty_block = do
     bid <- Create.block rid
     vid <- Create.view bid
     t_tempo <- Create.named_track bid over_rid 1 "tempo" "tempo"
-    State.set_track_width vid 1 40
+    State.set_track_width bid 1 40
     State.insert_events t_tempo $ map UiTest.mkevent [(0, 0, "1")]
     return (bid, vid)
 

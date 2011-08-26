@@ -156,7 +156,9 @@ ui_update maybe_tracknum view_id update = case update of
         let sz = (Block.view_visible_track view, Block.view_visible_time view)
         when (track_size /= sz) $ State.set_track_size view_id track_size
     UiMsg.UpdateTrackWidth width -> case maybe_tracknum of
-        Just tracknum -> State.set_track_width view_id tracknum width
+        Just tracknum -> do
+            block_id <- State.block_id_of view_id
+            State.set_track_width block_id tracknum width
         Nothing -> State.throw $ "update with no track: " ++ show update
     -- Handled by 'ui_update_state'.
     UiMsg.UpdateClose -> return ()

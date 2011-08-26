@@ -110,11 +110,6 @@ move_track block_id from to = do
     let msg = "move_track: from index " ++ show from ++ " out of range"
     State.modify_block block_id . const =<< State.require msg
         (move_block_track from to block)
-    views <- Map.keys <$> State.get_views_of block_id
-    forM_ views $ \view_id -> do
-        view <- State.get_view view_id
-        State.modify_view view_id . const =<< State.require msg
-            (move_view_track from to view)
 
 move_block_track :: TrackNum -> TrackNum -> Block.Block -> Maybe Block.Block
 move_block_track from to block = do
@@ -122,8 +117,3 @@ move_block_track from to block = do
     skel <- Skeleton.move from to (Block.block_skeleton block)
     return $ block
         { Block.block_tracks = tracks, Block.block_skeleton = skel }
-
-move_view_track :: TrackNum -> TrackNum -> Block.View -> Maybe Block.View
-move_view_track from to view = do
-    tracks <- Seq.move from to (Block.view_tracks view)
-    return $ view { Block.view_tracks = tracks }

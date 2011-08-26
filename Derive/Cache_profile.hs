@@ -71,7 +71,7 @@ rederive initial_state modifications = do
         go start_times state2 (Derive.r_cache cached) rest
 
 eval_derivation :: Derive.Cache -> State.State -> State.State
-    -> [Update.Update] -> IO (Derive.Result, Derive.Events)
+    -> [Update.CmdUpdate] -> IO (Derive.Result, Derive.Events)
 eval_derivation cache state1 state2 updates = do
     force events
     return (result, events)

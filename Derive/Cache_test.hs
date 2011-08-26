@@ -356,7 +356,7 @@ toplevel_rederived :: String
 toplevel_rederived = "test/top *: rederived * sub-block damage"
 
 -- UiTest.run discards the Updates, which I need.
-run :: State.State -> State.StateId a -> (a, State.State, [Update.Update])
+run :: State.State -> State.StateId a -> (a, State.State, [Update.CmdUpdate])
 run state m = case result of
         Left err -> error $ "state error: " ++ show err
         Right (val, state', updates) -> (val, state', updates)
@@ -416,7 +416,7 @@ compare_cached create modify = (result1, cached, uncached)
     cached = DeriveTest.derive_block_cache (Derive.r_cache result1)
         damage state2 bid
     uncached = DeriveTest.derive_block_cache mempty mempty state2 bid
-    updates = case Diff.diff cmd_updates state1 state2 of
+    (updates, _) = case Diff.diff cmd_updates state1 state2 of
         Left err -> error ("diff error: " ++ err)
         Right diff_updates -> diff_updates
 
@@ -425,7 +425,7 @@ score_damage create modify = Diff.derive_diff state1 state2 updates
     where
     (_, state1) = UiTest.run State.empty create
     (_, state2, cmd_updates) = run state1 modify
-    updates = case Diff.diff cmd_updates state1 state2 of
+    (updates, _) = case Diff.diff cmd_updates state1 state2 of
         Left err -> error ("diff error: " ++ err)
         Right diff_updates -> diff_updates
 

@@ -184,10 +184,7 @@ fitted_view block_id = do
     view_id <- require "view id" $ generate_view_id block_id views
     block <- State.get_block block_id
     block_end <- State.block_event_end block_id
-    let tviews = map (Block.TrackView . Block.track_width)
-            (Block.block_tracks block)
-    let w = sum $ map Block.track_view_width $
-            zipWith Block.track_view (Block.block_tracks block) tviews
+    let w = sum $ map Block.display_track_width (Block.block_tracks block)
         h = Types.zoom_to_pixels Config.zoom block_end
     rects <- State.gets (map Block.view_rect . Map.elems . State.state_views)
     screen <- Cmd.get_screen (0, 0) -- just pick the main screen for now

@@ -69,12 +69,13 @@ check = check_srcpos Nothing
 check_srcpos srcpos False = failure_srcpos srcpos "assertion false"
 check_srcpos srcpos True = success_srcpos srcpos "assertion true"
 
+check_msg :: Bool -> String -> IO ()
 check_msg = check_msg_srcpos Nothing
 
-check_msg_srcpos srcpos (False, msg) =
-    failure_srcpos srcpos ("assertion false: " ++ msg)
-check_msg_srcpos srcpos (True, msg) =
-    success_srcpos srcpos ("assertion true: " ++ msg)
+check_msg_srcpos :: SrcPos.SrcPos -> Bool -> String -> IO ()
+check_msg_srcpos srcpos ok msg
+    | ok = success_srcpos srcpos ("assertion true: " ++ msg)
+    | otherwise = failure_srcpos srcpos ("assertion false: " ++ msg)
 
 equal :: (Show a, Eq a) => a -> a -> IO ()
 equal = equal_srcpos Nothing

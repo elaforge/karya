@@ -276,15 +276,12 @@ instance Serialize Block.Divider where
     get = get >>= \a -> return (divider a)
 
 instance Serialize Block.View where
-    put (Block.View a b c d e f g h i j) = put_version 1
+    put (Block.View a b c d e f g h i) = put_version 2
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
-        >> put i >> put j
+        >> put i
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-                get >>= \e -> get >>= \f -> get >>= \g -> get >>= \h ->
-                return (Block.View a b 0 0 c d e f g h)
             1 -> do
                 block <- get :: Get Types.BlockId
                 rect <- get :: Get Rect.Rect
@@ -295,15 +292,25 @@ instance Serialize Block.View where
                 track_scroll <- get :: Get Types.Width
                 zoom <- get :: Get Types.Zoom
                 selections <- get :: Get (Map.Map Types.SelNum Types.Selection)
-                tracks <- get :: Get [Block.TrackView]
+                _tracks <- get :: Get [TrackView]
                 return $ Block.View block rect visible_track visible_time
-                    config status track_scroll zoom selections tracks
+                    config status track_scroll zoom selections
+            2 -> do
+                block <- get :: Get Types.BlockId
+                rect <- get :: Get Rect.Rect
+                visible_track <- get :: Get Int
+                visible_time <- get :: Get Int
+                config <- get :: Get Block.ViewConfig
+                status <- get :: Get (Map.Map String String)
+                track_scroll <- get :: Get Types.Width
+                zoom <- get :: Get Types.Zoom
+                selections <- get :: Get (Map.Map Types.SelNum Types.Selection)
+                return $ Block.View block rect visible_track visible_time
+                    config status track_scroll zoom selections
             _ -> version_error "Block.View" v
 
-track_view = Block.TrackView :: Types.Width -> Block.TrackView
-instance Serialize Block.TrackView where
-    put (Block.TrackView a) = put a
-    get = get >>= \a -> return (track_view a)
+-- TODO only for compatibility with Block.View version 1
+type TrackView = Types.Width
 
 instance Serialize Rect.Rect where
     put r = put (Rect.rx r) >> put (Rect.ry r) >> put (Rect.rw r)

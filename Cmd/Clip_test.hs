@@ -118,16 +118,17 @@ test_namespace_ops = do
     -- TODO it's too hard at the moment to make sure they have been set, so
     -- I'll just make sure the state is at least valid
     pprint (UiTest.block_structure state)
-    pprint (snd (State.verify state))
-    check_msg $ valid_state state
+    pprint (State.verify state)
+    uncurry check_msg $ valid_state state
 
     state <- return $ run state $ Clip.clear_clip
     pprint (UiTest.block_structure state)
-    check_msg $ valid_state state
+    uncurry check_msg $ valid_state state
 
 valid_state :: State.State -> (Bool, String)
-valid_state state = (null msgs, show msgs)
-    where (_, msgs) = State.verify state
+valid_state state = case State.verify state of
+    Nothing -> (True, "valid")
+    Just err -> (False, show err)
 
 -- * paste
 

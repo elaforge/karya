@@ -65,6 +65,9 @@ data Result = Result {
     -- respond cycle, so MIDI potentially also includes play output and
     -- updates include diff output.
     result_cmd :: CmdTest.Result Cmd.Status
+    -- | These are the updates emitted to the UI.  The CmdTest.Result updates
+    -- are those collected during the cmd.
+    , result_updates :: [Update.DisplayUpdate]
     , result_loopback :: Chan.Chan Msg.Msg
     }
 
@@ -137,11 +140,11 @@ _respond (ustate, cstate) cmd msg = do
     updates <- concat <$> get_vals update_chan
     force updates
     let res = CmdTest.Result (Right Nothing) (Responder.state_cmd rstate)
-            (Responder.state_ui rstate) updates []
+            (Responder.state_ui rstate) [] []
             [(Midi.wmsg_dev m, Midi.wmsg_msg m) | m <- midi]
-    return $ Result res loopback_chan
+    return $ Result res updates loopback_chan
 
-make_rstate :: TVar.TVar [[Update.Update]]
+make_rstate :: TVar.TVar [[Update.DisplayUpdate]]
     -> TVar.TVar [Midi.WriteMessage] -> Chan.Chan Msg.Msg
     -> State.State -> Cmd.State -> Maybe Cmd.Cmd
     -> Responder.State

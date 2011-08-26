@@ -31,19 +31,6 @@ send = Ui.send_action
 
 -- tests
 
--- TODO
--- test_errors = do
---     view <- create_empty_view
---     send $ BlockC.insert_track view 0 (Block.R ruler) [] 30
---     -- fltk errors
---     io_throws (BlockC.FltkError "tracknum out of bounds") $
---         send $ BlockC.set_track_width view 1 50
---     io_throws (BlockC.FltkError "can't set title of non-event track")
---         send $ BlockC.set_track_title 0 "hi ruler"
---     -- haskell errors
---     io_throws (BlockC.FltkError "view_id has no referent") $
---         send $ BlockC.set_track_width (Types.ViewId "bogus!") 50
-
 test_create_set_size = do
     view <- create_empty_view
     io_human "move and change size" $
@@ -91,15 +78,6 @@ test_set_selection = do
 
 cselection color track start tracks dur =
     Just (BlockC.CSelection color (Types.Selection track start tracks dur))
-
-test_set_track_width = do
-    view <- create_empty_view
-    send $ BlockC.insert_track view 1 (event_track event_track_1) [] 20
-    send $ BlockC.insert_track view 2 (event_track event_track_2) [] 30
-    io_human "track 1 gets bigger" $
-        send $ BlockC.set_track_width view 1 60
-    io_human "track 1 goes to minimum size" $
-        send $ BlockC.set_track_width view 1 1
 
 test_set_model_config = do
     view <- create_empty_view

@@ -48,7 +48,7 @@ data Result val = Result {
     result_val :: Either String (Maybe val)
     , result_cmd_state :: Cmd.State
     , result_ui_state :: State.State
-    , result_updates :: [Update.Update]
+    , result_updates :: [Update.CmdUpdate]
     , result_logs :: [Log.Msg]
     , result_midi :: [(Midi.WriteDevice, Midi.Message)]
     }
@@ -118,15 +118,15 @@ extract_derive_result res =
             (error "can't fake a Derive.State for an extracted Result")
 
 update_performance :: State.State -> State.State -> Cmd.State
-    -> [Update.Update] -> IO Cmd.State
+    -> [Update.CmdUpdate] -> IO Cmd.State
 update_performance ui_from ui_to cmd_state cmd_updates = do
-    updates <- case Diff.diff cmd_updates ui_from ui_to of
+    (cupdates, _dupdates) <- case Diff.diff cmd_updates ui_from ui_to of
         Left err -> error $ "diff error: " ++ err
         Right updates -> return updates
     chan <- Chan.newChan
     cstate <- Performance.update_performance 0
         (\bid status -> Chan.writeChan chan (bid, status))
-        ui_from ui_to cmd_state updates
+        ui_from ui_to cmd_state cupdates
     -- This will delay until the perform thread has derived enough of the
     -- performance to hand over.
     (block_id, perf) <- read_perf chan

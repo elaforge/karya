@@ -68,6 +68,7 @@ struct BlockViewConfig {
 // Track config local to each BlockView.
 struct DisplayTrack {
     double event_brightness;
+    int width;
     Color status_color;
     char status;
 };

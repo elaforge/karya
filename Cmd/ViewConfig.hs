@@ -77,10 +77,7 @@ view_rect view = do
     block_end <- State.block_event_end (Block.view_block view)
     block <- State.get_block (Block.view_block view)
     let (x, y) = Rect.upper_left (Block.view_rect view)
-        -- Don't forget to drop the ruler.
-        w = sum $ map Block.track_view_width $
-            zipWith Block.track_view
-                (Block.block_tracks block) (Block.view_tracks view)
+        w = sum $ map Block.display_track_width (Block.block_tracks block)
         h = Types.zoom_to_pixels (Block.view_zoom view) block_end
     return $ Rect.xywh x y (max w 40) (max h 40)
 

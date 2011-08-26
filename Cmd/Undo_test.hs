@@ -82,4 +82,4 @@ e_ui = CmdTest.result_ui_state . ResponderTest.result_cmd
 e_hist_updates = (\(x, y) -> (map Cmd.hist_updates x, map Cmd.hist_updates y))
     . Cmd.state_history . CmdTest.result_cmd_state
     . ResponderTest.result_cmd
-e_updates = CmdTest.result_updates . ResponderTest.result_cmd
+e_updates = ResponderTest.result_updates

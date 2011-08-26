@@ -234,12 +234,6 @@ set_track_signal(BlockViewWindow *view, int tracknum,
 }
 
 void
-set_track_width(BlockViewWindow *view, int tracknum, int width)
-{
-    view->block.set_track_width(tracknum, width);
-}
-
-void
 set_track_title(BlockViewWindow *view, int tracknum, const char *title)
 {
     view->block.track_at(tracknum)->set_title(title);

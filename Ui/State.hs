@@ -35,7 +35,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
 import Util.Control
-import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
@@ -155,7 +154,7 @@ no_ruler_track = Block.track (Block.RId no_ruler) 0
 --
 -- See the StateStack comment for more.
 run :: (Monad m) =>
-   State -> StateT m a -> m (Either StateError (a, State, [Update.Update]))
+   State -> StateT m a -> m (Either StateError (a, State, [Update.CmdUpdate]))
 run state m = do
     res <- (Error.runErrorT . Logger.run . flip State.runStateT state
         . run_state_t) m
@@ -199,7 +198,7 @@ error_either msg = either (error . ((msg ++ ": ") ++) . show) return
 -- will simply generate another TrackUpdate over the whole track.  This does
 -- mean TrackUpdates can overlap, so 'Ui.Sync.sync' should collapse them.
 type StateStack m = State.StateT State
-    (Logger.LoggerT Update.Update
+    (Logger.LoggerT Update.CmdUpdate
         (Error.ErrorT StateError m))
 newtype StateT m a = StateT (StateStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError StateError)
@@ -225,7 +224,7 @@ instance Pretty.Pretty StateError where
 class (Applicative.Applicative m, Monad m) => M m where
     get :: m State
     put :: State -> m ()
-    update :: Update.Update -> m ()
+    update :: Update.CmdUpdate -> m ()
     throw :: String -> m a
 
 instance (Applicative.Applicative m, Monad m) => M (StateT m) where
@@ -260,40 +259,20 @@ all_track_ids = Map.keys . state_tracks <$> get
 -- * misc
 
 -- | Unfortunately there are some invariants to protect within State.  This
--- will check the invariants, log warnings and fix them if possible (that's why
--- it returns another state), or throw an error if not.
---
--- The invariants should be protected by the modifiers in this module, but
--- this is just in case.
-verify :: State -> (Either StateError State, [Log.Msg])
-verify state = (fmap (\(_, s, _) -> s) result, logs)
-    where (result, logs) = Identity.runIdentity (Log.run (run state do_verify))
+-- will check the invariants and return an error if it's broken.
+verify :: State -> Maybe StateError
+verify state = either Just (const Nothing) (exec state do_verify)
 
 -- TODO
--- check that all views refer to valid blocks, and all TracklikeIds have
--- referents
+-- check that all TracklikeIds have referents
 -- anything else?
-do_verify :: StateT (Log.LogT Identity.Identity) ()
+do_verify :: StateId ()
 do_verify = do
-    view_ids <- get_all_view_ids
-    mapM_ verify_view view_ids
-
+    views <- gets (Map.elems . state_views)
+    mapM_ (get_block . Block.view_block) views
     block_ids <- get_all_block_ids
     blocks <- mapM get_block block_ids
     mapM_ verify_block blocks
-
-verify_view :: ViewId -> StateT (Log.LogT Identity.Identity) ()
-verify_view view_id = do
-    view <- get_view view_id
-    block <- get_block (Block.view_block view)
-    let btracks = length (Block.block_tracks block)
-        vtracks = length (Block.view_tracks view)
-    when (btracks /= vtracks) $
-        Trans.lift $ Log.warn $ "block has " ++ show btracks
-            ++ " tracks while view has " ++ show vtracks ++ ", fixing"
-    -- Add track views for all the block tracks.
-    forM_ [vtracks .. btracks-1] $ \tracknum ->
-        modify_view view_id $ \v -> insert_into_view tracknum 20 v
 
 verify_block :: (M m) => Block.Block -> m ()
 verify_block block = do
@@ -346,13 +325,8 @@ get_all_view_ids = gets (Map.keys . state_views)
 --
 -- Throw if the ViewId already exists.
 create_view :: (M m) => Id.Id -> Block.View -> m ViewId
-create_view id view = do
-    block <- get_block (Block.view_block view)
-    let view' = view { Block.view_tracks = initial_track_views block }
-    get >>= insert (Types.ViewId id) view' state_views
-        (\views st -> st { state_views = views })
-initial_track_views block = map Block.TrackView widths
-    where widths = map Block.track_width (Block.block_tracks block)
+create_view id view = get >>= insert (Types.ViewId id) view state_views
+    (\views st -> st { state_views = views })
 
 destroy_view :: (M m) => ViewId -> m ()
 destroy_view view_id = modify $ \st ->
@@ -361,17 +335,6 @@ destroy_view view_id = modify $ \st ->
 set_view_config :: (M m) => ViewId -> Block.ViewConfig -> m ()
 set_view_config view_id config =
     modify_view view_id (\view -> view { Block.view_config = config })
-
--- | Update @tracknum@ of @view_id@ to have width @width@.
-set_track_width :: (M m) => ViewId -> TrackNum -> Types.Width -> m ()
-set_track_width view_id tracknum width = do
-    view <- get_view view_id
-    -- Functional update still sucks.  An imperative language would have:
-    -- state.get_view(view_id).tracks[tracknum].width = width
-    track_views <- modify_at "set_track_width"
-        (Block.view_tracks view) tracknum $ \tview ->
-            tview { Block.track_view_width = width }
-    update_view view_id (view { Block.view_tracks = track_views })
 
 -- ** zoom and track scroll
 
@@ -703,8 +666,7 @@ insert_track block_id tracknum track = do
     views <- get_views_of block_id
     let tracks = Seq.insert_at tracknum track (Block.block_tracks block)
         -- Make sure the views are up to date.
-        views' = Map.map
-            (insert_into_view tracknum (Block.track_width track)) views
+        views' = Map.map (insert_into_view tracknum) views
     set_block block_id $ block
         { Block.block_tracks = tracks
         , Block.block_skeleton =
@@ -784,13 +746,10 @@ get_block_track block_id tracknum = do
             ++ ": " ++ show tracknum
     require msg $ Seq.at (Block.block_tracks block) tracknum
 
-modify_block_track :: (M m) => BlockId -> TrackNum
-    -> (Block.Track -> Block.Track) -> m ()
-modify_block_track block_id tracknum modify = do
-    block <- get_block block_id
-    btracks <- modify_at "modify_block_track"
-        (Block.block_tracks block) tracknum modify
-    modify_block block_id $ \b -> b { Block.block_tracks = btracks }
+set_track_width :: (M m) => BlockId -> TrackNum -> Types.Width -> m ()
+set_track_width block_id tracknum width =
+    modify_block_track block_id tracknum $ \btrack ->
+        btrack { Block.track_width = width }
 
 toggle_track_flag :: (M m) => BlockId -> TrackNum -> Block.TrackFlag -> m ()
 toggle_track_flag block_id tracknum flag =
@@ -844,33 +803,42 @@ track_id_tracknums block_id track_id = do
     return [tracknum | (bid, tracks) <- block_tracks, bid == block_id,
         (tracknum, _) <- tracks]
 
+modify_block_track :: (M m) => BlockId -> TrackNum
+    -> (Block.Track -> Block.Track) -> m ()
+modify_block_track block_id tracknum modify = do
+    block <- get_block block_id
+    btracks <- modify_at "modify_block_track"
+        (Block.block_tracks block) tracknum modify
+    modify_block block_id $ \b -> b { Block.block_tracks = btracks }
+
 -- *** track util
 
--- Insert a new track into Block.view_tracks, moving selections as
+-- | Insert a new track into Block.view_tracks, moving selections as
 -- appropriate.  @tracknum@ is clipped to be in range.
-insert_into_view tracknum width view = view
-    { Block.view_tracks = Seq.insert_at tracknum (Block.TrackView width)
-        (Block.view_tracks view)
-    , Block.view_selections =
+insert_into_view :: TrackNum -> Block.View -> Block.View
+insert_into_view tracknum view = view
+    { Block.view_selections =
         Map.map (insert_into_selection tracknum) (Block.view_selections view)
     }
 
--- Remove @tracknum@ from Block.view_tracks, moving selections as
+-- | Remove @tracknum@ from Block.view_tracks, moving selections as
 -- appropriate.  Ignored if @tracknum@ is out of range.
+remove_from_view :: TrackNum -> Block.View -> Block.View
 remove_from_view tracknum view = view
-    { Block.view_tracks = Seq.remove_at tracknum (Block.view_tracks view)
-    , Block.view_selections = Map.mapMaybe
+    { Block.view_selections = Map.mapMaybe
         (remove_from_selection tracknum) (Block.view_selections view)
     }
 
--- If tracknum is before or at the selection, push it to the right.  If it's
+-- | If tracknum is before or at the selection, push it to the right.  If it's
 -- inside, extend it.  If it's to the right, do nothing.
+insert_into_selection :: TrackNum -> Types.Selection -> Types.Selection
 insert_into_selection tracknum sel
     | tracknum <= min track0 track1 = Types.sel_modify_tracks (+1) sel
     | tracknum <= max track0 track1 = Types.sel_expand_tracks 1 sel
     | otherwise = sel
     where (track0, track1) = Types.sel_track_range sel
 
+remove_from_selection :: TrackNum -> Types.Selection -> Maybe Types.Selection
 remove_from_selection tracknum sel
     | tracknum <= min track0 track1  =
         Just $ Types.sel_modify_tracks (+(-1)) sel

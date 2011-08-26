@@ -82,6 +82,7 @@ track tracklike_id width = Track tracklike_id width [] []
 -- derivable from a 'Block' deterministically.
 data DisplayTrack = DisplayTrack {
     dtracklike_id :: TracklikeId
+    , dtrack_width :: Types.Width
     , dtrack_merged :: [TrackId]
     , dtrack_status :: Maybe (Char, Color.Color)
     , dtrack_event_brightness :: Double
@@ -99,38 +100,21 @@ data TrackFlag =
     deriving (Eq, Show, Read)
 
 -- | Convert logical block level tracks to display tracks.
---
--- The track creation width is needed by 'Ui.Diff' when it wants to create
--- a new track, but isn't part of the DisplayTrack.  This is because a change
--- of creation width shouldn't result in a Update.DisplayTrack.
---
--- Also takes a view in case the view already has track widths set.
-block_display_tracks :: Block -> Maybe View -> [(DisplayTrack, Types.Width)]
-block_display_tracks block view =
-    map (uncurry display_track) (zip (block_tracks block) tviews)
-    where tviews = map Just (maybe [] view_tracks view) ++ repeat Nothing
+block_display_tracks :: Block -> [DisplayTrack]
+block_display_tracks = map display_track . block_tracks
 
-display_track :: Track -> Maybe TrackView -> (DisplayTrack, Types.Width)
-display_track track tview =
-    (DisplayTrack tracklike (track_merged track) status brightness, width)
+display_track :: Track -> DisplayTrack
+display_track track =
+    DisplayTrack tracklike width (track_merged track) status brightness
     where
     (status, brightness) = flags_to_status (track_flags track)
     (tracklike, width)
         | Collapse `elem` track_flags track =
             (DId (Divider Config.abbreviation_color), Config.collapsed_width)
-        | otherwise = (tracklike_id track,
-            maybe (track_width track) track_view_width tview)
+        | otherwise = (tracklike_id track, track_width track)
 
--- | Similar to 'display_track', this returns the TrackView as it is actually
--- displayed at the UI level.  Since TrackView is so much simpler, it's the
--- same type.
---
--- You'll need to call this to know the \"real\" track width.
-track_view :: Track -> TrackView -> TrackView
-track_view track tview
-    | Collapse `elem` track_flags track =
-        tview { track_view_width = Config.collapsed_width }
-    | otherwise = tview
+display_track_width :: Track -> Types.Width
+display_track_width = dtrack_width . display_track
 
 flags_to_status :: [TrackFlag] -> (Maybe (Char, Color.Color), Double)
 flags_to_status flags
@@ -214,16 +198,12 @@ data View = View {
     , view_zoom :: Types.Zoom
 
     , view_selections :: Map.Map Types.SelNum Types.Selection
-    -- | These are the per-view settings for the tracks.  There should be one
-    -- corresponding to each TracklikeId in the Block.  The StateT operations
-    -- should maintain this invariant.
-    , view_tracks :: [TrackView]
     } deriving (Eq, Ord, Show, Read)
 
 instance DeepSeq.NFData View where
-    rnf (View bid rect track time config status scroll zoom selections tracks) =
+    rnf (View bid rect track time config status scroll zoom selections) =
         bid `seq` rect `seq` track `seq` time `seq` config `seq` status
-        `seq` scroll `seq` zoom `seq` selections `seq` tracks `seq` ()
+        `seq` scroll `seq` zoom `seq` selections `seq` ()
 
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites
@@ -232,11 +212,10 @@ view :: BlockId -> Rect.Rect -> Types.Zoom -> View
 view block_id rect zoom =
     -- view_visible_track and view_visible_time are unknown, but will
     -- be filled in when the new view emits its initial resize msg.
-    View block_id rect 0 0 default_view_config Map.empty 0 zoom Map.empty []
+    View block_id rect 0 0 default_view_config Map.empty 0 zoom Map.empty
 
-show_status :: View -> String
-show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
-    . Map.assocs . view_status
+show_status :: Map.Map String String -> String
+show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v) . Map.assocs
 
 -- | Return how much track is in view.
 visible_time :: View -> ScoreTime
@@ -267,14 +246,6 @@ default_time_padding = Config.vconfig_skel_height
     + Config.vconfig_block_title_height + Config.vconfig_track_title_height
     + Config.vconfig_status_size + Config.vconfig_sb_size
 default_track_padding = Config.vconfig_sb_size + 2
-
--- | Per-view track settings.
-newtype TrackView = TrackView {
-    -- | The actual track width in this View.  However, if the track is
-    -- collapsed, the width will be fixed and this will be the remain the same
-    -- for when the track is expanded.  See 'track_view'.
-    track_view_width :: Types.Width
-    } deriving (Eq, Ord, Show, Read)
 
 -- | These are defaults for newly created blocks.
 data ViewConfig = ViewConfig {
