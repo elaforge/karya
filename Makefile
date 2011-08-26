@@ -7,6 +7,10 @@
 #   forced to put the hsc deps in the Makefile prerequisites, but there's
 #   nothing keeping that up to date.
 #
+# - It's grody how I have to make targets depend on their hsc files manually.
+# Shouldn't I be able to ask ghc about all the module deps so I can hsc2hs
+# on the ones that need it?
+#
 # The situation with flags is getting out of control.  Problems:
 #
 # - seq, test_core_midi need MIDI_LIBS
@@ -15,6 +19,8 @@
 #
 # - tests and profiles are separate targets and require different flags
 
+# Turn off built-in suffix rules, speeds up make?
+# .SUFFIXES:
 
 FLTK_CONFIG := /usr/local/src/fltk-1.3/fltk-config
 
@@ -163,7 +169,7 @@ $(BUILD)/test_block: fltk/test_block.o fltk/fltk.a
 # tests.
 # TODO grody, maybe I should just make everything depend on ALL_HSC?
 UI_HSC := $(addprefix $(HSC)/, $(wildcard Ui/*.hsc))
-UI_HSC := $(UI_HSC:hsc=hs) Util/CPUTime.hs
+UI_HSC := $(UI_HSC:hsc=hs) $(HSC)/Util/CPUTime.hs
 UI_OBJS := Ui/c_interface.o fltk/fltk.a
 
 ALL_HS = $(shell tools/all_hs.py)
@@ -252,10 +258,10 @@ $(BUILD)/logcat: LogView/LogCat.hs
 BROWSER_PREREQ = Instrument/Browser.hs \
 	Instrument/interface.o Instrument/browser_ui.o \
 	Util/fltk_interface.o
-BROWSER_HSC = $(HSC)/Instrument/BrowserC.hs
+BROWSER_HSC = $(HSC)/Instrument/BrowserC.hs $(HSC)/Ui/Types.hs
 
 .PHONY: $(BUILD)/browser
-$(BUILD)/browser: $(BROWSER_PREREQ) $(BROWSER_HSC) Ui/Types.hs
+$(BUILD)/browser: $(BROWSER_PREREQ) $(BROWSER_HSC)
 	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
 	$(BUNDLE)
 
@@ -327,6 +333,7 @@ interactive: $(TBUILD)/RunTests
 
 .PHONY: tags
 tags: $(ALL_HS)
+	@# hothasktags $^ | sort >tags.sorted
 	hasktags --ignore-close-implementation --ctags $^
 	sort tags >tags.sorted
 	(echo -e '!_TAG_FILE_SORTED\t1\t ~'; cat tags.sorted) >tags
