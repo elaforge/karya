@@ -6,25 +6,25 @@ import qualified Control.Exception as Exception
 
 import qualified Util.Rect as Rect
 import Util.Test
-
+import qualified Ui.Block as Block
+import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
+import qualified Ui.Symbol as Symbol
+import qualified Ui.SymbolC as SymbolC
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
-
-import qualified Ui.Block as Block
-import qualified Ui.BlockC as BlockC
-import qualified Ui.Symbol as Symbol
-import qualified Ui.SymbolC as SymbolC
-
 import qualified Ui.UiTest as UiTest
 
 import qualified Perform.Signal as Signal
+import qualified App.Config as Config
+import qualified App.LoadConfig as LoadConfig
 
 
 initialize f = do
     quit_request <- Concurrent.newMVar ()
     msg_chan <- STM.newTChanIO
+    LoadConfig.styles Config.styles
     Concurrent.forkIO (f `Exception.finally` Ui.quit_ui_thread quit_request)
     Ui.event_loop quit_request msg_chan
 send = Ui.send_action

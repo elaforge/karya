@@ -6,7 +6,7 @@
 const EventStyle *
 StyleTable::get(StyleId id) const
 {
-    ASSERT(id <= stable.size());
+    ASSERT(id < stable.size());
     return &stable[id];
 }
 

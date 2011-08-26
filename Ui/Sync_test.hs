@@ -17,6 +17,7 @@ module Ui.Sync_test where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
+
 import qualified Data.Map as Map
 
 import qualified Util.Rect as Rect
@@ -38,6 +39,9 @@ import qualified Ui.UiTest as UiTest
 import Ui.UiTest (mkid)
 import qualified Ui.Update as Update
 
+import qualified App.Config as Config
+import qualified App.LoadConfig as LoadConfig
+
 
 -- TODO
 -- test_error
@@ -47,6 +51,7 @@ import qualified Ui.Update as Update
 initialize f = do
     quit_request <- Concurrent.newMVar ()
     msg_chan <- STM.newTChanIO
+    LoadConfig.styles Config.styles
     Concurrent.forkIO (f `Exception.finally` Ui.quit_ui_thread quit_request)
     Ui.event_loop quit_request msg_chan
 
