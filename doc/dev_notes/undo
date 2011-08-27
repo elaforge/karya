@@ -1,0 +1,152 @@
+Either invert all updates and use all updates for undo / redo.
+Or make all updates the identity under inversion... but then I can't
+save them.
+
+I can use State.M to apply the updates, but there is some redundancy
+e.g. remove track also edits the skeleton.  It seems the logical
+conclusion is for State operations to emit Updates for everything and
+to use those instead of diffs.  The remove_track emits RemoveTrack but
+not skeleton.  But then that's not right because the UI is low level.
+
+So, put the lower level State.M ops in ApplyUpdate, and then call it
+from the higher level ones in State.M.  I think I still want diff because
+it saves having to invert updates.  But it's probably more complicated,
+so later it may be worth inverting updates just to get rid of it.  But
+the advantage of the diff scheme is that I can modify State directly,
+load by setting it, etc.  This doesn't work for TrackEvents though.
+
+I'm uneasy about reusing State because they are designed for different
+purposes.  On the other hand, some bits of code are significant, e.g.
+remove tracks.  But still not quite right.
+
+I think I'd feel better putting the primitives in another place, then
+importing them into State.
+Unfortunately that kind of breaks State up... but then, isn't that a good
+thing?  It just feels kind of ad-hoc to stick it all in ApplyUpdate, maybe
+Ui.Internal?  Then again, it isn't ad-hoc, it's specifically for updates.
+
+Update has a type param for DisplayTrack vs. Block.Track
+Or, can I get rid of update DisplayTrack entirely and do the conversion
+in Sync?  Looks like yes, but I need the view.
+
+So the problem is that a track collapse means remove track then add
+a divider.  But from the undo point of view, it's just a block track
+change.  If I want to save the diff output as undo history, I need one
+version with Block.Track and another with remove/add.  But I think the
+only replacement is Collapse, so I could do a post filter replacing
+Collapsed tracks with remove/add.
+
+want a different type, but how?
+  different diff?
+
+UI can't change IDs, so an ID change needs to turn into remove/add
+But I don't think I can do this as postproc since a track update doesn't
+tell me that the type changed.  Really, the mechanism is already in place
+for diff.  Any solution that involves checking if the type has changed is
+equivalent to diff.
+
+Ok, so I'm tempted to stick track width into DisplayTrack.  Previously I
+think I didn't because it overlaps with SetTrackWidth, but then why not
+just remove SetTrackWidth entirely?
+
+* sync and BlockC should accept the new types
+* patch ResponderSync to take the DisplayUpdates
+* remove Update.TrackWidth, subsume into DisplayTrack
+* possibly remove per-view track width, it's too much bother
+
+* missing CmdUpdates:
+  CreateBlock, DestroyBlock, Track, Ruler.  Make a separate branch for
+  them so DisplayUpdates don't have them.
+
+* write and test ApplyUpdate
+  * assert 'apply old_st updates == cur_st'
+  * assert 'apply cur_st (invert updates) == old_st'
+/ adapt sync to take updates, should get simpler
+Decide on format for records.
+  Updates will be small so while a file would be nice probably would be
+  kind of clunky.
+
+  - Some library functions for dealing with checksummed files, apply to
+    all saved state to avoid crashes on load.  Look on hackage first?
+  - Atomic update so I don't wind up with corrupted records
+    Copy file, append a record+checksum, rename over original.
+    Inefficient.
+    If it's files, then it's easy, write a file, rename into place.
+    checkpoint + directory
+    Old checkpoints get tgz'ed
+
+- library for serializing with a checksum
+- library to write a record atomically
+- stick something in responder to save updates to record format
+
+- record history writes a record with the diffs, this goes into a directory
+  $checkpoint_num/##
+- if there are too many records, save a new checkpoint as
+  $num.check
+- explicit save makes a new checkpoint $num.save.  I save a whole file
+  so it can be easily copied.
+
+loading:
+  - given a directory, get the highest $num.*, then load all diffs from
+    $num/*.  Diffs are left in the history.
+  - given a checkpoint, just load that checkpoint
+
+undo/redo:
+  - if undo runs out of history, look for more by decrementing the
+  checkpoint serial, load the previous checkpoint, and apply all the diffs
+  to generate history
+  - if redo runs out, then do the same but increment the serial
+
+- I want a set of magic numbers so I can tell file types apart.  Then
+  follow with crc32 to make sure it's a real file.
+
+- Or, avoid having to invert updates by keeping history as [State]
+  But this means I still save the track updates because it's too expensive
+  to find those with diff.
+
+- on startup, assign a name based on time
+- on every history record, append diffs to save file
+- on explicit save, save state and start appending diffs to that state
+- on load, find the latest snapshot and replay diffs from there
+
+What to do about skip record?  I can't skip the updates!  But I don't
+want to record a million records for every selection change.  I think
+I record updates regardless of whether undo is going to record it or not.
+But this breaks 1:1 with save and undo, that seems bad because it will
+be wrong when I load it back.  So undo needs to record that too, and
+then the actual undo/redo can decide to skip certain entries
+
+And then I totally filter out some spammy updates, like selection, status,
+zoom, window moves, etc.  They are saved only at checkpoints.  But I
+definitely want to.  Actually, looks like the updates boring to undo
+also don't need to be saved.
+
+Serial numbers won't accomodate branching history, I would have to use
+hashes like git.  Serialize the updates then add it to the hash.
+However, it's no longer easy to see who comes first, so I would have to
+stick a timestamp on.
+
+What do I want from the feature?
+
+Don't lose edits after a crash.  Could do this with a single live save,
+just maybe a bit slow if it had to save the whole thing each time.
+
+Would be nice to rewind to previous versions.  Of course, I can do that
+just with dated saves.
+
+Also nice to have all versions available, and e.g. integrate sketches
+from one version into another.  Can also get this with just saves,
+if I apply a little discipline.
+
+What diffs give me is load and then rewind, but that actually comes easy
+if I am saving on every change.  I don't have to support undo before
+checkpoint, though it wouldn't be too hard either.
+
+I'm reluctant to delete a future branch if I undo and then make a change.  In
+fact it could be useful for recovering failed sketches.  I think this comes
+automatically if I save with 'timestamp.hash'
+
+Would it be crazy to just use git?  But I have my own non-text format for
+diffs, so I think a lot of stuff doesn't apply.  At most I could use it
+as a fast reliable store for blobs that depend on each other and can branch.
+Is there precedent for doing that?

@@ -244,10 +244,12 @@ data State = State {
     -- modify these.
 
     -- | History.
-    , state_history :: !([HistoryEntry], [HistoryEntry])
-    -- | Set to True to disable history recording.  Useful so undo and
-    -- save/load cmds aren't recorded.  TODO should go in cmd return val.
-    , state_skip_history_record :: !Bool
+    , state_history :: !History
+    -- | A hack so history isn't recorded after an undo... otherwise multiple
+    -- undo would be impossible!  It has an awkward clunky name because
+    -- the only Cmds that should set it are undo and redo.  Otherwise
+    -- important Updates could be missed and things will get messed up.
+    , state_prev_cmd_was_undo_redo :: !Bool
 
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
@@ -285,8 +287,8 @@ initial_state inst_db schema_map global_scope = State {
         \scale_id -> Map.lookup scale_id Scale.All.scales
     , state_clip_namespace = Config.clip_namespace
 
-    , state_history = ([], [])
-    , state_skip_history_record = False
+    , state_history = empty_history
+    , state_prev_cmd_was_undo_redo = False
 
     , state_keys_down = Map.empty
     , state_focused_view = Nothing
@@ -307,7 +309,7 @@ empty_state = initial_state Instrument.Db.empty Map.empty Derive.empty_scope
 -- should be called whenever an entirely new state is loaded.
 reinit_state :: State -> State
 reinit_state cstate = cstate
-    { state_history = ([], [])
+    { state_history = empty_history
     -- Performance threads should have been killed by the caller.
     , state_play = initial_play_state
         { state_play_step = state_play_step (state_play cstate) }
@@ -318,8 +320,7 @@ reinit_state cstate = cstate
 
 -- | This is a hack so I can use the default Show instance for 'State'.
 newtype LookupScale = LookupScale Derive.LookupScale
-instance Show LookupScale where
-    show _ = "((LookupScale))"
+instance Show LookupScale where show _ = "((LookupScale))"
 
 -- | State concerned derivation, performance, and playing the performance.
 data PlayState = PlayState {
@@ -495,11 +496,28 @@ type InstrumentDb = Instrument.Db.Db InstrumentCode
 type MidiInfo = MidiDb.Info InstrumentCode
 type SynthDesc = MidiDb.SynthDesc InstrumentCode
 
+-- *** history
+
+data History = History {
+    hist_past :: ![HistoryEntry]
+    , hist_future :: ![HistoryEntry]
+    -- | The serial number of the current point in time.  History entries are
+    -- saved to disk under their serial number.  Incremented when moving
+    -- forward, decremented when moving back.
+    , hist_serial :: !Int
+    } deriving (Show, Generics.Typeable)
+
+history :: [HistoryEntry] -> [HistoryEntry] -> Int -> History
+history = History
+
+empty_history :: History
+empty_history = History [] [] 0
+
 -- *** misc
 
 data HistoryEntry = HistoryEntry {
-    hist_state :: !State.State
-    , hist_updates :: ![Update.CmdUpdate]
+    hist_entry_state :: !State.State
+    , hist_entry_updates :: ![Update.CmdUpdate]
     } deriving (Show, Generics.Typeable)
 
 data Modifier = KeyMod Key.Modifier

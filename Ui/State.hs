@@ -1019,9 +1019,9 @@ _modify_events track_id f = do
     track <- get_track track_id
     let (new_events, updates) = f (Track.track_events track)
     _set_track track_id (track { Track.track_events = new_events })
-    mapM_ update
-        [Update.TrackUpdate track_id (Update.TrackEvents start end new_events)
-            | (start, end) <- updates]
+    let mk (s, e) = Update.TrackUpdate track_id $ Update.TrackEvents s e $
+            Events.in_range s e new_events
+    mapM_ (update . mk) updates
 
 _events_updates :: [Events.PosEvent] -> [(ScoreTime, ScoreTime)]
 _events_updates [] = []

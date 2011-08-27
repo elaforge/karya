@@ -44,6 +44,9 @@ rid = Types.RulerId . mkid
 
 default_zoom = Config.zoom
 
+default_view :: Block.View
+default_view = Block.view default_block_id default_rect default_zoom
+
 -- | Save the state to disk, so I can load it into the app and see it.
 save :: State.State -> FilePath -> IO ()
 save ui_state fname = do
@@ -220,7 +223,7 @@ mkevent (pos, dur, text) = (realToFrac pos, Event.event text (realToFrac dur))
 
 -- * ruler
 
-default_ruler = mkruler 256 1
+default_ruler = mkruler 16 1
 no_ruler = mkruler 0 0
 ruler_until pos = ruler [Ruler.marklist "until" [(pos, Ruler.null_mark)]]
 

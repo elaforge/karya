@@ -1,4 +1,27 @@
 {-# LANGUAGE DeriveDataTypeable, TypeSynonymInstances #-}
+{- | Updates are diffs against Ui.State and are used in a number of contexts.
+    They are produced by "Ui.Diff".  For efficiency, TrackEvents updates are
+    recorded directly in "Ui.State", so diff doesn't have to compare all the
+    score data.  The different uses all require slightly different data.  I
+    capture the major differences in the 'DisplayUpdate' and 'CmdUpdate'
+    types, but within CmdUpdates, not all fields are useful for all contexts.
+    It's too much hassle to make separate types for everything.
+
+    - 'DisplayUpdate's are sent to the UI to update the windows.  Since the UI
+    only has Views, and has a lower level version of tracks, this includes
+    only updates that directly affect display.
+
+    - TrackEvents updates go to undo, for the same reason they are recorded
+    by Ui.State: when a state is reverted to a previous one it would be
+    expensive to diff the entire score.
+
+    - Updates are also used to determine ScoreDamage when rederiving a score.
+
+    - Updates are saved to disk for an incremental save.  Unlike the other
+    uses which have access to the current state, these are used with
+    "Ui.ApplyUpdate" to create the current state, so they have to contain
+    the actual updated data.
+-}
 module Ui.Update where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
@@ -21,17 +44,17 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 
-type CmdUpdate = Update Block.Track
-type DisplayUpdate = Update Block.DisplayTrack
+type CmdUpdate = Update Block.Track StateUpdate
+type DisplayUpdate = Update Block.DisplayTrack ()
 
-data Update t
+data Update t u
     = ViewUpdate ViewId ViewUpdate
     | BlockUpdate BlockId (BlockUpdate t)
     | TrackUpdate TrackId TrackUpdate
     -- | Since I expect rulers to be changed infrequently, the only kind of
     -- ruler update is a full update.
     | RulerUpdate RulerId Ruler.Ruler
-    | StateConfig StateConfig.Config
+    | StateUpdate u
     deriving (Eq, Show, Generics.Typeable)
 
 data ViewUpdate =
@@ -69,30 +92,43 @@ data TrackUpdate =
     | TrackRender Track.RenderConfig
     deriving (Eq, Show)
 
-instance DeepSeq.NFData (Update t) where
+-- | These are updates to 'Ui.State.State' that have no UI presence.
+data StateUpdate =
+    Config StateConfig.Config
+    | CreateBlock BlockId Block.Block
+    | DestroyBlock BlockId
+    | CreateTrack TrackId Track.Track
+    | DestroyTrack TrackId
+    | CreateRuler RulerId Ruler.Ruler
+    | DestroyRuler RulerId
+    deriving (Eq, Show, Generics.Typeable)
+
+instance DeepSeq.NFData (Update t u) where
     rnf update = case update of
         ViewUpdate view_id update -> view_id `seq` update `seq` ()
         BlockUpdate block_id update -> block_id `seq` update `seq` ()
         TrackUpdate track_id update -> track_id `seq` update `seq` ()
         RulerUpdate ruler_id ruler -> ruler_id `seq` ruler `seq` ()
-        StateConfig config -> config `seq` ()
+        StateUpdate u -> u `seq` ()
 
 instance Pretty.Pretty CmdUpdate where
     pretty = show
     -- pretty (ViewUpdate vid update) = 
 
-strip :: Update a -> Maybe (Update b)
-strip (ViewUpdate vid update) = Just $ ViewUpdate vid update
-strip (BlockUpdate bid update) = BlockUpdate bid <$> case update of
+-- | Convert a CmdUpdate to a DisplayUpdate by stripping out all the CmdUpdate
+-- parts.
+to_display :: CmdUpdate -> Maybe DisplayUpdate
+to_display (ViewUpdate vid update) = Just $ ViewUpdate vid update
+to_display (BlockUpdate bid update) = BlockUpdate bid <$> case update of
     BlockTitle a -> Just $ BlockTitle a
     BlockConfig a -> Just $ BlockConfig a
     BlockSkeleton a -> Just $ BlockSkeleton a
     RemoveTrack a -> Just $ RemoveTrack a
     InsertTrack {} -> Nothing
     BlockTrack {} -> Nothing
-strip (TrackUpdate tid update) = Just $ TrackUpdate tid update
-strip (RulerUpdate rid ruler) = Just $ RulerUpdate rid ruler
-strip (StateConfig config) = Just $ StateConfig config
+to_display (TrackUpdate tid update) = Just $ TrackUpdate tid update
+to_display (RulerUpdate rid ruler) = Just $ RulerUpdate rid ruler
+to_display (StateUpdate {}) = Just $ StateUpdate ()
 
 -- * functions
 

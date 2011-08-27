@@ -64,11 +64,10 @@ diff cmd_updates st1 st2 = fmap postproc $ run $ do
         Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
     mapM_ (uncurry3 diff_ruler) $
         Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2)
-    when (State.state_config st1 /= State.state_config st2) $
-        change [Update.StateConfig (State.state_config st2)]
+    diff_state st1 st2
     where
     postproc (cs, ds) =
-        (cmd_updates ++ cs, Maybe.mapMaybe Update.strip
+        (cmd_updates ++ cs, Maybe.mapMaybe Update.to_display
             (merge_updates st2 (cmd_updates ++ cs)) ++ ds)
 
 -- | Given the track updates, figure out which other tracks have those tracks
@@ -215,6 +214,27 @@ diff_ruler ruler_id ruler1 ruler2 = do
     -- and only check names.
     when (ruler1 /= ruler2) $
         change [Update.RulerUpdate ruler_id ruler2]
+
+-- ** state
+
+diff_state :: State.State -> State.State -> DiffM ()
+diff_state st1 st2 = do
+    let emit = change . (:[]) . Update.StateUpdate
+    let pairs f = Map.pairs (f st1) (f st2)
+    when (State.state_config st1 /= State.state_config st2) $
+        emit $ Update.Config (State.state_config st2)
+    forM_ (pairs State.state_blocks) $ \(block_id, b1, b2) -> case (b1, b2) of
+        (Nothing, Just block) -> emit $ Update.CreateBlock block_id block
+        (Just _, Nothing) -> emit $ Update.DestroyBlock block_id
+        _ -> return ()
+    forM_ (pairs State.state_tracks) $ \(track_id, t1, t2) -> case (t1, t2) of
+        (Nothing, Just track) -> emit $ Update.CreateTrack track_id track
+        (Just _, Nothing) -> emit $ Update.DestroyTrack track_id
+        _ -> return ()
+    forM_ (pairs State.state_rulers) $ \(ruler_id, r1, r2) -> case (r1, r2) of
+        (Nothing, Just ruler) -> emit $ Update.CreateRuler ruler_id ruler
+        (Just _, Nothing) -> emit $ Update.DestroyRuler ruler_id
+        _ -> return ()
 
 -- * derive diff
 

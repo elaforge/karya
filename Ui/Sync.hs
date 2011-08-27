@@ -213,24 +213,22 @@ run_update track_signals (Update.ViewUpdate view_id (Update.CreateView _)) = do
                     _ -> return ()
             _ -> return ()
 
-run_update _ (Update.ViewUpdate view_id update) =
-    case update of
-        -- The previous equation matches CreateView, but ghc warning doesn't
-        -- figure that out.
-        Update.CreateView {} -> error "run_update: notreached"
-        Update.DestroyView -> return (BlockC.destroy_view view_id)
-        Update.ViewSize rect -> return (BlockC.set_size view_id rect)
-        Update.ViewConfig config -> return
-            (BlockC.set_view_config view_id config)
-        Update.Status status ->
-            return $ BlockC.set_status view_id (Block.show_status status)
-        Update.TrackScroll offset ->
-            return (BlockC.set_track_scroll view_id offset)
-        Update.Zoom zoom -> return (BlockC.set_zoom view_id zoom)
-        Update.Selection selnum maybe_sel -> do
-            csel <- to_csel view_id selnum maybe_sel
-            return $ BlockC.set_selection True view_id selnum csel
-        Update.BringToFront -> return $ BlockC.bring_to_front view_id
+run_update _ (Update.ViewUpdate view_id update) = case update of
+    -- The previous equation matches CreateView, but ghc warning doesn't
+    -- figure that out.
+    Update.CreateView {} -> error "run_update: notreached"
+    Update.DestroyView -> return $ BlockC.destroy_view view_id
+    Update.ViewSize rect -> return $ BlockC.set_size view_id rect
+    Update.ViewConfig config -> return $ BlockC.set_view_config view_id config
+    Update.Status status ->
+        return $ BlockC.set_status view_id (Block.show_status status)
+    Update.TrackScroll offset ->
+        return $ BlockC.set_track_scroll view_id offset
+    Update.Zoom zoom -> return $ BlockC.set_zoom view_id zoom
+    Update.Selection selnum maybe_sel -> do
+        csel <- to_csel view_id selnum maybe_sel
+        return $ BlockC.set_selection True view_id selnum csel
+    Update.BringToFront -> return $ BlockC.bring_to_front view_id
 
 -- Block ops apply to every view with that block.
 run_update track_signals (Update.BlockUpdate block_id update) = do
@@ -307,10 +305,10 @@ run_update _ (Update.TrackUpdate track_id update) = do
                     events_of_track_ids ustate (Block.track_merged track)
                 Nothing -> []
         fmap sequence_ $ forM view_ids $ \view_id -> case update of
-            Update.TrackEvents low high events ->
+            Update.TrackEvents low high _events ->
                 return $ BlockC.update_track view_id tracknum tracklike
                     merged low high
-            Update.TrackAllEvents events ->
+            Update.TrackAllEvents _events ->
                 return $ BlockC.update_entire_track view_id tracknum tracklike
                     merged
             Update.TrackTitle title ->
@@ -323,7 +321,7 @@ run_update _ (Update.TrackUpdate track_id update) = do
                 return $ BlockC.update_entire_track view_id tracknum tracklike
                     merged
 
-run_update _ (Update.RulerUpdate ruler_id ruler) = do
+run_update _ (Update.RulerUpdate ruler_id _ruler) = do
     blocks <- State.blocks_with_ruler ruler_id
     let tinfo = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
@@ -335,8 +333,7 @@ run_update _ (Update.RulerUpdate ruler_id ruler) = do
         fmap sequence_ $ forM view_ids $ \view_id -> return $
             BlockC.update_entire_track view_id tracknum tracklike []
 
--- This shouldn't show up in DisplayUpdates, but the type doesn't prevent it.
-run_update _ (Update.StateConfig _) = return (return ())
+run_update _ (Update.StateUpdate ()) = return (return ())
 
 -- | Don't send a track signal to a track unless it actually wants to draw it.
 wants_tsig :: [Block.TrackFlag] -> Track.Track -> Bool
