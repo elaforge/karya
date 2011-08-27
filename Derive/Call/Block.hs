@@ -63,10 +63,10 @@ block_call f call =
 d_block :: BlockId -> Derive.EventDeriver
 d_block block_id = do
     -- The block id is put on the stack by 'gdep_block' before this is called.
-    ui_state <- Derive.get_ui_state
+    blocks <- Derive.get_ui_state State.state_blocks
     -- Do some error checking.  These are all caught later, but if I throw here
     -- I can give more specific error msgs.
-    case Map.lookup block_id (State.state_blocks ui_state) of
+    case Map.lookup block_id blocks of
         Nothing -> Derive.throw "block_id not found"
         _ -> return ()
     -- Record a dependency on this block.
@@ -93,8 +93,8 @@ symbol_to_block_id :: TrackLang.Symbol -> Derive.Deriver (Maybe BlockId)
 symbol_to_block_id sym
     | sym == TrackLang.Symbol "" = return Nothing
     | otherwise = do
-        ui_state <- Derive.get_ui_state
-        let ns = State.state_namespace ui_state
+        ui_state <- Derive.get_ui_state id
+        let ns = State.config_namespace (State.state_config ui_state)
             block_id = make_block_id ns sym
         return $ if block_id `Map.member` State.state_blocks ui_state
             then Just block_id

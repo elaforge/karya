@@ -58,19 +58,14 @@ diff cmd_updates st1 st2 = fmap postproc $ run $ do
     -- update the new view (technically these updates are redundant, but they
     -- don't hurt and filtering them would be complicated).
     diff_views st1 st2 (State.state_views st1) (State.state_views st2)
-
-    -- TODO decide what to do with this and keep or remove
-    -- -- Only emit updates for blocks that are actually in a displayed view.
-    -- let visible_ids = (List.nub . map Block.view_block . Map.elems)
-    --         (State.state_views st2)
-    --     visible_blocks = Map.filterWithKey (\k _v -> k `elem` visible_ids)
-    --         (State.state_blocks st2)
     mapM_ (uncurry3 diff_block) $
         Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2)
     mapM_ (uncurry3 diff_track) $
         Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
     mapM_ (uncurry3 diff_ruler) $
         Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2)
+    when (State.state_config st1 /= State.state_config st2) $
+        change [Update.StateConfig (State.state_config st2)]
     where
     postproc (cs, ds) =
         (cmd_updates ++ cs, Maybe.mapMaybe Update.strip
@@ -101,7 +96,7 @@ merge_updates state updates = updates ++ concatMap propagate updates
     merged_to_track = Map.multimap [(merged_id, track_id)
         | (track_id, merged_ids) <- track_to_merged, merged_id <- merged_ids]
     is_event_update (Update.TrackEvents {}) = True
-    is_event_update Update.TrackAllEvents = True
+    is_event_update Update.TrackAllEvents {} = True
     is_event_update _ = False
 
 -- ** view
@@ -208,9 +203,9 @@ diff_track track_id track1 track2 = do
     when (unequal Track.track_title) $
         change [track_update $ Update.TrackTitle (Track.track_title track2)]
     when (unequal Track.track_bg) $
-        change [track_update Update.TrackBg]
+        change [track_update $ Update.TrackBg (Track.track_bg track2)]
     when (unequal Track.track_render) $
-        change [track_update Update.TrackRender]
+        change [track_update $ Update.TrackRender (Track.track_render track2)]
 
 diff_ruler :: RulerId -> Ruler.Ruler -> Ruler.Ruler -> DiffM ()
 diff_ruler ruler_id ruler1 ruler2 = do
@@ -219,7 +214,7 @@ diff_ruler ruler_id ruler1 ruler2 = do
     -- gets slow I can do something like insist marklist contents are immutable
     -- and only check names.
     when (ruler1 /= ruler2) $
-        change [Update.RulerUpdate ruler_id]
+        change [Update.RulerUpdate ruler_id ruler2]
 
 -- * derive diff
 

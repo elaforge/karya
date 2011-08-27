@@ -60,14 +60,20 @@ redo = do
 -- inherit them from the old state.  It's confusing when undo moves a window,
 -- or a selection, or changes the zoom.
 merge_undo_states :: State.State -> State.State -> State.State
-merge_undo_states new old = new {
-    State.state_namespace = State.state_namespace old
-    , State.state_project_dir = State.state_project_dir old
-    , State.state_views = Map.mapWithKey
+merge_undo_states new old = new
+    { State.state_views = Map.mapWithKey
         (merge_view (State.state_views old)) (State.state_views new)
     , State.state_blocks = Map.mapWithKey
         (merge_block (State.state_blocks old)) (State.state_blocks new)
-    , State.state_midi_config = State.state_midi_config old
+    , State.state_config =
+        merge_config (State.state_config new) (State.state_config old)
+    }
+
+merge_config :: State.Config -> State.Config -> State.Config
+merge_config new old = new
+    { State.config_namespace = State.config_namespace old
+    , State.config_project_dir = State.config_project_dir old
+    , State.config_midi = State.config_midi old
     }
 
 merge_view :: Map.Map ViewId Block.View -> ViewId -> Block.View -> Block.View
@@ -120,6 +126,6 @@ history_entry state = Cmd.HistoryEntry state . filter is_nondiff_update
 is_nondiff_update :: Update.CmdUpdate -> Bool
 is_nondiff_update (Update.TrackUpdate _ update) = case update of
     Update.TrackEvents {} -> True
-    Update.TrackAllEvents -> True
+    Update.TrackAllEvents {} -> True
     _ -> False
 is_nondiff_update _ = False

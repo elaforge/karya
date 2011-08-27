@@ -54,7 +54,7 @@ update_performance wait send_status ui_pre ui_to cmd_state updates = do
         insert_score_damage damage
         focused <- Cmd.lookup_focused_block
         when_just focused (regenerate_performance wait send_status)
-        when_just (State.state_root ui_to)
+        when_just (State.config_root (State.state_config ui_to))
             (regenerate_performance wait send_status)
         return Cmd.Done
     mapM_ Log.write logs

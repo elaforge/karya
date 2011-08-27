@@ -429,18 +429,21 @@ shift_control shift deriver = do
 
 -- * utils
 
-get_ui_state :: Deriver State.State
-get_ui_state = gets (state_ui . state_constant)
+get_ui_state :: (State.State -> a) -> Deriver a
+get_ui_state f = gets (f . state_ui . state_constant)
+
+get_ui_config :: (State.Config -> a) -> Deriver a
+get_ui_config f = get_ui_state (f . State.state_config)
 
 -- | Because Deriver is not a UiStateMonad.
 --
 -- TODO I suppose it could be, but then I'd be tempted to make
 -- a ReadOnlyUiStateMonad.  And I'd have to merge the exceptions.
 get_track :: TrackId -> Deriver Track.Track
-get_track track_id = lookup_id track_id . State.state_tracks =<< get_ui_state
+get_track track_id = lookup_id track_id =<< get_ui_state State.state_tracks
 
 get_block :: BlockId -> Deriver Block.Block
-get_block block_id = lookup_id block_id . State.state_blocks =<< get_ui_state
+get_block block_id = lookup_id block_id =<< get_ui_state State.state_blocks
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, Show k) => k -> Map.Map k a -> Deriver a

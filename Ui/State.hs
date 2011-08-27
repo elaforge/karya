@@ -18,7 +18,7 @@
     A higher level interface (e.g. "Cmd.Create") may ease this by automatically
     creating objects with automatically generated IDs.
 -}
-module Ui.State where
+module Ui.State (module Ui.State, Config(..), Default(..)) where
 import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
@@ -49,6 +49,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
+import Ui.StateConfig (Config(..), Default(..))
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
@@ -56,70 +57,45 @@ import qualified Ui.Update as Update
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
-
 import qualified App.Config as Config
 
 
 data State = State {
-    -- | The default namespace is used for automatically created IDs, so each
-    -- project can import other projects without clashes.  The save file is
-    -- also derived from the default namespace.
-    state_namespace :: Id.Namespace
-    -- | Save into this directory by default.
-    , state_project_dir :: String
-    -- | Derivation can start from any block, but it's useful to know which
-    -- block represents the entire piece.  This way, given a position on some
-    -- block I can determine where in the piece it lies, if anywhere.  This is
-    -- useful for playing a block in proper context, or communicating with
-    -- a program with a more absolute notion of time, like a DAW.
-    , state_root :: Maybe BlockId
-    , state_views :: Map.Map ViewId Block.View
+    state_views :: Map.Map ViewId Block.View
     , state_blocks :: Map.Map BlockId Block.Block
     -- | Track data also gets a symbol table.  This is so that I can
     -- efficiently compare a track for identity, and also so I can
     -- change it here and all of its occurrances change.
     , state_tracks :: Map.Map TrackId Track.Track
     , state_rulers :: Map.Map RulerId Ruler.Ruler
-
-    -- | This maps the midi instruments used in this State to their Addrs.
-    , state_midi_config :: Instrument.Config
-    , state_default :: Default
-    } deriving (Read, Show, Generics.Typeable)
+    , state_config :: Config
+    } deriving (Eq, Read, Show, Generics.Typeable)
 
 -- TODO "initial_state" would be more consistent
 empty :: State
 empty = State {
-    state_namespace = "untitled"
-    , state_project_dir = "save"
-    , state_root = Nothing
-    , state_views = Map.empty
+    state_views = Map.empty
     , state_blocks = Map.empty
     , state_tracks = Map.empty
     , state_rulers = ruler_map
-    , state_midi_config = Instrument.config []
-    , state_default = initial_default
+    , state_config = empty_config
     }
     where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
 
 instance DeepSeq.NFData State where
-    rnf (State proj dir root views blocks tracks rulers midi_conf deflt) =
-        proj `seq` dir `seq` root
-        `seq` DeepSeq.rnf views `seq` DeepSeq.rnf blocks
+    rnf (State views blocks tracks rulers config) =
+        DeepSeq.rnf views `seq` DeepSeq.rnf blocks
         `seq` DeepSeq.rnf tracks `seq` DeepSeq.rnf rulers
-        `seq` midi_conf `seq` DeepSeq.rnf deflt
+        `seq` config `seq` ()
 
--- | Initial values for derivation.
-data Default = Default {
-    -- | Automatically created pitch tracks will have this scale.  MIDI thru
-    -- will also use it when a scale can't be derived from focus.
-    default_scale :: Pitch.ScaleId
-    -- | This instrument is present in the initial environment, so it will be
-    -- the instrument in scope in abscence of any others.
-    , default_instrument :: Maybe Score.Instrument
-    -- | A toplevel block without a tempo track will get this tempo.
-    , default_tempo :: Signal.Y
-    } deriving (Read, Show, Generics.Typeable)
+empty_config :: Config
+empty_config = Config
+    { config_namespace = "untitled"
+    , config_project_dir = "save"
+    , config_root = Nothing
+    , config_midi = Instrument.config []
+    , config_default = initial_default
+    }
 
 initial_default :: Default
 initial_default = Default {
@@ -280,33 +256,41 @@ verify_block block = do
     mapM_ get_ruler (Block.block_ruler_ids block)
 
 get_namespace :: (M m) => m Id.Namespace
-get_namespace = gets state_namespace
+get_namespace = get_config config_namespace
 
 set_namespace :: (M m) => Id.Namespace -> m ()
-set_namespace ns = modify $ \st -> st { state_namespace = ns }
+set_namespace ns = modify_config $ \st -> st { config_namespace = ns }
 
 get_midi_config :: (M m) => m Instrument.Config
-get_midi_config = gets state_midi_config
+get_midi_config = get_config config_midi
 
 set_midi_config :: (M m) => Instrument.Config -> m ()
-set_midi_config config = modify $ \st -> st { state_midi_config = config }
+set_midi_config config = modify_config $ \st -> st { config_midi = config }
 
 get_midi_alloc :: (M m) => m (Map.Map Score.Instrument [Instrument.Addr])
 get_midi_alloc = Instrument.config_alloc <$> get_midi_config
 
 get_default :: (M m) => (Default -> a) -> m a
-get_default f = f <$> gets state_default
+get_default f = f <$> get_config config_default
 
 modify_default :: (M m) => (Default -> Default) -> m ()
-modify_default f = modify $ \st -> st { state_default = f (state_default st) }
+modify_default f = modify_config $ \st ->
+    st { config_default = f (config_default st) }
+
+modify_config :: (M m) => (Config -> Config) -> m ()
+modify_config f = modify $ \st -> st { state_config = f (state_config st) }
+
+get_config :: (M m) => (Config -> a) -> m a
+get_config f = gets (f . state_config)
 
 -- * root
 
 lookup_root_id :: (M m) => m (Maybe BlockId)
-lookup_root_id = gets state_root
+lookup_root_id = get_config config_root
 
 set_root_id :: (M m) => BlockId -> m ()
-set_root_id block_id = modify $ \st -> st { state_root = Just block_id }
+set_root_id block_id =
+    modify_config $ \st -> st { config_root = Just block_id }
 
 -- * view
 
@@ -375,10 +359,9 @@ set_selection :: (M m) => ViewId -> Types.SelNum
     -> Maybe Types.Selection -> m ()
 set_selection view_id selnum maybe_sel = do
     view <- get_view view_id
-    let sels = case maybe_sel of
-            Nothing -> Map.delete selnum (Block.view_selections view)
-            Just sel -> Map.insert selnum sel (Block.view_selections view)
-    update_view view_id (view { Block.view_selections = sels })
+    update_view view_id $ view { Block.view_selections =
+        (maybe (Map.delete selnum) (Map.insert selnum) maybe_sel)
+        (Block.view_selections view) }
 
 -- ** util
 
@@ -406,8 +389,9 @@ create_block :: (M m) => Id.Id -> Block.Block -> m BlockId
 create_block id block = get >>= insert (Types.BlockId id) block state_blocks
     (\blocks st -> st
         { state_blocks = blocks
-        , state_root = if Map.size blocks == 1 then Just (Types.BlockId id)
-            else state_root st
+        , state_config = let c = state_config st
+            in c { config_root = if Map.size blocks == 1
+                then Just (Types.BlockId id) else config_root c }
         })
 
 -- | Destroy the block and all the views that display it.  If the block was
@@ -418,8 +402,9 @@ destroy_block block_id = do
     mapM_ destroy_view (Map.keys views)
     modify $ \st -> st
         { state_blocks = Map.delete block_id (state_blocks st)
-        , state_root = if state_root st == Just block_id then Nothing
-            else state_root st
+        , state_config = let c = state_config st
+            in c { config_root = if config_root c == Just block_id
+                then Nothing else config_root c }
         }
 
 block_of :: (M m) => ViewId -> m Block.Block
@@ -901,16 +886,16 @@ set_track_title :: (M m) => TrackId -> String -> m ()
 set_track_title track_id text = modify_track_title track_id (const text)
 
 modify_track_title :: (M m) => TrackId -> (String -> String) -> m ()
-modify_track_title track_id f = _modify_track track_id $ \track ->
+modify_track_title track_id f = modify_track track_id $ \track ->
     track { Track.track_title = f (Track.track_title track) }
 
 set_track_bg :: (M m) => TrackId -> Color.Color -> m ()
-set_track_bg track_id color = _modify_track track_id $ \track ->
+set_track_bg track_id color = modify_track track_id $ \track ->
     track { Track.track_bg = color }
 
 modify_track_render :: (M m) => TrackId
     -> (Track.RenderConfig -> Track.RenderConfig) -> m ()
-modify_track_render track_id f = _modify_track track_id $ \track ->
+modify_track_render track_id f = modify_track track_id $ \track ->
     track { Track.track_render = f (Track.track_render track) }
 
 set_render_style :: (M m) => Track.RenderStyle -> TrackId -> m ()
@@ -955,8 +940,11 @@ get_all_events = (Events.ascending . Track.track_events <$>) . get_track
 
 modify_events :: (M m) => TrackId -> (Events.Events -> Events.Events) -> m ()
 modify_events track_id f = do
-    _modify_track track_id (Track.modify_events f)
-    update $ Update.TrackUpdate track_id Update.TrackAllEvents
+    track1 <- get_track track_id
+    let track2 = track1 { Track.track_events = f (Track.track_events track1) }
+    _set_track track_id track2
+    update $ Update.TrackUpdate track_id
+        (Update.TrackAllEvents (Track.track_events track2))
 
 -- | Remove any events whose starting positions fall within the half-open
 -- range given, or under the point if the selection is a point.
@@ -1013,13 +1001,14 @@ track_end track_id =
 update_all_tracks :: (M m) => m ()
 update_all_tracks = do
     st <- get
-    let updates = map (flip Update.TrackUpdate Update.TrackAllEvents)
-            (Map.keys (state_tracks st))
-    mapM_ update updates
+    let mk (tid, track) = Update.TrackUpdate tid $
+            Update.TrackAllEvents (Track.track_events track)
+    mapM_ update $ map mk (Map.toList (state_tracks st))
 
 -- ** util
 
-_modify_track track_id f = do
+modify_track :: (M m) => TrackId -> (Track.Track -> Track.Track) -> m ()
+modify_track track_id f = do
     track <- get_track track_id
     _set_track track_id (f track)
 
@@ -1030,8 +1019,9 @@ _modify_events track_id f = do
     track <- get_track track_id
     let (new_events, updates) = f (Track.track_events track)
     _set_track track_id (track { Track.track_events = new_events })
-    mapM_ update [Update.TrackUpdate track_id (Update.TrackEvents start end)
-        | (start, end) <- updates]
+    mapM_ update
+        [Update.TrackUpdate track_id (Update.TrackEvents start end new_events)
+            | (start, end) <- updates]
 
 _events_updates :: [Events.PosEvent] -> [(ScoreTime, ScoreTime)]
 _events_updates [] = []

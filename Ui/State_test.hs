@@ -1,10 +1,6 @@
 module Ui.State_test where
-import qualified Data.Map as Map
-
-import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import Util.Test
-
 import qualified Ui.Block as Block
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State

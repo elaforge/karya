@@ -307,23 +307,23 @@ run_update _ (Update.TrackUpdate track_id update) = do
                     events_of_track_ids ustate (Block.track_merged track)
                 Nothing -> []
         fmap sequence_ $ forM view_ids $ \view_id -> case update of
-            Update.TrackEvents low high ->
+            Update.TrackEvents low high events ->
                 return $ BlockC.update_track view_id tracknum tracklike
                     merged low high
-            Update.TrackAllEvents ->
+            Update.TrackAllEvents events ->
                 return $ BlockC.update_entire_track view_id tracknum tracklike
                     merged
             Update.TrackTitle title ->
                 return $ BlockC.set_track_title view_id tracknum title
-            Update.TrackBg ->
+            Update.TrackBg _color ->
                 -- update_track also updates the bg color
                 return $ BlockC.update_track view_id tracknum tracklike
                     merged 0 0
-            Update.TrackRender ->
+            Update.TrackRender _render ->
                 return $ BlockC.update_entire_track view_id tracknum tracklike
                     merged
 
-run_update _ (Update.RulerUpdate ruler_id) = do
+run_update _ (Update.RulerUpdate ruler_id ruler) = do
     blocks <- State.blocks_with_ruler ruler_id
     let tinfo = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
@@ -334,6 +334,9 @@ run_update _ (Update.RulerUpdate ruler_id) = do
         -- them.
         fmap sequence_ $ forM view_ids $ \view_id -> return $
             BlockC.update_entire_track view_id tracknum tracklike []
+
+-- This shouldn't show up in DisplayUpdates, but the type doesn't prevent it.
+run_update _ (Update.StateConfig _) = return (return ())
 
 -- | Don't send a track signal to a track unless it actually wants to draw it.
 wants_tsig :: [Block.TrackFlag] -> Track.Track -> Bool

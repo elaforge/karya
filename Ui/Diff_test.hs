@@ -7,6 +7,7 @@ import Util.Test
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
+import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -44,11 +45,12 @@ test_merge_updates = do
                 [(">", []), ("*", [])]
             State.merge_track bid 1 2
             return tids
-    equal (Diff.diff [Update.TrackUpdate tid2 Update.TrackAllEvents] st st) $
+    let all_events = Update.TrackAllEvents Events.empty
+    equal (Diff.diff [Update.TrackUpdate tid2 all_events] st st) $
         Right
-            ([Update.TrackUpdate tid2 Update.TrackAllEvents],
-            [ Update.TrackUpdate tid2 Update.TrackAllEvents
-            , Update.TrackUpdate tid1 Update.TrackAllEvents
+            ([Update.TrackUpdate tid2 all_events],
+            [ Update.TrackUpdate tid2 all_events
+            , Update.TrackUpdate tid1 all_events
             ])
 
 diff :: State.State -> State.State
@@ -83,7 +85,7 @@ test_derive_diff_updates = do
             , (">i", [(0, 1, ""), (1, 1, "")])
             ]
     let f = Diff.derive_diff ustate ustate
-    equal (f [Update.TrackUpdate tid2 (Update.TrackEvents 1 2)])
+    equal (f [Update.TrackUpdate tid2 (Update.TrackEvents 1 2 Events.empty)])
         (mkdamage [(tid2, Ranges.range 1 2)] [bid] [])
 
 bid = UiTest.default_block_id

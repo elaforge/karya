@@ -21,7 +21,7 @@ import qualified Cmd.ViewConfig as ViewConfig
 
 get_save_file :: (Cmd.M m) => m FilePath
 get_save_file = do
-    dir <- State.gets State.state_project_dir
+    dir <- State.get_config State.config_project_dir
     ns <- State.get_namespace
     return $ FilePath.combine dir (map sanitize ns)
     where sanitize c = if FilePath.isPathSeparator c then '_' else c
@@ -50,7 +50,7 @@ cmd_load fname = do
     Play.cmd_stop
     Cmd.modify_state Cmd.reinit_state
     State.modify (const state)
-    root <- case State.state_root state of
+    root <- case State.config_root (State.state_config state) of
         Nothing -> return Nothing
         Just root -> Seq.head . Map.keys <$> State.get_views_of root
     let focused = msum [root, Seq.head (Map.keys (State.state_views state))]
@@ -59,10 +59,10 @@ cmd_load fname = do
 
 cmd_save_midi_config :: FilePath -> Cmd.CmdT IO ()
 cmd_save_midi_config fname = do
-    st <- State.get
+    config <- State.get_config id
     Log.notice $ "write midi config to " ++ show fname
     Trans.liftIO $ Serialize.serialize_pretty_text fname
-        (State.state_midi_config st)
+        (State.config_midi config)
 
 cmd_load_midi_config :: FilePath -> Cmd.CmdT IO ()
 cmd_load_midi_config fname = do

@@ -121,9 +121,8 @@ instance Serialize SaveState where
             _ -> version_error "SaveState" v
 
 instance Serialize State.State where
-    put (State.State a b c d e f g h i) = put_version 5
-        >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
-        >> put i
+    put (State.State a b c d e) = put_version 6
+        >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- get_version
         case v of
@@ -138,8 +137,9 @@ instance Serialize State.State where
                 midi_config <- get :: Get Instrument.Config
                 default_scale <- get :: Get Pitch.ScaleId
                 default_inst <- get :: Get (Maybe Score.Instrument)
-                return $ State.State proj dir root views blocks tracks rulers
-                    midi_config (State.Default default_scale default_inst 1)
+                let defaults = State.Default default_scale default_inst 1
+                return $ State.State views blocks tracks rulers
+                    (State.Config proj dir root midi_config defaults)
             5 -> do
                 proj <- get :: Get String
                 dir <- get :: Get String
@@ -150,9 +150,31 @@ instance Serialize State.State where
                 rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
                 midi_config <- get :: Get Instrument.Config
                 defaults <- get :: Get State.Default
-                return $ State.State proj dir root views blocks tracks rulers
-                    midi_config defaults
+                return $ State.State views blocks tracks rulers
+                    (State.Config proj dir root midi_config defaults)
+            6 -> do
+                views <- get :: Get (Map.Map Types.ViewId Block.View)
+                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
+                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
+                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
+                config <- get :: Get State.Config
+                return $ State.State views blocks tracks rulers config
             _ -> version_error "State.State" v
+
+instance Serialize State.Config where
+    put (State.Config a b c d e) = put_version 0
+        >> put a >> put b >> put c >> put d >> put e
+    get = do
+        v <- get_version
+        case v of
+            0 -> do
+                ns <- get :: Get String
+                dir <- get :: Get String
+                root <- get :: Get (Maybe BlockId)
+                midi <- get :: Get Instrument.Config
+                defaults <- get :: Get State.Default
+                return $ State.Config ns dir root midi defaults
+            _ -> version_error "State.Config" v
 
 instance Serialize State.Default where
     put (State.Default a b c) = put_version 0 >> put a >> put b >> put c

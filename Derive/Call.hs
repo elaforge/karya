@@ -279,7 +279,7 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
                     return (fb_call, [val])
 
     env <- Internal.get_dynamic Derive.state_environ
-    ns <- State.state_namespace <$> Derive.get_ui_state
+    ns <- Derive.get_ui_config State.config_namespace
     let args = Derive.PassedArgs vals env call_id cinfo
         gen = Derive.call_generator call
         with_stack = case (($ (ns, args)) . Derive.gcall_block) =<< gen of

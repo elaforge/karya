@@ -115,7 +115,7 @@ derive_tree :: ScoreTime -> State.EventsTree -> Derive.EventDeriver
 derive_tree block_end tree = do
     -- d_tempo sets up some stuff that every block needs, so add one if a block
     -- doesn't have at least one top level tempo.
-    tempo <- State.default_tempo . State.state_default <$> Derive.get_ui_state
+    tempo <- Derive.get_ui_config (State.default_tempo . State.config_default)
     let with_default_tempo = if has_nontempo_track tree
             then Internal.d_tempo block_end Nothing (Signal.constant tempo)
             else id

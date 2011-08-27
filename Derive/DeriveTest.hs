@@ -233,12 +233,15 @@ make_damage block tracknum s e = Derive.ScoreDamage
 -- ** defaults
 
 with_instrument :: State.State -> State.State
-with_instrument state = state
-    { State.state_midi_config = default_midi_config
-    , State.state_default = (State.state_default state)
-        { State.default_instrument = Just (Score.Instrument "s/1")
+with_instrument state =
+    state { State.state_config = set (State.state_config state) }
+    where
+    set config = config
+        { State.config_midi = default_midi_config
+        , State.config_default = (State.config_default config)
+            { State.default_instrument = Just (Score.Instrument "s/1")
+            }
         }
-    }
 
 -- | Set UI state defaults that every derivation should have.
 set_defaults :: (State.M m) => m ()

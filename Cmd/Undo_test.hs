@@ -5,6 +5,7 @@ import Util.Test
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
@@ -20,7 +21,7 @@ test_undo = do
             where [(">", tracks)] = UiTest.extract_tracks (e_ui res)
         tid = UiTest.mk_tid 0
         track_updates from to =
-            [Update.TrackUpdate tid (Update.TrackEvents from to)]
+            [Update.TrackUpdate tid (Update.TrackEvents from to Events.empty)]
         states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
         next res = ResponderTest.respond_cmd (ResponderTest.result_states res)
 
@@ -70,11 +71,12 @@ test_undo_merge = do
 
     -- some things aren't affected by undo
     -- namespace doesn't change
-    equal (State.state_namespace (e_ui res1)) "oogabooga"
+    let ns = State.config_namespace . State.state_config . e_ui
+    equal (ns res1) "oogabooga"
     equal (UiTest.eval (e_ui res1) (Block.view_rect <$> State.get_view vid))
         (Rect.xywh 40 40 100 100)
 
-    equal (State.state_namespace (e_ui res2)) "oogabooga"
+    equal (ns res2) "oogabooga"
     equal (UiTest.eval (e_ui res2) (Block.view_rect <$> State.get_view vid))
         (Rect.xywh 40 40 100 100)
 

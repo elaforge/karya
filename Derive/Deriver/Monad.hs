@@ -345,11 +345,11 @@ data State = State {
 
 initial_state :: Scope -> TrackLang.Environ -> Constant -> State
 initial_state scope environ constant = State
-    { state_dynamic = initial_dynamic
-        (State.state_default (state_ui constant)) scope environ
+    { state_dynamic = initial_dynamic (config_default constant) scope environ
     , state_collect = mempty
     , state_constant = constant
     }
+    where config_default = State.config_default . State.state_config . state_ui
 
 -- | This is a dynamically scoped environment that applies to generated events
 -- inside its scope.

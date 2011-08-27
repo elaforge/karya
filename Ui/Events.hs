@@ -29,6 +29,7 @@ module Ui.Events (
     -- ** insert / remove
     , insert_events, insert_sorted_events
     , remove_events, remove_event
+    , merge
 
     -- ** lookup
     , at, overlapping, first, last

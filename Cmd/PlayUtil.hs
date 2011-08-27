@@ -75,7 +75,7 @@ run cache damage deriver = do
             (Schema.lookup_deriver schema_map ui_state) lookup_scale inst_calls
             cache damage
     scope <- Cmd.gets Cmd.state_global_scope
-    let deflt = State.state_default ui_state
+    let deflt = State.config_default (State.state_config ui_state)
         env = initial_environ (State.default_scale deflt)
             (State.default_instrument deflt)
     return $ Derive.derive constant scope env deriver

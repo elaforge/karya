@@ -238,8 +238,10 @@ extract_ui m = extract_state $ \state _ -> UiTest.eval state m
 -- | Configure ustate and cstate with the given instruments.
 set_insts :: [String] -> State.State -> Cmd.State -> (State.State, Cmd.State)
 set_insts inst_names ustate cstate =
-    (ustate { State.state_midi_config = default_midi_config inst_names},
+    (ustate { State.state_config = set (State.state_config ustate) },
         cstate { Cmd.state_instrument_db = make_inst_db inst_names })
+    where
+    set config = config { State.config_midi = default_midi_config inst_names }
 
 make_inst_db :: [String] -> Instrument.Db.Db code
 make_inst_db inst_names = Instrument.Db.empty

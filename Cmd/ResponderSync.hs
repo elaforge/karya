@@ -45,7 +45,8 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
             --          ++ PPrint.pshow display_updates
             when (any modified_view cmd_updates) $
                 MVar.modifyMVar_ updater_state (const (return ui_to))
-            let tsigs = get_track_signals (State.state_root ui_to) cmd_state
+            let tsigs = get_track_signals
+                    (State.config_root (State.state_config ui_to)) cmd_state
             err <- sync_func tsigs ui_to display_updates
             case err of
                 Nothing -> return ()

@@ -51,8 +51,9 @@ map_block_ids f = do
     let new_views = Map.map
             (\v -> v { Block.view_block = block_f (Block.view_block v) })
             views
-    State.modify $ \st -> st { State.state_root = new_root,
-        State.state_blocks = new_blocks, State.state_views = new_views }
+    State.modify $ \st -> st
+        { State.state_blocks = new_blocks, State.state_views = new_views }
+    State.modify_config $ \config -> config { State.config_root = new_root }
 
 map_track_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
 map_track_ids f = do

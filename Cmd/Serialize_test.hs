@@ -15,12 +15,11 @@ test_serialize = do
     save_state <- Serialize.save_state ustate
     let run f = (f save_state, recode (f save_state))
 
-    uncurry equal $ run (State.state_namespace . Serialize.save_ui_state)
+    uncurry equal $ run (State.state_config . Serialize.save_ui_state)
     uncurry equal $ run (State.state_views . Serialize.save_ui_state)
     uncurry equal $ run (State.state_blocks . Serialize.save_ui_state)
     uncurry equal $ run (State.state_tracks . Serialize.save_ui_state)
     uncurry equal $ run (State.state_rulers . Serialize.save_ui_state)
-    uncurry equal $ run (State.state_midi_config . Serialize.save_ui_state)
 
 test_negative_zero = do
     -- make sure negative zero is encoded properly

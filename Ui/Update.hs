@@ -1,17 +1,23 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, TypeSynonymInstances #-}
 module Ui.Update where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
+import qualified Ui.Events as Events
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
+import qualified Ui.StateConfig as StateConfig
+import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 
@@ -24,7 +30,8 @@ data Update t
     | TrackUpdate TrackId TrackUpdate
     -- | Since I expect rulers to be changed infrequently, the only kind of
     -- ruler update is a full update.
-    | RulerUpdate RulerId
+    | RulerUpdate RulerId Ruler.Ruler
+    | StateConfig StateConfig.Config
     deriving (Eq, Show, Generics.Typeable)
 
 data ViewUpdate =
@@ -52,14 +59,14 @@ data BlockUpdate t
     | BlockTrack TrackNum t
     deriving (Eq, Show)
 
--- | track, low_pos, high_pos
-data TrackUpdate
-    = TrackEvents ScoreTime ScoreTime
+data TrackUpdate =
+    -- | Low pos, high pos, and the events to replace that range.
+    TrackEvents ScoreTime ScoreTime Events.Events
     -- | Used when there have been unknown updates so I have to play it safe.
-    | TrackAllEvents
+    | TrackAllEvents Events.Events
     | TrackTitle String
-    | TrackBg
-    | TrackRender
+    | TrackBg Color.Color
+    | TrackRender Track.RenderConfig
     deriving (Eq, Show)
 
 instance DeepSeq.NFData (Update t) where
@@ -67,7 +74,12 @@ instance DeepSeq.NFData (Update t) where
         ViewUpdate view_id update -> view_id `seq` update `seq` ()
         BlockUpdate block_id update -> block_id `seq` update `seq` ()
         TrackUpdate track_id update -> track_id `seq` update `seq` ()
-        RulerUpdate ruler_id -> ruler_id `seq` ()
+        RulerUpdate ruler_id ruler -> ruler_id `seq` ruler `seq` ()
+        StateConfig config -> config `seq` ()
+
+instance Pretty.Pretty CmdUpdate where
+    pretty = show
+    -- pretty (ViewUpdate vid update) = 
 
 strip :: Update a -> Maybe (Update b)
 strip (ViewUpdate vid update) = Just $ ViewUpdate vid update
@@ -79,7 +91,8 @@ strip (BlockUpdate bid update) = BlockUpdate bid <$> case update of
     InsertTrack {} -> Nothing
     BlockTrack {} -> Nothing
 strip (TrackUpdate tid update) = Just $ TrackUpdate tid update
-strip (RulerUpdate rid) = Just $ RulerUpdate rid
+strip (RulerUpdate rid ruler) = Just $ RulerUpdate rid ruler
+strip (StateConfig config) = Just $ StateConfig config
 
 -- * functions
 
@@ -94,8 +107,8 @@ is_view_update update = case update of
         BlockConfig _ -> True
         _ -> False
     TrackUpdate _ track_update -> case track_update of
-        TrackBg -> True
-        TrackRender -> True
+        TrackBg {} -> True
+        TrackRender {} -> True
         _ -> False
     _ -> False
 
@@ -111,8 +124,8 @@ block_changed _ = Nothing
 -- | As 'block_changed', but for track updates.
 track_changed :: CmdUpdate -> Maybe (TrackId, Ranges.Ranges ScoreTime)
 track_changed (TrackUpdate tid update) = case update of
-    TrackEvents start end -> Just (tid, Ranges.range start end)
-    TrackAllEvents -> Just (tid, Ranges.everything)
+    TrackEvents start end _ -> Just (tid, Ranges.range start end)
+    TrackAllEvents {} -> Just (tid, Ranges.everything)
     TrackTitle _ -> Just (tid, Ranges.everything)
     _ -> Nothing
 track_changed _ = Nothing

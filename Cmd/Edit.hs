@@ -494,7 +494,8 @@ initialize_state = do
 -- or modify the UiStateMonad instance so it logs in Cmd.
 sync_global_status :: (Cmd.M m) => m ()
 sync_global_status = do
-    st <- State.get
-    Cmd.set_global_status "project" (State.state_namespace st)
-    let (Pitch.ScaleId scale) = State.default_scale (State.state_default st)
+    config <- State.get_config id
+    Cmd.set_global_status "proj" (State.config_namespace config)
+    let (Pitch.ScaleId scale) =
+            State.default_scale (State.config_default config)
     Cmd.set_global_status "scale" scale
