@@ -39,11 +39,11 @@ type DiffM a = Logger.LoggerT (Either Update.CmdUpdate Update.DisplayUpdate)
 throw :: String -> DiffM a
 throw = Error.throwError
 
-change :: [Update.CmdUpdate] -> DiffM ()
-change = Logger.logs . map Left
+change :: Update.CmdUpdate -> DiffM ()
+change = Logger.logs . (:[]) . Left
 
-change_display :: [Update.DisplayUpdate] -> DiffM ()
-change_display = Logger.logs . map Right
+change_display :: Update.DisplayUpdate -> DiffM ()
+change_display = Logger.logs . (:[]) . Right
 
 run :: DiffM ()
     -> Either DiffError ([Update.CmdUpdate], [Update.DisplayUpdate])
@@ -105,37 +105,36 @@ diff_views :: State.State -> State.State -> Map.Map ViewId Block.View
 diff_views st1 st2 views1 views2 =
     forM_ (Map.pairs views1 views2) $ \(view_id, v1, v2) -> case (v1, v2) of
         (Nothing, Just view) ->
-            change [Update.ViewUpdate view_id (Update.CreateView view)]
+            change $ Update.ViewUpdate view_id (Update.CreateView view)
         (Just _, Nothing) ->
-            change [Update.ViewUpdate view_id Update.DestroyView]
+            change $ Update.ViewUpdate view_id Update.DestroyView
         (Just view1, Just view2) -> diff_view st1 st2 view_id view1 view2
         _ -> return ()
 
 diff_view :: State.State -> State.State -> ViewId -> Block.View -> Block.View
     -> DiffM ()
 diff_view st1 st2 view_id view1 view2 = do
-    let view_update = Update.ViewUpdate view_id
+    let emit = change . Update.ViewUpdate view_id
     let unequal f = unequal_on f view1 view2
     when (unequal Block.view_block) $
         throw $ show view_id ++ " changed from "
             ++ show (Block.view_block view1) ++ " to "
             ++ show (Block.view_block view2)
     when (unequal Block.view_rect) $
-        change [view_update $ Update.ViewSize (Block.view_rect view2)]
+        emit $ Update.ViewSize (Block.view_rect view2)
     when (unequal Block.view_config) $
-        change [view_update $ Update.ViewConfig (Block.view_config view2)]
+        emit $ Update.ViewConfig (Block.view_config view2)
     when (unequal Block.view_status) $
-        change [view_update $ Update.Status (Block.view_status view2)]
+        emit $ Update.Status (Block.view_status view2)
     when (unequal Block.view_track_scroll) $
-        change [view_update $
-            Update.TrackScroll (Block.view_track_scroll view2)]
+        emit $ Update.TrackScroll (Block.view_track_scroll view2)
     when (unequal Block.view_zoom) $
-        change [view_update $ Update.Zoom (Block.view_zoom view2)]
+        emit $ Update.Zoom (Block.view_zoom view2)
 
     -- If the view doesn't have a block I should have failed long before here.
     let Just colors1 = view_selection_colors st1 view1
         Just colors2 = view_selection_colors st2 view2
-    mapM_ (uncurry3 (diff_selection view_update colors1 colors2))
+    mapM_ (uncurry3 (diff_selection emit colors1 colors2))
         (Map.pairs (Block.view_selections view1) (Block.view_selections view2))
 
 view_selection_colors :: State.State -> Block.View -> Maybe [Color.Color]
@@ -143,68 +142,66 @@ view_selection_colors state view = do
     block <- Map.lookup (Block.view_block view) (State.state_blocks state)
     return $ Block.config_selection_colors (Block.block_config block)
 
-diff_selection :: (Update.ViewUpdate -> Update.CmdUpdate)
+diff_selection :: (Update.ViewUpdate -> DiffM ())
     -> [Color.Color] -> [Color.Color] -> Types.SelNum
     -> Maybe Types.Selection -> Maybe Types.Selection
     -> DiffM ()
-diff_selection view_update colors1 colors2 selnum sel1 sel2 =
+diff_selection emit colors1 colors2 selnum sel1 sel2 =
     -- Also update the selections if the selection color config has changed,
     -- because this isn't covered by Update.BlockConfig, because selection
     -- colors aren't stored seperately at the c++ level.
     when (sel1 /= sel2 || Seq.at colors1 selnum /= Seq.at colors2 selnum) $
-        change [view_update $ Update.Selection selnum sel2]
+        emit $ Update.Selection selnum sel2
 
 -- ** block / track / ruler
 
 diff_block :: BlockId -> Block.Block -> Block.Block -> DiffM ()
 diff_block block_id block1 block2 = do
-    let block_update = Update.BlockUpdate block_id
+    let emit = change . Update.BlockUpdate block_id
     let unequal f = unequal_on f block1 block2
     when (unequal Block.block_title) $
-        change [block_update $ Update.BlockTitle (Block.block_title block2)]
+        emit $ Update.BlockTitle (Block.block_title block2)
     when (unequal Block.block_config) $
-        change [block_update $ Update.BlockConfig (Block.block_config block2)]
+        emit $ Update.BlockConfig (Block.block_config block2)
     when (unequal Block.block_skeleton) $
-        change [block_update $
-            Update.BlockSkeleton (Block.block_skeleton block2)]
+        emit $ Update.BlockSkeleton (Block.block_skeleton block2)
 
     let btracks1 = Block.block_tracks block1
         btracks2 = Block.block_tracks block2
     let bpairs = Seq.indexed_pairs_on Block.tracklike_id btracks1 btracks2
     forM_ bpairs $ \(i2, track1, track2) -> case (track1, track2) of
-        (Just _, Nothing) -> change [block_update $ Update.RemoveTrack i2]
-        (Nothing, Just track) ->
-            change [block_update $ Update.InsertTrack i2 track]
-        (Just track1, Just track2) | track1 /= track2 -> change
-            [block_update $ Update.BlockTrack i2 track2]
+        (Just _, Nothing) -> emit $ Update.RemoveTrack i2
+        (Nothing, Just track) -> emit $ Update.InsertTrack i2 track
+        (Just track1, Just track2) | track1 /= track2 ->
+            emit $ Update.BlockTrack i2 track2
         _ -> return ()
 
     let dtracks1 = map Block.display_track (Block.block_tracks block1)
         dtracks2 = map Block.display_track (Block.block_tracks block2)
     let dpairs = Seq.indexed_pairs_on Block.dtracklike_id dtracks1 dtracks2
     forM_ dpairs $ \(i2, track1, track2) -> case (track1, track2) of
-        (Just _, Nothing) ->
-            change_display [block_update $ Update.RemoveTrack i2]
+        (Just _, Nothing) -> change_display $
+            Update.BlockUpdate block_id (Update.RemoveTrack i2)
         -- I only need the default creation width when a new track is being
         -- created, oddly enough.
-        (Nothing, Just dtrack) -> change_display
-            [block_update $ Update.InsertTrack i2 dtrack]
-        (Just dtrack1, Just dtrack2) | dtrack1 /= dtrack2 ->
-            change_display [block_update $ Update.BlockTrack i2 dtrack2]
+        (Nothing, Just dtrack) -> change_display $
+            Update.BlockUpdate block_id (Update.InsertTrack i2 dtrack)
+        (Just dtrack1, Just dtrack2) | dtrack1 /= dtrack2 -> change_display $
+            Update.BlockUpdate block_id (Update.BlockTrack i2 dtrack2)
         _ -> return ()
 
 diff_track :: TrackId -> Track.Track -> Track.Track -> DiffM ()
 diff_track track_id track1 track2 = do
     -- Track events updates are collected directly by the State.State functions
     -- as they happen.
-    let track_update = Update.TrackUpdate track_id
+    let emit = change . Update.TrackUpdate track_id
     let unequal f = unequal_on f track1 track2
     when (unequal Track.track_title) $
-        change [track_update $ Update.TrackTitle (Track.track_title track2)]
+        emit $ Update.TrackTitle (Track.track_title track2)
     when (unequal Track.track_bg) $
-        change [track_update $ Update.TrackBg (Track.track_bg track2)]
+        emit $ Update.TrackBg (Track.track_bg track2)
     when (unequal Track.track_render) $
-        change [track_update $ Update.TrackRender (Track.track_render track2)]
+        emit $ Update.TrackRender (Track.track_render track2)
 
 diff_ruler :: RulerId -> Ruler.Ruler -> Ruler.Ruler -> DiffM ()
 diff_ruler ruler_id ruler1 ruler2 = do
@@ -213,13 +210,13 @@ diff_ruler ruler_id ruler1 ruler2 = do
     -- gets slow I can do something like insist marklist contents are immutable
     -- and only check names.
     when (ruler1 /= ruler2) $
-        change [Update.RulerUpdate ruler_id ruler2]
+        change $ Update.RulerUpdate ruler_id ruler2
 
 -- ** state
 
 diff_state :: State.State -> State.State -> DiffM ()
 diff_state st1 st2 = do
-    let emit = change . (:[]) . Update.StateUpdate
+    let emit = change . Update.StateUpdate
     let pairs f = Map.pairs (f st1) (f st2)
     when (State.state_config st1 /= State.state_config st2) $
         emit $ Update.Config (State.state_config st2)
