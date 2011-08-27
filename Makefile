@@ -87,11 +87,7 @@ HLDFLAGS := $(FLTK_LD) -rtsopts
 
 ### this changes with the ghc version
 GHC := ghc-7.0.3
-# Used by haddock to find system docs, but it doesn't work anyway.
-# TODO Fix this someday.
-# Crazy hack, the first line from ghc-pkg contains the lib dir.  There must
-# be a better way to do this.
-GHC_LIB := $(shell dirname `ghc-pkg list | head -1`)
+GHC_LIB := $(shell $(GHC) --print-libdir)
 
 # hspp adds filename and lineno to various logging and testing functions.
 HFLAGS := -threaded -W -fwarn-tabs $(CINCLUDE) -i$(HSC):. -pgml g++ \
