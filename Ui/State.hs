@@ -309,8 +309,8 @@ get_all_view_ids = gets (Map.keys . state_views)
 --
 -- Throw if the ViewId already exists.
 create_view :: (M m) => Id.Id -> Block.View -> m ViewId
-create_view id view = get >>= insert (Types.ViewId id) view state_views
-    (\views st -> st { state_views = views })
+create_view id view = insert (Types.ViewId id) view state_views $ \views st ->
+    st { state_views = views }
 
 destroy_view :: (M m) => ViewId -> m ()
 destroy_view view_id = modify $ \st ->
@@ -386,13 +386,13 @@ lookup_block block_id = get >>= return . Map.lookup block_id . state_blocks
 --
 -- Throw if the BlockId already exists.
 create_block :: (M m) => Id.Id -> Block.Block -> m BlockId
-create_block id block = get >>= insert (Types.BlockId id) block state_blocks
-    (\blocks st -> st
+create_block id block = insert (Types.BlockId id) block state_blocks $
+    \blocks st -> st
         { state_blocks = blocks
         , state_config = let c = state_config st
             in c { config_root = if Map.size blocks == 1
                 then Just (Types.BlockId id) else config_root c }
-        })
+        }
 
 -- | Destroy the block and all the views that display it.  If the block was
 -- the root, it will be be unset.  The block's tracks are left intact.
@@ -867,8 +867,8 @@ lookup_track track_id = get >>= return . Map.lookup track_id . state_tracks
 --
 -- Throw if the TrackId already exists.
 create_track :: (M m) => Id.Id -> Track.Track -> m TrackId
-create_track id track = get >>= insert (Types.TrackId id) track state_tracks
-    (\tracks st -> st { state_tracks = tracks })
+create_track id track = insert (Types.TrackId id) track state_tracks $
+    \tracks st -> st { state_tracks = tracks }
 
 -- | Destroy the track and remove it from all the blocks it's in.  No-op if
 -- the TrackId doesn't exist.
@@ -1045,8 +1045,8 @@ create_ruler :: (M m) => Id.Id -> Ruler.Ruler -> m RulerId
 create_ruler id ruler
         -- no_ruler is global and assumed to always exist.
     | id == Id.unpack_id no_ruler = return no_ruler
-    | otherwise = get >>= insert (Types.RulerId id) ruler state_rulers
-        (\rulers st -> st { state_rulers = rulers })
+    | otherwise = insert (Types.RulerId id) ruler state_rulers $ \rulers st ->
+        st { state_rulers = rulers }
 
 -- | Destroy the ruler and remove it from all the blocks it's in.
 destroy_ruler :: (M m) => RulerId -> m ()
@@ -1129,9 +1129,10 @@ lookup_id key map = case Map.lookup key map of
 
 -- | Insert @val@ at @key@ in @get_map state@, throwing if it already exists.
 -- Put the map back into @state@ by applying @set_map new_map state@ to it.
-insert :: (M m, Ord k, Show k) =>
-    k -> a -> (t -> Map.Map k a) -> (Map.Map k a -> t -> State) -> t -> m k
-insert key val get_map set_map state = do
+insert :: (M m, Ord k, Show k) => k -> a -> (State -> Map.Map k a)
+    -> (Map.Map k a -> State -> State) -> m k
+insert key val get_map set_map = do
+    state <- get
     when (key `Map.member` get_map state) $
         throw $ show key ++ " already exists"
     put (set_map (Map.insert key val (get_map state)) state)
