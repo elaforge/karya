@@ -65,9 +65,11 @@ import qualified Cmd.Lang.LPitch ()
 import qualified Cmd.Lang.LRuler ()
 import qualified Cmd.Lang.LTrack ()
 
+import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 import qualified App.Config as Config
 
@@ -154,6 +156,18 @@ show_octave :: Cmd.CmdL Pitch.Octave
 show_octave = Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
 set_octave :: Pitch.Octave -> Cmd.CmdL ()
 set_octave n = Edit.cmd_modify_octave (const n) >> return ()
+
+set_default_tempo :: Signal.Y -> Cmd.CmdL ()
+set_default_tempo t =
+    State.modify_default $ \d -> d { State.default_tempo = t }
+
+set_default_inst :: String -> Cmd.CmdL ()
+set_default_inst inst = State.modify_default $ \d ->
+    d { State.default_instrument = Just (Score.Instrument inst) }
+
+set_default_scale :: String -> Cmd.CmdL ()
+set_default_scale scale = State.modify_default $ \d ->
+    d { State.default_scale = Pitch.ScaleId scale }
 
 -- * load / save
 
