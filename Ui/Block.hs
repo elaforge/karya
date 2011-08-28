@@ -1,5 +1,7 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Ui.Block where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -71,7 +73,7 @@ data Track = Track {
     -- | Other tracks are displayed behind this one.  Useful to merge a pitch
     -- track into its note track.
     , track_merged :: [TrackId]
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Show, Read, Generics.Typeable)
 
 -- | Construct a 'Track' with defaults.
 track :: TracklikeId -> Types.Width -> Track

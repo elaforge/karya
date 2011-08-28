@@ -41,7 +41,10 @@ send chan cmd = do
 
 interpreter :: Session -> IO ()
 interpreter chan = (>> return ()) $ Interpreter.runInterpreter $ do
-    Interpreter.set [Interpreter.installedModulesInScope Interpreter.:= False]
+    Interpreter.set
+        [ Interpreter.installedModulesInScope Interpreter.:= False
+        , Interpreter.searchPath Interpreter.:= ["build/hsc", "."]
+        ]
     forever $ do
         (return_mvar, cmd) <- Trans.liftIO $ Chan.readChan chan
         result <- cmd `Error.catchError` catch

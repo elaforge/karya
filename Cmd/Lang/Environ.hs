@@ -76,6 +76,7 @@ import qualified Midi.Midi
 import qualified Util.Log
 import qualified Ui.State
 import qualified Ui.Update
+import qualified Ui.Block
 
 
 -- | Like 'Cmd.run', but pretty-print the return value.  If the value is
