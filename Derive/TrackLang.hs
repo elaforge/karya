@@ -107,7 +107,7 @@ data Val =
 -- pair, produce a string that the parser can turn back into the original
 -- value.  Except for values which have no literal syntax, such as VDegree.
 --
--- The reason why is documented in 'Derive.Call.Note.inverting_call'.
+-- The reason why is documented in 'Derive.Call.Note.inverting'.
 instance Pretty.Pretty Val where
     pretty val = case val of
             VNum d -> show_num d

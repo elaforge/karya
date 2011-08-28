@@ -44,8 +44,7 @@ lookup_block sym = fmap c_block <$> symbol_to_block_id sym
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = block_call (const (Just block_id)) $
-    Derive.stream_generator "block" $ Note.inverting_call $
-        Cache.caching_call run
+    Derive.stream_generator "block" $ Note.inverting $ Cache.caching_call run
     where
     run args
         | null (Derive.passed_vals args) =
@@ -116,7 +115,7 @@ make_block_id namespace (TrackLang.Symbol call) =
 -- start using this to see if it's worth coming up with a solution for that.
 c_clip :: Derive.NoteCall
 c_clip = block_call get_block_id $ Derive.stream_generator "clip" $
-    Note.inverting_call $ Cache.caching_call $ \args ->
+    Note.inverting $ Cache.caching_call $ \args ->
     CallSig.call1 args (required "block_id") $ \sym -> do
         block_id <- maybe
             (Derive.throw $ "block not found: " ++ Pretty.pretty sym) return

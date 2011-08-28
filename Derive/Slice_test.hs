@@ -150,7 +150,6 @@ make_track title events =
 
 make_controls :: String -> [Int] -> (String, [Event])
 make_controls title ps = (title, [(to_score p, 0, show p) | p <- ps])
-    -- (title, zipWith (\start val -> (start, 0, show val)) [0..] vals)
 
 make_controls2 :: String -> [(Int, String)] -> (String, [Event])
 make_controls2 title ps = (title, [(to_score p, 0, val) | (p, val) <- ps])

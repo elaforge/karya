@@ -24,7 +24,7 @@ note_calls = Derive.make_calls
 -- so I could ask the scale for a diatonic transposition.
 c_mordent :: Double -> Derive.NoteCall
 c_mordent default_neighbor = Derive.stream_generator "mordent" $
-    Note.inverting_call $ \args -> CallSig.call2 args
+    Note.inverting $ \args -> CallSig.call2 args
     (optional "neighbor" default_neighbor, optional "vel" 0.3) $
     \neighbor vel ->
         mordent grace_dur (Derive.passed_extent args) vel

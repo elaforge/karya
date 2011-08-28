@@ -593,7 +593,7 @@ data PassedArgs derived = PassedArgs {
 -- TODO make separate types so the irrelevent data need not be passed
 data CallInfo derived = CallInfo {
     -- | The expression currently being evaluated.  Why I need this is
-    -- documented in 'Derive.Call.Note.inverting_call'.
+    -- documented in 'Derive.Call.Note.inverting'.
     info_expr :: !TrackLang.Expr
     -- The below is not used at all for val calls, and the events are not
     -- used for transform calls.  It might be cleaner to split those out, but

@@ -47,7 +47,7 @@ note_calls = Derive.make_calls
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
-    (Just $ Derive.GeneratorCall (inverting_call generate) (const Nothing))
+    (Just $ Derive.GeneratorCall (inverting generate) (const Nothing))
     (Just $ Derive.TransformerCall transform)
     where
     generate args = case process (Derive.passed_vals args) of
@@ -167,7 +167,7 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
 -- This requires a bit of hackery in a couple of places:
 --
 -- The first is that the TrackLang.Val Pretty instance is expected to emit
--- parseable code.  This is because Derive.Call.Note.inverting_call wants the
+-- parseable code.  This is because 'inverting' wants the
 -- text of the generator it was called for.  Unfortunately this is tricky to
 -- get directly because the parser takes a complete string to a complete Expr.
 -- So instead I keep the parsed expr by putting it in CallInfo, and use the
@@ -179,31 +179,38 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
 -- The second is that CallInfo has to keep the expression in
 -- 'Derive.Derive.info_info_expr'.
 --
--- TODO don't invert the call if there are subtracks but after slicing they
--- are empty
-inverting_call :: (Derive.PassedArgs d -> Derive.EventDeriver)
+-- If there are no sub-tracks then the call is performed as-is.  Otherwise
+-- the expression must be broken up and re-evaluated.
+inverting :: (Derive.PassedArgs d -> Derive.EventDeriver)
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
-inverting_call call args = case Derive.info_sub_tracks info of
-        [] -> call args
-        subs -> invert subs pos (pos + Event.event_duration event)
-            (Derive.passed_next args) expr
+inverting call args =
+    maybe (call args) Schema.derive_tracks =<< invert_call args
+
+invert_call :: Derive.PassedArgs d -> Derive.Deriver (Maybe State.EventsTree)
+invert_call args = case Derive.info_sub_tracks info of
+    [] -> return Nothing
+    subs -> Just <$> invert subs pos (pos + Event.event_duration event)
+        (Derive.passed_next args) expr
     where
     (pos, event) = Derive.info_event info
-    -- See comment in Derive.TrackLang.Val Pretty instance.
+    -- It may seem surprising that only the final call is retained, and any
+    -- transformers are discarded.  But 'inverting' only applies to generators
+    -- so those transformers should have already done their thing.
+    -- See comment above and in Derive.TrackLang.Val Pretty instance.
     expr = maybe "" Pretty.pretty $
-            Seq.last (Derive.info_expr (Derive.passed_info args))
+        Seq.last (Derive.info_expr (Derive.passed_info args))
     info = Derive.passed_info args
 
 invert :: State.EventsTree -> ScoreTime -> ScoreTime -> ScoreTime -> String
-    -> Derive.EventDeriver
+    -> Derive.Deriver State.EventsTree
 invert subs start end next_start text = do
-    -- Log.warn $ "invert " ++ show (start, end, next_start)
-    let sliced = Slice.slice False start next_start (Just (text, end-start))
-            subs
     when_just (non_bottom_note_track sliced) $ \track ->
-        Derive.throw $ "inverting below note track: "
+        Derive.throw $
+            "inverting below note track will lead to an endless loop: "
             ++ Pretty.pretty (State.tevents_track_id track)
-    Schema.derive_tracks sliced
+    return sliced
+    where
+    sliced = Slice.slice False start next_start (Just (text, end-start)) subs
 
 -- | An inverting call above another note track will lead to an infinite loop
 -- if there are overlapping sub-events that also invert, or confusing results

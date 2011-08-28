@@ -1,16 +1,17 @@
 module Derive.Call.CallTest where
+import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
 
 import qualified Ui.State as State
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
-
-import qualified Derive.Score as Score
 
 
 transform :: (Derive.EventDeriver -> Derive.EventDeriver) -> Derive.Result
@@ -73,3 +74,12 @@ single_lookup :: String -> call -> Derive.LookupCall call
 single_lookup name call call_id
     | TrackLang.Symbol name == call_id = return $ Just call
     | otherwise = return Nothing
+
+
+-- * PassedArgs
+
+expr :: String -> TrackLang.Expr
+expr = either (error . ("CallTest.expr: " ++)) id . ParseBs.parse_expr . B.pack
+
+val :: String -> TrackLang.Val
+val = either (error . ("CallTest.val: " ++)) id . ParseBs.parse_val

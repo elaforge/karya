@@ -259,7 +259,7 @@ with_calls mvar = CallTest.with_note_call "" (mk_logging_call mvar)
 
 mk_logging_call :: Log -> Derive.NoteCall
 mk_logging_call log_var  = Derive.stream_generator "logging-note" $
-    Call.Note.inverting_call $ \args ->
+    Call.Note.inverting $ \args ->
         c_note log_var (Derive.passed_event args) (Derive.passed_next args)
 
 c_note :: Log -> Events.PosEvent -> ScoreTime -> Derive.EventDeriver
