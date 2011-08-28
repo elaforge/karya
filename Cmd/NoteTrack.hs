@@ -177,7 +177,7 @@ generator_of = Seq.strip . last . Seq.split "|"
 create_event :: (Cmd.M m) => m ()
 create_event = do
     txt <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
-    modify_event False True (const (Just txt, False))
+    modify_event False False (const (Just txt, False))
 
 remove :: (Cmd.M m) => EditUtil.SelPos -> m ()
 remove selpos =

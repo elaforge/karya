@@ -11,6 +11,14 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - not regenerating correctly on edits: editing tempo does not cause block
+    to regen so playback gets 'score: out of range'
+  - editing sub-block doesn't cause super-block to regen?
+  * recent is not suppressing duplicates
+  - tempo composition is problematic because it means you can't change the
+    length of a block from within the block.  So slowing down one part will
+    speed up another.  How can I get local tempo like I want?  Or just edit
+    the global tempo?
   * rederive not working?
   * set dur should set from prev one instead of setting to 0
   * bug: scrolling sets zoom to 0

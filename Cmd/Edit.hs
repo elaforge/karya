@@ -441,6 +441,10 @@ insert_recent (Cmd.RecentTransform text) = do
 
 -- | Try to record the current event in the LIFO recent note queue, as
 -- documented in 'Cmd.state_recent_notes'.
+--
+-- 'Cmd.RecentNote's are matched only on their first word, so if you change
+-- the args or zero_dur then an existing one will be replaced.  If you want
+-- an arg to vary a lot it should probably be extracted into a signal anyway.
 record_recent_note :: (Cmd.M m) => m ()
 record_recent_note = do
     (_, _, track_id, pos) <- Selection.get_insert
@@ -463,12 +467,15 @@ record_recent :: Cmd.RecentNote -> [(Int, Cmd.RecentNote)]
     -> [(Int, Cmd.RecentNote)]
 record_recent note recent0 = (key, note) : recent
     where
-    recent = take (max_recent - 1) (filter ((/=note) . snd) recent0)
+    recent = take (max_recent - 1) (filter (not . match note . snd) recent0)
     key = Maybe.fromMaybe (length recent) $
         (fst <$> List.find ((==note) . snd) recent0)
         `mplus`
         Seq.head (filter (`notElem` (map fst recent)) [1..max_recent])
     max_recent = 4
+    match (Cmd.RecentNote n1 _) (Cmd.RecentNote n2 _) =
+        Seq.head (words n1) == Seq.head (words n2)
+    match n1 n2 = n1 == n2
 
 sync_recent :: (Cmd.M m) => m ()
 sync_recent = do
