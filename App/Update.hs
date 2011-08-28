@@ -1,6 +1,6 @@
 -- | Load and save files to update them to the latest version.  Useful when
 -- a non-versioned datatype changes.
-
+module App.Update where
 import qualified System.Environment as Environment
 import qualified System.Exit as Exit
 import qualified System.IO as IO

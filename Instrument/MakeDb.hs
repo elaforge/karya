@@ -1,3 +1,4 @@
+module Instrument.MakeDb where
 import qualified Local.Instrument
 import qualified App.Config as Config
 

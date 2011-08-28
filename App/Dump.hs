@@ -2,6 +2,7 @@
 
 Later there should be an undump mode that converts text to the binary format.
 -}
+module App.Dump where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Map as Map
 import qualified System.Environment as Environment
@@ -26,9 +27,10 @@ abbreviate_rulers = "ruler"
 
 -- Haskell report says you're supposed to be able to put a newline between
 -- the whacks, but now it suddenly doesn't work?
-usage = "dump [ -complete ] save_file\n\ \  -complete - Don't abbreviate the rulers and tracks"
+usage = "dump [ -complete ] save_file\n"
+    ++ "\t-complete - Don't abbreviate the rulers and tracks"
 
-
+main :: IO ()
 main = do
     args <- Environment.getArgs
     (abbrs, fn) <- case args of

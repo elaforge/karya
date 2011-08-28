@@ -85,5 +85,6 @@ e_ui = CmdTest.result_ui_state . ResponderTest.result_cmd
 e_hist_updates = e_hist . Cmd.state_history . CmdTest.result_cmd_state
     . ResponderTest.result_cmd
 e_hist (Cmd.History past future serial) =
-    (map Cmd.hist_updates past, map Cmd.hist_updates future, serial)
+    (map Cmd.hist_entry_updates past,
+        map Cmd.hist_entry_updates future, serial)
 e_updates = ResponderTest.result_updates

@@ -121,6 +121,7 @@ TEST_BINARIES := $(addprefix $(BUILD)/, test_block test_logview test_browser \
 .PHONY: checkin
 checkin:
 	tools/make_all $(BUILD)/seq $(BUILD)/browser $(BUILD)/logview \
+		$(BUILD)/PrintKeymap $(BUILD)/update $(BUILD)/make_db \
 		$(PBUILD)/RunProfile tests
 
 # Compile Everything.
@@ -193,10 +194,10 @@ $(BUILD)/test_core_midi: $(UI_HSC) $(MIDI_OBJS)
 
 .PHONY: $(BUILD)/send
 $(BUILD)/send: App/Send.hs
-	$(GHC) $(HFLAGS) --make $^ -o $@
+	$(GHC) $(HFLAGS) --make -main-is App.Send $^ -o $@
 .PHONY: $(BUILD)/repl
 $(BUILD)/repl: App/Repl.hs
-	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
+	$(GHC) $(HFLAGS) --make -main-is App.Repl $^ -o $@ $(HLDFLAGS)
 
 ### misc
 
@@ -216,11 +217,11 @@ doc/keymap.html: $(BUILD)/PrintKeymap
 
 .PHONY: $(BUILD)/dump
 $(BUILD)/dump: App/Dump.hs
-	$(GHC) $(HFLAGS) --make $^ -o $@
+	$(GHC) $(HFLAGS) --make -main-is App.Dump $^ -o $@
 
 .PHONY: $(BUILD)/update
 $(BUILD)/update: App/Update.hs
-	$(GHC) $(HFLAGS) --make $^ -o $@
+	$(GHC) $(HFLAGS) --make -main-is App.Update $^ -o $@
 
 ### logview
 
@@ -231,7 +232,7 @@ LOGVIEW_HSC := $(HSC)/LogView/LogViewC.hs $(HSC)/Ui/Color.hs
 
 .PHONY: $(BUILD)/logview
 $(BUILD)/logview: $(LOGVIEW_PREREQ) $(LOGVIEW_HSC)
-	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
+	$(GHC) $(HFLAGS) --make -main-is LogView.LogView $^ -o $@ $(HLDFLAGS)
 	$(BUNDLE)
 
 $(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o \
@@ -258,7 +259,7 @@ BROWSER_HSC = $(HSC)/Instrument/BrowserC.hs $(HSC)/Ui/Types.hs
 
 .PHONY: $(BUILD)/browser
 $(BUILD)/browser: $(BROWSER_PREREQ) $(BROWSER_HSC)
-	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
+	$(GHC) $(HFLAGS) --make -main-is Instrument.Browser $^ -o $@ $(HLDFLAGS)
 	$(BUNDLE)
 
 $(BUILD)/test_browser: Instrument/test_browser.o Instrument/browser_ui.o \
@@ -268,7 +269,7 @@ $(BUILD)/test_browser: Instrument/test_browser.o Instrument/browser_ui.o \
 
 .PHONY: $(BUILD)/make_db
 $(BUILD)/make_db: Instrument/MakeDb.hs
-	$(GHC) $(HFLAGS) --make $^ -o $@
+	$(GHC) $(HFLAGS) --make -main-is Instrument.MakeDb $^ -o $@
 .PHONY: sense
 sense:
 	@echo 'Nevairrrr!'

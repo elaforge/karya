@@ -1,13 +1,17 @@
-{- Simple command-line tool to connect to the given socket and send some text,
-and then receive the response.
+{- | Simple command-line tool to connect to the given socket and send some
+    text, and then receive the response.
 
-It's used to talk over the seq_language socket.
+    It's used to talk over the seq_language socket.
 -}
+module App.Send where
 import Control.Monad
-import qualified App.SendCmd as SendCmd
 import qualified System.Environment as Environment
-import qualified Util.Seq as Seq
 
+import qualified Util.Seq as Seq
+import qualified App.SendCmd as SendCmd
+
+
+main :: IO ()
 main = SendCmd.initialize $ do
     args <- Environment.getArgs
     msg <- if null args

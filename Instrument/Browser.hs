@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
+module Instrument.Browser where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception

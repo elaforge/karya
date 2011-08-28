@@ -1,11 +1,13 @@
 {- | Simple repl to talk to seq.
 -}
+module App.Repl where
+import qualified Control.Exception as Exception
 import Control.Monad
 import Control.Monad.Trans (liftIO)
-import qualified Control.Exception as Exception
-import qualified System.Console.Haskeline as Haskeline
-import qualified Util.Seq as Seq
 
+import qualified System.Console.Haskeline as Haskeline
+
+import qualified Util.Seq as Seq
 import qualified App.SendCmd as SendCmd
 
 
