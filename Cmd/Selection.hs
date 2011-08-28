@@ -297,7 +297,9 @@ auto_track_scroll block view sel
     track_end = sum (take cur_tracknum widths)
     view_start = Block.view_track_scroll view
     view_end = view_start + visible
-    visible = Block.view_visible_track view
+    -- Visible does include the pesky ruler.
+    visible = Block.view_visible_track view - maybe 0
+        Block.display_track_width (Seq.head (Block.block_tracks block))
     cur_tracknum = Types.sel_cur_track sel
 
 
