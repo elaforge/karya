@@ -11,6 +11,8 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  * rederive not working?
+  * set dur should set from prev one instead of setting to 0
   * bug: scrolling sets zoom to 0
   * scrolling the window without giving it focus causes a segfault
   * zoom to fit should set track scroll to 0
@@ -235,7 +237,7 @@ MILESTONES
     * symbolic score
     + save undo history / incremental save
     - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
-    - linux port
+    + linux port
     - simple csound backend
     - simple lilypond backend?
     - documentation

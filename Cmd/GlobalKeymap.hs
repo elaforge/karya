@@ -291,7 +291,7 @@ event_bindings = concat
     , command Key.Backspace "clear selected" Edit.cmd_clear_selected
     , command_char 'o' "join events" Edit.cmd_join_events
 
-    , bind_char 's' "set dur" (Edit.cmd_set_duration False)
+    , bind_char 's' "set dur" Edit.cmd_set_duration
     , bind_char 'z' "toggle zero-dur" Edit.cmd_toggle_zero_duration
     , bind_char 'b' "set beginning" Edit.cmd_set_beginning
 

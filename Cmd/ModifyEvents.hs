@@ -36,11 +36,6 @@ events_sorted f = do
         State.remove_events track_id start end
         State.insert_sorted_events track_id (Maybe.mapMaybe f events)
 
-selection, selection_sorted :: (Cmd.M m) =>
-    ([Events.PosEvent] -> [Events.PosEvent]) -> m ()
-selection = undefined
-selection_sorted = undefined
-
 -- | Map a function over the selected events, passing the track id.  Unlike
 -- 'events', returning Nothing will leave the track unchanged.
 type Track m = TrackId -> [Events.PosEvent] -> m (Maybe [Events.PosEvent])

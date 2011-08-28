@@ -133,15 +133,29 @@ move_event get_event = do
 
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note, whichever is shorter.
-cmd_set_duration :: (Cmd.M m) =>
-    Bool -- ^ zero dur events are not affected unless this is true
-    -> m ()
-cmd_set_duration affect_zero_dur = do
+--
+-- If the selection is on an event, the previous one is extended instead.
+-- This is more useful than reducing the event to 0, which has its own cmd
+-- anyway.
+cmd_set_duration :: (Cmd.M m) => m ()
+cmd_set_duration = do
     (_, sel) <- Selection.get
-    ModifyEvents.modify_pos_events $ \pos event ->
-        if affect_zero_dur || Event.event_duration event /= 0
-            then Event.set_duration (snd (Types.sel_range sel) - pos) event
+    (if Types.sel_is_point sel then set_prev_dur else set_sel_dur)
+        (snd (Types.sel_range sel))
+    where
+    set_sel_dur sel_pos = ModifyEvents.modify_pos_events $ \pos event ->
+        if Event.event_duration event /= 0
+            then Event.set_duration (sel_pos - pos) event
             else event
+    set_prev_dur sel_pos = do
+        -- Wow it's a lot of work as soon as it's not the standard selection.
+        (_, track_ids, _, _) <- Selection.tracks
+        forM_ track_ids $ \track_id -> do
+            prev <- Seq.head . fst . Events.split sel_pos . Track.track_events
+                <$> State.get_track track_id
+            when_just prev $ \(pos, event) ->
+                State.insert_event track_id pos
+                    (Event.set_duration (sel_pos - pos) event)
 
 -- | Toggle duration between zero and non-zero.
 --
