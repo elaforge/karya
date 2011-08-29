@@ -14,12 +14,9 @@ import Control.Monad
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
@@ -50,7 +47,7 @@ update_performance :: Thread.Seconds -> SendStatus -> State.State
 update_performance wait send_status ui_pre ui_to cmd_state updates = do
     (cmd_state, _, logs, result) <- Cmd.run_io ui_to cmd_state $ do
         let damage = Diff.derive_diff ui_pre ui_to updates
-        kill_obsolete_threads damage
+        when (damage /= mempty) kill_threads
         insert_score_damage damage
         focused <- Cmd.lookup_focused_block
         when_just focused (regenerate_performance wait send_status)
@@ -68,14 +65,19 @@ update_performance wait send_status ui_pre ui_to cmd_state updates = do
 default_derive_wait :: Thread.Seconds
 default_derive_wait = 1
 
-kill_obsolete_threads :: Derive.ScoreDamage -> Cmd.CmdT IO ()
-kill_obsolete_threads (Derive.ScoreDamage _ track_blocks blocks) = do
-    threads <- Cmd.gets (Cmd.state_performance_threads . Cmd.state_play)
-    let block_ids = Set.toList (Set.union track_blocks blocks)
-    Trans.liftIO $ mapM_ Concurrent.killThread $
-        Maybe.mapMaybe (flip Map.lookup threads) block_ids
-    Cmd.modify_play_state $ \st -> st { Cmd.state_performance_threads =
-        Map.delete_keys block_ids (Cmd.state_performance_threads st) }
+-- | Kill all performance threads and clear them out.  This will ensure that
+-- 'needs_regenerate' will regenerate them if needed.
+--
+-- I do this if there is any damage at all.  It could be that the damage
+-- doesn't affect to a particular block, but it's the job of the cache to
+-- figure out what needs to be regenerated based on block dependencies.
+kill_threads :: Cmd.CmdT IO ()
+kill_threads = do
+    threads <- Cmd.gets
+        (Map.elems . Cmd.state_performance_threads . Cmd.state_play)
+    Trans.liftIO $ mapM_ Concurrent.killThread threads
+    Cmd.modify_play_state $ \st ->
+        st { Cmd.state_performance_threads = mempty }
 
 -- | Since caches are stored per-block, score damage is also per-block.
 -- It accumulates in an existing performance and is cleared when a new

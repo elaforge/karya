@@ -13,9 +13,9 @@ big things
 UNSORTED
   * deleting tracks made selection movement messed up, then tracknum assertion
     failure
-  - not regenerating correctly on edits: editing tempo does not cause block
+  * not regenerating correctly on edits: editing tempo does not cause block
     to regen so playback gets 'score: out of range'
-  - editing sub-block doesn't cause super-block to regen?
+  * editing sub-block doesn't cause super-block to regen?
   * recent is not suppressing duplicates
   - tempo composition is problematic because it means you can't change the
     length of a block from within the block.  So slowing down one part will
