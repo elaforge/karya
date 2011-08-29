@@ -123,12 +123,12 @@ to_display (BlockUpdate bid update) = BlockUpdate bid <$> case update of
     BlockTitle a -> Just $ BlockTitle a
     BlockConfig a -> Just $ BlockConfig a
     BlockSkeleton a -> Just $ BlockSkeleton a
-    RemoveTrack a -> Just $ RemoveTrack a
+    RemoveTrack {} -> Nothing
     InsertTrack {} -> Nothing
     BlockTrack {} -> Nothing
 to_display (TrackUpdate tid update) = Just $ TrackUpdate tid update
 to_display (RulerUpdate rid ruler) = Just $ RulerUpdate rid ruler
-to_display (StateUpdate {}) = Just $ StateUpdate ()
+to_display (StateUpdate {}) = Nothing
 
 -- * functions
 

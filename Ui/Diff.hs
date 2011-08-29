@@ -66,9 +66,9 @@ diff cmd_updates st1 st2 = fmap postproc $ run $ do
         Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2)
     diff_state st1 st2
     where
-    postproc (cs, ds) =
-        (cmd_updates ++ cs, Maybe.mapMaybe Update.to_display
-            (merge_updates st2 (cmd_updates ++ cs)) ++ ds)
+    postproc (cs, ds) = (cupdates,
+        ds ++ Maybe.mapMaybe Update.to_display (merge_updates st2 cupdates))
+        where cupdates = cmd_updates ++ cs
 
 -- | Given the track updates, figure out which other tracks have those tracks
 -- merged and should also be updated.
@@ -180,10 +180,10 @@ diff_block block_id block1 block2 = do
         dtracks2 = map Block.display_track (Block.block_tracks block2)
     let dpairs = Seq.indexed_pairs_on Block.dtracklike_id dtracks1 dtracks2
     forM_ dpairs $ \(i2, track1, track2) -> case (track1, track2) of
+        -- Insert and remove are emitted for cmd updates above, but
+        -- the Update.to_display conversion filters them out.
         (Just _, Nothing) -> change_display $
             Update.BlockUpdate block_id (Update.RemoveTrack i2)
-        -- I only need the default creation width when a new track is being
-        -- created, oddly enough.
         (Nothing, Just dtrack) -> change_display $
             Update.BlockUpdate block_id (Update.InsertTrack i2 dtrack)
         (Just dtrack1, Just dtrack2) | dtrack1 /= dtrack2 -> change_display $

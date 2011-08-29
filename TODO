@@ -11,6 +11,8 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  * deleting tracks made selection movement messed up, then tracknum assertion
+    failure
   - not regenerating correctly on edits: editing tempo does not cause block
     to regen so playback gets 'score: out of range'
   - editing sub-block doesn't cause super-block to regen?
