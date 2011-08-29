@@ -243,13 +243,9 @@ run_derive_diff = snd . Identity.runIdentity . Writer.runWriterT
 -- | This diff is meant to determine score damage for the block, which
 -- determines what will have to be rederived, if anything.
 --
--- It differs from 'diff' in that it cares about differences at the
--- 'Block.Track' rather than the 'Block.DisplayTrack' level.  So a collapsed
--- track shouldn't trigger a rederive even though at the DisplayTrack level it
--- adds and removes a track, and a solo or mute should trigger a rederive.
---
 -- This is repeating some work done in 'diff', but is cleaner than reusing
--- 'diff' output because of the above differences.
+-- 'diff' output because derive cares about specific things like mute, solo,
+-- or track title changes.
 derive_diff :: State.State -> State.State -> [Update.CmdUpdate]
     -> Derive.ScoreDamage
 derive_diff st1 st2 updates = postproc $ run_derive_diff $ do

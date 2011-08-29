@@ -39,14 +39,14 @@ player_thread :: State -> Messages -> IO ()
 player_thread state msgs = do
     let name = show (state_block_id state)
     secs <- Log.time_eval (take 10 msgs)
-    Log.notice $ "play block " ++ name
+    Log.debug $ "play block " ++ name
         ++ " initialize: " ++ Pretty.pretty (RealTime.seconds secs)
     play_msgs state Set.empty msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Transport.info_send_status (state_info state)
                 (Transport.Died (show exc))
     Transport.player_stopped (state_updater_control state)
-    Log.notice $ "render score " ++ show name ++ " complete"
+    Log.debug $ "render score " ++ show name ++ " complete"
 
 -- * implementation
 
