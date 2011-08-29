@@ -43,6 +43,31 @@ import qualified App.Config as Config
 
 -- * cmds
 
+-- | Set the given selection.
+--
+-- This is the Cmd level of State.set_selection and should be called by
+-- any Cmd that wants to set the selection.
+set :: (Cmd.M m) => ViewId -> Types.SelNum -> Maybe Types.Selection -> m ()
+set view_id selnum sel = do
+    State.set_selection view_id selnum sel
+    when (selnum == Config.insert_selnum) $
+        sync_selection view_id sel
+
+-- | Figure out how much to scroll to keep the selection visible and with
+-- reasonable space around it.
+--
+-- Anyone who wants to set a selection and automatically scroll the window to
+-- follow the selection should use this function.
+set_and_scroll :: (Cmd.M m) => ViewId -> Types.SelNum -> Types.Selection
+    -> m ()
+set_and_scroll view_id selnum sel = do
+    set view_id selnum (Just sel)
+    auto_scroll view_id sel
+
+-- | Handly shortcut for cmd_step_selection.
+advance :: (Cmd.M m) => m ()
+advance = cmd_step_selection Config.insert_selnum TimeStep.Advance False
+
 -- ** modify existing selection
 
 -- | Advance the given selection by the current step.
@@ -64,7 +89,7 @@ cmd_step_selection selnum dir extend = do
     let new_sel = if extend
             then Types.selection start_track start_pos cur_track new_pos
             else Types.point_selection start_track new_pos
-    select_and_scroll view_id selnum new_sel
+    set_and_scroll view_id selnum new_sel
 
 -- | Advance the insert selection by the current step, which is a popular thing
 -- to do.
@@ -83,7 +108,7 @@ cmd_shift_selection selnum shift extend = do
     block <- State.block_of view_id
     sel <- Cmd.require =<< State.get_selection view_id selnum
     let sel' = shift_sel block shift sel
-    select_and_scroll view_id selnum
+    set_and_scroll view_id selnum
         (if extend then merge_sel sel sel' else sel')
 
 cmd_track_all :: (Cmd.M m) => Types.SelNum -> m ()
@@ -93,7 +118,7 @@ cmd_track_all selnum = do
     block_id <- State.block_id_of view_id
     dur <- State.block_event_end block_id
     tracks <- length . Block.block_tracks <$> State.get_block block_id
-    State.set_selection view_id selnum (Just (select_track_all dur tracks sel))
+    set view_id selnum (Just (select_track_all dur tracks sel))
 
 -- | Progressive selection: select the rest of the track, then the entire
 -- track, then the whole block.
@@ -155,11 +180,11 @@ cmd_select_track btn selnum msg = do
     ((down_tracknum, _), (mouse_tracknum, _)) <- mouse_drag btn msg
     select_tracks selnum view_id down_tracknum mouse_tracknum
 
-select_tracks :: (State.M m) => Types.SelNum -> ViewId -> TrackNum -> TrackNum
+select_tracks :: (Cmd.M m) => Types.SelNum -> ViewId -> TrackNum -> TrackNum
     -> m ()
 select_tracks selnum view_id from to = do
     dur <- State.block_event_end =<< State.block_id_of view_id
-    State.set_selection view_id selnum $ Just (Types.selection from dur to 0)
+    set view_id selnum $ Just (Types.selection from dur to 0)
 
 -- | Set the selection based on a click or drag.
 cmd_mouse_selection :: (Cmd.M m) =>
@@ -173,7 +198,7 @@ cmd_mouse_selection btn selnum extend msg = do
             (True, Just (Types.Selection tracknum pos _ _)) -> (tracknum, pos)
             _ -> (down_tracknum, down_pos)
     let sel = Types.selection start_tracknum start_pos mouse_tracknum mouse_pos
-    select_and_scroll view_id selnum sel
+    set_and_scroll view_id selnum sel
 
 -- | Like 'cmd_mouse_selection', but snap the selection to the current time
 -- step.
@@ -194,7 +219,7 @@ cmd_snap_selection btn selnum extend msg = do
                 Types.selection tracknum pos mouse_tracknum snap_pos
             -- ghc doesn't realize it is exhaustive
             _ -> error "Cmd.Selection: not reached"
-    select_and_scroll view_id selnum sel
+    set_and_scroll view_id selnum sel
 
 -- | Like 'mouse_drag' but specialized for drags on the track.
 mouse_drag_pos :: (Cmd.M m) => Types.MouseButton -> Msg.Msg
@@ -232,28 +257,7 @@ mouse_drag btn msg = do
 
 -- * implementation
 
--- | Handly shortcut for cmd_step_selection.
-advance :: (Cmd.M m) => m ()
-advance = cmd_step_selection Config.insert_selnum TimeStep.Advance False
-
-select :: (Cmd.M m) => ViewId -> Types.SelNum -> Maybe Types.Selection -> m ()
-select view_id selnum sel = do
-    State.set_selection view_id selnum sel
-    sync_selection_status view_id
-
 -- ** auto scroll
-
--- | Figure out how much to scroll to keep the selection visible and with
--- reasonable space around it.
---
--- Anyone who wants to set a selection and automatically scroll the window to
--- follow the selection should use this function.
-select_and_scroll :: (Cmd.M m) => ViewId -> Types.SelNum -> Types.Selection
-    -> m ()
-select_and_scroll view_id selnum sel = do
-    State.set_selection view_id selnum (Just sel)
-    sync_selection_status view_id
-    auto_scroll view_id sel
 
 -- | If @new@ has scrolled off the edge of the window, automatically scroll
 -- it so that the selection is in view.
@@ -306,8 +310,11 @@ auto_track_scroll block view sel
 -- ** status
 
 sync_selection_status :: (Cmd.M m) => ViewId -> m ()
-sync_selection_status view_id = do
-    maybe_sel <- State.get_selection view_id Config.insert_selnum
+sync_selection_status view_id =
+    sync_selection view_id =<< State.get_selection view_id Config.insert_selnum
+
+sync_selection :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
+sync_selection view_id maybe_sel = do
     Cmd.set_view_status view_id "sel" (fmap selection_status maybe_sel)
     block_id <- State.block_id_of view_id
     when_just maybe_sel $

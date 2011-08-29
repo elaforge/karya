@@ -48,8 +48,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Responder as Responder
--- import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Save as Save
+import qualified Cmd.Selection as Selection
 import qualified Cmd.Lang as Lang
 import qualified Cmd.LoadMod as LoadMod
 
@@ -369,8 +369,7 @@ setup_normal = do
     State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3), (3, 4), (4, 5)]
 
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
-    State.set_selection vid Config.insert_selnum
-        (Just (Types.point_selection 0 0))
+    Selection.set vid Config.insert_selnum (Just (Types.point_selection 0 0))
     return Cmd.Done
     where
     note_event (pos, evt)
@@ -414,8 +413,7 @@ setup_big = do
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
     State.modify_default $ \d ->
         d { State.default_instrument = Just (Score.Instrument "fm8/bass") }
-    State.set_selection view Config.insert_selnum
-        (Just (Types.point_selection 0 0))
+    Selection.set view Config.insert_selnum (Just (Types.point_selection 0 0))
     return Cmd.Done
 
 empty_block :: (Cmd.M m) => m (BlockId, ViewId)
