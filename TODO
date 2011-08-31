@@ -20,7 +20,29 @@ UNSORTED
   - tempo composition is problematic because it means you can't change the
     length of a block from within the block.  So slowing down one part will
     speed up another.  How can I get local tempo like I want?  Or just edit
-    the global tempo?
+    the global tempo?  Unfortunately it's much more convenient to edit local
+    tempo.  Maybe I could do a non-compositional tempo that simply overrides
+    the caller, or rather multiplies with the caller.
+    This means the call event is now longer than its duration would imply,
+    and to fix that I need to have the child tempo modify the parent.  So
+    effectively I am just modifying the global tempo, only providing a nicer
+    syntax.
+
+    This technique really is non-compositional: you can't have more than
+    one call at once.
+    Actually, I could: tempo track looks at calls in note tracks, gets
+    sub-blocks, strips out the tempo tracks.  Then multiplies those signals
+    with its own.
+
+    Or I could just make it easier to edit the global tempo:
+      * when you click on the parent, show selection pos on the child too
+      - show derivation of child inside caller, I think I want to do this
+        anyway, but it's hard, how do I fit all that stuff in?
+      - merge child rulers with parent?
+      But it still seems a bit awkward because I do want the tempo associated
+      with the music, e.g. when I play by itself.  On the other hand, if the
+      block repeats do I want the tempo to repeat as well?  Sometimes yes,
+      sometimes no...
   * rederive not working?
   * set dur should set from prev one instead of setting to 0
   * bug: scrolling sets zoom to 0

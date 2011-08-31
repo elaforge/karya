@@ -34,6 +34,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Perf as Perf
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Score as Score
@@ -48,10 +49,35 @@ import qualified App.Config as Config
 -- This is the Cmd level of State.set_selection and should be called by
 -- any Cmd that wants to set the selection.
 set :: (Cmd.M m) => ViewId -> Types.SelNum -> Maybe Types.Selection -> m ()
-set view_id selnum sel = do
-    State.set_selection view_id selnum sel
+set view_id selnum maybe_sel = do
+    State.set_selection view_id selnum maybe_sel
+    case maybe_sel of
+        Just sel | Types.sel_is_point sel -> set_subs sel
+        _ -> return ()
     when (selnum == Config.insert_selnum) $
-        sync_selection view_id sel
+        sync_selection view_id maybe_sel
+
+-- | For point selections, set a play position selection on the equivalent
+-- time in sub-blocks.  This makes it easier to edit the super-block relative
+-- to the sub-block.
+set_subs :: (Cmd.M m) => Types.Selection -> m ()
+set_subs sel = do
+    view_ids <- State.get_all_view_ids
+    forM_ view_ids $ \view_id ->
+        State.set_selection view_id Config.play_position_selnum Nothing
+    block_id <- Cmd.get_focused_block
+    maybe_track_id <- State.event_track_at block_id (Types.sel_cur_track sel)
+    when_just maybe_track_id $ \track_id ->
+        mapM_ (uncurry set_block) =<<
+            Perf.sub_pos block_id track_id (Types.sel_cur_pos sel)
+
+set_block :: (State.M m) => BlockId -> [(TrackId, ScoreTime)] -> m ()
+set_block _ [] = return ()
+set_block block_id ((_, pos) : _) = do
+    view_ids <- Map.keys <$> State.get_views_of block_id
+    forM_ view_ids $ \view_id ->
+        State.set_selection view_id Config.play_position_selnum
+            (Just (Types.selection 0 pos 999 pos))
 
 -- | Figure out how much to scroll to keep the selection visible and with
 -- reasonable space around it.

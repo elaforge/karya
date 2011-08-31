@@ -177,6 +177,20 @@ tracknums_of block (track_id, pos) =
         <- zip [0..] (Block.block_tracklike_ids block)
     , tid == track_id ]
 
+-- ** find score times
+
+-- | Give a block and score time, return the play position on sub-blocks.
+-- The block itself is filtered out of the result.
+sub_pos :: (Cmd.M m) => BlockId -> TrackId -> ScoreTime
+    -> m [(BlockId, [(TrackId, ScoreTime)])]
+sub_pos block_id track_id pos = do
+    maybe_perf <- Cmd.lookup_performance block_id
+    case maybe_perf of
+        Nothing -> return []
+        Just perf -> do
+            real <- find_realtime perf block_id (Just track_id) pos
+            return $ filter ((/=block_id) . fst) (Cmd.perf_inv_tempo perf real)
+
 -- * util
 
 lookup_root :: (Cmd.M m) => m (Maybe Cmd.Performance)
