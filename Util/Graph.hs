@@ -122,9 +122,8 @@ unlink_vertex vertex graph =
 -- are transformed to the same value, the one with the originally highest
 -- vertex wins.
 map_vertices :: (Vertex -> Vertex) -> Graph -> Graph
-map_vertices f graph = IArray.listArray (0, length vals - 1) vals
-    where
-    vals = strip_indices [] $ Seq.drop_initial_dups fst $
+map_vertices f graph = Array.from_list $
+    strip_indices [] $ Seq.drop_initial_dups fst $
         map (\(p, cs) -> (f p, map f cs)) (IArray.assocs graph)
 
 strip_indices :: a -> [(Int, a)] -> [a]

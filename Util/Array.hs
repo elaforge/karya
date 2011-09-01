@@ -1,27 +1,47 @@
 -- | Array utilities.
+--
+-- IArray is awkward and I don't like it.  @vector@ is nicer but it's a big
+-- library so I don't want to depend on it unless I have more than one data
+-- structure using arrays.
 module Util.Array where
+import Prelude hiding (null, length)
 import qualified Data.Array.IArray as IArray
 import Data.Array.IArray ((!))
+import qualified Data.List as List
 
+
+type Array = IArray.Array Int
+
+empty :: Array a
+empty = from_list []
+
+null :: Array a -> Bool
+null = (==0) . length
+
+length :: Array a -> Int
+length a = high - low + 1
+    where (low, high) = IArray.bounds a
+
+from_list :: [a] -> Array a
+from_list xs = IArray.listArray (0, List.length xs - 1) xs
 
 -- | Like 'IArray.!', except throw a more informative error, with @msg@
 -- prepended.
-at :: (IArray.IArray a e, IArray.Ix i, Show i) => String -> a i e -> i -> e
+at :: String -> Array a -> Int -> a
 at msg a i = a ! assert_in_bounds msg i a
 
-assert_in_bounds :: (IArray.IArray a e, IArray.Ix i, Show i) =>
-    String -> i -> a i e -> i
+assert_in_bounds :: String -> Int -> Array a -> Int
 assert_in_bounds msg i a
     | in_bounds i a = i
     | otherwise = error $ msg ++ ": index " ++ show i
         ++ " out of range " ++ show (IArray.bounds a)
 
 -- | Is the given index within the array's bounds?
-in_bounds :: (IArray.IArray a e, IArray.Ix i) => i -> a i e -> Bool
+in_bounds :: Int -> Array a -> Bool
 in_bounds i a = let (low, high) = IArray.bounds a in low <= i && i <= high
 
 -- | Just the array if the index is in bounds.
-check :: (IArray.IArray a e, IArray.Ix i) => i -> a i e -> Maybe (a i e)
+check :: Int -> Array a -> Maybe (Array a)
 check i a
     | in_bounds i a = Just a
     | otherwise = Nothing
@@ -30,15 +50,17 @@ check i a
 
 -- | Find the index of the first element >= the given element in the sorted
 -- array.
+bsearch :: (Ord a) => Array a -> a -> Int
 bsearch = bsearch_with (<=)
 
+bsearch_on :: (Ord k) => (a -> k) -> Array a -> k -> Int
 bsearch_on key a elt = bsearch_with (\elt e1 -> (elt <= key e1)) a elt
 
-bsearch_with :: (IArray.IArray a e, IArray.Ix i, Integral i) =>
-    (t -> e -> Bool) -> a i e -> t -> i
+bsearch_with :: (k -> a -> Bool) -> Array a -> k -> Int
 bsearch_with lte a elt = _do_bsearch (lte elt) a low (high+1)
     where (low, high) = IArray.bounds a
 
+_do_bsearch :: (a -> Bool) -> Array a -> Int -> Int -> Int
 _do_bsearch lte a low high
     | low == high = low
     | lte (a!mid) = _do_bsearch lte a low mid
