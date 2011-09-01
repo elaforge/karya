@@ -29,7 +29,7 @@ get_save_file = do
 cmd_save :: FilePath -> Cmd.CmdT IO ()
 cmd_save fname = do
     ui_state <- State.get
-    save <- Trans.liftIO $ Serialize.save_state ui_state
+    save <- Trans.liftIO $ Serialize.save_state (State.clear ui_state)
     Log.notice $ "write state to " ++ show fname
     -- For the moment, also serialize to plain text, since that's easier to
     -- read and edit.
@@ -49,7 +49,7 @@ cmd_load fname = do
 
     Play.cmd_stop
     Cmd.modify_state Cmd.reinit_state
-    State.modify (const state)
+    State.modify (const (State.clear state))
     root <- case State.config_root (State.state_config state) of
         Nothing -> return Nothing
         Just root -> Seq.head . Map.keys <$> State.get_views_of root

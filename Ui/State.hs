@@ -82,6 +82,12 @@ empty = State {
     }
     where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
 
+-- | Clear out data that shouldn't be saved.
+clear :: State -> State
+clear state =
+    state { state_views = Map.map clear_view (state_views state) }
+    where clear_view view = view { Block.view_status = mempty }
+
 instance DeepSeq.NFData State where
     rnf (State views blocks tracks rulers config) =
         DeepSeq.rnf views `seq` DeepSeq.rnf blocks
