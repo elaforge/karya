@@ -52,7 +52,7 @@ set :: (Cmd.M m) => ViewId -> Types.SelNum -> Maybe Types.Selection -> m ()
 set view_id selnum maybe_sel = do
     State.set_selection view_id selnum maybe_sel
     case maybe_sel of
-        Just sel | Types.sel_is_point sel -> set_subs sel
+        Just sel | Types.sel_is_point sel -> set_subs view_id sel
         _ -> return ()
     when (selnum == Config.insert_selnum) $
         sync_selection view_id maybe_sel
@@ -60,12 +60,12 @@ set view_id selnum maybe_sel = do
 -- | For point selections, set a play position selection on the equivalent
 -- time in sub-blocks.  This makes it easier to edit the super-block relative
 -- to the sub-block.
-set_subs :: (Cmd.M m) => Types.Selection -> m ()
-set_subs sel = do
+set_subs :: (Cmd.M m) => ViewId -> Types.Selection -> m ()
+set_subs view_id sel = do
     view_ids <- State.get_all_view_ids
-    forM_ view_ids $ \view_id ->
-        State.set_selection view_id Config.play_position_selnum Nothing
-    block_id <- Cmd.get_focused_block
+    forM_ view_ids $ \vid ->
+        State.set_selection vid Config.play_position_selnum Nothing
+    block_id <- State.block_id_of view_id
     maybe_track_id <- State.event_track_at block_id (Types.sel_cur_track sel)
     when_just maybe_track_id $ \track_id ->
         mapM_ (uncurry set_block) =<<
