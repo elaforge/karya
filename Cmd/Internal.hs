@@ -119,8 +119,7 @@ cmd_record_focus msg = case msg of
 set_focused_view :: (Cmd.M m) => ViewId -> m ()
 set_focused_view view_id = do
     focus <- Cmd.gets Cmd.state_focused_view
-    unless (focus == Just view_id) $ do
-        Cmd.set_status "focus" (Just (show view_id))
+    unless (focus == Just view_id) $
         Cmd.modify_state $ \st -> st { Cmd.state_focused_view = Just view_id }
 
 -- * record ui updates

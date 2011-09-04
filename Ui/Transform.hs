@@ -4,11 +4,19 @@ import qualified Data.Map as Map
 
 import qualified Util.Map as Map
 
+import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 
+
+
+tracks :: (State.M m) => BlockId
+    -> (Block.TracklikeId -> Block.TracklikeId) -> m ()
+tracks block_id f = State.modify_block block_id $ \block ->
+    block { Block.block_tracks = map modify (Block.block_tracks block) }
+    where modify t = t { Block.tracklike_id = f (Block.tracklike_id t) }
 
 -- * map IDs
 

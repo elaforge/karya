@@ -224,6 +224,10 @@ type MidiThru = (Midi.WriteDevice, Midi.Message)
 throw :: (M m) => String -> m a
 throw = State.throw
 
+-- | Run a subcomputation that is allowed to abort.
+ignore_abort :: (M m) => m a -> m ()
+ignore_abort m = catch_abort m >> return ()
+
 -- * State
 
 -- | App global state.  Unlike Ui.State, this is not saved to disk.

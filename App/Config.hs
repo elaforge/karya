@@ -78,7 +78,6 @@ bconfig_selection_colors = map make_selection_color
     [Color.blue, Color.green, Color.yellow, Color.red, Color.purple,
         Color.turquoise]
 
-
 -- * colors
 
 box_color = Color.rgb 0.7 0.7 0.7

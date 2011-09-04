@@ -53,6 +53,7 @@ import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap
        (bind_key, bind_char, bind_mod, bind_repeatable, bind_click,
         bind_drag, command, command_char, command_only, SimpleMod(..))
+import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
@@ -271,7 +272,7 @@ edit_state_bindings = concat
     , bind_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
     ]
     where
-    meter = TimeStep.NamedMarklists ["meter"]
+    meter = TimeStep.NamedMarklists [MakeRuler.meter_marklist]
     step_rank rank skips = Edit.set_step_rank
         (TimeStep.time_step skips (TimeStep.AbsoluteMark meter rank))
         rank skips

@@ -1,6 +1,5 @@
 module Cmd.Lang.LRuler where
 import Control.Monad
-import qualified Data.List as List
 import qualified Text.Printf as Printf
 
 import Util.Control
@@ -10,12 +9,17 @@ import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
+import qualified Cmd.NoteTrack as NoteTrack
+import qualified Cmd.Selection as Selection
 
 
 -- | Replace the meter for the rulers of this block.
@@ -24,13 +28,7 @@ set_meter meter block_id = do
     dur <- State.block_event_end block_id
     when (dur <= 0) $
         Cmd.throw $ "can't set ruler for block with 0 duration"
-    let mlist = MakeRuler.fit_ruler dur meter
-    ruler_ids <- rulers_of block_id
-    mapM_ (flip replace_marklist mlist) ruler_ids
-
-rulers_of :: BlockId -> Cmd.CmdL [RulerId]
-rulers_of block_id =
-    Seq.unique . Block.block_ruler_ids <$> State.get_block block_id
+    replace_marklist_in block_id (MakeRuler.fit_ruler dur meter)
 
 
 {- Examples:
@@ -63,59 +61,42 @@ show_ruler ruler_id = do
 
 show_marklist :: RulerId -> Ruler.MarklistName -> Cmd.CmdL String
 show_marklist ruler_id marklist_name = do
-    mlist <- get_marklist ruler_id marklist_name
+    mlist <- get_marklist marklist_name ruler_id
     return $ PPrint.list $
         map (\(pos, m) -> Printf.printf "%s - %s" (show pos) (Pretty.pretty m))
             (Ruler.forward mlist 0)
 
-get_marklist :: RulerId -> Ruler.MarklistName -> Cmd.CmdL Ruler.Marklist
-get_marklist ruler_id marklist_name = do
+get_marklist :: (Cmd.M m) => Ruler.MarklistName -> RulerId -> m Ruler.Marklist
+get_marklist name ruler_id = do
     ruler <- State.get_ruler ruler_id
-    case lookup marklist_name (Ruler.ruler_marklists ruler) of
+    case Ruler.get_marklist name ruler of
         Nothing -> Cmd.throw $
-            "no marklist " ++ show marklist_name ++ " in " ++ show ruler_id
+            "no marklist " ++ show name ++ " in " ++ show ruler_id
         Just mlist -> return mlist
 
-replace_marklist :: RulerId -> Ruler.NameMarklist -> Cmd.CmdL ()
-replace_marklist ruler_id (name, mlist) = do
-    ruler <- State.get_ruler ruler_id
-    i <- case List.findIndex ((==name) . fst) (Ruler.ruler_marklists ruler) of
-        Nothing -> return 0
-        Just i -> State.remove_marklist ruler_id i >> return i
-    State.insert_marklist ruler_id i (name, mlist)
+replace_marklist :: (Cmd.M m) => RulerId -> Ruler.NameMarklist -> m ()
+replace_marklist ruler_id mlist =
+    State.modify_ruler ruler_id (Ruler.set_marklist mlist)
+
+replace_marklist_in :: (Cmd.M m) => BlockId -> Ruler.NameMarklist -> m ()
+replace_marklist_in block_id mlist =
+    mapM_ (flip replace_marklist mlist) =<< State.rulers_of block_id
 
 -- | Copy a marklist from one ruler to another.  If it already exists in
 -- the destination ruler, it will be replaced.
 copy_marklist :: Ruler.MarklistName -> RulerId -> RulerId -> Cmd.CmdL ()
 copy_marklist marklist_name from_ruler_id to_ruler_id = do
-    mlist <- get_marklist from_ruler_id marklist_name
+    mlist <- get_marklist marklist_name from_ruler_id
     replace_marklist to_ruler_id (marklist_name, mlist)
 
 -- | Make a new ruler that's a copy of the ruler of the first block, and then
 -- assign that ruler to all the blocks.
 assign_new :: String -> [BlockId] -> Cmd.CmdL ()
 assign_new name block_ids = do
-    ruler <- State.get_ruler =<< ruler_of
+    ruler <- State.get_ruler =<< State.ruler_of
         =<< Cmd.require (Seq.head block_ids)
     (ruler_id, overlay_id) <- Create.ruler name ruler
-    mapM_ (set_block ruler_id overlay_id) block_ids
-
-set_block :: RulerId -> RulerId -> BlockId -> Cmd.CmdL ()
-set_block ruler_id overlay_id block_id = modify_tracks block_id set
-    where
-    set (Block.TId tid _) = Block.TId tid overlay_id
-    set (Block.RId _) = Block.RId ruler_id
-    set t = t
-
-modify_tracks :: BlockId -> (Block.TracklikeId -> Block.TracklikeId)
-    -> Cmd.CmdL ()
-modify_tracks block_id f = State.modify_block block_id $ \block ->
-    block { Block.block_tracks = map modify (Block.block_tracks block) }
-    where modify t = t { Block.tracklike_id = f (Block.tracklike_id t) }
-
-ruler_of :: BlockId -> Cmd.CmdL RulerId
-ruler_of block_id = Cmd.require
-    =<< Seq.head <$> Block.block_ruler_ids <$> State.get_block block_id
+    mapM_ (Create.set_block_ruler ruler_id overlay_id) block_ids
 
 -- | Replace the rulers in the block with the given ruler_id.  If there is an
 -- overlay version, it will be given to all but the first track.
@@ -133,3 +114,33 @@ replace ruler_id block_id = do
     map_head_tail _ _ [] = []
     map_head_tail f g (x:xs) = f x : map g xs
     set_r ruler_id track = Block.modify_id track (Block.set_rid ruler_id)
+
+
+-- * extract
+
+extract :: Cmd.CmdL ()
+extract = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    extract_from block_id track_id
+
+-- | Extract the meter marklists from the sub-blocks called on the given
+-- track, concatenate them, and replace the current meter with it.
+extract_from :: (Cmd.M m) => BlockId -> TrackId -> m ()
+extract_from block_id track_id = do
+    subs <- extract_subs track_id
+    ruler_ids <- mapM State.ruler_of [bid | (_, _, bid) <- subs]
+    mlists <- mapM (get_marklist MakeRuler.meter_marklist) ruler_ids
+    let big_mlist = Ruler.place_marklists
+            [(start, dur, mlist) | ((start, dur, _), mlist) <- zip subs mlists]
+    replace_marklist_in block_id (MakeRuler.meter_marklist, big_mlist)
+
+extract_subs :: (Cmd.M m) => TrackId -> m [(ScoreTime, ScoreTime, BlockId)]
+extract_subs track_id = do
+    events <- Events.ascending . Track.track_events <$>
+        State.get_track track_id
+    ns <- State.get_namespace
+    let call = NoteTrack.block_call ns . Event.event_string
+    return $ do
+        (pos, evt) <- events
+        Just block_id <- return (call evt)
+        return (pos, Event.event_duration evt, block_id)

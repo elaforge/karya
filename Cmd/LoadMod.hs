@@ -136,7 +136,7 @@ convert_block (Block rows) = (map convert_track clipped, block_length)
     where
     to_tracks rows = Seq.rotate (map (\(Row ns) -> ns) rows)
     tracks = to_tracks rows
-    block_length = maybe 0 id (Seq.minimum (map track_length tracks)) + 1
+    block_length = maybe 0 id (Seq.minimum (map track_length tracks))
     clipped = map (take block_length) tracks
 
 track_length :: [Note] -> BlockRows

@@ -348,10 +348,11 @@ test_modify_ruler = do
     state <- run State.empty $ do
         setup_state
         insert_track t_block_id 2 (Block.RId t_ruler_id) 30
-    state <- io_human "add head-explodes to all rulers" $ run state $ do
-        State.insert_marklist t_ruler_id 1 cues_marklist
-    state <- io_human "meter goes away" $ run state $ do
-        State.remove_marklist t_ruler_id 0
+    state <- io_human "add head-explodes to all rulers" $ run state $
+        State.modify_ruler t_ruler_id $ Ruler.set_marklist cues_marklist
+    state <- io_human "meter goes away" $ run state $
+        State.modify_ruler t_ruler_id $ Ruler.remove_marklist
+            (fst cues_marklist)
     return ()
 
 -- | Selection is correct even when tracks are added or deleted.

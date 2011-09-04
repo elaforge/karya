@@ -84,8 +84,7 @@ empty = State {
 
 -- | Clear out data that shouldn't be saved.
 clear :: State -> State
-clear state =
-    state { state_views = Map.map clear_view (state_views state) }
+clear state = state { state_views = Map.map clear_view (state_views state) }
     where clear_view view = view { Block.view_status = mempty }
 
 instance DeepSeq.NFData State where
@@ -1038,6 +1037,13 @@ _set_track track_id track = modify $ \st -> st
 
 -- * ruler
 
+ruler_of :: (M m) => BlockId -> m RulerId
+ruler_of block_id = require ("no ruler in " ++ show block_id)
+    =<< Seq.head <$> Block.block_ruler_ids <$> get_block block_id
+
+rulers_of :: (M m) => BlockId -> m [RulerId]
+rulers_of block_id = Seq.unique . Block.block_ruler_ids <$> get_block block_id
+
 get_ruler :: (M m) => RulerId -> m Ruler.Ruler
 get_ruler ruler_id = get >>= lookup_id ruler_id . state_rulers
 
@@ -1065,16 +1071,6 @@ destroy_ruler ruler_id = when (ruler_id /= no_ruler) $ do
         modify_block block_id $ \block -> block { Block.block_tracks =
             map deruler (Seq.enumerate (Block.block_tracks block)) }
     modify $ \st -> st { state_rulers = Map.delete ruler_id (state_rulers st) }
-
-insert_marklist :: (M m) =>
-    RulerId -> Int -> (Ruler.MarklistName, Ruler.Marklist) -> m ()
-insert_marklist ruler_id i marklist = modify_ruler ruler_id $ \ruler ->
-    ruler { Ruler.ruler_marklists =
-        Seq.insert_at i marklist (Ruler.ruler_marklists ruler) }
-
-remove_marklist :: (M m) => RulerId -> TrackNum -> m ()
-remove_marklist ruler_id n = modify_ruler ruler_id $ \ruler -> ruler
-    { Ruler.ruler_marklists = Seq.remove_at n (Ruler.ruler_marklists ruler) }
 
 modify_ruler :: (M m) => RulerId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
 modify_ruler ruler_id f = do

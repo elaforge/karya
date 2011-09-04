@@ -411,6 +411,20 @@ ruler name ruler = do
     over_rid <- State.create_ruler overlay_ident (MakeRuler.as_overlay ruler)
     return (rid, over_rid)
 
+-- | Set a block to a new ruler.
+new_ruler :: (State.M m) => BlockId -> String -> Ruler.Ruler -> m RulerId
+new_ruler block_id name r = do
+    (ruler_id, overlay_id) <- ruler name r
+    set_block_ruler ruler_id overlay_id block_id
+    return ruler_id
+
+set_block_ruler :: (State.M m) => RulerId -> RulerId -> BlockId -> m ()
+set_block_ruler ruler_id overlay_id block_id = Transform.tracks block_id set
+    where
+    set (Block.TId tid _) = Block.TId tid overlay_id
+    set (Block.RId _) = Block.RId ruler_id
+    set t = t
+
 -- ** util
 
 make_id :: (State.M m) => String -> m Id.Id

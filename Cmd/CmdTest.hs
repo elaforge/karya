@@ -74,6 +74,9 @@ run ustate1 cstate1 cmd = Result val cstate2 ustate2 updates logs midi_msgs
         Left err -> (Left (Pretty.pretty err), ustate1, [])
         Right (v, ustate2, updates) -> (Right v, ustate2, updates)
 
+run_ui :: State.State -> Cmd.CmdId a -> Result a
+run_ui ustate = run ustate default_cmd_state
+
 -- | Run a Cmd and return just the value.
 eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
 eval ustate cstate cmd = case result_val (run ustate cstate cmd) of

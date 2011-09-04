@@ -137,8 +137,9 @@ meter_length (T d) = d
 
 -- ** predefined meters
 
-m44, m332 :: Meter
+m44, m34, m332 :: Meter
 m44 = regular_subdivision [4, 4, 4, 4]
+m34 = regular_subdivision [4, 3, 4, 4]
 m332 = repeat 4 $ subdivide 4 $ subdivide_dur $ D (map T [3, 3, 2])
 
 -- | It's easier to visualize a meter as a list of its ranks.
