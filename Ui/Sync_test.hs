@@ -339,7 +339,7 @@ test_selection = do
     return ()
 
 
-cues_marklist = Ruler.marklist "cues"
+cue_marklist = Ruler.marklist
     [ (0, UiTest.mark "start")
     , (90, UiTest.mark "head explodes")
     ]
@@ -349,10 +349,9 @@ test_modify_ruler = do
         setup_state
         insert_track t_block_id 2 (Block.RId t_ruler_id) 30
     state <- io_human "add head-explodes to all rulers" $ run state $
-        State.modify_ruler t_ruler_id $ Ruler.set_marklist cues_marklist
+        State.modify_ruler t_ruler_id $ Ruler.set_marklist "cue" cue_marklist
     state <- io_human "meter goes away" $ run state $
-        State.modify_ruler t_ruler_id $ Ruler.remove_marklist
-            (fst cues_marklist)
+        State.modify_ruler t_ruler_id $ Ruler.remove_marklist "cue"
     return ()
 
 -- | Selection is correct even when tracks are added or deleted.

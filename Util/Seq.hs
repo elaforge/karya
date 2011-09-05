@@ -443,11 +443,3 @@ replace from to = go
 -- | Replace occurrances of an element with zero or more other elements.
 replace1 :: (Eq a) => a -> [a] -> [a] -> [a]
 replace1 from to xs = concatMap (\v -> if v == from then to else [v]) xs
-
--- | Replace the first element that matches the predicate, or append the
--- value if nothing matches.
-replace_with :: (a -> Bool) -> a -> [a] -> [a]
-replace_with _ v [] = [v]
-replace_with f v (x:xs)
-    | f x = v : xs
-    | otherwise = replace_with f v xs

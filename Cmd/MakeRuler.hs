@@ -16,6 +16,7 @@ module Cmd.MakeRuler where
 import Prelude hiding (repeat)
 import Data.Function
 import qualified Data.List as List
+import qualified Data.Map as Map
 import Data.Ratio
 
 import qualified Util.Seq as Seq
@@ -36,7 +37,7 @@ empty_ruler = ruler []
 -- the piece.  Other commands may use this to find out where beats are.
 -- By convention, this marklist starts at rank 1 and goes up.  This is so that
 -- rank 0 can be used for special cues and whatnot.
-meter_marklist :: Ruler.MarklistName
+meter_marklist :: Ruler.Name
 meter_marklist = "meter"
 
 -- ** meter constants
@@ -65,8 +66,9 @@ meter_ranks =
 -- * constructors
 
 -- | Constructor for "plain" rulers.
-ruler :: [Ruler.NameMarklist] -> Ruler.Ruler
-ruler marklists = Ruler.ruler marklists Config.ruler_bg True False False False
+ruler :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
+ruler marklists = Ruler.ruler (Map.fromList marklists) Config.ruler_bg
+    True False False False
 
 -- | Convert a ruler to be suitable as an overlay ruler.
 as_overlay :: Ruler.Ruler -> Ruler.Ruler
@@ -80,11 +82,11 @@ as_overlay ruler = ruler
 
 -- | Convert the given meter into a \"meter\" marklist.  The mark positions
 -- are multiplied by @stretch@.
-meter_ruler :: Double -> Meter -> Ruler.NameMarklist
+meter_ruler :: Double -> Meter -> (Ruler.Name, Ruler.Marklist)
 meter_ruler stretch meter = marks_to_ruler (meter_marks stretch meter)
 
 -- | Like 'meter_ruler', but stretch the meter to fit in the given duration.
-fit_ruler :: ScoreTime -> Meter -> Ruler.NameMarklist
+fit_ruler :: ScoreTime -> Meter -> (Ruler.Name, Ruler.Marklist)
 fit_ruler dur meter = meter_ruler stretch meter
     where stretch = Types.score_to_double dur / realToFrac (meter_length meter)
 
@@ -172,8 +174,8 @@ dur_to_pos marks = timed ++ [(final, 0)]
     (final, timed) =
         List.mapAccumL (\pos (d, rank) -> (pos+d, (pos, rank))) 0 marks
 
-marks_to_ruler :: [MarkRank] -> Ruler.NameMarklist
-marks_to_ruler marks = Ruler.marklist meter_marklist pos_marks
+marks_to_ruler :: [MarkRank] -> (Ruler.Name, Ruler.Marklist)
+marks_to_ruler marks = (meter_marklist, Ruler.marklist pos_marks)
     where
     pos_marks = [(pos, mark dur rank name)
         | ((pos, rank), dur, name) <- zip3 marks durs (mark_names marks)]
@@ -182,8 +184,7 @@ marks_to_ruler marks = Ruler.marklist meter_marklist pos_marks
     durs = mark_durs marks
     mark dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks
-            zoom = if dur == 0
-                then 0
+            zoom = if dur == 0 then 0
                 else fromIntegral pixels / realToFrac dur
         in Ruler.Mark rank width color name (zoom*2) zoom
     ranks = length meter_ranks

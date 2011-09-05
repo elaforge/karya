@@ -6,6 +6,7 @@
 -}
 module Ui.RulerC (with_ruler) where
 import Control.Monad
+import qualified Data.Map as Map
 import Foreign
 import Foreign.C
 import qualified Util.Num as Num
@@ -16,12 +17,11 @@ import qualified Ui.Util as Util
 
 
 with_ruler :: Ruler.Ruler
-    -> (Ptr Ruler.Ruler -> Ptr Ruler.Marklist -> CInt -> IO a)
-    -> IO a
-with_ruler ruler f = do
+    -> (Ptr Ruler.Ruler -> Ptr Ruler.Marklist -> CInt -> IO a) -> IO a
+with_ruler ruler f =
     with ruler $ \rulerp -> withArrayLen marklists $ \len mlists ->
         f rulerp mlists (Util.c_int len)
-    where marklists = map snd (Ruler.ruler_marklists ruler)
+    where marklists = Map.elems (Ruler.ruler_marklists ruler)
 
 -- typedef int (*FindMarks)(ScoreTime *start_pos, ScoreTime *end_pos,
 --         ScoreTime **ret_tps, Mark **ret_marks);
@@ -84,7 +84,8 @@ poke_ruler rulerp (Ruler.Ruler mlists bg show_names use_alpha align_to_bottom
     (#poke RulerConfig, use_alpha) rulerp use_alpha
     (#poke RulerConfig, full_width) rulerp full_width
     (#poke RulerConfig, align_to_bottom) rulerp align_to_bottom
-    (#poke RulerConfig, last_mark_pos) rulerp (last_mark_pos (map snd mlists))
+    (#poke RulerConfig, last_mark_pos) rulerp
+        (last_mark_pos (Map.elems mlists))
     where last_mark_pos mlists = maximum (0 : map Ruler.last_pos mlists)
 
 instance Storable Ruler.Mark where

@@ -226,7 +226,7 @@ mkevent (pos, dur, text) = (realToFrac pos, Event.event text (realToFrac dur))
 
 default_ruler = mkruler 16 1
 no_ruler = mkruler 0 0
-ruler_until pos = ruler [Ruler.marklist "until" [(pos, Ruler.null_mark)]]
+ruler_until pos = ruler [("until", Ruler.marklist [(pos, Ruler.null_mark)])]
 
 -- | TimeStep to step by 1 ScoreTime on the default ruler.
 step1 :: TimeStep.TimeStep
@@ -238,13 +238,13 @@ steps n = TimeStep.time_step n (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
 -- | Create a ruler with a 4/4 "meter" marklist with the given number of marks
 -- at the given distance.  Marks are rank [1, 2, 2, ...].
 mkruler :: Int -> ScoreTime -> Ruler.Ruler
-mkruler marks dist = Ruler.Ruler [marklist marks dist] ruler_bg
-    True False False False
+mkruler marks dist = ruler [marklist marks dist]
 
-ruler mlists = Ruler.Ruler mlists ruler_bg True False False False
+ruler mlists =
+    Ruler.Ruler (Map.fromList mlists) ruler_bg True False False False
 ruler_bg = Color.rgb 1 0.85 0.5
-marklist n dist = Ruler.marklist MakeRuler.meter_marklist
-    (take n $ zip [0, dist ..] m44)
+marklist n dist = (MakeRuler.meter_marklist,
+    Ruler.marklist (take n $ zip [0, dist ..] m44))
 m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
 major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
 minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0

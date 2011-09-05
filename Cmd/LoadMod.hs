@@ -81,7 +81,7 @@ create_order_block mkid block_ids = do
             | (start, (bid, dur)) <- zip starts block_ids]
     block_call = snd . Id.un_id . Id.unpack_id
 
-order_meter :: [BlockRows] -> Ruler.NameMarklist
+order_meter :: [BlockRows] -> (Ruler.Name, Ruler.Marklist)
 order_meter = MakeRuler.meter_ruler 1 . MakeRuler.D . map mkd
     where
     mkd dur = MakeRuler.D (replicate dur (MakeRuler.T 1))

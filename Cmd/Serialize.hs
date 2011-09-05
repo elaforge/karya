@@ -386,21 +386,30 @@ instance Serialize Types.RulerId where
     get = get >>= \a -> return (Types.RulerId a)
 
 instance Serialize Ruler.Ruler where
-    put (Ruler.Ruler a b c d e f) = put_version 1
+    put (Ruler.Ruler a b c d e f) = put_version 2
         >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
         v <- get_version
         case v of
             0 -> do
-                marklists <- get :: Get [Ruler.NameMarklist]
+                marklists <- get :: Get [(Ruler.Name, Ruler.Marklist)]
                 bg <- get :: Get Color.Color
                 show_names <- get :: Get Bool
                 use_alpha <- get :: Get Bool
                 full_width <- get :: Get Bool
-                return $ Ruler.Ruler marklists bg show_names use_alpha False
-                    full_width
+                return $ Ruler.Ruler (Map.fromList marklists) bg show_names
+                    use_alpha False full_width
             1 -> do
-                marklists <- get :: Get [Ruler.NameMarklist]
+                marklists <- get :: Get [(Ruler.Name, Ruler.Marklist)]
+                bg <- get :: Get Color.Color
+                show_names <- get :: Get Bool
+                use_alpha <- get :: Get Bool
+                align_to_bottom <- get :: Get Bool
+                full_width <- get :: Get Bool
+                return $ Ruler.Ruler (Map.fromList marklists) bg show_names
+                    use_alpha align_to_bottom full_width
+            2 -> do
+                marklists <- get :: Get (Map.Map Ruler.Name Ruler.Marklist)
                 bg <- get :: Get Color.Color
                 show_names <- get :: Get Bool
                 use_alpha <- get :: Get Bool

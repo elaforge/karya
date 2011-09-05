@@ -1,5 +1,6 @@
 module Cmd.Lang.LRuler where
 import Control.Monad
+import qualified Data.Map as Map
 import qualified Text.Printf as Printf
 
 import Util.Control
@@ -9,6 +10,7 @@ import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
@@ -56,17 +58,17 @@ show_ruler ruler_id = do
         , ("show_names", show show_names), ("use_alpha", show use_alpha)
         , ("full_width", show full_width)
         , ("align_to_bottom", show align_to_bottom)
-        , ("marklists", PPrint.list (map fst mlists))
+        , ("marklists", PPrint.list (Map.keys mlists))
         ]
 
-show_marklist :: RulerId -> Ruler.MarklistName -> Cmd.CmdL String
+show_marklist :: RulerId -> Ruler.Name -> Cmd.CmdL String
 show_marklist ruler_id marklist_name = do
     mlist <- get_marklist marklist_name ruler_id
     return $ PPrint.list $
         map (\(pos, m) -> Printf.printf "%s - %s" (show pos) (Pretty.pretty m))
             (Ruler.forward mlist 0)
 
-get_marklist :: (Cmd.M m) => Ruler.MarklistName -> RulerId -> m Ruler.Marklist
+get_marklist :: (Cmd.M m) => Ruler.Name -> RulerId -> m Ruler.Marklist
 get_marklist name ruler_id = do
     ruler <- State.get_ruler ruler_id
     case Ruler.get_marklist name ruler of
@@ -74,17 +76,28 @@ get_marklist name ruler_id = do
             "no marklist " ++ show name ++ " in " ++ show ruler_id
         Just mlist -> return mlist
 
-replace_marklist :: (Cmd.M m) => RulerId -> Ruler.NameMarklist -> m ()
-replace_marklist ruler_id mlist =
-    State.modify_ruler ruler_id (Ruler.set_marklist mlist)
+replace_marklist :: (Cmd.M m) => RulerId -> (Ruler.Name, Ruler.Marklist)
+    -> m ()
+replace_marklist ruler_id (name, mlist) =
+    State.modify_ruler ruler_id (Ruler.set_marklist name mlist)
 
-replace_marklist_in :: (Cmd.M m) => BlockId -> Ruler.NameMarklist -> m ()
+replace_marklist_in :: (Cmd.M m) => BlockId -> (Ruler.Name, Ruler.Marklist)
+    -> m ()
 replace_marklist_in block_id mlist =
     mapM_ (flip replace_marklist mlist) =<< State.rulers_of block_id
 
+modify_rulers :: (Cmd.M m) => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
+modify_rulers block_id modify =
+    mapM_ (flip State.modify_ruler modify) =<< State.rulers_of block_id
+
+modify_ruler :: (Cmd.M m) => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
+modify_ruler block_id modify = do
+    ruler_id <- State.ruler_of block_id
+    State.modify_ruler ruler_id modify
+
 -- | Copy a marklist from one ruler to another.  If it already exists in
 -- the destination ruler, it will be replaced.
-copy_marklist :: Ruler.MarklistName -> RulerId -> RulerId -> Cmd.CmdL ()
+copy_marklist :: Ruler.Name -> RulerId -> RulerId -> Cmd.CmdL ()
 copy_marklist marklist_name from_ruler_id to_ruler_id = do
     mlist <- get_marklist marklist_name from_ruler_id
     replace_marklist to_ruler_id (marklist_name, mlist)
@@ -115,6 +128,18 @@ replace ruler_id block_id = do
     map_head_tail f g (x:xs) = f x : map g xs
     set_r ruler_id track = Block.modify_id track (Block.set_rid ruler_id)
 
+-- | Drop a mark at the selected point in the "cue" ruler.
+add_cue :: String -> Cmd.CmdL ()
+add_cue text = do
+    (block_id, _, _, pos) <- Selection.get_insert
+    add_cue_at block_id pos text
+
+add_cue_at :: BlockId -> ScoreTime -> String -> Cmd.CmdL ()
+add_cue_at block_id pos text = modify_ruler block_id $
+    Ruler.modify_marklist "cue" $ Ruler.insert_mark (pos, cue_mark text)
+
+cue_mark :: String -> Ruler.Mark
+cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
 
 -- * extract
 

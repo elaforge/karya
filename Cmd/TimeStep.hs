@@ -19,6 +19,7 @@ module Cmd.TimeStep (
     , step_from_points, find_before_equal
 ) where
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
@@ -80,7 +81,7 @@ data Step =
 data Tracks = CurrentTrack | AllTracks | TrackNums [TrackNum]
     deriving (Eq, Show, Read)
 
-data MarklistMatch = AllMarklists | NamedMarklists [Ruler.MarklistName]
+data MarklistMatch = AllMarklists | NamedMarklists [Ruler.Name]
     deriving (Eq, Show, Read)
 
 -- | Match the given rank.
@@ -191,7 +192,7 @@ get_points time_step@(TimeStep steps) block_id tracknum pos = do
     all_tracknums <- State.tracks block_id
     track_events <- mapM (get_events block_id) [0..all_tracknums-1]
 
-    ruler <- if wants_ruler then get_ruler else return (Just [])
+    ruler <- if wants_ruler then get_ruler else return (Just Map.empty)
     return $ case ruler of
         Nothing -> Nothing
         Just marklists -> Just $
@@ -216,13 +217,13 @@ get_points time_step@(TimeStep steps) block_id tracknum pos = do
 -- If it's a problem I can cache it.
 --
 -- This relies on 'get_points' to give it the proper values.
-all_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> TrackNum
-    -> [[Events.PosEvent]] -> ScoreTime -> TimeStep -> [ScoreTime]
+all_points :: Ruler.Marklists -> TrackNum -> [[Events.PosEvent]] -> ScoreTime
+    -> TimeStep -> [ScoreTime]
 all_points marklists cur events pos (TimeStep steps) = Seq.drop_dups id $
     Seq.merge_lists id $ map (step_points marklists cur events pos) steps
 
-step_points :: [(Ruler.MarklistName, Ruler.Marklist)] -> TrackNum
-    -> [[Events.PosEvent]] -> ScoreTime -> (Step, Skip) -> [ScoreTime]
+step_points :: Ruler.Marklists -> TrackNum -> [[Events.PosEvent]]
+    -> ScoreTime -> (Step, Skip) -> [ScoreTime]
 step_points marklists cur events pos (step, skip) = stride skip $ case step of
         Absolute incr -> Seq.range (Num.fmod pos incr) end incr
         AbsoluteMark names matcher -> matches names matcher
@@ -237,8 +238,8 @@ step_points marklists cur events pos (step, skip) = stride skip $ case step of
     track_events CurrentTrack = maybe [] (:[]) (Seq.at events cur)
     track_events (TrackNums tracknums) =
         Maybe.mapMaybe (Seq.at events) tracknums
-    end = Maybe.fromMaybe 0 $
-        Seq.maximum (map (Ruler.last_pos . snd) marklists)
+    end = Maybe.fromMaybe 0 $ Seq.maximum $
+        map Ruler.last_pos (Map.elems marklists)
     matches names matcher = match_all matcher
         (get_marks marklists names)
     shift points = case find_before_equal pos points of
@@ -250,14 +251,14 @@ match_all rank = map fst .  filter ((<=rank) . Ruler.mark_rank . snd)
 
 -- | Get all marks from the marklists that match the proper names and
 -- merge their marks into one list.
-get_marks :: [(Ruler.MarklistName, Ruler.Marklist)] -> MarklistMatch
-    -> [(ScoreTime, Ruler.Mark)]
+get_marks :: Ruler.Marklists -> MarklistMatch -> [(ScoreTime, Ruler.Mark)]
 get_marks marklists names =
     Seq.merge_lists fst [Ruler.forward mlist 0 | mlist <- matching]
     where
     matching = case names of
-        AllMarklists -> map snd marklists
-        NamedMarklists names -> Maybe.mapMaybe (flip lookup marklists) names
+        AllMarklists -> Map.elems marklists
+        NamedMarklists names ->
+            Maybe.mapMaybe (flip Map.lookup marklists) names
 
 -- * seq utils
 
