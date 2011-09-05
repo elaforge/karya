@@ -237,7 +237,7 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
         }
 
         fl_color(FL_BLACK);
-        fl_draw(mark.name, xpos, offset);
+        fl_draw(mark.name, xpos, offset - 1);
     }
 }
 
