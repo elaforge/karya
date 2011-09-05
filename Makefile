@@ -290,13 +290,13 @@ doc: $(ALL_HSC)
 TEST_CMDLINE = $(GHC) $(HFLAGS) --make -DTESTING \
 	$(UI_OBJS) $(MIDI_OBJS) $(MIDI_LIBS) $(HLDFLAGS)
 
-# Compiles with -odir and -hidir into $(TBUILD)/ because they are compiled with
+# Compiles with -outputdir into $(TBUILD)/ because they are compiled with
 # different flags.
 $(TBUILD)/RunTests.hs: $(ALL_HS)
 	test/generate_run_tests.py $@ $(filter %_test.hs, $(ALL_HS))
 $(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HSC) $(UI_OBJS) $(MIDI_OBJS)
-	$(TEST_CMDLINE) -i -i$(TBUILD):$(GHC_PATH) -odir $(TBUILD) \
-		-hidir $(TBUILD) $(TBUILD)/RunTests.hs -fhpc -o $@
+	$(TEST_CMDLINE) -i -i$(TBUILD):$(GHC_PATH) -outputdir $(TBUILD) \
+		$(TBUILD)/RunTests.hs -fhpc -o $@
 	rm -f *.tix # this sticks around and breaks hpc
 	rm -f test.output # this gets reset on each new test run
 
@@ -305,13 +305,13 @@ $(PBUILD)/RunProfile.hs: $(ALL_HS)
 
 .PHONY: $(PBUILD)/RunProfile
 $(PBUILD)/RunProfile: $(PBUILD)/RunProfile.hs $(UI_HSC) $(UI_OBJS) $(MIDI_OBJS)
-	$(TEST_CMDLINE) -i -i$(PBUILD):$(GHC_PATH) -odir $(PBUILD) \
-		-hidir $(PBUILD) $(PBUILD)/RunProfile.hs -o $@ $(HPROFILE)
+	$(TEST_CMDLINE) -i -i$(PBUILD):$(GHC_PATH) -outputdir $(PBUILD) \
+		$(PBUILD)/RunProfile.hs -o $@ $(HPROFILE)
 
 .PHONY: $(PBUILD)/seq
 $(PBUILD)/seq: $(UI_HSC) $(UI_OBJS) $(MIDI_OBJS)
-	$(SEQ_CMDLINE) -i -i$(PBUILD):$(GHC_PATH) -odir $(PBUILD) \
-		-hidir $(PBUILD) $(HPROFILE) -o $@
+	$(SEQ_CMDLINE) -i -i$(PBUILD):$(GHC_PATH) -outputdir $(PBUILD) \
+		$(HPROFILE) -o $@
 	$(BUNDLE) doc/seq.icns
 
 .PHONY: profile
