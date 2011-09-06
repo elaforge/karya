@@ -1,14 +1,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Ui.Ruler where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Array.IArray as IArray
-import Data.Array.IArray ((!))
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 
-import qualified Util.Array as Array
 import Util.Control
+import qualified Util.Map as Map
 import Util.Pretty
 
 import Ui
@@ -70,10 +68,11 @@ time_end = maximum . (0 :) . map last_pos . Map.elems . ruler_marklists
 
 -- * marklist
 
-newtype Marklist = Marklist (Array.Array PosMark)
+newtype Marklist = Marklist (Map.Map ScoreTime Mark)
     deriving (DeepSeq.NFData, Eq, Show, Read)
 
-mapm :: (Array.Array PosMark -> Array.Array PosMark) -> Marklist -> Marklist
+mapm :: (Map.Map ScoreTime Mark -> Map.Map ScoreTime Mark)
+    -> Marklist -> Marklist
 mapm f (Marklist m) = Marklist (f m)
 
 type Marklists = Map.Map Name Marklist
@@ -82,57 +81,49 @@ type PosMark = (ScoreTime, Mark)
 
 -- | Construct a Marklist.
 marklist :: [PosMark] -> Marklist
-marklist = Marklist . Array.from_list
+marklist = Marklist . Map.fromList
 
 marks_of :: Marklist -> [PosMark]
-marks_of (Marklist a) = IArray.elems a
+marks_of (Marklist m) = Map.toList m
 
 instance Monoid.Monoid Marklist where
-    mempty = Marklist Array.empty
-    -- Unfortunately I don't think IArray has an efficient way to do this.
+    mempty = Marklist mempty
     mappend m1@(Marklist a1) m2@(Marklist a2)
         | m2 == mempty = m1
-        | otherwise = marklist $ clip (IArray.elems a1) ++ IArray.elems a2
-        where
-        clip = takeWhile ((<start) . fst)
-        start = first_pos m2
+        | otherwise = Marklist $ Map.union (fst (Map.split start a1)) a2
+        where start = first_pos m2
     mconcat = List.foldl' Monoid.mappend Monoid.mempty
 
 place_marklists :: [(ScoreTime, ScoreTime, Marklist)] -> Marklist
 place_marklists = mconcat . map (\(p, s, m) -> place p s m)
 
 shift :: ScoreTime -> Marklist -> Marklist
-shift offset = mapm $ IArray.amap (first (+offset))
+shift offset = mapm $ Map.mapKeys (+offset)
 
 place :: ScoreTime -> ScoreTime -> Marklist -> Marklist
-place start dur m = mapm (IArray.amap (first ((+start) . (*factor)))) m
+place start dur m = mapm (Map.mapKeys ((+start) . (*factor))) m
     where
     factor = if mdur == 0 then 1 else dur / mdur
     mdur = last_pos m
 
-insert_mark :: PosMark -> Marklist -> Marklist
-insert_mark mark (Marklist a) = marklist $
-    List.insertBy (\x y -> compare (fst x) (fst y)) mark (IArray.elems a)
+insert_mark :: ScoreTime -> Mark -> Marklist -> Marklist
+insert_mark pos mark = mapm $ Map.insert pos mark
 
 -- | Clip the marklist before the given pos.
 --
 -- Unlike most functions that take ranges, the output will *include* the end
 -- pos.  This is because it's convenient for rulers to have a mark at the end.
 clip_marklist :: ScoreTime -> Marklist -> Marklist
-clip_marklist pos mlist =
-    marklist (takeWhile ((<=pos) . fst) (forward mlist 0))
+clip_marklist pos (Marklist m) =
+    Marklist $ maybe pre (\v -> Map.insert pos v pre) at
+    where (pre, at, _) = Map.splitLookup pos m
 
 -- | Get the position of the last mark.
 last_pos :: Marklist -> ScoreTime
-last_pos (Marklist a)
-    | i == -1 = 0
-    | otherwise = fst (a ! i)
-    where i = snd (IArray.bounds a)
+last_pos (Marklist m) = maybe 0 fst (Map.find_max m)
 
 first_pos :: Marklist -> ScoreTime
-first_pos (Marklist a)
-    | Array.null a = 0
-    | otherwise = fst (a ! 0)
+first_pos (Marklist m) = maybe 0 fst (Map.find_min m)
 
 data Mark = Mark {
     mark_rank :: Int
@@ -154,24 +145,15 @@ instance Pretty Mark where
     pretty m = "<mark: " ++ show (mark_rank m) ++ name ++ ">"
         where name = if null (mark_name m) then "" else " " ++ mark_name m
 
-at :: Marklist -> ScoreTime -> ([PosMark], [PosMark])
-at (Marklist a) pos = (map (a!) [i-1, i-2..low], map (a!) [i..high])
-    where
-    i = Array.bsearch_on fst a pos
-    (low, high) = IArray.bounds a
+split :: Marklist -> ScoreTime -> ([PosMark], [PosMark])
+split (Marklist m) pos = (Map.toDescList pre, Map.toAscList post)
+    where (pre, post) = Map.split2 pos m
 
 -- | Marks starting at the first mark >= the given pos, to the end.
-forward :: Marklist -> ScoreTime -> [PosMark]
-forward (Marklist a) 0 = IArray.elems a
-forward marklist pos = snd (at marklist pos)
-
--- | Like 'forward', but don't include a mark equal to @pos@.
-forward_from :: Marklist -> ScoreTime -> [PosMark]
-forward_from marklist pos
-    | not (null marks) && fst (head marks) == pos = tail marks
-    | otherwise = marks
-    where marks = forward marklist pos
+ascending :: Marklist -> ScoreTime -> [PosMark]
+ascending (Marklist m) 0 = Map.toAscList m
+ascending marklist pos = snd (split marklist pos)
 
 -- | Marks starting at the first mark <= the given pos, to the beginning.
-backward :: Marklist -> ScoreTime -> [PosMark]
-backward marklist pos = fst (at marklist pos)
+descending :: Marklist -> ScoreTime -> [PosMark]
+descending marklist pos = fst (split marklist pos)

@@ -1,9 +1,5 @@
-{- | Quick hack to print out the binary save files.
-
-Later there should be an undump mode that converts text to the binary format.
--}
+-- | Quick hack to print out the binary save files.
 module App.Dump where
-import qualified Data.Array.IArray as IArray
 import qualified Data.Map as Map
 import qualified System.Environment as Environment
 import qualified System.Exit
@@ -86,11 +82,11 @@ put_field name val = do
 abbr_track track = "track_events =\n" ++ PPrint.pshow (map Simple.event events)
     where events = Events.ascending (Track.track_events track)
 
+abbr_ruler :: Ruler.Ruler -> String
 abbr_ruler ruler = "ruler_marklists = "
-    ++ concatMap abbr_marklist (Ruler.ruler_marklists ruler)
+    ++ concatMap abbr_marklist (Map.toList (Ruler.ruler_marklists ruler))
 
+abbr_marklist :: (Ruler.Name, Ruler.Marklist) -> String
 abbr_marklist (name, mlist) =
     "(" ++ show name ++ ", " ++ show_len mlist ++ ")"
-    where
-    show_len (Ruler.Marklist marray) =
-        "<marks:" ++ show (snd (IArray.bounds marray)) ++ ">"
+    where show_len (Ruler.Marklist m) = "<" ++ show (Map.size m) ++ " marks>"

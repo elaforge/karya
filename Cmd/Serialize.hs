@@ -12,7 +12,6 @@
 module Cmd.Serialize where
 
 import qualified Control.Exception as Exception
-import qualified Data.Array.IArray as IArray
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import Data.Serialize (Get, Put, getWord8, putWord8)
@@ -356,17 +355,21 @@ instance Serialize Block.ViewConfig where
                     sb_size status_size
             _ -> version_error "Block.ViewConfig" v
 
-zoom = Types.Zoom :: ScoreTime -> Double -> Types.Zoom
 instance Serialize Types.Zoom where
     put (Types.Zoom a b) = put a >> put b
-    get = get >>= \a -> get >>= \b -> return (zoom a b)
+    get = do
+        offset <- get :: Get ScoreTime
+        factor <- get :: Get Double
+        return $ Types.Zoom offset factor
 
-selection = Types.Selection :: TrackNum -> ScoreTime -> TrackNum
-    -> ScoreTime -> Types.Selection
 instance Serialize Types.Selection where
     put (Types.Selection a b c d) = put a >> put b >> put c >> put d
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (selection a b c d)
+    get = do
+        strack <- get :: Get Int
+        stime <- get :: Get ScoreTime
+        ctrack <- get :: Get Int
+        ctime <- get :: Get ScoreTime
+        return $ Types.Selection strack stime ctrack ctime
 
 -- ** Types, Color, Font
 
@@ -419,18 +422,23 @@ instance Serialize Ruler.Ruler where
                     align_to_bottom full_width
             _ -> version_error "Ruler.Ruler" v
 
-marklist = Ruler.Marklist :: IArray.Array Int Ruler.PosMark -> Ruler.Marklist
 instance Serialize Ruler.Marklist where
     put (Ruler.Marklist a) = put a
-    get = get >>= \a -> return (marklist a)
+    get = do
+        m <- get :: Get (Map.Map ScoreTime Ruler.Mark)
+        return $ Ruler.Marklist m
 
-mark = Ruler.Mark :: Int -> Int -> Color.Color -> String -> Double -> Double
-    -> Ruler.Mark
 instance Serialize Ruler.Mark where
     put (Ruler.Mark a b c d e f) = put a >> put b >> put c >> put d >> put e
         >> put f
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
-        get >>= \f -> return (mark a b c d e f)
+    get = do
+        rank <- get :: Get Int
+        width <- get :: Get Int
+        color <- get :: Get Color.Color
+        name <- get :: Get String
+        name_zoom <- get :: Get Double
+        zoom <- get :: Get Double
+        return $ Ruler.Mark rank width color name name_zoom zoom
 
 -- ** Track
 

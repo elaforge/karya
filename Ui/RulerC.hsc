@@ -32,7 +32,7 @@ cb_find_marks :: Ruler.Marklist -> FindMarks
 cb_find_marks marklist startp endp ret_tps ret_marks = do
     start <- peek startp
     end <- peek endp
-    let (bwd, fwd) = Ruler.at marklist start
+    let (bwd, fwd) = Ruler.split marklist start
         (until_end, rest) = break ((>=end) . fst) fwd
         -- Give extra marks, one before start and one after end, so that marks
         -- scrolled half-off are still displayed.

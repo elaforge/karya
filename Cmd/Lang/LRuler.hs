@@ -66,7 +66,7 @@ show_marklist ruler_id marklist_name = do
     mlist <- get_marklist marklist_name ruler_id
     return $ PPrint.list $
         map (\(pos, m) -> Printf.printf "%s - %s" (show pos) (Pretty.pretty m))
-            (Ruler.forward mlist 0)
+            (Ruler.ascending mlist 0)
 
 get_marklist :: (Cmd.M m) => Ruler.Name -> RulerId -> m Ruler.Marklist
 get_marklist name ruler_id = do
@@ -136,7 +136,7 @@ add_cue text = do
 
 add_cue_at :: BlockId -> ScoreTime -> String -> Cmd.CmdL ()
 add_cue_at block_id pos text = modify_ruler block_id $
-    Ruler.modify_marklist "cue" $ Ruler.insert_mark (pos, cue_mark text)
+    Ruler.modify_marklist "cue" $ Ruler.insert_mark pos (cue_mark text)
 
 cue_mark :: String -> Ruler.Mark
 cue_mark text = Ruler.Mark 0 2 Color.black text 0 0

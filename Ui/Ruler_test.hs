@@ -1,7 +1,5 @@
 module Ui.Ruler_test where
-import qualified Data.Array.IArray as IArray
-
-import qualified Util.Array as Array
+import qualified Data.Map as Map
 import Util.Control
 import Util.Test
 
@@ -10,11 +8,11 @@ import qualified Ui.Ruler as Ruler
 
 
 marklist ps =
-    Ruler.Marklist $ Array.from_list [(p, mark (floor p)) | p <- ps]
+    Ruler.Marklist $ Map.fromList [(p, mark (floor p)) | p <- ps]
 
 extract :: Ruler.Marklist -> [(ScoreTime, Int)]
 extract (Ruler.Marklist a) =
-    map (\(p, m) -> (p, Ruler.mark_rank m)) (IArray.elems a)
+    map (\(p, m) -> (p, Ruler.mark_rank m)) (Map.toList a)
 
 mark :: Int -> Ruler.Mark
 mark rank = Ruler.null_mark { Ruler.mark_rank = rank }
@@ -29,10 +27,8 @@ test_concat = do
 
 test_place = do
     let f s d = extract . Ruler.place s d
-    equal (f 2 4 (marklist [0, 1, 2]))
-        [(2, 0), (4, 1), (6, 2)]
-    equal (f 2 0 (marklist [0, 1, 2]))
-        [(2, 0), (2, 1), (2, 2)]
+    equal (f 2 4 (marklist [0, 1, 2])) [(2, 0), (4, 1), (6, 2)]
+    equal (f 2 0 (marklist [0, 1, 2])) [(2, 2)]
 
 test_place_marklists = do
     let f = extract . Ruler.place_marklists
