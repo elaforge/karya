@@ -120,10 +120,10 @@ clip_marklist pos (Marklist m) =
 
 -- | Get the position of the last mark.
 last_pos :: Marklist -> ScoreTime
-last_pos (Marklist m) = maybe 0 fst (Map.find_max m)
+last_pos (Marklist m) = maybe 0 fst (Map.max m)
 
 first_pos :: Marklist -> ScoreTime
-first_pos (Marklist m) = maybe 0 fst (Map.find_min m)
+first_pos (Marklist m) = maybe 0 fst (Map.min m)
 
 data Mark = Mark {
     mark_rank :: Int

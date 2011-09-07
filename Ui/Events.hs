@@ -174,11 +174,11 @@ overlapping pos events
     where (pre, post) = split pos events
 
 first :: Events -> Maybe PosEvent
-first (Events events) = Map.find_min events
+first (Events events) = Map.min events
 
 -- | Final event, if there is one.
 last :: Events -> Maybe PosEvent
-last (Events events) = Map.find_max events
+last (Events events) = Map.max events
 
 -- ** split
 
@@ -227,11 +227,11 @@ around start end = emap (split_around start end)
         where
         (pre, within, post) = Map.split3 start end events
         below m
-            | Just (lowest, _) <- Map.find_min within, lowest == start = m
+            | Just (lowest, _) <- Map.min within, lowest == start = m
             | otherwise = maybe m (\(pos, evt) -> Map.insert pos evt m)
-                (Map.find_max pre)
+                (Map.max pre)
         above m = maybe m (\(pos, evt) -> Map.insert pos evt m)
-            (Map.find_min post)
+            (Map.min post)
 
 -- * implementation
 
@@ -271,11 +271,11 @@ _split_range :: ScoreTime -> ScoreTime -> EventMap
 _split_range start end events = (pre2, within3, post2)
     where
     (pre, within, post) = Map.split3 start end events
-    (within2, post2) = case Map.find_min post of
+    (within2, post2) = case Map.min post of
         Just (pos, evt) | pos == end && Event.is_negative evt ->
             (Map.insert pos evt within, Map.delete pos post)
         _ -> (within, post)
-    (pre2, within3) = case Map.find_min within2 of
+    (pre2, within3) = case Map.min within2 of
         Just (pos, evt) | pos == start && not (Event.is_positive evt) ->
             (Map.insert pos evt pre, Map.delete pos within2)
         _ -> (pre, within2)

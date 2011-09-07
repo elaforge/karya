@@ -1,5 +1,6 @@
 -- | Extra utils for "Data.Map".
 module Util.Map where
+import Prelude hiding (min, max)
 import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -94,17 +95,18 @@ insert_list :: (Ord k) => [(k, v)] -> Map.Map k v -> Map.Map k v
 insert_list kvs m = List.foldl' (\m (k, v) -> Map.insert k v m) m kvs
 
 -- | Safe versions of findMin and findMax.
-find_min :: Map.Map k a -> Maybe (k, a)
-find_min fm
+min :: Map.Map k a -> Maybe (k, a)
+min fm
     | Map.null fm = Nothing
     | otherwise = Just (Map.findMin fm)
 
-find_max :: Map.Map k a -> Maybe (k, a)
-find_max fm
+max :: Map.Map k a -> Maybe (k, a)
+max fm
     | Map.null fm = Nothing
     | otherwise = Just (Map.findMax fm)
 
 -- | The Data.Map Monoid instance is just a plain union, and doesn't mappend
 -- the values.
-mappend :: (Ord k, Monoid.Monoid a) => Map.Map k a -> Map.Map k a -> Map.Map k a
+mappend :: (Ord k, Monoid.Monoid a) => Map.Map k a -> Map.Map k a
+    -> Map.Map k a
 mappend = Map.unionWith Monoid.mappend
