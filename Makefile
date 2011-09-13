@@ -121,7 +121,7 @@ TEST_BINARIES := $(addprefix $(BUILD)/, test_block test_logview test_browser \
 .PHONY: checkin
 checkin:
 	tools/make_all $(BUILD)/seq $(BUILD)/browser $(BUILD)/logview \
-		$(BUILD)/PrintKeymap $(BUILD)/update $(BUILD)/make_db \
+		doc/keymap.html $(BUILD)/update $(BUILD)/make_db \
 		$(PBUILD)/RunProfile tests
 
 # Compile Everything.

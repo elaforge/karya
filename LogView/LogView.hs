@@ -70,15 +70,14 @@ options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
     , GetOpt.Option [] ["seek"] (GetOpt.OptArg (Seek . fmap read) "lines") $
         "if given no arg, scan the log file from the beginning, if given an "
-        ++ "arg, scan approximately that many lines from the end (assuming the "
-        ++ "average line is 200 bytes)"
+        ++ "arg, scan approximately that many lines from the end (assuming "
+        ++ "the average line is 200 bytes)"
     , GetOpt.Option [] ["history"]
         (GetOpt.ReqArg (History . read) (show default_history))
         "remember this many lines"
     , GetOpt.Option [] ["file"] (GetOpt.ReqArg File mach_log_filename)
         "read from this file"
     ]
-usage msg = putStr (GetOpt.usageInfo msg options) >> System.Exit.exitSuccess
 
 main :: IO ()
 main = do
@@ -104,6 +103,9 @@ main = do
             { Process.state_catch_patterns = default_catch_patterns }
     Concurrent.forkIO (handle_msgs state history log_chan view)
     LogViewC.run
+    where
+    usage msg = putStr (GetOpt.usageInfo msg options)
+        >> System.Exit.exitSuccess
 
 
 data Msg = NewLog Log.Msg | ClickedWord String | FilterChanged String
