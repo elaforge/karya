@@ -88,9 +88,12 @@ tempo_call block_end track sig_deriver deriver = do
         unless (State.tevents_sliced track) $
             put_track_signal track_id $ Right $
                 Track.TrackSignal (Track.Control (Signal.coerce signal)) 0 1
-    merge_logs logs $ with_damage $
+    -- 'with_damage' must be applied *inside* 'd_tempo'.  If it were outside,
+    -- it would get the wrong RealTimes when it tried to create the
+    -- ControlDamage.
+    merge_logs logs $
         Internal.d_tempo block_end maybe_track_id (Signal.coerce signal)
-            deriver
+            (with_damage deriver)
     where
     maybe_track_id = State.tevents_track_id track
     with_damage = maybe id get_damage maybe_track_id

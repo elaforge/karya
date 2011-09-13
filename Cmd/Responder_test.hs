@@ -1,5 +1,6 @@
 module Cmd.Responder_test where
 import Util.Test
+import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -10,10 +11,13 @@ import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.ResponderTest as ResponderTest
 
+import qualified Derive.LEvent as LEvent
+import qualified Derive.Score as Score
+
 
 -- TODO Do some full-cycle tests.
 
-modify_tempo = do
+test_modify_tempo = do
     let ustate = UiTest.exec State.empty $ do
             UiTest.mkstate_view UiTest.default_block_name
                 [ ("tempo", [(0, 0, "1")])
@@ -27,7 +31,19 @@ modify_tempo = do
     let cstate = ResponderTest.mk_cmd_state (UiTest.default_view_id)
     results <- ResponderTest.thread (ustate, cstate)
         (CmdTest.keypresses [Key.Escape, Key.Backspace, Key.Char '2'])
+    -- Icky.  If I don't pick exactly the right result it will hang fover
+    -- because it's waiting on the loopback to emit a DeriveStatus.  I could
+    -- fix it by simulating loopback more accurately.
     let result = results !! 4
     (_, perf) <- ResponderTest.result_perf result
-    -- TODO actually test stuff
-    pprint (Cmd.perf_events perf)
+    equal (map Score.event_start $ LEvent.events_of $ Cmd.perf_events perf)
+        [0, 0.5]
+
+test_modify_middle_tempo = do
+    let states = ResponderTest.mkstates
+            [("tempo", [(0, 0, "1")]), (">i", [(0, 1, ""), (1, 1, "")])]
+    res <- ResponderTest.respond_cmd states $
+        State.insert_event (UiTest.mk_tid 0) 1 (Event.event "2" 0)
+    (_, perf) <- ResponderTest.result_perf res
+    equal (map Score.event_duration $ LEvent.events_of $ Cmd.perf_events perf)
+        [1, 0.5]

@@ -41,7 +41,7 @@ mkstates :: [UiTest.TrackSpec] -> States
 mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
     where
     ui_state = UiTest.exec State.empty $ do
-        UiTest.mkstate_view "b1" tracks
+        UiTest.mkstate_view UiTest.default_block_name tracks
         State.set_selection UiTest.default_view_id Config.insert_selnum
             (Just (Types.selection 1 0 1 0))
 
@@ -75,6 +75,9 @@ data Result = Result {
 --
 -- TODO error-prone because if you call this on a Result that didn't
 -- regenerate the performance this will hang forever
+--
+-- TODO there should also be a way to pass 0 to Performance.update_performance
+-- so tests don't waste time sleeping.
 result_perf :: Result -> IO (BlockId, Cmd.Performance)
 result_perf = get_perf . result_loopback
 
@@ -108,6 +111,8 @@ thread_delay print_timing states ((msg, delay):msgs) = do
         Printf.printf "%s -> lag: %.2fs\n" (Pretty.pretty msg) secs
     Thread.delay delay
     (result:) <$> thread_delay print_timing (result_states result) msgs
+
+-- * respond_cmd
 
 -- | Respond to a single Cmd.  This can be used to test cmds in the full
 -- responder context without having to fiddle around with keymaps.

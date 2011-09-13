@@ -193,7 +193,8 @@ damage_to_score :: Ranges.Ranges RealTime
 damage_to_score r = case Ranges.extract r of
     Nothing -> return Ranges.everything
     Just rs -> Ranges.sorted_ranges <$>
-        mapM (\(s, e) -> (,) <$> Derive.score s <*> Derive.score e) rs
+        mapM (\(s, e) -> (,) <$> Derive.score_msg "damage start" s
+            <*> Derive.score_msg "damage end" e) rs
 
 -- * types
 

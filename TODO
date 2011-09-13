@@ -11,6 +11,8 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  * modify tempo and I get score out of range
+  - click to the right of the tracks shouldn't highlight the rightmost track
   * deleting tracks made selection movement messed up, then tracknum assertion
     failure
   * not regenerating correctly on edits: editing tempo does not cause block

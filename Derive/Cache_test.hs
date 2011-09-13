@@ -346,7 +346,7 @@ test_extend_tempo_damage = do
             , ("modulation", [(0, 1, "0")])
             ])]
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid 0) 0 (Event.event "2" 0)
+            State.insert_event (UiTest.mk_tid 0) 1 (Event.event "2" 0)
     equal (diff_events cached uncached) []
 
 -- ** support
@@ -396,6 +396,7 @@ mk_gdep = Derive.GeneratorDep . Set.fromList . map UiTest.bid
 r_cache_stacks = Map.keys . uncache . Derive.r_cache
 uncache (Derive.Cache cache) = cache
 
+mkblocks :: (State.M m) => [UiTest.BlockSpec] -> m BlockId
 mkblocks block_tracks = do
     forM_ block_tracks $ \(bid, tracks) ->
         UiTest.mkstate bid tracks
