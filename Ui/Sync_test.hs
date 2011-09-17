@@ -72,7 +72,7 @@ test_create_two_views = do
     state <- run_setup
     _state <- io_human "view created, has big track, track title changes" $
             run state $ do
-        b2 <- create_block "b2" $ UiTest.mkblock ""
+        b2 <- create_block "b2" $ UiTest.make_block ""
             [(Block.RId t_ruler_id, 20),
                 (Block.TId t_track1_id t_ruler_id, 30)]
         v2 <- create_view "v2" $
@@ -178,7 +178,7 @@ test_set_track_flags = do
 
 test_set_track_width = do
     state <- io_human "two views" $ run State.empty $ do
-        UiTest.mkstate t_block [(">", [])]
+        UiTest.mkblock (t_block, [(">", [])])
         create_view "v1" $ Block.view UiTest.default_block_id
             UiTest.default_rect UiTest.default_zoom
         create_view "v2" $ Block.view UiTest.default_block_id
@@ -189,7 +189,7 @@ test_set_track_width = do
 
 test_adjacent_collapsed_tracks = do
     state <- run State.empty $
-        UiTest.mkstate_view t_block [("1", []), ("2", []), ("3", [])]
+        UiTest.mkblock_view (t_block, [("1", []), ("2", []), ("3", [])])
     state <- io_human "collapse track 1" $ run state $ do
         State.toggle_track_flag t_block_id 1 Block.Collapse
     state <- io_human "collapse track 2" $ run state $ do
@@ -202,10 +202,10 @@ test_adjacent_collapsed_tracks = do
 
 test_created_merged = do
     state <- io_human "already has merged track" $ run State.empty $ do
-        [t1, t2] <- UiTest.mkstate_view t_block
+        [t1, t2] <- UiTest.mkblock_view (t_block,
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])
             , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
-            ]
+            ])
         State.merge_track t_block_id 1 2
     state <- io_human "unmerge" $ run state $ do
         State.unmerge_track t_block_id 1
@@ -243,10 +243,10 @@ test_merge_unmerge_track = do
 
 test_update_merged = do
     let ((t1, t2), state) = UiTest.run State.empty $ do
-        [t1, t2] <- UiTest.mkstate_view UiTest.default_block_name
+        [t1, t2] <- UiTest.mkblock_view (UiTest.default_block_name,
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])
             , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
-            ]
+            ])
         State.set_merged_tracks UiTest.default_block_id 1 [t2]
         return (t1, t2)
     state <- io_human "block with merged track" $ run State.empty $
@@ -396,8 +396,8 @@ run_setup = run State.empty setup_state
 setup_state = do
     ruler <- create_ruler "r1" (UiTest.mkruler 20 10)
     t1 <- create_track "b1.t1" (UiTest.empty_track "t1")
-    b1 <- create_block t_block $
-        UiTest.mkblock "hi b1" [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]
+    b1 <- create_block t_block $ UiTest.make_block "hi b1"
+        [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]
     create_view "v1" (Block.view b1 UiTest.default_rect UiTest.default_zoom)
 
 create_view a b = State.create_view (mkid a) b

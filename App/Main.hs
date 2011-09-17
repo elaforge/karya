@@ -339,7 +339,7 @@ setup_normal = do
     -- tempo is track 1
 
     mod <- Create.track bid 2
-    State.insert_events mod $ map (control_event . UiTest.mkevent)
+    State.insert_events mod $ map (control_event . UiTest.make_event)
         [(0, 0, "0"), (1, 0, "i 1"), (2, 0, "i 0"), (2.5, 0, "1"),
             (3, 0, ".5")]
     State.set_track_title mod "modulation"
@@ -347,12 +347,12 @@ setup_normal = do
         render { Track.render_style = Track.Filled }
 
     note <- Create.track bid 3
-    State.insert_events note $ map (note_event . UiTest.mkevent)
+    State.insert_events note $ map (note_event . UiTest.make_event)
         [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")]
     State.set_track_title note ">fm8/bass"
 
     pitch <- Create.track bid 4
-    State.insert_events pitch $ map (control_event . UiTest.mkevent)
+    State.insert_events pitch $ map (control_event . UiTest.make_event)
         [(0, 0, "`tr` (5c) 2 3"), (1, 0, "n (5d)"), (2, 0, "5e"),
             (3, 0, "i (5f)")]
     State.set_track_title pitch "*twelve"
@@ -361,7 +361,7 @@ setup_normal = do
     State.set_track_width bid 3 50
 
     vel <- Create.track bid 5
-    State.insert_events vel $ map (control_event . UiTest.mkevent)
+    State.insert_events vel $ map (control_event . UiTest.make_event)
         [(0, 0, ".7"), (1, 0, ".4")]
     State.set_track_title vel "p"
 
@@ -390,13 +390,13 @@ setup_big = do
 
     let notes = [0, 3, 2, 5, 3, 6, 4, 7]
         vels = [1, 0.9, 0.8, 0.7, 0.6, 0.4, 0.3, 0.2]
-        mknotes notes = map UiTest.mkevent
+        mknotes notes = map UiTest.make_event
             [(i*0.25, 0.2, to_str (oct*12 + n))
                 | (i, (oct, n)) <- zip [0..] notes]
         to_str n = case Twelve.input_to_note (Pitch.InputKey n) of
             Just (Pitch.Note s) -> s
             Nothing -> error $ "converting " ++ show n
-        mkvels vels = map UiTest.mkevent
+        mkvels vels = map UiTest.make_event
             [(i*0.25, 0, show vel) | (i, vel) <- zip [0..] vels]
 
     State.insert_events t0 (take 100 (mknotes (cycle (map ((,) 5) notes))))
@@ -426,7 +426,7 @@ empty_block = do
     vid <- Create.view bid
     t_tempo <- Create.named_track bid over_rid 1 "tempo" "tempo"
     State.set_track_width bid 1 40
-    State.insert_events t_tempo $ map UiTest.mkevent [(0, 0, "1")]
+    State.insert_events t_tempo $ map UiTest.make_event [(0, 0, "1")]
     return (bid, vid)
 
 make_midi_config :: String -> [(String, [Midi.Channel])] -> Instrument.Config

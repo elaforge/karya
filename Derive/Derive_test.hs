@@ -421,7 +421,7 @@ test_tempo_funcs1 = do
     let bid = UiTest.bid "b0"
 
     let ([t_tid, tid1], ui_state) = UiTest.run State.empty $
-            UiTest.mkstate "b0" track_specs
+            UiTest.mkblock ("b0", track_specs)
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_logs res) []
 
@@ -435,10 +435,10 @@ test_tempo_funcs1 = do
 
 test_tempo_funcs2 = do
     let ([t_tid1, tid1, t_tid2, tid2], ui_state) = UiTest.run State.empty $
-            UiTest.mkstate "b0" $ track_specs
+            UiTest.mkblock ("b0", track_specs
                 ++ [ ("tempo", [(0, 0, "1")])
                 , (">i2", [(0, 16, "--2b1")])
-                ]
+                ])
         bid = UiTest.bid "b0"
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_logs res) []

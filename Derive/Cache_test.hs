@@ -1,5 +1,4 @@
 module Derive.Cache_test where
-import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -397,10 +396,9 @@ r_cache_stacks = Map.keys . uncache . Derive.r_cache
 uncache (Derive.Cache cache) = cache
 
 mkblocks :: (State.M m) => [UiTest.BlockSpec] -> m BlockId
-mkblocks block_tracks = do
-    forM_ block_tracks $ \(bid, tracks) ->
-        UiTest.mkstate bid tracks
-    return $ UiTest.bid (fst (head block_tracks))
+mkblocks blocks = do
+    bid : _ <- UiTest.mkblocks blocks
+    return bid
 
 -- | Derive with and without the cache, and make sure the cache fired and the
 -- results are the same.  Returns (result before modification, cached,

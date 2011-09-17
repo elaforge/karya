@@ -42,8 +42,8 @@ test_display_track = do
 
 test_merge_updates = do
     let ([tid1, tid2], st) = UiTest.run State.empty $ do
-            tids <- UiTest.mkstate UiTest.default_block_name
-                [(">", []), ("*", [])]
+            tids <- UiTest.mkblock (UiTest.default_block_name,
+                [(">", []), ("*", [])])
             State.merge_track bid 1 2
             return tids
     let all_events = Update.TrackAllEvents Events.empty

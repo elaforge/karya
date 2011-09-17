@@ -16,14 +16,9 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified App.Config as Config
 
 
-run = UiTest.run State.empty
+(empty_track_ids, empty_state) = UiTest.run_mkview [("t1", []), ("t2", [])]
 
-(empty_track_ids, empty_state) = run $ UiTest.mkstate_view
-    UiTest.default_block_name
-    [("t1", []), ("t2", [])]
-
-(events_track_ids, events_state) = run $ UiTest.mkstate_view
-    UiTest.default_block_name
+(events_track_ids, events_state) = UiTest.run_mkview
     [ ("t1", track1_events)
     , ("t2", track2_events)
     ]
@@ -34,9 +29,8 @@ track2_events = [(1, 2, "e21"), (5, 2, "e22")]
 to_simple :: [(ScoreTime, ScoreTime, String)] -> [Simple.Event]
 to_simple = map (\(pos, dur, text) -> (realToFrac pos, realToFrac dur, text))
 
-(clip_track_ids, clip_state) = run $ UiTest.mkstate_id
-    clip_id
-    [ ("t1", [(0, 2, "c1"), (4, 2, "c2")]) ]
+(clip_track_ids, clip_state) = UiTest.run State.empty $ UiTest.mkblock
+    (Config.clip_block_name, [("t1", [(0, 2, "c1"), (4, 2, "c2")])])
 
 clip_ns = Config.clip_namespace
 clip_id = Types.BlockId (Id.id clip_ns Config.clip_block_name)

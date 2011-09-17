@@ -12,6 +12,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -54,9 +55,10 @@ save ui_state fname = do
     save_state <- Serialize.save_state ui_state
     Serialize.serialize fname save_state
 
--- * mkstate
+-- * monadic mk- functions
 
 type BlockSpec = (String, [TrackSpec])
+type TrackSpec = (String, [(Double, Double, String)])
 
 -- | Often tests work with a single block, or a single view.  To make them
 -- less verbose, there is a default block and view so functions can omit the
@@ -93,42 +95,39 @@ eval state m = case State.eval state m of
 
 run_mkstate :: [TrackSpec] -> ([TrackId], State.State)
 run_mkstate track_specs =
-    run State.empty (mkstate default_block_name track_specs)
+    run State.empty (mkblock (default_block_name, track_specs))
 
 run_mkview :: [TrackSpec] -> ([TrackId], State.State)
 run_mkview track_specs =
-    run State.empty (mkstate_view default_block_name track_specs)
-
-mkstate :: (State.M m) => String -> [TrackSpec] -> m [TrackId]
-mkstate block_name tracks = mkstate_id (bid block_name) tracks
+    run State.empty (mkblock_view (default_block_name, track_specs))
 
 mkblocks :: (State.M m) => [BlockSpec] -> m [BlockId]
 mkblocks blocks = do
-    forM_ blocks $ \(bid, tracks) -> mkstate bid tracks
+    mapM_ mkblock blocks
     return $ map (bid . fst) blocks
 
 mkviews :: (State.M m) => [BlockSpec] -> m [ViewId]
 mkviews blocks = mapM mkview =<< mkblocks blocks
 
-mkstate_id :: (State.M m) => BlockId -> [TrackSpec] -> m [TrackId]
-mkstate_id block_id tracks = do
+mkblock :: (State.M m) => BlockSpec -> m [TrackId]
+mkblock block = do
     maybe_rid <- State.lookup_ruler default_ruler_id
     ruler_id <- maybe
         (State.create_ruler (Id.unpack_id default_ruler_id) default_ruler)
         (const (return default_ruler_id)) maybe_rid
-    mkstate_id_ruler block_id ruler_id tracks
+    mkblock_ruler ruler_id block
 
--- | Like 'mkstate_id', but uses the provided ruler instead of creating its
+-- | Like 'mkblock', but uses the provided ruler instead of creating its
 -- own.  Important if you are creating multiple blocks and don't want
 -- a separate ruler for each.
-mkstate_id_ruler :: (State.M m) => BlockId -> RulerId
-    -> [TrackSpec] -> m [TrackId]
-mkstate_id_ruler block_id ruler_id tracks = do
+mkblock_ruler :: (State.M m) => RulerId -> BlockSpec -> m [TrackId]
+mkblock_ruler ruler_id (block_name, tracks) = do
+    let block_id = bid block_name
     State.set_namespace test_ns
     tids <- forM (zip [0..] tracks) $ \(i, track) ->
         State.create_track (Id.unpack_id (mk_tid_block block_id i))
-            (mktrack track)
-    State.create_block (Id.unpack_id block_id) $ mkblock "b1 title"
+            (make_track track)
+    State.create_block (Id.unpack_id block_id) $ make_block "b1 title"
         ((Block.RId ruler_id, 20)
             : [(Block.TId tid ruler_id, 40) | tid <- tids])
     State.set_skeleton block_id =<< parse_skeleton block_id
@@ -145,10 +144,10 @@ mkview block_id = do
     State.set_track_size view_id (400, 800)
     return view_id
 
-mkstate_view :: (State.M m) => String -> [TrackSpec] -> m [TrackId]
-mkstate_view block_name tracks = do
-    r <- mkstate block_name tracks
-    mkview (bid block_name)
+mkblock_view :: (State.M m) => BlockSpec -> m [TrackId]
+mkblock_view block_spec = do
+    r <- mkblock block_spec
+    mkview (bid (fst block_spec))
     return r
 
 mk_vid :: BlockId -> ViewId
@@ -158,8 +157,8 @@ mk_vid block_id = Types.ViewId $ Id.id ns ("v." ++ block_name)
 mk_vid_name :: String -> ViewId
 mk_vid_name = mk_vid . bid
 
--- | Make a TrackId as mkstate does.  This is so tests can independently come
--- up with the track IDs mkstate created just by knowing their tracknum.
+-- | Make a TrackId as mkblock does.  This is so tests can independently come
+-- up with the track IDs mkblock created just by knowing their tracknum.
 mk_tid :: TrackNum -> TrackId
 mk_tid = mk_tid_block default_block_id
 
@@ -199,30 +198,29 @@ dump_blocks :: State.State -> [Simple.Block]
 dump_blocks ustate =
     map (dump_block ustate) (Map.keys (State.state_blocks ustate))
 
--- * block
+-- * pure make_- functions
 
-mkblock :: String -> [(Block.TracklikeId, Types.Width)] -> Block.Block
-mkblock title tracks = Block.block Block.default_config
+make_block :: String -> [(Block.TracklikeId, Types.Width)] -> Block.Block
+make_block title tracks = Block.block Block.default_config
     title (map (uncurry Block.track) tracks) Config.schema
 
--- * track
+-- ** track
 
-type TrackSpec = (String, [(Double, Double, String)])
+event_track_1 = make_track ("1", [(0, 16, "hi"), (30, 32, "there")])
+event_track_2 = make_track ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
-event_track_1 = mktrack ("1", [(0, 16, "hi"), (30, 32, "there")])
-event_track_2 = mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
-
-mktrack :: TrackSpec -> Track.Track
-mktrack (title, triplets) = Track.modify_events
-    (Events.insert_events (map mkevent triplets)) (empty_track title)
+make_track :: TrackSpec -> Track.Track
+make_track (title, triplets) = Track.modify_events
+    (Events.insert_events (map make_event triplets)) (empty_track title)
 empty_track title = Track.track title []
 
--- * event
+-- ** event
 
-mkevent :: (Double, Double, String) -> Events.PosEvent
-mkevent (pos, dur, text) = (realToFrac pos, Event.event text (realToFrac dur))
+make_event :: (Double, Double, String) -> Events.PosEvent
+make_event (pos, dur, text) =
+    (realToFrac pos, Event.event text (realToFrac dur))
 
--- * ruler
+-- ** ruler
 
 default_ruler = mkruler 16 1
 no_ruler = mkruler 0 0

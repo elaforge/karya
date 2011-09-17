@@ -72,7 +72,6 @@ perf_event evt =
     )
     where start = Perform.event_start evt
 
-
 dump_block :: (State.M m) => BlockId -> m Block
 dump_block block_id = do
     block <- State.get_block block_id

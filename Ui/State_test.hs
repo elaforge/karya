@@ -11,8 +11,8 @@ test_skeleton_cycles = do
     let bid = UiTest.default_block_id
     let extract = either (Left . Pretty.pretty) Right
     let run ntracks m = extract $ State.eval State.empty $ do
-            UiTest.mkstate UiTest.default_block_name
-                [('t' : show n, []) | n <- [0..ntracks]]
+            UiTest.mkblock (UiTest.default_block_name,
+                [('t' : show n, []) | n <- [0..ntracks]])
             State.set_skeleton bid Skeleton.empty
             m
     equal (run 1 (State.toggle_skeleton_edge bid (1, 1))) (Right False)
@@ -59,7 +59,8 @@ simple_state = snd $ UiTest.run State.empty $ do
     t0 <- State.create_track (mkid "t0") (UiTest.empty_track "tempo")
     ruler <- State.create_ruler (mkid "r1") (UiTest.ruler [])
     b1 <- State.create_block (mkid "b1") $
-        UiTest.mkblock "hi b1" [(Block.RId ruler, 20), (Block.TId t0 ruler, 40)]
+        UiTest.make_block "hi b1"
+            [(Block.RId ruler, 20), (Block.TId t0 ruler, 40)]
     _v1 <- State.create_view (mkid "v1") $ Block.view b1
         UiTest.default_rect UiTest.default_zoom
     return ()

@@ -170,7 +170,7 @@ test_symbols = do
     view <- create_empty_view
     io_human "track with symbol" $
         send $ BlockC.insert_track view 1
-            (event_track (UiTest.mktrack ("syms", [(0, 16, "`1^`")]))) [] 40
+            (event_track (UiTest.make_track ("syms", [(0, 16, "`1^`")]))) [] 40
 
 -- TODO
 -- test_print_children
@@ -179,10 +179,10 @@ test_symbols = do
 
 event_track events = Block.T events UiTest.no_ruler
 
-long_event_track = UiTest.mktrack
+long_event_track = UiTest.make_track
     ("long", [(0, 16, "hi"), (400, 32, "there")])
-event_track_1 = UiTest.mktrack ("1", [(0, 16, "hi"), (30, 32, "there")])
-event_track_2 = UiTest.mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
+event_track_1 = UiTest.make_track ("1", [(0, 16, "hi"), (30, 32, "there")])
+event_track_2 = UiTest.make_track ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
 create_empty_view = do
     let view_id = Types.ViewId (UiTest.mkid "default")

@@ -96,24 +96,22 @@ make_nested_controls = make_nested
 make_nested :: (State.M m) => [UiTest.TrackSpec] -> Int -> Int -> Int -> m ()
 make_nested bottom_tracks size depth bottom_size = do
     (ruler_id, _) <- Create.ruler "ruler" UiTest.default_ruler
-    go ruler_id default_block depth
+    go ruler_id UiTest.default_block_name depth
     where
     go ruler_id block_name 1 = do
-        UiTest.mkstate_id_ruler (UiTest.bid block_name) ruler_id $
-            map (track_take bottom_size) bottom_tracks
+        UiTest.mkblock_ruler ruler_id
+            (block_name, map (track_take bottom_size) bottom_tracks)
         return ()
     go ruler_id block_name depth = do
         let sub_bids = [block_name ++ "." ++ show sub | sub <- [0 .. size-1]]
             step = bottom_size * size^(depth-2)
-        UiTest.mkstate_id_ruler (UiTest.bid block_name) ruler_id $
-            map (track_take size) [ctrack (fromIntegral step) inst1 sub_bids]
+        UiTest.mkblock_ruler ruler_id (block_name,
+            map (track_take size) [ctrack (fromIntegral step) inst1 sub_bids])
         forM_ sub_bids $ \sub -> go ruler_id sub (depth-1)
-
-default_block = UiTest.default_block_name
 
 mkblock :: (State.M m) => [UiTest.TrackSpec] -> m ()
 mkblock tracks = do
-    UiTest.mkstate default_block tracks
+    UiTest.mkblock (UiTest.default_block_name, tracks)
     tinfo <- State.get_track_info UiTest.default_block_id
     -- Track slicing makes things much slower.  I should profile that too, but
     -- let's profile without it first.

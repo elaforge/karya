@@ -19,10 +19,10 @@ import qualified Derive.Score as Score
 
 test_modify_tempo = do
     let ustate = UiTest.exec State.empty $ do
-            UiTest.mkstate_view UiTest.default_block_name
+            UiTest.mkblock_view (UiTest.default_block_name,
                 [ ("tempo", [(0, 0, "1")])
                 , (">i", [(0, 1, ""), (1, 1, "")])
-                ]
+                ])
             CmdTest.set_point_sel 1 0
             (rid, _) <- Create.ruler "meter_44"
                 (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])

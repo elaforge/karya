@@ -76,8 +76,9 @@ test_modify_note = do
 
 test_transpose = do
     let f octs degs event = PitchTrack.transpose Twelve.scale octs degs
-            (UiTest.mkevent event)
-    equal (f 0 1 (0, 1, "4c")) (Just (UiTest.mkevent (0, 1, "4c#")))
-    equal (f 1 0 (0, 1, "4c")) (Just (UiTest.mkevent (0, 1, "5c")))
+            (UiTest.make_event event)
+    equal (f 0 1 (0, 1, "4c")) (Just (UiTest.make_event (0, 1, "4c#")))
+    equal (f 1 0 (0, 1, "4c")) (Just (UiTest.make_event (0, 1, "5c")))
     equal (f 20 0 (0, 1, "4c")) Nothing
-    equal (f 1 0 (0, 1, "i (4c 5)")) (Just (UiTest.mkevent (0, 1, "i (5c 5)")))
+    equal (f 1 0 (0, 1, "i (4c 5)"))
+        (Just (UiTest.make_event (0, 1, "i (5c 5)")))

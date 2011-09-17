@@ -28,10 +28,10 @@ test_show_step = do
 
 test_get_points = do
     let ustate = UiTest.exec State.empty $ do
-            UiTest.mkstate UiTest.default_block_name
+            UiTest.mkblock (UiTest.default_block_name,
                 [ (">", [(0, 1, "a"), (2, 1, "b")])
                 , ("c", [(0, 0, "1"), (5, 0, "2")])
-                ]
+                ])
             State.modify_ruler UiTest.default_ruler_id $
                 const (UiTest.mkruler 8 1)
     let f pos step = UiTest.eval ustate $

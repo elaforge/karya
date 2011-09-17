@@ -41,7 +41,7 @@ mkstates :: [UiTest.TrackSpec] -> States
 mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
     where
     ui_state = UiTest.exec State.empty $ do
-        UiTest.mkstate_view UiTest.default_block_name tracks
+        UiTest.mkblock_view (UiTest.default_block_name, tracks)
         State.set_selection UiTest.default_view_id Config.insert_selnum
             (Just (Types.selection 1 0 1 0))
 
