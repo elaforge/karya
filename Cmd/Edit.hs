@@ -112,10 +112,10 @@ cmd_move_event_forward = move_event $ \pos events ->
 
 cmd_move_event_back :: (Cmd.M m) => m ()
 cmd_move_event_back = move_event $ \pos events ->
-    case Seq.head (Events.at_after pos events) of
-        Just (epos, _) | epos == pos -> Nothing
-        Just next -> Just next
-        Nothing -> Nothing
+    case Events.at_after pos events of
+        (epos, _) : _ | epos == pos -> Nothing
+        next : _ -> Just next
+        [] -> Nothing
 
 move_event :: (Cmd.M m) =>
     (ScoreTime -> Events.Events -> Maybe Events.PosEvent) -> m ()
@@ -199,11 +199,11 @@ cmd_set_beginning = do
         (pre, post) <- Events.split pos . Track.track_events <$>
             State.get_track track_id
         let set = set_beginning track_id pos
-        case (Seq.head pre, Seq.head post) of
-            (Just prev, _) | Events.overlaps pos prev -> set prev
-            (_, Just next) | Events.overlaps pos next -> set next
-            (_, Just next) | Events.positive next -> set next
-            (Just prev, _) | Events.negative prev -> set prev
+        case (pre, post) of
+            (prev:_, _) | Events.overlaps pos prev -> set prev
+            (_, next:_) | Events.overlaps pos next -> set next
+            (_, next:_) | Events.positive next -> set next
+            (prev:_, _) | Events.negative prev -> set prev
             _ -> return ()
     where
     set_beginning track_id start (pos, event) = do

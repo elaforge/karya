@@ -575,7 +575,7 @@ relative_realtime_point perf maybe_root_sel (block_id, _, track_id, pos) =
 point_to_real :: Transport.TempoFunction -> Maybe Point -> RealTime
 point_to_real _ Nothing = 0
 point_to_real tempo (Just (block_id, _, track_id, pos)) =
-    maybe 0 id $ Seq.head $ tempo block_id track_id pos
+    Maybe.fromMaybe 0 $ Seq.head $ tempo block_id track_id pos
 
 -- ** select events
 
