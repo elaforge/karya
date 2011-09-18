@@ -10,21 +10,19 @@ import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import Ui
 import qualified Ui.Types as Types
-
+import qualified Derive.Stack as Stack
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-
-import qualified Derive.Stack as Stack
 
 
 -- * Event
@@ -188,14 +186,25 @@ warp_pos pos warp@(Warp sig shift stretch)
 
 -- | Unlike 'warp_pos', 'unwarp_pos' can fail.  This asymmetry is because
 -- at_linear will project a signal on forever, but inverse_at won't.
--- TODO this behaviour is important for playback, but maybe I could have
--- another projecting version to get rid of the Maybe here.  It would be
--- projecting at 1:1 instead of 0:1 which might be a little odd, but
--- convenient.
 unwarp_pos :: RealTime -> Warp -> Maybe ScoreTime
 unwarp_pos pos (Warp sig shift stretch) = case Signal.inverse_at pos sig of
     Nothing -> Nothing
     Just p -> Just $ (to_score p - shift) / stretch
+
+-- | A version of 'unwarp_pos' that doesn't fail, by assuming the end of the
+-- warp extends linearly.
+--
+-- TODO This is likely to be wrong, but doesn't need to be precie anyway since
+-- this is only used by 'Derive.Cache.extend_damage' and only then because it
+-- does ScoreTime -> RealTime -> ScoreTime, which loses information.
+-- Hopefully I can gt rid of all of this when I make RealTime and ScoreTime
+-- the same type.
+safe_unwarp_pos :: RealTime -> Warp -> ScoreTime
+safe_unwarp_pos pos warp@(Warp sig shift stretch) =
+    Maybe.fromMaybe extended (unwarp_pos pos warp)
+    where
+    (x, y) = Maybe.fromMaybe (0, 0) (Signal.last sig)
+    extended = to_score (x + (pos - Signal.y_to_real y)) - shift / stretch
 
 -- | Compose two warps.  Warps with id signals are optimized.
 compose_warps :: Warp -> Warp -> Warp

@@ -40,7 +40,7 @@ UNSORTED
       * when you click on the parent, show selection pos on the child too
       - show derivation of child inside caller, I think I want to do this
         anyway, but it's hard, how do I fit all that stuff in?
-      - merge child rulers with parent?
+      * merge child rulers with parent?
       But it still seems a bit awkward because I do want the tempo associated
       with the music, e.g. when I play by itself.  On the other hand, if the
       block repeats do I want the tempo to repeat as well?  Sometimes yes,
@@ -303,6 +303,10 @@ use fixed-binary instead of Doubles for ScoreTime and RealTime:
   reasons not to do it:
     - what to do about -0?  I could disallow 0 dur events and make control
       events have an eta dur
+    - will fixed64 be slower?
+  switch back to Double for RealTime, split from Timestamp for midi
+    - but floating point imprecision make controls not be clipped to their
+      notes properly.  I think this happened at the Deriver level, not Perform
 
 hs plugins:
   How can the plugins link against the core quickly?  They shouldn't link the

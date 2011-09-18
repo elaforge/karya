@@ -348,6 +348,31 @@ test_extend_tempo_damage = do
             State.insert_event (UiTest.mk_tid 0) 1 (Event.event "2" 0)
     equal (diff_events cached uncached) []
 
+test_damage_to_real_to_score = do
+    -- Doc in 'Derive.Score.safe_unwarp_pos', this fails due to roundoff.
+    let create = do
+            mapM_ UiTest.mkblock_skel state
+            return (UiTest.bid "order")
+    let (_, cached, uncached) = compare_cached create $
+            State.insert_event (UiTest.tid "order.t0") 67 (Event.event "5" 0)
+    equal (diff_events cached uncached) []
+    let (events, logs) = DeriveTest.extract Score.event_start cached
+    equal (length events) 2
+    equal logs []
+    where
+    state =
+        [ (("order",
+            [("tempo", [(0.0, 0.0, "6")]),
+            (">ptq/c1", [(0.0, 61.0, "b0"), (61.0, 61.0, "b1")])]),
+            [(1, 2)])
+        , (("b0", [(">", [(0.0, 1, "")])]), [])
+        , (("b1",
+            [ (">", [(0.0, 1, "")])
+            , ("*", [(0.0, 0.0, "4d")])
+            ]),
+        [(1, 2)])
+        ]
+
 -- ** support
 
 -- | The toplevel block is just about always damaged.

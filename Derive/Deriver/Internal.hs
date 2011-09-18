@@ -156,7 +156,7 @@ real pos = do
 score :: RealTime -> Deriver ScoreTime
 score pos = do
     warp <- get_dynamic state_warp
-    maybe (throw $ "score: out of range: " ++ show pos ++ " in " ++ show warp) return
+    maybe (throw $ "score: out of range: " ++ show pos) return
         (Score.unwarp_pos pos warp)
 
 in_real_time :: Deriver a -> Deriver a

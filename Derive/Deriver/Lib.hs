@@ -136,13 +136,11 @@ error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
 get_stack :: Deriver Stack.Stack
 get_stack = gets (state_stack . state_dynamic)
 
--- | Version of 'score' that throws an exception with a msg.  Since score can
--- fail it's particularly error-prone.
-score_msg :: String -> RealTime -> Deriver ScoreTime
-score_msg msg pos = do
+-- | 'score' that doesn't throw.  See 'Score.safe_unwarp_pos'.
+safe_score :: RealTime -> Deriver ScoreTime
+safe_score pos = do
     warp <- Internal.get_dynamic state_warp
-    maybe (throw $ msg ++ ": score: out of range: " ++ show pos) return
-        (Score.unwarp_pos pos warp)
+    return $ Score.safe_unwarp_pos pos warp
 
 -- ** scale
 
