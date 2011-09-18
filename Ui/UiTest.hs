@@ -4,6 +4,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified System.IO as IO
 
+import Util.Control
 import qualified Util.Rect as Rect
 import Ui
 import qualified Ui.Block as Block
@@ -28,11 +29,12 @@ import qualified App.Config as Config
 
 pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 
--- (10, 50) seems to be the smallest x,y os x will accept.  Apparently
+-- | (10, 50) seems to be the smallest x,y OS X will accept.  Apparently
 -- fltk's sizes don't take the menu bar into account, which is about 44 pixels
 -- high, so a y of 44 is the minimum.
+default_rect :: Rect.Rect
 default_rect = Rect.xywh 10 50 200 200
-
+default_divider :: Block.Divider
 default_divider = Block.Divider Color.blue
 
 -- state
@@ -57,7 +59,9 @@ save ui_state fname = do
 
 -- * monadic mk- functions
 
+-- | (block_name, tracks)
 type BlockSpec = (String, [TrackSpec])
+-- | (track_title, events)
 type TrackSpec = (String, [(Double, Double, String)])
 
 -- | Often tests work with a single block, or a single view.  To make them
@@ -117,6 +121,10 @@ mkblock block = do
         (const (return default_ruler_id)) maybe_rid
     mkblock_ruler ruler_id block
 
+mkblock_skel :: (State.M m) => (BlockSpec, [Skeleton.Edge]) -> m [TrackId]
+mkblock_skel (block, skel) =
+    mkblock block <* State.set_skeleton (bid (fst block)) (Skeleton.make skel)
+
 -- | Like 'mkblock', but uses the provided ruler instead of creating its
 -- own.  Important if you are creating multiple blocks and don't want
 -- a separate ruler for each.
@@ -133,6 +141,7 @@ mkblock_ruler ruler_id (block_name, tracks) = do
     State.set_skeleton block_id =<< parse_skeleton block_id
     return tids
 
+parse_skeleton :: (State.M m) => BlockId -> m Skeleton.Skeleton
 parse_skeleton block_id = do
     tracks <- State.get_track_info block_id
     return $ Schema.default_parser tracks
@@ -145,10 +154,7 @@ mkview block_id = do
     return view_id
 
 mkblock_view :: (State.M m) => BlockSpec -> m [TrackId]
-mkblock_view block_spec = do
-    r <- mkblock block_spec
-    mkview (bid (fst block_spec))
-    return r
+mkblock_view block_spec = mkblock block_spec <* mkview (bid (fst block_spec))
 
 mk_vid :: BlockId -> ViewId
 mk_vid block_id = Types.ViewId $ Id.id ns ("v." ++ block_name)
@@ -174,6 +180,22 @@ mk_tid_name = mk_tid_block . bid
 
 from_dump :: Simple.Block -> (BlockId, State.State)
 from_dump dump = run State.empty (Simple.make_block Block.default_config dump)
+
+-- * state to spec
+
+-- | These can be used from 'Cmd.Lang.LState.save_test' to dump state in
+-- a form that can be pasted into a test, trimmed down by hand, and passed to
+-- 'mkblock_skel'.  This way problems that show up in the app can be pasted
+-- into a test.
+to_spec :: State.State -> [(BlockSpec, [Skeleton.Edge])]
+to_spec state = map (block_to_spec state) (Map.keys (State.state_blocks state))
+
+block_to_spec :: State.State -> BlockId -> (BlockSpec, [Skeleton.Edge])
+block_to_spec state block_id = ((block_name, map dump_track tracks), skel)
+    where
+    (id_str, _, tracks, skel) = eval state (Simple.dump_block block_id)
+    block_name = snd (Id.un_id (Id.read_id id_str))
+    dump_track (_, title, events) = (title, events)
 
 -- * view
 

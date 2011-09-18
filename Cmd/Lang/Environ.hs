@@ -43,6 +43,7 @@ import qualified Cmd.Lang.LInst as LInst
 import qualified Cmd.Lang.LPerf as LPerf
 import qualified Cmd.Lang.LPitch as LPitch
 import qualified Cmd.Lang.LRuler as LRuler
+import qualified Cmd.Lang.LState as LState
 import qualified Cmd.Lang.LTrack as LTrack
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.ModifyEvents as ModifyEvents
