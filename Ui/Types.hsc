@@ -1,13 +1,17 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Miscellaneous low level types with few dependencies.
 module Ui.Types (
     TrackNum, Width, SelNum, MouseButton
     , Zoom(..)
     , zoom_to_pixels, zoom_to_time
 
+    -- * ScoreTime
     , ScoreTime, score_to_double, double_to_score
+
+    -- * ID
     , BlockId(..), ViewId(..), SchemaId(..), TrackId(..), RulerId(..)
 
+    -- * Selection
     , Selection(..), selection, point_selection, sel_is_point
     , sel_modify_tracks, sel_expand_tracks, sel_track_range, sel_tracknums
     , sel_range, sel_set_duration
@@ -16,6 +20,7 @@ import qualified Control.DeepSeq as DeepSeq
 import Text.Read -- for Read class with readPrec
 import Foreign
 import Foreign.C
+import qualified Text.Read as Read
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -93,7 +98,7 @@ zoom_to_time zoom pixels =
 -- is dependent on the score context.  ScoreTime units can be negative, but
 -- blocks only display events at >=0 ScoreTime.
 newtype ScoreTime = ScoreTime Double
-    deriving (Num, Fractional, Real, Show, Eq, Ord, Read, DeepSeq.NFData)
+    deriving (Num, Fractional, Real, Eq, Ord, DeepSeq.NFData)
 
 instance Storable ScoreTime where
     sizeOf _ = #size ScoreTime
@@ -108,13 +113,17 @@ instance Serialize.Serialize ScoreTime where
     put (ScoreTime a) = Serialize.put a
     get = fmap ScoreTime Serialize.get
 
--- TODO this would be more consistent with RealTime and nicer on the eyes, but
--- then I have to write a Read for it.
--- instance Show ScoreTime where
---     show (ScoreTime t) = show t ++ "t"
+-- t is for time, since RealTime uses s for seconds
+instance Show ScoreTime where
+    show (ScoreTime n) = show n ++ "t"
+
+instance Read.Read ScoreTime where
+    readPrec = do
+        n <- Read.readPrec
+        't' <- Read.get
+        return (ScoreTime n)
 
 instance Pretty.Pretty ScoreTime where
-    -- t is for time, since RealTime uses s for seconds
     pretty (ScoreTime p) = Pretty.show_float (Just 3) p ++ "t"
 
 score_to_double :: ScoreTime -> Double

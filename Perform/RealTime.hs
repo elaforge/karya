@@ -9,6 +9,7 @@ import qualified Data.Int as Int
 import qualified Data.Ratio as Ratio
 #endif
 import qualified Foreign as Foreign
+import qualified Text.Read as Read
 
 import qualified Util.Pretty as Pretty
 
@@ -28,6 +29,11 @@ newtype RealTime = RealTime Int.Int64
 -- anyway.
 instance Show RealTime where
     show t = show (to_seconds t) ++ "s"
+instance Read.Read RealTime where
+    readPrec = do
+        n <- Read.readPrec
+        's' <- Read.get
+        return (seconds n)
 instance Pretty.Pretty RealTime where
     pretty t = Pretty.show_float (Just 2) (to_seconds t) ++ "s"
 
