@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Midi.Midi as Midi
@@ -430,8 +431,8 @@ test_tempo_funcs1 = do
     equal (map (inv_tempo res) [0, 2 .. 10])
         [[b0 0], [b0 4], [b0 8], [b0 12], [b0 16], []]
 
-    equal (map (r_tempo res bid t_tid) [0, 2 .. 10])
-        (map ((:[]) . RealTime.seconds) [0..5])
+    equal (map (r_tempo res bid t_tid) (Seq.range 0 10 2))
+        (map ((:[]) . RealTime.seconds) (Seq.range 0 5 1))
 
 test_tempo_funcs2 = do
     let ([t_tid1, tid1, t_tid2, tid2], ui_state) = UiTest.run State.empty $
@@ -442,10 +443,10 @@ test_tempo_funcs2 = do
         bid = UiTest.bid "b0"
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_logs res) []
-    equal (map (r_tempo res bid t_tid1) [0, 2 .. 10])
-        (map ((:[]) . RealTime.seconds) [0..5])
-    equal (map (r_tempo res bid t_tid2) [0, 2 .. 10])
-        (map ((:[]) . RealTime.seconds) [0, 2 .. 10])
+    equal (map (r_tempo res bid t_tid1) (Seq.range 0 10 2))
+        (map ((:[]) . RealTime.seconds) (Seq.range 0 5 1))
+    equal (map (r_tempo res bid t_tid2) (Seq.range 0 10 2))
+        (map ((:[]) . RealTime.seconds) (Seq.range 0 10 2))
     let b0 pos = (bid, [(t_tid1, pos), (tid1, pos)])
         b1 pos = (bid, [(t_tid2, pos), (tid2, pos)])
 
@@ -563,7 +564,8 @@ test_tempo_roundtrip = do
                 0 10 UiTest.default_block_id [track_id] warp]
     let inv = TrackWarp.inverse_tempo_func track_warps
         tempo = TrackWarp.tempo_func track_warps
-    let rtimes = concatMap (tempo UiTest.default_block_id track_id) [0..3]
+    let rtimes = concatMap (tempo UiTest.default_block_id track_id)
+            (Seq.range 0 3 1)
         stimes = concatMap inv rtimes
     pprint rtimes
     pprint stimes

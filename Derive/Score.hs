@@ -172,8 +172,10 @@ id_warp = signal_to_warp id_warp_signal
 
 id_warp_signal :: Signal.Warp
     -- TODO this is ugly, but would disappear if I decide to make warps
-    -- implicitly end with 1/1
-id_warp_signal = Signal.signal [(0, 0), (RealTime.seconds (2^32), 2^32)]
+    -- implicitly end with 1/1.  The numbers have to be big enough to not be
+    -- exceeded in normal work, but not so big they overflow.
+id_warp_signal = Signal.signal [(0, 0),
+    (RealTime.large, RealTime.to_seconds RealTime.large)]
 
 is_id_warp :: Warp -> Bool
 is_id_warp = (== id_warp)

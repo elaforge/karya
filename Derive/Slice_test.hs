@@ -157,5 +157,5 @@ make_controls2 title ps = (title, [(to_score p, 0, val) | (p, val) <- ps])
 to_score = Types.double_to_score . fromIntegral
 
 make_notes :: ScoreTime -> String -> (String, [Event])
-make_notes offset notes =
-    (">", zipWith (\start note -> (start, 1, note : "")) [offset..] notes)
+make_notes offset notes = (">",
+    zipWith (\start note -> (start, 1, note : "")) (Seq.range_ offset 1) notes)

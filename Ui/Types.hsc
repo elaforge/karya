@@ -1,7 +1,18 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
 -- | Miscellaneous low level types with few dependencies.
-module Ui.Types where
-import Control.DeepSeq
+module Ui.Types (
+    TrackNum, Width, SelNum, MouseButton
+    , Zoom(..)
+    , zoom_to_pixels, zoom_to_time
+
+    , ScoreTime, score_to_double, double_to_score
+    , BlockId(..), ViewId(..), SchemaId(..), TrackId(..), RulerId(..)
+
+    , Selection(..), selection, point_selection, sel_is_point
+    , sel_modify_tracks, sel_expand_tracks, sel_track_range, sel_tracknums
+    , sel_range, sel_set_duration
+) where
+import qualified Control.DeepSeq as DeepSeq
 import Text.Read -- for Read class with readPrec
 import Foreign
 import Foreign.C
@@ -9,6 +20,7 @@ import Foreign.C
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
+import qualified Util.Serialize as Serialize
 
 import qualified Ui.Id as Id
 
@@ -81,8 +93,7 @@ zoom_to_time zoom pixels =
 -- is dependent on the score context.  ScoreTime units can be negative, but
 -- blocks only display events at >=0 ScoreTime.
 newtype ScoreTime = ScoreTime Double
-    deriving (Num, Enum, Show, Real, Floating, Fractional, RealFrac, RealFloat,
-        Eq, Ord, Read, NFData)
+    deriving (Num, Fractional, Real, Show, Eq, Ord, Read, DeepSeq.NFData)
 
 instance Storable ScoreTime where
     sizeOf _ = #size ScoreTime
@@ -92,6 +103,10 @@ instance Storable ScoreTime where
         return (ScoreTime v)
     poke posp (ScoreTime pos) =
         (#poke ScoreTime, _val) posp pos
+
+instance Serialize.Serialize ScoreTime where
+    put (ScoreTime a) = Serialize.put a
+    get = fmap ScoreTime Serialize.get
 
 -- TODO this would be more consistent with RealTime and nicer on the eyes, but
 -- then I have to write a Read for it.
@@ -114,22 +129,22 @@ double_to_score = ScoreTime
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
 newtype BlockId = BlockId Id.Id
-    deriving (Eq, Ord, NFData)
+    deriving (Eq, Ord, DeepSeq.NFData)
 
 -- | Reference to a View, as per 'BlockId'.
 newtype ViewId = ViewId Id.Id
-    deriving (Eq, Ord, NFData)
+    deriving (Eq, Ord, DeepSeq.NFData)
 
 -- | Reference to a schema.  Declared here instead of Deriver.Schema to avoid
 -- a circular import.
 newtype SchemaId = SchemaId Id.Id
-    deriving (Eq, Ord, NFData)
+    deriving (Eq, Ord, DeepSeq.NFData)
 
 newtype TrackId = TrackId Id.Id
-    deriving (Eq, Ord, NFData)
+    deriving (Eq, Ord, DeepSeq.NFData)
 
 newtype RulerId = RulerId Id.Id
-    deriving (Eq, Ord, NFData)
+    deriving (Eq, Ord, DeepSeq.NFData)
 
 instance Show BlockId where show = Id.show_ident
 instance Show ViewId where show = Id.show_ident

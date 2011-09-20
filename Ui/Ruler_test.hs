@@ -1,14 +1,16 @@
 module Ui.Ruler_test where
 import qualified Data.Map as Map
+
 import Util.Control
 import Util.Test
-
 import Ui
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Types as Types
 
 
-marklist ps =
-    Ruler.Marklist $ Map.fromList [(p, mark (floor p)) | p <- ps]
+marklist :: [ScoreTime] -> Ruler.Marklist
+marklist ps = Ruler.Marklist $
+    Map.fromList [(p, mark (floor (Types.score_to_double p))) | p <- ps]
 
 extract :: Ruler.Marklist -> [(ScoreTime, Int)]
 extract (Ruler.Marklist a) =

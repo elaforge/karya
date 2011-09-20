@@ -170,7 +170,8 @@ convert_note maybe_prev at (Note pitch _ effects)
 -- is actually in frames which are in the song config (and set by effects), but
 -- I just hardcode it for the moment.
 note_start :: [Effect] -> ScoreTime -> ScoreTime
-note_start effects at = at + recip frames * Types.ScoreTime (fromIntegral delay)
+note_start effects at =
+    at + recip frames * Types.double_to_score (fromIntegral delay)
     where
     delay = maybe 0 id $ Seq.maximum $ map delay_effect effects
     frames = 8
@@ -185,7 +186,7 @@ convert_controls :: [Note] -> [ControlTrack]
 convert_controls notes = Map.assocs cont_vals
     where
     cont_vals = Map.map (map to_event) $
-        Map.multimap (concat (zipWith mkcont [0..] notes))
+        Map.multimap (concat (zipWith mkcont (Seq.range_ 0 1) notes))
     mkcont at note = [(cont, (note_start (note_effects note) at, val))
         | (cont, val) <- note_controls note]
     to_event (pos, val) = (pos, Event.event val 0)

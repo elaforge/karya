@@ -30,8 +30,8 @@ cmd_zoom_around view_id pos f = do
 zoom_around :: Types.Zoom -> Types.ScoreTime -> (Double -> Double)
     -> Types.Zoom
 zoom_around (Types.Zoom offset factor) pos f =
-    Types.Zoom (zoom_pos offset pos (Types.ScoreTime factor)
-        (Types.ScoreTime newf)) newf
+    Types.Zoom (zoom_pos offset pos (Types.double_to_score factor)
+        (Types.double_to_score newf)) newf
     where newf = f factor
 
 zoom_pos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime

@@ -12,10 +12,9 @@ import Data.FixedList (Cons(..), Nil(..))
 
 import Ui
 import qualified Ui.Types as Types
-
-import Derive.CallSig (optional, required_control, control)
-import qualified Derive.CallSig as CallSig
 import qualified Derive.Call.Util as Util
+import qualified Derive.CallSig as CallSig
+import Derive.CallSig (optional, required_control, control)
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
@@ -39,7 +38,7 @@ c_delay :: Derive.NoteCall
 c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
     (optional "time" (required_control "delay-time")) $ \time ->
     Util.with_controls args (time :. Nil) $ \(time :. Nil) ->
-        Derive.d_at (Types.ScoreTime time) deriver
+        Derive.d_at (Types.double_to_score time) deriver
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
 -- happen in score time, so they will change tempo with the rest of the score,

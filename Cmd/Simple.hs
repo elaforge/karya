@@ -49,7 +49,7 @@ type ScoreEvent = (Double, Double, String, Pitch.Degree)
 type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 
 from_score :: ScoreTime -> Double
-from_score (Types.ScoreTime d) = d
+from_score = Types.score_to_double
 
 from_real :: RealTime -> Double
 from_real = RealTime.to_seconds
@@ -136,4 +136,4 @@ convert_track (id_name, title, events) = do
 
 convert_event :: Event -> Events.PosEvent
 convert_event (start, dur, text) =
-    (Types.ScoreTime start, Event.event text (Types.ScoreTime dur))
+    (Types.double_to_score start, Event.event text (Types.double_to_score dur))

@@ -139,7 +139,7 @@ check val err
 check_ = check (return ())
 
 decode_time :: CTimestamp -> RealTime
-decode_time = RealTime.microseconds . (*1000) . fromIntegral
+decode_time = RealTime.milliseconds . fromIntegral
 
 encode_time :: RealTime -> CTimestamp
-encode_time = fromIntegral . (`div` 1000) . max 0 . RealTime.to_microseconds
+encode_time = fromIntegral . max 0 . RealTime.to_milliseconds

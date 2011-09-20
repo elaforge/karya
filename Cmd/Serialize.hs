@@ -373,10 +373,6 @@ instance Serialize Types.Selection where
 
 -- ** Types, Color, Font
 
-instance Serialize ScoreTime where
-    put (Types.ScoreTime a) = put a
-    get = Types.ScoreTime <$> get
-
 instance Serialize Color.Color where
     put (Color.Color a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->

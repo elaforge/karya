@@ -43,7 +43,7 @@ test_get_points = do
     equal (f 0 (mk 1 (Absolute 3))) (Just [0, 6])
     equal (f 0 (mk 0 (AbsoluteMark AllMarklists 1))) (Just [0, 4])
     equal (f 1 (mk 0 (AbsoluteMark AllMarklists 1))) (Just [0, 4])
-    equal (f 0 (mk 0 (AbsoluteMark AllMarklists 2))) (Just [0..7])
+    equal (f 0 (mk 0 (AbsoluteMark AllMarklists 2))) (Just (Seq.range 0 7 1))
     equal (f 0 (mk 1 (AbsoluteMark AllMarklists 2))) (Just [0, 2, 4, 6])
     equal (f 0 (mk 0 (RelativeMark AllMarklists 1))) (Just [0, 4])
     equal (f 1 (mk 0 (RelativeMark AllMarklists 1))) (Just [1, 5])
@@ -62,7 +62,7 @@ test_get_points = do
         merged (EventStart (TrackNums [1])) (EventEnd (TrackNums [2]))
 
 test_step_from_points = do
-    let f n pos = TimeStep.step_from_points n pos [1..4]
+    let f n pos = TimeStep.step_from_points n pos (Seq.range 1 4 1)
     equal (f 1 0) (Just 1)
     equal (f 2 0) (Just 2)
     equal (f 1 1) (Just 2)

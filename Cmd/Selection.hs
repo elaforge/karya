@@ -310,7 +310,7 @@ auto_time_scroll view sel
     view_start = Types.zoom_offset (Block.view_zoom view)
     view_end = view_start + visible
     scroll_to = Types.sel_cur_pos sel
-    space = Types.ScoreTime
+    space = Types.double_to_score
         (visible_pixels / Types.zoom_factor (Block.view_zoom view))
     visible_pixels = 30
 
@@ -347,8 +347,9 @@ sync_selection view_id maybe_sel = do
         Info.set_inst_status block_id . Types.sel_cur_track
 
 selection_status :: Types.Selection -> String
-selection_status sel = Pretty.show_float (Just 3) start
-    ++ if start == end then "" else "-" ++ Pretty.show_float (Just 3) end
+selection_status sel =
+    Pretty.pretty start
+        ++ if start == end then "" else "-" ++ Pretty.pretty end
     where (start, end) = Types.sel_range sel
 
 -- ** mouse

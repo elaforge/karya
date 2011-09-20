@@ -12,8 +12,8 @@ module Derive.Stack (
     -- * ui
     , UiFrame, to_ui, unparse_ui_frame, unparse_ui_frame_, parse_ui_frame
 ) where
-import Prelude hiding (length)
 import qualified Prelude
+import Prelude hiding (length)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
 
@@ -157,7 +157,7 @@ unparse_ui_frame (bid, maybe_tid, maybe_range) =
     tid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from ++ "-" ++ float to) maybe_range
-    float = Parse.show_float (Just 2)
+    float = Parse.show_float (Just 2) . Types.score_to_double
 
 -- | This is like 'unparse_ui_frame' except it omits the namespaces for a less
 -- cluttered but potentially ambiguous output.
@@ -169,7 +169,7 @@ unparse_ui_frame_ (bid, maybe_tid, maybe_range) =
     tid_s = maybe "*" (Id.id_name . Id.unpack_id) maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from ++ "-" ++ float to) maybe_range
-    float = Parse.show_float (Just 2)
+    float = Parse.show_float (Just 2) . Types.score_to_double
 
 parse_ui_frame :: String -> Maybe UiFrame
 parse_ui_frame = Parse.maybe_parse_string $ do

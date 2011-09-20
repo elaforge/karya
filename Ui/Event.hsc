@@ -31,6 +31,7 @@ import Foreign.C
 
 import Ui
 import qualified Ui.Style as Style
+import qualified Ui.Types as Types
 
 import qualified App.Config as Config
 
@@ -67,7 +68,7 @@ is_positive = not . is_negative
 is_negative = is_negative_duration . event_duration
 
 is_negative_duration, is_positive_duration :: ScoreTime -> Bool
-is_negative_duration d = d < 0 || isNegativeZero d
+is_negative_duration d = d < 0 || isNegativeZero (Types.score_to_double d)
 is_positive_duration = not . is_negative_duration
 
 

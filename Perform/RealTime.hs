@@ -69,8 +69,10 @@ infixl 7 `mul`
 time_factor :: Int.Int64
 time_factor = 1000000
 
-max :: RealTime
-max = RealTime maxBound
+-- | A large RealTime that is also not the max bound so it won't overflow
+-- too easily, and will also fit in a Signal.Y.
+large :: RealTime
+large = RealTime (2^32)
 
 -- * convert to
 

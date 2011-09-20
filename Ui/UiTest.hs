@@ -6,6 +6,8 @@ import qualified System.IO as IO
 
 import Util.Control
 import qualified Util.Rect as Rect
+import qualified Util.Seq as Seq
+
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -264,7 +266,7 @@ ruler mlists =
     Ruler.Ruler (Map.fromList mlists) ruler_bg True False False False
 ruler_bg = Color.rgb 1 0.85 0.5
 marklist n dist = (MakeRuler.meter_marklist,
-    Ruler.marklist (take n $ zip [0, dist ..] m44))
+    Ruler.marklist (take n $ zip (Seq.range_ 0 dist) m44))
 m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
 major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
 minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0

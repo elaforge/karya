@@ -220,13 +220,13 @@ d_tempo :: ScoreTime
 d_tempo block_dur maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
     root <- is_root_block
-    stretch_to_1 <- if root then return id
-        else do
-            real_dur <- with_warp (const warp) (real block_dur)
-            -- Log.debug $ "dur, global dur "
-            --     ++ show (block_id, block_dur, real_dur)
-            return $ if block_dur == 0 then id
-                else d_stretch (1 / RealTime.to_score real_dur)
+    stretch_to_1 <- if root then return id else do
+        real_dur <- with_warp (const warp) (real block_dur)
+        return $ if block_dur == 0 then id
+            else if real_dur == 0
+            then const $ throw $ "real time of non-zero block dur "
+                ++ show block_dur ++ " was zero"
+            else d_stretch (1 / RealTime.to_score real_dur)
     stretch_to_1 $ d_warp warp $ do
         add_new_track_warp maybe_track_id
         deriver

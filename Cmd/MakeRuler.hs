@@ -185,7 +185,7 @@ marks_to_ruler marks = (meter_marklist, Ruler.marklist pos_marks)
     mark dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks
             zoom = if dur == 0 then 0
-                else fromIntegral pixels / realToFrac dur
+                else fromIntegral pixels / Types.score_to_double dur
         in Ruler.Mark rank width color name (zoom*2) zoom
     ranks = length meter_ranks
 
