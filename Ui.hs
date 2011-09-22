@@ -5,6 +5,7 @@ module Ui (
     , BlockId, ViewId, SchemaId, TrackId, RulerId
 ) where
 
+import Ui.ScoreTime
 import Ui.Types
 -- Ok ok so it's not all from Ui any more, but RealTime is still used along
 -- with ScoreTime just about everywhere in Derive.

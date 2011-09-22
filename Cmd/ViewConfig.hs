@@ -3,6 +3,7 @@ module Cmd.ViewConfig where
 import qualified Util.Rect as Rect
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
@@ -27,11 +28,10 @@ cmd_zoom_around view_id pos f = do
     zoom <- State.get_zoom view_id
     set_zoom view_id (zoom_around zoom pos f)
 
-zoom_around :: Types.Zoom -> Types.ScoreTime -> (Double -> Double)
-    -> Types.Zoom
+zoom_around :: Types.Zoom -> ScoreTime -> (Double -> Double) -> Types.Zoom
 zoom_around (Types.Zoom offset factor) pos f =
-    Types.Zoom (zoom_pos offset pos (Types.double_to_score factor)
-        (Types.double_to_score newf)) newf
+    Types.Zoom (zoom_pos offset pos (ScoreTime.double factor)
+        (ScoreTime.double newf)) newf
     where newf = f factor
 
 zoom_pos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime
@@ -53,7 +53,7 @@ zoom_to_fit view_id = do
     view <- State.get_view view_id
     block_end <- State.block_event_end (Block.view_block view)
     let pixels = Block.view_visible_time view
-    let factor = fromIntegral pixels / Types.score_to_double block_end
+    let factor = fromIntegral pixels / ScoreTime.to_double block_end
     set_zoom view_id (Types.Zoom 0 factor)
 
 -- * resize

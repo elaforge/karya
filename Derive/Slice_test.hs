@@ -7,8 +7,8 @@ import Util.Test
 import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 
 import qualified Derive.Slice as Slice
 
@@ -154,7 +154,7 @@ make_controls title ps = (title, [(to_score p, 0, show p) | p <- ps])
 make_controls2 :: String -> [(Int, String)] -> (String, [Event])
 make_controls2 title ps = (title, [(to_score p, 0, val) | (p, val) <- ps])
 
-to_score = Types.double_to_score . fromIntegral
+to_score = ScoreTime.double . fromIntegral
 
 make_notes :: ScoreTime -> String -> (String, [Event])
 make_notes offset notes = (">",

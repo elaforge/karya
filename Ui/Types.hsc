@@ -5,9 +5,6 @@ module Ui.Types (
     , Zoom(..)
     , zoom_to_pixels, zoom_to_time
 
-    -- * ScoreTime
-    , ScoreTime, score_to_double, double_to_score
-
     -- * ID
     , BlockId(..), ViewId(..), SchemaId(..), TrackId(..), RulerId(..)
 
@@ -25,9 +22,10 @@ import qualified Text.Read as Read
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
-import qualified Util.Serialize as Serialize
 
 import qualified Ui.Id as Id
+import qualified Ui.ScoreTime as ScoreTime
+import Ui.ScoreTime (ScoreTime)
 
 
 #include "Ui/c_interface.h"
@@ -84,53 +82,14 @@ instance Storable Zoom where
 -- | Convert a position at a given zoom factor to a pixel position.  Doesn't
 -- take the zoom offset into account.
 zoom_to_pixels :: Zoom -> ScoreTime -> Int
-zoom_to_pixels zoom pos = Num.d2i $ score_to_double pos * zoom_factor zoom
+zoom_to_pixels zoom pos = Num.d2i $ ScoreTime.to_double pos * zoom_factor zoom
 
--- | Convert a pixel position to a ScoreTime at the given zoom factor.  Doesn't
--- take the zoom offset into account.
+-- | Convert a pixel position to a ScoreTime at the given zoom factor.
+-- Doesn't take the zoom offset into account.
 zoom_to_time :: Zoom -> Int -> ScoreTime
 zoom_to_time zoom pixels =
-    double_to_score (fromIntegral pixels / zoom_factor zoom)
+    ScoreTime.double (fromIntegral pixels / zoom_factor zoom)
 
--- * ScoreTime
-
--- | Score time is the abstract unit of time, and its mapping to real time
--- is dependent on the score context.  ScoreTime units can be negative, but
--- blocks only display events at >=0 ScoreTime.
-newtype ScoreTime = ScoreTime Double
-    deriving (Num, Fractional, Real, Eq, Ord, DeepSeq.NFData)
-
-instance Storable ScoreTime where
-    sizeOf _ = #size ScoreTime
-    alignment _ = #{alignment ScoreTime}
-    peek posp = do
-        v <- (#peek ScoreTime, _val) posp :: IO Double
-        return (ScoreTime v)
-    poke posp (ScoreTime pos) =
-        (#poke ScoreTime, _val) posp pos
-
-instance Serialize.Serialize ScoreTime where
-    put (ScoreTime a) = Serialize.put a
-    get = fmap ScoreTime Serialize.get
-
--- t is for time, since RealTime uses s for seconds
-instance Show ScoreTime where
-    show (ScoreTime n) = show n ++ "t"
-
-instance Read.Read ScoreTime where
-    readPrec = do
-        n <- Read.readPrec
-        't' <- Read.get
-        return (ScoreTime n)
-
-instance Pretty.Pretty ScoreTime where
-    pretty (ScoreTime p) = Pretty.show_float (Just 3) p ++ "t"
-
-score_to_double :: ScoreTime -> Double
-score_to_double (ScoreTime p) = p
-
-double_to_score :: Double -> ScoreTime
-double_to_score = ScoreTime
 
 -- * ID
 

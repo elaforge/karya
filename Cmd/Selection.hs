@@ -25,6 +25,7 @@ import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -310,7 +311,7 @@ auto_time_scroll view sel
     view_start = Types.zoom_offset (Block.view_zoom view)
     view_end = view_start + visible
     scroll_to = Types.sel_cur_pos sel
-    space = Types.double_to_score
+    space = ScoreTime.double
         (visible_pixels / Types.zoom_factor (Block.view_zoom view))
     visible_pixels = 30
 

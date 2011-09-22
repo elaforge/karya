@@ -87,9 +87,9 @@ module Perform.Signal (
     , inverse_at, compose, integrate
     , equal, pitches_share
 ) where
+import qualified Prelude
 import Prelude hiding (last, truncate, length, null)
 import qualified Control.Arrow as Arrow
-import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
@@ -97,12 +97,9 @@ import qualified Foreign.Storable as Storable
 
 import qualified Util.Log as Log
 import qualified Util.Num as Num
-
 import qualified Midi.Midi as Midi
-
 import Ui
-import qualified Ui.Types as Types
-
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.RealTime as RealTime
 import qualified Perform.SignalBase as SignalBase
 
@@ -176,7 +173,7 @@ y_to_real = RealTime.seconds
 
 -- | Some control signals may be interpreted as score time.
 y_to_score :: Y -> ScoreTime
-y_to_score = Types.double_to_score
+y_to_score = ScoreTime.double
 
 -- * constants
 

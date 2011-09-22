@@ -5,8 +5,8 @@ import Util.Control
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Note as Note
@@ -60,7 +60,7 @@ test_invert_call = do
 make_tree = Slice_test.make_tree
 make_controls :: String -> [Int] -> (String, [Slice_test.Event])
 make_controls title ps = (title, [(to_score p, 0, show p) | p <- ps])
-to_score = Types.double_to_score . fromIntegral
+to_score = ScoreTime.double . fromIntegral
 
 mkargs :: String -> Slice_test.EventsTree -> Derive.PassedArgs d
 mkargs text subs = Derive.PassedArgs [] mempty call_id info

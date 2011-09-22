@@ -23,7 +23,7 @@ import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
-import qualified Ui.Types as Types
+import qualified Ui.ScoreTime as ScoreTime
 
 import qualified App.Config as Config
 
@@ -88,7 +88,7 @@ meter_ruler stretch meter = marks_to_ruler (meter_marks stretch meter)
 -- | Like 'meter_ruler', but stretch the meter to fit in the given duration.
 fit_ruler :: ScoreTime -> Meter -> (Ruler.Name, Ruler.Marklist)
 fit_ruler dur meter = meter_ruler stretch meter
-    where stretch = Types.score_to_double dur / realToFrac (meter_length meter)
+    where stretch = ScoreTime.to_double dur / realToFrac (meter_length meter)
 
 -- | A Meter is a structured description of how a unit of time is broken up
 -- into hiererchical sections.  A 'T' represents a mark with the given
@@ -185,7 +185,7 @@ marks_to_ruler marks = (meter_marklist, Ruler.marklist pos_marks)
     mark dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks
             zoom = if dur == 0 then 0
-                else fromIntegral pixels / Types.score_to_double dur
+                else fromIntegral pixels / ScoreTime.to_double dur
         in Ruler.Mark rank width color name (zoom*2) zoom
     ranks = length meter_ranks
 

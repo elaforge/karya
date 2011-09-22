@@ -25,7 +25,7 @@ import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Id as Id
-import qualified Ui.Types as Types
+import qualified Ui.ScoreTime as ScoreTime
 
 import qualified Derive.Call as Call
 import qualified Derive.CallSig as CallSig
@@ -221,7 +221,7 @@ _random_generator pos = do
     let track = maybe 0 (Hashable.hash . Id.show_id . Id.unpack_id) track_id
         cseed = Hashable.hash track
             `Hashable.hashWithSalt` Maybe.fromMaybe 0 seed
-            `Hashable.hashWithSalt` Types.score_to_double pos
+            `Hashable.hashWithSalt` ScoreTime.to_double pos
     return $ Pure64.pureMT (fromIntegral cseed)
 
 

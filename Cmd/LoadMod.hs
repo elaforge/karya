@@ -21,9 +21,9 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Create as Create
@@ -171,7 +171,7 @@ convert_note maybe_prev at (Note pitch _ effects)
 -- I just hardcode it for the moment.
 note_start :: [Effect] -> ScoreTime -> ScoreTime
 note_start effects at =
-    at + recip frames * Types.double_to_score (fromIntegral delay)
+    at + recip frames * ScoreTime.double (fromIntegral delay)
     where
     delay = maybe 0 id $ Seq.maximum $ map delay_effect effects
     frames = 8

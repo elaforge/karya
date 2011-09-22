@@ -17,7 +17,7 @@ import qualified Data.Set as Set
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Ui
-import qualified Ui.Types as Types
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Stack as Stack
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
@@ -234,7 +234,7 @@ warp_to_signal (Warp sig shift stretch)
     | stretch == 1 && shift == 0 = sig
     | otherwise = Signal.map_x
         ((`RealTime.div` factor) . subtract (to_real shift)) sig
-    where factor = Types.score_to_double stretch
+    where factor = ScoreTime.to_double stretch
 
 -- ** warp util
 

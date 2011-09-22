@@ -11,10 +11,10 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
@@ -49,7 +49,7 @@ type ScoreEvent = (Double, Double, String, Pitch.Degree)
 type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 
 from_score :: ScoreTime -> Double
-from_score = Types.score_to_double
+from_score = ScoreTime.to_double
 
 from_real :: RealTime -> Double
 from_real = RealTime.to_seconds
@@ -136,4 +136,4 @@ convert_track (id_name, title, events) = do
 
 convert_event :: Event -> Events.PosEvent
 convert_event (start, dur, text) =
-    (Types.double_to_score start, Event.event text (Types.double_to_score dur))
+    (ScoreTime.double start, Event.event text (ScoreTime.double dur))

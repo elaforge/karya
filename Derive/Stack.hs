@@ -25,6 +25,7 @@ import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Id as Id
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Types as Types
 
 
@@ -157,7 +158,7 @@ unparse_ui_frame (bid, maybe_tid, maybe_range) =
     tid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from ++ "-" ++ float to) maybe_range
-    float = Parse.show_float (Just 2) . Types.score_to_double
+    float = Parse.show_float (Just 2) . ScoreTime.to_double
 
 -- | This is like 'unparse_ui_frame' except it omits the namespaces for a less
 -- cluttered but potentially ambiguous output.
@@ -169,7 +170,7 @@ unparse_ui_frame_ (bid, maybe_tid, maybe_range) =
     tid_s = maybe "*" (Id.id_name . Id.unpack_id) maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from ++ "-" ++ float to) maybe_range
-    float = Parse.show_float (Just 2) . Types.score_to_double
+    float = Parse.show_float (Just 2) . ScoreTime.to_double
 
 parse_ui_frame :: String -> Maybe UiFrame
 parse_ui_frame = Parse.maybe_parse_string $ do
@@ -179,7 +180,7 @@ parse_ui_frame = Parse.maybe_parse_string $ do
         from <- Parse.p_float
         Parse.char '-'
         to <- Parse.p_float
-        return (Types.double_to_score from, Types.double_to_score to)
+        return (ScoreTime.double from, ScoreTime.double to)
     return (Types.BlockId (Id.read_id (B.unpack bid)),
         fmap (Types.TrackId . Id.read_id . B.unpack) tid, range)
     where

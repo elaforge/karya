@@ -5,12 +5,12 @@ import Util.Control
 import Util.Test
 import Ui
 import qualified Ui.Ruler as Ruler
-import qualified Ui.Types as Types
+import qualified Ui.ScoreTime as ScoreTime
 
 
 marklist :: [ScoreTime] -> Ruler.Marklist
 marklist ps = Ruler.Marklist $
-    Map.fromList [(p, mark (floor (Types.score_to_double p))) | p <- ps]
+    Map.fromList [(p, mark (floor (ScoreTime.to_double p))) | p <- ps]
 
 extract :: Ruler.Marklist -> [(ScoreTime, Int)]
 extract (Ruler.Marklist a) =

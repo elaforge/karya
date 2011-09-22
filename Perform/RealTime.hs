@@ -1,8 +1,8 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-} -- instances for RealTime
 module Perform.RealTime where
-import Prelude hiding (div, max)
 import qualified Prelude
+import Prelude hiding (div, max)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Int as Int
 #ifdef TESTING
@@ -12,8 +12,7 @@ import qualified Foreign as Foreign
 import qualified Text.Read as Read
 
 import qualified Util.Pretty as Pretty
-
-import qualified Ui.Types as Types
+import qualified Ui.ScoreTime as ScoreTime
 
 
 -- | A concrete unit of time.
@@ -91,8 +90,8 @@ milliseconds = microseconds . (*1000) . fromIntegral
 microseconds :: Int.Int64 -> RealTime
 microseconds = RealTime
 
-score :: Types.ScoreTime -> RealTime
-score = seconds . Types.score_to_double
+score :: ScoreTime.ScoreTime -> RealTime
+score = seconds . ScoreTime.to_double
 
 -- * convert from
 
@@ -105,8 +104,8 @@ to_milliseconds = fromIntegral . (`Prelude.div` 1000) . to_microseconds
 to_microseconds :: RealTime -> Int.Int64
 to_microseconds (RealTime us) = us
 
-to_score :: RealTime -> Types.ScoreTime
-to_score = Types.double_to_score . to_seconds
+to_score :: RealTime -> ScoreTime.ScoreTime
+to_score = ScoreTime.double . to_seconds
 
 -- | May overflow!
 -- TODO should I error on overflow?
