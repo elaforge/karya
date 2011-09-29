@@ -10,6 +10,8 @@
 
 void alpha_rectf(IRect r, Color c)
 {
+    if (!fl_not_clipped(r.x, r.y, r.w, r.h))
+        return;
     // If it has no alpha, don't bother doing the aplha stuff.
     /*
     if (c.a == 0xff) {

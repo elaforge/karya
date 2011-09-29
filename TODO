@@ -15,7 +15,7 @@ UNSORTED
     copy over entire ruler instead of callbacks since it doesn't change much
     If each mark PosMark is 48 bytes, then 8000 marks is 375k, times 10 tracks
     is starting to get into real memory.
-    - bsearch for initial mark instead of linear search
+    * bsearch for initial mark instead of linear search
     - share share marklist pointers with refcounted pointers?
     - use storablevector instead of Data.Map so it's just an array copy?  but
       maybe it doesn't matter and Map is easier to manage

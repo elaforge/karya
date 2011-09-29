@@ -44,6 +44,7 @@ struct Mark {
 };
 
 struct PosMark {
+    PosMark(ScoreTime pos, Mark mark) : pos(pos), mark(mark) {}
     ScoreTime pos;
     Mark mark;
 };

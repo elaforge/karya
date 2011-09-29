@@ -151,6 +151,13 @@ OverlayRuler::damage_range(ScoreTime start, ScoreTime end)
 }
 
 
+static bool
+compare_marks(const PosMark &m1, const PosMark &m2)
+{
+    return m1.pos < m2.pos;
+}
+
+
 void
 OverlayRuler::draw_marklists()
 {
@@ -180,16 +187,14 @@ OverlayRuler::draw_marklists()
     for (Marklists::const_iterator mlist = config.marklists.begin();
             mlist != config.marklists.end(); ++mlist)
     {
-        // TODO stdlib bsearch is not appropriate because it insists on
-        // an exact match.
-        for (int i = 0; i < mlist->length; i++) {
-            const PosMark &m = mlist->marks[i];
-            if (m.pos < start)
-                continue;
-            int offset = y + zoom.to_pixels(m.pos - zoom.offset);
-            bool drew_text = draw_mark(offset, m.mark);
-            // TODO break if it's too far below end
-            if (drew_text && m.pos > end)
+        PosMark *marks_end = mlist->marks + mlist->length;
+        PosMark *m = std::lower_bound(mlist->marks, marks_end,
+            PosMark(start, Mark()), compare_marks);
+        for (; m < marks_end; m++) {
+            int offset = y + zoom.to_pixels(m->pos - zoom.offset);
+            bool drew_text = draw_mark(offset, m->mark);
+            // There probably isn't any ruler text this tall.
+            if (drew_text && m->pos > end || offset > clip.b() + 15)
                 break;
         }
     }
@@ -218,14 +223,12 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
         width *= 1.0/mark.rank;
     width = floor(width);
 
-    // TODO this might be out of the clip rectangle, would it be faster to
-    // check for clipping first?
     if (this->zoom.factor >= mark.zoom_level)
         alpha_rectf(IRect(x()+w() - width - 1, offset, width, mark.width), c);
 
     bool drew_text = false;
     if (this->zoom.factor >= mark.name_zoom_level && this->config.show_names
-            && mark.name)
+        && mark.name)
     {
         int text_width = fl_width(mark.name);
         int xmin = x() + 2;

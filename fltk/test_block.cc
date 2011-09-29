@@ -77,13 +77,11 @@ void m44_set()
         if (i % 4 == 0) {
             sprintf(name, "%d", i / 4);
             Mark m(1, 3, major, strdup(name), 0, 0);
-            mlist.marks[i].pos = t;
-            mlist.marks[i].mark = m;
+            mlist.marks[i] = PosMark(t, m);
         } else {
             sprintf(name, "long %d.%d", i / 4, i % 4);
             Mark m(2, 2, minor, strdup(name), 0, 0);
-            mlist.marks[i].pos = t;
-            mlist.marks[i].mark = m;
+            mlist.marks[i] = PosMark(t, m);
         }
     }
     m44_last_pos = ScoreTime((mlist.length-1) * 8);
