@@ -35,6 +35,10 @@ struct Tracklike {
         : track(0), ruler(r), divider(0) {}
     Tracklike(DividerConfig *d)
         : track(0), ruler(0), divider(d) {}
+    // If track is non-NULL but ruler is NULL, that means the ruler gets no
+    // update.  Normally a track update updates everything, but since copying
+    // large rulers on every unrelated change is slow, I omit the ruler except
+    // when it actually changed.
 
     // TODO: const?
     EventTrackConfig *track;
@@ -92,6 +96,11 @@ class DividerView : public TrackView {
 public:
     explicit DividerView(const DividerConfig &config);
     bool track_resizable() const { return false; }
+    virtual void update(const Tracklike &track, FinalizeCallback finalizer,
+            ScoreTime start, ScoreTime end)
+    {
+        ASSERT_MSG(false, "can't update a divider");
+    }
     virtual void set_track_signal(const TrackSignal &tsig) {
         DEBUG("WARNING: got a track signal on a divider track!");
     }

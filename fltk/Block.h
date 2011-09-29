@@ -127,7 +127,11 @@ private:
     void insert_track_view(int tracknum, TrackView *track, int width);
     TrackView *replace_ruler_track(TrackView *track, int width);
 public:
-    // Update the given track.  Update scrollbars.
+    // Update the given track.  For simplicity, there's only one way to update
+    // a track and that's to update everything in it.  This is practical
+    // because updates are not super common and track data is fetched via
+    // callback so there's little data to copy over.
+    //
     // 'track' should be the same kind of track as the one at 'tracknum' or
     // this throws.  Update colors and whatnot if they have changed (pointers
     // may be passed as NULL which means no change).  Also mark that the range

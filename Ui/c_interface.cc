@@ -213,13 +213,14 @@ update_track(BlockViewWindow *view, int tracknum,
         // Substitute a complete ruler for the semi-constructed one.
         RulerConfig &partial = *track->ruler;
         RulerConfig config(partial.bg, partial.show_names, partial.use_alpha,
-                partial.full_width, partial.align_to_bottom,
-                partial.last_mark_pos);
+            partial.full_width, partial.align_to_bottom,
+            partial.last_mark_pos);
         for (int i = 0; i < nmarklists; i++)
             config.marklists.push_back(marklists[i]);
         track->ruler = &config;
         view->block.update_track(tracknum, *track, finalizer, *start, *end);
-        // Don't leave it pointing to out of scope data.
+        // No one should be reading this afterwards, but don't leave it
+        // pointing to out of scope memory.
         track->ruler = old_ruler;
     } else {
         view->block.update_track(tracknum, *track, finalizer, *start, *end);

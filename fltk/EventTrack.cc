@@ -237,11 +237,12 @@ void
 EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
         ScoreTime start, ScoreTime end)
 {
-    ASSERT(track.track && track.ruler);
+    ASSERT_MSG(track.track, "updated an event track with a non-event config");
     // Doesn't use finalize_callbacks because that finalizes the ruler,
     // which set_config is going to do.
     finalizer((void *) this->config.find_events);
-    this->overlay_ruler.set_config(*track.ruler, finalizer, start, end);
+    if (track.ruler)
+        this->overlay_ruler.set_config(*track.ruler, finalizer, start, end);
     if (this->config.bg_color != track.track->bg_color) {
         this->bg_color = track.track->bg_color;
         this->set_event_brightness(this->brightness);
@@ -275,7 +276,7 @@ EventTrackView::finalize_callbacks(FinalizeCallback finalizer)
 {
     finalizer((void *) this->config.find_events);
     this->config.track_signal.free_signals();
-    this->overlay_ruler.finalize_callbacks(finalizer);
+    this->overlay_ruler.delete_config();
 }
 
 

@@ -75,17 +75,24 @@ void
 OverlayRuler::set_config(const RulerConfig &config, FinalizeCallback finalizer,
         ScoreTime start, ScoreTime end)
 {
-    this->finalize_callbacks(finalizer);
+    this->delete_config();
     this->config = config;
     this->damage_range(start, end);
 }
 
 
 void
-OverlayRuler::finalize_callbacks(FinalizeCallback finalizer)
+OverlayRuler::delete_config()
 {
-    for (size_t i = 0; i < this->config.marklists.size(); i++)
-        finalizer((void *) this->config.marklists[i].find_marks);
+    for (Marklists::iterator mlist = config.marklists.begin();
+            mlist != config.marklists.end(); ++mlist)
+    {
+        for (int i = 0; i < mlist->length; i++) {
+            if (mlist->marks[i].mark.name)
+                free(mlist->marks[i].mark.name);
+        }
+        free(mlist->marks);
+    }
 }
 
 
@@ -160,9 +167,6 @@ OverlayRuler::draw_marklists()
     // DEBUG("RULER CLIP: " << start << "--" << end << ", "
     //         << SHOW_RANGE(clip));
 
-    ScoreTime *mark_tps;
-    Mark *marks;
-
     // Show updated range, for debugging.
     // Fl_Color colors[] =
     //     { FL_RED, FL_GREEN, FL_YELLOW, FL_BLUE, FL_MAGENTA, FL_CYAN };
@@ -176,25 +180,24 @@ OverlayRuler::draw_marklists()
     for (Marklists::const_iterator mlist = config.marklists.begin();
             mlist != config.marklists.end(); ++mlist)
     {
-        // DEBUG("FIND " << &mlist->find_marks);
-        int count = mlist->find_marks(&start, &end, &mark_tps, &marks);
-        for (int i = 0; i < count; i++) {
-            int offset = y + zoom.to_pixels(mark_tps[i] - zoom.offset);
-            draw_mark(offset, marks[i]);
-        }
-        if (count) {
-            for (int i = 0; i < count; i++) {
-                if (marks[i].name)
-                    free(marks[i].name);
-            }
-            free(marks);
-            free(mark_tps);
+        // TODO stdlib bsearch is not appropriate because it insists on
+        // an exact match.
+        for (int i = 0; i < mlist->length; i++) {
+            const PosMark &m = mlist->marks[i];
+            if (m.pos < start)
+                continue;
+            int offset = y + zoom.to_pixels(m.pos - zoom.offset);
+            bool drew_text = draw_mark(offset, m.mark);
+            // TODO break if it's too far below end
+            if (drew_text && m.pos > end)
+                break;
         }
     }
 }
 
 
-void
+// Return true if I drew a text label.
+bool
 OverlayRuler::draw_mark(int offset, const Mark &mark)
 {
     Color c = mark.color;
@@ -215,9 +218,12 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
         width *= 1.0/mark.rank;
     width = floor(width);
 
+    // TODO this might be out of the clip rectangle, would it be faster to
+    // check for clipping first?
     if (this->zoom.factor >= mark.zoom_level)
         alpha_rectf(IRect(x()+w() - width - 1, offset, width, mark.width), c);
 
+    bool drew_text = false;
     if (this->zoom.factor >= mark.name_zoom_level && this->config.show_names
             && mark.name)
     {
@@ -238,7 +244,9 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
 
         fl_color(FL_BLACK);
         fl_draw(mark.name, xpos, offset - 1);
+        drew_text = true;
     }
+    return drew_text;
 }
 
 
@@ -320,7 +328,8 @@ void
 RulerTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
         ScoreTime start, ScoreTime end)
 {
-    ASSERT(track.ruler && !track.track);
+    ASSERT_MSG(track.ruler && !track.track,
+        "updated a ruler track with an event track config");
     this->ruler.set_config(*track.ruler, finalizer, start, end);
     if (color_to_fl(track.ruler->bg) != bg_box.color()) {
         bg_box.color(color_to_fl(track.ruler->bg));

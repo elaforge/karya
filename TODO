@@ -11,6 +11,14 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  + scrolling and zooming slow with big ruler
+    copy over entire ruler instead of callbacks since it doesn't change much
+    If each mark PosMark is 48 bytes, then 8000 marks is 375k, times 10 tracks
+    is starting to get into real memory.
+    - bsearch for initial mark instead of linear search
+    - share share marklist pointers with refcounted pointers?
+    - use storablevector instead of Data.Map so it's just an array copy?  but
+      maybe it doesn't matter and Map is easier to manage
   * modify tempo and I get score out of range
   - click to the right of the tracks shouldn't highlight the rightmost track
   * deleting tracks made selection movement messed up, then tracknum assertion

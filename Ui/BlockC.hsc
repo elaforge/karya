@@ -258,7 +258,7 @@ insert_track :: ViewId -> TrackNum -> Block.Tracklike -> [Events.Events]
     -> Types.Width -> Fltk ()
 insert_track view_id tracknum tracklike merged width = do
     viewp <- get_ptr view_id
-    with_tracklike merged tracklike $ \tp mlistp len ->
+    with_tracklike True merged tracklike $ \tp mlistp len ->
         c_insert_track viewp (Util.c_int tracknum) tp
             (Util.c_int width) mlistp len
 
@@ -268,22 +268,25 @@ remove_track view_id tracknum = do
     with_finalizer $ \finalize ->
         c_remove_track viewp (Util.c_int tracknum) finalize
 
-update_track :: ViewId -> TrackNum -> Block.Tracklike
+update_track :: Bool -- ^ True if the ruler has changed and should be copied
+    -- over.  It's a bit of a hack to be a separate flag, but rulers are
+    -- updated rarely and copied over entirely for efficiency.
+    -> ViewId -> TrackNum -> Block.Tracklike
     -> [Events.Events] -> ScoreTime -> ScoreTime -> Fltk ()
-update_track view_id tracknum tracklike merged start end = do
+update_track update_ruler view_id tracknum tracklike merged start end = do
     viewp <- get_ptr view_id
     with_finalizer $ \finalize ->
         with start $ \startp -> with end $ \endp ->
-            with_tracklike merged tracklike $ \tp mlistp len ->
+            with_tracklike update_ruler merged tracklike $ \tp mlistp len ->
                 c_update_track viewp (Util.c_int tracknum) tp
                     mlistp len finalize startp endp
 
 -- | Like 'update_track' except update everywhere.
-update_entire_track :: ViewId -> TrackNum -> Block.Tracklike
+update_entire_track :: Bool -> ViewId -> TrackNum -> Block.Tracklike
     -> [Events.Events] -> Fltk ()
-update_entire_track view_id tracknum tracklike merged =
+update_entire_track update_ruler view_id tracknum tracklike merged =
     -- -1 is special cased in c++.
-    update_track view_id tracknum tracklike merged (-1) (-1)
+    update_track update_ruler view_id tracknum tracklike merged (-1) (-1)
 
 foreign import ccall "insert_track"
     c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
@@ -322,17 +325,19 @@ with_finalizer = Exception.bracket make_free_fun_ptr Util.free_fun_ptr
 
 -- | Convert a Tracklike into the set of pointers that c++ knows it as.
 -- A set of event lists can be merged into event tracks.
-with_tracklike :: [Events.Events] -> Block.Tracklike
+with_tracklike :: Bool -> [Events.Events] -> Block.Tracklike
     -> (Ptr TracklikePtr -> Ptr Ruler.Marklist -> CInt -> IO ()) -> IO ()
-with_tracklike merged_events tracklike f = case tracklike of
-    Block.T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
+with_tracklike update_ruler merged_events tracklike f = case tracklike of
+    Block.T track ruler -> with_ruler ruler $ \rulerp mlistp len ->
         TrackC.with_track track merged_events $ \trackp ->
             with (TPtr trackp rulerp) $ \tp -> f tp mlistp len
-    Block.R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
-        with (RPtr rulerp) $ \tp ->
-            f tp mlistp len
+    Block.R ruler -> with_ruler ruler $ \rulerp mlistp len ->
+        with (RPtr rulerp) $ \tp -> f tp mlistp len
     Block.D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
         f tp nullPtr 0
+    where
+    with_ruler = if update_ruler then RulerC.with_ruler
+        else const RulerC.no_ruler
 
 data TracklikePtr =
     TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)

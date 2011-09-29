@@ -43,13 +43,14 @@ struct Mark {
     double zoom_level;
 };
 
+struct PosMark {
+    ScoreTime pos;
+    Mark mark;
+};
+
 struct Marklist {
-    // Get marks from start to end.  Return the ScoreTime in pos, the events in
-    // 'marks', and the count.
-    typedef int (*FindMarks)(ScoreTime *start_pos, ScoreTime *end_pos,
-            ScoreTime **ret_tps, Mark **ret_marks);
-    Marklist(FindMarks find_marks) : find_marks(find_marks) {}
-    FindMarks find_marks;
+    int length;
+    PosMark *marks;
 };
 
 typedef std::vector<Marklist> Marklists;
@@ -94,7 +95,8 @@ public:
     ScoreTime time_end() const;
     void set_config(const RulerConfig &config, FinalizeCallback finalizer,
             ScoreTime start, ScoreTime end);
-    void finalize_callbacks(FinalizeCallback finalizer);
+    // Deallocate marklist memory.
+    void delete_config();
     // Mark a segment of the track as needing to be redrawn.
     // Only public so that EventTrack::draw can call it.
     void damage_range(ScoreTime start, ScoreTime end);
@@ -113,7 +115,7 @@ protected:
 
 private:
     void draw_marklists();
-    void draw_mark(int offset, const Mark &mark);
+    bool draw_mark(int offset, const Mark &mark);
     void draw_selections();
     TrackSelection selections[Config::max_selections];
 };
@@ -135,7 +137,7 @@ public:
         DEBUG("WARNING: got a track signal on a ruler track!");
     }
     virtual void finalize_callbacks(FinalizeCallback finalizer) {
-        ruler.finalize_callbacks(finalizer);
+        ruler.delete_config();
     }
     virtual std::string dump() const;
 

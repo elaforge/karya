@@ -253,7 +253,8 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
                         (Block.dtrack_merged dtrack)
                 -- This is unnecessary if I just collapsed the track, but
                 -- no big deal.
-                BlockC.update_entire_track view_id tracknum tracklike merged
+                BlockC.update_entire_track False view_id tracknum tracklike
+                    merged
     where
     create_track view_ids tracknum dtrack = do
         let tlike_id = Block.dtracklike_id dtrack
@@ -306,20 +307,20 @@ run_update _ (Update.TrackUpdate track_id update) = do
                 Nothing -> []
         fmap sequence_ $ forM view_ids $ \view_id -> case update of
             Update.TrackEvents low high _events ->
-                return $ BlockC.update_track view_id tracknum tracklike
+                return $ BlockC.update_track False view_id tracknum tracklike
                     merged low high
             Update.TrackAllEvents _events ->
-                return $ BlockC.update_entire_track view_id tracknum tracklike
-                    merged
+                return $ BlockC.update_entire_track False view_id tracknum
+                    tracklike merged
             Update.TrackTitle title ->
                 return $ BlockC.set_track_title view_id tracknum title
             Update.TrackBg _color ->
                 -- update_track also updates the bg color
-                return $ BlockC.update_track view_id tracknum tracklike
+                return $ BlockC.update_track False view_id tracknum tracklike
                     merged 0 0
             Update.TrackRender _render ->
-                return $ BlockC.update_entire_track view_id tracknum tracklike
-                    merged
+                return $ BlockC.update_entire_track False view_id tracknum
+                    tracklike merged
 
 run_update _ (Update.RulerUpdate ruler_id _ruler) = do
     blocks <- State.blocks_with_ruler ruler_id
@@ -331,7 +332,7 @@ run_update _ (Update.RulerUpdate ruler_id _ruler) = do
         -- A ruler track doesn't have merged events so don't bother to look for
         -- them.
         fmap sequence_ $ forM view_ids $ \view_id -> return $
-            BlockC.update_entire_track view_id tracknum tracklike []
+            BlockC.update_entire_track True view_id tracknum tracklike []
 
 run_update _ (Update.StateUpdate ()) = return (return ())
 

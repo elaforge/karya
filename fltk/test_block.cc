@@ -60,68 +60,33 @@ SkeletonConfig skeleton_config(int *pairs, int len)
     return skel;
 }
 
-typedef std::vector<std::pair<ScoreTime, Mark> > MarkData;
-static MarkData m44_marks;
-
+static Marklist m44_marks;
 static ScoreTime m44_last_pos;
 void m44_set()
 {
-    MarkData &mlist = m44_marks;
+    Marklist &mlist = m44_marks;
     char name[32];
     Color major = Color(116, 70, 0, 90);
     Color minor = Color(225, 100, 50, 90);
 
-    const int nmarks = 200;
-    for (int i = 0; i < nmarks; i++) {
+    mlist.length = 200;
+    m44_marks.length = 200;
+    mlist.marks = (PosMark *) calloc(sizeof(PosMark), mlist.length);
+    for (int i = 0; i < mlist.length; i++) {
         ScoreTime t = ScoreTime(i*8);
         if (i % 4 == 0) {
             sprintf(name, "%d", i / 4);
             Mark m(1, 3, major, strdup(name), 0, 0);
-            mlist.push_back(std::make_pair(t, m));
+            mlist.marks[i].pos = t;
+            mlist.marks[i].mark = m;
         } else {
             sprintf(name, "long %d.%d", i / 4, i % 4);
             Mark m(2, 2, minor, strdup(name), 0, 0);
-            mlist.push_back(std::make_pair(t, m));
+            mlist.marks[i].pos = t;
+            mlist.marks[i].mark = m;
         }
     }
-    m44_last_pos = ScoreTime((nmarks-1) * 8);
-}
-
-int
-m44_find_marks(ScoreTime *start_pos, ScoreTime *end_pos,
-        ScoreTime **ret_tps, Mark **ret_marks)
-{
-    MarkData &mlist = m44_marks;
-    size_t count = 0;
-    size_t start = 0;
-    for (; start < mlist.size(); start++) {
-        if (mlist[start].first >= *start_pos)
-            break;
-    }
-    while (start + count < mlist.size()) {
-        if (mlist[start+count].first >= *end_pos)
-            break;
-        count++;
-    }
-
-    // One extra on the top and bottom so they get drawn when partially
-    // offscreen.  This will still clip if marks are close.
-    if (start)
-        start--;
-    if (count < mlist.size())
-        count += 2;
-
-    *ret_tps = (ScoreTime *) calloc(count, sizeof(ScoreTime));
-    *ret_marks = (Mark *) calloc(count, sizeof(Mark));
-    for (size_t i = 0; i < count; i++) {
-        // Placement new since malloced space is uninitialized.
-        new((*ret_tps) + i) ScoreTime(mlist[start+i].first);
-        new((*ret_marks) + i) Mark(mlist[start+i].second);
-        char **namep = &(*ret_marks)[i].name;
-        if (*namep)
-            *namep = strdup(*namep);
-    }
-    return count;
+    m44_last_pos = ScoreTime((mlist.length-1) * 8);
 }
 
 struct EventInfo {
@@ -375,6 +340,7 @@ pitch_track_signal()
     return ts;
 }
 
+/*
 static void
 show_fonts()
 {
@@ -386,6 +352,7 @@ show_fonts()
     }
     free(fonts);
 }
+*/
 
 int
 main(int argc, char **argv)
@@ -394,12 +361,12 @@ main(int argc, char **argv)
     BlockViewConfig view_config = block_view_config();
     BlockModelConfig config = block_model_config();
 
-    Marklists mlists;
-    mlists.push_back(Marklist(m44_find_marks));
-    Marklists nomarks;
-
     t1_set();
     m44_set();
+
+    Marklists mlists;
+    mlists.push_back(m44_marks);
+    Marklists nomarks;
 
     RulerConfig ruler(ruler_bg, true, false, false, arrival_beats,
         m44_last_pos);
@@ -427,7 +394,7 @@ main(int argc, char **argv)
     // view2.show();
 
     if (draw_lots_of_stuff) {
-        // view.block.insert_track(0, Tracklike(&ruler), 20);
+        view.block.insert_track(0, Tracklike(&ruler), 20);
         // view.block.insert_track(1, Tracklike(&divider), 10);
         view.block.insert_track(1, Tracklike(&empty_track, &truler), 60);
         view.block.insert_track(2, Tracklike(&track1, &truler), 130);

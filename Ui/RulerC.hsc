@@ -4,8 +4,7 @@
     optional name.  They also have a display at zoom value.  Marks are only
     displayed if the zoom level is >= the display at zoom.
 -}
-module Ui.RulerC (with_ruler) where
-import Control.Monad
+module Ui.RulerC (with_ruler, no_ruler) where
 import qualified Data.Map as Map
 import Foreign
 import Foreign.C
@@ -23,35 +22,9 @@ with_ruler ruler f =
         f rulerp mlists (Util.c_int len)
     where marklists = Map.elems (Ruler.ruler_marklists ruler)
 
--- typedef int (*FindMarks)(ScoreTime *start_pos, ScoreTime *end_pos,
---         ScoreTime **ret_tps, Mark **ret_marks);
-type FindMarks = Ptr ScoreTime -> Ptr ScoreTime -> Ptr (Ptr ScoreTime)
-    -> Ptr (Ptr Ruler.Mark) -> IO Int
+no_ruler :: (Ptr Ruler.Ruler -> Ptr Ruler.Marklist -> CInt -> IO a) -> IO a
+no_ruler f = f nullPtr nullPtr 0
 
-cb_find_marks :: Ruler.Marklist -> FindMarks
-cb_find_marks marklist startp endp ret_tps ret_marks = do
-    start <- peek startp
-    end <- peek endp
-    let (bwd, fwd) = Ruler.split marklist start
-        (until_end, rest) = break ((>=end) . fst) fwd
-        -- Give extra marks, one before start and one after end, so that marks
-        -- scrolled half-off are still displayed.
-        marks = take 1 bwd ++ until_end ++ take 1 rest
-    unless (null marks) $ do
-        -- Calling c++ is responsible for freeing this.
-        tp_array <- newArray (map fst marks)
-        mark_array <- newArray (map snd marks)
-        poke ret_tps tp_array
-        poke ret_marks mark_array
-    -- putStrLn $ "find marks: " ++ show (length marks)
-    return (length marks)
-
-make_find_marks :: Ruler.Marklist -> IO (FunPtr FindMarks)
-make_find_marks marklist = Util.make_fun_ptr "find_marks" $
-    c_make_find_marks (cb_find_marks marklist)
-
-foreign import ccall "wrapper"
-    c_make_find_marks :: FindMarks -> IO (FunPtr FindMarks)
 
 -- Storable
 
@@ -65,9 +38,21 @@ instance Storable Ruler.Marklist where
     peek = error "Marklist peek unimplemented"
     poke = poke_marklist
 
-poke_marklist marklistp marklist = do
-    find_marks <- make_find_marks marklist
-    (#poke Marklist, find_marks) marklistp find_marks
+poke_marklist marklistp (Ruler.Marklist marks) = do
+    putStrLn $ "copy marks: " ++ show (Map.size marks)
+    (#poke Marklist, length) marklistp (Util.c_int (Map.size marks))
+    (#poke Marklist, marks) marklistp
+        =<< newArray (map PosMark (Map.toAscList marks))
+
+newtype PosMark = PosMark (ScoreTime, Ruler.Mark) deriving (Show)
+
+instance Storable PosMark where
+    sizeOf _ = #size PosMark
+    alignment _ = #{alignment PosMark}
+    peek = error "PosMark peek unimplemented"
+    poke posmarkp (PosMark (pos, mark)) = do
+        (#poke PosMark, pos) posmarkp pos
+        (#poke PosMark, mark) posmarkp mark
 
 instance Storable Ruler.Ruler where
     sizeOf _ = #size RulerConfig
@@ -102,7 +87,7 @@ poke_mark markp (Ruler.Mark
     , Ruler.mark_name_zoom_level = name_zoom_level
     , Ruler.mark_zoom_level = zoom_level
     }) = do
-        -- Must be freed by the caller, OverlayRuler::draw_marklists.
+        -- Must be freed by the caller.
         namep <- if null name then return nullPtr else newCString name
         (#poke Mark, rank) markp (Util.c_int rank)
         (#poke Mark, width) markp (Util.c_int width)

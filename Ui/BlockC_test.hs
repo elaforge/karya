@@ -115,12 +115,11 @@ test_update_track = do
     send $ BlockC.insert_track view 1 (Block.R ruler) [] 30
     send $ BlockC.insert_track view 2
         (Block.T event_track_1 (UiTest.overlay_ruler ruler)) [] 30
-    send $ BlockC.insert_track view 1 (Block.D UiTest.default_divider) [] 10
 
     io_human "ruler gets wider, both events change" $ do
-        send $ BlockC.update_entire_track view 1
+        send $ BlockC.update_entire_track True view 1
             (Block.R (UiTest.mkruler 20 16)) []
-        send $ BlockC.update_track view 2
+        send $ BlockC.update_track True view 2
             (Block.T event_track_2 (UiTest.overlay_ruler ruler)) [] 0 60
 
 test_insert_remove_track = do
