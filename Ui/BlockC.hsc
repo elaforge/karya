@@ -331,7 +331,7 @@ with_tracklike update_ruler merged_events tracklike f = case tracklike of
     Block.T track ruler -> with_ruler ruler $ \rulerp mlistp len ->
         TrackC.with_track track merged_events $ \trackp ->
             with (TPtr trackp rulerp) $ \tp -> f tp mlistp len
-    Block.R ruler -> with_ruler ruler $ \rulerp mlistp len ->
+    Block.R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
         with (RPtr rulerp) $ \tp -> f tp mlistp len
     Block.D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
         f tp nullPtr 0

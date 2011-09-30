@@ -487,6 +487,8 @@ void
 BlockView::update_track(int tracknum, const Tracklike &track,
         FinalizeCallback finalizer, ScoreTime start, ScoreTime end)
 {
+    ASSERT_MSG(track.track || track.ruler || track.divider,
+        "totally empty tracklike");
     this->track_at(tracknum)->update(track, finalizer, start, end);
     this->update_scrollbars();
 }

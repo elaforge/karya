@@ -77,7 +77,7 @@ do_updates :: Track.TrackSignals -> [Update.DisplayUpdate]
     -> State.StateT IO ()
 do_updates track_signals updates = do
     actions <- mapM (run_update track_signals) updates
-    -- Trans.liftIO $ putStrLn ("run updates: " ++ show updates)
+    -- Trans.liftIO $ putStrLn ("run updates: " ++ PPrint.pshow updates)
     Trans.liftIO (Ui.send_action (sequence_ actions))
 
 set_track_signals :: State.State -> Track.TrackSignals -> IO ()
@@ -153,7 +153,8 @@ clear_play_position view_id = Ui.send_action $
 
 -- | Generate an IO action that applies the update to the UI.
 --
--- CreateView Updates will modify the State to add the ViewPtr.
+-- CreateView Updates will modify the State to add the ViewPtr.  The IO in
+-- the StateT is needed only for some logging.
 --
 -- This has to be the longest haskell function ever.
 run_update :: Track.TrackSignals -> Update.DisplayUpdate
@@ -291,36 +292,42 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
                 _ -> return ()
 
 run_update _ (Update.TrackUpdate track_id update) = do
-    blocks <- State.blocks_with_track track_id
-    let tinfo = [(block_id, tracknum, tid)
-            | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
-    -- lookup DisplayTrack and pair with the tracks
-    fmap sequence_ $ forM tinfo $ \(block_id, tracknum, tracklike_id) -> do
-        view_ids <- fmap Map.keys (State.get_views_of block_id)
-        tracklike <- State.get_tracklike tracklike_id
-
-        ustate <- State.get
+    block_ids <- map fst <$> State.blocks_with_track track_id
+    ustate <- State.get
+    acts <- forM block_ids $ \block_id -> do
         block <- State.get_block block_id
-        let merged = case Seq.at (Block.block_tracks block) tracknum of
-                Just track ->
-                    events_of_track_ids ustate (Block.track_merged track)
-                Nothing -> []
-        fmap sequence_ $ forM view_ids $ \view_id -> case update of
-            Update.TrackEvents low high _events ->
-                return $ BlockC.update_track False view_id tracknum tracklike
-                    merged low high
-            Update.TrackAllEvents _events ->
-                return $ BlockC.update_entire_track False view_id tracknum
-                    tracklike merged
-            Update.TrackTitle title ->
-                return $ BlockC.set_track_title view_id tracknum title
-            Update.TrackBg _color ->
-                -- update_track also updates the bg color
-                return $ BlockC.update_track False view_id tracknum tracklike
-                    merged 0 0
-            Update.TrackRender _render ->
-                return $ BlockC.update_entire_track False view_id tracknum
-                    tracklike merged
+        view_ids <- fmap Map.keys (State.get_views_of block_id)
+        forM (tracklikes track_id block) $ \(tracknum, tracklike_id) -> do
+            let merged = get_merged ustate block tracknum
+            tracklike <- State.get_tracklike tracklike_id
+            forM view_ids $ \view_id ->
+                track_update view_id tracklike tracknum merged update
+    return (sequence_ (concat (concat acts)))
+    where
+    tracklikes track_id block =
+        [ (n, track) | (n, track@(Block.TId tid _)) <- zip [0..] tracks
+        , tid == track_id
+        ]
+        where
+        tracks = map Block.dtracklike_id (Block.block_display_tracks block)
+    get_merged ustate block tracknum =
+        case Seq.at (Block.block_tracks block) tracknum of
+            Just track -> events_of_track_ids ustate (Block.track_merged track)
+            Nothing -> []
+    track_update view_id tracklike tracknum merged update = case update of
+        Update.TrackEvents low high _events -> return $
+            BlockC.update_track False view_id tracknum tracklike merged
+                low high
+        Update.TrackAllEvents _events -> return $
+            BlockC.update_entire_track False view_id tracknum tracklike merged
+        Update.TrackTitle title -> return $
+            BlockC.set_track_title view_id tracknum title
+        Update.TrackBg _color ->
+            -- update_track also updates the bg color
+            return $ BlockC.update_track False view_id tracknum tracklike
+                merged 0 0
+        Update.TrackRender _render -> return $
+            BlockC.update_entire_track False view_id tracknum tracklike merged
 
 run_update _ (Update.RulerUpdate ruler_id _ruler) = do
     blocks <- State.blocks_with_ruler ruler_id

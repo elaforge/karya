@@ -39,7 +39,6 @@ instance Storable Ruler.Marklist where
     poke = poke_marklist
 
 poke_marklist marklistp (Ruler.Marklist marks) = do
-    putStrLn $ "copy marks: " ++ show (Map.size marks)
     (#poke Marklist, length) marklistp (Util.c_int (Map.size marks))
     (#poke Marklist, marks) marklistp
         =<< newArray (map PosMark (Map.toAscList marks))

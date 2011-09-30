@@ -46,6 +46,13 @@ struct Tracklike {
     DividerConfig *divider;
 };
 
+inline std::ostream &
+operator<<(std::ostream &os, const Tracklike &track)
+{
+    return os << "Tracklike(event=" << track.track
+        << ", ruler=" << track.ruler << ", div=" << track.divider << ")";
+}
+
 
 // Define methods that things appearing in track lanes should support.
 // Also acts like a union of Divider, Track, and Ruler.
@@ -99,7 +106,9 @@ public:
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,
             ScoreTime start, ScoreTime end)
     {
-        ASSERT_MSG(false, "can't update a divider");
+        ASSERT_MSG(!(track.track || track.ruler),
+            "updated a divider with a non-divider config");
+        // Of course even a divider config won't do anything...
     }
     virtual void set_track_signal(const TrackSignal &tsig) {
         DEBUG("WARNING: got a track signal on a divider track!");
