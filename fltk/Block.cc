@@ -529,16 +529,17 @@ BlockView::dump() const
     std::ostringstream out;
     static std::string outs;
 
-    out << '(' << this->x() << ' ' << this->y() << ' ' << this->w()
-        << ' ' << this->h() << ' ' << show_string(this->get_title())
-        << " (";
+    Fl_Window *win = this->window();
+    out << "x " << win->x() << " y " << win->y()
+        << " w " << this->w() << " h " << this->h();
+    out << " title " << show_string(this->get_title());
+    out << " title-height " << title.h() << " sb-size " << time_sb.w()
+        << " status-size " << status_line.h();
     for (int i = 0; i < this->tracks(); i++) {
-        out << '(' << this->get_track_width(i) << ' '
-            << this->track_at(i)->dump()
-            << ") ";
+        out << " track" << i << " ("
+            << "width " << this->get_track_width(i)
+            << ' ' << this->track_at(i)->dump() << ")";
     }
-
-    out << "))";
 
     outs = out.str();
     return outs.c_str();

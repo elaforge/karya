@@ -16,6 +16,7 @@ module Util.Test (
     -- ** io checks
     , io_equal, io_equal_srcpos
     , io_human, io_human_srcpos
+    , pause
 
     , success, failure, success_srcpos, failure_srcpos
 
@@ -34,6 +35,7 @@ module Util.Test (
     -- * debugging
     , module Debug
 ) where
+import Control.Applicative ((<$>))
 import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
 import qualified Control.Exception as Exception
@@ -69,18 +71,18 @@ check = check_srcpos Nothing
 check_srcpos srcpos False = failure_srcpos srcpos "assertion false"
 check_srcpos srcpos True = success_srcpos srcpos "assertion true"
 
-check_msg :: Bool -> String -> IO ()
+check_msg :: Bool -> String -> IO Bool
 check_msg = check_msg_srcpos Nothing
 
-check_msg_srcpos :: SrcPos.SrcPos -> Bool -> String -> IO ()
+check_msg_srcpos :: SrcPos.SrcPos -> Bool -> String -> IO Bool
 check_msg_srcpos srcpos ok msg
     | ok = success_srcpos srcpos ("assertion true: " ++ msg)
     | otherwise = failure_srcpos srcpos ("assertion false: " ++ msg)
 
-equal :: (Show a, Eq a) => a -> a -> IO ()
+equal :: (Show a, Eq a) => a -> a -> IO Bool
 equal = equal_srcpos Nothing
 
-equal_srcpos :: (Show a, Eq a) => SrcPos.SrcPos -> a -> a -> IO ()
+equal_srcpos :: (Show a, Eq a) => SrcPos.SrcPos -> a -> a -> IO Bool
 equal_srcpos srcpos a b
     | a == b = success_srcpos srcpos $ "== " ++ show a
     | otherwise = failure_srcpos srcpos msg
@@ -92,13 +94,14 @@ equal_srcpos srcpos a b
         else pa ++ " /= " ++ pb
 
 -- | Strings in the first list match regexes in the second list.
-strings_like :: [String] -> [String] -> IO ()
+strings_like :: [String] -> [String] -> IO Bool
 strings_like = strings_like_srcpos Nothing
 
-strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO ()
+strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO Bool
 strings_like_srcpos srcpos gotten expected
     | null gotten && null expected = success_srcpos srcpos "[] =~ []"
-    | otherwise = mapM_ (uncurry string_like) (Seq.padded_zip gotten expected)
+    | otherwise = foldl (&&) True <$>
+        mapM (uncurry string_like) (Seq.padded_zip gotten expected)
     where
     string_like Nothing Nothing =
         failure_srcpos srcpos "Nothing, Nothing shouldn't happen"
@@ -113,10 +116,10 @@ strings_like_srcpos srcpos gotten expected
 
 -- | The given list of strings contains the given pattern.  Useful to make sure
 -- a certain message was logged.
-has_string :: [String] -> String -> IO ()
+has_string :: [String] -> String -> IO Bool
 has_string = has_string_srcpos Nothing
 
-has_string_srcpos :: SrcPos.SrcPos -> [String] -> String -> IO ()
+has_string_srcpos :: SrcPos.SrcPos -> [String] -> String -> IO Bool
 has_string_srcpos srcpos strings expected =
     case [str | (str, True) <- zip strings matches] of
         m : _ -> success_srcpos srcpos $
@@ -131,13 +134,13 @@ quoted s = "'" ++ s ++ "'"
 map_left f (Left a) = Left (f a)
 map_left _ (Right a) = Right a
 
-left_like :: (Show a) => Either String a -> String -> IO ()
+left_like :: (Show a) => Either String a -> String -> IO Bool
 left_like = left_like_srcpos Nothing
 
 -- | It's common for Left to be an error msg, or be something that can be
 -- converted to one.
 left_like_srcpos :: (Show a) =>
-    SrcPos.SrcPos -> Either String a -> String -> IO ()
+    SrcPos.SrcPos -> Either String a -> String -> IO Bool
 left_like_srcpos srcpos gotten expected = case gotten of
     Left msg
         | pattern_matches expected msg -> success_srcpos srcpos $
@@ -163,29 +166,33 @@ pattern_to_reg = Regex.make . mkstar . Regex.escape
     mkstar (c : cs) = c : mkstar cs
 
 -- | The given pure value should throw an exception that matches the predicate.
-throws :: (Show a) => a -> String -> IO ()
+throws :: (Show a) => a -> String -> IO Bool
 throws = throws_srcpos Nothing
 
-throws_srcpos :: (Show a) => SrcPos.SrcPos -> a -> String -> IO ()
+throws_srcpos :: (Show a) => SrcPos.SrcPos -> a -> String -> IO Bool
 throws_srcpos srcpos val exc_like =
-    (Exception.evaluate val >> failure_srcpos srcpos ("didn't throw: " ++ show val))
+    (Exception.evaluate val
+        >> failure_srcpos srcpos ("didn't throw: " ++ show val))
     `Exception.catch` \(exc :: Exception.SomeException) ->
         if exc_like `List.isInfixOf` show exc
             then success_srcpos srcpos ("caught exc: " ++ show exc)
             else failure_srcpos srcpos $
                 "exception <" ++ show exc ++ "> didn't match " ++ show exc_like
 
-catch_srcpos :: SrcPos.SrcPos -> IO () -> IO ()
-catch_srcpos srcpos op = op `Exception.catch`
-    \(exc :: Exception.SomeException) ->
-        failure_srcpos srcpos ("test threw exception: " ++ show exc)
+catch_srcpos :: SrcPos.SrcPos -> IO a -> IO ()
+catch_srcpos srcpos op = do
+    result <- Exception.try op
+    case result of
+        Left (exc :: Exception.SomeException) ->
+            void $ failure_srcpos srcpos ("test threw exception: " ++ show exc)
+        Right _ -> return ()
 
 -- IO oriented checks, the first value is pulled from IO.
 
-io_equal :: (Eq a, Show a) => IO a -> a -> IO ()
+io_equal :: (Eq a, Show a) => IO a -> a -> IO Bool
 io_equal = io_equal_srcpos Nothing
 
-io_equal_srcpos :: (Eq a, Show a) => SrcPos.SrcPos -> IO a -> a -> IO ()
+io_equal_srcpos :: (Eq a, Show a) => SrcPos.SrcPos -> IO a -> a -> IO Bool
 io_equal_srcpos srcpos io_val expected = do
     val <- io_val
     if val == expected
@@ -210,6 +217,12 @@ io_human_srcpos srcpos expected_msg op = do
         'q' -> error "quit test"
         _ -> failure_srcpos srcpos $ "didn't see " ++ show expected_msg
     return result
+
+pause :: IO ()
+pause = do
+    putStr "pausing, hit almost any key... "
+    human_getch
+    putStr "\n"
 
 
 -- * unpacking
@@ -274,17 +287,18 @@ pmlist msg xs
 -- These used to write to stderr, but the rest of the diagnostic output goes to
 -- stdout, and it's best these appear in context.
 
-success, failure :: String -> IO ()
+success, failure :: String -> IO Bool
 success = success_srcpos Nothing
 failure = failure_srcpos Nothing
 
 -- | Print a msg with a special tag indicating a passing test.
-success_srcpos :: SrcPos.SrcPos -> String -> IO ()
-success_srcpos srcpos msg =
+success_srcpos :: SrcPos.SrcPos -> String -> IO Bool
+success_srcpos srcpos msg = do
     hPrintf IO.stdout "++-> %s - %s\n" (SrcPos.show_srcpos srcpos) msg
+    return True
 
 -- | Print a msg with a special tag indicating a failing test.
-failure_srcpos :: SrcPos.SrcPos -> String -> IO ()
+failure_srcpos :: SrcPos.SrcPos -> String -> IO Bool
 failure_srcpos srcpos msg = do
     -- A little magic to make failures more obvious in tty output.
     -- TODO get these codes from termcap
@@ -295,6 +309,7 @@ failure_srcpos srcpos msg = do
     when isatty $
         putStr "\ESC[m\ESC[m"
     putChar '\n'
+    return False
 
 -- getChar with no buffering
 human_getch :: IO Char

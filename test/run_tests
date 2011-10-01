@@ -19,39 +19,26 @@ fi
 test_output=test.output
 
 prefixes=("$@")
-flags=()
-if [[ $prefixes[0] = '--skip' ]]; then
-    flags=(--skip)
-    shift
+if [[ -z $prefixes ]]; then
+    prefixes=('normal-')
 fi
-
-interactive_tests=($($run_tests --list $prefixes | grep '^interactive-'))
-normal_tests=($($run_tests --list $prefixes | grep '^auto-'))
 
 function run() {
     "$@"
     local r=$?
     if [[ $r -ne 0 ]]; then
-        echo __: cmd returned $r: "$@"
+        echo '__->' cmd returned $r: "$@"
     fi
 }
 
-:>$test_output
-if [ "$normal_tests" ]; then
-    # Debug.Trace.trace prints to stderr, apparently there's no way to change
-    # that.
-    run $run_tests $flags $normal_tests >>$test_output 2>&1
-fi
-# init tests don't re-init after running, and it's easier to tear down
-# everything after each run.
-for test in $interactive_tests; do
-    run $run_tests $flags $test >>$test_output 2>&1
-done
+# Debug.Trace.trace prints to stderr, apparently there's no way to change
+# that.
+run $run_tests --noninteractive $prefixes >$test_output 2>&1
 
 echo -n '\nTests complete.  Failures:\n'
 test/extract_failures.py <$test_output
-passes=$(grep '^++' $test_output | wc -l)
-failures=$(grep '^__' $test_output | wc -l)
+passes=$(grep '^++->' $test_output | wc -l)
+failures=$(grep '^__->' $test_output | wc -l)
 tests=$(grep '^-----' $test_output | wc -l)
 echo $failures failed / $passes passed / $tests tests
 

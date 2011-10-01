@@ -49,7 +49,7 @@ test_apply_failure = do
 
 
 consistent :: (Show a, Eq a) => (State.State -> a)
-    -> State.State -> State.StateId b -> IO ()
+    -> State.State -> State.StateId b -> IO Bool
 consistent extract state1 modify = case run_state state1 modify of
     Left err -> failure $ "modify state failed: " ++ show err
     Right (state2, cmd_updates) -> case Diff.diff cmd_updates state1 state2 of
@@ -69,7 +69,7 @@ run_state state m = case Identity.runIdentity (State.run state m) of
 apply_all :: State.State -> [Update.CmdUpdate] -> Either String State.State
 apply_all = foldM (flip ApplyUpdate.apply)
 
-apply_equal :: Update.CmdUpdate -> State.State -> IO ()
+apply_equal :: Update.CmdUpdate -> State.State -> IO Bool
 apply_equal update state1 = case ApplyUpdate.apply update state1 of
     Left err -> failure err
     Right state2 -> equal state1 state2

@@ -17,17 +17,22 @@ module Ui.Sync_test where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
+import Control.Monad
 
+import qualified Data.List as List
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import Util.Test
 
+import Ui
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
 import qualified Ui.Diff as Diff
+import qualified Ui.Dump as Dump
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
@@ -55,23 +60,27 @@ initialize f = do
     Concurrent.forkIO (f `Exception.finally` Ui.quit_ui_thread quit_request)
     Ui.event_loop quit_request msg_chan
 
-test_create_resize_destroy_view = do
-    state <- io_human "view with selection and titles" $ run State.empty $ do
+test_create_resize_destroy_view = thread (return State.empty) $
+    ("view with selection and titles", do
         v1 <- setup_state
+        State.set_view_rect v1 (Rect.xywh 200 200 200 200)
         set_selection v1 (Types.point_selection 1 20)
         view <- State.get_view v1
-        State.set_block_title (Block.view_block view) "new block!"
+        State.set_block_title (Block.view_block view) "block title"
         State.set_track_title t_track1_id "new track"
-    state <- io_human "view moves over, gets bigger" $ run state $ do
+    , [[("x", "200"), ("y", "200"), ("w", "200"), ("h", "200"),
+        ("title", "block title"), ("track1.title", "new track")]])
+    : ("view moves over, gets bigger", do
         State.set_view_rect t_view_id (Rect.xywh 400 400 400 400)
-    io_human "view is destroyed" $ run state $ do
+    , [[("x", "400"), ("y", "400"), ("w", "400"),
+        ("h", "400")]])
+    : ("view is destroyed", do
         State.destroy_view t_view_id
-    return ()
+    , [])
+    : []
 
-test_create_two_views = do
-    state <- run_setup
-    _state <- io_human "view created, has big track, track title changes" $
-            run state $ do
+test_create_two_views = thread run_setup $
+    ("view created, has big track, track title changes", do
         b2 <- create_block "b2" $ UiTest.make_block ""
             [(Block.RId t_ruler_id, 20),
                 (Block.TId t_track1_id t_ruler_id, 30)]
@@ -80,25 +89,29 @@ test_create_two_views = do
                 UiTest.default_zoom
         State.set_track_title t_track1_id "title changed!"
         State.set_track_width b2 1 300
-    return ()
+    , [ [("track1.title", "title changed!"), ("track1.width", "30")]
+      , [("track1.title", "title changed!"), ("track1.width", "300")]
+      ])
+    : []
 
-test_set_view_config = do
-    state <- run_setup
-    state <- io_human "block and track titles get tall" $ run state $ do
+test_set_view_config = thread run_setup $
+    ("block and track titles get tall", do
         view <- State.get_view t_view_id
         let vconfig = Block.view_config view
         State.set_view_config t_view_id $ vconfig
             { Block.vconfig_block_title_height = 30
             , Block.vconfig_track_title_height = 30
             }
-    io_human "sbs and status get big too" $ run state $ do
+    , [[("title-height", "30"), ("track1.title-height", "30")]])
+    : ("sbs and status get big too", do
         view <- State.get_view t_view_id
         let vconfig = Block.view_config view
         State.set_view_config t_view_id $ vconfig
             { Block.vconfig_sb_size = 30
             , Block.vconfig_status_size = 30
             }
-    return ()
+    , [[("sb-size", "30"), ("status-size", "30")]])
+    : []
 
 test_set_block_config = do
     state <- run State.empty $ do
@@ -338,7 +351,6 @@ test_selection = do
         set_selection t_view_id (Types.selection 0 10 0 20)
     return ()
 
-
 cue_marklist = Ruler.marklist
     [ (0, UiTest.mark "start")
     , (90, UiTest.mark "head explodes")
@@ -382,6 +394,48 @@ test_insert_into_selection = do
 insert_track bid tracknum tracklike_id width =
     State.insert_track bid tracknum (Block.track tracklike_id width)
 
+
+-- * thread
+
+-- TODO perhaps useful in BlockC tests?
+
+-- | (msg describing what is going to happen, action, patterns to match
+-- against each view dump)
+type Test a = (String, State.StateT IO a, [[(String, String)]])
+
+thread :: IO State.State -> [Test a] -> IO State.State
+thread setup tests = do
+    state <- setup
+    (\f -> foldM f state tests) $ \state (desc, action, expected) -> do
+        putStrLn $ "====> " ++ desc
+        state <- run state action
+        -- Sort by view to ensure a consistent order.
+        dumps <- map parse_dump . map snd . List.sort <$> BlockC.dump
+        passed <- match_dumps desc dumps expected
+        unless passed pause
+        return state
+
+match_dumps :: String -> [Dump.Dump] -> [[(String, String)]] -> IO Bool
+match_dumps desc dumps attrs = allM match (Seq.padded_zip dumps attrs)
+    where
+    match (Nothing, Just attrs) =
+        fail $ "view missing for attrs: " ++ show attrs
+    match (Just dump, Nothing) =
+        fail $ "unexpected view: " ++ show dump
+    match (Nothing, Nothing) =
+        fail "padded_zip should never return (Nothing, Nothing)"
+    match (Just dump, Just attrs)
+        | null missing = pass $ "found " ++ show attrs
+        | otherwise =
+            fail $ "attrs " ++ show missing ++ " not in dump: " ++ pshow dump
+        where missing = filter (`notElem` dump) attrs
+    allM f xs = List.foldl' (&&) True <$> mapM f xs
+    fail = failure . ((desc ++ ": ") ++)
+    pass = success . ((desc ++ ": ") ++)
+
+parse_dump :: String -> Dump.Dump
+parse_dump = either (error . ("failed to parse dump: "++)) id . Dump.parse
+
 -- * util
 
 set_selection view_id sel = State.set_selection view_id 0 (Just sel)
@@ -392,7 +446,10 @@ t_block_id = Types.BlockId (mkid t_block)
 t_track1_id = Types.TrackId (mkid "b1.t1")
 t_view_id = Types.ViewId (mkid "v1")
 
+run_setup :: IO State.State
 run_setup = run State.empty setup_state
+
+setup_state :: (State.M m) => m ViewId
 setup_state = do
     ruler <- create_ruler "r1" (UiTest.mkruler 20 10)
     t1 <- create_track "b1.t1" (UiTest.empty_track "t1")

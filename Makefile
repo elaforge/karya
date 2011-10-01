@@ -122,7 +122,7 @@ TEST_BINARIES := $(addprefix $(BUILD)/, test_block test_logview test_browser \
 checkin:
 	tools/make_all $(BUILD)/seq $(BUILD)/browser $(BUILD)/logview \
 		doc/keymap.html $(BUILD)/update $(BUILD)/make_db \
-		$(PBUILD)/RunProfile tests
+		$(PBUILD)/RunProfile complete-tests
 
 # Compile Everything.
 .PHONY: all
@@ -320,7 +320,11 @@ profile: $(PBUILD)/RunProfile
 
 .PHONY: tests
 tests: $(TBUILD)/RunTests
-	test/run_tests $^ auto-
+	test/run_tests $^
+
+.PHONY: complete-tests
+complete-tests: $(TBUILD)/RunTests
+	test/run_tests $^ normal- gui-
 
 .PHONY: interactive
 interactive: $(TBUILD)/RunTests

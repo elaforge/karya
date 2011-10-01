@@ -43,5 +43,5 @@ DividerView::draw()
 std::string
 DividerView::dump() const
 {
-    return "divider";
+    return "type divider";
 }

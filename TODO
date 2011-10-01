@@ -11,14 +11,18 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  + scrolling and zooming slow with big ruler
+  * scrolling and zooming slow with big ruler
     copy over entire ruler instead of callbacks since it doesn't change much
     If each mark PosMark is 48 bytes, then 8000 marks is 375k, times 10 tracks
     is starting to get into real memory.
     * bsearch for initial mark instead of linear search
-    - share share marklist pointers with refcounted pointers?
-    - use storablevector instead of Data.Map so it's just an array copy?  but
+    / share share marklist pointers with refcounted pointers?
+      This would require the haskell level to know about send over rulers
+      and ruler IDs separately... seems like a major complicated change.
+    / use storablevector instead of Data.Map so it's just an array copy?  but
       maybe it doesn't matter and Map is easier to manage
+      This means unpacking Marks every time I want to iterate over the
+      marklist, which produces garbage, but short garbage is no big deal.
   * modify tempo and I get score out of range
   - click to the right of the tracks shouldn't highlight the rightmost track
   * deleting tracks made selection movement messed up, then tracknum assertion
@@ -89,7 +93,6 @@ UNSORTED
   * I can collapse tracks but can't uncollapse them since I can't get
     selection focus on them.  Maybe a command-click on the divider?
   + automate the manual tests
-    wait until hpc+pgmF is fixed
 
   fltk
     - fltk bug: quick tempo yields low-res signal, which gets wiped out by the
@@ -598,11 +601,11 @@ plugin host freeze audio
       I can poll.
 
 test:
-  - write a fltk structure dump so UI tests can be non-interactive
+  * write a fltk structure dump so UI tests can be non-interactive
   - tests count number of tests in addition to checks within each test
   - it should be possible to build only certain tests into RunTests
   - use generics or Foldable or something to write a generic StructEqual
-  - RunTests.hs: if running >1 init-* tests, run them in sub processes
+  * RunTests.hs: if running >1 init-* tests, run them in sub processes
 
 misc:
   - program to launch logview and seq together

@@ -406,5 +406,5 @@ RulerTrackView::draw()
 std::string
 RulerTrackView::dump() const
 {
-    return "ruler";
+    return "type ruler";
 }
