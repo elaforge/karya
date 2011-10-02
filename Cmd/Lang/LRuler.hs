@@ -76,10 +76,17 @@ get_marklist name ruler_id = do
             "no marklist " ++ show name ++ " in " ++ show ruler_id
         Just mlist -> return mlist
 
+-- | Replace or add a marklist with the given name.
 replace_marklist :: (Cmd.M m) => RulerId -> (Ruler.Name, Ruler.Marklist)
     -> m ()
 replace_marklist ruler_id (name, mlist) =
     State.modify_ruler ruler_id (Ruler.set_marklist name mlist)
+
+-- | Modify just the given marklist.
+modify_marklist :: (Cmd.M m) => RulerId -> Ruler.Name
+    -> (Ruler.Marklist -> Ruler.Marklist) -> m ()
+modify_marklist ruler_id name modify = State.modify_ruler ruler_id $
+    Ruler.modify_marklist name modify
 
 replace_marklist_in :: (Cmd.M m) => BlockId -> (Ruler.Name, Ruler.Marklist)
     -> m ()
@@ -157,7 +164,8 @@ extract_from block_id track_id = do
     mlists <- mapM (get_marklist MakeRuler.meter_marklist) ruler_ids
     let big_mlist = Ruler.place_marklists
             [(start, dur, mlist) | ((start, dur, _), mlist) <- zip subs mlists]
-    replace_marklist_in block_id (MakeRuler.meter_marklist, big_mlist)
+    replace_marklist_in block_id
+        (MakeRuler.meter_marklist, MakeRuler.recalculate_zoom big_mlist)
 
 extract_subs :: (Cmd.M m) => TrackId -> m [(ScoreTime, ScoreTime, BlockId)]
 extract_subs track_id = do

@@ -17,6 +17,7 @@ import Prelude hiding (repeat)
 import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import Data.Ratio
 
 import qualified Util.Seq as Seq
@@ -62,6 +63,9 @@ meter_ranks =
     , (mcolor 0.1 0.5 0.1, 1, 8)    -- 64th
     , (mcolor 0.0 0.0 0.0, 1, 8)    -- 256th
     ]
+
+rank_to_pixels :: [Int]
+rank_to_pixels = [pixels | (_, _, pixels) <- meter_ranks]
 
 -- * constructors
 
@@ -151,7 +155,7 @@ mshow = map snd . meter_marks 1
 
 -- ** meter implementation
 
--- | Simplified description of a mark with just (time, rank).
+-- | Simplified description of a mark with just (pos, rank).
 type MarkRank = (ScoreTime, Int)
 
 -- | Convert a Meter into [MarkRank], which can later be turned into [PosMark].
@@ -184,12 +188,36 @@ marks_to_ruler marks = (meter_marklist, Ruler.marklist pos_marks)
     durs = mark_durs marks
     mark dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks
-            zoom = if dur == 0 then 0
-                else fromIntegral pixels / ScoreTime.to_double dur
+            zoom = pixels_to_zoom dur pixels
         in Ruler.Mark rank width color name (zoom*2) zoom
     ranks = length meter_ranks
 
+-- | If a marklist has been stretched, the zoom values will need to be
+-- recalculated.
+recalculate_zoom :: Ruler.Marklist -> Ruler.Marklist
+recalculate_zoom mlist =
+    Ruler.marklist [(pos, recalc dur m) | ((pos, m), dur) <- zip marks durs]
+    where
+    recalc dur mark = mark
+        { Ruler.mark_name_zoom_level = zoom * 2
+        , Ruler.mark_zoom_level = zoom
+        }
+        where
+        zoom = pixels_to_zoom dur $ Maybe.fromMaybe 0 $
+            Seq.at rank_to_pixels (Ruler.mark_rank mark)
+    marks = Ruler.marks_of mlist
+    durs = mark_durs [(pos, Ruler.mark_rank m) | (pos, m) <- marks]
+
+-- | Given a mark duration and the number of pixels it needs to display,
+-- return the appropriate zoom factor.
+pixels_to_zoom :: ScoreTime -> Int -> Double
+pixels_to_zoom dur pixels
+    | dur == 0 = 0
+    | otherwise = fromIntegral pixels / ScoreTime.to_double dur
+
+mark_durs :: [MarkRank] -> [ScoreTime]
 mark_durs = map mark_dur . List.tails
+
 -- | The duration of a mark is the distance until the next mark of equal or
 -- greater (lower) rank.
 mark_dur :: [MarkRank] -> ScoreTime
