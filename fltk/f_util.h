@@ -70,4 +70,6 @@ clip_rect(IRect r)
     return IRect(x, y, w, h);
 }
 
+Fl_Color color_cycle();
+
 #endif

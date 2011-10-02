@@ -191,12 +191,8 @@ OverlayRuler::draw_marklists()
     //         << SHOW_RANGE(clip));
 
     // Show updated range, for debugging.
-    // Fl_Color colors[] =
-    //     { FL_RED, FL_GREEN, FL_YELLOW, FL_BLUE, FL_MAGENTA, FL_CYAN };
-    // static int colori;
-    // fl_color(colors[colori]);
-    // colori = (colori+1) % sizeof colors;
-    //  fl_rectf(clip.x + 10, clip.y, 2, clip.h);
+    // fl_color(color_cycle());
+    // fl_rectf(clip.x + 10, clip.y, 2, clip.h);
 
     fl_font(Config::font, Config::font_size::ruler);
     // Later marklists will draw over earlier ones.

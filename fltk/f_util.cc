@@ -252,3 +252,15 @@ print_children(const Fl_Widget *w, int nlevels, int recurse)
 {
     printf("%s\n", show_children(w, nlevels, recurse));
 }
+
+
+Fl_Color
+color_cycle()
+{
+    static const Fl_Color colors[] =
+        { FL_RED, FL_GREEN, FL_YELLOW, FL_BLUE, FL_MAGENTA, FL_CYAN };
+    static const int len = sizeof colors / sizeof(colors[0]);
+    static int i = -1;
+    i = (i+1) % len;
+    return colors[i];
+}
