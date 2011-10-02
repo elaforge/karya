@@ -217,12 +217,11 @@ dummy_finalizer(void *p)
     DEBUG("FINALIZE " << p);
 }
 
-
 static const Color ruler_bg = Color(255, 230, 160);
 static const Color track_bg = Color(255, 255, 255);
-static const Color render_color = Color(200, 100, 100, 128);
+static const Color render_color = Color(166, 166, 205, 127);
 
-void
+static void
 timeout_func(void *vp)
 {
     BlockViewWindow &view = *((BlockViewWindow *) vp);
@@ -255,6 +254,20 @@ timeout_func(void *vp)
     }
     n++;
     Fl::repeat_timeout(1, timeout_func, vp);
+}
+
+static void
+creep_selection(void *vp)
+{
+    BlockViewWindow &view = *((BlockViewWindow *) vp);
+    static int i;
+    if (++i >= 100)
+        return;
+
+    ScoreTime pos(double(i) / 2);
+    view.block.set_selection(0,
+        Selection(selection_colors[0], 1, pos, 4, pos));
+    Fl::repeat_timeout(.1, creep_selection, vp);
 }
 
 static void
@@ -338,8 +351,7 @@ pitch_track_signal()
     return ts;
 }
 
-/*
-static void
+void
 show_fonts()
 {
     SymbolTable *t = SymbolTable::get();
@@ -350,7 +362,6 @@ show_fonts()
     }
     free(fonts);
 }
-*/
 
 int
 main(int argc, char **argv)
@@ -413,7 +424,8 @@ main(int argc, char **argv)
         SkeletonConfig skel = skeleton_config(pairs, 3);
         view.block.set_skeleton(skel);
     } else {
-        view.block.insert_track(1, Tracklike(&track1, &truler), 130);
+        view.block.insert_track(1, Tracklike(&empty_track, &truler), 130);
+        view.block.set_track_signal(1, *control_track_signal());
     }
 
     DisplayTrack dtrack;
@@ -424,6 +436,7 @@ main(int argc, char **argv)
     // view.block.set_display_track(3, dtrack);
     // print_children(&view);
 
+    // Fl::add_timeout(1, creep_selection, (void*) &view);
     // Fl::add_timeout(1, timeout_func, (void*) &view);
 
     // view_config.block_title_height = 40;
