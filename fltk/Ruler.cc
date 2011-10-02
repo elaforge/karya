@@ -206,9 +206,14 @@ OverlayRuler::draw_marklists()
         PosMark *marks_end = mlist->marks + mlist->length;
         PosMark *m = std::lower_bound(mlist->marks, marks_end,
             PosMark(start, Mark()), compare_marks);
-        if (prev_text_is_first(mlist->marks, m))
+        if (config.show_names && prev_text_is_first(mlist->marks, m))
             m = mlist->marks;
-
+        else if (m > mlist->marks) {
+            // If this isn't here, a slow moving play cursor will clip off the
+            // bottoms of ruler marks.  I think it's because the drawing start
+            // search doesn't take into account that marks have thickness.
+            m--;
+        }
         for (; m < marks_end; m++) {
             int offset = y + zoom.to_pixels(m->pos - zoom.offset);
             bool drew_text = draw_mark(
