@@ -1,36 +1,12 @@
 big things
-  * solution for sekaran, aka pitches below notes
-  / lazy signals
-  / tracks as calls
-  - try out hsplugins
   - record chords
   - record continuum
-  / transformer cache
   - compact signals in tracks
   - complete TunedJust
   - complete Idiom.Wind
 
 UNSORTED
-  * scrolling and zooming slow with big ruler
-    copy over entire ruler instead of callbacks since it doesn't change much
-    If each mark PosMark is 48 bytes, then 8000 marks is 375k, times 10 tracks
-    is starting to get into real memory.
-    * bsearch for initial mark instead of linear search
-    / share share marklist pointers with refcounted pointers?
-      This would require the haskell level to know about send over rulers
-      and ruler IDs separately... seems like a major complicated change.
-    / use storablevector instead of Data.Map so it's just an array copy?  but
-      maybe it doesn't matter and Map is easier to manage
-      This means unpacking Marks every time I want to iterate over the
-      marklist, which produces garbage, but short garbage is no big deal.
-  * modify tempo and I get score out of range
   - click to the right of the tracks shouldn't highlight the rightmost track
-  * deleting tracks made selection movement messed up, then tracknum assertion
-    failure
-  * not regenerating correctly on edits: editing tempo does not cause block
-    to regen so playback gets 'score: out of range'
-  * editing sub-block doesn't cause super-block to regen?
-  * recent is not suppressing duplicates
   - tempo composition is problematic because it means you can't change the
     length of a block from within the block.  So slowing down one part will
     speed up another.  How can I get local tempo like I want?  Or just edit
@@ -57,21 +33,12 @@ UNSORTED
       with the music, e.g. when I play by itself.  On the other hand, if the
       block repeats do I want the tempo to repeat as well?  Sometimes yes,
       sometimes no...
-  * rederive not working?
-  * set dur should set from prev one instead of setting to 0
-  * bug: scrolling sets zoom to 0
-  * scrolling the window without giving it focus causes a segfault
-  * zoom to fit should set track scroll to 0
   - try to make TrackEnviron lazy
   - after an uncollapse, it doesn't redraw the selection that was underneath
   - a collapse should push the selection out
-  * if I put hsc2hs output in build/hsc then I could get rid of hacks in
-    boring, all_hs.py, etc.
   - logview: some kind of indicator that a dup msg was suppressed
   - root block window name gets a *?  or if I won't have window names visible,
     put this in the view status line
-  * Editing a control over the entire score has a big lag between each
-    keystroke.  Shouldn't it be waiting for a second to begin derivation?
   - randomize any control by having the 'set' call look for the -rnd control
   - It would be more efficient to move events around if their controls were
     normalized to start from their beginning, so that you never have to modify
@@ -81,22 +48,9 @@ UNSORTED
   - some ornaments should be scale aware, which means scales should have
     a notion of diatonic transposition.  That means I need 'key' in the
     environ.  Actually, named pitch track.
-  * is it possible to have a more symbolic control track, e.g. pedal with
-    ped and *, or maybe a ped event where it's down until event end?
-  * undo rederives everything, which is super slow on a big score
-    I think I'm going to need to switch to a diff based undo.  I need to do
-    this anyway to save undo.  If I extend Updates to include the actual
-    changes, then they can be used for UI changes, ScoreDamage, and undo.
-
-  - easy way to create a marker on the ruler
-
-  * I can collapse tracks but can't uncollapse them since I can't get
-    selection focus on them.  Maybe a command-click on the divider?
   + automate the manual tests
 
   fltk
-    * fltk bug: quick tempo yields low-res signal, which gets wiped out by the
-      selection and not redrawn
     - block title takes up space and I'm not using it, can it collapse?
     - scrollbars mostly just taking up space, have them as transparent
       overlays?
@@ -121,7 +75,6 @@ UNSORTED
       fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
 
   performance
-    - scrolling is slow with more than a few events onscreen
     - make seeks on derive output more efficient with a lazy index
     cache
       - Can I make cached signal more efficient by merging the signals before
@@ -151,32 +104,9 @@ UNSORTED
       Improve logging so that I can see, given a change, which areas of score
       were rederived.
 
-  profiles
-    profile edits
-      - without auto-rederive
-      - with auto-rederive, derive to end
-    - derivation
-      - transformers: simple nested score with a couple of transformers over
-        the entire thing
-
   cleanup
     - now that the signal deriver is gone, I can also get rid of ignore_tempo,
       unless I want to use it for a lilypond backend or something
-    / instead of building log dup suppressing logic into various functions,
-      e.g.  allot, maybe I can add 'key' field to Log.Msg and suppress dup
-      keys?  Who else produces dups?  Convert does.  But isn't it more
-      efficient to just not emit?
-      - convert and perform want to suppress the same msgs for the current
-        derivation
-      - Perform.Midi.Cache.is_splice_failure is just a better way to identify
-        the msg than text
-      - cache wants to suppress all cache msgs until end of cached block
-      The problem is that it's hard to know the boundaries of the current
-      derivation, especially if there are multiple blocks being derived
-      simultaneously.  I would have to put a block id key.  On the other hand,
-      filtering in place knows that.  The extra copy is actually no worse than
-      the filter at perform time, maybe better for cache since it only happens
-      once.
 
     - use functional references to make some of this record update stuff nicer?
       - fclabels: rename record fields, use setL and setL
@@ -205,18 +135,6 @@ UNSORTED
 
   - If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
-  * need a concept of a "root" block.  This block is used for:
-    - calculating absolute time offset e.g. if a DAW wants to seek to a point
-    * ability to start playing from n seconds back from the current position on
-      the root block as inferred from the current position in a sub block.
-      I can look at selection position on the parent blocks to know which
-      particular invocation of the sub-block is meant.
-    * Maybe if I know which invocation, I can figure out the environment so
-      that I can know current scale and inst?
-    - include root block in set_global_status, but I should do this from an
-      always-run post cmd to avoid a separate Cmd.set_root_id.  Can I apply
-      this to other State attrs too?
-
   - I think PitchSignals may need to be reworked.  They should be (Note, Note,
     Frac).  Otherwise, it's not clear what to call 4a# vs. 4bb.  I can still
     use numbers (Ints this time) as indices into a table of names, but e.g.
@@ -263,10 +181,6 @@ UNSORTED
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
 
-  track management:
-    - resize a bunch of tracks at once
-    - collapse tracks down to minimum width?
-
 MILESTONES
   0.1
     * scales and keyswitches
@@ -305,6 +219,11 @@ external
     - ask ghc-users if it's a good idea
     - figure out how to implement pragmas in ghc
 
+build
+  - shakefile is close, but gets hung up on util.h
+  - make RunTests dependent on generate_tests.py
+  - make individual test targets that make a smaller RunTests
+
 use fixed-binary instead of Doubles for ScoreTime and RealTime:
   reasons to do it:
     - get rid of custom implementation in Perform.RealTime
@@ -318,6 +237,9 @@ use fixed-binary instead of Doubles for ScoreTime and RealTime:
   switch back to Double for RealTime, split from Timestamp for midi
     - but floating point imprecision make controls not be clipped to their
       notes properly.  I think this happened at the Deriver level, not Perform
+  problems:
+    too slow, I do lots of to_double conversions that are slow.
+    Can I do all that math in Fixed?
 
 hs plugins:
   How can the plugins link against the core quickly?  They shouldn't link the
@@ -396,6 +318,21 @@ cleanup:
     structure explicit, do I still need the schema?  at least for Cmds, I do
     need a way to look up Cmds based on track focus.  Before doing anything
     rash, think about ways to derive e.g. 工尺譜.
+  / instead of building log dup suppressing logic into various functions,
+    e.g.  allot, maybe I can add 'key' field to Log.Msg and suppress dup
+    keys?  Who else produces dups?  Convert does.  But isn't it more
+    efficient to just not emit?
+    - convert and perform want to suppress the same msgs for the current
+      derivation
+    - Perform.Midi.Cache.is_splice_failure is just a better way to identify
+      the msg than text
+    - cache wants to suppress all cache msgs until end of cached block
+    The problem is that it's hard to know the boundaries of the current
+    derivation, especially if there are multiple blocks being derived
+    simultaneously.  I would have to put a block id key.  On the other hand,
+    filtering in place knows that.  The extra copy is actually no worse than
+    the filter at perform time, maybe better for cache since it only happens
+    once.
 
 performance:
   Cmd
@@ -455,7 +392,10 @@ performance:
         127130, [pno 9205, flute 63748, clarinet 54177]
         5367 for bloom
         peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
-  - collapsing a track shouldn't trigger a rederive
+  - speed up marklist copy by using storablevector instead of Data.Map
+    But maybe it doesn't matter and Map is easier to manage This means
+    unpacking Marks every time I want to iterate over the marklist, which
+    produces garbage, but short garbage is no big deal.
 
 symbolic score
   - namespacing?  don't worry about it for now, if I need it later it can be
@@ -601,11 +541,9 @@ plugin host freeze audio
       I can poll.
 
 test:
-  * write a fltk structure dump so UI tests can be non-interactive
   - tests count number of tests in addition to checks within each test
   - it should be possible to build only certain tests into RunTests
   - use generics or Foldable or something to write a generic StructEqual
-  * RunTests.hs: if running >1 init-* tests, run them in sub processes
 
 misc:
   - program to launch logview and seq together

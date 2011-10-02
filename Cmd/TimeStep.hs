@@ -59,9 +59,6 @@ to_list :: TimeStep -> [(Step, Skip)]
 to_list (TimeStep steps) = steps
 
 -- | The possible matchers for a TimeStep.
---
--- TODO
--- - snap to named marks (aka cue points)
 data Step =
      -- | Absolute time step.
     Absolute ScoreTime
