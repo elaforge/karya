@@ -158,6 +158,22 @@ compare_marks(const PosMark &m1, const PosMark &m2)
 }
 
 
+static bool
+prev_text_is_first(PosMark *begin, PosMark *cur)
+{
+    if (cur == begin)
+        return false;
+    // True if the prev mark with name == begin
+    PosMark *p = cur - 1;
+    for (;p >= begin; p--) {
+        if (p->mark.name) {
+            return p == begin;
+        }
+    }
+    return false;
+}
+
+
 void
 OverlayRuler::draw_marklists()
 {
@@ -190,9 +206,13 @@ OverlayRuler::draw_marklists()
         PosMark *marks_end = mlist->marks + mlist->length;
         PosMark *m = std::lower_bound(mlist->marks, marks_end,
             PosMark(start, Mark()), compare_marks);
+        if (prev_text_is_first(mlist->marks, m))
+            m = mlist->marks;
+
         for (; m < marks_end; m++) {
             int offset = y + zoom.to_pixels(m->pos - zoom.offset);
-            bool drew_text = draw_mark(offset, m->mark);
+            bool drew_text = draw_mark(
+                m->pos == ScoreTime(0), offset, m->mark);
             // There probably isn't any ruler text this tall.
             if (drew_text && m->pos > end || offset > clip.b() + 15)
                 break;
@@ -202,8 +222,12 @@ OverlayRuler::draw_marklists()
 
 
 // Return true if I drew a text label.
+//
+// If the mark at pos 0 has a name, it will never be seen.  Since a mark
+// at 0 is likely for e.g. a beginning of piece cue, there's a special hack
+// to draw that name below rather than above the line.
 bool
-OverlayRuler::draw_mark(int offset, const Mark &mark)
+OverlayRuler::draw_mark(bool at_zero, int offset, const Mark &mark)
 {
     Color c = mark.color;
     if (this->config.align_to_bottom)
@@ -245,8 +269,9 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
             xpos = xmax;
         }
 
+        int text_at = at_zero ? offset + fl_height()  : offset - 1;
         fl_color(FL_BLACK);
-        fl_draw(mark.name, xpos, offset - 1);
+        fl_draw(mark.name, xpos, text_at);
         drew_text = true;
     }
     return drew_text;

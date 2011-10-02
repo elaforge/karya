@@ -116,7 +116,7 @@ protected:
 
 private:
     void draw_marklists();
-    bool draw_mark(int offset, const Mark &mark);
+    bool draw_mark(bool at_zero, int offset, const Mark &mark);
     void draw_selections();
     TrackSelection selections[Config::max_selections];
 };
