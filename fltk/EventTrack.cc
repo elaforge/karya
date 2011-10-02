@@ -499,28 +499,35 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     for (int i = found; i < tsig.length; i++) {
         // Skip coincident samples, or at least ones that are too close.
         int offset = y + tsig.time_at(zoom, i);
-        // if (i == found)
-        //     DEBUG("started at " << found << " offset " << (offset - min_y));
-        if (offset <= prev_offset && i > found) {
-            prev_offset = offset;
+        // DEBUG("sample " << i << " time " << tsig.signal[i].time
+        //     << " offset " << offset);
+        if (offset <= prev_offset && i > found)
             continue;
-        }
         const char *lower, *upper;
         double val = tsig.val_at(i, &lower, &upper);
         int xpos = floor(::scale(double(min_x), double(max_x),
             ::clamp(0.0, 1.0, val)));
 
-        int next_offset;
-        if (i+1 < tsig.length)
-            next_offset = y + tsig.time_at(zoom, i + 1);
-        else
-            next_offset = y + h();
+        // Look for the next offset which is greater than this one and thus
+        // will actually be drawn.
+        int next_offset = offset;
+        {
+            int j = i + 1;
+            for (; j < tsig.length; j++) {
+                next_offset = y + tsig.time_at(zoom, j);
+                if (next_offset > offset)
+                    break;
+            }
+            if (j == tsig.length)
+                next_offset = y + h();
+        }
 
         // Skip drawing things out of the clip area.
         // TODO avoid overlap with event text
         // TODO skip drawing text if they would overlap each other
         bool scale_changed = false;
         int text_height = 0;
+        // Draw text.
         if (lower && upper && (lower != prev_lower || upper != prev_upper)) {
             IPoint lower_size, upper_size;
             // DEBUG((offset-min_y) << " text in range "
@@ -562,10 +569,12 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
                 // connect with the previous sample, which implies the signal
                 // actually made a jump.
                 // And don't draw a jump from prev_xpos if it didn't exist.
-                if (found == i || scale_changed)
+                if (found == i || scale_changed) {
                     fl_line(xpos, offset, xpos, next_offset);
-                else
-                    fl_line(prev_xpos, offset, xpos, offset, xpos, next_offset);
+                } else {
+                    fl_line(
+                        prev_xpos, offset, xpos, offset, xpos, next_offset);
+                }
                 break;
             case RenderConfig::render_filled:
                 fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);

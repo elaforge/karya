@@ -95,7 +95,7 @@ UNSORTED
   + automate the manual tests
 
   fltk
-    - fltk bug: quick tempo yields low-res signal, which gets wiped out by the
+    * fltk bug: quick tempo yields low-res signal, which gets wiped out by the
       selection and not redrawn
     - block title takes up space and I'm not using it, can it collapse?
     - scrollbars mostly just taking up space, have them as transparent
