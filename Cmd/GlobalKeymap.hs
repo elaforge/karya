@@ -37,7 +37,9 @@
     events.
 -}
 module Cmd.GlobalKeymap where
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Monad.Identity as Identity
+import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
 import qualified Ui.Block as Block
@@ -89,10 +91,15 @@ all_cmd_map :: Keymap.CmdMap (Cmd.CmdT Identity.Identity)
 cmd_map_errors  :: [String]
 (all_cmd_map, cmd_map_errors) =
     -- Pure cmds bind before IO cmds since they are extendable.
-    Keymap.make_cmd_map (pure_bindings ++ map strip io_bindings)
+    Keymap.make_cmd_map (pure_bindings ++ map strip io_bindings
+        ++ map strip (player_bindings dummy_info))
     where
     strip = second $ \(Keymap.CmdSpec name _) ->
         Keymap.CmdSpec name (const (return Cmd.Done))
+    -- I'm going to strip the cmds anyway, but the function wants one and
+    -- this is safer than undefined...
+    dummy_info = Transport.Info (const (return ())) (const (return ()))
+        (return ()) (return 0) (Unsafe.unsafePerformIO MVar.newEmptyMVar)
 
 -- * io cmds
 
