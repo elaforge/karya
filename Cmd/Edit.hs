@@ -144,9 +144,7 @@ cmd_set_duration = do
         (snd (Types.sel_range sel))
     where
     set_sel_dur sel_pos = ModifyEvents.modify_pos_events $ \pos event ->
-        if Event.event_duration event /= 0
-            then Event.set_duration (sel_pos - pos) event
-            else event
+        set_dur (sel_pos - pos) event
     set_prev_dur sel_pos = do
         -- Wow it's a lot of work as soon as it's not the standard selection.
         (_, track_ids, _, _) <- Selection.tracks
@@ -154,8 +152,7 @@ cmd_set_duration = do
             prev <- Seq.head . fst . Events.split sel_pos . Track.track_events
                 <$> State.get_track track_id
             when_just prev $ \(pos, event) ->
-                State.insert_event track_id pos
-                    (Event.set_duration (sel_pos - pos) event)
+                State.insert_event track_id pos (set_dur (sel_pos - pos) event)
 
 -- | Toggle duration between zero and non-zero.
 --
