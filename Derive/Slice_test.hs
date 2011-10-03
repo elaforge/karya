@@ -53,73 +53,63 @@ test_slice = do
         [Node (make_controls "c" [2, 4, 6]) []]
 
 test_slice_notes = do
-    let extract = map (\(s, e, t) -> (s, e, extract_tree t))
-    let f s e = Seq.sort_on (\(s, _, _) -> s) . extract
-            . Slice.slice_notes s e . make_tree
+    let extract = map (map (\(s, e, t) -> (s, e, extract_tree t)))
+    let f s e = -- Seq.sort_on (\(s, _, _) -> s) . extract
+            extract . Slice.slice_notes s e . make_tree
+    let notes ns = Node (make_notes 0 ns)
+        control cs = Node (make_controls "c" cs)
+        control2 cs = Node (make_controls2 "c" cs)
 
     -- no sub tracks works too
-    equal (f 0 1 [Node (make_notes 0 "abc") []])
-        [(0, 1, [Node (make_notes 0 "a") []])]
+    equal (f 0 1 [notes "abc" []])
+        [[(0, 1, [notes "a" []])]]
 
     -- simple sub tracks
-    equal (f 0 2 [Node (make_notes 0 "ab") []])
-        [ (0, 1, [Node (">", [(0, 1, "a")]) []])
+    equal (f 0 2 [notes "ab" []])
+        [[ (0, 1, [Node (">", [(0, 1, "a")]) []])
         , (1, 1, [Node (">", [(0, 1, "b")]) []])
-        ]
-    equal (f 0 1 [Node (make_notes 0 "ab") []])
-        [(0, 1, [Node (">", [(0, 1, "a")]) []])]
+        ]]
+    equal (f 0 1 [notes "ab" []])
+        [[(0, 1, [Node (">", [(0, 1, "a")]) []])]]
 
     -- a zero length note grabs events that have the same start
-    equal (f 1 1 [Node (make_notes 0 "abc") []])
-        [(1, 1, [Node (make_notes 0 "b") []])]
-    equal (f 1 1 [Node (make_notes 0 "abc")
-            [Node (make_controls "c" [0..6]) []]])
-        [(1, 1, [Node (make_notes 0 "b")
-            [Node (make_controls2 "c" [(0, "1"), (1, "2")]) []]])]
+    equal (f 1 1 [notes "abc" []])
+        [[(1, 1, [notes "b" []])]]
+    equal (f 1 1 [notes "abc" [control [0..6] []]])
+        [[(1, 1, [notes "b" [control2 [(0, "1"), (1, "2")] []]])]]
 
     -- no note tracks, no output
-    equal (f 0 1 [Node (make_controls "c" [0..6]) []])
-        []
+    equal (f 0 1 [control [0..6] []]) []
 
     -- empty note track is ignored
-    equal (f 0 1 [Node (make_notes 0 "abc")
-            [Node (make_notes 0 "")
-                [Node (make_controls "c" [0]) []]]])
-        [(0, 1, [Node (make_notes 0 "a")
-            [Node (make_controls "c" [0]) []]])]
+    equal (f 0 1 [notes "abc" [notes "" [control [0] []]]])
+        [[(0, 1, [notes "a" [control [0] []]])]]
 
     -- make sure parent track order doesn't get messed up
     equal (f 0 1 [Node (make_controls "c1" [0..6])
             [Node (make_controls "c2" [0..6])
                 [Node (make_notes 0 "a") []]]])
-        [ (0, 1, [Node (make_controls "c1" [0, 1])
+        [[ (0, 1, [Node (make_controls "c1" [0, 1])
             [Node (make_controls "c2" [0, 1])
                 [Node (">", [(0, 1, "a")]) []]]])
-        ]
+        ]]
 
     -- simple child control slicing
     -- also note events have been moved to 0
-    equal (f 1 2 [Node (make_notes 0 "abc")
-            [Node (make_controls "c" [0..6]) []]])
-        [(1, 1, [Node (">", [(0, 1, "b")])
-            [Node (make_controls2 "c" [(0, "1"), (1, "2")]) []]])]
+    equal (f 1 2 [notes "abc" [control [0..6] []]])
+        [[(1, 1, [Node (">", [(0, 1, "b")])
+            [control2 [(0, "1"), (1, "2")] []]])]]
 
-    -- child slicing with intervening control track
-    let t1 =
-            [ Node (make_controls "c1" [0..4])
-                [Node (make_notes 1 "ab")
-                    [Node (make_controls "c2" [0..4]) []]]
-            , Node (make_notes 1 "cd") []
-            ]
-    equal (f 1 3 t1)
-        [ (1, 1, [Node (make_controls2 "c1" [(0, "1"), (1, "2")])
-                    [Node (">", [(0, 1, "a")])
-                        [Node (make_controls2 "c2" [(0, "1"), (1, "2")]) []]]])
-        , (1, 1, [Node (">", [(0, 1, "c")]) []])
-        , (2, 1, [Node (make_controls2 "c1" [(0, "2"), (1, "3")])
-                    [Node (">", [(0, 1, "b")])
-                        [Node (make_controls2 "c2" [(0, "2"), (1, "3")]) []]]])
-        , (2, 1, [Node (">", [(0, 1, "d")]) []])
+    -- multiple note tracks
+    equal (f 0 0 [notes "abc" [], notes "def" []])
+        [ [(0, 1, [notes "a" []])]
+        , [(0, 1, [notes "d" []])]
+        ]
+    -- with different controls
+    equal (f 0 0 [notes "ab" [control [0, 1] []],
+            notes "cd" [control2 [(0, "2"), (1, "3")] []]])
+        [ [(0, 1, [notes "a" [control [0, 1] []]])]
+        , [(0, 1, [notes "c" [control2 [(0, "2"), (1, "3")] []]])]
         ]
 
 -- * util

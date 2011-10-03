@@ -1,6 +1,7 @@
 module Derive.Call.NoteTransformer_test where
 import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
 
 
 test_tuplet = do
@@ -35,10 +36,31 @@ test_tuplet = do
             ]
     equal (run tracks) [(12, 4, -1), (16, 4, -1), (20, 4, -1)]
 
+    -- longer than tuplet is shrunk
+    equal (run [(">", [(0, 1, "t")]), (">", [(0, 2, "")])])
+        [(0, 1, -1)]
+
     -- not really testing tuplet: make sure empty tracks are stripped
     equal (run [(">", [(0, 1, "")]), (">", []), ("*twelve", [(0, 0, "4c")])])
         [(0, 1, 60)]
 
+test_tuplet_multiple_tracks = do
+    let run = DeriveTest.extract_events extract
+            . DeriveTest.derive_tracks_with_ui id
+                (DeriveTest.set_skel [(1, 2), (1, 3)])
+        extract e = (Score.event_instrument e, Score.event_start e,
+                Score.event_duration e)
+    let tracks =
+            [ (">", [(0, 12, "t")])
+            , (">i1", [(0, 1, ""), (1, 1, "")])
+            , (">i2", [(0, 1, "")])
+            ]
+    let i1 = Just (Score.Instrument "i1")
+        i2 = Just (Score.Instrument "i2")
+    equal (run tracks)
+        [ (i2, 0, 12)
+        , (i1, 0, 6), (i1, 6, 6)
+        ]
 
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note

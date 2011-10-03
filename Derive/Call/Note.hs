@@ -228,20 +228,19 @@ non_bottom_note_track tree = Seq.head (concatMap go tree)
 
 type Event = (ScoreTime, ScoreTime, Derive.EventDeriver)
 
--- | Get the Events of subtracks, if any.  This is the top-level utility for
--- note calls that take other note calls as arguments.
-sub_events :: Derive.PassedArgs d -> [Event]
-sub_events args
-    | null subs = []
-    | otherwise = [(shift, stretch, derive stretch sliced)
-        | (shift, stretch, sliced) <- Slice.slice_notes start end subs]
+-- | Get the Events of subtracks, if any, returning one list of events per sub
+-- note track.  This is the top-level utility for note calls that take other
+-- note calls as arguments.
+sub_events :: Derive.PassedArgs d -> [[Event]]
+sub_events args = map (map derive) (Slice.slice_notes start end subs)
     where
     (start, end) = Derive.passed_range args
     subs = Derive.info_sub_tracks (Derive.passed_info args)
     -- The events have been shifted back to 0 by 'Slice.slice_notes', but
     -- are still their original lengths.  Stretch them back to 1 so Events
     -- are normalized.
-    derive stretch = Derive.d_stretch (recip stretch) . Schema.derive_tracks
+    derive (shift, stretch, tree) = (shift, stretch,
+        Derive.d_stretch (recip stretch) (Schema.derive_tracks tree))
 
 -- | Place and merge a list of Events.
 place :: [Event] -> Derive.EventDeriver

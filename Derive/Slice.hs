@@ -133,7 +133,8 @@ slice exclusive start end insert_event = concatMap strip . map do_slice
 -- The shift of each Event will be subtracted from the track events, so they
 -- start at 0.  Control tracks caught in the middle are extended one event on
 -- either edge of the slice boundary courtesy of the 'slice' function.  Note
--- that there will be negative control events if they lie before the note.
+-- that there will be control events at negative ScoreTime if they lie before
+-- the note.
 --
 -- If there are no note tracks, return [].
 --
@@ -149,10 +150,11 @@ slice exclusive start end insert_event = concatMap strip . map do_slice
 -- will never even be reached.  However, this situation is handled by the
 -- track deriver, which should have called 'extract_orphans' already.
 slice_notes :: ScoreTime -> ScoreTime -> State.EventsTree
-    -> [(ScoreTime, ScoreTime, State.EventsTree)]
-    -- ^ @(shift, stretch, tree)@, in no guaranteed order
+    -> [[(ScoreTime, ScoreTime, State.EventsTree)]]
+    -- ^ @(shift, stretch, tree)@, in no guaranteed order.  There is one list
+    -- per note track found.
 slice_notes start end =
-    map shift . concatMap slice_track . concatMap note_tracks
+    map (map shift) . map slice_track . concatMap note_tracks
     where
     note_tracks (Tree.Node track subs)
         | TrackInfo.is_note_track (State.tevents_title track) =

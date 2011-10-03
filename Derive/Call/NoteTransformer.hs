@@ -24,17 +24,22 @@ note_calls = Derive.make_calls
 
 -- * tuplet
 
+-- | This is a generalized tuplet.  The notes within its scope will be
+-- stretched so that their collective length is the same as the tuplet.
+-- If there are multiple note tracks, they will be stretched individually,
 c_tuplet :: Derive.NoteCall
-c_tuplet = Derive.stream_generator "tuplet" $ Note.place . stretched
+c_tuplet = Derive.stream_generator "tuplet" $ Note.place . stretched_tracks
     where
-    stretched args = map stretch $ Seq.sort_on (\(s, _, _) -> s) events
+    stretched_tracks args =
+        sort $ concatMap (stretched start end) (Note.sub_events args)
+        where (start, end) = Derive.passed_range args
+    stretched s e events = map stretch (sort events)
         where
-        events = Note.sub_events args
-        (start, end) = Derive.passed_range args
         event_end = Seq.maximum (map (\(off, dur, _) -> off + dur) events)
-        factor = (end - start) / maybe 1 (subtract start) event_end
+        factor = (e-s) / maybe 1 (subtract s) event_end
         stretch (off, stretch, d) =
-            ((off-start) * factor + start, stretch*factor, d)
+            ((off-s) * factor + s, stretch*factor, d)
+    sort = Seq.sort_on (\(s, _, _) -> s)
 
 
 data Arpeggio = Down | Up | Random deriving (Show)
@@ -43,7 +48,7 @@ c_real_arpeggio :: Arpeggio -> Derive.NoteCall
 c_real_arpeggio arp = Derive.stream_generator "arpeggio" $ \args ->
     CallSig.call1 args (optional "time" 0.1) $ \time ->
         arpeggio arp (RealTime.seconds time)
-            (Note.place (Note.sub_events args))
+            (Note.place (concat (Note.sub_events args)))
 
 -- | Shift each note by a successive amount.
 arpeggio :: Arpeggio -> RealTime -> Derive.EventDeriver -> Derive.EventDeriver
