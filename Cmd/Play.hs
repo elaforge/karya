@@ -145,7 +145,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         _ -> return ()
     perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
         =<< Cmd.lookup_performance block_id
-    start <- Perf.find_realtime perf block_id start_track start_pos
+    start <- Perf.get_realtime perf block_id start_track start_pos
     msgs <- PlayUtil.shift_messages start <$> PlayUtil.perform_from start perf
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs

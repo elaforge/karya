@@ -6,6 +6,7 @@
 module Cmd.Perf where
 import Control.Monad
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -133,21 +134,25 @@ lookup_env block_id track_id name =
 -- the track is Nothing, use the first track that has tempo information.  This
 -- is necessary because if a track is muted it will have no tempo, but it's
 -- confusing if playing from a muted track fails.
-find_realtime :: (Cmd.M m) => Cmd.Performance -> BlockId -> Maybe TrackId
+get_realtime :: (Cmd.M m) => Cmd.Performance -> BlockId -> Maybe TrackId
     -> ScoreTime -> m RealTime
-find_realtime perf block_id maybe_track_id pos = do
+get_realtime perf block_id maybe_track_id pos =
+    maybe (Cmd.throw $ show block_id ++ " " ++ Pretty.pretty maybe_track_id
+            ++ " has no tempo information, so it probably failed to derive.")
+        return =<< lookup_realtime perf block_id maybe_track_id pos
+
+lookup_realtime :: (Cmd.M m) => Cmd.Performance -> BlockId -> Maybe TrackId
+    -> ScoreTime -> m (Maybe RealTime)
+lookup_realtime perf block_id maybe_track_id pos = do
     track_ids <- maybe (State.track_ids_of block_id) (return . (:[]))
         maybe_track_id
-    case msum (map tempo track_ids) of
-        Nothing -> Cmd.throw $ show block_id ++ " " ++ show track_ids
-            ++ " has no tempo information, so it probably failed to derive."
-        Just realtime -> return realtime
+    return $ msum (map tempo track_ids)
     where tempo tid = Seq.head $ Cmd.perf_tempo perf block_id tid pos
 
--- | Like 'find_realtime', but do multiple at once.
-find_realtimes :: Cmd.Performance -> BlockId -> TrackId
-    -> [ScoreTime] -> [(ScoreTime, RealTime)]
-find_realtimes perf block_id track_id ps =
+-- | Like 'get_realtime', but do multiple at once.
+get_realtimes :: Cmd.Performance -> BlockId -> TrackId -> [ScoreTime]
+    -> [(ScoreTime, RealTime)]
+get_realtimes perf block_id track_id ps =
     [(p, t) | (p, (t:_))
         <- zip ps (map (Cmd.perf_tempo perf block_id track_id) ps)]
 
@@ -183,13 +188,12 @@ tracknums_of block (track_id, pos) =
 -- The block itself is filtered out of the result.
 sub_pos :: (Cmd.M m) => BlockId -> TrackId -> ScoreTime
     -> m [(BlockId, [(TrackId, ScoreTime)])]
-sub_pos block_id track_id pos = do
-    maybe_perf <- Cmd.lookup_performance block_id
-    case maybe_perf of
-        Nothing -> return []
-        Just perf -> do
-            real <- find_realtime perf block_id (Just track_id) pos
-            return $ filter ((/=block_id) . fst) (Cmd.perf_inv_tempo perf real)
+sub_pos block_id track_id pos = fmap (Maybe.fromMaybe []) $
+    justm (Cmd.lookup_performance block_id) $ \perf ->
+    justm (lookup_realtime perf block_id (Just track_id) pos) $ \real ->
+    return $ Just $ filter ((/=block_id) . fst) (Cmd.perf_inv_tempo perf real)
+    -- lookup_realtime gives Nothing if there's no tempo available which is
+    -- likely for a newly added track.  Return [] in that case.
 
 -- * util
 

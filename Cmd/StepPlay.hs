@@ -90,7 +90,7 @@ initialize view_id block_id tracknum track_id pos play_tracks = do
     steps <- Cmd.require_msg "can't get event starts for step play"
         =<< TimeStep.get_points play_step block_id tracknum pos
     let (score_steps, real_steps) = unzip $
-            Perf.find_realtimes perf block_id track_id steps
+            Perf.get_realtimes perf block_id track_id steps
     start <- Cmd.require_msg "no valid step points" (Seq.head real_steps)
 
     filter_tracks <- if null play_tracks then return id
