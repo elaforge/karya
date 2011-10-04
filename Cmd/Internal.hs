@@ -38,9 +38,9 @@ cmd_record_keys msg = cont $ when_just (msg_to_mod msg) $ \(down, mb_mod) -> do
         (True, Just mod) -> insert mod mods2
         (False, Just mod) -> delete mod mods2
         _ -> return mods2
-    -- when (not (Map.null mods3)) $
+    -- when_just mb_mod $ \m ->
     --     Log.warn $ (if down then "keydown " else "keyup ")
-    --         ++ show (Map.elems mods3)
+    --         ++ show (strip_modifier m) ++ " in " ++ show (Map.keys mods)
     Cmd.modify_state $ \st -> st { Cmd.state_keys_down = mods3 }
     where
     cont = (>> return Cmd.Continue)
@@ -52,7 +52,8 @@ cmd_record_keys msg = cont $ when_just (msg_to_mod msg) $ \(down, mb_mod) -> do
     delete mod mods = do
         let key = strip_modifier mod
         when (key `Map.notMember` mods) $
-            Log.warn $ "keyup for " ++ show mod ++ " not in modifiers"
+            Log.warn $ "keyup for " ++ show key ++ " not in modifiers "
+                ++ show (Map.keys mods)
         return $ Map.delete key mods
     set_key_mods mods = case msg_to_key_mods msg of
         Just kmods -> Map.insert_list

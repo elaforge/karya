@@ -258,8 +258,8 @@ run_cmds rstate msg = do
     cstate <- record_keys rstate msg
     (result, cmd_state) <- Cont.callCC $ \exit ->
         run_core_cmds (rstate { state_cmd = cstate }) msg exit
-    cmd_state <- return $
-        either (const (state_cmd rstate)) (const cmd_state) result
+    -- If the cmd threw, roll back the cmd state.
+    cmd_state <- return $ either (const cstate) (const cmd_state) result
     return $ case result of
         Left _ -> (result, cmd_state)
         Right (status, ui_from, ui_to) ->
