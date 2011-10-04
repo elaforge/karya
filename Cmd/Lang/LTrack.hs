@@ -15,6 +15,7 @@ import qualified Ui.Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.Selection as Selection
 import qualified Cmd.Track as Track
 
 import qualified Derive.TrackInfo as TrackInfo
@@ -64,3 +65,20 @@ strip_controls = map snd . filter same . Seq.zip_prev
     is_set = right . ParseBs.parse_all ParseBs.p_float
     right (Right _) = True -- why isn't this in Data.Either?
     right (Left _) = False
+
+-- * signal render
+
+filled :: Cmd.CmdL ()
+filled = do
+    (_, _, track_id, _) <- Selection.get_insert
+    State.set_render_style Ui.Track.Filled track_id
+
+line :: Cmd.CmdL ()
+line = do
+    (_, _, track_id, _) <- Selection.get_insert
+    State.set_render_style Ui.Track.Line track_id
+
+no_render :: Cmd.CmdL ()
+no_render = do
+    (_, _, track_id, _) <- Selection.get_insert
+    State.set_render_style Ui.Track.NoRender track_id
