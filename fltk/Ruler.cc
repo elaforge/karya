@@ -174,6 +174,19 @@ prev_text_is_first(PosMark *begin, PosMark *cur)
 }
 
 
+static PosMark *
+rewind_to_prev_visible(PosMark *begin, PosMark *cur, double zoom)
+{
+    // Ruler marks have their own thickness, so I have to start drawing from
+    // the previous visible mark.
+    while (--cur > begin) {
+        if (zoom >= cur->mark.zoom_level)
+            break;
+    }
+    return cur;
+}
+
+
 void
 OverlayRuler::draw_marklists()
 {
@@ -204,12 +217,8 @@ OverlayRuler::draw_marklists()
             PosMark(start, Mark()), compare_marks);
         if (config.show_names && prev_text_is_first(mlist->marks, m))
             m = mlist->marks;
-        else if (m > mlist->marks) {
-            // If this isn't here, a slow moving play cursor will clip off the
-            // bottoms of ruler marks.  I think it's because the drawing start
-            // search doesn't take into account that marks have thickness.
-            m--;
-        }
+        else
+            m = rewind_to_prev_visible(mlist->marks, m, zoom.factor);
         for (; m < marks_end; m++) {
             int offset = y + zoom.to_pixels(m->pos - zoom.offset);
             bool drew_text = draw_mark(
