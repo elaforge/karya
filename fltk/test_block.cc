@@ -287,7 +287,7 @@ control_track_signal()
         calloc(length, sizeof(TrackSignal::ControlSample));
     for (int i = 0; i < length; i++) {
         samples[i].time = ScoreTime(i).to_real();
-        samples[i].val = fmod(i / 60.0, 1);
+        samples[i].val = fmod(i / 20.0, 5);
     }
     ts->signal = samples;
     ts->pitch_signal = NULL;
@@ -297,6 +297,7 @@ control_track_signal()
 
     ts->shift = ScoreTime(0);
     ts->stretch = ScoreTime(1);
+    ts->calculate_max_control_val();
 
     return ts;
 }

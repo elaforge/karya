@@ -116,6 +116,9 @@ poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
                 copyArray destp (advancePtr sigp offset) len
                 (#poke TrackSignal, signal) tsigp destp
             (#poke TrackSignal, length) tsigp len
+            -- Calculated by c++, in c_interface.cc.  I'd rather do it here,
+            -- but I'm worried all those peeks will generate garbage.
+            (#poke TrackSignal, max_control_val) tsigp (-1 :: CDouble)
     (#poke TrackSignal, shift) tsigp shift
     (#poke TrackSignal, stretch) tsigp stretch
 

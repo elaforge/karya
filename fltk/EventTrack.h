@@ -45,21 +45,12 @@ struct TrackSignal {
 
     // The track containing the TrackSignal is responsible for the freeing of
     // the signal pointers.
-    void free_signals() {
-        if (signal)
-            free(signal);
-        if (pitch_signal)
-            free(pitch_signal);
-        if (val_names) {
-            // DEBUG("free valnames " << val_names << " " << val_names_length);
-            for (int i = 0; i < val_names_length; i++)
-                free(const_cast<char *>(val_names[i].name));
-            free(val_names);
-        }
-    }
+    void free_signals();
 
     // One of these pointers should be null.
     ControlSample *signal;
+    // The maximum value in 'signal', to normalize the display.
+    double max_control_val;
     PitchSample *pitch_signal;
     // Length of above signal.
     int length;
@@ -80,6 +71,11 @@ struct TrackSignal {
     // Get the val at the given index, normalized between 0--1.
     double val_at(int i, const char **lower, const char **upper) const;
     const ValName *name_of(double val, bool lower) const;
+
+    // Set 'max_control_val'.  Normally this would be called by the
+    // constructor, but since I construct manually from haskell I don't have
+    // one of those.
+    void calculate_max_control_val();
 };
 
 struct RenderConfig {

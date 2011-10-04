@@ -229,8 +229,9 @@ update_track(BlockViewWindow *view, int tracknum,
 
 void
 set_track_signal(BlockViewWindow *view, int tracknum,
-        const TrackSignal *tsig)
+        TrackSignal *tsig)
 {
+    tsig->calculate_max_control_val();
     view->block.set_track_signal(tracknum, *tsig);
 }
 

@@ -25,6 +25,21 @@ enum { MIN_PIXEL = -10000, MAX_PIXEL = 10000 };
 
 // TrackSignal //////////
 
+void
+TrackSignal::free_signals()
+{
+    if (signal)
+        free(signal);
+    if (pitch_signal)
+        free(pitch_signal);
+    if (val_names) {
+        // DEBUG("free valnames " << val_names << " " << val_names_length);
+        for (int i = 0; i < val_names_length; i++)
+            free(const_cast<char *>(val_names[i].name));
+        free(val_names);
+    }
+}
+
 static bool
 compare_control_sample(const TrackSignal::ControlSample &s1,
         const TrackSignal::ControlSample &s2)
@@ -98,14 +113,12 @@ TrackSignal::time_at(const ZoomInfo &zoom, int i) const
 // Get the val at the given index, normalized between 0--1.  If appropriate,
 // return the val names below and above the val.  Otherwise, the pointers will
 // be set to NULL.
-//
-// TODO normalize to a max val
 double
 TrackSignal::val_at(int i, const char **lower, const char **upper) const
 {
     *lower = *upper = NULL;
     if (signal)
-        return signal[i].val;
+        return signal[i].val / this->max_control_val;
     else if (!pitch_signal)
         ASSERT(0);
 
@@ -165,6 +178,19 @@ TrackSignal::name_of(double val, bool lower) const {
         return NULL;
     else
         return found;
+}
+
+
+void
+TrackSignal::calculate_max_control_val() {
+    this->max_control_val = 1;
+    if (this->signal && this->length > 0) {
+        double val = signal[0].val;
+        for (ControlSample *s = signal; s < signal + length; s++) {
+            val = std::max(val, s->val);
+        }
+        this->max_control_val = std::max(1.0, val);
+    }
 }
 
 
