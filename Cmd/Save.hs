@@ -3,7 +3,6 @@
 module Cmd.Save where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified System.FilePath as FilePath
 
@@ -31,17 +30,12 @@ cmd_save fname = do
     ui_state <- State.get
     save <- Trans.liftIO $ Serialize.save_state (State.clear ui_state)
     Log.notice $ "write state to " ++ show fname
-    -- For the moment, also serialize to plain text, since that's easier to
-    -- read and edit.
-    Trans.liftIO $ Serialize.serialize_text (fname ++ ".text") save
     Trans.liftIO $ Serialize.serialize fname save
 
 cmd_load :: FilePath -> Cmd.CmdT IO ()
 cmd_load fname = do
     Log.notice $ "load state from " ++ show fname
-    let unserialize = if ".text" `List.isSuffixOf` fname
-            then Serialize.unserialize_text else Serialize.unserialize
-    try_state <- Trans.liftIO $ unserialize fname
+    try_state <- Trans.liftIO $ Serialize.unserialize fname
     Serialize.SaveState state _ <- either (\err -> Cmd.throw $
             "unserializing " ++ show fname ++ ": " ++ err)
         return try_state
