@@ -179,7 +179,8 @@ rewind_to_prev_visible(PosMark *begin, PosMark *cur, double zoom)
 {
     // Ruler marks have their own thickness, so I have to start drawing from
     // the previous visible mark.
-    while (--cur > begin) {
+    while (cur > begin) {
+        cur--;
         if (zoom >= cur->mark.zoom_level)
             break;
     }
