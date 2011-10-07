@@ -48,15 +48,18 @@ public:
 
     // A Symbol is a group of glyphs.
     struct Symbol {
-        Symbol() {}
+        Symbol() : absolute_y(0) {}
         Symbol(const Glyph &g1) {
+            Symbol();
             glyphs.push_back(g1);
         }
         Symbol(const Glyph &g1, const Glyph &g2) {
+            Symbol();
             glyphs.push_back(g1);
             glyphs.push_back(g2);
         }
         Symbol(const Glyph &g1, const Glyph &g2, const Glyph &g3) {
+            Symbol();
             glyphs.push_back(g1);
             glyphs.push_back(g2);
             glyphs.push_back(g3);
