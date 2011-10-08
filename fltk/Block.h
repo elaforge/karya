@@ -57,14 +57,6 @@ struct BlockModelConfig {
 };
 
 
-struct BlockViewConfig {
-    int block_title_height;
-    int track_title_height;
-    int skel_height;
-    int sb_size;
-    int status_size;
-};
-
 // Track config local to each BlockView.
 struct DisplayTrack {
     double event_brightness;
@@ -81,14 +73,14 @@ struct DisplayTrack {
 class BlockView : public Fl_Group {
 public:
     BlockView(int X, int Y, int W, int H,
-            const BlockModelConfig &model_config,
-            const BlockViewConfig &view_config);
+        const BlockModelConfig &model_config);
     ~BlockView();
 
     int handle(int evt);
     void resize(int X, int Y, int W, int H);
-    void set_view_config(const BlockViewConfig &view_config,
-            bool update_all=false);
+private:
+    void set_view_config();
+public:
     void set_model_config(const BlockModelConfig &config,
             bool update_all=false);
     void set_skeleton(const SkeletonConfig &skel);
@@ -165,7 +157,6 @@ public:
 
 private:
     BlockModelConfig model_config;
-    BlockViewConfig view_config;
     ZoomInfo zoom;
     // The ruler track gets this when there's "nothing" in it.
     TrackView *no_ruler;
@@ -205,9 +196,7 @@ private:
 class BlockViewWindow : public Fl_Double_Window {
 public:
     BlockViewWindow(int X, int Y, int W, int H,
-            const char *label,
-            const BlockModelConfig &model_config,
-            const BlockViewConfig &view_config);
+        const char *label, const BlockModelConfig &model_config);
     virtual void resize(int X, int Y, int W, int H);
     BlockView block;
 

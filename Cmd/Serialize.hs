@@ -297,9 +297,8 @@ instance Serialize Block.Divider where
     get = get >>= \a -> return (divider a)
 
 instance Serialize Block.View where
-    put (Block.View a b c d e f g h i) = put_version 2
+    put (Block.View a b c d e f g h) = put_version 3
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
-        >> put i
     get = do
         v <- get_version
         case v of
@@ -308,39 +307,53 @@ instance Serialize Block.View where
                 rect <- get :: Get Rect.Rect
                 visible_track <- get :: Get Int
                 visible_time <- get :: Get Int
-                config <- get :: Get Block.ViewConfig
+                _config <- get :: Get ViewConfig
                 status <- get :: Get (Map.Map String String)
                 track_scroll <- get :: Get Types.Width
                 zoom <- get :: Get Types.Zoom
                 selections <- get :: Get (Map.Map Types.SelNum Types.Selection)
                 _tracks <- get :: Get [TrackView]
                 return $ Block.View block rect visible_track visible_time
-                    config status track_scroll zoom selections
+                    status track_scroll zoom selections
             2 -> do
                 block <- get :: Get Types.BlockId
                 rect <- get :: Get Rect.Rect
                 visible_track <- get :: Get Int
                 visible_time <- get :: Get Int
-                config <- get :: Get Block.ViewConfig
+                _config <- get :: Get ViewConfig
                 status <- get :: Get (Map.Map String String)
                 track_scroll <- get :: Get Types.Width
                 zoom <- get :: Get Types.Zoom
                 selections <- get :: Get (Map.Map Types.SelNum Types.Selection)
                 return $ Block.View block rect visible_track visible_time
-                    config status track_scroll zoom selections
+                    status track_scroll zoom selections
+            3 -> do
+                block <- get :: Get Types.BlockId
+                rect <- get :: Get Rect.Rect
+                visible_track <- get :: Get Int
+                visible_time <- get :: Get Int
+                status <- get :: Get (Map.Map String String)
+                track_scroll <- get :: Get Types.Width
+                zoom <- get :: Get Types.Zoom
+                selections <- get :: Get (Map.Map Types.SelNum Types.Selection)
+                return $ Block.View block rect visible_track visible_time
+                    status track_scroll zoom selections
             _ -> version_error "Block.View" v
 
 -- TODO only for compatibility with Block.View version 1
 type TrackView = Types.Width
 
-instance Serialize Rect.Rect where
-    put r = put (Rect.rx r) >> put (Rect.ry r) >> put (Rect.rw r)
-        >> put (Rect.rh r)
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Rect.xywh a b c d)
+-- | TODO only for compatibility with Block.View version 2
+data ViewConfig = ViewConfig {
+    vconfig_block_title_height :: Int
+    , vconfig_track_title_height :: Int
+    , vconfig_skel_height :: Int
+    , vconfig_sb_size :: Int
+    , vconfig_status_size :: Int
+    } deriving (Eq, Ord, Show, Read)
 
-instance Serialize Block.ViewConfig where
-    put (Block.ViewConfig a b c d e) = put_version 2
+instance Serialize ViewConfig where
+    put (ViewConfig a b c d e) = put_version 2
         >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- get_version
@@ -351,9 +364,15 @@ instance Serialize Block.ViewConfig where
                 skel_height <- get :: Get Int
                 sb_size <- get :: Get Int
                 status_size <- get :: Get Int
-                return $ Block.ViewConfig block_title track_title skel_height
+                return $ ViewConfig block_title track_title skel_height
                     sb_size status_size
-            _ -> version_error "Block.ViewConfig" v
+            _ -> version_error "ViewConfig" v
+
+instance Serialize Rect.Rect where
+    put r = put (Rect.rx r) >> put (Rect.ry r) >> put (Rect.rw r)
+        >> put (Rect.rh r)
+    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
+        return (Rect.xywh a b c d)
 
 instance Serialize Types.Zoom where
     put (Types.Zoom a b) = put a >> put b

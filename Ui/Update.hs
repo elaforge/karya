@@ -61,7 +61,6 @@ data ViewUpdate =
     CreateView Block.View
     | DestroyView
     | ViewSize Rect.Rect
-    | ViewConfig Block.ViewConfig
     | Status (Map.Map String String)
     | TrackScroll Types.Width
     | Zoom Types.Zoom

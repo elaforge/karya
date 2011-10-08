@@ -19,8 +19,7 @@ static const double mousewheel_track_scale = 3;
 
 
 BlockView::BlockView(int X, int Y, int W, int H,
-        const BlockModelConfig &model_config,
-        const BlockViewConfig &view_config) :
+        const BlockModelConfig &model_config) :
     Fl_Group(X, Y, W, H),
 
     title(0, 0, 1, 1, false),
@@ -39,7 +38,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
             track_sb(0, 0, 1, 1),
             track_scroll(0, 0, 1, 1),
                 track_tile(0, 0, 1, 1, model_config.bg,
-                        view_config.track_title_height)
+                        Config::View::track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
     // of them.  The real resizing will be done in set_view_config
@@ -54,7 +53,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
 
     // Insert a placeholder for the ruler.  The size will be set again by
     // set_view_config, but that's ok.
-    this->no_ruler = new DividerView(DividerConfig(Color(0)));
+    this->no_ruler = new DividerView(DividerConfig(Color::black));
     this->replace_ruler_track(no_ruler, 0);
 
     // Remove the status line from the tab focus list.  I bypass that anyway
@@ -73,7 +72,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.resizable(body_resize_group);
     track_group.resizable(track_scroll);
 
-    this->set_view_config(view_config, true);
+    this->set_view_config();
     this->set_model_config(model_config, true);
 
     // See dummy_ruler_size in set_view_config.
@@ -132,7 +131,7 @@ BlockView::resize(int X, int Y, int W, int H)
 
 
 void
-BlockView::set_view_config(const BlockViewConfig &vconfig, bool _update_all)
+BlockView::set_view_config()
 {
     // I update everything, even if update_all is false.  It's probably not
     // worth trying to skip things that haven't changed for this.
@@ -152,48 +151,50 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool _update_all)
     int wx = 0, wy = 0;
     this->position(0, 0);
 
-    title.resize(wx, wy, w(), vconfig.block_title_height);
-    status_line.resize(wx, h() - vconfig.status_size,
-            w() - mac_resizer_width, vconfig.status_size);
+    title.resize(wx, wy, w(), Config::View::block_title_height);
+    status_line.resize(wx, h() - Config::View::status_size,
+            w() - mac_resizer_width, Config::View::status_size);
     body.resize(wx, wy + title.h(),
             w(), h() - title.h() - status_line.h());
-    body_resize_group.resize(body.x() + vconfig.sb_size, body.y(),
-            body.w() - vconfig.sb_size, body.h());
+    body_resize_group.resize(body.x() + Config::View::sb_size, body.y(),
+            body.w() - Config::View::sb_size, body.h());
 
-    int ruler_group_w = vconfig.sb_size + ruler_track->w();
+    int ruler_group_w = Config::View::sb_size + ruler_track->w();
     skel_box.resize(body.x(), body.y(),
-            ruler_group_w, vconfig.skel_height);
+            ruler_group_w, Config::View::skel_height);
     skel_display_scroll.resize(skel_box.x() + skel_box.w(), skel_box.y(),
-            body.w() - ruler_group_w, vconfig.skel_height);
+            body.w() - ruler_group_w, Config::View::skel_height);
     IRect p = rect(skel_display_scroll);
     skel_display.resize(p.x, p.y, p.w, p.h);
 
     // Re-use the existing ruler_track width so it is maintained across calls
     // to set_view_config.  It has to be at least 1, or else the 'body' Fl_Tile
     // won't resize properly.
-    ruler_group.resize(wx, body.y() + vconfig.skel_height,
-            ruler_group_w, body.h() - vconfig.skel_height);
+    ruler_group.resize(wx, body.y() + Config::View::skel_height,
+        ruler_group_w, body.h() - Config::View::skel_height);
     p = rect(ruler_group);
     track_group.resize(p.r(), p.y, body.w() - p.w, p.h);
 
-    track_box.resize(p.x, p.y, p.w, vconfig.block_title_height);
-    sb_box.resize(p.x, p.b() - vconfig.sb_size, p.w, vconfig.sb_size);
+    track_box.resize(p.x, p.y, p.w, Config::View::block_title_height);
+    sb_box.resize(p.x, p.b() - Config::View::sb_size,
+        p.w, Config::View::sb_size);
 
     time_sb.set_orientation(P9Scrollbar::vertical);
     track_sb.set_orientation(P9Scrollbar::horizontal);
 
     time_sb.resize(p.x, p.y + track_box.h(),
-            vconfig.sb_size, p.h - track_box.h() - sb_box.h());
+        Config::View::sb_size, p.h - track_box.h() - sb_box.h());
     ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
-            ruler_track->w(), time_sb.h());
+        ruler_track->w(), time_sb.h());
 
     p = rect(track_group);
-    track_sb.resize(p.x, p.b() - vconfig.sb_size, p.w, vconfig.sb_size);
+    track_sb.resize(p.x, p.b() - Config::View::sb_size,
+        p.w, Config::View::sb_size);
     track_scroll.resize(p.x, p.y, p.w, p.h - track_sb.h());
     track_tile.resize(track_scroll.x(), track_scroll.y(),
             track_scroll.w(), track_scroll.h());
 
-    this->track_tile.set_title_height(vconfig.track_title_height);
+    this->track_tile.set_title_height(Config::View::track_title_height);
 
     // This is overhead required by fltk when you resize anything manually.
     init_sizes();
@@ -204,7 +205,6 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool _update_all)
     track_tile.init_sizes();
 
     this->update_scrollbars();
-    this->view_config = vconfig;
     this->redraw();
 }
 
@@ -533,8 +533,6 @@ BlockView::dump() const
     out << "x " << win->x() << " y " << win->y()
         << " w " << this->w() << " h " << this->h();
     out << " title " << show_string(this->get_title());
-    out << " title-height " << title.h() << " sb-size " << time_sb.w()
-        << " status-size " << status_line.h();
     for (int i = 0; i < this->tracks(); i++) {
         out << " track" << i << " ("
             << "width " << this->get_track_width(i)
@@ -654,11 +652,9 @@ block_view_window_cb(Fl_Window *win, void *p)
 
 BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
         const char *label,
-        const BlockModelConfig &model_config,
-        const BlockViewConfig &view_config) :
+        const BlockModelConfig &model_config) :
     Fl_Double_Window(X, Y, W, H, label),
-    block(X, Y, W, H, model_config, view_config),
-    testing(false)
+    block(X, Y, W, H, model_config), testing(false)
 {
     this->callback((Fl_Callback *) block_view_window_cb);
     this->resizable(this);

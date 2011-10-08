@@ -150,7 +150,7 @@ struct ZoomInfo {
     int to_pixels(const ScoreTime pos) const {
         // A ScoreTime is not guaranteed to fit in an int.
         double scaled = pos.scale(this->factor);
-        return int(floor(std::max(double(-max_pixels),
+        return int(round(std::max(double(-max_pixels),
                                   std::min(double(max_pixels), scaled))));
     }
 

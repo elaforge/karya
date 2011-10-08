@@ -183,7 +183,7 @@ run_update track_signals (Update.ViewUpdate view_id (Update.CreateView _)) = do
     return $ do
         let title = block_window_title view_id (Block.view_block view)
         BlockC.create_view view_id title (Block.view_rect view)
-            (Block.view_config view) (Block.block_config block)
+            (Block.block_config block)
         mapM_ (create_track ustate)
             (List.zip6 [0..] dtracks btracks tlike_ids tracklikes titles)
         unless (null (Block.block_title block)) $
@@ -220,7 +220,6 @@ run_update _ (Update.ViewUpdate view_id update) = case update of
     Update.CreateView {} -> error "run_update: notreached"
     Update.DestroyView -> return $ BlockC.destroy_view view_id
     Update.ViewSize rect -> return $ BlockC.set_size view_id rect
-    Update.ViewConfig config -> return $ BlockC.set_view_config view_id config
     Update.Status status ->
         return $ BlockC.set_status view_id (Block.show_status status)
     Update.TrackScroll offset ->

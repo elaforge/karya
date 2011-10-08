@@ -54,10 +54,10 @@ clear_ui_msgs()
 
 BlockViewWindow *
 create(int x, int y, int w, int h, const char *label,
-        BlockModelConfig *model_config, BlockViewConfig *view_config)
+    BlockModelConfig *model_config)
 {
-    BlockViewWindow *win = new BlockViewWindow(
-            x, y, w, h, label, *model_config, *view_config);
+    BlockViewWindow *win =
+        new BlockViewWindow(x, y, w, h, label, *model_config);
     win->show();
     return win;
 }
@@ -85,12 +85,6 @@ get_size(BlockViewWindow *view, int *sz)
     sz[1] = view->y();
     sz[2] = view->w();
     sz[3] = view->h();
-}
-
-void
-set_view_config(BlockViewWindow *view, BlockViewConfig *config)
-{
-    view->block.set_view_config(*config);
 }
 
 void

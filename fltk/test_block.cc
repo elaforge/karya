@@ -23,23 +23,12 @@ Color selection_colors[] = {
     Color(0, 255, 255, 90)
 };
 
-BlockViewConfig block_view_config()
-{
-    BlockViewConfig c;
-    c.block_title_height = 20;
-    c.track_title_height = 20;
-    c.skel_height = 16;
-    c.sb_size = 12;
-    c.status_size = 16;
-    return c;
-}
-
 BlockModelConfig block_model_config()
 {
     BlockModelConfig c;
-    c.bg = Color(0xdddddd);
-    c.track_box = Color(0x44ffff);
-    c.sb_box = Color(0x00ffff);
+    c.bg = Color(0xdd, 0xdd, 0xdd);
+    c.track_box = Color(0x44, 0xff, 0xff);
+    c.sb_box = Color(0x00, 0xff, 0xff);
     c.track_char = 'K';
     c.sb_char = 'S';
     return c;
@@ -368,7 +357,6 @@ int
 main(int argc, char **argv)
 {
     handle_argv(argc, argv);
-    BlockViewConfig view_config = block_view_config();
     BlockModelConfig config = block_model_config();
 
     t1_set();
@@ -384,7 +372,7 @@ main(int argc, char **argv)
     RulerConfig truler(ruler_bg, false, true, true, arrival_beats,
         m44_last_pos);
     truler.marklists = mlists;
-    DividerConfig divider(Color(0x00ff00));
+    DividerConfig divider(Color(0x00, 0xff, 0x00));
 
     int i = t1_events.size() - 1;
     ScoreTime t1_time_end = t1_events[i].pos + t1_events[i].event.duration;
@@ -396,10 +384,10 @@ main(int argc, char **argv)
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
             RenderConfig(RenderConfig::render_filled, render_color));
 
-    BlockViewWindow view(1100, 40, 200, 500, "view1", config, view_config);
+    BlockViewWindow view(1100, 40, 200, 500, "view1", config);
     view.testing = true;
     // view.border(0);
-    // BlockViewWindow view2(300, 100, 200, 500, "view2", config, view_config);
+    // BlockViewWindow view2(300, 100, 200, 500, "view2", config);
     // view2.testing = true;
     // view2.show();
 
@@ -439,10 +427,6 @@ main(int argc, char **argv)
 
     // Fl::add_timeout(1, creep_selection, (void*) &view);
     // Fl::add_timeout(1, timeout_func, (void*) &view);
-
-    // view_config.block_title_height = 40;
-    // view_config.track_title_height = 40;
-    // view.block.set_view_config(view_config);
 
     view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
 

@@ -14,6 +14,8 @@ import qualified Ui.Types as Types
 import qualified Perform.Midi.Control as Control
 
 
+#include "fltk/config.h"
+
 -- * paths
 
 -- | All paths should be relative to this one.
@@ -111,26 +113,34 @@ play_position_selnum :: Types.SelNum
     ] = zip [0..] bconfig_selection_colors
 
 bconfig_selection_colors :: [Color.Color]
-bconfig_selection_colors = map make_selection_color
+bconfig_selection_colors = take max_selections $ map make_selection_color
     [Color.blue, Color.green, Color.yellow, Color.red, Color.purple,
         Color.turquoise]
 
 -- * colors
 
+box_color, raw_edit_color, val_edit_color, method_edit_color :: Color.Color
 box_color = Color.rgb 0.7 0.7 0.7
 raw_edit_color = Color.rgb 0.25 0.25 1
 val_edit_color = Color.rgb 1 0.5 0.5
 -- Similar to val color because you toggle between val and method.
 method_edit_color = Color.rgb 0.6 0 0
 
+play_color, warning_color :: Color.Color
 play_color = Color.rgb 0 0.6 0
 warning_color = Color.rgb 1 0.2 0.2
-abbreviation_color = Color.rgb 0 0 1
+
+abbreviation_color :: Color.Color
+abbreviation_color = Color.rgba_word (#const Config::abbreviation_color_word)
+
+busy_color :: Color.Color
 busy_color = Color.rgb 0 1 1
 
+mute_color, solo_color :: Color.Color
 mute_color = Color.gray6
 solo_color = Color.rgb 1 0.75 0.75
 
+track_bg, ruler_bg :: Color.Color
 track_bg = Color.white
 ruler_bg = Color.rgb 1 0.85 0.5
 
@@ -193,13 +203,24 @@ bconfig_bg_color = Color.gray8
 bconfig_track_box = (box_color, ' ')
 bconfig_sb_box = (box_color, ' ')
 
-vconfig_block_title_height, vconfig_track_title_height, vconfig_skel_height,
-    vconfig_sb_size, vconfig_status_size :: Int
-vconfig_block_title_height = 20
-vconfig_track_title_height = 20
-vconfig_skel_height = 16
-vconfig_sb_size = 12
-vconfig_status_size = 16
+-- | Maximum number of selections supported by the GUI.
+max_selections :: Int
+max_selections = #const Config::max_selections
+
+-- | This is the number of pixels taken up by the various gizmos in the window
+-- track beyond the main track view.  Only correct when the window is first
+-- created, since the skel_height may be dragged around.
+view_time_padding :: Int
+view_time_padding =
+    #const Config::View::block_title_height
+    + #const Config::View::track_title_height
+    + #const Config::View::skel_height
+    + #const Config::View::status_size
+    + #const Config::View::sb_size
+
+view_track_padding :: Int
+view_track_padding = #const Config::View::sb_size
+
 
 -- * event style
 

@@ -25,12 +25,11 @@ void clear_ui_msgs();
 // the passed c array.
 // This hack is also in insert_track.
 BlockViewWindow *create(int x, int y, int w, int h, const char *label,
-        BlockModelConfig *model_config, BlockViewConfig *view_config);
+    BlockModelConfig *model_config);
 void destroy(BlockViewWindow *view, FinalizeCallback finalizer);
 
 void set_size(BlockViewWindow *view, int x, int y, int w, int h);
 void get_size(BlockViewWindow *view, int *sz);
-void set_view_config(BlockViewWindow *view, BlockViewConfig *config);
 void set_zoom(BlockViewWindow *view, const ZoomInfo *zoom);
 void set_track_scroll(BlockViewWindow *view, int pixels);
 void set_selection(BlockViewWindow *view, int selnum, const Selection *sel);

@@ -20,7 +20,6 @@ module Ui.BlockC (
     , create_view, destroy_view
     -- ** set other attributes
     , set_size
-    , set_view_config
     , set_zoom
     , set_track_scroll
     , CSelection(..)
@@ -117,16 +116,15 @@ get_id viewp = do
 
 -- | Create an empty block view with the given configs.  Tracks must be
 -- inserted separately.
-create_view :: ViewId -> String -> Rect.Rect -> Block.ViewConfig
-    -> Block.Config -> Fltk ()
-create_view view_id window_title rect view_config block_config = do
+create_view :: ViewId -> String -> Rect.Rect -> Block.Config -> Fltk ()
+create_view view_id window_title rect block_config = do
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
         when (view_id `Map.member` ptr_map) $
             throw $ show view_id ++ " already in displayed view list: "
                 ++ show (Map.assocs ptr_map)
         viewp <- withCString window_title $ \titlep ->
-            with block_config $ \configp -> with view_config $ \view_configp ->
-                c_create (i x) (i y) (i w) (i h) titlep configp view_configp
+            with block_config $ \configp ->
+                c_create (i x) (i y) (i w) (i h) titlep configp
         return $ Map.insert view_id viewp ptr_map
     where
     (x, y, w, h) = (Rect.rx rect, Rect.ry rect, Rect.rw rect, Rect.rh rect)
@@ -134,7 +132,7 @@ create_view view_id window_title rect view_config block_config = do
 
 foreign import ccall "create"
     c_create :: CInt -> CInt -> CInt -> CInt -> CString -> Ptr Block.Config
-        -> Ptr Block.ViewConfig -> IO (Ptr CView)
+        -> IO (Ptr CView)
 
 destroy_view :: ViewId -> Fltk ()
 destroy_view view_id = do
@@ -156,13 +154,6 @@ set_size view_id rect = do
     (x, y, w, h) = (Rect.rx rect, Rect.ry rect, Rect.rw rect, Rect.rh rect)
 foreign import ccall "set_size"
     c_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt -> IO ()
-
-set_view_config :: ViewId -> Block.ViewConfig -> Fltk ()
-set_view_config view_id config = do
-    viewp <- get_ptr view_id
-    with config $ \configp -> c_set_view_config viewp configp
-foreign import ccall "set_view_config"
-    c_set_view_config :: Ptr CView -> Ptr Block.ViewConfig -> IO ()
 
 set_zoom :: ViewId -> Types.Zoom -> Fltk ()
 set_zoom view_id zoom = do
@@ -411,19 +402,6 @@ poke_block_model_config configp
         (#poke BlockModelConfig, sb_box) configp sb_box
         (#poke BlockModelConfig, track_char) configp track_char
         (#poke BlockModelConfig, sb_char) configp sb_char
-
-instance Storable Block.ViewConfig where
-    sizeOf _ = #size BlockViewConfig
-    alignment _ = #{alignment BlockViewConfig}
-    peek = error "no peek for ViewConfig"
-    poke = poke_config
-
-poke_config configp (Block.ViewConfig block track skel sb status) = do
-    (#poke BlockViewConfig, block_title_height) configp (Util.c_int block)
-    (#poke BlockViewConfig, track_title_height) configp (Util.c_int track)
-    (#poke BlockViewConfig, skel_height) configp (Util.c_int skel)
-    (#poke BlockViewConfig, sb_size) configp (Util.c_int sb)
-    (#poke BlockViewConfig, status_size) configp (Util.c_int status)
 
 instance Storable Block.DisplayTrack where
     sizeOf _ = #size DisplayTrack

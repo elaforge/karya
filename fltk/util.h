@@ -135,8 +135,13 @@ struct Color {
         return Color(clamp(0.0, 255.0, r), clamp(0.0, 255.0, g),
             clamp(0.0, 255.0, b), clamp(0.0, 255.0, a));
     }
-    Color(unsigned long rgb) :
-        r(0xff & (rgb >> 16)), g(0xff & (rgb >> 8)), b(0xff & rgb), a(0xff) {}
+    static Color from_rgb_word(unsigned int rgb) {
+        return Color(0xff & (rgb >> 16), 0xff & (rgb >> 8), 0xff & rgb, 0xff);
+    }
+    static Color from_rgba_word(unsigned int rgba) {
+        return Color(0xff & (rgba >> 24), 0xff & (rgba >> 16),
+            0xff & (rgba >> 8), 0xff & rgba);
+    }
     bool operator==(const Color &o) const {
         return r==o.r && g==o.g && b==o.b && a==o.a;
     }
@@ -165,9 +170,5 @@ operator<<(std::ostream &os, const Color &c)
     return os << "Color(" << (int) c.r << ", " << (int) c.g << ", "
         << (int) c.b << ", " << (int) c.a << ")";
 }
-
-// Color(unsigned long rgba) :
-//     r(0xff & (rgba >> 24)), g(0xff & (rgba >> 16)), b(0xff & (rgba >> 8)),
-//         a(0xff & rgba) {}
 
 #endif

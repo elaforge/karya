@@ -321,10 +321,6 @@ destroy_view :: (M m) => ViewId -> m ()
 destroy_view view_id = modify $ \st ->
     st { state_views = Map.delete view_id (state_views st) }
 
-set_view_config :: (M m) => ViewId -> Block.ViewConfig -> m ()
-set_view_config view_id config =
-    modify_view view_id (\view -> view { Block.view_config = config })
-
 -- ** zoom and track scroll
 
 get_zoom :: (M m) => ViewId -> m Types.Zoom

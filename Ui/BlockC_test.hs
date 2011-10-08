@@ -38,9 +38,6 @@ test_create_set_size = do
     io_human "view is destroyed" $
         send $ BlockC.destroy_view view
 
--- TODO
--- test_set_view_config
-
 test_scroll_zoom = do
     view <- create_empty_view
     send $ BlockC.insert_track view 1 (event_track long_event_track) [] 200
@@ -186,5 +183,5 @@ event_track_2 = UiTest.make_track ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 create_empty_view = do
     let view_id = Types.ViewId (UiTest.mkid "default")
     send $ BlockC.create_view view_id "some title" UiTest.default_rect
-        Block.default_view_config Block.default_config
+        Block.default_config
     return view_id

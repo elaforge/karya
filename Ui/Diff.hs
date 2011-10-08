@@ -122,8 +122,6 @@ diff_view st1 st2 view_id view1 view2 = do
             ++ show (Block.view_block view2)
     when (unequal Block.view_rect) $
         emit $ Update.ViewSize (Block.view_rect view2)
-    when (unequal Block.view_config) $
-        emit $ Update.ViewConfig (Block.view_config view2)
     when (unequal Block.view_status) $
         emit $ Update.Status (Block.view_status view2)
     when (unequal Block.view_track_scroll) $

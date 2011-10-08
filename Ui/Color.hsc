@@ -1,4 +1,5 @@
 module Ui.Color where
+import Data.Bits
 import Foreign
 import Foreign.C
 
@@ -9,9 +10,18 @@ import qualified Ui.Util as Util
 -- r, g, b, alpha, from 0--1
 data Color = Color Double Double Double Double
     deriving (Eq, Ord, Show, Read)
+
 -- | An opaque color with the given r, g, and b.
+rgb :: Double -> Double -> Double -> Color
 rgb r g b = rgba r g b 1
-rgba r g b a = let c = clamp 0 1 in Color (c r) (c g) (c b) (c a)
+
+rgba :: Double -> Double -> Double -> Double -> Color
+rgba r g b a = let c = Num.clamp 0 1 in Color (c r) (c g) (c b) (c a)
+
+-- | Make a Color from an RGBA word.
+rgba_word :: Word32 -> Color
+rgba_word word = rgba (d 24) (d 16) (d 8) (d 0)
+    where d = (/0xff) . fromIntegral . (.&. 0xff) . shiftR word
 
 black = rgb 0 0 0
 white = rgb 1 1 1
@@ -37,11 +47,11 @@ brightness :: Double -> Color -> Color
 brightness d (Color r g b a)
     | d < 1 = rgba (Num.scale 0 r d) (Num.scale 0 g d) (Num.scale 0 b d) a
     | otherwise =
-        rgba (Num.scale r 1 (d-1)) (Num.scale g 1 (d-1)) (Num.scale b 1 (d-1)) a
+        rgba (Num.scale r 1 (d-1)) (Num.scale g 1 (d-1))
+            (Num.scale b 1 (d-1)) a
 
+alpha :: Double -> Color -> Color
 alpha a' (Color r g b _a) = rgba r g b a'
-
-clamp lo hi = max lo . min hi
 
 -- Storable instance
 

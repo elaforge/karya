@@ -771,7 +771,6 @@ std::string
 EventTrackView::dump() const
 {
     std::ostringstream out;
-    out << "type event title " << show_string(this->get_title())
-        << " title-height " << title_input->h();
+    out << "type event title " << show_string(this->get_title());
     return out.str();
 }

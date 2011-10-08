@@ -191,8 +191,6 @@ data View = View {
     -- to call to the UI and import BlockC.
     , view_visible_track :: Int
     , view_visible_time :: Int
-
-    , view_config :: ViewConfig
     , view_status :: Map.Map String String
 
     -- | Scroll and zoom
@@ -203,9 +201,9 @@ data View = View {
     } deriving (Eq, Ord, Show, Read)
 
 instance DeepSeq.NFData View where
-    rnf (View bid rect track time config status scroll zoom selections) =
-        bid `seq` rect `seq` track `seq` time `seq` config `seq` status
-        `seq` scroll `seq` zoom `seq` selections `seq` ()
+    rnf (View bid rect track time status scroll zoom selections) =
+        bid `seq` rect `seq` track `seq` time `seq` status `seq` scroll
+        `seq` zoom `seq` selections `seq` ()
 
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites
@@ -214,7 +212,7 @@ view :: BlockId -> Rect.Rect -> Types.Zoom -> View
 view block_id rect zoom =
     -- view_visible_track and view_visible_time are unknown, but will
     -- be filled in when the new view emits its initial resize msg.
-    View block_id rect 0 0 default_view_config Map.empty 0 zoom Map.empty
+    View block_id rect 0 0 Map.empty 0 zoom Map.empty
 
 show_status :: Map.Map String String -> String
 show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v) . Map.assocs
@@ -244,24 +242,5 @@ set_visible_rect view rect = rect
 -- of the tracks, but only after first creation, when 'view_visible_track'
 -- has not yet been set by the UI.
 default_time_padding, default_track_padding :: Int
-default_time_padding = Config.vconfig_skel_height
-    + Config.vconfig_block_title_height + Config.vconfig_track_title_height
-    + Config.vconfig_status_size + Config.vconfig_sb_size
-default_track_padding = Config.vconfig_sb_size + 2
-
--- | These are defaults for newly created blocks.
-data ViewConfig = ViewConfig {
-    vconfig_block_title_height :: Int
-    , vconfig_track_title_height :: Int
-    , vconfig_skel_height :: Int
-    , vconfig_sb_size :: Int
-    , vconfig_status_size :: Int
-    } deriving (Eq, Ord, Show, Read)
-
-default_view_config :: ViewConfig
-default_view_config = ViewConfig
-    Config.vconfig_block_title_height
-    Config.vconfig_track_title_height
-    Config.vconfig_skel_height
-    Config.vconfig_sb_size
-    Config.vconfig_status_size
+default_time_padding = Config.view_time_padding
+default_track_padding = Config.view_track_padding + 2

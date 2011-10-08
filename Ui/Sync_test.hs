@@ -94,25 +94,6 @@ test_create_two_views = thread run_setup $
       ])
     : []
 
-test_set_view_config = thread run_setup $
-    ("block and track titles get tall", do
-        view <- State.get_view t_view_id
-        let vconfig = Block.view_config view
-        State.set_view_config t_view_id $ vconfig
-            { Block.vconfig_block_title_height = 30
-            , Block.vconfig_track_title_height = 30
-            }
-    , [[("title-height", "30"), ("track1.title-height", "30")]])
-    : ("sbs and status get big too", do
-        view <- State.get_view t_view_id
-        let vconfig = Block.view_config view
-        State.set_view_config t_view_id $ vconfig
-            { Block.vconfig_sb_size = 30
-            , Block.vconfig_status_size = 30
-            }
-    , [[("sb-size", "30"), ("status-size", "30")]])
-    : []
-
 test_set_block_config = do
     state <- run State.empty $ do
         setup_state
