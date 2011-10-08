@@ -30,7 +30,7 @@ namespace View {
         block_title_height = 20,
         track_title_height = 20,
         skel_height = 16,
-        sb_size = 12,
+        sb_size = 5,
         status_size = 16
     };
 };

@@ -172,13 +172,13 @@ private:
         Fl_Group ruler_group;
             Fl_Box track_box;
             Fl_Box sb_box;
-            FlSeqScrollbar time_sb;
-            // P9SeqScrollbar time_sb;
+            // FlSeqScrollbar time_sb;
+            P9SeqScrollbar time_sb;
             // This can be replaced.
             TrackView *ruler_track;
         Fl_Group track_group;
-            FlSeqScrollbar track_sb;
-            // P9SeqScrollbar track_sb;
+            // FlSeqScrollbar track_sb;
+            P9SeqScrollbar track_sb;
             SimpleScroll track_scroll;
                 TrackTile track_tile;
 
