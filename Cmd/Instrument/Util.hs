@@ -57,11 +57,11 @@ keymap_up key = MidiThru.channel_messages True [Midi.NoteOff key 64]
 -- This simply sets the note text for subsequent notes, and also configures the
 -- instrument to play in the given keyswitch.
 --
--- TODO this just emits keyswitches for every addr and emits the redundantly.
--- This is simpler but it would be more correct to use WriteDeviceState to emit
--- them only when needed.  However, it's more complicated because then I need
--- a current attrs (Map Instrument Attrs) along with current note text, so
--- MidiThru can use the attrs to find the keyswitch.
+-- TODO this just emits keyswitches for every addr and emits them redundantly.
+-- This is simpler but it would be more correct to use WriteDeviceState to
+-- emit them only when needed.  However, it's more complicated because then
+-- I need a current attrs (Map Instrument Attrs) along with current note text,
+-- so MidiThru can use the attrs to find the keyswitch.
 --
 -- TODO if I can pull the current or previous note out of the derive then I
 -- could use that to play an example note.  Wait until I have a "play current

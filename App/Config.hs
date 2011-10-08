@@ -38,6 +38,43 @@ lang_dir = local_dir </> "Lang"
 instrument_cache_dir :: FilePath
 instrument_cache_dir = "db"
 
+-- * status view
+
+-- The block status bar is not very big, so it's important to control what
+-- goes in there.
+
+-- ** per-view
+
+-- | Selection start and range.
+status_selection :: String
+status_selection = "s"
+
+-- | Zoom and scroll of the visible area.
+status_zoom :: String
+status_zoom = "z"
+
+-- ** global
+
+-- | Base octave of the kbd note entry.
+status_octave :: String
+status_octave = "8"
+
+-- | Current time step.
+status_step :: String
+status_step = "t"
+
+-- | Text of the last note, even if it didn't create an event.  Useful to know
+-- what a key would enter.
+status_note :: String
+status_note = "n"
+
+-- | Track 'Cmd.state_note_text', which is the previously entered note track
+-- text.  This is useful e.g. to set an attribute and maintain that for
+-- several notes in a row.
+status_note_text :: String
+status_note_text = "note"
+
+
 -- * lang
 
 -- | Port to listen on for language requests.

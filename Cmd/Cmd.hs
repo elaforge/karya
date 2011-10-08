@@ -710,7 +710,7 @@ is_kbd_entry = gets (state_kbd_entry . state_edit)
 set_note_text :: (M m) => String -> m ()
 set_note_text txt = do
     modify_edit_state $ \st -> st { state_note_text = txt }
-    set_status "txt" (if null txt then Nothing else Just txt)
+    set_status Config.status_note_text (if null txt then Nothing else Just txt)
 
 
 -- * util

@@ -21,6 +21,7 @@ import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified App.Config as Config
 
 
 -- * record keys
@@ -194,7 +195,7 @@ ui_update_state maybe_tracknum view_id update = case update of
 sync_zoom_status :: (Cmd.M m) => ViewId -> m ()
 sync_zoom_status view_id = do
     view <- State.get_view view_id
-    Cmd.set_view_status view_id "view"
+    Cmd.set_view_status view_id Config.status_zoom
         (Just (show_zoom_status (Block.view_zoom view)))
 
 show_zoom_status :: Types.Zoom -> String

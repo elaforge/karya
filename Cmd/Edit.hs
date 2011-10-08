@@ -402,8 +402,8 @@ sync_step_status = do
     st <- Cmd.gets Cmd.state_edit
     let status = TimeStep.show_step (Just (Cmd.state_note_direction st))
             (Cmd.state_time_step st)
+    Cmd.set_status Config.status_step (Just status)
     Cmd.set_global_status "step" status
-    Cmd.set_status "step" (Just status)
 
 cmd_modify_octave :: (Cmd.M m) => (Pitch.Octave -> Pitch.Octave) -> m ()
 cmd_modify_octave f = do
@@ -417,7 +417,7 @@ sync_octave_status = do
     -- This is technically global state and doesn't belong in the block's
     -- status line, but I'm used to looking for it there, so put it in both
     -- places.
-    Cmd.set_status "8ve" (Just (show octave))
+    Cmd.set_status Config.status_octave (Just (show octave))
     Cmd.set_global_status "8ve" (show octave)
 
 

@@ -28,6 +28,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Perform.Pitch as Pitch
+import qualified App.Config as Config
 
 
 -- * entry
@@ -73,7 +74,7 @@ cmd_record_note_status msg = do
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key key
-            Cmd.set_status "note" (Just (Pitch.note_text note))
+            Cmd.set_status Config.status_note (Just (Pitch.note_text note))
         _ -> return ()
     return Cmd.Continue
 

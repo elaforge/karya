@@ -342,7 +342,8 @@ sync_selection_status view_id =
 
 sync_selection :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
 sync_selection view_id maybe_sel = do
-    Cmd.set_view_status view_id "sel" (fmap selection_status maybe_sel)
+    Cmd.set_view_status view_id Config.status_selection
+        (fmap selection_status maybe_sel)
     block_id <- State.block_id_of view_id
     when_just maybe_sel $
         Info.set_inst_status block_id . Types.sel_cur_track
