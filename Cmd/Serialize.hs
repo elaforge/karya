@@ -125,32 +125,6 @@ instance Serialize State.State where
     get = do
         v <- get_version
         case v of
-            4 -> do
-                proj <- get :: Get String
-                dir <- get :: Get String
-                root <- get :: Get (Maybe BlockId)
-                views <- get :: Get (Map.Map Types.ViewId Block.View)
-                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
-                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
-                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
-                midi_config <- get :: Get Instrument.Config
-                default_scale <- get :: Get Pitch.ScaleId
-                default_inst <- get :: Get (Maybe Score.Instrument)
-                let defaults = State.Default default_scale default_inst 1
-                return $ State.State views blocks tracks rulers
-                    (State.Config proj dir root midi_config defaults)
-            5 -> do
-                proj <- get :: Get String
-                dir <- get :: Get String
-                root <- get :: Get (Maybe BlockId)
-                views <- get :: Get (Map.Map Types.ViewId Block.View)
-                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
-                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
-                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
-                midi_config <- get :: Get Instrument.Config
-                defaults <- get :: Get State.Default
-                return $ State.State views blocks tracks rulers
-                    (State.Config proj dir root midi_config defaults)
             6 -> do
                 views <- get :: Get (Map.Map Types.ViewId Block.View)
                 blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
@@ -210,33 +184,21 @@ instance Serialize Types.SchemaId where
     get = get >>= \a -> return (Types.SchemaId a)
 
 instance Serialize Block.Block where
-    put (Block.Block a b c d e) = put_version 3
-        >> put a >> put b >> put c >> put d >> put e
+    put (Block.Block a _config b c d) = put_version 3
+        >> put a >> put b >> put c >> put d
     get = do
         v <- get_version
         case v of
-            2 -> do
-                title <- get :: Get String
-                config <- get :: Get Block.Config
-                track_widths <- get :: Get [(Block.TracklikeId, Types.Width)]
-                schema_id <- get :: Get Types.SchemaId
-                let tracks = map (uncurry Block.track) track_widths
-                return $ Block.Block title config tracks Skeleton.empty
-                    schema_id
             3 -> do
                 title <- get :: Get String
-                config <- get :: Get Block.Config
                 tracks <- get :: Get [Block.Track]
                 skel <- get :: Get Skeleton.Skeleton
                 schema_id <- get :: Get Types.SchemaId
-                return $ Block.Block title config tracks skel schema_id
+                -- Everything in the block config is either derived from the
+                -- Cmd.State or is hardcoded.
+                return $ Block.Block title Block.default_config tracks skel
+                    schema_id
             _ -> version_error "Block.Block" v
-
--- Everything in the block config is either derived from the Cmd.State or is
--- hardcoded.
-instance Serialize Block.Config where
-    put _ = return ()
-    get = return Block.default_config
 
 instance Serialize Skeleton.Skeleton where
     put (Skeleton.Skeleton a) = put a
@@ -248,14 +210,6 @@ instance Serialize Block.Track where
     get = do
         v <- get_version
         case v of
-            0 -> do
-                id <- get :: Get Block.TracklikeId
-                width <- get :: Get Types.Width
-                _ <- get :: Get Bool
-                _ <- get :: Get (Maybe TrackNum)
-                _ <- get :: Get Bool
-                _ <- get :: Get Bool
-                return $ Block.Track id width [] []
             1 -> do
                 id <- get :: Get Block.TracklikeId
                 width <- get :: Get Types.Width
@@ -276,9 +230,6 @@ instance Serialize Block.TrackFlag where
             2 -> return Block.Mute
             _ -> fail "no parse for Block.TrackFlag"
 
-tid = Block.TId :: Types.TrackId -> Types.RulerId -> Block.TracklikeId
-rid = Block.RId :: Types.RulerId -> Block.TracklikeId
-did = Block.DId :: Block.Divider -> Block.TracklikeId
 instance Serialize Block.TracklikeId where
     put (Block.TId a b) = putWord8 0 >> put a >> put b
     put (Block.RId a) = putWord8 1 >> put a
@@ -286,15 +237,23 @@ instance Serialize Block.TracklikeId where
     get = do
         tag_ <- getWord8
         case tag_ of
-            0 -> get >>= \a -> get >>= \b -> return (tid a b)
-            1 -> get >>= \a -> return (rid a)
-            2 -> get >>= \a -> return (did a)
+            0 -> do
+                tid <- get :: Get TrackId
+                rid <- get :: Get RulerId
+                return $ Block.TId tid rid
+            1 -> do
+                rid <- get :: Get RulerId
+                return $ Block.RId rid
+            2 -> do
+                div <- get :: Get Block.Divider
+                return $ Block.DId div
             _ -> fail "no parse for Block.TracklikeId"
 
-divider = Block.Divider :: Color.Color -> Block.Divider
 instance Serialize Block.Divider where
     put (Block.Divider a) = put a
-    get = get >>= \a -> return (divider a)
+    get = do
+        color <- get :: Get Color.Color
+        return $ Block.Divider color
 
 instance Serialize Block.View where
     put (Block.View a b c d e f g h) = put_version 3
@@ -302,31 +261,6 @@ instance Serialize Block.View where
     get = do
         v <- get_version
         case v of
-            1 -> do
-                block <- get :: Get Types.BlockId
-                rect <- get :: Get Rect.Rect
-                visible_track <- get :: Get Int
-                visible_time <- get :: Get Int
-                _config <- get :: Get ViewConfig
-                status <- get :: Get (Map.Map String String)
-                track_scroll <- get :: Get Types.Width
-                zoom <- get :: Get Types.Zoom
-                selections <- get :: Get (Map.Map Types.SelNum Types.Selection)
-                _tracks <- get :: Get [TrackView]
-                return $ Block.View block rect visible_track visible_time
-                    status track_scroll zoom selections
-            2 -> do
-                block <- get :: Get Types.BlockId
-                rect <- get :: Get Rect.Rect
-                visible_track <- get :: Get Int
-                visible_time <- get :: Get Int
-                _config <- get :: Get ViewConfig
-                status <- get :: Get (Map.Map String String)
-                track_scroll <- get :: Get Types.Width
-                zoom <- get :: Get Types.Zoom
-                selections <- get :: Get (Map.Map Types.SelNum Types.Selection)
-                return $ Block.View block rect visible_track visible_time
-                    status track_scroll zoom selections
             3 -> do
                 block <- get :: Get Types.BlockId
                 rect <- get :: Get Rect.Rect
@@ -339,34 +273,6 @@ instance Serialize Block.View where
                 return $ Block.View block rect visible_track visible_time
                     status track_scroll zoom selections
             _ -> version_error "Block.View" v
-
--- TODO only for compatibility with Block.View version 1
-type TrackView = Types.Width
-
--- | TODO only for compatibility with Block.View version 2
-data ViewConfig = ViewConfig {
-    vconfig_block_title_height :: Int
-    , vconfig_track_title_height :: Int
-    , vconfig_skel_height :: Int
-    , vconfig_sb_size :: Int
-    , vconfig_status_size :: Int
-    } deriving (Eq, Ord, Show, Read)
-
-instance Serialize ViewConfig where
-    put (ViewConfig a b c d e) = put_version 2
-        >> put a >> put b >> put c >> put d >> put e
-    get = do
-        v <- get_version
-        case v of
-            2 -> do
-                block_title <- get :: Get Int
-                track_title <- get :: Get Int
-                skel_height <- get :: Get Int
-                sb_size <- get :: Get Int
-                status_size <- get :: Get Int
-                return $ ViewConfig block_title track_title skel_height
-                    sb_size status_size
-            _ -> version_error "ViewConfig" v
 
 instance Serialize Rect.Rect where
     put r = put (Rect.rx r) >> put (Rect.ry r) >> put (Rect.rw r)
@@ -409,23 +315,6 @@ instance Serialize Ruler.Ruler where
     get = do
         v <- get_version
         case v of
-            0 -> do
-                marklists <- get :: Get [(Ruler.Name, Ruler.Marklist)]
-                bg <- get :: Get Color.Color
-                show_names <- get :: Get Bool
-                use_alpha <- get :: Get Bool
-                full_width <- get :: Get Bool
-                return $ Ruler.Ruler (Map.fromList marklists) bg show_names
-                    use_alpha False full_width
-            1 -> do
-                marklists <- get :: Get [(Ruler.Name, Ruler.Marklist)]
-                bg <- get :: Get Color.Color
-                show_names <- get :: Get Bool
-                use_alpha <- get :: Get Bool
-                align_to_bottom <- get :: Get Bool
-                full_width <- get :: Get Bool
-                return $ Ruler.Ruler (Map.fromList marklists) bg show_names
-                    use_alpha align_to_bottom full_width
             2 -> do
                 marklists <- get :: Get (Map.Map Ruler.Name Ruler.Marklist)
                 bg <- get :: Get Color.Color
@@ -528,12 +417,9 @@ instance Serialize Instrument.Config where
     get = do
         v <- get_version
         case v of
-            2 -> do
-                alloc <- get :: Get (Map.Map Score.Instrument [Instrument.Addr])
-                _ <- get :: Get (Maybe Score.Instrument)
-                return $ Instrument.Config alloc
             3 -> do
-                alloc <- get :: Get (Map.Map Score.Instrument [Instrument.Addr])
+                alloc <- get :: Get
+                    (Map.Map Score.Instrument [Instrument.Addr])
                 return $ Instrument.Config alloc
             _ -> version_error "Instrument.Config" v
 
