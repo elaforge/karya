@@ -1,0 +1,21 @@
+#!/bin/zsh
+# Update all saved states to the latest version.
+
+setopt err_exit
+setopt extended_glob
+
+make build/update
+
+for f in save/**/*(.); do
+    to=save.new/${f#save/}
+    if [[ $f = save/README ]]; then
+        mv $f $to
+    else
+        mkdir -p $(dirname $to)
+        echo $f -> $to
+        build/update $f $to
+    fi
+done
+
+mv save save.old
+mv save.new save
