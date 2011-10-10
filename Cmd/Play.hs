@@ -124,7 +124,7 @@ cmd_play_from_insert transport_info = do
 
 cmd_play_from_previous_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_step transport_info = do
-    step <- Cmd.state_play_step <$> get
+    step <- gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     prev <- TimeStep.rewind step block_id tracknum pos
     cmd_play transport_info block_id (Just track_id, maybe 0 id prev)
@@ -132,19 +132,20 @@ cmd_play_from_previous_step transport_info = do
 cmd_play_from_previous_root_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_root_step transport_info = do
     (block_id, tracknum, track_id, pos) <- Selection.get_root_insert
-    step <- Cmd.state_play_step <$> get
+    step <- gets Cmd.state_play_step
     prev <- TimeStep.rewind step block_id tracknum pos
     cmd_play transport_info block_id (Just track_id, maybe 0 id prev)
 
 cmd_play :: Transport.Info -> BlockId -> (Maybe TrackId, ScoreTime)
     -> Cmd.CmdIO
 cmd_play transport_info block_id (start_track, start_pos) = do
-    state <- get
+    state <- gets id
     case Cmd.state_play_control state of
         Just _ -> Cmd.throw "player already running"
         _ -> return ()
+
     perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
-        =<< Cmd.lookup_performance block_id
+        =<< lookup_current_performance block_id
     start <- Perf.get_realtime perf block_id start_track start_pos
     msgs <- PlayUtil.shift_messages start <$> PlayUtil.perform_from start perf
     (play_ctl, updater_ctl) <- Trans.liftIO $
@@ -161,11 +162,15 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     modify $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
 
+lookup_current_performance :: (Cmd.M m) => BlockId -> m (Maybe Cmd.Performance)
+lookup_current_performance block_id = Map.lookup block_id <$>
+    gets Cmd.state_current_performance
+
 -- | Context sensitive stop that stops whatever is going on.  First it stops
 -- realtime play, then step play, and then it just sends all notes off.
 cmd_context_stop :: Cmd.CmdIO
 cmd_context_stop = do
-    maybe_ctl <- Cmd.state_play_control <$> get
+    maybe_ctl <- gets Cmd.state_play_control
     if_just maybe_ctl (done . Trans.liftIO . Transport.stop_player) $ do
     step_playing <- Cmd.gets (Maybe.isJust . Cmd.state_step . Cmd.state_play)
     if step_playing then (done StepPlay.cmd_clear) else do
@@ -175,7 +180,7 @@ cmd_context_stop = do
 
 cmd_stop :: Cmd.CmdIO
 cmd_stop = do
-    maybe_ctl <- Cmd.state_play_control <$> get
+    maybe_ctl <- gets Cmd.state_play_control
     when_just maybe_ctl (void . Trans.liftIO . Transport.stop_player)
     return Cmd.Done
 
@@ -199,6 +204,10 @@ cmd_play_msg msg = do
     derive_status_msg block_id status = do
         State.set_play_box block_id (derive_status_color status)
         case status of
+            Msg.OutOfDate perf ->
+                Cmd.modify_play_state $ \st ->
+                    st { Cmd.state_current_performance = Map.insert block_id
+                        perf (Cmd.state_current_performance st) }
             Msg.DeriveComplete perf -> do
                 Cmd.modify_play_state $ \st ->
                     st { Cmd.state_performance = Map.insert block_id
@@ -208,14 +217,14 @@ cmd_play_msg msg = do
                     (Cmd.perf_track_signals perf)
             _ -> return ()
     derive_status_color status = case status of
-        Msg.OutOfDate -> Color.brightness 1.5 Config.busy_color
-        Msg.Deriving -> Config.busy_color
-        Msg.DeriveComplete _ -> Config.box_color
+        Msg.OutOfDate {} -> Color.brightness 1.5 Config.busy_color
+        Msg.Deriving {} -> Config.busy_color
+        Msg.DeriveComplete {} -> Config.box_color
 
 -- * implementation
 
-get :: (Cmd.M m) => m Cmd.PlayState
-get = Cmd.gets Cmd.state_play
+gets :: (Cmd.M m) => (Cmd.PlayState -> a) -> m a
+gets f = Cmd.gets (f . Cmd.state_play)
 
 modify :: (Cmd.M m) => (Cmd.PlayState -> Cmd.PlayState) -> m ()
 modify = Cmd.modify_play_state

@@ -131,7 +131,7 @@ generate_performance wait send_status block_id = do
         performance_thread ui_state cmd_state wait send_status block_id
     Cmd.modify_play_state $ \st ->
         st { Cmd.state_performance_threads = Map.insert block_id
-             th (Cmd.state_performance_threads st) }
+            th (Cmd.state_performance_threads st) }
 
 lookup_thread :: (Cmd.M m) => BlockId -> m (Maybe Concurrent.ThreadId)
 lookup_thread block_id = Map.lookup block_id <$>
@@ -140,7 +140,6 @@ lookup_thread block_id = Map.lookup block_id <$>
 performance_thread :: State.State -> Cmd.State
     -> Thread.Seconds -> SendStatus -> BlockId -> IO ()
 performance_thread ui_state cmd_state wait send_status block_id = do
-    send_status block_id Msg.OutOfDate
     case res of
         -- These errors indicate not that derivation failed, but that the cmd
         -- threw before it even got started, which should never happen.
@@ -158,6 +157,7 @@ performance_thread ui_state cmd_state wait send_status block_id = do
 evaluate_performance :: Thread.Seconds -> SendStatus -> BlockId
     -> Cmd.Performance -> IO ()
 evaluate_performance wait send_status block_id perf = do
+    send_status block_id (Msg.OutOfDate perf)
     Thread.delay wait
     send_status block_id Msg.Deriving
     secs <- Log.time_eval (Cmd.perf_inv_tempo perf 0)

@@ -338,6 +338,10 @@ data PlayState = PlayState {
     -- the responder every time it touches an insufficiently lazy part of
     -- the performance.
     , state_performance :: !(Map.Map BlockId Performance)
+    -- | However some cmds, like play, want the most up to date performance,
+    -- even if they have to wait for it.  This map will be updated
+    -- immediately.
+    , state_current_performance :: !(Map.Map BlockId Performance)
     -- | Keep track of current thread working on each performance.  If a
     -- new performance is needed before the old one is complete, it can be
     -- killed off.
@@ -371,6 +375,7 @@ initial_play_state :: PlayState
 initial_play_state = PlayState
     { state_play_control = Nothing
     , state_performance = Map.empty
+    , state_current_performance = Map.empty
     , state_performance_threads = Map.empty
     , state_play_step =
         TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 2)
