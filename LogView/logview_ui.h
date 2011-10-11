@@ -52,7 +52,8 @@ private:
 
 class LogViewWindow : public Fl_Double_Window {
 public:
-    LogViewWindow(int X, int Y, int W, int H, MsgCallback cb, int max_bytes);
+    LogViewWindow(int X, int Y, int W, int H, const char *label,
+        MsgCallback cb, int max_bytes);
     LogView view;
 };
 

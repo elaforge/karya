@@ -19,10 +19,13 @@ import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.State as State
 import Control.Monad.State (liftIO)
+
 import qualified Data.List as List
+import qualified System.Console.GetOpt as GetOpt
+import qualified System.Directory as Directory
 import qualified System.Environment
 import qualified System.Exit
-import qualified System.Console.GetOpt as GetOpt
+import System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
@@ -30,7 +33,6 @@ import qualified Util.Seq as Seq
 
 import qualified LogView.LogViewC as LogViewC
 import qualified LogView.Process as Process
-
 import qualified App.SendCmd as SendCmd
 
 
@@ -65,6 +67,7 @@ default_max_bytes = default_history * 100
 
 data Flag = Help | Seek (Maybe Integer) | History Int | File String
     deriving (Eq, Show)
+
 options :: [GetOpt.OptDescr Flag]
 options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
@@ -92,9 +95,10 @@ main = do
     let seek = maybe (Just 0) id $ Seq.last [s | Seek s <- flags]
         history = maybe default_history id $ Seq.last [n | History n <- flags]
         filename = maybe mach_log_filename id $ Seq.last [n | File n <- flags]
+    cwd <- Directory.getCurrentDirectory
 
     view <- LogViewC.create_logview 20 20 (fst initial_size) (snd initial_size)
-        default_max_bytes
+        (cwd </> filename) default_max_bytes
     LogViewC.set_filter view initial_filter
 
     log_chan <- STM.newTChanIO

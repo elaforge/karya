@@ -49,15 +49,16 @@ foreign import ccall "ui_wait" c_wait :: IO ()
 foreign import ccall "ui_awake" c_awake :: IO ()
 foreign import ccall "has_windows" c_has_windows :: IO CInt
 
-create_logview :: Int -> Int -> Int -> Int -> Int -> IO LogView
-create_logview x y w h max_bytes = do
+create_logview :: Int -> Int -> Int -> Int -> String -> Int -> IO LogView
+create_logview x y w h title max_bytes = do
     chan <- STM.newTChanIO
     cb <- c_make_msg_callback (cb_msg_callback chan)
-    viewp <- c_create_logview (c x) (c y) (c w) (c h) cb (c max_bytes)
+    viewp <- withCString title $ \titlep ->
+        c_create_logview (c x) (c y) (c w) (c h) titlep cb (c max_bytes)
     return (LogView viewp chan)
     where c = fromIntegral
 foreign import ccall "create_logview"
-    c_create_logview :: CInt -> CInt -> CInt -> CInt
+    c_create_logview :: CInt -> CInt -> CInt -> CInt -> CString
         -> FunPtr MsgCallback -> CInt -> IO (Ptr LogView)
 foreign import ccall "wrapper"
     c_make_msg_callback :: MsgCallback -> IO (FunPtr MsgCallback)

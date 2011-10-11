@@ -207,9 +207,9 @@ LogView::command_cb(Fl_Widget *_w, void *vp)
 }
 
 
-LogViewWindow::LogViewWindow(int X, int Y, int W, int H, MsgCallback cb,
-        int max_bytes) :
-    Fl_Double_Window(0, 0, W, H), view(0, 0, W, H, cb, max_bytes)
+LogViewWindow::LogViewWindow(int X, int Y, int W, int H, const char *label,
+        MsgCallback cb, int max_bytes) :
+    Fl_Double_Window(0, 0, W, H, label), view(0, 0, W, H, cb, max_bytes)
 {
     this->resizable(this);
 }
