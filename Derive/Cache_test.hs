@@ -96,6 +96,30 @@ test_block_damage = do
             State.insert_event (UiTest.tid "sub.t0") 0 (Event.event "" 0.5)
     equal (diff_events cached uncached) []
 
+test_logs = do
+    let create = mkblocks
+            [ ("top",
+                [ (">i", [(0, 1, "sub1"), (1, 1, ""), (2, 1, "sub2")])
+                ])
+            , ("sub1", [(">", [(0, 1, "fail")])])
+            , ("sub2", [(">", [(0, 1, "")])])
+            ]
+    let (res, cached, uncached) = compare_cached create $
+            State.insert_event (UiTest.mk_tid_name "sub2" 0) 1
+                (Event.event "" 1)
+    strings_like (r_logs uncached)
+        [ "test/sub1 * rederived"
+        , "sub1.t0 * note call not found"
+        , "test/sub2 * rederived"
+        , "test/top"
+        ]
+    strings_like (r_logs cached)
+        [ "test/sub1 * using cache"
+        , "sub1.t0 * note call not found"
+        , "test/sub2 * rederived"
+        , "test/top"
+        ]
+
 r_logs :: Derive.Result -> [String]
 r_logs = map DeriveTest.show_log_stack . snd . LEvent.partition
     . Derive.r_events

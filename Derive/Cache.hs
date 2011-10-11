@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, OverloadedStrings #-}
 module Derive.Cache (
     caching_call
     , get_control_damage, get_tempo_damage
@@ -10,6 +10,7 @@ module Derive.Cache (
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -97,13 +98,18 @@ make_cache :: (Derive.Derived d) => Stack.Stack -> Derive.Collect
 make_cache stack collect stream = Cache $ Map.singleton stack entry
     where
     -- TODO clear out other bits of cache that this overlaps with
-    -- TODO filter log msgs so I don't get logs about cache misses back with
-    -- the cache hit.  This is unsatisfactory because it copies the stream.
-    -- Better solution?
     stripped = collect { Derive.collect_cache = mempty }
-    entry = Derive.to_cache_entry (stripped, filter is_event stream)
-    is_event (LEvent.Event _) = True
-    is_event _ = False
+    entry = Derive.to_cache_entry (stripped, filter (not . cache_log) stream)
+    -- I do want a cached chunk to retain its log msgs, since those include
+    -- errors deriving.  However, it's confusing if it also includes cache
+    -- msgs because then it looks like it wasn't cached after all.
+    -- It's unfortunate that I have to copy the chunk, but it's either this
+    -- or a more complicated filtering scheme later on, which is bound to
+    -- be just a filter too.  At least this way it only happens once.
+    cache_log (LEvent.Log msg) =
+        prefix "using cache " || prefix "rederived generator because of"
+        where prefix = (`Text.isPrefixOf` Log.msg_text msg)
+    cache_log _ = False
 
 
 -- * get_control_damage
