@@ -143,7 +143,7 @@ shareable_chan overlapping event = fst <$> List.find (all_share . snd) by_chan
 
 -- | Can the two events coexist in the same channel without interfering?
 -- The reason this is not commutative is so I can assume the start of @old@
--- precedes the start of @new@ and save a little computation.
+-- is equal to or precedes the start of @new@ and save a little computation.
 can_share_chan :: Event -> Event -> Bool
 can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         _ | start >= end -> True
@@ -154,8 +154,12 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
             && controls_equal (event_controls new) (event_controls old)
         _ -> True
     where
-    start = note_begin new
-    end = min (note_end new) (note_end old)
+    start = event_start new
+    -- Note that I add the control_lead_time to the decay of the old note
+    -- rather than subtracting it from the start of the new one.  Subtracting
+    -- would cause 'Signal.pitches_share' to check the pitch signal before
+    -- the start of the note, which is going to be 0 and mess up sharing.
+    end = min (note_end new) (note_end old) + control_lead_time
     initial_pitch event = event_pitch_at (event_pb_range event)
         event (event_start event)
     -- If the overlap is in the decay of one or both notes, the rules are
@@ -350,8 +354,7 @@ chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
 
 -- | Emit MIDI for a single event.
 perform_note :: RealTime -> Event -> Instrument.Addr
-    -> (MidiEvents, RealTime)
-    -- ^ (msgs, warns, note_off)
+    -> (MidiEvents, RealTime) -- ^ (msgs, note_off)
 perform_note prev_note_off event addr =
     case event_pitch_at (event_pb_range event) event (event_start event) of
         Nothing -> ([LEvent.Log $ event_warning event "no pitch signal"],

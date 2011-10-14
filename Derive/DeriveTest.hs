@@ -333,13 +333,17 @@ e_everything e =
     )
     where uninst (Score.Instrument inst) = inst
 
-
 e_control :: String -> Score.Event -> Maybe [(RealTime, Signal.Y)]
 e_control cont event = fmap Signal.unsignal $
     Map.lookup (Score.Control cont) (Score.event_controls event)
 
 e_pitch :: Score.Event -> [(RealTime, PitchSignal.Degree)]
 e_pitch = PitchSignal.unsignal_degree . Score.event_pitch
+
+e_twelve :: Score.Event -> String
+e_twelve = maybe "?" Pitch.note_text . Twelve.input_to_note . to_input
+    . Score.initial_pitch
+    where to_input (Pitch.Degree n) = Pitch.InputKey n
 
 -- | (start, dur, pitch), the melodic essentials of a note.
 e_note :: Score.Event -> (RealTime, RealTime, PitchSignal.Degree)

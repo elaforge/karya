@@ -22,18 +22,20 @@ test_at = do
     equal (range 0 5 (zip (Seq.range_ 0 1) [0, 0.25, 0.5, 0.75, 1]))
         [0, 0.25, 0.5, 0.75, 1]
 
-    -- Values before the first sample take its value.
-    equal (range 0 4 [(2, 1)]) [1, 1, 1, 1]
+    -- Values before the first sample are zero.
+    equal (range 0 4 [(2, 1)]) [0, 0, 1, 1]
     equal (range 0 4 [(0, 1), (3, 1)]) [1, 1, 1, 1]
 
     -- Negative index is ok.
-    equal (SignalBase.at (-1) (mkvec [(0, 2)])) 2
+    equal (SignalBase.at (-1) (mkvec [(0, 2)])) 0
 
 test_at_linear = do
     let f vec x = SignalBase.at_linear x vec
     equal (map (f (mkvec [(2, 2), (4, 0)])) (Seq.range 0 5 1))
-        [2, 2, 2, 1, 0, 0]
-    equal (f (mkvec [(0, 2), (2, 0)]) (-1)) 2
+        [0, 0, 2, 1, 0, 0]
+    equal (f (mkvec [(0, 2), (2, 0)]) (-1)) 0
+
+    equal (f (mkvec [(-1, 2), (2, 0)]) (-2)) 0
 
 -- * transformation
 
@@ -71,13 +73,12 @@ test_drop_before = do
 
     equal (unvec (SignalBase.drop_before 1 (mkvec []))) []
 
-
 test_sig_op = do
     let f vec0 vec1 = unvec $ SignalBase.sig_op (+) (mkvec vec0) (mkvec vec1)
     equal (f [(0, 0), (2, 2), (4, 0)] [(0, 1)])
         [(0, 1), (2, 3), (4, 1)]
     equal (f [(0, 0), (2, 2), (4, 0)] [(1, 1), (3, 0)])
-        [(0, 1), (1, 1), (2, 3), (3, 2), (4, 0)]
+        [(0, 0), (1, 1), (2, 3), (3, 2), (4, 0)]
 
 test_map_signal_accum = do
     let go accum x0 y0 x1 y1 = (accum+1, [(x0, y0), (x1, y1)])
@@ -97,7 +98,8 @@ test_resample_to_list = do
     equal (f [] [(1, 1), (2, 2)]) [(1, 0, 1), (2, 0, 2)]
     equal (f [(1, 1), (2, 2)] [(1, 3), (2, 4)])
         [(1, 1, 3), (2, 2, 4)]
-    equal (f [(1, 1)] [(0, 2), (2, 4), (3, 6)])
-        [(0, 1, 2), (1, 1, 2), (2, 1, 4), (3, 1, 6)]
 
-    equal (f [(0, 1)] [(1, 2)]) [(0, 1, 2), (1, 1, 2)]
+    -- Values before the first sample are zero.
+    equal (f [(1, 1)] [(0, 2), (2, 4), (3, 6)])
+        [(0, 0, 2), (1, 1, 2), (2, 1, 4), (3, 1, 6)]
+    equal (f [(0, 1)] [(1, 2)]) [(0, 1, 0), (1, 1, 2)]

@@ -82,6 +82,3 @@ test_pitches_share = do
     -- one pitch changes but the other doesn't, so they can't share
     equal (f 0 3 (sig [(0, 0), (1, 1)]) (sig [(0, 2)])) False
     equal (f 1 5 (sig [(1, 74), (2, 76), (3, 74)]) (sig [(0, 48)])) False
-
-    -- Signals with starting times inside the range.
-    equal (f 0 2 (sig [(0, 1)]) (sig [(0.08, 2)])) True

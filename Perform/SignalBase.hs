@@ -1,5 +1,42 @@
 {-# LANGUAGE FlexibleContexts #-}
-{- | Functions common between the different signal types.
+{- | This module implements signals as sparse arrays of (X, Y).  The Y type
+    is abstract here, so that these functions may be reused in more specific
+    instantiations.
+
+    The value before the first sample is implicitly 0.  Each sample maintains
+    its value until the next sample, i.e. there is no interpolation.  The
+    final sample is considered to extend in a flat line infinitely to the
+    right.  If there are multiple samples at the same X, all but the last
+    one should be ignored.
+
+    1. Samples are stored as (x, y) pairs instead of having a constant sample
+    rate.  This makes a lot of the functions in here much more complicated,
+    but should result in a drastic reduction of data for the common case of
+    long flat segments (e.g. constant tempo, constant controls esp. velocity).
+    Also, a constant sample rate would restrict note resolution to the sample
+    rate or you wouldn't be able to line them up.  A 1k sampling rate is
+    already past human perception (and the midi driver's timing accuracy), but
+    notes may be stretched in time, which will exacerbate any timing
+    quantization.  Signal processing functions may resample the signal to raise
+    the sampling rate, but shouldn't lower it, so if a signal is recorded with
+    certain points, they should be played exactly as recorded even if they
+    don't line up with the sampling rate.  TODO currently integrate doesn't do
+    that, but I don't think it's too bad...
+
+    2. Sample points are flat until the next sample, i.e. no interpolation.
+    Previously, all samples were implicitly linearly interpolated, which was
+    convenient for warp signals since they tend to be long straight segments,
+    but it made the usual MIDI use with many flat segments awkward since each
+    flat segment needs two samples.  It also made 'integrate' complicated and
+    buggy so I decided to give up and go with the simpler and more standard
+    non-interpolated version.
+
+    Originally Signals were simply functions (X -> Y).  This is much more
+    elegant and things like composition are simply functional composition and
+    hacks like shift and stretch go away.  Unfortunately, I need access to the
+    points to draw graphs without resorting to sampling and things like
+    integrate must be evaluated incrementally anyway, and I want to GC the
+    heads of the signals when they are no longer needed, so...
 -}
 module Perform.SignalBase where
 import Prelude hiding (truncate)
@@ -55,7 +92,7 @@ unsignal = V.unpack
 at :: (Signal y) => X -> SigVec y -> y
 at x vec
     | i >= 0 = snd (V.index vec i)
-    | not (V.null vec) = snd (V.index vec 0)
+    -- Before the first sample is implicitly 0.
     | otherwise = zero_y
     where i = highest_index x vec
 
@@ -70,7 +107,8 @@ at_linear x vec = interpolate x vec (highest_index x vec)
     interpolate x vec i
         | V.null vec = 0
         | i + 1 >= V.length vec = to_double y0
-        | i < 0 = to_double (snd (V.index vec 0))
+        | i < 0 = 0
+        | x0 == x1 = to_double y0
         | otherwise = y_at (x_to_double x0) (to_double y0)
             (x_to_double x1) (to_double y1) (x_to_double x)
         where
@@ -205,7 +243,7 @@ map_y f = V.map (Arrow.second f)
 sig_op :: (Signal v0, Signal v1) =>
     (v0 -> v1 -> v0) -> SigVec v0 -> SigVec v1 -> SigVec v0
 sig_op op sig0 sig1 =
-    -- This inefficiently unpacks to a list and back.  Later implement
+    -- TODO This inefficiently unpacks to a list and back.  Later implement
     -- a resample that doesn't unpack.
     signal [(x, op y0 y1) | (x, y0, y1) <- resample_to_list sig0 sig1]
 
@@ -248,11 +286,7 @@ map_signal f = map_signal_accum go (\_ _ -> []) ()
 resample_to_list :: (Signal y0, Signal y1) =>
     SigVec y0 -> SigVec y1 -> [(X, y0, y1)]
 resample_to_list vec0 vec1 =
-    resample (first_y vec0) (first_y vec1) (V.unpack vec0) (V.unpack vec1)
-    where
-    first_y v = case V.viewL v of
-        Just ((_, y), _) -> y
-        _ -> zero_y
+    resample zero_y zero_y (V.unpack vec0) (V.unpack vec1)
 
 resample :: y0 -> y1 -> [(X, y0)] -> [(X, y1)] -> [(X, y0, y1)]
 resample _ prev_by as [] = [(x, y, prev_by) | (x, y) <- as]

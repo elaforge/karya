@@ -104,9 +104,10 @@ test_logs = do
             , ("sub1", [(">", [(0, 1, "fail")])])
             , ("sub2", [(">", [(0, 1, "")])])
             ]
-    let (res, cached, uncached) = compare_cached create $
+    let (_, cached, uncached) = compare_cached create $
             State.insert_event (UiTest.mk_tid_name "sub2" 0) 1
                 (Event.event "" 1)
+    -- Make sure errors are still present in the cached output.
     strings_like (r_logs uncached)
         [ "test/sub1 * rederived"
         , "sub1.t0 * note call not found"

@@ -395,12 +395,11 @@ test_channelize = do
         [0, 0]
 
 test_can_share_chan = do
-    let pevent = mkpevent
-    let f evt0 evt1 = Perform.can_share_chan (pevent evt0) (pevent evt1)
+    let f evt0 evt1 = Perform.can_share_chan (mkpevent evt0) (mkpevent evt1)
 
     -- Can't share, becase there is explicitly time for a leading pitch
     -- bend in the second event.
-    equal (f (0, 2, [(0, 60)], []) (2, 2, [(0, 60), (2, 61)], [])) False
+    equal (f (0, 2, [(0, 60)], []) (2, 2, [(2, 61.5)], [])) False
 
     -- can't share because first pitch bends
     equal (f (0, 2, [(0, 60), (1, 62)], []) (0, 2, [(0, 64)], [])) False
@@ -415,9 +414,11 @@ test_can_share_chan = do
     -- Fractional pitches don't share, even in the decay.
     equal (f (0, 2, [(0, 60)], []) (0, 2, [(0, 60.5)], [])) False
     equal (f (0, 2, [(0, 60)], []) (2, 2, [(2, 60.5)], [])) False
+
     -- Still can't share because of the control lead time.
-    let e0_end = Perform.note_end (pevent (0, 2, [], []))
+    let e0_end = Perform.note_end (mkpevent (0, 2, [], []))
     equal (f (0, 2, [(0, 60)], []) (e0_end, 2, [(e0_end, 60.5)], [])) False
+
     -- Finally can share.
     let e0_end2 = e0_end + Perform.control_lead_time
     equal (f (0, 2, [(0, 60)], []) (e0_end2, 2, [(e0_end2, 60.5)], [])) True

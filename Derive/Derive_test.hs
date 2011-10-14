@@ -678,6 +678,32 @@ test_block_end = do
 --             , (6, 2, "--11"), (6, deflt, "--21"), (8, deflt, "--12") ],
 --         [])
 
+-- * regression
+
+-- These tests are derived from debugging and test specific things that went
+-- wrong.  I don't think they're likely enough to come up again that I want
+-- to figure out the right place to test, but as long as they exist I might
+-- as well keep them for regressions.
+
+test_regress_pedal = do
+    -- Make sure a pedal halfway through a note really only turns on halfway
+    -- through the note.
+    let state = UiTest.exec State.empty (UiTest.mkblock_skel b10_block)
+        bid = UiTest.bid "b10"
+    let res = DeriveTest.derive_block state bid
+    let (_perf_events, mmsgs, _logs) =
+            DeriveTest.perform_defaults (Derive.r_events res)
+    let pedal_on = [(ts, c)
+            | (ts, Midi.ChannelMessage _ (Midi.ControlChange 64 c)) <- mmsgs
+            , c /= 0]
+    equal pedal_on [(12500, 127)]
+    where
+    b10_block = (("b10",
+        [("damper-pedal", [(12.5, 2, "`ped`")]),
+         (">s/1", [ (10.0, 5.0, "")]),
+         ("*", [ (10.0, 0.0, "4f")])
+        ]), [(1, 2), (2, 3)])
+
 -- * util
 
 r_tempo :: Derive.Result -> Transport.TempoFunction

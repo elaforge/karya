@@ -100,10 +100,14 @@ c6, d6, e6, f6, g6, a6, b6 :: Pitch.Degree
 
 note_to_degree :: Map.Map Pitch.Note Util.IntDegree
 note_to_degree = Map.fromList $ zip notes [0..127]
-    where notes = map Pitch.Note [show o ++ d | o <- [-1..9], d <- note_degrees]
+    where
+    notes = map Pitch.Note [show o ++ d | o <- [-1..9], d <- note_degrees]
+
+degree_to_note :: Map.Map Util.IntDegree Pitch.Note
 degree_to_note = Map.invert note_to_degree
 
 -- | I could use `sharp` in here, but it's simpler to have plain text if
 -- possible.
 note_degrees :: [String]
-note_degrees = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]
+note_degrees =
+    [ "c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]

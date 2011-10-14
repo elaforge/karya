@@ -1,58 +1,13 @@
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances, EmptyDataDecls #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
-{- | This module implements signals as sparse arrays of Val->Val.  The
-    points are interpolated linearly, so the signal array represents a series
-    of straight line segments.
+{- | Instantiation of "Perform.SignalBase" for control signals.
 
-    There is an implicit initial sample at (0, 0).  The final sample is
-    considered to extend in a flat line infinitely to the right.
+    Sample values are doubles, which means each point in the signal is 8*2
+    bytes.  The double resolution is overkill for the value, but float would
+    be too small for time given the time stretching mentioned above.
 
-    There are a few design trade offs here:
-
-    1. Samples are stored as (x, y) pairs instead of having a constant sample
-    rate.  This makes a lot of the functions in here much more complicated,
-    but should result in a drastic reduction of data for the common case of
-    long flat segments (e.g. constant tempo, constant controls esp. velocity).
-    Also, a constant sample rate would restrict note resolution to the sample
-    rate or you wouldn't be able to line them up.  A 1k sampling rate is
-    already past human perception (and the midi driver's timing accuracy), but
-    notes may be stretched in time, which will exacerbate any timing
-    quantization.  Signal processing functions may resample the signal to raise
-    the sampling rate, but shouldn't lower it, so if a signal is recorded with
-    certain points, they should be played exactly as recorded even if they
-    don't line up with the sampling rate.  TODO currently integrate doesn't do
-    that, but I don't think it's too bad...
-
-    2. Sample points are interpolated linearly rather than setting flat
-    segments.  This means long linear ramps (such as the integral of a constant
-    tempo) don't have to be sampled, which should be a big bonus.  However, it
-    means that the common case of recorded midi controls takes twice as much
-    data, since a flat segment must be expressed as [(x0, y0), (x1, y0), (x2,
-    y1), ...].  This will be bad for recorded midi controls, but I may wind
-    up with a special storage hack for those anyway.  Or maybe linear
-    interpolation is ok for dense signal, if it's above the sampling rate then
-    it doesn't matter anyway.
-
-    3. Sample values are doubles, which means each point in the signal is 8*2
-    bytes.  The double resolution is overkill for the value, but float would be
-    too small for time given the time stretching mentioned above.
-
-    Originally Signals were simply functions (Val -> Val).  This is much more
-    elegant and things like composition are simply functional composition and
-    hacks like shift and stretch go away.  Unfortunately, I need access to the
-    points to draw graphs without resorting to sampling and things like
-    integrate must be evaluated incrementally anyway, and I want to GC the
-    heads of the signals when they are no longer needed, so...
-
-    TODO
-
-    - Make Signal polymorphic in Val so I can have Float for most things,
-    Double for tempo warps, and (Octave, Degree, Offset) for pitches.  If
-    a store as a pair of arrays then Float will take up 2/3 the space.
-
-    - do some performance tests for large signals
-
-    - implement a more efficient map_signal_accum and see if it helps
+    TODO split this into Float and Double versions since only Warp really
+    needs Double.  Or does Warp really need Double?
 -}
 module Perform.Signal (
     -- * types
@@ -61,7 +16,7 @@ module Perform.Signal (
     , tempo_srate
 
     -- * constants
-    , invalid_pitch, empty
+    , invalid_pitch, empty, zero
     , Tempo, Warp, Control, NoteNumber, Display
 
     -- * construction / deconstruction
@@ -184,6 +139,9 @@ invalid_pitch = -1
 
 empty :: Signal y
 empty = signal []
+
+zero :: Signal y
+zero = signal [(0, 0)]
 
 -- | Signal composition, used by warps, is really tricky without a constant
 -- srate.  Since 'integrate' is the way to generate 'Warp's, ensure they are
