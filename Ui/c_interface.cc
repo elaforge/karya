@@ -15,7 +15,7 @@ initialize()
 {
     // DEBUG("lock");
     Fl::lock();
-    MsgCollector::get()->screen_update();
+    BlockViewWindow::initialize();
 }
 
 void

@@ -200,6 +200,8 @@ public:
     bool log_collected;
 
     static MsgCollector *get();
+    // Callback for Fl::add_handler() to record global events.
+    static int event_handler(int evt);
 
 private:
     void push_update(UiMsg::MsgType type, const UiMsg::Context &c);

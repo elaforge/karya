@@ -681,6 +681,15 @@ BlockViewWindow::resize(int X, int Y, int W, int H)
 }
 
 
+void
+BlockViewWindow::initialize()
+{
+    // Setup event notification when a screen is added or removed.
+    Fl::add_handler(MsgCollector::event_handler);
+    MsgCollector::get()->screen_update();
+}
+
+
 int
 BlockViewWindow::handle(int evt)
 {

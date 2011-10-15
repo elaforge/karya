@@ -58,6 +58,5 @@ arpeggio arp time deriver = do
             Up -> return . Seq.sort_on Score.initial_pitch
             Down -> return . Seq.reverse_sort_on Score.initial_pitch
             Random -> Util.shuffle
-    arpeggiated <- zipWith (\offset event -> Score.move_start offset event)
-        (Seq.range_ 0 time) <$> sort events
+    arpeggiated <- zipWith Score.move_start (Seq.range_ 0 time) <$> sort events
     return $ map LEvent.Log logs ++ map LEvent.Event arpeggiated

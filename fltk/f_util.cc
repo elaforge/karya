@@ -97,6 +97,8 @@ show_event(int ev)
     case FL_ACTIVATE: e = "activate"; break;
     case FL_HIDE: e = "hide"; break;
     case FL_SHOW: e = "show"; break;
+
+    case FL_SCREEN_CONFIGURATION_CHANGED: e = "screen configuration"; break;
     }
     return e;
 }

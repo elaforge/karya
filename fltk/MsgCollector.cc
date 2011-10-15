@@ -363,6 +363,21 @@ MsgCollector::get()
 }
 
 
+int
+MsgCollector::event_handler(int evt)
+{
+    switch (evt) {
+    case FL_SCREEN_CONFIGURATION_CHANGED:
+        get()->screen_update();
+        return 1;
+        break;
+    default:
+        DEBUG("unknown event: " << show_event(evt));
+    }
+    return 0;
+}
+
+
 void
 MsgCollector::clear()
 {

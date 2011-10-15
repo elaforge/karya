@@ -128,8 +128,8 @@ trimmed_pitch start end =
 -- do its thing?
 trimmed_controls :: RealTime -> RealTime -> Score.ControlMap
     -> Score.ControlMap
-trimmed_controls start end controls = Map.map trim controls
-    where trim = Signal.truncate end . Signal.drop_before start
+trimmed_controls start end =
+    Map.map (Signal.truncate end . Signal.drop_before start)
 
 -- ** transform
 

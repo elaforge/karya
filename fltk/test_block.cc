@@ -359,6 +359,8 @@ main(int argc, char **argv)
     handle_argv(argc, argv);
     BlockModelConfig config = block_model_config();
 
+    BlockViewWindow::initialize();
+
     t1_set();
     m44_set();
 

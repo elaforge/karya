@@ -202,6 +202,10 @@ public:
 
     // If true, this is running from c++, not haskell.
     bool testing;
+
+    // This should be called once at app startup to do things that need to be
+    // done once.
+    static void initialize();
 protected:
     int handle(int evt);
 };
