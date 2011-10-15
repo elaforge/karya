@@ -513,7 +513,7 @@ default_control_op_map :: Map.Map TrackLang.CallId ControlOp
 default_control_op_map = Map.fromList $ map (first TrackLang.Symbol)
     [ ("add", Signal.sig_add)
     , ("sub", Signal.sig_subtract)
-    , ("mult", Signal.sig_multiply)
+    , ("mul", Signal.sig_multiply)
     , ("max", Signal.sig_max)
     , ("min", Signal.sig_min)
     ]
