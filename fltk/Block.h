@@ -198,6 +198,7 @@ public:
     BlockViewWindow(int X, int Y, int W, int H,
         const char *label, const BlockModelConfig &model_config);
     virtual void resize(int X, int Y, int W, int H);
+    virtual void show();
     BlockView block;
 
     // If true, this is running from c++, not haskell.

@@ -682,6 +682,21 @@ BlockViewWindow::resize(int X, int Y, int W, int H)
 
 
 void
+BlockViewWindow::show()
+{
+    IRect requested = rect(this);
+    Fl_Double_Window::show();
+    if (rect(this) != requested) {
+        IRect screen;
+        Fl::screen_xywh(screen.x, screen.y, screen.w, screen.h,
+            requested.x, requested.y);
+        if (screen.contains(IPoint(requested.x, requested.y)))
+            this->position(requested.x, requested.y);
+    }
+}
+
+
+void
 BlockViewWindow::initialize()
 {
     // Setup event notification when a screen is added or removed.

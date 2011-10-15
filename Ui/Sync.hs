@@ -64,7 +64,6 @@ sync track_signals state updates = do
     -- Technically I can also cancel out all TrackUpdates that only apply to
     -- newly created views, but this optimization is probably not worth it.
     result <- State.run state $ do_updates track_signals (Update.sort updates)
-    -- Log.timer $ "synced updates: " ++ show (length updates)
     return $ case result of
         Left err -> Just err
         -- I reuse State.StateT for convenience, but run_update should
@@ -77,7 +76,8 @@ do_updates :: Track.TrackSignals -> [Update.DisplayUpdate]
     -> State.StateT IO ()
 do_updates track_signals updates = do
     actions <- mapM (run_update track_signals) updates
-    -- Trans.liftIO $ putStrLn ("run updates: " ++ PPrint.pshow updates)
+    -- when (not (null updates)) $
+    --     Trans.liftIO $ putStr $ "sync updates: " ++ PPrint.pshow updates
     Trans.liftIO (Ui.send_action (sequence_ actions))
 
 set_track_signals :: State.State -> Track.TrackSignals -> IO ()
