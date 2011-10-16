@@ -18,7 +18,7 @@ import qualified App.Config as Config
 
 
 test_display_track = do
-    let ([tid1, tid2], st1) = UiTest.run_mkstate [(">", []), ("*", [])]
+    let ([tid1, tid2], st1) = UiTest.run_mkblock [(">", []), ("*", [])]
         rid = UiTest.default_ruler_id
         st2 = UiTest.exec st1 (State.merge_track bid 1 2)
     let Right (cmd_updates, display_updates) = diff st1 st2
@@ -61,7 +61,7 @@ diff = Diff.diff []
 -- * derive_diff
 
 test_derive_diff = do
-    let ([_, tid2], ustate) = UiTest.run_mkstate
+    let ([_, tid2], ustate) = UiTest.run_mkblock
             [ ("tempo", [(0, 0, ".5")])
             , (">i", [(0, 1, ""), (1, 1, "")])
             ]
@@ -80,7 +80,7 @@ test_derive_diff = do
         (mkdamage [] [] [bid])
 
 test_derive_diff_updates = do
-    let ([_, tid2], ustate) = UiTest.run_mkstate
+    let ([_, tid2], ustate) = UiTest.run_mkblock
             [ ("tempo", [(0, 0, ".5")])
             , (">i", [(0, 1, ""), (1, 1, "")])
             ]

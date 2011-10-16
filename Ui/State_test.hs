@@ -30,7 +30,7 @@ test_skeleton_cycles = do
     equal (run 1 (State.add_edges bid [(1, 2)])) (Right ())
 
 test_muted_tracknums = do
-    let (_, st) = UiTest.run_mkstate
+    let (_, st) = UiTest.run_mkblock
             [("tempo", []), (">i1", []), ("c1", []), (">i2", [])]
     let with_flag flag ts = UiTest.eval st $ do
             mapM_ (\n -> State.toggle_track_flag UiTest.default_block_id n flag)

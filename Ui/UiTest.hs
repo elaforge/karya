@@ -99,8 +99,8 @@ eval state m = case State.eval state m of
     Left err -> error $ "state error: " ++ show err
     Right val -> val
 
-run_mkstate :: [TrackSpec] -> ([TrackId], State.State)
-run_mkstate track_specs =
+run_mkblock :: [TrackSpec] -> ([TrackId], State.State)
+run_mkblock track_specs =
     run State.empty (mkblock (default_block_name, track_specs))
 
 run_mkview :: [TrackSpec] -> ([TrackId], State.State)

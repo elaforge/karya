@@ -37,7 +37,7 @@ import qualified Perform.Signal as Signal
 
 test_one = do
     -- Test laziness of a single track with error logging.
-    let mkblock n = snd $ UiTest.run_mkstate
+    let mkblock n = snd $ UiTest.run_mkblock
             [(">i", [(fromIntegral n, 1, if n `mod` 4 == 0 then "bad" else "")
                 | n <- [0..n]])]
     (log, result) <- derive_block (mkblock 10)
@@ -47,7 +47,7 @@ test_one = do
 
 test_two = do
     -- Two tracks should interleave evaluation.
-    let mkblock n = snd $ UiTest.run_mkstate
+    let mkblock n = snd $ UiTest.run_mkblock
             [ (">i1", [(fromIntegral n, 1, "") | n <- [0..n]])
             , (">i2", [(fromIntegral n, 1, "") | n <- [0,2..n]])
             ]
@@ -70,7 +70,7 @@ test_control = do
     -- lazy I'd have to modify a bunch of other places like the bsearches so
     -- I'm not going to bother for now.  It's not even clear it would be more
     -- efficient that way given that signals may be displayed.
-    let mkblock n = snd $ UiTest.run_mkstate
+    let mkblock n = snd $ UiTest.run_mkblock
             [ ("c", [(fromIntegral n, 0, show n) | n <- [0..n]])
             , (">i", [(fromIntegral n, 1, "") | n <- [0..n]])
             ]
@@ -86,7 +86,7 @@ test_control = do
 test_inverted_control = do
     -- On the other hand, inverted control tracks naturally derive
     -- incrementally.
-    let mkblock n = snd $ UiTest.run_mkstate
+    let mkblock n = snd $ UiTest.run_mkblock
             [ (">i", [(fromIntegral n, 1, "") | n <- [0..n]])
             , ("c", [(fromIntegral n, 0, show n) | n <- [0..n]])
             ]
@@ -160,7 +160,7 @@ perform result = map (LEvent.either Left (Right . DeriveTest.show_log)) $
 test_track_signal = do
     -- Ensure that track signals are only derived twice if the TrackSignal is
     -- actually inspected.
-    let ustate = snd $ UiTest.run_mkstate
+    let ustate = snd $ UiTest.run_mkblock
             [ ("tempo", [(0, 0, "1"), (1, 0, ".5")])
             , ("c1", [(0, 0, "0")])
             , (">", [(0, 1, "")])
@@ -213,7 +213,7 @@ test_2_root = do
     equal (length evaluated) 5
 
 flat_block :: Int -> State.State
-flat_block n = snd $ UiTest.run_mkstate
+flat_block n = snd $ UiTest.run_mkblock
     [(">i", [(fromIntegral n, 1, "") | n <- [0..n]])]
 
 with_logging :: Derive.Deriver a -> IO (Log, Derive.Deriver a)

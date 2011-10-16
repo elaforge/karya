@@ -303,7 +303,7 @@ test_get_control_damage = do
     extract = DeriveTest.extract_run $
         \(Derive.ControlDamage r) -> Ranges.extract r
     run events d = extract $ DeriveTest.run
-        (snd (UiTest.run_mkstate [("cont", events)])) d
+        (snd (UiTest.run_mkblock [("cont", events)])) d
     mkdamage s e = Derive.ScoreDamage
         (Map.singleton (UiTest.mk_tid 0) (Ranges.range s e))
         mempty mempty
