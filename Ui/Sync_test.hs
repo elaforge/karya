@@ -34,10 +34,12 @@ import qualified Ui.Color as Color
 import qualified Ui.Diff as Diff
 import qualified Ui.Dump as Dump
 import qualified Ui.Event as Event
+import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
+import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
@@ -77,6 +79,13 @@ test_create_resize_destroy_view = thread (return State.empty) $
     : ("view is destroyed", do
         State.destroy_view t_view_id
     , [])
+    : []
+
+test_rename_block = thread run_setup $
+    ("block changes BlockId, window recreated with new block", do
+        Transform.map_block_ids $ \id ->
+            if Types.BlockId id == t_block_id then Id.id "test" "newb" else id
+    , [[("window-title", "(bid \"test/newb\") -- (vid \"test/v1\")")]])
     : []
 
 test_create_two_views = thread run_setup $
@@ -422,8 +431,8 @@ parse_dump = either (error . ("failed to parse dump: "++)) id . Dump.parse
 set_selection view_id sel = State.set_selection view_id 0 (Just sel)
 
 t_block = "b1"
-t_ruler_id = Types.RulerId (mkid "r1")
 t_block_id = Types.BlockId (mkid t_block)
+t_ruler_id = Types.RulerId (mkid "r1")
 t_track1_id = Types.TrackId (mkid "b1.t1")
 t_view_id = Types.ViewId (mkid "v1")
 
@@ -446,7 +455,7 @@ create_ruler a b = State.create_ruler (mkid a) b
 run :: State.State -> State.StateT IO a -> IO State.State
 run st1 m = do
     res <- State.run st1 m
-    let (_val, st2, cmd_updates) = right res
+    let (_val, st2, cmd_updates) = right "run: state" res
     sync st1 st2 cmd_updates
     return st2
 
@@ -455,7 +464,8 @@ sync_states st1 st2 = sync st1 st2 []
 
 sync :: State.State -> State.State -> [Update.CmdUpdate] -> IO ()
 sync st1 st2 cmd_updates = do
-    let (_cupdates, dupdates) = right $ Diff.diff cmd_updates st1 st2
+    let (_cupdates, dupdates) = right "sync: diff" $
+            Diff.diff cmd_updates st1 st2
     pmlist "cmd updates" cmd_updates
     pmlist "updates" dupdates
     result <- Sync.sync Map.empty st2 dupdates
@@ -463,5 +473,6 @@ sync st1 st2 cmd_updates = do
         Just err -> putStrLn $ "err: " ++ show err
         Nothing -> putStrLn "synced"
 
-right (Left err) = error $ "error: " ++ show err
-right (Right x) = x
+right :: (Show err) => String -> Either err a -> a
+right msg (Left err) = error $ msg ++ " error: " ++ show err
+right msg (Right x) = x

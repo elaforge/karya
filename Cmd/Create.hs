@@ -62,6 +62,10 @@ rename_ruler :: (State.M m) => RulerId -> RulerId -> m ()
 rename_ruler ruler_id new_name = Transform.map_ruler_ids $ \id ->
     if Types.RulerId id == ruler_id then Id.unpack_id new_name else id
 
+rename_block :: (State.M m) => BlockId -> BlockId -> m ()
+rename_block block_id new_name = Transform.map_block_ids $ \id ->
+    if Types.BlockId id == block_id then Id.unpack_id new_name else id
+
 -- | Find tracks which are not found in any block.  Probably used to pass them
 -- to State.destroy_track for \"gc\".
 orphan_tracks :: (State.M m) => m [TrackId]

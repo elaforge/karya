@@ -532,7 +532,8 @@ BlockView::dump() const
     Fl_Window *win = this->window();
     out << "x " << win->x() << " y " << win->y()
         << " w " << this->w() << " h " << this->h();
-    out << " title " << show_string(this->get_title());
+    out << " window-title " << show_string(this->window()->label())
+        << " title " << show_string(this->get_title());
     for (int i = 0; i < this->tracks(); i++) {
         out << " track" << i << " ("
             << "width " << this->get_track_width(i)

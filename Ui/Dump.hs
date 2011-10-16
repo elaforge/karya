@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {- | Support for testing the GUI.
 
     The GUI exports a 'dump' function which emits a sexpr-like set of
@@ -9,6 +10,7 @@
     Flattened output: @[("key1", "val1"), ("key2.subkey1", "subval1")]@
 -}
 module Ui.Dump where
+import qualified Control.Applicative as Applicative
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
 
@@ -48,4 +50,10 @@ p_word :: A.Parser String
 p_word = B.unpack <$> (p_str <|> A.takeWhile1 (`notElem` " ()"))
 
 p_str :: A.Parser B.ByteString
-p_str = A.char '"' >> A.takeWhile (/='"') <* A.char '"'
+p_str = ParseBs.between (A.char '"') (A.char '"') (B.concat <$> A.many str)
+    where
+    str = do
+        chunk <- A.takeWhile (\c -> c /= '"' && c /= '\\')
+        quoted <- A.option "" (A.string "\\\"" <|> A.string "\\\\")
+        let res = B.append chunk (B.drop 1 quoted)
+        if B.null res then Applicative.empty else return res

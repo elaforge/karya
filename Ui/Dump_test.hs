@@ -11,3 +11,4 @@ test_parse = do
     equal (f "sub (a b)") (Right [("sub.a", "b")])
     equal (f "sub (a (b c) e f)") (Right [("sub.a.b", "c"), ("sub.e", "f")])
     equal (f "x \"a b c\"") (Right [("x", "a b c")])
+    equal (f "x \"a \\\" b\"") (Right [("x", "a \" b")])

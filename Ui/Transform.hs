@@ -46,6 +46,7 @@ map_view_ids f = do
     new_views <- safe_map_keys "state_views" view_f views
     State.modify $ \st -> st { State.state_views = new_views }
 
+-- | Rename a BlockId.  Views are updated to point to the new block.
 map_block_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
 map_block_ids f = do
     maybe_root <- State.lookup_root_id

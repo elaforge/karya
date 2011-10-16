@@ -36,8 +36,10 @@ type DiffError = String
 type DiffM a = Logger.LoggerT (Either Update.CmdUpdate Update.DisplayUpdate)
     (Error.ErrorT DiffError Identity.Identity) a
 
-throw :: String -> DiffM a
-throw = Error.throwError
+-- TODO ErrorT is unused, if it continues to be unused, remove it and now
+-- callers don't have to deal with Either
+-- throw :: String -> DiffM a
+-- throw = Error.throwError
 
 change :: Update.CmdUpdate -> DiffM ()
 change = Logger.logs . (:[]) . Left
@@ -108,7 +110,11 @@ diff_views st1 st2 views1 views2 =
             change $ Update.ViewUpdate view_id (Update.CreateView view)
         (Just _, Nothing) ->
             change $ Update.ViewUpdate view_id Update.DestroyView
-        (Just view1, Just view2) -> diff_view st1 st2 view_id view1 view2
+        (Just view1, Just view2)
+            | Block.view_block view1 /= Block.view_block view2 -> do
+                change $ Update.ViewUpdate view_id Update.DestroyView
+                change $ Update.ViewUpdate view_id (Update.CreateView view2)
+            | otherwise -> diff_view st1 st2 view_id view1 view2
         _ -> return ()
 
 diff_view :: State.State -> State.State -> ViewId -> Block.View -> Block.View
@@ -116,10 +122,6 @@ diff_view :: State.State -> State.State -> ViewId -> Block.View -> Block.View
 diff_view st1 st2 view_id view1 view2 = do
     let emit = change . Update.ViewUpdate view_id
     let unequal f = unequal_on f view1 view2
-    when (unequal Block.view_block) $
-        throw $ show view_id ++ " changed from "
-            ++ show (Block.view_block view1) ++ " to "
-            ++ show (Block.view_block view2)
     when (unequal Block.view_rect) $
         emit $ Update.ViewSize (Block.view_rect view2)
     when (unequal Block.view_status) $
