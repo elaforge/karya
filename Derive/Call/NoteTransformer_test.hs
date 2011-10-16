@@ -57,23 +57,18 @@ test_tuplet_multiple_tracks = do
             ]
     let i1 = Just (Score.Instrument "i1")
         i2 = Just (Score.Instrument "i2")
-    equal (run tracks)
-        [ (i2, 0, 12)
-        , (i1, 0, 6), (i1, 6, 6)
-        ]
+    equal (run tracks) [(i1, 0, 6), (i2, 0, 12), (i1, 6, 6)]
 
 test_arpeggio = do
-    let run = DeriveTest.extract_events DeriveTest.e_note
+    let run = DeriveTest.extract_events DeriveTest.e_note2
             . DeriveTest.derive_tracks_with_ui id
                 (DeriveTest.set_skel [(1, 2), (2, 3), (1, 4), (4, 5)])
-    let tracks arp n1 n2 =
+    let tracks arp =
             [ (">", [(10, 0, arp)])
             , (">", [(10, 10, "")])
-            , ("*", [(10, 0, n1)])
+            , ("*", [(10, 0, "4c")])
             , (">", [(10, 10, "")])
-            , ("*", [(10, 0, n2)])
+            , ("*", [(10, 0, "4d")])
             ]
-    equal (run (tracks "`arp-up` 1" "4c" "4d"))
-        [(10, 10, 60), (11, 9, 62)]
-    equal (run (tracks "`arp-down` 1" "4c" "4d"))
-        [(10, 10, 62), (11, 9, 60)]
+    equal (run (tracks "`arp-up` 1")) [(10, 10, "4c"), (11, 9, "4d")]
+    equal (run (tracks "`arp-down` 1")) [(10, 10, "4d"), (11, 9, "4c")]

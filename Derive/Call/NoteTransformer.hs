@@ -1,5 +1,7 @@
 -- | Note calls that transform other note calls.
 module Derive.Call.NoteTransformer where
+import Control.Monad
+
 import Util.Control
 import qualified Util.Seq as Seq
 import Ui
@@ -17,8 +19,8 @@ import qualified Perform.RealTime as RealTime
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("t", c_tuplet)
-    , ("`arp-up`", c_real_arpeggio Up)
-    , ("`arp-down`", c_real_arpeggio Down)
+    , ("`arp-up`", c_real_arpeggio ToRight)
+    , ("`arp-down`", c_real_arpeggio ToLeft)
     , ("`arp-rnd`", c_real_arpeggio Random)
     ]
 
@@ -35,28 +37,54 @@ c_tuplet = Derive.stream_generator "tuplet" $ Note.place . stretched_tracks
         where (start, end) = Derive.passed_range args
     stretched s e events = map stretch (sort events)
         where
-        event_end = Seq.maximum (map (\(off, dur, _) -> off + dur) events)
-        factor = (e-s) / maybe 1 (subtract s) event_end
-        stretch (off, stretch, d) =
-            ((off-s) * factor + s, stretch*factor, d)
-    sort = Seq.sort_on (\(s, _, _) -> s)
+        factor = (e-s) / maybe 1 (subtract s) end
+        end = Seq.maximum (map Note.event_end events)
+        stretch (Note.Event start dur d) =
+            Note.Event ((start-s) * factor + s) (dur*factor) d
+    sort = Seq.sort_on Note.event_start
 
 
-data Arpeggio = Down | Up | Random deriving (Show)
+-- | Direction in which to arpeggiate.  This is a general arpeggiation that
+-- just makes each track slightly delayed with regard to its neighbor.
+--
+-- Since I can't know the pitch of things (and a 'Note.Event' may not have
+-- a single pitch), the arpeggiation is by track position, not pitch.
+data Arpeggio = ToRight | ToLeft | Random deriving (Show)
 
+-- | Arpeggio in RealTime.
 c_real_arpeggio :: Arpeggio -> Derive.NoteCall
 c_real_arpeggio arp = Derive.stream_generator "arpeggio" $ \args ->
     CallSig.call1 args (optional "time" 0.1) $ \time ->
-        arpeggio arp (RealTime.seconds time)
-            (Note.place (concat (Note.sub_events args)))
+        arpeggio arp (RealTime.seconds time) (Note.sub_events args)
 
--- | Shift each note by a successive amount.
-arpeggio :: Arpeggio -> RealTime -> Derive.EventDeriver -> Derive.EventDeriver
-arpeggio arp time deriver = do
+-- | Shift each track of notes by a successive amount.
+arpeggio :: Arpeggio -> RealTime -> [[Note.Event]] -> Derive.EventDeriver
+arpeggio arp time tracks = do
+    delay_tracks <- zip (Seq.range_ 0 time) <$> sort tracks
+    events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
+        forM track $ \(Note.Event start dur d) -> do
+            new_start <- Util.delay delay start
+            return $ Note.Event new_start (dur - (new_start - start)) d
+    Note.place events
+    where
+    sort = case arp of
+        ToRight -> return
+        ToLeft -> return . reverse
+        Random -> Util.shuffle
+
+-- | This is the old version that shifts each note as a postproc.  This means
+-- it can arpeggiate by pitch since it knows the pitches at that point, but
+-- also means it won't place events that consist of multiple notes correctly.
+--
+-- It's also buggy for events after the start since it will make their
+-- duration negative.
+arpeggio_by_note :: Arpeggio -> RealTime -> Derive.EventDeriver
+    -> Derive.EventDeriver
+arpeggio_by_note arp time deriver = do
     (events, logs) <- LEvent.partition <$> deriver
     let sort = case arp of
-            Up -> return . Seq.sort_on Score.initial_pitch
-            Down -> return . Seq.reverse_sort_on Score.initial_pitch
+            ToRight -> return . Seq.reverse_sort_on Score.initial_pitch
+            ToLeft -> return . Seq.sort_on Score.initial_pitch
             Random -> Util.shuffle
     arpeggiated <- zipWith Score.move_start (Seq.range_ 0 time) <$> sort events
     return $ map LEvent.Log logs ++ map LEvent.Event arpeggiated

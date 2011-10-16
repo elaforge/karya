@@ -376,7 +376,7 @@ test_extend_tempo_damage = do
 test_damage_to_real_to_score = do
     -- Doc in 'Derive.Score.safe_unwarp_pos', this fails due to roundoff.
     let create = do
-            mapM_ UiTest.mkblock_skel state
+            UiTest.mkblocks_skel state
             return (UiTest.bid "order")
     let (_, cached, uncached) = compare_cached create $
             State.insert_event (UiTest.tid "order.t0") 67 (Event.event "5" 0)

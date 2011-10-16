@@ -2,8 +2,10 @@ module Ui.Skeleton where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Graph as Graph
 import qualified Data.Tree as Tree
+
 import Util.Control
 import qualified Util.Graph as Graph
+import qualified Util.Seq as Seq
 
 import Ui
 
@@ -40,14 +42,20 @@ lonely_vertex (Skeleton graph) = Graph.lonely_vertex graph
 flatten :: Skeleton -> [Edge]
 flatten (Skeleton graph) = Graph.edges graph
 
--- | The underlying graph may be smaller than the number of tracks.  I don't
--- want to allow a skeleton that doesn't have certain tracks (and hence makes
--- them invisible) so any missing tracks are appended.
-to_forest :: TrackNum -> Skeleton -> Tree.Forest TrackNum
-to_forest ntracks (Skeleton graph) = Graph.to_forest graph ++ rest
+to_forest :: TrackNum -- ^ Total number of tracks.  This is needed because the
+    -- underlying graph may be smaller than the number of tracks.  I don't
+    -- want to allow a skeleton that doesn't have certain tracks (and hence
+    -- makes them invisible) so any missing tracks are appended.
+     -> Skeleton
+     -> [Tree.Tree TrackNum] -- ^ Each list of Nodes is sorted so the tree
+     -- appears in the same order as the tracks.  This is essential for calls
+     -- that want to deal with tracks left-to-right.
+to_forest ntracks (Skeleton graph) = sort_tree $ Graph.to_forest graph ++ rest
     where -- from 1 past array end to last track index (ntracks-1)
     rest =
         [Graph.Node n [] | n <- [snd (IArray.bounds graph) + 1 .. ntracks-1]]
+    sort_tree = Seq.sort_on Tree.rootLabel . map (\(Tree.Node val subs) ->
+        Tree.Node val (sort_tree subs))
 
 -- | Increment all vertices at and above, insert new empty vertex.
 insert :: TrackNum -> Skeleton -> Skeleton

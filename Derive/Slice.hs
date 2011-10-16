@@ -151,8 +151,8 @@ slice exclusive start end insert_event = concatMap strip . map do_slice
 -- track deriver, which should have called 'extract_orphans' already.
 slice_notes :: ScoreTime -> ScoreTime -> State.EventsTree
     -> [[(ScoreTime, ScoreTime, State.EventsTree)]]
-    -- ^ @(shift, stretch, tree)@, in no guaranteed order.  There is one list
-    -- per note track found.
+    -- ^ One list per note track, in right to left order.  Each track is
+    -- @[(shift, stretch, tree)]@, in no guaranteed order.
 slice_notes start end =
     map (map shift) . map slice_track . concatMap note_tracks
     where

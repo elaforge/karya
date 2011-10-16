@@ -349,6 +349,9 @@ e_twelve = maybe "?" Pitch.note_text . Twelve.input_to_note . to_input
 e_note :: Score.Event -> (RealTime, RealTime, PitchSignal.Degree)
 e_note e = (Score.event_start e, Score.event_duration e, Score.initial_pitch e)
 
+e_note2 :: Score.Event -> (RealTime, RealTime, String)
+e_note2 e = (Score.event_start e, Score.event_duration e, e_twelve e)
+
 -- ** extract log msgs
 
 show_log_stack :: Log.Msg -> String

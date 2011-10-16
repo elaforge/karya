@@ -123,8 +123,8 @@ mkblock block = do
         (const (return default_ruler_id)) maybe_rid
     mkblock_ruler ruler_id block
 
-mkblock_skel :: (State.M m) => (BlockSpec, [Skeleton.Edge]) -> m [TrackId]
-mkblock_skel (block, skel) =
+mkblocks_skel :: (State.M m) => [(BlockSpec, [Skeleton.Edge])] -> m ()
+mkblocks_skel blocks = forM_ blocks $ \(block, skel) ->
     mkblock block <* State.set_skeleton (bid (fst block)) (Skeleton.make skel)
 
 -- | Like 'mkblock', but uses the provided ruler instead of creating its

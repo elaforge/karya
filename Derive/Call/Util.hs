@@ -224,6 +224,14 @@ _random_generator pos = do
             `Hashable.hashWithSalt` ScoreTime.to_double pos
     return $ Pure64.pureMT (fromIntegral cseed)
 
+-- * time
+
+-- | Add a RealTime to a ScoreTime.
+delay :: RealTime -> ScoreTime -> Derive.Deriver ScoreTime
+delay time start = do
+    real <- Derive.real start
+    Derive.score (real + time)
+
 
 -- * c_equal
 

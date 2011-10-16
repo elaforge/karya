@@ -54,8 +54,7 @@ test_slice = do
 
 test_slice_notes = do
     let extract = map (map (\(s, e, t) -> (s, e, extract_tree t)))
-    let f s e = -- Seq.sort_on (\(s, _, _) -> s) . extract
-            extract . Slice.slice_notes s e . make_tree
+    let f s e = extract . Slice.slice_notes s e . make_tree
     let notes ns = Node (make_notes 0 ns)
         control cs = Node (make_controls "c" cs)
         control2 cs = Node (make_controls2 "c" cs)

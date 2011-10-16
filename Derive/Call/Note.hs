@@ -226,22 +226,35 @@ non_bottom_note_track tree = Seq.head (concatMap go tree)
 
 -- ** note slice
 
-type Event = (ScoreTime, ScoreTime, Derive.EventDeriver)
+-- | Start, duration, deriver.
+data Event = Event {
+    event_start :: !ScoreTime
+    , event_duration :: !ScoreTime
+    , event_deriver :: !Derive.EventDeriver
+    }
+
+event_end :: Event -> ScoreTime
+event_end event = event_start event + event_duration event
+
+instance Show Event where
+    show (Event start dur _) =
+        "Event " ++ show start ++ " " ++ show dur ++ " ((deriver))"
 
 -- | Get the Events of subtracks, if any, returning one list of events per sub
 -- note track.  This is the top-level utility for note calls that take other
 -- note calls as arguments.
 sub_events :: Derive.PassedArgs d -> [[Event]]
-sub_events args = map (map derive) (Slice.slice_notes start end subs)
+sub_events args = map (map mkevent) (Slice.slice_notes start end subs)
     where
     (start, end) = Derive.passed_range args
     subs = Derive.info_sub_tracks (Derive.passed_info args)
     -- The events have been shifted back to 0 by 'Slice.slice_notes', but
     -- are still their original lengths.  Stretch them back to 1 so Events
     -- are normalized.
-    derive (shift, stretch, tree) = (shift, stretch,
-        Derive.d_stretch (recip stretch) (Schema.derive_tracks tree))
+    mkevent (shift, stretch, tree) = Event shift stretch $
+        Derive.d_stretch (recip stretch) (Schema.derive_tracks tree)
 
 -- | Place and merge a list of Events.
 place :: [Event] -> Derive.EventDeriver
-place = Derive.d_merge . map (\(off, dur, d) -> Derive.d_place off dur d)
+place = Derive.d_merge
+    . map (\(Event start dur d) -> Derive.d_place start dur d)
