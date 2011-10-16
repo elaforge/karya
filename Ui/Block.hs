@@ -241,6 +241,8 @@ set_visible_rect view rect = rect
 -- | The actual window size is this much larger than the sum of the widths
 -- of the tracks, but only after first creation, when 'view_visible_track'
 -- has not yet been set by the UI.
-default_time_padding, default_track_padding :: Int
-default_time_padding = Config.view_time_padding
-default_track_padding = Config.view_track_padding + 2
+default_time_padding, default_track_padding :: Block -> Int
+default_time_padding block = Config.view_time_padding
+    + if not (null (block_title block))
+        then Config.block_title_height else 0
+default_track_padding = const $ Config.view_track_padding + 2

@@ -72,6 +72,9 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.resizable(body_resize_group);
     track_group.resizable(track_scroll);
 
+    title.set_callback2(BlockView::title_cb, static_cast<void *>(this));
+    title.hide(); // It starts with no text.
+
     this->set_view_config();
     this->set_model_config(model_config, true);
 
@@ -135,27 +138,33 @@ BlockView::set_view_config()
 {
     // I update everything, even if update_all is false.  It's probably not
     // worth trying to skip things that haven't changed for this.
-
+    //
     // If I resize from parent to child, then children get a lot of spurious
     // resizes as their parents move them around.  on the other hand, if
     // we go the other way, parents mess up their children.
     // Spurious resizes it is.
-
+    //
     // I don't totally understand what's going on here.  The window's x() and
     // y() are the values that are passed to the constructor.  However, all
     // widget positions are measured relative to 0, so using x() and y() here
     // will screw up placement.  In addition, using (0, 0) here screws up
     // resizing.
+    //
     // Setting the position to 0 fixes all that and doesn't even seem to move
     // the window around.
     int wx = 0, wy = 0;
     this->position(0, 0);
 
     title.resize(wx, wy, w(), Config::View::block_title_height);
+    int title_h;
+    if (title.visible()) {
+        title_h = title.h();
+    } else {
+        title_h = 0;
+    }
     status_line.resize(wx, h() - Config::View::status_size,
             w() - mac_resizer_width, Config::View::status_size);
-    body.resize(wx, wy + title.h(),
-            w(), h() - title.h() - status_line.h());
+    body.resize(wx, wy + title_h, w(), h() - title_h - status_line.h());
     body_resize_group.resize(body.x() + Config::View::sb_size, body.y(),
             body.w() - Config::View::sb_size, body.h());
 
@@ -175,7 +184,9 @@ BlockView::set_view_config()
     p = rect(ruler_group);
     track_group.resize(p.r(), p.y, body.w() - p.w, p.h);
 
-    track_box.resize(p.x, p.y, p.w, Config::View::block_title_height);
+    // The track_box looks taller than just the track titles because it's
+    // always the same color as the skel_box.
+    track_box.resize(p.x, p.y, p.w, Config::View::track_title_height);
     sb_box.resize(p.x, p.b() - Config::View::sb_size,
         p.w, Config::View::sb_size);
 
@@ -374,6 +385,14 @@ BlockView::set_track_selection(int selnum, int tracknum, const Selection &sel)
         track_sel.start_track = track_sel.cur_track = tracknum - 1;
         track_at(tracknum)->set_selection(selnum, tracknum-1, track_sel);
     }
+}
+
+
+void
+BlockView::set_title(const char *s)
+{
+    title.set_text(s);
+    title_cb(NULL, this);
 }
 
 
@@ -635,6 +654,24 @@ BlockView::track_tile_cb(Fl_Widget *w, void *vp)
     // visible track area.
     if (w == &self->body && Fl::event() == FL_RELEASE)
         MsgCollector::get()->block(UiMsg::msg_resize, self);
+}
+
+
+void
+BlockView::title_cb(Fl_Widget *_w, void *vp)
+{
+    BlockView *self = static_cast<BlockView *>(vp);
+    if (strlen(self->title.value()) == 0) {
+        if (self->title.visible()) {
+            self->title.hide();
+            self->set_view_config();
+        }
+    } else {
+        if (!self->title.visible()) {
+            self->title.show();
+            self->set_view_config();
+        }
+    }
 }
 
 

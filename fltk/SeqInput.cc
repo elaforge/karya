@@ -170,7 +170,7 @@ SeqInput::redraw_neighbors()
 
 
 void
-SeqInput::changed_cb(Fl_Widget *_w, void *vp)
+SeqInput::changed_cb(Fl_Widget *w, void *vp)
 {
     SeqInput *self = static_cast<SeqInput *>(vp);
     // I only put SeqInputs in BlockViewWindows, so this should be safe.
@@ -182,4 +182,6 @@ SeqInput::changed_cb(Fl_Widget *_w, void *vp)
         }
     }
     MsgCollector::get()->view(UiMsg::msg_input, view);
+    if (self->callback2)
+        self->callback2(w, self->callback2_arg);
 }

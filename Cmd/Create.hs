@@ -192,8 +192,8 @@ fitted_view block_id = do
         h = Types.zoom_to_pixels Config.zoom block_end
     rects <- State.gets (map Block.view_rect . Map.elems . State.state_views)
     screen <- Cmd.get_screen (0, 0) -- just pick the main screen for now
-    let dimensions = (w + Block.default_track_padding,
-            h + Block.default_time_padding)
+    let dimensions = (w + Block.default_track_padding block,
+            h + Block.default_time_padding block)
     let vrect = find_screen_rect dimensions rects screen
     State.create_view view_id $ Block.view block_id vrect Config.zoom
 

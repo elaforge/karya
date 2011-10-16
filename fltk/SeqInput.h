@@ -16,6 +16,13 @@ public:
     // handling to get events first and redraws last.  The parent can check
     // this to know if it should treat it specially.
     bool is_expanded() const { return expanded; }
+
+    // SeqInput already uses the single callback provided by fltk.  I could
+    // override callback() here, but it's not virtual so overriding is a bit
+    // sketchy.  A different name is clear at least.
+    void set_callback2(Fl_Callback cb, void *vp) {
+        callback2 = cb; callback2_arg = vp;
+    }
     Color focus_color;
 protected:
     int handle(int evt);
@@ -26,6 +33,8 @@ private:
     void expand();
     void contract();
     void redraw_neighbors();
+    Fl_Callback *callback2;
+    void *callback2_arg;
     static void changed_cb(Fl_Widget *w, void *vp);
 };
 

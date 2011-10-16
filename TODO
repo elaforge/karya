@@ -51,7 +51,7 @@ UNSORTED
   + automate the manual tests
 
   fltk
-    - block title takes up space and I'm not using it, can it collapse?
+    * block title takes up space and I'm not using it, can it collapse?
     - scrollbars mostly just taking up space, have them as transparent
       overlays?
     - skeleton display has leveled steps to make it easier to see who is
@@ -539,6 +539,12 @@ plugin host freeze audio
       make sure they are configured the same way on both sides.
     - can it send cursor position?
       I can poll.
+
+  impromptu
+    - mac only
+    - can programmatically create a au graph
+    ? can it record audio?  yes, but maybe not from an au?
+    - in any case, I can't do daw stuff, so I think I don't want this
 
 test:
   - tests count number of tests in addition to checks within each test

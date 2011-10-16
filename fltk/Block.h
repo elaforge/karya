@@ -107,7 +107,7 @@ public:
     // at different speeds.
     void set_track_selection(int selnum, int tracknum, const Selection &sel);
 
-    void set_title(const char *s) { title.set_text(s); }
+    void set_title(const char *s);
     const char *get_title() const { return title.value(); }
     void set_status(const char *s) { status_line.value(s); }
 
@@ -190,6 +190,7 @@ private:
     static void scrollbar_cb(Fl_Widget *w, void *vp);
     static void update_scrollbars_cb(Fl_Widget *w, void *vp);
     static void track_tile_cb(Fl_Widget *w, void *vp);
+    static void title_cb(Fl_Widget *w, void *vp);
 };
 
 
