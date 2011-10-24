@@ -132,8 +132,8 @@ make_track :: String -> [Event] -> State.TrackEvents
 make_track title events =
     State.TrackEvents title tevents Nothing 100 (0, 100) False
     where
-    tevents = (Events.make
-        [(start, Event.event text dur) | (start, dur, text) <- events])
+    tevents = Events.from_list
+        [(start, Event.event text dur) | (start, dur, text) <- events]
 
 make_controls :: String -> [Int] -> (String, [Event])
 make_controls title ps = (title, [(to_score p, 0, show p) | p <- ps])

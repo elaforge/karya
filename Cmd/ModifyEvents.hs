@@ -63,7 +63,8 @@ block_tracks block_id f = do
     track_ids <- Block.block_track_ids <$> State.get_block block_id
     forM_ track_ids $ \track_id -> do
         events <- State.get_all_events track_id
-        maybe (return ()) (State.modify_events track_id . const . Events.make)
+        maybe (return ())
+                (State.modify_events track_id . const . Events.from_list)
             =<< f track_id events
 
 -- * convenience
@@ -115,12 +116,12 @@ move_events point shift events = merged
 map_track_sorted :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
     -> TrackId -> m ()
 map_track_sorted f track_id = State.modify_events track_id $
-    Events.make_sorted . Maybe.mapMaybe f . Events.ascending
+    Events.from_sorted_list . Maybe.mapMaybe f . Events.ascending
 
 map_track :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
     -> TrackId -> m ()
 map_track f track_id = State.modify_events track_id $
-    Events.make . Maybe.mapMaybe f . Events.ascending
+    Events.from_list . Maybe.mapMaybe f . Events.ascending
 
 -- | Mostly convenient for REPL use.
 for_track :: (Cmd.M m) => TrackId -> (Events.PosEvent -> Maybe Events.PosEvent)

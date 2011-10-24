@@ -22,7 +22,7 @@ test_undo = do
         tid = UiTest.mk_tid 0
         track_updates from to events =
             [Update.TrackUpdate tid (Update.TrackEvents from to
-                (Events.make events))]
+                (Events.from_list events))]
         states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
         next res = ResponderTest.respond_cmd (ResponderTest.result_states res)
 

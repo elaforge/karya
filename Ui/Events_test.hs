@@ -12,7 +12,7 @@ test_split_range = do
     let extract (a, b, c) = (map fst (Events.descending a),
             map fst (Events.ascending b), map fst (Events.ascending c))
     let f start end evts = extract $ Events.split_range start end
-            (make [(p, d, show p) | (p, d) <- evts])
+            (from_list [(p, d, show p) | (p, d) <- evts])
     equal (f 1 2 [(0, 1), (1, 1), (2, 1), (3, 1)])
         ([0], [1], [2, 3])
     equal (f 1 2 [(0, 0.5), (1, -0.5), (2, 1), (3, 1)])
@@ -31,7 +31,7 @@ test_split_range = do
 
 
 test_split_at_before = do
-    let e1 = make [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
+    let e1 = from_list [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
     let f pos = let (pre, post) = Events.split_at_before pos e1
             in (map fst pre, map fst post)
     equal (f 0) ([], [0, 1, 2])
@@ -41,7 +41,7 @@ test_split_at_before = do
 
 test_insert_events = do
     let f evts0 evts1 = extract $
-            Events.insert_events (pos_events evts0) (make evts1)
+            Events.insert_events (pos_events evts0) (from_list evts1)
 
     equal (f [(0, 1, "a0")] [(3, 1, "b0")])
         [(0, 1, "a0"), (3, 1, "b0")]
@@ -61,7 +61,7 @@ test_insert_events = do
 
 test_insert_negative_events = do
     let f evts0 evts1 = extract $
-            Events.insert_events (pos_events evts0) (make evts1)
+            Events.insert_events (pos_events evts0) (from_list evts1)
     equal (f
         [(1, -1, "a0")] [(2, -0.5, "b0")]) [(1, -1, "a0"), (2, -0.5, "b0")]
     equal (f [(1, -1, "a0")] [(2, -2, "b0")]) [(1, -1, "a0"), (2, -1, "b0")]
@@ -84,7 +84,7 @@ test_clip_events = do
     equal (f [(0, 0.5, "a0"), (1, -5, "b0")]) [(0, 0.5, "a0"), (1, -0.5, "b0")]
 
 test_remove_events = do
-    let te1 = make [(0, 0, "0"), (16, 1, "16")]
+    let te1 = from_list [(0, 0, "0"), (16, 1, "16")]
     -- able to remove 0 dur events
     equal (extract $ Events.remove_event 0 te1) [(16, 1, "16")]
 
@@ -101,8 +101,8 @@ test_remove_events = do
 
 type Event = (ScoreTime, ScoreTime, String)
 
-make :: [Event] -> Events.Events
-make = Events.make . pos_events
+from_list :: [Event] -> Events.Events
+from_list = Events.from_list . pos_events
 
 pos_events :: [Event] -> [Events.PosEvent]
 pos_events = map (\(pos, dur, text) -> (pos, Event.event text dur))

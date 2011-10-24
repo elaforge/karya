@@ -20,7 +20,7 @@ module Ui.Events (
 
     -- ** list conversion
     , singleton
-    , make, make_sorted
+    , from_list, from_sorted_list
     , ascending, descending
 
     -- ** transformation
@@ -108,12 +108,12 @@ time_end = maybe 0 max . last
 singleton :: ScoreTime -> Event.Event -> Events
 singleton pos event = Events (Map.singleton pos event)
 
-make :: [PosEvent] -> Events
-make evts = insert_events evts empty
+from_list :: [PosEvent] -> Events
+from_list evts = insert_events evts empty
 
--- | Like 'make', but more efficient and the input must be sorted.
-make_sorted :: [PosEvent] -> Events
-make_sorted evts = insert_sorted_events evts empty
+-- | Like 'from_list', but more efficient and the input must be sorted.
+from_sorted_list :: [PosEvent] -> Events
+from_sorted_list evts = insert_sorted_events evts empty
 
 -- | Get all events in ascending order.  Like @snd . split (ScoreTime 0)@.
 ascending :: Events -> [PosEvent]
