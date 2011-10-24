@@ -61,10 +61,10 @@ test_basic = do
         [ Stack.Block (UiTest.bid "b1")
         , Stack.Track (UiTest.tid "b1.t0")
         -- track title and event for note track
-        , Stack.Call "note", Stack.Region s e, Stack.Call "note"
+        , Stack.Call "note-track", Stack.Region s e, Stack.Call "note"
         , Stack.Track (UiTest.tid "b1.t1")
-        -- track title and event for inverted note track
-        , Stack.Call "note", Stack.Region s e, Stack.Call "note"
+        -- inverted note track has no note-track Call for ">"
+        , Stack.Region s e, Stack.Call "note"
         ]
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
         (Instrument.inst_name inst,
@@ -121,10 +121,9 @@ test_stack = do
         , ["test/b0 test/b0.t0 1-2", "test/sub test/sub.t0 1-2"]
         ]
 
-    let b0 s e = [block "b0", track "b0.t0", call "note",
+    let b0 s e = [block "b0", track "b0.t0", call "note-track",
             Stack.Region s e]
-        sub s e = [block "sub", track "sub.t0", call "note",
-            Stack.Region s e, call "note"]
+        sub s e = [block "sub", track "sub.t0", Stack.Region s e, call "note"]
     equal stacks $ map Stack.from_outermost
         [ b0 0 1 ++ [Stack.Call "note"]
         , b0 1 2 ++ sub 0 1

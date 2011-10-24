@@ -15,4 +15,4 @@ with_attrs :: Score.Attributes -> Derive.NoteCall
 with_attrs attrs =
     Derive.stream_generator ("with_attrs " ++ Pretty.pretty attrs) $
     \args -> CallSig.call0 args $ Util.with_attrs (Score.attrs_union attrs) $
-        Call.reapply args [TrackLang.call ""]
+        Call.reapply args [TrackLang.call "" []]

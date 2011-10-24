@@ -135,7 +135,7 @@ simple_note :: PitchSignal.Degree -> Signal.Y -> Derive.EventDeriver
 simple_note pitch velocity = with_pitch pitch $ with_velocity velocity note
 
 note :: Derive.EventDeriver
-note = Call.eval_one 0 1 [TrackLang.call ""]
+note = Call.eval_one 0 1 [TrackLang.call "" []]
 
 -- * call transformers
 

@@ -36,6 +36,7 @@ note_calls = Derive.make_calls
     -- to handle the args version.
     , ("n", c_note)
     , ("=", Util.c_equal)
+    , ("note-track", c_note_track)
     ]
 
 -- * note
@@ -48,7 +49,7 @@ note_calls = Derive.make_calls
 c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
     (Just $ Derive.GeneratorCall (inverting generate) (const Nothing))
-    (Just $ Derive.TransformerCall transform)
+    (Just note_transform)
     where
     generate args = case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->
@@ -56,11 +57,19 @@ c_note = Derive.Call "note"
                 (Derive.passed_next args)
         (_, _, invalid) -> Derive.throw_arg_error $
             "expected inst or attr: " ++ show invalid
-    transform args deriver = case process (Derive.passed_vals args) of
+    process = process_note_args Nothing []
+
+-- | This is implicitly the call for note track titles---the \">...\" will be
+-- the first argument.
+c_note_track :: Derive.NoteCall
+c_note_track = Derive.Call "note-track" Nothing (Just note_transform)
+
+note_transform :: Derive.TransformerCall Score.Event
+note_transform = Derive.TransformerCall $ \args deriver ->
+    case process_note_args Nothing [] (Derive.passed_vals args) of
         (inst, rel_attrs, []) -> transform_note inst rel_attrs deriver
         (_, _, invalid) ->
             Derive.throw_arg_error $ "expected inst or attr: " ++ show invalid
-    process = process_note_args Nothing []
 
 -- ** generate
 

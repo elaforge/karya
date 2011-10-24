@@ -169,7 +169,7 @@ test_recursive_call = do
     where
     recursive :: Derive.NoteCall
     recursive = Derive.stream_generator "recursive" $
-        \args -> Call.reapply args [TrackLang.call "recur"]
+        \args -> Call.reapply args [TrackLang.call "recur" []]
 
 test_repeat = do
     let run events = DeriveTest.e_logs $

@@ -381,8 +381,11 @@ instance DeepSeq.NFData Val where
 --
 -- TODO I should be able to have different types of vals, but I think I need an
 -- existential wrapper for that, or an infix operator.
-call :: String -> Call
-call sym = Call (Symbol sym) []
+call :: String -> [Term] -> Call
+call sym = Call (Symbol sym)
+
+inst :: String -> Term
+inst = Literal . VInstrument . Score.Instrument
 
 val_call :: String -> Term
 val_call sym = ValCall (Call (Symbol sym) [])
