@@ -23,7 +23,7 @@ import qualified Ui.Track as Track
 
 import qualified Derive.Derive as Derive
 import Derive.Derive
-       (Cache(..), CallType, ScoreDamage(..), ControlDamage(..))
+       (Cache(..), Cached(..), ScoreDamage(..), ControlDamage(..))
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
@@ -81,9 +81,12 @@ find_generator_cache :: (Derive.Derived derived) =>
     Stack.Stack -> Ranges.Ranges ScoreTime -> ScoreDamage -> ControlDamage
     -> Cache -> Either String (Derive.Collect, LEvent.LEvents derived)
 find_generator_cache stack event_range score_damage
-        (ControlDamage control_damage) cache = do
-    (collect, stream) <- maybe (Left "not in cache") Right
-        (lookup_cache stack cache)
+        (ControlDamage control_damage) (Cache cache) = do
+    cached <- maybe (Left "not in cache") Right (Map.lookup stack cache)
+    (collect, stream) <- case cached of
+        Invalid -> Left "cached invalidated by score damage"
+        Cached entry -> maybe (Left "cached entry has wrong type") Right
+            (Derive.from_cache_entry entry)
     let Derive.GeneratorDep block_deps = Derive.collect_local_dep collect
     let damaged_blocks = Set.union
             (sdamage_track_blocks score_damage) (sdamage_blocks score_damage)
@@ -97,7 +100,7 @@ find_generator_cache stack event_range score_damage
 
 make_cache :: (Derive.Derived d) => Stack.Stack -> Derive.Collect
     -> LEvent.LEvents d -> Cache
-make_cache stack collect stream = Cache $ Map.singleton stack entry
+make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     where
     -- TODO clear out other bits of cache that this overlaps with
     stripped = collect { Derive.collect_cache = mempty }
@@ -194,10 +197,3 @@ extend_damage track_id (track_s, track_e) (ControlDamage damage)
         ((prev, _) : _, _) -> prev
         _ -> p
     event_after p events = maybe track_e fst $ Seq.head (Events.after p events)
-
--- * types
-
-lookup_cache :: (Derive.Derived derived) =>
-    Stack.Stack -> Cache -> Maybe (CallType derived)
-lookup_cache stack (Cache cache) =
-    Derive.from_cache_entry =<< Map.lookup stack cache

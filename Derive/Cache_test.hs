@@ -32,22 +32,27 @@ import qualified Perform.Signal as Signal
 
 -- * other functions
 
-test_clear_damage = do
+test_clear_damaged = do
     let mkdamage tracks blocks = Derive.ScoreDamage
             (Map.fromList tracks) Set.empty (Set.fromList blocks)
         empty = Derive.CachedEvents (mempty, [])
-        mkcache stack = Derive.Cache $ Map.singleton stack empty
-    let f damage stack = Map.keys $ uncache $
+        mkcache stack = Derive.Cache $
+            Map.singleton stack (Derive.Cached empty)
+    let extract (stack, Derive.Invalid) = (stack, False)
+        extract (stack, _) = (stack, True)
+    let f damage stack = map extract $ Map.toList $ uncache $
             Derive.clear_damaged damage (mkcache stack)
 
     let stack = Stack.from_outermost
             [block "top", track "t", call "c", region 1 2]
-    equal (f (mkdamage [] []) stack) [stack]
-    equal (f (mkdamage [] [UiTest.bid "top"]) stack) []
-    equal (f (mkdamage [(UiTest.tid "t", Ranges.range 2 3)] []) stack) [stack]
-    equal (f (mkdamage [(UiTest.tid "t", Ranges.range 1 3)] []) stack) []
+    equal (f (mkdamage [] []) stack) [(stack, True)]
+    equal (f (mkdamage [] [UiTest.bid "top"]) stack) [(stack, False)]
+    equal (f (mkdamage [(UiTest.tid "t", Ranges.range 2 3)] []) stack)
+        [(stack, True)]
+    equal (f (mkdamage [(UiTest.tid "t", Ranges.range 1 3)] []) stack)
+        [(stack, False)]
     equal (f (mkdamage [(UiTest.tid "top", Ranges.range 1 3)] []) stack)
-        [stack]
+        [(stack, True)]
 
 -- * cached generators
 
@@ -214,7 +219,7 @@ test_collect = do
     let (_, cached, _) = compare_cached create $
             State.insert_event (UiTest.tid "top.t0") 1 (Event.event "" 1)
     -- pprint (r_cache_collect cached)
-    let [root, _parent] = r_cache_collect cached
+    let root : _ = r_cache_collect cached
     let tsig = Right $
             Track.TrackSignal (Track.Control (Signal.signal [(0, 1)])) 0 1
     let extract = second (fmap extract_collect)
@@ -354,7 +359,7 @@ test_inverted_control_damage = do
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
         [ "top.t0 0-1: * using cache"
-        -- This is "not in cache" instead of "control damage" for subtle
+        -- This is "invalidated" instead of "control damage" for subtle
         -- reasons.  Since t1 is inverted below t0, the cache entry is
         -- [t0, 1-2, t1, 1-2].  Since the damage is at [t1, 1-1],
         -- Derive.clear_damage will match and kill it.  Ultimately this is
@@ -363,7 +368,7 @@ test_inverted_control_damage = do
         -- relationship and ControlDamage is needed.
         --
         -- Wow.
-        , "top.t0 1-2: * rederived * not in cache"
+        , "top.t0 1-2: * rederived * invalidated"
         , toplevel_rederived
         ]
 
@@ -455,7 +460,7 @@ r_cache_collect result = Seq.sort_on fst
         | (stack, ctype) <- Map.assocs cmap]
     where
     cmap = uncache (Derive.r_cache result)
-    collect (Derive.CachedEvents (collect, _)) = Just collect
+    collect (Derive.Cached (Derive.CachedEvents (collect, _))) = Just collect
     collect _ = Nothing
 
 r_cache_deps :: Derive.Result -> [(String, Maybe [BlockId])]

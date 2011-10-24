@@ -78,7 +78,7 @@ module Derive.Deriver.Monad (
 
     -- ** cache types
     -- $cache_doc
-    , Cache(..), cache_size
+    , Cache(..), Cached(..), cache_size
     , CacheEntry(..), CallType
     , GeneratorDep(..)
 
@@ -719,13 +719,19 @@ transformer name func = Call name Nothing (Just (TransformerCall func))
 
 -- $cache_doc
 -- The cache types are nominally exported from "Derive.Cache", but must be
--- defined here due to circular dependencies.
+-- defined here to avoid circular dependencies.
 
 -- instead of a stack, this could be a tree of frames
-newtype Cache = Cache (Map.Map Stack.Stack CacheEntry)
+newtype Cache = Cache (Map.Map Stack.Stack Cached)
     deriving (Monoid.Monoid, Show)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
+
+-- | When cache entries are invalidated by ScoreDamage, a marker is left in
+-- their place.  This is just for a nicer log msg that can tell the difference
+-- between never evaluated and damaged.
+data Cached = Cached CacheEntry | Invalid
+    deriving (Show)
 
 cache_size :: Cache -> Int
 cache_size (Cache c) = Map.size c
@@ -774,9 +780,15 @@ instance Monoid.Monoid ScoreDamage where
 -- | Clear the damaged portions out of the cache so they will rederive.
 clear_damaged :: ScoreDamage -> Cache -> Cache
 clear_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
-    Cache $ Map.filterWithKey (\stack _ -> not (rm stack)) cache
+    Cache $ Map.mapWithKey invalidate $ Map.filter is_valid cache
     where
-    rm stack = any (`Stack.member` stack) (map Stack.Block (Set.elems blocks))
+    is_valid Invalid = False
+    is_valid _ = True
+    invalidate stack cached
+        | has_damage stack = Invalid
+        | otherwise = cached
+    has_damage stack =
+        any (`Stack.member` stack) (map Stack.Block (Set.elems blocks))
         || any (overlapping stack) (Map.assocs tracks)
     overlapping stack (track_id, ranges) =
         any (Ranges.overlapping ranges) (Stack.track_regions stack track_id)
