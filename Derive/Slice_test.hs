@@ -16,9 +16,8 @@ import qualified Derive.Slice as Slice
 test_extract_orphans = do
     let f events subs = extract_tree $
             Slice.extract_orphans (uncurry make_track events) (make_tree subs)
-    pprint (f (make_notes 0 "a") [Node (make_notes 0 "abc") []])
     equal (f (make_notes 1 "a") [Node (make_notes 1 "b") []]) []
-    equal (f (make_notes 1 "a") [Node (make_notes 0 "abc") []])
+    equal (f (make_notes 1 "x") [Node (make_notes 0 "abc") []])
         [ Node (make_notes 0 "a") []
         , Node (make_notes 2 "c") []
         ]
@@ -131,8 +130,7 @@ make_tree = map $ \(Node (title, events) subs) ->
 
 make_track :: String -> [Event] -> State.TrackEvents
 make_track title events =
-    State.TrackEvents title tevents 100 Nothing
-        (Events.time_begin tevents, Events.time_end tevents) False
+    State.TrackEvents title tevents Nothing 100 (0, 100) False
     where
     tevents = (Events.make
         [(start, Event.event text dur) | (start, dur, text) <- events])

@@ -77,11 +77,6 @@ event_gaps events end = reverse $
 -- results might be inconsistent, but I'm not sure that will be real problem.
 -- The result is [] if there are no events intersecting the given range.
 --
--- Also strip the TrackIds out of the result.  TrackIds are used to record the
--- tempo map and signal for rendering.  Sliced segments are evaluated
--- piecemeal, overlap with each other if there is a previous sample, and may
--- be evaluated in a different warp than the track.
---
 -- TODO the problem is that I'm slicing the event tracks, but also slicing out
 -- the note track event, so it can no longer see prev and next events, and
 -- can't see their pitches.  I can get the former by supplying prev and next,
@@ -94,8 +89,10 @@ event_gaps events end = reverse $
 -- evaluation be correct.  Hopefully inversion will only be a special case.
 slice :: Bool -- ^ Omit events than begin at the start.
     -> ScoreTime -> ScoreTime
-    -> Maybe (String, ScoreTime)
+    -> Maybe (String, ScoreTime, (ScoreTime, ScoreTime))
     -- ^ If given, insert an event at the bottom with the given text and dur.
+    -- The created track will have the given track_range, so it can create
+    -- a Stack.Region entry.
     -> State.EventsTree -> State.EventsTree
 slice exclusive start end insert_event = concatMap strip . map do_slice
     where
@@ -103,17 +100,20 @@ slice exclusive start end insert_event = concatMap strip . map do_slice
         (if null subs then insert else map do_slice subs)
     insert = case insert_event of
         Nothing -> []
-        Just (text, dur) -> [Tree.Node (make text dur) []]
-    make text dur =
-        State.TrackEvents ">"
-            (Events.singleton start (Event.event text dur))
-            end Nothing (start, end) True
+        Just (text, dur, track_range) ->
+            [Tree.Node (make text dur track_range) []]
+    make text dur track_range =
+        State.TrackEvents ">" (Events.singleton start (Event.event text dur))
+            Nothing end track_range True
     slice_t track = track
         { State.tevents_events = events track
-        , State.tevents_end = end
-        , State.tevents_range = (start, end)
+        , State.tevents_range = (sliced_start + start, sliced_start + end)
         , State.tevents_sliced = True
-        }
+        } -- If the track has already been sliced then (start, end) are
+        -- relative to that previous slicing.  But since cache is based on
+        -- the stack, which is absolute, tevents_range must retain the true
+        -- absolute range.
+        where sliced_start = fst (State.tevents_range track)
     -- Note tracks don't include pre and post events like control tracks.
     events track
         | TrackInfo.is_note_track (State.tevents_title track) =
@@ -179,7 +179,4 @@ slice_notes start end =
     shift_tree shift track = track
         { State.tevents_events = Events.map_sorted
             (\(p, e) -> (p - shift, e)) (State.tevents_events track)
-        , State.tevents_end = State.tevents_end track - shift
-        , State.tevents_range = (\(s, e) -> (s-shift, e-shift))
-            (State.tevents_range track)
         }

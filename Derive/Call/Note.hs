@@ -189,8 +189,8 @@ inverting call args =
 invert_call :: Derive.PassedArgs d -> Derive.Deriver (Maybe State.EventsTree)
 invert_call args = case Derive.info_sub_tracks info of
     [] -> return Nothing
-    subs -> Just <$> invert subs pos (pos + Event.event_duration event)
-        (Derive.passed_next args) expr
+    subs -> Just <$> invert (Derive.info_track_range info) subs
+        pos (pos + Event.event_duration event) (Derive.passed_next args) expr
     where
     (pos, event) = Derive.info_event info
     -- It may seem surprising that only the final call is retained, and any
@@ -201,16 +201,19 @@ invert_call args = case Derive.info_sub_tracks info of
         Seq.last (Derive.info_expr (Derive.passed_info args))
     info = Derive.passed_info args
 
-invert :: State.EventsTree -> ScoreTime -> ScoreTime -> ScoreTime -> String
-    -> Derive.Deriver State.EventsTree
-invert subs start end next_start text = do
+invert :: (ScoreTime, ScoreTime) -> State.EventsTree -> ScoreTime
+    -> ScoreTime -> ScoreTime -> String -> Derive.Deriver State.EventsTree
+invert (track_start, _) subs start end next_start text = do
     when_just (non_bottom_note_track sliced) $ \track ->
         Derive.throw $
             "inverting below note track will lead to an endless loop: "
             ++ Pretty.pretty (State.tevents_track_id track)
     return sliced
     where
-    sliced = Slice.slice False start next_start (Just (text, end-start)) subs
+    sliced = Slice.slice False start next_start
+        (Just (text, end - start, (track_start, next_start))) subs
+        -- Use 'next_start' instead of track_end because in the absence of
+        -- a next note, the track end becomes next note and clips controls.
 
 -- | An inverting call above another note track will lead to an infinite loop
 -- if there are overlapping sub-events that also invert, or confusing results

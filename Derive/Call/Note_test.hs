@@ -68,7 +68,7 @@ mkargs text subs = Derive.PassedArgs [] mempty call_id info
     event = (0, Event.event text 1)
     call_id = TrackLang.Symbol "call"
     info = Derive.CallInfo (CallTest.expr (Event.event_string (snd event)))
-        Nothing event prev next block_end (make_tree subs)
+        Nothing event prev next block_end (0, block_end) (make_tree subs)
     prev = []
     next = [(Events.end event, Event.event "next" 0)]
     block_end = 100

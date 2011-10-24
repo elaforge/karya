@@ -146,6 +146,14 @@ data DeriveInfo derived = DeriveInfo {
     , info_name :: String
     }
 
+-- | Just a spot to stick all the per-track parameters.
+data TrackInfo derived = TrackInfo {
+    tinfo_block_end :: ScoreTime
+    , tinfo_track_range :: (ScoreTime, ScoreTime)
+    , tinfo_sub_tracks :: State.EventsTree
+    , tinfo_derive_info :: DeriveInfo derived
+    }
+
 note_dinfo :: DeriveInfo Score.Event
 note_dinfo = DeriveInfo lookup_note_call "note"
 
@@ -154,12 +162,17 @@ type Info derived = (DeriveInfo derived, Derive.CallInfo derived)
 type GetLastSample d =
     Maybe (RealTime, Derive.Elem d) -> d -> Maybe (RealTime, Derive.Elem d)
 
+-- | This is the toplevel function to derive a track.  It's responsible for
+-- actually evaluating each event.
+--
+-- There's a certain amount of hairiness in here because note and control
+-- tracks are mostly but not quite the same and because calls get a lot of
+-- auxiliary data in 'Derive.CallInfo'.
 derive_track :: (Derive.Derived derived) =>
-    Derive.State -> ScoreTime -> DeriveInfo derived
-    -> Parse.ParseExpr -> GetLastSample derived
-    -> State.EventsTree -> [Events.PosEvent]
+    Derive.State -> TrackInfo derived -> Parse.ParseExpr
+    -> GetLastSample derived -> [Events.PosEvent]
     -> ([LEvent.LEvents derived], Derive.Collect)
-derive_track state block_end dinfo parse get_last_sample subs events =
+derive_track state tinfo parse get_last_sample events =
     go (Internal.record_track_environ state) Nothing "" [] events
     where
     -- This threads the collect through each event.  I would prefer to map and
@@ -171,8 +184,7 @@ derive_track state block_end dinfo parse get_last_sample subs events =
         (result, logs, next_collect) =
             -- trace ("derive " ++ show_pos state (fst cur) ++ "**") $
             derive_event (state { Derive.state_collect = collect })
-                block_end dinfo parse prev_sample repeat_call subs
-                prev cur rest
+                tinfo parse prev_sample repeat_call prev cur rest
         (rest_events, final_collect) =
             go next_collect next_sample next_repeat_call (cur : prev) rest
         events = map LEvent.Log logs ++ case result of
@@ -196,16 +208,14 @@ derive_track state block_end dinfo parse get_last_sample subs events =
 --         Stack.to_ui (Derive.state_stack state)
 
 derive_event :: (Derive.Derived d) =>
-    Derive.State -> ScoreTime -> DeriveInfo d -> Parse.ParseExpr
+    Derive.State -> TrackInfo d -> Parse.ParseExpr
     -> Maybe (RealTime, Derive.Elem d)
     -> B.ByteString -- ^ repeat call, substituted with @"@
-    -> State.EventsTree
     -> [Events.PosEvent] -- ^ previous events, in reverse order
     -> Events.PosEvent -- ^ cur event
     -> [Events.PosEvent] -- ^ following events
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-derive_event st block_end dinfo parse prev_sample repeat_call subs prev
-        cur@(pos, event) next
+derive_event st tinfo parse prev_sample repeat_call prev cur@(pos, event) next
     | text == "--" = (Right mempty, [], Derive.state_collect st)
     | otherwise = case parse (substitute_repeat repeat_call text) of
         Left err -> (Right mempty, [parse_error err], Derive.state_collect st)
@@ -218,11 +228,22 @@ derive_event st block_end dinfo parse prev_sample repeat_call subs prev
     state = st {
         Derive.state_dynamic = (Derive.state_dynamic st)
             { Derive.state_stack = Stack.add
-                (Stack.Region pos (pos + Event.event_duration event))
+                (region pos (pos + Event.event_duration event))
                 (Derive.state_stack (Derive.state_dynamic st))
             }
         }
-    cinfo expr = Derive.CallInfo expr prev_sample cur prev next block_end subs
+    cinfo expr = Derive.CallInfo
+        { Derive.info_expr = expr
+        , Derive.info_prev_val = prev_sample
+        , Derive.info_event = cur
+        , Derive.info_prev_events = prev
+        , Derive.info_next_events = next
+        , Derive.info_block_end = block_end
+        , Derive.info_track_range = track_range
+        , Derive.info_sub_tracks = subs
+        }
+    region s e = Stack.Region (start + s) (start + e)
+    TrackInfo block_end track_range@(start, _) subs dinfo = tinfo
 
 -- | Replace @"@ with the previous non-@"@ call, if there was one.
 --

@@ -614,19 +614,27 @@ type EventsNode = Tree.Tree TrackEvents
 data TrackEvents = TrackEvents {
     tevents_title :: !String
     , tevents_events :: !Events.Events
-    -- | Tracks often extend beyond the end of the last event.  The derivers
-    -- need to know the track end to get the controls of the last note, and for
-    -- the block stretch hack.
-    , tevents_end :: !ScoreTime
     -- | If this TrackEvents is from a real track, then its evaluation can
     -- generate a render signal as a side-effect.
     , tevents_track_id :: !(Maybe TrackId)
+
+    -- | Tracks often extend beyond the end of the last event.  The derivers
+    -- need to know the track end to get the controls of the last note, and
+    -- for the block stretch hack.  Note that this is the end of the longest
+    -- track of the block, so it's not the same as @snd . tevents_range@.
+    , tevents_end :: !ScoreTime
     -- | Range of the track.  This may be past the end of the last event since
     -- it's the range of the block as a whole.
     --
     -- Used by "Derive.Cache": due to inverting calls, a control track may be
     -- sliced to a shorter range.  In that case, I shouldn't bother with
     -- damage outside of its range.
+    --
+    -- This is a (start, end) range, not (start, dur).
+    --
+    -- Tracks often extend beyond the end of the last event.  The derivers
+    -- need to know the track end to get the controls of the last note, and
+    -- for the block stretch hack.
     , tevents_range :: !(ScoreTime, ScoreTime)
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and so certain track-level things, like recording a track
@@ -641,8 +649,8 @@ events_tree block_end tree = mapM resolve tree
         Tree.Node <$> make title track_id <*> mapM resolve subs
     make title track_id = do
         track <- get_track track_id
-        return $ TrackEvents title (Track.track_events track) block_end
-            (Just track_id) (0, block_end) False
+        return $ TrackEvents title (Track.track_events track)
+            (Just track_id) block_end (0, block_end) False
 
 -- ** tracks
 

@@ -38,7 +38,7 @@ test_clear_damage = do
         empty = Derive.CachedEvents (mempty, [])
         mkcache stack = Derive.Cache $ Map.singleton stack empty
     let f damage stack = Map.keys $ uncache $
-            Derive.clear_damage damage (mkcache stack)
+            Derive.clear_damaged damage (mkcache stack)
 
     let stack = Stack.from_outermost
             [block "top", track "t", call "c", region 1 2]
@@ -124,6 +124,9 @@ test_logs = do
 r_logs :: Derive.Result -> [String]
 r_logs = map DeriveTest.show_log_stack . snd . LEvent.partition
     . Derive.r_events
+
+r_logs2 :: Derive.Result -> [String]
+r_logs2 = map DeriveTest.show_log . snd . LEvent.partition . Derive.r_events
 
 -- TODO test fail track parse, should damage track
 -- TODO test localdeps... how do they get reset anyway?
@@ -237,11 +240,37 @@ test_collect = do
         , mk_gdep ["top", "sub"]
         ))
 
--- If I modify a control in a certain place, say a pitch track, I don't want
--- it to derive the whole control.  Then it will damage the whole control and
--- force everything below it to rederive.  I want it to emit control damage
--- for only the bit of control signal that actually changed.
+test_inversion = do
+    -- Ensure that a cached call underneath a few layers of inversion still
+    -- works correctly.  This is tricky because the cache relies on
+    -- Stack.Region entries accurately reflecting the position of the call on
+    -- the track for ScoreDamage to invalidate it.
+    let create = do
+            UiTest.mkblocks_skel blocks
+            return $ UiTest.bid "b9"
+    let (_prev, cached, uncached) = compare_cached create $
+            State.insert_event (UiTest.mk_tid_name "b9" 2) 4
+                (Event.event "7c" 0)
+    equal (diff_events cached uncached) []
+    -- pslist $ map Pretty.pretty (r_cache_stacks prev)
+    where
+    blocks =
+        [ (("b9", b9), [(1, 2), (2, 3)])
+        , (("b28", b28), [(1, 2)])
+        ]
+    b9 =
+        [ (">", [(4, 0, "`arp-up`")])
+        , (">", [(4, 3, "b28")])
+        , ("*", [(4, 0, "5c")])
+        ]
+    b28 = [(">", [(0, 0.5, ""), (0.5, 0.5, ""), (1, 0.5, "")])]
+
 test_control_damage = do
+    -- If I modify a control in a certain place, say a pitch track, I don't
+    -- want it to derive the whole control.  Then it will damage the whole
+    -- control and force everything below it to rederive.  I want it to emit
+    -- control damage for only the bit of control signal that actually
+    -- changed.
     let create = mkblocks
             [ ("top",
                 [ ("c1", [(0, 0, "1")])
@@ -283,7 +312,9 @@ test_control_damage = do
 
 test_get_control_damage = do
     let f tracks s e = run tracks (get_control_damage (0, 10) (mkdamage s e))
-    equal (f [] 0 0) (Right (Just [(0, 0)]))
+    -- There are no events to be damaged so the damage was likely removing
+    -- them, in which case it should be propagated.
+    equal (f [] 0 4) (Right (Just [(0, 4)]))
     equal (f [(0, 0, "0")] 0 0)
         (Right (Just [(0, 10)]))
     equal (f [(0, 0, "0"), (4, 0, "0")] 0 0)
@@ -308,11 +339,6 @@ test_get_control_damage = do
         (Map.singleton (UiTest.mk_tid 0) (Ranges.range s e))
         mempty mempty
 
--- I want the first call to the block call to not cache, but the second call
--- should.  Unfortunately the cache is done before inversion.  So instead of
--- putting the cache in as generator type, I could simply call it from within
--- the call itself.
--- TODO fix this
 test_inverted_control_damage = do
     let create = mkblocks
             [ ("top",
@@ -479,14 +505,15 @@ score_damage create modify = Diff.derive_diff state1 state2 updates
         Right diff_updates -> diff_updates
 
 diff_events :: Derive.Result -> Derive.Result
-    -> [Either SimpleEvent SimpleEvent]
+    -> [Either DiffEvent DiffEvent]
 diff_events r1 r2 = Seq.diff (==) (extract r1) (extract r2)
     where extract = fst . DeriveTest.extract simple_event
 
-type SimpleEvent = (RealTime, RealTime, String)
-simple_event :: Score.Event -> SimpleEvent
-simple_event e =
-    (Score.event_start e, Score.event_duration e, Score.event_string e)
+type DiffEvent = (RealTime, RealTime, String, Double)
+
+simple_event :: Score.Event -> DiffEvent
+simple_event e = (Score.event_start e, Score.event_duration e,
+    DeriveTest.e_twelve e, Score.initial_velocity e)
 
 -- *
 

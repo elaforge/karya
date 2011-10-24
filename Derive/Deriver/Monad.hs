@@ -84,7 +84,7 @@ module Derive.Deriver.Monad (
 
     -- ** damage
     , ScoreDamage(..)
-    , EventDamage(..), ControlDamage(..)
+    , ControlDamage(..)
 
     -- * scale
     -- $scale_doc
@@ -92,7 +92,7 @@ module Derive.Deriver.Monad (
     , LookupScale, Transpose
 
     -- * testing
-    , clear_damage
+    , clear_damaged
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Data.Map as Map
@@ -480,7 +480,7 @@ initial_constant ui_state lookup_deriver lookup_scale inst_calls cache damage =
         , state_pitch_op_map = default_pitch_op_map
         , state_lookup_scale = lookup_scale
         , state_instrument_calls = inst_calls
-        , state_cache = clear_damage damage cache
+        , state_cache = clear_damaged damage cache
         , state_score_damage = damage
         }
 
@@ -607,8 +607,12 @@ data CallInfo derived = CallInfo {
     , info_prev_events :: ![Events.PosEvent]
     , info_next_events :: ![Events.PosEvent]
     -- | If there is no next event, you might want to fall back on the end of
-    -- the block.  This is in normalized time!
+    -- the block.  This may not be the track end because of slicing.
     , info_block_end :: !ScoreTime
+    -- | This is the track range from 'State.tevents_range'.  For sliced
+    -- tracks, it will tell where in the track the slice lies.  This is needed
+    -- for 'Stack.Region' entries.
+    , info_track_range :: !(ScoreTime, ScoreTime)
 
     -- | The track tree below note tracks.  Not given for control tracks.
     , info_sub_tracks :: !State.EventsTree
@@ -617,7 +621,8 @@ data CallInfo derived = CallInfo {
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither to generators for that matter.
 dummy_call_info :: String -> CallInfo derived
-dummy_call_info text = CallInfo [] Nothing (0, Event.event s 1) [] [] 1 []
+dummy_call_info text =
+    CallInfo [] Nothing (0, Event.event s 1) [] [] 1 (0, 1) []
     where s = if null text then "<no-event>" else "<" ++ text ++ ">"
 
 -- | A Call will be called as either a generator or a transformer, depending on
@@ -745,8 +750,6 @@ newtype GeneratorDep = GeneratorDep (Set.Set BlockId)
 
 -- ** damage
 
-type DamageRanges = Ranges.Ranges RealTime
-
 -- | Modified ranges in the score.
 data ScoreDamage = ScoreDamage {
     -- | Damaged ranges in tracks.
@@ -769,8 +772,8 @@ instance Monoid.Monoid ScoreDamage where
             (tblocks1 <> tblocks2) (blocks1 <> blocks2)
 
 -- | Clear the damaged portions out of the cache so they will rederive.
-clear_damage :: ScoreDamage -> Cache -> Cache
-clear_damage (ScoreDamage tracks _ blocks) (Cache cache) =
+clear_damaged :: ScoreDamage -> Cache -> Cache
+clear_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
     Cache $ Map.filterWithKey (\stack _ -> not (rm stack)) cache
     where
     rm stack = any (`Stack.member` stack) (map Stack.Block (Set.elems blocks))
@@ -778,22 +781,10 @@ clear_damage (ScoreDamage tracks _ blocks) (Cache cache) =
     overlapping stack (track_id, ranges) =
         any (Ranges.overlapping ranges) (Stack.track_regions stack track_id)
 
--- | This indicates ranges of time that were rederived.
---
--- It's created by cache misses on generators, and created by transformers that
--- have to recompute or expanded by ones that can recompute incrementally.
---
--- Event tracks will append the result to a log in the derive state which can
--- be used by the performer to incrementally recompute the performance, and
--- control tracks will convert it into ControlDamage so subsequent calls
--- that depend on it can be rederived.
-newtype EventDamage = EventDamage DamageRanges
-    deriving (Monoid.Monoid, Eq, Show)
-
 -- | Control damage indicates that a section of control signal has been
 -- modified.  It's dynamically scoped over the same range as the control
 -- itself, so that events that depend on it can be rederived.
-newtype ControlDamage = ControlDamage DamageRanges
+newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
     deriving (Monoid.Monoid, Eq, Show)
 
 

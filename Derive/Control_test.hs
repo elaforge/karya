@@ -1,12 +1,13 @@
 module Derive.Control_test where
 import qualified Data.Map as Map
 
-import Util.Test
 import qualified Util.Log as Log
-
+import Util.Test
+import Ui
+import qualified Ui.Events as Events
 import qualified Ui.State as State
-import qualified Ui.UiTest as UiTest
 import qualified Ui.Track as Track
+import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
@@ -15,8 +16,8 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
+import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -50,7 +51,7 @@ test_track_expression = do
 test_derive_control = do
     let ex (sig, logs) = (Signal.unsignal sig, map DeriveTest.show_log logs)
     let derive events = DeriveTest.extract_run ex $ DeriveTest.run State.empty
-            (Control.derive_control 10 [] (map UiTest.make_event events))
+            (Control.derive_control (mktrack 10 (0, 10) events) [])
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
     equal (derive [(0, 0, "1"), (2, 0, "i 2")])
@@ -64,6 +65,12 @@ test_derive_control = do
     equal (derive [(0, 0, "1"), (1, 0, "def"), (2, 0, "i 2")])
         (Right ([(0, 1), (1, 1.5), (2, 2)],
             ["Error: control call not found: def"]))
+
+mktrack :: ScoreTime -> (ScoreTime, ScoreTime) -> [(Double, Double, String)]
+    -> State.TrackEvents
+mktrack block_end track_range events =
+    State.TrackEvents ">" (Events.make (map UiTest.make_event events)) Nothing
+        block_end track_range False
 
 test_pitch_track = do
     let derive = do_derive (PitchSignal.unsignal . Score.event_pitch)

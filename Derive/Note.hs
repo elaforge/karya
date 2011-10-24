@@ -155,12 +155,10 @@ d_note_track (Tree.Node track subs) = do
     track_expr <- case Parse.parse_expr (B.pack title) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return (preprocess_title expr)
-    -- TODO event calls are evaluated in normalized time, but track calls
-    -- aren't.  Should they be?
-    let pos_events = Events.ascending (State.tevents_events track)
     stash_sub_signals subs
-    Call.apply_transformer info track_expr
-        (derive_notes (State.tevents_end track) subs pos_events)
+    Call.apply_transformer info track_expr $
+        derive_notes (State.tevents_end track) (State.tevents_range track)
+            (Events.ascending (State.tevents_events track)) subs
     where info = (Call.note_dinfo, Derive.dummy_call_info "note track")
 
 stash_sub_signals :: State.EventsTree -> Derive.Deriver ()
@@ -171,15 +169,17 @@ stash_sub_signals subs = do
         [(track_id, tsig) | (Just track_id, tsig)
             <- zip (map State.tevents_track_id tracks) sigs]
 
-derive_notes :: ScoreTime -> State.EventsTree -> [Events.PosEvent]
-    -> Derive.EventDeriver
-derive_notes block_end subs events = do
+derive_notes :: ScoreTime -> (ScoreTime, ScoreTime) -> [Events.PosEvent]
+    -> State.EventsTree -> Derive.EventDeriver
+derive_notes block_end track_range events subs = do
+    -- You'd think 'd_note_track' should just pass TrackEvents, but then I
+    -- can't test for laziness by passing an infinite events list.
     state <- Derive.get
     let (event_groups, collect) = Call.derive_track
-            state block_end Call.note_dinfo Parse.parse_expr
-            (\_ _ -> Nothing) subs events
+            state tinfo Parse.parse_expr (\_ _ -> Nothing) events
     Internal.merge_collect collect
     return $ Derive.merge_asc_events event_groups
+    where tinfo = Call.TrackInfo block_end track_range subs Call.note_dinfo
 
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.
 -- Unfortunately, this is parsed as a call to @>inst@
