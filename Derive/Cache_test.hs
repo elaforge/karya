@@ -245,17 +245,17 @@ test_collect = do
         , mk_gdep ["top", "sub"]
         ))
 
-test_inversion = do
-    -- Ensure that a cached call underneath a few layers of inversion still
-    -- works correctly.  This is tricky because the cache relies on
-    -- Stack.Region entries accurately reflecting the position of the call on
-    -- the track for ScoreDamage to invalidate it.
+test_sliced_score_damage = do
+    -- Ensure that a cached call underneath a slice still works correctly.
+    -- This is tricky because the cache relies on Stack.Region entries
+    -- accurately reflecting the position of the call on the track for
+    -- ScoreDamage to invalidate it.
     let create = do
             UiTest.mkblocks_skel blocks
             return $ UiTest.bid "b9"
     let (_prev, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid_name "b9" 2) 4
-                (Event.event "7c" 0)
+            State.insert_event (UiTest.mk_tid_name "b9" 2)
+                4 (Event.event "7c" 0)
     equal (diff_events cached uncached) []
     -- pslist $ map Pretty.pretty (r_cache_stacks prev)
     where
@@ -269,6 +269,31 @@ test_inversion = do
         , ("*", [(4, 0, "5c")])
         ]
     b28 = [(">", [(0, 0.5, ""), (0.5, 0.5, ""), (1, 0.5, "")])]
+
+test_sliced_control_damage = do
+    -- Ensure that control damage properly invalidates a call that has been
+    -- sliced and shifted.
+    let create = UiTest.mkblocks_skel blocks >> return (UiTest.bid "top")
+    let (_prev, cached, uncached) = compare_cached create $
+            State.insert_event (UiTest.mk_tid_name "top" 0)
+                6 (Event.event "0" 0)
+    equal (diff_events cached uncached) []
+    pslist (r_logs cached)
+    strings_like (r_logs cached)
+        [ "test/sub * control damage"
+        , "test/top * sub-block damage"
+        ]
+    where
+    blocks =
+        [ (("top", top), [(1, 2), (2, 3)])
+        , (("sub", sub), [(1, 2)])
+        ]
+    top =
+        [ ("vel", [(6, 0, "1")])
+        , (">", [(10, 0, "`arp-up`")])
+        , (">", [(10, 2, "sub")])
+        ]
+    sub = [(">", [(0, 1, ""), (1, 1, "")])]
 
 test_control_damage = do
     -- If I modify a control in a certain place, say a pitch track, I don't

@@ -44,7 +44,7 @@ caching_call call args = do
         sdamage = Derive.state_score_damage (Derive.state_constant st)
         stack = Derive.state_stack (Derive.state_dynamic st)
     generate stack $ find_generator_cache stack
-        (uncurry Ranges.range (Derive.passed_range args))
+        (uncurry Ranges.range (Derive.passed_track_range args))
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
@@ -92,8 +92,6 @@ find_generator_cache stack event_range score_damage
             (sdamage_track_blocks score_damage) (sdamage_blocks score_damage)
     unless (Set.null (Set.intersection damaged_blocks block_deps)) $
         Left "sub-block damage"
-    -- TODO event_range may not be its place on the track, do I need
-    -- to add fst track_range?  Try to demonstrate the problem with a test.
     when (Ranges.overlapping control_damage event_range) $
         Left "control damage"
     return (collect, stream)

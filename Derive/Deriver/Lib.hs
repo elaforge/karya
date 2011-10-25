@@ -398,6 +398,13 @@ passed_prev_begin = fmap fst . Seq.head . info_prev_events . passed_info
 passed_range :: PassedArgs d -> (ScoreTime, ScoreTime)
 passed_range = Events.range . passed_event
 
+-- | Event range as it appears on the track, regardless of slicing.
+passed_track_range :: PassedArgs d -> (ScoreTime, ScoreTime)
+passed_track_range args = (track_start + start, track_start + end)
+    where
+    (start, end) = passed_range args
+    track_start = fst (info_track_range (passed_info args))
+
 passed_real_range :: PassedArgs d -> Deriver (RealTime, RealTime)
 passed_real_range args = (,) <$> real start <*> real end
     where (start, end) = passed_range args
