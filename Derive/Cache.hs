@@ -132,12 +132,10 @@ make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
 -- The way the damage is calculated is complicated.  Firstly, a track with
 -- no ControlDamage in scope has its ControlDamage calculated from the
 -- ScoreDamage (this is guaranteed to be a control track simply because this
--- function is only called by control tracks).  TODO I don't think there's
--- a particular need to do it here, it might be nicer to do it once at the top
--- and skip this step.  Secondly, given some ControlDamage, the range must be
--- expanded to the neighbor events.  This is because controls can depend on
--- other controls, so a certain range of ControlDamage may cause other
--- controls to rederived.
+-- function is only called by control tracks).  Secondly, given some
+-- ControlDamage, the range must be expanded to the neighbor events.  This is
+-- because controls can depend on other controls, so a certain range of
+-- ControlDamage may cause other controls to rederived.
 get_control_damage :: TrackId
     -> (ScoreTime, ScoreTime) -- ^ track_range must be passed explicitly
     -- because the event may have been sliced and shifted, but ControlDamage
@@ -147,8 +145,8 @@ get_control_damage track_id track_range = do
     st <- Derive.get
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
-    extend_damage track_id track_range $ if control == mempty
-        then score_to_control track_id track_range score else control
+    extend_damage track_id track_range $
+        control <> score_to_control track_id track_range score
 
 -- | Since the warp is the integral of the tempo track, damage on the tempo
 -- track will affect all events after it.
@@ -158,8 +156,7 @@ get_tempo_damage track_id track_range = do
     st <- Derive.get
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
-    return $ extend $ if control == mempty
-        then score_to_control track_id track_range score else control
+    return $ extend $ control <> score_to_control track_id track_range score
     where
     extend (Derive.ControlDamage ranges) = Derive.ControlDamage $
         case Ranges.extract ranges of

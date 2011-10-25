@@ -92,7 +92,7 @@ module Derive.Deriver.Monad (
     , LookupScale, Transpose
 
     -- * testing
-    , clear_damaged
+    , invalidate_damaged
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Data.Map as Map
@@ -480,7 +480,7 @@ initial_constant ui_state lookup_deriver lookup_scale inst_calls cache damage =
         , state_pitch_op_map = default_pitch_op_map
         , state_lookup_scale = lookup_scale
         , state_instrument_calls = inst_calls
-        , state_cache = clear_damaged damage cache
+        , state_cache = invalidate_damaged damage cache
         , state_score_damage = damage
         }
 
@@ -778,8 +778,8 @@ instance Monoid.Monoid ScoreDamage where
             (tblocks1 <> tblocks2) (blocks1 <> blocks2)
 
 -- | Clear the damaged portions out of the cache so they will rederive.
-clear_damaged :: ScoreDamage -> Cache -> Cache
-clear_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
+invalidate_damaged :: ScoreDamage -> Cache -> Cache
+invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
     Cache $ Map.mapWithKey invalidate $ Map.filter is_valid cache
     where
     is_valid Invalid = False

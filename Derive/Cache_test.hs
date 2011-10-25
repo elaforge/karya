@@ -32,7 +32,7 @@ import qualified Perform.Signal as Signal
 
 -- * other functions
 
-test_clear_damaged = do
+test_invalidate_damaged = do
     let mkdamage tracks blocks = Derive.ScoreDamage
             (Map.fromList tracks) Set.empty (Set.fromList blocks)
         empty = Derive.CachedEvents (mempty, [])
@@ -41,7 +41,7 @@ test_clear_damaged = do
     let extract (stack, Derive.Invalid) = (stack, False)
         extract (stack, _) = (stack, True)
     let f damage stack = map extract $ Map.toList $ uncache $
-            Derive.clear_damaged damage (mkcache stack)
+            Derive.invalidate_damaged damage (mkcache stack)
 
     let stack = Stack.from_outermost
             [block "top", track "t", call "c", region 1 2]
