@@ -90,6 +90,10 @@ find_generator_cache stack event_range score_damage
     let Derive.GeneratorDep block_deps = Derive.collect_local_dep collect
     let damaged_blocks = Set.union
             (sdamage_track_blocks score_damage) (sdamage_blocks score_damage)
+    case msum (map Stack.block_of (Stack.innermost stack)) of
+        Just this_block | this_block `Set.member` damaged_blocks ->
+            Left "block damage"
+        _ -> return ()
     unless (Set.null (Set.intersection damaged_blocks block_deps)) $
         Left "sub-block damage"
     when (Ranges.overlapping control_damage event_range) $

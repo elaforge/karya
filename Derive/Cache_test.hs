@@ -163,7 +163,7 @@ test_has_score_damage = do
         [ "top.t0 0-1: * using cache"
         , "top.t0 1-2: * rederived * not in cache"
         , "top.t0 2-3: * using cache"
-        , toplevel_rederived
+        , toplevel_rederived True
         ]
 
 test_callee_damage = do
@@ -172,9 +172,9 @@ test_callee_damage = do
             State.insert_event (UiTest.tid "sub.t0") 0 (Event.event "" 0.5)
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t0 1-3: * rederived * because of sub-block"
+        [ "top.t0 1-3: * rederived * because of block"
         , "sub.t0 1-2: * using cache"
-        , toplevel_rederived
+        , toplevel_rederived False
         ]
     -- The cached call to "sub" depends on "sub" and "subsub" transitively.
     equal (r_cache_deps cached)
@@ -194,8 +194,8 @@ test_callee_damage = do
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
         [ "top.t0 1-3: * rederived * sub-block damage"
-        , "sub.t0 1-2: * rederived * sub-block damage"
-        , toplevel_rederived
+        , "sub.t0 1-2: * rederived * block damage"
+        , toplevel_rederived False
         ]
 
 parent_sub = mkblocks
@@ -278,10 +278,9 @@ test_sliced_control_damage = do
             State.insert_event (UiTest.mk_tid_name "top" 0)
                 6 (Event.event "0" 0)
     equal (diff_events cached uncached) []
-    pslist (r_logs cached)
     strings_like (r_logs cached)
         [ "test/sub * control damage"
-        , "test/top * sub-block damage"
+        , "test/top * block damage"
         ]
     where
     blocks =
@@ -316,7 +315,7 @@ test_control_damage = do
     strings_like (r_cache_logs cached)
         [ "top.t1 0-1: * using cache"
         , "top.t1 1-2: * using cache"
-        , toplevel_rederived
+        , toplevel_rederived True
         ]
 
     -- only the  affected event is rederived
@@ -325,8 +324,8 @@ test_control_damage = do
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
         [ "top.t1 0-1: * using cache"
-        , "top.t1 1-2: * rederived * control damage"
-        , toplevel_rederived
+        , "top.t1 1-2: * control damage"
+        , toplevel_rederived True
         ]
 
     -- if the change damages a greater control area, it should affect the
@@ -335,9 +334,9 @@ test_control_damage = do
             State.insert_event (UiTest.tid "top.t0") 0 (Event.event ".5" 0)
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t1 0-1: * rederived * control damage"
-        , "top.t1 1-2: * rederived * control damage"
-        , toplevel_rederived
+        [ "top.t1 0-1: * control damage"
+        , "top.t1 1-2: * control damage"
+        , toplevel_rederived True
         ]
 
 test_get_control_damage = do
@@ -393,8 +392,8 @@ test_inverted_control_damage = do
         -- relationship and ControlDamage is needed.
         --
         -- Wow.
-        , "top.t0 1-2: * rederived * invalidated"
-        , toplevel_rederived
+        , "top.t0 1-2: * score damage"
+        , toplevel_rederived True
         ]
 
 test_tempo_damage = do
@@ -413,9 +412,9 @@ test_tempo_damage = do
     -- first is cached, second and third are not
     strings_like (r_cache_logs cached)
         [ "top.t1 0-1: * using cache"
-        , "top.t1 1-2: * rederived"
-        , "top.t1 2-3: * rederived"
-        , toplevel_rederived
+        , "top.t1 1-2: * control damage"
+        , "top.t1 2-3: * control damage"
+        , toplevel_rederived True
         ]
 
 test_extend_tempo_damage = do
@@ -457,8 +456,9 @@ test_damage_to_real_to_score = do
 -- ** support
 
 -- | The toplevel block is just about always damaged.
-toplevel_rederived :: String
-toplevel_rederived = "test/top *: rederived * sub-block damage"
+toplevel_rederived :: Bool -> String
+toplevel_rederived True = "test/top *: rederived * block damage"
+toplevel_rederived False = "test/top *: rederived * sub-block damage"
 
 -- UiTest.run discards the Updates, which I need.
 run :: State.State -> State.StateId a -> (a, State.State, [Update.CmdUpdate])
