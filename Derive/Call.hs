@@ -148,7 +148,8 @@ data DeriveInfo derived = DeriveInfo {
 
 -- | Just a spot to stick all the per-track parameters.
 data TrackInfo derived = TrackInfo {
-    tinfo_block_end :: ScoreTime
+    -- | Either the end of the block, or the next event after the slice.
+    tinfo_events_end :: ScoreTime
     , tinfo_track_range :: (ScoreTime, ScoreTime)
     , tinfo_sub_tracks :: State.EventsTree
     , tinfo_derive_info :: DeriveInfo derived
@@ -238,12 +239,14 @@ derive_event st tinfo parse prev_sample repeat_call prev cur@(pos, event) next
         , Derive.info_event = cur
         , Derive.info_prev_events = prev
         , Derive.info_next_events = next
-        , Derive.info_block_end = block_end
+        , Derive.info_event_end = case next of
+            [] -> events_end
+            (pos, _) : _ -> pos
         , Derive.info_track_range = track_range
         , Derive.info_sub_tracks = subs
         }
     region s e = Stack.Region (start + s) (start + e)
-    TrackInfo block_end track_range@(start, _) subs dinfo = tinfo
+    TrackInfo events_end track_range@(start, _) subs dinfo = tinfo
 
 -- | Replace @"@ with the previous non-@"@ call, if there was one.
 --

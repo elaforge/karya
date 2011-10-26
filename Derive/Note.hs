@@ -175,7 +175,7 @@ stash_sub_signals subs = do
 
 derive_notes :: ScoreTime -> (ScoreTime, ScoreTime) -> [Events.PosEvent]
     -> State.EventsTree -> Derive.EventDeriver
-derive_notes block_end track_range events subs = do
+derive_notes events_end track_range events subs = do
     -- You'd think 'd_note_track' should just pass TrackEvents, but then I
     -- can't test for laziness by passing an infinite events list.
     state <- Derive.get
@@ -183,7 +183,7 @@ derive_notes block_end track_range events subs = do
             state tinfo Parse.parse_expr (\_ _ -> Nothing) events
     Internal.merge_collect collect
     return $ Derive.merge_asc_events event_groups
-    where tinfo = Call.TrackInfo block_end track_range subs Call.note_dinfo
+    where tinfo = Call.TrackInfo events_end track_range subs Call.note_dinfo
 
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.
 -- Unfortunately, this is parsed as a call to @>inst@

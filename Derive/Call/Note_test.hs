@@ -32,7 +32,6 @@ test_random = do
     equal (fst e1) (fst e2)
     check (snd e1 /= snd e2)
 
-
 test_invert_call = do
     let run args = DeriveTest.extract_run extract $
             DeriveTest.run State.empty (Note.invert_call args)
@@ -47,14 +46,14 @@ test_invert_call = do
     let control = make_controls "c"
         note text = (">", [(0, 1, text)])
     equal (run (mkargs "" [Node (control [0..4]) []])) $ Right $
-        Just [Node (control [0, 1]) [Node (note "") []]]
+        Just [Node (control [0..4]) [Node (note "") []]]
     equal (run (mkargs "x | y" [Node (control [0..4]) []])) $ Right $
-        Just [Node (control [0..1]) [Node (note "y") []]]
+        Just [Node (control [0..4]) [Node (note "y") []]]
     -- if there are multiple subs, it gets inverted below all of them
     equal (run (mkargs "x | y"
         [Node (control [0]) [], Node (control [0..4]) []])) $ Right $ Just
             [ Node (control [0]) [Node (note "y") []]
-            , Node (control [0, 1]) [Node (note "y") []]
+            , Node (control [0..4]) [Node (note "y") []]
             ]
 
 make_tree = Slice_test.make_tree
@@ -68,7 +67,7 @@ mkargs text subs = Derive.PassedArgs [] mempty call_id info
     event = (0, Event.event text 1)
     call_id = TrackLang.Symbol "call"
     info = Derive.CallInfo (CallTest.expr (Event.event_string (snd event)))
-        Nothing event prev next block_end (0, block_end) (make_tree subs)
+        Nothing event prev next event_end (0, event_end) (make_tree subs)
     prev = []
     next = [(Events.end event, Event.event "next" 0)]
-    block_end = 100
+    event_end = 100

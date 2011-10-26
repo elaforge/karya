@@ -107,6 +107,7 @@ slice exclusive start end insert_event = concatMap strip . map do_slice
             Nothing end track_range True
     slice_t track = track
         { State.tevents_events = events track
+        , State.tevents_end = sliced_start + end
         , State.tevents_range = (sliced_start + start, sliced_start + end)
         , State.tevents_sliced = True
         } -- If the track has already been sliced then (start, end) are

@@ -643,14 +643,14 @@ data TrackEvents = TrackEvents {
     } deriving (Show)
 
 events_tree :: (M m) => ScoreTime -> TrackTree -> m EventsTree
-events_tree block_end tree = mapM resolve tree
+events_tree events_end tree = mapM resolve tree
     where
     resolve (Tree.Node (TrackInfo title track_id _) subs) =
         Tree.Node <$> make title track_id <*> mapM resolve subs
     make title track_id = do
         track <- get_track track_id
         return $ TrackEvents title (Track.track_events track)
-            (Just track_id) block_end (0, block_end) False
+            (Just track_id) events_end (0, events_end) False
 
 -- ** tracks
 

@@ -703,6 +703,26 @@ test_regress_pedal = do
          ("*", [ (10.0, 0.0, "4f")])
         ]), [(1, 2), (2, 3)])]
 
+test_regress_event_end = do
+    -- Ensure that notes get the proper next event even when it has been
+    -- sliced off.  Previously it extended to the block end and the notes
+    -- wound up with too much pitch signal.
+    let state = UiTest.exec State.empty (UiTest.mkblocks_skel blocks)
+    let res = DeriveTest.derive_block state (UiTest.bid "b0")
+        extract e = (Score.event_start e, Score.event_duration e,
+                DeriveTest.e_pitch e)
+    equal (DeriveTest.extract extract res)
+        ([ (0, 2, [(0, 60)])
+        , (2, 2, [(2, 62)])
+        ], [])
+    where
+    blocks = [(("b0", b0), [(1, 2), (2, 3)])]
+    b0 =
+        [ (">", [(0, 0, "`arp-up`")])
+        , (">s/1", [(0, 2, ""), (2, 2, "")])
+        , ("*", [(0, 0, "4c"), (2, 0, "4d")])
+        ]
+
 -- * util
 
 r_tempo :: Derive.Result -> Transport.TempoFunction

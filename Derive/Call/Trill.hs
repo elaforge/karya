@@ -134,9 +134,11 @@ c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args -> do
         \degree neighbor speed -> do
             speed_sig <- Util.to_signal speed
             neighbor_sig <- Util.to_signal neighbor
-            next_event <- Derive.real (Derive.passed_next args)
+            end <- Derive.real (Derive.passed_event_end args)
             start <- Derive.passed_real args
-            pitch_absolute_trill start degree speed_sig neighbor_sig next_event
+            -- TODO it's 'end' here but 'dur' in pitch_absolute_trill, isn't
+            -- that wrong?
+            pitch_absolute_trill start degree speed_sig neighbor_sig end
 
 pitch_absolute_trill :: RealTime -> Pitch.Degree -> Signal.Control
     -> Signal.Control -> RealTime -> Derive.Deriver PitchSignal.PitchSignal

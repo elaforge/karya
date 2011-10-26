@@ -54,7 +54,7 @@ c_note = Derive.Call "note"
     generate args = case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->
             generate_note inst rel_attrs (Derive.passed_event args)
-                (Derive.passed_next args)
+                (Derive.passed_event_end args)
         (_, _, invalid) -> Derive.throw_arg_error $
             "expected inst or attr: " ++ show invalid
     process = process_note_args Nothing []
@@ -199,7 +199,8 @@ invert_call :: Derive.PassedArgs d -> Derive.Deriver (Maybe State.EventsTree)
 invert_call args = case Derive.info_sub_tracks info of
     [] -> return Nothing
     subs -> Just <$> invert (Derive.info_track_range info) subs
-        pos (pos + Event.event_duration event) (Derive.passed_next args) expr
+        pos (pos + Event.event_duration event)
+        (Derive.passed_event_end args) expr
     where
     (pos, event) = Derive.info_event info
     -- It may seem surprising that only the final call is retained, and any

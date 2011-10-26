@@ -383,11 +383,10 @@ passed_prev_val args = info_prev_val (passed_info args)
 passed_next_begin :: PassedArgs d -> Maybe ScoreTime
 passed_next_begin = fmap fst . Seq.head . info_next_events . passed_info
 
-passed_next :: PassedArgs d -> ScoreTime
-passed_next args = case info_next_events info of
-        [] -> info_block_end info
-        (pos, _) : _ -> pos
-    where info = passed_info args
+-- | The start of the next event, or the end of the block if there is no next
+-- event.
+passed_event_end :: PassedArgs d -> ScoreTime
+passed_event_end = info_event_end . passed_info
 
 passed_prev_begin :: PassedArgs d -> Maybe ScoreTime
 passed_prev_begin = fmap fst . Seq.head . info_prev_events . passed_info
