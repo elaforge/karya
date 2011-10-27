@@ -178,6 +178,7 @@ slice_notes start end =
     shift (shift, stretch, tree) =
         (shift, stretch, map (fmap (shift_tree shift)) tree)
     shift_tree shift track = track
-        { State.tevents_events = Events.map_sorted
+        { State.tevents_end = State.tevents_end track - shift
+        , State.tevents_events = Events.map_sorted
             (\(p, e) -> (p - shift, e)) (State.tevents_events track)
         }

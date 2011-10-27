@@ -12,6 +12,7 @@ import Util.Test
 
 import qualified Midi.Midi as Midi
 import Ui
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
@@ -687,9 +688,7 @@ test_block_end = do
 test_regress_pedal = do
     -- Make sure a pedal halfway through a note really only turns on halfway
     -- through the note.
-    let state = UiTest.exec State.empty (UiTest.mkblocks_skel blocks)
-        bid = UiTest.bid "b10"
-    let res = DeriveTest.derive_block state bid
+    let res = derive_blocks blocks
     let (_perf_events, mmsgs, _logs) =
             DeriveTest.perform_defaults (Derive.r_events res)
     let pedal_on = [(ts, c)
@@ -703,12 +702,11 @@ test_regress_pedal = do
          ("*", [ (10.0, 0.0, "4f")])
         ]), [(1, 2), (2, 3)])]
 
-test_regress_event_end = do
+test_regress_event_end1 = do
     -- Ensure that notes get the proper next event even when it has been
     -- sliced off.  Previously it extended to the block end and the notes
     -- wound up with too much pitch signal.
-    let state = UiTest.exec State.empty (UiTest.mkblocks_skel blocks)
-    let res = DeriveTest.derive_block state (UiTest.bid "b0")
+    let res = derive_blocks blocks
         extract e = (Score.event_start e, Score.event_duration e,
                 DeriveTest.e_pitch e)
     equal (DeriveTest.extract extract res)
@@ -722,6 +720,28 @@ test_regress_event_end = do
         , (">s/1", [(0, 2, ""), (2, 2, "")])
         , ("*", [(0, 0, "4c"), (2, 0, "4d")])
         ]
+
+test_regress_event_end2 = do
+    let res = derive_blocks blocks
+        extract e = (Score.event_start e, Score.event_duration e,
+                DeriveTest.e_pitch e)
+    equal (DeriveTest.extract extract res)
+        ([ (5, 2, [(5, 60)])
+        , (7, 2, [(7, 62)])
+        ], [])
+    where
+    blocks = [(("b0",
+       [(">", [(5, 0, "`arp-up`")]),
+        (">", [(5, 2, ""), (7, 2, "")]),
+        ("*", [(5, 0, "4c"), (7, 0, "4d")])
+        ]),
+      [(1, 2), (2, 3)])]
+
+derive_blocks :: [(UiTest.BlockSpec, [Skeleton.Edge])] -> Derive.Result
+derive_blocks blocks = DeriveTest.derive_block state (UiTest.bid block_name)
+    where
+    state = UiTest.exec State.empty (UiTest.mkblocks_skel blocks)
+    ((block_name, _), _) : _ = blocks
 
 -- * util
 
