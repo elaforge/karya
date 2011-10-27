@@ -134,18 +134,16 @@ c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args -> do
         \degree neighbor speed -> do
             speed_sig <- Util.to_signal speed
             neighbor_sig <- Util.to_signal neighbor
-            end <- Derive.real (Derive.passed_event_end args)
             start <- Derive.passed_real args
-            -- TODO it's 'end' here but 'dur' in pitch_absolute_trill, isn't
-            -- that wrong?
+            end <- Derive.real (Derive.passed_event_end args)
             pitch_absolute_trill start degree speed_sig neighbor_sig end
 
 pitch_absolute_trill :: RealTime -> Pitch.Degree -> Signal.Control
     -> Signal.Control -> RealTime -> Derive.Deriver PitchSignal.PitchSignal
-pitch_absolute_trill start degree speed neighbor dur = do
+pitch_absolute_trill start degree speed neighbor end = do
     scale <- Util.get_scale
     let all_transitions = pos_at_speed speed start
-    let transitions = integral_cycles (start + dur) all_transitions
+        transitions = integral_cycles end all_transitions
     return $ PitchSignal.drop_before start $ PitchSignal.sig_add
             (PitchSignal.constant (Scale.scale_id scale) degree)
             (make_trill transitions neighbor)
