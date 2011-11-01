@@ -1,13 +1,45 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-} -- instances for RealTime
+{- | RealTime represents seconds, as opposed to ScoreTime, which are abstract
+    units.  Everything eventually is transformed into RealTime to be
+    performed.
+
+    This type has switched from floating point to decimal and back again.  The
+    problem is that floating point is not exact, but there are a few
+    operations that require events that have the same ScoreTime to be grouped
+    with each other once they reach RealTime.  For instance, controls are
+    clipped to the note boundaries, and a note is required to have a pitch at
+    exactly its starting time.  While the event that produces the pitch signal
+    may have the same ScoreTime as the note it belongs to, if imprecision has
+    caused it to drift a little by the time it gets to performance, the note
+    may wind up with no initial pitch, or pick up the pitch of the next note
+    as a pitch bend.
+
+    An example of how imprecision can accumulate is a block call with pitch
+    set in the caller.  If the sub-block has a note at 0 this should line up
+    with the start of the block call in the super-block and hence with a pitch
+    at the same time.  But the sub-block has its own warp which is
+    a composition of the its tempo and the super-block's tempo.  In theory the
+    sub-block's warp should be shifted so its 0 starts at the calling point
+    in the super-block, but in practice this is a number of floating point
+    operations (addition, linear interpolation, ...) and the value may very
+    well be slightly different.
+
+    Unfortunately switching RealTime to a lower-precision decimal type has the
+    same problem because it introduces even more imprecision due to the
+    ScoreTime -> RealTime -> ScoreTime conversion (this happens during warp
+    composition, for instance, since shift and stretch are in ScoreTime).
+    And I think it's ultimately not quite right because rounding will still
+    produce incorrect results if the imprecise value falls at a rounding
+    boundary.
+
+    Eventually, for MIDI at least, everything is rounded down to microseconds
+    so hopefully any imprecision can be accounted for by the operations that
+    care about it and eventually be removed from the final result.
+-}
 module Perform.RealTime where
 import qualified Prelude
-import Prelude hiding (div, max)
+import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Int as Int
-#ifdef TESTING
-import qualified Data.Ratio as Ratio
-#endif
 import qualified Foreign as Foreign
 import qualified Text.Read as Read
 
@@ -21,13 +53,13 @@ import qualified Ui.ScoreTime as ScoreTime
 -- used for the warp map, which is oriented with zero at the note start.  If
 -- a note wants to get the real time before it, it must look up a negative
 -- RealTime.
-newtype RealTime = RealTime Int.Int64
-    deriving (DeepSeq.NFData, Foreign.Storable, Eq, Ord)
+newtype RealTime = RealTime Double
+    deriving (DeepSeq.NFData, Foreign.Storable, Num, Fractional, Real, Eq, Ord)
 
 -- | This loses precision so show /= read, but no one should be relying on that
 -- anyway.
 instance Show RealTime where
-    show t = show (to_seconds t) ++ "s"
+    show (RealTime t) = show t ++ "s"
 instance Read.Read RealTime where
     readPrec = do
         n <- Read.readPrec
@@ -35,33 +67,6 @@ instance Read.Read RealTime where
         return (seconds n)
 instance Pretty.Pretty RealTime where
     pretty t = Pretty.show_float (Just 2) (to_seconds t) ++ "s"
-
--- | The unintuitive definitions make me a little nervous but it's not like
--- it's any worse than the Word instances.
-instance Num RealTime where
-    RealTime a + RealTime b = RealTime (a + b)
-    RealTime a - RealTime b = RealTime (a - b)
-    -- This makes me nervous because time * time = time handles units
-    -- incorrectly.  But I can't not have a (*) operator without getting
-    -- runtime errors, and so I might as well have one the acts intuitively.
-    a * b = mul a (to_seconds b)
-    negate (RealTime a) = RealTime (negate a)
-    abs (RealTime a) = RealTime (abs a)
-    signum (RealTime a) = RealTime (signum a)
-    fromInteger = RealTime . (*time_factor) . fromIntegral
-
-#ifdef TESTING
--- This instance is incorrect because you can't divide time by time and get
--- time.  However, it's needed for floating point literal syntax which is
--- extremely useful when writing tests.  It's dangerous for real code though,
--- because floating point is not exact.
-instance Fractional RealTime where
-    fromRational ratio = seconds $
-        fromIntegral (Ratio.numerator ratio)
-            / fromIntegral (Ratio.denominator ratio)
-    a / b = error $ show a ++ " / " ++ show b
-        ++ ": Fractional instance is only for tests"
-#endif
 
 div :: RealTime -> Double -> RealTime
 div a b = seconds (to_seconds a / b)
@@ -71,9 +76,6 @@ mul :: RealTime -> Double -> RealTime
 mul a b = seconds (to_seconds a * b)
 infixl 7 `mul`
 
-time_factor :: Int.Int64
-time_factor = 1000000
-
 -- | A large RealTime that is also not the max bound so it won't overflow
 -- too easily, and will also fit in a Signal.Y.
 large :: RealTime
@@ -82,13 +84,10 @@ large = RealTime (2^32)
 -- * convert to
 
 seconds :: Double -> RealTime
-seconds s = RealTime (round (s * fromIntegral time_factor))
+seconds = RealTime
 
 milliseconds :: Int -> RealTime
-milliseconds = microseconds . (*1000) . fromIntegral
-
-microseconds :: Int.Int64 -> RealTime
-microseconds = RealTime
+milliseconds = seconds . (/1000) . fromIntegral
 
 score :: ScoreTime.ScoreTime -> RealTime
 score = seconds . ScoreTime.to_double
@@ -96,18 +95,10 @@ score = seconds . ScoreTime.to_double
 -- * convert from
 
 to_seconds :: RealTime -> Double
-to_seconds (RealTime us) = fromIntegral us / fromIntegral time_factor
+to_seconds (RealTime s) = s
 
 to_milliseconds :: RealTime -> Integer
-to_milliseconds = fromIntegral . (`Prelude.div` 1000) . to_microseconds
-
-to_microseconds :: RealTime -> Int.Int64
-to_microseconds (RealTime us) = us
+to_milliseconds (RealTime s) = round (s * 1000)
 
 to_score :: RealTime -> ScoreTime.ScoreTime
 to_score = ScoreTime.double . to_seconds
-
--- | May overflow!
--- TODO should I error on overflow?
-to_int :: RealTime -> Int
-to_int (RealTime us) = fromIntegral (us `Prelude.div` fromIntegral time_factor)

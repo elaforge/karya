@@ -13,16 +13,9 @@
 // remove_track().
 typedef void (*FinalizeCallback)(void *callback);
 
-// Haskell keeps RealTimes in signed int64s, for reasons described in
-// Perform.RealTime.  A displayed signal is actually in ScoreTime units, but
-// it's too much bother to make an entirely new signal type just for display
-// signals.
-//
-// I could convert to ScoreTime, but that would be an extra copy.  And even if
-// I wind up paying a little more, it seems better to do the conversion at draw
-// time because at least then I'm paying as I go rather than in one big chunk.
-// If I'm zoomed in I don't need the whole thing anyway.
-typedef int64_t RealTime;
+// Display signals are in RealTime like all signals.  Since the score is in
+// ScoreTime they have to be converted at draw time.
+typedef double RealTime;
 
 class ScoreTime {
 public:
@@ -33,10 +26,10 @@ public:
 
     // RealTime conversion.
     RealTime to_real() const {
-        return RealTime(_val * real_time_factor);
+        return RealTime(_val);
     }
     static ScoreTime from_real(RealTime t) {
-        return ScoreTime(double(t) / real_time_factor);
+        return ScoreTime(t);
     }
 
     // Scale by a given factor, for zooming.
@@ -63,9 +56,6 @@ ScoreTime operator X(const ScoreTime &o) const { \
     // The only reason this isn't private is so the haskell FFI can see it.
     double _val;
 private:
-    // Convert from RealTime and back.  Should be the same as
-    // Perform.RealTime.time_factor.
-    static const double real_time_factor = 1000000;
     friend std::ostream &operator<<(std::ostream &os, const ScoreTime &pos);
 };
 

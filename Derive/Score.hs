@@ -209,6 +209,7 @@ safe_unwarp_pos pos warp@(Warp sig shift stretch) =
     extended = to_score (x + (pos - Signal.y_to_real y)) - shift / stretch
 
 -- | Compose two warps.  Warps with id signals are optimized.
+-- This is standard right to left composition
 compose_warps :: Warp -> Warp -> Warp
 compose_warps
         warp1@(Warp sig1 shift1 stretch1) warp2@(Warp sig2 shift2 stretch2)
@@ -216,6 +217,8 @@ compose_warps
     | is_id_warp warp2 = warp1
     | sig2 == id_warp_signal =
         Warp sig1 (shift1 + shift2 * stretch1) (stretch1 * stretch2)
+    -- A sig==id_warp_signal optimization isn't possible because shift and
+    -- stretch are applied before indexing the signal, not after.
     | otherwise = compose warp1 warp2
     where
     -- Shift and stretch are applied before the signal, so map the shift and
@@ -232,6 +235,7 @@ compose_warps
 warp_to_signal :: Warp -> Signal.Warp
 warp_to_signal (Warp sig shift stretch)
     | stretch == 1 && shift == 0 = sig
+    | stretch == 1 = Signal.map_x (subtract (to_real shift)) sig
     | otherwise = Signal.map_x
         ((`RealTime.div` factor) . subtract (to_real shift)) sig
     where factor = ScoreTime.to_double stretch

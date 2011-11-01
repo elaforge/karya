@@ -6,6 +6,37 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - I switched back to Double for RealTime, but this means the roundoff errors
+    are back.  Use quickcheck to repro them.
+    - check out bos's code for quickcheck?  aeson, ...
+    - make Arbitrary for BlockSpecs
+    - make a simple deriver that creates event and midi output skeletons
+    - assert that the reduced deriver output equals the simple deriver output
+    - basic pitches: If the score was created with notes aligned to note
+      starts, then every NoteOn should have the appropriate key, there should
+      be no pitch bends, and "same note" should be the only reason for
+      a channel split
+    - basic controls: Given randomly placed control events, notes have the
+      correct control curves.  Don't worry about times or midi.
+    - slicing: Given some simple note transformers (tuple, place, ...),
+      pitches and controls are still associated with the right notes as above.
+      Don't worry about times, just that the right notes and the right
+      controls.
+    - block call property: a couple levels of nesting for block calls, notes
+      still have the expected pitches and controls as above
+    - inversion: as 'basic pitches' and 'basic controls', but controls are
+      below the note tracks, results should be the same
+
+  - it's annoying how a track with nothing in it won't play, and has no
+    playback.
+  - entering a new note shouldn't clear the note text, right?
+  - perform should also warn about 0 pitch sig, since that's what the pitch
+    track is before a note... or just use 0 for invalid instead of -1
+
+  - Serialize logs with Serialize rather than as text, but I need a record
+    format.  This also makes it easier to change Show for various logged types
+    like Derive.Stack since I don't then have to write a Read.
+  - rename Ui to Types
   - click to the right of the tracks shouldn't highlight the rightmost track
   - tempo composition is problematic because it means you can't change the
     length of a block from within the block.  So slowing down one part will
