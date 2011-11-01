@@ -33,7 +33,6 @@ test_compose_warp = do
     equal (f slow (stretch 2 slow)) [0, 8, 16, 24]
     equal (f slow (shift 1 (stretch 2 slow))) [4, 12, 20, 28]
 
-
 test_warp_to_signal = do
     let f warp = Seq.diff (==) (pos warp) (pos wsig)
             where
@@ -45,13 +44,3 @@ test_warp_to_signal = do
     equal (f (w id_sig 0 2)) []
     equal (f (w id_sig 1 1)) []
     equal (f (w id_sig 1 2)) []
-
-test_safe_unwarp_pos = do
-    let f ps warp = map (flip Score.safe_unwarp_pos warp) ps
-        w = Score.Warp (Signal.signal [(0, 0), (2, 1)])
-    equal (f [0, 1, 2, 3] (w 0 1)) [0, 2, 3, 4]
-    equal (f [0, 1, 2, 3] (w 1 1)) [-1, 1, 2, 3]
-    equal (f [0, 1, 2, 3] (w 0 2)) [0, 1, 3, 4]
-    equal (map (flip Score.safe_unwarp_pos (Score.Warp Signal.empty 0 1))
-            [0, 1, 2, 3])
-        [0, 1, 2, 3]

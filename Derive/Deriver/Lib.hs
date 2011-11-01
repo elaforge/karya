@@ -136,12 +136,6 @@ error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
 get_stack :: Deriver Stack.Stack
 get_stack = gets (state_stack . state_dynamic)
 
--- | 'score' that doesn't throw.  See 'Score.safe_unwarp_pos'.
-safe_score :: RealTime -> Deriver ScoreTime
-safe_score pos = do
-    warp <- Internal.get_dynamic state_warp
-    return $ Score.safe_unwarp_pos pos warp
-
 -- ** scale
 
 -- | Lookup a scale_id or throw.
