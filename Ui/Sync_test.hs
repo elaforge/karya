@@ -400,7 +400,9 @@ thread setup tests = do
         putStrLn $ "====> " ++ desc
         state <- run state action
         -- Sort by view to ensure a consistent order.
-        dumps <- map parse_dump . map snd . List.sort <$> BlockC.dump
+        unparsed <- map snd . List.sort <$> BlockC.dump
+        putStr "***dump: " >> pslist unparsed
+        let dumps = map parse_dump unparsed
         passed <- match_dumps desc dumps expected
         unless passed pause
         return state
