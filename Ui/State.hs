@@ -36,6 +36,7 @@ import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Logger as Logger
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -660,7 +661,7 @@ insert_track block_id tracknum track = do
     views <- get_views_of block_id
     let tracks = Seq.insert_at tracknum track (Block.block_tracks block)
         -- Make sure the views are up to date.
-        views' = Map.map (insert_into_view tracknum) views
+        views' = Map.map (insert_into_view block tracknum) views
     set_block block_id $ block
         { Block.block_tracks = tracks
         , Block.block_skeleton =
@@ -672,7 +673,8 @@ remove_track :: (M m) => BlockId -> TrackNum -> m ()
 remove_track block_id tracknum = do
     block <- get_block block_id
     let tracks = Seq.remove_at tracknum (Block.block_tracks block)
-    views <- Map.map (remove_from_view tracknum) <$> get_views_of block_id
+    views <- Map.map (remove_from_view block tracknum) <$>
+        get_views_of block_id
     set_block block_id $ block
         { Block.block_tracks = tracks
         , Block.block_skeleton =
@@ -809,37 +811,75 @@ modify_block_track block_id tracknum modify = do
 
 -- | Insert a new track into Block.view_tracks, moving selections as
 -- appropriate.  @tracknum@ is clipped to be in range.
-insert_into_view :: TrackNum -> Block.View -> Block.View
-insert_into_view tracknum view = view
-    { Block.view_selections =
-        Map.map (insert_into_selection tracknum) (Block.view_selections view)
+insert_into_view :: Block.Block -> TrackNum -> Block.View -> Block.View
+insert_into_view block tracknum view = view
+    { Block.view_selections = Map.map (insert_into_selection block tracknum)
+        (Block.view_selections view)
     }
 
 -- | Remove @tracknum@ from Block.view_tracks, moving selections as
 -- appropriate.  Ignored if @tracknum@ is out of range.
-remove_from_view :: TrackNum -> Block.View -> Block.View
-remove_from_view tracknum view = view
-    { Block.view_selections = Map.mapMaybe
-        (remove_from_selection tracknum) (Block.view_selections view)
+remove_from_view :: Block.Block -> TrackNum -> Block.View -> Block.View
+remove_from_view block tracknum view = view
+    { Block.view_selections =
+        Map.mapMaybe (remove_from_selection block tracknum)
+            (Block.view_selections view)
     }
 
 -- | If tracknum is before or at the selection, push it to the right.  If it's
 -- inside, extend it.  If it's to the right, do nothing.
-insert_into_selection :: TrackNum -> Types.Selection -> Types.Selection
-insert_into_selection tracknum sel
-    | tracknum <= min track0 track1 = Types.sel_modify_tracks (+1) sel
-    | tracknum <= max track0 track1 = Types.sel_expand_tracks 1 sel
+insert_into_selection :: Block.Block -> TrackNum -> Types.Selection
+    -> Types.Selection
+insert_into_selection block tracknum sel
+    | tracknum <= low = shift_selection block 1 sel
+    | tracknum <= high = Types.sel_expand_tracks 1 sel
     | otherwise = sel
-    where (track0, track1) = Types.sel_track_range sel
+    where (low, high) = Types.sel_track_range sel
 
-remove_from_selection :: TrackNum -> Types.Selection -> Maybe Types.Selection
-remove_from_selection tracknum sel
-    | tracknum <= min track0 track1  =
-        Just $ Types.sel_modify_tracks (+(-1)) sel
-    | tracknum == track0 && tracknum == track1 = Nothing
-    | tracknum <= max track0 track1 = Just $ Types.sel_expand_tracks (-1) sel
+-- | Remove the given track from the selection.  The selection will be moved
+-- or shrunk as per 'insert_into_selection'.
+remove_from_selection :: Block.Block -> TrackNum -> Types.Selection
+    -> Maybe Types.Selection
+remove_from_selection block tracknum sel
+    | tracknum <= low = Just $ shift_selection block (-1) sel
+        -- Just $ Types.sel_modify_tracks (subtract 1) sel
+    | tracknum <= high = Just $ Types.sel_expand_tracks (-1) sel
     | otherwise = Just sel
-    where (track0, track1) = Types.sel_track_range sel
+    where (low, high) = Types.sel_track_range sel
+
+-- | Shift the selection along selectable tracks, clipping if it's out of
+-- range.  While the sel_cur_track won't be on a non-selectable track after
+-- this, the selection may still include one.
+shift_selection :: Block.Block -> TrackNum -> Types.Selection
+    -> Types.Selection
+shift_selection block shift sel =
+    Types.sel_modify_tracks (Num.clamp 0 max_track . (+shift2)) sel
+    where
+    new_tracknum = shift_tracknum block (Types.sel_cur_track sel) shift
+    shift2 = new_tracknum - Types.sel_cur_track sel
+    max_track = length (Block.block_tracks block)
+
+-- | Shift a tracknum to another track, skipping unselectable tracks.
+shift_tracknum :: Block.Block -> TrackNum -> Int -> TrackNum
+shift_tracknum block tracknum shift
+    | shift == 0 = tracknum
+    | shift > 0 = find_track (dropWhile (<tracknum) selectable)
+    | otherwise = find_track (dropWhile (>tracknum) (List.reverse selectable))
+    where
+    selectable = selectable_tracks block
+    find_track [] = tracknum
+    find_track tracks@(first:_) =
+        Maybe.fromMaybe tracknum $ Seq.head $ drop abs_shift tracks
+        where
+        abs_shift = if tracknum /= first then abs shift - 1 else abs shift
+
+-- | Get the tracknums from a block that should be selectable.
+selectable_tracks :: Block.Block -> [TrackNum]
+selectable_tracks block = do
+    (i, track@(Block.Track { Block.tracklike_id = Block.TId _ _}))
+        <- zip [0..] (Block.block_tracks block)
+    guard (not (Block.track_collapsed track))
+    return i
 
 -- ** other
 

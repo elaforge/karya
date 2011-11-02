@@ -27,6 +27,8 @@ UNSORTED
     - inversion: as 'basic pitches' and 'basic controls', but controls are
       below the note tracks, results should be the same
 
+  - split Ui.State into separate modules for views, blocks, tracks, etc.
+    put into Ui.State.* and re-export from Ui.State
   - it's annoying how a track with nothing in it won't play, and has no
     playback.
   - entering a new note shouldn't clear the note text, right?
@@ -66,7 +68,8 @@ UNSORTED
       sometimes no...
   - try to make TrackEnviron lazy
   - after an uncollapse, it doesn't redraw the selection that was underneath
-  - a collapse should push the selection out
+    Not a big deal since a selection shouldn't be underneath but still...
+  * a collapse should push the selection out
   - logview: some kind of indicator that a dup msg was suppressed
   - root block window name gets a *?  or if I won't have window names visible,
     put this in the view status line

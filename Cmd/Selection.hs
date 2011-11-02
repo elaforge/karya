@@ -18,7 +18,6 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -134,7 +133,7 @@ cmd_shift_selection selnum shift extend = do
     view_id <- Cmd.get_focused_view
     block <- State.block_of view_id
     sel <- Cmd.require =<< State.get_selection view_id selnum
-    let sel' = shift_sel block shift sel
+    let sel' = State.shift_selection block shift sel
     set_and_scroll view_id selnum
         (if extend then merge_sel sel sel' else sel')
 
@@ -158,40 +157,6 @@ select_track_all dur tracks sel
     select_rest = sel { Types.sel_cur_pos = dur }
     select_tracks = sel { Types.sel_start_pos = 0, Types.sel_cur_pos = dur }
     select_all = Types.selection 0 0 tracks dur
-
-
--- | Shift the selection along selectable tracks, clipping if it's out of
--- range.  While the sel_cur_track won't be on a non-selectable track after
--- this, the selection may still include one.
-shift_sel :: Block.Block -> TrackNum -> Types.Selection -> Types.Selection
-shift_sel block shift sel =
-    Types.sel_modify_tracks (Num.clamp 0 max_track . (+shift2)) sel
-    where
-    new_tracknum = shift_tracknum block (Types.sel_cur_track sel) shift
-    shift2 = new_tracknum - Types.sel_cur_track sel
-    max_track = length (Block.block_tracks block)
-
--- | Shift a tracknum to another track, skipping unselectable tracks.
-shift_tracknum :: Block.Block -> TrackNum -> Int -> TrackNum
-shift_tracknum block tracknum shift
-    | shift == 0 = tracknum
-    | shift > 0 = find_track (dropWhile (<tracknum) selectable)
-    | otherwise = find_track (dropWhile (>tracknum) (List.reverse selectable))
-    where
-    selectable = selectable_tracks block
-    find_track [] = tracknum
-    find_track tracks@(first:_) =
-        Maybe.fromMaybe tracknum $ Seq.head $ drop abs_shift tracks
-        where
-        abs_shift = if tracknum /= first then abs shift - 1 else abs shift
-
--- | Get the tracknums from a block that should be selectable.
-selectable_tracks :: Block.Block -> [TrackNum]
-selectable_tracks block = do
-    (i, track@(Block.Track { Block.tracklike_id = Block.TId _ _}))
-        <- zip [0..] (Block.block_tracks block)
-    guard (Block.Collapse `notElem` Block.track_flags track)
-    return i
 
 merge_sel :: Types.Selection -> Types.Selection -> Types.Selection
 merge_sel (Types.Selection strack spos _ _) (Types.Selection _ _ ctrack cpos) =

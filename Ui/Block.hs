@@ -79,6 +79,9 @@ data Track = Track {
 track :: TracklikeId -> Types.Width -> Track
 track tracklike_id width = Track tracklike_id width [] []
 
+track_collapsed :: Track -> Bool
+track_collapsed = (Collapse `elem`) . track_flags
+
 -- | This is the low-level representation of a track, which directly
 -- corresponds with what is displayed by the UI.  The DisplayTracks should be
 -- derivable from a 'Block' deterministically.
@@ -111,7 +114,7 @@ display_track track =
     where
     (status, brightness) = flags_to_status (track_flags track)
     (tracklike, width)
-        | Collapse `elem` track_flags track =
+        | track_collapsed track =
             (DId (Divider Config.abbreviation_color), Config.collapsed_width)
         | otherwise = (tracklike_id track, track_width track)
 
