@@ -32,9 +32,11 @@ UNSORTED
   - it's annoying how a track with nothing in it won't play, and has no
     playback.
   - entering a new note shouldn't clear the note text, right?
-  - perform should also warn about 0 pitch sig, since that's what the pitch
+  * perform should also warn about 0 pitch sig, since that's what the pitch
     track is before a note... or just use 0 for invalid instead of -1
 
+  - special logview support for cache msgs: collect together rederived and
+    cached block ids.
   - Serialize logs with Serialize rather than as text, but I need a record
     format.  This also makes it easier to change Show for various logged types
     like Derive.Stack since I don't then have to write a Read.

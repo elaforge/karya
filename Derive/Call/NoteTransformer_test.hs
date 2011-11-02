@@ -2,6 +2,8 @@ module Derive.Call.NoteTransformer_test where
 import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 
 test_tuplet = do
@@ -24,21 +26,22 @@ test_tuplet = do
     equal (run tracks) [(0, 4, 60), (4, 4, 62), (8, 4, 64)]
 
     -- notes of unequal length
+    let p = Pitch.Degree Signal.invalid_pitch
     let tracks =
             [ (">", [(0, 6, "t")])
             , (">", [(0, 1, ""), (1, 2, "")])
             ]
-    equal (run tracks) [(0, 2, -1), (2, 4, -1)]
+    equal (run tracks) [(0, 2, p), (2, 4, p)]
 
     let tracks =
             [ (">", [(12, 12, "t")])
             , (">", [(12, 3, ""), (15, 3, ""), (18, 3, "")])
             ]
-    equal (run tracks) [(12, 4, -1), (16, 4, -1), (20, 4, -1)]
+    equal (run tracks) [(12, 4, p), (16, 4, p), (20, 4, p)]
 
     -- longer than tuplet is shrunk
     equal (run [(">", [(0, 1, "t")]), (">", [(0, 2, "")])])
-        [(0, 1, -1)]
+        [(0, 1, p)]
 
     -- not really testing tuplet: make sure empty tracks are stripped
     equal (run [(">", [(0, 1, "")]), (">", []), ("*twelve", [(0, 0, "4c")])])

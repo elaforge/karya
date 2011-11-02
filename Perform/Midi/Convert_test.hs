@@ -25,7 +25,7 @@ test_convert = do
         [ Right $ "Convert: event requires midi instrument in instrument db: "
             ++ "Instrument \"noinst\" (further warnings suppressed)"
         -- emits an event anyway so the previous pitch doesn't continue
-        , Left (1, [(0, -1)])
+        , Left (1, [(0, Signal.invalid_pitch)])
         , Right "Convert: unknown scale: ScaleId \"empty signal\""
         , Left (2, [(2, 62)])
         ]

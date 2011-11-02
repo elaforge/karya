@@ -134,8 +134,11 @@ y_to_score = ScoreTime.double
 
 -- | A pitch that shouldn't be played.  Used for a non-existent pitch or one
 -- that goes out of the range of its scale.
+--
+-- This actually has to be 0 because that's also what 'at' returns before the
+-- first sample.
 invalid_pitch :: Y
-invalid_pitch = -1
+invalid_pitch = 0
 
 empty :: Signal y
 empty = signal []
@@ -150,8 +153,6 @@ zero = signal [(0, 0)]
 -- 0.05 = 50 Hz = 800b/sec = 47kb/min
 -- 0.01 = 100 Hz = 1600b/sec = 94kb/min
 tempo_srate :: X
-    -- TODO resolution is very low for the moment since I have neither lazy
-    -- signals nor a graphical way to log signals yet
 tempo_srate = RealTime.seconds 0.1
 
 -- * construction / deconstruction

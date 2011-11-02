@@ -35,11 +35,11 @@ test_input_to_midi = do
         [(chan, Midi.NoteOn n 127) | (chan, n) <- zip (cycle [0..2]) [1..6]]
 
     -- note off lets channel 2 be reused
-    equal (f [note_on 0 0 127, note_on 1 1 127, note_on 2 2 127,
-            note_off 2 127, note_on 3 3 127])
-        [(0, Midi.NoteOn 0 127), (1, Midi.NoteOn 1 127),
-            (2, Midi.NoteOn 2 127), (2, Midi.NoteOff 2 127),
-            (2, Midi.NoteOn 3 127)]
+    equal (f [note_on 1 1 127, note_on 2 2 127, note_on 3 3 127,
+            note_off 3 127, note_on 4 4 127])
+        [(0, Midi.NoteOn 1 127), (1, Midi.NoteOn 2 127),
+            (2, Midi.NoteOn 3 127), (2, Midi.NoteOff 3 127),
+            (2, Midi.NoteOn 4 127)]
 
     -- once assigned a note_id, controls get mapped to that channel
     equal (f [note_on 64 64 127, note_on 66 66 127,

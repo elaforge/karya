@@ -72,7 +72,8 @@ control_range = (0, 1)
 -- sound at the pitch.
 pitch_to_midi :: PbRange -> Signal.Y -> Maybe (Midi.Key, Midi.PitchBendValue)
 pitch_to_midi pb_range val
-    | val < 0 || val > 127 = Nothing
+    -- A NoteOn at 0 is actually a NoteOff.
+    | val <= 0 || val > 127 = Nothing
     | otherwise = Just (key, pb_from_nn pb_range key val)
     where key = floor val
 
