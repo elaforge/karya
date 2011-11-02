@@ -68,12 +68,19 @@ rename_block block_id new_name = Transform.map_block_ids $ \id ->
 
 -- | Find tracks which are not found in any block.  Probably used to pass them
 -- to State.destroy_track for \"gc\".
-orphan_tracks :: (State.M m) => m [TrackId]
+orphan_tracks :: (State.M m) => m (Set.Set TrackId)
 orphan_tracks = do
     blocks <- State.gets (Map.elems . State.state_blocks)
     let ref_tracks = Set.fromList (concatMap Block.block_track_ids blocks)
     tracks <- State.gets (Set.fromAscList . Map.keys . State.state_tracks)
-    return $ Set.toList (tracks `Set.difference` ref_tracks)
+    return $ tracks `Set.difference` ref_tracks
+
+-- | Like 'orphan_tracks' but more efficiently check if a single track is an
+-- orphan.
+orphan_track :: (State.M m) => TrackId -> m Bool
+orphan_track track_id = do
+    blocks <- State.gets (Map.elems . State.state_blocks)
+    return $ any ((track_id `elem`) . Block.block_track_ids) blocks
 
 -- | Find rulers which are not found in any block.
 orphan_rulers :: (State.M m) => m [RulerId]
@@ -148,8 +155,8 @@ destroy_block :: (State.M m) => BlockId -> m ()
 destroy_block block_id = do
     track_ids <- fmap Block.block_track_ids (State.get_block block_id)
     State.destroy_block block_id
-    orphan <- orphan_tracks
-    mapM_ State.destroy_track (filter (`elem` orphan) track_ids)
+    orphans <- orphan_tracks
+    mapM_ State.destroy_track (filter (`Set.member` orphans) track_ids)
 
 -- ** util
 
@@ -324,9 +331,8 @@ destroy_track :: (Cmd.M m) => BlockId -> TrackNum -> m ()
 destroy_track block_id tracknum = do
     tracklike <- Cmd.require =<< State.track_at block_id tracknum
     State.remove_track block_id tracknum
-    when_just (Block.track_id_of tracklike) $ \track_id -> do
-        orphans <- orphan_tracks
-        when (track_id `elem` orphans) $
+    when_just (Block.track_id_of tracklike) $ \track_id ->
+        whenM (orphan_track track_id) $
             State.destroy_track track_id
 
 -- | Swap the tracks at the given tracknums.  If one of the tracknums is out
@@ -393,7 +399,7 @@ track_after block tracknum
     -- It must already be the rightmost tracknum.
     | tracknum == next_tracknum = length (Block.block_tracks block)
     | otherwise = next_tracknum
-    where next_tracknum = Selection.shift_tracknum block tracknum 1
+    where next_tracknum = State.shift_tracknum block tracknum 1
 
 empty_track :: String -> Track.Track
 empty_track title = Track.track title []
