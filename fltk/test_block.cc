@@ -272,8 +272,8 @@ control_track_signal()
     TrackSignal *ts = new TrackSignal();
 
     const int length = 145;
-    TrackSignal::ControlSample *samples = (TrackSignal::ControlSample *)
-        calloc(length, sizeof(TrackSignal::ControlSample));
+    ControlSample *samples = (ControlSample *)
+        calloc(length, sizeof(ControlSample));
     for (int i = 0; i < length; i++) {
         samples[i].time = ScoreTime(i).to_real();
         samples[i].val = fmod(i / 20.0, 5);
@@ -298,28 +298,25 @@ pitch_track_signal()
 
     /*
     const int length = 4;
-    TrackSignal::PitchSample *samples = (TrackSignal::PitchSample *)
-        calloc(length, sizeof(TrackSignal::PitchSample));
-    samples[0] = TrackSignal::PitchSample(ScoreTime(0), 2, 4, 0.2);
-    samples[1] = TrackSignal::PitchSample(ScoreTime(20), 2, 4, 0.75);
-    samples[2] = TrackSignal::PitchSample(ScoreTime(40), 1, 3, 0.5);
-    samples[3] = TrackSignal::PitchSample(ScoreTime(60), 1.75, 3.5, 0.5);
+    PitchSample *samples = (PitchSample *)
+        calloc(length, sizeof(PitchSample));
+    samples[0] = PitchSample(ScoreTime(0), 2, 4, 0.2);
+    samples[1] = PitchSample(ScoreTime(20), 2, 4, 0.75);
+    samples[2] = PitchSample(ScoreTime(40), 1, 3, 0.5);
+    samples[3] = PitchSample(ScoreTime(60), 1.75, 3.5, 0.5);
     */
 
     const int length = 80;
     int i = 0;
-    TrackSignal::PitchSample *samples = (TrackSignal::PitchSample *)
-        calloc(length, sizeof(TrackSignal::PitchSample));
+    PitchSample *samples = (PitchSample *) calloc(length, sizeof(PitchSample));
     for (; i < 20; i++) {
-        samples[i] = TrackSignal::PitchSample(
-            ScoreTime(i).to_real(), 2, 4, i / 20.0);
+        samples[i] = PitchSample(ScoreTime(i).to_real(), 2, 4, i / 20.0);
     }
     for (; i < 40; i++) {
-        samples[i] = TrackSignal::PitchSample(
-            ScoreTime(i).to_real(), 1, 3, (i-20) / 20.0);
+        samples[i] = PitchSample(ScoreTime(i).to_real(), 1, 3, (i-20) / 20.0);
     }
     for (; i < 80; i++) {
-        samples[i] = TrackSignal::PitchSample(
+        samples[i] = PitchSample(
             ScoreTime(i).to_real(), 1.5, 3.5, (i-40) / 40.0);
     }
 
@@ -360,7 +357,6 @@ main(int argc, char **argv)
     BlockModelConfig config = block_model_config();
 
     BlockViewWindow::initialize();
-
     t1_set();
     m44_set();
 

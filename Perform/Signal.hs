@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances, EmptyDataDecls #-}
+{-# LANGUAGE TypeSynonymInstances, EmptyDataDecls #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
 {- | Instantiation of "Perform.SignalBase" for control signals.
 
@@ -48,7 +48,6 @@ import qualified Control.Arrow as Arrow
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
-import qualified Foreign.Storable as Storable
 
 import qualified Util.Log as Log
 import qualified Util.Num as Num
@@ -57,6 +56,7 @@ import Ui
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.RealTime as RealTime
 import qualified Perform.SignalBase as SignalBase
+import Perform.SignalStorable ()
 
 
 -- * types
@@ -97,16 +97,6 @@ data NoteNumberSig
 -- | This is the type of signals which are sent to the UI for display.
 type Display = Signal DisplaySig
 data DisplaySig
-
-instance Storable.Storable (X, Y) where
-    sizeOf _ = Storable.sizeOf (undefined :: RealTime)
-        + Storable.sizeOf (undefined :: Double)
-    alignment _ = Storable.alignment (undefined :: Double)
-    poke cp (a, b) = Storable.pokeByteOff cp 0 a >> Storable.pokeByteOff cp 8 b
-    peek cp = do
-        a <- Storable.peekByteOff cp 0 :: IO RealTime
-        b <- Storable.peekByteOff cp 8 :: IO Double
-        return (a, b)
 
 instance SignalBase.Y Y where
     zero_y = 0

@@ -165,7 +165,7 @@ $(BUILD)/test_block: fltk/test_block.o fltk/fltk.a
 # Ok so Util/CPUTime.hs is not technically a UI file but it's imported by the
 # tests.
 # TODO grody, maybe I should just make everything depend on ALL_HSC?
-UI_HSC := $(addprefix $(HSC)/, $(wildcard Ui/*.hsc App/*.hsc))
+UI_HSC := $(addprefix $(HSC)/, $(wildcard Ui/*.hsc App/*.hsc Perform/*.hsc))
 UI_HSC := $(UI_HSC:hsc=hs) $(HSC)/Util/CPUTime.hs
 UI_OBJS := Ui/c_interface.o fltk/fltk.a
 

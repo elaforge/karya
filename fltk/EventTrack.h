@@ -25,19 +25,22 @@ struct ValName {
     ValName() : val(0), name(NULL) {}
 };
 
+// TODO make these const, except test_block wants to initialize them...
+struct ControlSample {
+    RealTime time;
+    double val;
+    ControlSample(RealTime time, double val) : time(time), val(val) {}
+};
+
+struct PitchSample {
+    RealTime time;
+    float from, to, at;
+    PitchSample(RealTime time, float from, float to, float at)
+        : time(time), from(from), to(to), at(at)
+    {}
+};
+
 struct TrackSignal {
-    struct ControlSample {
-        RealTime time;
-        double val;
-        ControlSample(RealTime time, double val) : time(time), val(val) {}
-    };
-    struct PitchSample {
-        RealTime time;
-        float from, to, at;
-        PitchSample(RealTime time, float from, float to, float at)
-            : time(time), from(from), to(to), at(at)
-        {}
-    };
     TrackSignal() :
         signal(NULL), pitch_signal(NULL), length(0), val_names(NULL),
         val_names_length(0)
@@ -77,6 +80,8 @@ struct TrackSignal {
     // one of those.
     void calculate_max_control_val();
 };
+
+std::ostream &operator<<(std::ostream &os, const TrackSignal &sig);
 
 struct RenderConfig {
     enum RenderStyle {

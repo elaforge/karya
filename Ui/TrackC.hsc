@@ -100,6 +100,7 @@ poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
                     (PitchSignal.sig_vec psig)
             withForeignPtr sigfp $ \sigp -> do
                 destp <- mallocArray len
+                    :: IO (Ptr (PitchSignal.X, PitchSignal.Y))
                 copyArray destp (advancePtr sigp offset) len
                 (#poke TrackSignal, pitch_signal) tsigp destp
             -- As with the char * inside, c++ is expected to free this.

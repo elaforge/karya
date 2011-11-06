@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | A PitchSignal has pitches instead of numbers.
 
@@ -57,14 +57,12 @@ import qualified Control.Arrow as Arrow
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
-import qualified Foreign.Storable as Storable
+
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-
-import Ui
-
-import qualified Perform.SignalBase as SignalBase
 import qualified Perform.Signal as Signal
+import qualified Perform.SignalBase as SignalBase
+import Perform.SignalStorable ()
 
 
 -- * basic pitch types
@@ -124,8 +122,8 @@ modify_vec f sig = sig { sig_vec = f (sig_vec sig) }
 type X = SignalBase.X
 
 -- | Each sample is @(from, to, at)@, where @at@ is a normalized value between
--- 0 and 1 describing how far between @from@ and @to@ the value is.  @from@ and
--- @to@ are really Degree, but are Floats here to save space.
+-- 0 and 1 describing how far between @from@ and @to@ the value is.  @from@
+-- and @to@ are really Degree, but are Floats here to save space.
 --
 -- This encoding consumes 12 bytes, but it seems like it should be possible to
 -- reduce that.  There will be long sequences of samples with the same @from@
@@ -137,22 +135,6 @@ type X = SignalBase.X
 type Y = (Float, Float, Float)
 
 instance SignalBase.Signal Y
-
-instance Storable.Storable (X, Y) where
-    sizeOf _ = Storable.sizeOf (undefined :: Double)
-        + Storable.sizeOf (undefined :: Float) * 3
-    alignment _ = Storable.alignment (undefined :: Double)
-    poke cp (pos, (from, to, at)) = do
-        Storable.pokeByteOff cp 0 pos
-        Storable.pokeByteOff cp 8 from
-        Storable.pokeByteOff cp 12 to
-        Storable.pokeByteOff cp 16 at
-    peek cp = do
-        pos <- Storable.peekByteOff cp 0 :: IO RealTime
-        from <- Storable.peekByteOff cp 8 :: IO Float
-        to <- Storable.peekByteOff cp 12 :: IO Float
-        at <- Storable.peekByteOff cp 16 :: IO Float
-        return (pos, (from, to, at))
 
 instance SignalBase.Y Y where
     zero_y = (0, 0, 0)

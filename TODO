@@ -31,8 +31,12 @@ UNSORTED
     put into Ui.State.* and re-export from Ui.State
   - it's annoying how a track with nothing in it won't play, and has no
     playback.
-  - drawing pitch signal broken, e.g. in default block, maybe has to do with
+  * drawing pitch signal broken, e.g. in default block, maybe has to do with
     auto normalization?
+  - when I implement control block calls, I might want to override a control
+    at certain points.  It should be possible to add a 'merge' operator that
+    replaces samples.  Is still no good if the samples don't line up, but I'll
+    need an event-level merge anyway for notes.
   * entering a new note shouldn't clear the note text, right?
   * perform should also warn about 0 pitch sig, since that's what the pitch
     track is before a note... or just use 0 for invalid instead of -1

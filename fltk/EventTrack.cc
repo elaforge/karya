@@ -41,15 +41,13 @@ TrackSignal::free_signals()
 }
 
 static bool
-compare_control_sample(const TrackSignal::ControlSample &s1,
-        const TrackSignal::ControlSample &s2)
+compare_control_sample(const ControlSample &s1, const ControlSample &s2)
 {
     return s1.time < s2.time;
 }
 
 static bool
-compare_pitch_sample(const TrackSignal::PitchSample &s1,
-        const TrackSignal::PitchSample &s2)
+compare_pitch_sample(const PitchSample &s1, const PitchSample &s2)
 {
     return s1.time < s2.time;
 }
@@ -105,7 +103,7 @@ TrackSignal::time_at(const ZoomInfo &zoom, int i) const
     else if (pitch_signal)
         at = ScoreTime::from_real(pitch_signal[i].time);
     else
-        ASSERT(0);
+        ASSERT_MSG(0, "time_at on empty track signal");
     return zoom.to_pixels((at - shift).divide(stretch) - zoom.offset);
 }
 
@@ -120,7 +118,7 @@ TrackSignal::val_at(int i, const char **lower, const char **upper) const
     if (signal)
         return signal[i].val / this->max_control_val;
     else if (!pitch_signal)
-        ASSERT(0);
+        ASSERT_MSG(0, "val_at on empty track signal");
 
     const PitchSample &sample = pitch_signal[i];
     // If there's no range then no need to look up two, and .5 makes for a
@@ -191,6 +189,27 @@ TrackSignal::calculate_max_control_val() {
         }
         this->max_control_val = std::max(1.0, val);
     }
+}
+
+
+std::ostream &
+operator<<(std::ostream &os, const TrackSignal &sig)
+{
+    if (sig.signal) {
+        for (int i = 0; i < sig.length; i++) {
+            os << "sig[" << i << "] = " << sig.signal[i].time << " -> "
+                << sig.signal[i].val << '\n' ;
+        }
+    } else if (sig.pitch_signal) {
+        for (int i = 0; i < sig.length; i++) {
+            const PitchSample &p = sig.pitch_signal[i];
+            os << "psig[" << i << "] = " << p.time << " -> ("
+                << p.from << ", " << p.to << ", " << p.at << ")\n";
+        }
+    } else {
+        os << "EMPTY TRACK SIGNAL";
+    }
+    return os;
 }
 
 
@@ -525,14 +544,13 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     for (int i = found; i < tsig.length; i++) {
         // Skip coincident samples, or at least ones that are too close.
         int offset = y + tsig.time_at(zoom, i);
-        // DEBUG("sample " << i << " time " << tsig.signal[i].time
-        //     << " offset " << offset);
         if (offset <= prev_offset && i > found)
             continue;
         const char *lower, *upper;
         double val = tsig.val_at(i, &lower, &upper);
         int xpos = floor(::scale(double(min_x), double(max_x),
             ::clamp(0.0, 1.0, val)));
+        // DEBUG("sample " << i << " val " << val << " offset " << offset);
 
         // Look for the next offset which is greater than this one and thus
         // will actually be drawn.
@@ -611,7 +629,7 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
                 break;
             case RenderConfig::render_none:
                 // shouldn't get here since the function returns early
-                ASSERT(0);
+                ASSERT_MSG(0, "tried to draw a signal with render_none");
                 break;
             default:
                 DEBUG("unknown render style: " << config.render.style);
