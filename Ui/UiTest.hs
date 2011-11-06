@@ -2,7 +2,6 @@ module Ui.UiTest where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
-import qualified System.IO as IO
 
 import Util.Control
 import qualified Util.Rect as Rect
@@ -28,8 +27,6 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Schema as Schema
 import qualified App.Config as Config
 
-
-pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 
 -- | (10, 50) seems to be the smallest x,y OS X will accept.  Apparently
 -- fltk's sizes don't take the menu bar into account, which is about 44 pixels
@@ -187,7 +184,7 @@ from_dump dump = run State.empty (Simple.make_block Block.default_config dump)
 
 -- | These can be used from 'Cmd.Lang.LState.save_test' to dump state in
 -- a form that can be pasted into a test, trimmed down by hand, and passed to
--- 'mkblock_skel'.  This way problems that show up in the app can be pasted
+-- 'mkblocks_skel'.  This way problems that show up in the app can be pasted
 -- into a test.
 to_spec :: State.State -> [(BlockSpec, [Skeleton.Edge])]
 to_spec state = map (block_to_spec state) (Map.keys (State.state_blocks state))
