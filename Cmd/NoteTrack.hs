@@ -14,6 +14,7 @@
 -}
 module Cmd.NoteTrack where
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -177,7 +178,8 @@ generator_of = Seq.strip . last . Seq.split "|"
 create_event :: (Cmd.M m) => m ()
 create_event = do
     txt <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
-    modify_event False False (const (Just txt, False))
+    modify_event False False $
+        maybe (Just txt, False) (\old -> (Just old, False))
 
 remove :: (Cmd.M m) => EditUtil.SelPos -> m ()
 remove selpos =
@@ -190,13 +192,14 @@ raw_edit msg = do
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key key
             modify_event False False $ \txt ->
-                (EditUtil.modify_text_note note txt, False)
+                (EditUtil.modify_text_note note (Maybe.fromMaybe "" txt),
+                    False)
         (EditUtil.raw_key -> Just key) ->
             -- Create a zero length event on a space.  'modify_text_key' will
             -- eat a lone space, so this is an easy way to create
             -- a zero-length note.
             modify_event (key == Key.Char ' ') False $ \txt ->
-                (EditUtil.modify_text_key key txt, False)
+                (EditUtil.modify_text_key key (Maybe.fromMaybe "" txt), False)
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -208,8 +211,7 @@ triggered_inst (Just inst) =
     maybe False (Instrument.has_flag Instrument.Triggered . MidiDb.info_patch)
         <$> Cmd.lookup_instrument_info inst
 
-modify_event :: (Cmd.M m) => Bool -> Bool -> (String
-    -> (Maybe String, Bool)) -> m ()
+modify_event :: (Cmd.M m) => Bool -> Bool -> EditUtil.Modify -> m ()
 modify_event zero_dur modify_dur f = do
     trigger_inst <- triggered_inst =<< EditUtil.lookup_instrument
     EditUtil.modify_event (zero_dur || trigger_inst) modify_dur f

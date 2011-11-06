@@ -4,6 +4,7 @@ module Cmd.EditUtil where
 import Control.Monad
 import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 import Ui
@@ -35,10 +36,10 @@ raw_edit zero_dur msg = do
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- parse_key key
             modify_event zero_dur False $ \txt ->
-                (modify_text_note note txt, False)
+                (modify_text_note note (Maybe.fromMaybe "" txt), False)
         (raw_key -> Just key) ->
             modify_event zero_dur False $ \txt ->
-                (modify_text_key key txt, False)
+                (modify_text_key key (Maybe.fromMaybe "" txt), False)
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -47,15 +48,20 @@ raw_edit zero_dur msg = do
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
 get_event :: (State.M m) =>
-    Bool -> TrackId -> ScoreTime -> ScoreTime -> m Event.Event
+    Bool -> TrackId -> ScoreTime -> ScoreTime -> m (Event.Event, Bool)
 get_event modify_dur track_id pos dur = do
     track <- State.get_track track_id
     let modify = if modify_dur then Event.set_duration dur else id
-    return $ maybe (Event.event "" dur) modify
+    return $ maybe ((Event.event "" dur), True) (\evt -> (modify evt, False))
         (Events.at pos (Track.track_events track))
 
-modify_event :: (Cmd.M m) =>
-    Bool -> Bool -> (String -> (Maybe String, Bool)) -> m ()
+-- | Modify event text.
+type Modify = Maybe String
+    -- ^ Existing text, Nothing if the event will be created.
+    -> (Maybe String, Bool)
+    -- ^ Nothing deletes the event, True to advance cursor
+
+modify_event :: (Cmd.M m) => Bool -> Bool -> Modify -> m ()
 modify_event zero_dur modify_dur f = do
     sel <- get_sel_pos
     modify_event_at sel zero_dur modify_dur f
@@ -63,10 +69,7 @@ modify_event zero_dur modify_dur f = do
 modify_event_at :: (Cmd.M m) => SelPos
     -> Bool -- ^ Created event has 0 dur, otherwise until next time step.
     -> Bool -- ^ If True, modify the duration of an existing event.
-    -> (String -> (Maybe String, Bool))
-    -- ^ return transformed event text or Nothing to delete the event, and
-    -- whether or not to advance the selection after modification
-    -> m ()
+    -> Modify -> m ()
 modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
     direction <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
     dur <- if zero_dur
@@ -75,9 +78,10 @@ modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
             step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
             end <- Selection.step_from tracknum pos direction step
             return (end - pos)
-    event <- get_event modify_dur track_id pos dur
+    (event, created) <- get_event modify_dur track_id pos dur
     -- TODO I could have the modifier take Text, if it were worth it.
-    let (val, advance) = f (Event.event_string event)
+    let (val, advance) = f $
+            if created then Nothing else Just (Event.event_string event)
     case val of
         Nothing -> State.remove_event track_id pos
         Just new_text -> State.insert_events track_id

@@ -433,8 +433,9 @@ insert_recent (Cmd.RecentNote text is_zero) =
     EditUtil.modify_event is_zero True (const (Just text, True))
 insert_recent (Cmd.RecentTransform text) = do
     pos <- EditUtil.get_sel_pos
-    EditUtil.modify_event_at pos True False $ \s ->
-        (Just (text ++ " |" ++ (if null s then "" else " " ++ s)), False)
+    let modify s =
+            (Just (text ++ " |" ++ (if null s then "" else " " ++ s)), False)
+    EditUtil.modify_event_at pos True False (modify . Maybe.fromMaybe "")
 
 -- | Try to record the current event in the LIFO recent note queue, as
 -- documented in 'Cmd.state_recent_notes'.

@@ -84,7 +84,7 @@ modify_event_at :: (Cmd.M m) => EditUtil.SelPos
     -> ((String, String) -> ((Maybe String, Maybe String), Bool))
     -> m ()
 modify_event_at selpos f = EditUtil.modify_event_at selpos True True
-    (first unparse . f . parse)
+    (first unparse . f . parse. Maybe.fromMaybe "")
 
 -- | Modify event text.  This is not used within this module but is exported
 -- for others as a more general variant of 'modify_event_at'.

@@ -67,12 +67,13 @@ test_cmd_val_edit = do
     -- modify existing track
     let f = NoteTrack.cmd_val_edit
             (NoteTrack.ExistingTrack 2 (UiTest.mk_tid 2))
-        note_tracks = [(">i", [(0, 1, "")]), ("*", [(0, 0, "4d")])]
+        note_tracks = [(">i", [(0, 1, "x")]), ("*", [(0, 0, "4d")])]
     -- both note and pitch get deleted
     equal (run note_tracks (f (mkkey Key.Backspace))) $
         Right [(">i", []), ("*", [])]
+    -- pitch is changed, note text remains
     equal (run note_tracks (f note)) $
-        Right [(">i", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
+        Right [(">i", [(0, 1, "x")]), ("*", [(0, 0, "4c")])]
 
     -- selection advances after final keyup
     let empty_tracks = [(">i", []), ("*", [])]

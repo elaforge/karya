@@ -2,8 +2,8 @@
 module Cmd.ControlTrack where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
-import Util.Control
 
+import Util.Control
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 
@@ -35,7 +35,8 @@ cmd_method_edit msg = do
 
 modify_event :: (Cmd.M m) =>
     ((String, String) -> ((Maybe String, Maybe String), Bool)) -> m ()
-modify_event f = EditUtil.modify_event True True (first unparse . f . parse)
+modify_event f = EditUtil.modify_event True True
+    (first unparse . f . parse . Maybe.fromMaybe "")
 
 -- | Try to figure out the call part of the expression and split it from the
 -- rest.
