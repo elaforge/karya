@@ -24,6 +24,8 @@ module Derive.Schema (
     , lookup_deriver
 
     -- * derive
+    , control_deriver
+    , capture_null_control
     , derive_tracks
 
     -- * parser
@@ -38,11 +40,13 @@ import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Tree
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
@@ -51,7 +55,9 @@ import Cmd.Cmd (Schema(..), SchemaDeriver, SchemaMap)
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
+import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
 import qualified Derive.TrackInfo as TrackInfo
 
@@ -82,19 +88,95 @@ lookup_deriver schema_map ui_state block_id = State.eval ui_state $ do
 -- | The default schema is supposed to be simple but useful, and rather
 -- trackerlike.
 default_schema :: Schema
-default_schema = Schema default_schema_deriver
+default_schema = Schema note_deriver
 
--- ** default schema deriver
+-- * note_deriver
 
-default_schema_deriver :: SchemaDeriver Derive.EventDeriver
-default_schema_deriver block_id = do
+note_deriver :: SchemaDeriver Derive.EventDeriver
+note_deriver block_id = do
+    (tree, block_end) <- get_tree block_id
+    return $ derive_tree block_end tree
+
+-- * control deriver
+
+-- | Control blocks are very restricted: they should consist of a single
+-- branch ending in a track with a @%@ title, which is the default control,
+-- which should have been set by the calling track.  If the requirements are
+-- met, a fake note track will be appended to make this a valid note block,
+-- with a single note event whose only job is to collect the the default
+-- control.
+control_deriver :: SchemaDeriver Derive.ControlDeriver
+control_deriver block_id = do
+    (tree, block_end) <- get_tree block_id
+    case check_control_tree block_end tree of
+        Left err -> State.throw $ "control block skeleton malformed: " ++ err
+        Right tree -> return $ derive_control_tree block_end tree
+
+-- | Name of the call for the control deriver hack.
+capture_null_control :: String
+capture_null_control = "capture-null-control"
+
+-- | Ensure the tree meets the requirements documented by 'control_deriver'
+-- and append the fake not track if it does.
+check_control_tree :: ScoreTime -> State.EventsTree
+    -> Either String State.EventsTree
+check_control_tree block_end forest = case forest of
+    [] -> Left "empty block"
+    [Tree.Node track []]
+        | State.tevents_title track == "%" ->
+            Right [Tree.Node track [Tree.Node capture_track []]]
+        | otherwise -> Left $ "skeleton must end in % track, ends with "
+            ++ show (State.tevents_title track)
+    [Tree.Node track subs] -> do
+        subs <- check_control_tree block_end subs
+        return [Tree.Node track subs]
+    tracks -> Left $ "skeleton must have only a single branch, "
+        ++ "but there are multiple children: "
+        ++ show (map (State.tevents_title . Tree.rootLabel) tracks)
+    where
+    capture_track = State.TrackEvents
+        { State.tevents_title = ">"
+        , State.tevents_events = Events.singleton 0
+            (Event.event capture_null_control block_end)
+        , State.tevents_track_id = Nothing
+        , State.tevents_end = block_end
+        , State.tevents_range = (0, block_end)
+        , State.tevents_sliced = False
+        }
+
+derive_control_tree :: ScoreTime -> State.EventsTree -> Derive.ControlDeriver
+derive_control_tree block_end tree = do
+    -- There are an awful lot of things that can go wrong.  I guess that's why
+    -- this is a hack.
+    events <- derive_tree block_end tree
+    let lookup_control = Map.lookup Score.c_null . Score.event_controls
+    case LEvent.partition events of
+        ([event], logs) -> case lookup_control event of
+            Nothing -> Derive.throw "control call didn't emit Score.c_null"
+            Just signal -> return $
+                LEvent.Event signal : map LEvent.Log logs
+        (events, logs) -> do
+            msg <- complain events
+            return $ LEvent.Log msg : map LEvent.Log logs
+    where
+    -- Or I could throw, but this way any other logs the block emitted will
+    -- also be visible, and they might have something interesting.
+    complain events = Log.initialized_msg Log.Warn $
+        "control call should have emitted a single call to "
+        ++ show capture_null_control ++ " which produces a single event, but "
+        ++ "got events: " ++ show events
+
+-- ** implementation
+
+get_tree :: (State.M m) => BlockId -> m (State.EventsTree, ScoreTime)
+get_tree block_id = do
     block <- State.get_block block_id
     info_tree <- State.get_track_tree block_id
     block_end <- State.block_event_end block_id
     let mutes_tree = State.track_tree_mutes
             (State.muted_tracknums block info_tree) info_tree
     tree <- State.events_tree block_end info_tree
-    return $ derive_tree block_end (strip_mutes mutes_tree tree)
+    return (strip_mutes mutes_tree tree, block_end)
 
 -- | Strip the events out of muted tracks.  If the tracks themselves were
 -- stripped out it looks like there are orphans.  This way they are just tracks
@@ -110,7 +192,6 @@ strip_mutes mutes tree = zipWith mute_node mutes tree
         Tree.Node (if muted then mute track else track) (strip_mutes ms ts)
     mute track = track { State.tevents_events = Events.empty }
 
--- | Transform a deriver skeleton into a real deriver.
 derive_tree :: ScoreTime -> State.EventsTree -> Derive.EventDeriver
 derive_tree block_end tree = do
     -- d_tempo sets up some stuff that every block needs, so add one if a block

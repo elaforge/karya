@@ -496,6 +496,9 @@ instance Show InstrumentCalls where
 
 -- | Since the deriver may vary based on the block, this is needed to find
 -- the appropriate deriver.  It's created by 'Schema.lookup_deriver'.
+--
+-- TODO is this redundant now that block call is in 'scope_note'?
+-- Can't I have Block.d_block directly call Schema?
 type LookupDeriver = BlockId -> Either State.StateError EventDeriver
 
 

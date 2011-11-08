@@ -71,6 +71,7 @@ test_parse_val = do
             , ("'quinn''s hat'", Just (VString "quinn's hat"))
             , ("'bad string", Nothing)
 
+            , ("%", Just $ VControl $ Control (Score.Control ""))
             , ("%sig", Just $ VControl $ Control (Score.Control "sig"))
             , ("%sig,0", Just $ VControl $
                 DefaultedControl (Score.Control "sig") 0)

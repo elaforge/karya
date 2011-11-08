@@ -102,9 +102,14 @@ slice exclusive start end insert_event = concatMap strip . map do_slice
         Nothing -> []
         Just (text, dur, track_range) ->
             [Tree.Node (make text dur track_range) []]
-    make text dur track_range =
-        State.TrackEvents ">" (Events.singleton start (Event.event text dur))
-            Nothing end track_range True
+    make text dur track_range = State.TrackEvents
+        { State.tevents_title = ">"
+        , State.tevents_events = Events.singleton start (Event.event text dur)
+        , State.tevents_track_id = Nothing
+        , State.tevents_end = end
+        , State.tevents_range = track_range
+        , State.tevents_sliced = True
+        }
     slice_t track = track
         { State.tevents_events = events track
         , State.tevents_end = sliced_start + end

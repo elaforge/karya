@@ -451,6 +451,13 @@ get_track track_id = lookup_id track_id =<< get_ui_state State.state_tracks
 get_block :: BlockId -> Deriver Block.Block
 get_block block_id = lookup_id block_id =<< get_ui_state State.state_blocks
 
+-- | Evaluate a State.M computation, rethrowing any errors.
+eval_ui :: String -> State.StateId a -> Deriver a
+eval_ui caller action = do
+    ui_state <- get_ui_state id
+    let rethrow exc = throw $ caller ++ ": " ++ show exc
+    either rethrow return (State.eval ui_state action)
+
 -- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, Show k) => k -> Map.Map k a -> Deriver a
 lookup_id key map = case Map.lookup key map of

@@ -159,7 +159,7 @@ p_rel_attr = do
 p_control :: A.Parser TrackLang.Control
 p_control = do
     A.char '%'
-    control <- Score.Control . B.unpack <$> p_ident ","
+    control <- Score.Control . B.unpack <$> A.option "" (p_ident ",")
     deflt <- Parse.optional (A.char ',' >> Parse.p_float)
     return $ case deflt of
         Nothing -> TrackLang.Control control

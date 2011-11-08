@@ -24,6 +24,7 @@ import qualified Perform.Pitch as Pitch
 
 data ControlType =
     Control (Maybe TrackLang.CallId) Score.Control
+    -- | Control is Nothing for default scale.
     | Pitch PitchType (Maybe Score.Control)
     | Tempo
     deriving (Show)
@@ -61,11 +62,25 @@ parse_control_vals vals = case vals of
         -- control
         [TrackLang.VSymbol control] ->
             Right $ Control Nothing (control_of control)
-        -- add control
+        -- add control -> relative control
         [TrackLang.VSymbol call, TrackLang.VSymbol control] ->
             Right $ Control (Just call) (control_of control)
+        -- % -> default control
+        -- It might be more regular to allow anything after %, but I'm a fan
+        -- of only one way to do it, so only allow it for "".
+        --
+        -- The empty scale * defaults to the current scale id, because there's
+        -- no real meaning to an empty scale id.  However, Score.c_null is
+        -- a valid control like any other and is simply used as a special
+        -- name by the control block call hack in "Derive.Call.Block".
+        [TrackLang.VControl (TrackLang.Control (Score.Control ""))] ->
+            Right $ Control Nothing Score.c_null
+        -- add % -> relative default control
+        [TrackLang.VSymbol call,
+                TrackLang.VControl (TrackLang.Control (Score.Control ""))] ->
+            Right $ Control (Just call) Score.c_null
         _ -> Left $ "control track must be one of [\"tempo\", control, "
-            ++ "op control, " ++ "*scale, *scale #name, op #, op #name], "
+            ++ "op control, %, op %, *scale, *scale #name, op #, op #name], "
             ++ "got: " ++ Pretty.pretty vals
     where
     scale_of (Pitch.ScaleId "") = Nothing
@@ -84,9 +99,12 @@ unparse_control = Seq.join " " . map Pretty.pretty . unparse_control_vals
 
 unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
-        Control call (Score.Control control) -> case call of
-            Nothing -> [sym control]
-            Just op -> [TrackLang.VSymbol op, sym control]
+        Control call control ->
+            let cont = sym (if control == Score.c_null then "%"
+                    else uncontrol control)
+            in case call of
+                Nothing -> [cont]
+                Just op -> [TrackLang.VSymbol op, cont]
         Pitch ptype name ->
             let pname = sym ('#' : maybe "" uncontrol name)
                 opt = maybe [] (const [pname]) name

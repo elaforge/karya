@@ -102,8 +102,8 @@ tempo_call track sig_deriver deriver = do
         Internal.with_control_damage damage deriver
     track_range = State.tevents_range track
 
-control_call :: State.TrackEvents -> Score.Control -> Maybe TrackLang.CallId
-    -> Derive.Deriver (TrackResults Signal.Control)
+control_call :: State.TrackEvents -> Score.Control
+    -> Maybe TrackLang.CallId -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
 control_call track control maybe_op control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track control_deriver
@@ -111,12 +111,12 @@ control_call track control maybe_op control_deriver deriver = do
     -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'control_deriver'.  To make these parallelize, I need
     -- to run control_deriver as a sub-derive, then mappend the Collect.
-    merge_logs logs $ with_damage $ with_control signal deriver
+    merge_logs logs $ with_damage $ with_control control signal deriver
     where
     maybe_track_id = State.tevents_track_id track
     with_damage = with_control_damage maybe_track_id
         (State.tevents_range track)
-    with_control signal deriver = case maybe_op of
+    with_control control signal deriver = case maybe_op of
         Nothing -> Derive.with_control control signal deriver
         Just op -> Derive.with_control_operator control op signal deriver
 

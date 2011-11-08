@@ -313,8 +313,11 @@ extract_stream e_event =
 r_split :: Derive.Result -> ([Score.Event], [Log.Msg])
 r_split = second (filter interesting_log) . LEvent.partition . Derive.r_events
 
-r_logs :: Derive.Result -> [String]
-r_logs = snd . extract id
+r_logs :: Derive.Result -> [Log.Msg]
+r_logs = snd . r_split
+
+r_log_strings :: Derive.Result -> [String]
+r_log_strings = snd . extract id
 
 e_logs :: Derive.Result -> [String]
 e_logs = map show_log . trace_low_prio . LEvent.logs_of . Derive.r_events

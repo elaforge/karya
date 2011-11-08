@@ -27,6 +27,39 @@ UNSORTED
     - inversion: as 'basic pitches' and 'basic controls', but controls are
       below the note tracks, results should be the same
 
+  control calls
+    ensure that called block has just one unnamed track, which will be
+    interpreted as a control track with the current control.  What about
+    tempo?  But without a note to pick up the control how do the samples
+    get back out?  So like inversion, put an implicit > track an a single
+    note that just collects that specific control, then the caller can
+    extract and substitute.  A little gross, especially since I have to
+    make a magic call name e.g. control-call-capture 'some'
+    What I really want is a kind of block evaluation that treats the bottom
+    control track as a generator, but for this I'd need a new kind
+    Schema.derive_tree.
+    How to carry over the control name?
+      * TrackInfo.parse_control can emit default control
+      * Derive.Control understands default control
+      * test for default control
+      * test for control call
+      * implement control control block call
+      - need to set default control, but the signal deriver doesn't have
+        access to the control its deriving for, need to either pass that in,
+        or use the "" control instead.  This would be different from *, but
+        wouldn't require the sub-block to know the default control, for the
+        same reason the usual control track stuff doesn't need to know its
+        control: it just emits signal.
+      - Capture control call that just records default control, put it in
+        Derive.Call.Block just so they're together.
+  get rid of schema
+    - move Schema into Derive.Call.Block, move parse stuff into its own module
+    - can I add a simple example of a totally unrelated deriver, e.g.
+      with no calls, just as an example?  I'm inclined to think such
+      a feature is not so useful because it would be incompatible with
+      all other kinds of notation, but perhaps for a truly specialized
+      notation?  E.g. can I do nanguan pipa?
+
   - split Ui.State into separate modules for views, blocks, tracks, etc.
     put into Ui.State.* and re-export from Ui.State
   - it's annoying how a track with nothing in it won't play, and has no

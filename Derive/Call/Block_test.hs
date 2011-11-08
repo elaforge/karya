@@ -12,7 +12,7 @@ test_c_block = do
                 ]
     let (evts, logs) = run [(0, 1, "nosuch")]
     equal evts []
-    strings_like logs ["call not found: nosuch"]
+    strings_like logs ["note call not found: nosuch"]
 
     strings_like (snd (run [(0, 1, "sub >arg")]))
         ["args for block call not implemented yet"]
@@ -24,7 +24,6 @@ test_c_block = do
         [ (0, 1, "--sub", Nothing, [])
         , (1, 2, "--sub", Just "i", ["a"])
         ]
-
 
 test_c_clip = do
     let extract = DeriveTest.extract DeriveTest.e_event
@@ -43,3 +42,19 @@ test_c_clip = do
         , ("b2", [(">", [(0, 1, ""), (1, 1, "")])])
         ])
         ([(1, 1, ""), (2, 1, "")], [])
+
+test_c_control_block = do
+    let extract = DeriveTest.e_control "cont"
+        derive caller callee = DeriveTest.extract extract $
+            DeriveTest.derive_blocks
+                [ ("top", [("cont", caller), (">", [(0, 4, "")])])
+                , ("sub", [("%", callee)])
+                ]
+        sub = [(0, 0, "1"), (2, 0, "2"), (4, 0, "4")]
+    let (evts, logs) = derive [(0, 2, "nosuch")] []
+    equal evts [Just []]
+    strings_like logs ["control call not found: nosuch"]
+
+    -- The last sample is clipped off since it's at the end of the block.
+    equal (derive [(0, 0, "0"), (1, 2, "sub"), (3, 0, "3")] sub)
+        ([Just [(0, 0), (1, 1), (2, 2), (3, 3)]], [])

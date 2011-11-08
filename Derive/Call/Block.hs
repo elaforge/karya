@@ -1,8 +1,10 @@
 -- | Block call and support.
 module Derive.Call.Block (
     note_calls
-    , eval_root_block, lookup_block
+    , eval_root_block, lookup_note_block
+    , lookup_control_block
 ) where
+import Control.Monad
 import qualified Data.Map as Map
 
 import Util.Control
@@ -15,11 +17,12 @@ import qualified Ui.Types as Types
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Call.Note as Note
-import Derive.CallSig (required)
 import qualified Derive.CallSig as CallSig
+import Derive.CallSig (required)
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -27,6 +30,7 @@ import qualified Derive.TrackLang as TrackLang
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("clip", c_clip)
+    , (Schema.capture_null_control, c_capture_null_control)
     ]
 
 -- | Evaluate the root block in a performance.  Making this an ordinary call
@@ -39,8 +43,10 @@ eval_root_block :: BlockId -> Derive.EventDeriver
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
 eval_root_block block_id = Call.eval_one 0 1 [call_from_block_id block_id]
 
-lookup_block :: Derive.LookupCall Derive.NoteCall
-lookup_block sym = fmap c_block <$> symbol_to_block_id sym
+-- * note block calls
+
+lookup_note_block :: Derive.LookupCall Derive.NoteCall
+lookup_note_block sym = fmap c_block <$> symbol_to_block_id sym
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = block_call (const (Just block_id)) $
@@ -50,7 +56,9 @@ c_block block_id = block_call (const (Just block_id)) $
         | null (Derive.passed_vals args) =
             Derive.d_place start (end-start) (d_block block_id)
         | otherwise =
-            Derive.throw_arg_error "args for block call not implemented yet"
+            Derive.throw_arg_error $
+                "args for block call not implemented yet: "
+                ++ Pretty.pretty (Derive.passed_vals args)
         where (start, end) = Derive.passed_range args
 
 block_call :: ((Id.Namespace, Derive.PassedArgs d) -> Maybe BlockId)
@@ -65,9 +73,8 @@ d_block block_id = do
     blocks <- Derive.get_ui_state State.state_blocks
     -- Do some error checking.  These are all caught later, but if I throw here
     -- I can give more specific error msgs.
-    case Map.lookup block_id blocks of
-        Nothing -> Derive.throw "block_id not found"
-        _ -> return ()
+    when (Map.lookup block_id blocks == Nothing) $
+        Derive.throw "block_id not found"
     -- Record a dependency on this block.
     Internal.add_block_dep block_id
     -- This check disabled since a block will show up in the stack twice if it
@@ -103,7 +110,7 @@ make_block_id :: Id.Namespace -> TrackLang.Symbol -> BlockId
 make_block_id namespace (TrackLang.Symbol call) =
     Types.BlockId (Id.make namespace call)
 
--- * clip
+-- ** clip
 
 -- | Call a block, but clip it instead of stretching it to fit the event.
 --
@@ -130,3 +137,46 @@ c_clip = block_call get_block_id $ Derive.stream_generator "clip" $
     get_block_id (ns, args) = case Derive.passed_vals args of
         TrackLang.VSymbol sym : _ -> Just (make_block_id ns sym)
         _ -> Nothing
+
+
+-- * control call
+
+lookup_control_block :: Derive.LookupCall Derive.ControlCall
+lookup_control_block sym = fmap c_control_block <$> symbol_to_block_id sym
+
+-- TODO can I factor out repetition with d_block?
+-- call_name error_msg
+
+c_control_block :: BlockId -> Derive.ControlCall
+c_control_block block_id = block_call (const (Just block_id)) $
+    Derive.stream_generator "control-block" run
+    where
+    run args
+        | null (Derive.passed_vals args) =
+            Derive.d_place start (end-start) (d_control_block block_id)
+        | otherwise =
+            Derive.throw_arg_error $
+                "args for control block call not implemented yet: "
+                ++ Pretty.pretty (Derive.passed_vals args)
+        where (start, end) = Derive.passed_range args
+
+d_control_block :: BlockId -> Derive.ControlDeriver
+d_control_block block_id = do
+    blocks <- Derive.get_ui_state State.state_blocks
+    when (Map.lookup block_id blocks == Nothing) $
+        Derive.throw "block_id not found"
+    Internal.add_block_dep block_id
+    deriver <- Derive.eval_ui ("d_control_block " ++ show block_id)
+        (Schema.control_deriver block_id)
+    deriver
+
+c_capture_null_control :: Derive.NoteCall
+c_capture_null_control = Derive.generator1 Schema.capture_null_control $
+    \args -> CallSig.call0 args $ do
+        sig <- Derive.require "no null control to capture"
+            =<< Derive.get_control Score.c_null
+        stack <- Derive.get_stack
+        return $! Score.empty_event
+            { Score.event_controls = Map.singleton Score.c_null sig
+            , Score.event_stack = stack
+            }

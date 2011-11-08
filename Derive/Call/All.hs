@@ -17,13 +17,18 @@ import qualified Derive.TrackLang as TrackLang
 
 
 scope :: Derive.Scope
-scope = Derive.Scope note_lookups (make_lookup control_calls)
+scope = Derive.Scope note_lookups control_lookups
     (make_lookup pitch_calls) (make_lookup val_calls)
 
 -- | Note calls are special in that they look for a block with that name first.
 note_lookups :: Derive.ScopeType Derive.NoteCall
 note_lookups = Derive.empty_scope_type { Derive.stype_builtin =
-    [Block.lookup_block, Derive.make_lookup note_calls] }
+    [Block.lookup_note_block, Derive.make_lookup note_calls] }
+
+-- | Well ok, control calls are special too.
+control_lookups :: Derive.ScopeType Derive.ControlCall
+control_lookups = Derive.empty_scope_type { Derive.stype_builtin =
+    [Block.lookup_control_block, Derive.make_lookup control_calls] }
 
 make_lookup :: Map.Map TrackLang.CallId call -> Derive.ScopeType call
 make_lookup cmap = Derive.empty_scope_type

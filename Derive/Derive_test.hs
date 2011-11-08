@@ -424,7 +424,7 @@ test_tempo_funcs1 = do
     let ([t_tid, tid1], ui_state) = UiTest.run State.empty $
             UiTest.mkblock ("b0", track_specs)
     let res = DeriveTest.derive_block ui_state bid
-    equal (DeriveTest.r_logs res) []
+    equal (DeriveTest.r_log_strings res) []
 
     -- [(BlockId, [(TrackId, ScoreTime)])]
     let b0 pos = (bid, [(t_tid, pos), (tid1, pos)])
@@ -442,7 +442,7 @@ test_tempo_funcs2 = do
                 ])
         bid = UiTest.bid "b0"
     let res = DeriveTest.derive_block ui_state bid
-    equal (DeriveTest.r_logs res) []
+    equal (DeriveTest.r_log_strings res) []
     equal (map (r_tempo res bid t_tid1) (Seq.range 0 10 2))
         (map ((:[]) . RealTime.seconds) (Seq.range 0 5 1))
     equal (map (r_tempo res bid t_tid2) (Seq.range 0 10 2))

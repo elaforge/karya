@@ -14,5 +14,7 @@ test_parse_control = do
     equal (f "add #name") (Right "add #name")
     equal (f "tempo") (Right "tempo")
     equal (f "c") (Right "c")
+    equal (f "%") (Right "%")
+    equal (f "add %") (Right "add %")
     left_like (f "$ bad") "parse error"
     left_like (f "a b c") "control track must be one of"

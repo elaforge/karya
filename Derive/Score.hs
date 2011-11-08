@@ -13,6 +13,7 @@ import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Ui
@@ -46,6 +47,9 @@ data Event = Event {
     , event_attributes :: !Attributes
     }
     deriving (Eq, Show)
+
+empty_event :: Event
+empty_event = Event 0 0 mempty mempty mempty Stack.empty Nothing mempty
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch _ _ _) =
@@ -290,6 +294,12 @@ no_attrs = Attributes Set.empty
 newtype Control = Control String deriving (Eq, Ord, Show, DeepSeq.NFData)
 
 -- ** controls
+
+-- | Used as the default control by control block calls.  This is because
+-- a ControlCall produces a Signal, but for it to be derived in a block it
+-- needs a temporary name.
+c_null :: Control
+c_null = Control ""
 
 -- | Converted into velocity or breath depending on the instrument.
 c_pressure :: Control

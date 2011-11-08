@@ -175,19 +175,9 @@ is_null_instrument :: Score.Instrument -> Bool
 is_null_instrument (Score.Instrument "") = True
 is_null_instrument _ = False
 
--- * constants
-
+-- | Call used by the infix @=@ syntax.
 c_equal :: CallId
 c_equal = Symbol "="
-
--- | Define a few inhabitants of Environ which are used by the built-in set
--- of calls.
-v_instrument, v_attributes, v_scale, v_srate, v_seed :: ValName
-v_instrument = Symbol "inst"
-v_attributes = Symbol "attr"
-v_scale = Symbol "scale"
-v_srate = Symbol "srate"
-v_seed = Symbol "seed"
 
 -- * types
 
@@ -350,6 +340,30 @@ lookup_val name environ = case Map.lookup name environ of
     Just val -> case from_val val of
         Nothing -> Left (WrongType (type_of val))
         Just v -> Right v
+
+-- Define a few inhabitants of Environ which are used by the built-in set
+-- of calls.
+
+-- | Default instrument.
+v_instrument :: ValName
+v_instrument = Symbol "inst"
+
+-- | Default set of attrs.
+v_attributes :: ValName
+v_attributes = Symbol "attr"
+
+-- | Default scale, used by pitch tracks with a @*@ title.
+v_scale :: ValName
+v_scale = Symbol "scale"
+
+-- | Sampling rate used by signal interpolators.
+v_srate :: ValName
+v_srate = Symbol "srate"
+
+-- | Random seed used by randomization functions.  Can be explicitly
+-- initialized to capture a certain \"random\" variation.
+v_seed :: ValName
+v_seed = Symbol "seed"
 
 
 -- * parsing
