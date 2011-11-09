@@ -1,27 +1,16 @@
-module Derive.Schema_test where
+module Derive.Call.BlockUtil_test where
 import qualified Data.Map as Map
-import qualified Data.Tree as Tree
 
-import qualified Util.Graph_test as Graph_test
-import qualified Util.Seq as Seq
 import Util.Test
-
-import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
-import qualified Ui.UiTest as UiTest
-
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
-
--- * compile
 
 test_compile = do
     let controls = map Score.event_controls
@@ -96,38 +85,3 @@ test_extract_orphans = do
         -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
         -- Log.warn $ show (Slice_test.extract_tree subs)
         return []
-
--- * parse
-
-test_parse = do
-    let mktracks titles =
-            [mk_track_info name n | (n, name) <- Seq.enumerate titles]
-    let mkskel = Skeleton.make
-    let f = Schema.default_parser . mktracks
-    let note_bottom = Schema.note_bottom_parser . mktracks
-
-    -- They're both controls, with no instrument track.
-    skel_equal (f ["", ""]) (mkskel [(0, 1)])
-    skel_equal (f [">i1"]) (mkskel [])
-    skel_equal (f [">i1", "c1", "c2"]) (mkskel [(0, 1), (1, 2)])
-
-    skel_equal (f ["c1", ">i1", "c2"]) (mkskel [(0, 1), (1, 2)])
-    skel_equal (f ["c0", ">i1", "c1", ">i2", "tempo", ">i3"])
-        (mkskel [(0, 1), (1, 2), (0, 3), (4, 5)])
-    skel_equal (f [">i1", "c1", ">i2", "c2"])
-        (mkskel [(0, 1), (2, 3)])
-
-    -- note-bottom parser
-    skel_equal (note_bottom ["tempo", "*p", "c1", ">i1", "c2", ">i2"])
-        (mkskel [(0, 1), (1, 2), (2, 3), (0, 4), (4, 5)])
-    skel_equal (note_bottom ["c1", ">i1", "c2"])
-        (mkskel [(0, 1), (0, 2)])
-    where
-    skel_equal (Skeleton.Skeleton g1) (Skeleton.Skeleton g2) =
-        Graph_test.graph_equal g1 g2
-
--- * util
-
-node = Tree.Node
-mk_track_info title tracknum =
-    State.TrackInfo title (UiTest.tid "fake") tracknum

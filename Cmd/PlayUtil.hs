@@ -15,7 +15,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Derive.Call.Block as Block
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -70,12 +69,10 @@ derive cache damage block_id =
 run :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage
     -> Derive.Deriver a -> m (Derive.RunResult a)
 run cache damage deriver = do
-    schema_map <- Cmd.get_schema_map
     ui_state <- State.get
     lookup_scale <- Cmd.get_lookup_scale
     inst_calls <- get_lookup_inst_calls
-    let constant = Derive.initial_constant ui_state
-            (Schema.lookup_deriver schema_map ui_state) lookup_scale inst_calls
+    let constant = Derive.initial_constant ui_state lookup_scale inst_calls
             cache damage
     scope <- Cmd.gets Cmd.state_global_scope
     let deflt = State.config_default (State.state_config ui_state)

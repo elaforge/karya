@@ -5,7 +5,6 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as TVar
 import Control.Monad
 
-import qualified Data.Map as Map
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Printf as Printf
@@ -48,8 +47,8 @@ mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.
 mk_cmd_state :: ViewId -> Cmd.State
-mk_cmd_state view_id = (Cmd.initial_state DeriveTest.default_db Map.empty
-    DeriveTest.default_scope)
+mk_cmd_state view_id =
+    (Cmd.initial_state DeriveTest.default_db DeriveTest.default_scope)
         { Cmd.state_focused_view = Just view_id }
 
 -- | It would be nicer to have this happen automatically.

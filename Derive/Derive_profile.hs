@@ -11,11 +11,10 @@ import Util.Test
 
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
-
 import qualified Cmd.Create as Create
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Schema as Schema
+import qualified Derive.ParseSkeleton as ParseSkeleton
 
 
 -- q=90 means 1.5 quarters / sec
@@ -116,7 +115,7 @@ mkblock tracks = do
     -- Track slicing makes things much slower.  I should profile that too, but
     -- let's profile without it first.
     State.set_skeleton UiTest.default_block_id $
-        Schema.note_bottom_parser tinfo
+        ParseSkeleton.note_bottom_parser tinfo
 
 -- * implementation
 

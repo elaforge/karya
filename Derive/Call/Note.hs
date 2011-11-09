@@ -15,10 +15,10 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 
+import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
 import qualified Derive.TrackInfo as TrackInfo
@@ -193,7 +193,7 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
 inverting :: (Derive.PassedArgs d -> Derive.EventDeriver)
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
 inverting call args =
-    maybe (call args) Schema.derive_tracks =<< invert_call args
+    maybe (call args) BlockUtil.derive_tracks =<< invert_call args
 
 invert_call :: Derive.PassedArgs d -> Derive.Deriver (Maybe State.EventsTree)
 invert_call args = case Derive.info_sub_tracks info of
@@ -265,7 +265,7 @@ sub_events args = map (map mkevent) (Slice.slice_notes start end subs)
     -- are still their original lengths.  Stretch them back to 1 so Events
     -- are normalized.
     mkevent (shift, stretch, tree) = Event shift stretch $
-        Derive.d_stretch (recip stretch) (Schema.derive_tracks tree)
+        Derive.d_stretch (recip stretch) (BlockUtil.derive_tracks tree)
 
 -- | Place and merge a list of Events.
 place :: [Event] -> Derive.EventDeriver

@@ -123,7 +123,7 @@ make_block :: (State.M m) => Block.Config -> Block -> m BlockId
 make_block config (id_name, title, tracks, skel) = do
     tracks <- mapM convert_track tracks
     block_id <- State.create_block (Id.read_id id_name)
-        (Block.block config title tracks Config.schema)
+        (Block.block config title tracks)
     State.set_skeleton block_id (Skeleton.make skel)
     return block_id
 

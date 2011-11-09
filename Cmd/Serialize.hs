@@ -10,7 +10,6 @@
     updated.
 -}
 module Cmd.Serialize where
-
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
@@ -33,11 +32,11 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Style as Style
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.Style as Style
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
@@ -179,25 +178,19 @@ instance Serialize Types.ViewId where
     put (Types.ViewId a) = put a
     get = get >>= \a -> return (Types.ViewId a)
 
-instance Serialize Types.SchemaId where
-    put (Types.SchemaId a) = put a
-    get = get >>= \a -> return (Types.SchemaId a)
-
 instance Serialize Block.Block where
-    put (Block.Block a _config b c d) = put_version 3
-        >> put a >> put b >> put c >> put d
+    put (Block.Block a _config b c) = put_version 4
+        >> put a >> put b >> put c
     get = do
         v <- get_version
         case v of
-            3 -> do
+            4 -> do
                 title <- get :: Get String
                 tracks <- get :: Get [Block.Track]
                 skel <- get :: Get Skeleton.Skeleton
-                schema_id <- get :: Get Types.SchemaId
                 -- Everything in the block config is either derived from the
                 -- Cmd.State or is hardcoded.
                 return $ Block.Block title Block.default_config tracks skel
-                    schema_id
             _ -> version_error "Block.Block" v
 
 instance Serialize Skeleton.Skeleton where

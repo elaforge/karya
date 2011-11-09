@@ -143,8 +143,8 @@ dealloc_instrument inst = do
     State.set_midi_config $ config
         { Instrument.config_alloc = Map.delete inst alloc }
 
-schema_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
-schema_instruments block_id = do
+block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
+block_instruments block_id = do
     titles <- fmap (map State.track_title) (State.get_track_info block_id)
     return $ Maybe.mapMaybe TrackInfo.title_to_instrument titles
 
@@ -158,7 +158,7 @@ schema_instruments block_id = do
 -- TODO: same inst with different keyswitches should get the same addrs
 auto_config :: BlockId -> Cmd.CmdL Instrument.Config
 auto_config block_id = do
-    insts <- schema_instruments block_id
+    insts <- block_instruments block_id
     devs <- mapM device_of insts
     let no_dev = [inst | (inst, Nothing) <- zip insts devs]
         inst_devs = [(inst, dev) | (inst, Just dev) <- zip insts devs]

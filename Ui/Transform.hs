@@ -30,8 +30,6 @@ map_state_ids f state = State.exec state (map_ids f)
 -- when you are sure there are no visible views (\"invisible\" views occur
 -- after they are created but before the sync).  This should probably only be
 -- used by 'map_state_ids'.
---
--- SchemaIds are not mapped, because they point to a global resource.
 map_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
 map_ids f = do
     map_view_ids f

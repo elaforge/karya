@@ -6,7 +6,6 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Schema as Schema
 
 import qualified Instrument.Db
 
@@ -15,15 +14,12 @@ import qualified Instrument.Db
 
 data StaticConfig = StaticConfig {
     config_instrument_db :: Cmd.InstrumentDb
-    , config_schema_map :: Schema.SchemaMap
     -- | Path to directories containing Local.Lang modules.  They will be
     -- included in the lang namespace.
     , config_local_lang_dirs :: [FilePath]
 
     -- | These Cmds are run before any of the usual ones, and can implement
     -- local global keymaps and whatnot.
-    --
-    -- Cmds that are local to a Block are part of the schema db.
     , config_global_cmds :: [Cmd.Cmd]
 
     -- | Default global namespace for deriver calls.
@@ -54,7 +50,6 @@ data StaticConfig = StaticConfig {
 empty :: StaticConfig
 empty = StaticConfig {
     config_instrument_db = Instrument.Db.empty
-    , config_schema_map = Map.empty
     , config_local_lang_dirs = []
     , config_global_cmds = []
     , config_global_scope = Derive.empty_scope

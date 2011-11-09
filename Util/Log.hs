@@ -70,7 +70,7 @@ data Msg = Msg {
     , msg_caller :: !SrcPos.SrcPos
     , msg_prio :: !Prio
     -- | Msgs which are logged from the deriver may record the position in the
-    -- schema and event being processed.
+    -- score the msg was emitted.
     , msg_stack :: !(Maybe Stack.Stack)
     -- | Free form text for humans.
     , msg_text  :: !Text.Text

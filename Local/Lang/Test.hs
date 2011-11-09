@@ -17,7 +17,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
 
 import qualified Derive.Score as Score
-import qualified Derive.Schema as Schema
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import Cmd.Lang.Global

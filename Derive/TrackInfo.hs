@@ -1,11 +1,12 @@
 {-# LANGUAGE ViewPatterns #-}
 -- | Utilities to deal with track titles.
 --
--- Like Derive.Schema, this module is used by both Cmd and Derive.
+-- This module is used by both Cmd and Derive since Cmd also wants to know
+-- track types for track specific cmds.
 --
 -- Note track titles are just tracklang expressions, so no extra code is
--- needed.  Control tracks titles are rather more complicated, and Cmds in
--- addition to the Schema need to agree on how they are parsed.
+-- needed.  Control tracks titles are just a hardcoded list of special cases,
+-- though they are parsed as tracklang Vals.
 module Derive.TrackInfo where
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Maybe as Maybe

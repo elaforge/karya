@@ -92,7 +92,6 @@ responder static_config msg_reader write_midi abort_midi get_now setup_cmd
 
     let cmd_state = Cmd.initial_state
             (StaticConfig.config_instrument_db static_config)
-            (StaticConfig.config_schema_map static_config)
             (StaticConfig.config_global_scope static_config)
         cmd = setup_cmd >> Edit.initialize_state >> return Cmd.Done
     updater_state <- MVar.newMVar State.empty

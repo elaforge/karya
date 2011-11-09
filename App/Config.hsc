@@ -178,11 +178,6 @@ collapsed_width = 3
 render_color :: Color.Color
 render_color = Color.rgba 0.65 0.65 0.8 0.5
 
--- | SchemaId of the default hardcoded schema.  This should probably go in
--- Schema, but being here modules can get it without depending on Schema.
-schema :: Types.SchemaId
-schema = Types.SchemaId (Id.global "default")
-
 -- | The default namespace for the clipboard.
 clip_namespace :: Id.Namespace
 clip_namespace = "clip"

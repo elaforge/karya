@@ -523,9 +523,9 @@ verify_edge block (from, to) =
 -- *** TrackTree
 
 -- | A TrackTree is the Skeleton resolved to the tracks it references.
-type TrackTree = Tree.Forest TrackInfo
+type TrackTree = [Tree.Tree TrackInfo]
 -- | A TrackTree annotated with which tracks are muted.
-type TrackTreeMutes = Tree.Forest (TrackInfo, Bool)
+type TrackTreeMutes = [Tree.Tree (TrackInfo, Bool)]
 
 -- | Summary information on a Track.
 data TrackInfo = TrackInfo {

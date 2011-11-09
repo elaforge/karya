@@ -16,13 +16,13 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
+import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Note as Note
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (required)
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -30,7 +30,7 @@ import qualified Derive.TrackLang as TrackLang
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("clip", c_clip)
-    , (Schema.capture_null_control, c_capture_null_control)
+    , (BlockUtil.capture_null_control, c_capture_null_control)
     ]
 
 -- | Evaluate the root block in a performance.  Making this an ordinary call
@@ -77,17 +77,11 @@ d_block block_id = do
         Derive.throw "block_id not found"
     -- Record a dependency on this block.
     Internal.add_block_dep block_id
-    -- This check disabled since a block will show up in the stack twice if it
-    -- is inverted.  I'm still protected from recursion by the stack limit.
-    -- -- Since there is no branching, any recursion will be endless.
-    -- stack <- Derive.gets Derive.state_stack
-    -- when (Stack.Block block_id `elem` drop 1 (Stack.innermost stack)) $
-    --     Derive.throw "recursive block derivation"
-    state <- Derive.get
-    let rethrow exc = Derive.throw $ "lookup deriver for " ++ show block_id
-            ++ ": " ++ show exc
-    deriver <- either rethrow return
-        (Derive.state_lookup_deriver (Derive.state_constant state) block_id)
+    -- Since there is no branching, any recursion will be endless, but the
+    -- block will show up in the stack twice if it is inverted.
+    -- I'm still protected from recursion by the stack limit.
+    deriver <- Derive.eval_ui ("d_block " ++ show block_id)
+        (BlockUtil.note_deriver block_id)
     deriver
 
 -- | Given a block id, produce a call expression that will call that block.
@@ -167,11 +161,11 @@ d_control_block block_id = do
         Derive.throw "block_id not found"
     Internal.add_block_dep block_id
     deriver <- Derive.eval_ui ("d_control_block " ++ show block_id)
-        (Schema.control_deriver block_id)
+        (BlockUtil.control_deriver block_id)
     deriver
 
 c_capture_null_control :: Derive.NoteCall
-c_capture_null_control = Derive.generator1 Schema.capture_null_control $
+c_capture_null_control = Derive.generator1 BlockUtil.capture_null_control $
     \args -> CallSig.call0 args $ do
         sig <- Derive.require "no null control to capture"
             =<< Derive.get_control Score.c_null

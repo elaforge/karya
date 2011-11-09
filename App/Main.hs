@@ -92,7 +92,6 @@ load_static_config = do
     instrument_db <- Local.Instrument.load app_dir
     return $ StaticConfig.StaticConfig {
         StaticConfig.config_instrument_db = instrument_db
-        , StaticConfig.config_schema_map = Map.empty
         , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
         , StaticConfig.config_global_cmds = []
         , StaticConfig.config_global_scope = Call.All.scope

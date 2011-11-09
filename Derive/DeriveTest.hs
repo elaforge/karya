@@ -26,7 +26,6 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -90,8 +89,8 @@ run_events f = extract_run $
 default_constant   :: State.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
 default_constant ui_state cache damage =
-    Derive.initial_constant ui_state (default_lookup_deriver ui_state)
-        default_lookup_scale (const Nothing) cache damage
+    Derive.initial_constant ui_state default_lookup_scale (const Nothing)
+        cache damage
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval ui_state m = extract_run id (run ui_state m)
@@ -149,9 +148,8 @@ derive_tracks_with :: Transform Derive.Events -> [UiTest.TrackSpec]
 derive_tracks_with with = derive_tracks_with_ui with id
 
 -- | Variant that lets you modify both the Deriver state and the UI state.
--- You can't modify the UI state inside the deriver state because the UI state
--- is embedded in default_lookup_deriver and will revert as soon as a block is
--- called.  TODO if I get rid of schemas this may change
+-- Technically I could modify Derive.State's state_ui, but that's not supposed
+-- to be modified, and it's too late for e.g. the initial environ anyway.
 derive_tracks_with_ui :: Transform Derive.Events -> TransformUi
     -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_with_ui with transform_ui tracks = derive_blocks_with_ui
@@ -260,8 +258,6 @@ default_environ = Map.fromList
     , (TrackLang.v_scale, TrackLang.VScaleId Twelve.scale_id)
     , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
     ]
-
-default_lookup_deriver ui_state = Schema.lookup_deriver Map.empty ui_state
 
 -- ** extract
 
@@ -387,9 +383,6 @@ extract_midi events = [(RealTime.to_milliseconds ts, msg)
 passed_args :: String -> [TrackLang.Val] -> Derive.PassedArgs derived
 passed_args call vals = Derive.PassedArgs vals Map.empty
     (TrackLang.Symbol call) (Derive.dummy_call_info "DeriveTest")
-
-empty_lookup_deriver :: Derive.LookupDeriver
-empty_lookup_deriver = const (Right (return mempty))
 
 c_note :: ScoreTime -> ScoreTime -> Derive.EventDeriver
 c_note s_start dur = do

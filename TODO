@@ -44,16 +44,16 @@ UNSORTED
       * test for default control
       * test for control call
       * implement control control block call
-      - need to set default control, but the signal deriver doesn't have
-        access to the control its deriving for, need to either pass that in,
-        or use the "" control instead.  This would be different from *, but
-        wouldn't require the sub-block to know the default control, for the
-        same reason the usual control track stuff doesn't need to know its
-        control: it just emits signal.
-      - Capture control call that just records default control, put it in
+      * Capture control call that just records default control, put it in
         Derive.Call.Block just so they're together.
+  - b28 and b29 windows in bloom get get moved down on load?
+  - when a control sub-block has an error, it shows up with strange stack in
+    the caller, I think it's due to slicing.
   get rid of schema
-    - move Schema into Derive.Call.Block, move parse stuff into its own module
+    * move Schema into Derive.Call.Block, move parse stuff into its own module
+    * remove SchemaId, block schema
+    - I think I still need a way to switch deriver per-block, block title is
+      an obvious candidate
     - can I add a simple example of a totally unrelated deriver, e.g.
       with no calls, just as an example?  I'm inclined to think such
       a feature is not so useful because it would be incompatible with
@@ -168,9 +168,8 @@ UNSORTED
       not CallArgs.  And it doesn't make sense to call from the tracks anyway,
       so maybe not in Scopes.
       Not much point to trying to put it in Environ or Scope since it's
-      a different type, but it could be dynamically scoped with the others, eg
-      Derive.state_schema :: (BlockId ->
-      Basically it's the schema, but dynamicly scoped rather than attached to
+      a different type, but it could be dynamically scoped with the others.
+      Basically it's the schema, but dynamically scoped rather than attached to
       blocks.  I can't actually see how dynamic scope makes sense, it should be
       attached to blocks.  So keep it how it is, but call through generator
       cache.
@@ -389,7 +388,7 @@ cleanup:
 
     - creating a block through State.create_block instead of Cmd.create_block
       won't get the current track box color
-  - since tracklang lets me apply derivers to tracks and skel makes the
+  * since tracklang lets me apply derivers to tracks and skel makes the
     structure explicit, do I still need the schema?  at least for Cmds, I do
     need a way to look up Cmds based on track focus.  Before doing anything
     rash, think about ways to derive e.g. 工尺譜.

@@ -157,7 +157,7 @@ thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
 
 default_cmd_state :: Cmd.State
 default_cmd_state =
-    (Cmd.initial_state DeriveTest.default_db Map.empty Call.All.scope)
+    (Cmd.initial_state DeriveTest.default_db Call.All.scope)
         { Cmd.state_focused_view = Just UiTest.default_view_id
         , Cmd.state_edit = default_edit_state
         , Cmd.state_play = default_play_state

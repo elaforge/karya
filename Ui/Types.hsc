@@ -6,7 +6,7 @@ module Ui.Types (
     , zoom_to_pixels, zoom_to_time
 
     -- * ID
-    , BlockId(..), ViewId(..), SchemaId(..), TrackId(..), RulerId(..)
+    , BlockId(..), ViewId(..), TrackId(..), RulerId(..)
 
     -- * Selection
     , Selection(..), selection, point_selection, sel_is_point
@@ -103,11 +103,6 @@ newtype BlockId = BlockId Id.Id
 newtype ViewId = ViewId Id.Id
     deriving (Eq, Ord, DeepSeq.NFData)
 
--- | Reference to a schema.  Declared here instead of Deriver.Schema to avoid
--- a circular import.
-newtype SchemaId = SchemaId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData)
-
 newtype TrackId = TrackId Id.Id
     deriving (Eq, Ord, DeepSeq.NFData)
 
@@ -116,19 +111,16 @@ newtype RulerId = RulerId Id.Id
 
 instance Show BlockId where show = Id.show_ident
 instance Show ViewId where show = Id.show_ident
-instance Show SchemaId where show = Id.show_ident
 instance Show TrackId where show = Id.show_ident
 instance Show RulerId where show = Id.show_ident
 
 instance Pretty.Pretty BlockId where pretty = show
 instance Pretty.Pretty ViewId where pretty = show
-instance Pretty.Pretty SchemaId where pretty = show
 instance Pretty.Pretty TrackId where pretty = show
 instance Pretty.Pretty RulerId where pretty = show
 
 instance Read BlockId where readPrec = Id.read_ident undefined
 instance Read ViewId where readPrec = Id.read_ident undefined
-instance Read SchemaId where readPrec = Id.read_ident undefined
 instance Read TrackId where readPrec = Id.read_ident undefined
 instance Read RulerId where readPrec = Id.read_ident undefined
 
@@ -140,10 +132,6 @@ instance Id.Ident ViewId where
     unpack_id (ViewId a) = a
     cons_name _ = "vid"
     cons = ViewId
-instance Id.Ident SchemaId where
-    unpack_id (SchemaId a) = a
-    cons_name _ = "sid"
-    cons = SchemaId
 instance Id.Ident TrackId where
     unpack_id (TrackId a) = a
     cons_name _ = "tid"

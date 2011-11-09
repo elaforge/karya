@@ -236,7 +236,6 @@ data State = State {
     -- Config type variables that change never or rarely.  These come from the
     -- static config.
     state_instrument_db :: !InstrumentDb
-    , state_schema_map :: !SchemaMap
     -- | Global namespace for deriver.
     , state_global_scope :: !Derive.Scope
     -- | Turn ScaleIds into Scales.
@@ -282,9 +281,9 @@ data State = State {
     , state_edit :: !EditState
     } deriving (Show, Generics.Typeable)
 
-initial_state inst_db schema_map global_scope = State {
+initial_state :: InstrumentDb -> Derive.Scope -> State
+initial_state inst_db global_scope = State {
     state_instrument_db = inst_db
-    , state_schema_map = schema_map
     , state_global_scope = global_scope
     -- TODO later this should also be merged with static config
     , state_lookup_scale = LookupScale $
@@ -307,7 +306,7 @@ initial_state inst_db schema_map global_scope = State {
     }
 
 empty_state :: State
-empty_state = initial_state Instrument.Db.empty Map.empty Derive.empty_scope
+empty_state = initial_state Instrument.Db.empty Derive.empty_scope
 
 -- | Reset the parts of the State which are specific to a \"session\".  This
 -- should be called whenever an entirely new state is loaded.
@@ -429,8 +428,7 @@ initial_edit_state = EditState {
     }
 
 -- | These enable various commands to edit event text.  What exactly val,
--- and method mean are dependent on the schema, but I expect the definitions
--- in Cmd.NoteTrack and Cmd.ControlTrack will be universal.
+-- and method mean are dependent on the track.
 data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
 
 data RecentNote =
@@ -634,9 +632,6 @@ lookup_instrument_info inst = do
     inst_db <- gets state_instrument_db
     return $ Instrument.Db.db_lookup inst_db inst
 
-get_schema_map :: (M m) => m SchemaMap
-get_schema_map = gets state_schema_map
-
 get_clip_namespace :: (M m) => m Id.Namespace
 get_clip_namespace = gets state_clip_namespace
 
@@ -682,8 +677,7 @@ set_wdev_state wdev_state =
 create_block :: (M m) => Id.Id -> String -> [Block.Track] -> m BlockId
 create_block block_id title tracks = do
     config <- block_config
-    -- TODO get a default schema?
-    State.create_block block_id (Block.block config title tracks Config.schema)
+    State.create_block block_id (Block.block config title tracks)
 
 block_config :: (M m) => m Block.Config
 block_config = do
@@ -746,25 +740,3 @@ all_notes_off = do
     forM_ addrs $ \(dev, chan) -> do
         midi dev (Midi.ChannelMessage chan Midi.AllNotesOff)
         midi dev (Midi.ChannelMessage chan Midi.ResetAllControls)
-
--- * schema types
-
--- $schema_doc
--- These types should be in Derive.Schema, but since they use Cmd and I need
--- Cmd.State to have a SchemaMap, I have to put the types here to avoid
--- a circular import.  They are re-exported by Derive.Schema so we can all just
--- pretend they were defined there in the first place.
-
-type SchemaMap = Map.Map SchemaId Schema
-
--- | A Schema attaches a number of things to a Block.
-data Schema = Schema {
-    schema_deriver :: !(SchemaDeriver Derive.EventDeriver)
-    }
-
--- | So Cmd.State can be showable, for debugging.
-instance Show Schema where
-    show _ = "((Schema))"
-
--- | A SchemaDeriver generates a Deriver from a given Block.
-type SchemaDeriver d = BlockId -> State.StateId d

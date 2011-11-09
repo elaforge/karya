@@ -52,7 +52,7 @@ module Derive.Deriver.Monad (
 
     -- ** constant
     , Constant(..), initial_constant
-    , InstrumentCalls(..), LookupDeriver
+    , InstrumentCalls(..)
 
     -- ** control
     , ControlOp, PitchOp
@@ -458,7 +458,6 @@ make_lookup cmap call_id = return $ Map.lookup call_id cmap
 
 data Constant = Constant {
     state_ui :: State.State
-    , state_lookup_deriver :: LookupDeriver
     , state_control_op_map :: Map.Map TrackLang.CallId ControlOp
     , state_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
     , state_lookup_scale :: LookupScale
@@ -469,13 +468,12 @@ data Constant = Constant {
     , state_score_damage :: !ScoreDamage
     }
 
-initial_constant :: State.State -> LookupDeriver -> LookupScale
+initial_constant :: State.State -> LookupScale
     -> (Score.Instrument -> Maybe InstrumentCalls)
     -> Cache -> ScoreDamage -> Constant
-initial_constant ui_state lookup_deriver lookup_scale inst_calls cache damage =
+initial_constant ui_state lookup_scale inst_calls cache damage =
     Constant
         { state_ui = ui_state
-        , state_lookup_deriver = lookup_deriver
         , state_control_op_map = default_control_op_map
         , state_pitch_op_map = default_pitch_op_map
         , state_lookup_scale = lookup_scale
@@ -493,13 +491,6 @@ data InstrumentCalls =
 instance Show InstrumentCalls where
     show (InstrumentCalls nlookups vlookups) = "((InstrumentCalls note "
         ++ show (length nlookups) ++ " val " ++ show (length vlookups) ++ "))"
-
--- | Since the deriver may vary based on the block, this is needed to find
--- the appropriate deriver.  It's created by 'Schema.lookup_deriver'.
---
--- TODO is this redundant now that block call is in 'scope_note'?
--- Can't I have Block.d_block directly call Schema?
-type LookupDeriver = BlockId -> Either State.StateError EventDeriver
 
 
 -- ** control

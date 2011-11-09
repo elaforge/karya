@@ -29,9 +29,8 @@ import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
 
-import qualified Derive.Schema as Schema
+import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.Score as Score
-import qualified App.Config as Config
 
 
 -- not implemented:
@@ -95,9 +94,9 @@ make_block mkid rid track_rid name tracks = do
     let block_tracks = Block.track (Block.RId rid) 20
             : [Block.track (Block.TId tid track_rid) 25 | tid <- tids]
     block_id <- State.create_block (mkid name) $
-        Block.block Block.default_config ""  block_tracks Config.schema
+        Block.block Block.default_config ""  block_tracks
     State.set_skeleton block_id =<<
-        Schema.default_parser <$> State.get_track_info block_id
+        ParseSkeleton.default_parser <$> State.get_track_info block_id
     BlockConfig.toggle_merge_all block_id
     return block_id
 

@@ -24,7 +24,7 @@ import qualified Cmd.Serialize as Serialize
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Derive.Schema as Schema
+import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified App.Config as Config
 
 
@@ -143,7 +143,7 @@ mkblock_ruler ruler_id (block_name, tracks) = do
 parse_skeleton :: (State.M m) => BlockId -> m Skeleton.Skeleton
 parse_skeleton block_id = do
     tracks <- State.get_track_info block_id
-    return $ Schema.default_parser tracks
+    return $ ParseSkeleton.default_parser tracks
 
 mkview :: (State.M m) => BlockId -> m ViewId
 mkview block_id = do
@@ -223,7 +223,7 @@ dump_blocks ustate =
 
 make_block :: String -> [(Block.TracklikeId, Types.Width)] -> Block.Block
 make_block title tracks = Block.block Block.default_config
-    title (map (uncurry Block.track) tracks) Config.schema
+    title (map (uncurry Block.track) tracks)
 
 -- ** track
 

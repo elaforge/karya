@@ -181,7 +181,6 @@ save_as fn = Save.cmd_save fn
 
 vid = Types.ViewId . Id.read_id
 bid = Types.BlockId . Id.read_id
-sid = Types.SchemaId . Id.read_id
 rid = Types.RulerId . Id.read_id
 tid = Types.TrackId . Id.read_id
 
@@ -276,11 +275,6 @@ show_tracklike (Block.TId tid rid) = do
 show_tracklike (Block.RId rid) = return (show rid)
 show_tracklike (Block.DId color) = return $ "Div " ++ show color
 
-set_schema :: BlockId -> SchemaId -> Cmd.CmdL ()
-set_schema block_id schema_id = do
-    State.modify_block block_id $ \block ->
-        block { Block.block_schema = schema_id }
-
 collapse_track, expand_track :: BlockId -> TrackNum -> Cmd.CmdL ()
 collapse_track block_id tracknum = do
     -- TODO if the track to collapse is a pitch track, merge it with its
@@ -352,7 +346,6 @@ sel_to_real = do
 -- keymap :: Keymap.KeySpec -> Cmd.CmdL ()
 
 -- Modify global keymap
--- Modify keymap for given schema_id.
 
 -- | Called from the browser.
 load_instrument :: String -> Cmd.CmdL ()

@@ -24,14 +24,12 @@ data Block = Block {
     , block_config :: Config
     , block_tracks :: [Track]
     , block_skeleton :: Skeleton.Skeleton
-    , block_schema :: SchemaId
     } deriving (Eq, Show, Read)
 
 instance DeepSeq.NFData Block where
     -- I don't bother to force anything deep, but there isn't much data down
     -- there anyway.
-    rnf (Block title config tracks skel schema) =
-        title `seq` config `seq` tracks `seq` skel `seq` schema `seq` ()
+    rnf (Block title config tracks skel) = title `seq` config `seq` tracks `seq` skel `seq` ()
 
 block_tracklike_ids :: Block -> [TracklikeId]
 block_tracklike_ids = map tracklike_id . block_tracks
@@ -42,9 +40,8 @@ block_track_ids = track_ids_of . block_tracklike_ids
 block_ruler_ids :: Block -> [RulerId]
 block_ruler_ids = ruler_ids_of . block_tracklike_ids
 
-block :: Config -> String  -> [Track] -> SchemaId -> Block
-block config title tracks schema_id =
-    Block title config tracks Skeleton.empty schema_id
+block :: Config -> String  -> [Track] -> Block
+block config title tracks = Block title config tracks Skeleton.empty
 
 -- | Per-block configuration.
 data Config = Config {

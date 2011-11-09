@@ -15,9 +15,9 @@ import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.Cmd as Cmd
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Call.Block as Block
+import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Note as Call.Note
 import qualified Derive.CallSig as CallSig
@@ -26,7 +26,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
-import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -192,13 +191,13 @@ test_0_derive_notes = do
     evaluated <- get_log log
     equal (length evaluated) 5
 
-test_1_schema = do
+test_1_note_deriver = do
     let ustate = flat_block 20
     -- Since I'm not calling Block.eval_root_block I need to set the stack
     -- manually.
     (log, deriver) <- with_logging $
         Internal.with_stack_block default_block_id $ UiTest.eval ustate $
-            Cmd.schema_deriver Schema.default_schema default_block_id
+            BlockUtil.note_deriver default_block_id
     let result = DeriveTest.run_ ustate deriver
     print $ extract_run 5 result
     evaluated <- get_log log

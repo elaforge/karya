@@ -1,39 +1,13 @@
 {-# LANGUAGE CPP #-}
-{- | A schema is a transformation from a block to a deriver.  It may intuit
-    the deriver solely from the structure of the block, or it may ignore the
-    block entirely if it's specialized to one particular shape of block.
-
-    The \"schema\" step is so that each block doesn't need to have its own
-    deriver ID hardcoded into it.  Instead, many blocks can share a \"schema\"
-    as long as they have the same general structure.
-
-    The @SchemaId -> Schema@ mapping looks in a hardcoded list, a custom list
-    passed via static configuration, and a dynamically loaded list.  The
-    assumed usage is that you experiment with new Derivers and make minor
-    changes via dynamic loading, and later incorporate them into the static
-    configuration.
-
-    TODO dynamic loaded schemas are not implemented yet
+{- | Utilities for "Derive.Call.Block".
 -}
-module Derive.Schema (
-    -- Re-export schema types from Cmd, to pretend they're defined here.
-    -- * types
-    Schema(..), SchemaDeriver, SchemaMap
-
-    -- * lookup
-    , lookup_deriver
-
-    -- * derive
-    , control_deriver
+module Derive.Call.BlockUtil (
+    note_deriver, control_deriver
     , capture_null_control
     , derive_tracks
 
-    -- * parser
-    , default_parser, note_bottom_parser
-
 #ifdef TESTING
     , derive_tree
-    , default_schema
 #endif
 ) where
 import qualified Data.Map as Map
@@ -41,17 +15,11 @@ import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-import qualified Util.Tree
-
 import Ui
-import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 
-import Cmd.Cmd (Schema(..), SchemaDeriver, SchemaMap)
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -62,37 +30,9 @@ import qualified Derive.Slice as Slice
 import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Signal as Signal
-import qualified App.Config as Config
 
 
-hardcoded_schemas :: SchemaMap
-hardcoded_schemas = Map.fromList [(Config.schema, default_schema)]
-
-merge_schemas :: SchemaMap -> SchemaMap -> SchemaMap
-merge_schemas map1 map2 = Map.union map2 map1
-
-
--- * lookup
-
--- | Create a LookupDeriver function.
-lookup_deriver :: SchemaMap -> State.State -> Derive.LookupDeriver
-lookup_deriver schema_map ui_state block_id = State.eval ui_state $ do
-    block <- State.get_block block_id
-    schema <- State.lookup_id (Block.block_schema block)
-        (merge_schemas hardcoded_schemas schema_map)
-    schema_deriver schema block_id
-
-
--- * default schema
-
--- | The default schema is supposed to be simple but useful, and rather
--- trackerlike.
-default_schema :: Schema
-default_schema = Schema note_deriver
-
--- * note_deriver
-
-note_deriver :: SchemaDeriver Derive.EventDeriver
+note_deriver :: BlockId -> State.StateId Derive.EventDeriver
 note_deriver block_id = do
     (tree, block_end) <- get_tree block_id
     return $ derive_tree block_end tree
@@ -105,7 +45,7 @@ note_deriver block_id = do
 -- met, a fake note track will be appended to make this a valid note block,
 -- with a single note event whose only job is to collect the the default
 -- control.
-control_deriver :: SchemaDeriver Derive.ControlDeriver
+control_deriver :: BlockId -> State.StateId Derive.ControlDeriver
 control_deriver block_id = do
     (tree, block_end) <- get_tree block_id
     case check_control_tree block_end tree of
@@ -232,64 +172,3 @@ derive_track node@(Tree.Node track subs)
     -- so it goes inside d_control_track.
     | otherwise = Control.d_control_track node (derive_tracks subs)
 
-
--- * parser
-
--- | A parser figures out a skeleton based on track titles and position.
---
--- Tracks starting with '>' are instrument tracks, the rest are control tracks.
--- A track titled \"tempo\" scopes over all tracks to its right.
--- Below that, tracks scope left to right.
---
--- This should take arguments to apply to instrument and control tracks.
---
--- TODO do something special with embedded rulers and dividers
-default_parser :: [State.TrackInfo] -> Skeleton.Skeleton
-default_parser = make_skeleton . parse_to_tree False
-
--- | The note-bottom parser puts note tracks at the bottom:
---
--- @[tempo c1 i1 c2 i2] -> [tempo1 (c1 i1) (c2 i2)]@
---
--- This is useful when you don't want to invoke slicing.
-note_bottom_parser :: [State.TrackInfo] -> Skeleton.Skeleton
-note_bottom_parser = make_skeleton . parse_to_tree True
-
-make_skeleton :: Tree.Forest State.TrackInfo -> Skeleton.Skeleton
-make_skeleton =
-    Skeleton.make . Util.Tree.edges . map (fmap State.track_tracknum)
-
--- | [c0 tempo1 i1 c1 tempo2 c2 i2 c3] ->
--- [c0, tempo1 (i1 c1), tempo2 (c2 c2 c3)]
-parse_to_tree :: Bool -> [State.TrackInfo] -> Tree.Forest State.TrackInfo
-parse_to_tree reversed tracks = concatMap parse groups
-    where
-    groups =
-        Seq.split_with (TrackInfo.is_tempo_track . State.track_title) tracks
-    parse = if reversed then reverse_tempo_group else parse_tempo_group
-
-parse_tempo_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
-parse_tempo_group tracks = case groups of
-        [] -> []
-        non_note : ngroups ->
-            descend non_note (concatMap parse_note_group ngroups)
-    where
-    groups = Seq.split_with (TrackInfo.is_note_track . State.track_title)
-        tracks
-
-reverse_tempo_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
-reverse_tempo_group [] = []
-reverse_tempo_group (track:tracks) =
-    [Tree.Node track $ concatMap parse_note_group (shift groups)]
-    where
-    groups = Seq.split_with (TrackInfo.is_note_track . State.track_title)
-        tracks
-    shift (group : (note : rest) : gs) = (group ++ [note]) : shift (rest : gs)
-    shift gs = gs
-
-parse_note_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
-parse_note_group tracks = descend tracks []
-
-descend :: [a] -> Tree.Forest a -> Tree.Forest a
-descend [] bottom = bottom
-descend (track:tracks) bottom = [Tree.Node track (descend tracks bottom)]

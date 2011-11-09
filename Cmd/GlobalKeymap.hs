@@ -15,8 +15,7 @@
     1. Modify text independent attributes, like start position and duration.
     This includes copy and paste, remove, modify duration, nudge, ...
 
-    Track-specific cmds depend on the schema and are looked up in
-    'Derive.Schema.schema_cmds':
+    Track-specific cmds are looked up in "Cmd.Track".
 
     2. Track specific event operations, possibly affecting all events in the
     selection: transposition, etc.  These are active regardless of EditMode,
