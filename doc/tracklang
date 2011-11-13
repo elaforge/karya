@@ -1,7 +1,14 @@
 User level tracklang documentation
 
+    Special calls
 
-Built-in controls:
+" - Repeat the text of the last event.
+
+-- - Comment, skipped by the deriver, useful to manually set a block end past
+the last event.
+
+
+    Built-in controls
 
 p - Maps to velocity for most instruments, but maps to breath for instruments
 with the Pressure flag.

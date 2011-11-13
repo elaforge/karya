@@ -184,7 +184,7 @@ test_track_signal = do
 test_0_derive_notes = do
     -- if I can take results from an infinite score, the derivation is lazy
     let inf = [UiTest.make_event (n, 1, "") | n <- [0..]]
-    (log, deriver) <- with_logging $ Note.derive_notes 10 (0, 10) inf []
+    (log, deriver) <- with_logging $ Note.derive_notes 10 (0, 10) 0 inf []
     result <- Thread.timeout 0.5 $ (\v -> force v >> return v) $
         extract_run 5 $ DeriveTest.run State.empty deriver
     equal result (Just (Right [0, 1, 2, 3, 4]))

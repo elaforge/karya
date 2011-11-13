@@ -130,7 +130,7 @@ make_tree = map $ \(Node (title, events) subs) ->
 
 make_track :: String -> [Event] -> State.TrackEvents
 make_track title events =
-    State.TrackEvents title tevents Nothing 100 (0, 100) False
+    State.TrackEvents title tevents Nothing 100 (0, 100) False 0
     where
     tevents = Events.from_list
         [(start, Event.event text dur) | (start, dur, text) <- events]

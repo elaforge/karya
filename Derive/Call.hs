@@ -149,10 +149,12 @@ data DeriveInfo derived = DeriveInfo {
 -- | Just a spot to stick all the per-track parameters.
 data TrackInfo derived = TrackInfo {
     -- | Either the end of the block, or the next event after the slice.
-    tinfo_events_end :: ScoreTime
-    , tinfo_track_range :: (ScoreTime, ScoreTime)
-    , tinfo_sub_tracks :: State.EventsTree
-    , tinfo_derive_info :: DeriveInfo derived
+    -- These fields are take directly from 'State.TrackEvents'.
+    tinfo_events_end :: !ScoreTime
+    , tinfo_track_range :: !(ScoreTime, ScoreTime)
+    , tinfo_shifted :: !ScoreTime
+    , tinfo_sub_tracks :: !State.EventsTree
+    , tinfo_derive_info :: !(DeriveInfo derived)
     }
 
 note_dinfo :: DeriveInfo Score.Event
@@ -226,8 +228,8 @@ derive_event st tinfo parse prev_sample repeat_call prev cur@(pos, event) next
     parse_error = Log.msg Log.Warn $
         Just (Derive.state_stack (Derive.state_dynamic st))
     run_call expr = apply_toplevel state (dinfo, cinfo expr) expr
-    state = st {
-        Derive.state_dynamic = (Derive.state_dynamic st)
+    state = st
+        { Derive.state_dynamic = (Derive.state_dynamic st)
             { Derive.state_stack = Stack.add
                 (region pos (pos + Event.event_duration event))
                 (Derive.state_stack (Derive.state_dynamic st))
@@ -245,8 +247,8 @@ derive_event st tinfo parse prev_sample repeat_call prev cur@(pos, event) next
         , Derive.info_track_range = track_range
         , Derive.info_sub_tracks = subs
         }
-    region s e = Stack.Region (start + s) (start + e)
-    TrackInfo events_end track_range@(start, _) subs dinfo = tinfo
+    region s e = Stack.Region (shifted + s) (shifted + e)
+    TrackInfo events_end track_range shifted subs dinfo = tinfo
 
 -- | Replace @"@ with the previous non-@"@ call, if there was one.
 --

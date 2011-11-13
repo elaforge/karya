@@ -624,6 +624,7 @@ data TrackEvents = TrackEvents {
     -- for the block stretch hack.  Note that this is the end of the longest
     -- track of the block, so it's not the same as @snd . tevents_range@.
     , tevents_end :: !ScoreTime
+
     -- | Range of the track.  This may be past the end of the last event since
     -- it's the range of the block as a whole.
     --
@@ -640,6 +641,14 @@ data TrackEvents = TrackEvents {
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and so certain track-level things, like recording a track
     -- signal, should be skipped.
+
+    -- | If the events have been shifted from their original positions on the
+    -- track, this can be added to them to put them back in track time.  This
+    -- is for the stack, which should always be in track time.  It's probably
+    -- the same as @fst . tevents_range@, but only applies if the events have
+    -- been shifted, which you can't tell from just looking at
+    -- @tevents_range@.
+    , tevents_shifted :: !ScoreTime
     , tevents_sliced :: Bool
     } deriving (Show)
 
@@ -651,7 +660,7 @@ events_tree events_end tree = mapM resolve tree
     make title track_id = do
         track <- get_track track_id
         return $ TrackEvents title (Track.track_events track)
-            (Just track_id) events_end (0, events_end) False
+            (Just track_id) events_end (0, events_end) False 0
 
 -- ** tracks
 

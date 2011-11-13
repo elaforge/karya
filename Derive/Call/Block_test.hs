@@ -58,3 +58,16 @@ test_c_control_block = do
     -- The last sample is clipped off since it's at the end of the block.
     equal (derive [(0, 0, "0"), (1, 2, "sub"), (3, 0, "3")] sub)
         ([Just [(0, 0), (1, 1), (2, 2), (3, 3)]], [])
+
+test_c_control_block_stack = do
+    -- Ensure the stack is correct for control block calls.
+    let blocks = [("top", top), ("sub", sub)]
+        top =
+            [ (">", [(3, 1, "")])
+            , ("c", [(0, 2, "sub")])
+            ]
+        -- Failed call will produce a log msg.
+        sub = [("%", [(0, 0, "no-call")])]
+    let res = DeriveTest.derive_blocks blocks
+    strings_like (map DeriveTest.show_log_stack (DeriveTest.r_logs res))
+        ["test/top test/top.t1 0-2: test/sub test/sub.t0 0-0: Error"]

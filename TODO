@@ -46,8 +46,9 @@ UNSORTED
       * implement control control block call
       * Capture control call that just records default control, put it in
         Derive.Call.Block just so they're together.
-  - b28 and b29 windows in bloom get get moved down on load?
-  - when a control sub-block has an error, it shows up with strange stack in
+  + b28 and b29 windows in bloom get get moved down on load?
+    bug in fltk, test out at home
+  * when a control sub-block has an error, it shows up with strange stack in
     the caller, I think it's due to slicing.
   get rid of schema
     * move Schema into Derive.Call.Block, move parse stuff into its own module
@@ -238,7 +239,7 @@ UNSORTED
   - set_render_style should trigger a rederive to get the track signal
   - implement add_hz in Derive.Scale.Util
     or at least think about how to implement pengumbang and pengisep
-  - subblock derivation for control tracks
+  * subblock derivation for control tracks
 
   / should be able to rescan midi devices when something new is plugged in
     Centralize midi implementation functions in a record, include scan and

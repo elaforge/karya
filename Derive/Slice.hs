@@ -109,6 +109,7 @@ slice exclusive start end insert_event = concatMap strip . map do_slice
         , State.tevents_end = end
         , State.tevents_range = track_range
         , State.tevents_sliced = True
+        , State.tevents_shifted = 0
         }
     slice_t track = track
         { State.tevents_events = events track
@@ -186,4 +187,5 @@ slice_notes start end =
         { State.tevents_end = State.tevents_end track - shift
         , State.tevents_events = Events.map_sorted
             (\(p, e) -> (p - shift, e)) (State.tevents_events track)
+        , State.tevents_shifted = State.tevents_shifted track + shift
         }

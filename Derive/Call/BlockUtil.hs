@@ -82,6 +82,7 @@ check_control_tree block_end forest = case forest of
         , State.tevents_end = block_end
         , State.tevents_range = (0, block_end)
         , State.tevents_sliced = False
+        , State.tevents_shifted = 0
         }
 
 derive_control_tree :: ScoreTime -> State.EventsTree -> Derive.ControlDeriver
