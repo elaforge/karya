@@ -88,7 +88,7 @@ operator<<(std::ostream &os, const UiMsg::Event &e)
     os << " mods=" << show_event_state(e.modifier_state);
     if (FL_PUSH == e.event || FL_DRAG == e.event || FL_RELEASE == e.event) {
         os << " button=" << e.button << " clicks=" << e.clicks
-            << " is_click=" << e.is_click
+            << " is_click=" << (e.is_click ? "t" : "f")
             << " xy=(" << e.x << ", " << e.y << ")";
     }
     return os;
@@ -163,8 +163,6 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
             c.track_type = UiMsg::track_divider;
     }
 
-    // If the event is right of 'tracks', 't' will be left as 'tracks - 1',
-    // which is the correct behaviour for dragging a selection.
     if (t && track_drag) {
         int y = Fl::event_y() - t->y();
         c.has_pos = true;

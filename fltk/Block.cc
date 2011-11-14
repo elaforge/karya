@@ -756,7 +756,9 @@ BlockViewWindow::handle(int evt)
             Fl::focus(this);
             // fall through
         case FL_DRAG: case FL_RELEASE:
-            MsgCollector::get()->event(evt);
+            // If it's in the track area but reached here it must be right
+            // of the rightmost track.
+            MsgCollector::get()->event(evt, block.event_in_track_area());
             break;
         case FL_FOCUS:
             // This is sent *before* the widget becomes Fl::focus().

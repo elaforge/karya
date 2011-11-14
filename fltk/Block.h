@@ -155,6 +155,9 @@ public:
     // Just so the MsgCollector can know if the mouse is in a track.
     int status_top() const { return status_line.y(); }
 
+    bool event_in_track_area() const {
+        return Fl::event_inside(&track_scroll);
+    }
 private:
     BlockModelConfig model_config;
     ZoomInfo zoom;

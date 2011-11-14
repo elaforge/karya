@@ -81,7 +81,7 @@ UNSORTED
     format.  This also makes it easier to change Show for various logged types
     like Derive.Stack since I don't then have to write a Read.
   - rename Ui to Types
-  - click to the right of the tracks shouldn't highlight the rightmost track
+  * click to the right of the tracks shouldn't highlight the rightmost track
   - tempo composition is problematic because it means you can't change the
     length of a block from within the block.  So slowing down one part will
     speed up another.  How can I get local tempo like I want?  Or just edit
