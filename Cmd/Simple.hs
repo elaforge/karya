@@ -78,7 +78,7 @@ dump_block block_id = do
     let track_ids = Block.block_track_ids block
     tracks <- mapM dump_track track_ids
     tree <- State.get_track_tree block_id
-    return (Id.id_string block_id, Block.block_title block, tracks,
+    return (Id.ident_string block_id, Block.block_title block, tracks,
         to_skel tree)
     where
     to_skel = concatMap go
@@ -95,7 +95,7 @@ dump_track track_id = do
 
 simplify_track :: TrackId -> Track.Track -> Track
 simplify_track track_id track =
-    (Id.id_string track_id, Track.track_title track, map event events)
+    (Id.ident_string track_id, Track.track_title track, map event events)
     where events = Events.ascending (Track.track_events track)
 
 dump_selection :: Cmd.CmdL [(TrackId, [Event])]
