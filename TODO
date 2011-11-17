@@ -75,7 +75,7 @@ UNSORTED
   * perform should also warn about 0 pitch sig, since that's what the pitch
     track is before a note... or just use 0 for invalid instead of -1
 
-  - special logview support for cache msgs: collect together rederived and
+  * special logview support for cache msgs: collect together rederived and
     cached block ids.
   - Serialize logs with Serialize rather than as text, but I need a record
     format.  This also makes it easier to change Show for various logged types
@@ -112,7 +112,6 @@ UNSORTED
   - after an uncollapse, it doesn't redraw the selection that was underneath
     Not a big deal since a selection shouldn't be underneath but still...
   * a collapse should push the selection out
-  - logview: some kind of indicator that a dup msg was suppressed
   - root block window name gets a *?  or if I won't have window names visible,
     put this in the view status line
   - randomize any control by having the 'set' call look for the -rnd control

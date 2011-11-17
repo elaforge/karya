@@ -47,6 +47,9 @@ maybe_parse_string parser = maybe_parse parser . B.pack
 float :: String -> Maybe Double
 float = maybe_parse_string p_float
 
+int :: String -> Maybe Int
+int = maybe_parse_string p_int
+
 -- * other
 
 -- | Pretty's show_float is re-exported here because it produces a string that

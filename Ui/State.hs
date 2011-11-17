@@ -641,6 +641,7 @@ data TrackEvents = TrackEvents {
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and so certain track-level things, like recording a track
     -- signal, should be skipped.
+    , tevents_sliced :: Bool
 
     -- | If the events have been shifted from their original positions on the
     -- track, this can be added to them to put them back in track time.  This
@@ -649,7 +650,6 @@ data TrackEvents = TrackEvents {
     -- been shifted, which you can't tell from just looking at
     -- @tevents_range@.
     , tevents_shifted :: !ScoreTime
-    , tevents_sliced :: Bool
     } deriving (Show)
 
 events_tree :: (M m) => ScoreTime -> TrackTree -> m EventsTree

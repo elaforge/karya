@@ -148,6 +148,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         =<< lookup_current_performance block_id
     start <- Perf.get_realtime perf block_id start_track start_pos
     msgs <- PlayUtil.shift_messages start <$> PlayUtil.perform_from start perf
+    Log.debug $ "play block " ++ show block_id
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs
 

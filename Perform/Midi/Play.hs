@@ -9,9 +9,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
-
 import qualified Midi.CC as CC
 import qualified Midi.Midi as Midi
 import qualified Derive.LEvent as LEvent
@@ -39,9 +37,6 @@ play transport_info block_id midi_msgs = do
 player_thread :: State -> Messages -> IO ()
 player_thread state msgs = do
     let name = show (state_block_id state)
-    secs <- Log.time_eval (take 10 msgs)
-    Log.debug $ "play block " ++ name
-        ++ " initialize: " ++ Pretty.pretty (RealTime.seconds secs)
     play_msgs state Set.empty msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Transport.info_send_status (state_info state)

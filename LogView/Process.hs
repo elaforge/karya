@@ -1,23 +1,30 @@
+{-# LANGUAGE PatternGuards #-}
 module LogView.Process where
 import qualified Control.Concurrent.STM as STM
 import Control.Monad
 import qualified Control.Monad.Trans.State as State
 import qualified Control.Monad.Trans.Writer as Writer
+
 import qualified Data.Foldable as Foldable
 import qualified Data.Functor.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Sequence as Sequence
 import qualified Data.Time as Time
-import qualified System.IO as IO
 
-import qualified Derive.Stack as Stack
+import qualified System.IO as IO
+import qualified Text.Printf as Printf
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Map as Map
+import qualified Util.ParseBs as ParseBs
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
+
+import qualified Ui.Id as Id
+import qualified Derive.Stack as Stack
 
 
 -- | Only display timing msgs that take longer than this.
@@ -31,6 +38,7 @@ data State = State {
     -- | Msgs matching this regex have their matching groups put in the
     -- status line.
     , state_catch_patterns :: [CatchPattern]
+    , state_cache :: Cache
     , state_status :: Status
     -- | A cache of the most recent msgs.  When the filter is changed they can
     -- be displayed.  This way memory use is bounded but you can display recent
@@ -43,7 +51,17 @@ data State = State {
 
 initial_state :: String -> State
 initial_state filt = State
-    (compile_filter filt) [] Map.empty Sequence.empty Nothing
+    (compile_filter filt) [] initial_cache Map.empty Sequence.empty Nothing
+
+-- | Keep track of cache msgs.
+data Cache = Cache {
+    cache_rederived :: Map.Map String [String]
+    , cache_total :: Int
+    , cache_blocks :: [String]
+    } deriving (Show)
+
+initial_cache :: Cache
+initial_cache = Cache Map.empty 0 []
 
 add_msg :: Int -> Log.Msg -> State -> State
 add_msg history msg state = state { state_cached_msgs = seq }
@@ -54,12 +72,8 @@ state_msgs = Foldable.toList . state_cached_msgs
 
 -- ** catch
 
--- | This searches the log msg text for a regex and puts it in the status bar
--- with the given key string.
---
--- If the regex has no groups, the entire match is used for the value.  If it
--- has one group, that group is used.  If it has two groups, the first group
--- will replace the key.  >2 groups is an error.
+-- | Transform the status line based on each msg.
+type Catch = Log.Msg -> Status -> Status
 type CatchPattern = (String, Regex.Regex)
 
 -- ** status
@@ -93,17 +107,26 @@ type ProcessM = State.StateT State Identity.Identity
 -- a colorized version.  Also possibly modify the app state for things like
 -- catch and timing.
 process_msg :: State -> Log.Msg -> (Maybe StyledText, State)
-process_msg state msg = run $ suppress_last msg $ do
+process_msg state msg = run $ do -- suppress_last msg $ do
     let styled = format_msg msg
     filt <- State.gets state_filter
-    State.modify $ \st -> st { state_status =
-        catch_patterns (state_catch_patterns state) (Log.msg_string msg)
-            (state_status state) }
+    process_cache msg
+    process_catch
     return $ if eval_filter filt msg (style_text styled)
         then Just styled
         else Nothing
     where
     run = flip State.runState state
+    process_catch = State.modify $ \st -> st { state_status =
+        catch (state_status st) (state_catch_patterns st) }
+    catch status patterns = List.foldl'
+        (\status catch -> catch msg status) status (catches patterns)
+
+catches :: [CatchPattern] -> [Catch]
+catches patterns =
+    [ catch_regexes patterns
+    , catch_start
+    ]
 
 suppress_last :: Log.Msg -> ProcessM (Maybe a) -> ProcessM (Maybe a)
 suppress_last msg process = do
@@ -120,19 +143,102 @@ suppress_last msg process = do
             return result
     where matches m1 m2 = Log.msg_text m1 == Log.msg_text m2
 
-catch_patterns :: [CatchPattern] -> String -> Status -> Status
-catch_patterns patterns text old
-    -- The app sends this on startup, so I can clear out any status from the
-    -- last session.
-    | text == "app starting" = Map.empty
-    | otherwise = Map.union (Map.fromList $ concatMap match patterns) old
+-- | This searches the log msg text for a regex and puts it in the status bar
+-- with the given key string.
+--
+-- If the regex has no groups, the entire match is used for the value.  If it
+-- has one group, that group is used.  If it has two groups, the first group
+-- will replace the key.  >2 groups is an error.
+catch_regexes :: [CatchPattern] -> Catch
+catch_regexes patterns msg =
+    Map.union (Map.fromList (concatMap match patterns))
     where
-    match (title, reg) = map extract (Regex.find_groups reg text)
+    match (title, reg) =
+        map extract (Regex.find_groups reg (Log.msg_string msg))
         where
-        extract (match, []) = (title, match)
         extract (_, [match]) = (title, match)
         extract (_, [match_title, match]) = (match_title, match)
         extract _ = error $ show reg ++ " has >2 groups"
+
+-- | The app sends this on startup, so I can clear out any status from the
+-- last session.
+catch_start :: Catch
+catch_start msg status
+    | Log.msg_string msg == "app starting" = Map.empty
+    | otherwise = status
+
+
+-- ** cache status
+
+-- | Update the Cache state and Status.
+--
+-- The status keys start with ~ so they sort last.
+process_cache :: Log.Msg -> ProcessM ()
+process_cache msg
+    | Regex.matches start_play_pattern (Log.msg_string msg) = do
+        modify_cache $ const initial_cache
+        modify_status $ Map.filter_key ((/="~") . take 1)
+    | Just because <- extract rederived_pattern =
+        increment_rederived bid because
+    | Just nvals <- extract cached_pattern, Just vals <- ParseBs.int nvals =
+        increment_cached bid vals
+    | otherwise = return ()
+    where
+    bid = maybe "<nostack>" stack_block (Log.msg_stack msg)
+    extract regex = case Regex.find_groups regex (Log.msg_string msg) of
+        [] -> Nothing
+        [(_, [match])] -> Just match
+        [(match, [])] -> Just match
+        [(_, _:_:_)] -> error $ show regex ++ " has >1 group"
+        matches -> error $
+            "unexpected matches for " ++ show regex ++ ": " ++ show matches
+    start_play_pattern = Regex.make "^play block "
+    rederived_pattern = Regex.make "rederived generator because of (.*)"
+    cached_pattern = Regex.make "using cache, (\\d+) vals"
+
+-- | Add the block of the given msg to the status string.  E.g.,
+-- \"[13] bid1 bid2 ...\" -> \"14 bid0 bid1 ...\"
+increment_rederived :: String -> String -> ProcessM ()
+increment_rederived bid because = do
+    bids <- State.gets (Map.get [] because . cache_rederived . state_cache)
+    modify_cache $ \cache -> cache { cache_rederived =
+        Map.insert because (bid : bids) (cache_rederived cache) }
+    modify_status $
+        Map.insert ("~rederived " ++ because) (rederived (bid:bids))
+    where
+    rederived bids = ellide 25 $
+        Printf.printf "[%d] %s" (length bids) (unwords bids)
+
+-- | Add the number of cached blocks and total cached events.  E.g.,
+-- \"cached: 10 [42]: bid1 bid2 bid3 ...\"
+increment_cached :: String -> Int -> ProcessM ()
+increment_cached bid vals = do
+    modify_cache $ \cache -> cache
+        { cache_total = vals + (cache_total cache)
+        , cache_blocks = bid : cache_blocks cache
+        }
+    cache <- State.gets state_cache
+    modify_status $ Map.insert "~cached" (cached cache)
+    where
+    cached cache = ellide 25 $ Printf.printf "%d [%d] %s"
+        (length (cache_blocks cache)) (cache_total cache)
+        (unwords (cache_blocks cache))
+
+stack_block :: Stack.Stack -> String
+stack_block = maybe "<noblock>" Id.ident_name . msum . map Stack.block_of
+    . Stack.innermost
+
+ellide :: Int -> String -> String
+ellide len s
+    | length s > len = take (len-3) s ++ "..."
+    | otherwise = s
+
+modify_cache :: (Cache -> Cache) -> ProcessM ()
+modify_cache f = State.modify $ \st -> st { state_cache = f (state_cache st) }
+
+modify_status :: (Status -> Status) -> ProcessM ()
+modify_status f =
+    State.modify $ \st -> st { state_status = f (state_status st) }
 
 -- ** filter
 

@@ -48,14 +48,14 @@ caching_call call args = do
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
-        Log.debug $ "using cache (" ++ show (LEvent.length cached) ++ " vals)"
+        Log.debug $ "using cache, " ++ show (LEvent.length cached) ++ " vals"
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
         Internal.merge_collect collect
         return cached
     generate stack (Left reason) = do
         (result, collect) <- with_collect (call args)
-        Log.notice $ "rederived generator because of "
+        Log.debug $ "rederived generator because of "
             -- This destroys laziness, though I'm not sure why since the
             -- log msg shouldn't be forced until the msgs already have been
             -- forced themselves.

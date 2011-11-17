@@ -1,9 +1,7 @@
 -- | More user friendly regex api.
 module Util.Regex where
-import Control.Monad.Error () -- for instance (Either String)
-import qualified Data.Maybe as Maybe
-
 import qualified Data.Array.IArray as IArray
+import qualified Data.Maybe as Maybe
 import qualified Text.Regex.PCRE as PCRE
 
 
@@ -34,8 +32,7 @@ find_groups (Regex _ reg) str =
 
 find_ranges :: Regex -> String -> [(Int, Int)]
 find_ranges (Regex _ reg) str = concatMap extract (PCRE.matchAll reg str)
-    where
-    extract arr = [(i, i+n) | (i, n) <- IArray.elems arr]
+    where extract arr = [(i, i+n) | (i, n) <- IArray.elems arr]
 
 -- | Escape a string so the regex matches it literally.
 escape :: String -> String
