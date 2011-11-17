@@ -21,12 +21,12 @@ import qualified Data.Maybe as Maybe
 import Data.Ratio
 
 import qualified Util.Seq as Seq
-import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 
 import qualified App.Config as Config
+import Types
 
 
 -- * constants

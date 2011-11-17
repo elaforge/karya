@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Pretty as Pretty
-import Ui
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -25,6 +24,8 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
+
+import Types
 
 
 note_calls :: Derive.NoteCallMap

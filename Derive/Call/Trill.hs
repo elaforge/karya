@@ -29,7 +29,6 @@ module Derive.Call.Trill where
 import qualified Data.List as List
 
 import qualified Util.Num as Num
-import Ui
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional, required, control)
@@ -39,6 +38,8 @@ import qualified Derive.Scale as Scale
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 note_calls :: Derive.NoteCallMap

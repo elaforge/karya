@@ -8,9 +8,9 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
-import Ui
-import qualified Ui.Types as Types
 import qualified Ui.Key as Key
+import qualified Ui.Types as Types
+import Types
 
 
 -- | Technically not all UiMsgs have a Context, but it's easier to give

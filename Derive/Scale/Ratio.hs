@@ -11,10 +11,7 @@
 module Derive.Scale.Ratio where
 import Util.Control
 import qualified Util.ParseBs as Parse
-
-import Ui
 import qualified Ui.Track as Track
-
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional)
 import qualified Derive.Derive as Derive
@@ -24,6 +21,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
+import Types
 
 
 scale = Scale.Scale {

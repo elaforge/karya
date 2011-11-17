@@ -23,10 +23,8 @@ import qualified Util.Num as Num
 import qualified Util.Random as Random
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
-
 import qualified Derive.Call as Call
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
@@ -40,6 +38,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 -- * signals

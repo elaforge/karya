@@ -41,7 +41,6 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -60,6 +59,8 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 -- * derive

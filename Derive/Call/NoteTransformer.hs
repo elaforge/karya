@@ -4,7 +4,6 @@ import Control.Monad
 
 import Util.Control
 import qualified Util.Seq as Seq
-import Ui
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -14,6 +13,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
 import qualified Perform.RealTime as RealTime
+import Types
 
 
 note_calls :: Derive.NoteCallMap

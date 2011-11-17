@@ -12,7 +12,6 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -22,6 +21,7 @@ import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified App.Config as Config
+import Types
 
 
 -- * record keys

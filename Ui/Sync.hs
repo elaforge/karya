@@ -39,7 +39,6 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Events as Events
@@ -50,6 +49,7 @@ import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
 import qualified App.Config as Config
+import Types
 
 
 -- | Sync with the ui by applying the given updates to it.

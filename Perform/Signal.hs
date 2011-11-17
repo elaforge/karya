@@ -52,11 +52,12 @@ import qualified Data.StorableVector as V
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.RealTime as RealTime
 import qualified Perform.SignalBase as SignalBase
 import Perform.SignalStorable ()
+
+import Types
 
 
 -- * types

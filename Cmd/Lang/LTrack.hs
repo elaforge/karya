@@ -6,7 +6,6 @@ import Util.Control
 import qualified Util.ParseBs as ParseBs
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -19,6 +18,7 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.Track as Track
 
 import qualified Derive.TrackInfo as TrackInfo
+import Types
 
 
 get_type :: BlockId -> TrackNum -> Cmd.CmdL Track.TrackType

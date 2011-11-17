@@ -5,11 +5,11 @@ import Foreign.C
 import qualified Data.Maybe as Maybe
 import Util.Control
 
-import Ui
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Types as Types
+import Types
 
 
 get_ui_msgs :: IO [UiMsg.UiMsg]

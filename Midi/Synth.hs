@@ -4,13 +4,13 @@
 -- TODO I'll probably want a more efficient signal format eventually.
 module Midi.Synth where
 import Control.Monad
-import qualified Control.Monad.State.Strict as State
-import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.Identity as Identity
+import qualified Control.Monad.Reader as Reader
+import qualified Control.Monad.State.Strict as State
+
 import qualified Data.Map as Map
 import qualified Text.Printf as Printf
 
-import Ui
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -18,6 +18,7 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Perform.RealTime as RealTime
+import Types
 
 
 data State = State {

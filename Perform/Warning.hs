@@ -2,9 +2,8 @@ module Perform.Warning where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Error as Error
 
-import Ui
-
 import qualified Derive.Stack as Stack
+import Types
 
 
 data Warning = Warning {

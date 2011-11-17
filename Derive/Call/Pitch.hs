@@ -1,11 +1,9 @@
 -- | Create val calls for scale degrees.
 module Derive.Call.Pitch where
-
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -17,6 +15,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 -- | Create a note val call for the given scale degree.  This is intended to

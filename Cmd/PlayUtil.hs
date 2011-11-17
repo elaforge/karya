@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Call.Block as Block
@@ -24,6 +23,7 @@ import qualified Perform.Pitch as Pitch
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
+import Types
 
 
 -- | There are a few environ values that almost everything relies on.

@@ -10,7 +10,6 @@ import qualified Util.CPUTime as CPUTime
 import Util.Control
 import Util.Test
 
-import Ui
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.State as State
@@ -21,6 +20,8 @@ import qualified Derive.Cache_test as Cache_test
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Derive_profile as Derive_profile
+
+import Types
 
 
 profile_normal = do

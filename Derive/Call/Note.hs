@@ -10,7 +10,6 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -27,6 +26,8 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 note_calls :: Derive.NoteCallMap

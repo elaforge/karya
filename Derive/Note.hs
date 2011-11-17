@@ -132,16 +132,16 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.Tree as Tree
 
 import Util.Control
-import Ui
 import qualified Ui.Events as Events
 import qualified Ui.State as State
-
 import qualified Derive.Call as Call
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.ParseBs as Parse
 import qualified Derive.TrackLang as TrackLang
+
+import Types
 
 
 -- * note track

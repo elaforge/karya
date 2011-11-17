@@ -1,7 +1,6 @@
 -- | Cmds related to view level state.
 module Cmd.ViewConfig where
 import qualified Util.Rect as Rect
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
@@ -11,6 +10,8 @@ import qualified Ui.Update as Update
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Selection as Selection
+
+import Types
 
 
 -- * zoom

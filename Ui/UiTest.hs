@@ -7,7 +7,6 @@ import Util.Control
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -26,6 +25,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified App.Config as Config
+import Types
 
 
 -- | (10, 50) seems to be the smallest x,y OS X will accept.  Apparently

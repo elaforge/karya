@@ -20,10 +20,8 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Midi.State
-import Ui
 import qualified Ui.State as State
 import qualified Ui.Types as Types
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PlayUtil as PlayUtil
@@ -35,6 +33,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified App.Config as Config
+import Types
 
 
 selnum :: Types.SelNum

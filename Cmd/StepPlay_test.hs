@@ -8,7 +8,6 @@ import Util.Test
 
 import qualified Midi.Midi as Midi
 import qualified Midi.State
-import Ui
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
@@ -20,6 +19,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.RealTime as RealTime
+import Types
 
 
 test_make_states = do

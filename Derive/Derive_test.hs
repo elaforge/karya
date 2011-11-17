@@ -11,7 +11,6 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -33,6 +32,8 @@ import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
+
+import Types
 
 
 test_basic = do

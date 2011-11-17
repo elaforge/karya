@@ -64,7 +64,6 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Midi.State
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -96,6 +95,7 @@ import qualified Perform.Transport as Transport
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
+import Types
 
 
 -- | This makes Cmds more specific than they have to be, and doesn't let them

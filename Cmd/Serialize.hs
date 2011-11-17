@@ -27,7 +27,6 @@ import qualified Util.Serialize as Serialize
 import Util.Serialize (Serialize, get, put)
 
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -44,6 +43,8 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 serialize :: (Serialize a) => FilePath -> a -> IO ()

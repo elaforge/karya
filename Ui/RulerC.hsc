@@ -10,9 +10,9 @@ import Foreign
 import Foreign.C
 import qualified Util.Num as Num
 
-import Ui
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Util as Util
+import Types
 
 
 with_ruler :: Ruler.Ruler

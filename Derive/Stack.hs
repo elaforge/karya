@@ -23,10 +23,11 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Types as Types
+
+import Types
 
 
 -- | The Stack is read in both inner -> outer and outer -> inner order.  Since

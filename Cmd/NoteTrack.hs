@@ -18,7 +18,6 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
-import Ui
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -36,6 +35,7 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
+import Types
 
 
 -- | Indicate the pitch track of a note track, or how to create one if

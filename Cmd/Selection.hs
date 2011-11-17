@@ -21,7 +21,6 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
@@ -40,6 +39,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Score as Score
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
+import Types
 
 
 -- * cmds

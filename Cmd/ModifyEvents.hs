@@ -4,7 +4,6 @@ import Control.Monad
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -12,6 +11,7 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
+import Types
 
 
 -- * main modification

@@ -17,16 +17,16 @@ import qualified Util.Log as Log
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
-
 import qualified Derive.Derive as Derive
 import Derive.Derive
        (Cache(..), Cached(..), ScoreDamage(..), ControlDamage(..))
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
+
+import Types
 
 
 -- * caching_call

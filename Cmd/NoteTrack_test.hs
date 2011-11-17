@@ -1,6 +1,5 @@
 module Cmd.NoteTrack_test where
 import Util.Test
-import Ui
 import qualified Ui.Key as Key
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
@@ -12,6 +11,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
+
+import Types
 
 
 mkkey = CmdTest.make_key UiMsg.KeyDown

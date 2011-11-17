@@ -12,7 +12,6 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.Diff as Diff
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -39,6 +38,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
+import Types
 
 
 -- * running cmds

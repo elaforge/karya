@@ -5,13 +5,12 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Log as Log
-import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
-
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
+import Types
 
 
 -- * track

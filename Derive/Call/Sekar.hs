@@ -11,7 +11,7 @@
 module Derive.Call.Sekar where
 -- import Control.Monad
 -- import qualified Data.Char as Char
--- import Ui
+-- import Types
 -- import qualified Ui.Event as Event
 -- import qualified Ui.Track as Track
 -- import Util.Control

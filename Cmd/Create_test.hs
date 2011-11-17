@@ -3,7 +3,6 @@ import qualified Data.List as List
 
 import Util.Control
 import Util.Test
-import Ui
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -12,6 +11,8 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
+
+import Types
 
 
 test_track_ruler = do

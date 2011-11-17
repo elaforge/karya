@@ -89,7 +89,6 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.State as State
@@ -108,6 +107,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
+import Types
 
 
 -- * cmds

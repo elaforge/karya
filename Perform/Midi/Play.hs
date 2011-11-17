@@ -14,11 +14,12 @@ import qualified Util.Thread as Thread
 
 import qualified Midi.CC as CC
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
+
+import Types
 
 
 type Messages = [LEvent.LEvent Midi.WriteMessage]

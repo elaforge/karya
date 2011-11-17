@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
@@ -25,6 +24,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
+import Types
 
 
 -- * raw edit

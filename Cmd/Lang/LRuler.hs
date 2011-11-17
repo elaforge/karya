@@ -8,7 +8,6 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -22,6 +21,8 @@ import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
+
+import Types
 
 
 -- | Replace the meter for the rulers of this block.

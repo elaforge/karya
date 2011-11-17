@@ -19,7 +19,6 @@ import qualified Util.Map as Map
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
@@ -29,6 +28,7 @@ import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Derive.Deriver.Monad as Derive
+import Types
 
 
 type DiffError = String

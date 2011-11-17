@@ -33,7 +33,6 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
@@ -42,6 +41,8 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
+
+import Types
 
 
 type CmdUpdate = Update Block.Track StateUpdate

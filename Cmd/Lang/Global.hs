@@ -37,7 +37,6 @@ import qualified Util.Seq as Seq
 import qualified Util.Map as Map
 import qualified Util.PPrint as PPrint
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -72,6 +71,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified App.Config as Config
+import Types
 
 
 -- * util

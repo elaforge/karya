@@ -19,7 +19,6 @@ module Cmd.Responder (
     , respond, State(..)
 #endif
 ) where
-
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
@@ -39,7 +38,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.UiMsg as UiMsg
@@ -59,6 +57,7 @@ import qualified Cmd.Undo as Undo
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
+import Types
 
 
 data State = State {

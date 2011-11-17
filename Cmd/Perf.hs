@@ -12,7 +12,6 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -29,6 +28,8 @@ import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
+
+import Types
 
 
 -- * notes

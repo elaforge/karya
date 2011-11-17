@@ -3,9 +3,9 @@ import qualified Data.Map as Map
 
 import Util.Control
 import Util.Test
-import Ui
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
+import Types
 
 
 marklist :: [ScoreTime] -> Ruler.Marklist

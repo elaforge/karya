@@ -83,7 +83,6 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -98,6 +97,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Types
 
 
 -- * eval

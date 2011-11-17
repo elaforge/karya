@@ -20,7 +20,6 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
-import Ui
 import qualified Ui.Diff as Diff
 import qualified Ui.State as State
 import qualified Ui.Update as Update
@@ -32,6 +31,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.RealTime as RealTime
+import Types
 
 
 type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()

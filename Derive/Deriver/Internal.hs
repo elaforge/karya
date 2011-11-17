@@ -11,7 +11,6 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.State as State
 import Derive.Deriver.Monad
 import qualified Derive.Score as Score
@@ -21,6 +20,7 @@ import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Types
 
 
 -- * generic state access

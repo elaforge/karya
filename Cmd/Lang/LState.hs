@@ -4,11 +4,10 @@ import qualified Control.Monad.Trans as Trans
 import qualified System.IO as IO
 
 import qualified Util.PPrint as PPrint
-import Ui
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
-
 import qualified Cmd.Cmd as Cmd
+import Types
 
 
 save_test :: FilePath -> Cmd.CmdL ()

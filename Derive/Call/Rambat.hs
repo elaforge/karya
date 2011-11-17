@@ -1,7 +1,6 @@
 module Derive.Call.Rambat where
 import Data.FixedList (Cons(..), Nil(..))
 
-import Ui
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional, control)
@@ -9,6 +8,7 @@ import qualified Derive.Derive as Derive
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Types
 
 
 note_calls :: Derive.NoteCallMap

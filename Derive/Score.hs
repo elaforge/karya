@@ -16,13 +16,15 @@ import qualified Data.Set as Set
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import Ui
+
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Stack as Stack
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 -- * Event

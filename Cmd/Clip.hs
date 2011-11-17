@@ -35,7 +35,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -52,6 +51,7 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 
 import qualified App.Config as Config
+import Types
 
 
 -- * clipboard ops

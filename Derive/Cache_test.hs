@@ -10,7 +10,6 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 import Util.Test
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
@@ -28,6 +27,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Signal as Signal
+import Types
 
 
 -- * other functions

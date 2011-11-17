@@ -8,7 +8,6 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
-import Ui
 import qualified Ui.Diff as Diff
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -16,6 +15,7 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Performance as Performance
+import Types
 
 
 type Sync = Track.TrackSignals -> State.State -> [Update.DisplayUpdate]

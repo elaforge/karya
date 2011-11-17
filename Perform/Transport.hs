@@ -8,9 +8,9 @@ import qualified Data.IORef as IORef
 
 import qualified Util.Thread as Thread
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.State as State
 import qualified Derive.Score as Score
+import Types
 
 
 -- | These go back to the responder loop from the render thread to notify it

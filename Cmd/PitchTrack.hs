@@ -10,7 +10,6 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
@@ -29,6 +28,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
+import Types
 
 
 -- * entry

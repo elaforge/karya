@@ -11,30 +11,31 @@ import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State.Strict as State
+
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-
-import qualified Midi.Midi as Midi
-import Ui
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 
+import qualified Midi.Midi as Midi
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
+import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Perform as Perform
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import qualified Perform.Warning as Warning
-import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Perform as Perform
-import qualified Perform.Midi.Instrument as Instrument
+
 import qualified Instrument.MidiDb as MidiDb
+import Types
 
 
 -- TODO record logs directly and remove warn_to_log

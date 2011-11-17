@@ -1,19 +1,18 @@
 module Cmd.Clip_test where
-import Util.Test
 import qualified Util.Log as Log
-
-import Ui
+import Util.Test
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Clip as Clip
-import qualified Cmd.Simple as Simple
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Simple as Simple
 
 import qualified App.Config as Config
+import Types
 
 
 (empty_track_ids, empty_state) = UiTest.run_mkview [("t1", []), ("t2", [])]

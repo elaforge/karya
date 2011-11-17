@@ -10,7 +10,6 @@
 module Derive.Call.Echo where
 import Data.FixedList (Cons(..), Nil(..))
 
-import Ui
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -20,6 +19,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Types
 
 
 note_calls :: Derive.NoteCallMap

@@ -53,8 +53,8 @@ import qualified Data.Map as Map
 
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
-import Ui
 import qualified Ui.Event as Event
+import Types
 
 
 -- * PosEvent

@@ -4,7 +4,6 @@ import Control.Monad
 
 import Util.Control
 import qualified Util.Log as Log
-import Ui
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
@@ -19,6 +18,7 @@ import qualified Cmd.PitchTrack as PitchTrack
 
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Instrument.MidiDb as MidiDb
+import Types
 
 
 track_cmd :: Cmd.Cmd

@@ -9,7 +9,6 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Skeleton as Skeleton
@@ -24,6 +23,7 @@ import qualified Cmd.Track as Track
 import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified App.Config as Config
+import Types
 
 
 -- * block

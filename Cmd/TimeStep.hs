@@ -27,11 +27,12 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+
+import Types
 
 
 -- | A list of Steps and skip factors.  The TimeStep is the given steps

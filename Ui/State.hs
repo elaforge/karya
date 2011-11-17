@@ -42,7 +42,6 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -59,6 +58,7 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
+import Types
 
 
 data State = State {

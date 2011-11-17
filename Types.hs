@@ -1,6 +1,7 @@
--- | This re-exports especially popular symbols from the Ui package.  Unlike
--- most of the other modules, it's meant to be imported unqualified.
-module Ui (
+-- | This re-exports especially popular types, since they are frequently
+-- mentioned in type signatures.  Unlike most of the other modules, it's meant
+-- to be imported unqualified.
+module Types (
     TrackNum, ScoreTime, RealTime
     , BlockId, ViewId, TrackId, RulerId
 ) where

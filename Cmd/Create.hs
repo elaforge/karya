@@ -23,7 +23,6 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
@@ -37,6 +36,7 @@ import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Selection as Selection
 
 import qualified App.Config as Config
+import Types
 
 
 -- * global modifications

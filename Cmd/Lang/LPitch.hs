@@ -6,7 +6,6 @@
 -- generic places.
 module Cmd.Lang.LPitch where
 import Util.Control
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -24,6 +23,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
+import Types
 
 
 -- * invert

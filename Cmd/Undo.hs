@@ -5,7 +5,6 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -13,6 +12,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
+import Types
 
 
 -- * undo / redo

@@ -7,7 +7,6 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Set as Set
 
-import Ui
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -22,6 +21,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 note_calls :: Derive.NoteCallMap

@@ -4,7 +4,6 @@ import qualified System.IO as IO
 
 import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.Key as Key
 import qualified Ui.Track as Track
 import qualified Ui.UiMsg as UiMsg
@@ -13,6 +12,7 @@ import qualified Cmd.InputNote as InputNote
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Transport as Transport
+import Types
 
 
 data Msg =

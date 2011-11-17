@@ -9,8 +9,8 @@ import Util.Control
 import qualified Util.Map as Map
 import Util.Pretty
 
-import Ui
 import qualified Ui.Color as Color
+import Types
 
 
 data Ruler = Ruler {

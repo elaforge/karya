@@ -9,7 +9,6 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
-import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -26,6 +25,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
+import Types
 
 
 cmd_toggle_raw_edit, cmd_toggle_val_edit,

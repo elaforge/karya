@@ -109,7 +109,6 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -126,6 +125,8 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 

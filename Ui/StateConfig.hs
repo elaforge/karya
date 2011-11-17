@@ -5,12 +5,13 @@
 module Ui.StateConfig where
 import qualified Data.Generics as Generics
 
-import Ui
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 data Config = Config {

@@ -13,7 +13,6 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -41,6 +40,7 @@ import qualified Perform.Signal as Signal
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.MidiInst as MidiInst
+import Types
 
 
 scale_id = Twelve.scale_id

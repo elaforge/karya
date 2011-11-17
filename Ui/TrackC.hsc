@@ -15,7 +15,6 @@ import Foreign.C
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
@@ -23,6 +22,7 @@ import qualified Ui.Util as Util
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
+import Types
 
 
 #include "Ui/c_interface.h"

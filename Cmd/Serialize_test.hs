@@ -1,12 +1,10 @@
 module Cmd.Serialize_test where
 import qualified Util.Serialize
 import Util.Test
-
-import Ui
-
-import qualified Ui.UiTest as UiTest
 import qualified Ui.State as State
+import qualified Ui.UiTest as UiTest
 import qualified Cmd.Serialize as Serialize
+import Types
 
 
 test_serialize = do

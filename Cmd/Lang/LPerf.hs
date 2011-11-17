@@ -1,9 +1,10 @@
 -- | Cmds to deal with Cmd.Performance, derivation, and performance.
 module Cmd.Lang.LPerf where
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
@@ -19,6 +20,8 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.RealTime as RealTime
+
+import Types
 
 
 get_perf :: Cmd.CmdL Cmd.Performance

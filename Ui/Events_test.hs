@@ -1,9 +1,8 @@
 module Ui.Events_test where
 import Util.Test
-
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import Types
 
 
 -- TODO improve tests

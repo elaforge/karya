@@ -53,7 +53,6 @@ import qualified System.IO.Unsafe as Unsafe
 import Util.Control
 import qualified Util.Rect as Rect
 
-import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Types as Types
 import qualified Ui.Util as Util
@@ -66,6 +65,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
 import qualified Ui.Track as Track
 import qualified Ui.TrackC as TrackC
+import Types
 
 
 #include "Ui/c_interface.h"

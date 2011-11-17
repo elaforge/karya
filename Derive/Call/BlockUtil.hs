@@ -15,7 +15,6 @@ import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Log as Log
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -30,6 +29,7 @@ import qualified Derive.Slice as Slice
 import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Signal as Signal
+import Types
 
 
 note_deriver :: BlockId -> State.StateId Derive.EventDeriver

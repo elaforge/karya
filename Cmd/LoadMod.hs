@@ -15,7 +15,6 @@ import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Then as Then
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -31,6 +30,7 @@ import qualified Cmd.MakeRuler as MakeRuler
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.Score as Score
+import Types
 
 
 -- not implemented:

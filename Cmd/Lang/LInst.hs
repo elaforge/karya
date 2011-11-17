@@ -11,7 +11,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
@@ -20,6 +19,7 @@ import qualified Derive.TrackInfo as TrackInfo
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
+import Types
 
 
 -- * interactive

@@ -4,13 +4,13 @@ import Data.Tree (Tree(Node))
 
 import qualified Util.Seq as Seq
 import Util.Test
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 
 import qualified Derive.Slice as Slice
+import Types
 
 
 test_extract_orphans = do

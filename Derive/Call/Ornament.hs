@@ -1,6 +1,5 @@
 module Derive.Call.Ornament where
 import Util.Control
-import Ui
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -10,6 +9,8 @@ import qualified Derive.Derive as Derive
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 note_calls :: Derive.NoteCallMap

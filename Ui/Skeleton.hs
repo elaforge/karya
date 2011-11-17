@@ -7,7 +7,7 @@ import Util.Control
 import qualified Util.Graph as Graph
 import qualified Util.Seq as Seq
 
-import Ui
+import Types
 
 
 -- | The skeleton describes a hierarchical relationship between tracks.  It's

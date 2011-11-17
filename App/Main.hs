@@ -25,7 +25,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
-import Ui
+import Types
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton

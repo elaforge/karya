@@ -23,12 +23,12 @@ import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 import qualified Data.Tree as Tree
 
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 
 import qualified Derive.TrackInfo as TrackInfo
+import Types
 
 
 -- | Extract slices of subtracks that are not covered under the events of

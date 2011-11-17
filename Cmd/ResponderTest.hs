@@ -15,7 +15,6 @@ import Util.Test
 import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
-import Ui
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
@@ -30,6 +29,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
+import Types
 
 
 -- * setup

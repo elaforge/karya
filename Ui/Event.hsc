@@ -29,11 +29,11 @@ import qualified Data.ByteString.UTF8 as UTF8
 import Foreign
 import Foreign.C
 
-import Ui
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Style as Style
 
 import qualified App.Config as Config
+import Types
 
 
 data Event = Event {

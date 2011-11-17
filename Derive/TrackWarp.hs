@@ -9,14 +9,12 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Seq as Seq
-
-import Ui
 import qualified Ui.Id as Id
 import qualified Ui.Types as Types
-
-import qualified Derive.Stack as Stack
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Perform.Transport as Transport
+import Types
 
 
 newtype TrackWarp =

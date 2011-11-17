@@ -45,10 +45,11 @@ import Control.DeepSeq
 import qualified Data.DList as DList
 import qualified Data.StorableVector as V
 import qualified Data.StorableVector.Base as VectorBase
+
 import qualified Foreign.Storable as Storable
 
-import Ui
 import qualified Perform.RealTime as RealTime
+import Types
 
 -- * types
 

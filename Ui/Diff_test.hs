@@ -4,7 +4,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Ranges as Ranges
 import Util.Test
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
@@ -15,6 +14,7 @@ import qualified Ui.Update as Update
 
 import qualified Derive.Derive as Derive
 import qualified App.Config as Config
+import Types
 
 
 test_display_track = do

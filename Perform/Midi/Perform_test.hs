@@ -4,27 +4,25 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import Util.Test
 import qualified Util.Seq as Seq
+import Util.Test
 import qualified Util.Thread as Thread
-
-import Ui
 
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
-
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
+import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.SignalBase as SignalBase
 
-import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Perform as Perform
+import Types
 
 
 -- * perform

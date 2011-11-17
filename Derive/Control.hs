@@ -18,7 +18,6 @@ import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Log as Log
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -39,6 +38,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
+import Types
 
 
 type Pitch = PitchSignal.PitchSignal

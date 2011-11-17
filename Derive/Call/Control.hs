@@ -2,7 +2,6 @@
 module Derive.Call.Control where
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import Ui
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (required, optional)
@@ -10,6 +9,7 @@ import qualified Derive.Derive as Derive
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Types
 
 
 -- Warping:

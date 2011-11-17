@@ -9,6 +9,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
+
 import qualified Text.Printf as Printf
 
 import Util.Control
@@ -16,8 +17,6 @@ import qualified Util.Seq as Seq
 import qualified Util.Tree
 
 import qualified Midi.Midi as Midi
-
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -25,6 +24,7 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
+import Types
 
 
 inst_info :: (Cmd.M m) => Score.Instrument -> m String

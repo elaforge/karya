@@ -3,7 +3,6 @@ import qualified Data.Map as Map
 
 import qualified Util.Log as Log
 import Util.Test
-import Ui
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -20,6 +19,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
+import Types
 
 
 test_control_track = do

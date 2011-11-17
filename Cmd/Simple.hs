@@ -6,7 +6,6 @@ module Cmd.Simple where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Tree as Tree
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -28,6 +27,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import qualified App.Config as Config
+import Types
 
 
 -- | TODO should it have a ruler?  Otherwise they come in without a ruler...

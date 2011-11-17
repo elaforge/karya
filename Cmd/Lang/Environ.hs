@@ -18,7 +18,6 @@ import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -68,6 +67,7 @@ import qualified Instrument.Db as Db
 import Cmd.Lang.Global
 
 import qualified App.Config as Config
+import Types
 
 -- hint is now insisting these be in scope or the types from 'run' aren't
 -- found.  It smells like a bug to me...

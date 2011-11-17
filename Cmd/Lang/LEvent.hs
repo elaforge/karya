@@ -1,13 +1,12 @@
 -- | Lang cmds to deal with events.
 module Cmd.Lang.LEvent where
 import qualified Util.Seq as Seq
-
-import Ui
 import qualified Ui.Event as Event
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
+
+import Types
 
 
 stretch :: ScoreTime -> Cmd.CmdL ()
