@@ -6,11 +6,12 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - switch sysex parsing stuff to use attoparsec and ByteStrings
+  - put filename in patch tags
   - I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.
-    - check out bos's code for quickcheck?  aeson, ...
-    - make Arbitrary for BlockSpecs
-    - make a simple deriver that creates event and midi output skeletons
+    * make Arbitrary for BlockSpecs
+    + make a simple deriver that creates event and midi output skeletons
     - assert that the reduced deriver output equals the simple deriver output
     - basic pitches: If the score was created with notes aligned to note
       starts, then every NoteOn should have the appropriate key, there should
@@ -26,6 +27,7 @@ UNSORTED
       still have the expected pitches and controls as above
     - inversion: as 'basic pitches' and 'basic controls', but controls are
       below the note tracks, results should be the same
+    - stack: generate nested events, check that stack is as expected
 
   control calls
     ensure that called block has just one unnamed track, which will be
@@ -46,8 +48,7 @@ UNSORTED
       * implement control control block call
       * Capture control call that just records default control, put it in
         Derive.Call.Block just so they're together.
-  + b28 and b29 windows in bloom get get moved down on load?
-    bug in fltk, test out at home
+  * b28 and b29 windows in bloom get get moved down on load?
   * when a control sub-block has an error, it shows up with strange stack in
     the caller, I think it's due to slicing.
   get rid of schema
@@ -127,7 +128,7 @@ UNSORTED
 
   fltk
     * block title takes up space and I'm not using it, can it collapse?
-    - scrollbars mostly just taking up space, have them as transparent
+    * scrollbars mostly just taking up space, have them as transparent
       overlays?
     - skeleton display has leveled steps to make it easier to see who is
       below who.  Only if a track has multiple children.

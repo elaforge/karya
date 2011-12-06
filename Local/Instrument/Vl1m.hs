@@ -1,12 +1,14 @@
 -- | Yamaha VL1 synthesizer.
 module Local.Instrument.Vl1m where
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Word as Word
+import Data.Word (Word8)
 
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
+import qualified Text.Parsec as Parsec
 
 import Util.Control
 import qualified Util.File as File
@@ -19,6 +21,7 @@ import qualified Instrument.Parse as Parse
 import qualified App.MidiInst as MidiInst
 
 
+db_name :: String
 db_name = "vl1"
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
@@ -40,41 +43,52 @@ parse_dir dir = do
     parses <- fmap concat $ mapM parse_file fns
     Parse.warn_parses parses
 
+parse_file :: FilePath -> IO [Either Parsec.ParseError Instrument.Patch]
 parse_file fn = do
     syxs <- case FilePath.takeExtension fn of
-        ".1vc" -> fmap ((:[]) . _1vc_to_syx) $ File.read_binary fn
-        ".1bk" -> fmap _1bk_to_syxs $ File.read_binary fn
+        ".all" -> syx_all <$> File.read_binary fn
+        ".1vc" -> syx_1vc <$> File.read_binary fn
+        ".1bk" -> syx_1bk <$> File.read_binary fn
         ".txt" -> return []
         _ -> putStrLn ("Vl1m: skipping " ++ show fn) >> return []
     txt <- fmap (maybe "" id) $
         File.ignore_enoent (readFile (FilePath.replaceExtension fn ".txt"))
     return $ map (parse fn txt) syxs
 
-parse fn txt syx = case Parse.parse_sysex vl1_sysex fn syx of
-    Left err -> Left err
-    Right patch -> Right (combine fn txt syx patch)
+parse :: FilePath -> String -> [Word8]
+    -> Either Parsec.ParseError Instrument.Patch
+parse fn txt syx = combine fn txt syx <$> Parse.parse_sysex vl1_sysex fn syx
 
-combine :: FilePath -> String -> [Word.Word8] -> Instrument.Patch
+combine :: FilePath -> String -> [Word8] -> Instrument.Patch
     -> Instrument.Patch
 combine fn txt syx patch = patch
-    { Instrument.patch_text = Seq.strip txt ++ "\n\nFile: " ++ fn
+    { Instrument.patch_text = Seq.join2 "\n\n" (Seq.strip txt) ("File: " ++ fn)
     , Instrument.patch_initialize = Parse.make_sysex_init syx
     }
 
+-- TODO element names are messed up, is this really correct?
+
 -- | Convert .1vc format to .syx format.  Derived by looking at vlone70
 -- conversions with od.
-_1vc_to_syx :: [Word.Word8] -> [Word.Word8]
-_1vc_to_syx bytes = convert_bytes (drop 0xc00 bytes)
+syx_1vc :: [Word8] -> [[Word8]]
+syx_1vc bytes = [bytes_to_syx (drop 0xc00 bytes)]
 
-_1bk_to_syxs :: [Word.Word8] -> [[Word.Word8]]
-_1bk_to_syxs = map convert_bytes . split_1bk
+syx_1bk :: [Word8] -> [[Word8]]
+syx_1bk = map bytes_to_syx . split_1bk
+    where
+    -- The patchman .ALL dumps have 128 patches, but the last 64 have blank
+    -- names.
+    split_1bk bytes = filter (not . all (==' ') . name) $
+        takeWhile (not . all (==0) . take 20) $ map (flip drop bytes) offsets
+    offsets = [0xc00, 0x1800..]
+    name = map (Char.chr . fromIntegral ) . take 10
 
-split_1bk bytes = takeWhile (not . all (==0) . take 20) $
-        map (flip drop bytes) offsets
-    where offsets = [0xc00, 0x1800..]
+syx_all :: [Word8] -> [[Word8]]
+syx_all = syx_1bk -- turns out they're the same
 
 -- | Wrap sysex codes around the raw bytes.
-convert_bytes bytes = syx_bytes ++ [checksum syx_bytes, 0xf7]
+bytes_to_syx :: [Word8] -> [Word8]
+bytes_to_syx bytes = syx_bytes ++ [checksum syx_bytes, 0xf7]
     where
     size = 0xc1c - 0x20
     syx_bytes =
@@ -84,8 +98,9 @@ convert_bytes bytes = syx_bytes ++ [checksum syx_bytes, 0xf7]
         [ 0x7f, 0 ] -- memory type, memory number
         ++ replicate 14 0 -- padding
         ++ take size bytes
-    checksum _ = 0x42 -- TODO
+    checksum _ = 0x42 -- vl1 doesn't seem to care if this is right or not
 
+vl1_sysex :: Parse.ByteParser () Instrument.Patch
 vl1_sysex = do
     Parse.start_sysex Parse.yamaha_code
     Parse.one_byte -- device num
@@ -100,6 +115,9 @@ vl1_sysex = do
     elt2 <- fmap element (Parse.n_bytes 1480) -- 1620~3099
     return $ vl1_patch common elt1 elt2
     -- Parse.end_sysex
+    where
+    common_data :: [Word8] -> String
+    common_data = Seq.strip . Parse.to_string . take 10
 
 vl1_patch :: Instrument.InstrumentName -> ElementInfo -> ElementInfo
     -> Instrument.Patch
@@ -117,15 +135,14 @@ vl1_patch name (pb_range1, name1, cc_groups1) (pb_range2, name2, cc_groups2) =
         Map.unionWith (++) (Map.fromList cc_groups1) (Map.fromList cc_groups2)
     highest_prio cs = List.find (`elem` cs) control_prios
 
+maybe_tags :: [(String, String)] -> [Instrument.Tag]
 maybe_tags tags = [Instrument.tag k v | (k, v) <- tags, not (null v)]
 
-common_data bytes = name
-    where
-    name = Seq.strip $ Parse.to_string (take 10 bytes)
-
+-- | Each voice has two elements, each with their own PbRange, name, and
+-- controls.
 type ElementInfo = (Control.PbRange, String, [(Midi.Control, [String])])
 
-element :: [Word.Word8] -> ElementInfo
+element :: [Word8] -> ElementInfo
 element bytes = ((pb_up, pb_down), name, c_groups)
     where
     (pb_up, pb_down) =
@@ -137,7 +154,7 @@ element bytes = ((pb_up, pb_down), name, c_groups)
     c_groups = [(cc, map fst grp)
         | (cc, grp) <- Seq.keyed_group_on snd controls]
 
-get_control :: [Word.Word8] -> Vl1Control -> Maybe (String, Midi.Control)
+get_control :: [Word8] -> Vl1Control -> Maybe (String, Midi.Control)
 get_control bytes (name, offset, depth, upper_lower) = do
     midi_control <- require valid_control control
     require (>=32) $ maximum $ map abs depth_bytes
@@ -152,6 +169,7 @@ get_control bytes (name, offset, depth, upper_lower) = do
     valid_control c = c>0 && (c<11 || c>15) && c<120
     -- TODO 120 is aftertouch, which I could support if ControlMap did
 
+get_7bit :: [Word8] -> Int -> Integer
 get_7bit bytes offset = Parse.from_signed_8bit (Midi.join14 msb lsb)
     where [msb, lsb] = take 2 (drop offset bytes)
 
@@ -188,4 +206,6 @@ vl1_control_map =
     , ("damping", 54, 2, False)
     , ("absorption", 58, 2, False)
     ]
+
+control_prios :: [String]
 control_prios = [c | (c, _, _, _) <- vl1_control_map]

@@ -40,7 +40,7 @@ block_track_ids = track_ids_of . block_tracklike_ids
 block_ruler_ids :: Block -> [RulerId]
 block_ruler_ids = ruler_ids_of . block_tracklike_ids
 
-block :: Config -> String  -> [Track] -> Block
+block :: Config -> String -> [Track] -> Block
 block config title tracks = Block title config tracks Skeleton.empty
 
 -- | Per-block configuration.
