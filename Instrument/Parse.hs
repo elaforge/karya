@@ -6,15 +6,21 @@ import Data.Bits as Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.Maybe as Maybe
 import qualified Data.Word as Word
-import qualified Numeric
-import qualified Text.ParserCombinators.Parsec as Parsec
-import qualified Text.ParserCombinators.Parsec.Pos as Parsec.Pos
-import Text.ParserCombinators.Parsec ((<|>), (<?>))
 
+import qualified Numeric
+import qualified System.FilePath as FilePath
+import qualified Text.ParserCombinators.Parsec as Parsec
+import Text.ParserCombinators.Parsec ((<|>), (<?>))
+import qualified Text.ParserCombinators.Parsec.Pos as Parsec.Pos
+
+import Util.Control ((<$>))
 import qualified Util.File as File
+import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Tag as Tag
 
 
 -- * patch file
@@ -144,8 +150,7 @@ parse_sysex_file :: ByteParser () Instrument.Patch -> FilePath
     -> IO (Either Parsec.ParseError Instrument.Patch)
 parse_sysex_file parser fn = do
     bytes <- File.read_binary fn
-    return $ fmap (add_sysex bytes . add_file_text fn)
-        (parse_sysex parser fn bytes)
+    return $ add_sysex bytes . add_file fn <$> parse_sysex parser fn bytes
 
 parse_sysex :: ByteParser () a -> FilePath -> [Word.Word8]
     -> Either Parsec.ParseError a
@@ -154,9 +159,15 @@ parse_sysex parser fn bytes = Parsec.parse parser fn (annotate bytes)
     annotate bytes =
         [(Parsec.Pos.newPos fn 1 n, byte) | (n, byte) <- zip [1..] bytes]
 
-add_file_text :: FilePath -> Instrument.Patch -> Instrument.Patch
-add_file_text fn patch = patch { Instrument.patch_text =
-    Instrument.patch_text patch ++ "\n\nFile: " ++ fn }
+add_file :: FilePath -> Instrument.Patch -> Instrument.Patch
+add_file fn patch = patch
+    { Instrument.patch_text = Seq.join2 "\n\n"
+        (Seq.strip (Instrument.patch_text patch))
+        ("File: " ++ fn)
+    , Instrument.patch_tags =
+        Instrument.tag Tag.file (FilePath.takeFileName fn)
+            : Instrument.patch_tags patch
+    }
 
 -- | Tack the sysex on to the patch's initialize field.
 add_sysex :: [Word.Word8] -> Instrument.Patch -> Instrument.Patch

@@ -46,7 +46,10 @@ parse_dir dir = do
 parse_file :: FilePath -> IO [Either Parsec.ParseError Instrument.Patch]
 parse_file fn = do
     syxs <- case FilePath.takeExtension fn of
-        ".all" -> syx_all <$> File.read_binary fn
+        -- The patchman .all dumps have 128 patches, but only the first 64
+        -- have valid instruments.
+        ".all" | "patchman" `List.isInfixOf` fn ->
+            take 64 . syx_all <$> File.read_binary fn
         ".1vc" -> syx_1vc <$> File.read_binary fn
         ".1bk" -> syx_1bk <$> File.read_binary fn
         ".txt" -> return []
@@ -61,8 +64,8 @@ parse fn txt syx = combine fn txt syx <$> Parse.parse_sysex vl1_sysex fn syx
 
 combine :: FilePath -> String -> [Word8] -> Instrument.Patch
     -> Instrument.Patch
-combine fn txt syx patch = patch
-    { Instrument.patch_text = Seq.join2 "\n\n" (Seq.strip txt) ("File: " ++ fn)
+combine fn txt syx patch = Parse.add_file fn $ patch
+    { Instrument.patch_text = Seq.strip txt
     , Instrument.patch_initialize = Parse.make_sysex_init syx
     }
 
@@ -76,12 +79,9 @@ syx_1vc bytes = [bytes_to_syx (drop 0xc00 bytes)]
 syx_1bk :: [Word8] -> [[Word8]]
 syx_1bk = map bytes_to_syx . split_1bk
     where
-    -- The patchman .ALL dumps have 128 patches, but the last 64 have blank
-    -- names.
-    split_1bk bytes = filter (not . all (==' ') . name) $
+    split_1bk bytes =
         takeWhile (not . all (==0) . take 20) $ map (flip drop bytes) offsets
     offsets = [0xc00, 0x1800..]
-    name = map (Char.chr . fromIntegral ) . take 10
 
 syx_all :: [Word8] -> [[Word8]]
 syx_all = syx_1bk -- turns out they're the same

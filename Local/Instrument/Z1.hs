@@ -2,15 +2,14 @@
 module Local.Instrument.Z1 where
 import qualified Data.Bits as Bits
 import qualified Data.List as List
-import qualified Data.Word as Word
+import Data.Word (Word8)
+
 import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.Seq as Seq
-
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Parse as Parse
-
 import qualified App.MidiInst as MidiInst
 
 
@@ -55,6 +54,7 @@ synth_controls =
 tparse = Parse.parse_sysex_dir korg_sysex "Local/Instrument/z1_sysex"
 tshow ps = mapM_ putStrLn (map Instrument.patch_summary ps)
 
+korg_sysex :: Parse.ByteParser () Instrument.Patch
 korg_sysex = do
     Parse.start_sysex Parse.korg_code
     Parse.match_bytes [0x30, 0x46]
@@ -62,11 +62,13 @@ korg_sysex = do
     Parse.end_sysex
     return patch
 
+current_program_dump :: Parse.ByteParser () Instrument.Patch
 current_program_dump = do
     Parse.match_bytes [0x40, 0x01]
     contents <- fmap dekorgify Parse.to_eox
     return $ korg_patch contents
 
+korg_patch :: [Word8] -> Instrument.Patch
 korg_patch bytes = make_patch (name, category, (pb_up, pb_down), osc1, osc2)
     where
     -- These come from the sysex spec PROG_PRM.TXT from korg.
@@ -93,24 +95,27 @@ make_patch (name, cat, pb_range, osc1, osc2) =
     inst = Instrument.instrument name [] pb_range
     tags = maybe_tags
         [("z1-category", cat), ("z1-osc", osc1), ("z1-osc", osc2)]
+    maybe_tags tags = [Instrument.tag k v | (k, Just v) <- tags]
 
-maybe_tags tags = [Instrument.tag k v | (k, Just v) <- tags]
-
+-- | The Z1 has a built-in set of categories. Map the category index to the
+-- name.
+categories :: [String]
 categories =
     [ "Synth-Hard", "Synth-Soft", "Synth-Lead", "Synth-Motion", "Synth-Bass"
-    , "E.Piano", "Organ", "Keyboard", "Bell", "Strings", "Bad/Choir"
+    , "E.Piano", "Organ", "Keyboard", "Bell", "Strings", "Band/Choir"
     , "Brass", "Reed/Wind", "Guitar/Plucked", "Bass", "Percussive"
     , "Argpeggio", "SFX/Other"
     ]
 
+osc_types :: [String]
 osc_types =
-    [ "standard", "comb", "vpm", "resonance", "ring mod", "cross mod", "sync"
-    , "organ", "electric piano", "brass", "reed", "plucked", "bowed"
+    [ "standard", "comb", "vpm", "resonance", "ring-mod", "cross-mod", "sync"
+    , "organ", "electric-piano", "brass", "reed", "plucked", "bowed"
     ]
 
 -- | Z1 sysexes use a scheme where the eighth bits are packed into a single
 -- byte preceeding its 7 7bit bytes.
-dekorgify :: [Word.Word8] -> [Word.Word8]
+dekorgify :: [Word8] -> [Word8]
 dekorgify [] = []
 dekorgify (b7:bytes) =
     [copy_bit b7 i b | (i, b) <- zip [0..] b7group] ++ dekorgify rest

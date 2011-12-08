@@ -7,7 +7,21 @@ big things
 
 UNSORTED
   - switch sysex parsing stuff to use attoparsec and ByteStrings
-  - put filename in patch tags
+    I don't use state, but I parse [(SrcPos, Word8)] so that I always get the
+    byte position correct.  But I should be able to run a sub-parse with byte
+    already set.
+  - Parse.parse_files dir -> read each file, add_file to the Patch results
+  - browser search lang: can I write !sysex to search for patches without the
+    sysex tag?
+  * put filename in patch tags
+  - instead of discarding overlapping patch names, append a number to
+    disambiguate
+    But some of the overlaps should be merged, e.g. on the Z1 I can get info
+    from the sysex, but the initialization should use the internal patches.
+    How do I tell what to merge?
+      - in Z1, merge overlaps
+      - in Vl1m, compare sysex, and discard if they're the same, else merge
+    At least warnings should include file from others.
   - I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.
     * make Arbitrary for BlockSpecs
