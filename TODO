@@ -23,7 +23,8 @@ UNSORTED
       - in Z1, merge overlaps
       - in Vl1m, compare sysex, and discard if they're the same, else merge
     At least warnings should include file from others.
-  - put filename into patch
+  * put filename into patch
+  - pitch bend range on patchman and some of the z1 patches looks off, verify
   - I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.
     * make Arbitrary for BlockSpecs
@@ -1042,15 +1043,15 @@ Perform:
       since the solution is fairly complicated I think I'll leave it be for
       now.
 
-Instrument DB:
+Instrument DB / browser:
   - search lang supports quotes
   - search lang supports - to exclude a term
-  - bug: discarded insts still in index
+  * bug: discarded insts still in index
   - ability to edit tags, esp. add "favorite rating"
-  - standardized tags
-  - put file in a tag so I can search on it
+  * standardized tags
+  * put file in a tag so I can search on it
     I can also use it to create a *.txt file with custom info
-  - explicitly allow merged patches, so I can get params from syx but send
+  * explicitly allow merged patches, so I can get params from syx but send
     program change
 
 Midi:

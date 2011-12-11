@@ -2,10 +2,13 @@
 {- | The MidiDb type.  Split from Instrument.Db to avoid circular imports.
 -}
 module Instrument.MidiDb where
+import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
+
+import qualified System.FilePath as FilePath
 
 import Util.Control
 import qualified Util.Log as Log
@@ -161,7 +164,9 @@ patch_map patches =
     strip_init (name, patches) = do
         let (unique, dups) =
                 Seq.partition_dups (Instrument.patch_initialize . fst) patches
-        log "dropped patches with identical initialization" dups
+        forM dups $ \(patch, dups) ->
+            log ("dropped patches with the same initialization as "
+                ++ details patch) dups
         return (name, unique)
 
     -- Merge patches that have the same name and where one is a pgm change and
@@ -196,7 +201,10 @@ patch_map patches =
     split (name, patches) = return $ map (name,) patches
 
     log _ [] = return ()
-    log msg ps = Logger.log $ msg ++ ": " ++ Seq.join ", " (map patch_name ps)
+    log msg ps = Logger.log $ msg ++ ": " ++ Seq.join ", " (map details ps)
+    details patch = patch_name patch
+        ++ " (" ++ FilePath.takeFileName (Instrument.patch_file (fst patch))
+        ++ ")"
 
 type NamedPatch code = (String, [PatchCode code])
 type Merge = Logger.LoggerT String Identity.Identity

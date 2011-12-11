@@ -309,15 +309,13 @@ drop_dups key (x:xs) = x : map snd (filter (not . equal) (zip (x:xs) xs))
     where equal (x, y) = key x == key y
 
 -- | Like 'drop_dups', but return the dropped values.
-partition_dups :: (Eq k) => (a -> k) -> [a] -> ([a], [a]) -- ^ (unique, dups)
-partition_dups _ [] = ([], [])
-partition_dups key (x:xs) = go x xs
+partition_dups :: (Ord k) => (a -> k) -> [a] -> ([a], [(a, [a])])
+    -- ^ ([unique], [(used_for_unique, [dups])])
+partition_dups key xs = partition_either $ concatMap extract (group_on key xs)
     where
-    go prev [] = ([prev], [])
-    go prev (x:xs)
-        | key prev == key x = (unique, prev : dups)
-        | otherwise = (prev : unique, dups)
-        where (unique, dups) = go x xs
+    extract [] = []
+    extract [x] = [Left x]
+    extract (x:xs) = [Left x, Right (x, xs)]
 
 -- | Like 'drop_dups', but keep the last adjacent equal elt instead of the
 -- first.

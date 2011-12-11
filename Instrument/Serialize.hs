@@ -81,11 +81,11 @@ instance Serialize (MidiDb.PatchMap ()) where
     get = get >>= \a -> return (MidiDb.PatchMap a)
 
 instance Serialize Instrument.Patch where
-    put (Instrument.Patch a b c d e f) = put a >> put b >> put c
-        >> put d >> put e >> put f
+    put (Instrument.Patch a b c d e f g) = put a >> put b >> put c
+        >> put d >> put e >> put f >> put g
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
-        get >>= \f ->
-            return (Instrument.Patch a b c d e f)
+        get >>= \f -> get >>= \g ->
+            return (Instrument.Patch a b c d e f g)
 
 instance Serialize Instrument.Flag where
     put Instrument.Triggered = putWord8 0

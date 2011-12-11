@@ -15,8 +15,6 @@ import qualified Text.ParserCombinators.Parsec.Pos as Parsec.Pos
 
 import Util.Control ((<$>))
 import qualified Util.File as File
-import qualified Util.Seq as Seq
-
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -46,7 +44,7 @@ patch_file fn = do
     parsed <- parse_patch_file fn
     case parsed of
         Left err -> error $ "parse patches: " ++ show err
-        Right patches -> return patches
+        Right patches -> return $ map (add_file fn) patches
 
 -- | Parse a simple ad-hoc text file format to describe a synth's built-in
 -- patches.
@@ -161,9 +159,7 @@ parse_sysex parser fn bytes = Parsec.parse parser fn (annotate bytes)
 
 add_file :: FilePath -> Instrument.Patch -> Instrument.Patch
 add_file fn patch = patch
-    { Instrument.patch_text = Seq.join2 "\n\n"
-        (Seq.strip (Instrument.patch_text patch))
-        ("File: " ++ fn)
+    { Instrument.patch_file = fn
     , Instrument.patch_tags =
         Instrument.tag Tag.file (FilePath.takeFileName fn)
             : Instrument.patch_tags patch

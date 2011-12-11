@@ -12,15 +12,17 @@ test_parse_file = do
     let inits = map Instrument.patch_initialize patches
         init_msgs = [[m | Midi.ChannelMessage _ m <- msgs]
             | Instrument.InitializeMidi msgs <- inits]
+    let cc = Midi.ControlChange
     equal init_msgs
-        [[Midi.ControlChange 0 0, Midi.ControlChange 32 0, Midi.ProgramChange 0]
-        ,[Midi.ControlChange 0 0, Midi.ControlChange 32 0, Midi.ProgramChange 1]
-        ,[Midi.ControlChange 0 0, Midi.ControlChange 32 1, Midi.ProgramChange 0]
-        ,[Midi.ControlChange 0 0, Midi.ControlChange 32 1, Midi.ProgramChange 1]
+        [ [cc 0 0, cc 32 0, Midi.ProgramChange 0]
+        , [cc 0 0, cc 32 0, Midi.ProgramChange 1]
+        , [cc 0 0, cc 32 1, Midi.ProgramChange 0]
+        , [cc 0 0, cc 32 1, Midi.ProgramChange 1]
         ]
-    equal (map Instrument.patch_tags patches)
-        (replicate 3 [("category", "boring")]
-            ++ [[("category", "interesting")]])
+    equal (map Instrument.patch_tags patches) $
+        map (("file", "test_patch_file") :) $
+            replicate 3 [("category", "boring")]
+                ++ [[("category", "interesting")]]
 
 test_parse_sysex = do
     let parse p s = case Parse.parse_sysex p "" s of

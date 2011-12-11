@@ -98,11 +98,12 @@ info_of db score_inst (MidiDb.Info synth patch _) =
             , ("Pitchbend range", show (Instrument.inst_pitch_bend_range inst))
             , ("Initialization", initialize_info initialize)
             , ("Text", text)
+            , ("File", file)
             , ("Tags", tags)
             ]
     where
     Instrument.Synth synth_name maybe_dev synth_cmap = synth
-    Instrument.Patch inst pflags initialize keyswitches _ text = patch
+    Instrument.Patch inst pflags initialize keyswitches _ text file = patch
     flags = map show (Set.toList pflags)
     dev = maybe "<no default device>" (\(Midi.WriteDevice s) -> s) maybe_dev
     name = let n = Instrument.inst_name inst in if null n then "*" else n

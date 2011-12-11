@@ -52,8 +52,8 @@ data Instrument = Instrument {
     inst_name :: InstrumentName
 
     -- | 'inst_score', 'inst_synth', and 'inst_keyswitch' are
-    -- automatically filled with data from the Synth and Patch.  They should be
-    -- left empty in the 'patch_instrument' template instance.
+    -- automatically filled with data from the Synth and Patch.  They should
+    -- be left empty in the 'patch_instrument' template instance.
     --
     -- 'inst_score' should uniquely name one instrument in a certain
     -- performance, but I can't think about whether that's guaranteed at the
@@ -178,11 +178,13 @@ data Patch = Patch {
     , patch_tags :: [Tag]
     -- | Some free form text about the patch.
     , patch_text :: String
+    -- | The patch was read from this file.
+    , patch_file :: FilePath
     } deriving (Eq, Show)
 
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Instrument -> Patch
-patch inst = Patch inst Set.empty NoInitialization (KeyswitchMap []) [] ""
+patch inst = Patch inst Set.empty NoInitialization (KeyswitchMap []) [] "" ""
 
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
@@ -300,7 +302,7 @@ data InitializePatch =
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage String
     | NoInitialization
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 patch_summary :: Patch -> String
 patch_summary patch = inst_name inst ++ " -- " ++ show (patch_tags patch)
