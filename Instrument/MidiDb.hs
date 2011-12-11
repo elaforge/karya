@@ -1,18 +1,20 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, TupleSections #-}
 {- | The MidiDb type.  Split from Instrument.Db to avoid circular imports.
 -}
 module Instrument.MidiDb where
-import Control.Monad
+import qualified Control.Monad.Identity as Identity
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 
 import Util.Control
-import qualified Util.Map as Map
 import qualified Util.Log as Log
+import qualified Util.Logger as Logger
+import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
@@ -140,26 +142,74 @@ newtype PatchMap code =
 wildcard_inst_name :: Instrument.InstrumentName
 wildcard_inst_name = "*"
 
--- | Build a PatchMap to give to 'midi_db'.  Colliding patches are returned.
-patch_map :: [PatchCode code] -> (PatchMap code, [(String, Instrument.Patch)])
+-- | Build a PatchMad to give to 'midi_db'.  Simplified names are generated
+-- for each patch, and if names collide various heuristics are tried to
+-- discard or combine them, or they are disambiguated with numbers.
+patch_map :: [PatchCode code] -> (PatchMap code, [String])
+    -- ^ (PatchMap, log notices)
 patch_map patches =
-    (PatchMap pmap, [(name, patch) | (name, (patch, _)) <- rejects])
+    run $ concatMapM split =<< mapM merge =<< mapM strip_init by_name
     where
-    (pmap, rejects) = Map.unique
-        [(name patch, (patch, code)) | (patch, code) <- patches]
-    name = clean_inst_name . Instrument.inst_name . Instrument.patch_instrument
+    by_name = Seq.keyed_group_on (clean_inst_name . patch_name) patches
+    patch_name = Instrument.inst_name . Instrument.patch_instrument . fst
+    run = first (PatchMap . Map.fromList) . Identity.runIdentity . Logger.run
+
+    -- If the initialization is the same, they are likely duplicates.
+    -- Remember synths form a namespace above inst, so these are already on
+    -- the same synth.
+    strip_init :: NamedPatch code -> Merge (NamedPatch code)
+    strip_init (name, patches) = do
+        let (unique, dups) =
+                Seq.partition_dups (Instrument.patch_initialize . fst) patches
+        log "dropped patches with identical initialization" dups
+        return (name, unique)
+
+    -- Merge patches that have the same name and where one is a pgm change and
+    -- the other is a sysex.
+    merge :: NamedPatch code -> Merge (NamedPatch code)
+    merge (name, patches) = do
+        merged <- concatMapM go (Seq.group_on patch_name patches)
+        return (name, merged)
+        where
+        go [p1, p2]
+            | pc_init p1 && sysex_init p2 = merge_init p1 p2
+            | pc_init p2 && sysex_init p1 = merge_init p2 p1
+        go patches = return patches
+    merge_init pc_patch@(pc, _) sysex_patch@(sysex, code) = do
+        log "merging program-change patch into sysex patch"
+            [pc_patch, sysex_patch]
+        return [(sysex { Instrument.patch_initialize =
+            Instrument.patch_initialize pc }, code)]
+
+    pc_init patch = case Instrument.patch_initialize (fst patch) of
+        Instrument.InitializeMidi msgs -> not (any Midi.is_sysex msgs)
+        _ -> False
+    sysex_init = not . pc_init
+
+    -- Remaining patches are probably different and just happened to get the
+    -- same name, so number them to disambiguate.
+    split :: NamedPatch code -> Merge [(String, PatchCode code)]
+    split (name, patches@(_:_:_)) = do
+        let named = zip (map ((name++) . show) [1..]) patches
+        log ("split into " ++ Seq.join ", " (map fst named)) patches
+        return named
+    split (name, patches) = return $ map (name,) patches
+
+    log _ [] = return ()
+    log msg ps = Logger.log $ msg ++ ": " ++ Seq.join ", " (map patch_name ps)
+
+type NamedPatch code = (String, [PatchCode code])
+type Merge = Logger.LoggerT String Identity.Identity
+concatMapM :: (Functor m, Monad m) => (a -> m [b]) -> [a] -> m [b]
+concatMapM f xs = concat <$> mapM f xs
 
 -- | Make the patches into a PatchMap.  This is just a version of
 -- 'patch_map' that logs colliding patches and is hence in IO.
 logged_synths :: Instrument.Synth -> [PatchCode code] -> IO (SynthDesc code)
 logged_synths synth patches = do
-    let (pmap, rejects) = patch_map patches
-    forM_ rejects $ \(patch_name, patch) ->
-        -- Printing the text is sort of a hack, because I know it contains
-        -- the original filename.
-        -- TODO say who it's colliding with
-        Log.warn $ "discarding overlapping patch " ++ show patch_name
-            ++ " text: " ++ Seq.strip (Instrument.patch_text patch)
+    let (pmap, msgs) = patch_map patches
+    let prefix = "synth " ++ Instrument.synth_name synth ++ ": "
+    mapM (Log.warn . (prefix++)) msgs
     return (synth, pmap)
 
 -- | Build a PatchMap for a synth that has whatever patch you name.
@@ -186,6 +236,7 @@ clean_inst_name :: String -> String
 clean_inst_name = Seq.replace " " "_" . unwords . words
     . filter (`elem` valid_chars) . lc
 
+valid_chars :: [Char]
 valid_chars = ['0'..'9'] ++ ['a'..'z'] ++ " _-"
 
 score_inst :: Instrument.Synth -> Instrument.Patch -> Score.Instrument

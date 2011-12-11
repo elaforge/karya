@@ -1,6 +1,5 @@
 -- | Yamaha VL1 synthesizer.
 module Local.Instrument.Vl1m where
-import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -12,6 +11,7 @@ import qualified Text.Parsec as Parsec
 
 import Util.Control
 import qualified Util.File as File
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -53,7 +53,7 @@ parse_file fn = do
         ".1vc" -> syx_1vc <$> File.read_binary fn
         ".1bk" -> syx_1bk <$> File.read_binary fn
         ".txt" -> return []
-        _ -> putStrLn ("Vl1m: skipping " ++ show fn) >> return []
+        _ -> Log.warn ("skipping " ++ show fn) >> return []
     txt <- fmap (maybe "" id) $
         File.ignore_enoent (readFile (FilePath.replaceExtension fn ".txt"))
     return $ map (parse fn txt) syxs
@@ -68,8 +68,6 @@ combine fn txt syx patch = Parse.add_file fn $ patch
     { Instrument.patch_text = Seq.strip txt
     , Instrument.patch_initialize = Parse.make_sysex_init syx
     }
-
--- TODO element names are messed up, is this really correct?
 
 -- | Convert .1vc format to .syx format.  Derived by looking at vlone70
 -- conversions with od.

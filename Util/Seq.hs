@@ -173,12 +173,16 @@ merge_asc_lists key = foldr go []
 
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
 -- after @key@ is applied to them.  List is returned in sorted order.
+--
+-- The sublists are never null.
 keyed_group_on :: (Ord b) => (a -> b) -> [a] -> [(b, [a])]
 keyed_group_on key = map (\gs -> (key (List.head gs), gs))
     . group_on key . sort_on key
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
 -- function instead of equality.  List is returned in sorted order.
+--
+-- The sublists are never null.
 group_on :: (Ord b) => (a -> b) -> [a] -> [[a]]
 group_on key = List.groupBy ((==) `on` key) . sort_on key
 
@@ -303,6 +307,17 @@ drop_dups :: (Eq k) => (a -> k) -> [a] -> [a]
 drop_dups _ [] = []
 drop_dups key (x:xs) = x : map snd (filter (not . equal) (zip (x:xs) xs))
     where equal (x, y) = key x == key y
+
+-- | Like 'drop_dups', but return the dropped values.
+partition_dups :: (Eq k) => (a -> k) -> [a] -> ([a], [a]) -- ^ (unique, dups)
+partition_dups _ [] = ([], [])
+partition_dups key (x:xs) = go x xs
+    where
+    go prev [] = ([prev], [])
+    go prev (x:xs)
+        | key prev == key x = (unique, prev : dups)
+        | otherwise = (prev : unique, dups)
+        where (unique, dups) = go x xs
 
 -- | Like 'drop_dups', but keep the last adjacent equal elt instead of the
 -- first.

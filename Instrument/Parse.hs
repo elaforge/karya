@@ -33,13 +33,13 @@ type Parser a = Parsec.GenParser Char State a
 
 data State = State {
     state_prev :: String
-    , state_bank :: Integer
-    , state_patch_num :: Integer
+    , state_bank :: Int
+    , state_patch_num :: Midi.Program
     }
 empty_state = State "" 0 0
 
 -- | name, category, bank, patch_num
-data PatchLine = PatchLine String String Integer Integer deriving (Show)
+data PatchLine = PatchLine String String Int Midi.Program deriving (Show)
 
 patch_file :: FilePath -> IO [Instrument.Patch]
 patch_file fn = do
@@ -107,7 +107,7 @@ p_bank_decl = do
     Parsec.skipMany1 Parsec.space
     n <- p_nat
     st <- Parsec.getState
-    Parsec.setState (st { state_bank = n, state_patch_num = 0 })
+    Parsec.setState (st { state_bank = (fromIntegral n), state_patch_num = 0 })
     return Nothing
 
 p_rest_of_line :: Parser (Maybe PatchLine)

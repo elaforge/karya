@@ -41,10 +41,10 @@ within low high fm = let (_, m, _) = split3 low high fm in m
 invert :: (Ord k, Ord a) => Map.Map k a -> Map.Map a k
 invert = Map.fromList . map (\(x, y) -> (y, x)) . Map.assocs
 
--- Would it be more efficient to do 'fromListWith (++)'?
-multimap :: (Ord k, Ord a) => [(k, a)] -> Map.Map k [a]
+-- | TODO Would it be more efficient to do 'fromListWith (++)'?
+multimap :: (Ord k) => [(k, a)] -> Map.Map k [a]
 multimap = Map.fromAscList . map (\gs -> (fst (head gs), map snd gs))
-    . List.groupBy ((==) `on` fst) . List.sort
+    . List.groupBy ((==) `on` fst) . List.sortBy (compare `on` fst)
 
 -- | Like Map.fromList, but only accept the first of duplicate keys, and also
 -- return the rejected duplicates.

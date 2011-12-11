@@ -71,10 +71,10 @@ modify_timestamp f wmsg = wmsg { wmsg_ts = f (wmsg_ts wmsg) }
 -- * constructors
 
 -- | Emit a program change with bank in [msb, lsb, pchange] order.
-program_change :: Integer -> Integer -> [ChannelMessage]
+program_change :: Int -> Program -> [ChannelMessage]
 program_change bank program =
     [ ControlChange CC.bank msb, ControlChange CC.bank_lsb lsb
-    , ProgramChange (fromIntegral program)
+    , ProgramChange program
     ]
     where (lsb, msb) = split14 (fromIntegral bank)
 
