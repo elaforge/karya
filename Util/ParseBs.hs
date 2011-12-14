@@ -11,6 +11,7 @@
 module Util.ParseBs where
 import Control.Monad
 import qualified Data.ByteString.Char8 as B
+import qualified Data.Attoparsec as Attoparsec
 import qualified Data.Attoparsec.Char8 as A
 import Data.Attoparsec ((<?>))
 
@@ -19,15 +20,15 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 
-type Parser = A.Parser
+type Parser a = A.Parser a
 
 parse_all :: Parser a -> B.ByteString -> Either String a
 parse_all p text = go (A.parse p text)
     where
-    go (A.Fail rest contexts msg) =
+    go (Attoparsec.Fail rest contexts msg) =
         Left $ err rest ++ msg ++ " [" ++ Seq.join ", " contexts ++ "]"
-    go (A.Partial cont) = go (cont "")
-    go (A.Done rest val)
+    go (Attoparsec.Partial cont) = go (cont "")
+    go (Attoparsec.Done rest val)
         | B.null rest = Right val
         | otherwise = Left $ err rest ++ "expected eof"
     err rest = "parse error on byte " ++ column rest ++ " of " ++ show text

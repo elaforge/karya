@@ -1,5 +1,6 @@
 -- | Load mod dumps from hacked up xmp.
 module Cmd.LoadMod where
+import qualified Control.Applicative as A (many)
 import Control.Monad
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.Bits as Bits
