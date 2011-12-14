@@ -46,9 +46,8 @@ recursive_list_dir descend dir = do
 -- | Move the file to file.last.  Do this before writing a new one that may
 -- fail.
 backup_file :: FilePath -> IO ()
-backup_file fname = do
-    ignore_enoent (Directory.renameFile fname (fname ++ ".last"))
-    return ()
+backup_file fname =
+    void $ ignore_enoent $ Directory.renameFile fname (fname ++ ".last")
 
 -- | If @op@ raised ENOENT, return Nothing.
 ignore_enoent :: IO a -> IO (Maybe a)

@@ -54,7 +54,7 @@ synth_controls =
 tparse = Parse.parse_sysex_dir korg_sysex "Local/Instrument/z1_sysex"
 tshow ps = mapM_ putStrLn (map Instrument.patch_summary ps)
 
-korg_sysex :: Parse.ByteParser () Instrument.Patch
+korg_sysex :: Parse.ByteParser Instrument.Patch
 korg_sysex = do
     Parse.start_sysex Parse.korg_code
     Parse.match_bytes [0x30, 0x46]
@@ -62,7 +62,7 @@ korg_sysex = do
     Parse.end_sysex
     return patch
 
-current_program_dump :: Parse.ByteParser () Instrument.Patch
+current_program_dump :: Parse.ByteParser Instrument.Patch
 current_program_dump = do
     Parse.match_bytes [0x40, 0x01]
     contents <- fmap dekorgify Parse.to_eox

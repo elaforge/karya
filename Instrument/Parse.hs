@@ -5,7 +5,7 @@ import Control.Monad
 import Data.Bits as Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.Maybe as Maybe
-import qualified Data.Word as Word
+import Data.Word (Word8)
 
 import qualified Numeric
 import qualified System.FilePath as FilePath
@@ -49,9 +49,9 @@ patch_file fn = do
 -- | Parse a simple ad-hoc text file format to describe a synth's built-in
 -- patches.
 --
--- If a line looks like @<word>, <word>@, the first word will be the patch name
--- and the second will be be the @category@ tag.  If there is only one word,
--- the patch inherits the previous line's category.
+-- If a line looks like @<word>, <word>@, the first word will be the patch
+-- name and the second will be be the @category@ tag.  If there is only one
+-- word, the patch inherits the previous line's category.
 --
 -- The patch's program change is incremented for each patch.  A line like
 -- @*bank <num>@ sets the bank number and resets the program change to 0.
@@ -61,7 +61,6 @@ patch_file fn = do
 -- There is no support currently for other attributes, but they could be added
 -- later if needed.
 parse_patch_file :: String -> IO (Either Parsec.ParseError [Instrument.Patch])
--- parse_patch_file fn = Parsec.Text.parseFromFile p_patch_file empty_state fn
 parse_patch_file fn = do
     contents <- readFile fn
     return $ Parsec.runParser p_patch_file empty_state fn contents
@@ -127,10 +126,15 @@ p_nat = do
 -- * sysex
 
 -- | Parse a sysex file as a stream of Word8s.
--- TODO this should be ByteString, but I use state to get accurate error msgs.
-type ByteParser st = Parsec.GenParser (Parsec.Pos.SourcePos, Word.Word8) st
+-- TODO this should be ByteString, but it's surprisingly not easy to do this.
+-- Attoparsec doesn't keep track of the byte offset at all so the errors
+-- are unhelpful.  Parsec can now read ByteStrings, but it's still Char
+-- oriented so I still have to write combinators for bytes, and Parsec.token
+-- still wants a 'tok_pos' function, which implies the byte number still has
+-- to be in the token stream.
+type ByteParser = Parsec.GenParser (Parsec.Pos.SourcePos, Word8) ()
 
-parse_sysex_dir :: ByteParser () Instrument.Patch -> FilePath
+parse_sysex_dir :: ByteParser Instrument.Patch -> FilePath
     -> IO [Instrument.Patch]
 parse_sysex_dir parser dir = do
     fns <- File.list_dir dir
@@ -144,13 +148,13 @@ warn_parses parses = fmap Maybe.catMaybes $ forM parses $ \p -> case p of
         return Nothing
     Right parse -> return (Just parse)
 
-parse_sysex_file :: ByteParser () Instrument.Patch -> FilePath
+parse_sysex_file :: ByteParser Instrument.Patch -> FilePath
     -> IO (Either Parsec.ParseError Instrument.Patch)
 parse_sysex_file parser fn = do
     bytes <- File.read_binary fn
     return $ add_sysex bytes . add_file fn <$> parse_sysex parser fn bytes
 
-parse_sysex :: ByteParser () a -> FilePath -> [Word.Word8]
+parse_sysex :: ByteParser a -> FilePath -> [Word8]
     -> Either Parsec.ParseError a
 parse_sysex parser fn bytes = Parsec.parse parser fn (annotate bytes)
     where
@@ -166,9 +170,11 @@ add_file fn patch = patch
     }
 
 -- | Tack the sysex on to the patch's initialize field.
-add_sysex :: [Word.Word8] -> Instrument.Patch -> Instrument.Patch
+add_sysex :: [Word8] -> Instrument.Patch -> Instrument.Patch
 add_sysex bytes patch =
     patch { Instrument.patch_initialize = make_sysex_init bytes }
+
+make_sysex_init :: [Word8] -> Instrument.InitializePatch
 make_sysex_init bytes = Instrument.InitializeMidi
         [Midi.CommonMessage (Midi.SystemExclusive manuf rest)]
     where
@@ -176,7 +182,7 @@ make_sysex_init bytes = Instrument.InitializeMidi
     manuf = bytes !! 1
     rest = ByteString.pack (drop 2 bytes)
 
-byte_tok :: (Word.Word8 -> Maybe a) -> ByteParser st a
+byte_tok :: (Word8 -> Maybe a) -> ByteParser a
 byte_tok f = Parsec.token show_tok tok_pos test_tok
     where
     show_tok (_, n) = hex n
@@ -186,27 +192,39 @@ byte_tok f = Parsec.token show_tok tok_pos test_tok
 hex :: (Integral a) => a -> String
 hex n = Numeric.showHex n ""
 
+byte_sat :: (Word8 -> Bool) -> ByteParser Word8
 byte_sat f = byte_tok $ \b -> if f b then Just b else Nothing
 
+byte :: Word8 -> ByteParser Word8
 byte b = byte_sat (==b) <?> ("byte " ++ hex b)
+
 match_bytes [] = return []
 match_bytes (b:bs) = byte b >> match_bytes bs
 
+n_bytes :: Int -> ByteParser [Word8]
 n_bytes n = Parsec.count n any_byte
+
+one_byte :: ByteParser Word8
 one_byte = fmap head (n_bytes 1)
+
+any_byte :: ByteParser Word8
 any_byte = byte_sat (const True)
 
+start_sysex :: Word8 -> ByteParser Word8
 start_sysex manuf = byte Midi.sox_byte >> byte manuf
+
+end_sysex :: ByteParser ()
 end_sysex = byte Midi.eox_byte >> Parsec.eof
-to_eox :: ByteParser st [Word.Word8]
+
+to_eox :: ByteParser [Word8]
 to_eox = Parsec.many (byte_sat (/=Midi.eox_byte))
 
 -- * decode sysex bytes
 
-to_string :: [Word.Word8] -> String
+to_string :: [Word8] -> String
 to_string = map (toEnum . fromIntegral)
 
-from_signed_7bit :: Word.Word8 -> Integer
+from_signed_7bit :: Word8 -> Integer
 from_signed_7bit b = fromIntegral b .&. 0x3f - fromIntegral b .&. 0x40
 from_signed_8bit :: (Integral a) => a -> Integer
 from_signed_8bit b = fromIntegral b .&. 0x7f - fromIntegral b .&. 0x80
@@ -216,11 +234,11 @@ from_signed_8bit b = fromIntegral b .&. 0x7f - fromIntegral b .&. 0x80
 -- x0111111 0x3f
 -- x0100000 0x20
 
-korg_code, yamaha_code :: Word.Word8
+korg_code, yamaha_code :: Word8
 korg_code = 0x42
 yamaha_code = 0x43
 
 -- | TODO get a more complete list
-manufacturer_codes :: [(Word.Word8, String)]
+manufacturer_codes :: [(Word8, String)]
 manufacturer_codes =
     [(korg_code, "korg"), (yamaha_code, "yamaha")]

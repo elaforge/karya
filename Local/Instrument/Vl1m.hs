@@ -98,7 +98,7 @@ bytes_to_syx bytes = syx_bytes ++ [checksum syx_bytes, 0xf7]
         ++ take size bytes
     checksum _ = 0x42 -- vl1 doesn't seem to care if this is right or not
 
-vl1_sysex :: Parse.ByteParser () Instrument.Patch
+vl1_sysex :: Parse.ByteParser Instrument.Patch
 vl1_sysex = do
     Parse.start_sysex Parse.yamaha_code
     Parse.one_byte -- device num
