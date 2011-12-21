@@ -141,7 +141,7 @@ run_tests :: WriteMsg -> ReadMsg -> IO ()
 run_tests write_msg read_msg = do
     test_abort write_msg read_msg
     test_merge write_msg read_msg
-    test_sysex write_msg read_msg
+    void $ test_sysex write_msg read_msg
 
 test_abort write_msg read_msg = do
     now <- CoreMidi.now
