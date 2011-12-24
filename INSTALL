@@ -3,7 +3,7 @@
 fixed-list-0.1.5
 deepseq, data-ordlist, cereal, storablevector
 dlist -- Perform.SignalBase
-parsec-2
+parsec
 text, stm, network
 haskell-src -- Util.PPrint
 regex-pcre -- make sure to install libpcre, port puts headers in /opt
