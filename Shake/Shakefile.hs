@@ -426,16 +426,22 @@ hsc2hs config hs hsc = ("hsc2hs", hs,
 -- A/B.cc -> build/debug/obj/A/B.cc.o
 -- A/B.hsc -> build/debug/obj/A/B.hs.o
 -- build/A/B.hs -> build/A/B.hs.o
+-- build/hsc/Ui/Key.hs -> build/debug/obj/Ui/Key.hs.o
 --
 -- Generated .hs files are already in build/ so they shouldn't have build/etc.
--- prepended.
+-- prepended.  Unless they were .hsc generated files.
 srcToObj :: Config -> FilePath -> FilePath
 srcToObj config fn = addDir $ case FilePath.takeExtension fn of
     ".hs" -> FilePath.addExtension fn "o"
     ".hsc" -> FilePath.replaceExtension fn "hs.o"
     ".cc" -> FilePath.addExtension fn "o"
     _ -> error $ "unknown haskell extension: " ++ show fn
-    where addDir = if build `List.isPrefixOf` fn then id else (oDir config </>)
+    where
+    addDir
+        | hscDir config `List.isPrefixOf` fn =
+            (oDir config </>) . dropDir (hscDir config)
+        | build `List.isPrefixOf` fn = id
+        | otherwise = (oDir config </>)
 
 -- | build/debug/A/B.hs.o -> A/B.hs
 objToSrc :: Config -> FilePath -> FilePath
