@@ -35,7 +35,7 @@ flatten (Tree pairs) = concatMap (go []) pairs
     flatten_key = Seq.join "." . reverse
 
 p_tree :: A.Parser Tree
-p_tree = Tree <$> A.many p_pair
+p_tree = Tree <$> Applicative.many p_pair
 
 p_pair :: A.Parser (String, Val)
 p_pair = (,) <$> ParseBs.lexeme p_word <*> ParseBs.lexeme (p_sub <|> p_val)
@@ -50,7 +50,8 @@ p_word :: A.Parser String
 p_word = B.unpack <$> (p_str <|> A.takeWhile1 (`notElem` " ()"))
 
 p_str :: A.Parser B.ByteString
-p_str = ParseBs.between (A.char '"') (A.char '"') (B.concat <$> A.many str)
+p_str = ParseBs.between (A.char '"') (A.char '"')
+        (B.concat <$> Applicative.many str)
     where
     str = do
         chunk <- A.takeWhile (\c -> c /= '"' && c /= '\\')

@@ -18,8 +18,8 @@ module Derive.ParseBs (
 #endif
 ) where
 import Control.Monad
-import qualified Data.Attoparsec.Char8 as A
 import qualified Control.Applicative as A (many)
+import qualified Data.Attoparsec.Char8 as A
 import Data.Attoparsec ((<?>))
 import Data.ByteString.Char8 as B
 import qualified Data.Char as Char
