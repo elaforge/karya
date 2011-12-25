@@ -9,6 +9,8 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import qualified Shake.Util as Util
+
 
 -- | Find files this file includes, relative to the current directory.
 --
@@ -25,7 +27,7 @@ includesOf dirs fn = do
 
 find :: [FilePath] -> FilePath -> IO (Maybe FilePath)
 find [] _ = return Nothing
-find (dir:dirs) fn = ifM (Directory.doesFileExist (dir </> fn))
+find (dir:dirs) fn = Util.ifM (Directory.doesFileExist (dir </> fn))
     (return $ Just (dir </> fn))
     (find dirs fn)
 
@@ -46,9 +48,3 @@ parseLine line
             Just $ B.takeWhile (/='"') (B.drop 1 s)
         | otherwise = Nothing
     include = "#include "
-
--- * util
-
-ifM :: (Monad m) => m Bool -> m a -> m a -> m a
-ifM cond consequent alternative =
-    cond >>= \b -> if b then consequent else alternative

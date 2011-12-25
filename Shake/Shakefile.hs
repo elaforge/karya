@@ -19,6 +19,7 @@
     - if I do a clean build I get bogus files:
         CoreMidi_stub.c -> CoreMid_stub.hs.o, etc.
         the next build is fine
+        Bug in ghc.  7.4 doesn't have it, but it has other problems.
     * make build/hspp
         It's tricky because it should be opt even if nothing else is, and
         because every .hs file depends on it.
@@ -27,6 +28,14 @@
     * some way to automatically get _stub.c?
     * experiment with parallel
     * LogView conflicts with logview, put .os in build/debug/obj
+    - put 'need' into *Deps functions
+    - If I update build/test/RunTests.hs, it gets regenerated, even though
+        it's newer than everything else.  Why?
+        Also, if I update generate_run_tests.py it doesn't rebuild anything.
+    - post hsc2hs should filter out INCLUDE
+    * RunTests
+    * individual test targets
+    - RunProfile
     - make CcDeps transitive
     - chase #includes from .hsc
     - save .deps files
@@ -35,6 +44,7 @@
         wait for --lint to look for errors
 
     Observations:
+    - Would be nice to export ==? from FilePattern.
     - Organized logging for each target and what it needs would be nice.
 
     - After pulling patches that renamed a file, I got "file does not exist"
@@ -89,7 +99,7 @@ options :: ShakeOptions
 options = shakeOptions
     { shakeFiles = build </> "shake"
     , shakeVerbosity = 2
-    , shakeParallel = 3
+    , shakeParallel = 1
     }
 
 data Config = Config {
@@ -200,7 +210,7 @@ configure mode = do
         , cInclude = ["-I.", "-Ifltk"]
         , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
         , fltkLd = fltkLds ++ ["-threaded"]
-        , hcFlags = words "-osuf .hs.o -threaded -W -fwarn-tabs -pgml g++"
+        , hcFlags = words "-threaded -W -fwarn-tabs -pgml g++"
             ++ ["-pgmF", hspp]
             ++ case mode of
                 Debug -> []
@@ -211,6 +221,7 @@ configure mode = do
         }
     flags <- return $ flags
         { ccFlags = fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall"]
+        , hcFlags = hcFlags flags ++ define flags
         }
     return $ Config (modeToDir mode) (build </> "hsc") (strip ghcLib) flags
     where
@@ -240,6 +251,7 @@ main = do
         (error $ "no mode for target " ++ target) (targetToMode target)
     let bindir = (buildDir config </>)
         odir = (oDir config </>)
+        tdir = (modeToDir Test </>)
         s2o = srcToObj config
     putStrLn $ "build dir: " ++ buildDir config
     shake options $ do
@@ -255,8 +267,12 @@ main = do
             system $ linkCc config fn objs
             makeBundle fn
         forM_ binaries $ \binary -> bindir (hsName binary) *> \fn -> do
-            buildHs config (map odir (hsDeps binary)) fn
+            hs <- maybe (errorIO $ "no main module for " ++ fn) return
+                (Map.lookup (FilePath.takeFileName fn) nameToMain)
+            buildHs config (map odir (hsDeps binary)) hs fn
             when (hsGui binary) $ makeBundle fn
+        testHsRule
+        testBinaryRule config
         hsRule config
         hsORule config
         ccORule config
@@ -269,10 +285,10 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
         "-main-is", pathToModule main, main]
 
 -- | Build a haskell binary.
-buildHs :: Config -> [FilePath] -> FilePath -> Action ()
-buildHs config deps fn = do
-    hs <- Trans.liftIO $ maybe (errorIO $ "no main module for " ++ fn) return
-        (Map.lookup (FilePath.takeFileName fn) nameToMain)
+buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Action ()
+buildHs config deps hs fn = do
+    Trans.liftIO $ putStrLn $ "buildHs: " ++ show (fn, hs)
+    need [hs]
     srcs <- Trans.liftIO $ HsDeps.transitiveImportsOf hs
     stubs <- Trans.liftIO $ Maybe.catMaybes <$>
         mapM (HsDeps.findStub (oDir config)) srcs
@@ -311,6 +327,29 @@ makeBundle binary
     | System.Info.os == "darwin" = system' "tools/make_bundle" [binary]
     | otherwise = return ()
 
+-- * tests
+
+testHsRule :: Rules ()
+testHsRule = (modeToDir Test </> "RunTests*.hs") *> \fn -> do
+    Trans.liftIO $ putStrLn $ "testHs: " ++ show fn
+    let pattern = drop 1 (dropWhile (/='-') (FilePath.dropExtension fn))
+        matches = (pattern `List.isInfixOf`) . FilePath.takeFileName
+    tests <- findHs (\hs -> "_test.hs" `List.isSuffixOf` hs && matches hs) "."
+    when (null tests) $
+        errorIO $ "no tests match pattern: " ++ pattern
+    need ["test/generate_run_tests.py"]
+    system' "test/generate_run_tests.py" (fn : tests)
+
+testBinaryRule :: Config -> Rules ()
+testBinaryRule config = matches ?> \fn -> do
+    buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
+    system' "rm" ["-f",
+        FilePath.replaceExtension "tix" (FilePath.takeFileName fn)]
+    system' "rm" ["-f", "test.output"]
+    where
+    matches fn = (modeToDir Test </> "RunTest") `List.isPrefixOf` fn
+        && null (FilePath.takeExtension fn)
+
 -- * hs
 
 hsORule :: Config -> Rules ()
@@ -329,7 +368,7 @@ compileHs :: Config -> FilePath -> Cmdline
 compileHs config hs = ("GHC", hs,
     [ghcBinary, "-c", "-outputdir", oDir config, "-i" ++ includes]
     ++ main_is ++ hcFlags (configFlags config)
-    ++ [hs])
+    ++ [hs, "-o", srcToObj config hs])
     where
     includes = oDir config ++ ":" ++ hscDir config ++ ":."
     main_is = if hs `elem` Map.elems nameToMain
@@ -386,14 +425,20 @@ hsc2hs config hs hsc = ("hsc2hs", hs,
 
 -- * util
 
--- | A/B.cc -> build/debug/A/B.cc.o
--- A/B.hsc -> build/debug/A/B.hs.o
+-- | A/B.hs -> build/debug/obj/A/B.hs.o
+-- A/B.cc -> build/debug/obj/A/B.cc.o
+-- A/B.hsc -> build/debug/obj/A/B.hs.o
+-- build/A/B.hs -> build/A/B.hs.o
+--
+-- Generated .hs files are already in build/ so they shouldn't have build/etc.
+-- prepended.
 srcToObj :: Config -> FilePath -> FilePath
-srcToObj config fn = (oDir config </>) $ case FilePath.takeExtension fn of
+srcToObj config fn = addDir $ case FilePath.takeExtension fn of
     ".hs" -> FilePath.addExtension fn "o"
     ".hsc" -> FilePath.replaceExtension fn "hs.o"
     ".cc" -> FilePath.addExtension fn "o"
     _ -> error $ "unknown haskell extension: " ++ show fn
+    where addDir = if build `List.isPrefixOf` fn then id else (oDir config </>)
 
 -- | build/debug/A/B.hs.o -> A/B.hs
 objToSrc :: Config -> FilePath -> FilePath
@@ -415,8 +460,8 @@ dropDir odir fn
 strip :: String -> String
 strip = reverse . dropWhile Char.isSpace . reverse . dropWhile Char.isSpace
 
-errorIO :: String -> IO a
-errorIO = Exception.throwIO . Exception.ErrorCall
+errorIO :: (Trans.MonadIO m) => String -> m a
+errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
 
 pathToModule :: FilePath -> String
 pathToModule = map (\c -> if c == '/' then '.' else c) . FilePath.dropExtension

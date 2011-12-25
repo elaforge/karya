@@ -11,6 +11,8 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
 
+import qualified Shake.Util as Util
+
 
 type ModuleName = B.ByteString
 
@@ -21,6 +23,7 @@ importsOf fn = do
     imports <- readImportBlock fn
     Maybe.catMaybes <$> mapM fileOf (parseImports imports)
 
+-- | Includes the given module.
 transitiveImportsOf :: FilePath -> IO [FilePath]
 transitiveImportsOf fn = go Set.empty [fn]
     where
@@ -35,15 +38,15 @@ transitiveImportsOf fn = go Set.empty [fn]
 -- | Look for _stub.c files for the give .hs src file.
 findStub :: FilePath -- ^ look in this directory
     -> FilePath -> IO (Maybe FilePath)
-findStub dir fn = ifM (Directory.doesFileExist stub)
+findStub dir fn = Util.ifM (Directory.doesFileExist stub)
     (return (Just stub)) (return Nothing)
     where stub = dir </> FilePath.dropExtension fn ++ "_stub.c"
 
 fileOf :: ModuleName -> IO (Maybe FilePath)
 fileOf mod =
-    ifM (Directory.doesFileExist fn) (return (Just fn)) $
-    ifM (Directory.doesFileExist (fn ++ "c")) (return (Just (fn ++ "c"))) $
-    return Nothing
+    Util.ifM (Directory.doesFileExist fn) (return (Just fn)) $
+    Util.ifM (Directory.doesFileExist (fn ++ "c"))
+        (return (Just (fn ++ "c"))) (return Nothing)
     where
     fn = B.unpack $ B.map slash mod `B.append` ".hs"
     slash c = if c == '.' then '/' else c
@@ -72,9 +75,3 @@ readImportBlock fn = withFile fn header
 
 withFile :: FilePath -> (IO.Handle -> IO a) -> IO a
 withFile fn = Exception.bracket (IO.openFile fn IO.ReadMode) IO.hClose
-
--- * util
-
-ifM :: (Monad m) => m Bool -> m a -> m a -> m a
-ifM cond consequent alternative =
-    cond >>= \b -> if b then consequent else alternative
