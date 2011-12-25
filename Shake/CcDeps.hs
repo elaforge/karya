@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Shake.CcDeps where
+import qualified Control.Monad.Trans as Trans
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
 
+import qualified Development.Shake as Shake
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
@@ -15,9 +17,12 @@ import qualified Shake.Util as Util
 -- | Find files this file includes, relative to the current directory.
 --
 -- TODO do this transitively
-includesOf :: [FilePath] -> FilePath -> IO ([FilePath], [FilePath])
+includesOf :: [FilePath] -> FilePath -> Shake.Action ([FilePath], [FilePath])
     -- ^ (found, not found)
-includesOf dirs fn = do
+includesOf dirs fn = Shake.need [fn] >> Trans.liftIO (includesOf_ dirs fn)
+
+includesOf_ :: [FilePath] -> FilePath -> IO ([FilePath], [FilePath])
+includesOf_ dirs fn = do
     includes <- readIncludes fn
     -- @#include "x"@ starts searching from the same directory as the source
     -- file.

@@ -28,7 +28,7 @@
     * some way to automatically get _stub.c?
     * experiment with parallel
     * LogView conflicts with logview, put .os in build/debug/obj
-    - put 'need' into *Deps functions
+    * put 'need' into *Deps functions
     - If I update build/test/RunTests.hs, it gets regenerated, even though
         it's newer than everything else.  Why?
         Also, if I update generate_run_tests.py it doesn't rebuild anything.
@@ -251,7 +251,6 @@ main = do
         (error $ "no mode for target " ++ target) (targetToMode target)
     let bindir = (buildDir config </>)
         odir = (oDir config </>)
-        tdir = (modeToDir Test </>)
         s2o = srcToObj config
     putStrLn $ "build dir: " ++ buildDir config
     shake options $ do
@@ -288,8 +287,7 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Action ()
 buildHs config deps hs fn = do
     Trans.liftIO $ putStrLn $ "buildHs: " ++ show (fn, hs)
-    need [hs]
-    srcs <- Trans.liftIO $ HsDeps.transitiveImportsOf hs
+    srcs <- HsDeps.transitiveImportsOf hs
     stubs <- Trans.liftIO $ Maybe.catMaybes <$>
         mapM (HsDeps.findStub (oDir config)) srcs
     let ccs = List.nub $
@@ -357,8 +355,8 @@ hsORule config = "//*.hs.o" *> \obj -> do
     isHsc <- Trans.liftIO $
         Directory.doesFileExist (objToSrc config obj ++ "c")
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
-    need [hspp, hs]
-    imports <- Trans.liftIO $ HsDeps.importsOf hs
+    need [hspp]
+    imports <- HsDeps.importsOf hs
     let objs = map (srcToObj config) imports
     logDeps config "hs" obj (hs:objs)
     need objs
@@ -388,9 +386,8 @@ linkHs config output pkgs objs = ("LD-HS", output,
 ccORule :: Config -> Rules ()
 ccORule config = "//*.cc.o" *> \obj -> do
     let cc = objToSrc config obj
-    need [cc]
     let dirs = [dir | '-':'I':dir <- cInclude (configFlags config)]
-    (deps, not_found) <- Trans.liftIO $ CcDeps.includesOf dirs cc
+    (deps, not_found) <- CcDeps.includesOf dirs cc
     when (not (null not_found)) $
         Trans.liftIO $ putStrLn $
             "WARNING: c includes not found: " ++ show not_found

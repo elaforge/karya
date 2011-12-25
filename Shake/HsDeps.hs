@@ -2,10 +2,13 @@
 module Shake.HsDeps (importsOf, transitiveImportsOf, findStub) where
 import Control.Applicative ((<$>))
 import qualified Control.Exception as Exception
+import qualified Control.Monad.Trans as Trans
+
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
+import qualified Development.Shake as Shake
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
@@ -18,19 +21,26 @@ type ModuleName = B.ByteString
 
 -- | Return modules this module imports, in the form A/B.hs or A/B.hsc.
 -- Paths that don't exist are assumed to be package imports and are omitted.
-importsOf :: FilePath -> IO [FilePath]
-importsOf fn = do
+importsOf :: FilePath -> Shake.Action [FilePath]
+importsOf fn = Shake.need [fn] >> Trans.liftIO (importsOf_ fn)
+
+importsOf_ :: FilePath -> IO [FilePath]
+importsOf_ fn = do
     imports <- readImportBlock fn
     Maybe.catMaybes <$> mapM fileOf (parseImports imports)
 
 -- | Includes the given module.
-transitiveImportsOf :: FilePath -> IO [FilePath]
-transitiveImportsOf fn = go Set.empty [fn]
+transitiveImportsOf :: FilePath -> Shake.Action [FilePath]
+transitiveImportsOf fn =
+    Shake.need [fn] >> Trans.liftIO (transitiveImportsOf_ fn)
+
+transitiveImportsOf_ :: FilePath -> IO [FilePath]
+transitiveImportsOf_ fn = go Set.empty [fn]
     where
     go checked (fn:fns)
         | fn `Set.member` checked = go checked fns
         | otherwise = do
-            imports <- importsOf fn
+            imports <- importsOf_ fn
             let checked' = Set.insert fn checked
             go checked' (fns ++ filter (`Set.notMember` checked') imports)
     go checked [] = return $ Set.toList checked
