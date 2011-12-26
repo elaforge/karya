@@ -1,4 +1,4 @@
-module Shake.Util (Cmdline, system, findHs, ifM) where
+module Shake.Util (Cmdline, system, findHs, ifM, whenM) where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Char as Char
@@ -52,3 +52,6 @@ partitionM f (x:xs) = ifM (f x)
 ifM :: (Monad m) => m Bool -> m a -> m a -> m a
 ifM cond consequent alternative =
     cond >>= \b -> if b then consequent else alternative
+
+whenM :: (Monad m) => m Bool -> m () -> m ()
+whenM cond consequent = cond >>= \b -> when b consequent

@@ -40,10 +40,13 @@
     - chase #includes from .hsc
     - save .deps files
     - have configure use system' to rebuild if there are config changes?
+        Wait, does system' even have that behaviour?
     - run again and it relinks sometimes?
         wait for --lint to look for errors
 
     Observations:
+    - If I rm build/debu/obj/Ui/* and then build seq, it locks up after
+        printing the ***build line for seq.
     - Would be nice to export ==? from FilePattern.
     - Organized logging for each target and what it needs would be nice.
 
@@ -79,12 +82,14 @@ import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
+import qualified System.IO as IO
 import qualified System.Info
 import qualified System.Process as Process
 
 import qualified Shake.CcDeps as CcDeps
 import qualified Shake.HsDeps as HsDeps
-import Shake.Util
+import qualified Shake.Util as Util
+import Shake.Util (Cmdline, system)
 
 
 -- * config
@@ -243,6 +248,7 @@ configure mode = do
 
 main :: IO ()
 main = do
+    IO.hSetBuffering IO.stdout IO.LineBuffering
     targets <- filter (not . ("-" `List.isPrefixOf`)) <$> Environment.getArgs
     let target = case targets of
             [target] -> target
@@ -286,10 +292,7 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Action ()
 buildHs config deps hs fn = do
-    Trans.liftIO $ putStrLn $ "buildHs: " ++ show (fn, hs)
     srcs <- HsDeps.transitiveImportsOf hs
-    stubs <- Trans.liftIO $ Maybe.catMaybes <$>
-        mapM (HsDeps.findStub (oDir config)) srcs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = deps ++ List.nub (map (srcToObj config) (ccs ++ srcs))
@@ -298,6 +301,7 @@ buildHs config deps hs fn = do
     -- I could put a dep on .c.o for the stubs, but then I need a separate
     -- .c.o rule that will work in the build dir and the right flags, and
     -- ghc seems happy to compile it for me.
+    stubs <- Maybe.catMaybes <$> mapM (HsDeps.findStub (oDir config)) srcs
     system $ linkHs config fn packages (stubs ++ objs)
 
 -- | Rather than trying to figure out which binary needs which packages, I
@@ -332,7 +336,8 @@ testHsRule = (modeToDir Test </> "RunTests*.hs") *> \fn -> do
     Trans.liftIO $ putStrLn $ "testHs: " ++ show fn
     let pattern = drop 1 (dropWhile (/='-') (FilePath.dropExtension fn))
         matches = (pattern `List.isInfixOf`) . FilePath.takeFileName
-    tests <- findHs (\hs -> "_test.hs" `List.isSuffixOf` hs && matches hs) "."
+    tests <- Util.findHs
+        (\hs -> "_test.hs" `List.isSuffixOf` hs && matches hs) "."
     when (null tests) $
         errorIO $ "no tests match pattern: " ++ pattern
     need ["test/generate_run_tests.py"]
@@ -361,6 +366,18 @@ hsORule config = "//*.hs.o" *> \obj -> do
     logDeps config "hs" obj (hs:objs)
     need objs
     system $ compileHs config hs
+    -- A bug in ghc 7.0.3 causes the compiled stub .o files to have a
+    -- strange name when -o is used:
+    -- .../BlockC.hs.o -> .../BlockC.hs_stub.o
+    -- should be .../BlockC_stub.o
+    -- I don't this makes a difference since buildHs includes the .c on
+    -- the ghc cmdline, bypassing the .o, but I might as well put it in
+    -- the right place.
+    let stub = FilePath.dropExtension (srcToObj config hs) ++ "_stub.o"
+        shouldBe = ((++"_stub.o") . reverse . drop (length ".hs_stub.o")
+                . reverse) stub
+    Util.whenM (Trans.liftIO $ Directory.doesFileExist stub) $
+        system' "mv" [stub, shouldBe]
 
 compileHs :: Config -> FilePath -> Cmdline
 compileHs config hs = ("GHC", hs,

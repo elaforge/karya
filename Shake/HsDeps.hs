@@ -46,9 +46,9 @@ transitiveImportsOf_ fn = go Set.empty [fn]
     go checked [] = return $ Set.toList checked
 
 -- | Look for _stub.c files for the give .hs src file.
-findStub :: FilePath -- ^ look in this directory
-    -> FilePath -> IO (Maybe FilePath)
-findStub dir fn = Util.ifM (Directory.doesFileExist stub)
+findStub :: (Trans.MonadIO m) => FilePath -- ^ look in this directory
+    -> FilePath -> m (Maybe FilePath)
+findStub dir fn = Trans.liftIO $ Util.ifM (Directory.doesFileExist stub)
     (return (Just stub)) (return Nothing)
     where stub = dir </> FilePath.dropExtension fn ++ "_stub.c"
 
