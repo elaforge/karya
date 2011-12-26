@@ -194,7 +194,9 @@ run flags args
             _ -> mapM_ sub_run init_tests
     where
     tests = matching_tests args
-    print_tests = mapM_ putStrLn (List.sort (map test_name tests))
+    print_tests
+        | null tests = putStrLn $ "no tests match: " ++ show args
+        | otherwise = mapM_ putStrLn (List.sort (map test_name tests))
 
 sub_run :: Test -> IO ()
 sub_run test = do
