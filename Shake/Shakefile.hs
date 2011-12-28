@@ -35,11 +35,11 @@
     - If I update build/test/RunTests.hs, it gets regenerated, even though
         it's newer than everything else.  Why?
         Also, if I update generate_run_tests.py it doesn't rebuild anything.
-    - post hsc2hs should filter out INCLUDE
+    * post hsc2hs should filter out INCLUDE
     * RunTests
     * individual test targets
     * RunProfile
-    - make CcDeps transitive
+    * make CcDeps transitive
     - chase #includes from .hsc
     - save .deps files
     - have configure use system' to rebuild if there are config changes?
@@ -433,7 +433,7 @@ ccORule :: Config -> Rules ()
 ccORule config = "//*.cc.o" *> \obj -> do
     let cc = objToSrc config obj
     let dirs = [dir | '-':'I':dir <- cInclude (configFlags config)]
-    (deps, not_found) <- CcDeps.includesOf dirs cc
+    (deps, not_found) <- CcDeps.transitiveIncludesOf dirs cc
     when (not (null not_found)) $
         Trans.liftIO $ putStrLn $
             "WARNING: c includes not found: " ++ show not_found

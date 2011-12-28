@@ -19,7 +19,7 @@ import qualified Shake.Util as Util
 
 type ModuleName = B.ByteString
 
--- | Return modules this module imports, in the form A/B.hs or A/B.hsc.
+-- | Find files of modules this module imports, in the form A/B.hs or A/B.hsc.
 -- Paths that don't exist are assumed to be package imports and are omitted.
 importsOf :: FilePath -> Shake.Action [FilePath]
 importsOf fn = Shake.need [fn] >> Trans.liftIO (importsOf_ fn)
@@ -29,7 +29,7 @@ importsOf_ fn = do
     imports <- readImportBlock fn
     Maybe.catMaybes <$> mapM fileOf (parseImports imports)
 
--- | Includes the given module.
+-- | Like 'importsOf' but transitive.  Includes the given module.
 transitiveImportsOf :: FilePath -> Shake.Action [FilePath]
 transitiveImportsOf fn =
     Shake.need [fn] >> Trans.liftIO (transitiveImportsOf_ fn)

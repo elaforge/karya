@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Shake.CcDeps where
+module Shake.CcDeps (transitiveIncludesOf) where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import qualified Development.Shake as Shake
 import qualified System.Directory as Directory
@@ -14,12 +15,10 @@ import System.FilePath ((</>))
 import qualified Shake.Util as Util
 
 
--- | Find files this file includes, relative to the current directory.
---
--- TODO do this transitively
-includesOf :: [FilePath] -> FilePath -> Shake.Action ([FilePath], [FilePath])
-    -- ^ (found, not found)
-includesOf dirs fn = Shake.need [fn] >> Trans.liftIO (includesOf_ dirs fn)
+-- -- | Find files this file includes.
+-- includesOf :: [FilePath] -> FilePath -> Shake.Action ([FilePath], [FilePath])
+--     -- ^ (found, not found)
+-- includesOf dirs fn = Shake.need [fn] >> Trans.liftIO (includesOf_ dirs fn)
 
 includesOf_ :: [FilePath] -> FilePath -> IO ([FilePath], [FilePath])
 includesOf_ dirs fn = do
@@ -29,6 +28,25 @@ includesOf_ dirs fn = do
     paths <- mapM (find (FilePath.dropFileName fn : dirs)) includes
     return $ Either.partitionEithers
         [maybe (Right inc) Left path | (path, inc) <- zip paths includes]
+
+-- | Find files this files includes, transitively.  Includes the given file.
+transitiveIncludesOf :: [FilePath] -> FilePath
+    -> Shake.Action ([FilePath], [FilePath]) -- ^ (found, notfound)
+transitiveIncludesOf dirs fn =
+    Shake.need [fn] >> Trans.liftIO (transitiveIncludesOf_ dirs fn)
+
+transitiveIncludesOf_ :: [FilePath] -> FilePath -> IO ([FilePath], [FilePath])
+transitiveIncludesOf_ dirs fn = go Set.empty Set.empty [fn]
+    where
+    go checked notfound (fn:fns)
+        | fn `Set.member` checked || fn `Set.member` notfound =
+            go checked notfound fns
+        | otherwise = do
+            (includes, fnNotfound) <- includesOf_ dirs fn
+            let checked' = Set.insert fn checked
+            go checked' (Set.union notfound (Set.fromList fnNotfound))
+                (fns ++ filter (`Set.notMember` checked') includes)
+    go checked notfound [] = return (Set.toList checked, Set.toList notfound)
 
 find :: [FilePath] -> FilePath -> IO (Maybe FilePath)
 find [] _ = return Nothing
