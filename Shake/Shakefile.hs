@@ -16,10 +16,13 @@
     TODO
     * no rule to build util.h
     * build seq
-    - if I do a clean build I get bogus files:
+    * if I do a clean build I get bogus files:
         CoreMidi_stub.c -> CoreMid_stub.hs.o, etc.
         the next build is fine
         Bug in ghc.  7.4 doesn't have it, but it has other problems.
+        Problem with my shakefile was looking for _stub.c before needing the
+        files that generated it.  Maybe 'XYZ_stub.{c,h}' should be marked as
+        an output of 'XYZ.hs -> XYZ.{hi,o}'?
     * make build/hspp
         It's tricky because it should be opt even if nothing else is, and
         because every .hs file depends on it.
@@ -35,7 +38,7 @@
     - post hsc2hs should filter out INCLUDE
     * RunTests
     * individual test targets
-    - RunProfile
+    * RunProfile
     - make CcDeps transitive
     - chase #includes from .hsc
     - save .deps files
@@ -43,8 +46,15 @@
         Wait, does system' even have that behaviour?
     - run again and it relinks sometimes?
         wait for --lint to look for errors
+    - Mark .hi files as generated from .o files and depend on .hi files like
+        ghc -M does.  Why do this instead of .o?  ghc will avoid updating the
+        timestamp on the .hi file if things dependent on it don't need to be
+        recompiled.
 
-    Observations:
+    Suggestions:
+    - *>, **>, ?>, and the like should have low precedence so
+        'dir ++ "*.hs" *> xyz' works as expected.  Maybe same as ($), though
+        (<$>) might make sense.
     - If I rm build/debu/obj/Ui/* and then build seq, it locks up after
         printing the ***build line for seq.
     - Would be nice to export ==? from FilePattern.
@@ -132,8 +142,6 @@ data Flags = Flags {
     , hLinkFlags :: [String]
     } deriving (Show)
 
-(<>) = Monoid.mappend
-
 -- TODO ghc 7.2.1's GHC.Generics might be able to make this derivable
 instance Monoid.Monoid Flags where
     mempty = Flags [] [] [] [] [] [] [] [] []
@@ -143,6 +151,8 @@ instance Monoid.Monoid Flags where
             (h1<>h2) (i1<>i2)
 
 -- * binaries
+
+-- This section has project specific hardcoded lists of files.
 
 data HsBinary = HsBinary {
     hsName :: FilePath
@@ -190,6 +200,26 @@ hsToCc = Map.fromList $
         ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc", "Ui/SymbolC.hsc",
             "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"]]
 
+-- | Rather than trying to figure out which binary needs which packages, I
+-- just union all the packages.  TODO can I ask ghc to infer packages
+-- automatically like --make?
+packages :: [String]
+packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
+    ++ "dlist parsec text stm network haskell-src regex-pcre hint "
+    ++ "bytestring attoparsec utf8-string "
+    ++ "mersenne-random-pure64 hashable random-shuffle "
+    ++ "containers filepath transformers "
+    ++ "haskeline" -- repl
+
+fltkDeps :: Config -> [FilePath]
+fltkDeps config = map (srcToObj config . ("fltk"</>))
+    [ "Block.cc", "TrackTile.cc", "Track.cc", "Ruler.cc", "EventTrack.cc"
+    , "MoveTile.cc", "P9Scrollbar.cc", "SimpleScroll.cc", "SeqInput.cc"
+    , "MsgCollector.cc", "SkeletonDisplay.cc", "StyleTable.cc"
+    , "SymbolTable.cc", "SymbolOutput.cc", "f_util.cc", "alpha_draw.cc"
+    , "types.cc", "config.cc", "util.cc"
+    ]
+
 -- * mode
 
 data Mode = Debug | Opt | Test | Profile deriving (Eq, Enum, Show)
@@ -211,7 +241,8 @@ configure mode = do
     fltkCs <- words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
     flags <- return $ osFlags
-        { define = define osFlags ++ if mode == Test then ["-DTESTING"] else []
+        { define = define osFlags ++ if mode `elem` [Test, Profile]
+            then ["-DTESTING"] else []
         , cInclude = ["-I.", "-Ifltk"]
         , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
         , fltkLd = fltkLds ++ ["-threaded"]
@@ -223,6 +254,7 @@ configure mode = do
                 Test -> ["-fhpc"]
                 Profile -> ["-O", "-prof", "-auto-all"]
         , hLinkFlags = ["-rtsopts"]
+            ++ if mode == Profile then ["-prof", "-auto-all"] else []
         }
     flags <- return $ flags
         { ccFlags = fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall"]
@@ -276,8 +308,8 @@ main = do
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
             buildHs config (map odir (hsDeps binary)) hs fn
             when (hsGui binary) $ makeBundle fn
-        testHsRule
-        testBinaryRule config
+        testRules config
+        profileRules config
         hsRule config
         hsORule config
         ccORule config
@@ -304,54 +336,51 @@ buildHs config deps hs fn = do
     stubs <- Maybe.catMaybes <$> mapM (HsDeps.findStub (oDir config)) srcs
     system $ linkHs config fn packages (stubs ++ objs)
 
--- | Rather than trying to figure out which binary needs which packages, I
--- just union all the packages.  TODO can I ask ghc to infer packages
--- automatically like --make?
-packages :: [String]
-packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
-    ++ "dlist parsec text stm network haskell-src regex-pcre hint "
-    ++ "bytestring attoparsec utf8-string "
-    ++ "mersenne-random-pure64 hashable random-shuffle "
-    ++ "containers filepath transformers "
-    ++ "haskeline" -- repl
-
-fltkDeps :: Config -> [FilePath]
-fltkDeps config = map (srcToObj config . ("fltk"</>))
-    [ "Block.cc", "TrackTile.cc", "Track.cc", "Ruler.cc", "EventTrack.cc"
-    , "MoveTile.cc", "P9Scrollbar.cc", "SimpleScroll.cc", "SeqInput.cc"
-    , "MsgCollector.cc", "SkeletonDisplay.cc", "StyleTable.cc"
-    , "SymbolTable.cc", "SymbolOutput.cc", "f_util.cc", "alpha_draw.cc"
-    , "types.cc", "config.cc", "util.cc"
-    ]
-
 makeBundle :: FilePath -> Action ()
 makeBundle binary
     | System.Info.os == "darwin" = system' "tools/make_bundle" [binary]
     | otherwise = return ()
 
--- * tests
+-- * tests and profiles
 
-testHsRule :: Rules ()
-testHsRule = (modeToDir Test </> "RunTests*.hs") *> \fn -> do
-    Trans.liftIO $ putStrLn $ "testHs: " ++ show fn
+-- | Generate RunTests.hs and compile it.
+testRules :: Config -> Rules ()
+testRules config = do
+    let binPrefix = modeToDir Test </> "RunTests"
+    (binPrefix ++ "*.hs") *> generateTestHs "_test"
+    matchBinary binPrefix ?> \fn -> do
+        -- The UI tests use fltk.a.  It would be nicer to have it automatically
+        -- added when any .o that uses it is linked in.
+        buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
+        -- This sticks around and breaks hpc.
+        system' "rm" ["-f",
+            FilePath.replaceExtension "tix" (FilePath.takeFileName fn)]
+        -- This gets reset on each new test run.
+        system' "rm" ["-f", "test.output"]
+
+profileRules :: Config -> Rules ()
+profileRules config = do
+    let binPrefix = modeToDir Profile </> "RunProfile"
+    (binPrefix ++ "*.hs") *> generateTestHs "_profile"
+    matchBinary binPrefix ?> \fn -> do
+        buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
+
+-- | Match any filename that starts with the given prefix but doesn't have
+-- an extension, i.e. binaries.
+matchBinary :: FilePath -> FilePath -> Bool
+matchBinary prefix fn =
+    prefix `List.isPrefixOf` fn && null (FilePath.takeExtension fn)
+
+generateTestHs :: FilePath -> FilePath -> Action ()
+generateTestHs hsSuffix fn = do
     let pattern = drop 1 (dropWhile (/='-') (FilePath.dropExtension fn))
         matches = (pattern `List.isInfixOf`) . FilePath.takeFileName
     tests <- Util.findHs
-        (\hs -> "_test.hs" `List.isSuffixOf` hs && matches hs) "."
+        (\hs -> (hsSuffix ++ ".hs") `List.isSuffixOf` hs && matches hs) "."
     when (null tests) $
         errorIO $ "no tests match pattern: " ++ pattern
     need ["test/generate_run_tests.py"]
     system' "test/generate_run_tests.py" (fn : tests)
-
-testBinaryRule :: Config -> Rules ()
-testBinaryRule config = matches ?> \fn -> do
-    buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
-    system' "rm" ["-f",
-        FilePath.replaceExtension "tix" (FilePath.takeFileName fn)]
-    system' "rm" ["-f", "test.output"]
-    where
-    matches fn = (modeToDir Test </> "RunTest") `List.isPrefixOf` fn
-        && null (FilePath.takeExtension fn)
 
 -- * hs
 
@@ -431,7 +460,9 @@ hsRule config = (hscDir config ++ "//*.hs") *> \hs -> do
 
 hsc2hs :: Config -> FilePath -> FilePath -> Cmdline
 hsc2hs config hs hsc = ("hsc2hs", hs,
-    ["hsc2hs", "-I" ++ ghcLib config </> "include"]
+    -- My special local version of hsc2hs that doesn't emit INCLUDEs.
+    ["/usr/local/bin/hsc2hs", "-I" ++ ghcLib config </> "include"]
+    -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
     ++ words "-c g++ --cflag -Wno-invalid-offsetof"
     ++ cInclude flags ++ fltkCc flags ++ define flags
     ++ [hsc, "-o", hs])
@@ -490,3 +521,5 @@ logDeps :: Config -> String -> FilePath -> [FilePath] -> Action ()
 logDeps config stage fn objs = Trans.liftIO $ putStrLn $
     "***" ++ stage ++ ": " ++ fn ++ " <- " ++
         unwords (map (dropDir (oDir config)) objs)
+
+(<>) = Monoid.mappend
