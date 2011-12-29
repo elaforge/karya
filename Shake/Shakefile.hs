@@ -32,24 +32,29 @@
     * experiment with parallel
     * LogView conflicts with logview, put .os in build/debug/obj
     * put 'need' into *Deps functions
-    - If I update build/test/RunTests.hs, it gets regenerated, even though
-        it's newer than everything else.  Why?
-        Also, if I update generate_run_tests.py it doesn't rebuild anything.
     * post hsc2hs should filter out INCLUDE
     * RunTests
     * individual test targets
     * RunProfile
     * make CcDeps transitive
-    - chase #includes from .hsc
-    - save .deps files
+    * chase #includes from .hsc
+    - save .deps files?  only if it's too slow
     - have configure use system' to rebuild if there are config changes?
         Wait, does system' even have that behaviour?
-    - run again and it relinks sometimes?
-        wait for --lint to look for errors
     - Mark .hi files as generated from .o files and depend on .hi files like
         ghc -M does.  Why do this instead of .o?  ghc will avoid updating the
         timestamp on the .hi file if things dependent on it don't need to be
         recompiled.
+    - cc targets: test_browser, test_logview
+    - phony targets: all, checkin, tests, complete-tests, profile
+    - compile Shakefile itself
+
+    BUGS
+    - run again and it relinks sometimes?
+        wait for --lint to look for errors
+    - If I update build/test/RunTests.hs, it gets regenerated, even though
+        it's newer than everything else.  Why?
+        Also, if I update generate_run_tests.py it doesn't rebuild anything.
 
     Suggestions:
     - *>, **>, ?>, and the like should have low precedence so
@@ -285,8 +290,9 @@ main = do
     let target = case targets of
             [target] -> target
             _ -> error "expected one argument"
-    config <- configure $ Maybe.fromMaybe
-        (error $ "no mode for target " ++ target) (targetToMode target)
+    config <- configure $ Maybe.fromMaybe Debug (targetToMode target)
+        -- Default to Debug mode so I can make targets that have no dependence
+        -- on compile flags, like build/hsc/...
     let bindir = (buildDir config </>)
         odir = (oDir config </>)
         s2o = srcToObj config
@@ -432,13 +438,9 @@ linkHs config output pkgs objs = ("LD-HS", output,
 ccORule :: Config -> Rules ()
 ccORule config = "//*.cc.o" *> \obj -> do
     let cc = objToSrc config obj
-    let dirs = [dir | '-':'I':dir <- cInclude (configFlags config)]
-    (deps, not_found) <- CcDeps.transitiveIncludesOf dirs cc
-    when (not (null not_found)) $
-        Trans.liftIO $ putStrLn $
-            "WARNING: c includes not found: " ++ show not_found
-    logDeps config "cc" obj (cc:deps)
-    need deps
+    includes <- includesOf "ccORule" config cc
+    logDeps config "cc" obj (cc:includes)
+    need includes
     system $ compileCc config cc obj
 
 compileCc :: Config -> FilePath -> FilePath -> Cmdline
@@ -454,8 +456,9 @@ linkCc config binary objs = ("LD-CC", binary,
 hsRule :: Config -> Rules ()
 hsRule config = (hscDir config ++ "//*.hs") *> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
-    logDeps config "hsc" hs [hsc]
-    need [hsc]
+    includes <- includesOf "hsRule" config hsc
+    logDeps config "hsc" hs (hsc : includes)
+    need (hsc : includes)
     system $ hsc2hs config hs hsc
 
 hsc2hs :: Config -> FilePath -> FilePath -> Cmdline
@@ -523,3 +526,12 @@ logDeps config stage fn objs = Trans.liftIO $ putStrLn $
         unwords (map (dropDir (oDir config)) objs)
 
 (<>) = Monoid.mappend
+
+includesOf :: String -> Config -> FilePath -> Action [FilePath]
+includesOf caller config fn = do
+    let dirs = [dir | '-':'I':dir <- cInclude (configFlags config)]
+    (includes, not_found) <- CcDeps.transitiveIncludesOf dirs fn
+    when (not (null not_found)) $
+        Trans.liftIO $ putStrLn $ caller
+            ++ ": WARNING: c includes not found: " ++ show not_found
+    return includes

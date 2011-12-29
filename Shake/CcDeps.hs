@@ -30,6 +30,8 @@ includesOf_ dirs fn = do
         [maybe (Right inc) Left path | (path, inc) <- zip paths includes]
 
 -- | Find files this files includes, transitively.  Includes the given file.
+--
+-- Can also be used for .hsc files since it looks for @^#include@.
 transitiveIncludesOf :: [FilePath] -> FilePath
     -> Shake.Action ([FilePath], [FilePath]) -- ^ (found, notfound)
 transitiveIncludesOf dirs fn =
