@@ -46,7 +46,7 @@
         timestamp on the .hi file if things dependent on it don't need to be
         recompiled.
     - cc targets: test_browser, test_logview
-    - phony targets: all, checkin, tests, complete-tests, profile
+    - phony targets: all, checkin, tests, complete-tests, profile, tags
     * compile Shakefile itself
 
     BUGS
@@ -163,29 +163,30 @@ data HsBinary = HsBinary {
     hsName :: FilePath
     , hsMain :: FilePath -- ^ main module
     , hsDeps :: [FilePath] -- ^ additional deps, relative to obj dir
-    , hsGui :: Bool -- ^ GUI apps need make_bundle
+    , hsGui :: Maybe (Maybe FilePath) -- ^ GUI needs make_bundle + maybe icon
     } deriving (Show)
 
 binaries :: [HsBinary]
 binaries =
     [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"]
+        Nothing
     , plain "dump" "App/Dump.hs"
     , plain "logcat" "LogView/LogCat.hs"
-    , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"]
+    , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] Nothing
     , plain "make_db" "Instrument/MakeDb.hs"
     , plain "pprint" "App/PPrint.hs"
     , plain "print_keymap" "App/PrintKeymap.hs"
     , plain "repl" "App/Repl.hs"
     , plain "send" "App/Send.hs"
-    , gui "seq" "App/Main.hs" ["fltk/fltk.a"]
+    , gui "seq" "App/Main.hs" ["fltk/fltk.a"] (Just "doc/seq.icns")
     , plain "shakefile" "Shake/Shakefile.hs"
     , plain "test_core_midi" "Midi/TestCoreMidi.hs"
     , plain "timer" "LogView/Timer.hs"
     , plain "update" "App/Update.hs"
     ]
     where
-    plain name path = HsBinary name path [] False
-    gui name path deps = HsBinary name path deps True
+    plain name path = HsBinary name path [] Nothing
+    gui name path deps icon = HsBinary name path deps (Just icon)
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
@@ -310,12 +311,14 @@ main = do
             let objs = [s2o "fltk/test_block.cc", odir "fltk/fltk.a"]
             need objs
             system $ linkCc config fn objs
-            makeBundle fn
+            makeBundle fn Nothing
         forM_ binaries $ \binary -> bindir (hsName binary) *> \fn -> do
             hs <- maybe (errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
             buildHs config (map odir (hsDeps binary)) hs fn
-            when (hsGui binary) $ makeBundle fn
+            case hsGui binary of
+                Just icon -> makeBundle fn icon
+                _ -> return ()
         testRules config
         profileRules config
         hsRule config
@@ -344,9 +347,10 @@ buildHs config deps hs fn = do
     stubs <- Maybe.catMaybes <$> mapM (HsDeps.findStub (oDir config)) srcs
     system $ linkHs config fn packages (stubs ++ objs)
 
-makeBundle :: FilePath -> Action ()
-makeBundle binary
-    | System.Info.os == "darwin" = system' "tools/make_bundle" [binary]
+makeBundle :: FilePath -> Maybe FilePath -> Action ()
+makeBundle binary icon
+    | System.Info.os == "darwin" =
+        system' "tools/make_bundle" (binary : maybe [] (:[]) icon)
     | otherwise = return ()
 
 -- * tests and profiles
