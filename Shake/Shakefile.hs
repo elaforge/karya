@@ -45,7 +45,7 @@
         ghc -M does.  Why do this instead of .o?  ghc will avoid updating the
         timestamp on the .hi file if things dependent on it don't need to be
         recompiled.
-    - cc targets: test_browser, test_logview
+    * cc targets: test_browser, test_logview
     - phony targets: all, checkin, tests, complete-tests, profile, tags
     * compile Shakefile itself
 
@@ -159,6 +159,8 @@ instance Monoid.Monoid Flags where
 
 -- This section has project specific hardcoded lists of files.
 
+-- ** hs
+
 data HsBinary = HsBinary {
     hsName :: FilePath
     , hsMain :: FilePath -- ^ main module
@@ -166,8 +168,8 @@ data HsBinary = HsBinary {
     , hsGui :: Maybe (Maybe FilePath) -- ^ GUI needs make_bundle + maybe icon
     } deriving (Show)
 
-binaries :: [HsBinary]
-binaries =
+hsBinaries :: [HsBinary]
+hsBinaries =
     [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"]
         Nothing
     , plain "dump" "App/Dump.hs"
@@ -191,7 +193,7 @@ binaries =
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
 nameToMain :: Map.Map FilePath FilePath
-nameToMain = Map.fromList [(hsName b, hsMain b) | b <- binaries]
+nameToMain = Map.fromList [(hsName b, hsMain b) | b <- hsBinaries]
 
 -- | Haskell files that use the FFI likely have dependencies on C++ source.
 -- I could figure this out automatically by looking for @foreign import ...@
@@ -218,6 +220,22 @@ packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
     ++ "containers filepath transformers "
     ++ "haskeline " -- repl
     ++ "shake " -- shakefile
+
+-- ** cc
+
+data CcBinary = CcBinary {
+    ccName :: String
+    , ccDeps :: [FilePath]
+    } deriving (Show)
+
+ccBinaries :: [CcBinary]
+ccBinaries =
+    [ CcBinary "test_block" ["fltk/test_block.cc.o", "fltk/fltk.a"]
+    , CcBinary "test_browser" ["Instrument/test_browser.cc.o",
+        "Instrument/browser_ui.cc.o", "fltk/f_util.cc.o"]
+    , CcBinary "test_logview" ["LogView/test_logview.cc.o",
+        "LogView/logview_ui.cc.o", "fltk/f_util.cc.o"]
+    ]
 
 fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
@@ -283,7 +301,6 @@ configure mode = do
     -- TODO can I put this under system' to rebuild if there are changes?
     run cmd args = Process.readProcess cmd args ""
 
-
 -- * rules
 
 main :: IO ()
@@ -307,12 +324,12 @@ main = do
         odir "fltk/fltk.a" *> \fn -> do
             need (fltkDeps config)
             system' "ar" $ ["-rs", fn] ++ fltkDeps config
-        bindir "test_block" *> \fn -> do
-            let objs = [s2o "fltk/test_block.cc", odir "fltk/fltk.a"]
+        forM_ ccBinaries $ \binary -> bindir (ccName binary) *> \fn -> do
+            let objs = map odir (ccDeps binary)
             need objs
             system $ linkCc config fn objs
             makeBundle fn Nothing
-        forM_ binaries $ \binary -> bindir (hsName binary) *> \fn -> do
+        forM_ hsBinaries $ \binary -> bindir (hsName binary) *> \fn -> do
             hs <- maybe (errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
             buildHs config (map odir (hsDeps binary)) hs fn
