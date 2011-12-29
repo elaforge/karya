@@ -18,7 +18,7 @@ main(int argc, char **argv)
     char *filename = NULL;
     if (argc > 1)
         filename = argv[1];
-    LogViewWindow win(50, 50, 500, 200, msg_callback, 1024 * 128);
+    LogViewWindow win(50, 50, 500, 200, "test", msg_callback, 1024 * 128);
 
     if (filename) {
         FILE *fp = fopen(filename, "r");
