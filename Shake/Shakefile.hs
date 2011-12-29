@@ -47,7 +47,7 @@
         recompiled.
     - cc targets: test_browser, test_logview
     - phony targets: all, checkin, tests, complete-tests, profile
-    - compile Shakefile itself
+    * compile Shakefile itself
 
     BUGS
     - run again and it relinks sometimes?
@@ -178,6 +178,7 @@ binaries =
     , plain "repl" "App/Repl.hs"
     , plain "send" "App/Send.hs"
     , gui "seq" "App/Main.hs" ["fltk/fltk.a"]
+    , plain "shakefile" "Shake/Shakefile.hs"
     , plain "test_core_midi" "Midi/TestCoreMidi.hs"
     , plain "timer" "LogView/Timer.hs"
     , plain "update" "App/Update.hs"
@@ -214,7 +215,8 @@ packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
     ++ "bytestring attoparsec utf8-string "
     ++ "mersenne-random-pure64 hashable random-shuffle "
     ++ "containers filepath transformers "
-    ++ "haskeline" -- repl
+    ++ "haskeline " -- repl
+    ++ "shake " -- shakefile
 
 fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
