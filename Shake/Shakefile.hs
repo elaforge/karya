@@ -177,7 +177,7 @@ hsBinaries =
     , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] Nothing
     , plain "make_db" "Instrument/MakeDb.hs"
     , plain "pprint" "App/PPrint.hs"
-    , plain "print_keymap" "App/PrintKeymap.hs"
+    , HsBinary "print_keymap" "App/PrintKeymap.hs" ["fltk/fltk.a"] Nothing
     , plain "repl" "App/Repl.hs"
     , plain "send" "App/Send.hs"
     , gui "seq" "App/Main.hs" ["fltk/fltk.a"] (Just "doc/seq.icns")
@@ -315,7 +315,6 @@ main = do
         -- on compile flags, like build/hsc/...
     let bindir = (buildDir config </>)
         odir = (oDir config </>)
-        s2o = srcToObj config
     putStrLn $ "build dir: " ++ buildDir config
     shake options $ do
         -- hspp is depended on by all .hs files.  To avoid recursion, I
@@ -336,6 +335,10 @@ main = do
             case hsGui binary of
                 Just icon -> makeBundle fn icon
                 _ -> return ()
+        "doc/keymap.html" *> \fn -> do
+            let bin = bindir "print_keymap"
+            need [bin]
+            Util.shell $ bin ++ " >" ++ fn
         testRules config
         profileRules config
         hsRule config
