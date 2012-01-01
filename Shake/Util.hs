@@ -31,10 +31,10 @@ shell cmd = do
         error $ "Failed:\n" ++ cmd
 
 findHs :: (Trans.MonadIO m) => (FilePath -> Bool) -> FilePath -> m [FilePath]
-findHs acceptHs dir = Trans.liftIO $ findFiles
-    (all Char.isUpper . take 1 . FilePath.takeFileName)
-    (\fn -> FilePath.takeExtension fn == ".hs" && acceptHs fn)
+findHs acceptHs dir = Trans.liftIO $ findFiles capital
+    (\fn -> capital fn && FilePath.takeExtension fn == ".hs" && acceptHs fn)
     dir
+    where capital = all Char.isUpper . take 1 . FilePath.takeFileName
 
 -- | Recursively find files below a directory.
 findFiles :: (FilePath -> Bool) -> (FilePath -> Bool) -> FilePath
