@@ -1,4 +1,4 @@
-module Shake.Util (Cmdline, system, findHs, ifM, whenM) where
+module Shake.Util (Cmdline, system, shell, findHs, ifM, whenM) where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Char as Char
@@ -22,6 +22,13 @@ system (abbr, output, cmd_:args) = do
         error $ "Failed:\n" ++ unwords (cmd : args)
 system (abbr, output, []) =
     error $ "0 args for system: " ++ show (abbr, output)
+
+shell :: String -> Shake.Action ()
+shell cmd = do
+    Shake.putLoud cmd
+    res <- Trans.liftIO $ Cmd.system cmd
+    when (res /= Exit.ExitSuccess) $
+        error $ "Failed:\n" ++ cmd
 
 findHs :: (Trans.MonadIO m) => (FilePath -> Bool) -> FilePath -> m [FilePath]
 findHs acceptHs dir = Trans.liftIO $ findFiles
