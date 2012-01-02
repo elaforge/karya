@@ -383,9 +383,11 @@ dispatch config target = case target of
     "clean" -> action $ system' "rm" ["-rf", build]
     "doc" -> action $ do
         hscs <- Util.findHs (const True) (hscDir config)
+        hs <- filter haddock <$> Util.findHs (const True) "."
         need hscs
-        system' "haddock" ["--html", "-B", ghcLib config,
+        system' "haddock" $ ["--html", "-B", ghcLib config,
             "--source-module=\"../%F\"", "-o", build </> "doc"]
+            ++ hs ++ hscs
     "checkin" -> do
         let debug = (modeToDir Debug </>)
         want [debug "browser", debug "logview", debug "make_db", debug "seq",
@@ -416,6 +418,16 @@ dispatch config target = case target of
     _ -> want [target]
     where
     runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
+
+-- | Should this module have haddock documentation generated?
+haddock :: FilePath -> Bool
+haddock hs = not $ hs `elem` map hsMain hsBinaries
+    || "_test.hs" `List.isSuffixOf` hs
+    || "_profile.hs" `List.isSuffixOf` hs
+    -- TODO Actually I would like to haddock these, but they rely on TESTING
+    -- being set.  Apparently haddock has no way to set CPP defines, so I
+    -- either have to add a way or stop using CPP for conditional exports.
+    || "Test.hs" `List.isSuffixOf` hs
 
 makeHs :: FilePath -> FilePath -> FilePath -> Cmdline
 makeHs dir out main = ("GHC-MAKE", out, cmdline)
