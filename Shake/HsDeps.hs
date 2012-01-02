@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Shake.HsDeps (importsOf, transitiveImportsOf, findStub) where
+module Shake.HsDeps (importsOf, transitiveImportsOf) where
 import Control.Applicative ((<$>))
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
@@ -44,13 +44,6 @@ transitiveImportsOf_ fn = go Set.empty [fn]
             let checked' = Set.insert fn checked
             go checked' (fns ++ filter (`Set.notMember` checked') imports)
     go checked [] = return $ Set.toList checked
-
--- | Look for _stub.c files for the give .hs src file.
-findStub :: (Trans.MonadIO m) => FilePath -- ^ look in this directory
-    -> FilePath -> m (Maybe FilePath)
-findStub dir fn = Trans.liftIO $ Util.ifM (Directory.doesFileExist stub)
-    (return (Just stub)) (return Nothing)
-    where stub = dir </> FilePath.dropExtension fn ++ "_stub.c"
 
 fileOf :: ModuleName -> IO (Maybe FilePath)
 fileOf mod =

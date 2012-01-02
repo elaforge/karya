@@ -49,7 +49,7 @@
     * cc targets: test_browser, test_logview
     * phony targets: all, checkin, tests, complete-tests, profile, tags
     * compile Shakefile itself
-    - try ndm's merging stubs trick
+    * try ndm's merging stubs trick
 
     BUGS
     - run again and it relinks sometimes?
@@ -59,16 +59,8 @@
         Also, if I update generate_run_tests.py it doesn't rebuild anything.
 
     Suggestions:
-    - In my makefile, I use phony targets, like
-        'tests: build/RunTests\n\ttools/run_tests $^'
-        I'm not sure how to write a rule with no expected output, but
-        apparently it does need to be a rule because that's the only place
-        I can call 'need'.
-    - If *>, **>, ?> had low precedence then 'dir ++ "*.hs" *> xyz' would work
-        without parens.
     - If I rm build/debu/obj/Ui/* and then build seq, it locks up after
         printing the ***build line for seq.
-    - Would be nice to export ==? from FilePattern.
     - I'd like to be able to specify that certain targets should be recompiled
         if, say, the output of a "library version" cmd changes.  As
         I understand it, this is what the oracle used to be for, but now
@@ -440,11 +432,7 @@ buildHs config deps hs fn = do
         objs = deps ++ List.nub (map (srcToObj config) (ccs ++ srcs))
     logDeps config "build" fn objs
     need objs
-    -- I could put a dep on .c.o for the stubs, but then I need a separate
-    -- .c.o rule that will work in the build dir and the right flags, and
-    -- ghc seems happy to compile it for me.
-    stubs <- Maybe.catMaybes <$> mapM (HsDeps.findStub (oDir config)) srcs
-    system $ linkHs config fn packages (stubs ++ objs)
+    system $ linkHs config fn packages objs
 
 makeBundle :: FilePath -> Maybe FilePath -> Action ()
 makeBundle binary icon
@@ -507,18 +495,19 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     logDeps config "hs" obj (hs:objs)
     need objs
     system $ compileHs config hs
+    -- FFI-using files with a "wrapper" callback generate a _stub.c file
+    -- and compile it.  Merge it with the module's .o so I don't have to
+    -- worry about linking it later.  This also makes ghci able to load the
+    -- file.
+    --
     -- A bug in ghc 7.0.3 causes the compiled stub .o files to have a
     -- strange name when -o is used:
     -- .../BlockC.hs.o -> .../BlockC.hs_stub.o
     -- should be .../BlockC_stub.o
-    -- I don't this makes a difference since buildHs includes the .c on
-    -- the ghc cmdline, bypassing the .o, but I might as well put it in
-    -- the right place.
     let stub = FilePath.dropExtension (srcToObj config hs) ++ "_stub.o"
-        shouldBe = ((++"_stub.o") . reverse . drop (length ".hs_stub.o")
-                . reverse) stub
-    Util.whenM (Trans.liftIO $ Directory.doesFileExist stub) $
-        system' "mv" [stub, shouldBe]
+    Util.whenM (Trans.liftIO $ Directory.doesFileExist stub) $ do
+        Trans.liftIO $ Directory.renameFile obj (obj ++ "2")
+        system' "ld" ["-r", "-o", obj, obj ++ "2", stub]
 
 compileHs :: Config -> FilePath -> Cmdline
 compileHs config hs = ("GHC", hs,
