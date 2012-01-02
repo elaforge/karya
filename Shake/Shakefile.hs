@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, ViewPatterns #-}
 {- |
     from scratch (191 modules):
     runghc Shake/Shakefile.hs build/debug/seq  128.43s user 20.04s system 178% cpu 1:23.01 total
@@ -40,14 +40,16 @@
     * chase #includes from .hsc
     - save .deps files?  only if it's too slow
     - have configure use system' to rebuild if there are config changes?
+        Write a Rule instance for Commands for the output of shell cmds
         Wait, does system' even have that behaviour?
     - Mark .hi files as generated from .o files and depend on .hi files like
         ghc -M does.  Why do this instead of .o?  ghc will avoid updating the
         timestamp on the .hi file if things dependent on it don't need to be
         recompiled.
     * cc targets: test_browser, test_logview
-    - phony targets: all, checkin, tests, complete-tests, profile, tags
+    * phony targets: all, checkin, tests, complete-tests, profile, tags
     * compile Shakefile itself
+    - try ndm's merging stubs trick
 
     BUGS
     - run again and it relinks sometimes?
@@ -57,18 +59,25 @@
         Also, if I update generate_run_tests.py it doesn't rebuild anything.
 
     Suggestions:
-    - *>, **>, ?>, and the like should have low precedence so
-        'dir ++ "*.hs" *> xyz' works as expected.  Maybe same as ($), though
-        (<$>) might make sense.
+    - In my makefile, I use phony targets, like
+        'tests: build/RunTests\n\ttools/run_tests $^'
+        I'm not sure how to write a rule with no expected output, but
+        apparently it does need to be a rule because that's the only place
+        I can call 'need'.
+    - If *>, **>, ?> had low precedence then 'dir ++ "*.hs" *> xyz' would work
+        without parens.
     - If I rm build/debu/obj/Ui/* and then build seq, it locks up after
         printing the ***build line for seq.
     - Would be nice to export ==? from FilePattern.
-    - Organized logging for each target and what it needs would be nice.
+    - I'd like to be able to specify that certain targets should be recompiled
+        if, say, the output of a "library version" cmd changes.  As
+        I understand it, this is what the oracle used to be for, but now
+        that's possible with a non file typed target.  From the source I'm
+        guessing this is possible by making a 'Rule Command String' instance?
 
-    - After pulling patches that renamed a file, I got "file does not exist"
-    for the old name.  On the second run (after shake.database was corrupted,
-    as usual), the error went away, so probably the old name was preserved in
-    the db.
+    - It would be nice to have access to the logging level.  For example, I'd
+        like to print the complete cmdline if Loud, but print an abbreviated
+        version if Quiet, or print the complete config vs. the important bits.
 
     - It would be nice to see which thread each task was run as, to get an
     idea of where parallelism is happening.
@@ -177,6 +186,10 @@ hsBinaries =
     , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] Nothing
     , plain "make_db" "Instrument/MakeDb.hs"
     , plain "pprint" "App/PPrint.hs"
+    -- PrintKeymap wants the global keymap, which winds up importing cmds that
+    -- directly call UI level functions.  Even though it doesn't call the
+    -- cmds, they're packaged together with the keybindings, so I wind up
+    -- having to link in all that stuff anyway.
     , HsBinary "print_keymap" "App/PrintKeymap.hs" ["fltk/fltk.a"] Nothing
     , plain "repl" "App/Repl.hs"
     , plain "send" "App/Send.hs"
@@ -250,6 +263,9 @@ fltkDeps config = map (srcToObj config . ("fltk"</>))
 
 data Mode = Debug | Opt | Test | Profile deriving (Eq, Enum, Show)
 
+allModes :: [Mode]
+allModes = [Debug .. Profile]
+
 modeToDir :: Mode -> FilePath
 modeToDir mode = (build </>) $ case mode of
     Debug -> "debug"
@@ -261,33 +277,35 @@ targetToMode :: FilePath -> Maybe Mode
 targetToMode target = snd <$> List.find ((`List.isPrefixOf` target) . fst)
     (zip (map modeToDir [Debug ..]) [Debug ..])
 
-configure :: Mode -> IO Config
-configure mode = do
+configure :: IO (Mode -> Config)
+configure = do
     ghcLib <- run ghcBinary ["--print-libdir"]
     fltkCs <- words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
-    flags <- return $ osFlags
-        { define = define osFlags ++ if mode `elem` [Test, Profile]
-            then ["-DTESTING"] else []
-        , cInclude = ["-I.", "-Ifltk"]
-        , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
-        , fltkLd = fltkLds ++ ["-threaded"]
-        , hcFlags = words "-threaded -W -fwarn-tabs -pgml g++"
-            ++ ["-pgmF", hspp]
-            ++ case mode of
-                Debug -> []
-                Opt -> ["-O"]
-                Test -> ["-fhpc"]
-                Profile -> ["-O", "-prof", "-auto-all"]
-        , hLinkFlags = ["-rtsopts"]
-            ++ if mode == Profile then ["-prof", "-auto-all"] else []
-        }
-    flags <- return $ flags
+    return $ \mode ->
+        let flags = osFlags
+                { define = define osFlags ++ if mode `elem` [Test, Profile]
+                    then ["-DTESTING"] else []
+                , cInclude = ["-I.", "-Ifltk"]
+                , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
+                , fltkLd = fltkLds ++ ["-threaded"]
+                , hcFlags = words "-threaded -W -fwarn-tabs -pgml g++"
+                    ++ ["-pgmF", hspp]
+                    ++ case mode of
+                        Debug -> []
+                        Opt -> ["-O"]
+                        Test -> ["-fhpc"]
+                        Profile -> ["-O", "-prof", "-auto-all"]
+                , hLinkFlags = ["-rtsopts"]
+                    ++ if mode == Profile then ["-prof", "-auto-all"] else []
+                }
+        in Config (modeToDir mode) (build </> "hsc") (strip ghcLib)
+            (setCFlags flags)
+    where
+    setCFlags flags = flags
         { ccFlags = fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall"]
         , hcFlags = hcFlags flags ++ define flags
         }
-    return $ Config (modeToDir mode) (build </> "hsc") (strip ghcLib) flags
-    where
     osFlags = case System.Info.os of
         "darwin" -> mempty
             { define = ["-DMAC_OS_X_VERSION_MAX_ALLOWED=1060",
@@ -298,53 +316,114 @@ configure mode = do
             }
         "linux" -> mempty
         unknown -> error $ "unknown os: " ++ show unknown
-    -- TODO can I put this under system' to rebuild if there are changes?
     run cmd args = Process.readProcess cmd args ""
+
+type InferConfig = FilePath -> Config
+
+-- | Figure out the Config for a given target by looking at its directory.
+inferConfig :: (Mode -> Config) -> InferConfig
+inferConfig modeConfig fn =
+    maybe (modeConfig Debug) modeConfig (targetToMode fn)
 
 -- * rules
 
 main :: IO ()
 main = do
     IO.hSetBuffering IO.stdout IO.LineBuffering
-    targets <- filter (not . ("-" `List.isPrefixOf`)) <$> Environment.getArgs
+    targets <- Environment.getArgs
     let target = case targets of
             [target] -> target
             _ -> error "expected one argument"
-    config <- configure $ Maybe.fromMaybe Debug (targetToMode target)
-        -- Default to Debug mode so I can make targets that have no dependence
-        -- on compile flags, like build/hsc/...
-    let bindir = (buildDir config </>)
-        odir = (oDir config </>)
-    putStrLn $ "build dir: " ++ buildDir config
+    modeConfig <- configure
+    let infer = inferConfig modeConfig
+    putStrLn $ "build dir: " ++ buildDir (infer target)
     shake options $ do
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
         hspp *> \fn -> system $ makeHs (modeToDir Opt) fn "Util/Hspp.hs"
-        odir "fltk/fltk.a" *> \fn -> do
+        matchObj "fltk/fltk.a" ?> \fn -> do
+            let config = infer fn
             need (fltkDeps config)
             system' "ar" $ ["-rs", fn] ++ fltkDeps config
-        forM_ ccBinaries $ \binary -> bindir (ccName binary) *> \fn -> do
-            let objs = map odir (ccDeps binary)
+        forM_ ccBinaries $ \binary -> matchBinary (ccName binary) ?> \fn -> do
+            let config = infer fn
+            let objs = map (oDir config </>) (ccDeps binary)
             need objs
             system $ linkCc config fn objs
             makeBundle fn Nothing
-        forM_ hsBinaries $ \binary -> bindir (hsName binary) *> \fn -> do
+        forM_ hsBinaries $ \binary -> matchBinary (hsName binary) ?> \fn -> do
+            let config = infer fn
             hs <- maybe (errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
-            buildHs config (map odir (hsDeps binary)) hs fn
+            buildHs config (map (oDir config </>) (hsDeps binary)) hs fn
             case hsGui binary of
                 Just icon -> makeBundle fn icon
                 _ -> return ()
         "doc/keymap.html" *> \fn -> do
-            let bin = bindir "print_keymap"
+            let bin = buildDir (modeConfig Debug) </> "print_keymap"
             need [bin]
             Util.shell $ bin ++ " >" ++ fn
-        testRules config
-        profileRules config
-        hsRule config
-        hsORule config
-        ccORule config
-        want [target]
+        testRules (modeConfig Test)
+        profileRules (modeConfig Profile)
+        hsRule (modeConfig Debug) -- hsc2hs only uses mode-independent flags
+        hsORule infer
+        ccORule infer
+        dispatch (modeConfig Debug) target
+
+-- | Match a file in @build/<mode>/obj/@.
+matchObj :: FilePattern -> FilePath -> Bool
+matchObj pattern fn =
+    matchPrefix (map ((</> "obj") . modeToDir) allModes) pattern fn
+    || matchPrefix (map modeToDir allModes) pattern fn
+
+-- | Match a file in @build/<mode>/@.
+matchBinary :: FilePattern -> FilePath -> Bool
+matchBinary = matchPrefix (map modeToDir allModes)
+
+matchPrefix :: [FilePattern] -> FilePattern -> FilePath -> Bool
+matchPrefix prefixes pattern fn =
+    case msum $ map (flip dropPrefix fn) prefixes of
+        Nothing -> False
+        Just rest -> pattern ?== (dropWhile (=='/') rest)
+
+dispatch :: Config -> String -> Rules ()
+dispatch config target = case target of
+    "clean" -> action $ system' "rm" ["-rf", build]
+    "doc" -> action $ do
+        hscs <- Util.findHs (const True) (hscDir config)
+        need hscs
+        system' "haddock" ["--html", "-B", ghcLib config,
+            "--source-module=\"../%F\"", "-o", build </> "doc"]
+    "checkin" -> do
+        let debug = (modeToDir Debug </>)
+        want [debug "browser", debug "logview", debug "make_db", debug "seq",
+            debug "update", "doc/keymap.html",
+            modeToDir Profile </> "RunProfile"]
+        dispatch config "complete-tests"
+    "tests" -> action $ do
+        need [runTests Nothing]
+        system' "test/run_tests" [runTests Nothing]
+    (dropPrefix "tests-" -> Just tests) -> action $ do
+        need [runTests (Just tests)]
+        system' "test/run_tests" [runTests (Just tests)]
+    "complete-tests" -> action $ do
+        need [runTests Nothing]
+        system' "test/run_tests" [runTests Nothing, "normal-", "gui-"]
+    "profile" -> action $ do
+        need [modeToDir Profile </> "RunProfile"]
+        system' "tools/summarize_profile.py" []
+    "tags" -> action $ do
+        hs <- Util.findHs (const True) "."
+        hscs <- Util.findHs (const True) (hscDir config)
+        need hscs
+        system' "hasktags" $ ["--ignore-close-implementation", "--ctags"]
+            ++ hs ++ hscs
+        Util.shell $ "sort tags >tags.sorted"
+            ++ "; (echo -e '!_TAG_FILE_SORTED\t1\t ~'; cat tags.sorted) >tags"
+            ++ "; rm tags.sorted"
+    _ -> want [target]
+    where
+    runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
 
 makeHs :: FilePath -> FilePath -> FilePath -> Cmdline
 makeHs dir out main = ("GHC-MAKE", out, cmdline)
@@ -380,13 +459,13 @@ testRules :: Config -> Rules ()
 testRules config = do
     let binPrefix = modeToDir Test </> "RunTests"
     (binPrefix ++ "*.hs") *> generateTestHs "_test"
-    matchBinary binPrefix ?> \fn -> do
-        -- The UI tests use fltk.a.  It would be nicer to have it automatically
-        -- added when any .o that uses it is linked in.
+    hasPrefix binPrefix ?> \fn -> do
+        -- The UI tests use fltk.a.  It would be nicer to have it
+        -- automatically added when any .o that uses it is linked in.
         buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
         -- This sticks around and breaks hpc.
         system' "rm" ["-f",
-            FilePath.replaceExtension "tix" (FilePath.takeFileName fn)]
+            FilePath.replaceExtension (FilePath.takeFileName fn) "tix"]
         -- This gets reset on each new test run.
         system' "rm" ["-f", "test.output"]
 
@@ -394,13 +473,13 @@ profileRules :: Config -> Rules ()
 profileRules config = do
     let binPrefix = modeToDir Profile </> "RunProfile"
     (binPrefix ++ "*.hs") *> generateTestHs "_profile"
-    matchBinary binPrefix ?> \fn -> do
+    hasPrefix binPrefix ?> \fn -> do
         buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
 
 -- | Match any filename that starts with the given prefix but doesn't have
 -- an extension, i.e. binaries.
-matchBinary :: FilePath -> FilePath -> Bool
-matchBinary prefix fn =
+hasPrefix :: FilePath -> FilePath -> Bool
+hasPrefix prefix fn =
     prefix `List.isPrefixOf` fn && null (FilePath.takeExtension fn)
 
 generateTestHs :: FilePath -> FilePath -> Action ()
@@ -416,8 +495,9 @@ generateTestHs hsSuffix fn = do
 
 -- * hs
 
-hsORule :: Config -> Rules ()
-hsORule config = "//*.hs.o" *> \obj -> do
+hsORule :: InferConfig -> Rules ()
+hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
+    let config = infer obj
     isHsc <- Trans.liftIO $
         Directory.doesFileExist (objToSrc config obj ++ "c")
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
@@ -461,8 +541,9 @@ linkHs config output pkgs objs = ("LD-HS", output,
 
 -- * cc
 
-ccORule :: Config -> Rules ()
-ccORule config = "//*.cc.o" *> \obj -> do
+ccORule :: InferConfig -> Rules ()
+ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
+    let config = infer obj
     let cc = objToSrc config obj
     includes <- includesOf "ccORule" config cc
     logDeps config "cc" obj (cc:includes)
@@ -547,7 +628,7 @@ pathToModule :: FilePath -> String
 pathToModule = map (\c -> if c == '/' then '.' else c) . FilePath.dropExtension
 
 logDeps :: Config -> String -> FilePath -> [FilePath] -> Action ()
-logDeps config stage fn objs = Trans.liftIO $ putStrLn $
+logDeps config stage fn objs = putLoud $
     "***" ++ stage ++ ": " ++ fn ++ " <- " ++
         unwords (map (dropDir (oDir config)) objs)
 
@@ -561,3 +642,8 @@ includesOf caller config fn = do
         Trans.liftIO $ putStrLn $ caller
             ++ ": WARNING: c includes not found: " ++ show not_found
     return includes
+
+dropPrefix :: String -> String -> Maybe String
+dropPrefix pref str
+    | pref `List.isPrefixOf` str = Just (drop (length pref) str)
+    | otherwise = Nothing
