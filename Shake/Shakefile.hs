@@ -50,6 +50,11 @@
     * phony targets: all, checkin, tests, complete-tests, profile, tags
     * compile Shakefile itself
     * try ndm's merging stubs trick
+    - merging stubs fails the second time:
+        GHC: Midi/CoreMidi.hs
+        compilation IS NOT required
+        ld -r -o build/debug/obj/Midi/CoreMidi.hs.o build/debug/obj/Midi/CoreMidi.hs.o2 build/debug/obj/Midi/CoreMidi.hs_stub.o
+        ld: duplicate symbol _MidiziCoreMidi_d2fD in build/debug/obj/Midi/CoreMidi.hs_stub.o and build/debug/obj/Midi/CoreMidi.hs.o2 for inferred architecture x86_64
 
     BUGS
     - run again and it relinks sometimes?
@@ -363,7 +368,7 @@ main = do
         -- reduce some recompilation because ghc will avoid updating the
         -- timestamp on the .hi file if things dependent on it don't need to
         -- be recompiled.
-        "*.hi" *> \hi -> need [hiToObj hi]
+        "//*.hi" *> \hi -> need [hiToObj hi]
         ccORule infer
         dispatch (modeConfig Debug) target
 
