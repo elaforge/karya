@@ -5,7 +5,7 @@
     'Ui.State.State', or Cmd 'State', but a special subset can also do IO
     actions like saving and loading files.
 
-    The Cmd monad has two kinds of exeptions: abort or throw.  Abort means
+    The Cmd monad has two kinds of exception: abort or throw.  Abort means
     that the Cmd decided that it's not the proper Cmd for this Msg (keystroke,
     mouse movement, whatever) and another Cmd should get a crack at it.  Throw
     means that the Cmd failed.  When an exception is thrown, the ui and cmd
@@ -20,9 +20,10 @@
     cmds (bound to keystrokes) and the REPL must be polymorphic in the monad.
 
     Formerly this was @(Monad m) => CmdT m ...@, but with the upgrade to mtl2
-    Functor would have to be added to the class context, but only some of the
-    time.  Rather than deal such messiness, there's a class @Cmd.M@ that
-    brings in Functor and Applicative as superclasses.
+    Functor would have to be added to the class context, but only for cmds
+    that happened to use Applicative operators.  Rather than deal such
+    messiness, there's a class @Cmd.M@ that brings in Functor and Applicative
+    as superclasses.
 
     It's all a bit messy and unpleasant and should be technically unnecessary
     since Identity monads should be able to run in IO anyway.  Other
@@ -110,8 +111,6 @@ type CmdIO = CmdT IO Status
 -- | Cmds used by the language system, which all run in Identity.
 type CmdL a = CmdT IO a
 
--- | Quit is not exported, so that only 'cmd_quit' here has permission to
--- return it.
 data Status = Done | Continue | Quit deriving (Eq, Show, Generics.Typeable)
 
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
@@ -230,8 +229,7 @@ ignore_abort m = catch_abort m >> return ()
 
 -- * State
 
--- | App global state.  Unlike Ui.State, this is not saved to disk.
--- TODO break this up into a couple sections
+-- | App global state.  Unlike 'Ui.State.State', this is not saved to disk.
 data State = State {
     -- Config type variables that change never or rarely.  These come from the
     -- static config.
@@ -273,9 +271,9 @@ data State = State {
     , state_play :: !PlayState
 
     -- External device tracking.
-    -- | Midi state of WriteDevices.
+    -- | MIDI state of WriteDevices.
     , state_wdev_state :: !WriteDeviceState
-    -- | Midi state of ReadDevices, including configuration like pitch bend
+    -- | MIDI state of ReadDevices, including configuration like pitch bend
     -- range.
     , state_rdev_state :: !ReadDeviceState
     , state_edit :: !EditState

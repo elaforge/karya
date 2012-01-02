@@ -1,3 +1,4 @@
+module Derive.Integrate where
 {-
 Record starts play and sets record_start time.  Record continues until I hit
 "stop", which may be longer than the playback.
@@ -10,6 +11,7 @@ The integrator comes out of the schema, and is a function
 'RecordConfig -> RecordState -> Cmd'.  The default one
 -}
 
+{-
 data RecordState {
     rec_start :: Timestamp.Timestamp
     , rec_track :: (Block.BlockId, Block.TrackNum)
@@ -49,3 +51,4 @@ cmd_record msg = do
     Cmd.put_state $
         rec_state { Cmd.state_record = rec_state { rec_buffer = buf } }
 
+-}
