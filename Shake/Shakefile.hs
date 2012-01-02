@@ -42,7 +42,7 @@
     - have configure use system' to rebuild if there are config changes?
         Write a Rule instance for Commands for the output of shell cmds
         Wait, does system' even have that behaviour?
-    - Mark .hi files as generated from .o files and depend on .hi files like
+    * Mark .hi files as generated from .o files and depend on .hi files like
         ghc -M does.  Why do this instead of .o?  ghc will avoid updating the
         timestamp on the .hi file if things dependent on it don't need to be
         recompiled.
@@ -89,7 +89,6 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty)
 
@@ -359,6 +358,12 @@ main = do
         profileRules (modeConfig Profile)
         hsRule (modeConfig Debug) -- hsc2hs only uses mode-independent flags
         hsORule infer
+        -- 'hsORule' depends on .hi files instead of .o files, and this rule
+        -- states that a .hi is created by creating its .hs.o.  This might
+        -- reduce some recompilation because ghc will avoid updating the
+        -- timestamp on the .hi file if things dependent on it don't need to
+        -- be recompiled.
+        "*.hi" *> \hi -> need [hiToObj hi]
         ccORule infer
         dispatch (modeConfig Debug) target
 
@@ -505,7 +510,7 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     imports <- HsDeps.importsOf hs
     let objs = map (srcToObj config) imports
     logDeps config "hs" obj (hs:objs)
-    need objs
+    need $ map objToHi objs
     system $ compileHs config hs
     -- FFI-using files with a "wrapper" callback generate a _stub.c file
     -- and compile it.  Merge it with the module's .o so I don't have to
@@ -612,6 +617,12 @@ objToHscHs config = (hscDir config </>) . objToSrc config
 
 hsToHsc :: FilePath -> FilePath -> FilePath
 hsToHsc hscDir fn = dropDir hscDir $ FilePath.replaceExtension fn "hsc"
+
+objToHi :: FilePath -> FilePath
+objToHi = (++".hi") . FilePath.dropExtension . FilePath.dropExtension
+
+hiToObj :: FilePath -> FilePath
+hiToObj = flip FilePath.replaceExtension "hs.o"
 
 dropDir :: FilePath -> FilePath -> FilePath
 dropDir odir fn

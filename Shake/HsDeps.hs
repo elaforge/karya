@@ -10,8 +10,6 @@ import qualified Data.Set as Set
 
 import qualified Development.Shake as Shake
 import qualified System.Directory as Directory
-import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
 import qualified System.IO as IO
 
 import qualified Shake.Util as Util
