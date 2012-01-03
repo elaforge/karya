@@ -94,10 +94,12 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty)
 
 import Development.Shake
+import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
@@ -120,10 +122,10 @@ fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
 ghcBinary = "ghc-7.0.3"
 hspp = modeToDir Opt </> "hspp"
 
-options :: ShakeOptions
-options = shakeOptions
+defaultOptions :: ShakeOptions
+defaultOptions = shakeOptions
     { shakeFiles = build </> "shake"
-    , shakeVerbosity = Loud
+    , shakeVerbosity = Normal
     , shakeParallel = 4
     , shakeDump = True
     }
@@ -324,17 +326,47 @@ inferConfig modeConfig fn =
 
 -- * rules
 
+data Flag = Verbosity Verbosity | Jobs Int | Lint deriving (Eq, Show)
+
+cmdlineOptions :: [GetOpt.OptDescr Flag]
+cmdlineOptions =
+    [ GetOpt.Option ['v'] []
+        (GetOpt.OptArg (maybe (Verbosity Loud) readVerbosity) "verbosity") $
+        "Verbosity, from 0 to 4."
+    , GetOpt.Option ['j'] [] (GetOpt.ReqArg (Jobs . read) "jobs") $
+        "Number of jobs to run simultaneously."
+    , GetOpt.Option [] ["lint"] (GetOpt.NoArg Lint) "Run in lint mode."
+    ]
+    where
+    readVerbosity s = Verbosity $ case read s of
+        0 -> Silent
+        1 -> Quiet
+        2 -> Normal
+        3 -> Loud
+        n -> error $ "verbosity should be 0--3: " ++ show n
+
 main :: IO ()
 main = do
     IO.hSetBuffering IO.stdout IO.LineBuffering
-    targets <- Environment.getArgs
+    (flags, targets, errors) <- GetOpt.getOpt GetOpt.Permute cmdlineOptions <$>
+        Environment.getArgs
+    when (not (null errors)) $
+        error $ "Errors parsing flags: " ++ unlines errors
+
     let target = case targets of
             [target] -> target
             _ -> error "expected one argument"
     modeConfig <- configure
-    let infer = inferConfig modeConfig
-    putStrLn $ "build dir: " ++ buildDir (infer target)
+    let options = defaultOptions
+            { shakeParallel = Maybe.fromMaybe (shakeParallel defaultOptions) $
+                mlast [j | Jobs j <- flags]
+            , shakeVerbosity =
+                Maybe.fromMaybe (shakeVerbosity defaultOptions) $
+                    mlast [v | Verbosity v <- flags]
+            , shakeLint = Lint `elem` flags
+            }
     shake options $ do
+        let infer = inferConfig modeConfig
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
         hspp *> \fn -> system $ makeHs (modeToDir Opt) fn "Util/Hspp.hs"
@@ -665,3 +697,7 @@ dropPrefix :: String -> String -> Maybe String
 dropPrefix pref str
     | pref `List.isPrefixOf` str = Just (drop (length pref) str)
     | otherwise = Nothing
+
+mlast :: [a] -> Maybe a
+mlast [] = Nothing
+mlast xs = Just (last xs)

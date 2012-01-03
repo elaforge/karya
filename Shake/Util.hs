@@ -1,4 +1,10 @@
-module Shake.Util (Cmdline, system, shell, findHs, ifM, whenM) where
+module Shake.Util (
+    -- * shake specific
+    Cmdline, system, shell, putNormalLoud
+
+    -- * general
+    , findHs, ifM, whenM
+) where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Char as Char
@@ -10,13 +16,15 @@ import qualified System.Exit as Exit
 import System.FilePath ((</>))
 
 
+-- * shake specific
+
 type Cmdline = (String, String, [String])
 
 system :: Cmdline -> Shake.Action ()
 system (abbr, output, cmd_:args) = do
     let cmd = FilePath.toNative cmd_
     let desc = abbr ++ ": " ++ output
-    Shake.putLoud desc
+    putNormalLoud desc (unwords (cmd:args))
     res <- Shake.traced (crunch ("system: " ++ desc)) $ Cmd.rawSystem cmd args
     when (res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ unwords (cmd : args)
@@ -30,6 +38,15 @@ shell cmd = do
     when (res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ cmd
 
+putNormalLoud :: String -> String -> Shake.Action ()
+putNormalLoud normal loud = do
+    verbosity <- Shake.getVerbosity
+    case verbosity of
+        Shake.Normal -> Shake.putNormal normal
+        Shake.Loud -> Shake.putLoud loud
+        _ -> return ()
+
+
 findHs :: (Trans.MonadIO m) => (FilePath -> Bool) -> FilePath -> m [FilePath]
 findHs acceptHs dir = Trans.liftIO $ findFiles capital
     (\fn -> capital fn && FilePath.takeExtension fn == ".hs" && acceptHs fn)
@@ -38,6 +55,8 @@ findHs acceptHs dir = Trans.liftIO $ findFiles capital
 
 -- Work around shake bug where only the first word is taken.
 crunch = filter (/=' ')
+
+-- * general
 
 -- | Recursively find files below a directory.
 findFiles :: (FilePath -> Bool) -> (FilePath -> Bool) -> FilePath
