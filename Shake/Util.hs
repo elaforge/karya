@@ -17,7 +17,7 @@ system (abbr, output, cmd_:args) = do
     let cmd = FilePath.toNative cmd_
     let desc = abbr ++ ": " ++ output
     Shake.putLoud desc
-    res <- Trans.liftIO $ Cmd.rawSystem cmd args
+    res <- Shake.traced (crunch ("system: " ++ desc)) $ Cmd.rawSystem cmd args
     when (res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ unwords (cmd : args)
 system (abbr, output, []) =
@@ -26,7 +26,7 @@ system (abbr, output, []) =
 shell :: String -> Shake.Action ()
 shell cmd = do
     Shake.putLoud cmd
-    res <- Trans.liftIO $ Cmd.system cmd
+    res <- Shake.traced (crunch ("shell: " ++ cmd)) $ Cmd.system cmd
     when (res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ cmd
 
@@ -35,6 +35,9 @@ findHs acceptHs dir = Trans.liftIO $ findFiles capital
     (\fn -> capital fn && FilePath.takeExtension fn == ".hs" && acceptHs fn)
     dir
     where capital = all Char.isUpper . take 1 . FilePath.takeFileName
+
+-- Work around shake bug where only the first word is taken.
+crunch = filter (/=' ')
 
 -- | Recursively find files below a directory.
 findFiles :: (FilePath -> Bool) -> (FilePath -> Bool) -> FilePath

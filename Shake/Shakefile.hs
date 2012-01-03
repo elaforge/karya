@@ -123,8 +123,9 @@ hspp = modeToDir Opt </> "hspp"
 options :: ShakeOptions
 options = shakeOptions
     { shakeFiles = build </> "shake"
-    , shakeVerbosity = 2
-    , shakeParallel = 1
+    , shakeVerbosity = Loud
+    , shakeParallel = 4
+    , shakeDump = True
     }
 
 data Config = Config {
