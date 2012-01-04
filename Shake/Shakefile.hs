@@ -50,7 +50,7 @@
     * phony targets: all, checkin, tests, complete-tests, profile, tags
     * compile Shakefile itself
     * try ndm's merging stubs trick
-    - merging stubs fails the second time:
+    * merging stubs fails the second time:
         GHC: Midi/CoreMidi.hs
         compilation IS NOT required
         ld -r -o build/debug/obj/Midi/CoreMidi.hs.o build/debug/obj/Midi/CoreMidi.hs.o2 build/debug/obj/Midi/CoreMidi.hs_stub.o
@@ -566,6 +566,11 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     Util.whenM (Trans.liftIO $ Directory.doesFileExist stub) $ do
         Trans.liftIO $ Directory.renameFile obj (obj ++ "2")
         system' "ld" ["-r", "-o", obj, obj ++ "2", stub]
+        -- Get rid of the stub.o.  Otherwise if this rule fires again but
+        -- ghc decides not to recompile, the old .o file will be left alone.
+        -- Then the ld -r will try to merge the stub again and will fail with
+        -- a duplicate symbol error.
+        Trans.liftIO $ Directory.removeFile stub
 
 compileHs :: Config -> FilePath -> Cmdline
 compileHs config hs = ("GHC", hs,
