@@ -489,7 +489,6 @@ buildHs config deps hs fn = do
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = deps ++ List.nub (map (srcToObj config) (ccs ++ srcs))
     logDeps config "build" fn objs
-    need objs
     system $ linkHs config fn packages objs
 
 makeBundle :: FilePath -> Maybe FilePath -> Shake.Action ()
@@ -549,9 +548,8 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
     need [hspp]
     imports <- HsDeps.importsOf hs
-    let objs = map (srcToObj config) imports
-    logDeps config "hs" obj (hs:objs)
-    need $ map objToHi objs
+    let his = map (objToHi . srcToObj config) imports
+    logDeps config "hs" obj (hs:his)
     system $ compileHs config hs
     -- FFI-using files with a "wrapper" callback generate a _stub.c file
     -- and compile it.  Merge it with the module's .o so I don't have to
@@ -599,7 +597,6 @@ ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
     let cc = objToSrc config obj
     includes <- includesOf "ccORule" config cc
     logDeps config "cc" obj (cc:includes)
-    need includes
     system $ compileCc config cc obj
 
 compileCc :: Config -> FilePath -> FilePath -> Cmdline
@@ -617,7 +614,6 @@ hsRule config = (hscDir config ++ "//*.hs") *> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
     includes <- includesOf "hsRule" config hsc
     logDeps config "hsc" hs (hsc : includes)
-    need (hsc : includes)
     system $ hsc2hs config hs hsc
 
 hsc2hs :: Config -> FilePath -> FilePath -> Cmdline
@@ -686,9 +682,10 @@ pathToModule :: FilePath -> String
 pathToModule = map (\c -> if c == '/' then '.' else c) . FilePath.dropExtension
 
 logDeps :: Config -> String -> FilePath -> [FilePath] -> Shake.Action ()
-logDeps config stage fn objs = Shake.putLoud $
-    "***" ++ stage ++ ": " ++ fn ++ " <- " ++
-        unwords (map (dropDir (oDir config)) objs)
+logDeps config stage fn deps = do
+    need deps
+    Shake.putLoud $ "***" ++ stage ++ ": " ++ fn ++ " <- "
+        ++ unwords (map (dropDir (oDir config)) deps)
 
 (<>) = Monoid.mappend
 
