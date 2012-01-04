@@ -55,6 +55,7 @@
         compilation IS NOT required
         ld -r -o build/debug/obj/Midi/CoreMidi.hs.o build/debug/obj/Midi/CoreMidi.hs.o2 build/debug/obj/Midi/CoreMidi.hs_stub.o
         ld: duplicate symbol _MidiziCoreMidi_d2fD in build/debug/obj/Midi/CoreMidi.hs_stub.o and build/debug/obj/Midi/CoreMidi.hs.o2 for inferred architecture x86_64
+    - Util.findFiles should use Shake.getDirectoryFiles, don't use listDir
 
     BUGS
     - run again and it relinks sometimes?
@@ -64,6 +65,9 @@
         Also, if I update generate_run_tests.py it doesn't rebuild anything.
 
     Suggestions:
+    - Paper suggests, in "Unchanging files" that files that remain unchanged
+        after a build should allow depending rules to be skipped.  Test this
+        with ghc's recompilation skipper.
     - If I rm build/debu/obj/Ui/* and then build seq, it locks up after
         printing the ***build line for seq.
     - I'd like to be able to specify that certain targets should be recompiled
@@ -71,10 +75,6 @@
         I understand it, this is what the oracle used to be for, but now
         that's possible with a non file typed target.  From the source I'm
         guessing this is possible by making a 'Rule Command String' instance?
-
-    - It would be nice to have access to the logging level.  For example, I'd
-        like to print the complete cmdline if Loud, but print an abbreviated
-        version if Quiet, or print the complete config vs. the important bits.
 
     - It would be nice to see which thread each task was run as, to get an
     idea of where parallelism is happening.
@@ -98,7 +98,8 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty)
 
-import Development.Shake
+import qualified Development.Shake as Shake
+import Development.Shake ((?==), (?>), (*>), action, system', need)
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
@@ -122,12 +123,12 @@ fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
 ghcBinary = "ghc-7.0.3"
 hspp = modeToDir Opt </> "hspp"
 
-defaultOptions :: ShakeOptions
-defaultOptions = shakeOptions
-    { shakeFiles = build </> "shake"
-    , shakeVerbosity = Normal
-    , shakeParallel = 4
-    , shakeDump = True
+shakeOptions :: Shake.ShakeOptions
+shakeOptions = Shake.shakeOptions
+    { Shake.shakeFiles = build </> "shake"
+    , Shake.shakeVerbosity = Shake.Normal
+    , Shake.shakeParallel = 4
+    , Shake.shakeDump = True
     }
 
 data Config = Config {
@@ -156,6 +157,7 @@ data Flags = Flags {
     } deriving (Show)
 
 -- TODO ghc 7.2.1's GHC.Generics might be able to make this derivable
+-- TODO unused?
 instance Monoid.Monoid Flags where
     mempty = Flags [] [] [] [] [] [] [] [] []
     mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1)
@@ -326,29 +328,29 @@ inferConfig modeConfig fn =
 
 -- * rules
 
-data Flag = Verbosity Verbosity | Jobs Int | Lint deriving (Eq, Show)
+data Flag = Verbosity Shake.Verbosity | Jobs Int | Lint deriving (Eq, Show)
 
-cmdlineOptions :: [GetOpt.OptDescr Flag]
-cmdlineOptions =
+cmdOptions :: [GetOpt.OptDescr Flag]
+cmdOptions =
     [ GetOpt.Option ['v'] []
-        (GetOpt.OptArg (maybe (Verbosity Loud) readVerbosity) "verbosity") $
-        "Verbosity, from 0 to 4."
+        (GetOpt.OptArg (maybe (Verbosity Shake.Loud) readVerbosity)
+            "verbosity") $ "Verbosity, from 0 to 4."
     , GetOpt.Option ['j'] [] (GetOpt.ReqArg (Jobs . read) "jobs") $
         "Number of jobs to run simultaneously."
     , GetOpt.Option [] ["lint"] (GetOpt.NoArg Lint) "Run in lint mode."
     ]
     where
     readVerbosity s = Verbosity $ case read s of
-        0 -> Silent
-        1 -> Quiet
-        2 -> Normal
-        3 -> Loud
+        0 -> Shake.Silent
+        1 -> Shake.Quiet
+        2 -> Shake.Normal
+        3 -> Shake.Loud
         n -> error $ "verbosity should be 0--3: " ++ show n
 
 main :: IO ()
 main = do
     IO.hSetBuffering IO.stdout IO.LineBuffering
-    (flags, targets, errors) <- GetOpt.getOpt GetOpt.Permute cmdlineOptions <$>
+    (flags, targets, errors) <- GetOpt.getOpt GetOpt.Permute cmdOptions <$>
         Environment.getArgs
     when (not (null errors)) $
         error $ "Errors parsing flags: " ++ unlines errors
@@ -357,15 +359,16 @@ main = do
             [target] -> target
             _ -> error "expected one argument"
     modeConfig <- configure
-    let options = defaultOptions
-            { shakeParallel = Maybe.fromMaybe (shakeParallel defaultOptions) $
-                mlast [j | Jobs j <- flags]
-            , shakeVerbosity =
-                Maybe.fromMaybe (shakeVerbosity defaultOptions) $
+    let options = shakeOptions
+            { Shake.shakeParallel =
+                Maybe.fromMaybe (Shake.shakeParallel shakeOptions) $
+                    mlast [j | Jobs j <- flags]
+            , Shake.shakeVerbosity =
+                Maybe.fromMaybe (Shake.shakeVerbosity shakeOptions) $
                     mlast [v | Verbosity v <- flags]
-            , shakeLint = Lint `elem` flags
+            , Shake.shakeLint = Lint `elem` flags
             }
-    shake options $ do
+    Shake.shake options $ do
         let infer = inferConfig modeConfig
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
@@ -406,22 +409,22 @@ main = do
         dispatch (modeConfig Debug) target
 
 -- | Match a file in @build/<mode>/obj/@.
-matchObj :: FilePattern -> FilePath -> Bool
+matchObj :: Shake.FilePattern -> FilePath -> Bool
 matchObj pattern fn =
     matchPrefix (map ((</> "obj") . modeToDir) allModes) pattern fn
     || matchPrefix (map modeToDir allModes) pattern fn
 
 -- | Match a file in @build/<mode>/@.
-matchBinary :: FilePattern -> FilePath -> Bool
+matchBinary :: Shake.FilePattern -> FilePath -> Bool
 matchBinary = matchPrefix (map modeToDir allModes)
 
-matchPrefix :: [FilePattern] -> FilePattern -> FilePath -> Bool
+matchPrefix :: [Shake.FilePattern] -> Shake.FilePattern -> FilePath -> Bool
 matchPrefix prefixes pattern fn =
     case msum $ map (flip dropPrefix fn) prefixes of
         Nothing -> False
         Just rest -> pattern ?== (dropWhile (=='/') rest)
 
-dispatch :: Config -> String -> Rules ()
+dispatch :: Config -> String -> Shake.Rules ()
 dispatch config target = case target of
     "clean" -> action $ system' "rm" ["-rf", build]
     "doc" -> action $ do
@@ -433,8 +436,8 @@ dispatch config target = case target of
             ++ hs ++ hscs
     "checkin" -> do
         let debug = (modeToDir Debug </>)
-        want [debug "browser", debug "logview", debug "make_db", debug "seq",
-            debug "update", "doc/keymap.html",
+        Shake.want [debug "browser", debug "logview", debug "make_db",
+            debug "seq", debug "update", "doc/keymap.html",
             modeToDir Profile </> "RunProfile"]
         dispatch config "complete-tests"
     "tests" -> action $ do
@@ -458,7 +461,7 @@ dispatch config target = case target of
         Util.shell $ "sort tags >tags.sorted"
             ++ "; (echo -e '!_TAG_FILE_SORTED\t1\t ~'; cat tags.sorted) >tags"
             ++ "; rm tags.sorted"
-    _ -> want [target]
+    _ -> Shake.want [target]
     where
     runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
 
@@ -479,7 +482,7 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
         "-main-is", pathToModule main, main]
 
 -- | Build a haskell binary.
-buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Action ()
+buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Shake.Action ()
 buildHs config deps hs fn = do
     srcs <- HsDeps.transitiveImportsOf hs
     let ccs = List.nub $
@@ -489,7 +492,7 @@ buildHs config deps hs fn = do
     need objs
     system $ linkHs config fn packages objs
 
-makeBundle :: FilePath -> Maybe FilePath -> Action ()
+makeBundle :: FilePath -> Maybe FilePath -> Shake.Action ()
 makeBundle binary icon
     | System.Info.os == "darwin" =
         system' "tools/make_bundle" (binary : maybe [] (:[]) icon)
@@ -498,7 +501,7 @@ makeBundle binary icon
 -- * tests and profiles
 
 -- | Generate RunTests.hs and compile it.
-testRules :: Config -> Rules ()
+testRules :: Config -> Shake.Rules ()
 testRules config = do
     let binPrefix = modeToDir Test </> "RunTests"
     (binPrefix ++ "*.hs") *> generateTestHs "_test"
@@ -512,7 +515,7 @@ testRules config = do
         -- This gets reset on each new test run.
         system' "rm" ["-f", "test.output"]
 
-profileRules :: Config -> Rules ()
+profileRules :: Config -> Shake.Rules ()
 profileRules config = do
     let binPrefix = modeToDir Profile </> "RunProfile"
     (binPrefix ++ "*.hs") *> generateTestHs "_profile"
@@ -525,7 +528,7 @@ hasPrefix :: FilePath -> FilePath -> Bool
 hasPrefix prefix fn =
     prefix `List.isPrefixOf` fn && null (FilePath.takeExtension fn)
 
-generateTestHs :: FilePath -> FilePath -> Action ()
+generateTestHs :: FilePath -> FilePath -> Shake.Action ()
 generateTestHs hsSuffix fn = do
     let pattern = drop 1 (dropWhile (/='-') (FilePath.dropExtension fn))
         matches = (pattern `List.isInfixOf`) . FilePath.takeFileName
@@ -538,7 +541,7 @@ generateTestHs hsSuffix fn = do
 
 -- * hs
 
-hsORule :: InferConfig -> Rules ()
+hsORule :: InferConfig -> Shake.Rules ()
 hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     let config = infer obj
     isHsc <- Trans.liftIO $
@@ -585,7 +588,7 @@ linkHs config output pkgs objs = ("LD-HS", output,
 
 -- * cc
 
-ccORule :: InferConfig -> Rules ()
+ccORule :: InferConfig -> Shake.Rules ()
 ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
     let config = infer obj
     let cc = objToSrc config obj
@@ -604,7 +607,7 @@ linkCc config binary objs = ("LD-CC", binary,
 
 -- * hsc
 
-hsRule :: Config -> Rules ()
+hsRule :: Config -> Shake.Rules ()
 hsRule config = (hscDir config ++ "//*.hs") *> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
     includes <- includesOf "hsRule" config hsc
@@ -677,14 +680,14 @@ errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
 pathToModule :: FilePath -> String
 pathToModule = map (\c -> if c == '/' then '.' else c) . FilePath.dropExtension
 
-logDeps :: Config -> String -> FilePath -> [FilePath] -> Action ()
-logDeps config stage fn objs = putLoud $
+logDeps :: Config -> String -> FilePath -> [FilePath] -> Shake.Action ()
+logDeps config stage fn objs = Shake.putLoud $
     "***" ++ stage ++ ": " ++ fn ++ " <- " ++
         unwords (map (dropDir (oDir config)) objs)
 
 (<>) = Monoid.mappend
 
-includesOf :: String -> Config -> FilePath -> Action [FilePath]
+includesOf :: String -> Config -> FilePath -> Shake.Action [FilePath]
 includesOf caller config fn = do
     let dirs = [dir | '-':'I':dir <- cInclude (configFlags config)]
     (includes, not_found) <- CcDeps.transitiveIncludesOf dirs fn
