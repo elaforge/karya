@@ -510,7 +510,7 @@ makeBundle binary icon
 testRules :: Config -> Shake.Rules ()
 testRules config = do
     let binPrefix = modeToDir Test </> "RunTests"
-    (binPrefix ++ "*.hs") *> generateTestHs "_test"
+    binPrefix ++ "*.hs" *> generateTestHs "_test"
     hasPrefix binPrefix ?> \fn -> do
         -- The UI tests use fltk.a.  It would be nicer to have it
         -- automatically added when any .o that uses it is linked in.
@@ -524,7 +524,7 @@ testRules config = do
 profileRules :: Config -> Shake.Rules ()
 profileRules config = do
     let binPrefix = modeToDir Profile </> "RunProfile"
-    (binPrefix ++ "*.hs") *> generateTestHs "_profile"
+    binPrefix ++ "*.hs" *> generateTestHs "_profile"
     hasPrefix binPrefix ?> \fn -> do
         buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
 
@@ -618,7 +618,7 @@ linkCc config binary objs = ("LD-CC", binary,
 -- * hsc
 
 hsRule :: Config -> Shake.Rules ()
-hsRule config = (hscDir config ++ "//*.hs") *> \hs -> do
+hsRule config = hscDir config ++ "//*.hs" *> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
     includes <- includesOf "hsRule" config hsc
     logDeps config "hsc" hs (hsc : includes)
