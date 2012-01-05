@@ -39,7 +39,7 @@
     * make CcDeps transitive
     * chase #includes from .hsc
     - save .deps files?  only if it's too slow
-    - have configure use system' to rebuild if there are config changes?
+    * have configure use system' to rebuild if there are config changes?
         Write a Rule instance for Commands for the output of shell cmds
         Wait, does system' even have that behaviour?
     * Mark .hi files as generated from .o files and depend on .hi files like
@@ -55,7 +55,7 @@
         compilation IS NOT required
         ld -r -o build/debug/obj/Midi/CoreMidi.hs.o build/debug/obj/Midi/CoreMidi.hs.o2 build/debug/obj/Midi/CoreMidi.hs_stub.o
         ld: duplicate symbol _MidiziCoreMidi_d2fD in build/debug/obj/Midi/CoreMidi.hs_stub.o and build/debug/obj/Midi/CoreMidi.hs.o2 for inferred architecture x86_64
-    - Util.findFiles should use Shake.getDirectoryFiles, don't use listDir
+    * Util.findFiles should use Shake.getDirectoryFiles, don't use listDir
 
     BUGS
     - run again and it relinks sometimes?
@@ -135,6 +135,7 @@ data Config = Config {
     buildDir :: FilePath
     , hscDir :: FilePath
     , ghcLib :: FilePath
+    , fltkVersion :: String
     , configFlags :: Flags
     } deriving (Show)
 
@@ -253,11 +254,10 @@ ccBinaries =
 
 fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
-    [ "Block.cc", "TrackTile.cc", "Track.cc", "Ruler.cc", "EventTrack.cc"
-    , "MoveTile.cc", "P9Scrollbar.cc", "SimpleScroll.cc", "SeqInput.cc"
-    , "MsgCollector.cc", "SkeletonDisplay.cc", "StyleTable.cc"
-    , "SymbolTable.cc", "SymbolOutput.cc", "f_util.cc", "alpha_draw.cc"
-    , "types.cc", "config.cc", "util.cc"
+    [ "Block.cc", "EventTrack.cc", "MoveTile.cc", "MsgCollector.cc"
+    , "P9Scrollbar.cc", "Ruler.cc", "SeqInput.cc", "SimpleScroll.cc"
+    , "SkeletonDisplay.cc", "StyleTable.cc", "Track.cc", "TrackTile.cc"
+    , "alpha_draw.cc", "config.cc", "f_util.cc", "types.cc", "util.cc"
     ]
 
 -- * mode
@@ -283,6 +283,7 @@ configure = do
     ghcLib <- run ghcBinary ["--print-libdir"]
     fltkCs <- words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
+    fltkVersion <- run fltkConfig ["--version"]
     return $ \mode ->
         let flags = osFlags
                 { define = define osFlags ++ if mode `elem` [Test, Profile]
@@ -301,7 +302,7 @@ configure = do
                     ++ if mode == Profile then ["-prof", "-auto-all"] else []
                 }
         in Config (modeToDir mode) (build </> "hsc") (strip ghcLib)
-            (setCFlags flags)
+            fltkVersion (setCFlags flags)
     where
     setCFlags flags = flags
         { ccFlags = fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall"]
@@ -370,6 +371,7 @@ main = do
             }
     Shake.shake options $ do
         let infer = inferConfig modeConfig
+        setupOracle (modeConfig Debug)
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
         hspp *> \fn -> system $ makeHs (modeToDir Opt) fn "Util/Hspp.hs"
@@ -408,6 +410,11 @@ main = do
         ccORule infer
         dispatch (modeConfig Debug) target
 
+setupOracle :: Config -> Shake.Rules ()
+setupOracle config = do
+    Shake.addOracle ["ghc"] $ return [ghcLib config]
+    Shake.addOracle ["fltk"] $ return [fltkVersion config]
+
 -- | Match a file in @build/<mode>/obj/@.
 matchObj :: Shake.FilePattern -> FilePath -> Bool
 matchObj pattern fn =
@@ -428,8 +435,8 @@ dispatch :: Config -> String -> Shake.Rules ()
 dispatch config target = case target of
     "clean" -> action $ system' "rm" ["-rf", build]
     "doc" -> action $ do
-        hscs <- Util.findHs (const True) (hscDir config)
-        hs <- filter haddock <$> Util.findHs (const True) "."
+        hscs <- Util.findHs "*.hs" (hscDir config)
+        hs <- filter haddock <$> Util.findHs "*.hs" "."
         need hscs
         system' "haddock" $ ["--html", "-B", ghcLib config,
             "--source-module=\"../%F\"", "-o", build </> "doc"]
@@ -453,8 +460,8 @@ dispatch config target = case target of
         need [modeToDir Profile </> "RunProfile"]
         system' "tools/summarize_profile.py" []
     "tags" -> action $ do
-        hs <- Util.findHs (const True) "."
-        hscs <- Util.findHs (const True) (hscDir config)
+        hs <- Util.findHs "*.hs" "."
+        hscs <- Util.findHs "*.hs" (hscDir config)
         need hscs
         system' "hasktags" $ ["--ignore-close-implementation", "--ctags"]
             ++ hs ++ hscs
@@ -529,12 +536,11 @@ hasPrefix prefix fn =
 
 generateTestHs :: FilePath -> FilePath -> Shake.Action ()
 generateTestHs hsSuffix fn = do
-    let pattern = drop 1 (dropWhile (/='-') (FilePath.dropExtension fn))
-        matches = (pattern `List.isInfixOf`) . FilePath.takeFileName
-    tests <- Util.findHs
-        (\hs -> (hsSuffix ++ ".hs") `List.isSuffixOf` hs && matches hs) "."
+    let contains = drop 1 (dropWhile (/='-') (FilePath.dropExtension fn))
+        pattern = "*" ++ contains ++ "*" ++ hsSuffix ++ ".hs"
+    tests <- Util.findHs pattern "."
     when (null tests) $
-        errorIO $ "no tests match pattern: " ++ pattern
+        errorIO $ "no tests match pattern: " ++ show pattern
     need ["test/generate_run_tests.py"]
     system' "test/generate_run_tests.py" (fn : tests)
 
@@ -542,6 +548,7 @@ generateTestHs hsSuffix fn = do
 
 hsORule :: InferConfig -> Shake.Rules ()
 hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
+    Shake.askOracle ["ghc"]
     let config = infer obj
     isHsc <- Trans.liftIO $
         Directory.doesFileExist (objToSrc config obj ++ "c")
@@ -593,6 +600,7 @@ linkHs config output pkgs objs = ("LD-HS", output,
 
 ccORule :: InferConfig -> Shake.Rules ()
 ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
+    Shake.askOracle ["fltk"]
     let config = infer obj
     let cc = objToSrc config obj
     includes <- includesOf "ccORule" config cc
