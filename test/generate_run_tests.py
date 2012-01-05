@@ -86,6 +86,7 @@ def make_import(fn):
     return 'import qualified %s' % path_to_module(fn)
 
 def path_to_module(path):
+    path = os.path.normpath(path)
     return os.path.splitext(path)[0].replace('/', '.')
 
 def make_tests(test_defs, init_funcs):
