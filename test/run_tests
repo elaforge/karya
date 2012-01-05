@@ -16,7 +16,7 @@ fi
 
 # This is appended to.  It should be reset along with the coverage data every
 # time test_obj/RunTests is built.
-test_output=test.output
+test_output=build/test.output
 
 prefixes=("$@")
 if [[ -z $prefixes ]]; then
@@ -44,9 +44,9 @@ echo $failures failed / $passes passed / $tests tests
 
 echo 'Generating hpc markup (in the background)...'
 (
-    hpc markup --destdir=hpc RunTests | grep -v Writing
+    hpc markup --destdir=build/hpc RunTests | grep -v Writing
     # I'm more used to typing index.html
-    (cd hpc && ln -fs hpc_index.html index.html)
+    (cd build/hpc && ln -fs hpc_index.html index.html)
 ) &
 
 exit $failures
