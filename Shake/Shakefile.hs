@@ -91,6 +91,7 @@ import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 
+import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -375,6 +376,18 @@ main = do
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
         hspp *> \fn -> system $ makeHs (modeToDir Opt) fn "Util/Hspp.hs"
+        build </> "tags" *> \fn -> do
+            hs <- Util.findHs "*.hs" "."
+            hscs <- Util.findHs "*.hs" (hscDir (modeConfig Debug))
+            need (hs ++ hscs)
+            system' "hasktags" $
+                ["--ignore-close-implementation", "--ctags", "-o", fn]
+                ++ hs ++ hscs
+            -- Let vim know it can use bsearch.
+            let magic = B.pack "!_TAG_FILE_SORTED\t1\t ~"
+            Trans.liftIO $ B.writeFile fn =<<
+                B.unlines . (magic:) . List.sort . B.lines <$> B.readFile fn
+
         matchObj "fltk/fltk.a" ?> \fn -> do
             let config = infer fn
             need (fltkDeps config)
@@ -459,15 +472,6 @@ dispatch config target = case target of
     "profile" -> action $ do
         need [modeToDir Profile </> "RunProfile"]
         system' "tools/summarize_profile.py" []
-    "tags" -> action $ do
-        hs <- Util.findHs "*.hs" "."
-        hscs <- Util.findHs "*.hs" (hscDir config)
-        need hscs
-        system' "hasktags" $ ["--ignore-close-implementation", "--ctags"]
-            ++ hs ++ hscs
-        Util.shell $ "sort tags >tags.sorted"
-            ++ "; (echo -e '!_TAG_FILE_SORTED\t1\t ~'; cat tags.sorted) >tags"
-            ++ "; rm tags.sorted"
     _ -> Shake.want [target]
     where
     runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
