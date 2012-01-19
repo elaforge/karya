@@ -90,31 +90,45 @@ nn = NoteNumber . realToFrac
 
 -- * Hz
 
--- | This is absolute non-logarithmic frequency.  Used only for certain
--- functions.
+-- | This is absolute non-logarithmic frequency.
 type Hz = Double
 
 add_hz :: Hz -> NoteNumber -> NoteNumber
-add_hz 0 nn = nn -- hz_to_nn . nn_to_hz adds a tiny bit of inaccuracy TODO fix?
+add_hz 0 nn = nn -- hz_to_nn . nn_to_hz adds a tiny bit of inaccuracy
 add_hz hz nn = hz_to_nn (hz + nn_to_hz nn)
 
 nn_to_hz :: NoteNumber -> Hz
-nn_to_hz (NoteNumber nn) = exp (nn * _equal1 + _equal2)
+nn_to_hz (NoteNumber nn) = exp (nn * _hz_scale + _hz_offset)
 
 -- | Negative hz will result in NaN.  TODO take an abs or throw an error, or
 -- let the NaN propagate?
 hz_to_nn :: Hz -> NoteNumber
-hz_to_nn hz = NoteNumber $ (log hz - _equal2) / _equal1
+hz_to_nn hz = NoteNumber $ (log hz - _hz_offset) / _hz_scale
 
 -- | Constants to calculate equal tempered conversions.
-_equal1, _equal2 :: Hz
-_equal1 = log 2 / 12
-_equal2 = log a_hz - (a_nn * _equal1)
+_hz_scale, _hz_offset :: Hz
+_hz_scale = log 2 / 12
+_hz_offset = log a_hz - (a_nn * _hz_scale)
     where
     -- NoteNumber is defined with these values.  Ultimately it's because midi
     -- synthesizers are by default defined with these values.
     a_hz = 440
     a_nn = 69
+
+-- Alternate implementation that also introduces a bit of imprecision.  Seems
+-- to be about the same as the one above.
+--
+-- nn_to_hz :: NoteNumber -> Hz
+-- nn_to_hz (NoteNumber nn) = a_hz * rt12 ** (nn - a_nn)
+--     where rt12 = 2**(1/12)
+--
+-- hz_to_nn :: Hz -> NoteNumber
+-- hz_to_nn hz = NoteNumber $ logBase rt12 (hz / a_hz * (rt12**a_nn))
+--     where rt12 = 2**(1/12)
+--
+-- a_hz, a_nn :: Double
+-- a_hz = 440
+-- a_nn = 69
 
 
 -- * scale id
