@@ -347,7 +347,8 @@ cmdOptions =
         1 -> Shake.Quiet
         2 -> Shake.Normal
         3 -> Shake.Loud
-        n -> error $ "verbosity should be 0--3: " ++ show n
+        4 -> Shake.Diagnostic
+        n -> error $ "verbosity should be 0--4: " ++ show n
 
 main :: IO ()
 main = do
