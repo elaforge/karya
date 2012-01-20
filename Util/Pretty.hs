@@ -37,10 +37,11 @@ show_float :: (RealFloat a) => Maybe Int -> a -> String
 show_float precision float
     | f == 0 = show i
     | null stripped = "0"
+    | float < 0 = '-' : stripped
     | otherwise = stripped
     where
     (i, f) = properFraction float
-    s = Numeric.showFFloat precision float ""
+    s = Numeric.showFFloat precision (abs float) ""
     stripped = Seq.rdrop_while (=='.') $
         Seq.rdrop_while (=='0') (dropWhile (=='0') s)
 
