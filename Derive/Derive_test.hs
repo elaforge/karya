@@ -19,7 +19,6 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -28,7 +27,6 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
@@ -300,8 +298,7 @@ test_tempo_compose = do
     -- TODO test when the subblock has a tempo too
 
 test_initial_environ = do
-    let extract = DeriveTest.extract
-            (PitchSignal.unsignal_degree . Score.event_pitch)
+    let extract = DeriveTest.extract DeriveTest.e_pitch
     let run title pitch = extract $ DeriveTest.derive_tracks
             [ (">", [(0, 1, "")])
             , (title, [(0, 0, pitch)])
@@ -311,7 +308,7 @@ test_initial_environ = do
     -- calls replaced by semar calls
     equal (run "*semar" "3c") ([[]], ["Error: pitch call not found: 3c"])
     -- just make sure semar actually works
-    equal (run "*semar" "1") ([[(0, 60)]], [])
+    equal (run "*semar" "1") ([[(0, 72.46)]], [])
 
     -- I'd like to test inst, but it's just too hard.  I would have to get
     -- DeriveTest.default_constant to get the inst lookup like
@@ -394,7 +391,7 @@ test_real_to_score = do
 test_shift_control = do
     let controls = Map.fromList [(Score.Control "cont",
             Signal.signal [(0, 1), (2, 2), (4, 0)])]
-        psig = PitchSignal.signal Twelve.scale_id [(0, (60, 60, 0))]
+        psig = DeriveTest.pitch_signal [(0, "a")]
     let set_controls = DeriveTest.modify_dynamic $ \st -> st
             { Derive.state_controls = controls
             , Derive.state_pitch = psig
@@ -408,11 +405,11 @@ test_shift_control = do
                 return (conts, psig)
             extract (conts, pitch) =
                 (Signal.unsignal (snd (head (Map.toList conts))),
-                    PitchSignal.unsignal pitch)
+                    DeriveTest.signal_to_nn pitch)
     equal (run id) $ Right
-        ([(0, 1), (2, 2), (4, 0)], [(0, (60, 60, 0))])
+        ([(0, 1), (2, 2), (4, 0)], [(0, 60)])
     equal (run $ Derive.shift_control 2) $ Right
-        ([(2, 1), (4, 2), (6, 0)], [(2, (60, 60, 0))])
+        ([(2, 1), (4, 2), (6, 0)], [(2, 60)])
 
 track_specs =
     [ ("tempo", [(0, 0, "2")])
@@ -605,24 +602,24 @@ test_tempo = do
 
 test_named_pitch = do
     let pname = Score.Control "psig"
-    let run op = DeriveTest.eval State.empty
-            (op $ Derive.named_degree_at pname 2)
-
-    let with_const = Derive.with_constant_pitch (Just pname) 42
-    equal (run with_const)
-        (Right (Just (Pitch.Degree 42)))
-    equal (run (Derive.with_constant_pitch (Just (Score.Control "bad")) 42))
-        (Right Nothing)
-    let add1 = Derive.with_relative_pitch (Just pname) PitchSignal.sig_add
-            (PitchSignal.constant Pitch.relative 1)
-    equal (run (with_const . add1))
-        (Right (Just (Pitch.Degree 43)))
+        run op = DeriveTest.eval State.empty (op $ Derive.named_nn_at pname 2)
+        pitch = DeriveTest.mkpitch "a"
+        with_const pname = Derive.with_constant_pitch
+            (Just (Score.Control pname)) DeriveTest.default_scale pitch
+    equal (run (with_const "psig")) (Right (Just 60))
+    equal (run (with_const "bad")) (Right Nothing)
+    -- I don't have relative pitch signals anymore.  There's no reason
+    -- I couldn't add them back, but now that transposition is handled by
+    -- separate control signals I don't need it so much anymore.
+    -- let add1 = Derive.with_relative_pitch (Just pname) (??)
+    --         (PitchSignal.constant Pitch.relative 1)
+    -- equal (run (with_const . add1))
+    --     (Right (Just (Pitch.Degree 43)))
 
 test_block_end = do
     -- Make sure the pitch for the sub block event is trimmed to the end
     -- of the block, since there's no next event for it.
-    let extract = PitchSignal.unsignal_degree . Score.event_pitch
-    let res = DeriveTest.extract extract $ DeriveTest.derive_blocks
+    let res = DeriveTest.extract DeriveTest.e_pitch $ DeriveTest.derive_blocks
             [ ("p",
                 [ (">i1", [(0, 1, "sub"), (1, 1, "")])
                 , ("*twelve", [(0, 0, "5d"), (1, 0, "5e")])

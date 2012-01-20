@@ -32,29 +32,19 @@ struct ControlSample {
     ControlSample(RealTime time, double val) : time(time), val(val) {}
 };
 
-struct PitchSample {
-    RealTime time;
-    float from, to, at;
-    PitchSample(RealTime time, float from, float to, float at)
-        : time(time), from(from), to(to), at(at)
-    {}
-};
-
 struct TrackSignal {
     TrackSignal() :
-        signal(NULL), pitch_signal(NULL), length(0), val_names(NULL),
-        val_names_length(0)
+        signal(NULL), length(0), val_names(NULL), val_names_length(0)
     {}
 
     // The track containing the TrackSignal is responsible for the freeing of
     // the signal pointers.
     void free_signals();
 
-    // One of these pointers should be null.
+    // This pointer could be null if the signal is empty.
     ControlSample *signal;
     // The maximum value in 'signal', to normalize the display.
     double max_control_val;
-    PitchSample *pitch_signal;
     // Length of above signal.
     int length;
 

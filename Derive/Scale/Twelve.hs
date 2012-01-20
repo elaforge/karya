@@ -1,7 +1,8 @@
-{- | The western tempered 12 note scale.
+{- | The western equal tempered 12 note scale, aka 12TET.
 
     For the note text, I use a non-traditional format that goes "octave note
-    sharp" instead of "note sharp octave".
+    sharp" instead of "note sharp octave".  General to specific is more
+    aesthetically appealing.
 
     TODO: this doesn't have any support for enharmonics, but I do want to
     support them for scale sensitive instruments and tunings.
@@ -22,12 +23,11 @@
 -}
 module Derive.Scale.Twelve where
 import qualified Data.Map as Map
+
 import qualified Util.Map as Map
-
 import qualified Ui.Track as Track
-
-import qualified Derive.Derive as Derive
 import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Util as Util
 
@@ -41,11 +41,11 @@ scale = Scale.Scale {
         Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
             | (n, d) <- Map.assocs note_to_degree]
     , Scale.scale_symbols = [] -- later maybe I can use fancy sharps and flats
+    , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = transpose
     , Scale.scale_note_to_call = note_to_call
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn = input_to_nn
-    , Scale.scale_degree_to_nn = degree_to_nn
     }
 
 scale_id :: Pitch.ScaleId
@@ -54,61 +54,58 @@ scale_id = Pitch.ScaleId "twelve"
 transpose :: Derive.Transpose
 transpose octaves degrees note = do
     d <- Map.lookup note note_to_degree
-    Map.lookup (d + octaves*12 + degrees) degree_to_note
+    Map.lookup (d + Pitch.Degree (octaves*12) + degrees) degree_to_note
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
 note_to_call note = case Map.lookup note note_to_degree of
         Nothing -> Nothing
-        Just int_degree -> Just $
-            Call.Pitch.degree_call note
-                (Pitch.Degree (fromIntegral int_degree)) add_hz
+        Just degree -> Just $ Call.Pitch.note_call note (note_number degree)
     where
-    add_hz (Pitch.Degree degree) hz =
-        to_degree $ Pitch.add_hz hz (Pitch.NoteNumber degree)
-    to_degree (Pitch.NoteNumber n) = Pitch.Degree n
+    note_number (Pitch.Degree degree) (Pitch.Chromatic chrom)
+            (Pitch.Diatonic _dia) _key -- TODO unimplemented
+        | 0 < nn && nn > 127 = Nothing
+        | otherwise = Just nn
+        where nn = Pitch.NoteNumber $ fromIntegral degree + chrom
 
 input_to_note :: Pitch.InputKey -> Maybe Pitch.Note
 input_to_note (Pitch.InputKey key_nn) = do
     let (int, cents) = properFraction key_nn
     note <- Map.lookup int degree_to_note
-    return $ Pitch.Note $ Call.Pitch.note_call note cents
+    return $ Pitch.Note $ Call.Pitch.note_expr note cents
 
 input_to_nn :: Pitch.InputKey -> Maybe Pitch.NoteNumber
 input_to_nn (Pitch.InputKey nn) = Just (Pitch.NoteNumber nn)
 
-degree_to_nn :: Pitch.Degree -> Maybe Pitch.NoteNumber
-degree_to_nn (Pitch.Degree n) = Just (Pitch.NoteNumber n)
-
 -- * constants
 
-middle_c :: Pitch.Degree
-middle_c = c4
-
-c3, d3, e3, f3, g3, a3, b3 :: Pitch.Degree
-(c3, d3, e3, f3, g3, a3, b3) = (48, 50, 52, 53, 55, 57, 59)
-
-c4, d4, e4, f4, g4, a4, b4 :: Pitch.Degree
-(c4, d4, e4, f4, g4, a4, b4) = (60, 62, 64, 65, 67, 69, 71)
-
-c5, d5, e5, f5, g5, a5, b5 :: Pitch.Degree
-(c5, d5, e5, f5, g5, a5, b5) = (72, 74, 76, 77, 79, 81, 83)
-
-c6, d6, e6, f6, g6, a6, b6 :: Pitch.Degree
-(c6, d6, e6, f6, g6, a6, b6) = (84, 86, 88, 89, 91, 93, 95)
+-- middle_c :: Pitch.Degree
+-- middle_c = c4
+--
+-- c3, d3, e3, f3, g3, a3, b3 :: Pitch.Degree
+-- (c3, d3, e3, f3, g3, a3, b3) = (48, 50, 52, 53, 55, 57, 59)
+--
+-- c4, d4, e4, f4, g4, a4, b4 :: Pitch.Degree
+-- (c4, d4, e4, f4, g4, a4, b4) = (60, 62, 64, 65, 67, 69, 71)
+--
+-- c5, d5, e5, f5, g5, a5, b5 :: Pitch.Degree
+-- (c5, d5, e5, f5, g5, a5, b5) = (72, 74, 76, 77, 79, 81, 83)
+--
+-- c6, d6, e6, f6, g6, a6, b6 :: Pitch.Degree
+-- (c6, d6, e6, f6, g6, a6, b6) = (84, 86, 88, 89, 91, 93, 95)
 
 -- * implementation
 
-note_to_degree :: Map.Map Pitch.Note Util.IntDegree
+note_to_degree :: Map.Map Pitch.Note Pitch.Degree
 note_to_degree = Map.fromList $ zip notes [1..127]
     where
     notes = drop 1 $
         map Pitch.Note [show o ++ d | o <- [-1..9], d <- note_degrees]
 
-degree_to_note :: Map.Map Util.IntDegree Pitch.Note
+degree_to_note :: Map.Map Pitch.Degree Pitch.Note
 degree_to_note = Map.invert note_to_degree
 
--- | I could use `sharp` in here, but it's simpler to have plain text if
--- possible.
+-- | I could use `sharp` in here and look a little nicer, but it's simpler to
+-- have plain text if possible.
 note_degrees :: [String]
 note_degrees =
     [ "c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]

@@ -1,13 +1,17 @@
 module Derive.Call.Rambat where
 import Data.FixedList (Cons(..), Nil(..))
 
+import Util.Control
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional, control)
 import qualified Derive.Derive as Derive
+import qualified Derive.Pitches as Pitches
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Types
 
 
@@ -45,13 +49,17 @@ c_tick = Derive.stream_generator "tick" $ \args -> CallSig.call2 args
 
 tick :: RealTime -> Signal.Y -> ScoreTime -> ScoreTime -> Derive.EventDeriver
 tick time vel prev next = do
-    prev_pitch <- Derive.degree_at =<< Derive.real prev
-    next_pitch <- Derive.degree_at =<< Derive.real next
+    prev_pitch <- Derive.require "previous pitch"
+        =<< Derive.pitch_at =<< Derive.real prev
+    next_pitch <- Derive.require "next pitch"
+        =<< Derive.pitch_at =<< Derive.real next
     next_vel <- Util.velocity =<< Derive.real next
-    let transpose = if prev_pitch <= next_pitch then -1 else 1
+    neighbor <- ifM
+        ((<=) <$> Pitches.pitch_nn prev_pitch <*> Pitches.pitch_nn next_pitch)
+        (return (Pitch.Chromatic (-1))) (return (Pitch.Chromatic 1))
     (start, dur) <- stretch prev next time
-    Derive.d_place start dur $
-        Util.simple_note (next_pitch + transpose) (next_vel * vel)
+    Derive.d_place start dur $ Util.simple_note
+        (Pitches.transpose neighbor next_pitch) (next_vel * vel)
 
 -- TODO if I need to do more note shifting and placing, I could dream up some
 -- sort of constraint language like TeX's notion of stretchiness

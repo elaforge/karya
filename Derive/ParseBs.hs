@@ -157,13 +157,13 @@ p_rel_attr = do
         (if B.null attr then TrackLang.Clear else mode, B.unpack attr)
     <?> "relative attr"
 
-p_control :: A.Parser TrackLang.Control
+p_control :: A.Parser TrackLang.ValControl
 p_control = do
     A.char '%'
     control <- Score.Control . B.unpack <$> A.option "" (p_ident ",")
     deflt <- Parse.optional (A.char ',' >> Parse.p_float)
     return $ case deflt of
-        Nothing -> TrackLang.Control control
+        Nothing -> TrackLang.LiteralControl control
         Just val -> TrackLang.DefaultedControl control val
     <?> "control"
 
@@ -173,7 +173,7 @@ p_pitch_control = do
     control <- Score.Control . B.unpack <$> A.option "" (p_ident ",")
     deflt <- Parse.optional (A.char ',' >> p_word)
     return $ case deflt of
-        Nothing -> TrackLang.Control control
+        Nothing -> TrackLang.LiteralControl control
         Just val ->
             TrackLang.DefaultedControl control (Pitch.Note (B.unpack val))
     <?> "pitch control"

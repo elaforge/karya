@@ -2,15 +2,17 @@
 module Derive.ParseBs_test where
 import Control.Monad
 
-import Util.Test
 import qualified Util.ParseBs as Util.Parse
 import qualified Util.Pretty as Pretty
+import Util.Test
 
-import qualified Derive.Score as Score
 import qualified Derive.ParseBs as Parse
+import qualified Derive.Score as Score
+import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (AttrMode(..), ControlRef(..), Symbol(..), Val(..),
-    Call(..), Term(..))
+import Derive.TrackLang
+       (AttrMode(..), ControlRef(..), Symbol(..), Val(..), Call(..),
+        Term(..))
 
 import qualified Perform.Pitch as Pitch
 
@@ -35,8 +37,9 @@ test_parse_expr = do
     equal (f "a | b = 4 | . >inst %sig") $ Right
         [ Call (Symbol "a") []
         , Call (Symbol "=") (map Literal [symbol "b", VNum 4])
-        , Call (Symbol ".") (map Literal [VInstrument (Score.Instrument "inst"),
-            VControl (Control (Score.Control "sig"))])
+        , Call (Symbol ".") (map Literal
+            [VInstrument (Score.Instrument "inst"),
+                VControl (LiteralControl (Score.Control "sig"))])
         ]
 
     -- Symbols can have anything in them as long as they start with a letter.
@@ -71,14 +74,14 @@ test_parse_val = do
             , ("'quinn''s hat'", Just (VString "quinn's hat"))
             , ("'bad string", Nothing)
 
-            , ("%", Just $ VControl $ Control (Score.Control ""))
-            , ("%sig", Just $ VControl $ Control (Score.Control "sig"))
+            , ("%", Just $ VControl $ LiteralControl (Score.Control ""))
+            , ("%sig", Just $ VControl $ LiteralControl (Score.Control "sig"))
             , ("%sig,0", Just $ VControl $
                 DefaultedControl (Score.Control "sig") 0)
             , ("%sig,", Nothing)
 
             , ("#", Just $ VPitchControl $
-                Control (Score.Control ""))
+                LiteralControl (Score.Control ""))
             , ("#sig,0", Just $ VPitchControl $
                 DefaultedControl (Score.Control "sig") (Pitch.Note "0"))
 
@@ -128,5 +131,8 @@ test_p_equal = do
     equal (parse "a=b") $ Right [Call (Symbol "a=b") []]
 
 
+val_call :: String -> [Term] -> Term
 val_call sym args = ValCall (Call (Symbol sym) args)
+
+symbol :: String -> Val
 symbol sym = VSymbol (Symbol sym)

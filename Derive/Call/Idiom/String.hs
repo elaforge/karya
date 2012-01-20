@@ -67,6 +67,24 @@ c_violin strings = Derive.transformer "violin" $ \args deriver ->
             release = TrackLang.ConstantControl 0
         string_idiom linear linear strings attack delay release events
 
+-- TODO fix
+-- This is a postproc on events.  So I need to come up with transpose curves
+-- and apply them to the already present event pitches.
+--
+-- However, this requires the open pitches, but they need to be in Ord since
+-- I need to find the open string for each note.  I can do that by evaluating
+-- the pitches.  But then I need to bend the open pitch to the current one,
+-- so I'd need to know how much chromatic bend is needed to get one pitch to
+-- another.  So basically in needs to be reduced to something like the old
+-- Degrees, or to NoteNumbers.  I can go back to Pitches with (const nn),
+-- effectively the equivalent of postproc for pitches.
+--
+-- I need an operation 'diff :: Pitch -> Pitch -> Chromatic'
+-- I think this requires a scale operation because otherwise the notion of
+-- a degree is not exported from the scale at all.
+--
+-- scale_nn_to_chromatic :: NoteNumber -> Maybe Chromatic
+
 
 -- | Post-process events to play them in a monophonic string-like idiom.
 --
@@ -112,10 +130,12 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
                 ++ [LEvent.Event $ state_event final]
 
 -- | Monophonic:
--- If the note falls on a new string, release the previously playing note (bend
--- down to its open position) and emit it.
--- If the note falls on the string in use, bend that string up to the note to
--- be played and emit it.
+--
+-- - If the note falls on a new string, release the previously playing note
+-- (bend down to its open position) and emit it.
+--
+-- - If the note falls on the string in use, bend that string up to the note
+-- to be played and emit it.
 process :: Util.PitchInterpolator -> Util.PitchInterpolator
     -> (Signal.Y, Signal.Y, Signal.Y) -> State -> Score.Event
     -> Derive.Deriver ([Score.Event], State)

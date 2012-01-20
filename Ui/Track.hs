@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 import qualified Util.Log as Log
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Types
@@ -83,15 +82,11 @@ type TrackSignals = Map.Map TrackId (Either [Log.Msg] TrackSignal)
 -- if there is a non-trivial warp, the signal will have to be rederived in an
 -- id warp.
 data TrackSignal = TrackSignal {
-    ts_signal :: !Signal
+    ts_signal :: !Signal.Display
     , ts_shift :: !ScoreTime
     , ts_stretch :: !ScoreTime
+    , ts_scale_map :: Maybe ScaleMap
     } deriving (Show, Eq)
-
-data Signal =
-    Pitch !PitchSignal.PitchSignal !ScaleMap
-    | Control !Signal.Display
-    deriving (Show, Eq)
 
 -- | ScaleMaps are sorted by their scale degree number.
 newtype ScaleMap = ScaleMap [ValName] deriving (Show, Eq)

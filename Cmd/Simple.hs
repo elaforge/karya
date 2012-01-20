@@ -42,10 +42,10 @@ type Track = (String, String, [Event])
 -- | (start, duration, text)
 type Event = (Double, Double, String)
 
--- | (start, duration, text, initial_pitch)
-type ScoreEvent = (Double, Double, String, Pitch.Degree)
+-- | (start, duration, text, initial_nn)
+type ScoreEvent = (Double, Double, String, Maybe Pitch.NoteNumber)
 
--- | (inst, start, duration, initial_pitch)
+-- | (inst, start, duration, initial_nn)
 type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 
 from_score :: ScoreTime -> Double
@@ -61,7 +61,7 @@ event (start, event) = (from_score start,
 score_event :: Score.Event -> ScoreEvent
 score_event evt = (from_real (Score.event_start evt),
     from_real (Score.event_duration evt),
-    Score.event_string evt, Score.initial_pitch evt)
+    Score.event_string evt, Score.initial_nn evt)
 
 perf_event :: Perform.Event -> PerfEvent
 perf_event evt =

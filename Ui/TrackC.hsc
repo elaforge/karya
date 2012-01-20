@@ -20,7 +20,6 @@ import qualified Ui.Events as Events
 import qualified Ui.Track as Track
 import qualified Ui.Util as Util
 
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import Types
 
@@ -89,46 +88,38 @@ instance Storable Track.TrackSignal where
 -- strings involved.  I shouldn't use static storage because customizing pitch
 -- sig rendering by messing with ValNames seems like a useful thing to do.
 poke_track_signal :: Ptr Track.TrackSignal -> Track.TrackSignal -> IO ()
-poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
-    (#poke TrackSignal, signal) tsigp nullPtr
-    (#poke TrackSignal, pitch_signal) tsigp nullPtr
-    (#poke TrackSignal, val_names) tsigp nullPtr
-    (#poke TrackSignal, val_names_length) tsigp (0 :: CInt)
-    case sig of
-        Track.Pitch psig (Track.ScaleMap val_names) -> do
-            let (sigfp, offset, len) = StorableVector.Base.toForeignPtr
-                    (PitchSignal.sig_vec psig)
-            withForeignPtr sigfp $ \sigp -> do
-                destp <- mallocArray len
-                    :: IO (Ptr (PitchSignal.X, PitchSignal.Y))
-                copyArray destp (advancePtr sigp offset) len
-                (#poke TrackSignal, pitch_signal) tsigp destp
-            -- As with the char * inside, c++ is expected to free this.
-            when (not (null val_names)) $ do
-                val_namesp <- newArray val_names
-                (#poke TrackSignal, val_names) tsigp val_namesp
-                (#poke TrackSignal, val_names_length) tsigp (length val_names)
-                (#poke TrackSignal, length) tsigp len
-        Track.Control csig -> do
-            let (sigfp, offset, len) = StorableVector.Base.toForeignPtr
-                    (Signal.sig_vec csig)
-            withForeignPtr sigfp $ \sigp -> do
-                destp <- mallocArray len
-                copyArray destp (advancePtr sigp offset) len
-                (#poke TrackSignal, signal) tsigp destp
-            (#poke TrackSignal, length) tsigp len
-            -- Calculated by c++, in c_interface.cc.  I'd rather do it here,
-            -- but I'm worried all those peeks will generate garbage.
-            (#poke TrackSignal, max_control_val) tsigp (-1 :: CDouble)
+poke_track_signal tsigp (Track.TrackSignal sig shift stretch scale_map) = do
     (#poke TrackSignal, shift) tsigp shift
     (#poke TrackSignal, stretch) tsigp stretch
+    poke_sig sig
+    poke_scale_map scale_map
+    where
+    poke_sig sig = do
+        let (sigfp, offset, len) = StorableVector.Base.toForeignPtr
+                (Signal.sig_vec sig)
+        -- TODO copy an empty signal as a null ptr
+        withForeignPtr sigfp $ \sigp -> do
+            destp <- mallocArray len
+            copyArray destp (advancePtr sigp offset) len
+            (#poke TrackSignal, signal) tsigp destp
+        (#poke TrackSignal, length) tsigp len
+        -- Calculated by c++, in c_interface.cc.  I'd rather do it here,
+        -- but I'm worried all those peeks will generate garbage.
+        (#poke TrackSignal, max_control_val) tsigp (-1 :: CDouble)
+    poke_scale_map (Just (Track.ScaleMap val_names@(_:_))) = do
+        -- As with the char * inside, c++ is expected to free this.
+        val_namesp <- newArray val_names
+        (#poke TrackSignal, val_names) tsigp val_namesp
+        (#poke TrackSignal, val_names_length) tsigp (length val_names)
+    poke_scale_map _ = do
+        (#poke TrackSignal, val_names) tsigp nullPtr
+        (#poke TrackSignal, val_names_length) tsigp (0 :: CInt)
 
 -- | Objects constructed from haskell don't have their constructors run,
 -- so make sure it doesn't have garbage.
 initialize_track_signal :: Ptr Track.TrackSignal -> IO ()
 initialize_track_signal tsigp = do
     (#poke TrackSignal, signal) tsigp nullPtr
-    (#poke TrackSignal, pitch_signal) tsigp nullPtr
     (#poke TrackSignal, length) tsigp (0 :: CInt)
     (#poke TrackSignal, val_names) tsigp nullPtr
     (#poke TrackSignal, val_names_length) tsigp (0 :: CInt)

@@ -15,13 +15,13 @@ import qualified Ui.Track as Track
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional)
 import qualified Derive.Derive as Derive
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
-import Types
 
 
 scale = Scale.Scale {
@@ -30,14 +30,14 @@ scale = Scale.Scale {
     -- no real sensible way to display this
     , Scale.scale_map = Track.make_scale_map []
     , Scale.scale_symbols = []
-    , Scale.scale_transpose = Scale.non_transposing
+    , Scale.scale_transposers = mempty
+    , Scale.scale_transpose = Util.non_transposing
     , Scale.scale_note_to_call = note_to_call
     -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
     , Scale.scale_input_to_note = const Nothing
     , Scale.scale_input_to_nn = const Nothing
-    , Scale.scale_degree_to_nn = degree_to_nn
     }
 
 scale_id :: Pitch.ScaleId
@@ -48,24 +48,16 @@ note_to_call note = note_call <$>
     Parse.maybe_parse_string p_note (Pitch.note_text note)
 
 note_call :: (Double -> Double) -> Derive.ValCall
-note_call ratio = Derive.ValCall "ratio" $ \args -> CallSig.call1 args
-    (optional "hz" 0) $ \hz -> do
-        nn <- get_nn_at source_name =<< Derive.passed_real args
-        let out_hz = ratio (Pitch.nn_to_hz nn) + hz
-            Pitch.NoteNumber out = Pitch.hz_to_nn out_hz
-        return $ TrackLang.VDegree (Pitch.Degree out)
+note_call ratio = Derive.ValCall "ratio" $ \args ->
+    CallSig.call1 args (optional "hz" 0) $ \hz -> do
+        start <- Derive.passed_real args
+        nn <- Derive.require
+            ("ratio scale requires a " ++ show source_name ++ " pitch signal")
+            =<< Derive.named_nn_at source_name start
+        let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
+        return $ TrackLang.VPitch $ PitchSignal.pitch $ const $ return out_nn
     where
     source_name = Score.Control "ratio-source"
-
-get_nn_at :: Score.Control -> RealTime -> Derive.Deriver Pitch.NoteNumber
-get_nn_at name pos = do
-    sig <- Derive.require
-        ("ratio scale requires a " ++ show name ++ " pitch signal")
-        =<< Derive.get_named_pitch name
-    scale <- Derive.get_scale (PitchSignal.sig_scale sig)
-    let degree = PitchSignal.y_to_degree (PitchSignal.at pos sig)
-    Derive.require (show degree ++ " not in " ++ show (Scale.scale_id scale))
-        (Scale.scale_degree_to_nn scale degree)
 
 -- | Ratios look like @2/5@, @-4/3@.  A negative ratio divides, a positive one
 -- multiplies.
@@ -76,6 +68,3 @@ p_note = do
     denom <- Parse.p_nat
     let ratio = fromIntegral (abs num) / fromIntegral denom
     return $ if num < 0 then (/ ratio) else (* ratio)
-
-degree_to_nn :: Pitch.Degree -> Maybe Pitch.NoteNumber
-degree_to_nn (Pitch.Degree n) = Just (Pitch.NoteNumber n)

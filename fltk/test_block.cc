@@ -279,7 +279,6 @@ control_track_signal()
         samples[i].val = fmod(i / 20.0, 5);
     }
     ts->signal = samples;
-    ts->pitch_signal = NULL;
     ts->length = length;
     ts->val_names = NULL;
     ts->val_names_length = 0;
@@ -304,7 +303,6 @@ pitch_track_signal()
     samples[1] = PitchSample(ScoreTime(20), 2, 4, 0.75);
     samples[2] = PitchSample(ScoreTime(40), 1, 3, 0.5);
     samples[3] = PitchSample(ScoreTime(60), 1.75, 3.5, 0.5);
-    */
 
     const int length = 80;
     int i = 0;
@@ -319,10 +317,10 @@ pitch_track_signal()
         samples[i] = PitchSample(
             ScoreTime(i).to_real(), 1.5, 3.5, (i-40) / 40.0);
     }
+    */
 
     ts->signal = NULL;
-    ts->pitch_signal = samples;
-    ts->length = length;
+    ts->length = 0;
 
     ts->val_names = new ValName[5];
     ts->val_names[0] = ValName(0, "a");

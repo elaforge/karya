@@ -14,7 +14,6 @@ import qualified Data.Maybe as Maybe
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Derive.ParseBs as Parse
-import qualified Derive.Scale.Relative as Relative
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -26,12 +25,8 @@ import qualified Perform.Pitch as Pitch
 data ControlType =
     Control (Maybe TrackLang.CallId) Score.Control
     -- | Control is Nothing for default scale.
-    | Pitch PitchType (Maybe Score.Control)
+    | Pitch Pitch.ScaleId (Maybe Score.Control)
     | Tempo
-    deriving (Show)
-
-data PitchType =
-    PitchRelative TrackLang.CallId | PitchAbsolute (Maybe Pitch.ScaleId)
     deriving (Show)
 
 parse_control :: String -> Either String ControlType
@@ -48,16 +43,12 @@ parse_control_expr title = do
 parse_control_vals :: [TrackLang.Val] -> Either String ControlType
 parse_control_vals vals = case vals of
         --  *twelve -> default pitch track in twelve
-        [TrackLang.VScaleId scale] ->
-            Right $ Pitch (PitchAbsolute (scale_of scale)) Nothing
-        --  *twelve # -> default ptich track in twelve
+        [TrackLang.VScaleId scale_id] ->
+            Right $ Pitch scale_id Nothing
+        --  *twelve # -> default pitch track in twelve
         --  *twelve #name -> named pitch track
-        [TrackLang.VScaleId scale, pitch_control -> Just cont] ->
-            Right $ Pitch (PitchAbsolute (scale_of scale)) cont
-        -- add # -> relative pitch for default
-        -- add #name -> relative pitch for named track
-        [TrackLang.VSymbol call, pitch_control -> Just cont] ->
-            Right $ Pitch (PitchRelative call) cont
+        [TrackLang.VScaleId scale_id, pitch_control -> Just cont] ->
+            Right $ Pitch scale_id cont
         -- "tempo"
         [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right Tempo
         -- control
@@ -74,23 +65,21 @@ parse_control_vals vals = case vals of
         -- no real meaning to an empty scale id.  However, Score.c_null is
         -- a valid control like any other and is simply used as a special
         -- name by the control block call hack in "Derive.Call.Block".
-        [TrackLang.VControl (TrackLang.Control (Score.Control ""))] ->
+        [TrackLang.VControl (TrackLang.LiteralControl (Score.Control ""))] ->
             Right $ Control Nothing Score.c_null
         -- add % -> relative default control
-        [TrackLang.VSymbol call,
-                TrackLang.VControl (TrackLang.Control (Score.Control ""))] ->
+        [TrackLang.VSymbol call, TrackLang.VControl
+                (TrackLang.LiteralControl (Score.Control ""))] ->
             Right $ Control (Just call) Score.c_null
         _ -> Left $ "control track must be one of [\"tempo\", control, "
             ++ "op control, %, op %, *scale, *scale #name, op #, op #name], "
             ++ "got: " ++ Pretty.pretty vals
     where
-    scale_of (Pitch.ScaleId "") = Nothing
-    scale_of scale = Just scale
     control_of (TrackLang.Symbol control) = Score.Control control
 
     pitch_control :: TrackLang.Val -> Maybe (Maybe Score.Control)
     pitch_control (TrackLang.VPitchControl
-            (TrackLang.Control cont@(Score.Control name)))
+            (TrackLang.LiteralControl cont@(Score.Control name)))
         | null name = Just Nothing
         | otherwise = Just (Just cont)
     pitch_control _ = Nothing
@@ -106,14 +95,8 @@ unparse_control_vals ctype = case ctype of
             in case call of
                 Nothing -> [cont]
                 Just op -> [TrackLang.VSymbol op, cont]
-        Pitch ptype name ->
-            let pname = sym ('#' : maybe "" uncontrol name)
-                opt = maybe [] (const [pname]) name
-            in case ptype of
-                PitchRelative call -> [TrackLang.VSymbol call, pname]
-                PitchAbsolute (Just (Pitch.ScaleId scale_id)) ->
-                    sym ('*':scale_id) : opt
-                PitchAbsolute Nothing -> sym "*" : opt
+        Pitch (Pitch.ScaleId scale_id) name -> sym ('*':scale_id)
+            : maybe [] ((:[]) . sym . ('#':) . uncontrol) name
         Tempo -> [sym "tempo"]
     where
     sym = TrackLang.VSymbol . TrackLang.Symbol
@@ -125,13 +108,11 @@ strip_expr :: String -> String
 strip_expr = Seq.rstrip . takeWhile (/='|')
 
 scale_to_title :: Pitch.ScaleId -> String
-scale_to_title scale_id =
-    unparse_control (Pitch (PitchAbsolute (Just scale_id)) Nothing)
+scale_to_title scale_id = unparse_control (Pitch scale_id Nothing)
 
 title_to_scale :: String -> Maybe Pitch.ScaleId
 title_to_scale title = case parse_control title of
-    Right (Pitch (PitchAbsolute (Just scale_id)) _) -> Just scale_id
-    Right (Pitch (PitchRelative _) _) -> Just Relative.scale_id
+    Right (Pitch scale_id _) -> Just scale_id
     _ -> Nothing
 
 -- | Convert a track title into its instrument.
@@ -145,14 +126,6 @@ title_to_instrument _ = Nothing
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> String
 instrument_to_title = Pretty.pretty . TrackLang.VInstrument
-
-title_is_relative :: String -> Bool
-title_is_relative = either (const False) is_relative . parse_control
-
-is_relative :: ControlType -> Bool
-is_relative (Control (Just _) _) = True
-is_relative (Pitch (PitchRelative _) _) = True
-is_relative _ = False
 
 is_note_track :: String -> Bool
 is_note_track = Maybe.isJust . title_to_instrument

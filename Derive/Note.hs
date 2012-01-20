@@ -139,6 +139,7 @@ import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.ParseBs as Parse
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import Types
@@ -155,15 +156,18 @@ d_note_track (Tree.Node track subs) = do
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return (preprocess_title expr)
     stash_sub_signals subs
-    let transform = if track_expr == empty_note_title then id
+    let transform = if is_empty_title track_expr then id
             else Call.apply_transformer info track_expr
     transform $ derive_notes (State.tevents_end track)
         (State.tevents_range track) (State.tevents_shifted track)
         (Events.ascending (State.tevents_events track)) subs
     where info = (Call.note_dinfo, Derive.dummy_call_info "note track")
 
-empty_note_title :: TrackLang.Expr
-empty_note_title = [TrackLang.call "note-track" [TrackLang.inst ""]]
+is_empty_title :: TrackLang.Expr -> Bool
+is_empty_title [TrackLang.Call sym [TrackLang.Literal
+        (TrackLang.VInstrument inst)]] =
+    inst == Score.Instrument "" && sym == TrackLang.Symbol "note-track"
+is_empty_title _ = False
 
 stash_sub_signals :: State.EventsTree -> Derive.Deriver ()
 stash_sub_signals subs = do

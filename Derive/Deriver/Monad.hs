@@ -52,10 +52,11 @@ module Derive.Deriver.Monad (
 
     -- ** constant
     , Constant(..), initial_constant
+    , op_add, op_sub, op_mul
     , InstrumentCalls(..)
 
     -- ** control
-    , ControlOp, PitchOp
+    , ControlOp
 
     -- ** collect
     , Collect(..)
@@ -117,15 +118,14 @@ import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
-
 import Types
 
 
@@ -221,7 +221,7 @@ run state m = _runD m state []
 -- * error
 
 data Error = Error SrcPos.SrcPos Stack.Stack ErrorVal
-    deriving (Eq, Show)
+    deriving (Show)
 
 instance Pretty.Pretty Error where
     pretty (Error srcpos stack val) =
@@ -229,7 +229,7 @@ instance Pretty.Pretty Error where
         ++ Pretty.pretty val
 
 data ErrorVal = GenericError String | CallError CallError
-    deriving (Eq, Show)
+    deriving (Show)
 
 instance Pretty.Pretty ErrorVal where
     pretty (GenericError s) = s
@@ -242,7 +242,7 @@ data CallError =
     | CallNotFound TrackLang.CallId
     -- | Calling error that doesn't fit into the above categories.
     | ArgError String
-    deriving (Eq, Show)
+    deriving (Show)
 
 instance Pretty.Pretty CallError where
     pretty err = case err of
@@ -278,8 +278,7 @@ throw_error_srcpos srcpos err = do
 
 -- * derived types
 
-class (Show (Elem derived), Eq (Elem derived), Show derived) =>
-        Derived derived where
+class (Show (Elem derived), Show derived) => Derived derived where
     type Elem derived :: *
     -- | I would prefer to have a function to a generic reified type and then
     -- use that value to index the CacheEntry, but I can't think of how to do
@@ -323,10 +322,10 @@ instance Derived Signal.Control where
 
 -- ** pitch
 
-type PitchDeriver = LogsDeriver PitchSignal.PitchSignal
+type PitchDeriver = LogsDeriver PitchSignal.Signal
 
-instance Derived PitchSignal.PitchSignal where
-    type Elem PitchSignal.PitchSignal = PitchSignal.Y
+instance Derived PitchSignal.Signal where
+    type Elem PitchSignal.Signal = PitchSignal.Pitch
     from_cache_entry (CachedPitch ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedPitch
@@ -346,11 +345,10 @@ data State = State {
 
 initial_state :: Scope -> TrackLang.Environ -> Constant -> State
 initial_state scope environ constant = State
-    { state_dynamic = initial_dynamic (config_default constant) scope environ
+    { state_dynamic = initial_dynamic scope environ
     , state_collect = mempty
     , state_constant = constant
     }
-    where config_default = State.config_default . State.state_config . state_ui
 
 -- | This is a dynamically scoped environment that applies to generated events
 -- inside its scope.
@@ -364,7 +362,7 @@ data Dynamic = Dynamic {
     -- that's actually applied to notes.  It's split off from pitches because
     -- it's convenient to guarentee that the main pitch signal is always
     -- present.
-    , state_pitch :: !PitchSignal.PitchSignal
+    , state_pitch :: !PitchSignal.Signal
     , state_environ :: !TrackLang.Environ
     , state_warp :: !Score.Warp
     -- | Stack of calls currently in scope.
@@ -380,13 +378,11 @@ data Dynamic = Dynamic {
     , state_log_context :: ![String]
     }
 
-initial_dynamic :: State.Default -> Scope -> TrackLang.Environ -> Dynamic
-initial_dynamic deflt scope environ = Dynamic
+initial_dynamic :: Scope -> TrackLang.Environ -> Dynamic
+initial_dynamic scope environ = Dynamic
     { state_controls = initial_controls
     , state_pitches = Map.empty
-    , state_pitch = PitchSignal.constant (State.default_scale deflt)
-        (PitchSignal.Degree Signal.invalid_pitch)
-
+    , state_pitch = mempty
     , state_environ = environ
     , state_warp = Score.id_warp
     , state_scope = scope
@@ -460,7 +456,6 @@ make_lookup cmap call_id = return $ Map.lookup call_id cmap
 data Constant = Constant {
     state_ui :: State.State
     , state_control_op_map :: Map.Map TrackLang.CallId ControlOp
-    , state_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
     , state_lookup_scale :: LookupScale
     -- | Get the calls that should be in scope with a certain instrument.
     , state_instrument_calls :: Score.Instrument -> Maybe InstrumentCalls
@@ -476,7 +471,6 @@ initial_constant ui_state lookup_scale inst_calls cache damage =
     Constant
         { state_ui = ui_state
         , state_control_op_map = default_control_op_map
-        , state_pitch_op_map = default_pitch_op_map
         , state_lookup_scale = lookup_scale
         , state_instrument_calls = inst_calls
         , state_cache = invalidate_damaged damage cache
@@ -496,9 +490,11 @@ instance Show InstrumentCalls where
 
 -- ** control
 
-type ControlOp = Signal.Control -> Signal.Control -> Signal.Control
-type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
-    -> PitchSignal.PitchSignal
+-- | This is a monoid used for combining two signals.  The identity value
+-- is only used when a relative signal is applied when no signal is in scope.
+-- This is useful for e.g. a transposition signal which shouldn't care if
+-- there is or isn't a transposition signal already in scope.
+type ControlOp = (Signal.Control -> Signal.Control -> Signal.Control, Signal.Y)
 
 -- *** control ops
 
@@ -506,20 +502,19 @@ type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
 -- config.  TODO but not yet
 default_control_op_map :: Map.Map TrackLang.CallId ControlOp
 default_control_op_map = Map.fromList $ map (first TrackLang.Symbol)
-    [ ("add", Signal.sig_add)
-    , ("sub", Signal.sig_subtract)
-    , ("mul", Signal.sig_multiply)
-    , ("max", Signal.sig_max)
-    , ("min", Signal.sig_min)
+    [ ("add", op_add)
+    , ("sub", op_sub)
+    , ("mul", op_mul)
+    -- These values should never be seen since any reasonable combining signal
+    -- will be within this range.
+    , ("max", (Signal.sig_max, -2^32))
+    , ("min", (Signal.sig_min, 2^32))
     ]
 
--- | As with 'default_control_op_map', but pitch ops have a different type.
-default_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
-default_pitch_op_map = Map.fromList $ map (first TrackLang.Symbol)
-    [ ("add", PitchSignal.sig_add)
-    , ("max", PitchSignal.sig_max)
-    , ("min", PitchSignal.sig_min)
-    ]
+op_add, op_sub, op_mul :: ControlOp
+op_add = (Signal.sig_add, 0)
+op_sub = (Signal.sig_subtract, 0)
+op_mul = (Signal.sig_multiply, 1)
 
 
 -- ** collect
@@ -646,7 +641,7 @@ instance Show (Call derived) where
 
 type NoteCall = Call Score.Event
 type ControlCall = Call Signal.Control
-type PitchCall = Call PitchSignal.PitchSignal
+type PitchCall = Call PitchSignal.Signal
 
 data ValCall = ValCall {
     vcall_name :: !String
@@ -740,7 +735,7 @@ cache_size (Cache c) = Map.size c
 data CacheEntry =
     CachedEvents !(CallType Score.Event)
     | CachedControl !(CallType Signal.Control)
-    | CachedPitch !(CallType PitchSignal.PitchSignal)
+    | CachedPitch !(CallType PitchSignal.Signal)
     deriving (Show)
 
 -- | The type here should match the type of the stack it's associated with,
@@ -820,6 +815,11 @@ data Scale = Scale {
     -- soon as possible, which means program startup for hardcoded scales.
     , scale_symbols :: ![Symbol.Symbol]
 
+    -- | The controls that will casue a pitch from this scale to change.
+    -- This is used by 'PitchSignal.apply_controls' to know when to reevaluate
+    -- a given pitch.
+    , scale_transposers :: !(Set.Set Score.Control)
+
     -- | Transpose a Note by a given number of octaves and integral degrees.
     -- Will be nothing if the pitch is out of range, or the scale doesn't have
     -- octaves.
@@ -831,13 +831,12 @@ data Scale = Scale {
     -- | Used by note input.
     , scale_input_to_note :: !(Pitch.InputKey -> Maybe Pitch.Note)
     -- | Used by MIDI thru.  This is a shortcut for
-    -- @degree_to_nn . note_to_degree . input_to_note@ but can be implemented
-    -- more efficiently by the scale.
+    -- @eval . note_to_call . input_to_note@ but can be implemented more
+    -- efficiently by the scale.
     , scale_input_to_nn :: !(Pitch.InputKey -> Maybe Pitch.NoteNumber)
-
-    -- | Used by conversion before performance.
-    , scale_degree_to_nn :: !(Pitch.Degree -> Maybe Pitch.NoteNumber)
     }
 
 type LookupScale = Pitch.ScaleId -> Maybe Scale
-type Transpose = Pitch.Octave -> Integer -> Pitch.Note -> Maybe Pitch.Note
+-- | TODO This should maybe be Pitch.Chromatic instead of Degree, but
+-- the transpose function is only setup to expect inegral transposition.
+type Transpose = Pitch.Octave -> Pitch.Degree -> Pitch.Note -> Maybe Pitch.Note

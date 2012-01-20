@@ -30,18 +30,18 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as Parse
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
-import qualified Derive.Scale.Relative as Relative
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
 
 
-type Pitch = PitchSignal.PitchSignal
+type Pitch = PitchSignal.Signal
 type Control = Signal.Control
 
 -- | As returned by 'State.tevents_range', happpens to be used a lot here.
@@ -64,8 +64,8 @@ eval_track track expr ctype deriver = case ctype of
         tempo_call track (derive_control tempo_track expr) deriver
     TrackInfo.Control maybe_op control ->
         control_call track control maybe_op (derive_control track expr) deriver
-    TrackInfo.Pitch ptype maybe_name ->
-        pitch_call track maybe_name ptype expr deriver
+    TrackInfo.Pitch scale_id maybe_name ->
+        pitch_call track maybe_name scale_id expr deriver
     where
     tempo_track = track { State.tevents_events = tempo_events }
     -- This is a hack due to the way the tempo track works.  Further notes
@@ -88,7 +88,7 @@ tempo_call track sig_deriver deriver = do
     when_just maybe_track_id $ \track_id ->
         unless (State.tevents_sliced track) $
             put_track_signal track_id $ Right $
-                Track.TrackSignal (Track.Control (Signal.coerce signal)) 0 1
+                Track.TrackSignal (Signal.coerce signal) 0 1 Nothing
     -- 'with_damage' must be applied *inside* 'd_tempo'.  If it were outside,
     -- it would get the wrong RealTimes when it tried to create the
     -- ControlDamage.
@@ -107,7 +107,7 @@ control_call :: State.TrackEvents -> Score.Control
     -> Derive.EventDeriver -> Derive.EventDeriver
 control_call track control maybe_op control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track control_deriver
-    stash_signal track (Right (signal, to_display <$> control_deriver))
+    stash_signal track signal (to_display <$> control_deriver) Nothing
     -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'control_deriver'.  To make these parallelize, I need
     -- to run control_deriver as a sub-derive, then mappend the Collect.
@@ -130,44 +130,37 @@ merge_logs logs deriver = do
     events <- deriver
     return $ Derive.merge_events (map LEvent.Log logs) events
 
-pitch_call :: State.TrackEvents -> Maybe Score.Control -> TrackInfo.PitchType
+pitch_call :: State.TrackEvents -> Maybe Score.Control -> Pitch.ScaleId
     -> TrackLang.Expr -> Derive.EventDeriver -> Derive.EventDeriver
-pitch_call track maybe_name ptype expr deriver =
+pitch_call track maybe_name scale_id expr deriver =
     Internal.track_setup track $ do
-        (scale, new_scale) <- get_scale ptype
+        (scale, new_scale) <- get_scale scale_id
         let scale_map = Scale.scale_map scale
             derive = derive_pitch track expr
-        (if new_scale then Derive.with_scale scale else id) $ case ptype of
-            TrackInfo.PitchRelative op -> do
-                (signal, logs) <- derive
-                stash_signal track
-                    (Left (signal, to_psig <$> derive, scale_map))
-                merge_logs logs $ with_damage $
-                    Derive.with_pitch_operator maybe_name op signal deriver
-            _ -> do
-                (signal, logs) <- derive
-                stash_signal track
-                    (Left (signal, to_psig <$> derive, scale_map))
-                merge_logs logs $ with_damage $
-                    Derive.with_pitch maybe_name signal deriver
+        (if new_scale then Derive.with_scale scale else id) $ do
+            (signal, logs) <- derive
+            -- Ignore errors, they should be logged on conversion.
+            (nn_sig, _) <- pitch_signal_to_nn signal
+            stash_signal track (Signal.coerce nn_sig) (to_psig derive)
+                (Just scale_map)
+            merge_logs logs $ with_damage $
+                Derive.with_pitch maybe_name signal deriver
     where
     maybe_track_id = State.tevents_track_id track
     with_damage = with_control_damage maybe_track_id
         (State.tevents_range track)
-    to_psig (sig, _) = sig
+    to_psig derive = do
+        (sig, _) <- derive
+        Signal.coerce . fst <$> pitch_signal_to_nn sig
 
-get_scale :: TrackInfo.PitchType -> Derive.Deriver (Scale.Scale, Bool)
-get_scale ptype = case ptype of
-    TrackInfo.PitchRelative _ -> do
-        -- TODO previously I mangled the scale to set the octave, but
-        -- I can't do that now unless I put it in the ScaleId
-        return (Relative.scale, True)
-    TrackInfo.PitchAbsolute (Just scale_id) -> do
-        scale <- Derive.get_scale scale_id
-        return (scale, True)
-    TrackInfo.PitchAbsolute Nothing -> do
+get_scale :: Pitch.ScaleId -> Derive.Deriver (Scale.Scale, Bool)
+get_scale scale_id
+    | scale_id == Pitch.empty_scale = do
         scale <- Util.get_scale
         return (scale, False)
+    | otherwise = do
+        scale <- Derive.get_scale scale_id
+        return (scale, True)
 
 with_control_damage :: Maybe TrackId -> TrackRange
     -> Derive.Deriver d -> Derive.Deriver d
@@ -215,7 +208,7 @@ derive_pitch track expr = do
     stream <- Call.apply_transformer
         (dinfo, Derive.dummy_call_info "pitch track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
-        signal = PitchSignal.merge signal_chunks
+        signal = mconcat signal_chunks
     return (signal, logs)
     where
     deriver = do
@@ -244,36 +237,26 @@ tevents = Events.ascending . State.tevents_events
 -- the signals and avoid recalculating the control track at all.  Perhaps just
 -- add a warped signal to TrackSignal?
 stash_signal :: State.TrackEvents
-    -> Either (Pitch, Derive.Deriver Pitch, Track.ScaleMap)
-        (Signal.Signal y, Derive.Deriver Signal.Display)
-    -- ^ Either a PitchSignal or a control signal.  Both a signal and
-    -- a deriver to produce the signal are provided.  If the block has no warp
-    -- the already derived signal can be reused, otherwise it must be
-    -- rederived.
+    -> Signal.Signal y -> Derive.Deriver Signal.Display
+    -- ^ Both a signal and a deriver to produce the signal are provided.  If
+    -- the block has no warp the already derived signal can be reused,
+    -- otherwise it must be rederived.
+    -> Maybe Track.ScaleMap
+    -- ^ A pitch track is given a ScaleMap so it can be displayed properly.
     -> Derive.Deriver ()
-stash_signal track sig =
+stash_signal track sig derive_sig scale_map =
     case (State.tevents_track_id track, State.tevents_sliced track) of
-        (Just track_id, False) -> stash track_id
+        (Just track_id, False) -> stash track_id =<< linear_tempo
         _ -> return ()
     where
-    stash track_id = do
-        maybe_linear <- linear_tempo
-        case maybe_linear of
-            Just (shift, stretch) -> do
-                let tsig = case sig of
-                        Left (psig, _, smap) -> Track.Pitch psig smap
-                        Right (csig, _) -> Track.Control (Signal.coerce csig)
-                put_track_signal track_id $ Right $
-                    Track.TrackSignal tsig shift stretch
-            Nothing -> do
-                signal <- run_sub $ case sig of
-                    Left (_, deriver, smap) -> do
-                        sig <- Derive.in_real_time deriver
-                        return $ Track.Pitch sig smap
-                    Right (_, deriver) -> Track.Control . Signal.coerce <$>
-                        Derive.in_real_time deriver
-                put_track_signal track_id
-                    (fmap (\s -> Track.TrackSignal s 0 1) signal)
+    stash track_id (Just (shift, stretch)) = do
+        put_track_signal track_id $ Right $
+            Track.TrackSignal (Signal.coerce sig) shift stretch scale_map
+    stash track_id Nothing = do
+        logs_or_sig <- run_sub $ Derive.in_real_time derive_sig
+        put_track_signal track_id $ case logs_or_sig of
+            Left logs -> Left logs
+            Right sig -> Right $ Track.TrackSignal sig 0 1 scale_map
 
 -- | Ensure the computation runs lazily by detaching it from the state.  This
 -- is important because the track signal will not necessarily be demanded.
@@ -330,16 +313,29 @@ eval_signal track expr ctype = case ctype of
     TrackInfo.Tempo -> do
         (sig, logs) <- derive_control track expr
         mapM_ Log.write logs
-        return $ control_sig sig
+        return $ track_sig sig Nothing
     TrackInfo.Control _ _ -> do
         (sig, logs) <- derive_control track expr
         mapM_ Log.write logs
-        return $ control_sig sig
-    TrackInfo.Pitch ptype _ -> do
+        return $ track_sig sig Nothing
+    TrackInfo.Pitch scale_id _ -> do
         (sig, logs) <- derive_pitch track expr
         mapM_ Log.write logs
-        (scale, _) <- get_scale ptype
-        return $ pitch_sig sig (Scale.scale_map scale)
+        (scale, _) <- get_scale scale_id
+        -- TODO I log derivation errors... why not log pitch errors?
+        (nn_sig, _) <- pitch_signal_to_nn sig
+        return $ track_sig nn_sig (Just (Scale.scale_map scale))
     where
-    control_sig sig = Track.TrackSignal (Track.Control (Signal.coerce sig)) 0 1
-    pitch_sig sig smap = Track.TrackSignal (Track.Pitch sig smap) 0 1
+    track_sig sig scale_map =
+        Track.TrackSignal (Signal.coerce sig) 0 1 scale_map
+
+
+-- * util
+
+-- | Reduce a 'PitchSignal.Signal' to raw note numbers, taking the current
+-- transposition environment into account.
+pitch_signal_to_nn :: PitchSignal.Signal
+    -> Derive.Deriver (Signal.NoteNumber, [PitchSignal.PitchError])
+pitch_signal_to_nn sig = do
+    controls <- Internal.get_dynamic Derive.state_controls
+    return $ PitchSignal.to_nn $ PitchSignal.apply_controls controls sig

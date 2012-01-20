@@ -9,10 +9,12 @@ module Util.Control (
 
     -- , finally
     , justm
+    , fmap0
 ) where
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty, mconcat)
+import Util.Functor0 (fmap0)
 
 
 -- | Like the Arrow combinators, but specialized to functions for clearer

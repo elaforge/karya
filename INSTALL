@@ -2,6 +2,7 @@
 
 fixed-list-0.1.5
 deepseq, data-ordlist, cereal, storablevector
+data-vector
 dlist -- Perform.SignalBase
 parsec
 text, stm, network

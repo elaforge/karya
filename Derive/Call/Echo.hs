@@ -75,7 +75,7 @@ echo delay feedback times deriver
 
 scale_vel :: Signal.Y -> Derive.EventDeriver -> Derive.EventDeriver
 scale_vel d = Derive.with_relative_control
-    Score.c_velocity Signal.sig_multiply (Signal.constant d)
+    Score.c_velocity Derive.op_mul (Signal.constant d)
 
 
 -- | This echo works directly on Events.

@@ -20,11 +20,11 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
@@ -37,10 +37,10 @@ import Types
 -- | Convert a note to a degree by running a mini derivation just for it.
 -- This means that if the note does anything magic based on its environment,
 -- it will get the base environment for a derivation from scratch.
-note_to_degree :: (Cmd.M m) => Pitch.ScaleId -> Pitch.Note
-    -> m (Either String Pitch.Degree)
-note_to_degree scale_id note = do
-    scale <- Cmd.get_scale "Perf.note_to_degree" scale_id
+note_to_pitch :: (Cmd.M m) => Pitch.ScaleId -> Pitch.Note
+    -> m (Either String PitchSignal.Pitch)
+note_to_pitch scale_id note = do
+    scale <- Cmd.get_scale "Perf.note_to_pitch" scale_id
     derive (Derive.with_scale scale (Call.eval_note note))
 
 -- | A cheap quick derivation that sets up the correct initial state, but
@@ -65,33 +65,30 @@ lookup_signal track_id = do
         result <- Map.lookup track_id (Cmd.perf_track_signals perf)
         either (const Nothing) Just result
 
-control_at :: Track.TrackSignal -> [ScoreTime] -> Maybe [Signal.Y]
-control_at (Track.TrackSignal tsig shift stretch) ps = case tsig of
-    Track.Control sig -> Just $ map (flip Signal.at sig . warp) ps
-    _ -> Nothing
+control_at :: Track.TrackSignal -> [ScoreTime] -> [Signal.Y]
+control_at (Track.TrackSignal sig shift stretch _) ps =
+    map (flip Signal.at sig . warp) ps
     where warp p = RealTime.score (p * stretch + shift)
 
-pitch_at :: Track.TrackSignal -> [ScoreTime] -> Maybe [PitchSignal.Y]
-pitch_at (Track.TrackSignal tsig shift stretch) ps = case tsig of
-    Track.Pitch sig _ -> Just $ map (flip PitchSignal.at sig . warp) ps
-    _ -> Nothing
-    where warp p = RealTime.score (p * stretch + shift)
+nn_at :: Track.TrackSignal -> [ScoreTime] -> [Pitch.NoteNumber]
+nn_at tsig ps = map Pitch.NoteNumber (control_at tsig ps)
 
 -- | Get the control values at the given points, or fail if there is no
--- control signal there.
+-- signal there.
 get_control_at :: (Cmd.M m) => TrackId -> [ScoreTime] -> m [Signal.Y]
 get_control_at track_id ps = do
     sig <- Cmd.require_msg ("no signal for " ++ show track_id)
         =<< lookup_signal track_id
-    Cmd.require_msg "signal is not a control signal" $ control_at sig ps
+    return $ control_at sig ps
 
 -- | Get the pitch values at the given points, or fail if there is no
--- pitch signal there.
-get_pitch_at :: (Cmd.M m) => TrackId -> [ScoreTime] -> m [PitchSignal.Y]
-get_pitch_at track_id ps = do
+-- signal there.  TODO can't tell the difference between a pitch and control
+-- track.
+get_nn_at :: (Cmd.M m) => TrackId -> [ScoreTime] -> m [Pitch.NoteNumber]
+get_nn_at track_id ps = do
     sig <- Cmd.require_msg ("no signal for " ++ show track_id)
         =<< lookup_signal track_id
-    Cmd.require_msg "signal is not a pitch signal" $ pitch_at sig ps
+    return $ nn_at sig ps
 
 
 -- * environ

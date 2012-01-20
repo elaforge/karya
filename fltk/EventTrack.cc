@@ -30,8 +30,6 @@ TrackSignal::free_signals()
 {
     if (signal)
         free(signal);
-    if (pitch_signal)
-        free(pitch_signal);
     if (val_names) {
         // DEBUG("free valnames " << val_names << " " << val_names_length);
         for (int i = 0; i < val_names_length; i++)
@@ -42,12 +40,6 @@ TrackSignal::free_signals()
 
 static bool
 compare_control_sample(const ControlSample &s1, const ControlSample &s2)
-{
-    return s1.time < s2.time;
-}
-
-static bool
-compare_pitch_sample(const PitchSample &s1, const PitchSample &s2)
 {
     return s1.time < s2.time;
 }
@@ -66,26 +58,6 @@ TrackSignal::find_sample(ScoreTime start) const
         if (found > signal)
             found--;
         return found - signal;
-    } else if (pitch_signal) {
-        PitchSample sample(start.to_real(), 0, 0, 0);
-        PitchSample *found = std::lower_bound(pitch_signal,
-            pitch_signal + length, sample, compare_pitch_sample);
-        // Back up one to make sure I have the sample before start.
-        if (found > pitch_signal)
-            found--;
-        // Back up to the last place where the (from, to) changed.  This is
-        // where text labels will be drawn.  Since I don't know how tall they
-        // are, I just unconditionally back up to the last place where it would
-        // be drawn and rely on the draw code to know the text height and skip
-        // samples.
-        if (has_labels()) {
-            while (found > pitch_signal && found[-1].from == found[0].from
-                    && found[-1].to == found[0].to)
-            {
-                found--;
-            }
-        }
-        return found - pitch_signal;
     } else {
         // Render was set but there is no signal... so just say nothing was
         // found.
@@ -100,8 +72,6 @@ TrackSignal::time_at(const ZoomInfo &zoom, int i) const
     ScoreTime at;
     if (signal)
         at = ScoreTime::from_real(signal[i].time);
-    else if (pitch_signal)
-        at = ScoreTime::from_real(pitch_signal[i].time);
     else
         ASSERT_MSG(0, "time_at on empty track signal");
     return zoom.to_pixels((at - shift).divide(stretch) - zoom.offset);
@@ -117,8 +87,11 @@ TrackSignal::val_at(int i, const char **lower, const char **upper) const
     *lower = *upper = NULL;
     if (signal)
         return signal[i].val / this->max_control_val;
-    else if (!pitch_signal)
+    else
         ASSERT_MSG(0, "val_at on empty track signal");
+
+    /*
+    TODO implement looking up in the name_of if val_names is set
 
     const PitchSample &sample = pitch_signal[i];
     // If there's no range then no need to look up two, and .5 makes for a
@@ -152,6 +125,7 @@ TrackSignal::val_at(int i, const char **lower, const char **upper) const
     //         << high_val << ", " << (*upper ? *upper : "null") << ") at "
     //         << result);
     return result;
+    */
 }
 
 
@@ -199,12 +173,6 @@ operator<<(std::ostream &os, const TrackSignal &sig)
         for (int i = 0; i < sig.length; i++) {
             os << "sig[" << i << "] = " << sig.signal[i].time << " -> "
                 << sig.signal[i].val << '\n' ;
-        }
-    } else if (sig.pitch_signal) {
-        for (int i = 0; i < sig.length; i++) {
-            const PitchSample &p = sig.pitch_signal[i];
-            os << "psig[" << i << "] = " << p.time << " -> ("
-                << p.from << ", " << p.to << ", " << p.at << ")\n";
         }
     } else {
         os << "EMPTY TRACK SIGNAL";

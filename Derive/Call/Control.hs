@@ -115,7 +115,10 @@ control_interpolate f val args = do
             interpolator srate f False prev prev_val start val
 
 -- | TODO more efficient version without the intermediate list
-interpolator :: RealTime -> (Double -> Double) -> Util.ControlInterpolator
+interpolator :: RealTime -> (Double -> Double)
+    -> Bool -- ^ include the initial sample or not
+    -> RealTime -> Signal.Y -> RealTime -> Signal.Y
+    -> Signal.Control
 interpolator srate f include_initial x0 y0 x1 y1
     | include_initial = Signal.signal sig
     | otherwise = Signal.signal (drop 1 sig)

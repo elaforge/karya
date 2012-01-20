@@ -220,8 +220,7 @@ test_collect = do
             State.insert_event (UiTest.tid "top.t0") 1 (Event.event "" 1)
     -- pprint (r_cache_collect cached)
     let root : _ = r_cache_collect cached
-    let tsig = Right $
-            Track.TrackSignal (Track.Control (Signal.signal [(0, 1)])) 0 1
+    let tsig = Right $ Track.TrackSignal (Signal.signal [(0, 1)]) 0 1 Nothing
     let extract = second (fmap extract_collect)
         extract_collect (Derive.Collect wmap tsigs _env ldep _cache) =
             (Seq.sort_on fst (map (first Stack.show_ui) (Map.toAscList wmap)),

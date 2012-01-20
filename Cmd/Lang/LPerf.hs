@@ -1,7 +1,6 @@
 -- | Cmds to deal with Cmd.Performance, derivation, and performance.
 module Cmd.Lang.LPerf where
 import Util.Control
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi

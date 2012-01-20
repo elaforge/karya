@@ -150,7 +150,7 @@ modify_note f text = do
 -- The entire command will abort if there is a pitch that can't be transposed,
 -- for safety.  But so I can select multiple pitch tracks or selected a merged
 -- note track, I skip non-pitch tracks.
-transpose_selection :: (Cmd.M m) => Pitch.Octave -> Integer -> m ()
+transpose_selection :: (Cmd.M m) => Pitch.Octave -> Pitch.Degree -> m ()
 transpose_selection octaves degrees = do
     block_id <- Cmd.get_focused_block
     ModifyEvents.tracks_sorted $ \track_id events -> do
@@ -161,7 +161,7 @@ transpose_selection octaves degrees = do
             octaves degrees events
 
 transpose_events :: (Cmd.M m) => BlockId -> TrackId -> Pitch.ScaleId
-    -> Pitch.Octave -> Integer -> [Events.PosEvent] -> m [Events.PosEvent]
+    -> Pitch.Octave -> Pitch.Degree -> [Events.PosEvent] -> m [Events.PosEvent]
 transpose_events block_id track_id scale_id octaves degrees events = do
     scale <- Cmd.get_scale "transpose_selection" scale_id
     let transposed = map (transpose scale octaves degrees) events
@@ -171,7 +171,7 @@ transpose_events block_id track_id scale_id octaves degrees events = do
             ++ Seq.join ", " (map (Cmd.log_event block_id track_id) failed)
     return $ Maybe.catMaybes transposed
 
-transpose :: Derive.Scale -> Pitch.Octave -> Integer -> Events.PosEvent
+transpose :: Derive.Scale -> Pitch.Octave -> Pitch.Degree -> Events.PosEvent
     -> Maybe Events.PosEvent
 transpose scale octaves degrees (pos, event) =
     case modify_note f (Event.event_string event) of

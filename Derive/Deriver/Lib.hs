@@ -51,15 +51,14 @@ import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Internal (real)
 import Derive.Deriver.Monad
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
-
 import Types
 
 
@@ -146,11 +145,6 @@ get_scale scale_id = maybe (throw $ "unknown " ++ show scale_id) return
 
 lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
 lookup_scale scale_id = do
-    -- Defaulting the scale here means that relative pitch tracks don't need
-    -- to mention their scale.
-    scale_id <- if scale_id == Pitch.default_scale_id
-        then Internal.get_dynamic (PitchSignal.sig_scale . state_pitch)
-        else return scale_id
     lookup_scale <- gets (state_lookup_scale . state_constant)
     return $ lookup_scale scale_id
 
@@ -161,14 +155,16 @@ lookup_val :: forall a. (TrackLang.Typecheck a) =>
     TrackLang.ValName -> Deriver (Maybe a)
 lookup_val name = do
     environ <- Internal.get_dynamic state_environ
-    let return_type = TrackLang.to_type (Prelude.error "lookup_val" :: a)
-    case TrackLang.lookup_val name environ of
+    either throw return (env_val environ name)
+    where
+    env_val environ name = case TrackLang.lookup_val name environ of
             Left TrackLang.NotFound -> return Nothing
             Left (TrackLang.WrongType typ) ->
-                throw $ "lookup_val " ++ show name ++ ": expected "
+                Left $ "lookup_val " ++ show name ++ ": expected "
                     ++ Pretty.pretty return_type ++ " but val type is "
                     ++ Pretty.pretty typ
             Right v -> return (Just v)
+        where return_type = TrackLang.to_type (Prelude.error "lookup_val" :: a)
 
 -- | Like 'lookup_val', but throw if the value isn't present.
 get_val :: forall a. (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver a
@@ -232,29 +228,10 @@ control_at cont pos = do
     controls <- Internal.get_dynamic state_controls
     return $ fmap (Signal.at pos) (Map.lookup cont controls)
 
-pitch_at_score :: ScoreTime -> Deriver PitchSignal.Y
-pitch_at_score pos = pitch_at =<< real pos
-
-pitch_at :: RealTime -> Deriver PitchSignal.Y
-pitch_at pos = do
-    psig <- Internal.get_dynamic state_pitch
-    return (PitchSignal.at pos psig)
-
-degree_at :: RealTime -> Deriver Pitch.Degree
-degree_at pos = PitchSignal.y_to_degree <$> pitch_at pos
-
-get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.PitchSignal)
-get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
-
-named_pitch_at :: Score.Control -> RealTime -> Deriver (Maybe PitchSignal.Y)
-named_pitch_at name pos = do
-    maybe_psig <- get_named_pitch name
-    return $ PitchSignal.at pos <$> maybe_psig
-
-named_degree_at :: Score.Control -> RealTime -> Deriver (Maybe Pitch.Degree)
-named_degree_at name pos = do
-    y <- named_pitch_at name pos
-    return $ fmap PitchSignal.y_to_degree y
+controls_at :: RealTime -> Deriver PitchSignal.Controls
+controls_at pos = do
+    controls <- Internal.get_dynamic state_controls
+    return $ Map.map (Signal.at pos) controls
 
 with_control :: Score.Control -> Signal.Control -> Deriver a -> Deriver a
 with_control cont signal =
@@ -274,63 +251,16 @@ with_control_operator cont c_op signal deriver = do
 
 with_relative_control :: Score.Control -> ControlOp -> Signal.Control
     -> Deriver a -> Deriver a
-with_relative_control cont op signal deriver = do
-    controls <- Internal.get_dynamic state_controls
-    let msg = "relative control applied when no absolute control is in scope: "
-    case Map.lookup cont controls of
-        Nothing -> do
-            Log.warn (msg ++ show cont)
-            deriver
-        Just old_signal -> with_control cont (op old_signal signal) deriver
+with_relative_control cont (op, empty) signal deriver
+    | signal == mempty = deriver
+    | otherwise = do
+        controls <- Internal.get_dynamic state_controls
+        let old = Map.findWithDefault (Signal.constant empty) cont controls
+        with_control cont (op old signal) deriver
 
--- | Run the deriver in a context with the given pitch signal.  If a Control is
--- given, the pitch has that name, otherwise it's the unnamed default pitch.
-with_pitch :: Maybe Score.Control -> PitchSignal.PitchSignal
-    -> Deriver a -> Deriver a
-with_pitch = modify_pitch (flip const)
-
-with_constant_pitch :: Maybe Score.Control -> Pitch.Degree
-    -> Deriver a -> Deriver a
-with_constant_pitch maybe_name degree deriver = do
-    pitch <- Internal.get_dynamic state_pitch
-    with_pitch maybe_name
-        (PitchSignal.constant (PitchSignal.sig_scale pitch) degree) deriver
-
-with_relative_pitch :: Maybe Score.Control
-    -> PitchOp -> PitchSignal.Relative -> Deriver a -> Deriver a
-with_relative_pitch maybe_name sig_op signal deriver = do
-    old <- Internal.get_dynamic state_pitch
-    if old == PitchSignal.empty
-        then do
-            -- This shouldn't happen normally because of the default pitch.
-            Log.warn
-                "relative pitch applied when no absolute pitch is in scope"
-            deriver
-        else modify_pitch sig_op maybe_name signal deriver
-
-with_pitch_operator :: Maybe Score.Control
-    -> TrackLang.CallId -> PitchSignal.Relative -> Deriver a -> Deriver a
-with_pitch_operator maybe_name c_op signal deriver = do
-    sig_op <- lookup_pitch_control_op c_op
-    with_relative_pitch maybe_name sig_op signal deriver
-
-modify_pitch :: (PitchSignal.PitchSignal -> PitchSignal.PitchSignal
-        -> PitchSignal.PitchSignal)
-    -> Maybe Score.Control -> PitchSignal.PitchSignal
-    -> Deriver a -> Deriver a
-modify_pitch f Nothing signal = Internal.local
-    state_pitch (\old st -> st { state_pitch = old })
-    (\st -> return $ st { state_pitch = f (state_pitch st) signal })
-modify_pitch f (Just name) signal = Internal.local
-    (Map.lookup name . ps)
-    (\old st -> st { state_pitches = Map.alter (const old) name (ps st) })
-    (\st -> return $ st { state_pitches = Map.alter alter name (ps st) })
-    where
-    ps = state_pitches
-    alter Nothing = Just signal
-    alter (Just old) = Just (f old signal)
-
--- *** control ops
+with_added_control :: Score.Control -> Signal.Control -> Deriver a
+    -> Deriver a
+with_added_control cont = with_relative_control cont op_add
 
 lookup_control_op :: TrackLang.CallId -> Deriver ControlOp
 lookup_control_op c_op = do
@@ -338,11 +268,67 @@ lookup_control_op c_op = do
     maybe (throw ("unknown control op: " ++ show c_op)) return
         (Map.lookup c_op op_map)
 
-lookup_pitch_control_op :: TrackLang.CallId -> Deriver PitchOp
-lookup_pitch_control_op c_op = do
-    op_map <- gets (state_pitch_op_map . state_constant)
-    maybe (throw ("unknown pitch op: " ++ show c_op)) return
-        (Map.lookup c_op op_map)
+-- ** pitch
+
+-- | The pitch at the given time.  The transposition controls have not been
+-- applied since that is supposed to be done once only when the event is
+-- generated.
+pitch_at :: RealTime -> Deriver (Maybe PitchSignal.Pitch)
+pitch_at pos = PitchSignal.at pos <$> Internal.get_dynamic state_pitch
+
+named_pitch_at :: Score.Control -> RealTime
+    -> Deriver (Maybe PitchSignal.Pitch)
+named_pitch_at name pos = do
+    psig <- get_named_pitch name
+    return $ maybe Nothing (PitchSignal.at pos) psig
+
+nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
+nn_at pos = do
+    controls <- controls_at pos
+    justm (pitch_at pos) $ \pitch -> do
+    pitch_nn ("nn " ++ Pretty.pretty pos) $ PitchSignal.apply controls pitch
+
+get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.Signal)
+get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
+
+named_nn_at :: Score.Control -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
+named_nn_at name pos = do
+    controls <- controls_at pos
+    justm (named_pitch_at name pos) $ \pitch -> do
+    pitch_nn ("named_nn " ++ Pretty.pretty (name, pos)) $
+        PitchSignal.apply controls pitch
+
+-- | Version of 'PitchSignal.pitch_nn' that logs errors.
+pitch_nn :: String -> PitchSignal.Pitch -> Deriver (Maybe Pitch.NoteNumber)
+pitch_nn msg pitch = case PitchSignal.pitch_nn pitch of
+    Left (PitchSignal.PitchError err) -> do
+        Log.warn $ "pitch_nn " ++ msg ++ ": " ++ err
+        return Nothing
+    Right nn -> return $ Just nn
+
+-- | Run the deriver in a context with the given pitch signal.  If a Control
+-- is given, the pitch has that name, otherwise it's the unnamed default
+-- pitch.
+with_pitch :: Maybe Score.Control -> PitchSignal.Signal
+    -> Deriver a -> Deriver a
+with_pitch cont = modify_pitch cont . const
+
+with_constant_pitch :: Maybe Score.Control -> Scale -> PitchSignal.Pitch
+    -> Deriver a -> Deriver a
+with_constant_pitch maybe_name scale = with_pitch maybe_name
+    . PitchSignal.constant (scale_id scale, scale_transposers scale)
+
+modify_pitch :: Maybe Score.Control
+    -> (Maybe PitchSignal.Signal -> PitchSignal.Signal)
+    -> Deriver a -> Deriver a
+modify_pitch Nothing f = Internal.local
+    state_pitch (\old st -> st { state_pitch = old })
+    (\st -> return $ st { state_pitch = f (Just (state_pitch st)) })
+modify_pitch (Just name) f = Internal.local
+    (Map.lookup name . ps)
+    (\old st -> st { state_pitches = Map.alter (const old) name (ps st) })
+    (\st -> return $ st { state_pitches = Map.alter (Just . f) name (ps st) })
+    where ps = state_pitches
 
 
 -- ** with_scope
@@ -427,7 +413,7 @@ shift_control shift deriver = do
             state_pitch = pitch })
         (\st -> return $ st
             { state_controls = nudge real (state_controls st)
-            , state_pitch = nudge_pitch real (state_pitch st )})
+            , state_pitch = nudge_pitch real (state_pitch st) })
         deriver
     where
     nudge delay = Map.map (Signal.shift delay)

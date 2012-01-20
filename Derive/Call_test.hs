@@ -1,4 +1,5 @@
 module Derive.Call_test where
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -16,7 +17,6 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.MidiInst as MidiInst
 
@@ -49,8 +49,8 @@ test_assign_controls = do
             , (inst_title, [(0, 1, "")])
             ]
         extract = DeriveTest.extract e_event
-        e_event e = (head (PitchSignal.unsignal_degree (Score.event_pitch e)),
-            fmap head $ DeriveTest.e_control "cont" e)
+        e_event e = (head (DeriveTest.e_pitch e),
+            head <$> DeriveTest.e_control "cont" e)
 
     -- normal
     equal (run ">i" "cont" "1")

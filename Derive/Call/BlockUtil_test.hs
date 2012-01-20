@@ -1,20 +1,19 @@
 module Derive.Call.BlockUtil_test where
 import qualified Data.Map as Map
 
+import Util.Control
 import Util.Test
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
-import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
 
 test_compile = do
     let controls = map Score.event_controls
-        pitches = map Score.event_pitch
+        pitches = map DeriveTest.e_pitch
 
     let derive track = DeriveTest.extract id $ DeriveTest.derive_tracks
             [ ("tempo", [(0, 0, "2")])
@@ -28,7 +27,7 @@ test_compile = do
 
     let mkcont vals = Map.union Derive.initial_controls
             (Map.singleton (Score.Control "c1") (mksig vals))
-        no_pitch = PitchSignal.empty
+        no_pitch = []
 
     let (events, logs) = derive ("*twelve", [(0, 0, ".1")])
     strings_like logs ["call not found: .1"]
@@ -38,10 +37,10 @@ test_compile = do
 
     let (events, logs) = derive
             ("*twelve", [(0, 0, "4c"), (4, 0, "4d"), (12, 0, "i (4e)")])
-    let complete_psig = PitchSignal.signal (Pitch.ScaleId "twelve")
-            ([(0, (60, 60, 0)), (2, (62, 62, 0))]
-                ++ DeriveTest.pitch_interpolate 2 62 6 64)
-    let psig trunc = PitchSignal.truncate trunc complete_psig
+    let complete_psig = Signal.signal $
+                [(0, 60), (2, 62)] ++ DeriveTest.signal_interpolate 2 62 6 64
+    let psig trunc = map (second Signal.y_to_nn) $
+            Signal.unsignal $ Signal.truncate trunc complete_psig
 
     equal logs []
     -- The pitch signal gets truncated so it doesn't look like the note's decay

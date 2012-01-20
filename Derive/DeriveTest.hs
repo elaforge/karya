@@ -23,17 +23,20 @@ import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Scale.Util as Scale.Util
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -43,17 +46,18 @@ import qualified App.MidiInst as MidiInst
 import Types
 
 
-scale_id = Twelve.scale_id
-
--- Drop the first sample to make this match output from the derive call
+-- | Simulate the linear interpolate call, to check deriver output that
+-- involves that particular call.
+--
+-- Drops the first sample to make this match output from the derive call
 -- interpolators.
-pitch_interpolate :: RealTime -> Float -> RealTime -> Float
-    -> [(RealTime, PitchSignal.Y)]
-pitch_interpolate x0 y0 x1 y1 =
-    drop 1 [(x, (y0, y1, Num.d2f (to_n x))) | x <- Seq.range_end x0 x1 1]
+signal_interpolate :: RealTime -> Signal.Y -> RealTime -> Signal.Y
+    -> [(RealTime, Signal.Y)]
+signal_interpolate x0 y0 x1 y1 =
+    drop 1 [(x, project x) | x <- Seq.range_end x0 x1 1]
     where
-    to_n x = RealTime.to_seconds (x - x0) /
-        fromIntegral (length (Seq.range_end x0 x1 1) - 1)
+    project = Num.scale y0 y1 . Num.normalize (to_y x0) (to_y x1) . to_y
+    to_y = RealTime.to_seconds
 
 -- * run
 
@@ -336,17 +340,36 @@ e_control :: String -> Score.Event -> Maybe [(RealTime, Signal.Y)]
 e_control cont event = fmap Signal.unsignal $
     Map.lookup (Score.Control cont) (Score.event_controls event)
 
-e_pitch :: Score.Event -> [(RealTime, PitchSignal.Degree)]
-e_pitch = PitchSignal.unsignal_degree . Score.event_pitch
+e_pitch :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
+e_pitch e = signal_to_nn $
+    PitchSignal.apply_controls (Score.event_controls e) (Score.event_pitch e)
+
+signal_to_nn :: PitchSignal.Signal -> [(RealTime, Pitch.NoteNumber)]
+signal_to_nn psig
+    | not (null errs) =
+        error $ "DeriveTest.signal_to_nn: errors flattening signal: "
+            ++ show errs
+    | otherwise = map (second Pitch.NoteNumber) (Signal.unsignal sig)
+    where (sig, errs) = PitchSignal.to_nn psig
+
+e_pitch_err :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [String])
+e_pitch_err e = (map (second Pitch.NoteNumber) (Signal.unsignal sig),
+        map (\(PitchSignal.PitchError err) -> err) errs)
+    where
+    (sig, errs) = PitchSignal.to_nn $ PitchSignal.apply_controls
+        (Score.event_controls e) (Score.event_pitch e)
 
 e_twelve :: Score.Event -> String
-e_twelve = maybe "?" Pitch.note_text . Twelve.input_to_note . to_input
-    . Score.initial_pitch
-    where to_input (Pitch.Degree n) = Pitch.InputKey n
+e_twelve e = Maybe.fromMaybe "?" $ do
+    nn <- Score.initial_nn e
+    note <- Twelve.input_to_note (to_input nn)
+    return (Pitch.note_text note)
+    where to_input (Pitch.NoteNumber n) = Pitch.InputKey n
 
 -- | (start, dur, pitch), the melodic essentials of a note.
-e_note :: Score.Event -> (RealTime, RealTime, PitchSignal.Degree)
-e_note e = (Score.event_start e, Score.event_duration e, Score.initial_pitch e)
+e_note :: Score.Event -> (RealTime, RealTime, Pitch.NoteNumber)
+e_note e = (Score.event_start e, Score.event_duration e,
+    Maybe.fromMaybe (-1) (Score.initial_nn e))
 
 e_note2 :: Score.Event -> (RealTime, RealTime, String)
 e_note2 e = (Score.event_start e, Score.event_duration e, e_twelve e)
@@ -402,6 +425,39 @@ c_note s_start dur = do
 modify_dynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()
 modify_dynamic f = Derive.modify $ \st ->
     st { Derive.state_dynamic = f (Derive.state_dynamic st) }
+
+-- | Really not supposed to do this, but should be *mostly* ok for tests, but
+-- beware of values baked in to e.g. lookup functions.  This is why modifying
+-- UI state is not a good idea.
+modify_constant :: (Derive.Constant -> Derive.Constant) -> Derive.Deriver ()
+modify_constant f = Derive.modify $ \st ->
+    st { Derive.state_constant = f (Derive.state_constant st) }
+
+-- * scale
+
+with_scale :: Scale.Scale -> Derive.Deriver a -> Derive.Deriver a
+with_scale scale deriver = do
+    modify_constant $ \st ->
+        st { Derive.state_lookup_scale = \scale_id -> Map.lookup scale_id
+            (Map.insert (Scale.scale_id scale) scale Scale.All.scales) }
+    deriver
+
+mkscale :: String -> [(String, Pitch.NoteNumber)] -> Scale.Scale
+mkscale name notes = Scale.Scale
+    { Scale.scale_id = Pitch.ScaleId name
+    , Scale.scale_pattern = "test"
+    , Scale.scale_map = Scale.Util.make_scale_map scale_map
+    , Scale.scale_symbols = []
+    , Scale.scale_transposers = Scale.Util.standard_transposers
+    , Scale.scale_transpose = Scale.Util.transpose scale_map 5
+    , Scale.scale_note_to_call = Scale.Util.note_to_call scale_map
+    , Scale.scale_input_to_note = Scale.Util.input_to_note scale_map
+    , Scale.scale_input_to_nn = Scale.Util.input_to_nn scale_map
+    }
+    where
+    scale_map = Scale.Util.scale_map (map (Pitch.Note . fst) notes)
+        (take (length notes) inputs) (map snd notes)
+    inputs = [Scale.Util.i_c + Pitch.InputKey n | n <- [0..]]
 
 -- * inst
 
@@ -459,13 +515,24 @@ type EventSpec = (RealTime, RealTime, String,
 mkevent :: EventSpec -> Score.Event
 mkevent (start, dur, text, controls, inst) =
     Score.Event start dur (B.pack text) (Map.fromList controls)
-        (psig start text) fake_stack (Just inst) Score.no_attrs
+        (pitch_signal [(start, text)]) fake_stack (Just inst) Score.no_attrs
+
+pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal
+pitch_signal = PitchSignal.signal scale . map (second mkpitch)
+    where scale = (Twelve.scale_id, Scale.scale_transposers Twelve.scale)
+
+
+mkpitch :: String -> PitchSignal.Pitch
+mkpitch p = PitchSignal.pitch $ \controls ->
+    let chrom = Map.findWithDefault 0 Score.c_chromatic controls
+    in maybe (Left (PitchSignal.PitchError $ "no pitch " ++ show p))
+        (Right . Pitch.NoteNumber . (+chrom)) (lookup p pitch_map)
     where
-    psig pos p = PitchSignal.signal Pitch.twelve [(pos, to_pitch p)]
-    to_pitch p = PitchSignal.degree_to_y $ Pitch.Degree $
-        Maybe.fromMaybe (error ("no pitch " ++ show p)) (lookup p pitch_map)
     pitch_map = zip (map (:"") ['a'..'z']) [60..]
         ++ zip (map (:"2") ['a'..'z']) [60.5..]
+
+default_scale :: Scale.Scale
+default_scale = Twelve.scale
 
 fake_stack :: Stack.Stack
 fake_stack = Stack.from_outermost

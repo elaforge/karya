@@ -1,10 +1,12 @@
 module Derive.Call.Ornament where
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional)
 import qualified Derive.Derive as Derive
+import qualified Derive.Pitches as Pitches
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -29,18 +31,19 @@ c_mordent default_neighbor = Derive.stream_generator "mordent" $
     (optional "neighbor" default_neighbor, optional "vel" 0.3) $
     \neighbor vel ->
         mordent grace_dur (Derive.passed_extent args) vel
-            (Pitch.Degree neighbor)
+            (Pitch.Chromatic neighbor)
     where grace_dur = RealTime.seconds (1/12)
 
-mordent :: RealTime -> (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Degree
+mordent :: RealTime -> (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Chromatic
     -> Derive.EventDeriver
 mordent grace_dur (start, dur) velocity_scale neighbor = do
     pos <- Derive.real start
-    pitch <- Util.degree pos
+    pitch <- Derive.require ("pitch at " ++ Pretty.pretty pos)
+        =<< Util.pitch pos
     vel <- (*velocity_scale) <$> Util.velocity pos
     grace_notes pos
         [ (grace_dur, Util.simple_note pitch vel)
-        , (grace_dur, Util.simple_note (pitch + neighbor) vel)
+        , (grace_dur, Util.simple_note (Pitches.transpose neighbor pitch) vel)
         ]
         <> Derive.d_place start dur Util.note
 

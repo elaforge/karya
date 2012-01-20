@@ -6,6 +6,113 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - Derive.PassedArgs shouldn't use Elem, just take the elem type directly
+  - instead of using velocity in various ornaments, I should probably use p
+    e.g. mordent should also work for wind patches
+
+  - Efficient pitch signals: can have a special Event + Call that just
+    returns Signal.NoteNumber.
+  abstract pitches
+    - I'm effectively back to the inefficient redundant transposition thing
+      with interpolated pitches.  If I have [int p1 p2 0.1, int p1 p2 0.2, ..]
+      I lose sharing with p1 and p2, so that the same controls will result in
+      the same value.  I could have a one element memo table, but it's hard to
+      memoize: first I have to know the pitches are the same, then I have to
+      know the controls are the same (hopefully without comparison), then I
+      can memoize.  Let's just hope transposition is efficient.
+
+    - If errors are dropped from the signal then e.g. a pitch will simply
+      max out at the bad transposition.  If I emit -1 instead it can drop
+      out the pitch.
+
+    * Is there ever any case for changing an Environ?  In that case, can't
+      I omit the Environ arg and have calls close over the relevant env vals?
+    - Tests for PitchSignal.to_nn: I think it needs the desired range since it
+      may not conform to the pitch signal's range.
+    - implement labels for pitch tracks in fltk/EventTrack.cc
+
+    add diatonic transposition:
+      - scale support in Twelve
+      - Add Perform.Pitch.Transposition: Chromatic | Diatonic, add Typecheck
+        and tracklang literals: 1d 1c
+      - candidates for chromatic / diatonic:
+        Derive.Call.Pitch.c_neighbor, Trill.*, Pitches.transpose
+      - test for transposing diatonic transpositions
+
+    - port to control calls: neighbor, trill, ...
+    - get rid of Perform.SignalBase and do something about the code
+      duplication between PitchSignal and Signal
+
+    * add Derive.PitchSignal
+    * change Score.Event to Derive.PitchSignal
+      cycle:
+        Score -> PitchSignal -> TrackLang -> Score
+      move the bits of PitchSignal (Signal, shift, at, pitch_nn,
+        Score -> TrackLang -> Score
+      move the bits of Score used by TrackLang to TrackLang (Instrument, Attrs)
+    * move all base types into Derive.BaseType:
+      Instrument, Attributes
+      Score -> Types (Instrument, Attributes, PitchSignal)
+      TrackLang -> Val
+      PitchSignal -> Signal
+    update modules with Perform.PitchSignal
+      * Derive.Deriver.Monad
+      * Derive.Deriver.Lib
+      * Derive.Call.Util
+      * Derive.Call.Pitch
+      * Derive.Control
+      * Derive.Note
+      * Derive.Call.Note
+      * Derive.Scale
+      * Perform.Midi.Convert
+        If I'm going to keep the event pitch as PitchSignal, then I have to
+        apply the transpose signals, which means resampling the pitch signal.
+        Then convert needs to know the scale so it can resample again.
+        Actually, the controls are still all available in the event_controls.
+        Convert needs the scale's transposers.  In exchange, postproc can
+        transpose pitches.
+      * Derive.Call.Ornament
+      * Derive.Call.Trill
+      * Derive.Call.Rambat
+      * Derive.Call.NoteTransformer
+      * Cmd.Lang.LPitch
+      * Cmd.Perf
+      * Derive.Call.Trill_test
+      - Derive.Call.Idiom.String
+      - Cmd.Lang.LPitch
+      * Derive.Call.Pitch.c_neighbor
+      * Derive.Call.Ornament_test
+      * fltk - remove pitch track
+        free() bug in fltk pitch signal stuff probably
+    * write test for transposing: a--c + 1 should be b--d
+    * test transpose out of range error reporting
+    * document Derive.BaseTypes song and dance
+    * write Derive.PitchSignal_test
+
+    the problem with rambat tick
+      I need a general way to manipulate notes and know their pitch, dynamics,
+      etc.  There are a lot of ways to do this:
+
+      Note transformers - Already implemented.  This can manipulate notes at
+      a high level, such as transposition, duplication, shift/stretch, but
+      can't inspect them.  It also has to run in the track above the notes it
+      wants to transform.
+
+      Preprocessing for TrackEvents - Not sure what this would look like, but
+      it would rewrite bits of score.  It could do symbolic manipulation and
+      e.g.  transposition would transpose pitches symbolically.  I think it
+      would be hard to do anything other than very simple things, because even
+      to know the scale I have to do some deriving.
+
+      Postprocessing events - This works at the RealTime and can inspect other
+      notes, but it can only do RealTime transformations on them.  For that
+      reason, it's probably best for inserting new notes.  Unfortunately, it
+      has to be a transformer which means it can't really be used to insert
+      a note.  However, maybe I could have a system similar to the old
+      "directive" notion: calls can emit a special 'Directive [Val]' which
+      a postproc pass can then fill in.  I think it would work, but only as
+      a last resort.
+
   * put filename in patch tags
   * instead of discarding overlapping patch names, append a number to
     disambiguate

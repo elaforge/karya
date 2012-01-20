@@ -20,22 +20,22 @@ import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Random as Random
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Call as Call
-import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -44,21 +44,8 @@ import Types
 
 -- * signals
 
--- | A function to generate a pitch curve.  It's convenient to define this
--- as a type alias so it can be easily passed to various functions that want
--- to draw curves.
-type PitchInterpolator = Pitch.ScaleId
-    -> Bool -- ^ include the initial sample or not
-    -> RealTime -> Pitch.Degree -> RealTime -> Pitch.Degree
-    -> PitchSignal.PitchSignal
-
--- | Like 'PitchInterpolator' but for control signals.
-type ControlInterpolator = Bool -- ^ include the initial sample or not
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y
-    -> Signal.Control
-
 with_controls :: (FixedList.FixedList list) => Derive.PassedArgs d
-    -> list TrackLang.Control -> (list Signal.Y -> Derive.Deriver a)
+    -> list TrackLang.ValControl -> (list Signal.Y -> Derive.Deriver a)
     -> Derive.Deriver a
 with_controls args controls f = do
     now <- Derive.passed_real args
@@ -66,96 +53,95 @@ with_controls args controls f = do
 
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.
-control_at :: RealTime -> TrackLang.Control -> Derive.Deriver Signal.Y
+control_at :: RealTime -> TrackLang.ValControl -> Derive.Deriver Signal.Y
 control_at pos control = case control of
     TrackLang.ConstantControl deflt -> return deflt
     TrackLang.DefaultedControl cont deflt ->
         maybe deflt id <$> Derive.control_at cont pos
-    TrackLang.Control cont ->
+    TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found and no default: " ++ show cont) return
             =<< Derive.control_at cont pos
 
--- | Convert a 'TrackLang.Control' to a signal.
-to_signal :: TrackLang.Control -> Derive.Deriver Signal.Control
+-- | Convert a 'TrackLang.ValControl' to a signal.
+to_signal :: TrackLang.ValControl -> Derive.Deriver Signal.Control
 to_signal control = case control of
     TrackLang.ConstantControl deflt -> return $ Signal.constant deflt
     TrackLang.DefaultedControl cont deflt -> do
         sig <- Derive.get_control cont
         return $ maybe (Signal.constant deflt) id sig
-    TrackLang.Control cont ->
+    TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found: " ++ show cont) return
             =<< Derive.get_control cont
 
-pitch_at :: RealTime -> TrackLang.PitchControl -> Derive.Deriver PitchSignal.Y
+pitch_at :: RealTime -> TrackLang.PitchControl
+    -> Derive.Deriver PitchSignal.Pitch
 pitch_at pos control = case control of
-    TrackLang.ConstantControl deflt ->
-        PitchSignal.degree_to_y <$> Call.eval_note deflt
+    TrackLang.ConstantControl deflt -> Call.eval_note deflt
     TrackLang.DefaultedControl cont deflt -> do
-        maybe_y <- Derive.named_pitch_at cont pos
-        maybe (PitchSignal.degree_to_y <$> Call.eval_note deflt) return maybe_y
-    TrackLang.Control cont -> do
-        maybe_y <- Derive.named_pitch_at cont pos
+        maybe_pitch <- Derive.named_pitch_at cont pos
+        maybe (Call.eval_note deflt) return maybe_pitch
+    TrackLang.LiteralControl cont -> do
+        maybe_pitch <- Derive.named_pitch_at cont pos
         maybe (Derive.throw $ "pitch not found and no default given: "
-            ++ show cont) return maybe_y
+            ++ show cont) return maybe_pitch
 
 to_pitch_signal :: TrackLang.PitchControl
-    -> Derive.Deriver PitchSignal.PitchSignal
+    -> Derive.Deriver PitchSignal.Signal
 to_pitch_signal control = case control of
     TrackLang.ConstantControl deflt -> constant deflt
     TrackLang.DefaultedControl cont deflt -> do
         sig <- Derive.get_named_pitch cont
         maybe (constant deflt) return sig
-    TrackLang.Control cont ->
+    TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found: " ++ show cont) return
             =<< Derive.get_named_pitch cont
     where
     constant note = do
         scale <- get_scale
-        PitchSignal.constant (Scale.scale_id scale) <$> Call.eval_note note
+        PitchSignal.constant (to_signal_scale scale) <$> Call.eval_note note
 
-degree_at :: RealTime -> TrackLang.PitchControl -> Derive.Deriver Pitch.Degree
-degree_at pos control = PitchSignal.y_to_degree <$> pitch_at pos control
+nn_at :: RealTime -> TrackLang.PitchControl
+    -> Derive.Deriver (Maybe Pitch.NoteNumber)
+nn_at pos control =
+    Derive.pitch_nn ("Util.nn_at " ++ Pretty.pretty (pos, control))
+        =<< pitch_at pos control
+
+pitch_signal :: [(RealTime, PitchSignal.Pitch)]
+    -> Derive.Deriver PitchSignal.Signal
+pitch_signal xs = do
+    scale <- get_scale
+    return $ PitchSignal.signal (to_signal_scale scale) xs
+
+to_signal_scale :: Scale.Scale -> PitchSignal.Scale
+to_signal_scale scale = (Scale.scale_id scale, Scale.scale_transposers scale)
 
 -- * note
 
-degree :: RealTime -> Derive.Deriver Pitch.Degree
-degree = Derive.degree_at
+-- | Get the Pitch at the particular point in time in the default pitch
+-- signal.  As per 'Derive.pitch_at', the transposition controls have not been
+-- applied.
+pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Pitch)
+pitch = Derive.pitch_at
 
 velocity :: RealTime -> Derive.Deriver Signal.Y
 velocity pos =
     maybe Derive.default_velocity id <$> Derive.control_at Score.c_velocity pos
 
-with_pitch :: PitchSignal.Degree -> Derive.Deriver a -> Derive.Deriver a
-with_pitch = Derive.with_constant_pitch Nothing
+with_pitch :: PitchSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
+with_pitch pitch deriver = do
+    scale <- get_scale
+    Derive.with_constant_pitch Nothing scale pitch deriver
 
 with_velocity :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
 with_velocity = Derive.with_control Score.c_velocity . Signal.constant
 
-simple_note :: PitchSignal.Degree -> Signal.Y -> Derive.EventDeriver
+simple_note :: PitchSignal.Pitch -> Signal.Y -> Derive.EventDeriver
 simple_note pitch velocity = with_pitch pitch $ with_velocity velocity note
 
 note :: Derive.EventDeriver
 note = Call.eval_one 0 1 [TrackLang.call "" []]
 
 -- * call transformers
-
--- | There are a set of pitch calls that need a \"note\" arg when called in an
--- absolute context, but can more usefully default to @(Note "0")@ in
--- a relative track.  This will prepend a note arg if the scale in the environ
--- is relative.
-default_relative_note :: Derive.PassedArgs derived
-    -> Derive.Deriver (Derive.PassedArgs derived)
-default_relative_note args
-    | is_relative = do
-        degree <- CallSig.cast "relative pitch 0"
-            =<< Call.eval (TrackLang.val_call "0")
-        return $ args { Derive.passed_vals =
-            TrackLang.VDegree degree : Derive.passed_vals args }
-    | otherwise = return args
-    where
-    environ = Derive.passed_environ args
-    is_relative = either (const False) Pitch.is_relative
-        (TrackLang.lookup_val TrackLang.v_scale environ)
 
 -- | Derive with transformed Attributes.
 with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
@@ -179,6 +165,9 @@ lookup_scale = Derive.lookup_scale =<< get_scale_id
 
 get_scale_id :: Derive.Deriver Pitch.ScaleId
 get_scale_id = Derive.get_val TrackLang.v_scale
+
+lookup_key :: Derive.Deriver (Maybe Pitch.Key)
+lookup_key = fmap Pitch.Key <$> Derive.lookup_val TrackLang.v_key
 
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val TrackLang.v_instrument
@@ -248,16 +237,17 @@ c_equal = Derive.transformer "equal" $ \args deriver ->
         [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
             sig <- to_pitch_signal val
             Derive.with_pitch assignee sig deriver
-        [pitch -> Just assignee, TrackLang.VDegree val] -> do
-            scale_id <- get_scale_id
-            Derive.with_pitch assignee (PitchSignal.constant scale_id val)
-                deriver
+        [pitch -> Just assignee, TrackLang.VPitch val] -> do
+            scale <- get_scale
+            Derive.with_pitch assignee
+                (PitchSignal.constant (to_signal_scale scale) val) deriver
         _ -> Derive.throw_arg_error
             "equal call expected (sym, val) or (sig, sig) args"
     where
-    control (TrackLang.VControl (TrackLang.Control c)) = Just c
+    control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     control _ = Nothing
-    pitch (TrackLang.VPitchControl (TrackLang.Control c@(Score.Control n)))
+    pitch (TrackLang.VPitchControl
+            (TrackLang.LiteralControl c@(Score.Control n)))
         | null n = Just Nothing
         | otherwise = Just (Just c)
     pitch _ = Nothing
@@ -284,7 +274,7 @@ event_head (LEvent.Event event : rest) f = f event rest
 
 -- | Specialization of 'map_controls' where the transformation will return
 -- events in ascending order.
-map_controls_asc :: (FixedList.FixedList cs) => cs TrackLang.Control
+map_controls_asc :: (FixedList.FixedList cs) => cs TrackLang.ValControl
     -> state -> Derive.EventDeriver
     -> (cs Signal.Y -> state -> Score.Event
         -> Derive.Deriver ([Score.Event], state))
@@ -297,7 +287,7 @@ map_controls_asc controls state deriver f = do
 -- | Specialization of 'map_controls_pitches' with no pitch signals.  Also,
 -- the mapped function is not in Deriver since you are expected to be
 -- depending only on the control values.
-map_controls :: (FixedList.FixedList cs) => cs TrackLang.Control
+map_controls :: (FixedList.FixedList cs) => cs TrackLang.ValControl
     -> state -> Derive.Events
     -> (cs Signal.Y -> state -> Score.Event
         -> Derive.Deriver ([Score.Event], state))
@@ -310,9 +300,9 @@ map_controls controls state events f =
 --
 -- This is the most general transformer map over events.
 map_controls_pitches :: (FixedList.FixedList cs, FixedList.FixedList ps) =>
-    cs TrackLang.Control -> ps TrackLang.PitchControl
+    cs TrackLang.ValControl -> ps TrackLang.PitchControl
     -> state -> Derive.Events
-    -> (cs Signal.Y -> ps Pitch.Degree -> state -> Score.Event
+    -> (cs Signal.Y -> ps PitchSignal.Pitch -> state -> Score.Event
         -> Derive.Deriver ([Score.Event], state))
     -> Derive.Deriver ([Derive.Events], state)
 map_controls_pitches controls pitch_controls state events f = go state events
@@ -324,7 +314,7 @@ map_controls_pitches controls pitch_controls state events f = go state events
     go state (LEvent.Event event : rest) = do
         let pos = Score.event_start event
         control_vals <- Traversable.mapM (control_at pos) controls
-        pitch_vals <- Traversable.mapM (degree_at pos) pitch_controls
+        pitch_vals <- Traversable.mapM (pitch_at pos) pitch_controls
         (val, next_state) <- f control_vals pitch_vals state event
         (rest_vals, final_state) <- go next_state rest
         return (map LEvent.Event val : rest_vals, final_state)

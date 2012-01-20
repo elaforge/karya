@@ -12,7 +12,7 @@
 module Perform.Signal (
     -- * types
     Signal(Signal), sig_vec
-    , X, Y, x_to_y, y_to_real, y_to_score
+    , X, Y, x_to_y, y_to_real, y_to_score, y_to_nn, nn_to_y
     , tempo_srate
 
     -- * constants
@@ -53,6 +53,7 @@ import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.SignalBase as SignalBase
 import Perform.SignalStorable ()
@@ -120,6 +121,12 @@ y_to_real = RealTime.seconds
 -- | Some control signals may be interpreted as score time.
 y_to_score :: Y -> ScoreTime
 y_to_score = ScoreTime.double
+
+y_to_nn :: Y -> Pitch.NoteNumber
+y_to_nn = Pitch.NoteNumber
+
+nn_to_y :: Pitch.NoteNumber -> Y
+nn_to_y (Pitch.NoteNumber nn) = nn
 
 -- * constants
 

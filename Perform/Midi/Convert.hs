@@ -23,14 +23,13 @@ import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
-import qualified Perform.PitchSignal as PitchSignal
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import qualified Perform.Warning as Warning
 
@@ -86,7 +85,7 @@ convert_event lookup maybe_prev event = do
     patch <- require ("patch in instrument db: " ++ show score_inst) $
         lookup_patch lookup score_inst
     pitch <- case maybe_key of
-        Nothing -> convert_pitch (lookup_scale lookup)
+        Nothing -> convert_pitch (Score.event_controls event)
             (Score.event_pitch event)
         Just key -> return $ Signal.constant (fromIntegral key)
     let controls = convert_controls
@@ -142,14 +141,13 @@ convert_controls pressure = resolve_p .  Map.mapKeys cc
             cmap
     cc (Score.Control c) = Control.Control c
 
-convert_pitch :: Derive.LookupScale -> PitchSignal.PitchSignal
+convert_pitch :: Score.ControlMap -> PitchSignal.Signal
     -> ConvertT Signal.NoteNumber
-convert_pitch lookup_scale psig = case lookup_scale scale_id of
-    Nothing -> do
-        warn $ "unknown scale: " ++ show scale_id
-        return (Signal.constant Signal.invalid_pitch)
-    Just scale -> return $ PitchSignal.to_nn (Scale.degree_to_double scale) psig
-    where scale_id = PitchSignal.sig_scale psig
+convert_pitch controls psig = do
+    unless (null errs) $ warn $ "converting pitch: " ++ show errs
+    return sig
+    where
+    (sig, errs) = PitchSignal.to_nn $ PitchSignal.apply_controls controls psig
 
 -- * monad
 

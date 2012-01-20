@@ -5,22 +5,24 @@
     transformed into Perform Events, which are specific to the performance
     backend.
 -}
-module Derive.Score where
+module Derive.Score (
+    module Derive.Score, module Derive.BaseTypes
+) where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
 import Util.Control
-import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
-
 import qualified Ui.ScoreTime as ScoreTime
+import Derive.BaseTypes
+       (Instrument(..), Control(..), Attributes(..), Attribute, attrs_set,
+        attrs_list, no_attrs)
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
+
 import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -36,8 +38,7 @@ data Event = Event {
     , event_duration :: !RealTime
     , event_bs :: !B.ByteString
     , event_controls :: !ControlMap
-    , event_pitch :: !PitchSignal.PitchSignal
-
+    , event_pitch :: !PitchSignal.Signal
     -- | Keep track of where this event originally came from.  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
@@ -48,7 +49,7 @@ data Event = Event {
     , event_instrument :: !(Maybe Instrument)
     , event_attributes :: !Attributes
     }
-    deriving (Eq, Show)
+    deriving (Show)
 
 empty_event :: Event
 empty_event = Event 0 0 mempty mempty mempty Stack.empty Nothing mempty
@@ -64,7 +65,7 @@ instance DeepSeq.NFData B.ByteString where
     rnf b = b `seq` () -- bytestrings are already strict
 
 type ControlMap = Map.Map Control Signal.Control
-type PitchMap = Map.Map Control PitchSignal.PitchSignal
+type PitchMap = Map.Map Control PitchSignal.Signal
 
 event_string :: Event -> String
 event_string = B.unpack . event_bs
@@ -129,23 +130,23 @@ modify_event_control control f event = case Map.lookup control controls of
             event { event_controls = Map.insert control (f sig) controls }
     where controls = event_controls event
 
+event_controls_at :: RealTime -> Event -> PitchSignal.Controls
+event_controls_at t = controls_at t .  event_controls
+
+controls_at :: RealTime -> ControlMap -> PitchSignal.Controls
+controls_at t = Map.map (Signal.at t)
+
 -- *** pitch
 
-pitch_at :: RealTime -> Event -> PitchSignal.Y
+pitch_at :: RealTime -> Event -> Maybe PitchSignal.Pitch
 pitch_at pos = PitchSignal.at pos . event_pitch
 
-degree_at :: RealTime -> Event -> Pitch.Degree
-degree_at pos = PitchSignal.y_to_degree . pitch_at pos
+nn_at :: RealTime -> Event -> Maybe Pitch.NoteNumber
+nn_at pos event = either (const Nothing) Just . PitchSignal.pitch_nn
+    =<< pitch_at pos event
 
-initial_pitch :: Event -> Pitch.Degree
-initial_pitch event = degree_at (event_start event) event
-
-modify_pitch :: (Pitch.Degree -> Pitch.Degree) -> Event -> Event
-modify_pitch f event =
-    event { event_pitch = PitchSignal.map_degree f (event_pitch event) }
-
-transpose :: Pitch.Degree -> Event -> Event
-transpose n = modify_pitch (+n)
+initial_nn :: Event -> Maybe Pitch.NoteNumber
+initial_nn event = nn_at (event_start event) event
 
 
 -- ** warp
@@ -250,33 +251,10 @@ place_warp shift stretch warp = compose_warps warp
 
 -- * instrument
 
--- | An Instrument is identified by a plain string.  This will be looked up in
--- the instrument db to get the backend specific Instrument type as well as the
--- backend itself, but things at the Derive layer and above don't care about
--- all that.
-newtype Instrument = Instrument String
-    deriving (DeepSeq.NFData, Eq, Ord, Show, Read)
+inst_name :: Instrument -> String
 inst_name (Instrument s) = s
 
-instance Pretty.Pretty Instrument where
-    pretty inst = '>' : inst_name inst
-
--- | Instruments can have a set of attributes along with them.  These are
--- propagated dynamically down the derivation stack.  They function like
--- arguments to an instrument, and will typically select an articulation, or
--- a drum from a drumset, or something like that.
-type Attribute = String
-newtype Attributes = Attributes (Set.Set Attribute)
-    deriving (Monoid.Monoid, Eq, Ord, Show)
-
-instance Pretty.Pretty Attributes where
-    pretty attrs = "{" ++ Seq.join ", " (attrs_list attrs) ++ "}"
-
-attrs_set :: Attributes -> Set.Set Attribute
-attrs_set (Attributes attrs) = attrs
-
-attrs_list :: Attributes -> [Attribute]
-attrs_list = Set.toList . attrs_set
+-- * attributes
 
 attrs_diff :: Attributes -> Attributes -> Attributes
 attrs_diff (Attributes x) (Attributes y) = Attributes (Set.difference x y)
@@ -289,11 +267,6 @@ attributes = Attributes . Set.fromList
 
 attr :: String -> Attributes
 attr = Attributes . Set.singleton
-
-no_attrs :: Attributes
-no_attrs = Attributes Set.empty
-
-newtype Control = Control String deriving (Eq, Ord, Show, DeepSeq.NFData)
 
 -- ** controls
 
@@ -320,6 +293,17 @@ c_vel_rnd = Control "vel-rnd"
 c_velocity, c_breath :: Control
 c_velocity = Control "vel"
 c_breath = Control "breath"
+
+-- *** transposition
+
+c_chromatic :: Control
+c_chromatic = Control "t-chromatic"
+
+c_diatonic :: Control
+c_diatonic = Control "t-diatonic"
+
+c_hz :: Control
+c_hz = Control "t-hz"
 
 -- * util
 

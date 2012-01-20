@@ -83,8 +83,8 @@ arpeggio_by_note :: Arpeggio -> RealTime -> Derive.EventDeriver
 arpeggio_by_note arp time deriver = do
     (events, logs) <- LEvent.partition <$> deriver
     let sort = case arp of
-            ToRight -> return . Seq.reverse_sort_on Score.initial_pitch
-            ToLeft -> return . Seq.sort_on Score.initial_pitch
+            ToRight -> return . Seq.reverse_sort_on Score.initial_nn
+            ToLeft -> return . Seq.sort_on Score.initial_nn
             Random -> Util.shuffle
     arpeggiated <- zipWith Score.move_start (Seq.range_ 0 time) <$> sort events
     return $ map LEvent.Log logs ++ map LEvent.Event arpeggiated

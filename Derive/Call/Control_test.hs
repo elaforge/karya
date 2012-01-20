@@ -5,8 +5,6 @@ import Util.Test
 import qualified Derive.Call.CallTest as CallTest
 
 
--- * control
-
 run = CallTest.run_control
 
 test_set = do
@@ -31,9 +29,3 @@ test_exponential = do
 
 test_slide = do
     equal (run [(0, "1"), (4, "s 0 2")]) [(0, 1), (4, 1), (5, 0.5), (6, 0)]
-
--- * pitch
-
-test_neighbor = do
-    equal (CallTest.run_pitch [(0, "n (4c) 1 2")])
-        [(0, (61, 60, 0)), (1, (61, 60, 0.5)), (2, (61, 60, 1))]

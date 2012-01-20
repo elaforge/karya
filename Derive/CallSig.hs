@@ -64,11 +64,11 @@ required name = Arg name Nothing
 optional :: String -> a -> Arg a
 optional name deflt = Arg name (Just deflt)
 
-control :: String -> Signal.Y -> TrackLang.Control
+control :: String -> Signal.Y -> TrackLang.ValControl
 control name deflt = TrackLang.DefaultedControl (Score.Control name) deflt
 
-required_control :: String  -> TrackLang.Control
-required_control name = TrackLang.Control (Score.Control name)
+required_control :: String  -> TrackLang.ValControl
+required_control name = TrackLang.LiteralControl (Score.Control name)
 
 -- * extract and call
 

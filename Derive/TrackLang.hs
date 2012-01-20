@@ -30,138 +30,28 @@
 
     %note-pitch,*5c
 -}
-module Derive.TrackLang where
+module Derive.TrackLang (
+    module Derive.TrackLang, module Derive.BaseTypes
+) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Derive.BaseTypes as Score
+import qualified Derive.BaseTypes as PitchSignal
+import Derive.BaseTypes (Environ, ValName)
+import Derive.BaseTypes
+       (Val(..), Symbol(..), AttrMode(..), RelativeAttr(..),
+        ControlRef(..), PitchControl, ValControl, show_num)
 
-import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
 
 
-data Val =
-    -- | Literal: @42.23@, @-.4@
-    VNum Double
-    -- | Escape a quote by doubling it.
-    --
-    -- Literal: @'hello'@, @'quinn''s hat'@
-    | VString String
-
-    -- | Relative attribute adjustment.
-    --
-    -- This is a bit of a hack, but means I can do attr adjustment without +=
-    -- or -= operators.
-    --
-    -- Literal: @+attr@, @-attr@, @=attr@, @=-@ (to clear attributes).
-    | VRelativeAttr RelativeAttr
-    -- | A set of Attributs for an instrument.  No literal, since you can use
-    -- VRelativeAttr.
-    | VAttributes Score.Attributes
-
-    -- | A control name.  An optional value gives a default if the control
-    -- isn't present.
-    --
-    -- Literal: @%control@, @%control,.4@
-    | VControl Control
-    -- | If a control name starts with a *, it denotes a pitch signal and the
-    -- scale is taken from the environ.  Unlike a control signal, the empty
-    -- string is a valid signal name and means the default pitch signal.
-    --
-    -- Literal: @#pitch,4c@, @#,4@, @#@
-    | VPitchControl PitchControl
-
-    -- | The literal names a ScaleId, and will probably result in an exception
-    -- if the lookup fails.  The empty scale is taken to mean the relative
-    -- scale.
-    --
-    -- Literal: @*scale@, @*@.
-    | VScaleId Pitch.ScaleId
-    -- | No literal yet, but is returned from val calls.
-    | VDegree Pitch.Degree
-    -- | Sets the instrument in scope for a note.  An empty instrument doesn't
-    -- set the instrument, but can be used to mark a track as a note track.
-    --
-    -- Literal: @>@, @>inst@
-    | VInstrument Score.Instrument
-
-    -- | A call to a function.  Symbol parsing is special in that the first
-    -- word is always parsed as a symbol.  So you can have symbols of numbers
-    -- or other special characters.  This means that a symbol can't be in the
-    -- middle of an expression, but if you surround a word with parens like
-    -- @(42)@, it will be interpreted as a call.  So the only characters a
-    -- symbol can't have are space and parens.
-    --
-    -- Literal: @func@
-    | VSymbol Symbol
-    -- | An explicit not-given arg for functions so you can use positional args
-    -- with defaults.
-    --
-    -- Literal: @_@
-    | VNotGiven
-    deriving (Eq, Show)
-
--- | The Pretty instance for val should, like the haskell-level (Show, Read)
--- pair, produce a string that the parser can turn back into the original
--- value.  Except for values which have no literal syntax, such as VDegree.
---
--- The reason why is documented in 'Derive.Call.Note.inverting'.
-instance Pretty.Pretty Val where
-    pretty val = case val of
-            VNum d -> show_num d
-            VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
-            VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
-                Add -> '+' : attr
-                Remove -> '-' : attr
-                Set -> '=' : attr
-                Clear -> "=-"
-            VAttributes attrs -> Seq.join "+" (Score.attrs_list attrs)
-            VControl control -> show_control '%' Pretty.pretty control
-            VPitchControl control -> show_control '#' Pitch.note_text control
-            VScaleId (Pitch.ScaleId scale_id) -> '*' : scale_id
-            VDegree (Pitch.Degree d) -> "<degree: " ++ show_num d ++ ">"
-            VInstrument (Score.Instrument inst) -> '>' : inst
-            VSymbol sym -> Pretty.pretty sym
-            VNotGiven -> "_"
-        where
-        show_control prefix show_val control = case control of
-            ConstantControl val -> show_val val
-            DefaultedControl (Score.Control cont) deflt ->
-                prefix : cont ++ ',' : show_val deflt
-            Control (Score.Control cont) -> prefix : cont
-
--- | Convert a haskell number into a tracklang number.
-show_num :: (RealFloat a) => a -> String
-show_num = Pretty.show_float (Just 2)
-
-data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
 
 -- | Symbols used in function call position.
 type CallId = Symbol
--- | Symbols to look up a val in the 'ValMap'.
-type ValName = Symbol
-
-newtype Symbol = Symbol String deriving (Eq, Ord, Show)
-instance Pretty.Pretty Symbol where
-    pretty (Symbol s) = s
-
-type Control = ControlRef Signal.Y
-type PitchControl = ControlRef Pitch.Note
-
-data ControlRef val =
-    -- | A constant signal.  For 'Control', this is coerced from a VNum
-    -- literal.
-    ConstantControl val
-    -- | If the control isn't present, use the constant.
-    | DefaultedControl Score.Control val
-    -- | Throw an exception if the control isn't present.
-    | Control Score.Control
-    deriving (Eq, Show)
-
-newtype RelativeAttr = RelativeAttr (AttrMode, Score.Attribute)
-    deriving (Eq, Show)
 
 set_attr :: RelativeAttr -> Score.Attributes -> Score.Attributes
 set_attr (RelativeAttr (mode, attr)) attrs = Score.Attributes $ case mode of
@@ -182,7 +72,7 @@ c_equal = Symbol "="
 -- * types
 
 data Type = TNum | TString | TRelativeAttr | TAttributes | TControl
-    | TPitchControl | TScaleId | TDegree | TInstrument | TSymbol
+    | TPitchControl | TScaleId | TPitch | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TVal
     deriving (Eq, Show)
 
@@ -203,7 +93,7 @@ type_of val = case val of
     VControl {} -> TControl
     VPitchControl {} -> TPitchControl
     VScaleId {} -> TScaleId
-    VDegree {} -> TDegree
+    VPitch {} -> TPitch
     VInstrument {} -> TInstrument
     VSymbol {} -> TSymbol
     VNotGiven -> TNotGiven
@@ -256,7 +146,7 @@ instance Typecheck Score.Attributes where
     to_val = VAttributes
     to_type _ = TAttributes
 
-instance Typecheck Control where
+instance Typecheck ValControl where
     from_val (VControl a) = Just a
     from_val (VNum a) = Just (ConstantControl a)
     from_val _ = Nothing
@@ -275,11 +165,11 @@ instance Typecheck Pitch.ScaleId where
     to_val = VScaleId
     to_type _ = TScaleId
 
-instance Typecheck Pitch.Degree where
-    from_val (VDegree a) = Just a
+instance Typecheck PitchSignal.Pitch where
+    from_val (VPitch a) = Just a
     from_val _ = Nothing
-    to_val = VDegree
-    to_type _ = TDegree
+    to_val = VPitch
+    to_type _ = TPitch
 
 instance Typecheck Score.Instrument where
     from_val (VInstrument a) = Just a
@@ -295,8 +185,6 @@ instance Typecheck Symbol where
 
 -- * dynamic environment
 
-type Environ = Map.Map ValName Val
-
 -- | Return either the modified environ or the type expected if the type of the
 -- argument was wrong.  Once you put a key of a given type into the environ, it
 -- can only ever be overwritten by a Val of the same type.
@@ -310,7 +198,7 @@ put_val name val environ = case maybe_old of
         _ -> Right $ Map.insert name new_val environ
     Just old_val
         | type_of old_val == type_of new_val ->
-            Right $ Map.insert name new_val environ
+            Right $ Map.insert name (environ_val environ name val) environ
         | otherwise -> Left (type_of old_val)
     where
     maybe_old = Map.lookup name environ
@@ -321,12 +209,21 @@ put_val name val environ = case maybe_old of
                 _ -> set_attr rel_attr Score.no_attrs
         _ -> to_val val
 
+environ_val :: (Typecheck val) => Environ -> ValName -> val -> Val
+environ_val environ name val = case to_val val of
+    VRelativeAttr rel_attr -> VAttributes $
+        case Map.lookup name environ of
+            Just (VAttributes attrs) -> set_attr rel_attr attrs
+            _ -> set_attr rel_attr Score.no_attrs
+    new_val -> new_val
+
 -- | If a standard val gets set to the wrong type, it will cause confusing
 -- errors later on.
 hardcoded_types :: Map.Map ValName Type
 hardcoded_types = Map.fromList
-    [ (v_instrument, TInstrument)
-    , (v_attributes, TAttributes)
+    [ (v_attributes, TAttributes)
+    , (v_key, TString)
+    , (v_instrument, TInstrument)
     , (v_scale, TScaleId)
     , (v_srate, TNum)
     , (v_seed, TNum)
@@ -344,13 +241,18 @@ lookup_val name environ = case Map.lookup name environ of
 -- Define a few inhabitants of Environ which are used by the built-in set
 -- of calls.
 
+-- | Default set of attrs.
+v_attributes :: ValName
+v_attributes = Symbol "attr"
+
 -- | Default instrument.
 v_instrument :: ValName
 v_instrument = Symbol "inst"
 
--- | Default set of attrs.
-v_attributes :: ValName
-v_attributes = Symbol "attr"
+-- | Diatonic transposition often requires a key.  The interpretation of the
+-- value depends on the scale.
+v_key :: ValName
+v_key = Symbol "key"
 
 -- | Default scale, used by pitch tracks with a @*@ title.
 v_scale :: ValName
@@ -370,8 +272,8 @@ v_seed = Symbol "seed"
 
 -- | The only operator is @|@, so a list suffices for an AST.
 type Expr = [Call]
-data Call = Call CallId [Term] deriving (Eq, Show)
-data Term = ValCall Call | Literal Val deriving (Eq, Show)
+data Call = Call CallId [Term] deriving (Show)
+data Term = ValCall Call | Literal Val deriving (Show)
 
 instance Pretty.Pretty Call where
     pretty (Call call_id terms) =
@@ -403,3 +305,4 @@ inst = Literal . VInstrument . Score.Instrument
 
 val_call :: String -> Term
 val_call sym = ValCall (Call (Symbol sym) [])
+

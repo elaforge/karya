@@ -1,5 +1,7 @@
 -- | Create val calls for scale degrees.
 module Derive.Call.Pitch where
+import qualified Data.Map as Map
+
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -9,15 +11,18 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional, required)
 import qualified Derive.Derive as Derive
+import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Pitches as Pitches
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
-
 import Types
 
+
+type GetNoteNumber = Pitch.Chromatic -> Pitch.Diatonic -> Maybe Pitch.Key
+    -> Maybe Pitch.NoteNumber
 
 -- | Create a note val call for the given scale degree.  This is intended to
 -- be used by scales to generate their val calls, but of course each scale may
@@ -27,25 +32,30 @@ import Types
 -- Intended for fractional scale degrees.
 --
 -- [hz /Num/ @0@] Add an absolute hz value to the output.
-degree_call :: Pitch.Note
-    -> Pitch.Degree -> (Pitch.Degree -> Pitch.Hz -> Pitch.Degree)
-    -> Derive.ValCall
-degree_call note degree add_hz =
+note_call :: Pitch.Note -> GetNoteNumber -> Derive.ValCall
+note_call note note_number =
     Derive.ValCall ("degree: " ++ Pitch.note_text note) $ \args ->
-        CallSig.call2 args (optional "frac" 0, optional "hz" 0) $ \frac hz ->
-            return $ TrackLang.VDegree $
-                add_hz (degree + Pitch.Degree (frac/100)) hz
+    CallSig.call2 args (optional "frac" 0, optional "hz" 0) $ \frac hz -> do
+        key <- Util.lookup_key
+        return $ TrackLang.VPitch $ PitchSignal.pitch (call frac hz key)
+    where
+    call frac hz key = \controls -> do
+        let get c = Map.findWithDefault 0 c controls
+            chrom = Pitch.Chromatic $ get Score.c_chromatic + frac
+            dia = Pitch.Diatonic $ get Score.c_diatonic
+            hz_sig = get Score.c_hz
+        maybe (Left (err chrom dia)) (return . Pitch.add_hz (hz + hz_sig))
+            (note_number chrom dia key)
+    err chrom dia = PitchSignal.PitchError $
+        "note can't be transposed: " ++ show (chrom, dia)
 
-note_call :: Pitch.Note -> Double -> String
-note_call (Pitch.Note note) frac
+-- | Convert a note and @frac@ arg into a tracklang expression representing
+-- that note.
+note_expr :: Pitch.Note -> Double -> String
+note_expr (Pitch.Note note) frac
     | frac == 0 = note
     | otherwise = note ++ " " ++ Pretty.show_float (Just 2) (frac * 100)
 
-relative_call :: Pitch.Degree -> Derive.ValCall
-relative_call degree =
-    Derive.ValCall ("relative: " ++ Pretty.pretty val) $
-        \args -> CallSig.call0 args $ return val
-    where val = TrackLang.VDegree degree
 
 -- * pitch
 
@@ -67,11 +77,9 @@ pitch_calls = Derive.make_calls
 
 c_note_set :: Derive.PitchCall
 c_note_set = Derive.generator1 "note_set" $ \args -> CallSig.call1 args
-    (required "val") $ \degree -> do
-        scale_id <- Util.get_scale_id
+    (required "pitch") $ \pitch -> do
         pos <- Derive.passed_real args
-        return $ PitchSignal.signal scale_id
-            [(pos, PitchSignal.degree_to_y degree)]
+        Util.pitch_signal [(pos, pitch)]
 
 c_note_linear :: Derive.PitchCall
 c_note_linear = Derive.generator1 "note_linear" $ \args ->
@@ -79,34 +87,30 @@ c_note_linear = Derive.generator1 "note_linear" $ \args ->
         [] -> case Derive.passed_prev_val args of
             Nothing ->
                 Derive.throw "can't set to previous val when there was none"
-            Just (_, prev_y) -> do
+            Just (_, prev) -> do
                 pos <- Derive.passed_real args
-                scale_id <- Util.get_scale_id
-                return $ PitchSignal.signal scale_id [(pos, prev_y)]
-        _ -> CallSig.call1 args (required "degree") $ \degree ->
-            pitch_interpolate id degree args
+                Util.pitch_signal [(pos, prev)]
+        _ -> CallSig.call1 args (required "pitch") $ \pitch ->
+            pitch_interpolate id pitch args
 
 c_note_exponential :: Derive.PitchCall
 c_note_exponential = Derive.generator1 "note_exponential" $ \args ->
-    CallSig.call2 args (required "degree", optional "exp" 2) $ \degree exp ->
-        pitch_interpolate (Control.expon exp) degree args
+    CallSig.call2 args (required "pitch", optional "exp" 2) $ \pitch exp ->
+        pitch_interpolate (Control.expon exp) pitch args
 
 c_note_slide :: Derive.PitchCall
 c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
-    (required "degree", optional "time" 0.1) $ \degree time -> do
+    (required "pitch", optional "time" 0.1) $ \pitch time -> do
         start <- Derive.passed_real args
         end <- case Derive.passed_next_begin args of
             Nothing -> return $ start + RealTime.seconds time
             Just n -> do
                 next <- Derive.real n
                 return $ min (start + RealTime.seconds time) next
-        scale_id <- Util.get_scale_id
         srate <- Util.get_srate
-        return $ case Derive.passed_prev_val args of
-            Nothing -> PitchSignal.signal scale_id
-                [(start, PitchSignal.degree_to_y degree)]
-            Just (_, prev_y) -> interpolator srate id scale_id True
-                start (PitchSignal.y_to_degree prev_y) end degree
+        case Derive.passed_prev_val args of
+            Nothing -> Util.pitch_signal [(start, pitch)]
+            Just (_, prev) -> interpolator srate id True start prev end pitch
 
 -- | Emit a quick slide from a neighboring pitch in absolute time.
 --
@@ -114,42 +118,36 @@ c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
 --
 -- [time /Number/ @.3@] Duration of ornament, in seconds.
 c_neighbor :: Derive.PitchCall
-c_neighbor = Derive.generator1 "neighbor" $ \args -> do
-    args <- Util.default_relative_note args
-    CallSig.call3 args (required "degree", optional "neighbor" 1,
-        optional "time" 0.1) $ \degree neighbor time -> do
+c_neighbor = Derive.generator1 "neighbor" $ \args ->
+    CallSig.call3 args (required "pitch", optional "neighbor" 1,
+        optional "time" 0.1) $ \pitch neighbor time -> do
             start <- Derive.passed_real args
             let end = start + RealTime.seconds time
-            scale_id <- Util.get_scale_id
+                pitch1 = Pitches.transpose (Pitch.Chromatic neighbor) pitch
             srate <- Util.get_srate
-            return $ interpolator srate id scale_id True
-                start (Pitch.Degree neighbor + degree) end degree
+            interpolator srate id True start pitch1 end pitch
 
 -- ** pitch util
 
-pitch_interpolate :: (Double -> Signal.Y) -> Pitch.Degree
-    -> Derive.PassedArgs PitchSignal.PitchSignal
-    -> Derive.Deriver PitchSignal.PitchSignal
-pitch_interpolate f degree args = do
+pitch_interpolate :: (Double -> Double) -> PitchSignal.Pitch
+    -> Derive.PassedArgs PitchSignal.Signal
+    -> Derive.Deriver PitchSignal.Signal
+pitch_interpolate f pitch args = do
     start <- Derive.passed_real args
-    scale_id <- Util.get_scale_id
     srate <- Util.get_srate
-    return $ case Derive.passed_prev_val args of
-        Nothing -> PitchSignal.signal scale_id
-            [(start, PitchSignal.degree_to_y degree)]
-        Just (prev, prev_y) -> interpolator srate f scale_id False
-            prev (PitchSignal.y_to_degree prev_y) start degree
+    case Derive.passed_prev_val args of
+        Nothing -> Util.pitch_signal [(start, pitch)]
+        Just (prev_t, prev) ->
+            interpolator srate f False prev_t prev start pitch
 
--- | TODO more efficient version without the intermediate list
-interpolator :: RealTime -> (Double -> Double) -> Util.PitchInterpolator
-interpolator srate f scale_id include_initial x0 y0 x1 y1
-    -- Don't bother generating a bunch of constant points.
-    | y0 == y1 = PitchSignal.signal scale_id (take 1 sig)
-    | otherwise = PitchSignal.signal scale_id sig
+interpolator :: RealTime -> (Double -> Double)
+    -> Bool -- ^ include the initial sample or not
+    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
+    -> Derive.Deriver PitchSignal.Signal
+interpolator srate f include_initial x1 note1 x2 note2 =
+    Util.pitch_signal $ (if include_initial then id else drop 1) $
+        [(x, pitch_of x) | x <- Seq.range_end x1 x2 srate]
     where
-    sig = let s = [(x, (fy0, fy1, y_of x)) | x <- Seq.range_end x0 x1 srate]
-        in if include_initial then s else drop 1 s
-    y_of = Num.d2f . f . Num.normalize (secs x0) (secs x1) . secs
+    pitch_of = Pitches.interpolated note1 note2
+        . f . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds
-    (fy0, fy1) = (to_f y0, to_f y1)
-    to_f (Pitch.Degree d) = Num.d2f d

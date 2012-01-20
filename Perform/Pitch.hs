@@ -16,9 +16,6 @@ module Perform.Pitch (
     -- * InputKey
     , InputKey(..), Octave, middle_c, middle_octave
 
-    -- * Degree
-    , Degree(..), middle_int_degree, middle_degree
-
     -- * NoteNumber
     , NoteNumber(..), nn
 
@@ -26,11 +23,11 @@ module Perform.Pitch (
     , Hz, add_hz, nn_to_hz, hz_to_nn
 
     -- * Scale
-    , ScaleId(..), default_scale_id, twelve, relative, is_relative
+    , ScaleId(..), empty_scale, twelve
+    , Degree(..), Chromatic(..), Diatonic(..)
+    , Key(..), major, minor
 ) where
-import Perform.PitchSignal (ScaleId(..), relative_scale_id, is_relative,
-    Degree(..))
-
+import qualified Util.Pretty as Pretty
 
 -- There are many representations for pitch.  The types here are ordered
 -- from abstract to concrete.  'Degree', 'NoteNumber', and 'Hz' can be relative
@@ -52,7 +49,7 @@ note_text (Note s) = s
 -- * InputKey
 
 -- | A physically played key that hasn't been mapped to a scale yet.
-newtype InputKey = InputKey Double deriving (Eq, Ord, Show)
+newtype InputKey = InputKey Double deriving (Num, Eq, Ord, Show)
 type Octave = Integer
 
 -- | Useful to orient scales around a common center.
@@ -66,12 +63,12 @@ middle_octave = 5
 
 -- * Degree
 
--- | For consistency, scales should roughly center themselves around this
--- degree.  This way you don't need to know the scale to know a good
--- representative note for it, for example for a default pitch.
-middle_int_degree :: Integer
-middle_int_degree = 60
-middle_degree = Degree (fromIntegral middle_int_degree)
+-- -- | For consistency, scales should roughly center themselves around this
+-- -- degree.  This way you don't need to know the scale to know a good
+-- -- representative note for it, for example for a default pitch.
+-- middle_int_degree :: Integer
+-- middle_int_degree = 60
+-- middle_degree = Degree (fromIntegral middle_int_degree)
 
 -- * NoteNumber
 
@@ -83,7 +80,8 @@ middle_degree = Degree (fromIntegral middle_int_degree)
 --
 -- It would be less tempered-centric to use hz, but for the moment this seems
 -- practical since note numbers are easier to read.
-newtype NoteNumber = NoteNumber Double deriving (Eq, Ord, Show, Fractional, Num)
+newtype NoteNumber = NoteNumber Double
+    deriving (Eq, Ord, Show, Fractional, Num)
 
 nn :: (Real a) => a -> NoteNumber
 nn = NoteNumber . realToFrac
@@ -131,14 +129,40 @@ _hz_offset = log a_hz - (a_nn * _hz_scale)
 -- a_nn = 69
 
 
--- * scale id
+-- * scale
 
--- | An empty scale defaults to the scale in scope.
-default_scale_id :: ScaleId
-default_scale_id = ScaleId ""
+newtype ScaleId = ScaleId String deriving (Eq, Ord, Read, Show)
 
-relative :: ScaleId
-relative = relative_scale_id
+instance Pretty.Pretty ScaleId where
+    -- This mirrors TrackLang scale id syntax.
+    pretty (ScaleId s) = '*' : s
+
+-- | Usually this means to use the scale currently in scope.
+empty_scale :: ScaleId
+empty_scale = ScaleId ""
 
 twelve :: ScaleId
 twelve = ScaleId "twelve"
+
+
+-- | Scale steps.  What this means is internal to each scale, but is intended
+-- to correspond to chromatic steps in the scale.
+newtype Degree = Degree Integer
+    deriving (Num, Integral, Real, Enum, Eq, Ord, Show)
+
+-- | Amount of chromatic transposition.
+newtype Chromatic = Chromatic Double deriving (Eq, Ord, Show)
+
+-- | Amount of diatonic transposition.
+newtype Diatonic = Diatonic Double deriving (Eq, Ord, Show)
+
+-- | Diatonic transposition often requires a Key for context.
+--
+-- This is not very strongly typed, because it's intended to be scale
+-- independent, and not every scale will have the same values for key and
+-- mode.
+newtype Key = Key String deriving (Eq, Ord, Show)
+
+major, minor :: String
+major = "M"
+minor = "m"

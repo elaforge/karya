@@ -18,15 +18,14 @@ import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-
 import Types
 
 
@@ -90,8 +89,6 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
         Derive.lookup_val TrackLang.v_attributes
     st <- Derive.gets Derive.state_dynamic
     let controls = trimmed_controls start real_next (Derive.state_controls st)
-        -- Perform.Midi.Convert flattens the entire pitch signal, so it's best
-        -- to always trim the pitch to avoid extra work.
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
     let sustain = maybe 1 (RealTime.seconds . Signal.at start)
             (Map.lookup Score.c_sustain controls)
@@ -119,11 +116,11 @@ randomized controls start end = do
     return (start + RealTime.seconds (Num.restrict 0 start_r r1),
         end + RealTime.seconds (Num.restrict (-dur_r) 0 r2))
 
--- | In a note track, the pitch signal for each note is constant as soon as the
--- next note begins.  Otherwise, it looks like each note changes pitch during
--- its decay.
-trimmed_pitch :: RealTime -> RealTime -> PitchSignal.PitchSignal
-    -> PitchSignal.PitchSignal
+-- | In a note track, the pitch signal for each note is constant as soon as
+-- the next note begins.  Otherwise, it looks like each note changes pitch
+-- during its decay.
+trimmed_pitch :: RealTime -> RealTime -> PitchSignal.Signal
+    -> PitchSignal.Signal
 trimmed_pitch start end =
     PitchSignal.truncate end . PitchSignal.drop_before start
 
