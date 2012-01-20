@@ -545,7 +545,7 @@ get_track_tree block_id = do
     tracks <- get_track_info block_id
     ntracks <- fmap (length . Block.block_tracklike_ids) (get_block block_id)
     let by_tracknum = Map.fromList $ zip (map track_tracknum tracks) tracks
-    let (resolved, missing) = _track_tree_resolve by_tracknum
+    let (resolved, missing) = resolve_track_tree by_tracknum
             (Skeleton.to_forest ntracks skel)
     -- Rulers and dividers should show up as missing.  They're ok as long as
     -- they have no edges.
@@ -585,7 +585,6 @@ track_tree_mutes muted forest = map f forest
     f (Tree.Node info subs) = Tree.Node (add_mute info) (map f subs)
     add_mute info = (info, track_tracknum info `elem` muted)
 
-
 _track_tree_tracks_of :: Block.Block -> Map.Map TrackId Track.Track
     -> [(TrackNum, TrackId, Track.Track)]
 _track_tree_tracks_of block tracks = do
@@ -593,19 +592,20 @@ _track_tree_tracks_of block tracks = do
     track <- maybe mzero (:[]) (Map.lookup tid tracks)
     return (i, tid, track)
 
-_track_tree_resolve :: Map.Map TrackNum TrackInfo -> Tree.Forest TrackNum
-    -> (Tree.Forest TrackInfo, [TrackNum])
-_track_tree_resolve tracknums = foldr cat_tree ([], []) . map go
+-- | Resolve the TrackNum indices in a tree into whatever values as given by
+-- a map.
+resolve_track_tree :: Map.Map TrackNum a -> [Tree.Tree TrackNum]
+    -> ([Tree.Tree a], [TrackNum]) -- ^ resolved tree, and missing TrackNums
+resolve_track_tree tracknums = foldr cat_tree ([], []) . map go
     where
     go (Tree.Node tracknum subs) = case Map.lookup tracknum tracknums of
         Nothing -> (Nothing, [tracknum])
         Just track_info ->
-            let (subforest, missing) = _track_tree_resolve tracknums subs
+            let (subforest, missing) = resolve_track_tree tracknums subs
             in (Just (Tree.Node track_info subforest), missing)
     cat_tree (maybe_tree, missing) (forest, all_missing) = case maybe_tree of
         Nothing -> (forest, missing ++ all_missing)
         Just tree -> (tree : forest, missing ++ all_missing)
-
 
 type EventsTree = [EventsNode]
 type EventsNode = Tree.Tree TrackEvents
