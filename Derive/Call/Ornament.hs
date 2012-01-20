@@ -17,24 +17,26 @@ import Types
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("`mordent`", c_mordent 1)
-    , ("`rmordent`", c_mordent (-1))
+    [ ("`mordent`", c_mordent (Pitch.Diatonic 1))
+    , ("`rmordent`", c_mordent (Pitch.Diatonic (-1)))
     ]
 
--- | Mordent.
+-- | Mordent.  The generated grace notes are constant time and short, and
+-- fall before the onset of the main note.
 --
--- TODO not scale aware.  It seems like I should have some diatonic awareness,
--- so I could ask the scale for a diatonic transposition.
-c_mordent :: Double -> Derive.NoteCall
+-- [neighbor /Transpose/ @default_neighbor@] Neighbor note.
+--
+-- [vel /Number/ @.3@] Scale the velocity of the generated grace notes.
+-- TODO should be pressure
+c_mordent :: Pitch.Transpose -> Derive.NoteCall
 c_mordent default_neighbor = Derive.stream_generator "mordent" $
     Note.inverting $ \args -> CallSig.call2 args
     (optional "neighbor" default_neighbor, optional "vel" 0.3) $
     \neighbor vel ->
-        mordent grace_dur (Derive.passed_extent args) vel
-            (Pitch.Chromatic neighbor)
+        mordent grace_dur (Derive.passed_extent args) vel neighbor
     where grace_dur = RealTime.seconds (1/12)
 
-mordent :: RealTime -> (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Chromatic
+mordent :: RealTime -> (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Transpose
     -> Derive.EventDeriver
 mordent grace_dur (start, dur) velocity_scale neighbor = do
     pos <- Derive.real start

@@ -69,6 +69,8 @@ test_parse_val = do
             , ("0", Just (VNum 0))
             , ("0.", Nothing)
             , (".2", Just (VNum 0.2))
+            , ("1c", Just (VTranspose (Pitch.Chromatic 1)))
+            , ("-.5d", Just (VTranspose (Pitch.Diatonic (-0.5))))
 
             , ("'hi'", Just (VString "hi"))
             , ("'quinn''s hat'", Just (VString "quinn's hat"))

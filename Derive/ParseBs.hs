@@ -107,7 +107,8 @@ p_num_call :: A.Parser TrackLang.Call
 p_num_call = do
     num <- TrackLang.VNum <$> p_num
     rest <- A.many p_term
-    return $ TrackLang.Call (TrackLang.Symbol "") (TrackLang.Literal num : rest)
+    return $ TrackLang.Call (TrackLang.Symbol "")
+        (TrackLang.Literal num : rest)
 
 -- | Any word in call position is considered a Symbol.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or
@@ -129,13 +130,23 @@ p_val =
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
     <|> TrackLang.VRelativeAttr <$> A.try p_rel_attr
-    <|> TrackLang.VNum <$> p_num
+    <|> p_numeric
     <|> (TrackLang.VString . B.unpack) <$> p_string
     <|> TrackLang.VControl <$> p_control
     <|> TrackLang.VPitchControl <$> p_pitch_control
     <|> TrackLang.VScaleId <$> p_scale_id
     <|> (A.char '_' >> return TrackLang.VNotGiven)
     <|> TrackLang.VSymbol <$> p_symbol
+
+p_numeric :: A.Parser TrackLang.Val
+p_numeric = do
+    num <- Parse.p_float
+    suffix <- Parse.optional $ A.satisfy $ \c -> c == 'c' || c == 'd'
+    return $ case suffix of
+        Nothing -> TrackLang.VNum num
+        Just 'c' -> TrackLang.VTranspose (Pitch.Chromatic num)
+        Just 'd' -> TrackLang.VTranspose (Pitch.Diatonic num)
+        Just c -> error $ "shouldn't have matched char: " ++ show c
 
 p_num :: A.Parser Double
 p_num = Parse.p_float

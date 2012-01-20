@@ -22,8 +22,11 @@ interpolated low high dist = PitchSignal.pitch $ \controls -> do
     return $ Num.scale low_nn high_nn (Pitch.NoteNumber dist)
 
 -- | Transpose a pitch.
-transpose :: Pitch.Chromatic -> PitchSignal.Pitch -> PitchSignal.Pitch
-transpose (Pitch.Chromatic v) = PitchSignal.add_control Score.c_chromatic v
+transpose :: Pitch.Transpose -> PitchSignal.Pitch -> PitchSignal.Pitch
+transpose (Pitch.Chromatic v) =
+    PitchSignal.add_control Score.c_chromatic v
+transpose (Pitch.Diatonic v) =
+    PitchSignal.add_control Score.c_diatonic v
 
 -- | Convert a Pitch to a NoteNumber, throwing an exception if the pitch
 -- failed.

@@ -24,7 +24,7 @@ module Perform.Pitch (
 
     -- * Scale
     , ScaleId(..), empty_scale, twelve
-    , Degree(..), Chromatic(..), Diatonic(..)
+    , Degree(..), Transpose(..)
     , Key(..), major, minor
 ) where
 import qualified Util.Pretty as Pretty
@@ -150,11 +150,16 @@ twelve = ScaleId "twelve"
 newtype Degree = Degree Integer
     deriving (Num, Integral, Real, Enum, Eq, Ord, Show)
 
--- | Amount of chromatic transposition.
-newtype Chromatic = Chromatic Double deriving (Eq, Ord, Show)
+-- | A generic transposition, for operations that can transpose either
+-- diatonically or chromatically.
+data Transpose = Chromatic Double | Diatonic Double
+    deriving (Eq, Ord, Show)
 
--- | Amount of diatonic transposition.
-newtype Diatonic = Diatonic Double deriving (Eq, Ord, Show)
+instance Pretty.Pretty Transpose where
+    -- TODO these are tracklang vals, so they should use TrackLang.show_num,
+    -- which I suppose should move to a lower level module
+    pretty (Chromatic d) = Pretty.show_float (Just 2) d ++ "c"
+    pretty (Diatonic d) = Pretty.show_float (Just 2) d ++ "d"
 
 -- | Diatonic transposition often requires a Key for context.
 --

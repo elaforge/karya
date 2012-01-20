@@ -21,7 +21,8 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
-type GetNoteNumber = Pitch.Chromatic -> Pitch.Diatonic -> Maybe Pitch.Key
+-- | Chromatic -> Diatonic -> Key -> NoteNumber
+type GetNoteNumber = Double -> Double -> Maybe Pitch.Key
     -> Maybe Pitch.NoteNumber
 
 -- | Create a note val call for the given scale degree.  This is intended to
@@ -41,8 +42,8 @@ note_call note note_number =
     where
     call frac hz key = \controls -> do
         let get c = Map.findWithDefault 0 c controls
-            chrom = Pitch.Chromatic $ get Score.c_chromatic + frac
-            dia = Pitch.Diatonic $ get Score.c_diatonic
+            chrom = get Score.c_chromatic + frac
+            dia = get Score.c_diatonic
             hz_sig = get Score.c_hz
         maybe (Left (err chrom dia)) (return . Pitch.add_hz (hz + hz_sig))
             (note_number chrom dia key)
@@ -114,18 +115,19 @@ c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
 
 -- | Emit a quick slide from a neighboring pitch in absolute time.
 --
--- [neighbor /Number/ @1@] Neighbor note, in scale degrees.
+-- [neighbor /Transpose/ @1@] Neighbor note.
 --
 -- [time /Number/ @.3@] Duration of ornament, in seconds.
 c_neighbor :: Derive.PitchCall
 c_neighbor = Derive.generator1 "neighbor" $ \args ->
-    CallSig.call3 args (required "pitch", optional "neighbor" 1,
+    CallSig.call3 args (required "pitch",
+        optional "neighbor" (Pitch.Chromatic 1),
         optional "time" 0.1) $ \pitch neighbor time -> do
-            start <- Derive.passed_real args
-            let end = start + RealTime.seconds time
-                pitch1 = Pitches.transpose (Pitch.Chromatic neighbor) pitch
-            srate <- Util.get_srate
-            interpolator srate id True start pitch1 end pitch
+    start <- Derive.passed_real args
+    let end = start + RealTime.seconds time
+        pitch1 = Pitches.transpose neighbor pitch
+    srate <- Util.get_srate
+    interpolator srate id True start pitch1 end pitch
 
 -- ** pitch util
 

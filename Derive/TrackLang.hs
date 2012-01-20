@@ -71,8 +71,8 @@ c_equal = Symbol "="
 
 -- * types
 
-data Type = TNum | TString | TRelativeAttr | TAttributes | TControl
-    | TPitchControl | TScaleId | TPitch | TInstrument | TSymbol
+data Type = TNum | TTranspose | TString | TRelativeAttr | TAttributes
+    | TControl | TPitchControl | TScaleId | TPitch | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TVal
     deriving (Eq, Show)
 
@@ -87,6 +87,7 @@ type_of val = case val of
     -- promising to not evaluate the value seems even more hacky than just
     -- 'to_type' making that promise.
     VNum {} -> TNum
+    VTranspose {} -> TTranspose
     VString {} -> TString
     VRelativeAttr {} -> TRelativeAttr
     VAttributes {} -> TAttributes
@@ -127,6 +128,15 @@ instance Typecheck Double where
     from_val _ = Nothing
     to_val = VNum
     to_type _ = TNum
+
+-- | VNums can also be coerced into chromatic transposition, so you can write
+-- a plain number if you don't care about diatonic.
+instance Typecheck Pitch.Transpose where
+    from_val (VTranspose a) = Just a
+    from_val (VNum a) = Just (Pitch.Chromatic a)
+    from_val _ = Nothing
+    to_val = VTranspose
+    to_type _ = TTranspose
 
 instance Typecheck String where
     from_val (VString s) = Just s

@@ -61,15 +61,15 @@ note_to_call smap note = case Map.lookup note (smap_note_to_degree smap) of
         Nothing -> Nothing
         Just degree -> Just $ Call.Pitch.note_call note (note_number degree)
     where
-    note_number (Pitch.Degree degree) (Pitch.Chromatic chrom)
-            (Pitch.Diatonic dia) _key
+    note_number (Pitch.Degree degree) chromatic diatonic key
         | frac == 0 = maybe_nn
         | otherwise = case (maybe_nn, maybe_nn1) of
             (Just nn, Just nn1) ->
                 Just $ Num.scale nn nn1 (Pitch.NoteNumber frac)
             _ -> Nothing
         where
-        (int, frac) = properFraction $ fromIntegral degree + chrom + dia
+        (int, frac) = properFraction $
+            fromIntegral degree + chromatic + diatonic
         maybe_nn = Map.lookup int (smap_degree_to_nn smap)
         maybe_nn1 = Map.lookup (int+1) (smap_degree_to_nn smap)
 

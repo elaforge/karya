@@ -33,10 +33,17 @@ UNSORTED
 
     add diatonic transposition:
       - scale support in Twelve
-      - Add Perform.Pitch.Transposition: Chromatic | Diatonic, add Typecheck
-        and tracklang literals: 1d 1c
-      - candidates for chromatic / diatonic:
+      * Add Perform.Pitch.Transpose: Chromatic | Diatonic
+      + candidates for chromatic / diatonic:
         Derive.Call.Pitch.c_neighbor, Trill.*, Pitches.transpose
+      * add Typecheck for Transpose and tracklang literals: 1d 1c
+        This doesn't work so well because most calls are more flexible if they
+        take signals, but Control is untyped.  The same goes for score vs real
+        time.
+        Do I need a mechanism for typed control signals?
+        That shouldn't be too hard, just append :c :d :r :t etc. to control
+        name, then ControlMap is
+        'Map Score.Control (Signal.Control, SignalType)'
       - test for transposing diatonic transpositions
 
     - port to control calls: neighbor, trill, ...
@@ -89,29 +96,29 @@ UNSORTED
     * document Derive.BaseTypes song and dance
     * write Derive.PitchSignal_test
 
-    the problem with rambat tick
-      I need a general way to manipulate notes and know their pitch, dynamics,
-      etc.  There are a lot of ways to do this:
+  the problem with rambat tick
+    I need a general way to manipulate notes and know their pitch, dynamics,
+    etc.  There are a lot of ways to do this:
 
-      Note transformers - Already implemented.  This can manipulate notes at
-      a high level, such as transposition, duplication, shift/stretch, but
-      can't inspect them.  It also has to run in the track above the notes it
-      wants to transform.
+    Note transformers - Already implemented.  This can manipulate notes at
+    a high level, such as transposition, duplication, shift/stretch, but
+    can't inspect them.  It also has to run in the track above the notes it
+    wants to transform.
 
-      Preprocessing for TrackEvents - Not sure what this would look like, but
-      it would rewrite bits of score.  It could do symbolic manipulation and
-      e.g.  transposition would transpose pitches symbolically.  I think it
-      would be hard to do anything other than very simple things, because even
-      to know the scale I have to do some deriving.
+    Preprocessing for TrackEvents - Not sure what this would look like, but
+    it would rewrite bits of score.  It could do symbolic manipulation and
+    e.g.  transposition would transpose pitches symbolically.  I think it
+    would be hard to do anything other than very simple things, because even
+    to know the scale I have to do some deriving.
 
-      Postprocessing events - This works at the RealTime and can inspect other
-      notes, but it can only do RealTime transformations on them.  For that
-      reason, it's probably best for inserting new notes.  Unfortunately, it
-      has to be a transformer which means it can't really be used to insert
-      a note.  However, maybe I could have a system similar to the old
-      "directive" notion: calls can emit a special 'Directive [Val]' which
-      a postproc pass can then fill in.  I think it would work, but only as
-      a last resort.
+    Postprocessing events - This works at the RealTime and can inspect other
+    notes, but it can only do RealTime transformations on them.  For that
+    reason, it's probably best for inserting new notes.  Unfortunately, it
+    has to be a transformer which means it can't really be used to insert
+    a note.  However, maybe I could have a system similar to the old
+    "directive" notion: calls can emit a special 'Directive [Val]' which
+    a postproc pass can then fill in.  I think it would work, but only as
+    a last resort.
 
   * put filename in patch tags
   * instead of discarding overlapping patch names, append a number to

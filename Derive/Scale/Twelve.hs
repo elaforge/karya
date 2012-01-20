@@ -61,11 +61,11 @@ note_to_call note = case Map.lookup note note_to_degree of
         Nothing -> Nothing
         Just degree -> Just $ Call.Pitch.note_call note (note_number degree)
     where
-    note_number (Pitch.Degree degree) (Pitch.Chromatic chrom)
-            (Pitch.Diatonic _dia) _key -- TODO unimplemented
+    note_number (Pitch.Degree degree) chromatic diatonic key
         | 0 < nn && nn > 127 = Nothing
         | otherwise = Just nn
-        where nn = Pitch.NoteNumber $ fromIntegral degree + chrom
+        where nn = Pitch.NoteNumber $ fromIntegral degree + chromatic
+            -- TODO diatonic unimplemented
 
 input_to_note :: Pitch.InputKey -> Maybe Pitch.Note
 input_to_note (Pitch.InputKey key_nn) = do

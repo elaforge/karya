@@ -110,6 +110,13 @@ type ValName = Symbol
 data Val =
     -- | Literal: @42.23@, @-.4@
     VNum Double
+
+    -- | A number that is either an amount of diatonic or chromatic
+    -- transposition.
+    --
+    -- Literal: @1c@, @-2.4d@
+    | VTranspose Pitch.Transpose
+
     -- | Escape a quote by doubling it.
     --
     -- Literal: @'hello'@, @'quinn''s hat'@
@@ -161,8 +168,8 @@ data Val =
     --
     -- Literal: @func@
     | VSymbol Symbol
-    -- | An explicit not-given arg for functions so you can use positional args
-    -- with defaults.
+    -- | An explicit not-given arg for functions so you can use positional
+    -- args with defaults.
     --
     -- Literal: @_@
     | VNotGiven
@@ -175,35 +182,32 @@ data Val =
 -- The reason why is documented in 'Derive.Call.Note.inverting'.
 instance Pretty.Pretty Val where
     pretty val = case val of
-            VNum d -> show_num d
-            VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
-            VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
-                Add -> '+' : attr
-                Remove -> '-' : attr
-                Set -> '=' : attr
-                Clear -> "=-"
-            VAttributes (Attributes attrs) -> Seq.join "+" (Set.toList attrs)
-            VControl control -> Pretty.pretty control
-            VPitchControl control -> Pretty.pretty control
-            VScaleId (Pitch.ScaleId scale_id) -> '*' : scale_id
-            VPitch pitch -> "<pitch: " ++ Pretty.pretty pitch ++ ">"
-            VInstrument (Instrument inst) -> '>' : inst
-            VSymbol sym -> Pretty.pretty sym
-            VNotGiven -> "_"
-        where
+        VNum d -> show_num d
+        VTranspose d -> Pretty.pretty d
+        VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
+        VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
+            Add -> '+' : attr
+            Remove -> '-' : attr
+            Set -> '=' : attr
+            Clear -> "=-"
+        VAttributes (Attributes attrs) -> Seq.join "+" (Set.toList attrs)
+        VControl control -> Pretty.pretty control
+        VPitchControl control -> Pretty.pretty control
+        VScaleId (Pitch.ScaleId scale_id) -> '*' : scale_id
+        VPitch pitch -> "<pitch: " ++ Pretty.pretty pitch ++ ">"
+        VInstrument (Instrument inst) -> '>' : inst
+        VSymbol sym -> Pretty.pretty sym
+        VNotGiven -> "_"
 
 -- | Convert a haskell number into a tracklang number.
 show_num :: (RealFloat a) => a -> String
 show_num = Pretty.show_float (Just 2)
 
 newtype Symbol = Symbol String deriving (Eq, Ord, Show)
-instance Pretty.Pretty Symbol where
-    pretty (Symbol s) = s
+instance Pretty.Pretty Symbol where pretty (Symbol s) = s
 
 data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
-
-newtype RelativeAttr = RelativeAttr (AttrMode, Attribute)
-    deriving (Eq, Show)
+newtype RelativeAttr = RelativeAttr (AttrMode, Attribute) deriving (Eq, Show)
 
 data ControlRef val =
     -- | A constant signal.  For 'Control', this is coerced from a VNum

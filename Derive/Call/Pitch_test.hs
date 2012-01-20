@@ -37,3 +37,6 @@ run_with_title with inst_title pitch_title pitches = extract $
 test_neighbor = do
     equal (CallTest.run_pitch [(0, "n (4c) 1 2")])
         [(0, 61), (1, 60.5), (2, 60)]
+    -- Both chromatic and diatonic literals.
+    equal (CallTest.run_pitch [(0, "n (4c) 1c 1")]) [(0, 61), (1, 60)]
+    equal (CallTest.run_pitch [(0, "n (4c) 1d 1")]) [(0, 62), (1, 60)]
