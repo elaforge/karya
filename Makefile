@@ -29,6 +29,7 @@ BUILD := build
 TBUILD := $(BUILD)/test
 PBUILD := $(BUILD)/profile
 HSC := $(BUILD)/hsc
+HSC2HS := /usr/local/bin/hsc2hs
 
 ### OS dependent variables.
 
@@ -342,7 +343,7 @@ tags: $(ALL_HS)
 
 $(HSC)/%.hs: %.hsc
 	@mkdir -p $(shell dirname $@)
-	hsc2hs -c g++ --cflag -Wno-invalid-offsetof -I$(GHC_LIB)/include \
+	$(HSC2HS) -c g++ --cflag -Wno-invalid-offsetof -I$(GHC_LIB)/include \
 		$(CINCLUDE) $(FLTK_C) $(DEFINE) $< -o $@
 
 ### portmidi ###
