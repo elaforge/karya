@@ -102,7 +102,7 @@ tempo_call track sig_deriver deriver = do
         Internal.with_control_damage damage deriver
     track_range = State.tevents_range track
 
-control_call :: State.TrackEvents -> Score.Control
+control_call :: State.TrackEvents -> Score.Typed Score.Control
     -> Maybe TrackLang.CallId -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
 control_call track control maybe_op control_deriver deriver = do
@@ -116,9 +116,10 @@ control_call track control maybe_op control_deriver deriver = do
     maybe_track_id = State.tevents_track_id track
     with_damage = with_control_damage maybe_track_id
         (State.tevents_range track)
-    with_control control signal deriver = case maybe_op of
-        Nothing -> Derive.with_control control signal deriver
-        Just op -> Derive.with_control_operator control op signal deriver
+    with_control (Score.Typed typ control) signal deriver = case maybe_op of
+        Nothing -> Derive.with_control control sig deriver
+        Just op -> Derive.with_control_operator control op sig deriver
+        where sig = Score.Typed typ signal
 
 to_display :: TrackResults Signal.Control -> Signal.Display
 to_display (sig, _) = Signal.coerce sig

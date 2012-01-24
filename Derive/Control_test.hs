@@ -92,17 +92,23 @@ test_pitch_track = do
         ([[(0, 60), (1, 61), (2, 62)]], [])
 
 test_relative_control = do
-    let (events, logs) = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run suf add_suf = DeriveTest.extract extract $ DeriveTest.derive_tracks
             [ (">", [(0, 5, "")])
             , ("*twelve", [(0, 0, "4c")])
-            , ("cont", [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])
-            , ("add cont", [(0, 0, "1")])
+            , ("cont" ++ suf, [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])
+            , ("add cont" ++ add_suf, [(0, 0, "1")])
             ]
-        extract = (\sig -> map (at sig) [0..5])
+        extract = (\(Score.Typed typ sig) -> (typ, map (at sig) [0..5]))
             . (Map.! Score.Control "cont") . Score.event_controls
         at sig t = Signal.at (RealTime.seconds t) sig
-    equal logs []
-    equal events [[1, 2, 3, 2, 1, 1]]
+    equal (run "" "") ([(Score.Untyped, [1, 2, 3, 2, 1, 1])], [])
+    -- No type on the relative signal means it gets the absolute signal's
+    -- type.
+    equal (run ":d" "") ([(Score.Diatonic, [1, 2, 3, 2, 1, 1])], [])
+    -- And vice versa.
+    equal (run "" ":d") ([(Score.Diatonic, [1, 2, 3, 2, 1, 1])], [])
+    -- If they both have types, the absolute signal wins.
+    equal (run ":c" ":d") ([(Score.Chromatic, [1, 2, 3, 2, 1, 1])], [])
 
     -- Putting relative and absolute in the wrong order is ok since addition
     -- is a monoid.
@@ -113,7 +119,8 @@ test_relative_control = do
                 , ("cont", [(0, 0, "1")])
                 ]
     let controls = Map.union Derive.initial_controls $
-            Map.fromList [(Score.Control "cont", Signal.signal [(0, 1)])]
+            Map.fromList [(Score.Control "cont",
+                Score.untyped $ Signal.signal [(0, 1)])]
     equal events [controls]
     strings_like logs []
 

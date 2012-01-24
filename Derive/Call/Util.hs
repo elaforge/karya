@@ -54,24 +54,42 @@ with_controls args controls f = do
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.
 control_at :: RealTime -> TrackLang.ValControl -> Derive.Deriver Signal.Y
-control_at pos control = case control of
+control_at pos control = Score.typed_val <$> typed_control_at pos control
+
+typed_control_at :: RealTime -> TrackLang.ValControl
+    -> Derive.Deriver Score.TypedVal
+typed_control_at pos control = case control of
     TrackLang.ConstantControl deflt -> return deflt
     TrackLang.DefaultedControl cont deflt ->
-        maybe deflt id <$> Derive.control_at cont pos
+        Maybe.fromMaybe deflt <$> Derive.control_at cont pos
     TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found and no default: " ++ show cont) return
             =<< Derive.control_at cont pos
 
 -- | Convert a 'TrackLang.ValControl' to a signal.
-to_signal :: TrackLang.ValControl -> Derive.Deriver Signal.Control
+to_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedControl
 to_signal control = case control of
-    TrackLang.ConstantControl deflt -> return $ Signal.constant deflt
+    TrackLang.ConstantControl deflt -> return $ fmap Signal.constant deflt
     TrackLang.DefaultedControl cont deflt -> do
         sig <- Derive.get_control cont
-        return $ maybe (Signal.constant deflt) id sig
+        return $ Maybe.fromMaybe (fmap Signal.constant deflt) sig
     TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found: " ++ show cont) return
             =<< Derive.get_control cont
+
+-- | Version of 'to_signal' specialized for transpose signals.  Throws if
+-- the signal had a non-transpose type.
+to_transpose_signal :: TrackLang.ValControl
+    -> Derive.Deriver (Signal.Control, Score.Control)
+    -- ^ (signal, appropriate transpose control)
+to_transpose_signal control = do
+    Score.Typed typ sig <- to_signal control
+    case typ of
+        Score.Untyped -> return (sig, Score.c_chromatic)
+        Score.Chromatic -> return (sig, Score.c_chromatic)
+        Score.Diatonic -> return (sig, Score.c_diatonic)
+        _ -> Derive.throw $ "expected transpose type for "
+            ++ Pretty.pretty control ++ " but got " ++ Pretty.pretty typ
 
 pitch_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver PitchSignal.Pitch
@@ -124,8 +142,8 @@ pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Pitch)
 pitch = Derive.pitch_at
 
 velocity :: RealTime -> Derive.Deriver Signal.Y
-velocity pos =
-    maybe Derive.default_velocity id <$> Derive.control_at Score.c_velocity pos
+velocity pos = maybe Derive.default_velocity Score.typed_val <$>
+    Derive.control_at Score.c_velocity pos
 
 with_pitch :: PitchSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
 with_pitch pitch deriver = do
@@ -133,7 +151,8 @@ with_pitch pitch deriver = do
     Derive.with_constant_pitch Nothing scale pitch deriver
 
 with_velocity :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
-with_velocity = Derive.with_control Score.c_velocity . Signal.constant
+with_velocity =
+    Derive.with_control Score.c_velocity . Score.untyped . Signal.constant
 
 simple_note :: PitchSignal.Pitch -> Signal.Y -> Derive.EventDeriver
 simple_note pitch velocity = with_pitch pitch $ with_velocity velocity note
@@ -233,7 +252,7 @@ c_equal = Derive.transformer "equal" $ \args deriver ->
             sig <- to_signal val
             Derive.with_control assignee sig deriver
         [control -> Just assignee, TrackLang.VNum val] ->
-            Derive.with_control assignee (Signal.constant val) deriver
+            Derive.with_control assignee (fmap Signal.constant val) deriver
         [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
             sig <- to_pitch_signal val
             Derive.with_pitch assignee sig deriver

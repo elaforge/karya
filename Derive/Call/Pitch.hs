@@ -41,7 +41,7 @@ note_call note note_number =
         return $ TrackLang.VPitch $ PitchSignal.pitch (call frac hz key)
     where
     call frac hz key = \controls -> do
-        let get c = Map.findWithDefault 0 c controls
+        let get c = maybe 0 Score.typed_val (Map.lookup c controls)
             chrom = get Score.c_chromatic + frac
             dia = get Score.c_diatonic
             hz_sig = get Score.c_hz

@@ -12,6 +12,8 @@ test_parse_control = do
     equal (f "*scale #name") (Right "*scale #name")
     equal (f "tempo") (Right "tempo")
     equal (f "c") (Right "c")
+    equal (f "c:d") (Right "c:d")
+    left_like (f "c:q") "control should look like"
     equal (f "%") (Right "%")
     equal (f "add %") (Right "add %")
     left_like (f "$ bad") "parse error"

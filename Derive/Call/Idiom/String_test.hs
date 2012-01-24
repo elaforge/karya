@@ -2,7 +2,7 @@ module Derive.Call.Idiom.String_test where
 {-
 import Util.Test
 
-import qualified Derive.Call.Idiom.String as String
+-- import qualified Derive.Call.Idiom.String as String
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Score as Score

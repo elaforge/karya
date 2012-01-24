@@ -11,6 +11,7 @@ module Derive.TrackInfo where
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Derive.ParseBs as Parse
@@ -23,7 +24,7 @@ import qualified Perform.Pitch as Pitch
 -- * track info
 
 data ControlType =
-    Control (Maybe TrackLang.CallId) Score.Control
+    Control (Maybe TrackLang.CallId) (Score.Typed Score.Control)
     -- | Control is Nothing for default scale.
     | Pitch Pitch.ScaleId (Maybe Score.Control)
     | Tempo
@@ -38,8 +39,6 @@ parse_control_expr title = do
     ctrack <- parse_control_vals vals
     return (ctrack, expr)
 
--- | It would be more regular to require \"%cont\" and \"add %cont\" for
--- control tracks, but it looks nicer without the extra noise.
 parse_control_vals :: [TrackLang.Val] -> Either String ControlType
 parse_control_vals vals = case vals of
         --  *twelve -> default pitch track in twelve
@@ -52,11 +51,14 @@ parse_control_vals vals = case vals of
         -- "tempo"
         [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right Tempo
         -- control
-        [TrackLang.VSymbol control] ->
-            Right $ Control Nothing (control_of control)
+        --
+        -- It would be more regular to require \"%control\" and \"add
+        -- %control\" for control tracks, but it looks nicer without the extra
+        -- noise.
+        [TrackLang.VSymbol control] -> Control Nothing <$> control_of control
         -- add control -> relative control
         [TrackLang.VSymbol call, TrackLang.VSymbol control] ->
-            Right $ Control (Just call) (control_of control)
+            Control (Just call) <$> control_of control
         -- % -> default control
         -- It might be more regular to allow anything after %, but I'm a fan
         -- of only one way to do it, so only allow it for "".
@@ -66,16 +68,19 @@ parse_control_vals vals = case vals of
         -- a valid control like any other and is simply used as a special
         -- name by the control block call hack in "Derive.Call.Block".
         [TrackLang.VControl (TrackLang.LiteralControl (Score.Control ""))] ->
-            Right $ Control Nothing Score.c_null
+            Right $ Control Nothing (Score.untyped Score.c_null)
         -- add % -> relative default control
         [TrackLang.VSymbol call, TrackLang.VControl
                 (TrackLang.LiteralControl (Score.Control ""))] ->
-            Right $ Control (Just call) Score.c_null
+            Right $ Control (Just call) (Score.untyped Score.c_null)
         _ -> Left $ "control track must be one of [\"tempo\", control, "
             ++ "op control, %, op %, *scale, *scale #name, op #, op #name], "
             ++ "got: " ++ Pretty.pretty vals
     where
-    control_of (TrackLang.Symbol control) = Score.Control control
+    control_of sym = maybe
+        (Left $ "control should look like 'name:[cdsr]': "
+            ++ Pretty.pretty sym)
+        Right (parse_control_type sym)
 
     pitch_control :: TrackLang.Val -> Maybe (Maybe Score.Control)
     pitch_control (TrackLang.VPitchControl
@@ -84,14 +89,28 @@ parse_control_vals vals = case vals of
         | otherwise = Just (Just cont)
     pitch_control _ = Nothing
 
+parse_control_type :: TrackLang.Symbol -> Maybe (Score.Typed Score.Control)
+parse_control_type (TrackLang.Symbol name) = case post of
+        ':' : c -> Score.Typed <$>
+            Score.code_to_type c <*> return (Score.Control pre)
+        "" -> Just (Score.untyped (Score.Control name))
+        _ -> Nothing
+    where (pre, post) = break (==':') name
+
+unparse_typed :: Score.Typed Score.Control -> String
+unparse_typed (Score.Typed typ (Score.Control c)) =
+    c ++ case Score.type_to_code typ of
+        "" -> ""
+        c -> ':' : c
+
 unparse_control :: ControlType -> String
 unparse_control = Seq.join " " . map Pretty.pretty . unparse_control_vals
 
 unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
         Control call control ->
-            let cont = sym (if control == Score.c_null then "%"
-                    else uncontrol control)
+            let cont = sym (if Score.typed_val control == Score.c_null
+                    then "%" else unparse_typed control)
             in case call of
                 Nothing -> [cont]
                 Just op -> [TrackLang.VSymbol op, cont]

@@ -130,7 +130,7 @@ p_val =
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
     <|> TrackLang.VRelativeAttr <$> A.try p_rel_attr
-    <|> p_numeric
+    <|> TrackLang.VNum <$> p_num
     <|> (TrackLang.VString . B.unpack) <$> p_string
     <|> TrackLang.VControl <$> p_control
     <|> TrackLang.VPitchControl <$> p_pitch_control
@@ -138,18 +138,14 @@ p_val =
     <|> (A.char '_' >> return TrackLang.VNotGiven)
     <|> TrackLang.VSymbol <$> p_symbol
 
-p_numeric :: A.Parser TrackLang.Val
-p_numeric = do
+p_num :: A.Parser Score.TypedVal
+p_num = do
     num <- Parse.p_float
-    suffix <- Parse.optional $ A.satisfy $ \c -> c == 'c' || c == 'd'
-    return $ case suffix of
-        Nothing -> TrackLang.VNum num
-        Just 'c' -> TrackLang.VTranspose (Pitch.Chromatic num)
-        Just 'd' -> TrackLang.VTranspose (Pitch.Diatonic num)
-        Just c -> error $ "shouldn't have matched char: " ++ show c
-
-p_num :: A.Parser Double
-p_num = Parse.p_float
+    suffix <- A.option "" ((:"") <$> A.letter_ascii)
+    case Score.code_to_type suffix of
+        Nothing ->
+            fail $ "p_num expected suffix in [cdsr]: " ++ show suffix
+        Just typ -> return $ Score.Typed typ num
 
 p_string :: A.Parser Text
 p_string = p_single_string <?> "string"
@@ -172,7 +168,7 @@ p_control :: A.Parser TrackLang.ValControl
 p_control = do
     A.char '%'
     control <- Score.Control . B.unpack <$> A.option "" (p_ident ",")
-    deflt <- Parse.optional (A.char ',' >> Parse.p_float)
+    deflt <- Parse.optional (A.char ',' >> p_num)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
         Just val -> TrackLang.DefaultedControl control val

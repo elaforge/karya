@@ -47,6 +47,7 @@ arg_required arg = (Maybe.isNothing (arg_default arg), arg_name arg)
 
 -- Utilities to describe function signatures.
 
+-- | Required argument with the given name.
 required :: String -> Arg a
 required name = Arg name Nothing
 
@@ -64,8 +65,15 @@ required name = Arg name Nothing
 optional :: String -> a -> Arg a
 optional name deflt = Arg name (Just deflt)
 
+-- | The argument's value is taken from the given signal, with the given
+-- default.
 control :: String -> Signal.Y -> TrackLang.ValControl
-control name deflt = TrackLang.DefaultedControl (Score.Control name) deflt
+control name deflt = typed_control name deflt Score.Untyped
+
+-- | Like 'control', but the default can have a type.
+typed_control :: String -> Signal.Y -> Score.Type -> TrackLang.ValControl
+typed_control name deflt typ =
+    TrackLang.DefaultedControl (Score.Control name) (Score.Typed typ deflt)
 
 required_control :: String  -> TrackLang.ValControl
 required_control name = TrackLang.LiteralControl (Score.Control name)

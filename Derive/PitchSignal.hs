@@ -81,7 +81,7 @@ to_nn sig = (Signal.signal nns, Set.toList errs)
             Right (Pitch.NoteNumber nn) -> (errs, (x, nn) : nns)
         where (errs, nns) = split rest
 
-type ControlMap = Map.Map Score.Control Signal.Control
+type ControlMap = Map.Map Score.Control Score.TypedControl
 
 -- | Resample the signal according to the 'sig_transposers' and apply the
 -- given controls to the signal.
@@ -101,27 +101,30 @@ apply_controls controls sig
         SignalBase.resample initial_pitch prev_controls
             (unsignal sig) transpose
     TimeVector.Sample start initial_pitch = V.unsafeHead (sig_vec sig)
-    prev_controls = Map.map (Signal.at start) controls
+    prev_controls = controls_at start controls
     transpose = resample_signals controls (sig_transposers sig)
 
 -- | 'apply_controls' specialized for a single control.
-apply_control :: Score.Control -> Signal.Control -> Signal -> Signal
+apply_control :: Score.Control -> Score.TypedControl -> Signal -> Signal
 apply_control cont sig = apply_controls (Map.singleton cont sig)
 
 -- | Sample the ControlMap on the sample points of the given set of controls.
 resample_signals :: ControlMap -> Set.Set Score.Control
     -> [(RealTime, Controls)]
-resample_signals controls transposers = zip xs (map controls_at xs)
+resample_signals controls transposers =
+    zip xs (map (flip controls_at controls) xs)
     where
     xs = Seq.drop_dups id $ Seq.merge_asc_lists id (map xs_of sigs)
     sigs = Maybe.mapMaybe (\c -> Map.lookup c controls)
         (Set.toList transposers)
-    xs_of = map fst . Signal.unsignal
-    controls_at t = Map.map (Signal.at t) controls
+    xs_of = map fst . Signal.unsignal . Score.typed_val
     -- If the tsigs are dense, then it's wasteful to keep looking up all
     -- the values instead of stepping along in order, but if the tsigs are
     -- sparse then it's probably more efficient to sample.  I expect in many
     -- cases there will be 0 or 1 transposition values.
+
+controls_at :: RealTime -> ControlMap -> Controls
+controls_at t = Map.map (fmap (Signal.at t))
 
 truncate :: RealTime -> Signal -> Signal
 truncate x = fmap0 (TimeVector.truncate x)
@@ -149,7 +152,7 @@ last sig
 -- type PitchCall =
 --      Map.Map Control Double -> Either PitchError Pitch.NoteNumber
 
-type Controls = Map.Map Score.Control Double
+type Controls = Map.Map Score.Control Score.TypedVal
 
 pitch :: PitchCall -> Pitch
 pitch = Pitch
@@ -157,11 +160,12 @@ pitch = Pitch
 -- | Apply controls to a pitch.
 apply :: Controls -> Pitch -> Pitch
 apply controls = fmap0 $ \pitch controls2 ->
-    pitch (Map.unionWith (+) controls2 controls)
+    pitch $ Map.unionWith (Score.merge_typed (+))  controls2 controls
 
 add_control :: Score.Control -> Double -> Pitch -> Pitch
 add_control cont val = fmap0 $ \pitch controls ->
-    pitch (Map.insertWith' (+) cont val controls)
+    pitch $ Map.insertWith' (Score.merge_typed (+))
+        cont (Score.untyped val) controls
 
 eval_pitch :: Pitch -> PitchCall
 eval_pitch (Pitch p) = p

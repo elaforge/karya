@@ -1,6 +1,6 @@
 User level tracklang documentation
 
-    Special calls
+    Special Calls
 
 " - Repeat the text of the last event.
 
@@ -8,7 +8,30 @@ User level tracklang documentation
 the last event.
 
 
-    Built-in controls
+    Typed Numbers, Typed Controls
+
+Numeric values can have a type suffix.  For instance, 3d means that the number
+is intended to be interpreted as a transposition of 3 diatonic steps.
+Similarly, control names can have a type suffix, such as delay:r.  This means
+that the values of the control are intended to be interpreted as 3 RealTime
+seconds.
+
+Of course, whether or not they are so interpreted depends on the call that
+winds up receiving them.  Calls that expect an amount of transposition will
+accept 'd' and 'c', and untyped numbers will be interpreted as 'c'
+(chromatic).
+
+Many numbers and controls are untyped and will ignore any type on a value or
+control.  The type mechanism is intended only as a way of overloading certain
+calls.  For example, it would be awkward to include all combinations of trills
+on diatonic or chromatic neighbors, and in score time or real time.  It's
+easier to have one control that can be passed a diatonic or chromatic
+neighbor.
+
+All type codes are enumerated in Derive.BaseTypes.Type.
+
+
+    Built-in Controls
 
 p - Maps to velocity for most instruments, but maps to breath for instruments
 with the Pressure flag.
@@ -16,3 +39,4 @@ with the Pressure flag.
 start-rnd, dur-rnd - Randomize note starts and durations.  It will only ever
 make notes shorter to avoid causing overlaps, which thanks to MIDI can cut-off
 notes prematurely.
+

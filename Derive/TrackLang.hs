@@ -39,6 +39,7 @@ import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes (Environ, ValName)
@@ -47,7 +48,8 @@ import Derive.BaseTypes
         ControlRef(..), PitchControl, ValControl, show_num)
 
 import qualified Perform.Pitch as Pitch
-
+import qualified Perform.RealTime as RealTime
+import Types
 
 
 -- | Symbols used in function call position.
@@ -69,9 +71,19 @@ is_null_instrument _ = False
 c_equal :: CallId
 c_equal = Symbol "="
 
+-- | Make an untyped VNum.
+num :: Double -> Val
+num = VNum . Score.untyped
+
+-- * time
+
+-- | Some calls can operate in either RealTime or ScoreTime.
+data RealOrScore = Real RealTime | Score ScoreTime
+    deriving (Eq, Show)
+
 -- * types
 
-data Type = TNum | TTranspose | TString | TRelativeAttr | TAttributes
+data Type = TNum | TString | TRelativeAttr | TAttributes
     | TControl | TPitchControl | TScaleId | TPitch | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TVal
     deriving (Eq, Show)
@@ -87,7 +99,6 @@ type_of val = case val of
     -- promising to not evaluate the value seems even more hacky than just
     -- 'to_type' making that promise.
     VNum {} -> TNum
-    VTranspose {} -> TTranspose
     VString {} -> TString
     VRelativeAttr {} -> TRelativeAttr
     VAttributes {} -> TAttributes
@@ -99,7 +110,7 @@ type_of val = case val of
     VSymbol {} -> TSymbol
     VNotGiven -> TNotGiven
 
-class Show a => Typecheck a where
+class (Show a) => Typecheck a where
     from_val :: Val -> Maybe a
     to_val :: a -> Val
     -- | This shouldn't evaluate its argument, so you can use
@@ -124,19 +135,55 @@ instance (Typecheck a) => Typecheck (Maybe a) where
     to_type val = TMaybe (to_type (maybe undefined id val))
 
 instance Typecheck Double where
-    from_val (VNum a) = Just a
+    from_val (VNum (Score.Typed _ a)) = Just a
     from_val _ = Nothing
-    to_val = VNum
+    to_val = VNum . Score.untyped
     to_type _ = TNum
 
 -- | VNums can also be coerced into chromatic transposition, so you can write
 -- a plain number if you don't care about diatonic.
 instance Typecheck Pitch.Transpose where
-    from_val (VTranspose a) = Just a
-    from_val (VNum a) = Just (Pitch.Chromatic a)
+    from_val (VNum (Score.Typed typ val)) = case typ of
+        Score.Untyped -> Just (Pitch.Chromatic val)
+        Score.Chromatic -> Just (Pitch.Chromatic val)
+        Score.Diatonic -> Just (Pitch.Diatonic val)
+        _ -> Nothing
     from_val _ = Nothing
-    to_val = VTranspose
-    to_type _ = TTranspose
+    to_val (Pitch.Chromatic a) = VNum $ Score.Typed Score.Chromatic a
+    to_val (Pitch.Diatonic a) = VNum $ Score.Typed Score.Diatonic a
+    to_type _ = TNum
+
+instance Typecheck ScoreTime where
+    from_val (VNum (Score.Typed typ val)) = case typ of
+        Score.Untyped -> Just (ScoreTime.double val)
+        Score.Score -> Just (ScoreTime.double val)
+        _ -> Nothing
+    from_val _ = Nothing
+    to_val a = VNum $ Score.Typed Score.Score (ScoreTime.to_double a)
+    to_type _ = TNum
+
+instance Typecheck RealTime where
+    from_val (VNum (Score.Typed typ val)) = case typ of
+        Score.Untyped -> Just (RealTime.seconds val)
+        Score.Real -> Just (RealTime.seconds val)
+        _ -> Nothing
+    from_val _ = Nothing
+    to_val a = VNum $ Score.Typed Score.Real (RealTime.to_seconds a)
+    to_type _ = TNum
+
+instance Typecheck RealOrScore where
+    from_val (VNum (Score.Typed typ val)) = case typ of
+        -- Untyped is abiguous, and there doesn't seem to be a natural
+        -- default.
+        Score.Score -> Just $ Score (ScoreTime.double val)
+        Score.Real -> Just $ Real (RealTime.seconds val)
+        _ -> Nothing
+    from_val _ = Nothing
+    to_val (Score a) =
+        VNum $ Score.Typed Score.Score (ScoreTime.to_double a)
+    to_val (Real a) =
+        VNum $ Score.Typed Score.Real (RealTime.to_seconds a)
+    to_type _ = TNum
 
 instance Typecheck String where
     from_val (VString s) = Just s
@@ -158,7 +205,7 @@ instance Typecheck Score.Attributes where
 
 instance Typecheck ValControl where
     from_val (VControl a) = Just a
-    from_val (VNum a) = Just (ConstantControl a)
+    from_val (VNum a) = Just $ ConstantControl a
     from_val _ = Nothing
     to_val = VControl
     to_type _ = TControl

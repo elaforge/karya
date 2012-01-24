@@ -129,7 +129,6 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-
 -- * Deriver internals
 
 type Logs = [Log.Msg]
@@ -394,7 +393,8 @@ initial_dynamic scope environ = Dynamic
 -- | Initial control environment.
 initial_controls :: Score.ControlMap
 initial_controls = Map.fromList
-    [(Score.c_velocity, Signal.constant default_velocity)]
+    [ (Score.c_velocity, Score.untyped (Signal.constant default_velocity))
+    ]
 
 -- | See 'Perform.Midi.Perform.default_velocity' for 0.79.
 default_velocity :: Signal.Y

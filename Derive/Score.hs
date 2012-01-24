@@ -17,8 +17,9 @@ import qualified Data.Set as Set
 import Util.Control
 import qualified Ui.ScoreTime as ScoreTime
 import Derive.BaseTypes
-       (Instrument(..), Control(..), Attributes(..), Attribute, attrs_set,
-        attrs_list, no_attrs)
+       (Instrument(..), Control(..), Type(..), Typed(..), untyped,
+        merge_typed, type_to_code, code_to_type, TypedControl, TypedVal,
+        Attributes(..), Attribute, attrs_set, attrs_list, no_attrs)
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
 
@@ -64,7 +65,7 @@ instance DeepSeq.NFData Event where
 instance DeepSeq.NFData B.ByteString where
     rnf b = b `seq` () -- bytestrings are already strict
 
-type ControlMap = Map.Map Control Signal.Control
+type ControlMap = Map.Map Control TypedControl
 type PitchMap = Map.Map Control PitchSignal.Signal
 
 event_string :: Event -> String
@@ -96,25 +97,30 @@ duration f event = event { event_duration = f (event_duration event) }
 
 -- *** control
 
+control_at :: RealTime -> TypedControl -> TypedVal
+control_at t = fmap (Signal.at t)
+
 -- | Get control value at the given time.
-control :: ControlMap -> Control -> RealTime -> Signal.Y
-control controls c pos = maybe 0 (Signal.at pos) (Map.lookup c controls)
+control :: ControlMap -> Control -> RealTime -> TypedVal
+control controls c t =
+    maybe (untyped 0) (control_at t) (Map.lookup c controls)
 
 move_controls :: RealTime -> Event -> Event
 move_controls shift event = event
-    { event_controls = Map.map (Signal.shift shift) (event_controls event)
+    { event_controls =
+        Map.map (fmap (Signal.shift shift)) (event_controls event)
     , event_pitch = PitchSignal.shift shift (event_pitch event)
     }
 
-event_control_at :: RealTime -> Control -> Maybe Signal.Y -> Event
-    -> Maybe Signal.Y
-event_control_at pos cont deflt event =
-    maybe deflt (Just . Signal.at pos) (Map.lookup cont (event_controls event))
+event_control_at :: RealTime -> Control -> Maybe TypedVal -> Event
+    -> Maybe TypedVal
+event_control_at pos cont deflt event = maybe deflt (Just . control_at pos) $
+    Map.lookup cont (event_controls event)
 
 initial_velocity :: Event -> Signal.Y
-initial_velocity event = maybe 0 id $
+initial_velocity event = maybe 0 typed_val $
      -- Derive.initial_controls should mean Nothing never happens.
-    event_control_at (event_start event) c_velocity (Just 0) event
+    event_control_at (event_start event) c_velocity (Just (untyped 0)) event
 
 modify_velocity :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_velocity = modify_event_signal c_velocity
@@ -126,15 +132,15 @@ modify_event_control :: Control -> (Signal.Control -> Signal.Control)
     -> Event -> Event
 modify_event_control control f event = case Map.lookup control controls of
         Nothing -> event
-        Just sig ->
-            event { event_controls = Map.insert control (f sig) controls }
+        Just typed -> event
+            { event_controls = Map.insert control (fmap f typed) controls }
     where controls = event_controls event
 
 event_controls_at :: RealTime -> Event -> PitchSignal.Controls
 event_controls_at t = controls_at t .  event_controls
 
 controls_at :: RealTime -> ControlMap -> PitchSignal.Controls
-controls_at t = Map.map (Signal.at t)
+controls_at = Map.map . control_at
 
 -- *** pitch
 

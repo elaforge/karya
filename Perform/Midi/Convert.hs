@@ -132,7 +132,8 @@ get_inst inst Nothing = do
                 ++ " (further warnings suppressed)") Nothing
 
 convert_controls :: Bool -> Score.ControlMap -> Perform.ControlMap
-convert_controls pressure = resolve_p .  Map.mapKeys cc
+convert_controls pressure =
+    resolve_p .  Map.mapKeys cc . Map.map Score.typed_val
     where
     resolve_p cmap = case Map.lookup (cc Score.c_pressure) cmap of
         Nothing -> cmap

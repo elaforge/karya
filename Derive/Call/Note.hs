@@ -90,7 +90,8 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
     st <- Derive.gets Derive.state_dynamic
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
-    let sustain = maybe 1 (RealTime.seconds . Signal.at start)
+    let sustain = maybe 1
+            (RealTime.seconds . Signal.at start . Score.typed_val)
             (Map.lookup Score.c_sustain controls)
     (start, end) <- randomized controls start ((end - start) * sustain + start)
     return $! LEvent.one $! LEvent.Event $!
@@ -109,8 +110,9 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
 randomized :: Score.ControlMap -> RealTime -> RealTime
     -> Derive.Deriver (RealTime, RealTime)
 randomized controls start end = do
-    let start_r = Score.control controls Score.c_start_rnd start
-        dur_r = Score.control controls Score.c_dur_rnd start
+    let start_r = Score.typed_val $
+            Score.control controls Score.c_start_rnd start
+        dur_r = Score.typed_val $ Score.control controls Score.c_dur_rnd start
     if start_r == 0 && dur_r == 0 then return (start, end) else do
     r1 : r2 : _ <- Util.randoms
     return (start + RealTime.seconds (Num.restrict 0 start_r r1),
@@ -136,7 +138,7 @@ trimmed_pitch start end =
 trimmed_controls :: RealTime -> RealTime -> Score.ControlMap
     -> Score.ControlMap
 trimmed_controls start end =
-    Map.map (Signal.truncate end . Signal.drop_before start)
+    Map.map (fmap (Signal.truncate end . Signal.drop_before start))
 
 -- ** transform
 

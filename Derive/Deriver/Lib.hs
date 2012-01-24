@@ -216,24 +216,20 @@ with_instrument inst deriver = do
 
 -- | Return an entire signal.  Remember, signals are in RealTime, so if you
 -- want to index them in ScoreTime you will have to call 'real'.
--- 'control_at_score' does that for you.
-get_control :: Score.Control -> Deriver (Maybe Signal.Control)
+get_control :: Score.Control -> Deriver (Maybe Score.TypedControl)
 get_control cont = Map.lookup cont <$> Internal.get_dynamic state_controls
 
-control_at_score :: Score.Control -> ScoreTime -> Deriver (Maybe Signal.Y)
-control_at_score cont pos = control_at cont =<< real pos
-
-control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
+control_at :: Score.Control -> RealTime -> Deriver (Maybe Score.TypedVal)
 control_at cont pos = do
     controls <- Internal.get_dynamic state_controls
-    return $ fmap (Signal.at pos) (Map.lookup cont controls)
+    return $ fmap (Score.control_at pos) (Map.lookup cont controls)
 
 controls_at :: RealTime -> Deriver PitchSignal.Controls
 controls_at pos = do
     controls <- Internal.get_dynamic state_controls
-    return $ Map.map (Signal.at pos) controls
+    return $ Map.map (Score.control_at pos) controls
 
-with_control :: Score.Control -> Signal.Control -> Deriver a -> Deriver a
+with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
 with_control cont signal =
     Internal.local (Map.lookup cont . state_controls) insert alter
     where
@@ -244,21 +240,29 @@ with_control cont signal =
         Map.insert cont signal (state_controls st) }
 
 with_control_operator :: Score.Control -> TrackLang.CallId
-    -> Signal.Control -> Deriver a -> Deriver a
+    -> Score.TypedControl -> Deriver a -> Deriver a
 with_control_operator cont c_op signal deriver = do
     op <- lookup_control_op c_op
     with_relative_control cont op signal deriver
 
-with_relative_control :: Score.Control -> ControlOp -> Signal.Control
+-- | Modify an existing control.
+--
+-- If both signals are typed, the existing type wins over the relative
+-- signal's type.  If one is untyped, the typed one wins.
+with_relative_control :: Score.Control -> ControlOp -> Score.TypedControl
     -> Deriver a -> Deriver a
 with_relative_control cont (op, empty) signal deriver
-    | signal == mempty = deriver
+    | Score.typed_val signal == mempty = deriver
     | otherwise = do
         controls <- Internal.get_dynamic state_controls
-        let old = Map.findWithDefault (Signal.constant empty) cont controls
-        with_control cont (op old signal) deriver
+        let old = Map.findWithDefault empty_sig cont controls
+        with_control cont (apply old signal) deriver
+    where
+    apply old new = Score.Typed (Score.type_of old <> Score.type_of new)
+        (op (Score.typed_val old) (Score.typed_val new))
+    empty_sig = Score.Typed (Score.type_of signal) (Signal.constant empty)
 
-with_added_control :: Score.Control -> Signal.Control -> Deriver a
+with_added_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
 with_added_control cont = with_relative_control cont op_add
 
@@ -416,7 +420,7 @@ shift_control shift deriver = do
             , state_pitch = nudge_pitch real (state_pitch st) })
         deriver
     where
-    nudge delay = Map.map (Signal.shift delay)
+    nudge delay = Map.map (fmap (Signal.shift delay))
     nudge_pitch = PitchSignal.shift
 
 

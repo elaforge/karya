@@ -95,7 +95,9 @@ derive_control_tree block_end tree = do
         ([event], logs) -> case lookup_control event of
             Nothing -> Derive.throw "control call didn't emit Score.c_null"
             Just signal -> return $
-                LEvent.Event signal : map LEvent.Log logs
+                -- The calling control itself will be providing the type since
+                -- types are at the level of the signal as a whole.
+                LEvent.Event (Score.typed_val signal) : map LEvent.Log logs
         (events, logs) -> do
             msg <- complain events
             return $ LEvent.Log msg : map LEvent.Log logs

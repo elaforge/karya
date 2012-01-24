@@ -26,7 +26,8 @@ test_compile = do
     strings_like logs ["unknown ScaleId \"c2\""]
 
     let mkcont vals = Map.union Derive.initial_controls
-            (Map.singleton (Score.Control "c1") (mksig vals))
+            (Map.singleton (Score.Control "c1")
+            (Score.untyped (Signal.signal vals)))
         no_pitch = []
 
     let (events, logs) = derive ("*twelve", [(0, 0, ".1")])
@@ -46,8 +47,6 @@ test_compile = do
     -- The pitch signal gets truncated so it doesn't look like the note's decay
     -- wants to change pitch.
     equal (pitches events) [psig 1, psig 2, psig 6]
-    where
-    mksig = Signal.signal
 
 test_extract_orphans = do
     let extract = fst . DeriveTest.extract Score.event_start

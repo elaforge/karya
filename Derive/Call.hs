@@ -273,7 +273,7 @@ repeat_call_of prev cur
 apply_toplevel :: (Derive.Derived d) => Derive.State -> Info d
     -> TrackLang.Expr
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-apply_toplevel state info expr = case Seq.break_last expr of
+apply_toplevel state info expr = case Seq.viewr expr of
         (transform_calls, Just generator_call) -> run $
             apply_transformer info transform_calls $
                 apply_generator info generator_call

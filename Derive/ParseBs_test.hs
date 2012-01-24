@@ -19,6 +19,7 @@ import qualified Perform.Pitch as Pitch
 
 test_parse_expr = do
     let f = Parse.parse_expr
+        vnum = VNum . Score.untyped
     equal (f "a | b") $ Right
         [Call (Symbol "a") [], Call (Symbol "b") []]
     equal (f "a | b | c") $ Right $
@@ -26,17 +27,17 @@ test_parse_expr = do
 
     -- Any word in call position is a symbol.
     equal (f "4") $ Right [Call (Symbol "4") []]
-    equal (f "4 4") $ Right [Call (Symbol "4") [Literal (VNum 4)]]
+    equal (f "4 4") $ Right [Call (Symbol "4") [Literal (vnum 4)]]
     -- So the only way to have a null call is a null expression.
     equal (f "") $ Right [Call (Symbol "") []]
 
     equal (f "a") $ Right [Call (Symbol "a") []]
-    equal (f "a 42") $ Right [Call (Symbol "a") [Literal (VNum 42)]]
+    equal (f "a 42") $ Right [Call (Symbol "a") [Literal (vnum 42)]]
     equal (f "a | ") $ Right [Call (Symbol "a") [], Call (Symbol "") []]
 
     equal (f "a | b = 4 | . >inst %sig") $ Right
         [ Call (Symbol "a") []
-        , Call (Symbol "=") (map Literal [symbol "b", VNum 4])
+        , Call (Symbol "=") (map Literal [symbol "b", vnum 4])
         , Call (Symbol ".") (map Literal
             [VInstrument (Score.Instrument "inst"),
                 VControl (LiteralControl (Score.Control "sig"))])
@@ -66,11 +67,12 @@ test_parse_val = do
             , ("=-", mkattr (Clear, ""))
             , ("+aB", Nothing)
 
-            , ("0", Just (VNum 0))
+            , ("0", Just (VNum (Score.untyped 0)))
             , ("0.", Nothing)
-            , (".2", Just (VNum 0.2))
-            , ("1c", Just (VTranspose (Pitch.Chromatic 1)))
-            , ("-.5d", Just (VTranspose (Pitch.Diatonic (-0.5))))
+            , (".2", Just (VNum (Score.untyped 0.2)))
+            , ("1c", Just (VNum (Score.Typed Score.Chromatic 1)))
+            , ("-.5d", Just (VNum (Score.Typed Score.Diatonic (-0.5))))
+            , ("1q", Nothing)
 
             , ("'hi'", Just (VString "hi"))
             , ("'quinn''s hat'", Just (VString "quinn's hat"))
@@ -79,7 +81,11 @@ test_parse_val = do
             , ("%", Just $ VControl $ LiteralControl (Score.Control ""))
             , ("%sig", Just $ VControl $ LiteralControl (Score.Control "sig"))
             , ("%sig,0", Just $ VControl $
-                DefaultedControl (Score.Control "sig") 0)
+                DefaultedControl (Score.Control "sig") (Score.untyped 0))
+            , ("%sig,4r", Just $ VControl $
+                DefaultedControl (Score.Control "sig")
+                (Score.Typed Score.Real 4))
+            , ("%sig,4q", Nothing)
             , ("%sig,", Nothing)
 
             , ("#", Just $ VPitchControl $
@@ -114,7 +120,7 @@ test_p_equal = do
         sym = VSymbol . Symbol
     let f = Util.Parse.parse_all Parse.p_equal
     equal (f "a = b") (eq (sym "a") (Literal (VSymbol (Symbol "b"))))
-    equal (f "a = 10") (eq (sym "a") (Literal (VNum 10)))
+    equal (f "a = 10") (eq (sym "a") (Literal (VNum (Score.untyped 10))))
     equal (f "a = (b c)") (eq (sym "a") (val_call "b" [Literal (symbol "c")]))
     left_like (f "a = ()") "parse error on byte 6"
     left_like (f "(a) = b") "parse error on byte 1"

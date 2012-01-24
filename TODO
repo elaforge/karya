@@ -44,7 +44,14 @@ UNSORTED
         That shouldn't be too hard, just append :c :d :r :t etc. to control
         name, then ControlMap is
         'Map Score.Control (Signal.Control, SignalType)'
-      - test for transposing diatonic transpositions
+
+        * Derive.TrackInfo needs to parse and return (Control, Type)
+        * Derive.State state_controls changes
+      * test to make sure with_relative_signal does the right thing wrt types
+        Derive.Control_test
+      - test trill to make sure it respects chromatic and diatonic neighbors
+      - test c_neighbor
+      * make sure control calls work with types
 
     - port to control calls: neighbor, trill, ...
     - get rid of Perform.SignalBase and do something about the code

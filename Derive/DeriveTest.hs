@@ -258,7 +258,7 @@ default_scope = Call.All.scope
 default_environ :: TrackLang.Environ
 default_environ = Map.fromList
     -- tests are easier to write and read with integral interpolation
-    [ (TrackLang.v_srate, TrackLang.VNum 1)
+    [ (TrackLang.v_srate, TrackLang.num 1)
     , (TrackLang.v_scale, TrackLang.VScaleId Twelve.scale_id)
     , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
     ]
@@ -337,7 +337,7 @@ e_everything e =
     where uninst (Score.Instrument inst) = inst
 
 e_control :: String -> Score.Event -> Maybe [(RealTime, Signal.Y)]
-e_control cont event = fmap Signal.unsignal $
+e_control cont event = fmap (Signal.unsignal . Score.typed_val) $
     Map.lookup (Score.Control cont) (Score.event_controls event)
 
 e_pitch :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
@@ -514,7 +514,8 @@ type EventSpec = (RealTime, RealTime, String,
 
 mkevent :: EventSpec -> Score.Event
 mkevent (start, dur, text, controls, inst) =
-    Score.Event start dur (B.pack text) (Map.fromList controls)
+    Score.Event start dur (B.pack text)
+        (Map.map Score.untyped (Map.fromList controls))
         (pitch_signal [(start, text)]) fake_stack (Just inst) Score.no_attrs
 
 pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal
@@ -524,9 +525,11 @@ pitch_signal = PitchSignal.signal scale . map (second mkpitch)
 
 mkpitch :: String -> PitchSignal.Pitch
 mkpitch p = PitchSignal.pitch $ \controls ->
-    let chrom = Map.findWithDefault 0 Score.c_chromatic controls
+    let get c = maybe 0 Score.typed_val $ Map.lookup c controls
+        chrom = get Score.c_chromatic
+        dia = get Score.c_diatonic
     in maybe (Left (PitchSignal.PitchError $ "no pitch " ++ show p))
-        (Right . Pitch.NoteNumber . (+chrom)) (lookup p pitch_map)
+        (Right . Pitch.NoteNumber . (+ (chrom + dia*2))) (lookup p pitch_map)
     where
     pitch_map = zip (map (:"") ['a'..'z']) [60..]
         ++ zip (map (:"2") ['a'..'z']) [60.5..]
@@ -541,6 +544,7 @@ fake_stack = Stack.from_outermost
     , Stack.Region 42 43
     ]
 
+-- TODO integrate into mkevent?
 mkcontrols :: [(String, [(RealTime, Signal.Y)])] -> Score.ControlMap
 mkcontrols csigs = Map.fromList
-    [(Score.Control c, Signal.signal sig) | (c, sig) <- csigs]
+    [(Score.Control c, Score.untyped (Signal.signal sig)) | (c, sig) <- csigs]

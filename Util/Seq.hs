@@ -374,10 +374,11 @@ break_tails f lst@(x:xs)
     | f lst = ([], lst)
     | otherwise = let (pre, post) = break_tails f xs in (x:pre, post)
 
-break_last :: [a] -> ([a], Maybe a)
-break_last [] = ([], Nothing)
-break_last [x] = ([], Just x)
-break_last (x:xs) = let (first, last) = break_last xs in (x:first, last)
+-- | List initial and final element, if any.
+viewr :: [a] -> ([a], Maybe a)
+viewr [] = ([], Nothing)
+viewr [x] = ([], Just x)
+viewr (x:xs) = let (first, last) = viewr xs in (x:first, last)
 
 -- | Split @xs@ before places where @f@ matches.
 --

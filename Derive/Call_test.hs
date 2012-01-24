@@ -21,27 +21,6 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified App.MidiInst as MidiInst
 
 
-test_c_equal = do
-    -- Test the '=' call, but also test the special parsing Derive.Note deriver
-    -- eval in general.
-    let run title evts = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_tempo [(title, evts)]
-        extract e = (s, inst, attrs)
-            where (s, _, _, inst, attrs) = DeriveTest.e_everything e
-
-    -- log stack should be at the track level
-    let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
-    equal evts []
-    strings_like logs ["expected Instrument"]
-
-    -- only the event with the error is omitted
-    let (evts, logs) = run ">" [(0, 1, "inst = inst |"), (1, 1, "")]
-    equal evts [(1, Nothing, [])]
-    strings_like logs ["expected Instrument"]
-
-    equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >i3 |")])
-        ([(0, Just "i", []), (1, Just "i2", []), (2, Just "i3", [])], [])
-
 test_assign_controls = do
     let run inst_title cont_title val = extract $ DeriveTest.derive_tracks
             [ (cont_title, [(0, 0, val)])
@@ -148,7 +127,7 @@ test_val_call = do
     where
     add_one :: Derive.ValCall
     add_one = Derive.ValCall "add" $ \args -> CallSig.call1 args
-        (CallSig.required "v") $ \val -> return (TrackLang.VNum (val + 1))
+        (CallSig.required "v") $ \val -> return (TrackLang.num (val + 1))
 
 test_inst_call = do
     let extract = DeriveTest.extract (Score.attrs_list . Score.event_attributes)

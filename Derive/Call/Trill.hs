@@ -29,7 +29,7 @@ module Derive.Call.Trill where
 import Util.Control
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
-import Derive.CallSig (optional, required, control)
+import Derive.CallSig (optional, required, typed_control, control)
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -57,11 +57,11 @@ c_absolute_trill = Derive.transformer "absolute_trill" $
     \args deriver -> CallSig.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
-        neighbor_sig <- Util.to_signal neighbor
-        speed_sig <- Util.to_signal speed
+        (neighbor_sig, control) <- Util.to_transpose_signal neighbor
+        speed_sig <- Score.typed_val <$> Util.to_signal speed
         transpose <- absolute_trill (Derive.passed_range args) neighbor_sig
             speed_sig
-        Derive.with_added_control Score.c_chromatic transpose deriver
+        Derive.with_added_control control (Score.untyped transpose) deriver
 
 absolute_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
     -> Derive.Deriver Signal.Control
@@ -82,11 +82,11 @@ c_score_trill = Derive.transformer "score_trill" $
     \args deriver -> CallSig.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
-        neighbor_sig <- Util.to_signal neighbor
-        speed_sig <- Util.to_signal speed
+        (neighbor_sig, control) <- Util.to_transpose_signal neighbor
+        speed_sig <- Score.typed_val <$> Util.to_signal speed
         transpose <- score_trill
             (Derive.passed_range args) neighbor_sig speed_sig
-        Derive.with_added_control Score.c_chromatic transpose deriver
+        Derive.with_added_control control (Score.untyped transpose) deriver
 
 score_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
     -> Derive.Deriver Signal.Control
@@ -125,15 +125,15 @@ pitch_calls = Derive.make_calls
 c_pitch_absolute_trill :: Derive.PitchCall
 c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args ->
     CallSig.call3 args (required "note",
-        optional "neighbor" (control "trill-neighbor" 1),
+        optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic),
         optional "speed" (control "trill-speed" 14)) $
     \note neighbor speed -> do
-        speed_sig <- Util.to_signal speed
-        neighbor_sig <- Util.to_signal neighbor
+        speed_sig <- Score.typed_val <$> Util.to_signal speed
+        (neighbor_sig, control) <- Util.to_transpose_signal neighbor
         start <- Derive.passed_real args
         end <- Derive.real (Derive.passed_event_end args)
         let transpose = make_trill start end speed_sig neighbor_sig
-        PitchSignal.apply_control Score.c_chromatic transpose <$>
+        PitchSignal.apply_control control (Score.untyped transpose) <$>
             Util.pitch_signal [(0, note)]
 
 

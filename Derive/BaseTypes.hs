@@ -26,19 +26,21 @@ import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Util.Functor0 as Functor0
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 
 -- * Derive.Score
 
 -- | An Instrument is identified by a plain string.  This will be looked up in
--- the instrument db to get the backend specific Instrument type as well as the
--- backend itself, but things at the Derive layer and above don't care about
--- all that.
+-- the instrument db to get the backend specific Instrument type as well as
+-- the backend itself, but things at the Derive layer and above don't care
+-- about all that.
 newtype Instrument = Instrument String
     deriving (DeepSeq.NFData, Eq, Ord, Show, Read)
 
@@ -48,8 +50,59 @@ instance Pretty.Pretty Instrument where
 newtype Control = Control String
     deriving (Eq, Ord, Show, DeepSeq.NFData)
 
+-- | Tag for the type of the values in a control signal.
+data Type = Untyped | Chromatic | Diatonic | Score | Real
+    deriving (Eq, Ord, Show)
+
+instance Pretty.Pretty Type
+
+type_to_code :: Type -> String
+type_to_code typ = case typ of
+    Untyped -> ""
+    Chromatic -> "c"
+    Diatonic -> "d"
+    Score -> "s"
+    Real -> "r"
+
+code_to_type :: String -> Maybe Type
+code_to_type s = case s of
+    "c" -> Just Chromatic
+    "d" -> Just Diatonic
+    "s" -> Just Score
+    "r" -> Just Real
+    "" -> Just Untyped
+    _ -> Nothing
+
+instance Monoid.Monoid Type where
+    mempty = Untyped
+    mappend Untyped typed = typed
+    mappend typed _ = typed
+
 instance Pretty.Pretty Control where
     pretty (Control c) = '%' : c
+
+data Typed a = Typed {
+    type_of :: !Type
+    , typed_val :: !a
+    } deriving (Eq, Show)
+
+instance (DeepSeq.NFData a) => DeepSeq.NFData (Typed a) where
+    rnf (Typed typ val) = typ `seq` DeepSeq.rnf val
+
+instance Functor Typed where
+    fmap f (Typed typ val) = Typed typ (f val)
+
+merge_typed :: (a -> a -> a) -> Typed a -> Typed a -> Typed a
+merge_typed f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
+
+untyped :: a -> Typed a
+untyped = Typed Untyped
+
+type TypedControl = Typed Signal.Control
+type TypedVal = Typed Signal.Y
+
+instance Pretty.Pretty TypedVal where
+    pretty (Typed typ val) = show_num val ++ type_to_code typ
 
 -- ** Attributes
 
@@ -77,7 +130,7 @@ no_attrs = Attributes Set.empty
 -- * Derive.PitchSignal
 
 newtype Pitch = Pitch PitchCall
-type PitchCall = Map.Map Control Double -> Either PitchError Pitch.NoteNumber
+type PitchCall = Map.Map Control TypedVal -> Either PitchError Pitch.NoteNumber
 
 instance Show Pitch where
     show (Pitch p) = "((Pitch " ++ nn ++ "))"
@@ -108,14 +161,10 @@ type ValName = Symbol
 -- * TrackLang Val
 
 data Val =
-    -- | Literal: @42.23@, @-.4@
-    VNum Double
-
-    -- | A number that is either an amount of diatonic or chromatic
-    -- transposition.
+    -- | A number with an optional type suffix.
     --
-    -- Literal: @1c@, @-2.4d@
-    | VTranspose Pitch.Transpose
+    -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@
+    VNum TypedVal
 
     -- | Escape a quote by doubling it.
     --
@@ -182,8 +231,7 @@ data Val =
 -- The reason why is documented in 'Derive.Call.Note.inverting'.
 instance Pretty.Pretty Val where
     pretty val = case val of
-        VNum d -> show_num d
-        VTranspose d -> Pretty.pretty d
+        VNum d -> Pretty.pretty d
         VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
         VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
             Add -> '+' : attr
@@ -220,13 +268,14 @@ data ControlRef val =
     deriving (Eq, Show)
 
 type PitchControl = ControlRef Pitch.Note
-type ValControl = ControlRef Double
+type ValControl = ControlRef TypedVal
 
 instance Pretty.Pretty PitchControl where
     pretty = show_control '#' Pitch.note_text
 
 instance Pretty.Pretty ValControl where
-    pretty = show_control '%' show_num
+    pretty = show_control '%'
+        (\(Typed typ num) -> show_num num ++ type_to_code typ)
 
 show_control :: Char -> (val -> String) -> ControlRef val -> String
 show_control prefix show_val control = case control of

@@ -16,7 +16,8 @@ import Types
 test_apply_controls = do
     let f controls sig = unsignal $ PitchSignal.apply_controls controls
             (mksignal sig)
-        csig = Signal.signal [(x, Signal.x_to_y x) | x <- Seq.range 1 3 1]
+        csig = Score.untyped $
+            Signal.signal [(x, Signal.x_to_y x) | x <- Seq.range 1 3 1]
         err = Left "bad transpose"
     -- No effect.
     equal (f (Map.singleton c_normal csig) [(0, 1)]) [(0, Right 1)]
@@ -29,7 +30,8 @@ mksignal = PitchSignal.signal (Pitch.ScaleId "test", Set.fromList [c_trans])
 
 mkpitch :: Pitch.NoteNumber -> PitchSignal.Pitch
 mkpitch nn = PitchSignal.pitch $ \controls -> do
-    let t = Pitch.NoteNumber $ Map.findWithDefault 0 c_trans controls
+    let t = Pitch.NoteNumber $ maybe 0 Score.typed_val $
+            Map.lookup c_trans controls
     if nn + t >= 4 then Left (PitchSignal.PitchError "bad transpose")
         else Right (nn + t)
 

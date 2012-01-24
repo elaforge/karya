@@ -390,7 +390,7 @@ test_real_to_score = do
 
 test_shift_control = do
     let controls = Map.fromList [(Score.Control "cont",
-            Signal.signal [(0, 1), (2, 2), (4, 0)])]
+            Score.untyped $ Signal.signal [(0, 1), (2, 2), (4, 0)])]
         psig = DeriveTest.pitch_signal [(0, "a")]
     let set_controls = DeriveTest.modify_dynamic $ \st -> st
             { Derive.state_controls = controls
@@ -404,8 +404,9 @@ test_shift_control = do
                 psig <- Internal.get_dynamic Derive.state_pitch
                 return (conts, psig)
             extract (conts, pitch) =
-                (Signal.unsignal (snd (head (Map.toList conts))),
-                    DeriveTest.signal_to_nn pitch)
+                (unsignal conts, DeriveTest.signal_to_nn pitch)
+            unsignal =
+                Signal.unsignal . Score.typed_val . snd . head . Map.toList
     equal (run id) $ Right
         ([(0, 1), (2, 2), (4, 0)], [(0, 60)])
     equal (run $ Derive.shift_control 2) $ Right
@@ -520,7 +521,7 @@ test_overlapping_controls = do
         ]
 
 e_control :: String -> Score.Event -> Maybe [(Signal.X, Signal.Y)]
-e_control cont = fmap Signal.unsignal
+e_control cont = fmap (Signal.unsignal . Score.typed_val)
     . Map.lookup (Score.Control cont) . Score.event_controls
 
 test_control = do
