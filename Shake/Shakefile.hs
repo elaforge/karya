@@ -56,6 +56,8 @@
         ld -r -o build/debug/obj/Midi/CoreMidi.hs.o build/debug/obj/Midi/CoreMidi.hs.o2 build/debug/obj/Midi/CoreMidi.hs_stub.o
         ld: duplicate symbol _MidiziCoreMidi_d2fD in build/debug/obj/Midi/CoreMidi.hs_stub.o and build/debug/obj/Midi/CoreMidi.hs.o2 for inferred architecture x86_64
     * Util.findFiles should use Shake.getDirectoryFiles, don't use listDir
+    - askOracle isn't working like I think it should, why does it only
+        rebuild test_block.cc when I change fltk version?
 
     BUGS
     - run again and it relinks sometimes?
@@ -70,7 +72,7 @@
         with ghc's recompilation skipper.
     - If I rm build/debu/obj/Ui/* and then build seq, it locks up after
         printing the ***build line for seq.
-    - I'd like to be able to specify that certain targets should be recompiled
+    * I'd like to be able to specify that certain targets should be recompiled
         if, say, the output of a "library version" cmd changes.  As
         I understand it, this is what the oracle used to be for, but now
         that's possible with a non file typed target.  From the source I'm
@@ -128,7 +130,7 @@ shakeOptions :: Shake.ShakeOptions
 shakeOptions = Shake.shakeOptions
     { Shake.shakeFiles = build </> "shake"
     , Shake.shakeVerbosity = Shake.Normal
-    , Shake.shakeParallel = 4
+    , Shake.shakeThreads = 4
     , Shake.shakeDump = True
     }
 
@@ -330,7 +332,7 @@ inferConfig modeConfig fn =
 
 -- * rules
 
-data Flag = Verbosity Shake.Verbosity | Jobs Int | Lint deriving (Eq, Show)
+data Flag = Verbosity Shake.Verbosity | Jobs Int deriving (Eq, Show)
 
 cmdOptions :: [GetOpt.OptDescr Flag]
 cmdOptions =
@@ -339,7 +341,6 @@ cmdOptions =
             "verbosity") $ "Verbosity, from 0 to 4."
     , GetOpt.Option ['j'] [] (GetOpt.ReqArg (Jobs . read) "jobs") $
         "Number of jobs to run simultaneously."
-    , GetOpt.Option [] ["lint"] (GetOpt.NoArg Lint) "Run in lint mode."
     ]
     where
     readVerbosity s = Verbosity $ case read s of
@@ -363,13 +364,12 @@ main = do
             _ -> error "expected one argument"
     modeConfig <- configure
     let options = shakeOptions
-            { Shake.shakeParallel =
-                Maybe.fromMaybe (Shake.shakeParallel shakeOptions) $
+            { Shake.shakeThreads =
+                Maybe.fromMaybe (Shake.shakeThreads shakeOptions) $
                     mlast [j | Jobs j <- flags]
             , Shake.shakeVerbosity =
                 Maybe.fromMaybe (Shake.shakeVerbosity shakeOptions) $
                     mlast [v | Verbosity v <- flags]
-            , Shake.shakeLint = Lint `elem` flags
             }
     Shake.shake options $ do
         let infer = inferConfig modeConfig
