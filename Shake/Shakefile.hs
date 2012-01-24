@@ -235,7 +235,7 @@ packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
     ++ "dlist parsec text stm network haskell-src regex-pcre hint "
     ++ "bytestring attoparsec utf8-string "
     ++ "mersenne-random-pure64 hashable random-shuffle "
-    ++ "containers filepath transformers "
+    ++ "containers filepath transformers vector "
     ++ "haskeline " -- repl
     ++ "shake " -- shakefile
 
@@ -259,7 +259,8 @@ fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
     [ "Block.cc", "EventTrack.cc", "MoveTile.cc", "MsgCollector.cc"
     , "P9Scrollbar.cc", "Ruler.cc", "SeqInput.cc", "SimpleScroll.cc"
-    , "SkeletonDisplay.cc", "StyleTable.cc", "Track.cc", "TrackTile.cc"
+    , "SkeletonDisplay.cc", "StyleTable.cc", "SymbolOutput.cc"
+    , "SymbolTable.cc", "Track.cc", "TrackTile.cc"
     , "alpha_draw.cc", "config.cc", "f_util.cc", "types.cc", "util.cc"
     ]
 
