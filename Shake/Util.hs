@@ -47,10 +47,9 @@ crunch = filter (/=' ')
 putNormalLoud :: String -> String -> Shake.Action ()
 putNormalLoud normal loud = do
     verbosity <- Shake.getVerbosity
-    case verbosity of
-        Shake.Normal -> Shake.putNormal normal
-        Shake.Loud -> Shake.putLoud loud
-        _ -> return ()
+    if verbosity == Shake.Normal then Shake.putNormal normal
+        else if verbosity >= Shake.Loud then Shake.putLoud loud
+        else return ()
 
 -- | Recursively find files below a directory.
 findFiles :: (FilePath -> Bool) -> Shake.FilePattern -> FilePath
