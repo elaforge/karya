@@ -377,7 +377,10 @@ main = do
         setupOracle (modeConfig Debug)
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
-        hspp *> \fn -> system $ makeHs (modeToDir Opt) fn "Util/Hspp.hs"
+        hspp *> \fn -> do
+            -- But need mark hspp's deps so it will rebuild.
+            need =<< HsDeps.transitiveImportsOf "Util/Hspp.hs"
+            system $ makeHs (modeToDir Opt) fn "Util/Hspp.hs"
         build </> "tags" *> \fn -> do
             hs <- Util.findHs "*.hs" "."
             hscs <- Util.findHs "*.hs" (hscDir (modeConfig Debug))
