@@ -296,7 +296,7 @@ configure = do
                 , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
                 , fltkLd = fltkLds ++ ["-threaded"]
                 , hcFlags = words "-threaded -W -fwarn-tabs -pgml g++"
-                    ++ ["-pgmF", hspp]
+                    ++ ["-F", "-pgmF", hspp]
                     ++ case mode of
                         Debug -> []
                         Opt -> ["-O"]
