@@ -6,24 +6,14 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - Derive.PassedArgs shouldn't use Elem, just take the elem type directly
   - instead of using velocity in various ornaments, I should probably use p
     e.g. mordent should also work for wind patches
 
   - Efficient pitch signals: can have a special Event + Call that just
     returns Signal.NoteNumber.
   abstract pitches
-    - I'm effectively back to the inefficient redundant transposition thing
-      with interpolated pitches.  If I have [int p1 p2 0.1, int p1 p2 0.2, ..]
-      I lose sharing with p1 and p2, so that the same controls will result in
-      the same value.  I could have a one element memo table, but it's hard to
-      memoize: first I have to know the pitches are the same, then I have to
-      know the controls are the same (hopefully without comparison), then I
-      can memoize.  Let's just hope transposition is efficient.
-
-    - If errors are dropped from the signal then e.g. a pitch will simply
-      max out at the bad transposition.  If I emit -1 instead it can drop
-      out the pitch.
+    - ensure a note transposed out of range will emit an event with an empty
+      pitch signal
 
     * Is there ever any case for changing an Environ?  In that case, can't
       I omit the Environ arg and have calls close over the relevant env vals?
@@ -50,8 +40,10 @@ UNSORTED
       * test to make sure with_relative_signal does the right thing wrt types
         Derive.Control_test
       - test trill to make sure it respects chromatic and diatonic neighbors
-      - test c_neighbor
+      * test c_neighbor
       * make sure control calls work with types
+      - 'trill 1' should default as 1d, but 'n 1' should default as 1c.
+        How can I say "c or d but default to _"?
       - support input key and enharmonics
       - add flip enharmonic cmd
       - default key should be chromatic, which makes diatonic transpositions
@@ -109,6 +101,8 @@ UNSORTED
     * test transpose out of range error reporting
     * document Derive.BaseTypes song and dance
     * write Derive.PitchSignal_test
+  - implement RealTime and ScoreTime signals for trill
+  - implement RealTime and ScoreTime for neighbor
 
   the problem with rambat tick
     I need a general way to manipulate notes and know their pitch, dynamics,

@@ -108,8 +108,11 @@ modes = Map.fromList $ zip
 -- | Given a Key and base Degree, turn diatonic transposition into chromatic
 -- transposition.
 transpose_diatonic :: Key -> PitchClass -> Double -> Double
-transpose_diatonic key pc steps =
-    Num.scale (transpose isteps) (transpose (isteps+1)) frac
+transpose_diatonic key pc steps
+    | steps == 0 = 0
+    | steps > 0 = Num.scale (transpose isteps) (transpose (isteps+1)) frac
+    | otherwise =
+        Num.scale (transpose (isteps-1)) (transpose isteps) (1 - abs frac)
     where
     (isteps, frac) = properFraction steps
     transpose = fromIntegral . key_transpose key pc
@@ -135,19 +138,31 @@ data Key = Key {
     , key_intervals :: ![Int]
     } deriving (Show)
 
--- Precalculate: 6 for each scale degree to start on, then 10 for up to an
--- octave plus a bit of transposition after that.  Plus 16 more for fun.
+-- type Signature = Map.Map PitchClass Accidental
+-- data Accidental = Sharp | Flat
+
+-- | Precalculated transpositions so I can figure out a transposition with
+-- a single table lookup.  Make 6 for each scale degree to start on, then 10
+-- for up to an octave plus a bit of transposition after that.  Plus 16 more
+-- for fun.
 make_table :: [Int] -> V.Vector Int
-make_table = V.fromList . take 32 . scanl (+) 0 . cycle
+make_table intervals = V.fromList $
+    reverse (drop 1 (make (-) (reverse intervals))) ++ make (+) intervals
+    where make f = take 32 . scanl f 0 . cycle
 
 key_transpose :: Key -> PitchClass -> Int -> Int
 key_transpose (Key base _ offset table intervals) pc steps =
-    case table V.!? (steps + degree) of
-        Nothing -> sum $ take steps $ drop degree $ cycle intervals
-        Just val -> val - table V.! degree
+    case table V.!? (middle + degree + steps) of
+        Just val -> val - table V.! (middle + degree)
+        Nothing
+            | steps >= 0 -> sum $ take steps $ drop degree $ cycle intervals
+            | otherwise -> negate $ sum $ take (-steps) $
+                reverse (take degree (cycle intervals))
+                ++ cycle (reverse intervals)
     where
     -- C in C is 0, but if it were C minor it should be 5.
     degree = (Theory.scale_degree base pc + offset) `mod` 7
+    middle = V.length table `div` 2
 
 input_to_note :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
 input_to_note maybe_key (Pitch.InputKey key_nn) = do

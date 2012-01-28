@@ -3,9 +3,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
-import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
@@ -14,15 +12,16 @@ import Types
 
 
 test_apply_controls = do
-    let f controls sig = unsignal $ PitchSignal.apply_controls controls
-            (mksignal sig)
-        csig = Score.untyped $
-            Signal.signal [(x, Signal.x_to_y x) | x <- Seq.range 1 3 1]
+    let f cont sig psig = unsignal $ PitchSignal.apply_controls
+            (Map.singleton cont (Score.untyped (Signal.signal sig)))
+            (mksignal psig)
         err = Left "bad transpose"
     -- No effect.
-    equal (f (Map.singleton c_normal csig) [(0, 1)]) [(0, Right 1)]
-    equal (f (Map.singleton c_trans csig) [(0, 2)])
+    equal (f c_normal [(1, 1), (2, 2), (3, 3)] [(0, 1)]) [(0, Right 1)]
+    equal (f c_trans [(1, 1), (2, 2), (3, 3)] [(0, 2)])
         [(0, Right 2), (1, Right 3), (2, err), (3, err)]
+    equal (f c_trans [(0, 0), (1, -1), (2, 0)] [(0, 2)])
+        [(0, Right 2), (1, Right 1), (2, Right 2)]
 
 mksignal :: [(RealTime, Pitch.NoteNumber)] -> PitchSignal.Signal
 mksignal = PitchSignal.signal (Pitch.ScaleId "test", Set.fromList [c_trans])

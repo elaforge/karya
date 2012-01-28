@@ -19,7 +19,6 @@ test_note_to_nn = do
     equal (f "9g#") Nothing
     equal (f "10g") Nothing
 
-
 test_transpose_diatonic = do
     let intervals n offset start_on = map fromIntegral $
             take n $ map (subtract offset) $ drop start_on $
@@ -40,3 +39,18 @@ test_transpose_diatonic = do
     equal (map (f cmin C) [0..3]) [0, 2, 3, 5]
     let Just dmin = Twelve.parse_key (Pitch.Key "d-min")
     equal (map (f dmin D) [0..3]) [0, 2, 3, 5]
+
+    equal (map (f cmaj C) [0, -1, -2]) [0, -1, -3]
+    equal (f cmaj C (-0.5)) (-0.5)
+    equal (f cmaj C (-1.5)) (-2)
+
+test_key_transpose = do
+    let Just cmaj = Twelve.parse_key (Pitch.Key "c-maj")
+    let f = Twelve.key_transpose cmaj
+
+    equal (map (f C) [0..55])
+        (take 56 (scanl (+) 0 (cycle Twelve.standard_intervals)))
+    equal (map (f C) [0, -1 .. -55])
+        (take 56 (scanl (-) 0 (cycle (reverse Twelve.standard_intervals))))
+    equal (map (f D) [0, -1, -2]) [0, -2, -3]
+    equal (map (f A) [0, -1, -2]) [0, -2, -4]

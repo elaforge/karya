@@ -569,6 +569,9 @@ type PitchCallMap = Map.Map TrackLang.CallId PitchCall
 type ValCallMap = Map.Map TrackLang.CallId ValCall
 
 -- | Data passed to a 'Call'.
+--
+-- PassedArgs and 'CallInfo' could take the Elem type directly instead of
+-- derived, but it's more convenient for the callers to pass the derived.
 data PassedArgs derived = PassedArgs {
     passed_vals :: ![TrackLang.Val]
     , passed_environ :: !TrackLang.Environ
