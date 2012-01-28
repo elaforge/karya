@@ -25,9 +25,10 @@ module Perform.Pitch (
     -- * Scale
     , ScaleId(..), empty_scale, twelve
     , Degree(..), Transpose(..)
-    , Key(..), major, minor
+    , Key(..)
 ) where
 import qualified Util.Pretty as Pretty
+import qualified Util.Serialize as Serialize
 
 -- There are many representations for pitch.  The types here are ordered
 -- from abstract to concrete.  'Degree', 'NoteNumber', and 'Hz' can be relative
@@ -50,7 +51,7 @@ note_text (Note s) = s
 
 -- | A physically played key that hasn't been mapped to a scale yet.
 newtype InputKey = InputKey Double deriving (Num, Eq, Ord, Show)
-type Octave = Integer
+type Octave = Int
 
 -- | Useful to orient scales around a common center.
 middle_c :: InputKey
@@ -131,7 +132,8 @@ _hz_offset = log a_hz - (a_nn * _hz_scale)
 
 -- * scale
 
-newtype ScaleId = ScaleId String deriving (Eq, Ord, Read, Show)
+newtype ScaleId = ScaleId String
+    deriving (Eq, Ord, Read, Show, Serialize.Serialize)
 
 instance Pretty.Pretty ScaleId where
     -- This mirrors TrackLang scale id syntax.
@@ -147,7 +149,7 @@ twelve = ScaleId "twelve"
 
 -- | Scale steps.  What this means is internal to each scale, but is intended
 -- to correspond to chromatic steps in the scale.
-newtype Degree = Degree Integer
+newtype Degree = Degree Int
     deriving (Num, Integral, Real, Enum, Eq, Ord, Show)
 
 -- | A generic transposition, for operations that can transpose either
@@ -166,8 +168,4 @@ instance Pretty.Pretty Transpose where
 -- This is not very strongly typed, because it's intended to be scale
 -- independent, and not every scale will have the same values for key and
 -- mode.
-newtype Key = Key String deriving (Eq, Ord, Show)
-
-major, minor :: String
-major = "M"
-minor = "m"
+newtype Key = Key String deriving (Eq, Ord, Read, Show, Serialize.Serialize)

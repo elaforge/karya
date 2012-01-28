@@ -32,7 +32,7 @@ UNSORTED
     - implement labels for pitch tracks in fltk/EventTrack.cc
 
     add diatonic transposition:
-      - scale support in Twelve
+      * scale support in Twelve
       * Add Perform.Pitch.Transpose: Chromatic | Diatonic
       + candidates for chromatic / diatonic:
         Derive.Call.Pitch.c_neighbor, Trill.*, Pitches.transpose
@@ -52,6 +52,13 @@ UNSORTED
       - test trill to make sure it respects chromatic and diatonic neighbors
       - test c_neighbor
       * make sure control calls work with types
+      - support input key and enharmonics
+      - add flip enharmonic cmd
+      - default key should be chromatic, which makes diatonic transpositions
+        chromatic
+      - support for non-circle-of-fifths key signatures (e.g. sharps and flats
+        in arbitrary places)
+      - support scales that are different ascending vs. descending
 
     - port to control calls: neighbor, trill, ...
     - get rid of Perform.SignalBase and do something about the code

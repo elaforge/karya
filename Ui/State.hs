@@ -106,12 +106,10 @@ empty_config = Config
 initial_default :: Default
 initial_default = Default {
     default_scale = Pitch.ScaleId Config.default_scale_id
+    , default_key = Nothing
     , default_instrument = Nothing
     , default_tempo = 1
     }
-
-instance DeepSeq.NFData Default where
-    rnf (Default scale inst tempo) = scale `seq` inst `seq` tempo `seq` ()
 
 -- | Since all TracklikeIds must have a ruler, all States have a special empty
 -- ruler that can be used in a \"no ruler\" situation.

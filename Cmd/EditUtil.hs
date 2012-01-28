@@ -105,6 +105,11 @@ get_scale_id = do
     (block_id, _, track_id, _) <- Selection.get_insert
     Perf.get_scale_id block_id track_id
 
+get_key :: (Cmd.M m) => m (Maybe Pitch.Key)
+get_key = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    Perf.get_key block_id track_id
+
 -- * msgs
 
 -- | Extract a key for method input.  [a-z0-9.-]
@@ -153,13 +158,18 @@ fallthrough msg = do
     (_, sel) <- Selection.get
     when (is_backspace && not (Types.sel_is_point sel)) Cmd.abort
 
+-- | Convert an InputKey to the symbolic Note that it should be.
+--
+-- Due to enharmonics this can depend on the current key and even be
+-- ambiguous.
 parse_key :: (Cmd.M m) => Pitch.InputKey -> m Pitch.Note
 parse_key input = do
     scale_id <- get_scale_id
     let me = "EditUtil.parse_key"
     scale <- Cmd.get_scale me scale_id
+    key <- get_key
     let msg = me ++ ": " ++ show input ++ " out of range for " ++ show scale_id
-    maybe (Cmd.throw msg) return (Scale.scale_input_to_note scale input)
+    maybe (Cmd.throw msg) return (Scale.scale_input_to_note scale key input)
 
 
 -- * modify

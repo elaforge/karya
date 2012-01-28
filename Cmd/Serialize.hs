@@ -150,7 +150,8 @@ instance Serialize State.Config where
             _ -> version_error "State.Config" v
 
 instance Serialize State.Default where
-    put (State.Default a b c) = put_version 0 >> put a >> put b >> put c
+    put (State.Default a b c d) =
+        put_version 1 >> put a >> put b >> put c >> put d
     get = do
         v <- get_version
         case v of
@@ -158,12 +159,14 @@ instance Serialize State.Default where
                 scale <- get :: Get Pitch.ScaleId
                 inst <- get :: Get (Maybe Score.Instrument)
                 tempo <- get :: Get Signal.Y
-                return $ State.Default scale inst tempo
+                return $ State.Default scale Nothing inst tempo
+            1 -> do
+                scale <- get :: Get Pitch.ScaleId
+                key <- get :: Get (Maybe Pitch.Key)
+                inst <- get :: Get (Maybe Score.Instrument)
+                tempo <- get :: Get Signal.Y
+                return $ State.Default scale key inst tempo
             _ -> version_error "State.Default" v
-
-instance Serialize Pitch.ScaleId where
-    put (Pitch.ScaleId a) = put a
-    get = get >>= \a -> return (Pitch.ScaleId a)
 
 instance Serialize Id.Id where
     put ident = put (Id.un_id ident)

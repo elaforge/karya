@@ -187,7 +187,7 @@ tid = Types.TrackId . Id.read_id
 show_state :: Cmd.CmdL String
 show_state = do
     (State.State views blocks tracks rulers
-        (State.Config project dir root _ (State.Default scale inst tempo)))
+        (State.Config project dir root _ (State.Default scale key inst tempo)))
             <- State.get
     -- midi config showed by show_midi_config
     let f fm = PPrint.list (map show (Map.keys fm))
@@ -196,6 +196,7 @@ show_state = do
         , ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
         , ("scale", show scale)
+        , ("key", show key)
         , ("inst", show inst)
         , ("tempo", show tempo)
         ]

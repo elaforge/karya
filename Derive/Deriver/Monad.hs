@@ -829,7 +829,8 @@ data Scale = Scale {
     , scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
 
     -- | Used by note input.
-    , scale_input_to_note :: !(Pitch.InputKey -> Maybe Pitch.Note)
+    , scale_input_to_note :: !(Maybe Pitch.Key -> Pitch.InputKey
+        -> Maybe Pitch.Note)
     -- | Used by MIDI thru.  This is a shortcut for
     -- @eval . note_to_call . input_to_note@ but can be implemented more
     -- efficiently by the scale.

@@ -93,12 +93,22 @@ get_nn_at track_id ps = do
 
 -- * environ
 
+-- | Get the scale in scope in a certain track on a certain block, falling
+-- back on the default scale if there is none.
 get_scale_id :: (Cmd.M m) => BlockId -> TrackId -> m Pitch.ScaleId
 get_scale_id block_id track_id = do
     scale <- lookup_env block_id track_id TrackLang.v_scale
     case scale of
         Just (TrackLang.VScaleId scale_id) -> return scale_id
         _ -> State.get_default State.default_scale
+
+-- | As with 'get_scale_id' but for the Key.
+get_key :: (Cmd.M m) => BlockId -> TrackId -> m (Maybe Pitch.Key)
+get_key block_id track_id = do
+    key <- lookup_env block_id track_id TrackLang.v_key
+    case key of
+        Just (TrackLang.VString key) -> return $ Just (Pitch.Key key)
+        _ -> State.get_default State.default_key
 
 lookup_instrument :: (Cmd.M m) => BlockId -> TrackId
     -> m (Maybe Score.Instrument)

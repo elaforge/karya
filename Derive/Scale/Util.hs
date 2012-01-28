@@ -9,6 +9,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Track as Track
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -61,20 +62,22 @@ note_to_call smap note = case Map.lookup note (smap_note_to_degree smap) of
         Nothing -> Nothing
         Just degree -> Just $ Call.Pitch.note_call note (note_number degree)
     where
-    note_number (Pitch.Degree degree) chromatic diatonic key
-        | frac == 0 = maybe_nn
+    note_number :: Pitch.Degree -> Scale.GetNoteNumber
+    note_number (Pitch.Degree degree) chromatic diatonic _key
+        | frac == 0 = maybe (Left Scale.InvalidTransposition) Right maybe_nn
         | otherwise = case (maybe_nn, maybe_nn1) of
             (Just nn, Just nn1) ->
-                Just $ Num.scale nn nn1 (Pitch.NoteNumber frac)
-            _ -> Nothing
+                Right $ Num.scale nn nn1 (Pitch.NoteNumber frac)
+            _ -> Left Scale.InvalidTransposition
         where
         (int, frac) = properFraction $
             fromIntegral degree + chromatic + diatonic
         maybe_nn = Map.lookup int (smap_degree_to_nn smap)
         maybe_nn1 = Map.lookup (int+1) (smap_degree_to_nn smap)
 
-input_to_note :: ScaleMap -> Pitch.InputKey -> Maybe Pitch.Note
-input_to_note smap input = flip fmap (lookup_input input input_map) $
+input_to_note :: ScaleMap -> Maybe Pitch.Key -> Pitch.InputKey
+    -> Maybe Pitch.Note
+input_to_note smap _key input = flip fmap (lookup_input input input_map) $
     \(_, step, frac) -> join_note (Pitch.note_text step) frac
     where input_map = smap_input_to_note smap
 

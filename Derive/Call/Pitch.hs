@@ -13,6 +13,7 @@ import Derive.CallSig (optional, required)
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -20,10 +21,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import Types
 
-
--- | Chromatic -> Diatonic -> Key -> NoteNumber
-type GetNoteNumber = Double -> Double -> Maybe Pitch.Key
-    -> Maybe Pitch.NoteNumber
 
 -- | Create a note val call for the given scale degree.  This is intended to
 -- be used by scales to generate their val calls, but of course each scale may
@@ -33,7 +30,7 @@ type GetNoteNumber = Double -> Double -> Maybe Pitch.Key
 -- Intended for fractional scale degrees.
 --
 -- [hz /Num/ @0@] Add an absolute hz value to the output.
-note_call :: Pitch.Note -> GetNoteNumber -> Derive.ValCall
+note_call :: Pitch.Note -> Scale.GetNoteNumber -> Derive.ValCall
 note_call note note_number =
     Derive.ValCall ("degree: " ++ Pitch.note_text note) $ \args ->
     CallSig.call2 args (optional "frac" 0, optional "hz" 0) $ \frac hz -> do
@@ -45,10 +42,15 @@ note_call note note_number =
             chrom = get Score.c_chromatic + frac
             dia = get Score.c_diatonic
             hz_sig = get Score.c_hz
-        maybe (Left (err chrom dia)) (return . Pitch.add_hz (hz + hz_sig))
-            (note_number chrom dia key)
-    err chrom dia = PitchSignal.PitchError $
-        "note can't be transposed: " ++ show (chrom, dia)
+        either (Left . errmsg chrom dia key)
+            (Right . Pitch.add_hz (hz + hz_sig)) (note_number chrom dia key)
+    errmsg chrom dia key err = PitchSignal.PitchError $ case err of
+        Scale.InvalidTransposition ->
+            "note can't be transposed: " ++ show (chrom, dia)
+        Scale.KeyNeeded ->
+            "no key is set, but this transposition needs one"
+        Scale.UnparseableKey ->
+            "key unparseable by given scale: " ++ show key
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.

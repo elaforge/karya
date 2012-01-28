@@ -27,14 +27,21 @@ in_range low high x = low <= x && x < high
 -- @high@.  If @v@ is not in the 0--1 range, the result will be out of the
 -- low--high range.
 scale :: (Num a) => a -> a -> a -> a
-scale low high v = v * (high-low) + low
+scale low high v
+    -- Some calls to scale are likely to have 0 or 1.  If low and high are
+    -- complicated expressions its nice to avoid evaluating them.
+    | v == 0 = low
+    | v == 1 = high
+    | otherwise = v * (high-low) + low
+-- TODO SPECIALIZE on Double?
 
 -- | Normalize @v@, which is between @low@ and @high@ inclusive, to be between
 -- 0 and 1.  As with 'scale', if @v@ is not in range, the result will not be
 -- in range either.
 normalize :: (Fractional a) => a -> a -> a -> a
 normalize low high v
-    | low == high && v == low = 0
+    | low == high && v == low = 0 -- avoid a divide by zero
+    | v == high = 1
     | otherwise = (v-low) / (high-low)
 
 infixl 7 `fmod` -- match `mod`

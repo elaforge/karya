@@ -25,7 +25,10 @@ test_transpose_out_of_range = do
         [(0, 70)]
     equal (run_with_title id "> | %t-chromatic = -10" "twelve" [(0, "4c")])
         [(0, 50)]
-    pprint (run_with_title id "> | %t-chromatic = 200" "twelve" [(0, "4c")])
+    -- It's not actually an IO exception but that's how DeriveTest.e_pitch
+    -- extractor treats an error in the pitch signal.
+    throws (run_with_title id "> | %t-chromatic = 200" "twelve" [(0, "4c")])
+        "note can't be transposed"
 
 run_with_title with inst_title pitch_title pitches = extract $
     DeriveTest.derive_tracks_with with

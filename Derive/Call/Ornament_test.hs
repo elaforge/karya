@@ -17,9 +17,21 @@ test_track = do
         [ (">", [(1, 1, "`mordent`")])
         , ("*twelve", [(0, 0, "4c")])
         ])
-        ([[(0, 60)], [(0, 61)], [(0, 60)]], [])
+        ([[(0, 60)], [(0, 62)], [(0, 60)]], [])
 
 test_mordent = do
+    let ex (_, pitch, _) = pitch
+    equal (DeriveTest.extract (ex . extract) $ DeriveTest.derive_tracks
+        [ (">", [(1, 1, "`mordent`")])
+        , ("*twelve", [(0, 0, "4c")])
+        ])
+        ([[(0, 60)], [(0, 62)], [(0, 60)]], [])
+    equal (DeriveTest.extract (ex . extract) $ DeriveTest.derive_tracks
+        [ (">", [(1, 1, "`mordent`")])
+        , ("*twelve", [(0, 0, "4e")])
+        ])
+        ([[(0, 64)], [(0, 65)], [(0, 64)]], [])
+
     let f = Ornament.mordent (RealTime.seconds 1)
         run = DeriveTest.run_events extract
             . DeriveTest.run State.empty

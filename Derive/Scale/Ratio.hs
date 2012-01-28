@@ -36,7 +36,7 @@ scale = Scale.Scale {
     -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
-    , Scale.scale_input_to_note = const Nothing
+    , Scale.scale_input_to_note = \_ _ -> Nothing
     , Scale.scale_input_to_nn = const Nothing
     }
 

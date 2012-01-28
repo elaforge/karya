@@ -54,10 +54,10 @@ dotted_numbers = map dot_above cs ++ map dot2_above
 
 staff_symbols :: [Symbol.Symbol]
 staff_symbols =
-    [ Symbol.symbol "sharp" [g "\xe10e" 1]
-    , Symbol.symbol "sharp2" [g "\xe125" 2]
-    , Symbol.symbol "flat" [g "\xe11a" 2]
-    , Symbol.symbol "flat2" [g "\xe123" 2]
+    [ Symbol.symbol "#" [g "\xe10e" 1]
+    , Symbol.symbol "##" [g "\xe125" 2]
+    , Symbol.symbol "b" [g "\xe11a" 2]
+    , Symbol.symbol "bb" [g "\xe123" 2]
     ]
     where
     g str size = (Symbol.glyph str)

@@ -247,7 +247,10 @@ with_instrument state =
 
 -- | Set UI state defaults that every derivation should have.
 set_defaults :: (State.M m) => m ()
-set_defaults = State.modify with_instrument
+set_defaults = do
+    State.modify with_instrument
+    State.modify_default $ \st -> st
+        { State.default_key = Just (Pitch.Key "c-maj") }
 
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale scale_id = Map.lookup scale_id Scale.All.scales
@@ -261,6 +264,7 @@ default_environ = Map.fromList
     [ (TrackLang.v_srate, TrackLang.num 1)
     , (TrackLang.v_scale, TrackLang.VScaleId Twelve.scale_id)
     , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
+    , (TrackLang.v_key, TrackLang.VString "c-maj")
     ]
 
 -- ** extract
@@ -362,7 +366,7 @@ e_pitch_err e = (map (second Pitch.NoteNumber) (Signal.unsignal sig),
 e_twelve :: Score.Event -> String
 e_twelve e = Maybe.fromMaybe "?" $ do
     nn <- Score.initial_nn e
-    note <- Twelve.input_to_note (to_input nn)
+    note <- Twelve.input_to_note Nothing (to_input nn)
     return (Pitch.note_text note)
     where to_input (Pitch.NoteNumber n) = Pitch.InputKey n
 
