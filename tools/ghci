@@ -1,2 +1,3 @@
 #!/bin/sh
-exec command ghci -ibuild/hsc "$@"
+exec command ghci -ibuild/hsc -hidir build/debug/obj -odir build/debug/obj \
+    -osuf .hs.o "$@"
