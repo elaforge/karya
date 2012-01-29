@@ -67,12 +67,19 @@ typed_control_at pos control = case control of
             =<< Derive.control_at cont pos
 
 -- | Convert a 'TrackLang.ValControl' to a signal.
+--
+-- If a signal exists but doesn't have a type, the type will be inherited from
+-- the default.  This way a call can cause a signal parameter to default to
+-- a certain type.
 to_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedControl
 to_signal control = case control of
     TrackLang.ConstantControl deflt -> return $ fmap Signal.constant deflt
     TrackLang.DefaultedControl cont deflt -> do
-        sig <- Derive.get_control cont
-        return $ Maybe.fromMaybe (fmap Signal.constant deflt) sig
+        maybe_sig <- Derive.get_control cont
+        return $ case maybe_sig of
+            Nothing -> Signal.constant <$> deflt
+            Just sig -> sig
+                { Score.type_of = Score.type_of sig <> Score.type_of deflt }
     TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found: " ++ show cont) return
             =<< Derive.get_control cont

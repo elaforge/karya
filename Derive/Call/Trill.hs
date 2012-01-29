@@ -38,14 +38,13 @@ import qualified Perform.Signal as Signal
 import Types
 
 
+-- * note calls
+
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("abs-trill", c_absolute_trill)
     , ("score-trill", c_score_trill)
     ]
-
-
--- * note calls
 
 -- | Absolute time trill.
 --

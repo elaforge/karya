@@ -9,12 +9,39 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Signal as Signal
 
 
+test_trill = do
+    let run tracks = extract $ DeriveTest.derive_tracks $
+            (">", [(0, 3, "")]) : tracks
+        extract = DeriveTest.extract DeriveTest.e_pitch
+    -- TODO should default to diatonic
+    equal (run [("*twelve", [(0, 0, "tr (4c) 1 1")])])
+        ([[(0, 60), (1, 62), (2, 60)]], [])
+    equal (run [("*twelve", [(0, 0, "tr (4c) 1c 1")])])
+        ([[(0, 60), (1, 61), (2, 60)]], [])
+    equal (run [("*twelve", [(0, 0, "tr (4c) 1d 1")])])
+        ([[(0, 60), (1, 62), (2, 60)]], [])
+    equal (run [("*twelve", [(0, 0, "tr (4c) -1d 1")])])
+        ([[(0, 60), (1, 59), (2, 60)]], [])
+
+    let run_c suffix val = run
+            [ ("trill-neighbor" ++ suffix, [(0, 0, val)])
+            , ("*twelve", [(0, 0, "tr (4c) _ 1")])
+            ]
+    equal (run_c "" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
+    equal (run_c "" "-2") ([[(0, 60), (1, 57), (2, 60)]], [])
+    equal (run_c ":d" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
+    equal (run_c ":d" "-2") ([[(0, 60), (1, 57), (2, 60)]], [])
+    equal (run_c ":c" "1") ([[(0, 60), (1, 61), (2, 60)]], [])
+    equal (run_c ":c" "-2") ([[(0, 60), (1, 58), (2, 60)]], [])
+
 test_absolute_trill = do
     let f = Trill.absolute_trill (0, 1)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
     equal (run $ f (con 1) (con 2)) $
         Right [(0, 0), (0.5, 1), (1, 0)]
+    equal (run $ f (con (-1)) (con 2)) $
+        Right [(0, 0), (0.5, -1), (1, 0)]
     -- Cycles must be integral.
     equal (run $ f (con 1) (con 1.9)) $
         Right [(0, 0)]
