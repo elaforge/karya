@@ -84,11 +84,14 @@ to_signal control = case control of
         maybe (Derive.throw $ "not found: " ++ show cont) return
             =<< Derive.get_control cont
 
-data Transpose = Diatonic | Chromatic deriving (Show)
+to_untyped_signal :: TrackLang.ValControl -> Derive.Deriver Signal.Control
+to_untyped_signal = fmap Score.typed_val . to_signal
+
+data TransposeType = Diatonic | Chromatic deriving (Show)
 
 -- | Version of 'to_signal' specialized for transpose signals.  Throws if
 -- the signal had a non-transpose type.
-to_transpose_signal :: Transpose -> TrackLang.ValControl
+to_transpose_signal :: TransposeType -> TrackLang.ValControl
     -> Derive.Deriver (Signal.Control, Score.Control)
     -- ^ (signal, appropriate transpose control)
 to_transpose_signal default_type control = do
@@ -100,6 +103,21 @@ to_transpose_signal default_type control = do
         Score.Diatonic -> return (sig, Score.c_diatonic)
         _ -> Derive.throw $ "expected transpose type for "
             ++ Pretty.pretty control ++ " but got " ++ Pretty.pretty typ
+
+data TimeType = Real | Score deriving (Show)
+
+-- | Version of 'to_signal' that will complain if the control isn't a time
+-- type.
+to_time_signal :: TimeType -> TrackLang.ValControl
+    -> Derive.Deriver (Signal.Control, TimeType)
+to_time_signal default_type control = do
+    Score.Typed typ sig <- to_signal control
+    case typ of
+        Score.Untyped -> return (sig, default_type)
+        Score.Score -> return (sig, Score)
+        Score.Real -> return (sig, Real)
+        _ -> Derive.throw $ "expected time type for " ++ Pretty.pretty control
+            ++ " but got " ++ Pretty.pretty typ
 
 pitch_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver PitchSignal.Pitch
@@ -243,6 +261,16 @@ _random_generator pos = do
     return $ Pure64.pureMT (fromIntegral cseed)
 
 -- * time
+
+-- | A time range from the event start until a given duration.
+duration_from_start :: Derive.PassedArgs d -> TrackLang.RealOrScore
+    -> Derive.Deriver (RealTime, RealTime)
+duration_from_start args time = do
+    start <- Derive.passed_real args
+    case time of
+        TrackLang.Real t -> return (start, start + t)
+        TrackLang.Score t ->
+            (,) start <$> Derive.real (Derive.passed_score args + t)
 
 -- | Add a RealTime to a ScoreTime.
 delay :: RealTime -> ScoreTime -> Derive.Deriver ScoreTime

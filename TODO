@@ -102,7 +102,9 @@ UNSORTED
     * document Derive.BaseTypes song and dance
     * write Derive.PitchSignal_test
   implement RealTime and ScoreTime
-    - Trill.c_trill, Pitch.c_neighbor, Control.c_neighbor, Control.c_slide
+    * Trill.c_trill, Pitch.c_neighbor, Control.c_neighbor, Control.c_slide
+  - stick all the Derive.passed_* functions in their own module (Arg?) and
+    think of some better names
 
 
   the problem with rambat tick
@@ -956,7 +958,7 @@ Derive:
   - combine ornaments, like "hold 1s | tr" to hold the first note for 1 score
     time before starting the trill.  I think this could work by warping tr
 
-  - ScoreTime and RealTime literals: 1s, 1r
+  * ScoreTime and RealTime literals: 1s, 1r
     If I had score and real time literals, I could merge abs and score trills.
     Then I need to support either typed controls, or a notation for "cont
     x interpreted as score time".

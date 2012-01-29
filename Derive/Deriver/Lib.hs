@@ -382,6 +382,11 @@ passed_prev_begin = fmap fst . Seq.head . info_prev_events . passed_info
 passed_range :: PassedArgs d -> (ScoreTime, ScoreTime)
 passed_range = Events.range . passed_event
 
+-- | Like 'passed_range', except the range is to the beginning of the next
+-- event.  Suitable for control calls, which tend to have 0 duration.
+passed_range_to_next :: PassedArgs d -> (ScoreTime, ScoreTime)
+passed_range_to_next args = (passed_score args, passed_event_end args)
+
 -- | Event range as it appears on the track, regardless of slicing.
 passed_track_range :: PassedArgs d -> (ScoreTime, ScoreTime)
 passed_track_range args = (track_start + start, track_start + end)

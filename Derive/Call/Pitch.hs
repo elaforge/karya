@@ -121,17 +121,17 @@ c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
 --
 -- [neighbor /Transpose/ @1@] Neighbor interval.
 --
--- [time /Number/ @.3@] RealTime taken to get to the destination pitch.
+-- [time /ScoreOrReal/ @.3@] Time taken to get to the destination pitch.
 c_neighbor :: Derive.PitchCall
 c_neighbor = Derive.generator1 "neighbor" $ \args ->
     CallSig.call3 args (required "pitch",
         optional "neighbor" (Pitch.Chromatic 1),
-        optional "time" 0.1) $ \pitch neighbor time -> do
-    start <- Derive.passed_real args
-    let end = start + RealTime.seconds time
-        pitch1 = Pitches.transpose neighbor pitch
-    srate <- Util.get_srate
-    interpolator srate id True start pitch1 end pitch
+        optional "time" (TrackLang.real 0.1)) $
+    \pitch neighbor (TrackLang.DefaultReal time) -> do
+        (start, end) <- Util.duration_from_start args time
+        let pitch1 = Pitches.transpose neighbor pitch
+        srate <- Util.get_srate
+        interpolator srate id True start pitch1 end pitch
 
 -- ** pitch util
 

@@ -28,8 +28,7 @@ run_with_scale scale events = extract $ DeriveTest.derive_tracks
     [ (">", [(0, 10, "")])
     , ('*' : scale, [(start, 0, text) | (start, text) <- events])
     ]
-    where
-    extract = head . DeriveTest.extract_events DeriveTest.e_pitch
+    where extract = head . DeriveTest.extract_events DeriveTest.e_pitch
 
 -- | Run a control track and extract the control signal it produces.
 run_control :: [(Double, String)] -> [(Signal.X, Signal.Y)]

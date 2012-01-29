@@ -89,7 +89,7 @@ test_call_errors = do
             (_, logs) -> Left $ Seq.join "\n" logs
 
     let run_title title = extract $
-            DeriveTest.derive_tracks_tempo [(title, [(0, 1, "--1")])]
+            DeriveTest.derive_tracks [(title, [(0, 1, "--1")])]
     left_like (run_title ">i | no-such-call") "call not found: no-such-call"
     left_like (run_title ">i | delay *bad-arg") "expected Control but got"
     left_like (run_title ">i | delay 1 2 3 4") "too many arguments"
@@ -101,12 +101,13 @@ test_call_errors = do
             DeriveTest.derive_tracks_tempo [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call")
         "call not found: no-such-call"
-    left_like (run_evt "abs-trill")
-        "non-generator in generator position: absolute_trill"
-    left_like (run_evt "abs-trill |")
-        "ArgError: too few arguments"
-    equal (run_evt "delay 2 | abs-trill 2 |")
-        (Right [(2, 1, "delay 2 | abs-trill 2 |")])
+    left_like (run_evt "tr")
+        "non-generator in generator position: trill"
+    let tr_result = extract $ DeriveTest.derive_tracks
+            [(">", [(0, 4, "")]), ("*twelve", [(0, 0, "tr")])]
+    left_like tr_result "ArgError: too few arguments"
+    equal (run_evt "delay 2 | tr 2 |")
+        (Right [(2, 1, "delay 2 | tr 2 |")])
 
 test_val_call = do
     let extract = DeriveTest.extract (DeriveTest.e_control "cont")

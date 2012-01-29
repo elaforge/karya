@@ -6,6 +6,7 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (required, optional)
 import qualified Derive.Derive as Derive
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -76,16 +77,17 @@ c_exponential = Derive.generator1 "exponential" $ \args ->
 --
 -- [val /Number/] Destination value.
 --
--- [time /Number/ 0.1] RealTime taken to get there.
+-- [time /ScoreOrReal/ 0.1] Time taken to get there.
 c_slide :: Derive.ControlCall
-c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
-    (required "val", optional "time" 0.1) $ \val time -> do
-        start <- Derive.passed_real args
+c_slide = Derive.generator1 "slide" $ \args ->
+    CallSig.call2 args (required "val", optional "time" (TrackLang.real 0.1)) $
+    \val (TrackLang.DefaultReal time) -> do
+        (start, end) <- Util.duration_from_start args time
         end <- case Derive.passed_next_begin args of
-            Nothing -> return $ start + RealTime.seconds time
+            Nothing -> return end
             Just n -> do
                 next <- Derive.real n
-                return $ min (start + RealTime.seconds time) next
+                return $ min end next
         srate <- Util.get_srate
         return $ case Derive.passed_prev_val args of
             Nothing -> Signal.signal [(start, val)]
@@ -96,15 +98,15 @@ c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
 --
 -- [neighbor /Number/ @1@] Neighbor value.
 --
--- [time /Number/ @.3@] RealTime taken to get to 0.
+-- [time /ScoreOrReal/ @.3@] Time taken to get to 0.
 c_neighbor :: Derive.ControlCall
 c_neighbor = Derive.generator1 "neighbor" $ \args ->
-    CallSig.call2 args
-        (optional "neighbor" 1, optional "time" 0.1) $ \neighbor time -> do
-    start <- Derive.passed_real args
-    let end = start + RealTime.seconds time
-    srate <- Util.get_srate
-    return $ interpolator srate id True start neighbor end 0
+    CallSig.call2 args (optional "neighbor" 1,
+        optional "time" (TrackLang.real 0.1)) $
+    \neighbor (TrackLang.DefaultReal time) -> do
+        (start, end) <- Util.duration_from_start args time
+        srate <- Util.get_srate
+        return $ interpolator srate id True start neighbor end 0
 
 -- | Unlike most control events, this uses a duration.  Set the control to the
 -- given value for the event's duration, and reset to the old value

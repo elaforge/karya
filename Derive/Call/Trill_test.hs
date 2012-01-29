@@ -23,22 +23,29 @@ test_trill = do
     equal (run [("*twelve", [(0, 0, "tr (4c) -1d 1")])])
         ([[(0, 60), (1, 59), (2, 60)]], [])
 
-    let run_c suffix val = run
+    let run_neighbor suffix val = run
             [ ("trill-neighbor" ++ suffix, [(0, 0, val)])
             , ("*twelve", [(0, 0, "tr (4c) _ 1")])
             ]
-    equal (run_c "" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
-    equal (run_c "" "-2") ([[(0, 60), (1, 57), (2, 60)]], [])
-    equal (run_c ":d" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
-    equal (run_c ":d" "-2") ([[(0, 60), (1, 57), (2, 60)]], [])
-    equal (run_c ":c" "1") ([[(0, 60), (1, 61), (2, 60)]], [])
-    equal (run_c ":c" "-2") ([[(0, 60), (1, 58), (2, 60)]], [])
+    equal (run_neighbor "" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
+    equal (run_neighbor "" "-2") ([[(0, 60), (1, 57), (2, 60)]], [])
+    equal (run_neighbor ":d" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
+    equal (run_neighbor ":d" "-2") ([[(0, 60), (1, 57), (2, 60)]], [])
+    equal (run_neighbor ":c" "1") ([[(0, 60), (1, 61), (2, 60)]], [])
+    equal (run_neighbor ":c" "-2") ([[(0, 60), (1, 58), (2, 60)]], [])
 
-test_control_trill = do
-    let run events = extract $ DeriveTest.derive_tracks
-            [(">", [(0, 3, "")]), ("cont", events)]
-        extract = DeriveTest.extract (DeriveTest.e_control "cont")
-    equal (run [(0, 0, "tr 1 1")]) ([Just [(0, 0), (1, 1), (2, 0)]], [])
+    let run_speed suffix = extract $ DeriveTest.derive_tracks
+            [ ("tempo", [(0, 0, "2")])
+            , (">", [(0, 3, "")])
+            , ("trill-speed" ++ suffix, [(0, 0, "2")])
+            , ("*twelve", [(0, 0, "tr (4c) 1")])
+            ]
+        trill xs = [zip xs (cycle [60, 62])]
+    equal (run_speed "") (trill [0, 0.5, 1], [])
+    equal (run_speed ":r") (trill [0, 0.5, 1], [])
+    equal (run_speed ":s") (trill [0, 0.25, 0.5, 0.75, 1, 1.25], [])
+    equal (run_speed ":d") ([[]],
+        ["Error: expected time type for %trill-speed,14r but got Diatonic"])
 
 test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
@@ -57,8 +64,8 @@ test_moving_trill = do
         ])
         ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72)]], [])
 
-test_absolute_trill = do
-    let f = Trill.absolute_trill (0, 1)
+test_real_trill = do
+    let f = Trill.real_trill (0, 1)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
     equal (run $ f (con 1) (con 2)) $
@@ -104,8 +111,28 @@ test_score_trill = do
 
 con = Signal.constant
 
+
 -- * pitch calls
 
-test_pitch_absolute_trill = do
-    equal (CallTest.run_pitch [(0, "abs-trill (4e) 2 2"), (2.8, "4c")]) $
+test_pitch_trill = do
+    equal (CallTest.run_pitch [(0, "tr (4e) 2 2"), (2.8, "4c")]) $
         zip [0, 0.5, 1, 1.5, 2] (cycle [64, 67]) ++ [(2.8, 60)]
+
+
+-- * control calls
+
+test_control_trill = do
+    let run tempo events = extract $ DeriveTest.derive_tracks
+            [ ("tempo", [(0, 0, show tempo)])
+            , (">", [(0, 3, "")])
+            , ("cont", events)
+            ]
+        extract = DeriveTest.extract (DeriveTest.e_control "cont")
+        trill xs = Just (zip xs (cycle [0, 1]))
+    equal (run 1 [(0, 0, "tr 1 1")]) ([trill [0, 1, 2]], [])
+    -- Defaults to RealTime, but stretches with ScoreTime if asked.
+    equal (run 0.5 [(0, 0, "tr 1 1")]) ([trill [0, 1, 2, 3, 4, 5]], [])
+    equal (run 0.5 [(0, 0, "tr 1 1r")]) ([trill [0, 1, 2, 3, 4, 5]], [])
+    equal (run 0.5 [(0, 0, "tr 1 1s")]) ([trill [0, 2, 4]], [])
+    equal (run 1 [(0, 0, "tr 1 1d")])
+        ([Just []], ["Error: expected time type for 1d but got Diatonic"])

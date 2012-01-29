@@ -78,8 +78,23 @@ num = VNum . Score.untyped
 -- * time
 
 -- | Some calls can operate in either RealTime or ScoreTime.
-data RealOrScore = Real RealTime | Score ScoreTime
-    deriving (Eq, Show)
+data RealOrScore = Real RealTime | Score ScoreTime deriving (Eq, Show)
+
+-- | Normally Transpose will default to Chromatic if the val is untyped,
+-- but some calls would prefer to default to Diatonic.
+newtype DefaultDiatonic = DefaultDiatonic Pitch.Transpose deriving (Show)
+-- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
+newtype DefaultReal = DefaultReal RealOrScore deriving (Eq, Show)
+newtype DefaultScore = DefaultScore RealOrScore deriving (Eq, Show)
+
+-- | Create DefaultReal and DefaultScores for use in CallSig.calln signatures
+-- for default values.  It would be nice to use literals and let type
+-- inference do its thing, but there's no good definition for the rest of
+-- the methods in Integral and Fractional.
+real :: RealTime -> DefaultReal
+real = DefaultReal . Real
+score :: ScoreTime -> DefaultScore
+score = DefaultScore . Score
 
 -- * types
 
@@ -149,8 +164,19 @@ instance Typecheck Pitch.Transpose where
         Score.Diatonic -> Just (Pitch.Diatonic val)
         _ -> Nothing
     from_val _ = Nothing
-    to_val (Pitch.Chromatic a) = VNum $ Score.Typed Score.Chromatic a
-    to_val (Pitch.Diatonic a) = VNum $ Score.Typed Score.Diatonic a
+    to_val (Pitch.Chromatic a) = to_val a
+    to_val (Pitch.Diatonic a) = to_val a
+    to_type _ = TNum
+
+-- | But some calls want to default to diatonic, not chromatic.
+instance Typecheck DefaultDiatonic where
+    from_val (VNum (Score.Typed typ val)) = case typ of
+        Score.Untyped -> Just (DefaultDiatonic (Pitch.Diatonic val))
+        Score.Chromatic -> Just (DefaultDiatonic (Pitch.Chromatic val))
+        Score.Diatonic -> Just (DefaultDiatonic (Pitch.Diatonic val))
+        _ -> Nothing
+    from_val _ = Nothing
+    to_val (DefaultDiatonic a) = to_val a
     to_type _ = TNum
 
 instance Typecheck ScoreTime where
@@ -179,10 +205,28 @@ instance Typecheck RealOrScore where
         Score.Real -> Just $ Real (RealTime.seconds val)
         _ -> Nothing
     from_val _ = Nothing
-    to_val (Score a) =
-        VNum $ Score.Typed Score.Score (ScoreTime.to_double a)
-    to_val (Real a) =
-        VNum $ Score.Typed Score.Real (RealTime.to_seconds a)
+    to_val (Score a) = to_val a
+    to_val (Real a) = to_val a
+    to_type _ = TNum
+
+instance Typecheck DefaultReal where
+    from_val (VNum (Score.Typed typ val)) = case typ of
+        Score.Untyped -> Just $ DefaultReal $ Real (RealTime.seconds val)
+        Score.Score -> Just $ DefaultReal $ Score (ScoreTime.double val)
+        Score.Real -> Just $ DefaultReal $ Real (RealTime.seconds val)
+        _ -> Nothing
+    from_val _ = Nothing
+    to_val (DefaultReal a) = to_val a
+    to_type _ = TNum
+
+instance Typecheck DefaultScore where
+    from_val (VNum (Score.Typed typ val)) = case typ of
+        Score.Untyped -> Just $ DefaultScore $ Score (ScoreTime.double val)
+        Score.Score -> Just $ DefaultScore $ Score (ScoreTime.double val)
+        Score.Real -> Just $ DefaultScore $ Real (RealTime.seconds val)
+        _ -> Nothing
+    from_val _ = Nothing
+    to_val (DefaultScore a) = to_val a
     to_type _ = TNum
 
 instance Typecheck String where

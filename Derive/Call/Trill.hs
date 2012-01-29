@@ -33,6 +33,7 @@ import Derive.CallSig (optional, required, typed_control, control)
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
 import Types
@@ -42,52 +43,100 @@ import Types
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("abs-trill", c_absolute_trill)
-    , ("score-trill", c_score_trill)
+    [ ("tr", c_note_trill)
+    , ("`tr`", c_note_trill)
     ]
 
--- | Absolute time trill.
+-- | Generate a note with a trill.
 --
--- [neighbor /Control/] Alternate with this relative pitch.
+-- This is just the same as putting a trill on the pitch track, except that it
+-- can only apply to one note.  The reason you might want to use it is that
+-- some instruments might treat a trill specially.  E.g. a piano might
+-- generate separate notes, or a sample library with special trill samples
+-- could affix an attribute.  If the trill is on the note instead of the pitch
+-- it's in the position to make those transformations.
 --
--- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per second.
-c_absolute_trill :: Derive.NoteCall
-c_absolute_trill = Derive.transformer "absolute_trill" $
-    \args deriver -> CallSig.call2 args
-    (required "neighbor", optional "speed" (control "trill-speed" 14)) $
+-- Args are the same as 'c_pitch_trill'.
+c_note_trill :: Derive.NoteCall
+c_note_trill = Derive.transformer "trill" $
+    \args deriver -> CallSig.call2 args (
+        optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic),
+        optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
     \neighbor speed -> do
-        (neighbor_sig, control) <-
-            Util.to_transpose_signal Util.Diatonic neighbor
-        speed_sig <- Score.typed_val <$> Util.to_signal speed
-        transpose <- absolute_trill (Derive.passed_range args) neighbor_sig
-            speed_sig
+        (transpose, control) <- trill_from_controls args neighbor speed
         Derive.with_added_control control (Score.untyped transpose) deriver
 
-absolute_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
+
+-- * pitch calls
+
+pitch_calls :: Derive.PitchCallMap
+pitch_calls = Derive.make_calls
+    [ ("tr", c_pitch_trill)
+    , ("`tr`", c_pitch_trill)
+    ]
+
+-- | Generate a pitch signal of alternating pitches.
+--
+-- [neighbor /Control/ @%trill-neighbor,1d@] Alternate with this relative
+-- pitch.
+--
+-- [speed /Control/ @%trill-speed,14r@] Trill at this speed.  If it's
+-- a RealTime, the value is the number of cycles per second, which will be
+-- unaffected by the tempo.  If it's a ScoreTime, the value is the number
+-- of cycles per ScoreTime unit, and will stretch along with tempo changes.
+c_pitch_trill :: Derive.PitchCall
+c_pitch_trill = Derive.generator1 "pitch_trill" $ \args ->
+    CallSig.call3 args (required "note",
+        optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic),
+        optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
+    \note neighbor speed -> do
+        (transpose, control) <- trill_from_controls args neighbor speed
+        PitchSignal.apply_control control (Score.untyped transpose) <$>
+            Util.pitch_signal [(0, note)]
+
+
+-- * control calls
+
+control_calls :: Derive.ControlCallMap
+control_calls = Derive.make_calls
+    [ ("tr", c_control_trill)
+    ]
+
+-- | The control version of 'c_pitch_trill'.  It generates a signal of values
+-- alternating with 0, and can be used in a transposition signal.
+--
+-- Args are the same as 'c_pitch_trill'.
+c_control_trill :: Derive.ControlCall
+c_control_trill = Derive.generator1 "control_trill" $ \args ->
+    CallSig.call2 args (
+        optional "neighbor" (control "trill-neighbor" 1),
+        optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
+    \neighbor speed -> fst <$> trill_from_controls args neighbor speed
+
+
+-- * util
+
+-- | Create a transposition signal from neighbor and speed controls.
+trill_from_controls :: Derive.PassedArgs d -> TrackLang.ValControl
+    -> TrackLang.ValControl -> Derive.Deriver (Signal.Control, Score.Control)
+trill_from_controls args neighbor speed = do
+    (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+    (neighbor_sig, control) <- Util.to_transpose_signal Util.Diatonic neighbor
+    transpose <- time_trill time_type (Derive.passed_range_to_next args)
+        neighbor_sig speed_sig
+    return (transpose, control)
+
+time_trill :: Util.TimeType -> (ScoreTime, ScoreTime) -> Signal.Control
+    -> Signal.Control -> Derive.Deriver Signal.Control
+time_trill Util.Real = real_trill
+time_trill Util.Score = score_trill
+
+real_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
     -> Derive.Deriver Signal.Control
-absolute_trill (s_start, s_end) neighbor speed = do
-    start <- Derive.real s_start
-    end <- Derive.real s_end
-    return $ make_trill start end speed neighbor
-
--- | Trill in score time.  Unlike 'c_absolute_trill', the trill rate will be
--- affected by the current tempo.
---
--- [neighbor /Control/] Alternate with this relative pitch.
---
--- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per score
--- unit.
-c_score_trill :: Derive.NoteCall
-c_score_trill = Derive.transformer "score_trill" $
-    \args deriver -> CallSig.call2 args
-    (required "neighbor", optional "speed" (control "trill-speed" 14)) $
-    \neighbor speed -> do
-        (neighbor_sig, control) <-
-            Util.to_transpose_signal Util.Diatonic neighbor
-        speed_sig <- Score.typed_val <$> Util.to_signal speed
-        transpose <- score_trill
-            (Derive.passed_range args) neighbor_sig speed_sig
-        Derive.with_added_control control (Score.untyped transpose) deriver
+real_trill (start, end) neighbor speed = do
+    start <- Derive.real start
+    end <- Derive.real end
+    return $ make_trill start end neighbor speed
 
 score_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
     -> Derive.Deriver Signal.Control
@@ -113,58 +162,10 @@ score_pos_at_speed sig pos end
         rest <- score_pos_at_speed sig (pos + recip speed) end
         return (pos : rest)
 
-
--- * pitch calls
-
-pitch_calls :: Derive.PitchCallMap
-pitch_calls = Derive.make_calls
-    [ ("tr", c_pitch_absolute_trill)
-    , ("`tr`", c_pitch_absolute_trill)
-    , ("abs-trill", c_pitch_absolute_trill)
-    ]
-
-c_pitch_absolute_trill :: Derive.PitchCall
-c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args ->
-    CallSig.call3 args (required "note",
-        optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic),
-        optional "speed" (control "trill-speed" 14)) $
-    \note neighbor speed -> do
-        speed_sig <- Score.typed_val <$> Util.to_signal speed
-        (neighbor_sig, control) <-
-            Util.to_transpose_signal Util.Diatonic neighbor
-        start <- Derive.passed_real args
-        end <- Derive.real (Derive.passed_event_end args)
-        let transpose = make_trill start end speed_sig neighbor_sig
-        PitchSignal.apply_control control (Score.untyped transpose) <$>
-            Util.pitch_signal [(0, note)]
-
-
--- * control calls
-
-control_calls :: Derive.ControlCallMap
-control_calls = Derive.make_calls
-    [ ("tr", c_control_absolute_trill)
-    ]
-
-c_control_absolute_trill :: Derive.ControlCall
-c_control_absolute_trill = Derive.generator1 "control_absolute_trill" $
-    \args -> CallSig.call2 args (
-        optional "neighbor" (control "trill-neighbor" 1),
-        optional "speed" (control "trill-speed" 14)) $
-    \neighbor speed -> do
-        speed_sig <- Score.typed_val <$> Util.to_signal speed
-        neighbor_sig <- Util.to_signal neighbor
-        start <- Derive.passed_real args
-        end <- Derive.real (Derive.passed_event_end args)
-        return $ make_trill start end speed_sig (Score.typed_val neighbor_sig)
-
-
--- * util
-
 -- | Make a trill transposition signal.
 make_trill :: RealTime -> RealTime -> Signal.Control -> Signal.Control
     -> Signal.Control
-make_trill start end speed neighbor =
+make_trill start end neighbor speed =
     trill_from_transitions transitions neighbor
     where transitions = integral_cycles end (real_pos_at_speed speed start)
 

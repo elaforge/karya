@@ -43,3 +43,15 @@ test_neighbor = do
     -- Both chromatic and diatonic literals.
     equal (CallTest.run_pitch [(0, "n (4c) 1c 1")]) [(0, 61), (1, 60)]
     equal (CallTest.run_pitch [(0, "n (4c) 1d 1")]) [(0, 62), (1, 60)]
+
+    -- It defaults to RealTime.
+    equal (run_tempo 2 [(0, "n (4c) 1d 1")]) [(0, 62), (1, 60)]
+    -- Except when explicitly set to ScoreTime.
+    equal (run_tempo 2 [(0, "n (4c) 1d 1s")]) [(0, 62), (0.5, 60)]
+
+run_tempo tempo events = extract $ DeriveTest.derive_tracks
+    [ ("tempo", [(0, 0, show tempo)])
+    , (">", [(0, 10, "")])
+    , ("*twelve", [(start, 0, text) | (start, text) <- events])
+    ]
+    where extract = head . DeriveTest.extract_events DeriveTest.e_pitch
