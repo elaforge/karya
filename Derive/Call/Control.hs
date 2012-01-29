@@ -30,6 +30,7 @@ control_calls = Derive.make_calls
     , ("i", c_linear)
     , ("e", c_exponential)
     , ("s", c_slide)
+    , ("n", c_neighbor)
 
     -- not sure which one I'll like better
     , ("`ped`", c_pedal)
@@ -69,6 +70,13 @@ c_exponential = Derive.generator1 "exponential" $ \args ->
     CallSig.call2 args (required "val", optional "exp" 2) $ \val exp ->
         control_interpolate (expon exp) val args
 
+-- | Linear interpolation from the previous value.  This is different than
+-- 'c_linear' because it starts interpolating *after* the call and continues
+-- for a given amount of time.
+--
+-- [val /Number/] Destination value.
+--
+-- [time /Number/ 0.1] RealTime taken to get there.
 c_slide :: Derive.ControlCall
 c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
     (required "val", optional "time" 0.1) $ \val time -> do
@@ -82,6 +90,21 @@ c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
         return $ case Derive.passed_prev_val args of
             Nothing -> Signal.signal [(start, val)]
             Just (_, prev_y) -> interpolator srate id True start prev_y end val
+
+-- | Emit a slide from a value to 0 in absolute time.  This is the control
+-- version of the neighbor pitch call.
+--
+-- [neighbor /Number/ @1@] Neighbor value.
+--
+-- [time /Number/ @.3@] RealTime taken to get to 0.
+c_neighbor :: Derive.ControlCall
+c_neighbor = Derive.generator1 "neighbor" $ \args ->
+    CallSig.call2 args
+        (optional "neighbor" 1, optional "time" 0.1) $ \neighbor time -> do
+    start <- Derive.passed_real args
+    let end = start + RealTime.seconds time
+    srate <- Util.get_srate
+    return $ interpolator srate id True start neighbor end 0
 
 -- | Unlike most control events, this uses a duration.  Set the control to the
 -- given value for the event's duration, and reset to the old value

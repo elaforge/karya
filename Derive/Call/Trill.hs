@@ -139,6 +139,26 @@ c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args ->
             Util.pitch_signal [(0, note)]
 
 
+-- * control calls
+
+control_calls :: Derive.ControlCallMap
+control_calls = Derive.make_calls
+    [ ("tr", c_control_absolute_trill)
+    ]
+
+c_control_absolute_trill :: Derive.ControlCall
+c_control_absolute_trill = Derive.generator1 "control_absolute_trill" $
+    \args -> CallSig.call2 args (
+        optional "neighbor" (control "trill-neighbor" 1),
+        optional "speed" (control "trill-speed" 14)) $
+    \neighbor speed -> do
+        speed_sig <- Score.typed_val <$> Util.to_signal speed
+        neighbor_sig <- Util.to_signal neighbor
+        start <- Derive.passed_real args
+        end <- Derive.real (Derive.passed_event_end args)
+        return $ make_trill start end speed_sig (Score.typed_val neighbor_sig)
+
+
 -- * util
 
 -- | Make a trill transposition signal.

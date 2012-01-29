@@ -43,7 +43,7 @@ note_calls = Map.unions [Block.note_calls, Echo.note_calls, Note.note_calls,
 --     String.note_calls, Trill.note_calls]
 
 control_calls :: Derive.ControlCallMap
-control_calls = Map.unions [Control.control_calls]
+control_calls = Map.unions [Control.control_calls, Trill.control_calls]
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Map.unions [Pitch.pitch_calls, Trill.pitch_calls]

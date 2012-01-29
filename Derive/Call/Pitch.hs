@@ -115,11 +115,13 @@ c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
             Nothing -> Util.pitch_signal [(start, pitch)]
             Just (_, prev) -> interpolator srate id True start prev end pitch
 
--- | Emit a quick slide from a neighboring pitch in absolute time.
+-- | Emit a slide from a neighboring pitch in absolute time.
 --
--- [neighbor /Transpose/ @1@] Neighbor note.
+-- [pitch /Pitch/] Destination pitch.
 --
--- [time /Number/ @.3@] Duration of ornament, in seconds.
+-- [neighbor /Transpose/ @1@] Neighbor interval.
+--
+-- [time /Number/ @.3@] RealTime taken to get to the destination pitch.
 c_neighbor :: Derive.PitchCall
 c_neighbor = Derive.generator1 "neighbor" $ \args ->
     CallSig.call3 args (required "pitch",

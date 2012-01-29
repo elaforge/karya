@@ -34,6 +34,29 @@ test_trill = do
     equal (run_c ":c" "1") ([[(0, 60), (1, 61), (2, 60)]], [])
     equal (run_c ":c" "-2") ([[(0, 60), (1, 58), (2, 60)]], [])
 
+test_control_trill = do
+    let run events = extract $ DeriveTest.derive_tracks
+            [(">", [(0, 3, "")]), ("cont", events)]
+        extract = DeriveTest.extract (DeriveTest.e_control "cont")
+    equal (run [(0, 0, "tr 1 1")]) ([Just [(0, 0), (1, 1), (2, 0)]], [])
+
+test_moving_trill = do
+    -- Ensure a diatonic trill on a moving base note remains correct.
+    let run tracks = extract $ DeriveTest.derive_tracks $
+            (">", [(0, 6, "")]) : tracks
+        extract = DeriveTest.extract DeriveTest.e_pitch
+    -- Trill transitions from 2 semitones to 1 semitone.
+    equal (run
+        [ ("*twelve", [(0, 0, "4a"), (4, 0, "i (4b)")])
+        , ("t-diatonic", [(0, 0, "tr 1 1")])
+        ])
+        ([[(0, 69), (1, 71.25), (2, 70), (3, 71.75), (4, 71), (5, 72)]], [])
+    equal (run
+        [ ("*twelve", [(0, 0, "4a"), (4, 0, "i (4b)")])
+        , ("t-chromatic", [(0, 0, "tr 1 1")])
+        ])
+        ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72)]], [])
+
 test_absolute_trill = do
     let f = Trill.absolute_trill (0, 1)
         run = extract . DeriveTest.run State.empty
@@ -85,4 +108,4 @@ con = Signal.constant
 
 test_pitch_absolute_trill = do
     equal (CallTest.run_pitch [(0, "abs-trill (4e) 2 2"), (2.8, "4c")]) $
-        zip [0, 0.5, 1, 1.5, 2] (cycle [64, 66]) ++ [(2.8, 60)]
+        zip [0, 0.5, 1, 1.5, 2] (cycle [64, 67]) ++ [(2.8, 60)]

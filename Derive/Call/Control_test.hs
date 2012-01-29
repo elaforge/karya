@@ -29,3 +29,7 @@ test_exponential = do
 
 test_slide = do
     equal (run [(0, "1"), (4, "s 0 2")]) [(0, 1), (4, 1), (5, 0.5), (6, 0)]
+
+test_neighbor = do
+    equal (run [(0, "n 1 2")]) [(0, 1), (1, 0.5), (2, 0)]
+    equal (run [(0, "n 2 1")]) [(0, 2), (1, 0)]

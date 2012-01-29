@@ -24,7 +24,7 @@ UNSORTED
     add diatonic transposition:
       * scale support in Twelve
       * Add Perform.Pitch.Transpose: Chromatic | Diatonic
-      + candidates for chromatic / diatonic:
+      * candidates for chromatic / diatonic:
         Derive.Call.Pitch.c_neighbor, Trill.*, Pitches.transpose
       * add Typecheck for Transpose and tracklang literals: 1d 1c
         This doesn't work so well because most calls are more flexible if they
@@ -39,7 +39,7 @@ UNSORTED
         * Derive.State state_controls changes
       * test to make sure with_relative_signal does the right thing wrt types
         Derive.Control_test
-      - test trill to make sure it respects chromatic and diatonic neighbors
+      * test trill to make sure it respects chromatic and diatonic neighbors
       * test c_neighbor
       * make sure control calls work with types
       * 'trill 1' should default as 1d, but 'n 1' should default as 1c.
@@ -52,7 +52,7 @@ UNSORTED
         in arbitrary places)
       - support scales that are different ascending vs. descending
 
-    - port to control calls: neighbor, trill, ...
+    * port to control calls: neighbor, trill, ...
     - get rid of Perform.SignalBase and do something about the code
       duplication between PitchSignal and Signal
 
@@ -101,8 +101,9 @@ UNSORTED
     * test transpose out of range error reporting
     * document Derive.BaseTypes song and dance
     * write Derive.PitchSignal_test
-  - implement RealTime and ScoreTime signals for trill
-  - implement RealTime and ScoreTime for neighbor
+  implement RealTime and ScoreTime
+    - Trill.c_trill, Pitch.c_neighbor, Control.c_neighbor, Control.c_slide
+
 
   the problem with rambat tick
     I need a general way to manipulate notes and know their pitch, dynamics,
