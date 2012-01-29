@@ -84,15 +84,18 @@ to_signal control = case control of
         maybe (Derive.throw $ "not found: " ++ show cont) return
             =<< Derive.get_control cont
 
+data Transpose = Diatonic | Chromatic deriving (Show)
+
 -- | Version of 'to_signal' specialized for transpose signals.  Throws if
 -- the signal had a non-transpose type.
-to_transpose_signal :: TrackLang.ValControl
+to_transpose_signal :: Transpose -> TrackLang.ValControl
     -> Derive.Deriver (Signal.Control, Score.Control)
     -- ^ (signal, appropriate transpose control)
-to_transpose_signal control = do
+to_transpose_signal default_type control = do
     Score.Typed typ sig <- to_signal control
     case typ of
-        Score.Untyped -> return (sig, Score.c_chromatic)
+        Score.Untyped -> return (sig, case default_type of
+            Diatonic -> Score.c_diatonic; Chromatic -> Score.c_chromatic)
         Score.Chromatic -> return (sig, Score.c_chromatic)
         Score.Diatonic -> return (sig, Score.c_diatonic)
         _ -> Derive.throw $ "expected transpose type for "

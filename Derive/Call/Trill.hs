@@ -56,7 +56,8 @@ c_absolute_trill = Derive.transformer "absolute_trill" $
     \args deriver -> CallSig.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
-        (neighbor_sig, control) <- Util.to_transpose_signal neighbor
+        (neighbor_sig, control) <-
+            Util.to_transpose_signal Util.Diatonic neighbor
         speed_sig <- Score.typed_val <$> Util.to_signal speed
         transpose <- absolute_trill (Derive.passed_range args) neighbor_sig
             speed_sig
@@ -81,7 +82,8 @@ c_score_trill = Derive.transformer "score_trill" $
     \args deriver -> CallSig.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
-        (neighbor_sig, control) <- Util.to_transpose_signal neighbor
+        (neighbor_sig, control) <-
+            Util.to_transpose_signal Util.Diatonic neighbor
         speed_sig <- Score.typed_val <$> Util.to_signal speed
         transpose <- score_trill
             (Derive.passed_range args) neighbor_sig speed_sig
@@ -128,7 +130,8 @@ c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args ->
         optional "speed" (control "trill-speed" 14)) $
     \note neighbor speed -> do
         speed_sig <- Score.typed_val <$> Util.to_signal speed
-        (neighbor_sig, control) <- Util.to_transpose_signal neighbor
+        (neighbor_sig, control) <-
+            Util.to_transpose_signal Util.Diatonic neighbor
         start <- Derive.passed_real args
         end <- Derive.real (Derive.passed_event_end args)
         let transpose = make_trill start end speed_sig neighbor_sig

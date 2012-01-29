@@ -146,7 +146,6 @@ empty_scale = ScaleId ""
 twelve :: ScaleId
 twelve = ScaleId "twelve"
 
-
 -- | Scale steps.  What this means is internal to each scale, but is intended
 -- to correspond to chromatic steps in the scale.
 newtype Degree = Degree Int

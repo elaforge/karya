@@ -42,7 +42,7 @@ UNSORTED
       - test trill to make sure it respects chromatic and diatonic neighbors
       * test c_neighbor
       * make sure control calls work with types
-      - 'trill 1' should default as 1d, but 'n 1' should default as 1c.
+      * 'trill 1' should default as 1d, but 'n 1' should default as 1c.
         How can I say "c or d but default to _"?
       - support input key and enharmonics
       - add flip enharmonic cmd

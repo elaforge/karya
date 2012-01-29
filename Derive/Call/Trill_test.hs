@@ -13,7 +13,7 @@ test_trill = do
     let run tracks = extract $ DeriveTest.derive_tracks $
             (">", [(0, 3, "")]) : tracks
         extract = DeriveTest.extract DeriveTest.e_pitch
-    -- TODO should default to diatonic
+    -- Defaults to diatonic.
     equal (run [("*twelve", [(0, 0, "tr (4c) 1 1")])])
         ([[(0, 60), (1, 62), (2, 60)]], [])
     equal (run [("*twelve", [(0, 0, "tr (4c) 1c 1")])])
