@@ -13,6 +13,8 @@ def main():
                 print 'no match', repr(line)
             continue
         path = os.path.normpath(m.groups()[0])
+        if path == 'TODO':
+            continue # not actually code changes
         dir = os.path.dirname(path) or '.'
 
         if line.startswith('A'):
