@@ -1,6 +1,7 @@
 module Derive.Call.Ornament where
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -32,8 +33,7 @@ c_mordent :: Pitch.Transpose -> Derive.NoteCall
 c_mordent default_neighbor = Derive.stream_generator "mordent" $
     Note.inverting $ \args -> CallSig.call2 args
     (optional "neighbor" default_neighbor, optional "vel" 0.3) $
-    \neighbor vel ->
-        mordent grace_dur (Derive.passed_extent args) vel neighbor
+    \neighbor vel -> mordent grace_dur (Args.extent args) vel neighbor
     where grace_dur = RealTime.seconds (1/12)
 
 mordent :: RealTime -> (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Transpose

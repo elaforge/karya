@@ -14,6 +14,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 
+import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -53,8 +54,7 @@ c_note = Derive.Call "note"
     where
     generate args = case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->
-            generate_note inst rel_attrs (Derive.passed_event args)
-                (Derive.passed_event_end args)
+            generate_note inst rel_attrs (Args.event args) (Args.end args)
         (_, _, invalid) -> Derive.throw_arg_error $
             "expected inst or attr: " ++ show invalid
     process = process_note_args Nothing []
@@ -199,16 +199,14 @@ invert_call :: Derive.PassedArgs d -> Derive.Deriver (Maybe State.EventsTree)
 invert_call args = case Derive.info_sub_tracks info of
     [] -> return Nothing
     subs -> Just <$> invert (Derive.info_track_range info) subs
-        pos (pos + Event.event_duration event)
-        (Derive.passed_event_end args) expr
+        pos (pos + Event.event_duration event) (Args.end args) expr
     where
     (pos, event) = Derive.info_event info
     -- It may seem surprising that only the final call is retained, and any
     -- transformers are discarded.  But 'inverting' only applies to generators
     -- so those transformers should have already done their thing.
     -- See comment above and in Derive.TrackLang.Val Pretty instance.
-    expr = maybe "" Pretty.pretty $
-        Seq.last (Derive.info_expr (Derive.passed_info args))
+    expr = maybe "" Pretty.pretty $ Seq.last (Derive.info_expr info)
     info = Derive.passed_info args
 
 invert :: (ScoreTime, ScoreTime) -> State.EventsTree -> ScoreTime
@@ -259,7 +257,7 @@ instance Show Event where
 sub_events :: Derive.PassedArgs d -> [[Event]]
 sub_events args = map (map mkevent) (Slice.slice_notes start end subs)
     where
-    (start, end) = Derive.passed_range args
+    (start, end) = Args.range args
     subs = Derive.info_sub_tracks (Derive.passed_info args)
     -- The events have been shifted back to 0 by 'Slice.slice_notes', but
     -- are still their original lengths.  Stretch them back to 1 so Events

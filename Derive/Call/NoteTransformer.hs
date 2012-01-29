@@ -4,6 +4,7 @@ import Control.Monad
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -34,7 +35,7 @@ c_tuplet = Derive.stream_generator "tuplet" $ Note.place . stretched_tracks
     where
     stretched_tracks args =
         sort $ concatMap (stretched start end) (Note.sub_events args)
-        where (start, end) = Derive.passed_range args
+        where (start, end) = Args.range args
     stretched s e events = map stretch (sort events)
         where
         factor = (e-s) / maybe 1 (subtract s) end

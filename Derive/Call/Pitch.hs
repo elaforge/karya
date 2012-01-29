@@ -6,6 +6,7 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Derive.Args as Args
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -81,17 +82,17 @@ pitch_calls = Derive.make_calls
 c_note_set :: Derive.PitchCall
 c_note_set = Derive.generator1 "note_set" $ \args -> CallSig.call1 args
     (required "pitch") $ \pitch -> do
-        pos <- Derive.passed_real args
+        pos <- Args.real_start args
         Util.pitch_signal [(pos, pitch)]
 
 c_note_linear :: Derive.PitchCall
 c_note_linear = Derive.generator1 "note_linear" $ \args ->
     case Derive.passed_vals args of
-        [] -> case Derive.passed_prev_val args of
+        [] -> case Args.prev_val args of
             Nothing ->
                 Derive.throw "can't set to previous val when there was none"
             Just (_, prev) -> do
-                pos <- Derive.passed_real args
+                pos <- Args.real_start args
                 Util.pitch_signal [(pos, prev)]
         _ -> CallSig.call1 args (required "pitch") $ \pitch ->
             pitch_interpolate id pitch args
@@ -104,14 +105,14 @@ c_note_exponential = Derive.generator1 "note_exponential" $ \args ->
 c_note_slide :: Derive.PitchCall
 c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
     (required "pitch", optional "time" 0.1) $ \pitch time -> do
-        start <- Derive.passed_real args
-        end <- case Derive.passed_next_begin args of
+        start <- Args.real_start args
+        end <- case Args.next_start args of
             Nothing -> return $ start + RealTime.seconds time
             Just n -> do
                 next <- Derive.real n
                 return $ min (start + RealTime.seconds time) next
         srate <- Util.get_srate
-        case Derive.passed_prev_val args of
+        case Args.prev_val args of
             Nothing -> Util.pitch_signal [(start, pitch)]
             Just (_, prev) -> interpolator srate id True start prev end pitch
 
@@ -139,9 +140,9 @@ pitch_interpolate :: (Double -> Double) -> PitchSignal.Pitch
     -> Derive.PassedArgs PitchSignal.Signal
     -> Derive.Deriver PitchSignal.Signal
 pitch_interpolate f pitch args = do
-    start <- Derive.passed_real args
+    start <- Args.real_start args
     srate <- Util.get_srate
-    case Derive.passed_prev_val args of
+    case Args.prev_val args of
         Nothing -> Util.pitch_signal [(start, pitch)]
         Just (prev_t, prev) ->
             interpolator srate f False prev_t prev start pitch

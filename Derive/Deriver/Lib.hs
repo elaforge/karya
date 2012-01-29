@@ -42,8 +42,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
@@ -344,70 +342,11 @@ with_scope modify_scope =
     (\st -> return $ st { state_scope = modify_scope (state_scope st) })
 
 
-
 -- * calls
 
--- | Functions for writing calls.
-
+-- | Make a call map.
 make_calls :: [(String, call)] -> Map.Map TrackLang.CallId call
 make_calls = Map.fromList . map (first TrackLang.Symbol)
-
--- ** passed args
-
-passed_event :: PassedArgs derived -> Events.PosEvent
-passed_event = info_event . passed_info
-
--- | Get the previous derived val.  This is used by control derivers so they
--- can interpolate from the previous sample.
-passed_prev_val :: PassedArgs derived -> Maybe (RealTime, Elem derived)
-passed_prev_val args = info_prev_val (passed_info args)
-
--- | Get the start of the next event, if there is one.  Used by calls to
--- determine their extent, especially control calls, which have no explicit
--- duration.
-passed_next_begin :: PassedArgs d -> Maybe ScoreTime
-passed_next_begin = fmap fst . Seq.head . info_next_events . passed_info
-
--- | The start of the next event, or the end of the block if there is no next
--- event.
-passed_event_end :: PassedArgs d -> ScoreTime
-passed_event_end = info_event_end . passed_info
-
-passed_prev_begin :: PassedArgs d -> Maybe ScoreTime
-passed_prev_begin = fmap fst . Seq.head . info_prev_events . passed_info
-
--- | Range of the called event.  Note that range is the minimum to maximum,
--- which is not the same as the start and end if the event has negative
--- duration.
-passed_range :: PassedArgs d -> (ScoreTime, ScoreTime)
-passed_range = Events.range . passed_event
-
--- | Like 'passed_range', except the range is to the beginning of the next
--- event.  Suitable for control calls, which tend to have 0 duration.
-passed_range_to_next :: PassedArgs d -> (ScoreTime, ScoreTime)
-passed_range_to_next args = (passed_score args, passed_event_end args)
-
--- | Event range as it appears on the track, regardless of slicing.
-passed_track_range :: PassedArgs d -> (ScoreTime, ScoreTime)
-passed_track_range args = (track_start + start, track_start + end)
-    where
-    (start, end) = passed_range args
-    track_start = fst (info_track_range (passed_info args))
-
-passed_real_range :: PassedArgs d -> Deriver (RealTime, RealTime)
-passed_real_range args = (,) <$> real start <*> real end
-    where (start, end) = passed_range args
-
-passed_extent :: PassedArgs d -> (ScoreTime, ScoreTime)
-passed_extent = (\(p, e) -> (p, Event.event_duration e)) . passed_event
-
--- TODO crummy name, come up with a better one
-passed_score :: PassedArgs d -> ScoreTime
-passed_score = fst . passed_event
-
-passed_real :: PassedArgs d -> Deriver RealTime
-passed_real = real . passed_score
-
 
 -- * postproc
 

@@ -14,6 +14,7 @@ import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
+import qualified Derive.Args as Args
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.BlockUtil as BlockUtil
@@ -258,8 +259,8 @@ with_calls mvar = CallTest.with_note_call "" (mk_logging_call mvar)
 
 mk_logging_call :: Log -> Derive.NoteCall
 mk_logging_call log_var  = Derive.stream_generator "logging-note" $
-    Call.Note.inverting $ \args -> c_note log_var (Derive.passed_event args)
-        (Derive.passed_event_end args)
+    Call.Note.inverting $ \args ->
+        c_note log_var (Args.event args) (Args.end args)
 
 c_note :: Log -> Events.PosEvent -> ScoreTime -> Derive.EventDeriver
 c_note log_mvar (pos, event) next_start = do
@@ -282,7 +283,7 @@ c_note log_mvar (pos, event) next_start = do
 c_set :: Log -> Derive.ControlCall
 c_set log_mvar = Derive.generator1 "set" $ \args -> CallSig.call1 args
     (CallSig.required "val") $ \val -> do
-        pos <- Derive.passed_real args
+        pos <- Args.real_start args
         st <- Derive.gets Derive.state_dynamic
         let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $
                 stack ++ " control at: " ++ Pretty.pretty pos

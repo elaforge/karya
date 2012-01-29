@@ -13,6 +13,7 @@ import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 
+import qualified Derive.Args as Args
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
@@ -60,7 +61,7 @@ c_block block_id = block_call (const (Just block_id)) $
             Derive.throw_arg_error $
                 "args for block call not implemented yet: "
                 ++ Pretty.pretty (Derive.passed_vals args)
-        where (start, end) = Derive.passed_range args
+        where (start, end) = Args.range args
 
 block_call :: ((Id.Namespace, Derive.PassedArgs d) -> Maybe BlockId)
     -> Derive.Call d -> Derive.Call d
@@ -123,9 +124,9 @@ c_clip = block_call get_block_id $ Derive.stream_generator "clip" $
             (Derive.throw $ "block not found: " ++ Pretty.pretty sym) return
             =<< symbol_to_block_id sym
         sub_dur <- Derive.get_block_dur block_id
-        end <- Derive.real (snd (Derive.passed_range args))
+        end <- Derive.real (snd (Args.range args))
         takeWhile (before end) <$>
-            Derive.d_place (Derive.passed_score args) sub_dur
+            Derive.d_place (Args.start args) sub_dur
                 (d_block block_id)
     where
     before end = LEvent.either ((<end) . Score.event_start) (const True)
@@ -153,7 +154,7 @@ c_control_block block_id = block_call (const (Just block_id)) $
             Derive.throw_arg_error $
                 "args for control block call not implemented yet: "
                 ++ Pretty.pretty (Derive.passed_vals args)
-        where (start, end) = Derive.passed_range args
+        where (start, end) = Args.range args
 
 d_control_block :: BlockId -> Derive.ControlDeriver
 d_control_block block_id = do

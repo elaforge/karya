@@ -26,6 +26,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -48,7 +49,7 @@ with_controls :: (FixedList.FixedList list) => Derive.PassedArgs d
     -> list TrackLang.ValControl -> (list Signal.Y -> Derive.Deriver a)
     -> Derive.Deriver a
 with_controls args controls f = do
-    now <- Derive.passed_real args
+    now <- Args.real_start args
     f =<< Traversable.mapM (control_at now) controls
 
 -- | To accomodate both normal calls, which are in score time, and post
@@ -266,11 +267,10 @@ _random_generator pos = do
 duration_from_start :: Derive.PassedArgs d -> TrackLang.RealOrScore
     -> Derive.Deriver (RealTime, RealTime)
 duration_from_start args time = do
-    start <- Derive.passed_real args
+    start <- Args.real_start args
     case time of
         TrackLang.Real t -> return (start, start + t)
-        TrackLang.Score t ->
-            (,) start <$> Derive.real (Derive.passed_score args + t)
+        TrackLang.Score t -> (,) start <$> Derive.real (Args.start args + t)
 
 -- | Add a RealTime to a ScoreTime.
 delay :: RealTime -> ScoreTime -> Derive.Deriver ScoreTime

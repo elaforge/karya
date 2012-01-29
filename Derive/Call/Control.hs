@@ -2,6 +2,7 @@
 module Derive.Call.Control where
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Derive.Args as Args
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (required, optional)
@@ -41,15 +42,15 @@ control_calls = Derive.make_calls
 c_set :: Derive.ControlCall
 c_set = Derive.generator1 "set" $ \args -> CallSig.call1 args
     (required "val") $ \val -> do
-        pos <- Derive.passed_real args
+        pos <- Args.real_start args
         return $ Signal.signal [(pos, val)]
 
 c_set_prev :: Derive.ControlCall
 c_set_prev = Derive.generator "set-prev" $ \args -> CallSig.call0 args $
-    case Derive.passed_prev_val args of
+    case Args.prev_val args of
         Nothing -> return []
         Just (prev_x, prev_y) -> do
-            pos <- Derive.passed_real args
+            pos <- Args.real_start args
             return $ if pos > prev_x
                 then [Signal.signal [(pos, prev_y)]]
                 else []
@@ -57,11 +58,11 @@ c_set_prev = Derive.generator "set-prev" $ \args -> CallSig.call0 args $
 c_linear :: Derive.ControlCall
 c_linear = Derive.generator1 "linear" $ \args ->
     case Derive.passed_vals args of
-        [] -> case Derive.passed_prev_val args of
+        [] -> case Args.prev_val args of
             Nothing -> Derive.throw
                 "can't set to previous val when there was none"
             Just (_, prev_y) -> do
-                pos <- Derive.passed_real args
+                pos <- Args.real_start args
                 return $ Signal.signal [(pos, prev_y)]
         _ -> CallSig.call1 args (required "val") $ \val ->
             control_interpolate id val args
@@ -83,13 +84,13 @@ c_slide = Derive.generator1 "slide" $ \args ->
     CallSig.call2 args (required "val", optional "time" (TrackLang.real 0.1)) $
     \val (TrackLang.DefaultReal time) -> do
         (start, end) <- Util.duration_from_start args time
-        end <- case Derive.passed_next_begin args of
+        end <- case Args.next_start args of
             Nothing -> return end
             Just n -> do
                 next <- Derive.real n
                 return $ min end next
         srate <- Util.get_srate
-        return $ case Derive.passed_prev_val args of
+        return $ case Args.prev_val args of
             Nothing -> Signal.signal [(start, val)]
             Just (_, prev_y) -> interpolator srate id True start prev_y end val
 
@@ -116,8 +117,8 @@ c_neighbor = Derive.generator1 "neighbor" $ \args ->
 c_pedal :: Derive.ControlCall
 c_pedal = Derive.generator1 "pedal" $ \args -> CallSig.call1 args
     (optional "val" 1) $ \val -> do
-        (start, end) <- Derive.passed_real_range args
-        let prev = maybe 0 snd (Derive.passed_prev_val args)
+        (start, end) <- Args.real_range args
+        let prev = maybe 0 snd (Args.prev_val args)
         return $ Signal.signal [(start, val), (end, prev)]
 
 -- * control util
@@ -130,9 +131,9 @@ control_interpolate :: (Double -> Signal.Y) -> Signal.Y
     -- -> Derive.PassedArgs Signal.Control -> Derive.ControlDeriver
     -> Derive.PassedArgs Signal.Control -> Derive.Deriver Signal.Control
 control_interpolate f val args = do
-    start <- Derive.passed_real args
+    start <- Args.real_start args
     srate <- Util.get_srate
-    return $ case Derive.passed_prev_val args of
+    return $ case Args.prev_val args of
         -- This can happen a lot when the control track is sliced, and is
         -- nothing to worry about.
         Nothing -> Signal.signal [(start, val)]

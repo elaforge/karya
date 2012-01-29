@@ -2,6 +2,7 @@ module Derive.Call.Rambat where
 import Data.FixedList (Cons(..), Nil(..))
 
 import Util.Control
+import qualified Derive.Args as Args
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional, control)
@@ -39,7 +40,7 @@ c_tick :: Derive.NoteCall
 c_tick = Derive.stream_generator "tick" $ \args -> CallSig.call2 args
     ( optional "time" (control "tick-time" 0.15)
     , optional "vel" (control "tick-velocity" 0.5)) $ \time vel ->
-    case (Derive.passed_prev_begin args, Derive.passed_next_begin args) of
+    case (Args.prev_start args, Args.next_start args) of
         (Just ppos, Just npos) ->
             Util.with_controls args (time :. vel :. Nil) $
                 \(time :. vel :. Nil) ->

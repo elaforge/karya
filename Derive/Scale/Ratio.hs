@@ -12,6 +12,7 @@ module Derive.Scale.Ratio where
 import Util.Control
 import qualified Util.ParseBs as Parse
 import qualified Ui.Track as Track
+import qualified Derive.Args as Args
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional)
 import qualified Derive.Derive as Derive
@@ -50,7 +51,7 @@ note_to_call note = note_call <$>
 note_call :: (Double -> Double) -> Derive.ValCall
 note_call ratio = Derive.ValCall "ratio" $ \args ->
     CallSig.call1 args (optional "hz" 0) $ \hz -> do
-        start <- Derive.passed_real args
+        start <- Args.real_start args
         nn <- Derive.require
             ("ratio scale requires a " ++ show source_name ++ " pitch signal")
             =<< Derive.named_nn_at source_name start

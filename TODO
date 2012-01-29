@@ -103,7 +103,7 @@ UNSORTED
     * write Derive.PitchSignal_test
   implement RealTime and ScoreTime
     * Trill.c_trill, Pitch.c_neighbor, Control.c_neighbor, Control.c_slide
-  - stick all the Derive.passed_* functions in their own module (Arg?) and
+  * stick all the Derive.passed_* functions in their own module (Arg?) and
     think of some better names
 
   the problem with rambat tick

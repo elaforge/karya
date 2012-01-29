@@ -19,6 +19,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
+import qualified Derive.Args as Args
 import qualified Derive.Derive as Derive
 import Derive.Derive
        (Cache(..), Cached(..), ScoreDamage(..), ControlDamage(..))
@@ -44,7 +45,7 @@ caching_call call args = do
         sdamage = Derive.state_score_damage (Derive.state_constant st)
         stack = Derive.state_stack (Derive.state_dynamic st)
     generate stack $ find_generator_cache stack
-        (uncurry Ranges.range (Derive.passed_track_range args))
+        (uncurry Ranges.range (Args.range_on_track args))
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
