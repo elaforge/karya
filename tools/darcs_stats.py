@@ -5,8 +5,42 @@ def main():
     p = subprocess.Popen(['darcs', 'whatsnew', '-l'] + sys.argv[1:],
         stdout=subprocess.PIPE)
     stdout, _ = p.communicate()
-    totals = {}
-    for line in stdout.split('\n'):
+    adds, subtracts = parse_whatsnew(stdout.split('\n'))
+
+    normal_by_dir = {}
+    test_by_dir = {}
+    for path in set(adds).union(set(subtracts)):
+        if path.endswith('_test.hs'):
+            by_dir = test_by_dir
+        else:
+             by_dir = normal_by_dir
+        dir = os.path.dirname(path) or '.'
+        add, subtract = by_dir.get(dir, (0, 0))
+        by_dir[dir] = (adds.get(path, 0) + add, subtracts.get(path, 0))
+
+    longest = max(map(len, normal_by_dir.keys() + test_by_dir.keys()))
+    col1 = 16
+    print '%-*s %-*s test' % (longest, 'dir', col1, 'normal')
+    for dir in sorted(set(normal_by_dir).union(set(test_by_dir))):
+        normal = normal_by_dir.get(dir, (0, 0))
+        test = test_by_dir.get(dir, (0, 0))
+        print '%-*s %-*s %s' % (
+            longest, dir, col1, show_diff(normal), show_diff(test))
+    print
+    print '%-*s %-*s %s' % (longest, 'total', col1,
+        show_diff(sum_diffs(normal_by_dir.values())),
+        show_diff(sum_diffs(test_by_dir.values())))
+
+def sum_diffs(diffs):
+    return (sum(map(fst, diffs)), sum(map(snd, diffs)))
+
+def show_diff((add, sub)):
+    return '+%d-%d %d' % (add, abs(sub), add+sub)
+
+def parse_whatsnew(lines):
+    adds = {}
+    subtracts = {}
+    for line in lines:
         m = re.match(r'[MA] ([./a-zA-Z_-]+) *(\-\d+)? *(\+\d+)?$', line)
         if not m:
             if m and m[0] in 'MA':
@@ -19,23 +53,15 @@ def main():
 
         if line.startswith('A'):
             # darcs doesn't show lines for new files
-            if os.path.isdir(path):
-                diff = 0
-            else:
-                diff = len(list(open(path)))
+            if not os.path.isdir(path):
+                adds[path] = len(list(open(path)))
         else:
-            diff = sum(map(int, filter(None, m.groups()[1:])))
-        nontest_total, test_total = totals.get(dir, (0, 0))
-        if path.endswith('_test.hs'):
-            test_total += diff
-        else:
-            nontest_total += diff
-        totals[dir] = (nontest_total, test_total)
-    print 'dir\tnontest\ttest'
-    for dir, (nontest, test) in sorted(totals.items()):
-        print '%s\t%d\t%d' % (dir, nontest, test)
-    print 'total\t%d\t%d\t= %d' % (sum(map(fst, totals.values())),
-        sum(map(snd, totals.values())), sum(map(sum, totals.values())))
+            for diff in filter(None, m.groups()[1:]):
+                if diff.startswith('-'):
+                    subtracts[path] = int(diff)
+                elif diff.startswith('+'):
+                    adds[path] = int(diff)
+    return adds, subtracts
 
 def fst((a, b)): return a
 def snd((a, b)): return b
