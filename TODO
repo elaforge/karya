@@ -106,7 +106,6 @@ UNSORTED
   - stick all the Derive.passed_* functions in their own module (Arg?) and
     think of some better names
 
-
   the problem with rambat tick
     I need a general way to manipulate notes and know their pitch, dynamics,
     etc.  There are a lot of ways to do this:
@@ -131,6 +130,10 @@ UNSORTED
     a postproc pass can then fill in.  I think it would work, but only as
     a last resort.
 
+  complete quickcheck derive testing
+    - test simple derive
+    - hook up auto-generated scores
+    - integrate quickcheck with generate_run_tests.py
   * put filename in patch tags
   * instead of discarding overlapping patch names, append a number to
     disambiguate

@@ -236,6 +236,7 @@ packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
     ++ "bytestring attoparsec utf8-string "
     ++ "mersenne-random-pure64 hashable random-shuffle "
     ++ "containers filepath transformers vector "
+    ++ "QuickCheck "
     ++ "haskeline " -- repl
     ++ "shake " -- shakefile
 
