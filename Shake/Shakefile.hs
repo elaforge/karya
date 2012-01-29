@@ -550,7 +550,7 @@ generateTestHs hsSuffix fn = do
     tests <- Util.findHs pattern "."
     when (null tests) $
         errorIO $ "no tests match pattern: " ++ show pattern
-    need ["test/generate_run_tests.py"]
+    need $ "test/generate_run_tests.py" : tests
     system' "test/generate_run_tests.py" (fn : tests)
 
 -- * hs
