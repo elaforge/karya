@@ -1,7 +1,18 @@
 {-# LANGUAGE TypeFamilies, RankNTypes #-}
 module Derive.PitchSignal (
-    module Derive.PitchSignal, Pitch, PitchError(..)
+    Signal, sig_scale, Scale(Scale)
+    -- * construct and convert
+    , constant, signal, unsignal, to_nn
+    -- * apply controls
+    , apply_controls, apply_control, controls_at
+    -- * signal functions
+    , at, shift, last
+    , truncate, drop_before
+    -- * Pitch
+    , Pitch, PitchError(..), Controls
+    , pitch, apply, add_control, eval_pitch, pitch_nn
 ) where
+import Prelude hiding (last, truncate)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -43,7 +54,14 @@ data Signal = Signal {
     , sig_vec :: !(TimeVector.Vector Pitch)
     } deriving (Show)
 
-type Scale = (Pitch.ScaleId, Set.Set Score.Control)
+sig_scale :: Signal -> Scale
+sig_scale sig = Scale (sig_scale_id sig) (sig_transposers sig)
+
+-- | Signal can't take a Scale because that would be a circular import.
+-- Fortunately it only needs a few fields.  However, because of the
+-- circularity, the Scale.Scale -> PitchSignal.Scale constructor is in
+-- "Derive.Derive".
+data Scale = Scale Pitch.ScaleId (Set.Set Score.Control) deriving (Show)
 
 instance Functor0.Functor0 Signal where
     type Functor0.Elem Signal = TimeVector.Vector Pitch
@@ -65,7 +83,8 @@ constant :: Scale -> Pitch -> Signal
 constant scale pitch = signal scale [(0, pitch)]
 
 signal :: Scale -> [(RealTime, Pitch)] -> Signal
-signal (scale_id, transposers) = Signal transposers scale_id . TimeVector.make
+signal (Scale scale_id transposers) =
+    Signal transposers scale_id . TimeVector.make
 
 unsignal :: Signal -> [(RealTime, Pitch)]
 unsignal sig = [(x, y) | TimeVector.Sample x y <- V.toList (sig_vec sig)]
@@ -126,12 +145,6 @@ resample_signals controls transposers =
 controls_at :: RealTime -> ControlMap -> Controls
 controls_at t = Map.map (fmap (Signal.at t))
 
-truncate :: RealTime -> Signal -> Signal
-truncate x = fmap0 (TimeVector.truncate x)
-
-drop_before :: RealTime -> Signal -> Signal
-drop_before x = fmap0 (TimeVector.drop_before x)
-
 -- * signal functions
 
 at :: RealTime -> Signal -> Maybe Pitch
@@ -145,6 +158,12 @@ last sig
     | V.null (sig_vec sig) = Nothing
     | otherwise = case V.unsafeLast (sig_vec sig) of
         TimeVector.Sample x pitch -> Just (x, pitch)
+
+truncate :: RealTime -> Signal -> Signal
+truncate x = fmap0 (TimeVector.truncate x)
+
+drop_before :: RealTime -> Signal -> Signal
+drop_before x = fmap0 (TimeVector.drop_before x)
 
 -- * Pitch
 

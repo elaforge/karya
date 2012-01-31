@@ -524,7 +524,7 @@ mkevent (start, dur, text, controls, inst) =
 
 pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal
 pitch_signal = PitchSignal.signal scale . map (second mkpitch)
-    where scale = (Twelve.scale_id, Scale.scale_transposers Twelve.scale)
+    where scale = Derive.pitch_signal_scale Twelve.scale
 
 
 mkpitch :: String -> PitchSignal.Pitch

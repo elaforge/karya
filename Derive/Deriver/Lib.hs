@@ -318,7 +318,11 @@ with_pitch cont = modify_pitch cont . const
 with_constant_pitch :: Maybe Score.Control -> Scale -> PitchSignal.Pitch
     -> Deriver a -> Deriver a
 with_constant_pitch maybe_name scale = with_pitch maybe_name
-    . PitchSignal.constant (scale_id scale, scale_transposers scale)
+    . PitchSignal.constant (pitch_signal_scale scale)
+
+pitch_signal_scale :: Scale -> PitchSignal.Scale
+pitch_signal_scale scale =
+    PitchSignal.Scale (scale_id scale) (scale_transposers scale)
 
 modify_pitch :: Maybe Score.Control
     -> (Maybe PitchSignal.Signal -> PitchSignal.Signal)
@@ -332,7 +336,6 @@ modify_pitch (Just name) f = Internal.local
     (\st -> return $ st { state_pitches = Map.alter (Just . f) name (ps st) })
     where ps = state_pitches
 
-
 -- ** with_scope
 
 -- | Run the derivation with a modified scope.
@@ -340,7 +343,6 @@ with_scope :: (Scope -> Scope) -> Deriver a -> Deriver a
 with_scope modify_scope =
     Internal.local state_scope (\old st -> st { state_scope = old })
     (\st -> return $ st { state_scope = modify_scope (state_scope st) })
-
 
 -- * calls
 

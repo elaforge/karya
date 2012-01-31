@@ -24,7 +24,8 @@ test_apply_controls = do
         [(0, Right 2), (1, Right 1), (2, Right 2)]
 
 mksignal :: [(RealTime, Pitch.NoteNumber)] -> PitchSignal.Signal
-mksignal = PitchSignal.signal (Pitch.ScaleId "test", Set.fromList [c_trans])
+mksignal = PitchSignal.signal
+    (PitchSignal.Scale (Pitch.ScaleId "test") (Set.fromList [c_trans]))
     . map (second mkpitch)
 
 mkpitch :: Pitch.NoteNumber -> PitchSignal.Pitch

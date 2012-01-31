@@ -145,7 +145,7 @@ to_pitch_signal control = case control of
     where
     constant note = do
         scale <- get_scale
-        PitchSignal.constant (to_signal_scale scale) <$> Call.eval_note note
+        constant_pitch scale <$> Call.eval_note note
 
 nn_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
@@ -157,10 +157,11 @@ pitch_signal :: [(RealTime, PitchSignal.Pitch)]
     -> Derive.Deriver PitchSignal.Signal
 pitch_signal xs = do
     scale <- get_scale
-    return $ PitchSignal.signal (to_signal_scale scale) xs
+    return $ PitchSignal.signal (Derive.pitch_signal_scale scale) xs
 
-to_signal_scale :: Scale.Scale -> PitchSignal.Scale
-to_signal_scale scale = (Scale.scale_id scale, Scale.scale_transposers scale)
+-- | More convenient constructors for PitchSignals.
+constant_pitch :: Scale.Scale -> PitchSignal.Pitch -> PitchSignal.Signal
+constant_pitch = PitchSignal.constant . Derive.pitch_signal_scale
 
 -- * note
 
@@ -296,8 +297,7 @@ c_equal = Derive.transformer "equal" $ \args deriver ->
             Derive.with_pitch assignee sig deriver
         [pitch -> Just assignee, TrackLang.VPitch val] -> do
             scale <- get_scale
-            Derive.with_pitch assignee
-                (PitchSignal.constant (to_signal_scale scale) val) deriver
+            Derive.with_pitch assignee (constant_pitch scale val) deriver
         _ -> Derive.throw_arg_error
             "equal call expected (sym, val) or (sig, sig) args"
     where
