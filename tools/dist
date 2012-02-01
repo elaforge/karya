@@ -1,0 +1,6 @@
+#!/bin/sh
+
+dir=$(basename $(pwd))
+cd ..
+tar --exclude $dir/build/ --exclude $dir/.hpc --exclude $dir/inst_db \
+    --exclude $dir/prof -czvf $dir.tgz $dir
