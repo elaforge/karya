@@ -381,7 +381,7 @@ main = do
         hspp *> \fn -> do
             -- But need mark hspp's deps so it will rebuild.
             need =<< HsDeps.transitiveImportsOf "Util/Hspp.hs"
-            system $ makeHs (modeToDir Opt) fn "Util/Hspp.hs"
+            system $ makeHs (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
         build </> "tags" *> \fn -> do
             hs <- Util.findHs "*.hs" "."
             hscs <- Util.findHs "*.hs" (hscDir (modeConfig Debug))
