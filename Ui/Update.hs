@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, TypeSynonymInstances #-}
+{-# LANGUAGE DeriveDataTypeable, TypeSynonymInstances, FlexibleInstances #-}
 {- | Updates are diffs against Ui.State and are used in a number of contexts.
     They are produced by "Ui.Diff".  For efficiency, TrackEvents updates are
     recorded directly in "Ui.State", so diff doesn't have to compare all the

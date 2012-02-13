@@ -66,7 +66,7 @@ str :: String -> String
 str "" = '"' : '"' : ""
 str s = s
 
-show_runs :: (Num a, Ord a) => [a] -> [String]
+show_runs :: (Show a, Num a, Ord a) => [a] -> [String]
 show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
     where
     show_run xs@(_:_:_:_) = [show (head xs) ++ ".." ++ show (last xs)]

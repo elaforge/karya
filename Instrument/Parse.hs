@@ -189,7 +189,7 @@ byte_tok f = Parsec.token show_tok tok_pos test_tok
     tok_pos (pos, _) = pos
     test_tok (_, n) = f n
 
-hex :: (Integral a) => a -> String
+hex :: (Show a, Integral a) => a -> String
 hex n = Numeric.showHex n ""
 
 byte_sat :: (Word8 -> Bool) -> ByteParser Word8

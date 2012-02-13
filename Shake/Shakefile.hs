@@ -123,7 +123,7 @@ import Shake.Util (Cmdline, system)
 -- Static constants.
 build = "build"
 fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
-ghcBinary = "ghc-7.0.3"
+ghcBinary = "ghc"
 hspp = modeToDir Opt </> "hspp"
 
 shakeOptions :: Shake.ShakeOptions
@@ -636,8 +636,7 @@ hsRule config = hscDir config ++ "//*.hs" *> \hs -> do
 
 hsc2hs :: Config -> FilePath -> FilePath -> Cmdline
 hsc2hs config hs hsc = ("hsc2hs", hs,
-    -- My special local version of hsc2hs that doesn't emit INCLUDEs.
-    ["/usr/local/bin/hsc2hs", "-I" ++ ghcLib config </> "include"]
+    ["hsc2hs", "-I" ++ ghcLib config </> "include"]
     -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
     ++ words "-c g++ --cflag -Wno-invalid-offsetof"
     ++ cInclude flags ++ fltkCc flags ++ define flags

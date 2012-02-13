@@ -64,7 +64,7 @@ sig_scale sig = Scale (sig_scale_id sig) (sig_transposers sig)
 data Scale = Scale Pitch.ScaleId (Set.Set Score.Control) deriving (Show)
 
 instance Functor0.Functor0 Signal where
-    type Functor0.Elem Signal = TimeVector.Vector Pitch
+    type Elem Signal = TimeVector.Vector Pitch
     fmap0 f (Signal a b v) = Signal a b (f v)
 
 instance Monoid.Monoid Signal where

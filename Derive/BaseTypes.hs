@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, TypeFamilies #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 {- | This is a bit of song and dance to avoid circular imports.
 
     "Derive.Score", "Derive.PitchSignal", and "Derive.TrackLang" all define
@@ -142,7 +142,7 @@ instance Pretty.Pretty Pitch where
     pretty = show
 
 instance Functor0.Functor0 Pitch where
-    type Functor0.Elem Pitch = PitchCall
+    type Elem Pitch = PitchCall
     fmap0 f (Pitch p) = Pitch (f p)
 
 newtype PitchError = PitchError String deriving (Eq, Ord, Show)

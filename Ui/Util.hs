@@ -26,7 +26,7 @@ bounded lo hi n = max lo (min hi n)
 
 -- | Throw if 'n' isn't between the half open range lo--hi.
 -- Do a fromIntegral as a bonus so it's easy to convert types at the same time.
-in_range :: (Integral a, Num b) => String -> a -> a -> a -> b
+in_range :: (Show a, Integral a, Num b) => String -> a -> a -> a -> b
 in_range desc lo hi n
     | lo <= n && n < hi = fromIntegral n
         -- TODO: throw a specific error?

@@ -17,7 +17,6 @@ import qualified Control.DeepSeq as DeepSeq
 import Text.Read -- for Read class with readPrec
 import Foreign
 import Foreign.C
-import qualified Text.Read as Read
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
