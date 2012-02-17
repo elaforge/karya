@@ -29,7 +29,7 @@ BUILD := build
 TBUILD := $(BUILD)/test
 PBUILD := $(BUILD)/profile
 HSC := $(BUILD)/hsc
-HSC2HS := /usr/local/bin/hsc2hs
+HSC2HS := hsc2hs
 
 ### OS dependent variables.
 
@@ -87,7 +87,7 @@ HPROFILE := -prof -O
 HLDFLAGS := $(FLTK_LD) -rtsopts
 
 ### this changes with the ghc version
-GHC := ghc-7.0.3
+GHC := ghc
 GHC_LIB := $(shell $(GHC) --print-libdir)
 
 # hspp adds filename and lineno to various logging and testing functions.
