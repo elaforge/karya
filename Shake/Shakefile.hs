@@ -302,7 +302,11 @@ configure = do
                         Debug -> []
                         Opt -> ["-O"]
                         Test -> ["-fhpc"]
-                        Profile -> ["-O", "-prof", "-auto-all"]
+                        -- Omit -auto-all because it slows down the profile
+                        -- quite a bit.  Usually when profiling I'm looking
+                        -- for overall timing and stats, not individual cost
+                        -- centers.  I can turn those on when debugging.
+                        Profile -> ["-O", "-prof"]
                 , hLinkFlags = ["-rtsopts"]
                     ++ if mode == Profile then ["-prof", "-auto-all"] else []
                 }
@@ -452,7 +456,7 @@ matchPrefix prefixes pattern fn =
 
 dispatch :: Config -> String -> Shake.Rules ()
 dispatch config target = case target of
-    "clean" -> action $ system' "rm" ["-rf", build]
+    "clean" -> action $ system' "rm" ["-rf", build </> "*"]
     "doc" -> action $ do
         hscs <- Util.findHs "*.hs" (hscDir config)
         hs <- filter haddock <$> Util.findHs "*.hs" "."
