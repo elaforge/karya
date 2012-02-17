@@ -2,12 +2,12 @@
 
 fixed-list-0.1.5
 deepseq, data-ordlist, cereal, storablevector
-data-vector
+vector
 dlist -- Perform.SignalBase
 parsec
 text, stm, network
 haskell-src -- Util.PPrint
-regex-pcre -- make sure to install libpcre, port puts headers in /opt
+regex-pcre
 hint
 
 bytestring
@@ -15,9 +15,7 @@ attoparsec
 utf8-string -- used by Ui.Event
 
 -- random
-mersenne-random-pure64
-hashable
-random-shuffle
+mersenne-random-pure64 hashable random-shuffle
 
     installed separately:
 libpcre library from http://www.pcre.org
@@ -26,24 +24,12 @@ lilypond, for some fonts
 or
     cp /usr/share/lilypond/<version>/fonts/otf/ ... ?
 
-    fltk
+    non haskell deps
 
-1.3 is required.  Get the CVS version if it's somehow still not released yet.
+fltk-1.3
 
-Add -m32 to the cmdline to compile in 32 bit mode.  One possibility is to edit
-makeinclude and add -m32 to OPTIM.
-
-Edit either configure.in or configure to remove -fno-exceptions since ASSERT
-uses them
-
-Comment out .SILENT in makeinclude and possibly delete some of the Compiling
-echos, since I like to see exactly what flags cc is getting.
-
-    portmidi
-
-Edit the makefile and remove -DPM_CHECK_ERRORS
-
-portmidi make clean should also remove */*.a
+libpcre, for regex-pcre.  OS X port puts headers in /opt where configure may
+not find them.
 
     misc
 
