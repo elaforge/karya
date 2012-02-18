@@ -597,7 +597,7 @@ compileHs config hs = ("GHC", hs,
     ++ main_is ++ hcFlags (configFlags config)
     ++ [hs, "-o", srcToObj config hs])
     where
-    includes = oDir config ++ ":" ++ hscDir config ++ ":."
+    includes = oDir config ++ ":" ++ hscDir config
     main_is = if hs `elem` Map.elems nameToMain
         then ["-main-is", pathToModule hs]
         else []
