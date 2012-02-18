@@ -6,6 +6,7 @@ import Prelude hiding (lines)
 import qualified Numeric
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Word as Word
 
 import qualified Util.Seq as Seq
@@ -45,11 +46,15 @@ show_float precision float
     stripped = Seq.rdrop_while (=='.') $
         Seq.rdrop_while (=='0') (dropWhile (=='0') s)
 
-instance Pretty a => Pretty [a] where
+instance (Pretty a) => Pretty [a] where
     pretty xs = "[" ++ Seq.join ", " (map pretty xs) ++ "]"
-instance Pretty a => Pretty (Maybe a) where
+
+instance (Pretty a) => Pretty (Maybe a) where
     pretty Nothing = "<nothing>"
     pretty (Just a) = pretty a
+
+instance (Pretty a) => Pretty (Set.Set a) where
+    pretty set = "{" ++ Seq.join ", " (map pretty (Set.toList set)) ++ "}"
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
     pretty (a, b) = "(" ++ pretty a ++ ", " ++ pretty b ++ ")"
@@ -57,7 +62,6 @@ instance (Pretty a, Pretty b) => Pretty (a, b) where
 -- instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
 instance (Show k, Show v) => Pretty (Map.Map k v) where
     pretty m = "{\n"
-        -- ++ (indent_lines . Seq.join "\n" . map ent . Map.assocs) m
         ++ (indent_lines . Seq.join "\n" . map ent . Map.assocs) m
         ++ "\n}"
         where ent (k, v) = show k ++ ": " ++ show v
