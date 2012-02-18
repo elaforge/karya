@@ -5,6 +5,12 @@ import qualified Util.Hspp as Hspp
 import Util.Test
 
 
+test_lex_dot = do
+    let f = Hspp.lex_dot
+    equal (f " $(hi there) fred") [("$(hi there)", " fred")]
+    equal (f "$(hi (f a a) (f b)) there") [("$(hi (f a a) (f b))", " there")]
+    equal (f " A.b c") [("A.b", " c")]
+
 test_find_macro = do
     let f mod token macro_mod quals = Maybe.isJust $
             Hspp.find_macro [Hspp.SrcposMacro macro_mod quals "f"] (Just "qq")

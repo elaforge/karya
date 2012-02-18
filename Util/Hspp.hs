@@ -1,23 +1,25 @@
--- | Simple macro substitution.
--- Add SrcPos (Just (line, Just func_name, lineno)) args to certain functions.
---
--- I don't use cpp because it doesn't like dots in symbols.
---
--- I need to replace only function calls, but can't know what those are without
--- actually parsing the source.  I think replacement of qualified names is
--- pretty safe since those don't really occur otherwise, but replacing
--- unqualified names in the same module is tricky.
---
--- Known problems:
---
--- - \"where\" in the module comment will make macros in the module export list
--- be replaced
---
--- - mangles comments and replaces macros in them, but I don't really care
--- about that
---
--- - Since annotations are per-line, @x = x@ won't replace @x@, but that's
--- a silly definition anyway.
+{- | Simple macro substitution.
+    Add SrcPos (Just (line, Just func_name, lineno)) args to certain
+    functions.
+
+    I don't use cpp because it doesn't like dots in symbols.
+
+    I need to replace only function calls, but can't know what those are
+    without actually parsing the source.  I think replacement of qualified
+    names is pretty safe since those don't really occur otherwise, but
+    replacing unqualified names in the same module is tricky.
+
+    Known problems:
+
+    - \"where\" in the module comment will make macros in the module export
+    list be replaced
+
+    - mangles comments and replaces macros in them, but I don't really care
+    about that
+
+    - Since annotations are per-line, @x = x@ won't replace @x@, but that's
+    a silly definition anyway.
+-}
 module Util.Hspp where
 import qualified Data.Char as Char
 import qualified Data.List as List
@@ -25,6 +27,7 @@ import qualified System.Environment
 import qualified System.FilePath as FilePath
 
 import qualified Util.Regex as Regex
+import qualified Util.Seq as Seq
 
 
 data Macro = SrcposMacro {
@@ -161,18 +164,36 @@ line_to_func line = case Regex.find_groups definition line of
         (_, [fname]) : _ -> Just fname
         groups -> error $ "unexpected groups: " ++ show groups
 
+definition, declaration :: Regex.Regex
 definition = Regex.make "^([a-z0-9_][A-Za-z0-9_]*) .*="
 declaration = Regex.make "^[a-z0-9_][A-Za-z0-9_, ]* *::"
 
 
 -- * parsing
 
--- | A version of 'lex' that understands qualified names.
+-- | A version of 'lex' that understands qualified names and template splices.
 lex_dot :: String -> [(String, String)]
-lex_dot s = case lex s of
-    [(tok1, '.':rest1)] ->
-        [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lex_dot rest1]
-    val -> val
+lex_dot s
+    -- Half-ass template haskell splice detection.  Otherwise, the '' and '
+    -- quotes will fail to lex.
+    | "$(" `List.isPrefixOf` Seq.lstrip s =
+        let (pre, post) = matching 0 (Seq.lstrip s)
+        in [(pre, post)]
+    | otherwise = case lex s of
+        [(tok1, '.':rest1)] ->
+            [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lex_dot rest1]
+        val -> val
+
+-- | Find an opening paren and break after its matching close paren.
+matching :: Int -> String -> (String, String)
+matching n [] = ("", "")
+matching n (c:cs) = (c:pre, post)
+    where
+    (pre, post) = case c of
+        '(' -> matching (n+1) cs
+        ')' | n <= 1 -> ("", cs)
+            | otherwise -> matching (n-1) cs
+        _ -> matching n cs
 
 -- | A version of 'lines' that understands string literal backslash
 -- continuation.  Actually, it just checks for trailing and leading
