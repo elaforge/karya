@@ -84,6 +84,9 @@ middle_octave = 5
 newtype NoteNumber = NoteNumber Double
     deriving (Eq, Ord, Show, Fractional, Num)
 
+instance Pretty.Pretty NoteNumber where
+    pretty (NoteNumber nn) = Pretty.show_float (Just 2) nn ++ "nn"
+
 nn :: (Real a) => a -> NoteNumber
 nn = NoteNumber . realToFrac
 
