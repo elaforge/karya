@@ -37,19 +37,13 @@ get_dynamic f = gets (f . state_dynamic)
 -- level since it runs each one separately.  Since the state dynamic state
 -- (i.e. except Collect) from the sub derivation is discarded, whatever state
 -- it's in after the exception shouldn't matter.
---
--- TODO it's simpler to restore the entire dynamic instead of just the altered
--- bit
-local :: (Dynamic -> b) -> (b -> Dynamic -> Dynamic)
-    -> (Dynamic -> Deriver Dynamic) -> Deriver a -> Deriver a
-local from_state restore_state modify_state deriver = do
+local :: (Dynamic -> Deriver Dynamic) -> Deriver a -> Deriver a
+local modify_state deriver = do
     st <- get
-    let old = from_state (state_dynamic st)
     new <- modify_state (state_dynamic st)
     put $ st { state_dynamic = new }
     result <- deriver
-    modify $ \st -> st { state_dynamic =
-        restore_state old (state_dynamic st) }
+    modify $ \new -> new { state_dynamic = state_dynamic st }
     return result
 
 -- | A version of 'local' that catches exceptions and ignores any changes to
@@ -101,10 +95,8 @@ record_track_environ state = case stack of
 -- * cache
 
 with_control_damage :: ControlDamage -> Deriver derived -> Deriver derived
-with_control_damage damage = local
-    state_control_damage
-    (\old st -> st { state_control_damage = old })
-    (\st -> return $ st { state_control_damage = damage })
+with_control_damage damage = local $ \st ->
+    return $ st { state_control_damage = damage }
 
 add_block_dep :: BlockId -> Deriver ()
 add_block_dep block_id = merge_collect $ mempty
@@ -150,11 +142,10 @@ with_stack_call :: String -> Deriver a -> Deriver a
 with_stack_call name = with_stack (Stack.Call name)
 
 with_stack :: Stack.Frame -> Deriver a -> Deriver a
-with_stack frame = local
-    state_stack (\old st -> st { state_stack = old }) $ \st -> do
-        when (Stack.length (state_stack st) > max_depth) $
-            throw $ "call stack too deep: " ++ Pretty.pretty frame
-        return $ st { state_stack = Stack.add frame (state_stack st) }
+with_stack frame = local $ \st -> do
+    when (Stack.length (state_stack st) > max_depth) $
+        throw $ "call stack too deep: " ++ Pretty.pretty frame
+    return $ st { state_stack = Stack.add frame (state_stack st) }
     where max_depth = 30
     -- A recursive loop will result in an unfriendly hang.  So limit the total
     -- nesting depth to catch those.  I could disallow all recursion, but this
@@ -178,7 +169,7 @@ in_real_time :: Deriver a -> Deriver a
 in_real_time = with_warp (const Score.id_warp)
 
 with_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
-with_warp f = local state_warp (\w st -> st { state_warp = w }) $ \st ->
+with_warp f = local $ \st ->
     return $ st { state_warp = f (state_warp st) }
 
 -- ** tempo
@@ -201,7 +192,7 @@ d_warp warp deriver
     | Score.warp_stretch warp <= 0 =
         throw $ "stretch <= 0: " ++ Pretty.pretty (Score.warp_stretch warp)
             ++ " (shift: " ++ Pretty.pretty (Score.warp_shift warp) ++ ")"
-    | otherwise = local state_warp (\w st -> st { state_warp = w })
+    | otherwise = local
         (\st -> return $
             st { state_warp = Score.compose_warps (state_warp st) warp })
         deriver

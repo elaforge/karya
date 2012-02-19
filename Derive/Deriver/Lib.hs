@@ -123,9 +123,8 @@ require_right :: (err -> String) -> Either err a -> Deriver a
 require_right fmt_err = either (throw . fmt_err) return
 
 with_msg :: String -> Deriver a -> Deriver a
-with_msg msg = Internal.local state_log_context
-    (\old st -> st { state_log_context = old })
-    (\st -> return $ st { state_log_context = msg : state_log_context st })
+with_msg msg = Internal.local $ \st ->
+    return $ st { state_log_context = msg : state_log_context st }
 
 error_to_warn :: Error -> Log.Msg
 error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
@@ -181,11 +180,9 @@ get_val name = do
 -- caching as well as have a confusing non-local effect.
 with_val :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
     -> Deriver a -> Deriver a
-with_val name val =
-    Internal.local state_environ (\old st -> st { state_environ = old }) $
-    \st -> do
-        environ <- Internal.insert_environ name val (state_environ st)
-        return $ st { state_environ = environ }
+with_val name val = Internal.local $ \st -> do
+    environ <- Internal.insert_environ name val (state_environ st)
+    return $ st { state_environ = environ }
 
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale = with_val TrackLang.v_scale (scale_id scale)
@@ -231,14 +228,8 @@ controls_at pos = do
     return $ Map.map (Score.control_at pos) controls
 
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
-with_control cont signal =
-    Internal.local (Map.lookup cont . state_controls) insert alter
-    where
-    insert Nothing st = st
-    insert (Just sig) st = st { state_controls =
-        Map.insert cont sig (state_controls st) }
-    alter st = return $ st { state_controls =
-        Map.insert cont signal (state_controls st) }
+with_control cont signal = Internal.local $ \st ->
+    return $ st { state_controls = Map.insert cont signal (state_controls st) }
 
 with_control_operator :: Score.Control -> TrackLang.CallId
     -> Score.TypedControl -> Deriver a -> Deriver a
@@ -332,22 +323,17 @@ pitch_signal_scale scale =
 modify_pitch :: Maybe Score.Control
     -> (Maybe PitchSignal.Signal -> PitchSignal.Signal)
     -> Deriver a -> Deriver a
-modify_pitch Nothing f = Internal.local
-    state_pitch (\old st -> st { state_pitch = old })
-    (\st -> return $ st { state_pitch = f (Just (state_pitch st)) })
-modify_pitch (Just name) f = Internal.local
-    (Map.lookup name . ps)
-    (\old st -> st { state_pitches = Map.alter (const old) name (ps st) })
-    (\st -> return $ st { state_pitches = Map.alter (Just . f) name (ps st) })
-    where ps = state_pitches
+modify_pitch Nothing f = Internal.local $ \st ->
+    return $ st { state_pitch = f (Just (state_pitch st)) }
+modify_pitch (Just name) f = Internal.local $ \st -> return $
+    st { state_pitches = Map.alter (Just . f) name (state_pitches st) }
 
 -- ** with_scope
 
 -- | Run the derivation with a modified scope.
 with_scope :: (Scope -> Scope) -> Deriver a -> Deriver a
-with_scope modify_scope =
-    Internal.local state_scope (\old st -> st { state_scope = old })
-    (\st -> return $ st { state_scope = modify_scope (state_scope st) })
+with_scope modify_scope = Internal.local $ \st ->
+    return $ st { state_scope = modify_scope (state_scope st) }
 
 -- * calls
 
@@ -363,9 +349,7 @@ make_calls = Map.fromList . map (first TrackLang.Symbol)
 shift_control :: ScoreTime -> Deriver a -> Deriver a
 shift_control shift deriver = do
     real <- real shift
-    Internal.local (\st -> (state_controls st, state_pitch st))
-        (\(controls, pitch) st -> st { state_controls = controls,
-            state_pitch = pitch })
+    Internal.local
         (\st -> return $ st
             { state_controls = nudge real (state_controls st)
             , state_pitch = nudge_pitch real (state_pitch st) })
