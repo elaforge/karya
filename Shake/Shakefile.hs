@@ -456,7 +456,11 @@ matchPrefix prefixes pattern fn =
 
 dispatch :: Config -> String -> Shake.Rules ()
 dispatch config target = case target of
-    "clean" -> action $ system' "rm" ["-rf", build </> "*"]
+    "clean" -> action $ do
+        -- The shake database will remain because shake creates it after the
+        -- shakefile runs, but that's probably ok.
+        system' "rm" ["-rf", build]
+        system' "mkdir" [build]
     "doc" -> action $ do
         hscs <- Util.findHs "*.hs" (hscDir config)
         hs <- filter haddock <$> Util.findHs "*.hs" "."
