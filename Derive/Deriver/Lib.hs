@@ -288,7 +288,8 @@ nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
 nn_at pos = do
     controls <- controls_at pos
     justm (pitch_at pos) $ \pitch -> do
-    pitch_nn ("nn " ++ Pretty.pretty pos) $ PitchSignal.apply controls pitch
+    logged_pitch_nn ("nn " ++ Pretty.pretty pos) $
+        PitchSignal.apply controls pitch
 
 get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.Signal)
 get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
@@ -297,12 +298,13 @@ named_nn_at :: Score.Control -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
 named_nn_at name pos = do
     controls <- controls_at pos
     justm (named_pitch_at name pos) $ \pitch -> do
-    pitch_nn ("named_nn " ++ Pretty.pretty (name, pos)) $
+    logged_pitch_nn ("named_nn " ++ Pretty.pretty (name, pos)) $
         PitchSignal.apply controls pitch
 
 -- | Version of 'PitchSignal.pitch_nn' that logs errors.
-pitch_nn :: String -> PitchSignal.Pitch -> Deriver (Maybe Pitch.NoteNumber)
-pitch_nn msg pitch = case PitchSignal.pitch_nn pitch of
+logged_pitch_nn :: String -> PitchSignal.Pitch
+    -> Deriver (Maybe Pitch.NoteNumber)
+logged_pitch_nn msg pitch = case PitchSignal.pitch_nn pitch of
     Left (PitchSignal.PitchError err) -> do
         Log.warn $ "pitch_nn " ++ msg ++ ": " ++ err
         return Nothing

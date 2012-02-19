@@ -111,10 +111,9 @@ c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
             Just n -> do
                 next <- Derive.real n
                 return $ min (start + RealTime.seconds time) next
-        srate <- Util.get_srate
         case Args.prev_val args of
             Nothing -> Util.pitch_signal [(start, pitch)]
-            Just (_, prev) -> interpolator srate id True start prev end pitch
+            Just (_, prev) -> make_interpolator id True start prev end pitch
 
 -- | Emit a slide from a neighboring pitch in absolute time.
 --
@@ -131,30 +130,40 @@ c_neighbor = Derive.generator1 "neighbor" $ \args ->
     \pitch neighbor (TrackLang.DefaultReal time) -> do
         (start, end) <- Util.duration_from_start args time
         let pitch1 = Pitches.transpose neighbor pitch
-        srate <- Util.get_srate
-        interpolator srate id True start pitch1 end pitch
+        make_interpolator id True start pitch1 end pitch
 
--- ** pitch util
+-- * util
+
+type Interpolator = Bool -- ^ include the initial sample or not
+    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
+    -- ^ start -> starty -> end -> endy
+    -> PitchSignal.Signal
 
 pitch_interpolate :: (Double -> Double) -> PitchSignal.Pitch
     -> Derive.PassedArgs PitchSignal.Signal
     -> Derive.Deriver PitchSignal.Signal
 pitch_interpolate f pitch args = do
     start <- Args.real_start args
-    srate <- Util.get_srate
     case Args.prev_val args of
         Nothing -> Util.pitch_signal [(start, pitch)]
         Just (prev_t, prev) ->
-            interpolator srate f False prev_t prev start pitch
+            make_interpolator f False prev_t prev start pitch
 
-interpolator :: RealTime -> (Double -> Double)
-    -> Bool -- ^ include the initial sample or not
-    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
-    -> Derive.Deriver PitchSignal.Signal
-interpolator srate f include_initial x1 note1 x2 note2 =
-    Util.pitch_signal $ (if include_initial then id else drop 1) $
+interpolator :: Scale.Scale -> RealTime -> (Double -> Double)
+    -> Interpolator
+interpolator scale srate f include_initial x1 note1 x2 note2 =
+    Util.signal scale $ (if include_initial then id else drop 1) $
         [(x, pitch_of x) | x <- Seq.range_end x1 x2 srate]
     where
     pitch_of = Pitches.interpolated note1 note2
         . f . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds
+
+make_interpolator :: (Double -> Double)
+    -> Bool -- ^ include the initial sample or not
+    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
+    -> Derive.Deriver PitchSignal.Signal
+make_interpolator f include_initial x1 note1 x2 note2 = do
+    scale <- Util.get_scale
+    srate <- Util.get_srate
+    return $ interpolator scale srate f include_initial x1 note1 x2 note2

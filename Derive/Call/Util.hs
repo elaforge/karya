@@ -149,19 +149,22 @@ to_pitch_signal control = case control of
 
 nn_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
-nn_at pos control =
-    Derive.pitch_nn ("Util.nn_at " ++ Pretty.pretty (pos, control))
+nn_at pos control = -- TODO throw exception?
+    Derive.logged_pitch_nn ("Util.nn_at " ++ Pretty.pretty (pos, control))
         =<< pitch_at pos control
 
 pitch_signal :: [(RealTime, PitchSignal.Pitch)]
     -> Derive.Deriver PitchSignal.Signal
 pitch_signal xs = do
     scale <- get_scale
-    return $ PitchSignal.signal (Derive.pitch_signal_scale scale) xs
+    return $ signal scale xs
 
 -- | More convenient constructors for PitchSignals.
 constant_pitch :: Scale.Scale -> PitchSignal.Pitch -> PitchSignal.Signal
 constant_pitch = PitchSignal.constant . Derive.pitch_signal_scale
+
+signal :: Scale.Scale -> [(RealTime, PitchSignal.Pitch)] -> PitchSignal.Signal
+signal = PitchSignal.signal . Derive.pitch_signal_scale
 
 -- * note
 

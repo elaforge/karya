@@ -92,7 +92,8 @@ c_slide = Derive.generator1 "slide" $ \args ->
         srate <- Util.get_srate
         return $ case Args.prev_val args of
             Nothing -> Signal.signal [(start, val)]
-            Just (_, prev_y) -> interpolator srate id True start prev_y end val
+            Just (_, prev_y) ->
+                interpolator srate id True start prev_y end val
 
 -- | Emit a slide from a value to 0 in absolute time.  This is the control
 -- version of the neighbor pitch call.
@@ -123,12 +124,16 @@ c_pedal = Derive.generator1 "pedal" $ \args -> CallSig.call1 args
 
 -- * control util
 
+type Interpolator = Bool -- ^ include the initial sample or not
+    -> RealTime -> Signal.Y -> RealTime -> Signal.Y
+    -- ^ start -> starty -> end -> endy
+    -> Signal.Control
+
 -- | Create samples according to an interpolator function.  The function is
 -- passed values from 0--1 representing position in time and is expected to
 -- return values from 0--1 representing the Y position at that time.  So linear
 -- interpolation is simply @id@.
 control_interpolate :: (Double -> Signal.Y) -> Signal.Y
-    -- -> Derive.PassedArgs Signal.Control -> Derive.ControlDeriver
     -> Derive.PassedArgs Signal.Control -> Derive.Deriver Signal.Control
 control_interpolate f val args = do
     start <- Args.real_start args
@@ -140,11 +145,7 @@ control_interpolate f val args = do
         Just (prev, prev_val) ->
             interpolator srate f False prev prev_val start val
 
--- | TODO more efficient version without the intermediate list
-interpolator :: RealTime -> (Double -> Double)
-    -> Bool -- ^ include the initial sample or not
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y
-    -> Signal.Control
+interpolator :: RealTime -> (Double -> Double) -> Interpolator
 interpolator srate f include_initial x0 y0 x1 y1
     | include_initial = Signal.signal sig
     | otherwise = Signal.signal (drop 1 sig)
