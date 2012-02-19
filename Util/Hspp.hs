@@ -186,7 +186,7 @@ lex_dot s
 
 -- | Find an opening paren and break after its matching close paren.
 matching :: Int -> String -> (String, String)
-matching n [] = ("", "")
+matching _ [] = ("", "")
 matching n (c:cs) = (c:pre, post)
     where
     (pre, post) = case c of
