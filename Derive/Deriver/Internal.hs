@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -36,6 +37,9 @@ get_dynamic f = gets (f . state_dynamic)
 -- level since it runs each one separately.  Since the state dynamic state
 -- (i.e. except Collect) from the sub derivation is discarded, whatever state
 -- it's in after the exception shouldn't matter.
+--
+-- TODO it's simpler to restore the entire dynamic instead of just the altered
+-- bit
 local :: (Dynamic -> b) -> (b -> Dynamic -> Dynamic)
     -> (Dynamic -> Deriver Dynamic) -> Deriver a -> Deriver a
 local from_state restore_state modify_state deriver = do
@@ -46,6 +50,17 @@ local from_state restore_state modify_state deriver = do
     result <- deriver
     modify $ \st -> st { state_dynamic =
         restore_state old (state_dynamic st) }
+    return result
+
+-- | A version of 'local' that catches exceptions and ignores any changes to
+-- Collect.  This is appropriate for sub-calls that are below normal track
+-- derivation.
+detached_local :: (Dynamic -> Dynamic) -> Deriver a -> Deriver (Either Error a)
+detached_local modify_state deriver = do
+    st <- get
+    let (result, _, logs) = run
+            (st { state_dynamic = modify_state (state_dynamic st) }) deriver
+    mapM_ Log.write logs
     return result
 
 -- | Collect is only ever accumulated.

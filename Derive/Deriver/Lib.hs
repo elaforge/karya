@@ -119,6 +119,9 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
 require :: String -> Maybe a -> Deriver a
 require msg = maybe (throw msg) return
 
+require_right :: (err -> String) -> Either err a -> Deriver a
+require_right fmt_err = either (throw . fmt_err) return
+
 with_msg :: String -> Deriver a -> Deriver a
 with_msg msg = Internal.local state_log_context
     (\old st -> st { state_log_context = old })
@@ -403,14 +406,22 @@ lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " ++ show key
     Just val -> return val
 
--- | So this is kind of confusing.  When events are created, they are assigned
--- their stack based on the current event_stack, which is set by the
--- with_stack_* functions.  Then, when they are processed, the stack is used
--- to *set* event_stack, which is what 'Log.warn' and 'throw' will look at.
-with_event :: Score.Event -> Deriver a -> Deriver a
-with_event event = Internal.local state_stack
-    (\old st -> st { state_stack = old })
-    (\st -> return $ st { state_stack = Score.event_stack event })
+-- | Run a computation in a logging context of a certain event.  Catch and
+-- log any exception thrown.
+--
+-- When events are created, they are assigned their stack based on the current
+-- event_stack, which is set by the with_stack_* functions.  Then, when they
+-- are processed, the stack is used to *set* event_stack, which is what
+-- 'Log.warn' and 'throw' will look at.
+with_event :: Score.Event -> Deriver a -> Deriver (Maybe a)
+with_event event deriver = do
+    result <- Internal.detached_local
+        (\st -> st { state_stack = Score.event_stack event }) deriver
+    case result of
+        Left err -> do
+            Log.write $ error_to_warn err
+            return Nothing
+        Right val -> return (Just val)
 
 
 -- ** merge

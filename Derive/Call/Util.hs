@@ -356,7 +356,7 @@ map_controls controls state events f =
     map_controls_pitches controls Nil state events $ \cs Nil -> f cs
 
 -- | Map a function with state over events and lookup pitch and controls vals
--- for each event.  Exceptions are not caught.
+-- for each event.  Exceptions are caught and logged.
 --
 -- This is the most general transformer map over events.
 map_controls_pitches :: (FixedList.FixedList cs, FixedList.FixedList ps) =>
@@ -375,6 +375,9 @@ map_controls_pitches controls pitch_controls state events f = go state events
         let pos = Score.event_start event
         control_vals <- Traversable.mapM (control_at pos) controls
         pitch_vals <- Traversable.mapM (pitch_at pos) pitch_controls
-        (val, next_state) <- f control_vals pitch_vals state event
-        (rest_vals, final_state) <- go next_state rest
-        return (map LEvent.Event val : rest_vals, final_state)
+        result <- Derive.with_event event $
+            f control_vals pitch_vals state event
+        (rest_vals, final_state) <- go (maybe state snd result) rest
+        let vals = maybe rest_vals
+                ((:rest_vals) . map LEvent.Event . fst) result
+        return (vals, final_state)
