@@ -1,8 +1,7 @@
 module Derive.Call.Idiom.String_test where
-{-
 import Util.Test
 
--- import qualified Derive.Call.Idiom.String as String
+import qualified Derive.Call.Idiom.String as String
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Score as Score
@@ -10,7 +9,7 @@ import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 
 
--- test_string = do
+test_string = do
     let extract = DeriveTest.extract e_event
         e_event e = (Score.event_start e, DeriveTest.e_pitch e)
     let run p1 p2 p3 = extract $ DeriveTest.derive_tracks_with with_call
@@ -19,7 +18,7 @@ import qualified Perform.Pitch as Pitch
             ]
     let (res, logs) = run "4c" "2d" "2e"
     equal res [(0, [(0, 60)])]
-    strings_like logs ["event at 5s below", "event at 10s below"]
+    strings_like logs ["38nn below lowest string", "40nn below lowest string"]
 
     -- All separate strings doesn't do anything interesting.
     equal (run "4c" "4d" "4e")
@@ -35,7 +34,4 @@ import qualified Perform.Pitch as Pitch
         ], [])
 
 with_call = CallTest.with_note_call "guzheng"
-    (String.c_guzheng (map Pitch.Degree strings))
-
-strings = [60, 62, 64, 67, 69]
--}
+    (String.c_guzheng (map Pitch.Note ["4c", "4d", "4e", "4g", "4a"]))

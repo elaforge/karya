@@ -8,6 +8,10 @@ big things
 UNSORTED
   - instead of using velocity in various ornaments, I should probably use p
     e.g. mordent should also work for wind patches
+    But there's a more fundamental divide between ornaments that want to
+    create events like mordent and ornaments that want to create pitch signals
+    like trill.  Is there some way to write them the same and have the
+    instrument decide what actually happens?
 
   - Efficient pitch signals: can have a special Event + Call that just
     returns Signal.NoteNumber.
@@ -50,6 +54,7 @@ UNSORTED
         chromatic
       - support for non-circle-of-fifths key signatures (e.g. sharps and flats
         in arbitrary places)
+        Key: sharps and flats per degree, then derive the intervals from that
       - support scales that are different ascending vs. descending
 
     * port to control calls: neighbor, trill, ...
@@ -91,7 +96,9 @@ UNSORTED
       * Cmd.Lang.LPitch
       * Cmd.Perf
       * Derive.Call.Trill_test
-      - Derive.Call.Idiom.String
+      * Derive.Call.Idiom.String
+        * now all of the pitch_nn stuff can fail, so make Derive.with_event
+        catch exceptions, then throw for those things.
       - Cmd.Lang.LPitch
       * Derive.Call.Pitch.c_neighbor
       * Derive.Call.Ornament_test

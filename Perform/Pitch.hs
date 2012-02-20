@@ -45,6 +45,8 @@ data Pitch = Pitch {
 
 -- | A Note belongs to a scale and describes a certain note in that scale.
 newtype Note = Note String deriving (Eq, Ord, Show)
+
+note_text :: Note -> String
 note_text (Note s) = s
 
 -- * InputKey

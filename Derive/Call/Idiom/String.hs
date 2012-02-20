@@ -1,90 +1,70 @@
 -- | Post-processing to apply a string idiom.
 module Derive.Call.Idiom.String where
 import Data.FixedList (Cons(..), Nil(..))
-import qualified Data.Set as Set
+import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
-import qualified Util.Set as Set
 
+import qualified Derive.Call as Call
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (control, optional)
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
-
 import Types
 
 
+-- | This is just a placeholder.  Any real use will want to put the
+-- appropriate degrees from the appropriate scale in here, either via the
+-- static config or some kind of tracklang list literal.
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("string-guzheng", c_guzheng pentatonic_c)
-    , ("string-viola", c_violin [Twelve.c4, Twelve.g4, Twelve.d5, Twelve.a5])
+    [ ("string-guzheng",
+        c_guzheng $ map Pitch.Note ["4c", "4d", "4e", "4g", "4a"])
+    , ("string-viola", c_violin $ map Pitch.Note ["4c", "4g", "5d", "5a"])
     ]
-
--- | This is just a placeholder for now.  Any real use will want to put
--- the appropriate degrees from the appropriate scale in here, either via
--- the static config or some kind of tracklang list literal.
-pentatonic_c :: [Pitch.Degree]
-pentatonic_c = map Pitch.Degree $
-    takeWhile (<=127) [oct*12 + int | oct <- [0..], int <- intervals]
-    where intervals = [0, 2, 4, 7, 9]
 
 -- | A string idiom in the style of a 古箏 or other zither where strings must
 -- be manually bent to tune them.
-c_guzheng :: [Pitch.Degree] -> Derive.NoteCall
+c_guzheng :: [Pitch.Note] -> Derive.NoteCall
 c_guzheng strings = Derive.transformer "guzheng" $ \args deriver ->
     CallSig.call3 args
     ( optional "attack" (control "guzheng-attack" 0.5)
     , optional "release" (control "guzheng-release" 0.5)
     , optional "delay" (control "guzheng-delay" 0)) $
     \attack release delay -> do
+        string_pitches <- mapM Call.eval_note strings
         srate <- Util.get_srate
         events <- deriver
-        let linear = Call.Pitch.interpolator srate id
-        string_idiom linear linear strings attack delay release events
+        scale <- Util.get_scale
+        let linear = Call.Pitch.interpolator scale srate id
+        string_idiom linear linear string_pitches attack delay release events
 
 -- | A string idiom in the style of stopped strings like the violin family.
 -- Strings instantly jump to their pitches.
-c_violin :: [Pitch.Degree] -> Derive.NoteCall
+c_violin :: [Pitch.Note] -> Derive.NoteCall
 c_violin strings = Derive.transformer "violin" $ \args deriver ->
-    CallSig.call1 args
-    (optional "delay" (control "string-delay" 0)) $
+    CallSig.call1 args (optional "delay" (control "string-delay" 0)) $
     \delay -> do
+        string_pitches <- mapM Call.eval_note strings
         srate <- Util.get_srate
         events <- deriver
-        let linear = Call.Pitch.interpolator srate id
-            attack = TrackLang.ConstantControl 0
-            release = TrackLang.ConstantControl 0
-        string_idiom linear linear strings attack delay release events
-
--- TODO fix
--- This is a postproc on events.  So I need to come up with transpose curves
--- and apply them to the already present event pitches.
---
--- However, this requires the open pitches, but they need to be in Ord since
--- I need to find the open string for each note.  I can do that by evaluating
--- the pitches.  But then I need to bend the open pitch to the current one,
--- so I'd need to know how much chromatic bend is needed to get one pitch to
--- another.  So basically in needs to be reduced to something like the old
--- Degrees, or to NoteNumbers.  I can go back to Pitches with (const nn),
--- effectively the equivalent of postproc for pitches.
---
--- I need an operation 'diff :: Pitch -> Pitch -> Chromatic'
--- I think this requires a scale operation because otherwise the notion of
--- a degree is not exported from the scale at all.
---
--- scale_nn_to_chromatic :: NoteNumber -> Maybe Chromatic
-
+        scale <- Util.get_scale
+        let attack = TrackLang.ConstantControl (Score.untyped 0)
+            release = TrackLang.ConstantControl (Score.untyped 0)
+        let linear = Call.Pitch.interpolator scale srate id
+        string_idiom linear linear string_pitches attack delay release events
 
 -- | Post-process events to play them in a monophonic string-like idiom.
 --
@@ -105,27 +85,35 @@ c_violin strings = Derive.transformer "violin" $ \args deriver ->
 -- This does't do anything fancy like simulate hand position or alternate
 -- fingerings.
 --
+-- TODO this evaluates the open strings only once at the beginning of the
+-- postprocessing.  So any kind of fancy retuning isn't going to happen.  To
+-- do that I think I'd need some cooperation from the note call, to evaluate
+-- and stash the pitches of the open strings at the point of the note
+-- evaluation.  I might be able do that by modifying the null call.
+--
 -- TODO It would be possible to have a polyphonic effect by allowing more than
 -- one stopped string at a time.
 string_idiom ::
-    Util.PitchInterpolator -- ^ interpolator to draw the attack curve
-    -> Util.PitchInterpolator -- ^ draw the release curve
-    -> [Pitch.Degree] -- ^ Pitches of open strings.
-    -> TrackLang.Control -- ^ Attack time.
-    -> TrackLang.Control -- ^ Release delay.
-    -> TrackLang.Control -- ^ Time for string to return to its open pitch.
+    Call.Pitch.Interpolator -- ^ interpolator to draw the attack curve
+    -> Call.Pitch.Interpolator -- ^ draw the release curve
+    -> [PitchSignal.Pitch] -- ^ Pitches of open strings.
+    -> TrackLang.ValControl -- ^ Attack time.
+    -> TrackLang.ValControl -- ^ Release delay.
+    -> TrackLang.ValControl -- ^ Time for string to return to its open pitch.
     -> Derive.Events -> Derive.EventDeriver
 string_idiom attack_interpolator release_interpolator open_strings attack delay
-        release all_events = Util.event_head all_events $ \event events ->
-    case initial_state open_strings event of
-        Nothing -> Derive.throw $ "initial degree below lowest string: "
-            ++ show (Score.initial_pitch event)
+        release all_events = Util.event_head all_events $ \event events -> do
+    open_nns <- mapM Pitches.pitch_nn open_strings
+    case initial_state (zip open_nns open_strings) event of
+        Nothing -> Derive.throw $ "initial pitch below lowest string: "
+            ++ show (Score.initial_nn event)
         Just state -> do
             (result, final) <- Util.map_controls
                 (attack :. delay :. release :. Nil) state events $
                     \(attack :. delay :. release :. Nil) ->
                         process attack_interpolator release_interpolator
-                            (attack, delay, release)
+                            (RealTime.seconds attack, RealTime.seconds delay,
+                                RealTime.seconds release)
             return $ Derive.merge_asc_events result
                 ++ [LEvent.Event $ state_event final]
 
@@ -136,71 +124,86 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
 --
 -- - If the note falls on the string in use, bend that string up to the note
 -- to be played and emit it.
-process :: Util.PitchInterpolator -> Util.PitchInterpolator
-    -> (Signal.Y, Signal.Y, Signal.Y) -> State -> Score.Event
+process :: Call.Pitch.Interpolator -> Call.Pitch.Interpolator
+    -> (RealTime, RealTime, RealTime) -> State -> Score.Event
     -> Derive.Deriver ([Score.Event], State)
 process attack_interpolator release_interpolator
         (attack_time, delay_time, release_time)
-        state@(State strings sounding_string prev)
-        event =
-    case find_string degree strings of
+        state@(State strings sounding_string prev) event = do
+    pitch <- Derive.require "no pitch" $ Score.initial_pitch event
+    nn <- Derive.require_right Pretty.pretty $ PitchSignal.pitch_nn pitch
+    case find_string nn strings of
         Nothing -> do
-            Log.warn $ "event at " ++ Pretty.pretty start
-                ++ " below lowest string: " ++ show degree
+            Log.warn $ Pretty.pretty nn ++ " below lowest string: "
+                ++ Pretty.pretty strings
             return ([], state)
-        Just string -> return ([emit string], State strings string event)
+        Just string -> do
+            new_event <- Derive.require "missing pitches" (emit pitch string)
+            return ([new_event], State strings string event)
     where
     start = Score.event_start event
-    emit string
+    emit pitch string
+        -- Re-use an already sounding string.
         | string == sounding_string = attack attack_interpolator
-            (RealTime.seconds attack_time) degree start prev
-        | otherwise = release release_interpolator
-            (RealTime.seconds delay_time) (RealTime.seconds release_time)
+            attack_time pitch start prev
+        -- Sounding string is no longer used, so it can be released.
+        | otherwise = release release_interpolator delay_time release_time
             sounding_string start prev
-    degree = Score.initial_pitch event
 
 -- | Bend the event up to the next note.
-attack :: Util.PitchInterpolator -> RealTime -> Pitch.Degree -> RealTime
-    -> Score.Event -> Score.Event
-attack interpolator time degree next_event event =
-    merge_curve interpolator start_x start_y next_event degree event
-    where
-    start_x = next_event - time
-    start_y = Score.degree_at start_x event
+attack :: Call.Pitch.Interpolator -> RealTime -> PitchSignal.Pitch -> RealTime
+    -> Score.Event -> Maybe Score.Event
+attack interpolator time pitch next_event event = do
+    let start_x = next_event - time
+    start_pitch <- Score.pitch_at start_x event
+    return $ merge_curve interpolator start_x start_pitch next_event
+        pitch event
 
--- | Bend the event down to the given degree.
-release :: Util.PitchInterpolator -> RealTime -> RealTime -> Pitch.Degree
-    -> RealTime -> Score.Event -> Score.Event
-release interpolator delay time degree next_event event =
-    merge_curve interpolator start_x start_y (start_x + time) degree event
-    where
-    start_x = next_event + delay
-    start_y = Score.degree_at start_x event
+-- | After releasing a note, you release your hand, which means the pitch
+-- should bend down to the open string.
+release :: Call.Pitch.Interpolator -> RealTime -> RealTime
+    -> PitchSignal.Pitch -> RealTime -> Score.Event
+    -> Maybe Score.Event
+release interpolator delay time pitch next_event event = do
+    let start_x = next_event + delay
+    start_pitch <- Score.pitch_at start_x event
+    return $ merge_curve interpolator start_x start_pitch
+        (start_x + time) pitch event
 
-merge_curve :: Util.PitchInterpolator -> RealTime -> Pitch.Degree
-    -> RealTime -> Pitch.Degree -> Score.Event -> Score.Event
+merge_curve :: Call.Pitch.Interpolator -> RealTime -> PitchSignal.Pitch
+    -> RealTime -> PitchSignal.Pitch -> Score.Event -> Score.Event
 merge_curve interpolator x0 y0 x1 y1 event
     | y0 == y1 = event
     | otherwise = event { Score.event_pitch = new_pitch }
     where
-    scale_id = PitchSignal.sig_scale (Score.event_pitch event)
-    curve = interpolator scale_id False x0 y0 x1 y1
-    new_pitch = PitchSignal.merge [Score.event_pitch event, curve]
+    curve = interpolator False x0 y0 x1 y1
+    new_pitch = Score.event_pitch event <> curve
 
-find_string :: Pitch.Degree -> Set.Set Pitch.Degree -> Maybe Pitch.Degree
-find_string = Set.lookup_below
+find_string :: Pitch.NoteNumber -> Map.Map Pitch.NoteNumber PitchSignal.Pitch
+    -> Maybe PitchSignal.Pitch
+find_string nn m = case Map.lookup_below nn m of
+    Nothing -> Nothing
+    Just (_, a) -> Just a
 
+-- | Keep track of the current string state.
 data State = State {
-    state_strings :: Set.Set Pitch.Degree
+    -- | Since the strings are NoteNumbers, it means they can't retune based
+    -- on context as 'PitchSignal.Pitch's can.  I can think about supporting
+    -- this later if I need it.
+    state_strings :: !(Map.Map Pitch.NoteNumber PitchSignal.Pitch)
     -- | The string that is currently sounding.  This is the /open/ pitch.
-    , state_sounding :: Pitch.Degree
-    , state_event :: Score.Event
+    , state_sounding :: !PitchSignal.Pitch
+    -- | The previous event.  Since each event is modified based on the next
+    -- pitch, each 'process' call is one event ahead of the actual event
+    -- emitted.
+    , state_event :: !Score.Event
     } deriving (Show)
 
-initial_state :: [Pitch.Degree] -> Score.Event -> Maybe State
-initial_state open_strings event = case find_string degree strings of
-        Nothing -> Nothing
-        Just string -> Just $ State strings string event
+initial_state :: [(Pitch.NoteNumber, PitchSignal.Pitch)] -> Score.Event
+    -> Maybe State
+initial_state open_strings event = do
+    nn <- Score.initial_nn event
+    string <- find_string nn strings
+    return $ State strings string event
     where
-    strings = Set.fromList open_strings
-    degree = Score.initial_pitch event
+    strings = Map.fromList open_strings

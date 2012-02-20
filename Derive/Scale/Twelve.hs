@@ -66,10 +66,10 @@ transpose octaves degrees note = do
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
 note_to_call note = case Map.lookup note note_to_degree of
-        Nothing -> Nothing
-        Just (pitch, degree) ->
-            Just $ Call.Pitch.note_call note
-                (note_number (Theory.pitch_class pitch) degree)
+    Nothing -> Nothing
+    Just (pitch, degree) ->
+        Just $ Call.Pitch.note_call note
+            (note_number (Theory.pitch_class pitch) degree)
     where
     note_number :: PitchClass -> Pitch.Degree -> Scale.GetNoteNumber
     note_number pc (Pitch.Degree degree) chromatic diatonic maybe_str_key = do

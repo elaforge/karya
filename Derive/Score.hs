@@ -147,6 +147,9 @@ controls_at = Map.map . control_at
 pitch_at :: RealTime -> Event -> Maybe PitchSignal.Pitch
 pitch_at pos = PitchSignal.at pos . event_pitch
 
+initial_pitch :: Event -> Maybe PitchSignal.Pitch
+initial_pitch event = pitch_at (event_start event) event
+
 nn_at :: RealTime -> Event -> Maybe Pitch.NoteNumber
 nn_at pos event = either (const Nothing) Just . PitchSignal.pitch_nn
     =<< pitch_at pos event
