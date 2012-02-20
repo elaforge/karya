@@ -7,13 +7,11 @@ module Derive.TestInstances where
 -- Eventually that should stop, but meanwhile...
 #ifdef TESTING
 
-import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.TrackLang as TrackLang
 
 -- Normally Vals aren't comparable for equality because of the pesky VPitch,
 -- but it's too convenient for testing to lose.
 deriving instance Eq TrackLang.Val
-instance Eq PitchSignal.Pitch where _ == _ = error "equality on pitches"
 deriving instance Eq TrackLang.Call
 deriving instance Eq TrackLang.Term
 

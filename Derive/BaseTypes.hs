@@ -132,6 +132,9 @@ no_attrs = Attributes Set.empty
 newtype Pitch = Pitch PitchCall
 type PitchCall = Map.Map Control TypedVal -> Either PitchError Pitch.NoteNumber
 
+instance Eq Pitch where
+    Pitch p1 == Pitch p2 = p1 Map.empty == p2 Map.empty
+
 instance Show Pitch where
     show (Pitch p) = "((Pitch " ++ nn ++ "))"
         where

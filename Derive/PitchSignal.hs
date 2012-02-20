@@ -173,9 +173,6 @@ drop_before x = fmap0 (TimeVector.drop_before x)
 
 type Controls = Map.Map Score.Control Score.TypedVal
 
-instance Eq Pitch where
-    p1 == p2 = pitch_nn p1 == pitch_nn p2
-
 pitch :: PitchCall -> Pitch
 pitch = Pitch
 
