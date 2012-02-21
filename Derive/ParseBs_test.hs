@@ -91,7 +91,8 @@ test_parse_val = do
             , ("#", Just $ VPitchControl $
                 LiteralControl (Score.Control ""))
             , ("#sig,0", Just $ VPitchControl $
-                DefaultedControl (Score.Control "sig") (Pitch.Note "0"))
+                DefaultedControl (Score.Control "sig")
+                    (TrackLang.Note (Pitch.Note "0") []))
 
             , ("*", Just $ VScaleId (Pitch.ScaleId ""))
             , ("*scale", Just $ VScaleId (Pitch.ScaleId "scale"))

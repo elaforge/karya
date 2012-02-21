@@ -161,7 +161,7 @@ type Environ = Map.Map ValName Val
 -- | Symbols to look up a val in the 'ValMap'.
 type ValName = Symbol
 
--- * TrackLang Val
+-- ** Val
 
 data Val =
     -- | A number with an optional type suffix.
@@ -270,11 +270,12 @@ data ControlRef val =
     | LiteralControl Control
     deriving (Eq, Show)
 
-type PitchControl = ControlRef Pitch.Note
+type PitchControl = ControlRef Note
 type ValControl = ControlRef TypedVal
 
 instance Pretty.Pretty PitchControl where
-    pretty = show_control '#' Pitch.note_text
+    -- The PitchControl syntax doesn't support args for the signal default yet.
+    pretty = show_control '#' (Pitch.note_text . note_sym)
 
 instance Pretty.Pretty ValControl where
     pretty = show_control '%'
@@ -286,3 +287,12 @@ show_control prefix show_val control = case control of
     DefaultedControl (Control cont) deflt ->
         prefix : cont ++ ',' : show_val deflt
     LiteralControl (Control cont) -> prefix : cont
+
+-- ** Note
+
+-- | Pitch.Note is just the name of the pitch, but the TrackLang Note carries
+-- args, and should be used in preference to Pitch.Note where appropriate.
+data Note = Note {
+    note_sym :: Pitch.Note
+    , note_args :: [Val]
+    } deriving (Show)

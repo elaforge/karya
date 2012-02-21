@@ -41,7 +41,7 @@ note_to_pitch :: (Cmd.M m) => Pitch.ScaleId -> Pitch.Note
     -> m (Either String PitchSignal.Pitch)
 note_to_pitch scale_id note = do
     scale <- Cmd.get_scale "Perf.note_to_pitch" scale_id
-    derive (Derive.with_scale scale (Call.eval_note note))
+    derive (Derive.with_scale scale (Call.eval_note (TrackLang.Note note [])))
 
 -- | A cheap quick derivation that sets up the correct initial state, but
 -- runs without the cache and throws away any logs.

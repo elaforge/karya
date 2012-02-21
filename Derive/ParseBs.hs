@@ -182,7 +182,8 @@ p_pitch_control = do
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
         Just val ->
-            TrackLang.DefaultedControl control (Pitch.Note (B.unpack val))
+            TrackLang.DefaultedControl control
+                (TrackLang.Note (Pitch.Note (B.unpack val)) [])
     <?> "pitch control"
 
 p_scale_id :: A.Parser Pitch.ScaleId

@@ -45,7 +45,7 @@ import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes (Environ, ValName)
 import Derive.BaseTypes
        (Val(..), Symbol(..), AttrMode(..), RelativeAttr(..),
-        ControlRef(..), PitchControl, ValControl, show_num)
+        ControlRef(..), PitchControl, ValControl, show_num, Note(..))
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -369,7 +369,7 @@ v_seed :: ValName
 v_seed = Symbol "seed"
 
 
--- * parsing
+-- * expressions
 
 -- | The only operator is @|@, so a list suffices for an AST.
 type Expr = [Call]
@@ -395,15 +395,17 @@ instance DeepSeq.NFData Val where
     rnf _ = ()
 
 -- | Convenient constructor for Call.  Not to be confused with 'call0'--calln.
---
--- TODO I should be able to have different types of vals, but I think I need an
--- existential wrapper for that, or an infix operator.
 call :: String -> [Term] -> Call
 call sym = Call (Symbol sym)
 
 inst :: String -> Term
 inst = Literal . VInstrument . Score.Instrument
 
-val_call :: String -> Term
-val_call sym = ValCall (Call (Symbol sym) [])
+val_call :: String -> [Val] -> Term
+val_call sym args = ValCall (Call (Symbol sym) (map Literal args))
 
+note :: String -> [Val] -> Note
+note sym args = Note (Pitch.Note sym) args
+
+note_call :: Note -> Term
+note_call (Note note args) = val_call (Pitch.note_text note) args

@@ -97,7 +97,6 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Pitch as Pitch
 import Types
 
 
@@ -117,9 +116,9 @@ reapply args expr = eval_expr (note_dinfo, cinfo) expr
     where cinfo = Derive.passed_info args
 
 -- | A version of 'eval' specialized to evaluate note calls.
-eval_note :: Pitch.Note -> Derive.Deriver PitchSignal.Pitch
+eval_note :: TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
 eval_note note = CallSig.cast ("eval note " ++ show note)
-    =<< eval (TrackLang.val_call (Pitch.note_text note))
+    =<< eval (TrackLang.note_call note)
 
 -- | Evaluate a single expression.
 eval_expr :: (Derive.Derived derived) => Info derived -> TrackLang.Expr

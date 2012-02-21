@@ -29,14 +29,14 @@ import Types
 -- static config or some kind of tracklang list literal.
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("string-guzheng",
-        c_guzheng $ map Pitch.Note ["4c", "4d", "4e", "4g", "4a"])
-    , ("string-viola", c_violin $ map Pitch.Note ["4c", "4g", "5d", "5a"])
+    [ ("string-guzheng", c_guzheng $ notes ["4c", "4d", "4e", "4g", "4a"])
+    , ("string-viola", c_violin $ notes ["4c", "4g", "5d", "5a"])
     ]
+    where notes = map (flip TrackLang.note [])
 
 -- | A string idiom in the style of a 古箏 or other zither where strings must
 -- be manually bent to tune them.
-c_guzheng :: [Pitch.Note] -> Derive.NoteCall
+c_guzheng :: [TrackLang.Note] -> Derive.NoteCall
 c_guzheng strings = Derive.transformer "guzheng" $ \args deriver ->
     CallSig.call3 args
     ( optional "attack" (control "guzheng-attack" 0.5)
@@ -52,7 +52,7 @@ c_guzheng strings = Derive.transformer "guzheng" $ \args deriver ->
 
 -- | A string idiom in the style of stopped strings like the violin family.
 -- Strings instantly jump to their pitches.
-c_violin :: [Pitch.Note] -> Derive.NoteCall
+c_violin :: [TrackLang.Note] -> Derive.NoteCall
 c_violin strings = Derive.transformer "violin" $ \args deriver ->
     CallSig.call1 args (optional "delay" (control "string-delay" 0)) $
     \delay -> do

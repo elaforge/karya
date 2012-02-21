@@ -1,12 +1,10 @@
 module Derive.Call.Idiom.String_test where
 import Util.Test
-
+import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Score as Score
-
-import qualified Perform.Pitch as Pitch
+import qualified Derive.TrackLang as TrackLang
 
 
 test_string = do
@@ -33,5 +31,5 @@ test_string = do
         , (10, [(10, 62)])
         ], [])
 
-with_call = CallTest.with_note_call "guzheng"
-    (String.c_guzheng (map Pitch.Note ["4c", "4d", "4e", "4g", "4a"]))
+with_call = CallTest.with_note_call "guzheng" $ String.c_guzheng $
+    map (flip TrackLang.note []) ["4c", "4d", "4e", "4g", "4a"]
