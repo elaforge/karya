@@ -105,7 +105,7 @@ to_transpose_signal default_type control = do
         _ -> Derive.throw $ "expected transpose type for "
             ++ Pretty.pretty control ++ " but got " ++ Pretty.pretty typ
 
-data TimeType = Real | Score deriving (Show)
+data TimeType = Real | Score deriving (Eq, Show)
 
 -- | Version of 'to_signal' that will complain if the control isn't a time
 -- type.
@@ -276,6 +276,22 @@ duration_from_start args time = do
         TrackLang.Real t -> return (start, start + t)
         TrackLang.Score t -> (,) start <$> Derive.real (Args.start args + t)
 
+-- | Get the real duration of a typed time val at the given point of score
+-- time.  RealTime is linear, so 1 second is always 1 second no matter where
+-- it is, but ScoreTime will map to different amounts of RealTime depending
+-- on where it is.
+real_duration :: TimeType -> ScoreTime -> Score.TypedVal
+    -> Derive.Deriver RealTime
+real_duration default_type from (Score.Typed typ val)
+    | typ == Score.Real || typ == Score.Untyped && default_type == Real =
+        return (RealTime.seconds val)
+    | typ == Score.Score || typ == Score.Untyped && default_type == Score = do
+        start <- Derive.real from
+        end <- Derive.real (from + ScoreTime.double val)
+        return (end - start)
+    | otherwise = Derive.throw $
+        "expected time type for " ++ Pretty.pretty (Score.Typed typ val)
+
 -- | Add a RealTime to a ScoreTime.
 delay :: RealTime -> ScoreTime -> Derive.Deriver ScoreTime
 delay time start = do
@@ -336,7 +352,7 @@ event_head (LEvent.Event event : rest) f = f event rest
 -- events in ascending order.
 map_controls_asc :: (FixedList.FixedList cs) => cs TrackLang.ValControl
     -> state -> Derive.EventDeriver
-    -> (cs Signal.Y -> state -> Score.Event
+    -> (cs Score.TypedVal -> state -> Score.Event
         -> Derive.Deriver ([Score.Event], state))
     -> Derive.EventDeriver
 map_controls_asc controls state deriver f = do
@@ -349,7 +365,7 @@ map_controls_asc controls state deriver f = do
 -- depending only on the control values.
 map_controls :: (FixedList.FixedList cs) => cs TrackLang.ValControl
     -> state -> Derive.Events
-    -> (cs Signal.Y -> state -> Score.Event
+    -> (cs Score.TypedVal -> state -> Score.Event
         -> Derive.Deriver ([Score.Event], state))
     -> Derive.Deriver ([Derive.Events], state)
 map_controls controls state events f =
@@ -362,7 +378,7 @@ map_controls controls state events f =
 map_controls_pitches :: (FixedList.FixedList cs, FixedList.FixedList ps) =>
     cs TrackLang.ValControl -> ps TrackLang.PitchControl
     -> state -> Derive.Events
-    -> (cs Signal.Y -> ps PitchSignal.Pitch -> state -> Score.Event
+    -> (cs Score.TypedVal -> ps PitchSignal.Pitch -> state -> Score.Event
         -> Derive.Deriver ([Score.Event], state))
     -> Derive.Deriver ([Derive.Events], state)
 map_controls_pitches controls pitch_controls state events f = go state events
@@ -373,7 +389,7 @@ map_controls_pitches controls pitch_controls state events f = go state events
         return ([log] : rest_vals, final_state)
     go state (LEvent.Event event : rest) = do
         let pos = Score.event_start event
-        control_vals <- Traversable.mapM (control_at pos) controls
+        control_vals <- Traversable.mapM (typed_control_at pos) controls
         pitch_vals <- Traversable.mapM (pitch_at pos) pitch_controls
         result <- Derive.with_event event $
             f control_vals pitch_vals state event

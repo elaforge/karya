@@ -89,7 +89,9 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
     , optional "feedback" (control "echo-feedback" 0.4)
     , optional "times" (control "echo-times" 1)) $ \delay feedback times -> do
         Util.map_controls_asc (delay :. feedback :. times :. Nil) () deriver $
-            \(delay :. feedback :. times :. Nil) -> go delay feedback times
+            \(delay :. feedback :. times :. Nil) ->
+                go (Score.typed_val delay) (Score.typed_val feedback)
+                    (Score.typed_val times)
     where
     go delay feedback times () event = return
         (echo_event (RealTime.seconds delay) feedback (floor times) event, ())

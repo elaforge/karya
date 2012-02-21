@@ -21,7 +21,6 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
 import Types
 
 
@@ -111,11 +110,18 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
             (result, final) <- Util.map_controls
                 (attack :. delay :. release :. Nil) state events $
                     \(attack :. delay :. release :. Nil) ->
-                        process attack_interpolator release_interpolator
-                            (RealTime.seconds attack, RealTime.seconds delay,
-                                RealTime.seconds release)
-            return $ Derive.merge_asc_events result
+                        go attack delay release
+            return $! Derive.merge_asc_events result
                 ++ [LEvent.Event $ state_event final]
+    where
+    go attack delay release state event = do
+        start <- Derive.score (Score.event_start event)
+        let dur = Util.real_duration Util.Real start
+        attack <- dur attack
+        delay <- dur delay
+        release <- dur release
+        process attack_interpolator release_interpolator
+            (attack, delay, release) state event
 
 -- | Monophonic:
 --
