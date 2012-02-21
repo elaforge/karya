@@ -1,4 +1,5 @@
 #!/bin/sh
 # ghci with flags to import test modules
-exec command ghci -DTESTING -hidir build/test/obj -odir build/test/obj \
-    -osuf .hs.o -ibuild/hsc
+exec command ghci -osuf .hs.o -outputdir build/test/obj \
+    -ibuild/test/obj:build/hsc \
+    -DTESTING "$@"

@@ -319,9 +319,13 @@ configure = do
         }
     osFlags = case System.Info.os of
         "darwin" -> mempty
-            { define = ["-DMAC_OS_X_VERSION_MAX_ALLOWED=1060",
-                "-DMAC_OS_X_VERSION_MIN_REQUIRED=1050"]
-            , midiLibs = words $ "-framework CoreFoundation "
+            -- These apparently control which APIs are visible.  But they
+            -- make it slightly more awkward for ghci since it needs the
+            -- same flags to load .o files, and things seem to work without
+            -- them, so I'll omit them for the time being.
+            -- { define = ["-DMAC_OS_X_VERSION_MAX_ALLOWED=1060",
+            --     "-DMAC_OS_X_VERSION_MIN_REQUIRED=1050"]
+            { midiLibs = words $ "-framework CoreFoundation "
                 ++ "-framework CoreMIDI -framework CoreAudio"
             , midiDriver = ["-DCORE_MIDI"]
             }
@@ -597,7 +601,10 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
 
 compileHs :: Config -> FilePath -> Cmdline
 compileHs config hs = ("GHC", hs,
-    [ghcBinary, "-c", "-outputdir", oDir config, "-i" ++ includes]
+    -- -osuf is unnecessary because of the -o, but as of 7.4.1 ghci won't
+    -- load the .o files if it notices this flag is different.
+    [ghcBinary, "-c", "-osuf", ".hs.o", "-outputdir", oDir config,
+        "-i" ++ includes]
     ++ main_is ++ hcFlags (configFlags config)
     ++ [hs, "-o", srcToObj config hs])
     where
