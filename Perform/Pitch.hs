@@ -11,7 +11,7 @@
 -}
 module Perform.Pitch (
     -- * Pitch
-    Pitch(..), Note(..), note_text
+    Note(..), note_text
 
     -- * InputKey
     , InputKey(..), Octave, middle_c, middle_octave
@@ -35,13 +35,6 @@ import qualified Util.Serialize as Serialize
 -- or absolute, but at the moment no distinctions are made at the type level.
 
 -- * Pitch
-
--- | The main representation for a pitch.  Scale sharing is enforced by keeping
--- the scale as an ID, which must be looked up in a map.
-data Pitch = Pitch {
-    pitch_scale :: ScaleId
-    , pitch_note :: Note
-    } deriving (Eq, Ord, Show)
 
 -- | A Note belongs to a scale and describes a certain note in that scale.
 newtype Note = Note String deriving (Eq, Ord, Show)
