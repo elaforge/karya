@@ -61,7 +61,8 @@ private:
 
 class BrowserWindow : public Fl_Double_Window {
 public:
-    BrowserWindow(int X, int Y, int W, int H, MsgCallback cb);
+    BrowserWindow(int X, int Y, int W, int H, const char *title,
+        MsgCallback cb);
     Browser browser;
 };
 

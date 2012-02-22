@@ -4,9 +4,9 @@
 extern "C" {
 
 BrowserWindow *
-create_browser(int x, int y, int w, int h, MsgCallback cb)
+create_browser(int x, int y, int w, int h, const char *title, MsgCallback cb)
 {
-    BrowserWindow *win = new BrowserWindow(x, y, w, h, cb);
+    BrowserWindow *win = new BrowserWindow(x, y, w, h, title, cb);
     win->show();
     return win;
 }

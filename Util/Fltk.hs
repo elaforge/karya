@@ -16,7 +16,6 @@ data Window a = Window {
 type MsgCallback = CInt -> CString -> IO ()
 data Msg a = Msg a String
 
-
 -- | Enter the fltk event loop.  For portability, this should only be called
 -- from the main thread.
 run :: IO ()
@@ -26,6 +25,7 @@ run = do
         c_wait
         handle_actions acts_mvar
 
+handle_actions :: Concurrent.MVar [IO a] -> IO ()
 handle_actions acts_mvar = Concurrent.modifyMVar_ acts_mvar $ \acts ->
     sequence_ (reverse acts) >> return []
 
@@ -35,22 +35,23 @@ send_action act = do
     c_awake
 
 acts_mvar :: Concurrent.MVar [a]
-{-# NOINLINE acts_mvar #-}
 acts_mvar = Unsafe.unsafePerformIO (Concurrent.newMVar [])
+{-# NOINLINE acts_mvar #-}
 
 foreign import ccall "initialize" c_initialize :: IO ()
 foreign import ccall "ui_wait" c_wait :: IO ()
 foreign import ccall "ui_awake" c_awake :: IO ()
 foreign import ccall "has_windows" c_has_windows :: IO CInt
 
-type CreateWindow a = CInt -> CInt -> CInt -> CInt -> FunPtr MsgCallback
-    -> IO (Ptr (Window a))
+type CreateWindow a = CInt -> CInt -> CInt -> CInt -> CString
+    -> FunPtr MsgCallback -> IO (Ptr (Window a))
 create_window :: (CInt -> a) -> CreateWindow a -> Int -> Int -> Int -> Int
-    -> IO (Window a)
-create_window decode_type create_win x y w h = do
+    -> String -> IO (Window a)
+create_window decode_type create_win x y w h title = do
     chan <- STM.newTChanIO
     cb <- c_make_msg_callback (cb_msg_callback decode_type chan)
-    winp <- create_win (c x) (c y) (c w) (c h) cb
+    winp <- withCString title $ \titlep ->
+        create_win (c x) (c y) (c w) (c h) titlep cb
     return (Window winp chan)
     where c = fromIntegral
 
