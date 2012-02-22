@@ -1,0 +1,2 @@
+#!/bin/zsh
+bin/mk build/test/test_block && build/test/test_block "$@"

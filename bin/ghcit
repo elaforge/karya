@@ -1,0 +1,3 @@
+#!/bin/sh
+# ghci with flags to import test modules
+exec command ghci $(cat build/test/ghci-flags) "$@"
