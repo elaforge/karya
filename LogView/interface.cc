@@ -1,16 +1,11 @@
-#include <FL/Fl.H>
 #include "interface.h"
+
 
 extern "C" {
 
-void initialize() { Fl::lock(); }
-void ui_wait() { Fl::wait(100); }
-void ui_awake() { Fl::awake((void*) 0); }
-int has_windows() { return Fl::first_window() != NULL; }
-
 LogViewWindow *
-create_logview(int x, int y, int w, int h, const char *label, MsgCallback cb,
-    int max_bytes)
+create_logview(int max_bytes, int x, int y, int w, int h, const char *label,
+    MsgCallback cb)
 {
     LogViewWindow *view = new LogViewWindow(x, y, w, h, label, cb, max_bytes);
     view->show();

@@ -16,6 +16,9 @@ data Window a = Window {
 type MsgCallback = CInt -> CString -> IO ()
 data Msg a = Msg a String
 
+read_msg :: Window a -> STM.STM (Msg a)
+read_msg = STM.readTChan . win_chan
+
 -- | Enter the fltk event loop.  For portability, this should only be called
 -- from the main thread.
 run :: IO ()

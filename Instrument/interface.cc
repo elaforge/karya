@@ -29,5 +29,4 @@ set_info(BrowserWindow *w, const char *info)
     w->browser.set_info(info);
 }
 
-
 }

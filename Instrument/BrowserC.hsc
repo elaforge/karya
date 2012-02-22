@@ -33,6 +33,9 @@ set_info win info = withCString info $ \infop ->
     c_set_info (Fltk.win_p win) infop
 foreign import ccall "set_info" c_set_info :: Ptr Window -> CString -> IO ()
 
+
+-- * implementation
+
 data MsgType = Select | Choose | Query | Unknown CInt deriving (Show)
 
 decode_type :: CInt -> MsgType

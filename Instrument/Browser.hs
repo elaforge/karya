@@ -64,7 +64,7 @@ handle_msgs :: BrowserC.Window -> Db -> IO ()
 handle_msgs win db = do
     displayed <- State.liftIO $ process_query win db [] ""
     flip State.evalStateT (State displayed) $ forever $ do
-        (Fltk.Msg typ text) <- State.liftIO $ get_msg (Fltk.win_chan win)
+        (Fltk.Msg typ text) <- State.liftIO $ STM.atomically $ Fltk.read_msg win
         case typ of
             BrowserC.Select -> State.liftIO $ show_info win db text
             BrowserC.Choose -> State.liftIO $ choose_instrument text
@@ -75,8 +75,6 @@ handle_msgs win db = do
                 State.put (state { state_displayed = displayed })
             BrowserC.Unknown c -> State.liftIO $
                 putStrLn $ "unknown msg type: " ++ show c
-
-get_msg msg_chan = STM.atomically $ STM.readTChan msg_chan
 
 -- | Look up the instrument, generate a info sheet on it, and send to the UI.
 show_info :: BrowserC.Window -> Db -> String -> IO ()

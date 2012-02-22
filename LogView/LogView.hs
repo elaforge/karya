@@ -27,6 +27,7 @@ import qualified System.Environment
 import qualified System.Exit
 import System.FilePath ((</>))
 
+import qualified Util.Fltk as Fltk
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
@@ -97,7 +98,7 @@ main = do
         filename = maybe mach_log_filename id $ Seq.last [n | File n <- flags]
     cwd <- Directory.getCurrentDirectory
 
-    view <- LogViewC.create_logview 20 20 (fst initial_size) (snd initial_size)
+    view <- LogViewC.create 20 20 (fst initial_size) (snd initial_size)
         (cwd </> filename) default_max_bytes
     LogViewC.set_filter view initial_filter
 
@@ -106,7 +107,7 @@ main = do
     let state = (Process.initial_state initial_filter)
             { Process.state_catch_patterns = default_catch_patterns }
     Concurrent.forkIO (handle_msgs state history log_chan view)
-    LogViewC.run
+    Fltk.run
     where
     usage msg = putStr (GetOpt.usageInfo msg options)
         >> System.Exit.exitSuccess
@@ -115,7 +116,7 @@ main = do
 data Msg = NewLog Log.Msg | ClickedWord String | FilterChanged String
     deriving (Show)
 
-handle_msgs :: Process.State -> Int -> STM.TChan Log.Msg -> LogViewC.LogView
+handle_msgs :: Process.State -> Int -> STM.TChan Log.Msg -> LogViewC.Window
     -> IO ()
 handle_msgs st history log_chan view = flip State.evalStateT st $ forever $ do
     msg <- liftIO $ get_msg log_chan view
@@ -132,7 +133,7 @@ handle_msgs st history log_chan view = flip State.evalStateT st $ forever $ do
             all_msgs <- State.gets (reverse . Process.state_msgs)
             mapM_ (handle_new_msg view) all_msgs
 
-handle_new_msg :: LogViewC.LogView -> Log.Msg
+handle_new_msg :: LogViewC.Window -> Log.Msg
     -> State.StateT Process.State IO ()
 handle_new_msg view msg = do
     state <- State.get
@@ -155,7 +156,7 @@ handle_clicked_word word
     | otherwise = putStrLn $ "unknown clicked word: " ++ show word
 
 send_action :: (State.MonadIO m) => IO a -> m ()
-send_action act = liftIO (LogViewC.send_action act)
+send_action = liftIO . Fltk.send_action
 
 send_to_app :: String -> IO ()
 send_to_app cmd = do
@@ -165,11 +166,13 @@ send_to_app cmd = do
     unless (null response) $
         putStrLn $ "response: " ++ response
 
+get_msg :: STM.TChan Log.Msg -> LogViewC.Window -> IO Msg
 get_msg log_chan view = STM.atomically $
     fmap NewLog (STM.readTChan log_chan)
-    `STM.orElse` fmap parse_ui_msg (LogViewC.read_msg view)
+    `STM.orElse` fmap parse_ui_msg (Fltk.read_msg view)
 
-parse_ui_msg (typ, s) = case typ of
+parse_ui_msg :: Fltk.Msg LogViewC.MsgType -> Msg
+parse_ui_msg (Fltk.Msg typ s) = case typ of
     LogViewC.Click -> ClickedWord s
     LogViewC.Command -> FilterChanged s
     LogViewC.Unknown n -> error $ "unknown msg type: " ++ show n
