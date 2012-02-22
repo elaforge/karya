@@ -311,11 +311,10 @@ configure = do
                     ++ if mode == Profile then ["-prof", "-auto-all"] else []
                 }
         in Config (modeToDir mode) (build </> "hsc") (strip ghcLib)
-            fltkVersion (setCFlags flags)
+            fltkVersion (setCcFlags flags)
     where
-    setCFlags flags = flags
+    setCcFlags flags = flags
         { ccFlags = fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall"]
-        , hcFlags = hcFlags flags ++ define flags
         }
     osFlags = case System.Info.os of
         "darwin" -> mempty
@@ -325,7 +324,8 @@ configure = do
             -- them, so I'll omit them for the time being.
             -- { define = ["-DMAC_OS_X_VERSION_MAX_ALLOWED=1060",
             --     "-DMAC_OS_X_VERSION_MIN_REQUIRED=1050"]
-            { midiLibs = words $ "-framework CoreFoundation "
+            { define = ["-DCORE_MIDI"]
+            , midiLibs = words $ "-framework CoreFoundation "
                 ++ "-framework CoreMIDI -framework CoreAudio"
             , midiDriver = ["-DCORE_MIDI"]
             }
@@ -381,6 +381,7 @@ main = do
                 Maybe.fromMaybe (Shake.shakeVerbosity shakeOptions) $
                     mlast [v | Verbosity v <- flags]
             }
+    writeGhciFlags (modeConfig Debug) (modeConfig Test)
     Shake.shake options $ do
         let infer = inferConfig modeConfig
         setupOracle (modeConfig Debug)
@@ -601,14 +602,9 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
 
 compileHs :: Config -> FilePath -> Cmdline
 compileHs config hs = ("GHC", hs,
-    -- -osuf is unnecessary because of the -o, but as of 7.4.1 ghci won't
-    -- load the .o files if it notices this flag is different.
-    [ghcBinary, "-c", "-osuf", ".hs.o", "-outputdir", oDir config,
-        "-i" ++ includes]
-    ++ main_is ++ hcFlags (configFlags config)
-    ++ [hs, "-o", srcToObj config hs])
+    [ghcBinary, "-c"] ++ ghciFlags config ++ hcFlags (configFlags config)
+        ++ main_is ++ [hs, "-o", srcToObj config hs])
     where
-    includes = oDir config ++ ":" ++ hscDir config
     main_is = if hs `elem` Map.elems nameToMain
         then ["-main-is", pathToModule hs]
         else []
@@ -620,6 +616,26 @@ linkHs config output pkgs objs = ("LD-HS", output,
         ++ map ("-package="++) pkgs
         ++ objs ++ ["-o", output])
     where flags = configFlags config
+
+-- | ghci has to be called with the same flags that the .o files were compiled
+-- with or it won't load them.
+writeGhciFlags :: Config -> Config -> IO ()
+writeGhciFlags debug test = do
+    Directory.createDirectoryIfMissing True (buildDir debug)
+    writeFile (buildDir debug </> "ghci-flags") $
+        unwords (ghciFlags debug) ++ "\n"
+    Directory.createDirectoryIfMissing True (buildDir test)
+    writeFile (buildDir test </> "ghci-flags") $
+        unwords (ghciFlags test) ++ "\n"
+
+-- | Get the file-independent flags for a haskell compile.
+ghciFlags :: Config -> [String]
+ghciFlags config =
+    -- -osuf is unnecessary because of the -o, but as of 7.4.1 ghci won't
+    -- load the .o files if it notices this flag is different.
+    [ "-osuf", ".hs.o", "-outputdir", oDir config
+    , "-i" ++ oDir config ++ ":" ++ hscDir config
+    ] ++ define (configFlags config)
 
 -- * cc
 
