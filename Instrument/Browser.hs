@@ -5,11 +5,13 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.State as State
+import Control.Monad.Trans (liftIO)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Word as Word
 
 import qualified System.IO as IO
 import Text.Printf
@@ -62,18 +64,18 @@ data State = State {
 
 handle_msgs :: BrowserC.Window -> Db -> IO ()
 handle_msgs win db = do
-    displayed <- State.liftIO $ process_query win db [] ""
+    displayed <- liftIO $ process_query win db [] ""
     flip State.evalStateT (State displayed) $ forever $ do
-        (Fltk.Msg typ text) <- State.liftIO $ STM.atomically $ Fltk.read_msg win
+        (Fltk.Msg typ text) <- liftIO $ STM.atomically $ Fltk.read_msg win
         case typ of
-            BrowserC.Select -> State.liftIO $ show_info win db text
-            BrowserC.Choose -> State.liftIO $ choose_instrument text
+            BrowserC.Select -> liftIO $ show_info win db text
+            BrowserC.Choose -> liftIO $ choose_instrument text
             BrowserC.Query -> do
                 state <- State.get
-                displayed <- State.liftIO $
+                displayed <- liftIO $
                     process_query win db (state_displayed state) text
                 State.put (state { state_displayed = displayed })
-            BrowserC.Unknown c -> State.liftIO $
+            BrowserC.Unknown c -> liftIO $
                 putStrLn $ "unknown msg type: " ++ show c
 
 -- | Look up the instrument, generate a info sheet on it, and send to the UI.
@@ -122,6 +124,7 @@ info_section (title, raw_text)
     | otherwise = "\t" ++ title ++ ":\n" ++ text ++ "\n"
     where text = Seq.strip raw_text
 
+cmap_info :: Control.ControlMap -> String
 cmap_info cmap = -- Seq.join "\n" $ map (Seq.join ", ") $ groups 3
     Seq.join ", " [cont ++ " (" ++ show num ++ ")"
         | (Control.Control cont, num) <- Map.assocs cmap]
@@ -130,20 +133,24 @@ cmap_info cmap = -- Seq.join "\n" $ map (Seq.join ", ") $ groups 3
 --     | null xs || n <= 0 = []
 --     | otherwise = let (pre, post) = List.splitAt n xs in pre : groups n post
 
+tags_info :: [(String, String)] -> String
 tags_info tags = unwords [quote k ++ "=" ++ quote v | (k, v) <- tags]
 
 initialize_info Instrument.NoInitialization = "(none)"
 initialize_info (Instrument.InitializeMessage msg) = "Message: " ++ msg
 initialize_info (Instrument.InitializeMidi msgs) = unlines (map midi_info msgs)
 
+manufacturer :: Word.Word8 -> String
 manufacturer code = maybe "<unknown>" id $ lookup code Parse.manufacturer_codes
 
+midi_info :: Midi.Message -> String
 midi_info (Midi.CommonMessage (Midi.SystemExclusive manuf bytes)) =
     "Sysex for " ++ manufacturer manuf
     ++ " (" ++ show (ByteString.length bytes) ++ " bytes)"
 midi_info (Midi.ChannelMessage _ msg) = show msg
 midi_info msg = show msg
 
+quote :: String -> String
 quote s
     | any Char.isSpace s = "\"" ++ s ++ "\""
     | otherwise = s

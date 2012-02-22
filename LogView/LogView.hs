@@ -18,7 +18,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.State as State
-import Control.Monad.State (liftIO)
+import Control.Monad.Trans (liftIO)
 
 import qualified Data.List as List
 import qualified System.Console.GetOpt as GetOpt
@@ -98,15 +98,15 @@ main = do
         filename = maybe mach_log_filename id $ Seq.last [n | File n <- flags]
     cwd <- Directory.getCurrentDirectory
 
-    view <- LogViewC.create 20 20 (fst initial_size) (snd initial_size)
+    win <- LogViewC.create 20 20 (fst initial_size) (snd initial_size)
         (cwd </> filename) default_max_bytes
-    LogViewC.set_filter view initial_filter
+    LogViewC.set_filter win initial_filter
 
     log_chan <- STM.newTChanIO
     Concurrent.forkIO (Process.tail_file log_chan filename seek)
     let state = (Process.initial_state initial_filter)
             { Process.state_catch_patterns = default_catch_patterns }
-    Concurrent.forkIO (handle_msgs state history log_chan view)
+    Concurrent.forkIO (handle_msgs state history log_chan win)
     Fltk.run
     where
     usage msg = putStr (GetOpt.usageInfo msg options)
@@ -118,35 +118,35 @@ data Msg = NewLog Log.Msg | ClickedWord String | FilterChanged String
 
 handle_msgs :: Process.State -> Int -> STM.TChan Log.Msg -> LogViewC.Window
     -> IO ()
-handle_msgs st history log_chan view = flip State.evalStateT st $ forever $ do
-    msg <- liftIO $ get_msg log_chan view
+handle_msgs st history log_chan win = flip State.evalStateT st $ forever $ do
+    msg <- liftIO $ get_msg log_chan win
     case msg of
         NewLog log_msg -> do
             State.modify (Process.add_msg history log_msg)
-            handle_new_msg view log_msg
+            handle_new_msg win log_msg
         ClickedWord word -> liftIO $ handle_clicked_word word
         FilterChanged expr -> do
             -- clear and redisplay msgs with new filter
-            send_action $ LogViewC.clear_logs view
+            send_action $ LogViewC.clear_logs win
             State.modify $ \st ->
                 st { Process.state_filter = Process.compile_filter expr }
             all_msgs <- State.gets (reverse . Process.state_msgs)
-            mapM_ (handle_new_msg view) all_msgs
+            mapM_ (handle_new_msg win) all_msgs
 
 handle_new_msg :: LogViewC.Window -> Log.Msg
     -> State.StateT Process.State IO ()
-handle_new_msg view msg = do
+handle_new_msg win msg = do
     state <- State.get
     let (styled, new_state) = Process.process_msg state msg
     State.put new_state
     case styled of
         Just styled -> let (log_s, style_s) = Process.extract_style styled
-            in send_action $ LogViewC.append_log view log_s style_s
+            in send_action $ LogViewC.append_log win log_s style_s
         Nothing -> return ()
     let new_status = Process.state_status new_state
     when (Process.state_status state /= new_status) $ do
         let (Process.StyledText status style) = Process.render_status new_status
-        send_action $ LogViewC.set_status view status style
+        send_action $ LogViewC.set_status win status style
         State.modify $ \st -> st { Process.state_status = new_status }
 
 handle_clicked_word :: String -> IO ()
@@ -167,9 +167,9 @@ send_to_app cmd = do
         putStrLn $ "response: " ++ response
 
 get_msg :: STM.TChan Log.Msg -> LogViewC.Window -> IO Msg
-get_msg log_chan view = STM.atomically $
+get_msg log_chan win = STM.atomically $
     fmap NewLog (STM.readTChan log_chan)
-    `STM.orElse` fmap parse_ui_msg (Fltk.read_msg view)
+    `STM.orElse` fmap parse_ui_msg (Fltk.read_msg win)
 
 parse_ui_msg :: Fltk.Msg LogViewC.MsgType -> Msg
 parse_ui_msg (Fltk.Msg typ s) = case typ of
