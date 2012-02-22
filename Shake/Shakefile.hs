@@ -387,7 +387,7 @@ main = do
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
         hspp *> \fn -> do
-            -- But need mark hspp's deps so it will rebuild.
+            -- But I need to mark hspp's deps so it will rebuild.
             need =<< HsDeps.transitiveImportsOf "Util/Hspp.hs"
             system $ makeHs (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
         build </> "tags" *> \fn -> do

@@ -13,41 +13,20 @@ UNSORTED
     like trill.  Is there some way to write them the same and have the
     instrument decide what actually happens?
 
-  - Efficient pitch signals: can have a special Event + Call that just
-    returns Signal.NoteNumber.
   abstract pitches
-    - ensure a note transposed out of range will emit an event with an empty
-      pitch signal
-
-    * Is there ever any case for changing an Environ?  In that case, can't
-      I omit the Environ arg and have calls close over the relevant env vals?
-    - Tests for PitchSignal.to_nn: I think it needs the desired range since it
-      may not conform to the pitch signal's range.
+    re-implement Cmd.Lang.LPitch.to_relative:
+      - Extract calls from track: parse each event and pull Calls from the
+        Expr.
+      - Get the environ of the block from the last derivation.
+      - Eval all the calls in the environ, select all the VPitch returning
+        ones.
+      - Get the scale from the environ, and call a new function
+        'chromatic_diff :: NoteNumber -> NoteNumber -> Chromatic'.
+      - Replace the VPitch returning calls with the result of the diff.  This
+        means the parser has to keep track of the text ranges that produced
+        each expression.
     - implement labels for pitch tracks in fltk/EventTrack.cc
-
-    add diatonic transposition:
-      * scale support in Twelve
-      * Add Perform.Pitch.Transpose: Chromatic | Diatonic
-      * candidates for chromatic / diatonic:
-        Derive.Call.Pitch.c_neighbor, Trill.*, Pitches.transpose
-      * add Typecheck for Transpose and tracklang literals: 1d 1c
-        This doesn't work so well because most calls are more flexible if they
-        take signals, but Control is untyped.  The same goes for score vs real
-        time.
-        Do I need a mechanism for typed control signals?
-        That shouldn't be too hard, just append :c :d :r :t etc. to control
-        name, then ControlMap is
-        'Map Score.Control (Signal.Control, SignalType)'
-
-        * Derive.TrackInfo needs to parse and return (Control, Type)
-        * Derive.State state_controls changes
-      * test to make sure with_relative_signal does the right thing wrt types
-        Derive.Control_test
-      * test trill to make sure it respects chromatic and diatonic neighbors
-      * test c_neighbor
-      * make sure control calls work with types
-      * 'trill 1' should default as 1d, but 'n 1' should default as 1c.
-        How can I say "c or d but default to _"?
+    diatonic transposition
       - support input key and enharmonics
       - add flip enharmonic cmd
       - default key should be chromatic, which makes diatonic transpositions
@@ -56,62 +35,6 @@ UNSORTED
         in arbitrary places)
         Key: sharps and flats per degree, then derive the intervals from that
       - support scales that are different ascending vs. descending
-
-    * port to control calls: neighbor, trill, ...
-    - get rid of Perform.SignalBase and do something about the code
-      duplication between PitchSignal and Signal
-
-    * add Derive.PitchSignal
-    * change Score.Event to Derive.PitchSignal
-      cycle:
-        Score -> PitchSignal -> TrackLang -> Score
-      move the bits of PitchSignal (Signal, shift, at, pitch_nn,
-        Score -> TrackLang -> Score
-      move the bits of Score used by TrackLang to TrackLang (Instrument, Attrs)
-    * move all base types into Derive.BaseType:
-      Instrument, Attributes
-      Score -> Types (Instrument, Attributes, PitchSignal)
-      TrackLang -> Val
-      PitchSignal -> Signal
-    update modules with Perform.PitchSignal
-      * Derive.Deriver.Monad
-      * Derive.Deriver.Lib
-      * Derive.Call.Util
-      * Derive.Call.Pitch
-      * Derive.Control
-      * Derive.Note
-      * Derive.Call.Note
-      * Derive.Scale
-      * Perform.Midi.Convert
-        If I'm going to keep the event pitch as PitchSignal, then I have to
-        apply the transpose signals, which means resampling the pitch signal.
-        Then convert needs to know the scale so it can resample again.
-        Actually, the controls are still all available in the event_controls.
-        Convert needs the scale's transposers.  In exchange, postproc can
-        transpose pitches.
-      * Derive.Call.Ornament
-      * Derive.Call.Trill
-      * Derive.Call.Rambat
-      * Derive.Call.NoteTransformer
-      * Cmd.Lang.LPitch
-      * Cmd.Perf
-      * Derive.Call.Trill_test
-      * Derive.Call.Idiom.String
-        * now all of the pitch_nn stuff can fail, so make Derive.with_event
-        catch exceptions, then throw for those things.
-      - Cmd.Lang.LPitch
-      * Derive.Call.Pitch.c_neighbor
-      * Derive.Call.Ornament_test
-      * fltk - remove pitch track
-        free() bug in fltk pitch signal stuff probably
-    * write test for transposing: a--c + 1 should be b--d
-    * test transpose out of range error reporting
-    * document Derive.BaseTypes song and dance
-    * write Derive.PitchSignal_test
-  implement RealTime and ScoreTime
-    * Trill.c_trill, Pitch.c_neighbor, Control.c_neighbor, Control.c_slide
-  * stick all the Derive.passed_* functions in their own module (Arg?) and
-    think of some better names
 
   the problem with rambat tick
     I need a general way to manipulate notes and know their pitch, dynamics,
@@ -137,25 +60,14 @@ UNSORTED
     a postproc pass can then fill in.  I think it would work, but only as
     a last resort.
 
-  complete quickcheck derive testing
-    - test simple derive
-    - hook up auto-generated scores
-    - integrate quickcheck with generate_run_tests.py
-  * put filename in patch tags
-  * instead of discarding overlapping patch names, append a number to
-    disambiguate
-    But some of the overlaps should be merged, e.g. on the Z1 I can get info
-    from the sysex, but the initialization should use the internal patches.
-    How do I tell what to merge?
-      - in Z1, merge overlaps
-      - in Vl1m, compare sysex, and discard if they're the same, else merge
-    At least warnings should include file from others.
-  * put filename into patch
   - pitch bend range on patchman and some of the z1 patches looks off, verify
-  - I switched back to Double for RealTime, but this means the roundoff errors
+
+  complete quickcheck derive testing
+    I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.
     * make Arbitrary for BlockSpecs
     + make a simple deriver that creates event and midi output skeletons
+    - integrate quickcheck with generate_run_tests.py
     - assert that the reduced deriver output equals the simple deriver output
     - basic pitches: If the score was created with notes aligned to note
       starts, then every NoteOn should have the appropriate key, there should
@@ -173,28 +85,6 @@ UNSORTED
       below the note tracks, results should be the same
     - stack: generate nested events, check that stack is as expected
 
-  control calls
-    ensure that called block has just one unnamed track, which will be
-    interpreted as a control track with the current control.  What about
-    tempo?  But without a note to pick up the control how do the samples
-    get back out?  So like inversion, put an implicit > track an a single
-    note that just collects that specific control, then the caller can
-    extract and substitute.  A little gross, especially since I have to
-    make a magic call name e.g. control-call-capture 'some'
-    What I really want is a kind of block evaluation that treats the bottom
-    control track as a generator, but for this I'd need a new kind
-    Schema.derive_tree.
-    How to carry over the control name?
-      * TrackInfo.parse_control can emit default control
-      * Derive.Control understands default control
-      * test for default control
-      * test for control call
-      * implement control control block call
-      * Capture control call that just records default control, put it in
-        Derive.Call.Block just so they're together.
-  * b28 and b29 windows in bloom get get moved down on load?
-  * when a control sub-block has an error, it shows up with strange stack in
-    the caller, I think it's due to slicing.
   get rid of schema
     * move Schema into Derive.Call.Block, move parse stuff into its own module
     * remove SchemaId, block schema
@@ -210,23 +100,14 @@ UNSORTED
     put into Ui.State.* and re-export from Ui.State
   - it's annoying how a track with nothing in it won't play, and has no
     playback.
-  * drawing pitch signal broken, e.g. in default block, maybe has to do with
-    auto normalization?
   - when I implement control block calls, I might want to override a control
     at certain points.  It should be possible to add a 'merge' operator that
     replaces samples.  Is still no good if the samples don't line up, but I'll
     need an event-level merge anyway for notes.
-  * entering a new note shouldn't clear the note text, right?
-  * perform should also warn about 0 pitch sig, since that's what the pitch
-    track is before a note... or just use 0 for invalid instead of -1
 
-  * special logview support for cache msgs: collect together rederived and
-    cached block ids.
   - Serialize logs with Serialize rather than as text, but I need a record
     format.  This also makes it easier to change Show for various logged types
     like Derive.Stack since I don't then have to write a Read.
-  * rename Ui to Types
-  * click to the right of the tracks shouldn't highlight the rightmost track
   - tempo composition is problematic because it means you can't change the
     length of a block from within the block.  So slowing down one part will
     speed up another.  How can I get local tempo like I want?  Or just edit
@@ -256,7 +137,6 @@ UNSORTED
   - try to make TrackEnviron lazy
   - after an uncollapse, it doesn't redraw the selection that was underneath
     Not a big deal since a selection shouldn't be underneath but still...
-  * a collapse should push the selection out
   - root block window name gets a *?  or if I won't have window names visible,
     put this in the view status line
   - randomize any control by having the 'set' call look for the -rnd control
@@ -271,9 +151,6 @@ UNSORTED
   + automate the manual tests
 
   fltk
-    * block title takes up space and I'm not using it, can it collapse?
-    * scrollbars mostly just taking up space, have them as transparent
-      overlays?
     - skeleton display has leveled steps to make it easier to see who is
       below who.  Only if a track has multiple children.
 
@@ -293,50 +170,6 @@ UNSORTED
     - cmd to save and load cache to disk
     - add a Play.play_msgs function that plays the given msgs, normalizing so
       fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
-
-  performance
-    - make seeks on derive output more efficient with a lazy index
-    cache
-      - Can I make cached signal more efficient by merging the signals before
-        stashing it?  Of course laziness means that this won't actually happen
-        until the next time the cache is demanded, unless I force it.
-      - see if the cache filtering logs is causing significant copying and
-        remove
-    - make tracks into calls, so they cache and the sub-run stuff works the
-      same with them as other calls
-      It would be nice to make them calls in the scopes, so they can be
-      rebound like other calls.  This is effectively moving the Schema into
-      calls.  Then I can entirely get rid of it.
-      * move Schema.default_schema_deriver into c_block
-      - make Schema.derive_track into a call
-      The thing is block takes 'BlockId' and track takes (BlockId, TreeNode),
-      not CallArgs.  And it doesn't make sense to call from the tracks anyway,
-      so maybe not in Scopes.
-      Not much point to trying to put it in Environ or Scope since it's
-      a different type, but it could be dynamically scoped with the others.
-      Basically it's the schema, but dynamically scoped rather than attached to
-      blocks.  I can't actually see how dynamic scope makes sense, it should be
-      attached to blocks.  So keep it how it is, but call through generator
-      cache.
-
-      I want to do better tests about speed vs. space, cache hits and misses.
-      Improve logging so that I can see, given a change, which areas of score
-      were rederived.
-
-  cleanup
-    - now that the signal deriver is gone, I can also get rid of ignore_tempo,
-      unless I want to use it for a lilypond backend or something
-
-    - use functional references to make some of this record update stuff nicer?
-      - fclabels: rename record fields, use setL and setL
-      - lenses: got some magic for working with StateT?  don't understand yet
-      - data-accessor
-      - comonad-transformers also has Data.Lens
-        ask kmett about comonad-transformers
-    - storing TrackEvents without duration would make maintaining the
-      no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
-      each event extends to the next one.  It means after merging I have to
-      clear redundant offs, but that's easier right?
 
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
@@ -383,7 +216,6 @@ UNSORTED
   - set_render_style should trigger a rederive to get the track signal
   - implement add_hz in Derive.Scale.Util
     or at least think about how to implement pengumbang and pengisep
-  * subblock derivation for control tracks
 
   / should be able to rescan midi devices when something new is plugged in
     Centralize midi implementation functions in a record, include scan and
@@ -517,6 +349,28 @@ bugs:
   - hint refuses to compile when a module emits a warning
 
 cleanup:
+  - get rid of Perform.SignalBase and do something about the code
+    duplication between PitchSignal and Signal
+    - port SignalBase to vector
+    - port Perform.Signal to Util.TimeVector
+    If I want an unpacked TimeVector then I need to abstract out the way
+    to unpack it.
+    I should use Data.Vector.Storable since I want to pass the data to C++,
+    and can pass by pointer or memcpy (as I currently do).  Data.Vector.Generic
+    abstracts out the access functions.
+
+  * now that the signal deriver is gone, I can also get rid of ignore_tempo,
+    unless I want to use it for a lilypond backend or something
+  - use lenses to make some of this record update stuff nicer?
+    - fclabels: rename record fields, use setL and setL
+    - lenses: got some magic for working with StateT?  don't understand yet
+    - data-accessor
+    - data-lens - looks simpler than fclabels, but has no TH to derive lenses
+  - storing TrackEvents without duration would make maintaining the
+    no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
+    each event extends to the next one.  It means after merging I have to
+    clear redundant offs, but that's easier right?
+
   - remove Util.Log -> Perform.Warning import by translating IDs into strings?
     On the other hand, it's not unreasonable for logs to use other data types
   error prone things:
@@ -555,6 +409,50 @@ cleanup:
     once.
 
 performance:
+  efficient signals
+    control
+      - make Ui.Events into 'Map ScoreTime (Event | Chunk Signal)'
+      - collapse chunks of adjacent 'set' calls into a Chunk
+      - track_derive on a Chunk just returns the contents
+      - fltk event render should detect too dense events and omit them, rely
+        on the signal render
+      - UI edits should see the Chunk expanded out as Events.  Inserting an
+        event should modify the chunk or split it depending on if the inserted
+        event is a set call or not.
+    pitch
+      Similar to control except I can't make Chunks automatically, since
+      collapsing to NoteNumbers loses information.  But recording doesn't have
+      this information in the first place, so it can generate chunks.
+      However, maybe I should omit chunked pitch signals entirely and instead
+      emit an initial pitch along with a transposition curve.
+    - make seeks on derive output more efficient with a lazy index
+
+  cache
+    - Can I make cached signal more efficient by merging the signals before
+      stashing it?  Of course laziness means that this won't actually happen
+      until the next time the cache is demanded, unless I force it.
+    - see if the cache filtering logs is causing significant copying and
+      remove
+  - make tracks into calls, so they cache and the sub-run stuff works the
+    same with them as other calls
+    It would be nice to make them calls in the scopes, so they can be
+    rebound like other calls.  This is effectively moving the Schema into
+    calls.  Then I can entirely get rid of it.
+    * move Schema.default_schema_deriver into c_block
+    - make Schema.derive_track into a call
+    The thing is block takes 'BlockId' and track takes (BlockId, TreeNode),
+    not CallArgs.  And it doesn't make sense to call from the tracks anyway,
+    so maybe not in Scopes.
+    Not much point to trying to put it in Environ or Scope since it's
+    a different type, but it could be dynamically scoped with the others.
+    Basically it's the schema, but dynamically scoped rather than attached to
+    blocks.  I can't actually see how dynamic scope makes sense, it should be
+    attached to blocks.  So keep it how it is, but call through generator
+    cache.
+
+    I want to do better tests about speed vs. space, cache hits and misses.
+    Improve logging so that I can see, given a change, which areas of score
+    were rederived.
   Cmd
     - If a msg aborts or doesn't run any cmds, don't bother to run diff.
       Except that hardly ever happens if I do shortcut thru.
