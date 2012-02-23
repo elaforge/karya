@@ -217,9 +217,9 @@ timeout_func(void *vp)
     static int n;
 
     // copy paste from main()
-    static int i = t1_events.size() - 1;
-    static ScoreTime t1_time_end = t1_events[i].pos
-        + t1_events[i].event.duration;
+    // static int i = t1_events.size() - 1;
+    // static ScoreTime t1_time_end = t1_events[i].pos
+    //     + t1_events[i].event.duration;
     // static EventTrackConfig track1(track_bg, t1_no_events, t1_time_end);
     static RulerConfig truler(ruler_bg, false, true, true, arrival_beats,
         m44_last_pos);
@@ -445,7 +445,7 @@ main(int argc, char **argv)
     // test.
     SymbolTable *t = SymbolTable::get();
     t->insert("tamil-i", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xe0\xae\x87", NULL, 4)));
+        SymbolTable::Glyph("\xe0\xae\x87", Config::font, 4)));
     // t->load("yen", "\xc2\xa5");
     // t->load("coda", "\xef\x80\xa5");
 

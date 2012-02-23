@@ -227,7 +227,7 @@ configure = do
                     ++ if useHint then ["-DINTERPRETER_HINT"] else []
                 , cInclude = ["-I.", "-Ifltk"]
                 , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
-                , fltkLd = fltkLds ++ ["-threaded"]
+                , fltkLd = fltkLds
                 , hcFlags = words "-threaded -W -fwarn-tabs -pgml g++"
                     ++ ["-F", "-pgmF", hspp]
                     ++ case mode of
@@ -593,7 +593,7 @@ compileCc config cc obj = ("C++", obj,
 
 linkCc :: Config -> FilePath -> [FilePath] -> Cmdline
 linkCc config binary objs = ("LD-CC", binary,
-    "g++" : fltkLd (configFlags config) ++ ["-o", binary] ++ objs)
+    "g++" : objs ++ fltkLd (configFlags config) ++ ["-o", binary])
 
 -- * hsc
 

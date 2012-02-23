@@ -452,7 +452,7 @@ EventTrackView::draw_area()
         int prev_offset = i == 0 ? MIN_PIXEL : offsets[i-1];
         // TODO negative events should do this for the prev_offset
         for (int j = i+1; j < count; j++) {
-            if (rank && ranks[j] || !rank && !ranks[j]) {
+            if ((rank && ranks[j]) || (!rank && !ranks[j])) {
                 next_offset = offsets[j];
                 break;
             }
@@ -538,7 +538,6 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
         // TODO avoid overlap with event text
         // TODO skip drawing text if they would overlap each other
         bool scale_changed = false;
-        int text_height = 0;
         // Draw text.
         if (lower && upper && (lower != prev_lower || upper != prev_upper)) {
             IPoint lower_size, upper_size;
@@ -561,7 +560,6 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
                 upper, IPoint(max_x - upper_size.x, offset-1), font, size,
                 FL_BLACK);
             fl_line(max_x - upper_size.x, offset, max_x, offset);
-            text_height = std::max(lower_size.y, upper_size.y);
         }
 
         // I originally wanted to draw the signal as one big line in a separate
