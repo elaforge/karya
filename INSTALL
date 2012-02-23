@@ -1,5 +1,6 @@
-    haskell deps, from hackage
+    HASKELL DEPS
 
+transformers, mtl
 fixed-list-0.1.5
 deepseq, data-ordlist, cereal, storablevector
 vector
@@ -9,6 +10,7 @@ text, stm, network
 haskell-src -- Util.PPrint
 regex-pcre
 hint
+haskeline
 
 bytestring
 attoparsec
@@ -17,12 +19,19 @@ utf8-string -- used by Ui.Event
 -- random
 mersenne-random-pure64 hashable random-shuffle
 
-    installed separately:
+    INSTALLED SEPARATELY
+
 libpcre library from http://www.pcre.org
+
 lilypond, for some fonts
+
+    OS X:
     cp LilyPond.app/Contents/Resources/share/lilypond/current/fonts/otf/emmentaler* ~/Library/Fonts
-or
-    cp /usr/share/lilypond/<version>/fonts/otf/ ... ?
+
+    Linux:
+    cp /usr/share/lilypond/<version>/fonts/otf/ ~/.fonts
+    # or
+    cp /usr/share/lilypond/<version>/fonts/otf/ /usr/share/fonts/
 
     non haskell deps
 
@@ -31,6 +40,6 @@ fltk-1.3
 libpcre, for regex-pcre.  OS X port puts headers in /opt where configure may
 not find them.
 
-    misc
+    MISC
 
 tools/run_profile expects ps2pdf in the path, which is part of ghostscript.
