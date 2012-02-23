@@ -1,2 +1,6 @@
-#!/bin/sh
-exec command ghci $(cat build/debug/ghci-flags) "$@"
+#!/bin/zsh
+# This relies on ./bin/ being added to the PATH in zshrc but not zshenv to
+# avoid recursion.  That's brittle, I should probably use .ghci magic to
+# read the flags.
+
+exec ghci $(cat build/debug/ghci-flags) "$@"
