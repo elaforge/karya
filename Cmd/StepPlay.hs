@@ -1,8 +1,18 @@
 {-# LANGUAGE CPP #-}
 {- | A non-realtime play.  The idea is to manually step note-by-note.
 
-    I'm not sure how practical this will be at getting expected notes to
-    sound given the complexities of midi state, but it's a starting point.
+    This gets the performance for the current block and creates a series of
+    MIDI states at each event start which you can then scrub through.
+
+    Because it uses the start of the events in the score it can't take into
+    account anything during derivation that causes the actual note to begin
+    somewhere else.  So things that cause notes to move, such as the start-rnd
+    control, will cause step play to miss notes.  I use the block performance
+    instead of the global performance to minimize this, since e.g. start-rnd
+    is likely to be applied at the global level.
+
+    TODO I think I could get this right by annotating MIDI output with the
+    event that produced it.
 -}
 module Cmd.StepPlay (
     cmd_set_or_advance, cmd_set, cmd_here, cmd_clear, cmd_advance, cmd_rewind
@@ -85,7 +95,7 @@ set step_back play_selected_tracks = do
 initialize :: (Cmd.M m) => ViewId -> BlockId -> TrackNum -> TrackId
     -> ScoreTime -> [TrackNum] -> m ()
 initialize view_id block_id tracknum track_id pos play_tracks = do
-    perf <- Perf.get_root
+    perf <- Cmd.get_performance block_id
     steps <- Cmd.require_msg "can't get event starts for step play"
         =<< TimeStep.get_points play_step block_id tracknum pos
     let (score_steps, real_steps) = unzip $

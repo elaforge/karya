@@ -679,6 +679,9 @@ REPL repl language static config
   - pass -fobject-code to avoid trying to recompile files?
 
 Cmd:
+  - step play StepPlay could work even when notes were moved by annotating
+    the midi output with the UI event that produced it.  This might be useful
+    for debugging too.
   - Can I give Cmds their own state without putting it in Cmd.State every time?
     For instance, twelve scale may want to know what key you're in.
     Actually, it would be best to have per-module state.
@@ -721,10 +724,10 @@ Cmd:
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
       (merge will clip them to the next event)
-    - map selection through function
+    * map selection through function
     - controller edit mode accepts two numbers and moves on, no spaces
     - a legato command that always goes to the next note would still be useful
-   - swap tracks keeping skeleton up to date
+   * swap tracks keeping skeleton up to date
    - stretch events in selection to another length (need two selections?)
 
   Cmd.NoteTrack
