@@ -41,6 +41,7 @@ import qualified System.IO as IO
 import qualified System.Info
 import qualified System.Process as Process
 
+import qualified Util.PPrint as PPrint
 import qualified Shake.CcDeps as CcDeps
 import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Util as Util
@@ -217,7 +218,7 @@ configure = do
     ghcLib <- run ghcBinary ["--print-libdir"]
     fltkCs <- words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
-    fltkVersion <- run fltkConfig ["--version"]
+    fltkVersion <- takeWhile (/='\n') <$> run fltkConfig ["--version"]
     useHint <- fmap (("hint" `elem`) . map fst) Environment.getEnvironment
     return $ \mode ->
         let flags = osFlags
@@ -394,6 +395,7 @@ matchPrefix prefixes pattern fn =
 
 dispatch :: Config -> String -> Shake.Rules ()
 dispatch config target = case target of
+    "show-config" -> action $ Trans.liftIO $ PPrint.pprint config
     "clean" -> action $ do
         -- The shake database will remain because shake creates it after the
         -- shakefile runs, but that's probably ok.
