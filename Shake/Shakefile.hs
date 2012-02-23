@@ -1,91 +1,20 @@
 {-# LANGUAGE FlexibleContexts, ViewPatterns #-}
-{- |
-    from scratch (191 modules):
-    runghc Shake/Shakefile.hs build/debug/seq  128.43s user 20.04s system 178% cpu 1:23.01 total
-    no link: runghc Shake/Shakefile.hs build/debug/seq  118.92s user 19.21s system 249% cpu 55.383 total
-    make -j3 build/seq  68.81s user 9.98s system 98% cpu 1:19.60 total
+{- | Shakefile for seq and associated binaries.
 
-    modify nothing:
-    runghc Shake/Shakefile.hs build/debug/seq  0.65s user 0.10s system 96% cpu 0.780 total
-    make -j3 build/seq  6.05s user 1.21s system 85% cpu 8.492 total
-
-    modify one file:
-    runghc Shake/Shakefile.hs build/debug/seq  19.50s user 2.37s system 94% cpu 23.166 total
-    make -j3 build/seq  12.81s user 1.85s system 94% cpu 15.586 total
+    Setting the 'hint' env var will add the -DINTERPRETER_HINT flag.
 
     TODO
-    * no rule to build util.h
-    * build seq
-    * if I do a clean build I get bogus files:
-        CoreMidi_stub.c -> CoreMid_stub.hs.o, etc.
-        the next build is fine
-        Bug in ghc.  7.4 doesn't have it, but it has other problems.
-        Problem with my shakefile was looking for _stub.c before needing the
-        files that generated it.  Maybe 'XYZ_stub.{c,h}' should be marked as
-        an output of 'XYZ.hs -> XYZ.{hi,o}'?
-    * make build/hspp
-        It's tricky because it should be opt even if nothing else is, and
-        because every .hs file depends on it.
-    * build other targets, share code with seq
-    * automatically make binary targets from binaries
-    * some way to automatically get _stub.c?
-    * experiment with parallel
-    * LogView conflicts with logview, put .os in build/debug/obj
-    * put 'need' into *Deps functions
-    * post hsc2hs should filter out INCLUDE
-    * RunTests
-    * individual test targets
-    * RunProfile
-    * make CcDeps transitive
-    * chase #includes from .hsc
-    - save .deps files?  only if it's too slow
-    * have configure use system' to rebuild if there are config changes?
-        Write a Rule instance for Commands for the output of shell cmds
-        Wait, does system' even have that behaviour?
-    * Mark .hi files as generated from .o files and depend on .hi files like
-        ghc -M does.  Why do this instead of .o?  ghc will avoid updating the
-        timestamp on the .hi file if things dependent on it don't need to be
-        recompiled.
-    * cc targets: test_browser, test_logview
-    * phony targets: all, checkin, tests, complete-tests, profile, tags
-    * compile Shakefile itself
-    * try ndm's merging stubs trick
-    * merging stubs fails the second time:
-        GHC: Midi/CoreMidi.hs
-        compilation IS NOT required
-        ld -r -o build/debug/obj/Midi/CoreMidi.hs.o build/debug/obj/Midi/CoreMidi.hs.o2 build/debug/obj/Midi/CoreMidi.hs_stub.o
-        ld: duplicate symbol _MidiziCoreMidi_d2fD in build/debug/obj/Midi/CoreMidi.hs_stub.o and build/debug/obj/Midi/CoreMidi.hs.o2 for inferred architecture x86_64
-    * Util.findFiles should use Shake.getDirectoryFiles, don't use listDir
+
     - askOracle isn't working like I think it should, why does it only
-        rebuild test_block.cc when I change fltk version?
+    rebuild test_block.cc when I change fltk version?
 
-    BUGS
-    - run again and it relinks sometimes?
-        wait for --lint to look for errors
     - If I update build/test/RunTests.hs, it gets regenerated, even though
-        it's newer than everything else.  Why?
-        Also, if I update generate_run_tests.py it doesn't rebuild anything.
+    it's newer than everything else.  Why?
+    Also, if I update generate_run_tests.py it doesn't rebuild anything.
 
-    Suggestions:
     - Paper suggests, in "Unchanging files" that files that remain unchanged
-        after a build should allow depending rules to be skipped.  Test this
-        with ghc's recompilation skipper.
-    - If I rm build/debu/obj/Ui/* and then build seq, it locks up after
-        printing the ***build line for seq.
-    * I'd like to be able to specify that certain targets should be recompiled
-        if, say, the output of a "library version" cmd changes.  As
-        I understand it, this is what the oracle used to be for, but now
-        that's possible with a non file typed target.  From the source I'm
-        guessing this is possible by making a 'Rule Command String' instance?
-
-    - It would be nice to see which thread each task was run as, to get an
-    idea of where parallelism is happening.
-
-    - When I build a binary, the first run after that relinks even though
-    nothing changed.  The next run after that does nothing, as I expect.
-    I'll look into this some more, but I remember this behaviour from
-    openshake too so I'm guessing it's something to do with my shakefile
-    and shake's database approach.
+    after a build should allow depending rules to be skipped.  Test this
+    with ghc's recompilation skipper.
 -}
 module Shake.Shakefile where
 import Control.Applicative ((<$>))
@@ -289,10 +218,12 @@ configure = do
     fltkCs <- words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
     fltkVersion <- run fltkConfig ["--version"]
+    useHint <- fmap (("hint" `elem`) . map fst) Environment.getEnvironment
     return $ \mode ->
         let flags = osFlags
-                { define = define osFlags ++ if mode `elem` [Test, Profile]
-                    then ["-DTESTING"] else []
+                { define = define osFlags
+                    ++ if mode `elem` [Test, Profile] then ["-DTESTING"] else []
+                    ++ if useHint then ["-DINTERPRETER_HINT"] else []
                 , cInclude = ["-I.", "-Ifltk"]
                 , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
                 , fltkLd = fltkLds ++ ["-threaded"]
@@ -442,6 +373,8 @@ setupOracle :: Config -> Shake.Rules ()
 setupOracle config = do
     Shake.addOracle ["ghc"] $ return [ghcLib config]
     Shake.addOracle ["fltk"] $ return [fltkVersion config]
+    Shake.addOracle ["hint"] $
+        return [show $ "-DINTERPRETER_HINT" `elem` define (configFlags config)]
 
 -- | Match a file in @build/<mode>/obj/@.
 matchObj :: Shake.FilePattern -> FilePath -> Bool
@@ -576,6 +509,10 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     isHsc <- Trans.liftIO $
         Directory.doesFileExist (objToSrc config obj ++ "c")
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
+    -- Hardcoded dependency.  If I get more I should come up with a more
+    -- general solution.
+    when (hs == "Cmd/Lang.hs") $
+        void $ Shake.askOracle ["hint"]
     need [hspp]
     imports <- HsDeps.importsOf hs
     let his = map (objToHi . srcToObj config) imports
