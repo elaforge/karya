@@ -60,7 +60,7 @@ shakeOptions :: Shake.ShakeOptions
 shakeOptions = Shake.shakeOptions
     { Shake.shakeFiles = build </> "shake"
     , Shake.shakeVerbosity = Shake.Normal
-    , Shake.shakeThreads = 4
+    , Shake.shakeThreads = 3
     , Shake.shakeDump = True
     }
 
@@ -239,7 +239,7 @@ configure = do
                         -- for overall timing and stats, not individual cost
                         -- centers.  I can turn those on when debugging.
                         Profile -> ["-O", "-prof"]
-                , hLinkFlags = ["-rtsopts"]
+                , hLinkFlags = ["-rtsopts", "-threaded"]
                     ++ if mode == Profile then ["-prof", "-auto-all"] else []
                 }
         in Config (modeToDir mode) (build </> "hsc") (strip ghcLib)
