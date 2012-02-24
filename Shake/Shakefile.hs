@@ -138,6 +138,16 @@ hsBinaries =
     plain name path = HsBinary name path [] Nothing
     gui name path deps icon = HsBinary name path deps (Just icon)
 
+-- | Hardcoded list of files that should be processed with CPP when chasing
+-- deps.  It would be more robust to generate this dynamically by looking
+-- for 'LANGUAGE .*CPP' but there aren't many.
+cppFlags :: Config -> FilePath -> Maybe [String]
+cppFlags config fn
+    | True = Nothing
+    | fn `elem` cppFiles = Just (define (configFlags config))
+    | otherwise = Nothing
+    where cppFiles = ["App/Main.hs", "Cmd/Lang.hs"]
+
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
 nameToMain :: Map.Map FilePath FilePath
@@ -321,7 +331,7 @@ main = do
         -- build hspp itself with --make.
         hspp *> \fn -> do
             -- But I need to mark hspp's deps so it will rebuild.
-            need =<< HsDeps.transitiveImportsOf "Util/Hspp.hs"
+            need =<< HsDeps.transitiveImportsOf (const Nothing) "Util/Hspp.hs"
             system $ makeHs (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
         build </> "tags" *> \fn -> do
             hs <- Util.findHs "*.hs" "."
@@ -449,7 +459,7 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Shake.Action ()
 buildHs config deps hs fn = do
-    srcs <- HsDeps.transitiveImportsOf hs
+    srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = deps ++ List.nub (map (srcToObj config) (ccs ++ srcs))
@@ -516,7 +526,7 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     when (hs == "Cmd/Lang.hs") $
         void $ Shake.askOracle ["hint"]
     need [hspp]
-    imports <- HsDeps.importsOf hs
+    imports <- HsDeps.importsOf (cppFlags config hs) hs
     let his = map (objToHi . srcToObj config) imports
     logDeps config "hs" obj (hs:his)
     system $ compileHs config hs
