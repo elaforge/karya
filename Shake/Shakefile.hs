@@ -143,7 +143,6 @@ hsBinaries =
 -- for 'LANGUAGE .*CPP' but there aren't many.
 cppFlags :: Config -> FilePath -> Maybe [String]
 cppFlags config fn
-    | True = Nothing
     | fn `elem` cppFiles = Just (define (configFlags config))
     | otherwise = Nothing
     where cppFiles = ["App/Main.hs", "Cmd/Lang.hs"]
