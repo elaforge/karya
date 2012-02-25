@@ -24,6 +24,8 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
+import qualified System.Info
+
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -174,12 +176,18 @@ data SimpleMod =
 -- | TODO This is a hardcoded mac layout, when I support other platforms
 -- it'll have to be configurable.
 simple_mod_map :: [(SimpleMod, [Key.Modifier])]
-simple_mod_map =
-    [ (Shift, [Key.Shift])
-    , (PrimaryCommand, [Key.Meta])
-    -- Alt is the mac's option key.
-    , (SecondaryCommand, [Key.Control, Key.Alt])
-    ]
+simple_mod_map = case System.Info.os of
+    "darwin" ->
+        [ (Shift, [Key.Shift])
+        , (PrimaryCommand, [Key.Meta])
+        -- Alt is the mac's option key.
+        , (SecondaryCommand, [Key.Control, Key.Alt])
+        ]
+    _ ->
+        [ (Shift, [Key.Shift])
+        , (PrimaryCommand, [Key.Control])
+        , (SecondaryCommand, [Key.Alt])
+        ]
 
 simple_to_mods :: SimpleMod -> [Cmd.Modifier]
 simple_to_mods (Mouse btn) = [Cmd.MouseMod btn Nothing]
