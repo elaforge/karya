@@ -1,6 +1,7 @@
 -- | Symbols used in calls.
 module Derive.Call.Symbols where
 import qualified Ui.Symbol as Symbol
+import qualified App.Config as Config
 
 
 symbols :: [Symbol.Symbol]
@@ -19,7 +20,7 @@ staff_symbols =
     ]
     where
     symbol name str = Symbol.Symbol name False [glyph str]
-    glyph str = Symbol.Glyph str (Just "Emmentaler 11") 4 (0, 0) 0
+    glyph str = Symbol.Glyph str (Just Config.emmentaler) 4 (0, 0) 0
     glyph_at size align g =
         g { Symbol.glyph_size = size, Symbol.glyph_align = align }
 

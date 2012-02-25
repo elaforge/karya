@@ -4,6 +4,7 @@ module App.Config where
 import qualified Network
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
+import qualified System.Info
 
 import qualified Util.File as File
 import qualified Ui.Color as Color
@@ -217,6 +218,15 @@ block_title_height = #const Config::View::block_title_height
 
 view_track_padding :: Int
 view_track_padding = #const Config::View::sb_size
+
+
+-- * fonts
+
+emmentaler :: String
+emmentaler = case System.Info.os of
+    "darwin" -> "Emmentaler 11"
+    -- For some reason the fonts show up with wacky names on linux.
+    _ -> " Emmentaler\\-11"
 
 
 -- * event style

@@ -2,9 +2,9 @@
 -- field, but there are a number of symbols that are common between a number of
 -- scales.  If I define them once here I can avoid loading them redundantly.
 module Derive.Scale.Symbols where
-
 import qualified Ui.Symbol as Symbol
 import qualified Perform.Pitch as Pitch
+import qualified App.Config as Config
 
 
 symbols :: [Symbol.Symbol]
@@ -61,7 +61,7 @@ staff_symbols =
     ]
     where
     g str size = (Symbol.glyph str)
-        { Symbol.glyph_font = Just "Emmentaler 11"
+        { Symbol.glyph_font = Just Config.emmentaler
         , Symbol.glyph_size = size
         }
 

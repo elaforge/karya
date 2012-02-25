@@ -342,7 +342,7 @@ show_fonts()
     SymbolTable *t = SymbolTable::get();
     char **fonts = t->fonts();
     for (int i = 0; fonts[i]; i++) {
-        printf("%s\n", fonts[i]);
+        printf("'%s'\n", fonts[i]);
         free(fonts[i]);
     }
     free(fonts);
@@ -451,8 +451,10 @@ main(int argc, char **argv)
 
     // xie2 radical, slant of dai4, CJK STROKE XG
     // radicals are at +31c0
+#ifdef __APPLE__
     t->insert("xie", SymbolTable::Symbol(
         SymbolTable::Glyph("\xe3\x87\x82", t->font("LiSong Pro"), 4)));
+#endif
 
     t->insert("1.", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
@@ -462,7 +464,14 @@ main(int argc, char **argv)
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(-.3, .2)),
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
 
+#ifdef __linux__
+    // I have no idea why the fonts show up with wacky names on linux but they
+    // do.
+    Fl_Font em = t->font(" Emmentaler\\-11");
+#endif
+#ifdef __APPLE__
     Fl_Font em = t->font("Emmentaler 11");
+#endif
     t->insert("sharp", SymbolTable::Symbol(
         SymbolTable::Glyph("a"),
         SymbolTable::Glyph("\xee\x84\x8e", em, 2, DPoint(.5, -.4))));

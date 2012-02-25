@@ -23,9 +23,10 @@ SymbolTable::font(const char *name) const
     if (!name)
         return Config::font;
     std::map<string, Font>::const_iterator it = font_map.find(string(name));
-    if (it == font_map.end())
+    if (it == font_map.end()) {
+        DEBUG("font not found: " << name);
         return font_not_found;
-    else
+    } else
         return it->second;
 }
 
