@@ -61,7 +61,7 @@ shakeOptions = Shake.shakeOptions
     { Shake.shakeFiles = build </> "shake"
     , Shake.shakeVerbosity = Shake.Normal
     , Shake.shakeThreads = 3
-    , Shake.shakeDump = True
+    , Shake.shakeReport = Just $ build </> "report.html"
     }
 
 data Config = Config {
@@ -90,8 +90,6 @@ data Flags = Flags {
     , hLinkFlags :: [String]
     } deriving (Show)
 
--- TODO ghc 7.2.1's GHC.Generics might be able to make this derivable
--- TODO unused?
 instance Monoid.Monoid Flags where
     mempty = Flags [] [] [] [] [] [] [] [] []
     mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1)
