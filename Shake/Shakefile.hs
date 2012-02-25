@@ -160,9 +160,9 @@ hsToCc = Map.fromList $
     , ("LogView/LogViewC.hsc", ["LogView/interface.cc"])
     , ("Instrument/BrowserC.hsc", ["Instrument/interface.cc"])
     , ("Util/Fltk.hs", ["Util/fltk_interface.cc"])
-    ] ++ [(hsc, ["Ui/c_interface.cc"]) | hsc <-
-        ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc", "Ui/SymbolC.hsc",
-            "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"]]
+    ] ++ [(hsc, ["Ui/c_interface.cc"])
+        | hsc <- ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc",
+            "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"]]
 
 -- | Rather than trying to figure out which binary needs which packages, I
 -- just union all the packages.  TODO can I ask ghc to infer packages
@@ -459,7 +459,7 @@ buildHs config deps hs fn = do
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
-        objs = deps ++ List.nub (map (srcToObj config) (ccs ++ srcs))
+        objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ deps
     logDeps config "build" fn objs
     system $ linkHs config fn packages objs
 
