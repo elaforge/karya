@@ -320,7 +320,7 @@ main = do
                 Maybe.fromMaybe (Shake.shakeVerbosity shakeOptions) $
                     mlast [v | Verbosity v <- flags]
             }
-    writeGhciFlags (modeConfig Debug) (modeConfig Test)
+    writeGhciFlags modeConfig
     Shake.shake options $ do
         let infer = inferConfig modeConfig
         setupOracle (modeConfig Debug)
@@ -565,14 +565,12 @@ linkHs config output pkgs objs = ("LD-HS", output,
 
 -- | ghci has to be called with the same flags that the .o files were compiled
 -- with or it won't load them.
-writeGhciFlags :: Config -> Config -> IO ()
-writeGhciFlags debug test = do
-    Directory.createDirectoryIfMissing True (buildDir debug)
-    writeFile (buildDir debug </> "ghci-flags") $
-        unwords (ghciFlags debug) ++ "\n"
-    Directory.createDirectoryIfMissing True (buildDir test)
-    writeFile (buildDir test </> "ghci-flags") $
-        unwords (ghciFlags test) ++ "\n"
+writeGhciFlags :: (Mode -> Config) -> IO ()
+writeGhciFlags modeConfig =
+    forM_ (map modeConfig [Debug, Test, Opt]) $ \config -> do
+        Directory.createDirectoryIfMissing True (buildDir config)
+        writeFile (buildDir config </> "ghci-flags") $
+            unwords (ghciFlags config) ++ "\n"
 
 -- | Get the file-independent flags for a haskell compile.
 ghciFlags :: Config -> [String]
