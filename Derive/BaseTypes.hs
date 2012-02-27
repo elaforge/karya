@@ -28,6 +28,7 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Functor0 as Functor0
+import Util.Functor0 (Elem)
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 

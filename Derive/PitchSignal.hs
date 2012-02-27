@@ -23,6 +23,7 @@ import qualified Data.Vector as V
 
 import Util.Control
 import qualified Util.Functor0 as Functor0
+import Util.Functor0 (Elem)
 import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 

@@ -54,13 +54,14 @@ import Shake.Util (Cmdline, system)
 build = "build"
 fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
 ghcBinary = "ghc"
+ghc741 = False -- special hacks for ghc 7.4.1
 hspp = modeToDir Opt </> "hspp"
 
 shakeOptions :: Shake.ShakeOptions
 shakeOptions = Shake.shakeOptions
     { Shake.shakeFiles = build </> "shake"
     , Shake.shakeVerbosity = Shake.Normal
-    , Shake.shakeThreads = 3
+    , Shake.shakeThreads = 4
     , Shake.shakeReport = Just $ build </> "report.html"
     }
 
@@ -577,7 +578,8 @@ ghciFlags :: Config -> [String]
 ghciFlags config =
     -- -osuf is unnecessary because of the -o, but as of 7.4.1 ghci won't
     -- load the .o files if it notices this flag is different.
-    [ "-osuf", ".hs.o", "-outputdir", oDir config
+    (if ghc741 then ["-osuf", ".hs.o"] else []) ++
+    [ "-outputdir", oDir config
     , "-i" ++ oDir config ++ ":" ++ hscDir config
     ] ++ define (configFlags config)
 
