@@ -68,6 +68,11 @@ command_only char = bind_mod [PrimaryCommand] (Key.Char char)
 bind_mod :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a -> [Binding m]
 bind_mod smods key desc cmd = bind smods (Key False key) desc (const cmd)
 
+bind_mod_status :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String
+    -> m Cmd.Status -> [Binding m]
+bind_mod_status smods key desc cmd =
+    bind_status smods (Key False key) desc (const cmd)
+
 -- | Like 'bind_mod', but the binding will be retriggered on key repeat.
 bind_repeatable :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a
     -> [Binding m]
@@ -89,15 +94,22 @@ bind_drag :: (Cmd.M m) => [SimpleMod] -> Types.MouseButton -> MouseOn
 bind_drag smods btn on desc cmd =
     bind smods (Click btn on 0) desc cmd ++ bind smods (Drag btn on) desc cmd
 
--- | Bind a key with the given modifiers.
+-- | Like 'bind_status' but the return value of the Cmd is ignored and assumed
+-- to be 'Cmd.Done'.  Since the cmd has already been matched on the bound key
+-- this is likely what it would have done anyway.
 bind :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
     -> (Msg.Msg -> m a) -> [Binding m]
-bind smods bindable desc bcmd =
+bind smods bindable desc cmd =
+    bind_status smods bindable desc ((>> return Cmd.Done) . cmd)
+
+-- | Bind a key with the given modifiers.
+bind_status :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
+    -> (Msg.Msg -> m Cmd.Status) -> [Binding m]
+bind_status smods bindable desc cmd =
     [ (key_spec mods bind, cspec desc cmd)
     | bind <- expand_bindable bindable
     , mods <- expand_mods bindable smods
     ]
-    where cmd msg = bcmd msg >> return Cmd.Done
 
 -- ** util
 

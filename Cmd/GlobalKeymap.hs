@@ -52,8 +52,9 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap
-       (bind_key, bind_char, bind_mod, bind_repeatable, bind_click,
-        bind_drag, command, command_char, command_only, SimpleMod(..))
+       (bind_key, bind_char, bind_mod, bind_mod_status, bind_repeatable,
+        bind_click, bind_drag, command, command_char, command_only,
+        SimpleMod(..))
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
@@ -117,12 +118,14 @@ file_bindings = concat
 -- map on each call.  Since there are not many cmds, I opt for the latter.
 player_bindings :: Transport.Info -> [Keymap.Binding (Cmd.CmdT IO)]
 player_bindings transport_info = concat
-    [ bind_key Key.Enter "play block" (Play.cmd_play_focused transport_info)
-    , bind_mod [Shift] Key.Enter "play from insert"
+    [ bind_mod_status [] Key.Enter "play block"
+        (Play.cmd_play_focused transport_info)
+    , bind_mod_status [Shift] Key.Enter "play from insert"
         (Play.cmd_play_from_insert transport_info)
-    , bind_mod [PrimaryCommand] Key.Enter "play from previous step"
+    , bind_mod_status [PrimaryCommand] Key.Enter "play from previous step"
         (Play.cmd_play_from_previous_step transport_info)
-    , bind_mod [Shift, PrimaryCommand] Key.Enter "play from previous root step"
+    , bind_mod_status [Shift, PrimaryCommand] Key.Enter
+        "play from previous root step"
         (Play.cmd_play_from_previous_root_step transport_info)
     , bind_char ' ' "stop" Play.cmd_context_stop
     ]

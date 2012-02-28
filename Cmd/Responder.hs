@@ -49,7 +49,7 @@ import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Lang as Lang
 import qualified Cmd.Msg as Msg
-import qualified Cmd.Play as Play
+import qualified Cmd.PlayC as PlayC
 import qualified Cmd.ResponderSync as ResponderSync
 import qualified Cmd.Track as Track
 import qualified Cmd.Undo as Undo
@@ -115,13 +115,16 @@ run_setup_cmd loopback ui_state cmd_state updater_state cmd = do
             Log.error $ "initial setup: " ++ show err
             return (ui_state, [])
         Right (status, ui_state, updates) -> do
-            when (status /= Cmd.Done) $
+            when (notDone status) $
                 Log.warn $ "setup_cmd not Done: " ++ show status
             return (ui_state, updates)
     (_, ui_state, cmd_state) <-
         ResponderSync.sync Sync.sync (send_derive_status loopback)
             ui_state ui_state ui_to cmd_state updates updater_state
     return (ui_state, cmd_state)
+    where
+    notDone Cmd.Done = False
+    notDone _ = True
 
 send_derive_status :: Loopback -> BlockId -> Msg.DeriveStatus -> IO ()
 send_derive_status loopback block_id status =
@@ -242,7 +245,10 @@ respond rstate msg = do
                 Undo.record_history updates ui_from cmd_state
             return (status,
                 rstate { state_cmd = cmd_state, state_ui = ui_state })
-    return (status == Cmd.Quit, rstate)
+    return (isQuit status, rstate)
+    where
+    isQuit Cmd.Quit = True
+    isQuit _ = False
 
 -- | If the focused view is removed, cmd state should stop pointing to it.
 fix_cmd_state :: State.State -> Cmd.State -> Cmd.State
@@ -258,6 +264,11 @@ run_cmds rstate msg = do
         run_core_cmds (rstate { state_cmd = cstate }) msg exit
     -- If the cmd threw, roll back the cmd state.
     cmd_state <- return $ either (const cstate) (const cmd_state) result
+    -- See Cmd.PlayC about this hack.
+    case result of
+        Right (Cmd.Play updater_args, _, _) -> Trans.liftIO $
+            PlayC.start_updater (state_transport_info rstate) updater_args
+        _ -> return ()
     return $ case result of
         Left _ -> (result, cmd_state)
         Right (status, ui_from, ui_to) ->
@@ -317,7 +328,7 @@ hardcoded_io_cmds :: Transport.Info -> Lang.Session -> [FilePath]
     -> [Msg.Msg -> Cmd.CmdIO]
 hardcoded_io_cmds transport_info lang_session lang_dirs =
     [ Lang.cmd_language lang_session lang_dirs
-    , Play.cmd_play_msg
+    , PlayC.cmd_play_msg
     ] ++ GlobalKeymap.io_cmds transport_info
 
 -- | ui_from is needed since this can abort with an RType as soon as it gets

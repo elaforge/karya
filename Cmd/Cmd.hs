@@ -111,7 +111,15 @@ type CmdIO = CmdT IO Status
 -- | Cmds used by the language system, which all run in Identity.
 type CmdL a = CmdT IO a
 
-data Status = Done | Continue | Quit deriving (Eq, Show, Generics.Typeable)
+data Status = Done | Continue | Quit
+    -- | Hack to control import dependencies, see "Cmd.PlayC".
+    | Play UpdaterArgs
+    deriving (Show, Generics.Typeable)
+
+data UpdaterArgs = UpdaterArgs
+    Transport.UpdaterControl Transport.InverseTempoFunction RealTime
+instance Show UpdaterArgs where
+    show _ = "((UpdaterArgs))"
 
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
 -- just to make things uniform.
@@ -151,7 +159,7 @@ run_id :: State.State -> State -> CmdT Identity.Identity a -> CmdVal (Maybe a)
 run_id ui_state cmd_state cmd =
     Identity.runIdentity (run Nothing ui_state cmd_state (fmap Just cmd))
 
--- | Run a set of Cmds as a single Cmd.  The first one to return Done or Quit
+-- | Run a set of Cmds as a single Cmd.  The first one to return non-Continue
 -- will return.  Cmds can use this to dispatch to other Cmds.
 run_subs :: [Cmd] -> Cmd
 run_subs [] _ = return Continue
@@ -160,8 +168,7 @@ run_subs (cmd:cmds) msg = do
     case status of
         Nothing -> run_subs cmds msg
         Just Continue -> run_subs cmds msg
-        Just Done -> return Done
-        Just Quit -> return Quit
+        Just status -> return status
 
 -- * CmdT and operations
 

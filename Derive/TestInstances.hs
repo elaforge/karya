@@ -8,6 +8,7 @@ module Derive.TestInstances where
 #ifdef TESTING
 
 import qualified Derive.TrackLang as TrackLang
+import qualified Cmd.Cmd as Cmd
 
 -- Normally Vals aren't comparable for equality because of the pesky VPitch,
 -- but it's too convenient for testing to lose.
@@ -15,5 +16,12 @@ deriving instance Eq TrackLang.Val
 deriving instance Eq TrackLang.Call
 deriving instance Eq TrackLang.Term
 deriving instance Eq TrackLang.Note -- needed by Eq Val
+
+instance Eq Cmd.Status where
+    Cmd.Done == Cmd.Done = True
+    Cmd.Continue == Cmd.Continue = True
+    Cmd.Quit == Cmd.Quit = True
+    Cmd.Play _ == Cmd.Play _ = True
+    _ == _ = False
 
 #endif
