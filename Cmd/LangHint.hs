@@ -3,14 +3,17 @@ module Cmd.LangHint (
     Session, make_session
     , interpreter, interpret
 ) where
-import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.Chan as Chan
+import qualified Control.Concurrent.MVar as MVar
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 
 import qualified Language.Haskell.Interpreter as Interpreter
+import qualified Language.Haskell.Interpreter.Unsafe
+       as Interpreter.Unsafe
 
+import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
@@ -40,15 +43,22 @@ send chan cmd = do
 -- ** interpreter
 
 interpreter :: Session -> IO ()
-interpreter chan = (>> return ()) $ Interpreter.runInterpreter $ do
-    Interpreter.set
-        [ Interpreter.installedModulesInScope Interpreter.:= False
-        , Interpreter.searchPath Interpreter.:= ["build/hsc", "."]
-        ]
-    forever $ do
-        (return_mvar, cmd) <- Trans.liftIO $ Chan.readChan chan
-        result <- cmd `Error.catchError` catch
-        Trans.liftIO $ MVar.putMVar return_mvar result
+interpreter chan = do
+    -- Make sure hint is running with the same flags as the compile that
+    -- produced the .o files, otherwise it won't want to load them,
+    -- especially with ghc 7.4.1 which is much stricter about flags.
+    args <- File.ignore_enoent $ readFile "build/debug/ghci-flags"
+    let flags = maybe [] words args
+    void $ Interpreter.Unsafe.unsafeRunInterpreterWithArgs flags $ do
+        Interpreter.set
+            [ Interpreter.installedModulesInScope Interpreter.:= False
+            , Interpreter.searchPath Interpreter.:=
+                ["build/hsc", "build/debug/obj", "."]
+            ]
+        forever $ do
+            (return_mvar, cmd) <- Trans.liftIO $ Chan.readChan chan
+            result <- cmd `Error.catchError` catch
+            Trans.liftIO $ MVar.putMVar return_mvar result
     where
     catch :: Interpreter.InterpreterError -> Interpreter.Interpreter LangCmd
     catch exc = return $ do

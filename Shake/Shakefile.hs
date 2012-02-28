@@ -570,8 +570,10 @@ writeGhciFlags :: (Mode -> Config) -> IO ()
 writeGhciFlags modeConfig =
     forM_ (map modeConfig [Debug, Test, Opt]) $ \config -> do
         Directory.createDirectoryIfMissing True (buildDir config)
+        -- Make sure -osuf .hs.o is in the flags, otherwise ghci won't know
+        -- how to find the .o files.
         writeFile (buildDir config </> "ghci-flags") $
-            unwords (ghciFlags config) ++ "\n"
+            unwords (["-osuf", ".hs.o"] ++ ghciFlags config) ++ "\n"
 
 -- | Get the file-independent flags for a haskell compile.
 ghciFlags :: Config -> [String]
