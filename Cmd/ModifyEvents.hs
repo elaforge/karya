@@ -11,6 +11,7 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
+import qualified Derive.TrackInfo as TrackInfo
 import Types
 
 
@@ -57,6 +58,8 @@ tracks_sorted f = do
                 State.insert_sorted_events track_id new_events
             Nothing -> return ()
 
+-- ** block tracks
+
 -- | Like 'tracks', but maps over an entire block.
 block_tracks :: (Cmd.M m) => BlockId -> Track m -> m ()
 block_tracks block_id f = do
@@ -66,6 +69,15 @@ block_tracks block_id f = do
         maybe (return ())
                 (State.modify_events track_id . const . Events.from_list)
             =<< f track_id events
+
+-- | Map over the events in note tracks.
+map_note_tracks :: (Cmd.M m) => BlockId
+    -> (Events.PosEvent -> Maybe Events.PosEvent) -> m ()
+map_note_tracks block_id f = block_tracks block_id $ \track_id events ->
+    ifM (TrackInfo.is_note_track <$> State.get_track_title track_id)
+        (return $ Just $ Maybe.mapMaybe f events)
+        (return Nothing)
+
 
 -- * convenience
 
