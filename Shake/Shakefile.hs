@@ -557,10 +557,10 @@ compileHs config hs = ("GHC", hs,
         else []
 
 linkHs :: Config -> FilePath -> [String] -> [FilePath] -> Cmdline
-linkHs config output pkgs objs = ("LD-HS", output,
+linkHs config output packages objs = ("LD-HS", output,
     ghcBinary : fltkLd flags ++ midiLibs flags ++ hLinkFlags flags
         ++ ["-lstdc++"]
-        ++ map ("-package="++) pkgs
+        ++ ["-hide-all-packages"] ++ map ("-package="++) packages
         ++ objs ++ ["-o", output])
     where flags = configFlags config
 
