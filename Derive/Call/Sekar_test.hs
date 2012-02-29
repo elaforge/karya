@@ -27,7 +27,7 @@ test_sekar = do
         notes = ["4c", "4d", "4e", "4f", "4g", "4a", "4b"]
         mkevents txt timing = [(start, dur, s, note)
             | ((start, dur), s, note) <- zip3 timing (txt : repeat "") notes]
-        run txt evts = extract $ DeriveTest.derive_tracks_tempo
+        run txt evts = extract $ DeriveTest.derive_tracks
             (pitch_tracks (mkevents txt evts))
 
     pprint (run "" [(0, 4), (4, 4)])

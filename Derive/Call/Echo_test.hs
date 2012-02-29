@@ -7,7 +7,7 @@ import qualified Derive.Score as Score
 test_delay = do
     let extract = DeriveTest.extract_events DeriveTest.e_event
     let run title pref tracks =
-            extract $ DeriveTest.derive_tracks_tempo (tracks ++ [event])
+            extract $ DeriveTest.derive_tracks (tracks ++ [event])
             where
             event = (title, [(0, 1, pref ++ "--1"), (1, 1, pref ++ "--2")])
 

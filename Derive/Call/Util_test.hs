@@ -24,7 +24,7 @@ test_c_equal = do
     -- Test the '=' call, but also test the special parsing Derive.Note deriver
     -- eval in general.
     let run title evts = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_tempo [(title, evts)]
+            DeriveTest.derive_tracks [(title, evts)]
         extract e = (s, inst, attrs)
             where (s, _, _, inst, attrs) = DeriveTest.e_everything e
 

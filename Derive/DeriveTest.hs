@@ -144,9 +144,6 @@ perform_stream lookup_inst midi_config events = (perf_events, mmsgs)
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = derive_tracks_with id
 
-derive_tracks_tempo :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_tempo tracks = derive_tracks (("tempo", [(0, 0, "1")]) : tracks)
-
 derive_tracks_with :: Transform Derive.Events -> [UiTest.TrackSpec]
     -> Derive.Result
 derive_tracks_with with = derive_tracks_with_ui with id

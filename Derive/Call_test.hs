@@ -67,7 +67,7 @@ test_assign_controls = do
 
 test_environ_across_tracks = do
     let run tracks = DeriveTest.extract (DeriveTest.e_control "cont") $
-            DeriveTest.derive_tracks_tempo ((">", [(0, 10, "")]) : tracks)
+            DeriveTest.derive_tracks ((">", [(0, 10, "")]) : tracks)
 
     -- first make sure srate works as I expect
     let interpolated = [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]
@@ -98,7 +98,7 @@ test_call_errors = do
     left_like (run_title ">i | delay %delay") "not found and no default"
 
     let run_evt evt = extract $
-            DeriveTest.derive_tracks_tempo [(">i", [(0, 1, evt)])]
+            DeriveTest.derive_tracks [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call")
         "call not found: no-such-call"
     left_like (run_evt "tr")

@@ -58,7 +58,7 @@ test_c_note = do
     -- Test basic Derive.d_note_track plumbing and the note (null) deriver
     -- along with it.
     let run title evts = DeriveTest.extract DeriveTest.e_everything $
-            DeriveTest.derive_tracks_tempo [(title, evts)]
+            DeriveTest.derive_tracks [(title, evts)]
     let inst = Just "i"
 
     let evt s d = (s, d, "", inst, [])

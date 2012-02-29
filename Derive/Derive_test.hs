@@ -631,7 +631,7 @@ test_block_end = do
 
 -- test_negative_duration = do
 --     let extract = DeriveTest.extract (\e -> DeriveTest.e_event e) Log.msg_string
---     let run evts = extract $ DeriveTest.derive_tracks_tempo
+--     let run evts = extract $ DeriveTest.derive_tracks
 --             [(DeriveTest.default_inst_title, evts)]
 -- 
 --     let deflt = Derive.negative_duration_default
