@@ -302,23 +302,26 @@ delay time start = do
 -- * c_equal
 
 c_equal :: (Derive.Derived derived) => Derive.Call derived
-c_equal = Derive.transformer "equal" $ \args deriver ->
-    case Derive.passed_vals args of
-        [TrackLang.VSymbol assignee, val] ->
-            Derive.with_val assignee val deriver
-        [control -> Just assignee, TrackLang.VControl val] -> do
-            sig <- to_signal val
-            Derive.with_control assignee sig deriver
-        [control -> Just assignee, TrackLang.VNum val] ->
-            Derive.with_control assignee (fmap Signal.constant val) deriver
-        [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
-            sig <- to_pitch_signal val
-            Derive.with_pitch assignee sig deriver
-        [pitch -> Just assignee, TrackLang.VPitch val] -> do
-            scale <- get_scale
-            Derive.with_pitch assignee (constant_pitch scale val) deriver
-        _ -> Derive.throw_arg_error
-            "equal call expected (sym, val) or (sig, sig) args"
+c_equal = Derive.transformer "equal" equal_transformer
+
+equal_transformer :: Derive.PassedArgs derived -> Derive.Deriver a
+    -> Derive.Deriver a
+equal_transformer args deriver = case Derive.passed_vals args of
+    [TrackLang.VSymbol assignee, val] ->
+        Derive.with_val assignee val deriver
+    [control -> Just assignee, TrackLang.VControl val] -> do
+        sig <- to_signal val
+        Derive.with_control assignee sig deriver
+    [control -> Just assignee, TrackLang.VNum val] ->
+        Derive.with_control assignee (fmap Signal.constant val) deriver
+    [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
+        sig <- to_pitch_signal val
+        Derive.with_pitch assignee sig deriver
+    [pitch -> Just assignee, TrackLang.VPitch val] -> do
+        scale <- get_scale
+        Derive.with_pitch assignee (constant_pitch scale val) deriver
+    _ -> Derive.throw_arg_error
+        "equal call expected (sym, val) or (sig, sig) args"
     where
     control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     control _ = Nothing

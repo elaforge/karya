@@ -6,7 +6,9 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
+import Types
 
 
 test_random = do
@@ -23,10 +25,8 @@ test_random = do
 test_c_equal = do
     -- Test the '=' call, but also test the special parsing Derive.Note deriver
     -- eval in general.
-    let run title evts = DeriveTest.extract extract $
+    let run title evts = DeriveTest.extract e_inst $
             DeriveTest.derive_tracks [(title, evts)]
-        extract e = (s, inst, attrs)
-            where (s, _, _, inst, attrs) = DeriveTest.e_everything e
 
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
@@ -35,9 +35,26 @@ test_c_equal = do
 
     -- only the event with the error is omitted
     let (evts, logs) = run ">" [(0, 1, "inst = inst |"), (1, 1, "")]
-    equal evts [(1, Nothing, [])]
+    equal evts [(1, Nothing)]
     strings_like logs ["expected Instrument"]
 
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >i3 |")])
-        ([(0, Just "i", []), (1, Just "i2", []), (2, Just "i3", [])], [])
+        ([(0, Just "i"), (1, Just "i2"), (2, Just "i3")], [])
 
+test_c_equal_note_transformer = do
+    let run events = DeriveTest.extract e_inst $
+            DeriveTest.linear_derive_tracks id
+                [ (">", events)
+                , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+                ]
+    equal (run []) ([(0, Nothing), (1, Nothing), (2, Nothing)], [])
+    equal (run [(0, 2, "inst = >i")])
+        ([(0, Just "i"), (1, Just "i"), (2, Nothing)], [])
+    equal (run [(0, 3, "inst = >i")])
+        ([(0, Just "i"), (1, Just "i"), (2, Just "i")], [])
+    equal (run [(0, 1, "inst = >i1"), (1, 1, "inst = >i2")])
+        ([(0, Just "i1"), (1, Just "i2"), (2, Nothing)], [])
+
+e_inst :: Score.Event -> (RealTime, Maybe String)
+e_inst e = (Score.event_start e,
+    fmap Score.inst_name (Score.event_instrument e))

@@ -24,7 +24,7 @@ import Types
 
 control_calls :: Derive.ControlCallMap
 control_calls = Derive.make_calls
-    [ ("=", Util.c_equal)
+    [ ("=", Derive.transformer "equal" Util.equal_transformer)
     -- Fallback call will take val-call output.
     , ("", c_set)
     , ("set", c_set)

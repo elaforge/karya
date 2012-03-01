@@ -68,7 +68,7 @@ note_expr (Pitch.Note note) frac
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
-    [ ("=", Util.c_equal)
+    [ ("=", Derive.transformer "equal" Util.equal_transformer)
     , ("", c_note_set)
     , ("set", c_note_set)
     , ("i", c_note_linear)

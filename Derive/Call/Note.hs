@@ -36,7 +36,7 @@ note_calls = Derive.make_calls
     -- Since you can never call "" with arguments, I need a non-null form
     -- to handle the args version.
     , ("n", c_note)
-    , ("=", Util.c_equal)
+    , ("=", c_equal)
     , ("note-track", c_note_track)
     ]
 
@@ -165,6 +165,16 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
         _ -> (inst, attrs, arg : invalid)
 
 
+-- * c_equal
+
+c_equal :: Derive.NoteCall
+c_equal = Derive.Call "equal"
+    (Just $ Derive.GeneratorCall generate (const Nothing))
+    (Just $ Derive.TransformerCall Util.equal_transformer)
+    where
+    generate args = place $ map (map_event (Util.equal_transformer args)) $
+        concat $ sub_events args
+
 -- * util
 
 -- Utilities for note calls.
@@ -246,6 +256,9 @@ data Event = Event {
 
 event_end :: Event -> ScoreTime
 event_end event = event_start event + event_duration event
+
+map_event :: (Derive.EventDeriver -> Derive.EventDeriver) -> Event -> Event
+map_event f event = event { event_deriver = f (event_deriver event) }
 
 instance Show Event where
     show (Event start dur _) =
