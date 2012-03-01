@@ -89,7 +89,10 @@ withCppFile (Just flags) fn = Exception.bracket open IO.hClose
     where
     open = do
         (_, Just stdout, _, _) <- loggedProcess $
-            (Process.proc "cpp" (flags ++ [fn]))
+            -- Use -w to suppress warnings.  CPP doesn't understand haskell
+            -- comments and will warn about unterminated 's in comments.
+            -- -P suppresses the '# line' stuff I don't care about.
+            (Process.proc "cpp" (["-w", "-P"] ++ flags ++ [fn]))
                 { Process.std_out = Process.CreatePipe }
         return stdout
 
