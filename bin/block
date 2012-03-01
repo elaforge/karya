@@ -1,2 +1,2 @@
 #!/bin/zsh
-bin/mk build/test/test_block && build/test/test_block "$@"
+bin/mk build/debug/test_block && build/debug/test_block "$@"

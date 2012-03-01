@@ -174,7 +174,7 @@ MoveTile::original_box(int child)
 static bool
 child_wn_of(const Fl_Widget *c1, const Fl_Widget *c2)
 {
-    return c1->x() < c2->x() || c1->x() == c2->x() && c1->y() < c2->y();
+    return c1->x() < c2->x() || (c1->x() == c2->x() && c1->y() < c2->y());
 }
 
 // return indices of children going w->e, n->s

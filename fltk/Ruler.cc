@@ -225,7 +225,7 @@ OverlayRuler::draw_marklists()
             bool drew_text = draw_mark(
                 m->pos == ScoreTime(0), offset, m->mark);
             // There probably isn't any ruler text this tall.
-            if (drew_text && m->pos > end || offset > clip.b() + 15)
+            if ((drew_text && m->pos > end) || offset > clip.b() + 15)
                 break;
         }
     }
