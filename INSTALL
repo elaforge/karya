@@ -1,23 +1,25 @@
     HASKELL DEPS
 
-transformers, mtl
-fixed-list-0.1.5
-deepseq, data-ordlist, cereal, storablevector
-vector
-dlist -- Perform.SignalBase
-parsec
-text, stm, network
-haskell-src -- Util.PPrint
-regex-pcre
-hint
-haskeline
+# basic deps
+transformers mtl deepseq data-ordlist cereal bytestring text stm netxwork
 
-bytestring
-attoparsec
-utf8-string -- used by Ui.Event
+attoparsec # Derive: tracklang parsing
+fixed-list-0.1.5 # Derive.Call.Util: for typesafe mapping
+mersenne-random-pure64 hashable random-shuffle # Derive: score randomization
+storablevector # control signals (drags in: QuickCheck utility-ht non-negative)
+vector # pitch signals
+dlist # Perform.SignalBase
 
--- random
-mersenne-random-pure64 hashable random-shuffle
+hint # lang repl
+haskeline # repl
+
+parsec # Instrument.Parse, could use attoparsec, but parsec errors are better
+haskell-src # Util.PPrint
+regex-pcre # Util.Test
+
+utf8-string # Ui.Event
+
+shake # build system
 
     INSTALLED SEPARATELY
 
