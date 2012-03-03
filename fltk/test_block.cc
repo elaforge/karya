@@ -108,7 +108,7 @@ void t1_set()
     //     Event("15`1^`m", ScoreTime(-16), style), 0));
 
     e.push_back(EventInfo(ScoreTime(0),
-        Event("`1^`", ScoreTime(16), style), 0));
+        Event("`mordent`", ScoreTime(16), style), 0));
     e.push_back(EventInfo(ScoreTime(16),
         Event("a`tamil-i``xie`", ScoreTime(16), style), 0));
     e.push_back(EventInfo(ScoreTime(32),
@@ -444,17 +444,27 @@ main(int argc, char **argv)
     // will be freed if there is a duplicate symbol.  But I don't care for a
     // test.
     SymbolTable *t = SymbolTable::get();
+
+#ifdef __linux__
+    Fl_Font music = t->font(" Emmentaler");
+    Fl_Font chinese = t->font(" AR PL UKai TW");
+    Fl_Font tamil = t->font(" Lohit Tamil");
+#endif
+#ifdef __APPLE__
+    Fl_Font music = t->font("Emmentaler 11");
+    Fl_Font chinese = t->font("LiSong Pro");
+    Fl_Font tamil = Config::font; // thanks to OS X font substitution I guess
+#endif
+
     t->insert("tamil-i", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xe0\xae\x87", Config::font, 4)));
+        SymbolTable::Glyph("\xe0\xae\x87", tamil, 4)));
     // t->load("yen", "\xc2\xa5");
     // t->load("coda", "\xef\x80\xa5");
 
     // xie2 radical, slant of dai4, CJK STROKE XG
     // radicals are at +31c0
-#ifdef __APPLE__
     t->insert("xie", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xe3\x87\x82", t->font("LiSong Pro"), 4)));
-#endif
+        SymbolTable::Glyph("\xe3\x87\x82", chinese, 4)));
 
     t->insert("1.", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
@@ -464,29 +474,21 @@ main(int argc, char **argv)
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(-.3, .2)),
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
 
-#ifdef __linux__
-    // I have no idea why the fonts show up with wacky names on linux but they
-    // do.
-    Fl_Font em = t->font(" Emmentaler\\-11");
-#endif
-#ifdef __APPLE__
-    Fl_Font em = t->font("Emmentaler 11");
-#endif
     t->insert("sharp", SymbolTable::Symbol(
         SymbolTable::Glyph("a"),
-        SymbolTable::Glyph("\xee\x84\x8e", em, 2, DPoint(.5, -.4))));
+        SymbolTable::Glyph("\xee\x84\x8e", music, 2, DPoint(.5, -.4))));
     t->insert("flat", SymbolTable::Symbol(
         SymbolTable::Glyph("a"),
-        SymbolTable::Glyph("\xee\x84\x8e", em, 2, DPoint(.5, -.4))));
+        SymbolTable::Glyph("\xee\x84\x8e", music, 2, DPoint(.5, -.4))));
     t->insert("mordent", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xee\x86\x8c", em, 4, DPoint(0, 0))));
+        SymbolTable::Glyph("\xee\x86\x8c", music, 4, DPoint(0, 0))));
     t->insert("arp-up", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xee\x86\x8a", em, 8, DPoint(-.14, -.62), 0),
-        SymbolTable::Glyph("\xee\x86\x8e", em, 4, DPoint(0, 0), 90)));
+        SymbolTable::Glyph("\xee\x86\x8a", music, 8, DPoint(-.14, -.62), 0),
+        SymbolTable::Glyph("\xee\x86\x8e", music, 4, DPoint(0, 0), 90)));
 
     t->insert("arp-down", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xee\x86\x89", em, 8, DPoint(-.14, .25), 0),
-        SymbolTable::Glyph("\xee\x86\x8e", em, 4, DPoint(0, 0), 90)));
+        SymbolTable::Glyph("\xee\x86\x89", music, 8, DPoint(-.14, .25), 0),
+        SymbolTable::Glyph("\xee\x86\x8e", music, 4, DPoint(0, 0), 90)));
 
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
     // t->load("v-angle-double", "\xef\xb8\xbd", "LiSong Pro", 4);
