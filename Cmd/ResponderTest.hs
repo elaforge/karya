@@ -157,7 +157,7 @@ make_rstate update_chan midi_chan loopback_chan ui_state cmd_state cmd =
         loopback dummy_sync
     where
     config = StaticConfig.empty
-        { StaticConfig.config_global_cmds = maybe [] (:[]) cmd }
+        { StaticConfig.global_cmds = maybe [] (:[]) cmd }
     info = Transport.Info send_status write_midi abort_midi get_now_ts
         (Unsafe.unsafePerformIO (MVar.newMVar State.empty))
     dummy_sync _ _ updates = do

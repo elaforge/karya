@@ -92,14 +92,14 @@ load_static_config = do
     app_dir <- Config.get_app_dir
     instrument_db <- Local.Instrument.load app_dir
     return $ StaticConfig.StaticConfig {
-        StaticConfig.config_instrument_db = instrument_db
-        , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
-        , StaticConfig.config_global_cmds = []
-        , StaticConfig.config_global_scope = Call.All.scope
-        , StaticConfig.config_setup_cmd = parse_args
-        , StaticConfig.config_read_device_map = read_device_map
-        , StaticConfig.config_write_device_map = write_device_map
-        , StaticConfig.config_read_devices = read_devices
+        StaticConfig.instrument_db = instrument_db
+        , StaticConfig.local_lang_dirs = [app_dir </> Config.lang_dir]
+        , StaticConfig.global_cmds = []
+        , StaticConfig.global_scope = Call.All.scope
+        , StaticConfig.setup_cmd = parse_args
+        , StaticConfig.read_device_map = read_device_map
+        , StaticConfig.write_device_map = write_device_map
+        , StaticConfig.read_devices = read_devices
         }
 
 parse_args :: [String] -> Cmd.CmdIO
@@ -178,7 +178,7 @@ main = initialize $ \lang_socket midi_interface -> do
     Log.notice "app starting"
     static_config <- load_static_config
     let loaded_msg = "instrument db loaded, "
-            ++ show (Db.size (StaticConfig.config_instrument_db static_config))
+            ++ show (Db.size (StaticConfig.instrument_db static_config))
             ++ " instruments loaded"
     Log.notice loaded_msg
     putStrLn loaded_msg
@@ -186,7 +186,7 @@ main = initialize $ \lang_socket midi_interface -> do
     let _x = _x
     -- satellites are out tonight
 
-    let open_read = StaticConfig.config_read_devices static_config
+    let open_read = StaticConfig.read_devices static_config
     rdevs <- Interface.read_devices midi_interface
     forM_ (filter (`Set.member` open_read) rdevs)
         (Interface.connect_read_device midi_interface)
@@ -199,10 +199,10 @@ main = initialize $ \lang_socket midi_interface -> do
     args <- System.Environment.getArgs
     let write_midi = make_write_midi
             (Interface.write_message midi_interface)
-            (StaticConfig.config_write_device_map static_config)
-        setup_cmd = StaticConfig.config_setup_cmd static_config args
+            (StaticConfig.write_device_map static_config)
+        setup_cmd = StaticConfig.setup_cmd static_config args
         remap_rmsg = remap_read_message
-            (StaticConfig.config_read_device_map static_config)
+            (StaticConfig.read_device_map static_config)
 
     -- TODO Sending midi through the whole responder thing is too laggy for
     -- thru.  So give it a shortcut here, but I'll need to give a way to insert

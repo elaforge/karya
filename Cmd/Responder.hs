@@ -90,8 +90,8 @@ responder static_config msg_reader write_midi abort_midi get_now setup_cmd
     mapM_ Log.warn GlobalKeymap.cmd_map_errors
 
     let cmd_state = Cmd.initial_state
-            (StaticConfig.config_instrument_db static_config)
-            (StaticConfig.config_global_scope static_config)
+            (StaticConfig.instrument_db static_config)
+            (StaticConfig.global_scope static_config)
         cmd = setup_cmd >> Edit.initialize_state >> return Cmd.Done
     updater_state <- MVar.newMVar State.empty
     (ui_state, cmd_state) <-
@@ -303,7 +303,7 @@ run_core_cmds rstate msg exit = do
     -- Focus commands and the rest of the pure commands come first so text
     -- entry can override io bound commands.
     let pure_cmds =
-            StaticConfig.config_global_cmds (state_static_config rstate)
+            StaticConfig.global_cmds (state_static_config rstate)
             ++ hardcoded_cmds ++ GlobalKeymap.pure_cmds
     (ui_to, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
         ui_to cmd_state pure_cmds
@@ -313,7 +313,7 @@ run_core_cmds rstate msg exit = do
     -- I hardcode them in a special list that gets run in IO.
     let io_cmds = hardcoded_io_cmds (state_transport_info rstate)
                 (state_session rstate)
-                (StaticConfig.config_local_lang_dirs config)
+                (StaticConfig.local_lang_dirs config)
     (ui_to, cmd_state) <- do_run exit Cmd.run_io rstate msg ui_from
         ui_to cmd_state io_cmds
     return (Right (Cmd.Continue, ui_from, ui_to), cmd_state)

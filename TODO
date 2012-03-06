@@ -6,7 +6,7 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
-  - remove config_ prefix from StaticConfig
+  * remove config_ prefix from StaticConfig
   - implement hot plugging: snd arg to create client
   - de-globalize MidiClientRef?
   * make Midi.Interface with the interface midi driver modules have to
