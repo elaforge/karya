@@ -35,13 +35,14 @@ import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
 import qualified Midi.Midi as Midi
+import qualified Midi.Interface as Interface
 
 -- This is the actual midi implementation.  This is the only module that should
 -- depend on the implementation, so switching backends is relatively easy.
 #if defined(CORE_MIDI)
-import qualified Midi.CoreMidi as MidiImp
+import qualified Midi.CoreMidi as MidiDriver
 #else
-import qualified Midi.StubMidi as MidiImp
+import qualified Midi.StubMidi as MidiDriver
 #endif
 
 import qualified Cmd.Cmd as Cmd
@@ -156,21 +157,22 @@ read_devices = Set.fromList $ map Midi.ReadDevice $
 
 -- * main
 
-initialize :: (Network.Socket -> MidiImp.ReadChan -> IO ()) -> IO ()
-initialize f = do
+initialize :: (Network.Socket -> Interface.Interface -> IO ()) -> IO ()
+initialize app = do
     log_hdl <- IO.openFile "seq.log" IO.AppendMode
     Log.configure $ const $
         Log.State (Just log_hdl) Log.Debug Log.serialize_msg
-    MidiImp.initialize $ \midi_chan ->
-        Network.withSocketsDo $ do
+    MidiDriver.initialize "seq" $ \interface -> case interface of
+        Left err -> error $ "initializing midi: " ++ err
+        Right midi_interface -> Network.withSocketsDo $ do
             Config.initialize_lang_port
             socket <- Network.listenOn Config.lang_port
-            f socket midi_chan
+            app socket midi_interface
 
 -- Later, 'load_static_config' is passed as an argument to do_main, and main is
 -- defined in Local.hs.
 main :: IO ()
-main = initialize $ \lang_socket midi_chan -> do
+main = initialize $ \lang_socket midi_interface -> do
     -- Handy to filter debugging output.
     IO.hSetBuffering IO.stdout IO.LineBuffering
     Log.notice "app starting"
@@ -184,34 +186,37 @@ main = initialize $ \lang_socket midi_chan -> do
     let _x = _x
     -- satellites are out tonight
 
-    (rdev_map, wdev_map) <- MidiImp.get_devices
     let open_read = StaticConfig.config_read_devices static_config
-    print_devs open_read rdev_map wdev_map
-    open_read_devices rdev_map
-        (filter (`Set.member` open_read) (Map.keys rdev_map))
+    rdevs <- Interface.read_devices midi_interface
+    forM_ (filter (`Set.member` open_read) rdevs)
+        (Interface.connect_read_device midi_interface)
+    wdevs <- Interface.write_devices midi_interface
+    forM_ wdevs (Interface.connect_write_device midi_interface)
+    print_devs open_read rdevs wdevs
 
     quit_request <- MVar.newMVar ()
 
     args <- System.Environment.getArgs
-    let write_midi = make_write_midi True
-            (StaticConfig.config_write_device_map static_config) wdev_map
+    let write_midi = make_write_midi
+            (Interface.write_message midi_interface)
+            (StaticConfig.config_write_device_map static_config)
         setup_cmd = StaticConfig.config_setup_cmd static_config args
-        abort_midi = MidiImp.abort
         remap_rmsg = remap_read_message
             (StaticConfig.config_read_device_map static_config)
-        get_now_ts = MidiImp.now
 
     -- TODO Sending midi through the whole responder thing is too laggy for
     -- thru.  So give it a shortcut here, but I'll need to give a way to insert
     -- the thru function.  I'll do some responder optimizations first.
-    -- thru_chan <- STM.atomically (STM.dupTChan midi_chan)
+    -- thru_chan <- STM.atomically $
+    --          STM.dupTChan (Interface.read_channel midi_interface)
     -- Thread.start_logged "midi thru" $
     --     midi_thru remap_rmsg thru_chan write_midi
 
     loopback_chan <- STM.newTChanIO
     msg_chan <- STM.newTChanIO
-    get_msg <- Responder.create_msg_reader
-        remap_rmsg midi_chan lang_socket msg_chan loopback_chan
+    get_msg <- Responder.create_msg_reader remap_rmsg
+        (Interface.read_channel midi_interface) lang_socket msg_chan
+        loopback_chan
 
     LoadConfig.symbols $ Call.Symbols.symbols ++ Scale.Symbols.symbols
         ++ Instrument.Symbols.symbols
@@ -228,8 +233,9 @@ main = initialize $ \lang_socket midi_chan -> do
 
     Thread.start_logged "responder" $ do
         let loopback msg = STM.atomically (TChan.writeTChan loopback_chan msg)
-        Responder.responder static_config get_msg write_midi abort_midi
-            get_now_ts setup_cmd session loopback
+        Responder.responder static_config get_msg (write_midi True)
+            (Interface.abort midi_interface) (Interface.now midi_interface)
+            setup_cmd session loopback
         `Exception.catch` (\(exc :: Exception.SomeException) ->
             Log.error $ "responder thread died from exception: " ++ show exc)
             -- It would be possible to restart the responder, but chances are
@@ -239,10 +245,8 @@ main = initialize $ \lang_socket midi_chan -> do
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.error $ "ui died from exception: " ++ show exc
 
-    abort_midi
-    let quiet_write = make_write_midi False
-            (StaticConfig.config_write_device_map static_config) wdev_map
-    all_notes_off quiet_write (Map.keys wdev_map)
+    Interface.abort midi_interface
+    all_notes_off (write_midi False) wdevs
     Log.notice "app quitting"
 
 all_notes_off :: (Midi.WriteMessage -> IO ()) -> [Midi.WriteDevice] -> IO ()
@@ -268,32 +272,28 @@ remap_read_message :: Map.Map Midi.ReadDevice Midi.ReadDevice
 remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
     rmsg { Midi.rmsg_dev = Map.get dev dev dev_map }
 
-open_read_devices :: Map.Map Midi.ReadDevice MidiImp.ReadDeviceId
-    -> [Midi.ReadDevice] -> IO ()
-open_read_devices rdev_map rdevs = forM_ rdevs $ \rdev ->
-    MidiImp.connect_read_device rdev (rdev_map Map.! rdev)
-
-make_write_midi :: Bool -> Map.Map Midi.WriteDevice Midi.WriteDevice
-    -> MidiImp.WriteMap -> Midi.WriteMessage -> IO ()
-make_write_midi noisy wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
+make_write_midi :: (Midi.WriteMessage -> IO Bool)
+    -> Map.Map Midi.WriteDevice Midi.WriteDevice -> Bool
+    -> Midi.WriteMessage -> IO ()
+make_write_midi write_message wdev_map noisy
+        (Midi.WriteMessage wdev ts msg) = do
     let real_wdev = Map.get wdev wdev wdev_map
     when noisy $
         Printf.printf "PLAY %s->%s %s: %s\n" (Midi.un_write_device wdev)
             (Midi.un_write_device real_wdev) (Pretty.pretty ts) (show msg)
-    case Map.lookup real_wdev write_map of
-        Nothing -> Log.error $ show real_wdev ++ " not in devs: "
-            ++ show (Map.keys write_map)
-        Just dev_id -> MidiImp.write_message dev_id ts msg
+    let wmsg = Midi.WriteMessage real_wdev ts msg
+    ok <- write_message wmsg
+    when (not ok) $ Log.warn $ "error writing " ++ show wmsg
 
-print_devs :: Set.Set Midi.ReadDevice -> MidiImp.ReadMap -> MidiImp.WriteMap
-    -> IO ()
-print_devs opened_rdevs rdev_map wdev_map = do
+print_devs :: Set.Set Midi.ReadDevice -> [Midi.ReadDevice]
+    -> [Midi.WriteDevice] -> IO ()
+print_devs opened_rdevs rdevs wdevs = do
     putStrLn "read devs:"
-    forM_ (Map.keys rdev_map) $ \rdev ->
+    forM_ rdevs $ \rdev ->
         let prefix = if rdev `Set.member` opened_rdevs then "* " else "  "
         in putStrLn $ prefix ++ show rdev
     putStrLn "write devs:"
-    forM_ (Map.keys wdev_map) $ \wdev ->
+    forM_ wdevs $ \wdev ->
         putStrLn $ "* " ++ show wdev
 
 

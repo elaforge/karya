@@ -1,21 +1,24 @@
 extern "C" {
 
 typedef int Error;
-typedef int RDevId;
-typedef int WDevId;
+
+typedef SInt32 DeviceId;
 typedef unsigned long Timestamp;
 typedef void (*ReadCallback)(void *p, Timestamp timestamp, int len,
         const unsigned char *bytes);
 
-Error core_midi_initialize(ReadCallback cb);
+Error core_midi_initialize(const char *name, ReadCallback cb);
 void core_midi_terminate();
-Error core_midi_get_read_devices(int *len, RDevId **ids, char ***names);
-Error core_midi_get_write_devices(int *len, WDevId **ids, char ***names);
 
-Error core_midi_connect_read_device(RDevId rdev, void *p);
+// lookup devices
+int get_devices(int is_read, char ***names_out);
+int lookup_device_id(int is_read, const char *dev_name, DeviceId *dev_id_out);
 
-Error core_midi_write_message(WDevId wdev, Timestamp timestamp, int len,
+Error core_midi_connect_read_device(DeviceId rdev, void *p);
+Error core_midi_write_message(DeviceId wdev, Timestamp timestamp, int len,
         const unsigned char *bytes);
+
+// misc
 Error core_midi_abort();
 Timestamp core_midi_get_now();
 

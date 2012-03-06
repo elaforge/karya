@@ -6,6 +6,41 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - remove config_ prefix from StaticConfig
+  - implement hot plugging: snd arg to create client
+  - de-globalize MidiClientRef?
+  * make Midi.Interface with the interface midi driver modules have to
+    implement
+  * port core midi to new midi interface
+  - make sure unknown devices get warned about
+  - A song will have a list of the WriteDevices it means to use, which should
+    get hooked up, or warned about.
+
+    When something new is plugged in, if it's in the WriteDevice list, it
+    should be automatically hooked up.  Otherwise, you can query devices from
+    the cmdline.
+
+    ReadDevices are the same, only maybe configured in the StaticConfig, not
+    per-song.
+
+    Instruments have hardcoded WriteDevices, and each song also has a WriteMap
+    that maps instruments to other outputs.  That way all the fm8 instruments
+    go to "fm8", but if you have multiple instances for your song then you can
+    wire them appropriately.
+  - rename devices -> ports?
+  use jack midi
+    - ReadDevice and WriteDevice should use ByteString
+
+    I want to set up as a jack server: send midi
+    - compile jack midi_dump.c to make sure it works
+
+    - use jack_midi_event_t instead of midi_message and timestamp?  I do want
+      to be able to send sysexs.
+    - figure out how to append and remove from the ports list
+    - Get the basic jack functions wrapped so I can compile and experiment in
+      haskell.
+    - port test_core_midi to be a generice test_midi
+
   - instead of using velocity in various ornaments, I should probably use p
     e.g. mordent should also work for wind patches
     But there's a more fundamental divide between ornaments that want to

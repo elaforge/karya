@@ -1,3 +1,4 @@
+// Binding to OS X CoreMIDI.
 #include <stdio.h>
 #include <map>
 #include <vector>
@@ -6,6 +7,8 @@
 #include <CoreMIDI/MIDIServices.h>
 #include "core_midi.h"
 
+
+// Provide C functions for the FFI.
 extern "C" {
 
 static MIDIClientRef g_client;
@@ -84,12 +87,14 @@ read_proc(const MIDIPacketList *packets, void *_read_proc_p, void *src_con_p)
 }
 
 Error
-core_midi_initialize(ReadCallback cb)
+core_midi_initialize(const char *name, ReadCallback cb)
 {
     OSStatus err;
 
     g_read_callback = cb;
-    err = MIDIClientCreate(CFSTR("core midi"), NULL, NULL, &g_client);
+    CFStringRef cfname = CFStringCreateWithCString(
+        NULL, name, kCFStringEncodingUTF8);
+    err = MIDIClientCreate(cfname, NULL, NULL, &g_client);
     if (err != noErr) goto error;
     err = MIDIInputPortCreate(g_client, CFSTR("input port"), read_proc, NULL,
             &g_in_port);
@@ -117,86 +122,76 @@ core_midi_terminate()
         MIDIClientDispose(g_client);
 }
 
-Error
-core_midi_get_read_devices(int *len, RDevId **ids_out, char ***names_out)
+
+// lookup devices
+
+int
+get_devices(int is_read, char ***names_out)
 {
-    *len = 0;
-    *ids_out = NULL;
     *names_out = NULL;
-    int sources = MIDIGetNumberOfSources();
-    if (sources == 0)
-        return noErr;
-    RDevId *ids = (RDevId *) calloc(sources, sizeof(RDevId));
-    char **names = (char **) calloc(sources, sizeof(char *));
-    for (int i = 0; i < sources; i++) {
+    int devs = is_read
+        ? MIDIGetNumberOfSources() : MIDIGetNumberOfDestinations();
+    char **names = (char **) calloc(devs, sizeof(char *));
+    for (int i = 0; i < devs; i++) {
+        MIDIEndpointRef dev = is_read
+            ? MIDIGetSource(i) : MIDIGetDestination(i);
+
         CFStringRef pname;
         char name[64];
-        SInt32 unique_id;
-
-        MIDIEndpointRef src = MIDIGetSource(i);
-        MIDIObjectGetStringProperty(src, kMIDIPropertyDisplayName, &pname);
+        MIDIObjectGetStringProperty(dev, kMIDIPropertyDisplayName, &pname);
         CFStringGetCString(pname, name, sizeof name, 0);
         CFRelease(pname);
         names[i] = strdup(name);
-
-        MIDIObjectGetIntegerProperty(src, kMIDIPropertyUniqueID, &unique_id);
-        ids[i] = unique_id;
     }
-    *ids_out = ids;
     *names_out = names;
-    *len = sources;
-    return noErr;
+    return devs;
 }
 
-Error
-core_midi_get_write_devices(int *len, WDevId **ids_out, char ***names_out)
+int
+lookup_device_id(int is_read, const char *dev_name, DeviceId *dev_id_out)
 {
-    *len = 0;
-    *ids_out = NULL;
-    *names_out = NULL;
-    int dests = MIDIGetNumberOfDestinations();
-    if (dests == 0)
-        return noErr;
-    RDevId *ids = (RDevId *) calloc(dests, sizeof(RDevId));
-    char **names = (char **) calloc(dests, sizeof(char *));
-    for (int i = 0; i < dests; i++) {
+    int devs = is_read
+        ? MIDIGetNumberOfSources() : MIDIGetNumberOfDestinations();
+    for (int i = 0; i < devs; i++) {
+        MIDIEndpointRef dev = is_read
+            ? MIDIGetSource(i) : MIDIGetDestination(i);
+
         CFStringRef pname;
         char name[64];
-        SInt32 unique_id;
-
-        MIDIEndpointRef src = MIDIGetDestination(i);
-        MIDIObjectGetStringProperty(src, kMIDIPropertyDisplayName, &pname);
+        MIDIObjectGetStringProperty(dev, kMIDIPropertyDisplayName, &pname);
         CFStringGetCString(pname, name, sizeof name, 0);
         CFRelease(pname);
-        names[i] = strdup(name);
-
-        MIDIObjectGetIntegerProperty(src, kMIDIPropertyUniqueID, &unique_id);
-        ids[i] = unique_id;
+        if (strcmp(name, dev_name) == 0) {
+            MIDIObjectGetIntegerProperty(dev, kMIDIPropertyUniqueID,
+                dev_id_out);
+            return true;
+        }
     }
-    *ids_out = ids;
-    *names_out = names;
-    *len = dests;
-    return noErr;
+    return false;
 }
 
 
+// connect
+
 Error
-core_midi_connect_read_device(RDevId rdev, void *p)
+core_midi_connect_read_device(DeviceId dev, void *p)
 {
     OSStatus err;
     MIDIObjectRef obj;
     MIDIObjectType type;
     MIDIEndpointRef src;
 
-    err = MIDIObjectFindByUniqueID(rdev, &obj, &type);
-    if (err != noErr) return err;
+    err = MIDIObjectFindByUniqueID(dev, &obj, &type);
+    if (err != noErr)
+        return err;
     src = (MIDIEndpointRef) obj;
     // This is never deallocated.
     g_sysex_state[p] = new SysexState();
-    err = MIDIPortConnectSource(g_in_port, src, p);
-    return err;
+    return MIDIPortConnectSource(g_in_port, src, p);
 }
 
+
+// write messages
 
 static void
 sysex_complete(MIDISysexSendRequest *req)
@@ -207,8 +202,7 @@ sysex_complete(MIDISysexSendRequest *req)
 }
 
 static Error
-write_sysex(MIDIEndpointRef dest, WDevId wdev, int len,
-        const unsigned char *bytes)
+write_sysex(MIDIEndpointRef dest, int len, const unsigned char *bytes)
 {
     MIDISysexSendRequest *req = new MIDISysexSendRequest;
     req->destination = dest;
@@ -223,7 +217,7 @@ write_sysex(MIDIEndpointRef dest, WDevId wdev, int len,
 
 
 Error
-core_midi_write_message(WDevId wdev, Timestamp timestamp, int len,
+core_midi_write_message(DeviceId dev, Timestamp timestamp, int len,
         const unsigned char *bytes)
 {
     OSStatus err = noErr;
@@ -233,12 +227,12 @@ core_midi_write_message(WDevId wdev, Timestamp timestamp, int len,
 
     MIDIObjectRef obj;
     MIDIObjectType type;
-    err = MIDIObjectFindByUniqueID(wdev, &obj, &type);
+    err = MIDIObjectFindByUniqueID(dev, &obj, &type);
     if (err != noErr) return err;
     MIDIEndpointRef dest = (MIDIEndpointRef) obj;
 
     if (bytes[0] == SOX) {
-        write_sysex(dest, wdev, len, bytes);
+        write_sysex(dest, len, bytes);
     } else if (!(bytes[0] & STATUS_MASK)) {
         printf("first byte not a status byte: %hhx\n", bytes[0]);
     } else {
@@ -257,6 +251,9 @@ core_midi_write_message(WDevId wdev, Timestamp timestamp, int len,
     return err;
 }
 
+
+// misc
+
 Error
 core_midi_abort()
 {
@@ -266,7 +263,8 @@ core_midi_abort()
 Timestamp
 core_midi_get_now()
 {
-    return AudioConvertHostTimeToNanos(AudioGetCurrentHostTime()) / NANO_FACTOR;
+    return AudioConvertHostTimeToNanos(AudioGetCurrentHostTime())
+        / NANO_FACTOR;
 }
 
 }

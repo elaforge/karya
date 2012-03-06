@@ -3,22 +3,20 @@
 
 TODO documentation
 -}
-module Midi.CoreMidi (
-    ReadChan, ReadDeviceId, WriteDeviceId, ReadMap, WriteMap
-    , initialize, get_devices
-
-    , connect_read_device, write_message
-    , abort, now
-) where
-import qualified Control.Exception as Exception
+module Midi.CoreMidi (initialize) where
+import Control.Applicative ((<$>), (<*>))
 import qualified Control.Concurrent.STM as STM
+import qualified Control.Exception as Exception
+
 import qualified Data.ByteString as ByteString
+import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Typeable as Typeable
 
 import Foreign
 import Foreign.C
 
+import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.Parse as Parse
 
@@ -26,36 +24,44 @@ import qualified Perform.RealTime as RealTime
 import Perform.RealTime (RealTime)
 
 
-type CError = CULong
-no_error :: CError
-no_error = 0
+-- * initialize
 
-type ReadChan = STM.TChan Midi.ReadMessage
+initialize :: String -> (Either String Interface.Interface -> IO a) -> IO a
+initialize app_name app = do
+    chan <- STM.newTChanIO
+    Exception.bracket (make_read_callback (chan_callback chan))
+        freeHaskellFunPtr $ \cb -> withCString app_name $ \app_namep -> do
+            err <- c_initialize app_namep cb
+            client <- make_client
+            let interface = maybe (Right (mkinterface client chan)) Left
+                    (error_str err)
+            app interface `Exception.finally` terminate
+    where
+    mkinterface client chan = Interface.Interface
+        { Interface.read_channel = chan
+        , Interface.read_devices = map Midi.ReadDevice <$> get_devices True
+        , Interface.write_devices = map Midi.WriteDevice <$> get_devices False
+        , Interface.connect_read_device = connect_read_device client
+        , Interface.connect_write_device = connect_write_device client
+        , Interface.write_message = write_message client
+        , Interface.abort = abort
+        , Interface.now = now
+        }
 
 type ReadCallback = SourcePtr -> CTimestamp -> CInt -> Ptr Word8 -> IO ()
 type SourcePtr = StablePtr Midi.ReadDevice
-type CTimestamp = CULong
-newtype ReadDeviceId = ReadDeviceId CInt deriving (Show)
-newtype WriteDeviceId = WriteDeviceId CInt deriving (Show)
-
-type ReadMap = Map.Map Midi.ReadDevice ReadDeviceId
-type WriteMap = Map.Map Midi.WriteDevice WriteDeviceId
-
-initialize :: (ReadChan -> IO a) -> IO a
-initialize app = do
-    chan <- STM.newTChanIO
-    Exception.bracket (make_read_callback (chan_callback chan))
-        freeHaskellFunPtr $ \cb -> do
-            check_ =<< c_initialize cb
-            app chan `Exception.finally` terminate
 
 foreign import ccall "core_midi_terminate" terminate :: IO ()
 foreign import ccall "core_midi_initialize"
-    c_initialize :: FunPtr ReadCallback -> IO CError
+    c_initialize :: CString -> FunPtr ReadCallback -> IO CError
 foreign import ccall "wrapper"
     make_read_callback :: ReadCallback -> IO (FunPtr ReadCallback)
 
-chan_callback :: ReadChan -> ReadCallback
+-- TODO this is run from the CoreMIDI callback.  The callback is supposed to
+-- be low latency which means no allocation, but haskell has plenty of
+-- allocation.  On the other hand, it hasn't been a problem in practice and
+-- a separate thread monitoring a ringbuffer would just add more latency.
+chan_callback :: Interface.ReadChan -> ReadCallback
 chan_callback chan sourcep ctimestamp len bytesp = do
     -- Oddly enough, even though ByteString is Word8, the ptr packing function
     -- wants CChar.
@@ -65,58 +71,106 @@ chan_callback chan sourcep ctimestamp len bytesp = do
             rdev (decode_time ctimestamp) (Parse.decode bytes)
     STM.atomically $ STM.writeTChan chan rmsg
 
-get_devices :: IO (ReadMap, WriteMap)
-get_devices = do
-    (rdev_ids, rdev_ns) <- get_devs c_get_read_devices
-    (wdev_ids, wdev_ns) <- get_devs c_get_write_devices
-    let rdevs = zip (map Midi.ReadDevice rdev_ns) (map ReadDeviceId rdev_ids)
-        wdevs = zip (map Midi.WriteDevice wdev_ns) (map WriteDeviceId wdev_ids)
-    return (Map.fromList rdevs, Map.fromList wdevs)
-    where
-    get_devs c_read = alloca $ \lenp -> alloca $ \idsp -> alloca $ \namesp -> do
-        check_ =<< c_read lenp idsp namesp
-        len <- fmap fromIntegral (peek lenp)
-        id_array <- peek idsp
-        ids <- peekArray len id_array
-        free id_array
-        name_array <- peek namesp
-        cnames <- peekArray len name_array
-        names <- mapM peekCString cnames
-        mapM_ free cnames
-        free name_array
-        return (ids, names)
+data Client = Client {
+    -- TODO probably only needs to be ReadDevice Bool, or maybe even a Set
+    -- wait until the plugin callback is implemented
+    client_reads :: IORef.IORef (Map.Map Midi.ReadDevice (Maybe DeviceId))
+    , client_writes :: IORef.IORef (Map.Map Midi.WriteDevice (Maybe DeviceId))
+    }
 
-foreign import ccall "core_midi_get_read_devices"
-    c_get_read_devices :: Ptr CInt -> Ptr (Ptr CInt) -> Ptr (Ptr CString)
-        -> IO CError
-foreign import ccall "core_midi_get_write_devices"
-    c_get_write_devices :: Ptr CInt -> Ptr (Ptr CInt) -> Ptr (Ptr CString)
-        -> IO CError
+make_client :: IO Client
+make_client = Client <$> IORef.newIORef Map.empty <*> IORef.newIORef Map.empty
 
-connect_read_device :: Midi.ReadDevice -> ReadDeviceId -> IO ()
-connect_read_device rdev rdev_id = do
-    sourcep <- newStablePtr rdev
-    check_ =<< c_connect_read_device rdev_id (castStablePtrToPtr sourcep)
+type DeviceId = CInt
+
+-- * devices
+
+connect_read_device :: Client -> Midi.ReadDevice -> IO Bool
+connect_read_device client dev = do
+    maybe_dev_id <- lookup_device_id True (Midi.un_read_device dev)
+    case maybe_dev_id of
+        Nothing -> do
+            -- This means I want the device if it ever gets plugged in.
+            IORef.modifyIORef (client_reads client) (Map.insert dev Nothing)
+            return False
+        Just dev_id -> do
+            -- CoreMIDI lets you attach an arbitrary pointer to each
+            -- connection to identify msgs coming in on that connection.  So
+            -- I can use a stable ptr to the ReadDevice and have the read
+            -- callback directly get a ReadDevice without having to look
+            -- anything up.
+            sourcep <- newStablePtr dev
+            check =<< c_connect_read_device dev_id (castStablePtrToPtr sourcep)
+            IORef.modifyIORef (client_reads client)
+                (Map.insert dev (Just dev_id))
+            return True
 
 foreign import ccall "core_midi_connect_read_device"
-    c_connect_read_device :: ReadDeviceId -> Ptr () -> IO CError
+    c_connect_read_device :: CInt -> Ptr () -> IO CError
+
+connect_write_device :: Client -> Midi.WriteDevice -> IO Bool
+connect_write_device client dev = do
+    -- CoreMIDI doesn't have a notion of connected write devices, they are
+    -- all implicitly connected and you need only emit a msg with the
+    -- appropriate device id.
+    maybe_dev_id <- lookup_device_id False (Midi.un_write_device dev)
+    case maybe_dev_id of
+        Nothing -> do
+            IORef.modifyIORef (client_writes client) (Map.insert dev Nothing)
+            return False
+        Just dev_id -> do
+            IORef.modifyIORef (client_writes client)
+                (Map.insert dev (Just dev_id))
+            return True
+
+lookup_device_id :: Bool -> String -> IO (Maybe DeviceId)
+lookup_device_id is_read dev = alloca $ \dev_idp -> do
+    found <- withCString dev $ \devp ->
+        c_lookup_device_id (fromBool is_read) devp dev_idp
+    if found == 0 then return Nothing
+        else Just <$> peek dev_idp
+
+foreign import ccall "lookup_device_id"
+    c_lookup_device_id :: CInt -> CString -> Ptr DeviceId -> IO CInt
+
+get_devices :: Bool -> IO [String]
+get_devices is_read = alloca $ \namesp -> do
+    len <- c_get_devices (fromBool is_read) namesp
+    name_array <- peek namesp
+    cnames <- peekArray (fromIntegral len) name_array
+    names <- mapM peekCString cnames
+    mapM_ free cnames
+    free name_array
+    return names
+
+foreign import ccall "get_devices"
+    c_get_devices :: CInt -> Ptr (Ptr CString) -> IO CInt
+
+-- * write
 
 -- | RealTime will be ignored for sysex msgs.
-write_message :: WriteDeviceId -> RealTime -> Midi.Message -> IO ()
-write_message (WriteDeviceId wdev_id) ts msg = do
+write_message :: Client -> Midi.WriteMessage -> IO Bool
+write_message client (Midi.WriteMessage dev ts msg) = do
     -- I could probably avoid this copy by using unsafe unpack and then a
     -- ForeignPtr or something to keep the gc off it, but any sizable sysex
     -- will take forever to send anyway.
-    ByteString.useAsCStringLen (Parse.encode msg) $ \(bytesp, len) ->
-        check_ =<< c_write_message wdev_id
-            (encode_time ts) (fromIntegral len) (castPtr bytesp)
+    reads <- IORef.readIORef (client_writes client)
+    case Map.lookup dev reads of
+        Just (Just dev_id) -> ByteString.useAsCStringLen (Parse.encode msg) $
+            \(bytesp, len) -> do
+                check =<< c_write_message dev_id
+                    (encode_time ts) (fromIntegral len) (castPtr bytesp)
+                return True
+        _ -> return False
 
 foreign import ccall "core_midi_write_message"
     c_write_message :: CInt -> CTimestamp -> CInt -> Ptr Word8 -> IO CError
 
+-- * misc
+
 -- | Clear all pending msgs.
 abort :: IO ()
-abort = check_ =<< c_abort
+abort = check =<< c_abort
 foreign import ccall "core_midi_abort" c_abort :: IO CError
 
 -- | Get current timestamp.
@@ -124,22 +178,26 @@ now :: IO RealTime
 now = fmap decode_time c_get_now
 foreign import ccall "core_midi_get_now" c_get_now :: IO CTimestamp
 
-
--- * util
-
-newtype Error = Error String deriving (Show, Typeable.Typeable)
-instance Exception.Exception Error
-
-throw :: String -> a
-throw = Exception.throw . Error
-
-check val err
-    | err == no_error = val
-    | otherwise = throw (show err)
-check_ = check (return ())
+type CTimestamp = CULong
 
 decode_time :: CTimestamp -> RealTime
 decode_time = RealTime.milliseconds . fromIntegral
 
 encode_time :: RealTime -> CTimestamp
 encode_time = fromIntegral . max 0 . RealTime.to_milliseconds
+
+-- * errors
+
+type CError = CULong
+
+-- TODO look up actual error msgs
+error_str :: CError -> Maybe String
+error_str err
+    | err == 0 = Nothing
+    | otherwise = Just (show err)
+
+newtype Error = Error String deriving (Show, Typeable.Typeable)
+instance Exception.Exception Error
+
+check :: CError -> IO ()
+check = maybe (return ()) (Exception.throwIO . Error) . error_str
