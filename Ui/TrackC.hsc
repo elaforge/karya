@@ -7,11 +7,11 @@
     modified event map, for derivation (old trackpos -> new trackpos)
 -}
 module Ui.TrackC (with_track) where
-import Control.Monad
 import qualified Data.StorableVector.Base as StorableVector.Base
 import Foreign
 import Foreign.C
 
+import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 

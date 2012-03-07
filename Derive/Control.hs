@@ -11,7 +11,6 @@
     - method;val - Approach val with method, then jump to val.
 -}
 module Derive.Control where
-import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree

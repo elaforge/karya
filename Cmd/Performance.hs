@@ -10,9 +10,7 @@ module Cmd.Performance (SendStatus, update_performance, default_derive_wait
     , performance
 ) where
 import qualified Control.Concurrent as Concurrent
-import Control.Monad
 import qualified Control.Monad.Trans as Trans
-
 import qualified Data.Map as Map
 
 import Util.Control

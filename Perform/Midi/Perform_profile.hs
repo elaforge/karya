@@ -1,22 +1,18 @@
 module Perform.Midi.Perform_profile where
-import Control.Monad
 import qualified Data.Map as Map
 import qualified System.IO as IO
 
 import Util.Control
 import Util.Test
-
 import qualified Midi.Midi as Midi
-
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
-
+import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 

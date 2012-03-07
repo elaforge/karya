@@ -1,5 +1,4 @@
 module Cmd.Lang.LRuler where
-import Control.Monad
 import qualified Data.Map as Map
 import qualified Text.Printf as Printf
 

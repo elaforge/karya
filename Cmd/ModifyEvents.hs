@@ -1,6 +1,5 @@
 -- | Utilities to modify events in tracks.
 module Cmd.ModifyEvents where
-import Control.Monad
 import qualified Data.Maybe as Maybe
 
 import Util.Control

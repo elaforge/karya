@@ -2,7 +2,6 @@
 -}
 module Cmd.ResponderSync (Sync, sync) where
 import qualified Control.Concurrent.MVar as MVar
-import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 

@@ -3,7 +3,6 @@ import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as TVar
-import Control.Monad
 
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe

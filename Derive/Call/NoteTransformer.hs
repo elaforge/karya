@@ -1,8 +1,6 @@
 -- | Note calls that transform other note calls.  They rely on track slicing
 -- via 'Note.sub_events'.
 module Derive.Call.NoteTransformer where
-import Control.Monad
-
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args

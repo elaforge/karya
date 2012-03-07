@@ -47,7 +47,6 @@ module Cmd.Cmd (
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent as Concurrent
-import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as MonadState

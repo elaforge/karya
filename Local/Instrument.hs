@@ -4,12 +4,13 @@
 -- TODO the 'load' and 'make_dbs' calls should be automatically generated from
 -- the contents of the Local/Instrument/ dir.
 module Local.Instrument where
-import Control.Monad
 import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.Log as Log
-
+import qualified Cmd.Cmd as Cmd
+import qualified Instrument.Db as Db
+import qualified Instrument.MidiDb as MidiDb
 import qualified Local.Instrument.Drumaxx as Drumaxx
 import qualified Local.Instrument.Fm8 as Fm8
 import qualified Local.Instrument.Kontakt as Kontakt
@@ -19,10 +20,6 @@ import qualified Local.Instrument.Reaktor as Reaktor
 import qualified Local.Instrument.Tassman as Tassman
 import qualified Local.Instrument.Vl1m as Vl1m
 import qualified Local.Instrument.Z1 as Z1
-
-import qualified Cmd.Cmd as Cmd
-import qualified Instrument.Db as Db
-import qualified Instrument.MidiDb as MidiDb
 
 import qualified App.Config as Config
 

@@ -7,7 +7,6 @@ module Derive.Cache (
     , find_generator_cache
 #endif
 ) where
-import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text

@@ -6,7 +6,6 @@
     physically located in Perform.Midi.
 -}
 module Perform.Midi.Convert where
-import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader

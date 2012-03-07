@@ -4,7 +4,6 @@ module Derive.Call.Block (
     , eval_root_block, lookup_note_block
     , lookup_control_block
 ) where
-import Control.Monad
 import qualified Data.Map as Map
 
 import Util.Control

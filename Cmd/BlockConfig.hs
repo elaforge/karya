@@ -1,7 +1,6 @@
 -- | Cmds that affect global block config but don't fit into any of the
 -- more specefic modules.
 module Cmd.BlockConfig where
-import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 

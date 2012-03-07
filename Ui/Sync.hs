@@ -27,7 +27,6 @@ module Ui.Sync (
     , set_track_signals
     , set_play_position, clear_play_position
 ) where
-import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map

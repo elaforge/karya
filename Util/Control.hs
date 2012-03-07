@@ -10,8 +10,10 @@ module Util.Control (
     -- , finally
     , justm
     , fmap0
+    , module Control.Monad
 ) where
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
+import Control.Monad
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty, mconcat)
 import Util.Functor0 (fmap0)

@@ -12,7 +12,6 @@
     should be nameable.
 -}
 module Cmd.Create where
-import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set

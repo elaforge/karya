@@ -1,5 +1,4 @@
 module Ui.UiTest where
-import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 

@@ -37,7 +37,6 @@ import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
-import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Control.Monad.Writer.Lazy as Writer

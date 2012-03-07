@@ -1,7 +1,6 @@
 -- | Internal Cmds, that keep bits of Cmd.State up to date that everyone else
 -- relies on.
 module Cmd.Internal where
-import Control.Monad
 import qualified Data.Map as Map
 
 import Util.Control

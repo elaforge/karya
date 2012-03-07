@@ -3,7 +3,6 @@
 --
 -- TODO I'll probably want a more efficient signal format eventually.
 module Midi.Synth where
-import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State.Strict as State

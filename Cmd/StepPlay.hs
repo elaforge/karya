@@ -21,7 +21,6 @@ module Cmd.StepPlay (
     , selnum, make_states
 #endif
 ) where
-import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe

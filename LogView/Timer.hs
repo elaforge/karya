@@ -1,14 +1,11 @@
 module LogView.Timer where
-
 import qualified Control.Concurrent.Chan as Chan
-import Control.Monad
 import qualified Data.Time as Time
 import qualified System.Environment
 import qualified System.IO as IO
 
-import qualified Util.Thread as Thread
 import qualified Util.Log as Log
-
+import qualified Util.Thread as Thread
 import qualified LogView.Process as Process
 
 delay_threshold = 0.01

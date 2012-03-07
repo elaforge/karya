@@ -21,7 +21,6 @@
 module Ui.State (module Ui.State, Config(..), Default(..)) where
 import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
-import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as State

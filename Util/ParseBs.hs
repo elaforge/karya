@@ -9,7 +9,6 @@
     need a little modification to switch libraries.
 -}
 module Util.ParseBs where
-import Control.Monad
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Attoparsec as Attoparsec
 import qualified Data.Attoparsec.Char8 as A

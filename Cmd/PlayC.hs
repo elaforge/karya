@@ -10,7 +10,6 @@
     'start_updater' with the given args.
 -}
 module Cmd.PlayC (cmd_play_msg, start_updater) where
-import Control.Monad
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans

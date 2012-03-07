@@ -3,7 +3,6 @@
     scheme, and are not so useful when writing calls.
 -}
 module Derive.Deriver.Internal where
-import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 

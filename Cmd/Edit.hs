@@ -3,7 +3,6 @@
     commands, go in their own modules.
 -}
 module Cmd.Edit where
-import Control.Monad
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 

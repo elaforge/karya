@@ -4,7 +4,6 @@ to make it display the second state.
 This is unpleasantly complicated and subtle.  I wish I knew a better way!
 -}
 module Ui.Diff (diff, derive_diff) where
-import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer

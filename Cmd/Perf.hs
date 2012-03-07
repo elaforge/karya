@@ -4,7 +4,6 @@
     about the results of later stages.
 -}
 module Cmd.Perf where
-import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 

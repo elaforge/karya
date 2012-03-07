@@ -17,7 +17,6 @@ module Ui.Sync_test where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
-import Control.Monad
 
 import qualified Data.List as List
 import qualified Data.Map as Map

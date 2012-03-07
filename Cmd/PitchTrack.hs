@@ -4,7 +4,6 @@
     This module creates the pitches that are later parsed by Derive.Control.
 -}
 module Cmd.PitchTrack where
-import Control.Monad
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 

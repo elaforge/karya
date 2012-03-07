@@ -17,7 +17,6 @@ module Derive.ParseBs (
     , p_equal
 #endif
 ) where
-import Control.Monad
 import qualified Control.Applicative as A (many)
 import qualified Data.Attoparsec.Char8 as A
 import Data.Attoparsec ((<?>))

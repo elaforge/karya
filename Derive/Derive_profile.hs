@@ -1,5 +1,4 @@
 module Derive.Derive_profile where
-import Control.Monad
 import qualified Data.Time as Time
 import qualified System.IO as IO
 import qualified System.Mem as Mem

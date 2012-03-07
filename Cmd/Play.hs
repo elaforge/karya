@@ -77,9 +77,7 @@
 -}
 module Cmd.Play where
 import qualified Control.Concurrent.MVar as MVar
-import Control.Monad
 import qualified Control.Monad.Trans as Trans
-
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 

@@ -43,7 +43,6 @@ module Ui.BlockC (
 ) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Foreign

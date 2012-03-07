@@ -27,6 +27,7 @@ import qualified Data.Char as Char
 import qualified Text.Read as Read
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 
+
 -- | Type of a project ID.
 --
 -- It doesn't so much belong in this module, but Ui.Block etc. all use it and

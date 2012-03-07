@@ -25,7 +25,6 @@
     more specialized can go in Cmd.Lang.L* modules.
 -}
 module Cmd.Lang.Global where
-import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Text.Printf

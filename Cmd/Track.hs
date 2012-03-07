@@ -1,7 +1,5 @@
 -- | Get track-specific Cmds.
 module Cmd.Track where
-import Control.Monad
-
 import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.State as State

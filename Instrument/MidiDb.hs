@@ -2,7 +2,6 @@
 {- | The MidiDb type.  Split from Instrument.Db to avoid circular imports.
 -}
 module Instrument.MidiDb where
-import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Char as Char
 import qualified Data.Map as Map

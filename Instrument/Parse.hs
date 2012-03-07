@@ -1,7 +1,6 @@
 {- | Functions to help parse MIDI patch files.
 -}
 module Instrument.Parse where
-import Control.Monad
 import Data.Bits as Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.Maybe as Maybe
@@ -13,7 +12,7 @@ import qualified Text.ParserCombinators.Parsec as Parsec
 import Text.ParserCombinators.Parsec ((<|>), (<?>))
 import qualified Text.ParserCombinators.Parsec.Pos as Parsec.Pos
 
-import Util.Control ((<$>))
+import Util.Control hiding ((<|>))
 import qualified Util.File as File
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control

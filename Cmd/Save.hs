@@ -1,7 +1,6 @@
 {- | Functions to save and restore state to and from files.
 -}
 module Cmd.Save where
-import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified System.FilePath as FilePath

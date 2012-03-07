@@ -11,7 +11,6 @@
 -}
 module Cmd.Selection where
 import Prelude hiding (lookup)
-import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe

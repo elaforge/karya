@@ -1,7 +1,6 @@
 {-# LANGUAGE PatternGuards #-}
 module LogView.Process where
 import qualified Control.Concurrent.STM as STM
-import Control.Monad
 import qualified Control.Monad.Trans.State as State
 import qualified Control.Monad.Trans.Writer as Writer
 

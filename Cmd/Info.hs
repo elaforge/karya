@@ -4,7 +4,6 @@
 -- by built in cmds.  Since they are intended for human consumption, many
 -- of them return strings.
 module Cmd.Info where
-import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set

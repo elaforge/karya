@@ -22,7 +22,6 @@
       below the note tracks, results should be the same
 -}
 module Derive.DeriveQuickCheck where
-import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
