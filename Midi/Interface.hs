@@ -22,6 +22,10 @@ data Interface = Interface {
     -- non-existent ReadDevices because if it does get plugged in, it will
     -- be connected automatically.
     , connect_read_device :: Midi.ReadDevice -> IO Bool
+    -- | Stop receiving messages for this device.  False if it wasn't
+    -- connected.
+    , disconnect_read_device :: Midi.ReadDevice -> IO Bool
+
     -- | The same as 'connect_read_device'.
     , connect_write_device :: Midi.WriteDevice -> IO Bool
 

@@ -15,11 +15,11 @@ import qualified Data.ByteString as ByteString
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Typeable as Typeable
 
 import Foreign hiding (void)
 import Foreign.C
 
+import qualified Util.Log as Log
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.Parse as Parse
@@ -67,6 +67,7 @@ initialize app_name app = do
         , Interface.read_devices = map Midi.ReadDevice <$> get_devices True
         , Interface.write_devices = map Midi.WriteDevice <$> get_devices False
         , Interface.connect_read_device = connect_read_device client
+        , Interface.disconnect_read_device = disconnect_read_device client
         , Interface.connect_write_device = connect_write_device client
         , Interface.write_message = write_message client
         , Interface.abort = abort
@@ -91,7 +92,7 @@ foreign import ccall "wrapper"
 foreign import ccall "wrapper"
     make_notify_callback :: NotifyCallback -> IO (FunPtr NotifyCallback)
 foreign import ccall "CFRunLoopRun" c_cf_runloop_run :: IO ()
-foreign import ccall "prime_runloop" c_prime_runloop :: IO ()
+foreign import ccall "core_midi_prime_runloop" c_prime_runloop :: IO ()
 
 -- TODO this is run from the CoreMIDI callback.  The callback is supposed to
 -- be low latency which means no allocation, but haskell has plenty of
@@ -158,12 +159,27 @@ connect_read_device client dev = do
             -- callback directly get a ReadDevice without having to look
             -- anything up.
             sourcep <- newStablePtr dev
-            check =<< c_connect_read_device dev_id (castStablePtrToPtr sourcep)
+            ok <- check =<< c_connect_read_device dev_id
+                (castStablePtrToPtr sourcep)
+            if not ok then return False else do
             IORef.modifyIORef (client_reads client) (Set.insert dev)
             return True
 
 foreign import ccall "core_midi_connect_read_device"
     c_connect_read_device :: CInt -> Ptr () -> IO CError
+
+disconnect_read_device :: Client -> Midi.ReadDevice -> IO Bool
+disconnect_read_device client dev = do
+    maybe_dev_id <- lookup_device_id True (Midi.un_read_device dev)
+    wanted <- Set.member dev <$> IORef.readIORef (client_reads client)
+    IORef.modifyIORef (client_reads client) (Set.delete dev)
+    case (maybe_dev_id, wanted) of
+        (Nothing, True) -> return True
+        (Just dev_id, _) -> check =<< c_disconnect_read_device dev_id
+        _ -> return False
+
+foreign import ccall "core_midi_disconnect_read_device"
+    c_disconnect_read_device :: DeviceId -> IO CError
 
 connect_write_device :: Client -> Midi.WriteDevice -> IO Bool
 connect_write_device client dev = do
@@ -214,10 +230,8 @@ write_message client (Midi.WriteMessage dev ts msg) = do
     writes <- IORef.readIORef (client_writes client)
     case Map.lookup dev writes of
         Just (Just dev_id) -> ByteString.useAsCStringLen (Parse.encode msg) $
-            \(bytesp, len) -> do
-                check =<< c_write_message dev_id
-                    (encode_time ts) (fromIntegral len) (castPtr bytesp)
-                return True
+            \(bytesp, len) -> check =<< c_write_message dev_id
+                (encode_time ts) (fromIntegral len) (castPtr bytesp)
         _ -> return False
 
 foreign import ccall "core_midi_write_message"
@@ -227,7 +241,7 @@ foreign import ccall "core_midi_write_message"
 
 -- | Clear all pending msgs.
 abort :: IO ()
-abort = check =<< c_abort
+abort = void $ check =<< c_abort
 foreign import ccall "core_midi_abort" c_abort :: IO CError
 
 -- | Get current timestamp.
@@ -245,6 +259,17 @@ encode_time = fromIntegral . max 0 . RealTime.to_milliseconds
 
 -- * errors
 
+-- | Log any error and return False if there was one.
+--
+-- I previously threw an exception, but I feel like killing the whole app
+-- is overkill.
+check :: CError -> IO Bool
+check err = case error_str err of
+    Nothing -> return True
+    Just msg -> do
+        Log.error $ "CoreMIDI error: " ++ msg
+        return False
+
 type CError = CULong
 
 -- TODO look up actual error msgs
@@ -252,9 +277,3 @@ error_str :: CError -> Maybe String
 error_str err
     | err == 0 = Nothing
     | otherwise = Just (show err)
-
-newtype Error = Error String deriving (Show, Typeable.Typeable)
-instance Exception.Exception Error
-
-check :: CError -> IO ()
-check = maybe (return ()) (Exception.throwIO . Error) . error_str

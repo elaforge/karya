@@ -17,6 +17,7 @@ initialize _app_name app = do
         , Interface.read_devices = return []
         , Interface.write_devices = return []
         , Interface.connect_read_device = const (return False)
+        , Interface.disconnect_read_device = const (return False)
         , Interface.connect_write_device = const (return False)
         , Interface.write_message = const (return False)
         , Interface.abort = return ()

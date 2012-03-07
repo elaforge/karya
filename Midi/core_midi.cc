@@ -162,7 +162,7 @@ error:
 
 // This bit of awkwardness is documented in 'Midi.CoreMidi.initialize'.
 void
-prime_runloop()
+core_midi_prime_runloop()
 {
     CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, false);
 }
@@ -225,19 +225,33 @@ lookup_device_id(int is_read, const char *dev_name, DeviceId *dev_id_out)
 Error
 core_midi_connect_read_device(DeviceId dev, void *p)
 {
-    OSStatus err;
     MIDIObjectRef obj;
     MIDIObjectType type;
-    MIDIEndpointRef src;
 
-    err = MIDIObjectFindByUniqueID(dev, &obj, &type);
+    OSStatus err = MIDIObjectFindByUniqueID(dev, &obj, &type);
     if (err != noErr)
         return err;
-    src = (MIDIEndpointRef) obj;
-    // This is never deallocated.
+    MIDIEndpointRef src = (MIDIEndpointRef) obj;
     g_sysex_state[p] = new SysexState();
     return MIDIPortConnectSource(g_in_port, src, p);
 }
+
+Error
+core_midi_disconnect_read_device(DeviceId dev)
+{
+    MIDIObjectRef obj;
+    MIDIObjectType type;
+
+    OSStatus err = MIDIObjectFindByUniqueID(dev, &obj, &type);
+    if (err != noErr)
+        return err;
+    MIDIEndpointRef src = (MIDIEndpointRef) obj;
+    // I could delete g_sysex_state[p] here, only I'd have to make sure
+    // 'process_packet' wasn't working on it.  I'll take the simpler way out
+    // and just leak a bit.
+    return MIDIPortDisconnectSource(g_in_port, src);
+}
+
 
 
 // write messages

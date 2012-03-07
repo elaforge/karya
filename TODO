@@ -13,6 +13,9 @@ UNSORTED
     implement
   * port core midi to new midi interface
   - make sure unknown devices get warned about
+  - connect and disconnect read devices from the repl
+    add Midi.Interface to Cmd.State
+
   - A song will have a list of the WriteDevices it means to use, which should
     get hooked up, or warned about.
 
@@ -29,6 +32,11 @@ UNSORTED
     wire them appropriately.
     This doesn't work because I still need a way to give a new name to an
     inst.  That doesn't apply to e.g. fm8/* insts, though.
+
+    Or get rid of the Instrument WriteDevice entirely, say they always write
+    to the synth name.  The the StaticConfig write_device_map or the per-song
+    wdev map has to map it to the appropriate device.
+
   - rename devices -> ports?
   use jack midi
     - ReadDevice and WriteDevice should use ByteString
