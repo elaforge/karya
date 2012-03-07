@@ -16,9 +16,9 @@ initialize _app_name app = do
         { Interface.read_channel = chan
         , Interface.read_devices = return []
         , Interface.write_devices = return []
-        , Interface.connect_read_device = const False
-        , Interface.connect_write_device = const False
-        , Interface.write_message = const False
+        , Interface.connect_read_device = const (return False)
+        , Interface.connect_write_device = const (return False)
+        , Interface.write_message = const (return False)
         , Interface.abort = return ()
         , Interface.now = do
             t <- Time.getCurrentTime
