@@ -37,11 +37,15 @@ test (Right interface) = do
     let open = open_devs interface
     args <- System.Environment.getArgs
     case args of
+        ["help"] -> putStrLn usage
         [] -> do
             putStrLn "monitoring (pass arg 'help' for help)"
             (_, read_msg) <- open True rdevs Nothing
             monitor read_msg
-        ["help"] -> putStrLn usage
+        ("monitor" : mdevs@(_:_)) -> do
+            putStrLn $ "monitoring: " ++ Seq.join ", " mdevs
+            (_, read_msg) <- open True (map Midi.ReadDevice mdevs) Nothing
+            monitor read_msg
         ["thru", out_dev] -> do
             putStrLn "playing thru"
             (write_msg, read_msg) <- open True
@@ -97,6 +101,7 @@ blocking_get read_chan = STM.atomically $ fmap Just (STM.readTChan read_chan)
 usage :: String
 usage = unlines
     [ "(no arg)     monitor all inputs"
+    , "monitor <a> <b> ... monitor 'a' and 'b'"
     , "help         print this usage"
     , "thru <out>   msgs from any input are relayed to <out>"
     , "melody <out> play a melody on <out>, also relaying msgs thru"

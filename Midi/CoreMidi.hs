@@ -5,15 +5,19 @@ TODO documentation
 -}
 module Midi.CoreMidi (initialize) where
 import Control.Applicative ((<$>), (<*>))
+import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
+import Control.Monad
 
 import qualified Data.ByteString as ByteString
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Typeable as Typeable
 
-import Foreign
+import Foreign hiding (void)
 import Foreign.C
 
 import qualified Midi.Interface as Interface
@@ -29,14 +33,35 @@ import Perform.RealTime (RealTime)
 initialize :: String -> (Either String Interface.Interface -> IO a) -> IO a
 initialize app_name app = do
     chan <- STM.newTChanIO
-    Exception.bracket (make_read_callback (chan_callback chan))
-        freeHaskellFunPtr $ \cb -> withCString app_name $ \app_namep -> do
-            err <- c_initialize app_namep cb
-            client <- make_client
-            let interface = maybe (Right (mkinterface client chan)) Left
-                    (error_str err)
-            app interface `Exception.finally` terminate
+    client <- make_client
+    with_read_cb chan $ \read_cb -> with_notify_cb client $ \notify_cb ->
+        withCString app_name $ \app_namep -> do
+            err_mvar <- MVar.newEmptyMVar
+            -- This, along with 'c_prime_runloop' below, is a bit of song and
+            -- dance to get MIDI notifications to work in CoreMIDI.  It wants
+            -- to send them on the current runloop when the client is created.
+            -- But I don't use the OS X runloop, so I have to have
+            -- c_initialize enter one right after it creates the client.
+            --
+            -- However, runloops on other threads apparently don't work unless
+            -- the main runloop has been called at least once, which is what
+            -- the 'c_prime_runloop' nonsense below is about.
+            Concurrent.forkOS $ do
+                err <- c_initialize app_namep read_cb notify_cb
+                MVar.putMVar err_mvar (error_str err)
+                when (error_str err == Nothing) c_cf_runloop_run
+            err <- MVar.takeMVar err_mvar
+            case err of
+                Just err -> app (Left err)
+                Nothing -> do
+                    c_prime_runloop
+                    app (Right (mkinterface client chan))
+                        `Exception.finally` terminate
     where
+    with_read_cb chan = Exception.bracket
+        (make_read_callback (chan_callback chan)) freeHaskellFunPtr
+    with_notify_cb client = Exception.bracket
+        (make_notify_callback (notify_callback client)) freeHaskellFunPtr
     mkinterface client chan = Interface.Interface
         { Interface.read_channel = chan
         , Interface.read_devices = map Midi.ReadDevice <$> get_devices True
@@ -50,12 +75,23 @@ initialize app_name app = do
 
 type ReadCallback = SourcePtr -> CTimestamp -> CInt -> Ptr Word8 -> IO ()
 type SourcePtr = StablePtr Midi.ReadDevice
+-- typedef void (*ReadCallback)(void *p, Timestamp timestamp, int len,
+--     const unsigned char *bytes);
+
+type NotifyCallback = CString -> DeviceId -> CInt -> CInt -> IO ()
+-- typedef void (*NotifyCallback)(const char *name, DeviceId dev_id,
+--     int is_added, int is_read);
 
 foreign import ccall "core_midi_terminate" terminate :: IO ()
 foreign import ccall "core_midi_initialize"
-    c_initialize :: CString -> FunPtr ReadCallback -> IO CError
+    c_initialize :: CString -> FunPtr ReadCallback -> FunPtr NotifyCallback
+        -> IO CError
 foreign import ccall "wrapper"
     make_read_callback :: ReadCallback -> IO (FunPtr ReadCallback)
+foreign import ccall "wrapper"
+    make_notify_callback :: NotifyCallback -> IO (FunPtr NotifyCallback)
+foreign import ccall "CFRunLoopRun" c_cf_runloop_run :: IO ()
+foreign import ccall "prime_runloop" c_prime_runloop :: IO ()
 
 -- TODO this is run from the CoreMIDI callback.  The callback is supposed to
 -- be low latency which means no allocation, but haskell has plenty of
@@ -71,15 +107,37 @@ chan_callback chan sourcep ctimestamp len bytesp = do
             rdev (decode_time ctimestamp) (Parse.decode bytes)
     STM.atomically $ STM.writeTChan chan rmsg
 
+notify_callback :: Client -> NotifyCallback
+notify_callback client namep _dev_id c_is_added c_is_read = do
+    -- I could make connect_read_device and connect_write_device that take
+    -- the dev_id directly, but that's too much work.
+    name <- peekCString namep
+    case (toBool c_is_added, toBool c_is_read) of
+        (True, True) -> do
+            let dev = Midi.ReadDevice name
+            reads <- IORef.readIORef (client_reads client)
+            when (dev `Set.member` reads) $
+                void $ connect_read_device client dev
+        (True, False) -> do
+            let dev = Midi.WriteDevice name
+            writes <- IORef.readIORef (client_writes client)
+            when (dev `Map.member` writes) $
+                void $ connect_write_device client dev
+        -- I leave removes alone.  If a source disappears, I'll just stop
+        -- getting msgs from it.  If a destination disappears, then writes
+        -- to it will fail, exactly as if it weren't connected.  CoreMIDI
+        -- doesn't let me look up the name and ID of disconnected devices
+        -- anyway.
+        _ -> return ()
+
 data Client = Client {
-    -- TODO probably only needs to be ReadDevice Bool, or maybe even a Set
-    -- wait until the plugin callback is implemented
-    client_reads :: IORef.IORef (Map.Map Midi.ReadDevice (Maybe DeviceId))
+    -- | I don't need to deal with DeviceIds for reads.
+    client_reads :: IORef.IORef (Set.Set Midi.ReadDevice)
     , client_writes :: IORef.IORef (Map.Map Midi.WriteDevice (Maybe DeviceId))
     }
 
 make_client :: IO Client
-make_client = Client <$> IORef.newIORef Map.empty <*> IORef.newIORef Map.empty
+make_client = Client <$> IORef.newIORef Set.empty <*> IORef.newIORef Map.empty
 
 type DeviceId = CInt
 
@@ -91,7 +149,7 @@ connect_read_device client dev = do
     case maybe_dev_id of
         Nothing -> do
             -- This means I want the device if it ever gets plugged in.
-            IORef.modifyIORef (client_reads client) (Map.insert dev Nothing)
+            IORef.modifyIORef (client_reads client) (Set.insert dev)
             return False
         Just dev_id -> do
             -- CoreMIDI lets you attach an arbitrary pointer to each
@@ -101,8 +159,7 @@ connect_read_device client dev = do
             -- anything up.
             sourcep <- newStablePtr dev
             check =<< c_connect_read_device dev_id (castStablePtrToPtr sourcep)
-            IORef.modifyIORef (client_reads client)
-                (Map.insert dev (Just dev_id))
+            IORef.modifyIORef (client_reads client) (Set.insert dev)
             return True
 
 foreign import ccall "core_midi_connect_read_device"
@@ -154,8 +211,8 @@ write_message client (Midi.WriteMessage dev ts msg) = do
     -- I could probably avoid this copy by using unsafe unpack and then a
     -- ForeignPtr or something to keep the gc off it, but any sizable sysex
     -- will take forever to send anyway.
-    reads <- IORef.readIORef (client_writes client)
-    case Map.lookup dev reads of
+    writes <- IORef.readIORef (client_writes client)
+    case Map.lookup dev writes of
         Just (Just dev_id) -> ByteString.useAsCStringLen (Parse.encode msg) $
             \(bytesp, len) -> do
                 check =<< c_write_message dev_id

@@ -7,7 +7,7 @@ big things
 
 UNSORTED
   * remove config_ prefix from StaticConfig
-  - implement hot plugging: snd arg to create client
+  * implement hot plugging: snd arg to create client
   - de-globalize MidiClientRef?
   * make Midi.Interface with the interface midi driver modules have to
     implement
@@ -27,6 +27,8 @@ UNSORTED
     that maps instruments to other outputs.  That way all the fm8 instruments
     go to "fm8", but if you have multiple instances for your song then you can
     wire them appropriately.
+    This doesn't work because I still need a way to give a new name to an
+    inst.  That doesn't apply to e.g. fm8/* insts, though.
   - rename devices -> ports?
   use jack midi
     - ReadDevice and WriteDevice should use ByteString

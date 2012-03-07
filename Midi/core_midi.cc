@@ -7,6 +7,8 @@
 #include <CoreMIDI/MIDIServices.h>
 #include "core_midi.h"
 
+#include "fltk/util.h"
+
 
 // Provide C functions for the FFI.
 extern "C" {
@@ -86,15 +88,63 @@ read_proc(const MIDIPacketList *packets, void *_read_proc_p, void *src_con_p)
     }
 }
 
+static const char *
+get_name(MIDIEndpointRef dev)
+{
+    CFStringRef pname;
+    char name[64];
+    MIDIObjectGetStringProperty(dev, kMIDIPropertyDisplayName, &pname);
+    if (!pname)
+        return strdup("");
+    CFStringGetCString(pname, name, sizeof name, 0);
+    CFRelease(pname);
+    return strdup(name);
+}
+
+// Called when a new device is pluggd in or unplugged.
+static void
+midi_notification(const MIDINotification *note, void *ref)
+{
+    NotifyCallback notify = (NotifyCallback) ref;
+    int is_added;
+    if (note->messageID == kMIDIMsgObjectAdded)
+        is_added = 1;
+    else if (note->messageID == kMIDIMsgObjectRemoved)
+        is_added = 0;
+    else
+        return;
+
+    MIDIObjectAddRemoveNotification *msg =
+        (MIDIObjectAddRemoveNotification *) note;
+    int is_read;
+    if (msg->childType == kMIDIObjectType_Source)
+        is_read = 1;
+    else if (msg->childType == kMIDIObjectType_Destination)
+        is_read = 0;
+    else
+        return;
+
+    // name and dev_id is always "" and 0 for a remove, how then am I supposed
+    // to know what was removed?
+    MIDIEndpointRef dev = (MIDIEndpointRef) msg->child;
+    const char *name = get_name(dev);
+    DeviceId dev_id;
+    MIDIObjectGetIntegerProperty(dev, kMIDIPropertyUniqueID, &dev_id);
+    notify(name, dev_id, is_added, is_read);
+    free((void *) name);
+}
+
 Error
-core_midi_initialize(const char *name, ReadCallback cb)
+core_midi_initialize(const char *name, ReadCallback read_cb,
+    NotifyCallback notify_cb)
 {
     OSStatus err;
 
-    g_read_callback = cb;
+    g_read_callback = read_cb;
     CFStringRef cfname = CFStringCreateWithCString(
         NULL, name, kCFStringEncodingUTF8);
-    err = MIDIClientCreate(cfname, NULL, NULL, &g_client);
+    err = MIDIClientCreate(
+        cfname, midi_notification, (void *) notify_cb, &g_client);
     if (err != noErr) goto error;
     err = MIDIInputPortCreate(g_client, CFSTR("input port"), read_proc, NULL,
             &g_in_port);
@@ -103,10 +153,18 @@ core_midi_initialize(const char *name, ReadCallback cb)
     if (err != noErr) goto error;
     err = MIDIOutputPortCreate(g_client, CFSTR("thru port"), &g_thru_port);
     if (err != noErr) goto error;
+
     return noErr;
 error:
     core_midi_terminate();
     return err;
+}
+
+// This bit of awkwardness is documented in 'Midi.CoreMidi.initialize'.
+void
+prime_runloop()
+{
+    CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, false);
 }
 
 void
@@ -126,22 +184,16 @@ core_midi_terminate()
 // lookup devices
 
 int
-get_devices(int is_read, char ***names_out)
+get_devices(int is_read, const char ***names_out)
 {
     *names_out = NULL;
     int devs = is_read
         ? MIDIGetNumberOfSources() : MIDIGetNumberOfDestinations();
-    char **names = (char **) calloc(devs, sizeof(char *));
+    const char **names = (const char **) calloc(devs, sizeof(char *));
     for (int i = 0; i < devs; i++) {
         MIDIEndpointRef dev = is_read
             ? MIDIGetSource(i) : MIDIGetDestination(i);
-
-        CFStringRef pname;
-        char name[64];
-        MIDIObjectGetStringProperty(dev, kMIDIPropertyDisplayName, &pname);
-        CFStringGetCString(pname, name, sizeof name, 0);
-        CFRelease(pname);
-        names[i] = strdup(name);
+        names[i] = get_name(dev);
     }
     *names_out = names;
     return devs;
@@ -155,17 +207,14 @@ lookup_device_id(int is_read, const char *dev_name, DeviceId *dev_id_out)
     for (int i = 0; i < devs; i++) {
         MIDIEndpointRef dev = is_read
             ? MIDIGetSource(i) : MIDIGetDestination(i);
-
-        CFStringRef pname;
-        char name[64];
-        MIDIObjectGetStringProperty(dev, kMIDIPropertyDisplayName, &pname);
-        CFStringGetCString(pname, name, sizeof name, 0);
-        CFRelease(pname);
+        const char *name = get_name(dev);
         if (strcmp(name, dev_name) == 0) {
+            free((void *) name);
             MIDIObjectGetIntegerProperty(dev, kMIDIPropertyUniqueID,
                 dev_id_out);
             return true;
         }
+        free((void *) name);
     }
     return false;
 }
