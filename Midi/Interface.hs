@@ -10,9 +10,11 @@ type ReadChan = TChan.TChan Midi.ReadMessage
 
 -- | Produced by an @initialize@ function.
 data Interface = Interface {
+    -- | Name of the MIDI driver.  Just for debugging.
+    name :: String
     -- | ReadMessages from the opened ReadDevices become available on this
     -- channel.
-    read_channel :: ReadChan
+    , read_channel :: ReadChan
     -- | Get currently connected read and write devices.
     , read_devices :: IO [Midi.ReadDevice]
     , write_devices :: IO [Midi.WriteDevice]
@@ -43,4 +45,4 @@ data Interface = Interface {
     }
 
 instance Show Interface where
-    show _ = "((MidiInterface))"
+    show interface = "((MidiInterface " ++ name interface ++ "))"

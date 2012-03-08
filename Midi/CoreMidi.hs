@@ -63,7 +63,8 @@ initialize app_name app = do
     with_notify_cb client = Exception.bracket
         (make_notify_callback (notify_callback client)) freeHaskellFunPtr
     mkinterface client chan = Interface.Interface
-        { Interface.read_channel = chan
+        { Interface.name = "CoreMIDI"
+        , Interface.read_channel = chan
         , Interface.read_devices = map Midi.ReadDevice <$> get_devices True
         , Interface.write_devices = map Midi.WriteDevice <$> get_devices False
         , Interface.connect_read_device = connect_read_device client

@@ -14,7 +14,8 @@ interface :: IO Interface.Interface
 interface = do
     chan <- STM.newTChanIO
     return $ Interface.Interface
-        { Interface.read_channel = chan
+        { Interface.name = "Stub"
+        , Interface.read_channel = chan
         , Interface.read_devices = return []
         , Interface.write_devices = return []
         , Interface.connect_read_device = const (return False)
