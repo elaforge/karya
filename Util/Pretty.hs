@@ -59,13 +59,10 @@ instance (Pretty a) => Pretty (Set.Set a) where
 instance (Pretty a, Pretty b) => Pretty (a, b) where
     pretty (a, b) = "(" ++ pretty a ++ ", " ++ pretty b ++ ")"
 
--- instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
-instance (Show k, Show v) => Pretty (Map.Map k v) where
-    pretty m = "{\n"
-        ++ (indent_lines . Seq.join "\n" . map ent . Map.assocs) m
-        ++ "\n}"
-        where ent (k, v) = show k ++ ": " ++ show v
-
-indent_lines :: String -> String
-indent_lines = List.unlines . map (indent++) . List.lines
-    where indent = "  "
+instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
+    pretty m
+        | Map.size m < 4 = "{" ++ Seq.join ", " (map ent (Map.assocs m)) ++ "}"
+        | otherwise = "{\n"
+            ++ (Seq.join "\n" . map ("  "++) . map ent . Map.assocs) m
+            ++ "\n}"
+        where ent (k, v) = pretty k ++ ": " ++ pretty v
