@@ -11,7 +11,7 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "dmx" (Just "dmx") (-24, 24) [])
+    (MidiInst.softsynth "dmx" (-24, 24) [])
         { MidiInst.modify_patch =
             Instrument.set_flag Instrument.Triggered . Instrument.set_keymap
                 [(Drums.note_attrs n, key) | (n, key) <- notes]

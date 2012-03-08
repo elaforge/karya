@@ -261,8 +261,7 @@ default_midi_config inst_names =
     Instrument.Config (Map.fromList (zip insts addrs))
     where
     insts = map Score.Instrument inst_names
-    addrs = [[(Midi.WriteDevice default_wdev, chan)] | chan <- [0..]]
-default_wdev = "test"
+    addrs = [[(Midi.WriteDevice "synth", chan)] | chan <- [0..]]
 
 make_lookup :: [String] -> MidiDb.LookupMidiInstrument
 make_lookup inst_names _attrs (Score.Instrument inst) =
@@ -271,7 +270,7 @@ make_lookup inst_names _attrs (Score.Instrument inst) =
 
 make_inst name = default_perf_inst { Instrument.inst_name = name }
 default_perf_inst = Instrument.instrument "i0" [] (-2, 2)
-default_synth = Instrument.set_device "test" $ Instrument.synth "synth" []
+default_synth = Instrument.synth "synth" []
 
 
 -- * msg
@@ -311,7 +310,8 @@ drag btn track pos = Msg.Ui $ UiMsg.UiMsg context $
 
 make_midi :: Midi.ChannelMessage -> Msg.Msg
 make_midi chan_msg = Msg.Midi $
-    Midi.ReadMessage (Midi.ReadDevice "test") 0 (Midi.ChannelMessage 0 chan_msg)
+    Midi.ReadMessage (Midi.ReadDevice "test") 0
+        (Midi.ChannelMessage 0 chan_msg)
 
 note_on note_id nn vel =
     InputNote.NoteOn (nid note_id) (Pitch.InputKey nn) (vel / 127)

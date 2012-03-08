@@ -4,5 +4,4 @@ import qualified App.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return $ MidiInst.make $
-    MidiInst.softsynth "reak" (Just "loop1") (-36, 36) []
+load _dir = return $ MidiInst.make $ MidiInst.softsynth "reak" (-36, 36) []

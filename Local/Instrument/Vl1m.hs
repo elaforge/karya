@@ -35,7 +35,7 @@ make_db dir = do
     MidiInst.save_patches synth patches db_name dir
 
 synth :: Instrument.Synth
-synth = Instrument.set_device "vl1" $ Instrument.synth "vl1" []
+synth = Instrument.synth "vl1" []
 
 parse_dir :: FilePath -> IO [Instrument.Patch]
 parse_dir dir = do

@@ -5,7 +5,7 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    MidiInst.softsynth "fm8" (Just "fm8") (-96, 96) controls
+    MidiInst.softsynth "fm8" (-96, 96) controls
 
 controls =
     [ (4, "fm8-control-1"), (11, "fm8-control-2")

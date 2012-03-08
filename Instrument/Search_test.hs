@@ -29,7 +29,7 @@ midi_db = fst $ MidiDb.midi_db
     [(t_synth, t_patches), (t_synth2, t_patches2)]
 t_all_insts = map Score.inst_name (Map.keys (Search.idx_inverted index))
 
-t_synth = Instrument.set_device "z1 dev" $ Instrument.synth "z1" [(13, "pe 1")]
+t_synth = Instrument.synth "z1" [(13, "pe 1")]
 t_patches = fst $ MidiDb.patch_map $ map mkpatch
     [ ("Mr. Delgado", "Synth-Lead", [(14, "delgado")])
     , ("Studio E.P.", "E.Piano", [])
@@ -40,7 +40,7 @@ t_patches = fst $ MidiDb.patch_map $ map mkpatch
     , ("Pulse Clav", "Keyboard", [])
     ]
 
-t_synth2 = Instrument.set_device "fm8 dev" $ Instrument.synth "fm8" []
+t_synth2 = Instrument.synth "fm8" []
 t_patches2 = MidiDb.wildcard_patch_map (mkpatch ("none", "fm", []))
 
 mkpatch (name, cat, conts) = (patch, Cmd.empty_code)

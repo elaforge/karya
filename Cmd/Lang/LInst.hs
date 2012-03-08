@@ -18,7 +18,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
-import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import Types
@@ -115,9 +114,7 @@ initialize inst chan = do
     info <- Cmd.require_msg ("inst not found: " ++ show inst)
         =<< Cmd.lookup_instrument_info inst
     let init = Instrument.patch_initialize (MidiDb.info_patch info)
-    dev <- Cmd.require_msg
-        ("can't init instrument with no default device: " ++ show inst)
-        (Instrument.synth_device (MidiDb.info_synth info))
+    let dev = Instrument.synth_device (MidiDb.info_synth info)
     send_initialization init inst dev chan
 
 send_initialization :: Instrument.InitializePatch
@@ -175,9 +172,7 @@ auto_config block_id = do
 device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do
     maybe_info <- Cmd.lookup_instrument_info inst
-    return $ do
-        info <- maybe_info
-        Instrument.synth_device (MidiDb.info_synth info)
+    return $ Instrument.synth_device . MidiDb.info_synth <$> maybe_info
 
 
 -- * midi interface

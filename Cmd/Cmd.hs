@@ -247,9 +247,11 @@ data State = State {
     -- | Reroute MIDI inputs and outputs.  These come from
     -- 'App.StaticConfig.read_device_map' and
     -- 'App.StaticConfig.write_device_map' and probably shouldn't be changed
-    -- at runtime.  WriteDevices can be piece-specific, though, so another
-    -- map is kept in 'State.State', which may override the one here.
+    -- at runtime.
     , state_rdev_map :: !(Map.Map Midi.ReadDevice Midi.ReadDevice)
+
+    -- | WriteDevices can be score-specific, though, so another map is kept in
+    -- 'State.State', which may override the one here.
     , state_wdev_map :: !(Map.Map Midi.WriteDevice Midi.WriteDevice)
 
     , state_instrument_db :: !InstrumentDb

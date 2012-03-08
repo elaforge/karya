@@ -119,16 +119,16 @@ mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
 write_device_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
 write_device_map = mkmap Midi.WriteDevice
+    -- Of course the port these wind up on depends on the score configuration.
+    -- TODO maybe I should automatically create mappings for all loaded
+    -- synths?
     [ ("fm8", iac 1)
     , ("ptq", iac 1)
+    , ("kkt", iac 1)
+    , ("morph", iac 1)
+    , ("reak", iac 1)
+    , ("tass", iac 1)
 
-    -- Generic names for loopback ports.  Since it looks like so many
-    -- softsynths will just sit on a loopback, I might as well assign that
-    -- explicitly.
-    , ("loop1", iac 1)
-    , ("loop2", iac 2)
-    , ("loop3", iac 3)
-    , ("loop4", iac 4)
     , ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morpheus", tapco 2)
@@ -307,7 +307,7 @@ load_mod fn = do
             blocks
     LoadMod.create (head (Seq.split "." fn))
         (LoadMod.convert_blocks 0.25 blocks2)
-    State.set_midi_config $ make_midi_config "loop1" [("ptq/c1", [0..8])]
+    State.set_midi_config $ make_midi_config "ptq" [("ptq/c1", [0..8])]
     return Cmd.Done
 
 setup_normal :: (Cmd.M m) => m Cmd.Status

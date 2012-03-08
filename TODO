@@ -18,27 +18,7 @@ UNSORTED
     add Midi.Interface to Cmd.State
   - Interface.driver :: String just for the Show instance?
 
-  - A song will have a list of the WriteDevices it means to use, which should
-    get hooked up, or warned about.
-
-    When something new is plugged in, if it's in the WriteDevice list, it
-    should be automatically hooked up.  Otherwise, you can query devices from
-    the cmdline.
-
-    ReadDevices are the same, only maybe configured in the StaticConfig, not
-    per-song.
-
-    Instruments have hardcoded WriteDevices, and each song also has a WriteMap
-    that maps instruments to other outputs.  That way all the fm8 instruments
-    go to "fm8", but if you have multiple instances for your song then you can
-    wire them appropriately.
-    This doesn't work because I still need a way to give a new name to an
-    inst.  That doesn't apply to e.g. fm8/* insts, though.
-
-    Or get rid of the Instrument WriteDevice entirely, say they always write
-    to the synth name.  The the StaticConfig write_device_map or the per-song
-    wdev map has to map it to the appropriate device.
-
+  - add wdev map to Ui.State
   - rename devices -> ports?
   use jack midi
     - ReadDevice and WriteDevice should use ByteString

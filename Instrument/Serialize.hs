@@ -68,9 +68,8 @@ instance Serialize Search.Index where
     get = get >>= \a -> get >>= \b -> return (Search.Index a b)
 
 instance Serialize Instrument.Synth where
-    put (Instrument.Synth a b c) = put a >> put b >> put c
-    get = get >>= \a -> get >>= \b -> get >>= \c ->
-        return (Instrument.Synth a b c)
+    put (Instrument.Synth a b) = put a >> put b
+    get = get >>= \a -> get >>= \b -> return (Instrument.Synth a b)
 
 instance Serialize Control.Control where
     put (Control.Control a) = put a

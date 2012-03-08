@@ -167,7 +167,7 @@ patch = Instrument.set_keymap [(Attrs.snare, 42)] $
     Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))
 (midi_db, _) = MidiDb.midi_db sdescs
     where
-    sdescs = MidiInst.make $ (MidiInst.softsynth "s" (Just "wdev") (-2, 2) [])
+    sdescs = MidiInst.make $ (MidiInst.softsynth "s" (-2, 2) [])
         { MidiInst.extra_patches = [(patch, code)] }
     code = MidiInst.empty_code
         { MidiInst.note_calls = [Derive.make_lookup calls] }

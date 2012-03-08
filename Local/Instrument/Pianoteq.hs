@@ -5,7 +5,7 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    MidiInst.softsynth "ptq" (Just "ptq") (-24, 24) controls
+    MidiInst.softsynth "ptq" (-24, 24) controls
 
 controls =
     [ (64, "sustain-pedal") -- TODO should be a general control

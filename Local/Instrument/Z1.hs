@@ -13,6 +13,7 @@ import qualified Instrument.Parse as Parse
 import qualified App.MidiInst as MidiInst
 
 
+db_name :: FilePath
 db_name = "z1"
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
@@ -26,7 +27,7 @@ make_db dir = do
     MidiInst.save_patches synth patches db_name dir
 
 synth :: Instrument.Synth
-synth = Instrument.set_device "z1" $ Instrument.synth "z1" synth_controls
+synth = Instrument.synth "z1" synth_controls
 
 synth_controls =
     [

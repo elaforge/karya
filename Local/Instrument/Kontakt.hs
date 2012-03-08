@@ -21,7 +21,7 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "kkt" (Just "loop1") (-12, 12) [])
+    (MidiInst.softsynth "kkt" (-12, 12) [])
         { MidiInst.extra_patches = patches }
 
 patches = MidiInst.with_code hang_code

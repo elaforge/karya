@@ -464,7 +464,7 @@ mkscale name notes = Scale.Scale
 make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
 make_midi_config config = Instrument.config
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
-    where mkaddr chan = (Midi.WriteDevice "wdev", chan)
+    where mkaddr chan = (Midi.WriteDevice "s", chan)
 
 default_convert_lookup :: Convert.Lookup
 default_convert_lookup = Convert.Lookup
@@ -490,7 +490,7 @@ default_db = make_db default_patches
 make_db :: [Instrument.Patch] -> Cmd.InstrumentDb
 make_db patches = Instrument.Db.db midi_db
     where
-    sdescs = MidiInst.make $ (MidiInst.softsynth "s" (Just "wdev") (-2, 2) [])
+    sdescs = MidiInst.make $ (MidiInst.softsynth "s" (-2, 2) [])
         { MidiInst.extra_patches =
             map (\p -> (p, MidiInst.empty_code)) patches }
     midi_db = fst $ MidiDb.midi_db sdescs

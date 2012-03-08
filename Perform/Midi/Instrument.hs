@@ -269,27 +269,25 @@ tag = (,)
 type TagKey = String
 type TagVal = String
 
--- | A Synth defines common features for a set of instruments, like device and
--- controls.  Synths form a global flat namespace and must be unique.  They
--- have abbreviated names because they prefix the instrument name, which has
--- to be written in the score.
+-- | A Synth defines common features for a set of instruments.  Synths form
+-- a global flat namespace and must be unique.  They have abbreviated names
+-- because they prefix the instrument name, which has to be written in the
+-- score.
 data Synth = Synth {
     -- | Uniquely defines the synth.
     synth_name :: SynthName
-    -- | Instruments are allocated to 'Addr's in the 'Config', but since synth
-    -- device associations are sometimes static (especially for hardware
-    -- synths), it can be useful to have a hardcoded default.
-    , synth_device :: Maybe Midi.WriteDevice
     -- | Often synths have a set of common controls in addition to the
     -- global midi defaults.
     , synth_control_map :: Control.ControlMap
     } deriving (Eq, Show)
 
 synth :: SynthName -> [(Midi.Control, String)] -> Synth
-synth name controls = Synth name Nothing (Control.control_map controls)
+synth name controls = Synth name (Control.control_map controls)
 
-set_device :: String -> Synth -> Synth
-set_device dev synth = synth { synth_device = Just (Midi.WriteDevice dev) }
+-- | Synths default to writing to a device with their name.  You'll have to
+-- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
+synth_device :: Synth -> Midi.WriteDevice
+synth_device = Midi.WriteDevice . synth_name
 
 type SynthName = String
 type InstrumentName = String
@@ -314,10 +312,9 @@ add_tag tag patch = patch { patch_tags = tag : patch_tags patch }
 
 -- | Constructor for a softsynth with a single wildcard patch.  Used by
 -- 'Instrument.MidiDb.softsynth'.
-make_softsynth :: SynthName -> Maybe String -> Control.PbRange
-    -> [(Midi.Control, String)] -> (Synth, Patch)
-make_softsynth name device pb_range controls = (synth, template_patch)
+make_softsynth :: SynthName -> Control.PbRange -> [(Midi.Control, String)]
+    -> (Synth, Patch)
+make_softsynth name pb_range controls = (synth, template_patch)
     where
-    synth = Synth name (fmap Midi.WriteDevice device)
-        (Control.control_map controls)
+    synth = Synth name (Control.control_map controls)
     template_patch = patch (wildcard_instrument pb_range)

@@ -29,7 +29,6 @@ import qualified App.Config as Config
 -- parameters.
 data Softsynth = Softsynth {
     name :: Instrument.SynthName
-    , device :: Maybe String
     , pb_range :: Control.PbRange
     , controls :: [(Midi.Control, String)]
     , extra_patches :: [(Instrument.Patch, Code)]
@@ -41,10 +40,10 @@ data Softsynth = Softsynth {
 -- their own internal patch management, and thus have only a single wildcard
 -- patch, which can be modified if necessary by a passed in function.  In case
 -- some patches are special, you can also pass named patches in to be merged.
-softsynth :: Instrument.SynthName -> Maybe String -> Control.PbRange
+softsynth :: Instrument.SynthName -> Control.PbRange
     -> [(Midi.Control, String)] -> Softsynth
-softsynth name device pb_range controls =
-    Softsynth name device pb_range controls [] id empty_code
+softsynth name pb_range controls =
+    Softsynth name pb_range controls [] id empty_code
 
 -- | A version of 'Cmd.InstrumentCode' that's more convenient for record update
 -- syntax.
@@ -64,12 +63,12 @@ with_empty_code :: [Instrument.Patch] -> [(Instrument.Patch, Code)]
 with_empty_code = with_code empty_code
 
 make :: Softsynth -> [SynthDesc]
-make (Softsynth name device pb_range controls extra_patches modify_patch code)
+make (Softsynth name pb_range controls extra_patches modify_patch code)
     = [(synth, pmap <> extra)]
     where
     (extra, _) = MidiDb.patch_map (map (second make_code) extra_patches)
     (synth, wildcard_patch) =
-        Instrument.make_softsynth name device pb_range controls
+        Instrument.make_softsynth name pb_range controls
     pmap = MidiDb.wildcard_patch_map
         (modify_patch wildcard_patch, make_code code)
 
