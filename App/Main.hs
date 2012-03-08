@@ -88,6 +88,9 @@ load_static_config :: IO StaticConfig.StaticConfig
 load_static_config = do
     app_dir <- Config.get_app_dir
     instrument_db <- Local.Instrument.load app_dir
+    -- Give all the softsynths a default mapping so they're easy to play with.
+    let synth_wdevs = mkmap Midi.WriteDevice
+            [(dev, iac 1) | dev <- Db.synths instrument_db]
     return $ StaticConfig.StaticConfig {
         StaticConfig.instrument_db = instrument_db
         , StaticConfig.local_lang_dirs = [app_dir </> Config.lang_dir]
@@ -95,7 +98,7 @@ load_static_config = do
         , StaticConfig.global_scope = Call.All.scope
         , StaticConfig.setup_cmd = parse_args
         , StaticConfig.read_device_map = read_device_map
-        , StaticConfig.write_device_map = write_device_map
+        , StaticConfig.write_device_map = synth_wdevs <> write_device_map
         , StaticConfig.read_devices = read_devices
         }
 
@@ -119,17 +122,7 @@ mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
 write_device_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
 write_device_map = mkmap Midi.WriteDevice
-    -- Of course the port these wind up on depends on the score configuration.
-    -- TODO maybe I should automatically create mappings for all loaded
-    -- synths?
-    [ ("fm8", iac 1)
-    , ("ptq", iac 1)
-    , ("kkt", iac 1)
-    , ("morph", iac 1)
-    , ("reak", iac 1)
-    , ("tass", iac 1)
-
-    , ("z1", tapco 1)
+    [ ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morpheus", tapco 2)
     , ("pc2496", tapco 3)

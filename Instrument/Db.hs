@@ -1,12 +1,16 @@
 {- | Instrument DB, for converting Score.Instruments, which are just names, to
     the detailed instrument in whatever backend.
 
+    Technically this module is supposed to be backend-independent, while
+    MidiDb is specific to MIDI, but since there's only MIDI at the moment
+    it doesn't matter much.
+
     TODO
     - Midi instruments are probably tangled with non-midi instruments, but
     I can figure that out when I have non-midi instruments.
 -}
 module Instrument.Db where
-
+import qualified Data.Map as Map
 import qualified Derive.Score as Score
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Instrument as Instrument
@@ -48,5 +52,10 @@ db midi_db = Db {
     , db_midi_db = midi_db
     }
 
+-- | Number of entries in the db.
 size :: Db code -> Int
 size db = MidiDb.size (db_midi_db db)
+
+-- | All the synths in the db.
+synths :: Db code -> [Instrument.SynthName]
+synths  = Map.keys . MidiDb.midi_db_map . db_midi_db
