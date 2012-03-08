@@ -1,7 +1,7 @@
     HASKELL DEPS
 
 # basic deps
-transformers mtl deepseq data-ordlist cereal bytestring text stm netxwork
+transformers mtl deepseq data-ordlist cereal text stm network
 
 attoparsec # Derive: tracklang parsing
 fixed-list-0.1.5 # Derive.Call.Util: for typesafe mapping
