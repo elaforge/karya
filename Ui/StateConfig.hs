@@ -30,7 +30,7 @@ data Config = Config {
     , config_root :: !(Maybe BlockId)
 
     -- | This maps the midi instruments used in this State to their Addrs.
-    , config_midi :: Instrument.Config
+    , config_midi :: !Instrument.Config
     , config_default :: !Default
     } deriving (Eq, Read, Show, Generics.Typeable)
 

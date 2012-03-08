@@ -13,13 +13,11 @@ UNSORTED
   * make Midi.Interface with the interface midi driver modules have to
     implement
   * port core midi to new midi interface
-  - make sure unknown devices get warned about
+  * make sure unknown devices get warned about
   * connect and disconnect read devices from the repl
     add Midi.Interface to Cmd.State
   * Interface.driver :: String just for the Show instance?
-
-  - add wdev map to Ui.State
-  - rename devices -> ports?
+  * add wdev map to Ui.State
   use jack midi
     - ReadDevice and WriteDevice should use ByteString
 

@@ -81,12 +81,18 @@ data State = State {
 state_transport_info :: State -> Transport.Info
 state_transport_info state = Transport.Info
     { Transport.info_send_status = state_loopback state . Msg.Transport
-    , Transport.info_midi_writer = Cmd.state_midi_writer (state_cmd state)
+    , Transport.info_midi_writer =
+        midi_writer (state_ui state) (state_cmd state)
     , Transport.info_midi_abort = Interface.abort interface
     , Transport.info_get_current_time = Interface.now interface
     , Transport.info_state = state_updater_state state
     }
     where interface = Cmd.state_midi_interface (state_cmd state)
+
+midi_writer :: State.State -> Cmd.State -> (Midi.WriteMessage -> IO ())
+midi_writer ui_state cmd_state =
+    Cmd.state_midi_writer (State.config_midi (State.state_config ui_state))
+        cmd_state
 
 type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
@@ -373,6 +379,6 @@ run_cmd_list updates0 ui_state cmd_state runner (cmd:cmds) = do
         Right (status, ui_state, updates) ->
             return $ Right (status, ui_state, cmd_state, updates0 ++ updates)
         Left err -> return $ Left err
-    where write_midi = Cmd.state_midi_writer cmd_state
+    where write_midi = midi_writer ui_state cmd_state
 run_cmd_list updates ui_state cmd_state _ [] =
     return $ Right (Cmd.Continue, ui_state, cmd_state, updates)

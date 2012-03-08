@@ -175,6 +175,24 @@ device_of inst = do
     return $ Instrument.synth_device . MidiDb.info_synth <$> maybe_info
 
 
+-- * wdev map
+
+add_wdev :: String -> String -> Cmd.CmdL ()
+add_wdev from to = modify_wdev_map $
+    Map.insert (Midi.WriteDevice from) (Midi.WriteDevice to)
+
+remove_wdev :: String -> Cmd.CmdL ()
+remove_wdev from = modify_wdev_map $ Map.delete (Midi.WriteDevice from)
+
+modify_wdev_map :: (Map.Map Midi.WriteDevice Midi.WriteDevice ->
+        Map.Map Midi.WriteDevice Midi.WriteDevice)
+    -> Cmd.CmdL ()
+modify_wdev_map f = State.modify_config $ \config -> config
+    { State.config_midi = modify (State.config_midi config) }
+    where
+    modify midi = midi
+        { Instrument.config_wdev_map = f (Instrument.config_wdev_map midi) }
+
 -- * midi interface
 
 read_devices :: Cmd.CmdL [Midi.ReadDevice]
