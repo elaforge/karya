@@ -37,11 +37,11 @@ data StaticConfig = StaticConfig {
     --
     -- Because input devices are likely to be relatively static, the
     -- read device map is only configured here.
-    , read_device_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
+    , rdev_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
     -- | WriteDevices may vary per score, e.g. softsynths may listen at any
     -- number of virtual devices.  This map is taken as a default, but may
     -- be overridden by the score loaded.
-    , write_device_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
+    , wdev_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
 
     -- | Only the given devices are opened for reading, if present.  If you
     -- open a virtual device for both reading and writing you'll get a loop, so
@@ -59,7 +59,7 @@ empty = StaticConfig {
     , global_cmds = []
     , global_scope = Derive.empty_scope
     , setup_cmd = const (return Cmd.Done)
-    , read_device_map = Map.empty
-    , write_device_map = Map.empty
+    , rdev_map = Map.empty
+    , wdev_map = Map.empty
     , read_devices = Set.empty
     }

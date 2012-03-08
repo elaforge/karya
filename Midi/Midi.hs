@@ -54,7 +54,7 @@ instance Pretty.Pretty WriteMessage where
 -- be established between Devices and the runtime representation.
 
 newtype ReadDevice = ReadDevice String
-    deriving (Eq, Ord, Show, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read, Generics.Typeable)
 newtype WriteDevice = WriteDevice String
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 

@@ -97,8 +97,8 @@ load_static_config = do
         , StaticConfig.global_cmds = []
         , StaticConfig.global_scope = Call.All.scope
         , StaticConfig.setup_cmd = parse_args
-        , StaticConfig.read_device_map = read_device_map
-        , StaticConfig.write_device_map = synth_wdevs <> write_device_map
+        , StaticConfig.rdev_map = rdev_map
+        , StaticConfig.wdev_map = synth_wdevs <> wdev_map
         , StaticConfig.read_devices = read_devices
         }
 
@@ -120,8 +120,8 @@ iac n = "IAC Synth " ++ show n
 tapco n = "Tapco Port " ++ show n
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
-write_device_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
-write_device_map = mkmap Midi.WriteDevice
+wdev_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
+wdev_map = mkmap Midi.WriteDevice
     [ ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morpheus", tapco 2)
@@ -129,8 +129,8 @@ write_device_map = mkmap Midi.WriteDevice
     , ("capybara", tapco 4)
     ]
 
-read_device_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
-read_device_map = mkmap Midi.ReadDevice
+rdev_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
+rdev_map = mkmap Midi.ReadDevice
     [ (tapco 1, "z1")
     , (tapco 2, "vl1")
     , (tapco 3, "morpheus")
@@ -198,7 +198,7 @@ main = initialize $ \lang_socket midi_interface -> do
     loopback_chan <- STM.newTChanIO
     msg_chan <- STM.newTChanIO
     get_msg <- Responder.create_msg_reader
-        (remap_read_message (StaticConfig.read_device_map static_config))
+        (remap_read_message (StaticConfig.rdev_map static_config))
         (Interface.read_channel midi_interface) lang_socket msg_chan
         loopback_chan
 

@@ -100,8 +100,7 @@ responder config msg_reader midi_interface setup_cmd lang_session
     mapM_ Log.warn GlobalKeymap.cmd_map_errors
 
     let cmd_state = Cmd.initial_state
-            (StaticConfig.read_device_map config)
-            (StaticConfig.write_device_map config)
+            (StaticConfig.rdev_map config) (StaticConfig.wdev_map config)
             midi_interface
             (StaticConfig.instrument_db config)
             (StaticConfig.global_scope config)
