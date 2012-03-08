@@ -58,6 +58,11 @@ newtype ReadDevice = ReadDevice String
 newtype WriteDevice = WriteDevice String
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
+instance Pretty.Pretty ReadDevice where
+    pretty (ReadDevice dev) = dev
+instance Pretty.Pretty WriteDevice where
+    pretty (WriteDevice dev) = dev
+
 un_read_device (ReadDevice dev) = dev
 un_write_device (WriteDevice dev) = dev
 

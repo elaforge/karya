@@ -37,6 +37,7 @@ import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
+import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
@@ -64,9 +65,6 @@ data State = State {
     state_static_config :: StaticConfig.StaticConfig
     , state_ui :: State.State
     , state_cmd :: Cmd.State
-    , state_midi_writer :: MidiWriter
-    -- | Data needed by the performer threads.
-    , state_transport_info :: Transport.Info
     -- | State for the lang subsystem.
     , state_session :: Lang.Session
     -- | This is used to feed msgs back into the MsgReader.
@@ -74,35 +72,46 @@ data State = State {
     -- | This function takes diffs and actually applies them to the UI.  It's
     -- passed as an argument so tests can run the responder without a UI.
     , state_sync :: ResponderSync.Sync
+
+    -- | Communication channel between the updater thread and the player,
+    -- passed to 'Transport.info_state'.
+    , state_updater_state :: MVar.MVar State.State
     }
 
-type MidiWriter = Midi.WriteMessage -> IO ()
+state_transport_info :: State -> Transport.Info
+state_transport_info state = Transport.Info
+    { Transport.info_send_status = state_loopback state . Msg.Transport
+    , Transport.info_midi_writer = Cmd.state_midi_writer (state_cmd state)
+    , Transport.info_midi_abort = Interface.abort interface
+    , Transport.info_get_current_time = Interface.now interface
+    , Transport.info_state = state_updater_state state
+    }
+    where interface = Cmd.state_midi_interface (state_cmd state)
+
 type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
 
-responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
-    -> IO () -> IO RealTime -> Cmd.CmdIO
-    -> Lang.Session -> Loopback -> IO ()
-responder static_config msg_reader write_midi abort_midi get_now setup_cmd
-        lang_session loopback = do
+responder :: StaticConfig.StaticConfig -> MsgReader -> Interface.Interface
+    -> Cmd.CmdIO -> Lang.Session -> Loopback -> IO ()
+responder config msg_reader midi_interface setup_cmd lang_session
+        loopback = do
     Log.debug "start responder"
     -- Report keymap overlaps.
     mapM_ Log.warn GlobalKeymap.cmd_map_errors
 
     let cmd_state = Cmd.initial_state
-            (StaticConfig.instrument_db static_config)
-            (StaticConfig.global_scope static_config)
+            (StaticConfig.read_device_map config)
+            (StaticConfig.write_device_map config)
+            midi_interface
+            (StaticConfig.instrument_db config)
+            (StaticConfig.global_scope config)
         cmd = setup_cmd >> Edit.initialize_state >> return Cmd.Done
     updater_state <- MVar.newMVar State.empty
     (ui_state, cmd_state) <-
         run_setup_cmd loopback State.empty cmd_state updater_state cmd
-    let rstate = State static_config ui_state cmd_state write_midi
-            (Transport.Info send_status write_midi abort_midi get_now
-                updater_state)
-            lang_session loopback Sync.sync
+    let rstate = State config ui_state cmd_state lang_session loopback
+            Sync.sync updater_state
     respond_loop rstate msg_reader
-    where
-    send_status = loopback . Msg.Transport
 
 -- | A special run-and-sync that runs before the respond loop gets started.
 run_setup_cmd :: Loopback -> State.State -> Cmd.State
@@ -143,7 +152,8 @@ create_msg_reader ::
     -> IO MsgReader
 create_msg_reader remap_rmsg midi_chan lang_socket ui_chan loopback_chan = do
     lang_chan <- TChan.newTChanIO
-    Thread.start_logged "accept lang socket" (accept_loop lang_socket lang_chan)
+    Thread.start_logged "accept lang socket" $
+        accept_loop lang_socket lang_chan
     return $ STM.atomically $
         fmap Msg.Ui (TChan.readTChan ui_chan)
         `STM.orElse` fmap (Msg.Midi . remap_rmsg) (TChan.readTChan midi_chan)
@@ -296,8 +306,8 @@ run_core_cmds rstate msg exit = do
         cmd_state = state_cmd rstate
 
     -- Run ui records first so they can't get aborted by other cmds.
-    (ui_from, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
-        ui_from cmd_state [Internal.cmd_record_ui_updates]
+    (ui_from, cmd_state) <- do_run exit Cmd.run_id_io msg ui_from ui_from
+        cmd_state [Internal.cmd_record_ui_updates]
     let ui_to = ui_from
 
     -- Focus commands and the rest of the pure commands come first so text
@@ -305,7 +315,7 @@ run_core_cmds rstate msg exit = do
     let pure_cmds =
             StaticConfig.global_cmds (state_static_config rstate)
             ++ hardcoded_cmds ++ GlobalKeymap.pure_cmds
-    (ui_to, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
+    (ui_to, cmd_state) <- do_run exit Cmd.run_id_io msg ui_from
         ui_to cmd_state pure_cmds
 
     let config = state_static_config rstate
@@ -314,7 +324,7 @@ run_core_cmds rstate msg exit = do
     let io_cmds = hardcoded_io_cmds (state_transport_info rstate)
                 (state_session rstate)
                 (StaticConfig.local_lang_dirs config)
-    (ui_to, cmd_state) <- do_run exit Cmd.run_io rstate msg ui_from
+    (ui_to, cmd_state) <- do_run exit Cmd.run_io msg ui_from
         ui_to cmd_state io_cmds
     return (Right (Cmd.Continue, ui_from, ui_to), cmd_state)
 
@@ -334,13 +344,12 @@ hardcoded_io_cmds transport_info lang_session lang_dirs =
 -- | ui_from is needed since this can abort with an RType as soon as it gets
 -- a non Continue status.
 do_run :: (Monad m) => (RType -> ResponderM (State.State, Cmd.State))
-    -> Cmd.RunCmd m IO Cmd.Status
-    -> State -> Msg.Msg -> State.State -> State.State -> Cmd.State
-    -> [Msg.Msg -> Cmd.CmdT m Cmd.Status]
+    -> Cmd.RunCmd m IO Cmd.Status -> Msg.Msg -> State.State -> State.State
+    -> Cmd.State -> [Msg.Msg -> Cmd.CmdT m Cmd.Status]
     -> ResponderM (State.State, Cmd.State)
-do_run exit runner rstate msg ui_from ui_state cmd_state cmds = do
-    res <- Trans.liftIO $ run_cmd_list [] (state_midi_writer rstate) ui_state
-        cmd_state runner (map ($msg) cmds)
+do_run exit runner msg ui_from ui_state cmd_state cmds = do
+    res <- Trans.liftIO $ run_cmd_list [] ui_state cmd_state runner
+        (map ($msg) cmds)
     case res of
         Right (Cmd.Continue, ui_state, cmd_state, updates) -> do
             Trans.lift $ Logger.logs updates
@@ -350,20 +359,21 @@ do_run exit runner rstate msg ui_from ui_state cmd_state cmds = do
             exit (Right (status, ui_from, ui_state), cmd_state)
         Left err -> exit (Left err, cmd_state)
 
-run_cmd_list :: (Monad m) => [Update.CmdUpdate] -> MidiWriter -> State.State
+run_cmd_list :: (Monad m) => [Update.CmdUpdate] -> State.State
     -> Cmd.State -> Cmd.RunCmd m IO Cmd.Status -> [Cmd.CmdT m Cmd.Status]
     -> IO (Either State.StateError
         (Cmd.Status, State.State, Cmd.State, [Update.CmdUpdate]))
-run_cmd_list updates0 write_midi ui_state cmd_state runner (cmd:cmds) = do
+run_cmd_list updates0 ui_state cmd_state runner (cmd:cmds) = do
     (cmd_state, midi, logs, ui_result) <- runner ui_state cmd_state cmd
     sequence_ [write_midi (Midi.WriteMessage dev 0 msg)
         | (dev, msg) <- midi]
     mapM_ Log.write logs
     case ui_result of
         Right (Cmd.Continue, ui_state, updates) -> run_cmd_list
-            (updates0 ++ updates) write_midi ui_state cmd_state runner cmds
+            (updates0 ++ updates) ui_state cmd_state runner cmds
         Right (status, ui_state, updates) ->
             return $ Right (status, ui_state, cmd_state, updates0 ++ updates)
         Left err -> return $ Left err
-run_cmd_list updates _ ui_state cmd_state _ [] =
+    where write_midi = Cmd.state_midi_writer cmd_state
+run_cmd_list updates ui_state cmd_state _ [] =
     return $ Right (Cmd.Continue, ui_state, cmd_state, updates)

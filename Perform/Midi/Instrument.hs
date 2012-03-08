@@ -130,7 +130,7 @@ inst_decay = maybe default_decay id . inst_maybe_decay
 
 -- * config
 
--- | Per-song instrument configuration.
+-- | Per-score instrument configuration.
 data Config = Config {
     -- | An instrument may have multiple addresses assigned to it, which means
     -- that it can be multiplexed across multiple channels.  In addition,

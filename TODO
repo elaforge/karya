@@ -6,6 +6,7 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - shakefile: put compile defines (midi driver, hint) in a config.h file
   * remove config_ prefix from StaticConfig
   * implement hot plugging: snd arg to create client
   - de-globalize MidiClientRef?
@@ -13,8 +14,9 @@ UNSORTED
     implement
   * port core midi to new midi interface
   - make sure unknown devices get warned about
-  - connect and disconnect read devices from the repl
+  * connect and disconnect read devices from the repl
     add Midi.Interface to Cmd.State
+  - Interface.driver :: String just for the Show instance?
 
   - A song will have a list of the WriteDevices it means to use, which should
     get hooked up, or warned about.

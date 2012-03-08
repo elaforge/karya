@@ -31,11 +31,16 @@ data StaticConfig = StaticConfig {
     -- a focused block will abort.
     , setup_cmd :: [String] -> Cmd.CmdIO
 
-    -- | Map the hardware level read and write devices through these maps.
-    -- This centralizes midi routing configuration in one place and lets
-    -- the scattered instrument configs (some saved in the inst.db) use
-    -- symbolic names.
+    -- | Reroute the hardware level read and write devices.  This way,
+    -- instruments and saved scores can use symbolic names which are then
+    -- mapped to the devices exported by the MIDI driver.
+    --
+    -- Because input devices are likely to be relatively static, the
+    -- read device map is only configured here.
     , read_device_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
+    -- | WriteDevices may vary per score, e.g. softsynths may listen at any
+    -- number of virtual devices.  This map is taken as a default, but may
+    -- be overridden by the score loaded.
     , write_device_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
 
     -- | Only the given devices are opened for reading, if present.  If you

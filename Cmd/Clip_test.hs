@@ -43,7 +43,7 @@ extract_block block_id (val, ustate, _cstate, logs) = (val, block, logs)
 
 state_val (_, state, _) = state
 
-default_cmd_state = Cmd.empty_state
+default_cmd_state = CmdTest.empty_state
     { Cmd.state_clip_namespace = clip_ns
     , Cmd.state_focused_view = Just UiTest.default_view_id
     }

@@ -12,6 +12,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
+import qualified Midi.StubMidi as StubMidi
 import qualified Ui.Diff as Diff
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -40,6 +41,11 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
 import Types
 
+
+empty_state :: Cmd.State
+empty_state = Cmd.initial_state Map.empty Map.empty
+    (Unsafe.unsafePerformIO StubMidi.interface) Instrument.Db.empty
+    Derive.empty_scope
 
 -- * running cmds
 
@@ -156,12 +162,13 @@ thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     f (Left err) _ = Left err
 
 default_cmd_state :: Cmd.State
-default_cmd_state =
-    (Cmd.initial_state DeriveTest.default_db Call.All.scope)
-        { Cmd.state_focused_view = Just UiTest.default_view_id
-        , Cmd.state_edit = default_edit_state
-        , Cmd.state_play = default_play_state
-        }
+default_cmd_state = empty_state
+    { Cmd.state_instrument_db = DeriveTest.default_db
+    , Cmd.state_global_scope = Call.All.scope
+    , Cmd.state_focused_view = Just UiTest.default_view_id
+    , Cmd.state_edit = default_edit_state
+    , Cmd.state_play = default_play_state
+    }
 
 default_play_state :: Cmd.PlayState
 default_play_state =

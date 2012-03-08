@@ -1,15 +1,17 @@
 -- | REPL Cmds dealing with instruments and MIDI config.
 module Cmd.Lang.LInst where
 import Prelude hiding (lookup)
-import Control.Monad
+import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -22,7 +24,7 @@ import qualified Instrument.MidiDb as MidiDb
 import Types
 
 
--- * interactive
+-- * instrument config
 
 -- | Send AllNotesOff msgs to all inst addr.
 all_notes_off :: Cmd.CmdL ()
@@ -98,7 +100,7 @@ load inst_name = do
     --     ++ show (dev, chan) ++ " to " ++ show inst
 
 
--- * implementation
+-- ** implementation
 
 find_chan_for :: Midi.WriteDevice -> Cmd.CmdL Midi.Channel
 find_chan_for dev = do
@@ -177,5 +179,24 @@ device_of inst = do
         info <- maybe_info
         Instrument.synth_device (MidiDb.info_synth info)
 
-controls_of :: Score.Instrument -> [Control.Control]
-controls_of _inst = undefined -- TODO
+
+-- * midi interface
+
+read_devices :: Cmd.CmdL [Midi.ReadDevice]
+read_devices = run_interface Interface.read_devices
+
+write_devices :: Cmd.CmdL [Midi.WriteDevice]
+write_devices = run_interface Interface.write_devices
+
+connect_read_device :: Midi.ReadDevice -> Cmd.CmdL Bool
+connect_read_device rdev =
+    run_interface (flip Interface.connect_read_device rdev)
+
+disconnect_read_device :: Midi.ReadDevice -> Cmd.CmdL Bool
+disconnect_read_device rdev =
+    run_interface (flip Interface.disconnect_read_device rdev)
+
+run_interface :: (Interface.Interface -> IO a) -> Cmd.CmdL a
+run_interface op = do
+    interface <- Cmd.gets Cmd.state_midi_interface
+    Trans.liftIO (op interface)

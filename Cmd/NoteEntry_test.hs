@@ -44,7 +44,7 @@ test_cmds_with_note = do
     equal (run (with_key (ctrl_key Key.ControlL)) (f True ckey))
         (through ckey)
 
-    let st = Cmd.empty_state
+    let st = CmdTest.empty_state
     equal (run st (f True key))
         (through $ input (CmdTest.note_on 62 62 100))
     equal (run st (f True (CmdTest.key_up ',')))

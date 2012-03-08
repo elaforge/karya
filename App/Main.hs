@@ -4,8 +4,6 @@
 -- Dumadak tan wenten alangan.
 -- 希望沒有錯誤。
 module App.Main where
-
-import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
@@ -17,11 +15,10 @@ import System.FilePath ((</>))
 import qualified Network
 import qualified System.Environment
 import qualified System.IO as IO
-import qualified Text.Printf as Printf
 
+import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
@@ -194,15 +191,8 @@ main = initialize $ \lang_socket midi_interface -> do
     forM_ wdevs (Interface.connect_write_device midi_interface)
     print_devs open_read rdevs wdevs
 
-    quit_request <- MVar.newMVar ()
-
-    args <- System.Environment.getArgs
-    let write_midi = make_write_midi
-            (Interface.write_message midi_interface)
-            (StaticConfig.write_device_map static_config)
-        setup_cmd = StaticConfig.setup_cmd static_config args
-        remap_rmsg = remap_read_message
-            (StaticConfig.read_device_map static_config)
+    setup_cmd <- StaticConfig.setup_cmd static_config <$>
+        System.Environment.getArgs
 
     -- TODO Sending midi through the whole responder thing is too laggy for
     -- thru.  So give it a shortcut here, but I'll need to give a way to insert
@@ -214,7 +204,8 @@ main = initialize $ \lang_socket midi_interface -> do
 
     loopback_chan <- STM.newTChanIO
     msg_chan <- STM.newTChanIO
-    get_msg <- Responder.create_msg_reader remap_rmsg
+    get_msg <- Responder.create_msg_reader
+        (remap_read_message (StaticConfig.read_device_map static_config))
         (Interface.read_channel midi_interface) lang_socket msg_chan
         loopback_chan
 
@@ -223,6 +214,7 @@ main = initialize $ \lang_socket midi_interface -> do
     LoadConfig.styles Config.styles
 
     session <- Lang.make_session
+    quit_request <- MVar.newMVar ()
     Thread.start_logged "interpreter" $ do
         Lang.interpreter session
         `Exception.finally` Ui.quit_ui_thread quit_request
@@ -233,8 +225,7 @@ main = initialize $ \lang_socket midi_interface -> do
 
     Thread.start_logged "responder" $ do
         let loopback msg = STM.atomically (TChan.writeTChan loopback_chan msg)
-        Responder.responder static_config get_msg (write_midi True)
-            (Interface.abort midi_interface) (Interface.now midi_interface)
+        Responder.responder static_config get_msg midi_interface
             setup_cmd session loopback
         `Exception.catch` (\(exc :: Exception.SomeException) ->
             Log.error $ "responder thread died from exception: " ++ show exc)
@@ -246,10 +237,10 @@ main = initialize $ \lang_socket midi_interface -> do
             Log.error $ "ui died from exception: " ++ show exc
 
     Interface.abort midi_interface
-    all_notes_off (write_midi False) wdevs
+    all_notes_off (Interface.write_message midi_interface) wdevs
     Log.notice "app quitting"
 
-all_notes_off :: (Midi.WriteMessage -> IO ()) -> [Midi.WriteDevice] -> IO ()
+all_notes_off :: (Midi.WriteMessage -> IO a) -> [Midi.WriteDevice] -> IO ()
 all_notes_off write_midi devs = mapM_ write_midi (concat (map msgs devs))
     where
     msgs dev = map (Midi.WriteMessage dev 0) (concat (map off [0..15]))
@@ -271,19 +262,6 @@ remap_read_message :: Map.Map Midi.ReadDevice Midi.ReadDevice
     -> Midi.ReadMessage -> Midi.ReadMessage
 remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
     rmsg { Midi.rmsg_dev = Map.get dev dev dev_map }
-
-make_write_midi :: (Midi.WriteMessage -> IO Bool)
-    -> Map.Map Midi.WriteDevice Midi.WriteDevice -> Bool
-    -> Midi.WriteMessage -> IO ()
-make_write_midi write_message wdev_map noisy
-        (Midi.WriteMessage wdev ts msg) = do
-    let real_wdev = Map.get wdev wdev wdev_map
-    when noisy $
-        Printf.printf "PLAY %s->%s %s: %s\n" (Midi.un_write_device wdev)
-            (Midi.un_write_device real_wdev) (Pretty.pretty ts) (show msg)
-    let wmsg = Midi.WriteMessage real_wdev ts msg
-    ok <- write_message wmsg
-    when (not ok) $ Log.warn $ "error writing " ++ show wmsg
 
 print_devs :: Set.Set Midi.ReadDevice -> [Midi.ReadDevice]
     -> [Midi.WriteDevice] -> IO ()

@@ -13,7 +13,10 @@ import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Util.Thread as Thread
 
+import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
+import qualified Midi.StubMidi as StubMidi
+
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
@@ -25,7 +28,6 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Responder as Responder
 
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 import Types
@@ -46,9 +48,8 @@ mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.
 mk_cmd_state :: ViewId -> Cmd.State
-mk_cmd_state view_id =
-    (Cmd.initial_state DeriveTest.default_db DeriveTest.default_scope)
-        { Cmd.state_focused_view = Just view_id }
+mk_cmd_state view_id = CmdTest.default_cmd_state
+    { Cmd.state_focused_view = Just view_id }
 
 -- | It would be nicer to have this happen automatically.
 set_midi_config :: State.StateId ()
@@ -130,10 +131,10 @@ respond1 states = _respond states Nothing
 _respond :: States -> Maybe Cmd.Cmd -> Msg.Msg -> IO Result
 _respond (ustate, cstate) cmd msg = do
     update_chan <- new_chan
-    midi_chan <- new_chan
     loopback_chan <- Chan.newChan
-    let rstate = make_rstate update_chan midi_chan loopback_chan
-            ustate cstate cmd
+    (interface, midi_chan) <- make_midi_interface
+    let rstate = make_rstate update_chan loopback_chan
+            ustate (cstate { Cmd.state_midi_interface = interface }) cmd
     (_quit, rstate) <- Responder.respond rstate msg
     -- Updates and MIDI are normally forced by syncing with the UI and MIDI
     -- driver, so force explicitly here.  Not sure if this really makes
@@ -148,27 +149,28 @@ _respond (ustate, cstate) cmd msg = do
     return $ Result res updates loopback_chan
 
 make_rstate :: TVar.TVar [[Update.DisplayUpdate]]
-    -> TVar.TVar [Midi.WriteMessage] -> Chan.Chan Msg.Msg
-    -> State.State -> Cmd.State -> Maybe Cmd.Cmd
+    -> Chan.Chan Msg.Msg -> State.State -> Cmd.State -> Maybe Cmd.Cmd
     -> Responder.State
-make_rstate update_chan midi_chan loopback_chan ui_state cmd_state cmd =
-    Responder.State config ui_state cmd_state write_midi info lang_session
-        loopback dummy_sync
+make_rstate update_chan loopback_chan ui_state cmd_state cmd =
+    Responder.State config ui_state cmd_state lang_session loopback dummy_sync
+        updater_state
     where
+    updater_state = Unsafe.unsafePerformIO (MVar.newMVar State.empty)
     config = StaticConfig.empty
         { StaticConfig.global_cmds = maybe [] (:[]) cmd }
-    info = Transport.Info send_status write_midi abort_midi get_now_ts
-        (Unsafe.unsafePerformIO (MVar.newMVar State.empty))
     dummy_sync _ _ updates = do
         put_val update_chan updates
         return Nothing
     loopback = Chan.writeChan loopback_chan
     -- Tests should link with the dummy interpreter.
     lang_session = ()
-    abort_midi = return ()
-    write_midi msg = put_val midi_chan msg
-    get_now_ts = return 0
-    send_status = loopback . Msg.Transport
+
+make_midi_interface :: IO (Interface.Interface, TVar.TVar [Midi.WriteMessage])
+make_midi_interface = do
+    midi_chan <- new_chan
+    int <- StubMidi.interface
+    let write msg = put_val midi_chan msg >> return True
+    return (int { Interface.write_message = write }, midi_chan)
 
 -- Use a TVar as a kind of non-blocking channel.
 new_chan :: IO (TVar.TVar [a])

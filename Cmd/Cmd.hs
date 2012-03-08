@@ -59,11 +59,15 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
+import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
+import qualified Midi.Interface as Interface
+import qualified Midi.Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.State
+
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -239,7 +243,16 @@ ignore_abort m = catch_abort m >> return ()
 data State = State {
     -- Config type variables that change never or rarely.  These come from the
     -- static config.
-    state_instrument_db :: !InstrumentDb
+    state_midi_interface :: !Midi.Interface.Interface
+    -- | Reroute MIDI inputs and outputs.  These come from
+    -- 'App.StaticConfig.read_device_map' and
+    -- 'App.StaticConfig.write_device_map' and probably shouldn't be changed
+    -- at runtime.  WriteDevices can be piece-specific, though, so another
+    -- map is kept in 'State.State', which may override the one here.
+    , state_rdev_map :: !(Map.Map Midi.ReadDevice Midi.ReadDevice)
+    , state_wdev_map :: !(Map.Map Midi.WriteDevice Midi.WriteDevice)
+
+    , state_instrument_db :: !InstrumentDb
     -- | Global namespace for deriver.
     , state_global_scope :: !Derive.Scope
     -- | Turn ScaleIds into Scales.
@@ -279,15 +292,23 @@ data State = State {
     -- External device tracking.
     -- | MIDI state of WriteDevices.
     , state_wdev_state :: !WriteDeviceState
+
     -- | MIDI state of ReadDevices, including configuration like pitch bend
     -- range.
     , state_rdev_state :: !ReadDeviceState
     , state_edit :: !EditState
+
     } deriving (Show, Generics.Typeable)
 
-initial_state :: InstrumentDb -> Derive.Scope -> State
-initial_state inst_db global_scope = State {
-    state_instrument_db = inst_db
+initial_state :: Map.Map Midi.ReadDevice Midi.ReadDevice
+    -> Map.Map Midi.WriteDevice Midi.WriteDevice
+    -> Midi.Interface.Interface -> InstrumentDb -> Derive.Scope
+    -> State
+initial_state rdev_map wdev_map interface inst_db global_scope = State {
+    state_midi_interface = interface
+    , state_rdev_map = rdev_map
+    , state_wdev_map = wdev_map
+    , state_instrument_db = inst_db
     , state_global_scope = global_scope
     -- TODO later this should also be merged with static config
     , state_lookup_scale = LookupScale $
@@ -305,12 +326,8 @@ initial_state inst_db global_scope = State {
 
     , state_wdev_state = empty_wdev_state
     , state_rdev_state = Map.empty
-
     , state_edit = initial_edit_state
     }
-
-empty_state :: State
-empty_state = initial_state Instrument.Db.empty Derive.empty_scope
 
 -- | Reset the parts of the State which are specific to a \"session\".  This
 -- should be called whenever an entirely new state is loaded.
@@ -324,6 +341,17 @@ reinit_state cstate = cstate
     , state_focused_view = Nothing
     , state_edit = initial_edit_state
     }
+
+-- | Get a midi writer that takes the 'state_wdev_map' into account.
+state_midi_writer :: State -> (Midi.WriteMessage -> IO ())
+state_midi_writer state (Midi.WriteMessage wdev ts msg) = do
+    putStrLn $ "PLAY " ++ Pretty.pretty wdev ++ "->" ++ Pretty.pretty wmsg
+    ok <- Interface.write_message (state_midi_interface state) wmsg
+    when (not ok) $ Log.warn $ "error writing " ++ show wmsg
+    where
+    wmsg = Midi.WriteMessage real_wdev ts msg
+    -- TODO merge with UI state
+    real_wdev = Map.findWithDefault wdev wdev (state_wdev_map state)
 
 -- | This is a hack so I can use the default Show instance for 'State'.
 newtype LookupScale = LookupScale Derive.LookupScale

@@ -41,3 +41,6 @@ data Interface = Interface {
     -- | Current time according to the MIDI driver.
     , now :: IO RealTime.RealTime
     }
+
+instance Show Interface where
+    show _ = "((MidiInterface))"
