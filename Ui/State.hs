@@ -180,7 +180,8 @@ type StateStack m = State.StateT State
     (Logger.LoggerT Update.CmdUpdate
         (Error.ErrorT StateError m))
 newtype StateT m a = StateT (StateStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError StateError)
+    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError StateError,
+        Applicative.Applicative)
 run_state_t (StateT x) = x
 
 -- | Just a convenient abbreviation.
@@ -211,10 +212,6 @@ instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     put st = StateT (State.put st)
     update upd = (StateT . lift) (Logger.log upd)
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
-
-instance (Functor m, Monad m) => Applicative.Applicative (StateT m) where
-    pure = return
-    (<*>) = ap
 
 gets :: (M m) => (State -> a) -> m a
 gets f = fmap f get
