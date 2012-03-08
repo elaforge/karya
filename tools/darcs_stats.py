@@ -13,10 +13,11 @@ def main():
         if path.endswith('_test.hs'):
             by_dir = test_by_dir
         else:
-             by_dir = normal_by_dir
+            by_dir = normal_by_dir
         dir = os.path.dirname(path) or '.'
         add, subtract = by_dir.get(dir, (0, 0))
-        by_dir[dir] = (adds.get(path, 0) + add, subtracts.get(path, 0))
+        by_dir[dir] = (adds.get(path, 0) + add,
+            subtracts.get(path, 0) + subtract)
 
     longest = max(map(len, normal_by_dir.keys() + test_by_dir.keys()))
     col1 = 16
