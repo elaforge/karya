@@ -257,8 +257,8 @@ make_inst_db :: [String] -> Instrument.Db.Db code
 make_inst_db inst_names = Instrument.Db.empty
     { Instrument.Db.db_lookup_midi = make_lookup inst_names }
 
-default_midi_config inst_names =
-    Instrument.Config (Map.fromList (zip insts addrs))
+default_midi_config :: [String] -> Instrument.Config
+default_midi_config inst_names = Instrument.config (zip insts addrs)
     where
     insts = map Score.Instrument inst_names
     addrs = [[(Midi.WriteDevice "synth", chan)] | chan <- [0..]]
