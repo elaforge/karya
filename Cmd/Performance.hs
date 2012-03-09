@@ -124,7 +124,7 @@ generate_performance wait send_status block_id = do
     old_thread <- lookup_thread block_id
     when_just old_thread (Trans.liftIO . Concurrent.killThread)
     ui_state <- State.get
-    cmd_state <- Cmd.get_state
+    cmd_state <- Cmd.get
     th <- Trans.liftIO $ Thread.start $
         performance_thread ui_state cmd_state wait send_status block_id
     Cmd.modify_play_state $ \st ->

@@ -23,7 +23,7 @@ undo = do
     now <- State.get
     case Cmd.hist_past hist of
         prev : rest -> do
-            Cmd.modify_state $ \st -> st
+            Cmd.modify $ \st -> st
                 { Cmd.state_history = Cmd.history rest
                     (history_entry now (Cmd.hist_entry_updates prev)
                         : Cmd.hist_future hist)
@@ -40,7 +40,7 @@ redo = do
     now <- State.get
     case Cmd.hist_future hist of
         next : rest -> do
-            Cmd.modify_state $ \st -> st
+            Cmd.modify $ \st -> st
                 { Cmd.state_history = Cmd.history
                     (history_entry now (Cmd.hist_entry_updates next)
                         : Cmd.hist_past hist)

@@ -98,7 +98,7 @@ run local_mods ui_state cmd_state text = do
 
 -- | Create a CmdT that merges the given state into itself.
 merge_cmd_state cmd_state midi logs ui_res = do
-    Cmd.modify_state (const cmd_state)
+    Cmd.modify (const cmd_state)
     mapM_ Log.write logs
     mapM_ (uncurry Cmd.midi) midi
     case ui_res of

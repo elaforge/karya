@@ -41,7 +41,7 @@ cmd_record_keys msg = cont $ when_just (msg_to_mod msg) $ \(down, mb_mod) -> do
     -- when_just mb_mod $ \m ->
     --     Log.warn $ (if down then "keydown " else "keyup ")
     --         ++ show (strip_modifier m) ++ " in " ++ show (Map.keys mods)
-    Cmd.modify_state $ \st -> st { Cmd.state_keys_down = mods3 }
+    Cmd.modify $ \st -> st { Cmd.state_keys_down = mods3 }
     where
     cont = (>> return Cmd.Continue)
     insert mod mods = do
@@ -121,7 +121,7 @@ set_focused_view :: (Cmd.M m) => ViewId -> m ()
 set_focused_view view_id = do
     focus <- Cmd.gets Cmd.state_focused_view
     unless (focus == Just view_id) $
-        Cmd.modify_state $ \st -> st { Cmd.state_focused_view = Just view_id }
+        Cmd.modify $ \st -> st { Cmd.state_focused_view = Just view_id }
 
 -- * record ui updates
 
@@ -134,7 +134,7 @@ set_focused_view view_id = do
 cmd_record_ui_updates :: Cmd.Cmd
 cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg _
         (UiMsg.UpdateScreenSize screen screens rect))) = do
-    Cmd.modify_state $ \st -> st { Cmd.state_screens =
+    Cmd.modify $ \st -> st { Cmd.state_screens =
         set_screen screen screens rect (Cmd.state_screens st) }
     return Cmd.Done
     where

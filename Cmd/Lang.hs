@@ -64,7 +64,7 @@ cmd_language session lang_dirs msg = do
         _ -> Cmd.abort
     Log.notice $ "got lang: " ++ show text
     ui_state <- State.get
-    cmd_state <- Cmd.get_state
+    cmd_state <- Cmd.get
     local_modules <- fmap concat (mapM get_local_modules lang_dirs)
 
     cmd <- case Fast.fast_interpret text of

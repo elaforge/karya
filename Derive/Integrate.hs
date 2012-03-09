@@ -31,8 +31,7 @@ data RecordConfig {
 cmd_start_recording block_id tracknum = do
     now <- get_now_timestamp
     let rec_state = RecordState now (block_id, tracknum) []
-    Cmd.modify_state $ \st ->
-        st { Cmd.state_record = Just (rec_state, cmd_record) }
+    Cmd.modify $ \st -> st { Cmd.state_record = Just (rec_state, cmd_record) }
 
 cmd_stop_recording = do
     rec <- require_rec_state "stop recording"
@@ -43,12 +42,11 @@ cmd_stop_recording = do
 cmd_record msg = do
     rec_state <- Maybe.fromMaybe
         (Cmd.throw "record cmd active with no record state")
-        (fmap Cmd.state_record Cmd.get_state)
+        (fmap Cmd.state_record Cmd.get)
     midi_msg <- Cmd.require $ case msg of
         Msg.Midi msg -> Just msg
         _ -> Nothing
     let buf = midi_msg : rec_buffer rec_state
-    Cmd.put_state $
-        rec_state { Cmd.state_record = rec_state { rec_buffer = buf } }
+    Cmd.put $ rec_state { Cmd.state_record = rec_state { rec_buffer = buf } }
 
 -}

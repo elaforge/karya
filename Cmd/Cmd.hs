@@ -137,7 +137,7 @@ run :: (Monad m) => a -> RunCmd m m a
 run abort_val ustate cstate cmd = do
     (((ui_result, cstate2), midi), logs) <-
         (Log.run . Logger.run . flip MonadState.runStateT cstate
-            . State.run ustate . run_cmd_t)
+            . State.run ustate . (\(CmdT m) -> m))
         cmd
     -- Any kind of error rolls back state and discards midi, but not log msgs.
     -- Normally 'abort_val' will be Continue, but obviously if 'cmd' doesn't
@@ -181,12 +181,13 @@ type CmdStack m = State.StateT
             (Log.LogT m)))
 
 newtype CmdT m a = CmdT (CmdStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError State.StateError)
-run_cmd_t (CmdT x) = x
+    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError State.StateError,
+        Applicative.Applicative)
 
 class (Log.LogMonad m, State.M m) => M m where
-    get_state :: m State
-    put_state :: State -> m ()
+    -- Not in MonadState for the same reasons as 'Ui.State.M'.
+    get :: m State
+    put :: State -> m ()
     -- | Log some midi to send out immediately.  This is the midi thru
     -- mechanism.
     midi :: Midi.WriteDevice -> Midi.Message -> m ()
@@ -198,8 +199,8 @@ class (Log.LogMonad m, State.M m) => M m where
     catch_abort :: m a -> m (Maybe a)
 
 instance (Applicative.Applicative m, Monad m) => M (CmdT m) where
-    get_state = (CmdT . lift) MonadState.get
-    put_state st = (CmdT . lift) (MonadState.put st)
+    get = (CmdT . lift) MonadState.get
+    put st = (CmdT . lift) (MonadState.put st)
     midi dev msg = (CmdT . lift . lift) (Logger.log (dev, msg))
     abort = Error.throwError State.Abort
     catch_abort m = Error.catchError (fmap Just m) catch
@@ -211,20 +212,16 @@ instance (Applicative.Applicative m, Monad m) => M (CmdT m) where
 instance Trans.MonadTrans CmdT where
     lift = CmdT . lift . lift . lift . lift -- whee!!
 
--- Give CmdT unlifted access to all the logging functions.
+-- | Give CmdT unlifted access to all the logging functions.
 instance (Monad m) => Log.LogMonad (CmdT m) where
     write = CmdT . lift . lift . lift . Log.write
 
--- And to the UI state operations.
+-- | And to the UI state operations.
 instance (Functor m, Monad m) => State.M (CmdT m) where
     get = CmdT State.get
     put st = CmdT (State.put st)
     update upd = CmdT (State.update upd)
     throw msg = CmdT (State.throw msg)
-
-instance (Functor m, Monad m) => Applicative.Applicative (CmdT m) where
-    pure = return
-    (<*>) = ap
 
 type MidiThru = (Midi.WriteDevice, Midi.Message)
 
@@ -580,15 +577,15 @@ mouse_mod_btn _ = Nothing
 -- ** state access
 
 gets :: (M m) => (State -> a) -> m a
-gets f = f <$> get_state
+gets f = f <$> get
 
-modify_state :: (M m) => (State -> State) -> m ()
-modify_state f = do
-    st <- get_state
-    put_state $! f st
+modify :: (M m) => (State -> State) -> m ()
+modify f = do
+    st <- get
+    put $! f st
 
 modify_play_state :: (M m) => (PlayState -> PlayState) -> m ()
-modify_play_state f = modify_state $ \st ->
+modify_play_state f = modify $ \st ->
     st { state_play = f (state_play st) }
 
 -- | Return the rect of the screen closest to the given point.
@@ -647,7 +644,7 @@ set_global_status :: (M m) => String -> String -> m ()
 set_global_status key val = do
     status_map <- gets state_global_status
     when (Map.lookup key status_map /= Just val) $ do
-        modify_state $ \st ->
+        modify $ \st ->
             st { state_global_status = Map.insert key val status_map }
         Log.debug $ "global status: " ++ key ++ " -- " ++ val
 
@@ -670,7 +667,7 @@ get_clip_namespace :: (M m) => m Id.Namespace
 get_clip_namespace = gets state_clip_namespace
 
 set_clip_namespace :: (M m) => Id.Namespace -> m ()
-set_clip_namespace ns = modify_state $ \st -> st { state_clip_namespace = ns }
+set_clip_namespace ns = modify $ \st -> st { state_clip_namespace = ns }
 
 get_lookup_scale :: (M m) => m Derive.LookupScale
 get_lookup_scale = do
@@ -692,8 +689,8 @@ get_rdev_state rdev = do
 
 set_rdev_state :: (M m) => Midi.ReadDevice -> InputNote.ControlState -> m ()
 set_rdev_state rdev state = do
-    st <- get_state
-    put_state $ st { state_rdev_state =
+    st <- get
+    put $ st { state_rdev_state =
         Map.insert rdev state (state_rdev_state st) }
 
 set_pitch_bend_range :: (M m) => Control.PbRange -> Midi.ReadDevice -> m ()
@@ -705,8 +702,7 @@ get_wdev_state :: (M m) => m WriteDeviceState
 get_wdev_state = gets state_wdev_state
 
 set_wdev_state :: (M m) => WriteDeviceState -> m ()
-set_wdev_state wdev_state =
-    modify_state $ \st -> st { state_wdev_state = wdev_state }
+set_wdev_state wdev_state = modify $ \st -> st { state_wdev_state = wdev_state }
 
 create_block :: (M m) => Id.Id -> String -> [Block.Track] -> m BlockId
 create_block block_id title tracks = do
@@ -722,8 +718,7 @@ block_config = do
 -- *** EditState
 
 modify_edit_state :: (M m) => (EditState -> EditState) -> m ()
-modify_edit_state f =
-    modify_state $ \st -> st { state_edit = f (state_edit st) }
+modify_edit_state f = modify $ \st -> st { state_edit = f (state_edit st) }
 
 -- | At the Ui level, the edit box is per-block, but I use it to indicate edit
 -- mode, which is global.  So it gets stored in Cmd.State and must be synced

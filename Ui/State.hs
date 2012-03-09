@@ -201,7 +201,11 @@ instance Pretty.Pretty StateError where
     pretty (StateError msg) = msg
     pretty Abort = "(abort)"
 
+-- | Monads implementing this class can call the UI state functions directly.
 class (Applicative.Applicative m, Monad m) => M m where
+    -- Note that these aren't the MonadState get and put, and can't be, because
+    -- when this monad is layered under another state monad (as it is with
+    -- Cmd), MonadState couldn't tell which one you wanted.
     get :: m State
     put :: State -> m ()
     update :: Update.CmdUpdate -> m ()

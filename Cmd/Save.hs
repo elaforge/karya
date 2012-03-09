@@ -41,7 +41,7 @@ cmd_load fname = do
     Log.notice $ "state loaded from " ++ show fname
 
     Play.cmd_stop
-    Cmd.modify_state Cmd.reinit_state
+    Cmd.modify Cmd.reinit_state
     State.modify (const (State.clear state))
     root <- case State.config_root (State.state_config state) of
         Nothing -> return Nothing
