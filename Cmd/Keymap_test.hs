@@ -36,8 +36,10 @@ test_make_cmd = do
 
     equal (run_char [Key.Shift] '!') no_run
     equal (run_char [Key.Shift] '#') (did_run "s-3" "cmd1")
-    equal (run_char [Key.Meta] '1') (did_run "c-1" "cmd1")
-    equal (run_char [Key.Meta, Key.Shift] '!') (did_run "cs-1" "cmd1")
+    -- The control key varies by platform.
+    let Just (control:_) = lookup Keymap.PrimaryCommand Keymap.simple_mod_map
+    equal (run_char [control] '1') (did_run "c-1" "cmd1")
+    equal (run_char [control, Key.Shift] '!') (did_run "cs-1" "cmd1")
 
     -- key up aborts
     equal (CmdTest.extract id (run_cmd cmd [] (CmdTest.key_up '1'))) aborted
