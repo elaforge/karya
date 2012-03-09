@@ -3,11 +3,14 @@
 -}
 module Util.Pretty (Pretty(..), lines, show_float) where
 import Prelude hiding (lines)
-import qualified Numeric
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Vector as Vector
+import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Word as Word
+
+import qualified Numeric
 
 import qualified Util.Seq as Seq
 
@@ -48,6 +51,11 @@ show_float precision float
 
 instance (Pretty a) => Pretty [a] where
     pretty xs = "[" ++ Seq.join ", " (map pretty xs) ++ "]"
+
+instance (Unboxed.Unbox a, Pretty a) => Pretty (Unboxed.Vector a) where
+    pretty v = "<" ++ Seq.join ", " (map pretty (Unboxed.toList v)) ++ ">"
+instance (Pretty a) => Pretty (Vector.Vector a) where
+    pretty v = "<" ++ Seq.join ", " (map pretty (Vector.toList v)) ++ ">"
 
 instance (Pretty a) => Pretty (Maybe a) where
     pretty Nothing = "<nothing>"
