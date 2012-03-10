@@ -9,6 +9,18 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Signal as Signal
 
 
+
+test_note_trill = do
+    let run notes pitches = extract $ DeriveTest.derive_tracks
+            [(">", notes), ("*twelve", pitches)]
+        extract = DeriveTest.extract DeriveTest.e_note2
+    equal (run [(0, 3, "tr 1 1")] [(0, 0, "4c")])
+        ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c")], [])
+    equal (run [(0, 3, "tr 1 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
+        ([(0, 1, "4a"), (1, 1, "4b 50"), (2, 1, "4b")], [])
+
+-- * pitch calls
+
 test_trill = do
     let run tracks = extract $ DeriveTest.derive_tracks $
             (">", [(0, 3, "")]) : tracks
@@ -112,7 +124,6 @@ test_score_trill = do
 con = Signal.constant
 
 
--- * pitch calls
 
 test_pitch_trill = do
     equal (CallTest.run_pitch [(0, "tr (4e) 2 2"), (2.8, "4c")]) $

@@ -6,7 +6,11 @@ big things
   - complete Idiom.Wind
 
 UNSORTED
+  - copy emmentaler font from work
+  * trill note call should emit separate notes
+  - revive Derive.Call.Sekar
   - shakefile: put compile defines (midi driver, hint) in a config.h file
+  - shakefile: can I print [# of #] when compiling?
   * remove config_ prefix from StaticConfig
   * implement hot plugging: snd arg to create client
   - de-globalize MidiClientRef?
@@ -33,10 +37,6 @@ UNSORTED
 
   - instead of using velocity in various ornaments, I should probably use p
     e.g. mordent should also work for wind patches
-    But there's a more fundamental divide between ornaments that want to
-    create events like mordent and ornaments that want to create pitch signals
-    like trill.  Is there some way to write them the same and have the
-    instrument decide what actually happens?
 
   abstract pitches
     re-implement Cmd.Lang.LPitch.to_relative:
@@ -828,9 +828,6 @@ Derive:
       - retune a note depending on the previous interval (e.g. sloppy pitches
         when playing quickly)
       - negative duration
-      - instrument deriver that makes it retrigger on pitch changes, e.g. for
-        trills on a piano... I think this has to be score postproc because it
-        needs to be pre-scale conversion
         I think I'd rather do this as part of the instrument, though.
       * string emulation:  Every note is assigned a string.  When
         a legato new note is played, it either stops an existing string or takes

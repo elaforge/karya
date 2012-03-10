@@ -604,6 +604,9 @@ data CallInfo derived = CallInfo {
     -- event's start.  If there's no next event because it's the last event of
     -- the block, this is the block end, otherwise if there's no next event
     -- because it was sliced off, this is where that event would have started.
+    --
+    -- This is the same as the first element of 'info_next_events' except of
+    -- course it has a value even when there is no next event.
     , info_event_end :: !ScoreTime
     -- | This is the track range from 'State.tevents_range'.  For sliced
     -- tracks, it will tell where in the track the slice lies.  This is needed

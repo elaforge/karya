@@ -101,13 +101,13 @@ test_call_errors = do
             DeriveTest.derive_tracks [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call")
         "call not found: no-such-call"
-    left_like (run_evt "tr")
-        "non-generator in generator position: trill"
+    left_like (run_evt "delay")
+        "non-generator in generator position: delay"
     let tr_result = extract $ DeriveTest.derive_tracks
             [(">", [(0, 4, "")]), ("*twelve", [(0, 0, "tr")])]
     left_like tr_result "ArgError: too few arguments"
-    equal (run_evt "delay 2 | tr 2 |")
-        (Right [(2, 1, "delay 2 | tr 2 |")])
+    equal (run_evt "delay 2 | delay 1 |")
+        (Right [(3, 1, "delay 2 | delay 1 |")])
 
 test_val_call = do
     let extract = DeriveTest.extract (DeriveTest.e_control "cont")

@@ -144,15 +144,21 @@ controls_at = Map.map . control_at
 
 -- *** pitch
 
+-- | The pitch at the given time.  The transposition controls have not been
+-- applied for the reasons given in 'Derive.Derive.pitch_at'.
 pitch_at :: RealTime -> Event -> Maybe PitchSignal.Pitch
 pitch_at pos = PitchSignal.at pos . event_pitch
 
 initial_pitch :: Event -> Maybe PitchSignal.Pitch
 initial_pitch event = pitch_at (event_start event) event
 
+-- | Unlike 'pitch_at', the transposition has already been applied, because you
+-- can't transpose any further once you have a NoteNumber.
 nn_at :: RealTime -> Event -> Maybe Pitch.NoteNumber
-nn_at pos event = either (const Nothing) Just . PitchSignal.pitch_nn
-    =<< pitch_at pos event
+nn_at pos event = do
+    pitch <- pitch_at pos event
+    either (const Nothing) Just $ PitchSignal.pitch_nn $
+        PitchSignal.apply (event_controls_at pos event) pitch
 
 initial_nn :: Event -> Maybe Pitch.NoteNumber
 initial_nn event = nn_at (event_start event) event

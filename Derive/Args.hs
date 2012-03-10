@@ -40,6 +40,9 @@ real_start = Derive.real . start
 -- | Get the start of the next event, if there is one.  Used by calls to
 -- determine their extent, especially control calls, which have no explicit
 -- duration.
+--
+-- If there is a value it should be the same as 'end', so this is for calls
+-- that care if there really is a next event.
 next_start :: PassedArgs d -> Maybe ScoreTime
 next_start = fmap fst . Seq.head . Derive.info_next_events . info
 

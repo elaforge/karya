@@ -215,16 +215,19 @@ with_instrument inst deriver = do
 -- | Return an entire signal.  Remember, signals are in RealTime, so if you
 -- want to index them in ScoreTime you will have to call 'real'.
 get_control :: Score.Control -> Deriver (Maybe Score.TypedControl)
-get_control cont = Map.lookup cont <$> Internal.get_dynamic state_controls
+get_control cont = Map.lookup cont <$> get_controls
+
+get_controls :: Deriver Score.ControlMap
+get_controls = Internal.get_dynamic state_controls
 
 control_at :: Score.Control -> RealTime -> Deriver (Maybe Score.TypedVal)
 control_at cont pos = do
-    controls <- Internal.get_dynamic state_controls
+    controls <- get_controls
     return $ fmap (Score.control_at pos) (Map.lookup cont controls)
 
 controls_at :: RealTime -> Deriver PitchSignal.Controls
 controls_at pos = do
-    controls <- Internal.get_dynamic state_controls
+    controls <- get_controls
     return $ Map.map (Score.control_at pos) controls
 
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
@@ -246,7 +249,7 @@ with_relative_control :: Score.Control -> ControlOp -> Score.TypedControl
 with_relative_control cont (op, empty) signal deriver
     | Score.typed_val signal == mempty = deriver
     | otherwise = do
-        controls <- Internal.get_dynamic state_controls
+        controls <- get_controls
         let old = Map.findWithDefault empty_sig cont controls
         with_control cont (apply old signal) deriver
     where
@@ -269,6 +272,11 @@ lookup_control_op c_op = do
 -- | The pitch at the given time.  The transposition controls have not been
 -- applied since that is supposed to be done once only when the event is
 -- generated.
+--
+-- The scenario is a call that generates a note based on the current pitch.
+-- If 'pitch_at' applied the transposition, the new note would have to remove
+-- the transposition signals so they don't get applied again at performance
+-- conversion.
 pitch_at :: RealTime -> Deriver (Maybe PitchSignal.Pitch)
 pitch_at pos = PitchSignal.at pos <$> Internal.get_dynamic state_pitch
 
@@ -278,6 +286,8 @@ named_pitch_at name pos = do
     psig <- get_named_pitch name
     return $ maybe Nothing (PitchSignal.at pos) psig
 
+-- | Unlike 'pitch_at', the transposition has already been applied, because you
+-- can't transpose any further once you have a NoteNumber.
 nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
 nn_at pos = do
     controls <- controls_at pos

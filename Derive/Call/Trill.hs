@@ -26,8 +26,12 @@
     piece.
 -}
 module Derive.Call.Trill where
+import qualified Data.Maybe as Maybe
+
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional, required, typed_control, control)
@@ -50,22 +54,26 @@ note_calls = Derive.make_calls
 
 -- | Generate a note with a trill.
 --
--- This is just the same as putting a trill on the pitch track, except that it
--- can only apply to one note.  The reason you might want to use it is that
--- some instruments might treat a trill specially.  E.g. a piano might
--- generate separate notes, or a sample library with special trill samples
--- could affix an attribute.  If the trill is on the note instead of the pitch
--- it's in the position to make those transformations.
+-- Unlike a trill on a pitch track, this generates events for each note of
+-- the trill.  This is more appropriate for fingered trills, or monophonic
+-- instruments that use legato to play slurred notes.
 --
--- Args are the same as 'c_pitch_trill'.
+-- The args are the same as 'c_pitch_trill'.
 c_note_trill :: Derive.NoteCall
-c_note_trill = Derive.transformer "trill" $
-    \args deriver -> CallSig.call2 args (
+c_note_trill = Derive.stream_generator "trill" $ Note.inverting $ \args ->
+    CallSig.call2 args (
         optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic),
         optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
     \neighbor speed -> do
         (transpose, control) <- trill_from_controls args neighbor speed
-        Derive.with_added_control control (Score.untyped transpose) deriver
+        xs <- mapM Derive.score $ map fst $ Signal.unsignal transpose
+        let end = snd $ Args.range args
+        let notes = do
+                (x, maybe_next) <- Seq.zip_next xs
+                let next = Maybe.fromMaybe end maybe_next
+                return $ Note.Event x (next-x) Util.note
+        Derive.with_added_control control (Score.untyped transpose) $
+            Note.place notes
 
 
 -- * pitch calls
