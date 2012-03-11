@@ -141,7 +141,8 @@ hsBinaries =
 -- for 'LANGUAGE .*CPP' but there aren't many.
 cppFlags :: Config -> FilePath -> Maybe [String]
 cppFlags config fn
-    | fn `elem` cppFiles = Just (define (configFlags config))
+    | fn `elem` cppFiles = Just $
+        cInclude (configFlags config) ++ define (configFlags config)
     | otherwise = Nothing
     where cppFiles = ["App/Main.hs", "Cmd/Lang.hs"]
 
@@ -226,16 +227,14 @@ configure = do
     fltkCs <- words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
     fltkVersion <- takeWhile (/='\n') <$> run fltkConfig ["--version"]
-    useHint <- fmap (("hint" `elem`) . map fst) Environment.getEnvironment
     return $ \mode ->
         let flags = osFlags
                 { define = define osFlags
                     ++ if mode `elem` [Test, Profile] then ["-DTESTING"] else []
-                    ++ if useHint then ["-DINTERPRETER_HINT"] else []
                 , cInclude = ["-I.", "-Ifltk"]
                 , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
                 , fltkLd = fltkLds
-                , hcFlags = words "-threaded -W -fwarn-tabs -pgml g++"
+                , hcFlags = words "-I. -threaded -W -fwarn-tabs -pgml g++"
                     ++ ["-F", "-pgmF", hspp]
                     ++ case mode of
                         Debug -> []
@@ -320,6 +319,9 @@ main = do
                     mlast [v | Verbosity v <- flags]
             }
     writeGhciFlags modeConfig
+    useHint <- fmap (("hint" `elem`) . map fst) Environment.getEnvironment
+    if useHint then CcDeps.enableDefines "config.h" ["INTERPRETER_HINT"] []
+        else CcDeps.enableDefines "config.h" [] ["INTERPRETER_HINT"]
     Shake.shake options $ do
         let infer = inferConfig modeConfig
         setupOracle (modeConfig Debug)
@@ -517,12 +519,11 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     isHsc <- Trans.liftIO $
         Directory.doesFileExist (objToSrc config obj ++ "c")
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
-    -- Hardcoded dependency.  If I get more I should come up with a more
-    -- general solution.
-    when (hs == "Cmd/Lang.hs") $
-        void $ Shake.askOracle ["hint"]
     need [hspp]
     imports <- HsDeps.importsOf (cppFlags config hs) hs
+    includes <- if Maybe.isJust (cppFlags config hs)
+        then includesOf "hsORule" config hs else return []
+    need includes
     let his = map (objToHi . srcToObj config) imports
     logDeps config "hs" obj (hs:his)
     system $ compileHs config hs

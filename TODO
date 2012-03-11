@@ -9,7 +9,7 @@ UNSORTED
   - copy emmentaler font from work
   * trill note call should emit separate notes
   - revive Derive.Call.Sekar
-  - shakefile: put compile defines (midi driver, hint) in a config.h file
+  * shakefile: put compile defines (midi driver, hint) in a config.h file
   - shakefile: can I print [# of #] when compiling?
   * remove config_ prefix from StaticConfig
   * implement hot plugging: snd arg to create client

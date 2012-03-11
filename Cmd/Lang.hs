@@ -33,6 +33,7 @@ import qualified Cmd.Lang.Fast as Fast
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
+#include "config.h"
 #if defined(INTERPRETER_HINT)
 import qualified Cmd.LangHint as LangImpl
 #elif defined(INTERPRETER_PLUGINS)
