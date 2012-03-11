@@ -22,13 +22,13 @@ import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
-import qualified Derive.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import qualified Perform.Warning as Warning
 
@@ -89,6 +89,7 @@ convert_event lookup maybe_prev event = do
         Just key -> return $ Signal.constant (fromIntegral key)
     let controls = convert_controls
             (Instrument.has_flag Instrument.Pressure patch)
+            (Instrument.inst_control_map midi_inst)
             (Score.event_controls event)
     return $ Perform.Event midi_inst
         (Score.event_start event) (Score.event_duration event)
@@ -130,9 +131,14 @@ get_inst inst Nothing = do
             require ("midi instrument in instrument db: " ++ show inst
                 ++ " (further warnings suppressed)") Nothing
 
-convert_controls :: Bool -> Score.ControlMap -> Perform.ControlMap
-convert_controls pressure =
+-- | Convert deriver controls to performance controls.  Drop all non-MIDI
+-- controls, since those will inhibit channel sharing later.
+convert_controls :: Bool -- ^ True if the @p@ control should become breath.
+    -> Control.ControlMap -- ^ Instrument's control map.
+    -> Score.ControlMap -> Perform.ControlMap
+convert_controls pressure inst_cmap =
     resolve_p .  Map.mapKeys cc . Map.map Score.typed_val
+        . Map.filterWithKey (\k _ -> Control.is_midi_control inst_cmap k)
     where
     resolve_p cmap = case Map.lookup (cc Score.c_pressure) cmap of
         Nothing -> cmap

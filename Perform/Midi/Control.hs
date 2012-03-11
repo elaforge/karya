@@ -52,9 +52,20 @@ control_constructor cmap cont = msum
     , fmap make_midi_cc (Map.lookup cont universal_control_map)
     ]
 
+-- | True if the given control will be used by the MIDI performer.
+-- Takes a Score.Control because being a MIDI control is a precondition for
+-- conversion into 'Control'.
+is_midi_control :: ControlMap -> Score.Control -> Bool
+is_midi_control cmap control = cont == c_velocity
+    || Map.member cont special_controls
+    || Map.member cont universal_control_map
+    || Map.member cont cmap
+    where cont = convert_control control
+
 make_midi_cc :: Midi.Control -> Signal.Y -> Midi.ChannelMessage
 make_midi_cc cnum val = Midi.ControlChange cnum (val_to_cc val)
 
+special_controls :: Map.Map Control (Signal.Y -> Midi.ChannelMessage)
 special_controls = Map.fromList
     [ (c_aftertouch, Midi.ChannelPressure . val_to_cc)
     -- Don't include pitch becase it's handled separately.
