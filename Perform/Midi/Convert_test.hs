@@ -1,4 +1,6 @@
 module Perform.Midi.Convert_test where
+import qualified Data.Map as Map
+
 import Util.Control
 import qualified Util.Log as Log
 import Util.Test
@@ -7,8 +9,9 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
+import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -34,6 +37,17 @@ test_convert = do
         , Right "Convert: start time less than previous of 2s"
         , Left (1, [(1, 62)])
         ]
+
+test_convert_controls = do
+    let f pressure = Map.toList . Convert.convert_controls pressure Map.empty
+            . DeriveTest.mkcontrols
+    equal (f False [("dyn", [(0, 0.5)])])
+        [(Control.c_velocity, Signal.constant 0.5)]
+    equal (f True [("dyn", [(0, 0.5)])])
+        [(Control.c_breath, Signal.constant 0.5)]
+    -- If both vel and dyn are present, vel wins.
+    equal (f False [("vel", [(0, 1)]), ("dyn", [(0, 0.5)])])
+        [(Control.c_velocity, Signal.constant 1)]
 
 noinst n = LEvent.Event $ mkevent n "c" "noinst"
 nopitch n = LEvent.Event $ (mkevent n "c" "s/1") { Score.event_pitch = mempty }

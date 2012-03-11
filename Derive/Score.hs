@@ -117,13 +117,13 @@ event_control_at :: RealTime -> Control -> Maybe TypedVal -> Event
 event_control_at pos cont deflt event = maybe deflt (Just . control_at pos) $
     Map.lookup cont (event_controls event)
 
-initial_velocity :: Event -> Signal.Y
-initial_velocity event = maybe 0 typed_val $
+initial_dynamic :: Event -> Signal.Y
+initial_dynamic event = maybe 0 typed_val $
      -- Derive.initial_controls should mean Nothing never happens.
-    event_control_at (event_start event) c_velocity (Just (untyped 0)) event
+    event_control_at (event_start event) c_dynamic (Just (untyped 0)) event
 
-modify_velocity :: (Signal.Y -> Signal.Y) -> Event -> Event
-modify_velocity = modify_event_signal c_velocity
+modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
+modify_dynamic = modify_event_signal c_dynamic
 
 modify_event_signal :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
 modify_event_signal control f = modify_event_control control (Signal.map_y f)
@@ -292,8 +292,8 @@ c_null :: Control
 c_null = Control ""
 
 -- | Converted into velocity or breath depending on the instrument.
-c_pressure :: Control
-c_pressure = Control "p"
+c_dynamic :: Control
+c_dynamic = Control "dyn"
 
 -- | Scale note duration.
 c_sustain :: Control

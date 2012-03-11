@@ -542,7 +542,7 @@ type DiffEvent = (RealTime, RealTime, String, Double)
 
 simple_event :: Score.Event -> DiffEvent
 simple_event e = (Score.event_start e, Score.event_duration e,
-    DeriveTest.e_twelve e, Score.initial_velocity e)
+    DeriveTest.e_twelve e, Score.initial_dynamic e)
 
 -- *
 

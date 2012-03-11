@@ -44,7 +44,7 @@ module Derive.Deriver.Monad (
 
     -- * state
     , State(..), initial_state
-    , Dynamic(..), initial_controls, default_velocity
+    , Dynamic(..), initial_controls, default_dynamic
 
     -- ** scope
     , Scope(..), empty_scope, ScopeType(..), empty_scope_type
@@ -393,12 +393,12 @@ initial_dynamic scope environ = Dynamic
 -- | Initial control environment.
 initial_controls :: Score.ControlMap
 initial_controls = Map.fromList
-    [ (Score.c_velocity, Score.untyped (Signal.constant default_velocity))
+    [ (Score.c_dynamic, Score.untyped (Signal.constant default_dynamic))
     ]
 
 -- | See 'Perform.Midi.Perform.default_velocity' for 0.79.
-default_velocity :: Signal.Y
-default_velocity = 0.79
+default_dynamic :: Signal.Y
+default_dynamic = 0.79
 
 -- ** scope
 

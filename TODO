@@ -1,12 +1,13 @@
-big things
-  - record chords
-  - record continuum
-  - compact signals in tracks
-  - complete TunedJust
-  - complete Idiom.Wind
-
 UNSORTED
-  - copy emmentaler font from work
+  hint improvements
+    - move loadModules etc. out of 'run'
+    - don't load interpreted modules (dunno how)
+    - print loading msgs?
+    - I still don't like loading all the modules and .os for evaluation, can
+      I expose an API and link against that?  Shouldn't plugins do that?
+  - key not applied in inner blocks, local play should take the root play's
+    env as a starting point
+  - fltk: some way to scroll that's not the scroll wheel
   * trill note call should emit separate notes
   - revive Derive.Call.Sekar
   * shakefile: put compile defines (midi driver, hint) in a config.h file
@@ -34,8 +35,7 @@ UNSORTED
     - Get the basic jack functions wrapped so I can compile and experiment in
       haskell.
     - port test_core_midi to be a generice test_midi
-
-  - instead of using velocity in various ornaments, I should probably use p
+  * instead of using velocity in various ornaments, I should probably use p
     e.g. mordent should also work for wind patches
 
   abstract pitches
@@ -259,18 +259,21 @@ UNSORTED
 
 MILESTONES
   0.1
+    - record chords
+    - record continuum
+    - complete TunedJust
+    - complete Idiom.Wind
     * scales and keyswitches
     + efficient thru
-    + tracklang complete with set of basic calls
-    - dynamic loading using hsplugins
+    * tracklang complete with set of basic calls
+    - better REPL situation
     - midi record / integrator
     - dense / efficient control signals
-    + lazy signals / lazy deriver
     * derive cache
     * symbolic score
     + save undo history / incremental save
     - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
-    + linux port
+    - jack support on linux
     - simple csound backend
     - simple lilypond backend?
     - documentation
@@ -289,19 +292,15 @@ external
   - send a patch to improve Random.Shuffle?
   - patch for hsc2hs for #alignment
   srcloc_annotate pragma
-    1.31 vs. 5.80, 4.60 for dummy, so just using pgmf already kills perf
     I think a ghc pragma is needed.
     - read up on how jhc does it
     - ask ghc-users if it's a good idea
     - figure out how to implement pragmas in ghc
-
-build
-  - wait for shake' around jan 2012 to continue working on this
-  - shakefile is close, but gets hung up on util.h
-  - make RunTests dependent on generate_tests.py
-  - make individual test targets that make a smaller RunTests
-  - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
-    manual inclusion of $(UI_HS) in the deps
+  - add better symbol resolution to haddock
+    document 'qualification' -q flag, add mode to show it as written
+  - figure out better tags
+    hasktags is fast but misses stuff like 'newtype ControlDamage' in
+    Derive/Deriver/Monad.hs
 
 use fixed-binary instead of Doubles for ScoreTime and RealTime:
   reasons to do it:
@@ -383,6 +382,30 @@ cleanup:
     I should use Data.Vector.Storable since I want to pass the data to C++,
     and can pass by pointer or memcpy (as I currently do).  Data.Vector.Generic
     abstracts out the access functions.
+  - Get rid of TrackIds, use (BlockId, TrackNum) for track addresses.
+    When do I want to have tracks shared between blocks?  Well, maybe if I have
+    a repeating pattern?  Shouldn't I then make it a call then?
+    Consequences of getting rid of TrackIds:
+      - all that get_track stuff goes away
+      - don't have to worry about track names
+      - orphan tracks gone
+      - but can't name a track with a (tid ...), I have to use
+        (BlockId, TrackNum).  But it would be nice to get rid of
+        (BlockId, TrackId) which is ambiguous.
+      search for TrackId, where are the uses?
+        - Cmd.Clip
+        - Cmd.Create ->Track, orphan tracks gone
+        - Cmd.EditUtil ->redundant
+        - Cmd.Perf ->(BlockId, TrackNum)
+        - Cmd.Selection ->redundant
+        - Derive.TrackWarp: I think TrackNums, and would also be more accurate
+        - Ui.Block - has track_merged, but can't replace those with TrackNum
+          since merged tracks will be joined (but they're Collapsed, not gone)
+        - Ui.State: have to take (BlockId, TrackNum)
+    Big change, and I'm not sure it's worth it.  The tids should just be
+    opaque most of the time, I don't think it matters much whether they match
+    their block.  But maybe I should use (BlockId, TrackNum) more in Derive,
+    e.g. TrackWarps and DisplaySignals
 
   * now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
@@ -880,10 +903,10 @@ Derive:
     - implement block level calls in block title
     - other attributes in block title, e.g. "alias=?squiggle? | xyz"?
 
-  - dynamics controls:
-    - volume, velocity, and breath map directly to midi vals
+  * dynamics controls:
+    * volume, velocity, and breath map directly to midi vals
     * pres is continuous volume, maps to velocity or breath depending on inst
-    - vel is attack volume, maps to velocity or breath but is only sampled at
+    * vel is attack volume, maps to velocity or breath but is only sampled at
       the beginning of the note
   - to cut the middle out of a pattern: a cut signal that disabled derivation
     when it's 1?

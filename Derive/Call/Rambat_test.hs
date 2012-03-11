@@ -11,11 +11,11 @@ test_tick = do
     -- This also tests some error checking and absolute warp functions.
     let extract = DeriveTest.extract $ \e ->
             (Score.event_start e, Score.event_duration e, Score.initial_nn e,
-                Score.initial_velocity e)
+                Score.initial_dynamic e)
     let run evts tracks = extract $ DeriveTest.derive_tracks $
             ("tempo", [(0, 0, ".5")])
             : tracks ++ [(DeriveTest.default_inst_title, evts)]
-    let vel = Derive.default_velocity
+    let vel = Derive.default_dynamic
 
     let (_evts, logs) = run
             [(0, 1, "tick"), (1, 1, "tick"), (2, 1, "")]

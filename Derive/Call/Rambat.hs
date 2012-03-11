@@ -34,12 +34,12 @@ note_calls = Derive.make_calls
 -- note.  This is in absolute time, but will be halfway between the previous
 -- and next note if there isn't this much time.
 --
--- [vel /Control/ @%tick-velocity,.3@] Grace note velocity will be this
+-- [vel /Control/ @%tick-dynamic,.3@] Grace note dynamic will be this
 -- percentage of the following note.
 c_tick :: Derive.NoteCall
 c_tick = Derive.stream_generator "tick" $ \args -> CallSig.call2 args
     ( optional "time" (control "tick-time" 0.15)
-    , optional "vel" (control "tick-velocity" 0.5)) $ \time vel ->
+    , optional "vel" (control "tick-dynamic" 0.5)) $ \time vel ->
     case (Args.prev_start args, Args.next_start args) of
         (Just ppos, Just npos) ->
             Util.with_controls args (time :. vel :. Nil) $
@@ -54,7 +54,7 @@ tick time vel prev next = do
         =<< Derive.pitch_at =<< Derive.real prev
     next_pitch <- Derive.require "next pitch"
         =<< Derive.pitch_at =<< Derive.real next
-    next_vel <- Util.velocity =<< Derive.real next
+    next_vel <- Util.dynamic =<< Derive.real next
     neighbor <- ifM
         ((<=) <$> Pitches.pitch_nn prev_pitch <*> Pitches.pitch_nn next_pitch)
         (return (Pitch.Chromatic (-1))) (return (Pitch.Chromatic 1))

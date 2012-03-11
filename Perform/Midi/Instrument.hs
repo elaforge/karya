@@ -214,9 +214,9 @@ data Flag =
     -- events for this patch.
     Triggered
     -- | Patch uses continuous pressure control, instead of trigger velocity.
-    -- This is used to support the @p@ control.  Percussive instruments like
+    -- This is used to support the @dyn@ control.  Percussive instruments like
     -- pianos map it to MIDI velocity, and continuous instruments like winds
-    -- always have maximum velocity and max @p@ to breath.
+    -- always have maximum velocity and map @dyn@ to breath.
     | Pressure
     deriving (Eq, Ord, Show)
 

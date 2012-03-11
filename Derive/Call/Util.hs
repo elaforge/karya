@@ -174,21 +174,21 @@ signal = PitchSignal.signal . Derive.pitch_signal_scale
 pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Pitch)
 pitch = Derive.pitch_at
 
-velocity :: RealTime -> Derive.Deriver Signal.Y
-velocity pos = maybe Derive.default_velocity Score.typed_val <$>
-    Derive.control_at Score.c_velocity pos
+dynamic :: RealTime -> Derive.Deriver Signal.Y
+dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
+    Derive.control_at Score.c_dynamic pos
 
 with_pitch :: PitchSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
 with_pitch pitch deriver = do
     scale <- get_scale
     Derive.with_constant_pitch Nothing scale pitch deriver
 
-with_velocity :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
-with_velocity =
-    Derive.with_control Score.c_velocity . Score.untyped . Signal.constant
+with_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
+with_dynamic =
+    Derive.with_control Score.c_dynamic . Score.untyped . Signal.constant
 
 simple_note :: PitchSignal.Pitch -> Signal.Y -> Derive.EventDeriver
-simple_note pitch velocity = with_pitch pitch $ with_velocity velocity note
+simple_note pitch dynamic = with_pitch pitch $ with_dynamic dynamic note
 
 note :: Derive.EventDeriver
 note = Call.eval_one 0 1 [TrackLang.call "" []]

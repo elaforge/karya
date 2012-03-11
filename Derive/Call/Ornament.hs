@@ -27,25 +27,24 @@ note_calls = Derive.make_calls
 --
 -- [neighbor /Transpose/ @default_neighbor@] Neighbor note.
 --
--- [vel /Number/ @.3@] Scale the velocity of the generated grace notes.
--- TODO should be pressure
+-- [dyn /Number/ @.3@] Scale the dynamic of the generated grace notes.
 c_mordent :: Pitch.Transpose -> Derive.NoteCall
 c_mordent default_neighbor = Derive.stream_generator "mordent" $
     Note.inverting $ \args -> CallSig.call2 args
-    (optional "neighbor" default_neighbor, optional "vel" 0.3) $
-    \neighbor vel -> mordent grace_dur (Args.extent args) vel neighbor
+    (optional "neighbor" default_neighbor, optional "dyn" 0.3) $
+    \neighbor dyn -> mordent grace_dur (Args.extent args) dyn neighbor
     where grace_dur = RealTime.seconds (1/12)
 
 mordent :: RealTime -> (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Transpose
     -> Derive.EventDeriver
-mordent grace_dur (start, dur) velocity_scale neighbor = do
+mordent grace_dur (start, dur) dyn_scale neighbor = do
     pos <- Derive.real start
     pitch <- Derive.require ("pitch at " ++ Pretty.pretty pos)
         =<< Util.pitch pos
-    vel <- (*velocity_scale) <$> Util.velocity pos
+    dyn <- (*dyn_scale) <$> Util.dynamic pos
     grace_notes pos
-        [ (grace_dur, Util.simple_note pitch vel)
-        , (grace_dur, Util.simple_note (Pitches.transpose neighbor pitch) vel)
+        [ (grace_dur, Util.simple_note pitch dyn)
+        , (grace_dur, Util.simple_note (Pitches.transpose neighbor pitch) dyn)
         ]
         <> Derive.d_place start dur Util.note
 

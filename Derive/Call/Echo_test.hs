@@ -1,5 +1,7 @@
 module Derive.Call.Echo_test where
 import Util.Test
+import qualified Midi.Midi as Midi
+import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
@@ -62,7 +64,7 @@ test_event_echo = do
         [(0, 60, 100), (1000, 62, 100),
             (2000, 60, 40), (5000, 62, 40), (9000, 62, 16)]
 
--- perform :: (String, [(Double, Double, String)]) -> [Ui.UiTest.TrackSpec]
---      -> ([(Integer, Midi.Midi.Message)], [String])
+perform :: (String, [(Double, Double, String)]) -> [UiTest.TrackSpec]
+     -> ([(Integer, Midi.Message)], [String])
 perform (title, events) tracks = DeriveTest.perform_block
     (tracks ++ [(DeriveTest.default_inst_title ++ " | " ++ title, events)])

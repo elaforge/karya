@@ -36,7 +36,7 @@ test_mordent = do
         run = DeriveTest.run_events extract
             . DeriveTest.run State.empty
             . Util.with_pitch (DeriveTest.mkpitch "a")
-            . Util.with_velocity 1
+            . Util.with_dynamic 1
     equal (run (f (4, 1) 0.25 (Pitch.Chromatic 1))) $ Right
         ([(2, [(0, 60)], Just [(0, 0.25)])
         , (3, [(0, 61)], Just [(0, 0.25)])
@@ -51,4 +51,4 @@ test_mordent = do
             ], [])
 
 extract e = (Score.event_start e, DeriveTest.e_pitch e,
-    DeriveTest.e_control "vel" e)
+    DeriveTest.e_control "dyn" e)

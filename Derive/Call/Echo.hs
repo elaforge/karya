@@ -42,7 +42,7 @@ c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
 -- happen in score time, so they will change tempo with the rest of the score,
--- and the realization may change due to a different velocity.
+-- and the realization may change due to a different dynamic.
 --
 -- The controls are only sampled at the beginning of the echo, so you can't
 -- vary them over the scope of an echo call like you can with @event-echo@.
@@ -69,13 +69,14 @@ echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver
     -> Derive.EventDeriver
 echo delay feedback times deriver
     | times <= 0 = deriver
-    | otherwise = Derive.d_merge [deriver,
-        Derive.shift_control delay (Derive.d_at delay (scale_vel feedback
-            (echo delay feedback (times - 1) deriver)))]
+    | otherwise = do
+        Derive.d_merge [deriver,
+            Derive.shift_control delay $ Derive.d_at delay $
+                scale_dyn feedback $ echo delay feedback (times - 1) deriver]
 
-scale_vel :: Signal.Y -> Derive.EventDeriver -> Derive.EventDeriver
-scale_vel d = Derive.with_relative_control
-    Score.c_velocity Derive.op_mul (Score.untyped (Signal.constant d))
+scale_dyn :: Signal.Y -> Derive.EventDeriver -> Derive.EventDeriver
+scale_dyn dyn = Derive.with_relative_control
+    Score.c_dynamic Derive.op_mul (Score.untyped (Signal.constant dyn))
 
 
 -- | This echo works directly on Events.
@@ -103,5 +104,5 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
 echo_event :: RealTime -> Double -> Int -> Score.Event -> [Score.Event]
 echo_event delay feedback times event = event : map (echo event) [1..times]
     where
-    echo event n = Score.modify_velocity (*feedback^n) $ Score.move (+d) event
+    echo event n = Score.modify_dynamic (*feedback^n) $ Score.move (+d) event
         where d = delay * RealTime.seconds (fromIntegral n)

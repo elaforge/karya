@@ -17,6 +17,7 @@ import qualified Data.Set as Set
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
+import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 
 import qualified Midi.Midi as Midi
@@ -136,14 +137,15 @@ get_inst inst Nothing = do
 convert_controls :: Bool -- ^ True if the @p@ control should become breath.
     -> Control.ControlMap -- ^ Instrument's control map.
     -> Score.ControlMap -> Perform.ControlMap
-convert_controls pressure inst_cmap =
-    resolve_p .  Map.mapKeys cc . Map.map Score.typed_val
-        . Map.filterWithKey (\k _ -> Control.is_midi_control inst_cmap k)
+convert_controls pressure_inst inst_cmap =
+    Map.fromAscList . map (\(k, v) -> (cc k, Score.typed_val v)) . Map.toAscList
+    . Map.filterWithKey (\k _ -> Control.is_midi_control inst_cmap k)
+    . resolve_dyn
     where
-    resolve_p cmap = case Map.lookup (cc Score.c_pressure) cmap of
+    resolve_dyn cmap = case Map.lookup Score.c_dynamic cmap of
         Nothing -> cmap
-        Just sig -> Map.insert
-            (if pressure then Control.c_breath else Control.c_velocity) sig
+        Just sig -> Map.soft_insert
+            (if pressure_inst then Score.c_breath else Score.c_velocity) sig
             cmap
     cc (Score.Control c) = Control.Control c
 

@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE OverlappingInstances #-} -- I want a special Pretty for TypedVal
 {- | This is a bit of song and dance to avoid circular imports.
 
     "Derive.Score", "Derive.PitchSignal", and "Derive.TrackLang" all define
@@ -92,6 +93,9 @@ instance (DeepSeq.NFData a) => DeepSeq.NFData (Typed a) where
 
 instance Functor Typed where
     fmap f (Typed typ val) = Typed typ (f val)
+
+instance (Pretty.Pretty a) => Pretty.Pretty (Typed a) where
+    pretty (Typed typ val) = type_to_code typ ++ ":" ++ Pretty.pretty val
 
 merge_typed :: (a -> a -> a) -> Typed a -> Typed a -> Typed a
 merge_typed f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
