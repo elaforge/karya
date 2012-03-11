@@ -393,7 +393,8 @@ test_channelize = do
         [0, 0]
 
 test_can_share_chan = do
-    let f evt0 evt1 = Perform.can_share_chan (mkpevent evt0) (mkpevent evt1)
+    let f evt0 evt1 = Maybe.isNothing $
+            Perform.can_share_chan (mkpevent evt0) (mkpevent evt1)
 
     -- Can't share, becase there is explicitly time for a leading pitch
     -- bend in the second event.
@@ -437,7 +438,8 @@ test_can_share_chan = do
 
 test_overlap_map = do
     let extent e = (Perform.event_start e, Perform.event_duration e)
-    let f overlapping event = (extent event, map (extent . fst) overlapping)
+    let f overlapping event =
+            ((extent event, map (extent . fst) overlapping), [])
     let events = mkevents_inst
             [ ("a", 0, 2, [])
             , ("b", 1, 3, [])

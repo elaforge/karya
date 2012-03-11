@@ -51,6 +51,9 @@ import qualified Data.StorableVector as V
 
 import qualified Util.Log as Log
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.Pitch as Pitch
@@ -67,6 +70,11 @@ newtype Signal y = Signal { sig_vec :: SignalBase.SigVec Y }
     -- The Eq instance is only for tests, since it may be quite expensive on
     -- a real signal.
     deriving (Eq, DeepSeq.NFData)
+
+instance Pretty.Pretty (Signal y) where
+    pretty sig = "<" ++ Seq.join ", "
+        [Pretty.pretty x ++ ": " ++ Pretty.pretty y | (x, y) <- unsignal sig]
+        ++ ">"
 
 modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y)
     -> Signal y0 -> Signal y1

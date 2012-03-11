@@ -27,20 +27,22 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
-import qualified Perform.Signal as Signal
-import qualified Perform.RealTime as RealTime
-import Perform.RealTime (RealTime)
-
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.RealTime as RealTime
+import Perform.RealTime (RealTime)
+import qualified Perform.Signal as Signal
 
 
 -- * constants
+
+-- | Turn on debug logging.
+logging :: Bool
+logging = False
 
 -- | This winds up being 100, which is loud but not too loud and
 -- distinctive-looking.
@@ -100,7 +102,6 @@ perform state config events = (final_msgs, final_state)
 -- | Map each instrument to its allocated Addrs.
 type InstAddrs = Map.Map Score.Instrument [Instrument.Addr]
 
-
 -- * channelize
 
 -- | Overlapping events and the channels they were given.
@@ -118,41 +119,60 @@ channelize :: ChannelizeState -> InstAddrs -> Events
 channelize overlapping inst_addrs events =
     overlap_map overlapping (channelize_event inst_addrs) events
 
-channelize_event :: InstAddrs -> [(Event, Channel)] -> Event -> Channel
+channelize_event :: InstAddrs -> [(Event, Channel)] -> Event
+    -> (Channel, [Log.Msg])
 channelize_event inst_addrs overlapping event =
     case Map.lookup inst_name inst_addrs of
+        Just (_:_:_) -> (chan, logs)
         -- If the event has 0 or 1 addrs I can just give a constant channel.
         -- 'allot' will assign the correct addr, or drop the event if there
         -- are none.
-        Just (_:_:_) -> chan
-        _ -> 0
+        _ -> (0, [])
     where
     inst_name = Instrument.inst_score (event_instrument event)
     -- If there's no shareable channel, make up a channel one higher than the
     -- maximum channel in use.
-    chan = maybe (maximum (-1 : map snd overlapping) + 1) id
-        (shareable_chan overlapping event)
+    chan = maybe (maximum (-1 : map snd overlapping) + 1) id maybe_chan
+    (maybe_chan, reasons) = shareable_chan overlapping event
+    logs =
+        [ Log.msg Log.Warn (Just (event_stack event)) $
+            "can't share with " ++ show chan ++ ": " ++ err
+        | (chan, err) <- reasons
+        ]
 
 -- | Find a channel from the list of overlapping (Event, Channel) all of whose
--- events can share with the given event.
-shareable_chan :: [(Event, Channel)] -> Event -> Maybe Channel
-shareable_chan overlapping event = fst <$> List.find (all_share . snd) by_chan
+-- events can share with the given event.  Return the rest of the channels and
+-- the reason why they can't be used.
+shareable_chan :: [(Event, Channel)] -> Event
+    -> (Maybe Channel, [(Channel, String)])
+shareable_chan overlapping event =
+    (fst <$> List.find (null . snd) unshareable_reasons,
+        map (second (Seq.join "; ")) $
+            filter (not . null . snd) unshareable_reasons)
     where
+    unshareable_reasons = [(chan, reasons evts) | (chan, evts) <- by_chan]
     by_chan = Seq.keyed_group_on snd overlapping
-    all_share evt_chans = all (flip can_share_chan event) (map fst evt_chans)
+    reasons = Maybe.mapMaybe (flip can_share_chan event) . map fst
 
 -- | Can the two events coexist in the same channel without interfering?
 -- The reason this is not commutative is so I can assume the start of @old@
 -- is equal to or precedes the start of @new@ and save a little computation.
-can_share_chan :: Event -> Event -> Bool
+can_share_chan :: Event -> Event -> Maybe String
 can_share_chan old new = case (initial_pitch old, initial_pitch new) of
-        _ | start >= end -> True
-        _ | event_instrument old /= event_instrument new -> False
-        (Just (initial_old, _), Just (initial_new, _)) ->
-            Signal.pitches_share in_decay start end
-                initial_old (event_pitch old) initial_new (event_pitch new)
-            && controls_equal (event_controls new) (event_controls old)
-        _ -> True
+        _ | start >= end -> Nothing
+        _ | event_instrument old /= event_instrument new ->
+            Just "instruments differ"
+        (Just (initial_old, _), Just (initial_new, _))
+            | not (Signal.pitches_share in_decay start end
+                initial_old (event_pitch old) initial_new (event_pitch new)) ->
+                    Just $ "pitch signals incompatible: "
+                        ++ Pretty.pretty (event_pitch old) ++ " /= "
+                        ++ Pretty.pretty (event_pitch new)
+            | not (controls_equal (event_controls new) (event_controls old)) ->
+                Just $ "controls differ: " ++ Pretty.pretty (event_controls old)
+                    ++ " /= " ++ Pretty.pretty (event_controls new)
+            | otherwise -> Nothing
+        _ -> Nothing
     where
     start = event_start new
     -- Note that I add the control_lead_time to the decay of the old note
@@ -570,7 +590,6 @@ note_end :: Event -> RealTime
 note_end event = event_end event
     + RealTime.seconds (Instrument.inst_decay (event_instrument event))
 
-
 -- | This isn't directly the midi channel, since it goes higher than 15, but
 -- will later be mapped to midi channels.
 type Channel = Integer
@@ -597,7 +616,8 @@ levent_start (LEvent.Event msg) = Midi.wmsg_ts msg
 -- overlaps with.  The previous events passed to the function are paired with
 -- its previous return values on those events.  The overlapping events are
 -- passed in reverse order, so the most recently overlapping is first.
-overlap_map :: [(Event, a)] -> ([(Event, a)] -> Event -> a) -> Events
+overlap_map :: [(Event, a)] -> ([(Event, a)] -> Event
+    -> (a, [Log.Msg])) -> Events
     -> ([LEvent.LEvent (Event, a)], [(Event, a)])
     -- ^ (output for each event, final overlapping state)
 overlap_map initial = go initial
@@ -606,11 +626,12 @@ overlap_map initial = go initial
     go prev f (LEvent.Log log : events) = (LEvent.Log log : rest, final_state)
         where (rest, final_state) = go prev f events
     go prev f (LEvent.Event e : events) =
-        (LEvent.Event (e, val) : vals, final_state)
+        (LEvent.Event (e, val) : log_events ++ vals, final_state)
         where
         start = note_begin e
         overlapping = takeWhile ((> start) . note_end . fst) prev
-        val = f overlapping e
+        (val, logs) = f overlapping e
+        log_events = if logging then map LEvent.Log logs else []
         (vals, final_state) = go ((e, val) : overlapping) f events
 
 event_warning :: Event -> String -> Log.Msg
