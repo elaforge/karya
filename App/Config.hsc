@@ -225,8 +225,7 @@ view_track_padding = #const Config::View::sb_size
 emmentaler :: String
 emmentaler = case System.Info.os of
     "darwin" -> "Emmentaler 11"
-    -- For some reason the fonts show up with wacky names on linux.
-    _ -> " Emmentaler\\-11"
+    _ -> " Emmentaler"
 
 
 -- * event style
