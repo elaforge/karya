@@ -1,10 +1,14 @@
 UNSORTED
-  hint improvements
-    - move loadModules etc. out of 'run'
-    - don't load interpreted modules (dunno how)
-    - print loading msgs?
-    - I still don't like loading all the modules and .os for evaluation, can
-      I expose an API and link against that?  Shouldn't plugins do that?
+  lang ghc
+    - make sure something sane happens when Environ is bad on startup
+    - is Cmd.Lang.Fast now obsolete?
+    - can I get local variable bindings (let x = ...; y <- ...) to work in the
+      REPL?
+    - have 'bid' and 'tid' etc. functions know the current namespace
+      Either magic syntax macro in the REPL, or wrap each repl cmd in a let.
+    - :compile cmd that turns on compilation for everything except Environ
+    - :browse to look in modules... can I use GHC.getBindings for this?
+
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
   - fltk: some way to scroll that's not the scroll wheel

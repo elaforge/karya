@@ -38,8 +38,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.LangStub as LangImpl
 #elif defined(INTERPRETER_HINT)
 import qualified Cmd.LangHint as LangImpl
-#elif defined(INTERPRETER_PLUGINS)
-import qualified Cmd.LangPlugins as LangImpl
+#elif defined(INTERPRETER_GHC)
+import qualified Cmd.LangGhc as LangImpl
 #else
 import qualified Cmd.LangStub as LangImpl
 #endif

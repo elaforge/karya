@@ -70,14 +70,14 @@ import Cmd.Lang.Global
 import qualified App.Config as Config
 import Types
 
--- hint is now insisting these be in scope or the types from 'run' aren't
--- found.  It smells like a bug to me...
-import qualified Cmd.Cmd
-import qualified Midi.Midi
-import qualified Util.Log
-import qualified Ui.State
-import qualified Ui.Update
-import qualified Ui.Block
+-- -- hint is now insisting these be in scope or the types from 'run' aren't
+-- -- found.  It smells like a bug to me...
+-- import qualified Cmd.Cmd
+-- import qualified Midi.Midi
+-- import qualified Util.Log
+-- import qualified Ui.State
+-- import qualified Ui.Update
+-- import qualified Ui.Block
 
 
 -- | Like 'Cmd.run', but pretty-print the return value.  If the value is

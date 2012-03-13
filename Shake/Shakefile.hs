@@ -385,12 +385,15 @@ setupOracle config = do
 
 writeConfigH :: IO ()
 writeConfigH = do
+    useRepl <- fmap (("repl" `elem`) . map fst) Environment.getEnvironment
     useHint <- fmap (("hint" `elem`) . map fst) Environment.getEnvironment
-    if useHint
-        then CcDeps.enableDefines "hsconfig.h" [hint] []
-        else CcDeps.enableDefines "hsconfig.h" [] [hint]
+    if useRepl then mangle [hint] [ghc]
+        else if useHint then mangle [ghc] [hint]
+        else mangle [] [ghc, hint] -- use stub
     where
+    mangle = CcDeps.enableDefines "hsconfig.h"
     hint = "INTERPRETER_HINT"
+    ghc = "INTERPRETER_GHC"
 
 -- | Match a file in @build/<mode>/obj/@.
 matchObj :: Shake.FilePattern -> FilePath -> Bool

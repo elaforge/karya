@@ -153,6 +153,7 @@ set_play_step = do
 
 show_octave :: Cmd.CmdL Pitch.Octave
 show_octave = Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
+
 set_octave :: Pitch.Octave -> Cmd.CmdL ()
 set_octave n = Edit.cmd_modify_octave (const n) >> return ()
 
@@ -171,10 +172,13 @@ set_default_scale scale = State.modify_default $ \d ->
 -- * load / save
 
 save :: Cmd.CmdL ()
-load, save_as :: FilePath -> Cmd.CmdL ()
-load fn = Save.cmd_load fn
 save = Save.cmd_save =<< Save.get_save_file
+
+save_as :: FilePath -> Cmd.CmdL ()
 save_as fn = Save.cmd_save fn
+
+load :: FilePath -> Cmd.CmdL ()
+load fn = Save.cmd_load fn
 
 -- * show / modify UI state
 
