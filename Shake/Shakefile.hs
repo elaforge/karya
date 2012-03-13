@@ -319,9 +319,7 @@ main = do
                     mlast [v | Verbosity v <- flags]
             }
     writeGhciFlags modeConfig
-    useHint <- fmap (("hint" `elem`) . map fst) Environment.getEnvironment
-    if useHint then CcDeps.enableDefines "config.h" ["INTERPRETER_HINT"] []
-        else CcDeps.enableDefines "config.h" [] ["INTERPRETER_HINT"]
+    writeConfigH
     Shake.shake options $ do
         let infer = inferConfig modeConfig
         setupOracle (modeConfig Debug)
@@ -384,6 +382,15 @@ setupOracle config = do
     Shake.addOracle ["fltk"] $ return [fltkVersion config]
     Shake.addOracle ["hint"] $
         return [show $ "-DINTERPRETER_HINT" `elem` define (configFlags config)]
+
+writeConfigH :: IO ()
+writeConfigH = do
+    useHint <- fmap (("hint" `elem`) . map fst) Environment.getEnvironment
+    if useHint
+        then CcDeps.enableDefines "hsconfig.h" [hint] []
+        else CcDeps.enableDefines "hsconfig.h" [] [hint]
+    where
+    hint = "INTERPRETER_HINT"
 
 -- | Match a file in @build/<mode>/obj/@.
 matchObj :: Shake.FilePattern -> FilePath -> Bool

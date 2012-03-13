@@ -34,7 +34,7 @@ import qualified Ui.Ui as Ui
 import qualified Midi.Midi as Midi
 import qualified Midi.Interface as Interface
 
-#include "config.h"
+#include "hsconfig.h"
 -- This is the actual midi implementation.  This is the only module that should
 -- depend on the implementation, so switching backends is relatively easy.
 #if defined(CORE_MIDI)
