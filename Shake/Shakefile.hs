@@ -255,6 +255,8 @@ configure = do
         { ccFlags = fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall"]
         }
     osFlags = case System.Info.os of
+        -- In C and C++ programs the OS specific defines like __APPLE__ and
+        -- __linux__ are already defined, but ghc doesn't define them.
         "darwin" -> mempty
             -- These apparently control which APIs are visible.  But they
             -- make it slightly more awkward for ghci since it needs the
@@ -262,11 +264,11 @@ configure = do
             -- them, so I'll omit them for the time being.
             -- { define = ["-DMAC_OS_X_VERSION_MAX_ALLOWED=1060",
             --     "-DMAC_OS_X_VERSION_MIN_REQUIRED=1050"]
-            { define = ["-DCORE_MIDI"]
+            { define = ["-D__APPLE__"]
             , midiLibs = words $ "-framework CoreFoundation "
                 ++ "-framework CoreMIDI -framework CoreAudio"
             }
-        "linux" -> mempty
+        "linux" -> mempty { define = ["-D__linux__"] }
         unknown -> error $ "unknown os: " ++ show unknown
     run cmd args = Process.readProcess cmd args ""
 
