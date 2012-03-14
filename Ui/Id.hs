@@ -53,7 +53,7 @@ make default_ns text = id ns ident
 -- | To make naming them in events easier, IDs and namespaces have
 -- a restricted character set.
 is_identifier :: Char -> Bool
-is_identifier c = Char.isLower c || Char.isDigit c || c `elem` "-_.`"
+is_identifier c = Char.isLower c || Char.isDigit c || c `elem` "-`"
 
 -- * access
 

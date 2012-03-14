@@ -261,7 +261,7 @@ p_id :: A.Parser Text
 p_id = do
     ident <- A.takeWhile1 (A.notInClass " |=")
     unless (valid_id ident) $
-        fail $ "invalid chars in identifier; only [a-z0-9_.`-] are accepted: "
+        fail $ "invalid chars in identifier; only [a-z0-9`-] are accepted: "
             ++ show ident
     return ident
 

@@ -5,17 +5,11 @@ UNSORTED
     Also I should make sure non-ASCII doesn't get in since ByteString will
     mangle it.
 
-    Wait, . and _ are in IDs, in fact Create uses them all the time.
-    I could use - for . and _
-
     p_ident applies to: Attributes, Control, PitchControl, ScaleId
     Call names are explicitly anything-goes.  BlockIds should support at
     least some of it if they are supposed to be interchangeable with other
     calls.
 
-    The intent of the restrictive rules are that they relieve me of the burden
-    of remembering a naming scheme (e.g. '.' vs. '-' vs. '_') and leave room
-    for flexibility in other places (e.g. @-macros in the REPL).
   lang ghc
     - make sure something sane happens when Environ is bad on startup
     - is Cmd.Lang.Fast now obsolete?

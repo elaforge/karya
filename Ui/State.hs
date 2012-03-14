@@ -117,7 +117,7 @@ initial_default = Default {
 -- is enforced by 'map_ids' and 'destroy_ruler', but it's still possible.  So
 -- don't do that.
 no_ruler :: RulerId
-no_ruler = Types.RulerId (Id.global "_no_ruler_")
+no_ruler = Types.RulerId (Id.global "-no-ruler-")
 
 -- | A non-existent ruler, ready for inclusion into create_block's track list.
 no_ruler_track :: Block.Track

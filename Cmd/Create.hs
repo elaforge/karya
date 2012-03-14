@@ -443,7 +443,7 @@ make_id name = do
 
 -- | An overlay versions of a ruler has id ruler_id ++ suffix.
 overlay_suffix :: String
-overlay_suffix = ".overlay"
+overlay_suffix = "-overlay"
 
 -- * general util
 
@@ -455,8 +455,8 @@ generate_id ns parent_id code typ fm =
 
 ids_for :: Id.Namespace -> String -> String -> [Id.Id]
 ids_for ns parent code =
-    [Id.id ns (dotted parent ++ code ++ show n) | n <- [0..]]
-    where dotted s = if null s then "" else s ++ "."
+    [Id.id ns (dashed parent ++ code ++ show n) | n <- [0..]]
+    where dashed s = if null s then "" else s ++ "-"
 
 require :: (State.M m) => String -> Maybe a -> m a
 require msg = maybe (State.throw $ "somehow can't find ID for " ++ msg) return

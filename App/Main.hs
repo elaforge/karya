@@ -389,7 +389,7 @@ setup_big = do
 
 empty_block :: (Cmd.M m) => m (BlockId, ViewId)
 empty_block = do
-    (rid, over_rid) <- Create.ruler "meter_44"
+    (rid, over_rid) <- Create.ruler "meter44"
         (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
         { Ruler.ruler_align_to_bottom = arrival_beats }
 
