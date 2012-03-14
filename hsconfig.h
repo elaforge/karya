@@ -7,6 +7,10 @@
     will choke on C++ comments.
 */
 
+/* All the include guard does is avoid some "redefined" warnings from CPP. */
+#ifndef __HSCONFIG_H
+#define __HSCONFIG_H
+
 /* These are automatically rewritten by the shakefile. */
 #undef INTERPRETER_HINT
 #undef INTERPRETER_GHC
@@ -16,5 +20,7 @@
 #elif defined(__APPLE__)
 
 #define CORE_MIDI
+
+#endif
 
 #endif
