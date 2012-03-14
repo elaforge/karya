@@ -152,4 +152,4 @@ test_expand_macros = do
     left_like (f "hi @") "parse error"
     equal (f "hi @a-b") (Right "hi !a-b")
     equal (f "hi @a b") (Right "hi !a b")
-    left_like (f "hi @not_ident") "parse error"
+    left_like (f "hi @not/ident") "parse error"

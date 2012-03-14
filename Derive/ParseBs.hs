@@ -21,18 +21,17 @@ module Derive.ParseBs (
 #endif
 ) where
 import qualified Control.Applicative as A (many)
-import qualified Data.Attoparsec.Char8 as A
 import Data.Attoparsec ((<?>))
+import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 
 import Util.Control
 import qualified Util.ParseBs as Parse
-
+import qualified Ui.Id as Id
 import qualified Derive.Score as Score
-import qualified Perform.Pitch as Pitch
-
 import qualified Derive.TrackLang as TrackLang
+import qualified Perform.Pitch as Pitch
 
 
 type Text = B.ByteString
@@ -70,18 +69,18 @@ strip_comment = fst . B.breakSubstring "--"
 -- It doesn't understand strings, so don't put ats in strings.  TODO fix that
 expand_macros :: (Text -> Text) -> Text -> Either String Text
 expand_macros replacement text
-    | B.null text = Right text
-    | otherwise = Parse.parse_all (mconcat <$> p_macro replacement) text
+    | '@' `B.notElem` text = Right text
+    | otherwise = Parse.parse_all (p_macros replacement) text
 
-p_macro :: (Text -> Text) -> A.Parser [Text]
-p_macro replacement = A.many1 $ do
+p_macros :: (Text -> Text) -> A.Parser Text
+p_macros replacement = do
     before <- A.takeWhile (/='@')
-    after <- A.option "" $ do
-        A.char '@'
-        replacement <$> p_ident ""
-    when (B.null before && B.null after) mzero
-    return $ before <> after
+    -- many1 is necessary to get a nice error msg from p_id.
+    macros <- A.many1 ((,) <$> p_macro replacement <*> A.takeWhile (/='@'))
+    return $ mconcat $ before : concat [[m, r] | (m, r) <- macros]
 
+p_macro :: (Text -> Text) -> A.Parser Text
+p_macro replacement = A.char '@' >> replacement <$> p_id
 
 -- * toplevel parsers
 
@@ -182,8 +181,8 @@ p_rel_attr = do
     mode <- A.choice
         [as TrackLang.Add '+', as TrackLang.Remove '-', as TrackLang.Set '=']
     attr <- case mode of
-        TrackLang.Set -> (A.char '-' >> return "") <|> p_ident ""
-        _ -> p_ident ""
+        TrackLang.Set -> (A.char '-' >> return "") <|> p_identifier ""
+        _ -> p_identifier ""
     return $ TrackLang.RelativeAttr
         (if B.null attr then TrackLang.Clear else mode, B.unpack attr)
     <?> "relative attr"
@@ -191,7 +190,7 @@ p_rel_attr = do
 p_control :: A.Parser TrackLang.ValControl
 p_control = do
     A.char '%'
-    control <- Score.Control . B.unpack <$> A.option "" (p_ident ",")
+    control <- Score.Control . B.unpack <$> A.option "" (p_identifier ",")
     deflt <- Parse.optional (A.char ',' >> p_num)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
@@ -201,7 +200,7 @@ p_control = do
 p_pitch_control :: A.Parser TrackLang.PitchControl
 p_pitch_control = do
     A.char '#'
-    control <- Score.Control . B.unpack <$> A.option "" (p_ident ",")
+    control <- Score.Control . B.unpack <$> A.option "" (p_identifier ",")
     deflt <- Parse.optional (A.char ',' >> p_word)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
@@ -213,7 +212,7 @@ p_pitch_control = do
 p_scale_id :: A.Parser Pitch.ScaleId
 p_scale_id = do
     A.char '*'
-    Pitch.ScaleId . B.unpack <$> A.option "" (p_ident "")
+    Pitch.ScaleId . B.unpack <$> A.option "" (p_identifier "")
     <?> "scale id"
 
 p_instrument :: A.Parser Score.Instrument
@@ -240,23 +239,34 @@ p_symbol = do
 --
 -- @until@ gives additional chars that stop parsing, for idents that are
 -- embedded in another lexeme.
-p_ident :: String -> A.Parser Text
-p_ident until = do
-    -- This forces identifiers to be separated with spaces, except with the |
-    -- operator.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which
-    -- seems like something I don't want to support.
+p_identifier :: String -> A.Parser Text
+p_identifier until = do
     -- TODO attoparsec docs say it's faster to do the check manually, profile
     -- and see if it makes a difference.
     ident <- A.takeWhile1 (A.notInClass (until ++ " |="))
+    -- This forces identifiers to be separated with spaces, except with the |
+    -- operator.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which
+    -- seems like something I don't want to support.
     unless (valid_identifier ident) $
         fail $ "invalid chars in identifier; only [a-z0-9-] are accepted: "
             ++ show ident
     return ident
 
 valid_identifier :: Text -> Bool
-valid_identifier s =
-    B.all (\c -> Char.isLower c || Char.isDigit c || c == '-') s
-    && (B.null s || Char.isLower (B.head s))
+valid_identifier = B.all (\c -> Char.isLower c || Char.isDigit c || c == '-')
+
+-- | Much like 'p_identifier', but for BlockId, RulerId, etc. which are
+-- slightly more permissive.
+p_id :: A.Parser Text
+p_id = do
+    ident <- A.takeWhile1 (A.notInClass " |=")
+    unless (valid_id ident) $
+        fail $ "invalid chars in identifier; only [a-z0-9_.`-] are accepted: "
+            ++ show ident
+    return ident
+
+valid_id :: Text -> Bool
+valid_id = B.all Id.is_identifier
 
 p_single_string :: A.Parser Text
 p_single_string = do

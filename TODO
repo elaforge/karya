@@ -1,5 +1,5 @@
 UNSORTED
-  - add ` as a valid identifier character
+  * add ` as a valid identifier character
   - Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.
     Also I should make sure non-ASCII doesn't get in since ByteString will
