@@ -1,4 +1,5 @@
 {-# LANGUAGE MagicHash, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- | REPL implementation that directly uses the GHC API.
 module Cmd.LangGhc (
     Session(..), make_session
@@ -10,6 +11,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import Control.Monad
 
+import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.IORef as IORef
 import qualified ErrUtils
 import qualified GHC
@@ -26,13 +28,18 @@ import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
+import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.ParseBs as ParseBs
 
+
+-- TODO A lot of symbols moved to the GHC API in 7.4.1, when I switch I can
+-- remove the direct imports of internal modules.
 
 -- | The actual session runs in another thread, so this is the communication
--- channel.  @(expr, response_mvar)@
-newtype Session = Session (Chan.Chan (String, MVar.MVar Cmd))
+-- channel.  @(expr, namespace, response_mvar)@
+newtype Session = Session (Chan.Chan (String, String, MVar.MVar Cmd))
 type Cmd = Cmd.CmdL String
 
 -- | Text version of the Cmd type.
@@ -46,9 +53,10 @@ make_session = Session <$> Chan.newChan
 
 interpret :: Session -> [String] -> State.State
     -> Cmd.State -> String -> IO (Cmd.CmdT IO String)
-interpret (Session chan) _local_modules _ui_state _cmd_state expr = do
+interpret (Session chan) _local_modules ui_state _cmd_state expr = do
     mvar <- MVar.newEmptyMVar
-    Chan.writeChan chan (expr, mvar)
+    let ns = State.config_namespace (State.state_config ui_state)
+    Chan.writeChan chan (expr, ns, mvar)
     MVar.takeMVar mvar
 
 interpreter :: Session -> IO ()
@@ -66,21 +74,26 @@ interpreter (Session chan) = do
         errs <- reload
         -- TODO log the errs?  Then what?
         forever $ do
-            (expr, return_mvar) <- liftIO $ Chan.readChan chan
+            (expr, namespace, return_mvar) <- liftIO $ Chan.readChan chan
             result <- case expr of
-                ":r" -> reload_cmd
-                ":R" -> reload_cmd
-                _ -> normal_cmd expr
+                ':' : colon -> colon_cmd colon
+                _ -> normal_cmd namespace expr
             liftIO $ MVar.putMVar return_mvar result
     where
     toplevel = "Cmd.Lang.Environ"
-    reload_cmd :: Ghc Cmd
-    reload_cmd = format_response <$> reload
 
-    normal_cmd :: String -> Ghc Cmd
-    normal_cmd expr = do
-        set_context [toplevel]
-        format_response <$> compile expr
+    normal_cmd :: String -> String -> Ghc Cmd
+    normal_cmd namespace expr = case expand_macros namespace expr of
+        Left err -> return $ return $ "expand_macros: " ++ err
+        Right expr -> do
+            set_context [toplevel]
+            format_response <$> compile expr
+
+    colon_cmd :: String -> Ghc Cmd
+    colon_cmd "r" = format_response <$> reload
+    colon_cmd "R" = format_response <$> reload
+    -- colon_cmd ('b' : mods) = return <$> (browse toplevel (words mods))
+    colon_cmd colon = return $ return $ "Unknown colon command: " ++ show colon
 
 -- | Convert warnings and a possibly failed compile into a chatty cmd.
 format_response :: (Either String Cmd, [String], [String]) -> Cmd
@@ -96,6 +109,14 @@ format_response (result, logs, warns) = decorate $ case result of
 
 
 -- * implementation
+
+-- | Replace @some-id with (auto_id ns "some-id")
+expand_macros :: Id.Namespace -> String -> Either String String
+expand_macros namespace expr =
+    ByteString.unpack <$> ParseBs.expand_macros replace (ByteString.pack expr)
+    where
+    replace ident = "(auto_id " <> ByteString.pack (show namespace) <> " "
+        <> ByteString.pack (show ident) <> ")"
 
 type Result a = (Either String a, [String], [String])
 

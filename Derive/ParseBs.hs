@@ -13,6 +13,9 @@ module Derive.ParseBs (
     ParseExpr
     , parse_expr, parse_num_expr, parse_control_title
     , parse_val
+
+    -- * expand macros
+    , expand_macros
 #ifdef TESTING
     , p_equal
 #endif
@@ -20,7 +23,7 @@ module Derive.ParseBs (
 import qualified Control.Applicative as A (many)
 import qualified Data.Attoparsec.Char8 as A
 import Data.Attoparsec ((<?>))
-import Data.ByteString.Char8 as B
+import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 
 import Util.Control
@@ -57,6 +60,28 @@ parse p text = Parse.parse_all p (strip_comment text)
 
 strip_comment :: Text -> Text
 strip_comment = fst . B.breakSubstring "--"
+
+
+-- * expand macros
+
+-- | Map the identifiers after a \"@\" through the given function.  Used
+-- to implement ID macros for the REPL.
+--
+-- It doesn't understand strings, so don't put ats in strings.  TODO fix that
+expand_macros :: (Text -> Text) -> Text -> Either String Text
+expand_macros replacement text
+    | B.null text = Right text
+    | otherwise = Parse.parse_all (mconcat <$> p_macro replacement) text
+
+p_macro :: (Text -> Text) -> A.Parser [Text]
+p_macro replacement = A.many1 $ do
+    before <- A.takeWhile (/='@')
+    after <- A.option "" $ do
+        A.char '@'
+        replacement <$> p_ident ""
+    when (B.null before && B.null after) mzero
+    return $ before <> after
+
 
 -- * toplevel parsers
 

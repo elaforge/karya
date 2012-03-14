@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Derive.ParseBs_test where
-import Control.Monad
-
+import Util.Control
 import qualified Util.ParseBs as Util.Parse
 import qualified Util.Pretty as Pretty
 import Util.Test
@@ -139,9 +138,18 @@ test_p_equal = do
     equal (parse "a= b") $ Right [Call (Symbol "a=") [Literal (symbol "b")]]
     equal (parse "a=b") $ Right [Call (Symbol "a=b") []]
 
-
 val_call :: String -> [Term] -> Term
 val_call sym args = ValCall (Call (Symbol sym) args)
 
 symbol :: String -> Val
 symbol sym = VSymbol (Symbol sym)
+
+
+test_expand_macros = do
+    let f = Parse.expand_macros ("!" <>)
+    equal (f "") (Right "")
+    equal (f "hi") (Right "hi")
+    left_like (f "hi @") "parse error"
+    equal (f "hi @a-b") (Right "hi !a-b")
+    equal (f "hi @a b") (Right "hi !a b")
+    left_like (f "hi @not_ident") "parse error"

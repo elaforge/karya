@@ -25,7 +25,7 @@ test_lang_ghc = do
         line <- getLine
         if line == "quit" then return () else do
         mvar <- MVar.newEmptyMVar
-        Chan.writeChan chan (line, mvar)
+        Chan.writeChan chan (line, "ns", mvar)
         cmd <- MVar.takeMVar mvar
         result <- run_io "" cmd
         case result of

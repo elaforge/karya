@@ -75,6 +75,19 @@ import Types
 
 -- * util
 
+-- | Take a string and automatically figure out what kind of ID is expected and
+-- add a namespace if one was not already in the string.
+class AutoId a where auto_id :: Id.Namespace -> String -> a
+instance AutoId ViewId where auto_id ns = Types.ViewId . Id.make ns
+instance AutoId BlockId where auto_id ns = Types.BlockId . Id.make ns
+instance AutoId RulerId where auto_id ns = Types.RulerId . Id.make ns
+instance AutoId TrackId where auto_id ns = Types.TrackId . Id.make ns
+
+vid = Types.ViewId . Id.read_id
+bid = Types.BlockId . Id.read_id
+rid = Types.RulerId . Id.read_id
+tid = Types.TrackId . Id.read_id
+
 block :: Cmd.CmdL BlockId
 block = Cmd.get_focused_block
 
@@ -181,11 +194,6 @@ load :: FilePath -> Cmd.CmdL ()
 load fn = Save.cmd_load fn
 
 -- * show / modify UI state
-
-vid = Types.ViewId . Id.read_id
-bid = Types.BlockId . Id.read_id
-rid = Types.RulerId . Id.read_id
-tid = Types.TrackId . Id.read_id
 
 show_state :: Cmd.CmdL String
 show_state = do
