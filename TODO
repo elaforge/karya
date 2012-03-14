@@ -11,7 +11,7 @@ UNSORTED
     calls.
 
   lang ghc
-    - make sure something sane happens when Environ is bad on startup
+    * make sure something sane happens when Environ is bad on startup
     - is Cmd.Lang.Fast now obsolete?
     - can I get local variable bindings (let x = ...; y <- ...) to work in the
       REPL?

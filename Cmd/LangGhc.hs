@@ -71,13 +71,20 @@ interpreter (Session chan) = do
     GHC.runGhcT (Just GHC.Paths.libdir) $ do
         parse_flags args
         GHC.setTargets [make_target False toplevel]
-        errs <- reload
-        -- TODO log the errs?  Then what?
+        (result, logs, warns) <- reload
+        case result of
+            Left err -> liftIO $
+                Log.warn $ "error loading REPL modules: " ++ err
+                    ++ Seq.join "; " warns ++ " / " ++ Seq.join "; " logs
+            _ -> return ()
         forever $ do
             (expr, namespace, return_mvar) <- liftIO $ Chan.readChan chan
             result <- case expr of
                 ':' : colon -> colon_cmd colon
                 _ -> normal_cmd namespace expr
+                    `GHC.gcatch` \(exc :: Exception.SomeException) ->
+                        -- set_context throws if the reload failed.
+                        return $ return $  "Exception: " ++ show exc
             liftIO $ MVar.putMVar return_mvar result
     where
     toplevel = "Cmd.Lang.Environ"
@@ -126,8 +133,10 @@ reload = do
     (result, logs, warns) <- handle_errors $ GHC.load GHC.LoadAllTargets
     return (mkcmd result, logs, warns)
     where
-    mkcmd = fmap $ \ok ->
-        return $ if GHC.succeeded ok then "reloaded" else "reload failed"
+    mkcmd (Right ok)
+        | GHC.succeeded ok = Right (return "reloaded")
+        | otherwise = Left "reload failed"
+    mkcmd (Left err) = Left err
     -- Set the module loaded callback to print out modules as they are loaded.
     -- module_load_callback = HscTypes.withLocalCallbacks $ \cbs ->
     --     cbs { GHC.reportModuleCompilationResult = load_callback }
