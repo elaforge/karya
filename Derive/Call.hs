@@ -226,7 +226,7 @@ derive_event st tinfo parse prev_sample repeat_call prev cur@(pos, event) next
     where
     text = Event.event_bs event
     parse_error = Log.msg Log.Warn $
-        Just (Derive.state_stack (Derive.state_dynamic st))
+        Just (Stack.to_strings (Derive.state_stack (Derive.state_dynamic st)))
     run_call expr = apply_toplevel state (dinfo, cinfo expr) expr
     state = st
         { Derive.state_dynamic = (Derive.state_dynamic st)
@@ -281,7 +281,8 @@ apply_toplevel state info expr = case Seq.viewr expr of
     run d = case Derive.run state d of
         (result, state, logs) -> (result, logs, Derive.state_collect state)
     err = Log.msg Log.Warn
-        (Just (Derive.state_stack (Derive.state_dynamic state)))
+        (Just (Stack.to_strings
+            (Derive.state_stack (Derive.state_dynamic state))))
         "event with no calls at all (this shouldn't happen)"
 
 apply_generator :: (Derive.Derived derived) => Info derived -> TrackLang.Call

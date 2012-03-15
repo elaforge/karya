@@ -5,6 +5,7 @@ module Derive.Stack (
     , block_of, track_of, region_of, call_of
     , Frame(..)
     , show_ui
+    , to_strings, from_strings
 
     -- * more specialized utils
     , track_regions
@@ -36,8 +37,10 @@ import Types
 --
 -- I originally used "Data.Sequence" but it generates more garbage and
 -- I couldn't figure out how to stop that from happening.
-newtype Stack = Stack [Frame]
-    deriving (Eq, Ord, Read, Show, DeepSeq.NFData)
+newtype Stack = Stack [Frame] deriving (Eq, Ord, DeepSeq.NFData)
+
+instance Show Stack where
+    show stack = "Stack.from_outermost " ++ show (outermost stack)
 
 empty :: Stack
 empty = Stack []
@@ -109,6 +112,15 @@ instance Pretty.Pretty Frame where
 
 show_ui :: Stack -> String
 show_ui = Seq.join ": " . map unparse_ui_frame . to_ui
+
+-- | Serialize a Stack to and from a list of strings, as used in
+-- 'Util.Log.Msg'.  Since I use a list of Strings instead of a String, I can
+-- conceal that internally the stack is stored innermost first.
+to_strings :: Stack -> [String]
+to_strings = map show . outermost
+
+from_strings :: [String] -> Stack
+from_strings = from_outermost . map read
 
 -- * more specialized utils
 

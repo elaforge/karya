@@ -474,13 +474,13 @@ r_cache_logs = map DeriveTest.show_log_stack . filter DeriveTest.cache_msg
     . snd . LEvent.partition . Derive.r_events
 
 log_with_stack :: Log.Msg -> String
-log_with_stack msg =
-    Pretty.pretty (Log.msg_stack msg) ++ ": " ++ Log.msg_string msg
+log_with_stack msg = Pretty.pretty (Stack.from_strings <$> Log.msg_stack msg)
+    ++ ": " ++ Log.msg_string msg
 
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
 r_cache_collect :: Derive.Result -> [(String, Maybe Derive.Collect)]
 r_cache_collect result = Seq.sort_on fst
-    [(DeriveTest.show_stack (Just stack), collect ctype)
+    [(DeriveTest.show_stack (Just (Stack.to_strings stack)), collect ctype)
         | (stack, ctype) <- Map.assocs cmap]
     where
     cmap = uncache (Derive.r_cache result)

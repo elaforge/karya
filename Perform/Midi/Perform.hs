@@ -135,7 +135,7 @@ channelize_event inst_addrs overlapping event =
     chan = maybe (maximum (-1 : map snd overlapping) + 1) id maybe_chan
     (maybe_chan, reasons) = shareable_chan overlapping event
     logs =
-        [ Log.msg Log.Warn (Just (event_stack event)) $
+        [ Log.msg Log.Warn (Just (Stack.to_strings (event_stack event))) $
             "can't share with " ++ show chan ++ ": " ++ err
         | (chan, err) <- reasons
         ]
@@ -636,4 +636,5 @@ overlap_map initial = go initial
 
 event_warning :: Event -> String -> Log.Msg
 event_warning event msg =
-    Log.msg Log.Warn (Just (event_stack event)) ("Perform: " ++ msg)
+    Log.msg Log.Warn (Just (Stack.to_strings (event_stack event)))
+        ("Perform: " ++ msg)

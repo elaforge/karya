@@ -128,7 +128,7 @@ with_msg msg = Internal.local $ \st ->
 
 error_to_warn :: Error -> Log.Msg
 error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
-    (Just stack) ("Error: " ++ Pretty.pretty val)
+    (Just (Stack.to_strings stack)) ("Error: " ++ Pretty.pretty val)
 
 
 -- * state access

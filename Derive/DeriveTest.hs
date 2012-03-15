@@ -379,13 +379,13 @@ e_note2 e = (Score.event_start e, Score.event_duration e, e_twelve e)
 show_log_stack :: Log.Msg -> String
 show_log_stack msg = show_stack (Log.msg_stack msg) ++ ": " ++ show_log msg
 
-show_stack :: Maybe Stack.Stack -> String
+show_stack :: Maybe Log.Stack -> String
 show_stack Nothing = "<nothing>"
 show_stack (Just stack)
     | null ui = "<no stack>"
     -- This uses ': ' so 'x: *' works regardless of where in the stack x is.
     | otherwise = Seq.join ": " (map Stack.unparse_ui_frame ui)
-    where ui = Stack.to_ui stack
+    where ui = Stack.to_ui (Stack.from_strings stack)
 
 show_log :: Log.Msg -> String
 show_log = Log.msg_string

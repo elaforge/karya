@@ -183,7 +183,8 @@ process_cache msg
         increment_cached bid vals
     | otherwise = return ()
     where
-    bid = maybe "<nostack>" stack_block (Log.msg_stack msg)
+    bid = maybe "<nostack>" (stack_block . Stack.from_strings)
+        (Log.msg_stack msg)
     extract regex = case Regex.find_groups regex (Log.msg_string msg) of
         [] -> Nothing
         [(_, [match])] -> Just match
@@ -271,7 +272,7 @@ format_msg msg = run_formatter $ do
         emit_srcpos caller
         with_plain " "
     when_just (Log.msg_stack msg) $ \stack -> do
-        emit_stack stack
+        emit_stack (Stack.from_strings stack)
         with_plain " "
     regex_style style msg_text_regexes (Log.msg_string msg)
     with_plain "\n"

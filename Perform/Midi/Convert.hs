@@ -68,7 +68,7 @@ convert lookup events = go Set.empty Nothing events
 -- | Convert a Warning into an appropriate log msg.
 warn_to_log :: Warning.Warning -> Log.Msg
 warn_to_log (Warning.Warning msg stack maybe_range) =
-    Log.msg Log.Warn (Just stack) $
+    Log.msg Log.Warn (Just (Stack.to_strings stack)) $
         "Convert: " ++ msg ++ maybe "" ((" range: " ++) . show) maybe_range
     -- TODO It would be more useful to append the range to the stack, but
     -- I would have to convert real -> score.

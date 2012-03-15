@@ -197,8 +197,8 @@ instance Log.LogMonad Deriver where
     initialize_msg msg = do
         -- If the msg was created by *_stack (for instance, by 'catch_warn'),
         -- it may already have a stack.
-        stack <- maybe (gets (state_stack . state_dynamic)) return
-            (Log.msg_stack msg)
+        stack <- maybe (gets (Stack.to_strings . state_stack . state_dynamic))
+            return (Log.msg_stack msg)
         context <- gets (state_log_context . state_dynamic)
         return $ msg {
             Log.msg_stack = Just stack

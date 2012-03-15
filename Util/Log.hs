@@ -10,7 +10,7 @@
 module Util.Log (
     configure
     -- * msgs
-    , Msg(..), msg_string, Prio(..), State(..)
+    , Msg(..), Stack, msg_string, Prio(..), State(..)
     , msg, msg_srcpos, initialized_msg, initialized_msg_srcpos
     , timer, debug, notice, warn, error
     , timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
@@ -58,11 +58,8 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
--- This import is a little iffy because Util shouldn't be importing from
--- elsewhere, but the stack uses TrackIds.  UI doesn't use the logging, so
--- I'm safe for now...
-import qualified Derive.Stack as Stack
 
+type Stack = [String]
 
 data Msg = Msg {
     msg_date :: !Time.UTCTime
@@ -70,7 +67,7 @@ data Msg = Msg {
     , msg_prio :: !Prio
     -- | Msgs which are logged from the deriver may record the position in the
     -- score the msg was emitted.
-    , msg_stack :: !(Maybe Stack.Stack)
+    , msg_stack :: !(Maybe Stack)
     -- | Free form text for humans.
     , msg_text  :: !Text.Text
     -- | Attach some typed data.  Data.Dynamic would be more generic, but
@@ -141,11 +138,11 @@ data Prio =
 
 -- | Create a msg without initializing it, so it doesn't have to be in
 -- LogMonad.
-msg :: Prio -> Maybe Stack.Stack -> String -> Msg
+msg :: Prio -> Maybe Stack -> String -> Msg
 msg = msg_srcpos Nothing
 
 -- | Create a msg without initializing it.
-msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String -> Msg
+msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack -> String -> Msg
 msg_srcpos srcpos prio stack text =
     Msg no_date_yet srcpos prio stack (Text.pack text) []
 
@@ -159,14 +156,14 @@ initialized_msg prio = initialized_msg_srcpos Nothing prio
 
 -- | This is the main way to construct a Msg since 'initialize_msg' is called.
 make_msg :: (LogMonad m) =>
-    SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String -> m Msg
+    SrcPos.SrcPos -> Prio -> Maybe Stack -> String -> m Msg
 make_msg srcpos prio stack text =
     initialize_msg (msg_srcpos srcpos prio stack text)
 
 log :: (LogMonad m) => Prio -> SrcPos.SrcPos -> String -> m ()
 log prio srcpos text = write =<< make_msg srcpos prio Nothing text
 
-log_stack :: (LogMonad m) => Prio -> SrcPos.SrcPos -> Stack.Stack -> String
+log_stack :: (LogMonad m) => Prio -> SrcPos.SrcPos -> Stack -> String
     -> m ()
 log_stack prio srcpos stack text =
     write =<< make_msg srcpos prio (Just stack) text
@@ -196,14 +193,14 @@ timer_srcpos srcpos log_msg = Trans.liftIO $ do
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
 debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos, error_stack_srcpos
-    :: (LogMonad m) => SrcPos.SrcPos -> Stack.Stack -> String -> m ()
+    :: (LogMonad m) => SrcPos.SrcPos -> Stack -> String -> m ()
 debug_stack_srcpos = log_stack Debug
 notice_stack_srcpos = log_stack Notice
 warn_stack_srcpos = log_stack Warn
 error_stack_srcpos = log_stack Error
 
 debug_stack, notice_stack, warn_stack, error_stack :: (LogMonad m) =>
-    Stack.Stack -> String -> m ()
+    Stack -> String -> m ()
 debug_stack = debug_stack_srcpos Nothing
 notice_stack = notice_stack_srcpos Nothing
 warn_stack = warn_stack_srcpos Nothing
@@ -251,7 +248,7 @@ instance LogMonad IO where
 format_msg :: Msg -> String
 format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
         , msg_text = text, msg_stack = stack }) =
-    log_msg ++ maybe "" ((' ':) . Pretty.pretty) stack
+    log_msg ++ maybe "" ((' ':) . Seq.join " / ") stack
     where
     prio_stars Timer = "-"
     prio_stars prio = replicate (fromEnum prio) '*'
