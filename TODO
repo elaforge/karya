@@ -2,14 +2,14 @@ UNSORTED
   * add ` as a valid identifier character
   - Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.
-    Also I should make sure non-ASCII doesn't get in since ByteString will
-    mangle it.
 
     p_ident applies to: Attributes, Control, PitchControl, ScaleId
+    Maybe it's enough that the parser restricts them?  That means no one
+    will bother creating e.g. a bogus control name because it could't be used.
     Call names are explicitly anything-goes.  BlockIds should support at
     least some of it if they are supposed to be interchangeable with other
     calls.
-  - Look at occurrances of B.pack and make sure the data is 7bit.
+  * Look at occurrances of B.pack and make sure the data is 7bit.
   * make Namespace a newtype so I can enforce the naming constraint
 
   - key not applied in inner blocks, local play should take the root play's

@@ -1,5 +1,4 @@
 module Derive.Call.CallTest where
-import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
 
 import qualified Ui.State as State
@@ -77,7 +76,8 @@ single_lookup name call call_id
 -- * PassedArgs
 
 expr :: String -> TrackLang.Expr
-expr = either (error . ("CallTest.expr: " ++)) id . ParseBs.parse_expr . B.pack
+expr = either (error . ("CallTest.expr: " ++)) id . ParseBs.parse_expr
+    . ParseBs.from_string
 
 val :: String -> TrackLang.Val
 val = either (error . ("CallTest.val: " ++)) id . ParseBs.parse_val

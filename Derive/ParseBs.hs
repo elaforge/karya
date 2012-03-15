@@ -7,10 +7,13 @@
 -- this shouldn't be a big deal.  Unfortunately the speed difference is not
 -- that large either.
 --
--- This could support UTF8, but I'd need to make sure the packs and unpacks
--- are encoding and decoding properly.
+-- Attoparsec has support for Text now, but it's still fastest when working
+-- with ByteStrings (TODO according to profiling at the time, should recheck
+-- this someday).  This module uses UTF8 internally, so unicode should be
+-- preserved, but most of the parsers insist on a restrictive character set.
+-- Special characters should probably be written with backticks anyway.
 module Derive.ParseBs (
-    ParseExpr
+    from_string, to_string, ParseExpr
     , parse_expr, parse_num_expr, parse_control_title
     , parse_val
 
@@ -24,6 +27,7 @@ import qualified Control.Applicative as A (many)
 import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.UTF8 as UTF8
 
 import Util.Control
 import qualified Util.ParseBs as Parse
@@ -35,6 +39,12 @@ import qualified Perform.Pitch as Pitch
 
 type Text = B.ByteString
 
+from_string :: String -> Text
+from_string = UTF8.fromString
+
+to_string :: Text -> String
+to_string = UTF8.toString
+
 -- | The returned Expr is never null.
 type ParseExpr = Text -> Either String TrackLang.Expr
 
@@ -45,13 +55,14 @@ parse_num_expr = parse p_num_pipeline
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
-parse_control_title :: Text -> Either String ([TrackLang.Val], TrackLang.Expr)
-parse_control_title text = Parse.parse_all p_control_title (strip_comment text)
+parse_control_title :: String -> Either String ([TrackLang.Val], TrackLang.Expr)
+parse_control_title =
+    Parse.parse_all p_control_title . strip_comment . from_string
 
 -- | Parse a single Val.  This takes a String since it's used with Notes and
--- Symbols, which are still Strings.  As usual, non-ASCII is destroyed.
+-- Symbols, which are still Strings.
 parse_val :: String -> Either String TrackLang.Val
-parse_val = Parse.parse_all (Parse.lexeme p_val) . B.pack
+parse_val = Parse.parse_all (Parse.lexeme p_val) . from_string
 
 parse :: A.Parser a -> Text -> Either String a
 parse p text = Parse.parse_all p (strip_comment text)
@@ -66,10 +77,12 @@ strip_comment = fst . B.breakSubstring "--"
 -- to implement ID macros for the REPL.
 --
 -- It doesn't understand strings, so don't put ats in strings.  TODO fix that
-expand_macros :: (Text -> Text) -> Text -> Either String Text
-expand_macros replacement text
-    | '@' `B.notElem` text = Right text
-    | otherwise = Parse.parse_all (p_macros replacement) text
+expand_macros :: (String -> String) -> String -> Either String String
+expand_macros replacement str
+    | '@' `notElem` str = Right str
+    | otherwise = Parse.parse_all
+        (to_string <$> p_macros (from_string . replacement . to_string)) text
+    where text = from_string str
 
 p_macros :: (Text -> Text) -> A.Parser Text
 p_macros replacement = do
@@ -136,7 +149,7 @@ p_num_call = do
 -- you can have calls like @4@ and @>@, which are useful names for notes or
 -- ornaments.
 p_call_symbol :: A.Parser TrackLang.Symbol
-p_call_symbol = TrackLang.Symbol . B.unpack <$> p_word
+p_call_symbol = TrackLang.Symbol . to_string <$> p_word
 
 p_term :: A.Parser TrackLang.Term
 p_term = Parse.lexeme $
@@ -153,7 +166,7 @@ p_val =
     -- not ambiguous.
     <|> TrackLang.VRelativeAttr <$> A.try p_rel_attr
     <|> TrackLang.VNum <$> p_num
-    <|> (TrackLang.VString . B.unpack) <$> p_string
+    <|> (TrackLang.VString . to_string) <$> p_string
     <|> TrackLang.VControl <$> p_control
     <|> TrackLang.VPitchControl <$> p_pitch_control
     <|> TrackLang.VScaleId <$> p_scale_id
@@ -183,13 +196,13 @@ p_rel_attr = do
         TrackLang.Set -> (A.char '-' >> return "") <|> p_identifier ""
         _ -> p_identifier ""
     return $ TrackLang.RelativeAttr
-        (if B.null attr then TrackLang.Clear else mode, B.unpack attr)
+        (if B.null attr then TrackLang.Clear else mode, to_string attr)
     <?> "relative attr"
 
 p_control :: A.Parser TrackLang.ValControl
 p_control = do
     A.char '%'
-    control <- Score.Control . B.unpack <$> A.option "" (p_identifier ",")
+    control <- Score.Control . to_string <$> A.option "" (p_identifier ",")
     deflt <- Parse.optional (A.char ',' >> p_num)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
@@ -199,23 +212,23 @@ p_control = do
 p_pitch_control :: A.Parser TrackLang.PitchControl
 p_pitch_control = do
     A.char '#'
-    control <- Score.Control . B.unpack <$> A.option "" (p_identifier ",")
+    control <- Score.Control . to_string <$> A.option "" (p_identifier ",")
     deflt <- Parse.optional (A.char ',' >> p_word)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
         Just val ->
             TrackLang.DefaultedControl control
-                (TrackLang.Note (Pitch.Note (B.unpack val)) [])
+                (TrackLang.Note (Pitch.Note (to_string val)) [])
     <?> "pitch control"
 
 p_scale_id :: A.Parser Pitch.ScaleId
 p_scale_id = do
     A.char '*'
-    Pitch.ScaleId . B.unpack <$> A.option "" (p_identifier "")
+    Pitch.ScaleId . to_string <$> A.option "" (p_identifier "")
     <?> "scale id"
 
 p_instrument :: A.Parser Score.Instrument
-p_instrument = A.char '>' >> (Score.Instrument . B.unpack) <$> p_null_word
+p_instrument = A.char '>' >> (Score.Instrument . to_string) <$> p_null_word
     <?> "instrument"
 
 -- | Symbols can have anything in them but they have to start with a letter.
@@ -229,7 +242,7 @@ p_symbol :: A.Parser TrackLang.Symbol
 p_symbol = do
     c <- A.satisfy (\c -> A.isAlpha_ascii c || c == '*')
     rest <- p_null_word
-    return $ TrackLang.Symbol (c : B.unpack rest)
+    return $ TrackLang.Symbol (c : to_string rest)
 
 -- | Identifiers are somewhat more strict than usual.  They must be lowercase,
 -- and the only non-letter allowed is hyphen.  This means words must be

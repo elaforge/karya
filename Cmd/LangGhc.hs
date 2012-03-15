@@ -11,7 +11,6 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import Control.Monad
 
-import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.IORef as IORef
 import qualified ErrUtils
 import qualified GHC
@@ -119,11 +118,9 @@ format_response (result, logs, warns) = decorate $ case result of
 
 -- | Replace @some-id with (auto_id ns "some-id")
 expand_macros :: Id.Namespace -> String -> Either String String
-expand_macros namespace expr =
-    ByteString.unpack <$> ParseBs.expand_macros replace (ByteString.pack expr)
+expand_macros namespace expr = ParseBs.expand_macros replace expr
     where
-    replace ident = "(auto_id " <> ByteString.pack (show namespace) <> " "
-        <> ByteString.pack (show ident) <> ")"
+    replace ident = "(auto_id " <> show namespace <> " " <> show ident <> ")"
 
 type Result a = (Either String a, [String], [String])
 

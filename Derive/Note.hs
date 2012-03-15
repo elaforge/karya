@@ -128,7 +128,6 @@
     a departing note.
 -}
 module Derive.Note where
-import qualified Data.ByteString.Char8 as B
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -152,7 +151,7 @@ d_note_track :: State.EventsNode -> Derive.EventDeriver
 d_note_track (Tree.Node track subs) = do
     let title = State.tevents_title track
     if null title then return mempty else do
-    track_expr <- case Parse.parse_expr (B.pack title) of
+    track_expr <- case Parse.parse_expr (Parse.from_string title) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return (preprocess_title expr)
     stash_sub_signals subs

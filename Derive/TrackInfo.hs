@@ -8,12 +8,12 @@
 -- needed.  Control tracks titles are just a hardcoded list of special cases,
 -- though they are parsed as tracklang Vals.
 module Derive.TrackInfo where
-import qualified Data.ByteString.Char8 as B
 import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -35,7 +35,7 @@ parse_control = fmap fst . parse_control_expr
 
 parse_control_expr :: String -> Either String (ControlType, TrackLang.Expr)
 parse_control_expr title = do
-    (vals, expr) <- Parse.parse_control_title (B.pack title)
+    (vals, expr) <- Parse.parse_control_title title
     ctrack <- parse_control_vals vals
     return (ctrack, expr)
 
