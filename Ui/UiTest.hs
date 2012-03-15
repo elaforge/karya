@@ -37,7 +37,7 @@ default_divider = Block.Divider Color.blue
 
 -- state
 
-test_ns = "test"
+test_ns = Id.namespace "test"
 mkid = Id.id test_ns
 bid = Types.BlockId . mkid
 vid = Types.ViewId . mkid

@@ -95,7 +95,7 @@ instance DeepSeq.NFData State where
 
 empty_config :: Config
 empty_config = Config
-    { config_namespace = "untitled"
+    { config_namespace = Id.namespace "untitled"
     , config_project_dir = "save"
     , config_root = Nothing
     , config_midi = Instrument.config []

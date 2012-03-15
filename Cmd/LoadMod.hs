@@ -41,7 +41,7 @@ import Types
 
 -- * create ui state
 
-create :: (State.M m) => String -> [UiBlock] -> m ()
+create :: (State.M m) => Id.Namespace -> [UiBlock] -> m ()
 create name ui_blocks = do
     State.set_namespace name
     let mkid = Id.id name

@@ -9,22 +9,8 @@ UNSORTED
     Call names are explicitly anything-goes.  BlockIds should support at
     least some of it if they are supposed to be interchangeable with other
     calls.
-
-  lang ghc
-    * make sure something sane happens when Environ is bad on startup
-    - is Cmd.Lang.Fast now obsolete?
-    - can I get local variable bindings (let x = ...; y <- ...) to work in the
-      REPL?
-    * have 'bid' and 'tid' etc. functions know the current namespace
-      Either magic syntax macro in the REPL, or wrap each repl cmd in a let.
-      @somebid
-      Make a class that infers the right kind of ID depending on what is
-      expected by the caller.
-    - tab completion for symbols like in ghci
-      I'll need a list symbols cmd which the repl automatically sends on tab
-      completion.
-    - :compile cmd that turns on compilation for everything except Environ
-    - :browse to look in modules... can I use GHC.getBindings for this?
+  - Look at occurrances of B.pack and make sure the data is 7bit.
+  * make Namespace a newtype so I can enforce the naming constraint
 
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
@@ -746,6 +732,16 @@ REPL repl language static config
   - could add syntax mangling, but probably better to add it to the mangler
     so it works for everyone
   - pass -fobject-code to avoid trying to recompile files?
+  * make sure something sane happens when Environ is bad on startup
+  - is Cmd.Lang.Fast now obsolete?
+  - can I get local variable bindings (let x = ...; y <- ...) to work in the
+    REPL?
+  * have 'bid' and 'tid' etc. functions know the current namespace
+  - tab completion for symbols like in ghci
+    I'll need a list symbols cmd which the repl automatically sends on tab
+    completion.
+  - :compile cmd that turns on compilation for everything except Environ
+  - :browse to look in modules... can I use GHC.getBindings for this?
 
 Cmd:
   - step play StepPlay could work even when notes were moved by annotating

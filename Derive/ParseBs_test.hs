@@ -70,6 +70,7 @@ test_parse_val = do
             , ("0.", Nothing)
             , (".2", Just (VNum (Score.untyped 0.2)))
             , ("1c", Just (VNum (Score.Typed Score.Chromatic 1)))
+            , ("-1d", Just (VNum (Score.Typed Score.Diatonic (-1))))
             , ("-.5d", Just (VNum (Score.Typed Score.Diatonic (-0.5))))
             , ("1q", Nothing)
 

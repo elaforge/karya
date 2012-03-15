@@ -21,7 +21,6 @@ test_random = do
         /= run 2 (Internal.with_stack_region 1 1 rand)
     equal (run 0 (Util.shuffle ['a'..'f'])) (Right "edbacf") -- ya ya ya :)
 
-
 test_c_equal = do
     -- Test the '=' call, but also test the special parsing Derive.Note deriver
     -- eval in general.

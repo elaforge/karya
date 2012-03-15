@@ -29,12 +29,11 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Text.Printf
 
-import qualified Midi.Synth ()
-
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Map as Map
 import qualified Util.PPrint as PPrint
+import qualified Util.Pretty as Pretty
 
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -55,13 +54,14 @@ import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
 
--- Just make sure these are compiled.
-import qualified Cmd.Lang.LEvent ()
 import qualified Cmd.Lang.LInst as LInst
-import qualified Cmd.Lang.LPerf ()
-import qualified Cmd.Lang.LPitch ()
-import qualified Cmd.Lang.LRuler ()
-import qualified Cmd.Lang.LTrack ()
+-- Just make sure these are compiled.
+import Midi.Synth ()
+import Cmd.Lang.LEvent ()
+import Cmd.Lang.LPerf ()
+import Cmd.Lang.LPitch ()
+import Cmd.Lang.LRuler ()
+import Cmd.Lang.LTrack ()
 
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -198,12 +198,12 @@ load fn = Save.cmd_load fn
 show_state :: Cmd.CmdL String
 show_state = do
     (State.State views blocks tracks rulers
-        (State.Config project dir root _ (State.Default scale key inst tempo)))
+        (State.Config ns dir root _ (State.Default scale key inst tempo)))
             <- State.get
     -- midi config showed by show_midi_config
     let f fm = PPrint.list (map show (Map.keys fm))
     return $ PPrint.record
-        [ ("project", project), ("dir", dir) , ("root", show root)
+        [ ("namespace", Pretty.pretty ns), ("dir", dir) , ("root", show root)
         , ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
         , ("scale", show scale)

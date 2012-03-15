@@ -9,6 +9,7 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
+import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
@@ -21,8 +22,10 @@ get_save_file :: (Cmd.M m) => m FilePath
 get_save_file = do
     dir <- State.get_config State.config_project_dir
     ns <- State.get_namespace
-    return $ FilePath.combine dir (map sanitize ns)
-    where sanitize c = if FilePath.isPathSeparator c then '_' else c
+    return $ FilePath.combine dir (map sanitize (Id.un_namespace ns))
+    where
+    -- Shouldn't be necessary because of the Namespace restrictions.
+    sanitize c = if FilePath.isPathSeparator c then '_' else c
 
 cmd_save :: FilePath -> Cmd.CmdT IO ()
 cmd_save fname = do

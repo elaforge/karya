@@ -8,6 +8,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
+import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import Ui.UiTest (mkid)
@@ -19,7 +20,7 @@ test_apply = do
     -- Unfortunately I think an Arbitrary instance for State.State is hard.
     consistent id State.empty $ State.create_block (mkid "b")
         (UiTest.make_block "title" [])
-    consistent id State.empty (State.set_namespace "hoho")
+    consistent id State.empty (State.set_namespace (Id.namespace "hoho"))
     let ([tid1, tid2], st) = UiTest.run_mkview [(">", []), ("*", [])]
     consistent State.state_blocks st $
         State.remove_track UiTest.default_block_id 2

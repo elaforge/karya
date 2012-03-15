@@ -141,7 +141,7 @@ instance Serialize State.Config where
         v <- get_version
         case v of
             0 -> do
-                ns <- get :: Get String
+                ns <- get :: Get Id.Namespace
                 dir <- get :: Get String
                 root <- get :: Get (Maybe BlockId)
                 midi <- get :: Get Instrument.Config
@@ -169,8 +169,12 @@ instance Serialize State.Default where
             _ -> version_error "State.Default" v
 
 instance Serialize Id.Id where
-    put ident = put (Id.un_id ident)
+    put = put . Id.un_id
     get = get >>= \(a, b) -> return (Id.id a b)
+
+instance Serialize Id.Namespace where
+    put = put . Id.un_namespace
+    get = get >>= \a -> return (Id.namespace a)
 
 -- ** Block
 

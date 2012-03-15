@@ -3,8 +3,9 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 
-import Util.Test
 import qualified Util.Pretty as Pretty
+import Util.Test
+import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
@@ -25,7 +26,7 @@ test_lang_ghc = do
         line <- getLine
         if line == "quit" then return () else do
         mvar <- MVar.newEmptyMVar
-        Chan.writeChan chan (line, "ns", mvar)
+        Chan.writeChan chan (line, Id.namespace "ns", mvar)
         cmd <- MVar.takeMVar mvar
         result <- run_io "" cmd
         case result of

@@ -83,7 +83,8 @@ test_create_resize_destroy_view = thread (return State.empty) $
 test_rename_block = thread run_setup $
     ("block changes BlockId, window recreated with new block", do
         Transform.map_block_ids $ \id ->
-            if Types.BlockId id == t_block_id then Id.id "test" "newb" else id
+            if Types.BlockId id == t_block_id then Id.read_id "test/newb"
+                else id
     , [[("window-title", "(bid \"test/newb\") -- (vid \"test/v1\")")]])
     : []
 

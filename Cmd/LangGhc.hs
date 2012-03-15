@@ -39,7 +39,7 @@ import qualified Derive.ParseBs as ParseBs
 
 -- | The actual session runs in another thread, so this is the communication
 -- channel.  @(expr, namespace, response_mvar)@
-newtype Session = Session (Chan.Chan (String, String, MVar.MVar Cmd))
+newtype Session = Session (Chan.Chan (String, Id.Namespace, MVar.MVar Cmd))
 type Cmd = Cmd.CmdL String
 
 -- | Text version of the Cmd type.
@@ -89,7 +89,7 @@ interpreter (Session chan) = do
     where
     toplevel = "Cmd.Lang.Environ"
 
-    normal_cmd :: String -> String -> Ghc Cmd
+    normal_cmd :: Id.Namespace -> String -> Ghc Cmd
     normal_cmd namespace expr = case expand_macros namespace expr of
         Left err -> return $ return $ "expand_macros: " ++ err
         Right expr -> do

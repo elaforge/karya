@@ -24,7 +24,6 @@ import qualified Control.Applicative as A (many)
 import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
-import qualified Data.Char as Char
 
 import Util.Control
 import qualified Util.ParseBs as Parse
@@ -247,26 +246,29 @@ p_identifier until = do
     -- This forces identifiers to be separated with spaces, except with the |
     -- operator.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which
     -- seems like something I don't want to support.
-    unless (valid_identifier ident) $
+    unless (is_strict_id ident) $
         fail $ "invalid chars in identifier; only [a-z0-9-] are accepted: "
             ++ show ident
     return ident
-
-valid_identifier :: Text -> Bool
-valid_identifier = B.all (\c -> Char.isLower c || Char.isDigit c || c == '-')
 
 -- | Much like 'p_identifier', but for BlockId, RulerId, etc. which are
 -- slightly more permissive.
 p_id :: A.Parser Text
 p_id = do
     ident <- A.takeWhile1 (A.notInClass " |=")
-    unless (valid_id ident) $
-        fail $ "invalid chars in identifier; only [a-z0-9`-] are accepted: "
+    unless (is_id ident) $
+        fail $ "invalid chars in identifier; only [a-z0-9`.-] are accepted: "
             ++ show ident
     return ident
 
-valid_id :: Text -> Bool
-valid_id = B.all Id.is_identifier
+-- | ByteString versions of the ones in "Ui.Id".
+is_strict_id :: Text -> Bool
+is_strict_id s = not (B.null s) && Id.ascii_lower (B.head s)
+    && B.all Id.is_strict_id_char s
+
+is_id :: Text -> Bool
+is_id s = not (B.null s) && Id.ascii_lower (B.head s)
+    && B.all Id.is_id_char s
 
 p_single_string :: A.Parser Text
 p_single_string = do

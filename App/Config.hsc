@@ -181,7 +181,7 @@ render_color = Color.rgba 0.65 0.65 0.8 0.5
 
 -- | The default namespace for the clipboard.
 clip_namespace :: Id.Namespace
-clip_namespace = "clip"
+clip_namespace = Id.namespace "clip"
 
 -- | The copied block will be BlockId (Id.id clip_namespace clip_block_name).
 clip_block_name :: String

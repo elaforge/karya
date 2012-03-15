@@ -7,7 +7,9 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -513,7 +515,7 @@ initialize_state = do
 sync_global_status :: (Cmd.M m) => m ()
 sync_global_status = do
     config <- State.get_config id
-    Cmd.set_global_status "proj" (State.config_namespace config)
+    Cmd.set_global_status "proj" (Pretty.pretty (State.config_namespace config))
     let (Pitch.ScaleId scale) =
             State.default_scale (State.config_default config)
     Cmd.set_global_status "scale" scale
