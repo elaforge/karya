@@ -16,7 +16,7 @@ UNSORTED
     env as a starting point
   - fltk: some way to scroll that's not the scroll wheel
   * trill note call should emit separate notes
-  - revive Derive.Call.Sekar
+  * revive Derive.Call.Sekar
   * shakefile: put compile defines (midi driver, hint) in a config.h file
   - shakefile: can I print [# of #] when compiling?
   * remove config_ prefix from StaticConfig
@@ -744,6 +744,7 @@ REPL repl language static config
   - :browse to look in modules... can I use GHC.getBindings for this?
 
 Cmd:
+  - Can I have a general in-place derive cmd for note transformers?
   - step play StepPlay could work even when notes were moved by annotating
     the midi output with the UI event that produced it.  This might be useful
     for debugging too.
@@ -885,29 +886,6 @@ Derive:
         as a break with no notes for a certain amount of time.  Can only damp
         two neighboring notes at a time.
 
-  - derivers for sekaran patterns
-    - do a code version and a block version
-    - block version requires block arguments and variable substitution
-    - implement deriver like vla/cello duet?  that's a sekaran, so I need to
-      think about this more.
-  - Inline subderivation.  E.g.
-      inst = >foo | {
-      ""
-      ""}
-    Will run the two events as a subderivation.  Uses:
-      - set inst, scale, srate, whatever for a range
-      - transform a range, e.g. echo
-      - set a signal: e.g. set staccato in a range
-      If I implement as just {} = subderive, then I don't have access to the
-      events inside.  That means I can only use it to group Environ changes.
-      However, if I present it as [(Start, Dur, Deriver)] then I can do a few
-      more:
-      - tuple
-      - This doesn't completely solve the sekaran problem, because I still need
-        to put controls on, but it would work for note-only sekaran... wait,
-        what about pitch?
-      I can't move anything, because of the controls problem.
-
   - Is there a use for "free equals"?  I had planned to use it to set inst
     within a track but there may be easier ways to do that, i.e. bind inst
     aliases within a track and then put an inst on every note, but it
@@ -1008,13 +986,7 @@ Derive:
       also imagine a version without the clip.  'unstretch' is a crummy name
       though.  'restore'?  'abs-dur'?
 
-    / Implement sekar derivation.  The tricky thing here is I want n notes, not
-      a call with n args.  Use the Generator "consumed" return val for this.
-        Seleh can pair derivers:
-          seq [stretch 0.5 (seq d1 d2), stretch 0.5 (seq d1 d2)]
-          (d1 @> d2) ~ 0.5 @> (d1 @> d2) ~ 0.5
-
-        Without logical-stop I can't sequence Derivers.
+    * Implement sekar derivation.
 
       It would be nice to do a piece on sekar patterns where the form itself is
       in the same pattern, for a kind of fractal structure.  How to have
@@ -1026,14 +998,8 @@ Derive:
         modify it
       - env var that prepends or appends calls to notes.  actually, this is
         better done as a preproc.
-
-      Maybe I could unify the env and call map and also a general variable
-      facility: var = val -- 'var' is a symbol, so assign to the call map,
-      'val' is a symbol so look up in call map and env
-
-      call var var -- look up 'var's
-
-      This way I need a VFunction type and variable lookup.
+      - implement deriver like vla/cello duet?  that's a sekaran, but derived
+        from another part.
 
     * Implement trill
       * absolute tempo version that adds new cycles when stretched

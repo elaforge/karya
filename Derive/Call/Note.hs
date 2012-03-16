@@ -282,3 +282,14 @@ sub_events args = map (map mkevent) (Slice.slice_notes start end subs)
 place :: [Event] -> Derive.EventDeriver
 place = Derive.d_merge
     . map (\(Event start dur d) -> Derive.d_place start dur d)
+
+-- | Fit the given events into a time range.  Any leading space (time between
+-- the start of the range and the first Event) and trailing space is
+-- eliminated.
+place_at :: (ScoreTime, ScoreTime) -> [Event] -> Derive.EventDeriver
+place_at (start, end) notes = Derive.d_place start factor $
+    place [note { event_start = event_start note - note_start } | note <- notes]
+    where
+    factor = (end - start) / (note_end - note_start)
+    note_end = Maybe.fromMaybe 1 $ Seq.maximum (map event_end notes)
+    note_start = Maybe.fromMaybe 1 $ Seq.minimum (map event_start notes)

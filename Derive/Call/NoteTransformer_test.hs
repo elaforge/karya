@@ -40,6 +40,10 @@ test_tuplet = do
     -- longer than tuplet is shrunk
     equal (run [(">", [(0, 1, "t")]), (">", [(0, 2, "")])]) [(0, 1, none)]
 
+    -- leading space is ignored (what should it mean?)
+    equal (run [(">", [(0, 4, "t")]), (">", [(2, 1, ""), (3, 1, "")])])
+        [(0, 2, none), (2, 2, none)]
+
     -- not really testing tuplet: make sure empty tracks are stripped
     equal (run [(">", [(0, 1, "")]), (">", []), ("*twelve", [(0, 0, "4c")])])
         [(0, 1, 60)]

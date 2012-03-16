@@ -30,18 +30,8 @@ note_calls = Derive.make_calls
 -- stretched so that their collective length is the same as the tuplet.
 -- If there are multiple note tracks, they will be stretched individually,
 c_tuplet :: Derive.NoteCall
-c_tuplet = Derive.stream_generator "tuplet" $ Note.place . stretched_tracks
-    where
-    stretched_tracks args =
-        sort $ concatMap (stretched start end) (Note.sub_events args)
-        where (start, end) = Args.range args
-    stretched s e events = map stretch (sort events)
-        where
-        factor = (e-s) / maybe 1 (subtract s) end
-        end = Seq.maximum (map Note.event_end events)
-        stretch (Note.Event start dur d) =
-            Note.Event ((start-s) * factor + s) (dur*factor) d
-    sort = Seq.sort_on Note.event_start
+c_tuplet = Derive.stream_generator "tuplet" $ \args ->
+    Note.place_at (Args.range args) (concat (Note.sub_events args))
 
 
 -- | Direction in which to arpeggiate.  This is a general arpeggiation that
