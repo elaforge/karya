@@ -129,6 +129,7 @@ hsBinaries =
     , gui "seq" "App/Main.hs" ["fltk/fltk.a"] (Just "doc/seq.icns")
     , plain "shakefile" "Shake/Shakefile.hs"
     , plain "test_core_midi" "Midi/TestCoreMidi.hs"
+    , plain "test_jack_midi" "Midi/TestJackMidi.hs"
     , plain "timer" "LogView/Timer.hs"
     , plain "update" "App/Update.hs"
     ]
@@ -158,6 +159,7 @@ nameToMain = Map.fromList [(hsName b, hsMain b) | b <- hsBinaries]
 hsToCc :: Map.Map FilePath [FilePath]
 hsToCc = Map.fromList $
     [ ("Midi/CoreMidi.hs", ["Midi/core_midi.cc"])
+    , ("Midi/JackMidi.hsc", ["Midi/jack.cc"])
     , ("LogView/LogViewC.hsc", ["LogView/interface.cc"])
     , ("Instrument/BrowserC.hsc", ["Instrument/interface.cc"])
     , ("Util/Fltk.hs", ["Util/fltk_interface.cc"])
@@ -268,7 +270,10 @@ configure = do
             , midiLibs = words $ "-framework CoreFoundation "
                 ++ "-framework CoreMIDI -framework CoreAudio"
             }
-        "linux" -> mempty { define = ["-D__linux__"] }
+        "linux" -> mempty
+            { midiLibs = ["-ljack"]
+            , define = ["-D__linux__"]
+            }
         unknown -> error $ "unknown os: " ++ show unknown
     run cmd args = Process.readProcess cmd args ""
 

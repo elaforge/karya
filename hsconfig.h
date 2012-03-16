@@ -17,6 +17,8 @@
 
 #if defined(__linux__)
 
+#define JACK_MIDI
+
 #elif defined(__APPLE__)
 
 #define CORE_MIDI

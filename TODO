@@ -31,17 +31,12 @@ UNSORTED
   * Interface.driver :: String just for the Show instance?
   * add wdev map to Ui.State
   use jack midi
-    - ReadDevice and WriteDevice should use ByteString
-
-    I want to set up as a jack server: send midi
-    - compile jack midi_dump.c to make sure it works
-
-    - use jack_midi_event_t instead of midi_message and timestamp?  I do want
-      to be able to send sysexs.
-    - figure out how to append and remove from the ports list
-    - Get the basic jack functions wrapped so I can compile and experiment in
-      haskell.
-    - port test_core_midi to be a generice test_midi
+    - protect port name lookups from unregistration with a lock
+    - add connect_write_device
+    - add registration callback
+    - port test_core_midi to be a generic test_midi
+    - add manual connect / disconnect testing to test_midi
+    - should ReadDevice and WriteDevice use ByteString?
   * instead of using velocity in various ornaments, I should probably use p
     e.g. mordent should also work for wind patches
 
