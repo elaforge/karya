@@ -16,11 +16,20 @@ Client::Client()
     pthread_mutex_init(&processing, NULL);
     sem_init(&available, 0, 0);
     current_frame = 0;
+
+    // TODO memset(ring->buf, 0, ring->size) to avoid page faults?
+    // failed = jack_ringbuffer_mlock(client.immediate_output_ring);
+    immediate_output = jack_ringbuffer_create(immediate_output_buffer_size);
+    output = jack_ringbuffer_create(output_buffer_size);
+    input = jack_ringbuffer_create(input_buffer_size);
 }
 
 Client::~Client()
 {
     pthread_mutex_destroy(&this->processing);
+    jack_ringbuffer_free(immediate_output);
+    jack_ringbuffer_free(output);
+    jack_ringbuffer_free(input);
 }
 
 void
@@ -195,13 +204,6 @@ create_client(const char *client_name, Client **out_client)
     failed = jack_set_process_callback(client->client, process, client);
     if (failed)
         return "jack_set_process_callback failed";
-
-    // TODO memset(ring->buf, 0, ring->size) to avoid page faults?
-    // failed = jack_ringbuffer_mlock(client.immediate_output_ring);
-    client->immediate_output =
-        jack_ringbuffer_create(immediate_output_buffer_size);
-    client->output = jack_ringbuffer_create(output_buffer_size);
-    client->input = jack_ringbuffer_create(input_buffer_size);
 
     failed = jack_activate(client->client);
     if (failed) {
