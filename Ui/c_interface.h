@@ -40,7 +40,7 @@ void bring_to_front(BlockViewWindow *view);
 void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
 void set_skeleton(BlockViewWindow *view, SkeletonConfig *skel);
 void set_title(BlockViewWindow *view, const char *title);
-void set_status(BlockViewWindow *view, const char *status);
+void set_status(BlockViewWindow *view, const char *status, Color *color);
 void set_display_track(BlockViewWindow *view, int tracknum,
         DisplayTrack *dtrack);
 

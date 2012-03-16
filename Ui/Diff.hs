@@ -123,8 +123,11 @@ diff_view st1 st2 view_id view1 view2 = do
     let unequal f = unequal_on f view1 view2
     when (unequal Block.view_rect) $
         emit $ Update.ViewSize (Block.view_rect view2)
-    when (unequal Block.view_status) $
-        emit $ Update.Status (Block.view_status view2)
+    let is_root (st, view) = Just (Block.view_block view)
+            == State.config_root (State.state_config st)
+    when (unequal Block.view_status
+            || unequal_on is_root (st1, view1) (st2, view2)) $
+        emit $ Update.Status (Block.view_status view2) (is_root (st2, view2))
     when (unequal Block.view_track_scroll) $
         emit $ Update.TrackScroll (Block.view_track_scroll view2)
     when (unequal Block.view_zoom) $

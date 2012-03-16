@@ -62,7 +62,7 @@ data ViewUpdate =
     CreateView Block.View
     | DestroyView
     | ViewSize Rect.Rect
-    | Status (Map.Map String String)
+    | Status (Map.Map String String) Bool -- ^ status_map is_root
     | TrackScroll Types.Width
     | Zoom Types.Zoom
     | Selection Types.SelNum (Maybe Types.Selection)

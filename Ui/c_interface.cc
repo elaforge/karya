@@ -152,9 +152,9 @@ set_title(BlockViewWindow *view, const char *title)
 }
 
 void
-set_status(BlockViewWindow *view, const char *status)
+set_status(BlockViewWindow *view, const char *status, Color *color)
 {
-    view->block.set_status(status);
+    view->block.set_status(status, *color);
 }
 
 void

@@ -227,11 +227,13 @@ set_title view_id title = do
     withCString title (c_set_title viewp)
 foreign import ccall "set_title" c_set_title :: Ptr CView -> CString -> IO ()
 
-set_status :: ViewId -> String -> Fltk ()
-set_status view_id status = do
+set_status :: ViewId -> String -> Color.Color -> Fltk ()
+set_status view_id status color = do
     viewp <- get_ptr view_id
-    withCString status (c_set_status viewp)
-foreign import ccall "set_status" c_set_status :: Ptr CView -> CString -> IO ()
+    withCString status $ \statusp -> with color $ \colorp ->
+        c_set_status viewp statusp colorp
+foreign import ccall "set_status"
+    c_set_status :: Ptr CView -> CString -> Ptr Color.Color -> IO ()
 
 -- | Set block-local track status.
 set_display_track :: ViewId -> TrackNum -> Block.DisplayTrack -> Fltk ()

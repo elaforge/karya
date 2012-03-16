@@ -40,6 +40,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
+import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -191,6 +192,8 @@ run_update track_signals (Update.ViewUpdate view_id (Update.CreateView _)) = do
         forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
             BlockC.set_selection True view_id selnum csel
         BlockC.set_status view_id (Block.show_status (Block.view_status view))
+            (status_color $ Just (Block.view_block view)
+                == State.config_root (State.state_config ustate))
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
     where
@@ -219,8 +222,9 @@ run_update _ (Update.ViewUpdate view_id update) = case update of
     Update.CreateView {} -> error "run_update: notreached"
     Update.DestroyView -> return $ BlockC.destroy_view view_id
     Update.ViewSize rect -> return $ BlockC.set_size view_id rect
-    Update.Status status ->
+    Update.Status status is_root ->
         return $ BlockC.set_status view_id (Block.show_status status)
+            (status_color is_root)
     Update.TrackScroll offset ->
         return $ BlockC.set_track_scroll view_id offset
     Update.Zoom zoom -> return $ BlockC.set_zoom view_id zoom
@@ -340,6 +344,9 @@ run_update _ (Update.RulerUpdate ruler_id _ruler) = do
             BlockC.update_entire_track True view_id tracknum tracklike []
 
 run_update _ (Update.StateUpdate ()) = return (return ())
+
+status_color :: Bool -> Color.Color
+status_color is_root = if is_root then Color.rgb 1 1 0.8 else Color.white
 
 -- | Don't send a track signal to a track unless it actually wants to draw it.
 wants_tsig :: [Block.TrackFlag] -> Track.Track -> Bool

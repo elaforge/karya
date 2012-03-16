@@ -169,7 +169,7 @@ UNSORTED
   - try to make TrackEnviron lazy
   - after an uncollapse, it doesn't redraw the selection that was underneath
     Not a big deal since a selection shouldn't be underneath but still...
-  - root block window name gets a *?  or if I won't have window names visible,
+  * root block window name gets a *?  or if I won't have window names visible,
     put this in the view status line
   - randomize any control by having the 'set' call look for the -rnd control
   - It would be more efficient to move events around if their controls were

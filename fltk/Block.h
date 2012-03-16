@@ -109,7 +109,10 @@ public:
 
     void set_title(const char *s);
     const char *get_title() const { return title.value(); }
-    void set_status(const char *s) { status_line.value(s); }
+    void set_status(const char *s, const Color &color) {
+        status_line.value(s);
+        status_line.color(color_to_fl(color));
+    }
 
     void insert_track(int tracknum, const Tracklike &track, int width);
     void remove_track(int tracknum, FinalizeCallback finalizer);

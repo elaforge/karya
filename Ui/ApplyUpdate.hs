@@ -27,7 +27,7 @@ applym (Update.ViewUpdate view_id update) = case update of
     Update.DestroyView -> delete view_id State.state_views
         (\views st -> st { State.state_views = views })
     Update.ViewSize rect -> modify $ \view -> view { Block.view_rect = rect }
-    Update.Status status ->
+    Update.Status status _is_root ->
         modify $ \view -> view { Block.view_status = status }
     Update.TrackScroll scroll ->
         modify $ \view -> view { Block.view_track_scroll = scroll }
