@@ -73,23 +73,27 @@ make default_ns text = id ns ident
 -- | To make naming them in events easier, IDs have a restricted character set.
 -- @.@ is allowed so there is a "phrase separator" and @`@ is allowed for
 -- symbols, of course.
+is_id :: String -> Bool
+is_id s = not (null s) && all is_id_char s
+
 is_id_char :: Char -> Bool
 is_id_char c = is_strict_id_char c || c == '`' || c == '.'
 
-is_id :: String -> Bool
-is_id (c:cs) = ascii_lower c && all is_id_char cs
-is_id "" = False
-
--- | Many other symbols have an even more restrictive character set.
-is_strict_id_char :: Char -> Bool
-is_strict_id_char c = ascii_lower c || c >= '0' && c <= '9' || c == '-'
-
+-- | Many other symbols have an even more restrictive character set.  In
+-- addition since they show up as tracklang literals, they must start with
+-- a letter, to avoid ambiguity with numbers or other literals.
 is_strict_id :: String -> Bool
 is_strict_id (c:cs) = ascii_lower c && all is_strict_id_char cs
 is_strict_id "" = False
 
+is_strict_id_char :: Char -> Bool
+is_strict_id_char c = ascii_lower c || ascii_digit c || c == '-'
+
 ascii_lower :: Char -> Bool
-ascii_lower c = c >= 'a' && c <= 'z'
+ascii_lower c = 'a' <= c && c <= 'z'
+
+ascii_digit :: Char -> Bool
+ascii_digit c = '0' <= c && c <= '9'
 
 -- | Enforce that a String conforms to the rules for a strict ID.
 --
@@ -125,7 +129,7 @@ enforce_id s
             ++ show s
         return cleaned
     | otherwise = cleaned
-    where cleaned = filter is_id_char $ dropWhile (not . ascii_lower) s
+    where cleaned = filter is_id_char s
 
 -- * access
 

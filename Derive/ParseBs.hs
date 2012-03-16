@@ -265,7 +265,7 @@ p_identifier until = do
     return ident
 
 -- | Much like 'p_identifier', but for BlockId, RulerId, etc. which are
--- slightly more permissive.
+-- more permissive.
 p_id :: A.Parser Text
 p_id = do
     ident <- A.takeWhile1 (A.notInClass " |=")
@@ -280,8 +280,7 @@ is_strict_id s = not (B.null s) && Id.ascii_lower (B.head s)
     && B.all Id.is_strict_id_char s
 
 is_id :: Text -> Bool
-is_id s = not (B.null s) && Id.ascii_lower (B.head s)
-    && B.all Id.is_id_char s
+is_id s = not (B.null s) && B.all Id.is_id_char s
 
 p_single_string :: A.Parser Text
 p_single_string = do
