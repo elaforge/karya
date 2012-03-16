@@ -61,7 +61,7 @@ test_tuplet_multiple_tracks = do
             ]
     let i1 = Just (Score.Instrument "i1")
         i2 = Just (Score.Instrument "i2")
-    equal (run tracks) [(i1, 0, 6), (i2, 0, 12), (i1, 6, 6)]
+    equal (run tracks) [(i1, 0, 6), (i2, 0, 6), (i1, 6, 6)]
 
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note2

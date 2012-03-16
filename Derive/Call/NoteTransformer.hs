@@ -28,7 +28,9 @@ note_calls = Derive.make_calls
 
 -- | This is a generalized tuplet.  The notes within its scope will be
 -- stretched so that their collective length is the same as the tuplet.
--- If there are multiple note tracks, they will be stretched individually,
+--
+-- If there are multiple note tracks, they will be all be stretched the same
+-- amount.
 c_tuplet :: Derive.NoteCall
 c_tuplet = Derive.stream_generator "tuplet" $ \args ->
     Note.place_at (Args.range args) (concat (Note.sub_events args))
