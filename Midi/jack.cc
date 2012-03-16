@@ -224,20 +224,23 @@ create_read_port(Client *client, const char *remote_name)
     // 'client:system:out'.  Jack seems happy to accept names with more than
     // one colon.
     std::string local_name = remote_name;
-    DEBUG("connect read: " << local_name << " <- " << remote_name);
-    jack_port_t *port = jack_port_register(
-        client->client, local_name.c_str(), JACK_DEFAULT_MIDI_TYPE,
-        JackPortIsInput | JackPortIsTerminal, 0);
-    if (!port)
-        return "can't create local port";
+    std::string local_long_name = jack_get_client_name(client->client);
+    local_long_name += ':';
+    local_long_name += local_name;
 
-    // It's undocumented of course, but jack_port_register expects the name
-    // without the colon, and jack_connect expects one with.
-    std::string client_name = jack_get_client_name(client->client);
-    client_name += ':';
-    local_name = local_name.insert(0, client_name);
-    if (jack_connect(client->client, remote_name, local_name.c_str()) != 0) {
-        jack_port_unregister(client->client, port);
+    DEBUG("connect read: " << local_long_name << " <- " << remote_name);
+    jack_port_t *port = jack_port_by_name(
+        client->client, local_long_name.c_str());
+    if (!port) {
+        port = jack_port_register(
+            client->client, local_name.c_str(), JACK_DEFAULT_MIDI_TYPE,
+            JackPortIsInput | JackPortIsTerminal, 0);
+        if (!port)
+            return "can't create local port";
+    }
+
+    if (jack_connect(client->client, remote_name, local_long_name.c_str())) {
+        // jack_port_unregister(client->client, port);
         return "can't connect to remote port";
     }
     client->add_read_port(port);
@@ -257,12 +260,15 @@ remove_read_port(Client *client, const char *remote_name)
     DEBUG("disconnect read: " << local_name << " <- " << remote_name);
     client->remove_read_port(port);
     jack_port_disconnect(client->client, port);
-
-    // Wait for process() to complete so I know it's not currently reading
-    // from the port.
-    pthread_mutex_lock(&client->processing);
-    pthread_mutex_unlock(&client->processing);
-    jack_port_unregister(client->client, port);
+    // I never unregister ports.  This ensures that any read ports still on
+    // the input ringbuffer won't cause jack_port_short_name to crash.
+    //
+    // I could unregister with a guarentee that process() has completed (wait
+    // for the processing lock to open, then don't take it) if I used a safe
+    // map<jack_port_t *, string> instead of jack functions.
+    // pthread_mutex_lock(&client->processing);
+    // pthread_mutex_unlock(&client->processing);
+    // jack_port_unregister(client->client, port);
     return NULL;
 }
 
@@ -313,7 +319,6 @@ try_again:
         // This should never happen!
         goto try_again;
     }
-    // lock ports so it doesn't get unregistered
     *port = jack_port_short_name(event.port);
     *time = jack_frames_to_time(client->client, event.event.time);
     *mevent = event.event.buffer;

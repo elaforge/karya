@@ -24,7 +24,7 @@ test (Right int) = do
     putStrLn $ "rdevs: " ++ show rdevs
     print =<< Interface.write_devices int
 
-    mapM_ (Interface.connect_read_device int) [rdevs!!1]
+    mapM_ (Interface.connect_read_device int) rdevs
     dump (Interface.read_channel int)
 
 dump chan = forever $ do

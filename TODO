@@ -31,7 +31,7 @@ UNSORTED
   * Interface.driver :: String just for the Show instance?
   * add wdev map to Ui.State
   use jack midi
-    - protect port name lookups from unregistration with a lock
+    * protect port name lookups from unregistration with a lock
     - add connect_write_device
     - add registration callback
     - port test_core_midi to be a generic test_midi
