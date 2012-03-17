@@ -29,14 +29,14 @@ import Types
 initialize :: String -> (Either String Interface.Interface -> IO a) -> IO a
 initialize app_name app = do
     chan <- TChan.newTChanIO
+    reads <- IORef.newIORef Set.empty
+    writes <- IORef.newIORef Set.empty
+    notify <- make_notify_callback (notify_callback reads writes)
     result <- withCString app_name $ \namep -> alloca $ \clientpp -> do
-        statusp <- c_create_client namep clientpp
+        statusp <- c_create_client namep notify clientpp
         clientp <- peek clientpp
         if clientp == nullPtr then Left <$> peekCString statusp
-            else do
-                read <- IORef.newIORef Set.empty
-                write <- IORef.newIORef Set.empty
-                return $ Right $ Client clientp read write
+            else return $ Right $ Client clientp reads writes
     case result of
         Left err -> app (Left err)
         Right client -> do
@@ -44,7 +44,9 @@ initialize app_name app = do
                 event <- read_event client
                 STM.atomically $ TChan.writeTChan chan event
             app (Right (interface client chan))
-                `Exception.finally` close_client client
+                `Exception.finally` do
+                    freeHaskellFunPtr notify
+                    close_client client
 
 interface :: Client -> Interface.ReadChan -> Interface.Interface
 interface client chan = Interface.Interface
@@ -67,7 +69,8 @@ close_client client =
     Control.Monad.void . c_jack_client_close =<< jack_client client
 
 foreign import ccall "create_client"
-    c_create_client :: CString -> Ptr (Ptr CClient) -> IO CString
+    c_create_client :: CString -> FunPtr NotifyCallback -> Ptr (Ptr CClient)
+        -> IO CString
 foreign import ccall "jack_client_close"
     c_jack_client_close :: Ptr CJackClient -> IO CInt
 
@@ -86,6 +89,34 @@ read_event client = do
 foreign import ccall "read_event"
     c_read_event :: Ptr CClient -> Ptr CString -> Ptr CJackTime
         -> Ptr (Ptr CChar) -> IO CInt
+
+notify_callback :: IORef.IORef (Set.Set Midi.ReadDevice)
+    -> IORef.IORef (Set.Set Midi.WriteDevice) -> NotifyCallback
+notify_callback wanted_reads wanted_writes clientp namep c_is_add c_is_read =
+    when (toBool c_is_add) $ do
+        name <- peekCString namep
+        putStrLn $ "notify: " ++ name ++ " -- "
+            ++ if c_is_read == 0 then "output" else "input"
+        if toBool c_is_read then notify_read (Midi.ReadDevice name)
+            else notify_write (Midi.WriteDevice name)
+    where
+    notify_read dev@(Midi.ReadDevice name) = do
+        b <- Set.member dev <$> IORef.readIORef wanted_reads
+        when b $ putStrLn $ "wanted read"
+        when b $ Control.Monad.void $ withCString name $ \namep ->
+            check =<< c_create_read_port clientp namep
+    notify_write dev@(Midi.WriteDevice name) = do
+        b <- Set.member dev <$> IORef.readIORef wanted_writes
+        when b $ putStrLn $ "wanted write"
+        when b $ Control.Monad.void $ withCString name $ \namep ->
+            check =<< c_create_write_port clientp namep
+
+type NotifyCallback = Ptr CClient -> CString -> CInt -> CInt -> IO ()
+-- typedef void (*NotifyCallback)(
+--     Client *client, const char *port, int is_add, int is_read);
+foreign import ccall "wrapper"
+    make_notify_callback :: NotifyCallback -> IO (FunPtr NotifyCallback)
+
 
 -- * connect / disconnect
 
@@ -136,7 +167,6 @@ abort :: Client -> IO ()
 abort = c_abort . client_ptr
 
 foreign import ccall "jack_abort" c_abort :: Ptr CClient -> IO ()
-
 
 -- | Get current timestamp.
 now :: Client -> IO RealTime

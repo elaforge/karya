@@ -30,13 +30,7 @@ UNSORTED
     add Midi.Interface to Cmd.State
   * Interface.driver :: String just for the Show instance?
   * add wdev map to Ui.State
-  use jack midi
-    * protect port name lookups from unregistration with a lock
-    * add connect_write_device
-    - add registration callback
-    * port test_core_midi to be a generic test_midi
-    - add manual connect / disconnect testing to test_midi
-    - should ReadDevice and WriteDevice use ByteString?
+  - should ReadDevice and WriteDevice use ByteString?
   * instead of using velocity in various ornaments, I should probably use p
     e.g. mordent should also work for wind patches
 
@@ -275,7 +269,7 @@ MILESTONES
     * symbolic score
     + save undo history / incremental save
     - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
-    - jack support on linux
+    + jack support on linux
     - simple csound backend
     - simple lilypond backend?
     - documentation
@@ -359,11 +353,6 @@ hs plugins:
     So I need to be able to re-initialize the responder with a new static
     config.  Actually, the bits I care about are the call map and the cmd
     map.
-
-note input / thru:
-  - some way to turn off all midi thru / input
-  - keyswitch support in midi thru
-  - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
   - Create.rename_project loses the merged tracks
@@ -1109,10 +1098,28 @@ Instrument DB / browser:
   * explicitly allow merged patches, so I can get params from syx but send
     program change
 
-Midi:
-  bandwidth
-    - keep stats
-    - display widget
+jack JACK
+  bugs
+    - jack1 doesn't work at all: other clients don't see writes, until I quit,
+      and then they get continuously spammed.  Apparently the jack_port_t*
+      from the registration and the lookup are different.
+      - Try stashing port from port_by_name port instead of jack_register_port.
+    - jack2 hangs for a long time on jack_connect when I reconnect due to a
+      notify.  Try looking at logging to see what it's waiting on.
+  - Ensure that shutdown stuff is being called correctly.  I don't care but
+    maybe JACK does?
+  use jack transport
+    I don't think I need to be the master.
+    - When starting a play, call jack_transport_locate,
+      then jack_transport_start().  The play then blocks on a lock which is
+      released by JackSyncCallback when it gets a JackRolling state.
+    - Register with jack_set_sync_callback.  JackSyncCallback sets a syncing
+      flag, emits a Msg that forces the needed bits of performance, then that
+      cmd must call back and reset the flag, at which point the sync function
+      can return true.
+    Then the next step is to test, and then figure out a way to get ardour to
+    automatically set up a bunch of instruments and make MIDI in ports for
+    them.
 
 misc ideas:
   - Staff notation represents chords well, but tracks don't.  Think of a more

@@ -26,6 +26,7 @@ Client::Client()
 
 Client::~Client()
 {
+    sem_destroy(&available);
     pthread_mutex_destroy(&this->processing);
     jack_ringbuffer_free(immediate_output);
     jack_ringbuffer_free(output);
@@ -64,13 +65,14 @@ Client::add_write_port(jack_port_t *port)
 // When a new MIDI input appears, I should have haskell connect it up
 // to a local port if I want it, likewise for a MIDI output.
 static void
-registration_callback(jack_port_id_t port_id, int register_, void *arg)
+port_registration_callback(jack_port_id_t port_id, int is_add, void *arg)
 {
     Client *client = static_cast<Client *>(arg);
     jack_port_t *port = jack_port_by_id(client->client, port_id);
     if (port) {
         const char *name = jack_port_name(port);
-        DEBUG("saw a registration: '" << name << "' register " << register_);
+        int is_read = jack_port_flags(port) & JackPortIsOutput;
+        client->notify(client, name, is_add, is_read);
     } else {
         DEBUG("registered unknown port");
     }
@@ -89,11 +91,16 @@ static void
 write_midi_event(jack_nframes_t nframes, const midi_event &event)
 {
     void *buf = jack_port_get_buffer(event.port, nframes);
+    if (!buf) {
+        DEBUG("port has no buffer");
+        return;
+    }
     jack_midi_data_t *midi = jack_midi_event_reserve(
         buf, event.event.time, event.event.size);
     if (!midi) {
-        DEBUG("no space in output port");
+        DEBUG("no space in output port " << event.port);
     } else {
+        // DEBUG("write event on " <<  event.port);
         memcpy(midi, event.event.buffer, event.event.size);
     }
 }
@@ -110,8 +117,7 @@ process(jack_nframes_t nframes, void *arg)
     pthread_mutex_trylock(&client->processing);
 
     // Read incoming MIDI.  To guarantee all the ports are still valid, I
-    // disconnect, wait for process() to complete with the 'processing' lock,
-    // and then unregister.
+    // never unregister a port, only disconnect them.
     for (int i = 0; i < MAX_PORTS; i++) {
         jack_port_t *port = client->read_ports[i];
         if (!port)
@@ -141,6 +147,7 @@ process(jack_nframes_t nframes, void *arg)
     midi_event event;
     for (int i = 0; i < MAX_PORTS; i++) {
         if (client->write_ports[i]) {
+            // DEBUG("clear buffer for " << client->write_ports[i]);
             jack_midi_clear_buffer(
                 jack_port_get_buffer(client->write_ports[i], nframes));
         }
@@ -170,7 +177,8 @@ extern "C" {
 // Create a Client and return it into the 'client' parameter, or NULL and
 // return an error message.
 const char *
-create_client(const char *client_name, Client **out_client)
+create_client(const char *client_name, NotifyCallback notify,
+    Client **out_client)
 {
     jack_status_t status;
     int failed;
@@ -178,10 +186,12 @@ create_client(const char *client_name, Client **out_client)
 
     *out_client = NULL;
     Client *client = new Client();
+    client->notify = notify;
 
     // ensure client_name < jack_client_name_size()
     client->client = jack_client_open(client_name, JackNullOption, &status);
     if (!client->client) {
+        delete client;
         // Yeah I know it's a bitmask, but these seem mutually exclusive.
         if (status & JackServerFailed)
             return "unable to connect to JACK server";
@@ -202,7 +212,7 @@ create_client(const char *client_name, Client **out_client)
     // jack_set_port_connect_callback
     // This is called called whenever a port is connected or disconnected
     failed = jack_set_port_registration_callback(
-        client->client, registration_callback, client);
+        client->client, port_registration_callback, client);
     if (failed)
         return "jack_set_port_registration_callback() failed";
 
@@ -254,13 +264,13 @@ create_read_port(Client *client, const char *remote_name)
             JackPortIsInput | JackPortIsTerminal, 0);
         if (!port)
             return "can't create local port";
+        client->add_read_port(port);
     }
 
     if (jack_connect(client->client, remote_name, local_long_name.c_str())) {
         // jack_port_unregister(client->client, port);
         return "can't connect to remote port";
     }
-    client->add_read_port(port);
     return NULL;
 }
 
@@ -302,12 +312,14 @@ create_write_port(Client *client, const char *remote_name)
             JackPortIsOutput | JackPortIsTerminal, 0);
         if (!port)
             return "can't create local port";
+        // DEBUG("registered write " << local_name << ": " << port);
+        client->add_write_port(port);
     }
 
-    client->add_write_port(port);
     if (jack_connect(client->client, local_long_name.c_str(), remote_name)) {
         return "can't connect to remote port";
     }
+    DEBUG("jack_connect() completed");
     return NULL;
 }
 
@@ -327,6 +339,7 @@ write_message(Client *client, const char *port, uint64_t time, void *bytes,
     event.port = jack_port_by_name(client->client, port);
     if (!event.port)
         return "write_message: port not found";
+    // DEBUG("write msg port " << port << ": " << event.port);
     event.event.size = size;
     event.event.time = jack_time_to_frames(client->client, time);
     event.event.buffer = (jack_midi_data_t *) bytes;

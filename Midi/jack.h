@@ -8,12 +8,17 @@
 
 #define MAX_PORTS 64
 
+class Client;
+typedef void (*NotifyCallback)(
+    Client *client, const char *port, int is_add, int is_read);
+
 // write_message looks up the port name, puts it on the ringbuffer with a ptr.
 // The msgs contain the port
 struct Client {
     Client();
     ~Client();
     jack_client_t *client;
+    NotifyCallback notify;
 
     void add_read_port(jack_port_t *port);
     void remove_read_port(jack_port_t *port);
@@ -46,7 +51,8 @@ struct midi_event {
 
 extern "C" {
 
-const char *create_client(const char *client_name, Client **out_client);
+const char *create_client(const char *client_name, NotifyCallback notify,
+    Client **out_client);
 
 // ports
 const char *create_read_port(Client *client, const char *remote_name);
