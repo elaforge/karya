@@ -1,5 +1,4 @@
 UNSORTED
-  * add ` as a valid identifier character
   - Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.
 
@@ -9,30 +8,13 @@ UNSORTED
     Call names are explicitly anything-goes.  BlockIds should support at
     least some of it if they are supposed to be interchangeable with other
     calls.
-  * Look at occurrances of B.pack and make sure the data is 7bit.
-  * make Namespace a newtype so I can enforce the naming constraint
 
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
   - fltk: some way to scroll that's not the scroll wheel
-  * trill note call should emit separate notes
-  * revive Derive.Call.Sekar
-  * shakefile: put compile defines (midi driver, hint) in a config.h file
   - shakefile: can I print [# of #] when compiling?
-  * remove config_ prefix from StaticConfig
-  * implement hot plugging: snd arg to create client
   - de-globalize MidiClientRef?
-  * make Midi.Interface with the interface midi driver modules have to
-    implement
-  * port core midi to new midi interface
-  * make sure unknown devices get warned about
-  * connect and disconnect read devices from the repl
-    add Midi.Interface to Cmd.State
-  * Interface.driver :: String just for the Show instance?
-  * add wdev map to Ui.State
   - should ReadDevice and WriteDevice use ByteString?
-  * instead of using velocity in various ornaments, I should probably use p
-    e.g. mordent should also work for wind patches
 
   abstract pitches
     re-implement Cmd.Lang.LPitch.to_relative:
@@ -158,17 +140,12 @@ UNSORTED
   - try to make TrackEnviron lazy
   - after an uncollapse, it doesn't redraw the selection that was underneath
     Not a big deal since a selection shouldn't be underneath but still...
-  * root block window name gets a *?  or if I won't have window names visible,
-    put this in the view status line
   - randomize any control by having the 'set' call look for the -rnd control
   - It would be more efficient to move events around if their controls were
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved
     more than once.
   - some way to get symbol feedback instantly to make it easier to compose them
-  - some ornaments should be scale aware, which means scales should have
-    a notion of diatonic transposition.  That means I need 'key' in the
-    environ.  Actually, named pitch track.
   + automate the manual tests
 
   fltk
@@ -208,24 +185,6 @@ UNSORTED
 
   - If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
-  - I think PitchSignals may need to be reworked.  They should be (Note, Note,
-    Frac).  Otherwise, it's not clear what to call 4a# vs. 4bb.  I can still
-    use numbers (Ints this time) as indices into a table of names, but e.g.
-    (4c 50) will have to become (4c, 4c#, 0.5) instead of (60.5, 60.5, 0).
-    But this means displaying the signal will become more straightforward.
-
-    Remember that some scales may not have well defined degrees and may really
-    be in NNs, e.g. a ratio relative scale.  They can't have a notion of
-    transposition though.
-
-    What is the use of enharmonics?  Express the current scale.  In some
-    non-equal-tempered scales they are different pitches.
-
-    - figure out what to do about relative pitches
-      PitchSignal.sig_add
-      Can no longer use (+), it has to use a scale provided transpose
-    - change PitchSignal.Y to (Word16, Word16, Float)
-
   - I think if the same TrackId appears in multiple places, it will be derived
     redundantly.  I should be able to cache the signal output in a TrackSignal.
     But with any luck derive caching will take care of this.
@@ -235,20 +194,6 @@ UNSORTED
     modified
 
   - set_render_style should trigger a rederive to get the track signal
-  - implement add_hz in Derive.Scale.Util
-    or at least think about how to implement pengumbang and pengisep
-
-  / should be able to rescan midi devices when something new is plugged in
-    Centralize midi implementation functions in a record, include scan and
-    open/close, record is stored in Cmd state.
-    How to establish ID <-> device mapping?
-    I think OS X midi ID is just for a persistent ID since names can be
-    changed.  But I don't think I care too much about that?
-
-    Read is not a problem since the midi layer handles the mapping.  Write
-    needs: get (name, id), put name->id in write mapping
-
-    Wait until I want to add JACK or alsa support.
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
@@ -262,7 +207,7 @@ MILESTONES
     * scales and keyswitches
     + efficient thru
     * tracklang complete with set of basic calls
-    - better REPL situation
+    * better REPL situation
     - midi record / integrator
     - dense / efficient control signals
     * derive cache
@@ -625,7 +570,6 @@ fltk:
 
 logview:
   - haskell and c++ use the same machine readable format
-  * LogView should use Util.Fltk
   - tabs are not lining up properly
   - option to wrap lines or not?
   - hide or display various attrs: date, file, function, ...
