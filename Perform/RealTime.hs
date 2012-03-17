@@ -32,12 +32,11 @@
     produce incorrect results if the imprecise value falls at a rounding
     boundary.
 
-    Eventually, for MIDI at least, everything is rounded down to microseconds
+    Eventually, for MIDI at least, everything is rounded down to milliseconds
     so hopefully any imprecision can be accounted for by the operations that
     care about it and eventually be removed from the final result.
 -}
 module Perform.RealTime where
-import qualified Prelude
 import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Foreign as Foreign
@@ -81,24 +80,30 @@ infixl 7 `mul`
 large :: RealTime
 large = RealTime (2^32)
 
--- * convert to
+-- * convert from
 
 seconds :: Double -> RealTime
 seconds = RealTime
 
-milliseconds :: Int -> RealTime
+milliseconds :: Integer -> RealTime
 milliseconds = seconds . (/1000) . fromIntegral
+
+microseconds :: Integer -> RealTime
+microseconds = seconds . (/1000000) . fromIntegral
 
 score :: ScoreTime.ScoreTime -> RealTime
 score = seconds . ScoreTime.to_double
 
--- * convert from
+-- * convert to
 
 to_seconds :: RealTime -> Double
 to_seconds (RealTime s) = s
 
 to_milliseconds :: RealTime -> Integer
-to_milliseconds (RealTime s) = round (s * 1000)
+to_milliseconds = round . (*1000) . to_seconds
+
+to_microseconds :: RealTime -> Integer
+to_microseconds = round . (*1000000) . to_seconds
 
 to_score :: RealTime -> ScoreTime.ScoreTime
 to_score = ScoreTime.double . to_seconds
