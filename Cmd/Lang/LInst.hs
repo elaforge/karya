@@ -42,7 +42,7 @@ realloc :: String -> String -> [Midi.Channel] -> Cmd.CmdL ()
 realloc inst_name wdev chans = do
     let inst = Score.Instrument inst_name
     dealloc_instrument inst
-    alloc_instrument inst [(Midi.WriteDevice wdev, c) | c <- chans]
+    alloc_instrument inst [(Midi.write_device wdev, c) | c <- chans]
 
 dealloc :: String -> Cmd.CmdL ()
 dealloc = dealloc_instrument . Score.Instrument
@@ -179,10 +179,10 @@ device_of inst = do
 
 add_wdev :: String -> String -> Cmd.CmdL ()
 add_wdev from to = modify_wdev_map $
-    Map.insert (Midi.WriteDevice from) (Midi.WriteDevice to)
+    Map.insert (Midi.write_device from) (Midi.write_device to)
 
 remove_wdev :: String -> Cmd.CmdL ()
-remove_wdev from = modify_wdev_map $ Map.delete (Midi.WriteDevice from)
+remove_wdev from = modify_wdev_map $ Map.delete (Midi.write_device from)
 
 modify_wdev_map :: (Map.Map Midi.WriteDevice Midi.WriteDevice ->
         Map.Map Midi.WriteDevice Midi.WriteDevice)

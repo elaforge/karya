@@ -1,18 +1,51 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
-module Midi.Midi where
+module Midi.Midi (
+    WriteMessages, ReadMessages
+    , WriteMessage(..), ReadMessage(..)
+
+    -- * devices
+    , ReadDevice, WriteDevice, read_device, write_device
+    , read_device_string, write_device_string
+    , read_device_bs, write_device_bs
+    , add_timestamp, modify_timestamp
+    -- TODO due ghc bug: http://hackage.haskell.org/trac/ghc/ticket/5252
+    , ReadDevice(ReadDevice), WriteDevice(WriteDevice)
+
+    -- * constructors
+    , program_change, pitch_bend_sensitivity
+
+    -- * constants
+    , sox_byte, eox_byte
+
+    -- * modify
+    , set_channel
+
+    -- * predicates
+    , valid_msg, valid_chan_msg, is_cc, is_sysex, is_note, is_note_on, is_state
+    , channel_message
+
+    -- * types
+    , Message(..), Channel, Key, Velocity, Control, Program, ControlValue
+    , PitchBendValue
+    , ChannelMessage(..), CommonMessage(..), RealtimeMessage(..)
+
+    -- * util
+    , join14, split14
+) where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 import Data.Bits
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Generics as Generics
-import Perform.RealTime (RealTime)
 import Data.Word (Word8)
+
 import qualified Text.Printf as Printf
 
 import qualified Util.Pretty as Pretty
-
 import qualified Midi.CC as CC
+import Perform.RealTime (RealTime)
 
 
 -- | Declared abstract here so I can switch to a more compact representation
@@ -39,32 +72,43 @@ instance DeepSeq.NFData ReadMessage where
     rnf (ReadMessage _ _ _) = ()
 
 instance Pretty.Pretty ReadMessage where
-    pretty (ReadMessage (ReadDevice dev) ts msg) =
-        Printf.printf "%s %s: %s" dev (Pretty.pretty ts) (Pretty.pretty msg)
+    pretty (ReadMessage dev ts msg) = Printf.printf "%s %s: %s"
+        (Pretty.pretty dev) (Pretty.pretty ts) (Pretty.pretty msg)
 instance Pretty.Pretty WriteMessage where
-    pretty (WriteMessage (WriteDevice dev) ts msg) =
-        Printf.printf "%s %s: %s" dev (Pretty.pretty ts) (Pretty.pretty msg)
+    pretty (WriteMessage dev ts msg) = Printf.printf "%s %s: %s"
+        (Pretty.pretty dev) (Pretty.pretty ts) (Pretty.pretty msg)
 
 -- * devices
 
 -- | Implementation independent representation of a MIDI Device.
 --
 -- This can be saved to and loaded from files without regard for the devices
--- actually installed or opened.  When the Devices are opened, a mapping should
--- be established between Devices and the runtime representation.
-
-newtype ReadDevice = ReadDevice String
+-- actually installed or opened.
+newtype ReadDevice = ReadDevice ByteString.ByteString
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
-newtype WriteDevice = WriteDevice String
+newtype WriteDevice = WriteDevice ByteString.ByteString
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
-instance Pretty.Pretty ReadDevice where
-    pretty (ReadDevice dev) = dev
-instance Pretty.Pretty WriteDevice where
-    pretty (WriteDevice dev) = dev
+read_device :: String -> ReadDevice
+read_device = ReadDevice . UTF8.fromString
 
-un_read_device (ReadDevice dev) = dev
-un_write_device (WriteDevice dev) = dev
+write_device :: String -> WriteDevice
+write_device = WriteDevice . UTF8.fromString
+
+read_device_string :: ReadDevice -> String
+read_device_string (ReadDevice bs) = UTF8.toString bs
+
+write_device_string :: WriteDevice -> String
+write_device_string (WriteDevice bs) = UTF8.toString bs
+
+read_device_bs :: ReadDevice -> ByteString.ByteString
+read_device_bs (ReadDevice bs) = bs
+
+write_device_bs :: WriteDevice -> ByteString.ByteString
+write_device_bs (WriteDevice bs) = bs
+
+instance Pretty.Pretty ReadDevice where pretty = read_device_string
+instance Pretty.Pretty WriteDevice where pretty = write_device_string
 
 add_timestamp :: RealTime -> WriteMessage -> WriteMessage
 add_timestamp ts wmsg = wmsg { wmsg_ts = wmsg_ts wmsg + ts }
@@ -114,13 +158,15 @@ valid_msg :: Message -> Bool
 valid_msg (ChannelMessage chan msg) =
     0 <= chan && chan < 16 && valid_chan_msg msg
 valid_msg msg = error $ "unknown msg: " ++ show msg
-val7 v = 0 <= v && v < 128
+
+valid_chan_msg :: ChannelMessage -> Bool
 valid_chan_msg msg = case msg of
     ControlChange cc val -> val7 cc && val7 val
     NoteOn key vel -> val7 key && val7 vel
     NoteOff key vel -> val7 key && val7 vel
     PitchBend val -> 0 <= val && val < 2^14
     _ -> error $ "valid_chan_msg: unknown msg: " ++ show msg
+    where val7 v = 0 <= v && v < 128
 
 is_cc (ChannelMessage _ (ControlChange _ _)) = True
 is_cc _ = False

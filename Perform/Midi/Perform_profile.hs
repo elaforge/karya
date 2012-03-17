@@ -101,4 +101,4 @@ mkinst name = (Instrument.instrument name [] (-2, 2))
 
 midi_config =
     Instrument.config [(Score.Instrument "inst1", [(dev, n) | n <- [0..8]])]
-    where dev = Midi.WriteDevice "dev1"
+    where dev = Midi.write_device "dev1"

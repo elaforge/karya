@@ -65,8 +65,8 @@ initialize app_name app = do
     mkinterface client chan = Interface.Interface
         { Interface.name = "CoreMIDI"
         , Interface.read_channel = chan
-        , Interface.read_devices = map Midi.ReadDevice <$> get_devices True
-        , Interface.write_devices = map Midi.WriteDevice <$> get_devices False
+        , Interface.read_devices = map Midi.read_device <$> get_devices True
+        , Interface.write_devices = map Midi.write_device <$> get_devices False
         , Interface.connect_read_device = connect_read_device client
         , Interface.disconnect_read_device = disconnect_read_device client
         , Interface.connect_write_device = connect_write_device client
@@ -116,12 +116,12 @@ notify_callback client namep _dev_id c_is_added c_is_read = do
     name <- peekCString namep
     case (toBool c_is_added, toBool c_is_read) of
         (True, True) -> do
-            let dev = Midi.ReadDevice name
+            let dev = Midi.read_device name
             reads <- IORef.readIORef (client_reads client)
             when (dev `Set.member` reads) $
                 void $ connect_read_device client dev
         (True, False) -> do
-            let dev = Midi.WriteDevice name
+            let dev = Midi.write_device name
             writes <- IORef.readIORef (client_writes client)
             when (dev `Map.member` writes) $
                 void $ connect_write_device client dev
@@ -147,7 +147,7 @@ type DeviceId = CInt
 
 connect_read_device :: Client -> Midi.ReadDevice -> IO Bool
 connect_read_device client dev = do
-    maybe_dev_id <- lookup_device_id True (Midi.un_read_device dev)
+    maybe_dev_id <- lookup_device_id True (Midi.read_device_string dev)
     case maybe_dev_id of
         Nothing -> do
             -- This means I want the device if it ever gets plugged in.
@@ -171,7 +171,7 @@ foreign import ccall "core_midi_connect_read_device"
 
 disconnect_read_device :: Client -> Midi.ReadDevice -> IO Bool
 disconnect_read_device client dev = do
-    maybe_dev_id <- lookup_device_id True (Midi.un_read_device dev)
+    maybe_dev_id <- lookup_device_id True (Midi.read_device_string dev)
     wanted <- Set.member dev <$> IORef.readIORef (client_reads client)
     IORef.modifyIORef (client_reads client) (Set.delete dev)
     case (maybe_dev_id, wanted) of
@@ -187,7 +187,7 @@ connect_write_device client dev = do
     -- CoreMIDI doesn't have a notion of connected write devices, they are
     -- all implicitly connected and you need only emit a msg with the
     -- appropriate device id.
-    maybe_dev_id <- lookup_device_id False (Midi.un_write_device dev)
+    maybe_dev_id <- lookup_device_id False (Midi.write_device_string dev)
     case maybe_dev_id of
         Nothing -> do
             IORef.modifyIORef (client_writes client) (Map.insert dev Nothing)

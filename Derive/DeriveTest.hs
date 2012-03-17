@@ -464,7 +464,7 @@ mkscale name notes = Scale.Scale
 make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
 make_midi_config config = Instrument.config
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
-    where mkaddr chan = (Midi.WriteDevice "s", chan)
+    where mkaddr chan = (Midi.write_device "s", chan)
 
 default_convert_lookup :: Convert.Lookup
 default_convert_lookup = Convert.Lookup

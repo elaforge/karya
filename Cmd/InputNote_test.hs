@@ -12,7 +12,7 @@ import qualified Cmd.InputNote as InputNote
 
 test_from_midi = do
     let state = InputNote.empty_state (-2, 2)
-        rdev = Midi.ReadDevice "rdev"
+        rdev = Midi.read_device "rdev"
         chan = Midi.ChannelMessage 0
         nid = InputNote.NoteId
         input = Pitch.InputKey

@@ -4,6 +4,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Thread as Thread
@@ -199,11 +200,9 @@ all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
 midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
 midi_cc_of _ = Nothing
 
-unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts
-        (Midi.ChannelMessage chan msg)) =
-    (dev, RealTime.to_seconds ts, chan, msg)
-unpack_msg (Midi.WriteMessage (Midi.WriteDevice _) _ msg) =
-    error $ "unknown msg: " ++ show msg
+unpack_msg (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) =
+    (Pretty.pretty dev, RealTime.to_seconds ts, chan, msg)
+unpack_msg (Midi.WriteMessage _ _ msg) = error $ "unknown msg: " ++ show msg
 
 test_perform_lazy = do
     let perform evts = perform_notes [(evt, (dev1, 0)) | evt <- evts]
@@ -486,8 +485,9 @@ test_allot = do
 
 test_allot_warn = do
     let inst_addrs = Instrument.config_alloc midi_config1
-    let extract (LEvent.Event (e, (Midi.WriteDevice dev, chan))) = Left
-            (Instrument.inst_name (Perform.event_instrument e), dev, chan)
+    let extract (LEvent.Event (e, (dev, chan))) = Left
+            (Instrument.inst_name (Perform.event_instrument e),
+                Pretty.pretty dev, chan)
         extract (LEvent.Log msg) = Right $ DeriveTest.show_log msg
     let f = map extract . allot inst_addrs
             . map (\(evt, chan) -> (mkevent evt, chan))
@@ -559,8 +559,8 @@ inst2 = mkinst "inst2"
 mkinst name = (Instrument.instrument name [] (-1, 1))
     { Instrument.inst_score = Score.Instrument ("synth1/" ++ name) }
 
-dev1 = Midi.WriteDevice "dev1"
-dev2 = Midi.WriteDevice "dev2"
+dev1 = Midi.write_device "dev1"
+dev2 = Midi.write_device "dev2"
 synth1 = Instrument.synth "synth1" []
 midi_config1 = Instrument.config
     [(Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])]

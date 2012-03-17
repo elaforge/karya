@@ -91,7 +91,7 @@ load_static_config = do
     app_dir <- Config.get_app_dir
     instrument_db <- Local.Instrument.load app_dir
     -- Give all the softsynths a default mapping so they're easy to play with.
-    let synth_wdevs = mkmap Midi.WriteDevice
+    let synth_wdevs = mkmap Midi.write_device
             [(dev, iac 1) | dev <- Db.synths instrument_db]
     return $ StaticConfig.StaticConfig {
         StaticConfig.instrument_db = instrument_db
@@ -123,7 +123,7 @@ tapco n = "Tapco Port " ++ show n
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
 wdev_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
-wdev_map = mkmap Midi.WriteDevice
+wdev_map = mkmap Midi.write_device
     [ ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morpheus", tapco 2)
@@ -132,7 +132,7 @@ wdev_map = mkmap Midi.WriteDevice
     ]
 
 rdev_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
-rdev_map = mkmap Midi.ReadDevice
+rdev_map = mkmap Midi.read_device
     [ (tapco 1, "z1")
     , (tapco 2, "vl1")
     , (tapco 3, "morpheus")
@@ -140,7 +140,7 @@ rdev_map = mkmap Midi.ReadDevice
     ]
 
 read_devices :: Set.Set Midi.ReadDevice
-read_devices = Set.fromList $ map Midi.ReadDevice $
+read_devices = Set.fromList $ map Midi.read_device $
     [ "Oxygen USB Oxygen 8 v2"
     , "EDIROL UA-25"
     , "828mk2 MIDI Port"
@@ -404,4 +404,4 @@ empty_block = do
 make_midi_config :: String -> [(String, [Midi.Channel])] -> Instrument.Config
 make_midi_config dev config = Instrument.config
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
-    where mkaddr chan = (Midi.WriteDevice dev, chan)
+    where mkaddr chan = (Midi.write_device dev, chan)

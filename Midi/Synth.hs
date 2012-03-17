@@ -192,18 +192,17 @@ pretty_controls controls = Seq.join "\n\t"
         | (cont, vals) <- Map.assocs controls]
 
 pretty_warn :: (Midi.WriteMessage, String) -> String
-pretty_warn (Midi.WriteMessage (Midi.WriteDevice dev) ts
-        (Midi.ChannelMessage chan msg), warn) =
-    Pretty.pretty ts ++ " " ++ dev ++ ":" ++ show chan ++ " "
+pretty_warn (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg), warn) =
+    Pretty.pretty ts ++ " " ++ Pretty.pretty dev ++ ":" ++ show chan ++ " "
         ++ show msg ++ ": " ++ warn
-pretty_warn (Midi.WriteMessage (Midi.WriteDevice dev) ts msg, warn) =
-    Pretty.pretty ts ++ " " ++ dev ++ ":" ++ show msg ++ ": " ++ warn
+pretty_warn (Midi.WriteMessage dev ts msg, warn) =
+    Pretty.pretty ts ++ " " ++ Pretty.pretty dev ++ ":" ++ show msg
+        ++ ": " ++ warn
 
 instance Pretty.Pretty Note where
-    pretty (Note start dur _key vel pitch controls addr) =
+    pretty (Note start dur _key vel pitch controls (dev, chan)) =
         Printf.printf "%s %s--%s: %s V:%x C: %s" addr_s (Pretty.pretty start)
             (maybe "" Pretty.pretty dur) (Pretty.pretty pitch)
             vel (pretty_controls controls)
         where
-        addr_s = case addr of
-            (Midi.WriteDevice dev, chan) -> dev ++ ":" ++ show chan
+        addr_s = Pretty.pretty dev ++ ":" ++ show chan

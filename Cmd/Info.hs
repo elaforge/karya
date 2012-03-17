@@ -12,10 +12,10 @@ import qualified Data.Tree as Tree
 import qualified Text.Printf as Printf
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Tree
 
-import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -43,7 +43,7 @@ show_instrument_info addrs info = unlines
 -- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
 show_addrs :: [Instrument.Addr] -> String
 show_addrs addrs = show_list2
-    [ Midi.un_write_device wdev ++ " "
+    [ Pretty.pretty wdev ++ " "
         ++ "[" ++ Seq.join "," (show_runs (map snd addrs)) ++ "]"
     | (wdev, addrs) <- Seq.keyed_group_on fst addrs]
 

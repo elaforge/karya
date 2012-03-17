@@ -436,12 +436,12 @@ instance Serialize Score.Instrument where
 -- ** Midi
 
 instance Serialize Midi.ReadDevice where
-    put (Midi.ReadDevice a) = put a
-    get = get >>= \a -> return (Midi.ReadDevice a)
+    put = put . Midi.read_device_string
+    get = get >>= \a -> return (Midi.read_device a)
 
 instance Serialize Midi.WriteDevice where
-    put (Midi.WriteDevice a) = put a
-    get = get >>= \a -> return (Midi.WriteDevice a)
+    put = put . Midi.write_device_string
+    get = get >>= \a -> return (Midi.write_device a)
 
 instance Serialize Midi.Message where
     put (Midi.ChannelMessage a b) = putWord8 0 >> put a >> put b

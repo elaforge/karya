@@ -15,7 +15,7 @@ test_run = do
     equal active []
     equal notes
         [ Synth.Note (ts 0) (Just (ts 1000)) 64 38
-            [(ts 0, 64)] Map.empty (Midi.WriteDevice "dev", 0)
+            [(ts 0, 64)] Map.empty (Midi.write_device "dev", 0)
         ]
     equal ws []
 
@@ -98,6 +98,5 @@ extract extract_note state =
     )
 
 mkmsg (ts, chan, msg) = Midi.WriteMessage
-    (Midi.WriteDevice "dev")
-    (RealTime.milliseconds ts)
+    (Midi.write_device "dev") (RealTime.milliseconds ts)
     (Midi.ChannelMessage chan msg)

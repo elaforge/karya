@@ -37,7 +37,7 @@ test_diff = do
         [(dev, Midi.ChannelMessage 1 (Midi.NoteOn 1 2))]
 
 dev :: Midi.WriteDevice
-dev = Midi.WriteDevice "dev"
+dev = Midi.write_device "dev"
 
 chan_msg msg = (dev, Midi.ChannelMessage 0 msg)
 

@@ -23,7 +23,7 @@ import Types
 
 
 test_make_states = do
-    let chan_msgs msgs = [Midi.WriteMessage (Midi.WriteDevice "dev") t
+    let chan_msgs msgs = [Midi.WriteMessage (Midi.write_device "dev") t
             (Midi.ChannelMessage 0 m) | (t, m) <- msgs]
     let f ts msgs = map extract $
             StepPlay.make_states (map RealTime.seconds ts) (chan_msgs msgs)
