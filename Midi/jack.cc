@@ -154,7 +154,7 @@ process(jack_nframes_t nframes, void *arg)
     while (jack_ringbuffer_peek(client->output, (char *) &event, sizeof(event)))
     {
         event.event.time = now > event.event.time ? 0 : event.event.time - now;
-        if (event.event.time > nframes)
+        if (event.event.time >= nframes)
             break;
         jack_ringbuffer_read_advance(client->output, sizeof(event));
         write_midi_event(nframes, event);
