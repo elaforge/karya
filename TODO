@@ -34,7 +34,7 @@ UNSORTED
     * protect port name lookups from unregistration with a lock
     - add connect_write_device
     - add registration callback
-    - port test_core_midi to be a generic test_midi
+    * port test_core_midi to be a generic test_midi
     - add manual connect / disconnect testing to test_midi
     - should ReadDevice and WriteDevice use ByteString?
   * instead of using velocity in various ornaments, I should probably use p

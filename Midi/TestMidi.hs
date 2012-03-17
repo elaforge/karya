@@ -1,5 +1,6 @@
--- | Test core midi bindings, automatically and manually.
-module Midi.TestCoreMidi where
+{-# LANGUAGE CPP #-}
+-- | Test MIDI bindings, automatically and manually.
+module Midi.TestMidi where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Control.Monad
@@ -10,7 +11,15 @@ import qualified System.Environment
 
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Midi.CoreMidi as CoreMidi
+
+#include "hsconfig.h"
+#ifdef CORE_MIDI
+import qualified Midi.CoreMidi as MidiDriver
+#endif
+#ifdef JACK_MIDI
+import qualified Midi.JackMidi as MidiDriver
+#endif
+
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 
@@ -21,7 +30,7 @@ test_rdev = Midi.ReadDevice "IAC Synth 1"
 test_wdev = Midi.WriteDevice "IAC Synth 1"
 
 main :: IO ()
-main = CoreMidi.initialize "test_core_midi" test
+main = MidiDriver.initialize "test_midi" test
 
 type ReadMsg = IO (Maybe Midi.ReadMessage)
 type WriteMsg = (RealTime.RealTime, Midi.Message) -> IO ()
@@ -136,6 +145,7 @@ thru_melody interface write_msg read_msg = do
     mapM_ write_msg (melody now)
     thru_loop write_msg read_msg
 
+-- | Write notes over time.
 melody :: RealTime.RealTime -> [(RealTime.RealTime, Midi.Message)]
 melody start_ts = concat
     [[(ts, note_on nn), (ts + RealTime.seconds 0.4, note_off nn)]

@@ -128,7 +128,7 @@ hsBinaries =
     , plain "send" "App/Send.hs"
     , gui "seq" "App/Main.hs" ["fltk/fltk.a"] (Just "doc/seq.icns")
     , plain "shakefile" "Shake/Shakefile.hs"
-    , plain "test_core_midi" "Midi/TestCoreMidi.hs"
+    , plain "test_midi" "Midi/TestMidi.hs"
     , plain "test_jack_midi" "Midi/TestJackMidi.hs"
     , plain "timer" "LogView/Timer.hs"
     , plain "update" "App/Update.hs"
@@ -145,7 +145,7 @@ cppFlags config fn
     | fn `elem` cppFiles = Just $
         cInclude (configFlags config) ++ define (configFlags config)
     | otherwise = Nothing
-    where cppFiles = ["App/Main.hs", "Cmd/Lang.hs"]
+    where cppFiles = ["App/Main.hs", "Cmd/Lang.hs", "Midi/TestMidi.hs"]
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
