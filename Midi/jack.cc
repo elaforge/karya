@@ -14,7 +14,6 @@ Client::Client()
         read_ports[i] = 0;
         write_ports[i] = 0;
     }
-    pthread_mutex_init(&processing, NULL);
     sem_init(&available, 0, 0);
 
     // TODO memset(ring->buf, 0, ring->size) to avoid page faults?
@@ -27,7 +26,6 @@ Client::Client()
 Client::~Client()
 {
     sem_destroy(&available);
-    pthread_mutex_destroy(&this->processing);
     jack_ringbuffer_free(immediate_output);
     jack_ringbuffer_free(output);
     jack_ringbuffer_free(input);
@@ -112,10 +110,6 @@ process(jack_nframes_t nframes, void *arg)
     Client *client = static_cast<Client *>(arg);
     const jack_nframes_t now = jack_last_frame_time(client->client);
 
-    // This should never be locked for process().  It's used so other threads
-    // can wait for the process thread to complete.
-    pthread_mutex_trylock(&client->processing);
-
     // Read incoming MIDI.  To guarantee all the ports are still valid, I
     // never unregister a port, only disconnect them.
     for (int i = 0; i < MAX_PORTS; i++) {
@@ -166,7 +160,6 @@ process(jack_nframes_t nframes, void *arg)
         jack_ringbuffer_read_advance(client->output, sizeof(event));
         write_midi_event(nframes, event);
     }
-    pthread_mutex_unlock(&client->processing);
     return 0; // no error, but who knows what returning an error would do
 }
 
@@ -287,13 +280,6 @@ remove_read_port(Client *client, const char *remote_name)
     jack_port_disconnect(client->client, port);
     // I never unregister ports.  This ensures that any read ports still on
     // the input ringbuffer won't cause jack_port_short_name to crash.
-    //
-    // I could unregister with a guarentee that process() has completed (wait
-    // for the processing lock to open, then don't take it) if I used a safe
-    // map<jack_port_t *, string> instead of jack functions.
-    // pthread_mutex_lock(&client->processing);
-    // pthread_mutex_unlock(&client->processing);
-    // jack_port_unregister(client->client, port);
     return NULL;
 }
 

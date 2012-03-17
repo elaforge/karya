@@ -28,7 +28,6 @@ struct Client {
     // The only reason I need these is to clear them on each process cycle.
     // Too bad JACK doesn't have a way to ask for my ports in process().
     jack_port_t *write_ports[MAX_PORTS];
-    pthread_mutex_t processing; // Whether the process() function is working.
     sem_t available; // How many events are on the input buffer.
 
     jack_ringbuffer_t *immediate_output;
