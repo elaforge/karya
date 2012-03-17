@@ -61,6 +61,12 @@ test (Right interface) = do
                 rdevs (Just (Midi.WriteDevice out_dev))
             thru_loop write_msg read_msg
         ["melody", out_dev] -> do
+            putStrLn "playing melody"
+            (write_msg, _) <- open True [] (Just (Midi.WriteDevice out_dev))
+            melody interface write_msg
+            putStrLn "return to quit... "
+            void getLine
+        ["melody-thru", out_dev] -> do
             putStrLn "playing melody + thru"
             (write_msg, read_msg) <- open True
                 rdevs (Just (Midi.WriteDevice out_dev))
@@ -73,9 +79,9 @@ test (Right interface) = do
             spam interface write_msg n
             getChar
             return ()
-        ["test"] -> do
+        ["test", loopback] -> do
             (write_msg, read_msg) <- open False
-                [test_rdev] (Just test_wdev)
+                [Midi.ReadDevice loopback] (Just (Midi.WriteDevice loopback))
             run_tests interface write_msg read_msg
         _ -> do
             putStrLn "unknown command"
@@ -141,13 +147,17 @@ thru_loop write_msg read_msg = forever $ do
 -- | Play a melody while also allowing msgs thru, to test merging.
 thru_melody :: Interface.Interface -> WriteMsg -> ReadMsg -> IO ()
 thru_melody interface write_msg read_msg = do
-    now <- Interface.now interface
-    mapM_ write_msg (melody now)
+    melody interface write_msg
     thru_loop write_msg read_msg
 
+melody :: Interface.Interface -> WriteMsg -> IO ()
+melody interface write_msg = do
+    now <- Interface.now interface
+    mapM_ write_msg (notes now)
+
 -- | Write notes over time.
-melody :: RealTime.RealTime -> [(RealTime.RealTime, Midi.Message)]
-melody start_ts = concat
+notes :: RealTime.RealTime -> [(RealTime.RealTime, Midi.Message)]
+notes start_ts = concat
     [[(ts, note_on nn), (ts + RealTime.seconds 0.4, note_off nn)]
         | (ts, nn) <- zip (Seq.range_ start_ts (RealTime.seconds 0.5)) score]
     where score = [53, 55 .. 61]
