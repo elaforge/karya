@@ -67,7 +67,7 @@ close_client client =
 foreign import ccall "create_client"
     c_create_client :: CString -> Ptr (Ptr CClient) -> IO CString
 foreign import ccall "jack_client_close"
-    c_jack_client_close :: Ptr JackClient -> IO CInt
+    c_jack_client_close :: Ptr CJackClient -> IO CInt
 
 read_event :: Client -> IO Midi.ReadMessage
 read_event client = do
@@ -92,8 +92,6 @@ now client = decode_time <$> c_now (client_ptr client)
 
 foreign import ccall "now" c_now :: Ptr CClient -> IO CJackTime
 
--- | Start reading from a ReadDeviceId, assigning the ReadMessages the given
--- ReadDevice.
 connect_read_device :: Client -> Midi.ReadDevice -> IO Bool
 connect_read_device client dev@(Midi.ReadDevice name) = do
     IORef.modifyIORef (client_wanted_reads client) (Set.insert dev)
@@ -120,13 +118,6 @@ connect_write_device client msg = undefined
 
 -- * implementation
 
-newtype ReadDeviceId = ReadDeviceId Port deriving (Show)
-newtype WriteDeviceId = WriteDeviceId Port deriving (Show)
-
-data CPort
-type Port = Ptr CPort
-
-type CJackStatus = CInt
 type CJackTime = Word.Word64
 data CClient
 data Client = Client {
@@ -135,11 +126,10 @@ data Client = Client {
     , client_wanted_writes :: IORef.IORef (Set.Set Midi.WriteDevice)
     }
 
-jack_client :: Client -> IO (Ptr JackClient)
-jack_client = (#peek Client, client) . client_ptr
-
+-- | This is the underlying jack_client_t, as opposed to jack.cc's Client.
 data CJackClient
-type JackClient = Ptr CJackClient
+jack_client :: Client -> IO (Ptr CJackClient)
+jack_client = (#peek Client, client) . client_ptr
 
 decode_time :: CJackTime -> RealTime
 decode_time = RealTime.microseconds . fromIntegral
@@ -156,12 +146,8 @@ get_ports client flags = do
 foreign import ccall "get_midi_ports"
     c_get_midi_ports :: Ptr CClient -> CULong -> IO (Ptr CString)
 
-foreign import ccall "jack_port_by_name"
-    c_jack_port_by_name :: Ptr JackClient -> CString -> IO Port
-
 #enum CULong, id, JackPortIsInput, JackPortIsOutput, JackPortIsPhysical, \
     JackPortCanMonitor, JackPortIsTerminal
-
 
 -- | Log any error and return False if there was one.
 check :: CString -> IO Bool
