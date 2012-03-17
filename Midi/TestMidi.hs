@@ -26,9 +26,6 @@ import qualified Midi.Midi as Midi
 import qualified Perform.RealTime as RealTime
 
 
-test_rdev = Midi.ReadDevice "IAC Synth 1"
-test_wdev = Midi.WriteDevice "IAC Synth 1"
-
 main :: IO ()
 main = MidiDriver.initialize "test_midi" test
 

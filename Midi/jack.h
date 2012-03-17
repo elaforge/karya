@@ -20,20 +20,23 @@ struct Client {
     void add_write_port(jack_port_t *port);
 
     jack_port_t *read_ports[MAX_PORTS];
+    // The only reason I need these is to clear them on each process cycle.
+    // Too bad JACK doesn't have a way to ask for my ports in process().
+    jack_port_t *write_ports[MAX_PORTS];
     pthread_mutex_t processing; // Whether the process() function is working.
     sem_t available; // How many events are on the input buffer.
 
     jack_ringbuffer_t *immediate_output;
     jack_ringbuffer_t *output;
     jack_ringbuffer_t *input;
-
-    jack_nframes_t current_frame;
 };
 
 enum {
-    output_buffer_size = 4096,
-    immediate_output_buffer_size = 1024,
-    input_buffer_size = 1024
+    output_buffer_size = 4 * 1024,
+    // VL1 sysex dumps can get up to 400K, but I guess I can deal with that
+    // if it becomes a problem.
+    immediate_output_buffer_size = 8 * 1024,
+    input_buffer_size = 8 * 1024
 };
 
 struct midi_event {
@@ -48,10 +51,16 @@ const char *create_client(const char *client_name, Client **out_client);
 // ports
 const char *create_read_port(Client *client, const char *remote_name);
 const char *remove_read_port(Client *client, const char *remote_name);
+const char *create_write_port(Client *client, const char *remote_name);
 const char **get_midi_ports(Client *client, unsigned long flags);
+
+// read and write
+const char *write_message(Client *client, const char *port, uint64_t time,
+    void *bytes, int size);
 
 // Block until an event arrives, then fill it in.
 int read_event(Client *client, const char **port, uint64_t *time,
     void **mevent);
+void jack_abort(Client *client);
 uint64_t now(Client *client);
 }

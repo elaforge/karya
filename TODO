@@ -32,7 +32,7 @@ UNSORTED
   * add wdev map to Ui.State
   use jack midi
     * protect port name lookups from unregistration with a lock
-    - add connect_write_device
+    * add connect_write_device
     - add registration callback
     * port test_core_midi to be a generic test_midi
     - add manual connect / disconnect testing to test_midi

@@ -24,6 +24,8 @@ import Types
 #include "Midi/jack.h"
 
 
+-- * initialize
+
 initialize :: String -> (Either String Interface.Interface -> IO a) -> IO a
 initialize app_name app = do
     chan <- TChan.newTChanIO
@@ -55,8 +57,8 @@ interface client chan = Interface.Interface
     , Interface.connect_read_device = connect_read_device client
     , Interface.disconnect_read_device = disconnect_read_device client
     , Interface.connect_write_device = connect_write_device client
-    , Interface.write_message = undefined
-    , Interface.abort = undefined
+    , Interface.write_message = write_message client
+    , Interface.abort = abort client
     , Interface.now = now client
     }
 
@@ -81,14 +83,11 @@ read_event client = do
         time <- decode_time <$> peek timep
         return $ Midi.ReadMessage rdev time (Parse.decode bytes)
 
-
 foreign import ccall "read_event"
     c_read_event :: Ptr CClient -> Ptr CString -> Ptr CJackTime
         -> Ptr (Ptr CChar) -> IO CInt
 
--- | Get current timestamp.
-now :: Client -> IO RealTime
-now client = decode_time <$> c_now (client_ptr client)
+-- * connect / disconnect
 
 foreign import ccall "now" c_now :: Ptr CClient -> IO CJackTime
 
@@ -110,10 +109,38 @@ disconnect_read_device client dev@(Midi.ReadDevice name) = do
 foreign import ccall "remove_read_port"
     c_remove_read_port :: Ptr CClient -> CString -> IO CString
 
--- Create a port for 'dev'
 connect_write_device :: Client -> Midi.WriteDevice -> IO Bool
-connect_write_device client msg = undefined
+connect_write_device client dev@(Midi.WriteDevice name) = do
+    IORef.modifyIORef (client_wanted_writes client) (Set.insert dev)
+    withCString name $ \namep ->
+        check =<< c_create_write_port (client_ptr client) namep
 
+foreign import ccall "create_write_port"
+    c_create_write_port :: Ptr CClient -> CString -> IO CString
+
+
+-- * write
+
+write_message :: Client -> Midi.WriteMessage -> IO Bool
+write_message client (Midi.WriteMessage (Midi.WriteDevice dev) time msg) = do
+    withCString dev $ \devp -> ByteString.useAsCStringLen (Parse.encode msg) $
+        \(bytesp, len) -> check =<< c_write_message (client_ptr client) devp
+            (fromIntegral (RealTime.to_microseconds time))
+            bytesp (fromIntegral len)
+
+foreign import ccall "write_message"
+    c_write_message :: Ptr CClient -> CString -> CJackTime -> Ptr CChar
+        -> CInt -> IO CString
+
+abort :: Client -> IO ()
+abort = c_abort . client_ptr
+
+foreign import ccall "jack_abort" c_abort :: Ptr CClient -> IO ()
+
+
+-- | Get current timestamp.
+now :: Client -> IO RealTime
+now client = decode_time <$> c_now (client_ptr client)
 
 
 -- * implementation

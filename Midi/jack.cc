@@ -12,10 +12,10 @@ Client::Client()
 {
     for (int i = 0; i < MAX_PORTS; i++) {
         read_ports[i] = 0;
+        write_ports[i] = 0;
     }
     pthread_mutex_init(&processing, NULL);
     sem_init(&available, 0, 0);
-    current_frame = 0;
 
     // TODO memset(ring->buf, 0, ring->size) to avoid page faults?
     // failed = jack_ringbuffer_mlock(client.immediate_output_ring);
@@ -54,6 +54,8 @@ void
 Client::add_write_port(jack_port_t *port)
 {
     for (int i = 0; i < MAX_PORTS; i++) {
+        if (__sync_bool_compare_and_swap(&write_ports[i], 0, port))
+            break;
     }
 }
 
@@ -101,6 +103,7 @@ static int
 process(jack_nframes_t nframes, void *arg)
 {
     Client *client = static_cast<Client *>(arg);
+    const jack_nframes_t now = jack_last_frame_time(client->client);
 
     // This should never be locked for process().  It's used so other threads
     // can wait for the process thread to complete.
@@ -120,7 +123,7 @@ process(jack_nframes_t nframes, void *arg)
             midi_event event;
             jack_midi_event_get(&event.event, buf, j);
             event.port = port;
-            event.event.time += jack_last_frame_time(client->client);
+            event.event.time += now;
             if (!jack_ringbuffer_write(
                 client->input, (char *) &event, sizeof(event)))
             {
@@ -136,19 +139,26 @@ process(jack_nframes_t nframes, void *arg)
     // hard to tell if any instances of the old port are still in the
     // output ringbuffer.
     midi_event event;
+    for (int i = 0; i < MAX_PORTS; i++) {
+        if (client->write_ports[i]) {
+            jack_midi_clear_buffer(
+                jack_port_get_buffer(client->write_ports[i], nframes));
+        }
+    }
     while (jack_ringbuffer_read(client->immediate_output, (char *) &event,
         sizeof(event)))
     {
+        event.event.time = 0;
         write_midi_event(nframes, event);
     }
     while (jack_ringbuffer_peek(client->output, (char *) &event, sizeof(event)))
     {
+        event.event.time = now > event.event.time ? 0 : event.event.time - now;
         if (event.event.time > nframes)
             break;
         jack_ringbuffer_read_advance(client->output, sizeof(event));
         write_midi_event(nframes, event);
     }
-    client->current_frame += nframes;
     pthread_mutex_unlock(&client->processing);
     return 0; // no error, but who knows what returning an error would do
 }
@@ -216,6 +226,15 @@ create_client(const char *client_name, Client **out_client)
 
 // ports
 
+static std::string
+prepend_client(Client *client, const char *short_name)
+{
+    std::string name = jack_get_client_name(client->client);
+    name += ':';
+    name += short_name;
+    return name;
+}
+
 const char *
 create_read_port(Client *client, const char *remote_name)
 {
@@ -224,9 +243,7 @@ create_read_port(Client *client, const char *remote_name)
     // 'client:system:out'.  Jack seems happy to accept names with more than
     // one colon.
     std::string local_name = remote_name;
-    std::string local_long_name = jack_get_client_name(client->client);
-    local_long_name += ':';
-    local_long_name += local_name;
+    std::string local_long_name = prepend_client(client, local_name.c_str());
 
     DEBUG("connect read: " << local_long_name << " <- " << remote_name);
     jack_port_t *port = jack_port_by_name(
@@ -250,9 +267,7 @@ create_read_port(Client *client, const char *remote_name)
 const char *
 remove_read_port(Client *client, const char *remote_name)
 {
-    std::string local_name = jack_get_client_name(client->client);
-    local_name += ':';
-    local_name += remote_name;
+    std::string local_name = prepend_client(client, remote_name);
 
     jack_port_t *port = jack_port_by_name(client->client, local_name.c_str());
     if (!port)
@@ -272,19 +287,29 @@ remove_read_port(Client *client, const char *remote_name)
     return NULL;
 }
 
-/*
-int
-create_write_port(const char *dest)
+const char *
+create_write_port(Client *client, const char *remote_name)
 {
-    const char *write_name = strchr(dest, ':') + 1;
-    jack_port_t *port = jack_port_register(
-        client.client, write_name, JACK_DEFAULT_MIDI_TYPE,
-        JackPortIsOutput | JackPortIsTerminal, 0);
-    if (!port)
-        return 1;
-    return jack_connect(client.client, jack_port_name(port), dest);
+    std::string local_name = remote_name;
+    std::string local_long_name = prepend_client(client, local_name.c_str());
+
+    DEBUG("connect write: " << local_long_name << " <- " << remote_name);
+    jack_port_t *port = jack_port_by_name(
+        client->client, local_long_name.c_str());
+    if (!port) {
+        port = jack_port_register(
+            client->client, local_name.c_str(), JACK_DEFAULT_MIDI_TYPE,
+            JackPortIsOutput | JackPortIsTerminal, 0);
+        if (!port)
+            return "can't create local port";
+    }
+
+    client->add_write_port(port);
+    if (jack_connect(client->client, local_long_name.c_str(), remote_name)) {
+        return "can't connect to remote port";
+    }
+    return NULL;
 }
-*/
 
 const char **
 get_midi_ports(Client *client, unsigned long flags)
@@ -292,18 +317,26 @@ get_midi_ports(Client *client, unsigned long flags)
     return jack_get_ports(client->client, NULL, JACK_DEFAULT_MIDI_TYPE, flags);
 }
 
-// write
+// read / write
 
-// int
-// write_message(const char *port_name, jack_time_t timestamp, midi_message msg)
-// {
-//     // lookup port, create a write_message, put it on the ringbuffer
-//     jack_port_t *port = jack_port_by_name(client.client, port_name);
-//     if (!port)
-//         return 1;
-//     // struct read_msg msg;
-//     return 0;
-// }
+const char *
+write_message(Client *client, const char *port, uint64_t time, void *bytes,
+    int size)
+{
+    midi_event event;
+    event.port = jack_port_by_name(client->client, port);
+    if (!event.port)
+        return "write_message: port not found";
+    event.event.size = size;
+    event.event.time = jack_time_to_frames(client->client, time);
+    event.event.buffer = (jack_midi_data_t *) bytes;
+    jack_ringbuffer_t *buffer =
+        time == 0 ? client->immediate_output : client-> output;
+    if (!jack_ringbuffer_write(buffer, (char *) &event, sizeof(event))) {
+        return "output buffer overrun";
+    }
+    return NULL;
+}
 
 int
 read_event(Client *client, const char **port, uint64_t *time, void **mevent)
@@ -323,6 +356,19 @@ try_again:
     *time = jack_frames_to_time(client->client, event.event.time);
     *mevent = event.event.buffer;
     return event.event.size;
+}
+
+void
+jack_abort(Client *client)
+{
+    // jack_ringbuffer_reset is documented not thread safe, so I probably
+    // can't just call it while someone else may be reading it.  And
+    // jack_ringbuffer_read_advance doesn't say if it was able to advance or
+    // not.  So just suck all the events out one-by-one before process() can
+    // get them.
+    midi_event evt;
+    while (jack_ringbuffer_read(client->output, (char *) &evt, sizeof(evt)))
+        ;
 }
 
 uint64_t
