@@ -96,14 +96,14 @@ symbol_to_block_id sym
     | otherwise = do
         ui_state <- Derive.get_ui_state id
         let ns = State.config_namespace (State.state_config ui_state)
-            block_id = make_block_id ns sym
-        return $ if block_id `Map.member` State.state_blocks ui_state
-            then Just block_id
-            else Nothing
+        return $ do
+            block_id <- make_block_id ns sym
+            if block_id `Map.member` State.state_blocks ui_state
+                then Just block_id else Nothing
 
-make_block_id :: Id.Namespace -> TrackLang.Symbol -> BlockId
+make_block_id :: Id.Namespace -> TrackLang.Symbol -> Maybe BlockId
 make_block_id namespace (TrackLang.Symbol call) =
-    Types.BlockId (Id.make namespace call)
+    Types.BlockId <$> Id.make namespace call
 
 -- ** clip
 
@@ -130,7 +130,7 @@ c_clip = block_call get_block_id $ Derive.stream_generator "clip" $
     where
     before end = LEvent.either ((<end) . Score.event_start) (const True)
     get_block_id (ns, args) = case Derive.passed_vals args of
-        TrackLang.VSymbol sym : _ -> Just (make_block_id ns sym)
+        TrackLang.VSymbol sym : _ -> make_block_id ns sym
         _ -> Nothing
 
 

@@ -170,11 +170,11 @@ instance Serialize State.Default where
 
 instance Serialize Id.Id where
     put = put . Id.un_id
-    get = get >>= \(a, b) -> return (Id.id a b)
+    get = get >>= \(a, b) -> return (Id.unsafe_id a b)
 
 instance Serialize Id.Namespace where
     put = put . Id.un_namespace
-    get = get >>= \a -> return (Id.namespace a)
+    get = get >>= \a -> return (Id.unsafe_namespace a)
 
 -- ** Block
 

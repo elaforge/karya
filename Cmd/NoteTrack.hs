@@ -165,9 +165,7 @@ create_pitch_track block_id note_tracknum title tracknum = do
 -- This doesn't use the full Derive.Parse machinery, but is simple and doesn't
 -- require the text to be fully parseable.
 block_call :: Id.Namespace -> String -> Maybe BlockId
-block_call ns expr
-    | null call = Nothing
-    | otherwise = Just $ Types.BlockId (Id.make ns call)
+block_call ns expr = Types.BlockId <$> Id.make ns call
     where call = generator_of expr
 
 generator_of :: String -> String

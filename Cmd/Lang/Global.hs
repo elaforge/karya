@@ -77,11 +77,22 @@ import Types
 
 -- | Take a string and automatically figure out what kind of ID is expected and
 -- add a namespace if one was not already in the string.
+--
+-- Throws an error if the ID has bad characters, which is ok since this is
+-- expected to be used from the REPL.
 class AutoId a where auto_id :: Id.Namespace -> String -> a
-instance AutoId ViewId where auto_id ns = Types.ViewId . Id.make ns
-instance AutoId BlockId where auto_id ns = Types.BlockId . Id.make ns
-instance AutoId RulerId where auto_id ns = Types.RulerId . Id.make ns
-instance AutoId TrackId where auto_id ns = Types.TrackId . Id.make ns
+instance AutoId ViewId where
+    auto_id ns = Types.ViewId . check_id "ViewId" . Id.make ns
+instance AutoId BlockId where
+    auto_id ns = Types.BlockId . check_id "BlockId" . Id.make ns
+instance AutoId RulerId where
+    auto_id ns = Types.RulerId . check_id "RulerId" . Id.make ns
+instance AutoId TrackId where
+    auto_id ns = Types.TrackId . check_id "TrackId" . Id.make ns
+
+check_id :: String -> Maybe a -> a
+check_id msg Nothing = error $ "illegal characters in " ++ msg
+check_id _ (Just x) = x
 
 vid = Types.ViewId . Id.read_id
 bid = Types.BlockId . Id.read_id

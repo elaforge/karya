@@ -44,7 +44,7 @@ import Types
 create :: (State.M m) => Id.Namespace -> [UiBlock] -> m ()
 create name ui_blocks = do
     State.set_namespace name
-    let mkid = Id.id name
+    let mkid = Id.unsafe_id name
     (rid, track_rid) <- Create.ruler "meter_44"
         (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
     block_ids <- mapM (uncurry (create_block mkid rid track_rid ""))

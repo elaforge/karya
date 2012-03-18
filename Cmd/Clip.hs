@@ -138,7 +138,7 @@ cmd_paste_insert = do
 get_clip_block_id :: (Cmd.M m) => m BlockId
 get_clip_block_id = do
     clip_ns <- get_clip_namespace
-    return $ Types.BlockId (Id.id clip_ns Config.clip_block_name)
+    return $ Types.BlockId (Id.unsafe_id clip_ns Config.clip_block_name)
 
 -- ** copy
 
@@ -215,13 +215,11 @@ state_to_namespace state ns = do
 -- mess with rulers.
 set_namespace :: (State.M m) => Id.Namespace -> State.State -> m State.State
 set_namespace ns state = do
-    let set ident = Id.id ns name
-            where (_, name) = Id.un_id ident
-        state2 = state { State.state_rulers = Map.empty }
+    let state2 = state { State.state_rulers = Map.empty }
     State.throw_either "set to clip namespace" $ State.exec state2 $ do
-        Transform.map_view_ids set
-        Transform.map_block_ids set
-        Transform.map_track_ids set
+        Transform.map_view_ids (Id.set_namespace ns)
+        Transform.map_block_ids (Id.set_namespace ns)
+        Transform.map_track_ids (Id.set_namespace ns)
 
 get_clip_namespace :: (Cmd.M m) => m Id.Namespace
 get_clip_namespace = Cmd.gets Cmd.state_clip_namespace

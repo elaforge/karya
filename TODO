@@ -14,7 +14,7 @@ UNSORTED
   - fltk: some way to scroll that's not the scroll wheel
   - shakefile: can I print [# of #] when compiling?
   - de-globalize MidiClientRef?
-  - should ReadDevice and WriteDevice use ByteString?
+  * should ReadDevice and WriteDevice use ByteString?
 
   abstract pitches
     re-implement Cmd.Lang.LPitch.to_relative:

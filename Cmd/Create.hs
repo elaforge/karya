@@ -14,6 +14,7 @@
 module Cmd.Create where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
@@ -53,7 +54,7 @@ renamespace :: (State.M m) => Id.Namespace -> Id.Namespace -> m ()
 renamespace from to = Transform.map_ids set_ns
     where
     set_ns ident
-        | ns == from = Id.id to name
+        | ns == from = Maybe.fromMaybe ident (Id.id to name)
         | otherwise = ident
         where (ns, name) = Id.un_id ident
 
@@ -145,7 +146,7 @@ block ruler_id = do
 named_block :: (Cmd.M m) => String -> RulerId -> m BlockId
 named_block name ruler_id = do
     ns <- State.get_namespace
-    Cmd.create_block (Id.id ns name) ""
+    Cmd.create_block (Id.unsafe_id ns name) ""
         [Block.track (Block.RId ruler_id) Config.ruler_width]
 
 -- | Delete a block and any views it appears in.  Also delete any tracks
@@ -377,7 +378,7 @@ get_ruler_id block_id tracknum = do
 add_overlay_suffix :: RulerId -> RulerId
 add_overlay_suffix ruler_id
     | overlay_suffix `List.isSuffixOf` ident = ruler_id
-    | otherwise = Types.RulerId (Id.id ns (ident ++ overlay_suffix))
+    | otherwise = Types.RulerId (Id.unsafe_id ns (ident ++ overlay_suffix))
     where (ns, ident) = Id.un_id (Id.unpack_id ruler_id)
 
 -- | Clip the tracknum to within the valid range.
@@ -437,7 +438,7 @@ set_block_ruler ruler_id overlay_id block_id = Transform.tracks block_id set
 make_id :: (State.M m) => String -> m Id.Id
 make_id name = do
     ns <- State.get_namespace
-    return (Id.id ns name)
+    return $ Id.unsafe_id ns name
 
 -- | An overlay versions of a ruler has id ruler_id ++ suffix.
 overlay_suffix :: String
@@ -453,7 +454,7 @@ generate_id ns parent_id code typ fm =
 
 ids_for :: Id.Namespace -> String -> String -> [Id.Id]
 ids_for ns parent code =
-    [Id.id ns (dotted parent ++ code ++ show n) | n <- [0..]]
+    [Id.unsafe_id ns (dotted parent ++ code ++ show n) | n <- [0..]]
     where dotted s = if null s then "" else s ++ "."
 
 require :: (State.M m) => String -> Maybe a -> m a

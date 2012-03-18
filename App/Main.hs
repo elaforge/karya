@@ -111,7 +111,7 @@ parse_args argv = case argv of
     ["mod", fn] -> load_mod fn
     ["-a"] -> do
         Save.cmd_load "save/default"
-        State.set_namespace (Id.namespace "untitled")
+        State.set_namespace (Id.unsafe_namespace "untitled")
         return Cmd.Done
     [fn] -> do
         Save.cmd_load fn
@@ -300,7 +300,7 @@ load_mod fn = do
     blocks <- either Cmd.throw return =<< Trans.liftIO (LoadMod.parse fn)
     let blocks2 = map (LoadMod.map_block (LoadMod.add_default_volume 1 38))
             blocks
-    LoadMod.create (Id.namespace $ head (Seq.split "." fn))
+    LoadMod.create (Id.unsafe_namespace $ head (Seq.split "." fn))
         (LoadMod.convert_blocks 0.25 blocks2)
     State.set_midi_config $ make_midi_config "ptq" [("ptq/c1", [0..8])]
     return Cmd.Done

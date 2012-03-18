@@ -32,7 +32,7 @@ to_simple = map (\(pos, dur, text) -> (realToFrac pos, realToFrac dur, text))
     (Config.clip_block_name, [("t1", [(0, 2, "c1"), (4, 2, "c2")])])
 
 clip_ns = Config.clip_namespace
-clip_id = Types.BlockId (Id.id clip_ns Config.clip_block_name)
+clip_id = Types.BlockId $ Id.unsafe_id clip_ns Config.clip_block_name
 
 with_clip state cstate = State.error_either "with_clip" $
     State.exec state (Clip.state_to_namespace cstate clip_ns)

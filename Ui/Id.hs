@@ -1,9 +1,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
 module Ui.Id (
-    Namespace, namespace, un_namespace, Id
+    Namespace, namespace, unsafe_namespace, un_namespace, Id
 
     -- * construction
-    , id, make
+    , id, unsafe_id, make
 
     -- * naming enforcement
     , is_id, is_id_char, is_strict_id, is_strict_id_char, ascii_lower
@@ -43,8 +43,15 @@ newtype Namespace = Namespace String
 data Id = Id !Namespace !String
     deriving (Eq, Ord, Show, Read)
 
-namespace :: String -> Namespace
-namespace = Namespace . enforce_strict_id_null_ok
+-- | Create a namespace, if the characters are valid.
+namespace :: String -> Maybe Namespace
+namespace ns
+    | null ns || is_strict_id ns = Just (Namespace ns)
+    | otherwise = Nothing
+
+-- | Like 'namespace', but will strip and log invalid characters.
+unsafe_namespace :: String -> Namespace
+unsafe_namespace = Namespace . enforce_strict_id_null_ok
 
 un_namespace :: Namespace -> String
 un_namespace (Namespace s) = s
@@ -57,18 +64,24 @@ instance Pretty.Pretty Id where pretty = show_id
 
 -- * construction
 
--- | Construct an Id.  Non-identifier characters are stripped out.
-id :: Namespace -> String -> Id
-id ns ident = Id ns (enforce_id ident)
+-- | Construct an Id, or return Nothing if there were invalid characters in it.
+id :: Namespace -> String -> Maybe Id
+id ns ident
+    | is_id ident = Just $ Id ns ident
+    | otherwise = Nothing
+
+-- | Like 'id', but will strip and log invalid characters.
+unsafe_id :: Namespace -> String -> Id
+unsafe_id ns ident = Id ns (enforce_id ident)
 
 -- | A smarter constructor that only applies the namespace if the string
 -- doesn't already have one.
-make :: Namespace -> String -> Id
-make default_ns text = id ns ident
-    where
-    (w0, w1) = break (=='/') text
-    (ns, ident) = if null w1 then (default_ns, w0)
-        else (namespace w0, drop 1 w1)
+make :: Namespace -> String -> Maybe Id
+make default_ns text = case break (=='/') text of
+    (ident, "") -> id default_ns ident
+    (ns, ident) -> do
+        ns <- namespace ns
+        id ns (drop 1 ident)
 
 -- | To make naming them in events easier, IDs have a restricted character set.
 -- @.@ is allowed so there is a "phrase separator" and @`@ is allowed for
@@ -140,18 +153,18 @@ id_name :: Id -> String
 id_name (Id _ name) = name
 
 set_name :: String -> Id -> Id
-set_name name (Id ns _) = id ns name
+set_name name (Id ns _) = unsafe_id ns name
 
 id_namespace :: Id -> Namespace
 id_namespace (Id ns _) = ns
 
 set_namespace :: Namespace -> Id -> Id
-set_namespace ns (Id _ name) = id ns name
+set_namespace ns (Id _ name) = unsafe_id ns name
 
 -- * read / show
 
 read_id :: String -> Id
-read_id s = id (namespace pre) (drop 1 post)
+read_id s = unsafe_id (unsafe_namespace pre) (drop 1 post)
     where (pre, post) = break (=='/') s
 
 show_id :: Id -> String
@@ -194,7 +207,7 @@ ident_name = id_name . unpack_id
 -- * constants
 
 global :: String -> Id
-global = id global_namespace
+global = unsafe_id global_namespace
 
 global_namespace :: Namespace
-global_namespace = namespace ""
+global_namespace = unsafe_namespace ""

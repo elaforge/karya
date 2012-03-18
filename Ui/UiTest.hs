@@ -37,8 +37,8 @@ default_divider = Block.Divider Color.blue
 
 -- state
 
-test_ns = Id.namespace "test"
-mkid = Id.id test_ns
+test_ns = Id.unsafe_namespace "test"
+mkid = Id.unsafe_id test_ns
 bid = Types.BlockId . mkid
 vid = Types.ViewId . mkid
 tid = Types.TrackId . mkid
@@ -155,7 +155,7 @@ mkblock_view :: (State.M m) => BlockSpec -> m [TrackId]
 mkblock_view block_spec = mkblock block_spec <* mkview (bid (fst block_spec))
 
 mk_vid :: BlockId -> ViewId
-mk_vid block_id = Types.ViewId $ Id.id ns ("v." ++ block_name)
+mk_vid block_id = Types.ViewId $ Id.unsafe_id ns ("v." ++ block_name)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 mk_vid_name :: String -> ViewId
@@ -168,7 +168,7 @@ mk_tid = mk_tid_block default_block_id
 
 mk_tid_block :: BlockId -> TrackNum -> TrackId
 mk_tid_block block_id i =
-    Types.TrackId $ Id.id ns (block_name ++ ".t" ++ show i)
+    Types.TrackId $ Id.unsafe_id ns (block_name ++ ".t" ++ show i)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 mk_tid_name :: String -> TrackNum -> TrackId
