@@ -1,8 +1,9 @@
 -- | Cmds to deal with Cmd.Performance, derivation, and performance.
 module Cmd.Lang.LPerf where
+import qualified Data.Maybe as Maybe
+
 import Util.Control
 import qualified Util.Seq as Seq
-
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
@@ -14,6 +15,7 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Convert as Midi.Convert
@@ -78,7 +80,11 @@ block_midi block_id = do
 -- | Derive the current block and return events that fall within the current
 -- selection.
 sel_events :: Cmd.CmdL Derive.Events
-sel_events = get_sel block_events Score.event_start
+sel_events = get_sel_events False block_events
+
+-- | Like 'sel_events' but take the root derivation.
+root_sel_events :: Cmd.CmdL Derive.Events
+root_sel_events = get_sel_events True block_events
 
 -- * play from
 
@@ -100,17 +106,32 @@ perform_from = do
 
 -- ** implementation
 
-get_sel :: (BlockId -> Cmd.CmdL [LEvent.LEvent d]) -> (d -> RealTime)
-    -> Cmd.CmdL [LEvent.LEvent d]
-get_sel block_events event_start = do
-    (block_id, start, end) <- Selection.local_realtime
-    events <- block_events block_id
-    -- TODO filter out events from other tracks
-    return $ events_in_range event_start start end events
+type Events d = [LEvent.LEvent d]
 
-events_in_range :: (Ord k) => (d -> k) -> k -> k
-    -> [LEvent.LEvent d] -> [LEvent.LEvent d]
-events_in_range start_of start end =
+get_sel_events :: Bool -> (BlockId -> Cmd.CmdL (Events Score.Event))
+    -> Cmd.CmdL (Events Score.Event)
+get_sel_events = get_sel Score.event_start Score.event_stack
+
+get_sel :: (d -> RealTime) -> (d -> Stack.Stack)
+    -> Bool -> (BlockId -> Cmd.CmdL (Events d)) -> Cmd.CmdL (Events d)
+get_sel event_start event_stack from_root derive_events = do
+    (block_id, start, end) <-
+        if from_root then Selection.realtime else Selection.local_realtime
+    (_, track_ids, _, _) <- Selection.tracks
+    events <- derive_events block_id
+    return $ in_tracks event_stack track_ids $
+        in_range event_start start end events
+
+in_tracks :: (d -> Stack.Stack) -> [TrackId] -> Events d -> Events d
+in_tracks event_stack track_ids =
+    filter $ is_event (has . tracks_of . event_stack)
+    where
+    is_event f = LEvent.either f (const True)
+    tracks_of = Maybe.mapMaybe Stack.track_of . Stack.innermost
+    has tids = any (`elem` tids) track_ids
+
+in_range :: (Ord k) => (d -> k) -> k -> k -> Events d -> Events d
+in_range start_of start end =
     takeWhile (is_event ((<=end) . start_of))
         . dropWhile (is_event ((<start) . start_of))
     where is_event f = LEvent.either f (const True)
@@ -120,7 +141,7 @@ events_in_range start_of start end =
 perform_events :: Derive.Events -> Cmd.CmdL Midi.Perform.MidiEvents
 perform_events = PlayUtil.perform_events
 
-convert :: Derive.Events -> Cmd.CmdL [LEvent.LEvent Midi.Perform.Event]
+convert :: Derive.Events -> Cmd.CmdL (Events Midi.Perform.Event)
 convert events = do
     lookup <- PlayUtil.get_convert_lookup
     return $ Midi.Convert.convert lookup events

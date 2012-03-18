@@ -289,6 +289,9 @@ get_config f = gets (f . state_config)
 
 -- * root
 
+get_root_id :: (M m) => m BlockId
+get_root_id = require "root_id" =<< lookup_root_id
+
 lookup_root_id :: (M m) => m (Maybe BlockId)
 lookup_root_id = get_config config_root
 
