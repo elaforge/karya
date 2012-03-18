@@ -58,7 +58,7 @@ note_call note note_number =
 note_expr :: Pitch.Note -> Double -> String
 note_expr (Pitch.Note note) frac
     | frac == 0 = note
-    | otherwise = note ++ " " ++ Pretty.show_float (Just 2) (frac * 100)
+    | otherwise = note ++ " " ++ Pretty.show_float 2 (frac * 100)
 
 
 -- * pitch

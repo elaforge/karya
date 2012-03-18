@@ -171,7 +171,7 @@ unparse_ui_frame (bid, maybe_tid, maybe_range) =
     tid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from ++ "-" ++ float to) maybe_range
-    float = Parse.show_float (Just 2) . ScoreTime.to_double
+    float = Pretty.show_float 2 . ScoreTime.to_double
 
 -- | This is like 'unparse_ui_frame' except it omits the namespaces for a less
 -- cluttered but potentially ambiguous output.
@@ -183,7 +183,7 @@ unparse_ui_frame_ (bid, maybe_tid, maybe_range) =
     tid_s = maybe "*" (Id.id_name . Id.unpack_id) maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from ++ "-" ++ float to) maybe_range
-    float = Parse.show_float (Just 2) . ScoreTime.to_double
+    float = Pretty.show_float 2 . ScoreTime.to_double
 
 parse_ui_frame :: String -> Maybe UiFrame
 parse_ui_frame = Parse.maybe_parse_string $ do

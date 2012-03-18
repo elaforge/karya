@@ -15,7 +15,6 @@ import qualified Data.Attoparsec.Char8 as A
 import Data.Attoparsec ((<?>))
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 
@@ -49,13 +48,6 @@ float = maybe_parse_string p_float
 
 int :: String -> Maybe Int
 int = maybe_parse_string p_int
-
--- * other
-
--- | Pretty's show_float is re-exported here because it produces a string that
--- p_float can parse.
-show_float :: (RealFloat a) => Maybe Int -> a -> String
-show_float = Pretty.show_float
 
 -- * combinators
 

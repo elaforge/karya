@@ -13,6 +13,7 @@ import qualified Data.Word as Word
 import qualified Numeric
 
 import qualified Util.Seq as Seq
+import qualified Util.Then as Then
 
 
 -- | Format values in an eye-pleasing way.  Unlike Show, this isn't intended
@@ -27,27 +28,26 @@ instance Pretty Word.Word8
 instance Pretty Word.Word16
 instance Pretty Word.Word32
 instance Pretty Word.Word64
-instance Pretty Double where pretty = show_float (Just 3)
-instance Pretty Float where pretty = show_float (Just 3)
+instance Pretty Double where pretty = show_float 3
+instance Pretty Float where pretty = show_float 3
 
 -- | Pretty up a list with a line for each element.
 lines :: (Pretty a) => [a] -> String
 lines = List.unlines . map pretty
 
 
--- | Display a float with the given precision, dropping leading and trailing
--- zeros.  So this can produce ".2" which is not a valid haskell float.
-show_float :: (RealFloat a) => Maybe Int -> a -> String
-show_float precision float
-    | f == 0 = show i
-    | null stripped = "0"
-    | float < 0 = '-' : stripped
-    | otherwise = stripped
+-- | Display a float with the given precision, dropping trailing
+-- zeros.
+show_float :: (RealFloat a) => Int -> a -> String
+show_float precision f = clean $ Numeric.showFFloat Nothing f ""
     where
-    (i, f) = properFraction float
-    s = Numeric.showFFloat precision (abs float) ""
-    stripped = Seq.rdrop_while (=='.') $
-        Seq.rdrop_while (=='0') (dropWhile (=='0') s)
+    clean = drop0 . Seq.rdrop_while (=='.')
+        . (Then.takeWhile (/='.') $ Then.take 1 $
+            \rest -> Seq.rdrop_while (=='0') (take precision rest))
+    drop0 "0" = "0"
+    drop0 ('-':'0':'.':s) = '-':'.':s
+    drop0 ('0':'.':s) = '.':s
+    drop0 s = s
 
 instance (Pretty a) => Pretty [a] where
     pretty xs = "[" ++ Seq.join ", " (map pretty xs) ++ "]"

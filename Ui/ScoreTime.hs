@@ -29,7 +29,7 @@ instance Read.Read ScoreTime where
         return (ScoreTime n)
 
 instance Pretty.Pretty ScoreTime where
-    pretty (ScoreTime p) = Pretty.show_float (Just 3) p ++ "t"
+    pretty (ScoreTime p) = Pretty.show_float 3 p ++ "t"
 
 to_double :: ScoreTime -> Double
 to_double (ScoreTime p) = p

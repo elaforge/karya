@@ -257,7 +257,7 @@ instance Pretty.Pretty Val where
 
 -- | Convert a haskell number into a tracklang number.
 show_num :: (RealFloat a) => a -> String
-show_num = Pretty.show_float (Just 2)
+show_num = Pretty.show_float 2
 
 newtype Symbol = Symbol String deriving (Eq, Ord, Show)
 instance Pretty.Pretty Symbol where pretty (Symbol s) = s

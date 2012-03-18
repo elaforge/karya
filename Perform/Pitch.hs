@@ -80,7 +80,7 @@ newtype NoteNumber = NoteNumber Double
     deriving (Eq, Ord, Show, Fractional, Num)
 
 instance Pretty.Pretty NoteNumber where
-    pretty (NoteNumber nn) = Pretty.show_float (Just 2) nn ++ "nn"
+    pretty (NoteNumber nn) = Pretty.show_float 2 nn ++ "nn"
 
 nn :: (Real a) => a -> NoteNumber
 nn = NoteNumber . realToFrac
@@ -157,8 +157,8 @@ data Transpose = Chromatic Double | Diatonic Double
 instance Pretty.Pretty Transpose where
     -- TODO these are tracklang vals, so they should use TrackLang.show_num,
     -- which I suppose should move to a lower level module
-    pretty (Chromatic d) = Pretty.show_float (Just 2) d ++ "c"
-    pretty (Diatonic d) = Pretty.show_float (Just 2) d ++ "d"
+    pretty (Chromatic d) = Pretty.show_float 2 d ++ "c"
+    pretty (Diatonic d) = Pretty.show_float 2 d ++ "d"
 
 -- | Diatonic transposition often requires a Key for context.
 --

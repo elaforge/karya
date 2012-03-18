@@ -65,7 +65,7 @@ instance Read.Read RealTime where
         's' <- Read.get
         return (seconds n)
 instance Pretty.Pretty RealTime where
-    pretty t = Pretty.show_float (Just 2) (to_seconds t) ++ "s"
+    pretty t = Pretty.show_float 2 (to_seconds t) ++ "s"
 
 div :: RealTime -> Double -> RealTime
 div a b = seconds (to_seconds a / b)
