@@ -80,7 +80,6 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
@@ -107,7 +106,8 @@ import Types
 eval_one :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
 eval_one start dur expr =
     Derive.d_place start dur (eval_expr (note_dinfo, cinfo) expr)
-    where cinfo = Derive.dummy_call_info ("eval_one: " ++ Pretty.pretty expr)
+    where
+    cinfo = Derive.dummy_call_info ("eval_one: " ++ TrackLang.show_val expr)
 
 -- | Apply an expr with the current call info.
 reapply :: Derive.PassedArgs Score.Event -> TrackLang.Expr
@@ -357,7 +357,7 @@ with_call call_id name lookup =
 
 unknown_call_id :: String -> TrackLang.CallId -> String
 unknown_call_id name call_id =
-    name ++ " call not found: " ++ Pretty.pretty call_id
+    name ++ " call not found: " ++ TrackLang.show_val call_id
 
 fallback_call_id :: TrackLang.CallId
 fallback_call_id = TrackLang.Symbol ""

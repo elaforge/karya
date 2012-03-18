@@ -18,7 +18,7 @@ instance Functor LEvent where
     fmap _ (Log a) = Log a
 
 instance (Pretty.Pretty d) => Pretty.Pretty (LEvent d) where
-    pretty (Log msg) = Log.format_msg msg
+    pretty (Log msg) = show (Log.msg_string msg)
     pretty (Event event) = Pretty.pretty event
 
 event :: LEvent derived -> Maybe derived

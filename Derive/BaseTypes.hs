@@ -46,8 +46,9 @@ import qualified Perform.Signal as Signal
 newtype Instrument = Instrument String
     deriving (DeepSeq.NFData, Eq, Ord, Show, Read)
 
-instance Pretty.Pretty Instrument where
-    pretty (Instrument inst) = '>' : inst
+instance Pretty.Pretty Instrument where pretty = show_val
+instance ShowVal Instrument where
+    show_val (Instrument inst) = '>' : inst
 
 newtype Control = Control String
     deriving (Eq, Ord, Show, DeepSeq.NFData)
@@ -80,8 +81,9 @@ instance Monoid.Monoid Type where
     mappend Untyped typed = typed
     mappend typed _ = typed
 
-instance Pretty.Pretty Control where
-    pretty (Control c) = '%' : c
+instance Pretty.Pretty Control where pretty = show_val
+instance ShowVal Control where
+    show_val (Control c) = '%' : c
 
 data Typed a = Typed {
     type_of :: !Type
@@ -95,7 +97,9 @@ instance Functor Typed where
     fmap f (Typed typ val) = Typed typ (f val)
 
 instance (Pretty.Pretty a) => Pretty.Pretty (Typed a) where
-    pretty (Typed typ val) = type_to_code typ ++ ":" ++ Pretty.pretty val
+    pretty (Typed typ val) =
+        (if null code then "" else code ++ ":") ++ Pretty.pretty val
+        where code = type_to_code typ
 
 merge_typed :: (a -> a -> a) -> Typed a -> Typed a -> Typed a
 merge_typed f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
@@ -106,8 +110,8 @@ untyped = Typed Untyped
 type TypedControl = Typed Signal.Control
 type TypedVal = Typed Signal.Y
 
-instance Pretty.Pretty TypedVal where
-    pretty (Typed typ val) = show_num val ++ type_to_code typ
+instance ShowVal TypedVal where
+    show_val (Typed typ val) = show_val val ++ type_to_code typ
 
 -- ** Attributes
 
@@ -141,22 +145,17 @@ instance Eq Pitch where
     Pitch p1 == Pitch p2 = p1 Map.empty == p2 Map.empty
 
 instance Show Pitch where
-    show (Pitch p) = "((Pitch " ++ nn ++ "))"
-        where
-        nn = either (show . Pretty.pretty) (show_num . un_nn) (p Map.empty)
-        un_nn (Pitch.NoteNumber nn) = nn
+    show = Pretty.pretty
 
 instance Pretty.Pretty Pitch where
-    pretty = show
+    pretty (Pitch p) = either show Pretty.pretty (p Map.empty)
 
 instance Functor0.Functor0 Pitch where
     type Elem Pitch = PitchCall
     fmap0 f (Pitch p) = Pitch (f p)
 
 newtype PitchError = PitchError String deriving (Eq, Ord, Show)
-
-instance Pretty.Pretty PitchError where
-    pretty (PitchError s) = s
+instance Pretty.Pretty PitchError where pretty (PitchError s) = s
 
 
 -- * Derive.TrackLang
@@ -232,14 +231,19 @@ data Val =
     | VNotGiven
     deriving (Show)
 
+-- | Instances of ShowVal can be turned back into tracklang syntax.  Everything
+-- produced by show_val should be parseable by "Derive.ParseBs".
+class ShowVal a where
+    show_val :: a -> String
+
 -- | The Pretty instance for val should, like the haskell-level (Show, Read)
 -- pair, produce a string that the parser can turn back into the original
 -- value.  Except for values which have no literal syntax, such as VPitch.
 --
 -- The reason why is documented in 'Derive.Call.Note.inverting'.
-instance Pretty.Pretty Val where
-    pretty val = case val of
-        VNum d -> Pretty.pretty d
+instance ShowVal Val where
+    show_val val = case val of
+        VNum d -> show_val d
         VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
         VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
             Add -> '+' : attr
@@ -247,20 +251,29 @@ instance Pretty.Pretty Val where
             Set -> '=' : attr
             Clear -> "=-"
         VAttributes (Attributes attrs) -> Seq.join "+" (Set.toList attrs)
-        VControl control -> Pretty.pretty control
-        VPitchControl control -> Pretty.pretty control
-        VScaleId (Pitch.ScaleId scale_id) -> '*' : scale_id
+        VControl control -> show_val control
+        VPitchControl control -> show_val control
+        VScaleId scale_id -> show_val scale_id
+        -- No literal syntax.
         VPitch pitch -> "<pitch: " ++ Pretty.pretty pitch ++ ">"
-        VInstrument (Instrument inst) -> '>' : inst
-        VSymbol sym -> Pretty.pretty sym
+        VInstrument inst -> show_val inst
+        VSymbol sym -> show_val sym
         VNotGiven -> "_"
 
 -- | Convert a haskell number into a tracklang number.
 show_num :: (RealFloat a) => a -> String
 show_num = Pretty.show_float 2
 
+instance Pretty.Pretty Val where pretty = show_val
+instance ShowVal Pitch.ScaleId where
+    show_val (Pitch.ScaleId s) = '*' : s
+
+instance ShowVal Double where
+    show_val = Pretty.show_float 3
+
 newtype Symbol = Symbol String deriving (Eq, Ord, Show)
-instance Pretty.Pretty Symbol where pretty (Symbol s) = s
+instance Pretty.Pretty Symbol where pretty = show_val
+instance ShowVal Symbol where show_val (Symbol s) = s
 
 data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
 newtype RelativeAttr = RelativeAttr (AttrMode, Attribute) deriving (Eq, Show)
@@ -278,13 +291,15 @@ data ControlRef val =
 type PitchControl = ControlRef Note
 type ValControl = ControlRef TypedVal
 
-instance Pretty.Pretty PitchControl where
+instance Pretty.Pretty PitchControl where pretty = show_val
+instance ShowVal PitchControl where
     -- The PitchControl syntax doesn't support args for the signal default yet.
-    pretty = show_control '#' (Pitch.note_text . note_sym)
+    show_val = show_control '#' (Pitch.note_text . note_sym)
 
-instance Pretty.Pretty ValControl where
-    pretty = show_control '%'
-        (\(Typed typ num) -> show_num num ++ type_to_code typ)
+instance Pretty.Pretty ValControl where pretty = show_val
+instance ShowVal ValControl where
+    show_val = show_control '%' $ \(Typed typ num) ->
+        show_val num ++ type_to_code typ
 
 show_control :: Char -> (val -> String) -> ControlRef val -> String
 show_control prefix show_val control = case control of

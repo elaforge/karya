@@ -11,9 +11,7 @@ module Derive.TrackInfo where
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -75,11 +73,11 @@ parse_control_vals vals = case vals of
             Right $ Control (Just call) (Score.untyped Score.c_null)
         _ -> Left $ "control track must be one of [\"tempo\", control, "
             ++ "op control, %, op %, *scale, *scale #name, op #, op #name], "
-            ++ "got: " ++ Pretty.pretty vals
+            ++ "got: " ++ unwords (map TrackLang.show_val vals)
     where
     control_of sym = maybe
         (Left $ "control should look like 'name:[cdsr]': "
-            ++ Pretty.pretty sym)
+            ++ TrackLang.show_val sym)
         Right (parse_control_type sym)
 
     pitch_control :: TrackLang.Val -> Maybe (Maybe Score.Control)
@@ -104,7 +102,7 @@ unparse_typed (Score.Typed typ (Score.Control c)) =
         c -> ':' : c
 
 unparse_control :: ControlType -> String
-unparse_control = Seq.join " " . map Pretty.pretty . unparse_control_vals
+unparse_control = unwords . map TrackLang.show_val . unparse_control_vals
 
 unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
@@ -144,7 +142,7 @@ title_to_instrument _ = Nothing
 
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> String
-instrument_to_title = Pretty.pretty . TrackLang.VInstrument
+instrument_to_title = TrackLang.show_val . TrackLang.VInstrument
 
 is_note_track :: String -> Bool
 is_note_track = Maybe.isJust . title_to_instrument

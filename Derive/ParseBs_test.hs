@@ -2,7 +2,6 @@
 module Derive.ParseBs_test where
 import Util.Control
 import qualified Util.ParseBs as Util.Parse
-import qualified Util.Pretty as Pretty
 import Util.Test
 
 import qualified Derive.ParseBs as Parse
@@ -113,7 +112,7 @@ test_parse_val = do
                 "shouldn't have parsed: " ++ show expr ++ " -> " ++ show val
             (Right val, Just expect) -> do
                 equal val expect
-                equal (Pretty.pretty val) expr
+                equal (TrackLang.show_val val) expr
             _ -> success $ show res ++ " == " ++ show expected
 
 test_p_equal = do

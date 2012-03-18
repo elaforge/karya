@@ -185,7 +185,7 @@ pure_check_args passed args
         then show (length required)
         else "from " ++ show (length required) ++ " to " ++ show (length args)
     expected = "expected " ++ arg_range ++ ", got "
-        ++ show (length vals) ++ ": " ++ Pretty.pretty vals
+        ++ show (length vals) ++ ": " ++ unwords (map TrackLang.show_val vals)
         ++ if from_env == 0 then ""
             else " (" ++ show from_env ++ " from environ)"
 
@@ -216,6 +216,6 @@ cast name val = case TrackLang.from_val val of
         Nothing -> Derive.throw $
             name ++ ": expected " ++ Pretty.pretty return_type
             ++ " but val was " ++ Pretty.pretty (TrackLang.type_of val)
-            ++ " " ++ Pretty.pretty val
+            ++ " " ++ TrackLang.show_val val
         Just a -> return a
     where return_type = TrackLang.to_type (error "cast" :: a)

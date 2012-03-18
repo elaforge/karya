@@ -124,7 +124,7 @@ join_note step frac = Pitch.Note $ step ++ frac_s
     where
     frac_s
         | frac == 0 = ""
-        | otherwise = ' ' : TrackLang.show_num frac
+        | otherwise = ' ' : TrackLang.show_val frac
 
 -- * other utils
 

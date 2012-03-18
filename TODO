@@ -1,4 +1,20 @@
 UNSORTED
+  - why is the mordent not playing?
+  - I could have a Cmd state flag that does things relative to the current
+    block vs. root block
+    - LPerf functions
+    - play
+  * Pretty instance for LEvent and Score.Event
+  - do the 'play this list of events' thing, send it over to the play thread
+    just without an updater, so space will still kill it
+  - Is the missing mordent due to null vel control + non null dyn control?
+  - can I get a lang cmd to show the environ at a certain point?
+  - repl with opt likes to segfault.  Also likes to segfault if it has to
+    reload a lot of modules.
+
+  - add a HughsPJ 'format' method for Pretty
+  - should Score.Event.event_string use UTF8.toString instead of B.unpack?
+
   - Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.
 

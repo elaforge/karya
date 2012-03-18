@@ -120,8 +120,8 @@ c_clip = block_call get_block_id $ Derive.stream_generator "clip" $
     Note.inverting $ Cache.caching_call $ \args ->
     CallSig.call1 args (required "block_id") $ \sym -> do
         block_id <- maybe
-            (Derive.throw $ "block not found: " ++ Pretty.pretty sym) return
-            =<< symbol_to_block_id sym
+            (Derive.throw $ "block not found: " ++ TrackLang.show_val sym)
+            return =<< symbol_to_block_id sym
         sub_dur <- Derive.get_block_dur block_id
         end <- Derive.real (snd (Args.range args))
         takeWhile (before end) <$>

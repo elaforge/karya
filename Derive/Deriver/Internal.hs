@@ -70,7 +70,7 @@ insert_environ :: (TrackLang.Typecheck val) => TrackLang.ValName
 insert_environ name val environ =
     case TrackLang.put_val name val environ of
         Left typ -> throw $ "can't set " ++ show name ++ " to "
-            ++ Pretty.pretty (TrackLang.to_val val)
+            ++ TrackLang.show_val (TrackLang.to_val val)
             ++ ", expected " ++ Pretty.pretty typ
         Right environ2 -> return environ2
 

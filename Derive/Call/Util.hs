@@ -103,7 +103,7 @@ to_transpose_signal default_type control = do
         Score.Chromatic -> return (sig, Score.c_chromatic)
         Score.Diatonic -> return (sig, Score.c_diatonic)
         _ -> Derive.throw $ "expected transpose type for "
-            ++ Pretty.pretty control ++ " but got " ++ Pretty.pretty typ
+            ++ TrackLang.show_val control ++ " but got " ++ Pretty.pretty typ
 
 data TimeType = Real | Score deriving (Eq, Show)
 
@@ -117,8 +117,8 @@ to_time_signal default_type control = do
         Score.Untyped -> return (sig, default_type)
         Score.Score -> return (sig, Score)
         Score.Real -> return (sig, Real)
-        _ -> Derive.throw $ "expected time type for " ++ Pretty.pretty control
-            ++ " but got " ++ Pretty.pretty typ
+        _ -> Derive.throw $ "expected time type for "
+            ++ TrackLang.show_val control ++ " but got " ++ Pretty.pretty typ
 
 pitch_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver PitchSignal.Pitch
@@ -290,7 +290,7 @@ real_duration default_type from (Score.Typed typ val)
         end <- Derive.real (from + ScoreTime.double val)
         return (end - start)
     | otherwise = Derive.throw $
-        "expected time type for " ++ Pretty.pretty (Score.Typed typ val)
+        "expected time type for " ++ TrackLang.show_val (Score.Typed typ val)
 
 -- | Add a RealTime to a ScoreTime.
 delay :: RealTime -> ScoreTime -> Derive.Deriver ScoreTime

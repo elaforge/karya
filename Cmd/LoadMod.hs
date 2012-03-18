@@ -10,7 +10,6 @@ import qualified Data.Maybe as Maybe
 import Util.Control
 import qualified Util.Map as Map
 import qualified Util.ParseBs as Parse
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Then as Then
@@ -30,6 +29,8 @@ import qualified Cmd.MakeRuler as MakeRuler
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
+
 import Types
 
 
@@ -205,7 +206,7 @@ convert_effect (fx, arg)
     | fx == fx_volume = Just ("vel", c arg)
     | fx == fx_vibrato = Just ("mod", c arg)
     | otherwise = Nothing
-    where c = Pretty.show_float 2 . (/127) . fromIntegral
+    where c = (TrackLang.show_val :: Double -> String) . (/127) . fromIntegral
 
 cut_note = (0x0f, 0xff)
 cut_block = (0x0f, 0)

@@ -1,7 +1,6 @@
 -- | Utility functions for writing instrument calls.
 module Derive.Instrument.Util where
 import qualified Util.Pretty as Pretty
-
 import qualified Derive.Call as Call
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig

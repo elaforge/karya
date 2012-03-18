@@ -44,8 +44,8 @@ import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes (Environ, ValName)
 import Derive.BaseTypes
-       (Val(..), Symbol(..), AttrMode(..), RelativeAttr(..),
-        ControlRef(..), PitchControl, ValControl, show_num, Note(..))
+       (ShowVal(..), Val(..), Symbol(..), AttrMode(..), RelativeAttr(..),
+        ControlRef(..), PitchControl, ValControl, Note(..))
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -376,13 +376,15 @@ type Expr = [Call]
 data Call = Call CallId [Term] deriving (Show)
 data Term = ValCall Call | Literal Val deriving (Show)
 
-instance Pretty.Pretty Call where
-    pretty (Call call_id terms) =
-        Pretty.pretty call_id ++ if null terms then ""
-            else " " ++ Seq.join " " (map Pretty.pretty terms)
-instance Pretty.Pretty Term where
-    pretty (ValCall call) = "(" ++ Pretty.pretty call ++ ")"
-    pretty (Literal val) = Pretty.pretty val
+instance ShowVal Expr where
+    show_val expr = Seq.join " | " (map show_val expr)
+instance ShowVal Call where
+    show_val (Call call_id terms) =
+        show_val call_id ++ if null terms then ""
+            else " " ++ Seq.join " " (map show_val terms)
+instance ShowVal Term where
+    show_val (ValCall call) = "(" ++ show_val call ++ ")"
+    show_val (Literal val) = show_val val
 
 instance DeepSeq.NFData Call where
     rnf (Call call_id terms) = call_id `seq` DeepSeq.rnf terms

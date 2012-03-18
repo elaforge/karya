@@ -216,7 +216,7 @@ invert_call args = case Derive.info_sub_tracks info of
     -- transformers are discarded.  But 'inverting' only applies to generators
     -- so those transformers should have already done their thing.
     -- See comment above and in Derive.TrackLang.Val Pretty instance.
-    expr = maybe "" Pretty.pretty $ Seq.last (Derive.info_expr info)
+    expr = maybe "" TrackLang.show_val $ Seq.last (Derive.info_expr info)
     info = Derive.passed_info args
 
 invert :: (ScoreTime, ScoreTime) -> State.EventsTree -> ScoreTime
