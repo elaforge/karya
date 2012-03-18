@@ -15,6 +15,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import Derive.BaseTypes
        (Instrument(..), Control(..), Type(..), Typed(..), untyped,
@@ -59,6 +60,17 @@ instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch _ _ _) =
         rnf start `seq`  rnf dur `seq` rnf text `seq` rnf controls
             `seq` rnf pitch
+
+instance Pretty.Pretty Event where
+    pretty (Event start dur bytes controls pitch stack inst attrs) =
+        "Event " ++ Pretty.pretty (start, dur) ++ " "
+            ++ show (B.unpack bytes)
+            ++ "{ controls = " ++ Pretty.pretty controls
+            ++ ", pitch = " ++ Pretty.pretty pitch
+            ++ ", stack = " ++ Pretty.pretty stack
+            ++ ", instrument = " ++ Pretty.pretty inst
+            ++ ", attributes = " ++ Pretty.pretty attrs
+            ++ " }"
 
 -- | This is not a great place, maybe I can make a special module for NFData
 -- orphans.

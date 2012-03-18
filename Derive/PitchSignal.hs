@@ -24,6 +24,7 @@ import qualified Data.Vector as V
 import Util.Control
 import qualified Util.Functor0 as Functor0
 import Util.Functor0 (Elem)
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 
@@ -79,6 +80,10 @@ instance Monoid.Monoid Signal where
 
 instance DeepSeq.NFData Signal where
     rnf (Signal _ _ v) = v `seq` ()
+
+instance Pretty.Pretty Signal where
+    pretty (Signal _ scale_id vec) = "Pitch " ++ show (Pretty.pretty scale_id)
+        ++ " " ++ Pretty.pretty vec
 
 constant :: Scale -> Pitch -> Signal
 constant scale pitch = signal scale [(0, pitch)]
