@@ -2,4 +2,4 @@
 import qualified Util.PPrint as PPrint
 
 main :: IO ()
-main = PPrint.pprints =<< getContents
+main = putStr . PPrint.format =<< getContents

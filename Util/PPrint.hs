@@ -5,7 +5,7 @@
 -}
 module Util.PPrint (
     pprint, pshow, str_pshow
-    , pshows, pprints
+    , format
     -- * util
     , record, list
 ) where
@@ -28,14 +28,14 @@ pprint = putStr . pshow
 
 -- | Pretty show.
 pshow :: (Show a) => a -> String
-pshow = pshows . show
+pshow = format . show
 
 -- | Pretty print the given value, unless it's a string, in which case return
 -- it unchanged.  As a special case for "Cmd.Lang", @()@ becomes \"\".
 str_pshow :: (Show a) => a -> String
-str_pshow = parse format . show
+str_pshow = parse format_nonstr . show
     where
-    format m = Maybe.fromMaybe (format_parsed m) (is_str m)
+    format_nonstr m = Maybe.fromMaybe (format_parsed m) (is_str m)
     is_str (HsModule _ _ _ _ [HsPatBind _ _ (HsUnGuardedRhs rhs) _]) =
         case rhs of
             HsLit (HsString s) -> Just s
@@ -46,11 +46,8 @@ str_pshow = parse format . show
 -- * String
 
 -- | Pretty up a string containing a parseable haskell value.
-pshows :: String -> String
-pshows = parse format_parsed
-
-pprints :: String -> IO ()
-pprints = putStr . pshows
+format :: String -> String
+format = parse format_parsed
 
 -- * util
 
