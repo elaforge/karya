@@ -2,6 +2,7 @@
 module Ui.ScoreTime (ScoreTime, to_double, double) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Foreign
+import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.Pretty as Pretty
@@ -25,6 +26,7 @@ instance Show ScoreTime where
 instance Read.Read ScoreTime where
     readPrec = do
         n <- Read.readPrec
+        Read.lift ReadP.skipSpaces
         't' <- Read.get
         return (ScoreTime n)
 

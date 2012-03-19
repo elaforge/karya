@@ -18,7 +18,7 @@ type X = RealTime.RealTime
 data Sample y = Sample {
     sx :: {-# UNPACK #-} !X
     , sy :: !y
-    } deriving (Show)
+    } deriving (Read, Show)
 
 type Vector y = V.Vector (Sample y)
 

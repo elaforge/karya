@@ -54,7 +54,7 @@ data Signal = Signal {
     -- ever something I do a lot it might behoove me to make this a Set.
     , sig_scale_id :: !Pitch.ScaleId
     , sig_vec :: !(TimeVector.Vector Pitch)
-    } deriving (Show)
+    } deriving (Read, Show)
 
 sig_scale :: Signal -> Scale
 sig_scale sig = Scale (sig_scale_id sig) (sig_transposers sig)

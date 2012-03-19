@@ -17,6 +17,7 @@ import qualified Prelude
 import Prelude hiding (length)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
+import qualified Text.Read as Read
 
 import Util.Control
 import qualified Util.ParseBs as Parse
@@ -41,6 +42,11 @@ newtype Stack = Stack [Frame] deriving (Eq, Ord, DeepSeq.NFData)
 
 instance Show Stack where
     show stack = "Stack.from_outermost " ++ show (outermost stack)
+instance Read.Read Stack where
+    readPrec = do
+        Pretty.read_word
+        frames <- Read.readPrec
+        return (from_outermost frames)
 
 empty :: Stack
 empty = Stack []

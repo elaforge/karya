@@ -1,8 +1,9 @@
 {- | Like Show, but designed to be easy to read rather than unambiguous and
     complete.
 -}
-module Util.Pretty (Pretty(..), lines, show_float) where
+module Util.Pretty (Pretty(..), lines, show_float, read_word) where
 import Prelude hiding (lines)
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -11,6 +12,8 @@ import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Word as Word
 
 import qualified Numeric
+import qualified Text.ParserCombinators.ReadP as ReadP
+import qualified Text.Read as Read
 
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
@@ -57,20 +60,10 @@ instance (Unboxed.Unbox a, Pretty a) => Pretty (Unboxed.Vector a) where
 instance (Pretty a) => Pretty (Vector.Vector a) where
     pretty v = "<" ++ Seq.join ", " (map pretty (Vector.toList v)) ++ ">"
 
-instance (Pretty a) => Pretty (Maybe a) where
-    pretty Nothing = "<nothing>"
-    pretty (Just a) = pretty a
-
-instance (Pretty a) => Pretty (Set.Set a) where
-    pretty set = "{" ++ Seq.join ", " (map pretty (Set.toList set)) ++ "}"
-
-instance (Pretty a, Pretty b) => Pretty (a, b) where
-    pretty (a, b) = "(" ++ pretty a ++ ", " ++ pretty b ++ ")"
-
-instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
-    pretty m
-        | Map.size m < 4 = "{" ++ Seq.join ", " (map ent (Map.assocs m)) ++ "}"
-        | otherwise = "{\n"
-            ++ (Seq.join "\n" . map ("  "++) . map ent . Map.assocs) m
-            ++ "\n}"
-        where ent (k, v) = pretty k ++ ": " ++ pretty v
+-- | Read a space separated word.
+read_word :: Read.ReadPrec String
+read_word = Read.lift $ do
+    ReadP.skipSpaces
+    w <- ReadP.many1 (ReadP.satisfy (not . Char.isSpace))
+    ReadP.skipSpaces
+    return w

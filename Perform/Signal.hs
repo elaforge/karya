@@ -48,6 +48,7 @@ import qualified Control.Arrow as Arrow
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
+import qualified Text.Read as Read
 
 import qualified Util.Log as Log
 import qualified Util.Num as Num
@@ -71,10 +72,27 @@ newtype Signal y = Signal { sig_vec :: SignalBase.SigVec Y }
     -- a real signal.
     deriving (Eq, DeepSeq.NFData)
 
+instance Show (Signal y) where
+    show (Signal vec) = "Signal " ++ show (SignalBase.unsignal vec)
+instance Read.Read (Signal y) where
+    readPrec = do
+        Pretty.read_word
+        vec <- Read.readPrec
+        return (Signal (SignalBase.signal vec))
+
 instance Pretty.Pretty (Signal y) where
     pretty sig = "<" ++ Seq.join ", "
         [Pretty.pretty x ++ ": " ++ Pretty.pretty y | (x, y) <- unsignal sig]
         ++ ">"
+
+instance SignalBase.Y Y where
+    zero_y = 0
+    to_double = id
+
+instance Monoid.Monoid (Signal y) where
+    mempty = empty
+    mappend s1 s2 = Monoid.mconcat [s1, s2]
+    mconcat = merge
 
 modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y)
     -> Signal y0 -> Signal y1
@@ -107,18 +125,6 @@ data NoteNumberSig
 -- | This is the type of signals which are sent to the UI for display.
 type Display = Signal DisplaySig
 data DisplaySig
-
-instance SignalBase.Y Y where
-    zero_y = 0
-    to_double = id
-
-instance Show (Signal y) where
-    show (Signal vec) = "Signal " ++ show (SignalBase.unsignal vec)
-
-instance Monoid.Monoid (Signal y) where
-    mempty = empty
-    mappend s1 s2 = Monoid.mconcat [s1, s2]
-    mconcat = merge
 
 x_to_y :: X -> Y
 x_to_y = RealTime.to_seconds

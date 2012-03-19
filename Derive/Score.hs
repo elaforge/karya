@@ -51,7 +51,7 @@ data Event = Event {
     , event_instrument :: !(Maybe Instrument)
     , event_attributes :: !Attributes
     }
-    deriving (Show)
+    deriving (Read, Show)
 
 empty_event :: Event
 empty_event = Event 0 0 mempty mempty mempty Stack.empty Nothing mempty

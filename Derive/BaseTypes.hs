@@ -27,6 +27,8 @@ import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
+import qualified Text.Read as Read
+
 import Util.Control
 import qualified Util.Functor0 as Functor0
 import Util.Functor0 (Elem)
@@ -51,11 +53,11 @@ instance ShowVal Instrument where
     show_val (Instrument inst) = '>' : inst
 
 newtype Control = Control String
-    deriving (Eq, Ord, Show, DeepSeq.NFData)
+    deriving (Eq, Ord, Read, Show, DeepSeq.NFData)
 
 -- | Tag for the type of the values in a control signal.
 data Type = Untyped | Chromatic | Diatonic | Score | Real
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Type
 
@@ -88,7 +90,7 @@ instance ShowVal Control where
 data Typed a = Typed {
     type_of :: !Type
     , typed_val :: !a
-    } deriving (Eq, Show)
+    } deriving (Eq, Read, Show)
 
 instance (DeepSeq.NFData a) => DeepSeq.NFData (Typed a) where
     rnf (Typed typ val) = typ `seq` DeepSeq.rnf val
@@ -121,7 +123,7 @@ instance ShowVal TypedVal where
 -- a drum from a drumset, or something like that.
 type Attribute = String
 newtype Attributes = Attributes (Set.Set Attribute)
-    deriving (Monoid.Monoid, Eq, Ord, Show)
+    deriving (Monoid.Monoid, Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Attributes where
     pretty attrs = "{" ++ Seq.join ", " (attrs_list attrs) ++ "}"
@@ -145,7 +147,12 @@ instance Eq Pitch where
     Pitch p1 == Pitch p2 = p1 Map.empty == p2 Map.empty
 
 instance Show Pitch where
-    show = Pretty.pretty
+    show (Pitch p) = show (p Map.empty)
+
+instance Read Pitch where
+    readPrec = do
+        val <- Read.readPrec
+        return $ Pitch $ \_ -> val
 
 instance Pretty.Pretty Pitch where
     pretty (Pitch p) = either show Pretty.pretty (p Map.empty)
@@ -154,7 +161,7 @@ instance Functor0.Functor0 Pitch where
     type Elem Pitch = PitchCall
     fmap0 f (Pitch p) = Pitch (f p)
 
-newtype PitchError = PitchError String deriving (Eq, Ord, Show)
+newtype PitchError = PitchError String deriving (Eq, Ord, Read, Show)
 instance Pretty.Pretty PitchError where pretty (PitchError s) = s
 
 
