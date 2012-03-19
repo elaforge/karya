@@ -11,7 +11,7 @@ import qualified Util.Seq as Seq
 -- * LEvent
 
 data LEvent derived = Event !derived | Log !Log.Msg
-    deriving (Show)
+    deriving (Read, Show)
 
 instance Functor LEvent where
     fmap f (Event a) = Event (f a)
