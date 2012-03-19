@@ -9,6 +9,7 @@ mersenne-random-pure64 hashable random-shuffle # Derive: score randomization
 storablevector # control signals (drags in: QuickCheck utility-ht non-negative)
 vector # pitch signals
 dlist # Perform.SignalBase
+ansi-wl-pprint # Util.Pretty
 
 hint # lang repl
 haskeline # repl

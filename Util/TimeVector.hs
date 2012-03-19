@@ -23,7 +23,7 @@ data Sample y = Sample {
 type Vector y = V.Vector (Sample y)
 
 instance (Pretty.Pretty y) => Pretty.Pretty (Sample y) where
-    pretty (Sample x y) = Pretty.pretty (x, y)
+    format (Sample x y) = Pretty.format (x, y)
 
 make :: [(X, y)] -> Vector y
 make = V.fromList . map (\(x, y) -> Sample x y)

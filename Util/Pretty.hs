@@ -1,8 +1,19 @@
 {- | Like Show, but designed to be easy to read rather than unambiguous and
     complete.
 -}
-module Util.Pretty (Pretty(..), lines, show_float, read_word) where
+module Util.Pretty (
+    Pretty(..)
+    , record, sep_by
+    , formatted, render, render_compact
+    , module Text.PrettyPrint.ANSI.Leijen
+    -- * misc
+    , lines, show_float
+    -- * Read
+    , read_word
+) where
 import Prelude hiding (lines)
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -13,34 +24,133 @@ import qualified Data.Word as Word
 
 import qualified Numeric
 import qualified Text.ParserCombinators.ReadP as ReadP
+import qualified Text.PrettyPrint.ANSI.Leijen as PP
+import Text.PrettyPrint.ANSI.Leijen
+       (Doc, (<+>), (</>), text, brackets)
 import qualified Text.Read as Read
 
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
 
+width :: Int
+width = 80
+
 -- | Format values in an eye-pleasing way.  Unlike Show, this isn't intended
 -- to produce any kind of valid syntax, or even preserve information.
 class Show a => Pretty a where
     pretty :: a -> String
-    pretty = show
+    pretty = render_compact . format
+    format :: a -> Doc
+    format = PP.text . pretty
 
-instance Pretty Int
-instance Pretty Integer
-instance Pretty Word.Word8
-instance Pretty Word.Word16
-instance Pretty Word.Word32
-instance Pretty Word.Word64
+    format_list :: [a] -> Doc
+    format_list = PP.brackets . commas
+
+instance Pretty Int where format = PP.int
+instance Pretty Integer where format = PP.integer
+instance Pretty Word.Word8 where pretty = show
+instance Pretty Word.Word16 where pretty = show
+instance Pretty Word.Word32 where pretty = show
+instance Pretty Word.Word64 where pretty = show
 instance Pretty Double where pretty = show_float 3
 instance Pretty Float where pretty = show_float 3
+
+instance Pretty Char where
+    format = PP.char
+    format_list = PP.dquotes . PP.string
+
+instance Pretty ByteString.ByteString where
+    format = format . UTF8.toString
+
+
+test = do
+    let max = 30 :: Int
+        pp :: Pretty a => a -> IO ()
+        pp = putStrLn . render . format
+    -- putStrLn $ pretty [0..max]
+    -- pp [0..max]
+    -- pp [0..max]
+    -- pp [0..max]
+    -- pp "some string"
+    -- pp ("aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbb")
+    -- pp $ Map.fromList $ zip [0..max] ['a'..'z']
+    -- -- ugly because it should preferentially wrap on the pair divisions
+    -- -- Not sure how to do that though.
+    -- pp $ Map.fromList $ zip [0..max] (replicate max "some big long line stuff")
+    pp $ record $ replicate 5 ("some_big_long_label", format max)
+    pp $ record $ replicate 2 ("ssnatoheusantohusnaotheuome_big_long_labelatohusaotnehusaotneuhsaoetuh", format max)
+    -- As with Map, I want to prefer to not split on the 'x = y'
+    pp $ record $ replicate 30 ("a", format max)
+    pp $ record $ replicate 5 ("medium_label", format [0..max])
+
+-- instance Monoid.Monoid Doc where
+--     mempty = PP.empty
+--     mappend = (PP.<>)
+-- render, render_compact :: Doc -> String
+-- render = PP.renderStyle (PP.Style PP.PageMode 79 1)
+-- render_compact = PP.renderStyle (PP.Style PP.OneLineMode 79 1)
+
+formatted :: (Pretty a) => a -> String
+formatted = render . format
+
+render, render_compact :: Doc -> String
+render doc = PP.displayS (PP.renderPretty 0.75 width doc) ""
+render_compact doc = replace $ PP.displayS (PP.renderCompact doc) ""
+    where replace = map $ \c -> if c == '\n' then ' ' else c
+
+commas :: (Pretty a) => [a] -> Doc
+commas = sep_by PP.comma
+
+sep_by :: (Pretty a) => Doc -> [a] -> Doc
+sep_by sep = PP.align . PP.fillSep . PP.punctuate sep . fmap format
+
+record :: [(String, Doc)] -> Doc
+record = (\doc -> PP.lbrace <+> doc <+> PP.rbrace) . commas
+    . map (\(label, doc) -> PP.text label <+> PP.equals <+> doc)
+    -- . map (\(label, doc) -> PP.nest 4 (PP.text label <+> PP.equals </> doc))
+    -- TODO not sure how to do this
+    -- if I put a </> after the equals and wrap in a 'nest', I can get breaks
+    -- after long labels, but short labels look really ugly because it dosen't
+    -- know to prefer not to.  Sincle labels are less likely to be long,
+    -- I don't allow breaking after equals.
+
+instance Pretty Doc where
+    format = id
+
+instance (Pretty a) => Pretty [a] where
+    format = format_list
+
+instance (Unboxed.Unbox a, Pretty a) => Pretty (Unboxed.Vector a) where
+    format = PP.angles . commas . Unboxed.toList
+instance (Pretty a) => Pretty (Vector.Vector a) where
+    format = PP.angles . commas . Vector.toList
+
+instance (Pretty a) => Pretty (Maybe a) where
+    format Nothing = PP.text "Nothing"
+    format (Just a) = format a
+
+instance (Pretty a) => Pretty (Set.Set a) where
+    format = PP.braces . commas . Set.toList
+
+instance (Pretty a, Pretty b) => Pretty (a, b) where
+    format (a, b) = PP.parens $ commas [format a, format b]
+instance (Pretty a, Pretty b, Pretty c) => Pretty (a, b, c) where
+    format (a, b, c) = PP.parens $ commas [format a, format b, format c]
+
+instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
+    format = PP.braces . commas . map format . Map.assocs
+
+
+-- * misc
 
 -- | Pretty up a list with a line for each element.
 lines :: (Pretty a) => [a] -> String
 lines = List.unlines . map pretty
 
-
 -- | Display a float with the given precision, dropping trailing
--- zeros.
+-- and leading zeros.  Haskell requires a 0 before the decimal point, so
+-- this produces unparseable strings.
 show_float :: (RealFloat a) => Int -> a -> String
 show_float precision f = clean $ Numeric.showFFloat Nothing f ""
     where
@@ -52,13 +162,11 @@ show_float precision f = clean $ Numeric.showFFloat Nothing f ""
     drop0 ('0':'.':s) = '.':s
     drop0 s = s
 
-instance (Pretty a) => Pretty [a] where
-    pretty xs = "[" ++ Seq.join ", " (map pretty xs) ++ "]"
+-- * Read
 
-instance (Unboxed.Unbox a, Pretty a) => Pretty (Unboxed.Vector a) where
-    pretty v = "<" ++ Seq.join ", " (map pretty (Unboxed.toList v)) ++ ">"
-instance (Pretty a) => Pretty (Vector.Vector a) where
-    pretty v = "<" ++ Seq.join ", " (map pretty (Vector.toList v)) ++ ">"
+-- These don't really belong here, but this module has to do with reading and
+-- showing, and as long as only have a few Read utilities I might as well put
+-- them here.
 
 -- | Read a space separated word.
 read_word :: Read.ReadPrec String

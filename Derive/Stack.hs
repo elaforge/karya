@@ -107,8 +107,8 @@ instance DeepSeq.NFData Frame where
         Call s -> s `seq` ()
 
 instance Pretty.Pretty Stack where
-    pretty stack =
-        "[" ++ Seq.join " / " (map Pretty.pretty (outermost stack)) ++ "]"
+    format = Pretty.brackets . Pretty.sep_by (Pretty.text " / ")
+        . map Pretty.format . outermost
 
 instance Pretty.Pretty Frame where
     pretty (Block bid) = show bid

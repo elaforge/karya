@@ -99,8 +99,8 @@ instance Functor Typed where
     fmap f (Typed typ val) = Typed typ (f val)
 
 instance (Pretty.Pretty a) => Pretty.Pretty (Typed a) where
-    pretty (Typed typ val) =
-        (if null code then "" else code ++ ":") ++ Pretty.pretty val
+    format (Typed typ val) =
+        Pretty.text (if null code then "" else code ++ ":") <> Pretty.format val
         where code = type_to_code typ
 
 merge_typed :: (a -> a -> a) -> Typed a -> Typed a -> Typed a
@@ -126,7 +126,7 @@ newtype Attributes = Attributes (Set.Set Attribute)
     deriving (Monoid.Monoid, Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Attributes where
-    pretty attrs = "{" ++ Seq.join ", " (attrs_list attrs) ++ "}"
+    format = Pretty.format . attrs_set
 
 attrs_set :: Attributes -> Set.Set Attribute
 attrs_set (Attributes attrs) = attrs

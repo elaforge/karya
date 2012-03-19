@@ -62,15 +62,16 @@ instance DeepSeq.NFData Event where
             `seq` rnf pitch
 
 instance Pretty.Pretty Event where
-    pretty (Event start dur bytes controls pitch stack inst attrs) =
-        "Event " ++ Pretty.pretty (start, dur) ++ " "
-            ++ show (B.unpack bytes)
-            ++ "{ controls = " ++ Pretty.pretty controls
-            ++ ", pitch = " ++ Pretty.pretty pitch
-            ++ ", stack = " ++ Pretty.pretty stack
-            ++ ", instrument = " ++ Pretty.pretty inst
-            ++ ", attributes = " ++ Pretty.pretty attrs
-            ++ " }"
+    format (Event start dur bytes controls pitch stack inst attrs) =
+        Pretty.text "Event" Pretty.<+> Pretty.record
+                [ ("extent", Pretty.format (start, dur))
+                , ("text", Pretty.format bytes)
+                , ("controls", Pretty.format controls)
+                , ("pitch", Pretty.format pitch)
+                , ("stack", Pretty.format stack)
+                , ("instrument", Pretty.format inst)
+                , ("attributes", Pretty.format attrs)
+                ]
 
 -- | This is not a great place, maybe I can make a special module for NFData
 -- orphans.
