@@ -27,6 +27,9 @@ module Perform.Pitch (
     , Degree(..), Transpose(..)
     , Key(..)
 ) where
+import qualified Text.ParserCombinators.ReadP as ReadP
+import qualified Text.Read as Read
+
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
@@ -77,10 +80,18 @@ middle_octave = 5
 -- It would be less tempered-centric to use hz, but for the moment this seems
 -- practical since note numbers are easier to read.
 newtype NoteNumber = NoteNumber Double
-    deriving (Eq, Ord, Read, Show, Fractional, Num)
+    deriving (Eq, Ord, Fractional, Num)
+
+instance Show NoteNumber where
+    show (NoteNumber nn) = Pretty.show_float 2 nn ++ "nn"
+instance Read NoteNumber where
+    readPrec = do
+        n <- Read.readPrec
+        Read.lift $ ReadP.skipSpaces >> ReadP.string "nn"
+        return (NoteNumber n)
 
 instance Pretty.Pretty NoteNumber where
-    pretty (NoteNumber nn) = Pretty.show_float 2 nn ++ "nn"
+    pretty = show
 
 nn :: (Real a) => a -> NoteNumber
 nn = NoteNumber . realToFrac
