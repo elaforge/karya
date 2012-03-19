@@ -45,9 +45,11 @@ test_convert_controls = do
         [(Control.c_velocity, Signal.constant 0.5)]
     equal (f True [("dyn", [(0, 0.5)])])
         [(Control.c_breath, Signal.constant 0.5)]
-    -- If both vel and dyn are present, vel wins.
+    -- If both vel and dyn are present, dyn wins.  This is because calls
+    -- should tend to use dyn, since its more generic.  But if the track is
+    -- using vel directly, the the dyn information will be shadowed.
     equal (f False [("vel", [(0, 1)]), ("dyn", [(0, 0.5)])])
-        [(Control.c_velocity, Signal.constant 1)]
+        [(Control.c_velocity, Signal.constant 0.5)]
 
 noinst n = LEvent.Event $ mkevent n "c" "noinst"
 nopitch n = LEvent.Event $ (mkevent n "c" "s/1") { Score.event_pitch = mempty }
