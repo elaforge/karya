@@ -34,7 +34,7 @@ import qualified Util.Then as Then
 
 
 width :: Int
-width = 80
+width = 79
 
 -- | Format values in an eye-pleasing way.  Unlike Show, this isn't intended
 -- to produce any kind of valid syntax, or even preserve information.
@@ -62,34 +62,6 @@ instance Pretty Char where
 
 instance Pretty ByteString.ByteString where
     format = format . UTF8.toString
-
-
-test = do
-    let max = 30 :: Int
-        pp :: Pretty a => a -> IO ()
-        pp = putStrLn . render . format
-    -- putStrLn $ pretty [0..max]
-    -- pp [0..max]
-    -- pp [0..max]
-    -- pp [0..max]
-    -- pp "some string"
-    -- pp ("aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbb")
-    -- pp $ Map.fromList $ zip [0..max] ['a'..'z']
-    -- -- ugly because it should preferentially wrap on the pair divisions
-    -- -- Not sure how to do that though.
-    -- pp $ Map.fromList $ zip [0..max] (replicate max "some big long line stuff")
-    pp $ record $ replicate 5 ("some_big_long_label", format max)
-    pp $ record $ replicate 2 ("ssnatoheusantohusnaotheuome_big_long_labelatohusaotnehusaotneuhsaoetuh", format max)
-    -- As with Map, I want to prefer to not split on the 'x = y'
-    pp $ record $ replicate 30 ("a", format max)
-    pp $ record $ replicate 5 ("medium_label", format [0..max])
-
--- instance Monoid.Monoid Doc where
---     mempty = PP.empty
---     mappend = (PP.<>)
--- render, render_compact :: Doc -> String
--- render = PP.renderStyle (PP.Style PP.PageMode 79 1)
--- render_compact = PP.renderStyle (PP.Style PP.OneLineMode 79 1)
 
 formatted :: (Pretty a) => a -> String
 formatted = render . format
