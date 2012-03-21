@@ -463,8 +463,8 @@ clip_val low high val
 type ClipRange = (RealTime, RealTime)
 make_clip_warnings :: Event -> (Control.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
-    [event_warning event (show control ++ " clipped: " ++ Pretty.pretty clip)
-        | clip <- clip_warns]
+    [event_warning event (Pretty.pretty control ++ " clipped: "
+        ++ Pretty.pretty (s, e)) | (s, e) <- clip_warns]
 
 control_at :: Event -> Control.Control -> RealTime -> Maybe Signal.Y
 control_at event control pos = do

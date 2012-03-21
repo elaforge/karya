@@ -59,7 +59,7 @@ newtype Control = Control String
 data Type = Untyped | Chromatic | Diatonic | Score | Real
     deriving (Eq, Ord, Read, Show)
 
-instance Pretty.Pretty Type
+instance Pretty.Pretty Type where pretty = show
 
 type_to_code :: Type -> String
 type_to_code typ = case typ of
@@ -100,8 +100,8 @@ instance Functor Typed where
 
 instance (Pretty.Pretty a) => Pretty.Pretty (Typed a) where
     format (Typed typ val) =
-        Pretty.text (if null code then "" else code ++ ":") <> Pretty.format val
-        where code = type_to_code typ
+        Pretty.text (if null c then "" else c ++ ":") <> Pretty.format val
+        where c = type_to_code typ
 
 merge_typed :: (a -> a -> a) -> Typed a -> Typed a -> Typed a
 merge_typed f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
@@ -126,7 +126,8 @@ newtype Attributes = Attributes (Set.Set Attribute)
     deriving (Monoid.Monoid, Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Attributes where
-    format = Pretty.format . attrs_set
+    pretty attrs = if null alist then "-" else '+' : Seq.join "+" alist
+        where alist = attrs_list attrs
 
 attrs_set :: Attributes -> Set.Set Attribute
 attrs_set (Attributes attrs) = attrs

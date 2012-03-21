@@ -37,7 +37,7 @@ control_map_names cmap = [name | Control name <- Map.keys cmap]
 newtype Control = Control String deriving (Eq, Ord, Show, Read, NFData)
 
 instance Pretty.Pretty Control where
-    pretty (Control s) = s
+    pretty (Control s) = '%' : s
 
 -- | Pitchbend range in tempered semitones below and above unity.  The first
 -- integer should probably be negative.

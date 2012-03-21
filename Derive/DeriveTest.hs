@@ -67,7 +67,7 @@ run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
     where
     -- Make sure Derive.get_current_block_id, called by add_new_track_warp,
     -- doesn't throw.
-    bid = UiTest.bid "DeriveTest.run fakeblock"
+    bid = UiTest.bid "derive-test.run-fakeblock"
 
 -- | Run without a fake stack.
 run_ :: State.State -> Derive.Deriver a

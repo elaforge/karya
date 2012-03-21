@@ -9,6 +9,7 @@
 module Util.TimeVector where
 import qualified Data.Vector as V
 
+import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Perform.RealTime as RealTime
 
@@ -23,7 +24,8 @@ data Sample y = Sample {
 type Vector y = V.Vector (Sample y)
 
 instance (Pretty.Pretty y) => Pretty.Pretty (Sample y) where
-    format (Sample x y) = Pretty.format (x, y)
+    format (Sample x y) =
+        Pretty.format x <> Pretty.char ':' Pretty.<+> Pretty.format y
 
 make :: [(X, y)] -> Vector y
 make = V.fromList . map (\(x, y) -> Sample x y)

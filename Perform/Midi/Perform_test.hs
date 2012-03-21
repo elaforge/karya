@@ -181,10 +181,10 @@ test_clip_warns = do
     -- check that the clips happen at the same places as the warnings
 
     equal warns
-        [ "Perform: Control \"volume\" clipped: (1.5s, 2.5s)"
+        [ "Perform: %volume clipped: (1.5s, 2.5s)"
         -- TODO this used to be (3.5, 4) but I can't be bothered to find out
         -- why it changed when RealTime became integral
-        , "Perform: Control \"volume\" clipped: (4s, 4s)"
+        , "Perform: %volume clipped: (4s, 4s)"
         ]
 
     check (all_msgs_valid msgs)
@@ -192,7 +192,7 @@ test_clip_warns = do
 test_vel_clip_warns = do
     let (msgs, warns) = perform midi_config1 $ mkevents_inst
             [("a", 0, 4, [badsig Control.c_velocity])]
-    equal warns ["Perform: Control \"vel\" clipped: (0s, 4s)"]
+    equal warns ["Perform: %vel clipped: (0s, 4s)"]
     check (all_msgs_valid msgs)
 
 all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)

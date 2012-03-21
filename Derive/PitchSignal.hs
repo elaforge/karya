@@ -82,8 +82,8 @@ instance DeepSeq.NFData Signal where
     rnf (Signal _ _ v) = v `seq` ()
 
 instance Pretty.Pretty Signal where
-    format (Signal _ scale_id vec) = Pretty.text "Pitch"
-        Pretty.<+> Pretty.format scale_id Pretty.<+> Pretty.format vec
+    format (Signal _ scale_id vec) = Pretty.fsep
+        [Pretty.text "Pitch", Pretty.format scale_id, Pretty.format vec]
 
 constant :: Scale -> Pitch -> Signal
 constant scale pitch = signal scale [(0, pitch)]

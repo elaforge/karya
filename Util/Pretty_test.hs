@@ -1,24 +1,41 @@
 module Util.Pretty_test where
+import qualified Data.Map as Map
+import qualified Text.PrettyPrint as PP
+
+import Util.Control
 import Util.Pretty
+import qualified Perform.RealTime as RealTime
 
 
--- Some hand tests for the pretty printer.  Not sure how to automate this...
-test_pretty = do
-    let max = 30 :: Int
+-- Some hand tests for the pretty printer.  Not sure how to automate these...
+
+pprint :: (Pretty a) => a -> IO ()
+pprint = putStrLn . render 30 . format
+
+test_list = do
+    let max = 10 :: Int
         pp :: Pretty a => a -> IO ()
-        pp = putStrLn . render . format
-    -- putStrLn $ pretty [0..max]
-    -- pp [0..max]
-    -- pp [0..max]
-    -- pp [0..max]
+        pp val = forM_ [40, 35, 30, 15] $ \width ->
+            putStrLn $ render width $ format val
+    putStrLn $ pretty [0..max]
+    pp [0..max]
     -- pp "some string"
-    -- pp ("aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbb")
-    -- pp $ Map.fromList $ zip [0..max] ['a'..'z']
-    -- -- ugly because it should preferentially wrap on the pair divisions
-    -- -- Not sure how to do that though.
-    -- pp $ Map.fromList $ zip [0..max] (replicate max "some big long line stuff")
-    pp $ record $ replicate 5 ("some_big_long_label", format max)
-    pp $ record $ replicate 2 ("ssnatoheusantohusnaotheuome_big_long_labelatohusaotnehusaotneuhsaoetuh", format max)
-    -- As with Map, I want to prefer to not split on the 'x = y'
-    pp $ record $ replicate 30 ("a", format max)
-    pp $ record $ replicate 5 ("medium_label", format [0..max])
+
+test_record = do
+    let num = 30 :: Int
+    let f = pprint . record (PP.text "Rec")
+    -- fit on one line
+    f [("hi", format "there")]
+    f (replicate 3 ("hi", format "there"))
+    f (replicate 2 ("label", format [0..num]))
+    f [("lab", format "short"), ("label", format [0..num])]
+    f (replicate 2 ("really long label", format "really long data value"))
+
+test_map = do
+    let f = pprint . Map.fromList
+    f [(k, "abcdef") | k <- ['a'..'z']]
+
+test_tuple = do
+    pprint ("hi", "there", "really long string and stuff")
+    pprint (RealTime.seconds 3, RealTime.seconds 4)
+    putStrLn $ pretty ('a', 'b')

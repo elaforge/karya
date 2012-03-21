@@ -3,20 +3,21 @@
 -}
 module Util.Pretty (
     Pretty(..)
-    , record, sep_by
     , formatted, render, render_compact
-    , module Text.PrettyPrint.ANSI.Leijen
+    -- * re-exported
+    , PP.char, PP.text, PP.fsep, PP.fcat
+    , (PP.<+>)
+
+    -- * formatting
+    , comma_list, format_commas, record
     -- * misc
-    , lines, show_float
-    -- * Read
-    , read_word
+    , show_float, read_word
 ) where
-import Prelude hiding (lines)
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Char as Char
-import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Unboxed as Unboxed
@@ -24,17 +25,22 @@ import qualified Data.Word as Word
 
 import qualified Numeric
 import qualified Text.ParserCombinators.ReadP as ReadP
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
-import Text.PrettyPrint.ANSI.Leijen
-       (Doc, (<+>), (</>), text, brackets)
+import qualified Text.PrettyPrint as PP
+import Text.PrettyPrint (Doc)
+import Text.PrettyPrint ((<+>))
 import qualified Text.Read as Read
 
+import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
 
-width :: Int
-width = 79
+default_width :: Int
+default_width = 78
+
+instance Monoid.Monoid Doc where
+    mempty = PP.empty
+    mappend = (PP.<>)
 
 -- | Format values in an eye-pleasing way.  Unlike Show, this isn't intended
 -- to produce any kind of valid syntax, or even preserve information.
@@ -45,7 +51,13 @@ class Show a => Pretty a where
     format = PP.text . pretty
 
     format_list :: [a] -> Doc
-    format_list = PP.brackets . commas
+    format_list = format_commas '[' ']'
+
+instance Pretty Doc where format = id
+instance (Pretty a) => Pretty [a] where format = format_list
+instance Pretty Char where
+    format = PP.quotes . PP.char
+    format_list = PP.doubleQuotes . PP.text
 
 instance Pretty Int where format = PP.int
 instance Pretty Integer where format = PP.integer
@@ -56,69 +68,72 @@ instance Pretty Word.Word64 where pretty = show
 instance Pretty Double where pretty = show_float 3
 instance Pretty Float where pretty = show_float 3
 
-instance Pretty Char where
-    format = PP.char
-    format_list = PP.dquotes . PP.string
-
-instance Pretty ByteString.ByteString where
-    format = format . UTF8.toString
-
-formatted :: (Pretty a) => a -> String
-formatted = render . format
-
-render, render_compact :: Doc -> String
-render doc = PP.displayS (PP.renderPretty 0.75 width doc) ""
-render_compact doc = replace $ PP.displayS (PP.renderCompact doc) ""
-    where replace = map $ \c -> if c == '\n' then ' ' else c
-
-commas :: (Pretty a) => [a] -> Doc
-commas = sep_by PP.comma
-
-sep_by :: (Pretty a) => Doc -> [a] -> Doc
-sep_by sep = PP.align . PP.fillSep . PP.punctuate sep . fmap format
-
-record :: [(String, Doc)] -> Doc
-record = (\doc -> PP.lbrace <+> doc <+> PP.rbrace) . commas
-    . map (\(label, doc) -> PP.text label <+> PP.equals <+> doc)
-    -- . map (\(label, doc) -> PP.nest 4 (PP.text label <+> PP.equals </> doc))
-    -- TODO not sure how to do this
-    -- if I put a </> after the equals and wrap in a 'nest', I can get breaks
-    -- after long labels, but short labels look really ugly because it dosen't
-    -- know to prefer not to.  Sincle labels are less likely to be long,
-    -- I don't allow breaking after equals.
-
-instance Pretty Doc where
-    format = id
-
-instance (Pretty a) => Pretty [a] where
-    format = format_list
-
 instance (Unboxed.Unbox a, Pretty a) => Pretty (Unboxed.Vector a) where
-    format = PP.angles . commas . Unboxed.toList
+    format = format_commas '<' '>' . Unboxed.toList
 instance (Pretty a) => Pretty (Vector.Vector a) where
-    format = PP.angles . commas . Vector.toList
+    format = format_commas '<' '>' . Vector.toList
 
 instance (Pretty a) => Pretty (Maybe a) where
     format Nothing = PP.text "Nothing"
     format (Just a) = format a
 
 instance (Pretty a) => Pretty (Set.Set a) where
-    format = PP.braces . commas . Set.toList
+    format = format_commas '{' '}' . Set.toList
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
-    format (a, b) = PP.parens $ commas [format a, format b]
+    format (a, b) = comma_list Never '(' ')' [format a, format b]
 instance (Pretty a, Pretty b, Pretty c) => Pretty (a, b, c) where
-    format (a, b, c) = PP.parens $ commas [format a, format b, format c]
+    format (a, b, c) = comma_list Never '(' ')' [format a, format b, format c]
+instance (Pretty a, Pretty b, Pretty c, Pretty d) => Pretty (a, b, c, d) where
+    format (a, b, c, d) =
+        comma_list Never '(' ')' [format a, format b, format c, format d]
 
 instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
-    format = PP.braces . commas . map format . Map.assocs
+    format = format_commas '{' '}' . Map.assocs
+
+instance Pretty ByteString.ByteString where
+    format = PP.doubleQuotes . PP.text . UTF8.toString
+
+formatted :: (Pretty a) => a -> String
+formatted = render default_width . format
+
+render :: Int -> Doc -> String
+render width = PP.renderStyle (PP.Style PP.PageMode width 1)
+
+render_compact :: Doc -> String
+render_compact = unwrap . render 1000
+    where unwrap = Seq.join " " . map (dropWhile (==' ')) . lines
+    -- OneLineMode is tempting, but it turns the newlines into spaces.
+
+format_commas :: (Pretty a) => Char -> Char -> [a] -> Doc
+format_commas left right = comma_list Sometimes left right . map format
+
+data Spaces = Always | Sometimes | Never deriving (Show, Eq)
+
+comma_list :: Spaces -> Char -> Char -> [Doc] -> Doc
+comma_list spaces leftc rightc xs = case xs of
+        [] -> left <> space <> right
+        [x] -> left <> space <> x <> space <> right
+        x : xs -> let inner = left `sep` x : map (PP.comma <+>) xs
+            in fsep [PP.fcat inner, right]
+    where
+    space = if spaces == Always then PP.space else PP.empty
+    sep = if spaces == Never then (<>) else (<+>)
+    fsep = if spaces == Never then PP.fcat else PP.fsep
+    left = PP.char leftc
+    right = PP.char rightc
+
+record :: Doc -> [(String, Doc)] -> Doc
+record title fields =
+    PP.fsep [title, PP.nest 2 (comma_list Always '{' '}' (map field fields))]
+    where
+    field (name, val) = fsep' [PP.text name, PP.equals, val]
+    fsep' :: [Doc] -> Doc
+    fsep' [] = PP.empty
+    fsep' (d:ds) = PP.nest 2 (PP.fsep (PP.nest (-2) d:ds))
 
 
 -- * misc
-
--- | Pretty up a list with a line for each element.
-lines :: (Pretty a) => [a] -> String
-lines = List.unlines . map pretty
 
 -- | Display a float with the given precision, dropping trailing
 -- and leading zeros.  Haskell requires a 0 before the decimal point, so

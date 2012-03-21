@@ -50,10 +50,10 @@ import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
 import qualified Text.Read as Read
 
+import Util.Control ((<>))
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Ui.ScoreTime as ScoreTime
@@ -81,9 +81,10 @@ instance Read.Read (Signal y) where
         return (Signal (SignalBase.signal vec))
 
 instance Pretty.Pretty (Signal y) where
-    pretty sig = "<" ++ Seq.join ", "
-        [Pretty.pretty x ++ ": " ++ Pretty.pretty y | (x, y) <- unsignal sig]
-        ++ ">"
+    format = Pretty.format_commas '<' '>' . map sample . unsignal
+        where
+        sample (x, y) =
+            Pretty.format x <> Pretty.char ':' Pretty.<+> Pretty.format y
 
 instance SignalBase.Y Y where
     zero_y = 0
