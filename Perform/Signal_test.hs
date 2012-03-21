@@ -7,6 +7,14 @@ import qualified Perform.Signal as Signal
 mksig = Signal.signal
 unsig = Signal.unsignal
 
+test_is_constant = do
+    let f = Signal.is_constant . mksig
+    equal (f []) True
+    equal (f [(0, 0)]) True
+    equal (f [(3, 0)]) True
+    equal (f [(3, 2)]) False
+    equal (f [(0, 1), (3, 1)]) True
+
 -- * transformation
 
 test_inverse_at = do
