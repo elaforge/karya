@@ -34,15 +34,15 @@ ranges :: (Ord n) => [(n, n)] -> Ranges n
 ranges = sorted_ranges . List.sort
 
 sorted_ranges :: (Ord n) => [(n, n)] -> Ranges n
-sorted_ranges = Ranges . merge_sorted_pairs
+sorted_ranges = Ranges . merge_sorted
 
-merge_sorted_pairs :: (Ord n) => [(n, n)] -> [(n, n)]
-merge_sorted_pairs [] = []
-merge_sorted_pairs [x] = [x]
-merge_sorted_pairs ((s1, e1) : (s2, e2) : rest)
-    | e1 >= e2 = merge_sorted_pairs ((s1, e1) : rest)
-    | e1 >= s2 = merge_sorted_pairs ((s1, e2) : rest)
-    | otherwise = (s1, e1) : merge_sorted_pairs ((s2, e2) : rest)
+merge_sorted :: (Ord n) => [(n, n)] -> [(n, n)]
+merge_sorted [] = []
+merge_sorted [x] = [x]
+merge_sorted ((s1, e1) : (s2, e2) : rest)
+    | e1 >= e2 = merge_sorted ((s1, e1) : rest)
+    | e1 >= s2 = merge_sorted ((s1, e2) : rest)
+    | otherwise = (s1, e1) : merge_sorted ((s2, e2) : rest)
 
 range :: (Ord n) => n -> n -> Ranges n
 range s e = Ranges [(s, e)]
@@ -88,16 +88,7 @@ intersection (Ranges r1) (Ranges r2) = Ranges (go r1 r2)
         where rest = if e1 < e2 then go rest1 r2 else go r1 rest2
 
 merge :: (Ord n) => [(n, n)] -> [(n, n)] -> [(n, n)]
-merge [] r2 = r2
-merge r1 [] = r1
-merge r1@((s1, e1) : rest1) r2@((s2, e2) : rest2)
-    | e1 < s2 = (s1, e1) : merge rest1 r2
-    | e2 < s1 = (s2, e2) : merge r1 rest2
-    | s1 >= s2 && e1 <= e2 = merge rest1 r2 -- 1 within 2
-    | s2 >= s1 && e2 <= e1 = merge r1 rest2 -- 2 within 1
-    | e1 > e2 = merge (merged : rest1) rest2
-    | otherwise = merge rest1 (merged : rest2)
-    where merged = (min s1 s2, max e1 e2)
+merge r1 r2 = merge_sorted (Seq.merge_on fst r1 r2)
 
 instance (Ord n) => Monoid.Monoid (Ranges n) where
     mempty = Ranges []
