@@ -87,10 +87,13 @@ convert_event lookup maybe_prev event = do
         Nothing -> convert_pitch (Score.event_controls event)
             (Score.event_pitch event)
         Just key -> return $ Signal.constant (fromIntegral key)
-    let controls = convert_controls
+    let (controls, overridden) = convert_controls
             (Instrument.has_flag Instrument.Pressure patch)
             (Instrument.inst_control_map midi_inst)
             (Score.event_controls event)
+    when_just overridden $ \sig ->
+        warn $ "non-null control overridden by "
+            ++ Pretty.pretty Score.c_dynamic ++ ": " ++ Pretty.pretty sig
     return $ Perform.Event midi_inst
         (Score.event_start event) (Score.event_duration event)
         controls pitch (Score.event_stack event)
@@ -135,18 +138,24 @@ get_inst inst Nothing = do
 -- controls, since those will inhibit channel sharing later.
 convert_controls :: Bool -- ^ True if the @p@ control should become breath.
     -> Control.ControlMap -- ^ Instrument's control map.
-    -> Score.ControlMap -> Perform.ControlMap
+    -> Score.ControlMap
+    -> (Perform.ControlMap, Maybe (Score.Control, Score.TypedControl))
 convert_controls pressure_inst inst_cmap =
-    Map.fromAscList . map (\(k, v) -> (cc k, Score.typed_val v))
-    . Map.toAscList
-    . Map.filterWithKey (\k _ -> Control.is_midi_control inst_cmap k)
+    first (Map.fromAscList . map (\(k, v) -> (cc k, Score.typed_val v))
+        . Map.toAscList
+        . Map.filterWithKey (\k _ -> Control.is_midi_control inst_cmap k))
     . resolve_dyn
     where
     resolve_dyn cmap = case Map.lookup Score.c_dynamic cmap of
-        Nothing -> cmap
-        Just sig -> Map.insert
-            (if pressure_inst then Score.c_breath else Score.c_velocity) sig
-            cmap
+        Nothing -> (cmap, Nothing)
+        Just sig -> insert_dyn sig cmap
+    insert_dyn sig cmap = (Map.insert cont sig cmap, overridden)
+        where
+        cont = if pressure_inst then Score.c_breath else Score.c_velocity
+        overridden = case Map.lookup cont cmap of
+            Just sig | not (Signal.null (Score.typed_val sig))
+                -> Just (cont, sig)
+            _ -> Nothing
     cc (Score.Control c) = Control.Control c
 
 convert_pitch :: Score.ControlMap -> PitchSignal.Signal

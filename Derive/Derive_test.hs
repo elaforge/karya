@@ -230,7 +230,7 @@ test_subderive_multiple = do
     let res = DeriveTest.derive_blocks
             [ ("b0",
                 [ ("tempo", [(0, 0, "2")])
-                , ("vel", [(0, 0, "1"), (8, 0, "i 0")])
+                , ("dyn", [(0, 0, "1"), (8, 0, "i 0")])
                 , (inst_title, [(0, 8, "sub")])
                 ])
             , ("sub",
@@ -240,11 +240,12 @@ test_subderive_multiple = do
                 , ("*twelve", [(0, 0, "5c"), (1, 0, "5d")])
                 ])
             ]
-    let (_, mmsgs, _) = DeriveTest.perform_defaults (Derive.r_events res)
+    let (_, mmsgs, logs) = DeriveTest.perform_defaults (Derive.r_events res)
     equal (DeriveTest.note_on_times mmsgs)
         [ (0, 60, 127), (0, 72, 127)
         , (2000, 62, 63), (2000, 74, 63)
         ]
+    equal logs []
 
 test_multiple_subderive = do
     -- make sure a sequence of sub calls works
