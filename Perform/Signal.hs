@@ -27,7 +27,7 @@ module Perform.Signal (
     , with_ptr
 
     -- * access
-    , at, at_linear, is_constant, sample
+    , at, at_linear, is_constant
     , first, last
 
     -- * transformation
@@ -39,9 +39,10 @@ module Perform.Signal (
     , shift, scale
     , truncate, drop_before
     , map_x, map_y
+
     -- ** special functions
     , inverse_at, compose, integrate
-    , equal, pitches_share
+    , pitches_share
 ) where
 import qualified Prelude
 import Prelude hiding (last, truncate, length, null)
@@ -58,6 +59,7 @@ import Util.Control ((<>))
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Ui.ScoreTime as ScoreTime
@@ -215,9 +217,6 @@ is_constant (Signal vec) = case V.viewL vec of
     Just ((x0, y0), rest)
         | x0 == 0 -> V.all ((==y0) . snd) rest
         | otherwise -> V.all ((==0) . snd) vec
-
-sample :: X -> Signal y -> [(X, Y)]
-sample start sig = SignalBase.sample start (sig_vec sig)
 
 first :: Signal y -> Maybe (X, Y)
 first = fmap fst . V.viewL . sig_vec
@@ -378,13 +377,10 @@ integrate_segment srate accum x0 y0 x1 _y1
     | x0 >= x1 = (accum, [])
     | otherwise = (y_at x1, [(x, y_at x) | x <- xs])
     where
-    xs = SignalBase.range False x0 x1 srate
+    xs = Seq.range' x0 x1 srate
     y_at x = accum + x_to_y (x-x0) * y0
 
 --- * comparison
-
-equal :: X -> X -> Signal y -> Signal y -> Bool
-equal x0 x1 sig0 sig1 = SignalBase.equal x0 x1 (sig_vec sig0) (sig_vec sig1)
 
 -- | Can the pitch signals share a channel within the given range?
 --

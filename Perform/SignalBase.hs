@@ -63,15 +63,6 @@ class (Storable.Storable (X, y), Y y) => Signal y
 instance NFData (V.Vector a) where
     rnf = const ()
 
--- The 'Signal' class isn't really a signal, but is a shorthand for the
--- constraints on @y@.  If Signal was a signal then maybe I could put in
--- 'modify_vec'?  Then 'at' etc. are simple re-exports with a stricter type
--- sig.
--- class ATSignal s where
---     -- data (Storable.Storable (X, y), Y y) => YVal s
---     data YVal
---     modify_vec :: s -> (SigVec YVal -> SigVec YVal) -> s
-
 -- | This is a strict vector for now, eventually I may want to switch this
 -- to a lazy one.
 type SigVec y = V.Vector (X, y)
@@ -169,19 +160,6 @@ bsearch_above vec v = go vec 0 (V.length vec)
         | v >= fst (VectorBase.unsafeIndex vec mid) = go vec (mid+1) high
         | otherwise = go vec low mid
         where mid = (low + high) `div` 2
-
-
--- * comparison
-
--- | Are the given signals equal within the given range?
---
--- Equal signals with samples in different places will compare not equal, but
--- oh well.  I could resample them, but for the moment I won't bother because
--- I think they're only likely to be equal if they are the exact same curve.
-equal :: (Signal y) => X -> X -> SigVec y -> SigVec y -> Bool
-equal start end sig0 sig1 =
-    at start sig0 == at start sig1 && at end sig0 == at end sig1
-    && within start end sig0 == within start end sig1
 
 
 -- * transformation
@@ -296,16 +274,6 @@ resample prev_ay prev_by as@((ax, ay) : rest_a) bs@((bx, by) : rest_b)
     | ax == bx = (ax, ay, by) : resample ay by rest_a rest_b
     | ax < bx = (ax, ay, prev_by) : resample ay prev_by rest_a bs
     | otherwise = (bx, prev_ay, by) : resample prev_ay by as rest_b
-
--- | Like enumFromTo except it can include the final value.  Uses
--- multiplication instead of successive addition to avoid loss of precision.
-range :: (Num a, Ord a) => Bool -> a -> a -> a -> [a]
-range include_final start end step = go 0
-    where
-    go i
-        | val >= end = if include_final then [end] else []
-        | otherwise = val : go (i+1)
-        where val = start + (i*step)
 
 
 -- | Given a line defined by the two points, find the y at the given x.

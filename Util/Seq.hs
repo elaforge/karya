@@ -25,7 +25,17 @@ range start end step = go 0
         | otherwise = val : go (i+1)
         where val = start + (i*step)
 
--- | Like 'range', but includes the end.
+-- | Enumerate a half-open range.
+range' :: (Num a, Ord a) => a -> a -> a -> [a]
+range' start end step = go 0
+    where
+    go i
+        | val >= end = []
+        | otherwise = val : go (i+1)
+        where val = start + (i*step)
+
+-- | Like 'range', but always includes the end, even if it doesn't line up on
+-- a step.
 range_end :: (Num a, Ord a) => a -> a -> a -> [a]
 range_end start end step = go 0
     where
