@@ -247,7 +247,7 @@ tempo_to_warp sig
     | otherwise = Score.Warp warp_sig 0 1
     where
     warp_sig = Signal.integrate Signal.tempo_srate $ Signal.map_y (1/) $
-         Signal.clip_min min_tempo sig
+         Signal.scalar_min min_tempo sig
 
 min_tempo :: Signal.Y
 min_tempo = 0.001

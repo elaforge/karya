@@ -258,13 +258,13 @@ sig_op op sig0 sig1 =
 --
 -- TODO I should be able to do a faster version of this by working directly
 -- with the pointers.
-map_signal_accum :: (Signal y) =>
+concat_map_accum :: (Signal y) =>
     (accum -> X -> y -> X -> y -> (accum, [(X, y)]))
     -- ^ Take the previous accum, previous x and y, and current x and y.
     -> (accum -> (X, y) -> [(X, y)])
     -- ^ Given the final @(accum, (x, y))@, produce samples to append.
     -> accum -> SigVec y -> SigVec y
-map_signal_accum f final accum vec = signal (DList.toList result)
+concat_map_accum f final accum vec = signal (DList.toList result)
     where
     (last_accum, _, dlist) = V.foldl' go (accum, (0, zero_y), DList.empty) vec
     end = if V.null vec then [] else final last_accum (V.last vec)
@@ -275,7 +275,7 @@ map_signal_accum f final accum vec = signal (DList.toList result)
 
 map_signal :: (Signal y) => (X -> y -> X -> y -> [(X, y)]) -> SigVec y
     -> SigVec y
-map_signal f = map_signal_accum go (\_ _ -> []) ()
+map_signal f = concat_map_accum go (\_ _ -> []) ()
     where go _ x0 y0 x1 y1 = ((), f x0 y0 x1 y1)
 
 -- * misc

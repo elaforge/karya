@@ -7,7 +7,6 @@
     modified event map, for derivation (old trackpos -> new trackpos)
 -}
 module Ui.TrackC (with_track) where
-import qualified Data.StorableVector.Base as StorableVector.Base
 import Foreign
 import Foreign.C
 
@@ -95,14 +94,12 @@ poke_track_signal tsigp (Track.TrackSignal sig shift stretch scale_map) = do
     poke_scale_map scale_map
     where
     poke_sig sig = do
-        let (sigfp, offset, len) = StorableVector.Base.toForeignPtr
-                (Signal.sig_vec sig)
-        -- TODO copy an empty signal as a null ptr
-        withForeignPtr sigfp $ \sigp -> do
+        Signal.with_ptr sig $ \sigp len -> do
+            -- TODO copy an empty signal as a null ptr
             destp <- mallocArray len
-            copyArray destp (advancePtr sigp offset) len
+            copyArray destp sigp len
             (#poke TrackSignal, signal) tsigp destp
-        (#poke TrackSignal, length) tsigp len
+            (#poke TrackSignal, length) tsigp len
         -- Calculated by c++, in c_interface.cc.  I'd rather do it here,
         -- but I'm worried all those peeks will generate garbage.
         (#poke TrackSignal, max_control_val) tsigp (-1 :: CDouble)

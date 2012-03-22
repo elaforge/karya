@@ -24,6 +24,7 @@ module Perform.Signal (
     , constant, length, null
     , log_signal
     , coerce
+    , with_ptr
 
     -- * access
     , at, at_linear, is_constant, sample
@@ -33,7 +34,7 @@ module Perform.Signal (
     , merge
     , sig_add, sig_subtract, sig_multiply
     -- ** scalar transformation
-    , sig_max, sig_min, clip_max, clip_min, clip_bounds
+    , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift, scale
     , truncate, drop_before
@@ -48,6 +49,9 @@ import qualified Control.Arrow as Arrow
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
+import qualified Data.StorableVector.Base as StorableVector.Base
+
+import qualified Foreign
 import qualified Text.Read as Read
 
 import Util.Control ((<>))
@@ -196,6 +200,9 @@ log_signal sig msg = msg { Log.msg_signal =
 coerce :: Signal y0 -> Signal y1
 coerce (Signal vec) = Signal vec
 
+with_ptr :: Display -> (Foreign.Ptr (X, Y) -> Int -> IO a) -> IO a
+with_ptr = StorableVector.Base.withStartPtr . sig_vec
+
 -- * access
 
 at, at_linear :: X -> Signal y -> Y
@@ -242,10 +249,10 @@ scalar_multiply n = map_y (*n)
 scalar_divide n = map_y (/n)
 
 -- | Clip signal to never go above or below the given value.  Like 'sig_max'
--- and 'sig_min' except relative to a scalar value.
-clip_max, clip_min :: Y -> Signal y -> Signal y
-clip_max val = modify_vec (V.map (Arrow.second (min val)))
-clip_min val = modify_vec (V.map (Arrow.second (max val)))
+-- and 'sig_min' except the value is scalar.
+scalar_max, scalar_min :: Y -> Signal y -> Signal y
+scalar_max val = map_y (min val)
+scalar_min val = map_y (max val)
 
 -- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
 -- half-open ranges during which the Y was out of range, if any.
@@ -361,7 +368,7 @@ compose f g = Signal $ SignalBase.map_y go (sig_vec g)
 -- is enough.  To this end, the tempo track deriver in "Derive.Control" has
 -- a hack to ensure a sample at the end of the track.
 integrate :: X -> Tempo -> Warp
-integrate srate = modify_vec (SignalBase.map_signal_accum go final 0)
+integrate srate = modify_vec (SignalBase.concat_map_accum go final 0)
     where
     go accum x0 y0 x1 y1 = integrate_segment srate accum x0 y0 x1 y1
     final accum (x, _) = [(x, accum)]

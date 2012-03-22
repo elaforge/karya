@@ -80,10 +80,10 @@ test_sig_op = do
     equal (f [(0, 0), (2, 2), (4, 0)] [(1, 1), (3, 0)])
         [(0, 0), (1, 1), (2, 3), (3, 2), (4, 0)]
 
-test_map_signal_accum = do
+test_concat_map_accum = do
     let go accum x0 y0 x1 y1 = (accum+1, [(x0, y0), (x1, y1)])
         final accum (x, y) = [(x*10, y*10+accum)]
-        f vec = unvec (SignalBase.map_signal_accum go final 0 (mkvec vec))
+        f vec = unvec (SignalBase.concat_map_accum go final 0 (mkvec vec))
     equal (f []) []
     equal (f [(0, 0), (1, 1), (2, 2)])
         [ (0, 0), (0, 0)
