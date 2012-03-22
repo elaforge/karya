@@ -11,6 +11,7 @@ module Derive.Score (
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -38,6 +39,8 @@ data Event = Event {
     -- attributes like font style are not preserved here.
     event_start :: !RealTime
     , event_duration :: !RealTime
+    -- | Event text, carried over from 'Ui.Event.event_bs' for debugging.
+    -- UTF8 encoded.
     , event_bs :: !B.ByteString
     , event_controls :: !ControlMap
     , event_pitch :: !PitchSignal.Signal
@@ -81,7 +84,7 @@ type ControlMap = Map.Map Control TypedControl
 type PitchMap = Map.Map Control PitchSignal.Signal
 
 event_string :: Event -> String
-event_string = B.unpack . event_bs
+event_string = UTF8.toString . event_bs
 
 event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event

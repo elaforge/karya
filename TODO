@@ -13,7 +13,7 @@ UNSORTED
     reload a lot of modules.
 
   * add a HughsPJ 'format' method for Pretty
-  - should Score.Event.event_string use UTF8.toString instead of B.unpack?
+  * should Score.Event.event_string use UTF8.toString instead of B.unpack?
 
   - Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.

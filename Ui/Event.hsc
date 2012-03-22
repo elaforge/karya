@@ -37,6 +37,7 @@ import Types
 
 
 data Event = Event {
+    -- | UTF8 encoded.
     event_bs :: B.ByteString
     , event_duration :: ScoreTime
     , event_style :: Style.StyleId
