@@ -20,6 +20,7 @@ import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
+import qualified Data.Vector.Storable as Storable
 import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Word as Word
 
@@ -72,6 +73,8 @@ instance (Unboxed.Unbox a, Pretty a) => Pretty (Unboxed.Vector a) where
     format = format_commas '<' '>' . Unboxed.toList
 instance (Pretty a) => Pretty (Vector.Vector a) where
     format = format_commas '<' '>' . Vector.toList
+instance (Storable.Storable a, Pretty a) => Pretty (Storable.Vector a) where
+    format = format_commas '<' '>' . Storable.toList
 
 instance (Pretty a) => Pretty (Maybe a) where
     format Nothing = PP.text "Nothing"
