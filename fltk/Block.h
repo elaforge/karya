@@ -48,12 +48,22 @@ skel_box  skel_display  ruler_group _____________        track_group
 #include "SkeletonDisplay.h"
 
 
+struct BlockBox {
+    BlockBox() {}
+    BlockBox(Color color, char c) : color(color), c(c) {}
+    bool operator==(const BlockBox &that) const {
+        return color == that.color && c == that.c;
+    }
+    bool operator!=(const BlockBox &that) const { return !(*this == that); }
+    Color color;
+    char c;
+};
+
 struct BlockModelConfig {
     Color bg;
-    Color track_box;
-    Color sb_box;
-    char track_char;
-    char sb_char;
+    BlockBox skel_box;
+    BlockBox track_box;
+    BlockBox sb_box;
 };
 
 

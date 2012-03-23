@@ -232,6 +232,20 @@ BlockView::set_ruler_width(int width)
 }
 
 
+static void
+set_block_box(Fl_Box &box, const BlockBox &b)
+{
+        box.color(color_to_fl(b.color));
+        if (b.c == ' ')
+            box.copy_label(NULL);
+        else {
+            char s[2] = {b.c, '\0'};
+            box.copy_label(s);
+        }
+        box.redraw();
+}
+
+
 void
 BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
 {
@@ -243,32 +257,12 @@ BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
         skel_display.color(color_to_fl(config.bg.brightness(.9)));
         skel_display.redraw();
     }
-    if (update_all || old.track_box != config.track_box) {
-        track_box.color(color_to_fl(config.track_box));
-        track_box.redraw();
-        skel_box.color(color_to_fl(config.track_box));
-        skel_box.redraw();
-    }
-    if (update_all || old.track_char != config.track_char) {
-        if (config.track_char == ' ')
-            track_box.copy_label(NULL);
-        else {
-            char s[2] = {config.track_char, '\0'};
-            track_box.copy_label(s);
-        }
-    }
-    if (update_all || old.sb_box != config.sb_box) {
-        sb_box.color(color_to_fl(config.sb_box));
-        sb_box.redraw();
-    }
-    if (update_all || old.sb_char != config.sb_char) {
-        if (config.sb_char == ' ')
-            sb_box.copy_label(NULL);
-        else {
-            char s[2] = {config.sb_char, '\0'};
-            sb_box.copy_label(s);
-        }
-    }
+    if (update_all || old.skel_box != config.skel_box)
+        set_block_box(skel_box, config.skel_box);
+    if (update_all || old.track_box != config.track_box)
+        set_block_box(track_box, config.track_box);
+    if (update_all || old.sb_box != config.sb_box)
+        set_block_box(sb_box, config.sb_box);
     this->model_config = config;
 }
 

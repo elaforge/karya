@@ -45,16 +45,21 @@ block config title tracks = Block title config tracks Skeleton.empty
 
 -- | Per-block configuration.
 data Config = Config {
-    config_selection_colors :: [Color.Color]
-    , config_bg_color :: Color.Color
-    , config_track_box :: (Color.Color, Char)
-    , config_sb_box :: (Color.Color, Char)
+    config_selection_colors :: ![Color.Color]
+    , config_bg_color :: !Color.Color
+    , config_skel_box :: !Box
+    , config_track_box :: !Box
+    , config_sb_box :: !Box
     } deriving (Eq, Show, Read)
 
 default_config :: Config
 default_config = Config
     Config.bconfig_selection_colors Config.bconfig_bg_color
-    Config.bconfig_track_box Config.bconfig_sb_box
+    (box Config.bconfig_box) (box Config.bconfig_box) (box Config.bconfig_box)
+    where box = uncurry Box
+
+data Box = Box { box_color :: !Color.Color, box_char :: !Char }
+    deriving (Eq, Show, Read)
 
 -- | Like 'Track.Track', this has per-track data, but unlike Track.Track,
 -- this is data that can vary per-block.

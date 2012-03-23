@@ -18,9 +18,11 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
@@ -68,13 +70,21 @@ cmd_val_edit pitch_track msg = do
                 -- TODO if I do chords, this will have to be the chosen note
                 -- track
                 create_event
+                advance <- andM [get_state Cmd.state_advance,
+                    not <$> get_state Cmd.state_chord]
+                when advance Selection.advance
             InputNote.PitchChange note_id key -> do
                 (tracknum, track_id) <- track_of note_id
                 note <- EditUtil.parse_key key
+                -- If advance is set, the selection will have advanced past
+                -- the pitch's position.
+                pos <- event_at_or_before track_id pos
                 PitchTrack.val_edit_at (tracknum, track_id, pos) note
             InputNote.NoteOff note_id _vel -> do
                 delete_note_id note_id
-                whenM all_keys_up Selection.advance
+                advance <- andM [get_state Cmd.state_advance,
+                    get_state Cmd.state_chord, all_keys_up]
+                when advance Selection.advance
             InputNote.Control _ _ _ -> return ()
         (Msg.key_down -> Just Key.Backspace) -> do
             remove (tracknum, track_id, pos)
@@ -93,6 +103,15 @@ cmd_val_edit pitch_track msg = do
         st <- Cmd.get_wdev_state
         Cmd.set_wdev_state $ st { Cmd.wdev_note_track =
             Map.delete note_id (Cmd.wdev_note_track st) }
+
+event_at_or_before :: (Cmd.M m) => TrackId -> ScoreTime -> m ScoreTime
+event_at_or_before track_id pos = do
+    track <- State.get_track track_id
+    let (pre, post) = Events.split pos (Track.track_events track)
+    return $ case (pre, post) of
+        (_, (p, _) : _) | p == pos -> pos
+        ((prev, _) : _, _) -> prev
+        _ -> pos
 
 cmd_method_edit :: PitchTrack -> Cmd.Cmd
 cmd_method_edit pitch_track msg = do
@@ -213,3 +232,6 @@ modify_event :: (Cmd.M m) => Bool -> Bool -> EditUtil.Modify -> m ()
 modify_event zero_dur modify_dur f = do
     trigger_inst <- triggered_inst =<< EditUtil.lookup_instrument
     EditUtil.modify_event (zero_dur || trigger_inst) modify_dur f
+
+get_state :: (Cmd.M m) => (Cmd.EditState -> a) -> m a
+get_state f = Cmd.gets (f . Cmd.state_edit)

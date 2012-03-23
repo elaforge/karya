@@ -36,6 +36,8 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
+
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
@@ -321,9 +323,16 @@ control note_id cont val =
 pitch note_id nn = InputNote.PitchChange (nid note_id) (Pitch.InputKey nn)
 nid = InputNote.NoteId
 
+m_note_on :: Int -> Double -> Signal.Y -> Msg.Msg
 m_note_on note_id nn vel = Msg.InputNote (note_on note_id nn vel)
+
+m_note_off :: Int -> Signal.Y -> Msg.Msg
 m_note_off note_id vel = Msg.InputNote (note_off note_id vel)
+
+m_control :: Int -> String -> Signal.Y -> Msg.Msg
 m_control note_id cont val = Msg.InputNote (control note_id cont val)
+
+m_pitch :: Int -> Double -> Msg.Msg
 m_pitch note_id nn = Msg.InputNote (pitch note_id nn)
 
 

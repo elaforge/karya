@@ -5,7 +5,7 @@ module Util.Control (
     , first, second
     , (<>), mempty, mconcat
     , while, while_
-    , whenM, unlessM, when_just, if_just, ifM
+    , whenM, unlessM, when_just, if_just, ifM, andM
 
     -- , finally
     , justm
@@ -66,6 +66,12 @@ ifM :: (Monad m) => m Bool -> m a -> m a -> m a
 ifM cond consequent alternative = do
     b <- cond
     if b then consequent else alternative
+
+andM :: (Monad m) => [m Bool] -> m Bool
+andM [] = return True
+andM (c:cs) = do
+    b <- c
+    if b then andM cs else return False
 
 -- -- | Finally a finally for MonadError.
 -- finally :: (Error.MonadError e m) => m a -> m () -> m a

@@ -127,6 +127,11 @@ val_edit_color = Color.rgb 1 0.5 0.5
 -- Similar to val color because you toggle between val and method.
 method_edit_color = Color.rgb 0.6 0 0
 
+-- | Colors indicate if 'Cmd.state_advance' is set.
+advance_color, no_advance_color :: Color.Color
+advance_color = play_color
+no_advance_color = val_edit_color
+
 play_color, warning_color :: Color.Color
 play_color = Color.rgb 0 0.6 0
 warning_color = Color.rgb 1 0.2 0.2
@@ -195,9 +200,12 @@ make_selection_color = Color.alpha 0.3 . Color.brightness 1.25
 -- These are for 'Ui.Block.Config' and 'Ui.Block.ViewConfig', using them
 -- directly would cause a circular import.
 
+bconfig_bg_color :: Color.Color
 bconfig_bg_color = Color.gray8
-bconfig_track_box = (box_color, ' ')
-bconfig_sb_box = (box_color, ' ')
+
+-- | Default contents of track and sb boxes.
+bconfig_box :: (Color.Color, Char)
+bconfig_box = (box_color, ' ')
 
 -- | Maximum number of selections supported by the GUI.
 max_selections :: Int

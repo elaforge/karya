@@ -273,9 +273,11 @@ edit_state_bindings = concat
     , command_only '7' "step rank 5+1" (step_rank 5 1) -- 32nd
     , command_only '8' "step_rank 6+0" (step_rank 6 0) -- 64th
     , command_only '9' "step_rank 7+0" (step_rank 7 0) -- 256th
-    , command_only '`' "toggle step mode" Edit.toggle_mark_step
 
+    , command_only '`' "toggle step mode" Edit.toggle_mark_step
     , command_only '~' "invert step" Edit.cmd_invert_step_direction
+    , bind_char '`' "toggle advance" Edit.toggle_advance
+    , bind_char '~' "toggle chord" Edit.toggle_chord
 
     , bind_char '-' "octave -1" (Edit.cmd_modify_octave (subtract 1))
     , bind_char '=' "octave +1" (Edit.cmd_modify_octave (+1))

@@ -10,6 +10,7 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -72,10 +73,19 @@ modify_edit_mode f = do
 
 sync_edit_box_status :: (Cmd.M m) => m ()
 sync_edit_box_status = do
-    edit_mode <- Cmd.gets (Cmd.state_edit_mode . Cmd.state_edit)
-    kbd_entry <- Cmd.gets (Cmd.state_kbd_entry . Cmd.state_edit)
-    let c = if kbd_entry then 'K' else ' '
-    Cmd.set_edit_box (edit_color edit_mode) c
+    st <- Cmd.gets Cmd.state_edit
+    let mode = Cmd.state_edit_mode st
+    let skel = Block.Box (skel_color mode (Cmd.state_advance st))
+            (if Cmd.state_chord st then 'c' else ' ')
+        track = Block.Box (edit_color mode)
+            (if Cmd.state_kbd_entry st then 'K' else ' ')
+    Cmd.set_edit_box skel track
+
+skel_color :: Cmd.EditMode -> Bool -> Color.Color
+skel_color mode advance
+    | mode == Cmd.ValEdit =
+        if advance then Config.advance_color else Config.no_advance_color
+    | otherwise = edit_color mode
 
 edit_color :: Cmd.EditMode -> Color.Color
 edit_color mode = case mode of
@@ -83,6 +93,24 @@ edit_color mode = case mode of
     Cmd.RawEdit -> Config.raw_edit_color
     Cmd.ValEdit -> Config.val_edit_color
     Cmd.MethodEdit -> Config.method_edit_color
+
+toggle_advance :: (Cmd.M m) => m ()
+toggle_advance = modify_advance not
+
+modify_advance :: (Cmd.M m) => (Bool -> Bool) -> m ()
+modify_advance f = do
+    Cmd.modify_edit_state $ \st ->
+        st { Cmd.state_advance = f (Cmd.state_advance st) }
+    sync_edit_box_status
+
+toggle_chord :: (Cmd.M m) => m ()
+toggle_chord = modify_chord not
+
+modify_chord :: (Cmd.M m) => (Bool -> Bool) -> m ()
+modify_chord f = do
+    Cmd.modify_edit_state $ \st ->
+        st { Cmd.state_chord = f (Cmd.state_chord st) }
+    sync_edit_box_status
 
 -- * universal event cmds
 

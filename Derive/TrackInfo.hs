@@ -147,14 +147,17 @@ instrument_to_title = TrackLang.show_val . TrackLang.VInstrument
 is_note_track :: String -> Bool
 is_note_track = Maybe.isJust . title_to_instrument
 
+is_pitch_track :: String -> Bool
+is_pitch_track = Maybe.isJust . title_to_scale
+
+-- | A pitch track is also considered a control track.
 is_control_track :: String -> Bool
 is_control_track = not . is_note_track
 
 is_tempo_track :: String -> Bool
 is_tempo_track = (=="tempo")
 
--- | Technically a pitch track is also a control track.  This is only true
--- for a non-pitch control track.
+-- | This is like 'is_control_track' but doesn't include pitch tracks.
 is_signal_track :: String -> Bool
 is_signal_track title = is_control_track title && case parse_control title of
     Right (Control {}) -> True

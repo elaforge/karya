@@ -69,7 +69,6 @@ import qualified Midi.Midi as Midi
 import qualified Midi.State
 
 import qualified Ui.Block as Block
-import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -416,6 +415,17 @@ initial_play_state = PlayState
 data EditState = EditState {
     -- | Edit mode enables various commands that write to tracks.
     state_edit_mode :: !EditMode
+    -- | Whether or not to advance the insertion point after a note is
+    -- entered.
+    , state_advance :: Bool
+    -- | Chord mode means the note is considered entered when all NoteOffs
+    -- have been received.  While it is held down, the insertion point will
+    -- move to the next note track with the same instrument so you can
+    -- enter chords.
+    --
+    -- When chord mode is off, the note is considered entered as soon as
+    -- its NoteOn is received.
+    , state_chord :: Bool
     -- | Use the alphanumeric keys to enter notes instead of midi input.
     , state_kbd_entry :: !Bool
     -- | Default time step for cursor movement.
@@ -440,13 +450,15 @@ data EditState = EditState {
     , state_recent_notes :: ![(Int, RecentNote)]
 
     -- | See 'set_edit_box'.
-    , state_edit_box :: !(Color.Color, Char)
+    , state_edit_box :: !(Block.Box, Block.Box)
     } deriving (Show, Generics.Typeable)
 
 initial_edit_state :: EditState
 initial_edit_state = EditState {
     state_edit_mode = NoEdit
     , state_kbd_entry = False
+    , state_advance = True
+    , state_chord = False
     , state_time_step =
         TimeStep.step (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
     , state_note_duration = TimeStep.step TimeStep.BlockEnd
@@ -455,8 +467,8 @@ initial_edit_state = EditState {
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4
     , state_recent_notes = []
-    , state_edit_box = Config.bconfig_track_box
-    }
+    , state_edit_box = (box, box)
+    } where box = uncurry Block.Box Config.bconfig_box
 
 -- | These enable various commands to edit event text.  What exactly val,
 -- and method mean are dependent on the track.
@@ -702,7 +714,8 @@ get_wdev_state :: (M m) => m WriteDeviceState
 get_wdev_state = gets state_wdev_state
 
 set_wdev_state :: (M m) => WriteDeviceState -> m ()
-set_wdev_state wdev_state = modify $ \st -> st { state_wdev_state = wdev_state }
+set_wdev_state wdev_state = modify $ \st ->
+    st { state_wdev_state = wdev_state }
 
 create_block :: (M m) => Id.Id -> String -> [Block.Track] -> m BlockId
 create_block block_id title tracks = do
@@ -711,9 +724,10 @@ create_block block_id title tracks = do
 
 block_config :: (M m) => m Block.Config
 block_config = do
-    track_box <- gets (state_edit_box . state_edit)
+    (skel, track) <- gets (state_edit_box . state_edit)
     return $ Block.Config Config.bconfig_selection_colors
-        Config.bconfig_bg_color track_box Config.bconfig_sb_box
+        Config.bconfig_bg_color skel track
+        (uncurry Block.Box Config.bconfig_box)
 
 -- *** EditState
 
@@ -723,11 +737,11 @@ modify_edit_state f = modify $ \st -> st { state_edit = f (state_edit st) }
 -- | At the Ui level, the edit box is per-block, but I use it to indicate edit
 -- mode, which is global.  So it gets stored in Cmd.State and must be synced
 -- with new blocks.
-set_edit_box :: (M m) => Color.Color -> Char -> m ()
-set_edit_box color char = do
-    modify_edit_state $ \st -> st { state_edit_box = (color, char) }
+set_edit_box :: (M m) => Block.Box -> Block.Box -> m ()
+set_edit_box skel track = do
+    modify_edit_state $ \st -> st { state_edit_box = (skel, track) }
     block_ids <- State.get_all_block_ids
-    forM_ block_ids $ \bid -> State.set_edit_box bid color char
+    forM_ block_ids $ \bid -> State.set_edit_box bid skel track
 
 is_val_edit :: (M m) => m Bool
 is_val_edit = (== ValEdit) <$> gets (state_edit_mode . state_edit)

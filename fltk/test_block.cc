@@ -27,10 +27,9 @@ BlockModelConfig block_model_config()
 {
     BlockModelConfig c;
     c.bg = Color(0xdd, 0xdd, 0xdd);
-    c.track_box = Color(0x44, 0xff, 0xff);
-    c.sb_box = Color(0x00, 0xff, 0xff);
-    c.track_char = 'K';
-    c.sb_char = 'S';
+    c.skel_box = BlockBox(Color(0x99, 0x99, 0xff), 'a');
+    c.track_box = BlockBox(Color(0x44, 0xff, 0xff), 'K');
+    c.sb_box = BlockBox(Color(0x00, 0xff, 0xff), 'S');
     return c;
 }
 

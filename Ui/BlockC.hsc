@@ -397,12 +397,18 @@ instance Storable Block.Config where
     poke = poke_block_model_config
 
 poke_block_model_config configp
-    (Block.Config _sel_colors bg (track_box, track_char) (sb_box, sb_char)) = do
+    (Block.Config _sel_colors bg skel_box track_box sb_box) = do
         (#poke BlockModelConfig, bg) configp bg
+        (#poke BlockModelConfig, skel_box) configp skel_box
         (#poke BlockModelConfig, track_box) configp track_box
         (#poke BlockModelConfig, sb_box) configp sb_box
-        (#poke BlockModelConfig, track_char) configp track_char
-        (#poke BlockModelConfig, sb_char) configp sb_char
+
+instance Storable Block.Box where
+    sizeOf _ = #size BlockBox
+    alignment _ = #{alignment BlockBox}
+    poke boxp (Block.Box color char) = do
+        (#poke BlockBox, color) boxp color
+        (#poke BlockBox, c) boxp char
 
 instance Storable Block.DisplayTrack where
     sizeOf _ = #size DisplayTrack
