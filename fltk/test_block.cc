@@ -396,7 +396,7 @@ main(int argc, char **argv)
         view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
         view.block.insert_track(5, Tracklike(&track2, &truler), 80);
 
-        view.block.set_status("ABC`tamil-i` ABC `xie`");
+        view.block.set_status("ABC`tamil-i` ABC `xie`", Color::white);
         view.block.set_title("hi there");
 
         TrackSignal *pitch_tsig = pitch_track_signal();
