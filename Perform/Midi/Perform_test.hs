@@ -8,6 +8,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Thread as Thread
+import qualified Util.TimeVector as TimeVector
 
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
@@ -21,7 +22,6 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import qualified Perform.SignalBase as SignalBase
 
 import Types
 
@@ -547,10 +547,9 @@ mksignal = Signal.signal . interpolate
     interpolate :: [(RealTime, Signal.Y)] -> [(RealTime, Signal.Y)]
     interpolate ((x0, y0) : rest@((x1, y1) : _))
         | x0 >= x1 = interpolate rest
-        | otherwise = [(x, SignalBase.y_at (d x0) y0 (d x1) y1 (d x))
+        | otherwise = [(x, TimeVector.y_at x0 y0 x1 y1 x)
             | x <- Seq.range_end x0 (x1-1) 1] ++ interpolate rest
     interpolate val = val
-    d = SignalBase.x_to_double
 
 vol_cc = Control.Control "volume"
 

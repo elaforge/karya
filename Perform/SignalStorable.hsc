@@ -4,8 +4,8 @@
 -- have to produce structs as expected by C.
 module Perform.SignalStorable where
 import Foreign
-
 import qualified Perform.SignalBase as SignalBase
+import qualified Perform.RealTime as RealTime
 
 
 #include "Ui/c_interface.h"
@@ -23,3 +23,19 @@ instance Storable (SignalBase.X, Double) where
         time <- (#peek ControlSample, time) sp
         val <- (#peek ControlSample, val) sp
         return (time, val)
+
+instance Storable (Sample Double) where
+    sizeOf _ = #size ControlSample
+    alignment _ = #{alignment ControlSample}
+    poke sp (Sample time val) = do
+        (#poke ControlSample, time) sp time
+        (#poke ControlSample, val) sp val
+    peek sp = do
+        time <- (#peek ControlSample, time) sp
+        val <- (#peek ControlSample, val) sp
+        return $ Sample time val
+
+data Sample y = Sample {
+    sx :: {-# UNPACK #-} !RealTime.RealTime
+    , sy :: !y
+    } deriving (Read, Show, Eq)

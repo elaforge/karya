@@ -32,7 +32,6 @@ import qualified Derive.BaseTypes as Score
 import Derive.BaseTypes (Pitch(..), PitchCall, PitchError(..))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import qualified Perform.SignalBase as SignalBase
 
 import Types
 
@@ -53,7 +52,7 @@ data Signal = Signal {
     -- combined it will be just one of them.  TODO if multi-scale signals is
     -- ever something I do a lot it might behoove me to make this a Set.
     , sig_scale_id :: !Pitch.ScaleId
-    , sig_vec :: !(TimeVector.Vector Pitch)
+    , sig_vec :: !(TimeVector.Boxed Pitch)
     } deriving (Read, Show)
 
 sig_scale :: Signal -> Scale
@@ -66,7 +65,7 @@ sig_scale sig = Scale (sig_scale_id sig) (sig_transposers sig)
 data Scale = Scale Pitch.ScaleId (Set.Set Score.Control) deriving (Show)
 
 instance Functor0.Functor0 Signal where
-    type Elem Signal = TimeVector.Vector Pitch
+    type Elem Signal = TimeVector.Boxed Pitch
     fmap0 f (Signal a b v) = Signal a b (f v)
 
 instance Monoid.Monoid Signal where
@@ -90,10 +89,10 @@ constant scale pitch = signal scale [(0, pitch)]
 
 signal :: Scale -> [(RealTime, Pitch)] -> Signal
 signal (Scale scale_id transposers) =
-    Signal transposers scale_id . TimeVector.make
+    Signal transposers scale_id . TimeVector.signal
 
 unsignal :: Signal -> [(RealTime, Pitch)]
-unsignal sig = [(x, y) | TimeVector.Sample x y <- V.toList (sig_vec sig)]
+unsignal = TimeVector.unsignal . sig_vec
 
 -- | Flatten a signal to a non-transposeable Signal.NoteNumber.
 to_nn :: Signal -> (Signal.NoteNumber, [PitchError])
@@ -123,7 +122,7 @@ apply_controls controls sig
     where
     resampled = V.fromList $
         map (\(x, pitch, cs) -> TimeVector.Sample x (apply cs pitch)) $
-        SignalBase.resample initial_pitch prev_controls
+        TimeVector.resample initial_pitch prev_controls
             (unsignal sig) transpose
     TimeVector.Sample start initial_pitch = V.unsafeHead (sig_vec sig)
     prev_controls = controls_at start controls
