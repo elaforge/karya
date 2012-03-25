@@ -63,9 +63,9 @@ lookup_instrument_cmds block_id track_id =
 -- 'NoteEntry.cmds_with_note'.
 with_note_cmds :: Cmd.EditMode -> TrackType -> [Cmd.Cmd]
 with_note_cmds edit_mode track_type = universal ++ case track_type of
-    NoteTrack ptrack -> case edit_mode of
+    NoteTrack _ -> case edit_mode of
         Cmd.RawEdit -> [NoteTrack.cmd_raw_edit]
-        Cmd.ValEdit -> [NoteTrack.cmd_val_edit ptrack]
+        Cmd.ValEdit -> [NoteTrack.cmd_val_edit]
         _ -> []
     PitchTrack -> case edit_mode of
         Cmd.RawEdit -> [PitchTrack.cmd_raw_edit]
@@ -78,8 +78,8 @@ with_note_cmds edit_mode track_type = universal ++ case track_type of
 -- | Track-specific Cmds.
 track_cmds :: Cmd.EditMode -> TrackType -> [Cmd.Cmd]
 track_cmds edit_mode track_type = case track_type of
-    NoteTrack ptrack -> case edit_mode of
-        Cmd.MethodEdit -> [NoteTrack.cmd_method_edit ptrack]
+    NoteTrack _ -> case edit_mode of
+        Cmd.MethodEdit -> [NoteTrack.cmd_method_edit]
         _ -> []
     PitchTrack -> case edit_mode of
         Cmd.MethodEdit -> [PitchTrack.cmd_method_edit]

@@ -499,7 +499,7 @@ data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.PitchTrack:
     -- | NoteIds being entered into which pitch tracks.  When entering a chord,
     -- a PitchChange uses this to know which pitch track to update.
-    , wdev_note_track :: !(Map.Map InputNote.NoteId (BlockId, TrackNum))
+    , wdev_pitch_track :: !(Map.Map InputNote.NoteId (BlockId, TrackNum))
 
     -- Used by no one, yet:  (TODO should someone use this?)
     -- | Remember the current inst of each addr.  More than one instrument or
@@ -713,9 +713,9 @@ set_pitch_bend_range range rdev = do
 get_wdev_state :: (M m) => m WriteDeviceState
 get_wdev_state = gets state_wdev_state
 
-set_wdev_state :: (M m) => WriteDeviceState -> m ()
-set_wdev_state wdev_state = modify $ \st ->
-    st { state_wdev_state = wdev_state }
+modify_wdev_state :: (M m) => (WriteDeviceState -> WriteDeviceState) -> m ()
+modify_wdev_state f = modify $ \st ->
+    st { state_wdev_state = f (state_wdev_state st) }
 
 create_block :: (M m) => Id.Id -> String -> [Block.Track] -> m BlockId
 create_block block_id title tracks = do

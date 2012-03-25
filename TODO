@@ -1,4 +1,21 @@
 UNSORTED
+  chord entry
+    - add a "temporary insert" selection to indicate where the chord insert
+      will be next
+    - Remove PitchTrack from Cmd.NoteTrackKeymap
+    - move SelPos to State, and add Selection.insert_pos -> State.Pos
+    - fix Cmd.Info's other functions to work with inversion
+    - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
+    - chord mode enters the note and moves to the text note track, only
+      advances on NoteOff
+      (advance, not chord) -> advance on note on
+      (not advance, not chord) -> never advance, useful for finding the note
+      (advance, chord) -> advance on note off
+      (not advance, chord) -> don't advance, find chords
+    - tuning: in chord mode, PitchChange changes the pitch of the last note
+      looks like this works already
+  - enter control values taken from velocity
+  - eventually maybe State.TrackInfo shouldn't have TrackId?
   * why is the mordent not playing?
   - I could have a Cmd state flag that does things relative to the current
     block vs. root block

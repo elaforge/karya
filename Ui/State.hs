@@ -493,9 +493,12 @@ remove_edges :: (M m) => BlockId -> [Skeleton.Edge] -> m ()
 remove_edges block_id edges =
     modify_skeleton block_id (Skeleton.remove_edges edges)
 
-splice_skeleton_above, splice_skeleton_below
-    :: (M m) => BlockId -> TrackNum -> TrackNum -> m ()
+-- | The first tracknum is spliced above the second.
+splice_skeleton_above :: (M m) => BlockId -> TrackNum -> TrackNum -> m ()
 splice_skeleton_above = _splice_skeleton True
+
+-- | The first tracknum is spliced below the second.
+splice_skeleton_below :: (M m) => BlockId -> TrackNum -> TrackNum -> m ()
 splice_skeleton_below = _splice_skeleton False
 
 -- | Splice the given tracknum into the skeleton, either above or below
@@ -535,14 +538,7 @@ data TrackInfo = TrackInfo {
     track_title :: String
     , track_id :: TrackId
     , track_tracknum :: TrackNum
-    } deriving (Show)
-
-get_track_info :: (M m) => BlockId -> m [TrackInfo]
-get_track_info block_id = do
-    block <- get_block block_id
-    state <- get
-    return [TrackInfo (Track.track_title track) tid i
-        | (i, tid, track) <- _track_tree_tracks_of block (state_tracks state)]
+    } deriving (Eq, Show)
 
 get_track_tree :: (M m) => BlockId -> m TrackTree
 get_track_tree block_id = do
@@ -589,13 +585,6 @@ track_tree_mutes muted forest = map f forest
     where
     f (Tree.Node info subs) = Tree.Node (add_mute info) (map f subs)
     add_mute info = (info, track_tracknum info `elem` muted)
-
-_track_tree_tracks_of :: Block.Block -> Map.Map TrackId Track.Track
-    -> [(TrackNum, TrackId, Track.Track)]
-_track_tree_tracks_of block tracks = do
-    (i, Block.TId tid _) <- Seq.enumerate (Block.block_tracklike_ids block)
-    track <- maybe mzero (:[]) (Map.lookup tid tracks)
-    return (i, tid, track)
 
 -- | Resolve the TrackNum indices in a tree into whatever values as given by
 -- a map.
@@ -697,7 +686,6 @@ remove_track block_id tracknum = do
 -- | Get the Track at @tracknum@, or Nothing if its out of range.
 -- This is inconsistent with 'insert_track' and 'remove_track' which clip to
 -- range, but is convenient in practice.
--- TODO why?
 block_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.Track)
 block_track_at block_id tracknum
     | tracknum < 0 =
@@ -717,13 +705,6 @@ event_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
     return $ Block.track_id_of =<< maybe_track
 
--- | Like 'track_at', but only for event tracks.  It defaults to 'no_ruler'
--- if the tracknum is out of range or doesn't have a ruler.
-ruler_track_at :: (M m) => BlockId -> TrackNum -> m RulerId
-ruler_track_at block_id tracknum = do
-    maybe_track <- track_at block_id tracknum
-    return $ Maybe.fromMaybe no_ruler $ Block.ruler_id_of =<< maybe_track
-
 -- | Like 'event_track_at' but throws if it's not there.
 get_event_track_at :: (M m) => String -> BlockId -> TrackNum -> m TrackId
 get_event_track_at caller block_id tracknum =
@@ -731,6 +712,25 @@ get_event_track_at caller block_id tracknum =
     where
     msg = caller ++ ": tracknum " ++ show tracknum ++ " not in "
         ++ show block_id
+
+get_track_info :: (M m) => BlockId -> m [TrackInfo]
+get_track_info block_id = do
+    block <- get_block block_id
+    state <- get
+    return [TrackInfo (Track.track_title track) tid i
+        | (i, tid, track) <- track_info block (state_tracks state)]
+    where
+    track_info block tracks = do
+        (i, Block.TId tid _) <- Seq.enumerate (Block.block_tracklike_ids block)
+        track <- maybe mzero (:[]) (Map.lookup tid tracks)
+        return (i, tid, track)
+
+-- | Like 'track_at', but only for event tracks.  It defaults to 'no_ruler'
+-- if the tracknum is out of range or doesn't have a ruler.
+ruler_track_at :: (M m) => BlockId -> TrackNum -> m RulerId
+ruler_track_at block_id tracknum = do
+    maybe_track <- track_at block_id tracknum
+    return $ Maybe.fromMaybe no_ruler $ Block.ruler_id_of =<< maybe_track
 
 tracks :: (M m) => BlockId -> m TrackNum
 tracks block_id = do

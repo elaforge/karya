@@ -284,6 +284,9 @@ place_warp shift stretch warp = compose_warps warp
 inst_name :: Instrument -> String
 inst_name (Instrument s) = s
 
+default_inst :: Instrument
+default_inst = Instrument ""
+
 -- * attributes
 
 attrs_diff :: Attributes -> Attributes -> Attributes

@@ -43,8 +43,9 @@ keymaps inputs = \msg -> do
 
 keymap_down :: (Cmd.M m) => String -> Midi.Key -> m ()
 keymap_down note key = do
-    whenM Cmd.is_val_edit $
-        NoteTrack.modify_event False True $ const (Just note, True)
+    whenM Cmd.is_val_edit $ do
+        pos <- EditUtil.get_sel_pos
+        NoteTrack.modify_event_at pos False True $ const (Just note, True)
     MidiThru.channel_messages True [Midi.NoteOn key 64]
 
 keymap_up :: (Cmd.M m) => Midi.Key -> m ()

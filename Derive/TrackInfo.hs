@@ -19,8 +19,6 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 
 
--- * track info
-
 data ControlType =
     Control (Maybe TrackLang.CallId) (Score.Typed Score.Control)
     -- | Control is Nothing for default scale.

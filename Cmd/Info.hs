@@ -1,8 +1,8 @@
--- | Cmds that display some info for the user.
---
--- These will be frequently be called from the language, but may also be used
--- by built in cmds.  Since they are intended for human consumption, many
--- of them return strings.
+{- | Functions to get higher level information about blocks and tracks.
+
+    This builds on "Derive.TrackInfo" but the Derive module only has functions
+    needed by derivation, and doesn't run in the State monad.
+-}
 module Cmd.Info where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -18,6 +18,8 @@ import qualified Util.Tree
 
 import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.Track as Track
+
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
@@ -25,6 +27,73 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import Types
 
+
+-- * track info
+
+data Track = Track {
+    track_info :: State.TrackInfo
+    , track_type :: TrackType
+    } deriving (Show, Eq)
+
+data TrackType =
+    -- | The pitch track for this note track, if any.  This is the last pitch
+    -- child, or the first pitch parent.  Any intervening note tracks stop the
+    -- search, because the pitch track is considered to belong to them.
+    Note (Maybe State.TrackInfo)
+    -- | The note track for this pitch track.
+    | Pitch (Maybe State.TrackInfo)
+    -- | Tracks this control track has scope over.  This means all its
+    -- children, but because of inversion, also its parents until the next
+    -- note track, if any.
+    | Control [State.TrackInfo]
+    deriving (Show, Eq)
+
+get_track_type :: (State.M m) => BlockId -> TrackNum -> m Track
+get_track_type block_id tracknum = State.require
+    ("get_track_type: bad tracknum: " ++ show (block_id, tracknum))
+        =<< lookup_track_type block_id tracknum
+
+lookup_track_type :: (State.M m) => BlockId -> TrackNum -> m (Maybe Track)
+lookup_track_type block_id tracknum = do
+    track_tree <- State.get_track_tree block_id
+    return $ make_track <$> paths_of track_tree tracknum
+
+block_tracks :: (State.M m) => BlockId -> m [Track]
+block_tracks block_id =
+    map make_track . Util.Tree.paths <$> State.get_track_tree block_id
+
+make_track :: (State.TrackInfo, [State.TrackInfo], [State.TrackInfo]) -> Track
+make_track (track, parents, children) =
+    Track track (track_type_of track parents children)
+
+track_type_of :: State.TrackInfo -> [State.TrackInfo] -> [State.TrackInfo]
+    -> TrackType
+track_type_of track parents children
+    | TrackInfo.is_note_track title =
+        Note $ List.find is_pitch (reverse (takeWhile (not.is_note) children))
+            `mplus` List.find is_pitch (takeWhile (not.is_note) parents)
+    | TrackInfo.is_pitch_track title =
+        Pitch $ List.find is_note (children ++ parents)
+    | otherwise = Control $ children ++ takeWhile (not.is_note) parents
+    where
+    title = State.track_title track
+    is_pitch = TrackInfo.is_pitch_track . State.track_title
+    is_note = TrackInfo.is_note_track . State.track_title
+
+
+-- * misc
+
+-- | Get the instrument of a track, or fail.
+get_instrument_of :: (State.M m) => BlockId -> TrackNum -> m Score.Instrument
+get_instrument_of block_id tracknum = do
+    track <- State.get_track
+        =<< State.get_event_track_at "get_instrument_of" block_id tracknum
+    State.require ("get_instrument_of expected a note track: "
+            ++ show (block_id, tracknum)) $
+        TrackInfo.title_to_instrument (Track.track_title track)
+
+
+-- * inst info
 
 inst_info :: (Cmd.M m) => Score.Instrument -> m String
 inst_info inst = do

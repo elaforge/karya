@@ -35,8 +35,12 @@ mouse_pos()
 // printing stuff for debugging
 
 const char *show_key(int key);
+// Text for the event itself.
 const char *show_event(int ev);
+// Show extra event information, such as char for key events, position for
+// mouse, etc.
 const char *show_event_info(int ev);
+// Show Fl::event_state().
 const char *show_event_state(int state);
 const char *show_damage(uchar d);
 const char *show_widget(const Fl_Widget *w);

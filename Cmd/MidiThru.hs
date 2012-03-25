@@ -87,7 +87,7 @@ cmd_midi_thru msg = do
     let (thru_msgs, maybe_wdev_state) =
             input_to_midi pb_range wdev_state addrs input
     case maybe_wdev_state of
-        Just wdev_state -> Cmd.set_wdev_state wdev_state
+        Just wdev_state -> Cmd.modify_wdev_state (const wdev_state)
         Nothing -> return ()
     mapM_ (uncurry Cmd.midi) thru_msgs
     return Cmd.Continue

@@ -70,7 +70,7 @@ modify_event_at :: (Cmd.M m) => SelPos
     -> Bool -- ^ Created event has 0 dur, otherwise until next time step.
     -> Bool -- ^ If True, modify the duration of an existing event.
     -> Modify -> m ()
-modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
+modify_event_at (block_id, tracknum, pos) zero_dur modify_dur f = do
     direction <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
     dur <- if zero_dur
         then return $ if direction == TimeStep.Advance then 0 else -0
@@ -78,6 +78,7 @@ modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
             step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
             end <- Selection.step_from tracknum pos direction step
             return (end - pos)
+    track_id <- State.get_event_track_at "modify_event_at" block_id tracknum
     (event, created) <- get_event modify_dur track_id pos dur
     -- TODO I could have the modifier take Text, if it were worth it.
     let (val, advance) = f $
@@ -88,12 +89,12 @@ modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
             [(pos, Event.set_string new_text event)]
     when advance Selection.advance
 
-type SelPos = (TrackNum, TrackId, ScoreTime)
+type SelPos = (BlockId, TrackNum, ScoreTime)
 
 get_sel_pos :: (Cmd.M m) => m SelPos
 get_sel_pos = do
-    (_, tracknum, track_id, pos) <- Selection.get_insert
-    return (tracknum, track_id, pos)
+    (block_id, tracknum, _, pos) <- Selection.get_insert
+    return (block_id, tracknum, pos)
 
 lookup_instrument :: (Cmd.M m) => m (Maybe Score.Instrument)
 lookup_instrument = do
