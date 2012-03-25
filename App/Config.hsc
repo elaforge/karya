@@ -107,9 +107,16 @@ step_play_selnum :: Types.SelNum
 play_position_selnum :: Types.SelNum
 
 [ (insert_selnum, _)
-    , _, _ -- I don't do anything with these selections yet.
-    , (error_selnum, error_selection_color)
+    -- Unused.  Secondary select?
+    , _
+    -- Temporary insert point,  to indicate insert position when it's not the
+    -- insert_selnum.
+    , (temporary_insert_selnum, _)
+    -- Highlight errors.
+    , (error_selnum, _)
+    -- Display current play position, managed by updater thread.
     , (play_position_selnum, play_selection_color)
+    -- Display current step play position.
     , (step_play_selnum, _)
     ] = zip [0..] bconfig_selection_colors
 

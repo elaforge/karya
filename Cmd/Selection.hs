@@ -50,11 +50,17 @@ import Types
 set :: (Cmd.M m) => ViewId -> Types.SelNum -> Maybe Types.Selection -> m ()
 set view_id selnum maybe_sel = do
     State.set_selection view_id selnum maybe_sel
-    case maybe_sel of
-        Just sel | Types.sel_is_point sel -> set_subs view_id sel
-        _ -> return ()
-    when (selnum == Config.insert_selnum) $
+    when (selnum == Config.insert_selnum) $ do
+        case maybe_sel of
+            Just sel | Types.sel_is_point sel -> set_subs view_id sel
+            _ -> return ()
         sync_selection view_id maybe_sel
+
+-- | Set a selection in the current view.
+set_current :: (Cmd.M m) => Types.SelNum -> Maybe Types.Selection -> m ()
+set_current selnum maybe_sel = do
+    view_id <- Cmd.get_focused_view
+    set view_id selnum maybe_sel
 
 -- | For point selections, set a play position selection on the equivalent
 -- time in sub-blocks.  This makes it easier to edit the super-block relative

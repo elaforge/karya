@@ -58,9 +58,10 @@ lookup_track_type block_id tracknum = do
     track_tree <- State.get_track_tree block_id
     return $ make_track <$> paths_of track_tree tracknum
 
+-- | Get all the Tracks in a block, sorted by tracknum.
 block_tracks :: (State.M m) => BlockId -> m [Track]
-block_tracks block_id =
-    map make_track . Util.Tree.paths <$> State.get_track_tree block_id
+block_tracks block_id = Seq.sort_on (State.track_tracknum . track_info)
+    . map make_track . Util.Tree.paths <$> State.get_track_tree block_id
 
 make_track :: (State.TrackInfo, [State.TrackInfo], [State.TrackInfo]) -> Track
 make_track (track, parents, children) =

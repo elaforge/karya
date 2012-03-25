@@ -63,7 +63,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
-import qualified Midi.Interface as Interface
 import qualified Midi.Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.State
@@ -344,7 +343,7 @@ reinit_state cstate = cstate
 state_midi_writer :: Instrument.Config -> State -> (Midi.WriteMessage -> IO ())
 state_midi_writer inst_config state (Midi.WriteMessage wdev ts msg) = do
     putStrLn $ "PLAY " ++ Pretty.pretty wdev ++ "->" ++ Pretty.pretty wmsg
-    ok <- Interface.write_message (state_midi_interface state) wmsg
+    ok <- Midi.Interface.write_message (state_midi_interface state) wmsg
     unless ok $ Log.warn $ "error writing " ++ show wmsg
     where
     wmsg = Midi.WriteMessage real_wdev ts msg

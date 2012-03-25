@@ -39,24 +39,45 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
+import qualified App.Config as Config
 import Types
 
+
+-- * raw edit
+
+cmd_raw_edit :: Cmd.Cmd
+cmd_raw_edit msg = do
+    EditUtil.fallthrough msg
+    sel <- EditUtil.get_sel_pos
+    case msg of
+        Msg.InputNote (InputNote.NoteOn _ key _) -> do
+            note <- EditUtil.parse_key key
+            modify_event_at sel False False $ \txt ->
+                (EditUtil.modify_text_note note (Maybe.fromMaybe "" txt),
+                    False)
+        (EditUtil.raw_key -> Just key) ->
+            -- Create a zero length event on a space.  'modify_text_key' will
+            -- eat a lone space, so this is an easy way to create
+            -- a zero-length note.
+            modify_event_at sel (key == Key.Char ' ') False $ \txt ->
+                (EditUtil.modify_text_key key (Maybe.fromMaybe "" txt), False)
+        _ -> Cmd.abort
+    return Cmd.Done
+
+-- * val edit
 
 data NoteTrack = NoteTrack {
     track_note :: TrackNum
     , track_pitch :: TrackNum
     } deriving (Show, Eq)
 
-cmd_raw_edit :: Cmd.Cmd
-cmd_raw_edit = raw_edit
-
 -- | The val edit for note tracks edits its pitch track (possibly creating it
 -- if necessary), and creates a blank event on the note track.  It may also
 -- edit multiple pitch tracks for chords, or record velocity in addition to
 -- pitch.  TODO not implemented yet
 --
--- If I'm in chord mode, try to find the next track.  If there is no
--- appropriate next track, the cmd will throw an error.
+-- If I'm in chord mode, try to find the next track and put notes there.  If
+-- there is no appropriate next track, the cmd will throw an error.
 cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = do
     EditUtil.fallthrough msg
@@ -67,7 +88,11 @@ cmd_val_edit msg = do
                 note <- EditUtil.parse_key key
                 chord_mode <- get_state Cmd.state_chord
                 (ntrack, create) <- if chord_mode
-                    then next_note_track block_id sel_tracknum
+                    then do
+                        (ntrack, create, maybe_next) <-
+                            next_note_track block_id sel_tracknum
+                        set_temp_sel pos maybe_next
+                        return (ntrack, create)
                     else this_note_track block_id sel_tracknum
                 when create $ create_pitch_track block_id ntrack
                 associate_note_id block_id (track_pitch ntrack) note_id
@@ -81,19 +106,20 @@ cmd_val_edit msg = do
                     ("no track for note_id " ++ show note_id)
                     =<< find_pitch_track note_id
                 note <- EditUtil.parse_key key
-                -- If advance is set, the selection will have advanced past
+                -- If advance is set, the selection may have advanced past
                 -- the pitch's position, so look for a previous event.
                 pos <- event_at_or_before track_id pos
                 PitchTrack.val_edit_at (block_id, pitch_tracknum, pos) note
             InputNote.NoteOff note_id _vel -> do
                 dissociate_note_id note_id
-                advance <- andM [get_state Cmd.state_advance,
-                    get_state Cmd.state_chord, all_keys_up]
-                when advance Selection.advance
-            InputNote.Control _ _ _ -> return ()
+                chord_done <- andM [get_state Cmd.state_chord, all_keys_up]
+                when chord_done $ set_temp_sel pos Nothing
+                whenM (andM [return chord_done, get_state Cmd.state_advance])
+                    Selection.advance
+            InputNote.Control {} -> return ()
         (Msg.key_down -> Just Key.Backspace) -> do
             remove_event (block_id, sel_tracknum, pos)
-            -- clear out the pitch track too
+            -- Clear out the pitch track too.
             maybe_pitch <- Info.pitch_of_note block_id sel_tracknum
             when_just maybe_pitch $ \pitch ->
                 remove_event (block_id, State.track_tracknum pitch, pos)
@@ -101,14 +127,14 @@ cmd_val_edit msg = do
         _ -> Cmd.abort
     return Cmd.Done
     where
+    set_temp_sel pos maybe_tracknum = Selection.set_current
+        Config.temporary_insert_selnum $
+            fmap (\num -> Types.point_selection num pos) maybe_tracknum
     dissociate_note_id note_id = Cmd.modify_wdev_state $ \st -> st
         { Cmd.wdev_pitch_track = Map.delete note_id (Cmd.wdev_pitch_track st) }
-
-associate_note_id :: (Cmd.M m) => BlockId -> TrackNum -> InputNote.NoteId
-    -> m ()
-associate_note_id block_id tracknum note_id = Cmd.modify_wdev_state $ \st ->
-    st { Cmd.wdev_pitch_track =
-        Map.insert note_id (block_id, tracknum) (Cmd.wdev_pitch_track st) }
+    associate_note_id block_id tracknum note_id = Cmd.modify_wdev_state $
+        \st -> st { Cmd.wdev_pitch_track =
+            Map.insert note_id (block_id, tracknum) (Cmd.wdev_pitch_track st) }
 
 -- | Find the next available note track.  An available pitch track is one that
 -- is or is on the right of the given track, has either the same instrument or
@@ -117,19 +143,26 @@ associate_note_id block_id tracknum note_id = Cmd.modify_wdev_state $ \st ->
 --
 -- TODO instead of checking for Score.default_inst I should use the environ
 -- to make sure it's actually the same inst.
-next_note_track :: (Cmd.M m) => BlockId -> TrackNum -> m (NoteTrack, Bool)
+next_note_track :: (Cmd.M m) => BlockId -> TrackNum
+    -> m (NoteTrack, Bool, Maybe TrackNum)
+    -- ^ (selected_note_track, should_create, next_note_track)
 next_note_track block_id tracknum = do
     wdev <- Cmd.get_wdev_state
     let associated =
             [tracknum | (_, tracknum) <- Map.elems (Cmd.wdev_pitch_track wdev)]
     tracks <- Info.block_tracks block_id
     inst <- Info.get_instrument_of block_id tracknum
-    case List.find (candidate inst associated) tracks of
-        Nothing -> Cmd.throw $ "no next note track in " ++ show tracks
-        Just track -> should_create_pitch block_id track
+    case List.find (candidate inst associated tracknum) tracks of
+        Nothing -> Cmd.throw $ "no next note track in " ++ show block_id
+        Just track -> do
+            (ntrack, create) <- should_create_pitch block_id track
+            let next = List.find
+                    (candidate inst associated (track_pitch ntrack+1)) tracks
+            return (ntrack, create,
+                State.track_tracknum . Info.track_info <$> next)
     where
-    candidate inst associated (Info.Track track ttype) =
-        State.track_tracknum track >= tracknum
+    candidate inst associated right_of (Info.Track track ttype) =
+        State.track_tracknum track >= right_of
         -- Either no pitch track, or an unassociated one.
         && maybe True (`notElem` associated) pitch_tracknum
         && maybe False (`elem` [inst, Score.default_inst])
@@ -146,7 +179,8 @@ this_note_track block_id tracknum = do
     track <- Info.get_track_type block_id tracknum
     should_create_pitch block_id track
 
-should_create_pitch :: (Cmd.M m) => BlockId -> Info.Track -> m (NoteTrack, Bool)
+should_create_pitch :: (Cmd.M m) => BlockId -> Info.Track
+    -> m (NoteTrack, Bool)
 should_create_pitch block_id track = case Info.track_type track of
     Info.Note Nothing -> return (NoteTrack tracknum (tracknum+1), True)
     Info.Note (Just pitch) ->
@@ -154,8 +188,6 @@ should_create_pitch block_id track = case Info.track_type track of
     ttype -> Cmd.throw $ "expected a note track for "
         ++ show (block_id, tracknum) ++ " but got " ++ show ttype
     where tracknum = State.track_tracknum (Info.track_info track)
-
---
 
 event_at_or_before :: (Cmd.M m) => TrackId -> ScoreTime -> m ScoreTime
 event_at_or_before track_id pos = do
@@ -185,7 +217,7 @@ find_pitch_track note_id = do
             return $ Just (tracknum, track_id)
 
 
--- * cmd_method_edit
+-- * method edit
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = do
@@ -237,25 +269,6 @@ ensure_note_event pos = do
 remove_event :: (Cmd.M m) => EditUtil.SelPos -> m ()
 remove_event selpos =
     EditUtil.modify_event_at selpos False False (const (Nothing, False))
-
-raw_edit :: Cmd.Cmd
-raw_edit msg = do
-    EditUtil.fallthrough msg
-    sel <- EditUtil.get_sel_pos
-    case msg of
-        Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            note <- EditUtil.parse_key key
-            modify_event_at sel False False $ \txt ->
-                (EditUtil.modify_text_note note (Maybe.fromMaybe "" txt),
-                    False)
-        (EditUtil.raw_key -> Just key) ->
-            -- Create a zero length event on a space.  'modify_text_key' will
-            -- eat a lone space, so this is an easy way to create
-            -- a zero-length note.
-            modify_event_at sel (key == Key.Char ' ') False $ \txt ->
-                (EditUtil.modify_text_key key (Maybe.fromMaybe "" txt), False)
-        _ -> Cmd.abort
-    return Cmd.Done
 
 -- | Instruments with the triggered flag set don't pay attention to note off,
 -- so I can make the duration 0.

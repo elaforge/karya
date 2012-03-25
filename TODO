@@ -1,6 +1,6 @@
 UNSORTED
   chord entry
-    - add a "temporary insert" selection to indicate where the chord insert
+    * add a "temporary insert" selection to indicate where the chord insert
       will be next
     * Remove PitchTrack from Cmd.NoteTrackKeymap
     * collapse all ^M should use Cmd.Info
