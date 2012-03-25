@@ -83,10 +83,10 @@ test_set_model_config = do
     -- block config
     io_human "track box turns red" $
         send $ BlockC.set_model_config view
-            (config { Block.config_track_box = (Color.red, ' ') })
+            (config { Block.config_track_box = Block.Box Color.red ' ' })
     io_human "sb box red, gets X" $
         send $ BlockC.set_model_config view
-            (config { Block.config_sb_box = (Color.red, 'X') })
+            (config { Block.config_sb_box = Block.Box Color.red 'X' })
     io_human "block bg turns red" $
         send $ BlockC.set_model_config view
             (config { Block.config_bg_color = Color.red })
