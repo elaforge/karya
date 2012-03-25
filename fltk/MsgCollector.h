@@ -1,5 +1,5 @@
 #include <vector>
-#include <set>
+#include <map>
 
 #include "Block.h"
 #include "Track.h"
@@ -209,5 +209,6 @@ private:
     std::vector<UiMsg> msgs;
 
     // Keep track of which keys are down, to suppress spurious key ups.
-    std::set<int> keys_down;
+    // Map Fl::event_key() to Fl::event_text().
+    std::map<int, int> keys_down;
 };

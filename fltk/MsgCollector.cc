@@ -207,6 +207,10 @@ set_event(UiMsg::Event &e, int evt)
     e.y = Fl::event_y();
     // I originally called tolower() since haskell already knows shift is down,
     // but it's less error-prone to send characters in their correct form.
+    // Arguably this is incorrect since it's keycaps that go up and down, not
+    // text, but it seems easier to talk about ~ than SHIFT+`, especially since
+    // shifted symbols may vary by keymap.  Maybe the proper solution is to
+    // send both key and text.
     e.key = Fl::event_text()[0];
     if (!isprint(e.key)) {
         // shift or backspace or some such
@@ -392,15 +396,20 @@ MsgCollector::push(UiMsg &m)
         // Supppress keyups that have no keydown.  This can happen when focus
         // switches: the focused widget will eat the keydown to switch focus,
         // and whoever gets the focus (Block) will get a lone keyup.
+        int key = Fl::event_key();
         if (m.event.event == FL_KEYDOWN) {
-            if (this->keys_down.find(m.event.key) != keys_down.end())
+            if (keys_down.find(key) != keys_down.end())
                 m.event.is_repeat = true;
             else
-                this->keys_down.insert(m.event.key);
+                keys_down[key] = m.event.key;
         } else if (m.event.event == FL_KEYUP) {
-            if (this->keys_down.find(m.event.key) == this->keys_down.end())
+            if (keys_down.find(key) == keys_down.end())
                 return;
-            this->keys_down.erase(m.event.key);
+            else {
+                // The contents of Fl::event_text() are unreliable for keyups.
+                m.event.key = keys_down[key];
+                keys_down.erase(key);
+            }
         }
     }
     this->msgs.push_back(m);
