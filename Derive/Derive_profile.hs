@@ -227,5 +227,5 @@ track_drop n = second (shift . drop n)
 track_take :: Int -> UiTest.TrackSpec -> UiTest.TrackSpec
 track_take = second . take
 
-midi_config = DeriveTest.make_midi_config
+midi_config = UiTest.midi_config
     [(drop 1 inst1, [0, 1]), (drop 1 inst2, [2])]

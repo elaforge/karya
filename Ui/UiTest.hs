@@ -6,6 +6,7 @@ import Util.Control
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
+import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -23,6 +24,8 @@ import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
+import qualified Derive.Score as Score
+import qualified Perform.Midi.Instrument as Instrument
 import qualified App.Config as Config
 import Types
 
@@ -276,6 +279,17 @@ overlay_ruler ruler = ruler
     , Ruler.ruler_use_alpha = True
     , Ruler.ruler_full_width = True
     }
+
+
+-- * config
+
+set_midi_config :: Instrument.Config -> State.State -> State.State
+set_midi_config = flip exec . State.set_midi_config
+
+midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
+midi_config config = Instrument.config
+    [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
+    where mkaddr chan = (Midi.write_device "s", chan)
 
 
 -- * extract

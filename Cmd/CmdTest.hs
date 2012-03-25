@@ -244,26 +244,18 @@ extract_ui m = extract_state $ \state _ -> UiTest.eval state m
 
 -- * inst db
 
--- TODO see about getting rid of the inst stuff in favor of using the code
--- from DeriveTest
-
 -- | Configure ustate and cstate with the given instruments.
 set_insts :: [String] -> State.State -> Cmd.State -> (State.State, Cmd.State)
-set_insts inst_names ustate cstate =
-    (ustate { State.state_config = set (State.state_config ustate) },
-        cstate { Cmd.state_instrument_db = make_inst_db inst_names })
+set_insts insts ustate cstate =
+    (UiTest.set_midi_config config ustate,
+        cstate { Cmd.state_instrument_db = make_inst_db insts })
     where
-    set config = config { State.config_midi = default_midi_config inst_names }
+    config = UiTest.midi_config [(inst, [chan])
+        | (inst, chan) <- zip insts [0..]]
 
 make_inst_db :: [String] -> Instrument.Db.Db code
 make_inst_db inst_names = Instrument.Db.empty
     { Instrument.Db.db_lookup_midi = make_lookup inst_names }
-
-default_midi_config :: [String] -> Instrument.Config
-default_midi_config inst_names = Instrument.config (zip insts addrs)
-    where
-    insts = map Score.Instrument inst_names
-    addrs = [[(Midi.write_device "synth", chan)] | chan <- [0..]]
 
 make_lookup :: [String] -> MidiDb.LookupMidiInstrument
 make_lookup inst_names _attrs (Score.Instrument inst) =

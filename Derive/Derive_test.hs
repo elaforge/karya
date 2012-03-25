@@ -83,7 +83,6 @@ test_attributes = do
             ]
         keymap = [(Score.attr "km", 42)]
         lookup_inst = DeriveTest.make_lookup_inst [patch]
-        midi_config = DeriveTest.make_midi_config [("s/ks", [0])]
     let res = DeriveTest.derive_tracks
             [ (">s/ks +a1",
                 [(0, 1, "n +a0"), (1, 1, "n +a2"), (2, 1, "n -a1 +km")])
@@ -91,8 +90,8 @@ test_attributes = do
             ]
         attrs = fst $
             DeriveTest.extract (Score.attrs_list . Score.event_attributes) res
-        (_, mmsgs, logs) =
-            DeriveTest.perform lookup_inst midi_config (Derive.r_events res)
+        (_, mmsgs, logs) = DeriveTest.perform lookup_inst
+            (UiTest.midi_config [("s/ks", [0])]) (Derive.r_events res)
 
     -- Attribute inheritance thing works.
     equal attrs [["a0", "a1"], ["a1", "a2"], ["km"]]

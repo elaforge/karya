@@ -461,11 +461,6 @@ mkscale name notes = Scale.Scale
 
 -- * inst
 
-make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
-make_midi_config config = Instrument.config
-    [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
-    where mkaddr chan = (Midi.write_device "s", chan)
-
 default_convert_lookup :: Convert.Lookup
 default_convert_lookup = Convert.Lookup
     default_lookup_scale default_lookup_inst default_lookup_patch
@@ -502,7 +497,7 @@ default_patches =
     ]
 
 default_midi_config :: Instrument.Config
-default_midi_config = make_midi_config [("s/1", [0..2]), ("s/2", [3])]
+default_midi_config = UiTest.midi_config [("s/1", [0..2]), ("s/2", [3])]
 
 default_inst_title = ">s/1"
 
