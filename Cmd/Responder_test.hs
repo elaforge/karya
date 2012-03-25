@@ -43,7 +43,7 @@ test_modify_middle_tempo = do
     let states = ResponderTest.mkstates
             [("tempo", [(0, 0, "1")]), (">i", [(0, 1, ""), (1, 1, "")])]
     res <- ResponderTest.respond_cmd states $
-        State.insert_event (UiTest.mk_tid 0) 1 (Event.event "2" 0)
+        State.insert_event (UiTest.mk_tid 1) 1 (Event.event "2" 0)
     (_, perf) <- ResponderTest.result_perf res
     equal (map Score.event_duration $ LEvent.events_of $ Cmd.perf_events perf)
         [1, 0.5]

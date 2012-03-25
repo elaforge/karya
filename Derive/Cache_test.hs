@@ -98,7 +98,7 @@ test_block_damage = do
 
     -- Plain old event modification works too.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "sub.t0") 0 (Event.event "" 0.5)
+            State.insert_event (UiTest.tid "sub.t1") 0 (Event.event "" 0.5)
     equal (diff_events cached uncached) []
 
 test_logs = do
@@ -110,18 +110,17 @@ test_logs = do
             , ("sub2", [(">", [(0, 1, "")])])
             ]
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid_name "sub2" 0) 1
-                (Event.event "" 1)
+            State.insert_event (UiTest.tid "sub2.t1") 1 (Event.event "" 1)
     -- Make sure errors are still present in the cached output.
     strings_like (r_logs uncached)
         [ "test/sub1 * rederived"
-        , "sub1.t0 * note call not found"
+        , "sub1.t1 * note call not found"
         , "test/sub2 * rederived"
         , "test/top"
         ]
     strings_like (r_logs cached)
         [ "test/sub1 * using cache"
-        , "sub1.t0 * note call not found"
+        , "sub1.t1 * note call not found"
         , "test/sub2 * rederived"
         , "test/top"
         ]
@@ -157,32 +156,32 @@ test_has_score_damage = do
     -- Swap it out for an event of the same size, so the stack is the same,
     -- but it should rederive because of score damage.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "top.t0") 1 (Event.event "sub2" 1)
+            State.insert_event (UiTest.tid "top.t1") 1 (Event.event "sub2" 1)
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t0 0-1: * using cache"
-        , "top.t0 1-2: * rederived * not in cache"
-        , "top.t0 2-3: * using cache"
+        [ "top.t1 0-1: * using cache"
+        , "top.t1 1-2: * rederived * not in cache"
+        , "top.t1 2-3: * using cache"
         , toplevel_rederived True
         ]
 
 test_callee_damage = do
     -- test callee damage: sub-block is damaged, it should be rederived
     let (_, cached, uncached) = compare_cached parent_sub $
-            State.insert_event (UiTest.tid "sub.t0") 0 (Event.event "" 0.5)
+            State.insert_event (UiTest.tid "sub.t1") 0 (Event.event "" 0.5)
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t0 1-3: * rederived * because of block"
-        , "sub.t0 1-2: * using cache"
+        [ "top.t1 1-3: * rederived * because of block"
+        , "sub.t1 1-2: * using cache"
         , toplevel_rederived False
         ]
     -- The cached call to "sub" depends on "sub" and "subsub" transitively.
     equal (r_cache_deps cached)
         [ ("test/top * *",
             Just [UiTest.bid "sub", UiTest.bid "subsub", UiTest.bid "top"])
-        , ("test/top test/top.t0 1-3: test/sub * *",
+        , ("test/top test/top.t1 1-3: test/sub * *",
             Just [UiTest.bid "sub", UiTest.bid "subsub"])
-        , ("test/top test/top.t0 1-3: test/sub test/sub.t0 1-2: "
+        , ("test/top test/top.t1 1-3: test/sub test/sub.t1 1-2: "
                 ++ "test/subsub * *",
             Just [UiTest.bid "subsub"])
         ]
@@ -190,11 +189,11 @@ test_callee_damage = do
 
     -- A change to subsub means the top's "sub" call rederives as well.
     let (_, cached, uncached) = compare_cached parent_sub $
-            State.insert_event (UiTest.tid "subsub.t0") 0 (Event.event "" 0.5)
+            State.insert_event (UiTest.tid "subsub.t1") 0 (Event.event "" 0.5)
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t0 1-3: * rederived * sub-block damage"
-        , "sub.t0 1-2: * rederived * block damage"
+        [ "top.t1 1-3: * rederived * sub-block damage"
+        , "sub.t1 1-2: * rederived * block damage"
         , toplevel_rederived False
         ]
 
@@ -217,7 +216,7 @@ test_collect = do
             State.set_render_style Track.Line (UiTest.tid "sub.t1")
             return bid
     let (_, cached, _) = compare_cached create $
-            State.insert_event (UiTest.tid "top.t0") 1 (Event.event "" 1)
+            State.insert_event (UiTest.tid "top.t1") 1 (Event.event "" 1)
     -- pprint (r_cache_collect cached)
     let root : _ = r_cache_collect cached
     let tsig = Right $ Track.TrackSignal (Signal.signal [(0, 1)]) 0 1 Nothing
@@ -233,14 +232,14 @@ test_collect = do
         track tid = Right (UiTest.tid tid)
     equal (extract root) ("test/top * *", Just $
         ( [ ("test/top * *", tw 0 2 "top")
-          , ("test/top test/top.t0 *", track "top.t0")
-          , ("test/top test/top.t0 0-1: test/sub * *", tw 0 1 "sub")
-          , ("test/top test/top.t0 0-1: test/sub test/sub.t0 *",
-            track "sub.t0")
-          , ("test/top test/top.t0 0-1: test/sub test/sub.t1 *",
+          , ("test/top test/top.t1 *", track "top.t1")
+          , ("test/top test/top.t1 0-1: test/sub * *", tw 0 1 "sub")
+          , ("test/top test/top.t1 0-1: test/sub test/sub.t1 *",
             track "sub.t1")
+          , ("test/top test/top.t1 0-1: test/sub test/sub.t2 *",
+            track "sub.t2")
           ]
-        , Map.fromList [(UiTest.tid "sub.t1", tsig)]
+        , Map.fromList [(UiTest.tid "sub.t2", tsig)]
         , mk_gdep ["top", "sub"]
         ))
 
@@ -253,8 +252,7 @@ test_sliced_score_damage = do
             UiTest.mkblocks_skel blocks
             return $ UiTest.bid "b9"
     let (_prev, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid_name "b9" 2)
-                4 (Event.event "7c" 0)
+            State.insert_event (UiTest.tid "b9.t2") 4 (Event.event "7c" 0)
     equal (diff_events cached uncached) []
     -- pslist $ map Pretty.pretty (r_cache_stacks prev)
     where
@@ -274,8 +272,7 @@ test_sliced_control_damage = do
     -- sliced and shifted.
     let create = UiTest.mkblocks_skel blocks >> return (UiTest.bid "top")
     let (_prev, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid_name "top" 0)
-                6 (Event.event "0" 0)
+            State.insert_event (UiTest.tid "top.t1") 6 (Event.event "0" 0)
     equal (diff_events cached uncached) []
     strings_like (r_logs cached)
         [ "test/sub * control damage"
@@ -309,32 +306,32 @@ test_control_damage = do
 
     -- the modification is out of range, so the caches are reused
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "top.t0") 2 (Event.event "0" 0)
+            State.insert_event (UiTest.tid "top.t1") 2 (Event.event "0" 0)
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t1 0-1: * using cache"
-        , "top.t1 1-2: * using cache"
+        [ "top.t2 0-1: * using cache"
+        , "top.t2 1-2: * using cache"
         , toplevel_rederived True
         ]
 
     -- only the  affected event is rederived
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "top.t0") 1 (Event.event ".5" 0)
+            State.insert_event (UiTest.tid "top.t1") 1 (Event.event ".5" 0)
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t1 0-1: * using cache"
-        , "top.t1 1-2: * control damage"
+        [ "top.t2 0-1: * using cache"
+        , "top.t2 1-2: * control damage"
         , toplevel_rederived True
         ]
 
     -- if the change damages a greater control area, it should affect the
     -- event
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "top.t0") 0 (Event.event ".5" 0)
+            State.insert_event (UiTest.tid "top.t1") 0 (Event.event ".5" 0)
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t1 0-1: * control damage"
-        , "top.t1 1-2: * control damage"
+        [ "top.t2 0-1: * control damage"
+        , "top.t2 1-2: * control damage"
         , toplevel_rederived True
         ]
 
@@ -358,13 +355,13 @@ test_get_control_damage = do
         let set c = c { Derive.state_score_damage = score_damage }
         Derive.modify $ \st ->
             st { Derive.state_constant = set (Derive.state_constant st) }
-        Cache.get_control_damage (UiTest.mk_tid 0) range
+        Cache.get_control_damage (UiTest.mk_tid 1) range
     extract = DeriveTest.extract_run $
         \(Derive.ControlDamage r) -> Ranges.extract r
     run events d = extract $ DeriveTest.run
         (snd (UiTest.run_mkblock [("cont", events)])) d
     mkdamage s e = Derive.ScoreDamage
-        (Map.singleton (UiTest.mk_tid 0) (Ranges.range s e))
+        (Map.singleton (UiTest.mk_tid 1) (Ranges.range s e))
         mempty mempty
 
 test_inverted_control_damage = do
@@ -378,20 +375,20 @@ test_inverted_control_damage = do
 
     -- only the  affected event is rederived
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "top.t1") 1 (Event.event ".5" 0)
+            State.insert_event (UiTest.tid "top.t2") 1 (Event.event ".5" 0)
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t0 0-1: * using cache"
+        [ "top.t1 0-1: * using cache"
         -- This is "invalidated" instead of "control damage" for subtle
-        -- reasons.  Since t1 is inverted below t0, the cache entry is
-        -- [t0, 1-2, t1, 1-2].  Since the damage is at [t1, 1-1],
+        -- reasons.  Since t2 is inverted below t1, the cache entry is
+        -- [t1, 1-2, t2, 1-2].  Since the damage is at [t2, 1-1],
         -- Derive.clear_damage will match and kill it.  Ultimately this is
-        -- because t0 is in the stack as depending on t1 via a calling
-        -- relationship, while if t1 were above t0 there is no such direct
+        -- because t1 is in the stack as depending on t2 via a calling
+        -- relationship, while if t2 were above t1 there is no such direct
         -- relationship and ControlDamage is needed.
         --
         -- Wow.
-        , "top.t0 1-2: * score damage"
+        , "top.t1 1-2: * score damage"
         , toplevel_rederived True
         ]
 
@@ -405,14 +402,13 @@ test_tempo_damage = do
                 [ (">i", [(0, 1, "")]) ])
             ]
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid_name "top" 0) 1
-                (Event.event "2" 0)
+            State.insert_event (UiTest.tid "top.t1") 1 (Event.event "2" 0)
     equal (diff_events cached uncached) []
     -- first is cached, second and third are not
     strings_like (r_cache_logs cached)
-        [ "top.t1 0-1: * using cache"
-        , "top.t1 1-2: * control damage"
-        , "top.t1 2-3: * control damage"
+        [ "top.t2 0-1: * using cache"
+        , "top.t2 1-2: * control damage"
+        , "top.t2 2-3: * control damage"
         , toplevel_rederived True
         ]
 
@@ -424,7 +420,7 @@ test_extend_tempo_damage = do
             , ("modulation", [(0, 1, "0")])
             ])]
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid 0) 1 (Event.event "2" 0)
+            State.insert_event (UiTest.mk_tid 1) 1 (Event.event "2" 0)
     equal (diff_events cached uncached) []
 
 test_damage_to_real_to_score = do
@@ -433,7 +429,7 @@ test_damage_to_real_to_score = do
             UiTest.mkblocks_skel state
             return (UiTest.bid "order")
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "order.t0") 67 (Event.event "5" 0)
+            State.insert_event (UiTest.tid "order.t1") 67 (Event.event "5" 0)
     equal (diff_events cached uncached) []
     let (events, logs) = DeriveTest.extract Score.event_start cached
     equal (length events) 2

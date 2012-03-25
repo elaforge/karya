@@ -56,11 +56,11 @@ test_two = do
     evaluated <- get_log log
     -- 4+1 extra because it has to evaluate one in advance to know how to merge
     equal evaluated
-        [ "b1 b1.t0 0-1 note at: 0s"
-        , "b1 b1.t1 0-1 note at: 0s"
-        , "b1 b1.t0 1-2 note at: 1s"
+        [ "b1 b1.t1 0-1 note at: 0s"
+        , "b1 b1.t2 0-1 note at: 0s"
+        , "b1 b1.t1 1-2 note at: 1s"
+        , "b1 b1.t2 2-3 note at: 2s"
         , "b1 b1.t1 2-3 note at: 2s"
-        , "b1 b1.t0 2-3 note at: 2s"
         ]
 
 test_control = do
@@ -121,7 +121,7 @@ test_cache = do
     equal evaluated []
 
     (log, res2) <- derive (Derive.r_cache res1)
-        (DeriveTest.make_damage "top" 0 1 3)
+        (DeriveTest.make_damage "top" 1 1 3)
     print $ take 1 $ extract_start res2
     -- Only the first damaged event was rederived.
     evaluated <- get_log log
@@ -149,7 +149,7 @@ test_everything = do
         ["Error: note call not found: bad"]
     evaluated <- get_log log
     equal evaluated
-        ["b1 b1.t1 0-1 note at: 0s", "sub sub.t0 0-1 note at: 2s"]
+        ["b1 b1.t2 0-1 note at: 0s", "sub sub.t1 0-1 note at: 2s"]
 
 perform :: Derive.Result -> [Either DeriveTest.Midi String]
 perform result = map (LEvent.either Left (Right . DeriveTest.show_log)) $
@@ -166,7 +166,7 @@ test_track_signal = do
             , (">", [(0, 1, "")])
             ]
     (log, res) <- derive_block ustate
-    let t1_derived = length . filter ("b1.t1" `List.isInfixOf`) <$> get_log log
+    let t1_derived = length . filter ("b1.t2" `List.isInfixOf`) <$> get_log log
     -- force just the events
     print (DeriveTest.extract Score.event_controls res)
     io_equal t1_derived 1

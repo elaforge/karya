@@ -58,11 +58,11 @@ test_basic = do
     equal logs []
     where
     mkstack (s, e) = Stack.from_outermost
-        [ Stack.Block (UiTest.bid "b1")
-        , Stack.Track (UiTest.tid "b1.t0")
+        [ Stack.Block UiTest.default_block_id
+        , Stack.Track (UiTest.mk_tid 1)
         -- track title and event for note track
         , Stack.Call "note-track", Stack.Region s e, Stack.Call "note"
-        , Stack.Track (UiTest.tid "b1.t1")
+        , Stack.Track (UiTest.mk_tid 2)
         -- inverted note track has no note-track Call for ">"
         , Stack.Region s e, Stack.Call "note"
         ]
@@ -113,17 +113,17 @@ test_stack = do
             , ("sub", [(">", [(0, 1, ""), (1, 1, "")])])
             ]
     let block = Stack.Block . UiTest.bid
-        track = Stack.Track . UiTest.tid
+        track name num = Stack.Track (UiTest.mk_tid_name name num)
         call = Stack.Call
     equal (map (map Stack.unparse_ui_frame . Stack.to_ui) stacks)
-        [ ["test/b0 test/b0.t0 0-1"]
-        , ["test/b0 test/b0.t0 1-2", "test/sub test/sub.t0 0-1"]
-        , ["test/b0 test/b0.t0 1-2", "test/sub test/sub.t0 1-2"]
+        [ ["test/b0 test/b0.t1 0-1"]
+        , ["test/b0 test/b0.t1 1-2", "test/sub test/sub.t1 0-1"]
+        , ["test/b0 test/b0.t1 1-2", "test/sub test/sub.t1 1-2"]
         ]
 
-    let b0 s e = [block "b0", track "b0.t0", call "note-track",
+    let b0 s e = [block "b0", track "b0" 1, call "note-track",
             Stack.Region s e]
-        sub s e = [block "sub", track "sub.t0", Stack.Region s e, call "note"]
+        sub s e = [block "sub", track "sub" 1, Stack.Region s e, call "note"]
     equal stacks $ map Stack.from_outermost
         [ b0 0 1 ++ [Stack.Call "note"]
         , b0 1 2 ++ sub 0 1
@@ -144,10 +144,10 @@ test_track_environ = do
     let inst = Just $ TrackLang.VInstrument $ Score.Instrument "i1"
         scale = Just $ TrackLang.VScaleId $ Pitch.ScaleId "semar"
     equal (extract res)
-        [ (UiTest.bid "b", UiTest.tid "b.t0", scale, Nothing)
-        , (UiTest.bid "b", UiTest.tid "b.t1", scale, inst)
-        , (UiTest.bid "sub", UiTest.tid "sub.t0", scale, inst)
+        [ (UiTest.bid "b", UiTest.tid "b.t1", scale, Nothing)
+        , (UiTest.bid "b", UiTest.tid "b.t2", scale, inst)
         , (UiTest.bid "sub", UiTest.tid "sub.t1", scale, inst)
+        , (UiTest.bid "sub", UiTest.tid "sub.t2", scale, inst)
         ]
 
 test_simple_subderive = do
@@ -180,7 +180,7 @@ test_subderive = do
     strings_like (map DeriveTest.show_log msgs) ["call not found: nosuch"]
 
     equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
-        ["test/b0 test/b0.t1 0-1"]
+        ["test/b0 test/b0.t2 0-1"]
 
     let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
         (events, msgs) = DeriveTest.r_split res
@@ -190,9 +190,9 @@ test_subderive = do
         (map (Just . Score.Instrument) ["i1", "i2", "i1"])
     equal msgs []
 
-    let b0 pos = (UiTest.bid "b0",
-            [(UiTest.tid "b0.t0", pos), (UiTest.tid "b0.t1", pos)])
-        sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", pos)])
+    let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos),
+            (UiTest.mk_tid_name "b0" 2, pos)])
+        sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
     equal (map (inv_tempo res) [0, 2 .. 10])
         [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16], []]
 
@@ -261,8 +261,8 @@ test_multiple_subderive = do
         (replicate 3 (Just (Score.Instrument "i1")))
 
     let pos = map (inv_tempo res) [0..6]
-    let b0 pos = (UiTest.bid "b0", [(UiTest.tid "b0.t0", pos)])
-        sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", pos)])
+    let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos)])
+        sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
     equal (map List.sort pos)
         [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0], [b0 3, sub 0.5]
         , [b0 4, sub 0], [b0 5, sub 0.5], []
@@ -468,7 +468,7 @@ test_tempo_funcs_multiple_subblocks = do
             [ ("parent", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
             , ("sub", [(">i", [(0, 1, "")])])
             ]
-    equal (r_tempo res (UiTest.bid "sub") (UiTest.tid "sub.t0") 0.5)
+    equal (r_tempo res (UiTest.bid "sub") (UiTest.tid "sub.t1") 0.5)
         [0.5, 1.5]
 
 test_fractional_pitch = do

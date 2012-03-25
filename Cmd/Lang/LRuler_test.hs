@@ -25,7 +25,7 @@ test_extract = do
                 [MakeRuler.meter_ruler 1 $ MakeRuler.repeat 4 (MakeRuler.T 1)]
             Create.new_ruler b2 "r.b2" $ MakeRuler.ruler
                 [MakeRuler.meter_ruler 1 $ MakeRuler.repeat 3 (MakeRuler.T 1)]
-            return (top, UiTest.mk_tid_block top 0)
+            return (top, UiTest.mk_tid_block top 1)
     let extract = e_ruler bid
     equal (extract ui_state) Nothing
     let res = CmdTest.run_ui ui_state $ LRuler.extract_from bid tid

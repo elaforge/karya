@@ -20,7 +20,7 @@ import qualified Cmd.Undo as Undo
 test_undo = do
     let extract_ui res = [c | (_, _, c:_) <- tracks]
             where [(">", tracks)] = UiTest.extract_tracks (e_ui res)
-        tid = UiTest.mk_tid 0
+        tid = UiTest.mk_tid 1
         track_updates from to events =
             [Update.TrackUpdate tid (Update.TrackEvents from to
                 (Events.from_list events))]
@@ -65,7 +65,7 @@ test_undo_merge = do
     res1 <- ResponderTest.respond_cmd states $ do
         State.set_namespace (Id.unsafe_namespace "oogabooga")
         State.set_view_rect vid $ Rect.xywh 40 40 100 100
-        State.insert_event (UiTest.mk_tid 0) 0 (Event.event "z" 1)
+        State.insert_event (UiTest.mk_tid 1) 0 (Event.event "z" 1)
     res2 <- ResponderTest.respond_cmd (ResponderTest.result_states res1)
         Undo.undo
 

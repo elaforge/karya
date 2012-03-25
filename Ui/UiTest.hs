@@ -130,7 +130,8 @@ mkblock_ruler :: (State.M m) => RulerId -> BlockSpec -> m [TrackId]
 mkblock_ruler ruler_id (block_name, tracks) = do
     let block_id = bid block_name
     State.set_namespace test_ns
-    tids <- forM (zip [0..] tracks) $ \(i, track) ->
+    -- Start at 1 because track 0 is the ruler.
+    tids <- forM (zip [1..] tracks) $ \(i, track) ->
         State.create_track (Id.unpack_id (mk_tid_block block_id i))
             (make_track track)
     State.create_block (Id.unpack_id block_id) $ make_block "b1 title"
