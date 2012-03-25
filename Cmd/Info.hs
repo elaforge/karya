@@ -80,6 +80,24 @@ track_type_of track parents children
     is_pitch = TrackInfo.is_pitch_track . State.track_title
     is_note = TrackInfo.is_note_track . State.track_title
 
+-- ** specialized lookups
+
+-- | Pitch track of a note track, if any.
+pitch_of_note :: (State.M m) => BlockId -> TrackNum -> m (Maybe State.TrackInfo)
+pitch_of_note block_id tracknum = do
+    maybe_track <- lookup_track_type block_id tracknum
+    return $ case maybe_track of
+        Just (Track _ (Note pitch)) -> pitch
+        _ -> Nothing
+
+-- | Note track of a pitch track, if any.
+note_of_pitch :: (State.M m) => BlockId -> TrackNum -> m (Maybe State.TrackInfo)
+note_of_pitch block_id tracknum = do
+    maybe_track <- lookup_track_type block_id tracknum
+    return $ case maybe_track of
+        Just (Track _ (Pitch note)) -> note
+        _ -> Nothing
+
 
 -- * misc
 

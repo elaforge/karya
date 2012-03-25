@@ -13,19 +13,10 @@ import qualified Ui.Track
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
-import qualified Cmd.Track as Track
 
 import qualified Derive.TrackInfo as TrackInfo
 import Types
 
-
-get_type :: BlockId -> TrackNum -> Cmd.CmdL Track.TrackType
-get_type block_id tracknum = do
-    track_tree <- State.get_track_tree block_id
-    maybe err return (Track.get_track_type track_tree tracknum)
-    where
-    err = Cmd.throw $ "can't get track type for " ++ show block_id
-        ++ " at " ++ show tracknum
 
 -- | Remove tracks with no events from the given block.
 remove_empty :: BlockId -> Cmd.CmdL ()

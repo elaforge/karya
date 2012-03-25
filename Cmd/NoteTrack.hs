@@ -42,14 +42,6 @@ import qualified Instrument.MidiDb as MidiDb
 import Types
 
 
--- | Indicate the pitch track of a note track, or how to create one if
--- necessary.
-data PitchTrack =
-    -- | Create a pitch track with (note_tracknum, pitch_tracknum).
-    CreateTrack TrackNum TrackNum
-    | ExistingTrack TrackNum TrackId
-    deriving (Show, Eq)
-
 data NoteTrack = NoteTrack {
     track_note :: TrackNum
     , track_pitch :: TrackNum
@@ -102,11 +94,9 @@ cmd_val_edit msg = do
         (Msg.key_down -> Just Key.Backspace) -> do
             remove_event (block_id, sel_tracknum, pos)
             -- clear out the pitch track too
-            maybe_track <- Info.lookup_track_type block_id sel_tracknum
-            case maybe_track of
-                Just (Info.Track _ (Info.Note (Just pitch))) ->
-                    remove_event (block_id, State.track_tracknum pitch, pos)
-                _ -> return ()
+            maybe_pitch <- Info.pitch_of_note block_id sel_tracknum
+            when_just maybe_pitch $ \pitch ->
+                remove_event (block_id, State.track_tracknum pitch, pos)
             Selection.advance
         _ -> Cmd.abort
     return Cmd.Done

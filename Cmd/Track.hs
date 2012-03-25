@@ -14,7 +14,6 @@ import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Instrument.MidiDb as MidiDb
 import Types
 
@@ -31,8 +30,8 @@ get_track_cmds = do
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
     maybe_track_id <- State.event_track_at block_id tracknum
-    track_tree <- State.get_track_tree =<< Cmd.get_focused_block
-    track_type <- Cmd.require $ get_track_type track_tree tracknum
+    track_type <- Info.track_type <$>
+        (Cmd.require =<< Info.lookup_track_type block_id tracknum)
 
     icmds <- maybe [] id <$> case maybe_track_id of
         Just track_id -> lookup_instrument_cmds block_id track_id
@@ -61,13 +60,13 @@ lookup_instrument_cmds block_id track_id =
 
 -- | Cmds that use InputNotes, and hence must be called with
 -- 'NoteEntry.cmds_with_note'.
-with_note_cmds :: Cmd.EditMode -> TrackType -> [Cmd.Cmd]
+with_note_cmds :: Cmd.EditMode -> Info.TrackType -> [Cmd.Cmd]
 with_note_cmds edit_mode track_type = universal ++ case track_type of
-    NoteTrack _ -> case edit_mode of
+    Info.Note {} -> case edit_mode of
         Cmd.RawEdit -> [NoteTrack.cmd_raw_edit]
         Cmd.ValEdit -> [NoteTrack.cmd_val_edit]
         _ -> []
-    PitchTrack -> case edit_mode of
+    Info.Pitch {} -> case edit_mode of
         Cmd.RawEdit -> [PitchTrack.cmd_raw_edit]
         Cmd.ValEdit -> [PitchTrack.cmd_val_edit]
         _ -> []
@@ -76,60 +75,25 @@ with_note_cmds edit_mode track_type = universal ++ case track_type of
     universal = [PitchTrack.cmd_record_note_status, MidiThru.cmd_midi_thru]
 
 -- | Track-specific Cmds.
-track_cmds :: Cmd.EditMode -> TrackType -> [Cmd.Cmd]
+track_cmds :: Cmd.EditMode -> Info.TrackType -> [Cmd.Cmd]
 track_cmds edit_mode track_type = case track_type of
-    NoteTrack _ -> case edit_mode of
+    Info.Note {} -> case edit_mode of
         Cmd.MethodEdit -> [NoteTrack.cmd_method_edit]
         _ -> []
-    PitchTrack -> case edit_mode of
+    Info.Pitch {} -> case edit_mode of
         Cmd.MethodEdit -> [PitchTrack.cmd_method_edit]
         _ -> []
-    ControlTrack -> case edit_mode of
+    Info.Control {} -> case edit_mode of
         Cmd.NoEdit -> []
         Cmd.RawEdit -> [ControlTrack.cmd_raw_edit]
         Cmd.ValEdit -> [ControlTrack.cmd_val_edit]
         Cmd.MethodEdit -> [ControlTrack.cmd_method_edit]
 
 -- | Track-specific keymaps.
-keymap_cmds :: (Cmd.M m) => TrackType -> m [Cmd.Cmd]
+keymap_cmds :: (Cmd.M m) => Info.TrackType -> m [Cmd.Cmd]
 keymap_cmds track_type = case track_type of
-    NoteTrack ptrack -> do
-        let (cmd_map, warns) = NoteTrackKeymap.make_keymap ptrack
+    Info.Note {} -> do
+        let (cmd_map, warns) = NoteTrackKeymap.make_keymap
         forM_ warns $ \warn -> Log.warn $ "NoteTrackKeymap: " ++ warn
         return [Keymap.make_cmd cmd_map]
     _ -> return []
-
--- * track type
-
--- | Describe the type of a single track.  This is used to figure out what set
--- of cmds should apply to a given track.
-data TrackType =
-    -- | NoteTrack is paired with the first pitch track found for it.
-    NoteTrack NoteTrack.PitchTrack | PitchTrack | ControlTrack
-    deriving (Show, Eq)
-
--- | Find the type of a track.
-get_track_type :: State.TrackTree -> TrackNum -> Maybe TrackType
-get_track_type track_tree tracknum = case Info.paths_of track_tree tracknum of
-    Nothing -> Nothing
-    Just (track, parents, children) ->
-        Just (track_type_of track parents children)
-
-track_type_of :: State.TrackInfo -> [State.TrackInfo] -> [State.TrackInfo]
-    -> TrackType
-track_type_of (State.TrackInfo title _ tracknum) parents children
-    | TrackInfo.is_note_track title = NoteTrack pitch_track
-    | otherwise = case TrackInfo.parse_control title of
-        Right (TrackInfo.Control _ _) -> ControlTrack
-        Right (TrackInfo.Pitch _ _) -> PitchTrack
-        -- Default to a control track if it's unparseable.
-        _ -> ControlTrack
-    where
-    pitch_track = case msum (map is_pitch (children ++ parents)) of
-        Just pair -> pair
-        Nothing -> NoteTrack.CreateTrack tracknum (tracknum+1)
-    is_pitch track = case TrackInfo.parse_control (State.track_title track) of
-        Right (TrackInfo.Pitch _ _) ->
-            Just $ NoteTrack.ExistingTrack (State.track_tracknum track)
-                (State.track_id track)
-        _ -> Nothing

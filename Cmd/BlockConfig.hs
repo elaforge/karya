@@ -15,10 +15,10 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
-import qualified Cmd.Track as Track
 import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified App.Config as Config
@@ -53,18 +53,12 @@ clicked_track msg = case (Msg.mouse_down msg, Msg.context_track msg) of
 -- unmerge them all.
 toggle_merge_all :: (State.M m) => BlockId -> m ()
 toggle_merge_all block_id = do
-    tree <- State.get_track_tree block_id
-    tracks <- State.tracks block_id
-    let collapse = Maybe.mapMaybe (collapsable tree) [0..tracks-1]
-    let merged b (tracknum, _) = (b &&) <$> track_merged block_id tracknum
-    ifM (foldM merged True collapse)
-        (mapM_ (State.unmerge_track block_id) (map fst collapse))
-        (mapM_ (uncurry (State.merge_track block_id)) collapse)
-    where
-    collapsable tree tracknum = case Track.get_track_type tree tracknum of
-        Just (Track.NoteTrack (NoteTrack.ExistingTrack pitch_tracknum _)) ->
-            Just (tracknum, pitch_tracknum)
-        _ -> Nothing
+    tracks <- Info.block_tracks block_id
+    let note_pitches = [(State.track_tracknum note, State.track_tracknum pitch)
+            | Info.Track note (Info.Note (Just pitch)) <- tracks]
+    ifM (andM [track_merged block_id tracknum | (tracknum, _) <- note_pitches])
+        (mapM_ (State.unmerge_track block_id) (map fst note_pitches))
+        (mapM_ (uncurry (State.merge_track block_id)) note_pitches)
 
 track_merged :: (State.M m) => BlockId -> TrackNum -> m Bool
 track_merged block_id tracknum =
