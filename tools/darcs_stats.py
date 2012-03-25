@@ -48,7 +48,7 @@ def parse_whatsnew(lines):
                 print 'no match', repr(line)
             continue
         path = os.path.normpath(m.groups()[0])
-        if path == 'TODO':
+        if path.endswith('TODO'):
             continue # not actually code changes
         dir = os.path.dirname(path) or '.'
 
