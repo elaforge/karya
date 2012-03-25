@@ -63,14 +63,14 @@ type Modify = Maybe String
 
 modify_event :: (Cmd.M m) => Bool -> Bool -> Modify -> m ()
 modify_event zero_dur modify_dur f = do
-    sel <- get_sel_pos
-    modify_event_at sel zero_dur modify_dur f
+    pos <- Selection.get_insert_pos
+    modify_event_at pos zero_dur modify_dur f
 
-modify_event_at :: (Cmd.M m) => SelPos
+modify_event_at :: (Cmd.M m) => State.Pos
     -> Bool -- ^ Created event has 0 dur, otherwise until next time step.
     -> Bool -- ^ If True, modify the duration of an existing event.
     -> Modify -> m ()
-modify_event_at (block_id, tracknum, pos) zero_dur modify_dur f = do
+modify_event_at (State.Pos block_id tracknum pos) zero_dur modify_dur f = do
     direction <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
     dur <- if zero_dur
         then return $ if direction == TimeStep.Advance then 0 else -0
@@ -88,13 +88,6 @@ modify_event_at (block_id, tracknum, pos) zero_dur modify_dur f = do
         Just new_text -> State.insert_events track_id
             [(pos, Event.set_string new_text event)]
     when advance Selection.advance
-
-type SelPos = (BlockId, TrackNum, ScoreTime)
-
-get_sel_pos :: (Cmd.M m) => m SelPos
-get_sel_pos = do
-    (block_id, tracknum, _, pos) <- Selection.get_insert
-    return (block_id, tracknum, pos)
 
 lookup_instrument :: (Cmd.M m) => m (Maybe Score.Instrument)
 lookup_instrument = do

@@ -60,6 +60,8 @@ import qualified App.Config as Config
 import Types
 
 
+-- * types
+
 data State = State {
     state_views :: Map.Map ViewId Block.View
     , state_blocks :: Map.Map BlockId Block.Block
@@ -110,6 +112,26 @@ initial_default = Default {
     , default_tempo = 1
     }
 
+-- | Address a position on a track.  Usually functions take the parameters
+-- separately, but this is more convenient when a position is passed around.
+data Pos = Pos !BlockId !TrackNum !ScoreTime
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Pos where
+    pretty (Pos block_id tracknum pos) = Pretty.pretty block_id ++ "/"
+        ++ show tracknum ++ "/" ++ Pretty.pretty pos
+
+-- | Address a track in a block.  This is similar to a TrackId, except it
+-- doesn't guarantee that the track is an event track.
+data Track = Track !BlockId !TrackNum
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Track where
+    pretty (Track block_id tracknum) =
+        Pretty.pretty block_id ++ "/" ++ show tracknum
+
+-- * constants
+
 -- | Since all TracklikeIds must have a ruler, all States have a special empty
 -- ruler that can be used in a \"no ruler\" situation.
 --
@@ -123,7 +145,7 @@ no_ruler = Types.RulerId (Id.global "-no-ruler-")
 no_ruler_track :: Block.Track
 no_ruler_track = Block.track (Block.RId no_ruler) 0
 
--- * StateT monadic access
+-- * StateT monad
 
 -- | Run the given StateT with the given initial state, and return a new
 -- state along with updates.  Normally updates are produced by 'Ui.Diff.diff',

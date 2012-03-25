@@ -48,18 +48,18 @@ import Types
 cmd_raw_edit :: Cmd.Cmd
 cmd_raw_edit msg = do
     EditUtil.fallthrough msg
-    sel <- EditUtil.get_sel_pos
+    pos <- Selection.get_insert_pos
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key key
-            modify_event_at sel False False $ \txt ->
+            modify_event_at pos False False $ \txt ->
                 (EditUtil.modify_text_note note (Maybe.fromMaybe "" txt),
                     False)
         (EditUtil.raw_key -> Just key) ->
             -- Create a zero length event on a space.  'modify_text_key' will
             -- eat a lone space, so this is an easy way to create
             -- a zero-length note.
-            modify_event_at sel (key == Key.Char ' ') False $ \txt ->
+            modify_event_at pos (key == Key.Char ' ') False $ \txt ->
                 (EditUtil.modify_text_key key (Maybe.fromMaybe "" txt), False)
         _ -> Cmd.abort
     return Cmd.Done
@@ -97,8 +97,9 @@ cmd_val_edit msg = do
                 when create $ create_pitch_track block_id ntrack
                 associate_note_id block_id (track_pitch ntrack) note_id
                 -- TODO if I can find a vel track, put the vel there
-                PitchTrack.val_edit_at (block_id, track_pitch ntrack, pos) note
-                ensure_note_event (block_id, track_note ntrack, pos)
+                PitchTrack.val_edit_at
+                    (State.Pos block_id (track_pitch ntrack) pos) note
+                ensure_note_event (State.Pos block_id (track_note ntrack) pos)
                 advance_mode <- get_state Cmd.state_advance
                 when (advance_mode && not chord_mode) Selection.advance
             InputNote.PitchChange note_id key -> do
@@ -109,7 +110,8 @@ cmd_val_edit msg = do
                 -- If advance is set, the selection may have advanced past
                 -- the pitch's position, so look for a previous event.
                 pos <- event_at_or_before track_id pos
-                PitchTrack.val_edit_at (block_id, pitch_tracknum, pos) note
+                PitchTrack.val_edit_at
+                    (State.Pos block_id pitch_tracknum pos) note
             InputNote.NoteOff note_id _vel -> do
                 dissociate_note_id note_id
                 chord_done <- andM [get_state Cmd.state_chord, all_keys_up]
@@ -118,11 +120,12 @@ cmd_val_edit msg = do
                     Selection.advance
             InputNote.Control {} -> return ()
         (Msg.key_down -> Just Key.Backspace) -> do
-            remove_event (block_id, sel_tracknum, pos)
+            remove_event (State.Pos block_id sel_tracknum pos)
             -- Clear out the pitch track too.
             maybe_pitch <- Info.pitch_of_note block_id sel_tracknum
             when_just maybe_pitch $ \pitch ->
-                remove_event (block_id, State.track_tracknum pitch, pos)
+                remove_event
+                    (State.Pos block_id (State.track_tracknum pitch) pos)
             Selection.advance
         _ -> Cmd.abort
     return Cmd.Done
@@ -227,8 +230,9 @@ cmd_method_edit msg = do
             (block_id, tracknum, _, pos) <- Selection.get_insert
             (ntrack, create) <- this_note_track block_id tracknum
             when create $ create_pitch_track block_id ntrack
-            PitchTrack.method_edit_at (block_id, track_pitch ntrack, pos) key
-            ensure_note_event (block_id, track_note ntrack, pos)
+            PitchTrack.method_edit_at
+                (State.Pos block_id (track_pitch ntrack) pos) key
+            ensure_note_event (State.Pos block_id (track_note ntrack) pos)
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -260,15 +264,15 @@ create_pitch_track block_id (NoteTrack note pitch) = do
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.
-ensure_note_event :: (Cmd.M m) => EditUtil.SelPos -> m ()
+ensure_note_event :: (Cmd.M m) => State.Pos -> m ()
 ensure_note_event pos = do
     txt <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
     modify_event_at pos False False $
         maybe (Just txt, False) (\old -> (Just old, False))
 
-remove_event :: (Cmd.M m) => EditUtil.SelPos -> m ()
-remove_event selpos =
-    EditUtil.modify_event_at selpos False False (const (Nothing, False))
+remove_event :: (Cmd.M m) => State.Pos -> m ()
+remove_event pos =
+    EditUtil.modify_event_at pos False False (const (Nothing, False))
 
 -- | Instruments with the triggered flag set don't pay attention to note off,
 -- so I can make the duration 0.
@@ -278,11 +282,11 @@ triggered_inst (Just inst) =
     maybe False (Instrument.has_flag Instrument.Triggered . MidiDb.info_patch)
         <$> Cmd.lookup_instrument_info inst
 
-modify_event_at :: (Cmd.M m) => EditUtil.SelPos -> Bool -> Bool
+modify_event_at :: (Cmd.M m) => State.Pos -> Bool -> Bool
     -> EditUtil.Modify -> m ()
-modify_event_at selpos zero_dur modify_dur f = do
+modify_event_at pos zero_dur modify_dur f = do
     trigger_inst <- triggered_inst =<< EditUtil.lookup_instrument
-    EditUtil.modify_event_at selpos (zero_dur || trigger_inst) modify_dur f
+    EditUtil.modify_event_at pos (zero_dur || trigger_inst) modify_dur f
 
 get_state :: (Cmd.M m) => (Cmd.EditState -> a) -> m a
 get_state f = Cmd.gets (f . Cmd.state_edit)

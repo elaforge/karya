@@ -4,7 +4,7 @@ UNSORTED
       will be next
     * Remove PitchTrack from Cmd.NoteTrackKeymap
     * collapse all ^M should use Cmd.Info
-    - move SelPos to State, and add Selection.insert_pos -> State.Pos
+    * move SelPos to State, and add Selection.insert_pos -> State.Pos
     - fix Cmd.Info's other functions to work with inversion
     - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
     - chord mode enters the note and moves to the text note track, only

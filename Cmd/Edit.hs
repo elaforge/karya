@@ -461,7 +461,7 @@ insert_recent :: (Cmd.M m) => Cmd.RecentNote -> m ()
 insert_recent (Cmd.RecentNote text is_zero) =
     EditUtil.modify_event is_zero True (const (Just text, True))
 insert_recent (Cmd.RecentTransform text) = do
-    pos <- EditUtil.get_sel_pos
+    pos <- Selection.get_insert_pos
     let modify s =
             (Just (text ++ " |" ++ (if null s then "" else " " ++ s)), False)
     EditUtil.modify_event_at pos True False (modify . Maybe.fromMaybe "")

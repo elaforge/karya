@@ -10,6 +10,7 @@ import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
+import qualified Cmd.Selection as Selection
 
 
 -- * keymap
@@ -44,7 +45,7 @@ keymaps inputs = \msg -> do
 keymap_down :: (Cmd.M m) => String -> Midi.Key -> m ()
 keymap_down note key = do
     whenM Cmd.is_val_edit $ do
-        pos <- EditUtil.get_sel_pos
+        pos <- Selection.get_insert_pos
         NoteTrack.modify_event_at pos False True $ const (Just note, True)
     MidiThru.channel_messages True [Midi.NoteOn key 64]
 

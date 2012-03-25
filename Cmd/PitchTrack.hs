@@ -40,9 +40,9 @@ cmd_val_edit msg = do
     EditUtil.fallthrough msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            sel_pos <- EditUtil.get_sel_pos
+            pos <- Selection.get_insert_pos
             note <- EditUtil.parse_key key
-            val_edit_at sel_pos note
+            val_edit_at pos note
             Selection.advance
         (Msg.key_down -> Just Key.Backspace) ->
             EditUtil.modify_event False True (const (Nothing, True))
@@ -54,17 +54,17 @@ cmd_method_edit msg = do
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.method_key -> Just key) -> do
-            sel_pos <- EditUtil.get_sel_pos
-            method_edit_at sel_pos key
+            pos <- Selection.get_insert_pos
+            method_edit_at pos key
         _ -> Cmd.abort
     return Cmd.Done
 
-val_edit_at :: (Cmd.M m) => EditUtil.SelPos -> Pitch.Note -> m ()
-val_edit_at selpos note = modify_event_at selpos $ \(method, _) ->
+val_edit_at :: (Cmd.M m) => State.Pos -> Pitch.Note -> m ()
+val_edit_at pos note = modify_event_at pos $ \(method, _) ->
     ((Just method, Just (Pitch.note_text note)), False)
 
-method_edit_at :: (Cmd.M m) => EditUtil.SelPos -> Key.Key -> m ()
-method_edit_at selpos key = modify_event_at selpos $ \(method, val) ->
+method_edit_at :: (Cmd.M m) => State.Pos -> Key.Key -> m ()
+method_edit_at pos key = modify_event_at pos $ \(method, val) ->
     ((EditUtil.modify_text_key key method, Just val), False)
 
 -- | Record the last note entered.  Should be called by 'with_note'.
@@ -79,10 +79,10 @@ cmd_record_note_status msg = do
 
 -- * implementation
 
-modify_event_at :: (Cmd.M m) => EditUtil.SelPos
+modify_event_at :: (Cmd.M m) => State.Pos
     -> ((String, String) -> ((Maybe String, Maybe String), Bool))
     -> m ()
-modify_event_at selpos f = EditUtil.modify_event_at selpos True True
+modify_event_at pos f = EditUtil.modify_event_at pos True True
     (first unparse . f . parse. Maybe.fromMaybe "")
 
 -- | Modify event text.  This is not used within this module but is exported

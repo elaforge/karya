@@ -417,6 +417,11 @@ type AnyPoint = (BlockId, TrackNum, ScoreTime)
 get_insert :: (Cmd.M m) => m Point
 get_insert = Cmd.require =<< lookup_insert
 
+get_insert_pos :: (Cmd.M m) => m State.Pos
+get_insert_pos = do
+    (block_id, tracknum, _, pos) <- get_insert
+    return $ State.Pos block_id tracknum pos
+
 lookup_insert :: (Cmd.M m) => m (Maybe Point)
 lookup_insert = fmap (fmap snd) $ lookup_selnum_insert Config.insert_selnum
 
