@@ -6,6 +6,7 @@
 module Cmd.Info where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
@@ -14,7 +15,7 @@ import qualified Text.Printf as Printf
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.Tree
+import qualified Util.Tree as Tree
 
 import qualified Ui.Block as Block
 import qualified Ui.State as State
@@ -44,7 +45,7 @@ data TrackType =
     | Pitch (Maybe State.TrackInfo)
     -- | Tracks this control track has scope over.  This means all its
     -- children, but because of inversion, also its parents until the next
-    -- note track, if any.
+    -- note track, if there is one.
     | Control [State.TrackInfo]
     deriving (Show, Eq)
 
@@ -61,7 +62,7 @@ lookup_track_type block_id tracknum = do
 -- | Get all the Tracks in a block, sorted by tracknum.
 block_tracks :: (State.M m) => BlockId -> m [Track]
 block_tracks block_id = Seq.sort_on (State.track_tracknum . track_info)
-    . map make_track . Util.Tree.paths <$> State.get_track_tree block_id
+    . map make_track . Tree.paths <$> State.get_track_tree block_id
 
 make_track :: (State.TrackInfo, [State.TrackInfo], [State.TrackInfo]) -> Track
 make_track (track, parents, children) =
@@ -75,7 +76,8 @@ track_type_of track parents children
             `mplus` List.find is_pitch (takeWhile (not.is_note) parents)
     | TrackInfo.is_pitch_track title =
         Pitch $ List.find is_note (children ++ parents)
-    | otherwise = Control $ children ++ takeWhile (not.is_note) parents
+    | otherwise = Control $ children ++
+        if (any is_note parents) then takeWhile (not.is_note) parents else []
     where
     title = State.track_title track
     is_pitch = TrackInfo.is_pitch_track . State.track_title
@@ -84,7 +86,8 @@ track_type_of track parents children
 -- ** specialized lookups
 
 -- | Pitch track of a note track, if any.
-pitch_of_note :: (State.M m) => BlockId -> TrackNum -> m (Maybe State.TrackInfo)
+pitch_of_note :: (State.M m) => BlockId -> TrackNum
+    -> m (Maybe State.TrackInfo)
 pitch_of_note block_id tracknum = do
     maybe_track <- lookup_track_type block_id tracknum
     return $ case maybe_track of
@@ -92,7 +95,8 @@ pitch_of_note block_id tracknum = do
         _ -> Nothing
 
 -- | Note track of a pitch track, if any.
-note_of_pitch :: (State.M m) => BlockId -> TrackNum -> m (Maybe State.TrackInfo)
+note_of_pitch :: (State.M m) => BlockId -> TrackNum
+    -> m (Maybe State.TrackInfo)
 note_of_pitch block_id tracknum = do
     maybe_track <- lookup_track_type block_id tracknum
     return $ case maybe_track of
@@ -130,7 +134,7 @@ show_instrument_info addrs info = unlines
 
 -- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
 show_addrs :: [Instrument.Addr] -> String
-show_addrs addrs = show_list2
+show_addrs addrs = semicolon_list
     [ Pretty.pretty wdev ++ " "
         ++ "[" ++ Seq.join "," (show_runs (map snd addrs)) ++ "]"
     | (wdev, addrs) <- Seq.keyed_group_on fst addrs]
@@ -139,15 +143,15 @@ show_inst :: Score.Instrument -> String
 show_inst (Score.Instrument name) = '>' : name
 
 show_keyswitch_map :: Instrument.KeyswitchMap -> String
-show_keyswitch_map (Instrument.KeyswitchMap attr_ks) = show_list $
+show_keyswitch_map (Instrument.KeyswitchMap attr_ks) = comma_list $
     map (('+':) . Seq.join "+" . Set.elems . Score.attrs_set . fst) attr_ks
 
-show_list, show_list2 :: [String] -> String
-show_list [] = "[]"
-show_list xs = Seq.join ", " xs
+comma_list, semicolon_list :: [String] -> String
+comma_list [] = "[]"
+comma_list xs = Seq.join ", " xs
 
-show_list2 [] = "[]"
-show_list2 xs = Seq.join "; " xs
+semicolon_list [] = "[]"
+semicolon_list xs = Seq.join "; " xs
 
 str :: String -> String
 str "" = '"' : '"' : ""
@@ -159,6 +163,7 @@ show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
     show_run xs@(_:_:_:_) = [show (head xs) ++ ".." ++ show (last xs)]
     show_run xs = map show xs
 
+
 -- * set_inst_status
 
 -- | Stick some handy info about the current instrument into the status.
@@ -167,64 +172,60 @@ show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
 -- or collapsed.
 set_inst_status :: (Cmd.M m) => BlockId -> TrackNum -> m ()
 set_inst_status block_id tracknum = do
-    ttree <- State.get_track_tree block_id
-    -- This may be run loading a new state when there is no focused block, so
-    -- be careful to not abort the cmd.
-    maybe_block_id <- Cmd.lookup_focused_block
-    case maybe_block_id of
-        Just block_id -> do
-            status <- get_track_status block_id ttree tracknum
-            Cmd.set_global_status "inst" status
-        Nothing -> return ()
+    status <- get_track_status block_id tracknum
+    when_just status $ (Cmd.set_global_status "inst")
 
 -- | Looks like:
 -- title (tracknum): inst_name, allocation, [control tracks]
 -- fm8/inst1 at 1: fm8:0,1,2, [vel {collapse 2}, pedal {expand 3}]
-get_track_status :: (Cmd.M m) => BlockId -> State.TrackTree -> TrackNum
-    -> m String
-get_track_status block_id ttree tracknum = case note_track_of ttree tracknum of
-    Just (inst, note_tracknum) -> do
-        let controls = control_tracks_of ttree note_tracknum
+get_track_status :: (Cmd.M m) => BlockId -> TrackNum -> m (Maybe String)
+get_track_status block_id tracknum = do
+    tree <- State.get_track_tree block_id
+    case find_note_track tree tracknum of
+        Just (track, inst) -> Just <$>
+            status block_id tree (State.track_tracknum track) inst
+        Nothing -> return Nothing
+    where
+    status block_id tree note_tracknum inst = do
+        let controls = control_tracks_of tree note_tracknum
         track_descs <- show_track_status block_id controls
         addrs <- Map.findWithDefault [] inst <$> State.get_midi_alloc
         let title = TrackInfo.instrument_to_title inst
         return $ Printf.printf "%s at %d: %s -- [%s]" title note_tracknum
             (show_addrs addrs) (Seq.join ", " track_descs)
-    Nothing -> return $ "track " ++ show tracknum ++ ": no inst"
 
-find_track :: TrackNum -> State.TrackTree -> Maybe (Tree.Tree State.TrackInfo)
-find_track tracknum = Util.Tree.find ((==tracknum) . State.track_tracknum)
-
-control_tracks_of :: State.TrackTree -> TrackNum -> [State.TrackInfo]
-control_tracks_of ttree tracknum = case paths_of ttree tracknum of
-        Nothing -> []
-        Just (_, parents, _) -> controls parents
-    where
-    controls = filter (is_control . State.track_title)
-    is_control title = not (TrackInfo.is_tempo_track title)
-    -- TODO a "control of" should be defined as the "single parents", every
-    -- parent that has only one child
-
--- | Given a tracknum, find the note track below it.  Since there may
--- be multiple ones, pick the first one.
---
--- Search down the children for a instrument title, then get the first note
--- track (tree bottom) underneath that.
---
--- This assumes the instrument is specified in a track below, not inherited
--- from the environment.  Inheriting the instrument seems hard to do, but may
--- be possible.  Maybe I can sove this problem later.
-note_track_of :: State.TrackTree -> TrackNum
-    -> Maybe (Score.Instrument, TrackNum)
-note_track_of ttree tracknum = case find_track tracknum ttree of
+-- | Given a tracknum, find the note track associated with it.  Since there
+-- may be multiple ones, pick the first one.  First try children, then
+-- parents.
+find_note_track :: State.TrackTree -> TrackNum
+    -> Maybe (State.TrackInfo, Score.Instrument)
+find_note_track tree tracknum = case paths_of tree tracknum of
         Nothing -> Nothing
-        Just tree -> find_inst tree
+        Just (track, parents, children) ->
+            Seq.head $ Maybe.mapMaybe inst_of (track : children ++ parents)
     where
-    find_inst tree@(Tree.Node track children) = case inst_of track of
-        Nothing -> msum (map find_inst children)
-        Just inst -> Just
-            (inst, State.track_tracknum (Util.Tree.first_leaf tree))
-    inst_of = TrackInfo.title_to_instrument . State.track_title
+    inst_of track =
+        case TrackInfo.title_to_instrument (State.track_title track) of
+            Nothing -> Nothing
+            Just inst -> Just (track, inst)
+
+-- | Get the controls associated with the given track.  This means all
+-- children until the next note track, and all parents until the note track.
+-- Parents with multiple children are not associated with a single track, so
+-- they're omitted.  Tempo tracks are always omitted.
+control_tracks_of :: State.TrackTree -> TrackNum -> [State.TrackInfo]
+control_tracks_of tree tracknum =
+    case Tree.find_with_parents ((==tracknum) . State.track_tracknum) tree of
+        Nothing -> []
+        Just (Tree.Node _ children, parents) -> filter is_control $
+            takeWhile (not.is_note) (concatMap Tree.flatten children)
+            ++ takeWhile (not.is_note) (single_parents parents)
+    where
+    single_parents parents = [track | Tree.Node track [_] <- parents]
+    is_control track =
+        TrackInfo.is_control_track t && not (TrackInfo.is_tempo_track t)
+        where t = State.track_title track
+    is_note = TrackInfo.is_note_track . State.track_title
 
 -- | Looks like: [vel {collapse 2}, pedal {expand 3}]
 show_track_status :: (State.M m) => BlockId -> [State.TrackInfo] -> m [String]
@@ -241,6 +242,8 @@ show_track_status block_id status = forM status $ \info -> do
 
 paths_of :: State.TrackTree -> TrackNum
     -> Maybe (State.TrackInfo, [State.TrackInfo], [State.TrackInfo])
+    -- ^ (track, parents, children)
 paths_of track_tree tracknum =
     List.find ((==tracknum) . State.track_tracknum . (\(a, _, _) -> a))
-        (Util.Tree.paths track_tree)
+        (Tree.paths track_tree)
+

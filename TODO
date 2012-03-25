@@ -5,9 +5,9 @@ UNSORTED
     * Remove PitchTrack from Cmd.NoteTrackKeymap
     * collapse all ^M should use Cmd.Info
     * move SelPos to State, and add Selection.insert_pos -> State.Pos
-    - fix Cmd.Info's other functions to work with inversion
-    - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
-    - chord mode enters the note and moves to the text note track, only
+    * fix Cmd.Info's other functions to work with inversion
+    * keyboard editing: non-chord mode that advances as soon as it gets NoteOn
+    * chord mode enters the note and moves to the text note track, only
       advances on NoteOff
       (advance, not chord) -> advance on note on
       (not advance, not chord) -> never advance, useful for finding the note
@@ -15,8 +15,11 @@ UNSORTED
       (not advance, chord) -> don't advance, find chords
     - tuning: in chord mode, PitchChange changes the pitch of the last note
       looks like this works already
+  - add resolve_default_instrument and use it in Cmd.Info
   - enter control values taken from velocity
   - eventually maybe State.TrackInfo shouldn't have TrackId?
+  - I think Instrument.config_wdev_map is unnecessary, since I already bind
+    instruments to wdevs in config_alloc
   * why is the mordent not playing?
   - I could have a Cmd state flag that does things relative to the current
     block vs. root block
@@ -210,7 +213,7 @@ UNSORTED
     - For control track entry, typing numbers puts them right of decimal,
       typing backtick enters a 1.  Or, enter values in two digit hex.
     - flag for unpitched instruments, so they don't get pitch tracks
-    - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
+    * keyboard editing: non-chord mode that advances as soon as it gets NoteOn
 
   play:
     - playback should have multiple lines when a block is derived multiple
@@ -760,7 +763,7 @@ Cmd:
 
   Cmd.NoteTrack
     - record velocity if there is a velocity track
-    - chord input, if there are multiple note tracks for this inst
+    * chord input, if there are multiple note tracks for this inst
 
   Cmd.Language
     - lang cmd stuff to load string serialized tracks for event cut and paste
