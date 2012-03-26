@@ -117,6 +117,17 @@ lookup_instrument block_id track_id = do
         Just (TrackLang.VInstrument inst) -> return $ Just inst
         _ -> State.get_default State.default_instrument
 
+-- | Resolve the default instrument into whatever it probably resolves to
+-- during derivation.
+resolve_instrument :: (Cmd.M m) => BlockId -> TrackNum -> Score.Instrument
+    -> m Score.Instrument
+resolve_instrument block_id tracknum inst
+    | inst /= Score.default_inst = return inst
+    | otherwise = do
+        track_id <- State.get_event_track_at "get_track_status"
+            block_id tracknum
+        Maybe.fromMaybe inst <$> lookup_instrument block_id track_id
+
 -- | Lookup value from the deriver's Environ at the given block and track.
 -- See 'Derive.TrackEnviron' for details on the limitations here.
 --
@@ -124,9 +135,10 @@ lookup_instrument block_id track_id = do
 -- and scales always default relative to the root.  I suppose I could think of
 -- some case where it would be better to look it up relative to some other
 -- block, but that seems way too complicated.  This means that the
--- TrackEnvirons from other block derivations are never used.  That leads to
--- a certain amount of void allocation, so maybe I should include a flag to
--- turn off TrackEnviron recording?
+-- TrackEnvirons from other block derivations are never used.
+--
+-- TODO I think that might lead to some void allocation, so maybe I should
+-- include a flag to turn off TrackEnviron recording?
 lookup_env :: (Cmd.M m) => BlockId -> TrackId -> TrackLang.ValName
     -> m (Maybe TrackLang.Val)
 lookup_env block_id track_id name =

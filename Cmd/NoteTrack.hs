@@ -13,7 +13,6 @@
     transform other notes and don't need a duration of their own.
 -}
 module Cmd.NoteTrack where
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -155,25 +154,29 @@ next_note_track block_id tracknum = do
             [tracknum | (_, tracknum) <- Map.elems (Cmd.wdev_pitch_track wdev)]
     tracks <- Info.block_tracks block_id
     inst <- Info.get_instrument_of block_id tracknum
-    case List.find (candidate inst associated tracknum) tracks of
+    -- or, get the insts here
+    -- but find has to be monadic
+    let find right_of = findM (candidate inst associated right_of) tracks
+    found <- find tracknum
+    case found of
         Nothing -> Cmd.throw $ "no next note track in " ++ show block_id
         Just track -> do
             (ntrack, create) <- should_create_pitch block_id track
-            let next = List.find
-                    (candidate inst associated (track_pitch ntrack+1)) tracks
+            next <- find (track_pitch ntrack + 1)
             return (ntrack, create,
                 State.track_tracknum . Info.track_info <$> next)
     where
-    candidate inst associated right_of (Info.Track track ttype) =
-        State.track_tracknum track >= right_of
-        -- Either no pitch track, or an unassociated one.
-        && maybe True (`notElem` associated) pitch_tracknum
-        && maybe False (`elem` [inst, Score.default_inst])
-            (TrackInfo.title_to_instrument (State.track_title track))
+    -- Wow, monads can be awkward.
+    candidate inst associated right_of
+            (Info.Track track (Info.Note maybe_pitch)) = andM
+        [ return $ tracknum >= right_of
+        , return $ maybe True (`notElem` associated) pitch_tracknum
+        , (== Just inst) <$> Info.lookup_instrument_of block_id tracknum
+        ]
         where
-        pitch_tracknum = case ttype of
-            Info.Note (Just pitch) -> Just $ State.track_tracknum pitch
-            _ -> Nothing
+        tracknum = State.track_tracknum track
+        pitch_tracknum = State.track_tracknum <$> maybe_pitch
+    candidate _ _ _ _ = return False
 
 -- | The given track should be a note track.  Figure out if it has a pitch
 -- track, or if one should be created.

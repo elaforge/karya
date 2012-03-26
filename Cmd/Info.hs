@@ -22,6 +22,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Perf as Perf
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Perform.Midi.Instrument as Instrument
@@ -37,9 +38,9 @@ data Track = Track {
     } deriving (Show, Eq)
 
 data TrackType =
-    -- | The pitch track for this note track, if any.  This is the last pitch
-    -- child, or the first pitch parent.  Any intervening note tracks stop the
-    -- search, because the pitch track is considered to belong to them.
+    -- | A note track might have a pitch track.  This is the last pitch child,
+    -- or the first pitch parent.  Any intervening note tracks stop the search,
+    -- because the pitch track is considered to belong to them.
     Note (Maybe State.TrackInfo)
     -- | The note track for this pitch track.
     | Pitch (Maybe State.TrackInfo)
@@ -71,9 +72,9 @@ make_track (track, parents, children) =
 track_type_of :: State.TrackInfo -> [State.TrackInfo] -> [State.TrackInfo]
     -> TrackType
 track_type_of track parents children
-    | TrackInfo.is_note_track title =
-        Note $ List.find is_pitch (reverse (takeWhile (not.is_note) children))
-            `mplus` List.find is_pitch (takeWhile (not.is_note) parents)
+    | TrackInfo.is_note_track title = Note $
+        List.find is_pitch (reverse (takeWhile (not.is_note) children))
+        `mplus` List.find is_pitch (takeWhile (not.is_note) parents)
     | TrackInfo.is_pitch_track title =
         Pitch $ List.find is_note (children ++ parents)
     | otherwise = Control $ children ++
@@ -106,14 +107,20 @@ note_of_pitch block_id tracknum = do
 
 -- * misc
 
--- | Get the instrument of a track, or fail.
-get_instrument_of :: (State.M m) => BlockId -> TrackNum -> m Score.Instrument
+-- | Get the instrument of a track, or fail.  Try to resolve the default
+-- instrument based on the root performance.
+get_instrument_of :: (Cmd.M m) => BlockId -> TrackNum -> m Score.Instrument
 get_instrument_of block_id tracknum = do
+    State.require ("get_instrument_of expected a note track: "
+        ++ show (block_id, tracknum)) =<< lookup_instrument_of block_id tracknum
+
+lookup_instrument_of :: (Cmd.M m) => BlockId -> TrackNum
+    -> m (Maybe Score.Instrument)
+lookup_instrument_of block_id tracknum = do
     track <- State.get_track
         =<< State.get_event_track_at "get_instrument_of" block_id tracknum
-    State.require ("get_instrument_of expected a note track: "
-            ++ show (block_id, tracknum)) $
-        TrackInfo.title_to_instrument (Track.track_title track)
+    justm (return $ TrackInfo.title_to_instrument (Track.track_title track)) $
+        \inst -> Just <$> Perf.resolve_instrument block_id tracknum inst
 
 
 -- * inst info
@@ -182,8 +189,9 @@ get_track_status :: (Cmd.M m) => BlockId -> TrackNum -> m (Maybe String)
 get_track_status block_id tracknum = do
     tree <- State.get_track_tree block_id
     case find_note_track tree tracknum of
-        Just (track, inst) -> Just <$>
-            status block_id tree (State.track_tracknum track) inst
+        Just (track, inst) -> do
+            inst <- Perf.resolve_instrument block_id tracknum inst
+            Just <$> status block_id tree (State.track_tracknum track) inst
         Nothing -> return Nothing
     where
     status block_id tree note_tracknum inst = do

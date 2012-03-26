@@ -15,7 +15,7 @@ UNSORTED
       (not advance, chord) -> don't advance, find chords
     - tuning: in chord mode, PitchChange changes the pitch of the last note
       looks like this works already
-  - add resolve_default_instrument and use it in Cmd.Info
+  * add resolve_default_instrument and use it in Cmd.Info
   - enter control values taken from velocity
   - eventually maybe State.TrackInfo shouldn't have TrackId?
   - I think Instrument.config_wdev_map is unnecessary, since I already bind

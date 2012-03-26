@@ -121,6 +121,9 @@ test_cmd_val_edit_chord = do
     equal (e_events $ f False [">", ">"] [on 60, on 61, off 60, off 61, on 62])
         (Right [(">", [(0, 1, "4d")]), (">", [(0, 1, "4c#")])])
 
+    -- TODO test the instrument_of stuff.  I'd need testing infrastructure to
+    -- set up the perf stuff.
+
 val_edit :: Bool -> Bool -> [UiTest.TrackSpec] -> [Msg.Msg]
      -> Either String States
 val_edit advance chord tracks msgs =
