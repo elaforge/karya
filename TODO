@@ -87,9 +87,26 @@ UNSORTED
 
     Preprocessing for TrackEvents - Not sure what this would look like, but
     it would rewrite bits of score.  It could do symbolic manipulation and
-    e.g.  transposition would transpose pitches symbolically.  I think it
-    would be hard to do anything other than very simple things, because even
-    to know the scale I have to do some deriving.
+    e.g.  transposition would transpose pitches symbolically.  It means
+    you can write score -> score translations, but can't talk about RealTime
+    at all, unless you cooperate with a call.  The preproc would need some
+    infrastructure to e.g. chase down the pitch track and group pitches and
+    controls with their notes.  Not too appealing.
+
+    Evaluate pitches independently:  Just evaluate the pitches from the
+    future.  I'd have to find out what they are, and then evaluate them in
+    an environment as close as possible to the one they will be in later.
+    For the first: I can assume the pitch track is below, otherwise I don't
+    need to do this.  If it is, it's in a different slice.  So find the next
+    note, slice as it would have done
+
+    Or just evaluate the entire next note.
+
+    Can I make the call lazy depending on the value of the next note?  As long
+    as they don't have a data dependency, maybe I can pass the next notes
+    in as a lazy list, and forcing it will make the next note evaluate first.
+    If there is a loop then we will hang, maybe I'll get an IO exception.
+    Investigate this first.
 
     Postprocessing events - This works at the RealTime and can inspect other
     notes, but it can only do RealTime transformations on them.  For that
@@ -99,6 +116,22 @@ UNSORTED
     "directive" notion: calls can emit a special 'Directive [Val]' which
     a postproc pass can then fill in.  I think it would work, but only as
     a last resort.
+
+    Post-proc note transformers - Track derivation emits
+    [Either Directive Derive.Call.Note.Event].  Then a second pass attempts to
+    eliminate the Directives by calling them
+    But how can tick pull the pitch out of the successor?
+    Now that tick has access to the
+    data Directive = Directive TrackCall.Symbol [TrackLang.Val]
+
+    > | * |
+    ""| a |
+    ' |   |
+    ""| c |
+
+    (pitch a [""])
+    (...)?
+    (pitch c [""])
 
   - pitch bend range on patchman and some of the z1 patches looks off, verify
 
@@ -183,6 +216,7 @@ UNSORTED
     the signals.  Of course, it's only worth it if events tend to get moved
     more than once.
   - some way to get symbol feedback instantly to make it easier to compose them
+  - glyph placement is messed up on linux, see up arpeggios
   + automate the manual tests
 
   fltk
@@ -230,7 +264,7 @@ UNSORTED
 
 MILESTONES
   0.1
-    - record chords
+    * record chords
     - record continuum
     - complete TunedJust
     - complete Idiom.Wind
@@ -269,7 +303,7 @@ external
     - figure out how to implement pragmas in ghc
   - add better symbol resolution to haddock
     document 'qualification' -q flag, add mode to show it as written
-  - figure out better tags
+  * figure out better tags
     hasktags is fast but misses stuff like 'newtype ControlDamage' in
     Derive/Deriver/Monad.hs
 

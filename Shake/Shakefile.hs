@@ -336,18 +336,6 @@ main = do
             -- But I need to mark hspp's deps so it will rebuild.
             need =<< HsDeps.transitiveImportsOf (const Nothing) "Util/Hspp.hs"
             system $ makeHs (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
-        build </> "tags" *> \fn -> do
-            hs <- Util.findHs "*.hs" "."
-            hscs <- Util.findHs "*.hs" (hscDir (modeConfig Debug))
-            need (hs ++ hscs)
-            system' "hasktags" $
-                ["--ignore-close-implementation", "--ctags", "-o", fn]
-                ++ hs ++ hscs
-            -- Let vim know it can use bsearch.
-            let magic = B.pack "!_TAG_FILE_SORTED\t1\t ~"
-            Trans.liftIO $ B.writeFile fn =<<
-                B.unlines . (magic:) . List.sort . B.lines <$> B.readFile fn
-
         matchObj "fltk/fltk.a" ?> \fn -> do
             let config = infer fn
             need (fltkDeps config)
@@ -669,6 +657,7 @@ objToSrc config = FilePath.dropExtension . dropDir (oDir config)
 objToHscHs :: Config -> FilePath -> FilePath
 objToHscHs config = (hscDir config </>) . objToSrc config
 
+-- | build/hsc/A/B.hs -> A/B.hsc
 hsToHsc :: FilePath -> FilePath -> FilePath
 hsToHsc hscDir fn = dropDir hscDir $ FilePath.replaceExtension fn "hsc"
 
