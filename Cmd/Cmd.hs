@@ -340,15 +340,14 @@ reinit_state cstate = cstate
     }
 
 -- | Get a midi writer that takes the 'state_wdev_map' into account.
-state_midi_writer :: Instrument.Config -> State -> (Midi.WriteMessage -> IO ())
-state_midi_writer inst_config state (Midi.WriteMessage wdev ts msg) = do
+state_midi_writer :: State -> (Midi.WriteMessage -> IO ())
+state_midi_writer state (Midi.WriteMessage wdev ts msg) = do
     putStrLn $ "PLAY " ++ Pretty.pretty wdev ++ "->" ++ Pretty.pretty wmsg
     ok <- Midi.Interface.write_message (state_midi_interface state) wmsg
     unless ok $ Log.warn $ "error writing " ++ show wmsg
     where
     wmsg = Midi.WriteMessage real_wdev ts msg
-    real_wdev = Map.findWithDefault wdev wdev $
-        Instrument.config_wdev_map inst_config <> state_wdev_map state
+    real_wdev = Map.findWithDefault wdev wdev (state_wdev_map state)
 
 -- | This is a hack so I can use the default Show instance for 'State'.
 newtype LookupScale = LookupScale Derive.LookupScale

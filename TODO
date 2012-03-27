@@ -13,12 +13,12 @@ UNSORTED
       (not advance, not chord) -> never advance, useful for finding the note
       (advance, chord) -> advance on note off
       (not advance, chord) -> don't advance, find chords
-    - tuning: in chord mode, PitchChange changes the pitch of the last note
+    * tuning: in chord mode, PitchChange changes the pitch of the last note
       looks like this works already
   * add resolve_default_instrument and use it in Cmd.Info
+
   - enter control values taken from velocity
-  - eventually maybe State.TrackInfo shouldn't have TrackId?
-  - I think Instrument.config_wdev_map is unnecessary, since I already bind
+  * I think Instrument.config_wdev_map is unnecessary, since I already bind
     instruments to wdevs in config_alloc
   * why is the mordent not playing?
   - I could have a Cmd state flag that does things relative to the current
@@ -201,7 +201,7 @@ UNSORTED
       previous cmds
 
   debugging
-    - lang level pretty print for events, esp collapsing the stack
+    * lang level pretty print for events, esp collapsing the stack
     - cmd to save and load cache to disk
     - add a Play.play_msgs function that plays the given msgs, normalizing so
       fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
@@ -222,13 +222,6 @@ UNSORTED
 
   - If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
-  - I think if the same TrackId appears in multiple places, it will be derived
-    redundantly.  I should be able to cache the signal output in a TrackSignal.
-    But with any luck derive caching will take care of this.
-  - TrackSignals is per TrackId, but the same TrackId may render to different
-    signals in different positions because it has a differnt environment.  It
-    should be (BlockId, TrackNum) + TrackId to verify in case the state was
-    modified
 
   - set_render_style should trigger a rederive to get the track signal
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
@@ -355,30 +348,45 @@ cleanup:
     I should use Data.Vector.Storable since I want to pass the data to C++,
     and can pass by pointer or memcpy (as I currently do).  Data.Vector.Generic
     abstracts out the access functions.
+
   - Get rid of TrackIds, use (BlockId, TrackNum) for track addresses.
     When do I want to have tracks shared between blocks?  Well, maybe if I have
     a repeating pattern?  Shouldn't I then make it a call then?
     Consequences of getting rid of TrackIds:
       - all that get_track stuff goes away
-      - don't have to worry about track names
+      - don't have to worry about TrackId names
       - orphan tracks gone
       - but can't name a track with a (tid ...), I have to use
         (BlockId, TrackNum).  But it would be nice to get rid of
         (BlockId, TrackId) which is ambiguous.
       search for TrackId, where are the uses?
         - Cmd.Clip
-        - Cmd.Create ->Track, orphan tracks gone
-        - Cmd.EditUtil ->redundant
-        - Cmd.Perf ->(BlockId, TrackNum)
-        - Cmd.Selection ->redundant
-        - Derive.TrackWarp: I think TrackNums, and would also be more accurate
+        + Cmd.Create ->Track, orphan tracks gone
+        + Cmd.EditUtil ->redundant
+        + Cmd.Perf ->(BlockId, TrackNum)
+        + Cmd.Selection ->redundant
+        + Derive.TrackWarp: I think TrackNums, and would also be more accurate
         - Ui.Block - has track_merged, but can't replace those with TrackNum
           since merged tracks will be joined (but they're Collapsed, not gone)
-        - Ui.State: have to take (BlockId, TrackNum)
+        + Ui.State: have to take (BlockId, TrackNum)
     Big change, and I'm not sure it's worth it.  The tids should just be
     opaque most of the time, I don't think it matters much whether they match
     their block.  But maybe I should use (BlockId, TrackNum) more in Derive,
     e.g. TrackWarps and DisplaySignals
+    More rationale:
+    - I think the Cmd.Perf environ stuff should use (BlockId, TrackNum), not
+      (Block. TrackId), because the same track may occur in different contexts.
+      But for that to work, the stack also needs to use TrackNum.  But TrackNum
+      by itself is not enough to identify the track, so perhaps BlockId and
+      TrackNum should be merged.  This is going to get into getting rid of
+      TrackId entirely though, which is a big job.
+    - I think if the same TrackId appears in multiple places, it will be
+      derived redundantly.  I should be able to cache the signal output in
+      a TrackSignal.  But with any luck derive caching will take care of this.
+    - TrackSignals is per TrackId, but the same TrackId may render to different
+      signals in different positions because it has a differnt environment.  It
+      should be (BlockId, TrackNum) + TrackId to verify in case the state was
+      modified
 
   * now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something

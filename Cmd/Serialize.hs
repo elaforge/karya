@@ -414,19 +414,19 @@ instance Serialize Event.Event where
 -- ** Midi.Instrument
 
 instance Serialize Instrument.Config where
-    put (Instrument.Config a b) = put_version 4 >> put a >> put b
+    put (Instrument.Config a) = put_version 3 >> put a
     get = do
         v <- get_version
         case v of
             3 -> do
                 alloc <- get :: Get
                     (Map.Map Score.Instrument [Instrument.Addr])
-                return $ Instrument.Config alloc Map.empty
+                return $ Instrument.Config alloc
             4 -> do
                 alloc <- get :: Get
                     (Map.Map Score.Instrument [Instrument.Addr])
-                wdevs <- get :: Get (Map.Map Midi.WriteDevice Midi.WriteDevice)
-                return $ Instrument.Config alloc wdevs
+                _ <- get :: Get (Map.Map Midi.WriteDevice Midi.WriteDevice)
+                return $ Instrument.Config alloc
             _ -> version_error "Instrument.Config" v
 
 instance Serialize Score.Instrument where

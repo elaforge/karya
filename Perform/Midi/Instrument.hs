@@ -139,14 +139,10 @@ data Config = Config {
     -- instrument wishing to use an address will emit an appropriate message to
     -- configure it (probably a keyswitch, possibly a program change).
     config_alloc :: Map.Map Score.Instrument [Addr]
-
-    -- | WriteDevice mappings, which will override the global ones in
-    -- 'App.StaticConfig.wdev_map'.
-    , config_wdev_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
     } deriving (Eq, Read, Show)
 
 config :: [(Score.Instrument, [Addr])] -> Config
-config alloc = Config (Map.fromList alloc) Map.empty
+config alloc = Config (Map.fromList alloc)
 
 empty_config :: Config
 empty_config = config []
