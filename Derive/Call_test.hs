@@ -152,7 +152,7 @@ test_recursive_call = do
         \args -> Call.reapply args [TrackLang.call "recur" []]
 
 test_repeat = do
-    let run events = DeriveTest.e_logs $
+    let run events = DeriveTest.r_log_strings $
             DeriveTest.derive_tracks_with with_show [(">", events)]
         with_show = CallTest.with_note_call "show" c_show
     equal (run [(0, 1, "\"")]) ["Error: note call not found: \""]

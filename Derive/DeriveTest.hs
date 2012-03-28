@@ -320,9 +320,6 @@ r_logs = snd . r_split
 r_log_strings :: Derive.Result -> [String]
 r_log_strings = snd . extract id
 
-e_logs :: Derive.Result -> [String]
-e_logs = map show_log . trace_low_prio . LEvent.logs_of . Derive.r_events
-
 e_event :: Score.Event -> (RealTime, RealTime, String)
 e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
 
