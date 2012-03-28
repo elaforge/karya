@@ -127,7 +127,7 @@ move_events point shift events = merged
 map_track_sorted :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
     -> TrackId -> m ()
 map_track_sorted f track_id = State.modify_events track_id $
-    Events.from_sorted_list . Maybe.mapMaybe f . Events.ascending
+    Events.from_asc_list . Maybe.mapMaybe f . Events.ascending
 
 map_track :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
     -> TrackId -> m ()

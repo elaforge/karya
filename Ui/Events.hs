@@ -20,7 +20,7 @@ module Ui.Events (
 
     -- ** list conversion
     , singleton
-    , from_list, from_sorted_list
+    , from_list, from_asc_list
     , ascending, descending
 
     -- ** transformation
@@ -50,6 +50,7 @@ import qualified Prelude
 import Prelude hiding (last, length, min, max)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
@@ -112,8 +113,8 @@ from_list :: [PosEvent] -> Events
 from_list evts = insert_events evts empty
 
 -- | Like 'from_list', but more efficient and the input must be sorted.
-from_sorted_list :: [PosEvent] -> Events
-from_sorted_list evts = insert_sorted_events evts empty
+from_asc_list :: [PosEvent] -> Events
+from_asc_list evts = insert_sorted_events evts empty
 
 -- | Get all events in ascending order.  Like @snd . split (ScoreTime 0)@.
 ascending :: Events -> [PosEvent]
@@ -256,6 +257,10 @@ around start end = emap (split_around start end)
 -}
 newtype Events = Events EventMap
     deriving (DeepSeq.NFData, Eq, Show, Read)
+
+instance Monoid.Monoid Events where
+    mempty = empty
+    mappend = merge
 
 type EventMap = Map.Map ScoreTime Event.Event
 

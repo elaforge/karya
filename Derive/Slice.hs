@@ -148,7 +148,7 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
 
 events_around :: Int -> ScoreTime -> ScoreTime -> Events.Events
     -> Events.Events
-events_around after start end events = Events.from_sorted_list $
+events_around after start end events = Events.from_asc_list $
     prev ++ Then.takeWhile ((<end) . fst) (take after) post
     where
     (pre, post) = Events.split start events
