@@ -150,12 +150,11 @@ test_everything = do
     evaluated <- get_log log
     equal evaluated
         ["b1 b1.t2 0-1 note at: 0s", "sub sub.t1 0-1 note at: 2s"]
-
-perform :: Derive.Result -> [Either DeriveTest.Midi String]
-perform result = map (LEvent.either Left (Right . DeriveTest.show_log)) $
-    snd $ DeriveTest.perform_stream DeriveTest.default_lookup_inst
-        DeriveTest.default_midi_config (Derive.r_events result)
-
+    where
+    perform :: Derive.Result -> [Either DeriveTest.Midi String]
+    perform result = map (LEvent.either Left (Right . DeriveTest.show_log)) $
+        snd $ DeriveTest.perform_stream DeriveTest.default_lookup_inst
+            DeriveTest.default_midi_config (Derive.r_events result)
 
 test_track_signal = do
     -- Ensure that track signals are only derived twice if the TrackSignal is
@@ -185,7 +184,8 @@ test_track_signal = do
 test_0_derive_notes = do
     -- if I can take results from an infinite score, the derivation is lazy
     let inf = [UiTest.make_event (n, 1, "") | n <- [0..]]
-    (log, deriver) <- with_logging $ Note.derive_notes 10 (0, 10) 0 inf []
+    (log, deriver) <- with_logging $
+        Note.derive_notes 10 (0, 10) 0 [] ([], []) inf
     result <- Thread.timeout 0.5 $ (\v -> force v >> return v) $
         extract_run 5 $ DeriveTest.run State.empty deriver
     equal result (Just (Right [0, 1, 2, 3, 4]))

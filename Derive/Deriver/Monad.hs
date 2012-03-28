@@ -620,9 +620,16 @@ data CallInfo derived = CallInfo {
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither to generators for that matter.
 dummy_call_info :: String -> CallInfo derived
-dummy_call_info text =
-    CallInfo [] Nothing (0, Event.event s 1) [] [] 1 (0, 1) []
-    where s = if null text then "<no-event>" else "<" ++ text ++ ">"
+dummy_call_info text = CallInfo
+    { info_expr = []
+    , info_prev_val = Nothing
+    , info_event = (0, Event.event s 1)
+    , info_prev_events = []
+    , info_next_events = []
+    , info_event_end = 1
+    , info_track_range = (0, 1)
+    , info_sub_tracks = []
+    } where s = if null text then "<no-event>" else "<" ++ text ++ ">"
 
 -- | A Call will be called as either a generator or a transformer, depending on
 -- its position.  A call at the end of a compose pipeline will be called as

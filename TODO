@@ -76,7 +76,7 @@ UNSORTED
         Key: sharps and flats per degree, then derive the intervals from that
       - support scales that are different ascending vs. descending
 
-  the problem with rambat tick
+  * the problem with rambat tick
     I need a general way to manipulate notes and know their pitch, dynamics,
     etc.  There are a lot of ways to do this:
 

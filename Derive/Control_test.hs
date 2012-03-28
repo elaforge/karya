@@ -69,8 +69,9 @@ test_derive_control = do
 mktrack :: ScoreTime -> (ScoreTime, ScoreTime) -> [(Double, Double, String)]
     -> State.TrackEvents
 mktrack events_end track_range events =
-    State.TrackEvents ">" (Events.from_list (map UiTest.make_event events))
-        Nothing events_end track_range False 0
+    (State.track_events ">" evts events_end)
+        { State.tevents_range = track_range }
+    where evts = Events.from_list (map UiTest.make_event events)
 
 test_pitch_track = do
     let derive = do_derive DeriveTest.e_pitch

@@ -240,15 +240,13 @@ data Val =
     deriving (Show)
 
 -- | Instances of ShowVal can be turned back into tracklang syntax.  Everything
--- produced by show_val should be parseable by "Derive.ParseBs".
+-- produced by show_val should be parseable by "Derive.ParseBs", except values
+-- that have no literal syntax, such as VPitch.
+--
+-- At least one place that relies on this is 'Derive.Call.Note.inverting'.
 class ShowVal a where
     show_val :: a -> String
 
--- | The Pretty instance for val should, like the haskell-level (Show, Read)
--- pair, produce a string that the parser can turn back into the original
--- value.  Except for values which have no literal syntax, such as VPitch.
---
--- The reason why is documented in 'Derive.Call.Note.inverting'.
 instance ShowVal Val where
     show_val val = case val of
         VNum d -> show_val d

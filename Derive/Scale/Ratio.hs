@@ -11,6 +11,8 @@
 module Derive.Scale.Ratio where
 import Util.Control
 import qualified Util.ParseBs as Parse
+import qualified Util.Pretty as Pretty
+
 import qualified Ui.Track as Track
 import qualified Derive.Args as Args
 import qualified Derive.CallSig as CallSig
@@ -53,12 +55,12 @@ note_call ratio = Derive.ValCall "ratio" $ \args ->
     CallSig.call1 args (optional "hz" 0) $ \hz -> do
         start <- Args.real_start args
         nn <- Derive.require
-            ("ratio scale requires a " ++ show source_name ++ " pitch signal")
-            =<< Derive.named_nn_at source_name start
+            ("ratio scale requires " ++ Pretty.pretty cont ++ " pitch signal")
+            =<< Derive.named_nn_at cont start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
         return $ TrackLang.VPitch $ PitchSignal.pitch $ const $ return out_nn
     where
-    source_name = Score.Control "ratio-source"
+    cont = Score.Control "ratio-source"
 
 -- | Ratios look like @2/5@, @-4/3@.  A negative ratio divides, a positive one
 -- multiplies.

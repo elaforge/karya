@@ -117,7 +117,7 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
 -- * errors
 
 require :: String -> Maybe a -> Deriver a
-require msg = maybe (throw msg) return
+require msg = maybe (throw $ "required: " ++ msg) return
 
 require_right :: (err -> String) -> Either err a -> Deriver a
 require_right fmt_err = either (throw . fmt_err) return

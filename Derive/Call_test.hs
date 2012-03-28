@@ -6,13 +6,16 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Instrument.Util as Util
+import qualified Derive.Instrument.Util as Instrument.Util
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -163,6 +166,44 @@ test_repeat = do
         Log.warn $ Pretty.pretty (Derive.passed_vals args)
         return []
 
+test_events_around = do
+    -- Ensure sliced inverting notes still have access to prev and next events
+    -- via the tevents_around hackery.
+    let logs = extract $ DeriveTest.derive_tracks_with with_call
+            [ (">", [(0, 1, ""), (1, 1, "around"), (2, 1, "")])
+            , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
+            ]
+        with_call = CallTest.with_note_call "around" c_around
+        extract = DeriveTest.r_log_strings
+    equal logs ["prev: [0.0t]", "next: [2.0t]"]
+
+    where
+    c_around = Derive.stream_generator "around" $ Note.inverting $ \args -> do
+        Log.warn $ "prev: " ++ show (map fst (Args.prev_events args))
+        Log.warn $ "next: " ++ show (map fst (Args.next_events args))
+        return []
+
+test_inverting_n = do
+    -- Ensure calls that want to look at the next pitch work, with the help of
+    -- events around and inverting_n.
+    let (evts, logs) = extract $ DeriveTest.derive_tracks_with with_call
+            [ (">", [(0, 1, ""), (1, 1, "next"), (2, 1, "")])
+            , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
+            ]
+        with_call = CallTest.with_note_call "next" c_next
+        extract = DeriveTest.extract DeriveTest.e_note2
+    equal evts [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d")]
+    equal logs []
+    where
+    c_next = Derive.stream_generator "next" $ Note.inverting_n 2 $ \args -> do
+        next <- Derive.require "next event" $ Args.next_start args
+        next_pitch <- Derive.require "next pitch"
+            =<< Derive.pitch_at =<< Derive.real next
+        Derive.d_at (Args.start args) $ Util.simple_note next_pitch 1
+
+
+-- * implementation
+
 patch = Instrument.set_keymap [(Attrs.snare, 42)] $
     Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))
 (midi_db, _) = MidiDb.midi_db sdescs
@@ -171,7 +212,7 @@ patch = Instrument.set_keymap [(Attrs.snare, 42)] $
         { MidiInst.extra_patches = [(patch, code)] }
     code = MidiInst.empty_code
         { MidiInst.note_calls = [Derive.make_lookup calls] }
-    calls = Derive.make_calls [("sn", Util.with_attrs Attrs.snare)]
+    calls = Derive.make_calls [("sn", Instrument.Util.with_attrs Attrs.snare)]
 lookup_inst = fmap (Cmd.inst_calls . MidiDb.info_code)
     . MidiDb.lookup_instrument midi_db
 

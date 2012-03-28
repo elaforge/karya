@@ -38,18 +38,22 @@ test_event_gaps = do
     equal (f [(2, 2)] 4) [(False, 0, 2), (True, 2, 4)]
 
 test_slice = do
-    let f exclusive s e insert =
-            extract_tree . Slice.slice exclusive s e insert . make_tree
-    equal (f False 1 2 Nothing [Node (make_notes 2 "ab") []]) []
-    equal (f False 1 2 Nothing [Node (make_notes 1 "ab") []])
+    let f exclusive after s e insert =
+            extract_tree . Slice.slice exclusive after s e insert . make_tree
+    equal (f False 1 1 2 Nothing [Node (make_notes 2 "ab") []]) []
+    equal (f False 1 1 2 Nothing [Node (make_notes 1 "ab") []])
         [Node (">", [(1, 1, "a")]) []]
-    equal (f True 1 2 Nothing [Node (make_notes 1 "ab") []]) []
+    equal (f True 1 1 2 Nothing [Node (make_notes 1 "ab") []]) []
 
     -- control tracks get neighbors
-    equal (f False 1 2 Nothing [Node (make_controls "c" [0, 2..10]) []])
+    equal (f False 1 1 2 Nothing [Node (make_controls "c" [0, 2..10]) []])
         [Node (make_controls "c" [0, 2]) []]
-    equal (f False 2 5 Nothing [Node (make_controls "c" [0, 2..10]) []])
+    equal (f False 1 2 5 Nothing [Node (make_controls "c" [0, 2..10]) []])
         [Node (make_controls "c" [2, 4, 6]) []]
+
+    -- more neighbors for control tracks
+    equal (f False 2 1 2 Nothing [Node (make_controls "c" [0, 2..10]) []])
+        [Node (make_controls "c" [0, 2, 4]) []]
 
 test_slice_notes = do
     let extract = map (map (\(s, e, t) -> (s, e, extract_tree t)))
@@ -129,8 +133,7 @@ make_tree = map $ \(Node (title, events) subs) ->
     Node (make_track title events) (make_tree subs)
 
 make_track :: String -> [Event] -> State.TrackEvents
-make_track title events =
-    State.TrackEvents title tevents Nothing 100 (0, 100) False 0
+make_track title events = State.track_events title tevents 100
     where
     tevents = Events.from_list
         [(start, Event.event text dur) | (start, dur, text) <- events]

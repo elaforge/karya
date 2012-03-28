@@ -183,55 +183,65 @@ c_equal = Derive.Call "equal"
 
 -- | Convert a call into an inverting call.  Documented in doc/inverting_call.
 --
--- This requires a bit of hackery in a couple of places:
+-- This requires a bit of hackery:
 --
--- The first is that the TrackLang.Val Pretty instance is expected to emit
+-- The first is that the ShowVal TrackLang.Val instance is expected to emit
 -- parseable code.  This is because 'inverting' wants the
 -- text of the generator it was called for.  Unfortunately this is tricky to
 -- get directly because the parser takes a complete string to a complete Expr.
--- So instead I keep the parsed expr by putting it in CallInfo, and use the
--- Pretty instance to turn it back into a string, so it can be parsed again
--- when it is evaluated for real.  It's rather convoluted, but trying to come
--- up with a derive_tracks where the events may already be parsed also seems
--- convoluted.
---
--- The second is that CallInfo has to keep the expression in
--- 'Derive.Derive.info_info_expr'.
+-- So instead I keep the parsed expr by putting it in CallInfo's
+-- 'Derive.info_expr', and use the ShowVal instance to turn it back into
+-- a string, so it can be parsed again when it is evaluated for real.  It's
+-- rather convoluted, but trying to come up with a derive_tracks where the
+-- events may already be parsed also seems convoluted.
 --
 -- If there are no sub-tracks then the call is performed as-is.  Otherwise
 -- the expression must be broken up and re-evaluated.
 inverting :: (Derive.PassedArgs d -> Derive.EventDeriver)
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
-inverting call args =
-    maybe (call args) BlockUtil.derive_tracks =<< invert_call args
+inverting = inverting_n 1
 
-invert_call :: Derive.PassedArgs d -> Derive.Deriver (Maybe State.EventsTree)
-invert_call args = case Derive.info_sub_tracks info of
+inverting_n :: Int -- ^ Capture this many control points after the slice
+    -- boundary.  Usually this is 1 since control calls usually generate
+    -- samples from their predecessor, but may be more for inverting calls that
+    -- want to see control values of succeeding events.
+    -> (Derive.PassedArgs d -> Derive.EventDeriver)
+    -> (Derive.PassedArgs d -> Derive.EventDeriver)
+inverting_n after call args =
+    maybe (call args) BlockUtil.derive_tracks =<< invert_call after args
+
+invert_call :: Int
+    -> Derive.PassedArgs d -> Derive.Deriver (Maybe State.EventsTree)
+invert_call after args = case Derive.info_sub_tracks info of
     [] -> return Nothing
-    subs -> Just <$> invert (Derive.info_track_range info) subs
+    subs -> Just <$> invert after (Derive.info_track_range info) subs
         pos (pos + Event.event_duration event) (Args.end args) expr
+        (Derive.info_prev_events info, Derive.info_next_events info)
     where
     (pos, event) = Derive.info_event info
     -- It may seem surprising that only the final call is retained, and any
     -- transformers are discarded.  But 'inverting' only applies to generators
     -- so those transformers should have already done their thing.
-    -- See comment above and in Derive.TrackLang.Val Pretty instance.
+    -- See comment above and on ShowVal typeclass.
     expr = maybe "" TrackLang.show_val $ Seq.last (Derive.info_expr info)
     info = Derive.passed_info args
 
-invert :: (ScoreTime, ScoreTime) -> State.EventsTree -> ScoreTime
-    -> ScoreTime -> ScoreTime -> String -> Derive.Deriver State.EventsTree
-invert (track_start, _) subs start end next_start text = do
+invert :: Int -> (ScoreTime, ScoreTime) -> State.EventsTree -> ScoreTime
+    -> ScoreTime -> ScoreTime -> String
+    -> ([Events.PosEvent], [Events.PosEvent])
+    -> Derive.Deriver State.EventsTree
+invert after (track_start, _) subs start end next_start text events_around = do
     when_just (non_bottom_note_track sliced) $ \track ->
         Derive.throw $
             "inverting below note track will lead to an endless loop: "
             ++ Pretty.pretty (State.tevents_track_id track)
     return sliced
     where
-    sliced = Slice.slice False start next_start
-        (Just (text, end - start, (track_start, next_start))) subs
-        -- Use 'next_start' instead of track_end because in the absence of
-        -- a next note, the track end becomes next note and clips controls.
+    sliced = Slice.slice False after start next_start (Just insert) subs
+    -- Use 'next_start' instead of track_end because in the absence of a next
+    -- note, the track end becomes next note and clips controls.
+    insert = Slice.InsertEvent text (end - start) (track_start, next_start)
+        events_around
 
 -- | An inverting call above another note track will lead to an infinite loop
 -- if there are overlapping sub-events that also invert, or confusing results

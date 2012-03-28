@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 {- | Basic module for call evaluation.
 
     It should also have Deriver utilities that could go in Derive, but are more
@@ -154,6 +154,7 @@ data TrackInfo derived = TrackInfo {
     , tinfo_track_range :: !(ScoreTime, ScoreTime)
     , tinfo_shifted :: !ScoreTime
     , tinfo_sub_tracks :: !State.EventsTree
+    , tinfo_events_around :: !([Events.PosEvent], [Events.PosEvent])
     , tinfo_derive_info :: !(DeriveInfo derived)
     }
 
@@ -171,7 +172,8 @@ type GetLastSample d =
 -- There's a certain amount of hairiness in here because note and control
 -- tracks are mostly but not quite the same and because calls get a lot of
 -- auxiliary data in 'Derive.CallInfo'.
-derive_track :: (Derive.Derived derived) =>
+derive_track :: forall derived. (Derive.Derived derived) =>
+    -- forall and ScopedTypeVariables needed for the inner 'go' signature
     Derive.State -> TrackInfo derived -> Parse.ParseExpr
     -> GetLastSample derived -> [Events.PosEvent]
     -> ([LEvent.LEvents derived], Derive.Collect)
@@ -180,6 +182,9 @@ derive_track state tinfo parse get_last_sample events =
     where
     -- This threads the collect through each event.  I would prefer to map and
     -- mconcat, but it's also quite a bit slower.
+    go :: Derive.Collect -> Maybe (RealTime, Derive.Elem derived)
+        -> B.ByteString -> [Events.PosEvent] -> [Events.PosEvent]
+        -> ([LEvent.LEvents derived], Derive.Collect)
     go collect _ _ _ [] = ([], collect)
     go collect prev_sample repeat_call prev (cur : rest) =
         (events : rest_events, final_collect)
@@ -239,8 +244,10 @@ derive_event st tinfo parse prev_sample repeat_call prev cur@(pos, event) next
         { Derive.info_expr = expr
         , Derive.info_prev_val = prev_sample
         , Derive.info_event = cur
-        , Derive.info_prev_events = prev
-        , Derive.info_next_events = next
+        -- Augment prev and next with the unevaluated "around" notes from
+        -- 'State.tevents_around'.
+        , Derive.info_prev_events = fst around ++ prev
+        , Derive.info_next_events = next ++ snd around
         , Derive.info_event_end = case next of
             [] -> events_end
             (pos, _) : _ -> pos
@@ -248,7 +255,7 @@ derive_event st tinfo parse prev_sample repeat_call prev cur@(pos, event) next
         , Derive.info_sub_tracks = subs
         }
     region s e = Stack.Region (shifted + s) (shifted + e)
-    TrackInfo events_end track_range shifted subs dinfo = tinfo
+    TrackInfo events_end track_range shifted subs around dinfo = tinfo
 
 -- | Replace @"@ with the previous non-@"@ call, if there was one.
 --

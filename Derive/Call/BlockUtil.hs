@@ -57,7 +57,7 @@ capture_null_control :: String
 capture_null_control = "capture-null-control"
 
 -- | Ensure the tree meets the requirements documented by 'control_deriver'
--- and append the fake not track if it does.
+-- and append the fake note track if it does.
 check_control_tree :: ScoreTime -> State.EventsTree
     -> Either String State.EventsTree
 check_control_tree block_end forest = case forest of
@@ -74,16 +74,8 @@ check_control_tree block_end forest = case forest of
         ++ "but there are multiple children: "
         ++ show (map (State.tevents_title . Tree.rootLabel) tracks)
     where
-    capture_track = State.TrackEvents
-        { State.tevents_title = ">"
-        , State.tevents_events = Events.singleton 0
-            (Event.event capture_null_control block_end)
-        , State.tevents_track_id = Nothing
-        , State.tevents_end = block_end
-        , State.tevents_range = (0, block_end)
-        , State.tevents_sliced = False
-        , State.tevents_shifted = 0
-        }
+    events = Events.singleton 0 (Event.event capture_null_control block_end)
+    capture_track = (State.track_events ">" events block_end)
 
 derive_control_tree :: ScoreTime -> State.EventsTree -> Derive.ControlDeriver
 derive_control_tree block_end tree = do

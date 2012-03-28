@@ -16,6 +16,11 @@
     parent.  However, notes that have no transformation must be extracted
     from underneath the empty parent, otherwise they will not be evaluated
     at all.  This is done at the 'derive_track' level, by 'extract_orphans'.
+
+    This is a nasty tricky bit of work, but is depended on by all the high
+    level notation, e.g. calls that can manipulate the results of other
+    calls, aka NoteTransformers.  I'd still love to figure out a better way
+    to do it though!
 -}
 module Derive.Slice where
 import qualified Data.Foldable as Foldable
@@ -23,6 +28,7 @@ import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 import qualified Data.Tree as Tree
 
+import qualified Util.Then as Then
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -41,7 +47,7 @@ import Types
 extract_orphans :: State.TrackEvents -> State.EventsTree -> State.EventsTree
 extract_orphans _ [] = []
 extract_orphans track subs = filter has_note $
-    concatMap (\(exclusive, s, e) -> slice exclusive s e Nothing subs) $
+    concatMap (\(exclusive, s, e) -> slice exclusive 1 s e Nothing subs) $
         event_gaps (Events.ascending (State.tevents_events track))
             (State.tevents_end track)
     where
@@ -51,6 +57,9 @@ extract_orphans track subs = filter has_note $
 -- | Given a list of events, return the gaps in between those events as
 -- ranges.  Each range also has an \"exclusive\" flag, which indicates whether
 -- the previous event was zero length.
+--
+-- This matters because a zero length note event should not be captured in the
+-- orphan slice, since everything under it by definition is not orphaned.
 event_gaps :: [Events.PosEvent] -> ScoreTime -> [(Bool, ScoreTime, ScoreTime)]
 event_gaps events end = reverse $
         (if last_end >= end then [] else [(last_exclusive, last_end, end)])
@@ -64,6 +73,13 @@ event_gaps events end = reverse $
         where (cur, next) = Events.range event
 
 
+-- | Ask 'slice' to synthesize a note track and insert it at the leaves of
+-- the sliced tree.
+-- Event text, duration, tevents_range, tevents_around
+data InsertEvent = InsertEvent String ScoreTime (ScoreTime, ScoreTime)
+        ([Events.PosEvent], [Events.PosEvent])
+    deriving (Show)
+
 -- | Slice the tracks below me to lie within start and end, and optionally put
 -- a note track with a single event of given string at the bottom.  Control
 -- tracks actually get an event at or before and after the slice boundaries
@@ -76,39 +92,35 @@ event_gaps events end = reverse $
 -- consistent by stripping them too.  If the track title has some effect the
 -- results might be inconsistent, but I'm not sure that will be real problem.
 -- The result is [] if there are no events intersecting the given range.
---
--- TODO the problem is that I'm slicing the event tracks, but also slicing out
--- the note track event, so it can no longer see prev and next events, and
--- can't see their pitches.  I can get the former by supplying prev and next,
--- but the latter has a problem if the pitches haven't been evaluated yet.
---
--- Ornaments like tick need to either predict the pitch of the next note,
--- pre-evaluate it, or be under the pitch track.  Prediction is going to lead
--- to inconsistent results, and pre-evaluation could lead to recursion and
--- confusingness.  So for the moment I just insist that the order of
--- evaluation be correct.  Hopefully inversion will only be a special case.
-slice :: Bool -- ^ Omit events than begin at the start.
+slice :: Bool -- ^ Omit events than begin at the start.  'event_gaps' documents
+    -- why this is necessary.
+    -> Int -- ^ Capture this many control points after the slice boundary.
+    -- Usually this is 1 since control calls usually generate samples from
+    -- their predecessor, but may be more for inverting calls that want to
+    -- see control values of succeeding events.
     -> ScoreTime -> ScoreTime
-    -> Maybe (String, ScoreTime, (ScoreTime, ScoreTime))
+    -> Maybe InsertEvent
     -- ^ If given, insert an event at the bottom with the given text and dur.
     -- The created track will have the given track_range, so it can create
     -- a Stack.Region entry.
     -> State.EventsTree -> State.EventsTree
-slice exclusive start end insert_event = concatMap strip . map do_slice
+slice exclusive after start end insert_event = concatMap strip . map do_slice
     where
     do_slice (Tree.Node track subs) = Tree.Node (slice_t track)
         (if null subs then insert else map do_slice subs)
     insert = case insert_event of
         Nothing -> []
-        Just (text, dur, track_range) ->
-            [Tree.Node (make text dur track_range) []]
-    make text dur track_range = State.TrackEvents
+        Just (InsertEvent text dur track_range around) ->
+            [Tree.Node (make text dur track_range around) []]
+    -- The synthesized bottom track.
+    make text dur track_range around = State.TrackEvents
         { State.tevents_title = ">"
         , State.tevents_events = Events.singleton start (Event.event text dur)
         , State.tevents_track_id = Nothing
         , State.tevents_end = end
         , State.tevents_range = track_range
         , State.tevents_sliced = True
+        , State.tevents_around = around
         , State.tevents_shifted = 0
         }
     slice_t track = track
@@ -126,13 +138,23 @@ slice exclusive start end insert_event = concatMap strip . map do_slice
         | TrackInfo.is_note_track (State.tevents_title track) =
             (if exclusive then Events.remove_event start else id)
                 (Events.in_range start end es)
-        | otherwise = Events.around start end es
+        | otherwise = events_around after start end es
         where es = State.tevents_events track
 
     strip (Tree.Node track subs)
         | State.tevents_events track == Events.empty =
             concatMap strip subs
         | otherwise = [Tree.Node track (concatMap strip subs)]
+
+events_around :: Int -> ScoreTime -> ScoreTime -> Events.Events
+    -> Events.Events
+events_around after start end events = Events.from_sorted_list $
+    prev ++ Then.takeWhile ((<end) . fst) (take after) post
+    where
+    (pre, post) = Events.split start events
+    prev = case post of
+        (p, _) : _ | p == start -> []
+        _ -> take 1 pre
 
 -- | Expect a note track somewhere in the tree.  Slice the tracks above and
 -- below it to each of its events.
@@ -179,7 +201,7 @@ slice_notes start end =
             | otherwise = Events.in_range start end tevents
         make_tree [] = [Tree.Node track subs]
         make_tree (p:ps) = [Tree.Node p (make_tree ps)]
-    slice_event tree event = (s, e - s, slice False s e Nothing tree)
+    slice_event tree event = (s, e - s, slice False 1 s e Nothing tree)
         where (s, e) = Events.range event
     shift (shift, stretch, tree) =
         (shift, stretch, map (fmap (shift_tree shift)) tree)

@@ -46,6 +46,10 @@ real_start = Derive.real . start
 next_start :: PassedArgs d -> Maybe ScoreTime
 next_start = fmap fst . Seq.head . Derive.info_next_events . info
 
+prev_events, next_events :: PassedArgs d -> [Events.PosEvent]
+next_events = Derive.info_next_events . info
+prev_events = Derive.info_prev_events . info
+
 -- ** range
 
 -- | Range of the called event.  Note that range is the minimum to maximum,

@@ -159,7 +159,8 @@ d_note_track (Tree.Node track subs) = do
             else Call.apply_transformer info track_expr
     transform $ derive_notes (State.tevents_end track)
         (State.tevents_range track) (State.tevents_shifted track)
-        (Events.ascending (State.tevents_events track)) subs
+        subs (State.tevents_around track)
+        (Events.ascending (State.tevents_events track))
     where info = (Call.note_dinfo, Derive.dummy_call_info "note track")
 
 is_empty_title :: TrackLang.Expr -> Bool
@@ -177,8 +178,9 @@ stash_sub_signals subs = do
             <- zip (map State.tevents_track_id tracks) sigs]
 
 derive_notes :: ScoreTime -> (ScoreTime, ScoreTime) -> ScoreTime
-    -> [Events.PosEvent] -> State.EventsTree -> Derive.EventDeriver
-derive_notes events_end track_range shifted events subs = do
+    -> State.EventsTree -> ([Events.PosEvent], [Events.PosEvent])
+    -> [Events.PosEvent] -> Derive.EventDeriver
+derive_notes events_end track_range shifted subs events_around events = do
     -- You'd think 'd_note_track' should just pass TrackEvents, but then I
     -- can't test for laziness by passing an infinite events list.
     state <- Derive.get
@@ -187,7 +189,8 @@ derive_notes events_end track_range shifted events subs = do
     Internal.merge_collect collect
     return $ Derive.merge_asc_events event_groups
     where
-    tinfo = Call.TrackInfo events_end track_range shifted subs Call.note_dinfo
+    tinfo = Call.TrackInfo events_end track_range shifted subs events_around
+        Call.note_dinfo
 
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.
 -- Unfortunately, this is parsed as a call to @>inst@

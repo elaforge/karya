@@ -87,7 +87,7 @@ main :: IO ()
 main = do
     args <- System.Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (opts, n, []) -> return (opts, n)
+        (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
     unless (null args) $
         usage ("unparsed args: " ++ show args)

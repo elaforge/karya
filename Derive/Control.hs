@@ -199,7 +199,9 @@ derive_control track expr = do
         return (concat stream)
     dinfo = Call.DeriveInfo Call.lookup_control_call "control"
     tinfo = Call.TrackInfo (State.tevents_end track)
-        (State.tevents_range track) (State.tevents_shifted track) [] dinfo
+        (State.tevents_range track) (State.tevents_shifted track) []
+        -- TODO provide events around for control tracks?
+        ([], []) dinfo
     last_sample prev chunk = Signal.last chunk `mplus` prev
 
 derive_pitch :: State.TrackEvents -> TrackLang.Expr
@@ -219,7 +221,8 @@ derive_pitch track expr = do
         return (concat stream)
     dinfo = Call.DeriveInfo Call.lookup_pitch_call "pitch"
     tinfo = Call.TrackInfo (State.tevents_end track)
-        (State.tevents_range track) (State.tevents_shifted track) [] dinfo
+        (State.tevents_range track) (State.tevents_shifted track) []
+        ([], []) dinfo
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
 tevents :: State.TrackEvents -> [Events.PosEvent]

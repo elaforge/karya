@@ -655,7 +655,12 @@ data TrackEvents = TrackEvents {
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and so certain track-level things, like recording a track
     -- signal, should be skipped.
-    , tevents_sliced :: Bool
+    , tevents_sliced :: !Bool
+    -- | These events are not evaluated, but go in the
+    -- 'Derive.Derive.info_prev_events' and info_next_events.  This is so that
+    -- sliced calls (such as inverting calls) can see previous and following
+    -- events.
+    , tevents_around :: !([Events.PosEvent], [Events.PosEvent])
 
     -- | If the events have been shifted from their original positions on the
     -- track, this can be added to them to put them back in track time.  This
@@ -666,6 +671,18 @@ data TrackEvents = TrackEvents {
     , tevents_shifted :: !ScoreTime
     } deriving (Show)
 
+track_events :: String -> Events.Events -> ScoreTime -> TrackEvents
+track_events title events end = TrackEvents
+    { tevents_title = title
+    , tevents_events = events
+    , tevents_track_id = Nothing
+    , tevents_end = end
+    , tevents_range = (0, end)
+    , tevents_sliced = False
+    , tevents_around = ([], [])
+    , tevents_shifted = 0
+    }
+
 events_tree :: (M m) => ScoreTime -> TrackTree -> m EventsTree
 events_tree events_end tree = mapM resolve tree
     where
@@ -673,8 +690,8 @@ events_tree events_end tree = mapM resolve tree
         Tree.Node <$> make title track_id <*> mapM resolve subs
     make title track_id = do
         track <- get_track track_id
-        return $ TrackEvents title (Track.track_events track)
-            (Just track_id) events_end (0, events_end) False 0
+        return $ (track_events title (Track.track_events track) events_end)
+            { tevents_track_id = Just track_id }
 
 -- ** tracks
 

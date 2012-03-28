@@ -3,6 +3,7 @@ import Data.FixedList (Cons(..), Nil(..))
 
 import Util.Control
 import qualified Derive.Args as Args
+import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional, control)
@@ -25,9 +26,6 @@ note_calls = Derive.make_calls
 -- precedes the following note, and is one step above or one step below
 -- depending on the preceding note.
 --
--- This is not an inverting call since it needs know the pitches of the
--- previous and following notes.
---
 -- TODO damping
 --
 -- [time /Control/ @%tick-time,.2@] Time from the grace note to the following
@@ -37,16 +35,15 @@ note_calls = Derive.make_calls
 -- [vel /Control/ @%tick-dynamic,.3@] Grace note dynamic will be this
 -- percentage of the following note.
 c_tick :: Derive.NoteCall
-c_tick = Derive.stream_generator "tick" $ \args -> CallSig.call2 args
+c_tick = Derive.stream_generator "tick" $ Note.inverting_n 2 $ \args ->
+    CallSig.call2 args
     ( optional "time" (control "tick-time" 0.15)
-    , optional "vel" (control "tick-dynamic" 0.5)) $ \time vel ->
-    case (Args.prev_start args, Args.next_start args) of
-        (Just ppos, Just npos) ->
-            Util.with_controls args (time :. vel :. Nil) $
-                \(time :. vel :. Nil) ->
-                    tick (Signal.y_to_real time) vel ppos npos
-        (Nothing, Just _) -> Derive.throw "no previous event"
-        _ -> Derive.throw "no next event"
+    , optional "vel" (control "tick-dynamic" 0.5)) $ \time vel -> do
+        prev <- Derive.require "previous event" $ Args.prev_start args
+        next <- Derive.require "next event" $ Args.next_start args
+        Util.with_controls args (time :. vel :. Nil) $
+            \(time :. vel :. Nil) ->
+                tick (Signal.y_to_real time) vel prev next
 
 tick :: RealTime -> Signal.Y -> ScoreTime -> ScoreTime -> Derive.EventDeriver
 tick time vel prev next = do

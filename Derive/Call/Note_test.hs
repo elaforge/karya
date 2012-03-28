@@ -34,7 +34,7 @@ test_random = do
 
 test_invert_call = do
     let run args = DeriveTest.extract_run extract $
-            DeriveTest.run State.empty (Note.invert_call args)
+            DeriveTest.run State.empty (Note.invert_call 1 args)
         extract = fmap Slice_test.extract_tree
     -- it's ok, it's empty
     equal (run (mkargs "" [Node (">", []) []])) $
