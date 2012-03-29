@@ -12,11 +12,11 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import Derive.Derive (PassedArgs(..))
 import qualified Derive.Derive as Derive
+import Derive.Derive (PassedArgs(..))
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang (Typecheck)
-import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
 
@@ -153,13 +153,15 @@ call4 vals (arg0, arg1, arg2, arg3) f = do
 -- instance and happen in 'extract_arg'.
 check_args :: PassedArgs y -> [(Bool, String)]
     -> Derive.Deriver [Maybe TrackLang.Val]
-check_args passed args = either (Derive.throw_error . Derive.CallError) return
-    (pure_check_args passed args)
+check_args passed args = do
+    environ <- Derive.gets (Derive.state_environ . Derive.state_dynamic)
+    either (Derive.throw_error . Derive.CallError) return
+        (pure_check_args environ passed args)
 
-pure_check_args :: PassedArgs y
+pure_check_args :: TrackLang.Environ -> PassedArgs y
     -> [(Bool, String)] -- ^ @(arg_required?, name)@
     -> Either Derive.CallError [Maybe TrackLang.Val]
-pure_check_args passed args
+pure_check_args environ passed args
     | supplied_args < length required = Left $ Derive.ArgError $
         "too few arguments: " ++ expected
     | length vals > length args = Left $ Derive.ArgError $
@@ -175,8 +177,7 @@ pure_check_args passed args
         where
         deflt (Just val) _ = Just val
         deflt Nothing (_, arg_name) = Map.lookup
-            (arg_environ_default (passed_call passed) arg_name)
-            (passed_environ passed)
+            (arg_environ_default (passed_call passed) arg_name) environ
     supplied_args = length (filter Maybe.isJust defaulted_vals)
     bad_required = [(i, name) | (i, (True, name)) <- optional]
 

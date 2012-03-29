@@ -312,9 +312,8 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
                         (info_name dinfo) (info_lookup dinfo)
                     return (fb_call, [val])
 
-    env <- Internal.get_dynamic Derive.state_environ
     ns <- Derive.get_ui_config State.config_namespace
-    let args = Derive.PassedArgs vals env call_id cinfo
+    let args = Derive.PassedArgs vals call_id cinfo
         gen = Derive.call_generator call
         with_stack = case (($ (ns, args)) . Derive.gcall_block) =<< gen of
             Just block_id -> Internal.with_stack_block block_id
@@ -332,9 +331,8 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
     vals <- mapM eval args
     let new_deriver = apply_transformer info calls deriver
     call <- with_call call_id (info_name dinfo) (info_lookup dinfo)
-    env <- Internal.get_dynamic Derive.state_environ
-    let args = Derive.PassedArgs vals env call_id cinfo
-    let with_stack = Internal.with_stack_call (Derive.call_name call)
+    let args = Derive.PassedArgs vals call_id cinfo
+        with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
         Just trans -> Derive.tcall_func trans args new_deriver
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
@@ -349,9 +347,8 @@ eval (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
 apply :: TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
     -> Derive.Deriver TrackLang.Val
 apply call_id call args = do
-    env <- Internal.get_dynamic Derive.state_environ
     vals <- mapM eval args
-    let args = Derive.PassedArgs vals env call_id
+    let args = Derive.PassedArgs vals call_id
             (Derive.dummy_call_info "val-call")
     Derive.with_msg ("val call " ++ Derive.vcall_name call) $
         Derive.vcall_call call args

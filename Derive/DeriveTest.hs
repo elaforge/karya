@@ -401,7 +401,7 @@ extract_midi events = [(RealTime.to_milliseconds ts, msg)
 -- * call
 
 passed_args :: String -> [TrackLang.Val] -> Derive.PassedArgs derived
-passed_args call vals = Derive.PassedArgs vals Map.empty
+passed_args call vals = Derive.PassedArgs vals
     (TrackLang.Symbol call) (Derive.dummy_call_info "DeriveTest")
 
 c_note :: ScoreTime -> ScoreTime -> Derive.EventDeriver

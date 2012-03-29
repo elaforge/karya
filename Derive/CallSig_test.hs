@@ -6,13 +6,11 @@ import qualified Util.Pretty as Pretty
 import Util.Test
 
 import qualified Ui.State as State
-
-import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (Val(..))
-import qualified Derive.Derive as Derive
-import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (Arg(..))
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.TrackLang as TrackLang
+import Derive.TrackLang (Val(..))
 
 
 test_extract = do
@@ -47,21 +45,22 @@ test_check_args = do
     let mkargs = DeriveTest.passed_args "call"
         optional = (False, "optional")
         required = (True, "required")
-    let f passed args = map_left Pretty.pretty $ take 2 <$>
-            CallSig.pure_check_args passed args
-    equal (f (mkargs []) []) (Right [Nothing, Nothing])
-    left_like (f (mkargs [vnum 1]) []) "too many arguments: expected 0, got 1"
-    left_like (f (mkargs []) [required]) "too few arguments: expected 1, got 0"
-    left_like (f (mkargs []) [required, optional])
+    let f environ passed args = map_left Pretty.pretty $ take 2 <$>
+            CallSig.pure_check_args environ passed args
+    equal (f mempty (mkargs []) []) (Right [Nothing, Nothing])
+    left_like (f mempty (mkargs [vnum 1]) [])
+        "too many arguments: expected 0, got 1"
+    left_like (f mempty (mkargs []) [required])
+        "too few arguments: expected 1, got 0"
+    left_like (f mempty (mkargs []) [required, optional])
         "too few arguments: expected from 1 to 2, got 0"
-    left_like (f (mkargs [vnum 1, vnum 2]) [optional, required])
+    left_like (f mempty (mkargs [vnum 1, vnum 2]) [optional, required])
         "required arg can't follow an optional one: 1/required"
 
-    equal (f (mkargs [vnum 1]) [required, optional])
+    equal (f mempty (mkargs [vnum 1]) [required, optional])
         (Right [Just (vnum 1), Nothing])
-    let with_env = (mkargs []) { Derive.passed_environ =
-            Map.fromList [(TrackLang.Symbol "call-required", vnum 10)] }
-    equal (f with_env [required, optional])
+    let env = Map.fromList [(TrackLang.Symbol "call-required", vnum 10)]
+    equal (f env (mkargs []) [required, optional])
         (Right [Just (vnum 10), Nothing])
 
 mkargs = DeriveTest.passed_args "call"

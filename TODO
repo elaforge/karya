@@ -1,4 +1,8 @@
 UNSORTED
+  * I think passed_environ is unnecessary, environ is already in the Deriver
+  - split up CallInfo depending on type
+    I got started but was discouraged when it came time to write
+    GetLastSample, maybe I should make another go.
   chord entry
     * add a "temporary insert" selection to indicate where the chord insert
       will be next
@@ -18,6 +22,9 @@ UNSORTED
   * add resolve_default_instrument and use it in Cmd.Info
 
   - enter control values taken from velocity
+    - add record_velocity flag
+    - generalize next_note_track and this_note_track to also be able to find
+      a dyn track
   * I think Instrument.config_wdev_map is unnecessary, since I already bind
     instruments to wdevs in config_alloc
   * why is the mordent not playing?
@@ -35,16 +42,6 @@ UNSORTED
 
   * add a HughsPJ 'format' method for Pretty
   * should Score.Event.event_string use UTF8.toString instead of B.unpack?
-
-  - Think about some way to formalize the identifier restrictions, currently
-    it's only enforced in the tracklang parser.
-
-    p_ident applies to: Attributes, Control, PitchControl, ScaleId
-    Maybe it's enough that the parser restricts them?  That means no one
-    will bother creating e.g. a bogus control name because it could't be used.
-    Call names are explicitly anything-goes.  BlockIds should support at
-    least some of it if they are supposed to be interchangeable with other
-    calls.
 
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
@@ -211,10 +208,6 @@ UNSORTED
   - after an uncollapse, it doesn't redraw the selection that was underneath
     Not a big deal since a selection shouldn't be underneath but still...
   - randomize any control by having the 'set' call look for the -rnd control
-  - It would be more efficient to move events around if their controls were
-    normalized to start from their beginning, so that you never have to modify
-    the signals.  Of course, it's only worth it if events tend to get moved
-    more than once.
   - some way to get symbol feedback instantly to make it easier to compose them
   - glyph placement is messed up on linux, see up arpeggios
   + automate the manual tests
@@ -373,6 +366,10 @@ bugs:
   - hint refuses to compile when a module emits a warning
 
 cleanup:
+  - It would be more efficient to move events around if their controls were
+    normalized to start from their beginning, so that you never have to modify
+    the signals.  Of course, it's only worth it if events tend to get moved
+    more than once.
   - get rid of Perform.SignalBase and do something about the code
     duplication between PitchSignal and Signal
     - port SignalBase to vector
@@ -422,6 +419,18 @@ cleanup:
       should be (BlockId, TrackNum) + TrackId to verify in case the state was
       modified
 
+  - Think about some way to formalize the identifier restrictions, currently
+    it's only enforced in the tracklang parser.
+
+    p_ident applies to: Attributes, Control, PitchControl, ScaleId
+    Maybe it's enough that the parser restricts them?  That means no one
+    will bother creating e.g. a bogus control name because it could't be used.
+    Call names are explicitly anything-goes.  BlockIds should support at
+    least some of it if they are supposed to be interchangeable with other
+    calls.
+
+    On the other hand, I don't think I care much if idents can have wacky
+    names, they just won't be nameable from the tracklang.
   * now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
   - use lenses to make some of this record update stuff nicer?
@@ -434,7 +443,7 @@ cleanup:
     each event extends to the next one.  It means after merging I have to
     clear redundant offs, but that's easier right?
 
-  - remove Util.Log -> Perform.Warning import by translating IDs into strings?
+  * remove Util.Log -> Perform.Warning import by translating IDs into strings?
     On the other hand, it's not unreasonable for logs to use other data types
   error prone things:
     - setting some state like project directly through State won't update

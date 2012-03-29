@@ -277,6 +277,9 @@ throw_error_srcpos srcpos err = do
 
 -- * derived types
 
+-- | Cachable might be a better name.  The Elem type is only used for
+-- 'info_prev_val', that could go in a separate type family, especially
+-- since it also applies to TrackLang.Val calls, which are not cacheable.
 class (Show (Elem derived), Show derived) => Derived derived where
     type Elem derived :: *
     -- | I would prefer to have a function to a generic reified type and then
@@ -574,7 +577,6 @@ type ValCallMap = Map.Map TrackLang.CallId ValCall
 -- derived, but it's more convenient for the callers to pass the derived.
 data PassedArgs derived = PassedArgs {
     passed_vals :: ![TrackLang.Val]
-    , passed_environ :: !TrackLang.Environ
     , passed_call :: !TrackLang.CallId
     , passed_info :: !(CallInfo derived)
     }

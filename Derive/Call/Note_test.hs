@@ -1,7 +1,6 @@
 module Derive.Call.Note_test where
 import Data.Tree (Tree(Node))
 
-import Util.Control
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -62,7 +61,7 @@ make_controls title ps = (title, [(to_score p, 0, show p) | p <- ps])
 to_score = ScoreTime.double . fromIntegral
 
 mkargs :: String -> Slice_test.EventsTree -> Derive.PassedArgs d
-mkargs text subs = Derive.PassedArgs [] mempty call_id info
+mkargs text subs = Derive.PassedArgs [] call_id info
     where
     event = (0, Event.event text 1)
     call_id = TrackLang.Symbol "call"
