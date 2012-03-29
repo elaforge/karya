@@ -238,7 +238,16 @@ UNSORTED
 
   input:
     - For control track entry, typing numbers puts them right of decimal,
-      typing backtick enters a 1.  Or, enter values in two digit hex.
+      typing backtick enters a 1.  Or, enter values in two digit
+      What about two digit hex?
+
+      The problem is that this makes it awkward to write anything above 1.
+      Ok, so make the null call interpret its string arg as hex, make the 's'
+      call take a number as usual.  And /2 to get the midi vel.  Or just say
+      it's 00-7f, but that seems less intuitive than 00-ff - It's not all that
+      great for non 0--1 values, like tempo.
+      Leave it be for now
+
     - flag for unpitched instruments, so they don't get pitch tracks
     * keyboard editing: non-chord mode that advances as soon as it gets NoteOn
 
