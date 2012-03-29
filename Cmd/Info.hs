@@ -38,15 +38,16 @@ data Track = Track {
     } deriving (Show, Eq)
 
 data TrackType =
-    -- | A note track might have a pitch track.  This is the last pitch child,
-    -- or the first pitch parent.  Any intervening note tracks stop the search,
-    -- because the pitch track is considered to belong to them.
-    Note (Maybe State.TrackInfo)
+    -- | A note track has a list of control tracks.  The list starts with the
+    -- children and continues with its parents.  However, it stops at another
+    -- note track or as soon as a parent has more than one child, because
+    -- that control track doesn't belong to just this note track.
+    Note [State.TrackInfo]
     -- | The note track for this pitch track.
     | Pitch (Maybe State.TrackInfo)
     -- | Tracks this control track has scope over.  This means all its
-    -- children, but because of inversion, also its parents until the next
-    -- note track, if there is one.
+    -- children, but because of inversion, also a parent note track, if there
+    -- is one.
     | Control [State.TrackInfo]
     deriving (Show, Eq)
 
@@ -58,30 +59,37 @@ get_track_type block_id tracknum = State.require
 lookup_track_type :: (State.M m) => BlockId -> TrackNum -> m (Maybe Track)
 lookup_track_type block_id tracknum = do
     track_tree <- State.get_track_tree block_id
-    return $ make_track <$> paths_of track_tree tracknum
+    return $ make_track <$>
+        Tree.find_with_parents ((==tracknum) . State.track_tracknum) track_tree
 
 -- | Get all the Tracks in a block, sorted by tracknum.
 block_tracks :: (State.M m) => BlockId -> m [Track]
 block_tracks block_id = Seq.sort_on (State.track_tracknum . track_info)
     . map make_track . Tree.paths <$> State.get_track_tree block_id
 
-make_track :: (State.TrackInfo, [State.TrackInfo], [State.TrackInfo]) -> Track
-make_track (track, parents, children) =
-    Track track (track_type_of track parents children)
+make_track :: (Tree.Tree State.TrackInfo, State.TrackTree) -> Track
+make_track (tree, parents) =
+    Track (Tree.rootLabel tree) (track_type_of (tree, parents))
 
-track_type_of :: State.TrackInfo -> [State.TrackInfo] -> [State.TrackInfo]
-    -> TrackType
-track_type_of track parents children
-    | TrackInfo.is_note_track title = Note $
-        List.find is_pitch (reverse (takeWhile (not.is_note) children))
-        `mplus` List.find is_pitch (takeWhile (not.is_note) parents)
+track_type_of :: (Tree.Tree State.TrackInfo, State.TrackTree) -> TrackType
+track_type_of (Tree.Node track subs, parents)
+    | TrackInfo.is_note_track title = Note $ takeWhile is_control children
+        ++ takeWhile is_control (map Tree.rootLabel
+            (takeWhile is_single parents))
     | TrackInfo.is_pitch_track title =
-        Pitch $ List.find is_note (children ++ parents)
-    | otherwise = Control $ children ++
-        if (any is_note parents) then takeWhile (not.is_note) parents else []
+        Pitch $ List.find is_note (children ++ map Tree.rootLabel parents)
+    | otherwise = Control $ children
+        -- If there is a note track above assume it will invert itself below
+        -- the control stack.
+        ++ (maybe [] (:[]) $ List.find is_note (map Tree.rootLabel parents))
     where
+    children = concatMap Tree.flatten subs
+    is_single (Tree.Node _ [_]) = True
+    is_single _ = False
+    is_control track =
+        TrackInfo.is_control_track t && not (TrackInfo.is_tempo_track t)
+        where t = State.track_title track
     title = State.track_title track
-    is_pitch = TrackInfo.is_pitch_track . State.track_title
     is_note = TrackInfo.is_note_track . State.track_title
 
 -- ** specialized lookups
@@ -92,7 +100,8 @@ pitch_of_note :: (State.M m) => BlockId -> TrackNum
 pitch_of_note block_id tracknum = do
     maybe_track <- lookup_track_type block_id tracknum
     return $ case maybe_track of
-        Just (Track _ (Note pitch)) -> pitch
+        Just (Track _ (Note controls)) ->
+            List.find (TrackInfo.is_pitch_track . State.track_title) controls
         _ -> Nothing
 
 -- | Note track of a pitch track, if any.
@@ -218,22 +227,24 @@ find_note_track tree tracknum = case paths_of tree tracknum of
             Just inst -> Just (track, inst)
 
 -- | Get the controls associated with the given track.  This means all
--- children until the next note track, and all parents until the note track.
--- Parents with multiple children are not associated with a single track, so
--- they're omitted.  Tempo tracks are always omitted.
+-- children until the next note track, and all parents with only one child
+-- until the next note track.  Parents with multiple children are not
+-- associated with a single track, so they're omitted.  Tempo tracks are always
+-- omitted.
 control_tracks_of :: State.TrackTree -> TrackNum -> [State.TrackInfo]
 control_tracks_of tree tracknum =
     case Tree.find_with_parents ((==tracknum) . State.track_tracknum) tree of
         Nothing -> []
-        Just (Tree.Node _ children, parents) -> filter is_control $
-            takeWhile (not.is_note) (concatMap Tree.flatten children)
-            ++ takeWhile (not.is_note) (single_parents parents)
+        Just (Tree.Node _ children, parents) ->
+            takeWhile is_control (concatMap Tree.flatten children)
+            ++ takeWhile is_control (map Tree.rootLabel
+                (takeWhile is_single parents))
     where
-    single_parents parents = [track | Tree.Node track [_] <- parents]
+    is_single (Tree.Node _ [_]) = True
+    is_single _ = False
     is_control track =
         TrackInfo.is_control_track t && not (TrackInfo.is_tempo_track t)
         where t = State.track_title track
-    is_note = TrackInfo.is_note_track . State.track_title
 
 -- | Looks like: [vel {collapse 2}, pedal {expand 3}]
 show_track_status :: (State.M m) => BlockId -> [State.TrackInfo] -> m [String]
@@ -253,5 +264,5 @@ paths_of :: State.TrackTree -> TrackNum
     -- ^ (track, parents, children)
 paths_of track_tree tracknum =
     List.find ((==tracknum) . State.track_tracknum . (\(a, _, _) -> a))
-        (Tree.paths track_tree)
+        (Tree.flat_paths track_tree)
 

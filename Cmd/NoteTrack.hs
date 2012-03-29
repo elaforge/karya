@@ -13,6 +13,7 @@
     transform other notes and don't need a duration of their own.
 -}
 module Cmd.NoteTrack where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -26,6 +27,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.Create as Create
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.Info as Info
@@ -65,15 +67,17 @@ cmd_raw_edit msg = do
 
 -- * val edit
 
-data NoteTrack = NoteTrack {
+-- | A control track belonging to the note track.  This can be a pitch track,
+-- or a dyn track.
+data ControlTrack = ControlTrack {
     track_note :: TrackNum
-    , track_pitch :: TrackNum
+    , track_control :: TrackNum
     } deriving (Show, Eq)
 
 -- | The val edit for note tracks edits its pitch track (possibly creating it
 -- if necessary), and creates a blank event on the note track.  It may also
 -- edit multiple pitch tracks for chords, or record velocity in addition to
--- pitch.  TODO not implemented yet
+-- pitch.
 --
 -- If I'm in chord mode, try to find the next track and put notes there.  If
 -- there is no appropriate next track, the cmd will throw an error.
@@ -83,24 +87,9 @@ cmd_val_edit msg = do
     (block_id, sel_tracknum, _, pos) <- Selection.get_insert
     case msg of
         Msg.InputNote input_note -> case input_note of
-            InputNote.NoteOn note_id key _vel -> do
+            InputNote.NoteOn note_id key vel -> do
                 note <- EditUtil.parse_key key
-                chord_mode <- get_state Cmd.state_chord
-                (ntrack, create) <- if chord_mode
-                    then do
-                        (ntrack, create, maybe_next) <-
-                            next_note_track block_id sel_tracknum
-                        set_temp_sel pos maybe_next
-                        return (ntrack, create)
-                    else this_note_track block_id sel_tracknum
-                when create $ create_pitch_track block_id ntrack
-                associate_note_id block_id (track_pitch ntrack) note_id
-                -- TODO if I can find a vel track, put the vel there
-                PitchTrack.val_edit_at
-                    (State.Pos block_id (track_pitch ntrack) pos) note
-                ensure_note_event (State.Pos block_id (track_note ntrack) pos)
-                advance_mode <- get_state Cmd.state_advance
-                when (advance_mode && not chord_mode) Selection.advance
+                note_on block_id sel_tracknum pos note_id note vel
             InputNote.PitchChange note_id key -> do
                 (pitch_tracknum, track_id) <- Cmd.require_msg
                     ("no track for note_id " ++ show note_id)
@@ -129,6 +118,39 @@ cmd_val_edit msg = do
         _ -> Cmd.abort
     return Cmd.Done
     where
+    -- NoteOn handling is especially complicated.
+    note_on block_id sel_tracknum pos note_id note vel = do
+        chord_mode <- get_state Cmd.state_chord
+        -- Pitch track.
+        (ctrack, create) <- if chord_mode
+            then do
+                (ctrack, create, maybe_next) <-
+                    next_control_track block_id sel_tracknum is_pitch
+                set_temp_sel pos maybe_next
+                return (ctrack, create)
+            else this_control_track block_id sel_tracknum is_pitch
+        when create $ create_pitch_track block_id ctrack
+        associate_note_id block_id (track_control ctrack) note_id
+        PitchTrack.val_edit_at
+            (State.Pos block_id (track_control ctrack) pos) note
+
+        -- Dyn track.
+        whenM (get_state Cmd.state_record_velocity) $ do
+            (dtrack, create) <- if chord_mode
+                then (\(a, b, _) -> (a, b)) <$>
+                    next_control_track block_id sel_tracknum is_dyn
+                else this_control_track block_id sel_tracknum is_dyn
+            when create $ create_dyn_track block_id dtrack
+            ControlTrack.val_edit_at
+                (State.Pos block_id (track_control dtrack) pos) vel
+
+        -- Create note and advance.
+        ensure_note_event (State.Pos block_id (track_note ctrack) pos)
+        advance_mode <- get_state Cmd.state_advance
+        when (advance_mode && not chord_mode) Selection.advance
+
+    is_pitch = TrackInfo.is_pitch_track
+    is_dyn = (== Just Score.c_dynamic) . TrackInfo.title_to_control
     set_temp_sel pos maybe_tracknum = Selection.set_current
         Config.temporary_insert_selnum $
             fmap (\num -> Types.point_selection num pos) maybe_tracknum
@@ -142,58 +164,58 @@ cmd_val_edit msg = do
 -- is or is on the right of the given track, has either the same instrument or
 -- has the default instrument, and doesn't already have a note_id associated
 -- with it.
---
--- TODO instead of checking for Score.default_inst I should use the environ
--- to make sure it's actually the same inst.
-next_note_track :: (Cmd.M m) => BlockId -> TrackNum
-    -> m (NoteTrack, Bool, Maybe TrackNum)
-    -- ^ (selected_note_track, should_create, next_note_track)
-next_note_track block_id tracknum = do
+next_control_track :: (Cmd.M m) => BlockId -> TrackNum -> (String -> Bool)
+    -> m (ControlTrack, Bool, Maybe TrackNum)
+    -- ^ (selected_track_pair, should_create, next_control_track)
+next_control_track block_id tracknum is_control = do
     wdev <- Cmd.get_wdev_state
     let associated =
             [tracknum | (_, tracknum) <- Map.elems (Cmd.wdev_pitch_track wdev)]
     tracks <- Info.block_tracks block_id
     inst <- Info.get_instrument_of block_id tracknum
-    -- or, get the insts here
-    -- but find has to be monadic
     let find right_of = findM (candidate inst associated right_of) tracks
     found <- find tracknum
     case found of
         Nothing -> Cmd.throw $ "no next note track in " ++ show block_id
         Just track -> do
-            (ntrack, create) <- should_create_pitch block_id track
-            next <- find (track_pitch ntrack + 1)
-            return (ntrack, create,
+            (ctrack, create) <- should_create_control block_id track is_control
+            next <- find (track_control ctrack + 1)
+            return (ctrack, create,
                 State.track_tracknum . Info.track_info <$> next)
     where
     -- Wow, monads can be awkward.
     candidate inst associated right_of
-            (Info.Track track (Info.Note maybe_pitch)) = andM
+            (Info.Track track (Info.Note controls)) = andM
         [ return $ tracknum >= right_of
         , return $ maybe True (`notElem` associated) pitch_tracknum
         , (== Just inst) <$> Info.lookup_instrument_of block_id tracknum
         ]
         where
         tracknum = State.track_tracknum track
-        pitch_tracknum = State.track_tracknum <$> maybe_pitch
+        pitch_tracknum = State.track_tracknum <$>
+            List.find (is_control . State.track_title) controls
     candidate _ _ _ _ = return False
 
--- | The given track should be a note track.  Figure out if it has a pitch
+-- | The given track should be a note track.  Figure out if it has a control
 -- track, or if one should be created.
-this_note_track :: (Cmd.M m) => BlockId -> TrackNum -> m (NoteTrack, Bool)
-this_note_track block_id tracknum = do
+this_control_track :: (Cmd.M m) => BlockId -> TrackNum -> (String -> Bool)
+    -> m (ControlTrack, Bool)
+this_control_track block_id tracknum is_control = do
     track <- Info.get_track_type block_id tracknum
-    should_create_pitch block_id track
+    should_create_control block_id track is_control
 
-should_create_pitch :: (Cmd.M m) => BlockId -> Info.Track
-    -> m (NoteTrack, Bool)
-should_create_pitch block_id track = case Info.track_type track of
-    Info.Note Nothing -> return (NoteTrack tracknum (tracknum+1), True)
-    Info.Note (Just pitch) ->
-        return (NoteTrack tracknum (State.track_tracknum pitch), False)
+should_create_control :: (Cmd.M m) => BlockId -> Info.Track
+    -> (String -> Bool) -> m (ControlTrack, Bool)
+should_create_control block_id track is_control = case Info.track_type track of
+    Info.Note controls -> case find controls of
+        Nothing -> return (ControlTrack tracknum (tracknum+1), True)
+        Just control ->
+            return (ControlTrack tracknum (State.track_tracknum control), False)
     ttype -> Cmd.throw $ "expected a note track for "
         ++ show (block_id, tracknum) ++ " but got " ++ show ttype
-    where tracknum = State.track_tracknum (Info.track_info track)
+    where
+    find = List.find (is_control . State.track_title)
+    tracknum = State.track_tracknum (Info.track_info track)
 
 event_at_or_before :: (Cmd.M m) => TrackId -> ScoreTime -> m ScoreTime
 event_at_or_before track_id pos = do
@@ -231,11 +253,12 @@ cmd_method_edit msg = do
     case msg of
         (EditUtil.method_key -> Just key) -> do
             (block_id, tracknum, _, pos) <- Selection.get_insert
-            (ntrack, create) <- this_note_track block_id tracknum
-            when create $ create_pitch_track block_id ntrack
+            (ctrack, create) <- this_control_track block_id tracknum
+                TrackInfo.is_pitch_track
+            when create $ create_pitch_track block_id ctrack
             PitchTrack.method_edit_at
-                (State.Pos block_id (track_pitch ntrack) pos) key
-            ensure_note_event (State.Pos block_id (track_note ntrack) pos)
+                (State.Pos block_id (track_control ctrack) pos) key
+            ensure_note_event (State.Pos block_id (track_note ctrack) pos)
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -257,13 +280,19 @@ generator_of = Seq.strip . last . Seq.split "|"
 -- * implementation
 
 -- | Create a pitch track.
-create_pitch_track :: (Cmd.M m) => BlockId -> NoteTrack -> m ()
-create_pitch_track block_id (NoteTrack note pitch) = do
+create_pitch_track :: (Cmd.M m) => BlockId -> ControlTrack -> m ()
+create_pitch_track block_id (ControlTrack note pitch) = do
     scale_id <- EditUtil.get_scale_id
     tid <- Create.track block_id pitch
     -- Link note track underneath newly created pitch track.
     State.splice_skeleton_below block_id pitch note
     State.set_track_title tid (TrackInfo.scale_to_title scale_id)
+
+create_dyn_track :: (Cmd.M m) => BlockId -> ControlTrack -> m ()
+create_dyn_track block_id (ControlTrack note dyn) = do
+    tid <- Create.track block_id dyn
+    State.splice_skeleton_below block_id dyn note
+    State.set_track_title tid (TrackInfo.control_to_title Score.c_dynamic)
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.

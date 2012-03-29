@@ -21,9 +21,9 @@ UNSORTED
       looks like this works already
   * add resolve_default_instrument and use it in Cmd.Info
 
-  - enter control values taken from velocity
-    - add record_velocity flag
-    - generalize next_note_track and this_note_track to also be able to find
+  * enter control values taken from velocity
+    * add record_velocity flag
+    * generalize next_note_track and this_note_track to also be able to find
       a dyn track
   * I think Instrument.config_wdev_map is unnecessary, since I already bind
     instruments to wdevs in config_alloc
@@ -822,7 +822,7 @@ Cmd:
    - stretch events in selection to another length (need two selections?)
 
   Cmd.NoteTrack
-    - record velocity if there is a velocity track
+    * record velocity if there is a velocity track
     * chord input, if there are multiple note tracks for this inst
 
   Cmd.Language

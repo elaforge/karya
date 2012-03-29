@@ -1,7 +1,7 @@
 Indents are 4 spaces only.  Nothing is lined up vertically, and there are no
 tabs.
 
-No line is longer than 79 columns, not counting the newline.
+No line is longer than 80 columns, not counting the newline.
 
 All lower case names are lower_with_underscores even though it's not haskell
 standard.  All upper case names are haskell standard CamelCase.

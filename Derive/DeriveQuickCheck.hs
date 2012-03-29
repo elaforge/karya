@@ -192,7 +192,7 @@ extract_notes skel tracks
     | not (null missing) = error $ "extract_notes: skel " ++ show skel
         ++ " has missing tracknums: " ++ show missing
     | otherwise = do
-        (track, parents, children) <- Tree.paths trees
+        (track, parents, children) <- Tree.flat_paths trees
         guard (is_note track)
         let tracks = children ++ parents
         let pitch = Maybe.fromMaybe ("*", []) (List.find is_pitch tracks)

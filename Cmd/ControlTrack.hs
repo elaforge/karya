@@ -4,8 +4,13 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
+import qualified Cmd.Selection as Selection
+
+import qualified Derive.TrackLang as TrackLang
+import qualified Perform.Signal as Signal
 
 
 cmd_raw_edit :: Cmd.Cmd
@@ -31,11 +36,22 @@ cmd_method_edit msg = do
         _ -> Cmd.abort
     return Cmd.Done
 
+
 -- * implementation
+
+val_edit_at :: (Cmd.M m) => State.Pos -> Signal.Y -> m ()
+val_edit_at pos val = modify_event_at pos $ \(method, _) ->
+    ((Just method, Just (TrackLang.show_val val)), False)
 
 modify_event :: (Cmd.M m) =>
     ((String, String) -> ((Maybe String, Maybe String), Bool)) -> m ()
-modify_event f = EditUtil.modify_event True True
+modify_event f = do
+    pos <- Selection.get_insert_pos
+    modify_event_at pos f
+
+modify_event_at :: (Cmd.M m) => State.Pos
+    -> ((String, String) -> ((Maybe String, Maybe String), Bool)) -> m ()
+modify_event_at pos f = EditUtil.modify_event_at pos True True
     (first unparse . f . parse . Maybe.fromMaybe "")
 
 -- | Try to figure out the call part of the expression and split it from the

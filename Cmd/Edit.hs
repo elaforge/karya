@@ -79,6 +79,8 @@ sync_edit_box_status = do
             (if Cmd.state_chord st then 'c' else ' ')
         track = Block.Box (edit_color mode)
             (if Cmd.state_kbd_entry st then 'K' else ' ')
+    Cmd.set_status Config.status_record $
+        if Cmd.state_record_velocity st then Just "vel" else Nothing
     Cmd.set_edit_box skel track
 
 skel_color :: Cmd.EditMode -> Bool -> Color.Color
@@ -110,6 +112,15 @@ modify_chord :: (Cmd.M m) => (Bool -> Bool) -> m ()
 modify_chord f = do
     Cmd.modify_edit_state $ \st ->
         st { Cmd.state_chord = f (Cmd.state_chord st) }
+    sync_edit_box_status
+
+toggle_record_velocity :: Cmd.CmdL ()
+toggle_record_velocity = modify_record_velocity not
+
+modify_record_velocity :: (Bool -> Bool) -> Cmd.CmdL ()
+modify_record_velocity f = do
+    Cmd.modify_edit_state $ \st ->
+        st { Cmd.state_record_velocity = f (Cmd.state_record_velocity st) }
     sync_edit_box_status
 
 -- * universal event cmds

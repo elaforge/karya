@@ -424,6 +424,9 @@ data EditState = EditState {
     -- When chord mode is off, the note is considered entered as soon as
     -- its NoteOn is received.
     , state_chord :: Bool
+    -- | Try to find or create a \"dyn\" track for to record 'InputNote.Input'
+    -- velocity, similar to how a pitch track is edited and created.
+    , state_record_velocity :: Bool
     -- | Use the alphanumeric keys to enter notes instead of midi input.
     , state_kbd_entry :: !Bool
     -- | Default time step for cursor movement.
@@ -457,6 +460,7 @@ initial_edit_state = EditState {
     , state_kbd_entry = False
     , state_advance = True
     , state_chord = False
+    , state_record_velocity = False
     , state_time_step =
         TimeStep.step (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
     , state_note_duration = TimeStep.step TimeStep.BlockEnd

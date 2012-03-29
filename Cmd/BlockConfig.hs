@@ -1,6 +1,7 @@
 -- | Cmds that affect global block config but don't fit into any of the
 -- more specefic modules.
 module Cmd.BlockConfig where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -21,6 +22,7 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 import qualified Cmd.ViewConfig as ViewConfig
 
+import qualified Derive.TrackInfo as TrackInfo
 import qualified App.Config as Config
 import Types
 
@@ -54,8 +56,11 @@ clicked_track msg = case (Msg.mouse_down msg, Msg.context_track msg) of
 toggle_merge_all :: (State.M m) => BlockId -> m ()
 toggle_merge_all block_id = do
     tracks <- Info.block_tracks block_id
-    let note_pitches = [(State.track_tracknum note, State.track_tracknum pitch)
-            | Info.Track note (Info.Note (Just pitch)) <- tracks]
+    let note_pitches = do
+            Info.Track note (Info.Note controls) <- tracks
+            pitch <- maybe [] (:[]) $ List.find
+                (TrackInfo.is_pitch_track . State.track_title) controls
+            return (State.track_tracknum note, State.track_tracknum pitch)
     ifM (andM [track_merged block_id tracknum | (tracknum, _) <- note_pitches])
         (mapM_ (State.unmerge_track block_id) (map fst note_pitches))
         (mapM_ (uncurry (State.merge_track block_id)) note_pitches)

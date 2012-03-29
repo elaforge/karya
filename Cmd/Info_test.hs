@@ -12,7 +12,7 @@ test_block_tracks = do
             (Info.block_tracks UiTest.default_block_id)
         track title num = State.TrackInfo title (UiTest.mk_tid num) num
     equal (f [">", "*"])
-        [ Info.Track (track ">" 1) (Info.Note (Just (track "*" 2)))
+        [ Info.Track (track ">" 1) (Info.Note [track "*" 2])
         , Info.Track (track "*" 2) (Info.Pitch (Just (track ">" 1)))
         ]
 

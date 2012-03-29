@@ -77,6 +77,11 @@ status_note = "n"
 status_note_text :: String
 status_note_text = "note"
 
+-- | Various record flags.  Most are reflected in the color of the edit box,
+-- but the secondary ones go here.
+status_record :: String
+status_record = "r"
+
 
 -- * lang
 

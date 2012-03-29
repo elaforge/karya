@@ -124,6 +124,25 @@ test_cmd_val_edit_chord = do
     -- TODO test the instrument_of stuff.  I'd need testing infrastructure to
     -- set up the perf stuff.
 
+test_cmd_val_edit_dyn = do
+    let f tracks msgs = fmap extract $ thread [(t, []) | t <- tracks] set_dyn
+            NoteTrack.cmd_val_edit msgs
+        set_dyn st = st { Cmd.state_edit = (Cmd.state_edit st)
+            { Cmd.state_record_velocity = True } }
+        extract = UiTest.extract_tracks . fst
+    let on vel = CmdTest.m_note_on 60 60 vel
+    equal (f [">"] [on 127]) $ Right
+        [ (">", [(0, 1, "")])
+        , ("dyn", [(0, 0, "1")])
+        , ("*twelve", [(0, 0, "4c")])
+        ]
+
+    equal (f [">", "dyn"] [on 64]) $ Right
+        [ (">", [(0, 1, "")])
+        , ("*twelve", [(0, 0, "4c")])
+        , ("dyn", [(0, 0, ".503")])
+        ]
+
 val_edit :: Bool -> Bool -> [UiTest.TrackSpec] -> [Msg.Msg]
      -> Either String States
 val_edit advance chord tracks msgs =
@@ -140,6 +159,9 @@ test_cmd_method_edit = do
         Right [inst, ("*", [(0, 0, "x (4d)")])]
     equal (run [inst, ("*", [(0, 0, "x (4d)")])] (f (mkkey Key.Backspace))) $
         Right [inst, ("*", [(0, 0, "4d")])]
+
+
+-- * util
 
 mkkey :: Key.Key -> Msg.Msg
 mkkey = CmdTest.make_key UiMsg.KeyDown

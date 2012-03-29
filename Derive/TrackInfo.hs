@@ -117,18 +117,7 @@ unparse_control_vals ctype = case ctype of
     sym = TrackLang.VSymbol . TrackLang.Symbol
     uncontrol (Score.Control c) = c
 
--- ** util
-
-strip_expr :: String -> String
-strip_expr = Seq.rstrip . takeWhile (/='|')
-
-scale_to_title :: Pitch.ScaleId -> String
-scale_to_title scale_id = unparse_control (Pitch scale_id Nothing)
-
-title_to_scale :: String -> Maybe Pitch.ScaleId
-title_to_scale title = case parse_control title of
-    Right (Pitch scale_id _) -> Just scale_id
-    _ -> Nothing
+-- * note
 
 -- | Convert a track title into its instrument.
 --
@@ -145,18 +134,42 @@ instrument_to_title = TrackLang.show_val . TrackLang.VInstrument
 is_note_track :: String -> Bool
 is_note_track = Maybe.isJust . title_to_instrument
 
+strip_expr :: String -> String
+strip_expr = Seq.rstrip . takeWhile (/='|')
+
+-- * pitch
+
+title_to_scale :: String -> Maybe Pitch.ScaleId
+title_to_scale title = case parse_control title of
+    Right (Pitch scale_id _) -> Just scale_id
+    _ -> Nothing
+
+scale_to_title :: Pitch.ScaleId -> String
+scale_to_title scale_id = unparse_control (Pitch scale_id Nothing)
+
 is_pitch_track :: String -> Bool
 is_pitch_track = Maybe.isJust . title_to_scale
+
+-- * control
+
+-- | Convert a track title to its control.
+title_to_control :: String -> Maybe Score.Control
+title_to_control title = case parse_control title of
+    Right (Control _ cont) -> Just (Score.typed_val cont)
+    _ -> Nothing
+
+control_to_title :: Score.Control -> String
+control_to_title (Score.Control cont) = cont
 
 -- | A pitch track is also considered a control track.
 is_control_track :: String -> Bool
 is_control_track = not . is_note_track
-
-is_tempo_track :: String -> Bool
-is_tempo_track = (=="tempo")
 
 -- | This is like 'is_control_track' but doesn't include pitch tracks.
 is_signal_track :: String -> Bool
 is_signal_track title = is_control_track title && case parse_control title of
     Right (Control {}) -> True
     _ -> False
+
+is_tempo_track :: String -> Bool
+is_tempo_track = (=="tempo")

@@ -600,7 +600,7 @@ muted_tracknums block tree
     -- A soloed track will keep all its parents and children unmuted.
     soloed = List.nub $ concat
         [ track_tracknum t : map track_tracknum (ps ++ cs)
-        | (t, ps, cs) <- Tree.paths tree, track_tracknum t `elem` solo ]
+        | (t, ps, cs) <- Tree.flat_paths tree, track_tracknum t `elem` solo ]
 
 track_tree_mutes :: [TrackNum] -> TrackTree -> TrackTreeMutes
 track_tree_mutes muted forest = map f forest
