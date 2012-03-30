@@ -332,10 +332,10 @@ setup_normal = do
         render { Track.render_style = Track.Line }
     State.set_track_width bid 3 50
 
-    vel <- Create.track bid 5
-    State.insert_events vel $ map (control_event . UiTest.make_event)
+    dyn <- Create.track bid 5
+    State.insert_events dyn $ map (control_event . UiTest.make_event)
         [(0, 0, ".7"), (1, 0, ".4")]
-    State.set_track_title vel "p"
+    State.set_track_title dyn "dyn"
 
     -- tempo 1 -> mod -> note -> pitch
     State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3), (3, 4), (4, 5)]
@@ -368,19 +368,19 @@ setup_big = do
         to_str n = case Twelve.input_to_note Nothing (Pitch.InputKey n) of
             Just (Pitch.Note s) -> s
             Nothing -> error $ "converting " ++ show n
-        mkvels vels = map UiTest.make_event
+        mkdyn vels = map UiTest.make_event
             [(i*0.25, 0, show vel) | (i, vel) <- zip [0..] vels]
 
     State.insert_events t0 (take 100 (mknotes (cycle (map ((,) 5) notes))))
-    State.insert_events t0_p (take 100 (mkvels (cycle vels)))
+    State.insert_events t0_p (take 100 (mkdyn (cycle vels)))
 
     t1 <- Create.track b 4
     State.set_track_title t1 ">fm8/bass"
     t1_p <- Create.track b 5
-    State.set_track_title t1_p "p"
+    State.set_track_title t1_p "dyn"
     State.insert_events t1
         (take 100 (mknotes (cycle (reverse (map ((,) 6) notes)))))
-    State.insert_events t1_p (take 100 (mkvels (cycle (reverse vels))))
+    State.insert_events t1_p (take 100 (mkdyn (cycle (reverse vels))))
 
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
     State.modify_default $ \d ->

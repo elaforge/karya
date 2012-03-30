@@ -163,6 +163,13 @@ thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
         Result (Left err) _ _ _ _ _ -> Left (show err)
     f (Left err) _ = Left err
 
+-- | Make some tracks and call 'thread'.
+thread_tracks :: [UiTest.TrackSpec] -> (Cmd.State -> Cmd.State)
+    -> [Cmd.CmdId a] -> Either String (State.State,  Cmd.State)
+thread_tracks tracks modify_cmd_state cmds =
+    thread ustate (modify_cmd_state default_cmd_state) cmds
+    where (_, ustate) = UiTest.run_mkview tracks
+
 default_cmd_state :: Cmd.State
 default_cmd_state = empty_state
     { Cmd.state_instrument_db = DeriveTest.default_db
@@ -190,8 +197,10 @@ set_sel t0 p0 t1 p1 = do
     let sel = Types.selection t0 p0 t1 p1
     State.set_selection UiTest.default_view_id Config.insert_selnum (Just sel)
 
-set_point_sel :: (State.M m) => Types.TrackNum -> ScoreTime -> m ()
-set_point_sel = set_point_sel_block UiTest.default_block_name
+set_point_sel :: (State.M m) => Types.TrackNum -> ScoreTime -> m Cmd.Status
+set_point_sel tracknum pos = do
+    set_point_sel_block UiTest.default_block_name tracknum pos
+    return Cmd.Done
 
 -- | Set a point selection on the default view of the given block name.
 set_point_sel_block :: (State.M m) => String -> Types.TrackNum -> ScoreTime

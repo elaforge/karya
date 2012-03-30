@@ -70,7 +70,9 @@ with_note_cmds edit_mode track_type = universal ++ case track_type of
         Cmd.RawEdit -> [PitchTrack.cmd_raw_edit]
         Cmd.ValEdit -> [PitchTrack.cmd_val_edit]
         _ -> []
-    _ -> []
+    Info.Control {} -> case edit_mode of
+        Cmd.ValEdit -> [ControlTrack.cmd_val_edit]
+        _ -> []
     where
     universal = [PitchTrack.cmd_record_note_status, MidiThru.cmd_midi_thru]
 
@@ -84,10 +86,9 @@ track_cmds edit_mode track_type = case track_type of
         Cmd.MethodEdit -> [PitchTrack.cmd_method_edit]
         _ -> []
     Info.Control {} -> case edit_mode of
-        Cmd.NoEdit -> []
         Cmd.RawEdit -> [ControlTrack.cmd_raw_edit]
-        Cmd.ValEdit -> [ControlTrack.cmd_val_edit]
         Cmd.MethodEdit -> [ControlTrack.cmd_method_edit]
+        _ -> []
 
 -- | Track-specific keymaps.
 keymap_cmds :: (Cmd.M m) => Info.TrackType -> m [Cmd.Cmd]

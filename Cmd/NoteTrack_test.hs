@@ -56,7 +56,7 @@ test_cmd_val_edit_simple = do
 
 test_cmd_val_edit_advance = do
     -- Test advance mode.
-    let f advance = extract . val_edit advance False [(">i", []), ("*", [])]
+    let f advance = extract . val_edit advance False [">i", "*"]
         extract (Right result) = (simplify result, extract_sel result)
         extract (Left err) = error $ "left: " ++ err
     let on nn = CmdTest.m_note_on nn (fromIntegral nn) 127
@@ -84,7 +84,7 @@ test_cmd_val_edit_advance = do
         ([(">i", [(0, 1, "4c 50")])], (1, 1))
 
 test_cmd_val_edit_chord = do
-    let f advance tracks = val_edit advance True [(t, []) | t <- tracks]
+    let f advance tracks = val_edit advance True tracks
         e_sel (Right result) = (simplify result, extract_sel result)
         e_sel (Left err) = error $ "left: " ++ err
         e_events = fmap simplify
@@ -125,7 +125,7 @@ test_cmd_val_edit_chord = do
     -- set up the perf stuff.
 
 test_cmd_val_edit_dyn = do
-    let f tracks msgs = fmap extract $ thread [(t, []) | t <- tracks] set_dyn
+    let f tracks msgs = fmap extract $ thread tracks set_dyn
             NoteTrack.cmd_val_edit msgs
         set_dyn st = st { Cmd.state_edit = (Cmd.state_edit st)
             { Cmd.state_record_velocity = True } }
@@ -143,8 +143,7 @@ test_cmd_val_edit_dyn = do
         , ("dyn", [(0, 0, ".503")])
         ]
 
-val_edit :: Bool -> Bool -> [UiTest.TrackSpec] -> [Msg.Msg]
-     -> Either String States
+val_edit :: Bool -> Bool -> [String] -> [Msg.Msg] -> Either String States
 val_edit advance chord tracks msgs =
     thread tracks (mode advance chord) NoteTrack.cmd_val_edit msgs
     where
@@ -173,15 +172,13 @@ run track_specs cmd = CmdTest.trace_logs $
 
 type States = (State.State, Cmd.State)
 
--- | Thread a bunch of msgs through the command and return the final state
--- and the selection position.
-thread :: [UiTest.TrackSpec] -> (Cmd.State -> Cmd.State) -> Cmd.Cmd
+-- | Thread a bunch of msgs through the command with the selection set to
+-- (1, 0).
+thread :: [String] -> (Cmd.State -> Cmd.State) -> Cmd.Cmd
     -> [Msg.Msg] -> Either String (State.State,  Cmd.State)
-thread track_specs modify_cmd_state cmd msgs =
-    CmdTest.thread ustate (modify_cmd_state CmdTest.default_cmd_state) cmds
-    where
-    (_, ustate) = UiTest.run_mkview track_specs
-    cmds = (CmdTest.set_sel 1 0 1 0 >> return Cmd.Done) : map cmd msgs
+thread tracks modify_cmd_state cmd msgs =
+    CmdTest.thread_tracks [(t, []) | t <- tracks] modify_cmd_state
+        (CmdTest.set_point_sel 1 0 : map cmd msgs)
 
 simplify :: States -> [UiTest.TrackSpec]
 simplify = simplify_tracks . UiTest.extract_tracks . fst

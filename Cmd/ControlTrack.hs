@@ -7,6 +7,8 @@ import Util.Control
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
+import qualified Cmd.InputNote as InputNote
+import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.TrackLang as TrackLang
@@ -16,6 +18,9 @@ import qualified Perform.Signal as Signal
 cmd_raw_edit :: Cmd.Cmd
 cmd_raw_edit = EditUtil.raw_edit True
 
+-- | Accept keystrokes and modify the val field of the event.  Also accept
+-- 'InputNote.NoteOn' or 'InputNote.Control' msgs and enter a value based on
+-- their velocity or value, respectively.
 cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = do
     EditUtil.fallthrough msg
@@ -24,8 +29,16 @@ cmd_val_edit msg = do
             case EditUtil.modify_text_key key val of
                 Nothing -> ((Nothing, Nothing), null val)
                 Just new_val -> ((Just method, Just new_val), False)
+        Msg.InputNote (InputNote.NoteOn _ _ vel) -> insert_val vel
+        Msg.InputNote (InputNote.Control _ _ val) -> insert_val val
         _ -> Cmd.abort
     return Cmd.Done
+    where
+    insert_val val = do
+        pos <- Selection.get_insert_pos
+        val_edit_at pos val
+        whenM (Cmd.gets (Cmd.state_advance . Cmd.state_edit))
+            Selection.advance
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = do
