@@ -327,7 +327,7 @@ setup_normal = do
     State.insert_events pitch $ map (control_event . UiTest.make_event)
         [(0, 0, "`tr` (5c) 2 3"), (1, 0, "n (5d)"), (2, 0, "5e"),
             (3, 0, "i (5f)")]
-    State.set_track_title pitch "*twelve"
+    State.set_track_title pitch "*twelve | key = 'c-maj'"
     State.modify_track_render pitch $ \render ->
         render { Track.render_style = Track.Line }
     State.set_track_width bid 3 50

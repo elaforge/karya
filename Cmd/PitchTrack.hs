@@ -45,6 +45,10 @@ cmd_val_edit msg = do
             val_edit_at pos note
             whenM (Cmd.gets (Cmd.state_advance . Cmd.state_edit))
                 Selection.advance
+        Msg.InputNote (InputNote.PitchChange _ key) -> do
+            pos <- Selection.get_insert_pos
+            note <- EditUtil.parse_key key
+            val_edit_at pos note
         (Msg.key_down -> Just Key.Backspace) ->
             EditUtil.modify_event False True (const (Nothing, True))
         _ -> Cmd.abort
