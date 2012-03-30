@@ -73,10 +73,10 @@ strip_comment = fst . B.breakSubstring "--"
 
 -- * expand macros
 
--- | Map the identifiers after a \"@\" through the given function.  Used
+-- | Map the identifiers after a \"\@\" through the given function.  Used
 -- to implement ID macros for the REPL.
 --
--- It doesn't understand strings, so don't put ats in strings.  TODO fix that
+-- It doesn't understand strings, so don't put \@s in strings.  TODO fix that
 expand_macros :: (String -> String) -> String -> Either String String
 expand_macros replacement str
     | '@' `notElem` str = Right str

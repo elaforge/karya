@@ -360,10 +360,10 @@ data Dynamic = Dynamic {
     state_controls :: !Score.ControlMap
     -- | Named pitch signals.
     , state_pitches :: !Score.PitchMap
-    -- | Absolute pitch signal currently in scope.  This is the pitch signal
-    -- that's actually applied to notes.  It's split off from pitches because
-    -- it's convenient to guarentee that the main pitch signal is always
-    -- present.
+    -- | The unnamed pitch signal currently in scope.  This is the pitch signal
+    -- that's applied to notes by default.  It's split off from 'state_pitches'
+    -- because it's convenient to guarentee that the main pitch signal is
+    -- always present.
     , state_pitch :: !PitchSignal.Signal
     , state_environ :: !TrackLang.Environ
     , state_warp :: !Score.Warp

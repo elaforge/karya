@@ -7,7 +7,7 @@
     TODO split this into Float and Double versions since only Warp really
     needs Double.  Or does Warp really need Double?
 -}
-module Perform.Signal (
+module Perform.Signal2 (
     -- * types
     Signal, sig_vec
     , X, Y, x_to_y, y_to_real, y_to_score, y_to_nn, nn_to_y

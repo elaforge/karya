@@ -67,8 +67,7 @@ collect_warps wmap = drop 1 $ map drop_stack $ collect [] dummy_tw assocs
 
 -- | Group a list of stacks into a @(stack, parent, children)@ triples.
 -- A Left is a parent, and will collect the Rights prefixed by its stack.
-collect :: Frames -> a -> [(Frames, Either a b)]
-    -> [(Frames, a, [b])] -- ^ [(
+collect :: Frames -> a -> [(Frames, Either a b)] -> [(Frames, a, [b])]
 collect prefix a stacks = (prefix, a, bs)
     : concat [collect pref sub_a substacks | (sub_a, pref, substacks) <- subs]
     where

@@ -116,7 +116,7 @@ format_response (result, logs, warns) = decorate $ case result of
 
 -- * implementation
 
--- | Replace @some-id with (auto_id ns "some-id")
+-- | Replace \@some-id with @(auto_id ns \"some-id\")@
 expand_macros :: Id.Namespace -> String -> Either String String
 expand_macros namespace expr = ParseBs.expand_macros replace expr
     where

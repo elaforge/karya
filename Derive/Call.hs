@@ -218,7 +218,7 @@ derive_track state tinfo parse get_last_sample events =
 derive_event :: (Derive.Derived d) =>
     Derive.State -> TrackInfo d -> Parse.ParseExpr
     -> Maybe (RealTime, Derive.Elem d)
-    -> B.ByteString -- ^ repeat call, substituted with @"@
+    -> B.ByteString -- ^ repeat call, substituted with @\"@
     -> [Events.PosEvent] -- ^ previous events, in reverse order
     -> Events.PosEvent -- ^ cur event
     -> [Events.PosEvent] -- ^ following events
@@ -257,9 +257,9 @@ derive_event st tinfo parse prev_sample repeat_call prev cur@(pos, event) next
     region s e = Stack.Region (shifted + s) (shifted + e)
     TrackInfo events_end track_range shifted subs around dinfo = tinfo
 
--- | Replace @"@ with the previous non-@"@ call, if there was one.
+-- | Replace @\"@ with the previous non-@\"@ call, if there was one.
 --
--- Another approach would be to have @"@ as a plain call that looks at
+-- Another approach would be to have @\"@ as a plain call that looks at
 -- previous events.  However I would have to unparse the args to re-eval,
 -- and would have to do the same macro expansion stuff as I do here.
 substitute_repeat :: B.ByteString -> B.ByteString -> B.ByteString

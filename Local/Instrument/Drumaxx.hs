@@ -22,7 +22,7 @@ load _dir = return $ MidiInst.make $
         }
 
 -- | The octave numbers on the drummax are one greater than the standard usage.
--- This is for "Acoustic 2 FG".  I'll have to come up with a standard mapping
+-- This is for \"Acoustic 2 FG\".  I'll have to come up with a standard mapping
 -- later.
 notes :: [(Drums.Note, Midi.Key)]
 notes =

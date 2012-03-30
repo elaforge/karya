@@ -57,7 +57,7 @@ type Block = (UiTest.BlockSpec, [Skeleton.Edge])
 type Track = UiTest.TrackSpec
 type Events = [(Double, Double, String)]
 
--- | Random length track of "" notes with pitches.
+-- | Random length track of \"\" notes with pitches.
 simple_pitch :: Q.Gen Block
 simple_pitch = do
     ranges <- granges
@@ -158,7 +158,8 @@ state_control_map = Map.map (Score.untyped . Signal.constant) . state_controls
 state_pitch_signal :: State -> PitchSignal.Signal
 state_pitch_signal = PitchSignal.constant scale . mknote . state_pitch
     where
-    scale = (Twelve.scale_id, Scale.scale_transposers Twelve.scale)
+    scale = PitchSignal.Scale Twelve.scale_id
+        (Scale.scale_transposers Twelve.scale)
     mknote = PitchSignal.pitch . const . return
 
 update_state :: [Sample] -> RealTime -> State -> (State, [Sample])

@@ -353,7 +353,7 @@ state_midi_writer state (Midi.WriteMessage wdev ts msg) = do
 newtype LookupScale = LookupScale Derive.LookupScale
 instance Show LookupScale where show _ = "((LookupScale))"
 
--- | State concerned derivation, performance, and playing the performance.
+-- | State concerning derivation, performance, and playing the performance.
 data PlayState = PlayState {
     -- | Transport control channel for the player, if one is running.
     state_play_control :: !(Maybe Transport.PlayControl)
@@ -417,15 +417,16 @@ data EditState = EditState {
     -- entered.
     , state_advance :: Bool
     -- | Chord mode means the note is considered entered when all NoteOffs
-    -- have been received.  While it is held down, the insertion point will
+    -- have been received.  While a note is held down, the insertion point will
     -- move to the next note track with the same instrument so you can
     -- enter chords.
     --
     -- When chord mode is off, the note is considered entered as soon as
     -- its NoteOn is received.
     , state_chord :: Bool
-    -- | Try to find or create a \"dyn\" track for to record 'InputNote.Input'
-    -- velocity, similar to how a pitch track is edited and created.
+    -- | Try to find or create a 'Score.c_dynamic' track for to record
+    -- 'InputNote.Input' velocity, similar to how a pitch track is edited and
+    -- created.
     , state_record_velocity :: Bool
     -- | Use the alphanumeric keys to enter notes instead of midi input.
     , state_kbd_entry :: !Bool
@@ -472,7 +473,7 @@ initial_edit_state = EditState {
     , state_edit_box = (box, box)
     } where box = uncurry Block.Box Config.bconfig_box
 
--- | These enable various commands to edit event text.  What exactly val,
+-- | These enable various commands to edit event text.  What exactly val
 -- and method mean are dependent on the track.
 data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
 

@@ -418,9 +418,17 @@ dispatch config target = case target of
         hscs <- Util.findHs "*.hs" (hscDir config)
         hs <- filter haddock <$> Util.findHs "*.hs" "."
         need hscs
-        system' "haddock" $ ["--html", "-B", ghcLib config,
-            "--source-module=\"../%F\"", "-o", build </> "doc"]
-            ++ hs ++ hscs
+        system' "haddock" $
+            ["--html", "-B", ghcLib config
+            , "--source-base=../../"
+            , "--source-module=../../%{FILE}"
+            , "--prologue=doc/prologue"
+            , "--optghc=-I."
+            -- TODO use hscolour to get nice source links
+            -- This flag crashes ghc 7.0.3
+            -- , "-q", "relative" -- Source references use qualified names.
+            , "-o", build </> "doc"
+            ] ++ hs ++ hscs
     "checkin" -> do
         let debug = (modeToDir Debug </>)
         Shake.want [debug "browser", debug "logview", debug "make_db",
