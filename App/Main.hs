@@ -341,7 +341,7 @@ setup_normal = do
     State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3), (3, 4), (4, 5)]
 
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
-    Selection.set vid Config.insert_selnum (Just (Types.point_selection 0 0))
+    Selection.set vid (Just (Types.point_selection 0 0))
     return Cmd.Done
     where
     note_event (pos, evt)
@@ -385,7 +385,7 @@ setup_big = do
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
     State.modify_default $ \d ->
         d { State.default_instrument = Just (Score.Instrument "fm8/bass") }
-    Selection.set view Config.insert_selnum (Just (Types.point_selection 0 0))
+    Selection.set view (Just (Types.point_selection 0 0))
     return Cmd.Done
 
 empty_block :: (Cmd.M m) => m (BlockId, ViewId)

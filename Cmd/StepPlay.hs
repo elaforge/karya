@@ -137,7 +137,7 @@ make_states ts msgs = snd $ List.mapAccumL go (Midi.State.empty, msgs) ts
 cmd_clear :: (Cmd.M m) => m ()
 cmd_clear = do
     view_ids <- Map.keys . State.state_views <$> State.get
-    forM_ view_ids $ \view_id -> Selection.set view_id selnum Nothing
+    forM_ view_ids $ \view_id -> Selection.set_selnum view_id selnum Nothing
     Cmd.modify_play_state $ \st -> st { Cmd.state_step = Nothing }
     Cmd.all_notes_off
 
@@ -217,7 +217,7 @@ zip_head = Seq.head . snd
 
 set_selections :: (Cmd.M m) => [ViewId] -> ScoreTime -> [TrackNum] -> m ()
 set_selections view_ids pos tracks = sequence_
-    [Selection.set view_id selnum (sel pos) | view_id <- view_ids]
+    [Selection.set_selnum view_id selnum (sel pos) | view_id <- view_ids]
     where
     -- I can't display disjoint selections so assume the tracks are
     -- contiguous.

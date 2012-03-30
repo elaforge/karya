@@ -135,7 +135,7 @@ unerror :: Cmd.CmdL ()
 unerror = do
     view_ids <- State.get_all_view_ids
     forM_ view_ids $ \vid -> do
-        Selection.set vid Config.error_selnum Nothing
+        Selection.set_selnum vid Config.error_selnum Nothing
 
 highlight_error :: Stack.UiFrame -> Cmd.CmdL ()
 highlight_error (bid, maybe_tid, maybe_range) = do
@@ -143,12 +143,12 @@ highlight_error (bid, maybe_tid, maybe_range) = do
     mapM_ ViewConfig.bring_to_front view_ids
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
-            Selection.set vid Config.error_selnum
+            Selection.set_selnum vid Config.error_selnum
                 (Just (Types.selection 0 0 9999 9999))
         (Just tid, Nothing) -> do
             tracknums <- State.track_id_tracknums bid tid
             forM_ view_ids $ \vid -> forM_ tracknums $ \tracknum ->
-                Selection.set vid Config.error_selnum
+                Selection.set_selnum vid Config.error_selnum
                     (Just (Types.selection tracknum 0 tracknum 9999))
         (Just tid, Just (from, to)) -> do
             tracknums <- State.track_id_tracknums bid tid

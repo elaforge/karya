@@ -47,8 +47,12 @@ import Types
 --
 -- This is the Cmd level of State.set_selection and should be called by
 -- any Cmd that wants to set the selection.
-set :: (Cmd.M m) => ViewId -> Types.SelNum -> Maybe Types.Selection -> m ()
-set view_id selnum maybe_sel = do
+set :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
+set view_id maybe_sel = set_selnum view_id Config.insert_selnum maybe_sel
+
+set_selnum :: (Cmd.M m) => ViewId -> Types.SelNum -> Maybe Types.Selection
+    -> m ()
+set_selnum view_id selnum maybe_sel = do
     State.set_selection view_id selnum maybe_sel
     when (selnum == Config.insert_selnum) $ do
         case maybe_sel of
@@ -60,7 +64,7 @@ set view_id selnum maybe_sel = do
 set_current :: (Cmd.M m) => Types.SelNum -> Maybe Types.Selection -> m ()
 set_current selnum maybe_sel = do
     view_id <- Cmd.get_focused_view
-    set view_id selnum maybe_sel
+    set_selnum view_id selnum maybe_sel
 
 -- | For point selections, set a play position selection on the equivalent
 -- time in sub-blocks.  This makes it easier to edit the super-block relative
@@ -92,7 +96,7 @@ set_block block_id ((_, pos) : _) = do
 set_and_scroll :: (Cmd.M m) => ViewId -> Types.SelNum -> Types.Selection
     -> m ()
 set_and_scroll view_id selnum sel = do
-    set view_id selnum (Just sel)
+    set_selnum view_id selnum (Just sel)
     auto_scroll view_id sel
 
 -- | Handly shortcut for cmd_step_selection.
@@ -149,7 +153,7 @@ cmd_track_all selnum = do
     block_id <- State.block_id_of view_id
     dur <- State.block_event_end block_id
     tracks <- length . Block.block_tracks <$> State.get_block block_id
-    set view_id selnum (Just (select_track_all dur tracks sel))
+    set_selnum view_id selnum (Just (select_track_all dur tracks sel))
 
 -- | Progressive selection: select the rest of the track, then the entire
 -- track, then the whole block.
@@ -181,7 +185,7 @@ select_tracks :: (Cmd.M m) => Types.SelNum -> ViewId -> TrackNum -> TrackNum
     -> m ()
 select_tracks selnum view_id from to = do
     dur <- State.block_event_end =<< State.block_id_of view_id
-    set view_id selnum $ Just (Types.selection from dur to 0)
+    set_selnum view_id selnum $ Just (Types.selection from dur to 0)
 
 -- | Set the selection based on a click or drag.
 cmd_mouse_selection :: (Cmd.M m) =>

@@ -274,7 +274,9 @@ insert_track_after_selection = do
     (_, (block_id, tracknum, _)) <- Selection.get_any_insert
     track block_id (tracknum + 1)
 
--- | Tracks look like \"ns/b0.t0\", etc.
+-- | Create a track with the given ruler.
+--
+-- Tracks look like \"ns/b0.t0\", etc.
 track_ruler :: (State.M m) =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> m TrackId
 track_ruler block_id ruler_id tracknum width = do
