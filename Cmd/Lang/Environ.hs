@@ -25,6 +25,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Skeleton as Skeleton
+import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
@@ -44,6 +45,7 @@ import qualified Cmd.Lang.LPerf as LPerf
 import qualified Cmd.Lang.LPitch as LPitch
 import qualified Cmd.Lang.LRuler as LRuler
 import qualified Cmd.Lang.LState as LState
+import qualified Cmd.Lang.LSymbol as LSymbol
 import qualified Cmd.Lang.LTrack as LTrack
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.ModifyEvents as ModifyEvents

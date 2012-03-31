@@ -208,7 +208,7 @@ UNSORTED
   - after an uncollapse, it doesn't redraw the selection that was underneath
     Not a big deal since a selection shouldn't be underneath but still...
   - randomize any control by having the 'set' call look for the -rnd control
-  - some way to get symbol feedback instantly to make it easier to compose them
+  * some way to get symbol feedback instantly to make it easier to compose them
   - glyph placement is messed up on linux, see up arpeggios
   + automate the manual tests
 
