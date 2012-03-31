@@ -89,7 +89,7 @@ show_info win db inst_name = Fltk.send_action $ BrowserC.set_info win info
 
 info_of :: Db -> Score.Instrument -> MidiDb.Info code -> String
 info_of db score_inst (MidiDb.Info synth patch _) =
-    printf "%s -- %s -- %s\n\n" synth_name name dev
+    printf "%s -- %s\n\n" synth_name name
         ++ info_sections
             [ ("Instrument controls", cmap_info inst_cmap)
             , ("Flags", Seq.join ", " flags)
@@ -102,10 +102,9 @@ info_of db score_inst (MidiDb.Info synth patch _) =
             , ("Tags", tags)
             ]
     where
-    Instrument.Synth synth_name maybe_dev synth_cmap = synth
+    Instrument.Synth synth_name synth_cmap = synth
     Instrument.Patch inst pflags initialize keyswitches _ text file = patch
     flags = map show (Set.toList pflags)
-    dev = maybe "<no default device>" (\(Midi.WriteDevice s) -> s) maybe_dev
     name = let n = Instrument.inst_name inst in if null n then "*" else n
     inst_cmap = Instrument.inst_control_map inst
     tags = maybe "" tags_info $
