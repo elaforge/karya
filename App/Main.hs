@@ -100,7 +100,7 @@ load_static_config = do
         , StaticConfig.global_scope = Call.All.scope
         , StaticConfig.setup_cmd = parse_args
         , StaticConfig.rdev_map = rdev_map
-        , StaticConfig.wdev_map = synth_wdevs <> wdev_map
+        , StaticConfig.wdev_map = wdev_map <> synth_wdevs
         , StaticConfig.read_devices = read_devices
         }
 
