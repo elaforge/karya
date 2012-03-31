@@ -1,54 +1,20 @@
 UNSORTED
-  * I think passed_environ is unnecessary, environ is already in the Deriver
-  - split up CallInfo depending on type
-    I got started but was discouraged when it came time to write
-    GetLastSample, maybe I should make another go.
-  chord entry
-    * add a "temporary insert" selection to indicate where the chord insert
-      will be next
-    * Remove PitchTrack from Cmd.NoteTrackKeymap
-    * collapse all ^M should use Cmd.Info
-    * move SelPos to State, and add Selection.insert_pos -> State.Pos
-    * fix Cmd.Info's other functions to work with inversion
-    * keyboard editing: non-chord mode that advances as soon as it gets NoteOn
-    * chord mode enters the note and moves to the text note track, only
-      advances on NoteOff
-      (advance, not chord) -> advance on note on
-      (not advance, not chord) -> never advance, useful for finding the note
-      (advance, chord) -> advance on note off
-      (not advance, chord) -> don't advance, find chords
-    * tuning: in chord mode, PitchChange changes the pitch of the last note
-      looks like this works already
-  * add resolve_default_instrument and use it in Cmd.Info
-
-  * enter control values taken from velocity
-    * add record_velocity flag
-    * generalize next_note_track and this_note_track to also be able to find
-      a dyn track
-  * I think Instrument.config_wdev_map is unnecessary, since I already bind
-    instruments to wdevs in config_alloc
-  * why is the mordent not playing?
+  - "syntax coloring": e.g. events which have 'x = y' could have a different
+    color
   - I could have a Cmd state flag that does things relative to the current
     block vs. root block
     - LPerf functions
     - play
-  * Pretty instance for LEvent and Score.Event
   - do the 'play this list of events' thing, send it over to the play thread
     just without an updater, so space will still kill it
-  * Is the missing mordent due to null vel control + non null dyn control?
   - can I get a lang cmd to show the environ at a certain point?
-  - repl with opt likes to segfault.  Also likes to segfault if it has to
-    reload a lot of modules.
-
-  * add a HughsPJ 'format' method for Pretty
-  * should Score.Event.event_string use UTF8.toString instead of B.unpack?
+  - repl likes to segfault if it has to reload a lot of modules.
 
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
   - fltk: some way to scroll that's not the scroll wheel
   - shakefile: can I print [# of #] when compiling?
   - de-globalize MidiClientRef?
-  * should ReadDevice and WriteDevice use ByteString?
 
   abstract pitches
     re-implement Cmd.Lang.LPitch.to_relative:
@@ -72,63 +38,6 @@ UNSORTED
         in arbitrary places)
         Key: sharps and flats per degree, then derive the intervals from that
       - support scales that are different ascending vs. descending
-
-  * the problem with rambat tick
-    I need a general way to manipulate notes and know their pitch, dynamics,
-    etc.  There are a lot of ways to do this:
-
-    Note transformers - Already implemented.  This can manipulate notes at
-    a high level, such as transposition, duplication, shift/stretch, but
-    can't inspect them.  It also has to run in the track above the notes it
-    wants to transform.
-
-    Preprocessing for TrackEvents - Not sure what this would look like, but
-    it would rewrite bits of score.  It could do symbolic manipulation and
-    e.g.  transposition would transpose pitches symbolically.  It means
-    you can write score -> score translations, but can't talk about RealTime
-    at all, unless you cooperate with a call.  The preproc would need some
-    infrastructure to e.g. chase down the pitch track and group pitches and
-    controls with their notes.  Not too appealing.
-
-    Evaluate pitches independently:  Just evaluate the pitches from the
-    future.  I'd have to find out what they are, and then evaluate them in
-    an environment as close as possible to the one they will be in later.
-    For the first: I can assume the pitch track is below, otherwise I don't
-    need to do this.  If it is, it's in a different slice.  So find the next
-    note, slice as it would have done
-
-    Or just evaluate the entire next note.
-
-    Can I make the call lazy depending on the value of the next note?  As long
-    as they don't have a data dependency, maybe I can pass the next notes
-    in as a lazy list, and forcing it will make the next note evaluate first.
-    If there is a loop then we will hang, maybe I'll get an IO exception.
-    Investigate this first.
-
-    Postprocessing events - This works at the RealTime and can inspect other
-    notes, but it can only do RealTime transformations on them.  For that
-    reason, it's probably best for inserting new notes.  Unfortunately, it
-    has to be a transformer which means it can't really be used to insert
-    a note.  However, maybe I could have a system similar to the old
-    "directive" notion: calls can emit a special 'Directive [Val]' which
-    a postproc pass can then fill in.  I think it would work, but only as
-    a last resort.
-
-    Post-proc note transformers - Track derivation emits
-    [Either Directive Derive.Call.Note.Event].  Then a second pass attempts to
-    eliminate the Directives by calling them
-    But how can tick pull the pitch out of the successor?
-    Now that tick has access to the
-    data Directive = Directive TrackCall.Symbol [TrackLang.Val]
-
-    > | * |
-    ""| a |
-    ' |   |
-    ""| c |
-
-    (pitch a [""])
-    (...)?
-    (pitch c [""])
 
   - pitch bend range on patchman and some of the z1 patches looks off, verify
 
@@ -155,19 +64,6 @@ UNSORTED
       below the note tracks, results should be the same
     - stack: generate nested events, check that stack is as expected
 
-  get rid of schema
-    * move Schema into Derive.Call.Block, move parse stuff into its own module
-    * remove SchemaId, block schema
-    - I think I still need a way to switch deriver per-block, block title is
-      an obvious candidate
-    - can I add a simple example of a totally unrelated deriver, e.g.
-      with no calls, just as an example?  I'm inclined to think such
-      a feature is not so useful because it would be incompatible with
-      all other kinds of notation, but perhaps for a truly specialized
-      notation?  E.g. can I do nanguan pipa?
-
-  - split Ui.State into separate modules for views, blocks, tracks, etc.
-    put into Ui.State.* and re-export from Ui.State
   - it's annoying how a track with nothing in it won't play, and has no
     playback.
   - when I implement control block calls, I might want to override a control
@@ -209,12 +105,10 @@ UNSORTED
     Not a big deal since a selection shouldn't be underneath but still...
   - randomize any control by having the 'set' call look for the -rnd control
   * some way to get symbol feedback instantly to make it easier to compose them
+    - But it calls SymbolC and I ran into a problem where linux ghci can't
+      link FFI-using functions.  Ask on glasgow-haskell-users.
   - glyph placement is messed up on linux, see up arpeggios
   + automate the manual tests
-
-  fltk
-    - skeleton display has leveled steps to make it easier to see who is
-      below who.  Only if a track has multiple children.
 
   wait until I want it
     - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
@@ -305,9 +199,6 @@ external
     - figure out how to implement pragmas in ghc
   - add better symbol resolution to haddock
     document 'qualification' -q flag, add mode to show it as written
-  * figure out better tags
-    hasktags is fast but misses stuff like 'newtype ControlDamage' in
-    Derive/Deriver/Monad.hs
 
 use fixed-binary instead of Doubles for ScoreTime and RealTime:
   reasons to do it:
@@ -375,6 +266,14 @@ bugs:
   - hint refuses to compile when a module emits a warning
 
 cleanup:
+  - split Ui.State into separate modules for views, blocks, tracks, etc.
+    put into Ui.State.* and re-export from Ui.State
+  - split up CallInfo depending on type
+    I got started but was discouraged when it came time to write
+    GetLastSample, maybe I should make another go.
+    Note tracks can't get a GetLastSample at all.
+  - as above, Derived could be called Cacheable, and Elem should be a separate
+    type family
   - It would be more efficient to move events around if their controls were
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved
@@ -601,8 +500,9 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - skeleton display has leveled steps to make it easier to see who is
+    below who.  Only if a track has multiple children.
   - after creating a new track, focus should go to its title
-  - some kind of special highlight to indicate the active block
   - rethrow c++ exceptions as FltkError
   - auto add pitch track when a track title input is expanded crashes with
     assertion error 'title->w() == body->w()'
@@ -621,7 +521,6 @@ fltk:
   Track
     / dividers can have separate color for upper part, for collapsable tracks
   event track
-    * events pass style as a uchar ID for consistency and memory savings
     - visual indication when both solo and mute is on
     - editing event text should use a text entry widget, that way I get
       a cursor, IME, etc.  A side benefit is that I don't have to derive half
@@ -656,14 +555,10 @@ fltk:
       The UI can suppress this if it detects the text hasn't changed.
 
   control track, render signal
-    * support control signals that aren't just 0--1
     / decided against rendering signal as one long line, comment in
       EventTrack.cc
     - render option: solid with color gradient
     - combine multiple signals, e.g. one controls xpos, one controls color
-
-  MoveTile
-    - only capture drag on a plain drag with no modifiers
 
 logview:
   - haskell and c++ use the same machine readable format
@@ -751,22 +646,22 @@ misc:
 integrator / midi record:
   - implement
 
-REPL repl language static config
+REPL: repl:
   - haskeline sucks for long lines, add multiple line editing?
     really I'd prefer plan9 style esc then edit
   - could add syntax mangling, but probably better to add it to the mangler
     so it works for everyone
   - pass -fobject-code to avoid trying to recompile files?
-  * make sure something sane happens when Environ is bad on startup
   - is Cmd.Lang.Fast now obsolete?
   - can I get local variable bindings (let x = ...; y <- ...) to work in the
     REPL?
-  * have 'bid' and 'tid' etc. functions know the current namespace
   - tab completion for symbols like in ghci
     I'll need a list symbols cmd which the repl automatically sends on tab
     completion.
   - :compile cmd that turns on compilation for everything except Environ
   - :browse to look in modules... can I use GHC.getBindings for this?
+  - :module cmd to move evaluation context to a certain module, maybe I
+    could also get rid of the need for Cmd.Lang.Environ to imports everything.
 
 Cmd:
   - Can I have a general in-place derive cmd for note transformers?
@@ -815,15 +710,9 @@ Cmd:
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
       (merge will clip them to the next event)
-    * map selection through function
     - controller edit mode accepts two numbers and moves on, no spaces
     - a legato command that always goes to the next note would still be useful
-   * swap tracks keeping skeleton up to date
    - stretch events in selection to another length (need two selections?)
-
-  Cmd.NoteTrack
-    * record velocity if there is a velocity track
-    * chord input, if there are multiple note tracks for this inst
 
   Cmd.Language
     - lang cmd stuff to load string serialized tracks for event cut and paste
@@ -860,13 +749,6 @@ Cmd:
     - gzip save files
 
 Derive:
-  - remove or simplify Schema
-    But I need to make sure I don't need it first and can implement a totally
-    different language, e.g. gongche.  Having a way to switch default deriver
-    and cmds still seems useful.
-    Of course, I also want to be able to mix score styles, so I don't want to
-    make gongche a total island.  Can I integrate warp tempo as a note
-    transformer?
   lazy signals:
     - see if I can make control tracks truly lazy by making signals lazy
     - reimplement various functions like integrate and resample, bsearches
@@ -923,29 +805,10 @@ Derive:
     - implement block level calls in block title
     - other attributes in block title, e.g. "alias=?squiggle? | xyz"?
 
-  * dynamics controls:
-    * volume, velocity, and breath map directly to midi vals
-    * pres is continuous volume, maps to velocity or breath depending on inst
-    * vel is attack volume, maps to velocity or breath but is only sampled at
-      the beginning of the note
   - to cut the middle out of a pattern: a cut signal that disabled derivation
     when it's 1?
-
   - combine ornaments, like "hold 1s | tr" to hold the first note for 1 score
     time before starting the trill.  I think this could work by warping tr
-
-  * ScoreTime and RealTime literals: 1s, 1r
-    If I had score and real time literals, I could merge abs and score trills.
-    Then I need to support either typed controls, or a notation for "cont
-    x interpreted as score time".
-
-    trill 1 4s -> Signal (Just (RealTime 4), Control)
-    trill 1 s%cont -> Signal (Nothing :: Maybe RealTime, Control)
-
-    data ControlType = Scalar ScalarType Signal.Control
-        | Pitch PitchType PitchSignal.PitchSignal
-    data ScalarType = TReal | TScore | TNum
-    data PitchType = TAbsolutePitch | TRelativePitch
   - time interval literal, so I can specify e.g. trill speed in terms of beats
     This means Derive has to have access to the rulers.
 
@@ -955,10 +818,6 @@ Derive:
     - make it easy to add haskell derivers, tracklang must remain simple
     - derivers call other derivers, which can be rebound
 
-  * arg processing: arg defaults taken automatically from the env, if
-    prefixed with call name: "call-arg"
-    - one problem with this is rebound symbols, do I want to force new names?
-      I think I do, because otherwise it exposes the underlying symbol.
   - test Calls that return overlapping events
   - block-level calls
   - x = _ will unset x
@@ -1139,7 +998,7 @@ Instrument DB / browser:
   * explicitly allow merged patches, so I can get params from syx but send
     program change
 
-jack JACK
+jack: JACK:
   bugs
     - jack1 doesn't work at all: other clients don't see writes, until I quit,
       and then they get continuously spammed.  Apparently the jack_port_t*

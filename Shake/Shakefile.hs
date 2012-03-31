@@ -22,7 +22,6 @@ import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 
-import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map

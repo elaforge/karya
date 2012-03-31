@@ -1,0 +1,48 @@
+What to do about calls that want to know things about other notes, especially
+ones in the future:
+
+* Note transformers - Implemented.  This can manipulate notes at a high level,
+such as transposition, duplication, shift/stretch, but can't inspect them.  It
+also has to run in the track above the notes it wants to transform.
+
+- Preprocessing for TrackEvents - Not implemented.  Not sure what this would
+look like, but it would rewrite bits of score.  It could do symbolic
+manipulation and e.g.  transposition would transpose pitches symbolically.  It
+means you can write score -> score translations, but can't talk about RealTime
+at all, unless you cooperate with a call.  The preproc would need some
+infrastructure to e.g.  chase down the pitch track and group pitches and
+controls with their notes.  This is basically like score macros.  Not too
+appealing.
+
+- Evaluate pitches independently - Not implemented.  Just evaluate the pitches
+from the future.  I'd have to find out what they are, and then evaluate them in
+an environment as close as possible to the one they will be in later.  For the
+first: I can assume the pitch track is below, otherwise I don't need to do
+this.  If it is, it's in a different slice.  So find the next note, slice as it
+would have done
+
+- Give direct access to notes in the future - Not implemented.  I could try to
+rely on laziness by passing in the future notes directly, but it would be safer
+to pass in a separate evaluation of the future notes.  The notes are still
+Derivers, so I'd have to evaluate them to get pitch, etc. out.
+
+* Postprocessing events - Implemented.  This works at the RealTime and can
+inspect other notes, but it can only do RealTime transformations on them.  For
+that reason, it's probably best for inserting new notes.  Unfortunately, it has
+to be a transformer which means it can't really be used to insert a note.
+
+- Post-proc note transformers - Not implemented.  Track derivation emits
+[Either Directive Derive.Call.Note.Event].  Then a second pass attempts to
+eliminate the Directives by calling them.  Since their evaluation has been
+delayed, they have access to the earlier-evaluated things.  This is ugly and
+unscalable because it's hardcoded two levels of evaluation.
+
+* Slicing casts a wider net - Implemented.  If the control tracks are above,
+then there's no problem, they've all be evaluated by the time the call is
+reached.  If the control tracks are below, then extend slicing to get some
+controls from previous or succeeding notes.  This means calls have to "declare"
+how many controls into the future or past they want to look by passing an
+argument to slice.  But the nicest thing about this is that after inversion it
+looks exactly the same to the call, it simply finds the ScoreTime of the next
+note, and looks in the control signal at that time.  It doesn't have to care if
+it's inverted or not.
