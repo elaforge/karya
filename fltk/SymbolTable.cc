@@ -93,29 +93,33 @@ set_font(const SymbolTable::Glyph &glyph, SymbolTable::Size size)
 
 // Draw a group of glyphs.
 static void
-draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size)
+draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size,
+    int rotate)
 {
     for (std::vector<SymbolTable::Glyph>::const_iterator
             glyph = sym.glyphs.begin(); glyph != sym.glyphs.end(); ++glyph)
     {
         set_font(*glyph, size);
         draw_text(glyph->utf8, strlen(glyph->utf8), pos, false,
-            DPoint(glyph->align_x, glyph->align_y), glyph->rotate);
+            DPoint(glyph->align_x, glyph->align_y), glyph->rotate + rotate);
     }
 }
 
 
 IPoint
 SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
-        Fl_Color color, bool measure) const
+        Fl_Color color, bool vertical, bool measure) const
 {
     size_t start = 0;
     size_t i, j;
 
     fl_font(font, size);
     fl_color(color);
-    // Keep track of the current bounding box.
+    // Keep track of the current bounding box.  The box is the width and height
+    // of the text, so if vertical is true, the box's 'x' is the vertical
+    // "width" of the text.
     IPoint box(0, fl_height() - fl_descent());
+    int rotate = vertical ? -90 : 0;
 
     while ((i = text.find('`', start)) < text.size()) {
         i++;
@@ -126,14 +130,18 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
         // Draw text before ``s.
         fl_font(font, size);
         box.x += draw_text(text.c_str() + start, i-start-1,
-            IPoint(pos.x + box.x, pos.y), measure);
+            vertical ? IPoint(pos.x, pos.y + box.x)
+                : IPoint(pos.x + box.x, pos.y),
+            measure, DPoint(), rotate);
 
         SymbolMap::const_iterator it =
             this->symbol_map.find(text.substr(i, j-i));
         if (it == symbol_map.end()) {
             // Unclosed `, draw the rest.
             box.x += draw_text(text.c_str() + i - 1, j-i + 2,
-                IPoint(pos.x + box.x, pos.y), measure);
+                vertical ? IPoint(pos.x, pos.y + box.x)
+                    : IPoint(pos.x + box.x, pos.y),
+                measure, DPoint(), rotate);
         } else {
             // Draw symbol inside ``s.
             IRect sym_box = this->measure_symbol(it->second, size);
@@ -145,8 +153,9 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
             //           pos.y + sym_box.y));
             if (!measure) {
                 draw_glyphs(
-                    IPoint(pos.x + box.x - sym_box.x, pos.y + sym_box.y),
-                    it->second, size);
+                    vertical ? IPoint(pos.x, pos.y + box.x)
+                        : IPoint(pos.x + box.x - sym_box.x, pos.y + sym_box.y),
+                    it->second, size, rotate);
             }
             box.x += sym_box.w;
             box.y = std::max(box.y, sym_box.h);
@@ -157,7 +166,9 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
     fl_font(font, size);
     if (start < text.size()) {
         box.x += draw_text(text.c_str() + start, text.size() - start,
-            IPoint(pos.x + box.x, pos.y), measure);
+            vertical ? IPoint(pos.x, pos.y + box.x)
+                : IPoint(pos.x + box.x, pos.y),
+            measure, DPoint(), rotate);
     }
     return box;
 }
@@ -166,7 +177,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
 IPoint
 SymbolTable::measure(const string &text, Font font, Size size) const
 {
-    return this->draw(text, IPoint(0, 0), font, size, true);
+    return this->draw(text, IPoint(0, 0), font, size, false, true);
 }
 
 
@@ -258,7 +269,7 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
 
     // Due to boundary issues, drawing text that touches the bottom of a box
     // means drawing one above the bottom.  I don't totally understand this.
-    draw_glyphs(IPoint(size, size*2 - 1), sym, size);
+    draw_glyphs(IPoint(size, size*2 - 1), sym, size, 0);
     unsigned char *buf = fl_read_image(NULL, 0, 0, w, h);
     fl_end_offscreen();
     IRect box = find_box(buf, w, h);

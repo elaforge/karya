@@ -379,7 +379,7 @@ main(int argc, char **argv)
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
             RenderConfig(RenderConfig::render_filled, render_color));
 
-    BlockViewWindow view(1100, 40, 200, 500, "view1", config);
+    BlockViewWindow view(1100, 40, 300, 500, "view1", config);
     view.testing = true;
     // view.border(0);
     // BlockViewWindow view2(300, 100, 200, 500, "view2", config);

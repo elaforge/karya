@@ -717,25 +717,32 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     }
 
     if (draw_text) {
-        Fl_Color c;
+        Fl_Color color;
         if (rank)
-            c = color_to_fl(style->text_color.brightness(rank_brightness));
+            color = color_to_fl(style->text_color.brightness(rank_brightness));
         else
-            c = color_to_fl(style->text_color);
+            color = color_to_fl(style->text_color);
+
+        bool too_wide = text_rect.w > w() - 4;
+        bool vertical = config.text == EventTrackConfig::rotate
+            && !rank && too_wide && text_rect.y + text_rect.w < next_offset;
         // Due to boundary issues, drawing text that touches the bottom of a
         // box means drawing one above the bottom.  I don't totally understand
         // this.
+        IPoint draw_pos = vertical
+            ? IPoint(x() + w()/2 - text_rect.h/2, text_rect.y)
+            : IPoint(text_rect.x, text_rect.b() - 1);
         SymbolTable::get()->draw(std::string(event.text),
-            IPoint(text_rect.x, text_rect.b() - 1), style->font, style->size,
-            c);
+            draw_pos, style->font, style->size, color, vertical);
+
         if (!rank) {
-            if (text_rect.w > w() - 4) {
+            if (too_wide && !vertical) {
                 // If the text is too long it gets truncated with a blue
                 // block.
                 fl_color(color_to_fl(Config::abbreviation_color));
                 fl_rectf(x()+w() - 3, text_rect.y, 2, text_rect.h);
             } else if (event.text && *event.text
-                    && isspace(event.text[strlen(event.text)-1]))
+                && isspace(event.text[strlen(event.text)-1]))
             {
                 // Hightlight a trailing space.
                 fl_color(FL_RED);

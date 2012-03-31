@@ -94,11 +94,17 @@ struct EventTrackConfig {
     typedef int (*FindEvents)(ScoreTime *start_pos, ScoreTime *end_pos,
             ScoreTime **ret_tps, Event **ret_events, int **ret_ranks);
 
+    // What to do about text that's too long.  If it's too long but there's
+    // no room below, it's always clipped.
+    enum draw_text { clip, rotate, wrap };
+
     EventTrackConfig(Color bg_color, FindEvents find_events,
             ScoreTime time_end, RenderConfig render_config) :
+        text(clip), // hardcode for now
         bg_color(bg_color), find_events(find_events), time_end(time_end),
         render(render_config)
     {}
+    draw_text text;
     Color bg_color;
     FindEvents find_events;
     ScoreTime time_end;
