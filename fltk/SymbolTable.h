@@ -106,7 +106,10 @@ private:
     std::map<string, Font> font_map;
 
     typedef std::pair<const Symbol *, Size> CacheKey;
-    mutable std::map<const CacheKey, IRect> box_cache;
+    typedef std::map<const CacheKey, IRect> CacheMap;
+    // Cache the exact dimensions of the glyphs since the calculation process
+    // is gross and manual.
+    mutable CacheMap box_cache;
 };
 
 #endif

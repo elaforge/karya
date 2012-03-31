@@ -49,6 +49,16 @@ SymbolTable::insert(const string &name, const Symbol &sym)
 {
     SymbolMap::iterator it = this->symbol_map.find(name);
     if (it != symbol_map.end()) {
+        // Clear it out of the box_cache.
+        for (CacheMap::iterator cache = box_cache.begin();
+            cache != box_cache.end();)
+        {
+            // Trickiness to avoid incrementing an erased iterator.
+            if (cache->first.first == &it->second)
+                box_cache.erase(cache++);
+            else
+                ++cache;
+        }
         for (size_t i = 0; i < it->second.glyphs.size(); i++) {
             free(const_cast<char *>(it->second.glyphs[i].utf8));
         }
