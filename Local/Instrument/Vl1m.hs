@@ -30,9 +30,10 @@ load = MidiInst.load_db (const MidiInst.empty_code) db_name
 -- | Read the patch file, scan the sysex dir, and save the results in a cache.
 make_db :: FilePath -> IO ()
 make_db dir = do
-    patches <- (++) <$>
-        Parse.patch_file (dir </> "vl1") <*> parse_dir (dir </> "vl1_vc")
-    MidiInst.save_patches synth patches db_name dir
+    vc_syxs <- parse_dir (dir </> "vl1_vc")
+    syxs <- parse_dir (dir </> "vl1_syx")
+    patches <- Parse.patch_file (dir </> "vl1")
+    MidiInst.save_patches synth (vc_syxs ++ syxs ++ patches) db_name dir
 
 synth :: Instrument.Synth
 synth = Instrument.synth "vl1" []
@@ -52,6 +53,7 @@ parse_file fn = do
             take 64 . syx_all <$> File.read_binary fn
         ".1vc" -> syx_1vc <$> File.read_binary fn
         ".1bk" -> syx_1bk <$> File.read_binary fn
+        ".syx" -> syx_split <$> File.read_binary fn
         ".txt" -> return []
         _ -> Log.warn ("skipping " ++ show fn) >> return []
     txt <- fmap (maybe "" id) $
@@ -83,6 +85,10 @@ syx_1bk = map bytes_to_syx . split_1bk
 
 syx_all :: [Word8] -> [[Word8]]
 syx_all = syx_1bk -- turns out they're the same
+
+syx_split :: [Word8] -> [[Word8]]
+    -- The first elt is stuff before the SOX so it's probably null.
+syx_split = drop 1 . Seq.split_with (==Midi.sox_byte)
 
 -- | Wrap sysex codes around the raw bytes.
 bytes_to_syx :: [Word8] -> [Word8]

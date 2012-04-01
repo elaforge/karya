@@ -39,8 +39,7 @@ UNSORTED
         Key: sharps and flats per degree, then derive the intervals from that
       - support scales that are different ascending vs. descending
 
-  - pitch bend range on patchman and some of the z1 patches looks off, verify
-
+  * pitch bend range on patchman and some of the z1 patches looks off, verify
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.
