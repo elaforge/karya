@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | Description of a midi-specific instrument, as well as the runtime midi
     device and channel mapping.
 
@@ -23,13 +24,12 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+
 import qualified Util.Pretty as Pretty
-
 import qualified Midi.Midi as Midi
-
 import qualified Derive.Score as Score
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Control as Control
+import qualified Perform.Pitch as Pitch
 
 
 default_scale :: Pitch.ScaleId
@@ -85,7 +85,15 @@ instance NFData Instrument where
     rnf inst = rnf (inst_score inst)
 
 instance Pretty.Pretty Instrument where
-    pretty inst = '>' : Score.inst_name (inst_score inst)
+    format inst
+        -- This is the most accurate since it's been mangled to fit the inst
+        -- naming conventions, but won't be set if the Instrument is still
+        -- in the Patch.
+        | inst_score inst /= Score.default_inst =
+            Pretty.format (inst_score inst)
+        | not (null (inst_name inst)) = Pretty.format (inst_name inst)
+        -- Otherwise it's a wildcard in the Patch, so it has no name.
+        | otherwise = Pretty.text "<wildcard>"
 
 -- ** construction
 
@@ -153,7 +161,7 @@ type Addr = (Midi.WriteDevice, Midi.Channel)
 
 -- | Key to activate a keyswitch.
 newtype Keyswitch = Keyswitch { ks_key :: Midi.Key }
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, Pretty.Pretty)
 
 -- * instrument db types
 
@@ -181,6 +189,19 @@ data Patch = Patch {
     -- | The patch was read from this file.
     , patch_file :: FilePath
     } deriving (Eq, Show)
+
+-- | A Pretty instance is useful because InitializeMidi tends to be huge.
+instance Pretty.Pretty Patch where
+    format (Patch inst flags init ks tags text file) =
+        Pretty.record (Pretty.text "Patch")
+            [ ("instrument", Pretty.format inst)
+            , ("flags", Pretty.format flags)
+            , ("initialize", Pretty.format init)
+            , ("keyswitches", Pretty.format ks)
+            , ("tags", Pretty.format tags)
+            , ("text", Pretty.format text)
+            , ("file", Pretty.format file)
+            ]
 
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Instrument -> Patch
@@ -216,6 +237,8 @@ data Flag =
     | Pressure
     deriving (Eq, Ord, Show)
 
+instance Pretty.Pretty Flag where pretty = show
+
 -- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
 -- a piority for those mapping.  For example, if {pizz} is before {cresc}, then
 -- {pizz, cresc} will map to {pizz}, unless, of course, {pizz, cresc} comes
@@ -229,7 +252,7 @@ data Flag =
 -- succesively stripping off trailing attributes and only try the next
 -- when all permutations are exhausted.
 newtype KeyswitchMap = KeyswitchMap [(Score.Attributes, Keyswitch)]
-    deriving (Eq, Show)
+    deriving (Eq, Show, Pretty.Pretty)
 
 -- | Make a 'KeyswitchMap'.
 --
@@ -301,6 +324,11 @@ data InitializePatch =
     | InitializeMessage String
     | NoInitialization
     deriving (Eq, Ord, Show)
+
+instance Pretty.Pretty InitializePatch where
+    format (InitializeMidi msgs) =
+        Pretty.text "InitializeMidi" Pretty.<+> Pretty.format msgs
+    format init = Pretty.text (show init)
 
 patch_summary :: Patch -> String
 patch_summary patch = inst_name inst ++ " -- " ++ show (patch_tags patch)

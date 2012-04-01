@@ -3,7 +3,7 @@
 -}
 module Util.Pretty (
     Pretty(..)
-    , formatted, render, render_compact
+    , formatted, pprint, render, render_compact
     -- * re-exported
     , PP.char, PP.text, PP.fsep, PP.fcat
     , (PP.<+>)
@@ -80,6 +80,10 @@ instance (Pretty a) => Pretty (Maybe a) where
     format Nothing = PP.text "Nothing"
     format (Just a) = format a
 
+instance (Pretty a, Pretty b) => Pretty (Either a b) where
+    format (Left a) = PP.text "Left" <+> format a
+    format (Right b) = PP.text "Right" <+> format b
+
 instance (Pretty a) => Pretty (Set.Set a) where
     format = format_commas '{' '}' . Set.toList
 
@@ -99,6 +103,9 @@ instance Pretty ByteString.ByteString where
 
 formatted :: (Pretty a) => a -> String
 formatted = render default_width . format
+
+pprint :: (Pretty a) => a -> IO ()
+pprint = putStrLn . formatted
 
 render :: Int -> Doc -> String
 render width = PP.renderStyle (PP.Style PP.PageMode width 1)
