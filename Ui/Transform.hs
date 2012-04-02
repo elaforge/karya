@@ -12,6 +12,7 @@ import Types
 
 
 
+-- | Transform TracklikeIds.
 tracks :: (State.M m) => BlockId
     -> (Block.TracklikeId -> Block.TracklikeId) -> m ()
 tracks block_id f = State.modify_block block_id $ \block ->

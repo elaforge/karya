@@ -30,6 +30,26 @@ remove_empty block_id = do
 remove_all_empty :: Cmd.CmdL ()
 remove_all_empty = mapM_ remove_empty =<< State.all_block_ids
 
+-- | Transform all track titles.
+map_titles :: (String -> String) -> Cmd.CmdL ()
+map_titles f = do
+    bids <- State.all_block_ids
+    mapM_ (flip map_block_titles f) bids
+
+-- Should this go in Ui.Transform?
+-- TODO should map 'x | abc' to 'y | abc'
+-- And 'mul x' -> 'mul y'
+--
+-- Use Cmd.Info and do replace instead of map.
+map_block_titles :: BlockId -> (String -> String) -> Cmd.CmdL ()
+map_block_titles block_id f = do
+    tids <- map State.track_id <$> State.get_track_info block_id
+    mapM_ (flip State.modify_track_title f) tids
+
+replace x y val
+    | val == x = y
+    | otherwise = val
+
 -- * strip controls
 
 -- | Strip repeated controls, e.g. @.5@ followed by @.5@.
