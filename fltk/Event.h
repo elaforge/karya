@@ -30,6 +30,7 @@ struct Event {
     bool is_negative() const {
         return duration < ScoreTime(0) || duration.negative_zero();
     }
+    bool is_positive() const { return !is_negative(); }
 
     // std::string would be nicer but I can't serialize to that from haskell.
     // This won't be modified, but will be freed, so const_cast for that.

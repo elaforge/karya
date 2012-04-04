@@ -90,13 +90,16 @@ public:
     IPoint draw(const string &text, IPoint pos, Font font, Size size,
         Fl_Color color, bool vertical = false, bool measure = false) const;
 
+    // Specialization for 'draw' that just measures.
+    IPoint measure(const string &text, Font font, Size size) const;
+
+    // SymbolTable::measure_wrapped and SymbolTable::draw_wrapped
+    // inherently go downwards, so unlike SymbolTable::draw() the
+    // draw position is the upper left, not the lower left.
     IPoint draw_wrapped(const string &text, IPoint pos, int width,
         Font font, Size size, Fl_Color color, bool measure = false) const;
     IPoint measure_wrapped(const string &text, IPoint pos, int wrap_width,
         Font font, Size size) const;
-
-    // Specialization for 'draw' that just measures.
-    IPoint measure(const string &text, Font font, Size size) const;
 
     // Measure the Symbol by actually drawing it and seeing how many pixels it
     // occupies.  This is expensive so it's cached.

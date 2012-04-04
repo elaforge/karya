@@ -175,59 +175,67 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
 
 
 IPoint
+SymbolTable::measure(const string &text, Font font, Size size) const
+{
+    return this->draw(text, IPoint(0, 0), font, size, FL_BLACK, false, true);
+}
+
+
+IPoint
 SymbolTable::draw_wrapped(const string &text, IPoint pos,
     int wrap_width, Font font, Size size, Fl_Color color, bool measure) const
 {
-    IPoint total_size(0, -1);
+    // This function is a real rat's nest.
+    IPoint total_size(0, 0);
     const char *line_start = text.c_str();
     const char *last_space = line_start;
-    const char *p = line_start;
-    for (;; p++) {
+    // Keep track of the height of the line up to the last space.  If the line
+    // needs to wrap at last_space, I'll want to shift down by that much.
+    IPoint last_size(0, 0);
+
+    for (const char *p = line_start;; p++) {
         // The end of the string is also like a space.
         if (!*p || *p == ' ') {
-            IPoint line_size = this->measure(
+            // Size up to 'p'.
+            IPoint p_size = this->measure(
                 string(line_start, p - line_start), font, size);
-            total_size.x = std::max(total_size.x, line_size.x);
             // DEBUG("measure " << string(line_start, p-line_start) << ": "
             //     << p-line_start << ' ' << line_size);
-            const bool should_wrap = line_size.x > wrap_width;
+            const bool should_wrap = p_size.x > wrap_width;
             if (!*p || should_wrap) {
-                // Draw up to the last space, but if  I'm out of letters or
-                // don't actually have to break then draw up to here.
+                // Draw up to the last space, but if  I'm out of letters and
+                // don't actually have to break, or can't break because there
+                // are no spaces, then draw up to here.
                 const char *break_at;
-                if (!should_wrap || last_space == line_start)
+                IPoint line_size;
+                if (!should_wrap || last_space == line_start) {
                     break_at = p;
-                else
+                    line_size = p_size;
+                } else {
                     break_at = last_space;
+                    line_size = last_size;
+                }
                 // DEBUG("break_at: " << break_at - line_start << " p "
                 //     << (*p ? *p : '_'));
-                // Remember the draw pos is at the *bottom* of the text, but
-                // I'm drawing top down.  So the first should be at 0.
-                // TODO this is because the caller has already measured the
-                // height of the first line and passed text_rect.b(), fix
-                // this to start from the top.
-                if (total_size.y == -1)
-                    total_size.y = 0;
-                else
-                    total_size.y += line_size.y;
-                // DEBUG("y pos " << total_size.y);
-                // This should be the height of the next word.
+                total_size.x = std::max(total_size.x, line_size.x);
+                total_size.y += line_size.y;
                 if (!measure) {
                     IPoint line_pos(pos.x, pos.y + total_size.y);
                     this->draw(
                         string(line_start, break_at - line_start), line_pos,
                         font, size, color);
                 }
-                p = break_at; // for() ++ will increment past the space.
-                // Unless of course it's NULL, not space.
-                if (!*p) {
+                if (!*break_at) {
                     break;
                 } else {
+                    p = break_at; // for()'s p++ will increment past the space.
                     line_start = p + 1;
                     last_space = line_start;
+                    last_size = line_size;
                 }
             } else {
                 last_space = p;
+                last_size = p_size;
             }
         } else if (*p == '`') {
             // A glyph is considered one letter, so skip to the next `.
@@ -239,13 +247,6 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos,
         }
     }
     return total_size;
-}
-
-
-IPoint
-SymbolTable::measure(const string &text, Font font, Size size) const
-{
-    return this->draw(text, IPoint(0, 0), font, size, FL_BLACK, false, true);
 }
 
 

@@ -665,6 +665,8 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     IRect text_rect(0, 0, 0, 0);
     bool draw_text = false;
     if (event.text) {
+        // The first measure tells me if one line of text will fit.  If not
+        // even one line fits, then don't bother to draw any text.
         IPoint box = SymbolTable::get()->measure(
             event.text, style->font, style->size);
         text_rect.w = box.x;
@@ -723,18 +725,20 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         else
             color = color_to_fl(style->text_color);
 
+        // Rotation and word wrapping only apply to positive events.
+        // I would need additional code to get them working for negative
+        // events, since the text goes up rather than down.
         int track_width = w() - 4;
         bool too_wide = text_rect.w > track_width;
-        bool vertical = config.text_wrap == EventTrackConfig::rotate
+        bool vertical = event.is_positive()
+            && config.text_wrap == EventTrackConfig::rotate
             && !rank && too_wide && text_rect.y + text_rect.w < next_offset;
-        // Due to boundary issues, drawing text that touches the bottom of a
-        // box means drawing one above the bottom.  I don't totally understand
-        // this.
-        IPoint draw_pos = vertical
-            ? IPoint(x() + w()/2 - text_rect.h/2, text_rect.y)
-            : IPoint(text_rect.x, text_rect.b() - 1);
         bool drawn = false;
-        if (!rank && config.text_wrap == EventTrackConfig::wrap) {
+        if (event.is_positive() && !rank
+                && config.text_wrap == EventTrackConfig::wrap)
+        {
+            // The *_wrapped functions start at upper left, not lower left.
+            IPoint draw_pos(text_rect.x, text_rect.y);
             // This winds up doing extra measuring.  I suppose if I wanted
             // to be more efficient I could pass in the next_offset and combine
             // measuring and drawing.
@@ -750,6 +754,12 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
             }
         }
         if (!drawn) {
+            // Due to boundary issues, drawing text that touches the bottom of
+            // a box means drawing one above the bottom.  I don't totally
+            // understand this.
+            IPoint draw_pos = vertical
+                ? IPoint(x() + w()/2 - text_rect.h/2, text_rect.y)
+                : IPoint(text_rect.x, text_rect.b() - 1);
             SymbolTable::get()->draw(event.text,
                 draw_pos, style->font, style->size, color, vertical);
         }
