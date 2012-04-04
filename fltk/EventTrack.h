@@ -96,15 +96,17 @@ struct EventTrackConfig {
 
     // What to do about text that's too long.  If it's too long but there's
     // no room below, it's always clipped.
-    enum draw_text { clip, rotate, wrap };
+    enum text_wrap_style { clip, rotate, wrap };
 
     EventTrackConfig(Color bg_color, FindEvents find_events,
             ScoreTime time_end, RenderConfig render_config) :
-        text(clip), // hardcode for now
+        text_wrap(wrap), // hardcode for now
         bg_color(bg_color), find_events(find_events), time_end(time_end),
         render(render_config)
     {}
-    draw_text text;
+    // This should be a text_wrap_style, but it's easier to use from the
+    // haskell FFI if it's an int.
+    int text_wrap;
     Color bg_color;
     FindEvents find_events;
     ScoreTime time_end;

@@ -137,7 +137,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
         SymbolMap::const_iterator it =
             this->symbol_map.find(text.substr(i, j-i));
         if (it == symbol_map.end()) {
-            // Unclosed `, draw the rest.
+            // Unknown symbol, draw it as plain text including the ``s.
             box.x += draw_text(text.c_str() + i - 1, j-i + 2,
                 vertical ? IPoint(pos.x, pos.y + box.x)
                     : IPoint(pos.x + box.x, pos.y),
@@ -175,9 +175,85 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
 
 
 IPoint
+SymbolTable::draw_wrapped(const string &text, IPoint pos,
+    int wrap_width, Font font, Size size, Fl_Color color, bool measure) const
+{
+    IPoint total_size(0, -1);
+    const char *line_start = text.c_str();
+    const char *last_space = line_start;
+    const char *p = line_start;
+    for (;; p++) {
+        // The end of the string is also like a space.
+        if (!*p || *p == ' ') {
+            IPoint line_size = this->measure(
+                string(line_start, p - line_start), font, size);
+            total_size.x = std::max(total_size.x, line_size.x);
+            // DEBUG("measure " << string(line_start, p-line_start) << ": "
+            //     << p-line_start << ' ' << line_size);
+            const bool should_wrap = line_size.x > wrap_width;
+            if (!*p || should_wrap) {
+                // Draw up to the last space, but if  I'm out of letters or
+                // don't actually have to break then draw up to here.
+                const char *break_at;
+                if (!should_wrap || last_space == line_start)
+                    break_at = p;
+                else
+                    break_at = last_space;
+                // DEBUG("break_at: " << break_at - line_start << " p "
+                //     << (*p ? *p : '_'));
+                // Remember the draw pos is at the *bottom* of the text, but
+                // I'm drawing top down.  So the first should be at 0.
+                // TODO this is because the caller has already measured the
+                // height of the first line and passed text_rect.b(), fix
+                // this to start from the top.
+                if (total_size.y == -1)
+                    total_size.y = 0;
+                else
+                    total_size.y += line_size.y;
+                // DEBUG("y pos " << total_size.y);
+                // This should be the height of the next word.
+                if (!measure) {
+                    IPoint line_pos(pos.x, pos.y + total_size.y);
+                    this->draw(
+                        string(line_start, break_at - line_start), line_pos,
+                        font, size, color);
+                }
+                p = break_at; // for() ++ will increment past the space.
+                // Unless of course it's NULL, not space.
+                if (!*p) {
+                    break;
+                } else {
+                    line_start = p + 1;
+                    last_space = line_start;
+                }
+            } else {
+                last_space = p;
+            }
+        } else if (*p == '`') {
+            // A glyph is considered one letter, so skip to the next `.
+            p++;
+            while (*p && *p != '`')
+                p++;
+            if (!*p)
+                p--;
+        }
+    }
+    return total_size;
+}
+
+
+IPoint
 SymbolTable::measure(const string &text, Font font, Size size) const
 {
-    return this->draw(text, IPoint(0, 0), font, size, false, true);
+    return this->draw(text, IPoint(0, 0), font, size, FL_BLACK, false, true);
+}
+
+
+IPoint
+SymbolTable::measure_wrapped(const string &text, IPoint pos,
+    int wrap_width, Font font, Size size) const
+{
+    return draw_wrapped(text, pos, wrap_width, font, size, FL_BLACK, true);
 }
 
 

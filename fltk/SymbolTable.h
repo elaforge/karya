@@ -90,6 +90,11 @@ public:
     IPoint draw(const string &text, IPoint pos, Font font, Size size,
         Fl_Color color, bool vertical = false, bool measure = false) const;
 
+    IPoint draw_wrapped(const string &text, IPoint pos, int width,
+        Font font, Size size, Fl_Color color, bool measure = false) const;
+    IPoint measure_wrapped(const string &text, IPoint pos, int wrap_width,
+        Font font, Size size) const;
+
     // Specialization for 'draw' that just measures.
     IPoint measure(const string &text, Font font, Size size) const;
 

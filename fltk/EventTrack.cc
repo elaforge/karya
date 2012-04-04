@@ -723,8 +723,9 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         else
             color = color_to_fl(style->text_color);
 
-        bool too_wide = text_rect.w > w() - 4;
-        bool vertical = config.text == EventTrackConfig::rotate
+        int track_width = w() - 4;
+        bool too_wide = text_rect.w > track_width;
+        bool vertical = config.text_wrap == EventTrackConfig::rotate
             && !rank && too_wide && text_rect.y + text_rect.w < next_offset;
         // Due to boundary issues, drawing text that touches the bottom of a
         // box means drawing one above the bottom.  I don't totally understand
@@ -732,8 +733,26 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         IPoint draw_pos = vertical
             ? IPoint(x() + w()/2 - text_rect.h/2, text_rect.y)
             : IPoint(text_rect.x, text_rect.b() - 1);
-        SymbolTable::get()->draw(std::string(event.text),
-            draw_pos, style->font, style->size, color, vertical);
+        bool drawn = false;
+        if (!rank && config.text_wrap == EventTrackConfig::wrap) {
+            // This winds up doing extra measuring.  I suppose if I wanted
+            // to be more efficient I could pass in the next_offset and combine
+            // measuring and drawing.
+            IPoint box = SymbolTable::get()->measure_wrapped(
+                event.text, draw_pos, track_width, style->font, style->size);
+            box.y += text_rect.h; // TODO remove this hack
+            if (text_rect.y + box.y < next_offset) {
+                // DEBUG("draw_wrapped " << event.text);
+                SymbolTable::get()->draw_wrapped(
+                    event.text, draw_pos, track_width, style->font,
+                    style->size, color);
+                drawn = true;
+            }
+        }
+        if (!drawn) {
+            SymbolTable::get()->draw(event.text,
+                draw_pos, style->font, style->size, color, vertical);
+        }
 
         if (!rank) {
             if (too_wide && !vertical) {

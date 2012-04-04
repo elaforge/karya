@@ -33,6 +33,9 @@ import Types
 with_track :: Track.Track -> [Events.Events] -> (Ptr Track.Track -> IO a)
     -> IO a
 with_track track event_lists f = allocaBytes size $ \trackp -> do
+    -- Wrap style is customizable per track, but I'll hardcode it for now.
+    (#poke EventTrackConfig, text_wrap) trackp
+        ((#const EventTrackConfig::wrap) :: CInt)
     (#poke EventTrackConfig, bg_color) trackp (Track.track_bg track)
     poke_find_events trackp (Track.track_events track : event_lists)
     (#poke EventTrackConfig, render) trackp (Track.track_render track)
