@@ -120,7 +120,8 @@ format_response (result, logs, warns) = decorate $ case result of
 expand_macros :: Id.Namespace -> String -> Either String String
 expand_macros namespace expr = ParseBs.expand_macros replace expr
     where
-    replace ident = "(auto_id " <> show namespace <> " " <> show ident <> ")"
+    replace ident = "(auto_id " <> show (Id.un_namespace namespace) <> " "
+        <> show ident <> ")"
 
 type Result a = (Either String a, [String], [String])
 

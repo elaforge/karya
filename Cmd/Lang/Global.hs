@@ -80,19 +80,18 @@ import Types
 --
 -- Throws an error if the ID has bad characters, which is ok since this is
 -- expected to be used from the REPL.
-class AutoId a where auto_id :: Id.Namespace -> String -> a
-instance AutoId ViewId where
-    auto_id ns = Types.ViewId . check_id "ViewId" . Id.make ns
-instance AutoId BlockId where
-    auto_id ns = Types.BlockId . check_id "BlockId" . Id.make ns
-instance AutoId RulerId where
-    auto_id ns = Types.RulerId . check_id "RulerId" . Id.make ns
-instance AutoId TrackId where
-    auto_id ns = Types.TrackId . check_id "TrackId" . Id.make ns
+class AutoId a where auto_id :: String -> String -> a
+instance AutoId ViewId where auto_id = make_id Types.ViewId "ViewId"
+instance AutoId BlockId where auto_id = make_id Types.BlockId "BlockId"
+instance AutoId RulerId where auto_id = make_id Types.RulerId "RulerId"
+instance AutoId TrackId where auto_id = make_id Types.TrackId "TrackId"
 
-check_id :: String -> Maybe a -> a
-check_id msg Nothing = error $ "illegal characters in " ++ msg
-check_id _ (Just x) = x
+make_id :: (Id.Id -> a) -> String -> String -> String -> a
+make_id make msg ns name = case Id.namespace ns of
+    Nothing -> error $ msg ++ ": illegal characters in namespace: " ++ show ns
+    Just ns -> case Id.make ns name of
+        Nothing -> error $ msg ++ ": illegal characters in ID: " ++ show name
+        Just ident -> make ident
 
 vid = Types.ViewId . Id.read_id
 bid = Types.BlockId . Id.read_id
