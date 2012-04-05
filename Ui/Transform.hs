@@ -88,7 +88,7 @@ map_track_ids f = do
 map_ruler_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
     rulers <- State.gets State.state_rulers
-    let ruler_f = Types.RulerId . trans . Id.unpack_id
+    let ruler_f = Types.RulerId . f . Id.unpack_id
     new_rulers <- safe_map_keys "state_rulers" ruler_f rulers
 
     blocks <- State.gets State.state_blocks
@@ -105,9 +105,6 @@ map_ruler_ids f = do
         Block.RId rid -> Block.modify_id track $
             const (Block.RId (f rid))
         _ -> track
-    trans ident
-        | ident == Id.unpack_id State.no_ruler = ident
-        | otherwise = f ident
 
 safe_map_keys :: (State.M m, Ord k, Show k) =>
     String -> (k -> k) -> Map.Map k v -> m (Map.Map k v)
@@ -130,9 +127,8 @@ merge_states st0 st1 = State.exec st0 $ do
         (State.state_blocks st0) (State.state_blocks st1)
     tracks <- safe_union "tracks"
         (State.state_tracks st0) (State.state_tracks st1)
-    -- Everyone has a no_ruler, so it shouldn't count as a collision.
-    let rulers1 = Map.delete State.no_ruler (State.state_rulers st1)
-    rulers <- safe_union "rulers" (State.state_rulers st0) rulers1
+    rulers <- safe_union "rulers"
+        (State.state_rulers st0) (State.state_rulers st1)
     State.modify $ \st -> st
         { State.state_views = views, State.state_blocks = blocks
         , State.state_tracks = tracks, State.state_rulers = rulers

@@ -257,12 +257,12 @@ hs plugins:
 
 bugs:
   - Create.rename_project loses the merged tracks
-  - bizarre hint importing requirements in Cmd.LanguageEnviron
+  / bizarre hint importing requirements in Cmd.LanguageEnviron
   * track down ghc rts crashes, assertion failure
     - make a repro case if ghc guys want it
   - run under valgrind every once and a while, just for fun
     - why doesn't valgrind reveal bad memory access from haskell, e.g. poke...
-  - hint refuses to compile when a module emits a warning
+  / hint refuses to compile when a module emits a warning
 
 cleanup:
   - split Ui.State into separate modules for views, blocks, tracks, etc.
@@ -404,8 +404,8 @@ performance:
       this information in the first place, so it can generate chunks.
       However, maybe I should omit chunked pitch signals entirely and instead
       emit an initial pitch along with a transposition curve.
-    - make seeks on derive output more efficient with a lazy index
 
+  - make seeks on derive output more efficient with a lazy index
   cache
     - Can I make cached signal more efficient by merging the signals before
       stashing it?  Of course laziness means that this won't actually happen
@@ -499,6 +499,8 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - SymbolTable::draw_wrapped should take the next_event param so it can stop
+    drawing before then, and add a blue bar below
   - skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.
   - after creating a new track, focus should go to its title
@@ -792,15 +794,8 @@ Derive:
         as a break with no notes for a certain amount of time.  Can only damp
         two neighboring notes at a time.
 
-  - Is there a use for "free equals"?  I had planned to use it to set inst
-    within a track but there may be easier ways to do that, i.e. bind inst
-    aliases within a track and then put an inst on every note, but it
-    complicates caching.  Free equals is also awkward because of next note
-    having to skip it.  It's also analogous to assignment, and it's nice to
-    exclude that.
-  - sustain signal, to control staccato vs. legato
+  * sustain signal, to control staccato vs. legato
   TrackLang tracklang
-    - make sure signal derivation doesn't do calls
     - implement block level calls in block title
     - other attributes in block title, e.g. "alias=?squiggle? | xyz"?
 
@@ -870,7 +865,6 @@ Derive:
       though.  'restore'?  'abs-dur'?
 
     * Implement sekar derivation.
-
       It would be nice to do a piece on sekar patterns where the form itself is
       in the same pattern, for a kind of fractal structure.  How to have
       a pattern derive patterns?
@@ -903,9 +897,9 @@ Derive:
       - constant slope, exp slope (i.e. slope until next control event)
       - continuous tempo warping for signals
         tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
-  Derive.Scale scale scales
+  Derive.Scale scales
     - implement pengumbang pengisep
-    - enharmonics for Twelve
+    * enharmonics for Twelve
     - just intonation tuned to a pitch signal
     - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
     - retune a note depending on the previous interval (e.g. sloppy pitches
@@ -955,8 +949,6 @@ Perform:
   Instrument
     - some kind of organized way to manage instruments and instrument config
     - some basic midi instrument defs for generic midi (dev, patch)
-  Signal
-    - lazy implementation
   Midi:
     - see if synths support the set pitchbend range controller
     - Convert certain attrs to controls for cc 'keyswitches'.
@@ -989,13 +981,7 @@ Instrument DB / browser:
     sysex tag?
   - search lang supports quotes
   - search lang supports - to exclude a term
-  * bug: discarded insts still in index
   - ability to edit tags, esp. add "favorite rating"
-  * standardized tags
-  * put file in a tag so I can search on it
-    I can also use it to create a *.txt file with custom info
-  * explicitly allow merged patches, so I can get params from syx but send
-    program change
 
 jack: JACK:
   bugs

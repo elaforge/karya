@@ -261,7 +261,7 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
     where
     create_track view_ids tracknum dtrack = do
         let tlike_id = Block.dtracklike_id dtrack
-        ctrack <- State.get_tracklike tlike_id
+        tlike <- State.get_tracklike tlike_id
         ustate <- State.get
 
         -- I need to get this for wants_tsig.
@@ -277,9 +277,9 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
         return $ forM_ view_ids $ \view_id -> do
             let merged = events_of_track_ids ustate
                     (Block.dtrack_merged dtrack)
-            BlockC.insert_track view_id tracknum ctrack merged
+            BlockC.insert_track view_id tracknum tlike merged
                 (Block.dtrack_width dtrack)
-            case (tlike_id, ctrack) of
+            case (tlike_id, tlike) of
                 -- Configure new track.  This is analogous to the initial
                 -- config in CreateView.
                 (Block.TId tid _, Block.T t _) -> do

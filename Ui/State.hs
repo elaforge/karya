@@ -79,10 +79,9 @@ empty = State {
     state_views = Map.empty
     , state_blocks = Map.empty
     , state_tracks = Map.empty
-    , state_rulers = ruler_map
+    , state_rulers = Map.empty
     , state_config = empty_config
     }
-    where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
 
 -- | Clear out data that shouldn't be saved.
 clear :: State -> State
@@ -145,9 +144,11 @@ instance Pretty.Pretty Track where
 -- | Since all TracklikeIds must have a ruler, all States have a special empty
 -- ruler that can be used in a \"no ruler\" situation.
 --
--- To enforce its global nature, this should never be renamed or deleted, which
--- is enforced by 'map_ids' and 'destroy_ruler', but it's still possible.  So
--- don't do that.
+-- This RulerId is implicitly present in every block.  It's not actually in
+-- 'state_rulers' to avoid it getting renamed or deleted, but 'get_ruler' will
+-- pretend it exists.  As long as everyone that cares about no_ruler (which is
+-- only 'verify' and 'get_tracklike' for "Ui.Sync") uses 'get_ruler' then
+-- they won't be confused by tracks that have no_ruler.
 no_ruler :: RulerId
 no_ruler = Types.RulerId (Id.global "-no-ruler-")
 
@@ -1150,7 +1151,9 @@ rulers_of :: (M m) => BlockId -> m [RulerId]
 rulers_of block_id = Seq.unique . Block.block_ruler_ids <$> get_block block_id
 
 get_ruler :: (M m) => RulerId -> m Ruler.Ruler
-get_ruler ruler_id = get >>= lookup_id ruler_id . state_rulers
+get_ruler ruler_id
+    | ruler_id == no_ruler = return Ruler.no_ruler
+    | otherwise = get >>= lookup_id ruler_id . state_rulers
 
 lookup_ruler :: (M m) => RulerId -> m (Maybe Ruler.Ruler)
 lookup_ruler ruler_id = get >>= return . Map.lookup ruler_id . state_rulers
@@ -1161,13 +1164,14 @@ lookup_ruler ruler_id = get >>= return . Map.lookup ruler_id . state_rulers
 create_ruler :: (M m) => Id.Id -> Ruler.Ruler -> m RulerId
 create_ruler id ruler
         -- no_ruler is global and assumed to always exist.
-    | id == Id.unpack_id no_ruler = return no_ruler
+    | id == Id.unpack_id no_ruler =
+        throw $ "can't insert no-ruler: " ++ Pretty.pretty no_ruler
     | otherwise = insert (Types.RulerId id) ruler state_rulers $ \rulers st ->
         st { state_rulers = rulers }
 
 -- | Destroy the ruler and remove it from all the blocks it's in.
 destroy_ruler :: (M m) => RulerId -> m ()
-destroy_ruler ruler_id = when (ruler_id /= no_ruler) $ do
+destroy_ruler ruler_id = do
     blocks <- blocks_with_ruler ruler_id
     forM_ blocks $ \(block_id, tracks) -> do
         let tracknums = map fst tracks
