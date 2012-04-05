@@ -5,6 +5,7 @@ import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Graph as Graph
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import Types
@@ -15,6 +16,9 @@ import Types
 -- deriver level will presumably use it for derivation.  A given track may
 -- appear multiple times or not at all.
 newtype Skeleton = Skeleton Graph.Graph deriving (Eq, Read, Show)
+
+instance Pretty.Pretty Skeleton where
+    pretty = Pretty.pretty . flatten
 
 -- | This is @(parent, child)@.
 type Edge = (TrackNum, TrackNum)

@@ -5,8 +5,10 @@ import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
+
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
@@ -25,6 +27,14 @@ data Block = Block {
     , block_tracks :: [Track]
     , block_skeleton :: Skeleton.Skeleton
     } deriving (Eq, Show, Read)
+
+instance Pretty.Pretty Block where
+    format (Block title _config tracks skel) =
+        Pretty.record (Pretty.text "Block")
+            [ ("title", Pretty.format title)
+            , ("tracks", Pretty.format tracks)
+            , ("skel", Pretty.format skel)
+            ]
 
 instance DeepSeq.NFData Block where
     -- I don't bother to force anything deep, but there isn't much data down
@@ -77,6 +87,11 @@ data Track = Track {
     , track_merged :: [TrackId]
     } deriving (Eq, Show, Read, Generics.Typeable)
 
+instance Pretty.Pretty Track where
+    pretty (Track tid width flags merged) =
+        Pretty.pretty tid ++ ": " ++ unwords
+            [Pretty.pretty width, Pretty.pretty flags, Pretty.pretty merged]
+
 -- | Construct a 'Track' with defaults.
 track :: TracklikeId -> Types.Width -> Track
 track tracklike_id width = Track tracklike_id width [] []
@@ -105,6 +120,8 @@ data TrackFlag =
     -- | UI shows muted indication, deriver should skip this track.
     | Mute
     deriving (Eq, Show, Read)
+
+instance Pretty.Pretty TrackFlag where pretty = show
 
 -- | Convert logical block level tracks to display tracks.
 block_display_tracks :: Block -> [DisplayTrack]
@@ -139,10 +156,17 @@ data TracklikeId =
     | DId Divider
     deriving (Eq, Show, Read)
 
+instance Pretty.Pretty TracklikeId where
+    pretty tlike_id = case tlike_id of
+        TId tid rid -> Pretty.pretty tid ++ "/" ++ Pretty.pretty rid
+        RId rid -> Pretty.pretty rid
+        DId divider -> show divider
+
 track_id_of :: TracklikeId -> Maybe TrackId
 track_id_of (TId tid _) = Just tid
 track_id_of _ = Nothing
 
+track_ids_of :: [TracklikeId] -> [TrackId]
 track_ids_of = Maybe.mapMaybe track_id_of
 
 ruler_id_of :: TracklikeId -> Maybe RulerId
@@ -150,6 +174,7 @@ ruler_id_of (TId _ rid) = Just rid
 ruler_id_of (RId rid) = Just rid
 ruler_id_of _ = Nothing
 
+ruler_ids_of :: [TracklikeId] -> [RulerId]
 ruler_ids_of = Maybe.mapMaybe ruler_id_of
 
 set_rid rid (TId tid _) = TId tid rid
@@ -177,7 +202,7 @@ rulers_of = Maybe.mapMaybe ruler_of
 
 -- | A divider separating tracks.
 -- Defined here in Block since it's so trivial.
-data Divider = Divider Color.Color deriving (Eq, Ord, Show, Read)
+newtype Divider = Divider Color.Color deriving (Eq, Ord, Show, Read)
 
 -- * block view
 
@@ -204,6 +229,17 @@ data View = View {
 
     , view_selections :: Map.Map Types.SelNum Types.Selection
     } deriving (Eq, Ord, Show, Read)
+
+instance Pretty.Pretty View where
+    format (View block rect vis_track vis_time status tscroll zoom sels) =
+        Pretty.record (Pretty.text "View")
+            [ ("block", Pretty.format block)
+            , ("rect", Pretty.format rect)
+            , ("visible", Pretty.format (vis_track, vis_time))
+            , ("status", Pretty.format status)
+            , ("scroll/zoom", Pretty.format (tscroll, zoom))
+            , ("selections", Pretty.format sels)
+            ]
 
 instance DeepSeq.NFData View where
     rnf (View bid rect track time status scroll zoom selections) =

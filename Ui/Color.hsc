@@ -1,15 +1,21 @@
 module Ui.Color where
 import Data.Bits
+import qualified Data.List as List
 import Foreign
 import Foreign.C
 
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Ui.Util as Util
 
 
 -- r, g, b, alpha, from 0--1
 data Color = Color Double Double Double Double
     deriving (Eq, Ord, Show, Read)
+
+instance Pretty.Pretty Color where
+    pretty (Color r g b a) = "rgba:"
+        ++ List.intercalate "/" (map (Pretty.show_float 2) [r, g, b, a])
 
 -- | An opaque color with the given r, g, and b.
 rgb :: Double -> Double -> Double -> Color

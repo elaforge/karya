@@ -6,6 +6,7 @@ module Ui.StateConfig where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
 
+import qualified Util.Pretty as Pretty
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
@@ -48,6 +49,25 @@ data Default = Default {
     -- | A toplevel block without a tempo track will get this tempo.
     , default_tempo :: !Signal.Y
     } deriving (Eq, Read, Show, Generics.Typeable)
+
+instance Pretty.Pretty Config where
+    format (Config namespace dir root midi default_) =
+        Pretty.record (Pretty.text "Config")
+            [ ("namespace", Pretty.format namespace)
+            , ("project_dir", Pretty.format dir)
+            , ("root", Pretty.format root)
+            , ("midi", Pretty.format midi)
+            , ("default", Pretty.format default_)
+            ]
+
+instance Pretty.Pretty Default where
+    format (Default scale key instrument tempo) =
+        Pretty.record (Pretty.text "Default")
+            [ ("scale", Pretty.format scale)
+            , ("key", Pretty.format key)
+            , ("instrument", Pretty.format instrument)
+            , ("tempo", Pretty.format tempo)
+            ]
 
 instance DeepSeq.NFData Default where
     rnf (Default scale key inst tempo) =

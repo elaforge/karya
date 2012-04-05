@@ -7,6 +7,7 @@ import qualified Data.Monoid as Monoid
 
 import Util.Control
 import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import Util.Pretty
 
 import qualified Ui.Color as Color
@@ -26,6 +27,11 @@ data Ruler = Ruler {
     , ruler_full_width :: Bool
     } deriving (Eq, Show, Read)
 ruler = Ruler
+
+instance Pretty.Pretty Ruler where
+    pretty ruler = "((Ruler "
+        ++ Pretty.pretty (Map.map marklist_length (ruler_marklists ruler))
+        ++ "))"
 
 instance DeepSeq.NFData Ruler where
     rnf (Ruler mlists bg names alpha align full) = DeepSeq.rnf mlists
@@ -74,6 +80,9 @@ newtype Marklist = Marklist (Map.Map ScoreTime Mark)
 mapm :: (Map.Map ScoreTime Mark -> Map.Map ScoreTime Mark)
     -> Marklist -> Marklist
 mapm f (Marklist m) = Marklist (f m)
+
+marklist_length :: Marklist -> Int
+marklist_length (Marklist mlist) = Map.size mlist
 
 type Marklists = Map.Map Name Marklist
 type Name = String

@@ -13,10 +13,15 @@ module Util.Rect (
     -- * functions
     , distance, intersection, point_distance
 ) where
+import qualified Util.Pretty as Pretty
+
 
 data Rect = Rect { rx :: Int, ry :: Int, rw :: Int, rh :: Int }
     deriving (Eq, Ord, Show, Read)
 
+instance Pretty.Pretty Rect where
+    format (Rect x y w h) = Pretty.text "Rect" Pretty.<+> Pretty.format (x, y)
+        Pretty.<+> Pretty.format (w, h)
 
 -- * access
 

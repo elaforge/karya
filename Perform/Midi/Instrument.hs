@@ -155,6 +155,9 @@ config alloc = Config (Map.fromList alloc)
 empty_config :: Config
 empty_config = config []
 
+instance Pretty.Pretty Config where
+    format (Config alloc) = Pretty.format alloc
+
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.
 type Addr = (Midi.WriteDevice, Midi.Channel)

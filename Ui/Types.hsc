@@ -67,6 +67,10 @@ data Zoom = Zoom {
     , zoom_factor :: Double
     } deriving (Eq, Ord, Show, Read)
 
+instance Pretty.Pretty Zoom where
+    pretty (Zoom offset factor) =
+        '+' : Pretty.pretty offset ++ '*' : Pretty.show_float 1 factor
+
 instance Storable Zoom where
     sizeOf _ = #size ZoomInfo
     alignment _ = #{alignment ZoomInfo}
@@ -155,6 +159,11 @@ data Selection = Selection {
     , sel_cur_track :: TrackNum
     , sel_cur_pos :: ScoreTime
     } deriving (Eq, Ord, Show, Read)
+
+instance Pretty.Pretty Selection where
+    pretty (Selection strack spos ctrack cpos) =
+        "Selection " ++ Pretty.pretty (strack, spos) ++ "--"
+            ++ Pretty.pretty (ctrack, cpos)
 
 selection :: TrackNum -> ScoreTime -> TrackNum -> ScoreTime -> Selection
 selection start_track start_pos cur_track cur_pos =

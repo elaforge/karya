@@ -195,11 +195,7 @@ sync_zoom_status :: (Cmd.M m) => ViewId -> m ()
 sync_zoom_status view_id = do
     view <- State.get_view view_id
     Cmd.set_view_status view_id Config.status_zoom
-        (Just (show_zoom_status (Block.view_zoom view)))
-
-show_zoom_status :: Types.Zoom -> String
-show_zoom_status (Types.Zoom offset factor) =
-    '+' : Pretty.pretty offset ++ '*' : Pretty.show_float 1 factor
+        (Just (Pretty.pretty (Block.view_zoom view)))
 
 update_of :: Msg.Msg -> Maybe (UiMsg.Context, ViewId, UiMsg.UiUpdate)
 update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id update))) =

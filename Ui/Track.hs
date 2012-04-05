@@ -5,6 +5,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Perform.Signal as Signal
@@ -20,6 +21,12 @@ data Track = Track {
     , track_bg :: !Color.Color
     , track_render :: !RenderConfig
     } deriving (Eq, Show, Read)
+
+instance Pretty.Pretty Track where
+    format (Track title events _bg render) =
+        Pretty.record (Pretty.text "Track" Pretty.<+> Pretty.format title
+                Pretty.<+> Pretty.format render)
+            [("events", Pretty.format events)]
 
 -- | Construct a new Track.
 track :: String -> [Events.PosEvent] -> Track
@@ -46,8 +53,13 @@ data RenderConfig = RenderConfig {
 no_render :: RenderConfig
 no_render = RenderConfig NoRender Config.render_color
 
+instance Pretty.Pretty RenderConfig where
+    pretty (RenderConfig style color) = Pretty.pretty (style, color)
+
 data RenderStyle = NoRender | Line | Filled
     deriving (Eq, Show, Read)
+
+instance Pretty.Pretty RenderStyle where pretty = show
 
 set_render_style :: RenderStyle -> Track -> Track
 set_render_style style track =

@@ -177,3 +177,6 @@ instance Pretty.Pretty Transpose where
 -- independent, and not every scale will have the same values for key and
 -- mode.
 newtype Key = Key String deriving (Eq, Ord, Read, Show, Serialize.Serialize)
+
+instance Pretty.Pretty Key where
+    format (Key s) = Pretty.text s

@@ -53,7 +53,9 @@ import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 
 import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Event as Event
 import Types
 
@@ -257,6 +259,12 @@ around start end = emap (split_around start end)
 -}
 newtype Events = Events EventMap
     deriving (DeepSeq.NFData, Eq, Show, Read)
+
+instance Pretty.Pretty Events where
+    format = Pretty.format . map event . Map.toAscList . get
+        where
+        event (pos, evt) = (pos, Event.event_duration evt,
+            Event.event_string evt)
 
 instance Monoid.Monoid Events where
     mempty = empty
