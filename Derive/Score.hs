@@ -194,10 +194,11 @@ data Warp = Warp {
     , warp_stretch :: !ScoreTime
     } deriving (Eq, Show)
 
-pretty_warp :: Warp -> ([RealTime], ScoreTime, ScoreTime)
-pretty_warp (Warp sig shift stretch) =
-    ([Signal.y_to_real (Signal.at_linear n sig) | n <- [0, 1, 2, 3]],
-        shift, stretch)
+instance Pretty.Pretty Warp where
+    format (Warp sig shift stretch) =
+        Pretty.record (Pretty.text "Warp"
+                Pretty.<+> Pretty.format (shift, stretch))
+            [("signal", Pretty.format sig)]
 
 -- | Convert a Signal to a Warp.
 signal_to_warp :: Signal.Warp -> Warp

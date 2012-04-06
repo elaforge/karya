@@ -83,8 +83,7 @@ to_pair :: Sample y -> (X, y)
 to_pair (Sample x y) = (x, y)
 
 instance (Pretty.Pretty y) => Pretty.Pretty (Sample y) where
-    format (Sample x y) =
-        Pretty.format x <> Pretty.char ':' Pretty.<+> Pretty.format y
+    format (Sample x y) = Pretty.format x <> Pretty.char ':' <> Pretty.format y
 
 -- | Merge a sorted list of vectors.  Samples are not interspersed, and if
 -- the vectors overlap the later one wins.

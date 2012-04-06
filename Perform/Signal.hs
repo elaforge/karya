@@ -89,8 +89,7 @@ instance Read.Read (Signal y) where
 instance Pretty.Pretty (Signal y) where
     format = Pretty.format_commas '<' '>' . map sample . unsignal
         where
-        sample (x, y) =
-            Pretty.format x <> Pretty.char ':' Pretty.<+> Pretty.format y
+        sample (x, y) = Pretty.format x <> Pretty.char ':' <> Pretty.format y
 
 instance SignalBase.Y Y where
     zero_y = 0
