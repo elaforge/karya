@@ -80,8 +80,8 @@ do_updates track_signals updates = do
     --     Trans.liftIO $ putStr $ "sync updates: " ++ PPrint.pshow updates
     Trans.liftIO (Ui.send_action (sequence_ actions))
 
-set_track_signals :: State.State -> Track.TrackSignals -> IO ()
-set_track_signals state track_signals =
+set_track_signals :: BlockId -> State.State -> Track.TrackSignals -> IO ()
+set_track_signals block_id state track_signals =
     case State.eval state rendering_tracks of
         Left err ->
             -- This could happen if track_signals had a stale track_id.  That
@@ -99,9 +99,10 @@ set_track_signals state track_signals =
     prefix view_id tracknum = Log.add_prefix $ Text.pack $
         "getting track signal for " ++ Pretty.pretty (view_id, tracknum)
 
+    -- | Get the tracks of this block which want to render a signal.
     rendering_tracks :: State.StateId [(ViewId, TrackId, TrackNum)]
     rendering_tracks = do
-        view_ids <- Map.keys <$> State.gets State.state_views
+        view_ids <- Map.keys <$> State.get_views_of block_id
         blocks <- mapM (State.block_of) view_ids
         btracks <- mapM get_tracks blocks
         return $ do

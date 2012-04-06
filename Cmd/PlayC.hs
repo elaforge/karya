@@ -63,7 +63,7 @@ cmd_play_msg msg = do
                     st { Cmd.state_performance = Map.insert block_id
                          perf (Cmd.state_performance st) }
                 ui_state <- State.get
-                Trans.liftIO $ Sync.set_track_signals ui_state
+                Trans.liftIO $ Sync.set_track_signals block_id ui_state
                     (Cmd.perf_track_signals perf)
             _ -> return ()
     derive_status_color status = case status of

@@ -14,7 +14,6 @@ import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd

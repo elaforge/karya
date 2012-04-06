@@ -1,10 +1,14 @@
 -- | Cmds to deal with Cmd.Performance, derivation, and performance.
 module Cmd.Lang.LPerf where
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
+import qualified Ui.Track as Track
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
@@ -25,8 +29,17 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
-get_perf :: Cmd.CmdL Cmd.Performance
-get_perf = Cmd.require =<< Perf.lookup_root
+get_root :: Cmd.CmdL Cmd.Performance
+get_root = Cmd.require =<< Perf.lookup_root
+
+get :: BlockId -> Cmd.CmdL Cmd.Performance
+get = Cmd.get_performance
+
+track_signals :: Cmd.CmdL (Maybe (Either [Log.Msg] Track.TrackSignal))
+track_signals = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    perf <- get block_id
+    return $ Map.lookup track_id (Cmd.perf_track_signals perf)
 
 -- * derive
 

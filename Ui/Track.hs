@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | The 'Track' type and supporting functions.
 module Ui.Track where
 import qualified Control.DeepSeq as DeepSeq
@@ -100,9 +101,15 @@ data TrackSignal = TrackSignal {
     , ts_scale_map :: Maybe ScaleMap
     } deriving (Show, Eq)
 
+instance Pretty.Pretty TrackSignal where
+    format (TrackSignal sig shift stretch scale) =
+        Pretty.record (Pretty.text "TrackSignal"
+                Pretty.<+> Pretty.format (shift, stretch))
+            [("signal", Pretty.format sig), ("scale_map", Pretty.format scale)]
+
 -- | ScaleMaps are sorted by their scale degree number.
-newtype ScaleMap = ScaleMap [ValName] deriving (Show, Eq)
-newtype ValName = ValName (Double, String) deriving (Show, Eq)
+newtype ScaleMap = ScaleMap [ValName] deriving (Show, Eq, Pretty.Pretty)
+newtype ValName = ValName (Double, String) deriving (Show, Eq, Pretty.Pretty)
 
 make_scale_map :: [(String, Double)] -> ScaleMap
 make_scale_map = ScaleMap . map ValName . List.sort . map (\(a, b) -> (b, a))
