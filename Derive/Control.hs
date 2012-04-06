@@ -307,7 +307,10 @@ track_signal track
         if TrackInfo.is_note_track title then return (Left []) else do
         (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
             return (TrackInfo.parse_control_expr title)
-        run_sub $ eval_signal track expr ctype
+        -- Since these signals are being rendered solely for display, they
+        -- should ignore any tempo warping, just like 'stash_signal' does
+        -- above.
+        run_sub $ Derive.in_real_time $ eval_signal track expr ctype
     where title = State.tevents_title track
 
 eval_signal :: State.TrackEvents -> TrackLang.Expr
