@@ -152,4 +152,6 @@ test_expand_macros = do
     left_like (f "hi @") "parse error"
     equal (f "hi @a-b") (Right "hi !a-b")
     equal (f "hi @a b") (Right "hi !a b")
+    -- Doesn't substitute macros inside quotes.
+    equal (f "hi \"@a\" there") (Right "hi \"@a\" there")
     left_like (f "hi @not/ident") "parse error"

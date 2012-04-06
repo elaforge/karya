@@ -75,24 +75,29 @@ strip_comment = fst . B.breakSubstring "--"
 
 -- | Map the identifiers after a \"\@\" through the given function.  Used
 -- to implement ID macros for the REPL.
---
--- It doesn't understand strings, so don't put \@s in strings.  TODO fix that
 expand_macros :: (String -> String) -> String -> Either String String
 expand_macros replacement str
     | '@' `notElem` str = Right str
-    | otherwise = Parse.parse_all
-        (to_string <$> p_macros (from_string . replacement . to_string)) text
+    | otherwise = Parse.parse_all (to_string <$> p_macros replacement) text
     where text = from_string str
 
-p_macros :: (Text -> Text) -> A.Parser Text
+p_macros :: (String -> String) -> A.Parser Text
 p_macros replacement = do
-    before <- A.takeWhile (/='@')
-    -- many1 is necessary to get a nice error msg from p_id.
-    macros <- A.many1 ((,) <$> p_macro replacement <*> A.takeWhile (/='@'))
-    return $ mconcat $ before : concat [[m, r] | (m, r) <- macros]
+    chunks <- A.many1 $ p_macro replace <|> p_chunk <|> p_hs_string
+    return $ mconcat chunks
+    where
+    p_chunk = A.takeWhile1 (\c -> c /= '"' && c /= '@')
+    replace = from_string . replacement . to_string
 
 p_macro :: (Text -> Text) -> A.Parser Text
 p_macro replacement = A.char '@' >> replacement <$> p_id
+
+p_hs_string :: A.Parser Text
+p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
+    Parse.between (A.char '"') (A.char '"') $ mconcat <$> A.many chunk
+    where
+    chunk = (A.char '\\' >> B.cons '\\' <$> A.take 1)
+        <|> A.takeWhile1 (\c -> c /= '"' && c /= '\\')
 
 -- * toplevel parsers
 
