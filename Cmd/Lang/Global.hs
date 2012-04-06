@@ -27,21 +27,16 @@
 module Cmd.Lang.Global where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import Text.Printf
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Util.Map as Map
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
@@ -50,7 +45,6 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
-import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
 
@@ -231,48 +225,25 @@ get_views = State.gets (Map.keys . State.state_views)
 show_views :: String -> Cmd.CmdL String
 show_views match = do
     st <- State.get
-    let view_ids = match_ids match $ Map.keys (State.state_views st)
-    descs <- mapM show_view view_ids
-    return $ Seq.join "\n"
-        ["** " ++ show view_id ++ ":\n" ++ desc
-            | (view_id, desc) <- zip view_ids descs]
-
-show_view :: ViewId -> Cmd.CmdL String
-show_view = fmap PPrint.pshow . State.get_view
-
-destroy_view :: String -> Cmd.CmdL ()
-destroy_view view_id = State.destroy_view (vid view_id)
+    return $ Pretty.formatted $
+        Map.filterWithKey (\k _ -> match_id match k) (State.state_views st)
 
 -- ** blocks
 
 show_block :: BlockId -> Cmd.CmdL String
-show_block block_id = do
-    block <- State.get_block block_id
-    tracks <- mapM show_block_track (Block.block_tracks block)
-    return $ printf "%s %s\n%s"
-        (show (Block.block_title block)) (show block_id) (PPrint.list tracks)
-
-show_block_track :: Block.Track -> Cmd.CmdL String
-show_block_track track = do
-    tracklike <- show_tracklike (Block.tracklike_id track)
-    return $ printf "%s\n\t(flags %s) (merged %s)" tracklike
-        (show (Block.track_flags track))
-        (show (Block.track_merged track))
+show_block block_id = Pretty.formatted <$> State.get_block block_id
 
 -- | Show all blocks whose block id matches a string.
 -- Useful for quick block inspection.
 show_blocks :: String -> Cmd.CmdL String
 show_blocks match = do
     st <- State.get
-    let block_ids = match_ids match $ Map.keys (State.state_blocks st)
-    descs <- mapM show_block block_ids
-    return $ Seq.join "\n"
-        ["** " ++ show block_id ++ ":\n" ++ desc
-            | (block_id, desc) <- zip block_ids descs]
+    return $ Pretty.formatted $
+        Map.filterWithKey (\k _ -> match_id match k) (State.state_blocks st)
 
--- | Filter ids containing a given substring.
-match_ids :: (Id.Ident id) => String -> [id] -> [id]
-match_ids sub = filter ((sub `List.isInfixOf`) . Id.show_id . Id.unpack_id)
+-- | True if the ID contains the given substring.
+match_id :: (Id.Ident id) => String -> id -> Bool
+match_id sub = (sub `List.isInfixOf`) . Id.show_id . Id.unpack_id
 
 -- | Tracks that don't appear in any block.
 orphan_tracks :: Cmd.CmdL [TrackId]
@@ -288,14 +259,6 @@ track_refs = do
         ref_map = List.foldl' insert Map.empty tids
     return [(tid, Map.get 0 tid ref_map)
         | tid <- Map.keys (State.state_tracks st)]
-
-show_tracklike :: Block.TracklikeId -> Cmd.CmdL String
-show_tracklike (Block.TId tid rid) = do
-    track <- State.get_track tid
-    let title = Track.track_title track
-    return $ printf "%s %s %s" (show title) (show tid) (show rid)
-show_tracklike (Block.RId rid) = return (show rid)
-show_tracklike (Block.DId color) = return $ "Div " ++ show color
 
 collapse_track, expand_track :: BlockId -> TrackNum -> Cmd.CmdL ()
 collapse_track block_id tracknum = do
@@ -323,18 +286,6 @@ ruler ruler_id = Block.RId (rid ruler_id)
 divider :: Color.Color -> Block.TracklikeId
 divider color = Block.DId (Block.Divider color)
 
-show_track :: TrackId -> Cmd.CmdL String
-show_track track_id = do
-    track <- State.get_track track_id
-    return $ PPrint.pshow (track { Track.track_events = Events.empty })
-        ++ "Events: " ++ show (Events.length (Track.track_events track))
-
-show_events :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Simple.Event]
-show_events track_id start end = do
-    track <- State.get_track track_id
-    return $ (map Simple.event . Events.ascending
-        . Events.in_range start end . Track.track_events) track
-
 -- | Insert a track that already exists.
 insert_track :: TrackId -> TrackNum -> Cmd.CmdL ()
 insert_track track_id tracknum = do
@@ -342,16 +293,6 @@ insert_track track_id tracknum = do
     ruler_id <- Create.get_ruler_id block_id tracknum
     State.insert_track block_id tracknum
         (Block.track (Block.TId track_id ruler_id) Config.track_width)
-
--- ** events
-
--- | Events in the selection.
-selected_events :: Cmd.CmdL [Event.Event]
-selected_events = undefined
-
--- | Event that overlaps the insert pos, or abort.
-close_event :: Cmd.CmdL Event.Event
-close_event = undefined
 
 -- * time
 

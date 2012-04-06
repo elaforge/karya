@@ -8,7 +8,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
-import qualified Ui.Track
+import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -24,7 +24,7 @@ remove_empty block_id = do
     track_ids <- Block.block_track_ids <$> State.get_block block_id
     mapM_ State.destroy_track =<< filterM is_empty track_ids
     where
-    is_empty = fmap ((==Events.empty) . Ui.Track.track_events)
+    is_empty = fmap ((==Events.empty) . Track.track_events)
         . State.get_track
 
 remove_all_empty :: Cmd.CmdL ()
@@ -49,6 +49,14 @@ map_block_titles block_id f = do
 replace x y val
     | val == x = y
     | otherwise = val
+
+-- * events
+
+events :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Events.PosEvent]
+events track_id start end = do
+    track <- State.get_track track_id
+    return $ (Events.ascending
+        . Events.in_range start end . Track.track_events) track
 
 -- * strip controls
 
@@ -80,14 +88,14 @@ strip_controls = map snd . filter same . Seq.zip_prev
 filled :: Cmd.CmdL ()
 filled = do
     (_, _, track_id, _) <- Selection.get_insert
-    State.set_render_style Ui.Track.Filled track_id
+    State.set_render_style Track.Filled track_id
 
 line :: Cmd.CmdL ()
 line = do
     (_, _, track_id, _) <- Selection.get_insert
-    State.set_render_style Ui.Track.Line track_id
+    State.set_render_style Track.Line track_id
 
 no_render :: Cmd.CmdL ()
 no_render = do
     (_, _, track_id, _) <- Selection.get_insert
-    State.set_render_style Ui.Track.NoRender track_id
+    State.set_render_style Track.NoRender track_id
