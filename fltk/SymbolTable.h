@@ -109,6 +109,8 @@ public:
 
     static SymbolTable *get();
 private:
+    int measure_backticks(const char *text, Size size) const;
+
     typedef std::map<string, Symbol> SymbolMap;
     SymbolMap symbol_map;
     std::map<string, Font> font_map;

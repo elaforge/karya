@@ -181,69 +181,123 @@ SymbolTable::measure(const string &text, Font font, Size size) const
 }
 
 
+// Measure the width of the symbol between backticks, or -1 if it's not
+// actually a symbol.
+//
+// TODO It's unpleasant how this is somewhat duplicated with the code in
+// draw(), maybe they can be integrated better.
+int
+SymbolTable::measure_backticks(const char *text, Size size) const
+{
+    text++;
+    const char *start = text;
+    while (*text && *text != '`')
+        text++;
+    if (!*text) {
+        // Oops, it was unclosed.
+        return -1;
+    } else {
+        SymbolMap::const_iterator it = this->symbol_map.find(
+            string(start, text-start));
+        if (it == symbol_map.end()) {
+            return -1;
+        } else {
+            return this->measure_symbol(it->second, size).w;
+        }
+    }
+}
+
+
 IPoint
 SymbolTable::draw_wrapped(const string &text, IPoint pos,
     int wrap_width, Font font, Size size, Fl_Color color, bool measure) const
 {
     // This function is a real rat's nest.
+    //
+    // It's probably fairly inefficient, I do lots of measuring before drawing.
+    // But it seems to be fast enough, and in particular fl_width has been
+    // optimized for single characters.
     IPoint total_size(0, 0);
     const char *line_start = text.c_str();
     const char *last_space = line_start;
-    // Keep track of the height of the line up to the last space.  If the line
-    // needs to wrap at last_space, I'll want to shift down by that much.
-    IPoint last_size(0, 0);
 
-    for (const char *p = line_start;; p++) {
-        // The end of the string is also like a space.
-        if (!*p || *p == ' ') {
-            // Size up to 'p'.
-            IPoint p_size = this->measure(
-                string(line_start, p - line_start), font, size);
-            // DEBUG("measure " << string(line_start, p-line_start) << ": "
-            //     << p-line_start << ' ' << line_size);
-            const bool should_wrap = p_size.x > wrap_width;
-            if (!*p || should_wrap) {
-                // Draw up to the last space, but if  I'm out of letters and
-                // don't actually have to break, or can't break because there
-                // are no spaces, then draw up to here.
-                const char *break_at;
-                IPoint line_size;
-                if (!should_wrap || last_space == line_start) {
+    // TODO set font and size because of fl_width below
+    double line_width = 0;
+    for (const char *p = line_start;;) {
+        if (*p == ' ')
+            last_space = p;
+        if (*p == '`') {
+            double width = this->measure_backticks(p, size);
+            if (width == -1)
+                line_width += fl_width(p, 1);
+            else
+                line_width += width;
+            // DEBUG("at ``: " << width << " = " << line_width);
+        } else {
+            line_width += fl_width(p, 1);
+            // DEBUG("at " << string(p, 1) << ": " << fl_width(p, 1)
+            //     << " = " << line_width);
+        }
+        // Display at least one char before a line wrap, this prevents an
+        // endless loop.
+        const bool should_wrap = line_width > wrap_width && p > line_start;
+        if (!*p || should_wrap) {
+            // if (*p) {
+            //     DEBUG("should wrap: " << line_width << " > " << wrap_width);
+            // } else {
+            //     DEBUG("eol");
+            // }
+            const char *break_at;
+            if (should_wrap) {
+                if (last_space == line_start)
                     break_at = p;
-                    line_size = p_size;
-                } else {
+                else
                     break_at = last_space;
-                    line_size = last_size;
-                }
-                // DEBUG("break_at: " << break_at - line_start << " p "
-                //     << (*p ? *p : '_'));
-                total_size.x = std::max(total_size.x, line_size.x);
-                total_size.y += line_size.y;
-                if (!measure) {
-                    IPoint line_pos(pos.x, pos.y + total_size.y);
-                    this->draw(
-                        string(line_start, break_at - line_start), line_pos,
-                        font, size, color);
-                }
-                if (!*break_at) {
-                    break;
-                } else {
-                    p = break_at; // for()'s p++ will increment past the space.
-                    line_start = p + 1;
-                    last_space = line_start;
-                    last_size = line_size;
-                }
             } else {
-                last_space = p;
-                last_size = p_size;
+                break_at = p;
             }
-        } else if (*p == '`') {
-            // A glyph is considered one letter, so skip to the next `.
+            // DEBUG("break_at " << string(break_at, 1) << " "
+            //     << break_at - text.c_str());
+            IPoint line_size = this->measure(
+                string(line_start, p - line_start), font, size);
+            // For text, line_size.y will be fl_height() - fl_descent(), but
+            // it looks a little cramped.
+            line_size.y += 1;
+            total_size.x = std::max(total_size.x, line_size.x);
+            total_size.y += line_size.y;
+            if (!measure) {
+                this->draw(string(line_start, break_at - line_start),
+                    IPoint(pos.x, pos.y + total_size.y),
+                    font, size, color);
+            }
+            if (!*p) {
+                break;
+            } else {
+                p = break_at;
+                // If I broke on 'p' then I have to rewind a character because
+                // I haven't actually drawn the char at 'p' yet.
+                if (*p != ' ')
+                    p--;
+                line_width = 0;
+                line_start = break_at;
+                if (*line_start == ' ')
+                    line_start++;
+                last_space = line_start;
+            }
+        }
+        // Increment to the next char, counting a `sym` as a single char.
+        if (*p == '`') {
+            for (int i = 1;; i++) {
+                if (p[i] == '`') {
+                    p += i+1;
+                    break;
+                } else if (!p[i]) {
+                    p++;
+                    break;
+                }
+            }
+        } else {
             p++;
-            while (*p && *p != '`')
-                p++;
-            if (!*p)
-                p--;
         }
     }
     return total_size;
