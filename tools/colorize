@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+out_dir=$1
+shift
+fs=("$@")
+
+for f in $fs; do
+    dir=$(dirname  $f)
+    mkdir -p $out_dir/$dir
+    # Apparently there's no way to build in the CSS or configure the css link,
+    # and .hscolour is limited to ugly terminal colors, so just copy the CSS
+    # over.
+    cp tools/hscolour.css $out_dir/$dir
+    echo hscolour -anchor -css -o$out_dir/${f%.hs*}.html $f
+    hscolour -anchor -css -o$out_dir/${f%.hs*}.html $f
+done

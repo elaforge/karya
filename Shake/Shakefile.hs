@@ -414,20 +414,22 @@ dispatch config target = case target of
         system' "rm" ["-rf", build]
         system' "mkdir" [build]
     "doc" -> action $ do
-        hscs <- Util.findHs "*.hs" (hscDir config)
+        hscs <- filter haddock <$> Util.findHs "*.hsc" "."
         hs <- filter haddock <$> Util.findHs "*.hs" "."
-        need hscs
+        need $ map (hscToHs (hscDir config)) hscs
         system' "haddock" $
-            ["--html", "-B", ghcLib config
-            , "--source-base=../../"
-            , "--source-module=../../%{FILE}"
+            [ "--html", "-B", ghcLib config
+            , "--source-base=../hscolour/"
+            , "--source-module=../hscolour/%{MODULE/.//}.html"
+            , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"
+
             , "--prologue=doc/prologue"
             , "--optghc=-I."
-            -- TODO use hscolour to get nice source links
             -- This flag crashes ghc 7.0.3
             -- , "-q", "relative" -- Source references use qualified names.
             , "-o", build </> "doc"
-            ] ++ hs ++ hscs
+            ] ++ hs ++ map (hscToHs (hscDir config)) hscs
+        system' "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
     "checkin" -> do
         let debug = (modeToDir Debug </>)
         Shake.want [debug "browser", debug "logview", debug "make_db",
@@ -459,6 +461,9 @@ haddock hs = not $ hs `elem` map hsMain hsBinaries
     -- being set.  Apparently haddock has no way to set CPP defines, so I
     -- either have to add a way or stop using CPP for conditional exports.
     || "Test.hs" `List.isSuffixOf` hs
+    -- This will crash haddock on OS X since jack.h is likely not present.
+    -- TODO sorta hacky
+    || hs == "Midi/JackMidi.hsc"
 
 makeHs :: FilePath -> FilePath -> FilePath -> Cmdline
 makeHs dir out main = ("GHC-MAKE", out, cmdline)
@@ -668,6 +673,10 @@ objToHscHs config = (hscDir config </>) . objToSrc config
 -- | build/hsc/A/B.hs -> A/B.hsc
 hsToHsc :: FilePath -> FilePath -> FilePath
 hsToHsc hscDir fn = dropDir hscDir $ FilePath.replaceExtension fn "hsc"
+
+-- | A/B.hsc -> build/hsc/A/B.hs
+hscToHs :: FilePath -> FilePath -> FilePath
+hscToHs hscDir fn = (hscDir </>) $ FilePath.replaceExtension fn "hs"
 
 objToHi :: FilePath -> FilePath
 objToHi = (++".hi") . FilePath.dropExtension . FilePath.dropExtension
