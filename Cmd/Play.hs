@@ -133,7 +133,9 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
     start <- Perf.get_realtime perf block_id start_track start_pos
-    msgs <- PlayUtil.shift_messages start <$> PlayUtil.perform_from start perf
+    multiplier <- gets Cmd.state_play_multiplier
+    msgs <- PlayUtil.shift_messages multiplier start <$>
+        PlayUtil.perform_from start perf
     Log.debug $ "play block " ++ show block_id
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs
@@ -146,7 +148,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     Cmd.modify_play_state $ \st -> st { Cmd.state_play_control = Just play_ctl }
     -- See doc for "Cmd.PlayC".
     return $ Cmd.Play $
-        Cmd.UpdaterArgs updater_ctl (Cmd.perf_inv_tempo perf) start
+        Cmd.UpdaterArgs updater_ctl (Cmd.perf_inv_tempo perf) start multiplier
 
 lookup_current_performance :: (Cmd.M m) => BlockId -> m (Maybe Cmd.Performance)
 lookup_current_performance block_id = Map.lookup block_id <$>

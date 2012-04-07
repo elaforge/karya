@@ -61,6 +61,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import qualified App.Config as Config
@@ -185,6 +186,10 @@ set_default_inst inst = State.modify_default $ \d ->
 set_default_scale :: String -> Cmd.CmdL ()
 set_default_scale scale = State.modify_default $ \d ->
     d { State.default_scale = Pitch.ScaleId scale }
+
+set_play_multiplier :: Double -> Cmd.CmdL ()
+set_play_multiplier d = Cmd.modify_play_state $ \st ->
+    st { Cmd.state_play_multiplier = RealTime.seconds d }
 
 -- * load / save
 

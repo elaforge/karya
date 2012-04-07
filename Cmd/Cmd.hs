@@ -92,6 +92,7 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 
 import qualified Instrument.Db
@@ -118,7 +119,7 @@ data Status = Done | Continue | Quit
     deriving (Show, Generics.Typeable)
 
 data UpdaterArgs = UpdaterArgs
-    Transport.UpdaterControl Transport.InverseTempoFunction RealTime
+    Transport.UpdaterControl Transport.InverseTempoFunction RealTime RealTime
 instance Show UpdaterArgs where
     show _ = "((UpdaterArgs))"
 
@@ -379,7 +380,22 @@ data PlayState = PlayState {
     -- | Contain a StepState if step play is active.  Managed in
     -- "Cmd.StepPlay".
     , state_step :: !(Maybe StepState)
+    -- | Multiply performance timestamps by this amount.  This will globally
+    -- speed up or slow down performance.
+    , state_play_multiplier :: RealTime
     } deriving (Show, Generics.Typeable)
+
+initial_play_state :: PlayState
+initial_play_state = PlayState
+    { state_play_control = Nothing
+    , state_performance = Map.empty
+    , state_current_performance = Map.empty
+    , state_performance_threads = Map.empty
+    , state_play_step =
+        TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 2)
+    , state_step = Nothing
+    , state_play_multiplier = RealTime.seconds 1
+    }
 
 -- | Step play is a way of playing back the performance in non-realtime.
 data StepState = StepState {
@@ -397,17 +413,6 @@ data StepState = StepState {
     -- | MIDI states after the step play position, in asceding order.
     , step_after :: ![(ScoreTime, Midi.State.State)]
     } deriving (Show, Generics.Typeable)
-
-initial_play_state :: PlayState
-initial_play_state = PlayState
-    { state_play_control = Nothing
-    , state_performance = Map.empty
-    , state_current_performance = Map.empty
-    , state_performance_threads = Map.empty
-    , state_play_step =
-        TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 2)
-    , state_step = Nothing
-    }
 
 -- | Editing state, modified in the course of editing.
 data EditState = EditState {

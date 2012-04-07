@@ -14,7 +14,6 @@ UNSORTED
     env as a starting point
   - fltk: some way to scroll that's not the scroll wheel
   - shakefile: can I print [# of #] when compiling?
-  - de-globalize MidiClientRef?
 
   abstract pitches
     re-implement Cmd.Lang.LPitch.to_relative:
@@ -147,7 +146,7 @@ UNSORTED
   play:
     - playback should have multiple lines when a block is derived multiple
       times have a set of playback selnums?
-    - put a multiplier on play's timestamps to implement a play speed control
+    * put a multiplier on play's timestamps to implement a play speed control
 
   - If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
@@ -991,6 +990,7 @@ jack: JACK:
       - Try stashing port from port_by_name port instead of jack_register_port.
     - jack2 hangs for a long time on jack_connect when I reconnect due to a
       notify.  Try looking at logging to see what it's waiting on.
+  - de-globalize MidiClientRef?
   - Ensure that shutdown stuff is being called correctly.  I don't care but
     maybe JACK does?
   use jack transport

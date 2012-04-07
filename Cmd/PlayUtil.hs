@@ -91,8 +91,10 @@ perform_from :: (Cmd.M m) => RealTime -> Cmd.Performance
     -> m Perform.MidiEvents
 perform_from start = perform_events . events_from start . Cmd.perf_events
 
-shift_messages :: RealTime -> Perform.MidiEvents -> Perform.MidiEvents
-shift_messages start = map (fmap (Midi.add_timestamp (-start)))
+shift_messages :: RealTime -> RealTime -> Perform.MidiEvents
+    -> Perform.MidiEvents
+shift_messages multiplier start = map $ fmap $
+    Midi.modify_timestamp ((* multiplier) . subtract start)
 
 -- | As a special case, a start <= 0 will get all events, including negative
 -- ones.  This is so notes pushed before 0 won't be clipped on a play from 0.

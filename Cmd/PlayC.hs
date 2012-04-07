@@ -75,22 +75,22 @@ cmd_play_msg msg = do
 -- * updater
 
 start_updater :: Transport.Info -> Cmd.UpdaterArgs -> IO ()
-start_updater transport_info (Cmd.UpdaterArgs ctl inv_tempo_func start) =
-    void $ Thread.start $
-        updater_thread ctl transport_info inv_tempo_func start
+start_updater transport_info args =
+    void $ Thread.start $ updater_thread transport_info args
 
 -- | Run along the InverseTempoMap and update the play position selection.
 -- Note that this goes directly to the UI through Sync, bypassing the usual
 -- state diff folderol.
-updater_thread :: Transport.UpdaterControl -> Transport.Info
-    -> Transport.InverseTempoFunction -> RealTime -> IO ()
-updater_thread ctl transport_info inv_tempo_func start = do
+updater_thread :: Transport.Info -> Cmd.UpdaterArgs -> IO ()
+updater_thread transport_info (Cmd.UpdaterArgs ctl inv_tempo_func start
+        multiplier) = do
     let get_now = Transport.info_get_current_time transport_info
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
     offset <- get_now
-    let state = UpdaterState ctl (offset - start) get_now
+    let state = UpdaterState ctl (offset - start * multiplier) get_now
             inv_tempo_func Set.empty (Transport.info_state transport_info)
+            multiplier
     let send status = Transport.info_send_status transport_info status
     Exception.bracket_ (send Transport.Playing) (send Transport.Stopped)
         (updater_loop state)
@@ -102,6 +102,7 @@ data UpdaterState = UpdaterState {
     , updater_inv_tempo_func :: Transport.InverseTempoFunction
     , updater_active_sels :: Set.Set (ViewId, [TrackNum])
     , updater_ui_state :: MVar.MVar State.State
+    , updater_multiplier :: RealTime
     }
 
 updater_loop :: UpdaterState -> IO ()
@@ -111,7 +112,8 @@ updater_loop state = do
             >> return []
     ui_state <- MVar.readMVar (updater_ui_state state)
     play_pos <- either fail return $ State.eval ui_state $
-        Perf.find_play_pos (updater_inv_tempo_func state) now
+        Perf.find_play_pos (updater_inv_tempo_func state)
+        (now / updater_multiplier state)
     Sync.set_play_position play_pos
 
     let active_sels = Set.fromList
