@@ -22,6 +22,18 @@ class SymbolTable {
 public:
     typedef Fl_Font Font;
     typedef int Size;
+    struct Style {
+        Style(Font font, Size size, Fl_Color color)
+            : font(font), size(size), color(color) {}
+        Font font;
+        Size size;
+        Fl_Color color;
+
+        void set() const {
+            fl_font(font, size);
+            fl_color(color);
+        }
+    };
 
     enum { font_not_found = -1 };
 
@@ -87,19 +99,19 @@ public:
     // Return the bounding box of the symbols that were drawn, or would have
     // been drawn if measure is true.  The bounding box includes ascenders but
     // doesn't include descenders, because those can generally overlap.
-    IPoint draw(const string &text, IPoint pos, Font font, Size size,
-        Fl_Color color, bool vertical = false, bool measure = false) const;
+    IPoint draw(const string &text, IPoint pos, Style style,
+        bool vertical = false, bool measure = false) const;
 
     // Specialization for 'draw' that just measures.
-    IPoint measure(const string &text, Font font, Size size) const;
+    IPoint measure(const string &text, Style style) const;
 
     // SymbolTable::measure_wrapped and SymbolTable::draw_wrapped
     // inherently go downwards, so unlike SymbolTable::draw() the
     // draw position is the upper left, not the lower left.
     IPoint draw_wrapped(const string &text, IPoint pos, int width,
-        Font font, Size size, Fl_Color color, bool measure = false) const;
+        Style style, bool measure = false) const;
     IPoint measure_wrapped(const string &text, IPoint pos, int wrap_width,
-        Font font, Size size) const;
+        Style style) const;
 
     // Measure the Symbol by actually drawing it and seeing how many pixels it
     // occupies.  This is expensive so it's cached.

@@ -506,8 +506,8 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     const char *prev_lower = NULL;
     const char *prev_upper = NULL;
 
-    const Fl_Font font = Config::font;
-    const int size = Config::font_size::pitch_signal;
+    const SymbolTable::Style style(Config::font,
+        Config::font_size::pitch_signal, FL_BLACK);
 
     for (int i = found; i < tsig.length; i++) {
         // Skip coincident samples, or at least ones that are too close.
@@ -552,13 +552,12 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
             // event text.
             if (lower != upper) {
                 lower_size = SymbolTable::get()->draw(
-                    lower, IPoint(min_x, offset-1), font, size, FL_BLACK);
+                    lower, IPoint(min_x, offset-1), style);
                 fl_line(min_x, offset, min_x + lower_size.x, offset);
             }
-            upper_size = SymbolTable::get()->measure(upper, font, size);
+            upper_size = SymbolTable::get()->measure(upper, style);
             SymbolTable::get()->draw(
-                upper, IPoint(max_x - upper_size.x, offset-1), font, size,
-                FL_BLACK);
+                upper, IPoint(max_x - upper_size.x, offset-1), style);
             fl_line(max_x - upper_size.x, offset, max_x, offset);
         }
 
@@ -660,15 +659,17 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     // small notes I'll have to come up with some other mechanism, like color
     // coding.
 
-    const EventStyle *style = StyleTable::get()->get(event.style_id);
+    const EventStyle *event_style = StyleTable::get()->get(event.style_id);
+    const SymbolTable::Style style(event_style->font, event_style->size,
+        color_to_fl(rank ? event_style->text_color.brightness(rank_brightness)
+            : event_style->text_color));
 
     IRect text_rect(0, 0, 0, 0);
     bool draw_text = false;
     if (event.text) {
         // The first measure tells me if one line of text will fit.  If not
         // even one line fits, then don't bother to draw any text.
-        IPoint box = SymbolTable::get()->measure(
-            event.text, style->font, style->size);
+        IPoint box = SymbolTable::get()->measure(event.text, style);
         text_rect.w = box.x;
         text_rect.h = box.y;
         // Text goes above the trigger line for negative events, plus spacing.
@@ -719,12 +720,6 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     }
 
     if (draw_text) {
-        Fl_Color color;
-        if (rank)
-            color = color_to_fl(style->text_color.brightness(rank_brightness));
-        else
-            color = color_to_fl(style->text_color);
-
         // Rotation and word wrapping only apply to positive events.
         // I would need additional code to get them working for negative
         // events, since the text goes up rather than down.
@@ -743,13 +738,12 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
             // to be more efficient I could pass in the next_offset and combine
             // measuring and drawing.
             IPoint box = SymbolTable::get()->measure_wrapped(
-                event.text, draw_pos, track_width, style->font, style->size);
+                event.text, draw_pos, track_width, style);
             box.y += text_rect.h; // TODO remove this hack
             if (text_rect.y + box.y < next_offset) {
                 // DEBUG("draw_wrapped " << event.text);
                 SymbolTable::get()->draw_wrapped(
-                    event.text, draw_pos, track_width, style->font,
-                    style->size, color);
+                    event.text, draw_pos, track_width, style);
                 drawn = true;
             }
         }
@@ -760,8 +754,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
             IPoint draw_pos = vertical
                 ? IPoint(x() + w()/2 - text_rect.h/2, text_rect.y)
                 : IPoint(text_rect.x, text_rect.b() - 1);
-            SymbolTable::get()->draw(event.text,
-                draw_pos, style->font, style->size, color, vertical);
+            SymbolTable::get()->draw(event.text, draw_pos, style, vertical);
         }
 
         if (!rank) {

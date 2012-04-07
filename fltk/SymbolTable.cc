@@ -107,14 +107,13 @@ draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size,
 
 
 IPoint
-SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
-        Fl_Color color, bool vertical, bool measure) const
+SymbolTable::draw(const string &text, IPoint pos, Style style, bool vertical,
+    bool measure) const
 {
     size_t start = 0;
     size_t i, j;
 
-    fl_font(font, size);
-    fl_color(color);
+    style.set();
     // Keep track of the current bounding box.  The box is the width and height
     // of the text, so if vertical is true, the box's 'x' is the vertical
     // "width" of the text.
@@ -128,7 +127,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
             break;
 
         // Draw text before ``s.
-        fl_font(font, size);
+        style.set();
         box.x += draw_text(text.c_str() + start, i-start-1,
             vertical ? IPoint(pos.x, pos.y + box.x)
                 : IPoint(pos.x + box.x, pos.y),
@@ -144,7 +143,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
                 measure, DPoint(), rotate);
         } else {
             // Draw symbol inside ``s.
-            IRect sym_box = this->measure_symbol(it->second, size);
+            IRect sym_box = this->measure_symbol(it->second, style.size);
             // The box measures the actual bounding box of the symbol.  Clip
             // out the spacing inserted by the characters by translating back
             // by the box's offsets.
@@ -155,7 +154,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
                 draw_glyphs(
                     vertical ? IPoint(pos.x, pos.y + box.x)
                         : IPoint(pos.x + box.x - sym_box.x, pos.y + sym_box.y),
-                    it->second, size, rotate);
+                    it->second, style.size, rotate);
             }
             box.x += sym_box.w;
             box.y = std::max(box.y, sym_box.h);
@@ -163,7 +162,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
         start = j + 1;
     }
     // Draw trailing text.
-    fl_font(font, size);
+    style.set();
     if (start < text.size()) {
         box.x += draw_text(text.c_str() + start, text.size() - start,
             vertical ? IPoint(pos.x, pos.y + box.x)
@@ -175,9 +174,9 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
 
 
 IPoint
-SymbolTable::measure(const string &text, Font font, Size size) const
+SymbolTable::measure(const string &text, Style style) const
 {
-    return this->draw(text, IPoint(0, 0), font, size, FL_BLACK, false, true);
+    return this->draw(text, IPoint(0, 0), style, false, true);
 }
 
 
@@ -209,8 +208,8 @@ SymbolTable::measure_backticks(const char *text, Size size) const
 
 
 IPoint
-SymbolTable::draw_wrapped(const string &text, IPoint pos,
-    int wrap_width, Font font, Size size, Fl_Color color, bool measure) const
+SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
+    Style style, bool measure) const
 {
     // This function is a real rat's nest.
     //
@@ -221,13 +220,13 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos,
     const char *line_start = text.c_str();
     const char *last_space = line_start;
 
-    // TODO set font and size because of fl_width below
+    style.set(); // because of fl_width below
     double line_width = 0;
     for (const char *p = line_start;;) {
         if (*p == ' ')
             last_space = p;
         if (*p == '`') {
-            double width = this->measure_backticks(p, size);
+            double width = this->measure_backticks(p, style.size);
             if (width == -1)
                 line_width += fl_width(p, 1);
             else
@@ -259,7 +258,7 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos,
             // DEBUG("break_at " << string(break_at, 1) << " "
             //     << break_at - text.c_str());
             IPoint line_size = this->measure(
-                string(line_start, p - line_start), font, size);
+                string(line_start, p - line_start), style);
             // For text, line_size.y will be fl_height() - fl_descent(), but
             // it looks a little cramped.
             line_size.y += 1;
@@ -267,8 +266,7 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos,
             total_size.y += line_size.y;
             if (!measure) {
                 this->draw(string(line_start, break_at - line_start),
-                    IPoint(pos.x, pos.y + total_size.y),
-                    font, size, color);
+                    IPoint(pos.x, pos.y + total_size.y), style);
             }
             if (!*p) {
                 break;
@@ -306,9 +304,9 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos,
 
 IPoint
 SymbolTable::measure_wrapped(const string &text, IPoint pos,
-    int wrap_width, Font font, Size size) const
+    int wrap_width, Style style) const
 {
-    return draw_wrapped(text, pos, wrap_width, font, size, FL_BLACK, true);
+    return draw_wrapped(text, pos, wrap_width, style, true);
 }
 
 
