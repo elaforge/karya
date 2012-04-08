@@ -158,7 +158,7 @@ make_rstate update_chan loopback_chan ui_state cmd_state cmd =
     updater_state = Unsafe.unsafePerformIO (MVar.newMVar State.empty)
     config = StaticConfig.empty
         { StaticConfig.global_cmds = maybe [] (:[]) cmd }
-    dummy_sync _ _ updates = do
+    dummy_sync _ _ _ updates = do
         put_val update_chan updates
         return Nothing
     loopback = Chan.writeChan loopback_chan

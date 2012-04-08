@@ -9,6 +9,7 @@ import Util.Test
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
+import qualified Ui.Event as Event
 import qualified Ui.Symbol as Symbol
 import qualified Ui.SymbolC as SymbolC
 import qualified Ui.Track as Track
@@ -19,6 +20,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import qualified App.LoadConfig as LoadConfig
+import Types
 
 
 initialize f = do
@@ -40,7 +42,7 @@ test_create_set_size = do
 
 test_scroll_zoom = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 1 (event_track long_event_track) [] 200
+    insert_track view 1 (event_track long_event_track) 200
     io_human "scroll a little to the right" $
         send $ BlockC.set_track_scroll view 10
     io_human "all the way to the right" $
@@ -63,8 +65,7 @@ test_scroll_zoom = do
 test_set_selection = do
     view <- create_empty_view
     let ruler = UiTest.mkruler 20 10
-    send $ BlockC.insert_track view 1
-        (Block.T event_track_1 (UiTest.overlay_ruler ruler)) [] 30
+    insert_track view 1 (Block.T event_track_1 (UiTest.overlay_ruler ruler)) 30
     let c = Color.brightness 1.5 Color.blue
     io_human "point selection appears" $
         send $ BlockC.set_selection True view 0 (cselection c 1 0 1 0)
@@ -93,7 +94,7 @@ test_set_model_config = do
 
 test_set_title = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 1 (event_track event_track_1) [] 20
+    insert_track view 1 (event_track event_track_1) 20
 
     io_human "block gets hi title" $
         send $ BlockC.set_title view "hi"
@@ -108,26 +109,25 @@ test_set_title = do
 test_update_track = do
     view <- create_empty_view
     let ruler = UiTest.mkruler 20 10
-    send $ BlockC.insert_track view 0 (Block.D UiTest.default_divider) [] 5
-    send $ BlockC.insert_track view 1 (Block.R ruler) [] 30
-    send $ BlockC.insert_track view 2
-        (Block.T event_track_1 (UiTest.overlay_ruler ruler)) [] 30
+    insert_track view 0 (Block.D UiTest.default_divider) 5
+    insert_track view 1 (Block.R ruler) 30
+    insert_track view 2 (Block.T event_track_1 (UiTest.overlay_ruler ruler)) 30
 
     io_human "ruler gets wider, both events change" $ do
         send $ BlockC.update_entire_track True view 1
-            (Block.R (UiTest.mkruler 20 16)) []
+            (Block.R (UiTest.mkruler 20 16)) [] set_style
         send $ BlockC.update_track True view 2
-            (Block.T event_track_2 (UiTest.overlay_ruler ruler)) [] 0 60
+            (Block.T event_track_2 (UiTest.overlay_ruler ruler))
+            [] set_style 0 60
 
 test_insert_remove_track = do
     view <- create_empty_view
     let ruler = UiTest.mkruler 20 10
     io_human "new event track" $
-        send $ BlockC.insert_track view 1
-            (Block.T event_track_1 ruler) [] 30
+        insert_track view 1 (Block.T event_track_1 ruler) 30
     send $ BlockC.set_zoom view (Types.Zoom 0 2)
     io_human "another new event track also zoomed" $
-        send $ BlockC.insert_track view 2 (Block.T event_track_2 ruler) [] 30
+        insert_track view 2 (Block.T event_track_2 ruler) 30
     io_human "remove ruler track, others move over" $
         send $ BlockC.remove_track view 0
 
@@ -135,7 +135,7 @@ test_track_signal = do
     view <- create_empty_view
     let track = Track.set_render_style Track.Line event_track_1
     io_human "track without signal" $
-        send $ BlockC.insert_track view 1 (event_track track) [] 40
+        insert_track view 1 (event_track track) 40
 
     let csig = Signal.signal [(0, 1), (32, 0.5), (64, 0), (500, 0), (510, 1)]
     let tsig = Track.TrackSignal csig 0 1 Nothing
@@ -165,13 +165,20 @@ test_symbols = do
     io_equal (SymbolC.insert_symbol sym) []
     view <- create_empty_view
     io_human "track with symbol" $
-        send $ BlockC.insert_track view 1
-            (event_track (UiTest.make_track ("syms", [(0, 16, "`1^`")]))) [] 40
+        insert_track view 1
+            (event_track (UiTest.make_track ("syms", [(0, 16, "`1^`")]))) 40
 
 -- TODO
 -- test_print_children
 
--- setup
+-- * setup
+
+set_style :: Event.SetStyle
+set_style _ = Event.event_style
+
+insert_track :: ViewId -> TrackNum -> Block.Tracklike -> Types.Width -> IO ()
+insert_track view tracknum tracklike width = send $
+    BlockC.insert_track view tracknum tracklike [] set_style width
 
 event_track events = Block.T events UiTest.no_ruler
 

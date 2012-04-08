@@ -44,6 +44,7 @@ import qualified Ui.UiTest as UiTest
 import Ui.UiTest (mkid)
 import qualified Ui.Update as Update
 
+import qualified Cmd.Internal as Internal
 import qualified App.Config as Config
 import qualified App.LoadConfig as LoadConfig
 import Types
@@ -471,7 +472,7 @@ sync st1 st2 cmd_updates = do
             Diff.diff cmd_updates st1 st2
     pmlist "cmd updates" cmd_updates
     pmlist "updates" dupdates
-    result <- Sync.sync Map.empty st2 dupdates
+    result <- Sync.sync Map.empty Internal.set_style st2 dupdates
     case result of
         Just err -> putStrLn $ "err: " ++ show err
         Nothing -> putStrLn "synced"
