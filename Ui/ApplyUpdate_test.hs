@@ -18,9 +18,9 @@ import qualified Ui.Update as Update
 test_apply = do
     -- This would be a good spot for quickcheck.
     -- Unfortunately I think an Arbitrary instance for State.State is hard.
-    consistent id State.empty $ State.create_block (mkid "b")
-        (UiTest.make_block "title" [])
-    consistent id State.empty (State.set_namespace (Id.unsafe_namespace "hoho"))
+    consistent id State.empty $ UiTest.create_block "b" "title" []
+    consistent id State.empty $
+        State.set_namespace (Id.unsafe_namespace "hoho")
     let ([tid1, tid2], st) = UiTest.run_mkview [(">", []), ("*", [])]
     consistent State.state_blocks st $
         State.remove_track UiTest.default_block_id 2

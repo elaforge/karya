@@ -12,7 +12,6 @@ import qualified Util.Seq as Seq
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Edit as Edit
 import qualified Cmd.Play as Play
 import qualified Cmd.Serialize as Serialize
 import qualified Cmd.ViewConfig as ViewConfig
@@ -51,7 +50,7 @@ cmd_load fname = do
         Just root -> Seq.head . Map.keys <$> State.get_views_of root
     let focused = msum [root, Seq.head (Map.keys (State.state_views state))]
     when_just focused ViewConfig.bring_to_front
-    Edit.initialize_state
+    State.update_all_tracks
 
 cmd_save_midi_config :: FilePath -> Cmd.CmdT IO ()
 cmd_save_midi_config fname = do

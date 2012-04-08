@@ -169,7 +169,7 @@ selection_sub_state (tracknums, _, start, end) = do
     State.exec_rethrow "build clip state" State.empty $ do
         -- Inherit everything from the copied block, except the tracks and the
         -- skeleton.
-        b <- State.create_block (Id.unpack_id clip_block_id) $ block
+        b <- State.create_config_block (Id.unpack_id clip_block_id) $ block
             { Block.block_tracks = []
             , Block.block_skeleton = Skeleton.empty
             }

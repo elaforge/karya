@@ -3,6 +3,7 @@
 module Cmd.Internal where
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
@@ -13,16 +14,24 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
+import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Style as Style
+import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
+import qualified Cmd.TimeStep as TimeStep
+
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.TrackLang as TrackLang
+import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
 import Types
 
@@ -195,12 +204,6 @@ ui_update_state maybe_tracknum view_id update = case update of
                     ++ " on non-event track " ++ show tracknum
         Nothing -> State.set_block_title block_id text
 
-sync_zoom_status :: (Cmd.M m) => ViewId -> m ()
-sync_zoom_status view_id = do
-    view <- State.get_view view_id
-    Cmd.set_view_status view_id Config.status_zoom
-        (Just (Pretty.pretty (Block.view_zoom view)))
-
 update_of :: Msg.Msg -> Maybe (UiMsg.Context, ViewId, UiMsg.UiUpdate)
 update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id update))) =
     Just (ctx, view_id, update)
@@ -223,3 +226,153 @@ colorize bs = case ParseBs.parse_expr bs of
         Config.declaration_style
     Right _ -> Config.default_style
     Left _ -> Config.parse_error_style
+
+
+-- * sync
+
+{-
+-- | Sync UI state up with Cmd state and schedule UI updates.
+initialize_state :: (Cmd.M m) => m ()
+initialize_state = do
+    -- TODO these scattered sync functions are kinda grody.  Isn't there a
+    -- better way to keep track of state that needs to be synced?  Or avoid
+    -- doing it in the first place?
+    mapM_ Selection.sync_selection_status =<< State.get_all_view_ids
+    mapM_ Internal.sync_zoom_status =<< State.get_all_view_ids
+    -- Emit track updates for all tracks, since I don't know where events have
+    -- changed.
+    State.update_all_tracks
+-}
+
+cmd_sync :: (Cmd.M m) => State.State -> Cmd.State -> m Cmd.Status
+cmd_sync ui_from cmd_from = do
+    edit_state <- Cmd.gets Cmd.state_edit
+    ui_to <- State.get
+    let updates = view_updates ui_from ui_to
+        new_view = any is_create_view updates
+    -- Log.error $ "cmd_sync: updates " ++ show updates
+    when (new_view || Cmd.state_edit cmd_from /= edit_state) sync_edit_state
+
+    when (State.state_config ui_from /= State.state_config ui_to) $
+        sync_ui_config (State.state_config ui_to)
+    forM_ (Maybe.mapMaybe selection_update updates) (uncurry sync_selection)
+    forM_ (Maybe.mapMaybe zoom_update updates) sync_zoom_status
+    return Cmd.Done
+    where
+    is_create_view (Update.ViewUpdate _ (Update.CreateView _)) = True
+    is_create_view _ = False
+    selection_update (Update.ViewUpdate view_id (Update.Selection selnum sel))
+        | selnum == Config.insert_selnum = Just (view_id, sel)
+    selection_update _ = Nothing
+    zoom_update (Update.ViewUpdate view_id (Update.Zoom {})) = Just view_id
+    zoom_update _ = Nothing
+
+view_updates :: State.State -> State.State -> [Update.CmdUpdate]
+view_updates ui_from ui_to = case Diff.run diff of
+    Left _ -> []
+    Right (cmd_updates, _) -> cmd_updates
+    where
+    diff = Diff.diff_views ui_from ui_to
+        (State.state_views ui_from) (State.state_views ui_to)
+
+-- initial_sync = do
+    -- sync_edit_state
+    -- sync_ui_config
+    --
+    -- sync_selection
+    -- sync_zoom_status
+
+
+-- ** sync
+
+sync_edit_state :: (Cmd.M m) => m ()
+sync_edit_state = do
+    sync_edit_box_status
+    sync_step_status
+    sync_octave_status
+    sync_recent
+
+sync_edit_box_status :: (Cmd.M m) => m ()
+sync_edit_box_status = do
+    st <- Cmd.gets Cmd.state_edit
+    let mode = Cmd.state_edit_mode st
+    let skel = Block.Box (skel_color mode (Cmd.state_advance st))
+            (if Cmd.state_chord st then 'c' else ' ')
+        track = Block.Box (edit_color mode)
+            (if Cmd.state_kbd_entry st then 'K' else ' ')
+    Cmd.set_status Config.status_record $
+        if Cmd.state_record_velocity st then Just "vel" else Nothing
+    Cmd.set_edit_box skel track
+
+skel_color :: Cmd.EditMode -> Bool -> Color.Color
+skel_color Cmd.NoEdit _ = edit_color Cmd.NoEdit
+skel_color _ advance
+    -- Advance mode is only relevent for ValEdit, but it looks weird when
+    -- switching to
+    | advance = Config.advance_color
+    | otherwise = Config.no_advance_color
+
+edit_color :: Cmd.EditMode -> Color.Color
+edit_color mode = case mode of
+    Cmd.NoEdit -> Config.box_color
+    Cmd.RawEdit -> Config.raw_edit_color
+    Cmd.ValEdit -> Config.val_edit_color
+    Cmd.MethodEdit -> Config.method_edit_color
+
+sync_step_status :: (Cmd.M m) => m ()
+sync_step_status = do
+    st <- Cmd.gets Cmd.state_edit
+    let status = TimeStep.show_step (Just (Cmd.state_note_direction st))
+            (Cmd.state_time_step st)
+    Cmd.set_status Config.status_step (Just status)
+    Cmd.set_global_status "step" status
+
+sync_octave_status :: (Cmd.M m) => m ()
+sync_octave_status = do
+    octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
+    -- This is technically global state and doesn't belong in the block's
+    -- status line, but I'm used to looking for it there, so put it in both
+    -- places.
+    Cmd.set_status Config.status_octave (Just (show octave))
+    Cmd.set_global_status "8ve" (show octave)
+
+sync_recent :: (Cmd.M m) => m ()
+sync_recent = do
+    recent <- Cmd.gets (Cmd.state_recent_notes . Cmd.state_edit)
+    Cmd.set_global_status "recent" $
+        Seq.join ", " (map show_recent (Seq.sort_on fst recent))
+    where
+    show_recent (num, note) = show num ++ ": " ++ case note of
+        Cmd.RecentNote s _ -> s
+        Cmd.RecentTransform s -> s ++ "|"
+
+-- | Sync State.Config changes.
+sync_ui_config :: (Cmd.M m) => State.Config -> m ()
+sync_ui_config config = do
+    Cmd.set_global_status "proj" $
+        Pretty.pretty (State.config_namespace config)
+    let (Pitch.ScaleId scale) =
+            State.default_scale (State.config_default config)
+    Cmd.set_global_status "scale" scale
+
+sync_zoom_status :: (Cmd.M m) => ViewId -> m ()
+sync_zoom_status view_id = do
+    view <- State.get_view view_id
+    Cmd.set_view_status view_id Config.status_zoom
+        (Just (Pretty.pretty (Block.view_zoom view)))
+
+-- * selection
+
+sync_selection :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
+sync_selection view_id maybe_sel = do
+    Cmd.set_view_status view_id Config.status_selection
+        (fmap selection_status maybe_sel)
+    block_id <- State.block_id_of view_id
+    when_just maybe_sel $
+        Info.set_inst_status block_id . Types.sel_cur_track
+
+selection_status :: Types.Selection -> String
+selection_status sel =
+    Pretty.pretty start
+        ++ if start == end then "" else "-" ++ Pretty.pretty end
+    where (start, end) = Types.sel_range sel

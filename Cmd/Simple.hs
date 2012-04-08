@@ -115,15 +115,13 @@ read_block fn = do
     convert_block simple_block
 
 convert_block :: (Cmd.M m) => Block -> m State.State
-convert_block block = do
-    config <- Cmd.block_config
-    State.exec_rethrow "convert block" State.empty (make_block config block)
+convert_block block = State.exec_rethrow "convert block" State.empty $
+    make_block block
 
-make_block :: (State.M m) => Block.Config -> Block -> m BlockId
-make_block config (id_name, title, tracks, skel) = do
+make_block :: (State.M m) => Block -> m BlockId
+make_block (id_name, title, tracks, skel) = do
     tracks <- mapM convert_track tracks
-    block_id <- State.create_block (Id.read_id id_name)
-        (Block.block config title tracks)
+    block_id <- State.create_block (Id.read_id id_name) title tracks
     State.set_skeleton block_id (Skeleton.make skel)
     return block_id
 

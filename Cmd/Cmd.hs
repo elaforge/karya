@@ -458,7 +458,7 @@ data EditState = EditState {
 
     -- | See 'set_edit_box'.
     , state_edit_box :: !(Block.Box, Block.Box)
-    } deriving (Show, Generics.Typeable)
+    } deriving (Eq, Show, Generics.Typeable)
 
 initial_edit_state :: EditState
 initial_edit_state = EditState {
@@ -724,18 +724,6 @@ get_wdev_state = gets state_wdev_state
 modify_wdev_state :: (M m) => (WriteDeviceState -> WriteDeviceState) -> m ()
 modify_wdev_state f = modify $ \st ->
     st { state_wdev_state = f (state_wdev_state st) }
-
-create_block :: (M m) => Id.Id -> String -> [Block.Track] -> m BlockId
-create_block block_id title tracks = do
-    config <- block_config
-    State.create_block block_id (Block.block config title tracks)
-
-block_config :: (M m) => m Block.Config
-block_config = do
-    (skel, track) <- gets (state_edit_box . state_edit)
-    return $ Block.Config Config.bconfig_selection_colors
-        Config.bconfig_bg_color skel track
-        (uncurry Block.Box Config.bconfig_box)
 
 -- *** EditState
 

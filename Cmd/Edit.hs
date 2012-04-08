@@ -7,11 +7,7 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
-import qualified Ui.Block as Block
-import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -20,19 +16,15 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
-import qualified Cmd.Internal as Internal
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Pitch as Pitch
-import qualified App.Config as Config
 import Types
 
 
-cmd_toggle_raw_edit, cmd_toggle_val_edit,
-    cmd_toggle_method_edit, cmd_toggle_kbd_entry :: (Cmd.M m) => m ()
-
+cmd_toggle_raw_edit :: (Cmd.M m) => m ()
 cmd_toggle_raw_edit = do
     whenM ((== Cmd.RawEdit) <$> get_mode) record_recent_note
     modify_edit_mode $ \m -> case m of
@@ -42,12 +34,14 @@ cmd_toggle_raw_edit = do
 -- | Unlike the other toggle commands, val edit, being the \"default\" toggle,
 -- always turns other modes off.  So you can't switch directly from some other
 -- kind of edit to val edit.
+cmd_toggle_val_edit :: (Cmd.M m) => m ()
 cmd_toggle_val_edit = do
     whenM ((== Cmd.RawEdit) <$> get_mode) record_recent_note
     modify_edit_mode $ \m -> case m of
         Cmd.NoEdit -> Cmd.ValEdit
         _ -> Cmd.NoEdit
 
+cmd_toggle_method_edit :: (Cmd.M m) => m ()
 cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of
     Cmd.MethodEdit -> Cmd.ValEdit
     Cmd.ValEdit -> Cmd.MethodEdit
@@ -58,70 +52,37 @@ get_mode = Cmd.gets (Cmd.state_edit_mode . Cmd.state_edit)
 
 -- | Turn on kbd entry mode, putting a K in the edit box as a reminder.  This
 -- is orthogonal to the previous edit modes.
+cmd_toggle_kbd_entry :: (Cmd.M m) => m ()
 cmd_toggle_kbd_entry = do
     Cmd.modify_edit_state $ \st ->
         st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
-    sync_edit_box_status
 
 -- ** util
 
 modify_edit_mode :: (Cmd.M m) => (Cmd.EditMode -> Cmd.EditMode) -> m ()
-modify_edit_mode f = do
-    Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_edit_mode = f (Cmd.state_edit_mode st) }
-    sync_edit_box_status
-
-sync_edit_box_status :: (Cmd.M m) => m ()
-sync_edit_box_status = do
-    st <- Cmd.gets Cmd.state_edit
-    let mode = Cmd.state_edit_mode st
-    let skel = Block.Box (skel_color mode (Cmd.state_advance st))
-            (if Cmd.state_chord st then 'c' else ' ')
-        track = Block.Box (edit_color mode)
-            (if Cmd.state_kbd_entry st then 'K' else ' ')
-    Cmd.set_status Config.status_record $
-        if Cmd.state_record_velocity st then Just "vel" else Nothing
-    Cmd.set_edit_box skel track
-
-skel_color :: Cmd.EditMode -> Bool -> Color.Color
-skel_color mode advance
-    | mode == Cmd.ValEdit =
-        if advance then Config.advance_color else Config.no_advance_color
-    | otherwise = edit_color mode
-
-edit_color :: Cmd.EditMode -> Color.Color
-edit_color mode = case mode of
-    Cmd.NoEdit -> Config.box_color
-    Cmd.RawEdit -> Config.raw_edit_color
-    Cmd.ValEdit -> Config.val_edit_color
-    Cmd.MethodEdit -> Config.method_edit_color
+modify_edit_mode f = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_edit_mode = f (Cmd.state_edit_mode st) }
 
 toggle_advance :: (Cmd.M m) => m ()
 toggle_advance = modify_advance not
 
 modify_advance :: (Cmd.M m) => (Bool -> Bool) -> m ()
-modify_advance f = do
-    Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_advance = f (Cmd.state_advance st) }
-    sync_edit_box_status
+modify_advance f = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_advance = f (Cmd.state_advance st) }
 
 toggle_chord :: (Cmd.M m) => m ()
 toggle_chord = modify_chord not
 
 modify_chord :: (Cmd.M m) => (Bool -> Bool) -> m ()
-modify_chord f = do
-    Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_chord = f (Cmd.state_chord st) }
-    sync_edit_box_status
+modify_chord f = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_chord = f (Cmd.state_chord st) }
 
 toggle_record_velocity :: Cmd.CmdL ()
 toggle_record_velocity = modify_record_velocity not
 
 modify_record_velocity :: (Bool -> Bool) -> Cmd.CmdL ()
-modify_record_velocity f = do
-    Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_record_velocity = f (Cmd.state_record_velocity st) }
-    sync_edit_box_status
+modify_record_velocity f = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_record_velocity = f (Cmd.state_record_velocity st) }
 
 -- * universal event cmds
 
@@ -398,10 +359,9 @@ cmd_clear_selected = do
 -- to the given ones.  Otherwise, set it to the deflt.
 set_step_rank :: (Cmd.M m) => TimeStep.TimeStep
     -> TimeStep.Rank -> TimeStep.Skip -> m ()
-set_step_rank deflt rank skip = do
-    Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step =
+set_step_rank deflt rank skip = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_time_step =
         set (TimeStep.to_list (Cmd.state_time_step st)) }
-    sync_step_status
     where
     set [(TimeStep.AbsoluteMark names _, _)] =
         TimeStep.time_step skip (TimeStep.AbsoluteMark names rank)
@@ -411,10 +371,8 @@ set_step_rank deflt rank skip = do
 
 -- | Toggle between absolute and relative mark step.
 toggle_mark_step :: (Cmd.M m) => m ()
-toggle_mark_step = do
-    Cmd.modify_edit_state $ \st ->
+toggle_mark_step = Cmd.modify_edit_state $ \st ->
         st { Cmd.state_time_step = toggle (Cmd.state_time_step st) }
-    sync_step_status
     where
     toggle step = case TimeStep.to_list step of
         [(TimeStep.AbsoluteMark names rank, skip)] ->
@@ -424,41 +382,18 @@ toggle_mark_step = do
         _ -> step
 
 set_step :: (Cmd.M m) => TimeStep.TimeStep -> m ()
-set_step step = do
-    Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
-    sync_step_status
+set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
 
 cmd_invert_step_direction :: (Cmd.M m) => m ()
-cmd_invert_step_direction = do
-    Cmd.modify_edit_state $ \st -> st { Cmd.state_note_direction =
-        invert (Cmd.state_note_direction st) }
-    sync_step_status
+cmd_invert_step_direction = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_note_direction = invert (Cmd.state_note_direction st) }
     where
     invert TimeStep.Advance = TimeStep.Rewind
     invert TimeStep.Rewind = TimeStep.Advance
 
-sync_step_status :: (Cmd.M m) => m ()
-sync_step_status = do
-    st <- Cmd.gets Cmd.state_edit
-    let status = TimeStep.show_step (Just (Cmd.state_note_direction st))
-            (Cmd.state_time_step st)
-    Cmd.set_status Config.status_step (Just status)
-    Cmd.set_global_status "step" status
-
 cmd_modify_octave :: (Cmd.M m) => (Pitch.Octave -> Pitch.Octave) -> m ()
-cmd_modify_octave f = do
-    Cmd.modify_edit_state $ \st -> st
-        { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
-    sync_octave_status
-
-sync_octave_status :: (Cmd.M m) => m ()
-sync_octave_status = do
-    octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
-    -- This is technically global state and doesn't belong in the block's
-    -- status line, but I'm used to looking for it there, so put it in both
-    -- places.
-    Cmd.set_status Config.status_octave (Just (show octave))
-    Cmd.set_global_status "8ve" (show octave)
+cmd_modify_octave f = Cmd.modify_edit_state $ \st -> st
+    { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
 
 
 -- * recent note
@@ -487,10 +422,9 @@ record_recent_note :: (Cmd.M m) => m ()
 record_recent_note = do
     (_, _, track_id, pos) <- Selection.get_insert
     maybe_event <- State.get_event track_id pos
-    when_just (recent_note =<< snd <$> maybe_event) $ \note -> do
+    when_just (recent_note =<< snd <$> maybe_event) $ \note ->
         Cmd.modify_edit_state $ \st -> st { Cmd.state_recent_notes =
             record_recent note (Cmd.state_recent_notes st) }
-        sync_recent
 
 recent_note :: Event.Event -> Maybe Cmd.RecentNote
 recent_note event
@@ -514,47 +448,3 @@ record_recent note recent0 = (key, note) : recent
     match (Cmd.RecentNote n1 _) (Cmd.RecentNote n2 _) =
         Seq.head (words n1) == Seq.head (words n2)
     match n1 n2 = n1 == n2
-
-sync_recent :: (Cmd.M m) => m ()
-sync_recent = do
-    recent <- Cmd.gets (Cmd.state_recent_notes . Cmd.state_edit)
-    Cmd.set_global_status "recent" $
-        Seq.join ", " (map show_recent (Seq.sort_on fst recent))
-    where
-    show_recent (num, note) = show num ++ ": " ++ case note of
-        Cmd.RecentNote s _ -> s
-        Cmd.RecentTransform s -> s ++ "|"
-
-
--- * sync
-
--- | Sync UI state up with Cmd state and schedule UI updates.
-initialize_state :: (Cmd.M m) => m ()
-initialize_state = do
-    -- TODO these scattered sync functions are kinda grody.  Isn't there a
-    -- better way to keep track of state that needs to be synced?  Or avoid
-    -- doing it in the first place?
-    sync_edit_box_status
-    sync_octave_status
-    sync_step_status
-    sync_global_status
-    mapM_ Selection.sync_selection_status =<< State.get_all_view_ids
-    mapM_ Internal.sync_zoom_status =<< State.get_all_view_ids
-    -- Emit track updates for all tracks, since I don't know where events have
-    -- changed.
-    State.update_all_tracks
-
-
--- | Sync global status with the current state.  Should be invoked whenever
--- said global state changes.
---
--- TODO Except it won't be when you use State directly.  Solutions are: have
--- Cmd.set_project etc. and don't forget to call them, move logging to State,
--- or modify the UiStateMonad instance so it logs in Cmd.
-sync_global_status :: (Cmd.M m) => m ()
-sync_global_status = do
-    config <- State.get_config id
-    Cmd.set_global_status "proj" (Pretty.pretty (State.config_namespace config))
-    let (Pitch.ScaleId scale) =
-            State.default_scale (State.config_default config)
-    Cmd.set_global_status "scale" scale

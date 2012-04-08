@@ -137,9 +137,8 @@ mkblock_ruler ruler_id (block_name, tracks) = do
     tids <- forM (zip [1..] tracks) $ \(i, track) ->
         State.create_track (Id.unpack_id (mk_tid_block block_id i))
             (make_track track)
-    State.create_block (Id.unpack_id block_id) $ make_block "b1 title"
-        ((Block.RId ruler_id, 20)
-            : [(Block.TId tid ruler_id, 40) | tid <- tids])
+    create_block block_name "b1 title" $ (Block.RId ruler_id, 20)
+        : [(Block.TId tid ruler_id, 40) | tid <- tids]
     State.set_skeleton block_id =<< parse_skeleton block_id
     return tids
 
@@ -181,7 +180,7 @@ mk_tid_name = mk_tid_block . bid
 -- ** from dump
 
 from_dump :: Simple.Block -> (BlockId, State.State)
-from_dump dump = run State.empty (Simple.make_block Block.default_config dump)
+from_dump dump = run State.empty (Simple.make_block dump)
 
 -- * state to spec
 
@@ -224,8 +223,9 @@ dump_blocks ustate =
 
 -- * pure make_- functions
 
-make_block :: String -> [(Block.TracklikeId, Types.Width)] -> Block.Block
-make_block title tracks = Block.block Block.default_config
+create_block :: (State.M m) => String -> String
+    -> [(Block.TracklikeId, Types.Width)] -> m BlockId
+create_block block_name title tracks = State.create_block (mkid block_name)
     title (map (uncurry Block.track) tracks)
 
 -- ** track

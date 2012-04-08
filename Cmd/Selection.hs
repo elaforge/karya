@@ -17,7 +17,6 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
@@ -29,7 +28,6 @@ import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Info as Info
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
@@ -58,7 +56,6 @@ set_selnum view_id selnum maybe_sel = do
         case maybe_sel of
             Just sel | Types.sel_is_point sel -> set_subs view_id sel
             _ -> return ()
-        sync_selection view_id maybe_sel
 
 -- | Set a selection in the current view.
 set_current :: (Cmd.M m) => Types.SelNum -> Maybe Types.Selection -> m ()
@@ -271,7 +268,6 @@ auto_scroll view_id sel = do
     State.set_zoom view_id $
         (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
     State.set_track_scroll view_id track_offset
-    Internal.sync_zoom_status view_id
 
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at
 -- a rate determined by how far past the bottom the pointer is.
@@ -308,25 +304,6 @@ auto_track_scroll block view sel
     cur_tracknum = Types.sel_cur_track sel
 
 
--- ** status
-
-sync_selection_status :: (Cmd.M m) => ViewId -> m ()
-sync_selection_status view_id =
-    sync_selection view_id =<< State.get_selection view_id Config.insert_selnum
-
-sync_selection :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
-sync_selection view_id maybe_sel = do
-    Cmd.set_view_status view_id Config.status_selection
-        (fmap selection_status maybe_sel)
-    block_id <- State.block_id_of view_id
-    when_just maybe_sel $
-        Info.set_inst_status block_id . Types.sel_cur_track
-
-selection_status :: Types.Selection -> String
-selection_status sel =
-    Pretty.pretty start
-        ++ if start == end then "" else "-" ++ Pretty.pretty end
-    where (start, end) = Types.sel_range sel
 
 -- ** mouse
 

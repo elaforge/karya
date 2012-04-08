@@ -419,16 +419,23 @@ lookup_block :: (M m) => BlockId -> m (Maybe Block.Block)
 lookup_block block_id = get >>= return . Map.lookup block_id . state_blocks
 
 -- | Make a new block.  If it's the first one, it will be set as the root.
+-- This is the low level version, you probably want to use 'create_block'.
 --
 -- Throw if the BlockId already exists.
-create_block :: (M m) => Id.Id -> Block.Block -> m BlockId
-create_block id block = insert (Types.BlockId id) block state_blocks $
+create_config_block :: (M m) => Id.Id -> Block.Block -> m BlockId
+create_config_block id block = insert (Types.BlockId id) block state_blocks $
     \blocks st -> st
         { state_blocks = blocks
         , state_config = let c = state_config st
             in c { config_root = if Map.size blocks == 1
                 then Just (Types.BlockId id) else config_root c }
         }
+
+-- | Make a new block with the default 'Block.Config'.
+create_block :: (M m) => Id.Id -> String -> [Block.Track] -> m BlockId
+create_block block_id title tracks =
+    create_config_block block_id
+        (Block.block Block.default_config title tracks)
 
 -- | Destroy the block and all the views that display it.  If the block was
 -- the root, it will be be unset.  The block's tracks are left intact.

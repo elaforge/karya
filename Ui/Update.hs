@@ -113,7 +113,6 @@ instance DeepSeq.NFData (Update t u) where
 
 instance Pretty.Pretty CmdUpdate where
     pretty = show
-    -- pretty (ViewUpdate vid update) = 
 
 -- | Convert a CmdUpdate to a DisplayUpdate by stripping out all the CmdUpdate
 -- parts.

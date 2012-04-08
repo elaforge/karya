@@ -133,20 +133,20 @@ block_from_template include_tracks = do
     return block_id
 
 -- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
-block :: (Cmd.M m) => RulerId -> m BlockId
+block :: (State.M m) => RulerId -> m BlockId
 block ruler_id = do
     ns <- State.get_namespace
     blocks <- State.gets State.state_blocks
     block_id <- require "block id" $ generate_block_id ns blocks
-    Cmd.create_block block_id ""
+    State.create_block block_id ""
         [Block.track (Block.RId ruler_id) Config.ruler_width]
 
 -- | Create a block with the given ID name.  Useful for blocks meant to be
 -- sub-derived.
-named_block :: (Cmd.M m) => String -> RulerId -> m BlockId
+named_block :: (State.M m) => String -> RulerId -> m BlockId
 named_block name ruler_id = do
     ns <- State.get_namespace
-    Cmd.create_block (Id.unsafe_id ns name) ""
+    State.create_block (Id.unsafe_id ns name) ""
         [Block.track (Block.RId ruler_id) Config.ruler_width]
 
 -- | Delete a block and any views it appears in.  Also delete any tracks

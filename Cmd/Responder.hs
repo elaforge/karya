@@ -45,7 +45,6 @@ import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Edit as Edit
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Lang as Lang
@@ -105,7 +104,11 @@ responder config msg_reader midi_interface setup_cmd lang_session
             midi_interface
             (StaticConfig.instrument_db config)
             (StaticConfig.global_scope config)
-        cmd = setup_cmd >> Edit.initialize_state >> return Cmd.Done
+        cmd = do
+            setup_cmd
+            State.update_all_tracks
+            Internal.cmd_sync State.empty cmd_state
+            return Cmd.Done
     updater_state <- MVar.newMVar State.empty
     (ui_state, cmd_state) <-
         run_setup_cmd loopback State.empty cmd_state updater_state cmd
@@ -279,10 +282,33 @@ run_cmds rstate msg = do
         Right (Cmd.Play updater_args, _, _) -> Trans.liftIO $
             PlayC.start_updater (state_transport_info rstate) updater_args
         _ -> return ()
+    (result, cmd_state) <- case result of
+        Right (status, ui_from, ui_to) ->
+            run_post_cmds status ui_from ui_to (state_cmd rstate) cmd_state
+        Left _ -> return (result, cmd_state)
     return $ case result of
         Left _ -> (result, cmd_state)
         Right (status, ui_from, ui_to) ->
             (Right (status, ui_from, ui_to), cmd_state)
+
+-- This is way too much work to run a cmd.
+-- TODO I can make ResponderM have State, then I can keep cstate and ustate
+-- up to date and record updates
+run_post_cmds :: Cmd.Status -> State.State -> State.State
+    -> Cmd.State -> Cmd.State -> ResponderM RType
+run_post_cmds status ui_from ui_to cmd_from cmd_to = do
+    (ui_state, updates) <- Trans.liftIO $ do
+        mapM_ Log.write logs
+        case result of
+            Left err -> do
+                Log.error $ "run_post_cmds: " ++ show err
+                return (ui_to, [])
+            Right (_, ui_state, updates) -> return (ui_state, updates)
+    Trans.lift $ Logger.logs updates
+    return (Right (status, ui_from, ui_state), cmd_state)
+    where
+    (cmd_state, _, logs, result) = Cmd.run_id ui_to cmd_to $
+        Internal.cmd_sync ui_from cmd_from
 
 -- | Run the record keys cmd separately.  It would be nicer just to stick it
 -- on the front of the cmd list, but then if one of the cmds threw an
@@ -292,7 +318,7 @@ record_keys rstate msg = do
     Trans.liftIO $ do
         mapM_ Log.write logs
         case result of
-            Left err -> Log.error ("record keys error: " ++ show err)
+            Left err -> Log.error $ "record keys error: " ++ show err
             _ -> return ()
     return cstate
     where

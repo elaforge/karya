@@ -351,8 +351,8 @@ cleanup:
 
   * remove Util.Log -> Perform.Warning import by translating IDs into strings?
     On the other hand, it's not unreasonable for logs to use other data types
-  error prone things:
-    - setting some state like project directly through State won't update
+  * error prone things:
+    * setting some state like project directly through State won't update
       global status.  Maybe I could fix this and also avoid the scattered syncs
       by doing a special state diff after cmds
       sync: state_project, state_project_scale
@@ -364,7 +364,7 @@ cleanup:
       However, I'm worried that checking state on every single respond is going
       to hurt latency even more.
 
-    - creating a block through State.create_block instead of Cmd.create_block
+    * creating a block through State.create_block instead of Cmd.create_block
       won't get the current track box color
   * since tracklang lets me apply derivers to tracks and skel makes the
     structure explicit, do I still need the schema?  at least for Cmds, I do
