@@ -135,6 +135,9 @@ struct Color {
         return Color(clamp(0.0, 255.0, r), clamp(0.0, 255.0, g),
             clamp(0.0, 255.0, b), clamp(0.0, 255.0, a));
     }
+    static Color rgb_normalized(double r, double g, double b) {
+        return from_doubles(r * 255, g * 255, b * 255, 255);
+    }
     static Color from_rgb_word(unsigned int rgb) {
         return Color(0xff & (rgb >> 16), 0xff & (rgb >> 8), 0xff & rgb, 0xff);
     }

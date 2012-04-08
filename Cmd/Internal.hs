@@ -1,6 +1,7 @@
 -- | Internal Cmds, that keep bits of Cmd.State up to date that everyone else
 -- relies on.
 module Cmd.Internal where
+import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
 
 import Util.Control
@@ -12,12 +13,16 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.State as State
+import qualified Ui.Style as Style
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Derive.ParseBs as ParseBs
+import qualified Derive.TrackLang as TrackLang
 import qualified App.Config as Config
 import Types
 
@@ -200,3 +205,21 @@ update_of :: Msg.Msg -> Maybe (UiMsg.Context, ViewId, UiMsg.UiUpdate)
 update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id update))) =
     Just (ctx, view_id, update)
 update_of _ = Nothing
+
+
+-- * set style
+
+-- | Set the style of an event based on its contents.  This is hardcoded
+-- for now but it's easy to put in StaticConfig if needed.
+set_style :: Event.SetStyle
+set_style _pos event
+    | Event.event_style event == Config.default_style =
+        colorize (Event.event_bs event)
+    | otherwise = Event.event_style event
+
+colorize :: UTF8.ByteString -> Style.StyleId
+colorize bs = case ParseBs.parse_expr bs of
+    Right (TrackLang.Call call _ : _) | call == TrackLang.c_equal ->
+        Config.declaration_style
+    Right _ -> Config.default_style
+    Left _ -> Config.parse_error_style

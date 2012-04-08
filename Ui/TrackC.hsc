@@ -30,14 +30,14 @@ import Types
 -- | Since converting a Track requires both a track and merged events, poke
 -- needs two args.  So keep it out of Storable to prevent accidental use of
 -- 'with'.
-with_track :: Track.Track -> [Events.Events] -> (Ptr Track.Track -> IO a)
-    -> IO a
-with_track track event_lists f = allocaBytes size $ \trackp -> do
+with_track :: Track.Track -> Event.SetStyle -> [Events.Events]
+    -> (Ptr Track.Track -> IO a) -> IO a
+with_track track set_style event_lists f = allocaBytes size $ \trackp -> do
     -- Wrap style is customizable per track, but I'll hardcode it for now.
     (#poke EventTrackConfig, text_wrap) trackp
         ((#const EventTrackConfig::wrap) :: CInt)
     (#poke EventTrackConfig, bg_color) trackp (Track.track_bg track)
-    poke_find_events trackp (Track.track_events track : event_lists)
+    poke_find_events trackp set_style (Track.track_events track : event_lists)
     (#poke EventTrackConfig, render) trackp (Track.track_render track)
     initialize_track_signal ((#ptr EventTrackConfig, track_signal) trackp)
     f trackp
@@ -46,16 +46,17 @@ with_track track event_lists f = allocaBytes size $ \trackp -> do
     -- allocaBytesAligned is not exported from Foreign.Marshal.Alloc
     -- align = #{alignment EventTrackConfig}
 
-poke_find_events :: Ptr Track.Track -> [Events.Events] -> IO ()
-poke_find_events trackp event_lists = do
+poke_find_events :: Ptr Track.Track -> Event.SetStyle -> [Events.Events]
+    -> IO ()
+poke_find_events trackp set_style event_lists = do
     let time_end = maximum (0 : map Events.time_end event_lists)
-    find_events <- make_find_events event_lists
+    find_events <- make_find_events set_style event_lists
     (#poke EventTrackConfig, find_events) trackp find_events
     (#poke EventTrackConfig, time_end) trackp time_end
 
-make_find_events :: [Events.Events] -> IO (FunPtr FindEvents)
-make_find_events events = Util.make_fun_ptr "find_events" $
-    c_make_find_events (cb_find_events events)
+make_find_events :: Event.SetStyle -> [Events.Events] -> IO (FunPtr FindEvents)
+make_find_events set_style events = Util.make_fun_ptr "find_events" $
+    c_make_find_events (cb_find_events set_style events)
 
 instance Storable Track.RenderConfig where
     sizeOf _ = #size RenderConfig
@@ -136,14 +137,18 @@ encode_style style = case style of
 type FindEvents = Ptr ScoreTime -> Ptr ScoreTime -> Ptr (Ptr ScoreTime)
     -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
 
-cb_find_events :: [Events.Events] -> FindEvents
-cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
+cb_find_events :: Event.SetStyle -> [Events.Events] -> FindEvents
+cb_find_events set_style event_lists startp endp ret_tps ret_events
+        ret_ranks = do
     start <- peek startp
     end <- peek endp
-    let key (pos, _, rank) = (pos, rank)
-    let (tps, evts, ranks) = unzip3 $ Seq.sort_on key [ (pos, evt, rank)
+    let (tps, evts, ranks) = unzip3 $ Seq.sort_on key
+            [ (pos, style pos evt, rank)
             | (rank, events) <- zip [0..] event_lists
-            , (pos, evt) <- in_range start end events ]
+            , (pos, evt) <- in_range start end events
+            ]
+        key (pos, _, rank) = (pos, rank)
+        style pos evt = evt { Event.event_style = set_style pos evt }
     unless (null evts) $ do
         -- Calling c++ is responsible for freeing this.
         poke ret_tps =<< newArray tps
@@ -163,7 +168,6 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
 
 foreign import ccall "wrapper"
     c_make_find_events :: FindEvents -> IO (FunPtr FindEvents)
-
 
 instance Storable Track.ValName where
     sizeOf _ = #size ValName

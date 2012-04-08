@@ -10,19 +10,22 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 
 import qualified Ui.Diff as Diff
+import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Internal as Internal
 import qualified Cmd.Performance as Performance
+
 import Types
 
 
-type Sync = Track.TrackSignals -> State.State -> [Update.DisplayUpdate]
-    -> IO (Maybe State.StateError)
+type Sync = Track.TrackSignals -> Event.SetStyle -> State.State
+    -> [Update.DisplayUpdate] -> IO (Maybe State.StateError)
 
--- | Sync @state2@ to the UI.
+-- | Sync @ui_to@ to the UI.
 --
 -- Returns both UI state and cmd state since verification may clean up the UI
 -- state, and this is where the undo history is stored in Cmd.State.
@@ -48,7 +51,7 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
                 MVar.modifyMVar_ updater_state (const (return ui_to))
             let tsigs = get_track_signals
                     (State.config_root (State.state_config ui_to)) cmd_state
-            err <- sync_func tsigs ui_to display_updates
+            err <- sync_func tsigs Internal.set_style ui_to display_updates
             when_just err $ \err ->
                 Log.error $ "syncing updates: " ++ Pretty.pretty err
             return cmd_updates

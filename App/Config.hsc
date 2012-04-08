@@ -254,11 +254,21 @@ emmentaler = case System.Info.os of
 -- static.
 styles :: [Style.Style]
 styles =
-    [ Style.Style Style.Helvetica [] 12 Color.black event
-    , Style.Style Style.Helvetica [Style.Italic] 12 Color.black event
+    [ plain 0.9 0.9 0.7
+    , plain 0.8 1.0 0.9
+    , plain 1.0 0.8 0.8
     ]
-    where event = Color.rgb 0.9 0.9 0.7
+    where
+    plain r g b = Style.Style Style.Helvetica [] 12 Color.black
+        (Color.rgb r g b)
 
-default_style, italic_style :: Style.StyleId
-default_style = Style.StyleId 0
-italic_style = Style.StyleId 1
+-- | Normal events.
+default_style :: Style.StyleId
+-- | Events that affect further derivation and don't output any notes
+-- themselves, e.g. @x = y@.
+declaration_style :: Style.StyleId
+-- | Events that can't be parsed.
+parse_error_style :: Style.StyleId
+
+default_style : declaration_style  : parse_error_style : _ =
+    map Style.StyleId [0..]

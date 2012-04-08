@@ -1,5 +1,5 @@
 UNSORTED
-  - "syntax coloring": e.g. events which have 'x = y' could have a different
+  * "syntax coloring": e.g. events which have 'x = y' could have a different
     color
   - I could have a Cmd state flag that does things relative to the current
     block vs. root block

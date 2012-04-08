@@ -41,6 +41,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
+import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -57,13 +58,14 @@ import Types
 -- TrackSignals are passed separately instead of going through diff because
 -- they're special: they exist in Cmd.State and not in Ui.State.  It's rather
 -- unpleasant, but as long as it's only TrackSignals then I can deal with it.
-sync :: Track.TrackSignals -> State.State -> [Update.DisplayUpdate]
-    -> IO (Maybe State.StateError)
-sync track_signals state updates = do
+sync :: Track.TrackSignals -> Event.SetStyle -> State.State
+    -> [Update.DisplayUpdate] -> IO (Maybe State.StateError)
+sync track_signals set_style state updates = do
     -- TODO: TrackUpdates can overlap.  Merge them together here.
     -- Technically I can also cancel out all TrackUpdates that only apply to
     -- newly created views, but this optimization is probably not worth it.
-    result <- State.run state $ do_updates track_signals (Update.sort updates)
+    result <- State.run state $
+        do_updates track_signals set_style (Update.sort updates)
     return $ case result of
         Left err -> Just err
         -- I reuse State.StateT for convenience, but run_update should
@@ -72,10 +74,10 @@ sync track_signals state updates = do
         -- express this in the type?
         Right _ -> Nothing
 
-do_updates :: Track.TrackSignals -> [Update.DisplayUpdate]
+do_updates :: Track.TrackSignals -> Event.SetStyle -> [Update.DisplayUpdate]
     -> State.StateT IO ()
-do_updates track_signals updates = do
-    actions <- mapM (run_update track_signals) updates
+do_updates track_signals set_style updates = do
+    actions <- mapM (run_update track_signals set_style) updates
     -- when (not (null updates)) $
     --     Trans.liftIO $ putStr $ "sync updates: " ++ PPrint.pshow updates
     Trans.liftIO (Ui.send_action (sequence_ actions))
@@ -158,9 +160,10 @@ clear_play_position view_id = Ui.send_action $
 -- the StateT is needed only for some logging.
 --
 -- This has to be the longest haskell function ever.
-run_update :: Track.TrackSignals -> Update.DisplayUpdate
+run_update :: Track.TrackSignals -> Event.SetStyle -> Update.DisplayUpdate
     -> State.StateT IO (IO ())
-run_update track_signals (Update.ViewUpdate view_id (Update.CreateView _)) = do
+run_update track_signals set_style
+        (Update.ViewUpdate view_id (Update.CreateView _)) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
 
@@ -203,7 +206,7 @@ run_update track_signals (Update.ViewUpdate view_id (Update.CreateView _)) = do
     create_track ustate (tracknum, dtrack, btrack, tlike_id, tlike, title) = do
         let merged = events_of_track_ids ustate
                 (Block.dtrack_merged dtrack)
-        BlockC.insert_track view_id tracknum tlike merged
+        BlockC.insert_track view_id tracknum tlike merged set_style
             (Block.dtrack_width dtrack)
         unless (null title) $
             BlockC.set_track_title view_id tracknum title
@@ -217,7 +220,7 @@ run_update track_signals (Update.ViewUpdate view_id (Update.CreateView _)) = do
                     _ -> return ()
             _ -> return ()
 
-run_update _ (Update.ViewUpdate view_id update) = case update of
+run_update _ _ (Update.ViewUpdate view_id update) = case update of
     -- The previous equation matches CreateView, but ghc warning doesn't
     -- figure that out.
     Update.CreateView {} -> error "run_update: notreached"
@@ -235,7 +238,7 @@ run_update _ (Update.ViewUpdate view_id update) = case update of
     Update.BringToFront -> return $ BlockC.bring_to_front view_id
 
 -- Block ops apply to every view with that block.
-run_update track_signals (Update.BlockUpdate block_id update) = do
+run_update track_signals set_style (Update.BlockUpdate block_id update) = do
     view_ids <- fmap Map.keys (State.get_views_of block_id)
     case update of
         Update.BlockTitle title -> return $
@@ -258,7 +261,7 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
                 -- This is unnecessary if I just collapsed the track, but
                 -- no big deal.
                 BlockC.update_entire_track False view_id tracknum tracklike
-                    merged
+                    merged set_style
     where
     create_track view_ids tracknum dtrack = do
         let tlike_id = Block.dtracklike_id dtrack
@@ -279,7 +282,7 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
             let merged = events_of_track_ids ustate
                     (Block.dtrack_merged dtrack)
             BlockC.insert_track view_id tracknum tlike merged
-                (Block.dtrack_width dtrack)
+                set_style (Block.dtrack_width dtrack)
             case (tlike_id, tlike) of
                 -- Configure new track.  This is analogous to the initial
                 -- config in CreateView.
@@ -294,7 +297,7 @@ run_update track_signals (Update.BlockUpdate block_id update) = do
                         _ -> return ()
                 _ -> return ()
 
-run_update _ (Update.TrackUpdate track_id update) = do
+run_update _ set_style (Update.TrackUpdate track_id update) = do
     block_ids <- map fst <$> State.blocks_with_track track_id
     ustate <- State.get
     acts <- forM block_ids $ \block_id -> do
@@ -320,19 +323,21 @@ run_update _ (Update.TrackUpdate track_id update) = do
     track_update view_id tracklike tracknum merged update = case update of
         Update.TrackEvents low high _events -> return $
             BlockC.update_track False view_id tracknum tracklike merged
-                low high
+                set_style low high
         Update.TrackAllEvents _events -> return $
             BlockC.update_entire_track False view_id tracknum tracklike merged
+                set_style
         Update.TrackTitle title -> return $
             BlockC.set_track_title view_id tracknum title
         Update.TrackBg _color ->
             -- update_track also updates the bg color
             return $ BlockC.update_track False view_id tracknum tracklike
-                merged 0 0
+                merged set_style 0 0
         Update.TrackRender _render -> return $
-            BlockC.update_entire_track False view_id tracknum tracklike merged
+            BlockC.update_entire_track False view_id tracknum tracklike
+                merged set_style
 
-run_update _ (Update.RulerUpdate ruler_id _ruler) = do
+run_update _ set_style (Update.RulerUpdate ruler_id _ruler) = do
     blocks <- State.blocks_with_ruler ruler_id
     let tinfo = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
@@ -343,8 +348,9 @@ run_update _ (Update.RulerUpdate ruler_id _ruler) = do
         -- them.
         fmap sequence_ $ forM view_ids $ \view_id -> return $
             BlockC.update_entire_track True view_id tracknum tracklike []
+                set_style
 
-run_update _ (Update.StateUpdate ()) = return (return ())
+run_update _ _ (Update.StateUpdate ()) = return (return ())
 
 status_color :: Bool -> Color.Color
 status_color is_root = if is_root then Color.rgb 1 1 0.8 else Color.white

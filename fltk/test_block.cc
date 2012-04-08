@@ -98,6 +98,7 @@ void t1_set()
 {
     TrackData &e = t1_events;
     StyleId style = 0;
+    StyleId style2 = 1;
 
     // e.push_back(EventInfo(ScoreTime(5),
     //     Event("`tamil-i`", ScoreTime(16), style), 0));
@@ -119,7 +120,7 @@ void t1_set()
     e.push_back(EventInfo(ScoreTime(50),
         Event("mis`match", ScoreTime(4), style), 0));
     e.push_back(EventInfo(ScoreTime(128),
-        Event("late!", ScoreTime(64), style), 0));
+        Event("late!", ScoreTime(64), style2), 0));
     // coincident with rank 0
     e.push_back(EventInfo(ScoreTime(128),
         Event("bg1", ScoreTime(8), style), 1));
@@ -437,7 +438,9 @@ main(int argc, char **argv)
     */
 
     StyleTable::get()->put(0, EventStyle(FL_HELVETICA, 12, Color::black,
-        Color(200, 200, 170)));
+        Color::rgb_normalized(0.9, 0.9, 0.7)));
+    StyleTable::get()->put(1, EventStyle(FL_HELVETICA, 12, Color::black,
+        Color::rgb_normalized(0.8, 1, 0.9)));
 
     // Technically the Glyphs should use heap space, not constants, since they
     // will be freed if there is a duplicate symbol.  But I don't care for a
