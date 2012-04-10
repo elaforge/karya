@@ -109,9 +109,7 @@ public:
     // inherently go downwards, so unlike SymbolTable::draw() the
     // draw position is the upper left, not the lower left.
     IPoint draw_wrapped(const string &text, IPoint pos, int width,
-        Style style, bool measure = false) const;
-    IPoint measure_wrapped(const string &text, IPoint pos, int wrap_width,
-        Style style) const;
+        int max_height, Style style) const;
 
     // Measure the Symbol by actually drawing it and seeing how many pixels it
     // occupies.  This is expensive so it's cached.

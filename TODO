@@ -498,7 +498,7 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
-  - SymbolTable::draw_wrapped should take the next_event param so it can stop
+  * SymbolTable::draw_wrapped should take the next_event param so it can stop
     drawing before then, and add a blue bar below
   - skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.

@@ -4,6 +4,7 @@
 
 #include "SymbolTable.h"
 #include "util.h"
+#include "f_util.h"
 
 using std::string;
 
@@ -209,7 +210,7 @@ SymbolTable::measure_backticks(const char *text, Size size) const
 
 IPoint
 SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
-    Style style, bool measure) const
+    int max_height, Style style) const
 {
     // This function is a real rat's nest.
     //
@@ -219,6 +220,7 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
     IPoint total_size(0, 0);
     const char *line_start = text.c_str();
     const char *last_space = line_start;
+    ClipArea clip(clip_rect(IRect(pos.x, pos.y, wrap_width, max_height)));
 
     style.set(); // because of fl_width below
     double line_width = 0;
@@ -264,11 +266,18 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
             line_size.y += 1;
             total_size.x = std::max(total_size.x, line_size.x);
             total_size.y += line_size.y;
-            if (!measure) {
-                this->draw(string(line_start, break_at - line_start),
-                    IPoint(pos.x, pos.y + total_size.y), style);
-            }
-            if (!*p) {
+            this->draw(string(line_start, break_at - line_start),
+                IPoint(pos.x, pos.y + total_size.y), style);
+            // Don't draw the ugly rectangle unless I actually did some
+            // wrapping.
+            if (total_size.y >= max_height) {
+                if (total_size.y > line_size.y) {
+                    fl_color(color_to_fl(Config::abbreviation_color));
+                    fl_rectf(pos.x, pos.y + max_height - 2, wrap_width, 2);
+                    style.set();
+                }
+                break;
+            } else if (!*p) {
                 break;
             } else {
                 p = break_at;
@@ -299,14 +308,6 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
         }
     }
     return total_size;
-}
-
-
-IPoint
-SymbolTable::measure_wrapped(const string &text, IPoint pos,
-    int wrap_width, Style style) const
-{
-    return draw_wrapped(text, pos, wrap_width, style, true);
 }
 
 

@@ -723,31 +723,20 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         // Rotation and word wrapping only apply to positive events.
         // I would need additional code to get them working for negative
         // events, since the text goes up rather than down.
-        int track_width = w() - 4;
+        int track_width = w() - 3;
         bool too_wide = text_rect.w > track_width;
         bool vertical = event.is_positive()
             && config.text_wrap == EventTrackConfig::rotate
             && !rank && too_wide && text_rect.y + text_rect.w < next_offset;
-        bool drawn = false;
-        if (event.is_positive() && !rank
-                && config.text_wrap == EventTrackConfig::wrap)
+        if (config.text_wrap == EventTrackConfig::wrap
+            && event.is_positive() && !rank)
         {
             // The *_wrapped functions start at upper left, not lower left.
-            IPoint draw_pos(text_rect.x, text_rect.y);
-            // This winds up doing extra measuring.  I suppose if I wanted
-            // to be more efficient I could pass in the next_offset and combine
-            // measuring and drawing.
-            IPoint box = SymbolTable::get()->measure_wrapped(
-                event.text, draw_pos, track_width, style);
-            box.y += text_rect.h; // TODO remove this hack
-            if (text_rect.y + box.y < next_offset) {
-                // DEBUG("draw_wrapped " << event.text);
-                SymbolTable::get()->draw_wrapped(
-                    event.text, draw_pos, track_width, style);
-                drawn = true;
-            }
-        }
-        if (!drawn) {
+            IPoint draw_pos(text_rect.x, text_rect.y - 2);
+            SymbolTable::get()->draw_wrapped(
+                event.text, draw_pos, track_width,
+                next_offset - draw_pos.y, style);
+        } else {
             // Due to boundary issues, drawing text that touches the bottom of
             // a box means drawing one above the bottom.  I don't totally
             // understand this.
