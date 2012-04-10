@@ -16,6 +16,7 @@ import qualified Util.Then as Then
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Style as Style
 import qualified Ui.Track as Track
 import qualified Ui.Util as Util
 
@@ -37,7 +38,8 @@ with_track track set_style event_lists f = allocaBytes size $ \trackp -> do
     (#poke EventTrackConfig, text_wrap) trackp
         ((#const EventTrackConfig::wrap) :: CInt)
     (#poke EventTrackConfig, bg_color) trackp (Track.track_bg track)
-    poke_find_events trackp set_style (Track.track_events track : event_lists)
+    poke_find_events trackp (set_style (Track.track_title track))
+        (Track.track_events track : event_lists)
     (#poke EventTrackConfig, render) trackp (Track.track_render track)
     initialize_track_signal ((#ptr EventTrackConfig, track_signal) trackp)
     f trackp
@@ -46,7 +48,9 @@ with_track track set_style event_lists f = allocaBytes size $ \trackp -> do
     -- allocaBytesAligned is not exported from Foreign.Marshal.Alloc
     -- align = #{alignment EventTrackConfig}
 
-poke_find_events :: Ptr Track.Track -> Event.SetStyle -> [Events.Events]
+type SetStyle = ScoreTime -> Event.Event -> Style.StyleId
+
+poke_find_events :: Ptr Track.Track -> SetStyle -> [Events.Events]
     -> IO ()
 poke_find_events trackp set_style event_lists = do
     let time_end = maximum (0 : map Events.time_end event_lists)
@@ -54,7 +58,7 @@ poke_find_events trackp set_style event_lists = do
     (#poke EventTrackConfig, find_events) trackp find_events
     (#poke EventTrackConfig, time_end) trackp time_end
 
-make_find_events :: Event.SetStyle -> [Events.Events] -> IO (FunPtr FindEvents)
+make_find_events :: SetStyle -> [Events.Events] -> IO (FunPtr FindEvents)
 make_find_events set_style events = Util.make_fun_ptr "find_events" $
     c_make_find_events (cb_find_events set_style events)
 
@@ -137,7 +141,7 @@ encode_style style = case style of
 type FindEvents = Ptr ScoreTime -> Ptr ScoreTime -> Ptr (Ptr ScoreTime)
     -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
 
-cb_find_events :: Event.SetStyle -> [Events.Events] -> FindEvents
+cb_find_events :: SetStyle -> [Events.Events] -> FindEvents
 cb_find_events set_style event_lists startp endp ret_tps ret_events
         ret_ranks = do
     start <- peek startp

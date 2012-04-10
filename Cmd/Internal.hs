@@ -1,7 +1,6 @@
 -- | Internal Cmds, that keep bits of Cmd.State up to date that everyone else
 -- relies on.
 module Cmd.Internal where
-import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -30,7 +29,9 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
 import Types
@@ -215,17 +216,20 @@ update_of _ = Nothing
 -- | Set the style of an event based on its contents.  This is hardcoded
 -- for now but it's easy to put in StaticConfig if needed.
 set_style :: Event.SetStyle
-set_style _pos event
-    | Event.event_style event == Config.default_style =
-        colorize (Event.event_bs event)
-    | otherwise = Event.event_style event
+set_style title _pos event
+    | Event.event_style event /= Config.default_style =
+        Event.event_style event
+    | otherwise = case ParseBs.parse_expr (Event.event_bs event) of
+        Left _ -> Config.parse_error_style
+        Right expr
+            | TrackInfo.is_note_track title -> colorize_note expr
+            | TrackInfo.is_pitch_track title -> Config.pitch_style
+            | otherwise -> Config.control_style
 
-colorize :: UTF8.ByteString -> Style.StyleId
-colorize bs = case ParseBs.parse_expr bs of
-    Right (TrackLang.Call call _ : _) | call == TrackLang.c_equal ->
-        Config.declaration_style
-    Right _ -> Config.default_style
-    Left _ -> Config.parse_error_style
+colorize_note :: TrackLang.Expr -> Style.StyleId
+colorize_note (TrackLang.Call call _ : _)
+    | call == TrackLang.c_equal = Config.declaration_style
+colorize_note _ = Config.default_style
 
 
 -- * sync

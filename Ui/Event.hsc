@@ -75,7 +75,7 @@ is_positive_duration = not . is_negative_duration
 -- | This is called on events before they go to the UI, to be used for "syntax
 -- highlighting", i.e. it can set the style depending on the event, but the
 -- change in style won't be saved in the event itself.
-type SetStyle = ScoreTime -> Event -> Style.StyleId
+type SetStyle = String -> ScoreTime -> Event -> Style.StyleId
 
 -- * storable
 
