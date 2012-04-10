@@ -35,6 +35,7 @@ exec m = return . snd =<< run m
 
 class (Monad m) => MonadLogger w m | m -> w where
     log :: w -> m ()
+    peek :: m [w]
 
 logs :: (MonadLogger w m) => [w] -> m ()
 logs msgs = mapM_ log msgs
@@ -43,6 +44,9 @@ instance (Monad m) => MonadLogger w (LoggerT w m) where
     log msg = LoggerT $ do
         ms <- State.get
         State.put $! (msg:ms)
+    peek = LoggerT $ do
+        ms <- State.get
+        return $! reverse ms
 
 -- | I think I can't automatically derive this because LoggerT itself is
 -- a StateT.
@@ -54,14 +58,18 @@ instance (State.MonadState s m) => State.MonadState s (LoggerT w m) where
 
 instance (MonadLogger w m) => MonadLogger w (State.StateT s m) where
     log = Trans.lift . log
+    peek = Trans.lift peek
 
 instance (Error.Error e, MonadLogger w m) =>
         MonadLogger w (Error.ErrorT e m) where
     log = Trans.lift . log
+    peek = Trans.lift peek
 
 instance (MonadLogger w m) => MonadLogger w (Reader.ReaderT r m) where
     log = Trans.lift . log
+    peek = Trans.lift peek
 
 instance (Monoid.Monoid w, MonadLogger log m) =>
         MonadLogger log (Writer.WriterT w m) where
     log = Trans.lift . log
+    peek = Trans.lift peek

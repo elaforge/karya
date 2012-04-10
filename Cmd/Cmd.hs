@@ -220,6 +220,7 @@ instance (Functor m, Monad m) => State.M (CmdT m) where
     get = CmdT State.get
     put st = CmdT (State.put st)
     update upd = CmdT (State.update upd)
+    get_updates = CmdT State.get_updates
     throw msg = CmdT (State.throw msg)
 
 type MidiThru = (Midi.WriteDevice, Midi.Message)

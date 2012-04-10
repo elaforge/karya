@@ -242,12 +242,14 @@ class (Applicative.Applicative m, Monad m) => M m where
     get :: m State
     put :: State -> m ()
     update :: Update.CmdUpdate -> m ()
+    get_updates :: m [Update.CmdUpdate]
     throw :: String -> m a
 
 instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     get = StateT State.get
     put st = StateT (State.put st)
     update upd = (StateT . lift) (Logger.log upd)
+    get_updates = (StateT . lift) Logger.peek
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
 
 gets :: (M m) => (State -> a) -> m a
