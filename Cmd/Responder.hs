@@ -234,7 +234,7 @@ run_responder state m = do
         Left err -> do
             Log.warn (Pretty.pretty err)
             -- Exception rolls back changes to ui_state and cmd_state.
-            return (True, state { state_ui = ui_from, state_cmd = cmd_from })
+            return (False, state { state_ui = ui_from, state_cmd = cmd_from })
         Right status -> do
             case status of
                 Cmd.Play args -> Trans.liftIO $
