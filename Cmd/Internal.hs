@@ -230,37 +230,26 @@ colorize bs = case ParseBs.parse_expr bs of
 
 -- * sync
 
-{-
--- | Sync UI state up with Cmd state and schedule UI updates.
-initialize_state :: (Cmd.M m) => m ()
-initialize_state = do
-    -- TODO these scattered sync functions are kinda grody.  Isn't there a
-    -- better way to keep track of state that needs to be synced?  Or avoid
-    -- doing it in the first place?
-    mapM_ Selection.sync_selection_status =<< State.get_all_view_ids
-    mapM_ Internal.sync_zoom_status =<< State.get_all_view_ids
-    -- Emit track updates for all tracks, since I don't know where events have
-    -- changed.
-    State.update_all_tracks
--}
-
-cmd_sync :: (Cmd.M m) => State.State -> Cmd.State -> m Cmd.Status
-cmd_sync ui_from cmd_from = do
+cmd_sync_status :: (Cmd.M m) => State.State -> Cmd.State -> m Cmd.Status
+cmd_sync_status ui_from cmd_from = do
     edit_state <- Cmd.gets Cmd.state_edit
     ui_to <- State.get
     let updates = view_updates ui_from ui_to
-        new_view = any is_create_view updates
-    -- Log.error $ "cmd_sync: updates " ++ show updates
-    when (new_view || Cmd.state_edit cmd_from /= edit_state) sync_edit_state
+        new_views = Maybe.mapMaybe create_view updates
+    when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state)
+        sync_edit_state
 
     when (State.state_config ui_from /= State.state_config ui_to) $
         sync_ui_config (State.state_config ui_to)
-    forM_ (Maybe.mapMaybe selection_update updates) (uncurry sync_selection)
-    forM_ (Maybe.mapMaybe zoom_update updates) sync_zoom_status
-    return Cmd.Done
+    forM_ (Maybe.mapMaybe selection_update updates)
+        (uncurry sync_selection)
+    forM_ (new_views ++ Maybe.mapMaybe zoom_update updates)
+        sync_zoom_status
+    return Cmd.Continue
     where
-    is_create_view (Update.ViewUpdate _ (Update.CreateView _)) = True
-    is_create_view _ = False
+    create_view (Update.ViewUpdate view_id (Update.CreateView _)) =
+        Just view_id
+    create_view _ = Nothing
     selection_update (Update.ViewUpdate view_id (Update.Selection selnum sel))
         | selnum == Config.insert_selnum = Just (view_id, sel)
     selection_update _ = Nothing
@@ -274,13 +263,6 @@ view_updates ui_from ui_to = case Diff.run diff of
     where
     diff = Diff.diff_views ui_from ui_to
         (State.state_views ui_from) (State.state_views ui_to)
-
--- initial_sync = do
-    -- sync_edit_state
-    -- sync_ui_config
-    --
-    -- sync_selection
-    -- sync_zoom_status
 
 
 -- ** sync

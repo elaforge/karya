@@ -636,7 +636,7 @@ plugin host freeze audio
 
 test:
   - tests count number of tests in addition to checks within each test
-  - it should be possible to build only certain tests into RunTests
+  * it should be possible to build only certain tests into RunTests
   - use generics or Foldable or something to write a generic StructEqual
 
 misc:
@@ -649,9 +649,7 @@ integrator / midi record:
 REPL: repl:
   - haskeline sucks for long lines, add multiple line editing?
     really I'd prefer plan9 style esc then edit
-  - could add syntax mangling, but probably better to add it to the mangler
-    so it works for everyone
-  - pass -fobject-code to avoid trying to recompile files?
+  * pass -fobject-code to avoid trying to recompile files?
   - is Cmd.Lang.Fast now obsolete?
   - can I get local variable bindings (let x = ...; y <- ...) to work in the
     REPL?
@@ -661,7 +659,7 @@ REPL: repl:
   - :compile cmd that turns on compilation for everything except Environ
   - :browse to look in modules... can I use GHC.getBindings for this?
   - :module cmd to move evaluation context to a certain module, maybe I
-    could also get rid of the need for Cmd.Lang.Environ to imports everything.
+    could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 Cmd:
   - Can I have a general in-place derive cmd for note transformers?

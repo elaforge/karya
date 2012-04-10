@@ -24,7 +24,8 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import Control.Monad
-import qualified Control.Monad.Cont as Cont
+import qualified Control.Monad.Error as Error
+import qualified Control.Monad.State.Strict as Monad.State
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.List as List
@@ -32,8 +33,8 @@ import qualified Data.Map as Map
 import qualified Network
 import qualified System.IO as IO
 
+import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
@@ -104,49 +105,28 @@ responder config msg_reader midi_interface setup_cmd lang_session
             midi_interface
             (StaticConfig.instrument_db config)
             (StaticConfig.global_scope config)
-        cmd = do
-            setup_cmd
-            State.update_all_tracks
-            Internal.cmd_sync State.empty cmd_state
-            return Cmd.Done
     updater_state <- MVar.newMVar State.empty
-    (ui_state, cmd_state) <-
-        run_setup_cmd loopback State.empty cmd_state updater_state cmd
-    let rstate = State config ui_state cmd_state lang_session loopback
-            Sync.sync updater_state
-    respond_loop rstate msg_reader
+    state <- run_setup_cmd setup_cmd $
+        State config State.empty cmd_state lang_session loopback Sync.sync
+            updater_state
+    respond_loop state msg_reader
 
 -- | A special run-and-sync that runs before the respond loop gets started.
-run_setup_cmd :: Loopback -> State.State -> Cmd.State
-    -> MVar.MVar State.State -> Cmd.CmdIO -> IO (State.State, Cmd.State)
-run_setup_cmd loopback ui_state cmd_state updater_state cmd = do
-    (cmd_state, _, logs, result) <- Cmd.run_io ui_state cmd_state cmd
-    mapM_ Log.write logs
-    (ui_to, updates) <- case result of
-        Left err -> do
-            Log.error $ "initial setup: " ++ show err
-            return (ui_state, [])
-        Right (status, ui_state, updates) -> do
-            when (notDone status) $
-                Log.warn $ "setup_cmd not Done: " ++ show status
-            return (ui_state, updates)
-    (_, ui_state, cmd_state) <-
-        ResponderSync.sync Sync.sync (send_derive_status loopback)
-            ui_state ui_state ui_to cmd_state updates updater_state
-    return (ui_state, cmd_state)
-    where
-    notDone Cmd.Done = False
-    notDone _ = True
+run_setup_cmd :: Cmd.CmdIO -> State -> IO State
+run_setup_cmd cmd state = fmap snd $ run_responder state $ do
+    result <- run_continue "initial setup" $ Right $ do
+        cmd
+        State.update_all_tracks
+        return Cmd.Continue
+    when_just result $ \(_, ui_state, cmd_state) -> do
+        Monad.State.modify $ \st ->
+            st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
+        run_sync_status
+    return $ Right Cmd.Continue
 
 send_derive_status :: Loopback -> BlockId -> Msg.DeriveStatus -> IO ()
 send_derive_status loopback block_id status =
     loopback (Msg.DeriveStatus block_id status)
-
-respond_loop :: State -> MsgReader -> IO ()
-respond_loop rstate msg_reader = do
-    msg <- msg_reader
-    (quit, rstate) <- respond rstate msg
-    unless quit (respond_loop rstate msg_reader)
 
 -- | Create the MsgReader to pass to 'responder'.
 create_msg_reader ::
@@ -189,170 +169,169 @@ read_until hdl boundary = go ""
                 go (c:accum)
 
 
--- | (cstate, Either error (status, ui_from, ui_to))
-type RType = (Either State.StateError (Cmd.Status, State.State, State.State),
-    Cmd.State)
-type ResponderM a = Cont.ContT RType (Logger.LoggerT Update.CmdUpdate IO) a
+-- * respond
 
-run_responder :: ResponderM RType -> IO (RType, [Update.CmdUpdate])
-run_responder = Logger.run . flip Cont.runContT return
-
-{- | The flow control makes this all way more complicated than I want it to be.
-    There must be a simpler way.
-
-    The responder is conceptually simple: get a new msg, then call each cmd
-    with it.  If the cmd returns Abort or Continue, go to the next, if it
-    returns Done, repeat the loop, and if it returns Quit, break out of the
-    loop.  Then pass the ui state before all of this along with the final ui
-    state to Sync so the UI can be updated.  The old ui state is also passed
-    to 'Undo.record_history' for undo recording.
-
-    The complications:
-
-    1. Ui state and cmd state should be threaded through the calls if they
-    return Continue but not Abort: Continue means it modified the state and
-    wants to keep it, Abort means it doesn't want to keep it.
-
-    2. There are a set of Cmds which must be run in IO, the rest can be run in
-    Identity.
-
-    3. There is also a Cmd which records change notifications from the UI, and
-    therefore the changes it makes to the ui state should *not* be included in
-    the final sync.
-
-    4. The key down recording Cmd should be run at the end regardless of
-    whether a previous Cmd was Done or Aborted.
-
-    5. Auxiliary Cmd output, like logs, should be written after the Cmd
-    returns.
-
-    Implementing everything (ui syncs, key recording, midi_thru, etc.) as a Cmd
-    is conceptually simple, but leads to complications here because they still
-    have to be called differently.  I think even if I hardcoded some of those
-    things it wouldn't make calling any simpler, because I would still have to
-    call with them and deal with their results.
-
-    To try to control some of this, I split the responder into multiple
-    functions, but to control *that* I need continuations for early escape from
-    nested calls.
-
-    TODO: Give this some serious thought some day.  Also profile it.
--}
-respond :: State -> Msg.Msg -> IO (Bool, State)
-respond rstate msg = do
+respond_loop :: State -> MsgReader -> IO ()
+respond_loop rstate msg_reader = do
+    msg <- msg_reader
     -- putStrLn $ "msg: " ++ Pretty.pretty msg
-    ((res, cmd_state), cmd_updates) <- run_responder (run_cmds rstate msg)
-    rstate <- return $ rstate { state_cmd = cmd_state }
-    (status, rstate) <- case res of
+    (quit, rstate) <- respond rstate msg
+    unless quit (respond_loop rstate msg_reader)
+
+-- | State maintained for a single responder cycle.
+data RState = RState {
+    rstate_state :: !State
+    -- | Pre rollback UI state, revert to this state if an exception is
+    -- thrown, and diff from this state.
+    , rstate_ui_from :: !State.State
+    -- | Post rollback UI state, and diff to this state.
+    , rstate_ui_to :: !State.State
+    , rstate_cmd_from :: !Cmd.State
+    , rstate_cmd_to :: !Cmd.State
+    -- | Collect updates from each cmd.
+    , rstate_updates :: ![Update.CmdUpdate]
+    }
+
+make_rstate :: State -> RState
+make_rstate state = RState state (state_ui state) (state_ui state)
+    (state_cmd state) (state_cmd state) []
+
+type ResponderM = Monad.State.StateT RState IO
+
+newtype Done = Done Result
+instance Error.Error Done
+type Result = Either State.StateError Cmd.Status
+
+save_updates :: [Update.CmdUpdate] -> ResponderM ()
+save_updates updates = Monad.State.modify $ \st ->
+    st { rstate_updates = updates ++ (rstate_updates st) }
+
+-- ** run
+
+{- | Run one responder cycle.  This is simple in theory: each cmd gets
+    a crack at the Msg and the first one to return anything other than
+    Continue aborts the sequence.  If a cmd throws an exception the sequence
+    is also aborted, and changes to 'Cmd.State' or 'State.State' are
+    discarded.  Otherwise, the UI state changes are synced with the UI, and
+    the responder goes back to waiting for another msg.
+
+    However, there are a number of complications.  Some cmds apply to either
+    the cmd state or UI state *before* the rollback, so they don't get rolled
+    back on an exception, and don't sync with the UI, or run after the last
+    Done, but not after an exception.  Most cmds are pure, but there is
+    a hardcoded set that require IO, and many of those need access to
+    special state.  Rather than cluttering up Cmd.State for everyone, they
+    are passed their special values directly.
+
+    TODO I feel like this generates a lot of garbage per msg.  It mostly
+    doesn't matter except for MIDI input.  Profile?
+-}
+run_responder :: State -> ResponderM Result -> IO (Bool, State)
+run_responder state m = do
+    (val, (RState _ ui_from ui_to cmd_from cmd_to updates))
+        <- Monad.State.runStateT m (make_rstate state)
+    case val of
         Left err -> do
-            Log.warn $ "responder: " ++ Pretty.pretty err
-            return (Cmd.Continue, rstate)
-        Right (status, ui_from, ui_to) -> do
-            cmd_state <- return $ fix_cmd_state ui_to cmd_state
-            (updates, ui_state, cmd_state) <-
-                ResponderSync.sync (state_sync rstate)
-                    (send_derive_status (state_loopback rstate))
-                    (state_ui rstate) ui_from ui_to cmd_state cmd_updates
-                    (Transport.info_state (state_transport_info rstate))
-            cmd_state <- return $
-                Undo.record_history updates ui_from cmd_state
-            return (status,
-                rstate { state_cmd = cmd_state, state_ui = ui_state })
-    return (isQuit status, rstate)
+            Log.warn (Pretty.pretty err)
+            -- Exception rolls back changes to ui_state and cmd_state.
+            return (True, state { state_ui = ui_from, state_cmd = cmd_from })
+        Right status -> do
+            case status of
+                Cmd.Play args -> Trans.liftIO $
+                    PlayC.start_updater (state_transport_info state) args
+                _ -> return ()
+            cmd_to <- return $ fix_cmd_state ui_to cmd_to
+            (updates, ui_to, cmd_to) <-
+                ResponderSync.sync (state_sync state)
+                    (send_derive_status (state_loopback state))
+                    (state_ui state) ui_from ui_to cmd_to updates
+                    (Transport.info_state (state_transport_info state))
+            cmd_to <- return $ Undo.record_history updates ui_from cmd_to
+            return (is_quit status,
+                state { state_ui = ui_to, state_cmd = cmd_to })
     where
-    isQuit Cmd.Quit = True
-    isQuit _ = False
+    is_quit Cmd.Quit = True
+    is_quit _ = False
+    -- | If the focused view is removed, cmd state should stop pointing to it.
+    fix_cmd_state :: State.State -> Cmd.State -> Cmd.State
+    fix_cmd_state ui_state cmd_state = case Cmd.state_focused_view cmd_state of
+        Just focus | focus `Map.notMember` State.state_views ui_state ->
+            cmd_state { Cmd.state_focused_view = Nothing }
+        _ -> cmd_state
 
--- | If the focused view is removed, cmd state should stop pointing to it.
-fix_cmd_state :: State.State -> Cmd.State -> Cmd.State
-fix_cmd_state ui_state cmd_state = case Cmd.state_focused_view cmd_state of
-    Just focus | focus `Map.notMember` State.state_views ui_state ->
-        cmd_state { Cmd.state_focused_view = Nothing }
-    _ -> cmd_state
-
-run_cmds :: State -> Msg.Msg -> ResponderM RType
-run_cmds rstate msg = do
-    cstate <- record_keys rstate msg
-    (result, cmd_state) <- Cont.callCC $ \exit ->
-        run_core_cmds (rstate { state_cmd = cstate }) msg exit
-    -- If the cmd threw, roll back the cmd state.
-    cmd_state <- return $ either (const cstate) (const cmd_state) result
-    -- See Cmd.PlayC about this hack.
+respond :: State -> Msg.Msg -> IO (Bool, State)
+respond state msg = run_responder state $ do
+    record_keys msg
+    -- Normal cmds abort as son as one returns a non-Continue.
+    result <- fmap unerror $ Error.runErrorT $ do
+        record_ui_updates msg
+        run_core_cmds msg
+        return $ Right Cmd.Done
     case result of
-        Right (Cmd.Play updater_args, _, _) -> Trans.liftIO $
-            PlayC.start_updater (state_transport_info rstate) updater_args
+        Right _ -> run_sync_status
         _ -> return ()
-    (result, cmd_state) <- case result of
-        Right (status, ui_from, ui_to) ->
-            run_post_cmds status ui_from ui_to (state_cmd rstate) cmd_state
-        Left _ -> return (result, cmd_state)
-    return $ case result of
-        Left _ -> (result, cmd_state)
-        Right (status, ui_from, ui_to) ->
-            (Right (status, ui_from, ui_to), cmd_state)
+    return result
+    where unerror = either (\(Done r) -> r) id
 
--- This is way too much work to run a cmd.
--- TODO I can make ResponderM have State, then I can keep cstate and ustate
--- up to date and record updates
-run_post_cmds :: Cmd.Status -> State.State -> State.State
-    -> Cmd.State -> Cmd.State -> ResponderM RType
-run_post_cmds status ui_from ui_to cmd_from cmd_to = do
-    (ui_state, updates) <- Trans.liftIO $ do
-        mapM_ Log.write logs
-        case result of
-            Left err -> do
-                Log.error $ "run_post_cmds: " ++ show err
-                return (ui_to, [])
-            Right (_, ui_state, updates) -> return (ui_state, updates)
-    Trans.lift $ Logger.logs updates
-    return (Right (status, ui_from, ui_state), cmd_state)
-    where
-    (cmd_state, _, logs, result) = Cmd.run_id ui_to cmd_to $
-        Internal.cmd_sync ui_from cmd_from
+-- ** special cmds
 
--- | Run the record keys cmd separately.  It would be nicer just to stick it
--- on the front of the cmd list, but then if one of the cmds threw an
--- exception, the key recording would also be reverted.
-record_keys :: State -> Msg.Msg -> ResponderM Cmd.State
-record_keys rstate msg = do
-    Trans.liftIO $ do
-        mapM_ Log.write logs
-        case result of
-            Left err -> Log.error $ "record keys error: " ++ show err
-            _ -> return ()
-    return cstate
-    where
-    (cstate, _, logs, result) = Cmd.run_id
-        (state_ui rstate) (state_cmd rstate) (Internal.cmd_record_keys msg)
+-- | The record keys cmd commits its changes to cmd_from, so if a later cmd
+-- throws the key record won't be rolled back.
+record_keys :: Msg.Msg -> ResponderM ()
+record_keys msg = do
+    result <- run_continue "record_keys" $ Left $
+        Internal.cmd_record_keys msg
+    when_just result $ \(_, _, cmd_state) -> Monad.State.modify $ \st ->
+        st { rstate_cmd_from = cmd_state, rstate_cmd_to = cmd_state }
 
-run_core_cmds :: State -> Msg.Msg
-    -> (RType -> ResponderM (State.State, Cmd.State)) -> ResponderM RType
-run_core_cmds rstate msg exit = do
-    let ui_from = state_ui rstate
-        cmd_state = state_cmd rstate
+-- | Record 'UiMsg.UiUpdate's from the UI.  Like normal cmds it can abort
+-- processing by returning not-Continue, but it commits its changes to ui_from
+-- instead of ui_to.  This means these changes don't participate in the diff
+-- and sync.  This is because UiUpdates are reporting changes that already
+-- happened, so they can't be rolled back and sending them back to the UI
+-- would be silly.
+record_ui_updates :: Msg.Msg -> ErrorResponderM ()
+record_ui_updates msg = do
+    (result, cmd_state) <- Trans.lift $ run_cmd $ Left $
+        Internal.cmd_record_ui_updates msg
+    case result of
+        Left err -> Error.throwError $ Done (Left err)
+        Right (status, ui_state) -> do
+            Monad.State.modify $ \st -> st
+                { rstate_ui_from = ui_state, rstate_ui_to = ui_state
+                , rstate_cmd_to = cmd_state
+                }
+            when (not_continue status) $
+                Error.throwError $ Done (Right status)
 
-    -- Run ui records first so they can't get aborted by other cmds.
-    (ui_from, cmd_state) <- do_run exit Cmd.run_id_io msg ui_from ui_from
-        cmd_state [Internal.cmd_record_ui_updates]
-    let ui_to = ui_from
+-- | This runs after normal cmd processing to update various status displays.
+-- It doesn't run after an exception, but *should* run after a Done.
+run_sync_status :: ResponderM ()
+run_sync_status = do
+    rstate <- Monad.State.get
+    result <- run_continue "sync_status" $ Left $
+        Internal.cmd_sync_status (rstate_ui_from rstate)
+            (rstate_cmd_from rstate)
+    when_just result $ \(_, ui_state, cmd_state) -> Monad.State.modify $ \st ->
+        st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
 
+-- ** core cmds
+
+run_core_cmds :: Msg.Msg -> ErrorResponderM ()
+run_core_cmds msg = do
+    state <- Trans.lift $ Monad.State.gets rstate_state
     -- Focus commands and the rest of the pure commands come first so text
     -- entry can override io bound commands.
-    let pure_cmds =
-            StaticConfig.global_cmds (state_static_config rstate)
+    let pure_cmds = StaticConfig.global_cmds (state_static_config state)
             ++ hardcoded_cmds ++ GlobalKeymap.pure_cmds
-    (ui_to, cmd_state) <- do_run exit Cmd.run_id_io msg ui_from
-        ui_to cmd_state pure_cmds
+    mapM_ (run_throw . Left . ($msg)) pure_cmds
 
-    let config = state_static_config rstate
+    let config = state_static_config state
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
-    let io_cmds = hardcoded_io_cmds (state_transport_info rstate)
-                (state_session rstate)
-                (StaticConfig.local_lang_dirs config)
-    (ui_to, cmd_state) <- do_run exit Cmd.run_io msg ui_from
-        ui_to cmd_state io_cmds
-    return (Right (Cmd.Continue, ui_from, ui_to), cmd_state)
+    let io_cmds = hardcoded_io_cmds (state_transport_info state)
+                (state_session state) (StaticConfig.local_lang_dirs config)
+    mapM_ (run_throw . Right . ($msg)) io_cmds
 
 -- | Everyone always gets these commands.
 hardcoded_cmds :: [Cmd.Cmd]
@@ -367,39 +346,55 @@ hardcoded_io_cmds transport_info lang_session lang_dirs =
     , PlayC.cmd_play_msg
     ] ++ GlobalKeymap.io_cmds transport_info
 
--- | ui_from is needed since this can abort with an RType as soon as it gets
--- a non Continue status.
-do_run :: (Monad m) => (RType -> ResponderM (State.State, Cmd.State))
-    -> Cmd.RunCmd m IO Cmd.Status -> Msg.Msg -> State.State -> State.State
-    -> Cmd.State -> [Msg.Msg -> Cmd.CmdT m Cmd.Status]
-    -> ResponderM (State.State, Cmd.State)
-do_run exit runner msg ui_from ui_state cmd_state cmds = do
-    res <- Trans.liftIO $ run_cmd_list [] ui_state cmd_state runner
-        (map ($msg) cmds)
-    case res of
-        Right (Cmd.Continue, ui_state, cmd_state, updates) -> do
-            Trans.lift $ Logger.logs updates
-            return (ui_state, cmd_state)
-        Right (status, ui_state, cmd_state, updates) -> do
-            Trans.lift $ Logger.logs updates
-            exit (Right (status, ui_from, ui_state), cmd_state)
-        Left err -> exit (Left err, cmd_state)
+-- ** run cmds
 
-run_cmd_list :: (Monad m) => [Update.CmdUpdate] -> State.State
-    -> Cmd.State -> Cmd.RunCmd m IO Cmd.Status -> [Cmd.CmdT m Cmd.Status]
-    -> IO (Either State.StateError
-        (Cmd.Status, State.State, Cmd.State, [Update.CmdUpdate]))
-run_cmd_list updates0 ui_state cmd_state runner (cmd:cmds) = do
-    (cmd_state, midi, logs, ui_result) <- runner ui_state cmd_state cmd
-    sequence_ [write_midi (Midi.WriteMessage dev 0 msg)
-        | (dev, msg) <- midi]
-    mapM_ Log.write logs
-    case ui_result of
-        Right (Cmd.Continue, ui_state, updates) -> run_cmd_list
-            (updates0 ++ updates) ui_state cmd_state runner cmds
-        Right (status, ui_state, updates) ->
-            return $ Right (status, ui_state, cmd_state, updates0 ++ updates)
-        Left err -> return $ Left err
-    where write_midi = Cmd.state_midi_writer cmd_state
-run_cmd_list updates ui_state cmd_state _ [] =
-    return $ Right (Cmd.Continue, ui_state, cmd_state, updates)
+type EitherCmd = Either (Cmd.CmdId Cmd.Status) Cmd.CmdIO
+type ErrorResponderM = Error.ErrorT Done ResponderM
+
+run_continue :: String -> EitherCmd
+    -> ResponderM (Maybe (Cmd.Status, State.State, Cmd.State))
+run_continue caller cmd = do
+    (result, cmd_state) <- run_cmd cmd
+    case result of
+        Left err -> do
+            Trans.liftIO $ Log.error $ caller ++ ": " ++ Pretty.pretty err
+            return Nothing
+        Right (status, ui_state) -> do
+            when (not_continue status) $ Trans.liftIO $
+                Log.error $ caller ++ ": " ++ "expected Continue: "
+                    ++ show status
+            return $ Just (status, ui_state, cmd_state)
+
+run_throw :: EitherCmd -> ErrorResponderM ()
+run_throw cmd = do
+    (result, cmd_state) <- Trans.lift $ run_cmd cmd
+    case result of
+        Left err -> Error.throwError $ Done (Left err)
+        Right (status, ui_state) -> do
+            Monad.State.modify $ \st ->
+                st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
+            when (not_continue status) $
+                Error.throwError $ Done (Right status)
+
+run_cmd :: EitherCmd -> ResponderM
+    (Either State.StateError (Cmd.Status, State.State), Cmd.State)
+run_cmd cmd = do
+    rstate <- Monad.State.get
+    (cmd_state, midi, logs, result) <- Trans.liftIO $ case cmd of
+        Left cmd ->
+            Cmd.run_id_io (rstate_ui_to rstate) (rstate_cmd_to rstate) cmd
+        Right cmd ->
+            Cmd.run_io (rstate_ui_to rstate) (rstate_cmd_to rstate) cmd
+    Trans.liftIO $ do
+        mapM_ Log.write logs
+        mapM_ (Cmd.state_midi_writer (rstate_cmd_to rstate))
+            [Midi.WriteMessage dev 0 msg | (dev, msg) <- midi]
+    case result of
+        Left err -> return (Left err, cmd_state)
+        Right (status, ui_state, updates) -> do
+            save_updates updates
+            return (Right (status, ui_state), cmd_state)
+
+not_continue :: Cmd.Status -> Bool
+not_continue Cmd.Continue = False
+not_continue _ = True
