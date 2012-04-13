@@ -37,15 +37,19 @@ module Util.Test (
 ) where
 import Control.Applicative ((<$>))
 import qualified Control.DeepSeq as DeepSeq
-import Control.Monad
 import qualified Control.Exception as Exception
+import Control.Monad
+
+import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Time as Time
+
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified System.Posix.IO as IO
 import qualified System.Posix.Terminal as Terminal
+
 import Text.Printf
 
 import qualified Util.CPUTime as CPUTime
@@ -89,9 +93,21 @@ equal_srcpos srcpos a b
     where
     pa = Seq.strip $ PPrint.pshow a
     pb = Seq.strip $ PPrint.pshow b
-    msg = if '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60
-        then "\n" ++ pa ++ "\n\t/=\n" ++ pb
-        else pa ++ " /= " ++ pb
+    msg
+        | Seq.count '\n' pa > 7 = "diff:\n"
+            ++ unlines (List.intersperse "    ----" (diff pa pb))
+        | '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60 =
+            "\n" ++ pa ++ "\n\t/=\n" ++ pb
+        | otherwise = pa ++ " /= " ++ pb
+
+diff :: String -> String -> [String]
+diff xs ys =
+    filter (not.null) $ map to_lines $ Diff.getGroupedDiff (lines xs) (lines ys)
+    where
+    to_lines (d, lines) = case d of
+        Diff.B -> ""
+        Diff.F -> unlines $ map ('<':) lines
+        Diff.S -> unlines $ map ('>':) lines
 
 -- | Strings in the first list match regexes in the second list.
 strings_like :: [String] -> [String] -> IO Bool
@@ -195,10 +211,7 @@ io_equal = io_equal_srcpos Nothing
 io_equal_srcpos :: (Eq a, Show a) => SrcPos.SrcPos -> IO a -> a -> IO Bool
 io_equal_srcpos srcpos io_val expected = do
     val <- io_val
-    if val == expected
-        then success_srcpos srcpos ("== " ++ show val)
-        else failure_srcpos srcpos $
-            "expected: " ++ show expected ++ ", got: " ++ show val
+    equal_srcpos srcpos val expected
 
 -- Only a human can check these things.
 io_human :: String -> IO a -> IO a

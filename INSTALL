@@ -16,7 +16,7 @@ haskeline # repl
 
 parsec # Instrument.Parse, could use attoparsec, but parsec errors are better
 haskell-src # Util.PPrint
-regex-pcre # Util.Test
+regex-pcre Diff # Util.Test
 
 utf8-string # Ui.Event
 
