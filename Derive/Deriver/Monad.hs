@@ -470,15 +470,14 @@ data Constant = Constant {
 initial_constant :: State.State -> LookupScale
     -> (Score.Instrument -> Maybe InstrumentCalls)
     -> Cache -> ScoreDamage -> Constant
-initial_constant ui_state lookup_scale inst_calls cache damage =
-    Constant
-        { state_ui = ui_state
-        , state_control_op_map = default_control_op_map
-        , state_lookup_scale = lookup_scale
-        , state_instrument_calls = inst_calls
-        , state_cache = invalidate_damaged damage cache
-        , state_score_damage = damage
-        }
+initial_constant ui_state lookup_scale inst_calls cache damage = Constant
+    { state_ui = ui_state
+    , state_control_op_map = default_control_op_map
+    , state_lookup_scale = lookup_scale
+    , state_instrument_calls = inst_calls
+    , state_cache = invalidate_damaged damage cache
+    , state_score_damage = damage
+    }
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
 -- can bring a set of note calls and val calls into scope, via the 'Scope'

@@ -174,7 +174,7 @@ packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
     ++ "dlist parsec text stm network haskell-src regex-pcre hint "
     ++ "bytestring attoparsec utf8-string "
     ++ "mersenne-random-pure64 hashable random-shuffle "
-    ++ "containers filepath transformers vector ansi-wl-pprint "
+    ++ "containers filepath transformers vector "
     ++ "QuickCheck "
     ++ "haskeline " -- repl
     ++ "shake " -- shakefile

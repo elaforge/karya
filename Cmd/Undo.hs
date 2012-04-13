@@ -24,7 +24,7 @@ undo = do
     case Cmd.hist_past hist of
         prev : rest -> do
             Cmd.modify $ \st -> st
-                { Cmd.state_history = Cmd.history rest
+                { Cmd.state_history = Cmd.History rest
                     (history_entry now (Cmd.hist_entry_updates prev)
                         : Cmd.hist_future hist)
                     (Cmd.hist_serial hist - 1)
@@ -41,7 +41,7 @@ redo = do
     case Cmd.hist_future hist of
         next : rest -> do
             Cmd.modify $ \st -> st
-                { Cmd.state_history = Cmd.history
+                { Cmd.state_history = Cmd.History
                     (history_entry now (Cmd.hist_entry_updates next)
                         : Cmd.hist_past hist)
                     rest
@@ -104,7 +104,7 @@ record_history updates old_state cmd_state
     | otherwise = cmd_state
     where
     skip = Cmd.state_prev_cmd_was_undo_redo cmd_state
-    cur = Cmd.history
+    cur = Cmd.History
         (history_entry old_state updates : Cmd.hist_past prev)
         [] (Cmd.hist_serial prev + 1)
     prev = Cmd.state_history cmd_state

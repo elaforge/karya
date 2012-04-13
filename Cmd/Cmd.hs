@@ -566,9 +566,6 @@ data History = History {
     , hist_serial :: !Int
     } deriving (Show, Generics.Typeable)
 
-history :: [HistoryEntry] -> [HistoryEntry] -> Int -> History
-history = History
-
 empty_history :: History
 empty_history = History [] [] 0
 
