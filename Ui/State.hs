@@ -174,6 +174,10 @@ run state m = do
         Left err -> Left err
         Right ((val, state), updates) -> Right (val, state, updates)
 
+run_id :: State -> StateId a
+    -> Either StateError (a, State, [Update.CmdUpdate])
+run_id state m = Identity.runIdentity (run state m)
+
 eval_rethrow :: (M m) => String -> State -> StateId a -> m a
 eval_rethrow msg state = throw_either msg . eval state
 
@@ -987,8 +991,16 @@ lookup_track track_id = get >>= return . Map.lookup track_id . state_tracks
 --
 -- Throw if the TrackId already exists.
 create_track :: (M m) => Id.Id -> Track.Track -> m TrackId
-create_track id track = insert (Types.TrackId id) track state_tracks $
-    \tracks st -> st { state_tracks = tracks }
+create_track id track = do
+    track_id <- insert (Types.TrackId id) track state_tracks $
+        \tracks st -> st { state_tracks = tracks }
+    -- Since I don't diff events but rely on changes being recorded here,
+    -- I have to mark this track as having new events.  Otherwise, if the same
+    -- TrackId is destroyed and recreated then diff won't notice the changed
+    -- events.
+    update $ Update.TrackUpdate track_id
+        (Update.TrackAllEvents (Track.track_events track))
+    return track_id
 
 -- | Destroy the track and remove it from all the blocks it's in.  No-op if
 -- the TrackId doesn't exist.
