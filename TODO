@@ -1,4 +1,25 @@
 UNSORTED
+  incremental save
+    * Ui.SaveGit_test
+    - incremental load
+      Find the diff between the two commits and load only the changed bits.
+      git diff-tree --no-renames -r <commit> <commit>
+    - more exhaustive tests
+    - try saving individual events for incremental save
+    - running a git cmd for every blob is not going to perform well when there
+      are thousands of them.  Wrap libgit directly?
+    - wrap operations in a lock file
+    - make sure things are ok if it fails at any step
+    - hook save up to cmd_save and checkpoint up after every action
+    - hook undo / redo up
+    - support branching history, e.g. edits after an undo don't discard the
+      old future
+    - if the data in updates, e.g. the View in CreateView is never used can
+      I remove it?
+
+    Git docs:
+      http://progit.org/book/ch9-2.html
+
   * "syntax coloring": e.g. events which have 'x = y' could have a different
     color
   - I could have a Cmd state flag that does things relative to the current

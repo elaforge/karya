@@ -21,7 +21,7 @@ module Ui.Id (
     , ident_string, ident_name
 
     -- * constants
-    , global
+    , global, global_namespace
 ) where
 import Prelude hiding (id)
 import qualified Control.DeepSeq as DeepSeq

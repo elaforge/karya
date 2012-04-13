@@ -196,6 +196,9 @@ keyed_group_on key = map (\gs -> (key (List.head gs), gs))
 group_on :: (Ord b) => (a -> b) -> [a] -> [[a]]
 group_on key = List.groupBy ((==) `on` key) . sort_on key
 
+group :: (Ord b) => (a -> b) -> [a] -> [[a]]
+group key = List.groupBy ((==) `on` key)
+
 -- | Pair each element with the following element.  The last element is paired
 -- with Nothing.  Like @zip xs (drop 1 xs ++ f (last xs))@ but only traverses
 -- @xs@ once.
@@ -376,6 +379,17 @@ lstrip = dropWhile Char.isSpace
 rstrip = rdrop_while Char.isSpace
 strip = rstrip . lstrip
 
+-- | If the list doesn't have the given prefix, return the original list and
+-- False.  Otherwise, strip it off and return True.
+drop_prefix :: (Eq a) => [a] -> [a] -> ([a], Bool)
+drop_prefix pref list = go pref list
+    where
+    go [] xs = (xs, True)
+    go _ [] = (list, False)
+    go (p:ps) (x:xs)
+        | p == x = go ps xs
+        | otherwise = (list, False)
+
 -- ** splitting and joining
 
 break_tails :: ([a] -> Bool) -> [a] -> ([a], [a])
@@ -467,3 +481,9 @@ replace from to = go
 -- | Replace occurrances of an element with zero or more other elements.
 replace1 :: (Eq a) => a -> [a] -> [a] -> [a]
 replace1 from to xs = concatMap (\v -> if v == from then to else [v]) xs
+
+
+-- * search
+
+count :: (Eq a) => a -> [a] -> Int
+count x = List.foldl' (\n c -> if c == x then n + 1 else n) 0
