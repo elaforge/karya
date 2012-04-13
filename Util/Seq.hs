@@ -186,8 +186,7 @@ merge_asc_lists key = foldr go []
 --
 -- The sublists are never null.
 keyed_group_on :: (Ord b) => (a -> b) -> [a] -> [(b, [a])]
-keyed_group_on key = map (\gs -> (key (List.head gs), gs))
-    . group_on key . sort_on key
+keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
 -- function instead of equality.  List is returned in sorted order.
