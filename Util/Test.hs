@@ -88,9 +88,13 @@ equal = equal_srcpos Nothing
 
 equal_srcpos :: (Show a, Eq a) => SrcPos.SrcPos -> a -> a -> IO Bool
 equal_srcpos srcpos a b
-    | a == b = success_srcpos srcpos $ "== " ++ show a
+    | a == b = success_srcpos srcpos $ "== " ++ ellipse (show a)
     | otherwise = failure_srcpos srcpos msg
     where
+    ellipse s
+        | len > 110 = take 110 s ++ "... {" ++ show len ++ "}"
+        | otherwise = s
+        where len = length s
     pa = Seq.strip $ PPrint.pshow a
     pb = Seq.strip $ PPrint.pshow b
     msg
