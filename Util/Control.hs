@@ -10,6 +10,14 @@ module Util.Control (
     -- , finally
     , justm
     , fmap0
+
+    -- * lens
+    , Lens, (#)
+    -- * pure
+    , ($#), (=#), (=%)
+    -- * state
+    , (#>)
+    -- , getl, (=:), (=:%)
     , module Control.Monad
 ) where
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
@@ -17,6 +25,7 @@ import Control.Monad
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty, mconcat)
 import Util.Functor0 (fmap0)
+import Util.Lens
 
 
 -- | Like the Arrow combinators, but specialized to functions for clearer

@@ -176,7 +176,6 @@ packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
     ++ "mersenne-random-pure64 hashable random-shuffle "
     ++ "containers filepath transformers vector ansi-wl-pprint "
     ++ "QuickCheck "
-    ++ "Diff " -- Util.Test
     ++ "haskeline " -- repl
     ++ "shake " -- shakefile
 
