@@ -68,24 +68,22 @@ test_checkpoint = do
     io_equal (SaveGit.load_from repo commit1 (Just commit4) state1)
         (Right state4)
 
-test_sequence = do
-    let tracks =
-            [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
-            , ("2", [(0, 1, "2a")])
-            ]
-    repo <- new_repo
-    states <- checkpoint_sequence repo []
-    mapM_ (check_load repo) states
-    mapM_ (uncurry (check_load_from repo)) (zip states (drop 1 states))
+-- TODO do more exhaustive testing
+-- test_sequence = do
+--     repo <- new_repo
+--     states <- checkpoint_sequence repo []
+--     mapM_ (check_load repo) states
+--     mapM_ (uncurry (check_load_from repo)) (zip states (drop 1 states))
 
+check_load :: FilePath -> (State.State, Git.Commit) -> IO Bool
 check_load repo (state, commit) =
     io_equal (SaveGit.load repo (Just commit)) (Right state)
 
+check_load_from :: FilePath -> (State.State, Git.Commit)
+    -> (State.State, Git.Commit) -> IO Bool
 check_load_from repo (state1, commit1) (state2, commit2) =
     io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
         (Right state2)
-
--- (state, commit)
 
 checkpoint_sequence :: Git.Repo -> [State.StateId ()]
     -> IO [(State.State, Git.Commit)]
@@ -106,7 +104,6 @@ diff state modify = case Diff.diff cmd_updates state state2 of
     (state2, cmd_updates) = case State.run_id state modify of
         Left err -> error $ "State.run: " ++ show err
         Right (_, state, updates) -> (state, updates)
-
 
 new_repo = do
     let repo = "build/test/test-repo"

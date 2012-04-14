@@ -4,7 +4,7 @@ UNSORTED
     * incremental load
       Find the diff between the two commits and load only the changed bits.
       git diff-tree --no-renames -r <commit> <commit>
-    - catch GitExceptions and return them as Left
+    * catch GitExceptions and return them as Left
     - more exhaustive tests
     - try saving individual events for incremental save
     - running a git cmd for every blob is not going to perform well when there

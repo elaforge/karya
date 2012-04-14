@@ -1,5 +1,7 @@
 {-# LANGUAGE PatternGuards #-}
 module Ui.SaveGit where
+import Prelude hiding (catch)
+import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
 import qualified Data.Char as Char
 import qualified Data.Map as Map
@@ -9,7 +11,6 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import Util.Control
-import qualified Util.Debug as Debug
 import qualified Util.Git as Git
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -27,8 +28,11 @@ import Types
 
 -- | Like 'checkpoint', but add a tag too, and write compact tracks.
 -- TODO what should the description be?
-save :: FilePath -> State.State -> IO (Git.Commit, Save)
-save repo state = do
+save :: FilePath -> State.State -> IO (Either String (Git.Commit, Save))
+save repo state = catch "save" (do_save repo state)
+
+do_save :: FilePath -> State.State -> IO (Git.Commit, Save)
+do_save repo state = do
     Git.init repo
     tree <- Git.write_dir repo (dump state)
     commit <- commit_tree repo tree "save\n"
@@ -95,16 +99,16 @@ save_to_ref (Save versions) =
 
 -- | incremental save
 checkpoint :: FilePath -> State.State -> [Update.CmdUpdate]
-    -> IO (Either [String] Git.Commit)
-checkpoint repo state updates = do
+    -> IO (Either String Git.Commit)
+checkpoint repo state updates = catch_e "checkpoint" $ do
     Git.init repo
     -- If this is a new repo then do a save instead.
     last_commit <- Git.read_head_commit repo
     case last_commit of
-        Nothing -> Right . fst <$> save repo state
+        Nothing -> Right . fst <$> do_save repo state
         Just last_commit -> do
             let (errs, mods) = dump_diff state updates
-            if not (null errs) then return (Left errs) else do
+            if not (null errs) then return (Left (Seq.join ", " errs)) else do
             last_tree <- Git.read_commit repo last_commit
             tree <- Git.modify_dir repo last_tree mods
             commit <- commit_tree repo tree "checkpoint\n"
@@ -175,7 +179,7 @@ path_to_ident mkid ns name = do
 -- * load
 
 load :: FilePath -> Maybe Git.Commit -> IO (Either String State.State)
-load repo maybe_commit = do
+load repo maybe_commit = catch_e "load" $ do
     -- TODO have to handle both compact and expanded tracks
     commit <- default_head repo maybe_commit
     tree <- Git.read_commit repo commit
@@ -184,7 +188,7 @@ load repo maybe_commit = do
 
 load_from :: FilePath -> Git.Commit -> Maybe Git.Commit -> State.State
     -> IO (Either String State.State)
-load_from repo commit_from maybe_commit_to state = do
+load_from repo commit_from maybe_commit_to state = catch_e "load_from" $ do
     commit_to <- default_head repo maybe_commit_to
     mods <- Git.diff_commits repo commit_from commit_to
     return $ undump_diff state mods
@@ -291,6 +295,21 @@ keyed_group key = map (\gs -> (key (head gs), gs)) . Seq.group key
 
 
 -- * util
+
+catch :: String -> IO a -> IO (Either String a)
+catch caller op = do
+    result <- Exception.try op
+    return $ case result of
+        Left (Git.GitException err) -> Left $ caller ++ ": " ++ err
+        Right val -> Right val
+
+catch_e :: String -> IO (Either String a) -> IO (Either String a)
+catch_e caller op = do
+    result <- Exception.try op
+    return $ case result of
+        Left (Git.GitException err) -> Left $ caller ++ ": " ++ err
+        Right (Left err) -> Left $ caller ++ ": " ++ err
+        Right (Right val) -> Right val
 
 delete_key :: (Show k, Ord k) => k -> Map.Map k a -> Either String (Map.Map k a)
 delete_key k m
