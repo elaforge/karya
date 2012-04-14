@@ -360,11 +360,7 @@ cleanup:
     names, they just won't be nameable from the tracklang.
   * now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
-  - use lenses to make some of this record update stuff nicer?
-    - fclabels: rename record fields, use setL and setL
-    - lenses: got some magic for working with StateT?  don't understand yet
-    - data-accessor
-    - data-lens - looks simpler than fclabels, but has no TH to derive lenses
+  * use lenses to make some of this record update stuff nicer?
   - storing TrackEvents without duration would make maintaining the
     no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
     each event extends to the next one.  It means after merging I have to

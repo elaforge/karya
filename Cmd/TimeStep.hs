@@ -187,7 +187,7 @@ get_events block_id tracknum = do
 get_points :: (State.M m) =>
     TimeStep -> BlockId -> TrackNum -> ScoreTime -> m (Maybe [ScoreTime])
 get_points time_step@(TimeStep steps) block_id tracknum pos = do
-    all_tracknums <- State.tracks block_id
+    all_tracknums <- State.track_count block_id
     track_events <- mapM (get_events block_id) [0..all_tracknums-1]
 
     ruler <- if wants_ruler then get_ruler else return (Just Map.empty)

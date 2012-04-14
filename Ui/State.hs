@@ -34,6 +34,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
 import Util.Control
+import qualified Util.Lens as Lens
 import qualified Util.Logger as Logger
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -72,6 +73,21 @@ data State = State {
     , state_rulers :: Map.Map RulerId Ruler.Ruler
     , state_config :: Config
     } deriving (Eq, Read, Show, Generics.Typeable)
+
+views :: Lens.Lens State (Map.Map ViewId Block.View)
+views = Lens.lens state_views (\v r -> r { state_views = v })
+
+blocks :: Lens.Lens State (Map.Map BlockId Block.Block)
+blocks = Lens.lens state_blocks (\v r -> r { state_blocks = v })
+
+tracks :: Lens.Lens State (Map.Map TrackId Track.Track)
+tracks = Lens.lens state_tracks (\v r -> r { state_tracks = v })
+
+rulers :: Lens.Lens State (Map.Map RulerId Ruler.Ruler)
+rulers = Lens.lens state_rulers (\v r -> r { state_rulers = v })
+
+config :: Lens.Lens State Config
+config = Lens.lens state_config (\v r -> r { state_config = v })
 
 -- TODO "initial_state" would be more consistent
 empty :: State
@@ -795,8 +811,8 @@ ruler_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
     return $ Maybe.fromMaybe no_ruler $ Block.ruler_id_of =<< maybe_track
 
-tracks :: (M m) => BlockId -> m TrackNum
-tracks block_id = do
+track_count :: (M m) => BlockId -> m TrackNum
+track_count block_id = do
     block <- get_block block_id
     return $ length (Block.block_tracks block)
 

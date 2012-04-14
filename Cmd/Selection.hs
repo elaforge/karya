@@ -248,7 +248,7 @@ mouse_drag btn msg = do
     -- case I change my mind again.
     -- -- Clip a drag past the last track to the last track, callers here treat
     -- -- it as the same.
-    -- tracks <- State.tracks =<< Cmd.get_focused_block
+    -- tracks <- State.track_count =<< Cmd.get_focused_block
     -- let clamp (tnum, track) = (min (tracks-1) tnum, track)
     -- return (clamp down_at, clamp mouse_at)
     return (down_at, mouse_at)

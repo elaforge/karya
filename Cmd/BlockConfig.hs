@@ -100,7 +100,7 @@ cmd_move_tracks msg = do
     (tracknums, _, _, _) <- Selection.tracks
     block_id <- Cmd.get_focused_block
     clicked_tracknum <- Cmd.require $ clicked_track msg
-    tracks <- State.tracks block_id
+    tracks <- State.track_count block_id
     let to = min clicked_tracknum (tracks - length tracknums)
     from <- Cmd.require (Seq.head tracknums)
     let shift = to - from

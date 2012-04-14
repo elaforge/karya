@@ -386,7 +386,7 @@ add_overlay_suffix ruler_id
 -- | Clip the tracknum to within the valid range.
 clip_tracknum :: (State.M m) => BlockId -> TrackNum -> m TrackNum
 clip_tracknum block_id tracknum = do
-    tracks <- State.tracks block_id
+    tracks <- State.track_count block_id
     return $ max 0 (min tracks tracknum)
 
 -- | Get the track to the right of the given tracknum.  This isn't just (+1)
