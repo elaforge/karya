@@ -102,6 +102,23 @@ read_commit repo (Commit commit) = do
     -- First line looks like 'tree hexhexhex\n'.
     parse = Char8.takeWhile (/='\n') . Char8.drop 1 . Char8.dropWhile (/=' ')
 
+-- | Technically it's diff trees, but I always want to diff commits.
+diff_commits :: Repo -> Commit -> Commit -> IO [Modification]
+diff_commits repo (Commit c1) (Commit c2) = do
+    output <- git repo ["diff-tree", "--no-renames", "-r",
+        unparse_hash c1, unparse_hash c2] ""
+    mapM parse (Char8.lines output)
+    where
+    parse line = case Char8.words line of
+        [_, _, _, to_hash, status, path]
+            | status == "D" -> return $ Remove (Char8.unpack path)
+            | status == "M" || status == "A" -> do
+                bytes <- read_blob repo (Blob to_hash)
+                return $ Add (Char8.unpack path) bytes
+            | otherwise ->
+                throw $ "diff_commits: unknown status: " ++ show status
+        _ -> throw $ "diff_commits: unparseable line: " ++ show line
+
 gc :: Repo -> IO ()
 gc repo = void $ git repo ["gc", "--aggressive"] ""
 

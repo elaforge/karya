@@ -1,12 +1,15 @@
 {-# LANGUAGE PatternGuards #-}
 module Ui.SaveGit where
+import Data.ByteString (ByteString)
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import Util.Control
+import qualified Util.Debug as Debug
 import qualified Util.Git as Git
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -35,9 +38,13 @@ save repo state = do
     Git.gc repo
     return (commit, save)
 
--- x        x       x       x       x       x       x       x
--- tags/1           tags/2          refs/master
---                  last-save       HEAD
+-- HEAD points to the last commit, as usual.  On a full save the previous save
+-- number is taken from last-save, a new save tag is created, and last-save is
+-- updated to point to it:
+--
+-- x        x       x       x       x       x
+-- tags/1           tags/2                  refs/master
+--                  last-save               HEAD
 
 -- | Stored in reverse order as in the ref name.
 newtype Save = Save [Int] deriving (Eq, Show)
@@ -150,11 +157,19 @@ dump_diff state = first (filter (not.null)) . Seq.partition_either . map mk
         Update.DestroyRuler ruler_id ->
             Right $ Git.Remove (id_to_path ruler_id)
 
-class Ident a where id_to_path :: a -> FilePath
+class Ident id where id_to_path :: id -> FilePath
 instance Ident ViewId where id_to_path = ("views" </>) . Id.ident_string
 instance Ident BlockId where id_to_path = ("blocks" </>) . Id.ident_string
 instance Ident TrackId where id_to_path = ("tracks" </>) . Id.ident_string
 instance Ident RulerId where id_to_path = ("rulers" </>) . Id.ident_string
+
+path_to_ident :: (Id.Id -> id) -> FilePath -> FilePath -> Either String id
+path_to_ident mkid ns name = do
+    ns <- if ns == "*GLOBAL*" then return Id.global_namespace
+        else maybe (Left $ "invalid namespace: " ++ show ns) Right
+            (Id.namespace ns)
+    mkid <$> maybe
+        (Left $ "invalid ident name: " ++ show name) Right (Id.id ns name)
 
 
 -- * load
@@ -162,17 +177,52 @@ instance Ident RulerId where id_to_path = ("rulers" </>) . Id.ident_string
 load :: FilePath -> Maybe Git.Commit -> IO (Either String State.State)
 load repo maybe_commit = do
     -- TODO have to handle both compact and expanded tracks
-    commit <- case maybe_commit of
-        Just commit -> return commit
-        Nothing -> maybe (Git.throw $ "repo with no HEAD commit: " ++ show repo)
-            return =<< Git.read_head_commit repo
+    commit <- default_head repo maybe_commit
     tree <- Git.read_commit repo commit
     dirs <- Git.read_dir repo tree
     return $ undump dirs
 
--- load is incremental load:
--- ask git for the changed files between the two commits
--- then apply those changes to the given State
+load_from :: FilePath -> Git.Commit -> Maybe Git.Commit -> State.State
+    -> IO (Either String State.State)
+load_from repo commit_from maybe_commit_to state = do
+    commit_to <- default_head repo maybe_commit_to
+    mods <- Git.diff_commits repo commit_from commit_to
+    return $ undump_diff state mods
+
+undump_diff :: State.State -> [Git.Modification] -> Either String State.State
+undump_diff = foldM apply
+    where
+    apply state (Git.Remove path) = case FilePath.splitDirectories path of
+        ["views", ns, name] -> delete ns name Types.ViewId State.views
+        ["blocks", ns, name] -> delete ns name Types.BlockId State.blocks
+        ["tracks", ns, name] -> delete ns name Types.TrackId State.tracks
+        ["rulers", ns, name] -> delete ns name Types.RulerId State.rulers
+        _ -> Left $ "unknown file deleted: " ++ show path
+        where
+        delete ns name mkid lens = do
+            ident <- path_to_ident mkid ns name
+            vals <- delete_key ident (lens $# state)
+            return $ (lens =# vals) state
+    apply state (Git.Add path bytes) = case FilePath.splitDirectories path of
+        ["views", ns, name] -> add ns name Types.ViewId State.views
+        ["blocks", ns, name] -> add ns name Types.BlockId State.blocks
+        ["tracks", ns, name] -> add ns name Types.TrackId State.tracks
+        ["rulers", ns, name] -> add ns name Types.RulerId State.rulers
+        ["config"] -> do
+            val <- decode path bytes
+            return $ (State.config =# val) state
+        _ -> Left $ "unknown file modified: " ++ show path
+        where
+        add ns name mkid lens = do
+            ident <- path_to_ident mkid ns name
+            val <- decode path bytes
+            return $ (lens =% Map.insert ident val) state
+
+default_head :: Git.Repo -> Maybe Git.Commit -> IO Git.Commit
+default_head _ (Just commit) = return commit
+default_head repo Nothing =
+    maybe (Git.throw $ "repo with no HEAD commit: " ++ show repo)
+        return =<< Git.read_head_commit repo
 
 
 -- * implementation
@@ -185,13 +235,6 @@ dump (State.State views blocks tracks rulers config) = Map.fromList
     , ("rulers", Git.Dir $ dump_map rulers)
     , ("config", Git.File $ Serialize.encode config)
     ]
-    -- either
-    -- tracks/ns/tid1
-    -- tracks/ns/tid2
-    --
-    -- or
-    -- tracks/ns/tid1/<eventhash>
-    -- tracks/ns/tid1/<eventhash>
 
 undump :: Git.Dir -> Either String State.State
 undump dir = do
@@ -199,11 +242,11 @@ undump dir = do
     blocks <- undump_map Types.BlockId =<< get_dir "blocks"
     tracks <- undump_map Types.TrackId =<< get_dir "tracks"
     rulers <- undump_map Types.RulerId =<< get_dir "rulers"
-    config <- Serialize.decode =<< get_file "config"
+    config <- decode "config" =<< get_file "config"
     return $ State.State views blocks tracks rulers config
     where
     get_dir name = case Map.lookup name dir of
-        Nothing -> Left $ "dir not found: " ++ show name
+        Nothing -> return Map.empty
         Just (Git.File _) -> Left $ "expected dir but got file: " ++ show name
         Just (Git.Dir dir) -> return dir
     get_file name = case Map.lookup name dir of
@@ -228,8 +271,7 @@ undump_map mkid dir =
     undump_file ns (name, Git.File bytes) = do
         ident <- maybe (Left $ "invalid name: " ++ show name) return $
             Id.id ns name
-        val <- either (Left . (("decoding " ++ name ++ ": ") ++)) return
-            (Serialize.decode bytes)
+        val <- decode name bytes
         return (mkid ident, val)
 
 dump_map :: (Id.Ident id, Serialize.Serialize a) => Map.Map id a -> Git.Dir
@@ -246,3 +288,19 @@ dump_map m = Map.fromList $ do
 
 keyed_group :: (Ord key) => (a -> key) -> [a] -> [(key, [a])]
 keyed_group key = map (\gs -> (key (head gs), gs)) . Seq.group key
+
+
+-- * util
+
+delete_key :: (Show k, Ord k) => k -> Map.Map k a -> Either String (Map.Map k a)
+delete_key k m
+    | Map.member k m = Right $ Map.delete k m
+    | otherwise = Left $ "deleted key " ++ show k ++ " not present: "
+        ++ show (Map.keys m)
+
+decode :: (Serialize.Serialize a) => String -> ByteString -> Either String a
+decode msg = with_msg msg . Serialize.decode
+
+with_msg :: String -> Either String a -> Either String a
+with_msg msg (Left err) = Left $ msg ++ ": " ++ err
+with_msg _ (Right val) = Right val
