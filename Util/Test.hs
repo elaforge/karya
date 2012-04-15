@@ -262,15 +262,17 @@ timer op = do
     cpu_to_sec :: Integer -> Double
     cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
 
-print_timer :: String -> IO String -> IO ()
-print_timer msg op = do
+print_timer :: String -> (a -> String) -> IO a -> IO a
+print_timer msg show_val op = do
     start <- now
     printf "%s - " msg
     IO.hFlush IO.stdout
     (val, secs) <- timer op
     end <- now
-    printf "time: %.2fcpu / %.2fs - %s\n" secs (double (end-start)) val
+    printf "time: %.2fcpu / %.2fs - %s\n" secs (double (end-start))
+        (show_val val)
     IO.hFlush IO.stdout
+    return val
     where
     double :: Time.DiffTime -> Double
     double = realToFrac

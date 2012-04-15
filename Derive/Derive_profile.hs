@@ -120,10 +120,11 @@ mkblock tracks = do
 
 derive_size :: State.StateId a -> IO ()
 derive_size create = do
-    print_timer "force mmsgs" $ force mmsgs >> return "done"
-    print_timer "gc" $ Mem.performGC >> return ""
-    print_timer "busy" $ return $ show (busy_wait 100000000)
-    print_timer "length" $ return $ show (length mmsgs)
+    print_timer "force mmsgs" (const "done") (force mmsgs)
+    print_timer "gc" (const "") Mem.performGC
+    print_timer "busy" id $ return $ show (busy_wait 100000000)
+    print_timer "length" id $ return $ show (length mmsgs)
+    return ()
     where
     ui_state = UiTest.exec State.empty create
     result = DeriveTest.derive_block ui_state UiTest.default_block_id

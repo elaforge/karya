@@ -81,10 +81,11 @@ perform = split_logs . fst
 
 split_logs = second (map DeriveTest.show_log) . LEvent.partition
 
+run_multiple :: a -> (a -> IO String) -> IO ()
 run_multiple arg action = forM_ [1..6] $ \n -> do
     putStr $ show n ++ ": "
     IO.hFlush IO.stdout
-    print_timer (show n) (action arg)
+    print_timer (show n) id (action arg)
 
 
 mkevent :: Double -> Double -> [(Control.Control, Signal.Control)]
