@@ -1,4 +1,6 @@
 UNSORTED
+  - don't save history until the selection moves after an edit, to avoid
+    saving an undo for every letter entered
   incremental save
     * Ui.SaveGit_test
     * incremental load
@@ -6,13 +8,32 @@ UNSORTED
       git diff-tree --no-renames -r <commit> <commit>
     * catch GitExceptions and return them as Left
     - more exhaustive tests
-    - try saving individual events for incremental save
+    + try saving individual events for incremental save
+      Seems to be just as slow as full save, probably most of the time is in
+      the call to git.  Test again with larger tracks.
+    - do something about the duplication between the incremental and
+      non-incremental save and load
     - running a git cmd for every blob is not going to perform well when there
       are thousands of them.  Wrap libgit directly?
     - wrap operations in a lock file
     - make sure things are ok if it fails at any step
     - hook save up to cmd_save and checkpoint up after every action
-    - hook undo / redo up
+      each history entry is (State, Commit, Maybe Save)
+
+      Undo goes through the history entries in memory.  When it runs out, it
+      has to load previous commits.  So it has to know the Commit so it can
+      find the previous one.
+
+      Wait until the first save.  This creates the repo and puts a Save and
+      Commit on that state.  After that, every history record writes a new
+      commit.  It serializes and stores the updates too, since those are the
+      updates from the *previous* state and you can't know that when loading
+      backwards during undo.
+
+      When undo runs out of history entries, it has to load the previous one
+      off disk.  This probably means that undo will suddenly get slow when
+      it goes to disk.
+
     - support branching history, e.g. edits after an undo don't discard the
       old future
     - if the data in updates, e.g. the View in CreateView is never used can

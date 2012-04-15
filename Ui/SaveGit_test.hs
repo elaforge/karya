@@ -31,14 +31,13 @@ test_save = do
     SaveGit.save repo state3
 
 test_checkpoint = do
-    let tracks =
-            [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
-            , ("2", [(0, 1, "2a")])
-            ]
     repo <- new_repo
     [(state1, commit1), (state2, commit2), (state3, commit3),
             (state4, commit4)] <- checkpoint_sequence repo
-        [ void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
+        [ mkview
+            [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
+            , ("2", [(0, 1, "2a")])
+            ]
         , State.insert_event (UiTest.mk_tid 1) 2 (Event.event "hi" 2)
         , do
             State.destroy_track (UiTest.mk_tid 2)
@@ -59,21 +58,29 @@ test_checkpoint = do
     io_equal (SaveGit.load repo (Just commit4)) (Right state4)
 
     -- Make sure incremental loads work.
-    io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
-        (Right state2)
-    io_equal (SaveGit.load_from repo commit2 (Just commit3) state2)
-        (Right state3)
-    io_equal (SaveGit.load_from repo commit3 (Just commit4) state3)
-        (Right state4)
-    io_equal (SaveGit.load_from repo commit1 (Just commit4) state1)
-        (Right state4)
+    (_, secs) <- timer $ do
+        io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
+            (Right state2)
+        io_equal (SaveGit.load_from repo commit2 (Just commit3) state2)
+            (Right state3)
+        io_equal (SaveGit.load_from repo commit3 (Just commit4) state3)
+            (Right state4)
+        io_equal (SaveGit.load_from repo commit1 (Just commit4) state1)
+            (Right state4)
+    print secs
 
 -- TODO do more exhaustive testing
--- test_sequence = do
---     repo <- new_repo
---     states <- checkpoint_sequence repo []
---     mapM_ (check_load repo) states
---     mapM_ (uncurry (check_load_from repo)) (zip states (drop 1 states))
+check_sequence = do
+    repo <- new_repo
+    void $ print_timer "sequence" (const "") $ checkpoint_sequence repo $
+        [ mkview
+            [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
+            , ("2", [(0, 1, "2a")])
+            ]
+        ] ++ [State.insert_event (UiTest.mk_tid 2) 1 (Event.event (show n) 1)
+            | n <- [0..20]]
+    -- mapM_ (check_load repo) states
+    -- mapM_ (uncurry (check_load_from repo)) (zip states (drop 1 states))
 
 check_load :: FilePath -> (State.State, Git.Commit) -> IO Bool
 check_load repo (state, commit) =
@@ -104,6 +111,9 @@ diff state modify = case Diff.diff cmd_updates state state2 of
     (state2, cmd_updates) = case State.run_id state modify of
         Left err -> error $ "State.run: " ++ show err
         Right (_, state, updates) -> (state, updates)
+
+mkview :: [UiTest.TrackSpec] -> State.StateId ()
+mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
 
 new_repo = do
     let repo = "build/test/test-repo"

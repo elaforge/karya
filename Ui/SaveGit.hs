@@ -7,6 +7,7 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Numeric
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
@@ -15,7 +16,9 @@ import qualified Util.Git as Git
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
@@ -107,7 +110,8 @@ checkpoint repo state updates = catch_e "checkpoint" $ do
     case last_commit of
         Nothing -> Right . fst <$> do_save repo state
         Just last_commit -> do
-            let (errs, mods) = dump_diff state updates
+            -- TODO event saving implemented but not loading
+            let (errs, mods) = dump_diff False state updates
             if not (null errs) then return (Left (Seq.join ", " errs)) else do
             last_tree <- Git.read_commit repo last_commit
             tree <- Git.modify_dir repo last_tree mods
@@ -125,8 +129,10 @@ commit_tree repo tree desc = do
 -- | This will tend to create redundant files, e.g. a block will be written
 -- twice if two updates occur on it.  But 'Git.modify_dir' will filter out the
 -- extras.
-dump_diff :: State.State -> [Update.CmdUpdate] -> ([String], [Git.Modification])
-dump_diff state = first (filter (not.null)) . Seq.partition_either . map mk
+dump_diff :: Bool -> State.State -> [Update.CmdUpdate]
+    -> ([String], [Git.Modification])
+dump_diff track_dir state =
+    first (filter (not.null)) . Seq.partition_either . map mk
     where
     mk u@(Update.ViewUpdate view_id update) = case update of
         Update.DestroyView -> Right $ Git.Remove (id_to_path view_id)
@@ -138,10 +144,13 @@ dump_diff state = first (filter (not.null)) . Seq.partition_either . map mk
         | Just block <- Map.lookup block_id (State.state_blocks state) =
             Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
         | otherwise = Left $ "update for nonexistent block_id: " ++ show u
-    -- TODO write event files if flag is set
-    mk u@(Update.TrackUpdate track_id _)
+    mk u@(Update.TrackUpdate track_id update)
         | Just track <- Map.lookup track_id (State.state_tracks state) =
-            Right $ Git.Add (id_to_path track_id) (Serialize.encode track)
+            case update of
+                Update.TrackEvents start end events | track_dir ->
+                    Right $ dump_events track_id start end events
+                _ -> Right $
+                    Git.Add (id_to_path track_id) (Serialize.encode track)
         | otherwise = Left $ "update for nonexistent track_id: " ++ show u
     mk (Update.RulerUpdate ruler_id ruler) =
         Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
@@ -174,6 +183,35 @@ path_to_ident mkid ns name = do
             (Id.namespace ns)
     mkid <$> maybe
         (Left $ "invalid ident name: " ++ show name) Right (Id.id ns name)
+
+-- ** events update
+
+dump_events :: TrackId -> ScoreTime -> ScoreTime -> Events.Events
+    -> Git.Modification
+dump_events track_id start end events =
+    Git.Add (events_path track_id start end) $
+        Serialize.encode $ EventsUpdate track_id start end events
+
+-- | Put the range into the filename.  You still have to load all the event
+-- files in the directory, but at least exactly matching ranges will overwrite
+-- each other.
+events_path :: TrackId -> ScoreTime -> ScoreTime -> String
+events_path track_id start end = id_to_path track_id ++ "_"
+    </> score_to_hex start ++ "-" ++ score_to_hex end
+
+data EventsUpdate = EventsUpdate TrackId ScoreTime ScoreTime Events.Events
+    deriving (Show)
+
+instance Serialize.Serialize EventsUpdate where
+    put (EventsUpdate a b c d) = Serialize.put a >> Serialize.put b
+        >> Serialize.put c >> Serialize.put d
+    get = EventsUpdate <$> Serialize.get <*> Serialize.get <*> Serialize.get
+        <*> Serialize.get
+
+score_to_hex :: ScoreTime -> String
+score_to_hex = pad . flip Numeric.showHex "" . Serialize.encode_double
+    . ScoreTime.to_double
+    where pad s = replicate (16 - length s) '0' ++ s
 
 
 -- * load

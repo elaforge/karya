@@ -573,6 +573,9 @@ empty_history = History [] [] 0
 
 data HistoryEntry = HistoryEntry {
     hist_entry_state :: !State.State
+    -- | Since track event updates are not caught by diff but recorded by
+    -- Ui.State, I have to save those too, or else an undo or redo will miss
+    -- the event changes.  TODO ugly, can I avoid this?
     , hist_entry_updates :: ![Update.CmdUpdate]
     } deriving (Show, Generics.Typeable)
 
