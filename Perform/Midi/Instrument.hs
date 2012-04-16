@@ -196,7 +196,7 @@ data Patch = Patch {
 -- | A Pretty instance is useful because InitializeMidi tends to be huge.
 instance Pretty.Pretty Patch where
     format (Patch inst flags init ks tags text file) =
-        Pretty.record (Pretty.text "Patch")
+        Pretty.record_title "Patch"
             [ ("instrument", Pretty.format inst)
             , ("flags", Pretty.format flags)
             , ("initialize", Pretty.format init)

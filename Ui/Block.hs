@@ -30,7 +30,7 @@ data Block = Block {
 
 instance Pretty.Pretty Block where
     format (Block title _config tracks skel) =
-        Pretty.record (Pretty.text "Block")
+        Pretty.record_title "Block"
             [ ("title", Pretty.format title)
             , ("tracks", Pretty.format tracks)
             , ("skel", Pretty.format skel)
@@ -232,7 +232,7 @@ data View = View {
 
 instance Pretty.Pretty View where
     format (View block rect vis_track vis_time status tscroll zoom sels) =
-        Pretty.record (Pretty.text "View")
+        Pretty.record_title "View"
             [ ("block", Pretty.format block)
             , ("rect", Pretty.format rect)
             , ("visible", Pretty.format (vis_track, vis_time))

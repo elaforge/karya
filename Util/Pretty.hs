@@ -9,7 +9,7 @@ module Util.Pretty (
     , (PP.<+>)
 
     -- * formatting
-    , comma_list, format_commas, record
+    , format_commas, text_list, comma_list, record, record_title
     -- * misc
     , show_float, read_word
 ) where
@@ -45,7 +45,7 @@ instance Monoid.Monoid Doc where
 
 -- | Format values in an eye-pleasing way.  Unlike Show, this isn't intended
 -- to produce any kind of valid syntax, or even preserve information.
-class Show a => Pretty a where
+class Pretty a where
     pretty :: a -> String
     pretty = render_compact . format
     format :: a -> Doc
@@ -68,6 +68,10 @@ instance Pretty Word.Word32 where pretty = show
 instance Pretty Word.Word64 where pretty = show
 instance Pretty Double where pretty = show_float 3
 instance Pretty Float where pretty = show_float 3
+instance Pretty Bool where pretty = show
+
+instance Pretty (a -> b) where
+    pretty _ = "<function>"
 
 instance (Unboxed.Unbox a, Pretty a) => Pretty (Unboxed.Vector a) where
     format = format_commas '<' '>' . Unboxed.toList
@@ -87,6 +91,7 @@ instance (Pretty a, Pretty b) => Pretty (Either a b) where
 instance (Pretty a) => Pretty (Set.Set a) where
     format = format_commas '{' '}' . Set.toList
 
+instance Pretty () where pretty () = "()"
 instance (Pretty a, Pretty b) => Pretty (a, b) where
     format (a, b) = comma_list Never '(' ')' [format a, format b]
 instance (Pretty a, Pretty b, Pretty c) => Pretty (a, b, c) where
@@ -118,6 +123,10 @@ render_compact = unwrap . render 1000
 format_commas :: (Pretty a) => Char -> Char -> [a] -> Doc
 format_commas left right = comma_list Sometimes left right . map format
 
+-- | A list of strings, but without quotes around them.
+text_list :: [String] -> Doc
+text_list = format_commas '[' ']' . map PP.text
+
 data Spaces = Always | Sometimes | Never deriving (Show, Eq)
 
 comma_list :: Spaces -> Char -> Char -> [Doc] -> Doc
@@ -141,6 +150,10 @@ record title fields =
     fsep' :: [Doc] -> Doc
     fsep' [] = PP.empty
     fsep' (d:ds) = PP.nest 2 (PP.fsep (PP.nest (-2) d:ds))
+
+-- | Just like 'record' except the first argument is text.
+record_title :: String -> [(String, Doc)] -> Doc
+record_title = record . PP.text
 
 
 -- * misc

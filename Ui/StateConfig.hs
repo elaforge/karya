@@ -52,7 +52,7 @@ data Default = Default {
 
 instance Pretty.Pretty Config where
     format (Config namespace dir root midi default_) =
-        Pretty.record (Pretty.text "Config")
+        Pretty.record_title "Config"
             [ ("namespace", Pretty.format namespace)
             , ("project_dir", Pretty.format dir)
             , ("root", Pretty.format root)
@@ -62,7 +62,7 @@ instance Pretty.Pretty Config where
 
 instance Pretty.Pretty Default where
     format (Default scale key instrument tempo) =
-        Pretty.record (Pretty.text "Default")
+        Pretty.record_title "Default"
             [ ("scale", Pretty.format scale)
             , ("key", Pretty.format key)
             , ("instrument", Pretty.format instrument)

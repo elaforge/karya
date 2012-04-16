@@ -106,7 +106,7 @@ clear state = state { state_views = Map.map clear_view (state_views state) }
 
 instance Pretty.Pretty State where
     format (State views blocks tracks rulers config) =
-        Pretty.record (Pretty.text "State")
+        Pretty.record_title "State"
             [ ("views", Pretty.format views)
             , ("blocks", Pretty.format blocks)
             , ("tracks", Pretty.format tracks)
