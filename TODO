@@ -1,6 +1,6 @@
 UNSORTED
   - lenses for Cmd.State, for 'name'
-  - get rid of Cmd.hist_serial
+  * get rid of Cmd.hist_serial
   - don't save history until the selection moves after an edit, to avoid
     saving an undo for every letter entered
     Each cmd adds to name, and to updates.

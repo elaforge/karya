@@ -71,7 +71,7 @@ test_undo = do
         where [(">", tracks)] = UiTest.extract_tracks ui_state
     extract_hist res = (map extract past, map extract future)
         where
-        (Cmd.History past future _ _) = e_hist res
+        (Cmd.History past future _) = e_hist res
         extract (Cmd.HistoryEntry state _ commands) =
             Seq.join "+" commands ++ ": " ++ notes_of state
 
@@ -85,7 +85,7 @@ test_undo_merge = do
     res2 <- ResponderTest.respond_cmd (ResponderTest.result_states res1)
         Undo.undo
 
-    pprint (e_hist_updates res1)
+    -- pprint (e_hist_updates res1)
 
     -- some things aren't affected by undo
     -- namespace doesn't change
@@ -103,14 +103,14 @@ e_ui :: ResponderTest.Result -> State.State
 e_ui = CmdTest.result_ui_state . ResponderTest.result_cmd
 
 e_hist_updates :: ResponderTest.Result
-    -> ([[Update.CmdUpdate]], [[Update.CmdUpdate]], Int)
+    -> ([[Update.CmdUpdate]], [[Update.CmdUpdate]])
 e_hist_updates = hist_updates . e_hist
 
 e_hist :: ResponderTest.Result -> Cmd.History
 e_hist = Cmd.state_history . CmdTest.result_cmd_state
     . ResponderTest.result_cmd
 
-hist_updates :: Cmd.History -> ([[Update.CmdUpdate]], [[Update.CmdUpdate]], Int)
-hist_updates (Cmd.History past future _undo_redo serial) =
-    (map Cmd.hist_updates past, map Cmd.hist_updates future, serial)
+hist_updates :: Cmd.History -> ([[Update.CmdUpdate]], [[Update.CmdUpdate]])
+hist_updates (Cmd.History past future _undo_redo) =
+    (map Cmd.hist_updates past, map Cmd.hist_updates future)
 e_updates = ResponderTest.result_updates

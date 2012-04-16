@@ -20,7 +20,7 @@ import Types
 undo :: (Cmd.M m) => m ()
 undo = do
     hist <- Cmd.gets Cmd.state_history
-    -- 'undo' is asymmetrical with 'redo' because 'undo' itself is a cmd, and
+    -- undo is asymmetrical with 'redo' because 'undo' itself is a cmd, and
     -- is happening after the state that is going to be undone.  So the current
     -- state doesn't count (it's the 'undo' cmd), the state I'm coming from is
     -- the previous one, and the one I'm going to is the twice previous one.
@@ -34,7 +34,6 @@ undo = do
                 { Cmd.hist_past = prev : rest
                 , Cmd.hist_future = invert_hist cur : Cmd.hist_future hist
                 , Cmd.hist_undo_redo = True
-                , Cmd.hist_serial = Cmd.hist_serial hist - 1
                 }
             , Cmd.state_history_collect = Cmd.empty_history_collect
             }
@@ -61,7 +60,6 @@ redo = do
                 { Cmd.hist_past = next : Cmd.hist_past hist
                 , Cmd.hist_future = rest
                 , Cmd.hist_undo_redo = True
-                , Cmd.hist_serial = Cmd.hist_serial hist + 1
                 }
             , Cmd.state_history_collect = Cmd.empty_history_collect
             }
@@ -131,7 +129,6 @@ record_history ui_to cmd_state
             : Cmd.hist_past prev
         , Cmd.hist_future = []
         , Cmd.hist_undo_redo = False
-        , Cmd.hist_serial = Cmd.hist_serial prev + 1
         }
 
 should_record :: [Update.CmdUpdate] -> Bool

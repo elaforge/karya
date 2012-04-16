@@ -559,18 +559,10 @@ data History = History {
     -- | True if this state was set by an undo or redo.  Otherwise undo and
     -- redo would be recorded and multiple undo would be impossible!
     , hist_undo_redo :: !Bool
-    -- | The serial number of the current point in time.  History entries are
-    -- saved to disk under their serial number.  Incremented when moving
-    -- forward, decremented when moving back.
-    , hist_serial :: !Int
     } deriving (Show, Generics.Typeable)
 
 empty_history :: History
-empty_history = History [] [] False 0
-
-initial_history :: State.State -> History
-initial_history ui_state = History [past] [] False 0
-    where past = HistoryEntry ui_state [] ["setup"]
+empty_history = History [] [] False
 
 data HistoryCollect = HistoryCollect
     -- | Collect updates from each cmd to be saved with the history, in
@@ -598,7 +590,7 @@ data HistoryEntry = HistoryEntry {
     } deriving (Show, Generics.Typeable)
 
 instance Pretty.Pretty History where
-    format (History past future _undo_redo _serial) =
+    format (History past future _undo_redo) =
         Pretty.record_title "History"
             [ ("past", Pretty.format past)
             , ("future", Pretty.format future)

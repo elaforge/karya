@@ -50,8 +50,10 @@ mkstates tracks = (ui_state, mk_cmd_state ui_state UiTest.default_view_id)
 mk_cmd_state :: State.State -> ViewId -> Cmd.State
 mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
     { Cmd.state_focused_view = Just view_id
-    , Cmd.state_history = Cmd.initial_history ui_state
+    -- Normally this is created by the setup cmd, so pretend I did one.
+    , Cmd.state_history = Cmd.History [past] [] False
     }
+    where past = Cmd.HistoryEntry ui_state [] ["setup"]
 
 -- | It would be nicer to have this happen automatically.
 set_midi_config :: State.StateId ()
