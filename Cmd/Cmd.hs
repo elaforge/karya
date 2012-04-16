@@ -264,11 +264,7 @@ data State = State {
 
     -- | History.
     , state_history :: !History
-    -- | A hack so history isn't recorded after an undo... otherwise multiple
-    -- undo would be impossible!  It has an awkward clunky name because
-    -- the only Cmds that should set it are undo and redo.  Otherwise
-    -- important Updates could be missed and things will get messed up.
-    , state_prev_cmd_was_undo_redo :: !Bool
+    , state_history_collect :: !HistoryCollect
 
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
@@ -315,8 +311,7 @@ initial_state rdev_map wdev_map interface inst_db global_scope = State {
     , state_clip_namespace = Config.clip_namespace
 
     , state_history = empty_history
-    , state_prev_cmd_was_undo_redo = False
-
+    , state_history_collect = empty_history_collect
     , state_keys_down = Map.empty
     , state_focused_view = Nothing
     , state_screens = []
@@ -558,8 +553,12 @@ type SynthDesc = MidiDb.SynthDesc InstrumentCode
 -- *** history
 
 data History = History {
+    -- | Ghosts of state past and future.
     hist_past :: ![HistoryEntry]
     , hist_future :: ![HistoryEntry]
+    -- | True if this state was set by an undo or redo.  Otherwise undo and
+    -- redo would be recorded and multiple undo would be impossible!
+    , hist_undo_redo :: !Bool
     -- | The serial number of the current point in time.  History entries are
     -- saved to disk under their serial number.  Incremented when moving
     -- forward, decremented when moving back.
@@ -567,17 +566,49 @@ data History = History {
     } deriving (Show, Generics.Typeable)
 
 empty_history :: History
-empty_history = History [] [] 0
+empty_history = History [] [] False 0
 
--- *** misc
+initial_history :: State.State -> History
+initial_history ui_state = History [past] [] False 0
+    where past = HistoryEntry ui_state [] ["setup"]
+
+data HistoryCollect = HistoryCollect
+    -- | Collect updates from each cmd to be saved with the history, in
+    -- 'hist_entry_updates'.
+    { state_updates :: ![Update.CmdUpdate]
+    -- | This is cleared after each cmd.  A cmd can cons its name on, and
+    -- the cmd is recorded with the (optional) set of names it returns.
+    -- Hopefully each cmd has at least one name, since this makes the history
+    -- more readable.  There can be more than one name if the history records
+    -- several cmds or if one cmd calls another.
+    , state_cmd_names :: ![String]
+    } deriving (Show, Generics.Typeable)
+
+empty_history_collect :: HistoryCollect
+empty_history_collect = HistoryCollect [] []
 
 data HistoryEntry = HistoryEntry {
-    hist_entry_state :: !State.State
+    hist_state :: !State.State
     -- | Since track event updates are not caught by diff but recorded by
     -- Ui.State, I have to save those too, or else an undo or redo will miss
     -- the event changes.  TODO ugly, can I avoid this?
-    , hist_entry_updates :: ![Update.CmdUpdate]
+    , hist_updates :: ![Update.CmdUpdate]
+    -- | Cmds involved creating this entry.
+    , hist_commands :: ![String]
     } deriving (Show, Generics.Typeable)
+
+instance Pretty.Pretty History where
+    format (History past future _undo_redo _serial) =
+        Pretty.record_title "History"
+            [ ("past", Pretty.format past)
+            , ("future", Pretty.format future)
+            ]
+
+instance Pretty.Pretty HistoryEntry where
+    format (HistoryEntry _ _ commands) = Pretty.text_list commands
+
+
+-- *** modifier
 
 data Modifier = KeyMod Key.Modifier
     -- | Mouse button, and track it went down at, if any.  The block is not
@@ -753,6 +784,15 @@ set_note_text txt = do
 
 
 -- * util
+
+-- | Give a name to a Cmd.  The name is applied when the cmd returns so the
+-- names come out in call order, and it doesn't incur overhead for cmds that
+-- abort.
+name :: (M m) => String -> m a -> m a
+name s cmd = cmd <* modify (\st -> st
+    { state_history_collect = (state_history_collect st)
+        { state_cmd_names = s : state_cmd_names (state_history_collect st) }
+    })
 
 -- | Log an event so that it can be clicked on in logview.
 log_event :: BlockId -> TrackId -> Events.PosEvent -> String

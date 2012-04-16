@@ -91,8 +91,9 @@ equal_srcpos srcpos a b
     | a == b = success_srcpos srcpos $ "== " ++ ellipse (show a)
     | otherwise = failure_srcpos srcpos msg
     where
+    maxlen = 200
     ellipse s
-        | len > 110 = take 110 s ++ "... {" ++ show len ++ "}"
+        | len > maxlen = take maxlen s ++ "... {" ++ show len ++ "}"
         | otherwise = s
         where len = length s
     pa = Seq.strip $ PPrint.pshow a

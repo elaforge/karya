@@ -157,7 +157,7 @@ make_cmd cmd_map msg = do
             return Cmd.Continue
         Just (CmdSpec name cmd) -> do
             Log.debug $ "running command " ++ show name
-            cmd msg
+            Cmd.name name (cmd msg)
 
 
 -- | The Msg contains the low level key information, but most commands should

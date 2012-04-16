@@ -28,7 +28,7 @@ test_modify_tempo = do
                 (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
             ruler <- State.get_ruler rid
             State.modify_ruler UiTest.default_ruler_id (const ruler)
-    let cstate = ResponderTest.mk_cmd_state (UiTest.default_view_id)
+    let cstate = ResponderTest.mk_cmd_state ustate (UiTest.default_view_id)
     results <- ResponderTest.thread (ustate, cstate)
         (CmdTest.keypresses [Key.Escape, Key.Backspace, Key.Char '2'])
     -- Icky.  If I don't pick exactly the right result it will hang fover

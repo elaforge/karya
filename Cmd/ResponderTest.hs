@@ -38,7 +38,7 @@ import Types
 type States = (State.State, Cmd.State)
 
 mkstates :: [UiTest.TrackSpec] -> States
-mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
+mkstates tracks = (ui_state, mk_cmd_state ui_state UiTest.default_view_id)
     where
     ui_state = UiTest.exec State.empty $ do
         UiTest.mkblock_view (UiTest.default_block_name, tracks)
@@ -47,9 +47,11 @@ mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
 
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.
-mk_cmd_state :: ViewId -> Cmd.State
-mk_cmd_state view_id = CmdTest.default_cmd_state
-    { Cmd.state_focused_view = Just view_id }
+mk_cmd_state :: State.State -> ViewId -> Cmd.State
+mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
+    { Cmd.state_focused_view = Just view_id
+    , Cmd.state_history = Cmd.initial_history ui_state
+    }
 
 -- | It would be nicer to have this happen automatically.
 set_midi_config :: State.StateId ()

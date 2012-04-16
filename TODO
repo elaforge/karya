@@ -1,6 +1,14 @@
 UNSORTED
+  - lenses for Cmd.State, for 'name'
+  - get rid of Cmd.hist_serial
   - don't save history until the selection moves after an edit, to avoid
     saving an undo for every letter entered
+    Each cmd adds to name, and to updates.
+    When a hist ent is recorded, clear them.
+  - History record flags: UndoRedo -> don't record history at all
+    RecordAfter [String] -> record as soon as the cmd name changes
+  - Have a new flag: save on different cmd.
+  * add cmd names by having them append to a collect value in Cmd.State
   incremental save
     * Ui.SaveGit_test
     * incremental load

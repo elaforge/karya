@@ -47,7 +47,7 @@ import Types
 -- * raw edit
 
 cmd_raw_edit :: Cmd.Cmd
-cmd_raw_edit msg = do
+cmd_raw_edit msg = Cmd.name "note track raw edit" $ do
     EditUtil.fallthrough msg
     pos <- Selection.get_insert_pos
     case msg of
@@ -82,7 +82,7 @@ data ControlTrack = ControlTrack {
 -- If I'm in chord mode, try to find the next track and put notes there.  If
 -- there is no appropriate next track, the cmd will throw an error.
 cmd_val_edit :: Cmd.Cmd
-cmd_val_edit msg = do
+cmd_val_edit msg = Cmd.name "note track val edit" $ do
     EditUtil.fallthrough msg
     (block_id, sel_tracknum, _, pos) <- Selection.get_insert
     case msg of
@@ -248,7 +248,7 @@ find_pitch_track note_id = do
 -- * method edit
 
 cmd_method_edit :: Cmd.Cmd
-cmd_method_edit msg = do
+cmd_method_edit msg = Cmd.name "note track method edit" $ do
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.method_key -> Just key) -> do

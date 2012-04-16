@@ -20,36 +20,53 @@ import Types
 undo :: (Cmd.M m) => m ()
 undo = do
     hist <- Cmd.gets Cmd.state_history
-    now <- State.get
+    -- 'undo' is asymmetrical with 'redo' because 'undo' itself is a cmd, and
+    -- is happening after the state that is going to be undone.  So the current
+    -- state doesn't count (it's the 'undo' cmd), the state I'm coming from is
+    -- the previous one, and the one I'm going to is the twice previous one.
     case Cmd.hist_past hist of
-        prev : rest -> do
-            Cmd.modify $ \st -> st
-                { Cmd.state_history = Cmd.History rest
-                    (history_entry now (Cmd.hist_entry_updates prev)
-                        : Cmd.hist_future hist)
-                    (Cmd.hist_serial hist - 1)
-                , Cmd.state_prev_cmd_was_undo_redo = True
+        cur : prev : rest -> do_undo hist cur prev rest
+        _ -> Log.warn "no past to undo"
+    where
+    do_undo hist cur prev rest = do
+        Cmd.modify $ \st -> st
+            { Cmd.state_history = Cmd.History
+                { Cmd.hist_past = prev : rest
+                , Cmd.hist_future = invert_hist cur : Cmd.hist_future hist
+                , Cmd.hist_undo_redo = True
+                , Cmd.hist_serial = Cmd.hist_serial hist - 1
                 }
-            State.modify $ merge_undo_states (Cmd.hist_entry_state prev)
-            mapM_ State.update (Cmd.hist_entry_updates prev)
-        [] -> Log.warn "no past to undo"
+            , Cmd.state_history_collect = Cmd.empty_history_collect
+            }
+        State.modify $ merge_undo_states (Cmd.hist_state prev)
+        mapM_ State.update $ invert prev cur
+    -- hist_to and hist_from is the same because I want to invert the updates
+    -- in place, so that the updates that used to be relative to the previous
+    -- state are now relative to the current one.
+    invert_hist hist = hist { Cmd.hist_updates = invert hist hist }
+    invert hist_to hist_from =
+        Maybe.mapMaybe (invert_update (Cmd.hist_state hist_to))
+            (Cmd.hist_updates hist_from)
 
 redo :: (Cmd.M m) => m ()
 redo = do
     hist <- Cmd.gets Cmd.state_history
-    now <- State.get
     case Cmd.hist_future hist of
-        next : rest -> do
-            Cmd.modify $ \st -> st
-                { Cmd.state_history = Cmd.History
-                    (history_entry now (Cmd.hist_entry_updates next)
-                        : Cmd.hist_past hist)
-                    rest
-                    (Cmd.hist_serial hist + 1)
-                , Cmd.state_prev_cmd_was_undo_redo = True }
-            State.modify $ merge_undo_states (Cmd.hist_entry_state next)
-            mapM_ State.update (Cmd.hist_entry_updates next)
+        next : rest -> do_redo hist next rest
         [] -> Log.warn "no future to redo"
+    where
+    do_redo hist next rest = do
+        Cmd.modify $ \st -> st
+            { Cmd.state_history = Cmd.History
+                { Cmd.hist_past = next : Cmd.hist_past hist
+                , Cmd.hist_future = rest
+                , Cmd.hist_undo_redo = True
+                , Cmd.hist_serial = Cmd.hist_serial hist + 1
+                }
+            , Cmd.state_history_collect = Cmd.empty_history_collect
+            }
+        State.modify $ merge_undo_states (Cmd.hist_state next)
+        mapM_ State.update (Cmd.hist_updates next)
 
 -- | There are certain parts of the state that I don't want to undo, so
 -- inherit them from the old state.  It's confusing when undo moves a window,
@@ -84,37 +101,41 @@ merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
 -- * responder support
 
 -- Undo has some hooks directly in the responder, since it needs to be run
--- after cmds and needs access to the old state.
+-- after cmds.
 
 -- | Record a 'Cmd.HistoryEntry'.
 --
--- Do the traditional thing where an action deletes the redo buffer.  At some
--- point I could think about a real branching history, but not now.
---
--- TODO another source of problems is if a cmd skips history record and has
--- a cmd_update, that will be lost.  That can't happen currently but could
--- in the future.
-record_history :: [Update.CmdUpdate] -> State.State -> Cmd.State -> Cmd.State
-record_history updates old_state cmd_state
-    | not skip && should_record_history updates = cmd_state
-        { Cmd.state_history = cur, Cmd.state_prev_cmd_was_undo_redo = False }
-    | skip = cmd_state { Cmd.state_prev_cmd_was_undo_redo = False }
+-- I do the traditional thing where an action deletes the redo buffer.  At some
+-- point I could think about a real branching history.
+record_history :: State.State -> Cmd.State -> Cmd.State
+record_history ui_to cmd_state
+    | not skip && should_record updates = cmd_state
+        { Cmd.state_history = cur
+        , Cmd.state_history_collect = Cmd.empty_history_collect
+        }
+    | skip = cmd_state { Cmd.state_history_collect = Cmd.empty_history_collect }
         -- Be careful to not modify it when I don't need to, otherwise this
         -- can build up unevaluated thunks until the history is forced.
     | otherwise = cmd_state
+        { Cmd.state_history_collect = (Cmd.state_history_collect cmd_state)
+            { Cmd.state_cmd_names = [] }
+        }
     where
-    skip = Cmd.state_prev_cmd_was_undo_redo cmd_state
-    cur = Cmd.History
-        (history_entry old_state updates : Cmd.hist_past prev)
-        [] (Cmd.hist_serial prev + 1)
+    -- Don't record history if I just did an undo or redo.
+    skip = Cmd.hist_undo_redo $ Cmd.state_history cmd_state
+    updates = Cmd.state_updates (Cmd.state_history_collect cmd_state)
+    names = Cmd.state_cmd_names (Cmd.state_history_collect cmd_state)
     prev = Cmd.state_history cmd_state
+    cur = Cmd.History
+        { Cmd.hist_past = Cmd.HistoryEntry ui_to updates names
+            : Cmd.hist_past prev
+        , Cmd.hist_future = []
+        , Cmd.hist_undo_redo = False
+        , Cmd.hist_serial = Cmd.hist_serial prev + 1
+        }
 
-should_record_history :: [Update.CmdUpdate] -> Bool
-should_record_history = any (not . Update.is_view_update)
-
-history_entry :: State.State -> [Update.CmdUpdate] -> Cmd.HistoryEntry
-history_entry state =
-    Cmd.HistoryEntry state . Maybe.mapMaybe (invert_update state)
+should_record :: [Update.CmdUpdate] -> Bool
+should_record = any (not . Update.is_view_update)
 
 -- | Most updates need not be stored since they can be generated by 'diff'
 -- given two States.  However, some are too expensive for that.

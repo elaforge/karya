@@ -33,10 +33,10 @@ import Types
 -- * entry
 
 cmd_raw_edit :: Cmd.Cmd
-cmd_raw_edit = EditUtil.raw_edit True
+cmd_raw_edit = Cmd.name "pitch track raw edit" . EditUtil.raw_edit True
 
 cmd_val_edit :: Cmd.Cmd
-cmd_val_edit msg = do
+cmd_val_edit msg = Cmd.name "pitch track val edit" $ do
     EditUtil.fallthrough msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
@@ -55,7 +55,7 @@ cmd_val_edit msg = do
     return Cmd.Done
 
 cmd_method_edit :: Cmd.Cmd
-cmd_method_edit msg = do
+cmd_method_edit msg = Cmd.name "pitch track method edit" $ do
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.method_key -> Just key) -> do

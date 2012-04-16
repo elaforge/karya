@@ -152,6 +152,11 @@ highlight_error (bid, maybe_tid, maybe_range) = do
 
 -- * show / modify cmd state
 
+show_history :: Cmd.CmdL String
+show_history = do
+    hist <- Cmd.gets Cmd.state_history
+    return $ Pretty.formatted hist
+
 show_step :: Cmd.CmdL TimeStep.TimeStep
 show_step = Cmd.gets (Cmd.state_time_step . Cmd.state_edit)
 
