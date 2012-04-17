@@ -16,13 +16,15 @@ import qualified Perform.Signal as Signal
 
 
 cmd_raw_edit :: Cmd.Cmd
-cmd_raw_edit = Cmd.name "control track raw edit" . EditUtil.raw_edit True
+cmd_raw_edit = Cmd.suppress_history Cmd.RawEdit "control track raw edit"
+    . EditUtil.raw_edit True
 
 -- | Accept keystrokes and modify the val field of the event.  Also accept
 -- 'InputNote.NoteOn' or 'InputNote.Control' msgs and enter a value based on
 -- their velocity or value, respectively.
 cmd_val_edit :: Cmd.Cmd
-cmd_val_edit msg = Cmd.name "control track val edit" $ do
+cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "control track val edit" $
+        do
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.val_key -> Just key) -> modify_event $ \(method, val) ->
@@ -41,7 +43,8 @@ cmd_val_edit msg = Cmd.name "control track val edit" $ do
             Selection.advance
 
 cmd_method_edit :: Cmd.Cmd
-cmd_method_edit msg = Cmd.name "control track method edit" $ do
+cmd_method_edit msg =
+    Cmd.suppress_history Cmd.MethodEdit "control track method edit" $ do
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.method_key -> Just key) -> modify_event $ \(method, val) ->

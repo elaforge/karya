@@ -574,10 +574,15 @@ data HistoryCollect = HistoryCollect
     -- more readable.  There can be more than one name if the history records
     -- several cmds or if one cmd calls another.
     , state_cmd_names :: ![String]
+    -- | Suppress history record until the EditMode changes from the given one.
+    -- This is a bit of a hack so that every keystroke in a raw edit isn't
+    -- recorded separately.
+    , state_suppress_edit :: !(Maybe EditMode)
+    , state_suppressed :: !(Maybe HistoryEntry)
     } deriving (Show, Generics.Typeable)
 
 empty_history_collect :: HistoryCollect
-empty_history_collect = HistoryCollect [] []
+empty_history_collect = HistoryCollect [] [] Nothing Nothing
 
 data HistoryEntry = HistoryEntry {
     hist_state :: !State.State
@@ -586,15 +591,14 @@ data HistoryEntry = HistoryEntry {
     -- the event changes.  TODO ugly, can I avoid this?
     , hist_updates :: ![Update.CmdUpdate]
     -- | Cmds involved creating this entry.
-    , hist_commands :: ![String]
+    , hist_cmd_names :: ![String]
     } deriving (Show, Generics.Typeable)
 
 instance Pretty.Pretty History where
-    format (History past future _undo_redo) =
-        Pretty.record_title "History"
-            [ ("past", Pretty.format past)
-            , ("future", Pretty.format future)
-            ]
+    format (History past future _undo_redo) = Pretty.record_title "History"
+        [ ("past", Pretty.format past)
+        , ("future", Pretty.format future)
+        ]
 
 instance Pretty.Pretty HistoryEntry where
     format (HistoryEntry _ _ commands) = Pretty.text_list commands
@@ -784,6 +788,16 @@ name :: (M m) => String -> m a -> m a
 name s cmd = cmd <* modify (\st -> st
     { state_history_collect = (state_history_collect st)
         { state_cmd_names = s : state_cmd_names (state_history_collect st) }
+    })
+
+-- | Like 'name', but also set the 'state_suppress_edit'.  This will suppress
+-- history recording until the edit mode changes from the given one.
+suppress_history :: (M m) => EditMode -> String -> m a -> m a
+suppress_history mode name cmd = cmd <* modify (\st -> st
+    { state_history_collect = (state_history_collect st)
+        { state_cmd_names = name : state_cmd_names (state_history_collect st)
+        , state_suppress_edit = Just mode
+        }
     })
 
 -- | Log an event so that it can be clicked on in logview.

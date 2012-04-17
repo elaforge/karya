@@ -106,30 +106,62 @@ merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
 -- I do the traditional thing where an action deletes the redo buffer.  At some
 -- point I could think about a real branching history.
 record_history :: State.State -> Cmd.State -> Cmd.State
-record_history ui_to cmd_state
-    | not skip && should_record updates = cmd_state
-        { Cmd.state_history = cur
-        , Cmd.state_history_collect = Cmd.empty_history_collect
+record_history ui_state cmd_state
+    -- If I get an undo while a cmd is suppressed, the last state change will
+    -- be undone and the suppressed state change will lost entirely.  This
+    -- seems basically reasonable, since you could see it as an edit
+    -- transaction that was cancelled.
+    | is_undo = cmd_state
+        { Cmd.state_history_collect = Cmd.empty_history_collect
+        , Cmd.state_history = (Cmd.state_history cmd_state)
+            { Cmd.hist_undo_redo = False }
         }
-    | skip = cmd_state { Cmd.state_history_collect = Cmd.empty_history_collect }
-        -- Be careful to not modify it when I don't need to, otherwise this
-        -- can build up unevaluated thunks until the history is forced.
-    | otherwise = cmd_state
+    | not is_recordable && Maybe.isNothing suppress = cmd_state
         { Cmd.state_history_collect = (Cmd.state_history_collect cmd_state)
             { Cmd.state_cmd_names = [] }
         }
+    | is_suppressed = cmd_state
+        { Cmd.state_history_collect = Cmd.empty_history_collect
+            { Cmd.state_suppressed =
+                Just $ merge_into_suppressed suppressed_entry entry
+            , Cmd.state_suppress_edit =
+                Cmd.state_suppress_edit (Cmd.state_history_collect cmd_state)
+            }
+        }
+    | otherwise = cmd_state
+        { Cmd.state_history = recorded_history []
+        , Cmd.state_history_collect = Cmd.empty_history_collect
+        }
     where
     -- Don't record history if I just did an undo or redo.
-    skip = Cmd.hist_undo_redo $ Cmd.state_history cmd_state
-    updates = Cmd.state_updates (Cmd.state_history_collect cmd_state)
-    names = Cmd.state_cmd_names (Cmd.state_history_collect cmd_state)
+    is_undo = Cmd.hist_undo_redo (Cmd.state_history cmd_state)
+    is_suppressed =
+        suppress == Just (Cmd.state_edit_mode (Cmd.state_edit cmd_state))
+    is_recordable = should_record updates
+
+    Cmd.HistoryCollect updates names suppress suppressed_entry =
+        Cmd.state_history_collect cmd_state
     prev = Cmd.state_history cmd_state
-    cur = Cmd.History
-        { Cmd.hist_past = Cmd.HistoryEntry ui_to updates names
-            : Cmd.hist_past prev
-        , Cmd.hist_future = []
+
+    -- Record the suppressed cmd if there was one, and the current cmd too if
+    -- it's recordable.
+    recorded_history future = Cmd.History
+        { Cmd.hist_past = past ++ Cmd.hist_past prev
+        , Cmd.hist_future = future
         , Cmd.hist_undo_redo = False
         }
+    past = if is_recordable then [entry] ++ Maybe.maybeToList suppressed_entry
+        else Maybe.maybeToList suppressed_entry
+    entry = Cmd.HistoryEntry ui_state updates names
+
+merge_into_suppressed :: Maybe Cmd.HistoryEntry -> Cmd.HistoryEntry
+    -> Cmd.HistoryEntry
+merge_into_suppressed Nothing ent = ent
+merge_into_suppressed (Just (Cmd.HistoryEntry _ updates1 names1))
+        (Cmd.HistoryEntry state2 updates2 _) =
+    -- Keep the name of the first suppressed cmd.  The rest are likely to be
+    -- either duplicates or unrecorded cmds like selection setting.
+    Cmd.HistoryEntry state2 (updates1 ++ updates2) names1
 
 should_record :: [Update.CmdUpdate] -> Bool
 should_record = any (not . Update.is_view_update)
