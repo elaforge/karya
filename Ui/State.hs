@@ -18,7 +18,7 @@
     A higher level interface (e.g. "Cmd.Create") may ease this by automatically
     creating objects with automatically generated IDs.
 -}
-module Ui.State (module Ui.State, Config(..), Default(..)) where
+module Ui.State (module Ui.State, module Ui.StateConfig) where
 import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Error as Error
@@ -49,7 +49,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
-import Ui.StateConfig (Config(..), Default(..))
+import Ui.StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update

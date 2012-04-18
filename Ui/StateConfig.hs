@@ -6,6 +6,7 @@ module Ui.StateConfig where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
 
+import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
@@ -35,6 +36,13 @@ data Config = Config {
     , config_default :: !Default
     } deriving (Eq, Read, Show, Generics.Typeable)
 
+namespace = Lens.lens config_namespace (\v r -> r { config_namespace = v })
+project_dir =
+    Lens.lens config_project_dir (\v r -> r { config_project_dir = v })
+root = Lens.lens config_root (\v r -> r { config_root = v })
+midi = Lens.lens config_midi (\v r -> r { config_midi = v })
+default_ = Lens.lens config_default (\v r -> r { config_default = v })
+
 -- | Initial values for derivation.
 data Default = Default {
     -- | Automatically created pitch tracks will have this scale.  MIDI thru
@@ -49,6 +57,11 @@ data Default = Default {
     -- | A toplevel block without a tempo track will get this tempo.
     , default_tempo :: !Signal.Y
     } deriving (Eq, Read, Show, Generics.Typeable)
+
+scale = Lens.lens default_scale (\v r -> r { default_scale = v })
+key = Lens.lens default_key (\v r -> r { default_key = v })
+instrument = Lens.lens default_instrument (\v r -> r { default_instrument = v })
+tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 
 instance Pretty.Pretty Config where
     format (Config namespace dir root midi default_) =
