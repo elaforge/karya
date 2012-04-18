@@ -57,6 +57,7 @@ import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -292,7 +293,6 @@ data State = State {
     -- range.
     , state_rdev_state :: !ReadDeviceState
     , state_edit :: !EditState
-
     } deriving (Show, Generics.Typeable)
 
 initial_state :: Map.Map Midi.ReadDevice Midi.ReadDevice
@@ -578,7 +578,7 @@ data HistoryCollect = HistoryCollect
     -- This is a bit of a hack so that every keystroke in a raw edit isn't
     -- recorded separately.
     , state_suppress_edit :: !(Maybe EditMode)
-    , state_suppressed :: !(Maybe HistoryEntry)
+    , state_suppressed :: !(Maybe UncommittedHistoryEntry)
     } deriving (Show, Generics.Typeable)
 
 empty_history_collect :: HistoryCollect
@@ -592,6 +592,9 @@ data HistoryEntry = HistoryEntry {
     , hist_updates :: ![Update.CmdUpdate]
     -- | Cmds involved creating this entry.
     , hist_cmd_names :: ![String]
+    -- | The Commit where this entry was saved.  Nothing if the entry is
+    -- unsaved.
+    , hist_commit :: !(Maybe Git.Commit)
     } deriving (Show, Generics.Typeable)
 
 instance Pretty.Pretty History where
@@ -601,7 +604,12 @@ instance Pretty.Pretty History where
         ]
 
 instance Pretty.Pretty HistoryEntry where
-    format (HistoryEntry _ _ commands) = Pretty.text_list commands
+    format (HistoryEntry _ _ commands commit) =
+        Pretty.format commit Pretty.<+> Pretty.text_list commands
+
+data UncommittedHistoryEntry =
+    UncommittedHistoryEntry !State.State ![Update.CmdUpdate] ![String]
+    deriving (Show, Generics.Typeable)
 
 
 -- *** modifier

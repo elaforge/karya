@@ -28,6 +28,10 @@ newtype Tree = Tree Hash deriving (Eq, Show)
 newtype Commit = Commit Hash deriving (Eq, Show)
 type Hash = ByteString
 
+instance Pretty.Pretty Blob where pretty (Blob hash) = unparse_hash hash
+instance Pretty.Pretty Tree where pretty (Tree hash) = unparse_hash hash
+instance Pretty.Pretty Commit where pretty (Commit hash) = unparse_hash hash
+
 type Repo = FilePath
 -- | Repo-internal path.  Should not contain slashes.
 type Name = FilePath

@@ -82,7 +82,7 @@ test_suppress_history = do
     -- A non-recording cmd will cause the suppressed cmds to be recorded.
     res <- next res $ set_sel 1
     res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_raw_edit
-    equal (extract_hist res) (["suppress: zq", "setup: 12"], [])
+    equal (extract_hist res) (["+z: zq", "setup: 12"], [])
 
 
 extract_hist :: ResponderTest.Result -> ([String], [String])

@@ -10,7 +10,9 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
+import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
 import qualified Cmd.Serialize as Serialize
@@ -32,6 +34,14 @@ cmd_save fname = do
     save <- Trans.liftIO $ Serialize.save_state (State.clear ui_state)
     Log.notice $ "write state to " ++ show fname
     Trans.liftIO $ Serialize.serialize fname save
+
+cmd_save_git :: FilePath -> Cmd.CmdT IO ()
+cmd_save_git fname = do
+    state <- State.get
+    result <- Trans.liftIO $ SaveGit.save fname state
+    case result of
+        Left err -> Cmd.throw $ "cmd_save: " ++ err
+        Right (commit, save) -> undefined
 
 cmd_load :: FilePath -> Cmd.CmdT IO ()
 cmd_load fname = do

@@ -246,8 +246,7 @@ run_responder state m = do
                     (send_derive_status (state_loopback state))
                     (state_ui state) ui_from ui_to cmd_to updates
                     (Transport.info_state (state_transport_info state))
-            cmd_to <- return $ Undo.record_history ui_to
-                (add_updates updates cmd_to)
+            cmd_to <- Undo.record_history ui_to (add_updates updates cmd_to)
             return (is_quit status,
                 state { state_ui = ui_to, state_cmd = cmd_to })
     where

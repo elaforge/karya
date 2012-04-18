@@ -7,6 +7,7 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
+import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Update as Update
@@ -101,37 +102,65 @@ merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
 -- Undo has some hooks directly in the responder, since it needs to be run
 -- after cmds.
 
--- | Record a 'Cmd.HistoryEntry'.
---
--- I do the traditional thing where an action deletes the redo buffer.  At some
--- point I could think about a real branching history.
-record_history :: State.State -> Cmd.State -> Cmd.State
-record_history ui_state cmd_state
+-- | Record 'Cmd.HistoryEntry's, if required.
+record_history :: State.State -> Cmd.State -> IO Cmd.State
+record_history ui_state cmd_state = do
+    let (maybe_entries, collect) = pure_record_history ui_state cmd_state
+    case maybe_entries of
+        Nothing -> return $ cmd_state
+            { Cmd.state_history = (Cmd.state_history cmd_state)
+                { Cmd.hist_undo_redo = False
+                }
+            , Cmd.state_history_collect = collect
+            }
+        Just entries -> do
+            -- TODO check if there is a SavePoint, don't commit if there isn't
+            -- entries <- mapM commit_entry entries
+            entries <- return $ map uncommitted_entry entries
+            return $ cmd_state
+                { Cmd.state_history = Cmd.History
+                    { Cmd.hist_past = entries
+                        ++ Cmd.hist_past (Cmd.state_history cmd_state)
+                    , Cmd.hist_future = []
+                    , Cmd.hist_undo_redo = False
+                    }
+                , Cmd.state_history_collect = collect
+                }
+
+uncommitted_entry :: Cmd.UncommittedHistoryEntry -> Cmd.HistoryEntry
+uncommitted_entry (Cmd.UncommittedHistoryEntry state updates names) =
+    Cmd.HistoryEntry state updates names Nothing
+
+commit_entry :: Cmd.UncommittedHistoryEntry -> IO Cmd.HistoryEntry
+commit_entry (Cmd.UncommittedHistoryEntry state updates names) = do
+    result <- SaveGit.checkpoint (State.config#State.project_dir $# state)
+        state updates
+    commit <- case result of
+        Left err -> do
+            Log.error $ "error committing history: " ++ err
+            return Nothing
+        Right commit -> return (Just commit)
+    return $ Cmd.HistoryEntry state updates names commit
+
+-- | Get any history entries that should be saved, and the new HistoryCollect.
+pure_record_history :: State.State -> Cmd.State
+    -> (Maybe [Cmd.UncommittedHistoryEntry], Cmd.HistoryCollect)
+pure_record_history ui_state cmd_state
     -- If I get an undo while a cmd is suppressed, the last state change will
     -- be undone and the suppressed state change will lost entirely.  This
     -- seems basically reasonable, since you could see it as an edit
     -- transaction that was cancelled.
-    | is_undo = cmd_state
-        { Cmd.state_history_collect = Cmd.empty_history_collect
-        , Cmd.state_history = (Cmd.state_history cmd_state)
-            { Cmd.hist_undo_redo = False }
-        }
-    | not is_recordable && Maybe.isNothing suppress = cmd_state
-        { Cmd.state_history_collect = (Cmd.state_history_collect cmd_state)
-            { Cmd.state_cmd_names = [] }
-        }
-    | is_suppressed = cmd_state
-        { Cmd.state_history_collect = Cmd.empty_history_collect
+    | is_undo = (Nothing, Cmd.empty_history_collect)
+    | not is_recordable && Maybe.isNothing suppress = (Nothing,
+        (Cmd.state_history_collect cmd_state) { Cmd.state_cmd_names = [] })
+    | is_suppressed = ((,) Nothing) $
+        Cmd.empty_history_collect
             { Cmd.state_suppressed =
-                Just $ merge_into_suppressed suppressed_entry entry
+                Just $ merge_into_suppressed suppressed_entry cur_entry
             , Cmd.state_suppress_edit =
                 Cmd.state_suppress_edit (Cmd.state_history_collect cmd_state)
             }
-        }
-    | otherwise = cmd_state
-        { Cmd.state_history = recorded_history []
-        , Cmd.state_history_collect = Cmd.empty_history_collect
-        }
+    | otherwise = (Just entries, Cmd.empty_history_collect)
     where
     -- Don't record history if I just did an undo or redo.
     is_undo = Cmd.hist_undo_redo (Cmd.state_history cmd_state)
@@ -141,27 +170,19 @@ record_history ui_state cmd_state
 
     Cmd.HistoryCollect updates names suppress suppressed_entry =
         Cmd.state_history_collect cmd_state
-    prev = Cmd.state_history cmd_state
 
-    -- Record the suppressed cmd if there was one, and the current cmd too if
-    -- it's recordable.
-    recorded_history future = Cmd.History
-        { Cmd.hist_past = past ++ Cmd.hist_past prev
-        , Cmd.hist_future = future
-        , Cmd.hist_undo_redo = False
-        }
-    past = if is_recordable then [entry] ++ Maybe.maybeToList suppressed_entry
-        else Maybe.maybeToList suppressed_entry
-    entry = Cmd.HistoryEntry ui_state updates names
+    entries = if is_recordable then [cur_entry] else []
+        ++ Maybe.maybeToList suppressed_entry
+    cur_entry = Cmd.UncommittedHistoryEntry ui_state updates names
 
-merge_into_suppressed :: Maybe Cmd.HistoryEntry -> Cmd.HistoryEntry
-    -> Cmd.HistoryEntry
+merge_into_suppressed :: Maybe Cmd.UncommittedHistoryEntry
+    -> Cmd.UncommittedHistoryEntry -> Cmd.UncommittedHistoryEntry
 merge_into_suppressed Nothing ent = ent
-merge_into_suppressed (Just (Cmd.HistoryEntry _ updates1 names1))
-        (Cmd.HistoryEntry state2 updates2 _) =
+merge_into_suppressed (Just (Cmd.UncommittedHistoryEntry _ updates1 names1))
+        (Cmd.UncommittedHistoryEntry state2 updates2 _) =
     -- Keep the name of the first suppressed cmd.  The rest are likely to be
     -- either duplicates or unrecorded cmds like selection setting.
-    Cmd.HistoryEntry state2 (updates1 ++ updates2) names1
+    Cmd.UncommittedHistoryEntry state2 (updates1 ++ updates2) names1
 
 should_record :: [Update.CmdUpdate] -> Bool
 should_record = any (not . Update.is_view_update)

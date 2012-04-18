@@ -39,6 +39,21 @@ UNSORTED
       off disk.  This probably means that undo will suddenly get slow when
       it goes to disk.
 
+      - rename SaveGit.Save to SavePoint
+      - Undo.record_history must call checkpoint, but only if the file has
+        a SavePoint.  Alternately, I could always save under "untitled",
+        and untitled would just have a bunch of heads.  I could use git tools
+        to deal with them.
+      - Keep last SavePoint somewhere, perhaps Cmd.State
+      - Make SaveGit.checkpoint also save the rest of the
+        UncommittedHistoryEntry: [CmdUpdate] and [String] names
+      - Have Save.cmd_save optionally use git backend, to establish the
+        initial
+      - Make sure that when a project changes name all the history comes with
+        it.  I guess I'd have to copy the dir, or do a git clone.  If I copied
+        the dir that wouldn't work with 'untitled' because I don't want all
+        those other heads.  I want to copy over the current history.
+
     - support branching history, e.g. edits after an undo don't discard the
       old future
     - if the data in updates, e.g. the View in CreateView is never used can
