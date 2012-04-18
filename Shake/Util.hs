@@ -28,7 +28,8 @@ system (abbr, output, cmd_:args) = do
     let cmd = FilePath.toNative cmd_
     let desc = abbr ++ ": " ++ output
     putNormalLoud desc (unwords (cmd:args))
-    res <- Shake.traced (crunch ("system: " ++ desc)) $ Cmd.rawSystem cmd args
+    res <- Shake.traced (crunch ("system: " ++ desc)) $
+        Cmd.rawSystem "nice" (cmd : args)
     when (res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ unwords (cmd : args)
 system (abbr, output, []) =
