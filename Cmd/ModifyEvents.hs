@@ -1,8 +1,7 @@
 -- | Utilities to modify events in tracks.
 module Cmd.ModifyEvents where
-import qualified Data.Maybe as Maybe
-
 import Util.Control
+import qualified Util.Debug as Debug
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -14,31 +13,49 @@ import qualified Derive.TrackInfo as TrackInfo
 import Types
 
 
--- * main modification
+-- | Transform or delete an event.
+type TrackPosEvent m = TrackId -> PosEvent m
+type PosEvent m = Events.PosEvent -> m [Events.PosEvent]
+type Event m = ScoreTime -> Event.Event -> m [Event.Event]
 
-type Event = Events.PosEvent -> Maybe Events.PosEvent
+-- | Map a function over the selected events, passing the track id.  Returning
+-- Nothing will leave the track unchanged.
+type Track m = TrackId -> [Events.PosEvent] -> m (Maybe [Events.PosEvent])
 
--- | Map a function over the selected events.  Returning Nothing will remove
--- the event.
-events :: (Cmd.M m) => Event -> m ()
+-- | The transformation functions take the most general 'PosEvent', but most
+-- uses won't need that generality, so these functions convert to more specific
+-- usage.
+event :: (Monad m) => (ScoreTime -> Event.Event -> m [Event.Event])
+    -> PosEvent m
+event f = \(pos, event) -> map ((,) pos) `liftM` f pos event
+
+event1 :: (Monad m) => (ScoreTime -> Event.Event -> Event.Event) -> PosEvent m
+event1 f = \(pos, event) -> return [(pos, f pos event)]
+
+text :: (Monad m) => (String -> String) -> PosEvent m
+text f = \(pos, event) -> return [(pos, Event.modify_string f event)]
+
+
+-- * modify selections
+
+-- | Map a function over the selected events.
+events :: (Cmd.M m) => PosEvent m -> m ()
 events f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
         State.remove_events track_id start end
-        State.insert_events track_id (Maybe.mapMaybe f events)
+        events <- concat <$> mapM f events
+        State.insert_events track_id events
 
 -- | This is like 'events'.  It's more efficient but the modify function must
 -- promise to return events in sorted order.
-events_sorted :: (Cmd.M m) => Event -> m ()
+events_sorted :: (Cmd.M m) => PosEvent m -> m ()
 events_sorted f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
         State.remove_events track_id start end
-        State.insert_sorted_events track_id (Maybe.mapMaybe f events)
-
--- | Map a function over the selected events, passing the track id.  Unlike
--- 'events', returning Nothing will leave the track unchanged.
-type Track m = TrackId -> [Events.PosEvent] -> m (Maybe [Events.PosEvent])
+        events <- concat <$> mapM f events
+        State.insert_sorted_events track_id events
 
 tracks :: (Cmd.M m) => Track m -> m ()
 tracks f = tracks_sorted $ \track_id events ->
@@ -57,7 +74,27 @@ tracks_sorted f = do
                 State.insert_sorted_events track_id new_events
             Nothing -> return ()
 
--- ** block tracks
+tracks_named :: (Cmd.M m) => (String -> Bool) -> PosEvent m -> m ()
+tracks_named wanted f = tracks $ \track_id events ->
+    ifM (not . wanted <$> State.get_track_title track_id)
+        (return Nothing) $ do
+            title <- State.get_track_title track_id
+            Debug.traceM $ "wanted: " ++ show title ++ show (wanted title)
+            events <- concat <$> mapM f events
+            return $ Just events
+
+-- | Like 'tracks' but only for note tracks.
+note_tracks :: (Cmd.M m) => PosEvent m -> m ()
+note_tracks = tracks_named TrackInfo.is_note_track
+
+control_tracks :: (Cmd.M m) => PosEvent m -> m ()
+control_tracks = tracks_named TrackInfo.is_signal_track
+
+pitch_tracks :: (Cmd.M m) => PosEvent m -> m ()
+pitch_tracks = tracks_named TrackInfo.is_pitch_track
+
+
+-- * block tracks
 
 -- | Like 'tracks', but maps over an entire block.
 block_tracks :: (Cmd.M m) => BlockId -> Track m -> m ()
@@ -69,39 +106,8 @@ block_tracks block_id f = do
                 (State.modify_events track_id . const . Events.from_list)
             =<< f track_id events
 
--- | Map over the events in note tracks.
-map_note_tracks :: (Cmd.M m) => BlockId
-    -> (Events.PosEvent -> Maybe Events.PosEvent) -> m ()
-map_note_tracks block_id f = block_tracks block_id $ \track_id events ->
-    ifM (TrackInfo.is_note_track <$> State.get_track_title track_id)
-        (return $ Just $ Maybe.mapMaybe f events)
-        (return Nothing)
 
-
--- * convenience
-
--- | Modify events in the selection.  For efficiency, this can't move the
--- events.
-modify_pos_events :: (Cmd.M m) => (ScoreTime -> Event.Event -> Event.Event)
-    -> m ()
-modify_pos_events f = do
-    track_events <- Selection.events
-    forM_ track_events $ \(track_id, _, events) -> do
-        let insert = [(pos, f pos evt) | (pos, evt) <- events]
-        State.insert_sorted_events track_id insert
-
--- | A version of 'modify_events_pos' that doesn't pass the pos.
-modify_events :: (Cmd.M m) => (Event.Event -> Event.Event) -> m ()
-modify_events f = modify_pos_events (\_ evt -> f evt)
-
--- | Modify the start time and duration of the selected events.
-pos_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
-pos_dur f = events $ \(pos, event) ->
-    Just (f pos, Event.modify_duration f event)
-
-pos_dur_sorted :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
-pos_dur_sorted f = events_sorted $ \(pos, event) ->
-    Just (f pos, Event.modify_duration f event)
+-- * misc
 
 -- | Move everything at or after @start@ by @shift@.
 move_track_events :: (State.M m) => ScoreTime -> ScoreTime -> TrackId -> m ()
@@ -121,20 +127,3 @@ move_events point shift events = merged
         (Events.at_after point events)
     merged = Events.insert_sorted_events shifted
         (Events.remove_events point end events)
-
--- * util
-
-map_track_sorted :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
-    -> TrackId -> m ()
-map_track_sorted f track_id = State.modify_events track_id $
-    Events.from_asc_list . Maybe.mapMaybe f . Events.ascending
-
-map_track :: (Cmd.M m) => (Events.PosEvent -> Maybe Events.PosEvent)
-    -> TrackId -> m ()
-map_track f track_id = State.modify_events track_id $
-    Events.from_list . Maybe.mapMaybe f . Events.ascending
-
--- | Mostly convenient for REPL use.
-for_track :: (Cmd.M m) => TrackId -> (Events.PosEvent -> Maybe Events.PosEvent)
-    -> m ()
-for_track = flip map_track

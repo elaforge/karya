@@ -13,13 +13,10 @@ import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
-import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
-import qualified Derive.TrackLang as TrackLang
-
 import qualified Perform.Pitch as Pitch
 import Types
 
@@ -29,10 +26,11 @@ import Types
 -- TODO these should invert position of control events too
 to_negative, to_positive :: Cmd.CmdL ()
 to_negative = ModifyEvents.events_sorted $ \evt ->
-    Just $ if Events.negative evt then evt else negate_event evt
+    return [if Events.negative evt then evt else negate_event evt]
 to_positive = ModifyEvents.events_sorted $ \evt ->
-    Just $ if Events.positive evt then evt else negate_event evt
+    return [if Events.positive evt then evt else negate_event evt]
 
+negate_event :: Events.PosEvent -> Events.PosEvent
 negate_event (pos, evt) =
     (pos + Event.event_duration evt, Event.modify_duration negate evt)
 

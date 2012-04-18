@@ -1,5 +1,7 @@
 -- | Cmds for track level operations.
 module Cmd.Lang.LTrack where
+import qualified Data.Maybe as Maybe
+
 import Util.Control
 import qualified Util.ParseBs as ParseBs
 import qualified Util.Seq as Seq
@@ -11,10 +13,12 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Perform.Signal as Signal
 import Types
 
 
@@ -50,6 +54,13 @@ replace x y val
     | val == x = y
     | otherwise = val
 
+-- * control tracks
+
+map_control_val :: String -> (Signal.Y -> Signal.Y) -> Cmd.CmdL ()
+map_control_val name f = ModifyEvents.tracks_named (==name) $
+    ModifyEvents.text $ \text ->
+        Maybe.fromMaybe text (ControlTrack.modify_val f text)
+
 -- * events
 
 events :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Events.PosEvent]
@@ -82,6 +93,7 @@ strip_controls = map snd . filter same . Seq.zip_prev
     is_set = right . ParseBs.parse_all ParseBs.p_float
     right (Right _) = True -- why isn't this in Data.Either?
     right (Left _) = False
+
 
 -- * signal render
 

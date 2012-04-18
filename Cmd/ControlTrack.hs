@@ -11,6 +11,7 @@ import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Signal as Signal
 
@@ -73,7 +74,7 @@ modify_event_at pos f = EditUtil.modify_event_at pos True True
 -- | Try to figure out the call part of the expression and split it from the
 -- rest.
 --
--- I don't use Derive.TrackLang.parse because this is likely to be dealing with
+-- I don't use Derive.ParseBs.parse because this is likely to be dealing with
 -- incomplete strings that don't parse at all.
 --
 -- I use a trailing space to tell the difference between a method and a val.
@@ -92,3 +93,15 @@ unparse (method, val) = case (pre, post) of
     where
     pre = Maybe.fromMaybe "" method
     post = Maybe.fromMaybe "" val
+
+-- | Try to figure out where the note part is in event text and modify that
+-- with the given function.
+modify_val :: (Signal.Y -> Signal.Y) -> String -> Maybe String
+    -- ^ Nothing if I couldn't parse out a VNum.
+modify_val f text = case ParseBs.parse_val val of
+        Right (TrackLang.VNum n) ->
+            unparse (Just method,
+                Just (TrackLang.show_val (TrackLang.VNum (f <$> n))))
+        _ -> Nothing
+    where
+    (method, val) = parse text

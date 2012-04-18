@@ -56,6 +56,10 @@ event_string = UTF8.toString . event_bs
 set_string :: String -> Event -> Event
 set_string s evt = evt { event_bs = UTF8.fromString s }
 
+modify_string :: (String -> String) -> Event -> Event
+modify_string f evt = evt { event_bs = modify (event_bs evt) }
+    where modify = UTF8.fromString . f . UTF8.toString
+
 set_duration :: ScoreTime -> Event -> Event
 set_duration dur event = event { event_duration = dur }
 
