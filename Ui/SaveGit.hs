@@ -31,16 +31,16 @@ import Types
 
 -- | Like 'checkpoint', but add a tag too, and write compact tracks.
 -- TODO what should the description be?
-save :: FilePath -> State.State -> IO (Either String (Git.Commit, Save))
+save :: FilePath -> State.State -> IO (Either String (Git.Commit, SavePoint))
 save repo state = catch "save" (do_save repo state)
 
-do_save :: FilePath -> State.State -> IO (Git.Commit, Save)
+do_save :: FilePath -> State.State -> IO (Git.Commit, SavePoint)
 do_save repo state = do
     Git.init repo
     tree <- Git.write_dir repo (dump state)
     commit <- commit_tree repo tree "save\n"
     last_save <- read_last_save repo
-    save <- find_next_save repo (Maybe.fromMaybe (Save []) last_save)
+    save <- find_next_save repo (Maybe.fromMaybe (SavePoint []) last_save)
     write_save_ref repo save commit
     Git.gc repo
     return (commit, save)
@@ -54,23 +54,23 @@ do_save repo state = do
 --                  last-save               HEAD
 
 -- | Stored in reverse order as in the ref name.
-newtype Save = Save [Int] deriving (Eq, Show)
+newtype SavePoint = SavePoint [Int] deriving (Eq, Show)
 
 -- | Create a tag for the given commit, and point last-save at it.
-write_save_ref :: Git.Repo -> Save -> Git.Commit -> IO ()
+write_save_ref :: Git.Repo -> SavePoint -> Git.Commit -> IO ()
 write_save_ref repo save commit = do
     let ref = save_to_ref save
     Git.write_ref repo commit ref
     Git.write_symbolic_ref repo "last-save" ref
 
-read_save_ref :: Git.Repo -> Save -> IO (Maybe Git.Commit)
+read_save_ref :: Git.Repo -> SavePoint -> IO (Maybe Git.Commit)
 read_save_ref repo save = Git.read_ref repo (save_to_ref save)
 
-read_last_save :: Git.Repo -> IO (Maybe Save)
+read_last_save :: Git.Repo -> IO (Maybe SavePoint)
 read_last_save repo = maybe (return Nothing) (fmap Just . ref_to_save)
     =<< Git.read_symbolic_ref repo "last-save"
 
-find_next_save :: Git.Repo -> Save -> IO Save
+find_next_save :: Git.Repo -> SavePoint -> IO SavePoint
 find_next_save repo save =
     from_just =<< findM save_free (increment save : iterate split save)
     where
@@ -78,23 +78,23 @@ find_next_save repo save =
     from_just = maybe -- This should never happen since iterate tries forever.
         (Git.throw $ "couldn't find a free save name after " ++ show save)
         return
-    split (Save xs) = Save (0 : xs)
-    increment (Save []) = Save [0]
-    increment (Save (x:xs)) = Save (x + 1 : xs)
+    split (SavePoint xs) = SavePoint (0 : xs)
+    increment (SavePoint []) = SavePoint [0]
+    increment (SavePoint (x:xs)) = SavePoint (x + 1 : xs)
 
-ref_to_save :: Git.Ref -> IO Save
+ref_to_save :: Git.Ref -> IO SavePoint
 ref_to_save ref
     | not had_tags = Git.throw $
         "save ref must be in tags/: " ++ show ref
     | not (all (all Char.isDigit) versions) = Git.throw $
         "save ref must be ints separated by dots: " ++ show ref
-    | otherwise = return $ Save (reverse (map read versions))
+    | otherwise = return $ SavePoint (reverse (map read versions))
     where
     (save, had_tags) = Seq.drop_prefix "tags/" ref
     versions = Seq.split "." save
 
-save_to_ref :: Save -> Git.Ref
-save_to_ref (Save versions) =
+save_to_ref :: SavePoint -> Git.Ref
+save_to_ref (SavePoint versions) =
     "tags" </> Seq.join "." (map show (reverse versions))
 
 

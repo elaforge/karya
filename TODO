@@ -39,7 +39,7 @@ UNSORTED
       off disk.  This probably means that undo will suddenly get slow when
       it goes to disk.
 
-      - rename SaveGit.Save to SavePoint
+      * rename SaveGit.Save to SavePoint
       - Undo.record_history must call checkpoint, but only if the file has
         a SavePoint.  Alternately, I could always save under "untitled",
         and untitled would just have a bunch of heads.  I could use git tools
