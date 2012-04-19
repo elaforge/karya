@@ -53,7 +53,7 @@ mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
     -- Normally this is created by the setup cmd, so pretend I did one.
     , Cmd.state_history = Cmd.History [past] [] False
     }
-    where past = Cmd.HistoryEntry ui_state [] ["setup"]
+    where past = Cmd.HistoryEntry ui_state [] ["setup"] Nothing
 
 -- | It would be nicer to have this happen automatically.
 set_midi_config :: State.StateId ()

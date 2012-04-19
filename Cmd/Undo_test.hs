@@ -91,7 +91,7 @@ extract_hist res = (map extract past, map extract future)
     Cmd.History past future _ = e_hist res
     Cmd.HistoryCollect _updates _cmd_names _suppress _suppressed =
         e_hist_collect res
-    extract (Cmd.HistoryEntry state _ commands) =
+    extract (Cmd.HistoryEntry state _ commands _) =
         Seq.join "+" commands ++ ": " ++ ui_notes state
 
 extract_ui :: ResponderTest.Result -> String
