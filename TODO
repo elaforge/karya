@@ -1,5 +1,7 @@
 UNSORTED
   - lenses for Cmd.State, for 'name'
+  - Suppressed undo for val edit is surprising since I tend to do a lot of
+    edits without leaving val edit.  Maybe don't do it for pitch val edit.
   * get rid of Cmd.hist_serial
   * don't save history until the selection moves after an edit, to avoid
     saving an undo for every letter entered
@@ -44,11 +46,13 @@ UNSORTED
         a SavePoint.  Alternately, I could always save under "untitled",
         and untitled would just have a bunch of heads.  I could use git tools
         to deal with them.
+        Checkpoint needs updates, which means it should run after the ui sync
+        diff.  But that's not where the history record happens.
+
       - Keep last SavePoint somewhere, perhaps Cmd.State
       - Make SaveGit.checkpoint also save the rest of the
         UncommittedHistoryEntry: [CmdUpdate] and [String] names
-      - Have Save.cmd_save optionally use git backend, to establish the
-        initial
+      - Have Save.cmd_save optionally use git backend
       - Make sure that when a project changes name all the history comes with
         it.  I guess I'd have to copy the dir, or do a git clone.  If I copied
         the dir that wouldn't work with 'untitled' because I don't want all
@@ -192,16 +196,11 @@ UNSORTED
     also test some mmc commands.  How does reaper support control surfaces?
 
   input:
-    - For control track entry, typing numbers puts them right of decimal,
+    * For control track entry, typing numbers puts them right of decimal,
       typing backtick enters a 1.  Or, enter values in two digit
       What about two digit hex?
-
-      The problem is that this makes it awkward to write anything above 1.
-      Ok, so make the null call interpret its string arg as hex, make the 's'
-      call take a number as usual.  And /2 to get the midi vel.  Or just say
-      it's 00-7f, but that seems less intuitive than 00-ff - It's not all that
-      great for non 0--1 values, like tempo.
-      Leave it be for now
+    - should val edit on note tracks advance on backspace?  I should have
+      a consistent story about when the cursor advances and when it doesn't.
 
     - flag for unpitched instruments, so they don't get pitch tracks
     * keyboard editing: non-chord mode that advances as soon as it gets NoteOn

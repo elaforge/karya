@@ -17,7 +17,11 @@ import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.ParseBs
+import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Signal as Signal
 import Types
 
@@ -57,9 +61,27 @@ replace x y val
 -- * control tracks
 
 map_control_val :: String -> (Signal.Y -> Signal.Y) -> Cmd.CmdL ()
-map_control_val name f = ModifyEvents.tracks_named (==name) $
-    ModifyEvents.text $ \text ->
+map_control_val name f = ModifyEvents.tracks $
+    ModifyEvents.tracks_named (==name) $ ModifyEvents.text $ \text ->
         Maybe.fromMaybe text (ControlTrack.modify_val f text)
+
+score_to_hex :: Cmd.CmdL ()
+score_to_hex = ModifyEvents.all_blocks $
+    ModifyEvents.tracks_named TrackInfo.is_signal_track $
+        ModifyEvents.text to_hex
+
+block_to_hex :: BlockId -> Cmd.CmdL ()
+block_to_hex block_id = ModifyEvents.block_tracks block_id $
+    ModifyEvents.tracks_named TrackInfo.is_signal_track $
+        ModifyEvents.text to_hex
+
+to_hex :: String -> String
+to_hex text = case Derive.ParseBs.parse_val val of
+    Right (TrackLang.VNum (Score.Typed Score.Untyped n))
+        | 0 <= n && n <= 1 -> Maybe.fromMaybe "" $ ControlTrack.unparse
+            (Just method, Just (Derive.ParseBs.show_hex n))
+    _ -> val
+    where (method, val) = ControlTrack.parse text
 
 -- * events
 

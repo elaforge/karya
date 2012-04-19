@@ -55,7 +55,7 @@ test_parse_expr = do
 
 test_parse_val = do
     let mkattr = Just . VRelativeAttr . TrackLang.RelativeAttr
-    let expr_expected =
+    let invertible =
             [ (">", Just $ VInstrument (Score.Instrument ""))
             , (">fu/nny^*", Just $ VInstrument (Score.Instrument "fu/nny^*"))
 
@@ -103,17 +103,26 @@ test_parse_val = do
             , ("-", Nothing)
             , ("_", Just VNotGiven)
             ]
-    forM_ expr_expected $ \(expr, expected) -> do
+    -- Vals that don't convert back into the original val after
+    -- parse . show_val.
+    let not_invertible =
+            [ ("`0x`00", Just (VNum (Score.untyped 0)))
+            , ("`0x`001", Nothing)
+            , ("`0x`ff", Just (VNum (Score.untyped 1)))
+            ]
+    let exprs = map ((,) True) invertible ++ map ((,) False) not_invertible
+    forM_ exprs $ \(invertible, (expr, expected)) -> do
         let res = Parse.parse_val expr
         case (res, expected) of
-            (Left err, Just expect) -> failure $
+            (Left err, Just expect) -> void $ failure $
                 err ++ ", expected " ++ show expect
-            (Right val, Nothing) -> failure $
+            (Right val, Nothing) -> void $ failure $
                 "shouldn't have parsed: " ++ show expr ++ " -> " ++ show val
             (Right val, Just expect) -> do
                 equal val expect
-                equal (TrackLang.show_val val) expr
-            _ -> success $ show res ++ " == " ++ show expected
+                when invertible $
+                    void $ equal (TrackLang.show_val val) expr
+            _ -> void $ success $ show res ++ " == " ++ show expected
 
 test_p_equal = do
     let eq a b = Right (Call (Symbol "=") [Literal a, b])

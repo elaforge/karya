@@ -89,6 +89,16 @@ modify_event_at (State.Pos block_id tracknum pos) zero_dur modify_dur f = do
             [(pos, Event.set_string new_text event)]
     when advance Selection.advance
 
+remove_event :: (Cmd.M m) => Bool -> m ()
+remove_event advance = do
+    pos <- Selection.get_insert_pos
+    remove_event_at pos advance
+
+-- | Special case of 'modify_event_at' to only remove events.
+remove_event_at :: (Cmd.M m) => State.Pos -> Bool -> m ()
+remove_event_at pos advance =
+    modify_event_at pos False False (const (Nothing, advance))
+
 lookup_instrument :: (Cmd.M m) => m (Maybe Score.Instrument)
 lookup_instrument = do
     (block_id, _, track_id, _) <- Selection.get_insert
@@ -106,14 +116,21 @@ get_key = do
 
 -- * msgs
 
--- | Extract a key for method input.  [a-z0-9.-]
+-- | Extract a key for method input.  [a-z0-9._-]
 method_key :: Msg.Msg -> Maybe Key.Key
-method_key = extract_key $ \c -> Char.isAlphaNum c || c `elem` "-_."
+method_key = alphanum_key
 
--- | Extract a key for control value input.  [0-9.-]
-val_key :: Msg.Msg -> Maybe Key.Key
-val_key = extract_key $ \c -> Char.isDigit c || c `elem` "-_."
+-- | Extract a key for control value input.  [0-9._-]
+num_key :: Msg.Msg -> Maybe Key.Key
+num_key = extract_key $ \c -> Char.isDigit c || c `elem` "_.-"
 
+-- | Is the key appropriate for editing decimal numbers?
+is_num_key Key.Backspace = True
+is_num_key (Key.Char c) = Char.isDigit c || c `elem` "_.-"
+is_num_key _ = False
+
+alphanum_key :: Msg.Msg -> Maybe Key.Key
+alphanum_key = extract_key $ \c -> Char.isAlphaNum c || c `elem` "_.-"
 
 -- | Extract a key for raw input.  Any printable character plus backspace.
 raw_key :: Msg.Msg -> Maybe Key.Key

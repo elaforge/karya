@@ -75,7 +75,6 @@ draw_text(const char *text, int n, IPoint pos, bool measure,
 {
     if (n == 0)
         return 0;
-    // DEBUG("draw_text " << n << ": " << string(text, n) << " " << pos);
 
     pos = pos + IPoint(align.x * fl_size(), align.y * fl_size());
     if (!measure)
@@ -98,7 +97,7 @@ draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size,
     int rotate)
 {
     for (std::vector<SymbolTable::Glyph>::const_iterator
-            glyph = sym.glyphs.begin(); glyph != sym.glyphs.end(); ++glyph)
+        glyph = sym.glyphs.begin(); glyph != sym.glyphs.end(); ++glyph)
     {
         set_font(*glyph, size);
         draw_text(glyph->utf8, strlen(glyph->utf8), pos, false,

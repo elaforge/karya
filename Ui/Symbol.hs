@@ -24,8 +24,8 @@ simple name chars = Symbol name True [glyph chars]
 glyph :: String -> Glyph
 glyph s = Glyph s Nothing 0 (0, 0) 0
 
-glyph_at :: String -> (Double, Double) -> Glyph
-glyph_at s at = Glyph s Nothing 0 at 0
+glyph_at :: Int -> (Double, Double) -> Glyph -> Glyph
+glyph_at size align glyph = glyph { glyph_size = size, glyph_align = align }
 
 type Font = String
 
@@ -51,7 +51,8 @@ data Glyph = Glyph {
     -- drawn.
     , glyph_size :: Int
     -- | This is scaled by the font size and added to the position of the
-    -- glyph.
+    -- glyph.  In a symbol with only one glyph, automatic y placement will
+    -- defeat a y value here unless you set 'sym_absolute_y'.
     , glyph_align :: (Double, Double)
     -- | Rotate the glyph in degrees.
     , glyph_rotate :: Int

@@ -36,6 +36,12 @@ test_control_track = do
     strings_like logs ["call not found: abc", "call not found: def"]
     equal (derive ("cont", events)) ([Just [(0, 1), (1, 2)]], [])
 
+test_hex = do
+    let derive events =
+            do_derive (DeriveTest.e_control "cont") ("cont", events)
+    equal (derive [(0, 0, "`0x`ff"), (1, 0, "`0x`33"), (2, 0, "`0x`00")])
+        ([Just [(0, 1), (1, 0.2), (2, 0)]], [])
+
 test_track_expression = do
     let derive = do_derive (DeriveTest.e_control "cont")
     equal (derive ("cont", [(0, 0, "0"), (4, 0, "i 1")]))

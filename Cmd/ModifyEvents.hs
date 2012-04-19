@@ -1,7 +1,6 @@
 -- | Utilities to modify events in tracks.
 module Cmd.ModifyEvents where
 import Util.Control
-import qualified Util.Debug as Debug
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -74,24 +73,21 @@ tracks_sorted f = do
                 State.insert_sorted_events track_id new_events
             Nothing -> return ()
 
-tracks_named :: (Cmd.M m) => (String -> Bool) -> PosEvent m -> m ()
-tracks_named wanted f = tracks $ \track_id events ->
+-- | Make a 'PosEvent' into a 'Track' that only maps over certain named tracks.
+tracks_named :: (Cmd.M m) => (String -> Bool) -> PosEvent m -> Track m
+tracks_named wanted f = \track_id events ->
     ifM (not . wanted <$> State.get_track_title track_id)
-        (return Nothing) $ do
-            title <- State.get_track_title track_id
-            Debug.traceM $ "wanted: " ++ show title ++ show (wanted title)
-            events <- concat <$> mapM f events
-            return $ Just events
+        (return Nothing) (Just . concat <$> mapM f events)
 
 -- | Like 'tracks' but only for note tracks.
 note_tracks :: (Cmd.M m) => PosEvent m -> m ()
-note_tracks = tracks_named TrackInfo.is_note_track
+note_tracks = tracks . tracks_named TrackInfo.is_note_track
 
 control_tracks :: (Cmd.M m) => PosEvent m -> m ()
-control_tracks = tracks_named TrackInfo.is_signal_track
+control_tracks = tracks . tracks_named TrackInfo.is_signal_track
 
 pitch_tracks :: (Cmd.M m) => PosEvent m -> m ()
-pitch_tracks = tracks_named TrackInfo.is_pitch_track
+pitch_tracks = tracks . tracks_named TrackInfo.is_pitch_track
 
 
 -- * block tracks
@@ -105,6 +101,9 @@ block_tracks block_id f = do
         maybe (return ())
                 (State.modify_events track_id . const . Events.from_list)
             =<< f track_id events
+
+all_blocks :: (Cmd.M m) => Track m -> m ()
+all_blocks f = mapM_ (flip block_tracks f) =<< State.get_all_block_ids
 
 
 -- * misc

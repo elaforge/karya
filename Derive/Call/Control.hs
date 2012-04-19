@@ -14,34 +14,6 @@ import qualified Perform.Signal as Signal
 import Types
 
 
--- | Take control values as two digit hex from 00 to ff.  The idea is that
--- it's easier to input since I don't need backspace, and easier to read since
--- it's always two digits.
---
--- Unfortunately it shadows numbers and isn't so useful for non-normalized
--- values, like tempo.  So prefix with an 'x' to resolve the ambiguity.  I'd
--- still need a special input mode to edit them.
-hex_literal :: Derive.LookupCall Derive.ControlCall
-hex_literal (TrackLang.Symbol sym) =
-    return $ flip fmap (parse_hex sym) $ \val ->
-        Derive.generator1 "hex" $ \args -> CallSig.call0 args $ do
-            pos <- Args.real_start args
-            return $ Signal.signal [(pos, fromIntegral val / 0xff)]
-
-parse_hex :: String -> Maybe Int
-parse_hex ['x', c1, c2]
-    | v1 /= -1 && v2 /= -1 = Just $! v1 * 16 + v2
-    | otherwise = Nothing
-    where
-    -- TODO is this faster or slower than a map?
-    (v1, v2) = (higit c1, higit c2)
-    higit c
-        | '0' <= c && c <= '9' = fromEnum c - fromEnum '0'
-        | 'a' <= c && c <= 'f' = fromEnum c - fromEnum 'a' + 10
-        | otherwise = -1
-parse_hex _ = Nothing
-
-
 -- * call map
 
 control_calls :: Derive.ControlCallMap

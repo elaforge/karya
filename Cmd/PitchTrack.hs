@@ -50,8 +50,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
             pos <- Selection.get_insert_pos
             note <- EditUtil.parse_key key
             val_edit_at pos note
-        (Msg.key_down -> Just Key.Backspace) ->
-            EditUtil.modify_event False True (const (Nothing, True))
+        (Msg.key_down -> Just Key.Backspace) -> EditUtil.remove_event True
         _ -> Cmd.abort
     return Cmd.Done
 

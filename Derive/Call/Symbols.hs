@@ -5,7 +5,13 @@ import qualified App.Config as Config
 
 
 symbols :: [Symbol.Symbol]
-symbols = staff_symbols
+symbols = misc_symbols ++ staff_symbols
+
+misc_symbols :: [Symbol.Symbol]
+misc_symbols =
+    [ Symbol.Symbol "0x" True
+        [Symbol.glyph_at (-2) (0, -0.4) (Symbol.glyph "x")]
+    ]
 
 staff_symbols :: [Symbol.Symbol]
 staff_symbols =
@@ -14,16 +20,15 @@ staff_symbols =
     , symbol "rmordent" "\xe18d"
     , symbol "mordent2" "\xe18e"
     , symbol "rmordent2" "\xe18f"
-    , Symbol.symbol "arp-up" [arp, glyph_at 8 (-0.14, -0.62) arp_arrow_up]
-    , Symbol.symbol "arp-down" [arp, glyph_at 8 (-0.14, 0.25) arp_arrow_down]
+    , Symbol.symbol "arp-up"
+        [arp, Symbol.glyph_at 8 (-0.14, -0.62) arp_arrow_up]
+    , Symbol.symbol "arp-down"
+        [arp, Symbol.glyph_at 8 (-0.14, 0.25) arp_arrow_down]
     , symbol "ped" "\xe1b7"
     ]
     where
     symbol name str = Symbol.Symbol name False [glyph str]
     glyph str = Symbol.Glyph str (Just Config.emmentaler) 4 (0, 0) 0
-    glyph_at size align g =
-        g { Symbol.glyph_size = size, Symbol.glyph_align = align }
-
     arp = (glyph "\xe18e") { Symbol.glyph_rotate = 90 }
     arp_arrow_up = glyph "\xe18a"
     arp_arrow_down = glyph "\xe189"

@@ -120,7 +120,7 @@ void t1_set()
     e.push_back(EventInfo(ScoreTime(50),
         Event("mis`match", ScoreTime(4), style), 0));
     e.push_back(EventInfo(ScoreTime(128),
-        Event("late!", ScoreTime(64), style2), 0));
+        Event("`0x`ff", ScoreTime(64), style2), 0));
     // coincident with rank 0
     e.push_back(EventInfo(ScoreTime(128),
         Event("bg1", ScoreTime(8), style), 1));
@@ -458,6 +458,10 @@ main(int argc, char **argv)
     Fl_Font tamil = Config::font; // thanks to OS X font substitution I guess
 #endif
 
+    SymbolTable::Symbol zerox = SymbolTable::Symbol(
+        SymbolTable::Glyph("x", Config::font, -2, DPoint(0, -.4)));
+    zerox.absolute_y = true;
+    t->insert("0x", zerox);
     t->insert("tamil-i", SymbolTable::Symbol(
         SymbolTable::Glyph("\xe0\xae\x87", tamil, 4)));
     // t->load("yen", "\xc2\xa5");

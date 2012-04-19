@@ -19,6 +19,8 @@ module Derive.ParseBs (
 
     -- * expand macros
     , expand_macros
+    -- * hex
+    , hex_prefix, show_hex
 #ifdef TESTING
     , p_equal
 #endif
@@ -28,6 +30,8 @@ import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
+
+import qualified Numeric
 
 import Util.Control
 import qualified Util.ParseBs as Parse
@@ -145,7 +149,7 @@ p_null_call = return (TrackLang.Call (TrackLang.Symbol "") []) <?> "null call"
 
 p_num_call :: A.Parser TrackLang.Call
 p_num_call = do
-    num <- TrackLang.VNum <$> p_num
+    num <- TrackLang.VNum <$> (A.try p_hex <|> p_num)
     rest <- A.many p_term
     return $ TrackLang.Call (TrackLang.Symbol "")
         (TrackLang.Literal num : rest)
@@ -170,6 +174,7 @@ p_val =
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
     <|> TrackLang.VRelativeAttr <$> A.try p_rel_attr
+    <|> TrackLang.VNum <$> A.try p_hex
     <|> TrackLang.VNum <$> p_num
     <|> (TrackLang.VString . to_string) <$> p_string
     <|> TrackLang.VControl <$> p_control
@@ -177,6 +182,29 @@ p_val =
     <|> TrackLang.VScaleId <$> p_scale_id
     <|> (A.char '_' >> return TrackLang.VNotGiven)
     <|> TrackLang.VSymbol <$> p_symbol
+
+p_hex :: A.Parser Score.TypedVal
+p_hex = do
+    A.string prefix
+    let higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
+    c1 <- A.satisfy higit
+    c2 <- A.satisfy higit
+    return $ Score.untyped (fromIntegral (parse_hex c1 c2) / 0xff)
+    where prefix = UTF8.fromString hex_prefix
+
+hex_prefix :: String
+hex_prefix = "`0x`"
+
+show_hex :: Double -> String
+show_hex n = hex_prefix ++ if length h == 1 then '0' : h else h
+    where h = Numeric.showHex (round (n * 0xff)) ""
+
+parse_hex :: Char -> Char -> Int
+parse_hex c1 c2 = higit c1 * 16 + higit c2
+    where
+    higit c
+        | '0' <= c && c <= '9' = fromEnum c - fromEnum '0'
+        | otherwise = fromEnum c - fromEnum 'a' + 10
 
 p_num :: A.Parser Score.TypedVal
 p_num = do

@@ -108,12 +108,13 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
                     Selection.advance
             InputNote.Control {} -> return ()
         (Msg.key_down -> Just Key.Backspace) -> do
-            remove_event (State.Pos block_id sel_tracknum pos)
+            EditUtil.remove_event_at
+                (State.Pos block_id sel_tracknum pos) False
             -- Clear out the pitch track too.
             maybe_pitch <- Info.pitch_of_note block_id sel_tracknum
             when_just maybe_pitch $ \pitch ->
-                remove_event
-                    (State.Pos block_id (State.track_tracknum pitch) pos)
+                EditUtil.remove_event_at
+                    (State.Pos block_id (State.track_tracknum pitch) pos) False
             Selection.advance
         _ -> Cmd.abort
     return Cmd.Done
@@ -302,10 +303,6 @@ ensure_note_event pos = do
     txt <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
     modify_event_at pos False False $
         maybe (Just txt, False) (\old -> (Just old, False))
-
-remove_event :: (Cmd.M m) => State.Pos -> m ()
-remove_event pos =
-    EditUtil.modify_event_at pos False False (const (Nothing, False))
 
 -- | Instruments with the triggered flag set don't pay attention to note off,
 -- so I can make the duration 0.

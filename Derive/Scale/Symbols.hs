@@ -19,28 +19,29 @@ dotted_number (num, oct)
     | otherwise = Pitch.Note $ "`" ++ nums ++ replicate oct '^' ++ "`"
     where nums = show num
 
-dot :: String
-dot = "•" -- unicode \x2022
+dot :: Symbol.Glyph
+dot = Symbol.glyph "•" -- unicode \x2022
 
 dot_above :: String -> Symbol.Symbol
 dot_above s = Symbol.Symbol (s ++ "^") True
-    [Symbol.glyph s, Symbol.glyph_at dot (0.5, -0.3)]
+    [Symbol.glyph s, Symbol.glyph_at 0 (0.5, -0.3) dot]
 
 dot2_above :: String -> Symbol.Symbol
 dot2_above s = Symbol.Symbol (s ++ "^^") True
     [Symbol.glyph s,
-        Symbol.glyph_at dot (-0.3, -0.3),
-        Symbol.glyph_at dot (0.5, -0.3)]
+        Symbol.glyph_at 0 (-0.3, -0.3) dot,
+        Symbol.glyph_at 0 (0.5, -0.3) dot]
 
 dot_below :: String -> Symbol.Symbol
 dot_below s = Symbol.Symbol (s ++ ".") True
-    [Symbol.glyph s, Symbol.glyph_at dot (0.5, 0.3)]
+    [Symbol.glyph s, Symbol.glyph_at 0 (0.5, 0.3) dot]
 
 dot2_below :: String -> Symbol.Symbol
 dot2_below s = Symbol.Symbol (s ++ "..") True
-    [Symbol.glyph s,
-        Symbol.glyph_at dot (-0.3, 0.3),
-        Symbol.glyph_at dot (0.5, 0.3)]
+    [ Symbol.glyph s
+    , Symbol.glyph_at 0 (-0.3, 0.3) dot
+    , Symbol.glyph_at 0 (0.5, 0.3) dot
+    ]
 
 dotted_numbers :: [Symbol.Symbol]
 dotted_numbers = map dot_above cs ++ map dot2_above
