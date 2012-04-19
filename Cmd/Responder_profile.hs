@@ -28,8 +28,9 @@ profile_edits_middle = do
             view_id <- Create.view edit_block
             UiTest.select_point view_id 1 0.0
             return view_id
-    let cmd_state = modify_edit_state (ResponderTest.mk_cmd_state view_id)
-            (\st -> st { Cmd.state_edit_mode = Cmd.ValEdit })
+    let cmd_state = modify_edit_state
+            (ResponderTest.mk_cmd_state ui_state view_id) $ \st ->
+                st { Cmd.state_edit_mode = Cmd.ValEdit }
     -- pprint (UiTest.dump_block ui_state edit_block)
 
     let wait = [(CmdTest.make_key UiMsg.KeyDown Key.ShiftL, 0.1),
