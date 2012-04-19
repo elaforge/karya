@@ -45,6 +45,19 @@ import Types
 
 -- * signals
 
+-- TODO There are four types that divide into two kinds.  Then I have
+-- every possible combination:
+-- any type: Score.Real
+-- time type without value: Real
+-- time type with value: TrackLang.Real
+--
+-- This means I wind up with a lot of duplication here to handle time types and
+-- transpose types.  Surely there's a better way?  Maybe put the two kinds into
+-- a typeclass?
+
+data TransposeType = Diatonic | Chromatic deriving (Show)
+data TimeType = Real | Score deriving (Eq, Show)
+
 with_controls :: (FixedList.FixedList list) => Derive.PassedArgs d
     -> list TrackLang.ValControl -> (list Signal.Y -> Derive.Deriver a)
     -> Derive.Deriver a
@@ -64,8 +77,37 @@ typed_control_at pos control = case control of
     TrackLang.DefaultedControl cont deflt ->
         Maybe.fromMaybe deflt <$> Derive.control_at cont pos
     TrackLang.LiteralControl cont ->
-        maybe (Derive.throw $ "not found and no default: " ++ show cont) return
+        maybe (Derive.throw $ "not found and no default: "
+                ++ TrackLang.show_val cont) return
             =<< Derive.control_at cont pos
+
+time_control_at :: TimeType -> RealTime -> TrackLang.ValControl
+    -> Derive.Deriver TrackLang.RealOrScore
+time_control_at default_type pos control = do
+    Score.Typed typ val <- typed_control_at pos control
+    time_type <- case typ of
+            Score.Untyped -> return default_type
+            Score.Score -> return Score
+            Score.Real -> return Real
+            _ -> Derive.throw $ "expected time type for "
+                ++ TrackLang.show_val control ++ " but got "
+                ++ Pretty.pretty typ
+    return $ case time_type of
+        Real -> TrackLang.Real (RealTime.seconds val)
+        Score -> TrackLang.Score (ScoreTime.double val)
+
+transpose_control_at :: TransposeType -> RealTime -> TrackLang.ValControl
+    -> Derive.Deriver (Signal.Y, TransposeType)
+transpose_control_at default_type pos control = do
+    Score.Typed typ val <- typed_control_at pos control
+    transpose_type <- case typ of
+        Score.Untyped -> return default_type
+        Score.Chromatic -> return Chromatic
+        Score.Diatonic -> return Diatonic
+        _ -> Derive.throw $ "expected transpose type for "
+            ++ TrackLang.show_val control ++ " but got "
+            ++ Pretty.pretty typ
+    return (val, transpose_type)
 
 -- | Convert a 'TrackLang.ValControl' to a signal.
 --
@@ -88,8 +130,6 @@ to_signal control = case control of
 to_untyped_signal :: TrackLang.ValControl -> Derive.Deriver Signal.Control
 to_untyped_signal = fmap Score.typed_val . to_signal
 
-data TransposeType = Diatonic | Chromatic deriving (Show)
-
 -- | Version of 'to_signal' specialized for transpose signals.  Throws if
 -- the signal had a non-transpose type.
 to_transpose_signal :: TransposeType -> TrackLang.ValControl
@@ -104,8 +144,6 @@ to_transpose_signal default_type control = do
         Score.Diatonic -> return (sig, Score.c_diatonic)
         _ -> Derive.throw $ "expected transpose type for "
             ++ TrackLang.show_val control ++ " but got " ++ Pretty.pretty typ
-
-data TimeType = Real | Score deriving (Eq, Show)
 
 -- | Version of 'to_signal' that will complain if the control isn't a time
 -- type.
@@ -297,6 +335,10 @@ delay :: RealTime -> ScoreTime -> Derive.Deriver ScoreTime
 delay time start = do
     real <- Derive.real start
     Derive.score (real + time)
+
+to_score :: TrackLang.RealOrScore -> Derive.Deriver ScoreTime
+to_score (TrackLang.Score score) = return score
+to_score (TrackLang.Real real) = Derive.score real
 
 
 -- * c_equal

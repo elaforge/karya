@@ -249,7 +249,7 @@ instance Pretty.Pretty CallError where
             "TypeError: arg " ++ show argno ++ "/" ++ name ++ ": expected "
             ++ Pretty.pretty expected ++ " but got "
             ++ Pretty.pretty (TrackLang.type_of <$> received)
-            ++ " " ++ Pretty.pretty received
+            ++ ": " ++ Pretty.pretty received
         ArgError err -> "ArgError: " ++ err
         CallNotFound call_id -> "CallNotFound: " ++ Pretty.pretty call_id
 

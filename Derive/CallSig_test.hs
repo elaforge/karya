@@ -23,7 +23,7 @@ test_extract = do
     equal (f (mkargs [vnum 1])) (Right (1, 42))
     equal (f (mkargs [vnum 1, vnum 2])) (Right (1, 2))
     left_like (f (mkargs [VString "hi", vnum 2]))
-        "arg 0/required: expected Num but got String 'hi'"
+        "arg 0/required: expected Num but got String: 'hi'"
 
 test_maybe_arg = do
     let opt = CallSig.optional "opt"
@@ -39,7 +39,7 @@ test_maybe_arg = do
     equal (f (opt Nothing :: Arg (Maybe Double)) [VNotGiven]) $
         Right Nothing
     left_like (f (opt Nothing :: Arg (Maybe Double)) [VString "hi"])
-        "expected Maybe Num but got String 'hi'"
+        "expected Maybe Num but got String: 'hi'"
 
 test_check_args = do
     let mkargs = DeriveTest.passed_args "call"

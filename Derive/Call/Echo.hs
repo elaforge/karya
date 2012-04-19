@@ -1,19 +1,13 @@
 -- | Echo and delay oriented calls.
 --
--- TODO implement a event-echo variant that works directly on events for a
--- concrete echo
---
 -- TODO echo with RealTime delay
---
--- TODO echo and delay are broken here because they will delay even things that
--- should not be delayed, like a global volume control
 module Derive.Call.Echo where
 import Data.FixedList (Cons(..), Nil(..))
 
-import qualified Ui.ScoreTime as ScoreTime
+import qualified Derive.Args as Args
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
-import Derive.CallSig (optional, required_control, control)
+import Derive.CallSig (optional, typed_control, control)
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
@@ -24,7 +18,7 @@ import Types
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("delay", c_delay)
+    [ ("d", c_delay)
     , ("echo", c_echo)
     , ("e-echo", c_event_echo)
     ]
@@ -33,12 +27,13 @@ note_calls = Derive.make_calls
 
 -- | Simple delay.
 --
--- [time /Signal/ @%delay-time@] Delay this much score time.
+-- [time /Signal/ @%delay-time@] Delay this much time.
 c_delay :: Derive.NoteCall
 c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
-    (optional "time" (required_control "delay-time")) $ \time ->
-    Util.with_controls args (time :. Nil) $ \(time :. Nil) ->
-        Derive.d_at (ScoreTime.double time) deriver
+    (optional "time" (typed_control "delay-time" 0.1 Score.Real)) $ \time -> do
+        start <- Args.real_start args
+        delay <- Util.to_score =<< Util.time_control_at Util.Real start time
+        Derive.d_at delay deriver
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
 -- happen in score time, so they will change tempo with the rest of the score,

@@ -3,42 +3,37 @@ import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
 
 
 test_delay = do
-    let extract = DeriveTest.extract_events DeriveTest.e_event
-    let run title pref tracks =
-            extract $ DeriveTest.derive_tracks (tracks ++ [event])
+    let run title pref tracks = DeriveTest.extract_events DeriveTest.e_event $
+            DeriveTest.derive_tracks (tracks ++ [event])
             where
             event = (title, [(0, 1, pref ++ "--1"), (1, 1, pref ++ "--2")])
 
     -- delay notes with a delay signal
-    let pref = "delay %delay | "
+    let pref = "d %delay | "
     equal (run ">i" pref [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
         [(1, 1, pref ++ "--1"), (3, 1, pref ++ "--2")]
-    equal (run ">i | delay 2" "" []) $
+    equal (run ">i | d 2" "" []) $
         [(2, 1, "--1"), (3, 1, "--2")]
-    equal (run ">i | delay %delay,2" "" []) $
+    equal (run ">i | d %delay,2" "" []) $
         [(2, 1, "--1"), (3, 1, "--2")]
-    let pref = "delay %delay | "
+    let pref = "d %delay | "
     equal (run ">i" pref [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
         [(1, 1, pref ++ "--1"), (3, 1, pref ++ "--2")]
-    equal (run ">i | delay %delay,1 | delay %delay,1" "" []) $
+    equal (run ">i | d %delay,1s | d %delay,1s" "" []) $
         [(2, 1, "--1"), (3, 1, "--2")]
 
 test_delay_inverted = do
-    let extract = DeriveTest.extract_events
-            (\e -> (DeriveTest.e_event e, DeriveTest.e_pitch e,
-                Score.attrs_list (Score.event_attributes e)))
     let run text = extract $ DeriveTest.derive_tracks
-            [(">i", [(0, 2, text)]), ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])]
-    -- no delay
-    equal (run "")
-        [((0, 2, ""), [(0, 60), (1, 62)], [])]
-    -- pitch is delayed along with the note
-    equal (run "delay 2 | n +attr")
-        [((2, 2, "n +attr"), [(2, 60), (3, 62)], ["attr"])]
+            [ ("tempo", [(0, 0, "2")])
+            , (">i", [(2, 2, text)])
+            , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
+            ]
+        extract = DeriveTest.extract_events DeriveTest.e_note2
+    equal (run "d 2s |") [(2, 1, "4d")]
+    equal (run "d .1r |") [(1.1, 1.0, "4d")]
 
 test_echo = do
     let (mmsgs, logs) = perform ("echo 2", [(0, 1, "--1"), (1, 1, "--2")])

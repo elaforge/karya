@@ -87,30 +87,35 @@ test_environ_across_tracks = do
         ([Just interpolated], [])
 
 test_call_errors = do
-    let extract r = case DeriveTest.extract DeriveTest.e_event r of
+    let derive = extract . DeriveTest.derive_tracks_with with_trans
+        with_trans = CallTest.with_note_call "test-t" trans
+        extract r = case DeriveTest.extract DeriveTest.e_event r of
             (val, []) -> Right val
             (_, logs) -> Left $ Seq.join "\n" logs
 
-    let run_title title = extract $
-            DeriveTest.derive_tracks [(title, [(0, 1, "--1")])]
+    let run_title title = derive [(title, [(0, 1, "--1")])]
     left_like (run_title ">i | no-such-call") "call not found: no-such-call"
-    left_like (run_title ">i | delay *bad-arg") "expected Control but got"
-    left_like (run_title ">i | delay 1 2 3 4") "too many arguments"
-    left_like (run_title ">i | delay") "not found and no default"
-    left_like (run_title ">i | delay _") "not found and no default"
-    left_like (run_title ">i | delay %delay") "not found and no default"
+    left_like (run_title ">i | test-t *bad-arg") "expected Control but got"
+    left_like (run_title ">i | test-t 1 2 3 4") "too many arguments"
+    left_like (run_title ">i | test-t") "not found and no default"
+    left_like (run_title ">i | test-t _") "not found and no default"
+    left_like (run_title ">i | test-t %delay") "not found and no default"
 
-    let run_evt evt = extract $
-            DeriveTest.derive_tracks [(">i", [(0, 1, evt)])]
+    let run_evt evt = derive [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call")
         "call not found: no-such-call"
-    left_like (run_evt "delay")
-        "non-generator in generator position: delay"
+    left_like (run_evt "test-t")
+        "non-generator in generator position: trans"
     let tr_result = extract $ DeriveTest.derive_tracks
             [(">", [(0, 4, "")]), ("*twelve", [(0, 0, "tr")])]
     left_like tr_result "ArgError: too few arguments"
-    equal (run_evt "delay 2 | delay 1 |")
-        (Right [(3, 1, "delay 2 | delay 1 |")])
+    equal (run_evt "test-t 2 | test-t 1 |")
+        (Right [(0, 1, "test-t 2 | test-t 1 |")])
+    where
+    trans = Derive.transformer "trans" $ \args deriver -> CallSig.call1 args
+        (CallSig.optional "arg1" (CallSig.required_control "test")) $ \c -> do
+            Util.control_at 0 c
+            deriver
 
 test_val_call = do
     let extract = DeriveTest.extract (DeriveTest.e_control "cont")
