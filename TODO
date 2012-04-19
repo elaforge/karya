@@ -2,6 +2,8 @@ UNSORTED
   - lenses for Cmd.State, for 'name'
   - Suppressed undo for val edit is surprising since I tend to do a lot of
     edits without leaving val edit.  Maybe don't do it for pitch val edit.
+    Try going back to using the name to suppress, but ignore cmds with no
+    name.
   * get rid of Cmd.hist_serial
   * don't save history until the selection moves after an edit, to avoid
     saving an undo for every letter entered

@@ -65,7 +65,7 @@ cmd_language session lang_dirs msg = do
     (response_hdl, text) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
-    Log.notice $ "got lang: " ++ show text
+    Log.notice $ "repl input: " ++ show text
     ui_state <- State.get
     cmd_state <- Cmd.get
     local_modules <- fmap concat (mapM get_local_modules lang_dirs)
@@ -79,7 +79,7 @@ cmd_language session lang_dirs msg = do
         -- 'interpret' catches errors in 'merge_cmd_state'
         Nothing -> Trans.liftIO $ LangImpl.interpret session
             local_modules ui_state cmd_state text
-    response <- cmd
+    response <- Cmd.name ("repl: " ++ text) cmd
     Trans.liftIO $ catch_io_errors $ do
         unless (null response) $
             IO.hPutStrLn response_hdl response
