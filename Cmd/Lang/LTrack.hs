@@ -21,6 +21,7 @@ import qualified Derive.ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
+import qualified Ui.Types as Types
 
 import qualified Perform.Signal as Signal
 import Types
@@ -37,6 +38,18 @@ remove_empty block_id = do
 
 remove_all_empty :: Cmd.CmdL ()
 remove_all_empty = mapM_ remove_empty =<< State.all_block_ids
+
+map_widths :: (String -> Bool) -> (Types.Width -> Types.Width) -> Cmd.CmdL ()
+map_widths wanted f = do
+    block_ids <- State.get_all_block_ids
+    forM_ block_ids $ \block_id -> do
+        tracknums <- map State.track_tracknum
+            . filter (wanted . State.track_title) <$>
+                State.get_track_info block_id
+        widths <- map Block.track_width <$>
+            mapM (State.get_block_track block_id) tracknums
+        sequence_ $ zipWith (State.set_track_width block_id)
+            tracknums (map f widths)
 
 -- | Transform all track titles.
 map_titles :: (String -> String) -> Cmd.CmdL ()
