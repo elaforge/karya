@@ -95,8 +95,8 @@ test_perform = do
         ] ]
     equal msgs
         [ ("dev1", 0, 0, NoteOn 60 127)
-        , ("dev1", 2, 0, NoteOff 60 63)
-        , ("dev1", 2, 0, NoteOn 61 63)
+        , ("dev1", 2, 0, NoteOff 60 64)
+        , ("dev1", 2, 0, NoteOn 61 64)
         , ("dev1", 4, 0, NoteOff 61 0)
         ]
 
@@ -143,7 +143,7 @@ test_control_lead_time = do
         , (4000, 0, NoteOff 60 100)
 
         , (4000, 1, NoteOn 61 100)
-        , (5000, 1, ControlChange 7 63)
+        , (5000, 1, ControlChange 7 64)
         , (6000, 1, ControlChange 7 127)
         , (8000, 1, NoteOff 61 100)
         ], [])
@@ -166,7 +166,7 @@ test_control_lead_time = do
         , (4000, 2, NoteOff 60 100)
         , (4000, 2, ControlChange 7 0)
         , (4000, 2, NoteOn 61 100)
-        , (5000, 2, ControlChange 7 63)
+        , (5000, 2, ControlChange 7 64)
         , (6000, 2, ControlChange 7 127)
         , (8000, 2, NoteOff 61 100)
         ], [])

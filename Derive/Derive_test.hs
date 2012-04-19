@@ -242,7 +242,7 @@ test_subderive_multiple = do
     let (_, mmsgs, logs) = DeriveTest.perform_defaults (Derive.r_events res)
     equal (DeriveTest.note_on_times mmsgs)
         [ (0, 60, 127), (0, 72, 127)
-        , (2000, 62, 63), (2000, 74, 63)
+        , (2000, 62, 64), (2000, 74, 64)
         ]
     equal logs []
 

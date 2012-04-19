@@ -156,7 +156,7 @@ c_mod = "modulation"
 -- * util
 
 val_to_pb :: Signal.Y -> Int
-val_to_pb val = floor ((val + 1) * 0x2000 - 0x2000)
+val_to_pb val = round $ (Num.clamp (-1) 1 val + 1) * 0x2000 - 0x2000
 
 val_to_cc :: Signal.Y -> Midi.ControlValue
-val_to_cc val = floor (val * 0x7f)
+val_to_cc val = round $ Num.clamp 0 1 val * 0x7f
