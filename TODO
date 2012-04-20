@@ -1,4 +1,13 @@
 UNSORTED
+  - need a better way to continue previous control val than 'i '
+  - I have a lot of interpolate to val, then jump to another val, e.g.
+    slide up to neighbor down
+  * velocity input should use hex
+  - default .1 srate too coarse, should be .025 at least
+  - the way 'recent text' appends the text instead of replacing is inconvenient
+  - working with breath instruments is awkward, it keeps resetting the breath
+    to 0
+  - I feel like show_val should be exported from ParseBs.
   * reverse args for Derive.Call.Util.control_at
   - lenses for Cmd.State, for 'name'
   - Suppressed undo for val edit is surprising since I tend to do a lot of

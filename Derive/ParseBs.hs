@@ -20,7 +20,11 @@ module Derive.ParseBs (
     -- * expand macros
     , expand_macros
     -- * hex
-    , hex_prefix, show_hex
+    , hex_prefix
+    -- It feels like this should live with show_val... so maybe show_val should
+    -- move here?
+    , show_hex_val
+    , TrackLang.show_val
 #ifdef TESTING
     , p_equal
 #endif
@@ -195,8 +199,8 @@ p_hex = do
 hex_prefix :: String
 hex_prefix = "`0x`"
 
-show_hex :: Double -> String
-show_hex n = hex_prefix ++ if length h == 1 then '0' : h else h
+show_hex_val :: Double -> String
+show_hex_val n = hex_prefix ++ if length h == 1 then '0' : h else h
     where h = Numeric.showHex (round (n * 0xff)) ""
 
 parse_hex :: Char -> Char -> Int

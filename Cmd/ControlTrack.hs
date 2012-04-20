@@ -1,4 +1,4 @@
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE ViewPatterns, PatternGuards #-}
 module Cmd.ControlTrack where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -110,7 +110,7 @@ cmd_method_edit msg =
 
 val_edit_at :: (Cmd.M m) => State.Pos -> Signal.Y -> m ()
 val_edit_at pos val = modify_event_at pos $ \(method, _) ->
-    ((Just method, Just (TrackLang.show_val val)), False)
+    ((Just method, Just (ParseBs.show_hex_val val)), False)
 
 type Modify = (String, String) -> ((Maybe String, Maybe String), Bool)
 

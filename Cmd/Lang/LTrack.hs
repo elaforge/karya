@@ -11,6 +11,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
@@ -21,7 +22,6 @@ import qualified Derive.ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
-import qualified Ui.Types as Types
 
 import qualified Perform.Signal as Signal
 import Types
@@ -92,7 +92,7 @@ to_hex :: String -> String
 to_hex text = case Derive.ParseBs.parse_val val of
     Right (TrackLang.VNum (Score.Typed Score.Untyped n))
         | 0 <= n && n <= 1 -> Maybe.fromMaybe "" $ ControlTrack.unparse
-            (Just method, Just (Derive.ParseBs.show_hex n))
+            (Just method, Just (Derive.ParseBs.show_hex_val n))
     _ -> val
     where (method, val) = ControlTrack.parse text
 

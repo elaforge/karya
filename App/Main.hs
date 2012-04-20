@@ -57,6 +57,7 @@ import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Symbols as Call.Symbols
 import qualified Derive.Scale.Symbols as Scale.Symbols
 import qualified Derive.Instrument.Symbols as Instrument.Symbols
+import qualified Derive.ParseBs as ParseBs
 
 import qualified Instrument.Db as Db
 
@@ -334,7 +335,7 @@ setup_normal = do
 
     dyn <- Create.track bid 5
     State.insert_events dyn $ map (control_event . UiTest.make_event)
-        [(0, 0, ".7"), (1, 0, ".4")]
+        [(0, 0, ParseBs.show_hex_val 0.7), (1, 0, ParseBs.show_hex_val 0.4)]
     State.set_track_title dyn "dyn"
 
     -- tempo 1 -> mod -> note -> pitch
