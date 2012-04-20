@@ -331,14 +331,20 @@ real_duration default_type from (Score.Typed typ val)
         "expected time type for " ++ TrackLang.show_val (Score.Typed typ val)
 
 -- | Add a RealTime to a ScoreTime.
-delay :: RealTime -> ScoreTime -> Derive.Deriver ScoreTime
-delay time start = do
-    real <- Derive.real start
-    Derive.score (real + time)
+delay :: ScoreTime -> RealTime -> Derive.Deriver ScoreTime
+delay start time = do
+    real_start <- Derive.real start
+    Derive.score (real_start + time)
 
-to_score :: TrackLang.RealOrScore -> Derive.Deriver ScoreTime
-to_score (TrackLang.Score score) = return score
-to_score (TrackLang.Real real) = Derive.score real
+-- | Get the amount of ScoreTime to add to a given ScoreTime to delay it
+-- by a certain amount.  If the delay amount is already ScoreTime then
+-- it's trivial, but if it's RealTime then the returned ScoreTime has to
+-- be relative to the given start time.
+delay_relative :: ScoreTime -> TrackLang.RealOrScore -> Derive.Deriver ScoreTime
+delay_relative _ (TrackLang.Score t) = return t
+delay_relative start (TrackLang.Real t) = do
+    score_t <- delay start t
+    return $ score_t - start
 
 
 -- * c_equal

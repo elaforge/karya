@@ -31,8 +31,9 @@ note_calls = Derive.make_calls
 c_delay :: Derive.NoteCall
 c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
     (optional "time" (typed_control "delay-time" 0.1 Score.Real)) $ \time -> do
-        start <- Args.real_start args
-        delay <- Util.to_score =<< Util.time_control_at Util.Real start time
+        delay <- Util.delay_relative (Args.start args)
+            =<< Util.time_control_at Util.Real time
+            =<< Args.real_start args
         Derive.d_at delay deriver
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
