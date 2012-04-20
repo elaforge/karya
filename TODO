@@ -5,7 +5,7 @@ UNSORTED
   - I have a lot of interpolate to val, then jump to another val, e.g.
     slide up to neighbor down
   * velocity input should use hex
-  - default .1 srate too coarse, should be .025 at least
+  * default .1 srate too coarse, should be .025 at least
   - the way 'recent text' appends the text instead of replacing is inconvenient
   - working with breath instruments is awkward, it keeps resetting the breath
     to 0

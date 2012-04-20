@@ -31,7 +31,7 @@ initial_environ :: Pitch.ScaleId -> Maybe Score.Instrument -> TrackLang.Environ
 initial_environ scale_id maybe_inst = Map.fromList $
     inst ++
     -- Control interpolators rely on this.
-    [ (TrackLang.v_srate, TrackLang.num 0.05)
+    [ (TrackLang.v_srate, TrackLang.num 0.025)
     -- Looking up any val call relies on having a scale in scope.
     , (TrackLang.v_scale, TrackLang.VScaleId scale_id)
     , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)

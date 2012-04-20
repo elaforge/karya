@@ -237,14 +237,13 @@ patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
 
 set_keyswitches :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
-set_keyswitches ks patch = patch { patch_keyswitches = keyswitch_map ks }
+set_keyswitches ks = keyswitches #= keyswitch_map ks
 
 set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
 set_keymap kmap = instrument_#keymap #= Map.fromList kmap
 
 set_flag :: Flag -> Patch -> Patch
-set_flag flag patch =
-    patch { patch_flags = Set.insert flag (patch_flags patch) }
+set_flag flag = flags %= Set.insert flag
 
 has_flag :: Flag -> Patch -> Bool
 has_flag flag = Set.member flag . patch_flags
@@ -315,8 +314,10 @@ keys_of :: KeyswitchMap -> Set.Set Midi.Key
 keys_of (KeyswitchMap attr_ks) = Set.fromList $ map (ks_key . snd) attr_ks
 
 type Tag = (TagKey, TagVal)
+
 tag :: String -> String -> Tag
 tag = (,)
+
 type TagKey = String
 type TagVal = String
 
@@ -333,7 +334,7 @@ data Synth = Synth {
     } deriving (Eq, Show)
 
 synth :: SynthName -> [(Midi.Control, String)] -> Synth
-synth name controls = Synth name (Control.control_map controls)
+synth name = Synth name . Control.control_map
 
 -- | Synths default to writing to a device with their name.  You'll have to
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
@@ -363,8 +364,7 @@ patch_summary patch = inst_name inst ++ " -- " ++ show (patch_tags patch)
     where inst = patch_instrument patch
 
 add_tag :: Tag -> Patch -> Patch
-add_tag tag patch = patch { patch_tags = tag : patch_tags patch }
-
+add_tag tag = tags %= (tag:)
 
 -- | Constructor for a softsynth with a single wildcard patch.  Used by
 -- 'Instrument.MidiDb.softsynth'.
