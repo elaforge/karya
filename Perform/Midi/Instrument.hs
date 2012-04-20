@@ -32,6 +32,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
+import Types
 
 
 default_scale :: Pitch.ScaleId
@@ -76,7 +77,7 @@ data Instrument = Instrument {
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to
     -- figure out how long to generate control messages, or possibly determine
     -- overlap for channel allocation, though I use LRU so it shouldn't matter.
-    , inst_maybe_decay :: Maybe Double
+    , inst_maybe_decay :: Maybe RealTime
     -- | Scale used by this instrument.  This determines what adjustments need
     -- to be made, if any, to get a frequency indicated by the pitch track.
     , inst_scale :: Pitch.ScaleId
@@ -144,10 +145,10 @@ wildcard_instrument = instrument "*" []
 
 -- | Somewhat conservative default decay which should suit most instruments.
 -- 'inst_decay' will probably only rarely be explicitly set.
-default_decay :: Double
+default_decay :: RealTime
 default_decay = 1.0
 
-inst_decay :: Instrument -> Double
+inst_decay :: Instrument -> RealTime
 inst_decay = maybe default_decay id . inst_maybe_decay
 
 -- * config
@@ -248,7 +249,7 @@ set_flag flag = flags %= Set.insert flag
 has_flag :: Flag -> Patch -> Bool
 has_flag flag = Set.member flag . patch_flags
 
-set_decay :: Double -> Patch -> Patch
+set_decay :: RealTime -> Patch -> Patch
 set_decay secs = instrument_#maybe_decay #= Just secs
 
 -- | Various instrument flags.

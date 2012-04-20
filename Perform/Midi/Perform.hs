@@ -587,8 +587,8 @@ note_begin event = event_start event - control_lead_time
 -- | The end of an event after taking decay into account.  The note shouldn't
 -- be sounding past this time.
 note_end :: Event -> RealTime
-note_end event = event_end event
-    + RealTime.seconds (Instrument.inst_decay (event_instrument event))
+note_end event =
+    event_end event + Instrument.inst_decay (event_instrument event)
 
 -- | This isn't directly the midi channel, since it goes higher than 15, but
 -- will later be mapped to midi channels.

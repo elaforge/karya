@@ -44,6 +44,7 @@ import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.Pretty as Pretty
+import qualified Util.Serialize as Serialize
 import qualified Ui.ScoreTime as ScoreTime
 
 
@@ -54,7 +55,8 @@ import qualified Ui.ScoreTime as ScoreTime
 -- a note wants to get the real time before it, it must look up a negative
 -- RealTime.
 newtype RealTime = RealTime Double
-    deriving (DeepSeq.NFData, Foreign.Storable, Num, Fractional, Real, Eq, Ord)
+    deriving (DeepSeq.NFData, Foreign.Storable, Num, Fractional, Real, Eq, Ord,
+        Serialize.Serialize)
 
 -- | This loses precision so show /= read, but no one should be relying on that
 -- anyway.

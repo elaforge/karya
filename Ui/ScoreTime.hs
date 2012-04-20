@@ -13,11 +13,8 @@ import qualified Util.Serialize as Serialize
 -- is dependent on the score context.  ScoreTime units can be negative, but
 -- blocks only display events at >=0 ScoreTime.
 newtype ScoreTime = ScoreTime Double
-    deriving (DeepSeq.NFData, Foreign.Storable, Num, Fractional, Real, Eq, Ord)
-
-instance Serialize.Serialize ScoreTime where
-    put (ScoreTime a) = Serialize.put a
-    get = fmap ScoreTime Serialize.get
+    deriving (DeepSeq.NFData, Foreign.Storable, Num, Fractional, Real, Eq, Ord,
+        Serialize.Serialize)
 
 -- t is for time, since RealTime uses s for seconds
 instance Show ScoreTime where
