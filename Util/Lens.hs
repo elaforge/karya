@@ -3,7 +3,7 @@ module Util.Lens (
     Lens, lens
     , (#)
     -- * operators
-    , ($#), (=#), (=%)
+    , (#$), (#=), (%=)
     , (#>)
 
     -- * data
@@ -36,19 +36,19 @@ type Lens a b = a :-> b
 infixr 9 #
 
 -- | Get: @bval = a#b $# record@
-($#) :: Lens f a -> f -> a
-($#) = get
-infixr 1 $#
+(#$) :: Lens f a -> f -> a
+(#$) = get
+infixr 1 #$
 
 -- | Set: @a#b =# 42 record@
-(=#) :: Lens f a -> a -> f -> f
-(=#) = Pure.set
-infix 1 =#
+(#=) :: Lens f a -> a -> f -> f
+(#=) = Pure.set
+infix 1 #=
 
 -- | Modify: @a#b =% (+1) record@
-(=%) :: Lens f a -> (a -> a) -> f -> f
-(=%) = modify
-infix 1 =%
+(%=) :: Lens f a -> (a -> a) -> f -> f
+(%=) = modify
+infix 1 %=
 
 -- | Use like @a#b #> State.get@.
 (#>) :: (Functor f) => Lens a b -> f a -> f b

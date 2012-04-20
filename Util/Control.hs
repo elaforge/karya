@@ -14,10 +14,9 @@ module Util.Control (
     -- * lens
     , Lens, (#)
     -- * pure
-    , ($#), (=#), (=%)
+    , (#$), (#=), (%=)
     -- * state
     , (#>)
-    -- , getl, (=:), (=:%)
     , module Control.Monad
 ) where
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))

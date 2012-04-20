@@ -243,8 +243,8 @@ undump_diff = foldM apply
         where
         delete ns name mkid lens = do
             ident <- path_to_ident mkid ns name
-            vals <- delete_key ident (lens $# state)
-            return $ (lens =# vals) state
+            vals <- delete_key ident (lens #$ state)
+            return $ (lens #= vals) state
     apply state (Git.Add path bytes) = case FilePath.splitDirectories path of
         ["views", ns, name] -> add ns name Types.ViewId State.views
         ["blocks", ns, name] -> add ns name Types.BlockId State.blocks
@@ -252,13 +252,13 @@ undump_diff = foldM apply
         ["rulers", ns, name] -> add ns name Types.RulerId State.rulers
         ["config"] -> do
             val <- decode path bytes
-            return $ (State.config =# val) state
+            return $ (State.config #= val) state
         _ -> Left $ "unknown file modified: " ++ show path
         where
         add ns name mkid lens = do
             ident <- path_to_ident mkid ns name
             val <- decode path bytes
-            return $ (lens =% Map.insert ident val) state
+            return $ (lens %= Map.insert ident val) state
 
 default_head :: Git.Repo -> Maybe Git.Commit -> IO Git.Commit
 default_head _ (Just commit) = return commit

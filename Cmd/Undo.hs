@@ -133,7 +133,7 @@ uncommitted_entry (Cmd.UncommittedHistoryEntry state updates names) =
 
 commit_entry :: Cmd.UncommittedHistoryEntry -> IO Cmd.HistoryEntry
 commit_entry (Cmd.UncommittedHistoryEntry state updates names) = do
-    result <- SaveGit.checkpoint (State.config#State.project_dir $# state)
+    result <- SaveGit.checkpoint (State.config#State.project_dir #$ state)
         state updates
     commit <- case result of
         Left err -> do

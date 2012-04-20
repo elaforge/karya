@@ -240,7 +240,7 @@ set_keyswitches :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
 set_keyswitches ks patch = patch { patch_keyswitches = keyswitch_map ks }
 
 set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
-set_keymap kmap = instrument_#keymap =# Map.fromList kmap
+set_keymap kmap = instrument_#keymap #= Map.fromList kmap
 
 set_flag :: Flag -> Patch -> Patch
 set_flag flag patch =
@@ -250,7 +250,7 @@ has_flag :: Flag -> Patch -> Bool
 has_flag flag = Set.member flag . patch_flags
 
 set_decay :: Double -> Patch -> Patch
-set_decay secs = instrument_#maybe_decay =# Just secs
+set_decay secs = instrument_#maybe_decay #= Just secs
 
 -- | Various instrument flags.
 data Flag =
