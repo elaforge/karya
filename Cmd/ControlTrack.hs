@@ -29,15 +29,18 @@ cmd_val_edit msg = Cmd.name "control track val edit" $ do
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.alphanum_key -> Just key) -> modify_event (modify_hex key)
-        Msg.InputNote (InputNote.NoteOn _ _ vel) -> insert_val vel
-        Msg.InputNote (InputNote.Control _ _ val) -> insert_val val
+        Msg.InputNote (InputNote.NoteOn _ _ vel) -> insert_val False vel
+        Msg.InputNote (InputNote.Control _ _ val) -> insert_val True val
         _ -> Cmd.abort
     return Cmd.Done
     where
-    insert_val val = do
+    insert_val control_input val = do
         pos <- Selection.get_insert_pos
         val_edit_at pos val
-        whenM (Cmd.gets (Cmd.state_advance . Cmd.state_edit))
+        -- Never advance for control input, because there are usually a lot
+        -- of those at once.
+        whenM (andM [return (not control_input),
+                Cmd.gets (Cmd.state_advance . Cmd.state_edit)])
             Selection.advance
 
 cmd_tempo_val_edit :: Cmd.Cmd
