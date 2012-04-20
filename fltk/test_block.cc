@@ -285,7 +285,7 @@ control_track_signal()
 
     ts->shift = ScoreTime(0);
     ts->stretch = ScoreTime(1);
-    ts->calculate_max_control_val();
+    ts->calculate_val_bounds();
 
     return ts;
 }

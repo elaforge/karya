@@ -86,7 +86,7 @@ TrackSignal::val_at(int i, const char **lower, const char **upper) const
 {
     *lower = *upper = NULL;
     if (signal)
-        return signal[i].val / this->max_control_val;
+        return normalize(this->val_min, this->val_max, signal[i].val);
     else
         ASSERT_MSG(0, "val_at on empty track signal");
 
@@ -154,14 +154,18 @@ TrackSignal::name_of(double val, bool lower) const {
 
 
 void
-TrackSignal::calculate_max_control_val() {
-    this->max_control_val = 1;
-    if (this->signal && this->length > 0) {
-        double val = signal[0].val;
+TrackSignal::calculate_val_bounds() {
+    // Only automatically scale the bounds for pitch signals.
+    if (this->has_labels()) {
+        val_min = 9999;
+        val_max = 1;
         for (ControlSample *s = signal; s < signal + length; s++) {
-            val = std::max(val, s->val);
+            val_max = std::max(val_max, s->val);
+            val_min = std::min(val_min, s->val);
         }
-        this->max_control_val = std::max(1.0, val);
+    } else {
+        val_min = 0;
+        val_max = 1;
     }
 }
 

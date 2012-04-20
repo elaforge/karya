@@ -110,7 +110,8 @@ poke_track_signal tsigp (Track.TrackSignal sig shift stretch scale_map) = do
             (#poke TrackSignal, length) tsigp len
         -- Calculated by c++, in c_interface.cc.  I'd rather do it here,
         -- but I'm worried all those peeks will generate garbage.
-        (#poke TrackSignal, max_control_val) tsigp (-1 :: CDouble)
+        (#poke TrackSignal, val_min) tsigp (-1 :: CDouble)
+        (#poke TrackSignal, val_max) tsigp (-1 :: CDouble)
     poke_scale_map (Just (Track.ScaleMap val_names@(_:_))) = do
         -- As with the char * inside, c++ is expected to free this.
         val_namesp <- newArray val_names

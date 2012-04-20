@@ -43,8 +43,8 @@ struct TrackSignal {
 
     // This pointer could be null if the signal is empty.
     ControlSample *signal;
-    // The maximum value in 'signal', to normalize the display.
-    double max_control_val;
+    // The max and min values in 'signal', to normalize the display.
+    double val_min, val_max;
     // Length of above signal.
     int length;
 
@@ -60,15 +60,16 @@ struct TrackSignal {
     // Get the time at the given index, taking shift, stretch, and the given
     // zoom into account.
     int time_at(const ZoomInfo &zoom, int i) const;
+    // Labels probably means this is a pitch signal.
     bool has_labels() const { return val_names; }
     // Get the val at the given index, normalized between 0--1.
     double val_at(int i, const char **lower, const char **upper) const;
     const ValName *name_of(double val, bool lower) const;
 
-    // Set 'max_control_val'.  Normally this would be called by the
+    // Set 'val_min' and 'val_max'.  Normally this would be called by the
     // constructor, but since I construct manually from haskell I don't have
     // one of those.
-    void calculate_max_control_val();
+    void calculate_val_bounds();
 };
 
 std::ostream &operator<<(std::ostream &os, const TrackSignal &sig);
