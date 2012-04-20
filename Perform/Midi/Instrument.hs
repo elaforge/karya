@@ -25,6 +25,8 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
+import Util.Control
+import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
@@ -79,6 +81,18 @@ data Instrument = Instrument {
     -- to be made, if any, to get a frequency indicated by the pitch track.
     , inst_scale :: Pitch.ScaleId
     } deriving (Eq, Ord, Show)
+
+name = Lens.lens inst_name (\v r -> r { inst_name = v })
+score = Lens.lens inst_score (\v r -> r { inst_score = v })
+synth_ = Lens.lens inst_synth (\v r -> r { inst_synth = v })
+keyswitch = Lens.lens inst_keyswitch (\v r -> r { inst_keyswitch = v })
+keymap = Lens.lens inst_keymap (\v r -> r { inst_keymap = v })
+control_map = Lens.lens inst_control_map (\v r -> r { inst_control_map = v })
+pitch_bend_range =
+    Lens.lens inst_pitch_bend_range (\v r -> r { inst_pitch_bend_range = v })
+maybe_decay = Lens.lens inst_maybe_decay (\v r -> r { inst_maybe_decay = v })
+scale = Lens.lens inst_scale (\v r -> r { inst_scale = v })
+
 
 instance NFData Instrument where
     -- don't bother with the rest since instruments are constructed all at once
@@ -193,6 +207,15 @@ data Patch = Patch {
     , patch_file :: FilePath
     } deriving (Eq, Show)
 
+instrument_ = Lens.lens patch_instrument (\v r -> r { patch_instrument = v })
+flags = Lens.lens patch_flags (\v r -> r { patch_flags = v })
+initialize = Lens.lens patch_initialize (\v r -> r { patch_initialize = v })
+keyswitches = Lens.lens patch_keyswitches (\v r -> r { patch_keyswitches = v })
+tags = Lens.lens patch_tags (\v r -> r { patch_tags = v })
+text = Lens.lens patch_text (\v r -> r { patch_text = v })
+file = Lens.lens patch_file (\v r -> r { patch_file = v })
+
+
 -- | A Pretty instance is useful because InitializeMidi tends to be huge.
 instance Pretty.Pretty Patch where
     format (Patch inst flags init ks tags text file) =
@@ -217,8 +240,7 @@ set_keyswitches :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
 set_keyswitches ks patch = patch { patch_keyswitches = keyswitch_map ks }
 
 set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
-set_keymap kmap patch = patch { patch_instrument = (patch_instrument patch)
-    { inst_keymap = Map.fromList kmap } }
+set_keymap kmap = instrument_#keymap =# Map.fromList kmap
 
 set_flag :: Flag -> Patch -> Patch
 set_flag flag patch =
