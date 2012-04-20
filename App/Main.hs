@@ -125,7 +125,8 @@ mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
 wdev_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
 wdev_map = mkmap Midi.write_device
-    [ ("z1", tapco 1)
+    [ ("fm8", "Native Instruments FM8 Virtual Input")
+    , ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morpheus", tapco 2)
     , ("pc2496", tapco 3)

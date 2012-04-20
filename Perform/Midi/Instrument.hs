@@ -249,6 +249,9 @@ set_flag flag patch =
 has_flag :: Flag -> Patch -> Bool
 has_flag flag = Set.member flag . patch_flags
 
+set_decay :: Double -> Patch -> Patch
+set_decay secs = instrument_#maybe_decay =# Just secs
+
 -- | Various instrument flags.
 data Flag =
     -- | Patch doesn't pay attention to duration.  E.g., drum samples may not

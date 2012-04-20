@@ -1,4 +1,6 @@
 UNSORTED
+  - inst_maybe_decay should be RealTime
+  - should the Pressure flag automatically set decay to 0?
   - need a better way to continue previous control val than 'i '
   - I have a lot of interpolate to val, then jump to another val, e.g.
     slide up to neighbor down
@@ -234,6 +236,9 @@ UNSORTED
 
 MILESTONES
   0.1
+    - support diatonics, enharmonics, and symbolic transposition for church
+      modes, modes of limited transposition, and exotic scales
+      (e.g. octatonic a-h)
     * record chords
     - record continuum
     - complete TunedJust
