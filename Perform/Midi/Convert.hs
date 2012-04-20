@@ -77,7 +77,8 @@ convert_event :: Lookup -> Maybe RealTime -> Score.Event
 convert_event lookup maybe_prev event = do
     -- Sorted is a postcondition of the deriver.
     when_just maybe_prev $ \prev -> when (Score.event_start event < prev) $
-        warn $ "start time less than previous of " ++ Pretty.pretty prev
+        warn $ "start time " ++ Pretty.pretty (Score.event_start event)
+            ++ " less than previous of " ++ Pretty.pretty prev
     score_inst <- require "instrument" (Score.event_instrument event)
     (midi_inst, maybe_key) <- convert_inst (lookup_inst lookup) score_inst
         (Score.event_attributes event)

@@ -63,16 +63,16 @@ with_controls :: (FixedList.FixedList list) => Derive.PassedArgs d
     -> Derive.Deriver a
 with_controls args controls f = do
     now <- Args.real_start args
-    f =<< Traversable.mapM (control_at now) controls
+    f =<< Traversable.mapM (flip control_at now) controls
 
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.
-control_at :: RealTime -> TrackLang.ValControl -> Derive.Deriver Signal.Y
-control_at pos control = Score.typed_val <$> typed_control_at pos control
+control_at :: TrackLang.ValControl -> RealTime -> Derive.Deriver Signal.Y
+control_at control pos = Score.typed_val <$> typed_control_at control pos
 
-typed_control_at :: RealTime -> TrackLang.ValControl
+typed_control_at :: TrackLang.ValControl -> RealTime
     -> Derive.Deriver Score.TypedVal
-typed_control_at pos control = case control of
+typed_control_at control pos = case control of
     TrackLang.ConstantControl deflt -> return deflt
     TrackLang.DefaultedControl cont deflt ->
         Maybe.fromMaybe deflt <$> Derive.control_at cont pos
@@ -81,10 +81,10 @@ typed_control_at pos control = case control of
                 ++ TrackLang.show_val cont) return
             =<< Derive.control_at cont pos
 
-time_control_at :: TimeType -> RealTime -> TrackLang.ValControl
+time_control_at :: TimeType -> TrackLang.ValControl -> RealTime
     -> Derive.Deriver TrackLang.RealOrScore
-time_control_at default_type pos control = do
-    Score.Typed typ val <- typed_control_at pos control
+time_control_at default_type control pos = do
+    Score.Typed typ val <- typed_control_at control pos
     time_type <- case typ of
             Score.Untyped -> return default_type
             Score.Score -> return Score
@@ -96,10 +96,10 @@ time_control_at default_type pos control = do
         Real -> TrackLang.Real (RealTime.seconds val)
         Score -> TrackLang.Score (ScoreTime.double val)
 
-transpose_control_at :: TransposeType -> RealTime -> TrackLang.ValControl
+transpose_control_at :: TransposeType -> TrackLang.ValControl -> RealTime
     -> Derive.Deriver (Signal.Y, TransposeType)
-transpose_control_at default_type pos control = do
-    Score.Typed typ val <- typed_control_at pos control
+transpose_control_at default_type control pos = do
+    Score.Typed typ val <- typed_control_at control pos
     transpose_type <- case typ of
         Score.Untyped -> return default_type
         Score.Chromatic -> return Chromatic
@@ -440,7 +440,7 @@ map_controls_pitches controls pitch_controls state events f = go state events
         return ([log] : rest_vals, final_state)
     go state (LEvent.Event event : rest) = do
         let pos = Score.event_start event
-        control_vals <- Traversable.mapM (typed_control_at pos) controls
+        control_vals <- Traversable.mapM (flip typed_control_at pos) controls
         pitch_vals <- Traversable.mapM (pitch_at pos) pitch_controls
         result <- Derive.with_event event $
             f control_vals pitch_vals state event

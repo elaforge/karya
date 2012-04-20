@@ -114,7 +114,7 @@ test_call_errors = do
     where
     trans = Derive.transformer "trans" $ \args deriver -> CallSig.call1 args
         (CallSig.optional "arg1" (CallSig.required_control "test")) $ \c -> do
-            Util.control_at 0 c
+            Util.control_at c 0
             deriver
 
 test_val_call = do

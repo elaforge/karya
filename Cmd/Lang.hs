@@ -65,7 +65,7 @@ cmd_language session lang_dirs msg = do
     (response_hdl, text) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
-    Log.notice $ "repl input: " ++ show text
+    Log.debug $ "repl input: " ++ show text
     ui_state <- State.get
     cmd_state <- Cmd.get
     local_modules <- fmap concat (mapM get_local_modules lang_dirs)

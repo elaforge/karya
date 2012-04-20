@@ -55,7 +55,7 @@ arpeggio arp time tracks = do
     delay_tracks <- zip (Seq.range_ 0 time) <$> sort tracks
     events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
         forM track $ \(Note.Event start dur d) -> do
-            new_start <- Util.delay delay start
+            new_start <- Util.delay start delay
             return $ Note.Event new_start (dur - (new_start - start)) d
     Note.place events
     where

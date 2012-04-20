@@ -34,7 +34,7 @@ test_convert = do
     equal (convert [good 2, good 0, good 1])
         [ Left (2, [(2, 62)])
         , Left (0, [(0, 62)])
-        , Right "Convert: start time less than previous of 2s"
+        , Right "Convert: start time 0s less than previous of 2s"
         , Left (1, [(1, 62)])
         ]
 
