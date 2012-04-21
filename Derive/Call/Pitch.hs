@@ -72,6 +72,7 @@ pitch_calls = Derive.make_calls
     [ ("=", Derive.transformer "equal" Util.equal_transformer)
     , ("", c_note_set)
     , ("set", c_note_set)
+    , ("'", c_set_prev)
     , ("i", c_note_linear)
     , ("e", c_note_exponential)
     , ("s", c_note_slide)
@@ -86,17 +87,20 @@ c_note_set = Derive.generator1 "note_set" $ \args -> CallSig.call1 args
         pos <- Args.real_start args
         Util.pitch_signal [(pos, pitch)]
 
+-- | Re-set the previous val.  This can be used to extend a breakpoint.
+c_set_prev :: Derive.PitchCall
+c_set_prev = Derive.generator "set-prev" $ \args -> CallSig.call0 args $
+    case Args.prev_val args of
+        Nothing -> return []
+        Just (prev_x, prev_y) -> do
+            pos <- Args.real_start args
+            if pos > prev_x then (:[]) <$> Util.pitch_signal [(pos, prev_y)]
+                else return []
+
 c_note_linear :: Derive.PitchCall
 c_note_linear = Derive.generator1 "note_linear" $ \args ->
-    case Derive.passed_vals args of
-        [] -> case Args.prev_val args of
-            Nothing ->
-                Derive.throw "can't set to previous val when there was none"
-            Just (_, prev) -> do
-                pos <- Args.real_start args
-                Util.pitch_signal [(pos, prev)]
-        _ -> CallSig.call1 args (required "pitch") $ \pitch ->
-            pitch_interpolate id pitch args
+    CallSig.call1 args (required "pitch") $ \pitch ->
+        pitch_interpolate id pitch args
 
 c_note_exponential :: Derive.PitchCall
 c_note_exponential = Derive.generator1 "note_exponential" $ \args ->

@@ -2,9 +2,11 @@ UNSORTED
   * normalize signal display on the lower bound too, so the pitch signal isn't
     all jammed up on the right side
   * inst_maybe_decay should be RealTime
-  - need a better way to continue previous control val than 'i '
+  * need a better way to continue previous control val than 'i '
   - I have a lot of interpolate to val, then jump to another val, e.g.
-    slide up to neighbor down
+    slide up to neighbor down.  I could do with a call that generates samples
+    until the next note.  But they wouldn't coexist well with an arrival
+    style.
   * velocity input should use hex
   * default .1 srate too coarse, should be .025 at least
   - the way 'recent text' appends the text instead of replacing is inconvenient

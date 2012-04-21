@@ -24,6 +24,7 @@ control_calls = Derive.make_calls
     , ("", c_set)
     , ("set", c_set)
     , ("set-prev", c_set_prev)
+    , ("'", c_set_prev)
     , ("i", c_linear)
     , ("e", c_exponential)
     , ("s", c_slide)
@@ -40,6 +41,9 @@ c_set = Derive.generator1 "set" $ \args -> CallSig.call1 args
         pos <- Args.real_start args
         return $ Signal.signal [(pos, val)]
 
+-- | Re-set the previous val.  This can be used to extend a breakpoint, and is
+-- also automatically set by the control track deriver for the hack described
+-- in 'Perform.Signal.integrate'.
 c_set_prev :: Derive.ControlCall
 c_set_prev = Derive.generator "set-prev" $ \args -> CallSig.call0 args $
     case Args.prev_val args of
@@ -51,16 +55,8 @@ c_set_prev = Derive.generator "set-prev" $ \args -> CallSig.call0 args $
                 else []
 
 c_linear :: Derive.ControlCall
-c_linear = Derive.generator1 "linear" $ \args ->
-    case Derive.passed_vals args of
-        [] -> case Args.prev_val args of
-            Nothing -> Derive.throw
-                "can't set to previous val when there was none"
-            Just (_, prev_y) -> do
-                pos <- Args.real_start args
-                return $ Signal.signal [(pos, prev_y)]
-        _ -> CallSig.call1 args (required "val") $ \val ->
-            control_interpolate id val args
+c_linear = Derive.generator1 "linear" $ \args -> CallSig.call1 args
+    (required "val") $ \val -> control_interpolate id val args
 
 c_exponential :: Derive.ControlCall
 c_exponential = Derive.generator1 "exponential" $ \args ->
