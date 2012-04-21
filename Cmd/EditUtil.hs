@@ -99,6 +99,12 @@ remove_event_at :: (Cmd.M m) => State.Pos -> Bool -> m ()
 remove_event_at pos advance =
     modify_event_at pos False False (const (Nothing, advance))
 
+-- | Insert an event, but only if there isn't already a non-empty one there.
+soft_insert :: (Cmd.M m) => String -> m ()
+soft_insert text = modify_event True True $ \old_text ->
+    if null (Maybe.fromMaybe "" old_text) then (Just text, True)
+        else (old_text, False)
+
 lookup_instrument :: (Cmd.M m) => m (Maybe Score.Instrument)
 lookup_instrument = do
     (block_id, _, track_id, _) <- Selection.get_insert
