@@ -64,25 +64,25 @@ note_expr (Pitch.Note note) frac
 
 -- * pitch
 
--- TODO pitch_interpolate, c_note_slide, and c_neighbor all share a certain
+-- TODO interpolate, c_slide, and c_neighbor all share a certain
 -- amount of code.  think of a way to factor that out.
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
     [ ("=", Derive.transformer "equal" Util.equal_transformer)
-    , ("", c_note_set)
-    , ("set", c_note_set)
+    , ("", c_set)
+    , ("set", c_set)
     , ("'", c_set_prev)
-    , ("i", c_note_linear)
-    , ("e", c_note_exponential)
-    , ("s", c_note_slide)
+    , ("i", c_linear)
+    , ("e", c_exponential)
+    , ("s", c_slide)
 
     , ("n", c_neighbor) -- this clearly needs a symbol
     , ("neighbor", c_neighbor)
     ]
 
-c_note_set :: Derive.PitchCall
-c_note_set = Derive.generator1 "note_set" $ \args -> CallSig.call1 args
+c_set :: Derive.PitchCall
+c_set = Derive.generator1 "set" $ \args -> CallSig.call1 args
     (required "pitch") $ \pitch -> do
         pos <- Args.real_start args
         Util.pitch_signal [(pos, pitch)]
@@ -97,26 +97,25 @@ c_set_prev = Derive.generator "set-prev" $ \args -> CallSig.call0 args $
             if pos > prev_x then (:[]) <$> Util.pitch_signal [(pos, prev_y)]
                 else return []
 
-c_note_linear :: Derive.PitchCall
-c_note_linear = Derive.generator1 "note_linear" $ \args ->
-    CallSig.call1 args (required "pitch") $ \pitch ->
-        pitch_interpolate id pitch args
+c_linear :: Derive.PitchCall
+c_linear = Derive.generator1 "linear" $ \args ->
+    CallSig.call1 args (required "pitch") $ \pitch -> interpolate id pitch args
 
-c_note_exponential :: Derive.PitchCall
-c_note_exponential = Derive.generator1 "note_exponential" $ \args ->
+c_exponential :: Derive.PitchCall
+c_exponential = Derive.generator1 "exponential" $ \args ->
     CallSig.call2 args (required "pitch", optional "exp" 2) $ \pitch exp ->
-        pitch_interpolate (Control.expon exp) pitch args
+        interpolate (Control.expon exp) pitch args
 
 -- | Linear interpolation from the previous value.  This is different than
--- 'c_note_linear' because it starts interpolating *after* the call and
+-- 'c_linear' because it starts interpolating *after* the call and
 -- continues for a given amount of time, or until the next event.
 --
 -- [val /Pitch/] Destination value.
 --
 -- [time /Maybe ScoreOrReal/ Nothing] Time taken to get there.  If not given,
 -- slide until the next event.
-c_note_slide :: Derive.PitchCall
-c_note_slide = Derive.generator1 "note_slide" $ \args -> CallSig.call2 args
+c_slide :: Derive.PitchCall
+c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
     (required "pitch", optional "time" Nothing) $ \pitch maybe_time -> do
         (start, end) <- case maybe_time of
             Nothing -> (,) <$> Args.real_start args
@@ -152,10 +151,10 @@ type Interpolator = Bool -- ^ include the initial sample or not
     -- ^ start -> starty -> end -> endy
     -> PitchSignal.Signal
 
-pitch_interpolate :: (Double -> Double) -> PitchSignal.Pitch
+interpolate :: (Double -> Double) -> PitchSignal.Pitch
     -> Derive.PassedArgs PitchSignal.Signal
     -> Derive.Deriver PitchSignal.Signal
-pitch_interpolate f pitch args = do
+interpolate f pitch args = do
     start <- Args.real_start args
     case Args.prev_val args of
         Nothing -> Util.pitch_signal [(start, pitch)]
