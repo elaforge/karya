@@ -118,15 +118,18 @@ parse s
 unparse :: (Maybe String, Maybe String) -> Maybe String
 unparse (method, val) = case (pre, post) of
         ("", "") -> Nothing
-        -- If the method is gone, the note no longer needs its *, due to
-        -- 'Derive.Control.mangle_pitch_call'.
-        ("", '(':rest) -> Just $ Seq.rdrop 1 rest
+        -- If the method is gone, the note no longer needs its parens.
+        -- Any args after the paren belonged to the method, and can go too.
+        ("", '(':rest) -> Just (strip_right_paren rest)
         ("", _:_) -> Just post
         (_:_, "") -> Just $ pre ++ " "
         (_:_, '(':_) -> Just $ pre ++ ' ' : post
         -- And add parens if the method is new.
         (_:_, _:_) -> Just $ pre ++ ' ' : '(' : post ++ ")"
     where
+    strip_right_paren text
+        | ')' `elem` text = reverse $ drop 1 $ dropWhile (/=')') $ reverse text
+        | otherwise = text
     pre = Maybe.fromMaybe "" method
     post = Maybe.fromMaybe "" val
 

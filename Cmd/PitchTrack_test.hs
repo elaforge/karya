@@ -63,6 +63,13 @@ test_parse = do
     equal (f "f (x)") ("f", "(x)")
     equal (f "f ") ("f", "")
 
+test_unparse = do
+    let f = PitchTrack.unparse
+    equal (f (Just "i", Just "4c")) (Just "i (4c)")
+    equal (f (Just "", Just "(4c)")) (Just "4c")
+    equal (f (Just "i", Just "4c .2")) (Just "i (4c .2)")
+    equal (f (Just "", Just "(4c) .2")) (Just "4c")
+
 test_modify_note = do
     let f = PitchTrack.modify_note
     equal (f Just "x") (Just "x")
