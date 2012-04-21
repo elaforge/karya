@@ -133,14 +133,14 @@ test_cmd_val_edit_dyn = do
     let on vel = CmdTest.m_note_on 60 60 vel
     equal (f [">"] [on 127]) $ Right
         [ (">", [(0, 1, "")])
-        , ("dyn", [(0, 0, "1")])
+        , ("dyn", [(0, 0, "`0x`ff")])
         , ("*twelve", [(0, 0, "4c")])
         ]
 
     equal (f [">", "dyn"] [on 64]) $ Right
         [ (">", [(0, 1, "")])
         , ("*twelve", [(0, 0, "4c")])
-        , ("dyn", [(0, 0, ".503")])
+        , ("dyn", [(0, 0, "`0x`81")])
         ]
 
 val_edit :: Bool -> Bool -> [String] -> [Msg.Msg] -> Either String States

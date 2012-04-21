@@ -23,9 +23,9 @@ test_cmd_val_edit = do
     let f pos msgs = fmap extract $ thread pos ControlTrack.cmd_val_edit msgs
         extract = UiTest.extract_tracks . fst
     equal (f 1 [CmdTest.m_note_on 60 60 100]) $ Right
-        [("*", []), ("c", [(1, 0, ".787")])]
+        [("*", []), ("c", [(1, 0, "`0x`c9")])]
     equal (f 1 [CmdTest.m_control 60 "c" 100]) $ Right
-        [("*", []), ("c", [(1, 0, ".787")])]
+        [("*", []), ("c", [(1, 0, "`0x`c9")])]
 
 thread pos cmd msgs = CmdTest.thread_tracks [("*", []), ("c", [])] id
     (CmdTest.set_point_sel 2 pos : map cmd msgs)
