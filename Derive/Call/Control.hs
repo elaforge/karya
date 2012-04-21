@@ -26,8 +26,9 @@ control_calls = Derive.make_calls
     , ("set-prev", c_set_prev)
     , ("'", c_set_prev)
     , ("i", c_linear)
+    , ("i>", c_linear_next)
     , ("e", c_exponential)
-    , ("s", c_slide)
+    , ("e>", c_exponential_next)
     , ("n", c_neighbor)
 
     -- not sure which one I'll like better
@@ -56,35 +57,31 @@ c_set_prev = Derive.generator "set-prev" $ \args -> CallSig.call0 args $
 
 c_linear :: Derive.ControlCall
 c_linear = Derive.generator1 "linear" $ \args -> CallSig.call1 args
-    (required "val") $ \val -> control_interpolate id val args
+    (required "val") $ interpolate_prev id args
 
-c_exponential :: Derive.ControlCall
-c_exponential = Derive.generator1 "exponential" $ \args ->
-    CallSig.call2 args (required "val", optional "exp" 2) $ \val exp ->
-        control_interpolate (expon exp) val args
-
--- | Linear interpolation from the previous value.  This is different than
--- 'c_linear' because it starts interpolating *after* the call and continues
--- for a given amount of time, or until the next event.
+-- | Linear interpolation to the given value.  This is different than
+-- 'c_linear' because it interpolates from the given value to the next value,
+-- instead of from the previous value to the given one.
 --
 -- [val /Number/] Destination value.
 --
 -- [time /Maybe ScoreOrReal/ Nothing] Time taken to get there.  If not given,
 -- slide until the next event.
-c_slide :: Derive.ControlCall
-c_slide = Derive.generator1 "slide" $ \args ->
+c_linear_next :: Derive.ControlCall
+c_linear_next = Derive.generator1 "linear-next" $ \args ->
     CallSig.call2 args (required "val", optional "time" Nothing) $
-    \val maybe_time -> do
-        (start, end) <- case maybe_time of
-            Nothing -> (,) <$> Args.real_start args
-                <*> Derive.real (Args.end args)
-            Just (TrackLang.DefaultReal time) ->
-                Util.duration_from_start args time
-        srate <- Util.get_srate
-        return $ case Args.prev_val args of
-            Nothing -> Signal.signal [(start, val)]
-            Just (_, prev_y) ->
-                interpolator srate id True start prev_y end val
+        interpolate_next id args
+
+c_exponential :: Derive.ControlCall
+c_exponential = Derive.generator1 "exponential" $ \args ->
+    CallSig.call2 args (required "val", optional "exp" 2) $ \val exp ->
+        interpolate_prev (expon exp) args val
+
+c_exponential_next :: Derive.ControlCall
+c_exponential_next = Derive.generator1 "exponential-next" $ \args ->
+    CallSig.call3 args (required "val", optional "exp" 2,
+        optional "time" Nothing) $ \val exp maybe_time ->
+    interpolate_next (expon exp) args val maybe_time
 
 -- | Emit a slide from a value to 0 in absolute time.  This is the control
 -- version of the neighbor pitch call.
@@ -124,9 +121,9 @@ type Interpolator = Bool -- ^ include the initial sample or not
 -- passed values from 0--1 representing position in time and is expected to
 -- return values from 0--1 representing the Y position at that time.  So linear
 -- interpolation is simply @id@.
-control_interpolate :: (Double -> Signal.Y) -> Signal.Y
-    -> Derive.PassedArgs Signal.Control -> Derive.Deriver Signal.Control
-control_interpolate f val args = do
+interpolate_prev :: (Double -> Signal.Y) -> Derive.PassedArgs Signal.Control
+    -> Signal.Y -> Derive.Deriver Signal.Control
+interpolate_prev f args val = do
     start <- Args.real_start args
     srate <- Util.get_srate
     return $ case Args.prev_val args of
@@ -135,6 +132,25 @@ control_interpolate f val args = do
         Nothing -> Signal.signal [(start, val)]
         Just (prev, prev_val) ->
             interpolator srate f False prev prev_val start val
+
+-- | Similar to 'interpolate_prev', except interpolate to the given val between
+-- here and a time in the future, rather than between the previous event and
+-- here.
+interpolate_next :: (Double -> Signal.Y) -> Derive.PassedArgs Signal.Control
+    -> Signal.Y -> Maybe TrackLang.DefaultReal
+    -- ^ if given, end at this time, if not end at the next event
+    -> Derive.Deriver Signal.Control
+interpolate_next f args val maybe_time = do
+    (start, end) <- case maybe_time of
+        Nothing -> (,) <$> Args.real_start args
+            <*> Derive.real (Args.end args)
+        Just (TrackLang.DefaultReal time) ->
+            Util.duration_from_start args time
+    srate <- Util.get_srate
+    return $ case Args.prev_val args of
+        Nothing -> Signal.signal [(start, val)]
+        Just (_, prev_y) ->
+            interpolator srate f True start prev_y end val
 
 interpolator :: RealTime -> (Double -> Double) -> Interpolator
 interpolator srate f include_initial x0 y0 x1 y1

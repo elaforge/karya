@@ -25,13 +25,13 @@ test_exponential = do
         [(0, 1), (1, 0.5),
             (2, 0.2928932188134524), (3, 0.1339745962155614), (4, 0)]
 
-test_slide = do
+test_linear_next = do
     -- no arg goes to the next event
-    equal (run [(0, "1"), (4, "s 0"), (6, "0")])
+    equal (run [(0, "1"), (4, "i> 0"), (6, "0")])
         [(0, 1), (4, 1), (5, 0.5), (6, 0)]
-    equal (run [(0, "1"), (4, "s 0 2")]) [(0, 1), (4, 1), (5, 0.5), (6, 0)]
+    equal (run [(0, "1"), (4, "i> 0 2")]) [(0, 1), (4, 1), (5, 0.5), (6, 0)]
     -- if the time is too long, it is clipped
-    equal (run [(0, "1"), (4, "s 0 4"), (6, "1")])
+    equal (run [(0, "1"), (4, "i> 0 4"), (6, "1")])
         [(0, 1), (4, 1), (5, 0.75), (6, 1)]
 
 test_neighbor = do

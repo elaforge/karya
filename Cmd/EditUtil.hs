@@ -124,7 +124,7 @@ get_key = do
 
 -- | Extract a key for method input.  [a-z0-9._-]
 method_key :: Msg.Msg -> Maybe Key.Key
-method_key = alphanum_key
+method_key = extract_key (not . Char.isSpace)
 
 -- | Extract a key for control value input.  [0-9._-]
 num_key :: Msg.Msg -> Maybe Key.Key
