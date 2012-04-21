@@ -9,6 +9,7 @@ import Derive.CallSig (required, optional)
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 
+import Util.Control
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
@@ -68,21 +69,21 @@ c_exponential = Derive.generator1 "exponential" $ \args ->
 
 -- | Linear interpolation from the previous value.  This is different than
 -- 'c_linear' because it starts interpolating *after* the call and continues
--- for a given amount of time.
+-- for a given amount of time, or until the next event.
 --
 -- [val /Number/] Destination value.
 --
--- [time /ScoreOrReal/ 0.1] Time taken to get there.
+-- [time /Maybe ScoreOrReal/ Nothing] Time taken to get there.  If not given,
+-- slide until the next event.
 c_slide :: Derive.ControlCall
 c_slide = Derive.generator1 "slide" $ \args ->
-    CallSig.call2 args (required "val", optional "time" (TrackLang.real 0.1)) $
-    \val (TrackLang.DefaultReal time) -> do
-        (start, end) <- Util.duration_from_start args time
-        end <- case Args.next_start args of
-            Nothing -> return end
-            Just n -> do
-                next <- Derive.real n
-                return $ min end next
+    CallSig.call2 args (required "val", optional "time" Nothing) $
+    \val maybe_time -> do
+        (start, end) <- case maybe_time of
+            Nothing -> (,) <$> Args.real_start args
+                <*> Derive.real (Args.end args)
+            Just (TrackLang.DefaultReal time) ->
+                Util.duration_from_start args time
         srate <- Util.get_srate
         return $ case Args.prev_val args of
             Nothing -> Signal.signal [(start, val)]

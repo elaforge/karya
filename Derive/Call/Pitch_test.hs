@@ -49,6 +49,16 @@ test_neighbor = do
     -- Except when explicitly set to ScoreTime.
     equal (run_tempo 2 [(0, "n (4c) 1d 1s")]) [(0, 62), (0.5, 60)]
 
+test_slide = do
+    -- no arg goes to the next event
+    equal (run_tempo 1 [(0, "4c"), (4, "s (4d)"), (6, "4c")])
+        [(0, 60), (4, 60), (5, 61), (6, 60)]
+    equal (run_tempo 1 [(0, "4c"), (4, "s (4d) 2"), (8, "4c")])
+        [(0, 60), (4, 60), (5, 61), (6, 62), (8, 60)]
+    -- if the time is too long, it is clipped
+    equal (run_tempo 1 [(0, "4c"), (4, "s (4d) 4"), (6, "4c")])
+        [(0, 60), (4, 60), (5, 60.5), (6, 60)]
+
 run_tempo tempo events = extract $ DeriveTest.derive_tracks
     [ ("tempo", [(0, 0, show tempo)])
     , (">", [(0, 10, "")])

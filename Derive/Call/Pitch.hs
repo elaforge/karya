@@ -2,6 +2,7 @@
 module Derive.Call.Pitch where
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -102,18 +103,26 @@ c_note_exponential = Derive.generator1 "note_exponential" $ \args ->
     CallSig.call2 args (required "pitch", optional "exp" 2) $ \pitch exp ->
         pitch_interpolate (Control.expon exp) pitch args
 
+-- | Linear interpolation from the previous value.  This is different than
+-- 'c_note_linear' because it starts interpolating *after* the call and
+-- continues for a given amount of time, or until the next event.
+--
+-- [val /Pitch/] Destination value.
+--
+-- [time /Maybe ScoreOrReal/ Nothing] Time taken to get there.  If not given,
+-- slide until the next event.
 c_note_slide :: Derive.PitchCall
-c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
-    (required "pitch", optional "time" 0.1) $ \pitch time -> do
-        start <- Args.real_start args
-        end <- case Args.next_start args of
-            Nothing -> return $ start + RealTime.seconds time
-            Just n -> do
-                next <- Derive.real n
-                return $ min (start + RealTime.seconds time) next
+c_note_slide = Derive.generator1 "note_slide" $ \args -> CallSig.call2 args
+    (required "pitch", optional "time" Nothing) $ \pitch maybe_time -> do
+        (start, end) <- case maybe_time of
+            Nothing -> (,) <$> Args.real_start args
+                <*> Derive.real (Args.end args)
+            Just (TrackLang.DefaultReal time) ->
+                Util.duration_from_start args time
         case Args.prev_val args of
             Nothing -> Util.pitch_signal [(start, pitch)]
-            Just (_, prev) -> make_interpolator id True start prev end pitch
+            Just (_, prev_y) ->
+                make_interpolator id True start prev_y end pitch
 
 -- | Emit a slide from a neighboring pitch in absolute time.
 --
