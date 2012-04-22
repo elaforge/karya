@@ -16,6 +16,7 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseBs
@@ -134,15 +135,18 @@ strip_controls = map snd . filter same . Seq.zip_prev
 
 filled :: Cmd.CmdL ()
 filled = do
-    (_, _, track_id, _) <- Selection.get_insert
+    (block_id, _, track_id, _) <- Selection.get_insert
+    PlayUtil.clear_cache block_id
     State.set_render_style Track.Filled track_id
 
 line :: Cmd.CmdL ()
 line = do
-    (_, _, track_id, _) <- Selection.get_insert
+    (block_id, _, track_id, _) <- Selection.get_insert
+    PlayUtil.clear_cache block_id
     State.set_render_style Track.Line track_id
 
 no_render :: Cmd.CmdL ()
 no_render = do
-    (_, _, track_id, _) <- Selection.get_insert
+    (block_id, _, track_id, _) <- Selection.get_insert
+    PlayUtil.clear_cache block_id
     State.set_render_style Track.NoRender track_id

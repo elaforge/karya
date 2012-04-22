@@ -1,4 +1,10 @@
 UNSORTED
+  * Changing the control val render mode should rederive the block.
+  - Normalization not correct for tempo track: it doesn't have labels, but is
+    not 0--1.
+  - It's taking 7s to rederive after a tempo change, shouldn't it reuse cached
+    blocks?  Find out what's going on.
+  - ' entry didn't work in tempo track
   * normalize signal display on the lower bound too, so the pitch signal isn't
     all jammed up on the right side
   * inst_maybe_decay should be RealTime
