@@ -166,6 +166,9 @@ TrackSignal::calculate_val_bounds() {
     } else {
         val_min = 0;
         val_max = 1;
+        for (ControlSample *s = signal; s < signal + length; s++) {
+            val_max = std::max(val_max, s->val);
+        }
     }
 }
 

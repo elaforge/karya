@@ -1,6 +1,6 @@
 UNSORTED
   * Changing the control val render mode should rederive the block.
-  - Normalization not correct for tempo track: it doesn't have labels, but is
+  * Normalization not correct for tempo track: it doesn't have labels, but is
     not 0--1.
   - It's taking 7s to rederive after a tempo change, shouldn't it reuse cached
     blocks?  Find out what's going on.
