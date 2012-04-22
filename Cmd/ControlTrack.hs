@@ -49,6 +49,7 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.num_key -> Just key) -> modify_event (modify_num key)
+        (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
         _ -> Cmd.abort
     return Cmd.Done
     where suppress = Cmd.suppress_history Cmd.ValEdit
