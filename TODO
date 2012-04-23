@@ -17,7 +17,7 @@ UNSORTED
   * velocity input should use hex
   * default .1 srate too coarse, should be .025 at least
   * the way 'recent text' appends the text instead of replacing is inconvenient
-  - what's going on with duration of inserted events with insert recent?
+  * what's going on with duration of inserted events with insert recent?
   - working with breath instruments is awkward, it keeps resetting the breath
     to 0.  NoteOns could sent breath for Pressure instruments.
   - I feel like show_val should be exported from ParseBs.

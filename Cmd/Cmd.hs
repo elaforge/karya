@@ -341,7 +341,7 @@ state_midi_writer :: State -> (Midi.WriteMessage -> IO ())
 state_midi_writer state (Midi.WriteMessage wdev ts msg) = do
     putStrLn $ "PLAY " ++ Pretty.pretty wdev ++ "->" ++ Pretty.pretty wmsg
     ok <- Midi.Interface.write_message (state_midi_interface state) wmsg
-    unless ok $ Log.warn $ "error writing " ++ show wmsg
+    unless ok $ Log.warn $ "error writing " ++ Pretty.pretty wmsg
     where
     wmsg = Midi.WriteMessage real_wdev ts msg
     real_wdev = Map.findWithDefault wdev wdev (state_wdev_map state)
@@ -479,9 +479,10 @@ initial_edit_state = EditState {
 data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
 
 data RecentNote =
-    -- | Bool is true if the event was zero dur.
+    -- | Bool is true if the event was zero dur.  This is needed if
+    -- 'cmd_insert_recent' winds up creating a new event.
     RecentNote String Bool
-    | RecentTransform String
+    | RecentTransform String Bool
     deriving (Show, Eq)
 
 -- *** midi devices

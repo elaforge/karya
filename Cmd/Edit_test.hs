@@ -7,10 +7,10 @@ import qualified Cmd.Edit as Edit
 
 test_record_recent = do
     let f note recent = map (second unnote) $ Edit.record_recent
-            (Cmd.RecentTransform note)
-            (map (second Cmd.RecentTransform) recent)
+            (Cmd.RecentTransform note True)
+            (map (second (flip Cmd.RecentTransform True)) recent)
         unnote (Cmd.RecentNote s _) = s
-        unnote (Cmd.RecentTransform s) = s
+        unnote (Cmd.RecentTransform s _) = s
     equal (f "a" []) [(1, "a")]
     equal (f "b" [(1, "a")]) [(2, "b"), (1, "a")]
     equal (f "b" [(2, "a")]) [(1, "b"), (2, "a")]

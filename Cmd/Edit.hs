@@ -404,12 +404,12 @@ cmd_insert_recent num = do
     insert_recent =<< Cmd.require (lookup num recent)
 
 insert_recent :: (Cmd.M m) => Cmd.RecentNote -> m ()
-insert_recent (Cmd.RecentNote recent is_zero) =
-    EditUtil.modify_event is_zero True (const (Just recent, True))
-insert_recent (Cmd.RecentTransform recent) = do
+insert_recent (Cmd.RecentNote recent zero_dur) =
+    EditUtil.modify_event zero_dur True (const (Just recent, True))
+insert_recent (Cmd.RecentTransform recent zero_dur) = do
     pos <- Selection.get_insert_pos
-    EditUtil.modify_event_at pos True False $
-        (\s -> (Just (replace s), False)) . Maybe.fromMaybe ""
+    EditUtil.modify_event_at pos zero_dur False $
+        (\s -> (Just (replace s), True)) . Maybe.fromMaybe ""
     where
     -- "a |" -> "x |"
     -- "a" -> "x | a"
@@ -435,11 +435,13 @@ record_recent_note = do
 recent_note :: Event.Event -> Maybe Cmd.RecentNote
 recent_note event
     | null post = let note = Seq.strip pre
-        in if null note then Nothing
-            else Just $ Cmd.RecentNote note (Event.event_duration event == 0)
+        in if null note then Nothing else Just $ Cmd.RecentNote note zero_dur
     | otherwise = let trans = Seq.strip pre
-        in if null trans then Nothing else Just (Cmd.RecentTransform trans)
-    where (pre, post) = break (=='|') (Seq.strip (Event.event_string event))
+        in if null trans then Nothing
+            else Just (Cmd.RecentTransform trans zero_dur)
+    where
+    (pre, post) = break (=='|') (Seq.strip (Event.event_string event))
+    zero_dur = Event.event_duration event == 0
 
 record_recent :: Cmd.RecentNote -> [(Int, Cmd.RecentNote)]
     -> [(Int, Cmd.RecentNote)]

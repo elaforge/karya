@@ -329,8 +329,10 @@ sync_recent = do
         Seq.join ", " (map show_recent (Seq.sort_on fst recent))
     where
     show_recent (num, note) = show num ++ ": " ++ case note of
-        Cmd.RecentNote s _ -> s
-        Cmd.RecentTransform s -> s ++ "|"
+        Cmd.RecentNote s zero_dur -> s ++ zero zero_dur
+        Cmd.RecentTransform s zero_dur -> s ++ "|" ++ zero zero_dur
+    zero True = " (0 dur)"
+    zero False = ""
 
 -- | Sync State.Config changes.
 sync_ui_config :: (Cmd.M m) => State.Config -> m ()
