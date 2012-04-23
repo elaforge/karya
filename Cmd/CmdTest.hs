@@ -193,8 +193,8 @@ default_edit_state = Cmd.initial_edit_state
 
 set_sel :: (Cmd.M m) => Types.TrackNum -> ScoreTime -> Types.TrackNum
     -> ScoreTime -> m ()
-set_sel t0 p0 t1 p1 = do
-    let sel = Types.selection t0 p0 t1 p1
+set_sel start_track start_pos cur_track cur_pos = do
+    let sel = Types.selection start_track start_pos cur_track cur_pos
     State.set_selection UiTest.default_view_id Config.insert_selnum (Just sel)
 
 set_point_sel :: (State.M m) => Types.TrackNum -> ScoreTime -> m Cmd.Status

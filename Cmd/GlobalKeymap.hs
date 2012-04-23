@@ -335,7 +335,8 @@ create_bindings :: (Cmd.M m) => [Keymap.Binding m]
 create_bindings = concat
     [ command_only 't' "insert track" Create.insert_track
     , command_only 'T' "splice track below" Create.splice_below
-    , command_only 'H' "splice track above" Create.splice_above
+    , command_only 'H' "splice track above ancestors"
+        Create.splice_above_ancestors
     , command_only 'd' "delete tracks" Create.destroy_selected_tracks
 
     , command_only 'n' "create view"

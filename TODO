@@ -1,5 +1,7 @@
 UNSORTED
-  - create track above should only link it to the selected tracks
+  - if I added the cmd name before running the cmd, I could put it in the
+    error msg when an exception is caught.
+  * create track above should only link it to the selected tracks
   * Changing the control val render mode should rederive the block.
   * Normalization not correct for tempo track: it doesn't have labels, but is
     not 0--1.
