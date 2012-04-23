@@ -1,4 +1,5 @@
 UNSORTED
+  - create track above should only link it to the selected tracks
   * Changing the control val render mode should rederive the block.
   * Normalization not correct for tempo track: it doesn't have labels, but is
     not 0--1.
@@ -9,15 +10,16 @@ UNSORTED
     all jammed up on the right side
   * inst_maybe_decay should be RealTime
   * need a better way to continue previous control val than 'i '
-  - I have a lot of interpolate to val, then jump to another val, e.g.
+  * I have a lot of interpolate to val, then jump to another val, e.g.
     slide up to neighbor down.  I could do with a call that generates samples
     until the next note.  But they wouldn't coexist well with an arrival
     style.
   * velocity input should use hex
   * default .1 srate too coarse, should be .025 at least
-  - the way 'recent text' appends the text instead of replacing is inconvenient
+  * the way 'recent text' appends the text instead of replacing is inconvenient
+  - what's going on with duration of inserted events with insert recent?
   - working with breath instruments is awkward, it keeps resetting the breath
-    to 0
+    to 0.  NoteOns could sent breath for Pressure instruments.
   - I feel like show_val should be exported from ParseBs.
   * reverse args for Derive.Call.Util.control_at
   - lenses for Cmd.State, for 'name'

@@ -404,13 +404,19 @@ cmd_insert_recent num = do
     insert_recent =<< Cmd.require (lookup num recent)
 
 insert_recent :: (Cmd.M m) => Cmd.RecentNote -> m ()
-insert_recent (Cmd.RecentNote text is_zero) =
-    EditUtil.modify_event is_zero True (const (Just text, True))
-insert_recent (Cmd.RecentTransform text) = do
+insert_recent (Cmd.RecentNote recent is_zero) =
+    EditUtil.modify_event is_zero True (const (Just recent, True))
+insert_recent (Cmd.RecentTransform recent) = do
     pos <- Selection.get_insert_pos
-    let modify s =
-            (Just (text ++ " |" ++ (if null s then "" else " " ++ s)), False)
-    EditUtil.modify_event_at pos True False (modify . Maybe.fromMaybe "")
+    EditUtil.modify_event_at pos True False $
+        (\s -> (Just (replace s), False)) . Maybe.fromMaybe ""
+    where
+    -- "a |" -> "x |"
+    -- "a" -> "x | a"
+    replace event
+        | '|' `elem` event = recent ++ " " ++ dropWhile (/='|') event
+        | otherwise =
+            recent ++ " |" ++ (if null event then "" else " " ++ event)
 
 -- | Try to record the current event in the LIFO recent note queue, as
 -- documented in 'Cmd.state_recent_notes'.
