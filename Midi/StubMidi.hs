@@ -21,7 +21,8 @@ interface = do
         , Interface.connect_read_device = const (return False)
         , Interface.disconnect_read_device = const (return False)
         , Interface.connect_write_device = const (return False)
-        , Interface.write_message = const (return False)
+        -- Return True, otherwise I get lots of spam in the logs.
+        , Interface.write_message = const (return True)
         , Interface.abort = return ()
         , Interface.now = do
             t <- Time.getCurrentTime
