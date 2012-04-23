@@ -561,7 +561,7 @@ events_around = events_around_selnum Config.insert_selnum
 -- | Select events whose @pos@ lie strictly within the selection range.
 strict_events_around :: (Cmd.M m) => Types.SelNum -> m SelectedAround
 strict_events_around selnum = do
-    (_, track_ids, start, end) <- tracks_selnum selnum
+    (_, _, track_ids, start, end) <- tracks_selnum selnum
     tracks <- mapM State.get_track track_ids
     let split events =
             (Events.descending pre, Events.ascending within,
@@ -603,8 +603,8 @@ events_around_selnum selnum = do
 
 -- ** select tracks
 
--- | @([tracknums], [track_ids], start, end)@
-type SelectedTracks = ([TrackNum], [TrackId], ScoreTime, ScoreTime)
+-- | @(block_id, [tracknums], [track_ids], start, end)@
+type SelectedTracks = (BlockId, [TrackNum], [TrackId], ScoreTime, ScoreTime)
 
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in ascending order.  Only event tracks are returned, and tracks
@@ -615,15 +615,14 @@ tracks = tracks_selnum Config.insert_selnum
 -- | Selected tracks, including merged tracks.
 tracks_selnum :: (Cmd.M m) => Types.SelNum -> m SelectedTracks
 tracks_selnum selnum = do
-    (tracknums, track_ids, start, end) <- strict_tracks_selnum selnum
-    block_id <- Cmd.get_focused_block
+    (block_id, tracknums, track_ids, start, end) <- strict_tracks_selnum selnum
     tracks <- mapM (State.get_block_track block_id) tracknums
     let merged_track_ids = concatMap Block.track_merged tracks
     block <- State.get_block block_id
     let merged = tracknums_of block merged_track_ids
     let (all_tracknums, all_track_ids) = unzip $ List.sort $ List.nub $
             merged ++ zip tracknums track_ids
-    return (all_tracknums, all_track_ids, start, end)
+    return (block_id, all_tracknums, all_track_ids, start, end)
 
 -- | Selected tracks, not including merged tracks.
 strict_tracks_selnum :: (Cmd.M m) => Types.SelNum -> m SelectedTracks
@@ -635,7 +634,7 @@ strict_tracks_selnum selnum = do
             [(i, track_id) | (i, Just (Block.TId track_id _))
                 <- zip (Types.sel_tracknums sel) tracklikes]
     let (start, end) = Types.sel_range sel
-    return (tracknums, track_ids, start, end)
+    return (block_id, tracknums, track_ids, start, end)
 
 tracknums_of :: Block.Block -> [TrackId] -> [(TrackNum, TrackId)]
 tracknums_of block track_ids = do

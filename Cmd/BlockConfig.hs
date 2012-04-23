@@ -97,8 +97,7 @@ cmd_expand_track msg = do
 -- | Move selected tracks to the left of the clicked track.
 cmd_move_tracks :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_move_tracks msg = do
-    (tracknums, _, _, _) <- Selection.tracks
-    block_id <- Cmd.get_focused_block
+    (block_id, tracknums, _, _, _) <- Selection.tracks
     clicked_tracknum <- Cmd.require $ clicked_track msg
     tracks <- State.track_count block_id
     let to = min clicked_tracknum (tracks - length tracknums)

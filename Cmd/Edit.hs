@@ -121,7 +121,7 @@ cmd_move_event_back = move_event $ \pos events ->
 move_event :: (Cmd.M m) =>
     (ScoreTime -> Events.Events -> Maybe Events.PosEvent) -> m ()
 move_event get_event = do
-    (_, track_ids, start, end) <- Selection.tracks
+    (_, _, track_ids, start, end) <- Selection.tracks
     let pos = Selection.point_pos start end
         dur = abs (end - start)
     forM_ track_ids $ \track_id -> do
@@ -148,7 +148,7 @@ cmd_set_duration = do
         ModifyEvents.event1 $ \pos event -> set_dur (sel_pos - pos) event
     set_prev_dur sel_pos = do
         -- Wow it's a lot of work as soon as it's not the standard selection.
-        (_, track_ids, _, _) <- Selection.tracks
+        (_, _, track_ids, _, _) <- Selection.tracks
         forM_ track_ids $ \track_id -> do
             prev <- Seq.head . fst . Events.split sel_pos . Track.track_events
                 <$> State.get_track track_id
@@ -191,7 +191,7 @@ cmd_toggle_zero_duration = do
 cmd_set_beginning :: (Cmd.M m) => m ()
 cmd_set_beginning = do
     (_, sel) <- Selection.get
-    (_, track_ids, _, _) <- Selection.tracks
+    (_, _, track_ids, _, _) <- Selection.tracks
     let pos = Selection.point sel
     forM_ track_ids $ \track_id -> do
         (pre, post) <- Events.split pos . Track.track_events <$>
@@ -259,7 +259,7 @@ set_dur dur evt
 -- a point, insert one timestep.
 cmd_insert_time :: (Cmd.M m) => m ()
 cmd_insert_time = do
-    (tracknums, track_ids, start, end) <- Selection.tracks
+    (_, tracknums, track_ids, start, end) <- Selection.tracks
     (start, end) <- expand_range tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id -> do
         track <- State.get_track track_id
@@ -297,7 +297,7 @@ insert_time start end event@(pos, evt)
 -- the selection is a point, delete one timestep.
 cmd_delete_time :: (Cmd.M m) => m ()
 cmd_delete_time = do
-    (tracknums, track_ids, start, end) <- Selection.tracks
+    (_, tracknums, track_ids, start, end) <- Selection.tracks
     (start, end) <- expand_range tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id -> do
         track <- State.get_track track_id
@@ -350,7 +350,7 @@ expand_range [] start end = return (start, end)
 -- a range, clear all events within its half-open extent.
 cmd_clear_selected :: (Cmd.M m) => m ()
 cmd_clear_selected = do
-    (_, track_ids, start, end) <- Selection.tracks
+    (_, _, track_ids, start, end) <- Selection.tracks
     forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
         else State.remove_events track_id start end

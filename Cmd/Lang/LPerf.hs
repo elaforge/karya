@@ -130,7 +130,7 @@ get_sel :: (d -> RealTime) -> (d -> Stack.Stack)
 get_sel event_start event_stack from_root derive_events = do
     (block_id, start, end) <-
         if from_root then Selection.realtime else Selection.local_realtime
-    (_, track_ids, _, _) <- Selection.tracks
+    (_, _, track_ids, _, _) <- Selection.tracks
     events <- derive_events block_id
     return $ in_tracks event_stack track_ids $
         in_range event_start start end events

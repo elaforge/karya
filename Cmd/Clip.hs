@@ -85,7 +85,7 @@ cmd_cut_selection = do
 
 copy_selection :: (Cmd.M m) => Types.SelNum -> m Selection.SelectedTracks
 copy_selection selnum = do
-    sel@(_, _, start, end) <- Selection.tracks_selnum selnum
+    sel@(_, _, _, start, end) <- Selection.tracks_selnum selnum
     when (start == end) Cmd.abort
     return sel
 
@@ -156,8 +156,7 @@ get_clip_block_id = do
 -- Also strip out the skeleton and other track attributes, like hidden, muted,
 -- etc.
 selection_sub_state :: (Cmd.M m) => Selection.SelectedTracks -> m State.State
-selection_sub_state (tracknums, _, start, end) = do
-    block_id <- Cmd.get_focused_block
+selection_sub_state (block_id, tracknums, _, start, end) = do
     block <- State.get_block block_id
 
     tracks <- fmap Maybe.catMaybes $
@@ -276,7 +275,7 @@ clip_events point (event@(pos, evt):events)
 -- event.
 get_paste_area :: (Cmd.M m) => m ([TrackId], [TrackId], ScoreTime, ScoreTime)
 get_paste_area = do
-    (tracknums, track_ids, start, end) <- Selection.tracks
+    (_, tracknums, track_ids, start, end) <- Selection.tracks
     clip_block_id <- get_clip_block_id
     clip_block <- State.get_block clip_block_id
     -- If the clip block has any rulers or anything, I skip them.

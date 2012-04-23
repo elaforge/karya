@@ -314,14 +314,12 @@ named_track block_id ruler_id tracknum name title = do
 
 remove_selected_tracks :: (Cmd.M m) => m ()
 remove_selected_tracks = do
-    block_id <- Cmd.get_focused_block
-    (tracknums, _, _, _) <- Selection.tracks
+    (block_id, tracknums, _, _, _) <- Selection.tracks
     mapM_ (State.remove_track block_id) (reverse tracknums)
 
 destroy_selected_tracks :: (Cmd.M m) => m ()
 destroy_selected_tracks = do
-    block_id <- Cmd.get_focused_block
-    (tracknums, _, _, _) <- Selection.tracks
+    (block_id, tracknums, _, _, _) <- Selection.tracks
     -- Deleting each track will decrease the tracknum of the ones after it.
     mapM_ (destroy_track block_id) (zipWith (-) tracknums [0..])
 
