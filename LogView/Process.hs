@@ -193,18 +193,20 @@ process_cache msg
         matches -> error $
             "unexpected matches for " ++ show regex ++ ": " ++ show matches
     start_play_pattern = Regex.make "^play block "
-    rederived_pattern = Regex.make "rederived generator because of (.*)"
-    cached_pattern = Regex.make "using cache, (\\d+) vals"
+    rederived_pattern = Regex.make "^rederived generator because of (.*)"
+    cached_pattern = Regex.make "^using cache, (\\d+) vals"
 
 -- | Add the block of the given msg to the status string.  E.g.,
 -- \"[13] bid1 bid2 ...\" -> \"14 bid0 bid1 ...\"
 increment_rederived :: String -> String -> ProcessM ()
 increment_rederived bid because = do
     bids <- State.gets (Map.get [] because . cache_rederived . state_cache)
+    -- append so they appear in order of appearance
+    let new_bids = bids ++ [bid]
     modify_cache $ \cache -> cache { cache_rederived =
-        Map.insert because (bid : bids) (cache_rederived cache) }
+        Map.insert because new_bids (cache_rederived cache) }
     modify_status $
-        Map.insert ("~rederived " ++ because) (rederived (bid:bids))
+        Map.insert ("~rederived " ++ because) (rederived new_bids)
     where
     rederived bids = ellide 25 $
         Printf.printf "[%d] %s" (length bids) (unwords bids)
@@ -215,7 +217,7 @@ increment_cached :: String -> Int -> ProcessM ()
 increment_cached bid vals = do
     modify_cache $ \cache -> cache
         { cache_total = vals + (cache_total cache)
-        , cache_blocks = bid : cache_blocks cache
+        , cache_blocks = cache_blocks cache ++ [bid]
         }
     cache <- State.gets state_cache
     modify_status $ Map.insert "~cached" (cached cache)

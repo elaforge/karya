@@ -49,19 +49,14 @@ caching_call call args = do
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
-        Log.debug $ "using cache, " ++ show (LEvent.length cached) ++ " vals"
+        Log.debug $ cached_msg (LEvent.length cached)
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
         Internal.merge_collect collect
         return cached
     generate stack (Left reason) = do
         (result, collect) <- with_collect (call args)
-        Log.debug $ "rederived generator because of "
-            -- This destroys laziness, though I'm not sure why since the
-            -- log msg shouldn't be forced until the msgs already have been
-            -- forced themselves.
-            -- ++ show (LEvent.length stream) ++ " vals) because of "
-            ++ reason
+        Log.debug $ rederived_msg reason
         Internal.merge_collect $
             mempty { Derive.collect_cache = make_cache stack collect result }
         return result
@@ -114,10 +109,27 @@ make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     -- It's unfortunate that I have to copy the chunk, but it's either this
     -- or a more complicated filtering scheme later on, which is bound to
     -- be just a filter too.  At least this way it only happens once.
-    cache_log (LEvent.Log msg) =
-        prefix "using cache " || prefix "rederived generator because of"
-        where prefix = (`Text.isPrefixOf` Log.msg_text msg)
-    cache_log _ = False
+    cache_log = LEvent.either (const False) is_cache_log
+
+-- | This is a terrible hack so the log msgs from caching can be treated
+-- differently from other log msgs.  Perhaps log msgs should have a general
+-- purpose field for tags like this?
+--
+-- TODO But logview still wants to extract vals from it, so I'd need something
+-- more elaborate, and typed.  Map.Map String Dynamic?
+cached_msg :: Int -> String
+cached_msg ncached = "using cache, " ++ show ncached ++ " vals"
+
+rederived_msg :: String -> String
+rederived_msg reason = "rederived generator because of " ++ reason
+    -- This destroys laziness, though I'm not sure why since the
+    -- log msg shouldn't be forced until the msgs already have been
+    -- forced themselves.
+    -- ++ show (LEvent.length stream) ++ " vals)"
+
+is_cache_log :: Log.Msg -> Bool
+is_cache_log msg = prefix "using cache, " || prefix "rederived generator "
+    where prefix = (`Text.isPrefixOf` Log.msg_text msg)
 
 
 -- * get_control_damage
