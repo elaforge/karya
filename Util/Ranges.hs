@@ -16,6 +16,17 @@ import qualified Util.Seq as Seq
 data Ranges n = Ranges [(n, n)] | Everything
     deriving (Eq, Show)
 
+instance (Ord n) => Monoid.Monoid (Ranges n) where
+    mempty = Ranges []
+    mappend Everything _ = Everything
+    mappend _ Everything = Everything
+    mappend (Ranges r1) (Ranges r2) = Ranges (merge r1 r2)
+
+instance (Pretty.Pretty n) => Pretty.Pretty (Ranges n) where
+    format (Ranges rs) = Pretty.text_list (map f rs)
+        where f (s, e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
+    format Everything = Pretty.text "[*--*]"
+
 -- | It has a different type from the real fmap, but it wants to be an fmap.
 fmap :: (Ord b) => ((a, a) -> Maybe (b, b)) -> Ranges a -> Ranges b
 fmap f r = case extract r of
@@ -89,14 +100,3 @@ intersection (Ranges r1) (Ranges r2) = Ranges (go r1 r2)
 
 merge :: (Ord n) => [(n, n)] -> [(n, n)] -> [(n, n)]
 merge r1 r2 = merge_sorted (Seq.merge_on fst r1 r2)
-
-instance (Ord n) => Monoid.Monoid (Ranges n) where
-    mempty = Ranges []
-    mappend Everything _ = Everything
-    mappend _ Everything = Everything
-    mappend (Ranges r1) (Ranges r2) = Ranges (merge r1 r2)
-
-instance (Pretty.Pretty n) => Pretty.Pretty (Ranges n) where
-    pretty (Ranges rs) = "[" ++ Seq.join ", " (map f rs) ++ "]"
-        where f (s, e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
-    pretty Everything = "[*--*]"

@@ -2,7 +2,7 @@
     complete.
 -}
 module Util.Pretty (
-    Pretty(..)
+    Pretty(..), Doc
     , formatted, pprint, render, render_compact
     -- * re-exported
     , PP.char, PP.text, PP.fsep, PP.fcat

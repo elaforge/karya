@@ -470,13 +470,13 @@ data Constant = Constant {
 initial_constant :: State.State -> LookupScale
     -> (Score.Instrument -> Maybe InstrumentCalls)
     -> Cache -> ScoreDamage -> Constant
-initial_constant ui_state lookup_scale inst_calls cache damage = Constant
+initial_constant ui_state lookup_scale inst_calls cache score_damage = Constant
     { state_ui = ui_state
     , state_control_op_map = default_control_op_map
     , state_lookup_scale = lookup_scale
     , state_instrument_calls = inst_calls
-    , state_cache = invalidate_damaged damage cache
-    , state_score_damage = damage
+    , state_cache = invalidate_damaged score_damage cache
+    , state_score_damage = score_damage
     }
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
@@ -784,6 +784,14 @@ instance Monoid.Monoid ScoreDamage where
         ScoreDamage (Map.mappend tracks1 tracks2)
             (tblocks1 <> tblocks2) (blocks1 <> blocks2)
 
+instance Pretty.Pretty ScoreDamage where
+    format (ScoreDamage tracks track_blocks blocks) =
+        Pretty.record_title "ScoreDamage"
+            [ ("tracks", Pretty.format tracks)
+            , ("track_blocks", Pretty.format track_blocks)
+            , ("blocks", Pretty.format blocks)
+            ]
+
 -- | Clear the damaged portions out of the cache so they will rederive.
 invalidate_damaged :: ScoreDamage -> Cache -> Cache
 invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
@@ -804,7 +812,7 @@ invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
 -- modified.  It's dynamically scoped over the same range as the control
 -- itself, so that events that depend on it can be rederived.
 newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
-    deriving (Monoid.Monoid, Eq, Show)
+    deriving (Pretty.Pretty, Monoid.Monoid, Eq, Show)
 
 
 -- * scale

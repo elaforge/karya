@@ -1,11 +1,15 @@
 module Derive.LEvent where
 import Prelude hiding (length, either)
-import qualified Data.List as List
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.List as List
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.SrcPos as SrcPos
+
+import qualified Derive.Stack as Stack
 
 
 -- * LEvent
@@ -18,8 +22,19 @@ instance Functor LEvent where
     fmap _ (Log a) = Log a
 
 instance (Pretty.Pretty d) => Pretty.Pretty (LEvent d) where
-    format (Log msg) = Pretty.format (Log.msg_string msg)
+    format (Log msg) = format_msg msg
     format (Event event) = Pretty.format event
+
+format_msg :: Log.Msg -> Pretty.Doc
+format_msg msg = Pretty.text stars Pretty.<+> Pretty.text srcpos <> stack
+        Pretty.<+> Pretty.text (Log.msg_string msg)
+    where
+    stars = replicate (fromEnum (Log.msg_prio msg)) '*'
+    srcpos = maybe "" ((++": ") . SrcPos.show_srcpos . Just)
+        (Log.msg_caller msg)
+    stack = case Log.msg_stack msg of
+        Nothing -> Pretty.text "[]"
+        Just stack -> Stack.format_ui (Stack.from_strings stack)
 
 event :: LEvent derived -> Maybe derived
 event (Event d) = Just d
@@ -30,8 +45,8 @@ is_event (Event _) = True
 is_event _ = False
 
 either :: (d -> a) -> (Log.Msg -> a) -> LEvent d -> a
-either f _ (Event event) = f event
-either _ f (Log log) = f log
+either f1 _ (Event event) = f1 event
+either _ f2 (Log log) = f2 log
 
 events_of :: [LEvent d] -> [d]
 events_of [] = []

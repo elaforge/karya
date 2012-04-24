@@ -4,7 +4,7 @@ module Derive.Stack (
     , block, add, member, outermost, innermost
     , block_of, track_of, region_of, call_of
     , Frame(..)
-    , show_ui
+    , format_ui, show_ui
     , to_strings, from_strings
 
     -- * more specialized utils
@@ -114,6 +114,9 @@ instance Pretty.Pretty Frame where
     pretty (Track tid) = show tid
     pretty (Region s e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
     pretty (Call call) = call
+
+format_ui :: Stack -> Pretty.Doc
+format_ui = Pretty.text_list . map unparse_ui_frame . to_ui
 
 show_ui :: Stack -> String
 show_ui = Seq.join ": " . map unparse_ui_frame . to_ui
