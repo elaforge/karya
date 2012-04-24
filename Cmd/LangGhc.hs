@@ -123,6 +123,7 @@ expand_macros namespace expr = ParseBs.expand_macros replace expr
     replace ident = "(auto_id " <> show (Id.un_namespace namespace) <> " "
         <> show ident <> ")"
 
+-- | (Either error result, logs, warns)
 type Result a = (Either String a, [String], [String])
 
 -- | Load or reload the target modules.  Return errors if the load failed.
@@ -144,7 +145,6 @@ reload = do
     -- show_ppr :: (Outputable.Outputable a) => a -> String
     -- show_ppr = Outputable.showSDoc . Outputable.ppr
 
--- | (Either error cmd, logs, warns)
 compile :: String -> Ghc (Result Cmd)
 compile expr = do
     (hval, logs, warns) <- handle_errors $ GHC.compileExpr typed_expr
@@ -161,7 +161,7 @@ set_context mod_names = do
     -- First arg is interpreted in scope, second line is non HPT imports.
     GHC.setContext mods [(prelude, Nothing)]
 
--- | Run a Ghc action and return @(Either exception val, logs, warnings)@.
+-- | Run a Ghc action and collect logs and warns.
 handle_errors :: Ghc a -> Ghc (Result a)
 handle_errors action = do
     logs <- liftIO $ IORef.newIORef []
@@ -175,8 +175,7 @@ handle_errors action = do
         flags { GHC.log_action = log_action logs }
     log_action logs _severity _span style msg =
         liftIO $ IORef.modifyIORef logs (err:)
-        where
-        err = Outputable.showSDoc $ Outputable.withPprStyle style msg
+        where err = Outputable.showSDoc $ Outputable.withPprStyle style msg
             -- ErrUtils.mkLocMessage span msg
 
 modify_flags :: (GHC.DynFlags -> GHC.DynFlags) -> Ghc ()

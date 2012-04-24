@@ -146,14 +146,15 @@ create_msg_reader remap_rmsg midi_chan lang_socket ui_chan loopback_chan = do
 -- | Accept a connection on the socket, read everything that comes over, then
 -- place the socket and the read data on @output_chan@.  It's the caller's
 -- responsibility to close the handle after it uses it to reply.
+accept_loop :: Network.Socket -> TChan.TChan (IO.Handle, String) -> IO ()
 accept_loop socket output_chan = forever $ catch_io_errors $ do
     (hdl, _host, _port) <- Network.accept socket
     IO.hSetBuffering hdl IO.NoBuffering
     msg <- read_until hdl Config.message_complete_token
     STM.atomically $ TChan.writeTChan output_chan (hdl, msg)
-
-catch_io_errors = Exception.handle $ \(exc :: IOError) ->
-    Log.warn $ "caught exception from socket read: " ++ show exc
+    where
+    catch_io_errors = Exception.handle $ \(exc :: IOError) ->
+        Log.warn $ "caught exception from socket read: " ++ show exc
 
 read_until :: IO.Handle -> String -> IO String
 read_until hdl boundary = go ""

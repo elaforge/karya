@@ -14,6 +14,7 @@
 module Cmd.Lang (
     Session, make_session, interpreter, cmd_language
 ) where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Error as Error
@@ -25,6 +26,7 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
@@ -79,7 +81,7 @@ cmd_language session lang_dirs msg = do
         -- 'interpret' catches errors in 'merge_cmd_state'
         Nothing -> Trans.liftIO $ LangImpl.interpret session
             local_modules ui_state cmd_state text
-    response <- Cmd.name ("repl: " ++ text) cmd
+    response <- run_cmdio (Cmd.name ("repl: " ++ text) cmd)
     Trans.liftIO $ catch_io_errors $ do
         unless (null response) $
             IO.hPutStrLn response_hdl response
@@ -88,6 +90,32 @@ cmd_language session lang_dirs msg = do
     where
     catch_io_errors = Exception.handle $ \(exc :: IOError) ->
         Log.warn $ "caught exception from socket write: " ++ show exc
+
+-- | Run the Cmd under an IO exception handler.
+run_cmdio :: Cmd.CmdT IO String -> Cmd.CmdT IO String
+run_cmdio cmd = do
+    ui_state <- State.get
+    cmd_state <- Cmd.get
+    result <- Trans.liftIO $ Exception.try $ do
+        (cmd_state, midi, logs, result) <-
+            Cmd.run "<aborted>" ui_state cmd_state cmd
+        mapM_ Log.write logs
+        case result of
+            Left _ -> return ()
+            -- Try to force out any async exceptions, e.g. 'Ui.Id.unsafe_id'.
+            Right (val, _, _) -> val `DeepSeq.deepseq` return ()
+        return (cmd_state, midi, result)
+    case result of
+        Left (exc :: Exception.SomeException) ->
+            return $ "IO exception: " ++ show exc
+        Right (cmd_state, midi, result) -> case result of
+            Left err -> return $ "StateError: " ++ Pretty.pretty err
+            Right (val, ui_state, updates) -> do
+                mapM_ (uncurry Cmd.midi) midi
+                Cmd.put cmd_state
+                State.put ui_state
+                mapM_ State.update updates
+                return val
 
 get_local_modules :: FilePath -> Cmd.CmdT IO [String]
 get_local_modules lang_dir = do

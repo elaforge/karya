@@ -1,4 +1,6 @@
 UNSORTED
+  * repl (vid "0") crashes the program
+  - giving a bad vid to ViewConfig.bring_to_front crashes the program
   * make type codes for RealTime and ScoreTime consistent with Show instance
   - 's' should clear the other error selects, and give focus to the view
   * tempo changes not being caught when I edit the tempo at b22 in
@@ -8,17 +10,6 @@ UNSORTED
   * where did the logs for cache rederivation go?
     They don't work with 'play from', because the play clears them, but the
     cache logs are skipped.
-
-    Really I want the cache mgs to be logged once on rederive.  Regenerating
-    the cache status on every play seems silly.  I only need to clear the
-    cache status on a rederive, not on a play.
-
-    - have logview clear status when it sees a rederive, not a play
-      That doesn't work so great with non-root blocks.  Reset when I play
-      a new block?
-    - think about filtering cache msgs
-    - also think about caching the last play position
-
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
   * create track above should only link it to the selected tracks
