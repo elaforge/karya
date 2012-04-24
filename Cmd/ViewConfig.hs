@@ -85,5 +85,10 @@ view_rect view = do
 -- * misc
 
 bring_to_front :: (Cmd.M m) => ViewId -> m ()
-bring_to_front view_id =
+bring_to_front view_id = do
+    view <- State.lookup_view view_id
+    case view of
+        Nothing -> Cmd.throw $ "can't bring to front non-existent view "
+            ++ show view_id
+        _ -> return ()
     State.update $ Update.ViewUpdate view_id Update.BringToFront
