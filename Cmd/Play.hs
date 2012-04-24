@@ -82,7 +82,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Log as Log
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf

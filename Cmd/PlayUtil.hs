@@ -7,10 +7,10 @@ module Cmd.PlayUtil where
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Cache as Cache
 import qualified Derive.Call.Block as Block
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -98,12 +98,23 @@ shift_messages multiplier start = map $ fmap $
 
 -- | As a special case, a start <= 0 will get all events, including negative
 -- ones.  This is so notes pushed before 0 won't be clipped on a play from 0.
+--
+-- Cache log msgs are emitted even if they are before @start@ because otherwise
+-- you never see the cache status unless you play from the beginning.  Cache
+-- msgs tend to go before the others because 'Derive.d_merge' puts logs before
+-- events and all the events on a track are merged.
 events_from :: RealTime -> Derive.Events -> Derive.Events
-events_from start
-    | start <= 0 = id
-    -- keep log msgs before an event after 'start'
-    | otherwise = Seq.drop_unknown
-        (LEvent.either (Just . (<start) . Score.event_start) (const Nothing))
+events_from start events
+    | start <= 0 = events
+    | otherwise = go [] events
+    where
+    go _ [] = []
+    go logs (e@(LEvent.Event event) : es)
+        | Score.event_start event >= start = reverse logs ++ e : es
+        | otherwise = go [] es
+    go logs (e@(LEvent.Log msg) : es)
+        | Cache.is_cache_log msg = e : go logs es
+        | otherwise = go (e:logs) es
 
 perform_events :: (Cmd.M m) => Derive.Events -> m Perform.MidiEvents
 perform_events events = do

@@ -2,6 +2,7 @@
 module Derive.Cache (
     caching_call
     , get_control_damage, get_tempo_damage
+    , is_cache_log
 
 #ifdef TESTING
     , find_generator_cache

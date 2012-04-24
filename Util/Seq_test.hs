@@ -4,13 +4,6 @@ import Util.Test
 import qualified Util.Seq as Seq
 
 
-test_drop_unknown = do
-    let f = Seq.drop_unknown id
-    equal (f [Nothing, Just False, Just True]) [Nothing, Just False, Just True]
-    equal (f [Just True, Nothing, Just False]) [Nothing, Just False]
-    equal (f [Just True, Nothing, Just True, Just False]) [Just False]
-    equal (f [Nothing, Nothing]) [Nothing, Nothing]
-
 test_keyed_group_on = do
     let f = Seq.keyed_group_on fst
     equal (f ([] :: [(Int, Char)])) []
