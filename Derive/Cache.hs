@@ -5,6 +5,7 @@ module Derive.Cache (
 
 #ifdef TESTING
     , find_generator_cache
+    , _extend_control_damage
 #endif
 ) where
 import qualified Data.Map as Map
@@ -178,19 +179,22 @@ score_to_control track_id track_range score =
 -- bother figuring out damage outside its range.
 extend_damage :: TrackId -> (ScoreTime, ScoreTime) -> ControlDamage
     -> Derive.Deriver ControlDamage
-extend_damage track_id (track_s, track_e) (ControlDamage damage)
+extend_damage track_id track_range (ControlDamage damage)
     | damage == mempty = return mempty
     | otherwise = do
         events <- Track.track_events <$> Derive.get_track track_id
         -- Empty tracks could not have contributed to further damage.
         return $ if events == Events.empty then ControlDamage damage
-            else ControlDamage (extend events damage)
+            else ControlDamage $
+                _extend_control_damage track_range events damage
+
+_extend_control_damage :: (ScoreTime, ScoreTime) -> Events.Events
+    -> Ranges.Ranges ScoreTime -> Ranges.Ranges ScoreTime
+_extend_control_damage (track_s, track_e) events = Ranges.fmap (extend1 events)
     where
-    extend events = Ranges.fmap (extend1 events)
     extend1 events (s, e)
-        | s >= track_s && e <= track_e =
-            Just (event_at_before s events, event_after e events)
-        | otherwise = Nothing
+        | e < track_s || s > track_e = Nothing
+        | otherwise = Just (event_at_before s events, event_after e events)
     event_at_before p events = case Events.split p events of
         (_, (at, _) : _) | p == at -> p
         ((prev, _) : _, _) -> prev

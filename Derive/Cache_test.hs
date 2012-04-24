@@ -13,6 +13,7 @@ import Util.Test
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
@@ -124,6 +125,13 @@ test_logs = do
         , "test/sub2 * rederived"
         , "test/top"
         ]
+
+
+test_extend_control_damage = do
+    let f = Cache._extend_control_damage
+    equal (f (3, 4) (Events.from_list [(0, Event.event "4c" 0)])
+            (Ranges.ranges [(2, 5)]))
+        (Ranges.ranges [(0, 4)])
 
 r_logs :: Derive.Result -> [String]
 r_logs = map DeriveTest.show_log_stack . snd . LEvent.partition
@@ -503,7 +511,7 @@ mkblocks blocks = do
 
 -- | Derive with and without the cache, and make sure the cache fired and the
 -- results are the same.  Returns (result before modification, cached,
--- uncached).  The pre-modification result is occaisionally useful to check
+-- uncached).  The pre-modification result is occasionally useful to check
 -- logs.
 compare_cached :: State.StateId BlockId -> State.StateId a
     -> (Derive.Result, Derive.Result, Derive.Result)
