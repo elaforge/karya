@@ -54,10 +54,10 @@ test_trill = do
             ]
         trill xs = [zip xs (cycle [60, 62])]
     equal (run_speed "") (trill [0, 0.5, 1], [])
-    equal (run_speed ":r") (trill [0, 0.5, 1], [])
-    equal (run_speed ":s") (trill [0, 0.25, 0.5, 0.75, 1, 1.25], [])
+    equal (run_speed ":s") (trill [0, 0.5, 1], [])
+    equal (run_speed ":t") (trill [0, 0.25, 0.5, 0.75, 1, 1.25], [])
     equal (run_speed ":d") ([[]],
-        ["Error: expected time type for %trill-speed,14r but got Diatonic"])
+        ["Error: expected time type for %trill-speed,14s but got Diatonic"])
 
 test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
@@ -143,7 +143,7 @@ test_control_trill = do
     equal (run 1 [(0, 0, "tr 1 1")]) ([trill [0, 1, 2]], [])
     -- Defaults to RealTime, but stretches with ScoreTime if asked.
     equal (run 0.5 [(0, 0, "tr 1 1")]) ([trill [0, 1, 2, 3, 4, 5]], [])
-    equal (run 0.5 [(0, 0, "tr 1 1r")]) ([trill [0, 1, 2, 3, 4, 5]], [])
-    equal (run 0.5 [(0, 0, "tr 1 1s")]) ([trill [0, 2, 4]], [])
+    equal (run 0.5 [(0, 0, "tr 1 1s")]) ([trill [0, 1, 2, 3, 4, 5]], [])
+    equal (run 0.5 [(0, 0, "tr 1 1t")]) ([trill [0, 2, 4]], [])
     equal (run 1 [(0, 0, "tr 1 1d")])
         ([Just []], ["Error: expected time type for 1d but got Diatonic"])

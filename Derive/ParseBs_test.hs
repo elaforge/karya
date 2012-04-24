@@ -81,7 +81,7 @@ test_parse_val = do
             , ("%sig", Just $ VControl $ LiteralControl (Score.Control "sig"))
             , ("%sig,0", Just $ VControl $
                 DefaultedControl (Score.Control "sig") (Score.untyped 0))
-            , ("%sig,4r", Just $ VControl $
+            , ("%sig,4s", Just $ VControl $
                 DefaultedControl (Score.Control "sig")
                 (Score.Typed Score.Real 4))
             , ("%sig,4q", Nothing)

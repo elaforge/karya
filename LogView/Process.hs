@@ -192,6 +192,9 @@ process_cache msg
         [(_, _:_:_)] -> error $ show regex ++ " has >1 group"
         matches -> error $
             "unexpected matches for " ++ show regex ++ ": " ++ show matches
+    -- I clear and regenerate the cache status on every play.  It would be
+    -- nicer to only do that when the score is rederived, but then I have to
+    -- keep track of which block is being displayed in the cache status.
     start_play_pattern = Regex.make "^play block "
     rederived_pattern = Regex.make "^rederived generator because of (.*)"
     cached_pattern = Regex.make "^using cache, (\\d+) vals"

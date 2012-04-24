@@ -47,7 +47,7 @@ test_neighbor = do
     -- It defaults to RealTime.
     equal (run_tempo 2 [(0, "n (4c) 1d 1")]) [(0, 62), (1, 60)]
     -- Except when explicitly set to ScoreTime.
-    equal (run_tempo 2 [(0, "n (4c) 1d 1s")]) [(0, 62), (0.5, 60)]
+    equal (run_tempo 2 [(0, "n (4c) 1d 1t")]) [(0, 62), (0.5, 60)]
 
 test_linear_next = do
     -- no arg goes to the next event

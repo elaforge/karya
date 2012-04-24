@@ -12,7 +12,6 @@ import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Keymap as Keymap
-import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 
 
@@ -20,8 +19,7 @@ main :: IO ()
 main = mapM_ putStrLn
     [ "<html> <head> <title> keymaps </title> </head> <body>"
     , html_fmt "global" $ extract GlobalKeymap.all_cmd_map
-    , html_fmt "note track" $ extract $ fst $
-        NoteTrackKeymap.make_keymap (NoteTrack.CreateTrack 0 0)
+    , html_fmt "note track" $ extract $ fst $ NoteTrackKeymap.make_keymap
     , "</body> </html>"
     ]
 

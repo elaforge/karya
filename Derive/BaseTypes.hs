@@ -66,15 +66,15 @@ type_to_code typ = case typ of
     Untyped -> ""
     Chromatic -> "c"
     Diatonic -> "d"
-    Score -> "s"
-    Real -> "r"
+    Score -> "t" -- t for time
+    Real -> "s" -- s for seconds
 
 code_to_type :: String -> Maybe Type
 code_to_type s = case s of
     "c" -> Just Chromatic
     "d" -> Just Diatonic
-    "s" -> Just Score
-    "r" -> Just Real
+    "t" -> Just Score
+    "s" -> Just Real
     "" -> Just Untyped
     _ -> Nothing
 

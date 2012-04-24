@@ -1,9 +1,9 @@
 UNSORTED
-  - make type codes for RealTime and ScoreTime consistent with Show instance
+  * make type codes for RealTime and ScoreTime consistent with Show instance
   - 's' should clear the other error selects, and give focus to the view
   * tempo changes not being caught when I edit the tempo at b22 in
     bloom-tempo-bug.
-  - why does bloom always rederive all the blocks when I modify the tempo near
+  * why does bloom always rederive all the blocks when I modify the tempo near
     the end?
   * where did the logs for cache rederivation go?
     They don't work with 'play from', because the play clears them, but the

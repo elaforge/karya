@@ -32,8 +32,8 @@ test_delay_inverted = do
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
             ]
         extract = DeriveTest.extract_events DeriveTest.e_note2
-    equal (run "d 2s |") [(2, 1, "4d")]
-    equal (run "d .1r |") [(1.1, 1.0, "4d")]
+    equal (run "d 2t |") [(2, 1, "4d")]
+    equal (run "d .1s |") [(1.1, 1.0, "4d")]
 
 test_echo = do
     let (mmsgs, logs) = perform ("echo 2", [(0, 1, "--1"), (1, 1, "--2")])
