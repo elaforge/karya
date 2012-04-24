@@ -138,6 +138,7 @@ lookup_thread block_id = Map.lookup block_id <$>
 performance_thread :: State.State -> Cmd.State
     -> Thread.Seconds -> SendStatus -> BlockId -> IO ()
 performance_thread ui_state cmd_state wait send_status block_id = do
+    mapM_ Log.write logs
     case res of
         -- These errors indicate not that derivation failed, but that the cmd
         -- threw before it even got started, which should never happen.
@@ -149,7 +150,7 @@ performance_thread ui_state cmd_state wait send_status block_id = do
             evaluate_performance wait send_status block_id
                 (performance derive_result)
     where
-    (_, _, _, res) = Cmd.run_id ui_state cmd_state $
+    (_, _, logs, res) = Cmd.run_id ui_state cmd_state $
         PlayUtil.cached_derive block_id
 
 evaluate_performance :: Thread.Seconds -> SendStatus -> BlockId

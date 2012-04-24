@@ -136,7 +136,6 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     multiplier <- gets Cmd.state_play_multiplier
     msgs <- PlayUtil.shift_messages multiplier start <$>
         PlayUtil.perform_from start perf
-    Log.debug $ "play block " ++ show block_id
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs
 

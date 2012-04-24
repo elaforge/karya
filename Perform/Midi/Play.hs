@@ -36,6 +36,7 @@ play transport_info block_id midi_msgs = do
 
 player_thread :: State -> Messages -> IO ()
 player_thread state msgs = do
+    Log.debug $ "play block " ++ show (state_block_id state)
     play_msgs state Set.empty msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Transport.info_send_status (state_info state)
