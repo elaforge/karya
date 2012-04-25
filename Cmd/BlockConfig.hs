@@ -85,8 +85,35 @@ cmd_open_block = do
 
 cmd_toggle_flag :: (Cmd.M m) => Block.TrackFlag -> m ()
 cmd_toggle_flag flag = do
-    (block_id, tracknum, _, _) <- Selection.get_insert
+    (block_id, tracknums, _, _, _) <- Selection.tracks
+    forM_ tracknums $ \tracknum ->
+        State.toggle_track_flag block_id tracknum flag
+
+cmd_toggle_flag_clicked :: (Cmd.M m) => Block.TrackFlag -> Msg.Msg -> m ()
+cmd_toggle_flag_clicked flag msg = do
+    tracknum <- Cmd.require $ clicked_track msg
+    block_id <- Cmd.get_focused_block
     State.toggle_track_flag block_id tracknum flag
+
+-- | Enable Solo on the track and disable Mute.  It's bound to a double click
+-- so when this cmd fires I have to do undo the results of the single click.
+-- Perhaps mute and solo should be exclusive in general.
+cmd_set_solo :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_set_solo msg = do
+    tracknum <- Cmd.require $ clicked_track msg
+    block_id <- Cmd.get_focused_block
+    State.remove_track_flag block_id tracknum Block.Mute
+    State.toggle_track_flag block_id tracknum Block.Solo
+
+-- | Unset solo if it's set, otherwise toggle the mute flag.
+cmd_mute_or_unsolo :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_mute_or_unsolo msg = do
+    block_id <- Cmd.get_focused_block
+    tracknum <- Cmd.require $ clicked_track msg
+    flags <- Block.track_flags <$> State.get_block_track block_id tracknum
+    if Block.Solo `elem` flags
+        then State.remove_track_flag block_id tracknum Block.Solo
+        else State.toggle_track_flag block_id tracknum Block.Mute
 
 cmd_expand_track :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_expand_track msg = do

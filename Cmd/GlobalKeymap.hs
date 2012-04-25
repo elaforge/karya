@@ -174,6 +174,10 @@ mouse_bindings = concat
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
     , bind_click [Shift] btn Keymap.OnSkeleton 1 "move tracks"
         BlockConfig.cmd_move_tracks
+    , bind_click [SecondaryCommand] btn Keymap.OnSkeleton 1 "toggle mute"
+        BlockConfig.cmd_mute_or_unsolo
+    , bind_click [SecondaryCommand] btn Keymap.OnSkeleton 2 "toggle solo"
+        BlockConfig.cmd_set_solo
 
     , bind_click [Shift] btn Keymap.OnDivider 1 "expand collapsed"
         BlockConfig.cmd_expand_track

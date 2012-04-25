@@ -1,5 +1,8 @@
 UNSORTED
-  - easier way to mute and solo tracks
+  * easier way to mute and solo tracks
+  - I could implement mute and solo without rederiving by filtering based on
+    the stack in events.  This wouldn't account for muting tracks that have
+    some other effect, e.g. setting an environ val.
   * ' is producing nothing in inverted tracks, have to fix that
     Special case hack in slice?  Is there any better way?
   - need a cmd to compress notes, how about paste?  Special paste mode that
