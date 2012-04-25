@@ -23,6 +23,7 @@
     to do it though!
 -}
 module Derive.Slice where
+import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
@@ -146,15 +147,24 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
             concatMap strip subs
         | otherwise = [Tree.Node track (concatMap strip subs)]
 
-events_around :: Int -> ScoreTime -> ScoreTime -> Events.Events
-    -> Events.Events
+events_around :: Int -> ScoreTime -> ScoreTime -> Events.Events -> Events.Events
 events_around after start end events = Events.from_asc_list $
     prev ++ Then.takeWhile ((<end) . fst) (take after) post
     where
     (pre, post) = Events.split start events
-    prev = case post of
-        (p, _) : _ | p == start -> []
-        _ -> take 1 pre
+    prev = take_repeats $ case post of
+        at@(p, _) : _ | p == start -> at : pre
+        _ -> pre
+    -- This is an icky hack.  The problem is that the ' call just repeats the
+    -- previous value.  So slicing back to it doesn't do any good, I need the
+    -- event before it.  The problem is that this low level machinery isn't
+    -- supposed to depend on implementation details of specific calls.
+    -- TODO I would have to make the event evaluation lazy in a way that a call
+    -- wanting the previous value will cause the previous value to be
+    -- evaluated, and at that point I could get rid of slicing entirely.  But
+    -- I can't think of how to do that at the moment.
+    take_repeats = Then.takeWhile1 ((==repeat) . Event.event_bs . snd)
+    repeat = UTF8.fromString "'"
 
 -- | Expect a note track somewhere in the tree.  Slice the tracks above and
 -- below it to each of its events.
