@@ -212,14 +212,17 @@ set_point_sel_block block_name tracknum pos = State.set_selection view_id
 
 -- * extractors
 
+-- | The output of the 'extract' family of functions:
+-- Either error (val, [log])
+type Extracted val = Either String (val, [String])
+
 -- | Run this on either 'extract' or 'extract_state' when you don't care about
 -- the logs.
-trace_logs :: Either a (b, [String]) -> Either a b
+trace_logs :: Extracted a -> Either String a
 trace_logs res = case res of
     Right (b, logs) -> (if null logs then id else trace logs) (Right b)
     Left a -> Left a
-    where
-    trace = Trace.trace . Seq.strip . unlines . ("\tlogged:":)
+    where trace = Trace.trace . Seq.strip . unlines . ("\tlogged:":)
 
 e_logs :: Result a -> [String]
 e_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio . result_logs
@@ -229,8 +232,7 @@ e_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio . result_logs
 -- | Extract the value from a cmd.  This is meant to be used as the single
 -- check on a cmd operation, so it also returns logs and whether the cmd
 -- failed or not (the latter is mandatory since otherwise there is no value).
-extract :: (val -> e_val) -> Result val
-    -> Either String ((Maybe e_val), [String])
+extract :: (val -> e) -> Result val -> Extracted (Maybe e)
 extract f res = case result_val res of
     Right val -> Right (fmap f val, e_logs res)
     Left err -> Left err
@@ -239,16 +241,18 @@ extract f res = case result_val res of
 
 -- | Get something out of the Result from one of the states.  Like 'extract',
 -- this is meant to be used as the single check on a cmd operation.
-extract_state :: (State.State -> Cmd.State -> e) -> Result val
-    -> Either String (e, [String])
+extract_state :: (State.State -> Cmd.State -> e) -> Result val -> Extracted e
 extract_state f res = maybe
     (Right (f (result_ui_state res) (result_cmd_state res), e_logs res))
     Left (result_failed res)
 
-e_tracks :: Result a -> Either String ([(String, [Simple.Event])], [String])
+extract_ui_state :: (State.State -> e) -> Result val -> Extracted e
+extract_ui_state f = extract_state (\state _ -> f state)
+
+e_tracks :: Result a -> Extracted [(String, [Simple.Event])]
 e_tracks = extract_state $ \state _ -> UiTest.extract_tracks state
 
-extract_ui :: State.StateId e -> Result v -> Either String (e, [String])
+extract_ui :: State.StateId e -> Result v -> Extracted e
 extract_ui m = extract_state $ \state _ -> UiTest.eval state m
 
 -- * inst db

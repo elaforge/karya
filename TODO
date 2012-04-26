@@ -1,4 +1,6 @@
 UNSORTED
+  - instead of merging a whole state into the clip ns, clip should deal with
+    [Track]
   * easier way to mute and solo tracks
   - I could implement mute and solo without rederiving by filtering based on
     the stack in events.  This wouldn't account for muting tracks that have
@@ -14,6 +16,25 @@ UNSORTED
   - on startup it baloons up to 450mb, what is it doing?  After a bit of
     editing it's up to 750mb, who is leaking?  Undo history?
     Check size on linux.
+      stripped or not makes no difference
+      bloom is 110m in memory
+      repl is 200m in memory
+      plus 50m for normal app
+      so 360 for everything + bloom
+      - calculate size of a score
+      - calculate size of cache
+    debug, no repl
+      unstripped 31mb: 76 / 150
+      stripped 19mb: 40 / 150
+    opt, no repl
+      unstripped 35mb: 39 / 116
+      stripped 20mb: 39 / 114
+    debug, repl
+      unstripped 78m: 193 -> 248 / 323 -> 376
+    opt, repl
+      unstripped 81m: 194
+      stripped 48m: 194 -> 246
+
   * repl (vid "0") crashes the program
   * giving a bad vid to ViewConfig.bring_to_front crashes the program
   * bring_to_front should check vid

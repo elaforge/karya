@@ -1,5 +1,4 @@
 module Cmd.Clip_test where
-import qualified Util.Log as Log
 import Util.Test
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -15,196 +14,121 @@ import qualified App.Config as Config
 import Types
 
 
-(empty_track_ids, empty_state) = UiTest.run_mkview [("t1", []), ("t2", [])]
-
-(events_track_ids, events_state) = UiTest.run_mkview
-    [ ("t1", track1_events)
-    , ("t2", track2_events)
-    ]
-
-track1_events = [(0, 2, "e11"), (4, 2, "e12"), (8, 2, "e13")]
-track2_events = [(1, 2, "e21"), (5, 2, "e22")]
-
-to_simple :: [(ScoreTime, ScoreTime, String)] -> [Simple.Event]
-to_simple = map (\(pos, dur, text) -> (realToFrac pos, realToFrac dur, text))
-
-(clip_track_ids, clip_state) = UiTest.run State.empty $ UiTest.mkblock
-    (Config.clip_block_name, [("t1", [(0, 2, "c1"), (4, 2, "c2")])])
-
-clip_ns = Config.clip_namespace
-clip_id = Types.BlockId $ Id.unsafe_id clip_ns Config.clip_block_name
-
-with_clip state cstate = State.error_either "with_clip" $
-    State.exec state (Clip.state_to_namespace cstate clip_ns)
-
-extract_block :: BlockId -> CmdVal a -> (a, Simple.Block, [Log.Msg])
-extract_block block_id (val, ustate, _cstate, logs) = (val, block, logs)
-    where Right block = State.eval ustate (Simple.dump_block block_id)
-
-state_val (_, state, _) = state
-
-default_cmd_state = CmdTest.empty_state
-    { Cmd.state_clip_namespace = clip_ns
-    , Cmd.state_focused_view = Just UiTest.default_view_id
-    }
-
-type CmdVal a = (a, State.State, Cmd.State, [Log.Msg])
-
--- TODO integrate into CmdTest extract functions
-run_cmd :: State.State -> Cmd.CmdId a -> CmdVal a
-run_cmd ustate m = extract (run_clip ustate m)
-    where
-    extract res = case CmdTest.result_val res of
-        Right (Just val) ->
-            (val, CmdTest.result_ui_state res, CmdTest.result_cmd_state res,
-                CmdTest.result_logs res)
-        Right Nothing -> error "aborted"
-        Left err -> error $ "state error: " ++ show err
-    run_clip ustate cmd = CmdTest.run ustate default_cmd_state cmd
-
-
-extract_events :: Simple.Block -> [[Simple.Event]]
-extract_events (_, _, tracks, _) = map (\(_, _, a) -> a) tracks
-
-mksel :: TrackNum -> ScoreTime -> TrackNum -> ScoreTime
-    -> Maybe Types.Selection
-mksel a b c d = Just (Types.Selection a b c d)
-
-run_sel :: State.State -> Maybe Types.Selection -> Cmd.CmdId a -> CmdVal a
-run_sel ustate sel cmd = run_cmd ustate $ do
-    State.set_selection UiTest.default_view_id Config.insert_selnum sel
-    cmd
-
-set_sel sel = State.set_selection
-    UiTest.default_view_id Config.insert_selnum sel
-
 -- * copy
 
-run_copy :: State.State -> Maybe Types.Selection -> Cmd.CmdId a
-    -> [[Simple.Event]]
-run_copy ustate sel cmd =
-    (extract_events . state_val . extract_block clip_id)
-    (run_sel ustate sel cmd)
-
 test_cmd_copy_selection = do
-    let state = events_state
-    let run = run_copy state
+    let state = UiTest.exec State.empty $
+            UiTest.mkviews [(UiTest.default_block_name, [track1, track2])]
+        run strack spos ctrack cpos = e_tracks clip_id $ CmdTest.run_ui state $
+            do
+                CmdTest.set_sel strack spos ctrack cpos
+                Clip.cmd_copy_selection
+    equal (run 1 4 1 8) $ Right [("t1", [(0, 2, "e12")])]
 
-    equal (run (mksel 1 4 1 8) Clip.cmd_copy_selection)
-        [[(0, 2, "e12")]]
     -- I get the same event, but also the empty space before it.
     -- Events are not clipped.
-    equal (run (mksel 1 1 1 5) Clip.cmd_copy_selection)
-        [[(3, 2, "e12")]]
+    equal (run 1 1 1 5) $ Right [("t1", [(3, 2, "e12")])]
 
-    equal (run (mksel 1 1 2 5) Clip.cmd_copy_selection)
-        [ [(3, 2, "e12")]
-        , [(0, 2, "e21")]
+    equal (run 1 1 2 5) $ Right
+        [ ("t1", [(3, 2, "e12")])
+        , ("t2", [(0, 2, "e21")])
         ]
-
-test_namespace_ops = do
-    let run state cmd = (\(_, state, _, _) -> state) (run_cmd state cmd)
-
-    state <- return $ run events_state $ do
-        set_sel $ mksel 1 1 2 4
-        Clip.cmd_copy_selection
-    -- TODO it's too hard at the moment to make sure they have been set, so
-    -- I'll just make sure the state is at least valid
-    pprint (UiTest.block_structure state)
-    pprint (State.verify state)
-    uncurry check_msg $ valid_state state
-
-    state <- return $ run state $ Clip.clear_clip
-    pprint (UiTest.block_structure state)
-    uncurry check_msg $ valid_state state
-
-valid_state :: State.State -> (Bool, String)
-valid_state state = case State.verify state of
-    Nothing -> (True, "valid")
-    Just err -> (False, show err)
 
 -- * paste
 
--- | This is in IO to make binding over the previous @res@ more convenient
--- in the tests.
-run_paste :: State.State -> Maybe Types.Selection -> Cmd.CmdId a
-    -> IO [[Simple.Event]]
-run_paste state sel = return . extract_events . state_val
-    . extract_block UiTest.default_block_id . run_sel state sel
+track1 = ("t1", [(0, 2, "e11"), (4, 2, "e12"), (8, 2, "e13")])
+track2 = ("t2", [(1, 2, "e21"), (5, 2, "e22")])
+clip_tracks = [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
+
+e_tracks :: BlockId -> CmdTest.Result val
+    -> Either String [(String, [Simple.Event])]
+e_tracks block_id = CmdTest.trace_logs . CmdTest.extract_state
+    (\state _ -> UiTest.extract_tracks_of block_id state)
+
+run_sel :: State.State -> Cmd.CmdId a -> TrackNum -> ScoreTime -> TrackNum
+    -> ScoreTime -> Either String [(String, [Simple.Event])]
+run_sel state cmd strack spos ctrack cpos = e_tracks UiTest.default_block_id $
+    CmdTest.run_ui state $ do
+        CmdTest.set_sel strack spos ctrack cpos
+        cmd
 
 test_cmd_paste_overwrite = do
-    state <- with_clip events_state clip_state
-    let run = run_paste state
+    let state = mkstate [track1, track2] clip_tracks
+        run = run_sel state Clip.cmd_paste_overwrite
 
     -- From sel onwards replaced by clipboard.
-    res <- run (mksel 1 1 1 1) Clip.cmd_paste_overwrite
-    equal res
-        [ [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"), (8, 2, "e13")]
-        , track2_events
+    equal (run 1 1 1 1) $ Right
+        [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"), (8, 2, "e13")])
+        , track2
         ]
-
     -- Second track isn't overwritten because clip has no second track.
     -- So this is the same as above.
-    res <- run (mksel 1 1 2 1) Clip.cmd_paste_overwrite
-    equal res
-        [ [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"), (8, 2, "e13")]
-        , track2_events
+    equal (run 1 1 2 1) $ Right
+        [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"), (8, 2, "e13")])
+        , track2
         ]
-
     -- Only replace the second event, since clipboard is clipped to sel.
-    res <- run (mksel 1 1 1 4) Clip.cmd_paste_overwrite
-    equal res
-        [ [(0, 1, "e11"), (1, 2, "c1"), (4, 2, "e12"), (8, 2, "e13")]
-        , track2_events
+    equal (run 1 1 1 4) $ Right
+        [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (4, 2, "e12"), (8, 2, "e13")])
+        , track2
         ]
-
     -- Pasted events are clipped to the selection.
-    res <- run (mksel 1 2 1 7) Clip.cmd_paste_overwrite
-    equal res
-        [ [(0, 2, "e11"), (2, 2, "c1"), (6, 1, "c2"), (8, 2, "e13")]
-        , track2_events
+    equal (run 1 2 1 7) $ Right
+        [ ("t1", [(0, 2, "e11"), (2, 2, "c1"), (6, 1, "c2"), (8, 2, "e13")])
+        , track2
         ]
+    -- TODO test pasting in two tracks
 
 test_cmd_paste_merge = do
-    state <- with_clip events_state clip_state
-    let run = run_paste state
+    let state = mkstate [track1, track2] clip_tracks
+        run = run_sel state
 
-    res <- run (mksel 1 1 1 1) Clip.cmd_paste_merge
-    equal res
-        [ [(0, 1, "e11"), (1, 2, "c1"), (4, 1, "e12"), (5, 2, "c2"),
-            (8, 2, "e13")]
-        , track2_events
+    equal (run Clip.cmd_paste_merge 1 1 1 1) $ Right
+        [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (4, 1, "e12"), (5, 2, "c2"),
+            (8, 2, "e13")])
+        , track2
         ]
     -- Not much more to test here since it's all the same as
     -- cmd_paste_overwrite.
 
-    -- They all overlap.
-    res <- run (mksel 1 1 1 1) Clip.cmd_paste_soft_merge
-    equal res [track1_events, track2_events]
+    -- They all overlap so nothing happens.
+    equal (run Clip.cmd_paste_soft_merge 1 1 1 1) $ Right
+        [track1, track2]
 
     -- This time they make it in.
-    res <- run (mksel 1 2 1 2) Clip.cmd_paste_soft_merge
-    equal res
-        [ [(0, 2, "e11"), (2, 2, "c1"), (4, 2, "e12"), (6, 2, "c2"),
-            (8, 2, "e13")]
-        , track2_events
+    equal (run Clip.cmd_paste_soft_merge 1 2 1 2) $ Right
+        [ ("t1", [(0, 2, "e11"), (2, 2, "c1"), (4, 2, "e12"), (6, 2, "c2"),
+            (8, 2, "e13")])
+        , track2
         ]
 
 test_cmd_paste_insert = do
-    state <- with_clip events_state clip_state
-    let run = run_paste state
+    let state = mkstate [track1, track2] clip_tracks
+        run = run_sel state Clip.cmd_paste_insert
 
     -- Point selection pushes by inserted length.
-    res <- run (mksel 1 1 1 1) Clip.cmd_paste_insert
-    equal res
-        [ [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"),
-            (10, 2, "e12"), (14, 2, "e13")]
-        , track2_events
+    equal (run 1 1 1 1) $ Right
+        [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"),
+            (10, 2, "e12"), (14, 2, "e13")])
+        , track2
         ]
 
-    -- selection pushes by selection length
-    res <- run (mksel 1 1 1 3) Clip.cmd_paste_insert
-    equal res
-        [ [(0, 1, "e11"), (1, 2, "c1"), (6, 2, "e12"), (10, 2, "e13")]
-        , track2_events
+    -- Selection pushes by selection length.
+    equal (run 1 1 1 3) $ Right
+        [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (6, 2, "e12"), (10, 2, "e13")])
+        , track2
         ]
+
+-- * util
+
+clip_id :: BlockId
+clip_id = Types.BlockId $
+    Id.unsafe_id Config.clip_namespace Config.clip_block_name
+
+mkstate :: [UiTest.TrackSpec] -> [UiTest.TrackSpec] -> State.State
+mkstate block_tracks clip_tracks = UiTest.exec State.empty $ do
+    UiTest.mkviews [(UiTest.default_block_name, block_tracks)]
+    Clip.state_to_namespace
+        (UiTest.exec State.empty
+            (UiTest.mkblocks [(Config.clip_block_name, clip_tracks)]))
+        Config.clip_namespace
