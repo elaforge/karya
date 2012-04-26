@@ -104,19 +104,33 @@ test_cmd_paste_merge = do
 test_cmd_paste_insert = do
     let state = mkstate [track1, track2] clip_tracks
         run = run_sel state Clip.cmd_paste_insert
-
     -- Point selection pushes by inserted length.
     equal (run 1 1 1 1) $ Right
         [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"),
             (10, 2, "e12"), (14, 2, "e13")])
         , track2
         ]
-
     -- Selection pushes by selection length.
     equal (run 1 1 1 3) $ Right
         [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (6, 2, "e12"), (10, 2, "e13")])
         , track2
         ]
+
+test_cmd_paste_stretch = do
+    let run clip_tracks = run_sel (mkstate [("t1", []), ("t2", [])] clip_tracks)
+            Clip.cmd_paste_stretch
+
+    equal (run [("t1", [(0, 2, "c1"), (2, 2, "c2")])] 1 1 1 2) $ Right
+        [("t1", [(1, 0.5, "c1"), (1.5, 0.5, "c2")]), ("t2", [])]
+    equal (run [("t1", [(0, 2, "c1"), (2, 2, "c2")])] 1 4 1 8) $ Right
+        [("t1", [(4, 2, "c1"), (6, 2, "c2")]), ("t2", [])]
+    -- Not confused by pasting an empty track.
+    equal (run [("t1", [(0, 2, "c1"), (2, 2, "c2")])] 1 1 2 2) $ Right
+        [("t1", [(1, 0.5, "c1"), (1.5, 0.5, "c2")]), ("t2", [])]
+    -- When there are multiple tracks stretch them all the same.
+    equal (run [("t1", [(0, 2, "c1")]), ("t2", [(2, 2, "c2")])] 1 1 2 2) $
+        Right [("t1", [(1, 0.5, "c1")]), ("t2", [(1.5, 0.5, "c2")])]
+
 
 -- * util
 

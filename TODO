@@ -8,7 +8,7 @@ UNSORTED
     some other effect, e.g. setting an environ val.
   * ' is producing nothing in inverted tracks, have to fix that
     Special case hack in slice?  Is there any better way?
-  - need a cmd to compress notes, how about paste?  Special paste mode that
+  * need a cmd to compress notes, how about paste?  Special paste mode that
     shrinks the clipboard down to the given selection and pastes it in
   - some cmds to insert new blocks:
     make a block call and then create a block with that name

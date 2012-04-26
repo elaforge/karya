@@ -160,6 +160,32 @@ cmd_paste_insert = do
     forM_  track_events $ \(track_id, events) ->
         State.insert_events track_id events
 
+-- | Paste the clipboard, but stretch or compress it to fit the selection.
+cmd_paste_stretch :: (Cmd.M m) => m ()
+cmd_paste_stretch = do
+    (track_ids, clip_track_ids, start, end) <- get_paste_area
+    events <- mapM (fmap Track.track_events . State.get_track) clip_track_ids
+    let m_clip_s = Seq.minimum $ map Events.time_begin $
+            filter (not . Events.null) events
+        m_clip_e = Seq.maximum $ map Events.time_end $
+            filter (not . Events.null) events
+    case (m_clip_s, m_clip_e) of
+        (Just clip_s, Just clip_e) -> do
+            let stretched = map (stretch (start, end) (clip_s, clip_e)
+                    . Events.ascending) events
+            forM_ (zip track_ids stretched) $ \(track_id, stretched) -> do
+                State.remove_events track_id start end
+                State.insert_events track_id stretched
+        _ -> return ()
+
+stretch :: (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime)
+    -> [Events.PosEvent] -> [Events.PosEvent]
+stretch (start, end) (clip_s, clip_e) = map reposition
+    where
+    reposition (pos, event) =
+        ((pos-clip_s) * factor + start, Event.modify_duration (*factor) event)
+    factor = (end - start) / (clip_e - clip_s)
+
 
 -- * implementation
 
