@@ -182,7 +182,7 @@ no_ruler_track = Block.track (Block.RId no_ruler) 0
 --
 -- See the StateStack comment for more.
 run :: (Monad m) =>
-   State -> StateT m a -> m (Either StateError (a, State, [Update.CmdUpdate]))
+   State -> StateT m a -> m (Either Error (a, State, [Update.CmdUpdate]))
 run state m = do
     res <- (Error.runErrorT . Logger.run . flip State.runStateT state
         . run_state_t) m
@@ -190,8 +190,7 @@ run state m = do
         Left err -> Left err
         Right ((val, state), updates) -> Right (val, state, updates)
 
-run_id :: State -> StateId a
-    -> Either StateError (a, State, [Update.CmdUpdate])
+run_id :: State -> StateId a -> Either Error (a, State, [Update.CmdUpdate])
 run_id state m = Identity.runIdentity (run state m)
 
 eval_rethrow :: (M m) => String -> State -> StateId a -> m a
@@ -199,13 +198,13 @@ eval_rethrow msg state = require_right msg . eval state
 
 -- | A form of 'run' that returns only the val and automatically runs in
 -- Identity.
-eval :: State -> StateId a -> Either StateError a
+eval :: State -> StateId a -> Either Error a
 eval state m = case result of
         Left err -> Left err
         Right (val, _, _) -> Right val
     where result = Identity.runIdentity (run state m)
 
-exec :: State -> StateId a -> Either StateError State
+exec :: State -> StateId a -> Either Error State
 exec state m = case result of
         Left err -> Left err
         Right (_, state', _) -> Right state'
@@ -214,11 +213,11 @@ exec state m = case result of
 exec_rethrow :: (M m) => String -> State -> StateId a -> m State
 exec_rethrow msg state = require_right msg . exec state
 
-require_right :: (M m) => String -> Either StateError a -> m a
+require_right :: (M m) => String -> Either Error a -> m a
 require_right msg = either (throw . ((msg ++ ": ") ++) . show) return
 
 -- | Like 'require_right', but throw an IO exception.  Useful for tests.
-error_either :: (Show a, Monad m) => String -> Either StateError a -> m a
+error_either :: (Show a, Monad m) => String -> Either Error a -> m a
 error_either msg = either (error . ((msg ++ ": ") ++) . show) return
 
 -- | TrackUpdates are stored directly instead of being calculated from the
@@ -231,9 +230,9 @@ error_either msg = either (error . ((msg ++ ": ") ++) . show) return
 -- mean TrackUpdates can overlap, so 'Ui.Sync.sync' should collapse them.
 type StateStack m = State.StateT State
     (Logger.LoggerT Update.CmdUpdate
-        (Error.ErrorT StateError m))
+        (Error.ErrorT Error m))
 newtype StateT m a = StateT (StateStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError StateError,
+    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError Error,
         Applicative.Applicative)
 run_state_t (StateT x) = x
 
@@ -246,12 +245,12 @@ instance Trans.MonadTrans StateT where
 -- | Abort is used by Cmd, so don't throw it from here.  This isn't exactly
 -- modular, but ErrorT can't be composed and extensible exceptions are too
 -- much bother at the moment.
-data StateError = StateError String | Abort deriving (Generics.Typeable, Show)
-instance Error.Error StateError where
-    strMsg = StateError
+data Error = Error String | Abort deriving (Generics.Typeable, Show)
+instance Error.Error Error where
+    strMsg = Error
 
-instance Pretty.Pretty StateError where
-    pretty (StateError msg) = msg
+instance Pretty.Pretty Error where
+    pretty (Error msg) = msg
     pretty Abort = "(abort)"
 
 -- | Monads implementing this class can call the UI state functions directly.
@@ -270,7 +269,7 @@ instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     put st = StateT (State.put st)
     update upd = (StateT . lift) (Logger.log upd)
     get_updates = (StateT . lift) Logger.peek
-    throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
+    throw msg = (StateT . lift . lift) (Error.throwError (Error msg))
 
 gets :: (M m) => (State -> a) -> m a
 gets f = fmap f get
@@ -295,7 +294,7 @@ all_track_ids = Map.keys . state_tracks <$> get
 
 -- | Unfortunately there are some invariants to protect within State.  This
 -- will check the invariants and return an error if it's broken.
-verify :: State -> Maybe StateError
+verify :: State -> Maybe Error
 verify state = either Just (const Nothing) (exec state do_verify)
 
 -- TODO

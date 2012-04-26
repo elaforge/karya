@@ -95,7 +95,7 @@ copy_selection selnum = do
 -- selection.
 type Selected = [(String, Events.Events)]
 
-selected_to_state :: BlockId -> Selected -> Either State.StateError State.State
+selected_to_state :: BlockId -> Selected -> Either State.Error State.State
 selected_to_state block_id selected = State.exec State.empty $ do
     State.set_namespace $ Id.id_namespace $ Id.unpack_id block_id
     State.create_block (Id.unpack_id block_id) ""

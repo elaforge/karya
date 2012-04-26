@@ -23,7 +23,7 @@ import Types
 
 
 type Sync = Track.TrackSignals -> Event.SetStyle -> State.State
-    -> [Update.DisplayUpdate] -> IO (Maybe State.StateError)
+    -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
 
 -- | Sync @ui_to@ to the UI.
 --

@@ -205,7 +205,7 @@ type ResponderM = Monad.State.StateT RState IO
 
 newtype Done = Done Result
 instance Error.Error Done
-type Result = Either State.StateError Cmd.Status
+type Result = Either State.Error Cmd.Status
 
 save_updates :: [Update.CmdUpdate] -> ResponderM ()
 save_updates updates = Monad.State.modify $ \st ->
@@ -386,7 +386,7 @@ run_throw cmd = do
                 Error.throwError $ Done (Right status)
 
 run_cmd :: EitherCmd -> ResponderM
-    (Either State.StateError (Cmd.Status, State.State), Cmd.State)
+    (Either State.Error (Cmd.Status, State.State), Cmd.State)
 run_cmd cmd = do
     rstate <- Monad.State.get
     (cmd_state, midi, logs, result) <- Trans.liftIO $ case cmd of

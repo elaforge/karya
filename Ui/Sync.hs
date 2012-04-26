@@ -59,7 +59,7 @@ import Types
 -- they're special: they exist in Cmd.State and not in Ui.State.  It's rather
 -- unpleasant, but as long as it's only TrackSignals then I can deal with it.
 sync :: Track.TrackSignals -> Event.SetStyle -> State.State
-    -> [Update.DisplayUpdate] -> IO (Maybe State.StateError)
+    -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
 sync track_signals set_style state updates = do
     -- TODO: TrackUpdates can overlap.  Merge them together here.
     -- Technically I can also cancel out all TrackUpdates that only apply to

@@ -102,7 +102,7 @@ merge_cmd_state cmd_state midi logs ui_res = do
     mapM_ Log.write logs
     mapM_ (uncurry Cmd.midi) midi
     case ui_res of
-        Left (State.StateError err) -> do
+        Left (State.Error err) -> do
             Log.warn $ "state error in lang cmd: " ++ err
             return $ "error: " ++ err
         Left State.Abort -> Cmd.abort

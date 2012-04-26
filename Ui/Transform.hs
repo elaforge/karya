@@ -24,7 +24,7 @@ tracks block_id f = State.modify_block block_id $ \block ->
 -- | Map a function across the IDs in the given state.  Any collisions are
 -- thrown in Left.
 map_state_ids :: (Id.Id -> Id.Id) -> State.State
-    -> Either State.StateError State.State
+    -> Either State.Error State.State
 map_state_ids f state = State.exec state (map_ids f)
 
 -- | Transform IDs, but don't update view_id pointer map.  So only use this
@@ -118,8 +118,7 @@ safe_map_keys name f fm0
 -- * merge
 
 -- | Merge ID maps from the states together.  Collisions will throw.
-merge_states :: State.State -> State.State
-    -> Either State.StateError State.State
+merge_states :: State.State -> State.State -> Either State.Error State.State
 merge_states st0 st1 = State.exec st0 $ do
     views <- safe_union "views"
         (State.state_views st0) (State.state_views st1)

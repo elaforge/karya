@@ -74,7 +74,7 @@ cmd_language session lang_dirs msg = do
 
     cmd <- case Fast.fast_interpret text of
         Just cmd -> return $ cmd `Error.catchError` \err -> case err of
-            State.StateError err -> do
+            State.Error err -> do
                 Log.warn $ "state error in lang cmd: " ++ err
                 return $ "error: " ++ err
             State.Abort -> return "aborted"
@@ -109,7 +109,7 @@ run_cmdio cmd = do
         Left (exc :: Exception.SomeException) ->
             return $ "IO exception: " ++ show exc
         Right (cmd_state, midi, result) -> case result of
-            Left err -> return $ "StateError: " ++ Pretty.pretty err
+            Left err -> return $ "State error: " ++ Pretty.pretty err
             Right (val, ui_state, updates) -> do
                 mapM_ (uncurry Cmd.midi) midi
                 Cmd.put cmd_state

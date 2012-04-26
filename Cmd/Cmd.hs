@@ -131,7 +131,7 @@ type RunCmd cmd_m val_m a =
 
 -- | The result of running a Cmd.
 type CmdVal a = (State, [MidiThru], [Log.Msg],
-    Either State.StateError (a, State.State, [Update.CmdUpdate]))
+    Either State.Error (a, State.State, [Update.CmdUpdate]))
 
 run :: (Monad m) => a -> RunCmd m m a
 run abort_val ustate cstate cmd = do
@@ -181,7 +181,7 @@ type CmdStack m = State.StateT
             (Log.LogT m)))
 
 newtype CmdT m a = CmdT (CmdStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError State.StateError,
+    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError State.Error,
         Applicative.Applicative)
 
 class (Log.LogMonad m, State.M m) => M m where

@@ -11,7 +11,6 @@ import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
-import Ui.UiTest (mkid)
 import qualified Ui.Update as Update
 
 
@@ -62,7 +61,7 @@ consistent extract state1 modify = case run_state state1 modify of
                 equal (extract state2) (extract state2b)
 
 run_state :: State.State -> State.StateId a
-    -> Either State.StateError (State.State, [Update.CmdUpdate])
+    -> Either State.Error (State.State, [Update.CmdUpdate])
 run_state state m = case Identity.runIdentity (State.run state m) of
     Left err -> Left err
     Right (_, state, updates) -> Right (state, updates)

@@ -1,7 +1,7 @@
 UNSORTED
   * instead of merging a whole state into the clip ns, clip should deal with
     [Track]
-  - rename Ui.State.StateError to just Error?
+  * rename Ui.State.StateError to just Error?
   * easier way to mute and solo tracks
   - I could implement mute and solo without rederiving by filtering based on
     the stack in events.  This wouldn't account for muting tracks that have
