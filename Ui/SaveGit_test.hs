@@ -8,6 +8,7 @@ import Util.Test
 
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
@@ -42,7 +43,7 @@ test_checkpoint = do
         , do
             State.destroy_track (UiTest.mk_tid 2)
             void $ State.create_track (Id.unpack_id (UiTest.mk_tid 2)) $
-                Track.track "new" []
+                Track.track "new" Events.empty
         , do
             State.destroy_view UiTest.default_view_id
             State.destroy_block UiTest.default_block_id

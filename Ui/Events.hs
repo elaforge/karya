@@ -16,7 +16,7 @@ module Ui.Events (
 
     -- * events
     , Events(..)
-    , empty, length, time_begin, time_end
+    , empty, null, length, time_begin, time_end
 
     -- ** list conversion
     , singleton
@@ -47,7 +47,7 @@ module Ui.Events (
 #endif
 ) where
 import qualified Prelude
-import Prelude hiding (last, length, min, max)
+import Prelude hiding (last, length, min, max, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
@@ -96,6 +96,9 @@ sort = Seq.sort_on start
 
 empty :: Events
 empty = Events Map.empty
+
+null :: Events -> Bool
+null (Events m) = Map.null m
 
 length :: Events -> Int
 length = Map.size . get

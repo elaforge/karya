@@ -208,18 +208,23 @@ select_point :: (State.M m) => ViewId -> TrackNum -> ScoreTime -> m ()
 select_point view_id tracknum pos =
     select view_id (Types.point_selection tracknum pos)
 
--- * extract from ustate
+-- * extract from ui_state
 
+-- | Get the names and tracks of the default block.
 extract_tracks :: State.State -> [(String, [Simple.Event])]
-extract_tracks ustate = map (\(_, title, events) -> (title, events)) tracks
-    where (_, _, tracks, _) = eval ustate (Simple.dump_block default_block_id)
+extract_tracks = extract_tracks_of default_block_id
+
+extract_tracks_of :: BlockId -> State.State -> [(String, [Simple.Event])]
+extract_tracks_of block_id ui_state = map
+    (\(_, title, events) -> (title, events)) tracks
+    where (_, _, tracks, _) = eval ui_state (Simple.dump_block block_id)
 
 dump_block :: State.State -> BlockId -> Simple.Block
-dump_block ustate block_id = eval ustate (Simple.dump_block block_id)
+dump_block ui_state block_id = eval ui_state (Simple.dump_block block_id)
 
 dump_blocks :: State.State -> [Simple.Block]
-dump_blocks ustate =
-    map (dump_block ustate) (Map.keys (State.state_blocks ustate))
+dump_blocks ui_state =
+    map (dump_block ui_state) (Map.keys (State.state_blocks ui_state))
 
 -- * pure make_- functions
 
@@ -236,7 +241,7 @@ event_track_2 = make_track ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 make_track :: TrackSpec -> Track.Track
 make_track (title, triplets) = Track.modify_events
     (Events.insert_events (map make_event triplets)) (empty_track title)
-empty_track title = Track.track title []
+empty_track title = Track.track title Events.empty
 
 -- ** event
 

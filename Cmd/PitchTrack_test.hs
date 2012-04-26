@@ -1,5 +1,4 @@
 module Cmd.PitchTrack_test where
-import qualified Util.Log as Log
 import Util.Test
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
@@ -8,16 +7,11 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.PitchTrack as PitchTrack
+import qualified Cmd.Simple as Simple
 
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 
-
-run_tracks track_specs cmd = CmdTest.trace_logs $ CmdTest.e_tracks $
-    CmdTest.run_tracks track_specs $ CmdTest.set_sel 1 0 1 0 >> cmd
-
-extract (Right (Just Cmd.Done, tracks, logs)) = Log.trace_logs logs tracks
-extract val = error $ "unexpected: " ++ show val
 
 test_cmd_val_edit = do
     let run track_specs cmd = run_tracks track_specs cmd
@@ -89,3 +83,9 @@ test_transpose = do
     equal (f 20 0 (0, 1, "4c")) Nothing
     equal (f 1 0 (0, 1, "i (4c 5)"))
         (Just (UiTest.make_event (0, 1, "i (5c 5)")))
+
+
+run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a
+    -> Either String [(String, [Simple.Event])]
+run_tracks track_specs cmd = CmdTest.trace_logs $ CmdTest.e_tracks $
+    CmdTest.run_tracks track_specs $ CmdTest.set_sel 1 0 1 0 >> cmd

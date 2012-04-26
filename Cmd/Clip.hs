@@ -30,22 +30,22 @@
     place" cmd to flatten deriver structure.
 -}
 module Cmd.Clip where
-import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
@@ -69,13 +69,6 @@ clear_clip = destroy_namespace =<< get_clip_namespace
 
 -- * copy
 
--- | Copy events under the current selection into the buffer.
-cmd_copy_selection :: (Cmd.M m) => m ()
-cmd_copy_selection = do
-    sel <- copy_selection Config.insert_selnum
-    state <- selection_sub_state sel
-    state_to_clip state
-
 -- | Like 'cmd_copy_selection', but shift the following events back by the
 -- selection duration.
 cmd_cut_selection :: (Cmd.M m) => m ()
@@ -83,11 +76,46 @@ cmd_cut_selection = do
     cmd_copy_selection
     Edit.cmd_clear_selected
 
+-- | Copy events under the current selection into the buffer.
+cmd_copy_selection :: (Cmd.M m) => m ()
+cmd_copy_selection = do
+    selected <- get_selection =<< copy_selection Config.insert_selnum
+    clip_block_id <- get_clip_block_id
+    state <- State.require_right "selected_to_state" $
+        selected_to_state clip_block_id selected
+    state_to_clip state
+
 copy_selection :: (Cmd.M m) => Types.SelNum -> m Selection.SelectedTracks
 copy_selection selnum = do
     sel@(_, _, _, start, end) <- Selection.tracks_selnum selnum
     when (start == end) Cmd.abort
     return sel
+
+-- | (track_title, events) pairs for each copied track within the copied
+-- selection.
+type Selected = [(String, Events.Events)]
+
+selected_to_state :: BlockId -> Selected -> Either State.StateError State.State
+selected_to_state block_id selected = State.exec State.empty $ do
+    State.set_namespace $ Id.id_namespace $ Id.unpack_id block_id
+    State.create_block (Id.unpack_id block_id) ""
+        [Block.track (Block.RId State.no_ruler) 0]
+    forM_ (zip [0..] selected) $ \(tracknum, (title, events)) -> do
+        Create.track_events block_id State.no_ruler tracknum
+            Config.track_width (Track.track title events)
+
+get_selection :: (Cmd.M m) => Selection.SelectedTracks -> m Selected
+get_selection (block_id, tracknums, _, start, end) = do
+    tracks <- mapM State.get_track =<< Maybe.catMaybes <$>
+        mapM (State.event_track_at block_id) tracknums
+    return $ map extract tracks
+    where
+    extract track = (Track.track_title track,
+        select_events start end (Track.track_events track))
+
+select_events :: ScoreTime -> ScoreTime -> Events.Events -> Events.Events
+select_events start end = Events.map_sorted (\(pos, evt) -> (pos - start, evt))
+    . Events.in_range start end
 
 -- * paste
 
@@ -97,23 +125,23 @@ copy_selection selnum = do
 -- | The normal variety of paste that replaces the destination data.
 cmd_paste_overwrite :: (Cmd.M m) => m ()
 cmd_paste_overwrite = do
-    (start, end, track_ids, clip_events) <- paste_info
-    forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
+    (start, end, track_events) <- paste_info
+    forM_ track_events $ \(track_id, events) -> do
         State.remove_events track_id start end
         State.insert_events track_id events
 
 cmd_paste_merge :: (Cmd.M m) => m ()
 cmd_paste_merge = do
-    (_start, _end, track_ids, clip_events) <- paste_info
-    forM_  (zip track_ids clip_events) $ \(track_id, events) ->
+    (_, _, track_events) <- paste_info
+    forM_  track_events $ \(track_id, events) ->
         State.insert_events track_id events
 
 -- | Like 'cmd_paste_merge', except don't merge events that overlap with
 -- existing ones.
 cmd_paste_soft_merge :: (Cmd.M m) => m ()
 cmd_paste_soft_merge = do
-    (_start, _end, track_ids, clip_events) <- paste_info
-    forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
+    (_, _, track_events) <- paste_info
+    forM_  track_events $ \(track_id, events) -> do
         track_events <- fmap Track.track_events (State.get_track track_id)
         State.insert_events track_id $
             filter (not . overlaps track_events) events
@@ -125,11 +153,11 @@ cmd_paste_soft_merge = do
 -- length of the buffer.
 cmd_paste_insert :: (Cmd.M m) => m ()
 cmd_paste_insert = do
-    (start, end, track_ids, clip_events) <- paste_info
+    (start, end, track_events) <- paste_info
     -- Only shift the tracks that are in clip_events.
     mapM_ (ModifyEvents.move_track_events start (end-start))
-        (map fst (zip track_ids clip_events))
-    forM_  (zip track_ids clip_events) $ \(track_id, events) ->
+        (map fst track_events)
+    forM_  track_events $ \(track_id, events) ->
         State.insert_events track_id events
 
 
@@ -141,57 +169,6 @@ get_clip_block_id = do
     return $ Types.BlockId (Id.unsafe_id clip_ns Config.clip_block_name)
 
 -- ** copy
-
--- | Convert the area under the selection into its own State, consisting of
--- no views, one block, and the tracks under the selection containing only the
--- events in the selection.  The tracks are shifted to start at 1 and the
--- events shifted to start at 0.
---
--- The rulers are not copied because it doesn't really make sense to paste
--- them, and when the events get shifted they probably won't line up anyway.
--- TODO On the other hand, it can be convenient to edit the clipboard in-place,
--- and it's nice to have a ruler for that.  But it's not too hard to just copy
--- a ruler over, so I'll wait and see what experience shows.
---
--- Also strip out the skeleton and other track attributes, like hidden, muted,
--- etc.
-selection_sub_state :: (Cmd.M m) => Selection.SelectedTracks -> m State.State
-selection_sub_state (block_id, tracknums, _, start, end) = do
-    block <- State.get_block block_id
-
-    tracks <- fmap Maybe.catMaybes $
-        mapM (State.block_track_at block_id) tracknums
-    let tracklike_ids = map Block.tracklike_id tracks
-    tracklikes <- mapM State.get_tracklike tracklike_ids
-
-    clip_block_id <- get_clip_block_id
-    State.exec_rethrow "build clip state" State.empty $ do
-        -- Inherit everything from the copied block, except the tracks and the
-        -- skeleton.
-        b <- State.create_config_block (Id.unpack_id clip_block_id) $ block
-            { Block.block_tracks = []
-            , Block.block_skeleton = Skeleton.empty
-            }
-
-        -- Copy over the tracks, but without their rulers.
-        let track_pairs = Seq.unique_on fst $ zip
-                (Block.track_ids_of tracklike_ids) (Block.tracks_of tracklikes)
-        forM_ track_pairs $ \(track_id, track) ->
-            State.create_track (Id.unpack_id track_id)
-                (events_in_range start end track)
-        forM_ (zip [1..] tracks) $ \(n, track) ->
-            State.insert_track b n $ Block.track
-                (Block.set_rid State.no_ruler (Block.tracklike_id track))
-                (Block.track_width track)
-
--- | Make a copy of the track with only the events in the selection shifted
--- by the offset of the selection.
-events_in_range :: ScoreTime -> ScoreTime -> Track.Track -> Track.Track
-events_in_range start end track =
-    track { Track.track_events = shift (Track.track_events track) }
-    where
-    shift = Events.map_sorted (\(pos, evt) -> (pos-start, evt))
-        . Events.in_range start end
 
 -- *** namespace
 
@@ -205,7 +182,7 @@ state_to_namespace state ns = do
     destroy_namespace ns
     state2 <- set_namespace ns state
     global_st <- State.get
-    merged <- State.throw_either "merge states"
+    merged <- State.require_right "merge states"
         (Transform.merge_states global_st state2)
     State.put merged
 
@@ -215,7 +192,7 @@ state_to_namespace state ns = do
 set_namespace :: (State.M m) => Id.Namespace -> State.State -> m State.State
 set_namespace ns state = do
     let state2 = state { State.state_rulers = Map.empty }
-    State.throw_either "set to clip namespace" $ State.exec state2 $ do
+    State.require_right "set to clip namespace" $ State.exec state2 $ do
         Transform.map_view_ids (Id.set_namespace ns)
         Transform.map_block_ids (Id.set_namespace ns)
         Transform.map_track_ids (Id.set_namespace ns)
@@ -242,14 +219,14 @@ destroy_namespace ns = do
 
 -- | Get the info necessary to paste from the clipboard: start and end pos,
 -- the tracks in the destination selection, and the events from the clipboard
--- grouped by track.  The clipboard events are clipped to start--end and
--- shifted into the paste range.
+-- paired with the track it should go into.  The clipboard events are truncated
+-- to start--end and shifted into the paste range.
 paste_info :: (Cmd.M m) =>
-    m (ScoreTime, ScoreTime, [TrackId], [[Events.PosEvent]])
+    m (ScoreTime, ScoreTime, [(TrackId, [Events.PosEvent])])
 paste_info = do
     (track_ids, clip_track_ids, start, end) <- get_paste_area
     clip_events <- mapM (clip_track_events start end) clip_track_ids
-    return (start, end, track_ids, clip_events)
+    return (start, end, zip track_ids clip_events)
 
 clip_track_events :: (State.M m) =>
     ScoreTime -> ScoreTime -> TrackId -> m [Events.PosEvent]

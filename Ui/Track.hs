@@ -30,9 +30,13 @@ instance Pretty.Pretty Track where
             [("events", Pretty.format events)]
 
 -- | Construct a new Track.
-track :: String -> [Events.PosEvent] -> Track
-track title events = Track title (Events.insert_events events Events.empty)
-    Config.track_bg no_render
+track :: String -> Events.Events -> Track
+track title events = Track
+    { track_title = title
+    , track_events = events
+    , track_bg = Config.track_bg
+    , track_render = no_render
+    }
 
 instance DeepSeq.NFData Track where
     rnf track = DeepSeq.rnf (track_events track) `seq` ()

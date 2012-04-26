@@ -28,7 +28,6 @@ test_cmd_copy_selection = do
     -- I get the same event, but also the empty space before it.
     -- Events are not clipped.
     equal (run 1 1 1 5) $ Right [("t1", [(3, 2, "e12")])]
-
     equal (run 1 1 2 5) $ Right
         [ ("t1", [(3, 2, "e12")])
         , ("t2", [(0, 2, "e21")])

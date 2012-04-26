@@ -91,7 +91,7 @@ make_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId -> String
 make_block mkid rid track_rid name tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, (title, events)) ->
         State.create_track (mkid (name ++ ".t" ++ show i)) $
-            Track.track title events
+            Track.track title (Events.from_list events)
     let block_tracks = Block.track (Block.RId rid) 20
             : [Block.track (Block.TId tid track_rid) 25 | tid <- tids]
     block_id <- State.create_block (mkid name) ""  block_tracks

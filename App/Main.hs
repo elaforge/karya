@@ -24,6 +24,7 @@ import qualified Util.Thread as Thread
 
 import Types
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
@@ -398,7 +399,8 @@ empty_block = do
 
     bid <- Create.block rid
     vid <- Create.view bid
-    t_tempo <- Create.named_track bid over_rid 1 "tempo" "tempo"
+    t_tempo <- Create.named_track bid over_rid 1 "tempo"
+        (Track.track "tempo" Events.empty)
     State.set_track_width bid 1 40
     State.insert_events t_tempo $ map UiTest.make_event [(0, 0, "1")]
     return (bid, vid)

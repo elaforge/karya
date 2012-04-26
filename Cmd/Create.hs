@@ -23,6 +23,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
 import qualified Ui.Block as Block
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
@@ -305,19 +306,6 @@ insert_track_after_selection = do
     (_, (block_id, tracknum, _)) <- Selection.get_any_insert
     track block_id (tracknum + 1)
 
--- | Create a track with the given ruler.
---
--- Tracks look like \"ns/b0.t0\", etc.
-track_ruler :: (State.M m) =>
-    BlockId -> RulerId -> TrackNum -> Types.Width -> m TrackId
-track_ruler block_id ruler_id tracknum width = do
-    tracks <- State.gets State.state_tracks
-    track_id <- require "track id" $ generate_track_id block_id "t" tracks
-    tid <- State.create_track track_id (empty_track "")
-    State.insert_track block_id tracknum
-        (Block.track (Block.TId tid ruler_id) width)
-    return tid
-
 -- | Like 'track_ruler', but copy the ruler from the track to the left.
 --
 -- If the track to the left is a ruler track, it will assume there is
@@ -329,16 +317,33 @@ track block_id tracknum = do
     ruler_id <- get_overlay_ruler_id block_id (tracknum-1)
     track_ruler block_id ruler_id tracknum Config.track_width
 
--- | Create a track with the given name and title.
--- Looks like \"ns/b0.tempo\".
+-- | Create a track with the given ruler.
+--
+-- Tracks look like \"ns/b0.t0\", etc.
+track_ruler :: (State.M m) =>
+    BlockId -> RulerId -> TrackNum -> Types.Width -> m TrackId
+track_ruler block_id ruler_id tracknum width =
+    track_events block_id ruler_id tracknum width (Track.track "" Events.empty)
+
+track_events :: (State.M m) =>
+    BlockId -> RulerId -> TrackNum -> Types.Width -> Track.Track -> m TrackId
+track_events block_id ruler_id tracknum width track = do
+    tracks <- State.gets State.state_tracks
+    track_id <- require "track id" $ generate_track_id block_id "t" tracks
+    tid <- State.create_track track_id track
+    State.insert_track block_id tracknum
+        (Block.track (Block.TId tid ruler_id) width)
+    return tid
+
+-- | Create a track with the given name, in the same namespace as the BlockId.
 named_track :: (State.M m) =>
-    BlockId -> RulerId -> TrackNum -> String -> String -> m TrackId
-named_track block_id ruler_id tracknum name title = do
+    BlockId -> RulerId -> TrackNum -> String -> Track.Track -> m TrackId
+named_track block_id ruler_id tracknum name track = do
     ident <- make_id (Id.id_name (Id.unpack_id block_id) ++ "." ++ name)
     all_tracks <- State.gets State.state_tracks
     when (Types.TrackId ident `Map.member` all_tracks) $
         State.throw $ "track " ++ show ident ++ " already exists"
-    tid <- State.create_track ident (empty_track title)
+    tid <- State.create_track ident track
     State.insert_track block_id tracknum
         (Block.track (Block.TId tid ruler_id) Config.track_width)
     return tid
@@ -429,9 +434,6 @@ track_after block tracknum
     | tracknum == next_tracknum = length (Block.block_tracks block)
     | otherwise = next_tracknum
     where next_tracknum = State.shift_tracknum block tracknum 1
-
-empty_track :: String -> Track.Track
-empty_track title = Track.track title []
 
 generate_track_id :: BlockId -> String -> Map.Map TrackId _a -> Maybe Id.Id
 generate_track_id block_id code tracks =

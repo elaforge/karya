@@ -195,7 +195,7 @@ run_id :: State -> StateId a
 run_id state m = Identity.runIdentity (run state m)
 
 eval_rethrow :: (M m) => String -> State -> StateId a -> m a
-eval_rethrow msg state = throw_either msg . eval state
+eval_rethrow msg state = require_right msg . eval state
 
 -- | A form of 'run' that returns only the val and automatically runs in
 -- Identity.
@@ -212,12 +212,12 @@ exec state m = case result of
     where result = Identity.runIdentity (run state m)
 
 exec_rethrow :: (M m) => String -> State -> StateId a -> m State
-exec_rethrow msg state = throw_either msg . exec state
+exec_rethrow msg state = require_right msg . exec state
 
-throw_either :: (M m) => String -> Either StateError a -> m a
-throw_either msg = either (throw . ((msg ++ ": ") ++) . show) return
+require_right :: (M m) => String -> Either StateError a -> m a
+require_right msg = either (throw . ((msg ++ ": ") ++) . show) return
 
--- | Like 'throw_either', but throw an IO exception.  Useful for tests.
+-- | Like 'require_right', but throw an IO exception.  Useful for tests.
 error_either :: (Show a, Monad m) => String -> Either StateError a -> m a
 error_either msg = either (error . ((msg ++ ": ") ++) . show) return
 
@@ -1068,7 +1068,7 @@ insert_events track_id pos_evts =
     insert_sorted_events track_id (Seq.sort_on fst pos_evts)
 
 -- | Like 'insert_events', but more efficient and dangerous.
-insert_sorted_events :: (M m) => TrackId -> [(ScoreTime, Event.Event)] -> m ()
+insert_sorted_events :: (M m) => TrackId -> [Events.PosEvent] -> m ()
 insert_sorted_events track_id pos_evts = _modify_events track_id $ \events ->
     (Events.insert_sorted_events pos_evts events, _events_updates pos_evts)
 
