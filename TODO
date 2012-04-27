@@ -13,7 +13,7 @@ UNSORTED
   * repl macro should ignore close parens, e.g. (Just @b0)
   * cmds to make a block call and then create a block with that name
     Optionally use a model block.
-  - plugging in midi devices is definitely not working
+  * plugging in midi devices is definitely not working
   - on startup it balloons up to 450mb, what is it doing?  After a bit of
     editing it's up to 750mb, who is leaking?  Undo history?
     Check size on linux.

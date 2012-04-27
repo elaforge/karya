@@ -43,9 +43,10 @@ data StaticConfig = StaticConfig {
     -- be overridden by the score loaded.
     , wdev_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
 
-    -- | Only the given devices are opened for reading, if present.  If you
-    -- open a virtual device for both reading and writing you'll get a loop, so
-    -- don't do that.
+    -- | Open the given devices on startup.  Even if they aren't plugged in,
+    -- they'll be added to the read list so they're automatically connected if
+    -- they are plugged in.  If you open a virtual device for both reading and
+    -- writing you'll get a loop, so don't do that.
     --
     -- There's no corresponding write_devices because if you don't want
     -- to write to a device, just don't write to it!

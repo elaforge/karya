@@ -142,6 +142,7 @@ rdev_map = mkmap Midi.read_device
     , (tapco 4, "continuum")
     ]
 
+-- | Open these read devices on startup.
 read_devices :: Set.Set Midi.ReadDevice
 read_devices = Set.fromList $ map Midi.read_device $
     [ "Oxygen USB Oxygen 8 v2"
@@ -183,8 +184,7 @@ main = initialize $ \lang_socket midi_interface -> do
 
     let open_read = StaticConfig.read_devices static_config
     rdevs <- Interface.read_devices midi_interface
-    forM_ (filter (`Set.member` open_read) rdevs)
-        (Interface.connect_read_device midi_interface)
+    mapM_ (Interface.connect_read_device midi_interface) (Set.toList open_read)
     wdevs <- Interface.write_devices midi_interface
     forM_ wdevs (Interface.connect_write_device midi_interface)
     print_devs open_read rdevs wdevs
