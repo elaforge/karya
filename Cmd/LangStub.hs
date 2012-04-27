@@ -19,4 +19,4 @@ interpreter () = forever $ Thread.delay 10
 
 interpret :: Session -> [String] -> State.State
     -> Cmd.State -> String -> IO (Cmd.CmdT IO String)
-interpret () _ _ _ text = return (return $ "stub not running: " ++ show text)
+interpret () _ _ _ text = return (return $ "repl not linked in: " ++ show text)

@@ -75,7 +75,7 @@ cmd_language session lang_dirs msg = do
     cmd <- case Fast.fast_interpret text of
         Just cmd -> return $ cmd `Error.catchError` \err -> case err of
             State.Error err -> do
-                Log.warn $ "state error in lang cmd: " ++ err
+                Log.warn $ "state error in repl cmd: " ++ err
                 return $ "error: " ++ err
             State.Abort -> return "aborted"
         -- 'interpret' catches errors in 'merge_cmd_state'

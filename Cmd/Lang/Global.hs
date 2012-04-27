@@ -99,6 +99,9 @@ block = Cmd.get_focused_block
 view :: Cmd.CmdL ViewId
 view = Cmd.get_focused_view
 
+root :: Cmd.CmdL BlockId
+root = State.get_root_id
+
 -- | Some oprators to more conveniently string together monadic and non-monadic
 -- functions in the REPL.
 --
@@ -125,14 +128,9 @@ s "" = unerror
 s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " ++ show stackpos)
         highlight_error (Stack.parse_ui_frame stackpos)
 
-unerror :: Cmd.CmdL ()
-unerror = do
-    view_ids <- State.get_all_view_ids
-    forM_ view_ids $ \vid -> do
-        Selection.set_selnum vid Config.error_selnum Nothing
-
 highlight_error :: Stack.UiFrame -> Cmd.CmdL ()
 highlight_error (bid, maybe_tid, maybe_range) = do
+    unerror
     view_ids <- fmap Map.keys (State.get_views_of bid)
     mapM_ ViewConfig.bring_to_front view_ids
     case (maybe_tid, maybe_range) of
@@ -149,6 +147,12 @@ highlight_error (bid, maybe_tid, maybe_range) = do
             forM_ view_ids $ \vid -> forM_ tracknums $ \tracknum ->
                 Selection.set_and_scroll vid Config.error_selnum
                     (Types.selection tracknum to tracknum from)
+
+unerror :: Cmd.CmdL ()
+unerror = do
+    view_ids <- State.get_all_view_ids
+    forM_ view_ids $ \vid -> do
+        Selection.set_selnum vid Config.error_selnum Nothing
 
 -- * show / modify cmd state
 
