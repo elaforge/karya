@@ -112,13 +112,12 @@ map_track_titles f = do
 
 -- * block
 
-block_from_template :: (Cmd.M m) => Bool -> m BlockId
-block_from_template include_tracks = do
-    template_block_id <- Cmd.get_focused_block
-    ruler_id <- get_ruler_id template_block_id 0
+block_from_template :: (Cmd.M m) => Bool -> BlockId -> m BlockId
+block_from_template include_tracks template_id = do
+    ruler_id <- get_ruler_id template_id 0
     block_id <- block ruler_id
     when include_tracks $ do
-        template <- State.get_block template_block_id
+        template <- State.get_block template_id
         let tracks = drop 1 (Block.block_tracks template)
         forM_ (zip [1..] tracks) $ \(tracknum, track) ->
             case Block.tracklike_id track of
@@ -128,7 +127,7 @@ block_from_template include_tracks = do
                     title <- fmap Track.track_title (State.get_track tid)
                     State.set_track_title new_tid title
                 _ -> State.insert_track block_id tracknum track
-        State.set_skeleton block_id =<< State.get_skeleton template_block_id
+        State.set_skeleton block_id =<< State.get_skeleton template_id
     view block_id
     return block_id
 
@@ -142,12 +141,16 @@ block ruler_id = do
         [Block.track (Block.RId ruler_id) Config.ruler_width]
 
 -- | Create a block with the given ID name.  Useful for blocks meant to be
--- sub-derived.
+-- sub-derived.  If the name doesn't contain a @/@, it gets the current
+-- namespace.
 named_block :: (State.M m) => String -> RulerId -> m BlockId
 named_block name ruler_id = do
     ns <- State.get_namespace
-    State.create_block (Id.unsafe_id ns name) ""
-        [Block.track (Block.RId ruler_id) Config.ruler_width]
+    case Id.make ns name of
+        Nothing -> State.throw $ "invalid block name: " ++ show name
+        Just ident -> State.create_block ident ""
+            [Block.track (Block.RId ruler_id) Config.ruler_width]
+
 
 -- | Delete a block and any views it appears in.  Also delete any tracks
 -- that only appeared in that block.

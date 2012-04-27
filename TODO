@@ -10,11 +10,11 @@ UNSORTED
     Special case hack in slice?  Is there any better way?
   * need a cmd to compress notes, how about paste?  Special paste mode that
     shrinks the clipboard down to the given selection and pastes it in
-  - some cmds to insert new blocks:
-    make a block call and then create a block with that name
+  - repl macro should ignore close parens, e.g. (Just @b0)
+  * cmds to make a block call and then create a block with that name
     Optionally use a model block.
   - plugging in midi devices is definitely not working
-  - on startup it baloons up to 450mb, what is it doing?  After a bit of
+  - on startup it balloons up to 450mb, what is it doing?  After a bit of
     editing it's up to 750mb, who is leaking?  Undo history?
     Check size on linux.
       stripped or not makes no difference
