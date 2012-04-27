@@ -292,7 +292,7 @@ p_identifier :: String -> A.Parser Text
 p_identifier until = do
     -- TODO attoparsec docs say it's faster to do the check manually, profile
     -- and see if it makes a difference.
-    ident <- A.takeWhile1 (A.notInClass (until ++ " |="))
+    ident <- A.takeWhile1 (A.notInClass (until ++ " |=)"))
     -- This forces identifiers to be separated with spaces, except with the |
     -- operator.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which
     -- seems like something I don't want to support.
@@ -305,7 +305,7 @@ p_identifier until = do
 -- more permissive.
 p_id :: A.Parser Text
 p_id = do
-    ident <- A.takeWhile1 (A.notInClass " |=")
+    ident <- A.takeWhile1 (A.notInClass " |=)")
     unless (is_id ident) $
         fail $ "invalid chars in identifier; only [a-z0-9`.-] are accepted: "
             ++ show ident
