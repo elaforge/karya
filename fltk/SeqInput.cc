@@ -83,7 +83,7 @@ SeqInput::handle(int evt)
     // set callback to when(FL_WHEN_RELEASE)
     // or maybe some control keys unfocus but don't eat the event?
     int val = Fl_Input::handle(evt);
-    // Returing 0 is how Fl_Input lets the parent group do keynav so its
+    // Returning 0 is how Fl_Input lets the parent group do keynav so its
     // arrow key refocus thing works.  Returing 1 disables that.
     // I still get 14 keyups on arrow keys.  FLTK I LOVE YOU TOO!
     if (evt == FL_KEYDOWN)
@@ -169,10 +169,35 @@ SeqInput::redraw_neighbors()
 }
 
 
+static const char *
+strip(const char *s)
+{
+    // Why am I still writing functions like this?
+    int start = 0, end = strlen(s);
+    if (!(end > 0 && isspace(s[0]) || isspace(s[end-1]))) {
+        return s;
+    }
+    while (start < end && isspace(s[start]))
+        start++;
+    if (start == end)
+        return "";
+    while (isspace(s[end-1]))
+        end--;
+    if (end - start <= 0)
+        return "";
+    char *stripped = new char[end-start + 1];
+    strncpy(stripped, s + start, end - start);
+    stripped[end-start] = '\0';
+    return stripped;
+}
+
+
 void
 SeqInput::changed_cb(Fl_Widget *w, void *vp)
 {
     SeqInput *self = static_cast<SeqInput *>(vp);
+    self->value(strip(self->value()));
+
     // I only put SeqInputs in BlockViewWindows, so this should be safe.
     BlockViewWindow *view = static_cast<BlockViewWindow *>(self->window());
     for (int i = 0; i < view->block.tracks(); i++) {

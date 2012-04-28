@@ -1,6 +1,6 @@
 UNSORTED
   * block level call
-  - should strip expressions from track and block title, and not freak out if
+  * should strip expressions from track and block title, and not freak out if
     there's a leading space.  Actually, fltk could do that automatically.
   - reintegrate that converts Score.Events back into Ui Events
   - undo should not affect the clip namespace, otherwise you can't copy, undo,

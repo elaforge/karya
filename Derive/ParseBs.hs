@@ -34,6 +34,7 @@ import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
+import qualified Data.Char as Char
 
 import qualified Numeric
 
@@ -73,7 +74,7 @@ parse_val :: String -> Either String TrackLang.Val
 parse_val = Parse.parse_all (Parse.lexeme p_val) . from_string
 
 parse :: A.Parser a -> Text -> Either String a
-parse p text = Parse.parse_all p (strip_comment text)
+parse p = Parse.parse_all p . B.dropWhile Char.isSpace . strip_comment
 
 strip_comment :: Text -> Text
 strip_comment = fst . B.breakSubstring "--"
