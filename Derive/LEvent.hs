@@ -64,6 +64,12 @@ partition = Seq.partition_either . map to_either
     to_either (Event d) = Left d
     to_either (Log msg) = Right msg
 
+map_state :: state -> (state -> a -> (b, state)) -> [LEvent a] -> [LEvent b]
+map_state _ _ [] = []
+map_state state f (Log log : rest) = Log log : map_state state f rest
+map_state state f (Event event : rest) = Event event2 : map_state state2 f rest
+    where (event2, state2) = f state event
+
 instance (DeepSeq.NFData derived) => DeepSeq.NFData (LEvent derived) where
     rnf (Event event) = DeepSeq.rnf event
     rnf (Log msg) = DeepSeq.rnf msg

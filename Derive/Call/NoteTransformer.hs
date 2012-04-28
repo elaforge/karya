@@ -36,6 +36,8 @@ c_tuplet = Derive.stream_generator "tuplet" $ \args ->
     Note.place_at (Args.range args) (concat (Note.sub_events args))
 
 
+-- * arpeggio
+
 -- | Direction in which to arpeggiate.  This is a general arpeggiation that
 -- just makes each track slightly delayed with regard to its neighbor.
 --

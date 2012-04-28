@@ -84,7 +84,7 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
     CallSig.call3 args
     ( optional "delay" (control "echo-delay" 1)
     , optional "feedback" (control "echo-feedback" 0.4)
-    , optional "times" (control "echo-times" 1)) $ \delay feedback times -> do
+    , optional "times" (control "echo-times" 1)) $ \delay feedback times ->
         Util.map_controls_asc (delay :. feedback :. times :. Nil) () deriver $
             \(delay :. feedback :. times :. Nil) ->
                 go (Score.typed_val delay) (Score.typed_val feedback)

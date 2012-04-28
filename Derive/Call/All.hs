@@ -10,6 +10,7 @@ import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Pitch as Pitch
+import qualified Derive.Call.Post.Reverse as Reverse
 import qualified Derive.Call.Rambat as Rambat
 import qualified Derive.Call.Sekar as Sekar
 import qualified Derive.Call.Trill as Trill
@@ -42,8 +43,8 @@ make_lookup cmap = Derive.empty_scope_type
 
 note_calls :: Derive.NoteCallMap
 note_calls = Map.unions [Block.note_calls, Echo.note_calls, Note.note_calls,
-    NoteTransformer.note_calls, Ornament.note_calls, Rambat.note_calls,
-    Sekar.note_calls, String.note_calls, Trill.note_calls]
+    NoteTransformer.note_calls, Ornament.note_calls, Reverse.note_calls,
+    Rambat.note_calls, Sekar.note_calls, String.note_calls, Trill.note_calls]
 
 control_calls :: Derive.ControlCallMap
 control_calls = Map.unions [Control.control_calls, Trill.control_calls]

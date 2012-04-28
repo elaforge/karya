@@ -399,6 +399,13 @@ event_head [] _ = return []
 event_head (log@(LEvent.Log _) : rest) f = (log:) <$> event_head rest f
 event_head (LEvent.Event event : rest) f = f event rest
 
+map_events_asc :: state -> Derive.Events
+    -> (state -> Score.Event -> Derive.Deriver ([Score.Event], state))
+    -> Derive.EventDeriver
+map_events_asc state events f = do
+    (result, _) <- map_controls Nil state events (\Nil -> f)
+    return $ Derive.merge_asc_events result
+
 -- | Specialization of 'map_controls' where the transformation will return
 -- events in ascending order.
 map_controls_asc :: (FixedList.FixedList cs) => cs TrackLang.ValControl
