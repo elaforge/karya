@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -22,6 +23,7 @@ import Derive.CallSig (required)
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -51,7 +53,8 @@ lookup_note_block sym = fmap c_block <$> symbol_to_block_id sym
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = block_call (const (Just block_id)) $
-    Derive.stream_generator "block" $ Note.inverting $ Cache.caching_call run
+    Derive.stream_generator ("block " ++ show block_id) $
+        Note.inverting $ Cache.caching_call run
     where
     run args
         | null (Derive.passed_vals args) =
@@ -74,16 +77,20 @@ d_block block_id = do
     blocks <- Derive.get_ui_state State.state_blocks
     -- Do some error checking.  These are all caught later, but if I throw here
     -- I can give more specific error msgs.
-    when (Map.lookup block_id blocks == Nothing) $
-        Derive.throw "block_id not found"
-    -- Record a dependency on this block.
-    Internal.add_block_dep block_id
-    -- Since there is no branching, any recursion will be endless, but the
-    -- block will show up in the stack twice if it is inverted.
-    -- I'm still protected from recursion by the stack limit.
+    title <- case Map.lookup block_id blocks of
+        Nothing -> Derive.throw $ "block_id not found"
+        Just block -> return $ Block.block_title block
+    expr <- case ParseBs.parse_expr (ParseBs.from_string title) of
+        Left err -> Derive.throw $ "block title: " ++ err
+        Right expr -> return expr
     deriver <- Derive.eval_ui ("d_block " ++ show block_id)
         (BlockUtil.note_deriver block_id)
-    deriver
+
+    let transform = if null title then id else Call.apply_transformer info expr
+        info = (Call.note_dinfo, Derive.dummy_call_info "block title")
+    -- Record a dependency on this block.
+    Internal.add_block_dep block_id
+    transform deriver
 
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> TrackLang.Call

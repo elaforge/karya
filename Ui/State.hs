@@ -439,6 +439,13 @@ get_block block_id = get >>= lookup_id block_id . state_blocks
 lookup_block :: (M m) => BlockId -> m (Maybe Block.Block)
 lookup_block block_id = get >>= return . Map.lookup block_id . state_blocks
 
+get_block_title :: (M m) => BlockId -> m String
+get_block_title = fmap Block.block_title . get_block
+
+set_block_title :: (M m) => BlockId -> String -> m ()
+set_block_title block_id title =
+    modify_block block_id (\block -> block { Block.block_title = title })
+
 -- | Make a new block.  If it's the first one, it will be set as the root.
 -- This is the low level version, you probably want to use 'create_block'.
 --
@@ -972,10 +979,6 @@ selectable_tracks block = do
     return i
 
 -- ** other
-
-set_block_title :: (M m) => BlockId -> String -> m ()
-set_block_title block_id title =
-    modify_block block_id (\block -> block { Block.block_title = title })
 
 -- | Set a status variable on a view.
 set_view_status :: (M m) => ViewId -> String -> Maybe String -> m ()

@@ -1,4 +1,10 @@
 UNSORTED
+  * block level call
+  - should strip expressions from track and block title, and not freak out if
+    there's a leading space.  Actually, fltk could do that automatically.
+  - reintegrate that converts Score.Events back into Ui Events
+  - undo should not affect the clip namespace, otherwise you can't copy, undo,
+    then paste
   * instead of merging a whole state into the clip ns, clip should deal with
     [Track]
   * rename Ui.State.StateError to just Error?
@@ -16,6 +22,7 @@ UNSORTED
   * plugging in midi devices is definitely not working
   - on startup it balloons up to 450mb, what is it doing?  After a bit of
     editing it's up to 750mb, who is leaking?  Undo history?
+    - Write function to sum up State and Performance size.
     Check size on linux.
       stripped or not makes no difference
       bloom is 110m in memory
@@ -931,8 +938,7 @@ Derive:
 
   * sustain signal, to control staccato vs. legato
   TrackLang tracklang
-    - implement block level calls in block title
-    - other attributes in block title, e.g. "alias=?squiggle? | xyz"?
+    * implement block level calls in block title
 
   - to cut the middle out of a pattern: a cut signal that disabled derivation
     when it's 1?

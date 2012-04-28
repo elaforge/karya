@@ -137,7 +137,7 @@ mkblock_ruler ruler_id (block_name, tracks) = do
     tids <- forM (zip [1..] tracks) $ \(i, track) ->
         State.create_track (Id.unpack_id (mk_tid_block block_id i))
             (make_track track)
-    create_block block_name "b1 title" $ (Block.RId ruler_id, 20)
+    create_block block_name "" $ (Block.RId ruler_id, 20)
         : [(Block.TId tid ruler_id, 40) | tid <- tids]
     State.set_skeleton block_id =<< parse_skeleton block_id
     return tids
