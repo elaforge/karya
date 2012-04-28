@@ -81,6 +81,13 @@ cmd_open_block = do
                 maybe (Create.fitted_view block_id >> return ())
                     ViewConfig.bring_to_front (Seq.head (Map.keys views))
 
+cmd_add_block_title :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_add_block_title msg = do
+    block_id <- Cmd.get_focused_block
+    title <- State.get_block_title block_id
+    when (null title) $
+        State.set_block_title block_id " "
+
 -- * track
 
 cmd_toggle_flag :: (Cmd.M m) => Block.TrackFlag -> m ()

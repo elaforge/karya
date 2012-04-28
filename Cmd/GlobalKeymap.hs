@@ -170,6 +170,8 @@ mouse_bindings = concat
     -- track.
     , bind_drag [] btn Keymap.OnSkeleton "select track"
         (Selection.cmd_select_track btn Config.insert_selnum)
+    , bind_click [] btn Keymap.OnSkeleton 2 "add block title"
+        BlockConfig.cmd_add_block_title
     , bind_click [PrimaryCommand] btn Keymap.OnSkeleton 1
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
     , bind_click [Shift] btn Keymap.OnSkeleton 1 "move tracks"
