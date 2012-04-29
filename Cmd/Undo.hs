@@ -7,12 +7,14 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
+import qualified Ui.Id as Id
 import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
+import qualified App.Config as Config
 import Types
 
 
@@ -72,13 +74,16 @@ redo = do
 -- or a selection, or changes the zoom.
 merge_undo_states :: State.State -> State.State -> State.State
 merge_undo_states new old = new
-    { State.state_views = Map.mapWithKey
+    { State.state_views = clip (State.state_views old) $ Map.mapWithKey
         (merge_view (State.state_views old)) (State.state_views new)
-    , State.state_blocks = Map.mapWithKey
+    , State.state_blocks = clip (State.state_blocks old) $ Map.mapWithKey
         (merge_block (State.state_blocks old)) (State.state_blocks new)
+    , State.state_tracks = clip
+        (State.state_tracks old) (State.state_tracks new)
     , State.state_config =
         merge_config (State.state_config new) (State.state_config old)
     }
+    where clip = keep_clip Config.clip_namespace
 
 merge_config :: State.Config -> State.Config -> State.Config
 merge_config new old = new
@@ -95,6 +100,12 @@ merge_block :: Map.Map BlockId Block.Block
 merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
     Nothing -> new
     Just old -> new { Block.block_config = Block.block_config old }
+
+-- | The contents of the clipboard should be preserved across undo and redo.
+keep_clip :: (Id.Ident k, Ord k) => Id.Namespace -> Map.Map k a
+    -> Map.Map k a -> Map.Map k a
+keep_clip clip_ns old new = Map.union new (Map.filterWithKey (\k _ -> ns k) old)
+    where ns = (==clip_ns) . Id.ident_namespace
 
 
 -- * responder support
