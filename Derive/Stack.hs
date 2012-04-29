@@ -187,8 +187,8 @@ unparse_ui_frame_ :: UiFrame -> String
 unparse_ui_frame_ (bid, maybe_tid, maybe_range) =
     Seq.join " " [bid_s, tid_s, range_s]
     where
-    bid_s = Id.id_name (Id.unpack_id bid)
-    tid_s = maybe "*" (Id.id_name . Id.unpack_id) maybe_tid
+    bid_s = Id.ident_name bid
+    tid_s = maybe "*" Id.ident_name maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from ++ "-" ++ float to) maybe_range
     float = Pretty.show_float 2 . ScoreTime.to_double

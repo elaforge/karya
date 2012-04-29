@@ -18,7 +18,7 @@ module Ui.Id (
     -- * Ident
     , Ident(..)
     , show_ident, read_ident
-    , ident_string, ident_name
+    , ident_string, ident_name, ident_namespace
 
     -- * constants
     , global, global_namespace
@@ -203,6 +203,9 @@ ident_string = show_id . unpack_id
 -- | SomethingId -> "name"
 ident_name :: (Ident a) => a -> String
 ident_name = id_name . unpack_id
+
+ident_namespace :: (Ident a) => a -> Namespace
+ident_namespace = id_namespace . unpack_id
 
 -- * constants
 

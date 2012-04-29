@@ -342,7 +342,7 @@ track_events block_id ruler_id tracknum width track = do
 named_track :: (State.M m) =>
     BlockId -> RulerId -> TrackNum -> String -> Track.Track -> m TrackId
 named_track block_id ruler_id tracknum name track = do
-    ident <- make_id (Id.id_name (Id.unpack_id block_id) ++ "." ++ name)
+    ident <- make_id (Id.ident_name block_id ++ "." ++ name)
     all_tracks <- State.gets State.state_tracks
     when (Types.TrackId ident `Map.member` all_tracks) $
         State.throw $ "track " ++ show ident ++ " already exists"

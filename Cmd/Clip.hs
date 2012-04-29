@@ -97,7 +97,7 @@ type Selected = [(String, Events.Events)]
 
 selected_to_state :: BlockId -> Selected -> Either State.Error State.State
 selected_to_state block_id selected = State.exec State.empty $ do
-    State.set_namespace $ Id.id_namespace $ Id.unpack_id block_id
+    State.set_namespace $ Id.ident_namespace block_id
     State.create_block (Id.unpack_id block_id) ""
         [Block.track (Block.RId State.no_ruler) 0]
     forM_ (zip [0..] selected) $ \(tracknum, (title, events)) -> do
@@ -230,16 +230,16 @@ get_clip_namespace = Cmd.gets Cmd.state_clip_namespace
 -- TODO move this to Ui.State?
 destroy_namespace :: (State.M m) => Id.Namespace -> m ()
 destroy_namespace ns = do
-    let in_ns = ((==ns) . Id.id_namespace)
-    block_ids <- fmap (filter (in_ns . Id.unpack_id))
-        State.get_all_block_ids
+    let in_ns :: (Id.Ident a) => [a] -> [a]
+        in_ns = filter $ (==ns) . Id.ident_namespace
+    block_ids <- in_ns <$> State.get_all_block_ids
     blocks <- mapM State.get_block block_ids
     let track_ids = Seq.unique $ concatMap Block.block_track_ids blocks
         ruler_ids = Seq.unique $ concatMap Block.block_ruler_ids blocks
     -- Will destroy any views too.
     mapM_ State.destroy_block block_ids
-    mapM_ State.destroy_track (filter (in_ns . Id.unpack_id) track_ids)
-    mapM_ State.destroy_ruler (filter (in_ns . Id.unpack_id) ruler_ids)
+    mapM_ State.destroy_track (in_ns track_ids)
+    mapM_ State.destroy_ruler (in_ns ruler_ids)
 
 -- ** paste
 

@@ -321,7 +321,7 @@ dump_map m = Map.fromList $ do
     (ns, id_elems) <- keyed_group ns_of (Map.toAscList m)
     return (ns, Git.Dir $ files_of id_elems)
     where
-    ns_of = deglobal . Id.id_namespace . Id.unpack_id . fst
+    ns_of = deglobal . Id.ident_namespace . fst
     deglobal ns
         | ns == Id.global_namespace = "*GLOBAL*"
         | otherwise = Id.un_namespace ns

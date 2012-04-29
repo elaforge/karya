@@ -77,9 +77,10 @@ create_order_block mkid block_ids = do
     tempo = [(0, Event.event "6" 0)]
     starts = scanl (+) 0 block_rows
     events =
-        [(fromIntegral start, Event.event (block_call bid) (fromIntegral dur))
-            | (start, (bid, dur)) <- zip starts block_ids]
-    block_call = snd . Id.un_id . Id.unpack_id
+        [ (fromIntegral start, Event.event (Id.ident_name bid)
+            (fromIntegral dur))
+        | (start, (bid, dur)) <- zip starts block_ids
+        ]
 
 order_meter :: [BlockRows] -> (Ruler.Name, Ruler.Marklist)
 order_meter = MakeRuler.meter_ruler 1 . MakeRuler.D . map mkd
