@@ -197,7 +197,8 @@ collapsed_width = 3
 render_color :: Color.Color
 render_color = Color.rgba 0.65 0.65 0.8 0.5
 
--- | The default namespace for the clipboard.
+-- | The default namespace for the clipboard.  Copies go to block + tracks in
+-- this namespace.
 clip_namespace :: Id.Namespace
 clip_namespace = Id.unsafe_namespace "clip"
 

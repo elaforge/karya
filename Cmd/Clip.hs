@@ -56,16 +56,23 @@ import Types
 
 -- * clipboard ops
 
+clip_namespace :: Id.Namespace
+clip_namespace = Config.clip_namespace
+
+clip_block_id :: BlockId
+clip_block_id = Types.BlockId $
+    Id.unsafe_id clip_namespace Config.clip_block_name
+
 -- | Replace the clipboard with the given state.
 --
 -- TODO If there is an open view on a given block, maybe it can be reopened.
 -- Or maybe there can be a setting to automatically open a view on a copied
 -- block.
 state_to_clip :: (Cmd.M m) => State.State -> m ()
-state_to_clip state = state_to_namespace state =<< get_clip_namespace
+state_to_clip state = state_to_namespace state clip_namespace
 
 clear_clip :: (Cmd.M m) => m ()
-clear_clip = destroy_namespace =<< get_clip_namespace
+clear_clip = destroy_namespace clip_namespace
 
 -- * copy
 
@@ -80,7 +87,6 @@ cmd_cut_selection = do
 cmd_copy_selection :: (Cmd.M m) => m ()
 cmd_copy_selection = do
     selected <- get_selection =<< copy_selection Config.insert_selnum
-    clip_block_id <- get_clip_block_id
     state <- State.require_right "selected_to_state" $
         selected_to_state clip_block_id selected
     state_to_clip state
@@ -189,11 +195,6 @@ stretch (start, end) (clip_s, clip_e) = map reposition
 
 -- * implementation
 
-get_clip_block_id :: (Cmd.M m) => m BlockId
-get_clip_block_id = do
-    clip_ns <- get_clip_namespace
-    return $ Types.BlockId (Id.unsafe_id clip_ns Config.clip_block_name)
-
 -- ** copy
 
 -- *** namespace
@@ -222,9 +223,6 @@ set_namespace ns state = do
         Transform.map_view_ids (Id.set_namespace ns)
         Transform.map_block_ids (Id.set_namespace ns)
         Transform.map_track_ids (Id.set_namespace ns)
-
-get_clip_namespace :: (Cmd.M m) => m Id.Namespace
-get_clip_namespace = Cmd.gets Cmd.state_clip_namespace
 
 -- | Destroy all views, blocks, tracks, and rulers with the given namespace.
 -- TODO move this to Ui.State?
@@ -279,7 +277,6 @@ clip_events point (event@(pos, evt):events)
 get_paste_area :: (Cmd.M m) => m ([TrackId], [TrackId], ScoreTime, ScoreTime)
 get_paste_area = do
     (_, tracknums, track_ids, start, end) <- Selection.tracks
-    clip_block_id <- get_clip_block_id
     clip_block <- State.get_block clip_block_id
     -- If the clip block has any rulers or anything, I skip them.
     let clip_track_ids =

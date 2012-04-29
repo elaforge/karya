@@ -71,7 +71,6 @@ import qualified Midi.State
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -257,8 +256,6 @@ data State = State {
     , state_global_scope :: !Derive.Scope
     -- | Turn ScaleIds into Scales.
     , state_lookup_scale :: !LookupScale
-    -- | Copies by default go to a block+tracks with this project.
-    , state_clip_namespace :: !Id.Namespace
 
     -- Automatically maintained state.  This means only a few cmds should
     -- modify these.
@@ -308,7 +305,6 @@ initial_state rdev_map wdev_map interface inst_db global_scope = State {
     -- TODO later this should also be merged with static config
     , state_lookup_scale = LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
-    , state_clip_namespace = Config.clip_namespace
 
     , state_history = empty_history
     , state_history_collect = empty_history_collect
@@ -719,12 +715,6 @@ lookup_instrument_info :: (M m) => Score.Instrument -> m (Maybe MidiInfo)
 lookup_instrument_info inst = do
     inst_db <- gets state_instrument_db
     return $ Instrument.Db.db_lookup inst_db inst
-
-get_clip_namespace :: (M m) => m Id.Namespace
-get_clip_namespace = gets state_clip_namespace
-
-set_clip_namespace :: (M m) => Id.Namespace -> m ()
-set_clip_namespace ns = modify $ \st -> st { state_clip_namespace = ns }
 
 get_lookup_scale :: (M m) => m Derive.LookupScale
 get_lookup_scale = do

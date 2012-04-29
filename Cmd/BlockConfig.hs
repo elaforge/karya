@@ -82,7 +82,7 @@ cmd_open_block = do
                     ViewConfig.bring_to_front (Seq.head (Map.keys views))
 
 cmd_add_block_title :: (Cmd.M m) => Msg.Msg -> m ()
-cmd_add_block_title msg = do
+cmd_add_block_title _ = do
     block_id <- Cmd.get_focused_block
     title <- State.get_block_title block_id
     when (null title) $
