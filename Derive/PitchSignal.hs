@@ -105,7 +105,7 @@ to_nn sig = (Signal.signal nns, Set.toList errs)
             Right (Pitch.NoteNumber nn) -> (errs, (x, nn) : nns)
         where (errs, nns) = split rest
 
-type ControlMap = Map.Map Score.Control Score.TypedControl
+type ControlMap = Map.Map Score.Control Score.TypedSignal
 
 -- | Resample the signal according to the 'sig_transposers' and apply the
 -- given controls to the signal.
@@ -129,7 +129,7 @@ apply_controls controls sig
     transpose = resample_signals controls (sig_transposers sig)
 
 -- | 'apply_controls' specialized for a single control.
-apply_control :: Score.Control -> Score.TypedControl -> Signal -> Signal
+apply_control :: Score.Control -> Score.TypedSignal -> Signal -> Signal
 apply_control cont sig = apply_controls (Map.singleton cont sig)
 
 -- | Sample the ControlMap on the sample points of the given set of controls.

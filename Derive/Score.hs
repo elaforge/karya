@@ -20,7 +20,7 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import Derive.BaseTypes
        (Instrument(..), Control(..), Type(..), Typed(..), untyped,
-        merge_typed, type_to_code, code_to_type, TypedControl, TypedVal,
+        merge_typed, type_to_code, code_to_type, TypedSignal, TypedVal,
         Attributes(..), Attribute, attrs_set, attrs_list, no_attrs)
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
@@ -80,7 +80,7 @@ instance Pretty.Pretty Event where
 instance DeepSeq.NFData B.ByteString where
     rnf b = b `seq` () -- bytestrings are already strict
 
-type ControlMap = Map.Map Control TypedControl
+type ControlMap = Map.Map Control TypedSignal
 type PitchMap = Map.Map Control PitchSignal.Signal
 
 event_string :: Event -> String
@@ -112,7 +112,7 @@ duration f event = event { event_duration = f (event_duration event) }
 
 -- *** control
 
-control_at :: RealTime -> TypedControl -> TypedVal
+control_at :: RealTime -> TypedSignal -> TypedVal
 control_at t = fmap (Signal.at t)
 
 -- | Get control value at the given time.

@@ -114,7 +114,7 @@ transpose_control_at default_type control pos = do
 -- If a signal exists but doesn't have a type, the type will be inherited from
 -- the default.  This way a call can cause a signal parameter to default to
 -- a certain type.
-to_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedControl
+to_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedSignal
 to_signal control = case control of
     TrackLang.ConstantControl deflt -> return $ fmap Signal.constant deflt
     TrackLang.DefaultedControl cont deflt -> do

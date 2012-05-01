@@ -203,7 +203,7 @@ with_instrument inst deriver = do
 
 -- | Return an entire signal.  Remember, signals are in RealTime, so if you
 -- want to index them in ScoreTime you will have to call 'real'.
-get_control :: Score.Control -> Deriver (Maybe Score.TypedControl)
+get_control :: Score.Control -> Deriver (Maybe Score.TypedSignal)
 get_control cont = Map.lookup cont <$> get_controls
 
 get_controls :: Deriver Score.ControlMap
@@ -219,12 +219,12 @@ controls_at pos = do
     controls <- get_controls
     return $ Map.map (Score.control_at pos) controls
 
-with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
+with_control :: Score.Control -> Score.TypedSignal -> Deriver a -> Deriver a
 with_control cont signal = Internal.local $ \st ->
     st { state_controls = Map.insert cont signal (state_controls st) }
 
 with_control_operator :: Score.Control -> TrackLang.CallId
-    -> Score.TypedControl -> Deriver a -> Deriver a
+    -> Score.TypedSignal -> Deriver a -> Deriver a
 with_control_operator cont c_op signal deriver = do
     op <- lookup_control_op c_op
     with_relative_control cont op signal deriver
@@ -233,7 +233,7 @@ with_control_operator cont c_op signal deriver = do
 --
 -- If both signals are typed, the existing type wins over the relative
 -- signal's type.  If one is untyped, the typed one wins.
-with_relative_control :: Score.Control -> ControlOp -> Score.TypedControl
+with_relative_control :: Score.Control -> ControlOp -> Score.TypedSignal
     -> Deriver a -> Deriver a
 with_relative_control cont (op, empty) signal deriver
     | Score.typed_val signal == mempty = deriver
@@ -246,7 +246,7 @@ with_relative_control cont (op, empty) signal deriver
         (op (Score.typed_val old) (Score.typed_val new))
     empty_sig = Score.Typed (Score.type_of signal) (Signal.constant empty)
 
-with_added_control :: Score.Control -> Score.TypedControl -> Deriver a
+with_added_control :: Score.Control -> Score.TypedSignal -> Deriver a
     -> Deriver a
 with_added_control cont = with_relative_control cont op_add
 
