@@ -162,7 +162,7 @@ convert_controls pressure_inst inst_cmap =
 convert_pitch :: Score.ControlMap -> PitchSignal.Signal
     -> ConvertT Signal.NoteNumber
 convert_pitch controls psig = do
-    unless (null errs) $ warn $ "converting pitch: " ++ show errs
+    unless (null errs) $ warn $ "pitch: " ++ Pretty.pretty errs
     return sig
     where
     (sig, errs) = PitchSignal.to_nn $ PitchSignal.apply_controls controls psig

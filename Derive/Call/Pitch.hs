@@ -41,18 +41,21 @@ note_call note note_number =
     where
     call frac hz key = \controls -> do
         let get c = maybe 0 Score.typed_val (Map.lookup c controls)
-            chrom = get Score.c_chromatic + frac
             dia = get Score.c_diatonic
+            chrom = get Score.c_chromatic + frac
             hz_sig = get Score.c_hz
-        either (Left . errmsg chrom dia key)
+        either (Left . errmsg dia chrom (hz + hz_sig) key)
             (Right . Pitch.add_hz (hz + hz_sig)) (note_number chrom dia key)
-    errmsg chrom dia key err = PitchSignal.PitchError $ case err of
-        Scale.InvalidTransposition ->
-            "note can't be transposed: " ++ show (chrom, dia)
+    errmsg dia chrom hz key err = PitchSignal.PitchError $ case err of
+        Scale.InvalidTransposition -> "note can't be transposed: "
+            ++ unwords (filter (not . null)
+                [show_val "d" dia, show_val "c" chrom, show_val "hz" hz])
         Scale.KeyNeeded ->
             "no key is set, but this transposition needs one"
         Scale.UnparseableKey ->
             "key unparseable by given scale: " ++ show key
+    show_val _ 0 = ""
+    show_val code val = Pretty.pretty val ++ code
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.
