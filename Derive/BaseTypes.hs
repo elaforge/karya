@@ -90,7 +90,7 @@ instance ShowVal Control where
 data Typed a = Typed {
     type_of :: !Type
     , typed_val :: !a
-    } deriving (Eq, Read, Show)
+    } deriving (Eq, Ord, Read, Show)
 
 instance (DeepSeq.NFData a) => DeepSeq.NFData (Typed a) where
     rnf (Typed typ val) = typ `seq` DeepSeq.rnf val

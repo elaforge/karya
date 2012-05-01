@@ -13,6 +13,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -247,7 +248,11 @@ empty_track title = Track.track title Events.empty
 
 make_event :: (Double, Double, String) -> Events.PosEvent
 make_event (pos, dur, text) =
-    (realToFrac pos, Event.event text (realToFrac dur))
+    (ScoreTime.double pos, Event.event text (ScoreTime.double dur))
+
+extract_event :: Events.PosEvent -> (ScoreTime, ScoreTime, String)
+extract_event (pos, event) =
+    (pos, Event.event_duration event, Event.event_string event)
 
 -- ** ruler
 

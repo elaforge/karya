@@ -38,6 +38,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
+import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Lang.LBlock as LBlock
 import qualified Cmd.Lang.LEvent as LEvent
 import qualified Cmd.Lang.LInst as LInst

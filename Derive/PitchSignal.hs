@@ -1,18 +1,18 @@
 {-# LANGUAGE TypeFamilies, RankNTypes #-}
 module Derive.PitchSignal (
-    Signal, sig_scale, Scale(Scale)
+    Signal, sig_scale_id, sig_scale, Scale(Scale)
     -- * construct and convert
     , constant, signal, unsignal, to_nn
     -- * apply controls
     , apply_controls, apply_control, controls_at
     -- * signal functions
-    , at, shift, last
+    , null, at, shift, last
     , truncate, drop_before
     -- * Pitch
     , Pitch, PitchError(..), Controls
     , pitch, apply, add_control, eval_pitch, pitch_nn
 ) where
-import Prelude hiding (last, truncate)
+import Prelude hiding (last, null, truncate)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -151,6 +151,9 @@ controls_at :: RealTime -> ControlMap -> Controls
 controls_at t = Map.map (fmap (Signal.at t))
 
 -- * signal functions
+
+null :: Signal -> Bool
+null = TimeVector.null . sig_vec
 
 at :: RealTime -> Signal -> Maybe Pitch
 at x = TimeVector.at x . sig_vec

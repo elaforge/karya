@@ -320,6 +320,17 @@ drop_dups _ [] = []
 drop_dups key (x:xs) = x : map snd (filter (not . equal) (zip (x:xs) xs))
     where equal (x, y) = key x == key y
 
+-- | Filter out elts when the predicate is true for adjacent elts.  The first
+-- elt is kept, and the later ones are dropped.  This is like 'drop_dups'
+-- except it can compare two elements.  E.g. @drop_with (>=)@ will ensure the
+-- sequence is increasing.
+drop_with :: (a -> a -> Bool) -> [a] -> [a]
+drop_with _ [] = []
+drop_with _ [x] = [x]
+drop_with f (x:y:xs)
+    | f x y = drop_with f (x:xs)
+    | otherwise = x : drop_with f (y:xs)
+
 -- | Like 'drop_dups', but return the dropped values.
 partition_dups :: (Ord k) => (a -> k) -> [a] -> ([a], [(a, [a])])
     -- ^ ([unique], [(used_for_unique, [dups])])

@@ -1,11 +1,40 @@
 UNSORTED
-  - reintegrate that converts Score.Events back into Ui Events
+  - rename Score.TypedControl to TypedSignal since that's what it really is
+  - I think fractional offset for twelve is totally off
+  - also, don't need to generate decimals for it
+  - fix convert to pretty print, Convert.hs:70
+  - put the bloom score in the profile test as a more realistic derive profile
+  integrate that converts Score.Events back into Ui Events
+    + implement and test for reverse
+    - test that reintegrating a simple block gives it back again
+    * skel is linked
+    - sort tracks by orig tracknums so they come back in the same order
+    - why does creating a track at 0 in Integrate cause an error on tracknum -1?
+    - add quantization
+    - If the block uses a default tempo, it will get applied once during
+      integration, and again when it's played.  Should cancel it out.
+    - split tracks on overlapping notes since some calls make them (e.g. block
+      calls)
+    reintegration: merge changes back into the derived block after its source
+      changes
+    - add stack and special style to derived events
+    - blocks record which block they were derived from
+    - automatic mechanism to reintegrate after changes
+      Do a merge by integrating the previous block and comparing the
+      difference.  This way I can detect deleted and moved events, and build
+      up a list of edits to reapply to the new derivation.
   - I could implement mute and solo without rederiving by filtering based on
     the stack in events.  This wouldn't account for muting tracks that have
     some other effect, e.g. setting an environ val.
-  - on startup it balloons up to 450mb, what is it doing?  After a bit of
-    editing it's up to 750mb, who is leaking?  Undo history?
+  Space usage.  On startup it balloons up to 450mb, what is it doing?  After
+    a bit of editing it's up to 750mb, who is leaking?  Undo history?
     - Write function to sum up State and Performance size.
+    The ghc api uses tons of space when it starts linking in everything.
+      - How much space does ghci take loading the same stuff?  Why so much
+        less?
+      - I probably have the whole app twice.  Can I use dynamic libraries to
+        improve this?
+      - dynamic libraries: www.well-typed.com/blog/30
     Check size on linux.
       stripped or not makes no difference
       bloom is 110m in memory
@@ -229,8 +258,6 @@ UNSORTED
 
   - If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
-
-  - set_render_style should trigger a rederive to get the track signal
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
@@ -297,22 +324,9 @@ use fixed-binary instead of Doubles for ScoreTime and RealTime:
     too slow, I do lots of to_double conversions that are slow.
     Can I do all that math in Fixed?
 
-hs plugins:
-  How can the plugins link against the core quickly?  They shouldn't link the
-  actual code because they are compiled as separate objects.  But to save
-  time of reading all those .hi files, I can make a package.  Except it looks
-  like it's just the same set of hi files.
-
-  There's a space leak, but maybe it's acceptable?
-
-  - research dynamic libraries: www.well-typed.com/blog/30
-
-  - Can I make relinking faster by making the static core a shared library?
-    Use cabal?
+plugins:
   - Either dynamically load local inst definitions and local StaticConfig, or
     auto-generate the link file Local/Instrument.hs.
-  - Implement a LangPlugins that uses plugins' eval.  Or is there too much
-    space leakage?
 
   - come up with plan for reloading inst config and static config
     Really what I want to be able to do is recompile the static config
