@@ -1,5 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances #-} -- for instance Typecheck String
-{-# LANGUAGE FlexibleInstances #-} -- for instance Typecheck (Control X)
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables #-}
 {- | The event text in a note track forms a simple language.
 
     Notes with text are interpreted as function calls.  The function will be
@@ -338,6 +337,17 @@ lookup_val name environ = case Map.lookup name environ of
     Just val -> case from_val val of
         Nothing -> Left (WrongType (type_of val))
         Just v -> Right v
+
+-- | Like 'lookup_val' but format a WrongType nicely.
+checked_val :: forall a. (Typecheck a) => ValName -> Environ
+    -> Either String (Maybe a)
+checked_val name environ = case lookup_val name environ of
+        Left NotFound -> return Nothing
+        Left (WrongType typ) ->
+            Left $ show name ++ ": expected " ++ Pretty.pretty return_type
+                ++ " but val type is " ++ Pretty.pretty typ
+        Right v -> return (Just v)
+    where return_type = to_type (Prelude.error "checked_val" :: a)
 
 -- Define a few inhabitants of Environ which are used by the built-in set
 -- of calls.

@@ -54,7 +54,7 @@ get_track_cmds = do
 lookup_instrument_cmds :: (Cmd.M m) => BlockId -> TrackId
     -> m (Maybe [Cmd.Cmd])
 lookup_instrument_cmds block_id track_id =
-    justm (Perf.lookup_instrument block_id track_id) $ \inst ->
+    justm (Perf.lookup_instrument block_id (Just track_id)) $ \inst ->
     justm (Cmd.lookup_instrument_info inst) $ \info ->
     return $ Just $ Cmd.inst_cmds (MidiDb.info_code info)
 

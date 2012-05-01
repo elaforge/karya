@@ -4,6 +4,7 @@
     about the results of later stages.
 -}
 module Cmd.Perf where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -94,28 +95,22 @@ get_nn_at track_id ps = do
 
 -- | Get the scale in scope in a certain track on a certain block, falling
 -- back on the default scale if there is none.
-get_scale_id :: (Cmd.M m) => BlockId -> TrackId -> m Pitch.ScaleId
-get_scale_id block_id track_id = do
-    scale <- lookup_env block_id track_id TrackLang.v_scale
-    case scale of
-        Just (TrackLang.VScaleId scale_id) -> return scale_id
-        _ -> State.get_default State.default_scale
+get_scale_id :: (Cmd.M m) => BlockId -> Maybe TrackId -> m Pitch.ScaleId
+get_scale_id block_id maybe_track_id =
+    maybe (State.get_default State.default_scale) return
+        =<< lookup_val block_id maybe_track_id TrackLang.v_scale
 
 -- | As with 'get_scale_id' but for the Key.
-get_key :: (Cmd.M m) => BlockId -> TrackId -> m (Maybe Pitch.Key)
-get_key block_id track_id = do
-    key <- lookup_env block_id track_id TrackLang.v_key
-    case key of
-        Just (TrackLang.VString key) -> return $ Just (Pitch.Key key)
-        _ -> State.get_default State.default_key
+get_key :: (Cmd.M m) => BlockId -> Maybe TrackId -> m (Maybe Pitch.Key)
+get_key block_id maybe_track_id =
+    maybe (State.get_default State.default_key) (return . Just . Pitch.Key)
+        =<< lookup_val block_id maybe_track_id TrackLang.v_key
 
-lookup_instrument :: (Cmd.M m) => BlockId -> TrackId
+lookup_instrument :: (Cmd.M m) => BlockId -> Maybe TrackId
     -> m (Maybe Score.Instrument)
-lookup_instrument block_id track_id = do
-    inst_val <- lookup_env block_id track_id TrackLang.v_instrument
-    case inst_val of
-        Just (TrackLang.VInstrument inst) -> return $ Just inst
-        _ -> State.get_default State.default_instrument
+lookup_instrument block_id maybe_track_id =
+    maybe (State.get_default State.default_instrument) return
+        =<< lookup_val block_id maybe_track_id TrackLang.v_instrument
 
 -- | Resolve the default instrument into whatever it probably resolves to
 -- during derivation.
@@ -126,10 +121,10 @@ resolve_instrument block_id tracknum inst
     | otherwise = do
         track_id <- State.get_event_track_at "get_track_status"
             block_id tracknum
-        Maybe.fromMaybe inst <$> lookup_instrument block_id track_id
+        Maybe.fromMaybe inst <$> lookup_instrument block_id (Just track_id)
 
--- | Lookup value from the deriver's Environ at the given block and track.
--- See 'Derive.TrackEnviron' for details on the limitations here.
+-- | Lookup value from the deriver's Environ at the given block and (possibly)
+-- track.  See 'Derive.TrackEnviron' for details on the limitations here.
 --
 -- The lookup is done relative to the root block, which means that instruments
 -- and scales always default relative to the root.  I suppose I could think of
@@ -139,12 +134,21 @@ resolve_instrument block_id tracknum inst
 --
 -- TODO I think that might lead to some void allocation, so maybe I should
 -- include a flag to turn off TrackEnviron recording?
-lookup_env :: (Cmd.M m) => BlockId -> TrackId -> TrackLang.ValName
-    -> m (Maybe TrackLang.Val)
-lookup_env block_id track_id name =
-    justm lookup_root $ \perf -> do
-    let track_env = Cmd.perf_track_environ perf
-    return $ Map.lookup name =<< Map.lookup (block_id, track_id) track_env
+lookup_val :: (Cmd.M m, TrackLang.Typecheck a) => BlockId
+    -> Maybe TrackId
+    -- ^ If Nothing, take the env from the first track.  This is for when you
+    -- expect the env val to be constant for the entire block.
+    -> TrackLang.ValName -> m (Maybe a)
+lookup_val block_id maybe_track_id name = justm lookup_root $ \perf -> do
+    justm (return (lookup (Cmd.perf_track_environ perf))) $ \env ->
+        either (Cmd.throw . ("Perf.lookup_val: "++)) return
+            (TrackLang.checked_val name env)
+    where
+    lookup env = case maybe_track_id of
+        Nothing -> do
+            (_, env) <- List.find ((==block_id) . fst . fst) (Map.toAscList env)
+            return env
+        Just track_id -> Map.lookup (block_id, track_id) env
 
 
 -- * play

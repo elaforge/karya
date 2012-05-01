@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {- | Main module for the deriver monad.
 
     TODO update Derive\/README, move it to doc\/, and link from here
@@ -31,7 +31,6 @@
 
 -}
 module Derive.Deriver.Lib where
-import qualified Prelude
 import Prelude hiding (error)
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
@@ -151,23 +150,13 @@ lookup_scale scale_id = do
 
 -- ** environment
 
-lookup_val :: forall a. (TrackLang.Typecheck a) =>
-    TrackLang.ValName -> Deriver (Maybe a)
+lookup_val :: (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver (Maybe a)
 lookup_val name = do
     environ <- Internal.get_dynamic state_environ
-    either throw return (env_val environ name)
-    where
-    env_val environ name = case TrackLang.lookup_val name environ of
-            Left TrackLang.NotFound -> return Nothing
-            Left (TrackLang.WrongType typ) ->
-                Left $ "lookup_val " ++ show name ++ ": expected "
-                    ++ Pretty.pretty return_type ++ " but val type is "
-                    ++ Pretty.pretty typ
-            Right v -> return (Just v)
-        where return_type = TrackLang.to_type (Prelude.error "lookup_val" :: a)
+    either throw return (TrackLang.checked_val name environ)
 
 -- | Like 'lookup_val', but throw if the value isn't present.
-get_val :: forall a. (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver a
+get_val :: (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver a
 get_val name = do
     val <- lookup_val name
     maybe (throw $ "environ val not found: " ++ Pretty.pretty name) return val
