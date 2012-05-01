@@ -83,7 +83,9 @@ merge_undo_states new old = new
     , State.state_config =
         merge_config (State.state_config new) (State.state_config old)
     }
-    where clip = keep_clip Config.clip_namespace
+    where
+    clip :: (Id.Ident k, Ord k) => Map.Map k a -> Map.Map k a -> Map.Map k a
+    clip = keep_clip Config.clip_namespace
 
 merge_config :: State.Config -> State.Config -> State.Config
 merge_config new old = new
