@@ -16,8 +16,8 @@ import Types
 
 
 test_track_ruler = do
-    let f tracknum = Create.track_ruler UiTest.default_block_id
-            State.no_ruler tracknum 20
+    let f tracknum = Create.track_events UiTest.default_block_id
+            State.no_ruler tracknum 20 Track.empty
         run track_specs cmd = CmdTest.trace_logs $ CmdTest.e_tracks $
             CmdTest.run_tracks track_specs cmd
     equal (run [] (f 0)) $ Right [("", [])]

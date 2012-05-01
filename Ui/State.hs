@@ -446,6 +446,20 @@ set_block_title :: (M m) => BlockId -> String -> m ()
 set_block_title block_id title =
     modify_block block_id (\block -> block { Block.block_title = title })
 
+-- | Get the ruler from the given tracknum, or 'no_ruler' if there is none.
+get_ruler_at :: (M m) => BlockId -> TrackNum -> m RulerId
+get_ruler_at block_id tracknum = do
+    maybe_track <- block_track_at block_id tracknum
+    let ruler_id = maybe no_ruler id $ do
+            track <- maybe_track
+            Block.ruler_id_of (Block.tracklike_id track)
+    maybe_ruler <- lookup_ruler ruler_id
+    return $ maybe no_ruler (const ruler_id) maybe_ruler
+
+-- | 0 is the conventional ruler tracknum.
+get_block_ruler :: (M m) => BlockId -> m RulerId
+get_block_ruler block_id = get_ruler_at block_id 0
+
 -- | Make a new block.  If it's the first one, it will be set as the root.
 -- This is the low level version, you probably want to use 'create_block'.
 --

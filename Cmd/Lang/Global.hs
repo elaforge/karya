@@ -33,6 +33,8 @@ import qualified Util.Map as Map
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 
+-- Just make sure these are compiled.
+import Midi.Synth ()
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Id as Id
@@ -40,26 +42,21 @@ import qualified Ui.State as State
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
+import Cmd.Lang.LEvent ()
+import qualified Cmd.Lang.LInst as LInst
+import Cmd.Lang.LPerf ()
+import Cmd.Lang.LPitch ()
+import Cmd.Lang.LRuler ()
+import Cmd.Lang.LTrack ()
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
 
-import qualified Cmd.Lang.LInst as LInst
--- Just make sure these are compiled.
-import Midi.Synth ()
-import Cmd.Lang.LEvent ()
-import Cmd.Lang.LPerf ()
-import Cmd.Lang.LPitch ()
-import Cmd.Lang.LRuler ()
-import Cmd.Lang.LTrack ()
-
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -304,7 +301,7 @@ divider color = Block.DId (Block.Divider color)
 insert_track :: TrackId -> TrackNum -> Cmd.CmdL ()
 insert_track track_id tracknum = do
     block_id <- Cmd.get_focused_block
-    ruler_id <- Create.get_ruler_id block_id tracknum
+    ruler_id <- State.get_ruler_at block_id tracknum
     State.insert_track block_id tracknum
         (Block.track (Block.TId track_id ruler_id) Config.track_width)
 

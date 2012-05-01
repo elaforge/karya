@@ -114,7 +114,7 @@ map_track_titles f = do
 
 block_from_template :: (Cmd.M m) => Bool -> BlockId -> m BlockId
 block_from_template include_tracks template_id = do
-    ruler_id <- get_ruler_id template_id 0
+    ruler_id <- State.get_block_ruler template_id
     block_id <- block ruler_id
     when include_tracks $ do
         template <- State.get_block template_id
@@ -122,8 +122,8 @@ block_from_template include_tracks template_id = do
         forM_ (zip [1..] tracks) $ \(tracknum, track) ->
             case Block.tracklike_id track of
                 Block.TId tid rid -> do
-                    new_tid <- track_ruler
-                        block_id rid tracknum (Block.track_width track)
+                    new_tid <- track_events block_id rid tracknum
+                        (Block.track_width track) Track.empty
                     title <- fmap Track.track_title (State.get_track tid)
                     State.set_track_title new_tid title
                 _ -> State.insert_track block_id tracknum track
@@ -231,7 +231,7 @@ destroy_view view_id = do
 splice_below :: (Cmd.M m) => m TrackId
 splice_below = do
     (block_id, tracknum, _, _) <- Selection.get_insert
-    track_id <- track block_id (tracknum+1)
+    track_id <- empty_track block_id (tracknum+1)
     State.splice_skeleton_below block_id (tracknum+1) tracknum
     return track_id
 
@@ -239,7 +239,7 @@ splice_below = do
 splice_above :: (Cmd.M m) => m TrackId
 splice_above = do
     (block_id, tracknum, _, _) <- Selection.get_insert
-    track_id <- track block_id tracknum
+    track_id <- empty_track block_id tracknum
     State.splice_skeleton_above block_id tracknum (tracknum+1)
     return track_id
 
@@ -257,7 +257,7 @@ splice_above_all = do
     let new_tracknum = maybe 1 ((+1) . num . Tree.rootLabel) (Seq.head parents)
     let parent = bump . num . Tree.rootLabel <$> Seq.head parents
         bump n = if n >= new_tracknum then n + 1 else n
-    track_id <- track block_id new_tracknum
+    track_id <- empty_track block_id new_tracknum
     -- Splice above means splice below the parent!
     case parent of
         Just parent ->
@@ -283,7 +283,7 @@ splice_above_ancestors = do
     tree <- State.get_track_tree block_id
     let ancestors = Seq.unique $ Maybe.mapMaybe (ancestor tree) tracknums
     insert_at <- Cmd.require_msg "no selected tracks" $ Seq.minimum ancestors
-    track_id <- track block_id insert_at
+    track_id <- empty_track block_id insert_at
     State.add_edges block_id (map ((,) insert_at) (map (+1) ancestors))
     return track_id
     where
@@ -302,32 +302,30 @@ insert_track = maybe append_track (const insert_track_after_selection)
 append_track :: (Cmd.M m) => m TrackId
 append_track = do
     block_id <- Cmd.get_focused_block
-    track block_id 99999
+    empty_track block_id 99999
 
 insert_track_after_selection :: (Cmd.M m) => m TrackId
 insert_track_after_selection = do
     (_, (block_id, tracknum, _)) <- Selection.get_any_insert
-    track block_id (tracknum + 1)
+    empty_track block_id (tracknum + 1)
 
--- | Like 'track_ruler', but copy the ruler from the track to the left.
+empty_track :: (State.M m) => BlockId -> TrackNum -> m TrackId
+empty_track block_id tracknum = track block_id tracknum "" Events.empty
+
+-- | Like 'track_events', but copy the ruler from the track to the left.
 --
 -- If the track to the left is a ruler track, it will assume there is
 -- a ".overlay" version of it.
-track :: (State.M m) => BlockId -> TrackNum -> m TrackId
-track block_id tracknum = do
+track :: (State.M m) => BlockId -> TrackNum -> String -> Events.Events
+    -> m TrackId
+track block_id tracknum title events = do
     -- Clip to valid range so callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
     ruler_id <- get_overlay_ruler_id block_id (tracknum-1)
-    track_ruler block_id ruler_id tracknum Config.track_width
+    track_events block_id ruler_id tracknum Config.track_width
+        (Track.track title events)
 
--- | Create a track with the given ruler.
---
--- Tracks look like \"ns/b0.t0\", etc.
-track_ruler :: (State.M m) =>
-    BlockId -> RulerId -> TrackNum -> Types.Width -> m TrackId
-track_ruler block_id ruler_id tracknum width =
-    track_events block_id ruler_id tracknum width (Track.track "" Events.empty)
-
+-- | Lowest level track creator.
 track_events :: (State.M m) =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> Track.Track -> m TrackId
 track_events block_id ruler_id tracknum width track = do
@@ -402,15 +400,6 @@ get_overlay_ruler_id block_id tracknum = do
             Just (Block.TId _ rid) -> rid
             Just (Block.RId rid) -> add_overlay_suffix rid
             _ -> State.no_ruler
-    maybe_ruler <- State.lookup_ruler ruler_id
-    return $ maybe State.no_ruler (const ruler_id) maybe_ruler
-
-get_ruler_id :: (State.M m) => BlockId -> TrackNum -> m RulerId
-get_ruler_id block_id tracknum = do
-    maybe_track <- State.block_track_at block_id tracknum
-    let ruler_id = maybe State.no_ruler id $ do
-            track <- maybe_track
-            Block.ruler_id_of (Block.tracklike_id track)
     maybe_ruler <- State.lookup_ruler ruler_id
     return $ maybe State.no_ruler (const ruler_id) maybe_ruler
 

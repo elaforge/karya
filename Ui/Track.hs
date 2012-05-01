@@ -38,6 +38,9 @@ track title events = Track
     , track_render = no_render
     }
 
+empty :: Track
+empty = track "" Events.empty
+
 instance DeepSeq.NFData Track where
     rnf track = DeepSeq.rnf (track_events track) `seq` ()
 

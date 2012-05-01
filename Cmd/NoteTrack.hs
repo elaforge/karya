@@ -285,14 +285,14 @@ generator_of = Seq.strip . last . Seq.split "|"
 create_pitch_track :: (Cmd.M m) => BlockId -> ControlTrack -> m ()
 create_pitch_track block_id (ControlTrack note pitch) = do
     scale_id <- EditUtil.get_scale_id
-    tid <- Create.track block_id pitch
+    tid <- Create.empty_track block_id pitch
     -- Link note track underneath newly created pitch track.
     State.splice_skeleton_below block_id pitch note
     State.set_track_title tid (TrackInfo.scale_to_title scale_id)
 
 create_dyn_track :: (Cmd.M m) => BlockId -> ControlTrack -> m ()
 create_dyn_track block_id (ControlTrack note dyn) = do
-    tid <- Create.track block_id dyn
+    tid <- Create.empty_track block_id dyn
     State.splice_skeleton_below block_id dyn note
     State.set_track_title tid (TrackInfo.control_to_title Score.c_dynamic)
 

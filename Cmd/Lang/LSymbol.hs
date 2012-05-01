@@ -8,9 +8,11 @@ import qualified Control.Monad.Trans as Trans
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Symbol as Symbol
 import qualified Ui.SymbolC as SymbolC
+import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
@@ -23,9 +25,9 @@ import qualified Cmd.Selection as Selection
 make :: Cmd.CmdL ()
 make = do
     bid <- Create.named_block "symbol-test" State.no_ruler
-    tid <- Create.track_ruler bid State.no_ruler 1 100
+    Create.track_events bid State.no_ruler 1 100 $
+        Track.track "" (Events.singleton 0 (Event.event "symbol" 5))
     State.set_track_width bid 0 0
-    State.insert_event tid 0 $ Event.event "symbol" 5
     vid <- Create.fitted_view bid
     Selection.set vid (Just (Types.point_selection 1 0))
 
