@@ -42,7 +42,7 @@ note_call note note_number =
     call frac hz key = \controls -> do
         let get c = maybe 0 Score.typed_val (Map.lookup c controls)
             dia = get Score.c_diatonic
-            chrom = get Score.c_chromatic + frac
+            chrom = get Score.c_chromatic + frac / 100
             hz_sig = get Score.c_hz
         either (Left . errmsg dia chrom (hz + hz_sig) key)
             (Right . Pitch.add_hz (hz + hz_sig)) (note_number chrom dia key)
@@ -62,7 +62,7 @@ note_call note note_number =
 note_expr :: Pitch.Note -> Double -> String
 note_expr (Pitch.Note note) frac
     | frac == 0 = note
-    | otherwise = note ++ " " ++ Pretty.show_float 2 (frac * 100)
+    | otherwise = note ++ " " ++ show (floor (frac * 100))
 
 
 -- * pitch

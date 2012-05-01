@@ -1,7 +1,6 @@
 UNSORTED
   - rename Score.TypedControl to TypedSignal since that's what it really is
-  - I think fractional offset for twelve is totally off
-  - also, don't need to generate decimals for it
+  * I think fractional offset for twelve is totally off
   * fix convert to pretty print, Convert.hs:70
   - put the bloom score in the profile test as a more realistic derive profile
   integrate that converts Score.Events back into Ui Events
