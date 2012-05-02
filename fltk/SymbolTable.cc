@@ -234,7 +234,8 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
                 line_width += width;
             // DEBUG("at ``: " << width << " = " << line_width);
         } else {
-            line_width += fl_width(p, 1);
+            if (*p)
+                line_width += fl_width(p, 1);
             // DEBUG("at " << string(p, 1) << ": " << fl_width(p, 1)
             //     << " = " << line_width);
         }
@@ -242,7 +243,7 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
         // endless loop.
         const bool should_wrap = line_width > wrap_width && p > line_start;
         if (!*p || should_wrap) {
-            // if (*p) {
+            // if (should_wrap) {
             //     DEBUG("should wrap: " << line_width << " > " << wrap_width);
             // } else {
             //     DEBUG("eol");
@@ -256,7 +257,7 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
             } else {
                 break_at = p;
             }
-            // DEBUG("break_at " << string(break_at, 1) << " "
+            // DEBUG("break_at '" << string(break_at, 1) << "' "
             //     << break_at - text.c_str());
             IPoint line_size = this->measure(
                 string(line_start, p - line_start), style);
@@ -265,6 +266,7 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
             line_size.y += 1;
             total_size.x = std::max(total_size.x, line_size.x);
             total_size.y += line_size.y;
+            // DEBUG("draw " << string(line_start, break_at - line_start));
             this->draw(string(line_start, break_at - line_start),
                 IPoint(pos.x, pos.y + total_size.y), style);
             // Don't draw the ugly rectangle unless I actually did some
@@ -276,7 +278,7 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
                     style.set();
                 }
                 break;
-            } else if (!*p) {
+            } else if (!*break_at) {
                 break;
             } else {
                 p = break_at;
