@@ -4,7 +4,7 @@
 module Derive.Call.BlockUtil (
     note_deriver, control_deriver
     , capture_null_control
-    , derive_tracks
+    , derive_tracks, has_nontempo_track
 
 #ifdef TESTING
     , derive_tree
@@ -105,12 +105,12 @@ derive_control_tree block_end tree = do
 
 get_tree :: (State.M m) => BlockId -> m (State.EventsTree, ScoreTime)
 get_tree block_id = do
-    block <- State.get_block block_id
     info_tree <- State.get_track_tree block_id
     block_end <- State.block_event_end block_id
+    tree <- State.events_tree block_end info_tree
+    block <- State.get_block block_id
     let mutes_tree = State.track_tree_mutes
             (State.muted_tracknums block info_tree) info_tree
-    tree <- State.events_tree block_end info_tree
     return (strip_mutes mutes_tree tree, block_end)
 
 -- | Strip the events out of muted tracks.  If the tracks themselves were

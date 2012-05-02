@@ -1,9 +1,13 @@
+{-# LANGUAGE CPP #-}
 module Cmd.Integrate (
     -- * create_block
     integrate_block
 
     -- * integrate
     , Track(..), create_block, integrate
+#ifdef TESTING
+    , unwarp
+#endif
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -22,6 +26,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Perf as Perf
 
+import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
@@ -44,13 +49,28 @@ integrate_block block_id = do
     perf <- Cmd.get_performance block_id
     lookup_scale <- Cmd.get_lookup_scale
     key <- Perf.get_key block_id Nothing
-    let events = LEvent.events_of $ Cmd.perf_events perf
-        (tracks, errs) = integrate lookup_scale key events
+    events <- unwarp block_id $ LEvent.events_of $ Cmd.perf_events perf
+    let (tracks, errs) = integrate lookup_scale key events
     unless (null errs) $
         Cmd.throw $ "errors integrating: " ++ Seq.join "; " errs
     ruler_id <- State.get_block_ruler block_id
     derived_block <- create_block ruler_id tracks
     void $ Create.view derived_block
+
+-- | If the block uses a default tempo, it will get applied once during
+-- integration, and again when it's played.  I should avoid applying the
+-- default tempo at all for integration, but that's too much bother.  Instead,
+-- unwarp the events if the default tempo was applied.
+unwarp :: (State.M m) => BlockId -> [Score.Event] -> m [Score.Event]
+unwarp block_id events = ifM (uses_default_tempo block_id)
+    (do tempo <- State.get_default State.default_tempo
+        return $ move (RealTime.seconds tempo) events)
+    (return events)
+    where move tempo = map $ Score.move (*tempo) . Score.duration (*tempo)
+
+uses_default_tempo :: (State.M m) => BlockId -> m Bool
+uses_default_tempo block_id =
+    BlockUtil.has_nontempo_track <$> State.events_tree_of block_id
 
 
 -- * create_block

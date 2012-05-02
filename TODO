@@ -10,7 +10,7 @@ UNSORTED
     - sort tracks by orig tracknums so they come back in the same order
     - why does creating a track at 0 in Integrate cause an error on tracknum -1?
     - add quantization
-    - If the block uses a default tempo, it will get applied once during
+    * If the block uses a default tempo, it will get applied once during
       integration, and again when it's played.  Should cancel it out.
     - split tracks on overlapping notes since some calls make them (e.g. block
       calls)

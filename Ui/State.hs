@@ -743,6 +743,12 @@ track_events title events end = TrackEvents
     , tevents_shifted = 0
     }
 
+events_tree_of :: (M m) => BlockId -> m EventsTree
+events_tree_of block_id = do
+    info_tree <- get_track_tree block_id
+    block_end <- block_event_end block_id
+    events_tree block_end info_tree
+
 events_tree :: (M m) => ScoreTime -> TrackTree -> m EventsTree
 events_tree events_end tree = mapM resolve tree
     where

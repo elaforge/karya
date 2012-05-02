@@ -160,7 +160,7 @@ derive_tracks_with_ui with transform_ui tracks = derive_blocks_with_ui
 derive_blocks :: [UiTest.BlockSpec] -> Derive.Result
 derive_blocks = derive_blocks_with_ui id id
 
-derive_blocks_with   :: Transform Derive.Events -> [UiTest.BlockSpec]
+derive_blocks_with :: Transform Derive.Events -> [UiTest.BlockSpec]
     -> Derive.Result
 derive_blocks_with with = derive_blocks_with_ui with id
 
@@ -169,10 +169,8 @@ derive_blocks_with_ui :: Transform Derive.Events -> TransformUi
 derive_blocks_with_ui with transform_ui block_tracks =
     derive_block_with with (transform_ui ui_state) bid
     where
-    (_, ui_state) = UiTest.run State.empty $ do
-        UiTest.mkblocks block_tracks
-        set_defaults
-    bid = UiTest.bid (fst (head block_tracks))
+    (bid : _, ui_state) = UiTest.run State.empty $
+        set_defaults >> UiTest.mkblocks block_tracks
 
 derive_block :: State.State -> BlockId -> Derive.Result
 derive_block = derive_block_with id
