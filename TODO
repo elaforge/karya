@@ -27,7 +27,7 @@ UNSORTED
     some other effect, e.g. setting an environ val.
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
     a bit of editing it's up to 750mb, who is leaking?  Undo history?
-    - Write function to sum up State and Performance size.
+    - Write function to sum up State, Cache, and Performance sizes.
     The ghc api uses tons of space when it starts linking in everything.
       - How much space does ghci take loading the same stuff?  Why so much
         less?

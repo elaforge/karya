@@ -64,7 +64,9 @@ save ui_state fname = do
 -- | (block_name, tracks)
 type BlockSpec = (String, [TrackSpec])
 -- | (track_title, events)
-type TrackSpec = (String, [(Double, Double, String)])
+type TrackSpec = (String, [EventSpec])
+-- | (start, dur, text)
+type EventSpec = (ScoreTime, ScoreTime, String)
 
 -- | Often tests work with a single block, or a single view.  To make them
 -- less verbose, there is a default block and view so functions can omit the
@@ -178,10 +180,18 @@ mk_tid_block block_id i =
 mk_tid_name :: String -> TrackNum -> TrackId
 mk_tid_name = mk_tid_block . bid
 
--- ** from dump
+-- ** make specs
 
-from_dump :: Simple.Block -> (BlockId, State.State)
-from_dump dump = run State.empty (Simple.make_block dump)
+-- | (inst, [(t, dur, pitch)], [(control, [(t, val)])])
+type NoteSpec = (String, [EventSpec], [(String, [(ScoreTime, String)])])
+
+note_spec :: NoteSpec -> [TrackSpec]
+note_spec (inst, pitches, controls) =
+    [note_track, pitch_track] ++ map control_track controls
+    where
+    note_track = ('>' : inst, [(t, dur, "") | (t, dur, _) <- pitches])
+    pitch_track = ("*", [(t, 0, pitch) | (t, _, pitch) <- pitches])
+    control_track (title, events) = (title, [(t, 0, val) | (t, val) <- events])
 
 -- * state to spec
 
@@ -190,14 +200,26 @@ from_dump dump = run State.empty (Simple.make_block dump)
 -- 'mkblocks_skel'.  This way problems that show up in the app can be pasted
 -- into a test.
 to_spec :: State.State -> [(BlockSpec, [Skeleton.Edge])]
-to_spec state = map (block_to_spec state) (Map.keys (State.state_blocks state))
+to_spec state = map (flip block_to_spec state)
+    (Map.keys (State.state_blocks state))
 
-block_to_spec :: State.State -> BlockId -> (BlockSpec, [Skeleton.Edge])
-block_to_spec state block_id = ((block_name, map dump_track tracks), skel)
+block_to_spec :: BlockId -> State.State -> (BlockSpec, [Skeleton.Edge])
+block_to_spec block_id state = ((block_name, map dump_track tracks), skel)
     where
     (id_str, _, tracks, skel) = eval state (Simple.dump_block block_id)
     block_name = snd (Id.un_id (Id.read_id id_str))
-    dump_track (_, title, events) = (title, events)
+    dump_track (_, title, events) = (title, map convert events)
+    convert (start, dur, text) =
+        (ScoreTime.double start, ScoreTime.double dur, text)
+
+-- | Like 'block_to_spec' but strip out everything but the tracks.
+extract_tracks_of :: BlockId -> State.State -> [TrackSpec]
+extract_tracks_of block_id state = tracks
+    where ((_, tracks), _) = block_to_spec block_id state
+
+-- | Get the names and tracks of the default block.
+extract_tracks :: State.State -> [TrackSpec]
+extract_tracks = extract_tracks_of default_block_id
 
 -- * view
 
@@ -208,24 +230,6 @@ select view_id sel =
 select_point :: (State.M m) => ViewId -> TrackNum -> ScoreTime -> m ()
 select_point view_id tracknum pos =
     select view_id (Types.point_selection tracknum pos)
-
--- * extract from ui_state
-
--- | Get the names and tracks of the default block.
-extract_tracks :: State.State -> [(String, [Simple.Event])]
-extract_tracks = extract_tracks_of default_block_id
-
-extract_tracks_of :: BlockId -> State.State -> [(String, [Simple.Event])]
-extract_tracks_of block_id ui_state = map
-    (\(_, title, events) -> (title, events)) tracks
-    where (_, _, tracks, _) = eval ui_state (Simple.dump_block block_id)
-
-dump_block :: State.State -> BlockId -> Simple.Block
-dump_block ui_state block_id = eval ui_state (Simple.dump_block block_id)
-
-dump_blocks :: State.State -> [Simple.Block]
-dump_blocks ui_state =
-    map (dump_block ui_state) (Map.keys (State.state_blocks ui_state))
 
 -- * pure make_- functions
 
@@ -246,11 +250,10 @@ empty_track title = Track.track title Events.empty
 
 -- ** event
 
-make_event :: (Double, Double, String) -> Events.PosEvent
-make_event (pos, dur, text) =
-    (ScoreTime.double pos, Event.event text (ScoreTime.double dur))
+make_event :: EventSpec -> Events.PosEvent
+make_event (pos, dur, text) = (pos, Event.event text dur)
 
-extract_event :: Events.PosEvent -> (ScoreTime, ScoreTime, String)
+extract_event :: Events.PosEvent -> EventSpec
 extract_event (pos, event) =
     (pos, Event.event_duration event, Event.event_string event)
 
@@ -300,15 +303,3 @@ midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
 midi_config config = Instrument.config
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
     where mkaddr chan = (Midi.write_device "s", chan)
-
-
--- * extract
-
-block_structure :: State.State -> [(BlockId, [TrackId])]
-block_structure state = [(block_id, Block.block_track_ids block)
-    | (block_id, block) <- Map.assocs (State.state_blocks state)]
-
-simplify :: State.State -> [Simple.Block]
-simplify state = eval state $ mapM Simple.dump_block block_ids
-    where
-    block_ids = Map.keys (State.state_blocks state)

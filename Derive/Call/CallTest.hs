@@ -18,19 +18,19 @@ transform trans = DeriveTest.derive State.empty $
     Derive.with_constant_pitch Nothing DeriveTest.default_scale
         (DeriveTest.mkpitch "a") (trans (DeriveTest.c_note 0 1))
 
-run_pitch :: [(Double, String)] -> [(RealTime, Pitch.NoteNumber)]
+run_pitch :: [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
 run_pitch = run_with_scale "twelve"
 
-run_with_scale :: String -> [(Double, String)]
+run_with_scale :: String -> [(ScoreTime, String)]
     -> [(RealTime, Pitch.NoteNumber)]
-run_with_scale scale events = extract $ DeriveTest.derive_tracks
+run_with_scale scale events = extract $ DeriveTest.derive_tracks $
     [ (">", [(0, 10, "")])
     , ('*' : scale, [(start, 0, text) | (start, text) <- events])
     ]
     where extract = head . DeriveTest.extract_events DeriveTest.e_pitch
 
 -- | Run a control track and extract the control signal it produces.
-run_control :: [(Double, String)] -> [(Signal.X, Signal.Y)]
+run_control :: [(ScoreTime, String)] -> [(Signal.X, Signal.Y)]
 run_control events = extract $ DeriveTest.derive_tracks
     [ (">", [(0, 10, "")])
     , ("cont", [(start, 0, text) | (start, text) <- events])

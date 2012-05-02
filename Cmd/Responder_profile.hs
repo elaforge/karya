@@ -31,7 +31,7 @@ profile_edits_middle = do
     let cmd_state = modify_edit_state
             (ResponderTest.mk_cmd_state ui_state view_id) $ \st ->
                 st { Cmd.state_edit_mode = Cmd.ValEdit }
-    -- pprint (UiTest.dump_block ui_state edit_block)
+    -- pprint (UiTest.extract_tracks_of edit_block ui_state)
 
     let wait = [(CmdTest.make_key UiMsg.KeyDown Key.ShiftL, 0.1),
             (CmdTest.make_key UiMsg.KeyUp Key.ShiftL, 4)]

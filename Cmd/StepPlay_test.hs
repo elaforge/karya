@@ -172,10 +172,8 @@ simple_tracks = note_track
     -- 60  62  64  65
 
 note_track :: [String] -> [UiTest.TrackSpec]
-note_track notes =
-    [ (">s/1", [(n, 1, "") | n <- [0 .. fromIntegral (length notes - 1)]])
-    , ("*twelve", [(p, 0, n) | (p, n) <- zip (Seq.range_ 0 1) notes])
-    ]
+note_track notes = UiTest.note_spec
+    ("s/1", [(t, 1, pitch) | (t, pitch) <- zip (Seq.range_ 0 1) notes], [])
 
 prepare_blocks :: String -> [UiTest.BlockSpec] -> IO (CmdTest.Result ())
 prepare_blocks focus blocks = CmdTest.update_perf ustate $

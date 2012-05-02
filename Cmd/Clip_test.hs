@@ -8,7 +8,6 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.Simple as Simple
 
 import qualified App.Config as Config
 import Types
@@ -39,13 +38,12 @@ track1 = ("t1", [(0, 2, "e11"), (4, 2, "e12"), (8, 2, "e13")])
 track2 = ("t2", [(1, 2, "e21"), (5, 2, "e22")])
 clip_tracks = [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
 
-e_tracks :: BlockId -> CmdTest.Result val
-    -> Either String [(String, [Simple.Event])]
+e_tracks :: BlockId -> CmdTest.Result val -> Either String [UiTest.TrackSpec]
 e_tracks block_id = CmdTest.trace_logs . CmdTest.extract_state
     (\state _ -> UiTest.extract_tracks_of block_id state)
 
 run_sel :: State.State -> Cmd.CmdId a -> TrackNum -> ScoreTime -> TrackNum
-    -> ScoreTime -> Either String [(String, [Simple.Event])]
+    -> ScoreTime -> Either String [UiTest.TrackSpec]
 run_sel state cmd strack spos ctrack cpos = e_tracks UiTest.default_block_id $
     CmdTest.run_ui state $ do
         CmdTest.set_sel strack spos ctrack cpos

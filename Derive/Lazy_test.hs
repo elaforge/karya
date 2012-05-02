@@ -6,6 +6,7 @@ import qualified System.IO.Unsafe as Unsafe
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Thread as Thread
 
@@ -183,7 +184,7 @@ test_track_signal = do
 
 test_0_derive_notes = do
     -- if I can take results from an infinite score, the derivation is lazy
-    let inf = [UiTest.make_event (n, 1, "") | n <- [0..]]
+    let inf = [UiTest.make_event (n, 1, "") | n <- Seq.range_ 0 1]
     (log, deriver) <- with_logging $
         Note.derive_notes 10 (0, 10) 0 [] ([], []) inf
     result <- Thread.timeout 0.5 $ (\v -> force v >> return v) $
@@ -214,7 +215,7 @@ test_2_root = do
 
 flat_block :: Int -> State.State
 flat_block n = snd $ UiTest.run_mkblock
-    [(">i", [(fromIntegral n, 1, "") | n <- [0..n]])]
+    [(">i", [(t, 1, "") | t <- Seq.range 0 (fromIntegral n) 1])]
 
 with_logging :: Derive.Deriver a -> IO (Log, Derive.Deriver a)
 with_logging deriver = do

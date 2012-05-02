@@ -26,7 +26,6 @@ import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
-import qualified Cmd.Simple as Simple
 
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Derive as Derive
@@ -249,7 +248,7 @@ extract_state f res = maybe
 extract_ui_state :: (State.State -> e) -> Result val -> Extracted e
 extract_ui_state f = extract_state (\state _ -> f state)
 
-e_tracks :: Result a -> Extracted [(String, [Simple.Event])]
+e_tracks :: Result a -> Extracted [UiTest.TrackSpec]
 e_tracks = extract_state $ \state _ -> UiTest.extract_tracks state
 
 extract_ui :: State.StateId e -> Result v -> Extracted e

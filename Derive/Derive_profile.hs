@@ -6,6 +6,7 @@ import qualified Text.Printf as Printf
 
 import qualified Util.CPUTime as CPUTime
 import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Ui.State as State
@@ -14,6 +15,8 @@ import qualified Cmd.Create as Create
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseSkeleton as ParseSkeleton
+
+import Types
 
 
 -- q=90 means 1.5 quarters / sec
@@ -208,15 +211,15 @@ nontempered_pitch_track =
     ctrack0 1 "*semar" ["1", "2", "3", "5", "6", "`1^`", "`6.`"]
 vel_track = ctrack0 1 "vel" ["1", ".2", ".4", ".6"]
 
-ctrack0 :: Double -> String -> [String] -> UiTest.TrackSpec
+ctrack0 :: ScoreTime -> String -> [String] -> UiTest.TrackSpec
 ctrack0 step title ts =
-    (title, [(p, 0, t) | (p, t) <- zip [0, step..] (cycle ts)])
+    (title, [(p, 0, t) | (p, t) <- zip (Seq.range_ 0 step) (cycle ts)])
 
-ctrack :: Double -> String -> [String] -> UiTest.TrackSpec
+ctrack :: ScoreTime -> String -> [String] -> UiTest.TrackSpec
 ctrack step title ts =
-    (title, [(p, step, t) | (p, t) <- zip [0, step..] (cycle ts)])
+    (title, [(p, step, t) | (p, t) <- zip (Seq.range_ 0 step) (cycle ts)])
 
-track_until :: Double -> UiTest.TrackSpec -> UiTest.TrackSpec
+track_until :: ScoreTime -> UiTest.TrackSpec -> UiTest.TrackSpec
 track_until until = second (takeWhile (\(p, _, _) -> p < until))
 
 track_drop n = second (shift . drop n)

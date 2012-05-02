@@ -1,7 +1,6 @@
 module Cmd.NoteTrack_test where
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
@@ -165,8 +164,7 @@ test_cmd_method_edit = do
 mkkey :: Key.Key -> Msg.Msg
 mkkey = CmdTest.make_key UiMsg.KeyDown
 
-run :: [UiTest.TrackSpec] -> Cmd.CmdId a
-    -> Either String [(String, [(Double, Double, String)])]
+run :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Either String [UiTest.TrackSpec]
 run track_specs cmd = CmdTest.trace_logs $
     CmdTest.e_tracks $ CmdTest.run_sel 0 track_specs cmd
 

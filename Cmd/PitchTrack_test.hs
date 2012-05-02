@@ -7,7 +7,6 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.PitchTrack as PitchTrack
-import qualified Cmd.Simple as Simple
 
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
@@ -86,6 +85,6 @@ test_transpose = do
 
 
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a
-    -> Either String [(String, [Simple.Event])]
+    -> Either String [UiTest.TrackSpec]
 run_tracks track_specs cmd = CmdTest.trace_logs $ CmdTest.e_tracks $
     CmdTest.run_tracks track_specs $ CmdTest.set_sel 1 0 1 0 >> cmd

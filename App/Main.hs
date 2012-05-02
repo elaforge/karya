@@ -367,12 +367,12 @@ setup_big = do
         vels = [1, 0.9, 0.8, 0.7, 0.6, 0.4, 0.3, 0.2]
         mknotes notes = map UiTest.make_event
             [(i*0.25, 0.2, to_str (oct*12 + n))
-                | (i, (oct, n)) <- zip [0..] notes]
+                | (i, (oct, n)) <- zip (Seq.range_ 0 1) notes]
         to_str n = case Twelve.input_to_note Nothing (Pitch.InputKey n) of
             Just (Pitch.Note s) -> s
             Nothing -> error $ "converting " ++ show n
         mkdyn vels = map UiTest.make_event
-            [(i*0.25, 0, show vel) | (i, vel) <- zip [0..] vels]
+            [(i*0.25, 0, show vel) | (i, vel) <- zip (Seq.range_ 0 1) vels]
 
     State.insert_events t0 (take 100 (mknotes (cycle (map ((,) 5) notes))))
     State.insert_events t0_p (take 100 (mkdyn (cycle vels)))

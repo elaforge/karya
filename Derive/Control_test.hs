@@ -72,7 +72,7 @@ test_derive_control = do
         (Right ([(0, 1), (1, 1.5), (2, 2)],
             ["Error: control call not found: def"]))
 
-mktrack :: ScoreTime -> (ScoreTime, ScoreTime) -> [(Double, Double, String)]
+mktrack :: ScoreTime -> (ScoreTime, ScoreTime) -> [UiTest.EventSpec]
     -> State.TrackEvents
 mktrack events_end track_range events =
     (State.track_events ">" evts events_end)
