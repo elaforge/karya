@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-} -- This module is intentionally
+-- full of imports that will be used by the REPL.
 {- | Top-level module for the interpreter in Language.  Everything in this
     module is visible to the REPL, so it imports a lot of potentially useful
     modules.
