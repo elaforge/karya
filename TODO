@@ -571,7 +571,7 @@ fltk:
   - word disappears before wrapping, this is especially bad on linux
   - skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.
-  - after creating a new track, focus should go to its title
+  * after creating a new track, focus should go to its title
   - rethrow c++ exceptions as FltkError
   - auto add pitch track when a track title input is expanded crashes with
     assertion error 'title->w() == body->w()'

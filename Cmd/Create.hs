@@ -302,12 +302,17 @@ insert_track = maybe append_track (const insert_track_after_selection)
 append_track :: (Cmd.M m) => m TrackId
 append_track = do
     block_id <- Cmd.get_focused_block
-    empty_track block_id 99999
+    focused_track block_id 99999
 
 insert_track_after_selection :: (Cmd.M m) => m TrackId
 insert_track_after_selection = do
     (_, (block_id, tracknum, _)) <- Selection.get_any_insert
-    empty_track block_id (tracknum + 1)
+    focused_track block_id (tracknum + 1)
+
+-- | Add a new track and give keyboard focus to the title.
+focused_track :: (State.M m) => BlockId -> TrackNum -> m TrackId
+focused_track block_id tracknum = track block_id tracknum " " Events.empty
+    -- This " " is a hack to tell fltk to set keyboard focus.
 
 empty_track :: (State.M m) => BlockId -> TrackNum -> m TrackId
 empty_track block_id tracknum = track block_id tracknum "" Events.empty
