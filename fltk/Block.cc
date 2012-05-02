@@ -387,6 +387,10 @@ BlockView::set_title(const char *s)
 {
     title.set_text(s);
     title_cb(NULL, this);
+    // Haskell uses " " to make the title line appear and assign focus to it.
+    // It's a hack but simpler than making a FocusOnTitle Update.
+    if (strcmp(s, " ") == 0)
+        title.take_focus();
 }
 
 
