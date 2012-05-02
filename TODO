@@ -8,6 +8,8 @@ UNSORTED
     - test that reintegrating a simple block gives it back again
     * skel is linked
     - sort tracks by orig tracknums so they come back in the same order
+      Staved off by adding a leading 0 to TrackIds so they sort right, but
+      I'll need to switch to TrackNums to do this for real.
     - why does creating a track at 0 in Integrate cause an error on tracknum -1?
     - add quantization
     * If the block uses a default tempo, it will get applied once during

@@ -479,8 +479,13 @@ generate_id ns parent_id code typ fm =
 
 ids_for :: Id.Namespace -> String -> String -> [Id.Id]
 ids_for ns parent code =
-    [Id.unsafe_id ns (dotted parent ++ code ++ show n) | n <- [0..]]
-    where dotted s = if null s then "" else s ++ "."
+    [Id.unsafe_id ns (dotted parent ++ code ++ padded n) | n <- [0..]]
+    where
+    dotted s = if null s then "" else s ++ "."
+    -- Add a leading 0 so TrackIds will sort by their tracknum.  This is
+    -- a brittle hack because TrackIds aren't guaranteed to be anything, but
+    -- hopefully I can get rid of TrackIds someday and use TrackNums.
+    padded n = let s = show n in if length s < 2 then '0' : s else s
 
 require :: (State.M m) => String -> Maybe a -> m a
 require msg = maybe (State.throw $ "somehow can't find ID for " ++ msg) return
