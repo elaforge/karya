@@ -109,22 +109,21 @@ make_edges track_count = concatMap interpolate . Seq.zip_next
 integrate :: Derive.LookupScale -> Maybe Pitch.Key
     -> [Score.Event] -> ([Track], [String]) -- ^ (tracks, errs)
 integrate lookup_scale key = convert . Seq.partition_either
-    . map (integrate_track lookup_scale key) . Seq.keyed_group_on track_key
+    . map (integrate_track lookup_scale key) . Seq.keyed_group_on group_key
     where convert (errs, tracks) = (concat tracks, errs)
 
 -- | Split into tracks by track id, instrument, and then scale.
 -- TODO and overlapping events should be split, deal with that later
-track_key :: Score.Event -> (Maybe TrackId, Maybe Score.Instrument,
+group_key :: Score.Event -> (Maybe TrackId, Maybe Score.Instrument,
     Pitch.ScaleId)
-track_key event = (track_of event, Score.event_instrument event,
+group_key event = (track_of event, Score.event_instrument event,
     PitchSignal.sig_scale_id (Score.event_pitch event))
 
 track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . Maybe.mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
-integrate_track ::
-    Derive.LookupScale -> Maybe Pitch.Key
+integrate_track :: Derive.LookupScale -> Maybe Pitch.Key
     -> ((Maybe TrackId, Maybe Score.Instrument, Pitch.ScaleId), [Score.Event])
     -> Either String [Track]
 integrate_track lookup_scale key ((_, maybe_inst, scale_id), events) = do
@@ -134,8 +133,8 @@ integrate_track lookup_scale key ((_, maybe_inst, scale_id), events) = do
         Nothing -> return []
         Just (track, []) -> return [track]
         Just (_, errs) -> Left $ Seq.join "; " errs
-    return $ note_events maybe_inst events
-        : pitch_track ++ control_events events
+    return $ note_events maybe_inst events : pitch_track
+        ++ control_events events
 
 -- ** note
 

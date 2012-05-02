@@ -7,7 +7,6 @@ import qualified Util.Rect as Rect
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
-import Types
 
 
 -- | Crunch all the views up against each other.

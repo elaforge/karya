@@ -68,11 +68,10 @@ import qualified App.StaticConfig as StaticConfig
 
 import qualified Local.Instrument
 
--- This is only used by the interpreter,  but by importing it here I can make
--- sure it doesn't have any compile errors in advance.
--- TODO but then I have to remove the .o, cuz otherwise ghc insists on failing
--- to load the compiled version.
--- import Cmd.Lang.Environ ()
+-- This is only used by the REPL,  but by importing it here I can make
+-- sure it, along with REPL-only modules, are compiled and don't have any
+-- errors.
+import Cmd.Lang.Environ ()
 
 -- tmp, used by debug prints
 import qualified Ui.UiTest as UiTest

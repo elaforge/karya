@@ -24,7 +24,7 @@ save_test_block :: FilePath -> BlockId -> Cmd.CmdL ()
 save_test_block fname block_id = do
     st <- State.get
     Trans.liftIO $ IO.writeFile fname $
-        PPrint.pshow [UiTest.block_to_spec st block_id]
+        PPrint.pshow [UiTest.block_to_spec block_id st]
 
 rename_project :: String -> Cmd.CmdL ()
 rename_project ns = case Id.namespace ns of
