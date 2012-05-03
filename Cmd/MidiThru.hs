@@ -39,13 +39,14 @@
 module Cmd.MidiThru where
 import qualified Data.List as List
 import qualified Data.Map as Map
+
 import Util.Control
 import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
@@ -54,11 +55,10 @@ import qualified Cmd.Msg as Msg
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
-
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import Perform.Midi.Instrument (Addr)
+import qualified Perform.Pitch as Pitch
 
 
 -- | Send midi thru, addressing it to the given Instrument.
@@ -69,16 +69,15 @@ cmd_midi_thru msg = do
         _ -> Cmd.abort
     score_inst <- Cmd.require =<< EditUtil.lookup_instrument
     scale_id <- EditUtil.get_scale_id
-    lookup_inst <- Cmd.get_lookup_midi_instrument
-    -- I could try to get attrs from the inst track title, but I'm not sure
-    -- how useful that will be.
-    (inst, _) <- Cmd.require $ lookup_inst Score.no_attrs score_inst
+    inst <- Cmd.get_midi_instrument Score.no_attrs score_inst
+    -- If I do breath here I get it even with MIDI input.  But the MIDI input
+    -- already has a breath control, I only want it for NoteEntry.
     let pb_range = Instrument.inst_pitch_bend_range inst
 
-    scale <- Cmd.get_scale "cmd_midi_thu" scale_id
-    input <- maybe
-        (Cmd.throw $ show scale_id ++ " doesn't have " ++ show input)
-        return (map_scale scale input)
+    scale <- Cmd.get_scale "cmd_midi_thru" scale_id
+    input <- Cmd.require_msg
+        (Pretty.pretty scale_id ++ " doesn't have " ++ show input)
+        (map_scale scale input)
 
     -- TODO if the wdev is in a certain scale, then I'll have to map the
     -- pitch here
@@ -128,7 +127,8 @@ merge_state new_state addr pb old = case new_state of
         { Cmd.wdev_pb = new_pb
         , Cmd.wdev_note_addr = note_addr
         , Cmd.wdev_addr_serial = addr_serial
-        , Cmd.wdev_serial = Cmd.wdev_serial old + 1 }
+        , Cmd.wdev_serial = Cmd.wdev_serial old + 1
+        }
     where new_pb = Map.insert addr pb (Cmd.wdev_pb old)
 
 -- | If the note_id is already playing in an addr, return that one.  Otherwise,

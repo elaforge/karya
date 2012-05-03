@@ -29,14 +29,14 @@
 -}
 module Cmd.InputNote where
 import qualified Data.Map as Map
+
 import qualified Util.Map as Map
 import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
-
 import qualified Derive.Score as Score
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import qualified Perform.Midi.Control as Control
 
 
 data Input =
@@ -143,9 +143,13 @@ cc_to_control cc = maybe (Score.Control ("cc" ++ show cc)) id
 control_to_cc :: Score.Control -> Maybe Midi.Control
 control_to_cc = flip Map.lookup control_cc
 
+cc_control :: Map.Map Midi.Control Score.Control
 cc_control = Map.fromList [(cc, Score.Control c) | (cc, c) <- Control.cc_map]
+
+control_cc :: Map.Map Score.Control Midi.Control
 control_cc = Map.fromList [(Score.Control c, cc) | (cc, c) <- Control.cc_map]
 
+c_poly_aftertouch, c_aftertouch :: Score.Control
 c_poly_aftertouch = convert_control Control.c_poly_aftertouch
 c_aftertouch = convert_control Control.c_aftertouch
 
@@ -153,6 +157,7 @@ convert_control :: Control.Control -> Score.Control
 convert_control (Control.Control s) = Score.Control s
 
 -- Just for testing.
+c_mod :: Score.Control
 c_mod = Score.Control Control.c_mod
 
 -- * from key
@@ -177,8 +182,7 @@ to_midi pb_range prev_pb id_to_key input = case input of
         NoteOff note_id vel -> with_key note_id $ \key ->
             ([Midi.NoteOff key (from_val vel)], Map.delete note_id id_to_key)
         PitchChange note_id (Pitch.InputKey nn) -> with_key note_id $ \key ->
-            let pb = Control.pb_from_nn pb_range key nn
-            in (if prev_pb == pb then [] else [Midi.PitchBend pb], id_to_key)
+            (cons_pb (Control.pb_from_nn pb_range key nn) [], id_to_key)
         Control _ control val -> case control_to_cc control of
             Nothing -> ([], id_to_key)
             Just cc -> ([Midi.ControlChange cc (from_val val)], id_to_key)
@@ -190,6 +194,8 @@ to_midi pb_range prev_pb id_to_key input = case input of
     note_on note_id nn vel = case Control.pitch_to_midi pb_range nn of
         Nothing -> ([], id_to_key)
         Just (key, pb) ->
-            let n = Midi.NoteOn key (from_val vel)
-            in (if prev_pb == pb then [n] else [Midi.PitchBend pb, n],
+            (cons_pb pb [Midi.NoteOn key (from_val vel)],
                 Map.insert note_id key id_to_key)
+    cons_pb pb
+        | prev_pb /= pb = (Midi.PitchBend pb:)
+        | otherwise = id

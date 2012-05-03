@@ -86,8 +86,10 @@ UNSORTED
 
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
-  - working with breath instruments is awkward, it keeps resetting the breath
+  * working with breath instruments is awkward, it keeps resetting the breath
     to 0.  NoteOns could send breath for Pressure instruments.
+  - Breath kbd_input keys only work if chorded with a note, since otherwise
+    controls with a NoteOff'ed note_id are not emitted.  Change this?
   - I feel like show_val should be exported from ParseBs.
   - Suppressed undo for val edit is surprising since I tend to do a lot of
     edits without leaving val edit.  Maybe don't do it for pitch val edit.

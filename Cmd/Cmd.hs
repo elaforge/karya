@@ -496,6 +496,10 @@ data WriteDeviceState = WriteDeviceState {
     -- This is used along with 'wdev_serial' to implement addr round-robin.
     , wdev_addr_serial :: !(Map.Map Instrument.Addr Integer)
     , wdev_serial :: !Integer
+    -- | Last NoteId seen.  This is needed to emit controls (rather than just
+    -- mapping them from MIDI input) because otherwise there's no way to know
+    -- to which note they should be assigned.
+    , wdev_last_note_id :: !(Maybe InputNote.NoteId)
 
     -- Used by Cmd.PitchTrack:
     -- | NoteIds being entered into which pitch tracks.  When entering a chord,
@@ -511,7 +515,15 @@ data WriteDeviceState = WriteDeviceState {
 
 empty_wdev_state :: WriteDeviceState
 empty_wdev_state = WriteDeviceState
-    Map.empty Map.empty Map.empty Map.empty 0 Map.empty Map.empty
+    { wdev_pb = Map.empty
+    , wdev_note_addr = Map.empty
+    , wdev_note_key = Map.empty
+    , wdev_addr_serial = Map.empty
+    , wdev_serial = 0
+    , wdev_last_note_id = Nothing
+    , wdev_pitch_track = Map.empty
+    , wdev_addr_inst = Map.empty
+    }
 
 type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 
@@ -715,6 +727,19 @@ lookup_instrument_info :: (M m) => Score.Instrument -> m (Maybe MidiInfo)
 lookup_instrument_info inst = do
     inst_db <- gets state_instrument_db
     return $ Instrument.Db.db_lookup inst_db inst
+
+get_midi_patch :: (M m) => Score.Instrument -> m Instrument.Patch
+get_midi_patch inst = do
+    info <- require_msg ("get_midi_patch " ++ Pretty.pretty inst)
+        =<< lookup_instrument_info inst
+    return $ MidiDb.info_patch info
+
+get_midi_instrument :: (M m) => Score.Attributes -> Score.Instrument
+    -> m Instrument.Instrument
+get_midi_instrument attrs inst = do
+    lookup <- get_lookup_midi_instrument
+    require_msg ("get_midi_instrument " ++ Pretty.pretty inst)
+        (fst <$> lookup attrs inst)
 
 get_lookup_scale :: (M m) => m Derive.LookupScale
 get_lookup_scale = do

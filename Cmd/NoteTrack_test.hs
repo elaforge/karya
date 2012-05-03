@@ -135,7 +135,6 @@ test_cmd_val_edit_dyn = do
         , ("dyn", [(0, 0, "`0x`ff")])
         , ("*twelve", [(0, 0, "4c")])
         ]
-
     equal (f [">", "dyn"] [on 64]) $ Right
         [ (">", [(0, 1, "")])
         , ("*twelve", [(0, 0, "4c")])
