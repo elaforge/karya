@@ -1,6 +1,7 @@
 -- | Collect the various calls into one place.
 module Derive.Call.All where
 import qualified Data.Map as Map
+import qualified Util.Map as Map
 
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.Control as Control
@@ -31,7 +32,6 @@ note_lookups = Derive.empty_scope_type { Derive.stype_builtin =
 control_lookups :: Derive.ScopeType Derive.ControlCall
 control_lookups = Derive.empty_scope_type
     { Derive.stype_builtin =
-        -- [ Control.hex_literal
         [ Block.lookup_control_block
         , Derive.make_lookup control_calls
         ]
@@ -42,15 +42,24 @@ make_lookup cmap = Derive.empty_scope_type
     { Derive.stype_builtin = [Derive.make_lookup cmap] }
 
 note_calls :: Derive.NoteCallMap
-note_calls = Map.unions [Block.note_calls, Echo.note_calls, Note.note_calls,
-    NoteTransformer.note_calls, Ornament.note_calls, Reverse.note_calls,
-    Rambat.note_calls, Sekar.note_calls, String.note_calls, Trill.note_calls]
+(note_calls, shadowed_notes) = unions
+    [ Block.note_calls, Echo.note_calls, Note.note_calls
+    , NoteTransformer.note_calls, Ornament.note_calls, Reverse.note_calls
+    , Rambat.note_calls, Sekar.note_calls, String.note_calls, Trill.note_calls
+    ]
 
 control_calls :: Derive.ControlCallMap
-control_calls = Map.unions [Control.control_calls, Trill.control_calls]
+(control_calls, shadowed_controls) = unions
+    [Control.control_calls, Trill.control_calls]
 
 pitch_calls :: Derive.PitchCallMap
-pitch_calls = Map.unions [Pitch.pitch_calls, Trill.pitch_calls]
+(pitch_calls, shadowed_pitches) = unions
+    [Pitch.pitch_calls, Trill.pitch_calls]
 
 val_calls :: Derive.ValCallMap
-val_calls = Map.unions []
+(val_calls, shadowed_vals) = unions []
+
+unions :: [Map.Map TrackLang.Symbol a]
+    -> (Map.Map TrackLang.Symbol a, [TrackLang.Symbol])
+unions fms = (m, Map.keys shadowed)
+    where (m, shadowed) = Map.unique_unions fms

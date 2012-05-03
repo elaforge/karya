@@ -1,5 +1,18 @@
 UNSORTED
   * auto focus when you add a new block title
+  - start switching to TrackNum instead of TrackId
+    Lots of changes, e.g. Selection has to change on up.  I'm afraid I'll wind
+    up needing TrackId, and now everything is more complicated with both a
+    TrackNum and a TrackId.  TrackId is convenient because I don't need the
+    block, but I guess that's what State.Track is for.
+    TrackId is clearly broken when there are >1 per block.
+
+    - Also need to change State functions to deal with TrackNum and State.Track
+      e.g. get event tracknums.
+    - Do I want to have an EventTrack TrackNum wrapper that's only created for
+      event tracks?
+  - put TrackNum into Stack.Track as well
+  - Update Perf.lookup_val to use tracknum
   * rename Score.TypedControl to TypedSignal since that's what it really is
   * I think fractional offset for twelve is totally off
   * fix convert to pretty print, Convert.hs:70
@@ -31,6 +44,10 @@ UNSORTED
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
     a bit of editing it's up to 750mb, who is leaking?  Undo history?
     - Write function to sum up State, Cache, and Performance sizes.
+      Return stats about event size, etc.
+    - Try interning strings on load.
+    - Compact control tracks when I have that in, maybe compact only on
+      checkpoints?
     The ghc api uses tons of space when it starts linking in everything.
       - How much space does ghci take loading the same stuff?  Why so much
         less?
@@ -45,17 +62,27 @@ UNSORTED
       so 360 for everything + bloom
       - calculate size of a score
       - calculate size of cache
-    debug, no repl
-      unstripped 31mb: 76 / 150
-      stripped 19mb: 40 / 150
-    opt, no repl
-      unstripped 35mb: 39 / 116
-      stripped 20mb: 39 / 114
-    debug, repl
-      unstripped 78m: 193 -> 248 / 323 -> 376
-    opt, repl
-      unstripped 81m: 194
-      stripped 48m: 194 -> 246
+    resident memory size:
+    debug, no repl: 31m / 19m -- ? / ?
+      darwin: 76 / 150
+      linux: 32m / 129m
+    debug, repl: unstripped / stripped -- 78m / ? -- 60m / 40m
+      darwin: 193m -> 248m -- 323m -> 376m
+      linux: 182m -> 230m -- 320m -> 367m
+    opt, no repl: 35m / 20m -- ? / ?
+      darwin: 39 / 116
+      linux: 31m / 90m
+    opt, repl: 81m / 48m -- 62m / 41m
+      darwin: 194 -> 246 / ?
+      linux: 131m -> 178m / 243m -> 321m
+
+    loading bloom, debug: 74, 97
+    loading bloom, opt: 77 / 59
+
+    linux:
+      bloom: 59 without the repl, but 231 with (huh?)
+      repl: 100m + 47 to load seq libs
+    darwin:
 
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.

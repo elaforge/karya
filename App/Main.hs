@@ -17,8 +17,9 @@ import qualified System.Environment
 import qualified System.IO as IO
 
 import Util.Control
-import qualified Util.Map as Map
 import qualified Util.Log as Log
+import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
@@ -47,18 +48,20 @@ import qualified Midi.StubMidi as MidiDriver
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.GlobalKeymap as GlobalKeymap
+import qualified Cmd.Lang as Lang
+import qualified Cmd.LoadMod as LoadMod
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Responder as Responder
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
-import qualified Cmd.Lang as Lang
-import qualified Cmd.LoadMod as LoadMod
 
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Symbols as Call.Symbols
-import qualified Derive.Scale.Symbols as Scale.Symbols
 import qualified Derive.Instrument.Symbols as Instrument.Symbols
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Scale.All as Scale.All
+import qualified Derive.Scale.Symbols as Scale.Symbols
 
 import qualified Instrument.Db as Db
 
@@ -206,9 +209,7 @@ main = initialize $ \lang_socket midi_interface -> do
         (Interface.read_channel midi_interface) lang_socket msg_chan
         loopback_chan
 
-    LoadConfig.symbols $ Call.Symbols.symbols ++ Scale.Symbols.symbols
-        ++ Instrument.Symbols.symbols
-    LoadConfig.styles Config.styles
+    startup_initialization
 
     session <- Lang.make_session
     quit_request <- MVar.newMVar ()
@@ -236,6 +237,26 @@ main = initialize $ \lang_socket midi_interface -> do
     Interface.abort midi_interface
     all_notes_off (Interface.write_message midi_interface) wdevs
     Log.notice "app quitting"
+
+-- | Do one-time startup tasks.
+startup_initialization :: IO ()
+startup_initialization = do
+    LoadConfig.symbols $ Call.Symbols.symbols ++ Scale.Symbols.symbols
+        ++ Instrument.Symbols.symbols
+    LoadConfig.styles Config.styles
+    -- Report keymap and call overlaps.
+    mapM_ Log.warn GlobalKeymap.cmd_map_errors
+    forM_ shadows $ \(name, shadowed) ->
+        Log.warn $ name ++ " calls shadowed: " ++ Pretty.pretty shadowed
+    unless (null Scale.All.shadowed) $
+        Log.warn $ "scales shadowed: " ++ Pretty.pretty Scale.All.shadowed
+    where
+    shadows = filter (not . null . snd)
+        [ ("note", Call.All.shadowed_notes)
+        , ("control", Call.All.shadowed_controls)
+        , ("pitch", Call.All.shadowed_pitches)
+        , ("val", Call.All.shadowed_vals)
+        ]
 
 all_notes_off :: (Midi.WriteMessage -> IO a) -> [Midi.WriteDevice] -> IO ()
 all_notes_off write_midi devs = mapM_ write_midi (concat (map msgs devs))

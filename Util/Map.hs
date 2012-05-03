@@ -78,7 +78,7 @@ zip_intersection map1 map2 =
 -- | Pair up elements from each map with equal keys.  @(k, Nothing, Nothing)@
 -- will never appear in the output.
 pairs :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, Maybe v1, Maybe v2)]
-pairs map0 map1 = pair_sorted (Map.toAscList map0) (Map.toAscList map1)
+pairs map1 map2 = pair_sorted (Map.toAscList map1) (Map.toAscList map2)
     where
     pair_sorted xs [] = [(k, Just v, Nothing) | (k, v) <- xs]
     pair_sorted [] ys = [(k, Nothing, Just v) | (k, v) <- ys]
@@ -87,13 +87,22 @@ pairs map0 map1 = pair_sorted (Map.toAscList map0) (Map.toAscList map1)
         | k0 < k1 = (k0, Just v0, Nothing) : pair_sorted xs y
         | otherwise = (k1, Nothing, Just v1) : pair_sorted x ys
 
--- | Like Map.union, but also return a map of rejected duplicate keys from the
--- map on the right.
+-- | Like 'Map.union', but also return a map of rejected duplicate keys from
+-- the map on the right.
 unique_union :: (Ord k) =>
     Map.Map k a -> Map.Map k a -> (Map.Map k a, Map.Map k a)
-    -- Map.union is left biased, so dups will be thrown out.
-unique_union fm0 fm1 = (Map.union fm0 fm1, lost)
-    where lost = Map.intersection fm1 fm0
+    -- ^ (union, rejected)
+unique_union fm1 fm2 = (Map.union fm1 fm2, rejected)
+    where rejected = Map.intersection fm2 fm1
+
+-- | Like 'Map.unions', but return a map of the rejected keys.  Like
+-- Map.unions, the first key in the list wins.  If there are multiple
+-- conflicting keys, only the first one will show up in the reject map.
+unique_unions :: (Ord k) => [Map.Map k a] -> (Map.Map k a, Map.Map k a)
+unique_unions = flip List.foldl' (Map.empty, Map.empty) $
+    \(collect, rejected) fm ->
+        let (collect2, rejected2) = unique_union collect fm
+        in (collect2, Map.union rejected rejected2)
 
 -- | Map.union says it's more efficient with @big `union` small@, so this one
 -- flips the args to be more efficient.  It's still left-biased.

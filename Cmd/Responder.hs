@@ -97,8 +97,6 @@ responder :: StaticConfig.StaticConfig -> MsgReader -> Interface.Interface
 responder config msg_reader midi_interface setup_cmd lang_session
         loopback = do
     Log.debug "start responder"
-    -- Report keymap overlaps.
-    mapM_ Log.warn GlobalKeymap.cmd_map_errors
 
     let cmd_state = Cmd.initial_state
             (StaticConfig.rdev_map config) (StaticConfig.wdev_map config)
