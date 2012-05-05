@@ -18,6 +18,7 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import Util.Control
+import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
 import qualified Util.Seq as Seq
@@ -98,13 +99,33 @@ write_commit repo user email parents (Tree tree) description =
     ps = concat [["-p", hash_of p] | p <- parents]
     hash_of (Commit hash) = unparse_hash hash
 
-read_commit :: Repo -> Commit -> IO Tree
+data CommitData = CommitData {
+    commit_tree :: !Tree
+    , commit_parents :: ![Commit]
+    , commit_author :: !String
+    , commit_text :: !String
+    } deriving (Eq, Show)
+
+read_commit :: Repo -> Commit -> IO CommitData
 read_commit repo (Commit commit) = do
-    out <- git repo ["cat-file", "-p", unparse_hash commit] ""
-    return $ Tree (parse out)
+    parse =<< git repo ["cat-file", "-p", unparse_hash commit] ""
     where
-    -- First line looks like 'tree hexhexhex\n'.
-    parse = Char8.takeWhile (/='\n') . Char8.drop 1 . Char8.dropWhile (/=' ')
+    -- Output looks like 'tree hexhex\nparent hexhex\n...
+    parse bytes = do
+        tree <- require "tree"
+        let parents = map Commit $ Map.get [] "parent" header
+        author <- require "author"
+        return $ CommitData (Tree tree) parents (UTF8.toString author)
+            (UTF8.toString (Char8.unlines (drop 1 desc_lines)))
+        where
+        (header_lines, desc_lines) = break Char8.null (Char8.lines bytes)
+        header = Map.multimap (map split header_lines)
+        require field = case Map.lookup field header of
+            Just (val : _) -> return val
+            _ -> throw $ "read_commit: missing field "
+                ++ show field ++ " from " ++ show bytes
+    split s = (pre, Char8.drop 1 post)
+        where (pre, post) = Char8.break (==' ') s
 
 -- | Technically it's diff trees, but I always want to diff commits.
 diff_commits :: Repo -> Commit -> Commit -> IO [Modification]

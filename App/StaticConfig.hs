@@ -4,9 +4,8 @@ import qualified Data.Set as Set
 
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
-
+import qualified Cmd.Msg as Msg
 import qualified Derive.Derive as Derive
-
 import qualified Instrument.Db
 
 
@@ -20,7 +19,7 @@ data StaticConfig = StaticConfig {
 
     -- | These Cmds are run before any of the usual ones, and can implement
     -- local global keymaps and whatnot.
-    , global_cmds :: [Cmd.Cmd]
+    , global_cmds :: [Msg.Msg -> Cmd.CmdIO]
 
     -- | Default global namespace for deriver calls.
     , global_scope :: Derive.Scope

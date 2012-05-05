@@ -19,7 +19,7 @@ import qualified Cmd.Serialize as Serialize
 import qualified Cmd.ViewConfig as ViewConfig
 
 
-get_save_file :: (Cmd.M m) => m FilePath
+get_save_file :: (State.M m) => m FilePath
 get_save_file = do
     dir <- State.get_config State.config_project_dir
     ns <- State.get_namespace
@@ -41,7 +41,10 @@ cmd_save_git fname = do
     result <- Trans.liftIO $ SaveGit.save fname state
     case result of
         Left err -> Cmd.throw $ "cmd_save: " ++ err
-        Right (commit, save) -> undefined
+        Right (_, save) -> Cmd.modify $ \st -> st
+            { Cmd.state_history_config = (Cmd.state_history_config st)
+                { Cmd.hist_last_save = Just save }
+            }
 
 cmd_load :: FilePath -> Cmd.CmdT IO ()
 cmd_load fname = do

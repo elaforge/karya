@@ -110,39 +110,29 @@ UNSORTED
       are thousands of them.  Wrap libgit directly?
     - wrap operations in a lock file
     - make sure things are ok if it fails at any step
-    - hook save up to cmd_save and checkpoint up after every action
+    * hook save up to cmd_save and checkpoint up after every action
       each history entry is (State, Commit, Maybe Save)
+    * rename SaveGit.Save to SavePoint
+    * Undo.record_history must call checkpoint, but only if the file has
+      a SavePoint.  Alternately, I could always save under "untitled",
+      and untitled would just have a bunch of heads.  I could use git tools
+      to deal with them.
+      Checkpoint needs updates, which means it should run after the ui sync
+      diff.  But that's not where the history record happens.
 
-      Undo goes through the history entries in memory.  When it runs out, it
-      has to load previous commits.  So it has to know the Commit so it can
-      find the previous one.
-
-      Wait until the first save.  This creates the repo and puts a Save and
-      Commit on that state.  After that, every history record writes a new
-      commit.  It serializes and stores the updates too, since those are the
-      updates from the *previous* state and you can't know that when loading
-      backwards during undo.
-
-      When undo runs out of history entries, it has to load the previous one
-      off disk.  This probably means that undo will suddenly get slow when
-      it goes to disk.
-
-      * rename SaveGit.Save to SavePoint
-      - Undo.record_history must call checkpoint, but only if the file has
-        a SavePoint.  Alternately, I could always save under "untitled",
-        and untitled would just have a bunch of heads.  I could use git tools
-        to deal with them.
-        Checkpoint needs updates, which means it should run after the ui sync
-        diff.  But that's not where the history record happens.
-
-      - Keep last SavePoint somewhere, perhaps Cmd.State
-      - Make SaveGit.checkpoint also save the rest of the
-        UncommittedHistoryEntry: [CmdUpdate] and [String] names
-      - Have Save.cmd_save optionally use git backend
-      - Make sure that when a project changes name all the history comes with
-        it.  I guess I'd have to copy the dir, or do a git clone.  If I copied
-        the dir that wouldn't work with 'untitled' because I don't want all
-        those other heads.  I want to copy over the current history.
+    * Keep last SavePoint somewhere, perhaps Cmd.State
+    * Make SaveGit.checkpoint also save the rest of the
+      UncommittedHistoryEntry: [CmdUpdate] and [String] names
+    - saving history on every "control track val edit", I should suppress those
+      too
+    - unify SaveGit.save_repo and Save.get_save_file
+    - add a new kind of CmdUpdate that is only has TrackUpdates and
+      BringToFront
+    - Have Save.cmd_save optionally use git backend
+    - Make sure that when a project changes name all the history comes with
+      it.  I guess I'd have to copy the dir, or do a git clone.  If I copied
+      the dir that wouldn't work with 'untitled' because I don't want all
+      those other heads.  I want to copy over the current history.
 
     - support branching history, e.g. edits after an undo don't discard the
       old future

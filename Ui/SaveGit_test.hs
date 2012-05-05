@@ -35,16 +35,16 @@ test_checkpoint = do
     repo <- new_repo
     [(state1, commit1), (state2, commit2), (state3, commit3),
             (state4, commit4)] <- checkpoint_sequence repo
-        [ mkview
+        [ (,) "create" $ mkview
             [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
             , ("2", [(0, 1, "2a")])
             ]
-        , State.insert_event (UiTest.mk_tid 1) 2 (Event.event "hi" 2)
-        , do
+        , (,) "hi" $ State.insert_event (UiTest.mk_tid 1) 2 (Event.event "hi" 2)
+        , (,) "new track" $ do
             State.destroy_track (UiTest.mk_tid 2)
             void $ State.create_track (Id.unpack_id (UiTest.mk_tid 2)) $
                 Track.track "new" Events.empty
-        , do
+        , (,) "destroy" $ do
             State.destroy_view UiTest.default_view_id
             State.destroy_block UiTest.default_block_id
         ]
@@ -61,27 +61,29 @@ test_checkpoint = do
     -- Make sure incremental loads work.
     (_, secs) <- timer $ do
         io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
-            (Right state2)
+            (Right (state2, []))
         io_equal (SaveGit.load_from repo commit2 (Just commit3) state2)
-            (Right state3)
+            (Right (state3, []))
         io_equal (SaveGit.load_from repo commit3 (Just commit4) state3)
-            (Right state4)
+            (Right (state4, []))
         io_equal (SaveGit.load_from repo commit1 (Just commit4) state1)
-            (Right state4)
+            (Right (state4, []))
     print secs
 
 -- TODO do more exhaustive testing
 check_sequence = do
     repo <- new_repo
     void $ print_timer "sequence" (const "") $ checkpoint_sequence repo $
-        [ mkview
+        [ (,) "create" $ mkview
             [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
             , ("2", [(0, 1, "2a")])
             ]
-        ] ++ [State.insert_event (UiTest.mk_tid 2) 1 (Event.event (show n) 1)
-            | n <- [0..20]]
+        ] ++ [('+' : show n, insert_event 2 1 (show n) 1) | n <- [0..20]]
     -- mapM_ (check_load repo) states
     -- mapM_ (uncurry (check_load_from repo)) (zip states (drop 1 states))
+
+insert_event tracknum pos text dur =
+    State.insert_event (UiTest.mk_tid tracknum) pos (Event.event text dur)
 
 check_load :: FilePath -> (State.State, Git.Commit) -> IO Bool
 check_load repo (state, commit) =
@@ -91,16 +93,17 @@ check_load_from :: FilePath -> (State.State, Git.Commit)
     -> (State.State, Git.Commit) -> IO Bool
 check_load_from repo (state1, commit1) (state2, commit2) =
     io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
-        (Right state2)
+        (Right (state2, []))
 
-checkpoint_sequence :: Git.Repo -> [State.StateId ()]
+checkpoint_sequence :: Git.Repo -> [(String, State.StateId ())]
     -> IO [(State.State, Git.Commit)]
 checkpoint_sequence repo actions = apply State.empty actions
     where
     apply _ [] = return []
-    apply prev_state (action : actions) = do
+    apply prev_state ((name, action) : actions) = do
         let (state, updates) = diff prev_state action
-        Right commit <- SaveGit.checkpoint repo state updates
+        Right commit <- SaveGit.checkpoint repo
+            (SaveGit.History state updates [name])
         rest <- apply state actions
         return $ (state, commit) : rest
 

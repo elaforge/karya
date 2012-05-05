@@ -249,7 +249,7 @@ run_responder state m = do
                     (send_derive_status (state_loopback state))
                     (state_ui state) ui_from ui_to cmd_to updates
                     (Transport.info_state (state_transport_info state))
-            cmd_to <- Undo.record_history ui_to (add_updates updates cmd_to)
+            cmd_to <- Undo.maintain_history ui_to (add_updates updates cmd_to)
             return (is_quit status,
                 state { state_ui = ui_to, state_cmd = cmd_to })
     where
@@ -327,10 +327,11 @@ run_sync_status = do
 run_core_cmds :: Msg.Msg -> ErrorResponderM ()
 run_core_cmds msg = do
     state <- Trans.lift $ Monad.State.gets rstate_state
+    mapM_ (run_throw . Right . ($msg))
+        (StaticConfig.global_cmds (state_static_config state))
     -- Focus commands and the rest of the pure commands come first so text
     -- entry can override io bound commands.
-    let pure_cmds = StaticConfig.global_cmds (state_static_config state)
-            ++ hardcoded_cmds ++ GlobalKeymap.pure_cmds
+    let pure_cmds = hardcoded_cmds ++ GlobalKeymap.pure_cmds
     mapM_ (run_throw . Left . ($msg)) pure_cmds
 
     let config = state_static_config state

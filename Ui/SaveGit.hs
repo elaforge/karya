@@ -1,6 +1,5 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards, GeneralizedNewtypeDeriving #-}
 module Ui.SaveGit where
-import Prelude hiding (catch)
 import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
 import qualified Data.Char as Char
@@ -13,6 +12,7 @@ import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.Git as Git
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
@@ -20,6 +20,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
@@ -27,18 +28,30 @@ import Cmd.Serialize ()
 import Types
 
 
+data History = History !State.State ![Update.CmdUpdate] ![String]
+    deriving (Show)
+
+save_repo :: State.State -> Git.Repo
+save_repo state =
+    FilePath.combine dir (map sanitize (Id.un_namespace ns) ++ ".git")
+    where
+    dir = State.config#State.project_dir #$ state
+    ns = State.config#State.namespace #$ state
+    -- This shouldn't be necessary because of the Namespace naming
+    -- restrictions.
+    sanitize c = if FilePath.isPathSeparator c then '_' else c
+
 -- * save
 
 -- | Like 'checkpoint', but add a tag too, and write compact tracks.
--- TODO what should the description be?
-save :: FilePath -> State.State -> IO (Either String (Git.Commit, SavePoint))
-save repo state = catch "save" (do_save repo state)
+save :: Git.Repo -> State.State -> IO (Either String (Git.Commit, SavePoint))
+save repo state = try "save" $ do_save repo (History state [] ["save"])
 
-do_save :: FilePath -> State.State -> IO (Git.Commit, SavePoint)
-do_save repo state = do
+do_save :: Git.Repo -> History -> IO (Git.Commit, SavePoint)
+do_save repo (History state _updates names) = do
     Git.init repo
     tree <- Git.write_dir repo (dump state)
-    commit <- commit_tree repo tree "save\n"
+    commit <- commit_tree repo tree $ unparse_names "save" names
     last_save <- read_last_save repo
     save <- find_next_save repo (Maybe.fromMaybe (SavePoint []) last_save)
     write_save_ref repo save commit
@@ -54,7 +67,7 @@ do_save repo state = do
 --                  last-save               HEAD
 
 -- | Stored in reverse order as in the ref name.
-newtype SavePoint = SavePoint [Int] deriving (Eq, Show)
+newtype SavePoint = SavePoint [Int] deriving (Eq, Show, Pretty.Pretty)
 
 -- | Create a tag for the given commit, and point last-save at it.
 write_save_ref :: Git.Repo -> SavePoint -> Git.Commit -> IO ()
@@ -100,22 +113,28 @@ save_to_ref (SavePoint versions) =
 
 -- * checkpoint
 
+-- | State, updates to reach this state from the previous one (hack, should go
+-- away), names of the cmds that produced this state.
+--
+-- Make updates go away by calculating them myself.  I know the modified tracks
+-- from git, so I need only diff those.  I don't want to write them because
+-- they duplicate all the stuff I'm writing.
+
 -- | incremental save
-checkpoint :: FilePath -> State.State -> [Update.CmdUpdate]
-    -> IO (Either String Git.Commit)
-checkpoint repo state updates = catch_e "checkpoint" $ do
+checkpoint :: Git.Repo -> History -> IO (Either String Git.Commit)
+checkpoint repo hist@(History state updates names) = try_e "checkpoint" $ do
     Git.init repo
     -- If this is a new repo then do a save instead.
     last_commit <- Git.read_head_commit repo
     case last_commit of
-        Nothing -> Right . fst <$> do_save repo state
+        Nothing -> Right . fst <$> do_save repo hist
         Just last_commit -> do
             -- TODO event saving implemented but not loading
             let (errs, mods) = dump_diff False state updates
             if not (null errs) then return (Left (Seq.join ", " errs)) else do
-            last_tree <- Git.read_commit repo last_commit
+            last_tree <- Git.commit_tree <$> Git.read_commit repo last_commit
             tree <- Git.modify_dir repo last_tree mods
-            commit <- commit_tree repo tree "checkpoint\n"
+            commit <- commit_tree repo tree $ unparse_names "checkpoint" names
             return $ Right commit
 
 commit_tree :: Git.Repo -> Git.Tree -> String -> IO Git.Commit
@@ -216,25 +235,50 @@ score_to_hex = pad . flip Numeric.showHex "" . Serialize.encode_double
 
 -- * load
 
-load :: FilePath -> Maybe Git.Commit -> IO (Either String State.State)
-load repo maybe_commit = catch_e "load" $ do
+load :: Git.Repo -> Maybe Git.Commit -> IO (Either String State.State)
+load repo maybe_commit = try_e "load" $ do
     -- TODO have to handle both compact and expanded tracks
     commit <- default_head repo maybe_commit
-    tree <- Git.read_commit repo commit
+    tree <- Git.commit_tree <$> Git.read_commit repo commit
     dirs <- Git.read_dir repo tree
     return $ undump dirs
 
-load_from :: FilePath -> Git.Commit -> Maybe Git.Commit -> State.State
-    -> IO (Either String State.State)
-load_from repo commit_from maybe_commit_to state = catch_e "load_from" $ do
+-- | Try to go get the previous history entry.
+load_previous_history :: Git.Repo -> State.State -> Git.Commit
+    -> IO (Either String (Maybe (History, Git.Commit)))
+load_previous_history repo state commit = try_e "load_previous_history" $ do
+    commit_data <- Git.read_commit repo commit
+    case Seq.head (Git.commit_parents commit_data) of
+        Nothing -> return $ Right Nothing
+        Just parent -> do
+            names <- parse_names . Git.commit_text
+                =<< Git.read_commit repo parent
+            result <- load_from repo commit (Just parent) state
+            case result of
+                Left err -> return $ Left err
+                Right (new_state, updates) -> return $ Right $ Just
+                    (History new_state updates names, parent)
+
+parse_names :: String -> IO [String]
+parse_names text = case lines text of
+    [_, names] -> readIO names
+    _ -> error $ "can't parse description: " ++ show text
+
+unparse_names :: String -> [String] -> String
+unparse_names msg names = msg ++ "\n" ++ show names ++ "\n"
+
+load_from :: Git.Repo -> Git.Commit -> Maybe Git.Commit -> State.State
+    -> IO (Either String (State.State, [Update.CmdUpdate]))
+load_from repo commit_from maybe_commit_to state = do
     commit_to <- default_head repo maybe_commit_to
     mods <- Git.diff_commits repo commit_from commit_to
     return $ undump_diff state mods
 
-undump_diff :: State.State -> [Git.Modification] -> Either String State.State
-undump_diff = foldM apply
+undump_diff :: State.State -> [Git.Modification]
+    -> Either String (State.State, [Update.CmdUpdate])
+undump_diff state = foldM apply (state, [])
     where
-    apply state (Git.Remove path) = case FilePath.splitDirectories path of
+    apply (state, updates) (Git.Remove path) = case split path of
         ["views", ns, name] -> delete ns name Types.ViewId State.views
         ["blocks", ns, name] -> delete ns name Types.BlockId State.blocks
         ["tracks", ns, name] -> delete ns name Types.TrackId State.tracks
@@ -244,21 +288,30 @@ undump_diff = foldM apply
         delete ns name mkid lens = do
             ident <- path_to_ident mkid ns name
             vals <- delete_key ident (lens #$ state)
-            return $ (lens #= vals) state
-    apply state (Git.Add path bytes) = case FilePath.splitDirectories path of
+            return ((lens #= vals) state, updates)
+    apply (state, updates) (Git.Add path bytes) = case split path of
         ["views", ns, name] -> add ns name Types.ViewId State.views
         ["blocks", ns, name] -> add ns name Types.BlockId State.blocks
-        ["tracks", ns, name] -> add ns name Types.TrackId State.tracks
+        ["tracks", ns, name] -> do
+            (state, updates) <- add ns name Types.TrackId State.tracks
+            tid <- path_to_ident Types.TrackId ns name
+            let events = maybe Events.empty Track.track_events $
+                    Map.lookup tid (State.state_tracks state)
+                -- TODO figure out where it differs to avoid invalidating the
+                -- whole track.  Run a little mini-diff.
+                update = Update.TrackUpdate tid (Update.TrackAllEvents events)
+            return (state, update : updates)
         ["rulers", ns, name] -> add ns name Types.RulerId State.rulers
         ["config"] -> do
             val <- decode path bytes
-            return $ (State.config #= val) state
+            return ((State.config #= val) state, updates)
         _ -> Left $ "unknown file modified: " ++ show path
         where
         add ns name mkid lens = do
             ident <- path_to_ident mkid ns name
             val <- decode path bytes
-            return $ (lens %= Map.insert ident val) state
+            return ((lens %= Map.insert ident val) state, updates)
+    split = FilePath.splitDirectories
 
 default_head :: Git.Repo -> Maybe Git.Commit -> IO Git.Commit
 default_head _ (Just commit) = return commit
@@ -334,15 +387,15 @@ keyed_group key = map (\gs -> (key (head gs), gs)) . Seq.group key
 
 -- * util
 
-catch :: String -> IO a -> IO (Either String a)
-catch caller op = do
+try :: String -> IO a -> IO (Either String a)
+try caller op = do
     result <- Exception.try op
     return $ case result of
         Left (Git.GitException err) -> Left $ caller ++ ": " ++ err
         Right val -> Right val
 
-catch_e :: String -> IO (Either String a) -> IO (Either String a)
-catch_e caller op = do
+try_e :: String -> IO (Either String a) -> IO (Either String a)
+try_e caller op = do
     result <- Exception.try op
     return $ case result of
         Left (Git.GitException err) -> Left $ caller ++ ": " ++ err

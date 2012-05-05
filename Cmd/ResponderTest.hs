@@ -119,9 +119,11 @@ thread_delay print_timing states ((msg, delay):msgs) = do
 
 -- | Respond to a single Cmd.  This can be used to test cmds in the full
 -- responder context without having to fiddle around with keymaps.
-respond_cmd :: States -> Cmd.CmdId a -> IO Result
+respond_cmd :: States -> Cmd.CmdT IO a -> IO Result
 respond_cmd states cmd = _respond states (Just (mkcmd cmd)) magic
     where
+    -- I run a cmd by adding a cmd that responds only to a specific Msg, and
+    -- then sending that Msg.
     mkcmd cmd msg
         | is_magic msg = cmd >> return Cmd.Done
         | otherwise = return Cmd.Continue
@@ -132,7 +134,9 @@ respond_cmd states cmd = _respond states (Just (mkcmd cmd)) magic
 respond1 :: States -> Msg.Msg -> IO Result
 respond1 states = _respond states Nothing
 
-_respond :: States -> Maybe Cmd.Cmd -> Msg.Msg -> IO Result
+type CmdIO = Msg.Msg -> Cmd.CmdIO
+
+_respond :: States -> Maybe CmdIO -> Msg.Msg -> IO Result
 _respond (ustate, cstate) cmd msg = do
     update_chan <- new_chan
     loopback_chan <- Chan.newChan
@@ -153,7 +157,7 @@ _respond (ustate, cstate) cmd msg = do
     return $ Result res updates loopback_chan
 
 make_rstate :: TVar.TVar [[Update.DisplayUpdate]]
-    -> Chan.Chan Msg.Msg -> State.State -> Cmd.State -> Maybe Cmd.Cmd
+    -> Chan.Chan Msg.Msg -> State.State -> Cmd.State -> Maybe CmdIO
     -> Responder.State
 make_rstate update_chan loopback_chan ui_state cmd_state cmd =
     Responder.State config ui_state cmd_state lang_session loopback dummy_sync

@@ -72,6 +72,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
+import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
@@ -262,6 +263,7 @@ data State = State {
 
     -- | History.
     , state_history :: !History
+    , state_history_config :: !HistoryConfig
     , state_history_collect :: !HistoryCollect
 
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
@@ -307,6 +309,7 @@ initial_state rdev_map wdev_map interface inst_db global_scope = State {
         \scale_id -> Map.lookup scale_id Scale.All.scales
 
     , state_history = empty_history
+    , state_history_config = empty_history_config
     , state_history_collect = empty_history_collect
     , state_keys_down = Map.empty
     , state_focused_view = Nothing
@@ -573,6 +576,16 @@ data History = History {
 empty_history :: History
 empty_history = History [] [] False
 
+data HistoryConfig = HistoryConfig {
+    -- | Keep this many previous history entries in memory.
+    hist_keep :: !Int
+    -- | The last full save.
+    , hist_last_save :: !(Maybe SaveGit.SavePoint)
+    } deriving (Show)
+
+empty_history_config :: HistoryConfig
+empty_history_config = HistoryConfig Config.default_keep_history Nothing
+
 data HistoryCollect = HistoryCollect
     -- | Collect updates from each cmd to be saved with the history, in
     -- 'hist_entry_updates'.
@@ -587,7 +600,7 @@ data HistoryCollect = HistoryCollect
     -- This is a bit of a hack so that every keystroke in a raw edit isn't
     -- recorded separately.
     , state_suppress_edit :: !(Maybe EditMode)
-    , state_suppressed :: !(Maybe UncommittedHistoryEntry)
+    , state_suppressed :: !(Maybe SaveGit.History)
     } deriving (Show, Generics.Typeable)
 
 empty_history_collect :: HistoryCollect
@@ -600,7 +613,7 @@ data HistoryEntry = HistoryEntry {
     -- the event changes.  TODO ugly, can I avoid this?
     , hist_updates :: ![Update.CmdUpdate]
     -- | Cmds involved creating this entry.
-    , hist_cmd_names :: ![String]
+    , hist_names :: ![String]
     -- | The Commit where this entry was saved.  Nothing if the entry is
     -- unsaved.
     , hist_commit :: !(Maybe Git.Commit)
@@ -615,10 +628,6 @@ instance Pretty.Pretty History where
 instance Pretty.Pretty HistoryEntry where
     format (HistoryEntry _ _ commands commit) =
         Pretty.format commit Pretty.<+> Pretty.text_list commands
-
-data UncommittedHistoryEntry =
-    UncommittedHistoryEntry !State.State ![Update.CmdUpdate] ![String]
-    deriving (Show, Generics.Typeable)
 
 
 -- *** modifier

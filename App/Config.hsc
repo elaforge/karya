@@ -164,6 +164,11 @@ ruler_bg = Color.rgb 1 0.85 0.5
 
 -- * defaults
 
+-- | Keep this many past history entries for undo.  Beyond this entries will
+-- have to be loaded from disk.
+default_keep_history :: Int
+default_keep_history = 20
+
 -- | Default scale id for new projects.  It's a string so I don't have import
 -- anything.
 default_scale_id :: String

@@ -15,9 +15,11 @@ test_misc = do
     io_equal (Git.read_blob repo blob) "abc"
     tree <- Git.write_tree repo [("filename", Left blob)]
     io_equal (Git.read_tree repo tree) [("filename", Left blob)]
-    commit <- Git.write_commit repo "me" "email" [] tree "commit by me"
-    io_equal (Git.read_commit repo commit) tree
-
+    commit <- Git.write_commit repo "me" "email" [] tree "commit by me\n"
+    commit_data <- Git.read_commit repo commit
+    -- The author line has a date in it that will vary.
+    equal (commit_data { Git.commit_author = "" }) $
+        Git.CommitData tree [] "" "commit by me\n"
     let ref = "heads/master"
     Git.write_ref repo commit ref
     io_equal (Git.read_ref repo ref) (Just commit)

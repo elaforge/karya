@@ -1,10 +1,13 @@
 -- | Undo and redo cmds and support.
-module Cmd.Undo (undo, redo, record_history) where
+module Cmd.Undo (undo, redo, maintain_history) where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Git as Git
+import qualified Util.Lens as Lens
 import qualified Util.Log as Log
+
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -29,7 +32,7 @@ undo = do
     -- the previous one, and the one I'm going to is the twice previous one.
     case Cmd.hist_past hist of
         cur : prev : rest -> do_undo hist cur prev rest
-        _ -> Log.warn "no past to undo"
+        _ -> Cmd.throw "no past to undo"
     where
     do_undo hist cur prev rest = do
         Cmd.modify $ \st -> st
@@ -115,21 +118,24 @@ keep_clip clip_ns old new = Map.union new (Map.filterWithKey (\k _ -> ns k) old)
 -- Undo has some hooks directly in the responder, since it needs to be run
 -- after cmds.
 
+maintain_history :: State.State -> Cmd.State -> IO Cmd.State
+maintain_history ui_state cmd_state =
+    record_history ui_state (discard cmd_state)
+    where
+    discard = history#past %= take (max 1 keep)
+    keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
+
 -- | Record 'Cmd.HistoryEntry's, if required.
 record_history :: State.State -> Cmd.State -> IO Cmd.State
-record_history ui_state cmd_state = do
-    let (maybe_entries, collect) = pure_record_history ui_state cmd_state
-    case maybe_entries of
-        Nothing -> return $ cmd_state
-            { Cmd.state_history = (Cmd.state_history cmd_state)
-                { Cmd.hist_undo_redo = False
-                }
-            , Cmd.state_history_collect = collect
-            }
+record_history ui_state cmd_state
+    | is_undo = case Cmd.hist_past (Cmd.state_history cmd_state) of
+        [cur] -> load_previous_history cmd_state ui_state cur
+        _ -> return $ reset_history cmd_state
+    | otherwise = case maybe_entries of
+        Nothing -> return $ collect_history collect cmd_state
         Just entries -> do
-            -- TODO check if there is a SavePoint, don't commit if there isn't
-            -- entries <- mapM commit_entry entries
-            entries <- return $ map uncommitted_entry entries
+            entries <- if has_saved then mapM commit_entry entries
+                else return $ map (history_entry Nothing) entries
             return $ cmd_state
                 { Cmd.state_history = Cmd.History
                     { Cmd.hist_past = entries
@@ -139,25 +145,86 @@ record_history ui_state cmd_state = do
                     }
                 , Cmd.state_history_collect = collect
                 }
+    where
+    (maybe_entries, collect) = pure_record_history ui_state cmd_state
+    is_undo = Cmd.hist_undo_redo (Cmd.state_history cmd_state)
+    has_saved = Maybe.isJust $ Cmd.hist_last_save $
+        Cmd.state_history_config cmd_state
 
-uncommitted_entry :: Cmd.UncommittedHistoryEntry -> Cmd.HistoryEntry
-uncommitted_entry (Cmd.UncommittedHistoryEntry state updates names) =
-    Cmd.HistoryEntry state updates names Nothing
+collect_history :: Cmd.HistoryCollect -> Cmd.State -> Cmd.State
+collect_history collect cmd_state = cmd_state
+    { Cmd.state_history = (Cmd.state_history cmd_state)
+        { Cmd.hist_undo_redo = False }
+    , Cmd.state_history_collect = collect
+    }
 
-commit_entry :: Cmd.UncommittedHistoryEntry -> IO Cmd.HistoryEntry
-commit_entry (Cmd.UncommittedHistoryEntry state updates names) = do
-    result <- SaveGit.checkpoint (State.config#State.project_dir #$ state)
-        state updates
+reset_history :: Cmd.State -> Cmd.State
+reset_history = collect_history Cmd.empty_history_collect
+
+load_previous_history :: Cmd.State -> State.State -> Cmd.HistoryEntry
+    -> IO Cmd.State
+load_previous_history cmd_state ui_state cur = do
+    result <- maybe (return $ Right Nothing)
+        (SaveGit.load_previous_history (SaveGit.save_repo ui_state) ui_state)
+        (Cmd.hist_commit cur)
+    case result of
+        Left err -> do
+            Log.error $ "load_previous_history: " ++ err
+            return $ reset_history cmd_state
+        Right Nothing -> return $ reset_history cmd_state
+        Right (Just (hist, commit)) ->
+            return $ update_history cur (history_entry (Just commit) hist)
+    where
+    update_history cur prev = cmd_state
+        { Cmd.state_history = (Cmd.state_history cmd_state)
+            { Cmd.hist_undo_redo = False
+            , Cmd.hist_past = [cur, prev]
+            }
+        , Cmd.state_history_collect = Cmd.empty_history_collect
+        }
+
+history = Lens.lens Cmd.state_history (\v r -> r { Cmd.state_history = v })
+past = Lens.lens Cmd.hist_past (\v r -> r { Cmd.hist_past = v })
+-- future = Lens.lens Cmd.hist_future (\v r -> r { Cmd.hist_future = v })
+
+{-
+    The updates are a bit confusing.  I could not save them and do a full diff.
+    That would probably make undo and redo slow on a large score.  How about
+    make a new kind of update that only has track ranges, and remove inversion
+    since it's broken anyway.
+
+    History:
+    ([], a)     (a->b, b)   (b->c, c)   (c->d, d)
+
+    Drop entries 'a' and 'b'.
+    Undo reverses updates in last entry:
+                            (b->c, c)   |cur        (d->c, d)
+    Only 1 past remains, load another one, updates are the wrong direction:
+                (c->b, b)   (b->c, c)   |cur        (d->c, d)
+    Undo again:
+                (c->b, b)   |cur        (b->c, c)   (c->d, d)
+    1 past remains, load another one:
+    (b->a, a)   (c->b, b)   |cur        (b->c, c)   (c->d, d)
+-}
+
+commit_entry :: SaveGit.History -> IO Cmd.HistoryEntry
+commit_entry history@(SaveGit.History state _ _) = do
+    result <- SaveGit.checkpoint (SaveGit.save_repo state) history
     commit <- case result of
         Left err -> do
             Log.error $ "error committing history: " ++ err
             return Nothing
         Right commit -> return (Just commit)
-    return $ Cmd.HistoryEntry state updates names commit
+    putStrLn $ "commit entry: " ++ show commit
+    return $ history_entry commit history
+
+history_entry :: Maybe Git.Commit -> SaveGit.History -> Cmd.HistoryEntry
+history_entry maybe_commit (SaveGit.History state updates names) =
+    Cmd.HistoryEntry state updates names maybe_commit
 
 -- | Get any history entries that should be saved, and the new HistoryCollect.
 pure_record_history :: State.State -> Cmd.State
-    -> (Maybe [Cmd.UncommittedHistoryEntry], Cmd.HistoryCollect)
+    -> (Maybe [SaveGit.History], Cmd.HistoryCollect)
 pure_record_history ui_state cmd_state
     -- If I get an undo while a cmd is suppressed, the last state change will
     -- be undone and the suppressed state change will lost entirely.  This
@@ -186,16 +253,16 @@ pure_record_history ui_state cmd_state
 
     entries = if is_recordable then [cur_entry] else []
         ++ Maybe.maybeToList suppressed_entry
-    cur_entry = Cmd.UncommittedHistoryEntry ui_state updates names
+    cur_entry = SaveGit.History ui_state updates names
 
-merge_into_suppressed :: Maybe Cmd.UncommittedHistoryEntry
-    -> Cmd.UncommittedHistoryEntry -> Cmd.UncommittedHistoryEntry
+merge_into_suppressed :: Maybe SaveGit.History -> SaveGit.History
+    -> SaveGit.History
 merge_into_suppressed Nothing ent = ent
-merge_into_suppressed (Just (Cmd.UncommittedHistoryEntry _ updates1 names1))
-        (Cmd.UncommittedHistoryEntry state2 updates2 _) =
+merge_into_suppressed (Just (SaveGit.History _ updates1 names1))
+        (SaveGit.History state2 updates2 _) =
     -- Keep the name of the first suppressed cmd.  The rest are likely to be
     -- either duplicates or unrecorded cmds like selection setting.
-    Cmd.UncommittedHistoryEntry state2 (updates1 ++ updates2) names1
+    SaveGit.History state2 (updates1 ++ updates2) names1
 
 should_record :: [Update.CmdUpdate] -> Bool
 should_record = any (not . Update.is_view_update)

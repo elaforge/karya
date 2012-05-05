@@ -15,7 +15,7 @@ import qualified Cmd.NoteEntry as NoteEntry
 
 test_key_to_input = do
     let k = Key.Char
-    let f = NoteEntry.key_to_input
+    let f = NoteEntry.key_to_input Nothing
     equal (f 4 True (k '\'')) (Just (Just (CmdTest.note_on 60 60 100)))
     equal (f 4 True (k ',')) (Just (Just (CmdTest.note_on 62 62 100)))
     equal (f 4 True (k ';')) (Just (Just (CmdTest.note_on 48 48 100)))
