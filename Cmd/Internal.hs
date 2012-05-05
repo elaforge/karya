@@ -251,8 +251,7 @@ cmd_sync_status ui_from cmd_from = do
         sync_zoom_status
     return Cmd.Continue
     where
-    create_view (Update.ViewUpdate view_id (Update.CreateView _)) =
-        Just view_id
+    create_view (Update.ViewUpdate view_id Update.CreateView) = Just view_id
     create_view _ = Nothing
     selection_update (Update.ViewUpdate view_id (Update.Selection selnum sel))
         | selnum == Config.insert_selnum = Just (view_id, sel)

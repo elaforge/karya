@@ -35,7 +35,6 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
-import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.StateConfig as StateConfig
@@ -59,7 +58,7 @@ data Update t u
     deriving (Eq, Show, Generics.Typeable)
 
 data ViewUpdate =
-    CreateView Block.View
+    CreateView
     | DestroyView
     | ViewSize Rect.Rect
     | Status (Map.Map String String) Bool -- ^ status_map is_root
@@ -83,10 +82,10 @@ data BlockUpdate t
     deriving (Eq, Show)
 
 data TrackUpdate =
-    -- | Low pos, high pos, and the events to replace that range.
-    TrackEvents ScoreTime ScoreTime Events.Events
-    -- | Used when there have been unknown updates so I have to play it safe.
-    | TrackAllEvents Events.Events
+    -- | Low pos, high pos.
+    TrackEvents ScoreTime ScoreTime
+    -- | Update the entire track.
+    | TrackAllEvents
     | TrackTitle String
     | TrackBg Color.Color
     | TrackRender Track.RenderConfig
@@ -159,8 +158,8 @@ block_changed _ = Nothing
 -- | As 'block_changed', but for track updates.
 track_changed :: CmdUpdate -> Maybe (TrackId, Ranges.Ranges ScoreTime)
 track_changed (TrackUpdate tid update) = case update of
-    TrackEvents start end _ -> Just (tid, Ranges.range start end)
-    TrackAllEvents {} -> Just (tid, Ranges.everything)
+    TrackEvents start end -> Just (tid, Ranges.range start end)
+    TrackAllEvents -> Just (tid, Ranges.everything)
     TrackTitle _ -> Just (tid, Ranges.everything)
     _ -> Nothing
 track_changed _ = Nothing

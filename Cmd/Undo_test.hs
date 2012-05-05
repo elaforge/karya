@@ -7,7 +7,6 @@ import Util.Test
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
@@ -28,27 +27,26 @@ import Types
 
 
 test_undo = do
-    let track_updates from to events =
-            [Update.TrackUpdate (UiTest.mk_tid 1) (Update.TrackEvents from to
-                (Events.from_list events))]
+    let track_updates from to =
+            [Update.TrackUpdate (UiTest.mk_tid 1) (Update.TrackEvents from to)]
         states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
 
     res <- ResponderTest.respond_cmd states $ Cmd.name "+z" $ insert_event 0 "z"
     res <- next res $ Cmd.name "+q" $ insert_event 1 "q"
 
     equal (extract_ui res) "zq"
-    equal (e_updates res) (track_updates 1 2 [(1, Event.event "q" 1)])
+    equal (e_updates res) (track_updates 1 2)
 
     res <- next res Undo.undo
     -- Make sure the past and future have the expected names and states.
     equal (extract_hist res) (["+z: z2", "setup: 12"], ["+q: zq"])
     equal (extract_ui res) "z2"
-    equal (e_updates res) (track_updates 1 2 [(1, Event.event "2" 1)])
+    equal (e_updates res) (track_updates 1 2)
 
     res <- next res Undo.undo
     equal (extract_hist res) (["setup: 12"], ["+z: z2", "+q: zq"])
     equal (extract_ui res) "12"
-    equal (e_updates res) (track_updates 0 1 [(0, Event.event "1" 1)])
+    equal (e_updates res) (track_updates 0 1)
 
     -- no past to undo
     res <- next res Undo.undo
@@ -58,12 +56,12 @@ test_undo = do
     res <- next res Undo.redo
     equal (extract_hist res) (["+z: z2", "setup: 12"], ["+q: zq"])
     equal (extract_ui res) "z2"
-    equal (e_updates res) (track_updates 0 1 [(0, Event.event "z" 1)])
+    equal (e_updates res) (track_updates 0 1)
 
     res <- next res Undo.redo
     equal (extract_ui res) "zq"
     equal (extract_hist res) (["+q: zq", "+z: z2", "setup: 12"], [])
-    equal (e_updates res) (track_updates 1 2 [(1, Event.event "q" 1)])
+    equal (e_updates res) (track_updates 1 2)
 
     -- no future to redo
     res <- next res Undo.redo

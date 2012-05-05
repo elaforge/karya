@@ -125,10 +125,13 @@ UNSORTED
       UncommittedHistoryEntry: [CmdUpdate] and [String] names
     - saving history on every "control track val edit", I should suppress those
       too
+    - run a track level diff to figure out which events changed
     - unify SaveGit.save_repo and Save.get_save_file
     - add a new kind of CmdUpdate that is only has TrackUpdates and
       BringToFront
     - Have Save.cmd_save optionally use git backend
+    - cmd to revert to last save
+    - load futures in the same way that I load the past
     - Make sure that when a project changes name all the history comes with
       it.  I guess I'd have to copy the dir, or do a git clone.  If I copied
       the dir that wouldn't work with 'untitled' because I don't want all

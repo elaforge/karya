@@ -166,8 +166,8 @@ dump_diff track_dir state =
     mk u@(Update.TrackUpdate track_id update)
         | Just track <- Map.lookup track_id (State.state_tracks state) =
             case update of
-                Update.TrackEvents start end events | track_dir ->
-                    Right $ dump_events track_id start end events
+                Update.TrackEvents start end | track_dir ->
+                    Right $ dump_events state track_id start end
                 _ -> Right $
                     Git.Add (id_to_path track_id) (Serialize.encode track)
         | otherwise = Left $ "update for nonexistent track_id: " ++ show u
@@ -205,11 +205,15 @@ path_to_ident mkid ns name = do
 
 -- ** events update
 
-dump_events :: TrackId -> ScoreTime -> ScoreTime -> Events.Events
+dump_events :: State.State -> TrackId -> ScoreTime -> ScoreTime
     -> Git.Modification
-dump_events track_id start end events =
+dump_events state track_id start end =
     Git.Add (events_path track_id start end) $
         Serialize.encode $ EventsUpdate track_id start end events
+    where
+    events = maybe Events.empty
+        (Events.in_range start end . Track.track_events)
+        (Map.lookup track_id (State.state_tracks state))
 
 -- | Put the range into the filename.  You still have to load all the event
 -- files in the directory, but at least exactly matching ranges will overwrite
@@ -295,11 +299,9 @@ undump_diff state = foldM apply (state, [])
         ["tracks", ns, name] -> do
             (state, updates) <- add ns name Types.TrackId State.tracks
             tid <- path_to_ident Types.TrackId ns name
-            let events = maybe Events.empty Track.track_events $
-                    Map.lookup tid (State.state_tracks state)
-                -- TODO figure out where it differs to avoid invalidating the
-                -- whole track.  Run a little mini-diff.
-                update = Update.TrackUpdate tid (Update.TrackAllEvents events)
+            -- TODO figure out where it differs to avoid invalidating the
+            -- whole track.  Run a little mini-diff.
+            let update = Update.TrackUpdate tid Update.TrackAllEvents
             return (state, update : updates)
         ["rulers", ns, name] -> add ns name Types.RulerId State.rulers
         ["config"] -> do

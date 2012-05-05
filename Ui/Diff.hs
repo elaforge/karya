@@ -105,14 +105,14 @@ diff_views :: State.State -> State.State -> Map.Map ViewId Block.View
     -> Map.Map ViewId Block.View -> DiffM ()
 diff_views st1 st2 views1 views2 =
     forM_ (Map.pairs views1 views2) $ \(view_id, v1, v2) -> case (v1, v2) of
-        (Nothing, Just view) ->
-            change $ Update.ViewUpdate view_id (Update.CreateView view)
+        (Nothing, Just _) ->
+            change $ Update.ViewUpdate view_id Update.CreateView
         (Just _, Nothing) ->
             change $ Update.ViewUpdate view_id Update.DestroyView
         (Just view1, Just view2)
             | Block.view_block view1 /= Block.view_block view2 -> do
                 change $ Update.ViewUpdate view_id Update.DestroyView
-                change $ Update.ViewUpdate view_id (Update.CreateView view2)
+                change $ Update.ViewUpdate view_id Update.CreateView
             | otherwise -> diff_view st1 st2 view_id view1 view2
         _ -> return ()
 

@@ -16,6 +16,8 @@ import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
+import Types
+
 
 test_save = do
     repo <- new_repo
@@ -28,7 +30,7 @@ test_save = do
     equal state state2
     let state3 = UiTest.exec state2 $ do
             State.destroy_view UiTest.default_view_id
-            State.insert_event (UiTest.mk_tid 1) 2 (Event.event "hi" 2)
+            insert_event 1 2 "hi" 2
     SaveGit.save repo state3
 
 test_checkpoint = do
@@ -39,7 +41,7 @@ test_checkpoint = do
             [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
             , ("2", [(0, 1, "2a")])
             ]
-        , (,) "hi" $ State.insert_event (UiTest.mk_tid 1) 2 (Event.event "hi" 2)
+        , (,) "hi" $ insert_event 1 2 "hi" 2
         , (,) "new track" $ do
             State.destroy_track (UiTest.mk_tid 2)
             void $ State.create_track (Id.unpack_id (UiTest.mk_tid 2)) $
@@ -58,16 +60,19 @@ test_checkpoint = do
     io_equal (SaveGit.load repo (Just commit3)) (Right state3)
     io_equal (SaveGit.load repo (Just commit4)) (Right state4)
 
+    let update num = Update.TrackUpdate (UiTest.mk_tid num)
+            Update.TrackAllEvents
     -- Make sure incremental loads work.
     (_, secs) <- timer $ do
         io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
-            (Right (state2, []))
+            (Right (state2, [update 1]))
+            -- TODO should be Events (2, 4)
         io_equal (SaveGit.load_from repo commit2 (Just commit3) state2)
-            (Right (state3, []))
+            (Right (state3, [update 2]))
         io_equal (SaveGit.load_from repo commit3 (Just commit4) state3)
             (Right (state4, []))
         io_equal (SaveGit.load_from repo commit1 (Just commit4) state1)
-            (Right (state4, []))
+            (Right (state4, [update 2, update 1]))
     print secs
 
 -- TODO do more exhaustive testing
@@ -82,6 +87,8 @@ check_sequence = do
     -- mapM_ (check_load repo) states
     -- mapM_ (uncurry (check_load_from repo)) (zip states (drop 1 states))
 
+insert_event :: (State.M m) => TrackNum -> ScoreTime -> String -> ScoreTime
+    -> m ()
 insert_event tracknum pos text dur =
     State.insert_event (UiTest.mk_tid tracknum) pos (Event.event text dur)
 

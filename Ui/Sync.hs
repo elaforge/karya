@@ -163,7 +163,7 @@ clear_play_position view_id = Ui.send_action $
 run_update :: Track.TrackSignals -> Event.SetStyle -> Update.DisplayUpdate
     -> State.StateT IO (IO ())
 run_update track_signals set_style
-        (Update.ViewUpdate view_id (Update.CreateView _)) = do
+        (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
 
@@ -223,7 +223,7 @@ run_update track_signals set_style
 run_update _ _ (Update.ViewUpdate view_id update) = case update of
     -- The previous equation matches CreateView, but ghc warning doesn't
     -- figure that out.
-    Update.CreateView {} -> error "run_update: notreached"
+    Update.CreateView -> error "run_update: notreached"
     Update.DestroyView -> return $ BlockC.destroy_view view_id
     Update.ViewSize rect -> return $ BlockC.set_size view_id rect
     Update.Status status is_root ->
@@ -321,10 +321,10 @@ run_update _ set_style (Update.TrackUpdate track_id update) = do
             Just track -> events_of_track_ids ustate (Block.track_merged track)
             Nothing -> []
     track_update view_id tracklike tracknum merged update = case update of
-        Update.TrackEvents low high _events -> return $
+        Update.TrackEvents low high -> return $
             BlockC.update_track False view_id tracknum tracklike merged
                 set_style low high
-        Update.TrackAllEvents _events -> return $
+        Update.TrackAllEvents -> return $
             BlockC.update_entire_track False view_id tracknum tracklike merged
                 set_style
         Update.TrackTitle title -> return $

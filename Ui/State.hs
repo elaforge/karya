@@ -1036,8 +1036,7 @@ create_track id track = do
     -- I have to mark this track as having new events.  Otherwise, if the same
     -- TrackId is destroyed and recreated then diff won't notice the changed
     -- events.
-    update $ Update.TrackUpdate track_id
-        (Update.TrackAllEvents (Track.track_events track))
+    update $ Update.TrackUpdate track_id Update.TrackAllEvents
     return track_id
 
 -- | Destroy the track and remove it from all the blocks it's in.  No-op if
@@ -1113,8 +1112,7 @@ modify_events track_id f = do
     track1 <- get_track track_id
     let track2 = track1 { Track.track_events = f (Track.track_events track1) }
     _set_track track_id track2
-    update $ Update.TrackUpdate track_id
-        (Update.TrackAllEvents (Track.track_events track2))
+    update $ Update.TrackUpdate track_id Update.TrackAllEvents
 
 -- | Remove any events whose starting positions fall within the half-open
 -- range given, or under the point if the selection is a point.
@@ -1171,9 +1169,8 @@ track_end track_id =
 update_all_tracks :: (M m) => m ()
 update_all_tracks = do
     st <- get
-    let mk (tid, track) = Update.TrackUpdate tid $
-            Update.TrackAllEvents (Track.track_events track)
-    mapM_ update $ map mk (Map.toList (state_tracks st))
+    let mk tid = Update.TrackUpdate tid Update.TrackAllEvents
+    mapM_ update $ map mk (Map.keys (state_tracks st))
 
 -- ** util
 
@@ -1189,8 +1186,7 @@ _modify_events track_id f = do
     track <- get_track track_id
     let (new_events, updates) = f (Track.track_events track)
     _set_track track_id (track { Track.track_events = new_events })
-    let mk (s, e) = Update.TrackUpdate track_id $ Update.TrackEvents s e $
-            Events.in_range s e new_events
+    let mk (s, e) = Update.TrackUpdate track_id $ Update.TrackEvents s e
     mapM_ (update . mk) updates
 
 _events_updates :: [Events.PosEvent] -> [(ScoreTime, ScoreTime)]
