@@ -2,10 +2,8 @@
 import sys, subprocess, re, os
 
 def main():
-    p = subprocess.Popen(['darcs', 'whatsnew', '-l'] + sys.argv[1:],
-        stdout=subprocess.PIPE)
-    stdout, _ = p.communicate()
-    adds, subtracts = parse_whatsnew(stdout.split('\n'))
+    whatsnew = run(['darcs', 'whatsnew', '--summary'] + sys.argv[1:])
+    adds, subtracts = parse_whatsnew(whatsnew.split('\n'))
 
     normal_by_dir = {}
     test_by_dir = {}
@@ -42,9 +40,9 @@ def parse_whatsnew(lines):
     adds = {}
     subtracts = {}
     for line in lines:
-        m = re.match(r'[MA] ([./a-zA-Z_-]+) *(\-\d+)? *(\+\d+)?$', line)
+        m = re.match(r'[MAR] ([./a-zA-Z_-]+) *(\-\d+)? *(\+\d+)?$', line)
         if not m:
-            if m and m[0] in 'MA':
+            if m and m[0] in 'MAR':
                 print 'no match', repr(line)
             continue
         path = os.path.normpath(m.groups()[0])
@@ -52,10 +50,15 @@ def parse_whatsnew(lines):
             continue # not actually code changes
         dir = os.path.dirname(path) or '.'
 
+        if line.endswith('/'):
+            pass # ignore directories
         if line.startswith('A'):
             # darcs doesn't show lines for new files
             if not os.path.isdir(path):
                 adds[path] = len(list(open(path)))
+        elif line.startswith('R'):
+            diff = run(['darcs', 'diff', path])
+            subtracts[path] = -diff.count('\n')
         else:
             for diff in filter(None, m.groups()[1:]):
                 if diff.startswith('-'):
@@ -66,6 +69,11 @@ def parse_whatsnew(lines):
 
 def fst((a, b)): return a
 def snd((a, b)): return b
+
+def run(cmd):
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    stdout, _ = p.communicate()
+    return stdout
 
 if __name__ == '__main__':
     main()
