@@ -1,15 +1,15 @@
 {- | Do things with files.
 -}
 module Util.File where
-import Control.Monad
 import qualified Control.Exception as Exception
-import qualified Data.Word as Word
+import Control.Monad
 import qualified Data.ByteString as ByteString
-
+import qualified Data.Word as Word
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
+import qualified System.Process as Process
 
 
 lazy_read_binary :: FilePath -> IO [Word.Word8]
@@ -42,6 +42,11 @@ recursive_list_dir descend dir = do
         fns <- list_dir dir
         fmap concat $ mapM (recursive_list_dir descend) fns
     maybe_descend False _ _ = return []
+
+-- | recursiveRemoveDirectory in System.Process crashes if the dir doesn't
+-- exist, and follows symlinks.
+recursive_rm_dir :: FilePath -> IO ()
+recursive_rm_dir dir = void $ Process.rawSystem "rm" ["-rf", dir]
 
 -- | Move the file to file.last.  Do this before writing a new one that may
 -- fail.
