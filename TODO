@@ -123,7 +123,7 @@ UNSORTED
     * Keep last SavePoint somewhere, perhaps Cmd.State
     * Make SaveGit.checkpoint also save the rest of the
       UncommittedHistoryEntry: [CmdUpdate] and [String] names
-    - saving history on every "control track val edit", I should suppress those
+    * saving history on every "control track val edit", I should suppress those
       too
     - run a track level diff to figure out which events changed
     - unify SaveGit.save_repo and Save.get_save_file

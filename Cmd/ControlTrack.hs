@@ -25,7 +25,7 @@ cmd_raw_edit = Cmd.suppress_history Cmd.RawEdit "control track raw edit"
 -- 'InputNote.NoteOn' or 'InputNote.Control' msgs and enter a value based on
 -- their velocity or value, respectively.
 cmd_val_edit :: Cmd.Cmd
-cmd_val_edit msg = Cmd.name "control track val edit" $ do
+cmd_val_edit msg = suppress "control track val edit" $ do
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.alphanum_key -> Just key) -> modify_event (modify_hex key)
@@ -35,6 +35,7 @@ cmd_val_edit msg = Cmd.name "control track val edit" $ do
         _ -> Cmd.abort
     return Cmd.Done
     where
+    suppress = Cmd.suppress_history Cmd.ValEdit
     insert_val control_input val = do
         pos <- Selection.get_insert_pos
         val_edit_at pos val
