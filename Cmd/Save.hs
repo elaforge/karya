@@ -3,16 +3,13 @@
 module Cmd.Save where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
-import qualified System.FilePath as FilePath
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
-import qualified Ui.Id as Id
 import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
 import qualified Cmd.Serialize as Serialize
@@ -20,13 +17,7 @@ import qualified Cmd.ViewConfig as ViewConfig
 
 
 get_save_file :: (State.M m) => m FilePath
-get_save_file = do
-    dir <- State.get_config State.config_project_dir
-    ns <- State.get_namespace
-    return $ FilePath.combine dir (map sanitize (Id.un_namespace ns))
-    where
-    -- Shouldn't be necessary because of the Namespace restrictions.
-    sanitize c = if FilePath.isPathSeparator c then '_' else c
+get_save_file = State.gets (SaveGit.save_file False)
 
 cmd_save :: FilePath -> Cmd.CmdT IO ()
 cmd_save fname = do
@@ -41,10 +32,12 @@ cmd_save_git fname = do
     result <- Trans.liftIO $ SaveGit.save fname state
     case result of
         Left err -> Cmd.throw $ "cmd_save: " ++ err
-        Right (_, save) -> Cmd.modify $ \st -> st
-            { Cmd.state_history_config = (Cmd.state_history_config st)
-                { Cmd.hist_last_save = Just save }
-            }
+        Right (_, save) -> do
+            Log.notice $ "wrote save " ++ show save ++ " to " ++ show fname
+            Cmd.modify $ \st -> st
+                { Cmd.state_history_config = (Cmd.state_history_config st)
+                    { Cmd.hist_last_save = Just save }
+                }
 
 cmd_load :: FilePath -> Cmd.CmdT IO ()
 cmd_load fname = do

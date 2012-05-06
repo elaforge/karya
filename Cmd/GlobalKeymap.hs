@@ -43,6 +43,7 @@ import qualified System.IO.Unsafe as Unsafe
 import Util.Control
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
+import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
 
 import qualified Cmd.BlockConfig as BlockConfig
@@ -108,7 +109,9 @@ io_bindings = concat [file_bindings, quit_bindings]
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
-    [ command_only 'S' "save" (Save.cmd_save =<< Save.get_save_file)
+    [ command_only 'S' "save" $ do
+        Save.cmd_save =<< Save.get_save_file
+        Save.cmd_save_git =<< State.gets SaveGit.save_repo
     , command_only 'L' "load" (Save.cmd_load =<< Save.get_save_file)
     ]
 

@@ -32,8 +32,12 @@ data History = History !State.State ![Update.CmdUpdate] ![String]
     deriving (Show)
 
 save_repo :: State.State -> Git.Repo
-save_repo state =
-    FilePath.combine dir (map sanitize (Id.un_namespace ns) ++ ".git")
+save_repo = save_file True
+
+save_file :: Bool -> State.State -> Git.Repo
+save_file for_git state =
+    FilePath.combine dir $
+        map sanitize (Id.un_namespace ns) ++ if for_git then ".git" else ""
     where
     dir = State.config#State.project_dir #$ state
     ns = State.config#State.namespace #$ state
@@ -123,8 +127,7 @@ save_to_ref (SavePoint versions) =
 -- | incremental save
 checkpoint :: Git.Repo -> History -> [Update.UiUpdate]
     -> IO (Either String Git.Commit)
-checkpoint repo hist@(History state _ names) updates =
-        try_e "checkpoint" $ do
+checkpoint repo hist@(History state _ names) updates = try_e "checkpoint" $ do
     Git.init repo
     -- If this is a new repo then do a save instead.
     last_commit <- Git.read_head_commit repo
