@@ -121,8 +121,10 @@ save_to_ref (SavePoint versions) =
 -- they duplicate all the stuff I'm writing.
 
 -- | incremental save
-checkpoint :: Git.Repo -> History -> IO (Either String Git.Commit)
-checkpoint repo hist@(History state updates names) = try_e "checkpoint" $ do
+checkpoint :: Git.Repo -> History -> [Update.UiUpdate]
+    -> IO (Either String Git.Commit)
+checkpoint repo hist@(History state _ names) updates =
+        try_e "checkpoint" $ do
     Git.init repo
     -- If this is a new repo then do a save instead.
     last_commit <- Git.read_head_commit repo
@@ -148,7 +150,7 @@ commit_tree repo tree desc = do
 -- | This will tend to create redundant files, e.g. a block will be written
 -- twice if two updates occur on it.  But 'Git.modify_dir' will filter out the
 -- extras.
-dump_diff :: Bool -> State.State -> [Update.CmdUpdate]
+dump_diff :: Bool -> State.State -> [Update.UiUpdate]
     -> ([String], [Git.Modification])
 dump_diff track_dir state =
     first (filter (not.null)) . Seq.partition_either . map mk
@@ -260,8 +262,8 @@ load_previous_history repo state commit = try_e "load_previous_history" $ do
             result <- load_from repo commit (Just parent) state
             case result of
                 Left err -> return $ Left err
-                Right (new_state, updates) -> return $ Right $ Just
-                    (History new_state updates names, parent)
+                Right (new_state, cmd_updates) -> return $ Right $ Just
+                    (History new_state cmd_updates names, parent)
 
 parse_names :: String -> IO [String]
 parse_names text = case lines text of
@@ -301,7 +303,7 @@ undump_diff state = foldM apply (state, [])
             tid <- path_to_ident Types.TrackId ns name
             -- TODO figure out where it differs to avoid invalidating the
             -- whole track.  Run a little mini-diff.
-            let update = Update.TrackUpdate tid Update.TrackAllEvents
+            let update = Update.CmdTrackAllEvents tid
             return (state, update : updates)
         ["rulers", ns, name] -> add ns name Types.RulerId State.rulers
         ["config"] -> do

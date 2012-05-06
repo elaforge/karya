@@ -34,33 +34,33 @@ sync :: Sync -> Performance.SendStatus
     -> State.State -- ^ state before Cmd was run
     -> State.State -- ^ current state
     -> Cmd.State -> [Update.CmdUpdate] -> MVar.MVar State.State
-    -> IO ([Update.CmdUpdate], State.State, Cmd.State)
+    -> IO ([Update.UiUpdate], State.State, Cmd.State)
 sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
         updater_state = do
     -- I'd catch problems closer to their source if I did this from run_cmds,
     -- but it's nice to see that it's definitely happening before syncs.
     verify_state ui_to
 
-    cmd_updates <- case Diff.diff cmd_updates ui_from ui_to of
+    ui_updates <- case Diff.diff cmd_updates ui_from ui_to of
         Left err -> Log.error ("diff error: " ++ err) >> return []
-        Right (cmd_updates, display_updates) -> do
+        Right (ui_updates, display_updates) -> do
             -- unless (null display_updates) $
             --     Trans.liftIO $ putStrLn $ "update: "
             --          ++ PPrint.pshow display_updates
-            when (any modified_view cmd_updates) $
+            when (any modified_view ui_updates) $
                 MVar.modifyMVar_ updater_state (const (return ui_to))
             let tsigs = get_track_signals
                     (State.config_root (State.state_config ui_to)) cmd_state
             err <- sync_func tsigs Internal.set_style ui_to display_updates
             when_just err $ \err ->
                 Log.error $ "syncing updates: " ++ Pretty.pretty err
-            return cmd_updates
+            return ui_updates
 
     -- Kick off the background derivation threads.
     cmd_state <- Performance.update_performance
         Performance.default_derive_wait send_status ui_pre ui_to cmd_state
-        cmd_updates
-    return (cmd_updates, ui_to, cmd_state)
+        ui_updates
+    return (ui_updates, ui_to, cmd_state)
 
 get_track_signals :: Maybe BlockId -> Cmd.State -> Track.TrackSignals
 get_track_signals maybe_root st = Maybe.fromMaybe Map.empty $ do
@@ -77,7 +77,7 @@ verify_state :: State.State -> IO ()
 verify_state state = when_just (State.verify state) $ \err ->
     Log.error $ "state error while verifying: " ++ Pretty.pretty err
 
-modified_view :: Update.CmdUpdate -> Bool
+modified_view :: Update.UiUpdate -> Bool
 modified_view (Update.ViewUpdate _ update) = case update of
     Update.CreateView {} -> True
     Update.DestroyView {} -> True

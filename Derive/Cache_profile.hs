@@ -57,9 +57,9 @@ rederive initial_state modifications = do
     go _ _ _ [] = return ()
     go start_times state1 cache (modify:rest) = do
         let section = Derive_profile.time_section start_times
-        let (_, state2, updates) = Cache_test.run state1 modify
+        let (_, state2, cmd_updates) = Cache_test.run state1 modify
         cached <- section "cached" $
-            eval_derivation cache state1 state2 updates
+            eval_derivation cache state1 state2 cmd_updates
 
         uncached <- section "uncached" $ do
             let result = DeriveTest.derive_block_cache mempty
@@ -73,11 +73,12 @@ rederive initial_state modifications = do
 
 eval_derivation :: Derive.Cache -> State.State -> State.State
     -> [Update.CmdUpdate] -> IO (Derive.Result, Derive.Events)
-eval_derivation cache state1 state2 updates = do
+eval_derivation cache state1 state2 cmd_updates = do
     force events
     return (result, events)
     where
-    damage = Diff.derive_diff state1 state2 updates
+    Right (ui_updates, _) = Diff.diff cmd_updates state1 state2
+    damage = Diff.derive_diff state1 state2 ui_updates
     result = DeriveTest.derive_block_cache cache damage state2
         (UiTest.bid "b1")
     events = Derive.r_events result

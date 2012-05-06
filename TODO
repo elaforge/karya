@@ -127,8 +127,11 @@ UNSORTED
       too
     - run a track level diff to figure out which events changed
     - unify SaveGit.save_repo and Save.get_save_file
-    - add a new kind of CmdUpdate that is only has TrackUpdates and
-      BringToFront
+    * add a new kind of CmdUpdate that is only has TrackUpdates and BringToFront
+    - test incremental save for adding and remove tracks and blocks, not just
+      changing events
+    - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
+      diff will catch it.
     - Have Save.cmd_save optionally use git backend
     - cmd to revert to last save
     - load futures in the same way that I load the past

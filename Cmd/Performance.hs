@@ -41,7 +41,7 @@ type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
 -- The majority of the calls here will bring neither score damage nor
 -- a changed view id, and thus this will do nothing.
 update_performance :: Thread.Seconds -> SendStatus -> State.State
-    -> State.State -> Cmd.State -> [Update.CmdUpdate] -> IO Cmd.State
+    -> State.State -> Cmd.State -> [Update.UiUpdate] -> IO Cmd.State
 update_performance wait send_status ui_pre ui_to cmd_state updates = do
     (cmd_state, _, logs, result) <- Cmd.run_io ui_to cmd_state $ do
         let damage = Diff.derive_diff ui_pre ui_to updates

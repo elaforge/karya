@@ -20,8 +20,8 @@ test_display_track = do
     let ([tid1, tid2], st1) = UiTest.run_mkblock [(">", []), ("*", [])]
         rid = UiTest.default_ruler_id
         st2 = UiTest.exec st1 (State.merge_track bid 1 2)
-    let Right (cmd_updates, display_updates) = diff st1 st2
-    equal cmd_updates
+    let Right (ui_updates, display_updates) = diff st1 st2
+    equal ui_updates
         [ Update.BlockUpdate bid (Update.BlockTrack 1
             (Block.Track (Block.TId tid1 rid) 40 [] [tid2]))
         , Update.BlockUpdate bid (Update.BlockTrack 2
@@ -44,7 +44,7 @@ test_merge_updates = do
                 [(">", []), ("*", [])])
             State.merge_track bid 1 2
             return tids
-    equal (Diff.diff [Update.TrackUpdate tid2 Update.TrackAllEvents] st st) $
+    equal (Diff.diff [Update.CmdTrackAllEvents tid2] st st) $
         Right
             ([Update.TrackUpdate tid2 Update.TrackAllEvents],
             [ Update.TrackUpdate tid2 Update.TrackAllEvents
@@ -52,7 +52,7 @@ test_merge_updates = do
             ])
 
 diff :: State.State -> State.State
-    -> Either String ([Update.CmdUpdate], [Update.DisplayUpdate])
+    -> Either String ([Update.UiUpdate], [Update.DisplayUpdate])
 diff = Diff.diff []
 
 

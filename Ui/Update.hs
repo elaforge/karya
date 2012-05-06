@@ -1,26 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, TypeSynonymInstances, FlexibleInstances #-}
 {- | Updates are diffs against Ui.State and are used in a number of contexts.
-    They are produced by "Ui.Diff".  For efficiency, TrackEvents updates are
-    recorded directly in "Ui.State", so diff doesn't have to compare all the
-    score data.  The different uses all require slightly different data.  I
-    capture the major differences in the 'DisplayUpdate' and 'CmdUpdate'
-    types, but within CmdUpdates, not all fields are useful for all contexts.
-    It's too much hassle to make separate types for everything.
-
-    - 'DisplayUpdate's are sent to the UI to update the windows.  Since the UI
-    only has Views, and has a lower level version of tracks, this includes
-    only updates that directly affect display.
-
-    - TrackEvents updates go to undo, for the same reason they are recorded
-    by Ui.State: when a state is reverted to a previous one it would be
-    expensive to diff the entire score.
-
-    - Updates are also used to determine ScoreDamage when rederiving a score.
-
-    - Updates are saved to disk for an incremental save.  Unlike the other
-    uses which have access to the current state, these are used with
-    "Ui.ApplyUpdate" to create the current state, so they have to contain
-    the actual updated data.
+    They are produced by "Ui.Diff".  The different uses all require slightly
+    different data, and I capture the major differences in separate types.
 -}
 module Ui.Update where
 import qualified Control.DeepSeq as DeepSeq
@@ -44,8 +25,26 @@ import qualified Ui.Types as Types
 import Types
 
 
-type CmdUpdate = Update Block.Track StateUpdate
+-- | 'DisplayUpdate's are sent to the UI to update the windows.  Since the UI
+-- only has Views, and has a lower level version of tracks, this includes
+-- only updates that directly affect display.
 type DisplayUpdate = Update Block.DisplayTrack ()
+
+-- | 'UiUpdate's reflect all changes to the underlying UI state.  They're
+-- used for incremental save, and by the deriver to determine ScoreDamage.
+type UiUpdate = Update Block.Track StateUpdate
+
+-- | For efficiency, TrackEvents updates are collected directly in "Ui.State"
+-- as the changes are made.  This is because I'm afraid a complete diff against
+-- all the events in a score would be too expensive to run after every cmd.  To
+-- express that there are only a few kinds of these updates, and since they are
+-- the only ones saved with their cmds, they are given their own type,
+-- 'CmdUpdate'.  These are also saved with the undo history.
+data CmdUpdate =
+    CmdTrackEvents TrackId ScoreTime ScoreTime
+    | CmdTrackAllEvents TrackId
+    | CmdBringToFront ViewId
+    deriving (Eq, Show)
 
 data Update t u
     = ViewUpdate ViewId ViewUpdate
@@ -110,12 +109,12 @@ instance DeepSeq.NFData (Update t u) where
         RulerUpdate ruler_id ruler -> ruler_id `seq` ruler `seq` ()
         StateUpdate u -> u `seq` ()
 
-instance Pretty.Pretty CmdUpdate where
+instance Pretty.Pretty UiUpdate where
     pretty = show
 
--- | Convert a CmdUpdate to a DisplayUpdate by stripping out all the CmdUpdate
+-- | Convert a UiUpdate to a DisplayUpdate by stripping out all the UiUpdate
 -- parts.
-to_display :: CmdUpdate -> Maybe DisplayUpdate
+to_display :: UiUpdate -> Maybe DisplayUpdate
 to_display (ViewUpdate vid update) = Just $ ViewUpdate vid update
 to_display (BlockUpdate bid update) = BlockUpdate bid <$> case update of
     BlockTitle a -> Just $ BlockTitle a
@@ -128,10 +127,15 @@ to_display (TrackUpdate tid update) = Just $ TrackUpdate tid update
 to_display (RulerUpdate rid ruler) = Just $ RulerUpdate rid ruler
 to_display (StateUpdate {}) = Nothing
 
+to_ui :: CmdUpdate -> UiUpdate
+to_ui (CmdTrackEvents track_id s e) = TrackUpdate track_id (TrackEvents s e)
+to_ui (CmdTrackAllEvents track_id) = TrackUpdate track_id TrackAllEvents
+to_ui (CmdBringToFront view_id) = ViewUpdate view_id BringToFront
+
 -- * functions
 
 -- | Updates which purely manipulate the view are treated differently by undo.
-is_view_update :: CmdUpdate -> Bool
+is_view_update :: UiUpdate -> Bool
 is_view_update update = case update of
     ViewUpdate _ view_update -> case view_update of
         CreateView {} -> False
@@ -147,16 +151,7 @@ is_view_update update = case update of
     _ -> False
 
 -- | Does an update imply a change which would require rederiving?
-block_changed :: CmdUpdate -> Maybe BlockId
-block_changed (BlockUpdate block_id update) = case update of
-    BlockConfig {} -> Nothing
-    InsertTrack {} -> Nothing
-    BlockTrack {} -> Nothing -- TODO what about mute?
-    _ -> Just block_id
-block_changed _ = Nothing
-
--- | As 'block_changed', but for track updates.
-track_changed :: CmdUpdate -> Maybe (TrackId, Ranges.Ranges ScoreTime)
+track_changed :: UiUpdate -> Maybe (TrackId, Ranges.Ranges ScoreTime)
 track_changed (TrackUpdate tid update) = case update of
     TrackEvents start end -> Just (tid, Ranges.range start end)
     TrackAllEvents -> Just (tid, Ranges.everything)

@@ -109,23 +109,24 @@ keep_clip clip_ns old new = Map.union new (Map.filterWithKey (\k _ -> ns k) old)
 -- Undo has some hooks directly in the responder, since it needs to be run
 -- after cmds.
 
-maintain_history :: State.State -> Cmd.State -> IO Cmd.State
-maintain_history ui_state cmd_state =
-    record_history ui_state (discard cmd_state)
+maintain_history :: State.State -> Cmd.State -> [Update.UiUpdate]
+    -> IO Cmd.State
+maintain_history ui_state cmd_state updates =
+    record_history updates ui_state (discard cmd_state)
     where
     discard = history#past %= take (max 1 keep)
     keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
 
 -- | Record 'Cmd.HistoryEntry's, if required.
-record_history :: State.State -> Cmd.State -> IO Cmd.State
-record_history ui_state cmd_state
+record_history :: [Update.UiUpdate] -> State.State -> Cmd.State -> IO Cmd.State
+record_history updates ui_state cmd_state
     | is_undo = case Cmd.hist_past (Cmd.state_history cmd_state) of
         [cur] -> load_previous_history cmd_state ui_state cur
         _ -> return $ reset_history cmd_state
     | otherwise = case maybe_entries of
         Nothing -> return $ collect_history collect cmd_state
         Just entries -> do
-            entries <- if has_saved then mapM commit_entry entries
+            entries <- if has_saved then mapM (commit_entry updates) entries
                 else return $ map (history_entry Nothing) entries
             return $ cmd_state
                 { Cmd.state_history = Cmd.History
@@ -137,7 +138,7 @@ record_history ui_state cmd_state
                 , Cmd.state_history_collect = collect
                 }
     where
-    (maybe_entries, collect) = pure_record_history ui_state cmd_state
+    (maybe_entries, collect) = pure_record_history updates ui_state cmd_state
     is_undo = Cmd.hist_undo_redo (Cmd.state_history cmd_state)
     has_saved = Maybe.isJust $ Cmd.hist_last_save $
         Cmd.state_history_config cmd_state
@@ -198,9 +199,9 @@ past = Lens.lens Cmd.hist_past (\v r -> r { Cmd.hist_past = v })
     (b->a, a)   (c->b, b)   |cur        (b->c, c)   (c->d, d)
 -}
 
-commit_entry :: SaveGit.History -> IO Cmd.HistoryEntry
-commit_entry history@(SaveGit.History state _ _) = do
-    result <- SaveGit.checkpoint (SaveGit.save_repo state) history
+commit_entry :: [Update.UiUpdate] -> SaveGit.History -> IO Cmd.HistoryEntry
+commit_entry updates history@(SaveGit.History state _ _) = do
+    result <- SaveGit.checkpoint (SaveGit.save_repo state) history updates
     commit <- case result of
         Left err -> do
             Log.error $ "error committing history: " ++ err
@@ -214,9 +215,9 @@ history_entry maybe_commit (SaveGit.History state updates names) =
     Cmd.HistoryEntry state updates names maybe_commit
 
 -- | Get any history entries that should be saved, and the new HistoryCollect.
-pure_record_history :: State.State -> Cmd.State
+pure_record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
     -> (Maybe [SaveGit.History], Cmd.HistoryCollect)
-pure_record_history ui_state cmd_state
+pure_record_history updates ui_state cmd_state
     -- If I get an undo while a cmd is suppressed, the last state change will
     -- be undone and the suppressed state change will lost entirely.  This
     -- seems basically reasonable, since you could see it as an edit
@@ -239,12 +240,11 @@ pure_record_history ui_state cmd_state
         suppress == Just (Cmd.state_edit_mode (Cmd.state_edit cmd_state))
     is_recordable = should_record updates
 
-    Cmd.HistoryCollect updates names suppress suppressed_entry =
-        Cmd.state_history_collect cmd_state
-
     entries = if is_recordable then [cur_entry] else []
         ++ Maybe.maybeToList suppressed_entry
-    cur_entry = SaveGit.History ui_state updates names
+    cur_entry = SaveGit.History ui_state cmd_updates names
+    Cmd.HistoryCollect cmd_updates names suppress suppressed_entry =
+        Cmd.state_history_collect cmd_state
 
 merge_into_suppressed :: Maybe SaveGit.History -> SaveGit.History
     -> SaveGit.History
@@ -255,5 +255,5 @@ merge_into_suppressed (Just (SaveGit.History _ updates1 names1))
     -- either duplicates or unrecorded cmds like selection setting.
     SaveGit.History state2 (updates1 ++ updates2) names1
 
-should_record :: [Update.CmdUpdate] -> Bool
+should_record :: [Update.UiUpdate] -> Bool
 should_record = any (not . Update.is_view_update)

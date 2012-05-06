@@ -60,8 +60,7 @@ test_checkpoint = do
     io_equal (SaveGit.load repo (Just commit3)) (Right state3)
     io_equal (SaveGit.load repo (Just commit4)) (Right state4)
 
-    let update num = Update.TrackUpdate (UiTest.mk_tid num)
-            Update.TrackAllEvents
+    let update num = Update.CmdTrackAllEvents (UiTest.mk_tid num)
     -- Make sure incremental loads work.
     (_, secs) <- timer $ do
         io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
@@ -108,20 +107,21 @@ checkpoint_sequence repo actions = apply State.empty actions
     where
     apply _ [] = return []
     apply prev_state ((name, action) : actions) = do
-        let (state, updates) = diff prev_state action
+        let (state, cmd_updates, ui_updates) = diff prev_state action
         Right commit <- SaveGit.checkpoint repo
-            (SaveGit.History state updates [name])
+            (SaveGit.History state cmd_updates [name]) ui_updates
         rest <- apply state actions
         return $ (state, commit) : rest
 
-diff :: State.State -> State.StateId a -> (State.State, [Update.CmdUpdate])
+diff :: State.State -> State.StateId a
+    -> (State.State, [Update.CmdUpdate], [Update.UiUpdate])
 diff state modify = case Diff.diff cmd_updates state state2 of
         Left err -> error $ "diff: " ++ show err
-        Right (updates, _) -> (state2, updates)
+        Right (ui_updates, _) -> (state2, cmd_updates, ui_updates)
     where
     (state2, cmd_updates) = case State.run_id state modify of
         Left err -> error $ "State.run: " ++ show err
-        Right (_, state, updates) -> (state, updates)
+        Right (_, state, cmd_updates) -> (state, cmd_updates)
 
 mkview :: [UiTest.TrackSpec] -> State.StateId ()
 mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)

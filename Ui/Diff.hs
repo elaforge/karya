@@ -32,7 +32,7 @@ import Types
 
 type DiffError = String
 
-type DiffM a = Logger.LoggerT (Either Update.CmdUpdate Update.DisplayUpdate)
+type DiffM a = Logger.LoggerT (Either Update.UiUpdate Update.DisplayUpdate)
     (Error.ErrorT DiffError Identity.Identity) a
 
 -- TODO ErrorT is unused, if it continues to be unused, remove it and now
@@ -40,20 +40,20 @@ type DiffM a = Logger.LoggerT (Either Update.CmdUpdate Update.DisplayUpdate)
 -- throw :: String -> DiffM a
 -- throw = Error.throwError
 
-change :: Update.CmdUpdate -> DiffM ()
+change :: Update.UiUpdate -> DiffM ()
 change = Logger.logs . (:[]) . Left
 
 change_display :: Update.DisplayUpdate -> DiffM ()
 change_display = Logger.logs . (:[]) . Right
 
 run :: DiffM ()
-    -> Either DiffError ([Update.CmdUpdate], [Update.DisplayUpdate])
+    -> Either DiffError ([Update.UiUpdate], [Update.DisplayUpdate])
 run = fmap Seq.partition_either . Identity.runIdentity . Error.runErrorT
     . Logger.exec
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
 diff :: [Update.CmdUpdate] -> State.State -> State.State
-    -> Either DiffError ([Update.CmdUpdate], [Update.DisplayUpdate])
+    -> Either DiffError ([Update.UiUpdate], [Update.DisplayUpdate])
 diff cmd_updates st1 st2 = fmap postproc $ run $ do
     -- View diff needs to happen first, because other updates may want to
     -- update the new view (technically these updates are redundant, but they
@@ -67,9 +67,14 @@ diff cmd_updates st1 st2 = fmap postproc $ run $ do
         Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2)
     diff_state st1 st2
     where
-    postproc (cs, ds) = (cupdates,
-        ds ++ Maybe.mapMaybe Update.to_display (merge_updates st2 cupdates))
-        where cupdates = cmd_updates ++ cs
+    -- Here's where the three different kinds of updates come together.
+    -- CmdUpdates are converted into UiUpdates, and then all of them converted
+    -- to DisplayUpdates.
+    postproc (ui_updates, display_updates) = (ui_updates2,
+        display_updates ++ to_display (merge_updates st2 ui_updates2))
+        where
+        ui_updates2 = map Update.to_ui cmd_updates ++ ui_updates
+        to_display = Maybe.mapMaybe Update.to_display
 
 -- | Given the track updates, figure out which other tracks have those tracks
 -- merged and should also be updated.
@@ -77,7 +82,7 @@ diff cmd_updates st1 st2 = fmap postproc $ run $ do
 -- The track diff doesn't generate event updates at all, they are expected to
 -- be collected as a side-effect of the event insertion and deletion functions.
 -- But that doesn't take into account merged tracks.
-merge_updates :: State.State -> [Update.CmdUpdate] -> [Update.CmdUpdate]
+merge_updates :: State.State -> [Update.UiUpdate] -> [Update.UiUpdate]
 merge_updates state updates = updates ++ concatMap propagate updates
     where
     propagate (Update.TrackUpdate track_id update)
@@ -248,7 +253,7 @@ run_derive_diff = snd . Identity.runIdentity . Writer.runWriterT
 -- This is repeating some work done in 'diff', but is cleaner than reusing
 -- 'diff' output because derive cares about specific things like mute, solo,
 -- or track title changes.
-derive_diff :: State.State -> State.State -> [Update.CmdUpdate]
+derive_diff :: State.State -> State.State -> [Update.UiUpdate]
     -> Derive.ScoreDamage
 derive_diff st1 st2 updates = postproc $ run_derive_diff $ do
     mapM_ (uncurry3 derive_diff_block) $
@@ -267,7 +272,7 @@ postproc_damage state (Derive.ScoreDamage tracks _ blocks) =
     track_of_block (Block.TId tid _) = Map.member tid tracks
     track_of_block _ = False
 
-updates_damage :: [Update.CmdUpdate] -> Derive.ScoreDamage
+updates_damage :: [Update.UiUpdate] -> Derive.ScoreDamage
 updates_damage updates = mempty { Derive.sdamage_tracks = tracks }
     where
     tracks = Map.fromListWith (<>) $

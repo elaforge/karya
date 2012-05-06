@@ -231,7 +231,7 @@ save_updates updates = Monad.State.modify $ \st ->
 -}
 run_responder :: State -> ResponderM Result -> IO (Bool, State)
 run_responder state m = do
-    (val, (RState _ ui_from ui_to cmd_from cmd_to updates))
+    (val, (RState _ ui_from ui_to cmd_from cmd_to cmd_updates))
         <- Monad.State.runStateT m (make_rstate state)
     case val of
         Left err -> do
@@ -247,15 +247,16 @@ run_responder state m = do
             (updates, ui_to, cmd_to) <-
                 ResponderSync.sync (state_sync state)
                     (send_derive_status (state_loopback state))
-                    (state_ui state) ui_from ui_to cmd_to updates
+                    (state_ui state) ui_from ui_to cmd_to cmd_updates
                     (Transport.info_state (state_transport_info state))
-            cmd_to <- Undo.maintain_history ui_to (add_updates updates cmd_to)
+            cmd_to <- Undo.maintain_history ui_to
+                (add_updates cmd_updates cmd_to) updates
             return (is_quit status,
                 state { state_ui = ui_to, state_cmd = cmd_to })
     where
-    add_updates updates st = st { Cmd.state_history_collect =
+    add_updates cmd_updates st = st { Cmd.state_history_collect =
         (Cmd.state_history_collect st)
-            { Cmd.state_updates = updates
+            { Cmd.state_updates = cmd_updates
                 ++ Cmd.state_updates (Cmd.state_history_collect st) } }
     is_quit Cmd.Quit = True
     is_quit _ = False

@@ -91,4 +91,4 @@ bring_to_front view_id = do
         Nothing -> Cmd.throw $ "can't bring to front non-existent view "
             ++ show view_id
         _ -> return ()
-    State.update $ Update.ViewUpdate view_id Update.BringToFront
+    State.update $ Update.CmdBringToFront view_id
