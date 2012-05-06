@@ -120,9 +120,17 @@ maintain_history ui_state cmd_state updates =
 -- | Record 'Cmd.HistoryEntry's, if required.
 record_history :: [Update.UiUpdate] -> State.State -> Cmd.State -> IO Cmd.State
 record_history updates ui_state cmd_state
-    | is_undo = case Cmd.hist_past (Cmd.state_history cmd_state) of
-        [cur] -> load_previous_history cmd_state ui_state cur
-        _ -> return $ reset_history cmd_state
+    | is_undo = do
+        past <- case Cmd.hist_past (Cmd.state_history cmd_state) of
+            [cur] -> load_previous_history ui_state cur
+            _ -> return []
+        return $ cmd_state
+            { Cmd.state_history = hist
+                { Cmd.hist_undo_redo = False
+                , Cmd.hist_past = Cmd.hist_past hist ++ past
+                }
+            , Cmd.state_history_collect = Cmd.empty_history_collect
+            }
     | otherwise = case maybe_entries of
         Nothing -> return $ collect_history collect cmd_state
         Just entries -> do
@@ -130,8 +138,7 @@ record_history updates ui_state cmd_state
                 else return $ map (history_entry Nothing) entries
             return $ cmd_state
                 { Cmd.state_history = Cmd.History
-                    { Cmd.hist_past = entries
-                        ++ Cmd.hist_past (Cmd.state_history cmd_state)
+                    { Cmd.hist_past = entries ++ Cmd.hist_past hist
                     , Cmd.hist_future = []
                     , Cmd.hist_undo_redo = False
                     }
@@ -139,9 +146,10 @@ record_history updates ui_state cmd_state
                 }
     where
     (maybe_entries, collect) = pure_record_history updates ui_state cmd_state
-    is_undo = Cmd.hist_undo_redo (Cmd.state_history cmd_state)
+    is_undo = Cmd.hist_undo_redo hist
     has_saved = Maybe.isJust $ Cmd.hist_last_save $
         Cmd.state_history_config cmd_state
+    hist = Cmd.state_history cmd_state
 
 collect_history :: Cmd.HistoryCollect -> Cmd.State -> Cmd.State
 collect_history collect cmd_state = cmd_state
@@ -150,54 +158,20 @@ collect_history collect cmd_state = cmd_state
     , Cmd.state_history_collect = collect
     }
 
-reset_history :: Cmd.State -> Cmd.State
-reset_history = collect_history Cmd.empty_history_collect
-
-load_previous_history :: Cmd.State -> State.State -> Cmd.HistoryEntry
-    -> IO Cmd.State
-load_previous_history cmd_state ui_state cur = do
-    result <- maybe (return $ Right Nothing)
-        (SaveGit.load_previous_history (SaveGit.save_repo ui_state) ui_state)
-        (Cmd.hist_commit cur)
-    case result of
-        Left err -> do
-            Log.error $ "load_previous_history: " ++ err
-            return $ reset_history cmd_state
-        Right Nothing -> return $ reset_history cmd_state
-        Right (Just (hist, commit)) ->
-            return $ update_history cur (history_entry (Just commit) hist)
-    where
-    update_history cur prev = cmd_state
-        { Cmd.state_history = (Cmd.state_history cmd_state)
-            { Cmd.hist_undo_redo = False
-            , Cmd.hist_past = [cur, prev]
-            }
-        , Cmd.state_history_collect = Cmd.empty_history_collect
-        }
-
-history = Lens.lens Cmd.state_history (\v r -> r { Cmd.state_history = v })
-past = Lens.lens Cmd.hist_past (\v r -> r { Cmd.hist_past = v })
--- future = Lens.lens Cmd.hist_future (\v r -> r { Cmd.hist_future = v })
-
-{-
-    The updates are a bit confusing.  I could not save them and do a full diff.
-    That would probably make undo and redo slow on a large score.  How about
-    make a new kind of update that only has track ranges, and remove inversion
-    since it's broken anyway.
-
-    History:
-    ([], a)     (a->b, b)   (b->c, c)   (c->d, d)
-
-    Drop entries 'a' and 'b'.
-    Undo reverses updates in last entry:
-                            (b->c, c)   |cur        (d->c, d)
-    Only 1 past remains, load another one, updates are the wrong direction:
-                (c->b, b)   (b->c, c)   |cur        (d->c, d)
-    Undo again:
-                (c->b, b)   |cur        (b->c, c)   (c->d, d)
-    1 past remains, load another one:
-    (b->a, a)   (c->b, b)   |cur        (b->c, c)   (c->d, d)
--}
+load_previous_history :: State.State -> Cmd.HistoryEntry
+    -> IO [Cmd.HistoryEntry]
+load_previous_history ui_state cur = case Cmd.hist_commit cur of
+    Nothing -> return []
+    Just commit -> do
+        result <- SaveGit.load_previous_history (SaveGit.save_repo ui_state)
+            ui_state commit
+        case result of
+            Left err -> do
+                Log.error $ "load_previous_history: " ++ err
+                return []
+            Right Nothing -> return []
+            Right (Just (hist, commit)) ->
+                return [history_entry (Just commit) hist]
 
 commit_entry :: [Update.UiUpdate] -> SaveGit.History -> IO Cmd.HistoryEntry
 commit_entry updates history@(SaveGit.History state _ _) = do
@@ -207,7 +181,6 @@ commit_entry updates history@(SaveGit.History state _ _) = do
             Log.error $ "error committing history: " ++ err
             return Nothing
         Right commit -> return (Just commit)
-    putStrLn $ "commit entry: " ++ show commit
     return $ history_entry commit history
 
 history_entry :: Maybe Git.Commit -> SaveGit.History -> Cmd.HistoryEntry
@@ -257,3 +230,10 @@ merge_into_suppressed (Just (SaveGit.History _ updates1 names1))
 
 should_record :: [Update.UiUpdate] -> Bool
 should_record = any (not . Update.is_view_update)
+
+
+--
+
+history = Lens.lens Cmd.state_history (\v r -> r { Cmd.state_history = v })
+past = Lens.lens Cmd.hist_past (\v r -> r { Cmd.hist_past = v })
+-- future = Lens.lens Cmd.hist_future (\v r -> r { Cmd.hist_future = v })
