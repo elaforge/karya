@@ -134,11 +134,17 @@ UNSORTED
       diff will catch it.
     * Have Save.cmd_save optionally use git backend
     - cmd to revert to last save
-    - load futures in the same way that I load the past
+    * load futures in the same way that I load the past
+    - for load futures to be useful, there has to be some way to way to load
+      a score from an arbitrary commit or SavePoint
     - Make sure that when a project changes name all the history comes with
       it.  I guess I'd have to copy the dir, or do a git clone.  If I copied
       the dir that wouldn't work with 'untitled' because I don't want all
       those other heads.  I want to copy over the current history.
+    - See if git's delta compression understands binary and can compress
+      tracks.  Otherwise, would it be worth helping it by e.g. separating
+      each event with a newline?  But then it makes serializing events more of
+      a hassle.
 
     - support branching history, e.g. edits after an undo don't discard the
       old future

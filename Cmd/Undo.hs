@@ -37,7 +37,7 @@ undo = do
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past = prev : rest
                 , Cmd.hist_future = cur : Cmd.hist_future hist
-                , Cmd.hist_undo_redo = True
+                , Cmd.hist_undo_redo = Just Cmd.Undo
                 }
             , Cmd.state_history_collect = Cmd.empty_history_collect
             }
@@ -56,7 +56,7 @@ redo = do
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past = next : Cmd.hist_past hist
                 , Cmd.hist_future = rest
-                , Cmd.hist_undo_redo = True
+                , Cmd.hist_undo_redo = Just Cmd.Redo
                 }
             , Cmd.state_history_collect = Cmd.empty_history_collect
             }
@@ -120,14 +120,23 @@ maintain_history ui_state cmd_state updates =
 -- | Record 'Cmd.HistoryEntry's, if required.
 record_history :: [Update.UiUpdate] -> State.State -> Cmd.State -> IO Cmd.State
 record_history updates ui_state cmd_state
-    | is_undo = do
-        past <- case Cmd.hist_past (Cmd.state_history cmd_state) of
-            [cur] -> load_previous_history ui_state cur
+    -- If I get an undo while a cmd is suppressed, the last state change will
+    -- be undone and the suppressed state change will lost entirely.  This
+    -- seems basically reasonable, since you could see it as an edit
+    -- transaction that was cancelled.
+    | Just undo_redo <- Cmd.hist_undo_redo hist = do
+        past <- case (undo_redo, Cmd.hist_past hist) of
+            (Cmd.Undo, [cur]) -> load_previous_history ui_state cur
+            _ -> return []
+        future <- case (undo_redo, Cmd.hist_future hist, Cmd.hist_past hist) of
+            (Cmd.Redo, [], cur : _) -> do
+                load_next_history ui_state cur
             _ -> return []
         return $ cmd_state
             { Cmd.state_history = hist
-                { Cmd.hist_undo_redo = False
+                { Cmd.hist_undo_redo = Nothing
                 , Cmd.hist_past = Cmd.hist_past hist ++ past
+                , Cmd.hist_future = future ++ Cmd.hist_future hist
                 }
             , Cmd.state_history_collect = Cmd.empty_history_collect
             }
@@ -140,13 +149,12 @@ record_history updates ui_state cmd_state
                 { Cmd.state_history = Cmd.History
                     { Cmd.hist_past = entries ++ Cmd.hist_past hist
                     , Cmd.hist_future = []
-                    , Cmd.hist_undo_redo = False
+                    , Cmd.hist_undo_redo = Nothing
                     }
                 , Cmd.state_history_collect = collect
                 }
     where
     (maybe_entries, collect) = pure_record_history updates ui_state cmd_state
-    is_undo = Cmd.hist_undo_redo hist
     has_saved = Maybe.isJust $ Cmd.hist_last_save $
         Cmd.state_history_config cmd_state
     hist = Cmd.state_history cmd_state
@@ -154,20 +162,29 @@ record_history updates ui_state cmd_state
 collect_history :: Cmd.HistoryCollect -> Cmd.State -> Cmd.State
 collect_history collect cmd_state = cmd_state
     { Cmd.state_history = (Cmd.state_history cmd_state)
-        { Cmd.hist_undo_redo = False }
+        { Cmd.hist_undo_redo = Nothing }
     , Cmd.state_history_collect = collect
     }
 
 load_previous_history :: State.State -> Cmd.HistoryEntry
     -> IO [Cmd.HistoryEntry]
-load_previous_history ui_state cur = case Cmd.hist_commit cur of
+load_previous_history =
+    load_history "load_previous_history" SaveGit.load_previous_history
+
+load_next_history :: State.State -> Cmd.HistoryEntry -> IO [Cmd.HistoryEntry]
+load_next_history = load_history "load_next_history" SaveGit.load_next_history
+
+load_history :: String
+    -> (Git.Repo -> State.State -> Git.Commit
+        -> IO (Either String (Maybe (SaveGit.History, Git.Commit))))
+     -> State.State -> Cmd.HistoryEntry -> IO [Cmd.HistoryEntry]
+load_history name load ui_state cur = case Cmd.hist_commit cur of
     Nothing -> return []
     Just commit -> do
-        result <- SaveGit.load_previous_history (SaveGit.save_repo ui_state)
-            ui_state commit
+        result <- load (SaveGit.save_repo ui_state) ui_state commit
         case result of
             Left err -> do
-                Log.error $ "load_previous_history: " ++ err
+                Log.error $ name ++ ": " ++ err
                 return []
             Right Nothing -> return []
             Right (Just (hist, commit)) ->
@@ -191,11 +208,6 @@ history_entry maybe_commit (SaveGit.History state updates names) =
 pure_record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
     -> (Maybe [SaveGit.History], Cmd.HistoryCollect)
 pure_record_history updates ui_state cmd_state
-    -- If I get an undo while a cmd is suppressed, the last state change will
-    -- be undone and the suppressed state change will lost entirely.  This
-    -- seems basically reasonable, since you could see it as an edit
-    -- transaction that was cancelled.
-    | is_undo = (Nothing, Cmd.empty_history_collect)
     | not is_recordable && Maybe.isNothing suppress = (Nothing,
         (Cmd.state_history_collect cmd_state) { Cmd.state_cmd_names = [] })
     | is_suppressed = ((,) Nothing) $
@@ -207,8 +219,6 @@ pure_record_history updates ui_state cmd_state
             }
     | otherwise = (Just entries, Cmd.empty_history_collect)
     where
-    -- Don't record history if I just did an undo or redo.
-    is_undo = Cmd.hist_undo_redo (Cmd.state_history cmd_state)
     is_suppressed =
         suppress == Just (Cmd.state_edit_mode (Cmd.state_edit cmd_state))
     is_recordable = should_record updates

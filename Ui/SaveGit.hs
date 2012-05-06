@@ -260,14 +260,43 @@ load_previous_history repo state commit = try_e "load_previous_history" $ do
     commit_data <- Git.read_commit repo commit
     case Seq.head (Git.commit_parents commit_data) of
         Nothing -> return $ Right Nothing
-        Just parent -> do
-            names <- parse_names . Git.commit_text
-                =<< Git.read_commit repo parent
-            result <- load_from repo commit (Just parent) state
-            case result of
-                Left err -> return $ Left err
-                Right (new_state, cmd_updates) -> return $ Right $ Just
-                    (History new_state cmd_updates names, parent)
+        Just parent -> load_history repo state commit parent
+
+-- | Try to a commits that has this one as a parent.
+load_next_history :: Git.Repo -> State.State -> Git.Commit
+    -> IO (Either String (Maybe (History, Git.Commit)))
+load_next_history repo state commit = try_e "load_next_history" $ do
+    -- This won't work if I loaded something off-head.  In that case, I need
+    -- the checkpoint I started from so I can start from there instead of HEAD.
+    commits <- Git.read_log_head repo
+    putStrLn $ "search in: " ++ show commit ++ " -> "
+        ++ show (find_before commit commits)
+    case find_before commit commits of
+        Nothing -> return $ Right Nothing
+        Just child -> load_history repo state commit child
+    where
+    find_before val (x1:x2:xs)
+        | val == x2 = Just x1
+        | otherwise = find_before val (x2:xs)
+    find_before _ _ = Nothing
+
+load_history :: Git.Repo -> State.State -> Git.Commit -> Git.Commit
+    -> IO (Either String (Maybe (History, Git.Commit)))
+load_history repo state from_commit to_commit = do
+    names <- parse_names . Git.commit_text
+        =<< Git.read_commit repo to_commit
+    result <- load_from repo from_commit (Just to_commit) state
+    case result of
+        Left err -> return $ Left err
+        Right (new_state, cmd_updates) -> return $ Right $ Just
+            (History new_state cmd_updates names, to_commit)
+
+-- Multiple futures:
+-- I get the future by tracing from HEAD.  Then if you undo and redo, that
+-- branch will be orphaned, and the next gc will probably delete it.  But if
+-- you save there, the tag will probably keep it alive.  Then the next
+-- history commit will set the HEAD to this branch, and the old HEAD will only
+-- be preserved if it had a ref.
 
 parse_names :: String -> IO [String]
 parse_names text = case lines text of

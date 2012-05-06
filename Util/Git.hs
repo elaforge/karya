@@ -144,6 +144,16 @@ diff_commits repo (Commit c1) (Commit c2) = do
                 throw $ "diff_commits: unknown status: " ++ show status
         _ -> throw $ "diff_commits: unparseable line: " ++ show line
 
+-- | Get commits in reverse chronological order from the given ref.
+read_log :: Repo -> Ref -> IO [Commit]
+read_log repo ref = map (Commit . parse_hash) . Char8.lines <$>
+    git repo ["rev-list", "refs" </> ref] ""
+
+-- | Get commits in reverse chronological order from the HEAD.
+read_log_head :: Repo -> IO [Commit]
+read_log_head repo = map (Commit . parse_hash) . Char8.lines <$>
+    git repo ["rev-list", "HEAD"] ""
+
 gc :: Repo -> IO ()
 gc repo = void $ git repo ["gc", "--aggressive"] ""
 

@@ -1,6 +1,7 @@
 module Cmd.Undo_test where
 import Util.Control
 import qualified Util.File as File
+import qualified Util.Git as Git
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import Util.Test
@@ -99,6 +100,8 @@ test_load_previous_history = do
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
     res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
     res <- next res $ Cmd.name "+z" $ insert_event 2 "z"
+
+    pprint (e_commits res)
     let history = ["+z: xyz", "+y: xy", "+x: x", "save: 1"]
         idx (xs, ys) = (map (history!!) xs, map (history!!) ys)
     -- +x was discarded.
@@ -120,6 +123,8 @@ test_load_previous_history = do
     res <- next res Undo.undo
     equal (extract_hist res) $ idx ([3], [2, 1, 0])
     equal (extract_ui res) "1"
+
+    -- TODO drop future, and try to redo
 
 test_undo_merge = do
     let states = ResponderTest.mkstates [(">", [])]
@@ -169,6 +174,13 @@ extract_hist res = (map extract past, map extract future)
     --     e_hist_collect res
     extract (Cmd.HistoryEntry state _ commands _) =
         Seq.join "+" commands ++ ": " ++ ui_notes 0 state
+
+e_commits :: ResponderTest.Result
+    -> ([([String], Maybe Git.Commit)], [([String], Maybe Git.Commit)])
+e_commits res = (map extract past, map extract future)
+    where
+    Cmd.History past future _ = e_hist res
+    extract hist = (Cmd.hist_names hist, Cmd.hist_commit hist)
 
 extract_ui :: ResponderTest.Result -> String
 extract_ui = ui_notes 0 . e_ui

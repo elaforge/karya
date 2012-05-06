@@ -570,11 +570,13 @@ data History = History {
     , hist_future :: ![HistoryEntry]
     -- | True if this state was set by an undo or redo.  Otherwise undo and
     -- redo would be recorded and multiple undo would be impossible!
-    , hist_undo_redo :: !Bool
+    , hist_undo_redo :: !(Maybe UndoRedo)
     } deriving (Show, Generics.Typeable)
 
+data UndoRedo = Undo | Redo deriving (Show)
+
 empty_history :: History
-empty_history = History [] [] False
+empty_history = History [] [] Nothing
 
 data HistoryConfig = HistoryConfig {
     -- | Keep this many previous history entries in memory.
