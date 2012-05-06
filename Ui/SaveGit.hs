@@ -25,6 +25,7 @@ import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import Cmd.Serialize ()
+import qualified App.Config as Config
 import Types
 
 
@@ -145,7 +146,7 @@ checkpoint repo hist@(History state _ names) updates = try_e "checkpoint" $ do
 commit_tree :: Git.Repo -> Git.Tree -> String -> IO Git.Commit
 commit_tree repo tree desc = do
     maybe_head <- Git.read_head_commit repo
-    commit <- Git.write_commit repo "me" "email"
+    commit <- Git.write_commit repo Config.name Config.email
         (maybe [] (:[]) maybe_head) tree desc
     Git.update_head repo commit
     return commit

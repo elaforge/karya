@@ -17,6 +17,13 @@ import qualified Perform.Midi.Control as Control
 
 #include "fltk/config.h"
 
+
+-- | Thees go into the save files, mostly just because git insists on having
+-- it them.
+name, email :: String
+name = "Evan Laforge"
+email = "qdunkan@gmail.com"
+
 -- * paths
 
 -- | All paths should be relative to this one.
