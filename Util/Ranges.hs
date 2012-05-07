@@ -1,7 +1,7 @@
 -- | Ranges are half-open.
 module Util.Ranges (
     Ranges, fmap, extract
-    , ranges, sorted_ranges, range, point, everything, nothing
+    , ranges, sorted_ranges, merge_sorted, range, point, everything, nothing
     , overlapping, intersection
 ) where
 import Prelude hiding (fmap)

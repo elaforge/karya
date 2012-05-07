@@ -262,6 +262,16 @@ indexed_pairs_on :: (Eq eq) => (a -> eq) -> [a] -> [a]
     -> [(Int, Maybe a, Maybe a)]
 indexed_pairs_on key xs ys = indexed_pairs (\a b -> key a == key b) xs ys
 
+-- | Pair up two lists of sorted pairs by their first element.
+-- @(k, Nothing, Nothing)@ will never appear in the output.
+pair_sorted :: (Ord k) => [(k, a)] -> [(k, b)] -> [(k, Maybe a, Maybe b)]
+pair_sorted xs [] = [(k, Just v, Nothing) | (k, v) <- xs]
+pair_sorted [] ys = [(k, Nothing, Just v) | (k, v) <- ys]
+pair_sorted x@((k0, v0) : xs) y@((k1, v1) : ys)
+    | k0 == k1 = (k0, Just v0, Just v1) : pair_sorted xs ys
+    | k0 < k1 = (k0, Just v0, Nothing) : pair_sorted xs y
+    | otherwise = (k1, Nothing, Just v1) : pair_sorted x ys
+
 -- | Left if the val was in the left list but not the right, Right for the
 -- converse.
 diff :: (a -> b -> Bool) -> [a] -> [b] -> [Either a b]

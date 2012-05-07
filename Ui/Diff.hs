@@ -1,9 +1,13 @@
-{- | Diff two states to produce a list of Updates, which must be sent to the UI
-to make it display the second state.
+{- | Diff two states to produce a list of Updates, which must be sent to the
+    UI to make it display the second state.
 
-This is unpleasantly complicated and subtle.  I wish I knew a better way!
+    This is unpleasantly complicated and subtle.  I wish I knew a better way!
 -}
-module Ui.Diff (diff, derive_diff, run, diff_views) where
+module Ui.Diff (
+    run
+    , diff, derive_diff, track_diff
+    , diff_views
+) where
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer
@@ -20,6 +24,8 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -310,6 +316,40 @@ derive_diff_track track_id track1 track2 =
     when (unequal_on Track.track_title track1 track2) $
         Writer.tell $ mempty { Derive.sdamage_tracks =
             Map.singleton track_id Ranges.everything }
+
+-- * events diff
+
+-- | Diff the events on one track.  This will only emit 'CmdTrackEvents',
+-- and won't emit anything if the track title changed, or was created or
+-- deleted.  Those diffs should be picked up by the main 'diff'.
+track_diff :: State.State -> State.State -> TrackId -> [Update.CmdUpdate]
+track_diff st1 st2 tid = case (Map.lookup tid t1, Map.lookup tid t2) of
+    (Just _, Nothing) -> []
+    (Nothing, Just _) -> []
+    (Just t1, Just t2)
+        | Track.track_title t1 == Track.track_title t2 ->
+            diff_track_events tid (Track.track_events t1)
+                (Track.track_events t2)
+        | otherwise -> []
+    (Nothing, Nothing) -> []
+    where
+    t1 = State.state_tracks st1
+    t2 = State.state_tracks st2
+
+diff_track_events :: TrackId -> Events.Events -> Events.Events
+    -> [Update.CmdUpdate]
+diff_track_events tid e1 e2 =
+    map update $ Ranges.merge_sorted $ Maybe.mapMaybe diff $
+        Seq.pair_sorted (Events.ascending e1) (Events.ascending e2)
+    where
+    diff (p, Just e, Nothing) = Just (p, p + Event.event_duration e)
+    diff (p, Nothing, Just e) = Just (p, p + Event.event_duration e)
+    diff (p, Just e1, Just e2)
+        | e1 == e2 = Nothing
+        | otherwise = Just (p, max (p + Event.event_duration e1)
+            (p + Event.event_duration e2))
+    diff (_, Nothing, Nothing) = Nothing
+    update (s, e) = Update.CmdTrackEvents tid s e
 
 
 -- * util

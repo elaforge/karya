@@ -16,6 +16,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
+import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
@@ -332,12 +333,14 @@ undump_diff state = foldM apply (state, [])
         ["views", ns, name] -> add ns name Types.ViewId State.views
         ["blocks", ns, name] -> add ns name Types.BlockId State.blocks
         ["tracks", ns, name] -> do
-            (state, updates) <- add ns name Types.TrackId State.tracks
+            (state_to, updates) <- add ns name Types.TrackId State.tracks
             tid <- path_to_ident Types.TrackId ns name
-            -- TODO figure out where it differs to avoid invalidating the
-            -- whole track.  Run a little mini-diff.
-            let update = Update.CmdTrackAllEvents tid
-            return (state, update : updates)
+            -- I don't save the CmdUpdates with the checkpoint, so to avoid
+            -- having to rederive the entire track I do a little mini-diff
+            -- just on the track.  It shouldn't be too expensive because it's
+            -- only on one track at a time.
+            let event_updates = Diff.track_diff state state_to tid
+            return (state_to, event_updates ++ updates)
         ["rulers", ns, name] -> add ns name Types.RulerId State.rulers
         ["config"] -> do
             val <- decode path bytes

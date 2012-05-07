@@ -60,18 +60,20 @@ test_checkpoint = do
     io_equal (SaveGit.load repo (Just commit3)) (Right state3)
     io_equal (SaveGit.load repo (Just commit4)) (Right state4)
 
-    let update num = Update.CmdTrackAllEvents (UiTest.mk_tid num)
+    let update num = Update.CmdTrackEvents (UiTest.mk_tid num)
     -- Make sure incremental loads work.
     (_, secs) <- timer $ do
         io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
-            (Right (state2, [update 1]))
-            -- TODO should be Events (2, 4)
+            -- insert_event 1 2 "hi" 2
+            (Right (state2, [update 1 2 4]))
         io_equal (SaveGit.load_from repo commit2 (Just commit3) state2)
-            (Right (state3, [update 2]))
+            -- destroy_track 2, create_track 2, but generate no updates
+            -- because normal diff will catch that.
+            (Right (state3, []))
         io_equal (SaveGit.load_from repo commit3 (Just commit4) state3)
             (Right (state4, []))
         io_equal (SaveGit.load_from repo commit1 (Just commit4) state1)
-            (Right (state4, [update 2, update 1]))
+            (Right (state4, [update 1 2 4]))
     print secs
 
 -- TODO do more exhaustive testing

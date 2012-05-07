@@ -7,6 +7,8 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 
+import qualified Util.Seq as Seq
+
 
 -- | This is just 'findWithDefault' by a shorter name.
 get :: (Ord k) => a -> k -> Map.Map k a -> a
@@ -78,14 +80,7 @@ zip_intersection map1 map2 =
 -- | Pair up elements from each map with equal keys.  @(k, Nothing, Nothing)@
 -- will never appear in the output.
 pairs :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, Maybe v1, Maybe v2)]
-pairs map1 map2 = pair_sorted (Map.toAscList map1) (Map.toAscList map2)
-    where
-    pair_sorted xs [] = [(k, Just v, Nothing) | (k, v) <- xs]
-    pair_sorted [] ys = [(k, Nothing, Just v) | (k, v) <- ys]
-    pair_sorted x@((k0, v0) : xs) y@((k1, v1) : ys)
-        | k0 == k1 = (k0, Just v0, Just v1) : pair_sorted xs ys
-        | k0 < k1 = (k0, Just v0, Nothing) : pair_sorted xs y
-        | otherwise = (k1, Nothing, Just v1) : pair_sorted x ys
+pairs map1 map2 = Seq.pair_sorted (Map.toAscList map1) (Map.toAscList map2)
 
 -- | Like 'Map.union', but also return a map of rejected duplicate keys from
 -- the map on the right.
