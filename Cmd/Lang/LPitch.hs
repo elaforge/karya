@@ -5,6 +5,8 @@
 -- good.  I suppose if I need these functions elsewhere I can more them to more
 -- generic places.
 module Cmd.Lang.LPitch where
+import qualified Data.Map as Map
+
 import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -15,11 +17,17 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
 
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
+
 import qualified Perform.Pitch as Pitch
 import Types
 
+
+-- | Turn an nn back to a human-readable note name.
+nn_to_note :: Int -> Maybe Pitch.Note
+nn_to_note key = Map.lookup (Pitch.Degree key) Twelve.degree_to_note
 
 -- * invert
 

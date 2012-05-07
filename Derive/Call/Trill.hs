@@ -100,8 +100,9 @@ c_pitch_trill = Derive.generator1 "pitch_trill" $ \args ->
         optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
     \note neighbor speed -> do
         (transpose, control) <- trill_from_controls args neighbor speed
+        start <- Args.real_start args
         PitchSignal.apply_control control (Score.untyped transpose) <$>
-            Util.pitch_signal [(0, note)]
+            Util.pitch_signal [(start, note)]
 
 
 -- * control calls
