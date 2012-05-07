@@ -8,10 +8,10 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
-import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Serialize as Serialize
 import qualified Cmd.ViewConfig as ViewConfig
 

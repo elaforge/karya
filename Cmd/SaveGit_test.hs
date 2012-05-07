@@ -1,4 +1,4 @@
-module Ui.SaveGit_test where
+module Cmd.SaveGit_test where
 import qualified System.Directory as Directory
 
 import Util.Control
@@ -10,12 +10,12 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
+import qualified Cmd.SaveGit as SaveGit
 import Types
 
 

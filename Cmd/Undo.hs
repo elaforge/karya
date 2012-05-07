@@ -10,11 +10,11 @@ import qualified Util.Log as Log
 
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
-import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.SaveGit as SaveGit
 import qualified App.Config as Config
 import Types
 

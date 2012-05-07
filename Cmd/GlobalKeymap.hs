@@ -43,7 +43,6 @@ import qualified System.IO.Unsafe as Unsafe
 import Util.Control
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
-import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
 
 import qualified Cmd.BlockConfig as BlockConfig
@@ -61,6 +60,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep

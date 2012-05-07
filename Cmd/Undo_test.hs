@@ -9,7 +9,6 @@ import Util.Test
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
-import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
@@ -20,6 +19,7 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Cmd.Save as Save
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Undo as Undo
 

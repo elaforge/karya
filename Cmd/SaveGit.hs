@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards, GeneralizedNewtypeDeriving #-}
-module Ui.SaveGit where
+module Cmd.SaveGit where
 import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
 import qualified Data.Char as Char

@@ -72,7 +72,6 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
-import qualified Ui.SaveGit as SaveGit
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
@@ -81,6 +80,7 @@ import qualified Ui.Update as Update
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import Cmd.Msg (Performance(..)) -- avoid a circular import
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Derive as Derive
