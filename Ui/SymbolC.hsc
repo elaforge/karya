@@ -1,4 +1,3 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
 module Ui.SymbolC (get_fonts, insert_symbol) where
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Maybe as Maybe

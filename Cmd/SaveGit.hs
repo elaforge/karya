@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Cmd.SaveGit where
 import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)

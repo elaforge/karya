@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
 -- | The full haskell interpretation loads a whole bunch of modules and can be
 -- slow.  Shortcut a few common commands so they happen quickly.
 module Cmd.Lang.Fast where

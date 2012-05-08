@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
 {- | Implement midi thru by mapping InputNotes to MIDI messages.
 
     This is a very complicated thru and might be too slow.  It has to deal

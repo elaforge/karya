@@ -1,4 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface, EmptyDataDecls #-}
+{-# LANGUAGE EmptyDataDecls #-}
 {- | A Track is a container for Events.  A track goes from ScoreTime 0 until
     the end of the last Event.
 

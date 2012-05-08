@@ -1,4 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Ui.Ui (event_loop, send_action, quit_ui_thread) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM

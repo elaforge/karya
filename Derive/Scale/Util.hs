@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
 -- | Utilities to construct scales.
 module Derive.Scale.Util where
 import qualified Data.Map as Map

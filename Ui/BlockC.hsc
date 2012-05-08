@@ -1,4 +1,3 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE EmptyDataDecls #-} -- for data CView
 {- | This layer gives direct wrapped access to the fltk API.
 

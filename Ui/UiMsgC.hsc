@@ -1,4 +1,3 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
 module Ui.UiMsgC (get_ui_msgs) where
 import Foreign
 import Foreign.C

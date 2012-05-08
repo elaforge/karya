@@ -1,4 +1,3 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
 module Util.Fltk where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM

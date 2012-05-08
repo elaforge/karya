@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
 module LogView.Process where
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Monad.Trans.State as State

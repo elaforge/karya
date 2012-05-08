@@ -1,5 +1,4 @@
-{-# LANGUAGE PatternGuards, TupleSections, GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving, CPP #-}
 {- | The 'Events' type contains the events of a track.
 
     This is the largest part of the score and also the part most often

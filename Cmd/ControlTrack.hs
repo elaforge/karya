@@ -1,4 +1,4 @@
-{-# LANGUAGE ViewPatterns, PatternGuards #-}
+{-# LANGUAGE ViewPatterns #-}
 module Cmd.ControlTrack where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe

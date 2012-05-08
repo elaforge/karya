@@ -1,4 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface, EmptyDataDecls #-}
+{-# LANGUAGE EmptyDataDecls #-}
 module LogView.LogViewC where
 import Foreign
 import Foreign.C

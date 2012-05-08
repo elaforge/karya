@@ -1,4 +1,3 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
 module Instrument.BrowserC where
 import Foreign
 import Foreign.C

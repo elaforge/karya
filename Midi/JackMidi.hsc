@@ -1,4 +1,3 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
 module Midi.JackMidi where
 import Control.Applicative ((<$>))
 import qualified Control.Concurrent.STM as STM

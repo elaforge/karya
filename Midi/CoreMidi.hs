@@ -1,4 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface, DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {- | Interface to CoreMIDI.
 
 TODO documentation
