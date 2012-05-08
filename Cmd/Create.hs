@@ -231,7 +231,7 @@ destroy_view view_id = do
 splice_below :: (Cmd.M m) => m TrackId
 splice_below = do
     (block_id, tracknum, _, _) <- Selection.get_insert
-    track_id <- empty_track block_id (tracknum+1)
+    track_id <- focused_track block_id (tracknum+1)
     State.splice_skeleton_below block_id (tracknum+1) tracknum
     return track_id
 
@@ -283,7 +283,7 @@ splice_above_ancestors = do
     tree <- State.get_track_tree block_id
     let ancestors = Seq.unique $ Maybe.mapMaybe (ancestor tree) tracknums
     insert_at <- Cmd.require_msg "no selected tracks" $ Seq.minimum ancestors
-    track_id <- empty_track block_id insert_at
+    track_id <- focused_track block_id insert_at
     State.add_edges block_id (map ((,) insert_at) (map (+1) ancestors))
     return track_id
     where

@@ -163,7 +163,7 @@ UNSORTED
 
   - copy with a point sel should copy the event right underneath
   * aliases in App.Main for loopback ports
-  - ^T doesn't set focus in the track title
+  * ^T doesn't set focus in the track title
   - adding a new track should also scroll over so it's visible
   - tr2 is a baroque style trill starting on the top note
   - need control and pitch call that drops down at a given slope
