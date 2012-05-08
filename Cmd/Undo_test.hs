@@ -19,7 +19,6 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Cmd.Save as Save
-import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Undo as Undo
 
@@ -84,48 +83,6 @@ test_suppress_history = do
     res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_raw_edit
     equal (extract_hist res) (["+z: zq", "setup: 12"], [])
 
-test_load_previous_history = do
-    let states = second set_keep $ first set_dir $ ResponderTest.mkstates
-            [(">1", [(0, 1, "1")]), (">2", [(1, 1, "2")])]
-        set_dir = (State.config#State.project_dir #= "build/test")
-            . (State.config#State.namespace #= Id.unsafe_namespace "test")
-        set_keep st = st
-            { Cmd.state_history_config = (Cmd.state_history_config st)
-                { Cmd.hist_keep = 1 }
-            }
-    File.recursive_rm_dir "build/test/test.git"
-    res <- ResponderTest.respond_cmd states $
-            Save.cmd_save_git =<< State.gets SaveGit.save_repo
-
-    res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
-    res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
-    res <- next res $ Cmd.name "+z" $ insert_event 2 "z"
-
-    pprint (e_commits res)
-    let history = ["+z: xyz", "+y: xy", "+x: x", "save: 1"]
-        idx (xs, ys) = (map (history!!) xs, map (history!!) ys)
-    -- +x was discarded.
-    equal (extract_hist res) $ idx ([0, 1], [])
-    equal (extract_ui res) "xyz"
-    -- Discard "save" and "+x".  load_previous_history only happens after
-    -- an undo
-    res <- next res Undo.undo
-    -- +x was loaded
-    equal (extract_hist res) $ idx ([1, 2], [0])
-    equal (extract_ui res) "xy"
-    res <- next res Undo.undo
-    -- save was loaded
-    equal (extract_hist res) $ idx ([2, 3], [1, 0])
-    equal (extract_ui res) "x"
-    res <- next res Undo.undo
-    equal (extract_hist res) $ idx ([3], [2, 1, 0])
-    equal (extract_ui res) "1"
-    res <- next res Undo.undo
-    equal (extract_hist res) $ idx ([3], [2, 1, 0])
-    equal (extract_ui res) "1"
-
-    -- TODO drop future, and try to redo
-
 test_undo_merge = do
     let states = ResponderTest.mkstates [(">", [])]
         vid = UiTest.default_view_id
@@ -149,6 +106,71 @@ test_undo_merge = do
     equal (UiTest.eval (e_ui res2) (Block.view_rect <$> State.get_view vid))
         (Rect.xywh 40 40 100 100)
 
+test_load_previous_history = do
+    let set_keep st = st
+            { Cmd.state_history_config = (Cmd.state_history_config st)
+                { Cmd.hist_keep = 1 }
+            }
+    res <- save_git $ second set_keep $ ResponderTest.mkstates
+        [(">1", [(0, 1, "1")]), (">2", [(1, 1, "2")])]
+
+    res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
+    res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
+    res <- next res $ Cmd.name "+z" $ insert_event 2 "z"
+
+    pprint (e_commits res)
+    let history = ["+z: xyz", "+y: xy", "+x: x", "save: 1"]
+        idx (xs, ys) = (map (history!!) xs, map (history!!) ys)
+    -- +x was discarded.
+    equal (extract_hist res) $ idx ([0, 1], [])
+    equal (extract_ui res) "xyz"
+    -- Discard "save" and "+x".  load_previous_history only happens after
+    -- an undo
+    res <- next res Undo.undo
+    equal (extract_hist res) $ idx ([1], [0])
+    equal (extract_ui res) "xy"
+
+    res <- next res Undo.undo
+    -- +x was loaded
+    equal (extract_hist res) $ idx ([2], [1, 0])
+    equal (extract_ui res) "x"
+    res <- next res Undo.undo
+    -- save was loaded
+    equal (extract_hist res) $ idx ([3], [2, 1, 0])
+    equal (extract_ui res) "1"
+    -- out of past
+    res <- next res Undo.undo
+    equal (extract_hist res) $ idx ([3], [2, 1, 0])
+    equal (extract_ui res) "1"
+
+    -- TODO drop future, and try to redo
+
+test_load_git = do
+    -- Load a git repo and make sure its history comes with it.
+    res <- save_git $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
+    res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
+    res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
+    res <- next res Save.cmd_save_git
+    pprint (e_commits res)
+
+    res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
+        Save.cmd_load_git "build/test/test.git"
+    equal (extract_ui res) "xy"
+    res <- next res Undo.undo
+    -- The first time I undo the save cmd.
+    equal (extract_ui res) "xy"
+    res <- next res Undo.undo
+    -- The next undo actually undoes the last cmd.
+    equal (extract_ui res) "x"
+    return ()
+
+save_git states = do
+    let repo = "build/test/test.git"
+    File.recursive_rm_dir repo
+    ResponderTest.respond_cmd (first set_dir states) Save.cmd_save_git
+    where
+    set_dir = (State.config#State.project_dir #= "build/test")
+        . (State.config#State.namespace #= Id.unsafe_namespace "test")
 
 -- * implementation
 

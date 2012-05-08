@@ -60,7 +60,6 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
-import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
@@ -105,14 +104,19 @@ cmd_map_errors  :: [String]
 -- * io cmds
 
 io_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
-io_bindings = concat [file_bindings, quit_bindings]
+io_bindings = concat [file_bindings, undo_bindings, quit_bindings]
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
     [ command_only 'S' "save" $ do
         Save.cmd_save =<< Save.get_save_file
-        Save.cmd_save_git =<< State.gets SaveGit.save_repo
-    , command_only 'L' "load" (Save.cmd_load =<< Save.get_save_file)
+        Save.cmd_save_git
+    ]
+
+undo_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
+undo_bindings = concat
+    [ command_only 'u' "undo" Undo.undo
+    , command_only 'r' "redo" Undo.redo
     ]
 
 -- | This is unfortunate.  In order to construct the cmd map only once, I want
@@ -265,9 +269,6 @@ edit_state_bindings = concat
 
     , bind_mod [Shift] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
-
-    , command_char 'u' "undo" Undo.undo
-    , command_char 'r' "redo" Undo.redo
 
     -- The convention from MakeRuler is: 0 = block, 1 = block section,
     -- 2 = whole, 3 = quarter, 4 = 16th, etc.  Since it goes to /4 after

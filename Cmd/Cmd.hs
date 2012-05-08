@@ -568,12 +568,19 @@ data History = History {
     -- | Ghosts of state past and future.
     hist_past :: ![HistoryEntry]
     , hist_future :: ![HistoryEntry]
-    -- | True if this state was set by an undo or redo.  Otherwise undo and
-    -- redo would be recorded and multiple undo would be impossible!
-    , hist_undo_redo :: !(Maybe UndoRedo)
+    , hist_last_cmd :: !(Maybe LastCmd)
     } deriving (Show, Generics.Typeable)
 
-data UndoRedo = Undo | Redo deriving (Show)
+-- | Record some information about the last cmd for the benefit of
+-- 'Cmd.Undo.maintain_history'.
+data LastCmd =
+    -- | This cmd set the state because it was an undo or redo.  Otherwise undo
+    -- and redo themselves would be recorded and multiple undo would be
+    -- impossible!
+    UndoRedo
+    -- | This cmd set the state because of a load.  This should reset all the
+    -- history so I can start loading from the new state's history.
+    | Load Git.Commit deriving (Show)
 
 empty_history :: History
 empty_history = History [] [] Nothing

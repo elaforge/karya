@@ -9,6 +9,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import System.FilePath ((</>))
@@ -117,9 +118,13 @@ parse_args argv = case argv of
         Save.cmd_load "save/default"
         State.set_namespace (Id.unsafe_namespace "untitled")
         return Cmd.Done
-    [fn] -> do
-        Save.cmd_load fn
-        return Cmd.Done
+    [fn]
+        | ".git" `List.isSuffixOf` fn -> do
+            Save.cmd_load_git fn
+            return Cmd.Done
+        | otherwise -> do
+            Save.cmd_load fn
+            return Cmd.Done
     _ -> error $ "bad args: " ++ show argv -- TODO something better
 
 iac n = "IAC Synth " ++ show n

@@ -26,7 +26,7 @@ test_save = do
             , ("2", [(0, 1, "2a")])
             ]
     SaveGit.save repo state
-    Right state2 <- SaveGit.load repo Nothing
+    Right (state2, _commit) <- SaveGit.load repo Nothing
     equal state state2
     let state3 = UiTest.exec state2 $ do
             State.destroy_view UiTest.default_view_id
@@ -53,12 +53,12 @@ test_checkpoint = do
     -- TODO hook up a fs simulator so I can test this exhaustively without
     -- hitting git
 
-    io_equal (SaveGit.load repo Nothing) (Right state4)
+    io_equal (SaveGit.load repo Nothing) (Right (state4, commit4))
     -- Previous states load correctly.
-    io_equal (SaveGit.load repo (Just commit1)) (Right state1)
-    io_equal (SaveGit.load repo (Just commit2)) (Right state2)
-    io_equal (SaveGit.load repo (Just commit3)) (Right state3)
-    io_equal (SaveGit.load repo (Just commit4)) (Right state4)
+    io_equal (SaveGit.load repo (Just commit1)) (Right (state1, commit1))
+    io_equal (SaveGit.load repo (Just commit2)) (Right (state2, commit2))
+    io_equal (SaveGit.load repo (Just commit3)) (Right (state3, commit3))
+    io_equal (SaveGit.load repo (Just commit4)) (Right (state4, commit4))
 
     let update num = Update.CmdTrackEvents (UiTest.mk_tid num)
     -- Make sure incremental loads work.
@@ -95,7 +95,7 @@ insert_event tracknum pos text dur =
 
 check_load :: FilePath -> (State.State, Git.Commit) -> IO Bool
 check_load repo (state, commit) =
-    io_equal (SaveGit.load repo (Just commit)) (Right state)
+    io_equal (SaveGit.load repo (Just commit)) (Right (state, commit))
 
 check_load_from :: FilePath -> (State.State, Git.Commit)
     -> (State.State, Git.Commit) -> IO Bool

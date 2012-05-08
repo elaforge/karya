@@ -19,25 +19,14 @@ import qualified Cmd.ViewConfig as ViewConfig
 get_save_file :: (State.M m) => m FilePath
 get_save_file = State.gets (SaveGit.save_file False)
 
+-- * plain serialize
+
 cmd_save :: FilePath -> Cmd.CmdT IO ()
 cmd_save fname = do
     ui_state <- State.get
     save <- Trans.liftIO $ Serialize.save_state (State.clear ui_state)
     Log.notice $ "write state to " ++ show fname
     Trans.liftIO $ Serialize.serialize fname save
-
-cmd_save_git :: FilePath -> Cmd.CmdT IO ()
-cmd_save_git fname = do
-    state <- State.get
-    result <- Trans.liftIO $ SaveGit.save fname state
-    case result of
-        Left err -> Cmd.throw $ "cmd_save: " ++ err
-        Right (_, save) -> do
-            Log.notice $ "wrote save " ++ show save ++ " to " ++ show fname
-            Cmd.modify $ \st -> st
-                { Cmd.state_history_config = (Cmd.state_history_config st)
-                    { Cmd.hist_last_save = Just save }
-                }
 
 cmd_load :: FilePath -> Cmd.CmdT IO ()
 cmd_load fname = do
@@ -46,8 +35,45 @@ cmd_load fname = do
     Serialize.SaveState state _ <- either (\err -> Cmd.throw $
             "unserializing " ++ show fname ++ ": " ++ err)
         return try_state
-    Log.notice $ "state loaded from " ++ show fname
+    set_state state
 
+-- * git serialize
+
+-- | Save a SavePoint to a git repo.
+--
+-- Unlike 'cmd_save', this doesn't take a FilePath.  This is because
+-- 'Cmd.Undo.maintain_history' will be saving to the repo set by the
+-- 'State.state_project_dir' and 'State.state_namespace'.  So if you want to
+-- start saving in a new place, you should change those values.
+cmd_save_git :: Cmd.CmdT IO ()
+cmd_save_git = do
+    state <- State.get
+    let repo = SaveGit.save_file True state
+    result <- Trans.liftIO $ SaveGit.save repo state
+    case result of
+        Left err -> Cmd.throw $ "cmd_save: " ++ err
+        Right (_, save) -> do
+            Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
+            Cmd.modify $ \st -> st
+                { Cmd.state_history_config = (Cmd.state_history_config st)
+                    { Cmd.hist_last_save = Just save }
+                }
+
+cmd_load_git :: FilePath -> Cmd.CmdT IO ()
+cmd_load_git repo = do
+    result <- Trans.liftIO $ SaveGit.load repo Nothing
+    (state, commit) <- either (Cmd.throw . ("cmd_load_git: " ++)) return result
+    Log.notice $ "loaded from " ++ show repo ++ ", commit: " ++ show commit
+    set_state state
+    Cmd.modify $ \st -> st
+        { Cmd.state_history = (Cmd.state_history st)
+            { Cmd.hist_last_cmd = Just $ Cmd.Load commit }
+        }
+
+-- * misc
+
+set_state :: State.State -> Cmd.CmdT IO ()
+set_state state = do
     Play.cmd_stop
     Cmd.modify Cmd.reinit_state
     State.modify (const (State.clear state))
