@@ -11,8 +11,8 @@ UNSORTED
       e.g. get event tracknums.
     - Do I want to have an EventTrack TrackNum wrapper that's only created for
       event tracks?
-  - put TrackNum into Stack.Track as well
-  - Update Perf.lookup_val to use tracknum
+    - put TrackNum into Stack.Track as well
+    - Update Perf.lookup_val to use tracknum
   * rename Score.TypedControl to TypedSignal since that's what it really is
   * I think fractional offset for twelve is totally off
   * fix convert to pretty print, Convert.hs:70
@@ -95,7 +95,7 @@ UNSORTED
     edits without leaving val edit.  Maybe don't do it for pitch val edit.
     Try going back to using the name to suppress, but ignore cmds with no
     name.
-  - The unions in Derive.Call.All should also emit shadowed names so they can
+  * The unions in Derive.Call.All should also emit shadowed names so they can
     be warned about.
   * Get rid of Events in TrackUpdate, this should eliminate the history
     updates inversion nonsense.
@@ -161,7 +161,8 @@ UNSORTED
     Git docs:
       http://progit.org/book/ch9-2.html
 
-  - aliases in App.Main for loopback ports
+  - copy with a point sel should copy the event right underneath
+  * aliases in App.Main for loopback ports
   - ^T doesn't set focus in the track title
   - adding a new track should also scroll over so it's visible
   - tr2 is a baroque style trill starting on the top note

@@ -127,13 +127,15 @@ parse_args argv = case argv of
             return Cmd.Done
     _ -> error $ "bad args: " ++ show argv -- TODO something better
 
+iac, tapco :: Int -> String
 iac n = "IAC Synth " ++ show n
 tapco n = "Tapco Port " ++ show n
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
 wdev_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
-wdev_map = mkmap Midi.write_device
-    [ ("fm8", "Native Instruments FM8 Virtual Input")
+wdev_map = mkmap Midi.write_device $
+    [("loop" ++ show n, iac n) | n <- [1..4]]
+    ++ [ ("fm8", "Native Instruments FM8 Virtual Input")
     , ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morpheus", tapco 2)
