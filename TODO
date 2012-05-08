@@ -164,7 +164,9 @@ UNSORTED
   - copy with a point sel should copy the event right underneath
   * aliases in App.Main for loopback ports
   * ^T doesn't set focus in the track title
-  - adding a new track should also scroll over so it's visible
+  * adding a new track should also scroll over so it's visible
+  - when simultaneously adding a track and scrolling, the new track's title
+    text entry isn't drawn properly
   - tr2 is a baroque style trill starting on the top note
   - need control and pitch call that drops down at a given slope
   - It can be really confusing how undo and redo makes windows pop up and

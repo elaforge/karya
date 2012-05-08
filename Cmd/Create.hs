@@ -309,10 +309,18 @@ insert_track_after_selection = do
     (_, (block_id, tracknum, _)) <- Selection.get_any_insert
     focused_track block_id (tracknum + 1)
 
--- | Add a new track and give keyboard focus to the title.
-focused_track :: (State.M m) => BlockId -> TrackNum -> m TrackId
-focused_track block_id tracknum = track block_id tracknum " " Events.empty
+-- | Add a new track, give keyboard focus to the title, and scroll the view to
+-- make sure it's visible.
+focused_track :: (Cmd.M m) => BlockId -> TrackNum -> m TrackId
+focused_track block_id tracknum = do
     -- This " " is a hack to tell fltk to set keyboard focus.
+    track_id <- track block_id tracknum " " Events.empty
+    block <- State.get_block =<< Cmd.get_focused_block
+    view_id <- Cmd.get_focused_view
+    view <- State.get_view view_id
+    State.set_track_scroll view_id $ Selection.auto_track_scroll block view
+        (Types.point_selection tracknum 0)
+    return track_id
 
 empty_track :: (State.M m) => BlockId -> TrackNum -> m TrackId
 empty_track block_id tracknum = track block_id tracknum "" Events.empty

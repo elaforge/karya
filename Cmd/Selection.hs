@@ -285,6 +285,7 @@ auto_time_scroll view sel
         (visible_pixels / Types.zoom_factor (Block.view_zoom view))
     visible_pixels = 30
 
+-- | Find the track scroll that would put the given selection into view.
 auto_track_scroll :: Block.Block -> Block.View -> Types.Selection
     -> Types.Width
 auto_track_scroll block view sel
