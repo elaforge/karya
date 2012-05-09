@@ -2,7 +2,9 @@ module Cmd.Create_test where
 import qualified Data.List as List
 
 import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -77,4 +79,4 @@ run_skel m ntracks skel (start_track, end_track) =
     replace n = do
         tid <- State.get_event_track_at "" UiTest.default_block_id n
         title <- Track.track_title <$> State.get_track tid
-        return $ head $ if null title then "x" else title
+        return $ head $ if null (Seq.strip title) then "x" else title
