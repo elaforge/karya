@@ -1,18 +1,5 @@
 UNSORTED
   * auto focus when you add a new block title
-  - start switching to TrackNum instead of TrackId
-    Lots of changes, e.g. Selection has to change on up.  I'm afraid I'll wind
-    up needing TrackId, and now everything is more complicated with both a
-    TrackNum and a TrackId.  TrackId is convenient because I don't need the
-    block, but I guess that's what State.Track is for.
-    TrackId is clearly broken when there are >1 per block.
-
-    - Also need to change State functions to deal with TrackNum and State.Track
-      e.g. get event tracknums.
-    - Do I want to have an EventTrack TrackNum wrapper that's only created for
-      event tracks?
-    - put TrackNum into Stack.Track as well
-    - Update Perf.lookup_val to use tracknum
   * rename Score.TypedControl to TypedSignal since that's what it really is
   * I think fractional offset for twelve is totally off
   * fix convert to pretty print, Convert.hs:70
@@ -21,7 +8,7 @@ UNSORTED
     + implement and test for reverse
     - test that reintegrating a simple block gives it back again
     * skel is linked
-    - sort tracks by orig tracknums so they come back in the same order
+    + sort tracks by orig tracknums so they come back in the same order
       Staved off by adding a leading 0 to TrackIds so they sort right, but
       I'll need to switch to TrackNums to do this for real.
     - why does creating a track at 0 in Integrate cause an error on tracknum -1?
@@ -167,7 +154,7 @@ UNSORTED
   * adding a new track should also scroll over so it's visible
   - when simultaneously adding a track and scrolling, the new track's title
     text entry isn't drawn properly
-  - tr2 is a baroque style trill starting on the top note
+  * tr2 is a baroque style trill starting on the top note
   - need control and pitch call that drops down at a given slope
   - It can be really confusing how undo and redo makes windows pop up and
     disappear.  Maybe I should make undo not affect views at all?
@@ -470,6 +457,19 @@ cleanup:
       signals in different positions because it has a differnt environment.  It
       should be (BlockId, TrackNum) + TrackId to verify in case the state was
       modified
+
+    Lots of changes, e.g. Selection etc..  I'm afraid I'll wind up needing
+    TrackId, and now everything is more complicated with both a TrackNum and
+    a TrackId.  TrackId is convenient because I don't need the block, but
+    I guess that's what State.Track is for.  TrackId is clearly broken when
+    there are >1 per block.
+
+    - Also need to change State functions to deal with TrackNum and State.Track
+      e.g. get event tracknums.
+    - Do I want to have an EventTrack TrackNum wrapper that's only created for
+      event tracks?
+    - put TrackNum into Stack.Track as well
+    - Update Perf.lookup_val to use tracknum
 
   - Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.

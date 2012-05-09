@@ -77,7 +77,7 @@ test_moving_trill = do
         ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72)]], [])
 
 test_real_trill = do
-    let f = Trill.real_trill (0, 1)
+    let f = Trill.real_trill Trill.UnisonFirst (0, 1)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
     equal (run $ f (con 1) (con 2)) $
@@ -103,7 +103,7 @@ test_real_trill = do
         Right [(0, 0), (0.5, 1), (0.75, 0)]
 
 test_score_trill = do
-    let f dur = Trill.score_trill (0, dur)
+    let f dur = Trill.score_trill Trill.UnisonFirst (0, dur)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
     equal (run $ f 1 (con 1) (con 2)) $

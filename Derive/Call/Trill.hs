@@ -65,7 +65,8 @@ c_note_trill = Derive.stream_generator "trill" $ Note.inverting $ \args ->
         optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic),
         optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
     \neighbor speed -> do
-        (transpose, control) <- trill_from_controls args neighbor speed
+        mode <- get_mode
+        (transpose, control) <- trill_from_controls args mode neighbor speed
         xs <- mapM Derive.score $ map fst $ Signal.unsignal transpose
         let end = snd $ Args.range args
         let notes = do
@@ -80,11 +81,19 @@ c_note_trill = Derive.stream_generator "trill" $ Note.inverting $ \args ->
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
-    [ ("tr", c_pitch_trill)
-    , ("`tr`", c_pitch_trill)
+    [ ("tr", c_pitch_trill Nothing)
+    , ("tr1", c_pitch_trill (Just UnisonFirst))
+    , ("tr2", c_pitch_trill (Just NeighborFirst))
+    , ("`tr`", c_pitch_trill Nothing)
+    , ("`tr`1", c_pitch_trill (Just UnisonFirst))
+    , ("`tr`2", c_pitch_trill (Just NeighborFirst))
     ]
 
--- | Generate a pitch signal of alternating pitches.
+-- | Generate a pitch signal of alternating pitches.  If mode is UnisonFirst
+-- it will start with the unison, and NeighborFirst will start with the
+-- neighbor, Baroque style.  If the mode is not given explicitly via @tr1@ or
+-- @tr2@, it's taken from the @trill-mode@ env var, which should be @'unison'@
+-- or @'neighbor'@.
 --
 -- [neighbor /Control/ @%trill-neighbor,1d@] Alternate with this relative
 -- pitch.
@@ -93,13 +102,14 @@ pitch_calls = Derive.make_calls
 -- a RealTime, the value is the number of cycles per second, which will be
 -- unaffected by the tempo.  If it's a ScoreTime, the value is the number
 -- of cycles per ScoreTime unit, and will stretch along with tempo changes.
-c_pitch_trill :: Derive.PitchCall
-c_pitch_trill = Derive.generator1 "pitch_trill" $ \args ->
+c_pitch_trill :: Maybe Mode -> Derive.PitchCall
+c_pitch_trill maybe_mode = Derive.generator1 "pitch_trill" $ \args ->
     CallSig.call3 args (required "note",
         optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic),
         optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
     \note neighbor speed -> do
-        (transpose, control) <- trill_from_controls args neighbor speed
+        mode <- maybe get_mode return maybe_mode
+        (transpose, control) <- trill_from_controls args mode neighbor speed
         start <- Args.real_start args
         PitchSignal.apply_control control (Score.untyped transpose) <$>
             Util.pitch_signal [(start, note)]
@@ -109,52 +119,70 @@ c_pitch_trill = Derive.generator1 "pitch_trill" $ \args ->
 
 control_calls :: Derive.ControlCallMap
 control_calls = Derive.make_calls
-    [ ("tr", c_control_trill)
+    [ ("tr", c_control_trill Nothing)
+    , ("tr1", c_control_trill (Just UnisonFirst))
+    , ("tr2", c_control_trill (Just NeighborFirst))
+    , ("tr1", c_control_trill (Just UnisonFirst))
+    , ("tr2", c_control_trill (Just NeighborFirst))
     ]
 
 -- | The control version of 'c_pitch_trill'.  It generates a signal of values
 -- alternating with 0, and can be used in a transposition signal.
 --
 -- Args are the same as 'c_pitch_trill'.
-c_control_trill :: Derive.ControlCall
-c_control_trill = Derive.generator1 "control_trill" $ \args ->
+c_control_trill :: Maybe Mode -> Derive.ControlCall
+c_control_trill maybe_mode = Derive.generator1 "control_trill" $ \args ->
     CallSig.call2 args (
         optional "neighbor" (control "trill-neighbor" 1),
         optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
-    \neighbor speed -> fst <$> trill_from_controls args neighbor speed
+    \neighbor speed -> do
+        mode <- maybe get_mode return maybe_mode
+        fst <$> trill_from_controls args mode neighbor speed
 
 
 -- * util
 
+data Mode = UnisonFirst | NeighborFirst deriving (Show)
+
+get_mode :: Derive.Deriver Mode
+get_mode = do
+    mode_name <- Derive.lookup_val (TrackLang.Symbol "trill-mode")
+    case mode_name of
+        Nothing -> return UnisonFirst
+        Just name
+            | name == "unison" -> return UnisonFirst
+            | name == "neighbor" -> return NeighborFirst
+            | otherwise -> Derive.throw $ "unknown trill mode: " ++ show name
+
 -- | Create a transposition signal from neighbor and speed controls.
-trill_from_controls :: Derive.PassedArgs d -> TrackLang.ValControl
+trill_from_controls :: Derive.PassedArgs d -> Mode -> TrackLang.ValControl
     -> TrackLang.ValControl -> Derive.Deriver (Signal.Control, Score.Control)
-trill_from_controls args neighbor speed = do
+trill_from_controls args mode neighbor speed = do
     (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
     (neighbor_sig, control) <- Util.to_transpose_signal Util.Diatonic neighbor
-    transpose <- time_trill time_type (Args.range_to_next args)
+    transpose <- time_trill time_type mode (Args.range_to_next args)
         neighbor_sig speed_sig
     return (transpose, control)
 
-time_trill :: Util.TimeType -> (ScoreTime, ScoreTime) -> Signal.Control
+time_trill :: Util.TimeType -> Mode -> (ScoreTime, ScoreTime) -> Signal.Control
     -> Signal.Control -> Derive.Deriver Signal.Control
 time_trill Util.Real = real_trill
 time_trill Util.Score = score_trill
 
-real_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
-    -> Derive.Deriver Signal.Control
-real_trill (start, end) neighbor speed = do
+real_trill :: Mode -> (ScoreTime, ScoreTime) -> Signal.Control
+    -> Signal.Control -> Derive.Deriver Signal.Control
+real_trill mode (start, end) neighbor speed = do
     start <- Derive.real start
     end <- Derive.real end
-    return $ make_trill start end neighbor speed
+    return $ make_trill mode start end neighbor speed
 
-score_trill :: (ScoreTime, ScoreTime) -> Signal.Control -> Signal.Control
-    -> Derive.Deriver Signal.Control
-score_trill (start, end) neighbor speed = do
+score_trill :: Mode -> (ScoreTime, ScoreTime) -> Signal.Control
+    -> Signal.Control -> Derive.Deriver Signal.Control
+score_trill mode (start, end) neighbor speed = do
     all_transitions <- score_pos_at_speed speed start end
     let transitions = integral_cycles end all_transitions
     real_transitions <- mapM Derive.real transitions
-    return $ trill_from_transitions real_transitions neighbor
+    return $ trill_from_transitions mode real_transitions neighbor
 
 -- | Emit ScoreTimes at the given speed, which may change over time.  The
 -- ScoreTimes are emitted as the reciprocal of the signal at the given point
@@ -173,10 +201,10 @@ score_pos_at_speed sig pos end
         return (pos : rest)
 
 -- | Make a trill transposition signal.
-make_trill :: RealTime -> RealTime -> Signal.Control -> Signal.Control
+make_trill :: Mode -> RealTime -> RealTime -> Signal.Control -> Signal.Control
     -> Signal.Control
-make_trill start end neighbor speed =
-    trill_from_transitions transitions neighbor
+make_trill mode start end neighbor speed =
+    trill_from_transitions mode transitions neighbor
     where transitions = integral_cycles end (real_pos_at_speed speed start)
 
 -- | Emit an infinite list of RealTimes at the given speed, which may change
@@ -186,10 +214,14 @@ real_pos_at_speed sig pos =
     pos : real_pos_at_speed sig (pos + Signal.y_to_real (recip speed))
     where speed = Signal.at pos sig
 
-trill_from_transitions :: [RealTime] -> Signal.Control -> Signal.Control
-trill_from_transitions transitions neighbor =
+trill_from_transitions :: Mode -> [RealTime] -> Signal.Control -> Signal.Control
+trill_from_transitions mode transitions neighbor =
     Signal.signal [(x, if t then Signal.at x neighbor else 0)
-        | (x, t) <- zip transitions (cycle [False, True])]
+        | (x, t) <- zip transitions (cycle ts)]
+    where
+    ts = case mode of
+        UnisonFirst -> [False, True]
+        NeighborFirst -> [True, False]
 
 make_square :: [RealTime] -> Signal.Control
 make_square xs = Signal.signal (zip xs (cycle [0, 1]))
