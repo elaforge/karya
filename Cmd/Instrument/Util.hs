@@ -44,10 +44,11 @@ keymaps inputs = \msg -> do
 
 keymap_down :: (Cmd.M m) => String -> Midi.Key -> m ()
 keymap_down note key = do
-    whenM Cmd.is_val_edit $ do
+    whenM Cmd.is_val_edit $ suppressed $ do
         pos <- Selection.get_insert_pos
         NoteTrack.modify_event_at pos False True $ const (Just note, True)
     MidiThru.channel_messages True [Midi.NoteOn key 64]
+    where suppressed = Cmd.suppress_history Cmd.ValEdit ("keymap: " ++ note)
 
 keymap_up :: (Cmd.M m) => Midi.Key -> m ()
 keymap_up key = MidiThru.channel_messages True [Midi.NoteOff key 64]

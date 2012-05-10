@@ -1,8 +1,5 @@
--- | Functions to do with performance.  This is split off from the lower level
--- "Cmd.Play" because Play uses Sync, which eventually imports C, which makes
--- it a pain to use from ghci.
---
--- TODO needs a better name
+-- | Functions to do with performance.  This is split off from "Cmd.Play",
+-- which contains play Cmds and their direct support.
 module Cmd.PlayUtil where
 import qualified Data.Map as Map
 

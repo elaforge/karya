@@ -44,7 +44,7 @@ save_file for_git state =
     dir = State.config#State.project_dir #$ state
     ns = State.config#State.namespace #$ state
     -- This shouldn't be necessary because of the Namespace naming
-    -- restrictions.
+    -- restrictions, but it doesn't hurt to be careful anyway.
     sanitize c = if FilePath.isPathSeparator c then '_' else c
 
 -- * save
@@ -57,9 +57,10 @@ do_save :: Git.Repo -> History -> IO (Git.Commit, SavePoint)
 do_save repo (History state _updates names) = do
     Git.init repo
     tree <- Git.write_dir repo (dump state)
-    commit <- commit_tree repo tree $ unparse_names "save" names
     last_save <- read_last_save repo
     save <- find_next_save repo (Maybe.fromMaybe (SavePoint []) last_save)
+    commit <- commit_tree repo tree $
+        unparse_names ("save " ++ save_to_ref save) names
     write_save_ref repo save commit
     Git.gc repo
     return (commit, save)
