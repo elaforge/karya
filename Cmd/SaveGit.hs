@@ -248,13 +248,17 @@ score_to_hex = pad . flip Numeric.showHex "" . Serialize.encode_double
 -- * load
 
 load :: Git.Repo -> Maybe Git.Commit
-    -> IO (Either String (State.State, Git.Commit))
+    -> IO (Either String (State.State, Git.Commit, [String]))
+    -- ^ (state, commit, cmd_names)
 load repo maybe_commit = try_e "load" $ do
     -- TODO have to handle both compact and expanded tracks
     commit <- default_head repo maybe_commit
-    tree <- Git.commit_tree <$> Git.read_commit repo commit
-    dirs <- Git.read_dir repo tree
-    return $ flip (,) commit <$> undump dirs
+    commit_data <- Git.read_commit repo commit
+    dirs <- Git.read_dir repo (Git.commit_tree commit_data)
+    names <- parse_names (Git.commit_text commit_data)
+    return $ do
+        state <- undump dirs
+        return (state, commit, names)
 
 -- | Try to go get the previous history entry.
 load_previous_history :: Git.Repo -> State.State -> Git.Commit

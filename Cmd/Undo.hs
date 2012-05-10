@@ -8,6 +8,8 @@ import Util.Control
 import qualified Util.Git as Git
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -44,6 +46,7 @@ undo = do
         -- TODO can I make past a non-empty list?
     where
     do_undo hist cur prev rest = do
+        Log.notice $ "undo " ++ hist_name cur ++ " -> " ++ hist_name prev
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past = prev : rest
@@ -60,18 +63,19 @@ undo = do
 redo :: Cmd.CmdT IO ()
 redo = do
     hist <- Cmd.gets Cmd.state_history
+    cur <- Cmd.require_msg "redo: no past at all (this shouldn't happen)" $
+        Seq.head (Cmd.hist_past hist)
     case Cmd.hist_future hist of
-        next : rest -> do_redo hist next rest
-        [] -> case Cmd.hist_past hist of
-            [] -> Cmd.throw "redo: no past at all (this shouldn't happen)"
-            cur : _ -> do
-                repo <- State.gets SaveGit.save_repo
-                future <- Trans.liftIO $ load_next repo cur
-                case future of
-                    [] -> Cmd.throw "no future to redo"
-                    next : rest -> do_redo hist next rest
+        next : rest -> do_redo hist cur next rest
+        [] -> do
+            repo <- State.gets SaveGit.save_repo
+            future <- Trans.liftIO $ load_next repo cur
+            case future of
+                [] -> Cmd.throw "no future to redo"
+                next : rest -> do_redo hist cur next rest
     where
-    do_redo hist next rest = do
+    do_redo hist cur next rest = do
+        Log.notice $ "redo " ++ hist_name cur ++ " -> " ++ hist_name next
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past = next : Cmd.hist_past hist
@@ -84,6 +88,10 @@ redo = do
         mapM_ State.update (Cmd.hist_updates next)
     load_next repo = load_history "load_next_history" $
         SaveGit.load_next_history repo
+
+hist_name :: Cmd.HistoryEntry -> String
+hist_name hist = '[' : Seq.join ", " (Cmd.hist_names hist) ++ "] "
+    ++ Pretty.pretty (Cmd.hist_commit hist)
 
 load_history :: String
     -> (State.State -> Git.Commit
@@ -189,7 +197,7 @@ history_entry maybe_commit (SaveGit.History state updates names) =
 record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
     -> (Cmd.History, Cmd.HistoryCollect, [SaveGit.History])
 record_history updates ui_state cmd_state
-    | Just (Cmd.Load commit) <- Cmd.hist_last_cmd hist =
+    | Just (Cmd.Load commit names) <- Cmd.hist_last_cmd hist =
         -- Switching over to someone else's history.  Wipe out existing
         -- history and record the current state as a commit.
         let new_hist = Cmd.History
@@ -208,7 +216,6 @@ record_history updates ui_state cmd_state
     | otherwise = (hist, collect, entries)
     where
     hist = Cmd.state_history cmd_state
-    names = Cmd.state_cmd_names $ Cmd.state_history_collect cmd_state
     empty_collect = Cmd.empty_history_collect
     (entries, collect) = pure_record_history updates ui_state cmd_state
 

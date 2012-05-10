@@ -6,6 +6,7 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
@@ -31,10 +32,9 @@ cmd_save fname = do
 cmd_load :: FilePath -> Cmd.CmdT IO ()
 cmd_load fname = do
     Log.notice $ "load state from " ++ show fname
-    try_state <- Trans.liftIO $ Serialize.unserialize fname
-    Serialize.SaveState state _ <- either (\err -> Cmd.throw $
-            "unserializing " ++ show fname ++ ": " ++ err)
-        return try_state
+    Serialize.SaveState state _ <- Cmd.require_right
+        (("load " ++ fname ++ ": ") ++)
+        =<< (Trans.liftIO $ Serialize.unserialize fname)
     set_state state
 
 -- * git serialize
@@ -49,25 +49,29 @@ cmd_save_git :: Cmd.CmdT IO ()
 cmd_save_git = do
     state <- State.get
     let repo = SaveGit.save_file True state
-    result <- Trans.liftIO $ SaveGit.save repo state
-    case result of
-        Left err -> Cmd.throw $ "cmd_save: " ++ err
-        Right (_, save) -> do
-            Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
-            Cmd.modify $ \st -> st
-                { Cmd.state_history_config = (Cmd.state_history_config st)
-                    { Cmd.hist_last_save = Just save }
-                }
+    (_, save) <- Cmd.require_right (("save git " ++ repo ++ ": ") ++)
+        =<< (Trans.liftIO $ SaveGit.save repo state)
+    Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
+    Cmd.modify $ \st -> st
+        { Cmd.state_history_config = (Cmd.state_history_config st)
+            { Cmd.hist_last_save = Just save }
+        }
 
 cmd_load_git :: FilePath -> Cmd.CmdT IO ()
 cmd_load_git repo = do
-    result <- Trans.liftIO $ SaveGit.load repo Nothing
-    (state, commit) <- either (Cmd.throw . ("cmd_load_git: " ++)) return result
-    Log.notice $ "loaded from " ++ show repo ++ ", commit: " ++ show commit
+    (state, commit, names) <- Cmd.require_right
+        (("load git " ++ repo ++ ": ") ++)
+        =<< (Trans.liftIO $ SaveGit.load repo Nothing)
+    last_save <- Cmd.require_right id
+        =<< (Trans.liftIO  $ SaveGit.try "read_last_save" $
+            SaveGit.read_last_save repo)
+    Log.notice $ "loaded from " ++ show repo ++ ", at " ++ Pretty.pretty commit
     set_state state
     Cmd.modify $ \st -> st
         { Cmd.state_history = (Cmd.state_history st)
-            { Cmd.hist_last_cmd = Just $ Cmd.Load commit }
+            { Cmd.hist_last_cmd = Just $ Cmd.Load commit names }
+        , Cmd.state_history_config = (Cmd.state_history_config st)
+            { Cmd.hist_last_save = last_save }
         }
 
 -- * misc
@@ -94,8 +98,7 @@ cmd_save_midi_config fname = do
 cmd_load_midi_config :: FilePath -> Cmd.CmdT IO ()
 cmd_load_midi_config fname = do
     Log.notice $ "load midi config from " ++ show fname
-    try_config <- Trans.liftIO $ Serialize.unserialize_text fname
-    config <- either (\exc -> Cmd.throw $
-            "unserializing midi config " ++ show fname ++ ": " ++ show exc)
-        return try_config
+    config <- Cmd.require_right
+        (("unserializing midi config " ++ show fname ++ ": ") ++)
+        =<< (Trans.liftIO $ Serialize.unserialize_text fname)
     State.set_midi_config config

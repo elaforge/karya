@@ -580,7 +580,8 @@ data LastCmd =
     UndoRedo
     -- | This cmd set the state because of a load.  This should reset all the
     -- history so I can start loading from the new state's history.
-    | Load Git.Commit deriving (Show)
+    | Load Git.Commit [String]
+    deriving (Show)
 
 empty_history :: History
 empty_history = History [] [] Nothing
@@ -859,7 +860,7 @@ require_msg :: (M m) => String -> Maybe a -> m a
 require_msg msg = maybe (throw msg) return
 
 require_right :: (M m) => (err -> String) -> Either err a -> m a
-require_right str = either (throw . str) return
+require_right mkmsg = either (throw . mkmsg) return
 
 -- | Turn off all sounding notes and reset all controls.
 all_notes_off :: (M m) => m ()
