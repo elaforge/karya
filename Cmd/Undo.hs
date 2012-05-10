@@ -95,7 +95,7 @@ hist_name hist = '[' : Seq.join ", " (Cmd.hist_names hist) ++ "] "
 
 load_history :: String
     -> (State.State -> Git.Commit
-        -> IO (Either String (Maybe (SaveGit.History, Git.Commit))))
+        -> IO (Either String (Maybe (SaveGit.LoadHistory, Git.Commit))))
      -> Cmd.HistoryEntry -> IO [Cmd.HistoryEntry]
 load_history name load hist = case Cmd.hist_commit hist of
     Nothing -> return []
@@ -106,8 +106,10 @@ load_history name load hist = case Cmd.hist_commit hist of
                 Log.error $ name ++ ": " ++ err
                 return []
             Right Nothing -> return []
-            Right (Just (hist, commit)) ->
-                return [history_entry (Just commit) hist]
+            Right (Just (hist, commit)) -> return [entry commit hist]
+    where
+    entry commit (SaveGit.History state updates names) =
+        Cmd.HistoryEntry state updates names (Just commit)
 
 -- | There are certain parts of the state that I don't want to undo, so
 -- inherit them from the old state.  It's confusing when undo moves a window,
@@ -158,11 +160,7 @@ keep_clip clip_ns old new = Map.union new (Map.filterWithKey (\k _ -> ns k) old)
 maintain_history :: State.State -> Cmd.State -> [Update.UiUpdate]
     -> IO Cmd.State
 maintain_history ui_state cmd_state updates = do
-    -- TODO this maps commit_entry across possibly multiple entries, but it
-    -- uses the same updates for each one.  This means each entry will
-    -- be checkpointed with the same set of updates, which is incorrect.
-    -- This happens for suppressed cmds.
-    entries <- if has_saved then mapM (commit_entry updates) uncommitted
+    entries <- if has_saved then mapM commit_entry uncommitted
         else return $ map (history_entry Nothing) uncommitted
     return $ cmd_state
         { Cmd.state_history = hist
@@ -179,23 +177,26 @@ maintain_history ui_state cmd_state updates = do
     discard = history#past %= take (max 1 keep)
     keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
 
-commit_entry :: [Update.UiUpdate] -> SaveGit.History -> IO Cmd.HistoryEntry
-commit_entry updates history@(SaveGit.History state _ _) = do
-    result <- SaveGit.checkpoint (SaveGit.save_repo state) history updates
+commit_entry :: SaveGit.SaveHistory -> IO Cmd.HistoryEntry
+commit_entry hist@(SaveGit.History state _ _) = do
+    result <- SaveGit.checkpoint (SaveGit.save_repo state) hist
     commit <- case result of
         Left err -> do
             Log.error $ "error committing history: " ++ err
             return Nothing
         Right commit -> return (Just commit)
-    return $ history_entry commit history
+    return $ history_entry commit hist
 
-history_entry :: Maybe Git.Commit -> SaveGit.History -> Cmd.HistoryEntry
+history_entry :: Maybe Git.Commit -> SaveGit.SaveHistory -> Cmd.HistoryEntry
 history_entry maybe_commit (SaveGit.History state updates names) =
-    Cmd.HistoryEntry state updates names maybe_commit
+    -- Recover the CmdUpdates out of the UiUpdates.  I only have to remember
+    -- the updates diff won't recreate for me.
+    Cmd.HistoryEntry state (Maybe.mapMaybe Update.to_cmd updates)
+        names maybe_commit
 
 -- | Record 'Cmd.HistoryEntry's, if required.
 record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
-    -> (Cmd.History, Cmd.HistoryCollect, [SaveGit.History])
+    -> (Cmd.History, Cmd.HistoryCollect, [SaveGit.SaveHistory])
 record_history updates ui_state cmd_state
     | Just (Cmd.Load commit names) <- Cmd.hist_last_cmd hist =
         -- Switching over to someone else's history.  Wipe out existing
@@ -221,7 +222,7 @@ record_history updates ui_state cmd_state
 
 -- | Get any history entries that should be saved, and the new HistoryCollect.
 pure_record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
-    -> ([SaveGit.History], Cmd.HistoryCollect)
+    -> ([SaveGit.SaveHistory], Cmd.HistoryCollect)
 pure_record_history updates ui_state cmd_state
     | not is_recordable && Maybe.isNothing suppress =
         ([], (Cmd.state_history_collect cmd_state) { Cmd.state_cmd_names = [] })
@@ -237,15 +238,14 @@ pure_record_history updates ui_state cmd_state
     is_suppressed =
         suppress == Just (Cmd.state_edit_mode (Cmd.state_edit cmd_state))
     is_recordable = should_record updates
-
     entries = if is_recordable then [cur_entry] else []
         ++ Maybe.maybeToList suppressed_entry
-    cur_entry = SaveGit.History ui_state cmd_updates names
-    Cmd.HistoryCollect cmd_updates names suppress suppressed_entry =
+    cur_entry = SaveGit.History ui_state updates names
+    Cmd.HistoryCollect names suppress suppressed_entry =
         Cmd.state_history_collect cmd_state
 
-merge_into_suppressed :: Maybe SaveGit.History -> SaveGit.History
-    -> SaveGit.History
+merge_into_suppressed :: Maybe SaveGit.SaveHistory -> SaveGit.SaveHistory
+    -> SaveGit.SaveHistory
 merge_into_suppressed Nothing ent = ent
 merge_into_suppressed (Just (SaveGit.History _ updates1 names1))
         (SaveGit.History state2 updates2 _) =

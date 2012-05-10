@@ -249,15 +249,10 @@ run_responder state m = do
                     (send_derive_status (state_loopback state))
                     (state_ui state) ui_from ui_to cmd_to cmd_updates
                     (Transport.info_state (state_transport_info state))
-            cmd_to <- Undo.maintain_history ui_to
-                (add_updates cmd_updates cmd_to) updates
+            cmd_to <- Undo.maintain_history ui_to cmd_to updates
             return (is_quit status,
                 state { state_ui = ui_to, state_cmd = cmd_to })
     where
-    add_updates cmd_updates st = st { Cmd.state_history_collect =
-        (Cmd.state_history_collect st)
-            { Cmd.state_updates = cmd_updates
-                ++ Cmd.state_updates (Cmd.state_history_collect st) } }
     is_quit Cmd.Quit = True
     is_quit _ = False
     -- | If the focused view is removed, cmd state should stop pointing to it.

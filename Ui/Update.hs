@@ -132,6 +132,15 @@ to_ui (CmdTrackEvents track_id s e) = TrackUpdate track_id (TrackEvents s e)
 to_ui (CmdTrackAllEvents track_id) = TrackUpdate track_id TrackAllEvents
 to_ui (CmdBringToFront view_id) = ViewUpdate view_id BringToFront
 
+-- | Pull the CmdUpdate out of a UiUpdate, if any.  Discard BringToFront since
+-- that's just an instruction to Sync and I don't need to remember it.
+to_cmd :: UiUpdate -> Maybe CmdUpdate
+to_cmd (TrackUpdate track_id (TrackEvents s e)) =
+    Just $ CmdTrackEvents track_id s e
+to_cmd (TrackUpdate track_id TrackAllEvents) =
+    Just $ CmdTrackAllEvents track_id
+to_cmd  _ = Nothing
+
 -- * functions
 
 -- | Updates which purely manipulate the view are treated differently by undo.

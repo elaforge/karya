@@ -596,25 +596,22 @@ data HistoryConfig = HistoryConfig {
 empty_history_config :: HistoryConfig
 empty_history_config = HistoryConfig Config.default_keep_history Nothing
 
-data HistoryCollect = HistoryCollect
-    -- | Collect updates from each cmd to be saved with the history, in
-    -- 'hist_entry_updates'.
-    { state_updates :: ![Update.CmdUpdate]
+data HistoryCollect = HistoryCollect {
     -- | This is cleared after each cmd.  A cmd can cons its name on, and
     -- the cmd is recorded with the (optional) set of names it returns.
     -- Hopefully each cmd has at least one name, since this makes the history
     -- more readable.  There can be more than one name if the history records
     -- several cmds or if one cmd calls another.
-    , state_cmd_names :: ![String]
+    state_cmd_names :: ![String]
     -- | Suppress history record until the EditMode changes from the given one.
     -- This is a bit of a hack so that every keystroke in a raw edit isn't
     -- recorded separately.
     , state_suppress_edit :: !(Maybe EditMode)
-    , state_suppressed :: !(Maybe SaveGit.History)
+    , state_suppressed :: !(Maybe SaveGit.SaveHistory)
     } deriving (Show, Generics.Typeable)
 
 empty_history_collect :: HistoryCollect
-empty_history_collect = HistoryCollect [] [] Nothing Nothing
+empty_history_collect = HistoryCollect [] Nothing Nothing
 
 data HistoryEntry = HistoryEntry {
     hist_state :: !State.State

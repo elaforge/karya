@@ -1,6 +1,7 @@
 -- | Cmds for track level operations.
 module Cmd.Lang.LTrack where
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.ParseBs as ParseBs
@@ -15,6 +16,7 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
+import qualified Cmd.Create as Create
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
@@ -27,6 +29,9 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Signal as Signal
 import Types
 
+
+gc_tracks :: Cmd.CmdL ()
+gc_tracks = mapM_ State.destroy_track . Set.elems =<< Create.orphan_tracks
 
 -- | Remove tracks with no events from the given block.
 remove_empty :: BlockId -> Cmd.CmdL ()

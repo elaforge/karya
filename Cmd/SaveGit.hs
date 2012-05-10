@@ -30,8 +30,15 @@ import qualified App.Config as Config
 import Types
 
 
-data History = History !State.State ![Update.CmdUpdate] ![String]
+-- | A loaded history entry, along with the the updates to take it from the
+-- previous entry.
+data History update = History !State.State ![update] ![String]
     deriving (Show)
+
+-- | History loaded from disk only has CmdUpdates to feed to diff.
+type LoadHistory = History Update.CmdUpdate
+-- | When saving a History, though, I need post-diff updates.
+type SaveHistory = History Update.UiUpdate
 
 save_repo :: State.State -> Git.Repo
 save_repo = save_file True
@@ -53,7 +60,7 @@ save_file for_git state =
 save :: Git.Repo -> State.State -> IO (Either String (Git.Commit, SavePoint))
 save repo state = try "save" $ do_save repo (History state [] ["save"])
 
-do_save :: Git.Repo -> History -> IO (Git.Commit, SavePoint)
+do_save :: Git.Repo -> SaveHistory -> IO (Git.Commit, SavePoint)
 do_save repo (History state _updates names) = do
     Git.init repo
     tree <- Git.write_dir repo (dump state)
@@ -128,9 +135,8 @@ save_to_ref (SavePoint versions) =
 -- they duplicate all the stuff I'm writing.
 
 -- | incremental save
-checkpoint :: Git.Repo -> History -> [Update.UiUpdate]
-    -> IO (Either String Git.Commit)
-checkpoint repo hist@(History state _ names) updates = try_e "checkpoint" $ do
+checkpoint :: Git.Repo -> SaveHistory -> IO (Either String Git.Commit)
+checkpoint repo hist@(History state updates names) = try_e "checkpoint" $ do
     Git.init repo
     -- If this is a new repo then do a save instead.
     last_commit <- Git.read_head_commit repo
@@ -262,7 +268,7 @@ load repo maybe_commit = try_e "load" $ do
 
 -- | Try to go get the previous history entry.
 load_previous_history :: Git.Repo -> State.State -> Git.Commit
-    -> IO (Either String (Maybe (History, Git.Commit)))
+    -> IO (Either String (Maybe (LoadHistory, Git.Commit)))
 load_previous_history repo state commit = try_e "load_previous_history" $ do
     commit_data <- Git.read_commit repo commit
     case Seq.head (Git.commit_parents commit_data) of
@@ -271,7 +277,7 @@ load_previous_history repo state commit = try_e "load_previous_history" $ do
 
 -- | Try to a commits that has this one as a parent.
 load_next_history :: Git.Repo -> State.State -> Git.Commit
-    -> IO (Either String (Maybe (History, Git.Commit)))
+    -> IO (Either String (Maybe (LoadHistory, Git.Commit)))
 load_next_history repo state commit = try_e "load_next_history" $ do
     -- This won't work if I loaded something off-head.  In that case, I need
     -- the checkpoint I started from so I can start from there instead of HEAD.
@@ -287,8 +293,16 @@ load_next_history repo state commit = try_e "load_next_history" $ do
         | otherwise = find_before val (x2:xs)
     find_before _ _ = Nothing
 
+-- | Load a history, either in the past or the future.
+--
+-- Multiple futures:
+-- I get the future by tracing from HEAD.  Then if you undo and redo, that
+-- branch will be orphaned, and the next gc will probably delete it.  But if
+-- you save there, the tag will probably keep it alive.  Then the next
+-- history commit will set the HEAD to this branch, and the old HEAD will only
+-- be preserved if it had a ref.
 load_history :: Git.Repo -> State.State -> Git.Commit -> Git.Commit
-    -> IO (Either String (Maybe (History, Git.Commit)))
+    -> IO (Either String (Maybe (LoadHistory, Git.Commit)))
 load_history repo state from_commit to_commit = do
     names <- parse_names . Git.commit_text
         =<< Git.read_commit repo to_commit
@@ -297,13 +311,6 @@ load_history repo state from_commit to_commit = do
         Left err -> return $ Left err
         Right (new_state, cmd_updates) -> return $ Right $ Just
             (History new_state cmd_updates names, to_commit)
-
--- Multiple futures:
--- I get the future by tracing from HEAD.  Then if you undo and redo, that
--- branch will be orphaned, and the next gc will probably delete it.  But if
--- you save there, the tag will probably keep it alive.  Then the next
--- history commit will set the HEAD to this branch, and the old HEAD will only
--- be preserved if it had a ref.
 
 parse_names :: String -> IO [String]
 parse_names text = case lines text of
