@@ -1,92 +1,95 @@
 -- | Quick hack to print out the binary save files.
+--
+-- TODO flags not actually used.  Maybe I don't need them?
 module App.Dump where
-import qualified Data.Map as Map
+import qualified Data.ByteString.Char8 as ByteString
+import qualified Data.List as List
+import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as Environment
 import qualified System.Exit
+
 import Text.Printf
 
-import qualified Util.PPrint as PPrint
+import qualified Util.Git as Git
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Ui.Events as Events
-import qualified Ui.Ruler as Ruler
+
 import qualified Ui.State as State
-import qualified Ui.Track as Track
-
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Serialize as Serialize
-import qualified Cmd.Simple as Simple
 
 
-default_abbrs = [abbreviate_tracks, abbreviate_rulers]
+options :: [GetOpt.OptDescr Flag]
+options =
+    [ GetOpt.Option [] ["track"] (GetOpt.NoArg TrackContents)
+        "show track contents"
+    , GetOpt.Option [] ["ruler"] (GetOpt.NoArg RulerContents)
+        "show ruler contents"
+    ]
 
-abbreviate_tracks = "track"
-abbreviate_rulers = "ruler"
-
--- Haskell report says you're supposed to be able to put a newline between
--- the whacks, but now it suddenly doesn't work?
-usage = "dump [ -complete ] save_file\n"
-    ++ "\t-complete - Don't abbreviate the rulers and tracks"
+data Flag = TrackContents | RulerContents deriving (Show, Eq)
 
 main :: IO ()
 main = do
     args <- Environment.getArgs
-    (abbrs, fn) <- case args of
-        ["-complete", fn] -> return ([], fn)
-        [fn] -> return (default_abbrs, fn)
-        _ -> fail_with usage
-    either_state <- Serialize.unserialize fn
-    Serialize.SaveState ui_state date <- case either_state of
-        Left exc -> fail_with $ "Error reading " ++ show fn ++ ": " ++ show exc
-        Right state -> return state
-    printf "SaveState {\nsave_date = %s,\nui_state = \n" (show date)
-    pprint_ui_state abbrs ui_state
-    putStrLn "}"
+    (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
+        (flags, args, []) -> return (flags, args)
+        (_, _, errs) -> usage $ "flag errors: " ++ Seq.join ", " errs
+    let is_git = (".git" `List.isSuffixOf`)
+    case args of
+        [fn]
+            | is_git fn -> dump_git flags fn Nothing
+            | otherwise -> dump_simple flags fn
+        [fn, commit] | is_git fn -> dump_git flags fn (Just commit)
+        _ -> usage $ "expected a single filename: " ++ Seq.join ", " args
+    where
+    usage msg = do
+        putStr (GetOpt.usageInfo msg options)
+        System.Exit.exitWith (System.Exit.ExitFailure 1)
 
-fail_with msg = do
-    putStrLn msg
+die :: String -> IO a
+die msg = do
+    putStrLn $ "Error: " ++ msg
     System.Exit.exitWith (System.Exit.ExitFailure 1)
 
-pprint_ui_state abbr (State.State views blocks tracks rulers config) = do
-    put_field "state_views" (PPrint.pshow views)
-    put_field "state_blocks" (PPrint.pshow blocks)
-    put_field "state_tracks" $ if abbreviate_tracks `elem` abbr
-        then pshow_map (Map.map abbr_track tracks)
-        else PPrint.pshow tracks
-    put_field "state_ruler" $ if abbreviate_rulers `elem` abbr
-        then pshow_map (Map.map abbr_ruler rulers)
-        else PPrint.pshow (Map.map abbr_ruler rulers)
-    pprint_config config
+dump_simple :: [Flag] -> FilePath -> IO ()
+dump_simple flags fn = do
+    Serialize.SaveState state date <-
+        either (die . (("reading " ++ show fn ++ ":") ++)) return
+            =<< Serialize.unserialize fn
+    printf "saved at %s:\n" (show date)
+    pprint_state flags state
 
-pprint_config (State.Config ns dir root midi defaults) = do
-    put_field "namespace" ns
-    put_field "project_dir" dir
-    put_field "root" (show root)
-    put_field "midi_config" (PPrint.pshow midi)
-    pprint_defaults defaults
+-- | Either a commit hash or a save point ref.
+dump_git :: [Flag] -> FilePath -> Maybe String -> IO ()
+dump_git flags repo maybe_arg = do
+    maybe_commit <- case maybe_arg of
+        Nothing -> return Nothing
+        Just arg -> do
+            commit <- maybe (die $ "couldn't find commit for " ++ show arg)
+                return =<< infer_commit repo arg
+            return (Just commit)
+    (state, commit, names) <- either
+        (die . (("reading " ++ show repo ++ ":") ++)) return
+            =<< SaveGit.load repo maybe_commit
+    printf "commit: %s, names: %s\n" (Pretty.pretty commit)
+        (Seq.join ", " names)
+    pprint_state flags state
 
-pprint_defaults (State.Default scale inst tempo) = do
-    put_field "scale" (show scale)
-    put_field "inst" (show inst)
-    put_field "tempo" (show tempo)
-
-pshow_map fm = "Map.fromList [\n"
-    ++ Seq.join ",\n" (map show_assoc (Map.assocs fm))
-    ++ "]\n"
+infer_commit :: Git.Repo -> String -> IO (Maybe Git.Commit)
+infer_commit repo arg
+    | length arg == 40 = return (commit arg)
+    | otherwise = Git.read_ref repo arg
     where
-    show_assoc (k, v) = "(" ++ show k ++ ", " ++ v ++ ")"
+    commit = Just . Git.Commit . Git.parse_hash . ByteString.pack
 
-put_field :: String -> String -> IO ()
-put_field name val = do
-    putStrLn $ "\n-- * " ++ name
-    mapM_ putStr [name, " = ", val, ",\n"]
+pprint_state :: [Flag] -> State.State -> IO ()
+pprint_state flags = putStrLn . clean . Pretty.formatted
 
-abbr_track track = "track_events =\n" ++ PPrint.pshow (map Simple.event events)
-    where events = Events.ascending (Track.track_events track)
-
-abbr_ruler :: Ruler.Ruler -> String
-abbr_ruler ruler = "ruler_marklists = "
-    ++ concatMap abbr_marklist (Map.toList (Ruler.ruler_marklists ruler))
-
-abbr_marklist :: (Ruler.Name, Ruler.Marklist) -> String
-abbr_marklist (name, mlist) =
-    "(" ++ show name ++ ", " ++ show_len mlist ++ ")"
-    where show_len (Ruler.Marklist m) = "<" ++ show (Map.size m) ++ " marks>"
+clean :: String -> String
+clean text = case lines text of
+    "State" : first : rest ->
+        -- +2 to drop the '{ ' and ', ' on each line.
+        let indent = length (takeWhile (==' ') first) + 2
+        in unlines $ map (drop indent) (first : rest)
+    _ -> text
