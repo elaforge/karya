@@ -101,7 +101,8 @@ instance (Pretty a, Pretty b, Pretty c, Pretty d) => Pretty (a, b, c, d) where
         comma_list Never '(' ')' [format a, format b, format c, format d]
 
 instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
-    format = format_commas '{' '}' . Map.assocs
+    format = format_commas '{' '}' . map mpair . Map.assocs
+        where mpair (k, v) = PP.fcat [format k, PP.text ":" <+> format v]
 
 instance Pretty ByteString.ByteString where
     format = PP.doubleQuotes . PP.text . UTF8.toString
