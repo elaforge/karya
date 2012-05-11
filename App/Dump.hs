@@ -10,7 +10,7 @@ import qualified System.Exit
 
 import Text.Printf
 
-import qualified Util.Git as Git
+import qualified Util.Git.Git as Git
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 

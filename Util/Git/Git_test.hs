@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Util.Git_test where
+module Util.Git.Git_test where
 import qualified Data.Map as Map
 import qualified System.Directory as Directory
 
 import qualified Util.File as File
-import qualified Util.Git as Git
+import qualified Util.Git.Git as Git
 import Util.Test
 
 

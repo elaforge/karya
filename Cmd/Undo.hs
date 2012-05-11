@@ -5,7 +5,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Git as Git
+import qualified Util.Git.Git as Git
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty

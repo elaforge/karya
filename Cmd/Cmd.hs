@@ -57,7 +57,7 @@ import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Git as Git
+import qualified Util.Git.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty

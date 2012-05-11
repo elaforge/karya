@@ -1,7 +1,7 @@
 module Cmd.Undo_test where
 import Util.Control
 import qualified Util.File as File
-import qualified Util.Git as Git
+import qualified Util.Git.Git as Git
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import Util.Test

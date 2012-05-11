@@ -3,7 +3,7 @@
 --
 -- This uses the git cmdline, which is easy but inefficient for lots of
 -- small operations.  TODO Look into binding to libgit.
-module Util.Git where
+module Util.Git.Git where
 import Prelude hiding (init)
 import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
