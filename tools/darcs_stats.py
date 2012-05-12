@@ -40,7 +40,7 @@ def parse_whatsnew(lines):
     adds = {}
     subtracts = {}
     for line in lines:
-        m = re.match(r'[MAR] ([./a-zA-Z_-]+) *(\-\d+)? *(\+\d+)?$', line)
+        m = re.match(r'[MAR] ([./a-zA-Z0-9_-]+) *(\-\d+)? *(\+\d+)?$', line)
         if not m:
             if m and m[0] in 'MAR':
                 print 'no match', repr(line)

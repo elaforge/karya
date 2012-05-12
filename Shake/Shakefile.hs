@@ -1,7 +1,13 @@
 {-# LANGUAGE FlexibleContexts, ViewPatterns #-}
 {- | Shakefile for seq and associated binaries.
 
-    Setting the 'hint' env var will add the -DINTERPRETER_HINT flag.
+    - Setting the 'hint' env var will add the -DINTERPRETER_HINT flag.
+
+    - Building RunTests-something will include only tests matching
+    *something*_test.hs.
+
+    - The same goes for RunProfile, except it searches for
+    *something*_profile.hs.
 
     TODO
 
@@ -162,9 +168,18 @@ hsToCc = Map.fromList $
     , ("LogView/LogViewC.hsc", ["LogView/interface.cc"])
     , ("Instrument/BrowserC.hsc", ["Instrument/interface.cc"])
     , ("Util/Fltk.hs", ["Util/fltk_interface.cc"])
+    , ("Util/Git/LibGit2.hsc", ["Util/Git/libgit_wrappers.cc"])
     ] ++ [(hsc, ["Ui/c_interface.cc"])
         | hsc <- ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc",
             "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"]]
+
+-- | Another hack.  hsc2hs isn't really meant to work with C++, but it
+-- basically does, and that way I don't have to strictly separate all the FFI
+-- headers from the C++.
+--
+-- Unfortunately, g++ breaks the macros using by bindings-dsl:
+hsc2hsNeedsC :: [FilePath]
+hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 
 -- | Rather than trying to figure out which binary needs which packages, I
 -- just union all the packages.  TODO can I ask ghc to infer packages
@@ -229,30 +244,30 @@ configure = do
     fltkCs <- words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
     fltkVersion <- takeWhile (/='\n') <$> run fltkConfig ["--version"]
-    return $ \mode ->
-        let flags = osFlags
-                { define = define osFlags
-                    ++ if mode `elem` [Test, Profile] then ["-DTESTING"] else []
-                , cInclude = ["-I.", "-Ifltk"]
-                , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
-                , fltkLd = fltkLds
-                , hcFlags = words "-I. -threaded -W -fwarn-tabs -pgml g++"
-                    ++ ["-F", "-pgmF", hspp]
-                    ++ case mode of
-                        Debug -> []
-                        Opt -> ["-O"]
-                        Test -> ["-fhpc"]
-                        -- Omit -auto-all because it slows down the profile
-                        -- quite a bit.  Usually when profiling I'm looking
-                        -- for overall timing and stats, not individual cost
-                        -- centers.  I can turn those on when debugging.
-                        Profile -> ["-O", "-prof"]
-                , hLinkFlags = ["-rtsopts", "-threaded"]
-                    ++ if mode == Profile then ["-prof", "-auto-all"] else []
-                }
-        in Config (modeToDir mode) (build </> "hsc") (strip ghcLib)
-            fltkVersion (setCcFlags flags)
+    return $ \mode -> Config (modeToDir mode) (build </> "hsc") (strip ghcLib)
+        fltkVersion $ setCcFlags (setConfigFlags fltkCs fltkLds mode osFlags)
     where
+    setConfigFlags fltkCs fltkLds mode flags = flags
+        { define = define osFlags
+            ++ if mode `elem` [Test, Profile] then ["-DTESTING"] else []
+        , cInclude = ["-I.", "-Ifltk",
+            "-I/usr/local/lib/bindings-DSL-1.0.15/ghc-7.0.3/include"]
+        , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
+        , fltkLd = fltkLds
+        , hcFlags = words "-I. -threaded -W -fwarn-tabs -pgml g++"
+            ++ ["-F", "-pgmF", hspp]
+            ++ case mode of
+                Debug -> []
+                Opt -> ["-O"]
+                Test -> ["-fhpc"]
+                -- Omit -auto-all because it slows down the profile quite
+                -- a bit.  Usually when profiling I'm looking for overall
+                -- timing and stats, not individual cost centers.  I can turn
+                -- those on when debugging.
+                Profile -> ["-O", "-prof"]
+        , hLinkFlags = ["-lgit2", "-rtsopts", "-threaded"]
+            ++ if mode == Profile then ["-prof", "-auto-all"] else []
+        }
     setCcFlags flags = flags
         { ccFlags = fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall"]
         }
@@ -629,13 +644,15 @@ hsRule config = hscDir config ++ "//*.hs" *> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
     includes <- includesOf "hsRule" config hsc
     logDeps config "hsc" hs (hsc : includes)
-    system $ hsc2hs config hs hsc
+    system $ hsc2hs config (hsc `notElem` hsc2hsNeedsC) hs hsc
 
-hsc2hs :: Config -> FilePath -> FilePath -> Cmdline
-hsc2hs config hs hsc = ("hsc2hs", hs,
+hsc2hs :: Config -> Bool -> FilePath -> FilePath -> Cmdline
+hsc2hs config useCpp hs hsc = ("hsc2hs", hs,
     ["hsc2hs", "-I" ++ ghcLib config </> "include"]
-    -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
-    ++ words "-c g++ --cflag -Wno-invalid-offsetof"
+    ++ (if useCpp
+        -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
+        then words "-c g++ --cflag -Wno-invalid-offsetof"
+        else [])
     ++ cInclude flags ++ fltkCc flags ++ define flags
     ++ [hsc, "-o", hs])
     where flags = configFlags config
