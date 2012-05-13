@@ -66,7 +66,6 @@ SeqInput::handle(int evt)
         return 1;
     case FL_FOCUS:
         this->color(color_to_fl(this->focus_color));
-        // TODO select all
         this->redraw();
         break;
     case FL_UNFOCUS:
@@ -112,10 +111,10 @@ SeqInput::expand()
 
     size.x += 7;
     size.x = std::max(size.x, this->proper_size.x);
-    if (this->window()) {
-        // Don't get larger than the parent window.
-        size.x = std::min(size.x, this->window()->w() - this->x());
-    }
+    // I intentionally allow it to grow off the edge of the parent window.
+    // If this entry is scrolled off the edge then it would be clipped down to
+    // nothing, but have no way of knowing when it is later scrolled into the
+    // window.  The edge of the window will clip me anyway.
     size.y = this->proper_size.y;
     this->expanded = true;
 
