@@ -400,8 +400,7 @@ instance Storable Block.Config where
     poke = poke_block_model_config
 
 poke_block_model_config configp
-    (Block.Config _sel_colors bg skel_box track_box sb_box) = do
-        (#poke BlockModelConfig, bg) configp bg
+    (Block.Config skel_box track_box sb_box) = do
         (#poke BlockModelConfig, skel_box) configp skel_box
         (#poke BlockModelConfig, track_box) configp track_box
         (#poke BlockModelConfig, sb_box) configp sb_box

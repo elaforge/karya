@@ -21,6 +21,9 @@ extern const Color abbreviation_color;
 // Mark the playing end of events with this.
 extern const Color event_trigger_color;
 
+extern const Color skeleton_display_bg;
+extern const Color block_bg;
+
 // Default sizes for a BlockView.
 //
 // Previously these were configurable from haskell in the same way as

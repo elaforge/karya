@@ -1,11 +1,13 @@
 {- | Global static app defaults.
 -}
 module App.Config where
+import qualified Data.Array.IArray as IArray
 import qualified Network
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.Info
 
+import qualified Util.Array as Array
 import qualified Util.File as File
 import qualified Ui.Color as Color
 import qualified Ui.Id as Id
@@ -130,12 +132,19 @@ play_position_selnum :: Types.SelNum
     , (play_position_selnum, play_selection_color)
     -- Display current step play position.
     , (step_play_selnum, _)
-    ] = zip [0..] bconfig_selection_colors
+    ] = zip [0..] selection_colors
 
-bconfig_selection_colors :: [Color.Color]
-bconfig_selection_colors = take max_selections $ map make_selection_color
+selection_colors :: [Color.Color]
+selection_colors = map to_sel $ take max_selections $
     [Color.blue, Color.green, Color.yellow, Color.red, Color.purple,
         Color.turquoise]
+    where to_sel = Color.alpha 0.3 . Color.brightness 1.25
+
+lookup_selection_color :: Types.SelNum -> Color.Color
+lookup_selection_color selnum
+    | Array.in_bounds selnum a = a IArray.! selnum
+    | otherwise = Color.black
+    where a = Array.from_list selection_colors
 
 -- * colors
 
@@ -218,16 +227,10 @@ clip_namespace = Id.unsafe_namespace "clip"
 clip_block_name :: String
 clip_block_name = "clip"
 
-make_selection_color :: Color.Color -> Color.Color
-make_selection_color = Color.alpha 0.3 . Color.brightness 1.25
-
 -- * hardcoded configs
 
 -- These are for 'Ui.Block.Config' and 'Ui.Block.ViewConfig', using them
 -- directly would cause a circular import.
-
-bconfig_bg_color :: Color.Color
-bconfig_bg_color = Color.gray8
 
 -- | Default contents of track and sb boxes.
 bconfig_box :: (Color.Color, Char)

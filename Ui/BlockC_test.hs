@@ -88,9 +88,6 @@ test_set_model_config = do
     io_human "sb box red, gets X" $
         send $ BlockC.set_model_config view
             (config { Block.config_sb_box = Block.Box Color.red 'X' })
-    io_human "block bg turns red" $
-        send $ BlockC.set_model_config view
-            (config { Block.config_bg_color = Color.red })
 
 test_set_title = do
     view <- create_empty_view

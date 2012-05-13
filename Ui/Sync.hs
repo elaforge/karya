@@ -177,8 +177,8 @@ run_update track_signals set_style
     titles <- mapM track_title (Block.block_tracklike_ids block)
 
     let sels = Block.view_selections view
-    csels <- mapM (\(selnum, sel) -> to_csel view_id selnum (Just sel))
-        (Map.assocs sels)
+    let csels = map (\(selnum, sel) -> to_csel selnum (Just sel))
+            (Map.assocs sels)
     ustate <- State.get
     -- I manually sync the new empty view with its state.  It might reduce
     -- repetition to let Diff.diff do that by diffing against a state with an
@@ -232,9 +232,9 @@ run_update _ _ (Update.ViewUpdate view_id update) = case update of
     Update.TrackScroll offset ->
         return $ BlockC.set_track_scroll view_id offset
     Update.Zoom zoom -> return $ BlockC.set_zoom view_id zoom
-    Update.Selection selnum maybe_sel -> do
-        csel <- to_csel view_id selnum maybe_sel
-        return $ BlockC.set_selection True view_id selnum csel
+    Update.Selection selnum maybe_sel ->
+        return $ BlockC.set_selection True view_id selnum
+            (to_csel selnum maybe_sel)
     Update.BringToFront -> return $ BlockC.bring_to_front view_id
 
 -- Block ops apply to every view with that block.
@@ -375,12 +375,5 @@ events_of_track_ids ustate track_ids = Maybe.mapMaybe events_of track_ids
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
     tracks = State.state_tracks ustate
 
-to_csel :: ViewId -> Types.SelNum -> Maybe Types.Selection
-    -> State.StateT IO (Maybe BlockC.CSelection)
-to_csel view_id selnum maybe_sel = do
-    view <- State.get_view view_id
-    block <- State.get_block (Block.view_block view)
-    let color = Seq.at_err "selection colors"
-            (Block.config_selection_colors (Block.block_config block))
-            selnum
-    return $ fmap (BlockC.CSelection color) maybe_sel
+to_csel :: Types.SelNum -> Maybe Types.Selection -> Maybe BlockC.CSelection
+to_csel selnum = fmap (BlockC.CSelection (Config.lookup_selection_color selnum))

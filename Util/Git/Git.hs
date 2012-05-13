@@ -270,7 +270,7 @@ modify_dir repo (Tree tree) mods = do
     extract (Add fn bytes) = (fn, Just bytes)
 
 -- | If a string looks like a commit hash, return the commit, otherwise look
--- for a ref.
+-- for a ref in tags\/.
 infer_commit :: Repo -> String -> IO (Maybe Commit)
 infer_commit repo ref_or_commit
     | length ref_or_commit == 40 = return (commit ref_or_commit)

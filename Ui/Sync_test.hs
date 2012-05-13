@@ -107,17 +107,14 @@ test_set_block_config = do
     state <- run State.empty $ do
         setup_state
         set_selection t_view_id (Types.selection 1 10 2 60)
-    io_human "selections, bg, and boxes go red" $ run state $ do
+    io_human "boxes go red" $ run state $ do
         block <- State.get_block t_block_id
         let config = Block.block_config block
         State.set_block_config t_block_id $ config
-            { Block.config_selection_colors = [Color.red]
-            , Block.config_bg_color = Color.red
-            , Block.config_skel_box = Block.Box Color.red ' '
+            { Block.config_skel_box = Block.Box Color.red ' '
             , Block.config_track_box = Block.Box Color.red ' '
             , Block.config_sb_box = Block.Box Color.red ' '
             }
-    return ()
 
 test_set_skeleton = do
     let (tids, state) =

@@ -37,7 +37,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_scroll(0, 0, 1, 1),
-                track_tile(0, 0, 1, 1, model_config.bg,
+                track_tile(0, 0, 1, 1, Config::block_bg,
                         Config::View::track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
@@ -67,6 +67,8 @@ BlockView::BlockView(int X, int Y, int W, int H,
     track_sb.callback(BlockView::scrollbar_cb, static_cast<void *>(this));
     body.callback(BlockView::track_tile_cb, static_cast<void *>(this));
     track_tile.callback(BlockView::track_tile_cb, static_cast<void *>(this));
+
+    skel_display.color(color_to_fl(Config::skeleton_display_bg));
 
     resizable(body);
     body.resizable(body_resize_group);
@@ -250,13 +252,6 @@ void
 BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
 {
     const BlockModelConfig &old = this->model_config;
-
-    if (update_all || old.bg != config.bg) {
-        track_tile.set_bg_color(config.bg);
-        track_tile.redraw();
-        skel_display.color(color_to_fl(config.bg.brightness(.9)));
-        skel_display.redraw();
-    }
     if (update_all || old.skel_box != config.skel_box)
         set_block_box(skel_box, config.skel_box);
     if (update_all || old.track_box != config.track_box)

@@ -55,16 +55,13 @@ block config title tracks = Block title config tracks Skeleton.empty
 
 -- | Per-block configuration.
 data Config = Config {
-    config_selection_colors :: ![Color.Color]
-    , config_bg_color :: !Color.Color
-    , config_skel_box :: !Box
+    config_skel_box :: !Box
     , config_track_box :: !Box
     , config_sb_box :: !Box
     } deriving (Eq, Show, Read)
 
 default_config :: Config
 default_config = Config
-    Config.bconfig_selection_colors Config.bconfig_bg_color
     (box Config.bconfig_box) (box Config.bconfig_box) (box Config.bconfig_box)
     where box = uncurry Box
 

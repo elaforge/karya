@@ -23,7 +23,6 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
-import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
@@ -52,8 +51,7 @@ change = Logger.logs . (:[]) . Left
 change_display :: Update.DisplayUpdate -> DiffM ()
 change_display = Logger.logs . (:[]) . Right
 
-run :: DiffM ()
-    -> Either DiffError ([Update.UiUpdate], [Update.DisplayUpdate])
+run :: DiffM () -> Either DiffError ([Update.UiUpdate], [Update.DisplayUpdate])
 run = fmap Seq.partition_either . Identity.runIdentity . Error.runErrorT
     . Logger.exec
 
@@ -145,26 +143,14 @@ diff_view st1 st2 view_id view1 view2 = do
         emit $ Update.Zoom (Block.view_zoom view2)
 
     -- If the view doesn't have a block I should have failed long before here.
-    let Just colors1 = view_selection_colors st1 view1
-        Just colors2 = view_selection_colors st2 view2
-    mapM_ (uncurry3 (diff_selection emit colors1 colors2))
+    mapM_ (uncurry3 (diff_selection emit))
         (Map.pairs (Block.view_selections view1) (Block.view_selections view2))
 
-view_selection_colors :: State.State -> Block.View -> Maybe [Color.Color]
-view_selection_colors state view = do
-    block <- Map.lookup (Block.view_block view) (State.state_blocks state)
-    return $ Block.config_selection_colors (Block.block_config block)
-
 diff_selection :: (Update.ViewUpdate -> DiffM ())
-    -> [Color.Color] -> [Color.Color] -> Types.SelNum
-    -> Maybe Types.Selection -> Maybe Types.Selection
+    -> Types.SelNum -> Maybe Types.Selection -> Maybe Types.Selection
     -> DiffM ()
-diff_selection emit colors1 colors2 selnum sel1 sel2 =
-    -- Also update the selections if the selection color config has changed,
-    -- because this isn't covered by Update.BlockConfig, because selection
-    -- colors aren't stored seperately at the c++ level.
-    when (sel1 /= sel2 || Seq.at colors1 selnum /= Seq.at colors2 selnum) $
-        emit $ Update.Selection selnum sel2
+diff_selection emit selnum sel1 sel2 =
+    when (sel1 /= sel2) $ emit $ Update.Selection selnum sel2
 
 -- ** block / track / ruler
 

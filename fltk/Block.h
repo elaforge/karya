@@ -60,7 +60,6 @@ struct BlockBox {
 };
 
 struct BlockModelConfig {
-    Color bg;
     BlockBox skel_box;
     BlockBox track_box;
     BlockBox sb_box;

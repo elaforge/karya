@@ -26,7 +26,6 @@ Color selection_colors[] = {
 BlockModelConfig block_model_config()
 {
     BlockModelConfig c;
-    c.bg = Color(0xdd, 0xdd, 0xdd);
     c.skel_box = BlockBox(Color(0x99, 0x99, 0xff), 'a');
     c.track_box = BlockBox(Color(0x44, 0xff, 0xff), 'K');
     c.sb_box = BlockBox(Color(0x00, 0xff, 0xff), 'S');
