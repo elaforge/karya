@@ -26,7 +26,7 @@ test_save = do
             , ("2", [(0, 1, "2a")])
             ]
     SaveGit.save repo state
-    Right (state2, _commit) <- SaveGit.load repo Nothing
+    Right (state2, _commit, _names) <- SaveGit.load repo Nothing
     equal state state2
     let state3 = UiTest.exec state2 $ do
             State.destroy_view UiTest.default_view_id
@@ -53,12 +53,16 @@ test_checkpoint = do
     -- TODO hook up a fs simulator so I can test this exhaustively without
     -- hitting git
 
-    io_equal (SaveGit.load repo Nothing) (Right (state4, commit4))
+    io_equal (SaveGit.load repo Nothing) (Right (state4, commit4, ["destroy"]))
     -- Previous states load correctly.
-    io_equal (SaveGit.load repo (Just commit1)) (Right (state1, commit1))
-    io_equal (SaveGit.load repo (Just commit2)) (Right (state2, commit2))
-    io_equal (SaveGit.load repo (Just commit3)) (Right (state3, commit3))
-    io_equal (SaveGit.load repo (Just commit4)) (Right (state4, commit4))
+    io_equal (SaveGit.load repo (Just commit1)) $
+        Right (state1, commit1, ["create"])
+    io_equal (SaveGit.load repo (Just commit2)) $
+        Right (state2, commit2, ["hi"])
+    io_equal (SaveGit.load repo (Just commit3)) $
+        Right (state3, commit3, ["new track"])
+    io_equal (SaveGit.load repo (Just commit4)) $
+        Right (state4, commit4, ["destroy"])
 
     let update num = Update.CmdTrackEvents (UiTest.mk_tid num)
     -- Make sure incremental loads work.
@@ -93,9 +97,9 @@ insert_event :: (State.M m) => TrackNum -> ScoreTime -> String -> ScoreTime
 insert_event tracknum pos text dur =
     State.insert_event (UiTest.mk_tid tracknum) pos (Event.event text dur)
 
-check_load :: FilePath -> (State.State, Git.Commit) -> IO Bool
-check_load repo (state, commit) =
-    io_equal (SaveGit.load repo (Just commit)) (Right (state, commit))
+check_load :: FilePath -> (State.State, Git.Commit, [String]) -> IO Bool
+check_load repo (state, commit, names) =
+    io_equal (SaveGit.load repo (Just commit)) (Right (state, commit, names))
 
 check_load_from :: FilePath -> (State.State, Git.Commit)
     -> (State.State, Git.Commit) -> IO Bool
@@ -109,17 +113,16 @@ checkpoint_sequence repo actions = apply State.empty actions
     where
     apply _ [] = return []
     apply prev_state ((name, action) : actions) = do
-        let (state, cmd_updates, ui_updates) = diff prev_state action
+        let (state, ui_updates) = diff prev_state action
         Right commit <- SaveGit.checkpoint repo
-            (SaveGit.History state cmd_updates [name]) ui_updates
+            (SaveGit.History state ui_updates [name])
         rest <- apply state actions
         return $ (state, commit) : rest
 
-diff :: State.State -> State.StateId a
-    -> (State.State, [Update.CmdUpdate], [Update.UiUpdate])
+diff :: State.State -> State.StateId a -> (State.State, [Update.UiUpdate])
 diff state modify = case Diff.diff cmd_updates state state2 of
         Left err -> error $ "diff: " ++ show err
-        Right (ui_updates, _) -> (state2, cmd_updates, ui_updates)
+        Right (ui_updates, _) -> (state2, ui_updates)
     where
     (state2, cmd_updates) = case State.run_id state modify of
         Left err -> error $ "State.run: " ++ show err
