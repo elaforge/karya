@@ -2,7 +2,6 @@
 --
 -- TODO flags not actually used.  Maybe I don't need them?
 module App.Dump where
-import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.List as List
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as Environment
@@ -67,7 +66,7 @@ dump_git flags repo maybe_arg = do
         Nothing -> return Nothing
         Just arg -> do
             commit <- maybe (die $ "couldn't find commit for " ++ show arg)
-                return =<< infer_commit repo arg
+                return =<< Git.infer_commit repo arg
             return (Just commit)
     (state, commit, names) <- either
         (die . (("reading " ++ show repo ++ ":") ++)) return
@@ -76,15 +75,8 @@ dump_git flags repo maybe_arg = do
         (Seq.join ", " names)
     pprint_state flags state
 
-infer_commit :: Git.Repo -> String -> IO (Maybe Git.Commit)
-infer_commit repo arg
-    | length arg == 40 = return (commit arg)
-    | otherwise = Git.read_ref repo arg
-    where
-    commit = Just . Git.Commit . Git.parse_hash . ByteString.pack
-
 pprint_state :: [Flag] -> State.State -> IO ()
-pprint_state flags = putStrLn . clean . Pretty.formatted
+pprint_state _flags = putStrLn . clean . Pretty.formatted
 
 clean :: String -> String
 clean text = case lines text of

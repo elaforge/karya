@@ -5,6 +5,7 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Git.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -57,11 +58,11 @@ cmd_save_git = do
             { Cmd.hist_last_save = Just save }
         }
 
-cmd_load_git :: FilePath -> Cmd.CmdT IO ()
-cmd_load_git repo = do
+cmd_load_git :: FilePath -> Maybe Git.Commit -> Cmd.CmdT IO ()
+cmd_load_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " ++ repo ++ ": ") ++)
-        =<< (Trans.liftIO $ SaveGit.load repo Nothing)
+        =<< (Trans.liftIO $ SaveGit.load repo maybe_commit)
     last_save <- Cmd.require_right id
         =<< (Trans.liftIO  $ SaveGit.try "read_last_save" $
             SaveGit.read_last_save repo)

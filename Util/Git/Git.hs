@@ -269,6 +269,13 @@ modify_dir repo (Tree tree) mods = do
     extract (Remove fn) = (fn, Nothing)
     extract (Add fn bytes) = (fn, Just bytes)
 
+-- | If a string looks like a commit hash, return the commit, otherwise look
+-- for a ref.
+infer_commit :: Repo -> String -> IO (Maybe Commit)
+infer_commit repo ref_or_commit
+    | length ref_or_commit == 40 = return (commit ref_or_commit)
+    | otherwise = read_ref repo ("tags" </> ref_or_commit)
+    where commit = Just . Commit . parse_hash . Char8.pack
 
 -- * implementation
 

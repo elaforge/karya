@@ -115,7 +115,7 @@ UNSORTED
     * run a track level diff to figure out which events changed
     * unify SaveGit.save_repo and Save.get_save_file
     * add a new kind of CmdUpdate that is only has TrackUpdates and BringToFront
-    - ability to load at a specific ref or commit
+    * ability to load at a specific ref or commit
     - test incremental save for adding and remove tracks and blocks, not just
       changing events
     - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
@@ -124,8 +124,6 @@ UNSORTED
     * include SavePoint in save commit
     - cmd to revert to last save
     * load futures in the same way that I load the past
-    - for load futures to be useful, there has to be some way to way to load
-      a score from an arbitrary commit or SavePoint
     - To support features like searching back through the history for changes
       within a selection, there should be a way to get previous history and
       possibly load it.  This does mean that every cmd of that nature has to
@@ -138,12 +136,8 @@ UNSORTED
       tracks.  Otherwise, would it be worth helping it by e.g. separating
       each event with a newline?  But then it makes serializing events more of
       a hassle.
-
     - support branching history, e.g. edits after an undo don't discard the
       old future
-    - if the data in updates, e.g. the View in CreateView is never used can
-      I remove it?
-
     Git docs:
       http://progit.org/book/ch9-2.html
 
