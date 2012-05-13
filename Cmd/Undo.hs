@@ -4,9 +4,7 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import qualified Util.Git.Git as Git
-import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -22,10 +20,35 @@ import qualified App.Config as Config
 import Types
 
 
--- * undo / redo
+{-
+    Unfortunately updates get in the way of the simple "list of states" model
+    and make things a bit hard to understand.
 
--- if I want to load from undo/redo then they need to be in IO
--- but that's not so bad, right?
+    The head of hist_past is called cur.  It starts with [] updates and when
+    a new history is recorded, cur gets its updates.  So each entry has the
+    updates that took it to the future, which are also the updates needed to
+    move to it from the future:
+
+    load    (a [])  <cur
+    +b      (a +b)  (ab []) <cur
+    +c      (a +b)  (ab +c) (abc []) <cur
+
+    On undo, the state is set to the state before cur.  The ex-cur gets the
+    updates from this previous entry and goes onto the future.  So each entry
+    in the future has the updates needed to get to it from the past:
+
+    undo +c (a +b)  (ab +c) <cur    (abc +c)
+    undo +b (a +b)  <cur    (ab +b) (abc +c)
+
+    Redo is like a normal history record, except the state and updates are
+    taken from the future.  The new cur entry has [] updates, and the prev
+    (the old cur) gets its updates:
+
+    redo +b (a +b)  (ab []) <cur    (abc +c)
+    redo +c (a +b)  (ab +c) (abc []) <cur
+-}
+
+-- * undo / redo
 
 undo :: Cmd.CmdT IO ()
 undo = do
@@ -46,17 +69,19 @@ undo = do
         -- TODO can I make past a non-empty list?
     where
     do_undo hist cur prev rest = do
-        Log.notice $ "undo " ++ hist_name cur ++ " -> " ++ hist_name prev
+        Log.notice $ "undo -> " ++ hist_name prev
+        let updates = Cmd.hist_updates prev
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past = prev : rest
-                , Cmd.hist_future = cur : Cmd.hist_future hist
+                , Cmd.hist_future = cur { Cmd.hist_updates = updates }
+                    : Cmd.hist_future hist
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
             , Cmd.state_history_collect = Cmd.empty_history_collect
             }
         State.modify $ merge_undo_states (Cmd.hist_state prev)
-        mapM_ State.update (Cmd.hist_updates cur)
+        mapM_ State.update updates
     load_prev repo = load_history "load_previous_history" $
         SaveGit.load_previous_history repo
 
@@ -66,19 +91,20 @@ redo = do
     cur <- Cmd.require_msg "redo: no past at all (this shouldn't happen)" $
         Seq.head (Cmd.hist_past hist)
     case Cmd.hist_future hist of
-        next : rest -> do_redo hist cur next rest
+        next : rest -> do_redo hist next rest
         [] -> do
             repo <- State.gets SaveGit.save_repo
             future <- Trans.liftIO $ load_next repo cur
             case future of
                 [] -> Cmd.throw "no future to redo"
-                next : rest -> do_redo hist cur next rest
+                next : rest -> do_redo hist next rest
     where
-    do_redo hist cur next rest = do
-        Log.notice $ "redo " ++ hist_name cur ++ " -> " ++ hist_name next
+    do_redo hist next rest = do
+        Log.notice $ "redo -> " ++ hist_name next
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
-                { Cmd.hist_past = next : Cmd.hist_past hist
+                { Cmd.hist_past = next { Cmd.hist_updates = [] }
+                    : Cmd.hist_past hist
                 , Cmd.hist_future = rest
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
@@ -164,18 +190,34 @@ maintain_history ui_state cmd_state updates = do
         else return $ map (history_entry Nothing) uncommitted
     return $ cmd_state
         { Cmd.state_history = hist
-            { Cmd.hist_past = entries ++ Cmd.hist_past hist
+            { Cmd.hist_past = take (max 1 keep) $
+                bump_updates entries (Cmd.hist_past hist)
             , Cmd.hist_last_cmd = Nothing
             }
         , Cmd.state_history_collect = collect
         }
     where
     (hist, collect, uncommitted) =
-        record_history updates ui_state (discard cmd_state)
+        record_history updates ui_state cmd_state
     has_saved = Maybe.isJust $ Cmd.hist_last_save $
         Cmd.state_history_config cmd_state
-    discard = history#past %= take (max 1 keep)
     keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
+
+bump_updates :: [Cmd.HistoryEntry] -> [Cmd.HistoryEntry] -> [Cmd.HistoryEntry]
+bump_updates [] past = past
+bump_updates (new_cur : news) (old_cur : past) =
+    -- All I want to do is bump the updates from new_cur to old_cur, but
+    -- suppressed records means there can be multiple histories recorded at
+    -- once, which makes this a bit more of a hassle.
+    new_cur { Cmd.hist_updates = [] }
+        : map bump (zip_next new_cur (news ++ [old_cur]))
+        ++ past
+    where bump (p, c) = c { Cmd.hist_updates = Cmd.hist_updates p }
+bump_updates new [] = new -- This should never happen.
+
+zip_next :: a -> [a] -> [(a, a)]
+zip_next _ [] = []
+zip_next prev (x : xs) = (prev, x) : zip_next x xs
 
 commit_entry :: SaveGit.SaveHistory -> IO Cmd.HistoryEntry
 commit_entry hist@(SaveGit.History state _ _) = do
@@ -255,10 +297,3 @@ merge_into_suppressed (Just (SaveGit.History _ updates1 names1))
 
 should_record :: [Update.UiUpdate] -> Bool
 should_record = any (not . Update.is_view_update)
-
-
---
-
-history = Lens.lens Cmd.state_history (\v r -> r { Cmd.state_history = v })
-past = Lens.lens Cmd.hist_past (\v r -> r { Cmd.hist_past = v })
--- future = Lens.lens Cmd.hist_future (\v r -> r { Cmd.hist_future = v })

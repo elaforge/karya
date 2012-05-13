@@ -27,26 +27,24 @@ import Types
 
 
 test_undo = do
-    let track_updates from to =
-            [Update.TrackUpdate (UiTest.mk_tid 1) (Update.TrackEvents from to)]
-        states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
+    let states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
 
     res <- ResponderTest.respond_cmd states $ Cmd.name "+z" $ insert_event 0 "z"
     res <- next res $ Cmd.name "+q" $ insert_event 1 "q"
 
     equal (extract_ui res) "zq"
-    equal (e_updates res) (track_updates 1 2)
+    equal (e_updates res) [track_update 1 1 2]
 
     res <- next res Undo.undo
     -- Make sure the past and future have the expected names and states.
     equal (extract_hist res) (["+z: z2", "setup: 12"], ["+q: zq"])
     equal (extract_ui res) "z2"
-    equal (e_updates res) (track_updates 1 2)
+    equal (e_updates res) [track_update 1 1 2]
 
     res <- next res Undo.undo
     equal (extract_hist res) (["setup: 12"], ["+z: z2", "+q: zq"])
     equal (extract_ui res) "12"
-    equal (e_updates res) (track_updates 0 1)
+    equal (e_updates res) [track_update 1 0 1]
 
     -- no past to undo
     res <- next res Undo.undo
@@ -56,12 +54,12 @@ test_undo = do
     res <- next res Undo.redo
     equal (extract_hist res) (["+z: z2", "setup: 12"], ["+q: zq"])
     equal (extract_ui res) "z2"
-    equal (e_updates res) (track_updates 0 1)
+    equal (e_updates res) [track_update 1 0 1]
 
     res <- next res Undo.redo
     equal (extract_ui res) "zq"
     equal (extract_hist res) (["+q: zq", "+z: z2", "setup: 12"], [])
-    equal (e_updates res) (track_updates 1 2)
+    equal (e_updates res) [track_update 1 1 2]
 
     -- no future to redo
     res <- next res Undo.redo
@@ -106,63 +104,72 @@ test_undo_merge = do
     equal (UiTest.eval (e_ui res2) (Block.view_rect <$> State.get_view vid))
         (Rect.xywh 40 40 100 100)
 
+track_update :: TrackNum -> ScoreTime -> ScoreTime -> Update.DisplayUpdate
+track_update tracknum from to = Update.TrackUpdate (UiTest.mk_tid tracknum)
+    (Update.TrackEvents from to)
+
 test_load_previous_history = do
-    let set_keep st = st
-            { Cmd.state_history_config = (Cmd.state_history_config st)
-                { Cmd.hist_keep = 1 }
-            }
-    res <- save_git $ second set_keep $ ResponderTest.mkstates
-        [(">1", [(0, 1, "1")]), (">2", [(1, 1, "2")])]
-
-    res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
-    res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
-    res <- next res $ Cmd.name "+z" $ insert_event 2 "z"
-
-    pprint (e_commits res)
-    let history = ["+z: xyz", "+y: xy", "+x: x", "save: 1"]
-        idx (xs, ys) = (map (history!!) xs, map (history!!) ys)
-    -- +x was discarded.
-    equal (extract_hist res) $ idx ([0, 1], [])
-    equal (extract_ui res) "xyz"
-    -- Discard "save" and "+x".  load_previous_history only happens after
-    -- an undo
-    res <- next res Undo.undo
-    equal (extract_hist res) $ idx ([1], [0])
-    equal (extract_ui res) "xy"
-
-    res <- next res Undo.undo
-    -- +x was loaded
-    equal (extract_hist res) $ idx ([2], [1, 0])
-    equal (extract_ui res) "x"
-    res <- next res Undo.undo
-    -- save was loaded
-    equal (extract_hist res) $ idx ([3], [2, 1, 0])
-    equal (extract_ui res) "1"
-    -- out of past
-    res <- next res Undo.undo
-    equal (extract_hist res) $ idx ([3], [2, 1, 0])
-    equal (extract_ui res) "1"
-
-    -- TODO drop future, and try to redo
-
-test_load_git = do
     -- Load a git repo and make sure its history comes with it.
     res <- save_git $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
     res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
-    res <- next res Save.cmd_save_git
     pprint (e_commits res)
+    pprint (e_hist_updates res)
 
     res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
-        Save.cmd_load_git "build/test/test.git"
+        Save.cmd_load_git "build/test/test.git" Nothing
     equal (extract_ui res) "xy"
+    pprint (e_commits res)
+    pprint (e_hist_updates res)
+
     res <- next res Undo.undo
-    -- The first time I undo the save cmd.
-    equal (extract_ui res) "xy"
-    res <- next res Undo.undo
-    -- The next undo actually undoes the last cmd.
+    pprint (e_commits res)
+    pprint (e_hist_updates res)
+    -- Previous history was loaded, y deleted.
+    equal (extract_hist res) (["+x: x"], ["+y: xy"])
     equal (extract_ui res) "x"
-    return ()
+    equal (e_updates res) [track_update 1 1 2]
+
+    res <- next res Undo.undo
+    -- Previous history was loaded, x replaced with 1.
+    equal (extract_hist res) (["save: 1"], ["+x: x", "+y: xy"])
+    equal (extract_ui res) "1"
+    equal (e_updates res) [track_update 1 0 1]
+
+    -- out of past
+    res <- next res Undo.undo
+    equal (extract_ui res) "1"
+    equal (e_updates res) []
+
+    res <- next res Undo.redo
+    equal (extract_ui res) "x"
+    equal (e_updates res) [track_update 1 0 1]
+    res <- next res Undo.redo
+    equal (extract_ui res) "xy"
+    equal (e_updates res) [track_update 1 1 2]
+
+test_load_next_history = do
+    res <- save_git $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
+    res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
+    res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
+    pprint (e_commits res)
+    -- The creation state wasn't committed, and the save isn't recorded in the
+    -- history even though it has a commit, so start at the second-to-last.
+    let ([_, ent, _], _) = e_commits res
+        (_, Just commit) = ent
+    res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
+        Save.cmd_load_git "build/test/test.git" (Just commit)
+    equal (extract_hist res) (["+x: x"], [])
+    equal (extract_ui res) "x"
+
+    res <- next res Undo.redo
+    equal (extract_ui res) "xy"
+    equal (extract_hist res) (["+y: xy", "+x: x"], [])
+    equal (e_updates res) [track_update 1 1 2]
+
+    res <- next res Undo.redo
+    equal (extract_ui res) "xy"
+    equal (e_updates res) []
 
 save_git states = do
     let repo = "build/test/test.git"
@@ -194,8 +201,8 @@ extract_hist res = (map extract past, map extract future)
     Cmd.History past future _ = e_hist res
     -- Cmd.HistoryCollect _updates _cmd_names _suppress _suppressed =
     --     e_hist_collect res
-    extract (Cmd.HistoryEntry state _ commands _) =
-        Seq.join "+" commands ++ ": " ++ ui_notes 0 state
+    extract (Cmd.HistoryEntry state _ names _) =
+        Seq.join "+" names ++ ": " ++ ui_notes 0 state
 
 e_commits :: ResponderTest.Result
     -> ([([String], Maybe Git.Commit)], [([String], Maybe Git.Commit)])
