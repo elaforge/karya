@@ -144,12 +144,18 @@ checkpoint repo hist@(History state updates names) = try_e "checkpoint" $ do
         Nothing -> Right . fst <$> do_save repo hist
         Just last_commit -> do
             -- TODO event saving implemented but not loading
-            let (errs, mods) = dump_diff False state updates
+            let (errs, mods) = dump_diff False state
+                    (filter checkpoint_update updates)
             if not (null errs) then return (Left (Seq.join ", " errs)) else do
             last_tree <- Git.commit_tree <$> Git.read_commit repo last_commit
             tree <- Git.modify_dir repo last_tree mods
             commit <- commit_tree repo tree $ unparse_names "checkpoint" names
             return $ Right commit
+    where
+    -- BlockConfig changes are only box colors, which I don't ever need to
+    -- save.
+    checkpoint_update (Update.BlockUpdate _ (Update.BlockConfig {})) = False
+    checkpoint_update _ = True
 
 commit_tree :: Git.Repo -> Git.Tree -> String -> IO Git.Commit
 commit_tree repo tree desc = do
