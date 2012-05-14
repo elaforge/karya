@@ -211,8 +211,11 @@ load fn
     | SaveGit.is_git fn = Save.cmd_load_git fn Nothing
     | otherwise = Save.cmd_load fn
 
-revert :: Maybe String -> Cmd.CmdL ()
-revert = Save.cmd_revert
+revert :: Cmd.CmdL ()
+revert = Save.cmd_revert Nothing
+
+revert_to :: String -> Cmd.CmdL ()
+revert_to = Save.cmd_revert . Just
 
 -- * show / modify UI state
 

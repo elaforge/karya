@@ -75,9 +75,9 @@ cmd_load_git repo maybe_commit = do
 
 -- | Revert to given save point, or the last one.
 cmd_revert :: Maybe String -> Cmd.CmdT IO ()
-cmd_revert maybe_save = do
+cmd_revert maybe_ref = do
     repo <- State.gets (SaveGit.save_file True)
-    save <- case maybe_save of
+    save <- case maybe_ref of
         Nothing -> Cmd.require_msg "no last save"
             =<< Trans.liftIO (SaveGit.read_last_save repo)
         Just save -> rethrow "cmd_revert" $ SaveGit.ref_to_save save

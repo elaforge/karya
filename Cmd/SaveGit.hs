@@ -115,13 +115,11 @@ find_next_save repo save =
 
 ref_to_save :: Git.Ref -> IO SavePoint
 ref_to_save ref
-    | not had_tags = Git.throw $
-        "save ref must be in tags/: " ++ show ref
     | not (all (all Char.isDigit) versions) = Git.throw $
         "save ref must be ints separated by dots: " ++ show ref
     | otherwise = return $ SavePoint (reverse (map read versions))
     where
-    (save, had_tags) = Seq.drop_prefix "tags/" ref
+    (save, _) = Seq.drop_prefix "tags/" ref
     versions = Seq.split "." save
 
 save_to_ref :: SavePoint -> Git.Ref
