@@ -167,9 +167,19 @@ test_load_next_history = do
     equal (extract_hist res) (["+y: xy", "+x: x"], [])
     equal (e_updates res) [track_update 1 1 2]
 
+    -- No future to redo.
     res <- next res Undo.redo
     equal (extract_ui res) "xy"
     equal (e_updates res) []
+
+    -- Make sure I can do back again.
+    res <- next res Undo.undo
+    equal (extract_ui res) "x"
+    equal (e_updates res) [track_update 1 1 2]
+
+    res <- next res Undo.undo
+    equal (extract_ui res) "1"
+    equal (e_updates res) [track_update 1 0 1]
 
 save_git states = do
     let repo = "build/test/test.git"

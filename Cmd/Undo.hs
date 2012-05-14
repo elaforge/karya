@@ -91,20 +91,23 @@ redo = do
     cur <- Cmd.require_msg "redo: no past at all (this shouldn't happen)" $
         Seq.head (Cmd.hist_past hist)
     case Cmd.hist_future hist of
-        next : rest -> do_redo hist next rest
+        next : rest -> do_redo (Cmd.hist_past hist) next rest
         [] -> do
             repo <- State.gets SaveGit.save_repo
             future <- Trans.liftIO $ load_next repo cur
             case future of
                 [] -> Cmd.throw "no future to redo"
-                next : rest -> do_redo hist next rest
+                next : rest -> do_redo (Cmd.hist_past hist) next rest
     where
-    do_redo hist next rest = do
+    do_redo [] _ _ =
+        Cmd.throw "redo: no cur entry in past (this shouldn't happen)"
+    do_redo (cur:past) next rest = do
         Log.notice $ "redo -> " ++ hist_name next
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past = next { Cmd.hist_updates = [] }
-                    : Cmd.hist_past hist
+                    : cur { Cmd.hist_updates = Cmd.hist_updates next }
+                    : past
                 , Cmd.hist_future = rest
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
