@@ -3,6 +3,7 @@ module Cmd.SaveGit where
 import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
 import qualified Data.Char as Char
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -53,6 +54,9 @@ save_file for_git state =
     -- This shouldn't be necessary because of the Namespace naming
     -- restrictions, but it doesn't hurt to be careful anyway.
     sanitize c = if FilePath.isPathSeparator c then '_' else c
+
+is_git :: FilePath -> Bool
+is_git = (".git" `List.isSuffixOf`)
 
 -- * save
 
@@ -447,15 +451,15 @@ keyed_group key = map (\gs -> (key (head gs), gs)) . Seq.group key
 -- * util
 
 try :: String -> IO a -> IO (Either String a)
-try caller op = do
-    result <- Exception.try op
+try caller io = do
+    result <- Exception.try io
     return $ case result of
         Left (Git.GitException err) -> Left $ caller ++ ": " ++ err
         Right val -> Right val
 
 try_e :: String -> IO (Either String a) -> IO (Either String a)
-try_e caller op = do
-    result <- Exception.try op
+try_e caller io = do
+    result <- Exception.try io
     return $ case result of
         Left (Git.GitException err) -> Left $ caller ++ ": " ++ err
         Right (Left err) -> Left $ caller ++ ": " ++ err

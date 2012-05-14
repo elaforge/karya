@@ -51,6 +51,7 @@ import Cmd.Lang.LPitch ()
 import Cmd.Lang.LRuler ()
 import Cmd.Lang.LTrack ()
 import qualified Cmd.Save as Save
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
@@ -206,7 +207,12 @@ save_as :: FilePath -> Cmd.CmdL ()
 save_as fn = Save.cmd_save fn
 
 load :: FilePath -> Cmd.CmdL ()
-load fn = Save.cmd_load fn
+load fn
+    | SaveGit.is_git fn = Save.cmd_load_git fn Nothing
+    | otherwise = Save.cmd_load fn
+
+revert :: Maybe String -> Cmd.CmdL ()
+revert = Save.cmd_revert
 
 -- * show / modify UI state
 

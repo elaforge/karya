@@ -63,9 +63,7 @@ cmd_load_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " ++ repo ++ ": ") ++)
         =<< (Trans.liftIO $ SaveGit.load repo maybe_commit)
-    last_save <- Cmd.require_right id
-        =<< (Trans.liftIO  $ SaveGit.try "read_last_save" $
-            SaveGit.read_last_save repo)
+    last_save <- rethrow "read_last_save" $ SaveGit.read_last_save repo
     Log.notice $ "loaded from " ++ show repo ++ ", at " ++ Pretty.pretty commit
     set_state state
     Cmd.modify $ \st -> st
@@ -74,6 +72,23 @@ cmd_load_git repo maybe_commit = do
         , Cmd.state_history_config = (Cmd.state_history_config st)
             { Cmd.hist_last_save = last_save }
         }
+
+-- | Revert to given save point, or the last one.
+cmd_revert :: Maybe String -> Cmd.CmdT IO ()
+cmd_revert maybe_save = do
+    repo <- State.gets (SaveGit.save_file True)
+    save <- case maybe_save of
+        Nothing -> Cmd.require_msg "no last save"
+            =<< Trans.liftIO (SaveGit.read_last_save repo)
+        Just save -> rethrow "cmd_revert" $ SaveGit.ref_to_save save
+    commit <- Cmd.require_msg ("save ref not found: " ++ show save)
+        =<< rethrow "cmd_revert" (SaveGit.read_save_ref repo save)
+    Log.notice $ "revert to " ++ show save
+    cmd_load_git repo (Just commit)
+
+rethrow :: String -> IO a -> Cmd.CmdT IO a
+rethrow caller io =
+    Cmd.require_right id =<< Trans.liftIO (SaveGit.try caller io)
 
 -- * misc
 

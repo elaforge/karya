@@ -94,7 +94,7 @@ UNSORTED
       the call to git.  Test again with larger tracks.
     - do something about the duplication between the incremental and
       non-incremental save and load
-    - running a git cmd for every blob is not going to perform well when there
+    + running a git cmd for every blob is not going to perform well when there
       are thousands of them.  Wrap libgit directly?
     - wrap operations in a lock file
     - make sure things are ok if it fails at any step
@@ -122,7 +122,7 @@ UNSORTED
       diff will catch it.
     * Have Save.cmd_save optionally use git backend
     * include SavePoint in save commit
-    - cmd to revert to last save
+    * cmd to revert to last save
     * load futures in the same way that I load the past
     - To support features like searching back through the history for changes
       within a selection, there should be a way to get previous history and

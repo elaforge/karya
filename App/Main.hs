@@ -9,7 +9,6 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import System.FilePath ((</>))
@@ -56,6 +55,7 @@ import qualified Cmd.LoadMod as LoadMod
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Responder as Responder
 import qualified Cmd.Save as Save
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Call.All as Call.All
@@ -120,15 +120,13 @@ parse_args argv = case argv of
         State.set_namespace (Id.unsafe_namespace "untitled")
         return Cmd.Done
     [fn]
-        | is_git fn -> Save.cmd_load_git fn Nothing >> return Cmd.Done
+        | SaveGit.is_git fn -> Save.cmd_load_git fn Nothing >> return Cmd.Done
         | otherwise -> Save.cmd_load fn >> return Cmd.Done
     [fn, ref_or_commit] -> do
         commit <- Cmd.require_msg ("not a ref or commit: " ++ ref_or_commit)
             =<< Trans.liftIO (Git.infer_commit fn ref_or_commit)
         Save.cmd_load_git fn (Just commit) >> return Cmd.Done
     _ -> error $ "bad args: " ++ show argv
-    where
-    is_git = (".git" `List.isSuffixOf`)
 
 iac, tapco :: Int -> String
 iac n = "IAC Synth " ++ show n
