@@ -1,4 +1,4 @@
-{-# LANGUAGE EmptyDataDecls #-} -- for data CView
+{-# LANGUAGE DeriveDataTypeable #-}
 {- | This layer gives direct wrapped access to the fltk API.
 
     It maintains a map from ViewIds to window pointers, which represents the on
@@ -9,11 +9,9 @@
     TODO exceptions are not implemented yet
 -}
 module Ui.BlockC (
-    -- * errors, and ptr access
-    throw
     -- | get_id and CView are only exported for Ui.UiMsgC which is a slight
     -- abstraction breakage.
-    , get_id, CView
+    get_id, CView
 
     -- * view creation
     , create_view, destroy_view
@@ -44,6 +42,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Typeable as Typeable
 import Foreign
 import Foreign.C
 import qualified System.IO.Unsafe as Unsafe
@@ -83,10 +82,6 @@ data CView
 view_id_to_ptr :: MVar.MVar (Map.Map ViewId (Foreign.Ptr CView))
 {-# NOINLINE view_id_to_ptr #-}
 view_id_to_ptr = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
-
--- TODO have a BlockC exception type
--- also, turn c++ exceptions into this exception
-throw = error
 
 get_ptr :: ViewId -> IO (Ptr CView)
 get_ptr view_id = do
@@ -471,3 +466,13 @@ poke_selection selp (CSelection color
     (#poke Selection, start_pos) selp start_pos
     (#poke Selection, cur_track) selp (Util.c_int cur_track)
     (#poke Selection, cur_pos) selp cur_pos
+
+-- * error
+
+newtype FltkException = FltkException String deriving (Typeable.Typeable)
+instance Exception.Exception FltkException
+instance Show FltkException where
+    show (FltkException msg) = "FltkException: " ++ msg
+
+throw :: String -> IO a
+throw = Exception.throwIO . FltkException
