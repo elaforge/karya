@@ -21,19 +21,38 @@ test_misc = do
         [("dirname", Right tree), ("file2", Left blob)]
 
     commit <- Git.write_commit repo "me" "email" [] tree "commit by me\n"
+    commit2 <- Git.write_commit repo "me" "email" [commit] tree
+        "another commit by me\n"
     io_equal (Git.read_commit repo commit) $
         Git.CommitData tree [] "me <email>" "commit by me\n"
-    -- let ref = "heads/master"
-    -- Git.write_ref repo commit ref
-    -- io_equal (Git.read_ref repo ref) (Just commit)
-    -- io_equal (Git.read_ref repo "no-such-ref") Nothing
-    -- Git.write_head repo ref
-    -- io_equal (Git.read_head repo) ref
-    -- Git.update_head repo commit
-    -- io_equal (Git.read_head_commit repo) (Just commit)
 
-{-
--- test_make_dir = do
+    -- refs
+    -- Updated automatically by write_commit.
+    io_equal (Git.read_ref repo "heads/master") (Just commit2)
+    io_equal (Git.read_head_commit repo) (Just commit2)
+
+    let ref = "tags/0"
+    Git.write_ref repo commit ref
+    io_equal (Git.read_ref repo ref) (Just commit)
+    io_equal (Git.read_ref repo "no-such-ref") Nothing
+
+    -- sym -> ref
+    Git.write_symbolic_ref repo "sym" ref
+    io_equal (Git.read_symbolic_ref repo "sym") (Just ref)
+
+    -- HEAD -> ref -> commit
+    Git.write_head repo ref
+    io_equal (Git.read_head_commit repo) (Just commit)
+    -- HEAD -> ref -> commit2
+    Git.update_head repo commit2
+    io_equal (Git.read_head_commit repo) (Just commit2)
+    io_equal (Git.read_head repo) ref
+
+    -- revlist
+    io_equal (Git.read_log repo ref) [commit2, commit]
+    io_equal (Git.read_log_head repo) [commit2, commit]
+
+test_make_dir = do
     let f = Git.make_dir
     equal (f [("foo/bar", "abc"), ("foo/bar/baz", "def")])
         (Left "can't insert below a file: \"bar\"")
@@ -41,15 +60,14 @@ test_misc = do
         Map.fromList [("a", Git.Dir (Map.fromList
             [("b", Git.File "a"), ("c", Git.File "b")]))]
 
--- test_write_dir = do
+test_write_dir = do
     repo <- new_repo
     let Right dir1 = Git.make_dir [("a/b", "abc"), ("d", "def")]
     tree <- Git.write_dir repo dir1
-    print tree
     dir2 <- Git.read_dir repo tree
     equal dir1 dir2
 
--- test_modify_dir = do
+test_modify_dir = do
     repo <- new_repo
     tree <- Git.write_dir repo Map.empty
     tree <- Git.modify_dir repo tree [Git.Add "a/b" "abc", Git.Add "c" "def"]
@@ -59,7 +77,9 @@ test_misc = do
         ]
     tree <- Git.modify_dir repo tree [Git.Remove "a/b", Git.Add "c" "qqq"]
     io_equal (Git.read_dir repo tree) $ Map.fromList [("c", Git.File "qqq")]
--}
+
+
+-- * implementation
 
 new_repo = do
     let repo = "build/test/test-repo"

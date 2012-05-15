@@ -1,33 +1,55 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | Low level interaction with the git object store, implemented via a libgit2
 -- binding.
+--
+-- TODO
+--
+-- - Is git_tree_diff recursive?
+--
+-- - Apparently there's no way to modify an index directly, without going
+-- through a filesystem.  E.g. no equivalent to git update-index --index-info.
+-- git_index_add() insists the file exists.
 module Util.Git.Git2 where
 import Prelude hiding (init)
 import qualified Control.Exception as Exception
+import qualified Data.Bits as Bits
 import qualified Data.ByteString as ByteString
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as Char8
+import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.ByteString.Unsafe as ByteString.Unsafe
+import qualified Data.IORef as IORef
+import qualified Data.List as List
+import qualified Data.Map as Map
 
-import Foreign
+import Foreign hiding (void)
 import Foreign.C
 import qualified System.Directory as Directory
+import qualified System.Exit as Exit
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.Git.LibGit2 as G
+import qualified Util.Pretty as Pretty
+import qualified Util.Process as Process
+import qualified Util.Seq as Seq
 
 
 newtype Blob = Blob G.OID deriving (Eq, Show)
 newtype Tree = Tree G.OID deriving (Eq, Show)
 newtype Commit = Commit G.OID deriving (Eq, Show)
 
--- instance Pretty.Pretty Blob where pretty (Blob hash) = unparse_hash hash
--- instance Pretty.Pretty Tree where pretty (Tree hash) = unparse_hash hash
--- instance Pretty.Pretty Commit where pretty (Commit hash) = unparse_hash hash
+instance Pretty.Pretty Blob where
+    pretty (Blob (G.OID oid)) = Char8.unpack oid
+instance Pretty.Pretty Tree where
+    pretty (Tree (G.OID oid)) = Char8.unpack oid
+instance Pretty.Pretty Commit where
+    pretty (Commit (G.OID oid)) = Char8.unpack oid
 
 type Repo = FilePath
--- | Repo-internal path.  Should not contain slashes.
-type Name = FilePath
+-- | Repo-internal path.
+type FileName = FilePath
 -- | This has the initial refs/ stripped off.
 type Ref = FilePath
 
@@ -65,18 +87,20 @@ write_blob repo bytes = with_repo repo $ \repop -> alloca $ \oidp ->
         Blob <$> peek oidp
 
 read_blob :: Repo -> Blob -> IO ByteString
-read_blob repo (Blob blob) =
-    with_repo repo $ \repop -> with blob $ \oidp -> alloca $ \blobpp -> do
-        G.check ("blob_lookup: " ++ show blob) $
-            G.c'git_blob_lookup blobpp repop oidp
-        blobp <- peek blobpp
-        bufp <- G.c'git_blob_rawcontent blobp
-        len <- G.c'git_blob_rawsize blobp
-        bytes <- ByteString.packCStringLen (bufp, fromIntegral len)
-        G.c'git_blob_free blobp
-        return bytes
+read_blob repo blob = with_repo repo $ \repop -> read_blob_repo repop blob
 
-write_tree :: Repo -> [(Name, Either Blob Tree)] -> IO Tree
+read_blob_repo :: G.Repo -> Blob -> IO ByteString
+read_blob_repo repop (Blob blob) = with blob $ \oidp -> alloca $ \blobpp -> do
+    G.check ("blob_lookup: " ++ show blob) $
+        G.c'git_blob_lookup blobpp repop oidp
+    blobp <- peek blobpp
+    bufp <- G.c'git_blob_rawcontent blobp
+    len <- G.c'git_blob_rawsize blobp
+    bytes <- ByteString.packCStringLen (bufp, fromIntegral len)
+    G.c'git_blob_free blobp
+    return bytes
+
+write_tree :: Repo -> [(FileName, Either Blob Tree)] -> IO Tree
 write_tree repo files = with_repo repo $ \repop -> alloca $ \builderpp -> do
     G.check "treebuilder_create" $ G.c'git_treebuilder_create builderpp nullPtr
     builderp <- peek builderpp
@@ -95,7 +119,7 @@ write_tree repo files = with_repo repo $ \repop -> alloca $ \builderpp -> do
         with oid $ \oidp ->
             G.c'git_treebuilder_insert nullPtr builderp namep oidp 0o040000
 
-read_tree :: Repo -> Tree -> IO [(Name, Either Blob Tree)]
+read_tree :: Repo -> Tree -> IO [(FileName, Either Blob Tree)]
 read_tree repo tree = with_repo repo $ \repop ->
     with_tree repop tree $ \treep -> do
         count <- G.c'git_tree_entrycount treep
@@ -148,15 +172,18 @@ data CommitData = CommitData {
 
 read_commit :: Repo -> Commit -> IO CommitData
 read_commit repo commit =
-    with_repo repo $ \repop -> with_commit repop commit $ \commitp -> do
-        author <- peek_user =<< peek =<< G.c'git_commit_author commitp
-        tree <- peek =<< G.c'git_commit_tree_oid commitp
-        parents_len <- G.c'git_commit_parentcount commitp
-        parents <- mapM peek
-            =<< mapM (G.c'git_commit_parent_oid commitp)
-                (if parents_len == 0 then [] else [0..parents_len-1])
-        desc <- peekCString =<< G.c'git_commit_message commitp
-        return $ CommitData (Tree tree) (map Commit parents) author desc
+    with_repo repo $ \repop -> read_commit_repo repop commit
+
+read_commit_repo :: G.Repo -> Commit -> IO CommitData
+read_commit_repo repop commit = with_commit repop commit $ \commitp -> do
+    author <- peek_user =<< peek =<< G.c'git_commit_author commitp
+    tree <- peek =<< G.c'git_commit_tree_oid commitp
+    parents_len <- G.c'git_commit_parentcount commitp
+    parents <- mapM peek
+        =<< mapM (G.c'git_commit_parent_oid commitp)
+            (if parents_len == 0 then [] else [0..parents_len-1])
+    desc <- peekCString =<< G.c'git_commit_message commitp
+    return $ CommitData (Tree tree) (map Commit parents) author desc
     where
     peek_user sig = do
         name <- peekCString (G.c'git_signature'name sig)
@@ -170,68 +197,99 @@ with_commit repop (Commit oid) io = with oid $ \oidp -> alloca $ \commitpp -> do
     commitp <- peek commitpp
     io commitp `Exception.finally` G.c'git_commit_free commitp
 
-{-
--- | Technically it's diff trees, but I always want to diff commits.
 diff_commits :: Repo -> Commit -> Commit -> IO [Modification]
-diff_commits repo (Commit c1) (Commit c2) = do
-    output <- git repo ["diff-tree", "--no-renames", "-r",
-        unparse_hash c1, unparse_hash c2] ""
-    mapM parse (Char8.lines output)
+diff_commits repo old new = with_repo repo $ \repop -> do
+    oldc <- read_commit_repo repop old
+    newc <- read_commit_repo repop new
+    diff_tree repo (commit_tree oldc) (commit_tree newc)
+
+diff_tree :: Repo -> Tree -> Tree -> IO [Modification]
+diff_tree repo old new =
+    with_repo repo $ \repop -> diff_tree_repo repop old new
+
+diff_tree_repo :: G.Repo -> Tree -> Tree -> IO [Modification]
+diff_tree_repo repop old new =
+    with_tree repop old $ \oldp -> with_tree repop new $ \newp -> do
+        ref <- IORef.newIORef []
+        with_fptr (G.mk'git_tree_diff_cb (diff repop ref)) $ \callback -> do
+            G.check "tree_diff" $ G.c'git_tree_diff oldp newp callback nullPtr
+            IORef.readIORef ref
     where
-    parse line = case Char8.words line of
-        [_, _, _, to_hash, status, path]
-            | status == "D" -> return $ Remove (Char8.unpack path)
-            | status == "M" || status == "A" -> do
-                bytes <- read_blob repo (Blob to_hash)
-                return $ Add (Char8.unpack path) bytes
-            | otherwise ->
-                throw $ "diff_commits: unknown status: " ++ show status
-        _ -> throw $ "diff_commits: unparseable line: " ++ show line
-
--- | Get commits in reverse chronological order from the given ref.
-read_log :: Repo -> Ref -> IO [Commit]
-read_log repo ref = map (Commit . parse_hash) . Char8.lines <$>
-    git repo ["rev-list", "refs" </> ref] ""
-
--- | Get commits in reverse chronological order from the HEAD.
-read_log_head :: Repo -> IO [Commit]
-read_log_head repo = map (Commit . parse_hash) . Char8.lines <$>
-    git repo ["rev-list", "HEAD"] ""
-
-gc :: Repo -> IO ()
-gc repo = void $ git repo ["gc", "--aggressive"] ""
+    diff repop ref datap _ptr = do
+        G.C'git_tree_diff_data new_oid status pathp <- peek datap
+        path <- peekCString pathp
+        mod <- if status == G.c'GIT_STATUS_DELETED
+            then return $ Remove path
+            else do
+                bytes <- read_blob_repo repop (Blob new_oid)
+                return $ Add path bytes
+        IORef.modifyIORef ref (mod:)
+        return 0
 
 -- ** refs
 
 write_ref :: Repo -> Commit -> Ref -> IO ()
-write_ref repo (Commit commit) ref = do
-    void $ git repo ["update-ref", "refs" </> ref, unparse_hash commit] ""
+write_ref repo (Commit commit) ref = with_repo repo $ \repop ->
+    with commit $ \commitp -> with_ref_name ref $ \namep ->
+    alloca $ \refpp -> do
+        G.check "write_ref" $ G.c'git_reference_create_oid refpp repop namep
+            commitp 1
+        refp <- peek refpp
+        when (refp /= nullPtr) $
+            G.c'git_reference_free refp
 
 read_ref :: Repo -> Ref -> IO (Maybe Commit)
-read_ref repo ref =
-    (Just . Commit . parse_hash <$>
-        git repo ["show-ref", "--verify", "--hash", "refs" </> ref] "")
-        `Exception.catch` (\(_exc :: GitException) -> return Nothing)
+read_ref repo ref = with_repo repo $ \repop -> with_ref_name ref $ \namep ->
+    alloca $ \oidp -> do
+        code <- G.c'git_reference_name_to_oid oidp repop namep
+        if code /= G.c'GIT_SUCCESS then return Nothing else do
+        oid <- peek oidp
+        return (Just (Commit oid))
 
-write_symbolic_ref :: Repo -> Name -> Ref -> IO ()
-write_symbolic_ref repo name ref =
-    void $ git repo ["symbolic-ref", name, "refs" </> ref] ""
+with_ref_name :: Ref -> (CString -> IO a) -> IO a
+with_ref_name ref io = withCString ("refs" </> ref) $ \namep -> io namep
 
-read_symbolic_ref :: Repo -> Name -> IO (Maybe Ref)
-read_symbolic_ref repo name =
-    ifM (Directory.doesFileExist (repo </> name))
-        (Just . deref <$> git repo ["symbolic-ref", name] "")
-        (return Nothing)
-    where
-    deref = drop_refs . Seq.strip . Char8.unpack
-    drop_refs = drop 1 . dropWhile (/='/')
+with_ref :: G.Repo -> Ref -> (Ptr G.C'git_reference -> IO a) -> IO a
+with_ref repop ref io =
+    withCString ref $ \namep -> alloca $ \refpp -> do
+        G.check ("reference_lookup " ++ show ref) $
+            G.c'git_reference_lookup refpp repop namep
+        refp <- peek refpp
+        io refp `Exception.finally` when (refp /= nullPtr)
+            (G.c'git_reference_free refp)
 
--- ** HEAD
+-- *** symbolic
+
+write_symbolic_ref :: Repo -> Ref -> Ref -> IO ()
+write_symbolic_ref repo sym ref = with_repo repo $ \repop ->
+    with_ref_name ref $ \namep -> withCString sym $ \symp ->
+    alloca $ \refpp -> do
+        refp <- G.check_lookup "reference_create_symbolic" refpp $
+            G.c'git_reference_create_symbolic refpp repop symp namep 1
+        when (refp /= nullPtr) $
+            G.c'git_reference_free refp
+
+read_symbolic_ref :: Repo -> Ref -> IO (Maybe Ref)
+read_symbolic_ref repo sym = with_repo repo $ \repop ->
+    with_ref repop sym $ \symp -> alloca $ \refpp -> do
+        refp <- G.check_lookup "reference_resolve" refpp $
+            G.c'git_reference_resolve refpp symp
+        if refp == nullPtr then return Nothing else do
+        (name, stripped) <- Seq.drop_prefix "refs/" <$>
+            (peekCString =<< G.c'git_reference_name refp)
+        unless stripped $
+            G.throw $ "ref name of " ++ show sym ++ " wasn't in refs/: "
+                ++ show name
+        return $ Just name
+
+-- *** HEAD
 
 -- | Point HEAD to a commit.
 update_head :: Repo -> Commit -> IO ()
-update_head repo (Commit commit) =
-    void $ git repo ["update-ref", "HEAD", unparse_hash commit] ""
+update_head repo commit = do
+    maybe_ref <- read_symbolic_ref repo "HEAD"
+    maybe (G.throw "HEAD symbolic ref missing") (write_ref repo commit)
+        maybe_ref
 
 read_head_commit :: Repo -> IO (Maybe Commit)
 read_head_commit repo = read_ref repo =<< read_head repo
@@ -240,13 +298,71 @@ write_head :: Repo -> Ref -> IO ()
 write_head repo = write_symbolic_ref repo "HEAD"
 
 read_head :: Repo -> IO Ref
-read_head repo = maybe (throw "HEAD symbolic ref missing") return =<<
+read_head repo = maybe (G.throw "HEAD symbolic ref missing") return =<<
     read_symbolic_ref repo "HEAD"
 
+-- * revwalk
+
+-- | Get commits in reverse chronological order from the given ref.
+read_log :: Repo -> Ref -> IO [Commit]
+read_log repo ref = with_repo repo $ \repop -> with_ref_name ref $ \refnamep ->
+    with_revwalk repop $ \walkp -> do
+        G.check ("revwalk_push_ref: " ++ ref) $
+            G.c'git_revwalk_push_ref walkp refnamep
+        walk walkp [SortTime]
+
+-- | Get commits in reverse chronological order from the HEAD.
+read_log_head :: Repo -> IO [Commit]
+read_log_head repo = read_log repo =<< read_head repo
+
+data SortFlag = SortTopological | SortTime | SortReverse deriving (Show)
+
+walk :: Ptr G.C'git_revwalk -> [SortFlag] -> IO [Commit]
+walk walkp flags = do
+    G.c'git_revwalk_sorting walkp
+        (List.foldl' (Bits..|.) G.gitSortNone (map flag flags))
+    alloca $ \oidp -> while_just (next oidp)
+    where
+    next oidp = do
+        errno <- G.c'git_revwalk_next oidp walkp
+        if errno == G.c'GIT_EREVWALKOVER then return Nothing else do
+        G.check "revwalk_next" (return errno)
+        oid <- peek oidp
+        return (Just (Commit oid))
+    while_just io = do
+        maybe_val <- io
+        case maybe_val of
+            Nothing -> return []
+            Just val -> do
+                vals <- while_just io
+                return (val : vals)
+    flag f = case f of
+        SortTopological -> G.gitSortTopological
+        SortTime -> G.gitSortTime
+        SortReverse -> G.gitSortReverse
+
+with_revwalk :: G.Repo -> (Ptr G.C'git_revwalk -> IO a) -> IO a
+with_revwalk repop io = alloca $ \walkpp -> do
+    G.check "revwalk_new" $ G.c'git_revwalk_new walkpp repop
+    walkp <- peek walkpp
+    io walkp `Exception.finally` G.c'git_revwalk_free walkp
+
+-- * misc
+
+gc :: Repo -> IO ()
+gc repo = void $ git repo ["gc", "--aggressive"] ""
 
 -- * higher level
 
-type Dir = Map.Map Name File
+data Modification = Remove FilePath | Add FilePath ByteString
+    deriving (Show)
+
+instance Pretty.Pretty Modification where
+    pretty (Remove fn) = "rm " ++ fn
+    pretty (Add fn bytes) =
+        "add " ++ fn ++ "{" ++ show (Char8.length bytes) ++ "}"
+
+type Dir = Map.Map FileName File
 data File = File ByteString | Dir Dir deriving (Eq, Show)
 
 make_dir :: [(FilePath, ByteString)] -> Either String Dir
@@ -283,18 +399,11 @@ read_dir repo tree = do
     read (Left blob) = File <$> read_blob repo blob
     read (Right tree) = Dir <$> read_dir repo tree
 
-data Modification = Remove FilePath | Add FilePath ByteString
-    deriving (Show)
-
-instance Pretty.Pretty Modification where
-    pretty (Remove fn) = "rm " ++ fn
-    pretty (Add fn bytes) =
-        "add " ++ fn ++ "{" ++ show (Char8.length bytes) ++ "}"
-
+-- | Apply a list of modifications to an existing tree.
 modify_dir :: Repo -> Tree -> [Modification] -> IO Tree
 modify_dir repo (Tree tree) mods = do
     git repo ["read-tree", "--empty"] ""
-    git repo ["read-tree", unparse_hash tree] ""
+    git repo ["read-tree", G.show_oid tree] ""
     mods <- forM (strip mods) $ \(path, maybe_bytes) -> do
         blob <- case maybe_bytes of
             Nothing -> return Nothing
@@ -302,15 +411,39 @@ modify_dir repo (Tree tree) mods = do
         return (path, blob)
     git repo ["update-index", "--replace", "--index-info"]
         (Char8.unlines (map mkline mods))
-    Tree . parse_hash <$> git repo ["write-tree"] ""
+    Tree . G.read_oid <$> git repo ["write-tree"] ""
     where
     mkline (path, Nothing) =
         "0 0000000000000000000000000000000000000000\t" <> UTF8.fromString path
-    mkline (path, Just (Blob hash)) =
-        "100644 " <> hash <> "\t" <> UTF8.fromString path
+    mkline (path, Just (Blob (G.OID oid))) =
+        "100644 " <> oid <> "\t" <> UTF8.fromString path
     -- Strip out redundent modifications.
     strip = Map.toList . Map.fromList . map extract
     extract (Remove fn) = (fn, Nothing)
     extract (Add fn bytes) = (fn, Just bytes)
 
--}
+
+-- * util
+
+with_fptr :: IO (FunPtr a) -> (FunPtr a -> IO b) -> IO b
+with_fptr make io = do
+    fptr <- make
+    io fptr `Exception.finally` freeHaskellFunPtr fptr
+
+git :: Repo -> [String] -> ByteString -> IO ByteString
+git repo = git_env repo []
+
+git_env :: Repo -> [(String, String)] -> [String] -> ByteString
+    -> IO ByteString
+git_env repo env args stdin = do
+    (ex, out, err) <- Process.readProcessWithExitCode
+        (Just (("GIT_DIR", repo) : env)) "git" args stdin
+    -- let sin = " <" ++ show (Char8.length stdin)
+    -- let sin = if Char8.null stdin then "" else " <" ++ show stdin
+    -- putStrLn $ unwords ("git" : args) ++ sin ++ " ==> "
+    --     ++ Seq.strip (Char8.unpack out)
+    case ex of
+        Exit.ExitFailure code -> G.throw $
+            repo ++ " -- " ++ unwords ("git" : args) ++ ": " ++ show code
+            ++ " " ++ Seq.strip (Char8.unpack err)
+        _ -> return out

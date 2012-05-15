@@ -3,6 +3,7 @@ module Util.Git.LibGit2 where
 import qualified Control.Exception as Exception
 import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.ByteString.Unsafe as ByteString.Unsafe
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Typeable as Typeable
 
@@ -24,9 +25,6 @@ type Repo = Ptr C'git_repository
 #ccall git_repository_init, Ptr Repo -> CString -> CUInt -> IO Error
 #ccall git_repository_open, Ptr Repo -> CString -> IO Error
 #ccall git_repository_free, Repo -> IO ()
-
--- #opaque_t git_object
--- #ccall git_object_free, Ptr <git_object> -> IO ()
 
 -- * blob
 
@@ -63,9 +61,10 @@ type Repo = Ptr C'git_repository
 -- const git_oid * git_tree_entry_id(const git_tree_entry *entry);
 #ccall git_tree_entry_id, Ptr <git_tree_entry> -> IO (Ptr OID)
 
+-- ** treebuilder
+
 type ObjType = CInt
 #enum ObjType, , GIT_OBJ_COMMIT, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OBJ_TAG
-
 
 -- int git_treebuilder_create(git_treebuilder **builder_p, const git_tree
 -- *source);
@@ -82,6 +81,41 @@ type ObjType = CInt
 -- void git_treebuilder_free(git_treebuilder *bld);
 #ccall git_treebuilder_free, Ptr <git_treebuilder> -> IO ()
 
+-- ** index
+
+-- int git_tree_create_fromindex(git_oid *oid, git_index *index);
+#ccall git_tree_create_fromindex, Ptr OID -> Ptr <git_index> -> IO Error
+
+-- ** diff
+
+-- typedef int (*git_tree_diff_cb)(const git_tree_diff_data *ptr, void *data);
+#callback git_tree_diff_cb, Ptr <git_tree_diff_data> -> Ptr CChar -> IO CInt
+#ccall git_tree_diff, Ptr <git_tree> -> Ptr <git_tree> -> <git_tree_diff_cb> \
+    -> Ptr CChar -> IO Error
+
+#integral_t git_status_t
+#num GIT_STATUS_ADDED
+#num GIT_STATUS_DELETED
+#num GIT_STATUS_MODIFIED
+
+#starttype git_tree_diff_data
+-- Only the fields I need.
+-- #field old_attr, CUInt
+-- #field new_attr, CUInt
+-- #field old_oid, OID
+#field new_oid, OID
+#field status, <git_status_t>
+#field path, CString
+#stoptype
+
+-- * index
+
+#opaque_t git_index
+
+-- int git_index_read_tree(git_index *index, git_tree *tree);
+#ccall git_index_read_tree, Ptr <git_index> -> Ptr <git_tree> -> IO Error
+-- void git_index_free(git_index *index);
+#ccall git_index_free, Ptr <git_index> -> IO ()
 
 -- * commit
 
@@ -117,6 +151,59 @@ type ObjType = CInt
 #ccall git_commit_parent_oid, Ptr <git_commit> -> CUInt -> IO (Ptr OID)
 #ccall git_commit_message, Ptr <git_commit> -> IO CString
 
+-- * ref
+
+#opaque_t git_reference
+
+-- int git_reference_lookup(git_reference **reference_out, git_repository
+-- *repo, const char *name);
+#ccall git_reference_lookup, Ptr (Ptr <git_reference>) -> Repo -> CString \
+    -> IO Error
+-- void git_reference_free(git_reference *ref);
+#ccall git_reference_free, Ptr <git_reference> -> IO ()
+
+-- int git_reference_name_to_oid(git_oid *out, git_repository *repo, const char
+-- *name);
+#ccall git_reference_name_to_oid, Ptr OID -> Repo -> CString -> IO CInt
+
+-- int git_reference_create_oid(git_reference **ref_out, git_repository *repo,
+-- const char *name, const git_oid *id, int force);
+#ccall git_reference_create_oid, Ptr (Ptr <git_reference>) -> Repo \
+    -> CString -> Ptr OID -> CInt -> IO Error
+-- const char * git_reference_name(git_reference *ref);
+#ccall git_reference_name, Ptr <git_reference> -> IO CString
+-- const git_oid * git_reference_oid(git_reference *ref);
+#ccall git_reference_oid, Ptr <git_reference> -> IO (Ptr OID)
+
+-- ** symbolic
+
+-- int git_reference_create_symbolic(git_reference **ref_out, git_repository
+-- *repo, const char *name, const char *target, int force);
+#ccall git_reference_create_symbolic, Ptr (Ptr <git_reference>) -> Repo \
+    -> CString -> CString -> CInt -> IO Error
+-- int git_reference_resolve(git_reference **resolved_ref, git_reference *ref);
+#ccall git_reference_resolve, Ptr (Ptr <git_reference>) \
+    -> Ptr <git_reference> -> IO Error
+
+-- * revwalk
+
+#opaque_t git_revwalk
+
+-- int git_revwalk_new(git_revwalk **walker, git_repository *repo);
+#ccall git_revwalk_new, Ptr (Ptr <git_revwalk>) -> Repo -> IO Error
+-- void git_revwalk_free(git_revwalk *walk);
+#ccall git_revwalk_free, Ptr <git_revwalk> -> IO ()
+
+-- int git_revwalk_push_ref(git_revwalk *walk, const char *refname);
+#ccall git_revwalk_push_ref, Ptr <git_revwalk> -> CString -> IO Error
+-- void git_revwalk_sorting(git_revwalk *walk, unsigned int sort_mode);
+#ccall git_revwalk_sorting, Ptr <git_revwalk> -> SortMode -> IO ()
+-- int git_revwalk_next(git_oid *oid, git_revwalk *walk);
+#ccall git_revwalk_next, Ptr OID -> Ptr <git_revwalk> -> IO Error
+
+type SortMode = CUInt
+#enum SortMode, , GIT_SORT_NONE, GIT_SORT_TOPOLOGICAL, GIT_SORT_TIME, \
+    GIT_SORT_REVERSE
 
 -- * OID
 
@@ -136,9 +223,22 @@ instance Storable OID where
 #ccall git_oid_fromstrn, Ptr OID -> CString -> CSize -> IO Error
 #ccall git_oid_fmt, CString -> Ptr OID -> IO ()
 
+show_oid :: OID -> String
+show_oid (OID bytes) = ByteString.unpack bytes
+
+read_oid :: ByteString.ByteString -> OID
+read_oid = OID . ByteString.takeWhile (not . Char.isSpace)
+    . ByteString.dropWhile Char.isSpace
+
 -- * error
 
 type Error = CInt
+
+#integral_t git_error_t
+#num GIT_SUCCESS
+#num GIT_ERROR
+#num GIT_ENOTFOUND
+#num GIT_EREVWALKOVER
 
 error_msg :: Error -> Maybe String
 error_msg errno
@@ -154,7 +254,7 @@ error_msg errno
         , ((#const GIT_EAMBIGUOUS), "short oid is ambiguous")
         , ((#const GIT_EPASSTHROUGH), "passthrough")
         , ((#const GIT_ESHORTBUFFER), "buffer to short to satisfy request")
-        , ((#const GIT_EREVWALKOVER), "rev walk over (undocumented error)")
+        , ((#const GIT_EREVWALKOVER), "rev walk over")
         ]
 
 newtype GitException = GitException String deriving (Typeable.Typeable)
@@ -170,4 +270,12 @@ check caller action = do
     errno <- action
     case error_msg errno of
         Nothing -> return ()
+        Just msg -> throw $ caller ++ ": " ++ msg
+
+check_lookup :: String -> Ptr (Ptr a) -> IO Error -> IO (Ptr a)
+check_lookup caller ptrptr io = do
+    errno <- io
+    if errno == c'GIT_ENOTFOUND then return nullPtr else do
+    case error_msg errno of
+        Nothing -> peek ptrptr
         Just msg -> throw $ caller ++ ": " ++ msg
