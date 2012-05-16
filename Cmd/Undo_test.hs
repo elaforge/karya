@@ -40,12 +40,12 @@ test_undo = do
 
     res <- next res Undo.undo
     -- Make sure the past and future have the expected names and states.
-    equal (extract_hist res) (["+z: z2", "setup: 12"], ["+q: zq"])
+    equal (extract_hist res) (["setup: 12"], Just "+z: z2", ["+q: zq"])
     equal (extract_ui res) "z2"
     equal (e_updates res) [track_update 1 1 2]
 
     res <- next res Undo.undo
-    equal (extract_hist res) (["setup: 12"], ["+z: z2", "+q: zq"])
+    equal (extract_hist res) ([], Just "setup: 12", ["+z: z2", "+q: zq"])
     equal (extract_ui res) "12"
     equal (e_updates res) [track_update 1 0 1]
 
@@ -55,13 +55,13 @@ test_undo = do
     equal (e_updates res) []
 
     res <- next res Undo.redo
-    equal (extract_hist res) (["+z: z2", "setup: 12"], ["+q: zq"])
+    equal (extract_hist res) (["setup: 12"], Just "+z: z2", ["+q: zq"])
     equal (extract_ui res) "z2"
     equal (e_updates res) [track_update 1 0 1]
 
     res <- next res Undo.redo
     equal (extract_ui res) "zq"
-    equal (extract_hist res) (["+q: zq", "+z: z2", "setup: 12"], [])
+    equal (extract_hist res) (["+z: z2", "setup: 12"], Just "+q: zq", [])
     equal (e_updates res) [track_update 1 1 2]
 
     -- no future to redo
@@ -76,13 +76,13 @@ test_suppress_history = do
     res <- ResponderTest.respond_cmd states $
         Cmd.name "toggle" Edit.cmd_toggle_raw_edit
     res <- next res $ suppress "+z" $ insert_event 0 "z"
-    equal (extract_hist res) (["setup: 12"], [])
+    equal (extract_hist res) ([], Just "setup: 12", [])
     res <- next res $ suppress "+q" $ insert_event 1 "q"
-    equal (extract_hist res) (["setup: 12"], [])
+    equal (extract_hist res) ([], Just "setup: 12", [])
     -- A non-recording cmd will cause the suppressed cmds to be recorded.
     res <- next res $ set_sel 1
     res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_raw_edit
-    equal (extract_hist res) (["+z: zq", "setup: 12"], [])
+    equal (extract_hist res) (["setup: 12"], Just "+z: zq", [])
 
 test_undo_merge = do
     let states = ResponderTest.mkstates [(">", [])]
@@ -125,13 +125,13 @@ test_load_previous_history = do
 
     res <- next res Undo.undo
     -- Previous history was loaded, y deleted.
-    equal (extract_hist res) (["+x: x"], ["+y: xy"])
+    equal (extract_hist res) ([], Just "+x: x", ["+y: xy"])
     equal (extract_ui res) "x"
     equal (e_updates res) [track_update 1 1 2]
 
     res <- next res Undo.undo
     -- Previous history was loaded, x replaced with 1.
-    equal (extract_hist res) (["save: 1"], ["+x: x", "+y: xy"])
+    equal (extract_hist res) ([], Just "save: 1", ["+x: x", "+y: xy"])
     equal (extract_ui res) "1"
     equal (e_updates res) [track_update 1 0 1]
 
@@ -154,16 +154,16 @@ test_load_next_history = do
     pprint (e_commits res)
     -- The creation state wasn't committed, and the save isn't recorded in the
     -- history even though it has a commit, so start at the second-to-last.
-    let ([_, ent, _], _) = e_commits res
+    let ([ent, _], _, _) = e_commits res
         (_, Just commit) = ent
     res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
         Save.cmd_load_git "build/test/test.git" (Just commit)
-    equal (extract_hist res) (["+x: x"], [])
+    equal (extract_hist res) ([], Just "+x: x", [])
     equal (extract_ui res) "x"
 
     res <- next res Undo.redo
     equal (extract_ui res) "xy"
-    equal (extract_hist res) (["+y: xy", "+x: x"], [])
+    equal (extract_hist res) (["+x: x"], Just "+y: xy", [])
     equal (e_updates res) [track_update 1 1 2]
 
     -- No future to redo.
@@ -240,20 +240,21 @@ next = ResponderTest.respond_cmd . ResponderTest.result_states
 
 -- ** extract
 
-extract_hist :: ResponderTest.Result -> ([String], [String])
-extract_hist res = (map extract past, map extract future)
+extract_hist :: ResponderTest.Result -> ([String], Maybe String, [String])
+extract_hist res = (map extract past, extract <$> present, map extract future)
     where
-    Cmd.History past future _ = e_hist res
+    Cmd.History past present future _ = e_hist res
     -- Cmd.HistoryCollect _updates _cmd_names _suppress _suppressed =
     --     e_hist_collect res
     extract (Cmd.HistoryEntry state _ names _) =
         Seq.join "+" names ++ ": " ++ ui_notes 0 state
 
-e_commits :: ResponderTest.Result
-    -> ([([String], Maybe Git.Commit)], [([String], Maybe Git.Commit)])
-e_commits res = (map extract past, map extract future)
+type Commit = ([String], Maybe Git.Commit)
+
+e_commits :: ResponderTest.Result -> ([Commit], Maybe Commit, [Commit])
+e_commits res = (map extract past, extract <$> present, map extract future)
     where
-    Cmd.History past future _ = e_hist res
+    Cmd.History past present future _ = e_hist res
     extract hist = (Cmd.hist_names hist, Cmd.hist_commit hist)
 
 extract_ui :: ResponderTest.Result -> String
@@ -267,7 +268,7 @@ e_ui :: ResponderTest.Result -> State.State
 e_ui = CmdTest.result_ui_state . ResponderTest.result_cmd
 
 e_hist_updates :: ResponderTest.Result
-    -> ([[Update.CmdUpdate]], [[Update.CmdUpdate]])
+    -> ([[Update.CmdUpdate]], [Update.CmdUpdate], [[Update.CmdUpdate]])
 e_hist_updates = hist_updates . e_hist
 
 e_hist :: ResponderTest.Result -> Cmd.History
@@ -277,9 +278,11 @@ e_hist_collect :: ResponderTest.Result -> Cmd.HistoryCollect
 e_hist_collect = Cmd.state_history_collect . CmdTest.result_cmd_state
     . ResponderTest.result_cmd
 
-hist_updates :: Cmd.History -> ([[Update.CmdUpdate]], [[Update.CmdUpdate]])
-hist_updates (Cmd.History past future _undo_redo) =
-    (map Cmd.hist_updates past, map Cmd.hist_updates future)
+hist_updates :: Cmd.History
+    -> ([[Update.CmdUpdate]], [Update.CmdUpdate], [[Update.CmdUpdate]])
+hist_updates (Cmd.History past present future _undo_redo) =
+    (map Cmd.hist_updates past, maybe [] Cmd.hist_updates present,
+        map Cmd.hist_updates future)
 
 e_updates :: ResponderTest.Result -> [Update.DisplayUpdate]
 e_updates = ResponderTest.result_updates

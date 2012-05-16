@@ -21,7 +21,9 @@ import qualified App.Config as Config
 import Types
 
 
-{- Unfortunately updates get in the way of the simple "list of states" model
+{- [undo-and-updates]
+
+    Unfortunately updates get in the way of the simple "list of states" model
     and make things a bit hard to understand.
 
     The head of hist_past is called cur.  It starts with [] updates and when
@@ -57,23 +59,24 @@ undo = do
     -- is happening after the state that is going to be undone.  So the current
     -- state doesn't count (it's the 'undo' cmd), the state I'm coming from is
     -- the previous one, and the one I'm going to is the twice previous one.
+    cur <- Cmd.require_msg "undo: no present (this shouldn't happen)" $
+        Cmd.hist_present hist
     case Cmd.hist_past hist of
-        cur : prev : rest -> do_undo hist cur prev rest
-        [cur] -> do
+        prev : rest -> do_undo hist cur prev rest
+        [] -> do
             repo <- State.gets SaveGit.save_repo
             past <- Trans.liftIO $ load_prev repo cur
             case past of
                 [] -> Cmd.throw "no past to undo"
                 prev : rest -> do_undo hist cur prev rest
-        [] -> Cmd.throw "no past at all (this sholudn't happen)"
-        -- TODO can I make past a non-empty list?
     where
     do_undo hist cur prev rest = do
-        Log.notice $ "undo -> " ++ hist_name prev
+        Log.notice $ "undo " ++ hist_name cur ++ " -> " ++ hist_name prev
         let updates = Cmd.hist_updates prev
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
-                { Cmd.hist_past = prev : rest
+                { Cmd.hist_past = rest
+                , Cmd.hist_present = Just prev
                 , Cmd.hist_future = cur { Cmd.hist_updates = updates }
                     : Cmd.hist_future hist
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
@@ -90,26 +93,24 @@ undo = do
 redo :: Cmd.CmdT IO ()
 redo = do
     hist <- Cmd.gets Cmd.state_history
-    cur <- Cmd.require_msg "redo: no past at all (this shouldn't happen)" $
-        Seq.head (Cmd.hist_past hist)
+    cur <- Cmd.require_msg "redo: no present (this shouldn't happen)" $
+        Cmd.hist_present hist
     case Cmd.hist_future hist of
-        next : rest -> do_redo (Cmd.hist_past hist) next rest
+        next : rest -> do_redo cur (Cmd.hist_past hist) next rest
         [] -> do
             repo <- State.gets SaveGit.save_repo
             future <- Trans.liftIO $ load_next repo cur
             case future of
                 [] -> Cmd.throw "no future to redo"
-                next : rest -> do_redo (Cmd.hist_past hist) next rest
+                next : rest -> do_redo cur (Cmd.hist_past hist) next rest
     where
-    do_redo [] _ _ =
-        Cmd.throw "redo: no cur entry in past (this shouldn't happen)"
-    do_redo (cur:past) next rest = do
-        Log.notice $ "redo -> " ++ hist_name next
+    do_redo cur past next rest = do
+        Log.notice $ "redo " ++ hist_name cur ++ " -> " ++ hist_name next
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
-                { Cmd.hist_past = next { Cmd.hist_updates = [] }
-                    : cur { Cmd.hist_updates = Cmd.hist_updates next }
-                    : past
+                { Cmd.hist_past =
+                    cur { Cmd.hist_updates = Cmd.hist_updates next } : past
+                , Cmd.hist_present = Just $ next { Cmd.hist_updates = [] }
                 , Cmd.hist_future = rest
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
@@ -195,16 +196,17 @@ maintain_history :: State.State -> Cmd.State -> [Update.UiUpdate]
 maintain_history ui_state cmd_state updates = do
     entries <- if has_saved then commit_entries repo prev_commit uncommitted
         else return $ map (history_entry Nothing) uncommitted
-    let past = take (max 1 keep) $ bump_updates entries (Cmd.hist_past hist)
+    let (present, past) = bump_updates (Cmd.hist_present hist) entries
     return $ cmd_state
         { Cmd.state_history = hist
-            { Cmd.hist_past = past
+            { Cmd.hist_past = take keep (past ++ Cmd.hist_past hist)
+            , Cmd.hist_present = present
             , Cmd.hist_last_cmd = Nothing
             }
         , Cmd.state_history_collect = collect
         , Cmd.state_history_config = (Cmd.state_history_config cmd_state)
             { Cmd.hist_last_commit =
-                (Cmd.hist_commit =<< Seq.head past) `mplus` prev_commit
+                (Cmd.hist_commit =<< present) `mplus` prev_commit
             }
         }
     where
@@ -216,17 +218,20 @@ maintain_history ui_state cmd_state updates = do
     repo = SaveGit.save_repo ui_state
     prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
 
-bump_updates :: [Cmd.HistoryEntry] -> [Cmd.HistoryEntry] -> [Cmd.HistoryEntry]
-bump_updates [] past = past
-bump_updates (new_cur : news) (old_cur : past) =
+-- | The present is expected to have no updates, so bump the updates off the
+-- new present onto the old present, and described in [undo-and-updates].
+bump_updates :: Maybe Cmd.HistoryEntry -> [Cmd.HistoryEntry]
+    -> (Maybe Cmd.HistoryEntry, [Cmd.HistoryEntry])
+bump_updates old_cur [] = (old_cur, [])
+bump_updates (Just old_cur) (new_cur : news) =
     -- All I want to do is bump the updates from new_cur to old_cur, but
     -- suppressed records means there can be multiple histories recorded at
     -- once, which makes this a bit more of a hassle.
-    new_cur { Cmd.hist_updates = [] }
-        : map bump (zip_next new_cur (news ++ [old_cur]))
-        ++ past
-    where bump (p, c) = c { Cmd.hist_updates = Cmd.hist_updates p }
-bump_updates new [] = new -- This should never happen.
+    (Just present, map bump (zip_next new_cur (news ++ [old_cur])))
+    where
+    present = new_cur { Cmd.hist_updates = [] }
+    bump (p, c) = c { Cmd.hist_updates = Cmd.hist_updates p }
+bump_updates Nothing news = (Nothing, news) -- This should never happen.
 
 zip_next :: a -> [a] -> [(a, a)]
 zip_next _ [] = []
@@ -269,8 +274,9 @@ record_history updates ui_state cmd_state
         -- Switching over to someone else's history.  Wipe out existing
         -- history and record the current state as a commit.
         let new_hist = Cmd.History
-                { Cmd.hist_past =
-                    [Cmd.HistoryEntry ui_state [] names (Just commit)]
+                { Cmd.hist_past = []
+                , Cmd.hist_present = Just $
+                    Cmd.HistoryEntry ui_state [] names (Just commit)
                 , Cmd.hist_future = []
                 , Cmd.hist_last_cmd = Nothing
                 }

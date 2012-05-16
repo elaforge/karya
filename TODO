@@ -116,7 +116,7 @@ UNSORTED
     * unify SaveGit.save_repo and Save.get_save_file
     * add a new kind of CmdUpdate that is only has TrackUpdates and BringToFront
     * ability to load at a specific ref or commit
-    - split the head of hist_past into hist_cur.  It still has to be Maybe
+    * split the head of hist_past into hist_cur.  It still has to be Maybe
       because of the empty cmd state, but maybe it will be easier to deal
       with split out.
     - test incremental save for adding and remove tracks and blocks, not just

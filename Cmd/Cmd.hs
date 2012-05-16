@@ -565,13 +565,13 @@ type SynthDesc = MidiDb.SynthDesc InstrumentCode
 -- *** history
 
 data History = History {
-    -- | Ghosts of state past and future.
-    --
-    -- Since the current state is the head of hist_past, there's an
-    -- uncomfortable invariant that hist_past should never be null.
-    -- Unfortunately it's not so easy to put this into the type because it
-    -- actually does have to be null for a completely empty Cmd.State.
+    -- | Ghosts of state past, present, and future.
     hist_past :: ![HistoryEntry]
+    -- This should only be Nothing on an empty state.  It will become Just as
+    -- soon asy anything recordable happens, which should normally be the
+    -- setup cmd or a state load and stay Just from then on.  Since you can't
+    -- undo to a Nothing state, this must always be Just for undo to work.
+    , hist_present :: !(Maybe HistoryEntry)
     , hist_future :: ![HistoryEntry]
     , hist_last_cmd :: !(Maybe LastCmd)
     } deriving (Show, Generics.Typeable)
@@ -589,7 +589,7 @@ data LastCmd =
     deriving (Show)
 
 empty_history :: History
-empty_history = History [] [] Nothing
+empty_history = History [] Nothing [] Nothing
 
 data HistoryConfig = HistoryConfig {
     -- | Keep this many previous history entries in memory.
@@ -637,10 +637,12 @@ data HistoryEntry = HistoryEntry {
     } deriving (Show, Generics.Typeable)
 
 instance Pretty.Pretty History where
-    format (History past future _undo_redo) = Pretty.record_title "History"
-        [ ("past", Pretty.format past)
-        , ("future", Pretty.format future)
-        ]
+    format (History past present future _undo_redo) =
+        Pretty.record_title "History"
+            [ ("past", Pretty.format past)
+            , ("present", Pretty.format present)
+            , ("future", Pretty.format future)
+            ]
 
 instance Pretty.Pretty HistoryEntry where
     format (HistoryEntry _ _ commands commit) =
