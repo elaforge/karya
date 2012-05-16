@@ -4,6 +4,7 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Git.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -20,8 +21,7 @@ import qualified App.Config as Config
 import Types
 
 
-{-
-    Unfortunately updates get in the way of the simple "list of states" model
+{- Unfortunately updates get in the way of the simple "list of states" model
     and make things a bit hard to understand.
 
     The head of hist_past is called cur.  It starts with [] updates and when
@@ -79,6 +79,8 @@ undo = do
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
             , Cmd.state_history_collect = Cmd.empty_history_collect
+            , Cmd.state_history_config = (Cmd.state_history_config st)
+                { Cmd.hist_last_commit = Cmd.hist_commit prev }
             }
         State.modify $ merge_undo_states (Cmd.hist_state prev)
         mapM_ State.update updates
@@ -112,6 +114,8 @@ redo = do
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
             , Cmd.state_history_collect = Cmd.empty_history_collect
+            , Cmd.state_history_config = (Cmd.state_history_config st)
+                { Cmd.hist_last_commit = Cmd.hist_commit next }
             }
         State.modify $ merge_undo_states (Cmd.hist_state next)
         mapM_ State.update (Cmd.hist_updates next)
@@ -124,7 +128,7 @@ hist_name hist = '[' : Seq.join ", " (Cmd.hist_names hist) ++ "] "
 
 load_history :: String
     -> (State.State -> Git.Commit
-        -> IO (Either String (Maybe (SaveGit.LoadHistory, Git.Commit))))
+        -> IO (Either String (Maybe SaveGit.LoadHistory)))
      -> Cmd.HistoryEntry -> IO [Cmd.HistoryEntry]
 load_history name load hist = case Cmd.hist_commit hist of
     Nothing -> return []
@@ -135,9 +139,9 @@ load_history name load hist = case Cmd.hist_commit hist of
                 Log.error $ name ++ ": " ++ err
                 return []
             Right Nothing -> return []
-            Right (Just (hist, commit)) -> return [entry commit hist]
+            Right (Just hist) -> return [entry hist]
     where
-    entry commit (SaveGit.History state updates names) =
+    entry (SaveGit.LoadHistory state commit updates names) =
         Cmd.HistoryEntry state updates names (Just commit)
 
 -- | There are certain parts of the state that I don't want to undo, so
@@ -189,15 +193,19 @@ keep_clip clip_ns old new = Map.union new (Map.filterWithKey (\k _ -> ns k) old)
 maintain_history :: State.State -> Cmd.State -> [Update.UiUpdate]
     -> IO Cmd.State
 maintain_history ui_state cmd_state updates = do
-    entries <- if has_saved then mapM commit_entry uncommitted
+    entries <- if has_saved then commit_entries repo prev_commit uncommitted
         else return $ map (history_entry Nothing) uncommitted
+    let past = take (max 1 keep) $ bump_updates entries (Cmd.hist_past hist)
     return $ cmd_state
         { Cmd.state_history = hist
-            { Cmd.hist_past = take (max 1 keep) $
-                bump_updates entries (Cmd.hist_past hist)
+            { Cmd.hist_past = past
             , Cmd.hist_last_cmd = Nothing
             }
         , Cmd.state_history_collect = collect
+        , Cmd.state_history_config = (Cmd.state_history_config cmd_state)
+            { Cmd.hist_last_commit =
+                (Cmd.hist_commit =<< Seq.head past) `mplus` prev_commit
+            }
         }
     where
     (hist, collect, uncommitted) =
@@ -205,6 +213,8 @@ maintain_history ui_state cmd_state updates = do
     has_saved = Maybe.isJust $ Cmd.hist_last_save $
         Cmd.state_history_config cmd_state
     keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
+    repo = SaveGit.save_repo ui_state
+    prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
 
 bump_updates :: [Cmd.HistoryEntry] -> [Cmd.HistoryEntry] -> [Cmd.HistoryEntry]
 bump_updates [] past = past
@@ -222,22 +232,34 @@ zip_next :: a -> [a] -> [(a, a)]
 zip_next _ [] = []
 zip_next prev (x : xs) = (prev, x) : zip_next x xs
 
-commit_entry :: SaveGit.SaveHistory -> IO Cmd.HistoryEntry
-commit_entry hist@(SaveGit.History state _ _) = do
-    result <- SaveGit.checkpoint (SaveGit.save_repo state) hist
-    commit <- case result of
+commit_entries :: Git.Repo -> Maybe Git.Commit -> [SaveGit.SaveHistory]
+    -> IO [Cmd.HistoryEntry]
+commit_entries _ _ [] = return []
+commit_entries repo prev_commit (hist0:hists) = do
+    let hist = set_commit prev_commit hist0
+    result <- SaveGit.checkpoint repo hist
+    case result of
         Left err -> do
             Log.error $ "error committing history: " ++ err
-            return Nothing
-        Right commit -> return (Just commit)
-    return $ history_entry commit hist
+            return []
+        Right commit -> do
+            entries <- commit_entries repo (Just commit) hists
+            return $ history_entry (Just commit) hist : entries
+    where
+    set_commit commit (SaveGit.SaveHistory state _ updates names) =
+        SaveGit.SaveHistory state commit updates names
 
+-- | Create a 'Cmd.HistoryEntry' from a 'SaveGit.SaveHistory'.
+--
+-- The SaveHistory has a commit, but it's the commit that this history is
+-- relative to (the previous commit), while the commit of the HistoryEntry is
+-- the commit that this history was saved as (the current commit).
 history_entry :: Maybe Git.Commit -> SaveGit.SaveHistory -> Cmd.HistoryEntry
-history_entry maybe_commit (SaveGit.History state updates names) =
+history_entry commit (SaveGit.SaveHistory state _ updates names) =
     -- Recover the CmdUpdates out of the UiUpdates.  I only have to remember
     -- the updates diff won't recreate for me.
     Cmd.HistoryEntry state (Maybe.mapMaybe Update.to_cmd updates)
-        names maybe_commit
+        names commit
 
 -- | Record 'Cmd.HistoryEntry's, if required.
 record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
@@ -259,11 +281,12 @@ record_history updates ui_state cmd_state
         -- This seems basically reasonable, since you could see it as an edit
         -- transaction that was cancelled.
         (hist, empty_collect, [])
-    | otherwise = (hist, collect, entries)
+    | otherwise =
+        let (entries, collect) = pure_record_history updates ui_state cmd_state
+        in (hist, collect, entries)
     where
     hist = Cmd.state_history cmd_state
     empty_collect = Cmd.empty_history_collect
-    (entries, collect) = pure_record_history updates ui_state cmd_state
 
 -- | Get any history entries that should be saved, and the new HistoryCollect.
 pure_record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
@@ -285,18 +308,20 @@ pure_record_history updates ui_state cmd_state
     is_recordable = should_record updates
     entries = if is_recordable then [cur_entry] else []
         ++ Maybe.maybeToList suppressed_entry
-    cur_entry = SaveGit.History ui_state updates names
+    -- Set the commit to Nothing for now, it will be filled in by
+    -- 'commit_entries'.
+    cur_entry = SaveGit.SaveHistory ui_state Nothing updates names
     Cmd.HistoryCollect names suppress suppressed_entry =
         Cmd.state_history_collect cmd_state
 
 merge_into_suppressed :: Maybe SaveGit.SaveHistory -> SaveGit.SaveHistory
     -> SaveGit.SaveHistory
 merge_into_suppressed Nothing ent = ent
-merge_into_suppressed (Just (SaveGit.History _ updates1 names1))
-        (SaveGit.History state2 updates2 _) =
+merge_into_suppressed (Just (SaveGit.SaveHistory _ _ updates1 names1))
+        (SaveGit.SaveHistory state2 commit2 updates2 _) =
     -- Keep the name of the first suppressed cmd.  The rest are likely to be
     -- either duplicates or unrecorded cmds like selection setting.
-    SaveGit.History state2 (updates1 ++ updates2) names1
+    SaveGit.SaveHistory state2 commit2 (updates1 ++ updates2) names1
 
 should_record :: [Update.UiUpdate] -> Bool
 should_record = any (not . Update.is_view_update)

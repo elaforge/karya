@@ -9,6 +9,7 @@ import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.UTF8 as UTF8
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Typeable as Typeable
 
@@ -24,9 +25,9 @@ import qualified Util.Process as Process
 import qualified Util.Seq as Seq
 
 
-newtype Blob = Blob Hash deriving (Eq, Show)
-newtype Tree = Tree Hash deriving (Eq, Show)
-newtype Commit = Commit Hash deriving (Eq, Show)
+newtype Blob = Blob Hash deriving (Eq, Ord, Show)
+newtype Tree = Tree Hash deriving (Eq, Ord, Show)
+newtype Commit = Commit Hash deriving (Eq, Ord, Show)
 type Hash = ByteString
 
 instance Pretty.Pretty Blob where pretty (Blob hash) = unparse_hash hash
@@ -149,10 +150,15 @@ read_log :: Repo -> Ref -> IO [Commit]
 read_log repo ref = map (Commit . parse_hash) . Char8.lines <$>
     git repo ["rev-list", "refs" </> ref] ""
 
+read_log_from :: Repo -> Commit -> IO [Commit]
+read_log_from repo (Commit commit) = map (Commit . parse_hash) . Char8.lines <$>
+    git repo ["rev-list", unparse_hash commit] ""
+
 -- | Get commits in reverse chronological order from the HEAD.
 read_log_head :: Repo -> IO [Commit]
-read_log_head repo = map (Commit . parse_hash) . Char8.lines <$>
-    git repo ["rev-list", "HEAD"] ""
+read_log_head repo =
+    -- Be careful to return [] on an empty repo (which has a broken HEAD ref).
+    maybe (return []) (read_log_from repo) =<< read_head_commit repo
 
 gc :: Repo -> IO ()
 gc repo = void $ git repo ["gc", "--aggressive"] ""
@@ -168,6 +174,18 @@ read_ref repo ref =
     (Just . Commit . parse_hash <$>
         git repo ["show-ref", "--verify", "--hash", "refs" </> ref] "")
         `Exception.catch` (\(_exc :: GitException) -> return Nothing)
+
+read_refs :: Repo -> IO (Map.Map Ref Commit)
+read_refs repo = do
+    -- For some reason, show-ref returns 1 if there are no tags.
+    (_, out, _) <- run_git repo [] ["show-ref", "--tags"] ""
+    Map.fromList <$> mapM parse (Char8.lines out)
+    where
+    parse line = case Char8.split ' ' line of
+        [hash, ref] -> return (Char8.unpack (strip ref), Commit hash)
+        _ -> throw $ "show-ref: unparseable line: " ++ show line
+    strip = Char8.takeWhile (not . Char.isSpace) . Char8.drop 1
+        . Char8.dropWhile (/='/')
 
 write_symbolic_ref :: Repo -> Name -> Ref -> IO ()
 write_symbolic_ref repo name ref =
@@ -293,18 +311,24 @@ unparse_hash = Char8.unpack
 throw :: String -> IO a
 throw = Exception.throwIO . GitException
 
-git :: Repo -> [String] -> ByteString -> IO Hash
+git :: Repo -> [String] -> ByteString -> IO ByteString
 git repo = git_env repo []
 
-git_env :: Repo -> [(String, String)] -> [String] -> ByteString -> IO Hash
+git_env :: Repo -> [(String, String)] -> [String] -> ByteString -> IO ByteString
 git_env repo env args stdin = do
-    (ex, out, err) <- Process.readProcessWithExitCode
-        (Just (("GIT_DIR", repo) : env)) "git" args stdin
+    (code, out, err) <- run_git repo env args stdin
     -- let sin = " <" ++ show (Char8.length stdin)
     -- let sin = if Char8.null stdin then "" else " <" ++ show stdin
     -- putStrLn $ unwords ("git" : args) ++ sin ++ " ==> " ++ Seq.strip (Char8.unpack out)
-    case ex of
-        Exit.ExitFailure code -> throw $
-            repo ++ " -- " ++ unwords ("git" : args) ++ ": " ++ show code
+    if code == 0 then return out
+        else throw $ unwords ("git" : args) ++ " returned " ++ show code
             ++ " " ++ Seq.strip (Char8.unpack err)
-        _ -> return out
+
+run_git :: Repo -> [(String, String)] -> [String] -> ByteString
+    -> IO (Int, ByteString, ByteString)
+run_git repo env args stdin = do
+    (code, out, err) <- Process.readProcessWithExitCode
+        (Just (("GIT_DIR", repo) : env)) "git" args stdin
+    return $ case code of
+        Exit.ExitFailure c -> (c, out, err)
+        Exit.ExitSuccess -> (0, out, err)

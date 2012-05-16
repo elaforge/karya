@@ -5,6 +5,7 @@ import Data.ByteString (ByteString)
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Util.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Numeric
@@ -31,15 +32,23 @@ import qualified App.Config as Config
 import Types
 
 
--- | A loaded history entry, along with the the updates to take it from the
--- previous entry.
-data History update = History !State.State ![update] ![String]
+-- | History loaded from disk.  It only has CmdUpdates so you can feed them to
+-- diff.
+data LoadHistory =
+    LoadHistory !State.State !Git.Commit ![Update.CmdUpdate] ![String]
     deriving (Show)
 
--- | History loaded from disk only has CmdUpdates to feed to diff.
-type LoadHistory = History Update.CmdUpdate
--- | When saving a History, though, I need post-diff updates.
-type SaveHistory = History Update.UiUpdate
+-- | History to be saved to disk.  The updates are post-diff to know which bits
+-- of state to write, and the commit is what commit the updates are relative
+-- to, if any.  If they're Nothing, then save everything.
+--
+-- It's very important to bundle the commit and updates together, because
+-- without the commit to know what they are relative to, the updates don't
+-- mean anything, and if they're applied on top of the wrong commit the result
+-- will be a corrupted state.
+data SaveHistory =
+    SaveHistory !State.State !(Maybe Git.Commit) [Update.UiUpdate] ![String]
+    deriving (Show)
 
 save_repo :: State.State -> Git.Repo
 save_repo = save_file True
@@ -61,45 +70,44 @@ is_git = (".git" `List.isSuffixOf`)
 -- * save
 
 -- | Like 'checkpoint', but add a tag too, and write compact tracks.
-save :: Git.Repo -> State.State -> IO (Either String (Git.Commit, SavePoint))
-save repo state = try "save" $ do_save repo (History state [] ["save"])
+save :: Git.Repo -> State.State -> Maybe Git.Commit
+    -> IO (Either String (Git.Commit, SavePoint))
+save repo state prev_commit = try "save" $
+    do_save repo (SaveHistory state prev_commit [] ["save"])
 
 do_save :: Git.Repo -> SaveHistory -> IO (Git.Commit, SavePoint)
-do_save repo (History state _updates names) = do
-    Git.init repo
+do_save repo (SaveHistory state prev_commit _updates names) = do
+    when (Maybe.isNothing prev_commit) $
+        void $ Git.init repo
     tree <- Git.write_dir repo (dump state)
-    last_save <- read_last_save repo
+    last_save <- read_last_save repo prev_commit
     save <- find_next_save repo (Maybe.fromMaybe (SavePoint []) last_save)
-    commit <- commit_tree repo tree $
+    commit <- commit_tree repo tree prev_commit $
         unparse_names ("save " ++ save_to_ref save) names
     write_save_ref repo save commit
     Git.gc repo
     return (commit, save)
 
--- HEAD points to the last commit, as usual.  On a full save the previous save
--- number is taken from last-save, a new save tag is created, and last-save is
--- updated to point to it:
---
--- x        x       x       x       x       x
--- tags/1           tags/2                  refs/master
---                  last-save               HEAD
-
 -- | Stored in reverse order as in the ref name.
 newtype SavePoint = SavePoint [Int] deriving (Eq, Show, Pretty.Pretty)
 
--- | Create a tag for the given commit, and point last-save at it.
+-- | Create a tag for the given commit.
 write_save_ref :: Git.Repo -> SavePoint -> Git.Commit -> IO ()
-write_save_ref repo save commit = do
-    let ref = save_to_ref save
-    Git.write_ref repo commit ref
-    Git.write_symbolic_ref repo "last-save" ref
+write_save_ref repo save commit = Git.write_ref repo commit (save_to_ref save)
 
 read_save_ref :: Git.Repo -> SavePoint -> IO (Maybe Git.Commit)
 read_save_ref repo save = Git.read_ref repo (save_to_ref save)
 
-read_last_save :: Git.Repo -> IO (Maybe SavePoint)
-read_last_save repo = maybe (return Nothing) (fmap Just . ref_to_save)
-    =<< Git.read_symbolic_ref repo "last-save"
+read_last_save :: Git.Repo -> Maybe Git.Commit
+    -- ^ Find the last save from this commit, or HEAD if not given.
+    -> IO (Maybe SavePoint)
+read_last_save repo maybe_commit = do
+    commits <- maybe (Git.read_log_head repo) (Git.read_log_from repo)
+        maybe_commit
+    refs <- Git.read_refs repo
+    let commit_to_ref = Map.invert refs
+        maybe_ref = msum $ map (`Map.lookup` commit_to_ref) commits
+    maybe (return Nothing) (fmap Just . ref_to_save) maybe_ref
 
 find_next_save :: Git.Repo -> SavePoint -> IO SavePoint
 find_next_save repo save =
@@ -129,29 +137,23 @@ save_to_ref (SavePoint versions) =
 
 -- * checkpoint
 
--- | State, updates to reach this state from the previous one (hack, should go
--- away), names of the cmds that produced this state.
---
--- Make updates go away by calculating them myself.  I know the modified tracks
--- from git, so I need only diff those.  I don't want to write them because
--- they duplicate all the stuff I'm writing.
-
--- | incremental save
 checkpoint :: Git.Repo -> SaveHistory -> IO (Either String Git.Commit)
-checkpoint repo hist@(History state updates names) = try_e "checkpoint" $ do
-    Git.init repo
+checkpoint repo hist@(SaveHistory state prev_commit updates names) =
+        try_e "checkpoint" $ do
     -- If this is a new repo then do a save instead.
-    last_commit <- Git.read_head_commit repo
-    case last_commit of
-        Nothing -> Right . fst <$> do_save repo hist
-        Just last_commit -> do
-            -- TODO event saving implemented but not loading
+    case prev_commit of
+        Nothing -> do
+            Git.init repo
+            Right . fst <$> do_save repo hist
+        Just prev_commit -> do
+            -- TODO disable event saving because loading isn't implemented
             let (errs, mods) = dump_diff False state
                     (filter checkpoint_update updates)
             if not (null errs) then return (Left (Seq.join ", " errs)) else do
-            last_tree <- Git.commit_tree <$> Git.read_commit repo last_commit
+            last_tree <- Git.commit_tree <$> Git.read_commit repo prev_commit
             tree <- Git.modify_dir repo last_tree mods
-            commit <- commit_tree repo tree $ unparse_names "checkpoint" names
+            commit <- commit_tree repo tree (Just prev_commit) $
+                unparse_names "checkpoint" names
             return $ Right commit
     where
     -- BlockConfig changes are only box colors, which I don't ever need to
@@ -159,11 +161,11 @@ checkpoint repo hist@(History state updates names) = try_e "checkpoint" $ do
     checkpoint_update (Update.BlockUpdate _ (Update.BlockConfig {})) = False
     checkpoint_update _ = True
 
-commit_tree :: Git.Repo -> Git.Tree -> String -> IO Git.Commit
-commit_tree repo tree desc = do
-    maybe_head <- Git.read_head_commit repo
+commit_tree :: Git.Repo -> Git.Tree -> Maybe Git.Commit -> String
+    -> IO Git.Commit
+commit_tree repo tree maybe_parent desc = do
     commit <- Git.write_commit repo Config.name Config.email
-        (maybe [] (:[]) maybe_head) tree desc
+        (maybe [] (:[]) maybe_parent) tree desc
     Git.update_head repo commit
     return commit
 
@@ -276,7 +278,7 @@ load repo maybe_commit = try_e "load" $ do
 
 -- | Try to go get the previous history entry.
 load_previous_history :: Git.Repo -> State.State -> Git.Commit
-    -> IO (Either String (Maybe (LoadHistory, Git.Commit)))
+    -> IO (Either String (Maybe LoadHistory))
 load_previous_history repo state commit = try_e "load_previous_history" $ do
     commit_data <- Git.read_commit repo commit
     case Seq.head (Git.commit_parents commit_data) of
@@ -285,13 +287,11 @@ load_previous_history repo state commit = try_e "load_previous_history" $ do
 
 -- | Try to a commits that has this one as a parent.
 load_next_history :: Git.Repo -> State.State -> Git.Commit
-    -> IO (Either String (Maybe (LoadHistory, Git.Commit)))
+    -> IO (Either String (Maybe LoadHistory))
 load_next_history repo state commit = try_e "load_next_history" $ do
     -- This won't work if I loaded something off-head.  In that case, I need
     -- the checkpoint I started from so I can start from there instead of HEAD.
     commits <- Git.read_log_head repo
-    putStrLn $ "search in: " ++ show commit ++ " -> "
-        ++ show (find_before commit commits)
     case find_before commit commits of
         Nothing -> return $ Right Nothing
         Just child -> load_history repo state commit child
@@ -310,7 +310,7 @@ load_next_history repo state commit = try_e "load_next_history" $ do
 -- history commit will set the HEAD to this branch, and the old HEAD will only
 -- be preserved if it had a ref.
 load_history :: Git.Repo -> State.State -> Git.Commit -> Git.Commit
-    -> IO (Either String (Maybe (LoadHistory, Git.Commit)))
+    -> IO (Either String (Maybe LoadHistory))
 load_history repo state from_commit to_commit = do
     names <- parse_names . Git.commit_text
         =<< Git.read_commit repo to_commit
@@ -318,7 +318,7 @@ load_history repo state from_commit to_commit = do
     case result of
         Left err -> return $ Left err
         Right (new_state, cmd_updates) -> return $ Right $ Just
-            (History new_state cmd_updates names, to_commit)
+            (LoadHistory new_state to_commit cmd_updates names)
 
 parse_names :: String -> IO [String]
 parse_names text = case lines text of

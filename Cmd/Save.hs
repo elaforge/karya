@@ -50,12 +50,16 @@ cmd_save_git :: Cmd.CmdT IO ()
 cmd_save_git = do
     state <- State.get
     let repo = SaveGit.save_file True state
-    (_, save) <- Cmd.require_right (("save git " ++ repo ++ ": ") ++)
-        =<< (Trans.liftIO $ SaveGit.save repo state)
+    cmd_state <- Cmd.get
+    let prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
+    (commit, save) <- Cmd.require_right (("save git " ++ repo ++ ": ") ++)
+        =<< (Trans.liftIO $ SaveGit.save repo state prev_commit)
     Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
     Cmd.modify $ \st -> st
         { Cmd.state_history_config = (Cmd.state_history_config st)
-            { Cmd.hist_last_save = Just save }
+            { Cmd.hist_last_save = Just save
+            , Cmd.hist_last_commit = Just commit
+            }
         }
 
 cmd_load_git :: FilePath -> Maybe Git.Commit -> Cmd.CmdT IO ()
@@ -63,7 +67,8 @@ cmd_load_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " ++ repo ++ ": ") ++)
         =<< (Trans.liftIO $ SaveGit.load repo maybe_commit)
-    last_save <- rethrow "read_last_save" $ SaveGit.read_last_save repo
+    last_save <- rethrow "read_last_save" $
+        SaveGit.read_last_save repo (Just commit)
     Log.notice $ "loaded from " ++ show repo ++ ", at " ++ Pretty.pretty commit
     set_state state
     Cmd.modify $ \st -> st
@@ -79,7 +84,7 @@ cmd_revert maybe_ref = do
     repo <- State.gets (SaveGit.save_file True)
     save <- case maybe_ref of
         Nothing -> Cmd.require_msg "no last save"
-            =<< Trans.liftIO (SaveGit.read_last_save repo)
+            =<< Trans.liftIO (SaveGit.read_last_save repo Nothing)
         Just save -> rethrow "cmd_revert" $ SaveGit.ref_to_save save
     commit <- Cmd.require_msg ("save ref not found: " ++ show save)
         =<< rethrow "cmd_revert" (SaveGit.read_save_ref repo save)

@@ -116,6 +116,9 @@ UNSORTED
     * unify SaveGit.save_repo and Save.get_save_file
     * add a new kind of CmdUpdate that is only has TrackUpdates and BringToFront
     * ability to load at a specific ref or commit
+    - split the head of hist_past into hist_cur.  It still has to be Maybe
+      because of the empty cmd state, but maybe it will be easier to deal
+      with split out.
     - test incremental save for adding and remove tracks and blocks, not just
       changing events
     - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
@@ -136,7 +139,7 @@ UNSORTED
       tracks.  Otherwise, would it be worth helping it by e.g. separating
       each event with a newline?  But then it makes serializing events more of
       a hassle.
-    - support branching history, e.g. edits after an undo don't discard the
+    * support branching history, e.g. edits after an undo don't discard the
       old future
     Git docs:
       http://progit.org/book/ch9-2.html

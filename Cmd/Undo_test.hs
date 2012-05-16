@@ -1,4 +1,6 @@
 module Cmd.Undo_test where
+import qualified Data.Map as Map
+
 import Util.Control
 import qualified Util.File as File
 import qualified Util.Git.Git as Git
@@ -19,6 +21,7 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Cmd.Save as Save
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Undo as Undo
 
@@ -119,12 +122,8 @@ test_load_previous_history = do
     res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
         Save.cmd_load_git "build/test/test.git" Nothing
     equal (extract_ui res) "xy"
-    pprint (e_commits res)
-    pprint (e_hist_updates res)
 
     res <- next res Undo.undo
-    pprint (e_commits res)
-    pprint (e_hist_updates res)
     -- Previous history was loaded, y deleted.
     equal (extract_hist res) (["+x: x"], ["+y: xy"])
     equal (extract_ui res) "x"
@@ -181,13 +180,49 @@ test_load_next_history = do
     equal (extract_ui res) "1"
     equal (e_updates res) [track_update 1 0 1]
 
+test_branching_history = do
+    res <- save_git $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
+    res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
+    res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
+    res <- next res $ Cmd.name "save" Save.cmd_save_git
+    res <- next res $ Cmd.name "revert" $ Save.cmd_revert (Just "0")
+    equal (extract_ui res) "1"
+    res <- next res $ Cmd.name "+a" $ insert_event 0 "a"
+    res <- next res $ Cmd.name "+b" $ insert_event 1 "b"
+    res <- next res $ Cmd.name "save" Save.cmd_save_git
+
+    -- The second branch got 0.0 because 1 was taken.
+    refs <- Git.read_refs repo
+    equal (Map.keys refs) ["tags/0", "tags/0.0", "tags/1"]
+
+    -- Each branch has its own history.
+    io_equal (read_log =<< Git.read_log repo "tags/0.0")
+        ["save", "+b", "+a", "save"]
+    -- HEAD is at 0.0
+    io_equal (read_log =<< Git.read_log_head repo)
+        ["save", "+b", "+a", "save"]
+    io_equal (read_log =<< Git.read_log repo "tags/1")
+        ["save", "+y", "+x", "save"]
+
+    equal (extract_ui res) "ab"
+    res <- next res $ Cmd.name "revert" $ Save.cmd_revert (Just "1")
+    equal (extract_ui res) "xy"
+
+read_log :: [Git.Commit] -> IO [String]
+read_log commits = do
+    texts <- mapM (fmap Git.commit_text . Git.read_commit repo) commits
+    mapM (fmap head . SaveGit.parse_names) texts
+
+save_git :: ResponderTest.States -> IO ResponderTest.Result
 save_git states = do
-    let repo = "build/test/test.git"
     File.recursive_rm_dir repo
     ResponderTest.respond_cmd (first set_dir states) Save.cmd_save_git
     where
     set_dir = (State.config#State.project_dir #= "build/test")
         . (State.config#State.namespace #= Id.unsafe_namespace "test")
+
+repo :: Git.Repo
+repo = "build/test/test.git"
 
 -- * implementation
 

@@ -566,6 +566,11 @@ type SynthDesc = MidiDb.SynthDesc InstrumentCode
 
 data History = History {
     -- | Ghosts of state past and future.
+    --
+    -- Since the current state is the head of hist_past, there's an
+    -- uncomfortable invariant that hist_past should never be null.
+    -- Unfortunately it's not so easy to put this into the type because it
+    -- actually does have to be null for a completely empty Cmd.State.
     hist_past :: ![HistoryEntry]
     , hist_future :: ![HistoryEntry]
     , hist_last_cmd :: !(Maybe LastCmd)
@@ -591,10 +596,15 @@ data HistoryConfig = HistoryConfig {
     hist_keep :: !Int
     -- | The last full save.
     , hist_last_save :: !(Maybe SaveGit.SavePoint)
+    -- | Checkpoints are saved relative to the state at another checkpoint.  So
+    -- it's important to keep the commit of that checkpoint up to date,
+    -- otherwise the state and the checkpoints will get out of sync.
+    , hist_last_commit :: !(Maybe Git.Commit)
     } deriving (Show)
 
 empty_history_config :: HistoryConfig
-empty_history_config = HistoryConfig Config.default_keep_history Nothing
+empty_history_config =
+    HistoryConfig Config.default_keep_history Nothing Nothing
 
 data HistoryCollect = HistoryCollect {
     -- | This is cleared after each cmd.  A cmd can cons its name on, and

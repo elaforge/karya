@@ -25,13 +25,13 @@ test_save = do
             [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
             , ("2", [(0, 1, "2a")])
             ]
-    SaveGit.save repo state
-    Right (state2, _commit, _names) <- SaveGit.load repo Nothing
+    SaveGit.save repo state Nothing
+    Right (state2, commit, _names) <- SaveGit.load repo Nothing
     equal state state2
     let state3 = UiTest.exec state2 $ do
             State.destroy_view UiTest.default_view_id
             insert_event 1 2 "hi" 2
-    SaveGit.save repo state3
+    SaveGit.save repo state3 (Just commit)
 
 test_checkpoint = do
     repo <- new_repo
@@ -50,8 +50,7 @@ test_checkpoint = do
             State.destroy_view UiTest.default_view_id
             State.destroy_block UiTest.default_block_id
         ]
-    -- TODO hook up a fs simulator so I can test this exhaustively without
-    -- hitting git
+    io_equal (Git.read_log_head repo) [commit4, commit3, commit2, commit1]
 
     io_equal (SaveGit.load repo Nothing) (Right (state4, commit4, ["destroy"]))
     -- Previous states load correctly.
@@ -109,14 +108,14 @@ check_load_from repo (state1, commit1) (state2, commit2) =
 
 checkpoint_sequence :: Git.Repo -> [(String, State.StateId ())]
     -> IO [(State.State, Git.Commit)]
-checkpoint_sequence repo actions = apply State.empty actions
+checkpoint_sequence repo actions = apply (State.empty, Nothing) actions
     where
     apply _ [] = return []
-    apply prev_state ((name, action) : actions) = do
+    apply (prev_state, prev_commit) ((name, action) : actions) = do
         let (state, ui_updates) = diff prev_state action
         Right commit <- SaveGit.checkpoint repo
-            (SaveGit.History state ui_updates [name])
-        rest <- apply state actions
+            (SaveGit.SaveHistory state prev_commit ui_updates [name])
+        rest <- apply (state, Just commit) actions
         return $ (state, commit) : rest
 
 diff :: State.State -> State.StateId a -> (State.State, [Update.UiUpdate])
