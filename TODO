@@ -3,7 +3,7 @@ UNSORTED
   * rename Score.TypedControl to TypedSignal since that's what it really is
   * I think fractional offset for twelve is totally off
   * fix convert to pretty print, Convert.hs:70
-  - put the bloom score in the profile test as a more realistic derive profile
+  * put the bloom score in the profile test as a more realistic derive profile
   integrate that converts Score.Events back into Ui Events
     + implement and test for reverse
     - test that reintegrating a simple block gives it back again
@@ -127,10 +127,6 @@ UNSORTED
     * include SavePoint in save commit
     * cmd to revert to last save
     * load futures in the same way that I load the past
-    - To support features like searching back through the history for changes
-      within a selection, there should be a way to get previous history and
-      possibly load it.  This does mean that every cmd of that nature has to
-      be in IO.  Can I further divide IO into Git vs. Fltk vs. general IO?
     - Make sure that when a project changes name all the history comes with
       it.  I guess I'd have to copy the dir, or do a git clone.  If I copied
       the dir that wouldn't work with 'untitled' because I don't want all

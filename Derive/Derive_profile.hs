@@ -12,10 +12,12 @@ import Util.Test
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Create as Create
+import qualified Cmd.Serialize as Serialize
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseSkeleton as ParseSkeleton
 
+import qualified Perform.Midi.Convert as Convert
 import Types
 
 
@@ -80,6 +82,10 @@ profile_nested_nocontrol = derive_profile $
 
 profile_size = derive_size $ make_nested_controls 10 3 60
 
+profile_bloom = profile_saved "save/bloom" (UiTest.bid "bloom/order")
+
+-- * make states
+
 make_nested_notes :: (State.M m) => Int -> Int -> Int -> m ()
 make_nested_notes = make_nested [simple_pitch_track, note_track inst1]
 
@@ -98,6 +104,7 @@ make_nested :: (State.M m) => [UiTest.TrackSpec] -> Int -> Int -> Int -> m ()
 make_nested bottom_tracks size depth bottom_size = do
     (ruler_id, _) <- Create.ruler "ruler" UiTest.default_ruler
     go ruler_id UiTest.default_block_name depth
+    State.modify set_midi_config
     where
     go ruler_id block_name 1 = do
         UiTest.mkblock_ruler ruler_id
@@ -118,8 +125,20 @@ mkblock tracks = do
     -- let's profile without it first.
     State.set_skeleton UiTest.default_block_id $
         ParseSkeleton.note_bottom_parser tinfo
+    State.modify set_midi_config
 
 -- * implementation
+
+profile_saved :: FilePath -> BlockId -> IO ()
+profile_saved fname block_id = do
+    result <- print_timer ("unserialize " ++ show fname) (const "") $
+        Serialize.unserialize fname
+    state <- case result of
+        Left err -> error $ "loading " ++ show fname ++ ": " ++ err
+        Right (Serialize.SaveState state _) -> return state
+    let look = DeriveTest.lookup_from_state state
+    replicateM_ 6 $ run_profile Nothing block_id state
+    replicateM_ 6 $ run_profile (Just look) block_id state
 
 derive_size :: State.StateId a -> IO ()
 derive_size create = do
@@ -131,8 +150,9 @@ derive_size create = do
     where
     ui_state = UiTest.exec State.empty create
     result = DeriveTest.derive_block ui_state UiTest.default_block_id
-    mmsgs = snd $ DeriveTest.perform_stream DeriveTest.default_lookup_inst
-            midi_config (Derive.r_events result)
+    mmsgs = snd $ DeriveTest.perform_stream DeriveTest.default_convert_lookup
+        (State.config_midi (State.state_config ui_state))
+        (Derive.r_events result)
 
 busy_wait :: Int -> Double
 busy_wait ops = go ops 2
@@ -145,24 +165,24 @@ busy_wait ops = go ops 2
 -- | This runs the derivation several times to minimize the creation cost.
 derive_profile :: State.StateId a -> IO ()
 derive_profile create = replicateM_ 6 $
-    run_profile False (UiTest.exec State.empty create)
+    run_profile Nothing (UiTest.bid "b1") (UiTest.exec State.empty create)
 
-run_profile :: Bool -> State.State -> IO ()
-run_profile perform_midi ui_state = do
+run_profile :: Maybe Convert.Lookup -> BlockId -> State.State -> IO ()
+run_profile maybe_lookup block_id ui_state = do
     start_cpu <- CPUTime.getCPUTime
     start <- now
     let section :: String -> IO ((), [a]) -> IO ()
         section = time_section (start_cpu, start)
 
-    let result = DeriveTest.derive_block ui_state (UiTest.bid "b1")
+    let result = DeriveTest.derive_block ui_state block_id
     let events = Derive.r_events result
     section "derive" $ do
         force events
         return ((), events)
 
-    let mmsgs = snd $ DeriveTest.perform_stream DeriveTest.default_lookup_inst
-            midi_config events
-    when perform_midi $ section "midi" $ do
+    when_just maybe_lookup $ \lookup -> section "midi" $ do
+        let mmsgs = snd $ DeriveTest.perform_stream lookup
+                (State.config_midi (State.state_config ui_state)) events
         force mmsgs
         return ((), mmsgs)
 
@@ -231,5 +251,6 @@ track_drop n = second (shift . drop n)
 track_take :: Int -> UiTest.TrackSpec -> UiTest.TrackSpec
 track_take = second . take
 
-midi_config = UiTest.midi_config
-    [(drop 1 inst1, [0, 1]), (drop 1 inst2, [2])]
+set_midi_config :: State.State -> State.State
+set_midi_config = State.config#State.midi #=
+     UiTest.midi_config [(drop 1 inst1, [0, 1]), (drop 1 inst2, [2])]

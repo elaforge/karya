@@ -8,6 +8,7 @@ write_files = True
 profiles = [
     'Derive_profile.profile_big_block',
     'Derive_profile.profile_nested_controls',
+    'Derive_profile.profile_bloom',
     'Cmd.Responder_profile.profile_selection',
 ] + ['Perform.Midi.Perform_profile.profile_' + n for n in
     ['notes', 'control', 'complex', 'multiplex']]

@@ -110,30 +110,26 @@ perform_block tracks = perform_blocks [(UiTest.default_block_name, tracks)]
 perform_blocks :: [UiTest.BlockSpec] -> ([Midi], [String])
 perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     where
-    (_, mmsgs, logs) = perform default_lookup_inst default_midi_config
+    (_, mmsgs, logs) = perform default_convert_lookup default_midi_config
         (Derive.r_events result)
     result = derive_blocks blocks
 
-perform :: MidiDb.LookupMidiInstrument -> Instrument.Config -> Derive.Events
+perform :: Convert.Lookup -> Instrument.Config -> Derive.Events
     -> ([Perform.Event], [Midi], [Log.Msg])
-perform lookup_inst midi_config events =
+perform lookup midi_config events =
     (fst (LEvent.partition perf_events), mmsgs, filter interesting_log logs)
     where
-    (perf_events, perf) = perform_stream lookup_inst midi_config events
+    (perf_events, perf) = perform_stream lookup midi_config events
     (mmsgs, logs) = LEvent.partition perf
 
 perform_defaults :: Derive.Events -> ([Perform.Event], [Midi], [Log.Msg])
-perform_defaults = perform default_lookup_inst default_midi_config
+perform_defaults = perform default_convert_lookup default_midi_config
 
-perform_stream :: MidiDb.LookupMidiInstrument -> Instrument.Config
-    -> Derive.Events
+perform_stream :: Convert.Lookup -> Instrument.Config -> Derive.Events
     -> ([LEvent.LEvent Perform.Event], [LEvent.LEvent Midi])
-perform_stream lookup_inst midi_config events = (perf_events, mmsgs)
+perform_stream lookup midi_config events = (perf_events, mmsgs)
     where
     perf_events = Convert.convert lookup events
-    -- Inconsistent since patch is different from inst lookup, but meh...
-    lookup = Convert.Lookup
-        default_lookup_scale lookup_inst default_lookup_patch
     (midi, _) = Perform.perform Perform.initial_state midi_config perf_events
     mmsgs = map (fmap extract_m) midi
     extract_m wmsg =
@@ -456,44 +452,47 @@ mkscale name notes = Scale.Scale
 
 -- * inst
 
-default_convert_lookup :: Convert.Lookup
-default_convert_lookup = Convert.Lookup
-    default_lookup_scale default_lookup_inst default_lookup_patch
-
-default_lookup_inst :: MidiDb.LookupMidiInstrument
-default_lookup_inst = make_lookup_inst default_patches
-
-default_lookup_patch :: Score.Instrument -> Maybe Instrument.Patch
-default_lookup_patch = make_lookup_patch default_patches
-
-make_lookup_inst :: [Instrument.Patch] -> MidiDb.LookupMidiInstrument
-make_lookup_inst patches = Instrument.Db.db_lookup_midi (make_db patches)
-
-make_lookup_patch :: [Instrument.Patch]
-    -> (Score.Instrument -> Maybe Instrument.Patch)
-make_lookup_patch patches =
-    fmap MidiDb.info_patch . Instrument.Db.db_lookup (make_db patches)
-
-default_db :: Cmd.InstrumentDb
-default_db = make_db default_patches
-
-make_db :: [Instrument.Patch] -> Cmd.InstrumentDb
-make_db patches = Instrument.Db.db midi_db
+make_convert_lookup :: Cmd.InstrumentDb -> Convert.Lookup
+make_convert_lookup midi_db = Convert.Lookup
+    default_lookup_scale lookup_inst lookup_patch
     where
-    sdescs = MidiInst.make $ (MidiInst.softsynth "s" (-2, 2) [])
+    lookup_inst = Instrument.Db.db_lookup_midi midi_db
+    lookup_patch = fmap MidiDb.info_patch . Instrument.Db.db_lookup midi_db
+
+make_db :: [(String, [Instrument.Patch])] -> Cmd.InstrumentDb
+make_db synth_patches = Instrument.Db.db midi_db
+    where
+    midi_db = fst $ MidiDb.midi_db $ concatMap make synth_patches
+    make (synth, patches) = MidiInst.make (MidiInst.softsynth synth (-2, 2) [])
         { MidiInst.extra_patches =
             map (\p -> (p, MidiInst.empty_code)) patches }
-    midi_db = fst $ MidiDb.midi_db sdescs
 
-default_patches :: [Instrument.Patch]
-default_patches =
-    [ Instrument.patch $ Instrument.instrument "1" [] (-2, 2)
-    , Instrument.patch $ Instrument.instrument "2" [] (-2, 2)
-    ]
+lookup_from_insts :: [Score.Instrument] -> Convert.Lookup
+lookup_from_insts = make_convert_lookup . make_db . convert
+    where
+    convert = map (second (map make_patch)) . Seq.keyed_group_on (fst . split)
+        . map Score.inst_name
+    split name = (pre, drop 1 post)
+        where (pre, post) = break (=='/') name
+
+lookup_from_state :: State.State -> Convert.Lookup
+lookup_from_state state = lookup_from_insts $
+    Seq.drop_dups id $ Map.keys $ Instrument.config_alloc $
+    State.config#State.midi #$ state
+
+default_convert_lookup :: Convert.Lookup
+default_convert_lookup = make_convert_lookup default_db
+
+default_db :: Cmd.InstrumentDb
+default_db = make_db [("s", map make_patch ["1", "2"])]
+
+make_patch :: String -> Instrument.Patch
+make_patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
 
 default_midi_config :: Instrument.Config
 default_midi_config = UiTest.midi_config [("s/1", [0..2]), ("s/2", [3])]
 
+default_inst_title :: String
 default_inst_title = ">s/1"
 
 -- * mkevents

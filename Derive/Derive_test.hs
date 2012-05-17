@@ -72,7 +72,9 @@ test_basic = do
 
 test_attributes = do
     -- Test that attributes work, through derivation and performance.
-    let patch = Instrument.set_keymap keymap $
+    let convert_lookup = DeriveTest.make_convert_lookup $
+            DeriveTest.make_db [("s", [patch])]
+        patch = Instrument.set_keymap keymap $
             Instrument.set_keyswitches keyswitches $ Instrument.patch $
                 Instrument.instrument "ks" [] (-1, 1)
         keyswitches = map (first Score.attributes)
@@ -82,7 +84,6 @@ test_attributes = do
             , (["a2"], 3)
             ]
         keymap = [(Score.attr "km", 42)]
-        lookup_inst = DeriveTest.make_lookup_inst [patch]
     let res = DeriveTest.derive_tracks
             [ (">s/ks +a1",
                 [(0, 1, "n +a0"), (1, 1, "n +a2"), (2, 1, "n -a1 +km")])
@@ -90,7 +91,7 @@ test_attributes = do
             ]
         attrs = fst $
             DeriveTest.extract (Score.attrs_list . Score.event_attributes) res
-        (_, mmsgs, logs) = DeriveTest.perform lookup_inst
+        (_, mmsgs, logs) = DeriveTest.perform convert_lookup
             (UiTest.midi_config [("s/ks", [0])]) (Derive.r_events res)
 
     -- Attribute inheritance thing works.

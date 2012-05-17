@@ -154,7 +154,7 @@ test_everything = do
     where
     perform :: Derive.Result -> [Either DeriveTest.Midi String]
     perform result = map (LEvent.either Left (Right . DeriveTest.show_log)) $
-        snd $ DeriveTest.perform_stream DeriveTest.default_lookup_inst
+        snd $ DeriveTest.perform_stream DeriveTest.default_convert_lookup
             DeriveTest.default_midi_config (Derive.r_events result)
 
 test_track_signal = do
