@@ -35,6 +35,8 @@ test_misc = do
     Git.write_ref repo commit ref
     io_equal (Git.read_ref repo ref) (Just commit)
     io_equal (Git.read_ref repo "no-such-ref") Nothing
+    io_equal (Git.read_ref_map repo) $
+        Map.fromList [("heads/master", commit2), ("tags/0", commit)]
 
     -- sym -> ref
     Git.write_symbolic_ref repo "sym" ref

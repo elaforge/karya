@@ -3,7 +3,6 @@
 -- binding.
 --
 -- TODO
---
 -- - Is git_tree_diff recursive?
 --
 -- - Apparently there's no way to modify an index directly, without going
@@ -239,15 +238,15 @@ write_ref repo (Commit commit) ref = with_repo repo $ \repop ->
             G.c'git_reference_free refp
 
 read_ref :: Repo -> Ref -> IO (Maybe Commit)
-read_ref repo ref = with_repo repo $ \repop -> with_ref_name ref $ \namep ->
+read_ref repo ref = with_repo repo $ \repop -> read_ref_repo repop ref
+
+read_ref_repo :: G.Repo -> Ref -> IO (Maybe Commit)
+read_ref_repo repop ref = with_ref_name ref $ \namep ->
     alloca $ \oidp -> do
         code <- G.c'git_reference_name_to_oid oidp repop namep
         if code /= G.c'GIT_SUCCESS then return Nothing else do
         oid <- peek oidp
         return (Just (Commit oid))
-
-with_ref_name :: Ref -> (CString -> IO a) -> IO a
-with_ref_name ref io = withCString ("refs" </> ref) $ \namep -> io namep
 
 with_ref :: G.Repo -> Ref -> (Ptr G.C'git_reference -> IO a) -> IO a
 with_ref repop ref io =
@@ -257,6 +256,34 @@ with_ref repop ref io =
         refp <- peek refpp
         io refp `Exception.finally` when (refp /= nullPtr)
             (G.c'git_reference_free refp)
+
+-- | Read all the refs in the repo.
+read_refs :: G.Repo -> IO [Ref]
+read_refs repop = alloca $ \arrayp -> do
+    G.check "read_refs" $ G.c'git_reference_listall arrayp repop
+        G.c'GIT_REF_LISTALL
+    G.C'git_strarray stringsp count <- peek arrayp
+    strps <- peekArray (fromIntegral count) stringsp
+    refs <- mapM (peek_ref_name "") strps
+    G.c'git_strarray_free arrayp
+    return refs
+
+-- | Read all refs along with their commits.
+read_ref_map :: Repo -> IO (Map.Map Ref Commit)
+read_ref_map repo = with_repo repo $ \repop -> do
+    refs <- read_refs repop
+    commits <- mapM (read_ref_repo repop) refs
+    return $ Map.fromList
+        [(ref, commit) | (ref, Just commit) <- zip refs commits]
+
+with_ref_name :: Ref -> (CString -> IO a) -> IO a
+with_ref_name ref io = withCString ("refs" </> ref) $ \namep -> io namep
+
+peek_ref_name :: String -> CString -> IO Ref
+peek_ref_name prefix str = do
+    (name, stripped) <- Seq.drop_prefix "refs/" <$> peekCString str
+    unless stripped $ G.throw $ prefix ++ "wasn't in refs/: " ++ show name
+    return name
 
 -- *** symbolic
 
@@ -275,12 +302,8 @@ read_symbolic_ref repo sym = with_repo repo $ \repop ->
         refp <- G.check_lookup "reference_resolve" refpp $
             G.c'git_reference_resolve refpp symp
         if refp == nullPtr then return Nothing else do
-        (name, stripped) <- Seq.drop_prefix "refs/" <$>
-            (peekCString =<< G.c'git_reference_name refp)
-        unless stripped $
-            G.throw $ "ref name of " ++ show sym ++ " wasn't in refs/: "
-                ++ show name
-        return $ Just name
+        fmap Just $ peek_ref_name ("ref of " ++ show sym ++ " ")
+            =<< G.c'git_reference_name refp
 
 -- *** HEAD
 

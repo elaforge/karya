@@ -104,7 +104,7 @@ read_last_save :: Git.Repo -> Maybe Git.Commit
 read_last_save repo maybe_commit = do
     commits <- maybe (Git.read_log_head repo) (Git.read_log_from repo)
         maybe_commit
-    refs <- Git.read_refs repo
+    refs <- Git.read_ref_map repo
     let commit_to_ref = Map.invert refs
         maybe_ref = msum $ map (`Map.lookup` commit_to_ref) commits
     maybe (return Nothing) (fmap Just . ref_to_save) maybe_ref

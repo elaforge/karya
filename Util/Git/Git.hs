@@ -175,8 +175,8 @@ read_ref repo ref =
         git repo ["show-ref", "--verify", "--hash", "refs" </> ref] "")
         `Exception.catch` (\(_exc :: GitException) -> return Nothing)
 
-read_refs :: Repo -> IO (Map.Map Ref Commit)
-read_refs repo = do
+read_ref_map :: Repo -> IO (Map.Map Ref Commit)
+read_ref_map repo = do
     -- For some reason, show-ref returns 1 if there are no tags.
     (_, out, _) <- run_git repo [] ["show-ref", "--tags"] ""
     Map.fromList <$> mapM parse (Char8.lines out)

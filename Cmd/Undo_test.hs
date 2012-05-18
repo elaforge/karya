@@ -192,7 +192,7 @@ test_branching_history = do
     res <- next res $ Cmd.name "save" Save.cmd_save_git
 
     -- The second branch got 0.0 because 1 was taken.
-    refs <- Git.read_refs repo
+    refs <- Git.read_ref_map repo
     equal (Map.keys refs) ["tags/0", "tags/0.0", "tags/1"]
 
     -- Each branch has its own history.

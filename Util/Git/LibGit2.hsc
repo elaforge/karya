@@ -175,6 +175,11 @@ type ObjType = CInt
 -- const git_oid * git_reference_oid(git_reference *ref);
 #ccall git_reference_oid, Ptr <git_reference> -> IO (Ptr OID)
 
+
+-- int git_reference_listall(git_strarray *array, git_repository *repo,
+-- unsigned int list_flags);
+#ccall git_reference_listall, Ptr <git_strarray> -> Repo -> CUInt -> IO Error
+
 -- ** symbolic
 
 -- int git_reference_create_symbolic(git_reference **ref_out, git_repository
@@ -184,6 +189,17 @@ type ObjType = CInt
 -- int git_reference_resolve(git_reference **resolved_ref, git_reference *ref);
 #ccall git_reference_resolve, Ptr (Ptr <git_reference>) \
     -> Ptr <git_reference> -> IO Error
+
+-- * strarray
+
+#starttype git_strarray
+#field strings, Ptr CString
+#field count, CSize
+#stoptype
+
+#num GIT_REF_LISTALL
+
+#ccall git_strarray_free, Ptr <git_strarray> -> IO ()
 
 -- * revwalk
 
