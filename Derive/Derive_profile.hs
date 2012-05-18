@@ -82,7 +82,10 @@ profile_nested_nocontrol = derive_profile $
 
 profile_size = derive_size $ make_nested_controls 10 3 60
 
-profile_bloom = profile_saved "save/bloom" (UiTest.bid "bloom/order")
+profile_bloom_derive =
+    profile_saved False "save/bloom" (UiTest.bid "bloom/order")
+profile_bloom_perform =
+    profile_saved True "save/bloom" (UiTest.bid "bloom/order")
 
 -- * make states
 
@@ -129,16 +132,17 @@ mkblock tracks = do
 
 -- * implementation
 
-profile_saved :: FilePath -> BlockId -> IO ()
-profile_saved fname block_id = do
+profile_saved :: Bool -> FilePath -> BlockId -> IO ()
+profile_saved with_perform fname block_id = do
     result <- print_timer ("unserialize " ++ show fname) (const "") $
         Serialize.unserialize fname
     state <- case result of
         Left err -> error $ "loading " ++ show fname ++ ": " ++ err
         Right (Serialize.SaveState state _) -> return state
     let look = DeriveTest.lookup_from_state state
-    replicateM_ 6 $ run_profile Nothing block_id state
-    replicateM_ 6 $ run_profile (Just look) block_id state
+    if with_perform
+        then replicateM_ 6 $ run_profile (Just look) block_id state
+        else replicateM_ 6 $ run_profile Nothing block_id state
 
 derive_size :: State.StateId a -> IO ()
 derive_size create = do
@@ -179,7 +183,6 @@ run_profile maybe_lookup block_id ui_state = do
     section "derive" $ do
         force events
         return ((), events)
-
     when_just maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
                 (State.config_midi (State.state_config ui_state)) events

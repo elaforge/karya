@@ -223,8 +223,6 @@ logged_synths synth patches = do
 wildcard_patch_map :: PatchCode code -> PatchMap code
 wildcard_patch_map patch = PatchMap $ Map.singleton wildcard_inst_name patch
 
--- ** lookup
-
 -- * util
 
 -- | Since instruments are stored in the index as lower case for case
@@ -262,4 +260,3 @@ set_patch_name :: Instrument.InstrumentName -> Instrument.Patch
     -> Instrument.Patch
 set_patch_name name patch = patch { Instrument.patch_instrument =
     (Instrument.patch_instrument patch) { Instrument.inst_name = name } }
-
