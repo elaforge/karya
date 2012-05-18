@@ -1,4 +1,5 @@
 UNSORTED
+  - now undo without a repo isn't working
   * auto focus when you add a new block title
   * rename Score.TypedControl to TypedSignal since that's what it really is
   * I think fractional offset for twelve is totally off
@@ -140,7 +141,7 @@ UNSORTED
     Git docs:
       http://progit.org/book/ch9-2.html
 
-  - copy with a point sel should copy the event right underneath
+  * copy with a point sel should copy the event right underneath
   * aliases in App.Main for loopback ports
   * ^T doesn't set focus in the track title
   * adding a new track should also scroll over so it's visible

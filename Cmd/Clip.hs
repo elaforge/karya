@@ -9,8 +9,8 @@
     events into a note track.  However, I'm going to ignore that and assume the
     user won't paste them if he didn't mean it.
 
-    Instead of having a special case clipboard, the clipboard is implemented as
-    a set of normal blocks and tracks (rulers are not copied), in a clipboard
+    Instead of having a special case clipboard, the clipboard is implemented
+    as a normal block and tracks (rulers are not copied), in a clipboard
     namespace.  That way, you can have multiple clipboards by copying them to
     different clipboard namespaces, edit clipboards in place, and the paste
     code is the same as the code that merges another project from disk.
@@ -21,7 +21,8 @@
 
     - mouse chording for copy paste
 
-    - different mouse buttons are hard to do on the mac, so use standard for now
+    - different mouse buttons are hard to do on the mac, so use standard for
+    now
 
     - merge with function... I think I can just do it at the REPL
 
@@ -86,16 +87,10 @@ cmd_cut_selection = do
 -- | Copy events under the current selection into the buffer.
 cmd_copy_selection :: (Cmd.M m) => m ()
 cmd_copy_selection = do
-    selected <- get_selection =<< copy_selection Config.insert_selnum
+    selected <- get_selection =<< Selection.tracks_selnum Config.insert_selnum
     state <- State.require_right "selected_to_state" $
         selected_to_state clip_block_id selected
     state_to_clip state
-
-copy_selection :: (Cmd.M m) => Types.SelNum -> m Selection.SelectedTracks
-copy_selection selnum = do
-    sel@(_, _, _, start, end) <- Selection.tracks_selnum selnum
-    when (start == end) Cmd.abort
-    return sel
 
 -- | (track_title, events) pairs for each copied track within the copied
 -- selection.
@@ -120,8 +115,13 @@ get_selection (block_id, tracknums, _, start, end) = do
         select_events start end (Track.track_events track))
 
 select_events :: ScoreTime -> ScoreTime -> Events.Events -> Events.Events
-select_events start end = Events.map_sorted (\(pos, evt) -> (pos - start, evt))
-    . Events.in_range start end
+select_events start end events =
+    Events.map_sorted (\(pos, evt) -> (pos - start, evt)) selected
+    where
+    selected = if start == end
+        then maybe Events.empty (Events.singleton start)
+            (Events.at start events)
+        else Events.in_range start end events
 
 -- * paste
 
@@ -261,13 +261,17 @@ clip_track_events start end track_id = do
         shifted = map (\(pos, evt) -> (pos+start, evt)) events
     return shifted
 
+-- | Clip off the events after the given end time.  Also shorten the last
+-- event so it doesn't cross the end, if necessary.  If the end is 0 then
+-- events are not clipped at all.
 clip_events :: ScoreTime -> [Events.PosEvent] -> [Events.PosEvent]
 clip_events _ [] = []
-clip_events point (event@(pos, evt):events)
-    | pos >= point = []
-    | Events.end event > point =
-        [(pos, Event.modify_duration (\d -> min d (point - pos)) evt)]
-    | otherwise = event : clip_events point events
+clip_events end (event@(pos, evt):events)
+    | end == 0 = event : events
+    | pos >= end = []
+    | Events.end event > end =
+        [(pos, Event.modify_duration (\d -> min d (end - pos)) evt)]
+    | otherwise = event : clip_events end events
 
 -- | Get the destination and clip tracks involved in a paste, along with the
 -- paste selection.

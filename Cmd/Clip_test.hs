@@ -13,15 +13,20 @@ import qualified App.Config as Config
 import Types
 
 
+track1 = ("t1", [(0, 2, "e11"), (4, 2, "e12"), (8, 2, "e13")])
+track2 = ("t2", [(1, 2, "e21"), (5, 2, "e22")])
+clip_tracks = [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
+
 -- * copy
 
 test_cmd_copy_selection = do
     let state = UiTest.exec State.empty $
             UiTest.mkviews [(UiTest.default_block_name, [track1, track2])]
-        run strack spos ctrack cpos = e_tracks clip_id $ CmdTest.run_ui state $
-            do
+        run strack spos ctrack cpos =
+            e_tracks clip_id $ CmdTest.run_ui state $ do
                 CmdTest.set_sel strack spos ctrack cpos
                 Clip.cmd_copy_selection
+
     equal (run 1 4 1 8) $ Right [("t1", [(0, 2, "e12")])]
 
     -- I get the same event, but also the empty space before it.
@@ -32,11 +37,11 @@ test_cmd_copy_selection = do
         , ("t2", [(0, 2, "e21")])
         ]
 
--- * paste
+    -- Copy zero length selection gets the events underneath.
+    equal (run 1 4 1 4) $ Right [("t1", [(0, 2, "e12")])]
 
-track1 = ("t1", [(0, 2, "e11"), (4, 2, "e12"), (8, 2, "e13")])
-track2 = ("t2", [(1, 2, "e21"), (5, 2, "e22")])
-clip_tracks = [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
+
+-- * paste
 
 e_tracks :: BlockId -> CmdTest.Result val -> Either String [UiTest.TrackSpec]
 e_tracks block_id = CmdTest.trace_logs . CmdTest.extract_state
@@ -75,6 +80,11 @@ test_cmd_paste_overwrite = do
         , track2
         ]
     -- TODO test pasting in two tracks
+
+    -- Pasting zero dur events works.
+    let empty = mkstate [("t1", [])] [("t1", [(0, 0, "e")])]
+        run = run_sel empty Clip.cmd_paste_overwrite
+    equal (run 1 1 1 1) $ Right [("t1", [(1, 0, "e")])]
 
 test_cmd_paste_merge = do
     let state = mkstate [track1, track2] clip_tracks
