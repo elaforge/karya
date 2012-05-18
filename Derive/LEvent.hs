@@ -6,6 +6,7 @@ import qualified Data.List as List
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+import Util.Pretty ((<+>))
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
@@ -26,8 +27,9 @@ instance (Pretty.Pretty d) => Pretty.Pretty (LEvent d) where
     format (Event event) = Pretty.format event
 
 format_msg :: Log.Msg -> Pretty.Doc
-format_msg msg = Pretty.text stars Pretty.<+> Pretty.text srcpos <> stack
-        Pretty.<+> Pretty.text (Log.msg_string msg)
+format_msg msg = Pretty.fsep
+    [Pretty.text stars <+> Pretty.text srcpos <+> Pretty.format stack,
+        Pretty.nest 2 $ Pretty.text (Log.msg_string msg)]
     where
     stars = replicate (fromEnum (Log.msg_prio msg)) '*'
     srcpos = maybe "" ((++": ") . SrcPos.show_srcpos . Just)

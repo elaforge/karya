@@ -5,7 +5,7 @@ module Util.Pretty (
     Pretty(..), Doc
     , formatted, pprint, render, render_compact
     -- * re-exported
-    , PP.char, PP.text, PP.fsep, PP.fcat
+    , PP.char, PP.text, PP.fsep, PP.fcat, PP.nest
     , (PP.<+>)
 
     -- * formatting
