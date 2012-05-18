@@ -59,8 +59,7 @@ undo = do
     -- is happening after the state that is going to be undone.  So the current
     -- state doesn't count (it's the 'undo' cmd), the state I'm coming from is
     -- the previous one, and the one I'm going to is the twice previous one.
-    cur <- Cmd.require_msg "undo: no present (this shouldn't happen)" $
-        Cmd.hist_present hist
+    let cur = Cmd.hist_present hist
     case Cmd.hist_past hist of
         prev : rest -> do_undo hist cur prev rest
         [] -> do
@@ -76,7 +75,7 @@ undo = do
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past = rest
-                , Cmd.hist_present = Just prev
+                , Cmd.hist_present = prev
                 , Cmd.hist_future = cur { Cmd.hist_updates = updates }
                     : Cmd.hist_future hist
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
@@ -93,8 +92,7 @@ undo = do
 redo :: Cmd.CmdT IO ()
 redo = do
     hist <- Cmd.gets Cmd.state_history
-    cur <- Cmd.require_msg "redo: no present (this shouldn't happen)" $
-        Cmd.hist_present hist
+    let cur = Cmd.hist_present hist
     case Cmd.hist_future hist of
         next : rest -> do_redo cur (Cmd.hist_past hist) next rest
         [] -> do
@@ -110,7 +108,7 @@ redo = do
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past =
                     cur { Cmd.hist_updates = Cmd.hist_updates next } : past
-                , Cmd.hist_present = Just $ next { Cmd.hist_updates = [] }
+                , Cmd.hist_present = next { Cmd.hist_updates = [] }
                 , Cmd.hist_future = rest
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
@@ -182,7 +180,8 @@ merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
 -- | The contents of the clipboard should be preserved across undo and redo.
 keep_clip :: (Id.Ident k, Ord k) => Id.Namespace -> Map.Map k a
     -> Map.Map k a -> Map.Map k a
-keep_clip clip_ns old new = Map.union new (Map.filterWithKey (\k _ -> ns k) old)
+keep_clip clip_ns old new =
+    Map.union new (Map.filterWithKey (\k _ -> ns k) old)
     where ns = (==clip_ns) . Id.ident_namespace
 
 
@@ -206,12 +205,11 @@ maintain_history ui_state cmd_state updates = do
         , Cmd.state_history_collect = collect
         , Cmd.state_history_config = (Cmd.state_history_config cmd_state)
             { Cmd.hist_last_commit =
-                (Cmd.hist_commit =<< present) `mplus` prev_commit
+                Cmd.hist_commit present `mplus` prev_commit
             }
         }
     where
-    (hist, collect, uncommitted) =
-        record_history updates ui_state cmd_state
+    (hist, collect, uncommitted) = record_history updates ui_state cmd_state
     has_saved = Maybe.isJust $ Cmd.hist_last_save $
         Cmd.state_history_config cmd_state
     keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
@@ -220,18 +218,17 @@ maintain_history ui_state cmd_state updates = do
 
 -- | The present is expected to have no updates, so bump the updates off the
 -- new present onto the old present, and described in [undo-and-updates].
-bump_updates :: Maybe Cmd.HistoryEntry -> [Cmd.HistoryEntry]
-    -> (Maybe Cmd.HistoryEntry, [Cmd.HistoryEntry])
+bump_updates :: Cmd.HistoryEntry -> [Cmd.HistoryEntry]
+    -> (Cmd.HistoryEntry, [Cmd.HistoryEntry])
 bump_updates old_cur [] = (old_cur, [])
-bump_updates (Just old_cur) (new_cur : news) =
+bump_updates old_cur (new_cur : news) =
     -- All I want to do is bump the updates from new_cur to old_cur, but
     -- suppressed records means there can be multiple histories recorded at
     -- once, which makes this a bit more of a hassle.
-    (Just present, map bump (zip_next new_cur (news ++ [old_cur])))
+    (present, map bump (zip_next new_cur (news ++ [old_cur])))
     where
     present = new_cur { Cmd.hist_updates = [] }
     bump (p, c) = c { Cmd.hist_updates = Cmd.hist_updates p }
-bump_updates Nothing news = (Nothing, news) -- This should never happen.
 
 zip_next :: a -> [a] -> [(a, a)]
 zip_next _ [] = []
@@ -275,8 +272,7 @@ record_history updates ui_state cmd_state
         -- history and record the current state as a commit.
         let new_hist = Cmd.History
                 { Cmd.hist_past = []
-                , Cmd.hist_present = Just $
-                    Cmd.HistoryEntry ui_state [] names (Just commit)
+                , Cmd.hist_present = Cmd.HistoryEntry ui_state [] names commit
                 , Cmd.hist_future = []
                 , Cmd.hist_last_cmd = Nothing
                 }

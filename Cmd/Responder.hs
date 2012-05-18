@@ -113,8 +113,12 @@ responder config msg_reader midi_interface setup_cmd lang_session
 run_setup_cmd :: Cmd.CmdIO -> State -> IO State
 run_setup_cmd cmd state = fmap snd $ run_responder state $ do
     result <- run_continue "initial setup" $ Right $ do
-        Cmd.name "setup" cmd
+        cmd
         State.update_all_tracks
+        Cmd.modify $ \st -> st
+            { Cmd.state_history = (Cmd.state_history st)
+                { Cmd.hist_last_cmd = Just $ Cmd.Load Nothing ["setup"] }
+            }
         return Cmd.Continue
     when_just result $ \(_, ui_state, cmd_state) -> do
         Monad.State.modify $ \st ->

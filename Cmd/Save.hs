@@ -73,7 +73,7 @@ cmd_load_git repo maybe_commit = do
     set_state state
     Cmd.modify $ \st -> st
         { Cmd.state_history = (Cmd.state_history st)
-            { Cmd.hist_last_cmd = Just $ Cmd.Load commit names }
+            { Cmd.hist_last_cmd = Just $ Cmd.Load (Just commit) names }
         , Cmd.state_history_config = (Cmd.state_history_config st)
             { Cmd.hist_last_save = last_save }
         }
@@ -100,7 +100,7 @@ rethrow caller io =
 set_state :: State.State -> Cmd.CmdT IO ()
 set_state state = do
     Play.cmd_stop
-    Cmd.modify Cmd.reinit_state
+    Cmd.modify $ Cmd.reinit_state (Cmd.empty_history_entry state)
     State.modify (const (State.clear state))
     root <- case State.config_root (State.state_config state) of
         Nothing -> return Nothing

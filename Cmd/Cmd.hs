@@ -296,10 +296,9 @@ data State = State {
 
 initial_state :: Map.Map Midi.ReadDevice Midi.ReadDevice
     -> Map.Map Midi.WriteDevice Midi.WriteDevice
-    -> Midi.Interface.Interface -> InstrumentDb -> Derive.Scope
-    -> State
-initial_state rdev_map wdev_map interface inst_db global_scope = State {
-    state_midi_interface = interface
+    -> Midi.Interface.Interface -> InstrumentDb -> Derive.Scope -> State
+initial_state rdev_map wdev_map interface inst_db global_scope = State
+    { state_midi_interface = interface
     , state_rdev_map = rdev_map
     , state_wdev_map = wdev_map
     , state_instrument_db = inst_db
@@ -308,7 +307,10 @@ initial_state rdev_map wdev_map interface inst_db global_scope = State {
     , state_lookup_scale = LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
 
-    , state_history = empty_history
+    -- This is a dummy entry needed to bootstrap a Cmd.State.  Normally
+    -- 'hist_present' should always have the current state, but the initial
+    -- setup cmd needs a State too.
+    , state_history = initial_history (empty_history_entry State.empty)
     , state_history_config = empty_history_config
     , state_history_collect = empty_history_collect
     , state_keys_down = Map.empty
@@ -324,9 +326,9 @@ initial_state rdev_map wdev_map interface inst_db global_scope = State {
 
 -- | Reset the parts of the State which are specific to a \"session\".  This
 -- should be called whenever an entirely new state is loaded.
-reinit_state :: State -> State
-reinit_state cstate = cstate
-    { state_history = empty_history
+reinit_state :: HistoryEntry -> State -> State
+reinit_state present cstate = cstate
+    { state_history = initial_history present
     -- Performance threads should have been killed by the caller.
     , state_play = initial_play_state
         { state_play_step = state_play_step (state_play cstate) }
@@ -567,14 +569,19 @@ type SynthDesc = MidiDb.SynthDesc InstrumentCode
 data History = History {
     -- | Ghosts of state past, present, and future.
     hist_past :: ![HistoryEntry]
-    -- This should only be Nothing on an empty state.  It will become Just as
-    -- soon asy anything recordable happens, which should normally be the
-    -- setup cmd or a state load and stay Just from then on.  Since you can't
-    -- undo to a Nothing state, this must always be Just for undo to work.
-    , hist_present :: !(Maybe HistoryEntry)
+    -- | The present is actually the immediate past.  When you undo, the
+    -- undo itself is actually in the future of the state you want to undo.
+    -- So another way of looking at it is that you undo from the past to
+    -- a point further in the past.  But since you always require a "recent
+    -- past" to exist, it's more convenient to break it out and call it the
+    -- \"present\".  Isn't time travel confusing?
+    , hist_present :: !HistoryEntry
     , hist_future :: ![HistoryEntry]
     , hist_last_cmd :: !(Maybe LastCmd)
     } deriving (Show, Generics.Typeable)
+
+initial_history :: HistoryEntry -> History
+initial_history present = History [] present [] Nothing
 
 -- | Record some information about the last cmd for the benefit of
 -- 'Cmd.Undo.maintain_history'.
@@ -585,11 +592,8 @@ data LastCmd =
     UndoRedo
     -- | This cmd set the state because of a load.  This should reset all the
     -- history so I can start loading from the new state's history.
-    | Load Git.Commit [String]
+    | Load (Maybe Git.Commit) [String]
     deriving (Show)
-
-empty_history :: History
-empty_history = History [] Nothing [] Nothing
 
 data HistoryConfig = HistoryConfig {
     -- | Keep this many previous history entries in memory.
@@ -635,6 +639,9 @@ data HistoryEntry = HistoryEntry {
     -- unsaved.
     , hist_commit :: !(Maybe Git.Commit)
     } deriving (Show, Generics.Typeable)
+
+empty_history_entry :: State.State -> HistoryEntry
+empty_history_entry state = HistoryEntry state [] [] Nothing
 
 instance Pretty.Pretty History where
     format (History past present future _undo_redo) =
