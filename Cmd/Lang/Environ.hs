@@ -48,7 +48,7 @@ import qualified Cmd.Lang.LPerf as LPerf
 import qualified Cmd.Lang.LPitch as LPitch
 import qualified Cmd.Lang.LRuler as LRuler
 import qualified Cmd.Lang.LState as LState
-import qualified Cmd.Lang.LSymbol as LSymbol
+-- import qualified Cmd.Lang.LSymbol as LSymbol
 import qualified Cmd.Lang.LTrack as LTrack
 import qualified Cmd.Lang.LView as LView
 import qualified Cmd.MakeRuler as MakeRuler

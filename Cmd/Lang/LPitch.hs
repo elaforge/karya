@@ -5,8 +5,6 @@
 -- good.  I suppose if I need these functions elsewhere I can more them to more
 -- generic places.
 module Cmd.Lang.LPitch where
-import qualified Data.Map as Map
-
 import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -27,7 +25,8 @@ import Types
 
 -- | Turn an nn back to a human-readable note name.
 nn_to_note :: Int -> Maybe Pitch.Note
-nn_to_note key = Map.lookup (Pitch.Degree key) Twelve.degree_to_note
+nn_to_note key =
+    Twelve.input_to_note Nothing (Pitch.InputKey (fromIntegral key))
 
 -- * invert
 
@@ -44,8 +43,13 @@ negate_event (pos, evt) =
 
 -- * transpose
 
-transpose :: Pitch.Octave -> Pitch.Degree -> Cmd.CmdL ()
-transpose = PitchTrack.transpose_selection
+transpose_c :: Pitch.Octave -> Double -> Cmd.CmdL ()
+transpose_c oct steps =
+    PitchTrack.transpose_selection oct (Pitch.Chromatic steps)
+
+transpose_d :: Pitch.Octave -> Double -> Cmd.CmdL ()
+transpose_d oct steps =
+    PitchTrack.transpose_selection oct (Pitch.Diatonic steps)
 
 -- * to_relative
 

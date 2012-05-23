@@ -46,8 +46,11 @@ make_scale_map smap = Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
     | (n, d) <- Map.assocs (smap_note_to_degree smap)]
 
 transpose :: ScaleMap -> Pitch.Octave -> Derive.Transpose
-transpose scale_map per_octave = \octaves degrees note -> do
+transpose scale_map per_octave = \_key octaves steps note -> do
     note_degree <- Map.lookup note (smap_note_to_degree scale_map)
+    let degrees = case steps of
+            Pitch.Diatonic steps -> d (floor steps)
+            Pitch.Chromatic steps -> d (floor steps)
     Map.lookup (note_degree + d octaves * d per_octave + degrees)
         (smap_degree_to_note scale_map)
     where d = Pitch.Degree
@@ -129,7 +132,7 @@ join_note step frac = Pitch.Note $ step ++ frac_s
 
 -- | Transpose function for a non-transposing scale.
 non_transposing :: Derive.Transpose
-non_transposing _ _ _ = Nothing
+non_transposing _ _ _ _ = Nothing
 
 -- * misc
 

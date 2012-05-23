@@ -72,6 +72,28 @@ UNSORTED
       repl: 100m + 47 to load seq libs
     darwin:
 
+  - rename functions in GlobalKeymap, e.g. command_char should be
+    command_and_char
+  finish Theory
+    * diatonic_to_chromatic
+    * add hijaz
+    * Figure out how to calculate the signature from the intervals.  Does
+      this mean I can get rid of the major_intervals nonsense and calculate it
+      all based on layout + intervals?
+    * Document the difference between PitchClass and Degree.
+    * document the lack of checking that PitchClass is in range, put some
+      checking wrappers around external functions
+    * Theory wraps around at A, while the existing code wraps around at C.
+      C is more standard, but A is more regular.  Should I switch to A?
+    * test current binding
+    - add Scale field and cmds for enharmonics_of
+  more scales:
+    * hijaz, for mixed sharps and flats
+    - twelve, but relative to key and using numbers, aka jianpu
+    - twelve, but using a-h for octatonic and a-i for nononic, or a-f for
+      whole tone
+    - letter and jianpu but with implicit accidentals based on the key
+
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
   * working with breath instruments is awkward, it keeps resetting the breath

@@ -24,25 +24,21 @@
 module Derive.Scale.Twelve where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Vector.Unboxed as V
 
-import qualified Util.Map as Map
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
-
 import qualified Ui.Track as Track
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
-import Derive.Scale.Theory (PitchClass(..))
 import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
 
 
-scale = Scale.Scale {
-    Scale.scale_id = scale_id
+scale :: Scale.Scale
+scale = Scale.Scale
+    { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-g]#?"
     , Scale.scale_map =
         Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
@@ -59,118 +55,45 @@ scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
 
 transpose :: Derive.Transpose
-transpose octaves degrees note = do
-    (_, d) <- Map.lookup note note_to_degree
-    -- TODO do a real transpose with the key
-    Map.lookup (d + Pitch.Degree (octaves*12) + degrees) degree_to_note
+transpose maybe_key octaves steps note = do
+    key <- maybe (return default_key) Theory.read_key maybe_key
+    pitch <- Theory.read_pitch (Theory.key_layout key) (Pitch.note_text note)
+    let pitch2 = pitch
+            { Theory.pitch_octave = Theory.pitch_octave pitch + octaves }
+    case steps of
+        Pitch.Chromatic steps ->
+            pitch_note $ Theory.transpose_chromatic key (floor steps) pitch2
+        Pitch.Diatonic steps ->
+            pitch_note $ Theory.transpose_diatonic key (floor steps) pitch2
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
 note_to_call note = case Map.lookup note note_to_degree of
     Nothing -> Nothing
     Just (pitch, degree) ->
-        Just $ Call.Pitch.note_call note
-            (note_number (Theory.pitch_class pitch) degree)
+        Just $ Call.Pitch.note_call note (note_number pitch degree)
     where
-    note_number :: PitchClass -> Pitch.Degree -> Scale.GetNoteNumber
-    note_number pc (Pitch.Degree degree) chromatic diatonic maybe_str_key = do
+    note_number :: Theory.Pitch -> Pitch.Degree -> Scale.GetNoteNumber
+    note_number pitch (Pitch.Degree degree) chromatic diatonic mb_str_key = do
         dsteps <- if diatonic == 0 then Right 0 else do
-            str_key <- maybe (Left Scale.KeyNeeded) Right maybe_str_key
-            key <- maybe (Left Scale.UnparseableKey) Right (parse_key str_key)
-            return $ transpose_diatonic key pc diatonic
+            str_key <- maybe (Left Scale.KeyNeeded) Right mb_str_key
+            key <- maybe (Left Scale.UnparseableKey) Right
+                (Theory.read_key str_key)
+            return $ Theory.diatonic_to_chromatic key
+                (Theory.pitch_note pitch) diatonic
         let nn = Pitch.NoteNumber $ fromIntegral degree + chromatic + dsteps
         if Num.in_range 1 127 nn then Right nn
             else Left Scale.InvalidTransposition
 
--- | Parse a Key string into a Key as defined here.  Keys look like:
--- c-maj, c#-min, d-dorian
-parse_key :: Pitch.Key -> Maybe Key
-parse_key (Pitch.Key key) = do
-    let (base, mode) = break (=='-') key
-    i <- Map.lookup (drop 1 mode) modes
-    (pc, accs) <- Theory.parse_pitch base
-    return $ Key pc accs i standard_table standard_intervals
-
-default_key :: Key
-default_key = Key C 0 0 standard_table standard_intervals
-
--- | The intervals of the standard church modes, starting at C major.
-standard_intervals :: [Int]
-standard_intervals = [2, 2, 1, 2, 2, 2, 1]
-
-standard_table :: V.Vector Int
-standard_table = make_table standard_intervals
-
-modes :: Map.Map String Int
-modes = Map.fromList $ zip
-    ["maj", "dorian", "phrygian", "lydian", "mixolydian", "min", "locrian"]
-    [0..]
-
--- | Given a Key and base Degree, turn diatonic transposition into chromatic
--- transposition.
-transpose_diatonic :: Key -> PitchClass -> Double -> Double
-transpose_diatonic key pc steps
-    | steps == 0 = 0
-    | steps > 0 = Num.scale (transpose isteps) (transpose (isteps+1)) frac
-    | otherwise =
-        Num.scale (transpose (isteps-1)) (transpose isteps) (1 - abs frac)
-    where
-    (isteps, frac) = properFraction steps
-    transpose = fromIntegral . key_transpose key pc
-
--- | A Key describes what diatonic transposition means.
---
--- For the purposes of transposition, it's a map from a PitchClass to the
--- number of chromatic steps of a given amount of diatonic transposition.
-data Key = Key {
-    -- | Tonic.
-    key_base :: !PitchClass
-    -- | This is actually unneeded for transposition, but it seems weird
-    -- to not distinguish between C and C#.  It's needed in any case for
-    -- 'Theory.transpose' and I should use the same type for both.
-    , key_accidentals :: !Theory.Accidentals
-    -- | The church modes are all offsets of the same pattern of whole and
-    -- semi tones.  This lets me reuse the same key_table for all of them.
-    , key_mode_offset :: !Int
-    -- | Precalculated scan of the intervals up to a certain point.
-    , key_table :: !(V.Vector Int)
-    -- | The intervals in case the table doesn't have the needed transposition
-    -- precalculated.
-    , key_intervals :: ![Int]
-    } deriving (Show)
-
--- type Signature = Map.Map PitchClass Accidental
--- data Accidental = Sharp | Flat
-
--- | Precalculated transpositions so I can figure out a transposition with
--- a single table lookup.  Make 6 for each scale degree to start on, then 10
--- for up to an octave plus a bit of transposition after that.  Plus 16 more
--- for fun.
-make_table :: [Int] -> V.Vector Int
-make_table intervals = V.fromList $
-    reverse (drop 1 (make (-) (reverse intervals))) ++ make (+) intervals
-    where make f = take 32 . scanl f 0 . cycle
-
-key_transpose :: Key -> PitchClass -> Int -> Int
-key_transpose (Key base _ offset table intervals) pc steps =
-    case table V.!? (middle + degree + steps) of
-        Just val -> val - table V.! (middle + degree)
-        Nothing
-            | steps >= 0 -> sum $ take steps $ drop degree $ cycle intervals
-            | otherwise -> negate $ sum $ take (-steps) $
-                reverse (take degree (cycle intervals))
-                ++ cycle (reverse intervals)
-    where
-    -- C in C is 0, but if it were C minor it should be 5.
-    degree = (Theory.scale_degree base pc + offset) `mod` 7
-    middle = V.length table `div` 2
+default_key :: Theory.Key
+Just default_key = Theory.read_key (Pitch.Key "c-maj")
 
 input_to_note :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
 input_to_note maybe_key (Pitch.InputKey key_nn) = do
     -- Default to a key because otherwise you couldn't enter notes in an
     -- empty score!
-    let key = Maybe.fromMaybe default_key $ parse_key =<< maybe_key
-    let (degree, cents) = properFraction key_nn
-    note <- lookup_note key (Pitch.Degree degree)
+    let key = Maybe.fromMaybe default_key $ Theory.read_key =<< maybe_key
+        (degree, cents) = properFraction key_nn
+    note <- pitch_note $ Theory.semis_to_pitch key degree
     return $ Pitch.Note $ Call.Pitch.note_expr note cents
 
 input_to_nn :: Pitch.InputKey -> Maybe Pitch.NoteNumber
@@ -199,45 +122,16 @@ c6, d6, e6, f6, g6, a6, b6 :: Pitch.Degree
 note_to_degree :: Map.Map Pitch.Note (Theory.Pitch, Pitch.Degree)
 note_to_degree = Map.fromList $ filter in_range $ concat $
     [[note "#" "x" "b" "bb" p, note "`#`" "`##`" "`b`" "`bb`" p]
-        | p <- pitches]
+        | p <- Theory.piano_pitches]
     where
     note s s2 f f2 p = (Pitch.Note $ Theory.show_pitch s s2 f f2 p,
-        (p, Theory.pitch_degree p))
-    pitches = [Theory.Pitch oct pc acc
-        | oct <- [-1..9], pc <- [C .. B], acc <- [-2..2]]
+        (p, Pitch.Degree $ Theory.pitch_to_semis Theory.piano_layout p))
     in_range = Num.in_range 1 128 . snd . snd
 
--- | What note should a degree in a particular key map to?
--- This determines the choice of sharp or flat.
---
--- What about double sharps?
---
--- c-maj a# -> a#
--- f-maj a# -> bb
-lookup_note :: Key -> Pitch.Degree -> Maybe Pitch.Note
-lookup_note key degree = Map.lookup degree degree_to_note
-    -- notes <- Map.lookup degree degree_to_note
-    -- let cs = filter ((== sharps) . (>=0) . Theory.pitch_accidentals . fst)
-    --         notes
-    -- undefined
-    -- where
-    -- sharps = Theory.accidentals_at_key (key_base key) (key_accidentals key)
-    --     >= 0
-    -- I'm assuming the usual order of sharps and flats, but it means I can't
-    -- use exotic key signatures.
-
--- TODO should pick an accidental based on the key
-degree_to_note :: Map.Map Pitch.Degree Pitch.Note
-degree_to_note = Map.fromList
-    [(d, snd (head (Seq.sort_on simple ns)))
-        | (d, ns) <- Map.toList degree_to_notes]
-    where
-    -- select only the naturals and sharps
-    simple (p, _) = if Theory.pitch_accidentals p < 0 then 999
-        else Theory.pitch_accidentals p
-
-degree_to_notes :: Map.Map Pitch.Degree [(Theory.Pitch, Pitch.Note)]
-degree_to_notes =
-    Map.multimap [(d, (p, n)) | (n, (p, d)) <- Map.toList note_to_degree]
-    -- filter out or in ``s if I don't want those
-    -- look up for d, then filter pitch with the same sign as accs
+-- | Don't emit a 'Pitch.Note' that's out of range, because it won't be
+-- recognized when it comes time to play it back.
+pitch_note :: Theory.Pitch -> Maybe Pitch.Note
+pitch_note pitch
+    | Map.member n note_to_degree = Just n
+    | otherwise = Nothing
+    where n = Pitch.Note $ Theory.show_pitch "#" "x" "b" "bb" pitch

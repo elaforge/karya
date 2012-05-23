@@ -860,6 +860,5 @@ data Scale = Scale {
     }
 
 type LookupScale = Pitch.ScaleId -> Maybe Scale
--- | TODO This should maybe be Pitch.Chromatic instead of Degree, but
--- the transpose function is only setup to expect inegral transposition.
-type Transpose = Pitch.Octave -> Pitch.Degree -> Pitch.Note -> Maybe Pitch.Note
+type Transpose = Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose
+    -> Pitch.Note -> Maybe Pitch.Note

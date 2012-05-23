@@ -8,7 +8,8 @@
     may return a different type (ByteString vs. Text) so callers will still
     need a little modification to switch libraries.
 -}
-module Util.ParseBs where
+module Util.ParseBs (module Util.ParseBs, many) where
+import Control.Applicative (many)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Attoparsec as Attoparsec
 import qualified Data.Attoparsec.Char8 as A

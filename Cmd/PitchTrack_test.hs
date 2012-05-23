@@ -75,8 +75,9 @@ test_modify_note = do
     equal (f (const (Just (Pitch.Note ""))) "a") (Just "")
 
 test_transpose = do
-    let f octs degs event = PitchTrack.transpose Twelve.scale octs degs
-            (UiTest.make_event event)
+    let f octs steps event =
+            PitchTrack.transpose Twelve.scale Nothing octs
+                (Pitch.Chromatic steps) (UiTest.make_event event)
     equal (f 0 1 (0, 1, "4c")) (Just (UiTest.make_event (0, 1, "4c#")))
     equal (f 1 0 (0, 1, "4c")) (Just (UiTest.make_event (0, 1, "5c")))
     equal (f 20 0 (0, 1, "4c")) Nothing

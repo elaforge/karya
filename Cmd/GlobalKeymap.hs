@@ -66,6 +66,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Undo as Undo
 import qualified Cmd.ViewConfig as ViewConfig
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 
@@ -331,14 +332,20 @@ pitch_bindings :: (Cmd.M m) => [Keymap.Binding m]
 pitch_bindings = concat
     -- These are named after the vi commands for up and down, but they don't
     -- feel right.
-    [ command_char 'y' "transpose up degree"
-        (PitchTrack.transpose_selection 0 1)
-    , command_char 'e' "transpose down degree"
-        (PitchTrack.transpose_selection 0 (-1))
-    , command_char 'Y' "transpose up octave"
-        (PitchTrack.transpose_selection 1 0)
-    , command_char 'E' "transpose down octave"
-        (PitchTrack.transpose_selection (-1) 0)
+    [ command_only 'y' "transpose up chromatic degree"
+        (PitchTrack.transpose_selection 0 (Pitch.Chromatic 1))
+    , command_only 'e' "transpose down chromatic degree"
+        (PitchTrack.transpose_selection 0 (Pitch.Chromatic (-1)))
+    , bind_mod [SecondaryCommand] (Key.Char 'y')
+        "transpose up diatonic degree"
+        (PitchTrack.transpose_selection 0 (Pitch.Diatonic 1))
+    , bind_mod [SecondaryCommand] (Key.Char 'e')
+        "transpose down diatonic degree"
+        (PitchTrack.transpose_selection 0 (Pitch.Diatonic (-1)))
+    , command_only 'Y' "transpose up octave"
+        (PitchTrack.transpose_selection 1 (Pitch.Chromatic 0))
+    , command_only 'E' "transpose down octave"
+        (PitchTrack.transpose_selection (-1) (Pitch.Chromatic 0))
     ]
 
 create_bindings :: (Cmd.M m) => [Keymap.Binding m]

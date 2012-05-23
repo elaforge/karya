@@ -157,36 +157,38 @@ modify_note f text = do
 -- | Naturally transposition is way more complicated that I thought.
 --
 -- The entire command will abort if there is a pitch that can't be transposed,
--- for safety.  But so I can select multiple pitch tracks or selected a merged
--- note track, I skip non-pitch tracks.
-transpose_selection :: (Cmd.M m) => Pitch.Octave -> Pitch.Degree -> m ()
-transpose_selection octaves degrees = do
+-- for safety.  But I skip non-pitch tracks so I can select multiple pitch
+-- tracks or a merged note track.
+transpose_selection :: (Cmd.M m) => Pitch.Octave -> Pitch.Transpose -> m ()
+transpose_selection octaves steps = do
     block_id <- Cmd.get_focused_block
     ModifyEvents.tracks_sorted $ \track_id events -> do
         is_pitch <- is_pitch_track track_id
         if not is_pitch then return Nothing else do
         scale_id <- Perf.get_scale_id block_id (Just track_id)
-        Just <$> transpose_events block_id track_id scale_id
-            octaves degrees events
+        Just <$> transpose_events block_id track_id scale_id octaves steps
+            events
 
 transpose_events :: (Cmd.M m) => BlockId -> TrackId -> Pitch.ScaleId
-    -> Pitch.Octave -> Pitch.Degree -> [Events.PosEvent] -> m [Events.PosEvent]
-transpose_events block_id track_id scale_id octaves degrees events = do
+    -> Pitch.Octave -> Pitch.Transpose -> [Events.PosEvent]
+    -> m [Events.PosEvent]
+transpose_events block_id track_id scale_id octaves steps events = do
     scale <- Cmd.get_scale "transpose_selection" scale_id
-    let transposed = map (transpose scale octaves degrees) events
+    maybe_key <- Perf.get_key block_id (Just track_id)
+    let transposed = map (transpose scale maybe_key octaves steps) events
         failed = [event | (event, Nothing) <- zip events transposed]
     unless (null failed) $
         Cmd.throw $ "transpose failed on events at: "
             ++ Seq.join ", " (map (Cmd.log_event block_id track_id) failed)
     return $ Maybe.catMaybes transposed
 
-transpose :: Derive.Scale -> Pitch.Octave -> Pitch.Degree -> Events.PosEvent
-    -> Maybe Events.PosEvent
-transpose scale octaves degrees (pos, event) =
+transpose :: Derive.Scale -> Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose
+    -> Events.PosEvent -> Maybe Events.PosEvent
+transpose scale maybe_key octaves steps (pos, event) =
     case modify_note f (Event.event_string event) of
         Nothing -> Nothing
         Just text -> Just (pos, Event.set_string text event)
-    where f = Derive.scale_transpose scale octaves degrees
+    where f = Derive.scale_transpose scale maybe_key octaves steps
 
 is_pitch_track :: (State.M m) => TrackId -> m Bool
 is_pitch_track track_id = do
