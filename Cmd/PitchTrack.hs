@@ -160,11 +160,8 @@ modify_note f text = do
 -- for safety.  But I skip non-pitch tracks so I can select multiple pitch
 -- tracks or a merged note track.
 transpose_selection :: (Cmd.M m) => Pitch.Octave -> Pitch.Transpose -> m ()
-transpose_selection octaves steps = do
-    block_id <- Cmd.get_focused_block
-    ModifyEvents.tracks_sorted $ \track_id events -> do
-        is_pitch <- is_pitch_track track_id
-        if not is_pitch then return Nothing else do
+transpose_selection octaves steps =
+    ModifyEvents.pitch_tracks $ \block_id track_id events -> do
         scale_id <- Perf.get_scale_id block_id (Just track_id)
         Just <$> transpose_events block_id track_id scale_id octaves steps
             events

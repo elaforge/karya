@@ -56,7 +56,7 @@ transpose_d oct steps =
 -- | Convert the selected absolute pitch track into a relative one by
 -- subtracting all the notes from the given base note.
 to_relative :: String -> Cmd.CmdL ()
-to_relative note_s = ModifyEvents.tracks_sorted $ \track_id events -> do
+to_relative note_s = ModifyEvents.tracks_sorted $ \_ track_id events -> do
     title <- Track.track_title <$> State.get_track track_id
     case TrackInfo.parse_control title of
         Right (TrackInfo.Pitch scale_id name) -> do

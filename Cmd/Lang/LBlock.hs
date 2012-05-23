@@ -3,7 +3,6 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -27,16 +26,14 @@ rename from to = Create.rename_block from to
 replace :: BlockId -> BlockId -> Cmd.CmdL ()
 replace from to = do
     block_id <- Cmd.get_focused_block
-    ModifyEvents.block_tracks block_id $ \_ events ->
-        return $ Just $ map (replace_block_call from to) events
+    ModifyEvents.block_tracks block_id $ ModifyEvents.track_text $
+        replace_block_call from to
 
-replace_block_call :: BlockId -> BlockId -> Events.PosEvent -> Events.PosEvent
-replace_block_call from to pevent@(pos, evt)
-    | Event.event_string evt == Id.ident_name from =
-        (pos, Event.set_string (Id.ident_name to) evt)
-    | Event.event_string evt == Id.ident_string from =
-        (pos, Event.set_string (Id.ident_string to) evt)
-    | otherwise = pevent
+replace_block_call :: BlockId -> BlockId -> String -> String
+replace_block_call from to text
+    | text == Id.ident_name from = Id.ident_name to
+    | text == Id.ident_string from = Id.ident_string to
+    | otherwise = text
 
 
 -- * create

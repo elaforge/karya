@@ -81,18 +81,18 @@ replace x y val
 
 map_control_val :: String -> (Signal.Y -> Signal.Y) -> Cmd.CmdL ()
 map_control_val name f = ModifyEvents.tracks $
-    ModifyEvents.tracks_named (==name) $ ModifyEvents.text $ \text ->
+    ModifyEvents.tracks_named (==name) $ ModifyEvents.track_text $ \text ->
         Maybe.fromMaybe text (ControlTrack.modify_val f text)
 
 score_to_hex :: Cmd.CmdL ()
 score_to_hex = ModifyEvents.all_blocks $
     ModifyEvents.tracks_named TrackInfo.is_signal_track $
-        ModifyEvents.text to_hex
+        ModifyEvents.track_text to_hex
 
 block_to_hex :: BlockId -> Cmd.CmdL ()
 block_to_hex block_id = ModifyEvents.block_tracks block_id $
     ModifyEvents.tracks_named TrackInfo.is_signal_track $
-        ModifyEvents.text to_hex
+        ModifyEvents.track_text to_hex
 
 to_hex :: String -> String
 to_hex text = case Derive.ParseBs.parse_val val of
@@ -118,7 +118,7 @@ strip_block_controls block_id =
     ModifyEvents.block_tracks block_id strip_track_controls
 
 strip_track_controls :: (Cmd.M m) => ModifyEvents.Track m
-strip_track_controls track_id events = do
+strip_track_controls _ track_id events = do
     title <- State.get_track_title track_id
     return $ if TrackInfo.is_signal_track title
         then Just (strip_controls events)
