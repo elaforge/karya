@@ -314,12 +314,16 @@ failure = failure_srcpos Nothing
 -- | Print a msg with a special tag indicating a passing test.
 success_srcpos :: SrcPos.SrcPos -> String -> IO Bool
 success_srcpos srcpos msg = do
+    -- Make sure the output doesn't get mixed with trace debug msgs.
+    force msg
     hPrintf IO.stdout "++-> %s - %s\n" (SrcPos.show_srcpos srcpos) msg
     return True
 
 -- | Print a msg with a special tag indicating a failing test.
 failure_srcpos :: SrcPos.SrcPos -> String -> IO Bool
 failure_srcpos srcpos msg = do
+    -- Make sure the output doesn't get mixed with trace debug msgs.
+    force msg
     -- A little magic to make failures more obvious in tty output.
     -- TODO get these codes from termcap
     isatty <- Terminal.queryTerminal IO.stdOutput
