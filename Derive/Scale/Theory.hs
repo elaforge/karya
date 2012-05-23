@@ -40,7 +40,7 @@ module Derive.Scale.Theory (
     , Layout
 #else
     , Layout(..)
-    , calculate_signature
+    , calculate_signature, degree_of
 #endif
 ) where
 import qualified Data.Attoparsec.Char8 as A
@@ -56,6 +56,7 @@ import qualified Util.Num as Num
 import qualified Util.ParseBs as ParseBs
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Vector as Vector
 
 import qualified Perform.Pitch as Pitch
 
@@ -194,9 +195,8 @@ semis_to_pitch key semis = mkpitch $ case key_signature key of
         `divMod` layout_semis_per_octave layout
     layout = key_layout key
     -- Sharpish looking key signatures favor sharps.
-    sharp_signature sig = count (>0) sig >= count (<0) sig
+    sharp_signature sig = Vector.count (>0) sig >= Vector.count (<0) sig
     sharp_tonic = (>=0) . note_accidentals . key_tonic
-    count f = Vector.foldl' (\c a -> if f a then succ c else c) 0
 
 a_to_c_offset :: Semi
 a_to_c_offset = 21
@@ -422,13 +422,8 @@ layout_max_pc = Vector.length . layout_intervals
 degree_of :: Key -> Note -> Degree
 degree_of key note
     | key_is_diatonic key = diatonic_degree_of key (note_pc note)
-    | otherwise = case Vector.findIndex (>semis) sums of
-        Just i -> max 0 (i-1)
-        Nothing -> 0
-    where
-    semis = note_to_semis (key_layout key) note
-    sums = Vector.scanl' (+) 0 (key_intervals key)
-    -- TODO do this in a way that doesn't create garbage
+    | otherwise = (Vector.find_before semis (key_intervals key))
+    where semis = note_to_semis (key_layout key) note
 
 -- | Figure out the score degree of a diatonic key.  In a diatonic key, the
 -- degree and pitch class are relative and absolute versions of the same thing.
