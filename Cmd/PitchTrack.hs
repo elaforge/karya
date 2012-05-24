@@ -8,7 +8,7 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Seq as Seq
+import qualified Util.Then as Then
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
@@ -24,7 +24,10 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive as Derive
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
 import Types
@@ -133,23 +136,31 @@ unparse (method, val) = case (pre, post) of
     pre = Maybe.fromMaybe "" method
     post = Maybe.fromMaybe "" val
 
--- | Try to figure out where the note part is in event text and modify that
--- with the given function.
+-- | Try to figure out where the pitch call part is in event text and modify
+-- that with the given function.  The function can signal failure by returning
+-- Nothing.
+--
+-- This is a bit of a heuristic because by design a pitch is a normal call and
+-- there's no syntactic way to tell where the pitches are in an expression.  If
+-- the text is a call with a val call as its first argument, that's considered
+-- the pitch call.  Otherwise, if the text is just a call, that's the pitch
+-- call.  Otherwise the text is unchanged.
 modify_note :: (Pitch.Note -> Maybe Pitch.Note) -> String
     -> Maybe String
-    -- ^ Nothing if the note transformer returned Nothing.  Since you are
-    -- supposed to return a valid Note there is no provision to delete the
-    -- event.
-modify_note f text = do
-    new <- splice <$> f note
-    return $ maybe "" id $ unparse (Just call, Just new)
-    where
-    (call, val) = parse text
-    (pre, post) = break (`elem` " )") val
-    note = Pitch.Note $ if "(" `List.isPrefixOf` pre then drop 1 pre else pre
-    splice (Pitch.Note note)
-        | "(" `List.isPrefixOf` val = '(' : note ++ post
-        | otherwise = note ++ post
+modify_note f text = case ParseBs.parse_expr (ParseBs.from_string text) of
+    Left _ -> Just text
+    Right expr -> case expr of
+        [TrackLang.Call sym (TrackLang.ValCall _ : _)]
+            | sym /= TrackLang.c_equal ->
+                let (pre, within) = Then.break1 (=='(') text
+                    (note, post) = break (`elem` " )") within
+                in (\n -> pre ++ Pitch.note_text n ++ post) <$>
+                    f (Pitch.Note note)
+        [TrackLang.Call sym _]
+            | sym /= TrackLang.c_equal ->
+                let (pre, post) = break (==' ') text
+                in (++post) . Pitch.note_text <$> f (Pitch.Note pre)
+        _ -> Just text
 
 
 -- * edits

@@ -65,14 +65,15 @@ test_unparse = do
 
 test_modify_note = do
     let f = PitchTrack.modify_note
-    equal (f Just "x") (Just "x")
-    equal (f Just "x (y)") (Just "x (y)")
-    let z = Just (Pitch.Note "z")
-    equal (f (const z) "x (y)") (Just "x (z)")
-    equal (f (const z) "x (y 1 2)") (Just "x (z 1 2)")
-    equal (f (const z) "x y 1 2") (Just "z y 1 2")
-    equal (f (const Nothing) "abc") Nothing
-    equal (f (const (Just (Pitch.Note ""))) "a") (Just "")
+            (\n -> Just $ Pitch.Note $ "*" ++ Pitch.note_text n ++ "*")
+    equal (f "x") (Just "*x*")
+    equal (f "x (y)") (Just "x (*y*)")
+    equal (f "x (y 1 2)") (Just "x (*y* 1 2)")
+    equal (f "x y 1 2") (Just "*x* y 1 2")
+    equal (PitchTrack.modify_note (const Nothing) "abc") Nothing
+    -- Non-pitch calls are unchanged.
+    equal (f "x = 'y'") (Just "x = 'y'")
+    equal (f "x = (y)") (Just "x = (y)")
 
 test_transpose = do
     let f octs steps event =
