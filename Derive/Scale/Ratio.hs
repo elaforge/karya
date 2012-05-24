@@ -27,14 +27,16 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 
 
-scale = Scale.Scale {
-    Scale.scale_id = scale_id
+scale :: Scale.Scale
+scale = Scale.Scale
+    { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[+-]?\\d+/\\d+"
     -- no real sensible way to display this
     , Scale.scale_map = Track.make_scale_map []
     , Scale.scale_symbols = []
     , Scale.scale_transposers = mempty
     , Scale.scale_transpose = Util.non_transposing
+    , Scale.scale_enharmonics = Util.no_enharmonics
     , Scale.scale_note_to_call = note_to_call
     -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer

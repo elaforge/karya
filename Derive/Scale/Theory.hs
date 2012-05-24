@@ -213,8 +213,10 @@ input_to_note key (Pitch.InputKey input) = (semis_to_pitch key semis, frac)
 --
 -- This choses the next highest enharmonic until it wraps around, so if you
 -- repeatedly pick the first one you'll cycle through them all.
-enharmonics_of :: Layout -> Note -> [(Octave, Note)]
-enharmonics_of layout note = get_enharmonics (layout_intervals layout) note
+enharmonics_of :: Layout -> Pitch -> [Pitch]
+enharmonics_of layout pitch =
+    [Pitch (pitch_octave pitch + oct) n | (oct, n) <- ens]
+    where ens = get_enharmonics (layout_intervals layout) (pitch_note pitch)
 
 -- * types
 
@@ -373,7 +375,7 @@ make_table intervals = Vector.fromList $
 piano_keys :: String -> [Semi] -> [Key]
 piano_keys name intervals =
     [key tonic name (Vector.fromList intervals) piano_layout
-        | tonic <- piano_notes]
+        | tonic <- piano_notes, abs (note_accidentals tonic) <= 1]
 
 generate_signature :: Note -> Layout -> Intervals -> Maybe Signature
 generate_signature tonic layout intervals
@@ -474,12 +476,8 @@ layout_at intervals pc =
 piano_layout :: Layout
 piano_layout = layout $ Vector.fromList [2, 1, 2, 2, 1, 2, 2]
 
--- | All the piano keys that you'd want as the tonic of a scale.
---
--- TODO layouts with two or more black keys per white key would want double
--- flats and sharps
 piano_notes :: [Note]
-piano_notes = [Note pc accs | pc <- [0..6], accs <- [-1, 0, 1]]
+piano_notes = [Note pc accs | pc <- [0..6], accs <- [-2..2]]
 
 piano_pitches :: [Pitch]
 piano_pitches = [Pitch oct note | oct <- [-2..9], note <- piano_notes]

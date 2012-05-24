@@ -441,6 +441,7 @@ mkscale name notes = Scale.Scale
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Scale.Util.standard_transposers
     , Scale.scale_transpose = Scale.Util.transpose scale_map 5
+    , Scale.scale_enharmonics = Scale.Util.no_enharmonics
     , Scale.scale_note_to_call = Scale.Util.note_to_call scale_map
     , Scale.scale_input_to_note = Scale.Util.input_to_note scale_map
     , Scale.scale_input_to_nn = Scale.Util.input_to_nn scale_map

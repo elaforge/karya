@@ -8,7 +8,9 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Util.Then as Then
+
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -162,6 +164,11 @@ modify_note f text = case ParseBs.parse_expr (ParseBs.from_string text) of
 
 -- * edits
 
+-- | Function that modifies the pitch of an event on a pitch track, or Nothing
+-- if the operation failed.
+type ModifyPitch =
+    Derive.Scale -> Maybe Pitch.Key -> Pitch.Note -> Maybe Pitch.Note
+
 transpose_selection :: (Cmd.M m) => Pitch.Octave -> Pitch.Transpose -> m ()
 transpose_selection oct steps = pitches (transpose oct steps)
 
@@ -169,10 +176,9 @@ transpose :: Pitch.Octave -> Pitch.Transpose -> ModifyPitch
 transpose octaves steps scale maybe_key note =
     Derive.scale_transpose scale maybe_key octaves steps note
 
--- | Function that modifies the pitch of an event on a pitch track, or Nothing
--- if the operation failed.
-type ModifyPitch =
-    Derive.Scale -> Maybe Pitch.Key -> Pitch.Note -> Maybe Pitch.Note
+cycle_enharmonics :: ModifyPitch
+cycle_enharmonics scale maybe_key note = Just $ Maybe.fromMaybe note $
+    Seq.head =<< Derive.scale_enharmonics scale maybe_key note
 
 -- | Apply a ModifyPitch to selected pitch tracks.
 pitches :: (Cmd.M m) => ModifyPitch -> m ()

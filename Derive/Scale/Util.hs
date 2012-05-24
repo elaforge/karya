@@ -134,6 +134,9 @@ join_note step frac = Pitch.Note $ step ++ frac_s
 non_transposing :: Derive.Transpose
 non_transposing _ _ _ _ = Nothing
 
+no_enharmonics :: Derive.Enharmonics
+no_enharmonics _ _ = Nothing
+
 -- * misc
 
 -- | Symbolic names for input keys.

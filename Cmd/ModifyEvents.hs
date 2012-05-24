@@ -13,10 +13,8 @@ import qualified Derive.TrackInfo as TrackInfo
 import Types
 
 
--- | Transform or delete an event.
-type TrackPosEvent m = TrackId -> PosEvent m
+-- | Replace an event with zero or more events.
 type PosEvent m = Events.PosEvent -> m [Events.PosEvent]
-type Event m = ScoreTime -> Event.Event -> m [Event.Event]
 
 -- | Map a function over the selected events, passing the track id.  Returning
 -- Nothing will leave the track unchanged.

@@ -2,7 +2,6 @@ module Derive.Scale.Theory_test where
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Unboxed as Vector
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Derive.Scale.Theory as Theory
@@ -118,20 +117,17 @@ test_input_to_note = do
     pprint (map (f (key "f-maj")) [19..24])
 
 test_enharmonics_of = do
-    let f = map (second Pretty.pretty)
-            . Theory.enharmonics_of Theory.piano_layout . n
-    equal (f "b") [(0, "cb"), (0, "ax")]
-    equal (f "c") [(0, "dbb"), (0, "b#")]
-    equal (f "b#") [(0, "c"), (0, "dbb")]
-    equal (f "dbb") [(0, "b#"), (0, "c")]
-    equal (f "a#") [(0, "bb"), (0, "cbb")]
-    equal (f "g#") [(1, "ab")]
+    let f = map Pretty.pretty . Theory.enharmonics_of Theory.piano_layout . p
+    equal (f "1e") ["1fb", "1dx"]
+    equal (f "1f") ["1gbb", "1e#"]
+    equal (f "1b#") ["2c", "2dbb"]
+    equal (f "1dbb") ["0b#", "1c"]
+    equal (f "1g#") ["1ab"]
     let cycle_en = map Pretty.pretty . take 4
-            . iterate (snd . head . Theory.enharmonics_of Theory.piano_layout)
-            . n
-    equal (cycle_en "b") ["b", "cb", "ax", "b"]
-    equal (cycle_en "c") ["c", "dbb", "b#", "c"]
-    equal (cycle_en "g#") ["g#", "ab", "g#", "ab"]
+            . iterate (head . Theory.enharmonics_of Theory.piano_layout) . p
+    equal (cycle_en "1b") ["1b", "2cb", "1ax", "1b"]
+    equal (cycle_en "1c") ["1c", "1dbb", "0b#", "1c"]
+    equal (cycle_en "1g#") ["1g#", "1ab", "1g#", "1ab"]
 
 test_degree_of = do
     let f k note = Theory.degree_of (key k) (n note)

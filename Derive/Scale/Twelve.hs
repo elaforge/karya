@@ -4,13 +4,6 @@
     sharp" instead of "note sharp octave".  General to specific is more
     aesthetically appealing.
 
-    TODO: this doesn't have any support for enharmonics, but I do want to
-    support them for scale sensitive instruments and tunings.
-
-    This, along with pengisep and pengumbang, will probably require that
-    scale_note_to_nn and scale_input_to_note be passed performance and input
-    context respectively.  And I'll need a flip enharmonic command here.
-
     4c is middle C, and the range is limited to the midi range.  Since
     'Pitch.NoteNumber's also use midi numbering, conversions are trivial.
 
@@ -46,6 +39,7 @@ scale = Scale.Scale
     , Scale.scale_symbols = [] -- later maybe I can use fancy sharps and flats
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = transpose
+    , Scale.scale_enharmonics = enharmonics
     , Scale.scale_note_to_call = note_to_call
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn = input_to_nn
@@ -66,6 +60,13 @@ transpose maybe_key octaves steps note = do
         Pitch.Diatonic steps ->
             pitch_note $ Theory.transpose_diatonic key (floor steps) pitch2
 
+enharmonics :: Derive.Enharmonics
+enharmonics maybe_key note = do
+    key <- read_key maybe_key
+    pitch <- Theory.read_pitch (Theory.key_layout key) (Pitch.note_text note)
+    return $ Maybe.mapMaybe pitch_note $
+        Theory.enharmonics_of (Theory.key_layout key) pitch
+
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
 note_to_call note = case Map.lookup note note_to_degree of
     Nothing -> Nothing
@@ -83,9 +84,6 @@ note_to_call note = case Map.lookup note note_to_degree of
         let nn = Pitch.NoteNumber $ fromIntegral degree + chromatic + dsteps
         if Num.in_range 1 127 nn then Right nn
             else Left Scale.InvalidTransposition
-
-default_key :: Theory.Key
-Just default_key = Theory.read_key (Pitch.Key "c-maj")
 
 input_to_note :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
 input_to_note maybe_key (Pitch.InputKey key_nn) = do
@@ -135,3 +133,10 @@ pitch_note pitch
     | Map.member n note_to_degree = Just n
     | otherwise = Nothing
     where n = Pitch.Note $ Theory.show_pitch "#" "x" "b" "bb" pitch
+
+default_key :: Theory.Key
+Just default_key = Theory.read_key (Pitch.Key "c-maj")
+
+read_key :: Maybe Pitch.Key -> Maybe Theory.Key
+read_key Nothing = Just default_key
+read_key (Just key) = Theory.read_key key

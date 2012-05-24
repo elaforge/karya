@@ -90,7 +90,7 @@ module Derive.Deriver.Monad (
     -- * scale
     -- $scale_doc
     , Scale(..)
-    , LookupScale, Transpose
+    , LookupScale, Transpose, Enharmonics
 
     -- * testing
     , invalidate_damaged
@@ -846,6 +846,7 @@ data Scale = Scale {
     -- Will be nothing if the pitch is out of range, or the scale doesn't have
     -- octaves.
     , scale_transpose :: !Transpose
+    , scale_enharmonics :: !Enharmonics
 
     -- | Used by derivation.
     , scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
@@ -862,3 +863,4 @@ data Scale = Scale {
 type LookupScale = Pitch.ScaleId -> Maybe Scale
 type Transpose = Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose
     -> Pitch.Note -> Maybe Pitch.Note
+type Enharmonics = Maybe Pitch.Key -> Pitch.Note -> Maybe [Pitch.Note]

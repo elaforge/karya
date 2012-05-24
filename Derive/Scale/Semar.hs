@@ -11,14 +11,16 @@ import qualified Derive.Scale.Util as Util
 import qualified Derive.Scale.Symbols as Symbols
 
 
-scale = Scale.Scale {
-    Scale.scale_id = scale_id
+scale :: Scale.Scale
+scale = Scale.Scale
+    { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[12356](\\.*|\\^*)"
     , Scale.scale_map = Util.make_scale_map scale_map
     -- loaded from Derive.Scale.Symbols
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = Util.transpose scale_map 5
+    , Scale.scale_enharmonics = Util.no_enharmonics
 
     , Scale.scale_note_to_call = Util.note_to_call scale_map
     , Scale.scale_input_to_note = Util.input_to_note scale_map
