@@ -37,17 +37,18 @@ text f = \(pos, event) -> return [(pos, Event.modify_string f event)]
 -- | Take a text transformation that can fail to a Track transformation that
 -- transforms all the events and throws if any of the text transformations
 -- failed.
-failable_texts :: (Cmd.M m) => (String -> Maybe String) -> Track m
+failable_texts :: (Cmd.M m) => (String -> Either String String) -> Track m
 failable_texts f block_id track_id events = do
     let (failed, ok) = Seq.partition_either $ map (failing_text f) events
-    unless (null failed) $
-        Cmd.throw $ "transformation failed on events at: "
-            ++ Seq.join ", " (map (Cmd.log_event block_id track_id) failed)
+        errs = [err ++ ": " ++ Cmd.log_event block_id track_id evt
+            | (err, evt) <- failed]
+    unless (null errs) $ Cmd.throw $
+        "transformation failed: " ++ Seq.join ", " errs
     return $ Just ok
     where
     failing_text f = \(pos, event) -> case f (Event.event_string event) of
-        Nothing -> Left (pos, event)
-        Just text -> Right (pos, Event.set_string text event)
+        Left err -> Left (err, (pos, event))
+        Right text -> Right (pos, Event.set_string text event)
 
 -- | Convert a PosEvent function to work on a Track.
 track_events :: (Monad m) => PosEvent m -> Track m

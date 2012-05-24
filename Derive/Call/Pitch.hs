@@ -54,6 +54,8 @@ note_call note note_number =
             "no key is set, but this transposition needs one"
         Scale.UnparseableKey ->
             "key unparseable by given scale: " ++ show key
+        Scale.UnparseableNote ->
+            "unparseable note (shouldn't happen)"
     show_val _ 0 = ""
     show_val code val = Pretty.pretty val ++ code
 

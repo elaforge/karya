@@ -89,7 +89,7 @@ UNSORTED
     * test current binding
     * fix PitchTrack_test.test_transpose
     * add Scale field and cmds for enharmonics_of
-    - If it can't parse the key it defaults to c-maj, which seems confusing.
+    * If it can't parse the key it defaults to c-maj, which seems confusing.
       It should default to c-maj if there's no key, and return an error if
       the key is unparseable.  Maybe the scale should have a 'lookup_key'
       function instead?

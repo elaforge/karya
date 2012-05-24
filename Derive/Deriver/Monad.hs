@@ -90,7 +90,7 @@ module Derive.Deriver.Monad (
     -- * scale
     -- $scale_doc
     , Scale(..)
-    , LookupScale, Transpose, Enharmonics
+    , LookupScale, Transpose, Enharmonics, ScaleError(..)
 
     -- * testing
     , invalidate_damaged
@@ -862,5 +862,11 @@ data Scale = Scale {
 
 type LookupScale = Pitch.ScaleId -> Maybe Scale
 type Transpose = Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose
-    -> Pitch.Note -> Maybe Pitch.Note
-type Enharmonics = Maybe Pitch.Key -> Pitch.Note -> Maybe [Pitch.Note]
+    -> Pitch.Note -> Either ScaleError Pitch.Note
+type Enharmonics = Maybe Pitch.Key -> Pitch.Note
+    -> Either ScaleError [Pitch.Note]
+
+-- | Things that can go wrong during scale operations.
+data ScaleError = InvalidTransposition | UnparseableKey | KeyNeeded
+    | UnparseableNote
+    deriving (Eq, Show)

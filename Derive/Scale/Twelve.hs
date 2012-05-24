@@ -15,6 +15,7 @@
     > nn 0 = -1c
 -}
 module Derive.Scale.Twelve where
+import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -32,7 +33,7 @@ import qualified Perform.Pitch as Pitch
 scale :: Scale.Scale
 scale = Scale.Scale
     { Scale.scale_id = scale_id
-    , Scale.scale_pattern = "[-1-9][a-g]#?"
+    , Scale.scale_pattern = "[-1-9][a-g](b|bb|#|x)?"
     , Scale.scale_map =
         Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
             | (n, (_, d)) <- Map.toList note_to_degree]
@@ -50,8 +51,8 @@ scale_id = Pitch.ScaleId "twelve"
 
 transpose :: Derive.Transpose
 transpose maybe_key octaves steps note = do
-    key <- maybe (return default_key) Theory.read_key maybe_key
-    pitch <- Theory.read_pitch (Theory.key_layout key) (Pitch.note_text note)
+    key <- read_key maybe_key
+    pitch <- read_pitch key note
     let pitch2 = pitch
             { Theory.pitch_octave = Theory.pitch_octave pitch + octaves }
     case steps of
@@ -63,8 +64,8 @@ transpose maybe_key octaves steps note = do
 enharmonics :: Derive.Enharmonics
 enharmonics maybe_key note = do
     key <- read_key maybe_key
-    pitch <- Theory.read_pitch (Theory.key_layout key) (Pitch.note_text note)
-    return $ Maybe.mapMaybe pitch_note $
+    pitch <- read_pitch key note
+    return $ Either.rights $ map pitch_note $
         Theory.enharmonics_of (Theory.key_layout key) pitch
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
@@ -86,13 +87,16 @@ note_to_call note = case Map.lookup note note_to_degree of
             else Left Scale.InvalidTransposition
 
 input_to_note :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
-input_to_note maybe_key (Pitch.InputKey key_nn) = do
+input_to_note maybe_key (Pitch.InputKey key_nn) =
+    case pitch_note $ Theory.semis_to_pitch key degree of
+        Left _ -> Nothing
+        Right note ->
+            Just $ Pitch.Note $ Call.Pitch.note_expr note cents
+    where
     -- Default to a key because otherwise you couldn't enter notes in an
     -- empty score!
-    let key = Maybe.fromMaybe default_key $ Theory.read_key =<< maybe_key
-        (degree, cents) = properFraction key_nn
-    note <- pitch_note $ Theory.semis_to_pitch key degree
-    return $ Pitch.Note $ Call.Pitch.note_expr note cents
+    key = Maybe.fromMaybe default_key $ Theory.read_key =<< maybe_key
+    (degree, cents) = properFraction key_nn
 
 input_to_nn :: Pitch.InputKey -> Maybe Pitch.NoteNumber
 input_to_nn (Pitch.InputKey nn) = Just (Pitch.NoteNumber nn)
@@ -128,15 +132,20 @@ note_to_degree = Map.fromList $ filter in_range $ concat $
 
 -- | Don't emit a 'Pitch.Note' that's out of range, because it won't be
 -- recognized when it comes time to play it back.
-pitch_note :: Theory.Pitch -> Maybe Pitch.Note
+pitch_note :: Theory.Pitch -> Either Scale.ScaleError Pitch.Note
 pitch_note pitch
-    | Map.member n note_to_degree = Just n
-    | otherwise = Nothing
+    | Map.member n note_to_degree = Right n
+    | otherwise = Left Scale.InvalidTransposition
     where n = Pitch.Note $ Theory.show_pitch "#" "x" "b" "bb" pitch
 
 default_key :: Theory.Key
 Just default_key = Theory.read_key (Pitch.Key "c-maj")
 
-read_key :: Maybe Pitch.Key -> Maybe Theory.Key
-read_key Nothing = Just default_key
-read_key (Just key) = Theory.read_key key
+read_key :: Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
+read_key Nothing = Right default_key
+read_key (Just key) = maybe (Left Scale.UnparseableKey) Right $
+    Theory.read_key key
+
+read_pitch :: Theory.Key -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
+read_pitch key note = maybe (Left Scale.UnparseableNote) Right $
+    Theory.read_pitch (Theory.key_layout key) (Pitch.note_text note)

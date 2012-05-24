@@ -23,8 +23,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Scale as Scale
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
@@ -137,17 +137,17 @@ unparse (method, val) = case (pre, post) of
 
 -- | Try to figure out where the pitch call part is in event text and modify
 -- that with the given function.  The function can signal failure by returning
--- Nothing.
+-- Left.
 --
 -- This is a bit of a heuristic because by design a pitch is a normal call and
 -- there's no syntactic way to tell where the pitches are in an expression.  If
 -- the text is a call with a val call as its first argument, that's considered
 -- the pitch call.  Otherwise, if the text is just a call, that's the pitch
 -- call.  Otherwise the text is unchanged.
-modify_note :: (Pitch.Note -> Maybe Pitch.Note) -> String
-    -> Maybe String
+modify_note :: (Pitch.Note -> Either String Pitch.Note)
+    -> String -> Either String String
 modify_note f text = case ParseBs.parse_expr (ParseBs.from_string text) of
-    Left _ -> Just text
+    Left _ -> Right text
     Right expr -> case expr of
         [TrackLang.Call sym (TrackLang.ValCall _ : _)]
             | sym /= TrackLang.c_equal ->
@@ -159,26 +159,27 @@ modify_note f text = case ParseBs.parse_expr (ParseBs.from_string text) of
             | sym /= TrackLang.c_equal ->
                 let (pre, post) = break (==' ') text
                 in (++post) . Pitch.note_text <$> f (Pitch.Note pre)
-        _ -> Just text
+        _ -> Right text
 
 
 -- * edits
 
--- | Function that modifies the pitch of an event on a pitch track, or Nothing
+-- | Function that modifies the pitch of an event on a pitch track, or a Left
 -- if the operation failed.
 type ModifyPitch =
-    Derive.Scale -> Maybe Pitch.Key -> Pitch.Note -> Maybe Pitch.Note
+    Scale.Scale -> Maybe Pitch.Key -> Pitch.Note -> Either String Pitch.Note
 
 transpose_selection :: (Cmd.M m) => Pitch.Octave -> Pitch.Transpose -> m ()
 transpose_selection oct steps = pitches (transpose oct steps)
 
 transpose :: Pitch.Octave -> Pitch.Transpose -> ModifyPitch
-transpose octaves steps scale maybe_key note =
-    Derive.scale_transpose scale maybe_key octaves steps note
+transpose octaves steps scale maybe_key note = show_err $
+    Scale.scale_transpose scale maybe_key octaves steps note
 
 cycle_enharmonics :: ModifyPitch
-cycle_enharmonics scale maybe_key note = Just $ Maybe.fromMaybe note $
-    Seq.head =<< Derive.scale_enharmonics scale maybe_key note
+cycle_enharmonics scale maybe_key note = show_err $ do
+    enharmonics <- Scale.scale_enharmonics scale maybe_key note
+    return $ Maybe.fromMaybe note (Seq.head enharmonics)
 
 -- | Apply a ModifyPitch to selected pitch tracks.
 pitches :: (Cmd.M m) => ModifyPitch -> m ()
@@ -190,3 +191,7 @@ pitches f = ModifyEvents.tracks_sorted $
     maybe_key <- Perf.get_key block_id (Just track_id)
     let modify = modify_note (f scale maybe_key)
     ModifyEvents.failable_texts modify block_id track_id events
+
+show_err :: Either Scale.ScaleError a -> Either String a
+show_err (Right x) = Right x
+show_err (Left err) = Left (show err)
