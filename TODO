@@ -74,6 +74,8 @@ UNSORTED
 
   - rename functions in GlobalKeymap, e.g. command_char should be
     command_and_char
+  * make PitchTrack.modify_note ignore events it doesn't recognize
+  - shouldn't ModifyEvents.Event return Maybe instead of []?
   finish Theory
     * diatonic_to_chromatic
     * add hijaz
@@ -86,7 +88,12 @@ UNSORTED
     * Theory wraps around at A, while the existing code wraps around at C.
       C is more standard, but A is more regular.  Should I switch to A?
     * test current binding
+    * fix PitchTrack_test.test_transpose
     - add Scale field and cmds for enharmonics_of
+    - If it can't parse the key it defaults to c-maj, which seems confusing.
+      It should default to c-maj if there's no key, and return an error if
+      the key is unparseable.  Maybe the scale should have a 'lookup_key'
+      function instead?
   more scales:
     * hijaz, for mixed sharps and flats
     - twelve, but relative to key and using numbers, aka jianpu

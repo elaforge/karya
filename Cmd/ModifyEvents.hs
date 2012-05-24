@@ -1,6 +1,7 @@
 -- | Utilities to modify events in tracks.
 module Cmd.ModifyEvents where
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -34,6 +35,21 @@ event1 f = \(pos, event) -> return [(pos, f pos event)]
 
 text :: (Monad m) => (String -> String) -> PosEvent m
 text f = \(pos, event) -> return [(pos, Event.modify_string f event)]
+
+-- | Take a text transformation that can fail to a Track transformation that
+-- transforms all the events and throws if any of the text transformations
+-- failed.
+failable_texts :: (Cmd.M m) => (String -> Maybe String) -> Track m
+failable_texts f block_id track_id events = do
+    let (failed, ok) = Seq.partition_either $ map (failing_text f) events
+    unless (null failed) $
+        Cmd.throw $ "transformation failed on events at: "
+            ++ Seq.join ", " (map (Cmd.log_event block_id track_id) failed)
+    return $ Just ok
+    where
+    failing_text f = \(pos, event) -> case f (Event.event_string event) of
+        Nothing -> Left (pos, event)
+        Just text -> Right (pos, Event.set_string text event)
 
 -- | Convert a PosEvent function to work on a Track.
 track_events :: (Monad m) => PosEvent m -> Track m

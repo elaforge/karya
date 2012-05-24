@@ -10,10 +10,8 @@ import qualified Data.Maybe as Maybe
 import Util.Control
 import qualified Util.Then as Then
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.Key as Key
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
@@ -30,7 +28,6 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
-import Types
 
 
 -- * entry
@@ -165,42 +162,25 @@ modify_note f text = case ParseBs.parse_expr (ParseBs.from_string text) of
 
 -- * edits
 
--- | Naturally transposition is way more complicated that I thought.
---
--- The entire command will abort if there is a pitch that can't be transposed,
--- for safety.  But I skip non-pitch tracks so I can select multiple pitch
--- tracks or a merged note track.
 transpose_selection :: (Cmd.M m) => Pitch.Octave -> Pitch.Transpose -> m ()
-transpose_selection octaves steps =
-    ModifyEvents.pitch_tracks $ \block_id track_id events -> do
-        scale_id <- Perf.get_scale_id block_id (Just track_id)
-        Just <$> transpose_events block_id track_id scale_id octaves steps
-            events
+transpose_selection oct steps = pitches (transpose oct steps)
 
-transpose_events :: (Cmd.M m) => BlockId -> TrackId -> Pitch.ScaleId
-    -> Pitch.Octave -> Pitch.Transpose -> [Events.PosEvent]
-    -> m [Events.PosEvent]
-transpose_events block_id track_id scale_id octaves steps events = do
-    scale <- Cmd.get_scale "transpose_selection" scale_id
+transpose :: Pitch.Octave -> Pitch.Transpose -> ModifyPitch
+transpose octaves steps scale maybe_key note =
+    Derive.scale_transpose scale maybe_key octaves steps note
+
+-- | Function that modifies the pitch of an event on a pitch track, or Nothing
+-- if the operation failed.
+type ModifyPitch =
+    Derive.Scale -> Maybe Pitch.Key -> Pitch.Note -> Maybe Pitch.Note
+
+-- | Apply a ModifyPitch to selected pitch tracks.
+pitches :: (Cmd.M m) => ModifyPitch -> m ()
+pitches f = ModifyEvents.tracks_sorted $
+    ModifyEvents.tracks_named TrackInfo.is_pitch_track $
+        \block_id track_id events -> do
+    scale_id <- Perf.get_scale_id block_id (Just track_id)
+    scale <- Cmd.get_scale "PitchTrack.pitches" scale_id
     maybe_key <- Perf.get_key block_id (Just track_id)
-    let transposed = map (transpose scale maybe_key octaves steps) events
-        failed = [event | (event, Nothing) <- zip events transposed]
-    unless (null failed) $
-        Cmd.throw $ "transpose failed on events at: "
-            ++ Seq.join ", " (map (Cmd.log_event block_id track_id) failed)
-    return $ Maybe.catMaybes transposed
-
-transpose :: Derive.Scale -> Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose
-    -> Events.PosEvent -> Maybe Events.PosEvent
-transpose scale maybe_key octaves steps (pos, event) =
-    case modify_note f (Event.event_string event) of
-        Nothing -> Nothing
-        Just text -> Just (pos, Event.set_string text event)
-    where f = Derive.scale_transpose scale maybe_key octaves steps
-
-is_pitch_track :: (State.M m) => TrackId -> m Bool
-is_pitch_track track_id = do
-    title <- Track.track_title <$> State.get_track track_id
-    return $ case TrackInfo.parse_control title of
-        Right (TrackInfo.Pitch {}) -> True
-        _ -> False
+    let modify = modify_note (f scale maybe_key)
+    ModifyEvents.failable_texts modify block_id track_id events
