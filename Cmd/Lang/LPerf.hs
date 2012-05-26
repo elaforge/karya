@@ -20,6 +20,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Convert as Midi.Convert
@@ -40,6 +41,13 @@ track_signals = do
     (block_id, _, track_id, _) <- Selection.get_insert
     perf <- get block_id
     return $ Map.lookup track_id (Cmd.perf_track_signals perf)
+
+-- * info
+
+environ :: Cmd.CmdL (Maybe TrackLang.Environ)
+environ = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    Perf.get_environ block_id (Just track_id)
 
 -- * derive
 

@@ -139,10 +139,15 @@ lookup_val :: (Cmd.M m, TrackLang.Typecheck a) => BlockId
     -- ^ If Nothing, take the env from the first track.  This is for when you
     -- expect the env val to be constant for the entire block.
     -> TrackLang.ValName -> m (Maybe a)
-lookup_val block_id maybe_track_id name = justm lookup_root $ \perf -> do
-    justm (return (lookup (Cmd.perf_track_environ perf))) $ \env ->
+lookup_val block_id maybe_track_id name =
+    justm (get_environ block_id maybe_track_id) $ \env ->
         either (Cmd.throw . ("Perf.lookup_val: "++)) return
             (TrackLang.checked_val name env)
+
+get_environ :: (Cmd.M m) => BlockId -> Maybe TrackId
+    -> m (Maybe TrackLang.Environ)
+get_environ block_id maybe_track_id =
+    maybe Nothing (lookup . Cmd.perf_track_environ) <$> lookup_root
     where
     lookup env = case maybe_track_id of
         Nothing -> do
