@@ -99,20 +99,50 @@ equal_srcpos srcpos a b
     pa = Seq.strip $ PPrint.pshow a
     pb = Seq.strip $ PPrint.pshow b
     msg
-        | Seq.count '\n' pa > 7 = "diff:\n"
-            ++ unlines (List.intersperse "    ----" (diff pa pb))
+        | Seq.count '\n' pa > 7 = diff_values pa pb
         | '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60 =
             "\n" ++ pa ++ "\n\t/=\n" ++ pb
         | otherwise = pa ++ " /= " ++ pb
 
-diff :: String -> String -> [String]
-diff xs ys =
-    filter (not.null) $ map to_lines $ Diff.getGroupedDiff (lines xs) (lines ys)
+diff_values :: String -> String -> String
+diff_values pa pb =
+    highlight_lines first_lines pa ++ "\n\t/=\n"
+    ++ highlight_lines second_lines pb ++ "\ndiff:\n"
+    ++ highlight_red diff_text
     where
-    to_lines (d, lines) = case d of
+    (first_lines, second_lines, diff_text) = diff pa pb
+
+highlight_lines :: [Int] -> String -> String
+highlight_lines nums = unlines . map hi . zip [0..] . lines
+    where
+    hi (i, line)
+        | i `elem` nums = highlight_red line
+        | otherwise = line
+
+diff :: String -> String -> ([Int], [Int], String)
+diff xs ys = (concatMap fnums diffs, concatMap snums diffs,
+        unlines $ filter (not.null) $ map to_lines diffs)
+    where
+    fnums (Diff.F, nlines) = map num_of nlines
+    fnums _ = []
+    snums (Diff.S, nlines) = map num_of nlines
+    snums _ = []
+    to_lines (d, nlines) = case d of
         Diff.B -> ""
-        Diff.F -> unlines $ map ('<':) lines
-        Diff.S -> unlines $ map ('>':) lines
+        Diff.F -> "\t---- " ++ show (num_of (head nlines)) ++ "\n"
+            ++ unlines (map (('<':) . text_of) nlines)
+        Diff.S -> "\t---- " ++ show (num_of (head nlines)) ++ "\n"
+            ++ unlines (map (('>':) . text_of) nlines)
+    num_of (NumberedLine (i, _)) = i
+    text_of (NumberedLine (_, s)) = s
+    diffs = Diff.getGroupedDiff (numbered (lines xs)) (numbered (lines ys))
+    numbered = map NumberedLine . zip [0..]
+
+-- | Numbered lines don't compare their numbers so the diff won't count
+-- everytihng as different just because the line number changed.
+newtype NumberedLine = NumberedLine (Int, String)
+instance Eq NumberedLine where
+    NumberedLine (_, s1) == NumberedLine (_, s2) = s1 == s2
 
 -- | Strings in the first list match regexes in the second list.
 strings_like :: [String] -> [String] -> IO Bool
@@ -325,15 +355,26 @@ failure_srcpos srcpos msg = do
     -- Make sure the output doesn't get mixed with trace debug msgs.
     force msg
     -- A little magic to make failures more obvious in tty output.
-    -- TODO get these codes from termcap
     isatty <- Terminal.queryTerminal IO.stdOutput
-    when isatty $
-        putStr "\ESC[31m"
-    hPrintf IO.stdout "__-> %s - %s" (SrcPos.show_srcpos srcpos) msg
-    when isatty $
-        putStr "\ESC[m\ESC[m"
-    putChar '\n'
+    putStrLn $ colorify isatty $ "__-> " ++ SrcPos.show_srcpos srcpos
+        ++ " - " ++ msg
     return False
+    where
+    -- Highlight the line unless the text already has highlighting in it.
+    colorify isatty text
+        | isatty = if vt100_red `List.isInfixOf` text then text
+            else highlight_red text
+        | otherwise =
+            Seq.replace vt100_red "" $ Seq.replace vt100_normal "" text
+
+highlight_red :: String -> String
+highlight_red text = vt100_red ++ text ++ vt100_normal
+
+vt100_red :: String
+vt100_red = "\ESC[31m"
+
+vt100_normal :: String
+vt100_normal = "\ESC[m\ESC[m"
 
 -- getChar with no buffering
 human_getch :: IO Char
