@@ -1,5 +1,17 @@
+{-# LANGUAGE CPP #-}
 -- | Basic calls for note tracks.
-module Derive.Call.Note where
+module Derive.Call.Note (
+    note_calls
+    -- * inversion
+    , inverting, inverting_n
+    -- ** events
+    , Event(..), event_end, map_event
+    , sub_events
+    , place, place_at
+#ifdef TESTING
+    , invert_call, trimmed_controls
+#endif
+) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -177,11 +189,7 @@ c_equal = Derive.Call "equal"
     generate args = place $ map (map_event (Util.equal_transformer args)) $
         concat $ sub_events args
 
--- * util
-
--- Utilities for note calls.
-
--- ** invert
+-- * inversion
 
 -- | Convert a call into an inverting call.  Documented in doc/inverting_call.
 --

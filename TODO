@@ -102,7 +102,7 @@ UNSORTED
       ignored.
   - I should wait to put the block on the stack until I'm definitely calling
     it, not pre-invert and again post-invert.
-  - export list for Derive.Call.Note
+  * export list for Derive.Call.Note
   * DeriveTest:378 could use unparse_ui_frame_
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
     and Derive.CallInfo.  Can I factor out the common bits?
