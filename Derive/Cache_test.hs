@@ -240,6 +240,9 @@ test_collect = do
         ( [ ("test/top * *", tw 0 2 "top")
           , ("test/top test/top.t1 *", track "top.t1")
           , ("test/top test/top.t1 0-1: test/sub * *", tw 0 1 "sub")
+          -- One for t1, one more for its inverted incarnation.
+          , ("test/top test/top.t1 0-1: test/sub test/sub.t1 *",
+            track "sub.t1")
           , ("test/top test/top.t1 0-1: test/sub test/sub.t1 *",
             track "sub.t1")
           , ("test/top test/top.t1 0-1: test/sub test/sub.t2 *",
@@ -385,16 +388,13 @@ test_inverted_control_damage = do
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
         [ "top.t1 0-1: * using cache"
-        -- This is "invalidated" instead of "control damage" for subtle
-        -- reasons.  Since t2 is inverted below t1, the cache entry is
-        -- [t1, 1-2, t2, 1-2].  Since the damage is at [t2, 1-1],
-        -- Derive.clear_damage will match and kill it.  Ultimately this is
-        -- because t1 is in the stack as depending on t2 via a calling
-        -- relationship, while if t2 were above t1 there is no such direct
-        -- relationship and ControlDamage is needed.
-        --
-        -- Wow.
-        , "top.t1 1-2: * score damage"
+        -- I get sub twice: once pre-invert and again post-invert, which
+        -- makes for a confused stack:
+        -- top, t1, note-track, 1-2, sub, t2, t1, 1-2, sub
+        -- TODO the 'sub' call should only put sub on the stack the second
+        -- time, when it is really entering sub, not when it is inverting.
+        , "test/top test/top.t1 1-2: test/sub test/top.t1 1-2: test/sub * "
+            ++ "control damage"
         , toplevel_rederived True
         ]
 

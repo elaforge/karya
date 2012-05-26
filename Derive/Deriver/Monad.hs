@@ -600,6 +600,7 @@ data CallInfo derived = CallInfo {
     , info_event :: !Events.PosEvent
     , info_prev_events :: ![Events.PosEvent]
     , info_next_events :: ![Events.PosEvent]
+
     -- | The extent of the note past its duration.  Since notes have decay,
     -- its important to capture control for that.  Normally this is the next
     -- event's start.  If there's no next event because it's the last event of
@@ -609,6 +610,7 @@ data CallInfo derived = CallInfo {
     -- This is the same as the first element of 'info_next_events' except of
     -- course it has a value even when there is no next event.
     , info_event_end :: !ScoreTime
+
     -- | This is the track range from 'State.tevents_range'.  For sliced
     -- tracks, it will tell where in the track the slice lies.  This is needed
     -- for 'Stack.Region' entries.

@@ -1,10 +1,13 @@
 module Derive.Call_test where
+import qualified Data.Map as Map
+
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 
+import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -205,6 +208,17 @@ test_inverting_n = do
         next_pitch <- Derive.require "next pitch"
             =<< Derive.pitch_at =<< Derive.real next
         Derive.d_at (Args.start args) $ Util.simple_note next_pitch 1
+
+test_track_environ = do
+    let run = extract . DeriveTest.derive_tracks
+        extract = Map.toList . Map.map e_env . Derive.r_track_environ
+        e_env e = (Pretty.pretty $ Map.lookup TrackLang.v_instrument e,
+            Pretty.pretty $ Map.lookup TrackLang.v_scale e)
+    -- Both tracks get *semar, even though >inst has to be inverted to see it.
+    equal (run [(">inst", [(0, 0, "")]), ("*semar", [(0, 0, "1")])])
+        [ ((UiTest.bid "b1", UiTest.tid "b1.t1"), (">inst", "*semar"))
+        , ((UiTest.bid "b1", UiTest.tid "b1.t2"), (">inst", "*semar"))
+        ]
 
 
 -- * implementation

@@ -124,7 +124,7 @@ with_empty_collect deriver = do
 
 get_current_block_id :: Deriver BlockId
 get_current_block_id = do
-    stack <- get_dynamic state_stack
+    stack <- get_stack
     case [bid | Stack.Block bid <- Stack.innermost stack] of
         [] -> throw "no blocks in stack"
         block_id : _ -> return block_id
@@ -145,7 +145,7 @@ with_stack_call name = with_stack (Stack.Call name)
 
 with_stack :: Stack.Frame -> Deriver a -> Deriver a
 with_stack frame = localm $ \st -> do
-        stack <- get_dynamic state_stack
+        stack <- get_stack
         when (Stack.length stack >= max_depth) $
             throw $ "call stack too deep: " ++ Pretty.pretty frame
         return $ st { state_stack = Stack.add frame (state_stack st) }
@@ -154,6 +154,8 @@ with_stack frame = localm $ \st -> do
     -- nesting depth to catch those.  I could disallow all recursion, but this
     -- is more general.
 
+get_stack :: Deriver Stack.Stack
+get_stack = get_dynamic state_stack
 
 -- * warp
 
@@ -254,7 +256,7 @@ min_tempo = 0.001
 
 is_root_block :: Deriver Bool
 is_root_block = do
-    stack <- get_dynamic state_stack
+    stack <- get_stack
     let blocks = [bid | Stack.Block bid <- Stack.outermost stack]
     return $ case blocks of
         [] -> True
@@ -265,7 +267,7 @@ is_root_block = do
 
 add_track_warp :: TrackId -> Deriver ()
 add_track_warp track_id = do
-    stack <- get_dynamic state_stack
+    stack <- get_stack
     merge_collect $ mempty
         { collect_warp_map = Map.singleton stack (Right track_id) }
 
@@ -275,7 +277,7 @@ add_track_warp track_id = do
 -- warped for that block so it can install the new warp.
 add_new_track_warp :: Maybe TrackId -> Deriver ()
 add_new_track_warp track_id = do
-    stack <- get_dynamic state_stack
+    stack <- get_stack
     block_id <- get_current_block_id
     start <- real 0
     end <- real =<< get_block_dur block_id

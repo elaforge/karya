@@ -77,9 +77,13 @@ event_gaps events end = reverse $
 -- | Ask 'slice' to synthesize a note track and insert it at the leaves of
 -- the sliced tree.
 -- Event text, duration, tevents_range, tevents_around
-data InsertEvent = InsertEvent String ScoreTime (ScoreTime, ScoreTime)
-        ([Events.PosEvent], [Events.PosEvent])
-    deriving (Show)
+data InsertEvent = InsertEvent {
+    ins_text :: String
+    , ins_duration :: ScoreTime
+    , ins_range :: (ScoreTime, ScoreTime)
+    , ins_around :: ([Events.PosEvent], [Events.PosEvent])
+    , ins_track_id :: Maybe TrackId
+    } deriving (Show)
 
 -- | Slice the tracks below me to lie within start and end, and optionally put
 -- a note track with a single event of given string at the bottom.  Control
@@ -111,13 +115,12 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
         (if null subs then insert else map do_slice subs)
     insert = case insert_event of
         Nothing -> []
-        Just (InsertEvent text dur track_range around) ->
-            [Tree.Node (make text dur track_range around) []]
+        Just insert_event -> [Tree.Node (make insert_event) []]
     -- The synthesized bottom track.
-    make text dur track_range around = State.TrackEvents
+    make (InsertEvent text dur track_range around track_id) = State.TrackEvents
         { State.tevents_title = ">"
         , State.tevents_events = Events.singleton start (Event.event text dur)
-        , State.tevents_track_id = Nothing
+        , State.tevents_track_id = track_id
         , State.tevents_end = end
         , State.tevents_range = track_range
         , State.tevents_sliced = True

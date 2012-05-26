@@ -63,6 +63,8 @@ test_basic = do
         -- track title and event for note track
         , Stack.Call "note-track", Stack.Region s e, Stack.Call "note"
         , Stack.Track (UiTest.mk_tid 2)
+        -- t1 shows up again inverted
+        , Stack.Track (UiTest.mk_tid 1)
         -- inverted note track has no note-track Call for ">"
         , Stack.Region s e, Stack.Call "note"
         ]

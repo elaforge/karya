@@ -18,10 +18,12 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
+import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
@@ -231,17 +233,35 @@ invert :: Int -> (ScoreTime, ScoreTime) -> State.EventsTree -> ScoreTime
     -> ([Events.PosEvent], [Events.PosEvent])
     -> Derive.Deriver State.EventsTree
 invert after (track_start, _) subs start end next_start text events_around = do
+    -- Pick the current track out of the stack, and give that to the inverted
+    -- track.
+    -- TODO I'm not 100% comfortable with this, I don't like putting implicit
+    -- dependencies on the stack like this.  Too many of these and someday
+    -- I change how the stack works and all sorts of things break.  It would be
+    -- more explicit to put TrackId into CallInfo.
+    track_id <- stack_track_id
+    let sliced = slice track_id
     when_just (non_bottom_note_track sliced) $ \track ->
         Derive.throw $
             "inverting below note track will lead to an endless loop: "
             ++ Pretty.pretty (State.tevents_track_id track)
     return sliced
     where
-    sliced = Slice.slice False after start next_start (Just insert) subs
+    slice track_id =
+        Slice.slice False after start next_start (Just (insert track_id)) subs
     -- Use 'next_start' instead of track_end because in the absence of a next
     -- note, the track end becomes next note and clips controls.
-    insert = Slice.InsertEvent text (end - start) (track_start, next_start)
-        events_around
+    insert track_id = Slice.InsertEvent
+        { Slice.ins_text = text
+        , Slice.ins_duration = end - start
+        , Slice.ins_range = (track_start, next_start)
+        , Slice.ins_around = events_around
+        , Slice.ins_track_id = track_id
+        }
+
+stack_track_id :: Derive.Deriver (Maybe TrackId)
+stack_track_id = Seq.head . Maybe.mapMaybe Stack.track_of . Stack.innermost
+    <$> Internal.get_stack
 
 -- | An inverting call above another note track will lead to an infinite loop
 -- if there are overlapping sub-events that also invert, or confusing results

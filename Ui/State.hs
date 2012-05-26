@@ -689,8 +689,11 @@ type EventsNode = Tree.Tree TrackEvents
 data TrackEvents = TrackEvents {
     tevents_title :: !String
     , tevents_events :: !Events.Events
-    -- | If this TrackEvents is from a real track, then its evaluation can
-    -- generate a render signal as a side-effect.
+    -- | This goes into the stack when the track is evaluated.  Inverted tracks
+    -- will carry the TrackId of the track they were inverted from, so they'll
+    -- show up in the stack twice.  This means they can record their environ
+    -- as it actually is when the notes are evaluated, rather than its
+    -- pre-invert value, which is likely to not have the right scale.
     , tevents_track_id :: !(Maybe TrackId)
 
     -- | Tracks often extend beyond the end of the last event.  The derivers

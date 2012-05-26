@@ -93,22 +93,16 @@ UNSORTED
       It should default to c-maj if there's no key, and return an error if
       the key is unparseable.  Maybe the scale should have a 'lookup_key'
       function instead?
-  - The scale for an instrument track picks up the default scale rather than
+  * The scale for an instrument track picks up the default scale rather than
     the scale of the pitch below it.
-    - Have to make sure it stashes TrackEnviron in the inverted track... but
+    * Have to make sure it stashes TrackEnviron in the inverted track... but
       that's a lot of little fragments.
       If the note track refrains from putting itself in TrackEnviron when it
       has children, then the first child can put itself in, the rest will be
       ignored.
-    - Need to make the synthesized track in Slice.slice have a track id, what
-      other implications does that have?
-      - Will change the stack.  Cache implications?
-      * Will it generate spurious signals?  Make sure those don't happen.
-    - Need to put a TrackId into InsertEvent in Call.Note, but how to get
-      the track id?  I could look in the stack but I'm worried about picking
-      it up when I'm not actually in that track.
-    I should wait to put the block on the stack until I'm definitely calling
+  - I should wait to put the block on the stack until I'm definitely calling
     it, not pre-invert and again post-invert.
+  - export list for Derive.Call.Note
   - DeriveTest:378 could use unparse_ui_frame_
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
     and Derive.CallInfo.  Can I factor out the common bits?

@@ -248,8 +248,9 @@ stash_signal :: State.TrackEvents
     -- ^ A pitch track is given a ScaleMap so it can be displayed properly.
     -> Derive.Deriver ()
 stash_signal track sig derive_sig scale_map =
-    case (State.tevents_track_id track, State.tevents_sliced track) of
-        (Just track_id, False) -> stash track_id =<< linear_tempo
+    case State.tevents_track_id track of
+        Just track_id | not (State.tevents_sliced track) ->
+            stash track_id =<< linear_tempo
         _ -> return ()
     where
     stash track_id (Just (shift, stretch)) = do
