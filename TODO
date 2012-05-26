@@ -100,8 +100,10 @@ UNSORTED
       If the note track refrains from putting itself in TrackEnviron when it
       has children, then the first child can put itself in, the rest will be
       ignored.
-  - I should wait to put the block on the stack until I'm definitely calling
+  * I should wait to put the block on the stack until I'm definitely calling
     it, not pre-invert and again post-invert.
+  - Get rid of Derive.gcall_block and all the nonsense in Derive.Call.Block
+    to support it.
   * export list for Derive.Call.Note
   * DeriveTest:378 could use unparse_ui_frame_
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,

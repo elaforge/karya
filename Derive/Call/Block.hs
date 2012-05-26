@@ -53,8 +53,11 @@ lookup_note_block sym = fmap c_block <$> symbol_to_block_id sym
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = block_call (const (Just block_id)) $
-    Derive.stream_generator ("block " ++ show block_id) $
-        Note.inverting $ Cache.caching_call run
+    Derive.stream_generator ("block " ++ show block_id) $ Note.inverting $
+    \args -> Internal.with_stack_block block_id (Cache.caching_call run args)
+    -- ^ I have to put the block on the stack before calling 'd_block' because
+    -- 'Cache.caching_call' relies on on the block id already being on the
+    -- stack.
     where
     run args
         | null (Derive.passed_vals args) =
@@ -124,17 +127,19 @@ make_block_id namespace (TrackLang.Symbol call) =
 -- start using this to see if it's worth coming up with a solution for that.
 c_clip :: Derive.NoteCall
 c_clip = block_call get_block_id $ Derive.stream_generator "clip" $
-    Note.inverting $ Cache.caching_call $ \args ->
+    Note.inverting $ \args ->
     CallSig.call1 args (required "block_id") $ \sym -> do
         block_id <- maybe
             (Derive.throw $ "block not found: " ++ TrackLang.show_val sym)
             return =<< symbol_to_block_id sym
+        Internal.with_stack_block block_id $
+            Cache.caching_call (clip_call block_id) args
+    where
+    clip_call block_id args = do
         sub_dur <- Derive.get_block_dur block_id
         end <- Derive.real (snd (Args.range args))
         takeWhile (before end) <$>
-            Derive.d_place (Args.start args) sub_dur
-                (d_block block_id)
-    where
+            Derive.d_place (Args.start args) sub_dur (d_block block_id)
     before end = LEvent.either ((<end) . Score.event_start) (const True)
     get_block_id (ns, args) = case Derive.passed_vals args of
         TrackLang.VSymbol sym : _ -> make_block_id ns sym
@@ -163,7 +168,9 @@ c_control_block block_id = block_call (const (Just block_id)) $
         where (start, end) = Args.range args
 
 d_control_block :: BlockId -> Derive.ControlDeriver
-d_control_block block_id = do
+d_control_block block_id = Internal.with_stack_block block_id $ do
+    -- ^ Control calls aren't cached, so I can put the block stack in the
+    -- convenient place.
     blocks <- Derive.get_ui_state State.state_blocks
     when (Map.lookup block_id blocks == Nothing) $
         Derive.throw "block_id not found"

@@ -382,12 +382,7 @@ test_inverted_control_damage = do
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
         [ "top.t1 0-1: * using cache"
-        -- I get sub twice: once pre-invert and again post-invert, which
-        -- makes for a confused stack:
-        -- top, t1, note-track, 1-2, sub, t2, t1, 1-2, sub
-        -- TODO the 'sub' call should only put sub on the stack the second
-        -- time, when it is really entering sub, not when it is inverting.
-        , "top top.t1 1-2: sub top.t1 1-2: sub * control damage"
+        , "top top.t1 1-2: sub * control damage"
         , toplevel_rederived True
         ]
 

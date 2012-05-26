@@ -191,7 +191,7 @@ c_equal = Derive.Call "equal"
 
 -- * inversion
 
--- | Convert a call into an inverting call.  Documented in doc/inverting_call.
+-- | Convert a call into an inverting call.  Documented in doc/inverting_calls.
 --
 -- This requires a bit of hackery:
 --
@@ -218,6 +218,9 @@ inverting_n :: Int -- ^ Capture this many control points after the slice
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
 inverting_n after call args =
+    -- If I can invert, call isn't actually called.  Instead I make a track
+    -- with event text that will result in this being called again, and at
+    -- that point it actually will be called.
     maybe (call args) BlockUtil.derive_tracks =<< invert_call after args
 
 invert_call :: Int

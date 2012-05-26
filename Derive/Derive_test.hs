@@ -58,7 +58,8 @@ test_basic = do
     equal logs []
     where
     mkstack (s, e) = Stack.from_outermost
-        [ Stack.Block UiTest.default_block_id
+        [ block_call UiTest.default_block_id
+        , Stack.Block UiTest.default_block_id
         , Stack.Track (UiTest.mk_tid 1)
         -- track title and event for note track
         , Stack.Call "note-track", Stack.Region s e, Stack.Call "note"
@@ -68,6 +69,7 @@ test_basic = do
         -- inverted note track has no note-track Call for ">"
         , Stack.Region s e, Stack.Call "note"
         ]
+    block_call bid = Stack.Call $ "block " ++ show bid
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
         (Instrument.inst_name inst,
             RealTime.to_seconds start, RealTime.to_seconds dur, stack)
@@ -115,6 +117,7 @@ test_stack = do
             , ("sub", [(">", [(0, 1, ""), (1, 1, "")])])
             ]
     let block = Stack.Block . UiTest.bid
+        block_call bid = Stack.Call $ "block " ++ show (UiTest.bid bid)
         track name num = Stack.Track (UiTest.mk_tid_name name num)
         call = Stack.Call
     equal (map (map Stack.unparse_ui_frame . Stack.to_ui) stacks)
@@ -123,9 +126,10 @@ test_stack = do
         , ["test/b0 test/b0.t1 1-2", "test/sub test/sub.t1 1-2"]
         ]
 
-    let b0 s e = [block "b0", track "b0" 1, call "note-track",
+    let b0 s e = [block_call "b0", block "b0", track "b0" 1, call "note-track",
             Stack.Region s e]
-        sub s e = [block "sub", track "sub" 1, Stack.Region s e, call "note"]
+        sub s e = [block_call "sub", block "sub", track "sub" 1,
+            Stack.Region s e, call "note"]
     equal stacks $ map Stack.from_outermost
         [ b0 0 1 ++ [Stack.Call "note"]
         , b0 1 2 ++ sub 0 1
