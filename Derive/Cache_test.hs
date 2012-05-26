@@ -114,16 +114,16 @@ test_logs = do
             insert_event "sub2.t1" 1 1 ""
     -- Make sure errors are still present in the cached output.
     strings_like (r_logs uncached)
-        [ "test/sub1 * rederived"
+        [ "sub1 * rederived"
         , "sub1.t1 * note call not found"
-        , "test/sub2 * rederived"
-        , "test/top"
+        , "sub2 * rederived"
+        , "top"
         ]
     strings_like (r_logs cached)
-        [ "test/sub1 * using cache"
+        [ "sub1 * using cache"
         , "sub1.t1 * note call not found"
-        , "test/sub2 * rederived"
-        , "test/top"
+        , "sub2 * rederived"
+        , "top"
         ]
 
 test_extend_control_damage = do
@@ -184,12 +184,11 @@ test_callee_damage = do
         ]
     -- The cached call to "sub" depends on "sub" and "subsub" transitively.
     equal (r_cache_deps cached)
-        [ ("test/top * *",
+        [ ("top * *",
             Just [UiTest.bid "sub", UiTest.bid "subsub", UiTest.bid "top"])
-        , ("test/top test/top.t1 1-3: test/sub * *",
+        , ("top top.t1 1-3: sub * *",
             Just [UiTest.bid "sub", UiTest.bid "subsub"])
-        , ("test/top test/top.t1 1-3: test/sub test/sub.t1 1-2: "
-                ++ "test/subsub * *",
+        , ("top top.t1 1-3: sub sub.t1 1-2: subsub * *",
             Just [UiTest.bid "subsub"])
         ]
     -- sub is 1-3, its first elt should be 1-2, except I replaced it with .5
@@ -228,7 +227,7 @@ test_collect = do
     let tsig = Right $ Track.TrackSignal (Signal.signal [(0, 1)]) 0 1 Nothing
     let extract = second (fmap extract_collect)
         extract_collect (Derive.Collect wmap tsigs _env ldep _cache) =
-            (Seq.sort_on fst (map (first Stack.show_ui) (Map.toAscList wmap)),
+            (Seq.sort_on fst (map (first Stack.show_ui_) (Map.toAscList wmap)),
                 tsigs, ldep)
 
     -- Wow, this is a hassle, but it's hard to figure out how to verify this
@@ -236,17 +235,14 @@ test_collect = do
     let tw start end bid = Left $ TrackWarp.TrackWarp
             (start, end, Score.id_warp, UiTest.bid bid, Nothing)
         track tid = Right (UiTest.tid tid)
-    equal (extract root) ("test/top * *", Just $
-        ( [ ("test/top * *", tw 0 2 "top")
-          , ("test/top test/top.t1 *", track "top.t1")
-          , ("test/top test/top.t1 0-1: test/sub * *", tw 0 1 "sub")
+    equal (extract root) ("top * *", Just $
+        ( [ ("top * *", tw 0 2 "top")
+          , ("top top.t1 *", track "top.t1")
+          , ("top top.t1 0-1: sub * *", tw 0 1 "sub")
           -- One for t1, one more for its inverted incarnation.
-          , ("test/top test/top.t1 0-1: test/sub test/sub.t1 *",
-            track "sub.t1")
-          , ("test/top test/top.t1 0-1: test/sub test/sub.t1 *",
-            track "sub.t1")
-          , ("test/top test/top.t1 0-1: test/sub test/sub.t2 *",
-            track "sub.t2")
+          , ("top top.t1 0-1: sub sub.t1 *", track "sub.t1")
+          , ("top top.t1 0-1: sub sub.t1 *", track "sub.t1")
+          , ("top top.t1 0-1: sub sub.t2 *", track "sub.t2")
           ]
         , Map.fromList [(UiTest.tid "sub.t2", tsig)]
         , mk_gdep ["top", "sub"]
@@ -284,9 +280,7 @@ test_sliced_control_damage = do
             insert_event "top.t1" 6 0 "0"
     equal (diff_events cached uncached) []
     strings_like (r_logs cached)
-        [ "test/sub * control damage"
-        , "test/top * block damage"
-        ]
+        ["sub * control damage", "top * block damage"]
     where
     blocks =
         [ (("top", top), [(1, 2), (2, 3)])
@@ -393,8 +387,7 @@ test_inverted_control_damage = do
         -- top, t1, note-track, 1-2, sub, t2, t1, 1-2, sub
         -- TODO the 'sub' call should only put sub on the stack the second
         -- time, when it is really entering sub, not when it is inverting.
-        , "test/top test/top.t1 1-2: test/sub test/top.t1 1-2: test/sub * "
-            ++ "control damage"
+        , "top top.t1 1-2: sub top.t1 1-2: sub * control damage"
         , toplevel_rederived True
         ]
 
@@ -458,8 +451,8 @@ test_damage_to_real_to_score = do
 
 -- | The toplevel block is just about always damaged.
 toplevel_rederived :: Bool -> String
-toplevel_rederived True = "test/top *: rederived * block damage"
-toplevel_rederived False = "test/top *: rederived * sub-block damage"
+toplevel_rederived True = "top *: rederived * block damage"
+toplevel_rederived False = "top *: rederived * sub-block damage"
 
 -- UiTest.run discards the Updates, which I need.
 run :: State.State -> State.StateId a -> (a, State.State, [Update.CmdUpdate])

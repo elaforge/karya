@@ -182,7 +182,7 @@ test_subderive = do
     strings_like (map DeriveTest.show_log msgs) ["call not found: nosuch"]
 
     equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
-        ["test/b0 test/b0.t2 0-1"]
+        ["b0 b0.t2 0-1"]
 
     let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
         (events, msgs) = DeriveTest.r_split res

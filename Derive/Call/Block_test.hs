@@ -70,4 +70,4 @@ test_c_control_block_stack = do
         sub = [("%", [(0, 0, "no-call")])]
     let res = DeriveTest.derive_blocks blocks
     strings_like (map DeriveTest.show_log_stack (DeriveTest.r_logs res))
-        ["test/top test/top.t2 0-2: test/sub test/sub.t1 0-0: Error"]
+        ["top top.t2 0-2: sub sub.t1 0-0: Error"]

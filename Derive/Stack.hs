@@ -4,7 +4,7 @@ module Derive.Stack (
     , block, add, member, outermost, innermost
     , block_of, track_of, region_of, call_of
     , Frame(..)
-    , format_ui, show_ui
+    , format_ui, show_ui, show_ui_
     , to_strings, from_strings
 
     -- * more specialized utils
@@ -120,6 +120,9 @@ format_ui = Pretty.text_list . map unparse_ui_frame . to_ui
 
 show_ui :: Stack -> String
 show_ui = Seq.join ": " . map unparse_ui_frame . to_ui
+
+show_ui_ :: Stack -> String
+show_ui_ = Seq.join ": " . map unparse_ui_frame_ . to_ui
 
 -- | Serialize a Stack to and from a list of strings, as used in
 -- 'Util.Log.Msg'.  Since I use a list of Strings instead of a String, I can

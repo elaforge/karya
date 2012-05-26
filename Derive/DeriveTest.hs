@@ -375,7 +375,7 @@ show_stack Nothing = "<nothing>"
 show_stack (Just stack)
     | null ui = "<no stack>"
     -- This uses ': ' so 'x: *' works regardless of where in the stack x is.
-    | otherwise = Seq.join ": " (map Stack.unparse_ui_frame ui)
+    | otherwise = Seq.join ": " (map Stack.unparse_ui_frame_ ui)
     where ui = Stack.to_ui (Stack.from_strings stack)
 
 show_log :: Log.Msg -> String
