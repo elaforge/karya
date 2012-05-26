@@ -112,7 +112,6 @@ import qualified Util.SrcPos as SrcPos
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
@@ -671,18 +670,6 @@ instance Show ValCall where
 
 data GeneratorCall derived = GeneratorCall {
     gcall_func :: GeneratorFunc derived
-    -- | Block calls should put their BlockId on the stack instead of the call
-    -- name.
-    --
-    -- It gets the args and default namespace in case the block to call is
-    -- named in an argument.  This is all very awkward and it would be nicer to
-    -- put the 'with_stack_block' into 'Call.d_block', but at that point the
-    -- generate cache has already been called, and it really needs to have the
-    -- block already on the stack.
-    --
-    -- The arguments are uncurried just so it's more convenient to use with
-    -- 'const'.
-    , gcall_block :: (Id.Namespace, PassedArgs derived) -> Maybe BlockId
     }
 
 -- | args -> deriver
@@ -707,7 +694,7 @@ generator1 name func = generator name ((LEvent.one <$>) . func)
 stream_generator :: (Derived derived) =>
     String -> GeneratorFunc derived -> Call derived
 stream_generator name func =
-    Call name (Just (GeneratorCall func (const Nothing))) Nothing
+    Call name (Just (GeneratorCall func)) Nothing
 
 -- ** transformer
 

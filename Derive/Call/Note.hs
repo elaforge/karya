@@ -63,7 +63,7 @@ note_calls = Derive.make_calls
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
-    (Just $ Derive.GeneratorCall (inverting generate) (const Nothing))
+    (Just $ Derive.GeneratorCall (inverting generate))
     (Just note_transform)
     where
     generate args = case process (Derive.passed_vals args) of
@@ -183,7 +183,7 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
 
 c_equal :: Derive.NoteCall
 c_equal = Derive.Call "equal"
-    (Just $ Derive.GeneratorCall generate (const Nothing))
+    (Just $ Derive.GeneratorCall generate)
     (Just $ Derive.TransformerCall Util.equal_transformer)
     where
     generate args = place $ map (map_event (Util.equal_transformer args)) $

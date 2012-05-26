@@ -52,9 +52,9 @@ lookup_note_block :: Derive.LookupCall Derive.NoteCall
 lookup_note_block sym = fmap c_block <$> symbol_to_block_id sym
 
 c_block :: BlockId -> Derive.NoteCall
-c_block block_id = block_call (const (Just block_id)) $
-    Derive.stream_generator ("block " ++ show block_id) $ Note.inverting $
-    \args -> Internal.with_stack_block block_id (Cache.caching_call run args)
+c_block block_id = Derive.stream_generator ("block " ++ show block_id) $
+    Note.inverting $ \args ->
+    Internal.with_stack_block block_id (Cache.caching_call run args)
     -- ^ I have to put the block on the stack before calling 'd_block' because
     -- 'Cache.caching_call' relies on on the block id already being on the
     -- stack.
@@ -67,12 +67,6 @@ c_block block_id = block_call (const (Just block_id)) $
                 "args for block call not implemented yet: "
                 ++ Pretty.pretty (Derive.passed_vals args)
         where (start, end) = Args.range args
-
-block_call :: ((Id.Namespace, Derive.PassedArgs d) -> Maybe BlockId)
-    -> Derive.Call d -> Derive.Call d
-block_call f call =
-    call { Derive.call_generator = add <$> Derive.call_generator call }
-    where add gcall = gcall { Derive.gcall_block = f }
 
 d_block :: BlockId -> Derive.EventDeriver
 d_block block_id = do
@@ -126,7 +120,7 @@ make_block_id namespace (TrackLang.Symbol call) =
 -- in the same time scale as the calling block.  TODO wait until I actually
 -- start using this to see if it's worth coming up with a solution for that.
 c_clip :: Derive.NoteCall
-c_clip = block_call get_block_id $ Derive.stream_generator "clip" $
+c_clip = Derive.stream_generator "clip" $
     Note.inverting $ \args ->
     CallSig.call1 args (required "block_id") $ \sym -> do
         block_id <- maybe
@@ -141,9 +135,6 @@ c_clip = block_call get_block_id $ Derive.stream_generator "clip" $
         takeWhile (before end) <$>
             Derive.d_place (Args.start args) sub_dur (d_block block_id)
     before end = LEvent.either ((<end) . Score.event_start) (const True)
-    get_block_id (ns, args) = case Derive.passed_vals args of
-        TrackLang.VSymbol sym : _ -> make_block_id ns sym
-        _ -> Nothing
 
 
 -- * control call
@@ -155,8 +146,7 @@ lookup_control_block sym = fmap c_control_block <$> symbol_to_block_id sym
 -- call_name error_msg
 
 c_control_block :: BlockId -> Derive.ControlCall
-c_control_block block_id = block_call (const (Just block_id)) $
-    Derive.stream_generator "control-block" run
+c_control_block block_id = Derive.stream_generator "control-block" run
     where
     run args
         | null (Derive.passed_vals args) =

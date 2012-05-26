@@ -312,12 +312,8 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
                         (info_name dinfo) (info_lookup dinfo)
                     return (fb_call, [val])
 
-    ns <- Derive.get_ui_config State.config_namespace
     let args = Derive.PassedArgs vals call_id cinfo
-        gen = Derive.call_generator call
-        with_stack = case (($ (ns, args)) . Derive.gcall_block) =<< gen of
-            Just block_id -> Internal.with_stack_block block_id
-            Nothing -> Internal.with_stack_call (Derive.call_name call)
+        with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.gcall_func <$> Derive.call_generator call of
         Just call -> call args
         Nothing -> Derive.throw $ "non-generator in generator position: "

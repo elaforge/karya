@@ -102,7 +102,7 @@ UNSORTED
       ignored.
   * I should wait to put the block on the stack until I'm definitely calling
     it, not pre-invert and again post-invert.
-  - Get rid of Derive.gcall_block and all the nonsense in Derive.Call.Block
+  * Get rid of Derive.gcall_block and all the nonsense in Derive.Call.Block
     to support it.
   * export list for Derive.Call.Note
   * DeriveTest:378 could use unparse_ui_frame_
