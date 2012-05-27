@@ -182,17 +182,24 @@ transpose_selection :: (Cmd.M m) => Pitch.Octave -> Pitch.Transpose -> m ()
 transpose_selection oct steps = pitches (transpose oct steps)
 
 transpose :: Pitch.Octave -> Pitch.Transpose -> ModifyPitch
-transpose octaves steps scale maybe_key note = show_err $
-    Scale.scale_transpose scale maybe_key octaves steps note
+transpose octaves steps scale maybe_key note =
+    case Scale.scale_transpose scale maybe_key octaves steps note of
+        -- Leave non-pitches alone.
+        Left Scale.UnparseableNote -> Right note
+        Left err -> Left (show err)
+        Right note2 -> Right note2
 
 cycle_enharmonics :: ModifyPitch
 cycle_enharmonics scale maybe_key note = show_err $ do
     enharmonics <- Scale.scale_enharmonics scale maybe_key note
     return $ Maybe.fromMaybe note (Seq.head enharmonics)
 
--- | Apply a ModifyPitch to selected pitch tracks.
 pitches :: (Cmd.M m) => ModifyPitch -> m ()
-pitches f = ModifyEvents.tracks_sorted $
+pitches = ModifyEvents.tracks_sorted . pitch_tracks
+
+-- | Apply a ModifyPitch to only pitch tracks.
+pitch_tracks :: (Cmd.M m) => ModifyPitch -> ModifyEvents.Track m
+pitch_tracks f =
     ModifyEvents.tracks_named TrackInfo.is_pitch_track $
         \block_id track_id events -> do
     scale_id <- Perf.get_scale_id block_id (Just track_id)

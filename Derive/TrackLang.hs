@@ -70,6 +70,9 @@ is_null_instrument _ = False
 c_equal :: CallId
 c_equal = Symbol "="
 
+c_repeat :: CallId
+c_repeat = Symbol "'"
+
 -- | Make an untyped VNum.
 num :: Double -> Val
 num = VNum . Score.untyped

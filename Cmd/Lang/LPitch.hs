@@ -53,6 +53,10 @@ transpose_d :: Pitch.Octave -> Double -> Cmd.CmdL ()
 transpose_d oct steps =
     PitchTrack.transpose_selection oct (Pitch.Diatonic steps)
 
+transpose_all :: Pitch.Octave -> Pitch.Transpose -> Cmd.CmdL()
+transpose_all octs steps = ModifyEvents.all_blocks $ PitchTrack.pitch_tracks $
+    PitchTrack.transpose octs steps
+
 -- * to_relative
 
 -- | Convert the selected absolute pitch track into a relative one by

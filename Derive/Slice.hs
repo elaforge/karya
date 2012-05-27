@@ -35,6 +35,7 @@ import qualified Ui.Events as Events
 import qualified Ui.State as State
 
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
 import Types
 
 
@@ -167,7 +168,7 @@ events_around after start end events = Events.from_asc_list $
     -- evaluated, and at that point I could get rid of slicing entirely.  But
     -- I can't think of how to do that at the moment.
     take_repeats = Then.takeWhile1 ((==repeat) . Event.event_bs . snd)
-    repeat = UTF8.fromString "'"
+    repeat = UTF8.fromString $ (\(TrackLang.Symbol s) -> s) TrackLang.c_repeat
 
 -- | Expect a note track somewhere in the tree.  Slice the tracks above and
 -- below it to each of its events.
