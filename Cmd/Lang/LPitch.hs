@@ -15,6 +15,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
 
+import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
@@ -25,8 +26,8 @@ import Types
 
 -- | Turn an nn back to a human-readable note name.
 nn_to_note :: Int -> Maybe Pitch.Note
-nn_to_note key =
-    Twelve.input_to_note Nothing (Pitch.InputKey (fromIntegral key))
+nn_to_note key = Scale.scale_input_to_note Twelve.scale Nothing
+    (Pitch.InputKey (fromIntegral key))
 
 -- * invert
 

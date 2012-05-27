@@ -353,7 +353,7 @@ e_pitch_err e = (map (second Pitch.NoteNumber) (Signal.unsignal sig),
 e_twelve :: Score.Event -> String
 e_twelve e = Maybe.fromMaybe "?" $ do
     nn <- Score.initial_nn e
-    note <- Twelve.input_to_note Nothing (to_input nn)
+    note <- Scale.scale_input_to_note Twelve.scale Nothing (to_input nn)
     return (Pitch.note_text note)
     where to_input (Pitch.NoteNumber n) = Pitch.InputKey n
 

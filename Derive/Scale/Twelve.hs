@@ -15,16 +15,12 @@
     > nn 0 = -1c
 -}
 module Derive.Scale.Twelve where
-import qualified Data.Either as Either
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
+import qualified Data.Vector.Unboxed as Vector
 
-import qualified Util.Num as Num
-import qualified Ui.Track as Track
-import qualified Derive.Call.Pitch as Call.Pitch
-import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TwelveUtil as TwelveUtil
 import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
@@ -34,72 +30,22 @@ scale :: Scale.Scale
 scale = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-g](b|bb|#|x)?"
-    , Scale.scale_map =
-        Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
-            | (n, (_, d)) <- Map.toList note_to_degree]
+    , Scale.scale_map = TwelveUtil.scale_map system
     , Scale.scale_symbols = [] -- later maybe I can use fancy sharps and flats
     , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = transpose
-    , Scale.scale_enharmonics = enharmonics
-    , Scale.scale_note_to_call = note_to_call
-    , Scale.scale_input_to_note = input_to_note
-    , Scale.scale_input_to_nn = input_to_nn
+    , Scale.scale_transpose = TwelveUtil.transpose system
+    , Scale.scale_enharmonics = TwelveUtil.enharmonics system
+    , Scale.scale_note_to_call = TwelveUtil.note_to_call system
+    , Scale.scale_input_to_note = TwelveUtil.input_to_note system
+    , Scale.scale_input_to_nn = TwelveUtil.input_to_nn
     }
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
 
-transpose :: Derive.Transpose
-transpose maybe_key octaves steps note = do
-    key <- read_key maybe_key
-    pitch <- read_pitch key note
-    let pitch2 = pitch
-            { Theory.pitch_octave = Theory.pitch_octave pitch + octaves }
-    case steps of
-        Pitch.Chromatic steps ->
-            pitch_note $ Theory.transpose_chromatic key (floor steps) pitch2
-        Pitch.Diatonic steps ->
-            pitch_note $ Theory.transpose_diatonic key (floor steps) pitch2
-
-enharmonics :: Derive.Enharmonics
-enharmonics maybe_key note = do
-    key <- read_key maybe_key
-    pitch <- read_pitch key note
-    return $ Either.rights $ map pitch_note $
-        Theory.enharmonics_of (Theory.key_layout key) pitch
-
-note_to_call :: Pitch.Note -> Maybe Derive.ValCall
-note_to_call note = case Map.lookup note note_to_degree of
-    Nothing -> Nothing
-    Just (pitch, degree) ->
-        Just $ Call.Pitch.note_call note (note_number pitch degree)
-    where
-    note_number :: Theory.Pitch -> Pitch.Degree -> Scale.GetNoteNumber
-    note_number pitch (Pitch.Degree degree) chromatic diatonic mb_str_key = do
-        dsteps <- if diatonic == 0 then Right 0 else do
-            str_key <- maybe (Left Scale.KeyNeeded) Right mb_str_key
-            key <- maybe (Left Scale.UnparseableKey) Right
-                (Theory.read_key str_key)
-            return $ Theory.diatonic_to_chromatic key
-                (Theory.pitch_note pitch) diatonic
-        let nn = Pitch.NoteNumber $ fromIntegral degree + chromatic + dsteps
-        if Num.in_range 1 127 nn then Right nn
-            else Left Scale.InvalidTransposition
-
-input_to_note :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
-input_to_note maybe_key (Pitch.InputKey key_nn) =
-    case pitch_note $ Theory.semis_to_pitch key degree of
-        Left _ -> Nothing
-        Right note ->
-            Just $ Pitch.Note $ Call.Pitch.note_expr note cents
-    where
-    -- Default to a key because otherwise you couldn't enter notes in an
-    -- empty score!
-    key = Maybe.fromMaybe default_key $ Theory.read_key =<< maybe_key
-    (degree, cents) = properFraction key_nn
-
-input_to_nn :: Pitch.InputKey -> Maybe Pitch.NoteNumber
-input_to_nn (Pitch.InputKey nn) = Just (Pitch.NoteNumber nn)
+system :: TwelveUtil.System
+system = TwelveUtil.system layout all_pitches all_keys default_key
+    where Just default_key = Map.lookup (Pitch.Key "c-maj") all_keys
 
 -- * constants
 
@@ -121,31 +67,39 @@ c6, d6, e6, f6, g6, a6, b6 :: Pitch.Degree
 
 -- * implementation
 
-note_to_degree :: Map.Map Pitch.Note (Theory.Pitch, Pitch.Degree)
-note_to_degree = Map.fromList $ filter in_range $ concat $
-    [[note "#" "x" "b" "bb" p, note "`#`" "`##`" "`b`" "`bb`" p]
-        | p <- Theory.piano_pitches]
+all_keys :: Map.Map Pitch.Key Theory.Key
+all_keys = Map.fromList $ zip (map Theory.show_key keys) keys
+    where keys = church_keys ++ octatonic_keys ++ whole_keys ++ exotic_keys
+
+church_keys :: [Theory.Key]
+church_keys = concat (zipWith make_keys modes intervals)
     where
-    note s s2 f f2 p = (Pitch.Note $ Theory.show_pitch s s2 f f2 p,
-        (p, Pitch.Degree $ Theory.pitch_to_semis Theory.piano_layout p))
-    in_range = Num.in_range 1 128 . snd . snd
+    modes = ["min", "locrian", "maj", "dorian", "phrygian", "lydian", "mixo"]
+    minor = cycle $ Vector.toList (Theory.layout_intervals layout)
+    intervals = [take 7 (drop n minor) | n <- [0..6]]
 
--- | Don't emit a 'Pitch.Note' that's out of range, because it won't be
--- recognized when it comes time to play it back.
-pitch_note :: Theory.Pitch -> Either Scale.ScaleError Pitch.Note
-pitch_note pitch
-    | Map.member n note_to_degree = Right n
-    | otherwise = Left Scale.InvalidTransposition
-    where n = Pitch.Note $ Theory.show_pitch "#" "x" "b" "bb" pitch
+octatonic_keys :: [Theory.Key]
+octatonic_keys = make_keys "octa21" (take 8 (cycle [2, 1]))
+    ++ make_keys "octa12" (take 8 (cycle [1, 2]))
 
-default_key :: Theory.Key
-Just default_key = Theory.read_key (Pitch.Key "c-maj")
+whole_keys :: [Theory.Key]
+whole_keys = make_keys "whole" (replicate 6 2)
 
-read_key :: Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
-read_key Nothing = Right default_key
-read_key (Just key) = maybe (Left Scale.UnparseableKey) Right $
-    Theory.read_key key
+-- | Keys that are diatonic, but have nonstandard key signatures.
+exotic_keys :: [Theory.Key]
+exotic_keys = make_keys "hijaz" [1, 3, 1, 2, 1, 2, 2]
 
-read_pitch :: Theory.Key -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
-read_pitch key note = maybe (Left Scale.UnparseableNote) Right $
-    Theory.read_pitch (Theory.key_layout key) (Pitch.note_text note)
+-- | The layout of keys on everyone's favorite boxed harp.
+layout :: Theory.Layout
+layout = Theory.layout [2, 1, 2, 2, 1, 2, 2]
+
+all_notes :: [Theory.Note]
+all_notes = [Theory.Note pc accs | pc <- [0..6], accs <- [-2..2]]
+
+all_pitches :: [Theory.Pitch]
+all_pitches = [Theory.Pitch oct note | oct <- [-2..9], note <- all_notes]
+
+make_keys :: String -> [Theory.Semi] -> [Theory.Key]
+make_keys name intervals =
+    [Theory.key tonic name intervals layout
+        | tonic <- all_notes, abs (Theory.note_accidentals tonic) <= 1]

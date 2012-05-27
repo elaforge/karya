@@ -5,6 +5,7 @@ import qualified Data.Vector.Unboxed as Vector
 import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 
 
@@ -69,7 +70,7 @@ test_transpose_diatonic = do
         ["1bb", "2c", "2db", "2eb", "2e", "2gb", "2g", "2a", "2bb"]
 
 test_pitch_to_semis = do
-    let semis = Theory.pitch_to_semis Theory.piano_layout
+    let semis = Theory.pitch_to_semis Twelve.layout
         pitch k = Theory.semis_to_pitch (key k)
     equal (map (semis . p) ["0c", "0c#", "0cx"]) [12, 13, 14]
     equal (map (semis . p) ["0c", "0cb", "0cbb"]) [12, 11, 10]
@@ -94,7 +95,7 @@ test_pitch_to_semis = do
 test_calculate_signature = do
     let f note ints = Vector.toList $
             Theory.calculate_signature note
-                (Theory.layout_intervals Theory.piano_layout)
+                (Theory.layout_intervals Twelve.layout)
                 (Vector.fromList ints)
     equal (f (n "a") [2, 1, 2, 2, 1, 2, 2]) -- minor
         [0, 0, 0, 0, 0, 0, 0]
@@ -117,14 +118,14 @@ test_input_to_note = do
     pprint (map (f (key "f-maj")) [19..24])
 
 test_enharmonics_of = do
-    let f = map Pretty.pretty . Theory.enharmonics_of Theory.piano_layout . p
+    let f = map Pretty.pretty . Theory.enharmonics_of Twelve.layout . p
     equal (f "1e") ["1fb", "1dx"]
     equal (f "1f") ["1gbb", "1e#"]
     equal (f "1b#") ["2c", "2dbb"]
     equal (f "1dbb") ["0b#", "1c"]
     equal (f "1g#") ["1ab"]
     let cycle_en = map Pretty.pretty . take 4
-            . iterate (head . Theory.enharmonics_of Theory.piano_layout) . p
+            . iterate (head . Theory.enharmonics_of Twelve.layout) . p
     equal (cycle_en "1b") ["1b", "2cb", "1ax", "1b"]
     equal (cycle_en "1c") ["1c", "1dbb", "0b#", "1c"]
     equal (cycle_en "1g#") ["1g#", "1ab", "1g#", "1ab"]
@@ -144,13 +145,13 @@ test_degree_of = do
 -- * util
 
 key :: String -> Theory.Key
-key name = Maybe.fromMaybe (error $ "can't parse key: " ++ show name) $
-    Theory.read_key (Pitch.Key name)
+key name = either (error $ "can't parse key: " ++ show name) id $
+    Twelve.read_key (Just (Pitch.Key name))
 
 p :: String -> Theory.Pitch
 p s = Maybe.fromMaybe (error $ "can't parse pitch: " ++ show s) $
-    Theory.read_pitch Theory.piano_layout s
+    Theory.read_pitch Twelve.layout s
 
 n :: String -> Theory.Note
 n s = Maybe.fromMaybe (error $ "can't parse note: " ++ show s) $
-    Theory.read_note Theory.piano_layout s
+    Theory.read_note Twelve.layout s

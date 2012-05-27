@@ -1,4 +1,5 @@
 UNSORTED
+  - fltk level shouldn't let hs set skeleton for tracks that don't exist
   * now undo without a repo isn't working
   * auto focus when you add a new block title
   * rename Score.TypedControl to TypedSignal since that's what it really is
@@ -112,13 +113,14 @@ UNSORTED
   more scales:
     * hijaz, for mixed sharps and flats
     - twelve, but relative to key and using numbers, aka jianpu
-    - twelve, but using a-h for octatonic and a-i for nononic, or a-f for
+    * twelve, but using a-h for octatonic and a-i for nononic, or a-f for
       whole tone
-      - Kbd input is still assuming piano layout.
-      - move common parts of Twelve and Octa to Theory
+      * Kbd input is still assuming piano layout.
+        I think that's ok, a MIDI keyboard will too after all.
+      * move common parts of Twelve and Octa to Theory
         Or maybe make a TwelveUtil, or put them in a Twelve section of Util.
-      - How to do both octa21 and octa12?  I could do them as keys, but then
-      one would be all accidentals.
+      * How to do both octa21 and octa12?  I could do them as keys, but then
+        one would be all accidentals.
     - letter and jianpu but with implicit accidentals based on the key
 
   - if I added the cmd name before running the cmd, I could put it in the

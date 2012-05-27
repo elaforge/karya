@@ -82,6 +82,7 @@ import Cmd.Lang.Environ ()
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Score as Score
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Scale as Scale
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 
@@ -396,7 +397,8 @@ setup_big = do
         mknotes notes = map UiTest.make_event
             [(i*0.25, 0.2, to_str (oct*12 + n))
                 | (i, (oct, n)) <- zip (Seq.range_ 0 1) notes]
-        to_str n = case Twelve.input_to_note Nothing (Pitch.InputKey n) of
+        to_str n = case Scale.scale_input_to_note Twelve.scale Nothing
+                (Pitch.InputKey n) of
             Just (Pitch.Note s) -> s
             Nothing -> error $ "converting " ++ show n
         mkdyn vels = map UiTest.make_event

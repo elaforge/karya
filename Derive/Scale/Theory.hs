@@ -23,8 +23,6 @@
 module Derive.Scale.Theory (
     read_pitch, read_note
     , diatonic_to_chromatic
-    -- * key
-    , read_key, show_key
     -- * symbolic transposition
     , transpose_diatonic, transpose_chromatic
     -- * input
@@ -32,12 +30,12 @@ module Derive.Scale.Theory (
     , enharmonics_of
     , pitch_to_semis, semis_to_pitch
     -- * types
-    , Pitch(..), Note(note_pc, note_accidentals)
-    , Key(key_layout)
+    , Pitch(..), Note(..), Semi
+    , Key(key_layout), key, show_key
+    , layout
     , show_pitch
-    , piano_layout, piano_notes, piano_pitches
 #ifndef TESTING
-    , Layout
+    , Layout(layout_intervals)
 #else
     , Layout(..)
     , calculate_signature, degree_of
@@ -46,7 +44,6 @@ module Derive.Scale.Theory (
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString as ByteString
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector as Boxed
 import qualified Data.Vector.Unboxed as Vector
@@ -102,37 +99,6 @@ chromatic_steps key note steps =
         else octaves * layout_semis_per_octave (key_layout key)
     middle = Vector.length table `div` 2
     table = key_transpose_table key
-
--- * parse key
-
-read_key :: Pitch.Key -> Maybe Key
-read_key key = Map.lookup key all_keys
-
-show_key :: Key -> Pitch.Key
-show_key key = Pitch.Key $ Pretty.pretty (key_tonic key) ++ "-" ++ key_name key
-
-all_keys :: Map.Map Pitch.Key Key
-all_keys = Map.fromList $ zip (map show_key keys) keys
-    where keys = church_keys ++ octatonic_keys ++ whole_keys ++ exotic_keys
-
-church_keys :: [Key]
-church_keys = concat (zipWith piano_keys modes intervals)
-    where
-    modes = ["min", "locrian", "maj", "dorian", "phrygian", "lydian", "mixo"]
-    minor = cycle $ Vector.toList (layout_intervals piano_layout)
-    intervals = [take 7 (drop n minor) | n <- [0..6]]
-
-octatonic_keys :: [Key]
-octatonic_keys = piano_keys "octa21" (take 8 (cycle [2, 1]))
-    ++ piano_keys "octa12" (take 8 (cycle [1, 2]))
-
-whole_keys :: [Key]
-whole_keys = piano_keys "whole" (replicate 6 2)
-
--- | Keys that are diatonic, but have nonstandard key signatures.
-exotic_keys :: [Key]
-exotic_keys = piano_keys "hijaz" [1, 3, 1, 2, 1, 2, 2]
-
 
 -- * symbolic transposition
 
@@ -352,15 +318,19 @@ type Intervals = Vector.Vector Semi
 -- Make a Key given intervals and a layout.  If the number of intervals are
 -- equal to the number of intervals in the layout, the scale is considered
 -- diatonic and will get a 'Signature'.
-key :: Note -> String -> Intervals -> Layout -> Key
+key :: Note -> String -> [Accidentals] -> Layout -> Key
 key tonic name intervals layout = Key
     { key_tonic = tonic
     , key_name = name
-    , key_intervals = intervals
-    , key_signature = generate_signature tonic layout intervals
-    , key_transpose_table = make_table (Vector.toList intervals)
+    , key_intervals = int
+    , key_signature = generate_signature tonic layout int
+    , key_transpose_table = make_table intervals
     , key_layout = layout
     }
+    where int = Vector.fromList intervals
+
+show_key :: Key -> Pitch.Key
+show_key key = Pitch.Key $ Pretty.pretty (key_tonic key) ++ "-" ++ key_name key
 
 -- | Precalculated transpositions so I can figure out a transposition with
 -- a single table lookup.  This goes out to two octaves on either direction
@@ -371,11 +341,6 @@ make_table :: [Int] -> Intervals
 make_table intervals = Vector.fromList $
     reverse (drop 1 (make (-) (reverse intervals))) ++ make (+) intervals
     where make f = take (length intervals * 2) . scanl f 0 . cycle
-
-piano_keys :: String -> [Semi] -> [Key]
-piano_keys name intervals =
-    [key tonic name (Vector.fromList intervals) piano_layout
-        | tonic <- piano_notes, abs (note_accidentals tonic) <= 1]
 
 generate_signature :: Note -> Layout -> Intervals -> Maybe Signature
 generate_signature tonic layout intervals
@@ -443,12 +408,13 @@ data Layout = Layout {
     , layout_enharmonics :: !(Boxed.Vector [(Octave, Note)])
     } deriving (Eq, Show)
 
-layout :: Intervals -> Layout
+layout :: [Accidentals] -> Layout
 layout intervals =
-    Layout intervals $ Boxed.fromList $
-        map (\n -> (0, n) : get_enharmonics intervals n) notes
+    Layout vec $ Boxed.fromList $
+        map (\n -> (0, n) : get_enharmonics vec n) notes
     where
-    notes = [Note pc accs | (pc, int) <- zip [0..] (Vector.toList intervals),
+    vec = Vector.fromList intervals
+    notes = [Note pc accs | (pc, int) <- zip [0..] intervals,
         accs <- [0..int-1]]
 
 get_enharmonics :: Intervals -> Note -> [(Octave, Note)]
@@ -471,13 +437,3 @@ get_enharmonics intervals (Note note_pc note_accs) =
 layout_at :: Intervals -> PitchClass -> Accidentals
 layout_at intervals pc =
     Maybe.fromMaybe 0 $ intervals Vector.!? (pc `mod` Vector.length intervals)
-
--- | The layout of keys on everyone's favorite boxed harp.
-piano_layout :: Layout
-piano_layout = layout $ Vector.fromList [2, 1, 2, 2, 1, 2, 2]
-
-piano_notes :: [Note]
-piano_notes = [Note pc accs | pc <- [0..6], accs <- [-2..2]]
-
-piano_pitches :: [Pitch]
-piano_pitches = [Pitch oct note | oct <- [-2..9], note <- piano_notes]
