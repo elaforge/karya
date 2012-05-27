@@ -20,6 +20,7 @@ import qualified Perform.Pitch as Pitch
 
 
 data ControlType =
+    -- | Control track with an optional combining operator.
     Control (Maybe TrackLang.CallId) (Score.Typed Score.Control)
     -- | Control is Nothing for default scale.
     | Pitch Pitch.ScaleId (Maybe Score.Control)

@@ -144,21 +144,30 @@ unparse (method, val) = case (pre, post) of
 -- the text is a call with a val call as its first argument, that's considered
 -- the pitch call.  Otherwise, if the text is just a call, that's the pitch
 -- call.  Otherwise the text is unchanged.
-modify_note :: (Pitch.Note -> Either String Pitch.Note)
-    -> String -> Either String String
-modify_note f text = case ParseBs.parse_expr (ParseBs.from_string text) of
+modify_note :: (Pitch.Note -> Either String Pitch.Note) -> String
+    -> Either String String
+modify_note f = modify_expr $ \note_str -> case note_str of
+    '(':rest ->
+        let (note, post) = break (`elem` " )") rest
+        in ('(':) . (++post) . Pitch.note_text <$> f (Pitch.Note note)
+    _ -> Pitch.note_text <$> f (Pitch.Note note_str)
+
+-- | Modify the note expression, e.g. in @i (a b c)@ it would be @(a b c)@,
+-- including the parens.
+modify_expr :: (String -> Either String String) -> String
+    -> Either String String
+modify_expr f text = case ParseBs.parse_expr (ParseBs.from_string text) of
     Left _ -> Right text
     Right expr -> case expr of
         [TrackLang.Call sym (TrackLang.ValCall _ : _)]
             | sym /= TrackLang.c_equal ->
-                let (pre, within) = Then.break1 (=='(') text
-                    (note, post) = break (`elem` " )") within
-                in (\n -> pre ++ Pitch.note_text n ++ post) <$>
-                    f (Pitch.Note note)
+                let (pre, within) = break (=='(') text
+                    (note, post) = Then.break1 (==')') within
+                in (\n -> pre ++ n ++ post) <$> f note
         [TrackLang.Call sym _]
             | sym /= TrackLang.c_equal ->
                 let (pre, post) = break (==' ') text
-                in (++post) . Pitch.note_text <$> f (Pitch.Note pre)
+                in (++post) <$> f pre
         _ -> Right text
 
 

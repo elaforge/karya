@@ -37,6 +37,8 @@ import Types
 -- | Convert a note to a degree by running a mini derivation just for it.
 -- This means that if the note does anything magic based on its environment,
 -- it will get the base environment for a derivation from scratch.
+--
+-- TODO I could take BlockId and TrackId and derive it in the proper environ.
 note_to_pitch :: (Cmd.M m) => Pitch.ScaleId -> Pitch.Note
     -> m (Either String PitchSignal.Pitch)
 note_to_pitch scale_id note = do

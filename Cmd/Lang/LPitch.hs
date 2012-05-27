@@ -13,15 +13,16 @@ import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import Types
 
 
 -- | Turn an nn back to a human-readable note name.
@@ -56,37 +57,43 @@ transpose_d oct steps =
 
 -- | Convert the selected absolute pitch track into a relative one by
 -- subtracting all the notes from the given base note.
-to_relative :: String -> Cmd.CmdL ()
-to_relative note_s = ModifyEvents.tracks_sorted $ \_ track_id events -> do
-    title <- Track.track_title <$> State.get_track track_id
-    case TrackInfo.parse_control title of
-        Right (TrackInfo.Pitch scale_id name) -> do
-            State.modify_track_title track_id $ const $ name_to_relative name
-            degree <- lookup_degree scale_id (Pitch.Note note_s)
-            Just <$> relative_events track_id degree events
-        val -> Cmd.throw $ "not an absolute pitch track: " ++ show val
+to_relative :: Bool -> String -> Cmd.CmdL ()
+to_relative diatonic note_s =
+    ModifyEvents.tracks_sorted $ \block_id track_id events -> do
+        -- This is tricky because it's converting a pitch track to a control
+        -- track, and hoping the same calls apply.
+        let base = Pitch.Note note_s
+        title <- Track.track_title <$> State.get_track track_id
+        case TrackInfo.parse_control title of
+            Right (TrackInfo.Pitch scale_id Nothing) -> do
+                scale <- Cmd.get_scale "LPitch.to_relative" scale_id
+                m_key <- Perf.get_key block_id (Just track_id)
+                State.set_track_title track_id $ add_control $
+                    if diatonic then Score.c_diatonic else Score.c_chromatic
+                ModifyEvents.failable_texts
+                    (relative_event diatonic scale m_key base)
+                    block_id track_id events
+                -- relative_events diatonic scale note block_id track_id events
+            control_type ->
+                Cmd.throw $ "not the default pitch track: " ++ show control_type
 
-lookup_degree :: (Cmd.M m) => Pitch.ScaleId -> Pitch.Note -> m Pitch.Degree
-lookup_degree = undefined
--- lookup_degree scale_id note = Cmd.require_right ("Unknown base note: "++)
---     =<< Perf.note_to_degree scale_id note
+-- | Make an absolute pitch call relative to the given base degree.
+relative_event :: Bool -> Scale.Scale -> Maybe Pitch.Key -> Pitch.Note
+    -> String -> Either String String
+relative_event diatonic scale m_key base = PitchTrack.modify_expr $ \text ->
+    case scale_diff scale m_key diatonic base (Pitch.Note text) of
+        Left err -> Left (show err)
+        Right note -> Right $ Pitch.note_text note
 
--- | Make the given absolute pitch events relative to the given base degree.
-relative_events :: (Cmd.M m) => TrackId -> Pitch.Degree -> [Events.PosEvent]
-    -> m [Events.PosEvent]
-relative_events track_id base events = do
-    undefined -- TODO I think I need a scale_nn_to_chromatic for this
-    -- degrees <- map PitchSignal.y_to_degree <$>
-    --     Perf.get_pitch_at track_id (map fst events)
-    -- let degrees2 = map (subtract base) degrees
-    -- return [(pos, set_note (Relative.degree_to_note degree) event)
-    --         | ((pos, event), degree) <- zip events degrees2]
+-- TODO unimplemented, it would have to a be a Scale method
+scale_diff :: Scale.Scale -> Maybe Pitch.Key -> Bool
+    -> Pitch.Note -> Pitch.Note -> Either Scale.ScaleError Pitch.Note
+scale_diff = undefined
 
--- -- | Make a relative pitch title from an optional pitch track name.
-name_to_relative :: Maybe Score.Control -> String
-name_to_relative = undefined
--- name_to_relative = TrackInfo.unparse_control
---     . TrackInfo.Pitch (TrackInfo.PitchRelative (TrackLang.Symbol "add"))
+-- | Make a control track title.
+add_control :: Score.Control -> String
+add_control control = TrackInfo.unparse_control $
+    TrackInfo.Control (Just (TrackLang.Symbol "add")) (Score.untyped control)
 
 set_note :: Pitch.Note -> Event.Event -> Event.Event
 set_note note = PitchTrack.modify f

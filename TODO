@@ -150,19 +150,8 @@ UNSORTED
   - fltk: some way to scroll that's not the scroll wheel
   - shakefile: can I print [# of #] when compiling?
 
-  abstract pitches
-    re-implement Cmd.Lang.LPitch.to_relative:
-      - Extract calls from track: parse each event and pull Calls from the
-        Expr.
-      - Get the environ of the block from the last derivation.
-      - Eval all the calls in the environ, select all the VPitch returning
-        ones.
-      - Get the scale from the environ, and call a new function
-        'chromatic_diff :: NoteNumber -> NoteNumber -> Chromatic'.
-      - Replace the VPitch returning calls with the result of the diff.  This
-        means the parser has to keep track of the text ranges that produced
-        each expression.
-    - implement labels for pitch tracks in fltk/EventTrack.cc
+  - Cmd.Lang.LPitch.to_relative: I would need to implement Scale.scale_diff
+    but I'm reluctant until I need to_relative or something similar
 
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
@@ -584,6 +573,7 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - implement labels for pitch tracks in fltk/EventTrack.cc
   - skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.
   - rethrow c++ exceptions as FltkError
