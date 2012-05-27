@@ -39,41 +39,37 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
 
--- * building
+-- * binding
 
--- | Binding with no modifiers.
-bind_key :: (Cmd.M m) => Key.Key -> String -> m a -> [Binding m]
-bind_key = bind_mod []
+-- | Bind a Key with no modifiers.
+plain_key :: (Cmd.M m) => Key.Key -> String -> m a -> [Binding m]
+plain_key = bind_key []
 
--- | Bind a char with no modifiers.
-bind_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
-bind_char char = bind_mod [] (Key.Char char)
+-- | Bind a Char with no modifiers.
+plain_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
+plain_char = plain_key . Key.Char
 
--- | Many cmds are mapped to both a plain keystroke and command key version.
+-- | Some cmds are mapped to both a plain keystroke and command key version.
 -- This is a little unusual, but it means the command can still be invoked when
--- an edit mode has taken over the alphanumeric keys.
-command :: (Cmd.M m) => Key.Key -> String -> m a -> [Binding m]
-command key desc cmd =
-    bind_key key desc cmd ++ bind_mod [PrimaryCommand] key desc cmd
+-- kbd entry has taken over the alphanumeric keys.
+plain_command_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
+plain_command_char c desc cmd =
+    plain_char c desc cmd ++ command_char c desc cmd
 
+-- | Bind a Char with the PrimaryCommand.
 command_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
-command_char char desc cmd =
-    bind_char char desc cmd ++ command_only char desc cmd
-
--- | But some commands are too dangerous to get a plain keystroke version.
-command_only :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
-command_only char = bind_mod [PrimaryCommand] (Key.Char char)
+command_char = bind_key [PrimaryCommand] . Key.Char
 
 -- | Bind a key with the given modifiers.
-bind_mod :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a -> [Binding m]
-bind_mod smods key desc cmd = bind smods (Key False key) desc (const cmd)
+bind_key :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a -> [Binding m]
+bind_key smods key desc cmd = bind smods (Key False key) desc (const cmd)
 
-bind_mod_status :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String
+bind_key_status :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String
     -> m Cmd.Status -> [Binding m]
-bind_mod_status smods key desc cmd =
+bind_key_status smods key desc cmd =
     bind_status smods (Key False key) desc (const cmd)
 
--- | Like 'bind_mod', but the binding will be retriggered on key repeat.
+-- | Like 'bind_key', but the binding will be retriggered on key repeat.
 bind_repeatable :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a
     -> [Binding m]
 bind_repeatable smods key desc cmd =
@@ -102,7 +98,8 @@ bind :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
 bind smods bindable desc cmd =
     bind_status smods bindable desc ((>> return Cmd.Done) . cmd)
 
--- | Bind a key with the given modifiers.
+-- | This is the most general Binding constructor: bind any Bindable with any
+-- modifiers, and don't assume the cmd returns Done.
 bind_status :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
     -> (Msg.Msg -> m Cmd.Status) -> [Binding m]
 bind_status smods bindable desc cmd =

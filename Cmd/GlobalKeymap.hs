@@ -52,8 +52,8 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap
-       (bind_key, bind_char, bind_mod, bind_mod_status, bind_repeatable,
-        bind_click, bind_drag, command, command_char, command_only,
+       (plain_key, plain_char, bind_key, bind_key_status, bind_repeatable,
+        bind_click, bind_drag, plain_command_char, command_char,
         SimpleMod(..))
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Msg as Msg
@@ -109,15 +109,15 @@ io_bindings = concat [file_bindings, undo_bindings, quit_bindings]
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
-    [ command_only 'S' "save" $ do
+    [ command_char 'S' "save" $ do
         Save.cmd_save =<< Save.get_save_file
         Save.cmd_save_git
     ]
 
 undo_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 undo_bindings = concat
-    [ command_only 'u' "undo" Undo.undo
-    , command_only 'r' "redo" Undo.redo
+    [ command_char 'u' "undo" Undo.undo
+    , command_char 'r' "redo" Undo.redo
     ]
 
 -- | This is unfortunate.  In order to construct the cmd map only once, I want
@@ -126,16 +126,16 @@ undo_bindings = concat
 -- map on each call.  Since there are not many cmds, I opt for the latter.
 player_bindings :: Transport.Info -> [Keymap.Binding (Cmd.CmdT IO)]
 player_bindings transport_info = concat
-    [ bind_mod_status [] Key.Enter "play block"
+    [ bind_key_status [] Key.Enter "play block"
         (Play.cmd_play_focused transport_info)
-    , bind_mod_status [Shift] Key.Enter "play from insert"
+    , bind_key_status [Shift] Key.Enter "play from insert"
         (Play.cmd_play_from_insert transport_info)
-    , bind_mod_status [PrimaryCommand] Key.Enter "play from previous step"
+    , bind_key_status [PrimaryCommand] Key.Enter "play from previous step"
         (Play.cmd_play_from_previous_step transport_info)
-    , bind_mod_status [Shift, PrimaryCommand] Key.Enter
+    , bind_key_status [Shift, PrimaryCommand] Key.Enter
         "play from previous root step"
         (Play.cmd_play_from_previous_root_step transport_info)
-    , bind_char ' ' "stop" Play.cmd_context_stop
+    , plain_char ' ' "stop" Play.cmd_context_stop
     ]
 
 -- | Quit is special because it's the only Cmd that returns Cmd.Quit.
@@ -217,7 +217,7 @@ selection_bindings = concat
     , bind_repeatable [Shift] Key.Left "extend shift selection left"
         (Selection.cmd_shift_selection selnum (-1) True)
 
-    , bind_mod [PrimaryCommand] (Key.Char 'a') "select track / all"
+    , bind_key [PrimaryCommand] (Key.Char 'a') "select track / all"
         (Selection.cmd_track_all selnum)
     ]
     where selnum = Config.insert_selnum
@@ -232,19 +232,19 @@ step_play_bindings = concat
         "step play rewind" StepPlay.cmd_rewind
     , bind_repeatable [Shift, PrimaryCommand] Key.Up
         "step play rewind" StepPlay.cmd_rewind
-    , bind_mod [PrimaryCommand] Key.Right
+    , bind_key [PrimaryCommand] Key.Right
         "step play here" (StepPlay.cmd_here False)
-    , bind_mod [Shift, PrimaryCommand] Key.Right
+    , bind_key [Shift, PrimaryCommand] Key.Right
         "step play tracks here" (StepPlay.cmd_here True)
     ]
 
 view_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
 view_config_bindings = concat
-    [ command_char '[' "zoom out *0.8"
+    [ plain_char '[' "zoom out *0.8"
         (ViewConfig.cmd_zoom_around_insert (*0.8))
-    , command_char ']' "zoom in *1.25"
+    , plain_char ']' "zoom in *1.25"
         (ViewConfig.cmd_zoom_around_insert (*1.25))
-    , command_char '\\' "zoom to fit"
+    , plain_char '\\' "zoom to fit"
         (ViewConfig.zoom_to_fit =<< Cmd.get_focused_view)
     , command_char  'R' "resize to fit"
         (ViewConfig.resize_to_fit =<< Cmd.get_focused_view)
@@ -252,46 +252,46 @@ view_config_bindings = concat
 
 block_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
 block_config_bindings = concat
-    [ bind_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
-    , bind_char 'S' "toggle solo" (BlockConfig.cmd_toggle_flag Block.Solo)
-    , command_only 'C' "toggle collapse"
+    [ plain_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
+    , plain_char 'S' "toggle solo" (BlockConfig.cmd_toggle_flag Block.Solo)
+    , command_char 'C' "toggle collapse"
         (BlockConfig.cmd_toggle_flag Block.Collapse)
-    , command_only 'M' "toggle merge all"
+    , command_char 'M' "toggle merge all"
         (BlockConfig.toggle_merge_all =<< Cmd.get_focused_block)
     ]
 
 -- | Global bindings for edit type things.
 edit_state_bindings :: (Cmd.M m) => [Keymap.Binding m]
 edit_state_bindings = concat
-    [ bind_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
-    , bind_mod [PrimaryCommand] Key.Escape "toggle raw edit"
+    [ plain_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
+    , bind_key [PrimaryCommand] Key.Escape "toggle raw edit"
         Edit.cmd_toggle_raw_edit
-    , bind_mod [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
+    , bind_key [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
 
-    , bind_mod [Shift] Key.Escape "toggle kbd entry mode"
+    , bind_key [Shift] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
 
     -- The convention from MakeRuler is: 0 = block, 1 = block section,
     -- 2 = whole, 3 = quarter, 4 = 16th, etc.  Since it goes to /4 after
     -- rank 2, I use a skip to keep the note divisions binary.
-    , command_only '0' "step rank 0+0" (step_rank 0 0) -- block
-    , command_only '1' "step rank 1+0" (step_rank 1 0) -- block section
-    , command_only '2' "step rank 2+0" (step_rank 2 0) -- whole
-    , command_only '3' "step rank 3+1" (step_rank 3 1) -- half
-    , command_only '4' "step rank 3+0" (step_rank 3 0) -- 4th
-    , command_only '5' "step rank 4+1" (step_rank 4 1) -- 8th
-    , command_only '6' "step rank 4+0" (step_rank 4 0) -- 16th
-    , command_only '7' "step rank 5+1" (step_rank 5 1) -- 32nd
-    , command_only '8' "step_rank 6+0" (step_rank 6 0) -- 64th
-    , command_only '9' "step_rank 7+0" (step_rank 7 0) -- 256th
+    , command_char '0' "step rank 0+0" (step_rank 0 0) -- block
+    , command_char '1' "step rank 1+0" (step_rank 1 0) -- block section
+    , command_char '2' "step rank 2+0" (step_rank 2 0) -- whole
+    , command_char '3' "step rank 3+1" (step_rank 3 1) -- half
+    , command_char '4' "step rank 3+0" (step_rank 3 0) -- 4th
+    , command_char '5' "step rank 4+1" (step_rank 4 1) -- 8th
+    , command_char '6' "step rank 4+0" (step_rank 4 0) -- 16th
+    , command_char '7' "step rank 5+1" (step_rank 5 1) -- 32nd
+    , command_char '8' "step_rank 6+0" (step_rank 6 0) -- 64th
+    , command_char '9' "step_rank 7+0" (step_rank 7 0) -- 256th
 
-    , command_only '`' "toggle step mode" Edit.toggle_mark_step
-    , command_only '~' "invert step" Edit.cmd_invert_step_direction
-    , bind_char '`' "toggle advance" Edit.toggle_advance
-    , bind_char '~' "toggle chord" Edit.toggle_chord
+    , command_char '`' "toggle step mode" Edit.toggle_mark_step
+    , command_char '~' "invert step" Edit.cmd_invert_step_direction
+    , plain_char '`' "toggle advance" Edit.toggle_advance
+    , plain_char '~' "toggle chord" Edit.toggle_chord
 
-    , bind_char '-' "octave -1" (Edit.cmd_modify_octave (subtract 1))
-    , bind_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
+    , plain_char '-' "octave -1" (Edit.cmd_modify_octave (subtract 1))
+    , plain_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
     ]
     where
     meter = TimeStep.NamedMarklists [MakeRuler.meter_marklist]
@@ -305,25 +305,25 @@ edit_state_bindings = concat
 event_bindings :: (Cmd.M m) => [Keymap.Binding m]
 event_bindings = concat
     -- J = move previous event down, K = move next event up.
-    [ command_char 'J' "move event forward" Edit.cmd_move_event_forward
-    , command_char 'K' "move event back" Edit.cmd_move_event_back
-    , command_char 'j' "insert time" Edit.cmd_insert_time
-    , command_char 'k' "delete time" Edit.cmd_delete_time
+    [ plain_command_char 'J' "move event forward" Edit.cmd_move_event_forward
+    , plain_command_char 'K' "move event back" Edit.cmd_move_event_back
+    , plain_command_char 'j' "insert time" Edit.cmd_insert_time
+    , plain_command_char 'k' "delete time" Edit.cmd_delete_time
     -- Unlike other event editing commands, you don't have to be in insert
     -- mode to remove events.  Maybe I'll change that later.
-    , command Key.Backspace "clear selected" Edit.cmd_clear_selected
-    , command_char 'o' "join events" Edit.cmd_join_events
+    , plain_key Key.Backspace "clear selected" Edit.cmd_clear_selected
+    , plain_command_char 'o' "join events" Edit.cmd_join_events
 
-    , command_char 's' "set dur" Edit.cmd_set_duration
-    , command_char 'z' "toggle zero-dur" Edit.cmd_toggle_zero_duration
-    , command_char 'g' "set beginning" Edit.cmd_set_beginning
+    , plain_command_char 's' "set dur" Edit.cmd_set_duration
+    , plain_command_char 'z' "toggle zero-dur" Edit.cmd_toggle_zero_duration
+    , plain_command_char 'g' "set beginning" Edit.cmd_set_beginning
 
-    , bind_char '_' "insert track end" Edit.cmd_insert_track_end
-    , bind_char '!' "insert recent 1" (Edit.cmd_insert_recent 1)
-    , bind_char '@' "insert recent 2" (Edit.cmd_insert_recent 2)
-    , bind_char '#' "insert recent 3" (Edit.cmd_insert_recent 3)
-    , bind_char '$' "insert recent 4" (Edit.cmd_insert_recent 4)
-    , bind_char '%' "cycle enharmonic"
+    , plain_char '_' "insert track end" Edit.cmd_insert_track_end
+    , plain_char '!' "insert recent 1" (Edit.cmd_insert_recent 1)
+    , plain_char '@' "insert recent 2" (Edit.cmd_insert_recent 2)
+    , plain_char '#' "insert recent 3" (Edit.cmd_insert_recent 3)
+    , plain_char '$' "insert recent 4" (Edit.cmd_insert_recent 4)
+    , plain_char '%' "cycle enharmonic"
         (PitchTrack.pitches PitchTrack.cycle_enharmonics)
     ]
 
@@ -334,48 +334,48 @@ pitch_bindings :: (Cmd.M m) => [Keymap.Binding m]
 pitch_bindings = concat
     -- These are named after the vi commands for up and down, but they don't
     -- feel right.
-    [ command_only 'y' "transpose up chromatic degree"
+    [ command_char 'y' "transpose up chromatic degree"
         (PitchTrack.transpose_selection 0 (Pitch.Chromatic 1))
-    , command_only 'e' "transpose down chromatic degree"
+    , command_char 'e' "transpose down chromatic degree"
         (PitchTrack.transpose_selection 0 (Pitch.Chromatic (-1)))
-    , bind_mod [SecondaryCommand] (Key.Char 'y')
+    , bind_key [SecondaryCommand] (Key.Char 'y')
         "transpose up diatonic degree"
         (PitchTrack.transpose_selection 0 (Pitch.Diatonic 1))
-    , bind_mod [SecondaryCommand] (Key.Char 'e')
+    , bind_key [SecondaryCommand] (Key.Char 'e')
         "transpose down diatonic degree"
         (PitchTrack.transpose_selection 0 (Pitch.Diatonic (-1)))
-    , command_only 'Y' "transpose up octave"
+    , command_char 'Y' "transpose up octave"
         (PitchTrack.transpose_selection 1 (Pitch.Chromatic 0))
-    , command_only 'E' "transpose down octave"
+    , command_char 'E' "transpose down octave"
         (PitchTrack.transpose_selection (-1) (Pitch.Chromatic 0))
     ]
 
 create_bindings :: (Cmd.M m) => [Keymap.Binding m]
 create_bindings = concat
-    [ command_only 't' "insert track" Create.insert_track
-    , command_only 'T' "splice track below" Create.splice_below
-    , command_only 'H' "splice track above ancestors"
+    [ command_char 't' "insert track" Create.insert_track
+    , command_char 'T' "splice track below" Create.splice_below
+    , command_char 'H' "splice track above ancestors"
         Create.splice_above_ancestors
-    , command_only 'd' "delete tracks" Create.destroy_selected_tracks
+    , command_char 'd' "delete tracks" Create.destroy_selected_tracks
 
-    , command_only 'n' "create view"
+    , command_char 'n' "create view"
         (Create.fitted_view =<< Cmd.get_focused_block)
     -- For the moment, never destroy blocks when closing the view.
-    , command_only 'w' "destroy view"
+    , command_char 'w' "destroy view"
         (State.destroy_view =<< Cmd.get_focused_view)
-    , command_only 'W' "destroy block"
+    , command_char 'W' "destroy block"
         (Create.destroy_block =<< Cmd.get_focused_block)
-    , command_only 'b' "create block"
+    , command_char 'b' "create block"
         (Create.block_from_template False =<< Cmd.get_focused_block)
-    , command_only 'B' "create block template"
+    , command_char 'B' "create block template"
         (Create.block_from_template True =<< Cmd.get_focused_block)
     ]
 
 clip_bindings :: (Cmd.M m) => [Keymap.Binding m]
 clip_bindings = concat
-    [ command_only 'c' "copy selection" Clip.cmd_copy_selection
-    , command_only 'x' "cut selection" Clip.cmd_cut_selection
-    , command_only 'v' "paste selection" Clip.cmd_paste_overwrite
-    , command_only 'V' "insert selection" Clip.cmd_paste_insert
-    , command_only 'i' "merge selection" Clip.cmd_paste_merge
+    [ command_char 'c' "copy selection" Clip.cmd_copy_selection
+    , command_char 'x' "cut selection" Clip.cmd_cut_selection
+    , command_char 'v' "paste selection" Clip.cmd_paste_overwrite
+    , command_char 'V' "insert selection" Clip.cmd_paste_insert
+    , command_char 'i' "merge selection" Clip.cmd_paste_merge
     ]
