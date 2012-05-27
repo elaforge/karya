@@ -1,21 +1,12 @@
 UNSORTED
-  * now undo without a repo isn't working
-  * auto focus when you add a new block title
-  * rename Score.TypedControl to TypedSignal since that's what it really is
-  * I think fractional offset for twelve is totally off
-  * fix convert to pretty print, Convert.hs:70
-  * put the bloom score in the profile test as a more realistic derive profile
   integrate that converts Score.Events back into Ui Events
     + implement and test for reverse
     - test that reintegrating a simple block gives it back again
-    * skel is linked
     + sort tracks by orig tracknums so they come back in the same order
       Staved off by adding a leading 0 to TrackIds so they sort right, but
       I'll need to switch to TrackNums to do this for real.
     - why does creating a track at 0 in Integrate cause an error on tracknum -1?
     - add quantization
-    * If the block uses a default tempo, it will get applied once during
-      integration, and again when it's played.  Should cancel it out.
     - split tracks on overlapping notes since some calls make them (e.g. block
       calls)
     reintegration: merge changes back into the derived block after its source
@@ -72,60 +63,15 @@ UNSORTED
       repl: 100m + 47 to load seq libs
     darwin:
 
-  * rename functions in GlobalKeymap, e.g. command_char should be
-    command_and_char
-  * make PitchTrack.modify_note ignore events it doesn't recognize
-  finish Theory
-    * diatonic_to_chromatic
-    * add hijaz
-    * Figure out how to calculate the signature from the intervals.  Does
-      this mean I can get rid of the major_intervals nonsense and calculate it
-      all based on layout + intervals?
-    * Document the difference between PitchClass and Degree.
-    * document the lack of checking that PitchClass is in range, put some
-      checking wrappers around external functions
-    * Theory wraps around at A, while the existing code wraps around at C.
-      C is more standard, but A is more regular.  Should I switch to A?
-    * test current binding
-    * fix PitchTrack_test.test_transpose
-    * add Scale field and cmds for enharmonics_of
-    * If it can't parse the key it defaults to c-maj, which seems confusing.
-      It should default to c-maj if there's no key, and return an error if
-      the key is unparseable.  Maybe the scale should have a 'lookup_key'
-      function instead?
-  * The scale for an instrument track picks up the default scale rather than
-    the scale of the pitch below it.
-    * Have to make sure it stashes TrackEnviron in the inverted track... but
-      that's a lot of little fragments.
-      If the note track refrains from putting itself in TrackEnviron when it
-      has children, then the first child can put itself in, the rest will be
-      ignored.
-  * I should wait to put the block on the stack until I'm definitely calling
-    it, not pre-invert and again post-invert.
-  * Get rid of Derive.gcall_block and all the nonsense in Derive.Call.Block
-    to support it.
-  * export list for Derive.Call.Note
-  * DeriveTest:378 could use unparse_ui_frame_
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
     and Derive.CallInfo.  Can I factor out the common bits?
-  * getting parent->child out of range for untitled, how did that happen?
-  more scales:
-    * hijaz, for mixed sharps and flats
+  keys / scales / Theory:
+    - support scales that are different ascending vs. descending
     - twelve, but relative to key and using numbers, aka jianpu
-    * twelve, but using a-h for octatonic and a-i for nononic, or a-f for
-      whole tone
-      * Kbd input is still assuming piano layout.
-        I think that's ok, a MIDI keyboard will too after all.
-      * move common parts of Twelve and Octa to Theory
-        Or maybe make a TwelveUtil, or put them in a Twelve section of Util.
-      * How to do both octa21 and octa12?  I could do them as keys, but then
-        one would be all accidentals.
     - letter and jianpu but with implicit accidentals based on the key
 
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
-  * working with breath instruments is awkward, it keeps resetting the breath
-    to 0.  NoteOns could send breath for Pressure instruments.
   - Breath kbd_input keys only work if chorded with a note, since otherwise
     controls with a NoteOff'ed note_id are not emitted.  Change this?
   - I feel like show_val should be exported from ParseBs.
@@ -133,10 +79,6 @@ UNSORTED
     edits without leaving val edit.  Maybe don't do it for pitch val edit.
     Try going back to using the name to suppress, but ignore cmds with no
     name.
-  * The unions in Derive.Call.All should also emit shadowed names so they can
-    be warned about.
-  * Get rid of Events in TrackUpdate, this should eliminate the history
-    updates inversion nonsense.
   - There are still some cmds without names, who are they?
   incremental save
     - more exhaustive tests
@@ -191,13 +133,6 @@ UNSORTED
     Git docs:
       http://progit.org/book/ch9-2.html
 
-  * copy with a point sel should copy the event right underneath
-  * aliases in App.Main for loopback ports
-  * ^T doesn't set focus in the track title
-  * adding a new track should also scroll over so it's visible
-  * when simultaneously adding a track and scrolling, the new track's title
-    text entry isn't drawn properly
-  * tr2 is a baroque style trill starting on the top note
   - need control and pitch call that drops down at a given slope
     Why isn't i> sufficient?
   - It can be really confusing how undo and redo makes windows pop up and
@@ -208,7 +143,6 @@ UNSORTED
     - play
   - do the 'play this list of events' thing, send it over to the play thread
     just without an updater, so space will still kill it
-  * can I get a lang cmd to show the environ at a certain point?
   - repl likes to segfault if it has to reload a lot of modules.
 
   - key not applied in inner blocks, local play should take the root play's
@@ -229,15 +163,6 @@ UNSORTED
         means the parser has to keep track of the text ranges that produced
         each expression.
     - implement labels for pitch tracks in fltk/EventTrack.cc
-    diatonic transposition
-      - support input key and enharmonics
-      - add flip enharmonic cmd
-      - default key should be chromatic, which makes diatonic transpositions
-        chromatic
-      - support for non-circle-of-fifths key signatures (e.g. sharps and flats
-        in arbitrary places)
-        Key: sharps and flats per degree, then derive the intervals from that
-      - support scales that are different ascending vs. descending
 
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
@@ -330,7 +255,6 @@ UNSORTED
   input:
     - should val edit on note tracks advance on backspace?  I should have
       a consistent story about when the cursor advances and when it doesn't.
-
     - flag for unpitched instruments, so they don't get pitch tracks
 
   play:
@@ -345,7 +269,7 @@ UNSORTED
 
 MILESTONES
   0.1
-    - support diatonics, enharmonics, and symbolic transposition for church
+    * support diatonics, enharmonics, and symbolic transposition for church
       modes, modes of limited transposition, and exotic scales
       (e.g. octatonic a-h)
     * record chords
@@ -360,7 +284,7 @@ MILESTONES
     - dense / efficient control signals
     * derive cache
     * symbolic score
-    + save undo history / incremental save
+    + save undo history / incremental save - finish libgit2 backend and test
     - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
     + jack support on linux
     - simple csound backend
@@ -660,10 +584,8 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
-  * word disappears before wrapping, this is especially bad on linux
   - skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.
-  * after creating a new track, focus should go to its title
   - rethrow c++ exceptions as FltkError
   - auto add pitch track when a track title input is expanded crashes with
     assertion error 'title->w() == body->w()'
@@ -1052,7 +974,6 @@ Derive:
         tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
   Derive.Scale scales
     - implement pengumbang pengisep
-    * enharmonics for Twelve
     - just intonation tuned to a pitch signal
     - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
     - retune a note depending on the previous interval (e.g. sloppy pitches
@@ -1060,7 +981,6 @@ Derive:
       I think this has to be postproc.
     - Ratio based notation where the ratios are from the previous pitch.
       Should be able to do this with val calls.
-    - octatonic
     - parser for scala .scl files
 
    - Control track management?  It should be possible to have a note or a bunch
