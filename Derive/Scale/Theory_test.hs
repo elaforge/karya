@@ -6,6 +6,8 @@ import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Scale.TwelveUtil as TwelveUtil
+
 import qualified Perform.Pitch as Pitch
 
 
@@ -146,7 +148,7 @@ test_degree_of = do
 
 key :: String -> Theory.Key
 key name = either (error $ "can't parse key: " ++ show name) id $
-    Twelve.read_key (Just (Pitch.Key name))
+    TwelveUtil.read_key Twelve.system (Just (Pitch.Key name))
 
 p :: String -> Theory.Pitch
 p s = Maybe.fromMaybe (error $ "can't parse pitch: " ++ show s) $

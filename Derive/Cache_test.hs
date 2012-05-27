@@ -263,7 +263,7 @@ test_sliced_score_damage = do
     where
     blocks =
         [ (("b9", b9), [(1, 2), (2, 3)])
-        , (("b28", b28), [(1, 2)])
+        , (("b28", b28), [])
         ]
     b9 =
         [ (">", [(4, 0, "`arp-up`")])
@@ -284,7 +284,7 @@ test_sliced_control_damage = do
     where
     blocks =
         [ (("top", top), [(1, 2), (2, 3)])
-        , (("sub", sub), [(1, 2)])
+        , (("sub", sub), [])
         ]
     top =
         [ ("vel", [(6, 0, "1")])

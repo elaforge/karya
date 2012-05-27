@@ -59,7 +59,7 @@ test_make_cmd = do
 
 test_key_repeat = do
     let (cmd_map, _) = Keymap.make_cmd_map $ concat
-            [ Keymap.bind_key (Key.Char '1') "1" cmd1
+            [ Keymap.plain_char '1' "1" cmd1
             , Keymap.bind_repeatable [] (Key.Char '2') "2" cmd2
             ]
     let cmd = Keymap.make_cmd cmd_map
@@ -94,12 +94,12 @@ cmd2 = Log.notice "cmd2"
 
 binds :: [Keymap.Binding Cmd.CmdId]
 binds = concat
-    [ Keymap.bind_key (Key.Char '1') "1" cmd1
-    , Keymap.bind_key (Key.Char '1') "12" cmd1
-    , Keymap.bind_key (Key.Char '2') "2" cmd2
-    , Keymap.bind_mod [] (Key.Char '#') "s-3" cmd1
-    , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.Char '1') "c-1" cmd1
-    , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.Char '!') "cs-1" cmd1
+    [ Keymap.plain_char '1' "1" cmd1
+    , Keymap.plain_char '1' "12" cmd1
+    , Keymap.plain_char '2' "2" cmd2
+    , Keymap.bind_key [] (Key.Char '#') "s-3" cmd1
+    , Keymap.bind_key [Keymap.PrimaryCommand] (Key.Char '1') "c-1" cmd1
+    , Keymap.bind_key [Keymap.PrimaryCommand] (Key.Char '!') "cs-1" cmd1
     , Keymap.bind_click [Keymap.Mouse 1] 2 Keymap.OnTrack 1 "chord-12"
         (const cmd1)
     , Keymap.bind_drag [] 3 Keymap.OnTrack "drag-3" (const cmd1)
