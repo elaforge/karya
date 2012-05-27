@@ -305,7 +305,7 @@ print_devs opened_rdevs rdevs wdevs = do
 arrival_beats = False
 
 auto_setup_cmd :: Cmd.CmdIO
-auto_setup_cmd = setup_normal
+auto_setup_cmd = setup_small
 
 setup_generate :: String -> Cmd.CmdIO
 setup_generate gen = do
@@ -335,6 +335,24 @@ load_mod fn = do
     LoadMod.create (Id.unsafe_namespace $ head (Seq.split "." fn))
         (LoadMod.convert_blocks 0.25 blocks2)
     State.set_midi_config $ make_midi_config "ptq" [("ptq/c1", [0..8])]
+    return Cmd.Done
+
+setup_small :: (Cmd.M m) => m Cmd.Status
+setup_small = do
+    (bid, vid) <- empty_block
+    note <- Create.empty_track bid 2
+    State.insert_events note $ map UiTest.make_event
+        [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")]
+    State.set_track_title note ">ptq/c"
+    pitch <- Create.empty_track bid 4
+    State.insert_events pitch $ map UiTest.make_event
+        [(0, 0, "5c"), (1, 0, "5d"), (2, 0, "5e"), (3, 0, "5f")]
+    State.set_track_title pitch "*twelve"
+    State.modify_track_render pitch $ \render ->
+        render { Track.render_style = Track.Line }
+    State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3)]
+    State.set_midi_config (make_midi_config "ptq" [("ptq/c", [0..2])])
+    Selection.set vid (Just (Types.point_selection 2 0))
     return Cmd.Done
 
 setup_normal :: (Cmd.M m) => m Cmd.Status

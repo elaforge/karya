@@ -140,7 +140,9 @@ SkeletonDisplay::draw()
         int parent = parent_child[i].first;
         int child = parent_child[i].second;
         if (!(0 <= parent && parent<tracks) || !(0 <= child && child<tracks)) {
-            DEBUG("parent->child out of range: " << parent << "->" << child);
+            // +1 because the ruler track has been subtracted.
+            DEBUG("parent->child out of range: " << parent + 1 << "->"
+                << child + 1);
             continue;
         }
         int cx = track_centers[child] + this->x();

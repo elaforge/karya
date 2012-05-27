@@ -543,8 +543,15 @@ set_skeleton block_id skel = modify_skeleton block_id (const skel)
 
 modify_skeleton :: (M m) => BlockId
     -> (Skeleton.Skeleton -> Skeleton.Skeleton) -> m ()
-modify_skeleton block_id f = modify_block block_id $
-    \block -> block { Block.block_skeleton = f (Block.block_skeleton block) }
+modify_skeleton block_id f = do
+    block <- get_block block_id
+    let skel = f (Block.block_skeleton block)
+        tracks = length $ Block.block_tracks block
+    forM_ (Skeleton.flatten skel) $ \(parent, child) ->
+        unless (0<=parent && parent < tracks && 0 <= child && child < tracks) $
+            throw $ "modify_skeleton: " ++ show (parent, child)
+                ++ " out of range for " ++ show block_id
+    modify_block block_id $ \block -> block { Block.block_skeleton = skel }
 
 -- | Toggle the given edge in the block's skeleton.  If a cycle would be
 -- created, refuse to add the edge and return False.  The edge is in (parent,

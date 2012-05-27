@@ -1,5 +1,4 @@
 UNSORTED
-  - fltk level shouldn't let hs set skeleton for tracks that don't exist
   * now undo without a repo isn't working
   * auto focus when you add a new block title
   * rename Score.TypedControl to TypedSignal since that's what it really is
@@ -109,7 +108,7 @@ UNSORTED
   * DeriveTest:378 could use unparse_ui_frame_
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
     and Derive.CallInfo.  Can I factor out the common bits?
-  - getting parent->child out of range for untitled, how did that happen?
+  * getting parent->child out of range for untitled, how did that happen?
   more scales:
     * hijaz, for mixed sharps and flats
     - twelve, but relative to key and using numbers, aka jianpu
