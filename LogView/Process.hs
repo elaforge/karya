@@ -355,10 +355,13 @@ tail_file log_chan filename seek = do
             when (n /= 0) $ do
                 IO.hGetLine hdl -- make sure I'm at a line boundary
                 return ()
-    forever $ do
-        line <- tail_getline hdl
+    loop hdl =<< IO.hFileSize hdl
+    where
+    loop hdl size = do
+        line <- tail_getline hdl size
         msg <- deserialize_line line
         STM.atomically $ STM.writeTChan log_chan msg
+        loop hdl =<< IO.hFileSize hdl
 
 deserialize_line :: String -> IO Log.Msg
 deserialize_line line = do
@@ -368,11 +371,17 @@ deserialize_line line = do
             ++ show exc ++ ", line was: " ++ show line
         Right msg -> return msg
 
-tail_getline :: IO.Handle -> IO String
-tail_getline hdl = do
-    while_ (IO.hIsEOF hdl) $
+tail_getline :: IO.Handle -> Integer -> IO String
+tail_getline hdl size = do
+    eof <- IO.hIsEOF hdl
+    if eof then do
+        new_size <- IO.hFileSize hdl
+        when (new_size < size) $
+            IO.hSeek hdl IO.AbsoluteSeek 0
         Thread.delay 0.5
-    -- Since hGetLine in its infinite wisdom chops the newline it's impossible
-    -- to tell if this is a complete line or not.  I'll set LineBuffering and
-    -- hope for the best.
-    IO.hGetLine hdl
+        tail_getline hdl new_size
+    else do
+        -- Since hGetLine in its infinite wisdom chops the newline it's
+        -- impossible to tell if this is a complete line or not.  I'll set
+        -- LineBuffering and hope for the best.
+        IO.hGetLine hdl
