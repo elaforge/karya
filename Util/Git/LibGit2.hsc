@@ -101,8 +101,8 @@ type ObjType = CInt
 #starttype git_tree_diff_data
 -- Only the fields I need.
 -- #field old_attr, CUInt
--- #field new_attr, CUInt
--- #field old_oid, OID
+#field new_attr, CUInt
+#field old_oid, OID
 #field new_oid, OID
 #field status, <git_status_t>
 #field path, CString
@@ -210,6 +210,8 @@ type ObjType = CInt
 -- void git_revwalk_free(git_revwalk *walk);
 #ccall git_revwalk_free, Ptr <git_revwalk> -> IO ()
 
+-- int git_revwalk_push(git_revwalk *walk, const git_oid *oid);
+#ccall git_revwalk_push, Ptr <git_revwalk> -> Ptr OID -> IO Error
 -- int git_revwalk_push_ref(git_revwalk *walk, const char *refname);
 #ccall git_revwalk_push_ref, Ptr <git_revwalk> -> CString -> IO Error
 -- void git_revwalk_sorting(git_revwalk *walk, unsigned int sort_mode);
@@ -223,7 +225,7 @@ type SortMode = CUInt
 
 -- * OID
 
-newtype OID = OID ByteString.ByteString deriving (Eq, Show)
+newtype OID = OID ByteString.ByteString deriving (Eq, Ord, Show)
 
 instance Storable OID where
     sizeOf _ = #size git_oid

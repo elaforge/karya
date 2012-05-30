@@ -64,7 +64,8 @@ test_make_dir = do
 
 test_write_dir = do
     repo <- new_repo
-    let Right dir1 = Git.make_dir [("a/b", "abc"), ("d", "def")]
+    let dir1 = expect_right "make_dir" $
+            Git.make_dir [("a/b", "abc"), ("d", "def")]
     tree <- Git.write_dir repo dir1
     dir2 <- Git.read_dir repo tree
     equal dir1 dir2
@@ -79,6 +80,16 @@ test_modify_dir = do
         ]
     tree <- Git.modify_dir repo tree [Git.Remove "a/b", Git.Add "c" "qqq"]
     io_equal (Git.read_dir repo tree) $ Map.fromList [("c", Git.File "qqq")]
+
+test_diff_trees = do
+    repo <- new_repo
+    let dir = expect_right "make_dir" $
+            Git.make_dir [("a/b", "abc"), ("d", "def")]
+    tree1 <- Git.write_dir repo dir
+    tree2 <- Git.modify_dir repo tree1 [Git.Add "a/b" "def"]
+    io_equal (Git.diff_trees repo tree1 tree2) [Git.Add "a/b" "def"]
+    tree3 <- Git.modify_dir repo tree1 [Git.Remove "a/b"]
+    io_equal (Git.diff_trees repo tree2 tree3) [Git.Remove "a/b"]
 
 
 -- * implementation

@@ -8,7 +8,32 @@
 -- - Apparently there's no way to modify an index directly, without going
 -- through a filesystem.  E.g. no equivalent to git update-index --index-info.
 -- git_index_add() insists the file exists.
-module Util.Git.Git2 where
+module Util.Git.Git2 (
+    Blob, Tree, Commit
+    , Repo, FileName, Ref
+    -- * repo
+    , init
+    -- * basic types
+    , write_blob, read_blob
+    , write_tree, read_tree, diff_trees
+    , CommitData(..), parse_commit, write_commit, read_commit, diff_commits
+    -- * refs
+    , write_ref, read_ref
+    , read_refs, read_ref_map
+    , write_symbolic_ref, read_symbolic_ref
+    -- ** HEAD
+    , update_head, read_head_commit, write_head, read_head
+
+    -- * revwalk
+    , read_log, read_log_from, read_log_head
+    -- * misc
+    , gc
+    -- * higher level
+    , Modification(..), Dir, File(..)
+    , make_dir, write_dir, read_dir, modify_dir
+    -- * errors
+    , G.throw, G.GitException(..)
+) where
 import Prelude hiding (init)
 import qualified Control.Exception as Exception
 import qualified Data.Bits as Bits
@@ -35,9 +60,9 @@ import qualified Util.Process as Process
 import qualified Util.Seq as Seq
 
 
-newtype Blob = Blob G.OID deriving (Eq, Show)
-newtype Tree = Tree G.OID deriving (Eq, Show)
-newtype Commit = Commit G.OID deriving (Eq, Show)
+newtype Blob = Blob G.OID deriving (Eq, Ord, Show)
+newtype Tree = Tree G.OID deriving (Eq, Ord, Show)
+newtype Commit = Commit G.OID deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Blob where
     pretty (Blob (G.OID oid)) = Char8.unpack oid
@@ -141,6 +166,11 @@ with_tree repop (Tree oid) io = with oid $ \oidp -> alloca $ \treepp -> do
     treep <- peek treepp
     io treep `Exception.finally` G.c'git_tree_free treep
 
+parse_commit :: String -> Maybe Commit
+parse_commit str
+    | length str == 40 = Just $ Commit $ G.OID $ Char8.pack str
+    | otherwise = Nothing
+
 write_commit :: Repo -> String -> String -> [Commit] -> Tree -> String
     -> IO Commit
 write_commit repo user email parents tree description =
@@ -200,30 +230,48 @@ diff_commits :: Repo -> Commit -> Commit -> IO [Modification]
 diff_commits repo old new = with_repo repo $ \repop -> do
     oldc <- read_commit_repo repop old
     newc <- read_commit_repo repop new
-    diff_tree repo (commit_tree oldc) (commit_tree newc)
+    diff_trees repo (commit_tree oldc) (commit_tree newc)
 
-diff_tree :: Repo -> Tree -> Tree -> IO [Modification]
-diff_tree repo old new =
+diff_trees :: Repo -> Tree -> Tree -> IO [Modification]
+diff_trees repo old new =
     with_repo repo $ \repop -> diff_tree_repo repop old new
 
 diff_tree_repo :: G.Repo -> Tree -> Tree -> IO [Modification]
-diff_tree_repo repop old new =
-    with_tree repop old $ \oldp -> with_tree repop new $ \newp -> do
+diff_tree_repo repop old new = do
+    ddata <- with_tree repop old $ \oldp -> with_tree repop new $ \newp -> do
         ref <- IORef.newIORef []
-        with_fptr (G.mk'git_tree_diff_cb (diff repop ref)) $ \callback -> do
+        with_fptr (G.mk'git_tree_diff_cb (diff_cb ref)) $ \callback -> do
             G.check "tree_diff" $ G.c'git_tree_diff oldp newp callback nullPtr
             IORef.readIORef ref
+    concat <$> mapM to_mod ddata
     where
-    diff repop ref datap _ptr = do
-        G.C'git_tree_diff_data new_oid status pathp <- peek datap
-        path <- peekCString pathp
-        mod <- if status == G.c'GIT_STATUS_DELETED
-            then return $ Remove path
-            else do
-                bytes <- read_blob_repo repop (Blob new_oid)
-                return $ Add path bytes
-        IORef.modifyIORef ref (mod:)
+    diff_cb ref datap _ptr = do
+        ddata <- peek datap
+        path <- peekCString (G.c'git_tree_diff_data'path ddata)
+        IORef.modifyIORef ref ((path, ddata):)
         return 0
+    to_mod (path, G.C'git_tree_diff_data new_attr old_oid new_oid status _pathp)
+        | is_dir new_attr = do
+            vs <- map (prepend path) <$>
+                diff_tree_repo repop (Tree old_oid) (Tree new_oid)
+            putStrLn $ path ++ " is dir " ++ show vs
+            return vs
+        | status == G.c'GIT_STATUS_DELETED = do
+            putStrLn $ "removed: " ++ show new_attr
+            return [Remove path]
+            -- if is_dir new_attr then return []
+            -- else return [Remove path]
+        | status /= G.c'GIT_STATUS_ADDED && status /= G.c'GIT_STATUS_MODIFIED =
+            G.throw $ "diff_trees " ++ show (old, new) ++ ": unknown status: "
+                ++ show status
+        | is_dir new_attr = map (prepend path) <$>
+            diff_tree_repo repop (Tree old_oid) (Tree new_oid)
+        | otherwise = do
+            bytes <- read_blob_repo repop (Blob new_oid)
+            return [Add path bytes]
+    is_dir = (==0x4000)
+    prepend dir (Add name bytes) = Add (dir </> name) bytes
+    prepend dir (Remove name) = Remove (dir </> name)
 
 -- ** refs
 
@@ -334,6 +382,14 @@ read_log repo ref = with_repo repo $ \repop -> with_ref_name ref $ \refnamep ->
             G.c'git_revwalk_push_ref walkp refnamep
         walk walkp [SortTime]
 
+-- | Read commits starting from the given commit.
+read_log_from :: Repo -> Commit -> IO [Commit]
+read_log_from repo (Commit commit) = with_repo repo $ \repop ->
+    with commit $ \oidp -> with_revwalk repop $ \walkp -> do
+        G.check ("revwalk_push: " ++ show commit) $
+            G.c'git_revwalk_push walkp oidp
+        walk walkp [SortTime]
+
 -- | Get commits in reverse chronological order from the HEAD.
 read_log_head :: Repo -> IO [Commit]
 read_log_head repo = read_log repo =<< read_head repo
@@ -378,7 +434,7 @@ gc repo = void $ git repo ["gc", "--aggressive"] ""
 -- * higher level
 
 data Modification = Remove FilePath | Add FilePath ByteString
-    deriving (Show)
+    deriving (Eq, Show)
 
 instance Pretty.Pretty Modification where
     pretty (Remove fn) = "rm " ++ fn

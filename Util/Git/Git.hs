@@ -35,8 +35,8 @@ instance Pretty.Pretty Tree where pretty (Tree hash) = unparse_hash hash
 instance Pretty.Pretty Commit where pretty (Commit hash) = unparse_hash hash
 
 type Repo = FilePath
--- | Repo-internal path.  Should not contain slashes.
-type Name = FilePath
+-- | Repo-internal path.
+type FileName = FilePath
 -- | This has the initial refs/ stripped off.
 type Ref = FilePath
 
@@ -58,7 +58,7 @@ read_blob :: Repo -> Blob -> IO ByteString
 read_blob repo (Blob hash) =
     git repo ["cat-file", "blob", unparse_hash hash] ""
 
-write_tree :: Repo -> [(Name, Either Blob Tree)] -> IO Tree
+write_tree :: Repo -> [(FileName, Either Blob Tree)] -> IO Tree
 write_tree repo files =
     Tree . parse_hash <$> git repo ["mktree"] (Char8.unlines (map mkline files))
     where
@@ -68,7 +68,7 @@ write_tree repo files =
     mkline (name, Right (Tree hash)) =
         "040000 tree " <> hash <> "\t" <> UTF8.fromString name
 
-read_tree :: Repo -> Tree -> IO [(Name, Either Blob Tree)]
+read_tree :: Repo -> Tree -> IO [(FileName, Either Blob Tree)]
 read_tree repo (Tree tree) = do
     out <- git repo ["ls-tree", unparse_hash tree] ""
     mapM parse (Char8.lines out)
@@ -187,11 +187,11 @@ read_ref_map repo = do
     strip = Char8.takeWhile (not . Char.isSpace) . Char8.drop 1
         . Char8.dropWhile (/='/')
 
-write_symbolic_ref :: Repo -> Name -> Ref -> IO ()
+write_symbolic_ref :: Repo -> FileName -> Ref -> IO ()
 write_symbolic_ref repo name ref =
     void $ git repo ["symbolic-ref", name, "refs" </> ref] ""
 
-read_symbolic_ref :: Repo -> Name -> IO (Maybe Ref)
+read_symbolic_ref :: Repo -> FileName -> IO (Maybe Ref)
 read_symbolic_ref repo name =
     ifM (Directory.doesFileExist (repo </> name))
         (Just . deref <$> git repo ["symbolic-ref", name] "")
@@ -220,7 +220,7 @@ read_head repo = maybe (throw "HEAD symbolic ref missing") return =<<
 
 -- * higher level
 
-type Dir = Map.Map Name File
+type Dir = Map.Map FileName File
 data File = File ByteString | Dir Dir deriving (Eq, Show)
 
 make_dir :: [(FilePath, ByteString)] -> Either String Dir
@@ -286,14 +286,6 @@ modify_dir repo (Tree tree) mods = do
     strip = Map.toList . Map.fromList . map extract
     extract (Remove fn) = (fn, Nothing)
     extract (Add fn bytes) = (fn, Just bytes)
-
--- | If a string looks like a commit hash, return the commit, otherwise look
--- for a ref in tags\/.
-infer_commit :: Repo -> String -> IO (Maybe Commit)
-infer_commit repo ref_or_commit
-    | length ref_or_commit == 40 = return (commit ref_or_commit)
-    | otherwise = read_ref repo ("tags" </> ref_or_commit)
-    where commit = Just . Commit . parse_hash . Char8.pack
 
 -- * implementation
 
