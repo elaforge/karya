@@ -9,6 +9,7 @@ module Util.Test (
     , equal, equal_srcpos
     , strings_like, strings_like_srcpos
     , has_string, has_string_srcpos
+    , check_right, check_right_srcpos
     , map_left, left_like, left_like_srcpos
     -- ** exception checks
     , throws, throws_srcpos, catch_srcpos
@@ -181,6 +182,14 @@ has_string_srcpos srcpos strings expected =
 
 quoted :: String -> String
 quoted s = "'" ++ s ++ "'"
+
+check_right :: (Show err) => Either err a -> IO Bool
+check_right = check_right_srcpos Nothing
+
+check_right_srcpos :: (Show err) => SrcPos.SrcPos -> Either err a -> IO Bool
+check_right_srcpos srcpos (Left err) = failure_srcpos srcpos $
+    "expected Right: Left " ++ show err
+check_right_srcpos srcpos (Right _) = success_srcpos srcpos "Right"
 
 map_left f (Left a) = Left (f a)
 map_left _ (Right a) = Right a
