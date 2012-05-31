@@ -1,7 +1,9 @@
 -- | Utility functions for writing instrument calls.
 module Derive.Instrument.Util where
+import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Derive.Call as Call
+import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
@@ -15,3 +17,19 @@ with_attrs attrs =
     Derive.stream_generator ("with_attrs " ++ Pretty.pretty attrs) $
     \args -> CallSig.call0 args $ Util.with_attrs (Score.attrs_union attrs) $
         Call.reapply args [TrackLang.call "" []]
+
+-- | Give an attribute to 0 duration notes.
+note0_attrs :: Score.Attributes -> Derive.NoteCall
+note0_attrs attrs = postproc_note $ \evt ->
+    if Score.event_duration evt /= 0 then evt else evt
+        { Score.event_attributes = attrs <> Score.event_attributes evt }
+
+-- | Just like the default note call, except apply a function to the output.
+postproc_note :: (Score.Event -> Score.Event) -> Derive.NoteCall
+postproc_note f = Derive.Call "note"
+    (Just (Derive.GeneratorCall (apply . Note.note_generate)))
+    (Just Note.note_transform)
+    where
+    apply d = do
+        events <- d
+        return $ map (fmap f) events

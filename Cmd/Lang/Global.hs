@@ -118,6 +118,9 @@ infixl 0 $>
 (.>) = flip (.)
 infixl 9 .>
 
+pp :: (Pretty.Pretty a) => Cmd.CmdL a -> Cmd.CmdL Pretty.Doc
+pp = fmap Pretty.format
+
 -- * errors
 
 -- | Called from logview

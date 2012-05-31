@@ -2,6 +2,7 @@
 -- | Basic calls for note tracks.
 module Derive.Call.Note (
     note_calls
+    , note_generate, note_transform
     -- * inversion
     , inverting, inverting_n
     -- ** events
@@ -63,8 +64,11 @@ note_calls = Derive.make_calls
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
-    (Just $ Derive.GeneratorCall (inverting generate))
+    (Just (Derive.GeneratorCall note_generate))
     (Just note_transform)
+
+note_generate :: Derive.PassedArgs d -> Derive.EventDeriver
+note_generate = inverting generate
     where
     generate args = case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->
@@ -73,17 +77,17 @@ c_note = Derive.Call "note"
             "expected inst or attr: " ++ show invalid
     process = process_note_args Nothing []
 
--- | This is implicitly the call for note track titles---the \">...\" will be
--- the first argument.
-c_note_track :: Derive.NoteCall
-c_note_track = Derive.Call "note-track" Nothing (Just note_transform)
-
 note_transform :: Derive.TransformerCall Score.Event
 note_transform = Derive.TransformerCall $ \args deriver ->
     case process_note_args Nothing [] (Derive.passed_vals args) of
         (inst, rel_attrs, []) -> transform_note inst rel_attrs deriver
         (_, _, invalid) ->
             Derive.throw_arg_error $ "expected inst or attr: " ++ show invalid
+
+-- | This is implicitly the call for note track titles---the \">...\" will be
+-- the first argument.
+c_note_track :: Derive.NoteCall
+c_note_track = Derive.Call "note-track" Nothing (Just note_transform)
 
 -- ** generate
 
@@ -123,14 +127,19 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
 -- like that.
 randomized :: Score.ControlMap -> RealTime -> RealTime
     -> Derive.Deriver (RealTime, RealTime)
-randomized controls start end = do
-    let start_r = Score.typed_val $
-            Score.control controls Score.c_start_rnd start
-        dur_r = Score.typed_val $ Score.control controls Score.c_dur_rnd start
-    if start_r == 0 && dur_r == 0 then return (start, end) else do
-    r1 : r2 : _ <- Util.randoms
-    return (start + RealTime.seconds (Num.restrict 0 start_r r1),
-        end + RealTime.seconds (Num.restrict (-dur_r) 0 r2))
+randomized controls start end
+    | start == end = do
+        -- TODO should randomize start in this case
+        return (start, end)
+    | otherwise = do
+        let start_r = Score.typed_val $
+                Score.control controls Score.c_start_rnd start
+            dur_r = Score.typed_val $
+                Score.control controls Score.c_dur_rnd start
+        if start_r == 0 && dur_r == 0 then return (start, end) else do
+        r1 : r2 : _ <- Util.randoms
+        return (start + RealTime.seconds (Num.restrict 0 start_r r1),
+            end + RealTime.seconds (Num.restrict (-dur_r) 0 r2))
 
 -- | In a note track, the pitch signal for each note is constant as soon as
 -- the next note begins.  Otherwise, it looks like each note changes pitch

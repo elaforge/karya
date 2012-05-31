@@ -25,10 +25,11 @@ load _dir = return $ MidiInst.make $
         { MidiInst.extra_patches = patches }
 
 patches :: [MidiInst.Patch]
-patches = MidiInst.with_empty_code
-    [ Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks
-    , Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks
-    ]
+patches =
+    MidiInst.with_code wayang_code
+        [ Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks
+        , Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks
+        ]
     ++ MidiInst.with_code hang_code
         [ inst "hang1" hang_ks
         , inst "hang2" hang_ks
@@ -72,9 +73,15 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 -- * gender wayang
 
--- TODO cmds for muted and open attrs?  Or I can say dur=0 means muted.
+wayang_code :: MidiInst.Code
+wayang_code = MidiInst.empty_code
+    { MidiInst.note_calls = [Derive.make_lookup wayang_calls] }
+
+wayang_calls :: Derive.NoteCallMap
+wayang_calls = Derive.make_calls [("", DUtil.note0_attrs muted)]
+
 wayang_ks :: [(Score.Attributes, Midi.Key)]
-wayang_ks = [(open, Key.g2), (muted, Key.gs2)]
+wayang_ks = [(muted, Key.gs2), (open, Key.g2), (no_attrs, Key.g2)]
 
 wayang_umbang :: Instrument.PatchScale
 wayang_umbang =

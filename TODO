@@ -1,4 +1,6 @@
 UNSORTED
+  - get rid of GeneratorCall
+  - Derive.Call.Note.randomized should randomize start for 0 dur notes
   - a new empty inst with a scale doesn't get the scale right, should fall
     back on looking down the skeleton
   - but even when it does (on the scale itself) it doesn't do thru
