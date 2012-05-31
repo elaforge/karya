@@ -1,4 +1,7 @@
 UNSORTED
+  - a new empty inst with a scale doesn't get the scale right, should fall
+    back on looking down the skeleton
+  - but even when it does (on the scale itself) it doesn't do thru
   integrate that converts Score.Events back into Ui Events
     + implement and test for reverse
     - test that reintegrating a simple block gives it back again

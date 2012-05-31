@@ -33,13 +33,13 @@ note_numbers_umbang :: [Pitch.NoteNumber]
 note_numbers_umbang = map Pitch.nn
     [ 53 -- 6.., pemade begin
 
-    , 55.15
+    , 55.15 -- 1.
     , 57.73
     , 60.4
-    , 62.95
+    , 62.95 -- 5., pemade middle
     , 64.7 -- 6., kantilan begin
 
-    , 67.57 -- 1
+    , 67.57 -- 1 -- "middle C"
     , 69.45
     , 72.1
     , 74.83 -- 5, pemade end

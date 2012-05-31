@@ -74,7 +74,7 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 -- TODO cmds for muted and open attrs?  Or I can say dur=0 means muted.
 wayang_ks :: [(Score.Attributes, Midi.Key)]
-wayang_ks = [(open, Key.c2), (muted, Key.cs2)]
+wayang_ks = [(open, Key.g2), (muted, Key.gs2)]
 
 wayang_umbang :: Instrument.PatchScale
 wayang_umbang =
@@ -86,7 +86,7 @@ wayang_isep =
 
 wayang_keys :: [Midi.Key]
 wayang_keys =
-    [         Key.d2, Key.e2, Key.g2, Key.a2
-    , Key.c3, Key.d3, Key.e3, Key.g3, Key.a3
-    , Key.c4
+    [ Key.a2 -- 6..
+    , Key.c3, Key.d3, Key.e3, Key.g3, Key.a3 -- 1. to 6.
+    , Key.c4, Key.d4, Key.e4, Key.g4 -- 1 to 5
     ]
