@@ -3,7 +3,7 @@ import qualified System.Directory as Directory
 
 import Util.Control
 import qualified Util.File as File
-import qualified Util.Git.Git as Git
+import qualified Util.Git.Git2 as Git
 import Util.Test
 
 import qualified Ui.Diff as Diff

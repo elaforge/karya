@@ -271,8 +271,8 @@ write_ref :: Repo -> Commit -> Ref -> IO ()
 write_ref repo (Commit commit) ref = with_repo repo $ \repop ->
     with commit $ \commitp -> with_ref_name ref $ \namep ->
     alloca $ \refpp -> do
-        G.check "write_ref" $ G.c'git_reference_create_oid refpp repop namep
-            commitp 1
+        G.check ("write_ref " ++ show ref) $
+            G.c'git_reference_create_oid refpp repop namep commitp 1
         refp <- peek refpp
         when (refp /= nullPtr) $
             G.c'git_reference_free refp

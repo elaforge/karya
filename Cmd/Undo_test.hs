@@ -3,7 +3,7 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.File as File
-import qualified Util.Git.Git as Git
+import qualified Util.Git.Git2 as Git
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import Util.Test
@@ -191,14 +191,13 @@ test_branching_history = do
     res <- next res $ Cmd.name "+b" $ insert_event 1 "b"
     res <- next res $ Cmd.name "save" Save.cmd_save_git
 
-    -- The second branch got 0.0 because 1 was taken.
+    -- The second branch got 1.0 because 1 was taken.
     refs <- Git.read_ref_map repo
-    equal (Map.keys refs) ["tags/0", "tags/0.0", "tags/1"]
+    equal (Map.keys refs) ["heads/master", "tags/0", "tags/1", "tags/1.0"]
 
     -- Each branch has its own history.
-    io_equal (read_log =<< Git.read_log repo "tags/0.0")
+    io_equal (read_log =<< Git.read_log repo "tags/1.0")
         ["save", "+b", "+a", "save"]
-    -- HEAD is at 0.0
     io_equal (read_log =<< Git.read_log_head repo)
         ["save", "+b", "+a", "save"]
     io_equal (read_log =<< Git.read_log repo "tags/1")

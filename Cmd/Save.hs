@@ -84,7 +84,8 @@ cmd_revert maybe_ref = do
     save <- case maybe_ref of
         Nothing -> Cmd.require_msg "no last save"
             =<< Trans.liftIO (SaveGit.read_last_save repo Nothing)
-        Just save -> rethrow "cmd_revert" $ SaveGit.ref_to_save save
+        Just ref -> Cmd.require_msg ("unparseable SavePoint: " ++ show ref) $
+            SaveGit.ref_to_save ref
     commit <- Cmd.require_msg ("save ref not found: " ++ show save)
         =<< rethrow "cmd_revert" (SaveGit.read_save_ref repo save)
     Log.notice $ "revert to " ++ show save

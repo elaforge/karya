@@ -1,11 +1,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Cmd.SaveGit (module Cmd.SaveGit, Git.Commit, Git.Repo) where
+import Prelude hiding (catch)
 import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Util.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Numeric
@@ -13,7 +13,7 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import Util.Control
-import qualified Util.Git.Git as Git
+import qualified Util.Git.Git2 as Git
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -102,16 +102,20 @@ read_last_save :: Git.Repo -> Maybe Git.Commit
     -- ^ Find the last save from this commit, or HEAD if not given.
     -> IO (Maybe SavePoint)
 read_last_save repo maybe_commit = do
-    commits <- maybe (Git.read_log_head repo) (Git.read_log_from repo)
-        maybe_commit
+    -- This may be called on incomplete repos without a HEAD.
+    maybe_commits <- catch $
+        maybe (Git.read_log_head repo) (Git.read_log_from repo) maybe_commit
+    let commits = Maybe.fromMaybe [] maybe_commits
     refs <- Git.read_ref_map repo
-    let commit_to_ref = Map.invert refs
-        maybe_ref = msum $ map (`Map.lookup` commit_to_ref) commits
-    maybe (return Nothing) (fmap Just . ref_to_save) maybe_ref
+    let commit_to_save = Map.fromList $ do
+            (ref, commit) <- Map.toList refs
+            Just save <- return $ ref_to_save ref
+            return (commit, save)
+    return $ msum $ map (`Map.lookup` commit_to_save) commits
 
 find_next_save :: Git.Repo -> SavePoint -> IO SavePoint
 find_next_save repo save =
-    from_just =<< findM save_free (increment save : iterate split save)
+    from_just =<< findM save_free (iterate split (increment save))
     where
     save_free save = Maybe.isNothing <$> Git.read_ref repo (save_to_ref save)
     from_just = maybe -- This should never happen since iterate tries forever.
@@ -121,11 +125,10 @@ find_next_save repo save =
     increment (SavePoint []) = SavePoint [0]
     increment (SavePoint (x:xs)) = SavePoint (x + 1 : xs)
 
-ref_to_save :: Git.Ref -> IO SavePoint
+ref_to_save :: Git.Ref -> Maybe SavePoint
 ref_to_save ref
-    | not (all (all Char.isDigit) versions) = Git.throw $
-        "save ref must be ints separated by dots: " ++ show ref
-    | otherwise = return $ SavePoint (reverse (map read versions))
+    | not (all (all Char.isDigit) versions) = Nothing
+    | otherwise = Just $ SavePoint (reverse (map read versions))
     where
     (save, _) = Seq.drop_prefix "tags/" ref
     versions = Seq.split "." save
@@ -455,6 +458,13 @@ keyed_group key = map (\gs -> (key (head gs), gs)) . Seq.group key
 
 
 -- * util
+
+catch :: IO a -> IO (Maybe a)
+catch io = do
+    result <- Exception.try io
+    return $ case result of
+        Left (Git.GitException _) -> Nothing
+        Right val -> Just val
 
 try :: String -> IO a -> IO (Either String a)
 try caller io = do
