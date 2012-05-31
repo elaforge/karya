@@ -24,19 +24,22 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Vector.Unboxed as Vector
 
 import Util.Control
 import qualified Util.Lens as Lens
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.Vector
+
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
+
 import Types
 
-
-default_scale :: Pitch.ScaleId
-default_scale = Pitch.twelve
 
 -- * instrument
 
@@ -78,9 +81,6 @@ data Instrument = Instrument {
     -- figure out how long to generate control messages, or possibly determine
     -- overlap for channel allocation, though I use LRU so it shouldn't matter.
     , inst_maybe_decay :: Maybe RealTime
-    -- | Scale used by this instrument.  This determines what adjustments need
-    -- to be made, if any, to get a frequency indicated by the pitch track.
-    , inst_scale :: Pitch.ScaleId
     } deriving (Eq, Ord, Show)
 
 name = Lens.lens inst_name (\v r -> r { inst_name = v })
@@ -92,7 +92,6 @@ control_map = Lens.lens inst_control_map (\v r -> r { inst_control_map = v })
 pitch_bend_range =
     Lens.lens inst_pitch_bend_range (\v r -> r { inst_pitch_bend_range = v })
 maybe_decay = Lens.lens inst_maybe_decay (\v r -> r { inst_maybe_decay = v })
-scale = Lens.lens inst_scale (\v r -> r { inst_scale = v })
 
 
 instance NFData Instrument where
@@ -131,7 +130,6 @@ instrument name cmap pb_range = Instrument {
     , inst_control_map = Control.control_map cmap
     , inst_pitch_bend_range = pb_range
     , inst_maybe_decay = Nothing
-    , inst_scale = default_scale
     }
 
 -- | A wildcard instrument has its name automatically filled in, and has no
@@ -193,6 +191,7 @@ data Patch = Patch {
     -- The patch_instrument is not necessarily the same as the one eventually
     -- used in performance, because e.g. synth controls can get added in.
     patch_instrument :: Instrument
+    , patch_scale :: PatchScale
     , patch_flags :: Set.Set Flag
     , patch_initialize :: InitializePatch
     -- | Keyswitches available to this instrument, if any.  Each of these is
@@ -208,7 +207,21 @@ data Patch = Patch {
     , patch_file :: FilePath
     } deriving (Eq, Show)
 
+-- | Create a Patch with empty vals, to set them as needed.
+patch :: Instrument -> Patch
+patch inst = Patch
+    { patch_instrument = inst
+    , patch_scale = Nothing
+    , patch_flags = Set.empty
+    , patch_initialize = NoInitialization
+    , patch_keyswitches = KeyswitchMap []
+    , patch_tags = []
+    , patch_text = ""
+    , patch_file = ""
+    }
+
 instrument_ = Lens.lens patch_instrument (\v r -> r { patch_instrument = v })
+scale = Lens.lens patch_scale (\v r -> r { patch_scale = v })
 flags = Lens.lens patch_flags (\v r -> r { patch_flags = v })
 initialize = Lens.lens patch_initialize (\v r -> r { patch_initialize = v })
 keyswitches = Lens.lens patch_keyswitches (\v r -> r { patch_keyswitches = v })
@@ -216,12 +229,47 @@ tags = Lens.lens patch_tags (\v r -> r { patch_tags = v })
 text = Lens.lens patch_text (\v r -> r { patch_text = v })
 file = Lens.lens patch_file (\v r -> r { patch_file = v })
 
+-- | If a patch is tuned to something other than 12TET, this vector maps MIDI
+-- key numbers to their NNs, or 0 if the patch doesn't support that key.
+type PatchScale = Maybe (Vector.Vector Double)
+
+empty_patch_scale :: Vector.Vector Double
+empty_patch_scale = Vector.fromList $ replicate 128 0
+
+-- | Fill in non-adjacent MIDI keys by interpolating the neighboring
+-- NoteNumbers.  This is because a 0 between two notes will prevent pitch
+-- slides.  Another problem is that the MIDI performer has no notion of
+-- instruments that don't support certain key numbers.  That could be added
+-- but it's simpler to just not have patches like that.
+make_patch_scale :: [(Midi.Key, Pitch.NoteNumber)] -> PatchScale
+make_patch_scale keys =
+    Just $ empty_patch_scale Vector.// map convert (interpolate keys)
+    where
+    convert (k, Pitch.NoteNumber nn) = (fromIntegral k, nn)
+    interpolate ((k1, nn1) : rest@((k2, nn2) : _))
+        | k1 + 1 == k2 = (k1, nn1) : interpolate rest
+        | otherwise = (k1, nn1) : map mk [k1 + 1 .. k2 - 1] ++ interpolate rest
+        where
+        mk k = (k, nn)
+            where
+            nn = Num.scale nn1 nn2 $ Num.normalize
+                (fromIntegral k1) (fromIntegral k2) (fromIntegral k)
+    interpolate xs = xs
+
+convert_patch_scale :: Vector.Vector Double -> Pitch.NoteNumber
+    -> Pitch.NoteNumber
+convert_patch_scale scale (Pitch.NoteNumber nn) =
+    case Util.Vector.bracketing scale nn of
+        Just (i, low, high) | low /= 0 -> Pitch.NoteNumber $
+            fromIntegral i + Num.normalize low high nn
+        _ -> Pitch.NoteNumber Signal.invalid_pitch
 
 -- | A Pretty instance is useful because InitializeMidi tends to be huge.
 instance Pretty.Pretty Patch where
-    format (Patch inst flags init ks tags text file) =
+    format (Patch inst scale flags init ks tags text file) =
         Pretty.record_title "Patch"
             [ ("instrument", Pretty.format inst)
+            , ("scale", Pretty.format scale)
             , ("flags", Pretty.format flags)
             , ("initialize", Pretty.format init)
             , ("keyswitches", Pretty.format ks)
@@ -229,10 +277,6 @@ instance Pretty.Pretty Patch where
             , ("text", Pretty.format text)
             , ("file", Pretty.format file)
             ]
-
--- | Create a Patch with empty vals, to set them as needed.
-patch :: Instrument -> Patch
-patch inst = Patch inst Set.empty NoInitialization (KeyswitchMap []) [] "" ""
 
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
@@ -242,6 +286,9 @@ set_keyswitches ks = keyswitches #= keyswitch_map ks
 
 set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
 set_keymap kmap = instrument_#keymap #= Map.fromList kmap
+
+set_scale :: PatchScale -> Patch -> Patch
+set_scale = (scale #=)
 
 set_flag :: Flag -> Patch -> Patch
 set_flag flag = flags %= Set.insert flag

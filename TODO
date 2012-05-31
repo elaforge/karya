@@ -82,6 +82,7 @@ UNSORTED
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
   incremental save
+    - upgrade to libgit2 1.7.0
     - more exhaustive tests
     + try saving individual events for incremental save
       Seems to be just as slow as full save, probably most of the time is in
@@ -1008,7 +1009,7 @@ Perform:
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn
-  - instruments can have a native scale, so playing that scale won't involve
+  * instruments can have a native scale, so playing that scale won't involve
     pitch bends
   Instrument
     - some kind of organized way to manage instruments and instrument config

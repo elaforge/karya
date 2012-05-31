@@ -5,12 +5,15 @@ import Util.Control
 import qualified Util.Log as Log
 import Util.Test
 
+import qualified Ui.UiTest as UiTest
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -71,3 +74,22 @@ extract_event e = (RealTime.to_seconds (Perform.event_start e),
 
 show_logs extract =
     map $ LEvent.either (Left . extract) (Right . DeriveTest.show_log)
+
+-- * patch scale
+
+test_patch_scale = do
+    let res = DeriveTest.derive_tracks
+            [ (">s/inst", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            , ("*", [(0, 0, "4c"), (1, 0, "4c#"), (2, 0, "4d")])
+            ]
+    let (evts, _midi, _logs) =
+            DeriveTest.perform (DeriveTest.make_convert_lookup db) config
+                (Derive.r_events res)
+    equal (map (Signal.unsignal . Perform.event_pitch) evts)
+        [[(0, 1)], [(1, 1.5)], [(2, 2)]]
+    where
+    db = DeriveTest.make_db [("s", [patch])]
+    pscale = Instrument.make_patch_scale [(1, 60), (2, 62), (3, 63)]
+    patch = Instrument.set_scale pscale $
+        Instrument.patch $ Instrument.instrument "inst" [] (-12, 12)
+    config = UiTest.midi_config [("s/inst", [0])]

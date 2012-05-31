@@ -56,6 +56,7 @@ knuckle = attr "knuckle"
 
 open = attr "open"
 closed = attr "closed"
+muted = attr "muted"
 
 low = attr "low"
 middle = attr "middle"

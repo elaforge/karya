@@ -2,6 +2,7 @@
 -- | Vector utilities.
 module Util.Vector where
 import qualified Data.Vector.Generic as Vector
+import qualified Data.Vector.Unboxed as Unboxed
 
 
 count :: (Vector.Vector v a) => (a -> Bool) -> v a -> Int
@@ -20,3 +21,11 @@ find_before n = fst . fold_abort go (0, 0)
     go (i, total) a
         | total + a <= n = Just (i+1, total+a)
         | otherwise = Nothing
+
+bracketing :: Unboxed.Vector Double -> Double -> Maybe (Int, Double, Double)
+bracketing vec a = case Vector.findIndex (>=a) vec of
+    Just i
+        | Unboxed.unsafeIndex vec i == a -> Just (i, a, a)
+        | i > 0 ->
+            Just (i-1, Unboxed.unsafeIndex vec (i-1), Unboxed.unsafeIndex vec i)
+    _ -> Nothing

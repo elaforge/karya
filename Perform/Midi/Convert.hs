@@ -29,6 +29,7 @@ import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Perform.Warning as Warning
 
@@ -85,8 +86,8 @@ convert_event lookup maybe_prev event = do
     patch <- require ("patch in instrument db: " ++ show score_inst) $
         lookup_patch lookup score_inst
     pitch <- case maybe_key of
-        Nothing -> convert_pitch (Score.event_controls event)
-            (Score.event_pitch event)
+        Nothing -> convert_pitch (Instrument.patch_scale patch)
+            (Score.event_controls event) (Score.event_pitch event)
         Just key -> return $ Signal.constant (fromIntegral key)
     let (controls, overridden) = convert_controls
             (Instrument.has_flag Instrument.Pressure patch)
@@ -159,13 +160,19 @@ convert_controls pressure_inst inst_cmap =
             _ -> Nothing
     cc (Score.Control c) = Control.Control c
 
-convert_pitch :: Score.ControlMap -> PitchSignal.Signal
-    -> ConvertT Signal.NoteNumber
-convert_pitch controls psig = do
+convert_pitch :: Instrument.PatchScale -> Score.ControlMap
+    -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
+convert_pitch scale controls psig = do
     unless (null errs) $ warn $ "pitch: " ++ Pretty.pretty errs
-    return sig
+    return $ convert_scale scale sig
     where
     (sig, errs) = PitchSignal.to_nn $ PitchSignal.apply_controls controls psig
+
+convert_scale :: Instrument.PatchScale -> Signal.NoteNumber -> Signal.NoteNumber
+convert_scale Nothing = id
+convert_scale (Just scale) = Signal.map_y $
+    un . Instrument.convert_patch_scale scale . Pitch.NoteNumber
+    where un (Pitch.NoteNumber nn) = nn
 
 -- * monad
 

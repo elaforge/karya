@@ -58,6 +58,7 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import Perform.Midi.Instrument (Addr)
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 
 -- | Send midi thru, addressing it to the given Instrument.
@@ -69,17 +70,14 @@ cmd_midi_thru msg = do
     score_inst <- Cmd.require =<< EditUtil.lookup_instrument
     scale_id <- EditUtil.get_scale_id
     inst <- Cmd.get_midi_instrument Score.no_attrs score_inst
-    -- If I do breath here I get it even with MIDI input.  But the MIDI input
-    -- already has a breath control, I only want it for NoteEntry.
+    patch_scale <- Instrument.patch_scale <$> Cmd.get_midi_patch score_inst
     let pb_range = Instrument.inst_pitch_bend_range inst
 
     scale <- Cmd.get_scale "cmd_midi_thru" scale_id
     input <- Cmd.require_msg
         (Pretty.pretty scale_id ++ " doesn't have " ++ show input)
-        (map_scale scale input)
+        (map_scale patch_scale scale input)
 
-    -- TODO if the wdev is in a certain scale, then I'll have to map the
-    -- pitch here
     addrs <- Map.get [] score_inst <$> State.get_midi_alloc
     wdev_state <- Cmd.get_wdev_state
     let (thru_msgs, maybe_wdev_state) =
@@ -90,16 +88,26 @@ cmd_midi_thru msg = do
     mapM_ (uncurry Cmd.midi) thru_msgs
     return Cmd.Continue
 
-map_scale :: Scale.Scale -> InputNote.Input -> Maybe InputNote.Input
-map_scale scale input = case input of
+map_scale :: Instrument.PatchScale -> Scale.Scale -> InputNote.Input
+    -> Maybe InputNote.Input
+map_scale patch_scale scale input = case input of
         InputNote.NoteOn note_id key vel ->
             fmap (\k -> InputNote.NoteOn note_id k vel) (convert key)
         InputNote.PitchChange note_id key ->
             fmap (\k -> InputNote.PitchChange note_id k) (convert key)
         _ -> Just input
     where
-    convert input_key = fmap (\(Pitch.NoteNumber nn) -> Pitch.InputKey nn)
-        (Scale.scale_input_to_nn scale input_key)
+    convert input_key = fmap nn_to_input $
+        map_patch_scale patch_scale =<< Scale.scale_input_to_nn scale input_key
+    nn_to_input (Pitch.NoteNumber nn) = Pitch.InputKey nn
+
+map_patch_scale :: Instrument.PatchScale -> Pitch.NoteNumber
+    -> Maybe Pitch.NoteNumber
+map_patch_scale Nothing nn = Just nn
+map_patch_scale (Just scale) nn
+    | nn2 == Pitch.NoteNumber Signal.invalid_pitch = Nothing
+    | otherwise = Just nn2
+    where nn2 = Instrument.convert_patch_scale scale nn
 
 input_to_midi :: Control.PbRange -> Cmd.WriteDeviceState
     -> [Addr] -> InputNote.Input

@@ -17,9 +17,10 @@ import qualified Data.Map as Map
 import qualified Data.Serialize as Serialize
 import Data.Serialize (Get, getWord8, putWord8)
 import qualified Data.Set as Set
-import qualified System.IO.Unsafe as Unsafe
+import qualified Data.Vector.Unboxed as Unboxed
 
 import Foreign
+import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
 
@@ -148,3 +149,11 @@ instance Serialize ByteString where
         put (ByteString.length bs)
         Serialize.putByteString bs
     get = get >>= Serialize.getByteString
+
+instance (Serialize a, Unboxed.Unbox a) => Serialize (Unboxed.Vector a) where
+    put v = do
+        put (Unboxed.length v)
+        Unboxed.mapM_ put v
+    get = do
+        len <- get :: Get Int
+        Unboxed.replicateM len get

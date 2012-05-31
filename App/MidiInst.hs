@@ -3,6 +3,7 @@ module App.MidiInst (
     make
     , SynthDesc
     , Softsynth(..), softsynth
+    , Patch
     , Code(..), empty_code, with_code, with_empty_code
 
     -- * db
@@ -31,10 +32,12 @@ data Softsynth = Softsynth {
     name :: Instrument.SynthName
     , pb_range :: Control.PbRange
     , controls :: [(Midi.Control, String)]
-    , extra_patches :: [(Instrument.Patch, Code)]
+    , extra_patches :: [Patch]
     , modify_patch :: Instrument.Patch -> Instrument.Patch
     , code :: Code
     }
+
+type Patch = (Instrument.Patch, Code)
 
 -- | Utility to construct a soft synth.  Soft synths are assumed to have
 -- their own internal patch management, and thus have only a single wildcard
@@ -56,10 +59,10 @@ data Code = Code {
 empty_code :: Code
 empty_code = Code [] [] []
 
-with_code :: Code -> [Instrument.Patch] -> [(Instrument.Patch, Code)]
+with_code :: Code -> [Instrument.Patch] -> [Patch]
 with_code code = map (\p -> (p, code))
 
-with_empty_code :: [Instrument.Patch] -> [(Instrument.Patch, Code)]
+with_empty_code :: [Instrument.Patch] -> [Patch]
 with_empty_code = with_code empty_code
 
 make :: Softsynth -> [SynthDesc]
