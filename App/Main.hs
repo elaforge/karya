@@ -17,7 +17,6 @@ import qualified System.Environment
 import qualified System.IO as IO
 
 import Util.Control
-import qualified Util.Git.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
@@ -125,7 +124,7 @@ parse_args argv = case argv of
         | otherwise -> Save.cmd_load fn >> return Cmd.Done
     [fn, ref_or_commit] -> do
         commit <- Cmd.require_msg ("not a ref or commit: " ++ ref_or_commit)
-            =<< Trans.liftIO (Git.infer_commit fn ref_or_commit)
+            =<< Trans.liftIO (SaveGit.infer_commit fn ref_or_commit)
         Save.cmd_load_git fn (Just commit) >> return Cmd.Done
     _ -> error $ "bad args: " ++ show argv
 

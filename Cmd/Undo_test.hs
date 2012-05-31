@@ -208,7 +208,7 @@ test_branching_history = do
     res <- next res $ Cmd.name "revert" $ Save.cmd_revert (Just "1")
     equal (extract_ui res) "xy"
 
-read_log :: [Git.Commit] -> IO [String]
+read_log :: [SaveGit.Commit] -> IO [String]
 read_log commits = do
     texts <- mapM (fmap Git.commit_text . Git.read_commit repo) commits
     mapM (fmap head . SaveGit.parse_names) texts
@@ -221,7 +221,7 @@ save_git states = do
     set_dir = (State.config#State.project_dir #= "build/test")
         . (State.config#State.namespace #= Id.unsafe_namespace "test")
 
-repo :: Git.Repo
+repo :: SaveGit.Repo
 repo = "build/test/test.git"
 
 -- * implementation
@@ -249,7 +249,7 @@ extract_hist res = (map extract past, extract present, map extract future)
     extract (Cmd.HistoryEntry state _ names _) =
         Seq.join "+" names ++ ": " ++ ui_notes 0 state
 
-type Commit = ([String], Maybe Git.Commit)
+type Commit = ([String], Maybe SaveGit.Commit)
 
 e_commits :: ResponderTest.Result -> ([Commit], Commit, [Commit])
 e_commits res = (map extract past, extract present, map extract future)

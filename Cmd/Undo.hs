@@ -5,7 +5,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Git.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -126,7 +125,7 @@ hist_name hist = '[' : Seq.join ", " (Cmd.hist_names hist) ++ "] "
     ++ Pretty.pretty (Cmd.hist_commit hist)
 
 load_history :: String
-    -> (State.State -> Git.Commit
+    -> (State.State -> SaveGit.Commit
         -> IO (Either String (Maybe SaveGit.LoadHistory)))
      -> Cmd.HistoryEntry -> IO [Cmd.HistoryEntry]
 load_history name load hist = case Cmd.hist_commit hist of
@@ -234,7 +233,7 @@ zip_next :: a -> [a] -> [(a, a)]
 zip_next _ [] = []
 zip_next prev (x : xs) = (prev, x) : zip_next x xs
 
-commit_entries :: Git.Repo -> Maybe Git.Commit -> [SaveGit.SaveHistory]
+commit_entries :: SaveGit.Repo -> Maybe SaveGit.Commit -> [SaveGit.SaveHistory]
     -> IO [Cmd.HistoryEntry]
 commit_entries _ _ [] = return []
 commit_entries repo prev_commit (hist0:hists) = do
@@ -256,7 +255,7 @@ commit_entries repo prev_commit (hist0:hists) = do
 -- The SaveHistory has a commit, but it's the commit that this history is
 -- relative to (the previous commit), while the commit of the HistoryEntry is
 -- the commit that this history was saved as (the current commit).
-history_entry :: Maybe Git.Commit -> SaveGit.SaveHistory -> Cmd.HistoryEntry
+history_entry :: Maybe SaveGit.Commit -> SaveGit.SaveHistory -> Cmd.HistoryEntry
 history_entry commit (SaveGit.SaveHistory state _ updates names) =
     -- Recover the CmdUpdates out of the UiUpdates.  I only have to remember
     -- the updates diff won't recreate for me.

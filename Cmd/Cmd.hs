@@ -57,7 +57,6 @@ import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Git.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -592,7 +591,7 @@ data LastCmd =
     UndoRedo
     -- | This cmd set the state because of a load.  This should reset all the
     -- history so I can start loading from the new state's history.
-    | Load (Maybe Git.Commit) [String]
+    | Load (Maybe SaveGit.Commit) [String]
     deriving (Show)
 
 data HistoryConfig = HistoryConfig {
@@ -603,7 +602,7 @@ data HistoryConfig = HistoryConfig {
     -- | Checkpoints are saved relative to the state at another checkpoint.  So
     -- it's important to keep the commit of that checkpoint up to date,
     -- otherwise the state and the checkpoints will get out of sync.
-    , hist_last_commit :: !(Maybe Git.Commit)
+    , hist_last_commit :: !(Maybe SaveGit.Commit)
     } deriving (Show)
 
 empty_history_config :: HistoryConfig
@@ -637,7 +636,7 @@ data HistoryEntry = HistoryEntry {
     , hist_names :: ![String]
     -- | The Commit where this entry was saved.  Nothing if the entry is
     -- unsaved.
-    , hist_commit :: !(Maybe Git.Commit)
+    , hist_commit :: !(Maybe SaveGit.Commit)
     } deriving (Show, Generics.Typeable)
 
 empty_history_entry :: State.State -> HistoryEntry

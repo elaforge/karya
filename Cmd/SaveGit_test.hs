@@ -25,8 +25,8 @@ test_save = do
             [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
             , ("2", [(0, 1, "2a")])
             ]
-    SaveGit.save repo state Nothing
-    Right (state2, commit, _names) <- SaveGit.load repo Nothing
+    check_right =<< SaveGit.save repo state Nothing
+    (state2, commit, _) <- expect_right "load" <$> SaveGit.load repo Nothing
     equal state state2
     let state3 = UiTest.exec state2 $ do
             State.destroy_view UiTest.default_view_id

@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Cmd.SaveGit where
+module Cmd.SaveGit (module Cmd.SaveGit, Git.Commit, Git.Repo) where
 import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
 import qualified Data.Char as Char
@@ -381,6 +381,13 @@ default_head repo Nothing =
         return =<< Git.read_head_commit repo
 
 
+-- | If a string looks like a commit hash, return the commit, otherwise look
+-- for a ref in tags\/.
+infer_commit :: Git.Repo -> String -> IO (Maybe Git.Commit)
+infer_commit repo ref_or_commit = case Git.parse_commit ref_or_commit of
+    Just commit -> return $ Just commit
+    Nothing -> Git.read_ref repo ("tags" </> ref_or_commit)
+
 -- * implementation
 
 dump :: State.State -> Git.Dir
@@ -411,7 +418,8 @@ undump dir = do
         Just (Git.File bytes) -> return bytes
 
 undump_map :: (Serialize.Serialize a, Ord id) =>
-    (Id.Id -> id) -> Map.Map Git.Name Git.File -> Either String (Map.Map id a)
+    (Id.Id -> id) -> Map.Map Git.FileName Git.File
+    -> Either String (Map.Map id a)
 undump_map mkid dir =
     Map.fromList . concat <$> mapM dir_subs (Map.toAscList dir)
     where

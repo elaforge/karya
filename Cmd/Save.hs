@@ -5,7 +5,6 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Git.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -62,7 +61,7 @@ cmd_save_git = do
             }
         }
 
-cmd_load_git :: FilePath -> Maybe Git.Commit -> Cmd.CmdT IO ()
+cmd_load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
 cmd_load_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " ++ repo ++ ": ") ++)
