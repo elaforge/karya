@@ -1,8 +1,8 @@
 -- | Image-Line's Drumaxx softsynth.
 module Local.Instrument.Drumaxx where
+import Util.Control
 import Midi.Key
 import qualified Midi.Midi as Midi
-
 import qualified Cmd.Instrument.Drums as Drums
 import Derive.Attrs
 import qualified Perform.Midi.Instrument as Instrument
@@ -28,11 +28,11 @@ notes :: [(Drums.Note, Midi.Key)]
 notes =
     [ (Drums.c_bd, c2)
     , (Drums.c_sn, d2)
-    , (Drums.Note "sn'" (snare @+ v1) 'X', e2)
+    , (Drums.Note "sn'" (snare <> v1) 'X', e2)
     , (Drums.c_ltom, g2)
     , (Drums.c_mtom, b2)
     , (Drums.c_htom, c3)
-    , (Drums.c_hh, f2+1)
-    , (Drums.c_ride, d3+1)
-    , (Drums.c_crash, c3+1)
+    , (Drums.c_hh, fs2)
+    , (Drums.c_ride, ds3)
+    , (Drums.c_crash, cs3)
     ]

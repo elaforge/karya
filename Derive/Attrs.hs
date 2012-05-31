@@ -2,13 +2,9 @@
 --
 -- This is meant to be imported unqualified.
 module Derive.Attrs where
-import qualified Data.Monoid as Monoid
 import qualified Derive.Score as Score
 import Derive.Score (Attributes, attr)
 
-
-(@+) :: Attributes -> Attributes -> Attributes
-(@+) = Monoid.mappend
 
 no_attrs :: Attributes
 no_attrs = Score.no_attrs
@@ -67,7 +63,7 @@ high = attr "high"
 -- Many of these attributes are meant to be combined with others.
 
 -- | Generic variations.  E.g. if there are two snares you can have
--- @snare \@+ v1@ and @snare \@+ v2\@.
+-- @snare <> v1@ and @snare <> v2\@.
 v1 = attr "1"
 v2 = attr "2"
 v3 = attr "3"

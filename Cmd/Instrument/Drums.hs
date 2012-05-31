@@ -1,15 +1,15 @@
 module Cmd.Instrument.Drums where
+import Util.Control
 import qualified Midi.Midi as Midi
-
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Instrument.Util as CUtil
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
-import qualified Cmd.Instrument.Util as CUtil
 
 import Derive.Attrs
 import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
 import qualified Derive.Instrument.Util as DUtil
+import qualified Derive.Score as Score
 
 
 -- | Create a LookupCall for the given Notes.
@@ -39,14 +39,14 @@ data Note = Note {
 
 c_bd    = Note "bd"     bd              'z'
 c_sn    = Note "sn"     snare           'x'
-c_ltom  = Note "ltom"   (tom @+ low)    'c'
-c_mtom  = Note "mtom"   (tom @+ middle) 'v'
-c_htom  = Note "htom"   (tom @+ high)   'b'
+c_ltom  = Note "ltom"   (tom <> low)    'c'
+c_mtom  = Note "mtom"   (tom <> middle) 'v'
+c_htom  = Note "htom"   (tom <> high)   'b'
 
 c_hh    = Note "hh"     hh              'q'
-c_ohh   = Note "ohh"    (open @+ hh)    'q'
-c_chh   = Note "chh"    (closed @+ hh)  'w'
-c_phh   = Note "phh"    (pedal @+ hh)   'e'
+c_ohh   = Note "ohh"    (open <> hh)    'q'
+c_chh   = Note "chh"    (closed <> hh)  'w'
+c_phh   = Note "phh"    (pedal <> hh)   'e'
 
 c_ride  = Note "ride"   ride            't'
 c_crash = Note "crash"  crash           'y'
