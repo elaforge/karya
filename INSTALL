@@ -27,8 +27,8 @@ shake # build system
 
 libpcre library from http://www.pcre.org
 
-libgit2 - It has no official releases, but I synced to
-https://github.com/libgit2/libgit2 41178b419a5fcf3a65c2b313ecc688c607f411c9
+libgit2 - It has no official releases, but I synced to 1.7.0:
+https://github.com/libgit2/libgit2 1835c51f58a670e23c9546f942259d53fe626fa2
 
 lilypond, for some fonts
 

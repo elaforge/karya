@@ -82,7 +82,7 @@ UNSORTED
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
   incremental save
-    - upgrade to libgit2 1.7.0
+    * upgrade to libgit2 1.7.0
     - more exhaustive tests
     + try saving individual events for incremental save
       Seems to be just as slow as full save, probably most of the time is in

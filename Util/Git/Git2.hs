@@ -232,46 +232,38 @@ diff_commits repo old new = with_repo repo $ \repop -> do
     newc <- read_commit_repo repop new
     diff_trees repo (commit_tree oldc) (commit_tree newc)
 
+-- | Recursively diff two trees.
 diff_trees :: Repo -> Tree -> Tree -> IO [Modification]
 diff_trees repo old new =
     with_repo repo $ \repop -> diff_tree_repo repop old new
 
 diff_tree_repo :: G.Repo -> Tree -> Tree -> IO [Modification]
-diff_tree_repo repop old new = do
-    ddata <- with_tree repop old $ \oldp -> with_tree repop new $ \newp -> do
+diff_tree_repo repop old new =
+    with_tree repop old $ \oldp -> with_tree repop new $ \newp -> do
+    diffs <- alloca $ \listpp -> do
+        G.check "diff_tree" $
+            G.c'git_diff_tree_to_tree repop nullPtr oldp newp listpp
+        listp <- peek listpp
         ref <- IORef.newIORef []
-        with_fptr (G.mk'git_tree_diff_cb (diff_cb ref)) $ \callback -> do
-            G.check "tree_diff" $ G.c'git_tree_diff oldp newp callback nullPtr
-            IORef.readIORef ref
-    concat <$> mapM to_mod ddata
+        with_fptr (G.mk'git_diff_data_fn (diff_cb ref)) $ \callback -> do
+            G.check "diff_print_compact" $
+                G.c'git_diff_print_compact listp nullPtr callback
+        IORef.readIORef ref
+    concat <$> mapM to_mod diffs
     where
-    diff_cb ref datap _ptr = do
-        ddata <- peek datap
-        path <- peekCString (G.c'git_tree_diff_data'path ddata)
-        IORef.modifyIORef ref ((path, ddata):)
-        return 0
-    to_mod (path, G.C'git_tree_diff_data new_attr old_oid new_oid status _pathp)
-        | is_dir new_attr = do
-            vs <- map (prepend path) <$>
-                diff_tree_repo repop (Tree old_oid) (Tree new_oid)
-            putStrLn $ path ++ " is dir " ++ show vs
-            return vs
-        | status == G.c'GIT_STATUS_DELETED = do
-            putStrLn $ "removed: " ++ show new_attr
-            return [Remove path]
-            -- if is_dir new_attr then return []
-            -- else return [Remove path]
-        | status /= G.c'GIT_STATUS_ADDED && status /= G.c'GIT_STATUS_MODIFIED =
-            G.throw $ "diff_trees " ++ show (old, new) ++ ": unknown status: "
-                ++ show status
-        | is_dir new_attr = map (prepend path) <$>
-            diff_tree_repo repop (Tree old_oid) (Tree new_oid)
-        | otherwise = do
-            bytes <- read_blob_repo repop (Blob new_oid)
+    to_mod (status, path, oid)
+        | status == G.c'GIT_DELTA_DELETED = return [Remove path]
+        | status == G.c'GIT_DELTA_ADDED || status == G.c'GIT_DELTA_MODIFIED = do
+            bytes <- read_blob_repo repop (Blob oid)
             return [Add path bytes]
-    is_dir = (==0x4000)
-    prepend dir (Add name bytes) = Add (dir </> name) bytes
-    prepend dir (Remove name) = Remove (dir </> name)
+        | otherwise = G.throw $ "diff_trees " ++ show (old, new)
+            ++ ": unknown status: " ++ show status
+    diff_cb ref _data deltap _rangep _line_origin _contentp _content_len = do
+        G.C'git_diff_delta _old new status <- peek deltap
+        let G.C'git_diff_file oid pathp _mode = new
+        path <- peekCString pathp
+        IORef.modifyIORef ref ((status, path, oid):)
+        return 0
 
 -- ** refs
 
@@ -292,7 +284,7 @@ read_ref_repo :: G.Repo -> Ref -> IO (Maybe Commit)
 read_ref_repo repop ref = with_ref_name ref $ \namep ->
     alloca $ \oidp -> do
         code <- G.c'git_reference_name_to_oid oidp repop namep
-        if code /= G.c'GIT_SUCCESS then return Nothing else do
+        if code /= G.c'GIT_OK then return Nothing else do
         oid <- peek oidp
         return (Just (Commit oid))
 
@@ -308,7 +300,7 @@ with_ref repop ref io =
 -- | Read all the refs in the repo.
 read_refs :: G.Repo -> IO [Ref]
 read_refs repop = alloca $ \arrayp -> do
-    G.check "read_refs" $ G.c'git_reference_listall arrayp repop
+    G.check "read_refs" $ G.c'git_reference_list arrayp repop
         G.c'GIT_REF_LISTALL
     G.C'git_strarray stringsp count <- peek arrayp
     strps <- peekArray (fromIntegral count) stringsp
@@ -404,7 +396,7 @@ walk walkp flags = do
     where
     next oidp = do
         errno <- G.c'git_revwalk_next oidp walkp
-        if errno == G.c'GIT_EREVWALKOVER then return Nothing else do
+        if errno == G.c'GIT_REVWALKOVER then return Nothing else do
         G.check "revwalk_next" (return errno)
         oid <- peek oidp
         return (Just (Commit oid))

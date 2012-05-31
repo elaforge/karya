@@ -6,6 +6,7 @@ import qualified Data.ByteString.Unsafe as ByteString.Unsafe
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Typeable as Typeable
+import qualified Data.Word as Word
 
 -- I don't use #strict_import because it doesn't import allocaBytes and if
 -- I import it separately I get tons of redundant import warnings.
@@ -86,26 +87,53 @@ type ObjType = CInt
 -- int git_tree_create_fromindex(git_oid *oid, git_index *index);
 #ccall git_tree_create_fromindex, Ptr OID -> Ptr <git_index> -> IO Error
 
--- ** diff
+-- * diff
 
--- typedef int (*git_tree_diff_cb)(const git_tree_diff_data *ptr, void *data);
-#callback git_tree_diff_cb, Ptr <git_tree_diff_data> -> Ptr CChar -> IO CInt
-#ccall git_tree_diff, Ptr <git_tree> -> Ptr <git_tree> -> <git_tree_diff_cb> \
-    -> Ptr CChar -> IO Error
+#opaque_t git_diff_list
+#opaque_t git_diff_options
 
-#integral_t git_status_t
-#num GIT_STATUS_ADDED
-#num GIT_STATUS_DELETED
-#num GIT_STATUS_MODIFIED
+-- int git_diff_tree_to_tree(git_repository *repo, const git_diff_options
+-- *opts, git_tree *old_tree, git_tree *new_tree, git_diff_list **diff);
+#ccall git_diff_tree_to_tree, Repo -> Ptr <git_diff_options> \
+    -> Ptr <git_tree> -> Ptr <git_tree> -> Ptr (Ptr <git_diff_list>) \
+    -> IO Error
 
-#starttype git_tree_diff_data
--- Only the fields I need.
--- #field old_attr, CUInt
-#field new_attr, CUInt
-#field old_oid, OID
-#field new_oid, OID
-#field status, <git_status_t>
+#ccall git_diff_list_free, Ptr <git_diff_list> -> IO ()
+
+-- int git_diff_print_compact( git_diff_list *diff, void *cb_data,
+-- git_diff_data_fn print_cb);
+#ccall git_diff_print_compact, Ptr <git_diff_list> -> Ptr CChar \
+    -> <git_diff_data_fn> -> IO Error
+
+#opaque_t git_diff_range
+
+-- typedef int (*git_diff_data_fn)(
+--         void *cb_data,
+--         git_diff_delta *delta,
+--         git_diff_range *range,
+--         char line_origin, /**< GIT_DIFF_LINE_... value from above */
+--         const char *content,
+--         size_t content_len);
+#callback git_diff_data_fn, Ptr CChar -> Ptr <git_diff_delta> \
+    -> Ptr <git_diff_range> -> CChar -> CString -> CSize -> IO Error
+
+#integral_t git_delta_t
+#num GIT_DELTA_ADDED
+#num GIT_DELTA_DELETED
+#num GIT_DELTA_MODIFIED
+
+#starttype git_diff_delta
+#field old_file, <git_diff_file>
+#field new_file, <git_diff_file>
+#field status, <git_delta_t>
+#stoptype
+
+#starttype git_diff_file
+#field oid, OID
 #field path, CString
+#field mode, Word.Word16
+-- #field size, <git_off_t>
+-- #field flags, CUInt
 #stoptype
 
 -- * index
@@ -175,10 +203,9 @@ type ObjType = CInt
 -- const git_oid * git_reference_oid(git_reference *ref);
 #ccall git_reference_oid, Ptr <git_reference> -> IO (Ptr OID)
 
-
--- int git_reference_listall(git_strarray *array, git_repository *repo,
--- unsigned int list_flags);
-#ccall git_reference_listall, Ptr <git_strarray> -> Repo -> CUInt -> IO Error
+-- int git_reference_list(git_strarray *array, git_repository *repo, unsigned
+-- int list_flags);
+#ccall git_reference_list, Ptr <git_strarray> -> Repo -> CUInt -> IO Error
 
 -- ** symbolic
 
@@ -253,14 +280,15 @@ read_oid = OID . ByteString.takeWhile (not . Char.isSpace)
 type Error = CInt
 
 #integral_t git_error_t
-#num GIT_SUCCESS
+#num GIT_OK
 #num GIT_ERROR
 #num GIT_ENOTFOUND
-#num GIT_EREVWALKOVER
+#num GIT_EEXISTS
+#num GIT_REVWALKOVER
 
 error_msg :: Error -> Maybe String
 error_msg errno
-    | errno == (#const GIT_SUCCESS) = Nothing
+    | errno == (#const GIT_OK) = Nothing
     | otherwise = Just $ Map.findWithDefault
         ("undocumented errno: " ++ show errno) errno errors
     where
@@ -268,11 +296,10 @@ error_msg errno
         [ ((#const GIT_ERROR), "error")
         , ((#const GIT_ENOTFOUND), "not found")
         , ((#const GIT_EEXISTS), "already exists")
-        , ((#const GIT_EOVERFLOW), "integer literal too large")
         , ((#const GIT_EAMBIGUOUS), "short oid is ambiguous")
-        , ((#const GIT_EPASSTHROUGH), "passthrough")
-        , ((#const GIT_ESHORTBUFFER), "buffer to short to satisfy request")
-        , ((#const GIT_EREVWALKOVER), "rev walk over")
+        , ((#const GIT_EBUFS), "undocumented GIT_EBUFS")
+        , ((#const GIT_PASSTHROUGH), "passthrough")
+        , ((#const GIT_REVWALKOVER), "rev walk over")
         ]
 
 newtype GitException = GitException String deriving (Typeable.Typeable)
