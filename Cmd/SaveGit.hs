@@ -178,7 +178,8 @@ commit_tree repo tree maybe_parent desc = do
 dump_diff :: Bool -> State.State -> [Update.UiUpdate]
     -> ([String], [Git.Modification])
 dump_diff track_dir state =
-    first (filter (not.null)) . Seq.partition_either . map mk
+    -- I use Left "" as a nop, so filter those out.
+    first (filter (not . null)) . Seq.partition_either . map mk
     where
     mk u@(Update.ViewUpdate view_id update) = case update of
         Update.DestroyView -> Right $ Git.Remove (id_to_path view_id)
@@ -217,13 +218,20 @@ dump_diff track_dir state =
             Right $ Git.Remove (id_to_path ruler_id)
 
 class Ident id where id_to_path :: id -> FilePath
-instance Ident ViewId where id_to_path = ("views" </>) . Id.ident_string
-instance Ident BlockId where id_to_path = ("blocks" </>) . Id.ident_string
-instance Ident TrackId where id_to_path = ("tracks" </>) . Id.ident_string
-instance Ident RulerId where id_to_path = ("rulers" </>) . Id.ident_string
+instance Ident ViewId where id_to_path = make_id_path "views"
+instance Ident BlockId where id_to_path = make_id_path "blocks"
+instance Ident TrackId where id_to_path = make_id_path "tracks"
+instance Ident RulerId where id_to_path = make_id_path "rulers"
 
-path_to_ident :: (Id.Id -> id) -> FilePath -> FilePath -> Either String id
-path_to_ident mkid ns name = do
+make_id_path :: (Id.Ident a) => FilePath -> a -> FilePath
+make_id_path dir id = dir </> nsdir </> name
+    where
+    (ns, name) = Id.un_id (Id.unpack_id id)
+    nsdir = if ns == Id.global_namespace then "*GLOBAL*"
+        else Id.un_namespace ns
+
+path_to_id :: (Id.Id -> id) -> FilePath -> FilePath -> Either String id
+path_to_id mkid ns name = do
     ns <- if ns == "*GLOBAL*" then return Id.global_namespace
         else maybe (Left $ "invalid namespace: " ++ show ns) Right
             (Id.namespace ns)
@@ -350,7 +358,7 @@ undump_diff state = foldM apply (state, [])
         _ -> Left $ "unknown file deleted: " ++ show path
         where
         delete ns name mkid lens = do
-            ident <- path_to_ident mkid ns name
+            ident <- path_to_id mkid ns name
             vals <- delete_key ident (lens #$ state)
             return ((lens #= vals) state, updates)
     apply (state, updates) (Git.Add path bytes) = case split path of
@@ -358,7 +366,7 @@ undump_diff state = foldM apply (state, [])
         ["blocks", ns, name] -> add ns name Types.BlockId State.blocks
         ["tracks", ns, name] -> do
             (state_to, updates) <- add ns name Types.TrackId State.tracks
-            tid <- path_to_ident Types.TrackId ns name
+            tid <- path_to_id Types.TrackId ns name
             -- I don't save the CmdUpdates with the checkpoint, so to avoid
             -- having to rederive the entire track I do a little mini-diff
             -- just on the track.  It shouldn't be too expensive because it's
@@ -372,7 +380,7 @@ undump_diff state = foldM apply (state, [])
         _ -> Left $ "unknown file modified: " ++ show path
         where
         add ns name mkid lens = do
-            ident <- path_to_ident mkid ns name
+            ident <- path_to_id mkid ns name
             val <- decode path bytes
             return ((lens %= Map.insert ident val) state, updates)
     split = FilePath.splitDirectories
