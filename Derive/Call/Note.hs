@@ -63,9 +63,7 @@ note_calls = Derive.make_calls
 -- abbreviated syntax: @+attr@ to generate a note with that attr, or
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
-c_note = Derive.Call "note"
-    (Just (Derive.GeneratorCall note_generate))
-    (Just note_transform)
+c_note = Derive.Call "note" (Just note_generate) (Just note_transform)
 
 note_generate :: Derive.PassedArgs d -> Derive.EventDeriver
 note_generate = inverting generate
@@ -77,8 +75,9 @@ note_generate = inverting generate
             "expected inst or attr: " ++ show invalid
     process = process_note_args Nothing []
 
-note_transform :: Derive.TransformerCall Score.Event
-note_transform = Derive.TransformerCall $ \args deriver ->
+note_transform :: Derive.PassedArgs d -> Derive.EventDeriver
+    -> Derive.EventDeriver
+note_transform args deriver =
     case process_note_args Nothing [] (Derive.passed_vals args) of
         (inst, rel_attrs, []) -> transform_note inst rel_attrs deriver
         (_, _, invalid) ->
@@ -191,9 +190,7 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
 -- * c_equal
 
 c_equal :: Derive.NoteCall
-c_equal = Derive.Call "equal"
-    (Just $ Derive.GeneratorCall generate)
-    (Just $ Derive.TransformerCall Util.equal_transformer)
+c_equal = Derive.Call "equal" (Just generate) (Just Util.equal_transformer)
     where
     generate args = place $ map (map_event (Util.equal_transformer args)) $
         concat $ sub_events args

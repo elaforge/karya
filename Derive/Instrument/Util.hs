@@ -27,8 +27,7 @@ note0_attrs attrs = postproc_note $ \evt ->
 -- | Just like the default note call, except apply a function to the output.
 postproc_note :: (Score.Event -> Score.Event) -> Derive.NoteCall
 postproc_note f = Derive.Call "note"
-    (Just (Derive.GeneratorCall (apply . Note.note_generate)))
-    (Just Note.note_transform)
+    (Just (apply . Note.note_generate)) (Just Note.note_transform)
     where
     apply d = do
         events <- d

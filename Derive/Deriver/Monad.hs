@@ -70,11 +70,11 @@ module Derive.Deriver.Monad (
     , PassedArgs(..)
 
     -- ** generator
-    , GeneratorCall(..)
+    , GeneratorCall
     , generator, generator1, stream_generator
 
     -- ** transformer
-    , TransformerCall(..)
+    , TransformerCall
     , transformer
 
     -- ** cache types
@@ -668,12 +668,8 @@ instance Show ValCall where
 
 -- ** generator
 
-data GeneratorCall derived = GeneratorCall {
-    gcall_func :: GeneratorFunc derived
-    }
-
 -- | args -> deriver
-type GeneratorFunc derived = PassedArgs derived -> LogsDeriver derived
+type GeneratorCall derived = PassedArgs derived -> LogsDeriver derived
 
 -- | Create the most common kind of generator.  The result is wrapped in
 -- LEvent.Event.
@@ -692,23 +688,18 @@ generator1 name func = generator name ((LEvent.one <$>) . func)
 -- have logs mixed in.  Useful if the generator calls a sub-deriver which will
 -- already have merged the logs into the output.
 stream_generator :: (Derived derived) =>
-    String -> GeneratorFunc derived -> Call derived
-stream_generator name func =
-    Call name (Just (GeneratorCall func)) Nothing
+    String -> GeneratorCall derived -> Call derived
+stream_generator name func = Call name (Just func) Nothing
 
 -- ** transformer
 
-newtype TransformerCall derived = TransformerCall {
-    tcall_func :: TransformerFunc derived
-    }
-
 -- | args -> deriver -> deriver
-type TransformerFunc derived =
+type TransformerCall derived =
     PassedArgs derived -> LogsDeriver derived -> LogsDeriver derived
 
 transformer :: (Derived derived) =>
-    String -> TransformerFunc derived -> Call derived
-transformer name func = Call name Nothing (Just (TransformerCall func))
+    String -> TransformerCall derived -> Call derived
+transformer name func = Call name Nothing (Just func)
 
 
 -- ** cache types

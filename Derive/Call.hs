@@ -314,7 +314,7 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
 
     let args = Derive.PassedArgs vals call_id cinfo
         with_stack = Internal.with_stack_call (Derive.call_name call)
-    with_stack $ case Derive.gcall_func <$> Derive.call_generator call of
+    with_stack $ case Derive.call_generator call of
         Just call -> call args
         Nothing -> Derive.throw $ "non-generator in generator position: "
             ++ Derive.call_name call
@@ -330,7 +330,7 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
     let args = Derive.PassedArgs vals call_id cinfo
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
-        Just trans -> Derive.tcall_func trans args new_deriver
+        Just trans -> trans args new_deriver
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             ++ Derive.call_name call
 

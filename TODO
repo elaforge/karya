@@ -1,5 +1,5 @@
 UNSORTED
-  - get rid of GeneratorCall
+  * get rid of GeneratorCall
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   - a new empty inst with a scale doesn't get the scale right, should fall
     back on looking down the skeleton
@@ -94,7 +94,7 @@ UNSORTED
       the call to git.  Test again with larger tracks.
     - do something about the duplication between the incremental and
       non-incremental save and load
-    + running a git cmd for every blob is not going to perform well when there
+    * running a git cmd for every blob is not going to perform well when there
       are thousands of them.  Wrap libgit directly?
     - wrap operations in a lock file
     - make sure things are ok if it fails at any step
@@ -131,6 +131,18 @@ UNSORTED
       it.  I guess I'd have to copy the dir, or do a git clone.  If I copied
       the dir that wouldn't work with 'untitled' because I don't want all
       those other heads.  I want to copy over the current history.
+      So I want to clone everything from the current commit.
+      Is there a git cmd to do that?
+      git clone --bare ...?
+      Get all commits, then copy all commits along with referents.
+      Much simpler to just copy the whole dir and then optionally trim the
+      other refs and gc as a separate operation.
+      - So I need the rename cmd to also mv or cp the underlying repo, if any.
+    - Why should I ever do a complete save?  Why not always just do partial?
+      The repo should only contain one copy of something that never changes.
+      One reason is to trim history, but maybe for that I should have a option
+      to rename and save without bringing the history.
+    - Ability to give names to SavePoints.
     - See if git's delta compression understands binary and can compress
       tracks.  Otherwise, would it be worth helping it by e.g. separating
       each event with a newline?  But then it makes serializing events more of
@@ -259,8 +271,6 @@ UNSORTED
 
   - If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
-  - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
-  - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
 
 MILESTONES
