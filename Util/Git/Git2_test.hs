@@ -95,7 +95,7 @@ test_diff_trees = do
 -- * implementation
 
 new_repo = do
-    let repo = "build/test/test-repo"
+    let repo = "build/test/test.git"
     File.ignore_enoent $ Directory.removeDirectoryRecursive repo
     io_equal (Git.init repo) False
     return repo

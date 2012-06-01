@@ -79,7 +79,9 @@ do_save :: Git.Repo -> SaveHistory -> IO (Git.Commit, SavePoint)
 do_save repo (SaveHistory state prev_commit _updates names) = do
     when (Maybe.isNothing prev_commit) $
         void $ Git.init repo
-    tree <- Git.write_dir repo (dump state)
+    dir <- either (Git.throw . ("make_dir"++)) return $
+        Git.make_dir (dump state)
+    tree <- Git.write_dir repo dir
     last_save <- read_last_save repo prev_commit
     save <- find_next_save repo (Maybe.fromMaybe (SavePoint []) last_save)
     commit <- commit_tree repo tree prev_commit $
@@ -171,72 +173,6 @@ commit_tree repo tree maybe_parent desc = do
         (maybe [] (:[]) maybe_parent) tree desc
     Git.update_head repo commit
     return commit
-
--- | This will tend to create redundant files, e.g. a block will be written
--- twice if two updates occur on it.  But 'Git.modify_dir' will filter out the
--- extras.
-dump_diff :: Bool -> State.State -> [Update.UiUpdate]
-    -> ([String], [Git.Modification])
-dump_diff track_dir state =
-    -- I use Left "" as a nop, so filter those out.
-    first (filter (not . null)) . Seq.partition_either . map mk
-    where
-    mk u@(Update.ViewUpdate view_id update) = case update of
-        Update.DestroyView -> Right $ Git.Remove (id_to_path view_id)
-        Update.BringToFront -> Left ""
-        _ | Just view <- Map.lookup view_id (State.state_views state) ->
-            Right $ Git.Add (id_to_path view_id) (Serialize.encode view)
-        _ -> Left $ "update for nonexistent view_id: " ++ show u
-    mk u@(Update.BlockUpdate block_id _)
-        | Just block <- Map.lookup block_id (State.state_blocks state) =
-            Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
-        | otherwise = Left $ "update for nonexistent block_id: " ++ show u
-    mk u@(Update.TrackUpdate track_id update)
-        | Just track <- Map.lookup track_id (State.state_tracks state) =
-            case update of
-                Update.TrackEvents start end | track_dir ->
-                    Right $ dump_events state track_id start end
-                _ -> Right $
-                    Git.Add (id_to_path track_id) (Serialize.encode track)
-        | otherwise = Left $ "update for nonexistent track_id: " ++ show u
-    mk (Update.RulerUpdate ruler_id ruler) =
-        Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
-    mk (Update.StateUpdate update) = case update of
-        Update.Config config ->
-            Right $ Git.Add "config" (Serialize.encode config)
-        Update.CreateBlock block_id block ->
-            Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
-        Update.DestroyBlock block_id ->
-            Right $ Git.Remove (id_to_path block_id)
-        Update.CreateTrack track_id track ->
-            Right $ Git.Add (id_to_path track_id) (Serialize.encode track)
-        Update.DestroyTrack track_id ->
-            Right $ Git.Remove (id_to_path track_id)
-        Update.CreateRuler ruler_id ruler ->
-            Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
-        Update.DestroyRuler ruler_id ->
-            Right $ Git.Remove (id_to_path ruler_id)
-
-class Ident id where id_to_path :: id -> FilePath
-instance Ident ViewId where id_to_path = make_id_path "views"
-instance Ident BlockId where id_to_path = make_id_path "blocks"
-instance Ident TrackId where id_to_path = make_id_path "tracks"
-instance Ident RulerId where id_to_path = make_id_path "rulers"
-
-make_id_path :: (Id.Ident a) => FilePath -> a -> FilePath
-make_id_path dir id = dir </> nsdir </> name
-    where
-    (ns, name) = Id.un_id (Id.unpack_id id)
-    nsdir = if ns == Id.global_namespace then "*GLOBAL*"
-        else Id.un_namespace ns
-
-path_to_id :: (Id.Id -> id) -> FilePath -> FilePath -> Either String id
-path_to_id mkid ns name = do
-    ns <- if ns == "*GLOBAL*" then return Id.global_namespace
-        else maybe (Left $ "invalid namespace: " ++ show ns) Right
-            (Id.namespace ns)
-    mkid <$> maybe
-        (Left $ "invalid ident name: " ++ show name) Right (Id.id ns name)
 
 -- ** events update
 
@@ -331,6 +267,19 @@ load_history repo state from_commit to_commit = do
         Right (new_state, cmd_updates) -> return $ Right $ Just
             (LoadHistory new_state to_commit cmd_updates names)
 
+load_from :: Git.Repo -> Git.Commit -> Maybe Git.Commit -> State.State
+    -> IO (Either String (State.State, [Update.CmdUpdate]))
+load_from repo commit_from maybe_commit_to state = do
+    commit_to <- default_head repo maybe_commit_to
+    mods <- Git.diff_commits repo commit_from commit_to
+    return $ undump_diff state mods
+
+default_head :: Git.Repo -> Maybe Git.Commit -> IO Git.Commit
+default_head _ (Just commit) = return commit
+default_head repo Nothing =
+    maybe (Git.throw $ "repo with no HEAD commit: " ++ show repo)
+        return =<< Git.read_head_commit repo
+
 parse_names :: String -> IO [String]
 parse_names text = case lines text of
     [_, names] -> readIO names
@@ -339,12 +288,95 @@ parse_names text = case lines text of
 unparse_names :: String -> [String] -> String
 unparse_names msg names = msg ++ "\n" ++ show names ++ "\n"
 
-load_from :: Git.Repo -> Git.Commit -> Maybe Git.Commit -> State.State
-    -> IO (Either String (State.State, [Update.CmdUpdate]))
-load_from repo commit_from maybe_commit_to state = do
-    commit_to <- default_head repo maybe_commit_to
-    mods <- Git.diff_commits repo commit_from commit_to
-    return $ undump_diff state mods
+-- * dump / undump
+
+dump :: State.State -> [(FilePath, ByteString)]
+dump (State.State views blocks tracks rulers config) =
+    dump_map views ++ dump_map blocks ++ dump_map tracks ++ dump_map rulers
+    ++ [("config", Serialize.encode config)]
+
+dump_map :: (Ident id, Serialize.Serialize a) =>
+    Map.Map id a -> [(FilePath, ByteString)]
+dump_map m = do
+    (ident, val) <- Map.toAscList m
+    return (id_to_path ident, Serialize.encode val)
+
+-- | This will tend to create redundant files, e.g. a block will be written
+-- twice if two updates occur on it.  But 'Git.modify_dir' will filter out the
+-- extras.
+dump_diff :: Bool -> State.State -> [Update.UiUpdate]
+    -> ([String], [Git.Modification])
+dump_diff track_dir state =
+    -- I use Left "" as a nop, so filter those out.
+    first (filter (not . null)) . Seq.partition_either . map mk
+    where
+    mk u@(Update.ViewUpdate view_id update) = case update of
+        Update.DestroyView -> Right $ Git.Remove (id_to_path view_id)
+        Update.BringToFront -> Left ""
+        _ | Just view <- Map.lookup view_id (State.state_views state) ->
+            Right $ Git.Add (id_to_path view_id) (Serialize.encode view)
+        _ -> Left $ "update for nonexistent view_id: " ++ show u
+    mk u@(Update.BlockUpdate block_id _)
+        | Just block <- Map.lookup block_id (State.state_blocks state) =
+            Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
+        | otherwise = Left $ "update for nonexistent block_id: " ++ show u
+    mk u@(Update.TrackUpdate track_id update)
+        | Just track <- Map.lookup track_id (State.state_tracks state) =
+            case update of
+                Update.TrackEvents start end | track_dir ->
+                    Right $ dump_events state track_id start end
+                _ -> Right $
+                    Git.Add (id_to_path track_id) (Serialize.encode track)
+        | otherwise = Left $ "update for nonexistent track_id: " ++ show u
+    mk (Update.RulerUpdate ruler_id ruler) =
+        Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
+    mk (Update.StateUpdate update) = case update of
+        Update.Config config ->
+            Right $ Git.Add "config" (Serialize.encode config)
+        Update.CreateBlock block_id block ->
+            Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
+        Update.DestroyBlock block_id ->
+            Right $ Git.Remove (id_to_path block_id)
+        Update.CreateTrack track_id track ->
+            Right $ Git.Add (id_to_path track_id) (Serialize.encode track)
+        Update.DestroyTrack track_id ->
+            Right $ Git.Remove (id_to_path track_id)
+        Update.CreateRuler ruler_id ruler ->
+            Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
+        Update.DestroyRuler ruler_id ->
+            Right $ Git.Remove (id_to_path ruler_id)
+
+undump :: Git.Dir -> Either String State.State
+undump dir = do
+    views <- undump_map Types.ViewId =<< get_dir "views"
+    blocks <- undump_map Types.BlockId =<< get_dir "blocks"
+    tracks <- undump_map Types.TrackId =<< get_dir "tracks"
+    rulers <- undump_map Types.RulerId =<< get_dir "rulers"
+    config <- decode "config" =<< get_file "config"
+    return $ State.State views blocks tracks rulers config
+    where
+    get_dir name = case Map.lookup name dir of
+        Nothing -> return Map.empty
+        Just (Git.File _) -> Left $ "expected dir but got file: " ++ show name
+        Just (Git.Dir dir) -> return dir
+    get_file name = case Map.lookup name dir of
+        Nothing -> Left $ "file not found: " ++ show name
+        Just (Git.Dir _) -> Left $ "expected file but got dir: " ++ show name
+        Just (Git.File bytes) -> return bytes
+
+undump_map :: (Serialize.Serialize a, Ord id) =>
+    (Id.Id -> id) -> Map.Map Git.FileName Git.File
+    -> Either String (Map.Map id a)
+undump_map mkid dir =
+    Map.fromList . concat <$> mapM dir_subs (Map.toAscList dir)
+    where
+    dir_subs (name, Git.File _) =
+        Left $ "expected dir but got file: " ++ show name
+    dir_subs (name, Git.Dir subs) = mapM (undump_file name) (Map.toList subs)
+    undump_file _ (name, Git.Dir _) =
+        Left $ "expected file but got dir: " ++ show name
+    undump_file ns (name, Git.File bytes) =
+        (,) <$> path_to_id mkid ns name <*> decode name bytes
 
 undump_diff :: State.State -> [Git.Modification]
     -> Either String (State.State, [Update.CmdUpdate])
@@ -385,12 +417,28 @@ undump_diff state = foldM apply (state, [])
             return ((lens %= Map.insert ident val) state, updates)
     split = FilePath.splitDirectories
 
-default_head :: Git.Repo -> Maybe Git.Commit -> IO Git.Commit
-default_head _ (Just commit) = return commit
-default_head repo Nothing =
-    maybe (Git.throw $ "repo with no HEAD commit: " ++ show repo)
-        return =<< Git.read_head_commit repo
+class Ident id where id_to_path :: id -> FilePath
+instance Ident ViewId where id_to_path = make_id_path "views"
+instance Ident BlockId where id_to_path = make_id_path "blocks"
+instance Ident TrackId where id_to_path = make_id_path "tracks"
+instance Ident RulerId where id_to_path = make_id_path "rulers"
 
+make_id_path :: (Id.Ident a) => FilePath -> a -> FilePath
+make_id_path dir id = dir </> nsdir </> name
+    where
+    (ns, name) = Id.un_id (Id.unpack_id id)
+    nsdir = if ns == Id.global_namespace then "*GLOBAL*"
+        else Id.un_namespace ns
+
+path_to_id :: (Id.Id -> id) -> FilePath -> FilePath -> Either String id
+path_to_id mkid ns name = do
+    ns <- if ns == "*GLOBAL*" then return Id.global_namespace
+        else maybe (Left $ "invalid namespace: " ++ show ns) Right
+            (Id.namespace ns)
+    mkid <$> maybe
+        (Left $ "invalid ident name: " ++ show name) Right (Id.id ns name)
+
+-- * util
 
 -- | If a string looks like a commit hash, return the commit, otherwise look
 -- for a ref in tags\/.
@@ -398,74 +446,6 @@ infer_commit :: Git.Repo -> String -> IO (Maybe Git.Commit)
 infer_commit repo ref_or_commit = case Git.parse_commit ref_or_commit of
     Just commit -> return $ Just commit
     Nothing -> Git.read_ref repo ("tags" </> ref_or_commit)
-
--- * implementation
-
-dump :: State.State -> Git.Dir
-dump (State.State views blocks tracks rulers config) = Map.fromList
-    [ ("views", Git.Dir $ dump_map views)
-    , ("blocks", Git.Dir $ dump_map blocks)
-    , ("tracks", Git.Dir $ dump_map tracks)
-    , ("rulers", Git.Dir $ dump_map rulers)
-    , ("config", Git.File $ Serialize.encode config)
-    ]
-
-undump :: Git.Dir -> Either String State.State
-undump dir = do
-    views <- undump_map Types.ViewId =<< get_dir "views"
-    blocks <- undump_map Types.BlockId =<< get_dir "blocks"
-    tracks <- undump_map Types.TrackId =<< get_dir "tracks"
-    rulers <- undump_map Types.RulerId =<< get_dir "rulers"
-    config <- decode "config" =<< get_file "config"
-    return $ State.State views blocks tracks rulers config
-    where
-    get_dir name = case Map.lookup name dir of
-        Nothing -> return Map.empty
-        Just (Git.File _) -> Left $ "expected dir but got file: " ++ show name
-        Just (Git.Dir dir) -> return dir
-    get_file name = case Map.lookup name dir of
-        Nothing -> Left $ "file not found: " ++ show name
-        Just (Git.Dir _) -> Left $ "expected file but got dir: " ++ show name
-        Just (Git.File bytes) -> return bytes
-
-undump_map :: (Serialize.Serialize a, Ord id) =>
-    (Id.Id -> id) -> Map.Map Git.FileName Git.File
-    -> Either String (Map.Map id a)
-undump_map mkid dir =
-    Map.fromList . concat <$> mapM dir_subs (Map.toAscList dir)
-    where
-    dir_subs (name, Git.File _) =
-        Left $ "expected dir but got file: " ++ show name
-    dir_subs (name, Git.Dir subs) = do
-        ns <- if name == "*GLOBAL*" then return Id.global_namespace
-            else maybe (Left $ "invalid namespace: " ++ show name) return
-                (Id.namespace name)
-        mapM (undump_file ns) (Map.toList subs)
-    undump_file _ (name, Git.Dir _) =
-        Left $ "expected file but got dir: " ++ show name
-    undump_file ns (name, Git.File bytes) = do
-        ident <- maybe (Left $ "invalid name: " ++ show name) return $
-            Id.id ns name
-        val <- decode name bytes
-        return (mkid ident, val)
-
-dump_map :: (Id.Ident id, Serialize.Serialize a) => Map.Map id a -> Git.Dir
-dump_map m = Map.fromList $ do
-    (ns, id_elems) <- keyed_group ns_of (Map.toAscList m)
-    return (ns, Git.Dir $ files_of id_elems)
-    where
-    ns_of = deglobal . Id.ident_namespace . fst
-    deglobal ns
-        | ns == Id.global_namespace = "*GLOBAL*"
-        | otherwise = Id.un_namespace ns
-    files_of id_elems = Map.fromList $ zip (map (Id.ident_name . fst) id_elems)
-        (map (Git.File . Serialize.encode . snd) id_elems)
-
-keyed_group :: (Ord key) => (a -> key) -> [a] -> [(key, [a])]
-keyed_group key = map (\gs -> (key (head gs), gs)) . Seq.group key
-
-
--- * util
 
 catch :: IO a -> IO (Maybe a)
 catch io = do

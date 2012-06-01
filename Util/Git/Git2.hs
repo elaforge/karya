@@ -30,7 +30,8 @@ module Util.Git.Git2 (
     , gc
     -- * higher level
     , Modification(..), Dir, File(..)
-    , make_dir, write_dir, read_dir, modify_dir
+    , make_dir, flatten_dir
+    , write_dir, read_dir, modify_dir
     -- * errors
     , G.throw, G.GitException(..)
 ) where
@@ -451,6 +452,12 @@ make_dir = foldM merge Map.empty
         subs <- insert subs names bytes
         return $ Map.insert name (Dir subs) files
     split = dropWhile (=="/") . FilePath.splitDirectories
+
+flatten_dir :: Dir -> [(FilePath, ByteString)]
+flatten_dir = concatMap flatten . Map.toList
+    where
+    flatten (name, File bytes) = [(name, bytes)]
+    flatten (name, Dir dir) = map (first (name </>)) (flatten_dir dir)
 
 write_dir :: Repo -> Dir -> IO Tree
 write_dir repo filemap = do

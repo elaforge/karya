@@ -57,7 +57,7 @@ test_modify_dir = do
     io_equal (Git.read_dir repo tree) $ Map.fromList [("c", Git.File "qqq")]
 
 new_repo = do
-    let repo = "build/test/test-repo"
+    let repo = "build/test/test.git"
     File.ignore_enoent $ Directory.removeDirectoryRecursive repo
     io_equal (Git.init repo) False
     return repo

@@ -27,6 +27,7 @@ UNSORTED
     some other effect, e.g. setting an environ val.
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
     a bit of editing it's up to 750mb, who is leaking?  Undo history?
+    - Write size profile that loads a big score and reports the size increase.
     - Write function to sum up State, Cache, and Performance sizes.
       Return stats about event size, etc.
     - Try interning strings on load.
@@ -92,7 +93,7 @@ UNSORTED
     + try saving individual events for incremental save
       Seems to be just as slow as full save, probably most of the time is in
       the call to git.  Test again with larger tracks.
-    - do something about the duplication between the incremental and
+    * do something about the duplication between the incremental and
       non-incremental save and load
     * running a git cmd for every blob is not going to perform well when there
       are thousands of them.  Wrap libgit directly?
