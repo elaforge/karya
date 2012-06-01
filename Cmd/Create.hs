@@ -112,7 +112,7 @@ map_track_titles f = do
 
 -- * block
 
-block_from_template :: (Cmd.M m) => Bool -> BlockId -> m BlockId
+block_from_template :: (State.M m) => Bool -> BlockId -> m BlockId
 block_from_template include_tracks template_id = do
     ruler_id <- State.get_block_ruler template_id
     block_id <- block ruler_id
@@ -375,9 +375,10 @@ destroy_selected_tracks = do
 
 -- | Remove a track from a block.  If that was the only block it appeared in,
 -- delete the underlying track.  Rulers are never deleted automatically.
-destroy_track :: (Cmd.M m) => BlockId -> TrackNum -> m ()
+destroy_track :: (State.M m) => BlockId -> TrackNum -> m ()
 destroy_track block_id tracknum = do
-    tracklike <- Cmd.require =<< State.track_at block_id tracknum
+    tracklike <- State.require ("invalid tracknum: " ++ show tracknum)
+        =<< State.track_at block_id tracknum
     State.remove_track block_id tracknum
     when_just (Block.track_id_of tracklike) $ \track_id ->
         whenM (orphan_track track_id) $

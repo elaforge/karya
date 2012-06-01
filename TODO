@@ -88,7 +88,7 @@ UNSORTED
     Do some logging to track them down.
   incremental save
     * upgrade to libgit2 1.7.0
-    - more exhaustive tests
+    * more exhaustive tests
     + try saving individual events for incremental save
       Seems to be just as slow as full save, probably most of the time is in
       the call to git.  Test again with larger tracks.
@@ -119,7 +119,7 @@ UNSORTED
     * split the head of hist_past into hist_cur.  It still has to be Maybe
       because of the empty cmd state, but maybe it will be easier to deal
       with split out.
-    - test incremental save for adding and remove tracks and blocks, not just
+    * test incremental save for adding and remove tracks and blocks, not just
       changing events
     - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
       diff will catch it.

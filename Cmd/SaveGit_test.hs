@@ -15,6 +15,7 @@ import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
+import qualified Cmd.Create as Create
 import qualified Cmd.SaveGit as SaveGit
 import Types
 
@@ -65,31 +66,34 @@ test_checkpoint = do
 
     let update num = Update.CmdTrackEvents (UiTest.mk_tid num)
     -- Make sure incremental loads work.
-    (_, secs) <- timer $ do
-        io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
-            -- insert_event 1 2 "hi" 2
-            (Right (state2, [update 1 2 4]))
-        io_equal (SaveGit.load_from repo commit2 (Just commit3) state2)
-            -- destroy_track 2, create_track 2, but generate no updates
-            -- because normal diff will catch that.
-            (Right (state3, []))
-        io_equal (SaveGit.load_from repo commit3 (Just commit4) state3)
-            (Right (state4, []))
-        io_equal (SaveGit.load_from repo commit1 (Just commit4) state1)
-            (Right (state4, [update 1 2 4]))
-    print secs
+    io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
+        -- insert_event 1 2 "hi" 2
+        (Right (state2, [update 1 2 4]))
+    io_equal (SaveGit.load_from repo commit2 (Just commit3) state2)
+        -- destroy_track 2, create_track 2, but generate no updates
+        -- because normal diff will catch that.
+        (Right (state3, []))
+    io_equal (SaveGit.load_from repo commit3 (Just commit4) state3)
+        (Right (state4, []))
+    io_equal (SaveGit.load_from repo commit1 (Just commit4) state1)
+        (Right (state4, [update 1 2 4]))
 
--- TODO do more exhaustive testing
-check_sequence = do
+test_more_checkpoints = check_sequence
+    [ mkview [("1", [])]
+    , void $ Create.block_from_template False UiTest.default_block_id
+    , void $ Create.empty_track UiTest.default_block_id 2
+    , Create.destroy_track UiTest.default_block_id 2
+    , Create.destroy_block UiTest.default_block_id
+    ]
+
+check_sequence :: [State.StateId ()] -> IO ()
+check_sequence actions = do
     repo <- new_repo
-    void $ print_timer "sequence" (const "") $ checkpoint_sequence repo $
-        [ (,) "create" $ mkview
-            [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
-            , ("2", [(0, 1, "2a")])
-            ]
-        ] ++ [('+' : show n, insert_event 2 1 (show n) 1) | n <- [0..20]]
-    -- mapM_ (check_load repo) states
-    -- mapM_ (uncurry (check_load_from repo)) (zip states (drop 1 states))
+    state_commits <- checkpoint_sequence repo (zip (map show [0..]) actions)
+    forM_ (zip state_commits (drop 1 state_commits)) $
+        \((state1, commit1), (state2, commit2)) -> do
+            io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
+                (Right (state2, []))
 
 insert_event :: (State.M m) => TrackNum -> ScoreTime -> String -> ScoreTime
     -> m ()
@@ -131,6 +135,6 @@ mkview :: [UiTest.TrackSpec] -> State.StateId ()
 mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
 
 new_repo = do
-    let repo = "build/test/test-repo"
+    let repo = "build/test/test.git"
     File.ignore_enoent $ Directory.removeDirectoryRecursive repo
     return repo
