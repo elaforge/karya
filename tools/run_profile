@@ -16,14 +16,16 @@ heap_flags=(${=${heap:-hm}})
 
 if [[ $prefixes[1] = seq ]]; then
     run_profile=(build/profile/seq $prefixes[2,-1])
-    basename=seq
     profiles=seq
+elif [[ $prefixes[1] = -* ]]; then
+    run_profile=(build/profile/RunProfile$prefixes[1])
+    profiles=($($run_profile --list .))
 else
-    run_profile=build/profile/RunProfile
-    basename=RunProfile
+    run_profile=(build/profile/RunProfile)
     profiles=($($run_profile --list $prefixes))
 fi
 
+basename=$(basename $run_profile[1])
 out=prof
 
 flags=(
