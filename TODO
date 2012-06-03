@@ -1,4 +1,9 @@
 UNSORTED
+  lilypond output
+    - convert block_meta to Lilypond.Score
+      Also figure out time sig and key sig from ruler and environ.
+    - mechanism to automatically invoke ly
+    - convert score events to ly notes
   * get rid of GeneratorCall
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   - a new empty inst with a scale doesn't get the scale right, should fall
@@ -27,10 +32,10 @@ UNSORTED
     some other effect, e.g. setting an environ val.
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
     a bit of editing it's up to 750mb, who is leaking?  Undo history?
-    - Write size profile that loads a big score and reports the size increase.
+    * Write size profile that loads a big score and reports the size increase.
     - Write function to sum up State, Cache, and Performance sizes.
       Return stats about event size, etc.
-    - Try interning strings on load.
+    * Try interning strings on load.
     - Compact control tracks when I have that in, maybe compact only on
       checkpoints?
     The ghc api uses tons of space when it starts linking in everything.

@@ -1,11 +1,17 @@
 -- | Functions for larger scale transformations on a State.
 module Ui.Transform where
+import qualified Data.ByteString as ByteString
+import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Map as Map
+import qualified Util.Memory as Memory
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import Types
@@ -141,3 +147,32 @@ safe_union name fm0 fm1
         "keys collided in " ++ show name ++ ": " ++ show (Map.keys overlapping)
     where (fm, overlapping) = Map.unique_union fm0 fm1
 
+
+-- * intern
+
+-- | Increase sharing in event text with an intern table.
+intern_text :: State.State -> (State.State, Map.Map ByteString.ByteString Int)
+intern_text state =
+    (state { State.state_tracks = Map.fromAscList tracks }, Map.map snd table)
+    where
+    (table, tracks) = List.mapAccumL intern_track Map.empty
+        (Map.toAscList (State.state_tracks state))
+    intern_track state (track_id, track) =
+        (state2, (track_id, track
+            { Track.track_events = Events.from_asc_list events }))
+        where
+        (state2, events) = List.mapAccumL intern_event state
+            (Events.ascending (Track.track_events track))
+    intern_event table (pos, event) = case Map.lookup text table of
+        Nothing -> (Map.insert text (text, 1) table, (pos, event))
+        Just (text, count) -> (Map.insert text (text, count+1) table,
+            (pos, event { Event.event_bs = text }))
+        where text = Event.event_bs event
+
+intern_stats :: Map.Map ByteString.ByteString Int -> (Memory.K, Int)
+intern_stats table =
+    (Memory.from_bytes $ sum (map stats (Map.toList table)), total_hits)
+    where
+    total_hits = sum (Map.elems table) - Map.size table
+    stats (text, hits) = size * (hits - 1)
+        where size = ByteString.length text + 3 * 4 -- pointer + length + start
