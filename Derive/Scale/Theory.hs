@@ -30,8 +30,9 @@ module Derive.Scale.Theory (
     , enharmonics_of
     , pitch_to_semis, semis_to_pitch
     -- * types
-    , Pitch(..), Note(..), Semi
-    , Key(key_layout), key, show_key
+    , PitchClass, pc_char
+    , Pitch(pitch_note), pitch, split_pitch, modify_octave, Note(..), Semi
+    , Key(key_tonic, key_name, key_layout), key, show_key
     , layout
     , show_pitch
 #ifndef TESTING
@@ -186,7 +187,7 @@ enharmonics_of layout pitch =
 
 -- * types
 
--- ** Pitch
+-- ** pitch types
 
 -- | A PitchClass maps directly to a letter, starting at @a@.  So the usual
 -- a--g is represented as 0--6, but of course scales with more or fewer notes
@@ -218,6 +219,8 @@ char_pc c = fromEnum c - fromEnum 'a'
 pc_char :: PitchClass -> Char
 pc_char pc = toEnum (fromEnum 'a' + pc)
 
+-- *** Pitch
+
 -- | A Pitch is just a Note with an octave.
 data Pitch = Pitch {
     pitch_octave :: !Octave
@@ -227,22 +230,15 @@ data Pitch = Pitch {
 instance Pretty.Pretty Pitch where
     pretty = show_pitch "#" "x" "b" "bb"
 
-data Note = Note {
-    note_pc :: !PitchClass
-    , note_accidentals :: !Accidentals
-    } deriving (Eq, Show)
+pitch :: Octave -> Note -> Pitch
+pitch octave note = Pitch oct note
+    where oct = if note_pc note >= 2 then octave - 1 else octave
 
-instance Pretty.Pretty Note where
-    -- But B flat looks ugly, B double-flat doubly so.
-    pretty = show_note "#" "x" "b" "bb"
-
--- | Show and read pitches in the usual letter format.  Adjust between the
--- A = 0 convention used internally to this module and C = 0 used in the rest
--- of the world.
+-- | Show and read pitches in the usual letter format.
 show_pitch :: String -> String -> String -> String -> Pitch -> String
-show_pitch sharp sharp2 flat flat2 (Pitch oct note) =
-    show oct2 ++ show_note sharp sharp2 flat flat2 note
-    where oct2 = if note_pc note >= 2 then oct + 1 else oct
+show_pitch sharp sharp2 flat flat2 pitch =
+    show oct ++ show_note sharp sharp2 flat flat2 note
+    where (oct, note) = split_pitch pitch
 
 parse_pitch :: String -> Maybe Pitch
 parse_pitch = ParseBs.maybe_parse_string (tweak <$> p_pitch)
@@ -251,6 +247,27 @@ parse_pitch = ParseBs.maybe_parse_string (tweak <$> p_pitch)
         | note_pc (pitch_note pitch) >= 2 =
             pitch { pitch_octave = pitch_octave pitch - 1 }
         | otherwise = pitch
+
+-- | Internally octaves wrap at A, but externally they wrap at C.  So don't
+-- export the Pitch constructors so external callers have to use 'split_pitch',
+-- which adjusts the octave.
+split_pitch :: Pitch -> (Octave, Note)
+split_pitch (Pitch octave note) =
+    (if note_pc note >= 2 then octave + 1 else octave, note)
+
+modify_octave :: (Octave -> Octave) -> Pitch -> Pitch
+modify_octave f (Pitch octave note) = Pitch (f octave) note
+
+-- *** Note
+
+data Note = Note {
+    note_pc :: !PitchClass
+    , note_accidentals :: !Accidentals
+    } deriving (Eq, Show)
+
+instance Pretty.Pretty Note where
+    -- But B flat looks ugly, B double-flat doubly so.
+    pretty = show_note "#" "x" "b" "bb"
 
 parse_note :: String -> Maybe Note
 parse_note = ParseBs.maybe_parse_string p_note

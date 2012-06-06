@@ -3,6 +3,7 @@ import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Num as Num
 import qualified Ui.Track as Track
 import qualified Derive.Call.Pitch as Call.Pitch
@@ -43,14 +44,12 @@ scale_map sys =
 transpose :: System -> Derive.Transpose
 transpose sys maybe_key octaves steps note = do
     key <- read_key sys maybe_key
-    pitch <- read_pitch key note
-    let pitch2 = pitch
-            { Theory.pitch_octave = Theory.pitch_octave pitch + octaves }
+    pitch <- Theory.modify_octave (+octaves) <$> read_pitch key note
     case steps of
         Pitch.Chromatic steps -> pitch_note sys $
-            Theory.transpose_chromatic key (floor steps) pitch2
+            Theory.transpose_chromatic key (floor steps) pitch
         Pitch.Diatonic steps -> pitch_note sys $
-            Theory.transpose_diatonic key (floor steps) pitch2
+            Theory.transpose_diatonic key (floor steps) pitch
 
 enharmonics :: System -> Derive.Enharmonics
 enharmonics sys maybe_key note = do
