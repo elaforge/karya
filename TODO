@@ -1,9 +1,27 @@
 UNSORTED
   lilypond output
-    - convert block_meta to Lilypond.Score
+    * convert score events to ly events
+    * convert ly events into sequence of notes and rests in the correct time
+      signature
+    - mechanism to automatically invoke lilypond on the output
+    - every single time I used time_per_whole I unpack it, should it be an
+      Int?
+    postproc rhythm cleanup:
+      - convert appropriate dotted rhythms to use dots
+      - convert whole measure notes to whole notes
+    - factor out shared bits of Perform.Midi.Convert and
+      Perform.Lilypond.Convert
+    - option to quantize input to something below 128th notes
+    - get pitches right, and keep the enharmonics
+    - should I derive without the tempo track?
+    * convert block_meta to Lilypond.Score
       Also figure out time sig and key sig from ruler and environ.
-    - mechanism to automatically invoke ly
-    - convert score events to ly notes
+    * theory should have a split_pitch that does the octave thing
+      automatically
+    * convert should have a stretch to say what a second is
+    - support for slurs, I think I write them as a NoteTransformer which
+      attaches metadata.  It can also affect note durations in normal
+      performance.
   * get rid of GeneratorCall
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   - a new empty inst with a scale doesn't get the scale right, should fall
