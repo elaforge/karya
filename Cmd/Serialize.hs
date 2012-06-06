@@ -187,8 +187,8 @@ instance Serialize Types.ViewId where
     get = get >>= \a -> return (Types.ViewId a)
 
 instance Serialize Block.Block where
-    put (Block.Block a _config b c) = put_version 4
-        >> put a >> put b >> put c
+    put (Block.Block a _config b c d) = put_version 5
+        >> put a >> put b >> put c >> put d
     get = do
         v <- get_version
         case v of
@@ -199,6 +199,16 @@ instance Serialize Block.Block where
                 -- Everything in the block config is either derived from the
                 -- Cmd.State or is hardcoded.
                 return $ Block.Block title Block.default_config tracks skel
+                    Map.empty
+            5 -> do
+                title <- get :: Get String
+                tracks <- get :: Get [Block.Track]
+                skel <- get :: Get Skeleton.Skeleton
+                -- Everything in the block config is either derived from the
+                -- Cmd.State or is hardcoded.
+                meta <- get :: Get (Map.Map String String)
+                return $ Block.Block title Block.default_config tracks skel
+                    meta
             _ -> version_error "Block.Block" v
 
 instance Serialize Skeleton.Skeleton where

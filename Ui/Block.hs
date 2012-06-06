@@ -22,24 +22,28 @@ import Types
 -- * block model
 
 data Block = Block {
-    block_title :: String
-    , block_config :: Config
-    , block_tracks :: [Track]
-    , block_skeleton :: Skeleton.Skeleton
+    block_title :: !String
+    , block_config :: !Config
+    , block_tracks :: ![Track]
+    , block_skeleton :: !Skeleton.Skeleton
+    , block_meta :: !Meta
     } deriving (Eq, Show, Read)
 
 instance Pretty.Pretty Block where
-    format (Block title _config tracks skel) =
-        Pretty.record_title "Block"
-            [ ("title", Pretty.format title)
-            , ("tracks", Pretty.format tracks)
-            , ("skel", Pretty.format skel)
-            ]
+    format (Block title _config tracks skel meta) = Pretty.record_title "Block"
+        [ ("title", Pretty.format title)
+        , ("tracks", Pretty.format tracks)
+        , ("skel", Pretty.format skel)
+        , ("meta", Pretty.format meta)
+        ]
 
 instance DeepSeq.NFData Block where
     -- I don't bother to force anything deep, but there isn't much data down
     -- there anyway.
-    rnf (Block title config tracks skel) = title `seq` config `seq` tracks `seq` skel `seq` ()
+    rnf (Block title config tracks skel meta) =
+        title `seq` config `seq` tracks `seq` skel `seq` meta `seq` ()
+
+type Meta = Map.Map String String
 
 block_tracklike_ids :: Block -> [TracklikeId]
 block_tracklike_ids = map tracklike_id . block_tracks
@@ -51,7 +55,7 @@ block_ruler_ids :: Block -> [RulerId]
 block_ruler_ids = ruler_ids_of . block_tracklike_ids
 
 block :: Config -> String -> [Track] -> Block
-block config title tracks = Block title config tracks Skeleton.empty
+block config title tracks = Block title config tracks Skeleton.empty Map.empty
 
 -- | Per-block configuration.
 data Config = Config {

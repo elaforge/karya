@@ -41,6 +41,12 @@ half = Duration 2
 quarter = Duration 4
 eighth = Duration 8
 
+read_duration :: String -> Maybe Duration
+read_duration d = Map.lookup d durations
+    where
+    durations = Map.fromList [("whole", whole), ("half", half),
+        ("quarter", quarter), ("eighth", eighth)]
+
 instance ToLily Duration where
     to_lily (Duration dur) = show dur
 
@@ -162,6 +168,8 @@ data Score = Score {
     , score_time :: TimeSignature
     , score_clef :: String
     , score_key :: (String, Mode)
+    -- | 1 second of RealTime is converted to this Duration.
+    , score_duration1 :: Duration
     } deriving (Show)
 
 data Mode = Major | Minor deriving (Show)
@@ -173,6 +181,7 @@ meta_title, meta_clef, meta_time_signature :: String
 meta_title = "ly.title"
 meta_clef = "ly.clef"
 meta_time_signature = "ly.time-signature"
+meta_duration1 = "ly.duration1"
 
 meta_to_score :: Maybe Pitch.Key -> Map.Map String String
     -> Maybe (Either String Score)
@@ -182,7 +191,16 @@ meta_to_score maybe_score_key meta = case Map.lookup meta_ly meta of
         score_key <- maybe (Left "key required") return maybe_score_key
         key <- parse_key score_key
         time_sig <- parse_time_signature $ get "4/4" meta_time_signature
-        return $ Score title time_sig clef key
+        let dur1s = get "quarter" meta_duration1
+        dur1 <- maybe (Left $ "duration1 unparseable: " ++ show dur1s) return
+            (read_duration dur1s)
+        return $ Score
+            { score_title = title
+            , score_time = time_sig
+            , score_clef = clef
+            , score_key = key
+            , score_duration1 = dur1
+            }
     where
     title = get "" meta_title
     clef = get "treble" meta_clef
@@ -217,7 +235,7 @@ make_score score events = score_file score (ly_notes events)
     ly_notes = notes_to_lily . convert_notes (score_time score)
 
 score_file :: Score -> [String] -> Doc
-score_file (Score title time_sig clef (key, mode)) notes =
+score_file (Score title time_sig clef (key, mode) _dur1) notes =
     command "version" <+> string "2.14.2"
     $+$ command "language" <+> string "english"
     -- Could I put the stack in there so I can click on the notes and get them

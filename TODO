@@ -3,7 +3,9 @@ UNSORTED
     * convert score events to ly events
     * convert ly events into sequence of notes and rests in the correct time
       signature
-    - mechanism to automatically invoke lilypond on the output
+    * mechanism to automatically invoke lilypond on the output
+      Should run in Cmd.Performance
+    - Wait a few seconds before kicking off a lilypond compile.
     - every single time I used time_per_whole I unpack it, should it be an
       Int?
     postproc rhythm cleanup:
@@ -14,6 +16,11 @@ UNSORTED
     - option to quantize input to something below 128th notes
     - get pitches right, and keep the enharmonics
     - should I derive without the tempo track?
+    - At some point I will probably want to only typeset certain tracks, or
+      set up staffs per set of tracks, so I'll need per-track ly meta data.
+      Or perhaps I'm more likely to want to typeset a certain instrument, or
+      set of instruments throughout a large score.  But then I'd probably need
+      to rederive and ignore certain tempo tracks.
     * convert block_meta to Lilypond.Score
       Also figure out time sig and key sig from ruler and environ.
     * theory should have a split_pitch that does the octave thing

@@ -70,7 +70,7 @@ run meta note_spec =
     where
     sig = Lilypond.score_time score
     res = DeriveTest.derive_tracks (UiTest.note_spec note_spec)
-    (events, _logs) = LEvent.partition $ Convert.convert (Lilypond.Duration 4)
+    (events, _logs) = LEvent.partition $ Convert.convert Lilypond.quarter
         (Derive.r_events res)
     Just (Right score) = Lilypond.meta_to_score (Just (Pitch.Key "d-min")) meta
 

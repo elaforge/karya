@@ -49,6 +49,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Lang as Lang
+import qualified Cmd.Lilypond as Lilypond
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayC as PlayC
 import qualified Cmd.ResponderSync as ResponderSync
@@ -351,6 +352,7 @@ hardcoded_io_cmds :: Transport.Info -> Lang.Session -> [FilePath]
     -> [Msg.Msg -> Cmd.CmdIO]
 hardcoded_io_cmds transport_info lang_session lang_dirs =
     [ Lang.cmd_language lang_session lang_dirs
+    , Lilypond.cmd_compile
     , PlayC.cmd_play_msg
     ] ++ GlobalKeymap.io_cmds transport_info
 

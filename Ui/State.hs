@@ -498,6 +498,10 @@ block_of view_id = get_block . Block.view_block =<< get_view view_id
 block_id_of :: (M m) => ViewId -> m BlockId
 block_id_of view_id = Block.view_block <$> get_view view_id
 
+modify_block_meta :: (M m) => BlockId -> (Block.Meta -> Block.Meta) -> m ()
+modify_block_meta block_id f = modify_block block_id $ \block ->
+    block { Block.block_meta = f (Block.block_meta block) }
+
 set_block_config :: (M m) => BlockId -> Block.Config -> m ()
 set_block_config block_id config =
     modify_block block_id (\block -> block { Block.block_config = config })
