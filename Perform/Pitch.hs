@@ -80,7 +80,7 @@ middle_octave = 5
 -- It would be less tempered-centric to use hz, but for the moment this seems
 -- practical since note numbers are easier to read.
 newtype NoteNumber = NoteNumber Double
-    deriving (Eq, Ord, Fractional, Num)
+    deriving (Eq, Ord, Fractional, Real, RealFrac, Num)
 
 instance Show NoteNumber where
     show (NoteNumber nn) = Pretty.show_float 2 nn ++ "nn"
@@ -159,6 +159,9 @@ twelve = ScaleId "twelve"
 -- to correspond to chromatic steps in the scale.
 newtype Degree = Degree Int
     deriving (Num, Integral, Real, Enum, Eq, Ord, Show)
+
+instance Pretty.Pretty Degree where
+    pretty (Degree n) = show n
 
 -- | A generic transposition, for operations that can transpose either
 -- diatonically or chromatically.
