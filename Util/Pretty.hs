@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {- | Like Show, but designed to be easy to read rather than unambiguous and
     complete.
 -}
@@ -19,6 +20,7 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
+import qualified Data.String as String
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Storable as Storable
 import qualified Data.Vector.Unboxed as Unboxed
@@ -42,6 +44,8 @@ default_width = 78
 instance Monoid.Monoid Doc where
     mempty = PP.empty
     mappend = (PP.<>)
+
+instance String.IsString Doc where fromString = PP.text
 
 -- | Format values in an eye-pleasing way.  Unlike Show, this isn't intended
 -- to produce any kind of valid syntax, or even preserve information.
@@ -108,10 +112,10 @@ instance Pretty ByteString.ByteString where
     format = PP.doubleQuotes . PP.text . UTF8.toString
 
 formatted :: (Pretty a) => a -> String
-formatted = render default_width . format
+formatted = (++"\n") . render default_width . format
 
 pprint :: (Pretty a) => a -> IO ()
-pprint = putStrLn . formatted
+pprint = putStr . formatted
 
 render :: Int -> Doc -> String
 render width = PP.renderStyle (PP.Style PP.PageMode width 1)
