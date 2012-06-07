@@ -28,8 +28,8 @@ test_lazy = do
 test_convert = do
     equal (convert [mklog "hi"]) [Right "hi"]
     equal (convert [noinst 0, nopitch 1, good 2])
-        [ Right $ "Convert: event requires midi instrument in instrument db: "
-            ++ "Instrument \"noinst\" (further warnings suppressed)"
+        [ Right $ "event requires midi instrument in instrument db: "
+            ++ ">noinst (further warnings suppressed)"
         -- emits an event anyway so the previous pitch doesn't continue
         , Left (1, [])
         , Left (2, [(2, 62)])
@@ -37,7 +37,7 @@ test_convert = do
     equal (convert [good 2, good 0, good 1])
         [ Left (2, [(2, 62)])
         , Left (0, [(0, 62)])
-        , Right "Convert: start time 0s less than previous of 2s"
+        , Right "start time 0s less than previous of 2s"
         , Left (1, [(1, 62)])
         ]
 

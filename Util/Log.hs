@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
 {- | Functions for logging.
 
     Log msgs are used to report everything from errors and debug msgs to status
@@ -38,21 +39,26 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Reader as Reader
+import qualified Control.Monad.State as State
+import qualified Control.Monad.State.Strict as State.Strict
+import qualified Control.Monad.State.Lazy as State.Lazy
 import qualified Control.Monad.Trans as Trans
 import qualified Control.Monad.Writer.Lazy as Writer
 
 import qualified Data.Generics as Generics
+import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Time as Time
-import qualified Debug.Trace as Trace
 
+import qualified Debug.Trace as Trace
 import qualified System.IO as IO
-import qualified System.IO.Unsafe  as Unsafe
+import qualified System.IO.Unsafe as Unsafe
 import Text.Printf (printf)
 
 import qualified Util.AppendList as AppendList
-import Util.Control
 import qualified Util.CPUTime as CPUTime
+import Util.Control
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -273,7 +279,7 @@ write_msg = LogT . Logger.log
 type LogM m = Logger.LoggerT Msg m
 newtype LogT m a = LogT (LogM m a)
     deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans,
-        Error.MonadError e)
+        Error.MonadError e, State.MonadState st, Reader.MonadReader r)
 run_log_t (LogT x) = x
 
 instance (Functor m, Monad m) => Applicative.Applicative (LogT m) where
@@ -282,6 +288,22 @@ instance (Functor m, Monad m) => Applicative.Applicative (LogT m) where
 
 run :: Monad m => LogT m a -> m (a, [Msg])
 run = Logger.run . run_log_t
+
+-- ** mtl instances
+
+instance (LogMonad m) => LogMonad (State.Strict.StateT s m) where
+    write = Trans.lift . write
+instance (LogMonad m) => LogMonad (State.Lazy.StateT s m) where
+    write = Trans.lift . write
+
+instance (Error.Error e, LogMonad m) => LogMonad (Error.ErrorT e m) where
+    write = Trans.lift . write
+
+instance (LogMonad m) => LogMonad (Reader.ReaderT r m) where
+    write = Trans.lift . write
+
+instance (Monoid.Monoid w, LogMonad m) => LogMonad (Writer.WriterT w m) where
+    write = Trans.lift . write
 
 -- * LazyLogT
 

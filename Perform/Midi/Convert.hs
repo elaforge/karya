@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-} -- for Error instance
 {- | Convert from the Derive events to MIDI performer specific events.
 
     Since this module depends on both the Derive and Perform.Midi layers, it
@@ -6,17 +5,12 @@
     physically located in Perform.Midi.
 -}
 module Perform.Midi.Convert where
-import qualified Control.Monad.Error as Error
-import qualified Control.Monad.Identity as Identity
-import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State.Strict as State
-
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 
 import qualified Midi.Midi as Midi
@@ -24,23 +18,24 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
 
+import qualified Perform.ConvertUtil as ConvertUtil
+import Perform.ConvertUtil (require)
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import qualified Perform.Warning as Warning
 
 import qualified Instrument.MidiDb as MidiDb
 import Types
 
 
--- TODO record logs directly and remove warn_to_log
+type ConvertT a = ConvertUtil.ConvertT State a
 
--- TODO warnings about:
--- - Instrument has a control that's not in its control map.
+-- | Remember which non-allocated instruments have been warned about to
+-- suppress further warnings.
+type State = Set.Set Score.Instrument
 
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
@@ -51,34 +46,14 @@ data Lookup = Lookup {
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
 convert :: Lookup -> Derive.Events -> [LEvent.LEvent Perform.Event]
-convert lookup events = go Set.empty Nothing events
-    where
-    go _ _ [] = []
-    go state prev (LEvent.Log log : rest) =
-        LEvent.Log log : go state prev rest
-    go state prev (LEvent.Event event : rest) =
-        maybe [] ((:[]) . LEvent.Event) maybe_event ++ logs
-            ++ go next_state (Just (Score.event_start event)) rest
-        where
-        (maybe_event, warns, next_state) = run_convert state
-            (Score.event_stack event)
-            (convert_event lookup prev event)
-        logs = map (LEvent.Log . warn_to_log) warns
-
--- | Convert a Warning into an appropriate log msg.
-warn_to_log :: Warning.Warning -> Log.Msg
-warn_to_log (Warning.Warning msg stack maybe_range) =
-    Log.msg Log.Warn (Just (Stack.to_strings stack)) $
-        "Convert: " ++ msg ++ maybe "" ((" range: " ++) . show) maybe_range
-    -- TODO It would be more useful to append the range to the stack, but
-    -- I would have to convert real -> score.
+convert lookup = ConvertUtil.convert Set.empty (convert_event lookup)
 
 convert_event :: Lookup -> Maybe RealTime -> Score.Event
     -> ConvertT Perform.Event
 convert_event lookup maybe_prev event = do
     -- Sorted is a postcondition of the deriver.
     when_just maybe_prev $ \prev -> when (Score.event_start event < prev) $
-        warn $ "start time " ++ Pretty.pretty (Score.event_start event)
+        Log.warn $ "start time " ++ Pretty.pretty (Score.event_start event)
             ++ " less than previous of " ++ Pretty.pretty prev
     score_inst <- require "instrument" (Score.event_instrument event)
     (midi_inst, maybe_key) <- convert_inst (lookup_inst lookup) score_inst
@@ -94,7 +69,7 @@ convert_event lookup maybe_prev event = do
             (Instrument.inst_control_map midi_inst)
             (Score.event_controls event)
     when_just overridden $ \sig ->
-        warn $ "non-null control overridden by "
+        Log.warn $ "non-null control overridden by "
             ++ Pretty.pretty Score.c_dynamic ++ ": " ++ Pretty.pretty sig
     return $ Perform.Event midi_inst
         (Score.event_start event) (Score.event_duration event)
@@ -115,7 +90,7 @@ convert_inst lookup_inst score_inst attrs = do
             Just key -> return (Just key)
     case maybe_key of
         Nothing | kmap_attrs /= Score.no_attrs ->
-            warn $ "attrs have no match in keyswitches or keymap of "
+            Log.warn $ "attrs have no match in keyswitches or keymap of "
                 ++ Pretty.pretty midi_inst ++ ": " ++ Pretty.pretty kmap_attrs
         -- If there was a keymap and lookup succeeded then all the attributes
         -- are accounted for.
@@ -130,10 +105,10 @@ get_inst :: Score.Instrument -> Maybe (Instrument.Instrument, Score.Attributes)
 get_inst _ (Just v) = return v
 get_inst inst Nothing = do
     not_found <- State.get
-    if Set.member inst not_found then Error.throwError Nothing
+    if Set.member inst not_found then ConvertUtil.abort
         else do
             State.put (Set.insert inst not_found)
-            require ("midi instrument in instrument db: " ++ show inst
+            require ("midi instrument in instrument db: " ++ Pretty.pretty inst
                 ++ " (further warnings suppressed)") Nothing
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
@@ -163,7 +138,7 @@ convert_controls pressure_inst inst_cmap =
 convert_pitch :: Instrument.PatchScale -> Score.ControlMap
     -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
 convert_pitch scale controls psig = do
-    unless (null errs) $ warn $ "pitch: " ++ Pretty.pretty errs
+    unless (null errs) $ Log.warn $ "pitch: " ++ Pretty.pretty errs
     return $ convert_scale scale sig
     where
     (sig, errs) = PitchSignal.to_nn $ PitchSignal.apply_controls controls psig
@@ -173,43 +148,3 @@ convert_scale Nothing = id
 convert_scale (Just scale) = Signal.map_y $
     un . Instrument.convert_patch_scale scale . Pitch.NoteNumber
     where un (Pitch.NoteNumber nn) = nn
-
--- * monad
-
--- | Bogus mandatory instance.
-instance Error.Error (Maybe Warning.Warning) where
-    strMsg = Just . Error.strMsg
-
--- | Remember which non-allocated instruments have been warned about to
--- suppress further warnings.
-type State = Set.Set Score.Instrument
-
-type ConvertT = Error.ErrorT (Maybe Warning.Warning)
-    (State.StateT State
-        (Logger.LoggerT Warning.Warning
-            (Reader.ReaderT Stack.Stack Identity.Identity)))
-
-warn :: String -> ConvertT ()
-warn msg = do
-    stack <- Reader.ask
-    Logger.log (Warning.warning msg stack Nothing)
-
-run_convert :: State -> Stack.Stack -> ConvertT a
-    -> (Maybe a, [Warning.Warning], State)
-run_convert state stack conv =
-    (either (const Nothing) Just val, warn ++ warns, out_state)
-    where
-    run = Identity.runIdentity . flip Reader.runReaderT stack
-        . Logger.run . flip State.runStateT state . Error.runErrorT
-    ((val, out_state), warns) = run conv
-    warn = case val of
-        Left (Just warn) -> [warn]
-        _ -> []
-
-require :: String -> Maybe a -> ConvertT a
-require msg val = do
-    stack <- Reader.ask
-    case val of
-        Nothing -> Error.throwError $ Just $
-            Warning.warning ("event requires " ++ msg) stack Nothing
-        Just val -> return val
