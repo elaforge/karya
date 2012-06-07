@@ -44,8 +44,11 @@ scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
 
 system :: TwelveUtil.System
-system = TwelveUtil.system layout all_pitches all_keys default_key
-    where Just default_key = Map.lookup (Pitch.Key "c-maj") all_keys
+system = TwelveUtil.system layout all_pitches all_keys key
+    where Just key = Map.lookup default_key all_keys
+
+default_key :: Pitch.Key
+default_key = Pitch.Key "c-maj"
 
 -- * constants
 

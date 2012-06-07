@@ -3,6 +3,8 @@ module Cmd.Lilypond where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.Process as Process
@@ -22,6 +24,9 @@ import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
@@ -43,9 +48,7 @@ cmd_compile _ = return Cmd.Continue
 compile :: BlockId -> Cmd.Performance -> Cmd.CmdT IO ()
 compile block_id perf = do
     meta <- Block.block_meta <$> State.get_block block_id
-    -- TODO pull this out of the environ, defaulting as Scale.Twelve would
-    let maybe_key = Just (Pitch.Key "c-maj")
-    case Lilypond.meta_to_score maybe_key meta of
+    case Lilypond.meta_to_score (Just (lookup_key perf)) meta of
         Nothing -> return ()
         Just (Left err) -> Log.warn $ "can't convert to lilypond: " ++ err
         Just (Right score) -> run score
@@ -65,6 +68,14 @@ compile block_id perf = do
         save_file <- SaveGit.save_file False <$> State.get
         Trans.liftIO $ void $ Thread.start $
             compile_score var save_file block_id score (Cmd.perf_events perf)
+
+lookup_key :: Cmd.Performance -> Pitch.Key
+lookup_key perf = Maybe.fromMaybe Twelve.default_key $ msum $
+        map lookup $ Map.elems (Msg.perf_track_environ perf)
+    where
+    lookup environ = case TrackLang.lookup_val TrackLang.v_key environ of
+        Right key -> Just (Pitch.Key key)
+        Left _ -> Nothing
 
 compile_score :: IORef.IORef Bool -> FilePath -> BlockId -> Lilypond.Score
     -> Derive.Events -> IO ()
