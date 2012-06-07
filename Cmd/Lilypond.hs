@@ -1,6 +1,8 @@
 -- | Cmd-level support for the lilypond backend.
 module Cmd.Lilypond where
 import qualified Control.Monad.Trans as Trans
+import qualified Data.IORef as IORef
+import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.Process as Process
@@ -27,10 +29,10 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
--- TODO
--- Maybe I should wait a while before running lilypond.  But then I have to put
--- the ThreadId somewhere, or at least a var to check before setting off the
--- compile.
+-- | Wait this many seconds before kicking off a compile.  This is on top
+-- of the usual derive delay.
+compile_delay :: Thread.Seconds
+compile_delay = 3
 
 cmd_compile :: Msg.Msg -> Cmd.CmdIO
 cmd_compile (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
@@ -46,16 +48,33 @@ compile block_id perf = do
     case Lilypond.meta_to_score maybe_key meta of
         Nothing -> return ()
         Just (Left err) -> Log.warn $ "can't convert to lilypond: " ++ err
-        Just (Right score) -> do
-            save_file <- SaveGit.save_file False <$> State.get
-            Trans.liftIO $ void $ Thread.start $
-                compile_score save_file block_id score (Cmd.perf_events perf)
+        Just (Right score) -> run score
+    where
+    run score = do
+        old_compiles <- Cmd.gets
+            (Cmd.state_lilypond_compiles . Cmd.state_play)
+        -- Cancel the last one, if any.
+        case Map.lookup block_id old_compiles of
+            Just (Cmd.CancelLilypond var) ->
+                Trans.liftIO $ IORef.writeIORef var True
+            _ -> return ()
+        var <- Trans.liftIO $ IORef.newIORef False
+        Cmd.modify_play_state $ \st -> st { Cmd.state_lilypond_compiles =
+            Map.insert block_id (Cmd.CancelLilypond var)
+                (Cmd.state_lilypond_compiles st) }
+        save_file <- SaveGit.save_file False <$> State.get
+        Trans.liftIO $ void $ Thread.start $
+            compile_score var save_file block_id score (Cmd.perf_events perf)
 
-compile_score :: FilePath -> BlockId -> Lilypond.Score -> Derive.Events -> IO ()
-compile_score save_file block_id score events = do
-    let (score_doc, logs) = make_score score events
-    mapM_ Log.write logs
-    compile_ly save_file block_id score_doc
+compile_score :: IORef.IORef Bool -> FilePath -> BlockId -> Lilypond.Score
+    -> Derive.Events -> IO ()
+compile_score var save_file block_id score events = do
+    Thread.delay compile_delay
+    cancelled <- IORef.readIORef var
+    unless cancelled $ do
+        let (score_doc, logs) = make_score score events
+        mapM_ Log.write logs
+        compile_ly save_file block_id score_doc
 
 compile_ly :: FilePath -> BlockId -> Pretty.Doc -> IO ()
 compile_ly save_file block_id score = do

@@ -54,6 +54,7 @@ import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
 
 import qualified Data.Generics as Generics
+import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 
 import Util.Control
@@ -370,6 +371,10 @@ data PlayState = PlayState {
     -- new performance is needed before the old one is complete, it can be
     -- killed off.
     , state_performance_threads :: !(Map.Map BlockId Concurrent.ThreadId)
+    -- | This has an entry for each lilypond compile, each of which may be
+    -- waiting to see if a new score is worth compiling.  If set to True and
+    -- the compile hasn't begun yet, it will be cancelled.
+    , state_lilypond_compiles :: !(Map.Map BlockId CancelLilypond)
     -- | Some play commands can start playing from a short distance before the
     -- cursor.
     , state_play_step :: !TimeStep.TimeStep
@@ -381,12 +386,18 @@ data PlayState = PlayState {
     , state_play_multiplier :: RealTime
     } deriving (Show, Generics.Typeable)
 
+-- | Just make the IORef showable.
+newtype CancelLilypond = CancelLilypond (IORef.IORef Bool)
+instance Show CancelLilypond where
+    show _ = "((CancelLilypond))"
+
 initial_play_state :: PlayState
 initial_play_state = PlayState
     { state_play_control = Nothing
     , state_performance = Map.empty
     , state_current_performance = Map.empty
     , state_performance_threads = Map.empty
+    , state_lilypond_compiles = Map.empty
     , state_play_step =
         TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 2)
     , state_step = Nothing

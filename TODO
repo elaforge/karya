@@ -5,7 +5,8 @@ UNSORTED
       signature
     * mechanism to automatically invoke lilypond on the output
       Should run in Cmd.Performance
-    - Wait a few seconds before kicking off a lilypond compile.
+    * Wait a few seconds before kicking off a lilypond compile.
+    - pull the key out of the environ
     - every single time I used time_per_whole I unpack it, should it be an
       Int?
     postproc rhythm cleanup:
