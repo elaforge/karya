@@ -77,6 +77,5 @@ degree_to_pitch =
         where accs = Theory.note_accidentals (Theory.pitch_note pitch)
 
 real_to_time :: Lilypond.Duration -> RealTime -> Lilypond.Time
-real_to_time (Lilypond.Duration dur1) real = Lilypond.Time $ floor $
-    RealTime.to_seconds real * (fromIntegral whole / fromIntegral dur1)
-    where Lilypond.Time whole = Lilypond.time_per_whole
+real_to_time dur1 real = Lilypond.Time $ floor $
+    RealTime.to_seconds real * fromIntegral (Lilypond.dur_to_time dur1)

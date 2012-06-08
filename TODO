@@ -11,7 +11,7 @@ UNSORTED
       Int?
     postproc rhythm cleanup:
       - convert appropriate dotted rhythms to use dots
-      - convert whole measure notes to whole notes
+      * convert whole measure notes to whole notes
     * factor out shared bits of Perform.Midi.Convert and
       Perform.Lilypond.Convert
     - option to quantize input to something below 128th notes

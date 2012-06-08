@@ -4,7 +4,7 @@ module Perform.Lilypond.Lilypond where
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
-import Data.Ratio ((%))
+import qualified Data.Maybe as Maybe
 
 import qualified Text.PrettyPrint as PP
 import Text.PrettyPrint (Doc)
@@ -13,14 +13,17 @@ import Text.PrettyPrint ((<+>), ($+$))
 import Util.Control
 import qualified Util.ParseBs as ParseBs
 import qualified Util.Seq as Seq
+import qualified Util.Then as Then
 
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 
 
--- * notes
+-- * types
 
+-- | Convert a value to its lilypond representation.
+-- TODO go to Pretty.Doc instead of String?
 class ToLily a where
     to_lily :: a -> String
 
@@ -31,24 +34,27 @@ newtype Time = Time Int deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
 time_per_whole :: Time
 time_per_whole = Time 128
 
--- | This time duration measured as the fraction of a whole note, so e.g. 1 is
--- a whole note, 4 is a quarter note, etc.
-newtype Duration = Duration Int deriving (Eq, Show)
+-- | This time duration measured as the fraction of a whole note.
+data Duration = D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
+    deriving (Enum, Eq, Ord, Show)
 
-whole, half, quarter, eighth :: Duration
-whole = Duration 1
-half = Duration 2
-quarter = Duration 4
-eighth = Duration 8
+data NoteDuration = NoteDuration Duration Bool
+    deriving (Eq, Show)
 
 read_duration :: String -> Maybe Duration
-read_duration d = Map.lookup d durations
-    where
-    durations = Map.fromList [("whole", whole), ("half", half),
-        ("quarter", quarter), ("eighth", eighth)]
+read_duration s = case s of
+    -- GHC says these are overlapped, but only if I use "" syntax, not if
+    -- I use [] syntax.  I think it's a bug.  TODO try on newer version of
+    -- ghc.
+    "1" -> Just D1; "2" -> Just D2; "4" -> Just D4; "8" -> Just D8
+    "16" -> Just D16; "32" -> Just D32; "64" -> Just D64; "128" -> Just D128
+    _ -> Nothing
 
 instance ToLily Duration where
-    to_lily (Duration dur) = show dur
+    to_lily = drop 1 . show
+
+instance ToLily NoteDuration where
+    to_lily (NoteDuration dur dot) = to_lily dur ++ if dot then "." else ""
 
 data TimeSignature = TimeSignature { time_num :: !Int, time_denom :: !Duration }
     deriving (Show)
@@ -65,89 +71,110 @@ data Event = Event {
 event_end :: Event -> Time
 event_end event = event_start event + event_duration event
 
+-- ** Note
+
 data Note = Note {
-    note_pitch :: !String
-    , note_duration :: !Duration
+    note_pitch :: !(Maybe String)
+    , note_duration :: !NoteDuration
     , note_tie :: !Bool
     } deriving (Show)
 
+note :: String -> NoteDuration -> Bool -> Note
+note pitch dur tie = Note (Just pitch) dur tie
+
+rest :: NoteDuration -> Note
+rest dur = Note Nothing dur False
+
 instance ToLily Note where
     to_lily (Note pitch dur tie) =
-        pitch ++ to_lily dur ++ if tie then "~" else ""
+        Maybe.fromMaybe "r" pitch ++ to_lily dur ++ if tie then "~" else ""
 
-newtype Rest = Rest Duration deriving (Show)
-
-instance ToLily Rest where
-    to_lily (Rest dur) = 'r' : to_lily dur
+note_time :: Note -> Time
+note_time = note_dur_to_time . note_duration
 
 
--- ** convert
+-- * convert
 
-convert_notes :: TimeSignature -> [Event] -> [Either Rest Note]
+-- Another way:
+-- Always emit the longest possible note.  But I still have to use ties.
+-- Then split apart notes that cross measure or 1/2 measure boundaries.
+
+-- | Turn Events, which are in absolute Time, into Notes, which are divided up
+-- into tied Durations depending on the time signature.
+convert_notes :: TimeSignature -> [Event] -> [Note]
 convert_notes sig events =
     concat $ zipWith mk (0 : map event_end events) events
-        ++ [maybe [] (map Left . trailing_rests) (Seq.last events)]
+        ++ [maybe [] trailing_rests (Seq.last events)]
     where
     mk prev (Event start dur pitch) =
-        map Left (mkrests prev start) ++ map Right (mknotes start dur pitch)
+        mkrests prev start ++ mknotes start dur pitch
     mkrests prev start
-        | prev < start = map Rest $ convert_duration sig prev (start - prev)
+        | prev < start = map rest $ convert_duration sig prev (start - prev)
         | otherwise = []
     mknotes start dur pitch = zipWith mk (finals durs) durs
         where
-        mk is_final dur = Note pitch dur (not is_final)
+        mk is_final dur = note pitch dur (not is_final)
         durs = convert_duration sig start dur
         finals = map null . drop 1 . List.tails
     trailing_rests last_event
-        | rest == 0 = []
+        | remaining == 0 = []
         | otherwise =
-            map Rest $ convert_duration sig (event_end last_event) rest
-        where rest = measure_time sig - event_end last_event
-
-notes_to_lily :: [Either Rest Note] -> [String]
-notes_to_lily = map (either to_lily to_lily)
-
+            map rest (convert_duration sig (event_end last_event) remaining)
+        where remaining = measure_time sig - event_end last_event
 
 -- | Given a starting point and a duration, emit the list of Durations
 -- needed to express that duration.
-convert_duration :: TimeSignature -> Time -> Time -> [Duration]
+convert_duration :: TimeSignature -> Time -> Time -> [NoteDuration]
 convert_duration sig pos time
     | time <= 0 = []
-    | allowed >= time = time_to_durs time
+    | allowed >= time = time_to_note_durs time
     | otherwise = dur : convert_duration sig (pos + allowed) (time - allowed)
     where
-    dur = time_to_dur allowed
+    dur = time_to_note_dur allowed
     allowed = allowed_time sig pos
-
-dur_to_time :: Duration -> Time
-dur_to_time (Duration dur) = Time $ floor $ (1 % dur) * fromIntegral whole
-    where Time whole = time_per_whole
-
-time_to_dur :: Time -> Duration
-time_to_dur (Time time) = Duration $ whole `div` time
-    where Time whole = time_per_whole
-
-time_to_durs :: Time -> [Duration]
-time_to_durs (Time time) =
-    map fst $ filter ((/=0) . snd) $ reverse $ zip durs (binary time)
-    where
-    durs = map (Duration . (whole `div`)) (iterate (*2) 1)
-    Time whole = time_per_whole
-    binary rest
-        | rest > 0 = m : binary d
-        | otherwise = []
-        where (d, m) = rest `divMod` 2
 
 allowed_time :: TimeSignature -> Time -> Time
 allowed_time sig pos
-    | even = allowed
+    | power_of_2 (time_num sig) = allowed
     | otherwise = min (dur_to_time (time_denom sig)) allowed
     where
     measure = measure_time sig
     rest = measure - pos `mod` measure
     allowed = 2 ^ log2 rest
-    even = case time_denom sig of
-        Duration denom -> time_num sig `mod` denom == 0
+    power_of_2 = (==0) . snd . properFraction . logBase 2 . fromIntegral
+
+note_dur_to_time :: NoteDuration -> Time
+note_dur_to_time (NoteDuration dur dotted) =
+    dur_to_time dur + if dotted && dur /= D128 then dur_to_time (succ dur)
+        else 0
+
+dur_to_time :: Duration -> Time
+dur_to_time dur = Time $ whole `div` case dur of
+    D1 -> 1; D2 -> 2; D4 -> 4; D8 -> 8
+    D16 -> 16; D32 -> 32; D64 -> 64; D128 -> 128
+    where Time whole = time_per_whole
+
+time_to_note_dur :: Time -> NoteDuration
+time_to_note_dur = flip NoteDuration False . time_to_dur
+    -- TODO use dots
+
+time_to_dur :: Time -> Duration
+time_to_dur (Time time) =
+    toEnum $ min (fromEnum D128) (log2 (whole `div` time))
+    where Time whole = time_per_whole
+
+time_to_note_durs :: Time -> [NoteDuration]
+time_to_note_durs = map (flip NoteDuration False) . time_to_durs
+
+time_to_durs :: Time -> [Duration]
+time_to_durs (Time time) =
+    map fst $ filter ((/=0) . snd) $ reverse $ zip durs (binary time)
+    where
+    durs = [D128, D64 ..]
+    binary rest
+        | rest > 0 = m : binary d
+        | otherwise = []
+        where (d, m) = rest `divMod` 2
 
 log2 :: (Integral a) => a -> Int
 log2 = go 0
@@ -159,6 +186,66 @@ log2 = go 0
 
 measure_time :: TimeSignature -> Time
 measure_time sig = Time (time_num sig) * dur_to_time (time_denom sig)
+
+measure_duration :: TimeSignature -> Duration
+measure_duration (TimeSignature num denom) =
+    time_to_dur $ Time num * dur_to_time denom
+
+-- * simplify
+
+-- | Post processing on Notes to make the score simpler.  This winds up undoing
+-- some of the splitting into Durations done by 'convert_notes', but it's
+-- simpler this way than to try to build all sorts of heuristics into
+-- convert_notes.
+-- simplify :: TimeSignature -> [Note] -> [Note]
+-- simplify time_sig notes =
+
+-- | Tied notes starting at the beginning of a measure and having the duration
+-- of a full measure can be turned into a single whole note.
+measure_to_whole :: Time -> Time -> [Note] -> [Note]
+measure_to_whole _ _ [] = []
+measure_to_whole measure_time pos notes@(n:ns)
+    | n : _ <- tied, pos `mod` measure_time == 0 && tied_time == measure_time =
+        n { note_duration = whole, note_tie = note_tie (last tied) }
+            : measure_to_whole measure_time (pos + tied_time) rest
+    | otherwise = n : measure_to_whole measure_time (pos + note_time n) ns
+    where
+    (tied, rest) = take_tied_until True measure_time notes
+    tied_time = sum $ map note_time tied
+    whole = NoteDuration D1 False
+
+-- | Dur n + Dur (n*2) can be turned into a dot if it doesn't span a major
+-- division.  Major division is the middle of 4/4, ...
+-- dotted_rhythms :: [Note] -> [Note]
+-- dotted_rhythms measure_time pos = undefined
+
+
+-- *** util
+
+take_tied_until :: Bool -> Time -> [Note] -> ([Note], [Note])
+take_tied_until include_rest until notes = (map fst pre, map fst post ++ rest)
+    where
+    (tied, rest) = take_tied include_rest notes
+    (pre, post) = break ((>=until) . snd) $
+        zip tied (scanl (+) 0 (map note_time tied))
+
+take_tied :: Bool -> [Note] -> ([Note], [Note])
+take_tied include_rest notes@(n:_)
+    | include_rest && is_rest n = break (not . is_rest) notes
+    | otherwise = Then.break1 (not . note_tie) notes
+take_tied _ [] = ([], [])
+
+break_state :: state -> (state -> a -> (state, Bool)) -> [a]
+    -> (state, ([a], [a]))
+break_state state _ [] = (state, ([], []))
+break_state state f (x:xs)
+    | broken = (state, ([], x:xs))
+    | otherwise = let (last_state, (pre, post)) = break_state next_state f xs
+        in (last_state, (x:pre, post))
+    where (next_state, broken) = f state x
+
+is_rest :: Note -> Bool
+is_rest = Maybe.isNothing . note_pitch
 
 
 -- * score
@@ -191,7 +278,7 @@ meta_to_score maybe_score_key meta = case Map.lookup meta_ly meta of
         score_key <- maybe (Left "key required") return maybe_score_key
         key <- parse_key score_key
         time_sig <- parse_time_signature $ get "4/4" meta_time_signature
-        let dur1s = get "quarter" meta_duration1
+        let dur1s = get "4" meta_duration1
         dur1 <- maybe (Left $ "duration1 unparseable: " ++ show dur1s) return
             (read_duration dur1s)
         return $ Score
@@ -224,7 +311,7 @@ parse_time_signature sig = do
         '/' : d -> return d
         _ -> unparseable
     TimeSignature <$> maybe unparseable return (ParseBs.int num)
-        <*> maybe unparseable (return . Duration) (ParseBs.int denom)
+        <*> maybe unparseable return (read_duration denom)
 
 
 -- ** show
@@ -232,7 +319,7 @@ parse_time_signature sig = do
 make_score :: Score -> [Event] -> Doc
 make_score score events = score_file score (ly_notes events)
     where
-    ly_notes = notes_to_lily . convert_notes (score_time score)
+    ly_notes = map to_lily . convert_notes (score_time score)
 
 score_file :: Score -> [String] -> Doc
 score_file (Score title time_sig clef (key, mode) _dur1) notes =
