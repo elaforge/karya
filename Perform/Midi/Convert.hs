@@ -28,7 +28,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.MidiDb as MidiDb
-import Types
 
 
 type ConvertT a = ConvertUtil.ConvertT State a
@@ -48,13 +47,8 @@ data Lookup = Lookup {
 convert :: Lookup -> Derive.Events -> [LEvent.LEvent Perform.Event]
 convert lookup = ConvertUtil.convert Set.empty (convert_event lookup)
 
-convert_event :: Lookup -> Maybe RealTime -> Score.Event
-    -> ConvertT Perform.Event
-convert_event lookup maybe_prev event = do
-    -- Sorted is a postcondition of the deriver.
-    when_just maybe_prev $ \prev -> when (Score.event_start event < prev) $
-        Log.warn $ "start time " ++ Pretty.pretty (Score.event_start event)
-            ++ " less than previous of " ++ Pretty.pretty prev
+convert_event :: Lookup -> Score.Event -> ConvertT Perform.Event
+convert_event lookup event = do
     score_inst <- require "instrument" (Score.event_instrument event)
     (midi_inst, maybe_key) <- convert_inst (lookup_inst lookup) score_inst
         (Score.event_attributes event)

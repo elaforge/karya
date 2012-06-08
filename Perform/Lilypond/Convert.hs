@@ -4,7 +4,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -34,13 +33,8 @@ convert :: Lilypond.Duration -- ^ 1 second becomes this Duration, e.g. 4 means
     -> Derive.Events -> [LEvent.LEvent Lilypond.Event]
 convert dur1 = ConvertUtil.convert () (convert_event dur1)
 
-convert_event :: Lilypond.Duration -> Maybe RealTime -> Score.Event
-    -> ConvertT Lilypond.Event
-convert_event dur1 maybe_prev event = do
-    -- Sorted is a postcondition of the deriver.
-    when_just maybe_prev $ \prev -> when (Score.event_start event < prev) $
-        Log.warn $ "start time " ++ Pretty.pretty (Score.event_start event)
-            ++ " less than previous of " ++ Pretty.pretty prev
+convert_event :: Lilypond.Duration -> Score.Event -> ConvertT Lilypond.Event
+convert_event dur1 event = do
     pitch <- convert_pitch (Score.event_start event)
         (Score.event_controls event) (Score.event_pitch event)
     pitch <- either (ConvertUtil.throw . ("show_pitch: " ++)) return

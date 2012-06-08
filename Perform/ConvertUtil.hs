@@ -5,13 +5,13 @@ import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 
+import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-
-import Types
 
 
 type ConvertT state a =
@@ -20,7 +20,7 @@ type ConvertT state a =
 newtype Error = Error (Maybe String) deriving (Show)
 instance Error.Error Error where strMsg = Error . Just
 
-convert :: state -> (Maybe RealTime -> Score.Event -> ConvertT state a)
+convert :: state -> (Score.Event -> ConvertT state a)
     -> Derive.Events -> [LEvent.LEvent a]
 convert state convert_event events = go state Nothing events
     where
@@ -32,7 +32,13 @@ convert state convert_event events = go state Nothing events
             ++ go next_state (Just (Score.event_start event)) rest
         where
         (maybe_event, logs, next_state) = run_convert state
-            (Score.event_stack event) (convert_event prev event)
+            (Score.event_stack event) (convert1 prev event)
+    convert1 maybe_prev event = do
+        -- Sorted is a postcondition of the deriver.
+        when_just maybe_prev $ \prev -> when (Score.event_start event < prev) $
+            Log.warn $ "start time " ++ Pretty.pretty (Score.event_start event)
+                ++ " less than previous of " ++ Pretty.pretty prev
+        convert_event event
 
 run_convert :: state -> Stack.Stack -> ConvertT state a
     -> (Maybe a, [Log.Msg], state)
