@@ -79,7 +79,7 @@ do_save :: Git.Repo -> SaveHistory -> IO (Git.Commit, SavePoint)
 do_save repo (SaveHistory state prev_commit _updates names) = do
     when (Maybe.isNothing prev_commit) $
         void $ Git.init repo
-    dir <- either (Git.throw . ("make_dir"++)) return $
+    dir <- either (Git.throw . ("make_dir: "++)) return $
         Git.make_dir (dump state)
     tree <- Git.write_dir repo dir
     last_save <- read_last_save repo prev_commit

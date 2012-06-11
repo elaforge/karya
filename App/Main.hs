@@ -77,7 +77,7 @@ import qualified Local.Instrument
 -- errors.
 import Cmd.Lang.Environ ()
 
--- tmp, used by debug prints
+-- tmp, used by debug prints and hardcoded setup
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Score as Score
 import qualified Derive.Scale.Twelve as Twelve

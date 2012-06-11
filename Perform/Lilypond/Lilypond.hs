@@ -96,8 +96,10 @@ note_time = note_dur_to_time . note_duration
 -- * convert
 
 -- Another way:
--- Always emit the longest possible note.  But I still have to use ties.
--- Then split apart notes that cross measure or 1/2 measure boundaries.
+-- Always emit the longest possible note.  But I still have to use ties
+-- because if I have 7 16ths I have to choose between
+-- 'a4.~ a16' and 'a16~ a4.'.  The longer note should fall on a larger
+-- division.
 
 -- | Turn Events, which are in absolute Time, into Notes, which are divided up
 -- into tied Durations depending on the time signature.

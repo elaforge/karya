@@ -61,9 +61,21 @@ UNSORTED
     * Write size profile that loads a big score and reports the size increase.
     - Write function to sum up State, Cache, and Performance sizes.
       Return stats about event size, etc.
-    * Try interning strings on load.
+    / Try interning strings on load.
+      Savings are negligable, provided I'm calculating them correctly.
+    - Flatten pointers out of data structures.
+      Which ones? Cached Events, performed MIDI.
+    * Discard old undo states.
+    - Link libraries into seq as shared, also link with ghc api as shared.
+      Ask on ghc-users first if anyone has done this.
+    Compact cached signals and rendered MIDI.
+      - First write tests that demonstrate where the space is going.
+      - UNPACK Derive.Score.Event
+      - Midi.Midi.WriteMessages compact as a lazy storablevector
     - Compact control tracks when I have that in, maybe compact only on
       checkpoints?
+      But savings are likely to be very small for handwritten scores, would
+      only make a difference for recorded control tracks.
     The ghc api uses tons of space when it starts linking in everything.
       - How much space does ghci take loading the same stuff?  Why so much
         less?
@@ -174,6 +186,17 @@ UNSORTED
       The repo should only contain one copy of something that never changes.
       One reason is to trim history, but maybe for that I should have a option
       to rename and save without bringing the history.
+      So save is just a tag operation, it doesn't actually dump state.  This
+      will remove the irregularity where a save state corresponds to no
+      history entry.
+      But then how do I start the saving?  I would need a special value to say
+      it should start saving.  Binding to ^S is logical, but then the first
+      save doesn't add a tag.  Unless the first save always tags.
+      - Initially save_checkpoints is false, so no checkpointing
+      - cmd_save makes it true, then Undo does a checkpoint
+        But it has to notice the false -> true transition, otherwise it will
+        consider the cmd not worth saving.  So hist_save_checkpoints is just
+        True for the cmd that turns it on, and goes off after that.
     - Ability to give names to SavePoints.
     - See if git's delta compression understands binary and can compress
       tracks.  Otherwise, would it be worth helping it by e.g. separating

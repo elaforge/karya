@@ -186,8 +186,8 @@ keep_clip clip_ns old new =
 
 -- * responder support
 
--- Undo has some hooks directly in the responder, since it needs to be run
--- after cmds.
+-- Undo has a hook directly in the responder, since it needs to be run after
+-- cmds.
 
 maintain_history :: State.State -> Cmd.State -> [Update.UiUpdate]
     -> IO Cmd.State
@@ -216,7 +216,7 @@ maintain_history ui_state cmd_state updates = do
     prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
 
 -- | The present is expected to have no updates, so bump the updates off the
--- new present onto the old present, and described in [undo-and-updates].
+-- new present onto the old present, as described in [undo-and-updates].
 bump_updates :: Cmd.HistoryEntry -> [Cmd.HistoryEntry]
     -> (Cmd.HistoryEntry, [Cmd.HistoryEntry])
 bump_updates old_cur [] = (old_cur, [])
