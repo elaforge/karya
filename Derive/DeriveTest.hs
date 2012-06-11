@@ -323,9 +323,12 @@ e_everything e =
     ( Score.event_start e
     , Score.event_duration e
     , Score.event_string e
-    , fmap Score.inst_name (Score.event_instrument e)
+    , e_inst e
     , Score.attrs_list (Score.event_attributes e)
     )
+
+e_inst :: Score.Event -> Maybe String
+e_inst = fmap Score.inst_name . Score.event_instrument
 
 e_control :: String -> Score.Event -> Maybe [(RealTime, Signal.Y)]
 e_control cont event = fmap (Signal.unsignal . Score.typed_val) $

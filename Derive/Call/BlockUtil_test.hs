@@ -83,3 +83,13 @@ test_extract_orphans = do
         -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
         -- Log.warn $ show (Slice_test.extract_tree subs)
         return []
+
+test_empty_parent_track = do
+    -- Ensure orphan tracks pick the instrument up from the parent.
+    -- Well, the absentee parent, they're orphans.
+    let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
+        extract e = (Score.event_start e, DeriveTest.e_inst e)
+    equal (run [(">i1", [(0, 1, "t")]), (">", [(0, 1, "")])])
+        ([(0, Just "i1")], [])
+    equal (run [(">i1", []), (">", [(0, 1, "")])])
+        ([(0, Just "i1")], [])

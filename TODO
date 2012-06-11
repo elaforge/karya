@@ -1,4 +1,6 @@
 UNSORTED
+  * the title of an empty note track should still be run, otherwise using it
+    to set the instrument doesn't work.
   lilypond output
     * convert score events to ly events
     * convert ly events into sequence of notes and rests in the correct time

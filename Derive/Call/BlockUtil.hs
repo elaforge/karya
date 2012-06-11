@@ -159,11 +159,17 @@ derive_tracks tree = mconcat (map with_track tree)
 derive_track :: State.EventsNode -> Derive.EventDeriver
 derive_track node@(Tree.Node track subs)
     | TrackInfo.is_note_track (State.tevents_title track) =
-        let orphans = Slice.extract_orphans track subs
-        -- Unfortunately d_merge isn't able to optimize merging with mempty.
-        in (if null orphans then id else (<> derive_tracks orphans))
+        derive_orphans (State.tevents_title track)
+            (Slice.extract_orphans track subs)
             (Internal.track_setup track (Note.d_note_track node))
     -- I'd like track_setup up here, but tempo tracks are treated differently,
     -- so it goes inside d_control_track.
     | otherwise = Control.d_control_track node (derive_tracks subs)
-
+    where
+    derive_orphans title orphans
+        -- If d_merge could tell when an EventDeriver was mempty and not
+        -- evaluate it I wouldn't need this little optimization.
+        | null orphans = id
+        -- The orphans still get evaluated under the track title, otherwise
+        -- they might miss the instrument.
+        | otherwise = (<> Note.with_title title (derive_tracks orphans))

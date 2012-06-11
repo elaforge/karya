@@ -149,18 +149,22 @@ import Types
 -- | Top level deriver for note tracks.
 d_note_track :: State.EventsNode -> Derive.EventDeriver
 d_note_track (Tree.Node track subs) = do
-    let title = State.tevents_title track
-    if null title then return mempty else do
-    track_expr <- case Parse.parse_expr (Parse.from_string title) of
-        Left err -> Derive.throw $ "track title: " ++ err
-        Right expr -> return (preprocess_title expr)
     stash_sub_signals subs
-    let transform = if is_empty_title track_expr then id
-            else Call.apply_transformer info track_expr
-    transform $ derive_notes (State.tevents_end track)
-        (State.tevents_range track) (State.tevents_shifted track)
-        subs (State.tevents_around track)
+    with_title (State.tevents_title track) $ derive_notes
+        (State.tevents_end track) (State.tevents_range track)
+        (State.tevents_shifted track) subs (State.tevents_around track)
         (Events.ascending (State.tevents_events track))
+
+with_title :: String -> Derive.EventDeriver -> Derive.EventDeriver
+with_title title deriver
+    | null title = return mempty
+    | otherwise = do
+        track_expr <- case Parse.parse_expr (Parse.from_string title) of
+            Left err -> Derive.throw $ "track title: " ++ err
+            Right expr -> return (preprocess_title expr)
+        let transform = if is_empty_title track_expr then id
+                else Call.apply_transformer info track_expr
+        transform deriver
     where info = (Call.note_dinfo, Derive.dummy_call_info "note track")
 
 is_empty_title :: TrackLang.Expr -> Bool
