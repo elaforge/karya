@@ -118,6 +118,7 @@ note_map = Map.map Just (Map.fromList (upper_keys ++ lower_keys))
 -- things anyway.
 --
 -- Qwerty's @q@ should be the middle C.
+all_keys :: [Char]
 all_keys = "1234567890qwertyuiopasdfghjkl;zxcvbnm,./"
 upper_keys, lower_keys :: [(Char, Pitch.InputKey)]
 upper_keys = make_key_map 1 "q2w3er5t6y7ui"

@@ -3,12 +3,14 @@ module Cmd.Instrument.Util where
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Midi.Midi as Midi
 import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.Msg as Msg
+import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 
@@ -32,7 +34,11 @@ keymaps inputs = \msg -> do
     -- TODO another way to accomplish this would be to put the NoteEntry stuff
     -- in as a default instrument cmd, so I could just replace it entirely.
     case Map.lookup char to_note of
-        Nothing -> return Cmd.Done
+        -- Only swallow keys that note entry would have caught, otherwise
+        -- space would be swallowed here.
+        Nothing
+            | Map.member char NoteEntry.note_map -> return Cmd.Done
+            | otherwise -> return Cmd.Continue
         Just (note, key) -> do
             case kstate of
                 UiMsg.KeyRepeat -> return ()
