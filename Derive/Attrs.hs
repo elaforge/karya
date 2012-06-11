@@ -29,6 +29,16 @@ wadon = attr "wadon"
 kebyar = attr "kebyar"
 legong = attr "legong"
 
+-- left
+pak = attr "pak"
+pung = attr "pung" -- kum but with left hand
+tong = attr "tong"
+
+-- right
+de = attr "de"
+kum = attr "kum"
+ka = attr "ka" -- neutral stroke
+
 -- ** western
 
 snare = attr "snare" -- snare
@@ -44,6 +54,7 @@ pedal = attr "pedal"
 
 left = attr "left" -- played with left hand
 right = attr "right" -- played with right hand
+thumb = attr "thumb"
 
 center = attr "center"
 edge = attr "edge"

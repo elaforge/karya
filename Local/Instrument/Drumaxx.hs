@@ -5,16 +5,13 @@ import Midi.Key
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.Drums as Drums
 import Derive.Attrs
-import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
     (MidiInst.softsynth "dmx" (-24, 24) [])
-        { MidiInst.modify_patch =
-            Instrument.set_flag Instrument.Triggered . Instrument.set_keymap
-                [(Drums.note_attrs n, key) | (n, key) <- notes]
+        { MidiInst.modify_patch = Drums.set_instrument notes
         , MidiInst.code = MidiInst.empty_code
             { MidiInst.note_calls = [Drums.make_calls (map fst notes)]
             , MidiInst.cmds = [Drums.make_cmd notes]

@@ -3,9 +3,11 @@
 -- Unfortunately the instruments here have to be hardcoded unless I want to
 -- figure out how to parse .nki files or something.
 module Local.Instrument.Kontakt where
+import Util.Control
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.Util as CUtil
 import qualified Cmd.Keymap as Keymap
 
@@ -26,14 +28,19 @@ load _dir = return $ MidiInst.make $
 
 patches :: [MidiInst.Patch]
 patches =
-    MidiInst.with_code wayang_code
-        [ Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks
-        , Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks
-        ]
-    ++ MidiInst.with_code hang_code
+    MidiInst.with_code hang_code
         [ inst "hang1" hang_ks
         , inst "hang2" hang_ks
         ]
+    ++ MidiInst.with_code wayang_code
+        [ Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks
+        , Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks
+        ]
+    ++ MidiInst.with_code (Drums.make_code kendang_notes)
+        (map (Drums.set_instrument kendang_notes)
+            [ inst "kendang-wadon" []
+            , inst "kendang-lanang" []
+            ])
     where
     inst name ks = Instrument.set_keyswitches ks $
         Instrument.patch $ Instrument.instrument name [] (-12, 12)
@@ -96,4 +103,19 @@ wayang_keys =
     [ Key.a2 -- 6..
     , Key.c3, Key.d3, Key.e3, Key.g3, Key.a3 -- 1. to 6.
     , Key.c4, Key.d4, Key.e4, Key.g4 -- 1 to 5
+    ]
+
+
+-- * kendang bali
+
+kendang_notes :: [(Drums.Note, Midi.Key)]
+kendang_notes = -- left
+    [ (Drums.Note "+" de 'z', Key.c2)
+    , (Drums.Note "+." (de <> thumb) 'x', Key.f2)
+    , (Drums.Note "o" kum 'c', Key.c3)
+    , (Drums.Note "." ka 'v', Key.g3)
+    -- right
+    , (Drums.Note "`circle+`" pung 'q', Key.c4)
+    , (Drums.Note "T" tong 'w', Key.g4)
+    , (Drums.Note "P" pak 'e', Key.c5)
     ]

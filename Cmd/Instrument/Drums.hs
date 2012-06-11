@@ -11,6 +11,19 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Instrument.Util as DUtil
 import qualified Derive.Score as Score
 
+import qualified Perform.Midi.Instrument as Instrument
+import qualified App.MidiInst as MidiInst
+
+
+make_code :: [(Note, Midi.Key)] -> MidiInst.Code
+make_code note_keys = MidiInst.empty_code
+    { MidiInst.note_calls = [make_calls (map fst note_keys)]
+    , MidiInst.cmds = [make_cmd note_keys]
+    }
+
+set_instrument :: [(Note, Midi.Key)] -> Instrument.Patch -> Instrument.Patch
+set_instrument note_keys = Instrument.triggered
+    . Instrument.set_keymap [(note_attrs note, key) | (note, key) <- note_keys]
 
 -- | Create a LookupCall for the given Notes.
 make_calls :: [Note] -> Derive.LookupCall Derive.NoteCall

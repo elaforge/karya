@@ -24,6 +24,9 @@ simple name chars = Symbol name True [glyph chars]
 glyph :: String -> Glyph
 glyph s = Glyph s Nothing 0 (0, 0) 0
 
+size :: Int -> Glyph -> Glyph
+size n g = g { glyph_size = n }
+
 glyph_at :: Int -> (Double, Double) -> Glyph -> Glyph
 glyph_at size align glyph = glyph { glyph_size = size, glyph_align = align }
 
