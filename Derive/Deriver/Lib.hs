@@ -33,6 +33,7 @@
 module Derive.Deriver.Lib where
 import Prelude hiding (error)
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 
 import Util.Control
@@ -185,10 +186,13 @@ with_scale scale = with_val TrackLang.v_scale (scale_id scale)
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do
-    lookup_inst_calls <- gets (state_instrument_calls . state_constant)
-    let inst_calls = maybe (InstrumentCalls [] []) id (lookup_inst_calls inst)
-    with_val TrackLang.v_instrument inst
-        (with_scope (set_scope inst_calls) deriver)
+    lookup_inst_calls <- gets (state_lookup_instrument . state_constant)
+    let (calls, environ) = Maybe.fromMaybe (InstrumentCalls [] [], mempty)
+            (lookup_inst_calls inst)
+    with_val TrackLang.v_instrument inst $
+        with_scope (set_scope calls) $
+        with_environ environ $ do
+            deriver
     where
     -- Replace the calls in the instrument scope type.
     set_scope (InstrumentCalls notes vals) scope = scope
@@ -197,6 +201,13 @@ with_instrument inst deriver = do
         }
     set_val vals stype = stype { stype_instrument = vals }
     set_note notes stype = stype { stype_instrument = notes }
+
+-- | Merge the given environ into the environ in effect.
+with_environ :: TrackLang.Environ -> Deriver a -> Deriver a
+with_environ environ
+    | Map.null environ = id
+    | otherwise = Internal.local $ \st -> st
+        { state_environ = environ <> state_environ st }
 
 
 -- ** control

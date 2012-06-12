@@ -5,10 +5,12 @@ module App.MidiInst (
     , Softsynth(..), softsynth
     , Patch
     , Code(..), empty_code, with_code, with_empty_code
+    , default_scale
 
     -- * db
     , save_db, save_patches, load_db
 ) where
+import qualified Data.Map as Map
 import System.FilePath ((</>), (<.>))
 
 import Util.Control
@@ -19,8 +21,11 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (SynthDesc)
 import qualified Derive.Derive as Derive
+import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Pitch as Pitch
+
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Serialize as Serialize
 import qualified App.Config as Config
@@ -53,17 +58,23 @@ softsynth name pb_range controls =
 data Code = Code {
     note_calls :: [Derive.LookupCall Derive.NoteCall]
     , val_calls :: [Derive.LookupCall Derive.ValCall]
+    , environ :: TrackLang.Environ
     , cmds :: [Cmd.Cmd]
     }
 
 empty_code :: Code
-empty_code = Code [] [] []
+empty_code = Code [] [] mempty []
 
 with_code :: Code -> [Instrument.Patch] -> [Patch]
 with_code code = map (\p -> (p, code))
 
 with_empty_code :: [Instrument.Patch] -> [Patch]
 with_empty_code = with_code empty_code
+
+default_scale :: Pitch.ScaleId -> Code -> Code
+default_scale scale_id code = code
+    { environ = Map.singleton (TrackLang.v_scale) (TrackLang.VScaleId scale_id)
+    }
 
 make :: Softsynth -> [SynthDesc]
 make (Softsynth name pb_range controls extra_patches modify_patch code)
@@ -76,8 +87,8 @@ make (Softsynth name pb_range controls extra_patches modify_patch code)
         (modify_patch wildcard_patch, make_code code)
 
 make_code :: Code -> Cmd.InstrumentCode
-make_code (Code note val cmds) =
-    Cmd.InstrumentCode (Derive.InstrumentCalls note val) cmds
+make_code (Code note val environ cmds) =
+    Cmd.InstrumentCode (Derive.InstrumentCalls note val) environ cmds
 
 
 -- * db

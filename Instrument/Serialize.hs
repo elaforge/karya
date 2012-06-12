@@ -96,7 +96,6 @@ instance Serialize Instrument.Flag where
             1 -> return Instrument.Pressure
             _ -> fail "no parse for Instrument.Flag"
 
-
 instance Serialize Instrument.Instrument where
     put (Instrument.Instrument a b c d e f g h) = put a >> put b >> put c
         >> put d >> put e >> put f >> put g >> put h

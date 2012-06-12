@@ -68,8 +68,8 @@ run :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage
 run cache damage deriver = do
     ui_state <- State.get
     lookup_scale <- Cmd.get_lookup_scale
-    inst_calls <- get_lookup_inst_calls
-    let constant = Derive.initial_constant ui_state lookup_scale inst_calls
+    lookup_inst <- get_lookup_inst_calls
+    let constant = Derive.initial_constant ui_state lookup_scale lookup_inst
             cache damage
     scope <- Cmd.gets Cmd.state_global_scope
     let deflt = State.config_default (State.state_config ui_state)
@@ -77,11 +77,10 @@ run cache damage deriver = do
             (State.default_instrument deflt)
     return $ Derive.derive constant scope env deriver
 
-get_lookup_inst_calls :: (Cmd.M m) =>
-    m (Score.Instrument -> Maybe Derive.InstrumentCalls)
+get_lookup_inst_calls :: (Cmd.M m) => m Derive.LookupInstrument
 get_lookup_inst_calls = do
     inst_db <- Cmd.gets Cmd.state_instrument_db
-    return $ fmap (Cmd.inst_calls . MidiDb.info_code)
+    return $ fmap (Cmd.derive_instrument . MidiDb.info_code)
         . Instrument.Db.db_lookup inst_db
 
 perform_from :: (Cmd.M m) => RealTime -> Cmd.Performance

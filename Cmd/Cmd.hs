@@ -88,6 +88,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Control as Control
@@ -561,11 +562,16 @@ perf_closest_warp = TrackWarp.closest_warp . perf_warps
 -- This has to be in Cmd.Cmd for circular import reasons.
 data InstrumentCode = InstrumentCode {
     inst_calls :: !Derive.InstrumentCalls
+    , inst_environ :: !TrackLang.Environ
     , inst_cmds :: ![Cmd]
     }
 
+derive_instrument :: InstrumentCode
+    -> (Derive.InstrumentCalls, TrackLang.Environ)
+derive_instrument code = (inst_calls code, inst_environ code)
+
 empty_code :: InstrumentCode
-empty_code = InstrumentCode (Derive.InstrumentCalls [] []) []
+empty_code = InstrumentCode (Derive.InstrumentCalls [] []) mempty []
 
 -- | Instantiate the MidiDb with the code types.  The only reason the MidiDb
 -- types have the type parameter is so I can define them in their own module

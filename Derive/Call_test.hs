@@ -144,7 +144,7 @@ test_val_call = do
 test_inst_call = do
     let extract = DeriveTest.extract (Score.attrs_list . Score.event_attributes)
     let run inst = extract $ DeriveTest.derive_tracks_with
-            (set_inst_calls lookup_inst)
+            (set_lookup_inst lookup_inst)
             [(inst, [(0, 1, "sn")])]
     equal (run ">s/1")
         ([], ["Error: note call not found: sn"])
@@ -232,12 +232,14 @@ patch = Instrument.set_keymap [(Attrs.snare, 42)] $
     code = MidiInst.empty_code
         { MidiInst.note_calls = [Derive.make_lookup calls] }
     calls = Derive.make_calls [("sn", Instrument.Util.with_attrs Attrs.snare)]
-lookup_inst = fmap (Cmd.inst_calls . MidiDb.info_code)
+lookup_inst = fmap (Cmd.derive_instrument . MidiDb.info_code)
     . MidiDb.lookup_instrument midi_db
 
-set_inst_calls :: (Score.Instrument -> Maybe Derive.InstrumentCalls)
-    -> Derive.Deriver d -> Derive.Deriver d
-set_inst_calls calls deriver = do
-    Derive.modify $ \st -> st { Derive.state_constant =
-        (Derive.state_constant st) { Derive.state_instrument_calls = calls } }
+set_lookup_inst :: Derive.LookupInstrument -> Derive.Deriver d
+    -> Derive.Deriver d
+set_lookup_inst lookup_inst deriver = do
+    Derive.modify $ \st -> st
+        { Derive.state_constant = (Derive.state_constant st)
+            { Derive.state_lookup_instrument = lookup_inst }
+        }
     deriver

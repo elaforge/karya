@@ -51,7 +51,7 @@ module Derive.Deriver.Monad (
     , LookupCall, make_lookup
 
     -- ** constant
-    , Constant(..), initial_constant
+    , Constant(..), LookupInstrument, initial_constant
     , op_add, op_sub, op_mul
     , InstrumentCalls(..)
 
@@ -459,21 +459,24 @@ data Constant = Constant {
     state_ui :: State.State
     , state_control_op_map :: Map.Map TrackLang.CallId ControlOp
     , state_lookup_scale :: LookupScale
-    -- | Get the calls that should be in scope with a certain instrument.
-    , state_instrument_calls :: Score.Instrument -> Maybe InstrumentCalls
+    -- | Get the calls and environ that should be in scope with a certain
+    -- instrument.  The environ is merged with the environ in effect.
+    , state_lookup_instrument :: LookupInstrument
     -- | Cache from the last derivation.
     , state_cache :: !Cache
     , state_score_damage :: !ScoreDamage
     }
 
-initial_constant :: State.State -> LookupScale
-    -> (Score.Instrument -> Maybe InstrumentCalls)
+type LookupInstrument = Score.Instrument
+    -> Maybe (InstrumentCalls, TrackLang.Environ)
+
+initial_constant :: State.State -> LookupScale -> LookupInstrument
     -> Cache -> ScoreDamage -> Constant
-initial_constant ui_state lookup_scale inst_calls cache score_damage = Constant
+initial_constant ui_state lookup_scale lookup_inst cache score_damage = Constant
     { state_ui = ui_state
     , state_control_op_map = default_control_op_map
     , state_lookup_scale = lookup_scale
-    , state_instrument_calls = inst_calls
+    , state_lookup_instrument = lookup_inst
     , state_cache = invalidate_damaged score_damage cache
     , state_score_damage = score_damage
     }

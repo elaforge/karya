@@ -28,13 +28,12 @@ load _dir = return $ MidiInst.make $
 
 patches :: [MidiInst.Patch]
 patches =
-    MidiInst.with_code hang_code
-        [ inst "hang1" hang_ks
-        , inst "hang2" hang_ks
-        ]
-    ++ MidiInst.with_code wayang_code
-        [ Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks
-        , Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks
+    MidiInst.with_code hang_code [inst "hang1" hang_ks, inst "hang2" hang_ks]
+    ++
+        [ (Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks,
+            MidiInst.default_scale Wayang.umbang_id wayang_code)
+        , (Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks,
+            MidiInst.default_scale Wayang.isep_id wayang_code)
         ]
     ++ MidiInst.with_code (Drums.make_code kendang_notes)
         (map (Drums.set_instrument kendang_notes)
