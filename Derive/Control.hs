@@ -134,10 +134,10 @@ pitch_call :: State.TrackEvents -> Maybe Score.Control -> Pitch.ScaleId
     -> TrackLang.Expr -> Derive.EventDeriver -> Derive.EventDeriver
 pitch_call track maybe_name scale_id expr deriver =
     Internal.track_setup track $ do
-        (scale, new_scale) <- get_scale scale_id
-        let scale_map = Scale.scale_map scale
-            derive = derive_pitch track expr
-        (if new_scale then Derive.with_scale scale else id) $ do
+        scale <- get_scale scale_id
+        Derive.with_scale scale $ do
+            let scale_map = Scale.scale_map scale
+                derive = derive_pitch track expr
             (signal, logs) <- derive
             -- Ignore errors, they should be logged on conversion.
             (nn_sig, _) <- pitch_signal_to_nn signal
@@ -153,14 +153,10 @@ pitch_call track maybe_name scale_id expr deriver =
         (sig, _) <- derive
         Signal.coerce . fst <$> pitch_signal_to_nn sig
 
-get_scale :: Pitch.ScaleId -> Derive.Deriver (Scale.Scale, Bool)
+get_scale :: Pitch.ScaleId -> Derive.Deriver Scale.Scale
 get_scale scale_id
-    | scale_id == Pitch.empty_scale = do
-        scale <- Util.get_scale
-        return (scale, False)
-    | otherwise = do
-        scale <- Derive.get_scale scale_id
-        return (scale, True)
+    | scale_id == Pitch.empty_scale = Util.get_scale
+    | otherwise = Derive.get_scale scale_id
 
 with_control_damage :: Maybe TrackId -> TrackRange
     -> Derive.Deriver d -> Derive.Deriver d
@@ -328,7 +324,7 @@ eval_signal track expr ctype = case ctype of
     TrackInfo.Pitch scale_id _ -> do
         (sig, logs) <- derive_pitch track expr
         mapM_ Log.write logs
-        (scale, _) <- get_scale scale_id
+        scale <- get_scale scale_id
         -- TODO I log derivation errors... why not log pitch errors?
         (nn_sig, _) <- pitch_signal_to_nn sig
         return $ track_sig nn_sig (Just (Scale.scale_map scale))
