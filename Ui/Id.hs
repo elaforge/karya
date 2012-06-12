@@ -32,6 +32,7 @@ import qualified Text.Read as Read
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+import qualified Util.Serialize as Serialize
 
 
 -- | Type of a project ID.
@@ -42,6 +43,14 @@ newtype Namespace = Namespace String
     deriving (Eq, Ord, Show, Read, DeepSeq.NFData)
 data Id = Id !Namespace !String
     deriving (Eq, Ord, Show, Read)
+
+instance Serialize.Serialize Id where
+    put = Serialize.put . un_id
+    get = Serialize.get >>= \(a, b) -> return (unsafe_id a b)
+
+instance Serialize.Serialize Namespace where
+    put = Serialize.put . un_namespace
+    get = Serialize.get >>= \a -> return (unsafe_namespace a)
 
 -- | Create a namespace, if the characters are valid.
 namespace :: String -> Maybe Namespace

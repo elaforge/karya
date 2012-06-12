@@ -6,11 +6,10 @@
 -}
 module Instrument.Serialize (serialize, unserialize) where
 import qualified Data.Map as Map
-import Data.Serialize (getWord8, putWord8)
 import qualified Data.Time as Time
 
 import qualified Util.Serialize as Serialize
-import Util.Serialize (Serialize, get, put)
+import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import qualified Cmd.Serialize
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
@@ -88,14 +87,14 @@ instance Serialize Instrument.Patch where
             return (Instrument.Patch a b c d e f g h)
 
 instance Serialize Instrument.Flag where
-    put Instrument.Triggered = putWord8 0
-    put Instrument.Pressure = putWord8 1
+    put Instrument.Triggered = put_tag 0
+    put Instrument.Pressure = put_tag 1
     get = do
-        tag <- getWord8
+        tag <- get_tag
         case tag of
             0 -> return Instrument.Triggered
             1 -> return Instrument.Pressure
-            _ -> Serialize.bad_tag "Instrument.Flag" tag
+            _ -> bad_tag "Instrument.Flag" tag
 
 instance Serialize Instrument.Instrument where
     put (Instrument.Instrument a b c d e f g h) = put a >> put b >> put c
@@ -105,16 +104,16 @@ instance Serialize Instrument.Instrument where
             return (Instrument.Instrument a b c d e f g h)
 
 instance Serialize Instrument.InitializePatch where
-    put (Instrument.InitializeMidi a) = putWord8 0 >> put a
-    put (Instrument.InitializeMessage a) = putWord8 1 >> put a
-    put Instrument.NoInitialization = putWord8 2
+    put (Instrument.InitializeMidi a) = put_tag 0 >> put a
+    put (Instrument.InitializeMessage a) = put_tag 1 >> put a
+    put Instrument.NoInitialization = put_tag 2
     get = do
-        tag <- getWord8
+        tag <- get_tag
         case tag of
             0 -> get >>= \a -> return (Instrument.InitializeMidi a)
             1 -> get >>= \a -> return (Instrument.InitializeMessage a)
             2 -> return Instrument.NoInitialization
-            _ -> Serialize.bad_tag "Instrument.InitializePatch" tag
+            _ -> bad_tag "Instrument.InitializePatch" tag
 
 instance Serialize Instrument.KeyswitchMap where
     put (Instrument.KeyswitchMap a) = put a

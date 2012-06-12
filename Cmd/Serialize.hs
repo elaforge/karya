@@ -13,7 +13,6 @@ module Cmd.Serialize where
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
-import Data.Serialize (Get, Put, getWord8, putWord8)
 import qualified Data.Time as Time
 import qualified Data.Word as Word
 
@@ -24,7 +23,8 @@ import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
-import Util.Serialize (Serialize, get, put)
+import Util.Serialize
+       (Serialize, Get, Put, get, put, get_tag, put_tag, bad_tag)
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
@@ -40,6 +40,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -96,13 +97,13 @@ save_state ui_state = do
     return (SaveState ui_state utc)
 
 put_version :: Word.Word8 -> Put
-put_version n = putWord8 n
+put_version n = Serialize.putWord8 n
 
 get_version :: Get Word.Word8
-get_version = getWord8
+get_version = Serialize.getWord8
 
-version_error :: String -> Word.Word8 -> a
-version_error typ ver = error $
+bad_version :: String -> Word.Word8 -> a
+bad_version typ ver = error $
     "unknown version " ++ show ver ++ " for " ++ show typ
 
 -- * binary instances
@@ -117,7 +118,7 @@ instance Serialize SaveState where
                 ui_state <- get :: Get State.State
                 date <- get :: Get Time.UTCTime
                 return (SaveState ui_state date)
-            _ -> version_error "SaveState" v
+            _ -> bad_version "SaveState" v
 
 instance Serialize State.State where
     put (State.State a b c d e) = put_version 6
@@ -132,7 +133,7 @@ instance Serialize State.State where
                 rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
                 config <- get :: Get State.Config
                 return $ State.State views blocks tracks rulers config
-            _ -> version_error "State.State" v
+            _ -> bad_version "State.State" v
 
 instance Serialize State.Config where
     put (State.Config a b c d e) = put_version 0
@@ -147,7 +148,7 @@ instance Serialize State.Config where
                 midi <- get :: Get Instrument.Config
                 defaults <- get :: Get State.Default
                 return $ State.Config ns dir root midi defaults
-            _ -> version_error "State.Config" v
+            _ -> bad_version "State.Config" v
 
 instance Serialize State.Default where
     put (State.Default a b c d) =
@@ -166,25 +167,9 @@ instance Serialize State.Default where
                 inst <- get :: Get (Maybe Score.Instrument)
                 tempo <- get :: Get Signal.Y
                 return $ State.Default scale key inst tempo
-            _ -> version_error "State.Default" v
-
-instance Serialize Id.Id where
-    put = put . Id.un_id
-    get = get >>= \(a, b) -> return (Id.unsafe_id a b)
-
-instance Serialize Id.Namespace where
-    put = put . Id.un_namespace
-    get = get >>= \a -> return (Id.unsafe_namespace a)
+            _ -> bad_version "State.Default" v
 
 -- ** Block
-
-instance Serialize Types.BlockId where
-    put (Types.BlockId a) = put a
-    get = get >>= \a -> return (Types.BlockId a)
-
-instance Serialize Types.ViewId where
-    put (Types.ViewId a) = put a
-    get = get >>= \a -> return (Types.ViewId a)
 
 instance Serialize Block.Block where
     put (Block.Block a _config b c d) = put_version 5
@@ -209,7 +194,7 @@ instance Serialize Block.Block where
                 meta <- get :: Get (Map.Map String String)
                 return $ Block.Block title Block.default_config tracks skel
                     meta
-            _ -> version_error "Block.Block" v
+            _ -> bad_version "Block.Block" v
 
 instance Serialize Skeleton.Skeleton where
     put (Skeleton.Skeleton a) = put a
@@ -227,26 +212,26 @@ instance Serialize Block.Track where
                 flags <- get :: Get [Block.TrackFlag]
                 merged <- get :: Get [Types.TrackId]
                 return $ Block.Track id width flags merged
-            _ -> version_error "Block.Track" v
+            _ -> bad_version "Block.Track" v
 
 instance Serialize Block.TrackFlag where
-    put (Block.Collapse) = putWord8 0
-    put (Block.Solo) = putWord8 1
-    put (Block.Mute) = putWord8 2
+    put (Block.Collapse) = put_tag 0
+    put (Block.Solo) = put_tag 1
+    put (Block.Mute) = put_tag 2
     get = do
-        tag <- getWord8
+        tag <- get_tag
         case tag of
             0 -> return Block.Collapse
             1 -> return Block.Solo
             2 -> return Block.Mute
-            _ -> Serialize.bad_tag "Block.TrackFlag" tag
+            _ -> bad_tag "Block.TrackFlag" tag
 
 instance Serialize Block.TracklikeId where
-    put (Block.TId a b) = putWord8 0 >> put a >> put b
-    put (Block.RId a) = putWord8 1 >> put a
-    put (Block.DId a) = putWord8 2 >> put a
+    put (Block.TId a b) = put_tag 0 >> put a >> put b
+    put (Block.RId a) = put_tag 1 >> put a
+    put (Block.DId a) = put_tag 2 >> put a
     get = do
-        tag <- getWord8
+        tag <- get_tag
         case tag of
             0 -> do
                 tid <- get :: Get TrackId
@@ -258,7 +243,7 @@ instance Serialize Block.TracklikeId where
             2 -> do
                 div <- get :: Get Block.Divider
                 return $ Block.DId div
-            _ -> Serialize.bad_tag "Block.TracklikeId" tag
+            _ -> bad_tag "Block.TracklikeId" tag
 
 instance Serialize Block.Divider where
     put (Block.Divider a) = put a
@@ -283,7 +268,7 @@ instance Serialize Block.View where
                 selections <- get :: Get (Map.Map Types.SelNum Types.Selection)
                 return $ Block.View block rect visible_track visible_time
                     status track_scroll zoom selections
-            _ -> version_error "Block.View" v
+            _ -> bad_version "Block.View" v
 
 instance Serialize Rect.Rect where
     put r = put (Rect.rx r) >> put (Rect.ry r) >> put (Rect.rw r)
@@ -316,10 +301,6 @@ instance Serialize Color.Color where
 
 -- ** Ruler
 
-instance Serialize Types.RulerId where
-    put (Types.RulerId a) = put a
-    get = get >>= \a -> return (Types.RulerId a)
-
 instance Serialize Ruler.Ruler where
     put (Ruler.Ruler a b c d e f) = put_version 2
         >> put a >> put b >> put c >> put d >> put e >> put f
@@ -335,7 +316,7 @@ instance Serialize Ruler.Ruler where
                 full_width <- get :: Get Bool
                 return $ Ruler.Ruler marklists bg show_names use_alpha
                     align_to_bottom full_width
-            _ -> version_error "Ruler.Ruler" v
+            _ -> bad_version "Ruler.Ruler" v
 
 instance Serialize Ruler.Marklist where
     put (Ruler.Marklist a) = put a
@@ -357,10 +338,6 @@ instance Serialize Ruler.Mark where
 
 -- ** Track
 
-instance Serialize Types.TrackId where
-    put (Types.TrackId a) = put a
-    get = get >>= \a -> return (Types.TrackId a)
-
 instance Serialize Track.Track where
     put (Track.Track a b c d) = put_version 1 >>
         put a >> put b >> put c >> put d
@@ -373,7 +350,7 @@ instance Serialize Track.Track where
                 color <- get :: Get Color.Color
                 render <- get :: Get Track.RenderConfig
                 return $ Track.Track title events color render
-            _ -> version_error "Track.Track" v
+            _ -> bad_version "Track.Track" v
 
 instance Serialize Track.RenderConfig where
     put (Track.RenderConfig a b) = put_version 0 >> put a >> put b
@@ -384,29 +361,29 @@ instance Serialize Track.RenderConfig where
                 style <- get :: Get Track.RenderStyle
                 color <- get :: Get Color.Color
                 return $ Track.RenderConfig style color
-            _ -> version_error "Track.RenderConfig" v
+            _ -> bad_version "Track.RenderConfig" v
 
 instance Serialize Track.RenderStyle where
-    put Track.NoRender = putWord8 0
-    put Track.Line = putWord8 1
-    put Track.Filled = putWord8 2
+    put Track.NoRender = put_tag 0
+    put Track.Line = put_tag 1
+    put Track.Filled = put_tag 2
     get = do
-        tag <- getWord8
+        tag <- get_tag
         case tag of
             0 -> return Track.NoRender
             1 -> return Track.Line
             2 -> return Track.Filled
-            _ -> Serialize.bad_tag "Track.RenderStyle" tag
+            _ -> bad_tag "Track.RenderStyle" tag
 
 instance Serialize Events.Events where
-    put (Events.Events a) = put_version 0 >> put a
+    put (Events.Events a) = put_version 1 >> put a
     get = do
         v <- get_version
         case v of
             0 -> do
                 events <- get :: Get (Map.Map ScoreTime Event.Event)
                 return $ Events.Events events
-            _ -> version_error "Events.Events" v
+            _ -> bad_version "Events.Events" v
 
 -- ** Event
 
@@ -437,7 +414,7 @@ instance Serialize Instrument.Config where
                     (Map.Map Score.Instrument [Instrument.Addr])
                 _ <- get :: Get (Map.Map Midi.WriteDevice Midi.WriteDevice)
                 return $ Instrument.Config alloc
-            _ -> version_error "Instrument.Config" v
+            _ -> bad_version "Instrument.Config" v
 
 instance Serialize Score.Instrument where
     put (Score.Instrument a) = put a
@@ -454,35 +431,35 @@ instance Serialize Midi.WriteDevice where
     get = get >>= \a -> return (Midi.write_device a)
 
 instance Serialize Midi.Message where
-    put (Midi.ChannelMessage a b) = putWord8 0 >> put a >> put b
-    put (Midi.CommonMessage a) = putWord8 1 >> put a
-    put (Midi.RealtimeMessage a) = putWord8 2 >> put a
-    put (Midi.UnknownMessage a b c) = putWord8 3 >> put a >> put b >> put c
+    put (Midi.ChannelMessage a b) = put_tag 0 >> put a >> put b
+    put (Midi.CommonMessage a) = put_tag 1 >> put a
+    put (Midi.RealtimeMessage a) = put_tag 2 >> put a
+    put (Midi.UnknownMessage a b c) = put_tag 3 >> put a >> put b >> put c
     get = do
-        tag <- getWord8
+        tag <- get_tag
         case tag of
             0 -> get >>= \a -> get >>= \b -> return (Midi.ChannelMessage a b)
             1 -> get >>= \a -> return (Midi.CommonMessage a)
             2 -> get >>= \a -> return (Midi.RealtimeMessage a)
             3 -> get >>= \a -> get >>= \b -> get >>= \c ->
                 return (Midi.UnknownMessage a b c)
-            _ -> Serialize.bad_tag "Midi.Message" tag
+            _ -> bad_tag "Midi.Message" tag
 
 instance Serialize Midi.ChannelMessage where
-    put (Midi.NoteOff a b) = putWord8 0 >> put a >> put b
-    put (Midi.NoteOn a b) = putWord8 1 >> put a >> put b
-    put (Midi.Aftertouch a b) = putWord8 2 >> put a >> put b
-    put (Midi.ControlChange a b) = putWord8 3 >> put a >> put b
-    put (Midi.ProgramChange a) = putWord8 4 >> put a
-    put (Midi.ChannelPressure a) = putWord8 5 >> put a
-    put (Midi.PitchBend a) = putWord8 6 >> put a
-    put Midi.AllSoundOff = putWord8 7
-    put Midi.ResetAllControls = putWord8 8
-    put (Midi.LocalControl a) = putWord8 9 >> put a
-    put Midi.AllNotesOff = putWord8 10
-    put (Midi.UndefinedChannelMode a b) = putWord8 11 >> put a >> put b
+    put (Midi.NoteOff a b) = put_tag 0 >> put a >> put b
+    put (Midi.NoteOn a b) = put_tag 1 >> put a >> put b
+    put (Midi.Aftertouch a b) = put_tag 2 >> put a >> put b
+    put (Midi.ControlChange a b) = put_tag 3 >> put a >> put b
+    put (Midi.ProgramChange a) = put_tag 4 >> put a
+    put (Midi.ChannelPressure a) = put_tag 5 >> put a
+    put (Midi.PitchBend a) = put_tag 6 >> put a
+    put Midi.AllSoundOff = put_tag 7
+    put Midi.ResetAllControls = put_tag 8
+    put (Midi.LocalControl a) = put_tag 9 >> put a
+    put Midi.AllNotesOff = put_tag 10
+    put (Midi.UndefinedChannelMode a b) = put_tag 11 >> put a >> put b
     get = do
-        tag <- getWord8
+        tag <- get_tag
         case tag of
             0 -> get >>= \a -> get >>= \b -> return (Midi.NoteOff a b)
             1 -> get >>= \a -> get >>= \b -> return (Midi.NoteOn a b)
@@ -497,17 +474,17 @@ instance Serialize Midi.ChannelMessage where
             10 -> return Midi.AllNotesOff
             11 -> get >>= \a -> get >>= \b ->
                 return (Midi.UndefinedChannelMode a b)
-            _ -> Serialize.bad_tag "Midi.ChannelMessage" tag
+            _ -> bad_tag "Midi.ChannelMessage" tag
 
 instance Serialize Midi.CommonMessage where
-    put (Midi.SystemExclusive a b) = putWord8 0 >> put a >> put b
-    put (Midi.SongPositionPointer a) = putWord8 1 >> put a
-    put (Midi.SongSelect a) = putWord8 2 >> put a
-    put Midi.TuneRequest = putWord8 3
-    put Midi.EOX = putWord8 4
-    put (Midi.UndefinedCommon a) = putWord8 5 >> put a
+    put (Midi.SystemExclusive a b) = put_tag 0 >> put a >> put b
+    put (Midi.SongPositionPointer a) = put_tag 1 >> put a
+    put (Midi.SongSelect a) = put_tag 2 >> put a
+    put Midi.TuneRequest = put_tag 3
+    put Midi.EOX = put_tag 4
+    put (Midi.UndefinedCommon a) = put_tag 5 >> put a
     get = do
-        tag <- getWord8
+        tag <- get_tag
         case tag of
             0 -> get >>= \a -> get >>= \b -> return (Midi.SystemExclusive a b)
             1 -> get >>= \a -> return (Midi.SongPositionPointer a)
@@ -515,18 +492,18 @@ instance Serialize Midi.CommonMessage where
             3 -> return Midi.TuneRequest
             4 -> return Midi.EOX
             5 -> get >>= \a -> return (Midi.UndefinedCommon a)
-            _ -> Serialize.bad_tag "Midi.CommonMessage" tag
+            _ -> bad_tag "Midi.CommonMessage" tag
 
 instance Serialize Midi.RealtimeMessage where
-    put Midi.TimingClock = putWord8 0
-    put Midi.Start = putWord8 1
-    put Midi.Continue = putWord8 2
-    put Midi.Stop = putWord8 3
-    put Midi.ActiveSense = putWord8 4
-    put Midi.Reset = putWord8 5
-    put (Midi.UndefinedRealtime a) = putWord8 6 >> put a
+    put Midi.TimingClock = put_tag 0
+    put Midi.Start = put_tag 1
+    put Midi.Continue = put_tag 2
+    put Midi.Stop = put_tag 3
+    put Midi.ActiveSense = put_tag 4
+    put Midi.Reset = put_tag 5
+    put (Midi.UndefinedRealtime a) = put_tag 6 >> put a
     get = do
-        tag <- getWord8
+        tag <- get_tag
         case tag of
             0 -> return Midi.TimingClock
             1 -> return Midi.Start
@@ -535,7 +512,7 @@ instance Serialize Midi.RealtimeMessage where
             4 -> return Midi.ActiveSense
             5 -> return Midi.Reset
             6 -> get >>= \a -> return (Midi.UndefinedRealtime a)
-            _ -> Serialize.bad_tag "Midi.RealtimeMessage" tag
+            _ -> bad_tag "Midi.RealtimeMessage" tag
 
 -- ** misc
 

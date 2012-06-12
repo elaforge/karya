@@ -9,13 +9,17 @@
     At the least it lets me use a direct float encoding rather than hacking
     around the large and buggy default implementation.
 -}
-module Util.Serialize where
+module Util.Serialize (
+    module Util.Serialize
+    , Get, Put
+    , getWord8, putWord8
+) where
 import qualified Data.Array.IArray as IArray
 import qualified Data.ByteString as ByteString
 import Data.ByteString (ByteString)
 import qualified Data.Map as Map
 import qualified Data.Serialize as Serialize
-import Data.Serialize (Get, getWord8, putWord8)
+import Data.Serialize (Get, Put, getWord8, putWord8)
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Unboxed
 
@@ -90,6 +94,14 @@ _decodef :: (Storable float, Storable word) => word -> float
 _decodef word = Unsafe.unsafePerformIO $ alloca $ \buf -> do
     poke (castPtr buf) word
     peek buf
+
+-- *util
+
+get_tag :: Get Word8
+get_tag = getWord8
+
+put_tag :: Word8 -> Put
+put_tag = putWord8
 
 bad_tag :: String -> Word8 -> Get a
 bad_tag typ tag = fail $ "unknown tag for " ++ typ ++ ": " ++ show tag

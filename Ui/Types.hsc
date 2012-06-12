@@ -21,6 +21,7 @@ import Foreign.C
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
+import qualified Util.Serialize as Serialize
 
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
@@ -100,17 +101,17 @@ zoom_to_time zoom pixels =
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
 newtype BlockId = BlockId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
 
 -- | Reference to a View, as per 'BlockId'.
 newtype ViewId = ViewId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
 
 newtype TrackId = TrackId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
 
 newtype RulerId = RulerId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
 
 instance Show BlockId where show = Id.show_ident
 instance Show ViewId where show = Id.show_ident
