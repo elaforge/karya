@@ -91,6 +91,9 @@ _decodef word = Unsafe.unsafePerformIO $ alloca $ \buf -> do
     poke (castPtr buf) word
     peek buf
 
+bad_tag :: String -> Word8 -> Get a
+bad_tag typ tag = fail $ "unknown tag for " ++ typ ++ ": " ++ show tag
+
 -- * basic types
 
 instance Serialize () where

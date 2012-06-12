@@ -234,20 +234,20 @@ instance Serialize Block.TrackFlag where
     put (Block.Solo) = putWord8 1
     put (Block.Mute) = putWord8 2
     get = do
-        tag_ <- getWord8
-        case tag_ of
+        tag <- getWord8
+        case tag of
             0 -> return Block.Collapse
             1 -> return Block.Solo
             2 -> return Block.Mute
-            _ -> fail "no parse for Block.TrackFlag"
+            _ -> Serialize.bad_tag "Block.TrackFlag" tag
 
 instance Serialize Block.TracklikeId where
     put (Block.TId a b) = putWord8 0 >> put a >> put b
     put (Block.RId a) = putWord8 1 >> put a
     put (Block.DId a) = putWord8 2 >> put a
     get = do
-        tag_ <- getWord8
-        case tag_ of
+        tag <- getWord8
+        case tag of
             0 -> do
                 tid <- get :: Get TrackId
                 rid <- get :: Get RulerId
@@ -258,7 +258,7 @@ instance Serialize Block.TracklikeId where
             2 -> do
                 div <- get :: Get Block.Divider
                 return $ Block.DId div
-            _ -> fail "no parse for Block.TracklikeId"
+            _ -> Serialize.bad_tag "Block.TracklikeId" tag
 
 instance Serialize Block.Divider where
     put (Block.Divider a) = put a
@@ -391,12 +391,12 @@ instance Serialize Track.RenderStyle where
     put Track.Line = putWord8 1
     put Track.Filled = putWord8 2
     get = do
-        tag_ <- getWord8
-        case tag_ of
+        tag <- getWord8
+        case tag of
             0 -> return Track.NoRender
             1 -> return Track.Line
             2 -> return Track.Filled
-            _ -> fail "no parse for Track.RenderStyle"
+            _ -> Serialize.bad_tag "Track.RenderStyle" tag
 
 instance Serialize Events.Events where
     put (Events.Events a) = put_version 0 >> put a
@@ -459,14 +459,14 @@ instance Serialize Midi.Message where
     put (Midi.RealtimeMessage a) = putWord8 2 >> put a
     put (Midi.UnknownMessage a b c) = putWord8 3 >> put a >> put b >> put c
     get = do
-        tag_ <- getWord8
-        case tag_ of
+        tag <- getWord8
+        case tag of
             0 -> get >>= \a -> get >>= \b -> return (Midi.ChannelMessage a b)
             1 -> get >>= \a -> return (Midi.CommonMessage a)
             2 -> get >>= \a -> return (Midi.RealtimeMessage a)
             3 -> get >>= \a -> get >>= \b -> get >>= \c ->
                 return (Midi.UnknownMessage a b c)
-            _ -> fail "no parse for Midi.Message"
+            _ -> Serialize.bad_tag "Midi.Message" tag
 
 instance Serialize Midi.ChannelMessage where
     put (Midi.NoteOff a b) = putWord8 0 >> put a >> put b
@@ -482,8 +482,8 @@ instance Serialize Midi.ChannelMessage where
     put Midi.AllNotesOff = putWord8 10
     put (Midi.UndefinedChannelMode a b) = putWord8 11 >> put a >> put b
     get = do
-        tag_ <- getWord8
-        case tag_ of
+        tag <- getWord8
+        case tag of
             0 -> get >>= \a -> get >>= \b -> return (Midi.NoteOff a b)
             1 -> get >>= \a -> get >>= \b -> return (Midi.NoteOn a b)
             2 -> get >>= \a -> get >>= \b -> return (Midi.Aftertouch a b)
@@ -497,7 +497,7 @@ instance Serialize Midi.ChannelMessage where
             10 -> return Midi.AllNotesOff
             11 -> get >>= \a -> get >>= \b ->
                 return (Midi.UndefinedChannelMode a b)
-            _ -> fail "no parse for Midi.ChannelMessage"
+            _ -> Serialize.bad_tag "Midi.ChannelMessage" tag
 
 instance Serialize Midi.CommonMessage where
     put (Midi.SystemExclusive a b) = putWord8 0 >> put a >> put b
@@ -507,15 +507,15 @@ instance Serialize Midi.CommonMessage where
     put Midi.EOX = putWord8 4
     put (Midi.UndefinedCommon a) = putWord8 5 >> put a
     get = do
-        tag_ <- getWord8
-        case tag_ of
+        tag <- getWord8
+        case tag of
             0 -> get >>= \a -> get >>= \b -> return (Midi.SystemExclusive a b)
             1 -> get >>= \a -> return (Midi.SongPositionPointer a)
             2 -> get >>= \a -> return (Midi.SongSelect a)
             3 -> return Midi.TuneRequest
             4 -> return Midi.EOX
             5 -> get >>= \a -> return (Midi.UndefinedCommon a)
-            _ -> fail "no parse for Midi.CommonMessage"
+            _ -> Serialize.bad_tag "Midi.CommonMessage" tag
 
 instance Serialize Midi.RealtimeMessage where
     put Midi.TimingClock = putWord8 0
@@ -526,8 +526,8 @@ instance Serialize Midi.RealtimeMessage where
     put Midi.Reset = putWord8 5
     put (Midi.UndefinedRealtime a) = putWord8 6 >> put a
     get = do
-        tag_ <- getWord8
-        case tag_ of
+        tag <- getWord8
+        case tag of
             0 -> return Midi.TimingClock
             1 -> return Midi.Start
             2 -> return Midi.Continue
@@ -535,7 +535,7 @@ instance Serialize Midi.RealtimeMessage where
             4 -> return Midi.ActiveSense
             5 -> return Midi.Reset
             6 -> get >>= \a -> return (Midi.UndefinedRealtime a)
-            _ -> fail "no parse for Midi.RealtimeMessage"
+            _ -> Serialize.bad_tag "Midi.RealtimeMessage" tag
 
 -- ** misc
 

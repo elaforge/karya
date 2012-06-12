@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import Data.Serialize (getWord8, putWord8)
 import qualified Data.Time as Time
 
+import qualified Util.Serialize as Serialize
 import Util.Serialize (Serialize, get, put)
 import qualified Cmd.Serialize
 import qualified Derive.Score as Score
@@ -94,7 +95,7 @@ instance Serialize Instrument.Flag where
         case tag of
             0 -> return Instrument.Triggered
             1 -> return Instrument.Pressure
-            _ -> fail "no parse for Instrument.Flag"
+            _ -> Serialize.bad_tag "Instrument.Flag" tag
 
 instance Serialize Instrument.Instrument where
     put (Instrument.Instrument a b c d e f g h) = put a >> put b >> put c
@@ -108,12 +109,12 @@ instance Serialize Instrument.InitializePatch where
     put (Instrument.InitializeMessage a) = putWord8 1 >> put a
     put Instrument.NoInitialization = putWord8 2
     get = do
-        tag_ <- getWord8
-        case tag_ of
+        tag <- getWord8
+        case tag of
             0 -> get >>= \a -> return (Instrument.InitializeMidi a)
             1 -> get >>= \a -> return (Instrument.InitializeMessage a)
             2 -> return Instrument.NoInitialization
-            _ -> fail "no parse for Instrument.InitializePatch"
+            _ -> Serialize.bad_tag "Instrument.InitializePatch" tag
 
 instance Serialize Instrument.KeyswitchMap where
     put (Instrument.KeyswitchMap a) = put a
