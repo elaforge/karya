@@ -10,6 +10,9 @@ import qualified Derive.Scale.Util as Util
 import qualified Perform.Pitch as Pitch
 
 
+scales :: [Scale.Scale]
+scales = [octa21, octa12]
+
 -- * octa21
 
 octa21 :: Scale.Scale

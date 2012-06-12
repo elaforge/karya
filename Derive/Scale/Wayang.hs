@@ -7,8 +7,29 @@ import qualified Derive.Scale.Util as Util
 import qualified Derive.Scale.Symbols as Symbols
 
 
-scale :: Scale.Scale
-scale = Scale.Scale
+scales :: [Scale.Scale]
+scales = [wayang, umbang, isep]
+
+wayang :: Scale.Scale
+wayang = umbang { Scale.scale_id = wayang_id }
+
+isep :: Scale.Scale
+isep = make_scale
+    (Util.scale_map (align notes) (align inputs) note_numbers_isep)
+    isep_id
+
+umbang :: Scale.Scale
+umbang = make_scale
+    (Util.scale_map (align notes) (align inputs) note_numbers_umbang)
+    umbang_id
+
+wayang_id, umbang_id, isep_id :: Pitch.ScaleId
+wayang_id = Pitch.ScaleId "wayang"
+umbang_id = Pitch.ScaleId "wayang-umbang"
+isep_id = Pitch.ScaleId "wayang-isep"
+
+make_scale :: Util.ScaleMap -> Pitch.ScaleId -> Scale.Scale
+make_scale scale_map scale_id = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[12356](\\.*|\\^*)"
     , Scale.scale_map = Util.make_scale_map scale_map
@@ -22,12 +43,6 @@ scale = Scale.Scale
     , Scale.scale_input_to_note = Util.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.input_to_nn scale_map
     }
-
-scale_id :: Pitch.ScaleId
-scale_id = Pitch.ScaleId "wayang"
-
-scale_map :: Util.ScaleMap
-scale_map = Util.scale_map (align notes) (align inputs) note_numbers
 
 note_numbers_umbang :: [Pitch.NoteNumber]
 note_numbers_umbang = map Pitch.nn

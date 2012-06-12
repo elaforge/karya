@@ -23,9 +23,7 @@ import qualified Perform.Pitch as Pitch
 -- scale map at startup.
 scales :: Map.Map Pitch.ScaleId Scale.Scale
 shadowed :: [Pitch.ScaleId]
-(scales, shadowed) = mk
-    [ Ratio.scale, Twelve.scale, Semar.scale, Wayang.scale
-    , Octa.octa21, Octa.octa12
-    ]
-    where
-    mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id
+(scales, shadowed) = mk $
+    [Ratio.scale, Twelve.scale, Semar.scale]
+    ++ Wayang.scales ++ Octa.scales
+    where mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id
