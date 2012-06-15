@@ -13,7 +13,6 @@ import Text.PrettyPrint ((<+>), ($+$))
 import Util.Control
 import qualified Util.ParseBs as ParseBs
 import qualified Util.Seq as Seq
-import qualified Util.Then as Then
 
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
@@ -43,9 +42,7 @@ data NoteDuration = NoteDuration Duration Bool
 
 read_duration :: String -> Maybe Duration
 read_duration s = case s of
-    -- GHC says these are overlapped, but only if I use "" syntax, not if
-    -- I use [] syntax.  I think it's a bug.  TODO try on newer version of
-    -- ghc.
+    -- GHC incorrectly reports overlapping patterns.  This bug is fixed in 7.4.
     "1" -> Just D1; "2" -> Just D2; "4" -> Just D4; "8" -> Just D8
     "16" -> Just D16; "32" -> Just D32; "64" -> Just D64; "128" -> Just D128
     _ -> Nothing
@@ -95,12 +92,6 @@ note_time = note_dur_to_time . note_duration
 
 -- * convert
 
--- Another way:
--- Always emit the longest possible note.  But I still have to use ties
--- because if I have 7 16ths I have to choose between
--- 'a4.~ a16' and 'a16~ a4.'.  The longer note should fall on a larger
--- division.
-
 -- | Turn Events, which are in absolute Time, into Notes, which are divided up
 -- into tied Durations depending on the time signature.
 convert_notes :: TimeSignature -> [Event] -> [Note]
@@ -135,15 +126,20 @@ convert_duration sig pos time
     dur = time_to_note_dur allowed
     allowed = allowed_time sig pos
 
+-- | Figure out how much time a note at the given position should be allowed
+-- before it must tie.
+-- TODO Only supports duple time signatures.
 allowed_time :: TimeSignature -> Time -> Time
-allowed_time sig pos
-    | power_of_2 (time_num sig) = allowed
-    | otherwise = min (dur_to_time (time_denom sig)) allowed
+allowed_time sig measure_pos
+    | pos == 0 = measure
+    | otherwise = min measure next - pos
     where
+    pos = measure_pos `mod` measure
     measure = measure_time sig
-    rest = measure - pos `mod` measure
-    allowed = 2 ^ log2 rest
-    power_of_2 = (==0) . snd . properFraction . logBase 2 . fromIntegral
+    level = log2 pos + 2
+    -- TODO inefficient way to find the next power of 2 greater than pos.
+    -- There must be a direct way.
+    next = Maybe.fromJust (List.find (>pos) [0, 2^level ..])
 
 note_dur_to_time :: NoteDuration -> Time
 note_dur_to_time (NoteDuration dur dotted) =
@@ -157,16 +153,24 @@ dur_to_time dur = Time $ whole `div` case dur of
     where Time whole = time_per_whole
 
 time_to_note_dur :: Time -> NoteDuration
-time_to_note_dur = flip NoteDuration False . time_to_dur
-    -- TODO use dots
+time_to_note_dur t = case time_to_durs t of
+    [d1, d2] | d2 == succ d1 -> NoteDuration d1 True
+    d : _ -> NoteDuration d False
+    -- I have no 0 duration, so I'm forced to pick something.
+    [] -> NoteDuration D1 False
 
+-- | This rounds up to the next Duration, so any Time over a half note will
+-- wind up as a whole note.
 time_to_dur :: Time -> Duration
 time_to_dur (Time time) =
     toEnum $ min (fromEnum D128) (log2 (whole `div` time))
     where Time whole = time_per_whole
 
 time_to_note_durs :: Time -> [NoteDuration]
-time_to_note_durs = map (flip NoteDuration False) . time_to_durs
+time_to_note_durs t
+    | t > 0 = dur : time_to_note_durs (t - note_dur_to_time dur)
+    | otherwise = []
+    where dur = time_to_note_dur t
 
 time_to_durs :: Time -> [Duration]
 time_to_durs (Time time) =
@@ -192,63 +196,6 @@ measure_time sig = Time (time_num sig) * dur_to_time (time_denom sig)
 measure_duration :: TimeSignature -> Duration
 measure_duration (TimeSignature num denom) =
     time_to_dur $ Time num * dur_to_time denom
-
--- * simplify
-
--- | Post processing on Notes to make the score simpler.  This winds up undoing
--- some of the splitting into Durations done by 'convert_notes', but it's
--- simpler this way than to try to build all sorts of heuristics into
--- convert_notes.
--- simplify :: TimeSignature -> [Note] -> [Note]
--- simplify time_sig notes =
-
--- | Tied notes starting at the beginning of a measure and having the duration
--- of a full measure can be turned into a single whole note.
-measure_to_whole :: Time -> Time -> [Note] -> [Note]
-measure_to_whole _ _ [] = []
-measure_to_whole measure_time pos notes@(n:ns)
-    | n : _ <- tied, pos `mod` measure_time == 0 && tied_time == measure_time =
-        n { note_duration = whole, note_tie = note_tie (last tied) }
-            : measure_to_whole measure_time (pos + tied_time) rest
-    | otherwise = n : measure_to_whole measure_time (pos + note_time n) ns
-    where
-    (tied, rest) = take_tied_until True measure_time notes
-    tied_time = sum $ map note_time tied
-    whole = NoteDuration D1 False
-
--- | Dur n + Dur (n*2) can be turned into a dot if it doesn't span a major
--- division.  Major division is the middle of 4/4, ...
--- dotted_rhythms :: [Note] -> [Note]
--- dotted_rhythms measure_time pos = undefined
-
-
--- *** util
-
-take_tied_until :: Bool -> Time -> [Note] -> ([Note], [Note])
-take_tied_until include_rest until notes = (map fst pre, map fst post ++ rest)
-    where
-    (tied, rest) = take_tied include_rest notes
-    (pre, post) = break ((>=until) . snd) $
-        zip tied (scanl (+) 0 (map note_time tied))
-
-take_tied :: Bool -> [Note] -> ([Note], [Note])
-take_tied include_rest notes@(n:_)
-    | include_rest && is_rest n = break (not . is_rest) notes
-    | otherwise = Then.break1 (not . note_tie) notes
-take_tied _ [] = ([], [])
-
-break_state :: state -> (state -> a -> (state, Bool)) -> [a]
-    -> (state, ([a], [a]))
-break_state state _ [] = (state, ([], []))
-break_state state f (x:xs)
-    | broken = (state, ([], x:xs))
-    | otherwise = let (last_state, (pre, post)) = break_state next_state f xs
-        in (last_state, (x:pre, post))
-    where (next_state, broken) = f state x
-
-is_rest :: Note -> Bool
-is_rest = Maybe.isNothing . note_pitch
-
 
 -- * score
 

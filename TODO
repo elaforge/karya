@@ -1,4 +1,6 @@
 UNSORTED
+  - There's a zillion things to stitch together for an instrument.
+    Add yet more utils in MidiInst to make this easier.
   * the title of an empty note track should still be run, otherwise using it
     to set the instrument doesn't work.
   lilypond output
@@ -9,11 +11,10 @@ UNSORTED
       Should run in Cmd.Performance
     * Wait a few seconds before kicking off a lilypond compile.
     * pull the key out of the environ
-    - every single time I used time_per_whole I unpack it, should it be an
-      Int?
-    postproc rhythm cleanup:
-      - convert appropriate dotted rhythms to use dots
-      * convert whole measure notes to whole notes
+    * convert appropriate dotted rhythms to use dots
+    - don't use dotted rests
+    - make rhythm spelling work properly for non-duple meters
+    - make rhythm spelling work for compound meters
     * factor out shared bits of Perform.Midi.Convert and
       Perform.Lilypond.Convert
     - option to quantize input to something below 128th notes
@@ -39,11 +40,12 @@ UNSORTED
   - but even when it does (on the scale itself) it doesn't do thru
   integrate that converts Score.Events back into Ui Events
     + implement and test for reverse
+    - kendang: write composite kendang part, then it gets split into wadon and
+      lanang parts.
     - test that reintegrating a simple block gives it back again
     + sort tracks by orig tracknums so they come back in the same order
       Staved off by adding a leading 0 to TrackIds so they sort right, but
       I'll need to switch to TrackNums to do this for real.
-    - why does creating a track at 0 in Integrate cause an error on tracknum -1?
     - add quantization
     - split tracks on overlapping notes since some calls make them (e.g. block
       calls)
