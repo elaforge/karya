@@ -108,12 +108,14 @@ wayang_keys =
 -- * kendang bali
 
 kendang_notes :: [(Drums.Note, Midi.Key)]
-kendang_notes = -- left
-    [ (Drums.Note "+" de 'z', Key.c2)
+kendang_notes = -- both
+    [ (Drums.Note "PL" plak 'b', Key.g1)
+    -- right
+    , (Drums.Note "+" de 'z', Key.c2)
     , (Drums.Note "+." (de <> thumb) 'x', Key.f2)
     , (Drums.Note "o" kum 'c', Key.c3)
     , (Drums.Note "." ka 'v', Key.g3)
-    -- right
+    -- left
     , (Drums.Note "`circle+`" pung 'q', Key.c4)
     , (Drums.Note "T" tong 'w', Key.g4)
     , (Drums.Note "P" pak 'e', Key.c5)

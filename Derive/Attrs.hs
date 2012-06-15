@@ -29,6 +29,9 @@ wadon = attr "wadon"
 kebyar = attr "kebyar"
 legong = attr "legong"
 
+-- both
+plak = attr "plak"
+
 -- left
 pak = attr "pak"
 pung = attr "pung" -- kum but with left hand
