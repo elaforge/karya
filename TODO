@@ -12,7 +12,7 @@ UNSORTED
     * Wait a few seconds before kicking off a lilypond compile.
     * pull the key out of the environ
     * convert appropriate dotted rhythms to use dots
-    - don't use dotted rests
+    * don't use dotted rests
     - make rhythm spelling work properly for non-duple meters
     - make rhythm spelling work for compound meters
     * factor out shared bits of Perform.Midi.Convert and

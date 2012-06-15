@@ -20,16 +20,19 @@ import Types
 
 
 test_convert_notes = do
-    let f sig = map Lilypond.to_lily . Lilypond.convert_notes sig . map mkevent
+    let f sig = map Lilypond.to_lily . Lilypond.convert_notes False sig
+            . map mkevent
         s44 = sig 4 4
     equal (f s44 [(0, 1, "a"), (1, 1, "b")])
         ["a4", "b4", "r2"]
+    -- Rests are not dotted, even when they could be.
     equal (f s44 [(0, 1, "a"), (1.5, 1, "b")])
         ["a4", "r8", "b8~", "b8", "r8", "r4"]
 
 test_convert_duration = do
     let f sig pos = Lilypond.to_lily $ head $
-            Lilypond.convert_duration sig pos (Lilypond.time_per_whole - pos)
+            Lilypond.convert_duration sig True pos
+                (Lilypond.time_per_whole - pos)
     equal (map (f (sig 4 4)) [0, 8 .. 127])
         [ "1", "8.", "4.", "16", "2.", "8.", "8", "16"
         -- mid-measure
@@ -77,7 +80,7 @@ run :: Map.Map String String -> UiTest.NoteSpec
     -> (Pretty.Doc, [String], [Lilypond.Event])
 run meta note_spec =
     (Lilypond.make_score score events,
-        map Lilypond.to_lily (Lilypond.convert_notes sig events),
+        map Lilypond.to_lily (Lilypond.convert_notes False sig events),
         events)
     where
     sig = Lilypond.score_time score

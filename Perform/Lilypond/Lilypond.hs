@@ -94,43 +94,46 @@ note_time = note_dur_to_time . note_duration
 
 -- | Turn Events, which are in absolute Time, into Notes, which are divided up
 -- into tied Durations depending on the time signature.
-convert_notes :: TimeSignature -> [Event] -> [Note]
-convert_notes sig events =
+convert_notes :: Bool -- ^ emit dotted rests?
+    -> TimeSignature -> [Event] -> [Note]
+convert_notes dotted_rests sig events =
     concat $ zipWith mk (0 : map event_end events) events
         ++ [maybe [] trailing_rests (Seq.last events)]
     where
     mk prev (Event start dur pitch) =
         mkrests prev start ++ mknotes start dur pitch
     mkrests prev start
-        | prev < start = map rest $ convert_duration sig prev (start - prev)
+        | prev < start = map rest $
+            convert_duration sig dotted_rests prev (start - prev)
         | otherwise = []
     mknotes start dur pitch = zipWith mk (finals durs) durs
         where
         mk is_final dur = note pitch dur (not is_final)
-        durs = convert_duration sig start dur
+        durs = convert_duration sig True start dur
         finals = map null . drop 1 . List.tails
     trailing_rests last_event
         | remaining == 0 = []
-        | otherwise =
-            map rest (convert_duration sig (event_end last_event) remaining)
+        | otherwise = map rest $
+            convert_duration sig dotted_rests (event_end last_event) remaining
         where remaining = measure_time sig - event_end last_event
 
 -- | Given a starting point and a duration, emit the list of Durations
 -- needed to express that duration.
-convert_duration :: TimeSignature -> Time -> Time -> [NoteDuration]
-convert_duration sig pos time
+convert_duration :: TimeSignature -> Bool -> Time -> Time -> [NoteDuration]
+convert_duration sig use_dot pos time
     | time <= 0 = []
     | allowed >= time = time_to_note_durs time
-    | otherwise = dur : convert_duration sig (pos + allowed) (time - allowed)
+    | otherwise = dur
+        : convert_duration sig use_dot (pos + allowed) (time - allowed)
     where
     dur = time_to_note_dur allowed
-    allowed = allowed_time sig pos
+    allowed = (if use_dot then allowed_dotted_time else allowed_time) sig pos
 
 -- | Figure out how much time a note at the given position should be allowed
 -- before it must tie.
 -- TODO Only supports duple time signatures.
-allowed_time :: TimeSignature -> Time -> Time
-allowed_time sig measure_pos
+allowed_dotted_time :: TimeSignature -> Time -> Time
+allowed_dotted_time sig measure_pos
     | pos == 0 = measure
     | otherwise = min measure next - pos
     where
@@ -140,6 +143,10 @@ allowed_time sig measure_pos
     -- TODO inefficient way to find the next power of 2 greater than pos.
     -- There must be a direct way.
     next = Maybe.fromJust (List.find (>pos) [0, 2^level ..])
+
+-- | Like 'allowed_dotted_time', but only emit powers of two.
+allowed_time :: TimeSignature -> Time -> Time
+allowed_time sig pos = 2 ^ (log2 (allowed_dotted_time sig pos))
 
 note_dur_to_time :: NoteDuration -> Time
 note_dur_to_time (NoteDuration dur dotted) =
@@ -182,6 +189,7 @@ time_to_durs (Time time) =
         | otherwise = []
         where (d, m) = rest `divMod` 2
 
+-- | Integral log2.  So 63 is 0, because it divides by 2 zero times.
 log2 :: (Integral a) => a -> Int
 log2 = go 0
     where
@@ -267,8 +275,7 @@ parse_time_signature sig = do
 
 make_score :: Score -> [Event] -> Doc
 make_score score events = score_file score (ly_notes events)
-    where
-    ly_notes = map to_lily . convert_notes (score_time score)
+    where ly_notes = map to_lily . convert_notes False (score_time score)
 
 score_file :: Score -> [String] -> Doc
 score_file (Score title time_sig clef (key, mode) _dur1) notes =
