@@ -12,7 +12,6 @@
 #define __HSCONFIG_H
 
 /* These are automatically rewritten by the shakefile. */
-#undef INTERPRETER_HINT
 #undef INTERPRETER_GHC
 
 #if defined(__linux__)

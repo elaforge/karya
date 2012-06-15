@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts, ViewPatterns #-}
 {- | Shakefile for seq and associated binaries.
 
-    - Setting the 'hint' env var will add the -DINTERPRETER_HINT flag.
+    - Setting the 'repl' env var will add the -DINTERPRETER_GHC flag.
 
     - Building RunTests-something will include only tests matching
     *something*_test.hs.
@@ -186,7 +186,7 @@ hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 -- automatically like --make?
 packages :: [String]
 packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
-    ++ "dlist parsec text stm network haskell-src regex-pcre hint "
+    ++ "dlist parsec text stm network haskell-src regex-pcre "
     ++ "bytestring attoparsec utf8-string "
     ++ "mersenne-random-pure64 hashable random-shuffle "
     ++ "containers filepath transformers vector "
@@ -390,19 +390,14 @@ setupOracle :: Config -> Shake.Rules ()
 setupOracle config = do
     Shake.addOracle ["ghc"] $ return [ghcLib config]
     Shake.addOracle ["fltk"] $ return [fltkVersion config]
-    Shake.addOracle ["hint"] $
-        return [show $ "-DINTERPRETER_HINT" `elem` define (configFlags config)]
 
 writeConfigH :: IO ()
 writeConfigH = do
     useRepl <- fmap (("repl" `elem`) . map fst) Environment.getEnvironment
-    useHint <- fmap (("hint" `elem`) . map fst) Environment.getEnvironment
-    if useRepl then mangle [ghc] [hint]
-        else if useHint then mangle [hint] [ghc]
-        else mangle [] [ghc, hint] -- use stub
+    if useRepl then mangle [ghc] []
+        else mangle [] [ghc] -- use stub
     where
     mangle = CcDeps.enableDefines "hsconfig.h"
-    hint = "INTERPRETER_HINT"
     ghc = "INTERPRETER_GHC"
 
 -- | Match a file in @build/<mode>/obj/@.

@@ -422,12 +422,10 @@ plugins:
 
 bugs:
   - Create.rename_project loses the merged tracks
-  / bizarre hint importing requirements in Cmd.LanguageEnviron
   * track down ghc rts crashes, assertion failure
     - make a repro case if ghc guys want it
   - run under valgrind every once and a while, just for fun
     - why doesn't valgrind reveal bad memory access from haskell, e.g. poke...
-  / hint refuses to compile when a module emits a warning
 
 cleanup:
   - split Ui.State into separate modules for views, blocks, tracks, etc.

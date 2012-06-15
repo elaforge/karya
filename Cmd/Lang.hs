@@ -38,8 +38,6 @@ import qualified Cmd.Msg as Msg
 #include "hsconfig.h"
 #if defined(TESTING)
 import qualified Cmd.LangStub as LangImpl
-#elif defined(INTERPRETER_HINT)
-import qualified Cmd.LangHint as LangImpl
 #elif defined(INTERPRETER_GHC)
 import qualified Cmd.LangGhc as LangImpl
 #else
@@ -55,10 +53,7 @@ make_session :: IO Session
 make_session = LangImpl.make_session
 
 -- | This is the interpreter thread, which should be started when the app
--- starts.  It has to be in a separate thread because hint insists all
--- interpretation be run in a single monad and it's too much bother to try to
--- put CmdT into that monad.  So I run it in a separate thread and send
--- requests over a channel.
+-- starts.  It's in a separate thread so it can run in its own monad.
 interpreter :: Session -> IO ()
 interpreter = LangImpl.interpreter
 
