@@ -31,7 +31,8 @@ load fname = do
     Serialize.SaveState state _ <- return $ expect_right "load" result
     return state
 
-print_memory_diff :: (Memory.K, Memory.K) -> (Memory.K, Memory.K) -> IO ()
+print_memory_diff :: (Memory.Size, Memory.Size) -> (Memory.Size, Memory.Size)
+    -> IO ()
 print_memory_diff (rss1, vsz1) (rss2, vsz2) = do
     putStrLn $ "RSS: " ++ show rss1 ++ " -> " ++ show rss2 ++ " = "
         ++ show (rss2 - rss1)

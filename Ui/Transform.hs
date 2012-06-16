@@ -169,7 +169,7 @@ intern_text state =
             (pos, event { Event.event_bs = text }))
         where text = Event.event_bs event
 
-intern_stats :: Map.Map ByteString.ByteString Int -> (Memory.K, Int)
+intern_stats :: Map.Map ByteString.ByteString Int -> (Memory.Size, Int)
 intern_stats table =
     (Memory.from_bytes $ sum (map stats (Map.toList table)), total_hits)
     where
