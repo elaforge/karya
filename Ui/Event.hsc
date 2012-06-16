@@ -42,8 +42,8 @@ data Event = Event {
     event_bs :: !B.ByteString
     , event_duration :: !ScoreTime
     , event_style :: !Style.StyleId
-    -- | If this event was integrated from another event as by "Cmd.Integrate",
-    -- this will have the stack of the source event.
+    -- | If this event was integrated from another event as by
+    -- "Derive.Call.Integrate", this will have the stack of the source event.
     , event_stack :: !(Maybe Stack.Stack)
     } deriving (Eq, Show, Read)
 

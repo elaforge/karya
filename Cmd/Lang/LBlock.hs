@@ -10,8 +10,11 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Call.Integrate as Integrate
+import qualified Derive.LEvent as LEvent
 import Types
 
 
@@ -61,3 +64,14 @@ can_create name = do
         Just block_id -> not . Map.member block_id
             <$> State.gets State.state_blocks
         Nothing -> return False
+
+-- * integrate
+
+integrate_block :: (Cmd.M m) => BlockId -> m ()
+integrate_block block_id = do
+    perf <- Cmd.get_performance block_id
+    lookup_scale <- Cmd.get_lookup_scale
+    key <- Perf.get_key block_id Nothing
+    new_block <- Integrate.integrate_block block_id lookup_scale key
+        (LEvent.events_of $ Cmd.perf_events perf)
+    void $ Create.view new_block

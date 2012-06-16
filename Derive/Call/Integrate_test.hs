@@ -1,4 +1,4 @@
-module Cmd.Integrate_test where
+module Derive.Call.Integrate_test where
 import qualified Data.Map as Map
 
 import Util.Control
@@ -7,10 +7,11 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.Integrate as Integrate
+import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
+
 import Types
 
 

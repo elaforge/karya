@@ -1,7 +1,8 @@
 {-# LANGUAGE CPP #-}
-module Cmd.Integrate (
+module Derive.Call.Integrate (
+    note_calls
     -- * create_block
-    integrate_block
+    , integrate_block
 
     -- * integrate
     , Track(..), create_block, integrate
@@ -22,13 +23,10 @@ import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 
-import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Perf as Perf
-
 import qualified Derive.Call.BlockUtil as BlockUtil
+import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -44,18 +42,29 @@ import qualified App.Config as Config
 import Types
 
 
-integrate_block :: (Cmd.M m) => BlockId -> m ()
-integrate_block block_id = do
-    perf <- Cmd.get_performance block_id
-    lookup_scale <- Cmd.get_lookup_scale
-    key <- Perf.get_key block_id Nothing
-    events <- unwarp block_id $ LEvent.events_of $ Cmd.perf_events perf
+-- * call
+
+note_calls :: Derive.NoteCallMap
+note_calls = Derive.make_calls [("<", c_integrate)]
+
+-- | Integrate.
+c_integrate :: Derive.NoteCall
+c_integrate = Derive.transformer "integrate" $ \args deriver ->
+    CallSig.call0 args $ do
+        events <- deriver
+        return events
+
+-- * create block
+
+integrate_block :: (State.M m) => BlockId -> Derive.LookupScale
+    -> Maybe Pitch.Key -> [Score.Event] -> m BlockId
+integrate_block block_id lookup_scale key events = do
+    events <- unwarp block_id events
     let (tracks, errs) = integrate lookup_scale key events
     unless (null errs) $
-        Cmd.throw $ "errors integrating: " ++ Seq.join "; " errs
+        State.throw $ "errors integrating: " ++ Seq.join "; " errs
     ruler_id <- State.get_block_ruler block_id
-    derived_block <- create_block ruler_id tracks
-    void $ Create.view derived_block
+    create_block ruler_id tracks
 
 -- | If the block uses a default tempo, it will get applied once during
 -- integration, and again when it's played.  I should avoid applying the
@@ -72,8 +81,6 @@ uses_default_tempo :: (State.M m) => BlockId -> m Bool
 uses_default_tempo block_id =
     BlockUtil.has_nontempo_track <$> State.events_tree_of block_id
 
-
--- * create_block
 
 -- | As usual, the PosEvents must be sorted.
 data Track = Track !String ![Events.PosEvent] deriving (Show)
@@ -148,7 +155,7 @@ note_event :: Score.Event -> Events.PosEvent
 note_event event = (RealTime.to_score (Score.event_start event),
     Event.Event (Score.event_bs event)
         (RealTime.to_score (Score.event_duration event))
-        Config.default_style)
+        Config.default_style (Just (Score.event_stack event)))
 
 -- ** pitch
 
