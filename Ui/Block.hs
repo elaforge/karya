@@ -26,23 +26,27 @@ data Block = Block {
     , block_config :: !Config
     , block_tracks :: ![Track]
     , block_skeleton :: !Skeleton.Skeleton
+    -- | If this block was integrated from another, this is the source block.
+    , block_integrated :: !(Maybe BlockId)
     , block_meta :: !Meta
     } deriving (Eq, Show, Read)
 
 instance Pretty.Pretty Block where
-    format (Block title _config tracks skel meta) = Pretty.record_title "Block"
-        [ ("title", Pretty.format title)
-        , ("tracks", Pretty.format tracks)
-        , ("skel", Pretty.format skel)
-        , ("meta", Pretty.format meta)
-        ]
+    format (Block title _config tracks skel integrated meta) =
+        Pretty.record_title "Block"
+            [ ("title", Pretty.format title)
+            , ("tracks", Pretty.format tracks)
+            , ("skel", Pretty.format skel)
+            , ("integrated", Pretty.format integrated)
+            , ("meta", Pretty.format meta)
+            ]
 
 instance DeepSeq.NFData Block where
-    -- I don't bother to force anything deep, but there isn't much data down
-    -- there anyway.
-    rnf (Block title config tracks skel meta) =
-        title `seq` config `seq` tracks `seq` skel `seq` meta `seq` ()
+    rnf = DeepSeq.rnf . block_title
 
+-- | Block metadata is extra data that doesn't affect normal derivation, but
+-- may be of interest to cmds.  For instance, it can mark if this block should
+-- be rendered to lilypond and provide arguments for it.
 type Meta = Map.Map String String
 
 block_tracklike_ids :: Block -> [TracklikeId]
@@ -55,7 +59,14 @@ block_ruler_ids :: Block -> [RulerId]
 block_ruler_ids = ruler_ids_of . block_tracklike_ids
 
 block :: Config -> String -> [Track] -> Block
-block config title tracks = Block title config tracks Skeleton.empty Map.empty
+block config title tracks = Block
+    { block_title = title
+    , block_config = config
+    , block_tracks = tracks
+    , block_skeleton = Skeleton.empty
+    , block_integrated = Nothing
+    , block_meta = Map.empty
+    }
 
 -- | Per-block configuration.
 data Config = Config {

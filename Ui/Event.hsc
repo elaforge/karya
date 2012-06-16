@@ -32,23 +32,28 @@ import Foreign.C
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Style as Style
 
+import qualified Derive.Stack as Stack
 import qualified App.Config as Config
 import Types
 
 
 data Event = Event {
     -- | UTF8 encoded.
-    event_bs :: B.ByteString
-    , event_duration :: ScoreTime
-    , event_style :: Style.StyleId
+    event_bs :: !B.ByteString
+    , event_duration :: !ScoreTime
+    , event_style :: !Style.StyleId
+    -- | If this event was integrated from another event as by "Cmd.Integrate",
+    -- this will have the stack of the source event.
+    , event_stack :: !(Maybe Stack.Stack)
     } deriving (Eq, Show, Read)
 
 instance DeepSeq.NFData Event where
-    rnf (Event bs dur style) = bs `seq` dur `seq` style `seq` ()
+    rnf (Event bs dur style stack) =
+        bs `seq` dur `seq` style `seq` stack `seq` ()
 
 -- | Manual event constructor.
 event :: String -> ScoreTime -> Event
-event text dur = Event (UTF8.fromString text) dur Config.default_style
+event text dur = Event (UTF8.fromString text) dur Config.default_style Nothing
 
 event_string :: Event -> String
 event_string = UTF8.toString . event_bs
@@ -93,7 +98,8 @@ instance Storable Event where
     poke = poke_event
     peek = error "Event peek unimplemented"
 
-poke_event eventp (Event text dur (Style.StyleId style_id)) = do
+poke_event :: Ptr Event -> Event -> IO ()
+poke_event eventp (Event text dur (Style.StyleId style_id) _) = do
     -- Must be freed by the caller, EventTrackView::draw_area.
     textp <- if B.null text then return nullPtr
         else unpackCString0 text

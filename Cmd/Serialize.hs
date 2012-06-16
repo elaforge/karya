@@ -172,8 +172,8 @@ instance Serialize State.Default where
 -- ** Block
 
 instance Serialize Block.Block where
-    put (Block.Block a _config b c d) = put_version 5
-        >> put a >> put b >> put c >> put d
+    put (Block.Block a _config b c d e) = put_version 6
+        >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- get_version
         case v of
@@ -181,19 +181,25 @@ instance Serialize Block.Block where
                 title <- get :: Get String
                 tracks <- get :: Get [Block.Track]
                 skel <- get :: Get Skeleton.Skeleton
-                -- Everything in the block config is either derived from the
-                -- Cmd.State or is hardcoded.
                 return $ Block.Block title Block.default_config tracks skel
-                    Map.empty
+                    Nothing Map.empty
             5 -> do
                 title <- get :: Get String
                 tracks <- get :: Get [Block.Track]
                 skel <- get :: Get Skeleton.Skeleton
-                -- Everything in the block config is either derived from the
-                -- Cmd.State or is hardcoded.
                 meta <- get :: Get (Map.Map String String)
                 return $ Block.Block title Block.default_config tracks skel
-                    meta
+                    Nothing meta
+            6 -> do
+                title <- get :: Get String
+                tracks <- get :: Get [Block.Track]
+                skel <- get :: Get Skeleton.Skeleton
+                integrated <- get :: Get (Maybe BlockId)
+                meta <- get :: Get (Map.Map String String)
+                -- Everything in the block config is either derived from the
+                -- Cmd.State or is hardcoded.
+                return $ Block.Block title Block.default_config tracks skel
+                    integrated meta
             _ -> bad_version "Block.Block" v
 
 instance Serialize Skeleton.Skeleton where
@@ -339,8 +345,8 @@ instance Serialize Ruler.Mark where
 -- ** Track
 
 instance Serialize Track.Track where
-    put (Track.Track a b c d) = put_version 1 >>
-        put a >> put b >> put c >> put d
+    put (Track.Track a b c d e) = put_version 2 >>
+        put a >> put b >> put c >> put d >> put e
     get = do
         v <- get_version
         case v of
@@ -349,7 +355,14 @@ instance Serialize Track.Track where
                 events <- get :: Get Events.Events
                 color <- get :: Get Color.Color
                 render <- get :: Get Track.RenderConfig
-                return $ Track.Track title events color render
+                return $ Track.Track title events color render Nothing
+            2 -> do
+                title <- get :: Get String
+                events <- get :: Get Events.Events
+                color <- get :: Get Color.Color
+                render <- get :: Get Track.RenderConfig
+                integrated <- get :: Get (Maybe TrackId)
+                return $ Track.Track title events color render integrated
             _ -> bad_version "Track.Track" v
 
 instance Serialize Track.RenderConfig where
@@ -381,22 +394,39 @@ instance Serialize Events.Events where
         v <- get_version
         case v of
             0 -> do
+                events <- get :: Get (Map.Map ScoreTime Event0)
+                return $ Events.Events (Map.map convert events)
+            1 -> do
                 events <- get :: Get (Map.Map ScoreTime Event.Event)
                 return $ Events.Events events
             _ -> bad_version "Events.Events" v
+        where
+        convert (Event0 bs dur style) = Event.Event bs dur style Nothing
 
 -- ** Event
 
 instance Serialize Event.Event where
-    put (Event.Event text dur style) = do
-        put text
-        put dur
-        put style
+    put (Event.Event a b c d) = put a >> put b >> put c >> put d
     get = do
         text <- get :: Get ByteString.ByteString
         dur <- get :: Get ScoreTime
         style <- get :: Get Style.StyleId
-        return $ Event.Event text dur style
+        stack <- get :: Get (Maybe Stack.Stack)
+        return $ Event.Event text dur style stack
+
+instance Serialize Event0 where
+    put (Event0 a b c) = put a >> put b >> put c
+    get = do
+        text <- get :: Get ByteString.ByteString
+        dur <- get :: Get ScoreTime
+        style <- get :: Get Style.StyleId
+        return $ Event0 text dur style
+
+data Event0 = Event0 {
+    event_bs :: !ByteString.ByteString
+    , event_duration :: !ScoreTime
+    , event_style :: !Style.StyleId
+    }
 
 -- ** Midi.Instrument
 

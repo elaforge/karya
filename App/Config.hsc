@@ -270,7 +270,11 @@ emmentaler = case System.Info.os of
 -- | Like Symbols, these are sent to the UI layer at startup and then remain
 -- static.
 styles :: [Style.Style]
-styles =
+styles = plain_styles ++ map integrated plain_styles
+    where integrated style = style { Style.style_face = [Style.Italic] }
+
+plain_styles :: [Style.Style]
+plain_styles =
     [ plain 0.9 0.9 0.7 -- default_style, is also note style
     , plain 0.8 0.9 0.8 -- control_style
     , plain 0.9 0.8 0.9 -- pitch_style
@@ -293,3 +297,9 @@ parse_error_style :: Style.StyleId
 
 default_style : control_style : pitch_style : declaration_style
     : parse_error_style : _ = map Style.StyleId [0..]
+
+to_integrated_style :: Style.StyleId -> Style.StyleId
+to_integrated_style (Style.StyleId id)
+    | id < plains = Style.StyleId (id + plains)
+    | otherwise = Style.StyleId id
+    where plains = fromIntegral (length plain_styles)

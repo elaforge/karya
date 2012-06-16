@@ -217,14 +217,17 @@ update_of _ = Nothing
 -- for now but it's easy to put in StaticConfig if needed.
 set_style :: Event.SetStyle
 set_style title _pos event
-    | Event.event_style event /= Config.default_style =
-        Event.event_style event
-    | otherwise = case ParseBs.parse_expr (Event.event_bs event) of
+    | Event.event_style event /= Config.default_style = Event.event_style event
+    | otherwise = integrated $ case ParseBs.parse_expr (Event.event_bs event) of
         Left _ -> Config.parse_error_style
         Right expr
             | TrackInfo.is_note_track title -> colorize_note expr
             | TrackInfo.is_pitch_track title -> Config.pitch_style
             | otherwise -> Config.control_style
+    where
+    integrated
+        | Maybe.isNothing (Event.event_stack event) = id
+        | otherwise = Config.to_integrated_style
 
 colorize_note :: TrackLang.Expr -> Style.StyleId
 colorize_note (TrackLang.Call call _ : _)

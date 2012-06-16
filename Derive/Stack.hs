@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
 module Derive.Stack (
     Stack, empty, length, from_outermost, from_innermost
     , block, add, member, outermost, innermost
@@ -24,6 +24,7 @@ import qualified Util.ParseBs as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
 
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
@@ -38,7 +39,8 @@ import Types
 --
 -- I originally used "Data.Sequence" but it generates more garbage and
 -- I couldn't figure out how to stop that from happening.
-newtype Stack = Stack [Frame] deriving (Eq, Ord, DeepSeq.NFData)
+newtype Stack = Stack [Frame]
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
 
 instance Show Stack where
     show stack = "Stack.from_outermost " ++ show (outermost stack)
@@ -114,6 +116,30 @@ instance Pretty.Pretty Frame where
     pretty (Track tid) = show tid
     pretty (Region s e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
     pretty (Call call) = call
+
+instance Serialize.Serialize Frame where
+    put frame = case frame of
+        Block bid -> Serialize.put_tag 0 >> Serialize.put bid
+        Track tid -> Serialize.put_tag 1 >> Serialize.put tid
+        Region s e -> Serialize.put_tag 2 >> Serialize.put s >> Serialize.put e
+        Call s -> Serialize.put_tag 3 >> Serialize.put s
+    get = do
+        tag <- Serialize.get_tag
+        case tag of
+            0 -> do
+                bid :: BlockId <- Serialize.get
+                return $ Block bid
+            1 -> do
+                tid :: TrackId <- Serialize.get
+                return $ Track tid
+            2 -> do
+                s :: ScoreTime <- Serialize.get
+                e :: ScoreTime <- Serialize.get
+                return $ Region s e
+            3 -> do
+                s :: String <- Serialize.get
+                return $ Call s
+            _ -> Serialize.bad_tag "Stack.Frame" tag
 
 format_ui :: Stack -> Pretty.Doc
 format_ui = Pretty.text_list . map unparse_ui_frame . to_ui

@@ -51,12 +51,50 @@ UNSORTED
       calls)
     reintegration: merge changes back into the derived block after its source
       changes
-    - add stack and special style to derived events
-    - blocks record which block they were derived from
-    - automatic mechanism to reintegrate after changes
-      Do a merge by integrating the previous block and comparing the
-      difference.  This way I can detect deleted and moved events, and build
-      up a list of edits to reapply to the new derivation.
+    * add stack and special style to derived events
+    reintegrate automatically after changes
+      * blocks need a BlockId to show who they were integrated from
+      * tracks need a TrackId to show who they were integrated from
+      - Derive.Result needs ScoreDamage and [(BlockId, [Track])], and the UI
+        needs to use that to modify score.
+      integrate by block
+        - Damage causes block to rederive.
+        - If the block has a special integrate symbol, e.g. '| <' then derive
+          normally, but look for blocks with this one marked as creator.
+          How about if I actually make it a transformer?
+        - If they exist, then replace (later merge) with the integrated
+          output.
+        - Otherwise, make a new block.
+        - Emit damage for any merged blocks.  But how can I avoid another Cmd
+          cycle?  I need to immediately do a new derive based on the new
+          damage.  Maybe I can do a hack at the Cmd.Performance level.
+          Track integration doesn't have this problem because it's all within
+          one block, and doesn't need to trigger the derivation of another
+          block (possibly a dependent one).
+        Integrate needs to move down to Derive to do this.
+        So you can have multiple derived blocks by creating a another block
+        with the same creator, say by duplicating a integrated block.
+        Possible arguments to the integrater can go after the '<'.
+      integrate within a block
+        This means block derivation has to be staged.  A derive triggers an
+        integrate, which modifies the score, which is then derived.
+        - Damage causes a block to rederive.
+        - Find tracks that have special integrate symbol, e.g.  >ptq/c | <
+        - For each one, derive the block with that track soloed.
+        - The block deriver takes each output and integrates it.  This is used
+          for further derivation, and also collected so the UI can replace
+          tracks.
+        - If there are tracks in the block with that track as creator,
+          then replace (later merge) their contents with the integrated output.
+          But how to tell which track goes where?  Kendang will create with
+          different instruments, but others may not.  I can rely on them
+          creating in the same order.
+        - Otherwise, create new tracks to the right.
+        - Further derivation needs to get track damage on the regenerated
+          tracks.
+      - Do a merge by integrating the previous block and comparing the
+        difference.  This way I can detect deleted and moved events, and build
+        up a list of edits to reapply to the new derivation.
   - I could implement mute and solo without rederiving by filtering based on
     the stack in events.  This wouldn't account for muting tracks that have
     some other effect, e.g. setting an environ val.
