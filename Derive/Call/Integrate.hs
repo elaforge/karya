@@ -164,8 +164,7 @@ pitch_events :: Scale.Scale -> Pitch.ScaleId -> Maybe Pitch.Key
 pitch_events scale scale_id key events
     | all (PitchSignal.null . Score.event_pitch) events = Nothing
     | otherwise =
-        Just (make_track pitch_title (drop_dups (clip_concat ui_events)),
-            concat errs)
+        Just (make_track pitch_title (tidy_events ui_events), concat errs)
     where
     pitch_title = TrackInfo.scale_to_title scale_id
     (ui_events, errs) = unzip $
@@ -197,7 +196,7 @@ control_track :: [Score.Event] -> Score.Typed Score.Control -> Track
 control_track events control =
     make_track (TrackInfo.unparse_typed control) ui_events
     where
-    ui_events = drop_dups $ clip_concat (map controls_of events)
+    ui_events = tidy_events $ map controls_of events
     controls_of event = signal_events
         (Score.typed_val control) (Score.event_controls event)
 
@@ -209,7 +208,10 @@ signal_events control controls = case Map.lookup control controls of
 
 -- * util
 
--- | Concatenate the events, clipping them so they are in order by start.  The
+tidy_events :: [[Events.PosEvent]] -> [Events.PosEvent]
+tidy_events = clip_to_zero . drop_dups . clip_concat
+
+-- | Concatenate the events, dropping ones that are out of order.  The
 -- durations are not modified, so they still might overlap in duration, but the
 -- start times will be increasing.
 clip_concat :: [[Events.PosEvent]] -> [Events.PosEvent]
@@ -220,3 +222,13 @@ clip_concat = Seq.drop_with out_of_order . concat
 -- controls.
 drop_dups :: [Events.PosEvent] -> [Events.PosEvent]
 drop_dups = Seq.drop_dups (Event.event_string . snd)
+
+-- | Drop events before 0, keeping at least one at 0.  Controls can wind up
+-- with samples before 0 (e.g. after using 'Derive.Score.move'), but events
+-- can't start before 0.
+clip_to_zero :: [Events.PosEvent] -> [Events.PosEvent]
+clip_to_zero ((p1, e1) : rest@((p2, _) : _))
+    | p1 <= 0 && p2 <= 0 = clip_to_zero rest
+    | otherwise = (max 0 p1, e1) : rest
+clip_to_zero [(p, e)] = [(max 0 p, e)]
+clip_to_zero [] = []
