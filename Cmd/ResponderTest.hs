@@ -92,6 +92,21 @@ get_perf chan = do
             return (block_id, perf)
         _ -> get_perf chan
 
+-- | Feed msgs back into the responder until a DeriveComplete is reached.
+respond_until_complete :: States -> Cmd.CmdT IO a -> IO [Result]
+respond_until_complete states cmd = do
+    result <- respond_cmd states cmd
+    go [] (result_loopback result) (result_states result)
+    where
+    go accum chan states = do
+        msg <- Chan.readChan chan
+        putStrLn $ "msg: " ++ Pretty.pretty msg
+        result <- respond_msg states msg
+        case msg of
+            Msg.DeriveStatus _ (Msg.DeriveComplete {}) ->
+                return $ reverse (result:accum)
+            _ -> go (result:accum) chan (result_states result)
+
 result_states :: Result -> States
 result_states result = (CmdTest.result_ui_state r, CmdTest.result_cmd_state r)
     where r = result_cmd result
@@ -109,7 +124,7 @@ thread states msgs = thread_delay False states [(m, 0) | m <- msgs]
 thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
 thread_delay _ _ [] = return []
 thread_delay print_timing states ((msg, delay):msgs) = do
-    (result, secs) <- timer $ respond1 states msg
+    (result, secs) <- timer $ respond_msg states msg
     when print_timing $
         Printf.printf "%s -> lag: %.2fs\n" (Pretty.pretty msg) secs
     Thread.delay delay
@@ -131,8 +146,8 @@ respond_cmd states cmd = _respond states (Just (mkcmd cmd)) magic
     is_magic _ = False
     magic = Msg.Socket IO.stdout "MAGIC!!"
 
-respond1 :: States -> Msg.Msg -> IO Result
-respond1 states = _respond states Nothing
+respond_msg :: States -> Msg.Msg -> IO Result
+respond_msg states = _respond states Nothing
 
 type CmdIO = Msg.Msg -> Cmd.CmdIO
 
@@ -151,10 +166,16 @@ _respond (ustate, cstate) cmd msg = do
     force midi
     updates <- concat <$> get_vals update_chan
     force updates
-    let res = CmdTest.Result (Right Nothing) (Responder.state_cmd rstate)
-            (Responder.state_ui rstate) [] []
-            [(Midi.wmsg_dev m, Midi.wmsg_msg m) | m <- midi]
-    return $ Result res updates loopback_chan
+    let cmd_result = CmdTest.Result
+            { CmdTest.result_val = Right Nothing
+            , CmdTest.result_cmd_state = Responder.state_cmd rstate
+            , CmdTest.result_ui_state = Responder.state_ui rstate
+            , CmdTest.result_updates = []
+            , CmdTest.result_logs = []
+            , CmdTest.result_midi =
+                [(Midi.wmsg_dev m, Midi.wmsg_msg m) | m <- midi]
+            }
+    return $ Result cmd_result updates loopback_chan
 
 make_rstate :: TVar.TVar [[Update.DisplayUpdate]]
     -> Chan.Chan Msg.Msg -> State.State -> Cmd.State -> Maybe CmdIO

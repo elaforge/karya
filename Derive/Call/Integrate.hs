@@ -1,32 +1,27 @@
-{-# LANGUAGE CPP #-}
 module Derive.Call.Integrate (
-    note_calls
-    -- * create_block
-    , integrate_block
-
-    -- * integrate
-    , Track(..), create_block, integrate
-#ifdef TESTING
+    note_calls, Track(..), integrate
     , unwarp
-#endif
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 
-import qualified Cmd.Create as Create
 import qualified Derive.Call.BlockUtil as BlockUtil
+import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
+import Derive.Derive (Track(..))
+import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -52,24 +47,36 @@ c_integrate :: Derive.NoteCall
 c_integrate = Derive.transformer "integrate" $ \args deriver ->
     CallSig.call0 args $ do
         events <- deriver
+        integrate_events (LEvent.events_of events)
         return events
 
--- * create block
+integrate_events :: [Score.Event] -> Derive.Deriver ()
+integrate_events events = do
+    stack <- Internal.get_stack
+    case Maybe.mapMaybe Stack.block_of (Stack.innermost stack) of
+        -- Only collect an integration if this is the top level block.
+        -- Otherwise I can get integrating blocks called from many places and
+        -- who knows which one is supposed to be integrated.
+        [block_id] -> do
+            events <- Derive.eval_ui "c_integrate" $ unwarp block_id events
+            key <- Util.lookup_key
+            lookup_scale <- Derive.gets
+                (Derive.state_lookup_scale . Derive.state_constant)
+            let (tracks, errs) = integrate lookup_scale key events
+            if null errs
+                then Internal.merge_collect $ mempty
+                    { Derive.collect_integrated = Just tracks }
+                else Log.warn $ "errors integrating: " ++ Seq.join "; " errs
+        _ -> return ()
 
-integrate_block :: (State.M m) => BlockId -> Derive.LookupScale
-    -> Maybe Pitch.Key -> [Score.Event] -> m BlockId
-integrate_block block_id lookup_scale key events = do
-    events <- unwarp block_id events
-    let (tracks, errs) = integrate lookup_scale key events
-    unless (null errs) $
-        State.throw $ "errors integrating: " ++ Seq.join "; " errs
-    ruler_id <- State.get_block_ruler block_id
-    create_block ruler_id tracks
+-- * create block
 
 -- | If the block uses a default tempo, it will get applied once during
 -- integration, and again when it's played.  I should avoid applying the
 -- default tempo at all for integration, but that's too much bother.  Instead,
 -- unwarp the events if the default tempo was applied.
+--
+-- TODO Getting rid of the default tempo entirely is also an option.
 unwarp :: (State.M m) => BlockId -> [Score.Event] -> m [Score.Event]
 unwarp block_id events = ifM (uses_default_tempo block_id)
     (do tempo <- State.get_default State.default_tempo
@@ -81,33 +88,6 @@ uses_default_tempo :: (State.M m) => BlockId -> m Bool
 uses_default_tempo block_id =
     BlockUtil.has_nontempo_track <$> State.events_tree_of block_id
 
-
--- | As usual, the PosEvents must be sorted.
-data Track = Track !String ![Events.PosEvent] deriving (Show)
-
-make_track :: String -> [Events.PosEvent] -> Track
-make_track title events = Track title (Seq.sort_on fst events)
-
-create_block :: (State.M m) => RulerId -> [Track] -> m BlockId
-create_block ruler_id tracks = do
-    block_id <- Create.block ruler_id
-    mapM_ (create_track block_id) (zip [1..] tracks)
-    State.set_skeleton block_id $ Skeleton.make $
-        -- +1 to account for the ruler track.
-        make_edges (length tracks + 1) note_tracks
-    return block_id
-    where
-    create_track block_id (tracknum, (Track title events)) = do
-        Create.track block_id tracknum title (Events.from_asc_list events)
-    note_tracks = [tracknum | (tracknum, Track title _) <- zip [1..] tracks,
-        TrackInfo.is_note_track title]
-
--- | 6 [1, 4] -> [(1, 2), (2, 3), (4, 5)]
-make_edges :: TrackNum -> [TrackNum] -> [(TrackNum, TrackNum)]
-make_edges track_count = concatMap interpolate . Seq.zip_next
-    where
-    interpolate (t1, maybe_t2) = zip ts (drop 1 ts)
-        where ts = [t1 .. Maybe.fromMaybe track_count maybe_t2 - 1]
 
 -- * integrate
 
@@ -186,7 +166,8 @@ pitch_signal_events scale key sig =
 -- ** control
 
 control_events :: [Score.Event] -> [Track]
-control_events events = map (control_track events) controls
+control_events events =
+    filter (not . empty_track) $ map (control_track events) controls
     where
     controls = List.sort $ Seq.unique $ concatMap
         (map typed_control . Map.toList . Score.event_controls) events
@@ -239,6 +220,9 @@ clip_to_zero ((p1, e1) : rest@((p2, _) : _))
     | otherwise = (max 0 p1, e1) : rest
 clip_to_zero [(p, e)] = [(max 0 p, e)]
 clip_to_zero [] = []
+
+make_track :: String -> [Events.PosEvent] -> Track
+make_track title events = Track title (Seq.sort_on fst events)
 
 empty_track :: Track -> Bool
 empty_track (Track _ []) = True

@@ -52,7 +52,8 @@ reverse_events :: RealTime -> [Score.Event] -> [Score.Event]
 reverse_events start = rev start
     where
     rev _ [] = []
-    rev at [cur] = [Score.move (const at) cur]
-    rev at (cur : rest@(next : _)) = Score.move (const at) cur
+    rev at [cur] = [move at cur]
+    rev at (cur : rest@(next : _)) = move at cur
         : rev (at + Score.event_duration cur
             + (Score.event_start cur - Score.event_end next)) rest
+    move at = Score.move (const at)

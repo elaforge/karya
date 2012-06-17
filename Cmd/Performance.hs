@@ -167,9 +167,13 @@ evaluate_performance wait send_status block_id perf = do
 
 -- | Constructor for 'Cmd.Performance'.
 performance :: Derive.Result -> Cmd.Performance
-performance result = Cmd.Performance (Derive.r_cache result)
-    (Derive.r_events result) (Derive.r_track_environ result) mempty
-    (warps result) (Derive.r_track_signals result)
-    where
-    warps = TrackWarp.collections .  Derive.collect_warp_map
-        . Derive.state_collect . Derive.r_state
+performance result = Cmd.Performance
+    { Cmd.perf_derive_cache = Derive.r_cache result
+    , Cmd.perf_events = Derive.r_events result
+    , Cmd.perf_track_environ = Derive.r_track_environ result
+    , Cmd.perf_integrated = Derive.r_integrated result
+    , Cmd.perf_score_damage = mempty
+    , Cmd.perf_warps = TrackWarp.collections $ Derive.collect_warp_map $
+        Derive.state_collect $ Derive.r_state result
+    , Cmd.perf_track_signals = Derive.r_track_signals result
+    }

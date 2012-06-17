@@ -56,8 +56,6 @@ quit_ui_thread quit_request = do
     awake -- get it out of wait
 
 foreign import ccall "initialize" c_initialize :: IO ()
--- "wait" must be safe since it blocks.  Unsafe FFI calls block all haskell
--- threads.
 foreign import ccall "ui_wait" wait :: IO ()
 foreign import ccall "ui_awake" awake :: IO ()
 

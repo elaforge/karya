@@ -59,7 +59,7 @@ module Derive.Deriver.Monad (
     , ControlOp
 
     -- ** collect
-    , Collect(..)
+    , Collect(..), Track(..)
     , TrackEnviron
 
     -- * calls
@@ -539,14 +539,20 @@ data Collect = Collect {
 
     -- | New caches accumulating over the course of the derivation.
     , collect_cache :: !Cache
+    , collect_integrated :: !(Maybe [Track])
     } deriving (Show)
 
+-- | A simplified description of a UI track, as collected by
+-- "Derive.Call.Integrate".
+data Track = Track !String ![Events.PosEvent] deriving (Show)
+
 instance Monoid.Monoid Collect where
-    mempty = Collect mempty mempty mempty mempty mempty
-    mappend (Collect warps1 signals1 env1 deps1 cache1)
-            (Collect warps2 signals2 env2 deps2 cache2) =
+    mempty = Collect mempty mempty mempty mempty mempty Nothing
+    mappend (Collect warps1 signals1 env1 deps1 cache1 integrated1)
+            (Collect warps2 signals2 env2 deps2 cache2 integrated2) =
         Collect (warps1 <> warps2) (signals1 <> signals2) (env1 <> env2)
             (deps1 <> deps2) (cache1 <> cache2)
+            (integrated1 `mplus` integrated2)
 
 -- | Snapshots of the environ at each track.  This is used by the Cmd layer to
 -- figure out what the scale and instrument are for a given track.

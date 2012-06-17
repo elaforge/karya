@@ -66,6 +66,7 @@ data Performance = Performance {
     perf_derive_cache :: Derive.Cache
     , perf_events :: Derive.Events
     , perf_track_environ :: Derive.TrackEnviron
+    , perf_integrated :: Maybe [Derive.Track]
     -- | Score damage on top of the Performance, used by the derive cache.
     -- This is empty when the Performance is first created and collects
     -- thereafter.

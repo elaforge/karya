@@ -808,7 +808,7 @@ remove_track block_id tracknum = do
 block_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.Track)
 block_track_at block_id tracknum
     | tracknum < 0 =
-        throw $ "block_track_at: negative tracknum " ++ show tracknum
+        throw $ "block_track_at: negative tracknum: " ++ show tracknum
     | otherwise = do
         block <- get_block block_id
         return $ Seq.at (Block.block_tracks block) tracknum

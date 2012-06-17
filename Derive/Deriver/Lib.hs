@@ -75,6 +75,7 @@ data Result = Result {
     , r_track_warps :: TrackWarp.Collections
     , r_track_signals :: Track.TrackSignals
     , r_track_environ :: TrackEnviron
+    , r_integrated :: Maybe [Track]
 
     -- | The relevant parts of the final state should be extracted into the
     -- above fields, but returning the whole state can be useful for testing.
@@ -91,14 +92,16 @@ derive constant scope environ deriver =
     where state = initial_state scope environ constant
 
 extract_result :: RunResult Events -> Result
-extract_result (result, state, logs) =
-    Result (merge_logs result logs)
-        (collect_cache collect <> state_cache (state_constant state))
-        warps (collect_track_signals collect) (collect_track_environ collect)
-        state
-    where
-    collect = state_collect state
-    warps = TrackWarp.collections (collect_warp_map collect)
+extract_result (result, state, logs) = Result
+    { r_events = merge_logs result logs
+    , r_cache = collect_cache collect <> state_cache (state_constant state)
+    , r_track_warps = TrackWarp.collections (collect_warp_map collect)
+    , r_track_signals = collect_track_signals collect
+    , r_track_environ = collect_track_environ collect
+    , r_integrated = collect_integrated collect
+    , r_state = state
+    }
+    where collect = state_collect state
 
 -- | Given an environ, bring instrument and scale calls into scope.
 with_initial_scope :: TrackLang.Environ -> Deriver d -> Deriver d

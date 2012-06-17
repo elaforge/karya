@@ -70,7 +70,6 @@ c_block block_id = Derive.stream_generator ("block " ++ show block_id) $
 
 d_block :: BlockId -> Derive.EventDeriver
 d_block block_id = do
-    -- The block id is put on the stack by 'gdep_block' before this is called.
     blocks <- Derive.get_ui_state State.state_blocks
     -- Do some error checking.  These are all caught later, but if I throw here
     -- I can give more specific error msgs.

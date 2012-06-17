@@ -227,6 +227,11 @@ extract_tracks_of block_id state = tracks
 extract_tracks :: State.State -> [TrackSpec]
 extract_tracks = extract_tracks_of default_block_id
 
+extract_all_tracks :: State.State -> [(BlockId, [TrackSpec])]
+extract_all_tracks state =
+    zip block_ids (map (flip extract_tracks_of state) block_ids)
+    where block_ids = Map.keys (State.state_blocks state)
+
 -- * view
 
 select :: (State.M m) => ViewId -> Types.Selection -> m ()

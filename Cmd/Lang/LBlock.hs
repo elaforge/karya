@@ -2,6 +2,7 @@ module Cmd.Lang.LBlock where
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -9,11 +10,12 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.Integrate
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Call.Integrate as Integrate
+import qualified Derive.Call.Integrate as Call.Integrate
 import qualified Derive.LEvent as LEvent
 import Types
 
@@ -72,6 +74,12 @@ integrate_block block_id = do
     perf <- Cmd.get_performance block_id
     lookup_scale <- Cmd.get_lookup_scale
     key <- Perf.get_key block_id Nothing
-    new_block <- Integrate.integrate_block block_id lookup_scale key
+    events <- Call.Integrate.unwarp block_id
         (LEvent.events_of $ Cmd.perf_events perf)
-    void $ Create.view new_block
+    let (tracks, errs) = Call.Integrate.integrate lookup_scale key events
+    if null errs
+        then do
+            new_block <- Cmd.Integrate.create block_id tracks
+            void $ Create.view new_block
+        else Cmd.throw $ "integrate errors: " ++ Seq.join "; " errs
+

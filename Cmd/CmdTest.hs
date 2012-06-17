@@ -122,9 +122,9 @@ extract_derive_result res =
     where
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
-        Cmd.Performance cache events track_env _damage warps tsigs
+        Cmd.Performance cache events track_env integrated _damage warps tsigs
             <- Perf.get_root
-        return $ Derive.Result events cache warps tsigs track_env
+        return $ Derive.Result events cache warps tsigs track_env integrated
             (error "can't fake a Derive.State for an extracted Result")
 
 update_performance :: State.State -> State.State -> Cmd.State
@@ -249,10 +249,10 @@ extract_ui_state :: (State.State -> e) -> Result val -> Extracted e
 extract_ui_state f = extract_state (\state _ -> f state)
 
 e_tracks :: Result a -> Extracted [UiTest.TrackSpec]
-e_tracks = extract_state $ \state _ -> UiTest.extract_tracks state
+e_tracks = extract_ui_state UiTest.extract_tracks
 
 extract_ui :: State.StateId e -> Result v -> Extracted e
-extract_ui m = extract_state $ \state _ -> UiTest.eval state m
+extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
 
 -- * inst db
 
@@ -361,4 +361,15 @@ set_env root_id block_id track_id environ =
         }
     where
     track_env = Map.singleton (block_id, track_id) (Map.fromList environ)
-    perf = Cmd.Performance mempty [] track_env mempty [] mempty
+    perf = empty_performance { Cmd.perf_track_environ = track_env }
+
+empty_performance :: Msg.Performance
+empty_performance = Cmd.Performance
+    { Cmd.perf_derive_cache = mempty
+    , Cmd.perf_events = []
+    , Cmd.perf_track_environ = mempty
+    , Cmd.perf_integrated = Nothing
+    , Cmd.perf_score_damage = mempty
+    , Cmd.perf_warps = []
+    , Cmd.perf_track_signals = mempty
+    }
