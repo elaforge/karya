@@ -196,9 +196,16 @@ control_track :: [Score.Event] -> Score.Typed Score.Control -> Track
 control_track events control =
     make_track (TrackInfo.unparse_typed control) ui_events
     where
-    ui_events = tidy_events $ map controls_of events
+    ui_events = drop_dyn $ tidy_events $ map controls_of events
     controls_of event = signal_events
         (Score.typed_val control) (Score.event_controls event)
+    -- Don't emit a dyn track if it's just the default.
+    -- TODO generalize this to everything in in Derive.initial_controls
+    drop_dyn [(pos, event)]
+        | Score.typed_val control == Score.c_dynamic && pos == 0
+            && Event.event_string event == default_dyn = []
+    drop_dyn events = events
+    default_dyn = ParseBs.show_hex_val Derive.default_dynamic
 
 signal_events :: Score.Control -> Score.ControlMap -> [Events.PosEvent]
 signal_events control controls = case Map.lookup control controls of
@@ -232,3 +239,7 @@ clip_to_zero ((p1, e1) : rest@((p2, _) : _))
     | otherwise = (max 0 p1, e1) : rest
 clip_to_zero [(p, e)] = [(max 0 p, e)]
 clip_to_zero [] = []
+
+empty_track :: Track -> Bool
+empty_track (Track _ []) = True
+empty_track _ = False
