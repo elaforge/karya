@@ -12,7 +12,7 @@ dlist # Perform.SignalBase
 bindings-dsl # Util.Git.LibGit2
 fclabels # Util.Lens
 
-haskeline # repl
+ghc-paths haskeline # repl
 
 parsec # Instrument.Parse, could use attoparsec, but parsec errors are better
 haskell-src # Util.PPrint

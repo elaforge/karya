@@ -192,7 +192,7 @@ packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
     ++ "containers filepath transformers vector "
     ++ "QuickCheck fclabels "
     ++ "Diff " -- Util.Test
-    ++ "haskeline " -- repl
+    ++ "ghc ghc-paths haskeline " -- repl
     ++ "shake " -- shakefile
 
 -- ** cc
