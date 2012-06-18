@@ -109,8 +109,76 @@ instance DeepSeq.NFData (Update t u) where
         RulerUpdate ruler_id ruler -> ruler_id `seq` ruler `seq` ()
         StateUpdate u -> u `seq` ()
 
-instance Pretty.Pretty UiUpdate where
-    pretty = show
+instance (Pretty.Pretty t, Pretty.Pretty u) => Pretty.Pretty (Update t u) where
+    format upd = case upd of
+        ViewUpdate view_id update -> Pretty.constructor "ViewUpdate"
+            [Pretty.format view_id, Pretty.format update]
+        BlockUpdate block_id update ->
+            Pretty.constructor "BlockUpdate"
+                [Pretty.format block_id, Pretty.format update]
+        TrackUpdate track_id update ->
+            Pretty.constructor "TrackUpdate"
+                [Pretty.format track_id, Pretty.format update]
+        RulerUpdate ruler_id update ->
+            Pretty.constructor "RulerUpdate"
+                [Pretty.format ruler_id, Pretty.format update]
+        StateUpdate update ->
+            Pretty.constructor "StateUpdate" [Pretty.format update]
+
+instance Pretty.Pretty ViewUpdate where
+    format update = case update of
+        CreateView -> Pretty.text "CreateView"
+        DestroyView -> Pretty.text "DestroyView"
+        ViewSize rect -> Pretty.constructor "ViewSize" [Pretty.format rect]
+        Status status is_root -> Pretty.constructor "Status"
+            [Pretty.format status, Pretty.format is_root]
+        TrackScroll width ->
+            Pretty.constructor "ViewSize" [Pretty.format width]
+        Zoom zoom -> Pretty.constructor "ViewSize" [Pretty.format zoom]
+        Selection selnum sel -> Pretty.constructor "Selection"
+            [Pretty.format selnum, Pretty.format sel]
+        BringToFront -> Pretty.text "BringToFront"
+
+instance (Pretty.Pretty t) => Pretty.Pretty (BlockUpdate t) where
+    format update = case update of
+        BlockTitle s -> Pretty.constructor "BlockTitle"
+            [Pretty.format s]
+        BlockConfig config -> Pretty.constructor "BlockConfig"
+            [Pretty.format config]
+        BlockSkeleton skel -> Pretty.constructor "BlockSkeleton"
+            [Pretty.format skel]
+        RemoveTrack n -> Pretty.constructor "RemoveTrack"
+            [Pretty.format n]
+        InsertTrack n _ -> Pretty.constructor "InsertTrack"
+            [Pretty.format n]
+        BlockTrack n _ -> Pretty.constructor "BlockTrack"
+            [Pretty.format n]
+
+instance Pretty.Pretty TrackUpdate where
+    format update = case update of
+        TrackEvents s e -> Pretty.constructor "TrackEvents"
+            [Pretty.format s, Pretty.format e]
+        TrackAllEvents -> Pretty.text "TrackAllEvents"
+        TrackTitle s -> Pretty.constructor "TrackTitle" [Pretty.format s]
+        TrackBg c -> Pretty.constructor "TrackTitle" [Pretty.format c]
+        TrackRender config -> Pretty.constructor "TrackTitle"
+            [Pretty.format config]
+
+instance Pretty.Pretty StateUpdate where
+    format update = case update of
+        Config config -> Pretty.constructor "Config" [Pretty.format config]
+        CreateBlock block_id _ -> Pretty.constructor "CreateBlock"
+            [Pretty.format block_id]
+        DestroyBlock block_id -> Pretty.constructor "DestroyBlock"
+            [Pretty.format block_id]
+        CreateTrack track_id _ -> Pretty.constructor "CreateTrack"
+            [Pretty.format track_id]
+        DestroyTrack track_id -> Pretty.constructor "DestroyTrack"
+            [Pretty.format track_id]
+        CreateRuler ruler_id _ -> Pretty.constructor "CreateRuler"
+            [Pretty.format ruler_id]
+        DestroyRuler ruler_id -> Pretty.constructor "DestroyRuler"
+            [Pretty.format ruler_id]
 
 -- | Convert a UiUpdate to a DisplayUpdate by stripping out all the UiUpdate
 -- parts.

@@ -80,8 +80,15 @@ default_config = Config
     (box Config.bconfig_box) (box Config.bconfig_box) (box Config.bconfig_box)
     where box = uncurry Box
 
+instance Pretty.Pretty Config where
+    format (Config skel track sb) = Pretty.constructor "Config"
+        [Pretty.format skel, Pretty.format track, Pretty.format sb]
+
 data Box = Box { box_color :: !Color.Color, box_char :: !Char }
     deriving (Eq, Show, Read)
+
+instance Pretty.Pretty Box where
+    pretty (Box color c) = Pretty.pretty color ++ if c == ' ' then [] else [c]
 
 -- | Like 'Track.Track', this has per-track data, but unlike Track.Track,
 -- this is data that can vary per-block.
@@ -121,6 +128,9 @@ data DisplayTrack = DisplayTrack {
     , dtrack_status :: Maybe (Char, Color.Color)
     , dtrack_event_brightness :: Double
     } deriving (Eq, Show, Read)
+
+instance Pretty.Pretty DisplayTrack where
+    pretty = show
 
 -- | Most of these only make sense for event tracks.
 data TrackFlag =

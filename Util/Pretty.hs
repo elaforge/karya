@@ -11,6 +11,7 @@ module Util.Pretty (
 
     -- * formatting
     , format_commas, text_list, comma_list, record, record_title
+    , constructor
     -- * misc
     , show_float, read_word
 ) where
@@ -159,6 +160,14 @@ record title fields =
 -- | Just like 'record' except the first argument is text.
 record_title :: String -> [(String, Doc)] -> Doc
 record_title = record . PP.text
+
+constructor :: String -> [Doc] -> Doc
+constructor name [] = PP.text name
+constructor name fields = PP.text name
+    <+> PP.fsep (map (surround '(' ')') fields)
+
+surround :: Char -> Char -> Doc -> Doc
+surround left right x = PP.char left <> x <> PP.char right
 
 
 -- * misc
