@@ -271,7 +271,8 @@ emmentaler = case System.Info.os of
 -- static.
 styles :: [Style.Style]
 styles = plain_styles ++ map integrated plain_styles
-    where integrated style = style { Style.style_face = [Style.Italic] }
+    where
+    integrated style = style { Style.style_face = [Style.Bold, Style.Italic] }
 
 plain_styles :: [Style.Style]
 plain_styles =

@@ -18,12 +18,14 @@ import Types
 
 
 test_integrate = do
-    let f = first (map extract) . Integrate.integrate lookup Nothing
-            . map DeriveTest.mkevent
+    let f = first (map extract) . integrate
+        integrate = Integrate.integrate lookup Nothing . map DeriveTest.mkevent
         lookup k = Map.lookup k Scale.All.scales
         extract (Integrate.Track title events) =
             (title, map UiTest.extract_event events)
-    equal (f [(0, 1, "a", [], Score.Instrument "inst")])
+        inst = Score.Instrument "inst"
+    -- pprint (integrate [(0, 1, "a", [], inst)])
+    equal (f [(0, 1, "a", [], inst)])
         ([(">inst", [(0, 1, "a")]), ("*twelve", [(0, 0, "4c")])], [])
 
 test_integrate_block = do

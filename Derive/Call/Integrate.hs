@@ -147,15 +147,15 @@ pitch_events scale scale_id key events
         Just (make_track pitch_title (tidy_events ui_events), concat errs)
     where
     pitch_title = TrackInfo.scale_to_title scale_id
-    (ui_events, errs) = unzip $
-        map (pitch_signal_events scale key . Score.event_pitch) events
+    (ui_events, errs) = unzip $ map (pitch_signal_events scale key) events
 
 pitch_signal_events :: Scale.Scale -> Maybe Pitch.Key
-    -> PitchSignal.Signal -> ([Events.PosEvent], [String])
-pitch_signal_events scale key sig =
+    -> Score.Event -> ([Events.PosEvent], [String])
+pitch_signal_events scale key event =
     (ui_events, map Pretty.pretty pitch_errs ++ note_errs)
     where
-    ui_events = [(RealTime.to_score x, Event.event (Pitch.note_text note) 0)
+    sig = Score.event_pitch event
+    ui_events = [ui_event event (RealTime.to_score x) (Pitch.note_text note) 0
         | (x, _, Just note) <- notes]
     notes = [(x, nn, Scale.nn_to_note scale key nn)
         | (x, nn) <- map (second Pitch.NoteNumber) (Signal.unsignal nns)]
@@ -178,8 +178,7 @@ control_track events control =
     make_track (TrackInfo.unparse_typed control) ui_events
     where
     ui_events = drop_dyn $ tidy_events $ map controls_of events
-    controls_of event = signal_events
-        (Score.typed_val control) (Score.event_controls event)
+    controls_of event = signal_events (Score.typed_val control) event
     -- Don't emit a dyn track if it's just the default.
     -- TODO generalize this to everything in in Derive.initial_controls
     drop_dyn [(pos, event)]
@@ -188,13 +187,19 @@ control_track events control =
     drop_dyn events = events
     default_dyn = ParseBs.show_hex_val Derive.default_dynamic
 
-signal_events :: Score.Control -> Score.ControlMap -> [Events.PosEvent]
-signal_events control controls = case Map.lookup control controls of
+signal_events :: Score.Control -> Score.Event -> [Events.PosEvent]
+signal_events control event = case Map.lookup control controls of
     Nothing -> []
-    Just sig -> [(RealTime.to_score x, Event.event (ParseBs.show_hex_val y) 0)
-        | (x, y) <- Signal.unsignal (Score.typed_val sig)]
+    Just sig ->
+        [ui_event event (RealTime.to_score x) (ParseBs.show_hex_val y) 0
+            | (x, y) <- Signal.unsignal (Score.typed_val sig)]
+    where controls = Score.event_controls event
 
 -- * util
+
+ui_event :: Score.Event -> ScoreTime -> String -> ScoreTime -> Events.PosEvent
+ui_event source pos text dur = (pos, (Event.event text dur)
+    { Event.event_stack = Just (Score.event_stack source) })
 
 tidy_events :: [[Events.PosEvent]] -> [Events.PosEvent]
 tidy_events = clip_to_zero . drop_dups . clip_concat

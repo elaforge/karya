@@ -39,7 +39,7 @@ UNSORTED
     back on looking down the skeleton
   - but even when it does (on the scale itself) it doesn't do thru
   integrate that converts Score.Events back into Ui Events
-    + implement and test for reverse
+    * implement and test for reverse
     - kendang: write composite kendang part, then it gets split into wadon and
       lanang parts.
     - test that reintegrating a simple block gives it back again
@@ -55,11 +55,11 @@ UNSORTED
     reintegrate automatically after changes
       * blocks need a BlockId to show who they were integrated from
       * tracks need a TrackId to show who they were integrated from
-      - Derive.Result needs ScoreDamage and [(BlockId, [Track])], and the UI
-        needs to use that to modify score.
+      * Derive.Result needs [(BlockId, [Track])], and the UI needs to use that
+        to modify score.
       integrate by block
-        - Damage causes block to rederive.
-        - If the block has a special integrate symbol, e.g. '| <' then derive
+        * Damage causes block to rederive.
+        * If the block has a special integrate symbol, e.g. '| <' then derive
           normally, but look for blocks with this one marked as creator.
           How about if I actually make it a transformer?
         - If they exist, then replace (later merge) with the integrated
