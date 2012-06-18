@@ -45,8 +45,13 @@ update_performance :: Thread.Seconds -> SendStatus -> State.State
 update_performance wait send_status ui_pre ui_to cmd_state updates = do
     (cmd_state, _, logs, result) <- Cmd.run_io ui_to cmd_state $ do
         let damage = Diff.derive_diff ui_pre ui_to updates
-        when (damage /= mempty) kill_threads
-        insert_score_damage damage
+            suppressed = Cmd.state_suppress_rederive cmd_state
+        when (damage /= mempty) $ do
+            kill_threads suppressed
+            insert_score_damage damage
+        -- If I don't clear damage out of the suppressed performances they
+        -- will just rederive the next time this is called.
+        clear_score_damage suppressed
         focused <- Cmd.lookup_focused_block
         when_just focused (regenerate_performance wait send_status)
         when_just (State.config_root (State.state_config ui_to))
@@ -56,7 +61,7 @@ update_performance wait send_status ui_pre ui_to cmd_state updates = do
     case result of
         Left err -> Log.error $ "ui error deriving: " ++ show err
         _ -> return ()
-    return cmd_state
+    return $ cmd_state { Cmd.state_suppress_rederive = [] }
 
 -- | The background derive threads will wait this many seconds before starting
 -- up, to avoid working too hard during an edit.
@@ -69,10 +74,10 @@ default_derive_wait = 1
 -- I do this if there is any damage at all.  It could be that the damage
 -- doesn't affect to a particular block, but it's the job of the cache to
 -- figure out what needs to be regenerated based on block dependencies.
-kill_threads :: Cmd.CmdT IO ()
-kill_threads = do
-    threads <- Cmd.gets
-        (Map.elems . Cmd.state_performance_threads . Cmd.state_play)
+kill_threads :: [BlockId] -> Cmd.CmdT IO ()
+kill_threads suppressed = do
+    threads <- Cmd.gets $ map snd . filter ((`notElem` suppressed) . fst)
+        . Map.toList . Cmd.state_performance_threads . Cmd.state_play
     Trans.liftIO $ mapM_ Concurrent.killThread threads
     Cmd.modify_play_state $ \st ->
         st { Cmd.state_performance_threads = mempty }
@@ -86,6 +91,15 @@ insert_score_damage damage = Cmd.modify_play_state $ \st ->
     where
     update perf =
         perf { Cmd.perf_score_damage = damage <> Cmd.perf_score_damage perf }
+
+clear_score_damage :: [BlockId] -> Cmd.CmdT IO ()
+clear_score_damage block_ids = Cmd.modify_play_state $ \st ->
+    st { Cmd.state_performance =
+        Map.mapWithKey clear (Cmd.state_performance st) }
+    where
+    clear block_id perf
+        | block_id `elem` block_ids = perf { Cmd.perf_score_damage = mempty }
+        | otherwise = perf
 
 
 -- * performance evaluation

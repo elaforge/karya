@@ -3,7 +3,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
@@ -35,9 +34,11 @@ integrate block_id tracks = do
     let integrated = map fst $
             filter ((== Just block_id) .  Block.block_integrated . snd)
                 (Map.toList blocks)
-    Log.warn $ "integrated " ++ show block_id ++ ": " ++ show integrated
+    Log.notice $ "integrated " ++ show block_id ++ " to: " ++ show integrated
     if null integrated then void $ create block_id tracks
         else mapM_ (merge block_id tracks) integrated
+    Cmd.modify $ \state -> state { Cmd.state_suppress_rederive =
+        block_id : Cmd.state_suppress_rederive state }
 
 -- ** create
 
@@ -77,4 +78,4 @@ merge source_block_id tracks block_id = do
     -- TODO merge for real
     ntracks <- State.track_count block_id
     mapM_ (State.remove_track block_id) [ntracks, ntracks-1 .. 1]
-    void $ fill_block source_block_id block_id tracks
+    fill_block source_block_id block_id tracks
