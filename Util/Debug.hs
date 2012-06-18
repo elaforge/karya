@@ -1,5 +1,5 @@
 module Util.Debug (
-    trace, traces, tracef, trace_ret, tracem, traceM
+    trace, traces, tracef, trace_ret, tracem, traceM, traceMs
 ) where
 
 import qualified Debug.Trace as Trace
@@ -21,6 +21,9 @@ tracem msg x = trace (msg ++ ": " ++ pshow x) x
 -- | Print a value in a monad.  The monad will force it to be printed.
 traceM :: (Show a, Monad m) => a -> m ()
 traceM val = trace (pshow val) (return ())
+
+traceMs :: (Monad m) => String -> m ()
+traceMs msg = trace msg (return ())
 
 -- | Print a value after applying a function to it.
 tracef :: (Show b) => (a -> b) -> a -> a
