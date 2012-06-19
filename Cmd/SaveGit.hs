@@ -161,10 +161,12 @@ checkpoint repo hist@(SaveHistory state prev_commit updates names) =
                 unparse_names "checkpoint" names
             return $ Right commit
     where
-    -- BlockConfig changes are only box colors, which I don't ever need to
-    -- save.
-    checkpoint_update (Update.BlockUpdate _ (Update.BlockConfig {})) = False
-    checkpoint_update _ = True
+    checkpoint_update update = case update of
+        -- BlockConfig changes are only box colors, which I never need to save.
+        Update.BlockUpdate _ (Update.BlockConfig {}) -> False
+        Update.ViewUpdate _ (Update.Status {}) -> False
+        Update.ViewUpdate _ Update.BringToFront -> False
+        _ -> True
 
 commit_tree :: Git.Repo -> Git.Tree -> Maybe Git.Commit -> String
     -> IO Git.Commit
@@ -315,11 +317,12 @@ dump_diff track_dir state =
         Update.BringToFront -> Left ""
         _ | Just view <- Map.lookup view_id (State.state_views state) ->
             Right $ Git.Add (id_to_path view_id) (Serialize.encode view)
-        _ -> Left $ "update for nonexistent view_id: " ++ show u
+        _ -> Left $ "update for nonexistent view_id: " ++ Pretty.pretty u
     mk u@(Update.BlockUpdate block_id _)
         | Just block <- Map.lookup block_id (State.state_blocks state) =
             Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
-        | otherwise = Left $ "update for nonexistent block_id: " ++ show u
+        | otherwise = Left $ "update for nonexistent block_id: "
+            ++ Pretty.pretty u
     mk u@(Update.TrackUpdate track_id update)
         | Just track <- Map.lookup track_id (State.state_tracks state) =
             case update of
@@ -327,7 +330,8 @@ dump_diff track_dir state =
                     Right $ dump_events state track_id start end
                 _ -> Right $
                     Git.Add (id_to_path track_id) (Serialize.encode track)
-        | otherwise = Left $ "update for nonexistent track_id: " ++ show u
+        | otherwise = Left $ "update for nonexistent track_id: "
+            ++ Pretty.pretty u
     mk (Update.RulerUpdate ruler_id ruler) =
         Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
     mk (Update.StateUpdate update) = case update of
