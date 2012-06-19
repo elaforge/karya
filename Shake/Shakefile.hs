@@ -249,7 +249,8 @@ configure = do
     where
     setConfigFlags fltkCs fltkLds mode flags = flags
         { define = define osFlags
-            ++ if mode `elem` [Test, Profile] then ["-DTESTING"] else []
+            ++ (if mode `elem` [Test, Profile] then ["-DTESTING"] else [])
+            ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
         , cInclude = ["-I.", "-Ifltk",
             "-I/usr/local/lib/bindings-DSL-1.0.15/ghc-7.0.3/include"]
         , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []

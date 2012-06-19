@@ -260,7 +260,6 @@ UNSORTED
     - play
   - do the 'play this list of events' thing, send it over to the play thread
     just without an updater, so space will still kill it
-  - repl likes to segfault if it has to reload a lot of modules.
 
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point

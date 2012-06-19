@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE MagicHash, ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 -- | REPL implementation that directly uses the GHC API.
@@ -10,6 +11,7 @@ import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import Control.Monad
+import System.FilePath ((</>))
 
 import qualified Data.IORef as IORef
 import qualified ErrUtils
@@ -23,7 +25,6 @@ import MonadUtils (MonadIO, liftIO)
 import qualified Outputable
 
 import Util.Control
-import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
@@ -58,11 +59,20 @@ interpret (Session chan) _local_modules ui_state _cmd_state expr = do
     Chan.writeChan chan (expr, ns, mvar)
     MVar.takeMVar mvar
 
+ghci_flags :: FilePath
+ghci_flags = BUILD_DIR </> "ghci-flags"
+
 interpreter :: Session -> IO ()
 interpreter (Session chan) = do
     GHC.parseStaticFlags []  -- not sure if this is necessary
-    args <- maybe [] words <$>
-        File.ignore_enoent (readFile "build/debug/ghci-flags")
+    flags <- Exception.try (readFile ghci_flags)
+    args <- case flags of
+        Left (exc :: Exception.SomeException) -> do
+            Log.error $ "error reading ghci flags from "
+                ++ show ghci_flags ++ ": " ++ show exc
+                ++ ", the REPL is probably not going to work"
+            return []
+        Right flags -> return $ words flags
 
     -- run :: GHC.DynFlags -> Ghc a -> Ghc a
     -- run dflags = GHC.defaultErrorHandler dflags
