@@ -33,6 +33,8 @@ UNSORTED
     - support for slurs, I think I write them as a NoteTransformer which
       attaches metadata.  It can also affect note durations in normal
       performance.
+    - Instrument -> Clef mapping
+    - support chords whose notes have different durations
   * get rid of GeneratorCall
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   - a new empty inst with a scale doesn't get the scale right, should fall

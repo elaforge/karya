@@ -74,20 +74,24 @@ event_end event = event_start event + event_duration event
 -- ** Note
 
 data Note = Note {
-    note_pitch :: !(Maybe String)
+    -- | [] means this is a rest, and greater than one pitch indicates a chord.
+    note_pitch :: ![String]
     , note_duration :: !NoteDuration
     , note_tie :: !Bool
     } deriving (Show)
 
-note :: String -> NoteDuration -> Bool -> Note
-note pitch dur tie = Note (Just pitch) dur tie
+note :: [String] -> NoteDuration -> Bool -> Note
+note pitches dur tie = Note pitches dur tie
 
 rest :: NoteDuration -> Note
-rest dur = Note Nothing dur False
+rest dur = Note [] dur False
 
 instance ToLily Note where
-    to_lily (Note pitch dur tie) =
-        Maybe.fromMaybe "r" pitch ++ to_lily dur ++ if tie then "~" else ""
+    to_lily (Note pitches dur tie) = case pitches of
+            [] -> 'r' : ly_dur
+            [pitch] -> pitch ++ ly_dur
+            _ -> '<' : unwords pitches ++ ">" ++ ly_dur
+        where ly_dur = to_lily dur ++ if tie then "~" else ""
 
 note_time :: Note -> Time
 note_time = note_dur_to_time . note_duration
@@ -99,26 +103,37 @@ note_time = note_dur_to_time . note_duration
 -- into tied Durations depending on the time signature.
 convert_notes :: Bool -- ^ emit dotted rests?
     -> TimeSignature -> [Event] -> [Note]
-convert_notes dotted_rests sig events =
-    concat $ zipWith mk (0 : map event_end events) events
-        ++ [maybe [] trailing_rests (Seq.last events)]
+convert_notes dotted_rests sig events = go 0 events
     where
-    mk prev (Event start dur pitch _inst) =
-        mkrests prev start ++ mknotes start dur pitch
+    go prev [] = trailing_rests prev
+    go prev events@(event:_) =
+        mkrests prev start ++ mknotes start (event_duration event)
+            (map event_pitch here)
+        ++ go (event_end event) rest
+        where
+        -- TODO This only works for chords where all the notes have the same
+        -- duration.  If the durations are different, I need to collect all
+        -- overlapping notes, convert their durations individually but with
+        -- the additional constraint that they have to tie at the same places,
+        -- group vertically, and emit.
+        start = event_start event
+        (here, rest) = break ((/= event_start event) . event_start) events
+        pitches = map event_pitch here
+
     mkrests prev start
         | prev < start = map rest $
             convert_duration sig dotted_rests prev (start - prev)
         | otherwise = []
-    mknotes start dur pitch = zipWith mk (finals durs) durs
+    mknotes start dur pitches = zipWith mk (finals durs) durs
         where
-        mk is_final dur = note pitch dur (not is_final)
+        mk is_final dur = note pitches dur (not is_final)
         durs = convert_duration sig True start dur
         finals = map null . drop 1 . List.tails
-    trailing_rests last_event
+    trailing_rests end
         | remaining == 0 = []
         | otherwise = map rest $
-            convert_duration sig dotted_rests (event_end last_event) remaining
-        where remaining = measure_time sig - event_end last_event
+            convert_duration sig dotted_rests end remaining
+        where remaining = measure_time sig - end
 
 -- | Given a starting point and a duration, emit the list of Durations
 -- needed to express that duration.
@@ -359,4 +374,5 @@ show_pitch_note (Theory.Note pc accs) = do
 
 -- * util
 
+vsep :: [Doc] -> Doc
 vsep = foldr ($+$) mempty

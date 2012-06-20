@@ -24,11 +24,16 @@ test_convert_notes = do
     let f sig = map Lilypond.to_lily . Lilypond.convert_notes False sig
             . map mkevent
         s44 = sig 4 4
-    equal (f s44 [(0, 1, "a", ""), (1, 1, "b", "")])
-        ["a4", "b4", "r2"]
+    equal (f s44 [(0, 1, "a"), (1, 1, "b")]) ["a4", "b4", "r2"]
     -- Rests are not dotted, even when they could be.
-    equal (f s44 [(0, 1, "a", ""), (1.5, 1, "b", "")])
+    equal (f s44 [(0, 1, "a"), (1.5, 1, "b")])
         ["a4", "r8", "b8~", "b8", "r8", "r4"]
+
+test_chords = do
+    let f = map Lilypond.to_lily . Lilypond.convert_notes False (sig 4 4)
+            . map mkevent
+    equal (f [(0, 1, "a"), (0, 1, "c")])
+        ["<a c>4", "r4", "r2"]
 
 test_convert_duration = do
     let f sig pos = Lilypond.to_lily $ head $
@@ -69,7 +74,7 @@ compile_ly score = do
 read_note :: String -> Lilypond.Note
 read_note text
     | pitch == "r" = Lilypond.rest dur
-    | otherwise = Lilypond.note pitch dur (tie == "~")
+    | otherwise = Lilypond.note [pitch] dur (tie == "~")
     where
     (pitch, rest) = break Char.isDigit text
     (dur_text, tie) = break (=='~') rest
@@ -101,9 +106,11 @@ run meta notes = (Lilypond.make_ly score events, staves, events)
 --     [Lilypond.Event start dur pitch | (start, dur, pitch) <-
 --         [(0, 4, "a"), (4, 4, "b"), (16, 2, "a"), (18, 2, "b")]]
 
+mkevent :: (RealTime, RealTime, String) -> Lilypond.Event
+mkevent (start, dur, pitch) = mkevent_inst (start, dur, pitch, "")
 
-mkevent :: (RealTime, RealTime, String, String) -> Lilypond.Event
-mkevent (start, dur, pitch, inst) =
+mkevent_inst :: (RealTime, RealTime, String, String) -> Lilypond.Event
+mkevent_inst (start, dur, pitch, inst) =
     Lilypond.Event (Convert.real_to_time Lilypond.D4 start)
         (Convert.real_to_time Lilypond.D4 dur) pitch
         (Score.Instrument inst)
