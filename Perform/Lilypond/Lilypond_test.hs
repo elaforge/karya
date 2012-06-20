@@ -11,6 +11,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
@@ -23,10 +24,10 @@ test_convert_notes = do
     let f sig = map Lilypond.to_lily . Lilypond.convert_notes False sig
             . map mkevent
         s44 = sig 4 4
-    equal (f s44 [(0, 1, "a"), (1, 1, "b")])
+    equal (f s44 [(0, 1, "a", ""), (1, 1, "b", "")])
         ["a4", "b4", "r2"]
     -- Rests are not dotted, even when they could be.
-    equal (f s44 [(0, 1, "a"), (1.5, 1, "b")])
+    equal (f s44 [(0, 1, "a", ""), (1.5, 1, "b", "")])
         ["a4", "r8", "b8~", "b8", "r8", "r4"]
 
 test_convert_duration = do
@@ -41,13 +42,20 @@ test_convert_duration = do
     equal (map (f (sig 2 4)) [0, 8 .. 127]) $
         concat $ replicate 2 ["2", "8.", "4.", "16", "4", "8.", "8", "16"]
 
-test_make_score = do
-    let (score, notes, events) = run (mkmeta "title" "treble" "4/4")
-            ("", [(0, 1, "4c"), (1.5, 2, "4d#")], [])
-    equal notes ["c'4", "r8", "ds'8~", "ds'4.", "r8"]
+test_make_ly = do
+    let (score, staves, events) = run (mkmeta "title" "treble" "4/4")
+            [ (">s/i1", [(0, 1, "4c"), (1.5, 2, "4d#")], [])
+            , (">s/i2", [(1, 1, "4g"), (2, 1, "5a")], [])
+            ]
+        extract_staff (clef, inst, notes) = (clef, Lilypond.inst_name inst,
+            map Lilypond.to_lily notes)
+    equal (map extract_staff staves)
+        [ ("treble", "i1", ["c'4", "r8", "ds'8~", "ds'4.", "r8"])
+        , ("treble", "i2", ["r4", "g'4", "a''4", "r4"])
+        ]
     -- compile_ly score
     pprint events
-    pprint score
+    pprint score >> putChar '\n'
 
 
 -- * util
@@ -76,30 +84,29 @@ mkmeta title clef sig = Map.fromList
     , (Lilypond.meta_time_signature, sig)
     ]
 
-run :: Map.Map String String -> UiTest.NoteSpec
-    -> (Pretty.Doc, [String], [Lilypond.Event])
-run meta note_spec =
-    (Lilypond.make_score score events,
-        map Lilypond.to_lily (Lilypond.convert_notes False sig events),
-        events)
+run :: Map.Map String String -> [UiTest.NoteSpec]
+    -> (Pretty.Doc, [Lilypond.Staff], [Lilypond.Event])
+run meta notes = (Lilypond.make_ly score events, staves, events)
     where
+    staves = Lilypond.make_staves (Lilypond.score_clef score) sig events
     sig = Lilypond.score_time score
-    res = DeriveTest.derive_tracks (UiTest.note_spec note_spec)
+    res = DeriveTest.derive_tracks (concatMap UiTest.note_spec notes)
     (events, _logs) = LEvent.partition $ Convert.convert Lilypond.D4
         (Derive.r_events res)
     Just (Right score) = Lilypond.meta_to_score (Just (Pitch.Key "d-min")) meta
 
-score0 = Lilypond.make_score
-    (Lilypond.Score "hi there" (sig 3 4) "treble" ("d", Lilypond.Major)
-        Lilypond.D4)
-    [Lilypond.Event start dur pitch | (start, dur, pitch) <-
-        [(0, 4, "a"), (4, 4, "b"), (16, 2, "a"), (18, 2, "b")]]
+-- score0 = Lilypond.make_ly
+--     (Lilypond.Score "hi there" (sig 3 4) "treble" ("d", Lilypond.Major)
+--         Lilypond.D4)
+--     [Lilypond.Event start dur pitch | (start, dur, pitch) <-
+--         [(0, 4, "a"), (4, 4, "b"), (16, 2, "a"), (18, 2, "b")]]
 
 
-mkevent :: (RealTime, RealTime, String) -> Lilypond.Event
-mkevent (start, dur, pitch) =
+mkevent :: (RealTime, RealTime, String, String) -> Lilypond.Event
+mkevent (start, dur, pitch, inst) =
     Lilypond.Event (Convert.real_to_time Lilypond.D4 start)
         (Convert.real_to_time Lilypond.D4 dur) pitch
+        (Score.Instrument inst)
 
 sig :: Int -> Int -> Lilypond.TimeSignature
 sig num denom = Lilypond.TimeSignature num dur

@@ -16,6 +16,8 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Score as Score
+
 import qualified Perform.Pitch as Pitch
 
 
@@ -63,6 +65,7 @@ data Event = Event {
     event_start :: !Time
     , event_duration :: !Time
     , event_pitch :: !String
+    , event_instrument :: !Score.Instrument
     } deriving (Show)
 
 event_end :: Event -> Time
@@ -100,7 +103,7 @@ convert_notes dotted_rests sig events =
     concat $ zipWith mk (0 : map event_end events) events
         ++ [maybe [] trailing_rests (Seq.last events)]
     where
-    mk prev (Event start dur pitch) =
+    mk prev (Event start dur pitch _inst) =
         mkrests prev start ++ mknotes start dur pitch
     mkrests prev start
         | prev < start = map rest $
@@ -210,13 +213,14 @@ measure_duration (TimeSignature num denom) =
 data Score = Score {
     score_title :: String
     , score_time :: TimeSignature
-    , score_clef :: String
+    , score_clef :: Clef
     , score_key :: (String, Mode)
     -- | 1 second of RealTime is converted to this Duration.
     , score_duration1 :: Duration
     } deriving (Show)
 
 data Mode = Major | Minor deriving (Show)
+type Clef = String
 
 meta_ly :: String
 meta_ly = "ly"
@@ -271,14 +275,25 @@ parse_time_signature sig = do
         <*> maybe unparseable return (read_duration denom)
 
 
--- ** show
+-- * make_ly
 
-make_score :: Score -> [Event] -> Doc
-make_score score events = score_file score (ly_notes events)
-    where ly_notes = map to_lily . convert_notes False (score_time score)
+make_staves :: String -> TimeSignature -> [Event] -> [Staff]
+make_staves clef time_sig events =
+    [ (clef, inst, convert_notes False time_sig inst_events)
+    | (inst, inst_events) <- Seq.keyed_group_on event_instrument events
+    ]
 
-score_file :: Score -> [String] -> Doc
-score_file (Score title time_sig clef (key, mode) _dur1) notes =
+inst_name :: Score.Instrument -> String
+inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
+
+make_ly :: Score -> [Event] -> Doc
+make_ly score events = ly_file score
+    (make_staves (score_clef score) (score_time score) events)
+
+type Staff = (Clef, Score.Instrument, [Note])
+
+ly_file :: Score -> [Staff] -> Doc
+ly_file (Score title time_sig _clef (key, mode) _dur1) staves =
     command "version" <+> string "2.14.2"
     $+$ command "language" <+> string "english"
     -- Could I put the stack in there so I can click on the notes and get them
@@ -286,16 +301,19 @@ score_file (Score title time_sig clef (key, mode) _dur1) notes =
     $+$ command "pointAndClickOff"
     $+$ brackets (command "header")
         [assign name <+> string val | (name, val) <- [("title", title)]]
-    $+$ brackets (assign "notes") [PP.fsep (map PP.text notes)]
-    $+$ command "score" <+> "{" <+> "<<" <+> staff <+> ">>" <+> "}"
+    $+$ command "score" <+> "{" <+> "<<"
+    $+$ vsep (map mkstaff staves)
+    $+$ ">>" <+> "}"
     where
-    staff = command "new" <+> "Staff"
+    mkstaff (clef, inst, notes) = command "new" <+> "Staff"
         <+> "{"
             <+> command "clef" <+> string clef <+> "{"
             <+> command "key" <+> PP.text key
                 <+> command (map Char.toLower (show mode))
             <+> command "time" <+> PP.text (to_lily time_sig)
-            <+> command "notes"
+            $+$ set "Staff.instrumentName" (string (inst_name inst))
+            $+$ set "Staff.shortInstrumentName" (string (inst_name inst))
+            $+$ brackets mempty (map (PP.text . to_lily) notes)
             <+> "}"
         <+> "}"
 
@@ -313,6 +331,9 @@ brackets prefix contents = prefix
 
 assign :: String -> Doc
 assign name = PP.text name <+> PP.char '='
+
+set :: String -> Doc -> Doc
+set var val = command "set" <+> PP.text var <+> PP.char '=' <+> val
 
 string :: String -> Doc
 string = PP.doubleQuotes . PP.text
@@ -334,3 +355,8 @@ show_pitch_note (Theory.Note pc accs) = do
         2 -> Right "ss"
         _ -> Left $ "too many accidentals: " ++ show accs
     return $ Theory.pc_char pc : acc
+
+
+-- * util
+
+vsep = foldr ($+$) mempty

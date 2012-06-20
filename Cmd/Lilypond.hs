@@ -22,9 +22,9 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.SaveGit as SaveGit
 
-import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Convert as Convert
@@ -65,9 +65,18 @@ compile block_id perf = do
         Cmd.modify_play_state $ \st -> st { Cmd.state_lilypond_compiles =
             Map.insert block_id (Cmd.CancelLilypond var)
                 (Cmd.state_lilypond_compiles st) }
-        save_file <- SaveGit.save_file False <$> State.get
-        Trans.liftIO $ void $ Thread.start $
-            compile_score var save_file block_id score (Cmd.perf_events perf)
+        dir <- ly_dir
+        Trans.liftIO $ void $ Thread.start $ do
+            Thread.delay compile_delay
+            cancelled <- IORef.readIORef var
+            unless cancelled $
+                compile_ly dir block_id score
+                    (LEvent.events_of (Cmd.perf_events perf))
+
+ly_dir :: (State.M m) => m FilePath
+ly_dir = do
+    save_file <- SaveGit.save_file False <$> State.get
+    return $ save_file ++ "_ly"
 
 lookup_key :: Cmd.Performance -> Pitch.Key
 lookup_key perf = Maybe.fromMaybe Twelve.default_key $ msum $
@@ -77,27 +86,19 @@ lookup_key perf = Maybe.fromMaybe Twelve.default_key $ msum $
         Right key -> Just (Pitch.Key key)
         Left _ -> Nothing
 
-compile_score :: IORef.IORef Bool -> FilePath -> BlockId -> Lilypond.Score
-    -> Derive.Events -> IO ()
-compile_score var save_file block_id score events = do
-    Thread.delay compile_delay
-    cancelled <- IORef.readIORef var
-    unless cancelled $ do
-        let (score_doc, logs) = make_score score events
-        mapM_ Log.write logs
-        compile_ly save_file block_id score_doc
-
-compile_ly :: FilePath -> BlockId -> Pretty.Doc -> IO ()
-compile_ly save_file block_id score = do
-    Directory.createDirectoryIfMissing True (save_file ++ "_ly")
-    let fname = save_file ++ "_ly" </> Id.ident_name block_id
-    writeFile (fname ++ ".ly") (Pretty.formatted score)
+compile_ly :: FilePath -> BlockId -> Lilypond.Score -> [Score.Event] -> IO ()
+compile_ly dir block_id score events = do
+    let (ly, logs) = make_ly score events
+    mapM_ Log.write logs
+    Directory.createDirectoryIfMissing True dir
+    let fname = dir </> Id.ident_name block_id
+    writeFile (fname ++ ".ly") (Pretty.formatted ly)
     void $ Process.rawSystem "lilypond" ["-o", fname, fname ++ ".ly"]
 
-make_score :: Lilypond.Score -> Derive.Events -> (Pretty.Doc, [Log.Msg])
-make_score score score_events = (Lilypond.make_score score events, logs)
+make_ly :: Lilypond.Score -> [Score.Event] -> (Pretty.Doc, [Log.Msg])
+make_ly score score_events = (Lilypond.make_ly score events, logs)
     where
     (events, logs) = LEvent.partition $ Convert.convert
-        (Lilypond.score_duration1 score) (filter LEvent.is_event score_events)
+        (Lilypond.score_duration1 score) (map LEvent.Event score_events)
         -- Filter out existing logs because those will be reported by normal
         -- performance.

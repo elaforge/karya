@@ -82,4 +82,3 @@ integrate_block block_id = do
             new_block <- Cmd.Integrate.create block_id tracks
             void $ Create.view new_block
         else Cmd.throw $ "integrate errors: " ++ Seq.join "; " errs
-
