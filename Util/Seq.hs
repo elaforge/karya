@@ -21,7 +21,8 @@ range :: (Num a, Ord a) => a -> a -> a -> [a]
 range start end step = go 0
     where
     go i
-        | val > end = []
+        | step >= 0 && val > end = []
+        | step < 0 && val < end = []
         | otherwise = val : go (i+1)
         where val = start + (i*step)
 
@@ -30,7 +31,8 @@ range' :: (Num a, Ord a) => a -> a -> a -> [a]
 range' start end step = go 0
     where
     go i
-        | val >= end = []
+        | step >= 0 && val >= end = []
+        | step < 0 && val <= end = []
         | otherwise = val : go (i+1)
         where val = start + (i*step)
 
@@ -40,7 +42,8 @@ range_end :: (Num a, Ord a) => a -> a -> a -> [a]
 range_end start end step = go 0
     where
     go i
-        | val >= end = [end]
+        | step >= 0 && val >= end = [end]
+        | step < 0 && val < end = [end]
         | otherwise = val : go (i+1)
         where val = start + (i*step)
 
