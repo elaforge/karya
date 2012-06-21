@@ -42,7 +42,8 @@ make_score key_str clef time_sig block_id =
     key = Just (Pitch.Key key_str)
     meta = make_meta clef time_sig block_id
 
-pipa = from_events "c-maj" "treble" "4/4" 0.03 . clean
+pipa = from_events "c-maj" "treble" "4/4" config . clean
+    where config = Cmd.Lilypond.TimeConfig 0.125 Lilypond.D16
 
 ly_events quarter events = LEvent.partition $
     Convert.convert quarter (map LEvent.Event (clean events))
@@ -55,10 +56,10 @@ filter_inst :: [String] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
     where insts = map (Just . Score.Instrument) inst_s
 
-from_events :: String -> String -> String -> RealTime
+from_events :: String -> String -> String -> Cmd.Lilypond.TimeConfig
     -> [Score.Event] -> Cmd.CmdL ()
-from_events key clef time_sig quarter events = do
+from_events key clef time_sig config events = do
     block_id <- Cmd.get_focused_block
     score <- make_score key clef time_sig block_id
     dir <- Cmd.Lilypond.ly_dir
-    Trans.liftIO $ Cmd.Lilypond.compile_ly dir block_id quarter score events
+    Trans.liftIO $ Cmd.Lilypond.compile_ly dir block_id config score events

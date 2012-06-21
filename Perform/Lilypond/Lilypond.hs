@@ -317,7 +317,8 @@ ly_file (Score title time_sig _clef (key, mode)) staves =
     -- highlighted in the original score?
     $+$ command "pointAndClickOff"
     $+$ brackets (command "header")
-        [assign name <+> string val | (name, val) <- [("title", title)]]
+        [assign name <+> string val | (name, val)
+            <- [("title", title), ("tagline", "")]]
     $+$ command "score" <+> "{" <+> "<<"
     $+$ vsep (map mkstaff staves)
     $+$ ">>" <+> "}"

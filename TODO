@@ -17,7 +17,7 @@ UNSORTED
     - make rhythm spelling work for compound meters
     * factor out shared bits of Perform.Midi.Convert and
       Perform.Lilypond.Convert
-    - option to quantize input to something below 128th notes
+    * option to quantize input to something below 128th notes
     - get pitches right, and keep the enharmonics
     - should I derive without the tempo track?
     - At some point I will probably want to only typeset certain tracks, or
