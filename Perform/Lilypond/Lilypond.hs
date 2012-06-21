@@ -12,6 +12,7 @@ import Text.PrettyPrint ((<+>), ($+$))
 
 import Util.Control
 import qualified Util.ParseBs as ParseBs
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Scale.Theory as Theory
@@ -31,6 +32,9 @@ class ToLily a where
 -- | Time in score units.  The maximum resolution is a 128th note, so one unit
 -- is 128th of a whole note.
 newtype Time = Time Int deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
+
+instance Pretty.Pretty Time where
+    pretty (Time t) = show t ++ "t"
 
 time_per_whole :: Time
 time_per_whole = Time 128
@@ -70,6 +74,11 @@ data Event = Event {
 
 event_end :: Event -> Time
 event_end event = event_start event + event_duration event
+
+instance Pretty.Pretty Event where
+    format (Event start dur pitch inst) = Pretty.constructor "Event"
+        [Pretty.format start, Pretty.format dur, Pretty.text pitch,
+            Pretty.format inst]
 
 -- ** Note
 
@@ -118,7 +127,6 @@ convert_notes dotted_rests sig events = go 0 events
         -- group vertically, and emit.
         start = event_start event
         (here, rest) = break ((/= event_start event) . event_start) events
-        pitches = map event_pitch here
 
     mkrests prev start
         | prev < start = map rest $

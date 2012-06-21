@@ -26,6 +26,12 @@ instance (Pretty.Pretty d) => Pretty.Pretty (LEvent d) where
     format (Log msg) = format_msg msg
     format (Event event) = Pretty.format event
 
+instance (Eq d) => Eq (LEvent d) where
+    Log e1 == Log e2 = e1 == e2
+    Event e1 == Event e2 = e1 == e2
+    Log _ == Event _ = False
+    Event _ == Log _ = False
+
 format_msg :: Log.Msg -> Pretty.Doc
 format_msg msg = Pretty.fsep
     [Pretty.text stars <+> Pretty.text srcpos <+> Pretty.format stack,
