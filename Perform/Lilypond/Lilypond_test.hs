@@ -96,8 +96,7 @@ run meta notes = (Lilypond.make_ly score events, staves, events)
     staves = Lilypond.make_staves (Lilypond.score_clef score) sig events
     sig = Lilypond.score_time score
     res = DeriveTest.derive_tracks (concatMap UiTest.note_spec notes)
-    (events, _logs) = LEvent.partition $ Convert.convert Lilypond.D4
-        (Derive.r_events res)
+    (events, _logs) = LEvent.partition $ Convert.convert 1 (Derive.r_events res)
     Just (Right score) = Lilypond.meta_to_score (Just (Pitch.Key "d-min")) meta
 
 -- score0 = Lilypond.make_ly
@@ -111,8 +110,8 @@ mkevent (start, dur, pitch) = mkevent_inst (start, dur, pitch, "")
 
 mkevent_inst :: (RealTime, RealTime, String, String) -> Lilypond.Event
 mkevent_inst (start, dur, pitch, inst) =
-    Lilypond.Event (Convert.real_to_time Lilypond.D4 start)
-        (Convert.real_to_time Lilypond.D4 dur) pitch
+    Lilypond.Event (Convert.real_to_time 1 start)
+        (Convert.real_to_time 1 dur) pitch
         (Score.Instrument inst)
 
 sig :: Int -> Int -> Lilypond.TimeSignature
