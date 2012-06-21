@@ -115,42 +115,48 @@ convert_notes :: Bool -- ^ emit dotted rests?
 convert_notes dotted_rests sig events = go 0 events
     where
     go prev [] = trailing_rests prev
-    go prev events@(event:_) =
-        mkrests prev start ++ mknotes start (event_duration event)
-            (map event_pitch here)
-        ++ go (event_end event) rest
+    go prev events@(event:_) = mkrests prev start
+        ++ Note (map event_pitch here) allowed_dur tie
+            : go (start + allowed_time) (clipped ++ rest)
         where
-        -- TODO This only works for chords where all the notes have the same
-        -- duration.  If the durations are different, I need to collect all
-        -- overlapping notes, convert their durations individually but with
-        -- the additional constraint that they have to tie at the same places,
-        -- group vertically, and emit.
+        (here, rest) = break ((>start) . event_start) events
+        end = subtract start $ Maybe.fromMaybe (event_end event) $
+            Seq.minimum (next ++ map event_end here)
+        next = maybe [] ((:[]) . event_start) (Seq.head rest)
+        allowed = min end $ get_allowed sig start
+        allowed_dur = time_to_note_dur allowed
+        allowed_time = note_dur_to_time allowed_dur
+        clipped = Maybe.mapMaybe (clip_event (start + allowed_time)) here
+        tie = any (> start + allowed_time) (map event_end here)
         start = event_start event
-        (here, rest) = break ((/= event_start event) . event_start) events
+    get_allowed = if dotted_rests then allowed_dotted_time else allowed_time
 
     mkrests prev start
         | prev < start = map rest $
             convert_duration sig dotted_rests prev (start - prev)
         | otherwise = []
-    mknotes start dur pitches = zipWith mk (finals durs) durs
-        where
-        mk is_final dur = note pitches dur (not is_final)
-        durs = convert_duration sig True start dur
-        finals = map null . drop 1 . List.tails
     trailing_rests end
         | remaining == 0 = []
         | otherwise = map rest $
             convert_duration sig dotted_rests end remaining
         where remaining = measure_time sig - end
 
+-- | Clip off the part of the event before the given time, or Nothing if it
+-- was entirely clipped off.
+clip_event :: Time -> Event -> Maybe Event
+clip_event end e
+    | left <= 0 = Nothing
+    | otherwise = Just $ e { event_start = end, event_duration = left }
+    where left = event_end e - end
+
 -- | Given a starting point and a duration, emit the list of Durations
 -- needed to express that duration.
 convert_duration :: TimeSignature -> Bool -> Time -> Time -> [NoteDuration]
-convert_duration sig use_dot pos time
-    | time <= 0 = []
-    | allowed >= time = time_to_note_durs time
+convert_duration sig use_dot pos time_dur
+    | time_dur <= 0 = []
+    | allowed >= time_dur = time_to_note_durs time_dur
     | otherwise = dur
-        : convert_duration sig use_dot (pos + allowed) (time - allowed)
+        : convert_duration sig use_dot (pos + allowed) (time_dur - allowed)
     where
     dur = time_to_note_dur allowed
     allowed = (if use_dot then allowed_dotted_time else allowed_time) sig pos

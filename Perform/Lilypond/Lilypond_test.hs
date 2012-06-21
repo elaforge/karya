@@ -32,8 +32,17 @@ test_convert_notes = do
 test_chords = do
     let f = map Lilypond.to_lily . Lilypond.convert_notes False (sig 4 4)
             . map mkevent
+    -- Homogenous durations.
     equal (f [(0, 1, "a"), (0, 1, "c")])
         ["<a c>4", "r4", "r2"]
+    -- Starting at the same time.
+    equal (f [(0, 2, "a"), (0, 1, "c")])
+        ["<a c>4~", "a4", "r2"]
+    -- Starting at different times.
+    equal (f [(0, 2, "a"), (1, 1, "c")])
+        ["a4~", "<a c>4", "r2"]
+    equal (f [(0, 2, "a"), (1, 2, "c"), (2, 2, "e")])
+        ["a4~", "<a c>4~", "<c e>4~", "e4"]
 
 test_convert_duration = do
     let f sig pos = Lilypond.to_lily $ head $
