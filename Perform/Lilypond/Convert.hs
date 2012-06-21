@@ -28,22 +28,20 @@ type ConvertT a = ConvertUtil.ConvertT () a
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: Lilypond.Duration -- ^ 1 second becomes this Duration, e.g. 4 means
-    -- one second is a quarter note
+convert :: RealTime -- ^ this length of time becomes a quarter note
     -> Derive.Events -> [LEvent.LEvent Lilypond.Event]
-convert dur1 = ConvertUtil.convert () (convert_event dur1)
+convert quarter = ConvertUtil.convert () (convert_event quarter)
 
-convert_event :: Lilypond.Duration -> Score.Event -> ConvertT Lilypond.Event
-convert_event dur1 event = do
+convert_event :: RealTime -> Score.Event -> ConvertT Lilypond.Event
+convert_event quarter event = do
     pitch <- convert_pitch (Score.event_start event)
         (Score.event_controls event) (Score.event_pitch event)
     pitch <- either (ConvertUtil.throw . ("show_pitch: " ++)) return
         (Lilypond.show_pitch pitch)
     return $ Lilypond.Event
-        { Lilypond.event_start =
-            real_to_time dur1 (Score.event_start event)
+        { Lilypond.event_start = real_to_time quarter (Score.event_start event)
         , Lilypond.event_duration =
-            real_to_time dur1 (Score.event_duration event)
+            real_to_time quarter (Score.event_duration event)
         , Lilypond.event_pitch = pitch
         , Lilypond.event_instrument = Maybe.fromMaybe Score.default_inst
             (Score.event_instrument event)
@@ -78,6 +76,8 @@ degree_to_pitch =
     simplicity pitch = (accs < 0, abs accs)
         where accs = Theory.note_accidentals (Theory.pitch_note pitch)
 
-real_to_time :: Lilypond.Duration -> RealTime -> Lilypond.Time
-real_to_time dur1 real = Lilypond.Time $ floor $
-    RealTime.to_seconds real * fromIntegral (Lilypond.dur_to_time dur1)
+real_to_time :: RealTime -> RealTime -> Lilypond.Time
+real_to_time quarter = Lilypond.Time . floor . adjust . RealTime.to_seconds
+    where
+    adjust n = n * (1 / RealTime.to_seconds quarter * qtime)
+    qtime = fromIntegral (Lilypond.dur_to_time Lilypond.D4)

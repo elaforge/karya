@@ -238,8 +238,6 @@ data Score = Score {
     , score_time :: TimeSignature
     , score_clef :: Clef
     , score_key :: (String, Mode)
-    -- | 1 second of RealTime is converted to this Duration.
-    , score_duration1 :: Duration
     } deriving (Show)
 
 data Mode = Major | Minor deriving (Show)
@@ -252,7 +250,7 @@ meta_title, meta_clef, meta_time_signature :: String
 meta_title = "ly.title"
 meta_clef = "ly.clef"
 meta_time_signature = "ly.time-signature"
-meta_duration1 = "ly.duration1"
+-- meta_duration1 = "ly.duration1"
 
 meta_to_score :: Maybe Pitch.Key -> Map.Map String String
     -> Maybe (Either String Score)
@@ -262,15 +260,11 @@ meta_to_score maybe_score_key meta = case Map.lookup meta_ly meta of
         score_key <- maybe (Left "key required") return maybe_score_key
         key <- parse_key score_key
         time_sig <- parse_time_signature $ get "4/4" meta_time_signature
-        let dur1s = get "4" meta_duration1
-        dur1 <- maybe (Left $ "duration1 unparseable: " ++ show dur1s) return
-            (read_duration dur1s)
         return $ Score
             { score_title = title
             , score_time = time_sig
             , score_clef = clef
             , score_key = key
-            , score_duration1 = dur1
             }
     where
     title = get "" meta_title
@@ -316,7 +310,7 @@ make_ly score events = ly_file score
 type Staff = (Clef, Score.Instrument, [Note])
 
 ly_file :: Score -> [Staff] -> Doc
-ly_file (Score title time_sig _clef (key, mode) _dur1) staves =
+ly_file (Score title time_sig _clef (key, mode)) staves =
     command "version" <+> string "2.14.2"
     $+$ command "language" <+> string "english"
     -- Could I put the stack in there so I can click on the notes and get them

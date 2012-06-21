@@ -70,8 +70,12 @@ compile block_id perf = do
             Thread.delay compile_delay
             cancelled <- IORef.readIORef var
             unless cancelled $
-                compile_ly dir block_id score
+                compile_ly dir block_id quarter score
                     (LEvent.events_of (Cmd.perf_events perf))
+    -- TODO if I still want to do automatic lilypond derivation, I'll have to
+    -- stick this in Block.Meta, but that means I should probably use
+    -- Data.Dynamic instead of strings.
+    quarter = 1
 
 ly_dir :: (State.M m) => m FilePath
 ly_dir = do
@@ -86,19 +90,29 @@ lookup_key perf = Maybe.fromMaybe Twelve.default_key $ msum $
         Right key -> Just (Pitch.Key key)
         Left _ -> Nothing
 
-compile_ly :: FilePath -> BlockId -> Lilypond.Score -> [Score.Event] -> IO ()
-compile_ly dir block_id score events = do
-    let (ly, logs) = make_ly score events
+compile_ly :: FilePath -> BlockId -> RealTime -> Lilypond.Score
+    -> [Score.Event] -> IO ()
+compile_ly dir block_id quarter score events = do
+    let (ly, logs) = make_ly quarter score events
     mapM_ Log.write logs
     Directory.createDirectoryIfMissing True dir
     let fname = dir </> Id.ident_name block_id
     writeFile (fname ++ ".ly") (Pretty.formatted ly)
     void $ Process.rawSystem "lilypond" ["-o", fname, fname ++ ".ly"]
 
-make_ly :: Lilypond.Score -> [Score.Event] -> (Pretty.Doc, [Log.Msg])
-make_ly score score_events = (Lilypond.make_ly score events, logs)
+make_ly :: RealTime -> Lilypond.Score -> [Score.Event]
+    -> (Pretty.Doc, [Log.Msg])
+make_ly quarter score score_events =
+    (Lilypond.make_ly score (normalize events), logs)
     where
-    (events, logs) = LEvent.partition $ Convert.convert
-        (Lilypond.score_duration1 score) (map LEvent.Event score_events)
+    (events, logs) = LEvent.partition $
+        Convert.convert quarter (map LEvent.Event score_events)
         -- Filter out existing logs because those will be reported by normal
         -- performance.
+
+normalize :: [Lilypond.Event] -> [Lilypond.Event]
+normalize [] = []
+normalize events@(e:_)
+    | Lilypond.event_start e == 0 = events
+    | otherwise = map (move (Lilypond.event_start e)) events
+    where move n e = e { Lilypond.event_start = Lilypond.event_start e - n }

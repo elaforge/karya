@@ -10,55 +10,55 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Lilypond
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
+
 import Types
 
 
 -- | Turn on lilypond derivation for this block.
-enable_lilypond :: String -> String -> String -> BlockId -> Cmd.CmdL ()
-enable_lilypond clef time_sig dur1 block_id =
+enable_lilypond :: String -> String -> BlockId -> Cmd.CmdL ()
+enable_lilypond clef time_sig block_id =
     State.modify_block_meta block_id $
-        Map.union (make_meta clef time_sig dur1 block_id)
+        Map.union (make_meta clef time_sig block_id)
 
-make_meta :: String -> String -> String -> BlockId -> Block.Meta
-make_meta clef time_sig dur1 block_id = Map.fromList
+make_meta :: String -> String -> BlockId -> Block.Meta
+make_meta clef time_sig block_id = Map.fromList
     [ (Lilypond.meta_ly, "true")
     , (Lilypond.meta_title, Id.ident_string block_id)
     , (Lilypond.meta_clef, clef)
     , (Lilypond.meta_time_signature, time_sig)
-    , (Lilypond.meta_duration1, dur1)
     ]
 
-make_score :: String -> String -> String -> String -> BlockId
+make_score :: String -> String -> String -> BlockId
     -> Cmd.CmdL Lilypond.Score
-make_score key_str clef time_sig dur1 block_id =
+make_score key_str clef time_sig block_id =
     case Lilypond.meta_to_score key meta of
         Nothing -> Cmd.throw "no score"
         Just (Left err) -> Cmd.throw $ "parsing lily score: " ++ err
         Just (Right score) -> return score
     where
     key = Just (Pitch.Key key_str)
-    meta = make_meta clef time_sig dur1 block_id
+    meta = make_meta clef time_sig block_id
 
-pipa = from_events "c-maj" "treble" "4/4" "2"
-    . normalize
-    . filter_inst ["fm8/pipa", "fm8/dizi", "ptq/yangqin"]
+pipa = from_events "c-maj" "treble" "4/4" 0.03 . clean
+
+ly_events quarter events = LEvent.partition $
+    Convert.convert quarter (map LEvent.Event (clean events))
+
+clean = filter_inst ["fm8/pipa", "fm8/dizi", "ptq/yangqin"]
+    -- . filter_inst ["ptq/yangqin"]
     . LEvent.events_of
-
-normalize :: [Score.Event] -> [Score.Event]
-normalize [] = []
-normalize events@(event:_) = map (shift (Score.event_start event)) events
-    where shift p = Score.move (subtract p)
 
 filter_inst :: [String] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
     where insts = map (Just . Score.Instrument) inst_s
 
-from_events :: String -> String -> String -> String -> [Score.Event]
-    -> Cmd.CmdL ()
-from_events key clef time_sig dur1 events = do
+from_events :: String -> String -> String -> RealTime
+    -> [Score.Event] -> Cmd.CmdL ()
+from_events key clef time_sig quarter events = do
     block_id <- Cmd.get_focused_block
-    score <- make_score key clef time_sig dur1 block_id
+    score <- make_score key clef time_sig block_id
     dir <- Cmd.Lilypond.ly_dir
-    Trans.liftIO $ Cmd.Lilypond.compile_ly dir block_id score events
+    Trans.liftIO $ Cmd.Lilypond.compile_ly dir block_id quarter score events
