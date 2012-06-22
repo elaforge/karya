@@ -319,9 +319,6 @@ step_from tracknum pos direction step = do
     block_id <- Cmd.get_focused_block
     next <- TimeStep.step_from (TimeStep.direction direction) step block_id
         tracknum pos
-    let msg = case direction of
-            TimeStep.Advance -> "advance to "
-            TimeStep.Rewind -> "rewind from "
     return $ Maybe.fromMaybe pos next
 
 -- | Get the ruler that applies to the given track.  Search left for the

@@ -28,6 +28,10 @@ test_convert_notes = do
     -- Rests are not dotted, even when they could be.
     equal (f s44 [(0, 1, "a"), (1.5, 1, "b")])
         ["a4", "r8", "b8~", "b8", "r8", "r4"]
+    equal (f s44 [(0, 2, "a"), (3.5, 0.25, "b"), (3.75, 0.25, "c")])
+        ["a2", "r4", "r8", "b16", "c16"]
+    equal (f s44 [(0, 0.5, "a"), (0.5, 1, "b"), (1.5, 0.5, "c")])
+        ["a8", "b4", "c8", "r2"]
 
 test_chords = do
     let f = map Lilypond.to_lily . Lilypond.convert_notes False (sig 4 4)

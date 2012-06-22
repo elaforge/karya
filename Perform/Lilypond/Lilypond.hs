@@ -123,13 +123,12 @@ convert_notes dotted_rests sig events = go 0 events
         end = subtract start $ Maybe.fromMaybe (event_end event) $
             Seq.minimum (next ++ map event_end here)
         next = maybe [] ((:[]) . event_start) (Seq.head rest)
-        allowed = min end $ get_allowed sig start
+        allowed = min end $ allowed_dotted_time sig start
         allowed_dur = time_to_note_dur allowed
         allowed_time = note_dur_to_time allowed_dur
         clipped = Maybe.mapMaybe (clip_event (start + allowed_time)) here
         tie = any (> start + allowed_time) (map event_end here)
         start = event_start event
-    get_allowed = if dotted_rests then allowed_dotted_time else allowed_time
 
     mkrests prev start
         | prev < start = map rest $
@@ -154,12 +153,14 @@ clip_event end e
 convert_duration :: TimeSignature -> Bool -> Time -> Time -> [NoteDuration]
 convert_duration sig use_dot pos time_dur
     | time_dur <= 0 = []
-    | allowed >= time_dur = time_to_note_durs time_dur
+    | allowed >= time_dur = to_durs time_dur
     | otherwise = dur
         : convert_duration sig use_dot (pos + allowed) (time_dur - allowed)
     where
     dur = time_to_note_dur allowed
     allowed = (if use_dot then allowed_dotted_time else allowed_time) sig pos
+    to_durs = if use_dot then time_to_note_durs
+        else map (flip NoteDuration False) . time_to_durs
 
 -- | Figure out how much time a note at the given position should be allowed
 -- before it must tie.
