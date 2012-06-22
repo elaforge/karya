@@ -101,7 +101,7 @@ integrate lookup_scale key = convert . Seq.partition_either
 
 -- | Split into tracks by track id, instrument, and then scale.
 -- TODO and overlapping events should be split, deal with that later
-group_key :: Score.Event -> (Maybe TrackId, Maybe Score.Instrument,
+group_key :: Score.Event -> (Maybe TrackId, Score.Instrument,
     Pitch.ScaleId)
 group_key event = (track_of event, Score.event_instrument event,
     PitchSignal.sig_scale_id (Score.event_pitch event))
@@ -111,25 +111,22 @@ track_of = Seq.head . Maybe.mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
 integrate_track :: Derive.LookupScale -> Maybe Pitch.Key
-    -> ((Maybe TrackId, Maybe Score.Instrument, Pitch.ScaleId), [Score.Event])
+    -> ((Maybe TrackId, Score.Instrument, Pitch.ScaleId), [Score.Event])
     -> Either String [Track]
-integrate_track lookup_scale key ((_, maybe_inst, scale_id), events) = do
+integrate_track lookup_scale key ((_, inst, scale_id), events) = do
     scale <- maybe (Left $ "scale not found: " ++ Pretty.pretty scale_id)
         return (lookup_scale scale_id)
     pitch_track <- case pitch_events scale scale_id key events of
         Nothing -> return []
         Just (track, []) -> return [track]
         Just (_, errs) -> Left $ Seq.join "; " errs
-    return $ note_events maybe_inst events : pitch_track
-        ++ control_events events
+    return $ note_events inst events : pitch_track ++ control_events events
 
 -- ** note
 
-note_events :: Maybe Score.Instrument -> [Score.Event] -> Track
-note_events maybe_inst events = make_track note_title (map note_event events)
-    where
-    note_title = TrackInfo.instrument_to_title $
-        Maybe.fromMaybe Score.default_inst maybe_inst
+note_events :: Score.Instrument -> [Score.Event] -> Track
+note_events inst events = make_track note_title (map note_event events)
+    where note_title = TrackInfo.instrument_to_title inst
 
 note_event :: Score.Event -> Events.PosEvent
 note_event event = (RealTime.to_score (Score.event_start event),

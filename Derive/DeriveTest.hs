@@ -317,8 +317,7 @@ r_log_strings = snd . extract id
 e_event :: Score.Event -> (RealTime, RealTime, String)
 e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
 
-e_everything :: Score.Event
-    -> (RealTime, RealTime, String, Maybe String, [String])
+e_everything :: Score.Event -> (RealTime, RealTime, String, String, [String])
 e_everything e =
     ( Score.event_start e
     , Score.event_duration e
@@ -327,8 +326,8 @@ e_everything e =
     , Score.attrs_list (Score.event_attributes e)
     )
 
-e_inst :: Score.Event -> Maybe String
-e_inst = fmap Score.inst_name . Score.event_instrument
+e_inst :: Score.Event -> String
+e_inst = Score.inst_name . Score.event_instrument
 
 e_control :: String -> Score.Event -> Maybe [(RealTime, Signal.Y)]
 e_control cont event = fmap (Signal.unsignal . Score.typed_val) $
@@ -405,7 +404,7 @@ c_note :: ScoreTime -> ScoreTime -> Derive.EventDeriver
 c_note s_start dur = do
     start <- Derive.real s_start
     end <- Derive.real (s_start + dur)
-    inst <- Derive.lookup_val TrackLang.v_instrument
+    inst <- Derive.get_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
     st <- Derive.gets Derive.state_dynamic
@@ -509,7 +508,7 @@ mkevent :: EventSpec -> Score.Event
 mkevent (start, dur, text, controls, inst) =
     Score.Event start dur (B.pack text)
         (Map.map Score.untyped (Map.fromList controls))
-        (pitch_signal [(start, text)]) fake_stack (Just inst) Score.no_attrs
+        (pitch_signal [(start, text)]) fake_stack inst Score.no_attrs
 
 pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal
 pitch_signal = PitchSignal.signal scale . map (second mkpitch)

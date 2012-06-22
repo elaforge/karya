@@ -21,8 +21,8 @@ test_c_block = do
     let (evts, logs) = run [(0, 1, "sub"), (1, 2, "n >i +a | sub")]
     equal logs []
     equal evts
-        [ (0, 1, "--sub", Nothing, [])
-        , (1, 2, "--sub", Just "i", ["a"])
+        [ (0, 1, "--sub", "", [])
+        , (1, 2, "--sub", "i", ["a"])
         ]
 
 test_c_clip = do

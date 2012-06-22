@@ -54,7 +54,7 @@ clean = filter_inst ["fm8/pipa", "fm8/dizi", "ptq/yangqin"]
 
 filter_inst :: [String] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
-    where insts = map (Just . Score.Instrument) inst_s
+    where insts = map Score.Instrument inst_s
 
 from_events :: String -> String -> String -> Cmd.Lilypond.TimeConfig
     -> [Score.Event] -> Cmd.CmdL ()

@@ -59,7 +59,7 @@ test_c_note = do
     -- along with it.
     let run title evts = DeriveTest.extract DeriveTest.e_everything $
             DeriveTest.derive_tracks [(title, evts)]
-    let inst = Just "i"
+    let inst = "i"
 
     let evt s d = (s, d, "", inst, [])
     equal (run ">i" [(0, 1, ""), (1, 2, ""), (3, 3, "")])
@@ -87,11 +87,11 @@ test_c_note = do
 
     -- event overrides attrs
     equal (run "> +a" [(0, 1, "n =b"), (1, 1, "n -a")])
-        ([ (0, 1, "n =b", Nothing, ["b"])
-        , (1, 1, "n -a", Nothing, [])
+        ([ (0, 1, "n =b", "", ["b"])
+        , (1, 1, "n -a", "", [])
         ], [])
     -- alternate syntax
     equal (run ">i" [(0, 1, ""), (1, 1, "n >i2 |")])
         ([ (0, 1, "", inst, [])
-        , (1, 1, "n >i2 |", Just "i2", [])
+        , (1, 1, "n >i2 |", "i2", [])
         ], [])

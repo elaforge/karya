@@ -51,13 +51,13 @@ data Event = Event {
 
     -- | These are optional parameters that may or may not be required by the
     -- performer.
-    , event_instrument :: !(Maybe Instrument)
+    , event_instrument :: !Instrument
     , event_attributes :: !Attributes
     }
     deriving (Read, Show)
 
 empty_event :: Event
-empty_event = Event 0 0 mempty mempty mempty Stack.empty Nothing mempty
+empty_event = Event 0 0 mempty mempty mempty Stack.empty default_inst mempty
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch _ _ _) =

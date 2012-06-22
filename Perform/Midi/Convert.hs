@@ -49,7 +49,7 @@ convert lookup = ConvertUtil.convert Set.empty (convert_event lookup)
 
 convert_event :: Lookup -> Score.Event -> ConvertT Perform.Event
 convert_event lookup event = do
-    score_inst <- require "instrument" (Score.event_instrument event)
+    let score_inst = Score.event_instrument event
     (midi_inst, maybe_key) <- convert_inst (lookup_inst lookup) score_inst
         (Score.event_attributes event)
     patch <- require ("patch in instrument db: " ++ show score_inst) $

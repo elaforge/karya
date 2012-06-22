@@ -193,7 +193,7 @@ test_subderive = do
     equal (map DeriveTest.e_event events)
         [(0, 4, "--b1"), (6, 2, "--sub1"), (8, 0.5, "--b2")]
     equal (map Score.event_instrument events)
-        (map (Just . Score.Instrument) ["i1", "i2", "i1"])
+        (map Score.Instrument ["i1", "i2", "i1"])
     equal msgs []
 
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos),
@@ -264,7 +264,7 @@ test_multiple_subderive = do
 
     -- Empty inst inherits calling inst.
     equal (fst (DeriveTest.extract Score.event_instrument res))
-        (replicate 3 (Just (Score.Instrument "i1")))
+        (replicate 3 (Score.Instrument "i1"))
 
     let pos = map (inv_tempo res) [0..6]
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos)])

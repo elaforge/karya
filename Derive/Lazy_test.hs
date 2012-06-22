@@ -10,7 +10,6 @@ import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Thread as Thread
 
-import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -29,7 +28,6 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -264,22 +262,16 @@ mk_logging_call log_var  = Derive.stream_generator "logging-note" $
         c_note log_var (Args.event args) (Args.end args)
 
 c_note :: Log -> Events.PosEvent -> ScoreTime -> Derive.EventDeriver
-c_note log_mvar (pos, event) next_start = do
-    start <- Derive.real pos
-    end <- Derive.real (pos + Event.event_duration event)
-    inst <- Derive.lookup_val TrackLang.v_instrument
-    st <- Derive.gets Derive.state_dynamic
-    real_next <- Derive.real next_start
-    let controls = Call.Note.trimmed_controls start real_next
-            (Derive.state_controls st)
-        pitch_sig = Derive.state_pitch st
-        score_event = Score.Event start (end-start) (Event.event_bs event)
-            controls pitch_sig (Derive.state_stack st) inst Score.no_attrs
-    let write_log = Unsafe.unsafePerformIO $
-            put_log log_mvar $ stack ++ " note at: " ++ Pretty.pretty start
-        stack = Stack.unparse_ui_frame_ $ last $
-            Stack.to_ui (Derive.state_stack st)
-    return $! LEvent.one $! LEvent.Event $! write_log `seq` score_event
+c_note log_mvar event next_start = do
+    -- Call the real one to make sure I'm getting it's laziness
+    -- characteristics.
+    [LEvent.Event sevent] <- Call.Note.generate_note Nothing [] event
+        next_start
+    st <- Derive.get_stack
+    let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $
+            stack ++ " note at: " ++ Pretty.pretty (Score.event_start sevent)
+        stack = Stack.unparse_ui_frame_ $ last $ Stack.to_ui st
+    return $! LEvent.one $! LEvent.Event $! write_log `seq` sevent
 
 c_set :: Log -> Derive.ControlCall
 c_set log_mvar = Derive.generator1 "set" $ \args -> CallSig.call1 args

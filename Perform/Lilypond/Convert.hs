@@ -43,8 +43,7 @@ convert_event quarter event = do
         , Lilypond.event_duration =
             real_to_time quarter (Score.event_duration event)
         , Lilypond.event_pitch = pitch
-        , Lilypond.event_instrument = Maybe.fromMaybe Score.default_inst
-            (Score.event_instrument event)
+        , Lilypond.event_instrument = Score.event_instrument event
         }
 
 -- TODO This loses the enharmonics.

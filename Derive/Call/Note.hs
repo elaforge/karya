@@ -10,6 +10,7 @@ module Derive.Call.Note (
     , sub_events
     , place, place_at
 #ifdef TESTING
+    , generate_note
     , invert_call, trimmed_controls
 #endif
 ) where
@@ -100,8 +101,9 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
     -- What this really means is that the sounding duration of the note depends
     -- on the next one, which should be sorted out later by post processing.
     inst <- case n_inst of
-        Just inst -> return (Just inst)
-        Nothing -> Derive.lookup_val TrackLang.v_instrument
+        Just inst -> return inst
+        Nothing -> Maybe.fromMaybe Score.default_inst <$>
+            Derive.lookup_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
     st <- Derive.gets Derive.state_dynamic
@@ -111,10 +113,16 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
             (RealTime.seconds . Signal.at start . Score.typed_val)
             (Map.lookup Score.c_sustain controls)
     (start, end) <- randomized controls start ((end - start) * sustain + start)
-    return $! LEvent.one $! LEvent.Event $!
-        Score.Event start (end - start) (Event.event_bs event)
-            controls pitch_sig (Derive.state_stack st) inst
-            (apply rel_attrs attrs)
+    return $! LEvent.one $! LEvent.Event $! Score.Event
+        { Score.event_start = start
+        , Score.event_duration = end - start
+        , Score.event_bs = Event.event_bs event
+        , Score.event_controls = controls
+        , Score.event_pitch = pitch_sig
+        , Score.event_stack = Derive.state_stack st
+        , Score.event_instrument = inst
+        , Score.event_attributes = apply rel_attrs attrs
+        }
     where
     apply rel_attrs attrs =
         List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs
