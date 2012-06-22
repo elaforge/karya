@@ -355,6 +355,14 @@ cmd_clear_selected = do
         then State.remove_event track_id start
         else State.remove_events track_id start end
 
+cmd_clear_and_advance :: (Cmd.M m) => m ()
+cmd_clear_and_advance = do
+    cmd_clear_selected
+    (_, sel) <- Selection.get
+    when (Types.sel_is_point sel
+            && Types.sel_start_track sel == Types.sel_cur_track sel)
+        Selection.advance
+
 -- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank and skips
 -- to the given ones.  Otherwise, set it to the deflt.
 set_step_rank :: (Cmd.M m) => TimeStep.TimeStep

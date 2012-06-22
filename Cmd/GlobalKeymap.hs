@@ -311,7 +311,7 @@ event_bindings = concat
     , plain_command_char 'k' "delete time" Edit.cmd_delete_time
     -- Unlike other event editing commands, you don't have to be in insert
     -- mode to remove events.  Maybe I'll change that later.
-    , plain_key Key.Backspace "clear selected" Edit.cmd_clear_selected
+    , plain_key Key.Backspace "clear selected" Edit.cmd_clear_and_advance
     , plain_command_char 'o' "join events" Edit.cmd_join_events
 
     , plain_command_char 's' "set dur" Edit.cmd_set_duration

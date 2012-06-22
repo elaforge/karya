@@ -1,4 +1,6 @@
 UNSORTED
+  * backspace in NoEdit mode should advance
+  - hold down arrow doesn't work when kbd entry is on
   - There's a zillion things to stitch together for an instrument.
     Add yet more utils in MidiInst to make this easier.
   * the title of an empty note track should still be run, otherwise using it

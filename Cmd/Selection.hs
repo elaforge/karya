@@ -16,9 +16,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
@@ -96,14 +94,14 @@ set_and_scroll view_id selnum sel = do
     set_selnum view_id selnum (Just sel)
     auto_scroll view_id sel
 
--- | Handly shortcut for cmd_step_selection.
+-- ** modify existing selection
+
+-- | Advance the insert selection by the current step, which is a popular thing
+-- to do.
 advance :: (Cmd.M m) => m ()
 advance = cmd_step_selection Config.insert_selnum TimeStep.Advance False
 
--- ** modify existing selection
-
 -- | Advance the given selection by the current step.
--- Require: active block, insert_selection is set
 --
 -- The selection will maintain its current track span, be set to a point, and
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
@@ -115,19 +113,12 @@ cmd_step_selection selnum dir extend = do
     view_id <- Cmd.get_focused_view
     Types.Selection start_track start_pos cur_track cur_pos <-
         Cmd.require =<< State.get_selection view_id selnum
-
     step <- Cmd.get_current_step
     new_pos <- step_from cur_track cur_pos dir step
     let new_sel = if extend
             then Types.selection start_track start_pos cur_track new_pos
             else Types.point_selection start_track new_pos
     set_and_scroll view_id selnum new_sel
-
--- | Advance the insert selection by the current step, which is a popular thing
--- to do.
-cmd_advance_insert :: (Cmd.M m) => m ()
-cmd_advance_insert =
-    cmd_step_selection Config.insert_selnum TimeStep.Advance False
 
 -- | Move the selection across tracks by @shift@, skipping non-event tracks
 -- and collapsed tracks.
@@ -331,11 +322,7 @@ step_from tracknum pos direction step = do
     let msg = case direction of
             TimeStep.Advance -> "advance to "
             TimeStep.Rewind -> "rewind from "
-    case next of
-        Nothing -> do
-            Log.notice $ "can't " ++ msg ++ show step ++ " from " ++ show pos
-            Cmd.abort
-        Just p -> return p
+    return $ Maybe.fromMaybe pos next
 
 -- | Get the ruler that applies to the given track.  Search left for the
 -- closest ruler that has all the given marklist names.  This includes ruler
