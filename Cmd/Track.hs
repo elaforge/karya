@@ -39,7 +39,7 @@ get_track_cmds = do
     edit_state <- Cmd.gets Cmd.state_edit
     let edit_mode = Cmd.state_edit_mode edit_state
     let note_cmd = NoteEntry.cmds_with_note (Cmd.state_kbd_entry edit_state)
-            (with_note_cmds edit_mode track)
+            (note_cmds edit_mode track)
         tcmds = track_cmds edit_mode track
     kcmds <- keymap_cmds track
     -- The order is important:
@@ -60,8 +60,8 @@ lookup_instrument_cmds block_id track_id =
 
 -- | Cmds that use InputNotes, and hence must be called with
 -- 'NoteEntry.cmds_with_note'.
-with_note_cmds :: Cmd.EditMode -> Info.Track -> [Cmd.Cmd]
-with_note_cmds edit_mode track = universal ++ case Info.track_type track of
+note_cmds :: Cmd.EditMode -> Info.Track -> [Cmd.Cmd]
+note_cmds edit_mode track = universal ++ case Info.track_type track of
     Info.Note {} -> case edit_mode of
         Cmd.RawEdit -> [NoteTrack.cmd_raw_edit]
         Cmd.ValEdit -> [NoteTrack.cmd_val_edit]

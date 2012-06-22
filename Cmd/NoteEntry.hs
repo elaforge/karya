@@ -7,6 +7,7 @@
 module Cmd.NoteEntry where
 import Control.Monad
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -87,10 +88,14 @@ are_modifiers_down = fmap (not . Set.null) (Keymap.mods_down False)
 kbd_input :: Maybe InputNote.NoteId -> Pitch.Octave -> Msg.Msg
     -> Maybe (Maybe Msg.Msg)
 kbd_input last_note_id octave (Msg.key -> Just (down, key)) = case down of
-    -- Just Nothing makes the repeats get eaten here, but make sure to only
-    -- suppress them if this key would have generated a note.
-    UiMsg.KeyRepeat -> Just Nothing
-    _ -> (fmap . fmap) Msg.InputNote
+    UiMsg.KeyRepeat
+        -- Just Nothing makes the repeats get eaten here, but make sure to only
+        -- suppress them if this key would have generated a note.
+        | Maybe.isJust msg -> Just Nothing
+        | otherwise -> Nothing
+    _ -> msg
+    where
+    msg = (fmap . fmap) Msg.InputNote
         (key_to_input last_note_id octave (down==UiMsg.KeyDown) key)
 kbd_input _ _ _ = Nothing
 
