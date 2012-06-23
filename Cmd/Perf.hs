@@ -128,14 +128,10 @@ resolve_instrument block_id tracknum inst
 -- | Lookup value from the deriver's Environ at the given block and (possibly)
 -- track.  See 'Derive.TrackEnviron' for details on the limitations here.
 --
--- The lookup is done relative to the root block, which means that instruments
--- and scales always default relative to the root.  I suppose I could think of
--- some case where it would be better to look it up relative to some other
--- block, but that seems way too complicated.  This means that the
--- TrackEnvirons from other block derivations are never used.
---
--- TODO I think that might lead to some void allocation, so maybe I should
--- include a flag to turn off TrackEnviron recording?
+-- The value is taken first from the root performance, and then the given
+-- block's performance if not present in the root performance.  This is so
+-- that blocks which are not called from the root at all will still have
+-- environ values.
 lookup_val :: (Cmd.M m, TrackLang.Typecheck a) => BlockId
     -> Maybe TrackId
     -- ^ If Nothing, take the env from the first track.  This is for when you
@@ -148,8 +144,13 @@ lookup_val block_id maybe_track_id name =
 
 get_environ :: (Cmd.M m) => BlockId -> Maybe TrackId
     -> m (Maybe TrackLang.Environ)
-get_environ block_id maybe_track_id =
-    maybe Nothing (lookup . Cmd.perf_track_environ) <$> lookup_root
+get_environ block_id maybe_track_id = do
+    maybe_val <- maybe Nothing (lookup . Cmd.perf_track_environ) <$> lookup_root
+    case maybe_val of
+        Just val -> return (Just val)
+        Nothing ->
+            maybe Nothing (lookup . Cmd.perf_track_environ) <$>
+                Cmd.lookup_performance block_id
     where
     lookup env = case maybe_track_id of
         Nothing -> do
