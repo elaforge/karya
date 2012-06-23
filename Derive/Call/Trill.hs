@@ -50,6 +50,7 @@ note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("tr", c_note_trill)
     , ("`tr`", c_note_trill)
+    , ("trem", c_tremolo)
     ]
 
 -- | Generate a note with a trill.
@@ -76,6 +77,34 @@ c_note_trill = Derive.stream_generator "trill" $ Note.inverting $ \args ->
         Derive.with_added_control control (Score.untyped transpose) $
             Note.place notes
 
+-- | TODO randomize dyn, randomize starts
+c_tremolo :: Derive.NoteCall
+c_tremolo = Derive.stream_generator "tremolo" $ Note.inverting $ \args ->
+    CallSig.call1 args (
+        optional "speed" (typed_control "tremolo-speed" 10 Score.Real)) $
+    \speed -> do
+        (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+        notes <- case time_type of
+            Util.Real -> do
+                (start, end) <- Args.real_range args
+                mapM Derive.score $ take_full_notes end $
+                    real_pos_at_speed speed_sig start
+            Util.Score -> do
+                let (start, end) = Args.range args
+                notes <- score_pos_at_speed speed_sig start end
+                return $ take_full_notes end notes
+        let events = [Note.Event start (end - start) Util.note
+                | (start, end) <- zip notes (drop 1 notes)]
+        Note.place events
+
+take_full_notes :: (Ord a) => a -> [a] -> [a]
+take_full_notes _ [] = []
+take_full_notes end (t:ts) = t : go ts
+    where
+    go (t1 : ts@(t2:_))
+        | t2 > end = [end]
+        | otherwise = t1 : go ts
+    go ts = ts
 
 -- * pitch calls
 
@@ -163,11 +192,9 @@ trill_from_controls args mode neighbor speed = do
     transpose <- time_trill time_type mode (Args.range_to_next args)
         neighbor_sig speed_sig
     return (transpose, control)
-
-time_trill :: Util.TimeType -> Mode -> (ScoreTime, ScoreTime) -> Signal.Control
-    -> Signal.Control -> Derive.Deriver Signal.Control
-time_trill Util.Real = real_trill
-time_trill Util.Score = score_trill
+    where
+    time_trill Util.Real = real_trill
+    time_trill Util.Score = score_trill
 
 real_trill :: Mode -> (ScoreTime, ScoreTime) -> Signal.Control
     -> Signal.Control -> Derive.Deriver Signal.Control
@@ -192,13 +219,13 @@ score_trill mode (start, end) neighbor speed = do
 -- tempo in effect.
 score_pos_at_speed :: Signal.Control -> ScoreTime -> ScoreTime
     -> Derive.Deriver [ScoreTime]
-score_pos_at_speed sig pos end
-    | pos > end = return []
+score_pos_at_speed sig start end
+    | start > end = return []
     | otherwise = do
-        real <- Derive.real pos
+        real <- Derive.real start
         let speed = Signal.y_to_score (Signal.at real sig)
-        rest <- score_pos_at_speed sig (pos + recip speed) end
-        return (pos : rest)
+        rest <- score_pos_at_speed sig (start + recip speed) end
+        return (start : rest)
 
 -- | Make a trill transposition signal.
 make_trill :: Mode -> RealTime -> RealTime -> Signal.Control -> Signal.Control
@@ -210,9 +237,9 @@ make_trill mode start end neighbor speed =
 -- | Emit an infinite list of RealTimes at the given speed, which may change
 -- over time.  The speed is taken as hertz in real time.
 real_pos_at_speed :: Signal.Control -> RealTime -> [RealTime]
-real_pos_at_speed sig pos =
-    pos : real_pos_at_speed sig (pos + Signal.y_to_real (recip speed))
-    where speed = Signal.at pos sig
+real_pos_at_speed sig start =
+    start : real_pos_at_speed sig (start + Signal.y_to_real (recip speed))
+    where speed = Signal.at start sig
 
 trill_from_transitions :: Mode -> [RealTime] -> Signal.Control -> Signal.Control
 trill_from_transitions mode transitions neighbor =

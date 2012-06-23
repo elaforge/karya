@@ -19,6 +19,20 @@ test_note_trill = do
     equal (run [(0, 3, "tr 1 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
         ([(0, 1, "4a"), (1, 1, "4b 50"), (2, 1, "4b")], [])
 
+test_tremolo = do
+    let run tempo notes = extract $ DeriveTest.derive_tracks
+            [("tempo", [(0, 0, tempo)]), (">", notes), ("*", [(0, 0, "4c")])]
+        extract = DeriveTest.extract DeriveTest.e_note2
+    -- RealTime
+    equal (run "1" [(0, 2, "trem 1s")]) ([(0, 1, "4c"), (1, 1, "4c")], [])
+    equal (run "2" [(0, 4, "trem 1s")]) ([(0, 1, "4c"), (1, 1, "4c")], [])
+    equal (run "1" [(2, 2, "trem 1s")]) ([(2, 1, "4c"), (3, 1, "4c")], [])
+    equal (run "1" [(0, 2.5, "trem 1s")]) ([(0, 1, "4c"), (1, 1.5, "4c")], [])
+    -- ScoreTime
+    equal (run "1" [(0, 2, "trem 1t")]) ([(0, 1, "4c"), (1, 1, "4c")], [])
+    equal (run "1" [(2, 2, "trem 1t")]) ([(2, 1, "4c"), (3, 1, "4c")], [])
+    equal (run "2" [(0, 2, "trem 1t")]) ([(0, 0.5, "4c"), (0.5, 0.5, "4c")], [])
+
 -- * pitch calls
 
 test_trill = do
@@ -121,10 +135,6 @@ test_score_trill = do
     equal (run $ Derive.d_stretch 2 $ f 1 (con 1) (con 2)) $
         Right [(0, 0), (1, 1), (2, 0)]
 
-con = Signal.constant
-
-
-
 test_pitch_trill = do
     equal (CallTest.run_pitch [(0, "tr (4e) 2 2"), (2.8, "4c")]) $
         zip [0, 0.5, 1, 1.5, 2] (cycle [64, 67]) ++ [(2.8, 60)]
@@ -147,3 +157,7 @@ test_control_trill = do
     equal (run 0.5 [(0, 0, "tr 1 1t")]) ([trill [0, 2, 4]], [])
     equal (run 1 [(0, 0, "tr 1 1d")])
         ([Just []], ["Error: expected time type for 1d but got Diatonic"])
+
+-- * util
+
+con = Signal.constant
