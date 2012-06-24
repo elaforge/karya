@@ -477,7 +477,7 @@ set_block_ruler ruler_id overlay_id block_id = Transform.tracks block_id set
 make_id :: (State.M m) => String -> m Id.Id
 make_id name = do
     ns <- State.get_namespace
-    return $ Id.unsafe_id ns name
+    State.require ("make_id: invalid name: " ++ show name) $ Id.id ns name
 
 -- | An overlay versions of a ruler has id ruler_id ++ suffix.
 overlay_suffix :: String
