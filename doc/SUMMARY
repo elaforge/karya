@@ -1,77 +1,281 @@
-There are a lot of sequencers out there.  How is this one different?
+Karya is a music sequencer, but as far as I know it's different from any other
+sequencer.  If there are other similar programs out there I'd be interested in
+hearing about them!
 
-First, a screed / rant about the existing state of affairs that makes me want
-to write something better.
+Karya is purely a sequencer, so it doesn't deal with actual audio at all.  It
+doesn't record audio, host VSTs, or produce any kind of sound.  It produces
+MIDI (there is also a Lilypond backend) and relies on external synthesizers to
+turn that into sound.  There is some limited integration with DAWs so you can
+combine recorded audio and written score, but Karya is entirely oriented around
+score writing.
 
-Having grown up on trackers, I find that the existing commercial sequencer
-paradigm (e.g. cubase) is awkward for me.  You are expected to record your
-notes in real time on a keyboard in a multitracking style, with minimal edits
-afterwards to fix mistakes.  This means that both step entry and editing
-existing data is primitive.
+It uses its own score format, which is not like staff notation, or piano roll
+notation, or anything else that I'm aware of, and is supposed to be extensible.
+It's visually similar to trackers (Renoise is a modern example), and the
+editing style may be most familiar to people accustomed to them.
 
-For instance, it's awkward to enter a note along with a controller value (say
-you want to set a filter cutoff, or set a sample articulation): turn on step
-record, play the note (better be the right one, because backspace won't delete
-it and undo won't move the entry point back!), click on velocity and type one
-in if you didn't get it just right, click on the controller strip chart right
-before your note (how?  I dunno, zoom in and eyeball it?), then click on it and
-type in the value, or go to the note entry list, find your note, and enter
-a controller event slightly before it, subtracting in your head.  And all this
-is just to enter a single note!
+It's main goals are to be a flexible and high level way to /hand write/ scores
+(so it's not oriented around realtime use), to produce the complicated control
+signals needed for expressive music, and to support non-western (or
+non-traditional western) idioms and scales.
 
-In a tracker, you can do this by playing the note, hitting a key to get to the
-controller column, and typing in the controller and value.  So fast you can
-actualy write music this way without losing your concentration.  On the other
-hand, the tracker is limited and awkward when it comes to rhythm.  Want to edit
-a triplet?  Hope your arbitrary "frame" tempo plus the number of rows you want
-the triplet over is divisible by three, do the division yourself manually and
-put it in as row offsets.  Want a fast part next to a slow part?  Set the tempo
-high and deal with highly separated slow parts; you can't zoom in or out.  Want
-to record a natural curve with a breath controller?  Record a live audio part?
-I haven't seen a tracker that lets you do these things.
+## Features:
 
-Editing notes in a sequencer is just as awkward as entering them.  You have
-a breath curve that you want to gradualy decrescendo?  Hopefully your sequencer
-lets you multiply controller data by a curve ($600 cubase doesn't), but even if
-it does once they are multiplied you lose the original data, so you're stuck if
-you want to change the curve later.  Want to bend a pitch to a specific place?
-Cubase forces you to manually figure out the right 14-bit number based on the
-pitch bend range and type it in, which makes it too much work to be practical.
-Want to work with several midi channels to isolate controller effects?  Cubase
-provides no support for this and you have to manage the channels manually.
+- Ornaments.  There is a library of musical ornaments, such as grace notes,
+tuplets, trills of various flavor, arpeggio, echo, delay, etc.  These are
+called "calls", because they are analogous to function calls.  They can be
+arbitrarily complicated.  For example, there are postprocessing operations that
+apply instrument-specific restrictions or idioms, such as selecting a string
+for a given pitch, or adding pitch sloppiness to especially rapid notes.
+Another may simply put a "pizz" attribute on a note or section of score, or
+slide between two pitches in a certain way.  Scores are composed
+hierarchically, and there's no strict division between call that modifies or
+emits a single note and one that modifies or produces an entire piece.  Calls
+can take arguments and be written with custom symbols, and when the existing
+ones aren't sufficient you can write your own.
 
-Trackers have the same problem with note data being at the lowest level: once
-you enter a controller slide, the information that it was a slide is lost and
-it looks like any other stream of numbers.
+- Pitch control.  You have full control over the pitch of each note, and can
+apply customized forms of vibrato, portamento, vocal ornaments, or whatever
+else, all within whatever scale is in use.  The same goes for other control
+signals.
 
-Both trackers and sequencers suffer from not being programmable.  You can't
-directly write in your own scale, you have to write in a western 12-tone scale
-bent into your tuning by some other means.  You can't describe music
-articulations like trills or sforzando at a high level and have it realized for
-you.  You can't create names or symbols for sample offsets into (or effects
-settings on) a drum loop and then write your drum track in that notation.  You
-can't automatically derive one part from another, except with whatever
-primitive "midi plugins" happen to be implemented.
+- Scales.  Scales can use custom symbols and can take arguments for per-note
+pitch variations.  Scale pitches can depend on signals (e.g. a gradually
+retuning a just scale to another key) or on other instruments (e.g. the tuning
+of one part is defined relative to another).  Enharmonics and chromatic and
+diatonic transposition are supported for scales that employ those concepts.
+You can define your own scales that involve any combination of the above
+concepts.
 
-What's more, existing sequencers perpetuate the problems with MIDI by embedding
-them deeply (e.g. 128 addressable notes per channel, manually managed 16
-channels per port, note number + pitch bend representation of pitch), and not
-supporting a successor protocol like OSC.  Trackers tend to ship with their own
-primitive sampler with no modern features like streaming large samples from
-disk or even velocity switching, let alone actual synthesis.  Unless you want
-toreinvent the massive amount of work put into various synthesizers both
-software and hardware, you have to support MIDI.
+- Tempo control.  You can give separate tempos to separate parts
+simultaneously, so you can express that one part is pushing or lagging the
+tempo, or that one is swung but another is straight, or swung in a different
+way.  Tempos compose, so a rubato can be composed with an accelerando for the
+expected effect.  Calls can ignore tempo and play in absolute time, so a
+trill can choose to either stretch with a tempo change or remain at a constant
+speed and add cycles.
 
-A whole field of midi processors have grown up around the inadequacies of MIDI
-as a protocol (also the transport, but that's separate) and the sequencer, like
-the ad-hoc VSL midi tool, primitive built in languages like kontakt's KSP, and
-step sequencers built into synthesizers.  Widespread support for
-a general-purpose successor to MIDI is a major effort and shows no sign of
-materializing, but the software sequencers have no excuse for continuing to
-suck.
+- Integration.  The derived output of a bit of score can be integrated back
+into another score to produce derived parts.  The generated score can then be
+further edited, and changes to the original source will be merged into the
+modifications, to a limited degree.  For instance, a part that mirrors another
+with added idiomatic ornaments plus hand tweaks, or a whole section which is
+the reverse of another section, edited to sound better.
 
+- REPL.  All non-GUI interaction is through a command-line interface, so you can
+do complicated transformations by writing a function.  The language is Haskell,
+which the rest of the program is written in, and it has direct access to all
+internal funtionality.  If you frequently use a particular transformation you
+can compile it into the program by pasting it into a file.
 
-Ok, rant over.  So what does my sequencer do that's not sucky?
+- Instruments.  Instruments can map MIDI CC numbers to symbolic names, support
+keyswitches as named attributes, and automatically multixplex MIDI channels to
+give note-level control over pitch or control signals.  They are collected
+into a searchable database.  The database is created by either entering patch
+information by hand, or for external synthesizers that use them you can parse
+sysex messages to add to the database.
+
+- Multiple backends.  The main backend is MIDI, and this is the most well
+developed one, but there is also some ability to export to lilypond.
+Lilypond export is necessarily limited because it's hard to translate between
+different kinds of scores, but with a bit of work you can get usable output.
+There are also csound and OSC backends, but they're mostly just proof of
+concept and I don't expect to use them much.
+
+- Incremental saving.  The score is continually saved as changes are made.  You
+can undo and make different changes, resulting in a branching history.  If
+you set checkpoints along the branches you can jump between different versions
+at will, and hopefully no edits need ever be lost.  The underlying storage is
+git, so you can use the usual git tools to inspect and manipulate it, though
+many source control concepts don't really apply.
+
+## Weaknesses:
+
+- Complicated.  If there is a bug in an call implementation it can be a
+hassle to track it down what is going wrong and fix it.  There are a lot of
+tools for inspecting intermediate output, but still it's rather like debugging
+a compiler.  And since it's a rather programmerly view of music and relies on
+writing code to perform operations, it will probably never be very usable by
+non-programmers.
+
+- Slow.  It relies on caching to rederive scores quickly.  If you put your score
+together in a way that defeats caching it will start taking a long time to
+rederive a score.  Fortunately it's relatively easy to work with the cache
+system, and you get notified about cache misses so you should notice when
+something goes wrong.  But the cache, as usual, is a rich source of its own
+bugs.
+
+- Greedy.  What with the various caches, an internal focus on simplicity over
+efficiency, and plenty of unoptimized bits, it demands quite a lot of memory
+and CPU for a program that doesn't actually handle audio.  In addition, if you
+are writing your own calls you will likely need to recompile a fair amount
+and that's no lightweight operation either.
+
+- Non-realtime.  While you should be able to play back a score soon after
+making changes, it's still very much oriented around non-realtime
+score-writing.  You cannot change a playback in progress.  Support for
+recording MIDI is present but not a focus, since it's hard to integrate a
+low-level recorded performance with a high-level handwritten score.
+
+- Complicated MIDI routing.  Since it doesn't host plugins itself you have to
+route MIDI to a plugin host, which likely requires a bunch of virtual MIDI
+ports.  If you route to a DAW like Reaper or Ardour you can then bounce or
+"freeze" tracks by recording in the DAW, but since neither of these programs
+provide much remote control ability you likely have to set up the routing
+yourself.  I can do some limited integration with syncing plays and stops, but
+closer integration is harder given that JACK is only supported by Ardour and
+Rewire is proprietary.
+
+- MIDI limitations. Due to the general wretchedness of MIDI, you'll need a lot
+of MIDI ports and channels, and will be limited to low resolution controls, on
+both value and time axes.  The underlying problem is the software synths, which
+have all deeply embedded MIDI's limitations.  To solve this we'd need to drag
+software synths out of the '80s, create a new high-resolution protocol, and
+modify the major samplers and synthesizers to support it.  This has been tried
+but failed, perhaps because there were no sequencers or input devices to
+generate the high resolution output.  VST's "automation parameters" are
+basically higher resolution MIDI controls, so some of this could probably be
+ameliorated by extending a VST host to turn high resolution OSC into VST
+automation.  Ardour is the only open source DAW so it's the only option here.
+
+- The score format is not as efficient at displaying vertical structure (chords
+and harmony) as 5-line staff notation.  This is the price of generality, since
+the score format is also more flexible than staff notation.
+
+- At the moment it's still very early in development, and has many
+underdocumented and buggy parts.  It's also changing rapidly, and code written
+against internal interfaces is likely to be broken by changes down the line.
+And there's no defined external interface yet, so everything is an internal
+interface.
+
+## Relation to other sequencers
+
+- There is a family of "academic" music programming languages: csound, clm,
+supercollider, max, chuck, etc.  Being languages, they offer quite a bit of
+flexibility, but they tend to be oriented around an academic style of music,
+which eschews such conservative trappings as melodies, themes, harmony, and the
+like.  Perhaps this self-supporting: it's hard to write a melody in text, and
+if you do, it's even harder to write an expressive dynamic curve by typing in
+envelope breakpoints, and once you do a compile debug cycle means you won't get
+to hear it very soon.  This makes it much easier to write generative,
+algorithmic, or abstract sound-scapey stuff.  So they attract people who are
+interested in that sort of thing, who further develop the field in the
+direction of fractal note generators and markov sequences.  No one minds how
+awkward it is to write a melody because that's not the kind of music they do.
+Those things just aren't in the academic computer music idiom.
+
+- Commercial sequencers: cubase, logic, sonar, etc.  They're designed to work
+as much like a 4-track as possible to not scare musicians, so they're quite
+inflexible.  Generally speaking, you record on your keyboard, do some limited
+editing, and that's that.  But on the other hand, being all about conservative
+trappings, they can do melodies and harmonies and instant feedback pretty well.
+But because of their 4-track origins, they're entirely oriented around
+recording, and because the only MIDI instrument that caught on is the keyboard,
+you wind up with everything sounding like it's played on a keyboard.  Perhaps
+this is self-supporting too: whole genres have grown up around music that
+sounds like it's played on a keyboard.  So those programs attract people who
+want to do that kind of music, and no one minds much how awkward it is to
+write in a non-keyboard-like idiom, or something in a non 12-TET scale, or an
+instrument whose part is derived from another according to complicated rules.
+Those things just aren't in the popular electronic music idiom.
+
+- There's actually another kind of music programming language, the "livecoding"
+ones, which are very good at instant feedback, and seem oriented somewhat more
+in the popular electronic music direction.  But it's not because they solved
+the expressiveness problem, they're moving in the direction of the more
+mechanical style of popular music.
+
+## Overview
+
+Karya is divided into several layers, corresponding to the top level
+directories in the source tree:
+
+- fltk - Low level C++ to draw the GUI.  Nothing much interesting here.
+
+- Ui - The UI level has the data structures that hold the score, all collected
+in Ui.State.State.  They mostly correspond directly to what is visible in the
+GUI.  This is what gets saved when you save a score.
+
+- Cmd - Cmds take user input and transform the Ui state.  This layer handles
+all user interaction.
+
+- Derive - The deriver interprets the Ui State and turns into into a stream of
+lower level events.  It implements the "tracklang" language described below.
+
+- Perform - The perform layer turns Derive output into a backend specific
+format, e.g. MIDI messages or lilypond score.  It's also responsible for
+"playing" the output, e.g. scheduling MIDI messages with the MIDI driver or
+calling lilypond.
+
+There are a few auxiliary programs:
+
+- LogView - Logview is a separate program that formats log output.  The karya
+GUI doesn't have a place for global information, so logview serves this purpose
+too.  When log messages display stack traces, you can click on them to
+highlight their positions in the score.
+
+- browser (Instrument) - This is a simple browser for the instrument database.
+To the UI and Derive layers, an instrument is just a text string, but they have
+quite a bit of extra information associated with them which is important to the
+performer.
+
+- make_db - If the instruments involve expensive operations like parsing
+directories full of sysex messages, they can serialize the parsed instruments
+to disk.  What this is exactly depends on the per-synth definitions in
+Local/Instrument/.  'make_db' just runs each instrument's 'make_db' function.
+
+- repl - This connects to a running sequencer and lets you interact at the
+programmatic level by sending haskell expressions to be evaluated in the Cmd
+context. [[link to doc/repl]].  'send' is a one-off version of repl that can be
+used to send a single command from shell scripts.
+
+- print_keymap - Write out a reference to the global keymap in HTML.
+
+## Score
+
+Karya can be seen as two things: a language used to express music, and an
+editor for that language.  It's a bit like an IDE for a music language.
+
+The score language, like any language, can be described in several layers.
+
+The lowest level is the syntax.  The most basic structure is a `block`.
+Each block can have 0 or more `views`, which are just windows on a certain
+block.  A block has a title, which is a box you can put text in, and a set of
+tracks.  Each track can be either an event track or a ruler.  Rulers just
+display hierarchical marks, and by convention each block has a ruler in the
+0th track spot, which is special in that it stays put and doesn't scroll off
+the screen.  The ruler is analogous to the meter since the the selection
+usually aligns to it.
+
+Event tracks have a title, which is once again a place for text, and a bunch
+of events.  An event, at the simplest level is a start time, a duration, and a
+bit of text.  The events aren't allowed to overlap, but other than that are
+free form.  One other detail is that there's a "skeleton", which links together
+each track in a hierarchical way, so each track can have parents or children.
+The skeleton is visualized as some lines with arrows above the tracks.
+
+That's the basic syntax.  The Deriver is the part that's responsible for
+turning it into a performance.
+
+### Tracklang
+
+The text that appears in the block title, track titles, and events is in a
+simple expression oriented language.  It has the usual literals, such as
+`'strings'`, and numbers, but also has music-related literals such as
+`*scales`, `>instruments` or `+attributes`.  Numeric literals can take type
+suffixes, so `.5d` is half of one diatonic step, and `3r` is 3 seconds of
+RealTime.  An expression consists of literals separated by spaces, and the
+first word is a "call", which is like a function call.  So `f 4 'hi'` is a
+call to `f` with two arguments.  The first word is allowed to have any
+non-space characters in it, so `5( 4 'hi'` is a call to `5(`.
+
+[ explanation of the standard derivation from a high level point of view ]
+[ then put language ref style stuff ]
+
+[ null call and fallback for plain number literals ]
+[ exception for pitch calls ]
+
+[ outline of score format ]
 
 In a general way, you could see it as an IDE for a language with a notion of
 time.
@@ -128,3 +332,4 @@ note track represent controllers that affect (or effect) the notes to their
 left.
 
 The intention is to use
+
