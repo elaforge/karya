@@ -44,6 +44,7 @@ convert_event quarter event = do
             real_to_time quarter (Score.event_duration event)
         , Lilypond.event_pitch = pitch
         , Lilypond.event_instrument = Score.event_instrument event
+        , Lilypond.event_dynamic = Score.initial_dynamic event
         }
 
 -- TODO This loses the enharmonics.

@@ -20,8 +20,11 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
+config :: Lilypond.Config
+config = Lilypond.Config False []
+
 test_convert_notes = do
-    let f sig = map Lilypond.to_lily . Lilypond.convert_notes False sig
+    let f sig = map Lilypond.to_lily . Lilypond.convert_notes config sig
             . map mkevent
         s44 = sig 4 4
     equal (f s44 [(0, 1, "a"), (1, 1, "b")]) ["a4", "b4", "r2"]
@@ -34,7 +37,7 @@ test_convert_notes = do
         ["a8", "b4", "c8", "r2"]
 
 test_chords = do
-    let f = map Lilypond.to_lily . Lilypond.convert_notes False (sig 4 4)
+    let f = map Lilypond.to_lily . Lilypond.convert_notes config (sig 4 4)
             . map mkevent
     -- Homogenous durations.
     equal (f [(0, 1, "a"), (0, 1, "c")])
@@ -87,7 +90,7 @@ compile_ly score = do
 read_note :: String -> Lilypond.Note
 read_note text
     | pitch == "r" = Lilypond.rest dur
-    | otherwise = Lilypond.note [pitch] dur (tie == "~")
+    | otherwise = Lilypond.Note [pitch] dur (tie == "~") ""
     where
     (pitch, rest) = break Char.isDigit text
     (dur_text, tie) = break (=='~') rest
@@ -104,19 +107,13 @@ mkmeta title clef sig = Map.fromList
 
 run :: Map.Map String String -> [UiTest.NoteSpec]
     -> (Pretty.Doc, [Lilypond.Staff], [Lilypond.Event])
-run meta notes = (Lilypond.make_ly score events, staves, events)
+run meta notes = (Lilypond.make_ly config score events, staves, events)
     where
-    staves = Lilypond.make_staves (Lilypond.score_clef score) sig events
+    staves = Lilypond.make_staves config (Lilypond.score_clef score) sig events
     sig = Lilypond.score_time score
     res = DeriveTest.derive_tracks (concatMap UiTest.note_spec notes)
     (events, _logs) = LEvent.partition $ Convert.convert 1 (Derive.r_events res)
     Just (Right score) = Lilypond.meta_to_score (Just (Pitch.Key "d-min")) meta
-
--- score0 = Lilypond.make_ly
---     (Lilypond.Score "hi there" (sig 3 4) "treble" ("d", Lilypond.Major)
---         Lilypond.D4)
---     [Lilypond.Event start dur pitch | (start, dur, pitch) <-
---         [(0, 4, "a"), (4, 4, "b"), (16, 2, "a"), (18, 2, "b")]]
 
 mkevent :: (RealTime, RealTime, String) -> Lilypond.Event
 mkevent (start, dur, pitch) = mkevent_inst (start, dur, pitch, "")
@@ -125,7 +122,7 @@ mkevent_inst :: (RealTime, RealTime, String, String) -> Lilypond.Event
 mkevent_inst (start, dur, pitch, inst) =
     Lilypond.Event (Convert.real_to_time 1 start)
         (Convert.real_to_time 1 dur) pitch
-        (Score.Instrument inst)
+        (Score.Instrument inst) 0.5
 
 sig :: Int -> Int -> Lilypond.TimeSignature
 sig num denom = Lilypond.TimeSignature num dur

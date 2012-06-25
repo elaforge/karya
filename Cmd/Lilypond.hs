@@ -108,7 +108,8 @@ compile_ly dir block_id config score events = do
 make_ly :: TimeConfig -> Lilypond.Score -> [Score.Event]
     -> (Pretty.Doc, [Log.Msg])
 make_ly (TimeConfig quarter quantize_dur) score score_events =
-    (Lilypond.make_ly score (postproc quantize_dur events), logs)
+    (Lilypond.make_ly Lilypond.default_config score
+        (postproc quantize_dur events), logs)
     where
     (events, logs) = LEvent.partition $
         Convert.convert quarter (map LEvent.Event score_events)

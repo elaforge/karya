@@ -24,6 +24,23 @@ import qualified Perform.Pitch as Pitch
 
 -- * types
 
+-- | Configure how the lilypond score is generated.
+data Config = Config {
+    -- | Allow dotted rests?
+    config_dotted_rests :: Bool
+    -- | If non-null, generate dynamics from each event's dynamic control.
+    -- This has cutoffs for each dynamic level, which should be \"p\", \"mf\",
+    -- etc.
+    , config_dynamics :: [(Double, String)]
+    } deriving (Show)
+
+default_config :: Config
+default_config = Config
+    { config_dotted_rests = False
+    , config_dynamics =
+        map (first (/0xff)) [(0x40, "p"), (0x80, "mf"), (0xff, "f")]
+    }
+
 -- | Convert a value to its lilypond representation.
 -- TODO go to Pretty.Doc instead of String?
 class ToLily a where
@@ -70,15 +87,16 @@ data Event = Event {
     , event_duration :: !Time
     , event_pitch :: !String
     , event_instrument :: !Score.Instrument
+    , event_dynamic :: !Double
     } deriving (Show)
 
 event_end :: Event -> Time
 event_end event = event_start event + event_duration event
 
 instance Pretty.Pretty Event where
-    format (Event start dur pitch inst) = Pretty.constructor "Event"
+    format (Event start dur pitch inst dyn) = Pretty.constructor "Event"
         [Pretty.format start, Pretty.format dur, Pretty.text pitch,
-            Pretty.format inst]
+            Pretty.format inst, Pretty.format dyn]
 
 -- ** Note
 
@@ -87,19 +105,18 @@ data Note = Note {
     note_pitch :: ![String]
     , note_duration :: !NoteDuration
     , note_tie :: !Bool
+    -- | Additional code to append to the note.
+    , note_code :: !String
     } deriving (Show)
 
-note :: [String] -> NoteDuration -> Bool -> Note
-note pitches dur tie = Note pitches dur tie
-
 rest :: NoteDuration -> Note
-rest dur = Note [] dur False
+rest dur = Note [] dur False ""
 
 instance ToLily Note where
-    to_lily (Note pitches dur tie) = case pitches of
-            [] -> 'r' : ly_dur
-            [pitch] -> pitch ++ ly_dur
-            _ -> '<' : unwords pitches ++ ">" ++ ly_dur
+    to_lily (Note pitches dur tie code) = case pitches of
+            [] -> 'r' : ly_dur ++ code
+            [pitch] -> pitch ++ ly_dur ++ code
+            _ -> '<' : unwords pitches ++ ">" ++ ly_dur ++ code
         where ly_dur = to_lily dur ++ if tie then "~" else ""
 
 note_time :: Note -> Time
@@ -110,15 +127,20 @@ note_time = note_dur_to_time . note_duration
 
 -- | Turn Events, which are in absolute Time, into Notes, which are divided up
 -- into tied Durations depending on the time signature.
-convert_notes :: Bool -- ^ emit dotted rests?
-    -> TimeSignature -> [Event] -> [Note]
-convert_notes dotted_rests sig events = go 0 events
+convert_notes :: Config -> TimeSignature -> [Event] -> [Note]
+convert_notes config sig events = go Nothing 0 events
     where
-    go prev [] = trailing_rests prev
-    go prev events@(event:_) = mkrests prev start
-        ++ Note (map event_pitch here) allowed_dur tie
-            : go (start + allowed_time) (clipped ++ rest)
+    go _ prev [] = trailing_rests prev
+    go prev_dyn prev events@(event:_) = mkrests prev start
+        ++ note : go (Just dyn) (start + allowed_time) (clipped ++ rest)
         where
+        note = Note
+            { note_pitch = map event_pitch here
+            , note_duration = allowed_dur
+            , note_tie = any (> start + allowed_time) (map event_end here)
+            , note_code = if not (null dyn) && maybe True (/=dyn) prev_dyn
+                then '\\':dyn else ""
+            }
         (here, rest) = break ((>start) . event_start) events
         end = subtract start $ Maybe.fromMaybe (event_end event) $
             Seq.minimum (next ++ map event_end here)
@@ -127,18 +149,26 @@ convert_notes dotted_rests sig events = go 0 events
         allowed_dur = time_to_note_dur allowed
         allowed_time = note_dur_to_time allowed_dur
         clipped = Maybe.mapMaybe (clip_event (start + allowed_time)) here
-        tie = any (> start + allowed_time) (map event_end here)
         start = event_start event
+        dyn = get_dynamic (config_dynamics config) (event_dynamic event)
 
     mkrests prev start
-        | prev < start = map rest $
-            convert_duration sig dotted_rests prev (start - prev)
+        | prev < start = map rest $ convert_duration sig
+            (config_dotted_rests config) prev (start - prev)
         | otherwise = []
     trailing_rests end
         | remaining == 0 = []
         | otherwise = map rest $
-            convert_duration sig dotted_rests end remaining
+            convert_duration sig (config_dotted_rests config) end remaining
         where remaining = measure_time sig - end
+
+-- | Guess a dynamic from the dyn control.
+get_dynamic :: [(Double, String)] -> Double -> String
+get_dynamic dynamics dyn = case dynamics of
+    [] -> ""
+    ((val, dyn_str) : dynamics)
+        | null dynamics || val >= dyn -> dyn_str
+        | otherwise -> get_dynamic dynamics dyn
 
 -- | Clip off the part of the event before the given time, or Nothing if it
 -- was entirely clipped off.
@@ -301,18 +331,18 @@ parse_time_signature sig = do
 
 -- * make_ly
 
-make_staves :: String -> TimeSignature -> [Event] -> [Staff]
-make_staves clef time_sig events =
-    [ (clef, inst, convert_notes False time_sig inst_events)
+make_ly :: Config -> Score -> [Event] -> Doc
+make_ly config score events = ly_file score
+    (make_staves config (score_clef score) (score_time score) events)
+
+make_staves :: Config -> String -> TimeSignature -> [Event] -> [Staff]
+make_staves config clef time_sig events =
+    [ (clef, inst, convert_notes config time_sig inst_events)
     | (inst, inst_events) <- Seq.keyed_group_on event_instrument events
     ]
 
 inst_name :: Score.Instrument -> String
 inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
-
-make_ly :: Score -> [Event] -> Doc
-make_ly score events = ly_file score
-    (make_staves (score_clef score) (score_time score) events)
 
 type Staff = (Clef, Score.Instrument, [Note])
 
