@@ -357,7 +357,10 @@ ly_file (Score title time_sig _clef (key, mode)) staves =
         [assign name <+> string val | (name, val)
             <- [("title", title), ("tagline", "")]]
     $+$ command "score" <+> "{" <+> "<<"
+
+    $+$ command "new" <+> "StaffGroup" <+> "<<"
     $+$ vsep (map mkstaff staves)
+    $+$ ">>"
     $+$ ">>" <+> "}"
     where
     mkstaff (clef, inst, notes) = command "new" <+> "Staff"
