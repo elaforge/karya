@@ -1244,7 +1244,7 @@ destroy_ruler ruler_id = do
     forM_ blocks $ \(block_id, tracks) -> do
         let tracknums = map fst tracks
             setr i = if i `elem` tracknums then Block.set_rid no_ruler else id
-            deruler (i, track) = Block.modify_id track (setr i)
+            deruler (i, track) = Block.modify_id (setr i) track
         modify_block block_id $ \block -> block { Block.block_tracks =
             map deruler (Seq.enumerate (Block.block_tracks block)) }
     modify $ \st -> st { state_rulers = Map.delete ruler_id (state_rulers st) }

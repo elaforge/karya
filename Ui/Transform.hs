@@ -85,8 +85,8 @@ map_track_ids f = do
     where
     map_track f = map_merged f . map_track_id f
     map_track_id f track = case Block.tracklike_id track of
-        Block.TId tid rid -> Block.modify_id track $
-            const (Block.TId (f tid) rid)
+        Block.TId tid rid ->
+            Block.modify_id (const (Block.TId (f tid) rid)) track
         _ -> track
     map_merged f track = track
         { Block.track_merged = map f (Block.track_merged track) }
@@ -106,10 +106,9 @@ map_ruler_ids f = do
         st { State.state_rulers = new_rulers, State.state_blocks = new_blocks }
     where
     map_track f track = case Block.tracklike_id track of
-        Block.TId tid rid -> Block.modify_id track $
-            const (Block.TId tid (f rid))
-        Block.RId rid -> Block.modify_id track $
-            const (Block.RId (f rid))
+        Block.TId tid rid ->
+            Block.modify_id (const (Block.TId tid (f rid))) track
+        Block.RId rid -> Block.modify_id (const (Block.RId (f rid))) track
         _ -> track
 
 safe_map_keys :: (State.M m, Ord k, Show k) =>

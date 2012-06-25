@@ -1,4 +1,5 @@
 UNSORTED
+  * tremolo ornament
   * backspace in NoEdit mode should advance
   * hold down arrow doesn't work when kbd entry is on
   - There's a zillion things to stitch together for an instrument.
@@ -36,7 +37,18 @@ UNSORTED
       attaches metadata.  It can also affect note durations in normal
       performance.
     - Instrument -> Clef mapping
-    - support chords whose notes have different durations
+    * support chords whose notes have different durations
+    - optionally emit StaffGroup
+    - put measure marks and measure number comments in the output to make it
+      easier to read
+    - wrap output at 74 columns
+    - support dynamics, I think I can notice a change in the dyn control?
+    - to support things like trills, I'd need to have an alternate lilypond
+      derivation.  Set lilypond=true in the environ, then various calls can
+      e.g. emit lily code instead of notes.
+      - trill on note
+      - rit on note range
+      Tempo is more tricky.
   * get rid of GeneratorCall
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   - a new empty inst with a scale doesn't get the scale right, should fall
@@ -177,6 +189,8 @@ UNSORTED
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
   incremental save
+    - got "error committing history: update for non-existent view id: ...
+      CreateView"
     * upgrade to libgit2 1.7.0
     * more exhaustive tests
     + try saving individual events for incremental save

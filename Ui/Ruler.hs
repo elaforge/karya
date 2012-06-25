@@ -41,8 +41,8 @@ instance DeepSeq.NFData Ruler where
 no_ruler :: Ruler
 no_ruler = ruler Map.empty Color.black False False False False
 
-get_marklist :: Name -> Ruler -> Maybe Marklist
-get_marklist name = Map.lookup name . ruler_marklists
+lookup_marklist :: Name -> Ruler -> Maybe Marklist
+lookup_marklist name = Map.lookup name . ruler_marklists
 
 set_marklist :: Name -> Marklist -> Ruler -> Ruler
 set_marklist name mlist = modify_marklists (Map.insert name mlist)
@@ -53,7 +53,7 @@ remove_marklist = modify_marklists . Map.delete
 -- | If the marklist isn't set, modify will be given an empty one.
 modify_marklist :: Name -> (Marklist -> Marklist) -> Ruler -> Ruler
 modify_marklist name modify ruler = set_marklist name new ruler
-    where new = maybe (modify mempty) modify (get_marklist name ruler)
+    where new = maybe (modify mempty) modify (lookup_marklist name ruler)
 
 -- | Transform all the marklists in a ruler.
 map_marklists :: (Marklist -> Marklist) -> Ruler -> Ruler

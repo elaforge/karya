@@ -11,9 +11,11 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -46,7 +48,6 @@ block >>= LRuler.set_meter $ MakeRuler.regular_subdivision [4, 2, 3, 4]
 Make a new ruler:
 
 assign_new "new-ruler" (map bid [...])
-
 -}
 
 show_ruler :: RulerId -> Cmd.CmdL String
@@ -70,11 +71,14 @@ show_marklist ruler_id marklist_name = do
 
 get_marklist :: (Cmd.M m) => Ruler.Name -> RulerId -> m Ruler.Marklist
 get_marklist name ruler_id = do
-    ruler <- State.get_ruler ruler_id
-    case Ruler.get_marklist name ruler of
-        Nothing -> Cmd.throw $
-            "no marklist " ++ show name ++ " in " ++ show ruler_id
-        Just mlist -> return mlist
+    maybe (Cmd.throw $ "no marklist " ++ show name ++ " in " ++ show ruler_id)
+        return =<< lookup_marklist name ruler_id
+
+lookup_marklist :: (Cmd.M m) => Ruler.Name -> RulerId
+    -> m (Maybe Ruler.Marklist)
+lookup_marklist name ruler_id =
+    Ruler.lookup_marklist name <$> State.get_ruler ruler_id
+
 
 -- | Replace or add a marklist with the given name.
 replace_marklist :: (Cmd.M m) => RulerId -> (Ruler.Name, Ruler.Marklist)
@@ -133,7 +137,7 @@ replace ruler_id block_id = do
     where
     map_head_tail _ _ [] = []
     map_head_tail f g (x:xs) = f x : map g xs
-    set_r ruler_id track = Block.modify_id track (Block.set_rid ruler_id)
+    set_r ruler_id = Block.modify_id (Block.set_rid ruler_id)
 
 -- | Drop a mark at the selected point in the "cue" ruler.
 add_cue :: String -> Cmd.CmdL ()
@@ -147,6 +151,76 @@ add_cue_at block_id pos text = modify_ruler block_id $
 
 cue_mark :: String -> Ruler.Mark
 cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
+
+-- * modify
+
+-- | Copy the ruler under the selection and append it.
+--
+-- Extract "meter" under each ruler.  Then make a modifier that appends it to
+-- each ruler, and pass to unique_copy for each ruler id.
+append :: Cmd.CmdL ()
+append = do
+    (view_id, sel) <- Selection.get
+    block_id <- State.block_id_of view_id
+    let (start, end) = Types.sel_range sel
+    ruler_ids <- State.rulers_of block_id
+    forM_ ruler_ids $ \ruler_id ->
+        unique_copy block_id ruler_id
+            (append_range MakeRuler.meter_marklist start end)
+
+append_range :: Ruler.Name -> ScoreTime -> ScoreTime -> Ruler.Ruler
+    -> Ruler.Ruler
+append_range name start end = Ruler.modify_marklist name $ \mlist ->
+        mlist <> Ruler.marklist (shift (extract mlist))
+    where
+    extract mlist = takeWhile ((<end) . fst) $ Ruler.ascending mlist start
+    shift = map (first (+ (end-start)))
+
+-- | Modify the given RulerId, making a new one if it's already in use on
+-- a block other than the give one.
+unique_copy :: BlockId -> RulerId -> (Ruler.Ruler -> Ruler.Ruler)
+    -> Cmd.CmdL RulerId
+unique_copy block_id ruler_id modify = do
+    blocks <- State.blocks_with_ruler ruler_id
+    case blocks of
+        [(rblock_id, _)] | block_id == rblock_id -> do
+            State.modify_ruler ruler_id modify
+            return ruler_id
+        _ -> do
+            new_ruler_id <- copy (ruler_id_for_block block_id ruler_id) ruler_id
+            State.modify_ruler new_ruler_id modify
+            sequence_ $ do
+                (rblock_id, tracks) <- blocks
+                guard (rblock_id == block_id)
+                (tracknum, _) <- tracks
+                return $ set_track_ruler block_id tracknum new_ruler_id
+            return new_ruler_id
+
+-- | Make a RulerId with the same name as the BlockId.  But I should preserve
+-- .overlay.  So, use the ruler_id but prepend the block name.
+--
+-- TODO Id should have a concat_id so I don't have to use unsafe_id
+ruler_id_for_block :: BlockId -> RulerId -> Id.Id
+ruler_id_for_block block_id ruler_id =
+    Id.unsafe_id ns (block_name ++ "." ++ ruler_name)
+    where
+    block_name = Id.ident_name block_id
+    (ns, ruler_name) = Id.un_id (Id.unpack_id ruler_id)
+
+copy :: (State.M m) => Id.Id -> RulerId -> m RulerId
+copy ident ruler_id = State.create_ruler ident =<< State.get_ruler ruler_id
+
+set_track_ruler :: (State.M m) => BlockId -> TrackNum -> RulerId -> m ()
+set_track_ruler block_id tracknum ruler_id =
+    State.modify_block_track block_id tracknum $
+        Block.modify_id (Block.set_rid ruler_id)
+
+-- | Double the ruler in the given block.
+-- double :: BlockId -> Cmd.CmdL ()
+-- double block_id = do
+
+-- | Clip the ruler to the selection.
+-- clip :: BlockId -> Cmd.CmdL ()
 
 -- * extract
 

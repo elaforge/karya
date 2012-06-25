@@ -168,8 +168,8 @@ flags_to_status flags
     | Mute `elem` flags = (Just ('M', Config.mute_color), 0.75)
     | otherwise = (Nothing, 1)
 
-modify_id :: Track -> (TracklikeId -> TracklikeId) -> Track
-modify_id track f = track { tracklike_id = f (tracklike_id track) }
+modify_id :: (TracklikeId -> TracklikeId) -> Track -> Track
+modify_id f track = track { tracklike_id = f (tracklike_id track) }
 
 data TracklikeId =
     -- | Tracks may have a Ruler overlay
@@ -199,6 +199,7 @@ ruler_id_of _ = Nothing
 ruler_ids_of :: [TracklikeId] -> [RulerId]
 ruler_ids_of = Maybe.mapMaybe ruler_id_of
 
+set_rid :: RulerId -> TracklikeId -> TracklikeId
 set_rid rid (TId tid _) = TId tid rid
 set_rid rid (RId _) = RId rid
 set_rid _ t = t

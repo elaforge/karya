@@ -37,4 +37,4 @@ e_ruler :: BlockId -> State.State -> Maybe [(ScoreTime, Int)]
 e_ruler bid ustate = UiTest.eval ustate $ do
     ruler <- State.get_ruler =<< State.ruler_of bid
     return $ map (second Ruler.mark_rank) . Ruler.marks_of <$>
-        Ruler.get_marklist "meter" ruler
+        Ruler.lookup_marklist MakeRuler.meter_marklist ruler
