@@ -65,14 +65,19 @@ test_convert_duration = do
 
 test_make_ly = do
     let (score, staves, events) = run (mkmeta "title" "treble" "4/4")
+            -- complicated rhythm
             [ (">s/i1", [(0, 1, "4c"), (1.5, 2, "4d#")], [])
-            , (">s/i2", [(1, 1, "4g"), (2, 1, "5a")], [])
+            -- rhythm starts after 0, long multi measure note
+            , (">s/i2", [(1, 1, "4g"), (2, 16, "3a")], [])
             ]
-        extract_staff (clef, inst, notes) = (clef, Lilypond.inst_name inst,
-            map Lilypond.to_lily notes)
+        extract_staff (clef, inst, measures) = (clef, Lilypond.inst_name inst,
+            map (map Lilypond.to_lily) measures)
+    pprint (map extract_staff staves)
     equal (map extract_staff staves)
-        [ ("treble", "i1", ["c'4", "r8", "ds'8~", "ds'4.", "r8"])
-        , ("treble", "i2", ["r4", "g'4", "a''4", "r4"])
+        [ ("treble", "i1",
+            [["c'4", "r8", "ds'8~", "ds'4.", "r8"], ["r1"], ["r1"], ["r1"]])
+        , ("treble", "i2",
+            [["r4", "g'4", "a2~"], ["a1~"], ["a1~"], ["a2", "r2"]])
         ]
     -- compile_ly score
     pprint events

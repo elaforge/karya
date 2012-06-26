@@ -130,6 +130,7 @@ note_time = note_dur_to_time . note_duration
 convert_notes :: Config -> TimeSignature -> [Event] -> [Note]
 convert_notes config sig events = go Nothing 0 events
     where
+    go :: Maybe String -> Time -> [Event] -> [Note]
     go _ prev [] = trailing_rests prev
     go prev_dyn prev events@(event:_) = mkrests prev start
         ++ note : go (Just dyn) (start + allowed_time) (clipped ++ rest)
@@ -210,6 +211,23 @@ allowed_dotted_time sig measure_pos
 -- | Like 'allowed_dotted_time', but only emit powers of two.
 allowed_time :: TimeSignature -> Time -> Time
 allowed_time sig pos = 2 ^ (log2 (allowed_dotted_time sig pos))
+
+-- * split_measures
+
+split_measures :: TimeSignature -> [Note] -> [[Note]]
+split_measures sig = go
+    where
+    go [] = []
+    go ns = pre : go post
+        where (pre, post) = split 0 ns
+    split _ [] = ([], [])
+    split prev (n:ns)
+        | t > measure = ([], n:ns)
+        | otherwise = let (pre, post) = split t ns in (n:pre, post)
+        where t = prev + note_dur_to_time (note_duration n)
+    measure = measure_time sig
+
+-- * duration / time conversion
 
 note_dur_to_time :: NoteDuration -> Time
 note_dur_to_time (NoteDuration dur dotted) =
@@ -331,20 +349,23 @@ parse_time_signature sig = do
 
 -- * make_ly
 
+type Staff = (Clef, Score.Instrument, [[Note]])
+
 make_ly :: Config -> Score -> [Event] -> Doc
 make_ly config score events = ly_file score
     (make_staves config (score_clef score) (score_time score) events)
 
 make_staves :: Config -> String -> TimeSignature -> [Event] -> [Staff]
 make_staves config clef time_sig events =
-    [ (clef, inst, convert_notes config time_sig inst_events)
+    [ (clef, inst, measures inst_events)
     | (inst, inst_events) <- Seq.keyed_group_on event_instrument events
     ]
+    where
+    measures inst_events = split_measures time_sig
+        (convert_notes config time_sig inst_events)
 
 inst_name :: Score.Instrument -> String
 inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
-
-type Staff = (Clef, Score.Instrument, [Note])
 
 ly_file :: Score -> [Staff] -> Doc
 ly_file (Score title time_sig _clef (key, mode)) staves =
@@ -363,7 +384,7 @@ ly_file (Score title time_sig _clef (key, mode)) staves =
     $+$ ">>"
     $+$ ">>" <+> "}"
     where
-    mkstaff (clef, inst, notes) = command "new" <+> "Staff"
+    mkstaff (clef, inst, measures) = command "new" <+> "Staff"
         <+> "{"
             <+> command "clef" <+> string clef <+> "{"
             <+> command "key" <+> PP.text key
@@ -371,9 +392,17 @@ ly_file (Score title time_sig _clef (key, mode)) staves =
             <+> command "time" <+> PP.text (to_lily time_sig)
             $+$ set "Staff.instrumentName" (string (inst_name inst))
             $+$ set "Staff.shortInstrumentName" (string (inst_name inst))
-            $+$ brackets mempty (map (PP.text . to_lily) notes)
+            $+$ brackets mempty [show_measures measures]
             <+> "}"
         <+> "}"
+    -- Show 4 measures per line and comment with the measure number.
+    show_measures measures =
+        vsep $ zipWith measure_group [0, 4 ..] (group 4 measures)
+    measure_group num measures =
+        PP.hsep (map show_measure measures) <+> PP.text ("% " ++ show num)
+    show_measure notes = PP.hsep (map (PP.text . to_lily) notes) <+> PP.char '|'
+    group _ [] = []
+    group n ms = let (pre, post) = splitAt n ms in pre : group n post
 
 command :: String -> Doc
 command text = PP.char '\\' <> PP.text text
