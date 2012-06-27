@@ -127,8 +127,8 @@ note_time = note_dur_to_time . note_duration
 
 -- | Turn Events, which are in absolute Time, into Notes, which are divided up
 -- into tied Durations depending on the time signature.
-convert_notes :: Config -> TimeSignature -> [Event] -> [Note]
-convert_notes config sig events = go Nothing 0 events
+convert_notes :: Config -> TimeSignature -> Time -> [Event] -> [Note]
+convert_notes config sig end events = go Nothing 0 events
     where
     go :: Maybe String -> Time -> [Event] -> [Note]
     go _ prev [] = trailing_rests prev
@@ -157,11 +157,10 @@ convert_notes config sig events = go Nothing 0 events
         | prev < start = map rest $ convert_duration sig
             (config_dotted_rests config) prev (start - prev)
         | otherwise = []
-    trailing_rests end
-        | remaining == 0 = []
-        | otherwise = map rest $
-            convert_duration sig (config_dotted_rests config) end remaining
-        where remaining = measure_time sig - end
+
+    trailing_rests prev = map rest $
+        convert_duration sig (config_dotted_rests config) prev
+            (max 0 (end - prev))
 
 -- | Guess a dynamic from the dyn control.
 get_dynamic :: [(Double, String)] -> Double -> String
@@ -361,8 +360,17 @@ make_staves config clef time_sig events =
     | (inst, inst_events) <- Seq.keyed_group_on event_instrument events
     ]
     where
+    end = round_up (measure_time time_sig) $ Maybe.fromMaybe 0 $
+        Seq.maximum (map event_end events)
     measures inst_events = split_measures time_sig
-        (convert_notes config time_sig inst_events)
+        (convert_notes config time_sig end inst_events)
+
+round_up :: (Integral a) => a -> a -> a
+round_up interval n
+    | m == 0 = n
+    | otherwise = (d+1) * interval
+    where
+    (d, m) = n `divMod` interval
 
 inst_name :: Score.Instrument -> String
 inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name

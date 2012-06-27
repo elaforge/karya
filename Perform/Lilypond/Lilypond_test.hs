@@ -24,10 +24,11 @@ config :: Lilypond.Config
 config = Lilypond.Config False []
 
 test_convert_notes = do
-    let f sig = map Lilypond.to_lily . Lilypond.convert_notes config sig
+    let f sig = map Lilypond.to_lily . Lilypond.convert_notes config sig whole
             . map mkevent
         s44 = sig 4 4
     equal (f s44 [(0, 1, "a"), (1, 1, "b")]) ["a4", "b4", "r2"]
+
     -- Rests are not dotted, even when they could be.
     equal (f s44 [(0, 1, "a"), (1.5, 1, "b")])
         ["a4", "r8", "b8~", "b8", "r8", "r4"]
@@ -37,7 +38,7 @@ test_convert_notes = do
         ["a8", "b4", "c8", "r2"]
 
 test_chords = do
-    let f = map Lilypond.to_lily . Lilypond.convert_notes config (sig 4 4)
+    let f = map Lilypond.to_lily . Lilypond.convert_notes config (sig 4 4) whole
             . map mkevent
     -- Homogenous durations.
     equal (f [(0, 1, "a"), (0, 1, "c")])
@@ -68,11 +69,10 @@ test_make_ly = do
             -- complicated rhythm
             [ (">s/i1", [(0, 1, "4c"), (1.5, 2, "4d#")], [])
             -- rhythm starts after 0, long multi measure note
-            , (">s/i2", [(1, 1, "4g"), (2, 16, "3a")], [])
+            , (">s/i2", [(1, 1, "4g"), (2, 12, "3a")], [])
             ]
         extract_staff (clef, inst, measures) = (clef, Lilypond.inst_name inst,
             map (map Lilypond.to_lily) measures)
-    pprint (map extract_staff staves)
     equal (map extract_staff staves)
         [ ("treble", "i1",
             [["c'4", "r8", "ds'8~", "ds'4.", "r8"], ["r1"], ["r1"], ["r1"]])
@@ -132,3 +132,6 @@ mkevent_inst (start, dur, pitch, inst) =
 sig :: Int -> Int -> Lilypond.TimeSignature
 sig num denom = Lilypond.TimeSignature num dur
     where Just dur = Lilypond.read_duration (show denom)
+
+whole :: Lilypond.Time
+whole = Lilypond.time_per_whole

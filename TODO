@@ -41,7 +41,7 @@ UNSORTED
     * optionally emit StaffGroup
     * put measure marks and measure number comments in the output to make it
       easier to read
-    - need to pad all parts with rests until the end of the last one
+    * need to pad all parts with rests until the end of the last one
     - wrap output at 74 columns
     - can I make a click on a note in the pdf highlight in the sequencer?
     - support dynamics, I think I can notice a change in the dyn control?
