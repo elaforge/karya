@@ -43,6 +43,7 @@ type UiUpdate = Update Block.Track StateUpdate
 data CmdUpdate =
     CmdTrackEvents TrackId ScoreTime ScoreTime
     | CmdTrackAllEvents TrackId
+    | CmdRuler RulerId Ruler.Ruler
     | CmdBringToFront ViewId
     deriving (Eq, Show)
 
@@ -198,6 +199,7 @@ to_display (StateUpdate {}) = Nothing
 to_ui :: CmdUpdate -> UiUpdate
 to_ui (CmdTrackEvents track_id s e) = TrackUpdate track_id (TrackEvents s e)
 to_ui (CmdTrackAllEvents track_id) = TrackUpdate track_id TrackAllEvents
+to_ui (CmdRuler ruler_id ruler) = RulerUpdate ruler_id ruler
 to_ui (CmdBringToFront view_id) = ViewUpdate view_id BringToFront
 
 -- | Pull the CmdUpdate out of a UiUpdate, if any.  Discard BringToFront since

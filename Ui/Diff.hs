@@ -25,7 +25,6 @@ import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -67,8 +66,9 @@ diff cmd_updates st1 st2 = fmap postproc $ run $ do
         Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2)
     mapM_ (uncurry3 diff_track) $
         Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
-    mapM_ (uncurry3 diff_ruler) $
-        Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2)
+    -- I don't diff rulers, since they have lots of things in them and rarely
+    -- change.  But that means I need the CmdUpdate hack, and modifications
+    -- must be done through State.modify_ruler.
     diff_state st1 st2
     where
     -- Here's where the three different kinds of updates come together.
@@ -201,15 +201,6 @@ diff_track track_id track1 track2 = do
         emit $ Update.TrackBg (Track.track_bg track2)
     when (unequal Track.track_render) $
         emit $ Update.TrackRender (Track.track_render track2)
-
-diff_ruler :: RulerId -> Ruler.Ruler -> Ruler.Ruler -> DiffM ()
-diff_ruler ruler_id ruler1 ruler2 = do
-    -- This does a complete compare of all the marks in all the rulers after
-    -- each msg receive.  There shouldn't ever be that many rulers, but if this
-    -- gets slow I can do something like insist marklist contents are immutable
-    -- and only check names.
-    when (ruler1 /= ruler2) $
-        change $ Update.RulerUpdate ruler_id ruler2
 
 -- ** state
 

@@ -409,7 +409,12 @@ undump_diff state = foldM apply (state, [])
             -- only on one track at a time.
             let event_updates = Diff.track_diff state state_to tid
             return (state_to, event_updates ++ updates)
-        ["rulers", ns, name] -> add ns name Types.RulerId State.rulers
+        ["rulers", ns, name] -> do
+            (state_to, updates) <- add ns name Types.RulerId State.rulers
+            rid <- path_to_id Types.RulerId ns name
+            let ruler_update = maybe [] ((:[]) . Update.CmdRuler rid)
+                    (Map.lookup rid (State.state_rulers state_to))
+            return (state_to, ruler_update ++ updates)
         ["config"] -> do
             val <- decode path bytes
             return ((State.config #= val) state, updates)
