@@ -332,8 +332,11 @@ dump_diff track_dir state =
                     Git.Add (id_to_path track_id) (Serialize.encode track)
         | otherwise = Left $ "update for nonexistent track_id: "
             ++ Pretty.pretty u
-    mk (Update.RulerUpdate ruler_id ruler) =
-        Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
+    mk (Update.RulerUpdate ruler_id)
+        | Just ruler <- Map.lookup ruler_id (State.state_rulers state) =
+            Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
+        | otherwise = Left $ "update for nonexistent ruler_id: "
+            ++ Pretty.pretty ruler_id
     mk (Update.StateUpdate update) = case update of
         Update.Config config ->
             Right $ Git.Add "config" (Serialize.encode config)
@@ -412,9 +415,7 @@ undump_diff state = foldM apply (state, [])
         ["rulers", ns, name] -> do
             (state_to, updates) <- add ns name Types.RulerId State.rulers
             rid <- path_to_id Types.RulerId ns name
-            let ruler_update = maybe [] ((:[]) . Update.CmdRuler rid)
-                    (Map.lookup rid (State.state_rulers state_to))
-            return (state_to, ruler_update ++ updates)
+            return (state_to, [Update.CmdRuler rid] ++ updates)
         ["config"] -> do
             val <- decode path bytes
             return ((State.config #= val) state, updates)

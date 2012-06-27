@@ -337,7 +337,7 @@ run_update _ set_style (Update.TrackUpdate track_id update) = do
             BlockC.update_entire_track False view_id tracknum tracklike
                 merged set_style
 
-run_update _ set_style (Update.RulerUpdate ruler_id _ruler) = do
+run_update _ set_style (Update.RulerUpdate ruler_id) = do
     blocks <- State.blocks_with_ruler ruler_id
     let tinfo = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]

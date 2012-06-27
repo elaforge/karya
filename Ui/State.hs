@@ -1252,10 +1252,9 @@ destroy_ruler ruler_id = do
 modify_ruler :: (M m) => RulerId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
 modify_ruler ruler_id f = do
     ruler <- get_ruler ruler_id
-    let new = f ruler
-    update $ Update.CmdRuler ruler_id new
     modify $ \st ->
-        st { state_rulers = Map.insert ruler_id new (state_rulers st) }
+        st { state_rulers = Map.insert ruler_id (f ruler) (state_rulers st) }
+    update $ Update.CmdRuler ruler_id
 
 -- * search
 

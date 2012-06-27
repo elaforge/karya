@@ -43,7 +43,7 @@ type UiUpdate = Update Block.Track StateUpdate
 data CmdUpdate =
     CmdTrackEvents TrackId ScoreTime ScoreTime
     | CmdTrackAllEvents TrackId
-    | CmdRuler RulerId Ruler.Ruler
+    | CmdRuler RulerId
     | CmdBringToFront ViewId
     deriving (Eq, Show)
 
@@ -53,7 +53,7 @@ data Update t u
     | TrackUpdate TrackId TrackUpdate
     -- | Since I expect rulers to be changed infrequently, the only kind of
     -- ruler update is a full update.
-    | RulerUpdate RulerId Ruler.Ruler
+    | RulerUpdate RulerId
     | StateUpdate u
     deriving (Eq, Show, Generics.Typeable)
 
@@ -107,7 +107,7 @@ instance DeepSeq.NFData (Update t u) where
         ViewUpdate view_id update -> view_id `seq` update `seq` ()
         BlockUpdate block_id update -> block_id `seq` update `seq` ()
         TrackUpdate track_id update -> track_id `seq` update `seq` ()
-        RulerUpdate ruler_id ruler -> ruler_id `seq` ruler `seq` ()
+        RulerUpdate ruler_id -> ruler_id `seq` ()
         StateUpdate u -> u `seq` ()
 
 instance (Pretty.Pretty t, Pretty.Pretty u) => Pretty.Pretty (Update t u) where
@@ -120,9 +120,8 @@ instance (Pretty.Pretty t, Pretty.Pretty u) => Pretty.Pretty (Update t u) where
         TrackUpdate track_id update ->
             Pretty.constructor "TrackUpdate"
                 [Pretty.format track_id, Pretty.format update]
-        RulerUpdate ruler_id update ->
-            Pretty.constructor "RulerUpdate"
-                [Pretty.format ruler_id, Pretty.format update]
+        RulerUpdate ruler_id ->
+            Pretty.constructor "RulerUpdate" [Pretty.format ruler_id]
         StateUpdate update ->
             Pretty.constructor "StateUpdate" [Pretty.format update]
 
@@ -193,13 +192,13 @@ to_display (BlockUpdate bid update) = BlockUpdate bid <$> case update of
     InsertTrack {} -> Nothing
     BlockTrack {} -> Nothing
 to_display (TrackUpdate tid update) = Just $ TrackUpdate tid update
-to_display (RulerUpdate rid ruler) = Just $ RulerUpdate rid ruler
+to_display (RulerUpdate rid) = Just $ RulerUpdate rid
 to_display (StateUpdate {}) = Nothing
 
 to_ui :: CmdUpdate -> UiUpdate
 to_ui (CmdTrackEvents track_id s e) = TrackUpdate track_id (TrackEvents s e)
 to_ui (CmdTrackAllEvents track_id) = TrackUpdate track_id TrackAllEvents
-to_ui (CmdRuler ruler_id ruler) = RulerUpdate ruler_id ruler
+to_ui (CmdRuler ruler_id) = RulerUpdate ruler_id
 to_ui (CmdBringToFront view_id) = ViewUpdate view_id BringToFront
 
 -- | Pull the CmdUpdate out of a UiUpdate, if any.  Discard BringToFront since
