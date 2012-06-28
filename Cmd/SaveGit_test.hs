@@ -123,10 +123,9 @@ checkpoint_sequence repo actions = apply (State.empty, Nothing) actions
         return $ (state, commit) : rest
 
 diff :: State.State -> State.StateId a -> (State.State, [Update.UiUpdate])
-diff state modify = case Diff.diff cmd_updates state state2 of
-        Left err -> error $ "diff: " ++ show err
-        Right (ui_updates, _) -> (state2, ui_updates)
+diff state modify = (state2, ui_updates)
     where
+    (ui_updates, _) = Diff.diff cmd_updates state state2
     (state2, cmd_updates) = case State.run_id state modify of
         Left err -> error $ "State.run: " ++ show err
         Right (_, state, cmd_updates) -> (state, cmd_updates)

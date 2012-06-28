@@ -263,11 +263,8 @@ cmd_sync_status ui_from cmd_from = do
     zoom_update _ = Nothing
 
 view_updates :: State.State -> State.State -> [Update.UiUpdate]
-view_updates ui_from ui_to = case Diff.run diff of
-    Left _ -> []
-    Right (updates, _) -> updates
-    where
-    diff = Diff.diff_views ui_from ui_to
+view_updates ui_from ui_to = fst $ Diff.run $
+    Diff.diff_views ui_from ui_to
         (State.state_views ui_from) (State.state_views ui_to)
 
 

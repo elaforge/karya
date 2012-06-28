@@ -523,9 +523,7 @@ run_cached result state1 modify =
         (root_id state2)
     where
     (_, state2, cmd_updates) = run state1 modify
-    (updates, _) = case Diff.diff cmd_updates state1 state2 of
-        Left err -> error ("diff error: " ++ err)
-        Right diff_updates -> diff_updates
+    (updates, _) = Diff.diff cmd_updates state1 state2
     damage = Diff.derive_diff state1 state2 updates
 
 insert_event :: (State.M m) => String -> ScoreTime -> ScoreTime -> String
@@ -541,9 +539,7 @@ score_damage create modify = Diff.derive_diff state1 state2 updates
     where
     (_, state1) = UiTest.run State.empty create
     (_, state2, cmd_updates) = run state1 modify
-    (updates, _) = case Diff.diff cmd_updates state1 state2 of
-        Left err -> error ("diff error: " ++ err)
-        Right diff_updates -> diff_updates
+    (updates, _) = Diff.diff cmd_updates state1 state2
 
 diff_events :: Derive.Result -> Derive.Result
     -> [Either DiffEvent DiffEvent]

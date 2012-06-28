@@ -465,8 +465,7 @@ sync_states st1 st2 = sync st1 st2 []
 
 sync :: State.State -> State.State -> [Update.CmdUpdate] -> IO ()
 sync st1 st2 cmd_updates = do
-    let (_cupdates, dupdates) = right "sync: diff" $
-            Diff.diff cmd_updates st1 st2
+    let (_cupdates, dupdates) = Diff.diff cmd_updates st1 st2
     pmlist "cmd updates" cmd_updates
     pmlist "updates" dupdates
     result <- Sync.sync Map.empty Internal.set_style st2 dupdates

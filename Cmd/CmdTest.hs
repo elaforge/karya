@@ -130,9 +130,7 @@ extract_derive_result res =
 update_performance :: State.State -> State.State -> Cmd.State
     -> [Update.CmdUpdate] -> IO Cmd.State
 update_performance ui_from ui_to cmd_state cmd_updates = do
-    (cupdates, _dupdates) <- case Diff.diff cmd_updates ui_from ui_to of
-        Left err -> error $ "diff error: " ++ err
-        Right updates -> return updates
+    let (cupdates, _) = Diff.diff cmd_updates ui_from ui_to
     chan <- Chan.newChan
     cstate <- Performance.update_performance 0
         (\bid status -> Chan.writeChan chan (bid, status))

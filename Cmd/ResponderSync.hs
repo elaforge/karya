@@ -41,20 +41,17 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
     -- but it's nice to see that it's definitely happening before syncs.
     verify_state ui_to
 
-    ui_updates <- case Diff.diff cmd_updates ui_from ui_to of
-        Left err -> Log.error ("diff error: " ++ err) >> return []
-        Right (ui_updates, display_updates) -> do
-            -- unless (null display_updates) $
-            --     Trans.liftIO $ putStrLn $ "update: "
-            --          ++ PPrint.pshow display_updates
-            when (any modified_view ui_updates) $
-                MVar.modifyMVar_ updater_state (const (return ui_to))
-            let tsigs = get_track_signals
-                    (State.config_root (State.state_config ui_to)) cmd_state
-            err <- sync_func tsigs Internal.set_style ui_to display_updates
-            when_just err $ \err ->
-                Log.error $ "syncing updates: " ++ Pretty.pretty err
-            return ui_updates
+    let (ui_updates, display_updates) = Diff.diff cmd_updates ui_from ui_to
+    -- unless (null display_updates) $
+    --     Trans.liftIO $ putStrLn $ "update: "
+    --          ++ PPrint.pshow display_updates
+    when (any modified_view ui_updates) $
+        MVar.modifyMVar_ updater_state (const (return ui_to))
+    let tsigs = get_track_signals
+            (State.config_root (State.state_config ui_to)) cmd_state
+    err <- sync_func tsigs Internal.set_style ui_to display_updates
+    when_just err $ \err ->
+        Log.error $ "syncing updates: " ++ Pretty.pretty err
 
     -- Kick off the background derivation threads.
     cmd_state <- Performance.update_performance

@@ -8,7 +8,6 @@ module Ui.Diff (
     , diff, derive_diff, track_diff
     , diff_views
 ) where
-import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer
 
@@ -34,15 +33,8 @@ import qualified Derive.Deriver.Monad as Derive
 import Types
 
 
-type DiffError = String
-
 type DiffM a = Logger.LoggerT (Either Update.UiUpdate Update.DisplayUpdate)
-    (Error.ErrorT DiffError Identity.Identity) a
-
--- TODO ErrorT is unused, if it continues to be unused, remove it and now
--- callers don't have to deal with Either
--- throw :: String -> DiffM a
--- throw = Error.throwError
+    Identity.Identity a
 
 change :: Update.UiUpdate -> DiffM ()
 change = Logger.logs . (:[]) . Left
@@ -50,14 +42,13 @@ change = Logger.logs . (:[]) . Left
 change_display :: Update.DisplayUpdate -> DiffM ()
 change_display = Logger.logs . (:[]) . Right
 
-run :: DiffM () -> Either DiffError ([Update.UiUpdate], [Update.DisplayUpdate])
-run = fmap Seq.partition_either . Identity.runIdentity . Error.runErrorT
-    . Logger.exec
+run :: DiffM () -> ([Update.UiUpdate], [Update.DisplayUpdate])
+run = Seq.partition_either . Identity.runIdentity . Logger.exec
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
 diff :: [Update.CmdUpdate] -> State.State -> State.State
-    -> Either DiffError ([Update.UiUpdate], [Update.DisplayUpdate])
-diff cmd_updates st1 st2 = fmap postproc $ run $ do
+    -> ([Update.UiUpdate], [Update.DisplayUpdate])
+diff cmd_updates st1 st2 = postproc $ run $ do
     -- View diff needs to happen first, because other updates may want to
     -- update the new view (technically these updates are redundant, but they
     -- don't hurt and filtering them would be complicated).
