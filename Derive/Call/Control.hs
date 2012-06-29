@@ -30,6 +30,8 @@ control_calls = Derive.make_calls
     , ("e", c_exponential)
     , ("e>", c_exponential_next)
     , ("n", c_neighbor)
+    , ("d", c_down)
+    , ("u", c_up)
 
     -- not sure which one I'll like better
     , ("`ped`", c_pedal)
@@ -90,13 +92,43 @@ c_exponential_next = Derive.generator1 "exponential-next" $ \args ->
 --
 -- [time /ScoreOrReal/ @.3@] Time taken to get to 0.
 c_neighbor :: Derive.ControlCall
-c_neighbor = Derive.generator1 "neighbor" $ \args ->
-    CallSig.call2 args (optional "neighbor" 1,
-        optional "time" (TrackLang.real 0.1)) $
+c_neighbor = Derive.generator1 "neighbor" $ \args -> CallSig.call2 args
+    (optional "neighbor" 1, optional "time" (TrackLang.real 0.1)) $
     \neighbor (TrackLang.DefaultReal time) -> do
         (start, end) <- Util.duration_from_start args time
         srate <- Util.get_srate
         return $ interpolator srate id True start neighbor end 0
+
+-- | Descend with a given slope until the value reaches 0 or the next event.
+c_down :: Derive.ControlCall
+c_down = Derive.generator1 "down" $ \args -> slope args $
+    \start next prev_y speed ->
+        let diff = RealTime.to_seconds (next - start) * speed
+            end = min next
+                (start + RealTime.seconds prev_y / RealTime.seconds speed)
+        in (end, max 0 (prev_y - diff))
+
+-- | Ascend with a given slope until the value reaches 1 or the next event.
+c_up :: Derive.ControlCall
+c_up = Derive.generator1 "up" $ \args -> slope args $
+    \start next prev_y speed ->
+        let diff = RealTime.to_seconds (next - start) * speed
+            end = min next
+                (start + RealTime.seconds (1-prev_y) / RealTime.seconds speed)
+        in (end, min 1 (prev_y + diff))
+
+slope :: Derive.PassedArgs Signal.Control
+    -> (RealTime -> RealTime -> Signal.Y -> Double -> (RealTime, Signal.Y))
+    -> Derive.Deriver Signal.Control
+slope args f = CallSig.call1 args (optional "speed" 1) $ \speed ->
+    case Args.prev_val args of
+        Nothing -> return Signal.empty
+        Just (_, prev_y) -> do
+            start <- Args.real_start args
+            next <- Derive.real (Args.end args)
+            srate <- Util.get_srate
+            let (end, dest) = f start next prev_y speed
+            return $ interpolator srate id True start prev_y end dest
 
 -- | Unlike most control events, this uses a duration.  Set the control to the
 -- given value for the event's duration, and reset to the old value
@@ -138,7 +170,7 @@ interpolate_prev f args val = do
 -- here.
 interpolate_next :: (Double -> Signal.Y) -> Derive.PassedArgs Signal.Control
     -> Signal.Y -> Maybe TrackLang.DefaultReal
-    -- ^ if given, end at this time, if not end at the next event
+    -- ^ if given, end after this duration, if not end at the next event
     -> Derive.Deriver Signal.Control
 interpolate_next f args val maybe_time = do
     (start, end) <- case maybe_time of
@@ -149,13 +181,11 @@ interpolate_next f args val maybe_time = do
     srate <- Util.get_srate
     return $ case Args.prev_val args of
         Nothing -> Signal.signal [(start, val)]
-        Just (_, prev_y) ->
-            interpolator srate f True start prev_y end val
+        Just (_, prev_y) -> interpolator srate f True start prev_y end val
 
 interpolator :: RealTime -> (Double -> Double) -> Interpolator
-interpolator srate f include_initial x0 y0 x1 y1
-    | include_initial = Signal.signal sig
-    | otherwise = Signal.signal (drop 1 sig)
+interpolator srate f include_initial x0 y0 x1 y1 =
+    Signal.signal $ (if include_initial then id else drop 1) sig
     where
     sig = [(x, y_of x) | x <- Seq.range_end x0 x1 srate]
     y_of = Num.scale y0 y1 . f . Num.normalize (secs x0) (secs x1) . secs
