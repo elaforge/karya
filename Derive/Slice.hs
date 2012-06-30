@@ -23,10 +23,11 @@
     to do it though!
 -}
 module Derive.Slice where
-import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
+import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
 import qualified Util.Then as Then
@@ -34,8 +35,11 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 
+import qualified Derive.Call.Control as Control
+import qualified Derive.Call.Pitch as Pitch
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.TrackInfo as TrackInfo
-import qualified Derive.TrackLang as TrackLang
+
 import Types
 
 
@@ -140,35 +144,42 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
         where sliced_start = fst (State.tevents_range track)
     -- Note tracks don't include pre and post events like control tracks.
     events track
-        | TrackInfo.is_note_track (State.tevents_title track) =
+        | TrackInfo.is_note_track title =
             (if exclusive then Events.remove_event start else id)
                 (Events.in_range start end es)
-        | otherwise = events_around after start end es
-        where es = State.tevents_events track
+        | otherwise = events_around (TrackInfo.is_pitch_track title)
+            after start end es
+        where
+        es = State.tevents_events track
+        title = State.tevents_title track
 
     strip (Tree.Node track subs)
         | State.tevents_events track == Events.empty =
             concatMap strip subs
         | otherwise = [Tree.Node track (concatMap strip subs)]
 
-events_around :: Int -> ScoreTime -> ScoreTime -> Events.Events -> Events.Events
-events_around after start end events = Events.from_asc_list $
-    prev ++ Then.takeWhile ((<end) . fst) (take after) post
+events_around :: Bool -> Int -> ScoreTime -> ScoreTime -> Events.Events
+    -> Events.Events
+events_around is_pitch_track after start end events =
+    Events.from_asc_list $
+        List.reverse prev ++ Then.takeWhile ((<end) . fst) (take after) post
     where
     (pre, post) = Events.split start events
     prev = take_repeats $ case post of
         at@(p, _) : _ | p == start -> at : pre
         _ -> pre
-    -- This is an icky hack.  The problem is that the ' call just repeats the
-    -- previous value.  So slicing back to it doesn't do any good, I need the
-    -- event before it.  The problem is that this low level machinery isn't
+    -- This is an icky hack.  The problem is that some calls rely on the
+    -- previous value.  So slicing back to them doesn't do any good, I need the
+    -- event before.  The problem is that this low level machinery isn't
     -- supposed to depend on implementation details of specific calls.
     -- TODO I would have to make the event evaluation lazy in a way that a call
     -- wanting the previous value will cause the previous value to be
     -- evaluated, and at that point I could get rid of slicing entirely.  But
     -- I can't think of how to do that at the moment.
-    take_repeats = Then.takeWhile1 ((==repeat) . Event.event_bs . snd)
-    repeat = UTF8.fromString $ (\(TrackLang.Symbol s) -> s) TrackLang.c_repeat
+    call_of = Maybe.fromMaybe "" . ParseBs.parse_call . Event.event_bs . snd
+    take_repeats = Then.takeWhile1 ((`Set.member` require_previous) . call_of)
+    require_previous = if is_pitch_track then Pitch.require_previous
+        else Control.require_previous
 
 -- | Expect a note track somewhere in the tree.  Slice the tracks above and
 -- below it to each of its events.

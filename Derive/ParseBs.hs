@@ -15,7 +15,7 @@
 module Derive.ParseBs (
     from_string, to_string, ParseExpr
     , parse_expr, parse_num_expr, parse_control_title
-    , parse_val
+    , parse_val, parse_call
 
     -- * expand macros
     , expand_macros
@@ -40,13 +40,16 @@ import qualified Numeric
 
 import Util.Control
 import qualified Util.ParseBs as Parse
+import qualified Util.Seq as Seq
+
+import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 
 
-type Text = B.ByteString
+type Text = Event.Text
 
 from_string :: String -> Text
 from_string = UTF8.fromString
@@ -72,6 +75,14 @@ parse_control_title =
 -- Symbols, which are still Strings.
 parse_val :: String -> Either String TrackLang.Val
 parse_val = Parse.parse_all (Parse.lexeme p_val) . from_string
+
+-- | Extract only the call part of the text.
+parse_call :: Text -> Maybe String
+parse_call text = case parse_expr text of
+    Right expr -> case Seq.last expr of
+        Just (TrackLang.Call (TrackLang.Symbol call) _) -> Just call
+        _ -> Nothing
+    _ -> Nothing
 
 parse :: A.Parser a -> Text -> Either String a
 parse p = Parse.parse_all p . B.dropWhile Char.isSpace . strip_comment

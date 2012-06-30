@@ -39,13 +39,15 @@ import Types
 
 data Event = Event {
     -- | UTF8 encoded.
-    event_bs :: !B.ByteString
+    event_bs :: !Text
     , event_duration :: !ScoreTime
     , event_style :: !Style.StyleId
     -- | If this event was integrated from another event as by
     -- "Derive.Call.Integrate", this will have the stack of the source event.
     , event_stack :: !(Maybe Stack.Stack)
     } deriving (Eq, Show, Read)
+
+type Text = B.ByteString
 
 instance DeepSeq.NFData Event where
     rnf (Event bs dur style stack) =

@@ -1,4 +1,6 @@
 UNSORTED
+  * 'd' and 'u' calls also need to slice to the previous one.  I need some
+    kind of annotation that says a call depends entirely on the previous value.
   * tremolo ornament
   * backspace in NoEdit mode should advance
   * hold down arrow doesn't work when kbd entry is on
@@ -275,7 +277,7 @@ UNSORTED
     Git docs:
       http://progit.org/book/ch9-2.html
 
-  - need control and pitch call that drops down at a given slope
+  * need control and pitch call that drops down at a given slope
     Why isn't i> sufficient?  Well, you have to pick a bottom pitch instead of
     a slope.
   - It can be really confusing how undo and redo makes windows pop up and
@@ -383,7 +385,7 @@ UNSORTED
     also test some mmc commands.  How does reaper support control surfaces?
 
   input:
-    - should val edit on note tracks advance on backspace?  I should have
+    * should val edit on note tracks advance on backspace?  I should have
       a consistent story about when the cursor advances and when it doesn't.
     - flag for unpitched instruments, so they don't get pitch tracks
 

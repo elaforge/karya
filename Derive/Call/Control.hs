@@ -1,7 +1,11 @@
 -- | Basic calls for control tracks.
 module Derive.Call.Control where
+import qualified Data.Set as Set
+
+import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -9,7 +13,6 @@ import Derive.CallSig (required, optional)
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 
-import Util.Control
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
@@ -37,6 +40,11 @@ control_calls = Derive.make_calls
     , ("`ped`", c_pedal)
     , ("h", c_pedal)
     ]
+
+-- | This should contain the calls that require the previous value.  It's used
+-- by a hack in 'Derive.Slice.slice'.
+require_previous :: Set.Set String
+require_previous = Set.fromList ["'", "u", "d"]
 
 c_set :: Derive.ControlCall
 c_set = Derive.generator1 "set" $ \args -> CallSig.call1 args

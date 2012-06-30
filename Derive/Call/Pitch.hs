@@ -1,6 +1,7 @@
 -- | Create val calls for scale degrees.
 module Derive.Call.Pitch where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Num as Num
@@ -83,6 +84,11 @@ pitch_calls = Derive.make_calls
     , ("u", c_up)
     , ("d", c_down)
     ]
+
+-- | This should contain the calls that require the previous value.  It's used
+-- by a hack in 'Derive.Slice.slice'.
+require_previous :: Set.Set String
+require_previous = Set.fromList ["'", "u", "d"]
 
 c_set :: Derive.PitchCall
 c_set = Derive.generator1 "set" $ \args -> CallSig.call1 args
