@@ -58,6 +58,14 @@ import Types
 data TransposeType = Diatonic | Chromatic deriving (Show)
 data TimeType = Real | Score deriving (Eq, Show)
 
+split_transpose :: Pitch.Transpose -> (Double, TransposeType)
+split_transpose (Pitch.Chromatic c) = (c, Chromatic)
+split_transpose (Pitch.Diatonic c) = (c, Diatonic)
+
+join_transpose :: Double -> TransposeType -> Pitch.Transpose
+join_transpose c Chromatic = Pitch.Chromatic c
+join_transpose c Diatonic = Pitch.Diatonic c
+
 with_controls :: (FixedList.FixedList list) => Derive.PassedArgs d
     -> list TrackLang.ValControl -> (list Signal.Y -> Derive.Deriver a)
     -> Derive.Deriver a

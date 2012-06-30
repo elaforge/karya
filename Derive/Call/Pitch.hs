@@ -80,7 +80,8 @@ pitch_calls = Derive.make_calls
     , ("e", c_exponential)
     , ("e>", c_exponential_next)
     , ("n", c_neighbor)
-    , ("neighbor", c_neighbor)
+    , ("u", c_up)
+    , ("d", c_down)
     ]
 
 c_set :: Derive.PitchCall
@@ -143,6 +144,25 @@ c_neighbor = Derive.generator1 "neighbor" $ \args ->
         let pitch1 = Pitches.transpose neighbor pitch
         make_interpolator id True start pitch1 end pitch
 
+c_up :: Derive.PitchCall
+c_up = Derive.generator1 "up" (slope 1)
+
+c_down :: Derive.PitchCall
+c_down = Derive.generator1 "down" (slope (-1))
+
+slope :: Double -> Derive.PassedArgs PitchSignal.Signal
+    -> Derive.Deriver PitchSignal.Signal
+slope sign args = CallSig.call1 args (optional "speed" (Pitch.Chromatic 1)) $
+    \speed -> case Args.prev_val args of
+        Nothing -> Util.pitch_signal []
+        Just (_, prev_y) -> do
+            start <- Args.real_start args
+            next <- Derive.real (Args.end args)
+            let diff = RealTime.to_seconds (next - start) * speed_val * sign
+                (speed_val, typ) = Util.split_transpose speed
+                dest = Pitches.transpose (Util.join_transpose diff typ) prev_y
+            make_interpolator id True start prev_y next dest
+
 -- * util
 
 type Interpolator = Bool -- ^ include the initial sample or not
@@ -182,6 +202,15 @@ interpolate_next f args pitch maybe_time = do
         Just (_, prev_y) ->
             make_interpolator f True start prev_y end pitch
 
+make_interpolator :: (Double -> Double)
+    -> Bool -- ^ include the initial sample or not
+    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
+    -> Derive.Deriver PitchSignal.Signal
+make_interpolator f include_initial x1 note1 x2 note2 = do
+    scale <- Util.get_scale
+    srate <- Util.get_srate
+    return $ interpolator scale srate f include_initial x1 note1 x2 note2
+
 interpolator :: Scale.Scale -> RealTime -> (Double -> Double)
     -> Interpolator
 interpolator scale srate f include_initial x1 note1 x2 note2 =
@@ -191,12 +220,3 @@ interpolator scale srate f include_initial x1 note1 x2 note2 =
     pitch_of = Pitches.interpolated note1 note2
         . f . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds
-
-make_interpolator :: (Double -> Double)
-    -> Bool -- ^ include the initial sample or not
-    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
-    -> Derive.Deriver PitchSignal.Signal
-make_interpolator f include_initial x1 note1 x2 note2 = do
-    scale <- Util.get_scale
-    srate <- Util.get_srate
-    return $ interpolator scale srate f include_initial x1 note1 x2 note2
