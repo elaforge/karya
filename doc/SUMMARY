@@ -165,19 +165,19 @@ awkward it is to write a melody because that's not the kind of music they do.
 Those things just aren't in the academic computer music idiom.
 
 - Commercial sequencers: cubase, logic, sonar, etc.  They're designed to work
-as much like a 4-track as possible to not scare musicians, so they're quite
-inflexible.  Generally speaking, you record on your keyboard, do some limited
-editing, and that's that.  But on the other hand, being all about conservative
-trappings, they can do melodies and harmonies and instant feedback pretty well.
-But because of their 4-track origins, they're entirely oriented around
-recording, and because the only MIDI instrument that caught on is the keyboard,
-you wind up with everything sounding like it's played on a keyboard.  Perhaps
-this is self-supporting too: whole genres have grown up around music that
-sounds like it's played on a keyboard.  So those programs attract people who
-want to do that kind of music, and no one minds much how awkward it is to
-write in a non-keyboard-like idiom, or something in a non 12-TET scale, or an
-instrument whose part is derived from another according to complicated rules.
-Those things just aren't in the popular electronic music idiom.
+like a 4-track to not scare musicians, so they're inflexible.  Generally
+speaking, you record on your keyboard, do some limited editing, and that's
+that.  But on the other hand, being all about conservative trappings, they can
+do melodies and harmonies and instant feedback pretty well.  But because of
+their 4-track origins, they're entirely oriented around recording, and because
+the only MIDI instrument that caught on is the keyboard, you wind up with
+everything sounding like it's played on a keyboard.  Perhaps this is
+self-supporting too: whole genres have grown up around music that sounds like
+it's played on a keyboard.  So those programs attract people who want to do
+that kind of music, and no one minds much how awkward it is to write in a
+non-keyboard-like idiom, or something in a non 12-TET scale, or an instrument
+whose part is derived from another according to complicated rules.  Those
+things just aren't in the popular electronic music idiom.
 
 - There's actually another kind of music programming language, the "livecoding"
 ones, which are very good at instant feedback, and seem oriented somewhat more
@@ -268,6 +268,8 @@ RealTime.  An expression consists of literals separated by spaces, and the
 first word is a "call", which is like a function call.  So `f 4 'hi'` is a
 call to `f` with two arguments.  The first word is allowed to have any
 non-space characters in it, so `5( 4 'hi'` is a call to `5(`.
+
+Details on the syntax are in in "Derive.TrackLang".
 
 [ explanation of the standard derivation from a high level point of view ]
 [ then put language ref style stuff ]

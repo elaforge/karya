@@ -25,7 +25,7 @@ want to introduce, since you have to manually add it to a table.
 
 In fact, identifier naming is more strict than most programming languages.
 Only lowercase letters a-z, digits 0-9, and the hyphen are allowed.  IDs also
-allow `s so BlockIds can embed symbols.  This enforces a lowers-with-hyphens
+allow `s so BlockIds can embed symbols.  This enforces a lowercase-with-hyphens
 naming scheme.  The exact definition is in 'Derive.ParseBs.p_ident'.
 
 The intent of the restrictive rules are that they relieve me of the burden of
@@ -76,3 +76,4 @@ start-rnd, dur-rnd - Randomize note starts and durations.  It will only ever
 make notes shorter to avoid causing overlaps, which thanks to MIDI can cut-off
 notes prematurely.
 
+t-diatonic, t-chromatic, t-hz - ... TODO

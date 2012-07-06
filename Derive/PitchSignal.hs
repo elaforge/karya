@@ -36,6 +36,8 @@ import qualified Perform.Signal as Signal
 import Types
 
 
+-- | A pitch signal is similar to a 'Signal.Control', except that its values
+-- are 'Pitch'es instead of plain floating point values.
 data Signal = Signal {
     -- | The set of transposer signals for this scale, as documented in
     -- 'Derive.Scale.scale_transposers'.

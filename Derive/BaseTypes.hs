@@ -141,6 +141,13 @@ no_attrs = Attributes Set.empty
 
 -- * Derive.PitchSignal
 
+-- | A pitch is an abstract value that can turn a map of values into
+-- a NoteNumber.  The values are expected to contain transpositions that this
+-- Pitch understands, for example 'Derive.Score.c_chromatic' and
+-- 'Derive.Score.c_diatonic'.
+--
+-- TODO why have TypedVals, if the chromatic and diatonic transpose signals are
+-- separate?
 newtype Pitch = Pitch PitchCall
 type PitchCall = Map.Map Control TypedVal -> Either PitchError Pitch.NoteNumber
 
@@ -193,7 +200,7 @@ data Val =
     --
     -- Literal: @+attr@, @-attr@, @=attr@, @=-@ (to clear attributes).
     | VRelativeAttr RelativeAttr
-    -- | A set of Attributs for an instrument.  No literal, since you can use
+    -- | A set of Attributes for an instrument.  No literal, since you can use
     -- VRelativeAttr.
     | VAttributes Attributes
 

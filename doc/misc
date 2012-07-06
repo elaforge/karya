@@ -1,0 +1,8 @@
+    Misc things to keep in mind
+
+Keep an eye on the cache status line in logview.  If the cache is not being
+used then rederivations will start to take a long time.  For example, control
+damage is expanded based on intervening control tracks because the controls
+themselves may depend on the damaged control.  So a control track with very
+few event (e.g. only one at 0) will cause any control damage to expand quite a
+bit.
