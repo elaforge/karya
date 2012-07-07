@@ -425,23 +425,7 @@ dispatch config target = case target of
         -- shakefile runs, but that's probably ok.
         system' "rm" ["-rf", build]
         system' "mkdir" [build]
-    "doc" -> action $ do
-        hscs <- filter haddock <$> Util.findHs "*.hsc" "."
-        hs <- filter haddock <$> Util.findHs "*.hs" "."
-        need $ map (hscToHs (hscDir config)) hscs
-        system' "haddock" $
-            [ "--html", "-B", ghcLib config
-            , "--source-base=../hscolour/"
-            , "--source-module=../hscolour/%{MODULE/.//}.html"
-            , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"
-
-            , "--prologue=doc/prologue"
-            , "--optghc=-I."
-            -- This flag crashes ghc 7.0.3
-            -- , "-q", "relative" -- Source references use qualified names.
-            , "-o", build </> "doc"
-            ] ++ hs ++ map (hscToHs (hscDir config)) hscs
-        system' "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
+    "doc" -> action $ makeDocumentation config
     "checkin" -> do
         let debug = (modeToDir Debug </>)
         Shake.want [debug "browser", debug "logview", debug "make_db",
@@ -463,6 +447,27 @@ dispatch config target = case target of
     _ -> Shake.want [target]
     where
     runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
+
+makeDocumentation :: Config -> Shake.Action ()
+makeDocumentation config = do
+    hscs <- filter haddock <$> Util.findHs "*.hsc" "."
+    hs <- filter haddock <$> Util.findHs "*.hs" "."
+    need $ map (hscToHs (hscDir config)) hscs
+    system' "haddock" $
+        [ "--html", "-B", ghcLib config
+        , "--source-base=../hscolour/"
+        , "--source-module=../hscolour/%{MODULE/.//}.html"
+        , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"
+
+        , "--prologue=doc/prologue"
+        -- This flag crashes ghc 7.0.3
+        -- , "-q", "relative" -- Source references use qualified names.
+        , "-o", build </> "haddock"
+        ] ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags]
+        ++ hs ++ map (hscToHs (hscDir config)) hscs
+    system' "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
+    where
+    flags = configFlags config
 
 -- | Should this module have haddock documentation generated?
 haddock :: FilePath -> Bool

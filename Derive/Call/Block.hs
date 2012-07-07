@@ -54,8 +54,8 @@ lookup_note_block sym = fmap c_block <$> symbol_to_block_id sym
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = Derive.stream_generator ("block " ++ show block_id) $
     Note.inverting $ \args ->
-    Internal.with_stack_block block_id (Cache.caching_call run args)
-    -- ^ I have to put the block on the stack before calling 'd_block' because
+        Internal.with_stack_block block_id (Cache.caching_call run args)
+    -- I have to put the block on the stack before calling 'd_block' because
     -- 'Cache.caching_call' relies on on the block id already being on the
     -- stack.
     where
@@ -158,7 +158,7 @@ c_control_block block_id = Derive.stream_generator "control-block" run
 
 d_control_block :: BlockId -> Derive.ControlDeriver
 d_control_block block_id = Internal.with_stack_block block_id $ do
-    -- ^ Control calls aren't cached, so I can put the block stack in the
+    -- Control calls aren't cached, so I can put the block stack in the
     -- convenient place.
     blocks <- Derive.get_ui_state State.state_blocks
     when (Map.lookup block_id blocks == Nothing) $
