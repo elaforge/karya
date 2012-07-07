@@ -43,8 +43,8 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Scale.TwelveUtil as TwelveUtil
 import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -55,14 +55,14 @@ import Types
 
 type Block = (UiTest.BlockSpec, [Skeleton.Edge])
 type Track = UiTest.TrackSpec
-type Events = [(Double, Double, String)]
+type Events = [(ScoreTime, ScoreTime, String)]
 
 -- | Random length track of \"\" notes with pitches.
 simple_pitch :: Q.Gen Block
 simple_pitch = do
     ranges <- granges
     pitches <- Q.vectorOf (length ranges) gpitch
-    let ptrack = [(ScoreTime.to_double p, 0, Pitch.note_text n)
+    let ptrack = [(p, 0, Pitch.note_text n)
             | (p, n) <- zip (map fst ranges) pitches]
     return (("block", [(">", map (to_spec "") ranges), ("*", ptrack)]),
         [(1, 2)])
@@ -79,7 +79,7 @@ granges = Q.sized $ \n -> go 0 =<< Q.choose (0, n)
         return $ (start, start + dur) : rest
 
 gpitch :: Q.Gen Pitch.Note
-gpitch = Q.oneof $ map return (Map.keys Twelve.note_to_degree)
+gpitch = Q.oneof $ map return (Map.keys note_to_degree)
 
 -- | Random list of non-overlapping events, some of which are adjacent.
 gevents :: Q.Gen [Events.PosEvent]
@@ -91,9 +91,8 @@ gevent text = do
     dur <- Q.arbitrarySizedFractional
     return (abs start, Event.event text (abs dur))
 
-to_spec :: String -> (ScoreTime, ScoreTime) -> (Double, Double, String)
-to_spec text (start, dur) =
-    (ScoreTime.to_double start, ScoreTime.to_double dur, text)
+to_spec :: String -> (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime, String)
+to_spec text (start, dur) = (start, dur, text)
 
 instance Q.Arbitrary ScoreTime where
     arbitrary = ScoreTime.double <$> Q.arbitrarySizedFractional
@@ -126,14 +125,17 @@ derive_note_track state blocks (notes, samples) =
         List.mapAccumL go (state, samples) (map to_score notes)
     where
     to_score (start, dur, text) =
-        (RealTime.seconds start, RealTime.seconds dur, text)
+        (RealTime.score start, RealTime.score dur, text)
     go (prev_state, prev_samples) (start, dur, text)
         | text == "" = ((state, samples), [event state start dur])
         | otherwise = error $ "call not supported: " ++ show text
         where (state, samples) = update_state prev_samples start prev_state
-    event state start dur =
-        Score.Event start dur mempty (state_control_map state)
-            (state_pitch_signal state) Stack.empty Nothing Score.no_attrs
+    event state start dur = Score.empty_event
+        { Score.event_start = start
+        , Score.event_duration = dur
+        , Score.event_controls = state_control_map state
+        , Score.event_pitch = state_pitch_signal state
+        }
 
 data Sample = Sample {
     sample_name :: String -- ^ @*@ for pitch
@@ -174,8 +176,12 @@ update_state samples pos state = (List.foldl' go state pre, post)
 
 parse_pitch :: String -> Pitch.NoteNumber
 parse_pitch text = maybe (error $ "unparseable pitch: " ++ show text)
-    (to_nn . snd) $ Map.lookup (Pitch.Note text) Twelve.note_to_degree
-    where to_nn (Pitch.Degree d) = Pitch.NoteNumber (fromIntegral d)
+    (to_nn . snd) $ Map.lookup (Pitch.Note text) note_to_degree
+    where
+    to_nn (Pitch.Degree d) = Pitch.NoteNumber (fromIntegral d)
+
+note_to_degree :: TwelveUtil.NoteToDegree
+note_to_degree = TwelveUtil.sys_note_to_degree Twelve.system
 
 parse_control :: String -> Signal.Y
 parse_control text = Maybe.fromMaybe
@@ -209,6 +215,6 @@ extract_notes skel tracks
 make_samples :: [Track] -> [Sample]
 make_samples = Seq.merge_lists sample_pos . map make
     where
-    make (title, events) =
-        [Sample title (RealTime.seconds pos) val | (pos, _, val) <- events]
+    make (title, events) = [Sample title (RealTime.score pos) val
+        | (pos, _, val) <- events]
 
