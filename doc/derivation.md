@@ -4,6 +4,7 @@ a UI event ('Ui.Event.Event') corresponds directly to a bit of text in the
 score, a score event ('Derive.Score.Event') has a pitch signal, control
 signals, instrument, and everything else that's needed by the performer.
 
+
 ## Overview
 
 Derivation starts from a root block.  You can derive from any block, but for
@@ -19,9 +20,33 @@ Tracks are divided into two kinds: note tracks, and control tracks.
 Control tracks are further divided into tempo, control, and pitch.  The type of
 a track is indicated by its title.  Note tracks begin with `>`, pitch tracks
 begin with `*`, tempo tracks are called `tempo`, and tracks starting with
-letters set controls of that name.  Full details are in "Derive.TrackInfo".
+letters set controls of that name.  Full details are in 'Derive.TrackInfo'.
 Note tracks generate events, and control tracks put things into the dynamic
 environment.
+
+A block will generally have an optional tempo track having scope over a number
+of control or note tracks.  Note tracks will set an instrument or inherit one,
+and each have an optional pitch track, `dyn` dynamic control track, and
+possibly other control tracks.  The control tracks can either be above the
+note track and possibly apply to multiple note tracks, or below a note track
+and apply only to that note track, through a process called
+[inversion](#inverting-calls).
+
+The events in a control track are generally numbers which set the control
+signal at that point in time, or possibly calls which interpolate to create
+lines or curves, the events of a pitch track will be names of scale degrees
+and possible arguments, and the events of a note track will generally be empty
+to generate a single note, or have an ornament name to do something fancier.
+If a note track event has the name of another block, that block will be
+substituted in the place of the event---this is how you can construct scores
+hierarchically, write repeats, factor out common phrases, etc.  If a sub-block
+has a tempo track the tempos will compose, so a phrase with rubato built-in
+will also accelerate if the calling block has an accelerating tempo.
+
+Since control and pitch track calls are usually points in a curve, they tend
+to be zero duration, while note track events tend to have a duration.  There
+are exceptions, for instance a pedal or switch control might use the event
+duration, while a percussion instrument may have no need for note duration.
 
 ## dynamic environment
 
@@ -42,16 +67,17 @@ called "the environment".  As its name suggests, it implements dynamic scope:
 while values may not be mutated, they can be rebound within the dynamic scope
 of a call.
 
-Control signals are floating point values that change in time, normally ranging
-from 0--1.  Pitch signals are similar, except the values are abstract objects
-that can have other values applied to them, for instance chromatic or diatonic
-transposition, and later evaluated to a normal control signal representing
-frequency.  The warp signal is the same as a control signal, except it's used
-to control ScoreTime to RealTime mapping, as documented below.  The Environ
-('Derive.TrackLang.Environ') is different: it holds constant values
-('Derive.TrackLang.Val'), but they they may be typed.  For instance, the key of
-a section of music is stored as a string, or the current instrument or scale in
-scope is stored as a instrument or scale respectively.
+Control signals are floating point values that change in time, normally
+ranging from 0--1.  Pitch signals are similar, except the values are abstract
+objects that can have other values applied to them, for instance chromatic or
+diatonic transposition, and later evaluated to a normal control signal
+representing frequency.  The warp signal is the same as a control signal,
+except it's used to control [ScoreTime to RealTime
+mapping](#scoretime-and-realtime).  The Environ ('Derive.TrackLang.Environ')
+is different: it holds constant values ('Derive.TrackLang.Val'), but they they
+may be typed.  For instance, the key of a section of music is stored as a
+string, or the current instrument or scale in scope is stored as a instrument
+or scale respectively.
 
 Actually, control signals may also carry types also, for instance to document
 whether a transposition signal is in chromatic or diatonic steps, or whether a
@@ -69,7 +95,7 @@ There are separate namespaces for note tracks, control tracks, and pitch
 tracks since the calls in each track return different types.
 
 When a 'Derive.Score.Event' is generated, it inherits the controls, pitch,
-instrument, and attributes (documented below) in scope.  After that it's up to
+instrument, and [attributes](#attributes) in scope.  After that it's up to
 the performer to interpret those values, which are likely also dependent on the
 Instrument.  Actually, since the instrument can modify the scopes as well, it
 can also replace the default note generating call to do whatever it wants.
@@ -183,10 +209,11 @@ replaces the named control in the environment with the signal from the track.
 `add control` instead adds the signal to an existing one.  There are other
 functions like `sub`, `mul`, `min` and `max`, documented in
 'Derive.Deriver.Monad.default_control_op_map'.  `%` is an unnamed control
-track and is used only by control block calls, as documented below.  You can
-optionally append a pipeline expression after the control name, and the
-expressions will be called as a transformer around the whole track.  So
-`add c | t1 | x = 42` will evaluate the track with `x` set to `42` and
+track and is used only by control block calls, as documented below.
+
+    You can optionally append a pipeline expression after the control name,
+and the expressions will be called as a transformer around the whole track.
+So `add c | t1 | x = 42` will evaluate the track with `x` set to `42` and
 transformed by `t1`, and then add the resulting signal to the `c` control
 currently in scope.
 
@@ -205,16 +232,16 @@ you can append a transformer pipeline.
 - Note tracks look like `>` or `>inst` or `>inst arg1 arg2 ...`.  They are
 passed as arguments to a `note-track` transformer whose default behaviour is
 to set the current instrument and possibly attributes, the same as the default
-null note call.  Similar to scales, setting the instrument will bring the
-instrument's calls into scope, as documented under Instruments.  As with
-control tracks, you can append a transformer pipeline.
+null note call ([note_calls](note_calls.html)).  Similar to scales, setting the instrument
+will bring the instrument's calls into scope, as documented under Instruments.
+As with control tracks, you can append a transformer pipeline.
 
 When a track is evaluated, the text of each UI event is evaluated, and the
 results from each call are merged.  Any evaluation errors will be logged and
 abort the evaluation of that event.
 
 In addition to the arguments, each call actually gets a whole bunch of other
-information ('Derive.Deriver.Monad.CalInfo').  Notably, it gets the event
+information ('Derive.Deriver.Monad.CallInfo').  Notably, it gets the event
 start and duration, along with previous and subsequent events, so calls know
 where their neighbors are.  It also gets the last value of the previous call,
 which is used by control calls, some of which want to interpolate from the
@@ -228,9 +255,36 @@ previous value.
 
 ### Inverting calls
 
+### Note Transformers
+
+### Integration
+
 ## Instruments
 
 ### Attributes
+
+Instruments can also have attributes attached to them.  Attributes are just a
+set of strings, that are intended to be interpreted by the performer based on
+the instrument.  For instance, a "pizz" attribute may cause an instrument that
+understands it to emit a keyswitch to play the affected notes as pizzicato.
+Attributes can also be used by percussion, e.g. +sn for a snare, or +hh for
+high-hat.  Drums are also likely to support combinations of attributes, such
+as +hh+open.  Attributes can be any string, but a set of standard names is in
+'Derive.Attrs'.
+
+Attributes are a set, so you can add and remove individual attributes.  For
+instance, `+pizz` is a literal representing the addition of the "pizz"
+attribute, and putting it around a call will presumably cause everything that
+can play pizz to play as pizz, unless it's cancelled out with a `-pizz`.  If
+`+tremolo` is already in effect, the instrument can apply them both
+simultaneously (unlikely in the case of +pizz+tremolo, but many sample
+libraries do have combinations like +cresc+tremolo), or decide based on
+priority which one to apply.  Details are in
+'Perform.Midi.Instrument.KeyswitchMap'.
+
+### Local.Instrument
+
+[doc/local](local.html)
 
 ## Scales
 

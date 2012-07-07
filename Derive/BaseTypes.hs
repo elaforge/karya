@@ -190,7 +190,7 @@ data Val =
 
     -- | Escape a quote by doubling it.
     --
-    -- Literal: @'hello'@, @'quinn''s hat'@
+    -- Literal: @\'hello\'@, @\'quinn\'\'s hat\'@
     | VString String
 
     -- | Relative attribute adjustment.
@@ -213,7 +213,7 @@ data Val =
     -- scale is taken from the environ.  Unlike a control signal, the empty
     -- string is a valid signal name and means the default pitch signal.
     --
-    -- Literal: @#pitch,4c@, @#,4@, @#@
+    -- Literal: @\#pitch,4c@, @\#,4@, @\#@
     | VPitchControl PitchControl
 
     -- | The literal names a ScaleId, and will probably result in an exception

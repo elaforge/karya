@@ -122,6 +122,7 @@ hsBinaries =
     , plain "dump" "App/Dump.hs"
     , plain "logcat" "LogView/LogCat.hs"
     , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] Nothing
+    , plain "linkify" "Util/Linkify.hs"
     , plain "make_db" "Instrument/MakeDb.hs"
     , plain "pprint" "App/PPrint.hs"
     -- PrintKeymap wants the global keymap, which winds up importing cmds that
@@ -376,6 +377,7 @@ main = do
             Util.shell $ bin ++ " >" ++ fn
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
+        markdownRule (buildDir (modeConfig Opt) </> "linkify")
         hsRule (modeConfig Debug) -- hsc2hs only uses mode-independent flags
         hsORule infer
         -- 'hsORule' depends on .hi files instead of .o files, and this rule
@@ -452,13 +454,14 @@ makeDocumentation :: Config -> Shake.Action ()
 makeDocumentation config = do
     hscs <- filter haddock <$> Util.findHs "*.hsc" "."
     hs <- filter haddock <$> Util.findHs "*.hs" "."
+    docs <- map ("doc"</>) <$> Shake.getDirectoryFiles "doc" "*.md"
     need $ map (hscToHs (hscDir config)) hscs
+        ++ map docToHtml docs
     system' "haddock" $
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
         , "--source-module=../hscolour/%{MODULE/.//}.html"
         , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"
-
         , "--prologue=doc/prologue"
         -- This flag crashes ghc 7.0.3
         -- , "-q", "relative" -- Source references use qualified names.
@@ -543,6 +546,23 @@ generateTestHs hsSuffix fn = do
         errorIO $ "no tests match pattern: " ++ show pattern
     need $ "test/generate_run_tests.py" : tests
     system' "test/generate_run_tests.py" (fn : tests)
+
+-- * markdown
+
+markdownRule :: FilePath -> Shake.Rules ()
+markdownRule linkifyBin = build </> "doc/*.html" *> \html -> do
+    let doc = htmlToDoc html
+    need [linkifyBin, doc]
+    system' "tools/convert_doc" [doc, html]
+
+-- | build/doc/xyz.html -> doc/xyz.md
+htmlToDoc :: FilePath -> FilePath
+htmlToDoc =
+    ("doc"</>) . FilePath.takeFileName . flip FilePath.replaceExtension ".md"
+
+-- | doc/xyz.md -> build/doc/xyz.html
+docToHtml :: FilePath -> FilePath
+docToHtml = (build</>) . flip FilePath.replaceExtension ".html"
 
 -- * hs
 

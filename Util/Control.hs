@@ -5,7 +5,7 @@ module Util.Control (
     , first, second
     , (<>), mempty, mconcat
     , while, while_
-    , whenM, unlessM, when_just, if_just, ifM, andM, findM
+    , whenM, unlessM, when_just, if_just, ifM, andM, orM, findM
 
     -- , finally
     , justm
@@ -80,6 +80,12 @@ andM [] = return True
 andM (c:cs) = do
     b <- c
     if b then andM cs else return False
+
+orM :: (Monad m) => [m Bool] -> m Bool
+orM [] = return False
+orM (c:cs) = do
+    b <- c
+    if b then return True else orM cs
 
 findM :: (Monad m) => (a -> m Bool) -> [a] -> m (Maybe a)
 findM _ [] = return Nothing

@@ -1,4 +1,7 @@
 UNSORTED
+  - why not have blocks extend to the end of the ruler instead of the last
+    event?  Last event necessitates the '--' hack.
+  - why does Pitch take a map of TypedVals instead of plain Signal.Ys?
   * 'd' and 'u' calls also need to slice to the previous one.  I need some
     kind of annotation that says a call depends entirely on the previous value.
   * tremolo ornament
@@ -384,18 +387,12 @@ UNSORTED
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
 
-  input:
-    * should val edit on note tracks advance on backspace?  I should have
-      a consistent story about when the cursor advances and when it doesn't.
-    - flag for unpitched instruments, so they don't get pitch tracks
-
   play:
     - playback should have multiple lines when a block is derived multiple
       times have a set of playback selnums?
 
   - If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
-  - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
 
 MILESTONES
   0.1

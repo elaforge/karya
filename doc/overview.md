@@ -14,7 +14,7 @@ notation, or anything else that I'm aware of, and is supposed to be extensible.
 It's visually similar to trackers (Renoise is a modern example), and the
 editing style may be most familiar to people accustomed to them.
 
-It's main goals are to be a flexible and high level way to /hand write/ scores
+It's main goals are to be a flexible and high level way to *hand write* scores
 (so it's not oriented around realtime use), to produce the complicated control
 signals needed for expressive music, and to support non-western (or
 non-traditional western) idioms and scales.
@@ -193,7 +193,7 @@ directories in the source tree:
 - fltk - Low level C++ to draw the GUI.  Nothing much interesting here.
 
 - Ui - The UI level has the data structures that hold the score, all collected
-in Ui.State.State.  They mostly correspond directly to what is visible in the
+in 'Ui.State.State'.  They mostly correspond directly to what is visible in the
 GUI.  This is what gets saved when you save a score.
 
 - Cmd - Cmds take user input and transform the Ui state.  This layer handles
@@ -212,24 +212,25 @@ There are a few auxiliary programs:
 - LogView - Logview is a separate program that formats log output.  The karya
 GUI doesn't have a place for global information, so logview serves this purpose
 too.  When log messages display stack traces, you can click on them to
-highlight their positions in the score.
+highlight their positions in the score.  'LogView.LogView'.
 
 - browser (Instrument) - This is a simple browser for the instrument database.
 To the UI and Derive layers, an instrument is just a text string, but they have
 quite a bit of extra information associated with them which is important to the
-performer.
+performer.  'Instrument.Browser'.
 
 - make_db - If the instruments involve expensive operations like parsing
 directories full of sysex messages, they can serialize the parsed instruments
 to disk.  What this is exactly depends on the per-synth definitions in
-Local/Instrument/.  'make_db' just runs each instrument's 'make_db' function.
+Local/Instrument/.  `make_db` just runs each instrument's `make_db` function.
 
-- repl - This connects to a running sequencer and lets you interact at the
-programmatic level by sending haskell expressions to be evaluated in the Cmd
-context. [[link to doc/repl]].  'send' is a one-off version of repl that can be
+- [repl](repl.html) - This connects to a running sequencer and lets you
+interact at the programmatic level by sending haskell expressions to be
+evaluated in the Cmd context.  `send` is a one-off version of repl that can be
 used to send a single command from shell scripts.
 
-- print_keymap - Write out a reference to the global keymap in HTML.
+- print_keymap - Write out a reference to the global keymap in HTML:
+[doc/keymap.html](../../doc/keymap.html).
 
 ## Score
 
@@ -269,7 +270,7 @@ first word is a "call", which is like a function call.  So `f 4 'hi'` is a
 call to `f` with two arguments.  The first word is allowed to have any
 non-space characters in it, so `5( 4 'hi'` is a call to `5(`.
 
-Details on the syntax are in in "Derive.TrackLang".
+Details on the syntax are in in 'Derive.TrackLang'.
 
 [ explanation of the standard derivation from a high level point of view ]
 [ then put language ref style stuff ]

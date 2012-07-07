@@ -21,6 +21,7 @@ regex-pcre Diff # Util.Test
 utf8-string # Ui.Event
 
 shake # build system
+pandoc # documentation
 
     INSTALLED SEPARATELY
 

@@ -1,0 +1,13 @@
+#!/bin/zsh
+
+if [[ $# -ne 2 ]]; then
+    echo usage: $0 input output.html
+    exit 1
+fi
+
+haddock_dir=../haddock
+in=$1
+out=$2
+
+build/opt/linkify $haddock_dir <$in | \
+    pandoc -f markdown -t html >$out
