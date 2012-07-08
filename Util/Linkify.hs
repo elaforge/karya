@@ -39,13 +39,22 @@ main = do
         _ -> putStrLn $ "usage: linkify path/to/haddock/dir <doc/text"
 
 process :: FilePath -> Text -> IO Text
-process haddock_dir text = do
-    linked <- sequence $ map (mapM quoted) $ map Text.words (Text.lines text)
-    return $ Text.unlines (map Text.unwords linked)
+process haddock_dir = map_words $ \word -> case extract_quoted word of
+    Just (pre, q, post) -> (pre<>) . (<>post) <$> link_quoted haddock_dir q
+    Nothing -> return word
+
+map_words :: (Monad m) => (Text -> m Text) -> Text -> m Text
+map_words f = liftM Text.concat . go
     where
-    quoted word = case extract_quoted word of
-        Just (pre, q, post) -> (pre<>) . (<>post) <$> link_quoted haddock_dir q
-        Nothing -> return word
+    go text
+        | Text.null word = return [leading]
+        | otherwise = do
+            w <- f word
+            ws <- go rest
+            return $ leading : w : ws
+        where
+        (leading, post) = Text.break (not . Char.isSpace) text
+        (word, rest) = Text.break Char.isSpace post
 
 extract_quoted :: Text -> Maybe (Text, Text, Text)
 extract_quoted text = case Text.split (=='\'') text of
