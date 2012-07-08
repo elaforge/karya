@@ -156,7 +156,7 @@ checkpoint repo hist@(SaveHistory state prev_commit updates names) =
                     (filter checkpoint_update updates)
             if not (null errs) then return (Left (Seq.join ", " errs)) else do
             last_tree <- Git.commit_tree <$> Git.read_commit repo prev_commit
-            tree <- Git.modify_dir repo last_tree mods
+            tree <- Git.modify_tree repo last_tree mods
             commit <- commit_tree repo tree (Just prev_commit) $
                 unparse_names "checkpoint" names
             return $ Right commit

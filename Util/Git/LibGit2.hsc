@@ -75,6 +75,12 @@ type ObjType = CInt
 -- const char *filename, const git_oid *id, unsigned int attributes);
 #ccall git_treebuilder_insert, Ptr (Ptr <git_tree_entry>) \
     -> Ptr <git_treebuilder> -> CString -> Ptr OID -> CUInt -> IO Error
+-- int git_treebuilder_remove(git_treebuilder *bld, const char *filename);
+#ccall git_treebuilder_remove, Ptr <git_treebuilder> -> CString -> IO Error
+-- const git_tree_entry git_treebuilder_get(git_treebuilder *bld,
+-- const char *filename);
+#ccall git_treebuilder_get, Ptr <git_treebuilder> -> CString \
+    -> IO (Ptr <git_tree_entry>)
 -- int git_treebuilder_write(git_oid *oid, git_repository *repo,
 -- git_treebuilder *bld);
 #ccall git_treebuilder_write, Ptr OID -> Repo -> Ptr <git_treebuilder> \

@@ -265,8 +265,8 @@ instance Pretty.Pretty Modification where
     pretty (Add fn bytes) =
         "add " ++ fn ++ "{" ++ show (Char8.length bytes) ++ "}"
 
-modify_dir :: Repo -> Tree -> [Modification] -> IO Tree
-modify_dir repo (Tree tree) mods = do
+modify_tree :: Repo -> Tree -> [Modification] -> IO Tree
+modify_tree repo (Tree tree) mods = do
     git repo ["read-tree", "--empty"] ""
     git repo ["read-tree", unparse_hash tree] ""
     mods <- forM (strip mods) $ \(path, maybe_bytes) -> do

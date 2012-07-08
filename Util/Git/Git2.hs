@@ -15,7 +15,7 @@ module Util.Git.Git2 (
     , init
     -- * basic types
     , write_blob, read_blob
-    , write_tree, read_tree, diff_trees
+    , write_tree, modify_tree, read_tree, diff_trees
     , CommitData(..), parse_commit, write_commit, read_commit, diff_commits
     -- * refs
     , write_ref, read_ref
@@ -30,8 +30,9 @@ module Util.Git.Git2 (
     , gc
     -- * higher level
     , Modification(..), Dir, File(..)
+    , ModifyDir, ModifyFile(..), modifications_to_dir
     , make_dir, flatten_dir
-    , write_dir, read_dir, modify_dir
+    , write_dir, read_dir
     -- * errors
     , G.throw, G.GitException(..)
 ) where
@@ -41,7 +42,6 @@ import qualified Data.Bits as Bits
 import qualified Data.ByteString as ByteString
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
-import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.ByteString.Unsafe as ByteString.Unsafe
 import qualified Data.IORef as IORef
 import qualified Data.List as List
@@ -51,7 +51,6 @@ import Foreign hiding (void)
 import Foreign.C
 import qualified System.Directory as Directory
 import qualified System.Exit as Exit
-import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import Util.Control
@@ -105,7 +104,10 @@ with_repo path action = withCString path $ \pathp -> alloca $ \repopp -> do
             G.throw $ "repo " ++ show path ++ ": " ++ err
 
 write_blob :: Repo -> ByteString -> IO Blob
-write_blob repo bytes = with_repo repo $ \repop -> alloca $ \oidp ->
+write_blob repo bytes = with_repo repo $ \repop -> write_blob_repo repop bytes
+
+write_blob_repo :: G.Repo -> ByteString -> IO Blob
+write_blob_repo repop bytes = alloca $ \oidp ->
     ByteString.Unsafe.unsafeUseAsCStringLen bytes $ \(bytesp, len) -> do
         G.check "write_blob" $
             G.c'git_blob_create_frombuffer oidp repop bytesp (fromIntegral len)
@@ -125,30 +127,93 @@ read_blob_repo repop (Blob blob) = with blob $ \oidp -> alloca $ \blobpp -> do
     G.c'git_blob_free blobp
     return bytes
 
-write_tree :: Repo -> [(FileName, Either Blob Tree)] -> IO Tree
-write_tree repo files = with_repo repo $ \repop -> alloca $ \builderpp -> do
-    G.check "treebuilder_create" $ G.c'git_treebuilder_create builderpp nullPtr
-    builderp <- peek builderpp
-    mapM_ (add builderp) files
-    oid <- alloca $ \oidp -> do
-        G.check "treebuilder_write" $
-            G.c'git_treebuilder_write oidp repop builderp
-        peek oidp
-    G.c'git_treebuilder_free builderp
-    return $ Tree oid
+write_tree :: Repo -> Maybe Tree -> [(FileName, Maybe (Either Blob Tree))]
+    -> IO Tree
+write_tree repo maybe_from files = with_repo repo $ \repop ->
+    maybe_with repop $ \fromp -> alloca $ \builderpp -> do
+        G.check "treebuilder_create" $ G.c'git_treebuilder_create builderpp
+            fromp
+        builderp <- peek builderpp
+        mapM_ (modify builderp) files
+        oid <- alloca $ \oidp -> do
+            G.check "treebuilder_write" $
+                G.c'git_treebuilder_write oidp repop builderp
+            peek oidp
+        G.c'git_treebuilder_free builderp
+        return $ Tree oid
     where
-    add builderp (name, Left (Blob oid)) = withCString name $ \namep ->
-        with oid $ \oidp ->
-            G.c'git_treebuilder_insert nullPtr builderp namep oidp 0o100644
-    add builderp (name, Right (Tree oid)) = withCString name $ \namep ->
-        with oid $ \oidp ->
-            G.c'git_treebuilder_insert nullPtr builderp namep oidp 0o040000
+    maybe_with repop io = case maybe_from of
+        Just tree -> with_tree repop tree io
+        Nothing -> io nullPtr
+    modify builderp (name, val) = withCString name $ \namep -> case val of
+        Nothing -> treebuilder_remove builderp name namep
+        Just (Left blob) -> treebuilder_insert_file builderp name namep blob
+        Just (Right tree) -> treebuilder_insert_dir builderp name namep tree
+
+-- | Apply a list of modifications to an existing tree.
+modify_tree :: Repo -> Tree -> [Modification] -> IO Tree
+modify_tree repo tree mods = with_repo repo $ \repop ->
+    go repop (Just tree) (modifications_to_dir mods)
+    where
+    go repop maybe_tree entries =
+        with_maybe_tree repop maybe_tree $ \treep -> alloca $ \builderpp -> do
+            G.check "treebuilder_create" $
+                G.c'git_treebuilder_create builderpp treep
+            builderp <- peek builderpp
+            mapM_ (modify repop builderp) entries
+            oid <- alloca $ \oidp -> do
+                G.check "treebuilder_write" $
+                    G.c'git_treebuilder_write oidp repop builderp
+                peek oidp
+            G.c'git_treebuilder_free builderp
+            return $ Tree oid
+    with_maybe_tree _ Nothing io = io nullPtr
+    with_maybe_tree repop (Just tree) io = with_tree repop tree io
+
+    modify repop builderp (name, ModifyFile maybe_bytes) =
+        withCString name $ \namep -> case maybe_bytes of
+            Nothing -> treebuilder_remove builderp name namep
+            Just bytes -> do
+                blob <- write_blob_repo repop bytes
+                treebuilder_insert_file builderp name namep blob
+    modify repop builderp (name, ModifyDir entries) =
+        withCString name $ \namep -> do
+            entryp <- G.c'git_treebuilder_get builderp namep
+            maybe_tree <- if entryp == nullPtr
+                then return Nothing
+                else Just . Tree <$> (peek =<< G.c'git_tree_entry_id entryp)
+            tree <- go repop maybe_tree entries
+            -- Delete empty directories automatically.  This shouldn't be
+            -- necessary, but without it git_diff_tree_to_tree gets extraneous
+            -- Removes.
+            ifM (empty_tree_repo repop tree)
+                (treebuilder_remove builderp name namep)
+                (treebuilder_insert_dir builderp name namep tree)
+
+treebuilder_remove :: Ptr G.C'git_treebuilder -> String -> CString -> IO ()
+treebuilder_remove builderp name namep =
+    G.check ("git_treebuilder_remove: " ++ show name) $
+        G.c'git_treebuilder_remove builderp namep
+
+treebuilder_insert_file :: Ptr G.C'git_treebuilder -> String -> CString
+    -> Blob -> IO ()
+treebuilder_insert_file builderp name namep (Blob oid) =
+    G.check ("git_treebuilder_insert: " ++ show name) $ with oid $ \oidp ->
+        G.c'git_treebuilder_insert nullPtr builderp namep oidp 0o100644
+
+treebuilder_insert_dir :: Ptr G.C'git_treebuilder -> String -> CString
+    -> Tree -> IO ()
+treebuilder_insert_dir builderp name namep (Tree oid) =
+    G.check ("git_treebuilder_insert: " ++ show (name ++ "/")) $
+    with oid $ \oidp ->
+        G.c'git_treebuilder_insert nullPtr builderp namep oidp 0o040000
 
 read_tree :: Repo -> Tree -> IO [(FileName, Either Blob Tree)]
 read_tree repo tree = with_repo repo $ \repop ->
     with_tree repop tree $ \treep -> do
         count <- G.c'git_tree_entrycount treep
-        entries <- mapM (G.c'git_tree_entry_byindex treep) [0..count-1]
+        entries <- mapM (G.c'git_tree_entry_byindex treep)
+            (Seq.range' 0 count 1)
         mapM peek_entry entries
     where
     peek_entry entryp = do
@@ -159,6 +224,11 @@ read_tree repo tree = with_repo repo $ \repop ->
             if typ == G.gitObjBlob then return (Left (Blob oid)) else
             G.throw $ show oid ++ " expected tree or blob: " ++ show typ
         return (name, val)
+
+empty_tree_repo :: G.Repo -> Tree -> IO Bool
+empty_tree_repo repop tree = with_tree repop tree $ \treep -> do
+    count <- G.c'git_tree_entrycount treep
+    return $ count == 0
 
 with_tree :: G.Repo -> Tree -> (Ptr G.C'git_tree -> IO a) -> IO a
 with_tree repop (Tree oid) io = with oid $ \oidp -> alloca $ \treepp -> do
@@ -426,21 +496,14 @@ gc repo = void $ git repo ["gc", "--aggressive"] ""
 
 -- * higher level
 
-data Modification = Remove FilePath | Add FilePath ByteString
-    deriving (Eq, Show)
-
-instance Pretty.Pretty Modification where
-    pretty (Remove fn) = "rm " ++ fn
-    pretty (Add fn bytes) =
-        "add " ++ fn ++ "{" ++ show (Char8.length bytes) ++ "}"
-
 type Dir = Map.Map FileName File
 data File = File ByteString | Dir Dir deriving (Eq, Show)
 
 make_dir :: [(FilePath, ByteString)] -> Either String Dir
 make_dir = foldM merge Map.empty
     where
-    merge dir (path, bytes) = insert dir (split path) bytes
+    -- System.FilePath is incorrect because git always uses /s.
+    merge dir (path, bytes) = insert dir (Seq.split "/" path) bytes
     insert _ [] bytes = Left $ "can't insert into empty path: " ++ show bytes
     insert files [name] bytes = return $ Map.insert name (File bytes) files
     insert files (name : names) bytes = do
@@ -451,7 +514,6 @@ make_dir = foldM merge Map.empty
             Nothing -> return Map.empty
         subs <- insert subs names bytes
         return $ Map.insert name (Dir subs) files
-    split = dropWhile (=="/") . FilePath.splitDirectories
 
 flatten_dir :: Dir -> [(FilePath, ByteString)]
 flatten_dir = concatMap flatten . Map.toList
@@ -463,12 +525,12 @@ write_dir :: Repo -> Dir -> IO Tree
 write_dir repo filemap = do
     let files = Map.toList filemap
     hashes <- mapM (write . snd) files
-    write_tree repo (zip (map fst files) hashes)
+    write_tree repo Nothing (zip (map fst files) (map Just hashes))
     where
     write (File bytes) = Left <$> write_blob repo bytes
     write (Dir dir) = Right <$> write_dir repo dir
 
-read_dir  :: Repo -> Tree -> IO Dir
+read_dir :: Repo -> Tree -> IO Dir
 read_dir repo tree = do
     (names, files) <- unzip <$> read_tree repo tree
     files <- mapM read files
@@ -477,29 +539,38 @@ read_dir repo tree = do
     read (Left blob) = File <$> read_blob repo blob
     read (Right tree) = Dir <$> read_dir repo tree
 
--- | Apply a list of modifications to an existing tree.
-modify_dir :: Repo -> Tree -> [Modification] -> IO Tree
-modify_dir repo (Tree tree) mods = do
-    git repo ["read-tree", "--empty"] ""
-    git repo ["read-tree", G.show_oid tree] ""
-    mods <- forM (strip mods) $ \(path, maybe_bytes) -> do
-        blob <- case maybe_bytes of
-            Nothing -> return Nothing
-            Just bytes -> Just <$> write_blob repo bytes
-        return (path, blob)
-    git repo ["update-index", "--replace", "--index-info"]
-        (Char8.unlines (map mkline mods))
-    Tree . G.read_oid <$> git repo ["write-tree"] ""
+-- | Add fname Nothing means add a directory.
+data Modification = Remove FilePath | Add FilePath ByteString
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Modification where
+    pretty (Remove fn) = "rm " ++ fn
+    pretty (Add fn bytes) = "add" ++ fn
+        ++ " {" ++ show (Char8.length bytes) ++ "}"
+        -- ++ maybe "/" (\b -> " {" ++ show (Char8.length b) ++ "}") bytes
+
+type ModifyDir = [(FileName, ModifyFile)]
+data ModifyFile = ModifyFile (Maybe ByteString) | ModifyDir ModifyDir
+    deriving (Eq, Show)
+
+modifications_to_dir :: [Modification] -> ModifyDir
+modifications_to_dir mods = go (strip mods)
     where
-    mkline (path, Nothing) =
-        "0 0000000000000000000000000000000000000000\t" <> UTF8.fromString path
-    mkline (path, Just (Blob (G.OID oid))) =
-        "100644 " <> oid <> "\t" <> UTF8.fromString path
+    go entries = concatMap make (by_dir entries)
+    make (dir, entries) = dirs ++ files
+        where
+        dirs = if null dir_ents then [] else [(dir, ModifyDir (go dir_ents))]
+        files = case Seq.last file_ents of
+            Nothing -> []
+            Just (_, bytes) -> [(dir, ModifyFile bytes)]
+        (file_ents, dir_ents) = List.partition (null . fst) entries
+    by_dir entries = [(dir, map (first drop_dir) subs)
+        | (dir, subs) <- Seq.keyed_group_on (takeWhile (/='/') . fst) entries]
+    drop_dir = dropWhile (=='/') . dropWhile (/='/')
     -- Strip out redundent modifications.
     strip = Map.toList . Map.fromList . map extract
     extract (Remove fn) = (fn, Nothing)
     extract (Add fn bytes) = (fn, Just bytes)
-
 
 -- * util
 

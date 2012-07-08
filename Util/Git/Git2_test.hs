@@ -3,8 +3,10 @@ module Util.Git.Git2_test where
 import qualified Data.Map as Map
 import qualified System.Directory as Directory
 
+import Util.Control
 import qualified Util.File as File
 import qualified Util.Git.Git2 as Git
+import Util.Git.Git2 (Modification(..))
 import Util.Test
 
 
@@ -14,9 +16,10 @@ test_misc = do
     blob <- Git.write_blob repo "abc"
     io_equal (Git.read_blob repo blob) "abc"
 
-    tree <- Git.write_tree repo [("filename", Left blob)]
+    tree <- Git.write_tree repo Nothing [("filename", Just (Left blob))]
     io_equal (Git.read_tree repo tree) [("filename", Left blob)]
-    tree2 <- Git.write_tree repo [("dirname", Right tree), ("file2", Left blob)]
+    tree2 <- Git.write_tree repo Nothing
+        [("dirname", Just (Right tree)), ("file2", Just (Left blob))]
     io_equal (Git.read_tree repo tree2)
         [("dirname", Right tree), ("file2", Left blob)]
 
@@ -70,27 +73,36 @@ test_write_dir = do
     dir2 <- Git.read_dir repo tree
     equal dir1 dir2
 
-test_modify_dir = do
+test_modify_tree = do
     repo <- new_repo
+    let read tree = Git.flatten_dir <$> Git.read_dir repo tree
     tree <- Git.write_dir repo Map.empty
-    tree <- Git.modify_dir repo tree [Git.Add "a/b" "abc", Git.Add "c" "def"]
-    io_equal (Git.read_dir repo tree) $ Map.fromList
-        [ ("a", Git.Dir (Map.fromList [("b", Git.File "abc")]))
-        , ("c", Git.File "def")
-        ]
-    tree <- Git.modify_dir repo tree [Git.Remove "a/b", Git.Add "c" "qqq"]
-    io_equal (Git.read_dir repo tree) $ Map.fromList [("c", Git.File "qqq")]
+    tree <- Git.modify_tree repo tree [Add "a/b" "abc", Add "c" "def"]
+    io_equal (read tree) [("a/b", "abc"), ("c", "def")]
+    tree <- Git.modify_tree repo tree [Remove "a/b", Add "c" "qqq"]
+    io_equal (read tree) [("c", "qqq")]
 
 test_diff_trees = do
     repo <- new_repo
     let dir = expect_right "make_dir" $
             Git.make_dir [("a/b", "abc"), ("d", "def")]
     tree1 <- Git.write_dir repo dir
-    tree2 <- Git.modify_dir repo tree1 [Git.Add "a/b" "def"]
-    io_equal (Git.diff_trees repo tree1 tree2) [Git.Add "a/b" "def"]
-    tree3 <- Git.modify_dir repo tree1 [Git.Remove "a/b"]
-    io_equal (Git.diff_trees repo tree2 tree3) [Git.Remove "a/b"]
+    tree2 <- Git.modify_tree repo tree1 [Add "a/b" "def"]
+    io_equal (Git.diff_trees repo tree1 tree2) [Add "a/b" "def"]
 
+    tree3 <- Git.modify_tree repo tree1 [Remove "a/b"]
+    io_equal (Git.diff_trees repo tree2 tree3) [Remove "a/b"]
+    pprint =<< Git.read_dir repo tree2
+    pprint =<< Git.read_dir repo tree3
+
+test_modifications_to_dir = do
+    let f = Git.modifications_to_dir
+    equal (f [Add "a/b/c" "abc", Add "a/b/c" "def"])
+        [("a", Git.ModifyDir [("b", Git.ModifyDir
+            [("c", Git.ModifyFile (Just "def"))])])]
+    equal (f [Remove "x/y", Remove "x"])
+        [("x", Git.ModifyDir [("y", Git.ModifyFile Nothing)]),
+            ("x", Git.ModifyFile Nothing)]
 
 -- * implementation
 
