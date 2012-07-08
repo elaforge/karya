@@ -188,10 +188,17 @@ mechanical style of popular music.
 
 ## Overview
 
+Don't hesitate to look at [haddock documentation](../haddock/index.html) or the
+[source](../hscolour/).  Since using karya probably involves writing code that
+interacts with the internal APIs, you'll need to be familiar with the code.
+Sometimes the documentation isn't exported as haddock, so if the haddock seems
+sparse try the "source" Link.
+
 Karya is divided into several layers, corresponding to the top level
 directories in the source tree:
 
-- fltk - Low level C++ to draw the GUI.  Nothing much interesting here.
+- fltk - Low level C++ to draw the GUI.  Nothing much interesting here unless
+you like reading C++.
 
 - Ui - The UI level has the data structures that hold the score, all collected
 in 'Ui.State.State'.  They mostly correspond directly to what is visible in the
@@ -231,110 +238,13 @@ interact at the programmatic level by sending haskell expressions to be
 evaluated in the Cmd context.  `send` is a one-off version of repl that can be
 used to send a single command from shell scripts.
 
-- print_keymap - Write out a reference to the global keymap in HTML:
-[doc/keymap.html](../../doc/keymap.html).
+- print_keymap - Write out a reference to the
+[global keymap in HTML.](../../doc/keymap.html)
 
-## Score
+## karya
 
-Karya can be seen as two things: a language used to express music, and an
-editor for that language.  It's a bit like an IDE for a music language.
+For the purposes of documentation, there are three major layers:
 
-The score language, like any language, can be described in several layers.
-
-The lowest level is the syntax.  The most basic structure is a `block`.
-Each block can have 0 or more `views`, which are just windows on a certain
-block.  A block has a title, which is a box you can put text in, and a set of
-tracks.  Each track can be either an event track or a ruler.  Rulers just
-display hierarchical marks, and by convention each block has a ruler in the
-0th track spot, which is special in that it stays put and doesn't scroll off
-the screen.  The ruler is analogous to the meter since the the selection
-usually aligns to it.
-
-Event tracks have a title, which is once again a place for text, and a bunch
-of events.  An event, at the simplest level is a start time, a duration, and a
-bit of text.  The events aren't allowed to overlap, but other than that are
-free form.  One other detail is that there's a "skeleton", which links together
-each track in a hierarchical way, so each track can have parents or children.
-The skeleton is visualized as some lines with arrows above the tracks.
-
-That's the basic syntax.  The Deriver is the part that's responsible for
-turning it into a performance.
-
-### Tracklang
-
-The text that appears in the block title, track titles, and events is in a
-simple expression oriented language.  It has the usual literals, such as
-`'strings'`, and numbers, but also has music-related literals such as
-`*scales`, `>instruments` or `+attributes`.  Numeric literals can take type
-suffixes, so `.5d` is half of one diatonic step, and `3r` is 3 seconds of
-RealTime.  An expression consists of literals separated by spaces, and the
-first word is a "call", which is like a function call.  So `f 4 'hi'` is a
-call to `f` with two arguments.  The first word is allowed to have any
-non-space characters in it, so `5( 4 'hi'` is a call to `5(`.
-
-Details on the syntax are in in 'Derive.TrackLang'.
-
-[ explanation of the standard derivation from a high level point of view ]
-[ then put language ref style stuff ]
-
-[ null call and fallback for plain number literals ]
-[ exception for pitch calls ]
-
-[ outline of score format ]
-
-In a general way, you could see it as an IDE for a language with a notion of
-time.
-
-It consists of two parts: a generic and simple UI inspired by the trackers of
-yore, and then an app layer that renders the musical data in the UI down to
-a sound producing backend (the main backend is realtime MIDI, but may also be
-OSC, offline csound scores, or whatever).  The app layer also allows the UI to
-be programmed by setting the meaning of keystrokes, note selections.  It's
-programmable, which means that you can write code per-song (or create reusable
-libraries) that customizes the UI, letting you define your own workflow, and
-customizes the derivation of entered score to whatever backend, letting you
-define your own notation.
-
-The UI is not totally generic, of course, so your notation is restricted to the
-structure it imposes.  The basic unit is the "block", each of which has its own
-window (one block may have multiple windows).  A block is a set of "tracks"
-along with auxiliary data like a name, and controls to zoom and scroll on the
-tracks.
-
-The tracks hold the actual note data, called "events".  There are also ruler
-tracks to align your notes---unlike trackers, events are freely placed and
-there is no "note matrix".  A track is like the block it sits in: it has
-a title and then a list of events.  An event is a bit of text with a starting
-time and a duration.  That's basically it.  It's up to the deriver to give that
-event meaning.  It may become a note or a sequence of notes.  It may be a point
-in a curve of a controller applied to a neighboring track that represents
-notes, or sequences of notes.  It may be a point on a curve that affects the
-derivation of the whole block (say a tempo curve that will space notes out
-further).
-
-The UI doesn't have a means to add or remove tracks or events.  That has to be
-done through the programmatic layer---you use the app layer to bind keystrokes
-to those kinds of actions.  All you can do directly with the UI is zoom and
-scroll, drag select events with any button (the app interprets what that
-means), and edit the text.  It's designed to be fairly modeless, so keystrokes
-generally mean the same thing no matter where focus is, except there is an
-insertion point for text and another insertion point for events.  There are no
-buttons or menus per se, but you can map clicks in specific spots to specific
-actions (for example, a right click in a track header to mute it).
-
-Tracks can also display curve data, for visual feedback of controller data or
-whatever kind of numeric that is easier to grasp as a graph or a color gradient
-than a stream of numbers.  The graph display goes behind the events and is
-for display only.  The deriver is responsible for generating and sending graph
-data back to the UI in the same way that it's responsible for generating note
-data and sending it to the backend.
-
-The interpretation of the score is generic and programmable, but there are some
-defaults based on tracker convention.  The leftmost track in a section will
-be the note track.  Its title will define an instrument and the events in the
-track represent notes played on that instrument.  Tracks to the right of the
-note track represent controllers that affect (or effect) the notes to their
-left.
-
-The intention is to use
-
+- [ui](ui.html)
+- [score / derivation](score.html)
+- [performance](performance.html)

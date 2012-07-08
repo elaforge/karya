@@ -1,6 +1,7 @@
-Transforms operate on derivers.  They can change the environment to encourage
-the deriver to produce a certain output.  For instance, they can modify the
-pitch to transpose the derived music, or modify the warp to delay it.
+Transformers operate on derivers.  They can change the environment to
+encourage the deriver to produce a certain output.  For instance, they can
+modify the pitch to transpose the derived music, or modify the warp to delay
+it.
 
 Since the controls must be evaluated and in the environment for the notes to
 pick them up, by the time the note track is being evaluated it's too late to
@@ -12,29 +13,29 @@ probably be delayed as well.
 
 So what is needed is for the transform to be placed "above" the note, e.g.
 (decrescendo (delay (pitch (note)))).  This can be written in terms of tracks,
-but it's awkward, because they delay, which is logically part of the note
+but it's awkward, because the delay, which is logically part of the note
 track, must be split into two tracks, like so:
 
-dynamics        transform       pitch   note
-1               delay           4c      ""
-                |                       |
-i 0             V                       V
+    dynamics        transform       pitch   note
+    1               delay           4c      ""
+                    |                       |
+    i 0             V                       V
 
 It's not clear what the duration of 'delay' means, and the fact that it
 applies to the "" note two tracks below it.  So there's a concept of track
 inversion, which is an automatic transformation from this:
 
-note    pitch
-t | n   4c
-|
-V
+    note    pitch
+    t | n   4c
+    |
+    V
 
 To this:
 
-note    pitch   (note)
-t       4c      n
-|               |
-V               V
+    note    pitch   (note)
+    t       4c      n
+    |               |
+    V               V
 
 If there are tracks below the note track, they are sliced horizontally in the
 range of the note being evaluated, and the generator part of the note is put
@@ -59,16 +60,8 @@ want signals from their neighbors with calls that want to transform the
 controls of a note.  This is awkward, but I'll see if it's a problem in
 practice before trying to come up with a solution.
 
-There is a function, Derive.Call.Note.inverting_call, that will convert
+A more convenient solution is to use 'Derive.Call.Note.inverting_n', which
+will collect a certain number of events after the end of the inverting event.
+
+There is a function, 'Derive.Call.Note.inverting_call', that will convert
 a call into an inverting call.
-
-
-However, if a note transform call can sensibly have its own duration then it
-may be appropriate in a separate track with a note track beneath them.  For
-instance, a tuplet call can stretch the notes below it to its own duration:
-
-transform       pitch   note
-tuplet          4c      ""
-|               4d      ""
-|               4e      ""
-V

@@ -229,6 +229,11 @@ depends on the scale, but the defaults are 'Derive.Score.c_chromatic',
 'Derive.Score.c_diatonic' and 'Derive.Score.c_hz'.  As with control tracks,
 you can append a transformer pipeline.
 
+- Tempo tracks are just titled `tempo`.  The track is just a normal control
+track, but the generated signal will be composed with the warp signal in
+scope.  Normally a single tempo track will have scope over all the tracks in a
+module, but it's also possible to have multiple tempo tracks.
+
 - Note tracks look like `>` or `>inst` or `>inst arg1 arg2 ...`.  They are
 passed as arguments to a `note-track` transformer whose default behaviour is
 to set the current instrument and possibly attributes, the same as the default
@@ -249,9 +254,14 @@ previous value.
 
 ### Block calls
 
-[ note block calls ]
+As mentioned in the overview, a note call with the same name as another block
+will substitute the contents of that block, stretching and shifting it into
+place.  If the sub-block uses relative pitches and controls the generated
+notes will wind up depending on the calling environment.
 
-[ control block calls ]
+Block calls are note calls and go on a note track, but there's also a variant
+for control tracks.  The sub-block is expected to have a control track titled
+`%` whose signal will be substituted into the signal of the calling track.
 
 ### Inverting calls
 
