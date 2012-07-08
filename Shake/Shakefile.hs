@@ -428,6 +428,7 @@ dispatch config target = case target of
         system' "rm" ["-rf", build]
         system' "mkdir" [build]
     "doc" -> action $ makeDocumentation config
+    "md" -> action $ need . map docToHtml =<< getMarkdown
     "checkin" -> do
         let debug = (modeToDir Debug </>)
         Shake.want [debug "browser", debug "logview", debug "make_db",
@@ -454,7 +455,7 @@ makeDocumentation :: Config -> Shake.Action ()
 makeDocumentation config = do
     hscs <- filter haddock <$> Util.findHs "*.hsc" "."
     hs <- filter haddock <$> Util.findHs "*.hs" "."
-    docs <- map ("doc"</>) <$> Shake.getDirectoryFiles "doc" "*.md"
+    docs <- getMarkdown
     need $ map (hscToHs (hscDir config)) hscs
         ++ map docToHtml docs
     system' "haddock" $
@@ -471,6 +472,9 @@ makeDocumentation config = do
     system' "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
     where
     flags = configFlags config
+
+getMarkdown :: Shake.Action [FilePath]
+getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" "*.md"
 
 -- | Should this module have haddock documentation generated?
 haddock :: FilePath -> Bool

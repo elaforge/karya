@@ -62,11 +62,12 @@ modifications, to a limited degree.  For instance, a part that mirrors another
 with added idiomatic ornaments plus hand tweaks, or a whole section which is
 the reverse of another section, edited to sound better.
 
-- REPL.  All non-GUI interaction is through a command-line interface, so you can
-do complicated transformations by writing a function.  The language is Haskell,
-which the rest of the program is written in, and it has direct access to all
-internal funtionality.  If you frequently use a particular transformation you
-can compile it into the program by pasting it into a file.
+- [REPL](repl.html).  All non-GUI interaction is through a command-line
+interface, so you can do complicated transformations by writing a function.
+The language is Haskell, which the rest of the program is written in, and it
+has direct access to all internal funtionality.  If you frequently use a
+particular transformation you can compile it into the program by pasting it
+into a file.
 
 - Instruments.  Instruments can map MIDI CC numbers to symbolic names, support
 keyswitches as named attributes, and automatically multixplex MIDI channels to
@@ -199,8 +200,9 @@ GUI.  This is what gets saved when you save a score.
 - Cmd - Cmds take user input and transform the Ui state.  This layer handles
 all user interaction.
 
-- Derive - The deriver interprets the Ui State and turns into into a stream of
-lower level events.  It implements the "tracklang" language described below.
+- Derive - The [deriver](derivation.html) interprets the Ui State and turns
+into into a stream of lower level events.  It implements the "tracklang"
+language described below.
 
 - Perform - The perform layer turns Derive output into a backend specific
 format, e.g. MIDI messages or lilypond score.  It's also responsible for

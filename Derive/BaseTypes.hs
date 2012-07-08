@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 {-# LANGUAGE OverlappingInstances #-} -- I want a special Pretty for TypedVal
+{-# OPTIONS_HADDOCK not-home #-}
 {- | This is a bit of song and dance to avoid circular imports.
 
     "Derive.Score", "Derive.PitchSignal", and "Derive.TrackLang" all define
