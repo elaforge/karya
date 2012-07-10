@@ -323,8 +323,7 @@ merge :: Events -> Events -> Events
 merge (Events evts1) (Events evts2)
     | Map.null evts1 = Events evts2
     | Map.null evts2 = Events evts1
-    | otherwise = Events $
-        overlapping `Map.union2` evts1 `Map.union2` evts2
+    | otherwise = Events $ overlapping `Map.union` evts1 `Map.union` evts2
     where
     -- minimal overlapping range
     start = Prelude.max (min (Map.findMin evts1)) (min (Map.findMin evts2))

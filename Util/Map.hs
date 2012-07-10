@@ -99,14 +99,6 @@ unique_unions = flip List.foldl' (Map.empty, Map.empty) $
         let (collect2, rejected2) = unique_union collect fm
         in (collect2, Map.union rejected rejected2)
 
--- | Map.union says it's more efficient with @big `union` small@, so this one
--- flips the args to be more efficient.  It's still left-biased.
-union2 :: (Ord k) => Map.Map k v -> Map.Map k v -> Map.Map k v
-union2 m1 m2
-    | Map.size m1 < Map.size m2 = m2 `right` m1
-    | otherwise = m1 `Map.union` m2
-    where right = Map.unionWith (\_ a -> a)
-
 insert_list :: (Ord k) => [(k, v)] -> Map.Map k v -> Map.Map k v
 insert_list kvs m = List.foldl' (\m (k, v) -> Map.insert k v m) m kvs
 
