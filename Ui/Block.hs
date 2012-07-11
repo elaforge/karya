@@ -10,6 +10,8 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified Ui.Color as Color
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
@@ -26,10 +28,10 @@ data Block = Block {
     , block_config :: !Config
     , block_tracks :: ![Track]
     , block_skeleton :: !Skeleton.Skeleton
-    -- | If this block was integrated from another, this is the source block.
-    , block_integrated :: !(Maybe BlockId)
+    -- | Present if this block was integrated from another.
+    , block_integrated :: !(Maybe Integrated)
     , block_meta :: !Meta
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Read, Show)
 
 instance Pretty.Pretty Block where
     format (Block title _config tracks skel integrated meta) =
@@ -48,6 +50,23 @@ instance DeepSeq.NFData Block where
 -- may be of interest to cmds.  For instance, it can mark if this block should
 -- be rendered to lilypond and provide arguments for it.
 type Meta = Map.Map String String
+
+-- | This indicates that the block was integrated from another block.
+data Integrated = Integrated {
+    -- | The source block.
+    integrated_block :: !BlockId
+    , integrated_index :: !EventIndex
+    } deriving (Eq, Read, Show)
+
+instance Pretty.Pretty Integrated where
+    format (Integrated block_id index) = Pretty.record
+        (Pretty.text "Integrated" Pretty.<+> Pretty.format block_id)
+        [("index", Pretty.format index)]
+
+-- | This is a picture of the integrated events that were used to create an
+-- integrated block.  By taking its difference against the current contents of
+-- the block I can figure out user edits.
+type EventIndex = Map.Map Event.Stack Events.PosEvent
 
 block_tracklike_ids :: Block -> [TracklikeId]
 block_tracklike_ids = map tracklike_id . block_tracks

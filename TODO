@@ -1,4 +1,8 @@
 UNSORTED
+  - can I use a lazy array + builder to make score generation more efficient?
+    It would also be nice to use a lazy array inside the performer.
+    Is there a generic lazy array implementation out there?
+    It would be nice for LoggerT implementation as well.
   - why not have blocks extend to the end of the ruler instead of the last
     event?  Last event necessitates the '--' hack.
   - why does Pitch take a map of TypedVals instead of plain Signal.Ys?
@@ -69,17 +73,36 @@ UNSORTED
   - but even when it does (on the scale itself) it doesn't do thru
   integrate that converts Score.Events back into Ui Events
     * implement and test for reverse
-    - kendang: write composite kendang part, then it gets split into wadon and
-      lanang parts.
-    - test that reintegrating a simple block gives it back again
+    - generated block has -no-ruler-
+    - Events are italic if they have a stack, and integrator adds bold, but
+      any moves or other modifications remove the bold, so modified events
+      are visually apparent.
+    - single track mode that doesn't bother to split tracks
+    track integrate
+      - Block derive first finds integrated tracks, solos them, drops tempo
+        tracks, and derives them.
+      - Integrate tracks only happen on the toplevel block call, others just
+        ignore those tracks.
+      - tracks need source metadata to know where they were integrated from
+    - integrate should have control over which tracks the events go to, maybe
+      use an instrument name suffix, e.g. >kkt/reyong/1
+      Check again if the suffix is used, e.g. by keyswitches in perform,
+      if so, isn't it redundant with attributes?  No, because perform doesn't
+      use attributes, they are already turned into Instrument.Instrument at
+      that point.
+    - The other possibility is to not do any automatic track splitting at all,
+      this would eliminate all the 'tracknum' stuff.  It would I couldn't
+      stick a '<' integrate in front of any block I wanted though, it would
+      have to specially be expecting to be integrated and emit separate
+      instruments.
+    - Derive.Call.Kendang: write composite kendang part, then it gets split
+      into wadon and lanang parts.
     + sort tracks by orig tracknums so they come back in the same order
       Staved off by adding a leading 0 to TrackIds so they sort right, but
       I'll need to switch to TrackNums to do this for real.
     - add quantization
     - split tracks on overlapping notes since some calls make them (e.g. block
       calls)
-    reintegration: merge changes back into the derived block after its source
-      changes
     * add stack and special style to derived events
     reintegrate automatically after changes
       * blocks need a BlockId to show who they were integrated from

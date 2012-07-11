@@ -29,6 +29,7 @@ import qualified Data.ByteString.UTF8 as UTF8
 import Foreign
 import Foreign.C
 
+import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Style as Style
 
@@ -44,14 +45,35 @@ data Event = Event {
     , event_style :: !Style.StyleId
     -- | If this event was integrated from another event as by
     -- "Derive.Call.Integrate", this will have the stack of the source event.
-    , event_stack :: !(Maybe Stack.Stack)
-    } deriving (Eq, Show, Read)
+    , event_stack :: !(Maybe Stack)
+    } deriving (Eq, Read, Show)
 
 type Text = B.ByteString
+
+-- | A Stack annotated with a tag and a serial number.  Events that come from
+-- the same score event will all have the same stack, so some more information
+-- is needed to differentiate them.
+data Stack = Stack {
+    stack_stack :: !Stack.Stack
+    -- | One score event will emit separate ui events for note, pitch, and
+    -- controls.  A string tag is used to differentiate them.
+    , stack_tag :: !String
+    -- | One score call can emit multiple score events, so each one is
+    -- numbered.
+    , stack_serial :: !Int
+    } deriving (Eq, Ord, Read, Show)
 
 instance DeepSeq.NFData Event where
     rnf (Event bs dur style stack) =
         bs `seq` dur `seq` style `seq` stack `seq` ()
+
+instance Pretty.Pretty Event where
+    format (Event bs dur _style stack) = Pretty.format
+        (Pretty.format bs, Pretty.format dur, Pretty.format stack)
+
+instance Pretty.Pretty Stack where
+    format (Stack stack tag serial) = Pretty.format
+        (Pretty.format stack, Pretty.text tag, Pretty.format serial)
 
 -- | Manual event constructor.
 event :: String -> ScoreTime -> Event

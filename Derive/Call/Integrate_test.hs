@@ -55,13 +55,13 @@ integrate_blocks modify_ui blocks
         UiTest.mkblocks blocks
     (tracks, errs) = integrate ui_state bid $ DeriveTest.extract_events id $
         DeriveTest.derive_block ui_state bid
-    (new_block_id, state) = UiTest.run State.empty $ create_block bid tracks
+    (new_block_id, state) = UiTest.run State.empty $ create_block tracks
     ((_, track_specs), skel) = UiTest.block_to_spec new_block_id state
 
-create_block :: (State.M m) => BlockId -> [Integrate.Track] -> m BlockId
-create_block source_block_id tracks = do
+create_block :: (State.M m) => [Integrate.Track] -> m BlockId
+create_block tracks = do
     block_id <- Create.block State.no_ruler
-    Cmd.Integrate.fill_block source_block_id block_id tracks
+    Cmd.Integrate.fill_block block_id tracks
     return block_id
 
 integrate :: State.State -> BlockId -> [Score.Event]

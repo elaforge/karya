@@ -172,7 +172,9 @@ instance Serialize State.Default where
 -- ** Block
 
 instance Serialize Block.Block where
-    put (Block.Block a _config b c d e) = put_version 6
+    -- Config is not serialized because everything in the block config is
+    -- either derived from the Cmd.State or is hardcoded.
+    put (Block.Block a _config b c d e) = put_version 7
         >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- get_version
@@ -194,13 +196,26 @@ instance Serialize Block.Block where
                 title <- get :: Get String
                 tracks <- get :: Get [Block.Track]
                 skel <- get :: Get Skeleton.Skeleton
-                integrated <- get :: Get (Maybe BlockId)
+                _integrated <- get :: Get (Maybe BlockId)
                 meta <- get :: Get (Map.Map String String)
-                -- Everything in the block config is either derived from the
-                -- Cmd.State or is hardcoded.
+                return $ Block.Block title Block.default_config tracks skel
+                    Nothing meta
+            7 -> do
+                title :: String <- get
+                tracks :: [Block.Track] <- get
+                skel :: Skeleton.Skeleton <- get
+                integrated :: Maybe Block.Integrated <- get
+                meta :: Map.Map String String <- get
                 return $ Block.Block title Block.default_config tracks skel
                     integrated meta
             _ -> bad_version "Block.Block" v
+
+instance Serialize Block.Integrated where
+    put (Block.Integrated a b) = put a >> put b
+    get = do
+        block_id :: BlockId <- get
+        index :: Block.EventIndex <- get
+        return $ Block.Integrated block_id index
 
 instance Serialize Skeleton.Skeleton where
     put (Skeleton.Skeleton a) = put a
@@ -389,19 +404,23 @@ instance Serialize Track.RenderStyle where
             _ -> bad_tag "Track.RenderStyle" tag
 
 instance Serialize Events.Events where
-    put (Events.Events a) = put_version 1 >> put a
+    put (Events.Events a) = put_version 2 >> put a
     get = do
         v <- get_version
         case v of
             0 -> do
                 events <- get :: Get (Map.Map ScoreTime Event0)
-                return $ Events.Events (Map.map convert events)
+                return $ Events.Events (Map.map convert0 events)
             1 -> do
+                events <- get :: Get (Map.Map ScoreTime Event1)
+                return $ Events.Events (Map.map convert1 events)
+            2 -> do
                 events <- get :: Get (Map.Map ScoreTime Event.Event)
                 return $ Events.Events events
             _ -> bad_version "Events.Events" v
         where
-        convert (Event0 bs dur style) = Event.Event bs dur style Nothing
+        convert0 (Event0 bs dur style) = Event.Event bs dur style Nothing
+        convert1 (Event1 bs dur style _stack) = Event.Event bs dur style Nothing
 
 -- ** Event
 
@@ -411,9 +430,10 @@ instance Serialize Event.Event where
         text <- get :: Get ByteString.ByteString
         dur <- get :: Get ScoreTime
         style <- get :: Get Style.StyleId
-        stack <- get :: Get (Maybe Stack.Stack)
+        stack <- get :: Get (Maybe Event.Stack)
         return $ Event.Event text dur style stack
 
+data Event0 = Event0 !Event.Text !ScoreTime !Style.StyleId
 instance Serialize Event0 where
     put (Event0 a b c) = put a >> put b >> put c
     get = do
@@ -422,11 +442,23 @@ instance Serialize Event0 where
         style <- get :: Get Style.StyleId
         return $ Event0 text dur style
 
-data Event0 = Event0 {
-    event_bs :: !ByteString.ByteString
-    , event_duration :: !ScoreTime
-    , event_style :: !Style.StyleId
-    }
+data Event1 = Event1 !Event.Text !ScoreTime !Style.StyleId !(Maybe Stack.Stack)
+instance Serialize Event1 where
+    put (Event1 a b c d) = put a >> put b >> put c >> put d
+    get = do
+        text <- get :: Get ByteString.ByteString
+        dur <- get :: Get ScoreTime
+        style <- get :: Get Style.StyleId
+        stack <- get :: Get (Maybe Stack.Stack)
+        return $ Event1 text dur style stack
+
+instance Serialize Event.Stack where
+    put (Event.Stack a b c) = put a >> put b >> put c
+    get = do
+        stack :: Stack.Stack <- get
+        tag :: String <- get
+        serial :: Int <- get
+        return $ Event.Stack stack tag serial
 
 -- ** Midi.Instrument
 

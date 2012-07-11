@@ -101,8 +101,7 @@ integrate lookup_scale key = convert . Seq.partition_either
 
 -- | Split into tracks by track id, instrument, and then scale.
 -- TODO and overlapping events should be split, deal with that later
-group_key :: Score.Event -> (Maybe TrackId, Score.Instrument,
-    Pitch.ScaleId)
+group_key :: Score.Event -> (Maybe TrackId, Score.Instrument, Pitch.ScaleId)
 group_key event = (track_of event, Score.event_instrument event,
     PitchSignal.sig_scale_id (Score.event_pitch event))
 
@@ -116,43 +115,60 @@ integrate_track :: Derive.LookupScale -> Maybe Pitch.Key
 integrate_track lookup_scale key ((_, inst, scale_id), events) = do
     scale <- maybe (Left $ "scale not found: " ++ Pretty.pretty scale_id)
         return (lookup_scale scale_id)
-    pitch_track <- case pitch_events scale scale_id key events of
+    pitch_track <- case pitch_events scale scale_id key event_stacks of
         Nothing -> return []
         Just (track, []) -> return [track]
         Just (_, errs) -> Left $ Seq.join "; " errs
-    return $ note_events inst events : pitch_track ++ control_events events
+    return $ note_events inst event_stacks
+        : pitch_track ++ control_events event_stacks
+    where
+    event_stacks = zip events (stack_serials (map Score.event_stack events))
+
+-- | Make deriver stacks unique by appending a serial number.
+stack_serials :: [Stack.Stack] -> [Stack]
+stack_serials = snd . List.mapAccumL go Map.empty
+    where
+    go seen stack = (seen2, (stack, Maybe.fromMaybe 0 count))
+        where
+        (count, seen2) = Map.insertLookupWithKey' (const (+)) stack 1 seen
+
+type Stack = (Stack.Stack, Int)
 
 -- ** note
 
-note_events :: Score.Instrument -> [Score.Event] -> Track
-note_events inst events = make_track note_title (map note_event events)
-    where note_title = TrackInfo.instrument_to_title inst
+note_events :: Score.Instrument -> [(Score.Event, Stack)] -> Track
+note_events inst event_stacks =
+    make_track note_title (map note_event event_stacks)
+    where
+    note_title = TrackInfo.instrument_to_title inst
 
-note_event :: Score.Event -> Events.PosEvent
-note_event event = (RealTime.to_score (Score.event_start event),
+note_event :: (Score.Event, Stack) -> Events.PosEvent
+note_event (event, stack) = (RealTime.to_score (Score.event_start event),
     Event.Event (Score.event_bs event)
         (RealTime.to_score (Score.event_duration event))
-        Config.default_style (Just (Score.event_stack event)))
+        Config.default_style (Just (make_stack ">" stack)))
 
 -- ** pitch
 
 pitch_events :: Scale.Scale -> Pitch.ScaleId -> Maybe Pitch.Key
-    -> [Score.Event] -> Maybe (Track, [String])
-pitch_events scale scale_id key events
-    | all (PitchSignal.null . Score.event_pitch) events = Nothing
+    -> [(Score.Event, Stack)] -> Maybe (Track, [String])
+pitch_events scale scale_id key event_stacks
+    | all (PitchSignal.null . Score.event_pitch . fst) event_stacks = Nothing
     | otherwise =
         Just (make_track pitch_title (tidy_events ui_events), concat errs)
     where
     pitch_title = TrackInfo.scale_to_title scale_id
-    (ui_events, errs) = unzip $ map (pitch_signal_events scale key) events
+    (ui_events, errs) = unzip $
+        map (pitch_signal_events scale key) event_stacks
 
 pitch_signal_events :: Scale.Scale -> Maybe Pitch.Key
-    -> Score.Event -> ([Events.PosEvent], [String])
-pitch_signal_events scale key event =
+    -> (Score.Event, Stack) -> ([Events.PosEvent], [String])
+pitch_signal_events scale key (event, stack) =
     (ui_events, map Pretty.pretty pitch_errs ++ note_errs)
     where
     sig = Score.event_pitch event
-    ui_events = [ui_event event (RealTime.to_score x) (Pitch.note_text note) 0
+    ui_events = [ui_event (make_stack "*" stack) (RealTime.to_score x)
+            (Pitch.note_text note) 0
         | (x, _, Just note) <- notes]
     notes = [(x, nn, Scale.nn_to_note scale key nn)
         | (x, nn) <- map (second Pitch.NoteNumber) (Signal.unsignal nns)]
@@ -162,20 +178,21 @@ pitch_signal_events scale key event =
 
 -- ** control
 
-control_events :: [Score.Event] -> [Track]
-control_events events =
-    filter (not . empty_track) $ map (control_track events) controls
+control_events :: [(Score.Event, Stack)] -> [Track]
+control_events event_stacks =
+    filter (not . empty_track) $ map (control_track event_stacks) controls
     where
     controls = List.sort $ Seq.unique $ concatMap
-        (map typed_control . Map.toList . Score.event_controls) events
+        (map typed_control . Map.toList . Score.event_controls . fst)
+        event_stacks
     typed_control (control, sig) = Score.Typed (Score.type_of sig) control
 
-control_track :: [Score.Event] -> Score.Typed Score.Control -> Track
-control_track events control =
+control_track :: [(Score.Event, Stack)] -> Score.Typed Score.Control -> Track
+control_track event_stacks control =
     make_track (TrackInfo.unparse_typed control) ui_events
     where
-    ui_events = drop_dyn $ tidy_events $ map controls_of events
-    controls_of event = signal_events (Score.typed_val control) event
+    ui_events = drop_dyn $ tidy_events $
+        map (signal_events (Score.typed_val control)) event_stacks
     -- Don't emit a dyn track if it's just the default.
     -- TODO generalize this to everything in in Derive.initial_controls
     drop_dyn [(pos, event)]
@@ -184,19 +201,23 @@ control_track events control =
     drop_dyn events = events
     default_dyn = ParseBs.show_hex_val Derive.default_dynamic
 
-signal_events :: Score.Control -> Score.Event -> [Events.PosEvent]
-signal_events control event = case Map.lookup control controls of
+signal_events :: Score.Control -> (Score.Event, Stack) -> [Events.PosEvent]
+signal_events control (event, stack) = case Map.lookup control controls of
     Nothing -> []
     Just sig ->
-        [ui_event event (RealTime.to_score x) (ParseBs.show_hex_val y) 0
+        [ui_event (make_stack (Score.control_name control) stack)
+            (RealTime.to_score x) (ParseBs.show_hex_val y) 0
             | (x, y) <- Signal.unsignal (Score.typed_val sig)]
     where controls = Score.event_controls event
 
 -- * util
 
-ui_event :: Score.Event -> ScoreTime -> String -> ScoreTime -> Events.PosEvent
-ui_event source pos text dur = (pos, (Event.event text dur)
-    { Event.event_stack = Just (Score.event_stack source) })
+make_stack :: String -> Stack -> Event.Stack
+make_stack tag (stack, serial) = Event.Stack stack tag serial
+
+ui_event :: Event.Stack -> ScoreTime -> String -> ScoreTime -> Events.PosEvent
+ui_event stack pos text dur = (pos, (Event.event text dur)
+    { Event.event_stack = Just stack })
 
 tidy_events :: [[Events.PosEvent]] -> [Events.PosEvent]
 tidy_events = clip_to_zero . drop_dups . clip_concat

@@ -544,7 +544,10 @@ data Collect = Collect {
 
 -- | A simplified description of a UI track, as collected by
 -- "Derive.Call.Integrate".
-data Track = Track !String ![Events.PosEvent] deriving (Show)
+data Track = Track {
+    track_title :: !String
+    , track_events :: ![Events.PosEvent]
+    } deriving (Show)
 
 instance Monoid.Monoid Collect where
     mempty = Collect mempty mempty mempty mempty mempty Nothing
