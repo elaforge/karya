@@ -45,15 +45,15 @@ test_write_dir = do
     dir2 <- Git.read_dir repo tree
     equal dir1 dir2
 
-test_modify_dir = do
+test_modify_tree = do
     repo <- new_repo
     tree <- Git.write_dir repo Map.empty
-    tree <- Git.modify_dir repo tree [Git.Add "a/b" "abc", Git.Add "c" "def"]
+    tree <- Git.modify_tree repo tree [Git.Add "a/b" "abc", Git.Add "c" "def"]
     io_equal (Git.read_dir repo tree) $ Map.fromList
         [ ("a", Git.Dir (Map.fromList [("b", Git.File "abc")]))
         , ("c", Git.File "def")
         ]
-    tree <- Git.modify_dir repo tree [Git.Remove "a/b", Git.Add "c" "qqq"]
+    tree <- Git.modify_tree repo tree [Git.Remove "a/b", Git.Add "c" "qqq"]
     io_equal (Git.read_dir repo tree) $ Map.fromList [("c", Git.File "qqq")]
 
 new_repo = do
