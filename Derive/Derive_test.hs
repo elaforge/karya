@@ -121,9 +121,9 @@ test_stack = do
         track name num = Stack.Track (UiTest.mk_tid_name name num)
         call = Stack.Call
     equal (map (map Stack.unparse_ui_frame . Stack.to_ui) stacks)
-        [ ["test/b0 test/b0.t1 0-1"]
-        , ["test/b0 test/b0.t1 1-2", "test/sub test/sub.t1 0-1"]
-        , ["test/b0 test/b0.t1 1-2", "test/sub test/sub.t1 1-2"]
+        [ ["test/b0 test/b0.t01 0-1"]
+        , ["test/b0 test/b0.t01 1-2", "test/sub test/sub.t01 0-1"]
+        , ["test/b0 test/b0.t01 1-2", "test/sub test/sub.t01 1-2"]
         ]
 
     let b0 s e = [block_call "b0", block "b0", track "b0" 1, call "note-track",
@@ -150,10 +150,10 @@ test_track_environ = do
     let inst = Just $ TrackLang.VInstrument $ Score.Instrument "i1"
         scale = Just $ TrackLang.VScaleId $ Pitch.ScaleId "semar"
     equal (extract res)
-        [ (UiTest.bid "b", UiTest.tid "b.t1", scale, Nothing)
-        , (UiTest.bid "b", UiTest.tid "b.t2", scale, inst)
-        , (UiTest.bid "sub", UiTest.tid "sub.t1", scale, inst)
-        , (UiTest.bid "sub", UiTest.tid "sub.t2", scale, inst)
+        [ (UiTest.bid "b", UiTest.mk_tid_name "b" 1, scale, Nothing)
+        , (UiTest.bid "b", UiTest.mk_tid_name "b" 2, scale, inst)
+        , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 1, scale, inst)
+        , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 2, scale, inst)
         ]
 
 test_simple_subderive = do
@@ -186,7 +186,7 @@ test_subderive = do
     strings_like (map DeriveTest.show_log msgs) ["call not found: nosuch"]
 
     equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
-        ["b0 b0.t2 0-1"]
+        ["b0 b0.t02 0-1"]
 
     let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
         (events, msgs) = DeriveTest.r_split res
@@ -474,7 +474,7 @@ test_tempo_funcs_multiple_subblocks = do
             [ ("parent", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
             , ("sub", [(">i", [(0, 1, "")])])
             ]
-    equal (r_tempo res (UiTest.bid "sub") (UiTest.tid "sub.t1") 0.5)
+    equal (r_tempo res (UiTest.bid "sub") (UiTest.mk_tid_name "sub" 1) 0.5)
         [0.5, 1.5]
 
 test_fractional_pitch = do

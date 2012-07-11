@@ -216,8 +216,8 @@ test_track_environ = do
             Pretty.pretty $ Map.lookup TrackLang.v_scale e)
     -- Both tracks get *semar, even though >inst has to be inverted to see it.
     equal (run [(">inst", [(0, 0, "")]), ("*semar", [(0, 0, "1")])])
-        [ ((UiTest.bid "b1", UiTest.tid "b1.t1"), (">inst", "*semar"))
-        , ((UiTest.bid "b1", UiTest.tid "b1.t2"), (">inst", "*semar"))
+        [ ((UiTest.bid "b1", UiTest.mk_tid_name "b1" 1), (">inst", "*semar"))
+        , ((UiTest.bid "b1", UiTest.mk_tid_name "b1" 2), (">inst", "*semar"))
         ]
 
 

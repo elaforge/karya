@@ -20,6 +20,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
+import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Serialize as Serialize
 import qualified Cmd.Simple as Simple
@@ -175,8 +176,7 @@ mk_tid :: TrackNum -> TrackId
 mk_tid = mk_tid_block default_block_id
 
 mk_tid_block :: BlockId -> TrackNum -> TrackId
-mk_tid_block block_id i =
-    Types.TrackId $ Id.unsafe_id ns (block_name ++ ".t" ++ show i)
+mk_tid_block block_id i = Types.TrackId $ Create.ids_for ns block_name "t" !! i
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 mk_tid_name :: String -> TrackNum -> TrackId
