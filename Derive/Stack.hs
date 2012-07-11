@@ -95,18 +95,14 @@ call_of (Call s) = Just s
 call_of _ = Nothing
 
 data Frame =
-    Block BlockId
-    | Track TrackId
-    | Region ScoreTime ScoreTime
-    | Call String
+    Block !BlockId
+    | Track !TrackId
+    | Region !ScoreTime !ScoreTime
+    | Call !String
     deriving (Eq, Ord, Read, Show)
 
 instance DeepSeq.NFData Frame where
-    rnf f = case f of
-        Block bid -> bid `seq` ()
-        Track tid -> tid `seq` ()
-        Region s e -> s `seq` e `seq` ()
-        Call s -> s `seq` ()
+    rnf f = f `seq` ()
 
 instance Pretty.Pretty Stack where
     format = Pretty.format_list . outermost
