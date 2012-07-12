@@ -74,10 +74,11 @@ UNSORTED
   - but even when it does (on the scale itself) it doesn't do thru
   integrate that converts Score.Events back into Ui Events
     * implement and test for reverse
-    - generated block has -no-ruler-
     * Events are italic if they have a stack, and integrator adds bold, but
       any moves or other modifications remove the bold, so modified events
       are visually apparent.
+    - integrated block gets the derive indicator stuck on
+    - editing the integrated block causes another integration
     - single track mode that doesn't bother to split tracks
     How to deal with multiple tracks?
       I feel like doing the diffs one one merged stream is wrong, it should be

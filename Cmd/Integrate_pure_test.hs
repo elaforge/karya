@@ -41,7 +41,7 @@ test_diff_event = do
 
 test_reintegrate = do
     -- This also tests Integrate.apply
-    let f last integrated events = fst $ reintegrate last integrated events
+    let f last integrated events = reintegrate last integrated events
     -- Event with a stack.
     let stack start text stack = (1, (start, 1, text, Just stack))
         added start text = (1, (start, 1, text, Nothing))
@@ -85,11 +85,11 @@ test_reintegrate = do
 
 reintegrate :: [(TrackNum, Event)]
     -- ^ this doesn't need TrackNum, but takes it anyway for consistency
-    -> [(TrackNum, Event)] -> [(TrackNum, Event)]
-    -> ([(TrackNum, [Event])], ([Event.Stack], [Integrate.Edit]))
-reintegrate last_integrate integrated events = first (map extract) $
-    Integrate.reintegrate index (mkstack_events integrated) (mkevents events)
+    -> [(TrackNum, Event)] -> [(TrackNum, Event)] -> [(TrackNum, [Event])]
+reintegrate last_integrate integrated events = map extract $
+    Integrate.apply deletes edits (mkstack_events integrated)
     where
+    (deletes, edits) = Integrate.diff_events index (mkevents events)
     extract (tracknum, events) =
         (tracknum, map extract_event (Events.ascending events))
     index = Integrate.make_index (map (mkevent . snd) last_integrate)

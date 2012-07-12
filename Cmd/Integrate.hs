@@ -1,9 +1,10 @@
 {-# LANGUAGE CPP, OverloadedStrings #-}
 module Cmd.Integrate (
-    cmd_integrate, create
+    cmd_integrate, create, diff_events
+    , get_block_events
+    , Edit(..), Modify(..), is_modified
 #ifdef TESTING
-    , fill_block
-    , make_index, diff, diff_event, reintegrate, Edit(..), Modify(..)
+    , fill_block, make_index, diff, diff_event, apply
 #endif
 ) where
 import qualified Data.ByteString.Char8 as B
@@ -58,6 +59,7 @@ integrate block_id tracks = do
     forM_ integrated_blocks $ \integrated_block_id ->
         State.modify_block integrated_block_id $ \block -> block
             { Block.block_integrated = Just (Block.Integrated block_id index) }
+    -- Hack to avoid rederive, see 'Cmd.state_suppress_rederive'.
     Cmd.modify $ \state -> state { Cmd.state_suppress_rederive =
         block_id : Cmd.state_suppress_rederive state }
     where
@@ -126,10 +128,8 @@ merge tracks (block_id, index) = do
     -- the integrate generated tracks with the output tracks.
     -- TODO also if the integrate emits fewer tracks they stick around
     current_events <- get_block_events block_id
-    let (new_events, (deletes, edits)) =
-            reintegrate index (integrated_events tracks) current_events
-    Log.notice $ "merge deletes: " ++ Pretty.pretty deletes
-    Log.notice $ "edits: " ++ Pretty.pretty edits
+    let (deletes, edits) = diff_events index current_events
+        new_events = apply deletes edits (integrated_events tracks)
     forM_ new_events $ \(tracknum, events) -> do
         track_id <- State.get_event_track_at "Integrate.merge" block_id tracknum
         -- TODO only emit damage for the changed parts
@@ -183,23 +183,87 @@ integrated_events tracks =
 --     (with_stacks, without_stacks) = partition_maybe snd
 --         (zip events (map (Event.event_stack . snd . snd) events))
 
--- | Merge new integrated output with user edits by diffing it against the old
--- integrated output.
-reintegrate :: Block.EventIndex -- ^ results of last integrate
-    -> [(Event.Stack, TrackNum, Events.PosEvent)]
-    -- ^ results of current integrate, has stacks
+-- ** diff
+
+-- | Find out how to merge new integrated output with user edits by diffing it
+-- against the old integrated output.
+diff_events :: Block.EventIndex -- ^ results of last integrate
     -> [(TrackNum, Events.PosEvent)]
     -- ^ current events, which is last integrate plus user edits
-    -> ([(TrackNum, Events.Events)], ([Event.Stack], [Edit]))
-reintegrate index integrated events =
-    (apply deletes edits integrated, (Set.toList deletes, edits))
+    -> (Set.Set Event.Stack, [Edit])
+    -- ^ set of deleted events, and edited events
+diff_events index events = (deletes, edits)
     where
-    edits = map (diff index) events
     deletes = Set.difference (Map.keysSet index) $
         Set.fromList (Maybe.mapMaybe (Event.event_stack . snd . snd) events)
+    edits = map (diff index) events
+
+diff :: Block.EventIndex -> (TrackNum, Events.PosEvent) -> Edit
+diff index (tracknum, new) = case Event.event_stack (snd new) of
+    Nothing -> Add tracknum new
+    Just stack -> case Map.lookup stack index of
+        -- Events with a stack but not in the index shouldn't happen, they
+        -- indicate that the index is out of sync with the last
+        -- integration.  To be safe, they're counted as an add, and the
+        -- stack is deleted.  TODO could this multiply events endlessly?
+        Nothing -> Add tracknum (clear_stack new)
+        Just old -> Edit stack tracknum (diff_event old new)
+    where clear_stack (p, e) = (p, e { Event.event_stack = Nothing })
+
+diff_event :: Events.PosEvent -> Events.PosEvent -> [Modify]
+diff_event (old_pos, old_event) (new_pos, new_event) = concat
+    [ cmp old_pos new_pos (Position new_pos)
+    , cmp (Event.event_duration old_event) (Event.event_duration new_event)
+        (Duration (Event.event_duration new_event))
+    , diff_text (Event.event_bs old_event) (Event.event_bs new_event)
+    ]
+    where cmp x y val = if x == y then [] else [val]
+
+-- | Figure out differences between the text of two events.
+--
+-- A text change is only considered a Prefix if it occurs on a @ | @ boundary.
+-- This is because I want to catch a transformer addition but don't want to
+-- mangle text that happens to start with the same character.
+--
+-- I don't check for suffixes because suffixing an event would change
+-- a generator to a transformer, which in unlikely.
+diff_text :: Event.Text -> Event.Text -> [Modify]
+diff_text old new
+    | old == new = []
+    | old `B.isSuffixOf` new && ends_with_pipe prefix = [Prefix prefix]
+    | otherwise = [Set new]
+    where
+    prefix = B.take (B.length new - B.length old) new
+    ends_with_pipe text = "|" `B.isSuffixOf` pre && B.all (==' ') post
+        where (pre, post) = B.breakEnd (=='|') text
+
+data Edit =
+    Add !TrackNum !Events.PosEvent
+    | Edit !Event.Stack !TrackNum ![Modify]
+    deriving (Eq, Show)
+
+data Modify = Position !ScoreTime | Duration !ScoreTime
+    | Set !B.ByteString | Prefix !B.ByteString
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Edit where
+    format (Add tracknum event) =
+        Pretty.constructor "Add" [Pretty.format tracknum, Pretty.format event]
+    format (Edit stack tracknum mods) = Pretty.constructor "Edit"
+        [Pretty.format stack, Pretty.format tracknum, Pretty.format mods]
+
+instance Pretty.Pretty Modify where pretty = show
+
+is_modified :: Edit -> Bool
+is_modified (Edit _ _ mods) = not (null mods)
+is_modified _ = True
+
+-- ** apply
 
 apply :: Set.Set Event.Stack -- ^ events that were deteleted
-    -> [Edit] -> [(Event.Stack, TrackNum, Events.PosEvent)]
+    -> [Edit]
+    -> [(Event.Stack, TrackNum, Events.PosEvent)]
+    -- ^ results of current integrate, has stacks
     -> [(TrackNum, Events.Events)]
 apply deletes adds_edits = make . Maybe.mapMaybe edit
     where
@@ -236,64 +300,6 @@ apply_modifications mods event = List.foldl' go event mods
         Set text -> (pos, event { Event.event_bs = text })
         Prefix text ->
             (pos, event { Event.event_bs = text <> Event.event_bs event })
-
-diff :: Block.EventIndex -> (TrackNum, Events.PosEvent) -> Edit
-diff index (tracknum, new) = case Event.event_stack (snd new) of
-    Nothing -> Add tracknum new
-    Just stack -> case Map.lookup stack index of
-        -- Events with a stack but not in the index shouldn't happen, they
-        -- indicate that the index is out of sync with the last
-        -- integration.  To be safe, they're counted as an add, and the
-        -- stack is deleted.  TODO could this multiply events endlessly?
-        Nothing -> Add tracknum (clear_stack new)
-        Just old -> Edit stack tracknum (diff_event old new)
-    where clear_stack (p, e) = (p, e { Event.event_stack = Nothing })
-
-diff_event :: Events.PosEvent -> Events.PosEvent -> [Modify]
-diff_event (old_pos, old_event) (new_pos, new_event) = concat
-    [ cmp old_pos new_pos (Position new_pos)
-    , cmp (Event.event_duration old_event) (Event.event_duration new_event)
-        (Duration (Event.event_duration new_event))
-    , diff_text (Event.event_bs old_event) (Event.event_bs new_event)
-    ]
-    where
-    cmp x y val = if x == y then [] else [val]
-
--- | Figure out differences between the text of two events.
---
--- A text change is only considered a Prefix if it occurs on a @ | @ boundary.
--- This is because I want to catch a transformer addition but don't want to
--- mangle text that happens to start with the same character.
---
--- I don't check for suffixes because suffixing an event would change
--- a generator to a transformer, which in unlikely.
-diff_text :: Event.Text -> Event.Text -> [Modify]
-diff_text old new
-    | old == new = []
-    | old `B.isSuffixOf` new && ends_with_pipe prefix = [Prefix prefix]
-    | otherwise = [Set new]
-    where
-    prefix = B.take (B.length new - B.length old) new
-    ends_with_pipe text = "|" `B.isSuffixOf` pre && B.all (==' ') post
-        where (pre, post) = B.breakEnd (=='|') text
-
-data Edit =
-    Add !TrackNum !Events.PosEvent
-    | Edit !Event.Stack !TrackNum ![Modify]
-    deriving (Eq, Show)
-
-data Modify = Position !ScoreTime | Duration !ScoreTime
-    | Set !B.ByteString | Prefix !B.ByteString
-    deriving (Eq, Show)
-
-instance Pretty.Pretty Edit where
-    format (Add tracknum event) =
-        Pretty.constructor "Add" [Pretty.format tracknum, Pretty.format event]
-    format (Edit stack tracknum mods) = Pretty.constructor "Edit"
-        [Pretty.format stack, Pretty.format tracknum, Pretty.format mods]
-
-instance Pretty.Pretty Modify where
-    pretty = show
 
 -- * util
 
