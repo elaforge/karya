@@ -3,6 +3,7 @@ UNSORTED
     It would also be nice to use a lazy array inside the performer.
     Is there a generic lazy array implementation out there?
     It would be nice for LoggerT implementation as well.
+    storablevector has a builder, but only for Storable types.
   - why not have blocks extend to the end of the ruler instead of the last
     event?  Last event necessitates the '--' hack.
   - why does Pitch take a map of TypedVals instead of plain Signal.Ys?
@@ -74,10 +75,17 @@ UNSORTED
   integrate that converts Score.Events back into Ui Events
     * implement and test for reverse
     - generated block has -no-ruler-
-    - Events are italic if they have a stack, and integrator adds bold, but
+    * Events are italic if they have a stack, and integrator adds bold, but
       any moves or other modifications remove the bold, so modified events
       are visually apparent.
     - single track mode that doesn't bother to split tracks
+    How to deal with multiple tracks?
+      I feel like doing the diffs one one merged stream is wrong, it should be
+      track-by-track.  One thing the merged stream gives is detecting events
+      that have moved to another tracknum.  Cases where tracknums may change:
+        Integrator splits overlaps, say it's a block that adds another track
+        with the same instrument.
+        Wait, but splitting takes into account source track id too.
     track integrate
       - Block derive first finds integrated tracks, solos them, drops tempo
         tracks, and derives them.

@@ -31,6 +31,7 @@ import qualified Cmd.Msg as Msg
 
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackInfo as TrackInfo
+import qualified App.Config as Config
 import Types
 
 
@@ -209,14 +210,22 @@ apply deletes adds_edits = make . Maybe.mapMaybe edit
         Events.from_list (map snd adds) <> Events.from_list (map snd events))
     edit (stack, tracknum, event)
         | stack `Set.member` deletes = Nothing
-        | Just (tracknum, mods) <- Map.lookup stack edit_map =
-            Just (tracknum, apply_modifications mods event)
-        | otherwise = Just (tracknum, event)
+        | Just (edit_tracknum, mods) <- Map.lookup stack edit_map =
+            if null mods
+                then Just (edit_tracknum, unmodified event)
+                else Just (edit_tracknum, apply_modifications mods event)
+        -- A new event from the integrate.
+        | otherwise = Just (tracknum, unmodified event)
     edit_map = Map.fromList
         [(stack, (tracknum, mods)) | (stack, tracknum, mods) <- edits]
     (adds, edits) = Seq.partition_either (map to_either adds_edits)
     to_either (Add tracknum event) = Left (tracknum, event)
     to_either (Edit stack tracknum mods) = Right (stack, tracknum, mods)
+
+-- | Unmodified events get a special style to indicate such.
+unmodified :: Events.PosEvent -> Events.PosEvent
+unmodified = second $ \event -> event { Event.event_style =
+    Config.unmodified_style (Event.event_style event) }
 
 apply_modifications :: [Modify] -> Events.PosEvent -> Events.PosEvent
 apply_modifications mods event = List.foldl' go event mods

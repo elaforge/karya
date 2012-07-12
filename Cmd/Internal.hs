@@ -18,7 +18,6 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.State as State
-import qualified Ui.Style as Style
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
@@ -216,23 +215,22 @@ update_of _ = Nothing
 -- | Set the style of an event based on its contents.  This is hardcoded
 -- for now but it's easy to put in StaticConfig if needed.
 set_style :: Event.SetStyle
-set_style title _pos event
-    | Event.event_style event /= Config.default_style = Event.event_style event
-    | otherwise = integrated $ case ParseBs.parse_expr (Event.event_bs event) of
-        Left _ -> Config.parse_error_style
-        Right expr
-            | TrackInfo.is_note_track title -> colorize_note expr
-            | TrackInfo.is_pitch_track title -> Config.pitch_style
-            | otherwise -> Config.control_style
+set_style title _pos event =
+    integrated $ Config.set_style
+        (syntax (ParseBs.parse_expr (Event.event_bs event)))
+        (Event.event_style event)
     where
     integrated
         | Maybe.isNothing (Event.event_stack event) = id
-        | otherwise = Config.to_integrated_style
-
-colorize_note :: TrackLang.Expr -> Style.StyleId
-colorize_note (TrackLang.Call call _ : _)
-    | call == TrackLang.c_equal = Config.declaration_style
-colorize_note _ = Config.default_style
+        | otherwise = Config.integrated_style
+    syntax (Left _) = Config.Error
+    syntax (Right expr)
+        | TrackInfo.is_note_track title = case expr of
+            TrackLang.Call call _ : _ | call == TrackLang.c_equal ->
+                Config.Declaration
+            _ -> Config.Default
+        | TrackInfo.is_pitch_track title = Config.Pitch
+        | otherwise = Config.Control
 
 
 -- * sync

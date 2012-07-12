@@ -2,6 +2,7 @@
 -}
 module App.Config where
 import qualified Data.Array.IArray as IArray
+import qualified Data.Bits as Bits
 import qualified Network
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
@@ -270,37 +271,50 @@ emmentaler = case System.Info.os of
 -- | Like Symbols, these are sent to the UI layer at startup and then remain
 -- static.
 styles :: [Style.Style]
-styles = plain_styles ++ map integrated plain_styles
+styles =
+    [style { Style.style_face = face } | style <- plain_styles, face <- faces]
+    where faces = [[], [Style.Bold], [Style.Italic], [Style.Bold, Style.Italic]]
+
+set_face :: Bool -> Style.FontFace -> Style.StyleId -> Style.StyleId
+set_face set face (Style.StyleId style) = Style.StyleId $ n * 4 + case face of
+        Style.Bold -> set_bit c 0
+        Style.Italic -> set_bit c 1
     where
-    integrated style = style { Style.style_face = [Style.Bold, Style.Italic] }
+    set_bit = if set then Bits.setBit else Bits.clearBit
+    (n, c) = style `divMod` 4
+
+set_style :: Style -> Style.StyleId -> Style.StyleId
+set_style style (Style.StyleId code) =
+    Style.StyleId $ fromIntegral (fromEnum style) * 4 + code `mod` 4
+
+data Style = Default | Control | Pitch | Declaration | Error
+    deriving (Enum, Show)
+
+default_style :: Style.StyleId
+default_style = Style.StyleId 0
 
 plain_styles :: [Style.Style]
 plain_styles =
-    [ plain 0.9 0.9 0.7 -- default_style, is also note style
-    , plain 0.8 0.9 0.8 -- control_style
-    , plain 0.9 0.8 0.9 -- pitch_style
-    , plain 1.0 1.0 0.65 -- declaration_style
-    , plain 1.0 0.8 0.8
+    [ plain 0.9 0.9 0.7 -- default_style
+    , plain 0.8 0.9 0.8 -- style for events on tracks
+    , plain 0.9 0.8 0.9 -- style for events on pitch tracks
+    -- Declaration style: events that affect further derivation and don't
+    -- output any notes themselves, e.g. @x = y@.
+    , plain 1.0 1.0 0.65
+    , plain 1.0 0.8 0.8 -- parse error
     ]
     where
     plain r g b = Style.Style Style.Helvetica [] 12 Color.black
         (Color.rgb r g b)
 
--- | Normal events.
-default_style :: Style.StyleId
-control_style :: Style.StyleId
-pitch_style :: Style.StyleId
--- | Events that affect further derivation and don't output any notes
--- themselves, e.g. @x = y@.
-declaration_style :: Style.StyleId
--- | Events that can't be parsed.
-parse_error_style :: Style.StyleId
+-- | Indicates that this event was integrated from somewhere else.
+integrated_style :: Style.StyleId -> Style.StyleId
+integrated_style = set_face True Style.Italic
 
-default_style : control_style : pitch_style : declaration_style
-    : parse_error_style : _ = map Style.StyleId [0..]
+-- | Indicates that this integrated event has not yet been modified.
+unmodified_style :: Style.StyleId -> Style.StyleId
+unmodified_style = set_face True Style.Bold
 
-to_integrated_style :: Style.StyleId -> Style.StyleId
-to_integrated_style (Style.StyleId id)
-    | id < plains = Style.StyleId (id + plains)
-    | otherwise = Style.StyleId id
-    where plains = fromIntegral (length plain_styles)
+-- | Indicates that this integrated event was modified after integration.
+modified_style :: Style.StyleId -> Style.StyleId
+modified_style = set_face False Style.Bold

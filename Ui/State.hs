@@ -1115,6 +1115,7 @@ get_events track_id start end = do
     events <- Track.track_events <$> get_track track_id
     return (_events_in_range start end events)
 
+-- | Get an event at or before the given time.
 get_event :: (M m) => TrackId -> ScoreTime -> m (Maybe Events.PosEvent)
 get_event track_id pos = Seq.head <$> get_events track_id pos pos
 
