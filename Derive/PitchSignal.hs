@@ -150,7 +150,7 @@ resample_signals controls transposers =
     -- cases there will be 0 or 1 transposition values.
 
 controls_at :: RealTime -> ControlMap -> Controls
-controls_at t = Map.map (fmap (Signal.at t))
+controls_at t = Map.map (Signal.at t . Score.typed_val)
 
 -- * signal functions
 
@@ -179,9 +179,9 @@ drop_before x = fmap0 (TimeVector.drop_before x)
 
 -- newtype Pitch = Pitch PitchCall
 -- type PitchCall =
---      Map.Map Control Double -> Either PitchError Pitch.NoteNumber
+--      Map.Map Control Signal.Y -> Either PitchError Pitch.NoteNumber
 
-type Controls = Map.Map Score.Control Score.TypedVal
+type Controls = Map.Map Score.Control Signal.Y
 
 pitch :: PitchCall -> Pitch
 pitch = Pitch
@@ -189,12 +189,11 @@ pitch = Pitch
 -- | Apply controls to a pitch.
 apply :: Controls -> Pitch -> Pitch
 apply controls = fmap0 $ \pitch controls2 ->
-    pitch $ Map.unionWith (Score.merge_typed (+))  controls2 controls
+    pitch $ Map.unionWith (+)  controls2 controls
 
 add_control :: Score.Control -> Double -> Pitch -> Pitch
 add_control cont val = fmap0 $ \pitch controls ->
-    pitch $ Map.insertWith' (Score.merge_typed (+))
-        cont (Score.untyped val) controls
+    pitch $ Map.insertWith' (+) cont val controls
 
 eval_pitch :: Pitch -> PitchCall
 eval_pitch (Pitch p) = p

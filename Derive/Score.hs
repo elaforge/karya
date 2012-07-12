@@ -117,8 +117,7 @@ control_at t = fmap (Signal.at t)
 
 -- | Get control value at the given time.
 control :: ControlMap -> Control -> RealTime -> TypedVal
-control controls c t =
-    maybe (untyped 0) (control_at t) (Map.lookup c controls)
+control controls c t = maybe (untyped 0) (control_at t) (Map.lookup c controls)
 
 move_controls :: RealTime -> Event -> Event
 move_controls shift event = event
@@ -155,7 +154,7 @@ event_controls_at :: RealTime -> Event -> PitchSignal.Controls
 event_controls_at t = controls_at t .  event_controls
 
 controls_at :: RealTime -> ControlMap -> PitchSignal.Controls
-controls_at = Map.map . control_at
+controls_at p = Map.map (typed_val . control_at p)
 
 -- *** pitch
 

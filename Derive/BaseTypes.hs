@@ -150,7 +150,7 @@ no_attrs = Attributes Set.empty
 -- TODO why have TypedVals, if the chromatic and diatonic transpose signals are
 -- separate?
 newtype Pitch = Pitch PitchCall
-type PitchCall = Map.Map Control TypedVal -> Either PitchError Pitch.NoteNumber
+type PitchCall = Map.Map Control Signal.Y -> Either PitchError Pitch.NoteNumber
 
 instance Eq Pitch where
     Pitch p1 == Pitch p2 = p1 Map.empty == p2 Map.empty

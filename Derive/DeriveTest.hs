@@ -517,7 +517,7 @@ pitch_signal = PitchSignal.signal scale . map (second mkpitch)
 
 mkpitch :: String -> PitchSignal.Pitch
 mkpitch p = PitchSignal.pitch $ \controls ->
-    let get c = maybe 0 Score.typed_val $ Map.lookup c controls
+    let get c = Map.findWithDefault 0 c controls
         chrom = get Score.c_chromatic
         dia = get Score.c_diatonic
     in maybe (Left (PitchSignal.PitchError $ "no pitch " ++ show p))

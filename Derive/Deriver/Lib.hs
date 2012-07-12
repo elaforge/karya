@@ -229,9 +229,7 @@ control_at cont pos = do
     return $ fmap (Score.control_at pos) (Map.lookup cont controls)
 
 controls_at :: RealTime -> Deriver PitchSignal.Controls
-controls_at pos = do
-    controls <- get_controls
-    return $ Map.map (Score.control_at pos) controls
+controls_at pos = Score.controls_at pos <$> get_controls
 
 with_control :: Score.Control -> Score.TypedSignal -> Deriver a -> Deriver a
 with_control cont signal = Internal.local $ \st ->

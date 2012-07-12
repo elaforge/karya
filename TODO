@@ -6,7 +6,7 @@ UNSORTED
     storablevector has a builder, but only for Storable types.
   - why not have blocks extend to the end of the ruler instead of the last
     event?  Last event necessitates the '--' hack.
-  - why does Pitch take a map of TypedVals instead of plain Signal.Ys?
+  * why does Pitch take a map of TypedVals instead of plain Signal.Ys?
   * 'd' and 'u' calls also need to slice to the previous one.  I need some
     kind of annotation that says a call depends entirely on the previous value.
   * tremolo ornament
