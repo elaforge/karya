@@ -44,7 +44,7 @@ merge (MidiDb db1) (MidiDb db2) =
     merge_synth (synth, pmap1) (_, pmap2) = (synth, pmap1 <> pmap2)
     rejects = concatMap find_dups (Map.zip_intersection db1 db2)
     find_dups (synth, (_, PatchMap ps1), (_, PatchMap ps2)) =
-        map (join_inst synth) (Map.keys (Map.intersection ps2 ps1))
+        map (Score.instrument synth) (Map.keys (Map.intersection ps2 ps1))
 
 -- | Construct and validate a MidiDb, returning any errors that occurred.
 midi_db :: [SynthDesc code] -> (MidiDb code, [String])
@@ -62,7 +62,7 @@ validate synth_pmaps = concatMap check_synth synth_pmaps
     check_patch synth patch = map (\s -> prefix ++ ": " ++ s) $
         Instrument.overlapping_keyswitches (Instrument.patch_keyswitches patch)
         where
-        prefix = Pretty.pretty $ join_inst
+        prefix = Pretty.pretty $ Score.instrument
             (Instrument.synth_name synth) (Instrument.patch_name patch)
 
 size :: MidiDb code -> Int
@@ -118,7 +118,7 @@ make_inst synth patch score_inst attrs = (inst
 
 lookup_instrument :: MidiDb code -> Score.Instrument -> Maybe (Info code)
 lookup_instrument (MidiDb synths) inst = do
-    let (synth_name, inst_name) = split_inst inst
+    let (synth_name, inst_name) = Score.split_inst inst
     (synth, patches) <- Map.lookup synth_name synths
     (patch, code) <- lookup_patch inst_name patches
     return $ Info synth patch code
@@ -246,14 +246,7 @@ valid_chars = ['0'..'9'] ++ ['a'..'z'] ++ " _-"
 
 score_inst :: Instrument.Synth -> Instrument.Patch -> Score.Instrument
 score_inst synth patch =
-    join_inst (Instrument.synth_name synth) (Instrument.patch_name patch)
-
-join_inst :: String -> String -> Score.Instrument
-join_inst synth inst_name = Score.Instrument (synth ++ "/" ++ inst_name)
-
-split_inst :: Score.Instrument -> (String, String)
-split_inst (Score.Instrument inst) = (synth, drop 1 inst_name)
-    where (synth, inst_name) = break (=='/') inst
+    Score.instrument (Instrument.synth_name synth) (Instrument.patch_name patch)
 
 -- | Modify the patch template to have the given name.
 set_patch_name :: Instrument.InstrumentName -> Instrument.Patch

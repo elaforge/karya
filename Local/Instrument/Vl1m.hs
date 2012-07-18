@@ -96,7 +96,7 @@ bytes_to_syx bytes = syx_bytes ++ [checksum syx_bytes, 0xf7]
     where
     size = 0xc1c - 0x20
     syx_bytes =
-        [ 0xf0, Parse.yamaha_code, 0, 0x7a
+        [ 0xf0, Midi.yamaha_code, 0, 0x7a
         , 0x18, 0x16 -- byte count
         ] ++ map (fromIntegral . fromEnum) "LM 20117VC" ++
         [ 0x7f, 0 ] -- memory type, memory number
@@ -106,7 +106,7 @@ bytes_to_syx bytes = syx_bytes ++ [checksum syx_bytes, 0xf7]
 
 vl1_sysex :: Parse.ByteParser Instrument.Patch
 vl1_sysex = do
-    Parse.start_sysex Parse.yamaha_code
+    Parse.start_sysex Midi.yamaha_code
     Parse.one_byte -- device num
     Parse.match_bytes [0x7a]
     Parse.n_bytes 2 -- byte count

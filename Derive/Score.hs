@@ -287,6 +287,13 @@ inst_name (Instrument s) = s
 default_inst :: Instrument
 default_inst = Instrument ""
 
+instrument :: String -> String -> Instrument
+instrument synth inst = Instrument $ synth ++ "/" ++ inst
+
+split_inst :: Instrument -> (String, String)
+split_inst (Instrument inst) = (synth, drop 1 inst_name)
+    where (synth, inst_name) = break (=='/') inst
+
 -- * attributes
 
 attrs_diff :: Attributes -> Attributes -> Attributes

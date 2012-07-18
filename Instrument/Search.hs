@@ -92,7 +92,7 @@ inverted_index (MidiDb.MidiDb synths) = inst_tags2
     inst_of tags = do
         synth <- lookup Tag.synth tags
         name <- lookup Tag.name tags
-        return $ MidiDb.join_inst synth name
+        return $ Score.instrument synth name
 
     inst_tags1 = [(inst_of tags, tags) | tags <- map lc_tags all_tags]
     inst_tags2 = [(inst, tags) | (Just inst, tags) <- inst_tags1]

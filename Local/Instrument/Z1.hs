@@ -8,6 +8,7 @@ import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Parse as Parse
 import qualified App.MidiInst as MidiInst
@@ -29,16 +30,14 @@ make_db dir = do
 synth :: Instrument.Synth
 synth = Instrument.synth "z1" synth_controls
 
+synth_controls :: [(Midi.Control, String)]
 synth_controls =
-    [
     -- The PE controls are the "performance expression" knobs whose effect
     -- depends on the instrument.
-    (13, "pe1"), (20, "pe2"), (21, "pe3"), (22, "pe4"), (23, "pe5")
+    [ (13, "pe1"), (20, "pe2"), (21, "pe3"), (22, "pe4"), (23, "pe5")
     , (16, "pad-x"), (17, "pad-y")
-    , (65, "z1-port-sw")
-    -- General purpose on/off switches.
-    , (80, "z1-sw-1"), (81, "z1-sw-2")
-
+    , (65, "z1-port-sw") -- Turn portamento on and off.
+    , (80, "z1-sw-1"), (81, "z1-sw-2") -- General purpose on/off switches.
     -- Various filter cutoff etc.
     ]
 
@@ -52,12 +51,12 @@ synth_controls =
 -- I should write something to convert them into current program format.
 
 -- Interactive testing.
-tparse = Parse.parse_sysex_dir korg_sysex "Local/Instrument/z1_sysex"
-tshow ps = mapM_ putStrLn (map Instrument.patch_summary ps)
+-- tparse = Parse.parse_sysex_dir korg_sysex "Local/Instrument/z1_sysex"
+-- tshow ps = mapM_ putStrLn (map Instrument.patch_summary ps)
 
 korg_sysex :: Parse.ByteParser Instrument.Patch
 korg_sysex = do
-    Parse.start_sysex Parse.korg_code
+    Parse.start_sysex Midi.korg_code
     Parse.match_bytes [0x30, 0x46]
     patch <- current_program_dump
     Parse.end_sysex

@@ -32,6 +32,9 @@ module Midi.Midi (
 
     -- * util
     , join14, split14
+    -- ** manufacturer
+    , manufacturer_name
+    , yamaha_code, korg_code
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
@@ -39,6 +42,8 @@ import Data.Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Generics as Generics
+import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import Data.Word (Word8)
 
 import qualified Text.Printf as Printf
@@ -205,7 +210,8 @@ data Message =
 
 instance Pretty.Pretty Message where
     pretty (CommonMessage (SystemExclusive manuf bytes)) =
-        Printf.printf "sysex %x <%d bytes>" manuf (ByteString.length bytes)
+        Printf.printf "sysex %s <%d bytes>" (manufacturer_name manuf)
+            (ByteString.length bytes)
     pretty (ChannelMessage chan msg) =
         Printf.printf "chan:%d %s" chan (show msg)
     pretty msg = show msg
@@ -221,6 +227,7 @@ type Program = Word8
 type ControlValue = Word8
 -- | This is converted to and from the -0x2000 and +0x2000 range by the parser.
 type PitchBendValue = Float
+type Manufacturer = Word8
 data ChannelMessage =
     NoteOff !Key !Velocity
     | NoteOn !Key !Velocity
@@ -239,7 +246,7 @@ data ChannelMessage =
 
 data CommonMessage =
     -- | manufacturer id, data including eox
-    SystemExclusive !Word8 !ByteString.ByteString
+    SystemExclusive !Manufacturer !ByteString.ByteString
     | SongPositionPointer !Int
     | SongSelect !Word8
     | TuneRequest
@@ -267,3 +274,18 @@ split14 i = (fromIntegral (i .&. 0x7f), fromIntegral (shiftR i 7 .&. 0x7f))
 join14 :: Word8 -> Word8 -> Int
 join14 lsb msb =
     shiftL (fromIntegral msb .&. 0x7f) 7 .|. (fromIntegral lsb .&. 0x7f)
+
+-- ** manufacturer
+
+manufacturer_name :: Manufacturer -> String
+manufacturer_name code = Maybe.fromMaybe (show code) $
+    Map.lookup code manufacturer_codes
+
+korg_code, yamaha_code :: Manufacturer
+korg_code = 0x42
+yamaha_code = 0x43
+
+-- | TODO get a more complete list
+manufacturer_codes :: Map.Map Manufacturer String
+manufacturer_codes = Map.fromList
+    [(korg_code, "korg"), (yamaha_code, "yamaha")]

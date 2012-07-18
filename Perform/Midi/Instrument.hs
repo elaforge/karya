@@ -177,7 +177,10 @@ type Addr = (Midi.WriteDevice, Midi.Channel)
 
 -- | Key to activate a keyswitch.
 newtype Keyswitch = Keyswitch { ks_key :: Midi.Key }
-    deriving (Eq, Ord, Show, Read, Pretty.Pretty)
+    deriving (Eq, Ord, Show, Read)
+
+instance Pretty.Pretty Keyswitch where
+    format ks = Pretty.format (ks_key ks)
 
 -- * instrument db types
 
@@ -199,6 +202,7 @@ data Patch = Patch {
     -- may occur more than once, and a name of \"\" is used when the
     -- instrument is looked up without a keyswitch.
     , patch_keyswitches :: KeyswitchMap
+    , patch_attribute_map :: AttributeMap
     -- | Key-value pairs used to index the patch.
     , patch_tags :: [Tag]
     -- | Some free form text about the patch.
@@ -215,6 +219,7 @@ patch inst = Patch
     , patch_flags = Set.empty
     , patch_initialize = NoInitialization
     , patch_keyswitches = KeyswitchMap []
+    , patch_attribute_map = Map.empty
     , patch_tags = []
     , patch_text = ""
     , patch_file = ""
@@ -266,13 +271,14 @@ convert_patch_scale scale (Pitch.NoteNumber nn) =
 
 -- | A Pretty instance is useful because InitializeMidi tends to be huge.
 instance Pretty.Pretty Patch where
-    format (Patch inst scale flags init ks tags text file) =
+    format (Patch inst scale flags init ks attr_map tags text file) =
         Pretty.record_title "Patch"
             [ ("instrument", Pretty.format inst)
             , ("scale", Pretty.format scale)
             , ("flags", Pretty.format flags)
             , ("initialize", Pretty.format init)
             , ("keyswitches", Pretty.format ks)
+            , ("attribute_map", Pretty.format attr_map)
             , ("tags", Pretty.format tags)
             , ("text", Pretty.format text)
             , ("file", Pretty.format file)
@@ -317,6 +323,8 @@ data Flag =
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Flag where pretty = show
+
+-- ** keyswitch map
 
 -- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
 -- a piority for those mapping.  For example, if {pizz} is before {cresc}, then
@@ -365,6 +373,12 @@ get_keyswitch (KeyswitchMap attr_ks) attrs =
 keys_of :: KeyswitchMap -> Set.Set Midi.Key
 keys_of (KeyswitchMap attr_ks) = Set.fromList $ map (ks_key . snd) attr_ks
 
+-- ** misc
+
+-- | Map attributes to the names of the calls they should map to.  This
+-- is used by the integrator to turn score events into UI events.
+type AttributeMap = Map.Map Score.Attributes String
+
 type Tag = (TagKey, TagVal)
 
 tag :: String -> String -> Tag
@@ -372,6 +386,8 @@ tag = (,)
 
 type TagKey = String
 type TagVal = String
+
+-- * synth
 
 -- | A Synth defines common features for a set of instruments.  Synths form
 -- a global flat namespace and must be unique.  They have abbreviated names
