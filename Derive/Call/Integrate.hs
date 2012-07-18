@@ -62,7 +62,11 @@ integrate_events events = do
             key <- Util.lookup_key
             lookup_scale <- Derive.gets
                 (Derive.state_lookup_scale . Derive.state_constant)
-            let (tracks, errs) = integrate lookup_scale key events
+            lookup_inst <- Derive.gets
+                (Derive.state_lookup_instrument . Derive.state_constant)
+            let lookup_attrs = maybe mempty Derive.inst_attribute_map
+                    . lookup_inst
+            let (tracks, errs) = integrate lookup_scale lookup_attrs key events
             if null errs
                 then Internal.merge_collect $ mempty
                     { Derive.collect_integrated = Just tracks }
@@ -91,35 +95,39 @@ uses_default_tempo block_id =
 
 -- * integrate
 
--- | Convert derived score events back into UI events.
--- TODO optionally quantize the ui events
-integrate :: Derive.LookupScale -> Maybe Pitch.Key
-    -> [Score.Event] -> ([Track], [String]) -- ^ (tracks, errs)
-integrate lookup_scale key = convert . Seq.partition_either
-    . map (integrate_track lookup_scale key) . Seq.keyed_group_on group_key
-    where convert (errs, tracks) = (concat tracks, errs)
+type LookupAttrs = Score.Instrument -> Derive.AttributeMap
 
--- | Split into tracks by track id, instrument, and then scale.
+-- | Convert derived score events back into UI events.
+--
+-- Split into tracks by track id, instrument, and scale.
+--
 -- TODO and overlapping events should be split, deal with that later
-group_key :: Score.Event -> (Maybe TrackId, Score.Instrument, Pitch.ScaleId)
-group_key event = (track_of event, Score.event_instrument event,
-    PitchSignal.sig_scale_id (Score.event_pitch event))
+-- TODO optionally quantize the ui events
+integrate :: Derive.LookupScale -> LookupAttrs -> Maybe Pitch.Key
+    -> [Score.Event] -> ([Track], [String]) -- ^ (tracks, errs)
+integrate lookup_scale lookup_attrs key = convert . Seq.partition_either
+    . map (integrate_track lookup_scale lookup_attrs key)
+    . Seq.keyed_group_on group_key
+    where
+    convert (errs, tracks) = (concat tracks, errs)
+    group_key event = (track_of event, Score.event_instrument event,
+        PitchSignal.sig_scale_id (Score.event_pitch event))
 
 track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . Maybe.mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
-integrate_track :: Derive.LookupScale -> Maybe Pitch.Key
+integrate_track :: Derive.LookupScale -> LookupAttrs -> Maybe Pitch.Key
     -> ((Maybe TrackId, Score.Instrument, Pitch.ScaleId), [Score.Event])
     -> Either String [Track]
-integrate_track lookup_scale key ((_, inst, scale_id), events) = do
-    scale <- maybe (Left $ "scale not found: " ++ Pretty.pretty scale_id)
-        return (lookup_scale scale_id)
-    pitch_track <- case pitch_events scale scale_id key event_stacks of
-        Nothing -> return []
-        Just (track, []) -> return [track]
-        Just (_, errs) -> Left $ Seq.join "; " errs
-    return $ note_events inst event_stacks
+integrate_track lookup_scale lookup_attrs key ((_, inst, scale_id), events) = do
+    pitch_track <- if no_pitch_signals events then return [] else do
+        scale <- maybe (Left $ "scale not found: " ++ Pretty.pretty scale_id)
+            return (lookup_scale scale_id)
+        case pitch_events scale scale_id key event_stacks of
+            (track, []) -> return [track]
+            (_, errs) -> Left $ Seq.join "; " errs
+    return $ note_events inst (lookup_attrs inst) event_stacks
         : pitch_track ++ control_events event_stacks
     where
     event_stacks = zip events (stack_serials (map Score.event_stack events))
@@ -136,30 +144,37 @@ type Stack = (Stack.Stack, Int)
 
 -- ** note
 
-note_events :: Score.Instrument -> [(Score.Event, Stack)] -> Track
-note_events inst event_stacks =
-    make_track note_title (map note_event event_stacks)
-    where
-    note_title = TrackInfo.instrument_to_title inst
+note_events :: Score.Instrument -> Derive.AttributeMap
+    -> [(Score.Event, Stack)] -> Track
+note_events inst attr_map event_stacks =
+    make_track note_title (map (note_event attr_map) event_stacks)
+    where note_title = TrackInfo.instrument_to_title inst
 
-note_event :: (Score.Event, Stack) -> Events.PosEvent
-note_event (event, stack) = (RealTime.to_score (Score.event_start event),
-    Event.Event (Score.event_bs event)
-        (RealTime.to_score (Score.event_duration event))
-        Config.default_style (Just (make_stack ">" stack)))
+note_event :: Derive.AttributeMap -> (Score.Event, Stack) -> Events.PosEvent
+note_event attr_map (event, stack) =
+    (RealTime.to_score (Score.event_start event), ui_event)
+    where
+    ui_event = Event.Event
+        { Event.event_bs = Event.to_text $
+            Map.findWithDefault "" (Score.event_attributes event) attr_map
+        , Event.event_duration = RealTime.to_score (Score.event_duration event)
+        , Event.event_style = Config.default_style
+        , Event.event_stack = Just (make_stack ">" stack)
+        }
 
 -- ** pitch
 
 pitch_events :: Scale.Scale -> Pitch.ScaleId -> Maybe Pitch.Key
-    -> [(Score.Event, Stack)] -> Maybe (Track, [String])
-pitch_events scale scale_id key event_stacks
-    | all (PitchSignal.null . Score.event_pitch . fst) event_stacks = Nothing
-    | otherwise =
-        Just (make_track pitch_title (tidy_events ui_events), concat errs)
+    -> [(Score.Event, Stack)] -> (Track, [String])
+pitch_events scale scale_id key event_stacks =
+    (make_track pitch_title (tidy_events ui_events), concat errs)
     where
     pitch_title = TrackInfo.scale_to_title scale_id
     (ui_events, errs) = unzip $
         map (pitch_signal_events scale key) event_stacks
+
+no_pitch_signals :: [Score.Event] -> Bool
+no_pitch_signals = all (PitchSignal.null . Score.event_pitch)
 
 pitch_signal_events :: Scale.Scale -> Maybe Pitch.Key
     -> (Score.Event, Stack) -> ([Events.PosEvent], [String])

@@ -223,20 +223,24 @@ test_track_environ = do
 
 -- * implementation
 
+patch :: Instrument.Patch
 patch = Instrument.set_keymap [(Attrs.snare, 42)] $
     Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))
+
+midi_db :: MidiDb.MidiDb Cmd.InstrumentCode
 (midi_db, _) = MidiDb.midi_db sdescs
     where
     sdescs = MidiInst.make $ (MidiInst.softsynth "s" (-2, 2) [])
         { MidiInst.extra_patches = [(patch, code)] }
     code = MidiInst.empty_code
         { MidiInst.note_calls = [Derive.make_lookup calls] }
-    calls = Derive.make_calls [("sn", Instrument.Util.with_attrs Attrs.snare)]
-lookup_inst = fmap (Cmd.derive_instrument . MidiDb.info_code)
-    . MidiDb.lookup_instrument midi_db
+    calls = Derive.make_calls [("sn", Instrument.Util.attrs_note Attrs.snare)]
 
-set_lookup_inst :: Derive.LookupInstrument -> Derive.Deriver d
-    -> Derive.Deriver d
+lookup_inst :: Score.Instrument -> Maybe Derive.Instrument
+lookup_inst = fmap Cmd.derive_instrument . MidiDb.lookup_instrument midi_db
+
+set_lookup_inst :: (Score.Instrument -> Maybe Derive.Instrument)
+    -> Derive.Deriver d -> Derive.Deriver d
 set_lookup_inst lookup_inst deriver = do
     Derive.modify $ \st -> st
         { Derive.state_constant = (Derive.state_constant st)

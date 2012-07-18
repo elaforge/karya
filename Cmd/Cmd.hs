@@ -578,9 +578,13 @@ data InstrumentCode = InstrumentCode {
     , inst_cmds :: ![Cmd]
     }
 
-derive_instrument :: InstrumentCode
-    -> (Derive.InstrumentCalls, TrackLang.Environ)
-derive_instrument code = (inst_calls code, inst_environ code)
+derive_instrument :: MidiInfo -> Derive.Instrument
+derive_instrument info = Derive.Instrument
+    { Derive.inst_calls = inst_calls (MidiDb.info_code info)
+    , Derive.inst_environ = inst_environ (MidiDb.info_code info)
+    , Derive.inst_attribute_map =
+        Instrument.patch_attribute_map (MidiDb.info_patch info)
+    }
 
 empty_code :: InstrumentCode
 empty_code = InstrumentCode (Derive.InstrumentCalls [] []) mempty []

@@ -50,6 +50,9 @@ data Event = Event {
 
 type Text = B.ByteString
 
+to_text :: String -> Text
+to_text = UTF8.fromString
+
 -- | A Stack annotated with a tag and a serial number.  Events that come from
 -- the same score event will all have the same stack, so some more information
 -- is needed to differentiate them.
@@ -77,13 +80,13 @@ instance Pretty.Pretty Stack where
 
 -- | Manual event constructor.
 event :: String -> ScoreTime -> Event
-event text dur = Event (UTF8.fromString text) dur Config.default_style Nothing
+event text dur = Event (to_text text) dur Config.default_style Nothing
 
 event_string :: Event -> String
 event_string = UTF8.toString . event_bs
 
 set_string :: String -> Event -> Event
-set_string s evt = evt { event_bs = UTF8.fromString s }
+set_string s evt = evt { event_bs = to_text s }
 
 modify_string :: (String -> String) -> Event -> Event
 modify_string f evt = evt { event_bs = modify (event_bs evt) }

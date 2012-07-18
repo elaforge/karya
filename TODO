@@ -1,4 +1,7 @@
 UNSORTED
+  - make Midi.Key into a newtype and add a Pretty that shows the midi key name
+  - ParseBs.strip_comment is incorrect since it doesn't understand strings.
+    It should be integrated into the parser.
   - can I use a lazy array + builder to make score generation more efficient?
     It would also be nice to use a lazy array inside the performer.
     Is there a generic lazy array implementation out there?
@@ -99,13 +102,16 @@ UNSORTED
       if so, isn't it redundant with attributes?  No, because perform doesn't
       use attributes, they are already turned into Instrument.Instrument at
       that point.
+      Why not just use separate instruments then?
     - The other possibility is to not do any automatic track splitting at all,
-      this would eliminate all the 'tracknum' stuff.  It would I couldn't
+      this would eliminate all the 'tracknum' stuff.  But then I couldn't
       stick a '<' integrate in front of any block I wanted though, it would
       have to specially be expecting to be integrated and emit separate
       instruments.
-    - Derive.Call.Kendang: write composite kendang part, then it gets split
+    * Derive.Call.Kendang: write composite kendang part, then it gets split
       into wadon and lanang parts.
+      - add filler strokes
+      - support soft attr
     + sort tracks by orig tracknums so they come back in the same order
       Staved off by adding a leading 0 to TrackIds so they sort right, but
       I'll need to switch to TrackNums to do this for real.

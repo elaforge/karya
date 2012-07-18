@@ -33,7 +33,6 @@
 module Derive.Deriver.Lib where
 import Prelude hiding (error)
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 
 import Util.Control
@@ -189,13 +188,12 @@ with_scale scale = with_val TrackLang.v_scale (scale_id scale)
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do
-    lookup_inst_calls <- gets (state_lookup_instrument . state_constant)
-    let (calls, environ) = Maybe.fromMaybe (InstrumentCalls [] [], mempty)
-            (lookup_inst_calls inst)
+    lookup_inst <- gets (state_lookup_instrument . state_constant)
+    let maybe_inst = lookup_inst inst
+        calls = maybe (InstrumentCalls [] []) inst_calls maybe_inst
+        environ = maybe mempty inst_environ maybe_inst
     with_val TrackLang.v_instrument inst $
-        with_scope (set_scope calls) $
-        with_environ environ $ do
-            deriver
+        with_scope (set_scope calls) $ with_environ environ deriver
     where
     -- Replace the calls in the instrument scope type.
     set_scope (InstrumentCalls notes vals) scope = scope

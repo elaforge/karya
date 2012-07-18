@@ -65,6 +65,7 @@ import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Convert as Convert

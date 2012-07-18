@@ -8,10 +8,15 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
+import Types
 
+
+signal :: Scale.Scale -> [(RealTime, PitchSignal.Pitch)] -> PitchSignal.Signal
+signal scale = PitchSignal.signal (Derive.pitch_signal_scale scale)
 
 -- | A pitch interpolated a certain distance between two other pitches.
 interpolated :: PitchSignal.Pitch -> PitchSignal.Pitch -> Double

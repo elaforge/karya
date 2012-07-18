@@ -51,9 +51,11 @@ module Derive.Deriver.Monad (
     , LookupCall, make_lookup
 
     -- ** constant
-    , Constant(..), LookupInstrument, initial_constant
+    , Constant(..), initial_constant
     , op_add, op_sub, op_mul
-    , InstrumentCalls(..)
+
+    -- ** instrument
+    , Instrument(..), AttributeMap, InstrumentCalls(..)
 
     -- ** control
     , ControlOp
@@ -461,17 +463,15 @@ data Constant = Constant {
     , state_lookup_scale :: LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
-    , state_lookup_instrument :: LookupInstrument
+    , state_lookup_instrument :: Score.Instrument -> Maybe Instrument
     -- | Cache from the last derivation.
     , state_cache :: !Cache
     , state_score_damage :: !ScoreDamage
     }
 
-type LookupInstrument = Score.Instrument
-    -> Maybe (InstrumentCalls, TrackLang.Environ)
-
-initial_constant :: State.State -> LookupScale -> LookupInstrument
-    -> Cache -> ScoreDamage -> Constant
+initial_constant :: State.State -> LookupScale
+    -> (Score.Instrument -> Maybe Instrument) -> Cache -> ScoreDamage
+    -> Constant
 initial_constant ui_state lookup_scale lookup_inst cache score_damage = Constant
     { state_ui = ui_state
     , state_control_op_map = default_control_op_map
@@ -480,6 +480,20 @@ initial_constant ui_state lookup_scale lookup_inst cache score_damage = Constant
     , state_cache = invalidate_damaged score_damage cache
     , state_score_damage = score_damage
     }
+
+-- ** instrument
+
+-- | Mostly the deriver just deals with instruments as strings, and doesn't
+-- understand anything else about them.  However, it does need a few other
+-- things, which are expressed here to avoid excessive dependencies between the
+-- systems.
+data Instrument = Instrument {
+    inst_calls :: InstrumentCalls
+    , inst_environ :: TrackLang.Environ
+    , inst_attribute_map :: AttributeMap
+    } deriving (Show)
+
+type AttributeMap = Map.Map Score.Attributes String
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
 -- can bring a set of note calls and val calls into scope, via the 'Scope'

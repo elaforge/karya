@@ -456,6 +456,21 @@ mkscale name notes = Scale.Scale
 
 -- * inst
 
+-- | Derive with a bit of the real instrument db.  Useful for testing
+-- instrument calls.
+with_inst_db :: [MidiInst.SynthDesc] -> Derive.Deriver a -> Derive.Deriver a
+with_inst_db synth_descs = modify_constant $ \const -> const
+    { Derive.state_lookup_instrument = lookup_derive_instrument synth_descs }
+
+lookup_derive_instrument :: [Cmd.SynthDesc] -> Score.Instrument
+    -> Maybe Derive.Instrument
+lookup_derive_instrument synth_descs inst =
+    fmap Cmd.derive_instrument $ Instrument.Db.db_lookup db inst
+    where
+    (midi_db, warns) = MidiDb.midi_db synth_descs
+    db = trace_logs (map (Log.msg Log.Warn Nothing) warns) $
+        Instrument.Db.db midi_db
+
 make_convert_lookup :: Cmd.InstrumentDb -> Convert.Lookup
 make_convert_lookup midi_db = Convert.Lookup
     default_lookup_scale lookup_inst lookup_patch
