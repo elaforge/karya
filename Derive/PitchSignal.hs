@@ -22,8 +22,6 @@ import qualified Data.Set as Set
 import qualified Data.Vector as V
 
 import Util.Control
-import qualified Util.Functor0 as Functor0
-import Util.Functor0 (Elem)
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
@@ -32,7 +30,6 @@ import qualified Derive.BaseTypes as Score
 import Derive.BaseTypes (Pitch(..), PitchCall, PitchError(..))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-
 import Types
 
 
@@ -60,15 +57,15 @@ data Signal = Signal {
 sig_scale :: Signal -> Scale
 sig_scale sig = Scale (sig_scale_id sig) (sig_transposers sig)
 
+modify_vector :: (TimeVector.Boxed Pitch -> TimeVector.Boxed Pitch)
+    -> Signal -> Signal
+modify_vector f sig = sig { sig_vec = f (sig_vec sig) }
+
 -- | Signal can't take a Scale because that would be a circular import.
 -- Fortunately it only needs a few fields.  However, because of the
 -- circularity, the Scale.Scale -> PitchSignal.Scale constructor is in
 -- "Derive.Derive".
 data Scale = Scale Pitch.ScaleId (Set.Set Score.Control) deriving (Show)
-
-instance Functor0.Functor0 Signal where
-    type Elem Signal = TimeVector.Boxed Pitch
-    fmap0 f (Signal a b v) = Signal a b (f v)
 
 instance Monoid.Monoid Signal where
     mempty = Signal mempty Pitch.empty_scale mempty
@@ -161,7 +158,7 @@ at :: RealTime -> Signal -> Maybe Pitch
 at x = TimeVector.at x . sig_vec
 
 shift :: RealTime -> Signal -> Signal
-shift x = fmap0 (TimeVector.shift x)
+shift x = modify_vector (TimeVector.shift x)
 
 last :: Signal -> Maybe (RealTime, Pitch)
 last sig
@@ -170,10 +167,10 @@ last sig
         TimeVector.Sample x pitch -> Just (x, pitch)
 
 truncate :: RealTime -> Signal -> Signal
-truncate x = fmap0 (TimeVector.truncate x)
+truncate x = modify_vector (TimeVector.truncate x)
 
 drop_before :: RealTime -> Signal -> Signal
-drop_before x = fmap0 (TimeVector.drop_before x)
+drop_before x = modify_vector (TimeVector.drop_before x)
 
 -- * Pitch
 
@@ -189,7 +186,7 @@ pitch = Pitch
 -- | Apply controls to a pitch.
 apply :: Controls -> Pitch -> Pitch
 apply controls = fmap0 $ \pitch controls2 ->
-    pitch $ Map.unionWith (+)  controls2 controls
+    pitch $ Map.unionWith (+) controls2 controls
 
 add_control :: Score.Control -> Double -> Pitch -> Pitch
 add_control cont val = fmap0 $ \pitch controls ->
