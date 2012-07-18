@@ -10,6 +10,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Lang.Global as Global
 import qualified Cmd.Lang.LInst as LInst
+import qualified Cmd.Lang.LState as LState
 
 
 -- | 'interpret' loads a whole bunch of modules and can be slow.  Shortcut a
@@ -34,8 +35,8 @@ interpret toks = case toks of
         -- Called manually via the REPL.
 
         -- Make blocks and views.
-        ["Create.rename_project", a1]
-            | Just v1 <- val a1 -> action $ Create.rename_project v1
+        ["LState.rename_project", a1]
+            | Just v1 <- val a1 -> action $ LState.rename_project v1
         ["Create.view", str] | Just arg <- val str -> action $ Create.view arg
 
         -- Misc.
