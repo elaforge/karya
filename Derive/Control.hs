@@ -178,7 +178,7 @@ derive_control :: State.TrackEvents -> TrackLang.Expr
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control track expr = do
     stream <- Call.apply_transformer
-        (dinfo, Derive.dummy_call_info "control track") expr deriver
+        (dinfo, Derive.dummy_call_info 0 1 "control track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         signal = Signal.merge signal_chunks
     return (signal, logs)
@@ -204,7 +204,7 @@ derive_pitch :: State.TrackEvents -> TrackLang.Expr
     -> Derive.Deriver (TrackResults Pitch)
 derive_pitch track expr = do
     stream <- Call.apply_transformer
-        (dinfo, Derive.dummy_call_info "pitch track") expr deriver
+        (dinfo, Derive.dummy_call_info 0 1 "pitch track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         signal = mconcat signal_chunks
     return (signal, logs)

@@ -44,7 +44,7 @@ eval_root_block :: BlockId -> Derive.EventDeriver
     -- Derive.d_tempo does a bit of magic to stretch all blocks to length 1,
     -- except the root one.  The root block should operate in real time, so
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
-eval_root_block block_id = Call.eval_one 0 1 [call_from_block_id block_id]
+eval_root_block block_id = Call.eval_one [call_from_block_id block_id]
 
 -- * note block calls
 
@@ -83,7 +83,7 @@ d_block block_id = do
         (BlockUtil.note_deriver block_id)
 
     let transform = if null title then id else Call.apply_transformer info expr
-        info = (Call.note_dinfo, Derive.dummy_call_info "block title")
+        info = (Call.note_dinfo, Derive.dummy_call_info 0 1 "block title")
     -- Record a dependency on this block.
     Internal.add_block_dep block_id
     transform deriver

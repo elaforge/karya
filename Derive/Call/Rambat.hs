@@ -56,7 +56,7 @@ tick time vel prev next = do
         ((<=) <$> Pitches.pitch_nn prev_pitch <*> Pitches.pitch_nn next_pitch)
         (return (Pitch.Chromatic (-1))) (return (Pitch.Chromatic 1))
     (start, dur) <- stretch prev next time
-    Derive.d_place start dur $ Util.simple_note
+    Derive.d_place start dur $ Util.pitched_note
         (Pitches.transpose neighbor next_pitch) (next_vel * vel)
 
 -- TODO if I need to do more note shifting and placing, I could dream up some

@@ -165,7 +165,7 @@ with_title title deriver
         let transform = if is_empty_title track_expr then id
                 else Call.apply_transformer info track_expr
         transform deriver
-    where info = (Call.note_dinfo, Derive.dummy_call_info "note track")
+    where info = (Call.note_dinfo, Derive.dummy_call_info 0 1 "note track")
 
 is_empty_title :: TrackLang.Expr -> Bool
 is_empty_title [TrackLang.Call sym [TrackLang.Literal

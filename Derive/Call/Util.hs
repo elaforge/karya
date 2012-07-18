@@ -233,11 +233,15 @@ with_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
 with_dynamic =
     Derive.with_control Score.c_dynamic . Score.untyped . Signal.constant
 
-simple_note :: PitchSignal.Pitch -> Signal.Y -> Derive.EventDeriver
-simple_note pitch dynamic = with_pitch pitch $ with_dynamic dynamic note
+pitched_note :: PitchSignal.Pitch -> Signal.Y -> Derive.EventDeriver
+pitched_note pitch dynamic = with_pitch pitch $ with_dynamic dynamic note
 
 note :: Derive.EventDeriver
-note = Call.eval_one 0 1 [TrackLang.call "" []]
+note = Call.eval_one [TrackLang.call "" []]
+
+-- | A zero-duration 'note'.
+triggered_note :: Derive.EventDeriver
+triggered_note = Call.eval_one_at 0 0 [TrackLang.call "" []]
 
 -- * call transformers
 

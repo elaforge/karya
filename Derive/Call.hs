@@ -103,11 +103,16 @@ import Types
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
-eval_one start dur expr =
-    Derive.d_place start dur (eval_expr (note_dinfo, cinfo) expr)
+eval_one :: TrackLang.Expr -> Derive.EventDeriver
+eval_one = eval_one_at 0 1
+
+eval_one_at :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
+eval_one_at start dur expr = eval_expr (note_dinfo, cinfo) expr
     where
-    cinfo = Derive.dummy_call_info ("eval_one: " ++ TrackLang.show_val expr)
+    -- Set the event start and duration instead of using Derive.d_place since
+    -- this way I can have zero duration events.
+    cinfo = Derive.dummy_call_info start dur
+        ("eval_one: " ++ TrackLang.show_val expr)
 
 -- | Apply an expr with the current call info.
 reapply :: Derive.PassedArgs Score.Event -> TrackLang.Expr
@@ -345,7 +350,7 @@ apply :: TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
 apply call_id call args = do
     vals <- mapM eval args
     let args = Derive.PassedArgs vals call_id
-            (Derive.dummy_call_info "val-call")
+            (Derive.dummy_call_info 0 1 "val-call")
     Derive.with_msg ("val call " ++ Derive.vcall_name call) $
         Derive.vcall_call call args
 

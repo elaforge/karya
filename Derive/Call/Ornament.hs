@@ -43,8 +43,8 @@ mordent grace_dur (start, dur) dyn_scale neighbor = do
         =<< Util.pitch pos
     dyn <- (*dyn_scale) <$> Util.dynamic pos
     grace_notes pos
-        [ (grace_dur, Util.simple_note pitch dyn)
-        , (grace_dur, Util.simple_note (Pitches.transpose neighbor pitch) dyn)
+        [ (grace_dur, Util.pitched_note pitch dyn)
+        , (grace_dur, Util.pitched_note (Pitches.transpose neighbor pitch) dyn)
         ]
         <> Derive.d_place start dur Util.note
 
