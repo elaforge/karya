@@ -90,7 +90,7 @@ run_events :: (a -> b)
 run_events f = extract_run $
     first (map f) . second (map show_log . trace_low_prio) . LEvent.partition
 
-default_constant   :: State.State -> Derive.Cache -> Derive.ScoreDamage
+default_constant :: State.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
 default_constant ui_state cache damage =
     Derive.initial_constant ui_state default_lookup_scale (const Nothing)
@@ -184,6 +184,7 @@ derive ui_state deriver = Derive.extract_result $
 type Transform a = Derive.Deriver a -> Derive.Deriver a
 type TransformUi = State.State -> State.State
 
+
 -- ** derive utils
 
 -- | Derive tracks but with a linear skeleton.  Good for testing note
@@ -213,8 +214,7 @@ derive_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> Derive.EventDeriver -> Derive.Result
 derive_cache cache damage ui_state deriver = Derive.extract_result $
     Derive.derive constant default_scope default_environ deriver
-    where
-    constant = default_constant ui_state cache damage
+    where constant = default_constant ui_state cache damage
 
 make_damage :: String -> TrackNum -> ScoreTime -> ScoreTime
     -> Derive.ScoreDamage
@@ -422,18 +422,19 @@ modify_dynamic f = Derive.modify $ \st ->
 -- | Really not supposed to do this, but should be *mostly* ok for tests, but
 -- beware of values baked in to e.g. lookup functions.  This is why modifying
 -- UI state is not a good idea.
-modify_constant :: (Derive.Constant -> Derive.Constant) -> Derive.Deriver ()
-modify_constant f = Derive.modify $ \st ->
-    st { Derive.state_constant = f (Derive.state_constant st) }
+modify_constant :: (Derive.Constant -> Derive.Constant)
+    -> Derive.Deriver a -> Derive.Deriver a
+modify_constant f deriver = do
+    Derive.modify $ \st ->
+        st { Derive.state_constant = f (Derive.state_constant st) }
+    deriver
 
 -- * scale
 
 with_scale :: Scale.Scale -> Derive.Deriver a -> Derive.Deriver a
-with_scale scale deriver = do
-    modify_constant $ \st ->
-        st { Derive.state_lookup_scale = \scale_id -> Map.lookup scale_id
-            (Map.insert (Scale.scale_id scale) scale Scale.All.scales) }
-    deriver
+with_scale scale = modify_constant $ \st ->
+    st { Derive.state_lookup_scale = \scale_id -> Map.lookup scale_id
+        (Map.insert (Scale.scale_id scale) scale Scale.All.scales) }
 
 mkscale :: String -> [(String, Pitch.NoteNumber)] -> Scale.Scale
 mkscale name notes = Scale.Scale
@@ -502,18 +503,27 @@ default_inst_title = ">s/1"
 
 -- | Name will determine the pitch.  It can be a-z.
 type EventSpec = (RealTime, RealTime, String,
-    [(Score.Control, Signal.Control)], Score.Instrument)
+    [(String, [(RealTime, Signal.Y)])], Score.Instrument)
 
 mkevent :: EventSpec -> Score.Event
-mkevent (start, dur, text, controls, inst) =
-    Score.Event start dur (B.pack text)
-        (Map.map Score.untyped (Map.fromList controls))
-        (pitch_signal [(start, text)]) fake_stack inst Score.no_attrs
+mkevent (start, dur, text, controls, inst) = Score.Event
+    { Score.event_start = start
+    , Score.event_duration = dur
+    , Score.event_bs = B.pack text
+    , Score.event_controls = mkcontrols controls
+    , Score.event_pitch = pitch_signal [(start, text)]
+    , Score.event_stack = fake_stack
+    , Score.event_instrument = inst
+    , Score.event_attributes = Score.no_attrs
+    }
 
 pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal
 pitch_signal = PitchSignal.signal scale . map (second mkpitch)
     where scale = Derive.pitch_signal_scale Twelve.scale
 
+mkcontrols :: [(String, [(RealTime, Signal.Y)])] -> Score.ControlMap
+mkcontrols csigs = Map.fromList
+    [(Score.Control c, Score.untyped (Signal.signal sig)) | (c, sig) <- csigs]
 
 mkpitch :: String -> PitchSignal.Pitch
 mkpitch p = PitchSignal.pitch $ \controls ->
@@ -535,8 +545,3 @@ fake_stack = Stack.from_outermost
     , Stack.Track (UiTest.tid "faketrack")
     , Stack.Region 42 43
     ]
-
--- TODO integrate into mkevent?
-mkcontrols :: [(String, [(RealTime, Signal.Y)])] -> Score.ControlMap
-mkcontrols csigs = Map.fromList
-    [(Score.Control c, Score.untyped (Signal.signal sig)) | (c, sig) <- csigs]
