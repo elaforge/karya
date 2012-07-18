@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP, ScopedTypeVariables #-}
 module Ui.Ui (event_loop, send_action, quit_ui_thread) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
@@ -34,7 +34,13 @@ event_loop quit_request msg_chan = do
 
 -- | Send the UI to the ui thread and run it, returning its result.
 send_action :: IO () -> IO ()
+#ifdef TESTING
+-- ResponderTest using tests wind up calling this via Sync.set_track_signals,
+-- which winds up segfaulting on OS X.
+send_action act = return ()
+#else
 send_action act = add_act global_acts_mvar act >> awake
+#endif
 
 add_act :: Actions -> IO () -> IO ()
 add_act acts_mvar x = MVar.modifyMVar_ acts_mvar (return . (x:))

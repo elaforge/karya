@@ -151,7 +151,8 @@ cppFlags config fn
     | fn `elem` cppFiles = Just $
         cInclude (configFlags config) ++ define (configFlags config)
     | otherwise = Nothing
-    where cppFiles = ["App/Main.hs", "Cmd/Lang.hs", "Midi/TestMidi.hs"]
+    where
+    cppFiles = ["App/Main.hs", "Cmd/Lang.hs", "Midi/TestMidi.hs", "Ui/Ui.hs"]
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
@@ -191,7 +192,7 @@ packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
     ++ "bytestring attoparsec utf8-string "
     ++ "mersenne-random-pure64 hashable random-shuffle "
     ++ "containers filepath transformers vector "
-    ++ "QuickCheck fclabels "
+    ++ "QuickCheck fclabels syb "
     ++ "Diff " -- Util.Test
     ++ "ghc ghc-paths haskeline " -- repl
     ++ "shake " -- shakefile
