@@ -22,5 +22,5 @@ hang =
 
 kendang :: [Symbol.Symbol]
 kendang =
-    [ Symbol.simple "circle+" "⨁" -- "\10753" -- circled plus operator
+    [ Symbol.simple "O+" "⨁" -- "\10753" -- circled plus operator
     ]

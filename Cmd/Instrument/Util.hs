@@ -7,21 +7,36 @@ import qualified Midi.Midi as Midi
 import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
+import qualified Cmd.Instrument.Drums as Drums
+import qualified Cmd.Keymap as Keymap
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Derive as Derive
+import qualified Derive.Instrument.Util as DUtil
+import qualified Derive.Score as Score
+
+import qualified Perform.Midi.Instrument as Instrument
+import qualified App.MidiInst as MidiInst
+
 
 -- * keymap
+
+keymaps :: (Cmd.M m) => [(Char, String, Midi.Key)] -> Msg.Msg -> m Cmd.Status
+keymaps inputs = inst_keymaps [(c, n, k, Nothing) | (c, n, k) <- inputs]
 
 -- | Create a note entry Cmd for a keymapped instrument.
 --
 -- Like NoteEntry, if kbd entry is on but ValEdit is not, then play the sound
 -- but don't enter the note.
-keymaps :: (Cmd.M m) => [(Char, String, Midi.Key)] -> Msg.Msg -> m Cmd.Status
-keymaps inputs = \msg -> do
+inst_keymaps :: (Cmd.M m) => [(Char, String, Midi.Key, Maybe Score.Instrument)]
+    -- ^ (kbd key mapped to note, text to insert, midi key to emit for thru,
+    -- emit thru on this instrument or current inst if Nothing)
+    -> Msg.Msg -> m Cmd.Status
+inst_keymaps inputs = \msg -> do
     unlessM Cmd.is_kbd_entry Cmd.abort
     EditUtil.fallthrough msg
     (kstate, char) <- Cmd.require $ Msg.char msg
@@ -38,25 +53,27 @@ keymaps inputs = \msg -> do
         Nothing
             | Map.member char NoteEntry.note_map -> return Cmd.Done
             | otherwise -> return Cmd.Continue
-        Just (note, key) -> do
+        Just (note, key, maybe_inst) -> do
             case kstate of
                 UiMsg.KeyRepeat -> return ()
-                UiMsg.KeyDown -> keymap_down note key
-                UiMsg.KeyUp -> keymap_up key
+                UiMsg.KeyDown -> keymap_down maybe_inst note key
+                UiMsg.KeyUp -> keymap_up maybe_inst key
             return Cmd.Done
     where
-    to_note = Map.fromList [(char, (note, key)) | (char, note, key) <- inputs]
+    to_note = Map.fromList
+        [(char, (note, key, inst)) | (char, note, key, inst) <- inputs]
 
-keymap_down :: (Cmd.M m) => String -> Midi.Key -> m ()
-keymap_down note key = do
+keymap_down :: (Cmd.M m) => Maybe Score.Instrument -> String -> Midi.Key -> m ()
+keymap_down maybe_inst note key = do
     whenM Cmd.is_val_edit $ suppressed $ do
         pos <- Selection.get_insert_pos
         NoteTrack.modify_event_at pos False True $ const (Just note, True)
-    MidiThru.channel_messages True [Midi.NoteOn key 64]
+    MidiThru.channel_messages maybe_inst True [Midi.NoteOn key 64]
     where suppressed = Cmd.suppress_history Cmd.ValEdit ("keymap: " ++ note)
 
-keymap_up :: (Cmd.M m) => Midi.Key -> m ()
-keymap_up key = MidiThru.channel_messages True [Midi.NoteOff key 64]
+keymap_up :: (Cmd.M m) => Maybe Score.Instrument -> Midi.Key -> m ()
+keymap_up maybe_inst key =
+    MidiThru.channel_messages maybe_inst True [Midi.NoteOff key 64]
 
 -- * keyswitch
 
@@ -80,8 +97,51 @@ keyswitches inputs = \msg -> do
     EditUtil.fallthrough msg
     char <- Cmd.require $ Msg.char_down msg
     (note, key) <- Cmd.require $ Map.lookup char to_note
-    MidiThru.channel_messages False [Midi.NoteOn key 64, Midi.NoteOff key 64]
+    MidiThru.channel_messages Nothing False
+        [Midi.NoteOn key 64, Midi.NoteOff key 64]
     Cmd.set_note_text note
     return Cmd.Done
     where
     to_note = Map.fromList [(char, (note, key)) | (char, note, key) <- inputs]
+
+
+-- * drums
+
+drum_code :: [(Drums.Note, Midi.Key)] -> MidiInst.Code
+drum_code note_keys = MidiInst.empty_code
+    { MidiInst.note_calls = [drum_calls (map fst note_keys)]
+    , MidiInst.cmds = [drum_cmd note_keys]
+    }
+
+inst_drum_code :: [(Drums.Note, Midi.Key, Score.Instrument)] -> MidiInst.Code
+inst_drum_code note_keys = MidiInst.empty_code
+    { MidiInst.note_calls = [drum_calls [note | (note, _, _) <- note_keys]]
+    , MidiInst.cmds = [inst_drum_cmd note_keys]
+    }
+
+drum_instrument :: [(Drums.Note, Midi.Key)] -> Instrument.Patch
+    -> Instrument.Patch
+drum_instrument note_keys = Instrument.triggered
+    . Instrument.set_attribute_map
+        [(Drums.note_attrs note, Drums.note_name note) | (note, _) <- note_keys]
+    . Instrument.set_keymap
+        [(Drums.note_attrs note, key) | (note, key) <- note_keys]
+
+-- | Create a LookupCall for the given Notes.
+drum_calls :: [Drums.Note] -> Derive.LookupCall Derive.NoteCall
+drum_calls notes = Derive.make_lookup $ Derive.make_calls
+    [(Drums.note_name n, DUtil.attrs_note (Drums.note_attrs n)) | n <- notes]
+
+-- | Create keymap Cmd for the given Notes.  This should be paired with
+-- 'drum_calls' so the Cmd will create calls that the deriver understands.
+drum_cmd :: (Cmd.M m) => [(Drums.Note, Midi.Key)] -> Msg.Msg -> m Cmd.Status
+drum_cmd note_keys = keymaps
+    [(Keymap.physical_key (Drums.note_char n), Drums.note_name n, key)
+        | (n, key) <- note_keys]
+
+inst_drum_cmd :: (Cmd.M m) => [(Drums.Note, Midi.Key, Score.Instrument)]
+    -> Msg.Msg -> m Cmd.Status
+inst_drum_cmd note_keys = inst_keymaps
+    [(Keymap.physical_key (Drums.note_char n), Drums.note_name n, key,
+            Just inst)
+        | (n, key, inst) <- note_keys]

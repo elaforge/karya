@@ -254,6 +254,9 @@ with_attrs f deriver = do
     attrs <- Derive.get_val TrackLang.v_attributes
     Derive.with_val TrackLang.v_attributes (f attrs) deriver
 
+add_attrs :: Score.Attributes -> Derive.Deriver d -> Derive.Deriver d
+add_attrs = with_attrs . Score.attrs_union
+
 -- * state access
 
 get_srate :: Derive.Deriver RealTime

@@ -3,6 +3,8 @@
 -- Unfortunately the instruments here have to be hardcoded unless I want to
 -- figure out how to parse .nki files or something.
 module Local.Instrument.Kontakt where
+import qualified Data.Maybe as Maybe
+
 import Util.Control
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
@@ -11,7 +13,11 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.Util as CUtil
 import qualified Cmd.Keymap as Keymap
 
+import qualified Derive.Args as Args
 import Derive.Attrs
+import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Util as Call.Util
+import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.Instrument.Util as DUtil
 import qualified Derive.Scale.Wayang as Wayang
@@ -22,27 +28,51 @@ import qualified App.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "kkt" (-12, 12) [])
-        { MidiInst.extra_patches = patches }
+load _dir = return synth_descs
+
+synth_descs :: [MidiInst.SynthDesc]
+synth_descs = MidiInst.make $ (MidiInst.softsynth synth (-12, 12) [])
+    { MidiInst.extra_patches = patches }
+
+synth :: Instrument.SynthName
+synth = "kkt"
 
 patches :: [MidiInst.Patch]
-patches =
-    MidiInst.with_code hang_code [inst "hang1" hang_ks, inst "hang2" hang_ks]
-    ++
+patches = concat [hang, wayang, kendang, kendang_composite]
+    where
+    hang = MidiInst.with_code hang_code
+        [inst "hang1" hang_ks, inst "hang2" hang_ks]
+    wayang =
         [ (Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks,
             MidiInst.default_scale Wayang.umbang_id wayang_code)
         , (Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks,
             MidiInst.default_scale Wayang.isep_id wayang_code)
         ]
-    ++ MidiInst.with_code (Drums.make_code kendang_notes)
-        (map (Drums.set_instrument kendang_notes)
-            [ inst "kendang-wadon" []
-            , inst "kendang-lanang" []
-            ])
-    where
+    kendang = MidiInst.with_code (CUtil.drum_code Drums.kendang_tunggal) $
+        map (CUtil.drum_instrument Drums.kendang_tunggal)
+            [ inst wadon_name []
+            , inst lanang_name []
+            ]
+    -- kendang-composite is a composite of kendang-wadon and kendang-lanang
+    kendang_composite =
+        MidiInst.with_code (kendang_composite_code (wadon_inst, lanang_inst))
+            [CUtil.drum_instrument notes (inst "kendang-composite" [])]
+            -- map (CUtil.drum_instrument notes)
+            --     [ inst "kendang-composite" [] ]
+        where
+        notes = [(note, key) | (note, key, _) <- note_insts]
+        note_insts = [(note, key, kendang_inst w)
+            | (note, (w, _), key) <- Drums.kendang_composite]
+        kendang_inst w = if Maybe.isJust w then wadon_inst else lanang_inst
+        wadon_inst = Score.instrument synth wadon_name
+        lanang_inst = Score.instrument synth lanang_name
+
     inst name ks = Instrument.set_keyswitches ks $
         Instrument.patch $ Instrument.instrument name [] (-12, 12)
+
+wadon_name, lanang_name :: String
+wadon_name = "kendang-wadon"
+lanang_name = "kendang-lanang"
 
 -- * hang
 
@@ -54,7 +84,7 @@ hang_code = MidiInst.empty_code
 
 hang_calls :: Derive.NoteCallMap
 hang_calls = Derive.make_calls
-    [(text, DUtil.with_attrs attrs) | (attrs, _, Just text, _) <- hang_strokes,
+    [(text, DUtil.attrs_note attrs) | (attrs, _, Just text, _) <- hang_strokes,
         -- Make sure to not shadow the default "" call.
         not (null text)]
 
@@ -104,19 +134,40 @@ wayang_keys =
     , Key.c4, Key.d4, Key.e4, Key.g4 -- 1 to 5
     ]
 
+-- * kendang
 
--- * kendang bali
+kendang_composite_code :: (Score.Instrument, Score.Instrument) -> MidiInst.Code
+kendang_composite_code insts@(wadon, lanang) = MidiInst.empty_code
+    { MidiInst.note_calls =
+        [Derive.make_lookup $ kendang_composite_calls insts]
+    , MidiInst.cmds = [CUtil.inst_drum_cmd note_insts]
+    }
+    where
+    note_insts = [(note, key, kendang_inst w)
+        | (note, (w, _), key) <- Drums.kendang_composite]
+    kendang_inst w = if Maybe.isJust w then wadon else lanang
 
-kendang_notes :: [(Drums.Note, Midi.Key)]
-kendang_notes = -- both
-    [ (Drums.Note "PL" plak 'b', Key.g1)
-    -- right
-    , (Drums.Note "+" de 'z', Key.c2)
-    , (Drums.Note "+." (de <> thumb) 'x', Key.f2)
-    , (Drums.Note "o" kum 'c', Key.c3)
-    , (Drums.Note "." ka 'v', Key.g3)
-    -- left
-    , (Drums.Note "`circle+`" pung 'q', Key.c4)
-    , (Drums.Note "T" tong 'w', Key.g4)
-    , (Drums.Note "P" pak 'e', Key.c5)
-    ]
+kendang_composite_calls :: (Score.Instrument, Score.Instrument)
+    -> Derive.NoteCallMap
+kendang_composite_calls insts = Derive.make_calls
+    [(Drums.note_name note, c_stroke insts wadon_attrs lanang_attrs)
+        | (note, (wadon_attrs, lanang_attrs), _) <- Drums.kendang_composite]
+
+c_stroke :: (Score.Instrument, Score.Instrument)
+    -> Maybe Score.Attributes -> Maybe Score.Attributes -> Derive.NoteCall
+c_stroke insts wadon_attrs lanang_attrs =
+    Derive.stream_generator "kendang-stroke" $
+    Note.inverting $ \args -> CallSig.call0 args $
+        Derive.d_at (Args.start args) $
+            emit_stroke insts wadon_attrs lanang_attrs
+
+-- TODO emit filler strokes
+
+emit_stroke :: (Score.Instrument, Score.Instrument)
+    -> Maybe Score.Attributes -> Maybe Score.Attributes -> Derive.EventDeriver
+emit_stroke (wadon, lanang) wadon_attrs lanang_attrs =
+    emit wadon wadon_attrs <> emit lanang lanang_attrs
+    where
+    emit _ Nothing = mempty
+    emit inst (Just attrs) = Call.Util.add_attrs attrs $
+        Derive.with_instrument inst Call.Util.triggered_note

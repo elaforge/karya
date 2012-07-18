@@ -1,7 +1,7 @@
 -- | A common library of attributes for instrument definitians.
 --
 -- This is meant to be imported unqualified.
-module Derive.Attrs where
+module Derive.Attrs (module Derive.Attrs, Attributes) where
 import qualified Derive.Score as Score
 import Derive.Score (Attributes, attr)
 
@@ -14,6 +14,8 @@ no_attrs = Score.no_attrs
 cresc = attr "cresc"
 dim = attr "dim"
 sfz = attr "sfz"
+soft = attr "soft"
+loud = attr "loud"
 
 -- * strings
 
@@ -29,18 +31,22 @@ wadon = attr "wadon"
 kebyar = attr "kebyar"
 legong = attr "legong"
 
+-- Kendang tunggal strokes don't really have names so I made some up.
+-- For composite it would be: de tut, kum pung, ka pak, kam pang
+-- If I took the wadon or lanang names, it would be de, kum, ka, kam, or
+-- tut, pung, pak, pang, which both sound weird.
+
 -- both
 plak = attr "plak"
 
--- left
-pak = attr "pak"
-pung = attr "pung" -- kum but with left hand
-tong = attr "tong"
-
 -- right
 de = attr "de"
-kum = attr "kum"
+tut = attr "tut"
 ka = attr "ka" -- neutral stroke
+
+-- left
+pak = attr "pak"
+pang = attr "pang" -- rim
 
 -- ** western
 

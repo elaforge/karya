@@ -207,7 +207,7 @@ test_inverting_n = do
         next <- Derive.require "next event" $ Args.next_start args
         next_pitch <- Derive.require "next pitch"
             =<< Derive.pitch_at =<< Derive.real next
-        Derive.d_at (Args.start args) $ Util.simple_note next_pitch 1
+        Derive.d_at (Args.start args) $ Util.pitched_note next_pitch 1
 
 test_track_environ = do
     let run = extract . DeriveTest.derive_tracks

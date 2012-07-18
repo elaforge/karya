@@ -230,6 +230,8 @@ scale = Lens.lens patch_scale (\v r -> r { patch_scale = v })
 flags = Lens.lens patch_flags (\v r -> r { patch_flags = v })
 initialize = Lens.lens patch_initialize (\v r -> r { patch_initialize = v })
 keyswitches = Lens.lens patch_keyswitches (\v r -> r { patch_keyswitches = v })
+attribute_map =
+    Lens.lens patch_attribute_map (\v r -> r { patch_attribute_map = v })
 tags = Lens.lens patch_tags (\v r -> r { patch_tags = v })
 text = Lens.lens patch_text (\v r -> r { patch_text = v })
 file = Lens.lens patch_file (\v r -> r { patch_file = v })
@@ -289,6 +291,9 @@ patch_name = inst_name . patch_instrument
 
 set_keyswitches :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
 set_keyswitches ks = keyswitches #= keyswitch_map ks
+
+set_attribute_map :: [(Score.Attributes, String)] -> Patch -> Patch
+set_attribute_map attrs = attribute_map #= Map.fromList attrs
 
 set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
 set_keymap kmap = instrument_#keymap #= Map.fromList kmap

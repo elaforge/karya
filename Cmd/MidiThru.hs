@@ -181,14 +181,16 @@ with_addr (wdev, chan) msg = (wdev, Midi.ChannelMessage chan msg)
 -- instrument.  This bypasses all of the WriteDeviceState stuff so it won't
 -- cooperate with addr allocation, but hopefully this won't cause problems for
 -- simple uses like keymapped instruments.
-channel_messages :: (Cmd.M m) => Bool -> [Midi.ChannelMessage] -> m ()
-channel_messages first_addr msgs = do
-    addrs <- get_addrs
+channel_messages :: (Cmd.M m) => Maybe Score.Instrument -> Bool
+    -> [Midi.ChannelMessage] -> m ()
+channel_messages maybe_inst first_addr msgs = do
+    addrs <- get_addrs maybe_inst
     let addrs2 = if first_addr then take 1 addrs else addrs
     sequence_ [Cmd.midi wdev (Midi.ChannelMessage chan msg)
         | (wdev, chan) <- addrs2, msg <- msgs]
 
-get_addrs :: (Cmd.M m) => m [Addr]
-get_addrs = do
-    inst <- Cmd.require =<< EditUtil.lookup_instrument
+get_addrs :: (Cmd.M m) => Maybe Score.Instrument -> m [Addr]
+get_addrs maybe_inst = do
+    inst <- maybe (Cmd.require =<< EditUtil.lookup_instrument)
+        return maybe_inst
     Map.get [] inst <$> State.get_midi_alloc

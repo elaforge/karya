@@ -1,41 +1,14 @@
+-- | Data for creating drum instruments.  It has few dependencies so it can
+-- be imported by both Local.Instrument definitions and Derive.Call instrument
+-- calls.
 module Cmd.Instrument.Drums where
+import qualified Data.List as List
+
 import Util.Control
+import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Instrument.Util as CUtil
-import qualified Cmd.Keymap as Keymap
-import qualified Cmd.Msg as Msg
-
 import Derive.Attrs
-import qualified Derive.Derive as Derive
-import qualified Derive.Instrument.Util as DUtil
 import qualified Derive.Score as Score
-
-import qualified Perform.Midi.Instrument as Instrument
-import qualified App.MidiInst as MidiInst
-
-
-make_code :: [(Note, Midi.Key)] -> MidiInst.Code
-make_code note_keys = MidiInst.empty_code
-    { MidiInst.note_calls = [make_calls (map fst note_keys)]
-    , MidiInst.cmds = [make_cmd note_keys]
-    }
-
-set_instrument :: [(Note, Midi.Key)] -> Instrument.Patch -> Instrument.Patch
-set_instrument note_keys = Instrument.triggered
-    . Instrument.set_keymap [(note_attrs note, key) | (note, key) <- note_keys]
-
--- | Create a LookupCall for the given Notes.
-make_calls :: [Note] -> Derive.LookupCall Derive.NoteCall
-make_calls notes = Derive.make_lookup $ Derive.make_calls
-    [(note_name n, DUtil.with_attrs (note_attrs n)) | n <- notes]
-
--- | Create keymap Cmd for the given Notes.  This should be paired with
--- 'make_calls' so the Cmd will create calls that the deriver understands.
-make_cmd :: (Cmd.M m) => [(Note, Midi.Key)] -> Msg.Msg -> m Cmd.Status
-make_cmd note_keys = CUtil.keymaps
-    [(Keymap.physical_key (note_char n), note_name n, key)
-        | (n, key) <- note_keys]
 
 
 -- | Description of a generic drum set.  There are many drum set instruments,
@@ -45,7 +18,7 @@ make_cmd note_keys = CUtil.keymaps
 -- this provides a standard base.
 data Note = Note {
     note_name :: String
-    , note_attrs :: Score.Attributes
+    , note_attrs :: Attributes
     , note_char :: Char
     } deriving (Show)
 
@@ -65,3 +38,47 @@ c_ride  = Note "ride"   ride            't'
 c_crash = Note "crash"  crash           'y'
 
 -- TODO other drum style ornaments like double strikes, rolls, etc.
+
+-- * kendang bali
+
+kendang_composite :: [(Note, (Maybe Attributes, Maybe Attributes), Midi.Key)]
+kendang_composite = map find_key
+    [ (Note "PL" (wadon <> plak) 'b', (Just plak, Nothing))
+    -- right
+    , (Note "+" (wadon <> de)    'z', (Just de, Nothing))
+    , (Note "o" (lanang <> de)   'x', (Nothing, Just de))
+    , (Note "u" (wadon <> tut)   'c', (Just tut, Nothing))
+    , (Note "U" (lanang <> tut)  'v', (Nothing, Just tut))
+    -- left
+    , (Note "k" (wadon <> pak)   'q', (Just pak, Nothing))
+    , (Note "P" (lanang <> pak)  'w', (Nothing, Just pak))
+    , (Note "t" (wadon <> pang)  'e', (Just pang, Nothing))
+    , (Note "T" (lanang <> pang) 'r', (Nothing, Just pang))
+    ]
+    where
+    -- The composite notes map to notes on a single kendang, so find them
+    -- over there.
+    find_key (note, attrs) = (note, attrs,
+        key_of (note_attrs note `Score.attrs_diff` (wadon <> lanang)))
+    key_of attrs = key
+        where
+        Just (_, key) = List.find ((==attrs) . note_attrs . fst)
+            kendang_tunggal
+
+kendang_tunggal :: [(Note, Midi.Key)]
+kendang_tunggal =
+    [ (Note "PL" plak            'b', Key.g1)
+    -- right
+    , (Note "+"  de              'z', Key.c2)
+    , (Note "-"  (de <> soft)    'x', Key.c2)
+    , (Note "+." (de <> thumb)   'c', Key.f2)
+    , (Note "o"  tut             'v', Key.c3)
+    , (Note "."  ka              'b', Key.g3)
+    -- left
+    , (Note "T"  pang            'q', Key.g4)
+    , (Note "P"  pak             'w', Key.c5)
+    , (Note "^"  (pak <> soft)   'e', Key.c5)
+    , (Note "="  (de <> left)    'r', Key.d4) -- TODO d4 not set yet
+    , (Note "`O+`" (tut <> left) 't', Key.c4)
+    -- TODO cedugan
+    ]

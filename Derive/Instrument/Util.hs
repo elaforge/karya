@@ -12,10 +12,10 @@ import qualified Derive.TrackLang as TrackLang
 
 
 -- | Make a call that simply calls the default note call with the given attrs.
-with_attrs :: Score.Attributes -> Derive.NoteCall
-with_attrs attrs =
-    Derive.stream_generator ("with_attrs " ++ Pretty.pretty attrs) $
-    \args -> CallSig.call0 args $ Util.with_attrs (Score.attrs_union attrs) $
+attrs_note :: Score.Attributes -> Derive.NoteCall
+attrs_note attrs =
+    Derive.stream_generator ("attrs_note " ++ Pretty.pretty attrs) $
+    \args -> CallSig.call0 args $ Util.add_attrs attrs $
         Call.reapply args [TrackLang.call "" []]
 
 -- | Give an attribute to 0 duration notes.
