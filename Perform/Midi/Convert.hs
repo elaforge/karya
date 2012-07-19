@@ -57,7 +57,7 @@ convert_event lookup event = do
     pitch <- case maybe_key of
         Nothing -> convert_pitch (Instrument.patch_scale patch)
             (Score.event_controls event) (Score.event_pitch event)
-        Just key -> return $ Signal.constant (fromIntegral key)
+        Just key -> return $ Signal.constant (Midi.from_key key)
     let (controls, overridden) = convert_controls
             (Instrument.has_flag Instrument.Pressure patch)
             (Instrument.inst_control_map midi_inst)

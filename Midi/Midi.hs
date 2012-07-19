@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Midi.Midi (
     WriteMessages, ReadMessages
@@ -26,8 +26,9 @@ module Midi.Midi (
     , channel_message
 
     -- * types
-    , Message(..), Channel, Key, Velocity, Control, Program, ControlValue
-    , PitchBendValue
+    , Message(..), Channel, Velocity, Control, Program, ControlValue
+    , PitchBendValue, Manufacturer
+    , Key(..), from_key, to_key
     , ChannelMessage(..), CommonMessage(..), RealtimeMessage(..)
 
     -- * util
@@ -167,8 +168,8 @@ valid_msg msg = error $ "unknown msg: " ++ show msg
 valid_chan_msg :: ChannelMessage -> Bool
 valid_chan_msg msg = case msg of
     ControlChange cc val -> val7 cc && val7 val
-    NoteOn key vel -> val7 key && val7 vel
-    NoteOff key vel -> val7 key && val7 vel
+    NoteOn (Key key) vel -> val7 key && val7 vel
+    NoteOff (Key key) vel -> val7 key && val7 vel
     PitchBend val -> 0 <= val && val < 2^14
     _ -> error $ "valid_chan_msg: unknown msg: " ++ show msg
     where val7 v = 0 <= v && v < 128
@@ -220,7 +221,6 @@ instance Pretty.Pretty Message where
 -- On the other hand, these all have 7 bit ranges, so I can still check for
 -- out of range values, at least until it wraps.
 type Channel = Word8 -- actually 4 bits
-type Key = Word8
 type Velocity = Word8
 type Control = CC.Control
 type Program = Word8
@@ -228,6 +228,29 @@ type ControlValue = Word8
 -- | This is converted to and from the -0x2000 and +0x2000 range by the parser.
 type PitchBendValue = Float
 type Manufacturer = Word8
+
+newtype Key = Key Word8 deriving (Eq, Ord, Read, Show, Num, Enum)
+
+instance Pretty.Pretty Key where
+    pretty (Key key) = note ++ show (oct - 1)
+        where
+        (oct, k) = (fromIntegral key :: Int) `divMod` 12
+        note = case k of
+            0 -> "c"; 1 -> "cs"
+            2 -> "d"; 3 -> "ds"
+            4 -> "e"
+            5 -> "f"; 6 -> "fs"
+            7 -> "g"; 8 -> "gs"
+            9 -> "a"; 10 -> "as"
+            11 -> "b"
+            _ -> ""
+
+from_key :: (Num a) => Key -> a
+from_key (Key k) = fromIntegral k
+
+to_key :: (Integral a) => a -> Key
+to_key = Key . fromIntegral . min 127 . max 0
+
 data ChannelMessage =
     NoteOff !Key !Velocity
     | NoteOn !Key !Velocity

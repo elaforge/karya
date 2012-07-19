@@ -69,9 +69,9 @@ input_id input = case input of
 -- to be different.
 newtype NoteId = NoteId Int deriving (Eq, Ord, Show)
 key_to_id :: Midi.Key -> NoteId
-key_to_id = NoteId . fromIntegral
+key_to_id = NoteId . Midi.from_key
 id_to_key :: NoteId -> Midi.Key
-id_to_key (NoteId key) = fromIntegral key
+id_to_key (NoteId key) = Midi.to_key key
 
 -- * from midi
 
@@ -132,7 +132,7 @@ update_state addr chan_msg state = state
 pb_to_input :: Control.PbRange -> Midi.PitchBendValue -> Midi.Key
     -> Pitch.InputKey
 pb_to_input (low, high) pb key =
-    Pitch.InputKey (Num.f2d (fromIntegral key + offset))
+    Pitch.InputKey (Num.f2d (Midi.from_key key + offset))
     where
     offset = if pb < 0 then -pb * fromIntegral low else pb * fromIntegral high
 

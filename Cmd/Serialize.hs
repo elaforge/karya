@@ -576,6 +576,10 @@ instance Serialize Midi.RealtimeMessage where
             6 -> get >>= \a -> return (Midi.UndefinedRealtime a)
             _ -> bad_tag "Midi.RealtimeMessage" tag
 
+instance Serialize Midi.Key where
+    put (Midi.Key a) = put a
+    get = Midi.Key <$> get
+
 -- ** misc
 
 instance Serialize Time.UTCTime where

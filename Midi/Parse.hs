@@ -20,11 +20,11 @@ decode bytes
     d1 = B.index bytes 1
     d2 = B.index bytes 2
     channel_msg = case st of
-        0x8 -> NoteOff d1 d2
+        0x8 -> NoteOff (Key d1) d2
             -- Hide this bit of midi irregularity from clients.
-        0x9 | d2 == 0 -> NoteOff d1 d2
-            | otherwise -> NoteOn d1 d2
-        0xa -> Aftertouch d1 d2
+        0x9 | d2 == 0 -> NoteOff (Key d1) d2
+            | otherwise -> NoteOn (Key d1) d2
+        0xa -> Aftertouch (Key d1) d2
         0xb -> ControlChange d1 d2
         0xc -> ProgramChange d1
         0xd -> ChannelPressure d1
@@ -57,9 +57,9 @@ encode :: Message -> B.ByteString
 encode (ChannelMessage chan msg) = B.pack [join4 st chan, d1, d2]
     where
     (st, d1, d2) = case msg of
-        NoteOff n v -> (0x8, n, v)
-        NoteOn n v -> (0x9, n, v)
-        Aftertouch n v -> (0xa, n, v)
+        NoteOff (Key n) v -> (0x8, n, v)
+        NoteOn (Key n) v -> (0x9, n, v)
+        Aftertouch (Key n) v -> (0xa, n, v)
         ControlChange c v -> (0xb, c, v)
         ProgramChange v -> (0xc, v, 0)
         ChannelPressure v -> (0xd, v, 0)

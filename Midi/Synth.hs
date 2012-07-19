@@ -50,7 +50,7 @@ data Note = Note {
 
 make_note :: Addr -> RealTime -> Midi.Key -> Midi.Velocity -> Note
 make_note addr start key vel =
-    Note start Nothing key vel [(start, fromIntegral key)] Map.empty addr
+    Note start Nothing key vel [(start, Midi.from_key key)] Map.empty addr
 
 note_end :: Note -> Maybe RealTime
 note_end n = (+ note_start n) <$> note_duration n
@@ -144,7 +144,7 @@ pitch_bend addr ts val = do
     modify_notes (Just "pitch bend without note") addr (map (insert rel_pitch))
     where
     insert rel_pitch note = note { note_pitch =
-        (ts, fromIntegral (note_key note) + rel_pitch) : note_pitch note }
+        (ts, Midi.from_key (note_key note) + rel_pitch) : note_pitch note }
 
 modify_notes :: Maybe String -> Addr -> ([Note] -> [Note]) -> SynthM ()
 modify_notes maybe_msg addr f = do

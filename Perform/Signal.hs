@@ -414,5 +414,5 @@ pitches_share in_decay start end initial0 sig0 initial1 sig1
     -- explicitly above.
     samples = dropWhile (\(t, _, _) -> t <= start) $
         SignalBase.resample_to_list in0 in1
-    pitch_eq (_, ay, by) = floor ((ay - fromIntegral initial0) * 1000)
-        == floor ((by - fromIntegral initial1) * 1000)
+    pitch_eq (_, ay, by) = floor ((ay - Midi.from_key initial0) * 1000)
+        == floor ((by - Midi.from_key initial1) * 1000)

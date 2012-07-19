@@ -30,6 +30,7 @@ import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
@@ -252,15 +253,16 @@ make_patch_scale :: [(Midi.Key, Pitch.NoteNumber)] -> PatchScale
 make_patch_scale keys =
     Just $ empty_patch_scale Vector.// map convert (interpolate keys)
     where
-    convert (k, Pitch.NoteNumber nn) = (fromIntegral k, nn)
+    convert (k, Pitch.NoteNumber nn) = (Midi.from_key k, nn)
     interpolate ((k1, nn1) : rest@((k2, nn2) : _))
         | k1 + 1 == k2 = (k1, nn1) : interpolate rest
-        | otherwise = (k1, nn1) : map mk [k1 + 1 .. k2 - 1] ++ interpolate rest
+        | otherwise = (k1, nn1) : map mk (Seq.range' (k1+1) k2 1)
+            ++ interpolate rest
         where
         mk k = (k, nn)
             where
             nn = Num.scale nn1 nn2 $ Num.normalize
-                (fromIntegral k1) (fromIntegral k2) (fromIntegral k)
+                (Midi.from_key k1) (Midi.from_key k2) (Midi.from_key k)
     interpolate xs = xs
 
 convert_patch_scale :: Vector.Vector Double -> Pitch.NoteNumber

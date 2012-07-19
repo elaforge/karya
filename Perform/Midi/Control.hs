@@ -90,14 +90,14 @@ pitch_to_midi pb_range val
     -- 0 so 0 here probably means the pitch signal was empty.
     | val <= 0 || val > 127 = Nothing
     | otherwise = Just (key, pb_from_nn pb_range key val)
-    where key = floor val
+    where key = Midi.to_key (floor val)
 
 pb_from_nn :: PbRange -> Midi.Key -> Signal.Y -> Midi.PitchBendValue
 pb_from_nn pb_range key val =
     realToFrac $ if bend >= 0 then bend / high else bend / (-low)
     where
     (low, high) = (fromIntegral (fst pb_range), fromIntegral (snd pb_range))
-    bend = Num.clamp low high (val - fromIntegral key)
+    bend = Num.clamp low high (val - Midi.from_key key)
 
 -- * built in controls
 

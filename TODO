@@ -1,5 +1,5 @@
 UNSORTED
-  - make Midi.Key into a newtype and add a Pretty that shows the midi key name
+  * make Midi.Key into a newtype and add a Pretty that shows the midi key name
   - ParseBs.strip_comment is incorrect since it doesn't understand strings.
     It should be integrated into the parser.
   - can I use a lazy array + builder to make score generation more efficient?
@@ -8,7 +8,7 @@ UNSORTED
     It would be nice for LoggerT implementation as well.
     storablevector has a builder, but only for Storable types.
   - why not have blocks extend to the end of the ruler instead of the last
-    event?  Last event necessitates the '--' hack.
+    event?  Last event necessitates the '--' hack.  Update doc/derivation.
   * why does Pitch take a map of TypedVals instead of plain Signal.Ys?
   * 'd' and 'u' calls also need to slice to the previous one.  I need some
     kind of annotation that says a call depends entirely on the previous value.
