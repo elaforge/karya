@@ -46,7 +46,6 @@ modify_pitch :: (State.M m) => String -> ScoreTime -> m ()
 modify_pitch pitch_tid pos =
     State.insert_event (UiTest.tid pitch_tid) pos (Event.event "1c" 0)
 
-
 -- | Run the state transform a few times and rederive each time.
 rederive :: State.State -> [State.StateId ()] -> IO ()
 rederive initial_state modifications = do
@@ -77,7 +76,7 @@ eval_derivation cache state1 state2 cmd_updates = do
     force events
     return (result, events)
     where
-    Right (ui_updates, _) = Diff.diff cmd_updates state1 state2
+    (ui_updates, _) = Diff.diff cmd_updates state1 state2
     damage = Diff.derive_diff state1 state2 ui_updates
     result = DeriveTest.derive_block_cache cache damage state2
         (UiTest.bid "b1")
