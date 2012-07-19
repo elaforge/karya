@@ -9,6 +9,7 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import Derive.Attrs
 import qualified Derive.Score as Score
+import qualified Perform.Signal as Signal
 
 
 -- | Description of a generic drum set.  There are many drum set instruments,
@@ -20,22 +21,25 @@ data Note = Note {
     note_name :: String
     , note_attrs :: Attributes
     , note_char :: Char
+    -- | Scale the dynamic by this value.  This is for drums that have
+    -- different symbols for soft strokes.
+    , note_dynamic :: Signal.Y
     } deriving (Show)
 
 
-c_bd    = Note "bd"     bd              'z'
-c_sn    = Note "sn"     snare           'x'
-c_ltom  = Note "ltom"   (tom <> low)    'c'
-c_mtom  = Note "mtom"   (tom <> middle) 'v'
-c_htom  = Note "htom"   (tom <> high)   'b'
+c_bd    = Note "bd"     bd              'z' 1
+c_sn    = Note "sn"     snare           'x' 1
+c_ltom  = Note "ltom"   (tom <> low)    'c' 1
+c_mtom  = Note "mtom"   (tom <> middle) 'v' 1
+c_htom  = Note "htom"   (tom <> high)   'b' 1
 
-c_hh    = Note "hh"     hh              'q'
-c_ohh   = Note "ohh"    (open <> hh)    'q'
-c_chh   = Note "chh"    (closed <> hh)  'w'
-c_phh   = Note "phh"    (pedal <> hh)   'e'
+c_hh    = Note "hh"     hh              'q' 1
+c_ohh   = Note "ohh"    (open <> hh)    'q' 1
+c_chh   = Note "chh"    (closed <> hh)  'w' 1
+c_phh   = Note "phh"    (pedal <> hh)   'e' 1
 
-c_ride  = Note "ride"   ride            't'
-c_crash = Note "crash"  crash           'y'
+c_ride  = Note "ride"   ride            't' 1
+c_crash = Note "crash"  crash           'y' 1
 
 -- TODO other drum style ornaments like double strikes, rolls, etc.
 
@@ -43,17 +47,18 @@ c_crash = Note "crash"  crash           'y'
 
 kendang_composite :: [(Note, (Maybe Attributes, Maybe Attributes), Midi.Key)]
 kendang_composite = map find_key
-    [ (Note "PL" (wadon <> plak) 'b', (Just plak, Nothing))
+    [ (Note "PL" (wadon <> plak) 'b' 1, (Just plak, Nothing))
+    , (Note "`O+`" (lanang <> tut <> left) 't' 1, (Nothing, Just (tut <> left)))
     -- right
-    , (Note "+" (wadon <> de)    'z', (Just de, Nothing))
-    , (Note "o" (lanang <> de)   'x', (Nothing, Just de))
-    , (Note "u" (wadon <> tut)   'c', (Just tut, Nothing))
-    , (Note "U" (lanang <> tut)  'v', (Nothing, Just tut))
+    , (Note "+" (wadon <> de)    'z' 1, (Just de, Nothing))
+    , (Note "o" (lanang <> de)   'x' 1, (Nothing, Just de))
+    , (Note "u" (wadon <> tut)   'c' 1, (Just tut, Nothing))
+    , (Note "U" (lanang <> tut)  'v' 1, (Nothing, Just tut))
     -- left
-    , (Note "k" (wadon <> pak)   'q', (Just pak, Nothing))
-    , (Note "P" (lanang <> pak)  'w', (Nothing, Just pak))
-    , (Note "t" (wadon <> pang)  'e', (Just pang, Nothing))
-    , (Note "T" (lanang <> pang) 'r', (Nothing, Just pang))
+    , (Note "k" (wadon <> pak)   'q' 1, (Just pak, Nothing))
+    , (Note "P" (lanang <> pak)  'w' 1, (Nothing, Just pak))
+    , (Note "t" (wadon <> pang)  'e' 1, (Just pang, Nothing))
+    , (Note "T" (lanang <> pang) 'r' 1, (Nothing, Just pang))
     ]
     where
     -- The composite notes map to notes on a single kendang, so find them
@@ -67,18 +72,18 @@ kendang_composite = map find_key
 
 kendang_tunggal :: [(Note, Midi.Key)]
 kendang_tunggal =
-    [ (Note "PL" plak            'b', Key.g1)
+    [ (Note "PL" plak            'b' 1.0, Key.g1)
     -- right
-    , (Note "+"  de              'z', Key.c2)
-    , (Note "-"  (de <> soft)    'x', Key.c2)
-    , (Note "+." (de <> thumb)   'c', Key.f2)
-    , (Note "o"  tut             'v', Key.c3)
-    , (Note "."  ka              'b', Key.g3)
+    , (Note "+"  de              'z' 1.0, Key.c2)
+    , (Note "-"  (de <> soft)    'x' 0.3, Key.c2)
+    , (Note "+." (de <> thumb)   'c' 1.0, Key.f2)
+    , (Note "o"  tut             'v' 1.0, Key.c3)
+    , (Note "."  ka              'b' 1.0, Key.g3)
     -- left
-    , (Note "T"  pang            'q', Key.g4)
-    , (Note "P"  pak             'w', Key.c5)
-    , (Note "^"  (pak <> soft)   'e', Key.c5)
-    , (Note "="  (de <> left)    'r', Key.d4) -- TODO d4 not set yet
-    , (Note "`O+`" (tut <> left) 't', Key.c4)
+    , (Note "T"  pang            'q' 1.0, Key.g4)
+    , (Note "P"  pak             'w' 1.0, Key.c5)
+    , (Note "^"  (pak <> soft)   'e' 0.3, Key.c5)
+    , (Note "="  (de <> left)    'r' 1.0, Key.d4) -- TODO d4 not set yet
+    , (Note "`O+`" (tut <> left) 't' 1.0, Key.c4)
     -- TODO cedugan
     ]

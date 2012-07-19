@@ -260,6 +260,16 @@ with_added_control :: Score.Control -> Score.TypedSignal -> Deriver a
     -> Deriver a
 with_added_control cont = with_relative_control cont op_add
 
+with_multiplied_control :: Score.Control -> Score.TypedSignal -> Deriver a
+    -> Deriver a
+with_multiplied_control cont = with_relative_control cont op_mul
+
+multiply_control :: Score.Control -> Signal.Y -> Deriver a -> Deriver a
+multiply_control cont val
+    | val == 1 = id
+    | otherwise = with_multiplied_control cont
+        (Score.untyped (Signal.constant val))
+
 lookup_control_op :: TrackLang.CallId -> Deriver ControlOp
 lookup_control_op c_op = do
     op_map <- gets (state_control_op_map . state_constant)

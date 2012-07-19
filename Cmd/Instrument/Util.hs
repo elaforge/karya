@@ -3,6 +3,7 @@ module Cmd.Instrument.Util where
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
 import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
@@ -18,6 +19,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Derive as Derive
 import qualified Derive.Instrument.Util as DUtil
 import qualified Derive.Score as Score
+import qualified Derive.Call.Util as Call.Util
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
@@ -130,7 +132,13 @@ drum_instrument note_keys = Instrument.triggered
 -- | Create a LookupCall for the given Notes.
 drum_calls :: [Drums.Note] -> Derive.LookupCall Derive.NoteCall
 drum_calls notes = Derive.make_lookup $ Derive.make_calls
-    [(Drums.note_name n, DUtil.attrs_note (Drums.note_attrs n)) | n <- notes]
+    [(Drums.note_name n, note_call (Drums.note_dynamic n) (Drums.note_attrs n))
+        | n <- notes]
+    where
+    note_call dyn attrs =
+        DUtil.note_call ("drum_call: " ++ Pretty.pretty attrs)
+            (with_dyn dyn . Call.Util.add_attrs attrs)
+    with_dyn = Derive.multiply_control Score.c_dynamic
 
 -- | Create keymap Cmd for the given Notes.  This should be paired with
 -- 'drum_calls' so the Cmd will create calls that the deriver understands.

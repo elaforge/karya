@@ -71,8 +71,7 @@ echo delay feedback times deriver
                 scale_dyn feedback $ echo delay feedback (times - 1) deriver]
 
 scale_dyn :: Signal.Y -> Derive.EventDeriver -> Derive.EventDeriver
-scale_dyn dyn = Derive.with_relative_control
-    Score.c_dynamic Derive.op_mul (Score.untyped (Signal.constant dyn))
+scale_dyn = Derive.multiply_control Score.c_dynamic
 
 
 -- | This echo works directly on Events.

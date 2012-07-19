@@ -38,12 +38,14 @@ test_integrate = do
         ( [ (">inst", [(0, 1, "")])
           , ("dyn", [(0, 0, "`0x`00"), (2, 0, "`0x`ff")])
           ]
-        , [])
+        , []
+        )
     -- Attributes get mapped back to their call.
     equal (f [(event (0, 1, "a", [], inst))
             { Score.event_attributes = Attrs.plak }])
         ( [(">inst", [(0, 1, "plak")]), ("*twelve", [(0, 0, "4c")])]
-        , [])
+        , []
+        )
 
 test_integrate_block = do
     let simple = [("i", [(0, 1, "4c")], [])]

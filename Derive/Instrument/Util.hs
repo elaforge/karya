@@ -18,7 +18,13 @@ attrs_note attrs =
     \args -> CallSig.call0 args $ Util.add_attrs attrs $
         Call.reapply args [TrackLang.call "" []]
 
--- | Give an attribute to 0 duration notes.
+note_call :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
+    -> Derive.NoteCall
+note_call name transform =
+    Derive.stream_generator name $ \args -> CallSig.call0 args $ transform $
+        Call.reapply args [TrackLang.call "" []]
+
+-- | Make a note and add the attribute if it's 0 duration.
 note0_attrs :: Score.Attributes -> Derive.NoteCall
 note0_attrs attrs = postproc_note $ \evt ->
     if Score.event_duration evt /= 0 then evt else evt
