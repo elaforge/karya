@@ -192,7 +192,7 @@ Don't hesitate to look at [haddock documentation](../haddock/index.html) or the
 [source](../hscolour/).  Since using karya probably involves writing code that
 interacts with the internal APIs, you'll need to be familiar with the code.
 Sometimes the documentation isn't exported as haddock, so if the haddock seems
-sparse try the "source" Link.
+sparse try the "source" link.
 
 Karya is divided into several layers, corresponding to the top level
 directories in the source tree:
