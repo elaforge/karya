@@ -29,8 +29,8 @@ of control or note tracks.  Note tracks will set an instrument or inherit one,
 and each have an optional pitch track, `dyn` dynamic control track, and
 possibly other control tracks.  The control tracks can either be above the
 note track and possibly apply to multiple note tracks, or below a note track
-and apply only to that note track, through a process called
-[inversion](#inverting-calls).
+and apply only to that note track, through a processes called
+[slicing and inversion](#slicing-and-inversion).
 
 The events in a control track are generally numbers which set the control
 signal at that point in time, or possibly calls which interpolate to create
@@ -235,11 +235,12 @@ scope.  Normally a single tempo track will have scope over all the tracks in a
 module, but it's also possible to have multiple tempo tracks.
 
 - Note tracks look like `>` or `>inst` or `>inst arg1 arg2 ...`.  They are
-passed as arguments to a `note-track` transformer whose default behaviour is
-to set the current instrument and possibly attributes, the same as the default
-null note call ([note_calls](note_calls.html)).  Similar to scales, setting the instrument
-will bring the instrument's calls into scope, as documented under Instruments.
-As with control tracks, you can append a transformer pipeline.
+passed as arguments to a `note-track` transformer whose default behaviour is to
+set the current instrument and possibly attributes, the same as the default
+null note call ([note_calls](note_calls.md.html)).  Similar to scales, setting
+the instrument will bring the instrument's calls into scope, as documented
+under Instruments.  As with control tracks, you can append a transformer
+pipeline.
 
 When a track is evaluated, the text of each UI event is evaluated, and the
 results from each call are merged.  Any evaluation errors will be logged and
@@ -263,7 +264,10 @@ Block calls are note calls and go on a note track, but there's also a variant
 for control tracks.  The sub-block is expected to have a control track titled
 `%` whose signal will be substituted into the signal of the calling track.
 
-### Inverting calls
+### Slicing and inversion
+
+[Slicing and inversion](inverting_calls.md.html) is a score level
+transformation that happens at when a track is derived.
 
 ### Note Transformers
 
@@ -294,7 +298,7 @@ priority which one to apply.  Details are in
 
 ### Local.Instrument
 
-[doc/local](local.html)
+[doc/local](local.md.html)
 
 ## Scales
 

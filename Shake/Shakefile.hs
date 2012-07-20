@@ -82,6 +82,9 @@ data Config = Config {
 oDir :: Config -> FilePath
 oDir = (</> "obj") . buildDir
 
+docDir :: FilePath
+docDir = build </> "doc"
+
 -- * flags
 
 data Flags = Flags {
@@ -372,7 +375,7 @@ main = do
             case hsGui binary of
                 Just icon -> makeBundle fn icon
                 _ -> return ()
-        "doc/keymap.html" *> \fn -> do
+        docDir </> "keymap.html" *> \fn -> do
             let bin = buildDir (modeConfig Debug) </> "print_keymap"
             need [bin]
             Util.shell $ bin ++ " >" ++ fn
@@ -433,7 +436,7 @@ dispatch config target = case target of
     "checkin" -> do
         let debug = (modeToDir Debug </>)
         Shake.want [debug "browser", debug "logview", debug "make_db",
-            debug "seq", debug "update", "doc/keymap.html",
+            debug "seq", debug "update", docDir </> "keymap.html",
             modeToDir Profile </> "RunProfile"]
         dispatch config "complete-tests"
     "tests" -> action $ do
@@ -457,8 +460,8 @@ makeDocumentation config = do
     hscs <- filter haddock <$> Util.findHs "*.hsc" "."
     hs <- filter haddock <$> Util.findHs "*.hs" "."
     docs <- getMarkdown
-    need $ map (hscToHs (hscDir config)) hscs
-        ++ map docToHtml docs
+    need $ (docDir </> "keymap.html")
+        : map (hscToHs (hscDir config)) hscs ++ map docToHtml docs
     system' "haddock" $
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
@@ -470,6 +473,8 @@ makeDocumentation config = do
         , "-o", build </> "haddock"
         ] ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags]
         ++ hs ++ map (hscToHs (hscDir config)) hscs
+    -- TODO do these individually so they can be parallelized and won't run
+    -- each time
     system' "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
     where
     flags = configFlags config
@@ -555,19 +560,18 @@ generateTestHs hsSuffix fn = do
 -- * markdown
 
 markdownRule :: FilePath -> Shake.Rules ()
-markdownRule linkifyBin = build </> "doc/*.html" *> \html -> do
+markdownRule linkifyBin = docDir </> "*.md.html" *> \html -> do
     let doc = htmlToDoc html
     need [linkifyBin, doc]
     system' "tools/convert_doc" [doc, html]
 
--- | build/doc/xyz.html -> doc/xyz.md
+-- | build/doc/xyz.md.html -> doc/xyz.md
 htmlToDoc :: FilePath -> FilePath
-htmlToDoc =
-    ("doc"</>) . FilePath.takeFileName . flip FilePath.replaceExtension ".md"
+htmlToDoc = ("doc" </>) . FilePath.takeFileName . FilePath.dropExtension
 
--- | doc/xyz.md -> build/doc/xyz.html
+-- | doc/xyz.md -> build/doc/xyz.md.html
 docToHtml :: FilePath -> FilePath
-docToHtml = (build</>) . flip FilePath.replaceExtension ".html"
+docToHtml = (docDir </>) . FilePath.takeFileName . (++".html")
 
 -- * hs
 

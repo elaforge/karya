@@ -38,5 +38,5 @@ non-space characters in it, so `5( 4 'hi'` is a call to `5(`.
 
 Details on the syntax are in in 'Derive.TrackLang'.
 
-The interpretation of the score is called [derivation](derivation.html) and is
-complicated enough to warrant its own document.
+The interpretation of the score is called [derivation](derivation.md.html) and
+is complicated enough to warrant its own document.

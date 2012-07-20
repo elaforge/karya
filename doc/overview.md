@@ -62,7 +62,7 @@ modifications, to a limited degree.  For instance, a part that mirrors another
 with added idiomatic ornaments plus hand tweaks, or a whole section which is
 the reverse of another section, edited to sound better.
 
-- [REPL](repl.html).  All non-GUI interaction is through a command-line
+- [REPL](repl.md.html).  All non-GUI interaction is through a command-line
 interface, so you can do complicated transformations by writing a function.
 The language is Haskell, which the rest of the program is written in, and it
 has direct access to all internal funtionality.  If you frequently use a
@@ -188,11 +188,11 @@ mechanical style of popular music.
 
 ## Overview
 
-Don't hesitate to look at [haddock documentation](../haddock/index.html) or the
-[source](../hscolour/).  Since using karya probably involves writing code that
-interacts with the internal APIs, you'll need to be familiar with the code.
-Sometimes the documentation isn't exported as haddock, so if the haddock seems
-sparse try the "source" link.
+Don't hesitate to look at [haddock documentation](../haddock/index.html) or
+the [source](../hscolour/).  Since using karya probably involves writing code
+that interacts with the internal APIs, you'll need to be familiar with the
+code.  Sometimes the documentation isn't exported as haddock, so if the haddock
+seems sparse try the "source" link.
 
 Karya is divided into several layers, corresponding to the top level
 directories in the source tree:
@@ -207,7 +207,7 @@ GUI.  This is what gets saved when you save a score.
 - Cmd - Cmds take user input and transform the Ui state.  This layer handles
 all user interaction.
 
-- Derive - The [deriver](derivation.html) interprets the Ui State and turns
+- Derive - The [deriver](derivation.md.html) interprets the Ui State and turns
 into into a stream of lower level events.  It implements the "tracklang"
 language described below.
 
@@ -233,18 +233,18 @@ directories full of sysex messages, they can serialize the parsed instruments
 to disk.  What this is exactly depends on the per-synth definitions in
 Local/Instrument/.  `make_db` just runs each instrument's `make_db` function.
 
-- [repl](repl.html) - This connects to a running sequencer and lets you
+- [repl](repl.md.html) - This connects to a running sequencer and lets you
 interact at the programmatic level by sending haskell expressions to be
 evaluated in the Cmd context.  `send` is a one-off version of repl that can be
 used to send a single command from shell scripts.
 
 - print_keymap - Write out a reference to the
-[global keymap in HTML.](../../doc/keymap.html)
+[global keymap in HTML.](keymap.html)
 
 ## karya
 
 For the purposes of documentation, there are three major layers:
 
-- [ui](ui.html)
-- [score / derivation](score.html)
-- [performance](performance.html)
+- [ui](ui.md.html)
+- [score / derivation](score.md.html)
+- [performance](performance.md.html)
