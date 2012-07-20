@@ -745,6 +745,18 @@ data TrackEvents = TrackEvents {
     , tevents_shifted :: !ScoreTime
     } deriving (Show)
 
+instance Pretty.Pretty TrackEvents where
+    format track = Pretty.record
+        (Pretty.text "TrackEvents"
+            Pretty.<+> Pretty.format (tevents_title track)
+            Pretty.<+> Pretty.format (tevents_track_id track))
+        [ ("end", Pretty.format (tevents_end track))
+        , ("range", Pretty.format (tevents_range track))
+        , ("sliced", Pretty.format (tevents_sliced track))
+        , ("shifted", Pretty.format (tevents_shifted track))
+        , ("events", Pretty.format (tevents_events track))
+        ]
+
 track_events :: String -> Events.Events -> ScoreTime -> TrackEvents
 track_events title events end = TrackEvents
     { tevents_title = title

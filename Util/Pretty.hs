@@ -22,6 +22,7 @@ import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.String as String
+import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Storable as Storable
 import qualified Data.Vector.Unboxed as Unboxed
@@ -111,6 +112,10 @@ instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
 
 instance Pretty ByteString.ByteString where
     format = PP.doubleQuotes . PP.text . UTF8.toString
+
+instance (Pretty a) => Pretty (Tree.Tree a) where
+    format (Tree.Node val children) =
+        constructor "Node" [format val, format children]
 
 formatted :: (Pretty a) => a -> String
 formatted = (++"\n") . render default_width . format
