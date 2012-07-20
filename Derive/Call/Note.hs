@@ -167,8 +167,12 @@ trimmed_pitch start end =
 -- do its thing?
 trimmed_controls :: RealTime -> RealTime -> Score.ControlMap
     -> Score.ControlMap
-trimmed_controls start end =
-    Map.map (fmap (Signal.truncate end . Signal.drop_before start))
+trimmed_controls start end = Map.map (fmap trim)
+    where
+    trim = if start == end
+        -- Otherwise 0 dur events tend to get no controls.
+        then Signal.take 1 . Signal.drop_before start
+        else Signal.truncate end . Signal.drop_before start
 
 -- ** transform
 

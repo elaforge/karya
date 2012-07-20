@@ -37,7 +37,7 @@ module Perform.Signal (
     , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift, scale
-    , truncate, drop_before
+    , take, truncate, drop_before
     , map_x, map_y
 
     -- ** special functions
@@ -45,7 +45,7 @@ module Perform.Signal (
     , pitches_share
 ) where
 import qualified Prelude
-import Prelude hiding (last, truncate, length, null)
+import Prelude hiding (take, last, truncate, length, null)
 import qualified Control.Arrow as Arrow
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
@@ -281,6 +281,9 @@ scale mult vec
     | mult <= 0 = error $ "scale: called with mult<=0: " ++ show mult
     | mult == 1 = vec
     | otherwise = map_y (*mult) vec
+
+take :: Int -> Signal y -> Signal y
+take = modify_vec . V.take
 
 truncate :: X -> Signal y -> Signal y
 truncate x = modify_vec (SignalBase.truncate x)
