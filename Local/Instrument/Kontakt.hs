@@ -147,25 +147,58 @@ kendang_composite_code insts@(wadon, lanang) = MidiInst.empty_code
         | (note, (w, _), key) <- Drums.kendang_composite]
     kendang_inst w = if Maybe.isJust w then wadon else lanang
 
+type CompositeAttrs = (Maybe Score.Attributes, Maybe Score.Attributes)
+
 kendang_composite_calls :: (Score.Instrument, Score.Instrument)
     -> Derive.NoteCallMap
 kendang_composite_calls insts = Derive.make_calls
-    [(Drums.note_name note, c_stroke insts wadon_attrs lanang_attrs)
-        | (note, (wadon_attrs, lanang_attrs), _) <- Drums.kendang_composite]
+    [(Drums.note_name n, c_stroke insts attrs)
+        | (n, attrs, _) <- Drums.kendang_composite]
 
-c_stroke :: (Score.Instrument, Score.Instrument)
-    -> Maybe Score.Attributes -> Maybe Score.Attributes -> Derive.NoteCall
-c_stroke insts wadon_attrs lanang_attrs =
+c_stroke :: (Score.Instrument, Score.Instrument) -> CompositeAttrs
+    -> Derive.NoteCall
+c_stroke insts attrs =
     Derive.stream_generator "kendang-stroke" $
     Note.inverting $ \args -> CallSig.call0 args $
         Derive.d_at (Args.start args) $
-            emit_stroke insts wadon_attrs lanang_attrs
+            emit_stroke insts attrs
 
 -- TODO emit filler strokes
+--
+-- filler strokes are "^" (pak <> soft) and "." (ka)
+--
+-- kP+otT kPkP+o+o kPuUtT+o
+-- P.+.T^ P.P.+.+. P.o.T^+.
+-- .P.+.T .P.P.+.+ .P.O.T^+
+--
+-- abstraction level is wrong
+-- I want to take a stream of kPtT etc. to wadon and lanang streams.
+-- Events with attrs is ok too.
+-- So maybe this should be postproc instead of a bunch of calls.
+--
+-- With a bunch of calls I can't reliably tell the previous one.
+--
+-- So this means kendang-composite is a normal bunch of calls, but then there's
+-- a postproc that turns (lanang <> pak) int (lanang, pak)
+--
+-- Can I make the instrument automatially apply a transformer?  It really does
+-- apply only to the instrument since it is designed to work specifically with
+-- the events the instrument creates.  But ideally I want to apply it only once
+-- at the top level, if >inst now implies a transformation in addition to just
+-- setting environment then (>inst a b c) is now different than
+-- (>inst a (>inst b c))
 
-emit_stroke :: (Score.Instrument, Score.Instrument)
-    -> Maybe Score.Attributes -> Maybe Score.Attributes -> Derive.EventDeriver
-emit_stroke (wadon, lanang) wadon_attrs lanang_attrs =
+-- At fast speeds omit the filler strokes and use de<>thumb.
+-- If I omit tempo from track derivation, how do I know it's fast speed?
+-- I can put the warp into a plain control and 'tempo_at' check that control
+-- instead of the warp.
+--
+-- But a postproc is a nicer solution for this, I can just check actual
+-- RealTime distance.
+
+emit_stroke :: (Score.Instrument, Score.Instrument) -> CompositeAttrs
+    -> Derive.EventDeriver
+emit_stroke (wadon, lanang) (wadon_attrs, lanang_attrs) =
     emit wadon wadon_attrs <> emit lanang lanang_attrs
     where
     emit _ Nothing = mempty

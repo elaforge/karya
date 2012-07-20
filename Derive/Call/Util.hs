@@ -249,15 +249,13 @@ triggered_note = Call.eval_one_at 0 0 [TrackLang.call "" []]
 with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
     -> Derive.Deriver d
 with_attrs f deriver = do
-    -- Attributes should always be in the default environ so this shouldn't
-    -- abort.
-    attrs <- Derive.get_val TrackLang.v_attributes
+    attrs <- get_attrs
     Derive.with_val TrackLang.v_attributes (f attrs) deriver
 
 add_attrs :: Score.Attributes -> Derive.Deriver d -> Derive.Deriver d
 add_attrs = with_attrs . Score.attrs_union
 
--- * state access
+-- * environ
 
 get_srate :: Derive.Deriver RealTime
 get_srate = RealTime.seconds <$> Derive.get_val TrackLang.v_srate
@@ -276,6 +274,9 @@ lookup_key = fmap Pitch.Key <$> Derive.lookup_val TrackLang.v_key
 
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val TrackLang.v_instrument
+
+get_attrs :: Derive.Deriver Score.Attributes
+get_attrs = Maybe.fromMaybe mempty <$> Derive.lookup_val TrackLang.v_attributes
 
 -- ** random
 

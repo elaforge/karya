@@ -50,15 +50,15 @@ kendang_composite = map find_key
     [ (Note "PL" (wadon <> plak) 'b' 1, (Just plak, Nothing))
     , (Note "`O+`" (lanang <> tut <> left) 't' 1, (Nothing, Just (tut <> left)))
     -- right
-    , (Note "+" (wadon <> de)    'z' 1, (Just de, Nothing))
-    , (Note "o" (lanang <> de)   'x' 1, (Nothing, Just de))
-    , (Note "u" (wadon <> tut)   'c' 1, (Just tut, Nothing))
-    , (Note "U" (lanang <> tut)  'v' 1, (Nothing, Just tut))
+    , (Note "+" (wadon <> de)    'z' 1, (Just de, Nothing)) -- de
+    , (Note "o" (lanang <> de)   'x' 1, (Nothing, Just de)) -- tut
+    , (Note "u" (wadon <> tut)   'c' 1, (Just tut, Nothing)) -- kum
+    , (Note "U" (lanang <> tut)  'v' 1, (Nothing, Just tut)) -- pung
     -- left
-    , (Note "k" (wadon <> pak)   'q' 1, (Just pak, Nothing))
-    , (Note "P" (lanang <> pak)  'w' 1, (Nothing, Just pak))
-    , (Note "t" (wadon <> pang)  'e' 1, (Just pang, Nothing))
-    , (Note "T" (lanang <> pang) 'r' 1, (Nothing, Just pang))
+    , (Note "k" (wadon <> pak)   'q' 1, (Just pak, Nothing)) -- ka
+    , (Note "P" (lanang <> pak)  'w' 1, (Nothing, Just pak)) -- pak
+    , (Note "t" (wadon <> pang)  'e' 1, (Just pang, Nothing)) -- kam
+    , (Note "T" (lanang <> pang) 'r' 1, (Nothing, Just pang)) -- pang
     ]
     where
     -- The composite notes map to notes on a single kendang, so find them
@@ -78,7 +78,10 @@ kendang_tunggal =
     , (Note "-"  (de <> soft)    'x' 0.3, Key.c2)
     , (Note "+." (de <> thumb)   'c' 1.0, Key.f2)
     , (Note "o"  tut             'v' 1.0, Key.c3)
-    , (Note "."  ka              'b' 1.0, Key.g3)
+    , (Note "."  (ka <> soft)    'b' 0.3, Key.g3)
+    -- This should be rarely used, but '.' should definitely be soft, but
+    -- if it is there is no way to emit a normal 'ka'.
+    , (Note "_"  ka              'n' 1.0, Key.g3)
     -- left
     , (Note "T"  pang            'q' 1.0, Key.g4)
     , (Note "P"  pak             'w' 1.0, Key.c5)
