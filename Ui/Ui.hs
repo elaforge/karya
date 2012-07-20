@@ -37,13 +37,13 @@ send_action :: IO () -> IO ()
 #ifdef TESTING
 -- ResponderTest using tests wind up calling this via Sync.set_track_signals,
 -- which winds up segfaulting on OS X.
-send_action act = return ()
+send_action _ = return ()
 #else
 send_action act = add_act global_acts_mvar act >> awake
-#endif
 
 add_act :: Actions -> IO () -> IO ()
 add_act acts_mvar x = MVar.modifyMVar_ acts_mvar (return . (x:))
+#endif
 
 -- | The ui's polling cycle.
 poll_loop :: Actions -> STM.TChan UiMsg.UiMsg -> IO ()
