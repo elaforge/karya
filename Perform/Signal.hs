@@ -22,7 +22,6 @@ module Perform.Signal (
     -- * construction / deconstruction
     , signal, unsignal
     , constant, length, null
-    , log_signal
     , coerce
     , with_ptr
 
@@ -56,7 +55,6 @@ import qualified Foreign
 import qualified Text.Read as Read
 
 import Util.Control ((<>))
-import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -190,12 +188,6 @@ length = V.length . sig_vec
 
 null :: Signal y -> Bool
 null = V.null . sig_vec
-
--- | A hack to log a signal.  This way it can be extracted later and displayed
--- in a format that's nicer than a huge log line.
-log_signal :: Signal y -> Log.Msg -> Log.Msg
-log_signal sig msg = msg { Log.msg_signal =
-    map (Arrow.first RealTime.to_seconds) (unsignal sig) }
 
 -- | Sometimes signal types need to be converted.
 coerce :: Signal y0 -> Signal y1

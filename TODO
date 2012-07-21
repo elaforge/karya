@@ -1,6 +1,6 @@
 UNSORTED
   - make Derive.Args functions more consistent, especially start vs. end
-  - get rid of Log.msg_signal
+  * get rid of Log.msg_signal
   * make Midi.Key into a newtype and add a Pretty that shows the midi key name
   - ParseBs.strip_comment is incorrect since it doesn't understand strings.
     It should be integrated into the parser.
@@ -89,7 +89,7 @@ UNSORTED
     - Emit damage only for the changed bits after a reintegrate.
     - single track mode that doesn't split tracks
     - integrate not logging means that integrate errors only show up on play
-    * It's weird that half the word is done in the integrate call, and half
+    * It's weird that half the work is done in the integrate call, and half
       in the cmd.  The integrate call should just stash the score events, and
       all the logic should move to the cmd.
       * I can remove lookup derive instrument now.

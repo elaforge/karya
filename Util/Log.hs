@@ -76,9 +76,6 @@ data Msg = Msg {
     , msg_stack :: !(Maybe Stack)
     -- | Free form text for humans.
     , msg_text  :: !Text.Text
-    -- | Attach some typed data.  Data.Dynamic would be more generic, but
-    -- I can't think of anything I'd use it for other than signals.
-    , msg_signal :: ![(Double, Double)]
     } deriving (Eq, Show, Read, Generics.Typeable)
 
 instance DeepSeq.NFData Msg where
@@ -150,7 +147,7 @@ msg = msg_srcpos Nothing
 -- | Create a msg without initializing it.
 msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack -> String -> Msg
 msg_srcpos srcpos prio stack text =
-    Msg no_date_yet srcpos prio stack (Text.pack text) []
+    Msg no_date_yet srcpos prio stack (Text.pack text)
 
 -- | Create a msg with the give prio and text.
 initialized_msg_srcpos :: (LogMonad m) => SrcPos.SrcPos -> Prio -> String
