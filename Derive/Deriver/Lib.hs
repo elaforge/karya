@@ -74,7 +74,7 @@ data Result = Result {
     , r_track_warps :: TrackWarp.Collections
     , r_track_signals :: Track.TrackSignals
     , r_track_environ :: TrackEnviron
-    , r_integrated :: Maybe [Track]
+    , r_integrated :: [Integrated]
 
     -- | The relevant parts of the final state should be extracted into the
     -- above fields, but returning the whole state can be useful for testing.

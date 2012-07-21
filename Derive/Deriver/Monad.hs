@@ -55,13 +55,13 @@ module Derive.Deriver.Monad (
     , op_add, op_sub, op_mul
 
     -- ** instrument
-    , Instrument(..), AttributeMap, InstrumentCalls(..)
+    , Instrument(..), InstrumentCalls(..)
 
     -- ** control
     , ControlOp
 
     -- ** collect
-    , Collect(..), Track(..)
+    , Collect(..), Integrated(..)
     , TrackEnviron
 
     -- * calls
@@ -303,7 +303,6 @@ type EventDeriver = LogsDeriver Score.Event
 -- Each call generates a chunk [Event], and the chunks are then joined with
 -- 'd_merge_asc'.  This means every cons is copied once, but I think this is
 -- hard to avoid if I want to merge streams.
--- type Events = Events Score.Event
 
 type Events = LEvent.LEvents Score.Event
 
@@ -490,10 +489,7 @@ initial_constant ui_state lookup_scale lookup_inst cache score_damage = Constant
 data Instrument = Instrument {
     inst_calls :: InstrumentCalls
     , inst_environ :: TrackLang.Environ
-    , inst_attribute_map :: AttributeMap
     } deriving (Show)
-
-type AttributeMap = Map.Map Score.Attributes String
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
 -- can bring a set of note calls and val calls into scope, via the 'Scope'
@@ -553,23 +549,25 @@ data Collect = Collect {
 
     -- | New caches accumulating over the course of the derivation.
     , collect_cache :: !Cache
-    , collect_integrated :: !(Maybe [Track])
+    , collect_integrated :: ![Integrated]
     } deriving (Show)
 
--- | A simplified description of a UI track, as collected by
--- "Derive.Call.Integrate".
-data Track = Track {
-    track_title :: !String
-    , track_events :: ![Events.PosEvent]
+data Integrated = Integrated {
+    integrated_events :: !Events
+    -- | Needed to convert the event pitches back to symbolic form.
+    -- TODO but to work with changing keys I'd need to collect key on each
+    -- event.  Of course, the integrator isn't going to be able to reproduce
+    -- the changing keys.  I don't think integrate nedes to get that fancy
+    -- anyway.
+    , integrated_key :: !(Maybe Pitch.Key)
     } deriving (Show)
 
 instance Monoid.Monoid Collect where
-    mempty = Collect mempty mempty mempty mempty mempty Nothing
+    mempty = Collect mempty mempty mempty mempty mempty mempty
     mappend (Collect warps1 signals1 env1 deps1 cache1 integrated1)
             (Collect warps2 signals2 env2 deps2 cache2 integrated2) =
         Collect (warps1 <> warps2) (signals1 <> signals2) (env1 <> env2)
-            (deps1 <> deps2) (cache1 <> cache2)
-            (integrated1 `mplus` integrated2)
+            (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
 
 -- | Snapshots of the environ at each track.  This is used by the Cmd layer to
 -- figure out what the scale and instrument are for a given track.

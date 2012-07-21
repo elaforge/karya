@@ -1,46 +1,43 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | This is like "Cmd.Integrate_test" except it doesn't import FFI modules.
-module Cmd.Integrate_pure_test where
+module Cmd.Integrate.Merge_test where
 import Util.Control
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Cmd.Integrate as Integrate
+import qualified Cmd.Integrate.Merge as Merge
 import qualified Derive.Stack as Stack
 import Types
 
 
--- * merge
-
 test_diff = do
-    let f old new = extract $ Integrate.diff index (1, mkevent new)
-            where index = Integrate.make_index [mkevent old]
-        extract (Integrate.Add tracknum event) =
+    let f old new = extract $ Merge.diff index (1, mkevent new)
+            where index = Merge.make_index [mkevent old]
+        extract (Merge.Add tracknum event) =
             Left (tracknum, extract_event event)
-        extract (Integrate.Edit stack tracknum mods) =
+        extract (Merge.Edit stack tracknum mods) =
             Right (extract_stack stack, tracknum, mods)
     -- no mods
     equal (f (0, 1, "a", Just 'a') (0, 1, "a", Just 'a')) $
         Right ('a', 1, [])
     -- moved
     equal (f (0, 1, "a", Just 'a') (1, 1, "a", Just 'a')) $
-        Right ('a', 1, [Integrate.Position 1])
+        Right ('a', 1, [Merge.Position 1])
     -- A new event has an unknown stack, so it's considered an add and the
     -- stack is deleted.
     equal (f (0, 1, "a", Just 'a') (1, 1, "b", Just 'b')) $
         Left (1, (1, 1, "b", Nothing))
 
 test_diff_event = do
-    let f old new = Integrate.diff_event (mk old) (mk new)
+    let f old new = Merge.diff_event (mk old) (mk new)
         mk (start, dur, text) = mkevent (start, dur, text, Nothing)
     equal (f (0, 1, "a") (1, 2, "b"))
-        [Integrate.Position 1, Integrate.Duration 2, Integrate.Set "b"]
+        [Merge.Position 1, Merge.Duration 2, Merge.Set "b"]
     -- Detect a Prefix but only on | boundaries.
-    equal (f (0, 1, "a") (0, 1, "x a")) [Integrate.Set "x a"]
-    equal (f (0, 1, "a") (0, 1, "x | a")) [Integrate.Prefix "x | "]
+    equal (f (0, 1, "a") (0, 1, "x a")) [Merge.Set "x a"]
+    equal (f (0, 1, "a") (0, 1, "x | a")) [Merge.Prefix "x | "]
 
 test_reintegrate = do
-    -- This also tests Integrate.apply
+    -- This also tests Merge.apply
     let f last integrated events = reintegrate last integrated events
     -- Event with a stack.
     let stack start text stack = (1, (start, 1, text, Just stack))
@@ -87,12 +84,12 @@ reintegrate :: [(TrackNum, Event)]
     -- ^ this doesn't need TrackNum, but takes it anyway for consistency
     -> [(TrackNum, Event)] -> [(TrackNum, Event)] -> [(TrackNum, [Event])]
 reintegrate last_integrate integrated events = map extract $
-    Integrate.apply deletes edits (mkstack_events integrated)
+    Merge.apply deletes edits (mkstack_events integrated)
     where
-    (deletes, edits) = Integrate.diff_events index (mkevents events)
+    (deletes, edits) = Merge.diff_events index (mkevents events)
     extract (tracknum, events) =
         (tracknum, map extract_event (Events.ascending events))
-    index = Integrate.make_index (map (mkevent . snd) last_integrate)
+    index = Merge.make_index (map (mkevent . snd) last_integrate)
 
 -- * util
 

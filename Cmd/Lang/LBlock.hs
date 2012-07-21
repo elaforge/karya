@@ -1,9 +1,7 @@
 module Cmd.Lang.LBlock where
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -11,16 +9,9 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Integrate
 import qualified Cmd.ModifyEvents as ModifyEvents
-import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Call.Integrate as Call.Integrate
-import qualified Derive.LEvent as LEvent
-import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.Db
-import qualified Instrument.MidiDb as MidiDb
 import Types
 
 
@@ -70,26 +61,3 @@ can_create name = do
         Just block_id -> not . Map.member block_id
             <$> State.gets State.state_blocks
         Nothing -> return False
-
--- * integrate
-
-integrate_block :: (Cmd.M m) => BlockId -> m ()
-integrate_block block_id = do
-    perf <- Cmd.get_performance block_id
-    lookup_scale <- Cmd.get_lookup_scale
-
-    inst_db <- Cmd.gets Cmd.state_instrument_db
-    let lookup_attrs = Maybe.fromMaybe mempty
-            . fmap (Instrument.patch_attribute_map . MidiDb.info_patch)
-            . Instrument.Db.db_lookup inst_db
-
-    key <- Perf.get_key block_id Nothing
-    events <- Call.Integrate.unwarp block_id
-        (LEvent.events_of $ Cmd.perf_events perf)
-    let (tracks, errs) = Call.Integrate.integrate lookup_scale lookup_attrs
-            key events
-    if null errs
-        then do
-            new_block <- Cmd.Integrate.create block_id tracks
-            void $ Create.view new_block
-        else Cmd.throw $ "integrate errors: " ++ Seq.join "; " errs

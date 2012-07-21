@@ -1,4 +1,6 @@
 UNSORTED
+  - make Derive.Args functions more consistent, especially start vs. end
+  - get rid of Log.msg_signal
   * make Midi.Key into a newtype and add a Pretty that shows the midi key name
   - ParseBs.strip_comment is incorrect since it doesn't understand strings.
     It should be integrated into the parser.
@@ -80,22 +82,42 @@ UNSORTED
     * Events are italic if they have a stack, and integrator adds bold, but
       any moves or other modifications remove the bold, so modified events
       are visually apparent.
-    - integrated block gets the derive indicator stuck on
-    - editing the integrated block causes another integration
-    - single track mode that doesn't bother to split tracks
-    How to deal with multiple tracks?
-      I feel like doing the diffs one one merged stream is wrong, it should be
-      track-by-track.  One thing the merged stream gives is detecting events
-      that have moved to another tracknum.  Cases where tracknums may change:
-        Integrator splits overlaps, say it's a block that adds another track
-        with the same instrument.
-        Wait, but splitting takes into account source track id too.
+    - bug: integrated block gets the derive indicator stuck on
+    - bug: editing the integrated block causes another integration
+      The problem is that I rely on the cache to detect changes, and the cache
+      doesn't understand integration.
+    - Emit damage only for the changed bits after a reintegrate.
+    - single track mode that doesn't split tracks
+    - integrate not logging means that integrate errors only show up on play
+    * It's weird that half the word is done in the integrate call, and half
+      in the cmd.  The integrate call should just stash the score events, and
+      all the logic should move to the cmd.
+      * I can remove lookup derive instrument now.
+      * split into Cmd.Integrate.Merge, Cmd.Integrate.Convert, Cmd.Integrate
+    * If an important bit of derivation fails (e.g. a block call) then
+      integrate should abort.  Otherwise, it could lose a whole bunch of
+      edits.  Of course, undo could fix that, right?  But it seems dangerous
+      if there's an error somewhere that goes unnoticed.  But large
+      integrations seem risky in general.
     track integrate
+      * Decide how to do staging.  Should I try to do it all in one derive, or
+        should I go back to Cmd and have a hack to set rederive delay to 0?
+        All in one derive:
+          - play will block until derivation is completely done
+        Go back to Cmd:
+          - set rederive to 0 useful for tests too
+          - Otherwise I need a mechanism to do the merge, make state changes,
+            and reinvoke derive with the new state and new damage.  Then hand
+            the state back to Cmd.
+        Go back it is.
+
+      - Use << for block integrate, < for track integrate.
       - Block derive first finds integrated tracks, solos them, drops tempo
         tracks, and derives them.
       - Integrate tracks only happen on the toplevel block call, others just
-        ignore those tracks.
-      - tracks need source metadata to know where they were integrated from
+        ignore those tracks.  Otherwise called blocks will try to integrate
+        too.
+      - Tracks need source metadata to know where they were integrated from.
     - integrate should have control over which tracks the events go to, maybe
       use an instrument name suffix, e.g. >kkt/reyong/1
       Check again if the suffix is used, e.g. by keyswitches in perform,
@@ -104,55 +126,24 @@ UNSORTED
       that point.
       Why not just use separate instruments then?
     - The other possibility is to not do any automatic track splitting at all,
-      this would eliminate all the 'tracknum' stuff.  But then I couldn't
+      this would eliminate all the 'tracknum' stuff.  It would I couldn't
       stick a '<' integrate in front of any block I wanted though, it would
       have to specially be expecting to be integrated and emit separate
       instruments.
+
     * Derive.Call.Kendang: write composite kendang part, then it gets split
       into wadon and lanang parts.
       - add filler strokes
+        I think I have to redo the kendang stuff as a stream postproc.
       * support soft attr
+      / but how can I have integrate get the soft back?
+        No need, soft strokes have soft attrs.
     + sort tracks by orig tracknums so they come back in the same order
       Staved off by adding a leading 0 to TrackIds so they sort right, but
       I'll need to switch to TrackNums to do this for real.
     - add quantization
     - split tracks on overlapping notes since some calls make them (e.g. block
       calls)
-    * add stack and special style to derived events
-    reintegrate automatically after changes
-      * blocks need a BlockId to show who they were integrated from
-      * tracks need a TrackId to show who they were integrated from
-      * Derive.Result needs [(BlockId, [Track])], and the UI needs to use that
-        to modify score.
-      integrate by block
-        * Damage causes block to rederive.
-        * If the block has a special integrate symbol, e.g. '| <' then derive
-          normally, but look for blocks with this one marked as creator.
-          How about if I actually make it a transformer?
-        * If they exist, then replace (later merge) with the integrated
-          output.
-        * Otherwise, make a new block.
-        - Emit damage only for the changed bits after a reintegrate.
-      integrate by track / integrate within a block
-        This means block derivation has to be staged.  A derive triggers an
-        integrate, which modifies the score, which is then derived.
-        - Damage causes a block to rederive.
-        - Find tracks that have special integrate symbol, e.g.  >ptq/c | <
-        - For each one, derive the block with that track soloed.
-        - The block deriver takes each output and integrates it.  This is used
-          for further derivation, and also collected so the UI can replace
-          tracks.
-        - If there are tracks in the block with that track as creator,
-          then replace (later merge) their contents with the integrated output.
-          But how to tell which track goes where?  Kendang will create with
-          different instruments, but others may not.  I can rely on them
-          creating in the same order.
-        - Otherwise, create new tracks to the right.
-        - Further derivation needs to get track damage on the regenerated
-          tracks.
-      - Do a merge by integrating the previous block and comparing the
-        difference.  This way I can detect deleted and moved events, and build
-        up a list of edits to reapply to the new derivation.
   - I could implement mute and solo without rederiving by filtering based on
     the stack in events.  This wouldn't account for muting tracks that have
     some other effect, e.g. setting an environ val.

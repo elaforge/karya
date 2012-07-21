@@ -2,20 +2,14 @@
 module Cmd.Lang.LPerf where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.State as State
 import qualified Ui.Track as Track
-
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayUtil as PlayUtil
@@ -179,16 +173,3 @@ convert events = do
 simple_midi :: Midi.Perform.MidiEvents -> [(RealTime, Midi.Message)]
 simple_midi = map f . LEvent.events_of
     where f wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
-
-
--- * integrate
-
-integrate_edits :: (Cmd.M m) => BlockId -> m ([Event.Stack], [Integrate.Edit])
-integrate_edits block_id = do
-    block <- State.get_block block_id
-    integrated <- Cmd.require_msg
-        "block is not integrated from anywhere" (Block.block_integrated block)
-    events <- Integrate.get_block_events block_id
-    let (deleted, edits) =
-            Integrate.diff_events (Block.integrated_index integrated) events
-    return (Set.toList deleted, filter Integrate.is_modified edits)
