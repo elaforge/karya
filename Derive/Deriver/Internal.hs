@@ -28,6 +28,9 @@ import Types
 get_dynamic :: (Dynamic -> a) -> Deriver a
 get_dynamic f = gets (f . state_dynamic)
 
+get_constant :: (Constant -> a) -> Deriver a
+get_constant f = gets (f . state_constant)
+
 -- | This is a little different from Reader.local because only a portion of
 -- the state is used Reader-style.
 --
@@ -254,6 +257,7 @@ tempo_to_warp sig
 min_tempo :: Signal.Y
 min_tempo = 0.001
 
+-- | Is this the toplevel block?
 is_root_block :: Deriver Bool
 is_root_block = do
     stack <- get_stack

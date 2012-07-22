@@ -313,7 +313,7 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
                 Just vcall -> do
                     val <- apply call_id vcall args
                     -- We only do this fallback thing once.
-                    fb_call <- with_call fallback_call_id
+                    fb_call <- get_call fallback_call_id
                         (info_name dinfo) (info_lookup dinfo)
                     return (fb_call, [val])
 
@@ -331,7 +331,7 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
         deriver = do
     vals <- mapM eval args
     let new_deriver = apply_transformer info calls deriver
-    call <- with_call call_id (info_name dinfo) (info_lookup dinfo)
+    call <- get_call call_id (info_name dinfo) (info_lookup dinfo)
     let args = Derive.PassedArgs vals call_id cinfo
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
@@ -342,7 +342,7 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
 eval :: TrackLang.Term -> Derive.Deriver TrackLang.Val
 eval (TrackLang.Literal val) = return val
 eval (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
-    call <- with_call call_id "val" lookup_val_call
+    call <- get_call call_id "val" lookup_val_call
     apply call_id call terms
 
 apply :: TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
@@ -354,9 +354,9 @@ apply call_id call args = do
     Derive.with_msg ("val call " ++ Derive.vcall_name call) $
         Derive.vcall_call call args
 
-with_call :: TrackLang.CallId -> String
+get_call :: TrackLang.CallId -> String
     -> (TrackLang.CallId -> Derive.Deriver (Maybe call)) -> Derive.Deriver call
-with_call call_id name lookup =
+get_call call_id name lookup =
     maybe (Derive.throw (unknown_call_id name call_id)) return
         =<< lookup call_id
 

@@ -54,6 +54,9 @@ import Types
 -- | Symbols used in function call position.
 type CallId = Symbol
 
+symbol_string :: Symbol -> String
+symbol_string (Symbol t) = t
+
 set_attr :: RelativeAttr -> Score.Attributes -> Score.Attributes
 set_attr (RelativeAttr (mode, attr)) attrs = Score.Attributes $ case mode of
     Add -> Set.insert attr (Score.attrs_set attrs)

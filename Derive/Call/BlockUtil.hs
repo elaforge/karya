@@ -4,7 +4,7 @@
 module Derive.Call.BlockUtil (
     note_deriver, control_deriver
     , capture_null_control
-    , derive_tracks, has_nontempo_track
+    , derive_tracks
 
 #ifdef TESTING
     , derive_tree
@@ -19,6 +19,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 
+import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -27,6 +28,7 @@ import qualified Derive.Note as Note
 import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
 import Types
@@ -129,42 +131,54 @@ strip_mutes mutes tree = zipWith mute_node mutes tree
 
 derive_tree :: ScoreTime -> State.EventsTree -> Derive.EventDeriver
 derive_tree block_end tree = do
+    integrated <- Integrate.get_integrated_tracks tree
+    if null integrated
+        then with_default_tempo (derive_tracks tree)
+        else mapM_ integrate_track integrated >> return []
+    where
     -- d_tempo sets up some stuff that every block needs, so add one if a block
     -- doesn't have at least one top level tempo.
-    tempo <- Derive.get_ui_config (State.default_tempo . State.config_default)
-    let with_default_tempo = if has_nontempo_track tree
-            then Internal.d_tempo block_end Nothing (Signal.constant tempo)
-            else id
-    with_default_tempo (derive_tracks tree)
-
--- | Does this tree have any non-tempo tracks at the top level?
---
--- To ensure that every track is associated with a TrackWarp, I can't have
--- tracks that don't have a tempo track above them.  Those tracks implicitly
--- have an id warp, so this just makes that explicit.
-has_nontempo_track :: State.EventsTree -> Bool
-has_nontempo_track = any $ \(Tree.Node track _) ->
-    not $ TrackInfo.is_tempo_track (State.tevents_title track)
+    with_default_tempo deriver
+        -- To ensure that every track is associated with a TrackWarp, I can't
+        -- have tracks that don't have a tempo track above them.  Those tracks
+        -- implicitly have an id warp, so this just makes that explicit.
+        | Integrate.has_nontempo_track tree = do
+            tempo <- Derive.get_ui_config
+                (State.default_tempo . State.config_default)
+            Internal.d_tempo block_end Nothing (Signal.constant tempo) deriver
+        | otherwise = deriver
 
 -- | Derive an EventsTree.
 derive_tracks :: State.EventsTree -> Derive.EventDeriver
-derive_tracks tree = mconcat (map with_track tree)
+derive_tracks = mconcat . map derive_track
+
+-- | Track integration is different from normal derivation.  It doesn't produce
+-- any output since the events are expected to be returned through
+-- 'Derive.Integrated'.
+--
+-- TODO possibly I could parallelize and force the outputs here.
+integrate_track :: (State.EventsNode, [TrackLang.Term]) -> Derive.Deriver ()
+integrate_track (node@(Tree.Node track _), args) =
+    case State.tevents_track_id track of
+        -- what? no track id? no integration for you then!
+        Nothing -> return ()
+        Just track_id -> Integrate.integrate_track track_id (track_ids node)
+            args (derive_track node)
     where
-    with_track tree@(Tree.Node track _) =
-        stack (State.tevents_track_id track) (derive_track tree)
-    stack (Just track_id) = Internal.with_stack_track track_id
-    stack Nothing = id
+    track_ids (Tree.Node track subs) = case State.tevents_track_id track of
+        Nothing -> concatMap track_ids subs
+        Just track_id -> track_id : concatMap track_ids subs
 
 -- | Derive a single track node and any tracks below it.
 derive_track :: State.EventsNode -> Derive.EventDeriver
 derive_track node@(Tree.Node track subs)
     | TrackInfo.is_note_track (State.tevents_title track) =
-        derive_orphans (State.tevents_title track)
+        with_stack $ derive_orphans (State.tevents_title track)
             (Slice.extract_orphans track subs)
             (Internal.track_setup track (Note.d_note_track node))
     -- I'd like track_setup up here, but tempo tracks are treated differently,
     -- so it goes inside d_control_track.
-    | otherwise = Control.d_control_track node (derive_tracks subs)
+    | otherwise = with_stack $ Control.d_control_track node (derive_tracks subs)
     where
     derive_orphans title orphans
         -- If d_merge could tell when an EventDeriver was mempty and not
@@ -173,3 +187,5 @@ derive_track node@(Tree.Node track subs)
         -- The orphans still get evaluated under the track title, otherwise
         -- they might miss the instrument.
         | otherwise = (<> Note.with_title title (derive_tracks orphans))
+    with_stack = maybe id Internal.with_stack_track
+        (State.tevents_track_id track)

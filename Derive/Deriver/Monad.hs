@@ -553,7 +553,12 @@ data Collect = Collect {
     } deriving (Show)
 
 data Integrated = Integrated {
-    integrated_events :: !Events
+    -- BlockId for a block integration, TrackId for a track integration.
+    integrated_source :: !(Either BlockId TrackId)
+    -- | Tracks that were integrated and whose damage should be cleared.  Only
+    -- applies to track integration.
+    , integrated_tracks :: ![TrackId]
+    , integrated_events :: !Events
     -- | Needed to convert the event pitches back to symbolic form.
     -- TODO but to work with changing keys I'd need to collect key on each
     -- event.  Of course, the integrator isn't going to be able to reproduce

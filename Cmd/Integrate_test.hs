@@ -12,8 +12,8 @@ import qualified Cmd.ResponderTest as ResponderTest
 import Types
 
 
-test_integrate = do
-    let states = mkstates "< | reverse"
+test_block_integrate = do
+    let states = mkstates "<< | reverse"
             ("s/i1", [(0, 1, "4c"), (1, 1, "4d")], [])
         extract = e_tracks . ResponderTest.result_cmd
         next state action = last <$>

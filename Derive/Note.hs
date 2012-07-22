@@ -139,6 +139,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
+import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import Types
@@ -159,9 +160,8 @@ with_title :: String -> Derive.EventDeriver -> Derive.EventDeriver
 with_title title deriver
     | null title = return mempty
     | otherwise = do
-        track_expr <- case Parse.parse_expr (Parse.from_string title) of
-            Left err -> Derive.throw $ "track title: " ++ err
-            Right expr -> return (preprocess_title expr)
+        track_expr <- either (Derive.throw . ("track title: "++)) return
+            (TrackInfo.parse_note title)
         let transform = if is_empty_title track_expr then id
                 else Call.apply_transformer info track_expr
         transform deriver
@@ -195,10 +195,3 @@ derive_notes events_end track_range shifted subs events_around events = do
     where
     tinfo = Call.TrackInfo events_end track_range shifted subs events_around
         Call.note_dinfo
-
--- | It's convenient to tag a note track with @>inst@ to set its instrument.
--- Unfortunately, this is parsed as a call to @>inst@
-preprocess_title :: TrackLang.Expr -> TrackLang.Expr
-preprocess_title (TrackLang.Call (TrackLang.Symbol ('>':inst)) args : calls) =
-    TrackLang.call "note-track" (TrackLang.inst inst : args) : calls
-preprocess_title expr = expr

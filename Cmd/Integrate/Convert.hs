@@ -40,7 +40,7 @@ data Track = Track {
     } deriving (Show)
 
 convert :: (Cmd.M m) => Derive.Integrated -> m [Track]
-convert (Derive.Integrated levents key) = do
+convert (Derive.Integrated _ _ levents key) = do
     -- key <- Perf.get_key block_id Nothing
     lookup_scale <- Cmd.get_lookup_scale
     inst_db <- Cmd.gets Cmd.state_instrument_db

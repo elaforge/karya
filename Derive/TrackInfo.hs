@@ -19,6 +19,8 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 
 
+-- * control tracks
+
 data ControlType =
     -- | Control track with an optional combining operator.
     Control (Maybe TrackLang.CallId) (Score.Typed Score.Control)
@@ -118,7 +120,12 @@ unparse_control_vals ctype = case ctype of
     sym = TrackLang.VSymbol . TrackLang.Symbol
     uncontrol (Score.Control c) = c
 
--- * note
+-- * note tracks
+
+-- | Parse a note track like @>inst@ as @note-track >inst@.  Other than
+-- this, note track titles are normal expressions.
+parse_note :: String -> Either String TrackLang.Expr
+parse_note = Parse.parse_expr . Parse.from_string . ("note-track "++)
 
 -- | Convert a track title into its instrument.
 --

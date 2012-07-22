@@ -104,20 +104,32 @@ UNSORTED
         should I go back to Cmd and have a hack to set rederive delay to 0?
         All in one derive:
           - play will block until derivation is completely done
+          - I need a mechanism to do the merge, make state changes, and
+            reinvoke derive with the new state and new damage.  Then hand the
+            state back to Cmd.
         Go back to Cmd:
           - set rederive to 0 useful for tests too
-          - Otherwise I need a mechanism to do the merge, make state changes,
-            and reinvoke derive with the new state and new damage.  Then hand
-            the state back to Cmd.
-        Go back it is.
+        The integrate changes should as much as possible act like normal user
+        changes, so go back it is.
 
-      - Use << for block integrate, < for track integrate.
-      - Block derive first finds integrated tracks, solos them, drops tempo
-        tracks, and derives them.
-      - Integrate tracks only happen on the toplevel block call, others just
-        ignore those tracks.  Otherwise called blocks will try to integrate
-        too.
+      * Use << for block integrate, < for track integrate.
+        Or to avoid missing a track integrate, have it specially invoked by
+        block evaluate when it sees the track integrate symbol.
+      - If integrate is committing changes to a track, can that bite me if
+        a "canceled" derivation comes through?  Think about this later.
+      Modify BlockUtil:
+        * get integrate tracks with damage
+        * if there are any, derive them.  Could be in parallel, but so could
+          all track derivation.  But this is especially suitable for parallel
+          because I know the caller will demand all of the output immediately.
+          But should I force the event output or the integrated output?
+          Maybe I could parallelize in Cmd.Integrate by parallel forcing the
+          Integrateds.
+      * do I need to unwarp events?
+      - implement Cmd.Integrate for tracks: get output, create or merge
+        tracks, clear damage
       - Tracks need source metadata to know where they were integrated from.
+      - kick off another derive with 0 delay
     - integrate should have control over which tracks the events go to, maybe
       use an instrument name suffix, e.g. >kkt/reyong/1
       Check again if the suffix is used, e.g. by keyswitches in perform,
