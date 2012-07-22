@@ -144,7 +144,7 @@ dealloc_instrument inst = do
 
 block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 block_instruments block_id = do
-    titles <- fmap (map State.track_title) (State.get_track_info block_id)
+    titles <- fmap (map State.track_title) (State.tracks_of block_id)
     return $ Maybe.mapMaybe TrackInfo.title_to_instrument titles
 
 -- | Try to automatically create an instrument config based on the instruments

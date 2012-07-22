@@ -123,7 +123,7 @@ make_nested bottom_tracks size depth bottom_size = do
 mkblock :: (State.M m) => [UiTest.TrackSpec] -> m ()
 mkblock tracks = do
     UiTest.mkblock (UiTest.default_block_name, tracks)
-    tinfo <- State.get_track_info UiTest.default_block_id
+    tinfo <- State.tracks_of UiTest.default_block_id
     -- Track slicing makes things much slower.  I should profile that too, but
     -- let's profile without it first.
     State.set_skeleton UiTest.default_block_id $

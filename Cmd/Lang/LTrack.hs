@@ -50,8 +50,7 @@ map_widths wanted f = do
     block_ids <- State.get_all_block_ids
     forM_ block_ids $ \block_id -> do
         tracknums <- map State.track_tracknum
-            . filter (wanted . State.track_title) <$>
-                State.get_track_info block_id
+            . filter (wanted . State.track_title) <$> State.tracks_of block_id
         widths <- map Block.track_width <$>
             mapM (State.get_block_track block_id) tracknums
         sequence_ $ zipWith (State.set_track_width block_id)
@@ -70,7 +69,7 @@ map_titles f = do
 -- Use Cmd.Info and do replace instead of map.
 map_block_titles :: BlockId -> (String -> String) -> Cmd.CmdL ()
 map_block_titles block_id f = do
-    tids <- map State.track_id <$> State.get_track_info block_id
+    tids <- map State.track_id <$> State.tracks_of block_id
     mapM_ (flip State.modify_track_title f) tids
 
 replace x y val

@@ -150,7 +150,7 @@ mkblock_ruler ruler_id (block_name, tracks) = do
 
 parse_skeleton :: (State.M m) => BlockId -> m Skeleton.Skeleton
 parse_skeleton block_id = do
-    tracks <- State.get_track_info block_id
+    tracks <- State.tracks_of block_id
     return $ ParseSkeleton.default_parser tracks
 
 mkview :: (State.M m) => BlockId -> m ViewId

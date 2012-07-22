@@ -636,7 +636,7 @@ data TrackInfo = TrackInfo {
 get_track_tree :: (M m) => BlockId -> m TrackTree
 get_track_tree block_id = do
     skel <- get_skeleton block_id
-    tracks <- get_track_info block_id
+    tracks <- tracks_of block_id
     ntracks <- fmap (length . Block.block_tracklike_ids) (get_block block_id)
     let by_tracknum = Map.fromList $ zip (map track_tracknum tracks) tracks
     let (resolved, missing) = resolve_track_tree by_tracknum
@@ -844,8 +844,8 @@ get_event_track_at caller block_id tracknum =
     msg = caller ++ ": tracknum " ++ show tracknum ++ " not in "
         ++ show block_id
 
-get_track_info :: (M m) => BlockId -> m [TrackInfo]
-get_track_info block_id = do
+tracks_of :: (M m) => BlockId -> m [TrackInfo]
+tracks_of block_id = do
     block <- get_block block_id
     state <- get
     return [TrackInfo (Track.track_title track) tid i

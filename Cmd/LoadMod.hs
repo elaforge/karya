@@ -97,7 +97,7 @@ make_block mkid rid track_rid name tracks = do
             : [Block.track (Block.TId tid track_rid) 25 | tid <- tids]
     block_id <- State.create_block (mkid name) ""  block_tracks
     State.set_skeleton block_id =<<
-        ParseSkeleton.default_parser <$> State.get_track_info block_id
+        ParseSkeleton.default_parser <$> State.tracks_of block_id
     BlockConfig.toggle_merge_all block_id
     return block_id
 
