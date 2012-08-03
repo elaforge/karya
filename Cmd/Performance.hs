@@ -10,7 +10,9 @@ module Cmd.Performance (SendStatus, update_performance, default_derive_wait
     , performance
 ) where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
+
 import qualified Data.Map as Map
 
 import Util.Control
@@ -128,6 +130,7 @@ generate_performance wait send_status block_id = do
     cmd_state <- Cmd.get
     th <- Trans.liftIO $ Thread.start $
         performance_thread ui_state cmd_state wait send_status block_id
+            `Exception.onException` send_status block_id Msg.Killed
     Cmd.modify_play_state $ \st ->
         st { Cmd.state_performance_threads = Map.insert block_id
             th (Cmd.state_performance_threads st) }

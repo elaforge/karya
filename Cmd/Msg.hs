@@ -46,9 +46,12 @@ instance Pretty.Pretty Msg where
 
 data DeriveStatus =
     -- | The current derivation is out of date, but work has not yet started
-    -- on a replacement.  The new Performance is included for
-    -- 'Cmd.state_current_performance'.
-    OutOfDate Performance | Deriving | DeriveComplete Performance
+    -- on a replacement.  The new Performance is already in
+    -- 'Cmd.state_current_performance' but not in 'Cmd.state_performance' yet.
+    OutOfDate Performance
+    | Deriving
+    | DeriveComplete Performance
+    | Killed
     deriving (Show)
 
 instance Pretty.Pretty DeriveStatus where pretty = show

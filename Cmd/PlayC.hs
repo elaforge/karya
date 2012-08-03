@@ -70,6 +70,7 @@ cmd_play_msg msg = do
         Msg.OutOfDate {} -> Color.brightness 1.5 Config.busy_color
         Msg.Deriving {} -> Config.busy_color
         Msg.DeriveComplete {} -> Config.box_color
+        Msg.Killed {} -> Config.box_color
 
 
 -- * updater

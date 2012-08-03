@@ -389,7 +389,7 @@ integrate
   * Events are italic if they have a stack, and integrator adds bold, but
     any moves or other modifications remove the bold, so modified events
     are visually apparent.
-  - bug: integrated block gets the derive indicator stuck on.
+  * bug: integrated block gets the derive indicator stuck on.
     Visible if I load save/integrate.
   - bug: editing the integrated block causes another integration
     The problem is that I rely on the cache to detect changes, and the cache
