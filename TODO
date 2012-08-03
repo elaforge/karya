@@ -409,7 +409,7 @@ integrate
     edits.  Of course, undo could fix that, right?  But it seems dangerous
     if there's an error somewhere that goes unnoticed.  But large
     integrations seem risky in general.
-  - Destination blocks could put the source block id in the status line.
+  * Destination blocks could put the source block id in the status line.
   - Integrated events should change style as soon as they are edited, not at
     the next integration.
   - I could move cmd_play_msg out of Cmd.PlayC if I moved

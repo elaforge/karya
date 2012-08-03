@@ -66,6 +66,12 @@ status_selection = "s"
 status_zoom :: String
 status_zoom = "z"
 
+-- ** per block
+
+-- | Show the source block for blocks integrated from another block.
+status_integrate_source :: String
+status_integrate_source = "src"
+
 -- ** global
 
 -- | Base octave of the kbd note entry.
@@ -178,6 +184,18 @@ solo_color = Color.rgb 1 0.75 0.75
 track_bg, ruler_bg :: Color.Color
 track_bg = Color.white
 ruler_bg = Color.rgb 1 0.85 0.5
+
+-- | Default color for the block status line background.
+status_default :: Color.Color
+status_default = Color.white
+
+-- | Color for the status of the root block.
+status_root :: Color.Color
+status_root = Color.rgb 1 1 0.8
+
+-- | Color for the status of a block integrated from another block.
+status_integrate_destination :: Color.Color
+status_integrate_destination = Color.rgb 1 0.85 0.85
 
 -- * defaults
 

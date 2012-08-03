@@ -371,8 +371,18 @@ get_all_view_ids = gets (Map.keys . state_views)
 --
 -- Throw if the ViewId already exists.
 create_view :: (M m) => Id.Id -> Block.View -> m ViewId
-create_view id view = insert (Types.ViewId id) view state_views $ \views st ->
-    st { state_views = views }
+create_view id view = do
+    block <- get_block (Block.view_block view)
+    insert (Types.ViewId id) (with_status block) state_views $
+        \views st -> st { state_views = views }
+    where
+    with_status block = case Block.block_integrated block of
+        Just integrated -> view
+            { Block.view_status = Map.insert Config.status_integrate_source
+                (Id.ident_string (Block.integrated_block integrated))
+                (Block.view_status view)
+            }
+        Nothing -> view
 
 destroy_view :: (M m) => ViewId -> m ()
 destroy_view view_id = modify $ \st ->

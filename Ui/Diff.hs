@@ -10,7 +10,6 @@ module Ui.Diff (
 ) where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer
-
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -22,6 +21,7 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -30,6 +30,7 @@ import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Derive.Deriver.Monad as Derive
+import qualified App.Config as Config
 import Types
 
 
@@ -123,11 +124,9 @@ diff_view st1 st2 view_id view1 view2 = do
     let unequal f = unequal_on f view1 view2
     when (unequal Block.view_rect) $
         emit $ Update.ViewSize (Block.view_rect view2)
-    let is_root (st, view) = Just (Block.view_block view)
-            == State.config_root (State.state_config st)
-    when (unequal Block.view_status
-            || unequal_on is_root (st1, view1) (st2, view2)) $
-        emit $ Update.Status (Block.view_status view2) (is_root (st2, view2))
+    let color = status_color st2 view2
+    when (unequal Block.view_status || status_color st1 view1 /= color) $
+        emit $ Update.Status (Block.view_status view2) color
     when (unequal Block.view_track_scroll) $
         emit $ Update.TrackScroll (Block.view_track_scroll view2)
     when (unequal Block.view_zoom) $
@@ -136,6 +135,14 @@ diff_view st1 st2 view_id view1 view2 = do
     -- If the view doesn't have a block I should have failed long before here.
     mapM_ (uncurry3 (diff_selection emit))
         (Map.pairs (Block.view_selections view1) (Block.view_selections view2))
+
+status_color :: State.State -> Block.View -> Color.Color
+status_color state view =
+    case Map.lookup block_id (State.state_blocks state) of
+        Just block -> Block.status_color block_id block
+            (State.config_root (State.state_config state))
+        Nothing -> Config.status_default
+    where block_id = Block.view_block view
 
 diff_selection :: (Update.ViewUpdate -> DiffM ())
     -> Types.SelNum -> Maybe Types.Selection -> Maybe Types.Selection

@@ -307,13 +307,29 @@ instance DeepSeq.NFData View where
         `seq` zoom `seq` selections `seq` ()
 
 -- | Construct a View, using default values for most of its fields.
--- Don't construct views using View directly since State.create_view overwrites
--- view_tracks, and maybe more in the future.
+-- Don't construct views using View directly since 'State.create_view'
+-- overwrites view_tracks, and maybe more in the future.
 view :: BlockId -> Rect.Rect -> Types.Zoom -> View
-view block_id rect zoom =
+view block_id rect zoom = View
+    { view_block = block_id
+    , view_rect = rect
     -- view_visible_track and view_visible_time are unknown, but will
     -- be filled in when the new view emits its initial resize msg.
-    View block_id rect 0 0 Map.empty 0 zoom Map.empty
+    , view_visible_track = 0
+    , view_visible_time = 0
+    , view_status = Map.empty
+    , view_track_scroll = 0
+    , view_zoom = zoom
+    , view_selections = Map.empty
+    }
+
+-- | Figure out what color the background of the status line should be.
+status_color :: BlockId -> Block -> Maybe BlockId -> Color.Color
+status_color block_id block maybe_root_id
+    | Just block_id == maybe_root_id = Config.status_root
+    | Maybe.isJust (block_integrated block) =
+        Config.status_integrate_destination
+    | otherwise = Config.status_default
 
 show_status :: Map.Map String String -> String
 show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v) . Map.assocs
