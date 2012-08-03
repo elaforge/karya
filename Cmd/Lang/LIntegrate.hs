@@ -12,7 +12,6 @@ import qualified Cmd.Integrate.Merge as Merge
 import qualified Cmd.Perf as Perf
 
 import qualified Derive.Call.Integrate as Call.Integrate
-import qualified Derive.Derive as Derive
 import Types
 
 
@@ -21,8 +20,8 @@ block block_id = do
     perf <- Cmd.get_performance block_id
     events <- Call.Integrate.unwarp block_id (Cmd.perf_events perf)
     key <- Perf.get_key block_id Nothing
-    tracks <- Convert.convert (Derive.Integrated (Left block_id) [] events key)
-    new_block <- Merge.create block_id tracks
+    tracks <- Convert.convert events key
+    new_block <- Merge.create_block block_id tracks
     Create.view new_block
 
 edits :: (Cmd.M m) => BlockId -> m ([Event.Stack], [Merge.Edit])

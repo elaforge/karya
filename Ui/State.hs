@@ -830,6 +830,16 @@ track_at block_id tracknum = do
     maybe_track <- block_track_at block_id tracknum
     return $ fmap Block.tracklike_id maybe_track
 
+-- | TODO this assumes TrackNums and TrackIds are 1:1.  There's nothing that
+-- enforces that currently, but I should fix that.
+tracknum_of :: (M m) => BlockId -> TrackId -> m TrackNum
+tracknum_of block_id tid = do
+    tracks <- tracks_of block_id
+    require msg (find tracks tid)
+    where
+    find tracks tid = track_tracknum <$> List.find ((==tid) . track_id) tracks
+    msg = "tracknum_of: track " ++ show tid ++ " not in " ++ show block_id
+
 -- | Like 'track_at', but only for event tracks.
 event_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe TrackId)
 event_track_at block_id tracknum = do

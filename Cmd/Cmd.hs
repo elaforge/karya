@@ -262,17 +262,6 @@ data State = State {
     -- Automatically maintained state.  This means only a few cmds should
     -- modify these.
 
-    -- | Don't rederive these blocks, even if there is damage.  This is
-    -- a special hack for 'Cmd.Integrate.cmd_integrate'.  Otherwise, it
-    -- creates a new block on DeriveComplete which is considered damage and
-    -- causes the integrating block to rederive, which winds up looping.  If
-    -- the block is merged and the merge detects no changes it will emit not
-    -- emit damage, but that still means every integration happens twice.
-    --
-    -- Another approach would be to not rederive existing blocks on the
-    -- creation of a new one, but this would cause a problem if you write
-    -- a call to a nonexistent block and then create the block.
-    , state_suppress_rederive :: ![BlockId]
     -- | History.
     , state_history :: !History
     , state_history_config :: !HistoryConfig
@@ -319,7 +308,6 @@ initial_state rdev_map wdev_map interface inst_db global_scope = State
     , state_lookup_scale = LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
 
-    , state_suppress_rederive = []
     -- This is a dummy entry needed to bootstrap a Cmd.State.  Normally
     -- 'hist_present' should always have the current state, but the initial
     -- setup cmd needs a State too.

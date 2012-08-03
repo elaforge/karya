@@ -30,16 +30,18 @@ data Block = Block {
     , block_skeleton :: !Skeleton.Skeleton
     -- | Present if this block was integrated from another.
     , block_integrated :: !(Maybe Integrated)
+    , block_integrated_tracks :: ![IntegratedTrack]
     , block_meta :: !Meta
     } deriving (Eq, Read, Show)
 
 instance Pretty.Pretty Block where
-    format (Block title _config tracks skel integrated meta) =
+    format (Block title _config tracks skel integrated integrated_tracks meta) =
         Pretty.record_title "Block"
             [ ("title", Pretty.format title)
             , ("tracks", Pretty.format tracks)
             , ("skel", Pretty.format skel)
             , ("integrated", Pretty.format integrated)
+            , ("integrated_tracks", Pretty.format integrated_tracks)
             , ("meta", Pretty.format meta)
             ]
 
@@ -60,8 +62,23 @@ data Integrated = Integrated {
 
 instance Pretty.Pretty Integrated where
     format (Integrated block_id index) = Pretty.record
-        (Pretty.text "Integrated" Pretty.<+> Pretty.format block_id)
+            (Pretty.text "Integrated" Pretty.<+> Pretty.format block_id)
         [("index", Pretty.format index)]
+
+data IntegratedTrack = IntegratedTrack {
+    -- | Source track.
+    integrated_source :: !TrackId
+    -- | Generated tracks.
+    , integrated_destinations :: ![TrackId]
+    , integrated_track_index :: !EventIndex
+    } deriving (Eq, Show, Read)
+
+instance Pretty.Pretty IntegratedTrack where
+    format (IntegratedTrack track_id to_tracks index) = Pretty.record
+            (Pretty.text "Integrated" Pretty.<+> Pretty.format track_id)
+        [ ("to", Pretty.format to_tracks)
+        , ("index", Pretty.format index)
+        ]
 
 -- | This is a picture of the integrated events that were used to create an
 -- integrated block.  By taking its difference against the current contents of
@@ -84,6 +101,7 @@ block config title tracks = Block
     , block_tracks = tracks
     , block_skeleton = Skeleton.empty
     , block_integrated = Nothing
+    , block_integrated_tracks = []
     , block_meta = Map.empty
     }
 

@@ -224,6 +224,14 @@ trace_logs res = case res of
 e_logs :: Result a -> [String]
 e_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio . result_logs
 
+e_performance :: BlockId -> Result a -> Maybe Cmd.Performance
+e_performance block_id = Map.lookup block_id . Cmd.state_performance
+    . Cmd.state_play . result_cmd_state
+
+e_events :: BlockId -> Result a -> Derive.Events
+e_events block_id = maybe [] Cmd.perf_events . e_performance block_id
+
+
 -- ** val
 
 -- | Extract the value from a cmd.  This is meant to be used as the single

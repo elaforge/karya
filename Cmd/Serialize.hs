@@ -174,8 +174,8 @@ instance Serialize State.Default where
 instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
-    put (Block.Block a _config b c d e) = put_version 7
-        >> put a >> put b >> put c >> put d >> put e
+    put (Block.Block a _config b c d e f) = put_version 8
+        >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
         v <- get_version
         case v of
@@ -184,14 +184,14 @@ instance Serialize Block.Block where
                 tracks <- get :: Get [Block.Track]
                 skel <- get :: Get Skeleton.Skeleton
                 return $ Block.Block title Block.default_config tracks skel
-                    Nothing Map.empty
+                    Nothing [] Map.empty
             5 -> do
                 title <- get :: Get String
                 tracks <- get :: Get [Block.Track]
                 skel <- get :: Get Skeleton.Skeleton
                 meta <- get :: Get (Map.Map String String)
                 return $ Block.Block title Block.default_config tracks skel
-                    Nothing meta
+                    Nothing [] meta
             6 -> do
                 title <- get :: Get String
                 tracks <- get :: Get [Block.Track]
@@ -199,7 +199,7 @@ instance Serialize Block.Block where
                 _integrated <- get :: Get (Maybe BlockId)
                 meta <- get :: Get (Map.Map String String)
                 return $ Block.Block title Block.default_config tracks skel
-                    Nothing meta
+                    Nothing [] meta
             7 -> do
                 title :: String <- get
                 tracks :: [Block.Track] <- get
@@ -207,7 +207,16 @@ instance Serialize Block.Block where
                 integrated :: Maybe Block.Integrated <- get
                 meta :: Map.Map String String <- get
                 return $ Block.Block title Block.default_config tracks skel
-                    integrated meta
+                    integrated [] meta
+            8 -> do
+                title :: String <- get
+                tracks :: [Block.Track] <- get
+                skel :: Skeleton.Skeleton <- get
+                integrated :: Maybe Block.Integrated <- get
+                integrated_tracks :: [Block.IntegratedTrack] <- get
+                meta :: Map.Map String String <- get
+                return $ Block.Block title Block.default_config tracks skel
+                    integrated integrated_tracks meta
             _ -> bad_version "Block.Block" v
 
 instance Serialize Block.Integrated where
@@ -216,6 +225,14 @@ instance Serialize Block.Integrated where
         block_id :: BlockId <- get
         index :: Block.EventIndex <- get
         return $ Block.Integrated block_id index
+
+instance Serialize Block.IntegratedTrack where
+    put (Block.IntegratedTrack a b c) = put a >> put b >> put c
+    get = do
+        track :: TrackId <- get
+        to :: [TrackId] <- get
+        index :: Block.EventIndex <- get
+        return $ Block.IntegratedTrack track to index
 
 instance Serialize Skeleton.Skeleton where
     put (Skeleton.Skeleton a) = put a
@@ -360,8 +377,8 @@ instance Serialize Ruler.Mark where
 -- ** Track
 
 instance Serialize Track.Track where
-    put (Track.Track a b c d e) = put_version 2 >>
-        put a >> put b >> put c >> put d >> put e
+    put (Track.Track a b c d) = put_version 3 >>
+        put a >> put b >> put c >> put d
     get = do
         v <- get_version
         case v of
@@ -370,14 +387,20 @@ instance Serialize Track.Track where
                 events <- get :: Get Events.Events
                 color <- get :: Get Color.Color
                 render <- get :: Get Track.RenderConfig
-                return $ Track.Track title events color render Nothing
+                return $ Track.Track title events color render
             2 -> do
                 title <- get :: Get String
                 events <- get :: Get Events.Events
                 color <- get :: Get Color.Color
                 render <- get :: Get Track.RenderConfig
-                integrated <- get :: Get (Maybe TrackId)
-                return $ Track.Track title events color render integrated
+                _integrated <- get :: Get (Maybe TrackId)
+                return $ Track.Track title events color render
+            3 -> do
+                title <- get :: Get String
+                events <- get :: Get Events.Events
+                color <- get :: Get Color.Color
+                render <- get :: Get Track.RenderConfig
+                return $ Track.Track title events color render
             _ -> bad_version "Track.Track" v
 
 instance Serialize Track.RenderConfig where

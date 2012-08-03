@@ -17,9 +17,10 @@ import qualified Perform.Pitch as Pitch
 
 
 test_integrate = do
-    let f = first (map extract) . integrate
+    let f = first (map extract . concatMap flatten) . integrate
         integrate = Convert.integrate lookup_scale lookup_attrs Nothing
         lookup_attrs = const $ Map.fromList [(Attrs.plak, "plak")]
+        flatten (note, controls) = note : controls
         extract (Convert.Track title events) =
             (title, map UiTest.extract_event events)
         inst = Score.Instrument "inst"

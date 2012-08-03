@@ -18,15 +18,13 @@ test_integrate_track = do
             [ ("> | <", [(0, 1, "")])
             , ("*", [(0, 0, "4c")])
             , ("dyn", [(0, 0, "1")])
-            , (">", [(0, 2, "")]) -- doesn't appear in output
+            , (">", [(0, 2, "")]) -- appears in normal output, not in integrated
             ]
-        extract i = (Derive.integrated_source i, Derive.integrated_tracks i,
-            Derive.integrated_events i)
-    let [(source, tracks, events)] = map extract (Derive.r_integrated res)
+        extract i = (Derive.integrated_source i, Derive.integrated_events i)
+    let [(source, events)] = map extract (Derive.r_integrated res)
     equal source (Right (UiTest.mk_tid 1))
-    equal tracks (map UiTest.mk_tid [1, 2, 3])
     equal (map (fmap DeriveTest.e_note2) events) [LEvent.Event (0, 1, "4c")]
-    equal (DeriveTest.extract DeriveTest.e_note2 res) ([], [])
+    equal (DeriveTest.extract DeriveTest.e_note2 res) ([(0, 2, "?")], [])
 
 with_damage :: [TrackNum] -> Derive.Deriver a -> Derive.Deriver a
 with_damage tracknums = DeriveTest.modify_constant $ \st ->

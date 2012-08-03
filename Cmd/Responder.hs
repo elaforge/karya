@@ -184,8 +184,7 @@ respond_loop rstate msg_reader = do
     case result of
         Left (exc :: Exception.SomeException) ->
             Log.error $ "exception caught in respond_loop: " ++ show exc
-        Right (quit, rstate) -> do
-            unless quit (respond_loop rstate msg_reader)
+        Right (quit, rstate) -> unless quit (respond_loop rstate msg_reader)
 
 -- | State maintained for a single responder cycle.
 data RState = RState {

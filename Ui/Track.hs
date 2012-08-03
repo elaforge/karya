@@ -23,15 +23,13 @@ data Track = Track {
     , track_render :: !RenderConfig
     -- | Analogous to 'Ui.Block.block_integrated', this is the source track if
     -- this track was integrated from another.
-    , track_integrated :: !(Maybe TrackId)
     } deriving (Eq, Show, Read)
 
 instance Pretty.Pretty Track where
-    format (Track title events _bg render integrated) =
+    format (Track title events _bg render) =
         Pretty.record (Pretty.text "Track" Pretty.<+> Pretty.format title
                 Pretty.<+> Pretty.format render)
-            [ ("integrated", Pretty.format integrated)
-            , ("events", Pretty.format events)
+            [ ("events", Pretty.format events)
             ]
 
 -- | Construct a new Track.
@@ -41,7 +39,6 @@ track title events = Track
     , track_events = events
     , track_bg = Config.track_bg
     , track_render = no_render
-    , track_integrated = Nothing
     }
 
 empty :: Track

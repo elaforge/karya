@@ -63,16 +63,24 @@ set_midi_config = State.set_midi_config DeriveTest.default_midi_config
 -- * result
 
 data Result = Result {
+    -- | Msg that gave rise to this Result.
+    result_msg :: Msg.Msg
     -- | In CmdTest, Result has MIDI from the thru mechanism, and updates
     -- collected during the event.  But responder tests scope over the entire
     -- respond cycle, so MIDI potentially also includes play output and
     -- updates include diff output.
-    result_cmd :: CmdTest.Result Cmd.Status
+    , result_cmd :: CmdTest.Result Cmd.Status
     -- | These are the updates emitted to the UI.  The CmdTest.Result updates
     -- are those collected during the cmd.
     , result_updates :: [Update.DisplayUpdate]
     , result_loopback :: Chan.Chan Msg.Msg
     }
+
+result_cmd_state :: Result -> Cmd.State
+result_cmd_state = CmdTest.result_cmd_state . result_cmd
+
+result_ui_state :: Result -> State.State
+result_ui_state = CmdTest.result_ui_state . result_cmd
 
 -- | Get the performance from a Result.
 --
@@ -86,30 +94,47 @@ result_perf = get_perf . result_loopback
 
 get_perf :: Chan.Chan Msg.Msg -> IO (BlockId, Cmd.Performance)
 get_perf chan = do
-    msg <- Chan.readChan chan
+    msg <- read_msg chan
     case msg of
-        Msg.DeriveStatus block_id (Msg.DeriveComplete perf) ->
+        Nothing -> error "get_perf: time out reading chan"
+        Just (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) ->
             return (block_id, perf)
-        _ -> get_perf chan
+        Just _ -> get_perf chan
 
--- | Feed msgs back into the responder until a DeriveComplete is reached.
-respond_until_complete :: States -> Cmd.CmdT IO a -> IO [Result]
-respond_until_complete states cmd = do
+-- | Feed msgs back into the responder until and including the matching Msg
+-- or a timeout.  The Msg is responded to and all Results returned.
+respond_until :: (Msg.Msg -> Bool) -> States -> Cmd.CmdT IO a -> IO [Result]
+respond_until is_complete states cmd = do
+    putStrLn $ "---------- new cmd"
     result <- respond_cmd states cmd
-    go [] (result_loopback result) (result_states result)
+    continue_until is_complete result
+
+-- | Continue feeding loopback msgs into the responder, or until I time out
+-- reading from the loopback channel.
+continue_until :: (Msg.Msg -> Bool) -> Result -> IO [Result]
+continue_until is_complete result =
+    reverse <$> go [] (result_loopback result) (result_states result)
     where
     go accum chan states = do
-        msg <- Chan.readChan chan
-        putStrLn $ "msg: " ++ Pretty.pretty msg
-        result <- respond_msg states msg
-        case msg of
-            Msg.DeriveStatus _ (Msg.DeriveComplete {}) ->
-                return $ reverse (result:accum)
-            _ -> go (result:accum) chan (result_states result)
+        maybe_msg <- read_msg chan
+        putStrLn $ "ResponderTest.continue_until: " ++ Pretty.pretty maybe_msg
+        case maybe_msg of
+            Nothing -> return accum
+            Just msg -> do
+                result <- respond_msg states msg
+                if is_complete msg
+                    then return $ result : accum
+                    else go (result:accum) chan (result_states result)
+
+read_msg :: Chan.Chan Msg.Msg -> IO (Maybe Msg.Msg)
+read_msg = Thread.timeout 6 . Chan.readChan
+
+is_derive_complete :: Msg.Msg -> Bool
+is_derive_complete (Msg.DeriveStatus _ (Msg.DeriveComplete {})) = True
+is_derive_complete _ = False
 
 result_states :: Result -> States
-result_states result = (CmdTest.result_ui_state r, CmdTest.result_cmd_state r)
-    where r = result_cmd result
+result_states r = (result_ui_state r, result_cmd_state r)
 
 -- * thread
 
@@ -135,7 +160,7 @@ thread_delay print_timing states ((msg, delay):msgs) = do
 -- | Respond to a single Cmd.  This can be used to test cmds in the full
 -- responder context without having to fiddle around with keymaps.
 respond_cmd :: States -> Cmd.CmdT IO a -> IO Result
-respond_cmd states cmd = _respond states (Just (mkcmd cmd)) magic
+respond_cmd states cmd = respond1 states (Just (mkcmd cmd)) magic
     where
     -- I run a cmd by adding a cmd that responds only to a specific Msg, and
     -- then sending that Msg.
@@ -147,17 +172,17 @@ respond_cmd states cmd = _respond states (Just (mkcmd cmd)) magic
     magic = Msg.Socket IO.stdout "MAGIC!!"
 
 respond_msg :: States -> Msg.Msg -> IO Result
-respond_msg states = _respond states Nothing
+respond_msg states = respond1 states Nothing
 
 type CmdIO = Msg.Msg -> Cmd.CmdIO
 
-_respond :: States -> Maybe CmdIO -> Msg.Msg -> IO Result
-_respond (ustate, cstate) cmd msg = do
+respond1 :: States -> Maybe CmdIO -> Msg.Msg -> IO Result
+respond1 (ustate, cstate) maybe_cmd msg = do
     update_chan <- new_chan
     loopback_chan <- Chan.newChan
     (interface, midi_chan) <- make_midi_interface
     let rstate = make_rstate update_chan loopback_chan
-            ustate (cstate { Cmd.state_midi_interface = interface }) cmd
+            ustate (cstate { Cmd.state_midi_interface = interface }) maybe_cmd
     (_quit, rstate) <- Responder.respond rstate msg
     -- Updates and MIDI are normally forced by syncing with the UI and MIDI
     -- driver, so force explicitly here.  Not sure if this really makes
@@ -175,18 +200,23 @@ _respond (ustate, cstate) cmd msg = do
             , CmdTest.result_midi =
                 [(Midi.wmsg_dev m, Midi.wmsg_msg m) | m <- midi]
             }
-    return $ Result cmd_result updates loopback_chan
+    return $ Result
+        { result_msg = msg
+        , result_cmd = cmd_result
+        , result_updates = updates
+        , result_loopback = loopback_chan
+        }
 
 make_rstate :: TVar.TVar [[Update.DisplayUpdate]]
     -> Chan.Chan Msg.Msg -> State.State -> Cmd.State -> Maybe CmdIO
     -> Responder.State
-make_rstate update_chan loopback_chan ui_state cmd_state cmd =
+make_rstate update_chan loopback_chan ui_state cmd_state maybe_cmd =
     Responder.State config ui_state cmd_state lang_session loopback dummy_sync
         updater_state
     where
     updater_state = Unsafe.unsafePerformIO (MVar.newMVar State.empty)
     config = StaticConfig.empty
-        { StaticConfig.global_cmds = maybe [] (:[]) cmd }
+        { StaticConfig.global_cmds = maybe [] (:[]) maybe_cmd }
     dummy_sync _ _ _ updates = do
         put_val update_chan updates
         return Nothing

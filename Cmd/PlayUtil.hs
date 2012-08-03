@@ -2,6 +2,7 @@
 -- which contains play Cmds and their direct support.
 module Cmd.PlayUtil where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Midi.Midi as Midi
@@ -42,7 +43,8 @@ initial_environ scale_id maybe_inst = Map.fromList $
 -- | Derive with the cache.
 cached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
 cached_derive block_id = do
-    (cache, damage) <- get_derive_cache <$> Cmd.lookup_performance block_id
+    (cache, damage) <- get_derive_cache block_id <$>
+        Cmd.lookup_performance block_id
     -- Log.debug $ "rederiving with score damage: " ++ show damage
     derive cache damage block_id
 
@@ -128,7 +130,11 @@ get_convert_lookup = do
 
 -- * util
 
-get_derive_cache :: Maybe Cmd.Performance -> (Derive.Cache, Derive.ScoreDamage)
-get_derive_cache Nothing = (mempty, mempty)
-get_derive_cache (Just perf) =
+get_derive_cache :: BlockId -> Maybe Cmd.Performance
+    -> (Derive.Cache, Derive.ScoreDamage)
+get_derive_cache block_id Nothing =
+    -- If a block is being derived the first time, its considered damaged.
+    -- Hack needed by 'Derive.Call.Integrate.only_destinations_damaged '.
+    (mempty, mempty { Derive.sdamage_blocks = Set.singleton block_id })
+get_derive_cache _ (Just perf) =
     (Cmd.perf_derive_cache perf, Cmd.perf_score_damage perf)

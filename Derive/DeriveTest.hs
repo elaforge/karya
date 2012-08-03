@@ -288,12 +288,16 @@ quiet_filter_logs = filter ((>=Log.Warn) . Log.msg_prio)
 -- ** extract
 
 extract :: (Score.Event -> a) -> Derive.Result -> ([a], [String])
-extract e_event result = (map e_event events, map show_log logs)
-    where (events, logs) = r_split result
+extract e_event = extract_levents e_event . Derive.r_events
 
 extract_events :: (Score.Event -> a) -> Derive.Result -> [a]
 extract_events e_event result = Log.trace_logs logs (map e_event events)
     where (events, logs) = r_split result
+
+extract_levents :: (Score.Event -> a) -> Derive.Events -> ([a], [String])
+extract_levents e_event levents =
+    (map e_event events, map show_log (trace_low_prio logs))
+    where (events, logs) = LEvent.partition levents
 
 extract_stream :: (Score.Event -> a) -> Derive.Result -> [Either a String]
 extract_stream e_event =

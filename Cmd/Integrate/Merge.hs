@@ -1,13 +1,16 @@
 {-# LANGUAGE CPP, OverloadedStrings #-}
 -- | Support for converting Tracks into UI blocks.
 module Cmd.Integrate.Merge (
-    create, merge, make_index
+    -- * create
+    create_block, create_tracks
+    -- * merge
+    , merge, merge_tracks, make_index
     , get_block_events
     , Edit(..), Modify(..), is_modified
     -- * diff
     , diff_events
 #ifdef TESTING
-    , fill_block, diff, diff_event, apply
+    , diff, diff_event, apply
 #endif
 ) where
 import qualified Data.ByteString.Char8 as B
@@ -32,37 +35,42 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
 
-import qualified Derive.TrackInfo as TrackInfo
 import qualified App.Config as Config
 import Types
 
 
-create :: (State.M m) => BlockId -> [Convert.Track] -> m BlockId
-create source_block_id tracks = do
+create_block :: (State.M m) => BlockId -> Convert.Tracks -> m BlockId
+create_block source_block_id tracks = do
     ruler_id <- State.get_block_ruler source_block_id
     block_id <- Create.block ruler_id
-    fill_block block_id tracks
+    mapM_ (create_track block_id) (flatten_tracks 1 tracks)
+    State.set_skeleton block_id $ Skeleton.make (track_edges 1 tracks)
     return block_id
 
-fill_block :: (State.M m) => BlockId -> [Convert.Track] -> m ()
-fill_block block_id tracks = do
-    mapM_ (create_track block_id) (zip [1..] tracks)
-    State.set_skeleton block_id $ Skeleton.make $
-        -- +1 to account for the ruler track.
-        make_edges (length tracks + 1) note_tracks
-    where
-    create_track block_id (tracknum, (Convert.Track title events)) = do
-        Create.track block_id tracknum title (Events.from_asc_list events)
-    note_tracks =
-        [tracknum | (tracknum, Convert.Track title _) <- zip [1..] tracks,
-            TrackInfo.is_note_track title]
+flatten_tracks :: TrackNum -> Convert.Tracks -> [(TrackNum, Convert.Track)]
+flatten_tracks start =
+    zip [start..] . concatMap (\(note, controls) -> note : controls)
 
--- | 6 [1, 4] -> [(1, 2), (2, 3), (4, 5)]
-make_edges :: TrackNum -> [TrackNum] -> [(TrackNum, TrackNum)]
-make_edges track_count = concatMap interpolate . Seq.zip_next
-    where
-    interpolate (t1, maybe_t2) = zip ts (drop 1 ts)
-        where ts = [t1 .. Maybe.fromMaybe track_count maybe_t2 - 1]
+track_edges :: TrackNum -> Convert.Tracks -> [(TrackNum, TrackNum)]
+track_edges start ((_, controls) : tracks) =
+    zip [start .. end] (drop 1 [start .. end]) ++ track_edges (end+1) tracks
+    where end = start + length controls
+track_edges _ [] = []
+
+create_tracks :: (State.M m) => BlockId -> TrackNum -> Convert.Tracks
+    -> m [TrackId]
+create_tracks block_id tracknum tracks = do
+    track_ids <- mapM (create_track block_id) (flatten_tracks tracknum tracks)
+    skel <- State.require "integrate somehow created a cyclic skeleton"
+        =<< Skeleton.add_edges (track_edges tracknum tracks) <$>
+            State.get_skeleton block_id
+    State.set_skeleton block_id skel
+    return track_ids
+
+create_track :: (State.M m) => BlockId -> (TrackNum, Convert.Track)
+    -> m TrackId
+create_track block_id (tracknum, Convert.Track title events) =
+    Create.track block_id tracknum title (Events.from_asc_list events)
 
 -- * merge
 
@@ -84,8 +92,8 @@ make_edges track_count = concatMap interpolate . Seq.zip_next
 -- produce multiple ones.  But then I have to make sure that events will remain
 -- on the same track.  Diff could also search multiple tracks.
 -- For each new event: search for existing event.
-merge :: (Cmd.M m) => [Convert.Track] -> (BlockId, Block.EventIndex) -> m ()
-merge tracks (block_id, index) = do
+merge :: (Cmd.M m) => Convert.Tracks -> BlockId -> Block.EventIndex -> m ()
+merge tracks block_id index = do
     -- TODO reintegrate uses tracknums
     -- I think reintegrate will get confused if you move tracks, or if
     -- integrate decides to emit an extra track.  So I need a key to link
@@ -113,6 +121,31 @@ block_tracks block_id = do
         | (tracknum, Just track_id) <- zip [0..] (map track_of tracks)]
     where track_of = Block.track_id_of . Block.tracklike_id
 
+merge_tracks :: (Cmd.M m) => Convert.Tracks -> BlockId -> [TrackId]
+    -> Block.EventIndex -> m ()
+merge_tracks tracks block_id track_ids index = do
+    current_events <- get_track_events block_id track_ids
+    let (deletes, edits) = diff_events index current_events
+        new_events = apply deletes edits (integrated_events tracks)
+    -- TODO what about new tracks?
+    forM_ new_events $ \(tracknum, events) -> do
+        track_id <- State.get_event_track_at "Integrate.merge_tracks"
+            block_id tracknum
+        -- TODO only emit damage for the changed parts
+        State.modify_events track_id (const events)
+
+get_track_events :: (State.M m) => BlockId -> [TrackId]
+    -> m [(TrackNum, Events.PosEvent)]
+get_track_events block_id track_ids = do
+    -- If a track isn't found, it was probably deleted.  The merge should
+    -- recreate it.
+    tracknums <- mapM (State.tracknum_of block_id) track_ids
+    tracks <- forM tracknums $ \tracknum -> do
+        justm (State.event_track_at block_id tracknum) $ \track_id ->
+            Just <$> State.get_track track_id
+    return [(tracknum, event) | (tracknum, Just track) <- zip tracknums tracks,
+        event <- Events.ascending (Track.track_events track)]
+
 -- * reintegrate
 
 -- | Create an index from integrated tracks.  Since they are integrated, they
@@ -122,11 +155,11 @@ make_index events = Map.fromList
     [(stack, event) | (Just stack, event) <- zip (map stack_of events) events]
     where stack_of = Event.event_stack . snd
 
-integrated_events :: [Convert.Track]
+integrated_events :: Convert.Tracks
     -> [(Event.Stack, TrackNum, Events.PosEvent)]
 integrated_events tracks =
     [ (stack, tracknum, event)
-    | (tracknum, track) <- zip [1..] tracks
+    | (tracknum, track) <- flatten_tracks 1 tracks
     , event <- Convert.track_events track
     , Just stack <- [Event.event_stack (snd event)]
     ]

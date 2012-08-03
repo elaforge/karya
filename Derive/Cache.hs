@@ -81,8 +81,8 @@ find_generator_cache stack event_range score_damage
         (ControlDamage control_damage) (Cache cache) = do
     cached <- maybe (Left "not in cache") Right (Map.lookup stack cache)
     (collect, stream) <- case cached of
-        Invalid -> Left "cached invalidated by score damage"
-        Cached entry -> maybe (Left "cached entry has wrong type") Right
+        Invalid -> Left "cache invalidated by score damage"
+        Cached entry -> maybe (Left "cache has wrong type") Right
             (Derive.from_cache_entry entry)
     let Derive.GeneratorDep block_deps = Derive.collect_local_dep collect
     let damaged_blocks = Set.union
@@ -102,7 +102,14 @@ make_cache :: (Derive.Derived d) => Stack.Stack -> Derive.Collect
 make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     where
     -- TODO clear out other bits of cache that this overlaps with
-    stripped = collect { Derive.collect_cache = mempty }
+    stripped = collect
+        { Derive.collect_cache = mempty
+        -- Integration only happens for toplevel blocks, so there's no point
+        -- returning it from a cached block call.  Also, integration shouldn't
+        -- happen if the cache is reused, since that means nothing changed.
+        -- So this reduces unnecessary integration as well.
+        , Derive.collect_integrated = []
+        }
     entry = Derive.to_cache_entry (stripped, filter (not . cache_log) stream)
     -- I do want a cached chunk to retain its log msgs, since those include
     -- errors deriving.  However, it's confusing if it also includes cache

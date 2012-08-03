@@ -3,6 +3,7 @@ module Cmd.Integrate.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Tuple as Tuple
 
 import Util.Control
 import qualified Util.Log as Log
@@ -39,8 +40,11 @@ data Track = Track {
     , track_events :: ![Events.PosEvent]
     } deriving (Show)
 
-convert :: (Cmd.M m) => Derive.Integrated -> m [Track]
-convert (Derive.Integrated _ _ levents key) = do
+-- | (note track, control tracks)
+type Tracks = [(Track, [Track])]
+
+convert :: (Cmd.M m) => Derive.Events -> Maybe Pitch.Key -> m Tracks
+convert levents key = do
     -- key <- Perf.get_key block_id Nothing
     lookup_scale <- Cmd.get_lookup_scale
     inst_db <- Cmd.gets Cmd.state_instrument_db
@@ -66,12 +70,11 @@ type LookupAttrs = Score.Instrument -> Instrument.AttributeMap
 -- TODO and overlapping events should be split, deal with that later
 -- TODO optionally quantize the ui events
 integrate :: Derive.LookupScale -> LookupAttrs -> Maybe Pitch.Key
-    -> [Score.Event] -> ([Track], [String]) -- ^ (tracks, errs)
-integrate lookup_scale lookup_attrs key = convert . Seq.partition_either
+    -> [Score.Event] -> (Tracks, [String]) -- ^ (tracks, errs)
+integrate lookup_scale lookup_attrs key = Tuple.swap . Seq.partition_either
     . map (integrate_track lookup_scale lookup_attrs key)
     . Seq.keyed_group_on group_key
     where
-    convert (errs, tracks) = (concat tracks, errs)
     group_key event = (track_of event, Score.event_instrument event,
         PitchSignal.sig_scale_id (Score.event_pitch event))
 
@@ -81,7 +84,7 @@ track_of = Seq.head . Maybe.mapMaybe Stack.track_of . Stack.innermost
 
 integrate_track :: Derive.LookupScale -> LookupAttrs -> Maybe Pitch.Key
     -> ((Maybe TrackId, Score.Instrument, Pitch.ScaleId), [Score.Event])
-    -> Either String [Track]
+    -> Either String (Track, [Track])
 integrate_track lookup_scale lookup_attrs key ((_, inst, scale_id), events) = do
     pitch_track <- if no_pitch_signals events then return [] else do
         scale <- maybe (Left $ "scale not found: " ++ Pretty.pretty scale_id)
@@ -89,8 +92,8 @@ integrate_track lookup_scale lookup_attrs key ((_, inst, scale_id), events) = do
         case pitch_events scale scale_id key event_stacks of
             (track, []) -> return [track]
             (_, errs) -> Left $ Seq.join "; " errs
-    return $ note_events inst (lookup_attrs inst) event_stacks
-        : pitch_track ++ control_events event_stacks
+    return (note_events inst (lookup_attrs inst) event_stacks,
+        pitch_track ++ control_events event_stacks)
     where
     event_stacks = zip events (stack_serials (map Score.event_stack events))
 
