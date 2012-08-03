@@ -1,7 +1,10 @@
 module Ui.State_test where
 import qualified Util.Pretty as Pretty
+import qualified Util.Ranges as Ranges
 import Util.Test
+
 import qualified Ui.Block as Block
+import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -53,13 +56,13 @@ test_muted_tracknums = do
     equal (solo [2, 4]) []
     equal (solo [1]) []
 
-mkid = UiTest.mkid
+test_calculate_damage = do
+    let f xs ys = State.calculate_damage (mkevents xs) (mkevents ys)
+    equal (f [(0, 1, "a")] [(0, 1, "a")]) Ranges.nothing
+    equal (f [(0, 1, "a")] [(0, 1, "b")]) (Ranges.range 0 1)
+    equal (f [(0, 1, "a")] [(2, 1, "a")]) (Ranges.ranges [(0, 1), (2, 3)])
+    equal (f [(0, 1, "a"), (3, 1, "c")] [(2, 1, "b")])
+        (Ranges.ranges [(0, 1), (2, 4)])
+    equal (f [(0, 1, "a")] [(0, 2, "a")]) (Ranges.range 0 2)
 
-simple_state = snd $ UiTest.run State.empty $ do
-    t0 <- State.create_track (mkid "t0") (UiTest.empty_track "tempo")
-    ruler <- State.create_ruler (mkid "r1") (UiTest.ruler [])
-    b1 <- UiTest.create_block "b1" "hi b1"
-            [(Block.RId ruler, 20), (Block.TId t0 ruler, 40)]
-    _v1 <- State.create_view (mkid "v1") $ Block.view b1
-        UiTest.default_rect UiTest.default_zoom
-    return ()
+mkevents = Events.from_list . map UiTest.make_event

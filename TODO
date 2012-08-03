@@ -391,12 +391,10 @@ integrate
     are visually apparent.
   * bug: integrated block gets the derive indicator stuck on.
     Visible if I load save/integrate.
-  - bug: editing the integrated block causes another integration
-    The problem is that I rely on the cache to detect changes, and the cache
-    doesn't understand integration.
-  - Optimize block integration: similar to only_destinations_damaged,
+  / Optimize block integration: similar to only_destinations_damaged,
     if only the destination blocks are damaged, don't rederive the source.
-  - Emit damage only for the changed bits after a reintegrate.
+    Actually, this doesn't seem to be necessary.
+  * Emit damage only for the changed bits after a reintegrate.
     Have Merge.apply State operations directly so the damage happens
     correctly.
   - single track mode that doesn't split tracks

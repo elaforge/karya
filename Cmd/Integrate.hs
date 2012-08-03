@@ -73,7 +73,7 @@ integrate_block block_id tracks = do
     new_blocks <- if null integrated
         then (:[]) <$> Merge.create_block block_id tracks
         else do
-            sequence_ [Merge.merge tracks block_id index
+            sequence_ [Merge.merge_block tracks block_id index
                 | (block_id, index) <- integrated]
             return $ map fst integrated
     Log.notice $ "integrated " ++ show block_id ++ " to: " ++ show new_blocks

@@ -36,9 +36,8 @@ test_diff_event = do
     equal (f (0, 1, "a") (0, 1, "x a")) [Merge.Set "x a"]
     equal (f (0, 1, "a") (0, 1, "x | a")) [Merge.Prefix "x | "]
 
-test_reintegrate = do
-    -- This also tests Merge.apply
-    let f last integrated events = reintegrate last integrated events
+test_apply = do
+    let f last integrated events = apply last integrated events
     -- Event with a stack.
     let stack start text stack = (1, (start, 1, text, Just stack))
         added start text = (1, (start, 1, text, Nothing))
@@ -80,10 +79,10 @@ test_reintegrate = do
     equal (f [tnum 0 0 "a" 'a'] [tnum 1 0 "b" 'a'] [tnum 0 0 "a" 'a'])
         [(0, [(0, 1, "b", Just 'a')])]
 
-reintegrate :: [(TrackNum, Event)]
+apply :: [(TrackNum, Event)]
     -- ^ this doesn't need TrackNum, but takes it anyway for consistency
     -> [(TrackNum, Event)] -> [(TrackNum, Event)] -> [(TrackNum, [Event])]
-reintegrate last_integrate integrated events = map extract $
+apply last_integrate integrated events = map extract $
     Merge.apply deletes edits (mkstack_events integrated)
     where
     (deletes, edits) = Merge.diff_events index (mkevents events)

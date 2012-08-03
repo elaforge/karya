@@ -2,7 +2,7 @@ module Cmd.Integrate_test where
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Pretty as Pretty
+import qualified Util.Ranges as Ranges
 import Util.Test
 
 import qualified Ui.Event as Event
@@ -61,8 +61,9 @@ test_track_integrate = do
             ("s/i1 | < | reverse", [(0, 1, "4c"), (1, 1, "4d")], [])
         next state action = last <$> until_complete state action
         continue = ResponderTest.continue_until ResponderTest.is_derive_complete
-        e_damage = fmap
-            (Map.keys . Derive.sdamage_tracks . Cmd.perf_score_damage) . e_perf
+        e_damage =
+            fmap (Map.toList . Derive.sdamage_tracks . Cmd.perf_score_damage)
+            . e_perf
 
     res <- next states $ return ()
     equal (e_tracks res)
@@ -72,11 +73,13 @@ test_track_integrate = do
             , (">s/i1", [(0, 1, ""), (1, 1, "")])
             , ("*twelve", [(0, 0, "4d"), (1, 0, "4c")])
             ])]
-    equal (e_damage res) $ Just [UiTest.mk_tid 0, UiTest.mk_tid 3]
+    equal (e_damage res) $ Just
+        [ (UiTest.mk_tid 0, Ranges.everything)
+        , (UiTest.mk_tid 3, Ranges.everything)
+        ]
         -- The new tracks are 0, 3, due to UiTest starting at 1 and and
         -- Cmd.Create starting at 0.  TODO fix this by making both start at 0.
         -- Or maybe make the ruler be t00, that way Cmd.Create will skip it.
-    Pretty.pprint ((CmdTest.e_events UiTest.default_block_id . ResponderTest.result_cmd) res)
     -- Not derived yet.
     equal (e_events res) ([], [])
     res <- last <$> continue res
@@ -90,6 +93,7 @@ test_track_integrate = do
             , (">s/i1", [(0, 1, ""), (1, 1, "")])
             , ("*twelve", [(0, 0, "4d"), (1, 0, "3c")])
             ])]
+    equal (e_damage res) $ Just [(UiTest.mk_tid 3, Ranges.range 1 1)]
     equal (e_events res) ([(0, 1, "4d"), (1, 1, "4c")], [])
     res <- last <$> continue res
     equal (e_events res) ([(0, 1, "4d"), (1, 1, "3c")], [])

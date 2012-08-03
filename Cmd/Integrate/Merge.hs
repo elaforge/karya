@@ -4,7 +4,7 @@ module Cmd.Integrate.Merge (
     -- * create
     create_block, create_tracks
     -- * merge
-    , merge, merge_tracks, make_index
+    , merge_block, merge_tracks, make_index
     , get_block_events
     , Edit(..), Modify(..), is_modified
     -- * diff
@@ -92,8 +92,9 @@ create_track block_id (tracknum, Convert.Track title events) =
 -- produce multiple ones.  But then I have to make sure that events will remain
 -- on the same track.  Diff could also search multiple tracks.
 -- For each new event: search for existing event.
-merge :: (Cmd.M m) => Convert.Tracks -> BlockId -> Block.EventIndex -> m ()
-merge tracks block_id index = do
+merge_block :: (Cmd.M m) => Convert.Tracks -> BlockId -> Block.EventIndex
+    -> m ()
+merge_block tracks block_id index = do
     -- TODO reintegrate uses tracknums
     -- I think reintegrate will get confused if you move tracks, or if
     -- integrate decides to emit an extra track.  So I need a key to link
@@ -103,9 +104,9 @@ merge tracks block_id index = do
     let (deletes, edits) = diff_events index current_events
         new_events = apply deletes edits (integrated_events tracks)
     forM_ new_events $ \(tracknum, events) -> do
-        track_id <- State.get_event_track_at "Integrate.merge" block_id tracknum
-        -- TODO only emit damage for the changed parts
-        State.modify_events track_id (const events)
+        track_id <- State.get_event_track_at "Integrate.merge_block"
+            block_id tracknum
+        State.modify_some_events track_id (const events)
 
 get_block_events :: (State.M m) => BlockId -> m [(TrackNum, Events.PosEvent)]
 get_block_events block_id = do
@@ -131,8 +132,7 @@ merge_tracks tracks block_id track_ids index = do
     forM_ new_events $ \(tracknum, events) -> do
         track_id <- State.get_event_track_at "Integrate.merge_tracks"
             block_id tracknum
-        -- TODO only emit damage for the changed parts
-        State.modify_events track_id (const events)
+        State.modify_some_events track_id (const events)
 
 get_track_events :: (State.M m) => BlockId -> [TrackId]
     -> m [(TrackNum, Events.PosEvent)]
