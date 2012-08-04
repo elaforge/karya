@@ -56,6 +56,7 @@ import Control.Monad.Trans (lift)
 import qualified Data.Generics as Generics
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
@@ -262,6 +263,10 @@ data State = State {
     -- Automatically maintained state.  This means only a few cmds should
     -- modify these.
 
+    -- | Omit the usual derive delay for these blocks.  This is set by
+    -- integration, which modifies a block in response to another block being
+    -- derived.  This is cleared after every cmd.
+    , state_derive_immediately :: !(Set.Set BlockId)
     -- | History.
     , state_history :: !History
     , state_history_config :: !HistoryConfig
@@ -308,6 +313,7 @@ initial_state rdev_map wdev_map interface inst_db global_scope = State
     , state_lookup_scale = LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
 
+    , state_derive_immediately = Set.empty
     -- This is a dummy entry needed to bootstrap a Cmd.State.  Normally
     -- 'hist_present' should always have the current state, but the initial
     -- setup cmd needs a State too.
@@ -643,7 +649,11 @@ data HistoryCollect = HistoryCollect {
     } deriving (Show, Generics.Typeable)
 
 empty_history_collect :: HistoryCollect
-empty_history_collect = HistoryCollect [] Nothing Nothing
+empty_history_collect = HistoryCollect
+    { state_cmd_names = []
+    , state_suppress_edit = Nothing
+    , state_suppressed = Nothing
+    }
 
 data HistoryEntry = HistoryEntry {
     hist_state :: !State.State
@@ -829,6 +839,10 @@ get_wdev_state = gets state_wdev_state
 modify_wdev_state :: (M m) => (WriteDeviceState -> WriteDeviceState) -> m ()
 modify_wdev_state f = modify $ \st ->
     st { state_wdev_state = f (state_wdev_state st) }
+
+derive_immediately :: (M m) => [BlockId] -> m ()
+derive_immediately block_ids = modify $ \st -> st { state_derive_immediately =
+    Set.fromList block_ids <> state_derive_immediately st }
 
 -- *** EditState
 

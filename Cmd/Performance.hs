@@ -6,14 +6,13 @@
 -- needed:  enough so that playing will probably be lag free, but not so much
 -- to do too much unnecessary work (specifically, stressing the GC leads to
 -- UI latency).
-module Cmd.Performance (SendStatus, update_performance, default_derive_wait
-    , performance
-) where
+module Cmd.Performance (SendStatus, update_performance, performance) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
@@ -31,6 +30,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.RealTime as RealTime
+import qualified App.Config as Config
 import Types
 
 
@@ -42,18 +42,21 @@ type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
 --
 -- The majority of the calls here will bring neither score damage nor
 -- a changed view id, and thus this will do nothing.
-update_performance :: Thread.Seconds -> SendStatus -> State.State
-    -> State.State -> Cmd.State -> [Update.UiUpdate] -> IO Cmd.State
-update_performance wait send_status ui_pre ui_to cmd_state updates = do
+update_performance :: SendStatus -> State.State -> State.State -> Cmd.State
+    -> [Update.UiUpdate] -> IO Cmd.State
+update_performance send_status ui_pre ui_to cmd_state updates = do
     (cmd_state, _, logs, result) <- Cmd.run_io ui_to cmd_state $ do
         let damage = Diff.derive_diff ui_pre ui_to updates
         when (damage /= mempty) $ do
             kill_threads
             insert_score_damage damage
         focused <- Cmd.lookup_focused_block
-        when_just focused (regenerate_performance wait send_status)
-        when_just (State.config_root (State.state_config ui_to))
-            (regenerate_performance wait send_status)
+        when_just focused $ \block_id ->
+            regenerate_performance (derive_wait cmd_state block_id)
+                send_status block_id
+        when_just (State.config_root (State.state_config ui_to)) $ \block_id ->
+            regenerate_performance (derive_wait cmd_state block_id)
+                send_status block_id
         return Cmd.Done
     mapM_ Log.write logs
     case result of
@@ -61,10 +64,10 @@ update_performance wait send_status ui_pre ui_to cmd_state updates = do
         _ -> return ()
     return cmd_state
 
--- | The background derive threads will wait this many seconds before starting
--- up, to avoid working too hard during an edit.
-default_derive_wait :: Thread.Seconds
-default_derive_wait = 1
+derive_wait :: Cmd.State -> BlockId -> Thread.Seconds
+derive_wait cmd_state block_id
+    | block_id `Set.member` Cmd.state_derive_immediately cmd_state = 0
+    | otherwise = Config.default_derive_wait
 
 -- | Kill all performance threads and clear them out.  This will ensure that
 -- 'needs_regenerate' will regenerate them if needed.

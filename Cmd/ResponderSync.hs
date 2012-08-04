@@ -54,10 +54,10 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
         Log.error $ "syncing updates: " ++ Pretty.pretty err
 
     -- Kick off the background derivation threads.
-    cmd_state <- Performance.update_performance
-        Performance.default_derive_wait send_status ui_pre ui_to cmd_state
-        ui_updates
-    return (ui_updates, ui_to, cmd_state)
+    cmd_state <- Performance.update_performance send_status ui_pre ui_to
+        cmd_state ui_updates
+    return (ui_updates, ui_to,
+        cmd_state { Cmd.state_derive_immediately = mempty })
 
 get_track_signals :: Maybe BlockId -> Cmd.State -> Track.TrackSignals
 get_track_signals maybe_root st = Maybe.fromMaybe Map.empty $ do

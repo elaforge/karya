@@ -275,19 +275,18 @@ record_history updates ui_state cmd_state
                 , Cmd.hist_future = []
                 , Cmd.hist_last_cmd = Nothing
                 }
-        in (new_hist, empty_collect, [])
+        in (new_hist, Cmd.empty_history_collect, [])
     | Just Cmd.UndoRedo <- Cmd.hist_last_cmd hist =
         -- If I get an undo while a cmd is suppressed, the last state change
         -- will be undone and the suppressed state change will lost entirely.
         -- This seems basically reasonable, since you could see it as an edit
         -- transaction that was cancelled.
-        (hist, empty_collect, [])
+        (hist, Cmd.empty_history_collect, [])
     | otherwise =
         let (entries, collect) = pure_record_history updates ui_state cmd_state
         in (hist, collect, entries)
     where
     hist = Cmd.state_history cmd_state
-    empty_collect = Cmd.empty_history_collect
 
 -- | Get any history entries that should be saved, and the new HistoryCollect.
 pure_record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
@@ -312,8 +311,11 @@ pure_record_history updates ui_state cmd_state
     -- Set the commit to Nothing for now, it will be filled in by
     -- 'commit_entries'.
     cur_entry = SaveGit.SaveHistory ui_state Nothing updates names
-    Cmd.HistoryCollect names suppress suppressed_entry =
-        Cmd.state_history_collect cmd_state
+    Cmd.HistoryCollect
+        { Cmd.state_cmd_names = names
+        , Cmd.state_suppress_edit = suppress
+        , Cmd.state_suppressed = suppressed_entry
+        } = Cmd.state_history_collect cmd_state
 
 merge_into_suppressed :: Maybe SaveGit.SaveHistory -> SaveGit.SaveHistory
     -> SaveGit.SaveHistory

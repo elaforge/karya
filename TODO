@@ -417,11 +417,13 @@ integrate
     I could then get rid of the CPP hack in Ui.Ui I think.
   - It may be possible to parallelize multiple integrations.
   track integrate
+    - Adding a a new event to the source track puts it on the wrong
+      destination track.
     - Verify that integration works correctly when the number of integrated
       tracks changes.
     - Make sure edits are maintained and events move to the new track if the
       integrator changes to add or remove a track.
-    - Implement 0 delay derive.  Collect a list of blocks modified due to
+    * Implement 0 delay derive.  Collect a list of blocks modified due to
       integration.  Those should omit the usual derive delay.
     - Figure out how multiple levels of track integration work.
     - Use skeleton display to draw a line from integrated to generated

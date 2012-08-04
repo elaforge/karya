@@ -4,6 +4,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as TVar
 
+import qualified Data.Map as Map
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Printf as Printf
@@ -177,12 +178,12 @@ respond_msg states = respond1 states Nothing
 type CmdIO = Msg.Msg -> Cmd.CmdIO
 
 respond1 :: States -> Maybe CmdIO -> Msg.Msg -> IO Result
-respond1 (ustate, cstate) maybe_cmd msg = do
+respond1 (ui_state, cmd_state) maybe_cmd msg = do
     update_chan <- new_chan
     loopback_chan <- Chan.newChan
     (interface, midi_chan) <- make_midi_interface
     let rstate = make_rstate update_chan loopback_chan
-            ustate (cstate { Cmd.state_midi_interface = interface }) maybe_cmd
+            ui_state (set_cmd_state interface) maybe_cmd
     (_quit, rstate) <- Responder.respond rstate msg
     -- Updates and MIDI are normally forced by syncing with the UI and MIDI
     -- driver, so force explicitly here.  Not sure if this really makes
@@ -205,6 +206,12 @@ respond1 (ustate, cstate) maybe_cmd msg = do
         , result_cmd = cmd_result
         , result_updates = updates
         , result_loopback = loopback_chan
+        }
+    where
+    set_cmd_state interface = cmd_state
+        { Cmd.state_midi_interface = interface
+        , Cmd.state_derive_immediately =
+            Map.keysSet (State.state_blocks ui_state)
         }
 
 make_rstate :: TVar.TVar [[Update.DisplayUpdate]]

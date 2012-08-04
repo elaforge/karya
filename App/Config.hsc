@@ -10,6 +10,8 @@ import qualified System.Info
 
 import qualified Util.Array as Array
 import qualified Util.File as File
+import qualified Util.Thread as Thread
+
 import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Ui.Style as Style
@@ -198,6 +200,11 @@ status_integrate_destination :: Color.Color
 status_integrate_destination = Color.rgb 1 0.85 0.85
 
 -- * defaults
+
+-- | The background derive threads will wait this many seconds before starting
+-- up, to avoid working too hard during an edit.
+default_derive_wait :: Thread.Seconds
+default_derive_wait = 1
 
 -- | Keep this many past history entries for undo.  Beyond this entries will
 -- have to be loaded from disk.

@@ -56,6 +56,7 @@ integrate_track block_id track_id tracks = do
             return $ map Block.integrated_destinations integrateds
     Log.notice $ "integrated " ++ show track_id ++ " to: "
         ++ Seq.join "; " (map show news)
+    Cmd.derive_immediately [block_id]
     let index = make_index tracks
     return [Block.IntegratedTrack track_id new index | new <- news]
 
@@ -81,6 +82,7 @@ integrate_block block_id tracks = do
     forM_ new_blocks $ \new_block_id ->
         State.modify_block new_block_id $ \block -> block
             { Block.block_integrated = Just (Block.Integrated block_id index) }
+    Cmd.derive_immediately new_blocks
     where
     integrated_from source_block_id block_map =
         [ (block_id, Block.integrated_index integrated)

@@ -132,7 +132,7 @@ update_performance :: State.State -> State.State -> Cmd.State
 update_performance ui_from ui_to cmd_state cmd_updates = do
     let (cupdates, _) = Diff.diff cmd_updates ui_from ui_to
     chan <- Chan.newChan
-    cstate <- Performance.update_performance 0
+    cstate <- Performance.update_performance
         (\bid status -> Chan.writeChan chan (bid, status))
         ui_from ui_to cmd_state cupdates
     -- This will delay until the perform thread has derived enough of the
