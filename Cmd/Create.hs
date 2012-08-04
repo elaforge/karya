@@ -491,9 +491,17 @@ generate_id ns parent_id code typ fm =
     List.find (not . (`Map.member` fm) . typ) candidates
     where candidates = ids_for ns (Id.id_name parent_id) code
 
+-- | IDs are numbered, and they start at 1 instead of 0.
+--
+-- This is because usually tracknum 0 is the ruler, so counting with tracknums,
+-- event tracks start at 1.  The actual TrackId should be irrelevant (and would
+-- be out of date as soon as a track is swapped), but for testing it's very
+-- convenient if they line up with the tracknums.  So even though it's purely
+-- for testing and only for TrackIds, I start everything at 1 just for
+-- consistency.
 ids_for :: Id.Namespace -> String -> String -> [Id.Id]
 ids_for ns parent code =
-    [Id.unsafe_id ns (dotted parent ++ code ++ padded n) | n <- [0..]]
+    [Id.unsafe_id ns (dotted parent ++ code ++ padded n) | n <- [1..]]
     where
     dotted s = if null s then "" else s ++ "."
     -- Add a leading 0 so TrackIds will sort by their tracknum.  This is

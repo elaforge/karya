@@ -25,20 +25,20 @@ test_block_integrate = do
     res <- next states $ insert_event 1 (1, 1, "")
     -- create a new block
     equal (e_tracks res)
-        [ (UiTest.bid "b00",
-            [ (">s/i1", [(0, 1, ""), (1, 1, "")])
-            , ("*twelve", [(0, 0, "4d"), (1, 0, "4c")])
-            ])
-        , (UiTest.bid "b1",
+        [ (UiTest.bid "b01",
             [ (">s/i1", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4d")])
+            ])
+        , (UiTest.bid "b02",
+            [ (">s/i1", [(0, 1, ""), (1, 1, "")])
+            , ("*twelve", [(0, 0, "4d"), (1, 0, "4c")])
             ])
         ]
     -- merge in changes
     res <- next (ResponderTest.result_states res) $
         insert_event 1 (2, 1, "") >> insert_event 2 (2, 0, "4e")
-    equal (head (e_tracks res))
-        (UiTest.bid "b00",
+    equal (last (e_tracks res))
+        (UiTest.bid "b02",
             [ (">s/i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("*twelve", [(0, 0, "4e"), (1, 0, "4d"), (2, 0, "4c")])
             ])
@@ -48,10 +48,10 @@ test_block_integrate = do
         -- UiTest created tracks start at t01 so that I can write the IDs as
         -- strings and have the number equal the tracknum.  But Cmd.Create
         -- created tracks start at 00.
-        remove_event "b00" 0 1 >> remove_event "b00" 1 1
+        remove_event "b02" 1 1 >> remove_event "b02" 2 1
         >> insert_event 2 (2, 0, "4f")
-    equal (head (e_tracks res))
-        (UiTest.bid "b00",
+    equal (last (e_tracks res))
+        (UiTest.bid "b02",
             [ (">s/i1", [(0, 1, ""), (2, 1, "")])
             , ("*twelve", [(0, 0, "4f"), (2, 0, "4c")])
             ])
@@ -74,12 +74,9 @@ test_track_integrate = do
             , ("*twelve", [(0, 0, "4d"), (1, 0, "4c")])
             ])]
     equal (e_damage res) $ Just
-        [ (UiTest.mk_tid 0, Ranges.everything)
-        , (UiTest.mk_tid 3, Ranges.everything)
+        [ (UiTest.mk_tid 3, Ranges.everything)
+        , (UiTest.mk_tid 4, Ranges.everything)
         ]
-        -- The new tracks are 0, 3, due to UiTest starting at 1 and and
-        -- Cmd.Create starting at 0.  TODO fix this by making both start at 0.
-        -- Or maybe make the ruler be t00, that way Cmd.Create will skip it.
     -- Not derived yet.
     equal (e_events res) ([], [])
     res <- last <$> continue res
@@ -93,7 +90,7 @@ test_track_integrate = do
             , (">s/i1", [(0, 1, ""), (1, 1, "")])
             , ("*twelve", [(0, 0, "4d"), (1, 0, "3c")])
             ])]
-    equal (e_damage res) $ Just [(UiTest.mk_tid 3, Ranges.range 1 1)]
+    equal (e_damage res) $ Just [(UiTest.mk_tid 4, Ranges.range 1 1)]
     equal (e_events res) ([(0, 1, "4d"), (1, 1, "4c")], [])
     res <- last <$> continue res
     equal (e_events res) ([(0, 1, "4d"), (1, 1, "3c")], [])

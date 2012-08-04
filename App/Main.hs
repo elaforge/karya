@@ -317,7 +317,7 @@ setup_generate gen = do
         _ -> error gen
     State.set_midi_config $
         make_midi_config "fm8" [("fm8/1", [0..2]), ("fm8/2", [3])]
-    Create.view (UiTest.bid "b1")
+    Create.view (UiTest.bid "b01")
     Create.map_track_titles set_inst
     return Cmd.Done
     where

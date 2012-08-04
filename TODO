@@ -356,6 +356,7 @@ MILESTONES
       modes, modes of limited transposition, and exotic scales
       (e.g. octatonic a-h)
     * record chords
+    - integration
     - record continuum
     - complete TunedJust
     - complete Idiom.Wind
@@ -363,7 +364,7 @@ MILESTONES
     + efficient thru
     * tracklang complete with set of basic calls
     * better REPL situation
-    - midi record / integrator
+    - midi record
     - dense / efficient control signals
     * derive cache
     * symbolic score
@@ -371,16 +372,16 @@ MILESTONES
     - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
     + jack support on linux
     - simple csound backend
-    - simple lilypond backend?
+    + lilypond backend
     - documentation
   1.0
     - display / edit derivations inline
     - print scores
     - mouse oriented signal editing
-    - windows port?
   far future
     - render audio
     - include audio inline
+    - custom sampler / vst host with high resolution OSC or MIDI?
 
 ----------------------------------------------------------------------
 

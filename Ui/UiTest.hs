@@ -78,13 +78,13 @@ default_block_id :: BlockId
 default_block_id = bid default_block_name
 
 default_block_name :: String
-default_block_name = "b1"
+default_block_name = "b01"
 
 default_view_id :: ViewId
 default_view_id = mk_vid default_block_id
 
 default_ruler_id :: RulerId
-default_ruler_id = rid "r1"
+default_ruler_id = rid "r01"
 
 -- | Return the val and state, throwing an IO error on an exception.  Intended
 -- for tests that don't expect to fail here.
@@ -176,7 +176,9 @@ mk_tid :: TrackNum -> TrackId
 mk_tid = mk_tid_block default_block_id
 
 mk_tid_block :: BlockId -> TrackNum -> TrackId
-mk_tid_block block_id i = Types.TrackId $ Create.ids_for ns block_name "t" !! i
+mk_tid_block block_id i
+    | i < 1 = error $ "mk_tid_block: event tracknums start at 1: " ++ show i
+    | otherwise = Types.TrackId $ Create.ids_for ns block_name "t" !! (i-1)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 mk_tid_name :: String -> TrackNum -> TrackId
