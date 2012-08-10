@@ -66,7 +66,7 @@ events f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
         State.remove_events track_id start end
-        events <- concat <$> mapM f events
+        events <- concatMapM f events
         State.insert_events track_id events
 
 -- | This is like 'events'.  It's more efficient but the modify function must
@@ -76,7 +76,7 @@ events_sorted f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
         State.remove_events track_id start end
-        events <- concat <$> mapM f events
+        events <- concatMapM f events
         State.insert_sorted_events track_id events
 
 tracks :: (Cmd.M m) => Track m -> m ()

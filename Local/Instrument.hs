@@ -26,7 +26,7 @@ import qualified App.Config as Config
 
 load :: FilePath -> IO Cmd.InstrumentDb
 load app_dir = do
-    synth_descs <- concat <$> mapM ($ app_dir </> Config.instrument_dir)
+    synth_descs <- concatMapM ($ app_dir </> Config.instrument_dir)
         [ Drumaxx.load, Fm8.load, Kontakt.load, Morphine.load, Pianoteq.load
         , Reaktor.load, Tassman.load, Vl1m.load, Z1.load
         ]

@@ -6,6 +6,7 @@ module Util.Control (
     , (<>), mempty, mconcat
     , while, while_
     , whenM, unlessM, when_just, if_just, ifM, andM, orM, findM
+    , concatMapM, mapMaybeM
 
     -- , finally
     , justm
@@ -90,6 +91,15 @@ orM (c:cs) = do
 findM :: (Monad m) => (a -> m Bool) -> [a] -> m (Maybe a)
 findM _ [] = return Nothing
 findM f (x:xs) = ifM (f x) (return (Just x)) (findM f xs)
+
+concatMapM :: (Monad m) => (a -> m [b]) -> [a] -> m [b]
+concatMapM f = liftM concat . mapM f
+
+mapMaybeM :: (Monad m) => (a -> m (Maybe b)) -> [a] -> m [b]
+mapMaybeM f as = go as
+    where
+    go [] = return []
+    go (a:as) = maybe (go as) (\b -> liftM (b:) (go as)) =<< f a
 
 -- -- | Finally a finally for MonadError.
 -- finally :: (Error.MonadError e m) => m a -> m () -> m a

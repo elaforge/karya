@@ -103,8 +103,7 @@ initialize view_id block_id tracknum track_id pos play_tracks = do
 
     filter_tracks <- if null play_tracks then return id
         else do
-            play_ids <- Maybe.catMaybes <$>
-                mapM (State.event_track_at block_id) play_tracks
+            play_ids <- mapMaybeM (State.event_track_at block_id) play_tracks
             return $ filter $ LEvent.either (from_track play_ids) (const False)
     msgs <- fmap LEvent.events_of $ PlayUtil.perform_events $ filter_tracks $
         PlayUtil.events_from start $ Cmd.perf_events perf

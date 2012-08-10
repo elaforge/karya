@@ -107,8 +107,8 @@ selected_to_state block_id selected = State.exec State.empty $ do
 
 get_selection :: (Cmd.M m) => Selection.SelectedTracks -> m Selected
 get_selection (block_id, tracknums, _, start, end) = do
-    tracks <- mapM State.get_track =<< Maybe.catMaybes <$>
-        mapM (State.event_track_at block_id) tracknums
+    tracks <- mapM State.get_track =<<
+        mapMaybeM (State.event_track_at block_id) tracknums
     return $ map extract tracks
     where
     extract track = (Track.track_title track,

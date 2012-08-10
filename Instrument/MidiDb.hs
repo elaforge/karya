@@ -207,8 +207,6 @@ patch_map patches =
 
 type NamedPatch code = (String, [PatchCode code])
 type Merge = Logger.LoggerT String Identity.Identity
-concatMapM :: (Functor m, Monad m) => (a -> m [b]) -> [a] -> m [b]
-concatMapM f xs = concat <$> mapM f xs
 
 -- | Make the patches into a PatchMap.  This is just a version of
 -- 'patch_map' that logs colliding patches and is hence in IO.

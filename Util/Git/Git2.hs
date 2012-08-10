@@ -320,7 +320,7 @@ diff_tree_repo repop old new =
             G.check "diff_print_compact" $
                 G.c'git_diff_print_compact listp nullPtr callback
         IORef.readIORef ref
-    concat <$> mapM to_mod diffs
+    concatMapM to_mod diffs
     where
     to_mod (status, path, oid)
         | status == G.c'GIT_DELTA_DELETED = return [Remove path]
