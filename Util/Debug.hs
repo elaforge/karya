@@ -1,7 +1,10 @@
 module Util.Debug (
-    -- * non-monadic
-    trace, traces, tracef, trace_ret, tracem, traceM, traceMs
-    -- * IO
+    -- * forced by evaluation
+    trace, tracep, traces
+    , tracef, trace_ret
+    -- * forced by monad
+    , traceM, tracepM, tracesM
+    -- in IO
     , puts, put, putp
 ) where
 import qualified Control.Monad.Trans as Trans
@@ -12,47 +15,58 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 
-trace :: String -> b -> b
-trace s = Trace.trace (prefix ++ s)
+-- * forced by evaluation
+
+trace :: (Show a) => String -> a -> a
+trace msg val = Trace.trace (with_msg msg (pshow val)) val
+
+tracep :: (Pretty.Pretty a) => String -> a -> a
+tracep msg val = Trace.trace (with_msg msg (Pretty.formatted val)) val
 
 -- | Print a showable value.
-traces :: (Show a) => a -> b -> b
-traces a b = trace (pshow a) b
-
--- | Print a value prefixed with a msg.
-tracem :: (Show a) => String -> a -> a
-tracem msg x = trace (msg ++ ": " ++ pshow x) x
-
--- | Print a value in a monad.  The monad will force it to be printed.
-traceM :: (Show a, Monad m) => String -> a -> m ()
-traceM msg val = Trace.trace (prefix ++ msg ++ ": " ++ pshow val) (return ())
-
-traceMs :: (Monad m) => String -> m ()
-traceMs msg = trace msg (return ())
+traces :: String -> a -> a
+traces =  Trace.trace
 
 -- | Print a value after applying a function to it.
 tracef :: (Show b) => (a -> b) -> a -> a
-tracef f val = trace (pshow (f val)) val
+tracef f val = traces (pshow (f val)) val
 
 -- | Trace input and output of a function.
 trace_ret :: (Show a, Show b) => a -> b -> b
-trace_ret a ret = trace (pshow a ++ " -> " ++ pshow ret) ret
+trace_ret a ret = traces (pshow a ++ " -> " ++ pshow ret) ret
 
-prefix :: String
-prefix = "** "
+-- * forced by monad
 
-pshow :: (Show a) => a -> String
-pshow = Seq.strip . PPrint.pshow
+-- | Print a value in a monad.  The monad will force it to be printed.
+traceM :: (Show a, Monad m) => String -> a -> m ()
+traceM msg val = Trace.trace (with_msg msg (pshow val)) (return ())
 
+tracepM :: (Pretty.Pretty a, Monad m) => String -> a -> m ()
+tracepM msg val = Trace.trace (with_msg msg (Pretty.formatted val)) (return ())
 
+tracesM :: (Monad m) => String -> m ()
+tracesM msg = Trace.trace msg (return ())
+
+-- * in IO
 -- These are like putStrLn, but more easily greppable.
 
 puts :: (Trans.MonadIO m) => String -> m ()
 puts = Trans.liftIO . putStrLn . (prefix++)
 
 put :: (Trans.MonadIO m, Show a) => String -> a -> m ()
-put msg = Trans.liftIO . putStrLn . ((prefix ++ msg ++ ": ") ++) . pshow
+put msg = Trans.liftIO . putStrLn . (with_msg msg) . pshow
 
 putp :: (Trans.MonadIO m, Pretty.Pretty a) => String -> a -> m ()
-putp msg = Trans.liftIO . putStrLn . ((prefix ++ msg ++ ": ") ++)
-    . Pretty.formatted
+putp msg = Trans.liftIO . putStrLn . (with_msg msg) . Pretty.formatted
+
+
+-- * implementation
+
+with_msg :: String -> String -> String
+with_msg msg text = Seq.strip $ prefix ++ msg ++ ": " ++ text
+
+prefix :: String
+prefix = "** "
+
+pshow :: (Show a) => a -> String
+pshow = Seq.strip . PPrint.pshow
