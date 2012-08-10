@@ -29,8 +29,9 @@ data Block = Block {
     , block_tracks :: ![Track]
     , block_skeleton :: !Skeleton.Skeleton
     -- | Present if this block was integrated from another.
-    , block_integrated :: !(Maybe Integrated)
-    , block_integrated_tracks :: ![IntegratedTrack]
+    , block_integrated :: !(Maybe (BlockId, [TrackDestination]))
+    -- | [(source_track, destinations)]
+    , block_integrated_tracks :: ![(TrackId, [TrackDestination])]
     , block_meta :: !Meta
     } deriving (Eq, Read, Show)
 
@@ -53,32 +54,19 @@ instance DeepSeq.NFData Block where
 -- be rendered to lilypond and provide arguments for it.
 type Meta = Map.Map String String
 
--- | This indicates that the block was integrated from another block.
-data Integrated = Integrated {
-    -- | The source block.
-    integrated_block :: !BlockId
-    , integrated_index :: !EventIndex
-    } deriving (Eq, Read, Show)
-
-instance Pretty.Pretty Integrated where
-    format (Integrated block_id index) = Pretty.record
-            (Pretty.text "Integrated" Pretty.<+> Pretty.format block_id)
-        [("index", Pretty.format index)]
-
-data IntegratedTrack = IntegratedTrack {
-    -- | Source track.
-    integrated_source :: !TrackId
-    -- | Generated tracks.
-    , integrated_destinations :: ![TrackId]
-    , integrated_track_index :: !EventIndex
+data TrackDestination = TrackDestination {
+    dest_note :: !(TrackId, EventIndex)
+    , dest_controls :: !(Map.Map String (TrackId, EventIndex))
     } deriving (Eq, Show, Read)
 
-instance Pretty.Pretty IntegratedTrack where
-    format (IntegratedTrack track_id to_tracks index) = Pretty.record
-            (Pretty.text "Integrated" Pretty.<+> Pretty.format track_id)
-        [ ("to", Pretty.format to_tracks)
-        , ("index", Pretty.format index)
-        ]
+instance Pretty.Pretty TrackDestination where
+    format (TrackDestination note controls) =
+        Pretty.format (fst note, Map.map fst controls)
+
+
+-- If a track was deleted, then its track id will be missing.
+-- Since merge recreates the track, then it will always be the same as convert
+-- output.
 
 -- | This is a picture of the integrated events that were used to create an
 -- integrated block.  By taking its difference against the current contents of
@@ -251,6 +239,7 @@ track_of :: Tracklike -> Maybe Track.Track
 track_of (T track _) = Just track
 track_of _ = Nothing
 
+tracks_of :: [Tracklike] -> [Track.Track]
 tracks_of = Maybe.mapMaybe track_of
 
 ruler_of :: Tracklike -> Maybe Ruler.Ruler
@@ -258,6 +247,7 @@ ruler_of (T _ ruler) = Just ruler
 ruler_of (R ruler) = Just ruler
 ruler_of _ = Nothing
 
+rulers_of :: [Tracklike] -> [Ruler.Ruler]
 rulers_of = Maybe.mapMaybe ruler_of
 
 -- | A divider separating tracks.

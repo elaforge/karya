@@ -234,6 +234,10 @@ extract_all_tracks state =
     zip block_ids (map (flip extract_tracks_of state) block_ids)
     where block_ids = Map.keys (State.state_blocks state)
 
+extract_skeleton :: State.State -> [(TrackNum, TrackNum)]
+extract_skeleton = maybe [] (Skeleton.flatten . Block.block_skeleton)
+    . Map.lookup default_block_id . State.state_blocks
+
 -- * view
 
 select :: (State.M m) => ViewId -> Types.Selection -> m ()

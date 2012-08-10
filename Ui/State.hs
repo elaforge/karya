@@ -377,10 +377,9 @@ create_view id view = do
         \views st -> st { state_views = views }
     where
     with_status block = case Block.block_integrated block of
-        Just integrated -> view
+        Just (source_block, _) -> view
             { Block.view_status = Map.insert Config.status_integrate_source
-                (Id.ident_string (Block.integrated_block integrated))
-                (Block.view_status view)
+                (Id.ident_string source_block) (Block.view_status view)
             }
         Nothing -> view
 
@@ -843,13 +842,17 @@ track_at block_id tracknum = do
 
 -- | TODO this assumes TrackNums and TrackIds are 1:1.  There's nothing that
 -- enforces that currently, but I should fix that.
-tracknum_of :: (M m) => BlockId -> TrackId -> m TrackNum
-tracknum_of block_id tid = do
-    tracks <- tracks_of block_id
-    require msg (find tracks tid)
-    where
-    find tracks tid = track_tracknum <$> List.find ((==tid) . track_id) tracks
-    msg = "tracknum_of: track " ++ show tid ++ " not in " ++ show block_id
+tracknum_of :: (M m) => BlockId -> TrackId -> m (Maybe TrackNum)
+tracknum_of block_id tid = find <$> tracks_of block_id
+    where find = (track_tracknum <$>) . List.find ((==tid) . track_id)
+
+tracknums_of :: (M m) => BlockId -> [TrackId] -> m [Maybe TrackNum]
+tracknums_of block_id = mapM (tracknum_of block_id)
+
+get_tracknum_of :: (M m) => BlockId -> TrackId -> m TrackNum
+get_tracknum_of block_id tid =
+    require ("tracknum_of: track " ++ show tid ++ " not in " ++ show block_id)
+        =<< tracknum_of block_id tid
 
 -- | Like 'track_at', but only for event tracks.
 event_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe TrackId)
@@ -947,7 +950,7 @@ unmerge_track :: (M m) => BlockId -> TrackNum -> m ()
 unmerge_track block_id tracknum = do
     track_ids <- Block.track_merged <$> get_block_track block_id tracknum
     unmerged_tracknums <-
-        concat <$> mapM (track_id_tracknums block_id) track_ids
+        concatMapM (track_id_tracknums block_id) track_ids
     forM_ unmerged_tracknums $ \tracknum ->
         remove_track_flag block_id tracknum Block.Collapse
     set_merged_tracks block_id tracknum []

@@ -99,14 +99,17 @@ c_track_integrate = Derive.transformer "track-integrate" $ \args deriver ->
 only_destinations_damaged :: BlockId -> TrackId -> Derive.Deriver Bool
 only_destinations_damaged block_id track_id = do
     damage <- Internal.get_constant Derive.state_score_damage
+    -- TODO why not block_id `member` sdamage_blocks?
     if not (Set.null (Derive.sdamage_blocks damage)) then return False else do
         tracks <- Block.block_integrated_tracks <$> Derive.get_block block_id
         let damaged = Map.keysSet (Derive.sdamage_tracks damage)
         return $ Set.null $ damaged `Set.difference` destinations tracks
     where
     destinations tracks = Set.fromList $ concat
-        [Block.integrated_destinations track | track <- tracks,
-            Block.integrated_source track == track_id]
+        [concatMap dest_ids dests | (source_id, dests) <- tracks,
+            source_id == track_id]
+    dest_ids (Block.TrackDestination (track_id, _) controls) =
+        track_id : map fst (Map.elems controls)
 
 track_integrate :: BlockId -> TrackId -> Derive.Events -> Derive.Deriver ()
 track_integrate block_id track_id events = do

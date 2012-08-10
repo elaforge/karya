@@ -174,7 +174,7 @@ instance Serialize State.Default where
 instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
-    put (Block.Block a _config b c d e f) = put_version 8
+    put (Block.Block a _config b c d e f) = put_version 7
         >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
         v <- get_version
@@ -204,35 +204,19 @@ instance Serialize Block.Block where
                 title :: String <- get
                 tracks :: [Block.Track] <- get
                 skel :: Skeleton.Skeleton <- get
-                integrated :: Maybe Block.Integrated <- get
+                integrated :: Maybe (BlockId, [Block.TrackDestination]) <- get
+                itracks :: [(TrackId, [Block.TrackDestination])] <- get
                 meta :: Map.Map String String <- get
                 return $ Block.Block title Block.default_config tracks skel
-                    integrated [] meta
-            8 -> do
-                title :: String <- get
-                tracks :: [Block.Track] <- get
-                skel :: Skeleton.Skeleton <- get
-                integrated :: Maybe Block.Integrated <- get
-                integrated_tracks :: [Block.IntegratedTrack] <- get
-                meta :: Map.Map String String <- get
-                return $ Block.Block title Block.default_config tracks skel
-                    integrated integrated_tracks meta
+                    integrated itracks meta
             _ -> bad_version "Block.Block" v
 
-instance Serialize Block.Integrated where
-    put (Block.Integrated a b) = put a >> put b
+instance Serialize Block.TrackDestination where
+    put (Block.TrackDestination a b) = put a >> put b
     get = do
-        block_id :: BlockId <- get
-        index :: Block.EventIndex <- get
-        return $ Block.Integrated block_id index
-
-instance Serialize Block.IntegratedTrack where
-    put (Block.IntegratedTrack a b c) = put a >> put b >> put c
-    get = do
-        track :: TrackId <- get
-        to :: [TrackId] <- get
-        index :: Block.EventIndex <- get
-        return $ Block.IntegratedTrack track to index
+        note :: (TrackId, Block.EventIndex) <- get
+        controls :: (Map.Map String (TrackId, Block.EventIndex)) <- get
+        return $ Block.TrackDestination note controls
 
 instance Serialize Skeleton.Skeleton where
     put (Skeleton.Skeleton a) = put a

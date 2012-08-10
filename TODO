@@ -417,13 +417,24 @@ integrate
     Sync.set_track_signals to the ResponderSync via a magic return value.
     I could then get rid of the CPP hack in Ui.Ui I think.
   - It may be possible to parallelize multiple integrations.
+  - Seq.pair_sorted and similar can return 'First a | Second b | Both a b'
+    to avoid the bogus (Nothing, Nothing).  So can Seq.zip_padded
+  - use NonEmpty list from semigroups
+  - also look for possible semigroup instances
+  - bug: a new integrated block doesn't have bold event style
+  - integrate should add the pitch event if the next note has the same pitch
   track integrate
-    - Adding a a new event to the source track puts it on the wrong
+    * Adding a new event to the source track puts it on the wrong
       destination track.
-    - Verify that integration works correctly when the number of integrated
+    Diff per-track instead of putting all events in the index.
+      * track integrate
+      * block integrate
+      * complete tests
+    * Verify that integration works correctly when the number of integrated
       tracks changes.
-    - Make sure edits are maintained and events move to the new track if the
-      integrator changes to add or remove a track.
+    - Merge is still buggy: add new event, then surround it in source.
+    - Convert.Tracks should mirror TrackDestination structure.  Or
+      parameterize TrackDestination?
     * Implement 0 delay derive.  Collect a list of blocks modified due to
       integration.  Those should omit the usual derive delay.
     - Figure out how multiple levels of track integration work.
