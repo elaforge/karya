@@ -1,5 +1,25 @@
 {-# LANGUAGE CPP, OverloadedStrings #-}
--- | Support for converting Tracks into UI blocks.
+{- | Merge integrated tracks into existing, possibly hand-edited tracks, using
+    the index of the previous integration to figure out which edits were made.
+
+    This proceeds it two steps: first the tracks are matched up.  This takes
+    advantage of the two-level (note, controls) hierarchy emitted by
+    "Cmd.Integrate.Convert", since each control track is uniquely identified by
+    its title, it's safe to just match them up by title.
+
+    However, there's no key to match up the note tracks themselves, so it's
+    done purely based on the order of the tracks.  So if the integrate source
+    emits more simultaneous notes and Convert puts them on appended tracks all
+    will be well, but if it prepends a new track then the later tracks won't
+    line up with the index.  This will result in bogus diffs, or just events
+    not being found at all and being considered hand-added.
+
+    TODO I'll have to see from experience if this is a problem, and if so, how
+    it can be fixed.
+
+    Once tracks are matched, the events are diffed based on the
+    'Event.IndexKey'.
+-}
 module Cmd.Integrate.Merge (
     -- * create
     create_block
@@ -167,11 +187,8 @@ merge_track (Convert.Track _ integrated_events) (track_id, index) = do
     old_events <- Events.ascending . Track.track_events <$>
         State.get_track track_id
     let (deletes, edits) = diff_events index old_events
-        new_events = apply deletes edits (with_stacks integrated_events)
+        new_events = apply deletes edits integrated_events
     State.modify_some_events track_id (const new_events)
-    where
-    with_stacks events = [(stack, event) | (Just stack, event)
-        <- zip (map (Event.event_stack . snd) events) events]
 
 set_skeleton :: (State.M m) => BlockId -> [Block.TrackDestination] -> m ()
 set_skeleton block_id dests = do
@@ -200,8 +217,7 @@ track_edges track_ids = concatMap edges
 -- should all have stacks, so events without stacks are discarded.
 make_index :: [Events.PosEvent] -> Block.EventIndex
 make_index events = Map.fromList
-    [(stack, event) | (Just stack, event) <- zip (map stack_of events) events]
-    where stack_of = Event.event_stack . snd
+    [(key, event) | (Just key, event) <- Seq.key_on index_key events]
 
 -- ** diff
 
@@ -210,25 +226,30 @@ make_index events = Map.fromList
 diff_events :: Block.EventIndex -- ^ results of last integrate
     -> [Events.PosEvent]
     -- ^ current events, which is last integrate plus user edits
-    -> (Set.Set Event.Stack, [Edit])
+    -> (Set.Set Event.IndexKey, [Edit])
     -- ^ set of deleted events, and edited events
 diff_events index events = (deletes, edits)
     where
     deletes = Set.difference (Map.keysSet index) $
-        Set.fromList (Maybe.mapMaybe (Event.event_stack . snd) events)
+        Set.fromList (Maybe.mapMaybe index_key events)
     edits = map (diff index) events
 
 diff :: Block.EventIndex -> Events.PosEvent -> Edit
-diff index new = case Event.event_stack (snd new) of
+diff index new = case index_key new of
     Nothing -> Add new
-    Just stack -> case Map.lookup stack index of
+    Just key -> case Map.lookup key index of
         -- Events with a stack but not in the index shouldn't happen, they
         -- indicate that the index is out of sync with the last
         -- integration.  To be safe, they're counted as an add, and the
         -- stack is deleted.  TODO could this multiply events endlessly?
+        -- TODO This could be a symptom of tracks not lining up anymore.
+        -- I should emit a warning.
         Nothing -> Add (clear_stack new)
-        Just old -> Edit stack (diff_event old new)
+        Just old -> Edit key (diff_event old new)
     where clear_stack (p, e) = (p, e { Event.event_stack = Nothing })
+
+index_key :: Events.PosEvent -> Maybe Event.IndexKey
+index_key = fmap Event.stack_key . Event.event_stack . snd
 
 diff_event :: Events.PosEvent -> Events.PosEvent -> [Modify]
 diff_event (old_pos, old_event) (new_pos, new_event) = concat
@@ -257,7 +278,7 @@ diff_text old new
     ends_with_pipe text = "|" `B.isSuffixOf` pre && B.all (==' ') post
         where (pre, post) = B.breakEnd (=='|') text
 
-data Edit = Add !Events.PosEvent | Edit !Event.Stack ![Modify]
+data Edit = Add !Events.PosEvent | Edit !Event.IndexKey ![Modify]
     deriving (Eq, Show)
 
 data Modify = Position !ScoreTime | Duration !ScoreTime
@@ -267,8 +288,8 @@ data Modify = Position !ScoreTime | Duration !ScoreTime
 instance Pretty.Pretty Edit where
     format (Add event) =
         Pretty.constructor "Add" [Pretty.format event]
-    format (Edit stack mods) = Pretty.constructor "Edit"
-        [Pretty.format stack, Pretty.format mods]
+    format (Edit key mods) = Pretty.constructor "Edit"
+        [Pretty.format key, Pretty.format mods]
 
 instance Pretty.Pretty Modify where pretty = show
 
@@ -278,25 +299,24 @@ is_modified _ = True
 
 -- ** apply
 
-apply :: Set.Set Event.Stack -- ^ events that were deteleted
-    -> [Edit]
-    -> [(Event.Stack, Events.PosEvent)] -- ^ results of current integrate
+apply :: Set.Set Event.IndexKey -- ^ events that were deteleted
+    -> [Edit] -> [Events.PosEvent] -- ^ results of current integrate
     -> Events.Events
 apply deletes adds_edits = make . Maybe.mapMaybe edit
     where
     -- Adds go afterwards so they can replace coincident events.
     make events = Events.from_list (events ++ adds)
-    edit (stack, event)
-        | stack `Set.member` deletes = Nothing
-        | Just mods <- Map.lookup stack edit_map = if null mods
+    edit event
+        | fst event `Set.member` deletes = Nothing
+        | Just mods <- Map.lookup (fst event) edit_map = if null mods
             then Just (unmodified event)
             else Just (apply_modifications mods event)
         -- A new event from the integrate.
         | otherwise = Just (unmodified event)
-    edit_map = Map.fromList [(stack, mods) | (stack, mods) <- edits]
+    edit_map = Map.fromList [(key, mods) | (key, mods) <- edits]
     (adds, edits) = Seq.partition_either (map to_either adds_edits)
     to_either (Add event) = Left event
-    to_either (Edit stack mods) = Right (stack, mods)
+    to_either (Edit key mods) = Right (key, mods)
 
 -- | Unmodified events get a special style to indicate such.
 unmodified :: Events.PosEvent -> Events.PosEvent

@@ -28,7 +28,7 @@ block block_id = do
     Cmd.derive_immediately [new_block_id]
     Create.view new_block_id
 
-edits :: (Cmd.M m) => BlockId -> TrackId -> m ([Event.Stack], [Merge.Edit])
+edits :: (Cmd.M m) => BlockId -> TrackId -> m ([Event.IndexKey], [Merge.Edit])
 edits block_id track_id = do
     block <- State.get_block block_id
     index <- Cmd.require_msg "track is not integrated from anywhere" $

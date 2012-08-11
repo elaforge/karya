@@ -22,16 +22,16 @@ test_diff = do
     let f old new = extract $ Merge.diff index (mkevent new)
             where index = mkindex [old]
         extract (Merge.Add event) = Left (extract_event event)
-        extract (Merge.Edit stack mods) = Right (extract_stack stack, mods)
+        extract (Merge.Edit key mods) = Right (key, mods)
     -- no mods
-    equal (f (0, 1, "a", Just 'a') (0, 1, "a", Just 'a')) $
-        Right ('a', [])
+    equal (f (0, 1, "a", Just 0) (0, 1, "a", Just 0)) $
+        Right (0, [])
     -- moved
-    equal (f (0, 1, "a", Just 'a') (1, 1, "a", Just 'a')) $
-        Right ('a', [Merge.Position 1])
+    equal (f (0, 1, "a", Just 0) (1, 1, "a", Just 0)) $
+        Right (0, [Merge.Position 1])
     -- A new event has an unknown stack, so it's considered an add and the
     -- stack is deleted.
-    equal (f (0, 1, "a", Just 'a') (1, 1, "b", Just 'b')) $
+    equal (f (0, 1, "a", Just 0) (1, 1, "b", Just 1)) $
         Left (1, 1, "b", Nothing)
 
 test_diff_event = do
@@ -50,31 +50,31 @@ test_apply = do
         added start text = (start, 1, text, Nothing)
     equal (f [] [] []) []
     -- no changes
-    equal (f [stack 0 "a" 'a'] [stack 0 "a" 'a'] [stack 0 "a" 'a'])
-        [(0, 1, "a", Just 'a')]
+    equal (f [stack 0 "a" 0] [stack 0 "a" 0] [stack 0 "a" 0])
+        [(0, 1, "a", Just 0)]
     -- no edits, integrated changed to "b"
-    equal (f [stack 0 "a" 'a'] [stack 0 "b" 'a'] [stack 0 "a" 'a'])
-        [(0, 1, "b", Just 'a')]
+    equal (f [stack 0 "a" 0] [stack 0 "b" 0] [stack 0 "a" 0])
+        [(0, 1, "b", Just 0)]
     -- event deleted
-    equal (f [stack 0 "a" 'a'] [stack 0 "b" 'a'] []) []
+    equal (f [stack 0 "a" 0] [stack 0 "b" 0] []) []
     -- event moved
-    equal (f [stack 0 "a" 'a'] [stack 0 "b" 'a'] [stack 1 "a" 'a'])
-        [(1, 1, "b", Just 'a')]
+    equal (f [stack 0 "a" 0] [stack 0 "b" 0] [stack 1 "a" 0])
+        [(1, 1, "b", Just 0)]
     -- one event of 3 deleted
-    equal (f [stack 0 "a" 'a', stack 1 "b" 'b', stack 2 "c" 'c']
-             [stack 0 "x" 'a', stack 1 "y" 'b', stack 2 "z" 'c']
-             [stack 0 "a" 'a', stack 2 "c" 'c'])
-        [(0, 1, "x", Just 'a'), (2, 1, "z", Just 'c')]
+    equal (f [stack 0 "a" 0, stack 1 "b" 1, stack 2 "c" 2]
+             [stack 0 "x" 0, stack 1 "y" 1, stack 2 "z" 2]
+             [stack 0 "a" 0, stack 2 "c" 2])
+        [(0, 1, "x", Just 0), (2, 1, "z", Just 2)]
     -- add new event
-    equal (f [stack 0 "a" 'a'] [stack 0 "b" 'a'] [stack 0 "a" 'a', added 1 "q"])
-        [(0, 1, "b", Just 'a'), (1, 1, "q", Nothing)]
+    equal (f [stack 0 "a" 0] [stack 0 "b" 0] [stack 0 "a" 0, added 1 "q"])
+        [(0, 1, "b", Just 0), (1, 1, "q", Nothing)]
     -- new event replaces generated one
-    equal (f [stack 0 "a" 'a'] [stack 1 "b" 'a'] [stack 0 "a" 'a', added 1 "q"])
+    equal (f [stack 0 "a" 0] [stack 1 "b" 0] [stack 0 "a" 0, added 1 "q"])
         [(1, 1, "q", Nothing)]
 
 apply :: [Event] -> [Event] -> [Event] -> [Event]
 apply last_integrate integrated events = map extract_event $ Events.ascending $
-    Merge.apply deletes edits (mkstack_events integrated)
+    Merge.apply deletes edits (map mkevent integrated)
     where
     (deletes, edits) = Merge.diff_events index (map mkevent events)
     index = mkindex last_integrate
@@ -88,7 +88,8 @@ test_integrate = do
     state <- f (mkblock [(">", events "ab")]) [((">a", events "cd"), [])]
     equal (extract state) [(">", events "ab"), (">a", events "cd")]
     -- Added events are merged into the reintegration.
-    state <- f (modify (insert_event 2 "z" 1) state) [((">a", events "cf"), [])]
+    state <- f (modify (UiTest.insert_event 2 (1, 1, "z")) state)
+        [((">a", events "cf"), [])]
     equal (extract state)
         [ (">", events "ab")
         , (">a", [(0, 1, "c"), (1, 1, "z"), (2, 1, "f")])
@@ -110,12 +111,11 @@ test_integrate = do
 
     -- Only non-generated events are cleared.
     state <- f (mkblock []) [((">a", events "ab"), [])]
-    state <- f (modify (insert_event 1 "z" 1) state) []
+    state <- f (modify (UiTest.insert_event 1 (1, 1, "z")) state) []
     equal (extract state) [(">a", [(1, 1, "z")])]
 
-insert_event :: TrackNum -> String -> ScoreTime -> State.StateId ()
-insert_event tracknum text pos =
-    State.insert_event (UiTest.mk_tid tracknum) pos (Event.event text 1)
+    -- Interacts properly with aded events.
+    -- state <- f (mkblock []) [((">a", events "ab"), [])]
 
 mkblock :: [UiTest.TrackSpec] -> State.State
 mkblock = snd . UiTest.run_mkblock
@@ -137,35 +137,26 @@ mktracks :: [(UiTest.TrackSpec, [UiTest.TrackSpec])] -> Convert.Tracks
 mktracks = map $ \(note, controls) -> (convert note, map convert controls)
     where
     convert (title, events) = Convert.Track title
-        (map (add_stack title) $ zip [0..] $ map UiTest.make_event events)
-    add_stack title (n, (pos, event)) = (pos, event
-        { Event.event_stack = Just (Event.Stack Stack.empty title n) })
+        (map (add_stack title) $ map UiTest.make_event events)
+    add_stack title (pos, event) = (pos, event
+        { Event.event_stack = Just $ Event.Stack (Stack.call title) pos })
 
 mkindex :: [Event] -> Block.EventIndex
 mkindex = Merge.make_index . map mkevent
 
 -- * util
 
-mkstack_events :: [Event] -> [(Event.Stack, Events.PosEvent)]
-mkstack_events events =
-    [(stack, event) | event <- map mkevent events,
-        Just stack <- [Event.event_stack (snd event)]]
-
-type Event = (ScoreTime, ScoreTime, String, Maybe Char)
+type Event = (ScoreTime, ScoreTime, String, Maybe ScoreTime)
 
 mkevent :: Event -> Events.PosEvent
-mkevent (start, dur, text, call) =
-    (start, (Event.event text dur) { Event.event_stack = mkstack <$> call })
-
-mkstack :: Char -> Event.Stack
-mkstack c = Event.Stack (Stack.from_innermost [Stack.Call (c:"")]) "tag" 0
+mkevent (start, dur, text, mb_stack) = (start, add_stack (Event.event text dur))
+    where
+    add_stack = case mb_stack of
+        Nothing -> id
+        Just pos -> \event -> event { Event.event_stack =
+            Just $ Event.Stack (Stack.call (show pos)) pos }
 
 extract_event :: Events.PosEvent -> Event
 extract_event (pos, event) =
     (pos, Event.event_duration event, Event.event_string event,
-        extract_stack <$> Event.event_stack event)
-
-extract_stack :: Event.Stack -> Char
-extract_stack stack = case Stack.innermost (Event.stack_stack stack) of
-    [Stack.Call [c]] -> c
-    _ -> error $ "un-extractable stack: " ++ show stack
+        Event.stack_key <$> Event.event_stack event)

@@ -71,7 +71,7 @@ instance Pretty.Pretty TrackDestination where
 -- | This is a picture of the integrated events that were used to create an
 -- integrated block.  By taking its difference against the current contents of
 -- the block I can figure out user edits.
-type EventIndex = Map.Map Event.Stack Events.PosEvent
+type EventIndex = Map.Map Event.IndexKey Events.PosEvent
 
 block_tracklike_ids :: Block -> [TracklikeId]
 block_tracklike_ids = map tracklike_id . block_tracks

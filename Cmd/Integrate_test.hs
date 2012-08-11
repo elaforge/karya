@@ -5,10 +5,8 @@ import Util.Control
 import qualified Util.Ranges as Ranges
 import Util.Test
 
-import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ResponderTest as ResponderTest
@@ -21,8 +19,7 @@ import Types
 test_block_integrate = do
     let states = mkstates "<< | reverse"
             ("s/i1", [(0, 1, "4c"), (1, 1, "4d")], [])
-        next state action = last <$> until_complete state action
-    res <- next states $ insert_event 1 (1, 1, "")
+    res <- start states $ UiTest.insert_event 1 (1, 1, "")
     -- create a new block
     equal (e_tracks res)
         [ (UiTest.bid "b01",
@@ -35,8 +32,8 @@ test_block_integrate = do
             ])
         ]
     -- merge in changes
-    res <- next (ResponderTest.result_states res) $
-        insert_event 1 (2, 1, "") >> insert_event 2 (2, 0, "4e")
+    res <- next res $
+        UiTest.insert_event 1 (2, 1, "") >> UiTest.insert_event 2 (2, 0, "4e")
     equal (last (e_tracks res))
         (UiTest.bid "b02",
             [ (">s/i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
@@ -44,28 +41,44 @@ test_block_integrate = do
             ])
     -- delete an event, then change the source
     -- cde -> edc ;; cdf -> f c
-    res <- next (ResponderTest.result_states res) $
+    res <- next res $
         -- UiTest created tracks start at t01 so that I can write the IDs as
         -- strings and have the number equal the tracknum.  But Cmd.Create
         -- created tracks start at 00.
-        remove_event "b02" 1 1 >> remove_event "b02" 2 1
-        >> insert_event 2 (2, 0, "4f")
+        UiTest.remove_event_in "b02" 1 1 >> UiTest.remove_event_in "b02" 2 1
+        >> UiTest.insert_event 2 (2, 0, "4f")
     equal (last (e_tracks res))
         (UiTest.bid "b02",
             [ (">s/i1", [(0, 1, ""), (2, 1, "")])
             , ("*twelve", [(0, 0, "4f"), (2, 0, "4c")])
             ])
 
+test_block_integrate2 = do
+    let states = mkstates "<<" ("s/i1", [(0, 1, "4c"), (1, 1, "4g")], [])
+        source = "b01"
+        dest = "b02"
+        pitch_track = fmap (snd . last) . lookup (UiTest.bid dest) . e_tracks
+    res <- start states (return ())
+    res <- next res $ do
+        UiTest.insert_event_in dest 2 (0.5, 0, "4a")
+        UiTest.insert_event_in source 2 (0.25, 0, "4d")
+    res <- next res $ UiTest.insert_event_in source 2 (0.5, 0, "4e")
+    equal (pitch_track res) $ Just
+        [(0, 0, "4c"), (0.25, 0, "4d"), (0.5, 0, "4a"), (1, 0, "4g")]
+    res <- next res $ UiTest.insert_event_in source 2 (0.75, 0, "4f")
+    equal (pitch_track res) $ Just
+        [(0, 0, "4c"), (0.25, 0, "4d"), (0.5, 0, "4a"), (0.75, 0, "4f"),
+            (1, 0, "4g")]
+
 test_track_integrate = do
     let states = ResponderTest.mkstates $ UiTest.note_spec
             ("s/i1 | < | reverse", [(0, 1, "4c"), (1, 1, "4d")], [])
-        next state action = last <$> until_complete state action
         continue = ResponderTest.continue_until ResponderTest.is_derive_complete
         e_damage =
             fmap (Map.toList . Derive.sdamage_tracks . Cmd.perf_score_damage)
             . e_perf
 
-    res <- next states $ return ()
+    res <- start states $ return ()
     equal (e_tracks res)
         [(UiTest.default_block_id,
             [ (">s/i1 | < | reverse", [(0, 1, ""), (1, 1, "")])
@@ -82,7 +95,7 @@ test_track_integrate = do
     res <- last <$> continue res
     equal (e_events res) ([(0, 1, "4d"), (1, 1, "4c")], [])
 
-    res <- next (ResponderTest.result_states res) $ insert_event 2 (0, 0, "3c")
+    res <- next res $ UiTest.insert_event 2 (0, 0, "3c")
     equal (e_tracks res)
         [(UiTest.default_block_id,
             [ (">s/i1 | < | reverse", [(0, 1, ""), (1, 1, "")])
@@ -96,6 +109,46 @@ test_track_integrate = do
     equal (e_events res) ([(0, 1, "4d"), (1, 1, "3c")], [])
 
     -- TODO make a call that creates more or fewer tracks
+
+-- multiple integrations of different tracks
+-- multiple integrations of the same track
+
+start :: ResponderTest.States -> Cmd.CmdT IO a -> IO ResponderTest.Result
+start states action = last <$> until_complete states action
+
+next :: ResponderTest.Result -> Cmd.CmdT IO a -> IO ResponderTest.Result
+next = start . ResponderTest.result_states
+
+until_complete :: ResponderTest.States -> Cmd.CmdT IO a
+    -> IO [ResponderTest.Result]
+until_complete = ResponderTest.respond_until ResponderTest.is_derive_complete
+
+e_tracks :: ResponderTest.Result -> [(BlockId, [UiTest.TrackSpec])]
+e_tracks = UiTest.extract_all_tracks . ResponderTest.result_ui_state
+
+e_track_ids :: ResponderTest.Result -> [(BlockId, [TrackId])]
+e_track_ids = UiTest.extract_track_ids . ResponderTest.result_ui_state
+
+e_events :: ResponderTest.Result -> ([(RealTime, RealTime, String)], [String])
+e_events = DeriveTest.extract_levents DeriveTest.e_note2
+    . CmdTest.e_events UiTest.default_block_id . ResponderTest.result_cmd
+
+e_perf :: ResponderTest.Result -> Maybe Cmd.Performance
+e_perf =
+    CmdTest.e_performance UiTest.default_block_id . ResponderTest.result_cmd
+
+mkstates :: String -> UiTest.NoteSpec -> ResponderTest.States
+mkstates title notes = (UiTest.exec ui_state set_title, cmd_state)
+    where
+    (ui_state, cmd_state) = ResponderTest.mkstates (UiTest.note_spec notes)
+    set_title = State.set_block_title UiTest.default_block_id title
+
+run :: String -> [UiTest.TrackSpec] -> Cmd.CmdId a -> CmdTest.Result a
+run title tracks = CmdTest.run ustate CmdTest.default_cmd_state
+    where
+    ustate = UiTest.exec State.empty $ do
+        UiTest.mkblock_view (UiTest.default_block_name, tracks)
+        State.set_block_title UiTest.default_block_id title
 
 {-
 
@@ -120,40 +173,3 @@ Selection must still use TrackNum.
 Both tests and Create start at 0.
 
 -}
-
-until_complete :: ResponderTest.States -> Cmd.CmdT IO a
-    -> IO [ResponderTest.Result]
-until_complete = ResponderTest.respond_until ResponderTest.is_derive_complete
-
-e_tracks :: ResponderTest.Result -> [(BlockId, [UiTest.TrackSpec])]
-e_tracks = UiTest.extract_all_tracks . ResponderTest.result_ui_state
-
-e_events :: ResponderTest.Result -> ([(RealTime, RealTime, String)], [String])
-e_events = DeriveTest.extract_levents DeriveTest.e_note2
-    . CmdTest.e_events UiTest.default_block_id . ResponderTest.result_cmd
-
-e_perf :: ResponderTest.Result -> Maybe Cmd.Performance
-e_perf =
-    CmdTest.e_performance UiTest.default_block_id . ResponderTest.result_cmd
-
-insert_event :: (State.M m) => TrackNum -> (ScoreTime, ScoreTime, String)
-    -> m ()
-insert_event tracknum (pos, dur, text) =
-    State.insert_event (UiTest.mk_tid tracknum) pos (Event.event text dur)
-
-remove_event :: (State.M m) => String -> TrackNum -> ScoreTime -> m ()
-remove_event name tracknum =
-    State.remove_event (UiTest.mk_tid_name name tracknum)
-
-mkstates :: String -> UiTest.NoteSpec -> ResponderTest.States
-mkstates title notes = (UiTest.exec ui_state set_title, cmd_state)
-    where
-    (ui_state, cmd_state) = ResponderTest.mkstates (UiTest.note_spec notes)
-    set_title = State.set_block_title UiTest.default_block_id title
-
-run :: String -> [UiTest.TrackSpec] -> Cmd.CmdId a -> CmdTest.Result a
-run title tracks = CmdTest.run ustate CmdTest.default_cmd_state
-    where
-    ustate = UiTest.exec State.empty $ do
-        UiTest.mkblock_view (UiTest.default_block_name, tracks)
-        State.set_block_title UiTest.default_block_id title

@@ -1,4 +1,6 @@
 UNSORTED
+  - look for tests that could use insert_event
+  - in Cmd.Serialize, move the type declarations to the bound variables
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
@@ -432,7 +434,10 @@ integrate
       * complete tests
     * Verify that integration works correctly when the number of integrated
       tracks changes.
-    - Merge is still buggy: add new event, then surround it in source.
+    * Merge is still buggy: add new event, then surround it in source.
+    - Don't allow Set, if the text is completely different then consider it an
+      Add and remove the stack.  Rationale is that for a control track event,
+      position and text are its only salient characteristics.
     - Convert.Tracks should mirror TrackDestination structure.  Or
       parameterize TrackDestination?
     * Implement 0 delay derive.  Collect a list of blocks modified due to

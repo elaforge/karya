@@ -184,6 +184,24 @@ mk_tid_block block_id i
 mk_tid_name :: String -> TrackNum -> TrackId
 mk_tid_name = mk_tid_block . bid
 
+-- * actions
+
+insert_event_in :: (State.M m) => String -> TrackNum
+    -> (ScoreTime, ScoreTime, String) -> m ()
+insert_event_in block_name tracknum (pos, dur, text) =
+    State.insert_event (mk_tid_name block_name tracknum) pos
+        (Event.event text dur)
+
+insert_event :: (State.M m) => TrackNum -> (ScoreTime, ScoreTime, String)
+    -> m ()
+insert_event = insert_event_in default_block_name
+
+remove_event_in :: (State.M m) => String -> TrackNum -> ScoreTime -> m ()
+remove_event_in name tracknum = State.remove_event (mk_tid_name name tracknum)
+
+remove_event :: (State.M m) => TrackNum -> ScoreTime -> m ()
+remove_event = remove_event_in default_block_name
+
 -- ** make specs
 
 -- | This is a simplification of 'TrackSpec' that assumes one pitch per note.
@@ -237,6 +255,13 @@ extract_all_tracks state =
 extract_skeleton :: State.State -> [(TrackNum, TrackNum)]
 extract_skeleton = maybe [] (Skeleton.flatten . Block.block_skeleton)
     . Map.lookup default_block_id . State.state_blocks
+
+extract_track_ids :: State.State -> [(BlockId, [TrackId])]
+extract_track_ids state =
+    [(block_id, tracks_of block) | (block_id, block)
+        <- Map.toList (State.state_blocks state)]
+    where
+    tracks_of = Block.track_ids_of . map Block.tracklike_id . Block.block_tracks
 
 -- * view
 

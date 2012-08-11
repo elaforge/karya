@@ -460,12 +460,11 @@ instance Serialize Event1 where
         return $ Event1 text dur style stack
 
 instance Serialize Event.Stack where
-    put (Event.Stack a b c) = put a >> put b >> put c
+    put (Event.Stack a b) = put a >> put b
     get = do
         stack :: Stack.Stack <- get
-        tag :: String <- get
-        serial :: Int <- get
-        return $ Event.Stack stack tag serial
+        key :: Event.IndexKey <- get
+        return $ Event.Stack stack key
 
 -- ** Midi.Instrument
 

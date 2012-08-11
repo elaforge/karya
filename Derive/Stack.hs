@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
 module Derive.Stack (
     Stack, empty, length, from_outermost, from_innermost
-    , block, add, member, outermost, innermost
+    , block, call, add, member, outermost, innermost
     , block_of, track_of, region_of, call_of
     , Frame(..)
     , format_ui, show_ui, show_ui_
@@ -65,6 +65,10 @@ from_innermost = Stack
 -- | Make a Stack with a single block.
 block :: BlockId -> Stack
 block = from_innermost . (:[]) . Block
+
+-- | Make a Stack with a single call.
+call :: String -> Stack
+call = from_innermost . (:[]) . Call
 
 add :: Frame -> Stack -> Stack
 add frame (Stack stack) = Stack (frame:stack)

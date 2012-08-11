@@ -53,18 +53,23 @@ type Text = B.ByteString
 to_text :: String -> Text
 to_text = UTF8.fromString
 
--- | A Stack annotated with a tag and a serial number.  Events that come from
--- the same score event will all have the same stack, so some more information
--- is needed to differentiate them.
 data Stack = Stack {
+    -- | The stack is used so the event retains a reference to its generating
+    -- event.
     stack_stack :: !Stack.Stack
-    -- | One score event will emit separate ui events for note, pitch, and
-    -- controls.  A string tag is used to differentiate them.
-    , stack_tag :: !String
-    -- | One score call can emit multiple score events, so each one is
-    -- numbered.
-    , stack_serial :: !Int
+    , stack_key :: !IndexKey
     } deriving (Eq, Ord, Read, Show)
+
+-- | This is the original position of the event on its integrated track.  I can
+-- use this to find the (hopefully) equivalent event from the next integration
+-- to apply it even if the event has been moved or altered.
+--
+-- Keying on just the position has the effect that moving an event means to
+-- move any event that is generated at that position.  This might be perfectly
+-- reasonable or even desirable since it's easier to understand.  I'll have to
+-- see what kinds of edits and what kinds of reintegrations are likely in
+-- practice.
+type IndexKey = ScoreTime
 
 instance DeepSeq.NFData Event where
     rnf (Event bs dur style stack) =
@@ -75,8 +80,8 @@ instance Pretty.Pretty Event where
         (Pretty.format bs, Pretty.format dur, Pretty.format stack)
 
 instance Pretty.Pretty Stack where
-    format (Stack stack tag serial) = Pretty.format
-        (Pretty.format stack, Pretty.text tag, Pretty.format serial)
+    format (Stack stack key) =
+        Pretty.format (Pretty.format stack, Pretty.format key)
 
 -- | Manual event constructor.
 event :: String -> ScoreTime -> Event
