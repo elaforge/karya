@@ -116,13 +116,17 @@ note_event attr_map event =
 
 -- ** pitch
 
+-- | Unlike 'control_events', this only drops dups that occur within the same
+-- event.  This is because it's more normal to think of each note as
+-- establishing a new pitch, even if it's the same as the last one.
 pitch_events :: Scale.Scale -> Pitch.ScaleId -> Maybe Pitch.Key
     -> [Score.Event] -> (Track, [String])
 pitch_events scale scale_id key events =
-    (make_track pitch_title (tidy_events ui_events), concat errs)
+    (make_track pitch_title (tidy_pitches ui_events), concat errs)
     where
     pitch_title = TrackInfo.scale_to_title scale_id
     (ui_events, errs) = unzip $ map (pitch_signal_events scale key) events
+    tidy_pitches = clip_to_zero . clip_concat . map drop_dups
 
 no_pitch_signals :: [Score.Event] -> Bool
 no_pitch_signals = all (PitchSignal.null . Score.event_pitch)
@@ -132,15 +136,16 @@ pitch_signal_events :: Scale.Scale -> Maybe Pitch.Key -> Score.Event
 pitch_signal_events scale key event =
     (ui_events, map Pretty.pretty pitch_errs ++ note_errs)
     where
-    sig = Score.event_pitch event
+    sig = PitchSignal.drop_before start $ Score.event_pitch event
     ui_events = [ui_event (Score.event_stack event) (RealTime.to_score x)
             (Pitch.note_text note) 0
         | (x, _, Just note) <- notes]
     notes = [(x, nn, Scale.nn_to_note scale key nn)
-        | (x, nn) <- map (second Pitch.NoteNumber) (Signal.unsignal nns)]
+        | (x, nn) <- map (second Pitch.NoteNumber) (align_signal start nns)]
     note_errs = [Pretty.pretty x ++ ": nn out of range: " ++ Pretty.pretty nn
         | (x, nn, Nothing) <- notes]
     (nns, pitch_errs) = PitchSignal.to_nn sig
+    start = Score.event_start event
 
 -- ** control
 
@@ -156,7 +161,7 @@ control_track :: [Score.Event] -> Score.Typed Score.Control -> Track
 control_track events control =
     make_track (TrackInfo.unparse_typed control) ui_events
     where
-    ui_events = drop_dyn $ tidy_events $
+    ui_events = drop_dyn $ tidy_controls $
         map (signal_events (Score.typed_val control)) events
     -- Don't emit a dyn track if it's just the default.
     -- TODO generalize this to everything in in Derive.initial_controls
@@ -165,6 +170,7 @@ control_track events control =
             && Event.event_string event == default_dyn = []
     drop_dyn events = events
     default_dyn = ParseBs.show_hex_val Derive.default_dynamic
+    tidy_controls = clip_to_zero . drop_dups . clip_concat
 
 signal_events :: Score.Control -> Score.Event -> [Events.PosEvent]
 signal_events control event = case Map.lookup control controls of
@@ -172,10 +178,21 @@ signal_events control event = case Map.lookup control controls of
     Just sig ->
         [ui_event (Score.event_stack event)
             (RealTime.to_score x) (ParseBs.show_hex_val y) 0
-            | (x, y) <- Signal.unsignal (Score.typed_val sig)]
-    where controls = Score.event_controls event
+            | (x, y) <- samples (Score.typed_val sig)]
+    where
+    samples = align_signal start . Signal.drop_before start
+    controls = Score.event_controls event
+    start = Score.event_start event
 
 -- * util
+
+-- | Make sure the first sample of the signal lines up with the start.  This
+-- is called after 'Signal.drop_before', which may still emit a sample before
+-- the start time.
+align_signal :: Signal.X -> Signal.Signal y -> [(Signal.X, Signal.Y)]
+align_signal start sig = case Signal.unsignal sig of
+    [] -> []
+    (_, y) : xs -> (start, y) : xs
 
 event_stack :: Score.Event -> Event.Stack
 event_stack event = Event.Stack (Score.event_stack event)
@@ -184,9 +201,6 @@ event_stack event = Event.Stack (Score.event_stack event)
 ui_event :: Stack.Stack -> ScoreTime -> String -> ScoreTime -> Events.PosEvent
 ui_event stack pos text dur = (pos, (Event.event text dur)
     { Event.event_stack = Just (Event.Stack stack pos) })
-
-tidy_events :: [[Events.PosEvent]] -> [Events.PosEvent]
-tidy_events = clip_to_zero . drop_dups . clip_concat
 
 -- | Concatenate the events, dropping ones that are out of order.  The
 -- durations are not modified, so they still might overlap in duration, but the

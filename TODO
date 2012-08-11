@@ -1,4 +1,11 @@
 UNSORTED
+  - I could move cmd_play_msg out of Cmd.PlayC if I moved
+    Sync.set_track_signals to the ResponderSync via a magic return value.
+    I could then get rid of the CPP hack in Ui.Ui I think.
+  - Seq.pair_sorted and similar can return 'First a | Second b | Both a b'
+    to avoid the bogus (Nothing, Nothing).  So can Seq.zip_padded
+  - use NonEmpty list from semigroups
+  - also look for possible semigroup instances
   * look for tests that could use insert_event
   * in Cmd.Serialize, move the type declarations to the bound variables
   - I could set certain Symbols to stretch to the length of their event, this
@@ -415,16 +422,9 @@ integrate
   * Destination blocks could put the source block id in the status line.
   - Integrated events should change style as soon as they are edited, not at
     the next integration.
-  - I could move cmd_play_msg out of Cmd.PlayC if I moved
-    Sync.set_track_signals to the ResponderSync via a magic return value.
-    I could then get rid of the CPP hack in Ui.Ui I think.
   - It may be possible to parallelize multiple integrations.
-  - Seq.pair_sorted and similar can return 'First a | Second b | Both a b'
-    to avoid the bogus (Nothing, Nothing).  So can Seq.zip_padded
-  - use NonEmpty list from semigroups
-  - also look for possible semigroup instances
   - bug: a new integrated block doesn't have bold event style
-  - integrate should add the pitch event if the next note has the same pitch
+  * integrate should add the pitch event if the next note has the same pitch
   track integrate
     * Adding a new event to the source track puts it on the wrong
       destination track.
