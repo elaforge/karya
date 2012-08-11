@@ -115,8 +115,8 @@ instance Serialize SaveState where
         v <- get_version
         case v of
             0 -> do
-                ui_state <- get :: Get State.State
-                date <- get :: Get Time.UTCTime
+                ui_state :: State.State <- get
+                date :: Time.UTCTime <- get
                 return (SaveState ui_state date)
             _ -> bad_version "SaveState" v
 
@@ -127,11 +127,11 @@ instance Serialize State.State where
         v <- get_version
         case v of
             6 -> do
-                views <- get :: Get (Map.Map Types.ViewId Block.View)
-                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
-                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
-                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
-                config <- get :: Get State.Config
+                views :: Map.Map Types.ViewId Block.View <- get
+                blocks :: Map.Map Types.BlockId Block.Block <- get
+                tracks :: Map.Map Types.TrackId Track.Track <- get
+                rulers :: Map.Map Types.RulerId Ruler.Ruler <- get
+                config :: State.Config <- get
                 return $ State.State views blocks tracks rulers config
             _ -> bad_version "State.State" v
 
@@ -142,11 +142,11 @@ instance Serialize State.Config where
         v <- get_version
         case v of
             0 -> do
-                ns <- get :: Get Id.Namespace
-                dir <- get :: Get String
-                root <- get :: Get (Maybe BlockId)
-                midi <- get :: Get Instrument.Config
-                defaults <- get :: Get State.Default
+                ns :: Id.Namespace <- get
+                dir :: String <- get
+                root :: Maybe BlockId <- get
+                midi :: Instrument.Config <- get
+                defaults :: State.Default <- get
                 return $ State.Config ns dir root midi defaults
             _ -> bad_version "State.Config" v
 
@@ -157,15 +157,15 @@ instance Serialize State.Default where
         v <- get_version
         case v of
             0 -> do
-                scale <- get :: Get Pitch.ScaleId
-                inst <- get :: Get (Maybe Score.Instrument)
-                tempo <- get :: Get Signal.Y
+                scale :: Pitch.ScaleId <- get
+                inst :: Maybe Score.Instrument <- get
+                tempo :: Signal.Y <- get
                 return $ State.Default scale Nothing inst tempo
             1 -> do
-                scale <- get :: Get Pitch.ScaleId
-                key <- get :: Get (Maybe Pitch.Key)
-                inst <- get :: Get (Maybe Score.Instrument)
-                tempo <- get :: Get Signal.Y
+                scale :: Pitch.ScaleId <- get
+                key :: Maybe Pitch.Key <- get
+                inst :: Maybe Score.Instrument <- get
+                tempo :: Signal.Y <- get
                 return $ State.Default scale key inst tempo
             _ -> bad_version "State.Default" v
 
@@ -180,24 +180,24 @@ instance Serialize Block.Block where
         v <- get_version
         case v of
             4 -> do
-                title <- get :: Get String
-                tracks <- get :: Get [Block.Track]
-                skel <- get :: Get Skeleton.Skeleton
+                title :: String <- get
+                tracks :: [Block.Track] <- get
+                skel :: Skeleton.Skeleton <- get
                 return $ Block.Block title Block.default_config tracks skel
                     Nothing [] Map.empty
             5 -> do
-                title <- get :: Get String
-                tracks <- get :: Get [Block.Track]
-                skel <- get :: Get Skeleton.Skeleton
-                meta <- get :: Get (Map.Map String String)
+                title :: String <- get
+                tracks :: [Block.Track] <- get
+                skel :: Skeleton.Skeleton <- get
+                meta :: Map.Map String String <- get
                 return $ Block.Block title Block.default_config tracks skel
                     Nothing [] meta
             6 -> do
-                title <- get :: Get String
-                tracks <- get :: Get [Block.Track]
-                skel <- get :: Get Skeleton.Skeleton
-                _integrated <- get :: Get (Maybe BlockId)
-                meta <- get :: Get (Map.Map String String)
+                title :: String <- get
+                tracks :: [Block.Track] <- get
+                skel :: Skeleton.Skeleton <- get
+                _integrated :: Maybe BlockId <- get
+                meta :: Map.Map String String <- get
                 return $ Block.Block title Block.default_config tracks skel
                     Nothing [] meta
             7 -> do
@@ -229,10 +229,10 @@ instance Serialize Block.Track where
         v <- get_version
         case v of
             1 -> do
-                id <- get :: Get Block.TracklikeId
-                width <- get :: Get Types.Width
-                flags <- get :: Get [Block.TrackFlag]
-                merged <- get :: Get [Types.TrackId]
+                id :: Block.TracklikeId <- get
+                width :: Types.Width <- get
+                flags :: [Block.TrackFlag] <- get
+                merged :: [Types.TrackId] <- get
                 return $ Block.Track id width flags merged
             _ -> bad_version "Block.Track" v
 
@@ -256,21 +256,21 @@ instance Serialize Block.TracklikeId where
         tag <- get_tag
         case tag of
             0 -> do
-                tid <- get :: Get TrackId
-                rid <- get :: Get RulerId
+                tid :: TrackId <- get
+                rid :: RulerId <- get
                 return $ Block.TId tid rid
             1 -> do
-                rid <- get :: Get RulerId
+                rid :: RulerId <- get
                 return $ Block.RId rid
             2 -> do
-                div <- get :: Get Block.Divider
+                div :: Block.Divider <- get
                 return $ Block.DId div
             _ -> bad_tag "Block.TracklikeId" tag
 
 instance Serialize Block.Divider where
     put (Block.Divider a) = put a
     get = do
-        color <- get :: Get Color.Color
+        color :: Color.Color <- get
         return $ Block.Divider color
 
 instance Serialize Block.View where
@@ -280,14 +280,14 @@ instance Serialize Block.View where
         v <- get_version
         case v of
             3 -> do
-                block <- get :: Get Types.BlockId
-                rect <- get :: Get Rect.Rect
-                visible_track <- get :: Get Int
-                visible_time <- get :: Get Int
-                status <- get :: Get (Map.Map String String)
-                track_scroll <- get :: Get Types.Width
-                zoom <- get :: Get Types.Zoom
-                selections <- get :: Get (Map.Map Types.SelNum Types.Selection)
+                block :: Types.BlockId <- get
+                rect :: Rect.Rect <- get
+                visible_track :: Int <- get
+                visible_time :: Int <- get
+                status :: Map.Map String String <- get
+                track_scroll :: Types.Width <- get
+                zoom :: Types.Zoom <- get
+                selections :: Map.Map Types.SelNum Types.Selection <- get
                 return $ Block.View block rect visible_track visible_time
                     status track_scroll zoom selections
             _ -> bad_version "Block.View" v
@@ -301,17 +301,17 @@ instance Serialize Rect.Rect where
 instance Serialize Types.Zoom where
     put (Types.Zoom a b) = put a >> put b
     get = do
-        offset <- get :: Get ScoreTime
-        factor <- get :: Get Double
+        offset :: ScoreTime <- get
+        factor :: Double <- get
         return $ Types.Zoom offset factor
 
 instance Serialize Types.Selection where
     put (Types.Selection a b c d) = put a >> put b >> put c >> put d
     get = do
-        strack <- get :: Get Int
-        stime <- get :: Get ScoreTime
-        ctrack <- get :: Get Int
-        ctime <- get :: Get ScoreTime
+        strack :: Int <- get
+        stime :: ScoreTime <- get
+        ctrack :: Int <- get
+        ctime :: ScoreTime <- get
         return $ Types.Selection strack stime ctrack ctime
 
 -- ** Types, Color, Font
@@ -330,12 +330,12 @@ instance Serialize Ruler.Ruler where
         v <- get_version
         case v of
             2 -> do
-                marklists <- get :: Get (Map.Map Ruler.Name Ruler.Marklist)
-                bg <- get :: Get Color.Color
-                show_names <- get :: Get Bool
-                use_alpha <- get :: Get Bool
-                align_to_bottom <- get :: Get Bool
-                full_width <- get :: Get Bool
+                marklists :: Map.Map Ruler.Name Ruler.Marklist <- get
+                bg :: Color.Color <- get
+                show_names :: Bool <- get
+                use_alpha :: Bool <- get
+                align_to_bottom :: Bool <- get
+                full_width :: Bool <- get
                 return $ Ruler.Ruler marklists bg show_names use_alpha
                     align_to_bottom full_width
             _ -> bad_version "Ruler.Ruler" v
@@ -343,19 +343,19 @@ instance Serialize Ruler.Ruler where
 instance Serialize Ruler.Marklist where
     put (Ruler.Marklist a) = put a
     get = do
-        m <- get :: Get (Map.Map ScoreTime Ruler.Mark)
+        m :: Map.Map ScoreTime Ruler.Mark <- get
         return $ Ruler.Marklist m
 
 instance Serialize Ruler.Mark where
     put (Ruler.Mark a b c d e f) = put a >> put b >> put c >> put d >> put e
         >> put f
     get = do
-        rank <- get :: Get Int
-        width <- get :: Get Int
-        color <- get :: Get Color.Color
-        name <- get :: Get String
-        name_zoom <- get :: Get Double
-        zoom <- get :: Get Double
+        rank :: Int <- get
+        width :: Int <- get
+        color :: Color.Color <- get
+        name :: String <- get
+        name_zoom :: Double <- get
+        zoom :: Double <- get
         return $ Ruler.Mark rank width color name name_zoom zoom
 
 -- ** Track
@@ -367,23 +367,23 @@ instance Serialize Track.Track where
         v <- get_version
         case v of
             1 -> do
-                title <- get :: Get String
-                events <- get :: Get Events.Events
-                color <- get :: Get Color.Color
-                render <- get :: Get Track.RenderConfig
+                title :: String <- get
+                events :: Events.Events <- get
+                color :: Color.Color <- get
+                render :: Track.RenderConfig <- get
                 return $ Track.Track title events color render
             2 -> do
-                title <- get :: Get String
-                events <- get :: Get Events.Events
-                color <- get :: Get Color.Color
-                render <- get :: Get Track.RenderConfig
-                _integrated <- get :: Get (Maybe TrackId)
+                title :: String <- get
+                events :: Events.Events <- get
+                color :: Color.Color <- get
+                render :: Track.RenderConfig <- get
+                _integrated :: Maybe TrackId <- get
                 return $ Track.Track title events color render
             3 -> do
-                title <- get :: Get String
-                events <- get :: Get Events.Events
-                color <- get :: Get Color.Color
-                render <- get :: Get Track.RenderConfig
+                title :: String <- get
+                events :: Events.Events <- get
+                color :: Color.Color <- get
+                render :: Track.RenderConfig <- get
                 return $ Track.Track title events color render
             _ -> bad_version "Track.Track" v
 
@@ -393,8 +393,8 @@ instance Serialize Track.RenderConfig where
         v <- get_version
         case v of
             0 -> do
-                style <- get :: Get Track.RenderStyle
-                color <- get :: Get Color.Color
+                style :: Track.RenderStyle <- get
+                color :: Color.Color <- get
                 return $ Track.RenderConfig style color
             _ -> bad_version "Track.RenderConfig" v
 
@@ -416,13 +416,13 @@ instance Serialize Events.Events where
         v <- get_version
         case v of
             0 -> do
-                events <- get :: Get (Map.Map ScoreTime Event0)
+                events :: Map.Map ScoreTime Event0 <- get
                 return $ Events.Events (Map.map convert0 events)
             1 -> do
-                events <- get :: Get (Map.Map ScoreTime Event1)
+                events :: Map.Map ScoreTime Event1 <- get
                 return $ Events.Events (Map.map convert1 events)
             2 -> do
-                events <- get :: Get (Map.Map ScoreTime Event.Event)
+                events :: Map.Map ScoreTime Event.Event <- get
                 return $ Events.Events events
             _ -> bad_version "Events.Events" v
         where
@@ -434,29 +434,29 @@ instance Serialize Events.Events where
 instance Serialize Event.Event where
     put (Event.Event a b c d) = put a >> put b >> put c >> put d
     get = do
-        text <- get :: Get ByteString.ByteString
-        dur <- get :: Get ScoreTime
-        style <- get :: Get Style.StyleId
-        stack <- get :: Get (Maybe Event.Stack)
+        text :: ByteString.ByteString <- get
+        dur :: ScoreTime <- get
+        style :: Style.StyleId <- get
+        stack :: Maybe Event.Stack <- get
         return $ Event.Event text dur style stack
 
 data Event0 = Event0 !Event.Text !ScoreTime !Style.StyleId
 instance Serialize Event0 where
     put (Event0 a b c) = put a >> put b >> put c
     get = do
-        text <- get :: Get ByteString.ByteString
-        dur <- get :: Get ScoreTime
-        style <- get :: Get Style.StyleId
+        text :: ByteString.ByteString <- get
+        dur :: ScoreTime <- get
+        style :: Style.StyleId <- get
         return $ Event0 text dur style
 
 data Event1 = Event1 !Event.Text !ScoreTime !Style.StyleId !(Maybe Stack.Stack)
 instance Serialize Event1 where
     put (Event1 a b c d) = put a >> put b >> put c >> put d
     get = do
-        text <- get :: Get ByteString.ByteString
-        dur <- get :: Get ScoreTime
-        style <- get :: Get Style.StyleId
-        stack <- get :: Get (Maybe Stack.Stack)
+        text :: ByteString.ByteString <- get
+        dur :: ScoreTime <- get
+        style :: Style.StyleId <- get
+        stack :: Maybe Stack.Stack <- get
         return $ Event1 text dur style stack
 
 instance Serialize Event.Stack where
@@ -474,13 +474,11 @@ instance Serialize Instrument.Config where
         v <- get_version
         case v of
             3 -> do
-                alloc <- get :: Get
-                    (Map.Map Score.Instrument [Instrument.Addr])
+                alloc :: Map.Map Score.Instrument [Instrument.Addr] <- get
                 return $ Instrument.Config alloc
             4 -> do
-                alloc <- get :: Get
-                    (Map.Map Score.Instrument [Instrument.Addr])
-                _ <- get :: Get (Map.Map Midi.WriteDevice Midi.WriteDevice)
+                alloc :: Map.Map Score.Instrument [Instrument.Addr] <- get
+                _ :: Map.Map Midi.WriteDevice Midi.WriteDevice <- get
                 return $ Instrument.Config alloc
             _ -> bad_version "Instrument.Config" v
 
