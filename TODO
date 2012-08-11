@@ -423,7 +423,7 @@ integrate
   - Integrated events should change style as soon as they are edited, not at
     the next integration.
   - It may be possible to parallelize multiple integrations.
-  - bug: a new integrated block doesn't have bold event style
+  * bug: a new integrated block doesn't have bold event style
   * integrate should add the pitch event if the next note has the same pitch
   * integrate block can make a view for the new block
   track integrate

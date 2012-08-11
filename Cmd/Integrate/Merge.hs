@@ -106,7 +106,7 @@ merge_pair block_id pair = case pair of
     (Just (Convert.Track title events), Left tracknum) -> do
         -- Track was deleted or never existed.
         track_id <- Create.track block_id tracknum title
-            (Events.from_asc_list events)
+            (Events.from_asc_list (map unmodified events))
         return $ Just (title, track_id, make_index events)
     (Nothing, Right (track_id, _)) -> do
         -- Integrate no longer wants the track.
