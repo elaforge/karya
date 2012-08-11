@@ -25,15 +25,19 @@ tracep msg val = Trace.trace (with_msg msg (Pretty.formatted val)) val
 
 -- | Print a showable value.
 traces :: String -> a -> a
-traces =  Trace.trace
+traces =  Trace.trace . (prefix++)
 
 -- | Print a value after applying a function to it.
 tracef :: (Show b) => (a -> b) -> a -> a
 tracef f val = traces (pshow (f val)) val
 
 -- | Trace input and output of a function.
-trace_ret :: (Show a, Show b) => a -> b -> b
-trace_ret a ret = traces (pshow a ++ " -> " ++ pshow ret) ret
+trace_ret :: (Show a, Show b) => String -> a -> b -> b
+trace_ret function a ret = traces (function ++ " " ++ pa ++ arrow ++ pret) ret
+    where
+    arrow = if '\n' `elem` pa || '\n' `elem` pret then "\t\t=>\n" else " => "
+    pa = pshow a
+    pret = pshow ret
 
 -- * forced by monad
 
