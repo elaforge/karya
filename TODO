@@ -425,6 +425,7 @@ integrate
   - It may be possible to parallelize multiple integrations.
   - bug: a new integrated block doesn't have bold event style
   * integrate should add the pitch event if the next note has the same pitch
+  * integrate block can make a view for the new block
   track integrate
     * Adding a new event to the source track puts it on the wrong
       destination track.
@@ -435,9 +436,11 @@ integrate
     * Verify that integration works correctly when the number of integrated
       tracks changes.
     * Merge is still buggy: add new event, then surround it in source.
-    - Don't allow Set, if the text is completely different then consider it an
+    / Don't allow Set, if the text is completely different then consider it an
       Add and remove the stack.  Rationale is that for a control track event,
       position and text are its only salient characteristics.
+      Wait, this means that a note that is changed to a different note won't
+      eval in a different place.  So I want Set after all.
     - Convert.Tracks should mirror TrackDestination structure.  Or
       parameterize TrackDestination?
     * Implement 0 delay derive.  Collect a list of blocks modified due to

@@ -8,6 +8,7 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.Integrate.Merge as Merge
 import qualified Cmd.Msg as Msg
@@ -55,7 +56,10 @@ integrate_block :: (Cmd.M m) => BlockId -> Convert.Tracks -> m ()
 integrate_block block_id tracks = do
     blocks <- State.gets State.state_blocks
     new_blocks <- case integrated_from block_id blocks of
-        [] -> (:[]) <$> Merge.create_block block_id tracks
+        [] -> do
+            (block_id, dests) <- Merge.create_block block_id tracks
+            Create.view block_id
+            return [(block_id, dests)]
         integrated -> forM integrated $ \(block_id, track_dests) ->
             ((,) block_id) <$> Merge.merge_block block_id tracks track_dests
     Log.notice $ "integrated " ++ show block_id ++ " to: "
