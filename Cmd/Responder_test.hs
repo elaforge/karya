@@ -1,6 +1,5 @@
 module Cmd.Responder_test where
 import Util.Test
-import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -42,8 +41,7 @@ test_modify_tempo = do
 test_modify_middle_tempo = do
     let states = ResponderTest.mkstates
             [("tempo", [(0, 0, "1")]), (">i", [(0, 1, ""), (1, 1, "")])]
-    res <- ResponderTest.respond_cmd states $
-        State.insert_event (UiTest.mk_tid 1) 1 (Event.event "2" 0)
+    res <- ResponderTest.respond_cmd states $ UiTest.insert_event 1 (1, 0, "2")
     (_, perf) <- ResponderTest.result_perf res
     equal (map Score.event_duration $ LEvent.events_of $ Cmd.perf_events perf)
         [1, 0.5]

@@ -1,5 +1,5 @@
 UNSORTED
-  - look for tests that could use insert_event
+  * look for tests that could use insert_event
   - in Cmd.Serialize, move the type declarations to the bound variables
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds

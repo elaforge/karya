@@ -7,7 +7,6 @@ import qualified Util.Git.Git2 as Git
 import Util.Test
 
 import qualified Ui.Diff as Diff
-import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -17,7 +16,6 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.Create as Create
 import qualified Cmd.SaveGit as SaveGit
-import Types
 
 
 test_save = do
@@ -31,7 +29,7 @@ test_save = do
     equal state state2
     let state3 = UiTest.exec state2 $ do
             State.destroy_view UiTest.default_view_id
-            insert_event 1 2 "hi" 2
+            UiTest.insert_event 1 (2, 2, "hi")
     SaveGit.save repo state3 (Just commit)
 
 test_checkpoint = do
@@ -42,7 +40,7 @@ test_checkpoint = do
             [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
             , ("2", [(0, 1, "2a")])
             ]
-        , (,) "hi" $ insert_event 1 2 "hi" 2
+        , (,) "hi" $ UiTest.insert_event 1 (2, 2, "hi")
         , (,) "new track" $ do
             State.destroy_track (UiTest.mk_tid 2)
             void $ State.create_track (Id.unpack_id (UiTest.mk_tid 2)) $
@@ -67,7 +65,7 @@ test_checkpoint = do
     let update num = Update.CmdTrackEvents (UiTest.mk_tid num)
     -- Make sure incremental loads work.
     io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
-        -- insert_event 1 2 "hi" 2
+        -- UiTest.insert_event 1 (2, 2, "hi")
         (Right (state2, [update 1 2 4]))
     io_equal (SaveGit.load_from repo commit2 (Just commit3) state2)
         -- destroy_track 2, create_track 2, but generate no updates
@@ -94,11 +92,6 @@ check_sequence actions = do
         \((state1, commit1), (state2, commit2)) -> do
             io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
                 (Right (state2, []))
-
-insert_event :: (State.M m) => TrackNum -> ScoreTime -> String -> ScoreTime
-    -> m ()
-insert_event tracknum pos text dur =
-    State.insert_event (UiTest.mk_tid tracknum) pos (Event.event text dur)
 
 check_load :: FilePath -> (State.State, Git.Commit, [String]) -> IO Bool
 check_load repo (state, commit, names) =
