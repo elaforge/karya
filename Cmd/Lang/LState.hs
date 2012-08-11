@@ -26,7 +26,7 @@ save_test_block fname block_id = do
     Trans.liftIO $ IO.writeFile fname $
         PPrint.pshow [UiTest.block_to_spec block_id st]
 
-rename_project :: String -> Cmd.CmdL ()
-rename_project ns = case Id.namespace ns of
+rename :: String -> Cmd.CmdL ()
+rename ns = case Id.namespace ns of
     Nothing -> Cmd.throw $ "invalid namespace: " ++ show ns
     Just ns -> Create.rename_project ns

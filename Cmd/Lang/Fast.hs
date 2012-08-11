@@ -35,8 +35,8 @@ interpret toks = case toks of
         -- Called manually via the REPL.
 
         -- Make blocks and views.
-        ["LState.rename_project", a1]
-            | Just v1 <- val a1 -> action $ LState.rename_project v1
+        ["LState.rename", a1]
+            | Just v1 <- val a1 -> action $ LState.rename v1
         ["Create.view", str] | Just arg <- val str -> action $ Create.view arg
 
         -- Misc.
