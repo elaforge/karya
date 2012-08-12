@@ -344,7 +344,7 @@ integrate
   - Convert.Tracks should mirror TrackDestination structure.  Or
     parameterize TrackDestination?
   - Figure out how multiple levels of track integration work.
-  - Use skeleton display to draw a line from integrated to generated
+  * Use skeleton display to draw a line from integrated to generated
     track, in a different color.
     How does it get there?  Diff can set it.
   - If integrate is committing changes to a track, can that bite me if

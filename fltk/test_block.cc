@@ -32,21 +32,6 @@ BlockModelConfig block_model_config()
     return c;
 }
 
-SkeletonConfig skeleton_config(int *pairs, int len)
-{
-    SkeletonConfig skel;
-    skel.len = len;
-    skel.parents = (int *) calloc(len, sizeof(int));
-    skel.children = (int *) calloc(len, sizeof(int));
-    for (int i = 0; i < len; i++) {
-        skel.parents[i] = *pairs;
-        pairs++;
-        skel.children[i] = *pairs;
-        pairs++;
-    }
-    return skel;
-}
-
 static Marklist m44_marks;
 static ScoreTime m44_last_pos;
 void m44_set()
@@ -404,8 +389,13 @@ main(int argc, char **argv)
         view.block.set_track_signal(2, *control_tsig);
         view.block.set_track_signal(3, *control_tsig);
 
-        int pairs[] = {0, 3, 3, 2, 2, 1};
-        SkeletonConfig skel = skeleton_config(pairs, 3);
+        SkeletonEdge edges[] = {
+            SkeletonEdge(0, 3, 0, Color::black),
+            SkeletonEdge(3, 2, 0, Color::black),
+            SkeletonEdge(2, 1, 0, Color::black),
+            SkeletonEdge(0, 1, 2, Color(0xff, 0, 0))
+        };
+        SkeletonConfig skel(4, edges);
         view.block.set_skeleton(skel);
     } else {
         view.block.insert_track(1, Tracklike(&empty_track, &truler), 130);

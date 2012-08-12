@@ -1,6 +1,5 @@
 module Cmd.StepPlay_test where
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq

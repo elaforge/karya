@@ -8,14 +8,23 @@
 #include "util.h"
 
 
+struct SkeletonEdge {
+    SkeletonEdge(int parent, int child, int width, Color color)
+        : parent(parent), child(child), width(width), color(color) {}
+    int parent;
+    int child;
+    int width;
+    Color color;
+};
+
 // This is a list of pairs linking parent tracknums to child tracknums.
 // "Parent" and "child" have no meaning at the UI level, but it uses them to
 // show the relationship visually.  Out of range tracknums will be warned about
 // and ignored.
 struct SkeletonConfig {
+    SkeletonConfig(int len, SkeletonEdge *edges) : len(len), edges(edges) {}
     int len;
-    int *parents;
-    int *children;
+    SkeletonEdge *edges;
 };
 
 // Display the arrows for the skeleton tree.
@@ -32,6 +41,7 @@ public:
     // This does not reject configs with tracks out of range because fltk
     // should do what haskell says or it gets out of sync.  But draw() will
     // complain about them.
+    // Since this copies the config, it doesn't need to live beyond this call.
     void set_config(
         const SkeletonConfig &config, const std::vector<int> &widths);
     void set_status(int tracknum, char status, Color color);
@@ -45,7 +55,7 @@ private:
     void recalculate_centers();
     std::vector<int> track_widths;
     std::vector<int> track_centers;
-    std::vector<std::pair<int, int> > parent_child;
+    std::vector<SkeletonEdge> edges;
     std::vector<std::pair<char, Color> > status_color;
     int right_edge;
 };

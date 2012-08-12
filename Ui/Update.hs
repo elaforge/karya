@@ -73,7 +73,9 @@ data ViewUpdate =
 data BlockUpdate t
     = BlockTitle String
     | BlockConfig Block.Config
-    | BlockSkeleton Skeleton.Skeleton
+    -- | The second is the \"integrate skeleton\", which is drawn in the same
+    -- place.
+    | BlockSkeleton Skeleton.Skeleton [(TrackNum, TrackNum)]
     | RemoveTrack TrackNum
     | InsertTrack TrackNum t
     -- | Unlike a TrackUpdate, these settings are local to the block, not
@@ -145,8 +147,8 @@ instance (Pretty.Pretty t) => Pretty.Pretty (BlockUpdate t) where
             [Pretty.format s]
         BlockConfig config -> Pretty.constructor "BlockConfig"
             [Pretty.format config]
-        BlockSkeleton skel -> Pretty.constructor "BlockSkeleton"
-            [Pretty.format skel]
+        BlockSkeleton skel int_skel -> Pretty.constructor "BlockSkeleton"
+            [Pretty.format skel, Pretty.format int_skel]
         RemoveTrack n -> Pretty.constructor "RemoveTrack"
             [Pretty.format n]
         InsertTrack n _ -> Pretty.constructor "InsertTrack"
@@ -187,7 +189,7 @@ to_display (ViewUpdate vid update) = Just $ ViewUpdate vid update
 to_display (BlockUpdate bid update) = BlockUpdate bid <$> case update of
     BlockTitle a -> Just $ BlockTitle a
     BlockConfig a -> Just $ BlockConfig a
-    BlockSkeleton a -> Just $ BlockSkeleton a
+    BlockSkeleton a b -> Just $ BlockSkeleton a b
     RemoveTrack {} -> Nothing
     InsertTrack {} -> Nothing
     BlockTrack {} -> Nothing

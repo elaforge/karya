@@ -191,6 +191,7 @@ run_update track_signals set_style
         unless (null (Block.block_title block)) $
             BlockC.set_title view_id (Block.block_title block)
         BlockC.set_skeleton view_id (Block.block_skeleton block)
+            (Block.integrate_skeleton block)
         forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
             BlockC.set_selection True view_id selnum csel
         BlockC.set_status view_id (Block.show_status (Block.view_status view))
@@ -242,8 +243,9 @@ run_update track_signals set_style (Update.BlockUpdate block_id update) = do
             mapM_ (flip BlockC.set_title title) view_ids
         Update.BlockConfig config -> return $
             mapM_ (flip BlockC.set_model_config config) view_ids
-        Update.BlockSkeleton skel -> return $
-            mapM_ (flip BlockC.set_skeleton skel) view_ids
+        Update.BlockSkeleton skel integrate_edges -> return $
+            forM_ view_ids $ \view_id ->
+                BlockC.set_skeleton view_id skel integrate_edges
         Update.RemoveTrack tracknum -> return $
             mapM_ (flip BlockC.remove_track tracknum) view_ids
         Update.InsertTrack tracknum dtrack ->

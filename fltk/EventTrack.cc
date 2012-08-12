@@ -720,6 +720,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     else
         trigger_c = Config::abbreviation_color;
     fl_color(color_to_fl(trigger_c));
+    fl_line_style(FL_SOLID, 0);
     if (rank) {
         fl_line(x() + w()/2, offset, x()+w() - 2, offset);
     } else {

@@ -2,6 +2,7 @@
 module Ui.Block where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -60,16 +61,26 @@ data TrackDestination = TrackDestination {
     , dest_controls :: !(Map.Map String (TrackId, EventIndex))
     } deriving (Eq, Show, Read)
 
-instance Pretty.Pretty TrackDestination where
-    format (TrackDestination note controls) =
-        Pretty.format (fst note, Map.map fst controls)
-
-
-
 -- | This is a picture of the integrated events that were used to create an
 -- integrated block.  By taking its difference against the current contents of
 -- the block I can figure out user edits.
 type EventIndex = Map.Map Event.IndexKey Events.PosEvent
+
+instance Pretty.Pretty TrackDestination where
+    format (TrackDestination note controls) =
+        Pretty.format (fst note, Map.map fst controls)
+
+-- | Arrows that should be drawn to indicate integrate relationships.
+integrate_skeleton :: Block -> [(TrackNum, TrackNum)]
+integrate_skeleton block =
+    concat $ mapMaybe edge_of (block_integrated_tracks block)
+    where
+    edge_of (source_id, dests) = do
+        source <- tracknum_of source_id
+        Just $ map ((,) source)
+            (mapMaybe (tracknum_of . fst . dest_note) dests)
+    tracknum_of track_id = List.findIndex (== Just track_id) track_ids
+    track_ids = map (track_id_of . tracklike_id) (block_tracks block)
 
 block_tracklike_ids :: Block -> [TracklikeId]
 block_tracklike_ids = map tracklike_id . block_tracks

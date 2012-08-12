@@ -40,16 +40,11 @@ SkeletonDisplay::recalculate_centers()
 
 void
 SkeletonDisplay::set_config(
-        const SkeletonConfig &config, const std::vector<int> &widths)
+    const SkeletonConfig &config, const std::vector<int> &widths)
 {
     this->track_widths = widths;
     this->recalculate_centers();
-
-    this->parent_child.clear();
-    for (int i = 0; i < config.len; i++) {
-        this->parent_child.push_back(
-                std::make_pair(config.parents[i], config.children[i]));
-    }
+    edges.assign(config.edges, config.edges + config.len);
     this->redraw();
 }
 
@@ -92,7 +87,7 @@ SkeletonDisplay::set_width(int tracknum, int width)
 
 
 static void
-draw_arrow(int fromx, int tox, int bottom, int top)
+draw_arrow(int fromx, int tox, int width, Color color, int bottom, int top)
 {
     const static int offset = 5;
     // The bigger the difference between px and cx, the higher top should
@@ -102,7 +97,8 @@ draw_arrow(int fromx, int tox, int bottom, int top)
     // printf("%d->%d: %f %f\n", fromx, tox, distance, ratio);
     top = bottom - ((bottom - top) * ratio);
 
-    fl_color(FL_BLACK);
+    fl_color(color_to_fl(color));
+    fl_line_style(FL_SOLID, width, 0);
     fl_begin_line();
     fl_curve(fromx, bottom,
             fromx + (fromx<tox ? offset : -offset), top,
@@ -111,7 +107,6 @@ draw_arrow(int fromx, int tox, int bottom, int top)
     fl_end_line();
 
     // TODO get arrow angle right
-    fl_color(FL_RED);
     fl_begin_polygon();
     fl_vertex(fromx-2, bottom-5);
     fl_vertex(fromx, bottom);
@@ -136,21 +131,22 @@ SkeletonDisplay::draw()
             fl_rectf(this->x()+track_centers[i] - w/2, this->y(), w, this->h());
         }
     }
-    for (size_t i = 0; i < this->parent_child.size(); i++) {
-        int parent = parent_child[i].first;
-        int child = parent_child[i].second;
-        if (!(0 <= parent && parent<tracks) || !(0 <= child && child<tracks)) {
+    for (size_t i = 0; i < this->edges.size(); i++) {
+        const SkeletonEdge &e = edges[i];
+        if (!(0 <= e.parent && e.parent < tracks)
+                || !(0 <= e.child && e.child < tracks))
+        {
             // +1 because the ruler track has been subtracted.
-            DEBUG("parent->child out of range: " << parent + 1 << "->"
-                << child + 1);
+            DEBUG("parent->child out of range: " << e.parent + 1 << "->"
+                << e.child + 1);
             continue;
         }
-        int cx = track_centers[child] + this->x();
-        int px = track_centers[parent] + this->x();
+        int cx = track_centers[e.child] + this->x();
+        int px = track_centers[e.parent] + this->x();
 
-        // printf("draw %d->%d: (%d->%d) (%d, %d)\n", child, parent,
+        // printf("draw %d->%d: (%d->%d) (%d, %d)\n", e.child, e.parent,
         //         cx, px, bottom, top);
-        draw_arrow(cx, px, bottom-1, top);
+        draw_arrow(cx, px, e.width, e.color, bottom-1, top);
     }
     fl_font(Config::font + FL_BOLD, Config::font_size::track_status);
     for (size_t i = 0; i < status_size; i++) {

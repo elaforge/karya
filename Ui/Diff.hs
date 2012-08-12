@@ -160,8 +160,10 @@ diff_block block_id block1 block2 = do
         emit $ Update.BlockTitle (Block.block_title block2)
     when (unequal Block.block_config) $
         emit $ Update.BlockConfig (Block.block_config block2)
-    when (unequal Block.block_skeleton) $
-        emit $ Update.BlockSkeleton (Block.block_skeleton block2)
+    let int_skel1 = Block.integrate_skeleton block1
+        int_skel2 = Block.integrate_skeleton block2
+    when (unequal Block.block_skeleton || int_skel1 /= int_skel2) $
+        emit $ Update.BlockSkeleton (Block.block_skeleton block2) int_skel2
 
     let btracks1 = Block.block_tracks block1
         btracks2 = Block.block_tracks block2

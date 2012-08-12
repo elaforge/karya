@@ -209,12 +209,13 @@ set_model_config view_id config = do
 foreign import ccall "set_model_config"
     c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
 
-set_skeleton :: ViewId -> Skeleton.Skeleton -> Fltk ()
-set_skeleton view_id skel = do
+set_skeleton :: ViewId -> Skeleton.Skeleton -> [(TrackNum, TrackNum)] -> Fltk ()
+set_skeleton view_id skel integrate_edges = do
     viewp <- get_ptr view_id
-    with_skeleton skel $ \skelp -> c_set_skeleton viewp skelp
+    with_skeleton_config (skeleton_edges skel integrate_edges) $ \configp ->
+        c_set_skeleton viewp configp
 foreign import ccall "set_skeleton"
-    c_set_skeleton :: Ptr CView -> Ptr Skeleton.Skeleton -> IO ()
+    c_set_skeleton :: Ptr CView -> Ptr SkeletonConfig -> IO ()
 
 set_title :: ViewId -> String -> Fltk ()
 set_title view_id title = do
@@ -410,7 +411,7 @@ instance Storable Block.Box where
 instance Storable Block.DisplayTrack where
     sizeOf _ = #size DisplayTrack
     alignment _ = #{alignment DisplayTrack}
-    peek = error "no peek for DisplayTrack"
+    peek = error "DisplayTrack peek unimplemented"
     poke = poke_display_track
 
 poke_display_track dtrackp (Block.DisplayTrack _ width _ status bright) = do
@@ -422,30 +423,40 @@ poke_display_track dtrackp (Block.DisplayTrack _ width _ status bright) = do
 
 -- ** skeleton
 
-instance Storable Skeleton.Skeleton where
+skeleton_edges :: Skeleton.Skeleton -> [(TrackNum, TrackNum)] -> [SkeletonEdge]
+skeleton_edges skel integrate_edges =
+    [edge p c 0 Color.black | (p, c) <- Skeleton.flatten skel]
+    ++ [edge p c 0 Color.red | (p, c) <- integrate_edges]
+    where
+    edge p c = SkeletonEdge (p-1) (c-1)
+    -- The -1s are because the fltk set_skeleton doesn't count the ruler track,
+    -- while of course the tracknums here do.
+    -- TODO would it be better to put this in BlockView::set_skeleton?
+
+with_skeleton_config :: [SkeletonEdge] -> (Ptr SkeletonConfig -> IO a) -> IO a
+with_skeleton_config edges f =
+    withArrayLen edges $ \len edgesp -> alloca $ \skelp -> do
+        (#poke SkeletonConfig, edges) skelp edgesp
+        (#poke SkeletonConfig, len) skelp len
+        f skelp
+
+data SkeletonConfig
+instance Storable SkeletonConfig where
     sizeOf _ = #size SkeletonConfig
     alignment _ = #{alignment SkeletonConfig}
-    -- | Because I have to dynamically allocate arrays and pass their pointers,
-    -- the real work is done by 'poke_skeleton'.
-    poke _ _ = return ()
 
-with_skeleton skel f =
-    withArrayLen ps $ \len pp -> withArray cs $ \cp -> alloca $ \skelp -> do
-        poke_skeleton skelp (Util.c_int len) pp cp
-        f skelp
-    where
-    (parents, children) = unzip (Skeleton.flatten skel)
-    -- The -1s are because the fltk set_skeleton doesn't the ruler track, while
-    -- of course the tracknums here do.
-    -- TODO would it be better to put this in BlockView::set_skeleton?
-    (ps, cs) = (map (Util.c_int . subtract 1) parents,
-        map (Util.c_int . subtract 1) children)
+data SkeletonEdge = SkeletonEdge !TrackNum !TrackNum !Types.Width !Color.Color
+    deriving (Show)
 
-poke_skeleton :: Ptr Skeleton.Skeleton -> CInt -> Ptr CInt -> Ptr CInt -> IO ()
-poke_skeleton skelp len parentsp childrenp = do
-    (#poke SkeletonConfig, len) skelp len
-    (#poke SkeletonConfig, parents) skelp parentsp
-    (#poke SkeletonConfig, children) skelp childrenp
+instance Storable SkeletonEdge where
+    sizeOf _ = #size SkeletonEdge
+    alignment _ = #{alignment SkeletonEdge}
+    peek _ = error "SkeletonEdge peek unimplemented"
+    poke edgep (SkeletonEdge parent child width color) = do
+        (#poke SkeletonEdge, parent) edgep (Util.c_int parent)
+        (#poke SkeletonEdge, child) edgep (Util.c_int child)
+        (#poke SkeletonEdge, width) edgep (Util.c_int width)
+        (#poke SkeletonEdge, color) edgep color
 
 -- ** selection
 
@@ -456,7 +467,7 @@ data CSelection = CSelection Color.Color Types.Selection deriving (Show)
 instance Storable CSelection where
     sizeOf _ = #size Selection
     alignment _ = #{alignment Selection}
-    peek = error "no peek selection"
+    peek = error "CSelection peek unimplemented"
     poke = poke_selection
 
 poke_selection selp (CSelection color
