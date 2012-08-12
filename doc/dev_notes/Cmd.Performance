@@ -1,0 +1,112 @@
+Old when implementing integration.  May still be useful as documentation for
+how score damage leads to integration.
+
+----------------------------------------
+
+Normal derivation:
+- User modifies block.
+
+- Diff turns modifications into Updates, which are turned into
+ScoreDamage.
+
+- If there is *any* damage, Cmd.Performance kills all derive threads, and adds
+the new score damage to *all* performances.  TODO I think there is a race, if a
+derive thread has delivered a DeriveComplete to the loopback channel before it
+was killed, then the damaged performance will be overwritten.  Actually, maybe
+it's not a problem, because at that point the next thread has already been
+started, and with the correct ScoreDamage.
+
+- For the focused block and root block, regenerate_performance creates derive
+threads for each performance if it has no existing thread and has damage.  TODO
+shouldn't that always be all of them?  I just added damage and killed all
+threads.
+
+- The thread asynchronously sends an OutOfDate that updates
+Cmd.state_current_performance, sleeps for a while, then sends DeriveComplete,
+which updates Cmd.state_performance and sets track signals.  TODO so there's a
+gap between when a modifying Cmd is run and when state_current_performance is
+updated.  Is that ok?  TODO I could move cmd_play_msg out of Cmd.PlayC if I
+moved Sync.set_track_signals to the ResponderSync via a magic return value.
+This might also obviate the Ui.Ui hack for TESTING.
+
+In the presence of block integration, here's what happens:
+
+- User modifies source block.
+
+- Cmd.Performance kills all threads, adds damage, starts new derives.
+
+- DeriveComplete triggers creation or modification of another block, which
+counts as damage.
+
+- Cmd.Performance kills all threads, adds damage, etc.  This loops forever.
+
+The problem is that while the destination block may have damage and I need to
+rederive it if it's focused or the root, if I rederive the source block the
+integration happens again.  I rely on the cache to make rederiving unmodified
+blocks cheap, but that makes integration happen again.
+
+1. I could add a special rule that says if only destination blocks have damage,
+the source block doesn't need to be rederived, since the source block shouldn't
+call any destination blocks, or if it did that would definitely lead to an
+endles loop.
+
+2. Or I could make integration happen only once, i.e. when the source block
+rederives, it doesn't trigger another integrate if the output didn't actually
+change at all.  How to do that?  I could cause collect_integrated to not be
+cached, since I don't want integrated events from sub-blocks anyway.  I
+alreaday strip collect_cache, so it's not the only thing in Collect that does
+this.
+
+In the preserce of track integration, here's what happens:
+
+- User modifies block.
+
+- Cmd.Performance kills all threads, adds damage, starts new derives.
+
+- Block derive completes, sends DeriveComplete.
+
+- If the damage was on a destination track, then only the non-integrated tracks
+derive.  This doesn't have the same problem as integrated block derivation
+because skipping derivation of the source tracks when only the destination
+tracks were edited is built in to the deriver.  This is because it has to be
+within the block, while block level is handled by Cmd.Performance.  So having
+Performance know about block derivation would actually be analogous.
+
+- If the damage was on a source track, then only events from the source tracks
+are produced, along with [Integrated].  DeriveComplete causes a new Performance
+to be added with empty ScoreDamage.  Then it creates or modifies the
+destination tracks, which now have damage.  TODO but if both source and
+destination tracks had damage the damage on the destination track will be lost.
+Also, I only have events from the source tracks.
+
+Note that block integration has two stages too: integrate to destination block,
+then rederive destination block.  TODO Maybe the destination block should
+derive with 0 delay if it was damaged due to integration.
+
+TODO
+
+Block integrate: solution 1 results in less derivation when the destination
+block is modified, and also when the source block is modified, since it leads
+to modifying the destination.  But when unrelated blocks are damaged there is
+still unnecessary integration, which 2 should eliminate.  Maybe I can do both?
+
+- Derive always derives all tracks each time.  This gets rid of the special
+case stuff in BlockUtil.  Maybe I should do track caching though to make it
+cheaper?  I think I no longer have to worry about damage on both source and
+destination either.
+
+This means I can get rid of the special < pseudo call and make it a normal
+call, which is nice.  However, didn't I want to evaluate integrated tracks
+without the tempo track?  No wait, I can do that manually from the score by not
+hooking it up.  That won't work well if I want to use a source to play as well
+as integrate.  But maybe that's a generally bad idea, if I want the original I
+should just integrate to two tracks.  It means I can modify both independently.
+
+- Tracks derive endlessly.  It's because there's no track caching, so the block
+rederives each time.
+- Track derive call only emits integrateds if there is damage below
+  it.  But how can it won't know about damage in called blocks.
+- If I do damage right, the second time won't damage the block.
+  I still wind up doing two integrates though.
+- If damage is *only* on destination tracks, I don't need to re-emit
+  integrateds.  I.e. solution 2 doesn't work, so use solution 1.

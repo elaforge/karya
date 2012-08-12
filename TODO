@@ -1,4 +1,9 @@
 UNSORTED
+  - if there are no events, \ zoom to fit should zoom to fit the ruler
+    Or maybe it should always do that?
+  - implement Local.Instrument.Kontakt composite kendang as a stream postproc
+    This probably means I should let instruments automatically apply
+    a transformer.
   - Putting start into the event would introduce redundancy with the
     Map ScoreTime Event, but it would eliminate PosEvent entirely.  And come
     to think about it, the map is private to Ui.Events.
@@ -10,14 +15,10 @@ UNSORTED
     to avoid the bogus (Nothing, Nothing).  So can Seq.zip_padded
   - use NonEmpty list from semigroups
   - also look for possible semigroup instances
-  * look for tests that could use insert_event
-  * in Cmd.Serialize, move the type declarations to the bound variables
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
   - make Derive.Args functions more consistent, especially start vs. end
-  * get rid of Log.msg_signal
-  * make Midi.Key into a newtype and add a Pretty that shows the midi key name
   - ParseBs.strip_comment is incorrect since it doesn't understand strings.
     It should be integrated into the parser.
   - can I use a lazy array + builder to make score generation more efficient?
@@ -27,31 +28,11 @@ UNSORTED
     storablevector has a builder, but only for Storable types.
   - why not have blocks extend to the end of the ruler instead of the last
     event?  Last event necessitates the '--' hack.  Update doc/derivation.
-  * why does Pitch take a map of TypedVals instead of plain Signal.Ys?
-  * 'd' and 'u' calls also need to slice to the previous one.  I need some
-    kind of annotation that says a call depends entirely on the previous value.
-  * tremolo ornament
-  * backspace in NoEdit mode should advance
-  * hold down arrow doesn't work when kbd entry is on
   - There's a zillion things to stitch together for an instrument.
     Add yet more utils in MidiInst to make this easier.
-  * the title of an empty note track should still be run, otherwise using it
-    to set the instrument doesn't work.
   lilypond output
-    * convert score events to ly events
-    * convert ly events into sequence of notes and rests in the correct time
-      signature
-    * mechanism to automatically invoke lilypond on the output
-      Should run in Cmd.Performance
-    * Wait a few seconds before kicking off a lilypond compile.
-    * pull the key out of the environ
-    * convert appropriate dotted rhythms to use dots
-    * don't use dotted rests
     - make rhythm spelling work properly for non-duple meters
     - make rhythm spelling work for compound meters
-    * factor out shared bits of Perform.Midi.Convert and
-      Perform.Lilypond.Convert
-    * option to quantize input to something below 128th notes
     - get pitches right, and keep the enharmonics
     - should I derive without the tempo track?
     - At some point I will probably want to only typeset certain tracks, or
@@ -59,20 +40,10 @@ UNSORTED
       Or perhaps I'm more likely to want to typeset a certain instrument, or
       set of instruments throughout a large score.  But then I'd probably need
       to rederive and ignore certain tempo tracks.
-    * convert block_meta to Lilypond.Score
-      Also figure out time sig and key sig from ruler and environ.
-    * theory should have a split_pitch that does the octave thing
-      automatically
-    * convert should have a stretch to say what a second is
     - support for slurs, I think I write them as a NoteTransformer which
       attaches metadata.  It can also affect note durations in normal
       performance.
     - Instrument -> Clef mapping
-    * support chords whose notes have different durations
-    * optionally emit StaffGroup
-    * put measure marks and measure number comments in the output to make it
-      easier to read
-    * need to pad all parts with rests until the end of the last one
     - can I make a click on a note in the pdf highlight in the sequencer?
       LYEDITOR=xyz %(line)s %(column)s %(file)s
       How to turn line:col into a stack?
@@ -81,14 +52,12 @@ UNSORTED
       over line numbers.  Make a simple Output monad that keeps track of
       col and line number and can keep the Map.
       Then stick the map in a Performance or something.
-    * support dynamics, I think I can notice a change in the dyn control?
     - to support things like trills, I'd need to have an alternate lilypond
       derivation.  Set lilypond=true in the environ, then various calls can
       e.g. emit lily code instead of notes.
       - trill on note
       - rit on note range
       Tempo is more tricky.
-  * get rid of GeneratorCall
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   - a new empty inst with a scale doesn't get the scale right, should fall
     back on looking down the skeleton
@@ -173,46 +142,13 @@ UNSORTED
   incremental save
     - got "error committing history: update for non-existent view id: ...
       CreateView"
-    * upgrade to libgit2 1.7.0
-    * more exhaustive tests
     + try saving individual events for incremental save
       Seems to be just as slow as full save, probably most of the time is in
       the call to git.  Test again with larger tracks.
-    * do something about the duplication between the incremental and
-      non-incremental save and load
-    * running a git cmd for every blob is not going to perform well when there
-      are thousands of them.  Wrap libgit directly?
     - wrap operations in a lock file
     - make sure things are ok if it fails at any step
-    * hook save up to cmd_save and checkpoint up after every action
-      each history entry is (State, Commit, Maybe Save)
-    * rename SaveGit.Save to SavePoint
-    * Undo.record_history must call checkpoint, but only if the file has
-      a SavePoint.  Alternately, I could always save under "untitled",
-      and untitled would just have a bunch of heads.  I could use git tools
-      to deal with them.
-      Checkpoint needs updates, which means it should run after the ui sync
-      diff.  But that's not where the history record happens.
-    * Keep last SavePoint somewhere, perhaps Cmd.State
-    * Make SaveGit.checkpoint also save the rest of the
-      UncommittedHistoryEntry: [CmdUpdate] and [String] names
-    * saving history on every "control track val edit", I should suppress those
-      too
-    * run a track level diff to figure out which events changed
-    * unify SaveGit.save_repo and Save.get_save_file
-    * add a new kind of CmdUpdate that is only has TrackUpdates and BringToFront
-    * ability to load at a specific ref or commit
-    * split the head of hist_past into hist_cur.  It still has to be Maybe
-      because of the empty cmd state, but maybe it will be easier to deal
-      with split out.
-    * test incremental save for adding and remove tracks and blocks, not just
-      changing events
     - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
       diff will catch it.
-    * Have Save.cmd_save optionally use git backend
-    * include SavePoint in save commit
-    * cmd to revert to last save
-    * load futures in the same way that I load the past
     - Make sure that when a project changes name all the history comes with
       it.  I guess I'd have to copy the dir, or do a git clone.  If I copied
       the dir that wouldn't work with 'untitled' because I don't want all
@@ -244,14 +180,8 @@ UNSORTED
       tracks.  Otherwise, would it be worth helping it by e.g. separating
       each event with a newline?  But then it makes serializing events more of
       a hassle.
-    * support branching history, e.g. edits after an undo don't discard the
-      old future
-    Git docs:
-      http://progit.org/book/ch9-2.html
+    Git docs: http://progit.org/book/ch9-2.html
 
-  * need control and pitch call that drops down at a given slope
-    Why isn't i> sufficient?  Well, you have to pick a bottom pitch instead of
-    a slope.
   - It can be really confusing how undo and redo makes windows pop up and
     disappear.  Maybe I should make undo not affect views at all?
   - I could have a Cmd state flag that does things relative to the current
@@ -369,10 +299,12 @@ MILESTONES
       modes, modes of limited transposition, and exotic scales
       (e.g. octatonic a-h)
     * record chords
-    - integration
+    + integration
     - record continuum
-    - complete TunedJust
-    - complete Idiom.Wind
+    - Just scales, and other ratio-oriented scales that use letters and
+      accidentals
+    - complete Idiom.Wind, experiment with the Idiom postprocs
+    - bring back negative duration / arrival beats
     * scales and keyswitches
     + efficient thru
     * tracklang complete with set of basic calls
@@ -381,17 +313,16 @@ MILESTONES
     - dense / efficient control signals
     * derive cache
     * symbolic score
-    + save undo history / incremental save - finish libgit2 backend and test
+    + save undo history / incremental save - more extensive testing
     - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
     + jack support on linux
     - simple csound backend
     + lilypond backend
-    - documentation
-  1.0
-    - display / edit derivations inline
+      slurs, calls that render lilypond ornaments e.g. trill
+    + documentation
+  future
     - print scores
     - mouse oriented signal editing
-  far future
     - render audio
     - include audio inline
     - custom sampler / vst host with high resolution OSC or MIDI?
@@ -399,237 +330,29 @@ MILESTONES
 ----------------------------------------------------------------------
 
 integrate
-  * implement and test for reverse
-  * Events are italic if they have a stack, and integrator adds bold, but
-    any moves or other modifications remove the bold, so modified events
-    are visually apparent.
-  * bug: integrated block gets the derive indicator stuck on.
-    Visible if I load save/integrate.
   / Optimize block integration: similar to only_destinations_damaged,
     if only the destination blocks are damaged, don't rederive the source.
     Actually, this doesn't seem to be necessary.
-  * Emit damage only for the changed bits after a reintegrate.
-    Have Merge.apply State operations directly so the damage happens
-    correctly.
   - single track mode that doesn't split tracks
   - integrate not logging means that integrate errors only show up on play
-  * It's weird that half the work is done in the integrate call, and half
-    in the cmd.  The integrate call should just stash the score events, and
-    all the logic should move to the cmd.
-    * I can remove lookup derive instrument now.
-    * split into Cmd.Integrate.Merge, Cmd.Integrate.Convert, Cmd.Integrate
-  * If an important bit of derivation fails (e.g. a block call) then
-    integrate should abort.  Otherwise, it could lose a whole bunch of
-    edits.  Of course, undo could fix that, right?  But it seems dangerous
-    if there's an error somewhere that goes unnoticed.  But large
-    integrations seem risky in general.
-  * Destination blocks could put the source block id in the status line.
-  * Integrated events should change style as soon as they are edited, not at
-    the next integration.
   - It may be possible to parallelize multiple integrations.
-  * bug: a new integrated block doesn't have bold event style
-  * integrate should add the pitch event if the next note has the same pitch
-  * integrate block can make a view for the new block
-  track integrate
-    * Adding a new event to the source track puts it on the wrong
-      destination track.
-    Diff per-track instead of putting all events in the index.
-      * track integrate
-      * block integrate
-      * complete tests
-    * Verify that integration works correctly when the number of integrated
-      tracks changes.
-    * Merge is still buggy: add new event, then surround it in source.
-    / Don't allow Set, if the text is completely different then consider it an
-      Add and remove the stack.  Rationale is that for a control track event,
-      position and text are its only salient characteristics.
-      Wait, this means that a note that is changed to a different note won't
-      eval in a different place.  So I want Set after all.
-    - Convert.Tracks should mirror TrackDestination structure.  Or
-      parameterize TrackDestination?
-    * Implement 0 delay derive.  Collect a list of blocks modified due to
-      integration.  Those should omit the usual derive delay.
-    - Figure out how multiple levels of track integration work.
-    - Use skeleton display to draw a line from integrated to generated
-      track, in a different color.
-    - If integrate is committing changes to a track, can that bite me if
-      a "canceled" derivation comes through?  Think about this later.
-    - What if an integrate wants to produce a note transformer track?  I
-      think that's currently impossible.
-
-    * Decide how to do staging.  Should I try to do it all in one derive, or
-      should I go back to Cmd and have a hack to set rederive delay to 0?
-      All in one derive:
-        = play will block until derivation is completely done
-        = I need a mechanism to do the merge, make state changes, and
-          reinvoke derive with the new state and new damage.  Then hand the
-          state back to Cmd.
-      Go back to Cmd:
-        - set rederive to 0 useful for tests too
-      The integrate changes should as much as possible act like normal user
-      changes, so go back it is.
-
-    * Use << for block integrate, < for track integrate.
-      Or to avoid missing a track integrate, have it specially invoked by
-      block evaluate when it sees the track integrate symbol.
-    Modify BlockUtil:
-      * get integrate tracks with damage
-      * if there are any, derive them.  Could be in parallel, but so could
-        all track derivation.  But this is especially suitable for parallel
-        because I know the caller will demand all of the output immediately.
-        But should I force the event output or the integrated output?
-        Maybe I could parallelize in Cmd.Integrate by parallel forcing the
-        Integrateds.
-    * do I need to unwarp events?
-    * implement Cmd.Integrate for tracks: get output, create or merge
-      tracks, clear damage
-      If one track can integrate to multiple tracks, but the EventIndex is
-      for multiple tracks, how does that work?
-      I could make EventIndex per track.  Then diff is done per track and if
-      the integrator suddenly puts things on a different track they won't be
-      diffed.  Of course, I generally rely on the integrator's output tracks
-      being consistent.  Actually, it's Convert's consistency.
-      Alternative is [([TrackId], Index)] in the block.
-      Merge.create_track should be the same as merge_track where all tracks
-      are new.
-    * Tracks need source metadata to know where they were integrated from.
-
-    Think about how to get damage and track integration working:
-      Normal derivation:
-        - User modifies block.
-
-        - Diff turns modifications into Updates, which are turned into
-        ScoreDamage.
-
-        - If there is *any* damage, Cmd.Performance kills all derive threads,
-        and adds the new score damage to *all* performances.  TODO I think
-        there is a race, if a derive thread has delivered a DeriveComplete to
-        the loopback channel before it was killed, then the damaged
-        performance will be overwritten.  Actually, maybe it's not a problem,
-        because at that point the next thread has already been started, and
-        with the correct ScoreDamage.
-
-        - For the focused block and root block, regenerate_performance creates
-        derive threads for each performance if it has no existing thread and
-        has damage.  TODO shouldn't that always be all of them?  I just added
-        damage and killed all threads.
-
-        - The thread asynchronously sends an OutOfDate that updates
-        Cmd.state_current_performance, sleeps for a while, then sends
-        DeriveComplete, which updates Cmd.state_performance and sets track
-        signals.  TODO so there's a gap between when a modifying Cmd is run
-        and when state_current_performance is updated.  Is that ok?  TODO
-        I could move cmd_play_msg out of Cmd.PlayC if I moved
-        Sync.set_track_signals to the ResponderSync via a magic return value.
-        This might also obviate the Ui.Ui hack for TESTING.
-
-      In the presence of block integration, here's what happens:
-
-        - User modifies source block.
-
-        - Cmd.Performance kills all threads, adds damage, starts new derives.
-
-        - DeriveComplete triggers creation or modification of another block,
-        which counts as damage.
-
-        - Cmd.Performance kills all threads, adds damage, etc.  This loops
-        forever.
-
-      The problem is that while the destination block may have damage and
-      I need to rederive it if it's focused or the root, if I rederive the
-      source block the integration happens again.  I rely on the cache to make
-      rederiving unmodified blocks cheap, but that makes integration happen
-      again.
-
-        1. I could add a special rule that says if only destination blocks
-        have damage, the source block doesn't need to be rederived, since the
-        source block shouldn't call any destination blocks, or if it did that
-        would definitely lead to an endles loop.
-
-        2. Or I could make integration happen only once, i.e. when the source
-        block rederives, it doesn't trigger another integrate if the output
-        didn't actually change at all.  How to do that?  I could cause
-        collect_integrated to not be cached, since I don't want integrated
-        events from sub-blocks anyway.  I alreaday strip collect_cache, so
-        it's not the only thing in Collect that does this.
-
-      In the preserce of track integration, here's what happens:
-
-        - User modifies block.
-
-        - Cmd.Performance kills all threads, adds damage, starts new derives.
-
-        - Block derive completes, sends DeriveComplete.
-
-        - If the damage was on a destination track, then only the
-        non-integrated tracks derive.  This doesn't have the same problem as
-        integrated block derivation because skipping derivation of the source
-        tracks when only the destination tracks were edited is built in to the
-        deriver.  This is because it has to be within the block, while block
-        level is handled by Cmd.Performance.  So having Performance know about
-        block derivation would actually be analogous.
-
-        - If the damage was on a source track, then only events from the
-        source tracks are produced, along with [Integrated].  DeriveComplete
-        causes a new Performance to be added with empty ScoreDamage.  Then it
-        creates or modifies the destination tracks, which now have damage.
-        TODO but if both source and destination tracks had damage the damage
-        on the destination track will be lost.  Also, I only have events from
-        the source tracks.
-
-      Note that block integration has two stages too: integrate to destination
-      block, then rederive destination block.  TODO Maybe the destination
-      block should derive with 0 delay if it was damaged due to integration.
-
-      TODO
-
-      Block integrate: solution 1 results in less derivation when the
-      destination block is modified, and also when the source block is
-      modified, since it leads to modifying the destination.  But when
-      unrelated blocks are damaged there is still unnecessary integration,
-      which 2 should eliminate.  Maybe I can do both?
-        - solution 1
-        * solution 2
-
-      - Derive always derives all tracks each time.  This gets rid of the
-      special case stuff in BlockUtil.  Maybe I should do track caching though
-      to make it cheaper?  I think I no longer have to worry about damage on
-      both source and destination either.
-
-        This means I can get rid of the special < pseudo call and make it
-        a normal call, which is nice.  However, didn't I want to evaluate
-        integrated tracks without the tempo track?  No wait, I can do that
-        manually from the score by not hooking it up.  That won't work well if
-        I want to use a source to play as well as integrate.  But maybe that's
-        a generally bad idea, if I want the original I should just integrate
-        to two tracks.  It means I can modify both independently.
-
-      - Tracks derive endlessly.  It's because there's no track caching, so
-        the block rederives each time.
-        - Track derive call only emits integrateds if there is damage below
-          it.  But how can it won't know about damage in called blocks.
-        - If I do damage right, the second time won't damage the block.
-          I still wind up doing two integrates though.
-        - If damage is *only* on destination tracks, I don't need to re-emit
-          integrateds.  I.e. solution 2 doesn't work, so use solution 1.
-
-  * Derive.Call.Kendang: write composite kendang part, then it gets split
-    into wadon and lanang parts.
-    - add filler strokes
-      I think I have to redo the kendang stuff as a stream postproc.
-    * support soft attr
-    / but how can I have integrate get the soft back?
-      No need, soft strokes have soft attrs.
-  + sort tracks by orig tracknums so they come back in the same order
-    Staved off by adding a leading 0 to TrackIds so they sort right, but
-    I'll need to switch to TrackNums to do this for real.
-  - add quantization
+  / Don't allow Set, if the text is completely different then consider it an
+    Add and remove the stack.  Rationale is that for a control track event,
+    position and text are its only salient characteristics.
+    Wait, this means that a note that is changed to a different note won't
+    eval in a different place.  So I want Set after all.
+  - Convert.Tracks should mirror TrackDestination structure.  Or
+    parameterize TrackDestination?
+  - Figure out how multiple levels of track integration work.
+  - Use skeleton display to draw a line from integrated to generated
+    track, in a different color.
+  - If integrate is committing changes to a track, can that bite me if
+    a "canceled" derivation comes through?  Think about this later.
+  - What if an integrate wants to produce a note transformer track?  I
+    think that's currently impossible.
+  - quantization
   - split tracks on overlapping notes since some calls make them (e.g. block
     calls)
-  - Another possibility is to not do any automatic track splitting at all,
-    this would eliminate all the 'tracknum' stuff.  It would mean I couldn't
-    stick a '<' integrate in front of any block I wanted though, it would have
-    to specially be expecting to be integrated and emit separate instruments.
 
 external
   - send a patch to improve Random.Shuffle?
