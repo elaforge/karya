@@ -1,4 +1,8 @@
 UNSORTED
+  - Putting start into the event would introduce redundancy with the
+    Map ScoreTime Event, but it would eliminate PosEvent entirely.  And come
+    to think about it, the map is private to Ui.Events.
+    Also restrict Event.Event exports while I'm at it.
   - I could move cmd_play_msg out of Cmd.PlayC if I moved
     Sync.set_track_signals to the ResponderSync via a magic return value.
     I could then get rid of the CPP hack in Ui.Ui I think.
@@ -420,7 +424,7 @@ integrate
     if there's an error somewhere that goes unnoticed.  But large
     integrations seem risky in general.
   * Destination blocks could put the source block id in the status line.
-  - Integrated events should change style as soon as they are edited, not at
+  * Integrated events should change style as soon as they are edited, not at
     the next integration.
   - It may be possible to parallelize multiple integrations.
   * bug: a new integrated block doesn't have bold event style

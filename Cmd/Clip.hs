@@ -103,7 +103,8 @@ selected_to_state block_id selected = State.exec State.empty $ do
         [Block.track (Block.RId State.no_ruler) 0]
     forM_ (zip [0..] selected) $ \(tracknum, (title, events)) -> do
         Create.track_events block_id State.no_ruler tracknum
-            Config.track_width (Track.track title events)
+            Config.track_width (Track.track title
+                (Events.map_events (second Event.strip_stack) events))
 
 get_selection :: (Cmd.M m) => Selection.SelectedTracks -> m Selected
 get_selection (block_id, tracknums, _, start, end) = do

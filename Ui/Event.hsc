@@ -91,17 +91,35 @@ event_string :: Event -> String
 event_string = UTF8.toString . event_bs
 
 set_string :: String -> Event -> Event
-set_string s evt = evt { event_bs = to_text s }
+set_string s event = modified $ event { event_bs = to_text s }
 
 modify_string :: (String -> String) -> Event -> Event
-modify_string f evt = evt { event_bs = modify (event_bs evt) }
+modify_string f event =
+    modified $ event { event_bs = modify (event_bs event) }
     where modify = UTF8.fromString . f . UTF8.toString
 
 set_duration :: ScoreTime -> Event -> Event
-set_duration dur event = event { event_duration = dur }
+set_duration dur event = modified $ event { event_duration = dur }
 
 modify_duration :: (ScoreTime -> ScoreTime) -> Event -> Event
 modify_duration f evt = set_duration (f (event_duration evt)) evt
+
+-- | If this was an integrated event, it might have the unmodified style.
+-- Set it to modified now so I don't have to wait for the next integration.
+--
+-- The problem is that changing start position is considered modifying the
+-- event, but the start is not part of the event!  This means you have to
+-- remember to call 'modified' on events that were just moved, which is awkward
+-- and error-prone.
+modified :: Event -> Event
+modified event =
+    event { event_style = Config.modified_style (event_style event) }
+
+strip_stack :: Event -> Event
+strip_stack event = modified $ event { event_stack = Nothing }
+
+unstyled :: Event -> Event
+unstyled event = event { event_style = Config.default_style }
 
 -- | 0 is considered both positive and negative because they're ambiguous.
 -- For example, Track._split_range which includes them in both ends.

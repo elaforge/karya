@@ -129,7 +129,7 @@ move_event get_event = do
         when_just (get_event pos events) $ \(old_pos, event) -> do
             State.remove_event track_id old_pos
             State.insert_event track_id pos $
-                if dur == 0 then event else set_dur dur event
+                if dur == 0 then Event.modified event else set_dur dur event
 
 
 -- | Extend the events in the selection to either the end of the selection or
@@ -228,8 +228,8 @@ cmd_join_events = mapM_ process =<< Selection.events_around
         -- If I only selected one, join with the next.  Otherwise, join
         -- selected events.
     process (track_id, _, (_, [evt1], evt2:_)) = join track_id evt1 evt2
-    process (track_id, _, (_, evts@(_ : _ : _), _)) =
-        join track_id (head evts) (last evts)
+    process (track_id, _, (_, events@(_ : _ : _), _)) =
+        join track_id (head events) (last events)
     process _ = return ()
     join track_id (pos1, evt1) (pos2, evt2) =
         -- Yes, this deletes any "backwards" events in the middle, but that
@@ -265,12 +265,12 @@ cmd_insert_time = do
         track <- State.get_track track_id
         case Events.split_at_before start (Track.track_events track) of
             (_, []) -> return ()
-            (_, evts@((pos, _):_)) -> do
+            (_, events@((pos, _):_)) -> do
                 track_end <- State.track_end track_id
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min pos start) (track_end + 1)
                 State.insert_sorted_events track_id
-                    (map (insert_time start end) evts)
+                    (map (insert_time start end) events)
 
 -- | Modify the event to insert time from @start@ to @end@, lengthening
 -- it if @start@ falls within the event's duration.
@@ -286,12 +286,12 @@ insert_time start end event@(pos, evt)
     insertp
         | pos < start && Events.end event <= start = event
         | pos < start = (pos, Event.modify_duration (+shift) evt)
-        | otherwise = (pos + shift, evt)
+        | otherwise = (pos + shift, Event.modified evt)
     insertn
         | pos <= start = event
         | Events.end event < start =
             (pos + shift, Event.modify_duration (subtract shift) evt)
-        | otherwise = (pos + shift, evt)
+        | otherwise = (pos + shift, Event.modified evt)
 
 -- | Remove the notes under the selection, and move everything else back.  If
 -- the selection is a point, delete one timestep.
@@ -303,12 +303,12 @@ cmd_delete_time = do
         track <- State.get_track track_id
         case Events.split_at_before start (Track.track_events track) of
             (_, []) -> return ()
-            (_, evts@((pos, _):_)) -> do
+            (_, events@((pos, _):_)) -> do
                 track_end <- State.track_end track_id
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min pos start) (track_end + 1)
                 State.insert_sorted_events track_id
-                    (Maybe.mapMaybe (delete_time start end) evts)
+                    (Maybe.mapMaybe (delete_time start end) events)
 
 -- | Modify the event to delete the time from @start@ to @end@, shortening it
 -- if @start@ falls within the event's duration.
@@ -325,14 +325,14 @@ delete_time start end event@(pos, evt)
             Just (pos, Event.modify_duration
                 (subtract (min (Events.end event - start) shift)) evt)
         | pos < end = Nothing
-        | otherwise = Just (pos - shift, evt)
+        | otherwise = Just (pos - shift, Event.modified evt)
     deleten
         | pos <= start = Just event
         | pos <= end = Nothing
         | Events.end event < end =
             Just (pos - shift, Event.modify_duration
                 (+ min shift (end - Events.end event)) evt)
-        | otherwise = Just (pos - shift, evt)
+        | otherwise = Just (pos - shift, Event.modified evt)
 
 -- | If the range is a point, then expand it to one timestep.
 expand_range :: (Cmd.M m) => [TrackNum] -> ScoreTime -> ScoreTime
