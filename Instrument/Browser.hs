@@ -9,6 +9,7 @@ import Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified System.IO as IO
@@ -167,14 +168,14 @@ process_query win db displayed query = do
     -- putStrLn $ "query: " ++ show (Search.parse query)
     let matches = search db (Search.parse query)
         diff = Seq.indexed_pairs (==) displayed matches
-    forM_ diff $ \(i, old, new) -> case (old, new) of
-        (Nothing, Just inst) -> Fltk.send_action $
+    forM_ diff $ \(i, paired) -> case paired of
+        Seq.Second inst -> Fltk.send_action $
             BrowserC.insert_line win (i+1) (Score.inst_name inst)
-        (Just _inst, Nothing) -> Fltk.send_action $
+        Seq.First _inst -> Fltk.send_action $
             BrowserC.remove_line win (i+1)
         _ -> return ()
     -- pprint (filter interesting diff)
-    return [inst | (_, _, Just inst) <- diff]
+    return $ Maybe.mapMaybe (Seq.paired_first . snd) diff
     -- where
     -- interesting (_, Just _, Just _) = False
     -- interesting _ = True

@@ -153,15 +153,13 @@ strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO Bool
 strings_like_srcpos srcpos gotten expected
     | null gotten && null expected = success_srcpos srcpos "[] =~ []"
     | otherwise = foldl (&&) True <$>
-        mapM (uncurry string_like) (Seq.padded_zip gotten expected)
+        mapM string_like (Seq.padded_zip gotten expected)
     where
-    string_like Nothing Nothing =
-        failure_srcpos srcpos "Nothing, Nothing shouldn't happen"
-    string_like Nothing (Just reg) =
+    string_like (Seq.Second reg) =
         failure_srcpos srcpos $ "gotten list too short: expected " ++ show reg
-    string_like (Just gotten) Nothing =
+    string_like (Seq.First gotten) =
         failure_srcpos srcpos $ "expected list too short: got " ++ show gotten
-    string_like (Just gotten) (Just reg)
+    string_like (Seq.Both gotten reg)
         | pattern_matches reg gotten = success_srcpos srcpos $
             gotten ++ " =~ " ++ reg
         | otherwise = failure_srcpos srcpos $ gotten ++ " !~ " ++ reg

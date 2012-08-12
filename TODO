@@ -11,7 +11,7 @@ UNSORTED
   - I could move cmd_play_msg out of Cmd.PlayC if I moved
     Sync.set_track_signals to the ResponderSync via a magic return value.
     I could then get rid of the CPP hack in Ui.Ui I think.
-  - Seq.pair_sorted and similar can return 'First a | Second b | Both a b'
+  * Seq.pair_sorted and similar can return 'First a | Second b | Both a b'
     to avoid the bogus (Nothing, Nothing).  So can Seq.zip_padded
   - use NonEmpty list from semigroups
   - also look for possible semigroup instances

@@ -139,37 +139,31 @@ pair_tracks track_ids tracks dests = map (filter is_valid) $
         Seq.padded_zip tracks dests
     where
     -- Pair up the tracks.
-    pairs_of (Nothing, Nothing) = []
-    pairs_of (Just (note, controls), Nothing) =
-        zip (map Just (note : controls)) (repeat Nothing)
-    pairs_of (Nothing, Just (Block.TrackDestination note controls)) =
-        zip (repeat Nothing) (map Just (note : Map.elems controls))
-    pairs_of (Just (note, controls),
-            Just (Block.TrackDestination note_dest control_dests)) =
-        (Just note, Just note_dest) : pair_controls controls control_dests
-    pair_controls tracks dests = [(track, dest) | (_, track, dest) <- paired]
+    pairs_of (Seq.First (note, controls)) = map Seq.First (note : controls)
+    pairs_of (Seq.Second (Block.TrackDestination note controls)) =
+        map Seq.Second (note : Map.elems controls)
+    pairs_of (Seq.Both (note, controls)
+            (Block.TrackDestination note_dest control_dests)) =
+        Seq.Both note note_dest : pair_controls controls control_dests
+    pair_controls tracks dests =
+        map snd $ Seq.pair_sorted keyed_tracks (Map.toAscList dests)
         where
-        paired = Seq.pair_sorted keyed_tracks (Map.toAscList dests)
         -- TODO pair_sorted only works if tracks is sorted, it's easier to
         -- prove that if it's a Map instead of [Track]
         keyed_tracks = Seq.sort_on fst (Seq.key_on Convert.track_title tracks)
 
     resolve1 next_tracknum pairs = List.mapAccumL resolve next_tracknum pairs
     -- Figure out tracknums.
-    resolve next_tracknum (Nothing, Nothing) =
-        (next_tracknum, (Nothing, Left 0)) -- not reached
-    resolve next_tracknum (Just track, Nothing) =
+    resolve next_tracknum (Seq.First track) =
         (next_tracknum + 1, (Just track, Left next_tracknum))
-    resolve next_tracknum (Nothing, Just dest) =
-        case tracknum_of (fst dest) of
-            -- Track deleted and the integrate no longer wants it.
-            -- Ugly, but (Nothing, Left) can be code for "ignore me".
-            Nothing -> (next_tracknum, (Nothing, Left 0))
-            Just tracknum -> (tracknum + 1, (Nothing, Right dest))
-    resolve next_tracknum (Just track, Just dest) =
-        case tracknum_of (fst dest) of
-            Nothing -> (next_tracknum + 1, (Just track, Left next_tracknum))
-            Just tracknum -> (tracknum + 1, (Just track, Right dest))
+    resolve next_tracknum (Seq.Second dest) = case tracknum_of (fst dest) of
+        -- Track deleted and the integrate no longer wants it.
+        -- Ugly, but (Nothing, Left) can be code for "ignore me".
+        Nothing -> (next_tracknum, (Nothing, Left 0))
+        Just tracknum -> (tracknum + 1, (Nothing, Right dest))
+    resolve next_tracknum (Seq.Both track dest) = case tracknum_of (fst dest) of
+        Nothing -> (next_tracknum + 1, (Just track, Left next_tracknum))
+        Just tracknum -> (tracknum + 1, (Just track, Right dest))
     tracknum_of track_id = List.findIndex (== Just track_id) track_ids
     is_valid (Nothing, Left _) = False
     is_valid _ = True

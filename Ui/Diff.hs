@@ -105,17 +105,14 @@ merge_updates state updates = updates ++ concatMap propagate updates
 diff_views :: State.State -> State.State -> Map.Map ViewId Block.View
     -> Map.Map ViewId Block.View -> DiffM ()
 diff_views st1 st2 views1 views2 =
-    forM_ (Map.pairs views1 views2) $ \(view_id, v1, v2) -> case (v1, v2) of
-        (Nothing, Just _) ->
-            change $ Update.ViewUpdate view_id Update.CreateView
-        (Just _, Nothing) ->
-            change $ Update.ViewUpdate view_id Update.DestroyView
-        (Just view1, Just view2)
+    forM_ (Map.pairs views1 views2) $ \(view_id, paired) -> case paired of
+        Seq.Second _ -> change $ Update.ViewUpdate view_id Update.CreateView
+        Seq.First _ -> change $ Update.ViewUpdate view_id Update.DestroyView
+        Seq.Both view1 view2
             | Block.view_block view1 /= Block.view_block view2 -> do
                 change $ Update.ViewUpdate view_id Update.DestroyView
                 change $ Update.ViewUpdate view_id Update.CreateView
             | otherwise -> diff_view st1 st2 view_id view1 view2
-        _ -> return ()
 
 diff_view :: State.State -> State.State -> ViewId -> Block.View -> Block.View
     -> DiffM ()
@@ -133,7 +130,7 @@ diff_view st1 st2 view_id view1 view2 = do
         emit $ Update.Zoom (Block.view_zoom view2)
 
     -- If the view doesn't have a block I should have failed long before here.
-    mapM_ (uncurry3 (diff_selection emit))
+    mapM_ (uncurry (diff_selection emit))
         (Map.pairs (Block.view_selections view1) (Block.view_selections view2))
 
 status_color :: State.State -> Block.View -> Color.Color
@@ -145,10 +142,14 @@ status_color state view =
     where block_id = Block.view_block view
 
 diff_selection :: (Update.ViewUpdate -> DiffM ())
-    -> Types.SelNum -> Maybe Types.Selection -> Maybe Types.Selection
-    -> DiffM ()
-diff_selection emit selnum sel1 sel2 =
-    when (sel1 /= sel2) $ emit $ Update.Selection selnum sel2
+    -> Types.SelNum -> Seq.Paired Types.Selection Types.Selection -> DiffM ()
+diff_selection _ _ (Seq.Both sel1 sel2) | sel1 == sel2 = return ()
+diff_selection emit selnum paired = case paired of
+    Seq.Both sel1 sel2
+        | sel1 /= sel2 -> emit $ Update.Selection selnum (Just sel2)
+    Seq.Second sel2 -> emit $ Update.Selection selnum (Just sel2)
+    Seq.First _ -> emit $ Update.Selection selnum Nothing
+    _ -> return ()
 
 -- ** block / track / ruler
 
@@ -166,24 +167,24 @@ diff_block block_id block1 block2 = do
     let btracks1 = Block.block_tracks block1
         btracks2 = Block.block_tracks block2
     let bpairs = Seq.indexed_pairs_on Block.tracklike_id btracks1 btracks2
-    forM_ bpairs $ \(i2, track1, track2) -> case (track1, track2) of
-        (Just _, Nothing) -> emit $ Update.RemoveTrack i2
-        (Nothing, Just track) -> emit $ Update.InsertTrack i2 track
-        (Just track1, Just track2) | track1 /= track2 ->
+    forM_ bpairs $ \(i2, paired) -> case paired of
+        Seq.First _ -> emit $ Update.RemoveTrack i2
+        Seq.Second track -> emit $ Update.InsertTrack i2 track
+        Seq.Both track1 track2 | track1 /= track2 ->
             emit $ Update.BlockTrack i2 track2
         _ -> return ()
 
     let dtracks1 = map Block.display_track (Block.block_tracks block1)
         dtracks2 = map Block.display_track (Block.block_tracks block2)
     let dpairs = Seq.indexed_pairs_on Block.dtracklike_id dtracks1 dtracks2
-    forM_ dpairs $ \(i2, track1, track2) -> case (track1, track2) of
+    forM_ dpairs $ \(i2, paired) -> case paired of
         -- Insert and remove are emitted for cmd updates above, but
         -- the Update.to_display conversion filters them out.
-        (Just _, Nothing) -> change_display $
+        Seq.First _ -> change_display $
             Update.BlockUpdate block_id (Update.RemoveTrack i2)
-        (Nothing, Just dtrack) -> change_display $
+        Seq.Second dtrack -> change_display $
             Update.BlockUpdate block_id (Update.InsertTrack i2 dtrack)
-        (Just dtrack1, Just dtrack2) | dtrack1 /= dtrack2 -> change_display $
+        Seq.Both dtrack1 dtrack2 | dtrack1 /= dtrack2 -> change_display $
             Update.BlockUpdate block_id (Update.BlockTrack i2 dtrack2)
         _ -> return ()
 
@@ -208,17 +209,17 @@ diff_state st1 st2 = do
     let pairs f = Map.pairs (f st1) (f st2)
     when (State.state_config st1 /= State.state_config st2) $
         emit $ Update.Config (State.state_config st2)
-    forM_ (pairs State.state_blocks) $ \(block_id, b1, b2) -> case (b1, b2) of
-        (Nothing, Just block) -> emit $ Update.CreateBlock block_id block
-        (Just _, Nothing) -> emit $ Update.DestroyBlock block_id
+    forM_ (pairs State.state_blocks) $ \(block_id, paired) -> case paired of
+        Seq.Second block -> emit $ Update.CreateBlock block_id block
+        Seq.First _ -> emit $ Update.DestroyBlock block_id
         _ -> return ()
-    forM_ (pairs State.state_tracks) $ \(track_id, t1, t2) -> case (t1, t2) of
-        (Nothing, Just track) -> emit $ Update.CreateTrack track_id track
-        (Just _, Nothing) -> emit $ Update.DestroyTrack track_id
+    forM_ (pairs State.state_tracks) $ \(track_id, paired) -> case paired of
+        Seq.Second track -> emit $ Update.CreateTrack track_id track
+        Seq.First _ -> emit $ Update.DestroyTrack track_id
         _ -> return ()
-    forM_ (pairs State.state_rulers) $ \(ruler_id, r1, r2) -> case (r1, r2) of
-        (Nothing, Just ruler) -> emit $ Update.CreateRuler ruler_id ruler
-        (Just _, Nothing) -> emit $ Update.DestroyRuler ruler_id
+    forM_ (pairs State.state_rulers) $ \(ruler_id, paired) -> case paired of
+        Seq.Second ruler -> emit $ Update.CreateRuler ruler_id ruler
+        Seq.First _ -> emit $ Update.DestroyRuler ruler_id
         _ -> return ()
 
 -- * derive diff
@@ -267,8 +268,8 @@ derive_diff_block block_id block1 block2 = do
 
     let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
     let tpairs = Seq.indexed_pairs_on Block.tracklike_id ts1 ts2
-    forM_ tpairs $ \(_, t1, t2) -> case (t1, t2) of
-        (Just track1, Just track2)
+    forM_ tpairs $ \(_, paired) -> case paired of
+        Seq.Both track1 track2
             | flags_differ track1 track2 -> block_damage
             | otherwise -> return ()
         _ -> block_damage
@@ -317,13 +318,12 @@ diff_track_events tid e1 e2 =
     map update $ Ranges.merge_sorted $ Maybe.mapMaybe diff $
         Seq.pair_sorted (Events.ascending e1) (Events.ascending e2)
     where
-    diff (p, Just e, Nothing) = Just (p, p + Event.event_duration e)
-    diff (p, Nothing, Just e) = Just (p, p + Event.event_duration e)
-    diff (p, Just e1, Just e2)
+    diff (p, Seq.First e) = Just (p, p + Event.event_duration e)
+    diff (p, Seq.Second e) = Just (p, p + Event.event_duration e)
+    diff (p, Seq.Both e1 e2)
         | e1 == e2 = Nothing
         | otherwise = Just (p, max (p + Event.event_duration e1)
             (p + Event.event_duration e2))
-    diff (_, Nothing, Nothing) = Nothing
     update (s, e) = Update.CmdTrackEvents tid s e
 
 

@@ -1,11 +1,11 @@
 module Util.Seq where
 import Prelude hiding (head, tail, last)
 import qualified Data.Char as Char
-import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 import Data.Function
 import qualified Data.List as List
 import qualified Data.List.Ordered as Ordered
+import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 
 -- * enumeration
@@ -221,12 +221,25 @@ zip_neighbors (x:xs) = (Nothing, x, head xs) : go x xs
     go prev [x] = [(Just prev, x, Nothing)]
     go prev (x : xs@(y:_)) = (Just prev, x, Just y) : go x xs
 
+data Paired a b = First !a | Second !b | Both !a !b
+    deriving (Show, Eq)
+
+paired_second :: Paired a b -> Maybe b
+paired_second (First _) = Nothing
+paired_second (Second b) = Just b
+paired_second (Both _ b) = Just b
+
+paired_first :: Paired a b -> Maybe a
+paired_first (First a) = Just a
+paired_first (Second _) = Nothing
+paired_first (Both a _) = Just a
+
 -- | Like 'zip', but the shorter list is padded with Nothings.
-padded_zip :: [a] -> [b] -> [(Maybe a, Maybe b)]
+padded_zip :: [a] -> [b] -> [Paired a b]
 padded_zip [] [] = []
-padded_zip [] bs = zip (repeat Nothing) (map Just bs)
-padded_zip as [] = zip (map Just as) (repeat Nothing)
-padded_zip (a:as) (b:bs) = (Just a, Just b) : padded_zip as bs
+padded_zip [] bs = map Second bs
+padded_zip as [] = map First as
+padded_zip (a:as) (b:bs) = Both a b : padded_zip as bs
 
 -- | Return the reversed inits paired with the tails.  This is like a zipper
 -- moving focus along the input list.
@@ -240,48 +253,46 @@ zipper prev lst@(x:xs) = (prev, lst) : zipper (x:prev) xs
 -- get @(Nothing, Nothing)@.
 --
 -- Kind of like an edit distance, or a diff.
-equal_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Maybe a, Maybe b)]
-equal_pairs _ [] ys = [(Nothing, Just y) | y <- ys]
-equal_pairs _ xs [] = [(Just x, Nothing) | x <- xs]
+equal_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [Paired a b]
+equal_pairs _ [] ys = map Second ys
+equal_pairs _ xs [] = map First xs
 equal_pairs eq (x:xs) (y:ys)
-    | x `eq` y = (Just x, Just y) : equal_pairs eq xs ys
-    | any (eq x) ys = (Nothing, Just y) : equal_pairs eq (x:xs) ys
-    | otherwise = (Just x, Nothing) : equal_pairs eq xs (y:ys)
+    | x `eq` y = Both x y : equal_pairs eq xs ys
+    | any (eq x) ys = Second y : equal_pairs eq (x:xs) ys
+    | otherwise = First x : equal_pairs eq xs (y:ys)
 
 -- | This is like 'equal_pairs', except that the index of each pair in the
 -- /right/ list is included.  In other words, given @(i, Nothing, Just y)@,
 -- @i@ is the position of @y@ in the @b@ list.  Given @(i, Just x, Nothing)@,
 -- @i@ is where @x@ was deleted from the @b@ list.
-indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Maybe a, Maybe b)]
-indexed_pairs eq xs ys = zip3 (indexed pairs) (map fst pairs) (map snd pairs)
+indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Paired a b)]
+indexed_pairs eq xs ys = zip (indexed pairs) pairs
     where
     pairs = equal_pairs eq xs ys
     indexed pairs = scanl f 0 pairs
         where
-        f i (_, Nothing) = i
+        f i (First _) = i
         f i _ = i+1
 
-indexed_pairs_on :: (Eq eq) => (a -> eq) -> [a] -> [a]
-    -> [(Int, Maybe a, Maybe a)]
+indexed_pairs_on :: (Eq eq) => (a -> eq) -> [a] -> [a] -> [(Int, Paired a a)]
 indexed_pairs_on key xs ys = indexed_pairs (\a b -> key a == key b) xs ys
 
 -- | Pair up two lists of sorted pairs by their first element.
--- @(k, Nothing, Nothing)@ will never appear in the output.
-pair_sorted :: (Ord k) => [(k, a)] -> [(k, b)] -> [(k, Maybe a, Maybe b)]
-pair_sorted xs [] = [(k, Just v, Nothing) | (k, v) <- xs]
-pair_sorted [] ys = [(k, Nothing, Just v) | (k, v) <- ys]
+pair_sorted :: (Ord k) => [(k, a)] -> [(k, b)] -> [(k, Paired a b)]
+pair_sorted xs [] = [(k, First v) | (k, v) <- xs]
+pair_sorted [] ys = [(k, Second v) | (k, v) <- ys]
 pair_sorted x@((k0, v0) : xs) y@((k1, v1) : ys)
-    | k0 == k1 = (k0, Just v0, Just v1) : pair_sorted xs ys
-    | k0 < k1 = (k0, Just v0, Nothing) : pair_sorted xs y
-    | otherwise = (k1, Nothing, Just v1) : pair_sorted x ys
+    | k0 == k1 = (k0, Both v0 v1) : pair_sorted xs ys
+    | k0 < k1 = (k0, First v0) : pair_sorted xs y
+    | otherwise = (k1, Second v1) : pair_sorted x ys
 
 -- | Left if the val was in the left list but not the right, Right for the
 -- converse.
 diff :: (a -> b -> Bool) -> [a] -> [b] -> [Either a b]
 diff eq xs ys = Maybe.mapMaybe f (equal_pairs eq xs ys)
     where
-    f (Just a, Nothing) = Just (Left a)
-    f (Nothing, Just a) = Just (Right a)
+    f (First a) = Just (Left a)
+    f (Second a) = Just (Right a)
     f _ = Nothing
 
 -- * sublists

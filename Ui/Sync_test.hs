@@ -408,13 +408,11 @@ thread setup tests = do
 match_dumps :: String -> [Dump.Dump] -> [[(String, String)]] -> IO Bool
 match_dumps desc dumps attrs = allM match (Seq.padded_zip dumps attrs)
     where
-    match (Nothing, Just attrs) =
+    match (Seq.Second attrs) =
         fail $ "view missing for attrs: " ++ show attrs
-    match (Just dump, Nothing) =
+    match (Seq.First dump) =
         fail $ "unexpected view: " ++ show dump
-    match (Nothing, Nothing) =
-        fail "padded_zip should never return (Nothing, Nothing)"
-    match (Just dump, Just attrs)
+    match (Seq.Both dump attrs)
         | null missing = pass $ "found " ++ show attrs
         | otherwise =
             fail $ "attrs " ++ show missing ++ " not in dump: " ++ pshow dump

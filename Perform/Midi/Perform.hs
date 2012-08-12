@@ -200,7 +200,7 @@ controls_equal cs0 cs1 = all eq pairs
     -- already.  Comparing the entire signal will fail to merge events that
     -- have different signals after the decay is over, but what are you
     -- doing creating those anyway?
-    eq (_, Just sig0, Just sig1) = sig0 == sig1
+    eq (_, Seq.Both sig0 sig1) = sig0 == sig1
     eq _ = False
 
 

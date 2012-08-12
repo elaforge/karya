@@ -79,7 +79,7 @@ zip_intersection map1 map2 =
 
 -- | Pair up elements from each map with equal keys.  @(k, Nothing, Nothing)@
 -- will never appear in the output.
-pairs :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, Maybe v1, Maybe v2)]
+pairs :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, Seq.Paired v1 v2)]
 pairs map1 map2 = Seq.pair_sorted (Map.toAscList map1) (Map.toAscList map2)
 
 -- | Like 'Map.union', but also return a map of rejected duplicate keys from

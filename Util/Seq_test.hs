@@ -2,6 +2,7 @@
 module Util.Seq_test where
 import Util.Test
 import qualified Util.Seq as Seq
+import Util.Seq (Paired(..))
 
 
 test_keyed_group_on = do
@@ -26,15 +27,12 @@ test_merge_lists = do
 test_equal_pairs = do
     let f = Seq.equal_pairs (==)
     equal (f "abc" "abc")
-        [(Just 'a', Just 'a'), (Just 'b', Just 'b'), (Just 'c', Just 'c')]
+        [Both 'a' 'a', Both 'b' 'b', Both 'c' 'c']
     equal (f "abc" "axbc")
-        [(Just 'a', Just 'a'), (Nothing, Just 'x'), (Just 'b', Just 'b'),
-            (Just 'c', Just 'c')]
+        [Both 'a' 'a', Second 'x', Both 'b' 'b', Both 'c' 'c']
     equal (f "abc" "axxbc")
-        [(Just 'a', Just 'a'), (Nothing, Just 'x'), (Nothing, Just 'x'),
-            (Just 'b', Just 'b'), (Just 'c', Just 'c')]
+        [Both 'a' 'a', Second 'x', Second 'x', Both 'b' 'b', Both 'c' 'c']
     equal (f "abc" "bc")
-        [(Just 'a', Nothing), (Just 'b', Just 'b'), (Just 'c', Just 'c')]
+        [First 'a', Both 'b' 'b', Both 'c' 'c']
     equal (f "abc" "xyz")
-        [(Just 'a', Nothing), (Just 'b', Nothing), (Just 'c', Nothing),
-            (Nothing, Just 'x'), (Nothing, Just 'y'), (Nothing, Just 'z')]
+        [First 'a', First 'b', First 'c', Second 'x', Second 'y', Second 'z']

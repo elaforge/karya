@@ -1175,13 +1175,12 @@ calculate_damage old new =
     Ranges.sorted_ranges $ foldr f []
         (Seq.pair_sorted (Events.ascending old) (Events.ascending new))
     where
-    f (pos, Nothing, Just new) ranges = Events.range (pos, new) : ranges
-    f (pos, Just old, Nothing) ranges = Events.range (pos, old) : ranges
-    f (pos, Just old, Just new) ranges
+    f (pos, Seq.Second new) ranges = Events.range (pos, new) : ranges
+    f (pos, Seq.First old) ranges = Events.range (pos, old) : ranges
+    f (pos, Seq.Both old new) ranges
         | old == new = ranges
         | otherwise = (pos, max (pos + dur old) (pos + dur new)) : ranges
         where dur = Event.event_duration
-    f _ ranges = ranges
 
 -- | Remove any events whose starting positions fall within the half-open
 -- range given, or under the point if the selection is a point.

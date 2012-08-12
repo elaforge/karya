@@ -13,8 +13,9 @@ module Midi.State (
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Util.Map as Map
 
+import qualified Util.Map as Map
+import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 
 
@@ -90,7 +91,7 @@ diff_chan (dev, chan) (Channel notes1 pb1 controls1)
     map (\m -> (dev, Midi.ChannelMessage chan m)) $
     (if pb1 == pb2 then [] else [Midi.PitchBend pb2])
     ++ diff_map controls1 controls2 0 diff_control
-    ++ concatMap (uncurry3 diff_note) (Map.pairs notes1 notes2)
+    ++ concatMap (uncurry diff_note) (Map.pairs notes1 notes2)
 
 diff_control :: Control -> Midi.ControlValue -> Midi.ControlValue
     -> [Midi.ChannelMessage]
@@ -98,20 +99,18 @@ diff_control control v1 v2
     | v1 == v2 = []
     | otherwise = [cc_msg control v2]
 
-diff_note :: Midi.Key -> Maybe Midi.Velocity -> Maybe Midi.Velocity
+diff_note :: Midi.Key -> Seq.Paired Midi.Velocity Midi.Velocity
     -> [Midi.ChannelMessage]
-diff_note key (Just _) Nothing = [Midi.NoteOff key 0]
-diff_note key Nothing (Just vel) = [Midi.NoteOn key vel]
-diff_note key (Just v1) (Just v2)
+diff_note key (Seq.First _) = [Midi.NoteOff key 0]
+diff_note key (Seq.Second vel) = [Midi.NoteOn key vel]
+diff_note key (Seq.Both v1 v2)
     | v1 == v2 = []
     | otherwise = [Midi.NoteOff key 0, Midi.NoteOn key v2]
-diff_note _ Nothing Nothing = []
-
-uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
-uncurry3 f (a, b, c) = f a b c
 
 diff_map :: (Ord k) => Map.Map k a -> Map.Map k a -> a -> (k -> a -> a -> [b])
     -> [b]
 diff_map m1 m2 deflt f = concatMap go (Map.pairs m1 m2)
     where
-    go (k, v1, v2) = f k (Maybe.fromMaybe deflt v1) (Maybe.fromMaybe deflt v2)
+    go (k, Seq.Both v1 v2) = f k v1 v2
+    go (k, Seq.First v1) = f k v1 deflt
+    go (k, Seq.Second v2) = f k deflt v2
