@@ -24,8 +24,6 @@
 module Derive.DeriveQuickCheck where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
-
 import qualified Test.QuickCheck as Q
 
 import Util.Control
@@ -184,7 +182,7 @@ note_to_degree :: TwelveUtil.NoteToDegree
 note_to_degree = TwelveUtil.sys_note_to_degree Twelve.system
 
 parse_control :: String -> Signal.Y
-parse_control text = Maybe.fromMaybe
+parse_control text = fromMaybe
     (error $ "unparseable control: " ++ show text) (ParseBs.float text)
 
 block1 =
@@ -202,7 +200,7 @@ extract_notes skel tracks
         (track, parents, children) <- Tree.flat_paths trees
         guard (is_note track)
         let tracks = children ++ parents
-        let pitch = Maybe.fromMaybe ("*", []) (List.find is_pitch tracks)
+        let pitch = fromMaybe ("*", []) (List.find is_pitch tracks)
         return (snd track, make_samples (pitch : filter is_control tracks))
     where
     (trees, missing) = State.resolve_track_tree

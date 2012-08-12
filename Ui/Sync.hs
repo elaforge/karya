@@ -30,7 +30,6 @@ module Ui.Sync (
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import Util.Control
@@ -365,7 +364,7 @@ block_window_title :: ViewId -> BlockId -> String
 block_window_title view_id block_id = show block_id ++ " -- " ++ show view_id
 
 events_of_track_ids :: State.State -> [TrackId] -> [Events.Events]
-events_of_track_ids ustate track_ids = Maybe.mapMaybe events_of track_ids
+events_of_track_ids ustate track_ids = mapMaybe events_of track_ids
     where
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
     tracks = State.state_tracks ustate

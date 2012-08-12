@@ -7,7 +7,6 @@
 -- a preproc pass or deriving the notes backwards.
 module Derive.Call.Sekar where
 import qualified Data.Char as Char
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -48,7 +47,7 @@ make_pattern pattern = do
     where a_to_z c = 'a' <= c && c <= 'z'
 
 sekar :: [Note.Event] -> Pattern -> [Note.Event]
-sekar notes = Maybe.mapMaybe place . add_starts . Maybe.mapMaybe resolve
+sekar notes = mapMaybe place . add_starts . mapMaybe resolve
     where
     place (start, (dur, Just note)) = Just $ Note.Event start dur note
     place (_, (_, Nothing)) = Nothing

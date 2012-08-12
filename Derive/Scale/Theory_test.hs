@@ -1,9 +1,10 @@
 module Derive.Scale.Theory_test where
-import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Unboxed as Vector
 
+import Util.Control
 import qualified Util.Pretty as Pretty
 import Util.Test
+
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Scale.TwelveUtil as TwelveUtil
@@ -151,9 +152,9 @@ key name = either (error $ "can't parse key: " ++ show name) id $
     TwelveUtil.read_key Twelve.system (Just (Pitch.Key name))
 
 p :: String -> Theory.Pitch
-p s = Maybe.fromMaybe (error $ "can't parse pitch: " ++ show s) $
+p s = fromMaybe (error $ "can't parse pitch: " ++ show s) $
     Theory.read_pitch Twelve.layout s
 
 n :: String -> Theory.Note
-n s = Maybe.fromMaybe (error $ "can't parse note: " ++ show s) $
+n s = fromMaybe (error $ "can't parse note: " ++ show s) $
     Theory.read_note Twelve.layout s

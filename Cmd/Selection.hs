@@ -13,7 +13,6 @@ module Cmd.Selection where
 import Prelude hiding (lookup)
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -319,7 +318,7 @@ step_from tracknum pos direction step = do
     block_id <- Cmd.get_focused_block
     next <- TimeStep.step_from (TimeStep.direction direction) step block_id
         tracknum pos
-    return $ Maybe.fromMaybe pos next
+    return $ fromMaybe pos next
 
 -- | Get the ruler that applies to the given track.  Search left for the
 -- closest ruler that has all the given marklist names.  This includes ruler
@@ -519,7 +518,7 @@ relative_realtime_point perf maybe_root_sel (block_id, _, track_id, pos) =
 point_to_real :: Transport.TempoFunction -> Maybe Point -> RealTime
 point_to_real _ Nothing = 0
 point_to_real tempo (Just (block_id, _, track_id, pos)) =
-    Maybe.fromMaybe 0 $ Seq.head $ tempo block_id track_id pos
+    fromMaybe 0 $ Seq.head $ tempo block_id track_id pos
 
 -- ** select events
 

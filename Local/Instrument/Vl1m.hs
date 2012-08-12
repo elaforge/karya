@@ -2,7 +2,6 @@
 module Local.Instrument.Vl1m where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import Data.Word (Word8)
 
 import qualified System.FilePath as FilePath
@@ -154,7 +153,7 @@ element bytes = ((pb_up, pb_down), name, c_groups)
             Parse.from_signed_7bit (bytes!!13))
     -- doc says 231~240
     name = Seq.strip $ Parse.to_string $ take 10 $ drop 231 bytes
-    controls = Maybe.mapMaybe (get_control bytes) vl1_control_map
+    controls = mapMaybe (get_control bytes) vl1_control_map
     c_groups = [(cc, map fst grp)
         | (cc, grp) <- Seq.keyed_group_on snd controls]
 

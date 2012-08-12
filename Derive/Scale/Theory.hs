@@ -116,8 +116,7 @@ transpose_diatonic key steps pitch@(Pitch oct note) = case key_signature key of
     Nothing -> transpose_chromatic key (chromatic_steps key note steps) pitch
     where
     (oct2, pc2) = (note_pc note + steps) `divMod` key_degrees_per_octave key
-    key_accs sig pc = Maybe.fromMaybe 0 $
-        sig Vector.!? diatonic_degree_of key pc
+    key_accs sig pc = fromMaybe 0 $ sig Vector.!? diatonic_degree_of key pc
 
 -- | Chromatic transposition.  Try to pick a spelling that makes sense for the
 -- given key.
@@ -152,12 +151,12 @@ semis_to_pitch key semis = mkpitch $ case key_signature key of
     -- sum of the intervals is larger than the length of layout_enharmonics.
     -- That shouldn't happen because layout_enharmonics is initialized to
     -- [..  | i <- intervals, a <- [0..i-1]].
-    pick_enharmonic use_sharps notes = Maybe.fromMaybe (0, Note (-1) 0) $
+    pick_enharmonic use_sharps notes = fromMaybe (0, Note (-1) 0) $
         Seq.minimum_on (key . note_accidentals . snd) notes
         where key accs = (if use_sharps then accs < 0 else accs > 0, abs accs)
     in_scale sig (_, note) =
         sig Vector.!? degree_of key note == Just (note_accidentals note)
-    enharmonics = Maybe.fromMaybe [] $ layout_enharmonics layout Boxed.!? steps
+    enharmonics = fromMaybe [] $ layout_enharmonics layout Boxed.!? steps
     (octave, steps) = (semis - a_to_c_offset)
         `divMod` layout_semis_per_octave layout
     layout = key_layout key
@@ -453,4 +452,4 @@ get_enharmonics intervals (Note note_pc note_accs) =
 
 layout_at :: Intervals -> PitchClass -> Accidentals
 layout_at intervals pc =
-    Maybe.fromMaybe 0 $ intervals Vector.!? (pc `mod` Vector.length intervals)
+    fromMaybe 0 $ intervals Vector.!? (pc `mod` Vector.length intervals)

@@ -17,9 +17,9 @@ import Prelude hiding (repeat)
 import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import Data.Ratio
 
+import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
@@ -203,7 +203,7 @@ recalculate_zoom mlist =
         , Ruler.mark_zoom_level = zoom
         }
         where
-        zoom = pixels_to_zoom dur $ Maybe.fromMaybe 0 $
+        zoom = pixels_to_zoom dur $ fromMaybe 0 $
             Seq.at rank_to_pixels (Ruler.mark_rank mark)
     marks = Ruler.marks_of mlist
     durs = mark_durs [(pos, Ruler.mark_rank m) | (pos, m) <- marks]

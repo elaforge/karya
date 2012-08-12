@@ -240,16 +240,14 @@ cmd_sync_status ui_from cmd_from = do
     edit_state <- Cmd.gets Cmd.state_edit
     ui_to <- State.get
     let updates = view_updates ui_from ui_to
-        new_views = Maybe.mapMaybe create_view updates
+        new_views = mapMaybe create_view updates
     when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state)
         sync_edit_state
 
     when (State.state_config ui_from /= State.state_config ui_to) $
         sync_ui_config (State.state_config ui_to)
-    forM_ (Maybe.mapMaybe selection_update updates)
-        (uncurry sync_selection)
-    forM_ (new_views ++ Maybe.mapMaybe zoom_update updates)
-        sync_zoom_status
+    forM_ (mapMaybe selection_update updates) (uncurry sync_selection)
+    forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
     return Cmd.Continue
     where
     create_view (Update.ViewUpdate view_id Update.CreateView) = Just view_id

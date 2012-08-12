@@ -16,7 +16,6 @@ import Prelude hiding (last, null, truncate)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Vector as V
@@ -72,7 +71,7 @@ instance Monoid.Monoid Signal where
     mappend s1 s2 = Monoid.mconcat [s1, s2]
     mconcat [] = mempty
     mconcat sigs = Signal (mconcat (map sig_transposers sigs))
-        (Maybe.fromMaybe Pitch.empty_scale
+        (fromMaybe Pitch.empty_scale
             (List.find (/=Pitch.empty_scale) (map sig_scale_id sigs)))
         (TimeVector.merge (map sig_vec sigs))
 
@@ -138,7 +137,7 @@ resample_signals controls transposers =
     zip xs (map (flip controls_at controls) xs)
     where
     xs = Seq.drop_dups id $ Seq.merge_asc_lists id (map xs_of sigs)
-    sigs = Maybe.mapMaybe (\c -> Map.lookup c controls)
+    sigs = mapMaybe (\c -> Map.lookup c controls)
         (Set.toList transposers)
     xs_of = map fst . Signal.unsignal . Score.typed_val
     -- If the tsigs are dense, then it's wasteful to keep looking up all

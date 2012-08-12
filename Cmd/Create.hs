@@ -14,7 +14,6 @@
 module Cmd.Create where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -54,7 +53,7 @@ renamespace :: (State.M m) => Id.Namespace -> Id.Namespace -> m ()
 renamespace from to = Transform.map_ids set_ns
     where
     set_ns ident
-        | ns == from = Maybe.fromMaybe ident (Id.id to name)
+        | ns == from = fromMaybe ident (Id.id to name)
         | otherwise = ident
         where (ns, name) = Id.un_id ident
 
@@ -281,7 +280,7 @@ splice_above_ancestors :: (Cmd.M m) => m TrackId
 splice_above_ancestors = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
     tree <- State.get_track_tree block_id
-    let ancestors = Seq.unique $ Maybe.mapMaybe (ancestor tree) tracknums
+    let ancestors = Seq.unique $ mapMaybe (ancestor tree) tracknums
     insert_at <- Cmd.require_msg "no selected tracks" $ Seq.minimum ancestors
     track_id <- focused_track block_id insert_at
     State.add_edges block_id (map ((,) insert_at) (map (+1) ancestors))

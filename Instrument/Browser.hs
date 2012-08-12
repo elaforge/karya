@@ -3,18 +3,17 @@ module Instrument.Browser where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
-import Control.Monad
 import qualified Control.Monad.State as State
 import Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified System.IO as IO
 import Text.Printf
 
+import Util.Control
 import qualified Util.Fltk as Fltk
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -175,7 +174,7 @@ process_query win db displayed query = do
             BrowserC.remove_line win (i+1)
         _ -> return ()
     -- pprint (filter interesting diff)
-    return $ Maybe.mapMaybe (Seq.paired_first . snd) diff
+    return $ mapMaybe (Seq.paired_first . snd) diff
     -- where
     -- interesting (_, Just _, Just _) = False
     -- interesting _ = True

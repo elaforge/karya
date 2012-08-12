@@ -1,6 +1,5 @@
 -- | Cmds for track level operations.
 module Cmd.Lang.LTrack where
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -81,7 +80,7 @@ replace x y val
 map_control_val :: String -> (Signal.Y -> Signal.Y) -> Cmd.CmdL ()
 map_control_val name f = ModifyEvents.tracks $
     ModifyEvents.tracks_named (==name) $ ModifyEvents.track_text $ \text ->
-        Maybe.fromMaybe text (ControlTrack.modify_val f text)
+        fromMaybe text (ControlTrack.modify_val f text)
 
 score_to_hex :: Cmd.CmdL ()
 score_to_hex = ModifyEvents.all_blocks $
@@ -96,7 +95,7 @@ block_to_hex block_id = ModifyEvents.block_tracks block_id $
 to_hex :: String -> String
 to_hex text = case Derive.ParseBs.parse_val val of
     Right (TrackLang.VNum (Score.Typed Score.Untyped n))
-        | 0 <= n && n <= 1 -> Maybe.fromMaybe "" $ ControlTrack.unparse
+        | 0 <= n && n <= 1 -> fromMaybe "" $ ControlTrack.unparse
             (Just method, Just (Derive.ParseBs.show_hex_val n))
     _ -> val
     where (method, val) = ControlTrack.parse text

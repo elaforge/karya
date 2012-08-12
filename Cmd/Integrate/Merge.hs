@@ -200,7 +200,7 @@ track_edges track_ids = concatMap edges
         case tracknum_of track_id of
             Nothing -> []
             Just tracknum ->
-                let control_nums = Maybe.mapMaybe (tracknum_of . fst)
+                let control_nums = mapMaybe (tracknum_of . fst)
                         (Map.elems controls)
                 in zip (tracknum : control_nums) control_nums
     tracknum_of track_id = List.findIndex (== Just track_id) track_ids
@@ -225,7 +225,7 @@ diff_events :: Block.EventIndex -- ^ results of last integrate
 diff_events index events = (deletes, edits)
     where
     deletes = Set.difference (Map.keysSet index) $
-        Set.fromList (Maybe.mapMaybe index_key events)
+        Set.fromList (mapMaybe index_key events)
     edits = map (diff index) events
 
 diff :: Block.EventIndex -> Events.PosEvent -> Edit
@@ -296,7 +296,7 @@ is_modified _ = True
 apply :: Set.Set Event.IndexKey -- ^ events that were deteleted
     -> [Edit] -> [Events.PosEvent] -- ^ results of current integrate
     -> Events.Events
-apply deletes adds_edits = make . Maybe.mapMaybe edit
+apply deletes adds_edits = make . mapMaybe edit
     where
     -- Adds go afterwards so they can replace coincident events.
     make events = Events.from_list (events ++ adds)

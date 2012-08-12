@@ -23,7 +23,6 @@ module Cmd.StepPlay (
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -77,7 +76,7 @@ set step_back play_selected_tracks = do
     start <- if step_back
         then do
             step <- Cmd.gets (Cmd.state_play_step . Cmd.state_play)
-            Maybe.fromMaybe sel_pos <$>
+            fromMaybe sel_pos <$>
                 TimeStep.rewind step block_id tracknum sel_pos
         else return sel_pos
     move_to block_id start
@@ -120,7 +119,7 @@ initialize view_id block_id tracknum track_id pos play_tracks = do
 -- | True if the event was from one of these tracks.
 from_track :: [TrackId] -> Score.Event -> Bool
 from_track track_ids event = any (`elem` track_ids) $
-    Maybe.mapMaybe track_of $ Stack.innermost (Score.event_stack event)
+    mapMaybe track_of $ Stack.innermost (Score.event_stack event)
     where
     track_of (Stack.Track tid) = Just tid
     track_of _ = Nothing

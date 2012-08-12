@@ -1,7 +1,6 @@
 module Ui.UiTest where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Rect as Rect
@@ -44,7 +43,7 @@ default_divider = Block.Divider Color.blue
 -- state
 
 test_ns = Id.unsafe_namespace "test"
-mkid name = Maybe.fromMaybe (error $ "invalid characters in " ++ show name) $
+mkid name = fromMaybe (error $ "invalid characters in " ++ show name) $
     Id.make test_ns name
 bid = Types.BlockId . mkid
 vid = Types.ViewId . mkid

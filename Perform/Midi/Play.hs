@@ -2,14 +2,13 @@
 module Perform.Midi.Play (play) where
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
-import Control.Monad
-
 import qualified Data.IORef as IORef
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
+
 import qualified Midi.CC as CC
 import qualified Midi.Midi as Midi
 import qualified Derive.LEvent as LEvent
@@ -128,8 +127,7 @@ reset_midi write_midi time addrs = do
 update_addrs :: AddrsSeen -> [Midi.WriteMessage] -> AddrsSeen
 update_addrs addrs_seen wmsgs = Set.size addrs_seen' `seq` addrs_seen'
     where
-    addrs_seen' = Set.union addrs_seen
-        (Set.fromList (Maybe.mapMaybe wmsg_addr wmsgs))
+    addrs_seen' = Set.union addrs_seen (Set.fromList (mapMaybe wmsg_addr wmsgs))
 
 wmsg_addr :: Midi.WriteMessage -> Maybe Instrument.Addr
 wmsg_addr (Midi.WriteMessage dev _ (Midi.ChannelMessage chan _)) =

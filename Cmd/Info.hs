@@ -6,7 +6,6 @@
 module Cmd.Info where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
@@ -219,7 +218,7 @@ find_note_track :: State.TrackTree -> TrackNum
 find_note_track tree tracknum = case paths_of tree tracknum of
         Nothing -> Nothing
         Just (track, parents, children) ->
-            Seq.head $ Maybe.mapMaybe inst_of (track : children ++ parents)
+            Seq.head $ mapMaybe inst_of (track : children ++ parents)
     where
     inst_of track =
         case TrackInfo.title_to_instrument (State.track_title track) of

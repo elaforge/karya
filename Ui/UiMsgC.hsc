@@ -1,7 +1,6 @@
 module Ui.UiMsgC (get_ui_msgs) where
 import Foreign
 import Foreign.C
-import qualified Data.Maybe as Maybe
 import Util.Control
 
 import qualified Ui.BlockC as BlockC
@@ -121,7 +120,7 @@ peek_ui_update type_num msgp = case type_num of
     (#const UiMsg::msg_input) -> do
         ctext <- (#peek UiMsg, input.text) msgp :: IO CString
         text <- maybePeek peekCString ctext
-        return $ UiMsg.UpdateInput (Maybe.fromMaybe "" text)
+        return $ UiMsg.UpdateInput (fromMaybe "" text)
     (#const UiMsg::msg_track_scroll) -> do
         scroll <- int <$> (#peek UiMsg, track_scroll.scroll) msgp :: IO Int
         return $ UiMsg.UpdateTrackScroll scroll

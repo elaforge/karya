@@ -5,6 +5,7 @@ import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -64,9 +65,6 @@ instance Pretty.Pretty TrackDestination where
         Pretty.format (fst note, Map.map fst controls)
 
 
--- If a track was deleted, then its track id will be missing.
--- Since merge recreates the track, then it will always be the same as convert
--- output.
 
 -- | This is a picture of the integrated events that were used to create an
 -- integrated block.  By taking its difference against the current contents of
@@ -214,7 +212,7 @@ track_id_of (TId tid _) = Just tid
 track_id_of _ = Nothing
 
 track_ids_of :: [TracklikeId] -> [TrackId]
-track_ids_of = Maybe.mapMaybe track_id_of
+track_ids_of = mapMaybe track_id_of
 
 ruler_id_of :: TracklikeId -> Maybe RulerId
 ruler_id_of (TId _ rid) = Just rid
@@ -222,7 +220,7 @@ ruler_id_of (RId rid) = Just rid
 ruler_id_of _ = Nothing
 
 ruler_ids_of :: [TracklikeId] -> [RulerId]
-ruler_ids_of = Maybe.mapMaybe ruler_id_of
+ruler_ids_of = mapMaybe ruler_id_of
 
 set_rid :: RulerId -> TracklikeId -> TracklikeId
 set_rid rid (TId tid _) = TId tid rid
@@ -240,7 +238,7 @@ track_of (T track _) = Just track
 track_of _ = Nothing
 
 tracks_of :: [Tracklike] -> [Track.Track]
-tracks_of = Maybe.mapMaybe track_of
+tracks_of = mapMaybe track_of
 
 ruler_of :: Tracklike -> Maybe Ruler.Ruler
 ruler_of (T _ ruler) = Just ruler
@@ -248,7 +246,7 @@ ruler_of (R ruler) = Just ruler
 ruler_of _ = Nothing
 
 rulers_of :: [Tracklike] -> [Ruler.Ruler]
-rulers_of = Maybe.mapMaybe ruler_of
+rulers_of = mapMaybe ruler_of
 
 -- | A divider separating tracks.
 -- Defined here in Block since it's so trivial.

@@ -13,7 +13,6 @@ import qualified Data.FixedList as FixedList
 import Data.FixedList (Nil(..))
 import qualified Data.Hashable as Hashable
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 import qualified Data.Traversable as Traversable
 
 import qualified System.Random.Mersenne.Pure64 as Pure64
@@ -83,7 +82,7 @@ typed_control_at :: TrackLang.ValControl -> RealTime
 typed_control_at control pos = case control of
     TrackLang.ConstantControl deflt -> return deflt
     TrackLang.DefaultedControl cont deflt ->
-        Maybe.fromMaybe deflt <$> Derive.control_at cont pos
+        fromMaybe deflt <$> Derive.control_at cont pos
     TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found and no default: "
                 ++ TrackLang.show_val cont) return
@@ -276,7 +275,7 @@ lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val TrackLang.v_instrument
 
 get_attrs :: Derive.Deriver Score.Attributes
-get_attrs = Maybe.fromMaybe mempty <$> Derive.lookup_val TrackLang.v_attributes
+get_attrs = fromMaybe mempty <$> Derive.lookup_val TrackLang.v_attributes
 
 -- ** random
 
@@ -303,7 +302,7 @@ shuffle xs = Random.shuffle xs <$> randoms
 
 _make_randoms :: (Pure64.PureMT -> (a, Pure64.PureMT)) -> Derive.Deriver [a]
 _make_randoms f = do
-    pos <- maybe 0 fst . Seq.head . Maybe.mapMaybe Stack.region_of
+    pos <- maybe 0 fst . Seq.head . mapMaybe Stack.region_of
         . Stack.innermost <$> Derive.get_stack
     gen <- _random_generator pos
     return $ List.unfoldr (Just . f) gen
@@ -311,11 +310,11 @@ _make_randoms f = do
 _random_generator :: ScoreTime -> Derive.Deriver Pure64.PureMT
 _random_generator pos = do
     seed <- Derive.lookup_val TrackLang.v_seed :: Derive.Deriver (Maybe Double)
-    track_id <- Seq.head . Maybe.mapMaybe Stack.track_of . Stack.innermost <$>
+    track_id <- Seq.head . mapMaybe Stack.track_of . Stack.innermost <$>
         Derive.get_stack
     let track = maybe 0 (Hashable.hash . Id.show_id . Id.unpack_id) track_id
         cseed = Hashable.hash track
-            `Hashable.hashWithSalt` Maybe.fromMaybe 0 seed
+            `Hashable.hashWithSalt` fromMaybe 0 seed
             `Hashable.hashWithSalt` ScoreTime.to_double pos
     return $ Pure64.pureMT (fromIntegral cseed)
 

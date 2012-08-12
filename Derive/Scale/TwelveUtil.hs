@@ -1,7 +1,6 @@
 module Derive.Scale.TwelveUtil where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Num as Num
@@ -84,7 +83,7 @@ input_to_note sys maybe_key (Pitch.InputKey key_nn) =
     where
     -- Default to a key because otherwise you couldn't enter notes in an
     -- empty score!
-    key = Maybe.fromMaybe (sys_default_key sys) $
+    key = fromMaybe (sys_default_key sys) $
         flip Map.lookup (sys_keys sys) =<< maybe_key
     (degree, cents) = properFraction key_nn
 

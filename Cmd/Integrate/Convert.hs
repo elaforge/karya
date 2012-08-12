@@ -2,7 +2,6 @@
 module Cmd.Integrate.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Tuple as Tuple
 
 import Util.Control
@@ -47,7 +46,7 @@ convert :: (Cmd.M m) => Derive.Events -> Maybe Pitch.Key -> m Tracks
 convert levents key = do
     lookup_scale <- Cmd.get_lookup_scale
     inst_db <- Cmd.gets Cmd.state_instrument_db
-    let lookup_attrs = Maybe.fromMaybe mempty
+    let lookup_attrs = fromMaybe mempty
             . fmap (Instrument.patch_attribute_map . MidiDb.info_patch)
             . Instrument.Db.db_lookup inst_db
     let (events, logs) = LEvent.partition levents
@@ -78,7 +77,7 @@ integrate lookup_scale lookup_attrs key = Tuple.swap . Seq.partition_either
         PitchSignal.sig_scale_id (Score.event_pitch event))
 
 track_of :: Score.Event -> Maybe TrackId
-track_of = Seq.head . Maybe.mapMaybe Stack.track_of . Stack.innermost
+track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
 integrate_track :: Derive.LookupScale -> LookupAttrs -> Maybe Pitch.Key

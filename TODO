@@ -14,7 +14,8 @@ UNSORTED
   * Seq.pair_sorted and similar can return 'First a | Second b | Both a b'
     to avoid the bogus (Nothing, Nothing).  So can Seq.zip_padded
   - use NonEmpty list from semigroups
-  - also look for possible semigroup instances
+    Seq.*group*
+    Block.block_integrated, block_integrated_track
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
@@ -194,7 +195,6 @@ UNSORTED
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
   - fltk: some way to scroll that's not the scroll wheel
-  - shakefile: can I print [# of #] when compiling?
   - Cmd.Lang.LPitch.to_relative: I would need to implement Scale.scale_diff
     but I'm reluctant until I need to_relative or something similar
 
@@ -346,6 +346,7 @@ integrate
   - Figure out how multiple levels of track integration work.
   - Use skeleton display to draw a line from integrated to generated
     track, in a different color.
+    How does it get there?  Diff can set it.
   - If integrate is committing changes to a track, can that bite me if
     a "canceled" derivation comes through?  Think about this later.
   - What if an integrate wants to produce a note transformer track?  I
@@ -355,6 +356,7 @@ integrate
     calls)
 
 external
+  - shakefile: can I print [# of #] when compiling?
   - send a patch to improve Random.Shuffle?
   - patch for hsc2hs for #alignment
   srcloc_annotate pragma

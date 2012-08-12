@@ -4,7 +4,6 @@ import Prelude hiding (lookup)
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
@@ -145,7 +144,7 @@ dealloc_instrument inst = do
 block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 block_instruments block_id = do
     titles <- fmap (map State.track_title) (State.tracks_of block_id)
-    return $ Maybe.mapMaybe TrackInfo.title_to_instrument titles
+    return $ mapMaybe TrackInfo.title_to_instrument titles
 
 -- | Try to automatically create an instrument config based on the instruments
 -- found in the given block.  It simply gives each instrument on a device a

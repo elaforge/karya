@@ -521,8 +521,7 @@ mkevent (inst, pitch, start, dur, controls) =
         (psig start pitch) DeriveTest.fake_stack
     where
     psig pos p = Signal.signal [(pos, to_pitch p)]
-    to_pitch p = Maybe.fromMaybe (error ("no pitch " ++ show p))
-        (lookup p pitch_map)
+    to_pitch p = fromMaybe (error ("no pitch " ++ show p)) (lookup p pitch_map)
     pitch_map = zip (map (:"") ['a'..'z']) [60..]
         ++ zip (map (:"2") ['a'..'z']) [60.5..]
 

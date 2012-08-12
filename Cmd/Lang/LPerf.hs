@@ -1,7 +1,6 @@
 -- | Cmds to deal with Cmd.Performance, derivation, and performance.
 module Cmd.Lang.LPerf where
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
@@ -148,7 +147,7 @@ in_tracks event_stack track_ids =
     filter $ is_event (has . tracks_of . event_stack)
     where
     is_event f = LEvent.either f (const True)
-    tracks_of = Maybe.mapMaybe Stack.track_of . Stack.innermost
+    tracks_of = mapMaybe Stack.track_of . Stack.innermost
     has tids = any (`elem` tids) track_ids
 
 in_range :: (Ord k) => (d -> k) -> k -> k -> Events d -> Events d

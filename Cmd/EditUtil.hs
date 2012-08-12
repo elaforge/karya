@@ -1,11 +1,10 @@
 {-# LANGUAGE ViewPatterns #-}
 -- | Utilities for editing events.
 module Cmd.EditUtil where
-import Control.Monad
 import qualified Data.Char as Char
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -36,10 +35,10 @@ raw_edit zero_dur msg = do
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- parse_key key
             modify_event zero_dur False $ \txt ->
-                (modify_text_note note (Maybe.fromMaybe "" txt), False)
+                (modify_text_note note (fromMaybe "" txt), False)
         (raw_key -> Just key) ->
             modify_event zero_dur False $ \txt ->
-                (modify_text_key key (Maybe.fromMaybe "" txt), False)
+                (modify_text_key key (fromMaybe "" txt), False)
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -102,7 +101,7 @@ remove_event_at pos advance =
 -- | Insert an event, but only if there isn't already a non-empty one there.
 soft_insert :: (Cmd.M m) => String -> m ()
 soft_insert text = modify_event True True $ \old_text ->
-    if null (Maybe.fromMaybe "" old_text) then (Just text, True)
+    if null (fromMaybe "" old_text) then (Just text, True)
         else (old_text, False)
 
 lookup_instrument :: (Cmd.M m) => m (Maybe Score.Instrument)

@@ -30,7 +30,6 @@ import Control.Monad.Trans (lift)
 import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -885,7 +884,7 @@ tracks_of block_id = do
 ruler_track_at :: (M m) => BlockId -> TrackNum -> m RulerId
 ruler_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
-    return $ Maybe.fromMaybe no_ruler $ Block.ruler_id_of =<< maybe_track
+    return $ fromMaybe no_ruler $ Block.ruler_id_of =<< maybe_track
 
 track_count :: (M m) => BlockId -> m TrackNum
 track_count block_id = do
@@ -1036,7 +1035,7 @@ shift_tracknum block tracknum shift
     selectable = selectable_tracks block
     find_track [] = tracknum
     find_track tracks@(first:_) =
-        Maybe.fromMaybe tracknum $ Seq.head $ drop abs_shift tracks
+        fromMaybe tracknum $ Seq.head $ drop abs_shift tracks
         where
         abs_shift = if tracknum /= first then abs shift - 1 else abs shift
 
@@ -1212,8 +1211,8 @@ map_events_sorted track_id start end f = _modify_events track_id $ \events ->
         deleted = if start == end
             then Events.remove_event start events
             else Events.remove_events start end events
-        starts = map Events.min $ Maybe.mapMaybe Seq.head [old, new]
-        ends = map Events.max $ Maybe.mapMaybe Seq.last [old, new]
+        starts = map Events.min $ mapMaybe Seq.head [old, new]
+        ends = map Events.max $ mapMaybe Seq.last [old, new]
         ranges = if null starts || null ends then Ranges.nothing
             else Ranges.range (minimum starts) (maximum ends)
     in (Events.insert_sorted_events new deleted, ranges)

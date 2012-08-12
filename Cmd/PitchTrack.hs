@@ -5,7 +5,6 @@
 -}
 module Cmd.PitchTrack where
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -92,7 +91,7 @@ modify_event_at :: (Cmd.M m) => State.Pos
     -> ((String, String) -> ((Maybe String, Maybe String), Bool))
     -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True True
-    (first unparse . f . parse. Maybe.fromMaybe "")
+    (first unparse . f . parse. fromMaybe "")
 
 -- | Modify event text.  This is not used within this module but is exported
 -- for others as a more general variant of 'modify_event_at'.
@@ -132,8 +131,8 @@ unparse (method, val) = case (pre, post) of
     strip_right_paren text
         | ')' `elem` text = reverse $ drop 1 $ dropWhile (/=')') $ reverse text
         | otherwise = text
-    pre = Maybe.fromMaybe "" method
-    post = Maybe.fromMaybe "" val
+    pre = fromMaybe "" method
+    post = fromMaybe "" val
 
 -- | Try to figure out where the pitch call part is in event text and modify
 -- that with the given function.  The function can signal failure by returning
@@ -192,7 +191,7 @@ transpose octaves steps scale maybe_key note =
 cycle_enharmonics :: ModifyPitch
 cycle_enharmonics scale maybe_key note = show_err $ do
     enharmonics <- Scale.scale_enharmonics scale maybe_key note
-    return $ Maybe.fromMaybe note (Seq.head enharmonics)
+    return $ fromMaybe note (Seq.head enharmonics)
 
 pitches :: (Cmd.M m) => ModifyPitch -> m ()
 pitches = ModifyEvents.tracks_sorted . pitch_tracks

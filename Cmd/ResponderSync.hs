@@ -3,7 +3,6 @@
 module Cmd.ResponderSync (Sync, sync) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
@@ -60,7 +59,7 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
         cmd_state { Cmd.state_derive_immediately = mempty })
 
 get_track_signals :: Maybe BlockId -> Cmd.State -> Track.TrackSignals
-get_track_signals maybe_root st = Maybe.fromMaybe Map.empty $ do
+get_track_signals maybe_root st = fromMaybe Map.empty $ do
     root <- maybe_root
     Cmd.perf_track_signals <$>
         (Map.lookup root $ Cmd.state_performance (Cmd.state_play st))

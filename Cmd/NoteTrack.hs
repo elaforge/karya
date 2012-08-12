@@ -15,7 +15,6 @@
 module Cmd.NoteTrack where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -54,14 +53,14 @@ cmd_raw_edit msg = Cmd.suppress_history Cmd.RawEdit "note track raw edit" $ do
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key key
             modify_event_at pos False False $ \txt ->
-                (EditUtil.modify_text_note note (Maybe.fromMaybe "" txt),
+                (EditUtil.modify_text_note note (fromMaybe "" txt),
                     False)
         (EditUtil.raw_key -> Just key) ->
             -- Create a zero length event on a space.  'modify_text_key' will
             -- eat a lone space, so this is an easy way to create
             -- a zero-length note.
             modify_event_at pos (key == Key.Char ' ') False $ \txt ->
-                (EditUtil.modify_text_key key (Maybe.fromMaybe "" txt), False)
+                (EditUtil.modify_text_key key (fromMaybe "" txt), False)
         _ -> Cmd.abort
     return Cmd.Done
 

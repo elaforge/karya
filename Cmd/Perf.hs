@@ -6,7 +6,6 @@
 module Cmd.Perf where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -123,7 +122,7 @@ resolve_instrument block_id tracknum inst
     | otherwise = do
         track_id <- State.get_event_track_at "get_track_status"
             block_id tracknum
-        Maybe.fromMaybe inst <$> lookup_instrument block_id (Just track_id)
+        fromMaybe inst <$> lookup_instrument block_id (Just track_id)
 
 -- | Lookup value from the deriver's Environ at the given block and (possibly)
 -- track.  See 'Derive.TrackEnviron' for details on the limitations here.
@@ -219,7 +218,7 @@ tracknums_of block (track_id, pos) =
 -- The block itself is filtered out of the result.
 sub_pos :: (Cmd.M m) => BlockId -> TrackId -> ScoreTime
     -> m [(BlockId, [(TrackId, ScoreTime)])]
-sub_pos block_id track_id pos = fmap (Maybe.fromMaybe []) $
+sub_pos block_id track_id pos = fmap (fromMaybe []) $
     justm (Cmd.lookup_performance block_id) $ \perf ->
     justm (lookup_realtime perf block_id (Just track_id) pos) $ \real ->
     return $ Just $ filter ((/=block_id) . fst) (Cmd.perf_inv_tempo perf real)

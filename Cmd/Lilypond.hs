@@ -3,8 +3,6 @@ module Cmd.Lilypond where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
-
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.Process as Process
@@ -88,7 +86,7 @@ ly_dir = do
     return $ save_file ++ "_ly"
 
 lookup_key :: Cmd.Performance -> Pitch.Key
-lookup_key perf = Maybe.fromMaybe Twelve.default_key $ msum $
+lookup_key perf = fromMaybe Twelve.default_key $ msum $
         map lookup $ Map.elems (Msg.perf_track_environ perf)
     where
     lookup environ = case TrackLang.lookup_val TrackLang.v_key environ of

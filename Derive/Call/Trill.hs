@@ -26,8 +26,6 @@
     piece.
 -}
 module Derive.Call.Trill where
-import qualified Data.Maybe as Maybe
-
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
@@ -72,7 +70,7 @@ c_note_trill = Derive.stream_generator "trill" $ Note.inverting $ \args ->
         let end = snd $ Args.range args
         let notes = do
                 (x, maybe_next) <- Seq.zip_next xs
-                let next = Maybe.fromMaybe end maybe_next
+                let next = fromMaybe end maybe_next
                 return $ Note.Event x (next-x) Util.note
         Derive.with_added_control control (Score.untyped transpose) $
             Note.place notes

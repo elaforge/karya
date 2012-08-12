@@ -2,7 +2,6 @@ module Derive.DeriveTest where
 import qualified Data.ByteString.Char8 as B
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -18,6 +17,7 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Call as Call
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
@@ -357,7 +357,7 @@ e_pitch_err e = (map (second Pitch.NoteNumber) (Signal.unsignal sig),
         (Score.event_controls e) (Score.event_pitch e)
 
 e_twelve :: Score.Event -> String
-e_twelve e = Maybe.fromMaybe "?" $ do
+e_twelve e = fromMaybe "?" $ do
     nn <- Score.initial_nn e
     note <- Scale.scale_input_to_note Twelve.scale Nothing (to_input nn)
     return (Pitch.note_text note)
@@ -366,7 +366,7 @@ e_twelve e = Maybe.fromMaybe "?" $ do
 -- | (start, dur, pitch), the melodic essentials of a note.
 e_note :: Score.Event -> (RealTime, RealTime, Pitch.NoteNumber)
 e_note e = (Score.event_start e, Score.event_duration e,
-    Maybe.fromMaybe (-1) (Score.initial_nn e))
+    fromMaybe (-1) (Score.initial_nn e))
 
 e_note2 :: Score.Event -> (RealTime, RealTime, String)
 e_note2 e = (Score.event_start e, Score.event_duration e, e_twelve e)
@@ -409,7 +409,7 @@ c_note s_start dur = do
     start <- Derive.real s_start
     end <- Derive.real (s_start + dur)
     inst <- Derive.get_val TrackLang.v_instrument
-    attrs <- Maybe.fromMaybe Score.no_attrs <$>
+    attrs <- fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
     st <- Derive.gets Derive.state_dynamic
     let controls = Derive.state_controls st

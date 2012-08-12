@@ -1,10 +1,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond where
+import qualified Control.Monad.State.Strict as State
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import qualified Text.PrettyPrint as PP
 import Text.PrettyPrint (Doc)
@@ -143,13 +145,13 @@ convert_notes config sig end events = go Nothing 0 events
                 then '\\':dyn else ""
             }
         (here, rest) = break ((>start) . event_start) events
-        end = subtract start $ Maybe.fromMaybe (event_end event) $
+        end = subtract start $ fromMaybe (event_end event) $
             Seq.minimum (next ++ map event_end here)
         next = maybe [] ((:[]) . event_start) (Seq.head rest)
         allowed = min end $ allowed_dotted_time sig start
         allowed_dur = time_to_note_dur allowed
         allowed_time = note_dur_to_time allowed_dur
-        clipped = Maybe.mapMaybe (clip_event (start + allowed_time)) here
+        clipped = mapMaybe (clip_event (start + allowed_time)) here
         start = event_start event
         dyn = get_dynamic (config_dynamics config) (event_dynamic event)
 
@@ -360,7 +362,7 @@ make_staves config clef time_sig events =
     | (inst, inst_events) <- Seq.keyed_group_on event_instrument events
     ]
     where
-    end = round_up (measure_time time_sig) $ Maybe.fromMaybe 0 $
+    end = round_up (measure_time time_sig) $ fromMaybe 0 $
         Seq.maximum (map event_end events)
     measures inst_events = split_measures time_sig
         (convert_notes config time_sig end inst_events)

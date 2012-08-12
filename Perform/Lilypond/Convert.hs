@@ -1,7 +1,6 @@
 -- | Convert Derive.Score output into Lilypond.Events.
 module Perform.Lilypond.Convert where
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -68,7 +67,7 @@ convert_pitch start controls psig = do
 
 degree_to_pitch :: Map.Map Pitch.Degree Theory.Pitch
 degree_to_pitch =
-    Map.fromList $ Maybe.mapMaybe (Seq.minimum_on (simplicity . snd)) $
+    Map.fromList $ mapMaybe (Seq.minimum_on (simplicity . snd)) $
         Seq.group_on fst $ map reverse $ Map.elems $
         TwelveUtil.sys_note_to_degree Twelve.system
     where

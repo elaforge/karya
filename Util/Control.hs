@@ -7,6 +7,7 @@ module Util.Control (
     , while, while_
     , whenM, unlessM, when_just, if_just, ifM, andM, orM, findM
     , concatMapM, mapMaybeM
+    , mapMaybe, fromMaybe
 
     -- , finally
     , justm
@@ -24,6 +25,7 @@ import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import Control.Monad
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty, mconcat)
+import Data.Maybe (mapMaybe, fromMaybe)
 import Util.Functor0 (fmap0)
 import Util.Lens
 

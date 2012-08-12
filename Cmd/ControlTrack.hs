@@ -1,7 +1,6 @@
 {-# LANGUAGE ViewPatterns #-}
 module Cmd.ControlTrack where
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Ui.Key as Key
@@ -128,7 +127,7 @@ modify_event f = do
 modify_event_at :: (Cmd.M m) => State.Pos
     -> ((String, String) -> ((Maybe String, Maybe String), Bool)) -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True True
-    (first unparse . f . parse . Maybe.fromMaybe "")
+    (first unparse . f . parse . fromMaybe "")
 
 -- | Try to figure out the call part of the expression and split it from the
 -- rest.
@@ -150,8 +149,8 @@ unparse (method, val) = case (pre, post) of
         -- Disambiguate a bare method with a trailing space.
         _ -> Just (pre ++ ' ' : post)
     where
-    pre = Maybe.fromMaybe "" method
-    post = Maybe.fromMaybe "" val
+    pre = fromMaybe "" method
+    post = fromMaybe "" val
 
 -- | Try to figure out where the note part is in event text and modify that
 -- with the given function.

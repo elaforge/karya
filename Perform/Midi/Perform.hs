@@ -152,7 +152,7 @@ shareable_chan overlapping event =
     where
     unshareable_reasons = [(chan, reasons evts) | (chan, evts) <- by_chan]
     by_chan = Seq.keyed_group_on snd overlapping
-    reasons = Maybe.mapMaybe (flip can_share_chan event) . map fst
+    reasons = mapMaybe (flip can_share_chan event) . map fst
 
 -- | Can the two events coexist in the same channel without interfering?
 -- The reason this is not commutative is so I can assume the start of @old@
@@ -445,9 +445,9 @@ note_velocity :: Event -> RealTime -> RealTime
 note_velocity event note_on note_off =
     (clipped_vel on_sig, clipped_vel off_sig, clip_warns)
     where
-    on_sig = Maybe.fromMaybe default_velocity $
+    on_sig = fromMaybe default_velocity $
         control_at event Control.c_velocity note_on
-    off_sig = Maybe.fromMaybe default_velocity $
+    off_sig = fromMaybe default_velocity $
         control_at event Control.c_velocity note_off
     clipped_vel val = Control.val_to_cc (fst (clip_val 0 1 val))
     clip_warns =

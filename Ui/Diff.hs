@@ -11,7 +11,6 @@ module Ui.Diff (
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -70,7 +69,7 @@ diff cmd_updates st1 st2 = postproc $ run $ do
         display_updates ++ to_display (merge_updates st2 ui_updates2))
         where
         ui_updates2 = map Update.to_ui cmd_updates ++ ui_updates
-        to_display = Maybe.mapMaybe Update.to_display
+        to_display = mapMaybe Update.to_display
 
 -- | Given the track updates, figure out which other tracks have those tracks
 -- merged and should also be updated.
@@ -88,7 +87,7 @@ merge_updates state updates = updates ++ concatMap propagate updates
         where merges_this = Map.get [] track_id merged_to_track
     propagate _ = []
     -- For each track update, find tracks that have it in merged
-    track_to_merged = Maybe.mapMaybe merged_ids_of
+    track_to_merged = mapMaybe merged_ids_of
         (concatMap Block.block_tracks (Map.elems (State.state_blocks state)))
     merged_ids_of track = case Block.tracklike_id track of
         Block.TId track_id _ -> Just (track_id, Block.track_merged track)
@@ -257,8 +256,7 @@ postproc_damage state (Derive.ScoreDamage tracks _ blocks) =
 updates_damage :: [Update.UiUpdate] -> Derive.ScoreDamage
 updates_damage updates = mempty { Derive.sdamage_tracks = tracks }
     where
-    tracks = Map.fromListWith (<>) $
-        Maybe.mapMaybe Update.track_changed updates
+    tracks = Map.fromListWith (<>) $ mapMaybe Update.track_changed updates
 
 derive_diff_block :: BlockId -> Block.Block -> Block.Block -> DeriveDiffM ()
 derive_diff_block block_id block1 block2 = do
@@ -315,7 +313,7 @@ track_diff st1 st2 tid = case (Map.lookup tid t1, Map.lookup tid t2) of
 diff_track_events :: TrackId -> Events.Events -> Events.Events
     -> [Update.CmdUpdate]
 diff_track_events tid e1 e2 =
-    map update $ Ranges.merge_sorted $ Maybe.mapMaybe diff $
+    map update $ Ranges.merge_sorted $ mapMaybe diff $
         Seq.pair_sorted (Events.ascending e1) (Events.ascending e2)
     where
     diff (p, Seq.First e) = Just (p, p + Event.event_duration e)

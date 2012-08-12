@@ -16,7 +16,6 @@ module Derive.Call.Note (
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -102,9 +101,9 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
     -- on the next one, which should be sorted out later by post processing.
     inst <- case n_inst of
         Just inst -> return inst
-        Nothing -> Maybe.fromMaybe Score.default_inst <$>
+        Nothing -> fromMaybe Score.default_inst <$>
             Derive.lookup_val TrackLang.v_instrument
-    attrs <- Maybe.fromMaybe Score.no_attrs <$>
+    attrs <- fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
     st <- Derive.gets Derive.state_dynamic
     let controls = trimmed_controls start real_next (Derive.state_controls st)
@@ -289,7 +288,7 @@ invert after (track_start, _) subs start end next_start text events_around = do
         }
 
 stack_track_id :: Derive.Deriver (Maybe TrackId)
-stack_track_id = Seq.head . Maybe.mapMaybe Stack.track_of . Stack.innermost
+stack_track_id = Seq.head . mapMaybe Stack.track_of . Stack.innermost
     <$> Internal.get_stack
 
 -- | An inverting call above another note track will lead to an infinite loop
@@ -350,5 +349,5 @@ place_at (start, end) notes = Derive.d_place start factor $
     place [note { event_start = event_start note - note_start } | note <- notes]
     where
     factor = (end - start) / (note_end - note_start)
-    note_end = Maybe.fromMaybe 1 $ Seq.maximum (map event_end notes)
-    note_start = Maybe.fromMaybe 1 $ Seq.minimum (map event_start notes)
+    note_end = fromMaybe 1 $ Seq.maximum (map event_end notes)
+    note_start = fromMaybe 1 $ Seq.minimum (map event_start notes)

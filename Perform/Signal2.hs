@@ -189,7 +189,7 @@ to_foreign_ptr = V.to_foreign_ptr . sig_vec
 -- * access
 
 at :: X -> Signal y -> Y
-at x sig = Maybe.fromMaybe 0 $ V.at x (sig_vec sig)
+at x sig = fromMaybe 0 $ V.at x (sig_vec sig)
 
 at_linear :: X -> Signal y -> Y
 at_linear x sig =

@@ -83,7 +83,7 @@ do_save repo (SaveHistory state prev_commit _updates names) = do
         Git.make_dir (dump state)
     tree <- Git.write_dir repo dir
     last_save <- read_last_save repo prev_commit
-    save <- find_next_save repo (Maybe.fromMaybe (SavePoint []) last_save)
+    save <- find_next_save repo (fromMaybe (SavePoint []) last_save)
     commit <- commit_tree repo tree prev_commit $
         unparse_names ("save " ++ save_to_ref save) names
     write_save_ref repo save commit
@@ -107,7 +107,7 @@ read_last_save repo maybe_commit = do
     -- This may be called on incomplete repos without a HEAD.
     maybe_commits <- catch $
         maybe (Git.read_log_head repo) (Git.read_log_from repo) maybe_commit
-    let commits = Maybe.fromMaybe [] maybe_commits
+    let commits = fromMaybe [] maybe_commits
     refs <- Git.read_ref_map repo
     let commit_to_save = Map.fromList $ do
             (ref, commit) <- Map.toList refs

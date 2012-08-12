@@ -160,7 +160,7 @@ discontiguous selections.
 
 
 e_midi :: CmdTest.Result val -> [Midi.ChannelMessage]
-e_midi = Maybe.mapMaybe Midi.channel_message . map snd . CmdTest.result_midi
+e_midi = mapMaybe Midi.channel_message . map snd . CmdTest.result_midi
 
 simple_block :: [UiTest.BlockSpec]
 simple_block = [(UiTest.default_block_name, simple_tracks)]

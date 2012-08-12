@@ -4,7 +4,6 @@
 -}
 module Cmd.Edit where
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -308,7 +307,7 @@ cmd_delete_time = do
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min pos start) (track_end + 1)
                 State.insert_sorted_events track_id
-                    (Maybe.mapMaybe (delete_time start end) events)
+                    (mapMaybe (delete_time start end) events)
 
 -- | Modify the event to delete the time from @start@ to @end@, shortening it
 -- if @start@ falls within the event's duration.
@@ -342,7 +341,7 @@ expand_range (tracknum:_) start end
         block_id <- Cmd.get_focused_block
         step <- Cmd.get_current_step
         pos <- TimeStep.advance step block_id tracknum end
-        return (start, Maybe.fromMaybe end pos)
+        return (start, fromMaybe end pos)
     | otherwise = return (start, end)
 expand_range [] start end = return (start, end)
 
@@ -417,7 +416,7 @@ insert_recent (Cmd.RecentNote recent zero_dur) =
 insert_recent (Cmd.RecentTransform recent zero_dur) = do
     pos <- Selection.get_insert_pos
     EditUtil.modify_event_at pos zero_dur False $
-        (\s -> (Just (replace s), True)) . Maybe.fromMaybe ""
+        (\s -> (Just (replace s), True)) . fromMaybe ""
     where
     -- "a |" -> "x |"
     -- "a" -> "x | a"
@@ -456,7 +455,7 @@ record_recent :: Cmd.RecentNote -> [(Int, Cmd.RecentNote)]
 record_recent note recent0 = (key, note) : recent
     where
     recent = take (max_recent - 1) (filter (not . match note . snd) recent0)
-    key = Maybe.fromMaybe (length recent) $
+    key = fromMaybe (length recent) $
         (fst <$> List.find ((==note) . snd) recent0)
         `mplus`
         Seq.head (filter (`notElem` (map fst recent)) [1..max_recent])

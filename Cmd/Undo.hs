@@ -259,7 +259,7 @@ history_entry :: Maybe SaveGit.Commit -> SaveGit.SaveHistory -> Cmd.HistoryEntry
 history_entry commit (SaveGit.SaveHistory state _ updates names) =
     -- Recover the CmdUpdates out of the UiUpdates.  I only have to remember
     -- the updates diff won't recreate for me.
-    Cmd.HistoryEntry state (Maybe.mapMaybe Update.to_cmd updates)
+    Cmd.HistoryEntry state (mapMaybe Update.to_cmd updates)
         names commit
 
 -- | Record 'Cmd.HistoryEntry's, if required.

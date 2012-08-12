@@ -20,7 +20,6 @@ module Cmd.TimeStep (
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Num as Num
@@ -123,9 +122,8 @@ snap :: (State.M m) => TimeStep -> BlockId -> TrackNum
     -> Maybe ScoreTime -> ScoreTime -> m ScoreTime
 snap step block_id tracknum prev_pos pos = do
     -- 'pos' is the pos to snap, prev_pos is what we want to snap to
-    maybe_points <- get_points step block_id tracknum
-        (Maybe.fromMaybe pos prev_pos)
-    return $ Maybe.fromMaybe pos $ step_from_points 0 pos =<< maybe_points
+    maybe_points <- get_points step block_id tracknum (fromMaybe pos prev_pos)
+    return $ fromMaybe pos $ step_from_points 0 pos =<< maybe_points
 
 -- * step
 
@@ -234,10 +232,8 @@ step_points marklists cur events pos (step, skip) = stride skip $ case step of
     where
     track_events AllTracks = events
     track_events CurrentTrack = maybe [] (:[]) (Seq.at events cur)
-    track_events (TrackNums tracknums) =
-        Maybe.mapMaybe (Seq.at events) tracknums
-    end = Maybe.fromMaybe 0 $ Seq.maximum $
-        map Ruler.last_pos (Map.elems marklists)
+    track_events (TrackNums tracknums) = mapMaybe (Seq.at events) tracknums
+    end = fromMaybe 0 $ Seq.maximum $ map Ruler.last_pos (Map.elems marklists)
     matches names matcher = match_all matcher
         (get_marks marklists names)
     shift points = case find_before_equal pos points of
@@ -255,8 +251,7 @@ get_marks marklists names =
     where
     matching = case names of
         AllMarklists -> Map.elems marklists
-        NamedMarklists names ->
-            Maybe.mapMaybe (flip Map.lookup marklists) names
+        NamedMarklists names -> mapMaybe (flip Map.lookup marklists) names
 
 -- * seq utils
 

@@ -1,6 +1,4 @@
 module Derive.Call.Post.Reverse where
-import qualified Data.Maybe as Maybe
-
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
@@ -36,7 +34,7 @@ reverse_tracks start events = Seq.merge_lists Score.event_start
     where
     by_track = map (reverse . snd) $ partition_tracks events
     -- This will be the new 0.
-    end = Maybe.fromMaybe 0 $ Seq.maximum
+    end = fromMaybe 0 $ Seq.maximum
         [Score.event_end last | last : _ <- by_track]
 
 -- | Partition up events by the track their in.
@@ -45,7 +43,7 @@ partition_tracks = strip . Seq.keyed_group_on track_of
     where strip xs = [(track_id, events) | (Just track_id, events) <- xs]
 
 track_of :: Score.Event -> Maybe TrackId
-track_of = Seq.head . Maybe.mapMaybe Stack.track_of . Stack.innermost
+track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
 reverse_events :: RealTime -> [Score.Event] -> [Score.Event]
