@@ -390,10 +390,10 @@ main(int argc, char **argv)
         view.block.set_track_signal(3, *control_tsig);
 
         SkeletonEdge edges[] = {
-            SkeletonEdge(0, 3, 0, Color::black),
-            SkeletonEdge(3, 2, 0, Color::black),
-            SkeletonEdge(2, 1, 0, Color::black),
-            SkeletonEdge(0, 1, 2, Color(0xff, 0, 0))
+            SkeletonEdge(0, 1, 0, Color::black),
+            SkeletonEdge(1, 2, 0, Color::black),
+            SkeletonEdge(1, 3, 0, Color::black),
+            SkeletonEdge(0, 4, 2, Color(0xff, 0, 0))
         };
         SkeletonConfig skel(4, edges);
         view.block.set_skeleton(skel);

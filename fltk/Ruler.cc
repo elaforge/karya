@@ -305,6 +305,7 @@ OverlayRuler::draw_selections()
         // pixel ranges.  So add one to ensure that if I share a pixel border
         // with the clip rect, I'll still draw that pixel line.
         sel_rect = clip_rect(IRect(x(), start, w(), height + 1));
+        fl_line_style(FL_SOLID, 0);
         alpha_rectf(sel_rect, sel.color);
 
         // Darken the the cur pos a bit, and make it non-transparent.

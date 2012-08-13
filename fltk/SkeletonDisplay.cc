@@ -101,16 +101,16 @@ draw_arrow(int fromx, int tox, int width, Color color, int bottom, int top)
     fl_line_style(FL_SOLID, width, 0);
     fl_begin_line();
     fl_curve(fromx, bottom,
-            fromx + (fromx<tox ? offset : -offset), top,
-            tox + (fromx<tox ? -offset : offset), top,
-            tox, bottom);
+        fromx + (fromx<tox ? offset : -offset), top,
+        tox + (fromx<tox ? -offset : offset), top,
+        tox, bottom);
     fl_end_line();
 
     // TODO get arrow angle right
     fl_begin_polygon();
-    fl_vertex(fromx-2, bottom-5);
-    fl_vertex(fromx, bottom);
-    fl_vertex(fromx+2, bottom-5);
+    fl_vertex(tox-2, bottom-5);
+    fl_vertex(tox, bottom);
+    fl_vertex(tox+2, bottom-5);
     fl_end_polygon();
 }
 
@@ -134,19 +134,29 @@ SkeletonDisplay::draw()
     for (size_t i = 0; i < this->edges.size(); i++) {
         const SkeletonEdge &e = edges[i];
         if (!(0 <= e.parent && e.parent < tracks)
-                || !(0 <= e.child && e.child < tracks))
+            || !(0 <= e.child && e.child < tracks))
         {
             // +1 because the ruler track has been subtracted.
             DEBUG("parent->child out of range: " << e.parent + 1 << "->"
                 << e.child + 1);
             continue;
         }
-        int cx = track_centers[e.child] + this->x();
-        int px = track_centers[e.parent] + this->x();
+        // Offset the ends of the arrow to make it clearer which is coming and
+        // which is going.  But if the arc is too narrow it looks ugly, so
+        // put it in the center in that case.
+        int coffset = track_widths[e.child] < 15
+            ? 0 : track_widths[e.child] / 8;
+        int poffset = track_widths[e.parent] < 15
+            ? 0 : track_widths[e.parent] / 8;
+        if (abs(track_centers[e.child] - track_centers[e.parent]) < 15) {
+            coffset = poffset = 0;
+        }
+        int cx = track_centers[e.child] - coffset + this->x();
+        int px = track_centers[e.parent] + poffset + this->x();
 
         // printf("draw %d->%d: (%d->%d) (%d, %d)\n", e.child, e.parent,
         //         cx, px, bottom, top);
-        draw_arrow(cx, px, e.width, e.color, bottom-1, top);
+        draw_arrow(px, cx, e.width, e.color, bottom-1, top);
     }
     fl_font(Config::font + FL_BOLD, Config::font_size::track_status);
     for (size_t i = 0; i < status_size; i++) {
