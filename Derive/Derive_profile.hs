@@ -169,13 +169,13 @@ busy_wait ops = go ops 2
 -- | This runs the derivation several times to minimize the creation cost.
 derive_profile :: State.StateId a -> IO ()
 derive_profile create = replicateM_ 6 $
-    run_profile Nothing (UiTest.bid "b1") (UiTest.exec State.empty create)
+    run_profile Nothing UiTest.default_block_id (UiTest.exec State.empty create)
 
 run_profile :: Maybe Convert.Lookup -> BlockId -> State.State -> IO ()
 run_profile maybe_lookup block_id ui_state = do
     start_cpu <- CPUTime.getCPUTime
     start <- now
-    let section :: String -> IO ((), [a]) -> IO ()
+    let section :: (Show a) => String -> IO ((), [a]) -> IO ()
         section = time_section (start_cpu, start)
 
     let result = DeriveTest.derive_block ui_state block_id
@@ -189,8 +189,8 @@ run_profile maybe_lookup block_id ui_state = do
         force mmsgs
         return ((), mmsgs)
 
-time_section :: (Integer, Time.DiffTime) -> String -> IO (result, [a])
-    -> IO result
+time_section :: (Show a) => (Integer, Time.DiffTime) -> String
+    -> IO (result, [a]) -> IO result
 time_section (start_cpu, start_time) title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
