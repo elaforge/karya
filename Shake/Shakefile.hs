@@ -438,7 +438,9 @@ dispatch config target = case target of
         Shake.want [debug "browser", debug "logview", debug "make_db",
             debug "seq", debug "update", docDir </> "keymap.html",
             modeToDir Profile </> "RunProfile"]
-        dispatch config "complete-tests"
+        dispatch config "tests"
+        -- The gui tests tend to wedge.
+        -- dispatch config "complete-tests"
     "tests" -> action $ do
         need [runTests Nothing]
         system' "test/run_tests" [runTests Nothing]
