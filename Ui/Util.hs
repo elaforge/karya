@@ -7,6 +7,8 @@
     - Generic UI debugging functions.
 -}
 module Ui.Util where
+import qualified Data.ByteString.Unsafe as Unsafe
+import qualified Data.ByteString as ByteString
 import Foreign
 import Foreign.C
 
@@ -42,6 +44,7 @@ c_nat = c_int -- I don't check for > 0 yet, I should catch the c++ exception
 c_uchar :: Integral a => a -> CUChar
 c_uchar = fromIntegral . bounded 0 255
 
+withForeignPtrs :: [ForeignPtr a] -> ([Ptr a] -> IO b) -> IO b
 withForeignPtrs fps f = withfp [] fps f
     where
     withfp ps [] f = f (reverse ps)
@@ -59,3 +62,12 @@ free_fun_ptr fptr = do
     -- putStrLn $ "free " ++ show fptr
     -- IO.hFlush IO.stdout
     freeHaskellFunPtr fptr
+
+-- | Unpack the bytestring to a null-terminated cstring, in malloc'd space.
+-- ByteString only has an alloca version of this.
+unpackCString0 :: ByteString.ByteString -> IO CString
+unpackCString0 bs = Unsafe.unsafeUseAsCStringLen bs $ \(str, len) -> do
+    new <- mallocBytes (len+1)
+    copyBytes new str len
+    poke (new `plusPtr` len) (0 :: Word8)
+    return new

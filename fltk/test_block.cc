@@ -60,17 +60,15 @@ void m44_set()
 }
 
 struct EventInfo {
-    EventInfo(ScoreTime pos, Event event, int rank) :
-        pos(pos), event(event), rank(rank)
+    EventInfo(int rank, Event event) : rank(rank), event(event)
     {}
-    ScoreTime pos;
-    Event event;
     int rank;
+    Event event;
     bool operator<(const EventInfo &o) const {
-        if (pos == o.pos)
+        if (event.start == o.event.start)
             return rank < o.rank;
         else
-            return pos < o.pos;
+            return event.start < o.event.start;
     }
 };
 
@@ -84,58 +82,49 @@ void t1_set()
     StyleId style = 0;
     StyleId style2 = 1;
 
-    // e.push_back(EventInfo(ScoreTime(5),
-    //     Event("`tamil-i`", ScoreTime(16), style), 0));
-    // e.push_back(EventInfo(ScoreTime(0),
-    //     Event("15`1^`", ScoreTime(16), style), 0));
-    // e.push_back(EventInfo(ScoreTime(32),
-    //     Event("15`1^`m", ScoreTime(-16), style), 0));
-
-    e.push_back(EventInfo(ScoreTime(0),
-        Event("`mordent`", ScoreTime(16), style), 0));
-    e.push_back(EventInfo(ScoreTime(16),
-        Event("a`tamil-i``xie`", ScoreTime(16), style), 0));
-    e.push_back(EventInfo(ScoreTime(32),
-        Event("`nosym`", ScoreTime(4), style), 0));
-    e.push_back(EventInfo(ScoreTime(36),
-        Event("overlap", ScoreTime(4), style), 0));
-    e.push_back(EventInfo(ScoreTime(44),
-        Event("6--", ScoreTime(4), style), 0));
-    e.push_back(EventInfo(ScoreTime(50),
-        Event("mis`match", ScoreTime(4), style), 0));
-    e.push_back(EventInfo(ScoreTime(128),
-        Event("`0x`ff", ScoreTime(64), style2), 0));
+    e.push_back(EventInfo(0,
+        Event(ScoreTime(0), ScoreTime(16), "`mordent`", style)));
+    e.push_back(EventInfo(0,
+        Event(ScoreTime(16), ScoreTime(16), "a`tamil-i``xie`", style)));
+    e.push_back(EventInfo(0,
+        Event(ScoreTime(32), ScoreTime(4), "`nosym`", style)));
+    e.push_back(EventInfo(0,
+        Event(ScoreTime(36), ScoreTime(4), "overlap", style)));
+    e.push_back(EventInfo(0,
+        Event(ScoreTime(44), ScoreTime(4), "6--", style)));
+    e.push_back(EventInfo(0,
+        Event(ScoreTime(50), ScoreTime(4), "mis`match", style)));
+    e.push_back(EventInfo(0,
+        Event(ScoreTime(128), ScoreTime(64), "`0x`ff", style2)));
     // coincident with rank 0
-    e.push_back(EventInfo(ScoreTime(128),
-        Event("bg1", ScoreTime(8), style), 1));
+    e.push_back(EventInfo(1,
+        Event(ScoreTime(128), ScoreTime(8), "bg1", style)));
     // overlaps with rank 0
-    e.push_back(EventInfo(ScoreTime(160),
-        Event("bg2", ScoreTime(8), style), 1));
-    e.push_back(EventInfo(ScoreTime(164),
-        Event("bg2.5", ScoreTime(8), style), 1));
+    e.push_back(EventInfo(1,
+        Event(ScoreTime(160), ScoreTime(8), "bg2", style)));
+    e.push_back(EventInfo(1,
+        Event(ScoreTime(164), ScoreTime(8), "bg2.5", style)));
     // coincedent with end of rank 0
-    e.push_back(EventInfo(ScoreTime(128+64),
-        Event("bg3", ScoreTime(0), style), 1));
+    e.push_back(EventInfo(1,
+        Event(ScoreTime(128+64), ScoreTime(0), "bg3", style)));
     // doesn't overlap rank 0
-    e.push_back(EventInfo(ScoreTime(230),
-        Event("bg4", ScoreTime(0), style), 0));
+    e.push_back(EventInfo(0,
+        Event(ScoreTime(230), ScoreTime(0), "bg4", style)));
 
     /*
-    e.push_back(EventInfo(ScoreTime(0*8),
-        Event("main", ScoreTime(8), style), 0));
     for (int i = 0; i < 100; i++) {
         char buf[32];
         sprintf(buf, "e%d", i);
-        e.push_back(EventInfo(ScoreTime(i*8),
-            Event(strdup(buf), ScoreTime(8), style), 1));
+        e.push_back(EventInfo(1,
+            Event(ScoreTime(i*8), ScoreTime(8), strdup(buf), style)));
     }
     */
 
     if (arrival_beats) {
         for (size_t i = 0; i < e.size(); i++) {
-            ScoreTime p = e[i].pos;
+            ScoreTime p = e[i].event.start;
             ScoreTime dur = e[i].event.duration;
-            e[i].pos = p + dur;
+            e[i].event.start = p + dur;
             e[i].event.duration = -dur;
         }
         std::sort(e.begin(), e.end());
@@ -144,29 +133,27 @@ void t1_set()
 
 int
 t1_find_events(ScoreTime *start_pos, ScoreTime *end_pos,
-        ScoreTime **ret_tps, Event **ret_events, int **ret_ranks)
+        Event **ret_events, int **ret_ranks)
 {
     size_t count = 0;
     size_t start = 0;
     for (; start < t1_events.size(); start++) {
-        if (t1_events[start].pos + t1_events[start].event.duration
+        if (t1_events[start].event.start + t1_events[start].event.duration
                 >= *start_pos)
             break;
     }
     while (start + count < t1_events.size()) {
-        if (t1_events[start+count].pos >= *end_pos)
+        if (t1_events[start+count].event.start >= *end_pos)
             break;
         count++;
     }
     start = 0;
     count = t1_events.size();
 
-    *ret_tps = (ScoreTime *) calloc(count, sizeof(ScoreTime));
     *ret_events = (Event *) calloc(count, sizeof(Event));
     *ret_ranks = (int *) calloc(count, sizeof(int));
     for (size_t i = 0; i < count; i++) {
         // Placement new since malloced space is uninitialized.
-        new((*ret_tps) + i) ScoreTime(t1_events[start+i].pos);
         new((*ret_events) + i) Event(t1_events[start+i].event);
         const char **textp = &(*ret_events)[i].text;
         if (*textp)
@@ -178,7 +165,7 @@ t1_find_events(ScoreTime *start_pos, ScoreTime *end_pos,
 
 int
 t1_no_events(ScoreTime *start_pos, ScoreTime *end_pos,
-        ScoreTime **ret_tps, Event **ret_events, int **ret_ranks)
+        Event **ret_events, int **ret_ranks)
 {
     return 0;
 }
@@ -355,7 +342,8 @@ main(int argc, char **argv)
     DividerConfig divider(Color(0x00, 0xff, 0x00));
 
     int i = t1_events.size() - 1;
-    ScoreTime t1_time_end = t1_events[i].pos + t1_events[i].event.duration;
+    ScoreTime t1_time_end =
+        t1_events[i].event.start + t1_events[i].event.duration;
 
     EventTrackConfig empty_track(track_bg, t1_no_events, t1_time_end,
             RenderConfig(RenderConfig::render_line, render_color));

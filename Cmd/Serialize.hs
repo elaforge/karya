@@ -14,7 +14,6 @@ import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Time as Time
-import qualified Data.Word as Word
 
 import qualified System.IO as IO
 
@@ -23,24 +22,20 @@ import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
-import Util.Serialize
-       (Serialize, Get, Put, get, put, get_tag, put_tag, bad_tag)
+import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
-import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
-import qualified Ui.Style as Style
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -96,35 +91,25 @@ save_state ui_state = do
     utc <- Time.getCurrentTime
     return (SaveState ui_state utc)
 
-put_version :: Word.Word8 -> Put
-put_version n = Serialize.putWord8 n
-
-get_version :: Get Word.Word8
-get_version = Serialize.getWord8
-
-bad_version :: String -> Word.Word8 -> a
-bad_version typ ver = error $
-    "unknown version " ++ show ver ++ " for " ++ show typ
-
 -- * binary instances
 
 instance Serialize SaveState where
-    put (SaveState a b) = put_version 0
+    put (SaveState a b) = Serialize.put_version 0
         >> put a >> put b
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             0 -> do
                 ui_state :: State.State <- get
                 date :: Time.UTCTime <- get
                 return (SaveState ui_state date)
-            _ -> bad_version "SaveState" v
+            _ -> Serialize.bad_version "SaveState" v
 
 instance Serialize State.State where
-    put (State.State a b c d e) = put_version 6
+    put (State.State a b c d e) = Serialize.put_version 6
         >> put a >> put b >> put c >> put d >> put e
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             6 -> do
                 views :: Map.Map Types.ViewId Block.View <- get
@@ -133,13 +118,13 @@ instance Serialize State.State where
                 rulers :: Map.Map Types.RulerId Ruler.Ruler <- get
                 config :: State.Config <- get
                 return $ State.State views blocks tracks rulers config
-            _ -> bad_version "State.State" v
+            _ -> Serialize.bad_version "State.State" v
 
 instance Serialize State.Config where
-    put (State.Config a b c d e) = put_version 0
+    put (State.Config a b c d e) = Serialize.put_version 0
         >> put a >> put b >> put c >> put d >> put e
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             0 -> do
                 ns :: Id.Namespace <- get
@@ -148,13 +133,13 @@ instance Serialize State.Config where
                 midi :: Instrument.Config <- get
                 defaults :: State.Default <- get
                 return $ State.Config ns dir root midi defaults
-            _ -> bad_version "State.Config" v
+            _ -> Serialize.bad_version "State.Config" v
 
 instance Serialize State.Default where
     put (State.Default a b c d) =
-        put_version 1 >> put a >> put b >> put c >> put d
+        Serialize.put_version 1 >> put a >> put b >> put c >> put d
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             0 -> do
                 scale :: Pitch.ScaleId <- get
@@ -167,17 +152,17 @@ instance Serialize State.Default where
                 inst :: Maybe Score.Instrument <- get
                 tempo :: Signal.Y <- get
                 return $ State.Default scale key inst tempo
-            _ -> bad_version "State.Default" v
+            _ -> Serialize.bad_version "State.Default" v
 
 -- ** Block
 
 instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
-    put (Block.Block a _config b c d e f) = put_version 7
+    put (Block.Block a _config b c d e f) = Serialize.put_version 7
         >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             4 -> do
                 title :: String <- get
@@ -209,7 +194,7 @@ instance Serialize Block.Block where
                 meta :: Map.Map String String <- get
                 return $ Block.Block title Block.default_config tracks skel
                     integrated itracks meta
-            _ -> bad_version "Block.Block" v
+            _ -> Serialize.bad_version "Block.Block" v
 
 instance Serialize Block.TrackDestination where
     put (Block.TrackDestination a b) = put a >> put b
@@ -223,10 +208,10 @@ instance Serialize Skeleton.Skeleton where
     get = get >>= \a -> return (Skeleton.Skeleton a)
 
 instance Serialize Block.Track where
-    put (Block.Track a b c d) = put_version 1
+    put (Block.Track a b c d) = Serialize.put_version 1
         >> put a >> put b >> put c >> put d
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             1 -> do
                 id :: Block.TracklikeId <- get
@@ -234,7 +219,7 @@ instance Serialize Block.Track where
                 flags :: [Block.TrackFlag] <- get
                 merged :: [Types.TrackId] <- get
                 return $ Block.Track id width flags merged
-            _ -> bad_version "Block.Track" v
+            _ -> Serialize.bad_version "Block.Track" v
 
 instance Serialize Block.TrackFlag where
     put (Block.Collapse) = put_tag 0
@@ -274,10 +259,10 @@ instance Serialize Block.Divider where
         return $ Block.Divider color
 
 instance Serialize Block.View where
-    put (Block.View a b c d e f g h) = put_version 3
+    put (Block.View a b c d e f g h) = Serialize.put_version 3
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             3 -> do
                 block :: Types.BlockId <- get
@@ -290,7 +275,7 @@ instance Serialize Block.View where
                 selections :: Map.Map Types.SelNum Types.Selection <- get
                 return $ Block.View block rect visible_track visible_time
                     status track_scroll zoom selections
-            _ -> bad_version "Block.View" v
+            _ -> Serialize.bad_version "Block.View" v
 
 instance Serialize Rect.Rect where
     put r = put (Rect.rx r) >> put (Rect.ry r) >> put (Rect.rw r)
@@ -324,10 +309,10 @@ instance Serialize Color.Color where
 -- ** Ruler
 
 instance Serialize Ruler.Ruler where
-    put (Ruler.Ruler a b c d e f) = put_version 2
+    put (Ruler.Ruler a b c d e f) = Serialize.put_version 2
         >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             2 -> do
                 marklists :: Map.Map Ruler.Name Ruler.Marklist <- get
@@ -338,7 +323,7 @@ instance Serialize Ruler.Ruler where
                 full_width :: Bool <- get
                 return $ Ruler.Ruler marklists bg show_names use_alpha
                     align_to_bottom full_width
-            _ -> bad_version "Ruler.Ruler" v
+            _ -> Serialize.bad_version "Ruler.Ruler" v
 
 instance Serialize Ruler.Marklist where
     put (Ruler.Marklist a) = put a
@@ -361,10 +346,10 @@ instance Serialize Ruler.Mark where
 -- ** Track
 
 instance Serialize Track.Track where
-    put (Track.Track a b c d) = put_version 3 >>
+    put (Track.Track a b c d) = Serialize.put_version 3 >>
         put a >> put b >> put c >> put d
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             1 -> do
                 title :: String <- get
@@ -385,18 +370,18 @@ instance Serialize Track.Track where
                 color :: Color.Color <- get
                 render :: Track.RenderConfig <- get
                 return $ Track.Track title events color render
-            _ -> bad_version "Track.Track" v
+            _ -> Serialize.bad_version "Track.Track" v
 
 instance Serialize Track.RenderConfig where
-    put (Track.RenderConfig a b) = put_version 0 >> put a >> put b
+    put (Track.RenderConfig a b) = Serialize.put_version 0 >> put a >> put b
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             0 -> do
                 style :: Track.RenderStyle <- get
                 color :: Color.Color <- get
                 return $ Track.RenderConfig style color
-            _ -> bad_version "Track.RenderConfig" v
+            _ -> Serialize.bad_version "Track.RenderConfig" v
 
 instance Serialize Track.RenderStyle where
     put Track.NoRender = put_tag 0
@@ -410,68 +395,12 @@ instance Serialize Track.RenderStyle where
             2 -> return Track.Filled
             _ -> bad_tag "Track.RenderStyle" tag
 
-instance Serialize Events.Events where
-    put (Events.Events a) = put_version 2 >> put a
-    get = do
-        v <- get_version
-        case v of
-            0 -> do
-                events :: Map.Map ScoreTime Event0 <- get
-                return $ Events.Events (Map.map convert0 events)
-            1 -> do
-                events :: Map.Map ScoreTime Event1 <- get
-                return $ Events.Events (Map.map convert1 events)
-            2 -> do
-                events :: Map.Map ScoreTime Event.Event <- get
-                return $ Events.Events events
-            _ -> bad_version "Events.Events" v
-        where
-        convert0 (Event0 bs dur style) = Event.Event bs dur style Nothing
-        convert1 (Event1 bs dur style _stack) = Event.Event bs dur style Nothing
-
--- ** Event
-
-instance Serialize Event.Event where
-    put (Event.Event a b c d) = put a >> put b >> put c >> put d
-    get = do
-        text :: ByteString.ByteString <- get
-        dur :: ScoreTime <- get
-        style :: Style.StyleId <- get
-        stack :: Maybe Event.Stack <- get
-        return $ Event.Event text dur style stack
-
-data Event0 = Event0 !Event.Text !ScoreTime !Style.StyleId
-instance Serialize Event0 where
-    put (Event0 a b c) = put a >> put b >> put c
-    get = do
-        text :: ByteString.ByteString <- get
-        dur :: ScoreTime <- get
-        style :: Style.StyleId <- get
-        return $ Event0 text dur style
-
-data Event1 = Event1 !Event.Text !ScoreTime !Style.StyleId !(Maybe Stack.Stack)
-instance Serialize Event1 where
-    put (Event1 a b c d) = put a >> put b >> put c >> put d
-    get = do
-        text :: ByteString.ByteString <- get
-        dur :: ScoreTime <- get
-        style :: Style.StyleId <- get
-        stack :: Maybe Stack.Stack <- get
-        return $ Event1 text dur style stack
-
-instance Serialize Event.Stack where
-    put (Event.Stack a b) = put a >> put b
-    get = do
-        stack :: Stack.Stack <- get
-        key :: Event.IndexKey <- get
-        return $ Event.Stack stack key
-
 -- ** Midi.Instrument
 
 instance Serialize Instrument.Config where
-    put (Instrument.Config a) = put_version 3 >> put a
+    put (Instrument.Config a) = Serialize.put_version 3 >> put a
     get = do
-        v <- get_version
+        v <- Serialize.get_version
         case v of
             3 -> do
                 alloc :: Map.Map Score.Instrument [Instrument.Addr] <- get
@@ -480,7 +409,7 @@ instance Serialize Instrument.Config where
                 alloc :: Map.Map Score.Instrument [Instrument.Addr] <- get
                 _ :: Map.Map Midi.WriteDevice Midi.WriteDevice <- get
                 return $ Instrument.Config alloc
-            _ -> bad_version "Instrument.Config" v
+            _ -> Serialize.bad_version "Instrument.Config" v
 
 instance Serialize Score.Instrument where
     put (Score.Instrument a) = put a

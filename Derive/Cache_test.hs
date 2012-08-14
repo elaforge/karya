@@ -128,7 +128,7 @@ test_logs = do
 
 test_extend_control_damage = do
     let f = Cache._extend_control_damage
-    equal (f (3, 4) (Events.from_list [(0, Event.event "4c" 0)])
+    equal (f (3, 4) (Events.from_list [Event.event 0 0 "4c"])
             (Ranges.ranges [(2, 5)]))
         (Ranges.ranges [(0, 4)])
 
@@ -414,7 +414,7 @@ test_extend_tempo_damage = do
             , ("modulation", [(0, 1, "0")])
             ])]
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid 1) 1 (Event.event "2" 0)
+            State.insert_event (UiTest.mk_tid 1) (Event.event 1 0 "2")
     equal (diff_events cached uncached) []
 
 test_damage_to_real_to_score = do
@@ -529,7 +529,7 @@ run_cached result state1 modify =
 insert_event :: (State.M m) => String -> ScoreTime -> ScoreTime -> String
     -> m ()
 insert_event tid pos dur text =
-    State.insert_event (UiTest.tid tid) pos (Event.event text dur)
+    State.insert_event (UiTest.tid tid) (Event.event pos dur text)
 
 root_id :: State.State -> BlockId
 root_id state = UiTest.eval state State.get_root_id

@@ -18,6 +18,7 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
@@ -222,8 +223,8 @@ event_at_or_before track_id pos = do
     track <- State.get_track track_id
     let (pre, post) = Events.split pos (Track.track_events track)
     return $ case (pre, post) of
-        (_, (p, _) : _) | p == pos -> pos
-        ((prev, _) : _, _) -> prev
+        (_, next : _) | Event.start next == pos -> pos
+        (prev : _, _) -> Event.start prev
         _ -> pos
 
 all_keys_up :: (Cmd.M m) => m Bool

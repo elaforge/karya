@@ -24,9 +24,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.State as State
-
 import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
@@ -91,10 +89,10 @@ c_note_track = Derive.Call "note-track" Nothing (Just note_transform)
 -- ** generate
 
 generate_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
-    -> Events.PosEvent -> ScoreTime -> Derive.EventDeriver
-generate_note n_inst rel_attrs (pos, event) next_start = do
-    start <- Derive.real pos
-    end <- Derive.real (pos + Event.event_duration event)
+    -> Event.Event -> ScoreTime -> Derive.EventDeriver
+generate_note n_inst rel_attrs event next_start = do
+    start <- Derive.real (Event.start event)
+    end <- Derive.real (Event.end event)
     real_next <- Derive.real next_start
     -- Note that due to negative durations, the end could be before the start.
     -- What this really means is that the sounding duration of the note depends
@@ -115,7 +113,7 @@ generate_note n_inst rel_attrs (pos, event) next_start = do
     return $! LEvent.one $! LEvent.Event $! Score.Event
         { Score.event_start = start
         , Score.event_duration = end - start
-        , Score.event_bs = Event.event_bs event
+        , Score.event_bs = Event.event_bytestring event
         , Score.event_controls = controls
         , Score.event_pitch = pitch_sig
         , Score.event_stack = Derive.state_stack st
@@ -245,10 +243,10 @@ invert_call :: Int
 invert_call after args = case Derive.info_sub_tracks info of
     [] -> return Nothing
     subs -> Just <$> invert after (Derive.info_track_range info) subs
-        pos (pos + Event.event_duration event) (Args.end args) expr
+        (Event.start event) (Event.end event) (Args.end args) expr
         (Derive.info_prev_events info, Derive.info_next_events info)
     where
-    (pos, event) = Derive.info_event info
+    event = Derive.info_event info
     -- It may seem surprising that only the final call is retained, and any
     -- transformers are discarded.  But 'inverting' only applies to generators
     -- so those transformers should have already done their thing.
@@ -258,7 +256,7 @@ invert_call after args = case Derive.info_sub_tracks info of
 
 invert :: Int -> (ScoreTime, ScoreTime) -> State.EventsTree -> ScoreTime
     -> ScoreTime -> ScoreTime -> String
-    -> ([Events.PosEvent], [Events.PosEvent])
+    -> ([Event.Event], [Event.Event])
     -> Derive.Deriver State.EventsTree
 invert after (track_start, _) subs start end next_start text events_around = do
     -- Pick the current track out of the stack, and give that to the inverted

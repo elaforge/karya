@@ -369,12 +369,11 @@ EventTrackView::draw()
 
 /*
 static void
-show_found_events(ScoreTime start, ScoreTime end,
-        ScoreTime *event_pos, Event *events, int count)
+show_found_events(ScoreTime start, ScoreTime end, Event *events, int count)
 {
     printf("%.2f-%.2f: %d events:", start.scale(1), end.scale(1), count);
     for (int i = 0; i < count; i++) {
-        printf(" (%.2f %s)", event_pos[i].scale(1), events[i].text);
+        printf(" (%.2f %s)", events[i].start.scale(1), events[i].text);
     }
     printf("\n");
 }
@@ -395,15 +394,14 @@ EventTrackView::draw_area()
     //         << clip.y << "--" << clip.b());
 
     Event *events;
-    ScoreTime *event_pos;
     int *ranks;
-    int count = this->config.find_events(
-        &start, &end, &event_pos, &events, &ranks);
-    // show_found_events(start, end, event_pos, events, count);
+    int count = this->config.find_events(&start, &end, &events, &ranks);
+    // show_found_events(start, end, events, count);
 
     int *offsets = new int[count];
     for (int i = 0; i < count; i++) {
-        offsets[i] = y + this->zoom.to_pixels(event_pos[i] - this->zoom.offset);
+        offsets[i] = y + this->zoom.to_pixels(
+            events[i].start - this->zoom.offset);
     }
 
     // Draw event boxes.  Rank >0 boxes are not drawn since I'd have to figure
@@ -473,7 +471,6 @@ EventTrackView::draw_area()
                 free(const_cast<char *>(events[i].text));
         }
         free(events);
-        free(event_pos);
         free(ranks);
     }
     delete[] offsets;

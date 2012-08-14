@@ -3,7 +3,6 @@ module Derive.Args where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Derive.Derive as Derive
 import Derive.Derive (PassedArgs, CallInfo)
 import Types
@@ -12,7 +11,7 @@ import Types
 info :: PassedArgs d -> CallInfo d
 info = Derive.passed_info
 
-event :: PassedArgs derived -> Events.PosEvent
+event :: PassedArgs derived -> Event.Event
 event = Derive.info_event . info
 
 -- | Get the previous derived val.  This is used by control derivers so they
@@ -29,10 +28,10 @@ end :: PassedArgs d -> ScoreTime
 end = Derive.info_event_end . info
 
 prev_start :: PassedArgs d -> Maybe ScoreTime
-prev_start = fmap fst . Seq.head . Derive.info_prev_events . info
+prev_start = fmap Event.start . Seq.head . Derive.info_prev_events . info
 
 start :: PassedArgs d -> ScoreTime
-start = fst . event
+start = Event.start . event
 
 real_start :: PassedArgs d -> Derive.Deriver RealTime
 real_start = Derive.real . start
@@ -44,9 +43,9 @@ real_start = Derive.real . start
 -- If there is a value it should be the same as 'end', so this is for calls
 -- that care if there really is a next event.
 next_start :: PassedArgs d -> Maybe ScoreTime
-next_start = fmap fst . Seq.head . Derive.info_next_events . info
+next_start = fmap Event.start . Seq.head . Derive.info_next_events . info
 
-prev_events, next_events :: PassedArgs d -> [Events.PosEvent]
+prev_events, next_events :: PassedArgs d -> [Event.Event]
 next_events = Derive.info_next_events . info
 prev_events = Derive.info_prev_events . info
 
@@ -56,11 +55,11 @@ prev_events = Derive.info_prev_events . info
 -- which is not the same as the start and end if the event has negative
 -- duration.
 range :: PassedArgs d -> (ScoreTime, ScoreTime)
-range = Events.range . event
+range = Event.range . event
 
 -- | Like 'range', but (start, duration) instead of (start, end).
 extent :: PassedArgs d -> (ScoreTime, ScoreTime)
-extent = (\(p, e) -> (p, Event.event_duration e)) . event
+extent = (\e -> (Event.start e, Event.duration e)) . event
 
 real_range :: PassedArgs d -> Derive.Deriver (RealTime, RealTime)
 real_range args = (,) <$> Derive.real start <*> Derive.real end

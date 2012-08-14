@@ -113,7 +113,6 @@ import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
@@ -622,9 +621,9 @@ data CallInfo derived = CallInfo {
     -- they tend to want to interpolate from that value.
     , info_prev_val :: !(Maybe (RealTime, Elem derived))
 
-    , info_event :: !Events.PosEvent
-    , info_prev_events :: ![Events.PosEvent]
-    , info_next_events :: ![Events.PosEvent]
+    , info_event :: !Event.Event
+    , info_prev_events :: ![Event.Event]
+    , info_next_events :: ![Event.Event]
 
     -- | The extent of the note past its duration.  Since notes have decay,
     -- its important to capture control for that.  Normally this is the next
@@ -651,7 +650,7 @@ dummy_call_info :: ScoreTime -> ScoreTime -> String -> CallInfo derived
 dummy_call_info start dur text = CallInfo
     { info_expr = []
     , info_prev_val = Nothing
-    , info_event = (start, Event.event s dur)
+    , info_event = Event.event start dur s
     , info_prev_events = []
     , info_next_events = []
     , info_event_end = start + dur

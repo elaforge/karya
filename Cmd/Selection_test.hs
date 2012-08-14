@@ -1,14 +1,14 @@
 module Cmd.Selection_test where
-
 import Util.Test
-
+import qualified Ui.Event as Event
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Selection as Selection
 
 
 test_events_around = do
     let e_sel (_track_id, _range, (before, within, after)) =
-            (map fst before, map fst within, map fst after)
+            (map Event.start before, map Event.start within,
+                map Event.start after)
     let f evts sel_start sel_end = CmdTest.extract (map e_sel) $
             CmdTest.run_tracks [("i", mkspec evts)] $ do
                 CmdTest.set_sel 1 sel_start 1 sel_end

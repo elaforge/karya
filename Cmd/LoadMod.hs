@@ -74,11 +74,11 @@ create_order_block mkid block_ids = do
         [("tempo", tempo), (">ptq/c1", events)]
     where
     block_rows = map snd block_ids
-    tempo = [(0, Event.event "6" 0)]
+    tempo = [Event.event 0 0 "6"]
     starts = scanl (+) 0 block_rows
     events =
-        [ (fromIntegral start, Event.event (Id.ident_name bid)
-            (fromIntegral dur))
+        [ Event.event (fromIntegral start) (fromIntegral dur)
+            (Id.ident_name bid)
         | (start, (bid, dur)) <- zip starts block_ids
         ]
 
@@ -88,7 +88,7 @@ order_meter = MakeRuler.meter_ruler 1 . MakeRuler.D . map mkd
     mkd dur = MakeRuler.D (replicate dur (MakeRuler.T 1))
 
 make_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId -> String
-    -> [(String, [Events.PosEvent])] -> m BlockId
+    -> [(String, [Event.Event])] -> m BlockId
 make_block mkid rid track_rid name tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, (title, events)) ->
         State.create_track (mkid (name ++ ".t" ++ show i)) $
@@ -115,9 +115,9 @@ test = do
 -- | An intermediate representation, between the row-oriented Block and
 -- State.State.
 type UiBlock = ([(NoteTrack, [ControlTrack])], BlockRows)
-type NoteTrack = [Events.PosEvent]
+type NoteTrack = [Event.Event]
 -- | (title, [event])
-type ControlTrack = (String, [Events.PosEvent])
+type ControlTrack = (String, [Event.Event])
 -- | How many rows in a block.
 type BlockRows = Int
 
@@ -128,8 +128,8 @@ convert_blocks row_time = map (map_times (*row_time) . convert_block)
 
 map_times :: (ScoreTime -> ScoreTime) -> UiBlock -> UiBlock
 map_times f = first $ map $ \(ntrack, ctracks) ->
-    (map modify ntrack, map (second (map (first f))) ctracks)
-    where modify (pos, event) = (f pos, Event.modify_duration f event)
+    (map modify ntrack, map (second (map (Event.move f))) ctracks)
+    where modify = Event.move f . Event.modify_duration f
 
 convert_block :: Block -> UiBlock
 convert_block (Block rows) = (map convert_track clipped, block_length)
@@ -153,17 +153,17 @@ convert_notes = Maybe.catMaybes . Then.mapAccumL go (Nothing, 0) final
     final (prev, at) =
         [fst $ convert_note prev at (Note 0 0 [cut_note])]
 
-convert_note :: Maybe Events.PosEvent -> ScoreTime -> Note
-    -> (Maybe Events.PosEvent, Maybe Events.PosEvent)
+convert_note :: Maybe Event.Event -> ScoreTime -> Note
+    -> (Maybe Event.Event, Maybe Event.Event)
 convert_note maybe_prev at (Note pitch _ effects)
-    | pitch /= 0 = (note, Just (start, Event.event "" 0))
+    | pitch /= 0 = (note, Just (Event.event start 0 ""))
     | any (== cut_note) effects = (note, Nothing)
     | otherwise = (Nothing, maybe_prev)
     where
     start = note_start effects at
     note = case maybe_prev of
-        Just (prev_start, event) ->
-            Just (prev_start, Event.set_duration (start-prev_start) event)
+        Just event ->
+            Just $ Event.set_duration (start - Event.start event) event
         Nothing -> Nothing
 
 -- | Find the note start, taking the delay effect into account.  The delay
@@ -189,7 +189,7 @@ convert_controls notes = Map.assocs cont_vals
         Map.multimap (concat (zipWith mkcont (Seq.range_ 0 1) notes))
     mkcont at note = [(cont, (note_start (note_effects note) at, val))
         | (cont, val) <- note_controls note]
-    to_event (pos, val) = (pos, Event.event val 0)
+    to_event (pos, val) = Event.event pos 0 val
 
 note_controls :: Note -> [(String, String)]
 note_controls note = Maybe.maybeToList (convert_pitch note)

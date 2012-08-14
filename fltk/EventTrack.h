@@ -93,7 +93,7 @@ struct EventTrackConfig {
     // Get events from start to end, ordered by pos.  Return the ScoreTime in
     // pos, the events in 'events', and the count.
     typedef int (*FindEvents)(ScoreTime *start_pos, ScoreTime *end_pos,
-            ScoreTime **ret_tps, Event **ret_events, int **ret_ranks);
+            Event **ret_events, int **ret_ranks);
 
     // What to do about text that's too long.  If it's too long but there's
     // no room below, it's always clipped.

@@ -8,8 +8,10 @@ import Types
 -- TODO improve tests
 
 test_split_range = do
-    let extract (a, b, c) = (map fst (Events.descending a),
-            map fst (Events.ascending b), map fst (Events.ascending c))
+    let extract (a, b, c) =
+            (map Event.start (Events.descending a),
+                map Event.start (Events.ascending b),
+                map Event.start (Events.ascending c))
     let f start end evts = extract $ Events.split_range start end
             (from_list [(p, d, show p) | (p, d) <- evts])
     equal (f 1 2 [(0, 1), (1, 1), (2, 1), (3, 1)])
@@ -32,7 +34,7 @@ test_split_range = do
 test_split_at_before = do
     let e1 = from_list [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
     let f pos = let (pre, post) = Events.split_at_before pos e1
-            in (map fst pre, map fst post)
+            in (map Event.start pre, map Event.start post)
     equal (f 0) ([], [0, 1, 2])
     equal (f 0.5) ([], [0, 1, 2])
     equal (f 1) ([0], [1, 2])
@@ -103,12 +105,12 @@ type Event = (ScoreTime, ScoreTime, String)
 from_list :: [Event] -> Events.Events
 from_list = Events.from_list . pos_events
 
-pos_events :: [Event] -> [Events.PosEvent]
-pos_events = map (\(pos, dur, text) -> (pos, Event.event text dur))
+pos_events :: [Event] -> [Event.Event]
+pos_events = map (\(pos, dur, text) -> Event.event pos dur text)
 
 extract_text (_, event) = Event.event_string event
-extract_event (pos, evt) =
-    (pos, Event.event_duration evt, Event.event_string evt)
+extract_event event =
+    (Event.start event, Event.duration event, Event.event_string event)
 extract = map extract_event . Events.ascending
 
 no_overlaps = check . not . events_overlap
@@ -118,4 +120,4 @@ events_overlap track = any (uncurry overlaps)
 overlaps evt1 evt2 =
     -- They don't overlap and they aren't simultaneous (the second condition is
     -- needed for zero duration events).
-    Events.end evt1 > fst evt2 || fst evt1 >= fst evt2
+    Event.end evt1 > Event.start evt2 || Event.start evt1 >= Event.start evt2

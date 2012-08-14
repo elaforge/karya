@@ -316,14 +316,14 @@ diff_track_events :: TrackId -> Events.Events -> Events.Events
     -> [Update.CmdUpdate]
 diff_track_events tid e1 e2 =
     map update $ Ranges.merge_sorted $ mapMaybe diff $
-        Seq.pair_sorted (Events.ascending e1) (Events.ascending e2)
+        Seq.pair_sorted_on Event.start
+            (Events.ascending e1) (Events.ascending e2)
     where
-    diff (p, Seq.First e) = Just (p, p + Event.event_duration e)
-    diff (p, Seq.Second e) = Just (p, p + Event.event_duration e)
-    diff (p, Seq.Both e1 e2)
+    diff (Seq.First e) = Just (Event.range e)
+    diff (Seq.Second e) = Just (Event.range e)
+    diff (Seq.Both e1 e2)
         | e1 == e2 = Nothing
-        | otherwise = Just (p, max (p + Event.event_duration e1)
-            (p + Event.event_duration e2))
+        | otherwise = Just (Event.start e1, max (Event.end e1) (Event.end e2))
     update (s, e) = Update.CmdTrackEvents tid s e
 
 

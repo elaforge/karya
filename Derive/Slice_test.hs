@@ -32,7 +32,7 @@ test_extract_orphans = do
 
 test_event_gaps = do
     let f es end = Slice.event_gaps (mkevents es) end
-        mkevents ranges = [(s, Event.event "" (e-s)) | (e, s) <- ranges]
+        mkevents ranges = [Event.event s (e-s) "" | (e, s) <- ranges]
     equal (f [] 1) [(False, 0, 1)]
     equal (f [(1, 2), (2, 3)] 4) [(False, 0, 1), (False, 3, 4)]
     equal (f [(2, 2)] 4) [(False, 0, 2), (True, 2, 4)]
@@ -125,8 +125,8 @@ extract_tree = map $ fmap $ \track ->
 
 extract_track :: Events.Events -> [Event]
 extract_track events =
-    [(p, Event.event_duration e, Event.event_string e)
-        | (p, e) <- Events.ascending events]
+    [(Event.start e, Event.duration e, Event.event_string e)
+        | e <- Events.ascending events]
 
 make_tree :: EventsTree -> State.EventsTree
 make_tree = map $ \(Node (title, events) subs) ->
@@ -136,7 +136,7 @@ make_track :: String -> [Event] -> State.TrackEvents
 make_track title events = State.track_events title tevents 100
     where
     tevents = Events.from_list
-        [(start, Event.event text dur) | (start, dur, text) <- events]
+        [Event.event start dur text | (start, dur, text) <- events]
 
 make_controls :: String -> [Int] -> (String, [Event])
 make_controls title ps = (title, [(to_score p, 0, show p) | p <- ps])

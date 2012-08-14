@@ -75,7 +75,7 @@ check_control_tree block_end forest = case forest of
         ++ "but there are multiple children: "
         ++ show (map (State.tevents_title . Tree.rootLabel) tracks)
     where
-    events = Events.singleton 0 (Event.event capture_null_control block_end)
+    events = Events.singleton (Event.event 0 block_end capture_null_control)
     capture_track = (State.track_events ">" events block_end)
 
 derive_control_tree :: ScoreTime -> State.EventsTree -> Derive.ControlDeriver

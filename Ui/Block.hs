@@ -13,7 +13,6 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
@@ -64,7 +63,7 @@ data TrackDestination = TrackDestination {
 -- | This is a picture of the integrated events that were used to create an
 -- integrated block.  By taking its difference against the current contents of
 -- the block I can figure out user edits.
-type EventIndex = Map.Map Event.IndexKey Events.PosEvent
+type EventIndex = Map.Map Event.IndexKey Event.Event
 
 instance Pretty.Pretty TrackDestination where
     format (TrackDestination note controls) =

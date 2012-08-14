@@ -7,7 +7,6 @@
 module Cmd.Lang.LPitch where
 import Util.Control
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
@@ -35,13 +34,13 @@ nn_to_note key = Scale.scale_input_to_note Twelve.scale Nothing
 -- TODO these should invert position of control events too
 to_negative, to_positive :: Cmd.CmdL ()
 to_negative = ModifyEvents.events_sorted $ \evt ->
-    return [if Events.negative evt then evt else negate_event evt]
+    return [if Event.negative evt then evt else negate_event evt]
 to_positive = ModifyEvents.events_sorted $ \evt ->
-    return [if Events.positive evt then evt else negate_event evt]
+    return [if Event.positive evt then evt else negate_event evt]
 
-negate_event :: Events.PosEvent -> Events.PosEvent
-negate_event (pos, evt) =
-    (pos + Event.event_duration evt, Event.modify_duration negate evt)
+negate_event :: Event.Event -> Event.Event
+negate_event event =
+    Event.move (+ Event.duration event) $ Event.modify_duration negate event
 
 -- * transpose
 

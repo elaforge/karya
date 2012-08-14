@@ -171,7 +171,7 @@ test_symbols = do
 -- * setup
 
 set_style :: Event.SetStyle
-set_style _ _ = Event.event_style
+set_style _ _ = Event.style
 
 insert_track :: ViewId -> TrackNum -> Block.Tracklike -> Types.Width -> IO ()
 insert_track view tracknum tracklike width = send $

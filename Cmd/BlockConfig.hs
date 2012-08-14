@@ -74,7 +74,7 @@ cmd_open_block = do
     ns <- State.get_namespace
     let call_of = NoteTrack.block_call ns
     sel <- Selection.events
-    forM_ sel $ \(_, _, events) -> forM_ events $ \(_, event) ->
+    forM_ sel $ \(_, _, events) -> forM_ events $ \event ->
         when_just (call_of (Event.event_string event)) $ \block_id ->
             whenM (Maybe.isJust <$> State.lookup_block block_id) $ do
                 views <- State.get_views_of block_id

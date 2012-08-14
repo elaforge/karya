@@ -18,8 +18,10 @@ import qualified Util.Log as Log
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
+import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
+
 import qualified Derive.Args as Args
 import qualified Derive.Derive as Derive
 import Derive.Derive
@@ -216,7 +218,8 @@ _extend_control_damage (track_s, track_e) events = Ranges.fmap (extend1 events)
         | e < track_s || s > track_e = Nothing
         | otherwise = Just (event_at_before s events, event_after e events)
     event_at_before p events = case Events.split p events of
-        (_, (at, _) : _) | p == at -> p
-        ((prev, _) : _, _) -> prev
+        (_, at : _) | p == Event.start at -> p
+        (prev : _, _) -> Event.start prev
         _ -> p
-    event_after p events = maybe track_e fst $ Seq.head (Events.after p events)
+    event_after p events = maybe track_e Event.start $
+        Seq.head (Events.after p events)

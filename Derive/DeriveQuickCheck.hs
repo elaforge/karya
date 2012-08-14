@@ -80,14 +80,14 @@ gpitch :: Q.Gen Pitch.Note
 gpitch = Q.oneof $ map return (Map.keys note_to_degree)
 
 -- | Random list of non-overlapping events, some of which are adjacent.
-gevents :: Q.Gen [Events.PosEvent]
+gevents :: Q.Gen [Event.Event]
 gevents = Events.ascending . Events.from_list <$> Q.listOf (gevent "")
 
-gevent :: String -> Q.Gen Events.PosEvent
+gevent :: String -> Q.Gen Event.Event
 gevent text = do
     start <- Q.arbitrarySizedFractional
     dur <- Q.arbitrarySizedFractional
-    return (abs start, Event.event text (abs dur))
+    return $ Event.event (abs start) (abs dur) text
 
 to_spec :: String -> (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime, String)
 to_spec text (start, dur) = (start, dur, text)

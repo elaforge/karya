@@ -2,12 +2,13 @@ UNSORTED
   - if there are no events, \ zoom to fit should zoom to fit the ruler
     Or maybe it should always do that?
   - implement Local.Instrument.Kontakt composite kendang as a stream postproc
-    This probably means I should let instruments automatically apply
-    a transformer.
-  - Putting start into the event would introduce redundancy with the
+  - This probably means I should let instruments automatically apply
+    a transformer.  To make sure it only happens once, only apply it when the
+    instrument changes from something else.
+  * Putting start into the event would introduce redundancy with the
     Map ScoreTime Event, but it would eliminate PosEvent entirely.  And come
     to think about it, the map is private to Ui.Events.
-    Also restrict Event.Event exports while I'm at it.
+
   - I could move cmd_play_msg out of Cmd.PlayC if I moved
     Sync.set_track_signals to the ResponderSync via a magic return value.
     I could then get rid of the CPP hack in Ui.Ui I think.
@@ -346,7 +347,6 @@ integrate
   - Figure out how multiple levels of track integration work.
   * Use skeleton display to draw a line from integrated to generated
     track, in a different color.
-    How does it get there?  Diff can set it.
   - If integrate is committing changes to a track, can that bite me if
     a "canceled" derivation comes through?  Think about this later.
   - What if an integrate wants to produce a note transformer track?  I

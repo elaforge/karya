@@ -7,6 +7,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 
+import qualified Ui.Event as Event
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Args as Args
@@ -187,8 +188,8 @@ test_events_around = do
 
     where
     c_around = Derive.stream_generator "around" $ Note.inverting $ \args -> do
-        Log.warn $ "prev: " ++ show (map fst (Args.prev_events args))
-        Log.warn $ "next: " ++ show (map fst (Args.next_events args))
+        Log.warn $ "prev: " ++ show (map Event.start (Args.prev_events args))
+        Log.warn $ "next: " ++ show (map Event.start (Args.next_events args))
         return []
 
 test_inverting_n = do

@@ -24,11 +24,12 @@ module Cmd.Integrate.Merge (
     -- * create
     create_block
     -- * merge
-    , merge_block, merge_tracks, make_index
+    , merge_block, merge_tracks
     , Edit(..), Modify(..), is_modified
     -- * diff
     , diff_events
 #ifdef TESTING
+    , make_index
     , diff, diff_event, apply
 #endif
 ) where
@@ -106,7 +107,7 @@ merge_pair block_id pair = case pair of
     (Just (Convert.Track title events), Left tracknum) -> do
         -- Track was deleted or never existed.
         track_id <- Create.track block_id tracknum title
-            (Events.from_asc_list (map unmodified events))
+            (Events.from_ascending (map unmodified events))
         return $ Just (title, track_id, make_index events)
     (Nothing, Right (track_id, _)) -> do
         -- Integrate no longer wants the track.
@@ -173,7 +174,7 @@ type Dest = (TrackId, Block.EventIndex)
 
 clear_generated_events :: (State.M m) => TrackId -> m ()
 clear_generated_events track_id = State.modify_events track_id $
-    Events.from_asc_list . filter (Maybe.isNothing . Event.event_stack . snd)
+    Events.from_ascending . filter (Maybe.isNothing . Event.stack)
         . Events.ascending
 
 merge_track :: (State.M m) => Convert.Track -> Dest -> m ()
@@ -209,7 +210,7 @@ track_edges track_ids = concatMap edges
 
 -- | Create an index from integrated tracks.  Since they are integrated, they
 -- should all have stacks, so events without stacks are discarded.
-make_index :: [Events.PosEvent] -> Block.EventIndex
+make_index :: [Event.Event] -> Block.EventIndex
 make_index events = Map.fromList
     [(key, event) | (Just key, event) <- Seq.key_on index_key events]
 
@@ -218,7 +219,7 @@ make_index events = Map.fromList
 -- | Find out how to merge new integrated output with user edits by diffing it
 -- against the old integrated output.
 diff_events :: Block.EventIndex -- ^ results of last integrate
-    -> [Events.PosEvent]
+    -> [Event.Event]
     -- ^ current events, which is last integrate plus user edits
     -> (Set.Set Event.IndexKey, [Edit])
     -- ^ set of deleted events, and edited events
@@ -228,7 +229,7 @@ diff_events index events = (deletes, edits)
         Set.fromList (mapMaybe index_key events)
     edits = map (diff index) events
 
-diff :: Block.EventIndex -> Events.PosEvent -> Edit
+diff :: Block.EventIndex -> Event.Event -> Edit
 diff index new = case index_key new of
     Nothing -> Add new
     Just key -> case Map.lookup key index of
@@ -238,19 +239,18 @@ diff index new = case index_key new of
         -- stack is deleted.  TODO could this multiply events endlessly?
         -- TODO This could be a symptom of tracks not lining up anymore.
         -- I should emit a warning.
-        Nothing -> Add (clear_stack new)
+        Nothing -> Add (Event.strip_stack new)
         Just old -> Edit key (diff_event old new)
-    where clear_stack (p, e) = (p, e { Event.event_stack = Nothing })
 
-index_key :: Events.PosEvent -> Maybe Event.IndexKey
-index_key = fmap Event.stack_key . Event.event_stack . snd
+index_key :: Event.Event -> Maybe Event.IndexKey
+index_key = fmap Event.stack_key . Event.stack
 
-diff_event :: Events.PosEvent -> Events.PosEvent -> [Modify]
-diff_event (old_pos, old_event) (new_pos, new_event) = concat
-    [ cmp old_pos new_pos (Position new_pos)
-    , cmp (Event.event_duration old_event) (Event.event_duration new_event)
-        (Duration (Event.event_duration new_event))
-    , diff_text (Event.event_bs old_event) (Event.event_bs new_event)
+diff_event :: Event.Event -> Event.Event -> [Modify]
+diff_event old new = concat
+    [ cmp (Event.start old) (Event.start new) (Position (Event.start new))
+    , cmp (Event.duration old) (Event.duration new)
+        (Duration (Event.duration new))
+    , diff_text (Event.event_bytestring old) (Event.event_bytestring new)
     ]
     where cmp x y val = if x == y then [] else [val]
 
@@ -272,7 +272,7 @@ diff_text old new
     ends_with_pipe text = "|" `B.isSuffixOf` pre && B.all (==' ') post
         where (pre, post) = B.breakEnd (=='|') text
 
-data Edit = Add !Events.PosEvent | Edit !Event.IndexKey ![Modify]
+data Edit = Add !Event.Event | Edit !Event.IndexKey ![Modify]
     deriving (Eq, Show)
 
 data Modify = Position !ScoreTime | Duration !ScoreTime
@@ -294,35 +294,33 @@ is_modified _ = True
 -- ** apply
 
 apply :: Set.Set Event.IndexKey -- ^ events that were deteleted
-    -> [Edit] -> [Events.PosEvent] -- ^ results of current integrate
+    -> [Edit] -> [Event.Event] -- ^ results of current integrate
     -> Events.Events
 apply deletes adds_edits = make . mapMaybe edit
     where
     -- Adds go afterwards so they can replace coincident events.
     make events = Events.from_list (events ++ adds)
     edit event
-        | fst event `Set.member` deletes = Nothing
-        | Just mods <- Map.lookup (fst event) edit_map = if null mods
+        | Event.start event `Set.member` deletes = Nothing
+        | Just mods <- Map.lookup (Event.start event) edit_map = if null mods
             then Just (unmodified event)
             else Just (apply_modifications mods event)
         -- A new event from the integrate.
         | otherwise = Just (unmodified event)
-    edit_map = Map.fromList [(key, mods) | (key, mods) <- edits]
+    edit_map = Map.fromList edits
     (adds, edits) = Seq.partition_either (map to_either adds_edits)
     to_either (Add event) = Left event
     to_either (Edit key mods) = Right (key, mods)
 
 -- | Unmodified events get a special style to indicate such.
-unmodified :: Events.PosEvent -> Events.PosEvent
-unmodified = second $ \event -> event { Event.event_style =
-    Config.unmodified_style (Event.event_style event) }
+unmodified :: Event.Event -> Event.Event
+unmodified = Event.modify_style Config.unmodified_style
 
-apply_modifications :: [Modify] -> Events.PosEvent -> Events.PosEvent
+apply_modifications :: [Modify] -> Event.Event -> Event.Event
 apply_modifications mods event = List.foldl' go event mods
     where
-    go (pos, event) mod = case mod of
-        Position p -> (p, event)
-        Duration d -> (pos, Event.set_duration d event)
-        Set text -> (pos, event { Event.event_bs = text })
-        Prefix text ->
-            (pos, event { Event.event_bs = text <> Event.event_bs event })
+    go event mod = ($event) $ case mod of
+        Position p -> Event.move (const p)
+        Duration d -> Event.set_duration d
+        Set text -> Event.modify_bytestring (const text)
+        Prefix text -> Event.modify_bytestring (text<>)

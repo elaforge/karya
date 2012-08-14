@@ -13,6 +13,6 @@ stretch :: ScoreTime -> Cmd.CmdL ()
 stretch n = do
     selected <- Selection.events
     let start = maybe 0 id $ Seq.minimum $
-            map (\(_, _, evts) -> maybe 0 fst (Seq.head evts)) selected
-    ModifyEvents.events $ \(pos, event) ->
-        return [((pos - start) * n + start, Event.modify_duration (*n) event)]
+            map (\(_, _, evts) -> maybe 0 Event.start (Seq.head evts)) selected
+    ModifyEvents.events $ ModifyEvents.event $
+        Event.move (\p -> (p - start) * n + start) . Event.modify_duration (*n)

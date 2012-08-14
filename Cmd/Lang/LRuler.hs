@@ -248,6 +248,6 @@ extract_subs track_id = do
     ns <- State.get_namespace
     let call = NoteTrack.block_call ns . Event.event_string
     return $ do
-        (pos, evt) <- events
-        Just block_id <- return (call evt)
-        return (pos, Event.event_duration evt, block_id)
+        event <- events
+        Just block_id <- return (call event)
+        return (Event.start event, Event.duration event, block_id)

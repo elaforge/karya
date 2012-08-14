@@ -102,7 +102,7 @@ to_hex text = case Derive.ParseBs.parse_val val of
 
 -- * events
 
-events :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Events.PosEvent]
+events :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Event.Event]
 events track_id start end = do
     track <- State.get_track track_id
     return $ (Events.ascending
@@ -122,13 +122,12 @@ strip_track_controls _ track_id events = do
         then Just (strip_controls events)
         else Nothing
 
-strip_controls :: [Events.PosEvent] -> [Events.PosEvent]
+strip_controls :: [Event.Event] -> [Event.Event]
 strip_controls = map snd . filter same . Seq.zip_prev
     where
     same (Nothing, _) = True
-    same (Just (_, prev), (_, cur)) =
-        not $ is_set (str prev) && str prev == str cur
-    str = Event.event_bs
+    same (Just prev, cur) = not $ is_set (str prev) && str prev == str cur
+    str = Event.event_bytestring
     is_set = right . ParseBs.parse_all ParseBs.p_float
     right (Right _) = True -- why isn't this in Data.Either?
     right (Left _) = False

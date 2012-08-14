@@ -66,7 +66,7 @@ extract_orphans track subs = filter has_note $
 --
 -- This matters because a zero length note event should not be captured in the
 -- orphan slice, since everything under it by definition is not orphaned.
-event_gaps :: [Events.PosEvent] -> ScoreTime -> [(Bool, ScoreTime, ScoreTime)]
+event_gaps :: [Event.Event] -> ScoreTime -> [(Bool, ScoreTime, ScoreTime)]
 event_gaps events end = reverse $
         (if last_end >= end then [] else [(last_exclusive, last_end, end)])
             ++ gaps_rev
@@ -76,7 +76,7 @@ event_gaps events end = reverse $
     make_gap (gaps, prev, exclusive) event
         | cur <= prev = (gaps, next, cur == next)
         | otherwise = ((exclusive, prev, cur) : gaps, next, cur == next)
-        where (cur, next) = Events.range event
+        where (cur, next) = Event.range event
 
 
 -- | Ask 'slice' to synthesize a note track and insert it at the leaves of
@@ -86,7 +86,7 @@ data InsertEvent = InsertEvent {
     ins_text :: String
     , ins_duration :: ScoreTime
     , ins_range :: (ScoreTime, ScoreTime)
-    , ins_around :: ([Events.PosEvent], [Events.PosEvent])
+    , ins_around :: ([Event.Event], [Event.Event])
     , ins_track_id :: Maybe TrackId
     } deriving (Show)
 
@@ -124,7 +124,7 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
     -- The synthesized bottom track.
     make (InsertEvent text dur track_range around track_id) = State.TrackEvents
         { State.tevents_title = ">"
-        , State.tevents_events = Events.singleton start (Event.event text dur)
+        , State.tevents_events = Events.singleton (Event.event start dur text)
         , State.tevents_track_id = track_id
         , State.tevents_end = end
         , State.tevents_range = track_range
@@ -161,12 +161,12 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
 events_around :: Bool -> Int -> ScoreTime -> ScoreTime -> Events.Events
     -> Events.Events
 events_around is_pitch_track after start end events =
-    Events.from_asc_list $
-        List.reverse prev ++ Then.takeWhile ((<end) . fst) (take after) post
+    Events.from_ascending $ List.reverse prev
+        ++ Then.takeWhile ((<end) . Event.start) (take after) post
     where
     (pre, post) = Events.split start events
     prev = take_repeats $ case post of
-        at@(p, _) : _ | p == start -> at : pre
+        at : _ | Event.start at == start -> at : pre
         _ -> pre
     -- This is an icky hack.  The problem is that some calls rely on the
     -- previous value.  So slicing back to them doesn't do any good, I need the
@@ -176,7 +176,7 @@ events_around is_pitch_track after start end events =
     -- wanting the previous value will cause the previous value to be
     -- evaluated, and at that point I could get rid of slicing entirely.  But
     -- I can't think of how to do that at the moment.
-    call_of = Maybe.fromMaybe "" . ParseBs.parse_call . Event.event_bs . snd
+    call_of = Maybe.fromMaybe "" . ParseBs.parse_call . Event.event_bytestring
     take_repeats = Then.takeWhile1 ((`Set.member` require_previous) . call_of)
     require_previous = if is_pitch_track then Pitch.require_previous
         else Control.require_previous
@@ -220,19 +220,18 @@ slice_notes start end =
         where
         tevents = State.tevents_events track
         events
-            | start == end = case Events.at start tevents of
-                Nothing -> Events.empty
-                Just e -> Events.singleton start e
+            | start == end =
+                maybe Events.empty Events.singleton (Events.at start tevents)
             | otherwise = Events.in_range start end tevents
         make_tree [] = [Tree.Node track subs]
         make_tree (p:ps) = [Tree.Node p (make_tree ps)]
     slice_event tree event = (s, e - s, slice False 1 s e Nothing tree)
-        where (s, e) = Events.range event
+        where (s, e) = Event.range event
     shift (shift, stretch, tree) =
         (shift, stretch, map (fmap (shift_tree shift)) tree)
     shift_tree shift track = track
         { State.tevents_end = State.tevents_end track - shift
         , State.tevents_events = Events.map_sorted
-            (\(p, e) -> (p - shift, e)) (State.tevents_events track)
+            (Event.move (subtract shift)) (State.tevents_events track)
         , State.tevents_shifted = State.tevents_shifted track + shift
         }

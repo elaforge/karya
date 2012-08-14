@@ -89,7 +89,7 @@ modify_record_velocity f = Cmd.modify_edit_state $ \st ->
 insert_event :: (Cmd.M m) => String -> ScoreTime -> m ()
 insert_event text dur = do
     (_, _, track_id, pos) <- Selection.get_insert
-    State.insert_events track_id [(pos, Event.event text dur)]
+    State.insert_event track_id $ Event.event pos dur text
 
 -- | This can be used to extend the length of a block so when it is subderived
 -- it has the right length.
@@ -106,29 +106,29 @@ cmd_insert_track_end = insert_event "--" 0
 cmd_move_event_forward :: (Cmd.M m) => m ()
 cmd_move_event_forward = move_event $ \pos events ->
     case Events.split pos events of
-        (_, (epos, _) : _) | pos == epos -> Nothing
+        (_, next : _) | Event.start next == pos -> Nothing
         (prev : _, _) -> Just prev
         _ -> Nothing
 
 cmd_move_event_back :: (Cmd.M m) => m ()
 cmd_move_event_back = move_event $ \pos events ->
     case Events.at_after pos events of
-        (epos, _) : _ | epos == pos -> Nothing
-        next : _ -> Just next
+        next : _
+            | Event.start next == pos -> Nothing
+            | otherwise -> Just next
         [] -> Nothing
 
 move_event :: (Cmd.M m) =>
-    (ScoreTime -> Events.Events -> Maybe Events.PosEvent) -> m ()
+    (ScoreTime -> Events.Events -> Maybe Event.Event) -> m ()
 move_event get_event = do
     (_, _, track_ids, start, end) <- Selection.tracks
     let pos = Selection.point_pos start end
         dur = abs (end - start)
     forM_ track_ids $ \track_id -> do
         events <- Track.track_events <$> State.get_track track_id
-        when_just (get_event pos events) $ \(old_pos, event) -> do
-            State.remove_event track_id old_pos
-            State.insert_event track_id pos $
-                if dur == 0 then Event.modified event else set_dur dur event
+        when_just (get_event pos events) $ \event -> do
+            State.remove_event track_id (Event.start event)
+            State.insert_event track_id $ place pos dur event
 
 
 -- | Extend the events in the selection to either the end of the selection or
@@ -143,16 +143,16 @@ cmd_set_duration = do
     (if Types.sel_is_point sel then set_prev_dur else set_sel_dur)
         (snd (Types.sel_range sel))
     where
-    set_sel_dur sel_pos = ModifyEvents.events $
-        ModifyEvents.event1 $ \pos event -> set_dur (sel_pos - pos) event
+    set_sel_dur sel_pos = ModifyEvents.events $ ModifyEvents.event $ \event ->
+        set_dur (sel_pos - Event.start event) event
     set_prev_dur sel_pos = do
         -- Wow it's a lot of work as soon as it's not the standard selection.
         (_, _, track_ids, _, _) <- Selection.tracks
         forM_ track_ids $ \track_id -> do
             prev <- Seq.head . fst . Events.split sel_pos . Track.track_events
                 <$> State.get_track track_id
-            when_just prev $ \(pos, event) ->
-                State.insert_event track_id pos (set_dur (sel_pos - pos) event)
+            when_just prev $ \event -> State.insert_event track_id $
+                set_dur (sel_pos - Event.start event) event
 
 -- | Toggle duration between zero and non-zero.
 --
@@ -164,12 +164,13 @@ cmd_toggle_zero_duration = do
     (_, sel) <- Selection.get
     let point = Selection.point sel
     (_, end) <- expand_range [Selection.point_track sel] point point
-    ModifyEvents.events $ ModifyEvents.event1 (toggle end point)
+    ModifyEvents.events $ ModifyEvents.event (toggle end point)
     where
-    toggle end point pos event
-        | Event.event_duration event /= 0 = Event.set_duration 0 event
+    toggle end point event
+        | Event.duration event /= 0 = Event.set_duration 0 event
         | pos == point = Event.set_duration (end - pos) event
         | otherwise = Event.set_duration (point - pos) event
+        where pos = Event.start event
 
 -- | Move only the beginning of an event.  As is usual for zero duration
 -- events, their duration will not be changed so this is equivalent to a move.
@@ -197,24 +198,24 @@ cmd_set_beginning = do
             State.get_track track_id
         let set = set_beginning track_id pos
         case (pre, post) of
-            (prev:_, _) | Events.overlaps pos prev -> set prev
-            (_, next:_) | Events.overlaps pos next -> set next
-            (_, next:_) | Events.positive next -> set next
-            (prev:_, _) | Events.negative prev -> set prev
+            (prev:_, _) | Event.overlaps pos prev -> set prev
+            (_, next:_) | Event.overlaps pos next -> set next
+            (_, next:_) | Event.positive next -> set next
+            (prev:_, _) | Event.negative prev -> set prev
             _ -> return ()
     where
-    set_beginning track_id start (pos, event) = do
-        let end = (if Event.is_positive event then max else min)
-                (Events.end (pos, event)) start
-            dur = if Event.event_duration event == 0 then 0 else end - start
-        State.remove_event track_id pos
-        State.insert_event track_id start (Event.set_duration dur event)
+    set_beginning track_id start event = do
+        let end = (if Event.positive event then max else min)
+                (Event.end event) start
+            dur = if Event.duration event == 0 then 0 else end - start
+        State.remove_event track_id (Event.start event)
+        State.insert_event track_id $ place start dur event
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
 cmd_modify_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
-cmd_modify_dur f = ModifyEvents.events  $ ModifyEvents.event1 $ \_ evt ->
-    Event.set_duration (apply (Event.event_duration evt)) evt
+cmd_modify_dur f = ModifyEvents.events  $ ModifyEvents.event $ \evt ->
+    Event.set_duration (apply (Event.duration evt)) evt
     where apply dur = if dur == 0 then dur else f dur
 
 -- | If there is a following event, delete it and extend this one to its end.
@@ -224,34 +225,39 @@ cmd_modify_dur f = ModifyEvents.events  $ ModifyEvents.event1 $ \_ evt ->
 cmd_join_events :: (Cmd.M m) => m ()
 cmd_join_events = mapM_ process =<< Selection.events_around
     where
-        -- If I only selected one, join with the next.  Otherwise, join
-        -- selected events.
+    -- If I only selected one, join with the next.  Otherwise, join selected
+    -- events.
     process (track_id, _, (_, [evt1], evt2:_)) = join track_id evt1 evt2
     process (track_id, _, (_, events@(_ : _ : _), _)) =
         join track_id (head events) (last events)
     process _ = return ()
-    join track_id (pos1, evt1) (pos2, evt2) =
+    join track_id evt1 evt2 =
         -- Yes, this deletes any "backwards" events in the middle, but that
         -- should be ok.
-        case (Event.is_negative evt1, Event.is_negative evt2) of
+        case (Event.negative evt1, Event.negative evt2) of
             (False, False) -> do
-                let end = Events.end (pos2, evt2)
-                State.remove_events track_id pos1 end
+                let end = Event.end evt2
+                State.remove_events track_id (Event.start evt1) end
                 -- If evt2 is zero dur, the above half-open range won't get it.
-                State.remove_event track_id pos2
-                State.insert_event track_id pos1 (set_dur (end - pos1) evt1)
+                State.remove_event track_id (Event.start evt2)
+                State.insert_event track_id $
+                    set_dur (end - Event.start evt1) evt1
             (True, True) -> do
-                let start = Events.end (pos1, evt1)
-                State.remove_events track_id start pos2
-                State.remove_event track_id pos2
-                State.insert_event track_id pos2 (set_dur (start - pos2) evt2)
+                let start = Event.end evt1
+                State.remove_events track_id start (Event.start evt2)
+                State.remove_event track_id (Event.start evt2)
+                State.insert_event track_id $
+                    set_dur (start - Event.start evt2) evt2
             _ -> return () -- no sensible way to join these
 
 -- | Zero dur events are never lengthened.
 set_dur :: ScoreTime -> Event.Event -> Event.Event
 set_dur dur evt
-    | Event.event_duration evt == 0 = evt
+    | Event.duration evt == 0 = evt
     | otherwise = Event.set_duration dur evt
+
+place :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
+place start dur = Event.move (const start) . set_dur dur
 
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.  If the selection is
@@ -264,10 +270,11 @@ cmd_insert_time = do
         track <- State.get_track track_id
         case Events.split_at_before start (Track.track_events track) of
             (_, []) -> return ()
-            (_, events@((pos, _):_)) -> do
+            (_, events@(event:_)) -> do
                 track_end <- State.track_end track_id
                 -- +1 to get final event if it's 0 dur, see move_events
-                State.remove_events track_id (min pos start) (track_end + 1)
+                State.remove_events track_id (min (Event.start event) start)
+                    (track_end + 1)
                 State.insert_sorted_events track_id
                     (map (insert_time start end) events)
 
@@ -276,21 +283,22 @@ cmd_insert_time = do
 --
 -- TODO both insert_time and delete_time could be faster by just mapping the
 -- shift once the overlapping events are done, but it's probably not worth it.
-insert_time :: ScoreTime -> ScoreTime -> Events.PosEvent -> Events.PosEvent
-insert_time start end event@(pos, evt)
-    | Event.is_positive evt = insertp
-    | otherwise = insertn
+insert_time :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
+insert_time start end event
+    | Event.positive event = insertp event
+    | otherwise = insertn event
     where
     shift = end - start
+    pos = Event.start event
     insertp
-        | pos < start && Events.end event <= start = event
-        | pos < start = (pos, Event.modify_duration (+shift) evt)
-        | otherwise = (pos + shift, Event.modified evt)
+        | pos < start && Event.end event <= start = id
+        | pos < start = Event.modify_duration (+shift)
+        | otherwise = Event.move (+shift)
     insertn
-        | pos <= start = event
-        | Events.end event < start =
-            (pos + shift, Event.modify_duration (subtract shift) evt)
-        | otherwise = (pos + shift, Event.modified evt)
+        | pos <= start = id
+        | Event.end event < start =
+            Event.move (+shift) . Event.modify_duration (subtract shift)
+        | otherwise = Event.move (+shift)
 
 -- | Remove the notes under the selection, and move everything else back.  If
 -- the selection is a point, delete one timestep.
@@ -302,36 +310,37 @@ cmd_delete_time = do
         track <- State.get_track track_id
         case Events.split_at_before start (Track.track_events track) of
             (_, []) -> return ()
-            (_, events@((pos, _):_)) -> do
+            (_, events@(event:_)) -> do
                 track_end <- State.track_end track_id
                 -- +1 to get final event if it's 0 dur, see move_events
-                State.remove_events track_id (min pos start) (track_end + 1)
+                State.remove_events track_id (min (Event.start event) start)
+                    (track_end + 1)
                 State.insert_sorted_events track_id
                     (mapMaybe (delete_time start end) events)
 
 -- | Modify the event to delete the time from @start@ to @end@, shortening it
 -- if @start@ falls within the event's duration.
-delete_time :: ScoreTime -> ScoreTime -> Events.PosEvent
-    -> Maybe Events.PosEvent
-delete_time start end event@(pos, evt)
-    | Event.is_positive evt = deletep
+delete_time :: ScoreTime -> ScoreTime -> Event.Event -> Maybe Event.Event
+delete_time start end event
+    | Event.positive event = deletep
     | otherwise = deleten
     where
     shift = end - start
+    pos = Event.start event
     deletep
-        | pos < start && Events.end event <= start = Just event
+        | pos < start && Event.end event <= start = Just event
         | pos < start =
-            Just (pos, Event.modify_duration
-                (subtract (min (Events.end event - start) shift)) evt)
+            Just $ Event.modify_duration
+                (subtract (min (Event.end event - start) shift)) event
         | pos < end = Nothing
-        | otherwise = Just (pos - shift, Event.modified evt)
+        | otherwise = Just $ Event.move (subtract shift) event
     deleten
         | pos <= start = Just event
         | pos <= end = Nothing
-        | Events.end event < end =
-            Just (pos - shift, Event.modify_duration
-                (+ min shift (end - Events.end event)) evt)
-        | otherwise = Just (pos - shift, Event.modified evt)
+        | Event.end event < end = Just $
+            Event.move (subtract shift) $ Event.modify_duration
+                (+ min shift (end - Event.end event)) event
+        | otherwise = Just $ Event.move (subtract shift) event
 
 -- | If the range is a point, then expand it to one timestep.
 expand_range :: (Cmd.M m) => [TrackNum] -> ScoreTime -> ScoreTime
@@ -435,7 +444,7 @@ record_recent_note :: (Cmd.M m) => m ()
 record_recent_note = do
     (_, _, track_id, pos) <- Selection.get_insert
     maybe_event <- State.get_event track_id pos
-    when_just (recent_note =<< snd <$> maybe_event) $ \note ->
+    when_just (recent_note =<< maybe_event) $ \note ->
         Cmd.modify_edit_state $ \st -> st { Cmd.state_recent_notes =
             record_recent note (Cmd.state_recent_notes st) }
 
@@ -448,7 +457,7 @@ recent_note event
             else Just (Cmd.RecentTransform trans zero_dur)
     where
     (pre, post) = break (=='|') (Seq.strip (Event.event_string event))
-    zero_dur = Event.event_duration event == 0
+    zero_dur = Event.duration event == 0
 
 record_recent :: Cmd.RecentNote -> [(Int, Cmd.RecentNote)]
     -> [(Int, Cmd.RecentNote)]

@@ -10,7 +10,7 @@ import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Thread as Thread
 
-import qualified Ui.Events as Events
+import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
@@ -262,7 +262,7 @@ mk_logging_call log_var  = Derive.stream_generator "logging-note" $
     Call.Note.inverting $ \args ->
         c_note log_var (Args.event args) (Args.end args)
 
-c_note :: Log -> Events.PosEvent -> ScoreTime -> Derive.EventDeriver
+c_note :: Log -> Event.Event -> ScoreTime -> Derive.EventDeriver
 c_note log_mvar event next_start = do
     -- Call the real one to make sure I'm getting it's laziness
     -- characteristics.

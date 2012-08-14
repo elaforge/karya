@@ -10,7 +10,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -28,7 +27,6 @@ import qualified Perform.Signal as Signal
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
-import qualified App.Config as Config
 import Types
 
 
@@ -36,7 +34,7 @@ import Types
 -- "Derive.Call.Integrate".
 data Track = Track {
     track_title :: !String
-    , track_events :: ![Events.PosEvent]
+    , track_events :: ![Event.Event]
     } deriving (Show)
 
 -- | (note track, control tracks)
@@ -101,17 +99,11 @@ note_events inst attr_map events =
     make_track note_title (map (note_event attr_map) events)
     where note_title = TrackInfo.instrument_to_title inst
 
-note_event :: Instrument.AttributeMap -> Score.Event -> Events.PosEvent
-note_event attr_map event =
-    (RealTime.to_score (Score.event_start event), ui_event)
-    where
-    ui_event = Event.Event
-        { Event.event_bs = Event.to_text $
-            Map.findWithDefault "" (Score.event_attributes event) attr_map
-        , Event.event_duration = RealTime.to_score (Score.event_duration event)
-        , Event.event_style = Config.default_style
-        , Event.event_stack = Just (event_stack event)
-        }
+note_event :: Instrument.AttributeMap -> Score.Event -> Event.Event
+note_event attr_map event = ui_event (Score.event_stack event)
+        (RealTime.to_score (Score.event_start event))
+        (RealTime.to_score (Score.event_duration event))
+        (Map.findWithDefault "" (Score.event_attributes event) attr_map)
 
 -- ** pitch
 
@@ -131,13 +123,13 @@ no_pitch_signals :: [Score.Event] -> Bool
 no_pitch_signals = all (PitchSignal.null . Score.event_pitch)
 
 pitch_signal_events :: Scale.Scale -> Maybe Pitch.Key -> Score.Event
-    -> ([Events.PosEvent], [String])
+    -> ([Event.Event], [String])
 pitch_signal_events scale key event =
     (ui_events, map Pretty.pretty pitch_errs ++ note_errs)
     where
     sig = PitchSignal.drop_before start $ Score.event_pitch event
-    ui_events = [ui_event (Score.event_stack event) (RealTime.to_score x)
-            (Pitch.note_text note) 0
+    ui_events = [ui_event (Score.event_stack event) (RealTime.to_score x) 0
+            (Pitch.note_text note)
         | (x, _, Just note) <- notes]
     notes = [(x, nn, Scale.nn_to_note scale key nn)
         | (x, nn) <- map (second Pitch.NoteNumber) (align_signal start nns)]
@@ -164,20 +156,19 @@ control_track events control =
         map (signal_events (Score.typed_val control)) events
     -- Don't emit a dyn track if it's just the default.
     -- TODO generalize this to everything in in Derive.initial_controls
-    drop_dyn [(pos, event)]
-        | Score.typed_val control == Score.c_dynamic && pos == 0
+    drop_dyn [event]
+        | Score.typed_val control == Score.c_dynamic && Event.start event == 0
             && Event.event_string event == default_dyn = []
     drop_dyn events = events
     default_dyn = ParseBs.show_hex_val Derive.default_dynamic
     tidy_controls = clip_to_zero . drop_dups . clip_concat
 
-signal_events :: Score.Control -> Score.Event -> [Events.PosEvent]
+signal_events :: Score.Control -> Score.Event -> [Event.Event]
 signal_events control event = case Map.lookup control controls of
     Nothing -> []
-    Just sig ->
-        [ui_event (Score.event_stack event)
-            (RealTime.to_score x) (ParseBs.show_hex_val y) 0
-            | (x, y) <- samples (Score.typed_val sig)]
+    Just sig -> [ui_event (Score.event_stack event)
+            (RealTime.to_score x) 0 (ParseBs.show_hex_val y)
+        | (x, y) <- samples (Score.typed_val sig)]
     where
     samples = align_signal start . Signal.drop_before start
     controls = Score.event_controls event
@@ -197,34 +188,34 @@ event_stack :: Score.Event -> Event.Stack
 event_stack event = Event.Stack (Score.event_stack event)
     (RealTime.to_score (Score.event_start event))
 
-ui_event :: Stack.Stack -> ScoreTime -> String -> ScoreTime -> Events.PosEvent
-ui_event stack pos text dur = (pos, (Event.event text dur)
-    { Event.event_stack = Just (Event.Stack stack pos) })
+ui_event :: Stack.Stack -> ScoreTime -> ScoreTime -> String -> Event.Event
+ui_event stack pos dur text =
+    Event.set_stack (Event.Stack stack pos) $ Event.event pos dur text
 
 -- | Concatenate the events, dropping ones that are out of order.  The
 -- durations are not modified, so they still might overlap in duration, but the
 -- start times will be increasing.
-clip_concat :: [[Events.PosEvent]] -> [Events.PosEvent]
+clip_concat :: [[Event.Event]] -> [Event.Event]
 clip_concat = Seq.drop_with out_of_order . concat
-    where out_of_order e1 e2 = fst e2 <= fst e1
+    where out_of_order e1 e2 = Event.start e2 <= Event.start e1
 
 -- | Drop subsequent events with the same text, since those are redundant for
 -- controls.
-drop_dups :: [Events.PosEvent] -> [Events.PosEvent]
-drop_dups = Seq.drop_dups (Event.event_string . snd)
+drop_dups :: [Event.Event] -> [Event.Event]
+drop_dups = Seq.drop_dups Event.event_string
 
 -- | Drop events before 0, keeping at least one at 0.  Controls can wind up
 -- with samples before 0 (e.g. after using 'Derive.Score.move'), but events
 -- can't start before 0.
-clip_to_zero :: [Events.PosEvent] -> [Events.PosEvent]
-clip_to_zero ((p1, e1) : rest@((p2, _) : _))
-    | p1 <= 0 && p2 <= 0 = clip_to_zero rest
-    | otherwise = (max 0 p1, e1) : rest
-clip_to_zero [(p, e)] = [(max 0 p, e)]
+clip_to_zero :: [Event.Event] -> [Event.Event]
+clip_to_zero (e1 : rest@(e2 : _))
+    | Event.start e1 <= 0 && Event.start e2 <= 0 = clip_to_zero rest
+    | otherwise = Event.move (max 0) e1 : rest
+clip_to_zero [e] = [Event.move (max 0) e]
 clip_to_zero [] = []
 
-make_track :: String -> [Events.PosEvent] -> Track
-make_track title events = Track title (Seq.sort_on fst events)
+make_track :: String -> [Event.Event] -> Track
+make_track title events = Track title (Seq.sort_on Event.start events)
 
 empty_track :: Track -> Bool
 empty_track (Track _ []) = True

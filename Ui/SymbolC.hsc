@@ -4,7 +4,6 @@ import qualified Data.Maybe as Maybe
 import Foreign
 import Foreign.C
 
-import qualified Ui.Event as Event
 import qualified Ui.Util as Util
 import qualified Ui.Symbol as Symbol
 
@@ -77,4 +76,4 @@ instance Storable GlyphC where
         (#poke SymbolTable::Glyph, rotate) glyphp rotate
 
 encode_utf8 :: String -> IO CString
-encode_utf8 = Event.unpackCString0 . UTF8.fromString
+encode_utf8 = Util.unpackCString0 . UTF8.fromString

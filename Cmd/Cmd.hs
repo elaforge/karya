@@ -71,7 +71,6 @@ import qualified Midi.State
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -892,11 +891,11 @@ suppress_history mode name cmd = cmd <* modify (\st -> st
     })
 
 -- | Log an event so that it can be clicked on in logview.
-log_event :: BlockId -> TrackId -> Events.PosEvent -> String
-log_event block_id track_id (pos, event) = "{s" ++ show frame ++ "}"
+log_event :: BlockId -> TrackId -> Event.Event -> String
+log_event block_id track_id event = "{s" ++ show frame ++ "}"
     where
-    range = Just (pos, pos + Event.event_duration event)
-    frame = Stack.unparse_ui_frame (block_id, Just track_id, range)
+    frame = Stack.unparse_ui_frame
+        (block_id, Just track_id, Just (Event.range event))
 
 -- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
 -- conditions that don't fit into a Keymap.

@@ -138,28 +138,28 @@ encode_style style = case style of
     Track.Filled -> (#const RenderConfig::render_filled)
 
 -- typedef int (*FindEvents)(ScoreTime *start_pos, ScoreTime *end_pos,
---         ScoreTime **ret_tps, Event **ret_events, int **ret_ranks);
-type FindEvents = Ptr ScoreTime -> Ptr ScoreTime -> Ptr (Ptr ScoreTime)
+--         Event **ret_events, int **ret_ranks);
+type FindEvents = Ptr ScoreTime -> Ptr ScoreTime
     -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
 
 cb_find_events :: SetStyle -> [Events.Events] -> FindEvents
-cb_find_events set_style event_lists startp endp ret_tps ret_events
+cb_find_events set_style event_lists startp endp ret_events
         ret_ranks = do
     start <- peek startp
     end <- peek endp
-    let (tps, evts, ranks) = unzip3 $ Seq.sort_on key
-            [ (pos, style pos evt, rank)
+    let (events, ranks) = unzip $ Seq.sort_on key
+            [ (style (Event.start event) event, rank)
             | (rank, events) <- zip [0..] event_lists
-            , (pos, evt) <- in_range start end events
+            , event <- in_range start end events
             ]
-        key (pos, _, rank) = (pos, rank)
-        style pos evt = evt { Event.event_style = set_style pos evt }
-    unless (null evts) $ do
-        -- Calling c++ is responsible for freeing this.
-        poke ret_tps =<< newArray tps
-        poke ret_events =<< newArray evts
+        key (event, rank) = (Event.start event, rank)
+        style pos event =
+            Event.modify_style (const (set_style pos event)) event
+    unless (null events) $ do
+        -- Calling c++ is responsible for freeing these.
+        poke ret_events =<< newArray events
         poke ret_ranks =<< newArray ranks
-    return (length evts)
+    return (length events)
     where
     -- Get everything in the half-open range, plus one event before and after.
     -- The drawing code needs to know if the previous event text would overlap
@@ -168,7 +168,7 @@ cb_find_events set_style event_lists startp endp ret_tps ret_events
     --
     -- Almost, but not quite the same as 'Events.in_range_around'.
     in_range start end events =
-        take 1 pre ++ Then.takeWhile1 ((<=end) . fst) post
+        take 1 pre ++ Then.takeWhile1 ((<=end) . Event.start) post
         where (pre, post) = Events.split start events
 
 foreign import ccall "wrapper"

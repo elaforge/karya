@@ -158,15 +158,10 @@ intern_text state =
         (Map.toAscList (State.state_tracks state))
     intern_track state (track_id, track) =
         (state2, (track_id, track
-            { Track.track_events = Events.from_asc_list events }))
+            { Track.track_events = Events.from_ascending events }))
         where
-        (state2, events) = List.mapAccumL intern_event state
+        (state2, events) = List.mapAccumL Event.intern_event state
             (Events.ascending (Track.track_events track))
-    intern_event table (pos, event) = case Map.lookup text table of
-        Nothing -> (Map.insert text (text, 1) table, (pos, event))
-        Just (text, count) -> (Map.insert text (text, count+1) table,
-            (pos, event { Event.event_bs = text }))
-        where text = Event.event_bs event
 
 intern_stats :: Map.Map ByteString.ByteString Int -> (Memory.Size, Int)
 intern_stats table =

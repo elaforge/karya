@@ -26,6 +26,7 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
@@ -172,7 +173,7 @@ find_around pos = List.find close . Seq.zipper []
     close (_, next : _) | next >= pos = True
     close _ = False
 
-get_events :: (State.M m) => BlockId -> TrackNum -> m [Events.PosEvent]
+get_events :: (State.M m) => BlockId -> TrackNum -> m [Event.Event]
 get_events block_id tracknum = do
     maybe_track_id <- State.event_track_at block_id tracknum
     case maybe_track_id of
@@ -213,12 +214,12 @@ get_points time_step@(TimeStep steps) block_id tracknum pos = do
 -- If it's a problem I can cache it.
 --
 -- This relies on 'get_points' to give it the proper values.
-all_points :: Ruler.Marklists -> TrackNum -> [[Events.PosEvent]] -> ScoreTime
+all_points :: Ruler.Marklists -> TrackNum -> [[Event.Event]] -> ScoreTime
     -> TimeStep -> [ScoreTime]
 all_points marklists cur events pos (TimeStep steps) = Seq.drop_dups id $
     Seq.merge_lists id $ map (step_points marklists cur events pos) steps
 
-step_points :: Ruler.Marklists -> TrackNum -> [[Events.PosEvent]]
+step_points :: Ruler.Marklists -> TrackNum -> [[Event.Event]]
     -> ScoreTime -> (Step, Skip) -> [ScoreTime]
 step_points marklists cur events pos (step, skip) = stride skip $ case step of
         Absolute incr -> Seq.range (Num.fmod pos incr) end incr
@@ -226,8 +227,8 @@ step_points marklists cur events pos (step, skip) = stride skip $ case step of
         RelativeMark names matcher -> shift (matches names matcher)
         BlockEnd -> [0, end]
         EventStart tracks -> Seq.merge_lists id $
-            map (map Events.start) (track_events tracks)
-        EventEnd tracks -> Seq.merge_lists id $ map (map Events.end)
+            map (map Event.start) (track_events tracks)
+        EventEnd tracks -> Seq.merge_lists id $ map (map Event.end)
             (track_events tracks)
     where
     track_events AllTracks = events

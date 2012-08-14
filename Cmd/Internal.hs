@@ -217,11 +217,11 @@ update_of _ = Nothing
 set_style :: Event.SetStyle
 set_style title _pos event =
     integrated $ Config.set_style
-        (syntax (ParseBs.parse_expr (Event.event_bs event)))
-        (Event.event_style event)
+        (syntax (ParseBs.parse_expr (Event.event_bytestring event)))
+        (Event.style event)
     where
     integrated
-        | Maybe.isNothing (Event.event_stack event) = id
+        | Maybe.isNothing (Event.stack event) = id
         | otherwise = Config.integrated_style
     syntax (Left _) = Config.Error
     syntax (Right expr)

@@ -54,9 +54,9 @@ from_score = ScoreTime.to_double
 from_real :: RealTime -> Double
 from_real = RealTime.to_seconds
 
-event :: Events.PosEvent -> Event
-event (start, event) = (from_score start,
-    from_score (Event.event_duration event), Event.event_string event)
+event :: Event.Event -> Event
+event event = (from_score (Event.start event),
+    from_score (Event.duration event), Event.event_string event)
 
 score_event :: Score.Event -> ScoreEvent
 score_event evt = (from_real (Score.event_start evt),
@@ -131,6 +131,6 @@ convert_track (id_name, title, events) = do
         Track.track title (Events.from_list (map convert_event events))
     return $ Block.track (Block.TId track_id State.no_ruler) Config.track_width
 
-convert_event :: Event -> Events.PosEvent
+convert_event :: Event -> Event.Event
 convert_event (start, dur, text) =
-    (ScoreTime.double start, Event.event text (ScoreTime.double dur))
+    Event.event (ScoreTime.double start) (ScoreTime.double dur) text

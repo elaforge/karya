@@ -743,7 +743,7 @@ data TrackEvents = TrackEvents {
     -- 'Derive.Derive.info_prev_events' and info_next_events.  This is so that
     -- sliced calls (such as inverting calls) can see previous and following
     -- events.
-    , tevents_around :: !([Events.PosEvent], [Events.PosEvent])
+    , tevents_around :: !([Event.Event], [Event.Event])
 
     -- | If the events have been shifted from their original positions on the
     -- track, this can be added to them to put them back in track time.  This
@@ -1131,30 +1131,30 @@ set_render_style style track_id = modify_track_render track_id $
 -- events in the relaxed half-open range (functions use the plural).
 
 -- | Insert events into track_id as per 'Events.insert_events'.
-insert_events :: (M m) => TrackId -> [Events.PosEvent] -> m ()
-insert_events track_id pos_evts =
+insert_events :: (M m) => TrackId -> [Event.Event] -> m ()
+insert_events track_id events =
     -- Calculating updates is easiest if it's sorted, and insert likes sorted
     -- anyway.
-    insert_sorted_events track_id (Seq.sort_on fst pos_evts)
+    insert_sorted_events track_id (Seq.sort_on Event.start events)
 
 -- | Like 'insert_events', but more efficient and dangerous.
-insert_sorted_events :: (M m) => TrackId -> [Events.PosEvent] -> m ()
-insert_sorted_events track_id pos_evts = _modify_events track_id $ \events ->
-    (Events.insert_sorted_events pos_evts events, events_range pos_evts)
+insert_sorted_events :: (M m) => TrackId -> [Event.Event] -> m ()
+insert_sorted_events track_id new_events = _modify_events track_id $ \events ->
+    (Events.insert_sorted_events new_events events, events_range new_events)
 
-insert_event :: (M m) => TrackId -> ScoreTime -> Event.Event -> m ()
-insert_event track_id pos evt = insert_sorted_events track_id [(pos, evt)]
+insert_event :: (M m) => TrackId -> Event.Event -> m ()
+insert_event track_id event = insert_sorted_events track_id [event]
 
-get_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m [Events.PosEvent]
+get_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m [Event.Event]
 get_events track_id start end = do
     events <- Track.track_events <$> get_track track_id
     return (_events_in_range start end events)
 
 -- | Get an event at or before the given time.
-get_event :: (M m) => TrackId -> ScoreTime -> m (Maybe Events.PosEvent)
+get_event :: (M m) => TrackId -> ScoreTime -> m (Maybe Event.Event)
 get_event track_id pos = Seq.head <$> get_events track_id pos pos
 
-get_all_events :: (M m) => TrackId -> m [Events.PosEvent]
+get_all_events :: (M m) => TrackId -> m [Event.Event]
 get_all_events = (Events.ascending . Track.track_events <$>) . get_track
 
 modify_events :: (M m) => TrackId -> (Events.Events -> Events.Events) -> m ()
@@ -1171,15 +1171,16 @@ modify_some_events track_id f = _modify_events track_id $ \events ->
 
 calculate_damage :: Events.Events -> Events.Events -> Ranges.Ranges ScoreTime
 calculate_damage old new =
-    Ranges.sorted_ranges $ foldr f []
-        (Seq.pair_sorted (Events.ascending old) (Events.ascending new))
+    Ranges.sorted_ranges $ foldr f [] $
+        Seq.pair_sorted_on Event.start
+            (Events.ascending old) (Events.ascending new)
     where
-    f (pos, Seq.Second new) ranges = Events.range (pos, new) : ranges
-    f (pos, Seq.First old) ranges = Events.range (pos, old) : ranges
-    f (pos, Seq.Both old new) ranges
+    f (Seq.Second new) ranges = Event.range new : ranges
+    f (Seq.First old) ranges = Event.range old : ranges
+    f (Seq.Both old new) ranges
         | old == new = ranges
-        | otherwise = (pos, max (pos + dur old) (pos + dur new)) : ranges
-        where dur = Event.event_duration
+        | otherwise =
+            (Event.start old, max (Event.end old) (Event.end new)) : ranges
 
 -- | Remove any events whose starting positions fall within the half-open
 -- range given, or under the point if the selection is a point.
@@ -1193,7 +1194,7 @@ remove_event :: (M m) => TrackId -> ScoreTime -> m ()
 remove_event track_id pos = _modify_events track_id $ \events ->
     case Events.at pos events of
         Nothing -> (events, Ranges.nothing)
-        Just evt -> (Events.remove_event pos events, events_range [(pos, evt)])
+        Just event -> (Events.remove_event pos events, events_range [event])
 
 -- | Remove any events whose starting positions strictly fall within the
 -- half-open range given.
@@ -1204,24 +1205,22 @@ remove_event_range track_id start end =
         in (Events.remove_events start end events, events_range evts)
 
 map_events_sorted :: (M m) => TrackId -> ScoreTime -> ScoreTime
-    -> ([Events.PosEvent] -> [Events.PosEvent]) -> m ()
+    -> ([Event.Event] -> [Event.Event]) -> m ()
 map_events_sorted track_id start end f = _modify_events track_id $ \events ->
     let old = _events_in_range start end events
         new = f old
         deleted = if start == end
             then Events.remove_event start events
             else Events.remove_events start end events
-        starts = map Events.min $ mapMaybe Seq.head [old, new]
-        ends = map Events.max $ mapMaybe Seq.last [old, new]
+        starts = map Event.min $ mapMaybe Seq.head [old, new]
+        ends = map Event.max $ mapMaybe Seq.last [old, new]
         ranges = if null starts || null ends then Ranges.nothing
             else Ranges.range (minimum starts) (maximum ends)
     in (Events.insert_sorted_events new deleted, ranges)
 
-_events_in_range :: ScoreTime -> ScoreTime -> Events.Events
-    -> [Events.PosEvent]
+_events_in_range :: ScoreTime -> ScoreTime -> Events.Events -> [Event.Event]
 _events_in_range start end events
-    | start == end = maybe [] ((:[]) . (,) start)
-        (Events.at start events)
+    | start == end = maybe [] (:[]) (Events.at start events)
     | otherwise = Events.ascending (Events.in_range start end events)
 
 -- | Get the end of the last event of the block.
@@ -1263,9 +1262,9 @@ ranges_to_updates track_id ranges = case Ranges.extract ranges of
     Nothing -> [Update.CmdTrackAllEvents track_id]
     Just pairs -> [Update.CmdTrackEvents track_id s e | (s, e) <- pairs]
 
-events_range :: [Events.PosEvent] -> Ranges.Ranges ScoreTime
+events_range :: [Event.Event] -> Ranges.Ranges ScoreTime
 events_range events = case (Seq.head events, Seq.last events) of
-    (Just e1, Just e2) -> Ranges.range (Events.min e1) (Events.max e2)
+    (Just e1, Just e2) -> Ranges.range (Event.min e1) (Event.max e2)
     _ -> Ranges.nothing
 
 -- * ruler

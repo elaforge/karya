@@ -132,10 +132,10 @@ test_zoom_scroll = do
     state <- run State.empty $ do
         v1 <- setup_state
         State.insert_events t_track1_id
-            [ (0, Event.event "one" 10)
-            , (10, Event.event "scrunch" 6)
-            , (20, Event.event "two" 32)
-            , (100, Event.event "last" 64)
+            [ Event.event 0 10 "one"
+            , Event.event 10 6 "scrunch"
+            , Event.event 20 32 "two"
+            , Event.event 100 64 "last"
             ]
     state <- io_human "scrolls to bottom" $ run state $ do
         State.set_zoom t_view_id (Types.Zoom 128 1)
@@ -223,7 +223,7 @@ test_set_track_merge = do
     state <- io_human "t2 merged with t1" $ run state $ do
         State.set_merged_tracks UiTest.default_block_id 1 [t2]
     state <- io_human "t2 modifications visible in t1" $ run state $ do
-        State.insert_event t2 0.5 (Event.event "xxx" 0)
+        State.insert_event t2 (Event.event 0.5 0 "xxx")
     return ()
 
 test_merge_unmerge_track = do
@@ -237,7 +237,7 @@ test_merge_unmerge_track = do
     state <- io_human "t2 merged with t1" $ run state $ do
         State.merge_track UiTest.default_block_id 1 2
     state <- io_human "t2's xxx visible in t1" $ run state $ do
-        State.insert_event t2 0.5 (Event.event "xxx" 0)
+        State.insert_event t2 (Event.event 0.5 0 "xxx")
     state <- io_human "t1 unmerged, t1 reappears, still wide" $ run state $ do
         State.unmerge_track UiTest.default_block_id 1
     return ()
@@ -253,7 +253,7 @@ test_update_merged = do
     state <- io_human "block with merged track" $ run State.empty $
         State.put state
     state <- io_human "t2 modifications visible in t1" $ run state $ do
-        State.insert_event t2 0.5 (Event.event "xxx" 0)
+        State.insert_event t2 (Event.event 0.5 0 "xxx")
     return ()
 
 test_insert_remove_track = do
@@ -291,8 +291,8 @@ test_update_track = do
     state <- io_human "create view with one track" run_setup
 
     state <- io_human "add events, get wider, turn green" $ run state $ do
-        State.insert_events t_track1_id [(70, Event.event "last1" 10),
-            (90, Event.event "last2" 15)]
+        State.insert_events t_track1_id
+            [Event.event 70 10 "last1", Event.event 90 15 "last2"]
         State.set_track_width t_block_id 1 50
         State.set_track_bg t_track1_id Color.green
     return ()

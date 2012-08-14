@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
@@ -528,8 +529,8 @@ point_to_real tempo (Just (block_id, _, track_id, pos)) =
 -- range because these functions may select more events than lie strictly
 -- within the selection.
 type SelectedAround = [(TrackId, (ScoreTime, ScoreTime),
-    ([Events.PosEvent], [Events.PosEvent], [Events.PosEvent]))]
-type SelectedEvents = [(TrackId, (ScoreTime, ScoreTime), [Events.PosEvent])]
+    ([Event.Event], [Event.Event], [Event.Event]))]
+type SelectedEvents = [(TrackId, (ScoreTime, ScoreTime), [Event.Event])]
 
 -- | 'events_around' is the default selection behaviour.
 events :: (Cmd.M m) => m SelectedEvents
@@ -577,11 +578,11 @@ events_around_selnum selnum = do
         | take_next = (before, take 1 after, drop 1 after)
         | otherwise = (before, [], after)
         where
-        start_equal = maybe False ((==sel_start) . fst) (Seq.head after)
-        take_prev = maybe False Events.positive (Seq.head before)
-        take_next = maybe False Events.negative (Seq.head after)
+        start_equal = maybe False ((==sel_start) . Event.start) (Seq.head after)
+        take_prev = maybe False Event.positive (Seq.head before)
+        take_next = maybe False Event.negative (Seq.head after)
     expand _ selected = selected
-    expand_range (_, [evt], _) _ = Events.range evt
+    expand_range (_, [evt], _) _ = Event.range evt
     expand_range _ range = range
 
 

@@ -131,8 +131,10 @@ module Derive.Note where
 import qualified Data.Tree as Tree
 
 import Util.Control
+import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
+
 import qualified Derive.Call as Call
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
@@ -182,8 +184,8 @@ stash_sub_signals subs = do
             <- zip (map State.tevents_track_id tracks) sigs]
 
 derive_notes :: ScoreTime -> (ScoreTime, ScoreTime) -> ScoreTime
-    -> State.EventsTree -> ([Events.PosEvent], [Events.PosEvent])
-    -> [Events.PosEvent] -> Derive.EventDeriver
+    -> State.EventsTree -> ([Event.Event], [Event.Event])
+    -> [Event.Event] -> Derive.EventDeriver
 derive_notes events_end track_range shifted subs events_around events = do
     -- You'd think 'd_note_track' should just pass TrackEvents, but then I
     -- can't test for laziness by passing an infinite events list.

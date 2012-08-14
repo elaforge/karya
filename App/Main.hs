@@ -393,13 +393,13 @@ setup_normal = do
     Selection.set vid (Just (Types.point_selection 0 0))
     return Cmd.Done
     where
-    note_event (pos, evt)
-        | arrival_beats = (pos+dur, Event.modify_duration negate evt)
-        | otherwise = (pos, evt)
-        where dur = Event.event_duration evt
-    control_event (pos, evt)
-        | arrival_beats = (pos + 1, Event.modify_duration negate evt)
-        | otherwise = (pos, evt)
+    note_event event
+        | arrival_beats = Event.move (+ Event.duration event) $
+            Event.modify_duration negate event
+        | otherwise = event
+    control_event event
+        | arrival_beats = Event.move (+1) $ Event.modify_duration negate event
+        | otherwise = event
 
 setup_big :: (Cmd.M m) => m Cmd.Status
 setup_big = do

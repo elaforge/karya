@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving, CPP #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {- | The 'Events' type contains the events of a track.
 
     This is the largest part of the score and also the part most often
@@ -8,18 +9,13 @@
     should have direct contact with that.
 -}
 module Ui.Events (
-    -- * PosEvent
-    PosEvent, start, end, min, max, range
-    , positive, negative, overlaps
-    , sort
-
     -- * events
-    , Events(..)
+    Events
     , empty, null, length, time_begin, time_end
 
     -- ** list conversion
     , singleton
-    , from_list, from_asc_list
+    , from_list, from_ascending
     , ascending, descending
 
     -- ** transformation
@@ -45,50 +41,19 @@ module Ui.Events (
     , clip_events
 #endif
 ) where
-import qualified Prelude
-import Prelude hiding (last, length, min, max, null)
+import Prelude hiding (last, length, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 
+import Util.Control hiding (first)
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
 
 import qualified Ui.Event as Event
 import Types
-
-
--- * PosEvent
-
-type PosEvent = (ScoreTime, Event.Event)
-
-start :: PosEvent -> ScoreTime
-start = fst
-
--- | Return the position at the end of the event.  Could be before @pos@ if
--- the event has a negative duration.
-end :: PosEvent -> ScoreTime
-end (pos, evt) = pos + Event.event_duration evt
-
-min, max :: PosEvent -> ScoreTime
-min e@(pos, _) = Prelude.min pos (end e)
-max e@(pos, _) = Prelude.max pos (end e)
-
-range :: PosEvent -> (ScoreTime, ScoreTime)
-range e = (min e, max e)
-
-positive, negative :: PosEvent -> Bool
-positive = Event.is_positive . snd
-negative = Event.is_negative . snd
-
-overlaps :: ScoreTime -> PosEvent -> Bool
-overlaps p e@(pos, evt)
-    | Event.is_positive evt = p == pos || p >= pos && p < end e
-    | otherwise = p == pos || p <= pos && p > end e
-
-sort :: [PosEvent] -> [PosEvent]
-sort = Seq.sort_on start
 
 
 -- * events
@@ -103,38 +68,39 @@ length :: Events -> Int
 length = Map.size . get
 
 time_begin :: Events -> ScoreTime
-time_begin = maybe 0 min . first
+time_begin = maybe 0 Event.min . first
 
 time_end :: Events -> ScoreTime
-time_end = maybe 0 max . last
+time_end = maybe 0 Event.max . last
 
 -- ** list conversion
 
-singleton :: ScoreTime -> Event.Event -> Events
-singleton pos event = Events (Map.singleton pos event)
+singleton :: Event.Event -> Events
+singleton event = Events $ Map.singleton (Event.start event) event
 
-from_list :: [PosEvent] -> Events
+from_list :: [Event.Event] -> Events
 from_list evts = insert_events evts empty
 
 -- | Like 'from_list', but more efficient and the input must be sorted.
-from_asc_list :: [PosEvent] -> Events
-from_asc_list evts = insert_sorted_events evts empty
+from_ascending :: [Event.Event] -> Events
+from_ascending evts = insert_sorted_events evts empty
 
 -- | Get all events in ascending order.  Like @snd . split (ScoreTime 0)@.
-ascending :: Events -> [PosEvent]
-ascending = Map.toAscList . get
+ascending :: Events -> [Event.Event]
+ascending = to_asc_list . get
 
-descending :: Events -> [PosEvent]
-descending = Map.toDescList . get
+descending :: Events -> [Event.Event]
+descending = to_desc_list . get
 
 -- ** transformation
 
 -- | Map a function across the events in Events.
-map_events :: (PosEvent -> PosEvent) -> Events -> Events
-map_events f = emap (Map.fromList . map f . Map.toList)
+map_events :: (Event.Event -> Event.Event) -> Events -> Events
+map_events f =
+    emap (Map.fromList . Seq.key_on Event.start . map f . to_asc_list)
 
-map_sorted :: (PosEvent -> PosEvent) -> Events -> Events
-map_sorted f = emap (Map.fromAscList . map f . Map.toAscList)
+map_sorted :: (Event.Event -> Event.Event) -> Events -> Events
+map_sorted f = emap (from_asc_list . map f . to_asc_list)
 
 -- ** insert / remove
 
@@ -144,15 +110,15 @@ map_sorted f = emap (Map.fromAscList . map f . Map.toAscList)
 --
 -- This should be the the only way to create a 'Events', short of
 -- debugging, since it enforces important invariants.
-insert_events :: [PosEvent] -> Events -> Events
-insert_events pos_events = insert_sorted_events (sort pos_events)
+insert_events :: [Event.Event] -> Events -> Events
+insert_events events = insert_sorted_events (Seq.sort_on Event.start events)
 
 -- | Like 'insert_events', but more efficient and the input must be sorted.
-insert_sorted_events :: [PosEvent] -> Events -> Events
+insert_sorted_events :: [Event.Event] -> Events -> Events
 insert_sorted_events [] events = events
-insert_sorted_events pos_events events =
-    merge (Events (Map.fromAscList clipped)) events
-    where clipped = clip_events pos_events
+insert_sorted_events new_events events =
+    merge (Events (from_asc_list clipped)) events
+    where clipped = clip_events new_events
 
 -- | Remove events in range.
 remove_events :: ScoreTime -> ScoreTime -> Events -> Events
@@ -171,19 +137,20 @@ at :: ScoreTime -> Events -> Maybe Event.Event
 at pos = Map.lookup pos . get
 
 -- | Like 'at', but return an event that overlaps the given pos.
-overlapping :: ScoreTime -> Events -> Maybe PosEvent
+overlapping :: ScoreTime -> Events -> Maybe Event.Event
 overlapping pos events
-    | (next:_) <- post, fst next == pos || end next < pos = Just next
-    | (prev:_) <- pre, end prev > pos = Just prev
+    | (next:_) <- post, Event.start next == pos || Event.end next < pos =
+        Just next
+    | (prev:_) <- pre, Event.end prev > pos = Just prev
     | otherwise = Nothing
     where (pre, post) = split pos events
 
-first :: Events -> Maybe PosEvent
-first (Events events) = Map.min events
+first :: Events -> Maybe Event.Event
+first (Events events) = snd <$> Map.min events
 
 -- | Final event, if there is one.
-last :: Events -> Maybe PosEvent
-last (Events events) = Map.max events
+last :: Events -> Maybe Event.Event
+last (Events events) = snd <$> Map.max events
 
 -- ** split
 
@@ -194,27 +161,27 @@ split_range start end events = (Events pre, Events within, Events post)
     where (pre, within, post) = _split_range start end (get events)
 
 -- | Return the events before the given @pos@, and the events at and after it.
-split :: ScoreTime -> Events -> ([PosEvent], [PosEvent])
-split pos (Events events) = (Map.toDescList pre, Map.toAscList post)
+split :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
+split pos (Events events) = (to_desc_list pre, to_asc_list post)
     where (pre, post) = Map.split2 pos events
 
 -- | Events at or after @pos@.
-at_after :: ScoreTime -> Events -> [PosEvent]
+at_after :: ScoreTime -> Events -> [Event.Event]
 at_after pos events = snd (split pos events)
 
 -- | Events after @pos@.
-after :: ScoreTime -> Events -> [PosEvent]
+after :: ScoreTime -> Events -> [Event.Event]
 after pos events = case at_after pos events of
-    (p, _) : rest | p == pos -> rest
+    next : rest | Event.start next == pos -> rest
     events -> events
 
 -- | This is like 'split', but if there isn't an event exactly at the pos and
 -- the previous event is positive (i.e. has a chance of overlapping), include
 -- that in the after event.
-split_at_before :: ScoreTime -> Events -> ([PosEvent], [PosEvent])
+split_at_before :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
 split_at_before pos events
-    | (epos, _) : _ <- post, epos == pos = (pre, post)
-    | before : prepre <- pre, positive before = (prepre, before:post)
+    | next : _ <- post, Event.start next == pos = (pre, post)
+    | before : prepre <- pre, Event.positive before = (prepre, before:post)
     | otherwise = (pre, post)
     where (pre, post) = split pos events
 
@@ -261,18 +228,26 @@ around start end = emap (split_around start end)
 -}
 newtype Events = Events EventMap
     deriving (DeepSeq.NFData, Eq, Show, Read)
+type EventMap = Map.Map ScoreTime Event.Event
+
+from_asc_list :: [Event.Event] -> EventMap
+from_asc_list = Map.fromAscList . Seq.key_on Event.start
+
+to_asc_list :: EventMap -> [Event.Event]
+to_asc_list = map snd . Map.toAscList
+
+to_desc_list :: EventMap -> [Event.Event]
+to_desc_list = map snd . Map.toDescList
 
 instance Pretty.Pretty Events where
-    format = Pretty.format . map event . Map.toAscList . get
+    format = Pretty.format . map event . ascending
         where
-        event (pos, evt) = (pos, Event.event_duration evt,
-            Event.event_string evt)
+        event event = (Event.start event, Event.duration event,
+            Event.event_string event)
 
 instance Monoid.Monoid Events where
     mempty = empty
     mappend = merge
-
-type EventMap = Map.Map ScoreTime Event.Event
 
 get :: Events -> EventMap
 get (Events evts) = evts
@@ -287,25 +262,25 @@ _split_range start end events = (pre2, within3, post2)
     where
     (pre, within, post) = Map.split3 start end events
     (within2, post2) = case Map.min post of
-        Just (pos, evt) | pos == end && Event.is_negative evt ->
+        Just (pos, evt) | pos == end && Event.negative evt ->
             (Map.insert pos evt within, Map.delete pos post)
         _ -> (within, post)
     (pre2, within3) = case Map.min within2 of
-        Just (pos, evt) | pos == start && not (Event.is_positive evt) ->
+        Just (pos, evt) | pos == start && not (Event.positive evt) ->
             (Map.insert pos evt pre, Map.delete pos within2)
         _ -> (pre, within2)
 
 -- -- | Like 'in_range', except shorten the last event if it goes past the
 -- -- end.
--- clip_to_range :: ScoreTime -> ScoreTime -> Events -> [PosEvent]
--- clip_to_range start end events = Map.toAscList clipped
+-- clip_to_range :: ScoreTime -> ScoreTime -> Events -> [Event]
+-- clip_to_range start end events = to_asc_list clipped
 --     where
 --     (_, within, _) = split_range start end (get events)
 --     clipped = case last (Events within) of
 --         Nothing -> within
 --         Just (pos, evt) -> Map.insert pos (clip_event (end-pos) evt) within
 --     clip_event max_dur evt =
---         evt { Event.event_duration = Prelude.min max_dur (Event.event_duration evt) }
+--         evt { Event.event_duration = min max_dur (Event.event_duration evt) }
 
 
 -- | Merge @evts2@ into @evts1@.  Events that overlap other events will be
@@ -326,11 +301,14 @@ merge (Events evts1) (Events evts2)
     | otherwise = Events $ overlapping `Map.union` evts1 `Map.union` evts2
     where
     -- minimal overlapping range
-    start = Prelude.max (min (Map.findMin evts1)) (min (Map.findMin evts2))
-    end = Prelude.min (max (Map.findMax evts2)) (max (Map.findMax evts2))
-    overlapping = Map.fromAscList $ clip_events $ Seq.merge_on fst
-        (ascending (around start end (Events evts2)))
-        (ascending (around start end (Events evts1)))
+    start = max (find_min evts1) (find_min evts2)
+    end = min (find_max evts2) (find_max evts2)
+    find_min = Event.min . snd . Map.findMin
+    find_max = Event.max . snd . Map.findMax
+    overlapping = Map.fromAscList $ Seq.key_on Event.start $ clip_events $
+        Seq.merge_on Event.start
+            (ascending (around start end (Events evts2)))
+            (ascending (around start end (Events evts1)))
 
 -- | Clip overlapping event durations.  If two event positions coincide, the
 -- last prevails.  An event with duration overlapping another event will be
@@ -338,24 +316,48 @@ merge (Events evts1) (Events evts2)
 -- event, the duration of the positive one will clip the negative one.
 --
 -- The postcondition is that no [pos .. pos+dur) ranges will overlap.
-clip_events :: [PosEvent] -> [PosEvent]
-clip_events = map clip_duration . Seq.zip_neighbors . Seq.drop_initial_dups fst
+clip_events :: [Event.Event] -> [Event.Event]
+clip_events =
+    map clip_duration . Seq.zip_neighbors . Seq.drop_initial_dups Event.start
     where
-    clip_duration (maybe_prev, cur@(cur_pos, cur_evt), maybe_next)
-        | positive cur = maybe cur clip_from_next maybe_next
+    clip_duration (maybe_prev, cur, maybe_next)
+        | Event.positive cur = maybe cur clip_from_next maybe_next
         | otherwise = maybe cur clip_from_prev maybe_prev
         where
-        clip_from_next (next_pos, _)
+        clip_from_next next
                 -- If the following event is negative it will clip, but don't
                 -- pass its pos.  That will leave a 0 dur event, but will
                 -- prevent overlapping.
-            | end cur > next_pos = set_dur (next_pos - cur_pos)
+            | Event.end cur > Event.start next =
+                set_dur (Event.start next - Event.start cur)
             | otherwise = cur
-        clip_from_prev prev@(prev_pos, _)
-            | positive prev = if end prev > end cur
-                then set_dur (Prelude.min (-0) (end prev - cur_pos))
+        clip_from_prev prev
+            | Event.positive prev = if Event.end prev > Event.end cur
+                then set_dur
+                    (min (-0) (Event.end prev - Event.start cur))
                 else cur
-            | otherwise = if end cur < prev_pos
-                then set_dur (prev_pos - cur_pos)
+            | otherwise = if Event.end cur < Event.start prev
+                then set_dur (Event.start prev - Event.start cur)
                 else cur
-        set_dur dur = (cur_pos, cur_evt { Event.event_duration = dur })
+        set_dur dur = Event.set_duration dur cur
+
+-- * serialize
+
+instance Serialize.Serialize Events where
+    put (Events a) = Serialize.put_version 3 >> Serialize.put a
+    get = do
+        v <- Serialize.get_version
+        case v of
+            0 -> do
+                events :: Map.Map ScoreTime Event.Event0 <- Serialize.get
+                return $ Events (Map.mapWithKey Event.convert0 events)
+            1 -> do
+                events :: Map.Map ScoreTime Event.Event1 <- Serialize.get
+                return $ Events (Map.mapWithKey Event.convert1 events)
+            2 -> do
+                events :: Map.Map ScoreTime Event.Event2 <- Serialize.get
+                return $ Events (Map.mapWithKey Event.convert2 events)
+            3 -> do
+                events :: Map.Map ScoreTime Event.Event <- Serialize.get
+                return $ Events events
+            _ -> Serialize.bad_version "Events" v

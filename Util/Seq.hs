@@ -286,6 +286,11 @@ pair_sorted x@((k0, v0) : xs) y@((k1, v1) : ys)
     | k0 < k1 = (k0, First v0) : pair_sorted xs y
     | otherwise = (k1, Second v1) : pair_sorted x ys
 
+-- | Like 'pair_sorted', but use a key function, and omit the extracted key.
+pair_sorted_on :: (Ord k) => (a -> k) -> [a] -> [a] -> [Paired a a]
+pair_sorted_on key xs ys =
+    map snd $ pair_sorted (key_on key xs) (key_on key ys)
+
 -- | Left if the val was in the left list but not the right, Right for the
 -- converse.
 diff :: (a -> b -> Bool) -> [a] -> [b] -> [Either a b]
@@ -510,3 +515,17 @@ replace1 from to xs = concatMap (\v -> if v == from then to else [v]) xs
 
 count :: (Eq a) => a -> [a] -> Int
 count x = List.foldl' (\n c -> if c == x then n + 1 else n) 0
+
+
+-- * monadic
+
+-- | Like 'List.mapAccumL', but monadic.
+mapAccumLM :: (Monad m) => (state -> x -> m (state, y)) -> state -> [x]
+    -> m (state, [y])
+mapAccumLM f state xs = go state xs
+    where
+    go state [] = return (state, [])
+    go state (x:xs) = do
+        (state, y) <- f state x
+        (state, ys) <- go state xs
+        return (state, y : ys)

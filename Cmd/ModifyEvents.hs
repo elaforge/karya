@@ -14,25 +14,20 @@ import Types
 
 
 -- | Replace an event with zero or more events.
-type PosEvent m = Events.PosEvent -> m [Events.PosEvent]
+type PosEvent m = Event.Event -> m [Event.Event]
 
 -- | Map a function over the selected events, passing the track id.  Returning
 -- Nothing will leave the track unchanged.
-type Track m = BlockId -> TrackId -> [Events.PosEvent]
-    -> m (Maybe [Events.PosEvent])
+type Track m = BlockId -> TrackId -> [Event.Event] -> m (Maybe [Event.Event])
 
 -- | The transformation functions take the most general 'PosEvent', but most
 -- uses won't need that generality, so these functions convert to more specific
 -- usage.
-event :: (Monad m) => (ScoreTime -> Event.Event -> m [Event.Event])
-    -> PosEvent m
-event f = \(pos, event) -> map ((,) pos) `liftM` f pos event
-
-event1 :: (Monad m) => (ScoreTime -> Event.Event -> Event.Event) -> PosEvent m
-event1 f = \(pos, event) -> return [(pos, f pos event)]
+event :: (Monad m) => (Event.Event -> Event.Event) -> PosEvent m
+event f = \event -> return [f event]
 
 text :: (Monad m) => (String -> String) -> PosEvent m
-text f = \(pos, event) -> return [(pos, Event.modify_string f event)]
+text f = \event -> return [Event.modify_string f event]
 
 -- | Take a text transformation that can fail to a Track transformation that
 -- transforms all the events and throws if any of the text transformations
@@ -46,9 +41,9 @@ failable_texts f block_id track_id events = do
         "transformation failed: " ++ Seq.join ", " errs
     return $ Just ok
     where
-    failing_text f = \(pos, event) -> case f (Event.event_string event) of
-        Left err -> Left (err, (pos, event))
-        Right text -> Right (pos, Event.set_string text event)
+    failing_text f event = case f (Event.event_string event) of
+        Left err -> Left (err, event)
+        Right text -> Right $ Event.set_string text event
 
 -- | Convert a PosEvent function to work on a Track.
 track_events :: (Monad m) => PosEvent m -> Track m
@@ -81,7 +76,7 @@ events_sorted f = do
 
 tracks :: (Cmd.M m) => Track m -> m ()
 tracks f = tracks_sorted $ \block_id track_id events ->
-    fmap Events.sort <$> f block_id track_id events
+    fmap (Seq.sort_on Event.start) <$> f block_id track_id events
 
 -- | As with 'events_sorted', this is a more efficient version for sorted
 -- events.
@@ -146,7 +141,6 @@ move_events point shift events = merged
     -- Ick.  Maybe I need a less error-prone way to say "select until the end
     -- of the track"?
     end = Events.time_end events + 1
-    shifted = map (\(pos, evt) -> (pos+shift, evt))
-        (Events.at_after point events)
+    shifted = map (Event.move (+shift)) (Events.at_after point events)
     merged = Events.insert_sorted_events shifted
         (Events.remove_events point end events)

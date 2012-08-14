@@ -72,7 +72,7 @@ eval_track track expr ctype deriver = case ctype of
     tempo_events
         | Maybe.isNothing (Events.at (snd track_range) evts) =
             Events.insert_events
-                [(snd track_range, Event.event "set-prev" 0)] evts
+                [Event.event (snd track_range) 0 "set-prev"] evts
         | otherwise = evts
         where
         track_range = State.tevents_range track
@@ -221,7 +221,7 @@ derive_pitch track expr = do
         ([], []) dinfo
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
-tevents :: State.TrackEvents -> [Events.PosEvent]
+tevents :: State.TrackEvents -> [Event.Event]
 tevents = Events.ascending . State.tevents_events
 
 

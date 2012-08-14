@@ -43,8 +43,7 @@ replace_block_call from to text
 block_for_event :: Maybe BlockId -> Cmd.CmdL ()
 block_for_event model = mapM_ make =<< Selection.events
     where
-    make (_, _, events) = mapM_ (make_named model . Event.event_string . snd)
-        events
+    make (_, _, events) = mapM_ (make_named model . Event.event_string) events
 
 make_named :: Maybe BlockId -> String -> Cmd.CmdL ()
 make_named template name = whenM (can_create name) $ case template of

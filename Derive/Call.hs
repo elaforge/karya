@@ -82,7 +82,6 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.State as State
 
 import qualified Derive.CallSig as CallSig
@@ -158,7 +157,7 @@ data TrackInfo derived = TrackInfo {
     , tinfo_track_range :: !(ScoreTime, ScoreTime)
     , tinfo_shifted :: !ScoreTime
     , tinfo_sub_tracks :: !State.EventsTree
-    , tinfo_events_around :: !([Events.PosEvent], [Events.PosEvent])
+    , tinfo_events_around :: !([Event.Event], [Event.Event])
     , tinfo_derive_info :: !(DeriveInfo derived)
     }
 
@@ -179,7 +178,7 @@ type GetLastSample d =
 derive_track :: forall derived. (Derive.Derived derived) =>
     -- forall and ScopedTypeVariables needed for the inner 'go' signature
     Derive.State -> TrackInfo derived -> Parse.ParseExpr
-    -> GetLastSample derived -> [Events.PosEvent]
+    -> GetLastSample derived -> [Event.Event]
     -> ([LEvent.LEvents derived], Derive.Collect)
 derive_track state tinfo parse get_last_sample events =
     go (Internal.record_track_environ state) Nothing "" [] events
@@ -187,7 +186,7 @@ derive_track state tinfo parse get_last_sample events =
     -- This threads the collect through each event.  I would prefer to map and
     -- mconcat, but it's also quite a bit slower.
     go :: Derive.Collect -> Maybe (RealTime, Derive.Elem derived)
-        -> B.ByteString -> [Events.PosEvent] -> [Events.PosEvent]
+        -> B.ByteString -> [Event.Event] -> [Event.Event]
         -> ([LEvent.LEvents derived], Derive.Collect)
     go collect _ _ _ [] = ([], collect)
     go collect prev_sample repeat_call prev (cur : rest) =
@@ -209,7 +208,7 @@ derive_track state tinfo parse get_last_sample events =
                     Nothing -> prev_sample
             Left _ -> prev_sample
         next_repeat_call =
-            repeat_call_of repeat_call (Event.event_bs (snd cur))
+            repeat_call_of repeat_call (Event.event_bytestring cur)
 
 -- Used with trace to observe laziness.
 -- show_pos :: Derive.State -> ScoreTime -> String
@@ -223,38 +222,38 @@ derive_event :: (Derive.Derived d) =>
     Derive.State -> TrackInfo d -> Parse.ParseExpr
     -> Maybe (RealTime, Derive.Elem d)
     -> B.ByteString -- ^ repeat call, substituted with @\"@
-    -> [Events.PosEvent] -- ^ previous events, in reverse order
-    -> Events.PosEvent -- ^ cur event
-    -> [Events.PosEvent] -- ^ following events
+    -> [Event.Event] -- ^ previous events, in reverse order
+    -> Event.Event -- ^ cur event
+    -> [Event.Event] -- ^ following events
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-derive_event st tinfo parse prev_sample repeat_call prev cur@(pos, event) next
+derive_event st tinfo parse prev_sample repeat_call prev event next
     | text == "--" = (Right mempty, [], Derive.state_collect st)
     | otherwise = case parse (substitute_repeat repeat_call text) of
         Left err -> (Right mempty, [parse_error err], Derive.state_collect st)
         Right expr -> run_call expr
     where
-    text = Event.event_bs event
+    text = Event.event_bytestring event
     parse_error = Log.msg Log.Warn $
         Just (Stack.to_strings (Derive.state_stack (Derive.state_dynamic st)))
     run_call expr = apply_toplevel state (dinfo, cinfo expr) expr
     state = st
         { Derive.state_dynamic = (Derive.state_dynamic st)
             { Derive.state_stack = Stack.add
-                (region pos (pos + Event.event_duration event))
+                (region (Event.min event) (Event.max event))
                 (Derive.state_stack (Derive.state_dynamic st))
             }
         }
     cinfo expr = Derive.CallInfo
         { Derive.info_expr = expr
         , Derive.info_prev_val = prev_sample
-        , Derive.info_event = cur
+        , Derive.info_event = event
         -- Augment prev and next with the unevaluated "around" notes from
         -- 'State.tevents_around'.
         , Derive.info_prev_events = fst around ++ prev
         , Derive.info_next_events = next ++ snd around
         , Derive.info_event_end = case next of
             [] -> events_end
-            (pos, _) : _ -> pos
+            event : _ -> Event.start event
         , Derive.info_track_range = track_range
         , Derive.info_sub_tracks = subs
         }

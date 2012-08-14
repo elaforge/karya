@@ -51,7 +51,8 @@ get_event :: (State.M m) =>
 get_event modify_dur track_id pos dur = do
     track <- State.get_track track_id
     let modify = if modify_dur then Event.set_duration dur else id
-    return $ maybe ((Event.event "" dur), True) (\evt -> (modify evt, False))
+    return $ maybe ((Event.event pos dur ""), True)
+        (\evt -> (modify evt, False))
         (Events.at pos (Track.track_events track))
 
 -- | Modify event text.
@@ -84,8 +85,8 @@ modify_event_at (State.Pos block_id tracknum pos) zero_dur modify_dur f = do
             if created then Nothing else Just (Event.event_string event)
     case val of
         Nothing -> State.remove_event track_id pos
-        Just new_text -> State.insert_events track_id
-            [(pos, Event.set_string new_text event)]
+        Just new_text -> State.insert_event track_id
+            (Event.set_string new_text event)
     when advance Selection.advance
 
 remove_event :: (Cmd.M m) => Bool -> m ()

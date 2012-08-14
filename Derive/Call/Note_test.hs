@@ -3,7 +3,6 @@ import Data.Tree (Tree(Node))
 
 import Util.Test
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 
@@ -63,10 +62,10 @@ to_score = ScoreTime.double . fromIntegral
 mkargs :: String -> Slice_test.EventsTree -> Derive.PassedArgs d
 mkargs text subs = Derive.PassedArgs [] call_id info
     where
-    event = (0, Event.event text 1)
+    event = Event.event 0 1 text
     call_id = TrackLang.Symbol "call"
-    info = Derive.CallInfo (CallTest.expr (Event.event_string (snd event)))
+    info = Derive.CallInfo (CallTest.expr (Event.event_string event))
         Nothing event prev next event_end (0, event_end) (make_tree subs)
     prev = []
-    next = [(Events.end event, Event.event "next" 0)]
+    next = [Event.event (Event.end event) 0 "next"]
     event_end = 100

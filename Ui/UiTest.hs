@@ -188,8 +188,8 @@ mk_tid_name = mk_tid_block . bid
 insert_event_in :: (State.M m) => String -> TrackNum
     -> (ScoreTime, ScoreTime, String) -> m ()
 insert_event_in block_name tracknum (pos, dur, text) =
-    State.insert_event (mk_tid_name block_name tracknum) pos
-        (Event.event text dur)
+    State.insert_event (mk_tid_name block_name tracknum)
+        (Event.event pos dur text)
 
 insert_event :: (State.M m) => TrackNum -> (ScoreTime, ScoreTime, String)
     -> m ()
@@ -291,12 +291,12 @@ empty_track title = Track.track title Events.empty
 
 -- ** event
 
-make_event :: EventSpec -> Events.PosEvent
-make_event (pos, dur, text) = (pos, Event.event text dur)
+make_event :: EventSpec -> Event.Event
+make_event (start, dur, text) = Event.event start dur text
 
-extract_event :: Events.PosEvent -> EventSpec
-extract_event (pos, event) =
-    (pos, Event.event_duration event, Event.event_string event)
+extract_event :: Event.Event -> EventSpec
+extract_event event =
+    (Event.start event, Event.duration event, Event.event_string event)
 
 -- ** ruler
 

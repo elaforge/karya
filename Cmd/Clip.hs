@@ -104,7 +104,7 @@ selected_to_state block_id selected = State.exec State.empty $ do
     forM_ (zip [0..] selected) $ \(tracknum, (title, events)) -> do
         Create.track_events block_id State.no_ruler tracknum
             Config.track_width (Track.track title
-                (Events.map_events (second Event.strip_stack) events))
+                (Events.map_events Event.strip_stack events))
 
 get_selection :: (Cmd.M m) => Selection.SelectedTracks -> m Selected
 get_selection (block_id, tracknums, _, start, end) = do
@@ -117,11 +117,10 @@ get_selection (block_id, tracknums, _, start, end) = do
 
 select_events :: ScoreTime -> ScoreTime -> Events.Events -> Events.Events
 select_events start end events =
-    Events.map_sorted (\(pos, evt) -> (pos - start, evt)) selected
+    Events.map_sorted (Event.move (subtract start)) selected
     where
     selected = if start == end
-        then maybe Events.empty (Events.singleton start)
-            (Events.at start events)
+        then maybe Events.empty Events.singleton (Events.at start events)
         else Events.in_range start end events
 
 -- * paste
@@ -153,7 +152,8 @@ cmd_paste_soft_merge = do
         State.insert_events track_id $
             filter (not . overlaps track_events) events
     where
-    overlaps events (pos, _) = Maybe.isJust (Events.overlapping pos events)
+    overlaps events event = Maybe.isJust $
+        Events.overlapping (Event.start event) events
 
 -- | Insert the events after pushing events after the selection down by
 -- the inserted length, which is the minimum of the insert selection and the
@@ -186,11 +186,11 @@ cmd_paste_stretch = do
         _ -> return ()
 
 stretch :: (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime)
-    -> [Events.PosEvent] -> [Events.PosEvent]
+    -> [Event.Event] -> [Event.Event]
 stretch (start, end) (clip_s, clip_e) = map reposition
     where
-    reposition (pos, event) =
-        ((pos-clip_s) * factor + start, Event.modify_duration (*factor) event)
+    reposition = Event.move (\pos -> (pos-clip_s) * factor + start)
+        . Event.modify_duration (*factor)
     factor = (end - start) / (clip_e - clip_s)
 
 
@@ -247,31 +247,31 @@ destroy_namespace ns = do
 -- paired with the track it should go into.  The clipboard events are truncated
 -- to start--end and shifted into the paste range.
 paste_info :: (Cmd.M m) =>
-    m (ScoreTime, ScoreTime, [(TrackId, [Events.PosEvent])])
+    m (ScoreTime, ScoreTime, [(TrackId, [Event.Event])])
 paste_info = do
     (track_ids, clip_track_ids, start, end) <- get_paste_area
     clip_events <- mapM (clip_track_events start end) clip_track_ids
     return (start, end, zip track_ids clip_events)
 
 clip_track_events :: (State.M m) =>
-    ScoreTime -> ScoreTime -> TrackId -> m [Events.PosEvent]
+    ScoreTime -> ScoreTime -> TrackId -> m [Event.Event]
 clip_track_events start end track_id = do
     track <- State.get_track track_id
     let events = clip_events (end-start)
             (Events.ascending (Track.track_events track))
-        shifted = map (\(pos, evt) -> (pos+start, evt)) events
+        shifted = map (Event.move (+start)) events
     return shifted
 
 -- | Clip off the events after the given end time.  Also shorten the last
 -- event so it doesn't cross the end, if necessary.  If the end is 0 then
 -- events are not clipped at all.
-clip_events :: ScoreTime -> [Events.PosEvent] -> [Events.PosEvent]
+clip_events :: ScoreTime -> [Event.Event] -> [Event.Event]
 clip_events _ [] = []
-clip_events end (event@(pos, evt):events)
+clip_events end (event : events)
     | end == 0 = event : events
-    | pos >= end = []
-    | Events.end event > end =
-        [(pos, Event.modify_duration (\d -> min d (end - pos)) evt)]
+    | Event.start event >= end = []
+    | Event.end event > end =
+        [Event.modify_duration (\d -> min d (end - Event.start event)) event]
     | otherwise = event : clip_events end events
 
 -- | Get the destination and clip tracks involved in a paste, along with the

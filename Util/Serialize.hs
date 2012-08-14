@@ -172,3 +172,15 @@ instance (Serialize a, Unboxed.Unbox a) => Serialize (Unboxed.Vector a) where
     get = do
         len <- get :: Get Int
         Unboxed.replicateM len get
+
+-- * versions
+
+put_version :: Word8 -> Put
+put_version n = putWord8 n
+
+get_version :: Get Word8
+get_version = getWord8
+
+bad_version :: String -> Word8 -> a
+bad_version typ ver = error $
+    "unknown version " ++ show ver ++ " for " ++ show typ

@@ -39,12 +39,12 @@ profile_small = do
 
 modify_note :: (State.M m) => String -> String -> ScoreTime -> m ()
 modify_note note_tid pitch_tid pos = do
-    State.insert_event (UiTest.tid note_tid) pos (Event.event "" 1)
-    State.insert_event (UiTest.tid pitch_tid) pos (Event.event "1c" 0)
+    State.insert_event (UiTest.tid note_tid) (Event.event pos 1 "")
+    State.insert_event (UiTest.tid pitch_tid) (Event.event pos 0 "1c")
 
 modify_pitch :: (State.M m) => String -> ScoreTime -> m ()
 modify_pitch pitch_tid pos =
-    State.insert_event (UiTest.tid pitch_tid) pos (Event.event "1c" 0)
+    State.insert_event (UiTest.tid pitch_tid) (Event.event pos 0 "1c")
 
 -- | Run the state transform a few times and rederive each time.
 rederive :: State.State -> [State.StateId ()] -> IO ()
