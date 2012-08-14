@@ -103,8 +103,16 @@ instance (Pretty a, Pretty b) => Pretty (a, b) where
 instance (Pretty a, Pretty b, Pretty c) => Pretty (a, b, c) where
     format (a, b, c) = comma_list Never '(' ')' [format a, format b, format c]
 instance (Pretty a, Pretty b, Pretty c, Pretty d) => Pretty (a, b, c, d) where
-    format (a, b, c, d) =
-        comma_list Never '(' ')' [format a, format b, format c, format d]
+    format (a, b, c, d) = comma_list Never '(' ')'
+        [format a, format b, format c, format d]
+instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e) =>
+        Pretty (a, b, c, d, e) where
+    format (a, b, c, d, e) = comma_list Never '(' ')'
+        [format a, format b, format c, format d, format e]
+instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f) =>
+        Pretty (a, b, c, d, e, f) where
+    format (a, b, c, d, e, f) = comma_list Never '(' ')'
+        [format a, format b, format c, format d, format e, format f]
 
 instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
     format = format_commas '{' '}' . map mpair . Map.assocs
