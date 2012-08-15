@@ -107,7 +107,7 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
         Nothing -> Derive.throw $ "initial pitch below lowest string: "
             ++ show (Score.initial_nn event)
         Just state -> do
-            (result, final) <- Util.map_controls
+            (final, result) <- Util.map_controls
                 (attack :. delay :. release :. Nil) state events $
                     \(attack :. delay :. release :. Nil) ->
                         go attack delay release
@@ -132,7 +132,7 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
 -- to be played and emit it.
 process :: Call.Pitch.Interpolator -> Call.Pitch.Interpolator
     -> (RealTime, RealTime, RealTime) -> State -> Score.Event
-    -> Derive.Deriver ([Score.Event], State)
+    -> Derive.Deriver (State, [Score.Event])
 process attack_interpolator release_interpolator
         (attack_time, delay_time, release_time)
         state@(State strings sounding_string prev) event = do
@@ -142,10 +142,10 @@ process attack_interpolator release_interpolator
         Nothing -> do
             Log.warn $ Pretty.pretty nn ++ " below lowest string: "
                 ++ Pretty.pretty strings
-            return ([], state)
+            return (state, [])
         Just string -> do
             new_event <- Derive.require "missing pitches" (emit pitch string)
-            return ([new_event], State strings string event)
+            return (State strings string event, [new_event])
     where
     start = Score.event_start event
     emit pitch string

@@ -415,10 +415,10 @@ event_head (log@(LEvent.Log _) : rest) f = (log:) <$> event_head rest f
 event_head (LEvent.Event event : rest) f = f event rest
 
 map_events_asc :: state -> Derive.Events
-    -> (state -> Score.Event -> Derive.Deriver ([Score.Event], state))
+    -> (state -> Score.Event -> Derive.Deriver (state, [Score.Event]))
     -> Derive.EventDeriver
 map_events_asc state events f = do
-    (result, _) <- map_controls Nil state events (\Nil -> f)
+    (_, result) <- map_controls Nil state events (\Nil -> f)
     return $ Derive.merge_asc_events result
 
 -- | Specialization of 'map_controls' where the transformation will return
@@ -426,11 +426,11 @@ map_events_asc state events f = do
 map_controls_asc :: (FixedList.FixedList cs) => cs TrackLang.ValControl
     -> state -> Derive.EventDeriver
     -> (cs Score.TypedVal -> state -> Score.Event
-        -> Derive.Deriver ([Score.Event], state))
+        -> Derive.Deriver (state, [Score.Event]))
     -> Derive.EventDeriver
 map_controls_asc controls state deriver f = do
     events <- deriver
-    (result, _) <- map_controls controls state events f
+    (_, result) <- map_controls controls state events f
     return $ Derive.merge_asc_events result
 
 -- | Specialization of 'map_controls_pitches' with no pitch signals.  Also,
@@ -439,8 +439,8 @@ map_controls_asc controls state deriver f = do
 map_controls :: (FixedList.FixedList cs) => cs TrackLang.ValControl
     -> state -> Derive.Events
     -> (cs Score.TypedVal -> state -> Score.Event
-        -> Derive.Deriver ([Score.Event], state))
-    -> Derive.Deriver ([Derive.Events], state)
+        -> Derive.Deriver (state, [Score.Event]))
+    -> Derive.Deriver (state, [Derive.Events])
 map_controls controls state events f =
     map_controls_pitches controls Nil state events $ \cs Nil -> f cs
 
@@ -452,21 +452,21 @@ map_controls_pitches :: (FixedList.FixedList cs, FixedList.FixedList ps) =>
     cs TrackLang.ValControl -> ps TrackLang.PitchControl
     -> state -> Derive.Events
     -> (cs Score.TypedVal -> ps PitchSignal.Pitch -> state -> Score.Event
-        -> Derive.Deriver ([Score.Event], state))
-    -> Derive.Deriver ([Derive.Events], state)
+        -> Derive.Deriver (state, [Score.Event]))
+    -> Derive.Deriver (state, [Derive.Events])
 map_controls_pitches controls pitch_controls state events f = go state events
     where
-    go state [] = return ([], state)
+    go state [] = return (state, [])
     go state (log@(LEvent.Log _) : rest) = do
-        (rest_vals, final_state) <- go state rest
-        return ([log] : rest_vals, final_state)
+        (final_state, rest_vals) <- go state rest
+        return (final_state, [log] : rest_vals)
     go state (LEvent.Event event : rest) = do
         let pos = Score.event_start event
         control_vals <- Traversable.mapM (flip typed_control_at pos) controls
         pitch_vals <- Traversable.mapM (pitch_at pos) pitch_controls
         result <- Derive.with_event event $
             f control_vals pitch_vals state event
-        (rest_vals, final_state) <- go (maybe state snd result) rest
+        (final_state, rest_vals) <- go (maybe state fst result) rest
         let vals = maybe rest_vals
-                ((:rest_vals) . map LEvent.Event . fst) result
-        return (vals, final_state)
+                ((:rest_vals) . map LEvent.Event . snd) result
+        return (final_state, vals)

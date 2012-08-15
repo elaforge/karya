@@ -90,7 +90,7 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
                     (Score.typed_val times)
     where
     go delay feedback times () event = return
-        (echo_event (RealTime.seconds delay) feedback (floor times) event, ())
+        ((), echo_event (RealTime.seconds delay) feedback (floor times) event)
 
 -- TODO this modifies the signals to shift by the given amount of time, which
 -- is inefficient if there is a lot of signal data.  I could store a shift
