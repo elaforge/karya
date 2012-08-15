@@ -1,12 +1,10 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond where
-import qualified Control.Monad.State.Strict as State
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Text as Text
 
 import qualified Text.PrettyPrint as PP
 import Text.PrettyPrint (Doc)

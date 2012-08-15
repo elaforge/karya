@@ -163,7 +163,7 @@ slope sign args = CallSig.call1 args (optional "speed" (Pitch.Chromatic 1)) $
         Nothing -> Util.pitch_signal []
         Just (_, prev_y) -> do
             start <- Args.real_start args
-            next <- Derive.real (Args.end args)
+            next <- Derive.real (Args.next args)
             let diff = RealTime.to_seconds (next - start) * speed_val * sign
                 (speed_val, typ) = Util.split_transpose speed
                 dest = Pitches.transpose (Util.join_transpose diff typ) prev_y
@@ -200,7 +200,7 @@ interpolate_next :: (Double -> Double)
 interpolate_next f args pitch maybe_time = do
     (start, end) <- case maybe_time of
         Nothing -> (,) <$> Args.real_start args
-            <*> Derive.real (Args.end args)
+            <*> Derive.real (Args.next args)
         Just (TrackLang.DefaultReal time) ->
             Util.duration_from_start args time
     case Args.prev_val args of

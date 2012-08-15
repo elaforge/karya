@@ -22,28 +22,32 @@ prev_val = Derive.info_prev_val . info
 
 -- * event timing
 
--- | The start of the next event, or the end of the block if there is no next
--- event.
-end :: PassedArgs d -> ScoreTime
-end = Derive.info_event_end . info
-
-prev_start :: PassedArgs d -> Maybe ScoreTime
-prev_start = fmap Event.start . Seq.head . Derive.info_prev_events . info
-
 start :: PassedArgs d -> ScoreTime
 start = Event.start . event
 
 real_start :: PassedArgs d -> Derive.Deriver RealTime
 real_start = Derive.real . start
 
--- | Get the start of the next event, if there is one.  Used by calls to
--- determine their extent, especially control calls, which have no explicit
--- duration.
+end :: PassedArgs d -> ScoreTime
+end = Event.end . event
+
+-- | The start of the next event, or the end of the block if there is no next
+-- event.
 --
--- If there is a value it should be the same as 'end', so this is for calls
--- that care if there really is a next event.
+-- Used by calls to determine their extent, especially control calls, which
+-- have no explicit duration.
+next :: PassedArgs d -> ScoreTime
+next = Derive.info_event_end . info
+
+-- | Get the start of the next event, if there is one.
+--
+-- This is similar to 'next', except that it will be Nothing at the end of
+-- the block.
 next_start :: PassedArgs d -> Maybe ScoreTime
 next_start = fmap Event.start . Seq.head . Derive.info_next_events . info
+
+prev_start :: PassedArgs d -> Maybe ScoreTime
+prev_start = fmap Event.start . Seq.head . Derive.info_prev_events . info
 
 prev_events, next_events :: PassedArgs d -> [Event.Event]
 next_events = Derive.info_next_events . info
@@ -57,18 +61,15 @@ prev_events = Derive.info_prev_events . info
 range :: PassedArgs d -> (ScoreTime, ScoreTime)
 range = Event.range . event
 
--- | Like 'range', but (start, duration) instead of (start, end).
+-- | Start and duration of the event.  This is probably the right thing for
+-- calls that generate a note since it will give a negative duration when
+-- appropriate.
 extent :: PassedArgs d -> (ScoreTime, ScoreTime)
 extent = (\e -> (Event.start e, Event.duration e)) . event
 
 real_range :: PassedArgs d -> Derive.Deriver (RealTime, RealTime)
 real_range args = (,) <$> Derive.real start <*> Derive.real end
     where (start, end) = range args
-
--- | Like 'range', except the range is to the beginning of the next
--- event.  Suitable for control calls, which tend to have 0 duration.
-range_to_next :: PassedArgs d -> (ScoreTime, ScoreTime)
-range_to_next args = (start args, end args)
 
 -- | Event range as it appears on the track, regardless of slicing.
 range_on_track :: PassedArgs d -> (ScoreTime, ScoreTime)

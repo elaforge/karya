@@ -187,7 +187,7 @@ trill_from_controls :: Derive.PassedArgs d -> Mode -> TrackLang.ValControl
 trill_from_controls args mode neighbor speed = do
     (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
     (neighbor_sig, control) <- Util.to_transpose_signal Util.Diatonic neighbor
-    transpose <- time_trill time_type mode (Args.range_to_next args)
+    transpose <- time_trill time_type mode (Args.start args, Args.next args)
         neighbor_sig speed_sig
     return (transpose, control)
     where

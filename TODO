@@ -20,7 +20,7 @@ UNSORTED
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
-  - make Derive.Args functions more consistent, especially start vs. end
+  * make Derive.Args functions more consistent, especially start vs. end
   - ParseBs.strip_comment is incorrect since it doesn't understand strings.
     It should be integrated into the parser.
   - can I use a lazy array + builder to make score generation more efficient?

@@ -68,7 +68,7 @@ note_generate = inverting generate
     where
     generate args = case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->
-            generate_note inst rel_attrs (Args.event args) (Args.end args)
+            generate_note inst rel_attrs (Args.event args) (Args.next args)
         (_, _, invalid) -> Derive.throw_arg_error $
             "expected inst or attr: " ++ show invalid
     process = process_note_args Nothing []
@@ -243,7 +243,7 @@ invert_call :: Int
 invert_call after args = case Derive.info_sub_tracks info of
     [] -> return Nothing
     subs -> Just <$> invert after (Derive.info_track_range info) subs
-        (Event.start event) (Event.end event) (Args.end args) expr
+        (Event.start event) (Event.end event) (Args.next args) expr
         (Derive.info_prev_events info, Derive.info_next_events info)
     where
     event = Derive.info_event info

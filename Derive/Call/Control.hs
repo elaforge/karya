@@ -133,7 +133,7 @@ slope args f = CallSig.call1 args (optional "speed" 1) $ \speed ->
         Nothing -> return Signal.empty
         Just (_, prev_y) -> do
             start <- Args.real_start args
-            next <- Derive.real (Args.end args)
+            next <- Derive.real (Args.next args)
             srate <- Util.get_srate
             let (end, dest) = f start next prev_y speed
             return $ interpolator srate id True start prev_y end dest
@@ -183,7 +183,7 @@ interpolate_next :: (Double -> Signal.Y) -> Derive.PassedArgs Signal.Control
 interpolate_next f args val maybe_time = do
     (start, end) <- case maybe_time of
         Nothing -> (,) <$> Args.real_start args
-            <*> Derive.real (Args.end args)
+            <*> Derive.real (Args.next args)
         Just (TrackLang.DefaultReal time) ->
             Util.duration_from_start args time
     srate <- Util.get_srate
