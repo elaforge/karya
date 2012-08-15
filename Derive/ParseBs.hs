@@ -34,7 +34,6 @@ import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
-import qualified Data.Char as Char
 
 import qualified Numeric
 
@@ -68,13 +67,12 @@ parse_num_expr = parse p_num_pipeline
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
 parse_control_title :: String -> Either String ([TrackLang.Val], TrackLang.Expr)
-parse_control_title =
-    Parse.parse_all p_control_title . strip_comment . from_string
+parse_control_title = Parse.parse_all p_control_title . from_string
 
 -- | Parse a single Val.  This takes a String since it's used with Notes and
 -- Symbols, which are still Strings.
 parse_val :: String -> Either String TrackLang.Val
-parse_val = Parse.parse_all (Parse.lexeme p_val) . from_string
+parse_val = Parse.parse_all (lexeme p_val) . from_string
 
 -- | Extract only the call part of the text.
 parse_call :: Text -> Maybe String
@@ -85,10 +83,7 @@ parse_call text = case parse_expr text of
     _ -> Nothing
 
 parse :: A.Parser a -> Text -> Either String a
-parse p = Parse.parse_all p . B.dropWhile Char.isSpace . strip_comment
-
-strip_comment :: Text -> Text
-strip_comment = fst . B.breakSubstring "--"
+parse p = Parse.parse_all (spaces >> p)
 
 
 -- * expand macros
@@ -123,7 +118,7 @@ p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
 
 p_control_title :: A.Parser ([TrackLang.Val], TrackLang.Expr)
 p_control_title = do
-    vals <- A.many (Parse.lexeme p_val)
+    vals <- A.many (lexeme p_val)
     expr <- A.option [] (p_pipe >> p_pipeline)
     return (vals, expr)
 
@@ -137,7 +132,7 @@ p_num_pipeline :: A.Parser TrackLang.Expr
 p_num_pipeline = A.sepBy p_num_expr p_pipe
 
 p_pipe :: A.Parser ()
-p_pipe = Parse.lexeme (A.char '|') >> return ()
+p_pipe = lexeme (A.char '|') >> return ()
 
 -- | This is just like a 'p_expr', except that a leading number is treated
 -- as a null call with a number argument rather than a call to that number.
@@ -148,17 +143,15 @@ p_num_expr = A.try p_equal <|> p_num_call <|> A.try p_call <|> p_null_call
 p_equal :: A.Parser TrackLang.Call
 p_equal = do
     a1 <- p_val
-    spaces
+    spaces1
     A.char '='
     -- This ensures that "a =b" is not interpreted as an equal expression.
-    spaces
+    spaces1
     a2 <- p_term
     return $ TrackLang.Call TrackLang.c_equal [TrackLang.Literal a1, a2]
-    where
-    spaces = A.satisfy A.isSpace >> A.skipWhile A.isSpace
 
 p_call :: A.Parser TrackLang.Call
-p_call = TrackLang.Call <$> Parse.lexeme p_call_symbol <*> A.many p_term
+p_call = TrackLang.Call <$> lexeme p_call_symbol <*> A.many p_term
 
 p_null_call :: A.Parser TrackLang.Call
 p_null_call = return (TrackLang.Call (TrackLang.Symbol "") []) <?> "null call"
@@ -177,7 +170,7 @@ p_call_symbol :: A.Parser TrackLang.Symbol
 p_call_symbol = TrackLang.Symbol . to_string <$> p_word
 
 p_term :: A.Parser TrackLang.Term
-p_term = Parse.lexeme $
+p_term = lexeme $
     TrackLang.Literal <$> p_val <|> TrackLang.ValCall <$> p_sub_call
 
 p_sub_call :: A.Parser TrackLang.Call
@@ -341,3 +334,16 @@ p_word, p_null_word :: A.Parser Text
 p_word = A.takeWhile1 _word_char
 p_null_word = A.takeWhile _word_char
 _word_char c = c /= ' ' && c /= '(' && c /= ')'
+
+lexeme :: A.Parser a -> A.Parser a
+lexeme p = p <* spaces
+
+spaces :: A.Parser ()
+spaces = do
+    A.skipWhile A.isSpace
+    comment <- A.option "" (A.string "--")
+    unless (B.null comment) $
+        A.skipWhile (const True)
+
+spaces1 :: A.Parser ()
+spaces1 = A.satisfy A.isSpace >> spaces

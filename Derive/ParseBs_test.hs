@@ -53,6 +53,12 @@ test_parse_expr = do
     -- The error msg is strange for this one, I don't know why.
     left_like (f "a (b") "parse error"
 
+    equal (f "") $ Right [Call (Symbol "") []]
+    equal (f "--") $ Right [Call (Symbol "") []]
+    equal (f "  a -- comment") $ Right [Call (Symbol "a") []]
+    equal (f "a 'b -- c'--d") $ Right
+        [Call (Symbol "a") [Literal (VString "b -- c")]]
+
 test_parse_val = do
     let mkattr = Just . VRelativeAttr . TrackLang.RelativeAttr
     let invertible =
