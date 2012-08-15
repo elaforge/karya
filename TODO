@@ -1,5 +1,5 @@
 UNSORTED
-  - if there are no events, \ zoom to fit should zoom to fit the ruler
+  * if there are no events, \ zoom to fit should zoom to fit the ruler
     Or maybe it should always do that?
   - implement Local.Instrument.Kontakt composite kendang as a stream postproc
   - This probably means I should let instruments automatically apply

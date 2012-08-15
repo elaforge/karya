@@ -49,10 +49,10 @@ modify_factor view_id f = do
     set_zoom view_id (zoom { Types.zoom_factor = f (Types.zoom_factor zoom) })
 
 -- | Set zoom on the given view to make the entire block visible.
-zoom_to_fit :: (Cmd.M m) => ViewId -> m ()
-zoom_to_fit view_id = do
+zoom_to_ruler :: (Cmd.M m) => ViewId -> m ()
+zoom_to_ruler view_id = do
     view <- State.get_view view_id
-    block_end <- State.block_event_end (Block.view_block view)
+    block_end <- State.block_ruler_end (Block.view_block view)
     let pixels = Block.view_visible_time view
     let factor = fromIntegral pixels / ScoreTime.to_double block_end
     set_zoom view_id (Types.Zoom 0 factor)
