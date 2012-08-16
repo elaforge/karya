@@ -10,14 +10,14 @@ import qualified App.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "dmx" (-24, 24) [])
-        { MidiInst.modify_patch = Util.drum_instrument notes
-        , MidiInst.code = MidiInst.empty_code
-            { MidiInst.note_calls = [Util.drum_calls (map fst notes)]
-            , MidiInst.cmds = [Util.drum_cmd notes]
-            }
+load _dir = return $ MidiInst.make $ (MidiInst.softsynth "dmx" (-24, 24) [])
+    { MidiInst.modify_patch = Util.drum_instrument notes
+    , MidiInst.code = MidiInst.empty_code
+        { MidiInst.note_calls = Util.make_lookup $
+            Util.drum_calls (map fst notes)
+        , MidiInst.cmds = [Util.drum_cmd notes]
         }
+    }
 
 -- | The octave numbers on the drummax are one greater than the standard
 -- usage.  This is for \"Acoustic 2 FG\".  I'll have to come up with

@@ -3,9 +3,10 @@
 -- Unfortunately the instruments here have to be hardcoded unless I want to
 -- figure out how to parse .nki files or something.
 module Local.Instrument.Kontakt where
-import qualified Data.Maybe as Maybe
+import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
@@ -13,13 +14,11 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.Util as CUtil
 import qualified Cmd.Keymap as Keymap
 
-import qualified Derive.Args as Args
 import Derive.Attrs
-import qualified Derive.Call.Note as Note
-import qualified Derive.Call.Util as Call.Util
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.Instrument.Util as DUtil
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 
@@ -38,7 +37,7 @@ synth :: Instrument.SynthName
 synth = "kkt"
 
 patches :: [MidiInst.Patch]
-patches = concat [hang, wayang, kendang, kendang_composite]
+patches = concat [hang, wayang, kendang_patches]
     where
     hang = MidiInst.with_code hang_code
         [inst "hang1" hang_ks, inst "hang2" hang_ks]
@@ -48,31 +47,8 @@ patches = concat [hang, wayang, kendang, kendang_composite]
         , (Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks,
             MidiInst.default_scale Wayang.isep_id wayang_code)
         ]
-    kendang = MidiInst.with_code (CUtil.drum_code Drums.kendang_tunggal) $
-        map (CUtil.drum_instrument Drums.kendang_tunggal)
-            [ inst wadon_name []
-            , inst lanang_name []
-            ]
-    -- kendang-composite is a composite of kendang-wadon and kendang-lanang
-    kendang_composite =
-        MidiInst.with_code (kendang_composite_code (wadon_inst, lanang_inst))
-            [CUtil.drum_instrument notes (inst "kendang-composite" [])]
-            -- map (CUtil.drum_instrument notes)
-            --     [ inst "kendang-composite" [] ]
-        where
-        notes = [(note, key) | (note, key, _) <- note_insts]
-        note_insts = [(note, key, kendang_inst w)
-            | (note, (w, _), key) <- Drums.kendang_composite]
-        kendang_inst w = if Maybe.isJust w then wadon_inst else lanang_inst
-        wadon_inst = Score.instrument synth wadon_name
-        lanang_inst = Score.instrument synth lanang_name
-
     inst name ks = Instrument.set_keyswitches ks $
         Instrument.patch $ Instrument.instrument name [] (-12, 12)
-
-wadon_name, lanang_name :: String
-wadon_name = "kendang-wadon"
-lanang_name = "kendang-lanang"
 
 -- * hang
 
@@ -100,7 +76,7 @@ hang_strokes =
     , (slap,    Key.d2,     Just "`da3`",       Just 'C')
     , (middle,  Key.ds2,    Just "`zhong1`",    Just 'V')
     , (knuckle, Key.e2,     Just "`zhi3`",      Just 'B')
-    , (no_attrs,Key.c2,     Nothing,            Nothing)
+    , (mempty,  Key.c2,     Nothing,            Nothing)
     ]
 
 hang_ks :: [(Score.Attributes, Midi.Key)]
@@ -111,13 +87,10 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 wayang_code :: MidiInst.Code
 wayang_code = MidiInst.empty_code
-    { MidiInst.note_calls = [Derive.make_lookup wayang_calls] }
-
-wayang_calls :: Derive.NoteCallMap
-wayang_calls = Derive.make_calls [("", DUtil.note0_attrs muted)]
+    { MidiInst.note_calls = CUtil.make_lookup [("", DUtil.note0_attrs muted)] }
 
 wayang_ks :: [(Score.Attributes, Midi.Key)]
-wayang_ks = [(muted, Key.gs2), (open, Key.g2), (no_attrs, Key.g2)]
+wayang_ks = [(muted, Key.gs2), (open, Key.g2), (mempty, Key.g2)]
 
 wayang_umbang :: Instrument.PatchScale
 wayang_umbang =
@@ -136,71 +109,121 @@ wayang_keys =
 
 -- * kendang
 
+kendang_patches :: [MidiInst.Patch]
+kendang_patches =
+    [ (inst tunggal wadon_name, CUtil.drum_code tunggal)
+    , (inst tunggal lanang_name, CUtil.drum_code tunggal)
+    , (inst composite "kendang",
+        kendang_composite_code (wadon_inst, lanang_inst))
+    ]
+    where
+    tunggal = map fst Drums.kendang_tunggal
+    composite = map fst Drums.kendang_composite
+    inst notes name = CUtil.drum_instrument notes $
+        Instrument.patch $ Instrument.instrument name [] (-12, 12)
+    wadon_inst = Score.instrument synth wadon_name
+    lanang_inst = Score.instrument synth lanang_name
+    wadon_name = "kendang-wadon"
+    lanang_name = "kendang-lanang"
+
 kendang_composite_code :: (Score.Instrument, Score.Instrument) -> MidiInst.Code
 kendang_composite_code insts@(wadon, lanang) = MidiInst.empty_code
-    { MidiInst.note_calls =
-        [Derive.make_lookup $ kendang_composite_calls insts]
+    { MidiInst.note_calls = CUtil.make_lookup $
+        ("realize", c_realize_kendang insts)
+        : CUtil.drum_calls (map (fst . fst) Drums.kendang_composite)
     , MidiInst.cmds = [CUtil.inst_drum_cmd note_insts]
     }
     where
-    note_insts = [(note, key, kendang_inst w)
-        | (note, (w, _), key) <- Drums.kendang_composite]
-    kendang_inst w = if Maybe.isJust w then wadon else lanang
+    note_insts = [(note, key, inst_of kendang)
+        | ((note, key), (_, kendang)) <- Drums.kendang_composite]
+    inst_of Drums.Wadon = wadon
+    inst_of Drums.Lanang = lanang
 
-type CompositeAttrs = (Maybe Score.Attributes, Maybe Score.Attributes)
+c_realize_kendang :: (Score.Instrument, Score.Instrument) -> Derive.NoteCall
+c_realize_kendang insts = Derive.transformer "realize-kendang" $
+    \args deriver -> CallSig.call0 args $ do
+        events <- deriver
+        return $ realize_kendang insts events
 
-kendang_composite_calls :: (Score.Instrument, Score.Instrument)
-    -> Derive.NoteCallMap
-kendang_composite_calls insts = Derive.make_calls
-    [(Drums.note_name n, c_stroke insts attrs)
-        | (n, attrs, _) <- Drums.kendang_composite]
-
-c_stroke :: (Score.Instrument, Score.Instrument) -> CompositeAttrs
-    -> Derive.NoteCall
-c_stroke insts attrs =
-    Derive.stream_generator "kendang-stroke" $
-    Note.inverting $ \args -> CallSig.call0 args $
-        Derive.d_at (Args.start args) $
-            emit_stroke insts attrs
-
--- TODO emit filler strokes
+-- | Split a composite kendang part into two separate wadon and lanang parts.
+-- The realization is only a best guess and likely needs to be edited further.
 --
--- filler strokes are "^" (pak <> soft) and "." (ka)
---
--- kP+otT kPkP+o+o kPuUtT+o
--- P.+.T^ P.P.+.+. P.o.T^+.
--- .P.+.T .P.P.+.+ .P.O.T^+
---
--- abstraction level is wrong
--- I want to take a stream of kPtT etc. to wadon and lanang streams.
--- Events with attrs is ok too.
--- So maybe this should be postproc instead of a bunch of calls.
---
--- With a bunch of calls I can't reliably tell the previous one.
---
--- So this means kendang-composite is a normal bunch of calls, but then there's
--- a postproc that turns (lanang <> pak) int (lanang, pak)
---
--- Can I make the instrument automatially apply a transformer?  It really does
--- apply only to the instrument since it is designed to work specifically with
--- the events the instrument creates.  But ideally I want to apply it only once
--- at the top level, if >inst now implies a transformation in addition to just
--- setting environment then (>inst a b c) is now different than
--- (>inst a (>inst b c))
-
--- At fast speeds omit the filler strokes and use de<>thumb.
--- If I omit tempo from track derivation, how do I know it's fast speed?
--- I can put the warp into a plain control and 'tempo_at' check that control
--- instead of the warp.
---
--- But a postproc is a nicer solution for this, I can just check actual
--- RealTime distance.
-
-emit_stroke :: (Score.Instrument, Score.Instrument) -> CompositeAttrs
-    -> Derive.EventDeriver
-emit_stroke (wadon, lanang) (wadon_attrs, lanang_attrs) =
-    emit wadon wadon_attrs <> emit lanang lanang_attrs
+-- This passes unrecognized notes through unchanged, so you can apply different
+-- realizations in different places.
+realize_kendang :: (Score.Instrument, Score.Instrument)
+    -> Derive.Events -> Derive.Events
+realize_kendang insts events = Derive.merge_asc_events $
+    LEvent.map_around (emit_kendang insts) $ map (fmap lookup_attrs) events
     where
-    emit _ Nothing = mempty
-    emit inst (Just attrs) = Call.Util.add_attrs attrs $
-        Derive.with_instrument inst Call.Util.triggered_note
+    lookup_attrs event = (event, attrs_of event)
+    attrs_of event = Map.lookup (Score.event_attributes event) attrs_to_inst
+
+type KendangEvent = (Attributes, Drums.Kendang)
+
+
+-- | The realization is not correct because I don't yet fully understand how it
+-- works.
+--
+-- > c kPtTtT+o+oo-+
+-- > l .P.TPTP+^++.^
+-- > w P.TPTP+.+.^-+
+--
+-- > c kPktT t T T t T .kP.tT.tTØØØ
+-- > l .P.^T P T T P T .^P^.T .TØØØ
+-- > w P^.TP T P P T P .P^.TP.TP. .
+--
+-- > c kP+otT kPkP+o+o kPuUtT+o
+-- > l P.+.T^ P.P.+.+. P.o.T^+.
+-- > w .P.+.T .P.P.+.+ .P.O.T^+
+--
+-- > c kPtTtT
+-- > l .P.TPTP
+-- > w P.TPTP
+--
+-- > tTkPtTkP
+-- > T.P.T.P
+-- > .T.P.T.P
+--
+-- > tT+otT+o
+-- > TP+.TP+.
+-- > .TP+.TP+
+emit_kendang :: (Score.Instrument, Score.Instrument)
+    -> [(Score.Event, Maybe KendangEvent)]
+    -> (Score.Event, Maybe KendangEvent)
+    -> [(Score.Event, Maybe KendangEvent)] -> [Score.Event]
+emit_kendang _ _ (event, Nothing) _ = [event]
+emit_kendang insts prev (event, Just (attrs, kendang)) next =
+    event
+        { Score.event_attributes = attrs
+        , Score.event_instrument = main_inst
+        }
+    : case filler of
+        Nothing -> []
+        Just second_attrs -> (:[]) $ event
+            { Score.event_attributes = second_attrs
+            , Score.event_instrument = second_inst
+            }
+    where
+    (main_inst, second_inst) = case kendang of
+        Drums.Wadon -> insts
+        Drums.Lanang -> (snd insts, fst insts)
+    -- TODO This is not quite right, because wadon should be preparing lanang
+    -- strokes, so the decision should be based on what the next lanang stroke
+    -- is.  Also multiple fillers will alternate hands.
+    -- TODO omit the filler if it's too fast, unless it's alternating hand with
+    -- prev and next strokes.
+    filler
+        | attrs == plak || attrs == lanang <> tut = Nothing
+        -- Use left hand if the pattern is T-T or T-+
+        | prev_attrs == pang && next_attrs `elem` [pang, de, mempty] =
+            Just pak
+        | otherwise = Just ka
+    prev_attrs = attrs_of prev
+    next_attrs = attrs_of next
+    attrs_of events = fromMaybe mempty $
+        Seq.head [a | (_, Just (a, _)) <- events]
+
+attrs_to_inst :: Map.Map Attributes KendangEvent
+attrs_to_inst =
+    Map.fromList [(Drums.note_attrs n, (attrs, kendang))
+        | ((n, _), (attrs, kendang)) <- Drums.kendang_composite]

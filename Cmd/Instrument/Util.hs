@@ -25,6 +25,9 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
 
 
+make_lookup :: [(String, call)] -> [Derive.LookupCall call]
+make_lookup = (:[]) . Derive.make_lookup . Derive.make_calls
+
 -- * keymap
 
 keymaps :: (Cmd.M m) => [(Char, String, Midi.Key)] -> Msg.Msg -> m Cmd.Status
@@ -111,13 +114,14 @@ keyswitches inputs = \msg -> do
 
 drum_code :: [(Drums.Note, Midi.Key)] -> MidiInst.Code
 drum_code note_keys = MidiInst.empty_code
-    { MidiInst.note_calls = [drum_calls (map fst note_keys)]
+    { MidiInst.note_calls = make_lookup $ drum_calls (map fst note_keys)
     , MidiInst.cmds = [drum_cmd note_keys]
     }
 
 inst_drum_code :: [(Drums.Note, Midi.Key, Score.Instrument)] -> MidiInst.Code
 inst_drum_code note_keys = MidiInst.empty_code
-    { MidiInst.note_calls = [drum_calls [note | (note, _, _) <- note_keys]]
+    { MidiInst.note_calls =
+        make_lookup $ drum_calls [note | (note, _, _) <- note_keys]
     , MidiInst.cmds = [inst_drum_cmd note_keys]
     }
 
@@ -130,8 +134,8 @@ drum_instrument note_keys = Instrument.triggered
         [(Drums.note_attrs note, key) | (note, key) <- note_keys]
 
 -- | Create a LookupCall for the given Notes.
-drum_calls :: [Drums.Note] -> Derive.LookupCall Derive.NoteCall
-drum_calls notes = Derive.make_lookup $ Derive.make_calls
+drum_calls :: [Drums.Note] -> [(String, Derive.NoteCall)]
+drum_calls notes =
     [(Drums.note_name n, note_call (Drums.note_dynamic n) (Drums.note_attrs n))
         | n <- notes]
     where

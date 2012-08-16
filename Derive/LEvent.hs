@@ -83,6 +83,22 @@ instance (DeepSeq.NFData derived) => DeepSeq.NFData (LEvent derived) where
     rnf (Log msg) = DeepSeq.rnf msg
 
 
+-- | This is similar to 'List.mapAccumL', but lifted into LEvents.  It also
+-- passes future events to the function.
+map_accum :: (state -> a -> [a] -> (state, [b])) -> state -> [LEvent a]
+    -> (state, [[LEvent b]])
+map_accum f state events =
+    List.mapAccumL process state (zip events (drop 1 (List.tails events)))
+    where
+    process st (Event event, future_events) =
+        second (map Event) (f st event (events_of future_events))
+    process st (Log log, _) = (st, [Log log])
+
+-- | Like 'map_accum', but provide past and future events to the function.
+map_around :: ([a] -> a -> [a] -> [b]) -> [LEvent a] -> [[LEvent b]]
+map_around f =
+    snd . map_accum (\prev event next -> (event : prev, f prev event next)) []
+
 -- * stream
 
 type Stream a = [a]

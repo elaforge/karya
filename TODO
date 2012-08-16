@@ -1,10 +1,7 @@
 UNSORTED
   * if there are no events, \ zoom to fit should zoom to fit the ruler
     Or maybe it should always do that?
-  - implement Local.Instrument.Kontakt composite kendang as a stream postproc
-  - This probably means I should let instruments automatically apply
-    a transformer.  To make sure it only happens once, only apply it when the
-    instrument changes from something else.
+  * implement Local.Instrument.Kontakt composite kendang as a stream postproc
   * Putting start into the event would introduce redundancy with the
     Map ScoreTime Event, but it would eliminate PosEvent entirely.  And come
     to think about it, the map is private to Ui.Events.
@@ -64,9 +61,6 @@ UNSORTED
   - a new empty inst with a scale doesn't get the scale right, should fall
     back on looking down the skeleton
   - but even when it does (on the scale itself) it doesn't do thru
-  - I could implement mute and solo without rederiving by filtering based on
-    the stack in events.  This wouldn't account for muting tracks that have
-    some other effect, e.g. setting an environ val.
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
     a bit of editing it's up to 750mb, who is leaking?  Undo history?
     * Write size profile that loads a big score and reports the size increase.

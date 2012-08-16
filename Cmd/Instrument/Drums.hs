@@ -45,35 +45,42 @@ c_crash = Note "crash"  crash           'y' 1
 
 -- * kendang bali
 
-kendang_composite :: [(Note, (Maybe Attributes, Maybe Attributes), Midi.Key)]
-kendang_composite = map find_key
-    [ (Note "PL" (wadon <> plak) 'b' 1, (Just plak, Nothing))
-    , (Note "`O+`" (lanang <> tut <> left) 't' 1, (Nothing, Just (tut <> left)))
-    -- right
-    , (Note "+" (wadon <> de)    'z' 1, (Just de, Nothing)) -- de
-    , (Note "o" (lanang <> de)   'x' 1, (Nothing, Just de)) -- tut
-    , (Note "u" (wadon <> tut)   'c' 1, (Just tut, Nothing)) -- kum
-    , (Note "U" (lanang <> tut)  'v' 1, (Nothing, Just tut)) -- pung
-    -- left
-    , (Note "k" (wadon <> pak)   'q' 1, (Just pak, Nothing)) -- ka
-    , (Note "P" (lanang <> pak)  'w' 1, (Nothing, Just pak)) -- pak
-    , (Note "t" (wadon <> pang)  'e' 1, (Just pang, Nothing)) -- kam
-    , (Note "T" (lanang <> pang) 'r' 1, (Nothing, Just pang)) -- pang
+-- | Left is wadon, Right is lanang.
+type CompositeAttrs = Either Score.Attributes Score.Attributes
+
+data Kendang = Wadon | Lanang deriving (Show, Eq)
+data Lima = Kebot | Kenawan deriving (Show)
+
+kendang_composite :: [((Note, Midi.Key), (Attributes, Kendang))]
+kendang_composite = map resolve
+    [ ("PL", Wadon, plak, 'b', 1)
+    , ("Ø", Lanang, tut <> left, 't', 1)
+    -- kenawan
+    , ("+", Wadon, de, 'z', 1) -- de
+    , ("o", Lanang, de, 'x', 1) -- tut
+    , ("u", Wadon, tut, 'c', 1) -- kum
+    , ("U", Lanang, tut, 'v', 1) -- pung
+    -- kebot
+    , ("k", Wadon, pak, 'q', 1) -- ka
+    , ("P", Lanang, pak, 'w', 1) -- pak
+    , ("t", Wadon, pang, 'e', 1) -- kam
+    , ("T", Lanang, pang, 'r', 1) -- pang
     ]
     where
-    -- The composite notes map to notes on a single kendang, so find them
-    -- over there.
-    find_key (note, attrs) = (note, attrs,
-        key_of (note_attrs note `Score.attrs_diff` (wadon <> lanang)))
+    resolve (name, kendang, attrs, char, dyn) =
+        ((Note name (kattr kendang <> attrs) char dyn, key_of attrs),
+            (attrs, kendang))
+    kattr Wadon = wadon
+    kattr Lanang = lanang
     key_of attrs = key
         where
         Just (_, key) = List.find ((==attrs) . note_attrs . fst)
-            kendang_tunggal
+            (map fst kendang_tunggal)
 
-kendang_tunggal :: [(Note, Midi.Key)]
+kendang_tunggal :: [((Note, Midi.Key), Lima)]
 kendang_tunggal =
+    map (flip (,) Kenawan)
     [ (Note "PL" plak            'b' 1.0, Key.g1)
-    -- right
     , (Note "+"  de              'z' 1.0, Key.c2)
     , (Note "-"  (de <> soft)    'x' 0.3, Key.c2)
     , (Note "+." (de <> thumb)   'c' 1.0, Key.f2)
@@ -82,11 +89,11 @@ kendang_tunggal =
     -- This should be rarely used, but '.' should definitely be soft, but
     -- if it is there is no way to emit a normal 'ka'.
     , (Note "_"  ka              'n' 1.0, Key.g3)
-    -- left
-    , (Note "T"  pang            'q' 1.0, Key.g4)
+    ] ++ map (flip (,) Kebot)
+    [ (Note "T"  pang            'q' 1.0, Key.g4)
     , (Note "P"  pak             'w' 1.0, Key.c5)
     , (Note "^"  (pak <> soft)   'e' 0.3, Key.c5)
-    , (Note "="  (de <> left)    'r' 1.0, Key.d4) -- TODO d4 not set yet
-    , (Note "`O+`" (tut <> left) 't' 1.0, Key.c4)
+    , (Note "`O+`" (de <> left)  'r' 1.0, Key.d4) -- TODO d4 not set yet
+    , (Note "Ø"  (tut <> left)   't' 1.0, Key.c4)
     -- TODO cedugan
     ]

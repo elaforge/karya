@@ -1,9 +1,10 @@
 -- | Utilities for the instrument definitions in Local/Instrument.
 module App.MidiInst (
-    make
-    , SynthDesc
+    SynthDesc
     , Softsynth(..), softsynth
     , Patch
+    , make
+    -- * code
     , Code(..), empty_code, with_code, with_empty_code
     , default_scale
 
@@ -53,6 +54,18 @@ softsynth :: Instrument.SynthName -> Control.PbRange
 softsynth name pb_range controls =
     Softsynth name pb_range controls [] id empty_code
 
+make :: Softsynth -> [SynthDesc]
+make (Softsynth name pb_range controls extra_patches modify_patch code)
+    = [(synth, pmap <> extra)]
+    where
+    (extra, _) = MidiDb.patch_map (map (second make_code) extra_patches)
+    (synth, wildcard_patch) =
+        Instrument.make_softsynth name pb_range controls
+    pmap = MidiDb.wildcard_patch_map
+        (modify_patch wildcard_patch, make_code code)
+
+-- * code
+
 -- | A version of 'Cmd.InstrumentCode' that's more convenient for record update
 -- syntax.
 data Code = Code {
@@ -75,16 +88,6 @@ default_scale :: Pitch.ScaleId -> Code -> Code
 default_scale scale_id code = code
     { environ = Map.singleton (TrackLang.v_scale) (TrackLang.VScaleId scale_id)
     }
-
-make :: Softsynth -> [SynthDesc]
-make (Softsynth name pb_range controls extra_patches modify_patch code)
-    = [(synth, pmap <> extra)]
-    where
-    (extra, _) = MidiDb.patch_map (map (second make_code) extra_patches)
-    (synth, wildcard_patch) =
-        Instrument.make_softsynth name pb_range controls
-    pmap = MidiDb.wildcard_patch_map
-        (modify_patch wildcard_patch, make_code code)
 
 make_code :: Code -> Cmd.InstrumentCode
 make_code (Code note val environ cmds) =
