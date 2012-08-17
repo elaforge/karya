@@ -833,11 +833,15 @@ insert_track block_id tracknum track = do
         }
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
--- | TODO throw if tracknum is out of range
+-- | Remove the track at the given tracknum.
 remove_track :: (M m) => BlockId -> TrackNum -> m ()
 remove_track block_id tracknum = do
     block <- get_block block_id
-    let tracks = Seq.remove_at tracknum (Block.block_tracks block)
+    let tracks = Block.block_tracks block
+    unless (0 <= tracknum && tracknum < length tracks) $
+        throw $ "remove_track " ++ show block_id ++ " " ++ show tracknum
+            ++ " out of range 0--" ++ show (length tracks)
+    let tracks = Seq.remove_at tracknum tracks
     views <- Map.map (remove_from_view block tracknum) <$>
         get_views_of block_id
     set_block block_id $ block
