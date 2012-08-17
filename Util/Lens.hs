@@ -4,7 +4,7 @@ module Util.Lens (
     , (#)
     -- * operators
     , (#$), (#=), (%=)
-    , (#>)
+    , (<#>)
 
     -- * data
     , map, set, list
@@ -50,10 +50,10 @@ infix 1 #=
 (%=) = modify
 infix 1 %=
 
--- | Use like @a#b #> State.get@.
-(#>) :: (Functor f) => Lens a b -> f a -> f b
-(#>) = fmap . get
-infixl 4 #> -- same as <$>
+-- | Use like @a#b <#> State.get@.
+(<#>) :: (Functor f) => Lens a b -> f a -> f b
+(<#>) = fmap . get
+infixl 4 <#> -- same as <$>
 
 -- * data
 

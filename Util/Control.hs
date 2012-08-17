@@ -18,7 +18,7 @@ module Util.Control (
     -- * pure
     , (#$), (#=), (%=)
     -- * state
-    , (#>)
+    , (<#>)
     , module Control.Monad
 ) where
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
