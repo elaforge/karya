@@ -27,6 +27,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
 
@@ -100,7 +101,7 @@ orphan_blocks = do
 -- | Modify track titles with a function.
 --
 -- TODO this is inadequate.  I need a function to get parsed inst and control
--- track titles separately.  Use State.get_track_tree to figure inst vs.
+-- track titles separately.  Use TrackTree.get_track_tree to figure inst vs.
 -- control.
 map_track_titles :: (State.M m) => (String -> String) -> m ()
 map_track_titles f = do
@@ -279,7 +280,7 @@ splice_above_all = do
 splice_above_ancestors :: (Cmd.M m) => m TrackId
 splice_above_ancestors = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
-    tree <- State.get_track_tree block_id
+    tree <- TrackTree.get_track_tree block_id
     let ancestors = Seq.unique $ mapMaybe (ancestor tree) tracknums
     insert_at <- Cmd.require_msg "no selected tracks" $ Seq.minimum ancestors
     track_id <- focused_track block_id insert_at

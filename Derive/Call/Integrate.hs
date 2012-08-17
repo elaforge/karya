@@ -7,6 +7,8 @@ import qualified Data.Set as Set
 import Util.Control
 import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
+
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -63,7 +65,7 @@ unwarp block_id events = ifM (uses_default_tempo block_id)
 
 uses_default_tempo :: (State.M m) => BlockId -> m Bool
 uses_default_tempo block_id =
-    BlockUtil.has_nontempo_track <$> State.events_tree_of block_id
+    BlockUtil.has_nontempo_track <$> TrackTree.events_tree_of block_id
 
 
 -- * track integrate

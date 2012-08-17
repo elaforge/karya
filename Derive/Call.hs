@@ -82,8 +82,7 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
-import qualified Ui.State as State
-
+import qualified Ui.TrackTree as TrackTree
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -156,7 +155,7 @@ data TrackInfo derived = TrackInfo {
     tinfo_events_end :: !ScoreTime
     , tinfo_track_range :: !(ScoreTime, ScoreTime)
     , tinfo_shifted :: !ScoreTime
-    , tinfo_sub_tracks :: !State.EventsTree
+    , tinfo_sub_tracks :: !TrackTree.EventsTree
     , tinfo_events_around :: !([Event.Event], [Event.Event])
     , tinfo_derive_info :: !(DeriveInfo derived)
     }

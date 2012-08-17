@@ -10,7 +10,9 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
+
 import qualified Cmd.Create as Create
 import qualified Cmd.Serialize as Serialize
 import qualified Derive.Derive as Derive
@@ -123,7 +125,7 @@ make_nested bottom_tracks size depth bottom_size = do
 mkblock :: (State.M m) => [UiTest.TrackSpec] -> m ()
 mkblock tracks = do
     UiTest.mkblock (UiTest.default_block_name, tracks)
-    tinfo <- State.tracks_of UiTest.default_block_id
+    tinfo <- TrackTree.tracks_of UiTest.default_block_id
     -- Track slicing makes things much slower.  I should profile that too, but
     -- let's profile without it first.
     State.set_skeleton UiTest.default_block_id $

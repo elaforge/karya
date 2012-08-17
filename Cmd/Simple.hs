@@ -14,6 +14,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
@@ -77,7 +78,7 @@ dump_block block_id = do
     block <- State.get_block block_id
     let track_ids = Block.block_track_ids block
     tracks <- mapM dump_track track_ids
-    tree <- State.get_track_tree block_id
+    tree <- TrackTree.get_track_tree block_id
     return (Id.ident_string block_id, Block.block_title block, tracks,
         to_skel tree)
     where

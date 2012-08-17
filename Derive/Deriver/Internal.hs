@@ -12,6 +12,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 import Derive.Deriver.Monad
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -305,9 +306,9 @@ get_block_dur block_id = do
 -- | This does setup common to all track derivation, namely recording the
 -- tempo warp, and then calls the specific track deriver.  Every track with
 -- a track ID except tempo tracks should call this.
-track_setup :: State.TrackEvents -> Deriver d -> Deriver d
+track_setup :: TrackTree.TrackEvents -> Deriver d -> Deriver d
 track_setup track deriver = do
-    when_just (State.tevents_track_id track) add_track_warp
+    when_just (TrackTree.tevents_track_id track) add_track_warp
     deriver
 
 -- | This is a version of 'track_setup' for the tempo track.  It doesn't

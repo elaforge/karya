@@ -19,6 +19,7 @@ import qualified Util.Tree as Tree
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
@@ -57,20 +58,20 @@ get_track_type block_id tracknum = State.require
 
 lookup_track_type :: (State.M m) => BlockId -> TrackNum -> m (Maybe Track)
 lookup_track_type block_id tracknum = do
-    track_tree <- State.get_track_tree block_id
+    track_tree <- TrackTree.get_track_tree block_id
     return $ make_track <$>
         Tree.find_with_parents ((==tracknum) . State.track_tracknum) track_tree
 
 -- | Get all the Tracks in a block, sorted by tracknum.
 block_tracks :: (State.M m) => BlockId -> m [Track]
 block_tracks block_id = Seq.sort_on (State.track_tracknum . track_info)
-    . map make_track . Tree.paths <$> State.get_track_tree block_id
+    . map make_track . Tree.paths <$> TrackTree.get_track_tree block_id
 
-make_track :: (Tree.Tree State.TrackInfo, State.TrackTree) -> Track
+make_track :: (Tree.Tree State.TrackInfo, TrackTree.TrackTree) -> Track
 make_track (tree, parents) =
     Track (Tree.rootLabel tree) (track_type_of (tree, parents))
 
-track_type_of :: (Tree.Tree State.TrackInfo, State.TrackTree) -> TrackType
+track_type_of :: (Tree.Tree State.TrackInfo, TrackTree.TrackTree) -> TrackType
 track_type_of (Tree.Node track subs, parents)
     | TrackInfo.is_note_track title = Note $ takeWhile is_control children
         ++ takeWhile is_control (map Tree.rootLabel
@@ -195,7 +196,7 @@ set_inst_status block_id tracknum = do
 -- fm8/inst1 at 1: fm8:0,1,2, [vel {collapse 2}, pedal {expand 3}]
 get_track_status :: (Cmd.M m) => BlockId -> TrackNum -> m (Maybe String)
 get_track_status block_id tracknum = do
-    tree <- State.get_track_tree block_id
+    tree <- TrackTree.get_track_tree block_id
     case find_note_track tree tracknum of
         Just (track, inst) -> do
             inst <- Perf.resolve_instrument block_id tracknum inst
@@ -213,7 +214,7 @@ get_track_status block_id tracknum = do
 -- | Given a tracknum, find the note track associated with it.  Since there
 -- may be multiple ones, pick the first one.  First try children, then
 -- parents.
-find_note_track :: State.TrackTree -> TrackNum
+find_note_track :: TrackTree.TrackTree -> TrackNum
     -> Maybe (State.TrackInfo, Score.Instrument)
 find_note_track tree tracknum = case paths_of tree tracknum of
         Nothing -> Nothing
@@ -230,7 +231,7 @@ find_note_track tree tracknum = case paths_of tree tracknum of
 -- until the next note track.  Parents with multiple children are not
 -- associated with a single track, so they're omitted.  Tempo tracks are always
 -- omitted.
-control_tracks_of :: State.TrackTree -> TrackNum -> [State.TrackInfo]
+control_tracks_of :: TrackTree.TrackTree -> TrackNum -> [State.TrackInfo]
 control_tracks_of tree tracknum =
     case Tree.find_with_parents ((==tracknum) . State.track_tracknum) tree of
         Nothing -> []
@@ -258,7 +259,7 @@ show_track_status block_id status = forM status $ \info -> do
     return $ Printf.printf "%s {%s %d}"
         (str (TrackInfo.strip_expr (State.track_title info))) cmd_text tracknum
 
-paths_of :: State.TrackTree -> TrackNum
+paths_of :: TrackTree.TrackTree -> TrackNum
     -> Maybe (State.TrackInfo, [State.TrackInfo], [State.TrackInfo])
     -- ^ (track, parents, children)
 paths_of track_tree tracknum =

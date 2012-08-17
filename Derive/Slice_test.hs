@@ -7,7 +7,7 @@ import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Slice as Slice
 import Types
@@ -119,21 +119,22 @@ test_slice_notes = do
 type Event = (ScoreTime, ScoreTime, String)
 type EventsTree = [Tree.Tree (String, [Event])]
 
-extract_tree :: State.EventsTree -> EventsTree
+extract_tree :: TrackTree.EventsTree -> EventsTree
 extract_tree = map $ fmap $ \track ->
-    (State.tevents_title track, extract_track (State.tevents_events track))
+    (TrackTree.tevents_title track,
+        extract_track (TrackTree.tevents_events track))
 
 extract_track :: Events.Events -> [Event]
 extract_track events =
     [(Event.start e, Event.duration e, Event.event_string e)
         | e <- Events.ascending events]
 
-make_tree :: EventsTree -> State.EventsTree
+make_tree :: EventsTree -> TrackTree.EventsTree
 make_tree = map $ \(Node (title, events) subs) ->
     Node (make_track title events) (make_tree subs)
 
-make_track :: String -> [Event] -> State.TrackEvents
-make_track title events = State.track_events title tevents 100
+make_track :: String -> [Event] -> TrackTree.TrackEvents
+make_track title events = TrackTree.track_events title tevents 100
     where
     tevents = Events.from_list
         [Event.event start dur text | (start, dur, text) <- events]

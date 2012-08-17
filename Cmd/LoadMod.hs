@@ -22,6 +22,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Create as Create
@@ -97,7 +98,7 @@ make_block mkid rid track_rid name tracks = do
             : [Block.track (Block.TId tid track_rid) 25 | tid <- tids]
     block_id <- State.create_block (mkid name) ""  block_tracks
     State.set_skeleton block_id =<<
-        ParseSkeleton.default_parser <$> State.tracks_of block_id
+        ParseSkeleton.default_parser <$> TrackTree.tracks_of block_id
     BlockConfig.toggle_merge_all block_id
     return block_id
 

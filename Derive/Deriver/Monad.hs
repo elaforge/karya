@@ -116,6 +116,7 @@ import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -641,7 +642,7 @@ data CallInfo derived = CallInfo {
     , info_track_range :: !(ScoreTime, ScoreTime)
 
     -- | The track tree below note tracks.  Not given for control tracks.
-    , info_sub_tracks :: !State.EventsTree
+    , info_sub_tracks :: !TrackTree.EventsTree
     }
 
 -- | Transformer calls don't necessarily apply to any particular event, and

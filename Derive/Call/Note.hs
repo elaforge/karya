@@ -24,7 +24,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
-import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
@@ -239,7 +239,7 @@ inverting_n after call args =
     maybe (call args) BlockUtil.derive_tracks =<< invert_call after args
 
 invert_call :: Int
-    -> Derive.PassedArgs d -> Derive.Deriver (Maybe State.EventsTree)
+    -> Derive.PassedArgs d -> Derive.Deriver (Maybe TrackTree.EventsTree)
 invert_call after args = case Derive.info_sub_tracks info of
     [] -> return Nothing
     subs -> Just <$> invert after (Derive.info_track_range info) subs
@@ -254,10 +254,10 @@ invert_call after args = case Derive.info_sub_tracks info of
     expr = maybe "" TrackLang.show_val $ Seq.last (Derive.info_expr info)
     info = Derive.passed_info args
 
-invert :: Int -> (ScoreTime, ScoreTime) -> State.EventsTree -> ScoreTime
+invert :: Int -> (ScoreTime, ScoreTime) -> TrackTree.EventsTree -> ScoreTime
     -> ScoreTime -> ScoreTime -> String
     -> ([Event.Event], [Event.Event])
-    -> Derive.Deriver State.EventsTree
+    -> Derive.Deriver TrackTree.EventsTree
 invert after (track_start, _) subs start end next_start text events_around = do
     -- Pick the current track out of the stack, and give that to the inverted
     -- track.
@@ -270,7 +270,7 @@ invert after (track_start, _) subs start end next_start text events_around = do
     when_just (non_bottom_note_track sliced) $ \track ->
         Derive.throw $
             "inverting below note track will lead to an endless loop: "
-            ++ Pretty.pretty (State.tevents_track_id track)
+            ++ Pretty.pretty (TrackTree.tevents_track_id track)
     return sliced
     where
     slice track_id =
@@ -293,11 +293,11 @@ stack_track_id = Seq.head . mapMaybe Stack.track_of . Stack.innermost
 -- if there are overlapping sub-events that also invert, or confusing results
 -- if there are non-overlapping or non-inverting sub-events.  Either way, I
 -- don't think I want it.
-non_bottom_note_track :: State.EventsTree -> Maybe State.TrackEvents
+non_bottom_note_track :: TrackTree.EventsTree -> Maybe TrackTree.TrackEvents
 non_bottom_note_track tree = Seq.head (concatMap go tree)
     where
     go (Tree.Node track subs)
-        | TrackInfo.is_note_track (State.tevents_title track)
+        | TrackInfo.is_note_track (TrackTree.tevents_title track)
             && not (null subs) = [track]
         | otherwise = concatMap go subs
 

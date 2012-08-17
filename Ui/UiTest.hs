@@ -17,6 +17,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 
 import qualified Cmd.Create as Create
@@ -149,7 +150,7 @@ mkblock_ruler ruler_id (block_name, tracks) = do
 
 parse_skeleton :: (State.M m) => BlockId -> m Skeleton.Skeleton
 parse_skeleton block_id = do
-    tracks <- State.tracks_of block_id
+    tracks <- TrackTree.tracks_of block_id
     return $ ParseSkeleton.default_parser tracks
 
 mkview :: (State.M m) => BlockId -> m ViewId

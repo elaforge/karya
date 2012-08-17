@@ -35,7 +35,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.PitchSignal as PitchSignal
@@ -203,7 +203,7 @@ extract_notes skel tracks
         let pitch = fromMaybe ("*", []) (List.find is_pitch tracks)
         return (snd track, make_samples (pitch : filter is_control tracks))
     where
-    (trees, missing) = State.resolve_track_tree
+    (trees, missing) = TrackTree.resolve_track_tree
         (Map.fromList (zip [0..] tracks))
         (Skeleton.to_forest (length tracks) skel)
     is_note = (==">") . fst

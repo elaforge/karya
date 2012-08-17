@@ -133,7 +133,7 @@ import qualified Data.Tree as Tree
 import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call as Call
 import qualified Derive.Control as Control
@@ -150,13 +150,13 @@ import Types
 -- * note track
 
 -- | Top level deriver for note tracks.
-d_note_track :: State.EventsNode -> Derive.EventDeriver
+d_note_track :: TrackTree.EventsNode -> Derive.EventDeriver
 d_note_track (Tree.Node track subs) = do
     stash_sub_signals subs
-    with_title (State.tevents_title track) $ derive_notes
-        (State.tevents_end track) (State.tevents_range track)
-        (State.tevents_shifted track) subs (State.tevents_around track)
-        (Events.ascending (State.tevents_events track))
+    with_title (TrackTree.tevents_title track) $ derive_notes
+        (TrackTree.tevents_end track) (TrackTree.tevents_range track)
+        (TrackTree.tevents_shifted track) subs (TrackTree.tevents_around track)
+        (Events.ascending (TrackTree.tevents_events track))
 
 with_title :: String -> Derive.EventDeriver -> Derive.EventDeriver
 with_title title deriver
@@ -175,16 +175,16 @@ is_empty_title [TrackLang.Call sym [TrackLang.Literal
     inst == Score.Instrument "" && sym == TrackLang.Symbol "note-track"
 is_empty_title _ = False
 
-stash_sub_signals :: State.EventsTree -> Derive.Deriver ()
+stash_sub_signals :: TrackTree.EventsTree -> Derive.Deriver ()
 stash_sub_signals subs = do
     let tracks = concatMap Tree.flatten subs
     sigs <- mapM Control.track_signal tracks
     Control.put_track_signals
         [(track_id, tsig) | (Just track_id, tsig)
-            <- zip (map State.tevents_track_id tracks) sigs]
+            <- zip (map TrackTree.tevents_track_id tracks) sigs]
 
 derive_notes :: ScoreTime -> (ScoreTime, ScoreTime) -> ScoreTime
-    -> State.EventsTree -> ([Event.Event], [Event.Event])
+    -> TrackTree.EventsTree -> ([Event.Event], [Event.Event])
     -> [Event.Event] -> Derive.EventDeriver
 derive_notes events_end track_range shifted subs events_around events = do
     -- You'd think 'd_note_track' should just pass TrackEvents, but then I

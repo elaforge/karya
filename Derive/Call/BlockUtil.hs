@@ -19,6 +19,7 @@ import qualified Util.Log as Log
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
@@ -59,26 +60,27 @@ capture_null_control = "capture-null-control"
 
 -- | Ensure the tree meets the requirements documented by 'control_deriver'
 -- and append the fake note track if it does.
-check_control_tree :: ScoreTime -> State.EventsTree
-    -> Either String State.EventsTree
+check_control_tree :: ScoreTime -> TrackTree.EventsTree
+    -> Either String TrackTree.EventsTree
 check_control_tree block_end forest = case forest of
     [] -> Left "empty block"
     [Tree.Node track []]
-        | State.tevents_title track == "%" ->
+        | TrackTree.tevents_title track == "%" ->
             Right [Tree.Node track [Tree.Node capture_track []]]
         | otherwise -> Left $ "skeleton must end in % track, ends with "
-            ++ show (State.tevents_title track)
+            ++ show (TrackTree.tevents_title track)
     [Tree.Node track subs] -> do
         subs <- check_control_tree block_end subs
         return [Tree.Node track subs]
     tracks -> Left $ "skeleton must have only a single branch, "
         ++ "but there are multiple children: "
-        ++ show (map (State.tevents_title . Tree.rootLabel) tracks)
+        ++ show (map (TrackTree.tevents_title . Tree.rootLabel) tracks)
     where
     events = Events.singleton (Event.event 0 block_end capture_null_control)
-    capture_track = (State.track_events ">" events block_end)
+    capture_track = (TrackTree.track_events ">" events block_end)
 
-derive_control_tree :: ScoreTime -> State.EventsTree -> Derive.ControlDeriver
+derive_control_tree :: ScoreTime -> TrackTree.EventsTree
+    -> Derive.ControlDeriver
 derive_control_tree block_end tree = do
     -- There are an awful lot of things that can go wrong.  I guess that's why
     -- this is a hack.
@@ -104,14 +106,14 @@ derive_control_tree block_end tree = do
 
 -- ** implementation
 
-get_tree :: (State.M m) => BlockId -> m (State.EventsTree, ScoreTime)
+get_tree :: (State.M m) => BlockId -> m (TrackTree.EventsTree, ScoreTime)
 get_tree block_id = do
-    info_tree <- State.get_track_tree block_id
+    info_tree <- TrackTree.get_track_tree block_id
     block_end <- State.block_event_end block_id
-    tree <- State.events_tree block_end info_tree
+    tree <- TrackTree.events_tree block_end info_tree
     block <- State.get_block block_id
-    let mutes_tree = State.track_tree_mutes
-            (State.muted_tracknums block info_tree) info_tree
+    let mutes_tree = TrackTree.track_tree_mutes
+            (TrackTree.muted_tracknums block info_tree) info_tree
     return (strip_mutes mutes_tree tree, block_end)
 
 -- | Strip the events out of muted tracks.  If the tracks themselves were
@@ -121,14 +123,15 @@ get_tree block_id = do
 -- It's ugly how the two trees are zipped up, but otherwise I have yet another
 -- type for EventTreeMutes or hairy parameterization just for this one
 -- function.
-strip_mutes :: State.TrackTreeMutes -> State.EventsTree -> State.EventsTree
+strip_mutes :: TrackTree.TrackTreeMutes -> TrackTree.EventsTree
+    -> TrackTree.EventsTree
 strip_mutes mutes tree = zipWith mute_node mutes tree
     where
     mute_node (Tree.Node (_, muted) ms) (Tree.Node track ts) =
         Tree.Node (if muted then mute track else track) (strip_mutes ms ts)
-    mute track = track { State.tevents_events = Events.empty }
+    mute track = track { TrackTree.tevents_events = Events.empty }
 
-derive_tree :: ScoreTime -> State.EventsTree -> Derive.EventDeriver
+derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
 derive_tree block_end tree = with_default_tempo (derive_tracks tree)
     where
     -- d_tempo sets up some stuff that every block needs, so add one if a block
@@ -144,14 +147,14 @@ derive_tree block_end tree = with_default_tempo (derive_tracks tree)
         | otherwise = deriver
 
 -- | Derive an EventsTree.
-derive_tracks :: State.EventsTree -> Derive.EventDeriver
+derive_tracks :: TrackTree.EventsTree -> Derive.EventDeriver
 derive_tracks = mconcat . map derive_track
 
 -- | Derive a single track node and any tracks below it.
-derive_track :: State.EventsNode -> Derive.EventDeriver
+derive_track :: TrackTree.EventsNode -> Derive.EventDeriver
 derive_track node@(Tree.Node track subs)
-    | TrackInfo.is_note_track (State.tevents_title track) =
-        with_stack $ derive_orphans (State.tevents_title track)
+    | TrackInfo.is_note_track (TrackTree.tevents_title track) =
+        with_stack $ derive_orphans (TrackTree.tevents_title track)
             (Slice.extract_orphans track subs)
             (Internal.track_setup track (Note.d_note_track node))
     -- I'd like track_setup up here, but tempo tracks are treated differently,
@@ -166,9 +169,9 @@ derive_track node@(Tree.Node track subs)
         -- they might miss the instrument.
         | otherwise = (<> Note.with_title title (derive_tracks orphans))
     with_stack = maybe id Internal.with_stack_track
-        (State.tevents_track_id track)
+        (TrackTree.tevents_track_id track)
 
 -- | Does this tree have any non-tempo tracks at the top level?
-has_nontempo_track :: State.EventsTree -> Bool
+has_nontempo_track :: TrackTree.EventsTree -> Bool
 has_nontempo_track = any $ \(Tree.Node track _) ->
-    not $ TrackInfo.is_tempo_track (State.tevents_title track)
+    not $ TrackInfo.is_tempo_track (TrackTree.tevents_title track)

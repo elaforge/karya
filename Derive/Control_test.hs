@@ -6,6 +6,7 @@ import Util.Test
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Control as Control
@@ -73,10 +74,10 @@ test_derive_control = do
             ["Error: control call not found: def"]))
 
 mktrack :: ScoreTime -> (ScoreTime, ScoreTime) -> [UiTest.EventSpec]
-    -> State.TrackEvents
+    -> TrackTree.TrackEvents
 mktrack events_end track_range events =
-    (State.track_events ">" evts events_end)
-        { State.tevents_range = track_range }
+    (TrackTree.track_events ">" evts events_end)
+        { TrackTree.tevents_range = track_range }
     where evts = Events.from_list (map UiTest.make_event events)
 
 test_pitch_track = do

@@ -33,7 +33,7 @@ import qualified Data.Tree as Tree
 import qualified Util.Then as Then
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Pitch as Pitch
@@ -50,15 +50,16 @@ import Types
 --
 -- Since there's no point to a control track with no note track underneath,
 -- control track orphans are stripped out.
-extract_orphans :: State.TrackEvents -> State.EventsTree -> State.EventsTree
+extract_orphans :: TrackTree.TrackEvents -> TrackTree.EventsTree
+    -> TrackTree.EventsTree
 extract_orphans _ [] = []
 extract_orphans track subs = filter has_note $
     concatMap (\(exclusive, s, e) -> slice exclusive 1 s e Nothing subs) $
-        event_gaps (Events.ascending (State.tevents_events track))
-            (State.tevents_end track)
+        event_gaps (Events.ascending (TrackTree.tevents_events track))
+            (TrackTree.tevents_end track)
     where
     has_note = Monoid.getAny . Foldable.foldMap
-        (Monoid.Any . TrackInfo.is_note_track . State.tevents_title)
+        (Monoid.Any . TrackInfo.is_note_track . TrackTree.tevents_title)
 
 -- | Given a list of events, return the gaps in between those events as
 -- ranges.  Each range also has an \"exclusive\" flag, which indicates whether
@@ -113,7 +114,7 @@ slice :: Bool -- ^ Omit events than begin at the start.  'event_gaps' documents
     -- ^ If given, insert an event at the bottom with the given text and dur.
     -- The created track will have the given track_range, so it can create
     -- a Stack.Region entry.
-    -> State.EventsTree -> State.EventsTree
+    -> TrackTree.EventsTree -> TrackTree.EventsTree
 slice exclusive after start end insert_event = concatMap strip . map do_slice
     where
     do_slice (Tree.Node track subs) = Tree.Node (slice_t track)
@@ -122,26 +123,27 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
         Nothing -> []
         Just insert_event -> [Tree.Node (make insert_event) []]
     -- The synthesized bottom track.
-    make (InsertEvent text dur track_range around track_id) = State.TrackEvents
-        { State.tevents_title = ">"
-        , State.tevents_events = Events.singleton (Event.event start dur text)
-        , State.tevents_track_id = track_id
-        , State.tevents_end = end
-        , State.tevents_range = track_range
-        , State.tevents_sliced = True
-        , State.tevents_around = around
-        , State.tevents_shifted = 0
+    make (InsertEvent text dur trange around track_id) = TrackTree.TrackEvents
+        { TrackTree.tevents_title = ">"
+        , TrackTree.tevents_events =
+            Events.singleton (Event.event start dur text)
+        , TrackTree.tevents_track_id = track_id
+        , TrackTree.tevents_end = end
+        , TrackTree.tevents_range = trange
+        , TrackTree.tevents_sliced = True
+        , TrackTree.tevents_around = around
+        , TrackTree.tevents_shifted = 0
         }
     slice_t track = track
-        { State.tevents_events = events track
-        , State.tevents_end = sliced_start + end
-        , State.tevents_range = (sliced_start + start, sliced_start + end)
-        , State.tevents_sliced = True
+        { TrackTree.tevents_events = events track
+        , TrackTree.tevents_end = sliced_start + end
+        , TrackTree.tevents_range = (sliced_start + start, sliced_start + end)
+        , TrackTree.tevents_sliced = True
         } -- If the track has already been sliced then (start, end) are
         -- relative to that previous slicing.  But since cache is based on
         -- the stack, which is absolute, tevents_range must retain the true
         -- absolute range.
-        where sliced_start = fst (State.tevents_range track)
+        where sliced_start = fst (TrackTree.tevents_range track)
     -- Note tracks don't include pre and post events like control tracks.
     events track
         | TrackInfo.is_note_track title =
@@ -150,11 +152,11 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
         | otherwise = events_around (TrackInfo.is_pitch_track title)
             after start end es
         where
-        es = State.tevents_events track
-        title = State.tevents_title track
+        es = TrackTree.tevents_events track
+        title = TrackTree.tevents_title track
 
     strip (Tree.Node track subs)
-        | State.tevents_events track == Events.empty =
+        | TrackTree.tevents_events track == Events.empty =
             concatMap strip subs
         | otherwise = [Tree.Node track (concatMap strip subs)]
 
@@ -203,22 +205,22 @@ events_around is_pitch_track after start end events =
 -- If the parent track is empty then nothing can be done because this point
 -- will never even be reached.  However, this situation is handled by the
 -- track deriver, which should have called 'extract_orphans' already.
-slice_notes :: ScoreTime -> ScoreTime -> State.EventsTree
-    -> [[(ScoreTime, ScoreTime, State.EventsTree)]]
+slice_notes :: ScoreTime -> ScoreTime -> TrackTree.EventsTree
+    -> [[(ScoreTime, ScoreTime, TrackTree.EventsTree)]]
     -- ^ One list per note track, in right to left order.  Each track is
     -- @[(shift, stretch, tree)]@, in no guaranteed order.
 slice_notes start end =
     map (map shift) . map slice_track . concatMap note_tracks
     where
     note_tracks (Tree.Node track subs)
-        | TrackInfo.is_note_track (State.tevents_title track) =
+        | TrackInfo.is_note_track (TrackTree.tevents_title track) =
             [([], track, subs)]
         | otherwise = [(track : parents, ntrack, nsubs)
             | (parents, ntrack, nsubs) <- concatMap note_tracks subs]
     slice_track (parents, track, subs) =
         map (slice_event (make_tree parents)) (Events.ascending events)
         where
-        tevents = State.tevents_events track
+        tevents = TrackTree.tevents_events track
         events
             | start == end =
                 maybe Events.empty Events.singleton (Events.at start tevents)
@@ -230,8 +232,8 @@ slice_notes start end =
     shift (shift, stretch, tree) =
         (shift, stretch, map (fmap (shift_tree shift)) tree)
     shift_tree shift track = track
-        { State.tevents_end = State.tevents_end track - shift
-        , State.tevents_events = Events.map_sorted
-            (Event.move (subtract shift)) (State.tevents_events track)
-        , State.tevents_shifted = State.tevents_shifted track + shift
+        { TrackTree.tevents_end = TrackTree.tevents_end track - shift
+        , TrackTree.tevents_events = Events.map_sorted
+            (Event.move (subtract shift)) (TrackTree.tevents_events track)
+        , TrackTree.tevents_shifted = TrackTree.tevents_shifted track + shift
         }

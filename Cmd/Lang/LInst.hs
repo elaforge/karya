@@ -13,6 +13,7 @@ import qualified Util.Seq as Seq
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
 import qualified Derive.Score as Score
@@ -143,7 +144,7 @@ dealloc_instrument inst = do
 
 block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 block_instruments block_id = do
-    titles <- fmap (map State.track_title) (State.tracks_of block_id)
+    titles <- fmap (map State.track_title) (TrackTree.tracks_of block_id)
     return $ mapMaybe TrackInfo.title_to_instrument titles
 
 -- | Try to automatically create an instrument config based on the instruments

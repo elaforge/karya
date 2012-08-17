@@ -19,8 +19,8 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
@@ -43,20 +43,20 @@ import Types
 type Pitch = PitchSignal.Signal
 type Control = Signal.Control
 
--- | As returned by 'State.tevents_range', happpens to be used a lot here.
+-- | As returned by 'TrackTree.tevents_range', happpens to be used a lot here.
 type TrackRange = (ScoreTime, ScoreTime)
 
 -- | Top level deriver for control tracks.
-d_control_track :: State.EventsNode
+d_control_track :: TrackTree.EventsNode
     -> Derive.EventDeriver -> Derive.EventDeriver
 d_control_track (Tree.Node track _) deriver = do
-    let title = State.tevents_title track
+    let title = TrackTree.tevents_title track
     if null title then deriver else do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
         return (TrackInfo.parse_control_expr title)
     eval_track track expr ctype deriver
 
-eval_track :: State.TrackEvents -> TrackLang.Expr
+eval_track :: TrackTree.TrackEvents -> TrackLang.Expr
     -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
 eval_track track expr ctype deriver = case ctype of
     TrackInfo.Tempo ->
@@ -66,7 +66,7 @@ eval_track track expr ctype deriver = case ctype of
     TrackInfo.Pitch scale_id maybe_name ->
         pitch_call track maybe_name scale_id expr deriver
     where
-    tempo_track = track { State.tevents_events = tempo_events }
+    tempo_track = track { TrackTree.tevents_events = tempo_events }
     -- This is a hack due to the way the tempo track works.  Further notes
     -- are on the 'Perform.Signal.integrate' doc.
     tempo_events
@@ -75,17 +75,18 @@ eval_track track expr ctype deriver = case ctype of
                 [Event.event (snd track_range) 0 "set-prev"] evts
         | otherwise = evts
         where
-        track_range = State.tevents_range track
-        evts = State.tevents_events track
+        track_range = TrackTree.tevents_range track
+        evts = TrackTree.tevents_events track
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
-tempo_call :: State.TrackEvents -> Derive.Deriver (TrackResults Signal.Control)
+tempo_call :: TrackTree.TrackEvents
+    -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
 tempo_call track sig_deriver deriver = do
     (signal, logs) <- Internal.setup_without_warp sig_deriver
     when_just maybe_track_id $ \track_id ->
-        unless (State.tevents_sliced track) $
+        unless (TrackTree.tevents_sliced track) $
             put_track_signal track_id $ Right $
                 Track.TrackSignal (Signal.coerce signal) 0 1 Nothing
     -- 'with_damage' must be applied *inside* 'd_tempo'.  If it were outside,
@@ -94,14 +95,14 @@ tempo_call track sig_deriver deriver = do
     merge_logs logs $ Internal.d_tempo (snd track_range) maybe_track_id
         (Signal.coerce signal) (with_damage deriver)
     where
-    maybe_track_id = State.tevents_track_id track
+    maybe_track_id = TrackTree.tevents_track_id track
     with_damage = maybe id get_damage maybe_track_id
     get_damage track_id deriver = do
         damage <- Cache.get_tempo_damage track_id track_range
         Internal.with_control_damage damage deriver
-    track_range = State.tevents_range track
+    track_range = TrackTree.tevents_range track
 
-control_call :: State.TrackEvents -> Score.Typed Score.Control
+control_call :: TrackTree.TrackEvents -> Score.Typed Score.Control
     -> Maybe TrackLang.CallId -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
 control_call track control maybe_op control_deriver deriver = do
@@ -112,9 +113,9 @@ control_call track control maybe_op control_deriver deriver = do
     -- to run control_deriver as a sub-derive, then mappend the Collect.
     merge_logs logs $ with_damage $ with_control control signal deriver
     where
-    maybe_track_id = State.tevents_track_id track
+    maybe_track_id = TrackTree.tevents_track_id track
     with_damage = with_control_damage maybe_track_id
-        (State.tevents_range track)
+        (TrackTree.tevents_range track)
     with_control (Score.Typed typ control) signal deriver = case maybe_op of
         Nothing -> Derive.with_control control sig deriver
         Just op -> Derive.with_control_operator control op sig deriver
@@ -130,7 +131,7 @@ merge_logs logs deriver = do
     events <- deriver
     return $ Derive.merge_events (map LEvent.Log logs) events
 
-pitch_call :: State.TrackEvents -> Maybe Score.Control -> Pitch.ScaleId
+pitch_call :: TrackTree.TrackEvents -> Maybe Score.Control -> Pitch.ScaleId
     -> TrackLang.Expr -> Derive.EventDeriver -> Derive.EventDeriver
 pitch_call track maybe_name scale_id expr deriver =
     Internal.track_setup track $ do
@@ -146,9 +147,9 @@ pitch_call track maybe_name scale_id expr deriver =
             merge_logs logs $ with_damage $
                 Derive.with_pitch maybe_name signal deriver
     where
-    maybe_track_id = State.tevents_track_id track
+    maybe_track_id = TrackTree.tevents_track_id track
     with_damage = with_control_damage maybe_track_id
-        (State.tevents_range track)
+        (TrackTree.tevents_range track)
     to_psig derive = do
         (sig, _) <- derive
         Signal.coerce . fst <$> pitch_signal_to_nn sig
@@ -174,7 +175,7 @@ with_control_damage maybe_track_id track_range =
 type TrackResults sig = (sig, [Log.Msg])
 
 -- | Derive the signal of a control track.
-derive_control :: State.TrackEvents -> TrackLang.Expr
+derive_control :: TrackTree.TrackEvents -> TrackLang.Expr
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control track expr = do
     stream <- Call.apply_transformer
@@ -194,13 +195,13 @@ derive_control track expr = do
         -- are a little out of order.
         return (concat stream)
     dinfo = Call.DeriveInfo Call.lookup_control_call "control"
-    tinfo = Call.TrackInfo (State.tevents_end track)
-        (State.tevents_range track) (State.tevents_shifted track) []
+    tinfo = Call.TrackInfo (TrackTree.tevents_end track)
+        (TrackTree.tevents_range track) (TrackTree.tevents_shifted track) []
         -- TODO provide events around for control tracks?
         ([], []) dinfo
     last_sample prev chunk = Signal.last chunk `mplus` prev
 
-derive_pitch :: State.TrackEvents -> TrackLang.Expr
+derive_pitch :: TrackTree.TrackEvents -> TrackLang.Expr
     -> Derive.Deriver (TrackResults Pitch)
 derive_pitch track expr = do
     stream <- Call.apply_transformer
@@ -216,13 +217,13 @@ derive_pitch track expr = do
         Internal.merge_collect collect
         return (concat stream)
     dinfo = Call.DeriveInfo Call.lookup_pitch_call "pitch"
-    tinfo = Call.TrackInfo (State.tevents_end track)
-        (State.tevents_range track) (State.tevents_shifted track) []
+    tinfo = Call.TrackInfo (TrackTree.tevents_end track)
+        (TrackTree.tevents_range track) (TrackTree.tevents_shifted track) []
         ([], []) dinfo
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
-tevents :: State.TrackEvents -> [Event.Event]
-tevents = Events.ascending . State.tevents_events
+tevents :: TrackTree.TrackEvents -> [Event.Event]
+tevents = Events.ascending . TrackTree.tevents_events
 
 
 -- * TrackSignal
@@ -235,7 +236,7 @@ tevents = Events.ascending . State.tevents_events
 -- redundantly.  However, I think the proper way to solve this is to cache
 -- the signals and avoid recalculating the control track at all.  Perhaps just
 -- add a warped signal to TrackSignal?
-stash_signal :: State.TrackEvents
+stash_signal :: TrackTree.TrackEvents
     -> Signal.Signal y -> Derive.Deriver Signal.Display
     -- ^ Both a signal and a deriver to produce the signal are provided.  If
     -- the block has no warp the already derived signal can be reused,
@@ -244,8 +245,8 @@ stash_signal :: State.TrackEvents
     -- ^ A pitch track is given a ScaleMap so it can be displayed properly.
     -> Derive.Deriver ()
 stash_signal track sig derive_sig scale_map =
-    case State.tevents_track_id track of
-        Just track_id | not (State.tevents_sliced track) ->
+    case TrackTree.tevents_track_id track of
+        Just track_id | not (TrackTree.tevents_sliced track) ->
             stash track_id =<< linear_tempo
         _ -> return ()
     where
@@ -295,7 +296,7 @@ put_track_signals tracks = Internal.merge_collect $ mempty
 -- be rendered.  This is like 'eval_track' but specialized to derive only the
 -- signal.  The track signal is normally stashed as a side-effect of control
 -- track evaluation, but tracks below a note track are not evaluated normally.
-track_signal :: State.TrackEvents
+track_signal :: TrackTree.TrackEvents
     -> Derive.Deriver (Either [Log.Msg] Track.TrackSignal)
 track_signal track
     | null title = return $ Left []
@@ -308,9 +309,9 @@ track_signal track
         -- should ignore any tempo warping, just like 'stash_signal' does
         -- above.
         run_sub $ Derive.in_real_time $ eval_signal track expr ctype
-    where title = State.tevents_title track
+    where title = TrackTree.tevents_title track
 
-eval_signal :: State.TrackEvents -> TrackLang.Expr
+eval_signal :: TrackTree.TrackEvents -> TrackLang.Expr
     -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal
 eval_signal track expr ctype = case ctype of
     TrackInfo.Tempo -> do
