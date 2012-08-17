@@ -642,6 +642,18 @@ data TrackInfo = TrackInfo {
     , track_tracknum :: TrackNum
     } deriving (Eq, Show)
 
+tracks_of :: (M m) => BlockId -> m [TrackInfo]
+tracks_of block_id = do
+    block <- get_block block_id
+    state <- get
+    return [TrackInfo (Track.track_title track) tid i
+        | (i, tid, track) <- track_info block (state_tracks state)]
+    where
+    track_info block tracks = do
+        (i, Block.TId tid _) <- Seq.enumerate (Block.block_tracklike_ids block)
+        track <- maybe mzero (:[]) (Map.lookup tid tracks)
+        return (i, tid, track)
+
 get_track_tree :: (M m) => BlockId -> m TrackTree
 get_track_tree block_id = do
     skel <- get_skeleton block_id
@@ -796,10 +808,21 @@ events_tree events_end tree = mapM resolve tree
 
 -- ** tracks
 
+-- | Insert a track at the given TrackNum.  The TrackNum can be out of range to
+-- insert a track at the beginning or append it to the end.
+--
+-- This will throw if it's an event track and the block already contains that
+-- TrackId.  This invariant ensures that a (BlockId, TrackNum) is
+-- interchangeable with a TrackId.
 insert_track :: (M m) => BlockId -> TrackNum -> Block.Track -> m ()
 insert_track block_id tracknum track = do
     block <- get_block block_id
     views <- get_views_of block_id
+    when_just (Block.track_id_of (Block.tracklike_id track)) $ \track_id -> do
+        track_ids <- track_ids_of block_id
+        when (track_id `elem` track_ids) $
+            throw $ "insert_track: block " ++ show block_id
+                ++ " already contains " ++ show track_id
     let tracks = Seq.insert_at tracknum track (Block.block_tracks block)
         -- Make sure the views are up to date.
         views' = Map.map (insert_into_view block tracknum) views
@@ -810,6 +833,7 @@ insert_track block_id tracknum track = do
         }
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
+-- | TODO throw if tracknum is out of range
 remove_track :: (M m) => BlockId -> TrackNum -> m ()
 remove_track block_id tracknum = do
     block <- get_block block_id
@@ -823,9 +847,15 @@ remove_track block_id tracknum = do
         }
     modify $ \st -> st { state_views = Map.union views (state_views st) }
 
+-- *** tracks by TrackNum
+
+-- | Number of tracks in the block.
+track_count :: (M m) => BlockId -> m TrackNum
+track_count block_id = do
+    block <- get_block block_id
+    return $ length (Block.block_tracks block)
+
 -- | Get the Track at @tracknum@, or Nothing if its out of range.
--- This is inconsistent with 'insert_track' and 'remove_track' which clip to
--- range, but is convenient in practice.
 block_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.Track)
 block_track_at block_id tracknum
     | tracknum < 0 =
@@ -838,20 +868,6 @@ track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.TracklikeId)
 track_at block_id tracknum = do
     maybe_track <- block_track_at block_id tracknum
     return $ fmap Block.tracklike_id maybe_track
-
--- | TODO this assumes TrackNums and TrackIds are 1:1.  There's nothing that
--- enforces that currently, but I should fix that.
-tracknum_of :: (M m) => BlockId -> TrackId -> m (Maybe TrackNum)
-tracknum_of block_id tid = find <$> tracks_of block_id
-    where find = (track_tracknum <$>) . List.find ((==tid) . track_id)
-
-tracknums_of :: (M m) => BlockId -> [TrackId] -> m [Maybe TrackNum]
-tracknums_of block_id = mapM (tracknum_of block_id)
-
-get_tracknum_of :: (M m) => BlockId -> TrackId -> m TrackNum
-get_tracknum_of block_id tid =
-    require ("tracknum_of: track " ++ show tid ++ " not in " ++ show block_id)
-        =<< tracknum_of block_id tid
 
 -- | Like 'track_at', but only for event tracks.
 event_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe TrackId)
@@ -867,39 +883,46 @@ get_event_track_at caller block_id tracknum =
     msg = caller ++ ": tracknum " ++ show tracknum ++ " not in "
         ++ show block_id
 
-tracks_of :: (M m) => BlockId -> m [TrackInfo]
-tracks_of block_id = do
-    block <- get_block block_id
-    state <- get
-    return [TrackInfo (Track.track_title track) tid i
-        | (i, tid, track) <- track_info block (state_tracks state)]
-    where
-    track_info block tracks = do
-        (i, Block.TId tid _) <- Seq.enumerate (Block.block_tracklike_ids block)
-        track <- maybe mzero (:[]) (Map.lookup tid tracks)
-        return (i, tid, track)
-
--- | Like 'track_at', but only for event tracks.  It defaults to 'no_ruler'
+-- | Get the RulerId of an event or ruler track.  It defaults to 'no_ruler'
 -- if the tracknum is out of range or doesn't have a ruler.
 ruler_track_at :: (M m) => BlockId -> TrackNum -> m RulerId
 ruler_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
     return $ fromMaybe no_ruler $ Block.ruler_id_of =<< maybe_track
 
-track_count :: (M m) => BlockId -> m TrackNum
-track_count block_id = do
-    block <- get_block block_id
-    return $ length (Block.block_tracks block)
+-- *** tracks by TrackId
 
-get_tracklike :: (M m) => Block.TracklikeId -> m Block.Tracklike
-get_tracklike track = case track of
-    Block.TId track_id ruler_id ->
-        Block.T <$> get_track track_id <*> get_ruler ruler_id
-    Block.RId ruler_id ->
-        Block.R <$> get_ruler ruler_id
-    Block.DId divider -> return (Block.D divider)
+-- | Get all TrackIds of the given block.
+track_ids_of :: (M m) => BlockId -> m [TrackId]
+track_ids_of block_id = Block.block_track_ids <$> get_block block_id
+
+-- | Get all TrackIds of the given block.  They are returned in TrackNum order,
+-- so the list indices correspond to the TrackNum.  Non-event tracks show up as
+-- Nothing.
+all_track_ids_of :: (M m) => BlockId -> m [Maybe TrackId]
+all_track_ids_of block_id =
+    map (Block.track_id_of . Block.tracklike_id) . Block.block_tracks <$>
+        get_block block_id
+
+-- | There can only be one TrackId per block, which allows TrackNums and
+-- TrackIds to be interchangeable.  This is enforced by 'insert_track'.
+tracknum_of :: (M m) => BlockId -> TrackId -> m (Maybe TrackNum)
+tracknum_of block_id tid = find <$> all_track_ids_of block_id
+    where find = List.findIndex (== Just tid)
+
+get_tracknum_of :: (M m) => BlockId -> TrackId -> m TrackNum
+get_tracknum_of block_id tid =
+    require ("tracknum_of: track " ++ show tid ++ " not in " ++ show block_id)
+        =<< tracknum_of block_id tid
 
 -- *** block track
+
+-- | Resolve a TracklikeId to a Tracklike.
+get_tracklike :: (M m) => Block.TracklikeId -> m Block.Tracklike
+get_tracklike track = case track of
+    Block.TId tid rid -> Block.T <$> get_track tid <*> get_ruler rid
+    Block.RId rid -> Block.R <$> get_ruler rid
+    Block.DId divider -> return (Block.D divider)
 
 get_block_track :: (M m) => BlockId -> TrackNum -> m Block.Track
 get_block_track block_id tracknum = do
@@ -1321,10 +1344,6 @@ get_views_of :: (M m) => BlockId -> m (Map.Map ViewId Block.View)
 get_views_of block_id = do
     views <- gets state_views
     return $ Map.filter ((==block_id) . Block.view_block) views
-
--- | Get all TrackIds of the given block.
-track_ids_of :: (M m) => BlockId -> m [TrackId]
-track_ids_of block_id = Block.block_track_ids <$> get_block block_id
 
 -- | Find @track_id@ in all the blocks it exists in, and return the track info
 -- for each tracknum at which @track_id@ lives.  Blocks with no matching tracks
