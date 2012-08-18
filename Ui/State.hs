@@ -84,13 +84,13 @@ module Ui.State (
     , modify_track_flags
     , set_track_ruler
     , merge_track, unmerge_track, set_merged_tracks
-    , get_tracklike -- TODO rename to resolve_tracklike?
+    , get_tracklike
 
     -- * track
     , get_track, lookup_track
     , create_track, destroy_track
     , get_track_title, set_track_title, modify_track_title
-    , set_track_bg -- TODO remove?
+    , set_track_bg
     , modify_track_render, set_render_style
     , blocks_with_track
     -- ** events
@@ -279,7 +279,6 @@ type StateStack m = State.StateT State
 newtype StateT m a = StateT (StateStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError Error,
         Applicative.Applicative)
-run_state_t (StateT x) = x
 
 -- | Just a convenient abbreviation.
 type StateId a = StateT Identity.Identity a
@@ -339,7 +338,7 @@ run :: (Monad m) =>
    State -> StateT m a -> m (Either Error (a, State, [Update.CmdUpdate]))
 run state m = do
     res <- (Error.runErrorT . Logger.run . flip State.runStateT state
-        . run_state_t) m
+        . (\(StateT x) -> x)) m
     return $ case res of
         Left err -> Left err
         Right ((val, state), updates) -> Right (val, state, updates)
@@ -907,8 +906,7 @@ merge_track block_id to from = do
 unmerge_track :: (M m) => BlockId -> TrackNum -> m ()
 unmerge_track block_id tracknum = do
     track_ids <- Block.track_merged <$> get_block_track_at block_id tracknum
-    unmerged_tracknums <-
-        concatMapM (track_id_tracknums block_id) track_ids
+    unmerged_tracknums <- mapMaybeM (tracknum_of block_id) track_ids
     forM_ unmerged_tracknums $ \tracknum ->
         remove_track_flag block_id tracknum Block.Collapse
     set_merged_tracks block_id tracknum []
@@ -924,13 +922,6 @@ get_tracklike track = case track of
     Block.TId tid rid -> Block.T <$> get_track tid <*> get_ruler rid
     Block.RId rid -> Block.R <$> get_ruler rid
     Block.DId divider -> return (Block.D divider)
-
--- TODO I think this is just tracknum_of
-track_id_tracknums :: (M m) => BlockId -> TrackId -> m [TrackNum]
-track_id_tracknums block_id track_id = do
-    block_tracks <- blocks_with_track track_id
-    return [tracknum | (bid, tracks) <- block_tracks, bid == block_id,
-        (tracknum, _) <- tracks]
 
 modify_block_track :: (M m) => BlockId -> TrackNum
     -> (Block.Track -> Block.Track) -> m ()
