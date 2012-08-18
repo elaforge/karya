@@ -102,7 +102,7 @@ set_track_signals block_id state track_signals =
     -- | Get the tracks of this block which want to render a signal.
     rendering_tracks :: State.StateId [(ViewId, TrackId, TrackNum)]
     rendering_tracks = do
-        view_ids <- Map.keys <$> State.get_views_of block_id
+        view_ids <- Map.keys <$> State.views_of block_id
         blocks <- mapM (State.block_of) view_ids
         btracks <- mapM get_tracks blocks
         return $ do
@@ -237,7 +237,7 @@ run_update _ _ (Update.ViewUpdate view_id update) = case update of
 
 -- Block ops apply to every view with that block.
 run_update track_signals set_style (Update.BlockUpdate block_id update) = do
-    view_ids <- fmap Map.keys (State.get_views_of block_id)
+    view_ids <- fmap Map.keys (State.views_of block_id)
     case update of
         Update.BlockTitle title -> return $
             mapM_ (flip BlockC.set_title title) view_ids
@@ -301,7 +301,7 @@ run_update _ set_style (Update.TrackUpdate track_id update) = do
     ustate <- State.get
     acts <- forM block_ids $ \block_id -> do
         block <- State.get_block block_id
-        view_ids <- fmap Map.keys (State.get_views_of block_id)
+        view_ids <- fmap Map.keys (State.views_of block_id)
         forM (tracklikes track_id block) $ \(tracknum, tracklike_id) -> do
             let merged = get_merged ustate block tracknum
             tracklike <- State.get_tracklike tracklike_id
@@ -341,7 +341,7 @@ run_update _ set_style (Update.RulerUpdate ruler_id) = do
     let tinfo = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
     fmap sequence_ $ forM tinfo $ \(block_id, tracknum, tracklike_id) -> do
-        view_ids <- fmap Map.keys (State.get_views_of block_id)
+        view_ids <- fmap Map.keys (State.views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
         -- A ruler track doesn't have merged events so don't bother to look for
         -- them.

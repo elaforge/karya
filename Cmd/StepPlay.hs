@@ -158,7 +158,7 @@ move forward = do
     -- RealTime -> ScoreTime loses information since they are different types,
     -- and the inaccuracy messes up time step.  In any case, I don't support
     -- discontiguous play selections yet, so I don't need to get this right.
-    view_ids <- Map.keys <$> State.get_views_of block_id
+    view_ids <- Map.keys <$> State.views_of block_id
     set_selections view_ids pos (Cmd.step_tracknums step_state)
     let msgs = Midi.State.diff prev_state state
     mapM_ (uncurry Cmd.midi) msgs
@@ -173,7 +173,7 @@ move_to block_id pos = do
     (pos, mstate) <- Cmd.require $ zip_head (before, after)
     put $ Just $
         step_state { Cmd.step_before = before, Cmd.step_after = after }
-    view_ids <- Map.keys <$> State.get_views_of block_id
+    view_ids <- Map.keys <$> State.views_of block_id
     set_selections view_ids pos (Cmd.step_tracknums step_state)
     mapM_ (uncurry Cmd.midi) $ Midi.State.diff Midi.State.empty mstate
 

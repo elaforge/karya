@@ -104,7 +104,7 @@ set_state state = do
     State.put (State.clear state)
     root <- case State.config_root (State.state_config state) of
         Nothing -> return Nothing
-        Just root -> Seq.head . Map.keys <$> State.get_views_of root
+        Just root -> Seq.head . Map.keys <$> State.views_of root
     let focused = msum [root, Seq.head (Map.keys (State.state_views state))]
     when_just focused ViewConfig.bring_to_front
 

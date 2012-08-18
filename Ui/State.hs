@@ -57,7 +57,7 @@ module Ui.State (
     -- * block
     , get_block, lookup_block, all_block_ids
     , create_block, destroy_block
-    , block_of, block_id_of, get_views_of -- TODO rename views_of
+    , block_of, block_id_of, views_of
     , get_block_title, set_block_title
     , modify_block_meta
     , set_integrated_block, set_integrated_tracks
@@ -558,7 +558,7 @@ create_block block_id title tracks =
 -- the root, it will be be unset.  The block's tracks are left intact.
 destroy_block :: (M m) => BlockId -> m ()
 destroy_block block_id = do
-    views <- get_views_of block_id
+    views <- views_of block_id
     mapM_ destroy_view (Map.keys views)
     unsafe_modify $ \st -> st
         { state_blocks = Map.delete block_id (state_blocks st)
@@ -574,8 +574,8 @@ block_id_of :: (M m) => ViewId -> m BlockId
 block_id_of view_id = Block.view_block <$> get_view view_id
 
 -- | Get all views of a given block.
-get_views_of :: (M m) => BlockId -> m (Map.Map ViewId Block.View)
-get_views_of block_id = do
+views_of :: (M m) => BlockId -> m (Map.Map ViewId Block.View)
+views_of block_id = do
     views <- gets state_views
     return $ Map.filter ((==block_id) . Block.view_block) views
 
@@ -728,7 +728,7 @@ verify_edge block (from, to) =
 insert_track :: (M m) => BlockId -> TrackNum -> Block.Track -> m ()
 insert_track block_id tracknum track = do
     block <- get_block block_id
-    views <- get_views_of block_id
+    views <- views_of block_id
     when_just (Block.track_id_of (Block.tracklike_id track)) $ \track_id -> do
         track_ids <- track_ids_of block_id
         when (track_id `elem` track_ids) $
@@ -754,7 +754,7 @@ remove_track block_id tracknum = do
         throw $ "remove_track " ++ show block_id ++ " " ++ show tracknum
             ++ " out of range 0--" ++ show (length tracks)
     views <- Map.map (remove_from_view block tracknum) <$>
-        get_views_of block_id
+        views_of block_id
     set_block block_id $ block
         { Block.block_tracks = Seq.remove_at tracknum tracks
         , Block.block_skeleton =

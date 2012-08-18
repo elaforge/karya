@@ -76,7 +76,7 @@ cmd_open_block = do
     forM_ sel $ \(_, _, events) -> forM_ events $ \event ->
         when_just (call_of (Event.event_string event)) $ \block_id ->
             whenM (Maybe.isJust <$> State.lookup_block block_id) $ do
-                views <- State.get_views_of block_id
+                views <- State.views_of block_id
                 maybe (Create.fitted_view block_id >> return ())
                     ViewConfig.bring_to_front (Seq.head (Map.keys views))
 

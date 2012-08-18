@@ -78,7 +78,7 @@ set_subs view_id sel = do
 set_block :: (State.M m) => BlockId -> [(TrackId, ScoreTime)] -> m ()
 set_block _ [] = return ()
 set_block block_id ((_, pos) : _) = do
-    view_ids <- Map.keys <$> State.get_views_of block_id
+    view_ids <- Map.keys <$> State.views_of block_id
     forM_ view_ids $ \view_id ->
         State.set_selection view_id Config.play_position_selnum
             (Just (Types.selection 0 pos 999 pos))
@@ -418,7 +418,7 @@ lookup_any_selnum_insert selnum =
 -- I'm not sure how to choose, but the first one seems reasonable for now.
 lookup_block_insert :: (State.M m) => BlockId -> m (Maybe Point)
 lookup_block_insert block_id = do
-    view_ids <- Map.keys <$> State.get_views_of block_id
+    view_ids <- Map.keys <$> State.views_of block_id
     case view_ids of
         [] -> return Nothing
         view_id : _ ->

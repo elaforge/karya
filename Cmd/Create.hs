@@ -171,7 +171,7 @@ generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
 
 view :: (State.M m) => BlockId -> m ViewId
 view block_id = do
-    views <- State.get_views_of block_id
+    views <- State.views_of block_id
     view_id <- require "view id" $ generate_view_id block_id views
     rect <- State.gets (find_rect Config.view_size . map Block.view_rect
         . Map.elems . State.state_views)
@@ -192,7 +192,7 @@ fitted_view block_id = do
     --
     -- It's gross, but still probably better than tracking a whole bunch of
     -- fltk state that I don't otherwise need.
-    views <- State.get_views_of block_id
+    views <- State.views_of block_id
     view_id <- require "view id" $ generate_view_id block_id views
     block <- State.get_block block_id
     block_end <- State.block_event_end block_id

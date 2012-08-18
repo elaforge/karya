@@ -132,7 +132,7 @@ s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " ++ show stackpos)
 highlight_error :: Stack.UiFrame -> Cmd.CmdL ()
 highlight_error (bid, maybe_tid, maybe_range) = do
     unerror
-    view_ids <- fmap Map.keys (State.get_views_of bid)
+    view_ids <- fmap Map.keys (State.views_of bid)
     mapM_ ViewConfig.bring_to_front view_ids
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
