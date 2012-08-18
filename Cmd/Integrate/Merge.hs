@@ -61,7 +61,7 @@ import Types
 create_block :: (State.M m) => BlockId -> Convert.Tracks
     -> m (BlockId, [Block.TrackDestination])
 create_block source_block_id tracks = do
-    ruler_id <- State.get_block_ruler source_block_id
+    ruler_id <- State.block_ruler source_block_id
     block_id <- Create.block ruler_id
     ((,) block_id) <$> merge_block block_id tracks []
 

@@ -126,8 +126,7 @@ get_instrument_of block_id tracknum = do
 lookup_instrument_of :: (Cmd.M m) => BlockId -> TrackNum
     -> m (Maybe Score.Instrument)
 lookup_instrument_of block_id tracknum = do
-    track <- State.get_track
-        =<< State.get_event_track_at "get_instrument_of" block_id tracknum
+    track <- State.get_track =<< State.get_event_track_at block_id tracknum
     justm (return $ TrackInfo.title_to_instrument (Track.track_title track)) $
         \inst -> Just <$> Perf.resolve_instrument block_id tracknum inst
 

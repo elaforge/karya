@@ -23,8 +23,7 @@ block block_id = do
     key <- Perf.get_key block_id Nothing
     tracks <- Convert.convert events key
     (new_block_id, dests) <- Merge.create_block block_id tracks
-    State.modify_block new_block_id $ \block -> block
-        { Block.block_integrated = Just (block_id, dests) }
+    State.set_integrated_block new_block_id $ Just (block_id, dests)
     Cmd.derive_immediately [new_block_id]
     Create.view new_block_id
 

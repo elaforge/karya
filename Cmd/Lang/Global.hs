@@ -139,19 +139,19 @@ highlight_error (bid, maybe_tid, maybe_range) = do
             Selection.set_selnum vid Config.error_selnum
                 (Just (Types.selection 0 0 9999 9999))
         (Just tid, Nothing) -> do
-            tracknums <- State.track_id_tracknums bid tid
-            forM_ view_ids $ \vid -> forM_ tracknums $ \tracknum ->
+            tracknum <- State.get_tracknum_of bid tid
+            forM_ view_ids $ \vid ->
                 Selection.set_selnum vid Config.error_selnum
                     (Just (Types.selection tracknum 0 tracknum 9999))
         (Just tid, Just (from, to)) -> do
-            tracknums <- State.track_id_tracknums bid tid
-            forM_ view_ids $ \vid -> forM_ tracknums $ \tracknum ->
+            tracknum <- State.get_tracknum_of bid tid
+            forM_ view_ids $ \vid ->
                 Selection.set_and_scroll vid Config.error_selnum
                     (Types.selection tracknum to tracknum from)
 
 unerror :: Cmd.CmdL ()
 unerror = do
-    view_ids <- State.get_all_view_ids
+    view_ids <- State.all_view_ids
     forM_ view_ids $ \vid -> do
         Selection.set_selnum vid Config.error_selnum Nothing
 
@@ -313,7 +313,7 @@ divider color = Block.DId (Block.Divider color)
 insert_track :: TrackId -> TrackNum -> Cmd.CmdL ()
 insert_track track_id tracknum = do
     block_id <- Cmd.get_focused_block
-    ruler_id <- State.get_ruler_at block_id tracknum
+    ruler_id <- State.ruler_track_at block_id tracknum
     State.insert_track block_id tracknum
         (Block.track (Block.TId track_id ruler_id) Config.track_width)
 

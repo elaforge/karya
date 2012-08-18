@@ -325,10 +325,7 @@ test_alter_track = do
         State.set_track_width t_block_id 1 100
     state <- io_human "lose ruler and stay wide" $ run state $ do
         rid <- create_ruler "r2" (UiTest.mkruler 0 0)
-        let set_ruler = Block.modify_id (Block.set_rid rid)
-        State.modify_block t_block_id $ \block -> block
-            { Block.block_tracks =
-                Seq.modify_at 1 set_ruler (Block.block_tracks block) }
+        State.set_track_ruler t_block_id 1 rid
     return ()
 
 test_selection = do

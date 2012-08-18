@@ -22,8 +22,7 @@ cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf))
     | null (Cmd.perf_integrated perf) = return Cmd.Continue
     | otherwise = do
         integrated <- concatMapM (integrate block_id) (Cmd.perf_integrated perf)
-        State.modify_block block_id $ \block -> block
-            { Block.block_integrated_tracks = integrated }
+        State.set_integrated_tracks block_id integrated
         return Cmd.Continue
 cmd_integrate _ = return Cmd.Continue
 
@@ -65,8 +64,7 @@ integrate_block block_id tracks = do
     Log.notice $ "integrated " ++ show block_id ++ " to: "
         ++ Pretty.pretty (map fst new_blocks)
     forM_ new_blocks $ \(new_block_id, track_dests) ->
-        State.modify_block new_block_id $ \block -> block
-            { Block.block_integrated = Just (block_id, track_dests) }
+        State.set_integrated_block new_block_id $ Just (block_id, track_dests)
     Cmd.derive_immediately (map fst new_blocks)
     where
     integrated_from source_block_id block_map =

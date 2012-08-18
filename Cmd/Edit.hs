@@ -271,7 +271,7 @@ cmd_insert_time = do
         case Events.split_at_before start (Track.track_events track) of
             (_, []) -> return ()
             (_, events@(event:_)) -> do
-                track_end <- State.track_end track_id
+                track_end <- State.track_event_end track_id
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min (Event.start event) start)
                     (track_end + 1)
@@ -311,7 +311,7 @@ cmd_delete_time = do
         case Events.split_at_before start (Track.track_events track) of
             (_, []) -> return ()
             (_, events@(event:_)) -> do
-                track_end <- State.track_end track_id
+                track_end <- State.track_event_end track_id
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min (Event.start event) start)
                     (track_end + 1)

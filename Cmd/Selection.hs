@@ -66,7 +66,7 @@ set_current selnum maybe_sel = do
 -- to the sub-block.
 set_subs :: (Cmd.M m) => ViewId -> Types.Selection -> m ()
 set_subs view_id sel = do
-    view_ids <- State.get_all_view_ids
+    view_ids <- State.all_view_ids
     forM_ view_ids $ \vid ->
         State.set_selection vid Config.play_position_selnum Nothing
     block_id <- State.block_id_of view_id
@@ -601,7 +601,7 @@ tracks = tracks_selnum Config.insert_selnum
 tracks_selnum :: (Cmd.M m) => Types.SelNum -> m SelectedTracks
 tracks_selnum selnum = do
     (block_id, tracknums, track_ids, start, end) <- strict_tracks_selnum selnum
-    tracks <- mapM (State.get_block_track block_id) tracknums
+    tracks <- mapM (State.get_block_track_at block_id) tracknums
     let merged_track_ids = concatMap Block.track_merged tracks
     block <- State.get_block block_id
     let merged = tracknums_of block merged_track_ids

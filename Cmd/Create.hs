@@ -114,7 +114,7 @@ map_track_titles f = do
 
 block_from_template :: (State.M m) => Bool -> BlockId -> m BlockId
 block_from_template include_tracks template_id = do
-    ruler_id <- State.get_block_ruler template_id
+    ruler_id <- State.block_ruler template_id
     block_id <- block ruler_id
     when include_tracks $ do
         template <- State.get_block template_id

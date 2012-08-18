@@ -7,7 +7,6 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -126,18 +125,13 @@ assign_new name block_ids = do
 -- overlay version, it will be given to all but the first track.
 replace :: RulerId -> BlockId -> Cmd.CmdL ()
 replace ruler_id block_id = do
-    _ <- State.get_ruler ruler_id -- Just make sure it exists.
     let overlay_id = Create.add_overlay_suffix ruler_id
     overlay_id <- fmap (maybe ruler_id (const overlay_id)) $
         State.lookup_ruler overlay_id
-    State.modify_block block_id $ \block -> block
-        { Block.block_tracks = map_head_tail
-            (set_r ruler_id) (set_r overlay_id) (Block.block_tracks block)
-        }
-    where
-    map_head_tail _ _ [] = []
-    map_head_tail f g (x:xs) = f x : map g xs
-    set_r ruler_id = Block.modify_id (Block.set_rid ruler_id)
+    State.set_track_ruler block_id 0 ruler_id
+    count <- State.track_count block_id
+    forM_ [1..count] $ \tracknum ->
+        State.set_track_ruler block_id tracknum overlay_id
 
 -- | Drop a mark at the selected point in the "cue" ruler.
 add_cue :: String -> Cmd.CmdL ()
@@ -193,7 +187,7 @@ unique_copy block_id ruler_id modify = do
                 (rblock_id, tracks) <- blocks
                 guard (rblock_id == block_id)
                 (tracknum, _) <- tracks
-                return $ set_track_ruler block_id tracknum new_ruler_id
+                return $ State.set_track_ruler block_id tracknum new_ruler_id
             return new_ruler_id
 
 -- | Make a RulerId with the same name as the BlockId.  But I should preserve
@@ -209,11 +203,6 @@ ruler_id_for_block block_id ruler_id =
 
 copy :: (State.M m) => Id.Id -> RulerId -> m RulerId
 copy ident ruler_id = State.create_ruler ident =<< State.get_ruler ruler_id
-
-set_track_ruler :: (State.M m) => BlockId -> TrackNum -> RulerId -> m ()
-set_track_ruler block_id tracknum ruler_id =
-    State.modify_block_track block_id tracknum $
-        Block.modify_id (Block.set_rid ruler_id)
 
 -- | Double the ruler in the given block.
 -- double :: BlockId -> Cmd.CmdL ()

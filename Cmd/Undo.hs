@@ -83,7 +83,8 @@ undo = do
             , Cmd.state_history_config = (Cmd.state_history_config st)
                 { Cmd.hist_last_commit = Cmd.hist_commit prev }
             }
-        State.modify $ merge_undo_states (Cmd.hist_state prev)
+        -- This should be safe because these are just saved previous states.
+        State.unsafe_modify $ merge_undo_states (Cmd.hist_state prev)
         mapM_ State.update updates
     load_prev repo = load_history "load_previous_history" $
         SaveGit.load_previous_history repo
@@ -115,7 +116,8 @@ redo = do
             , Cmd.state_history_config = (Cmd.state_history_config st)
                 { Cmd.hist_last_commit = Cmd.hist_commit next }
             }
-        State.modify $ merge_undo_states (Cmd.hist_state next)
+        -- This should be safe because these are just saved previous states.
+        State.unsafe_modify $ merge_undo_states (Cmd.hist_state next)
         mapM_ State.update (Cmd.hist_updates next)
     load_next repo = load_history "load_next_history" $
         SaveGit.load_next_history repo

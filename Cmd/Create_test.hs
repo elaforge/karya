@@ -77,6 +77,6 @@ run_skel m ntracks skel (start_track, end_track) =
             State.get_skeleton UiTest.default_block_id
         mapM (\(t1, t2) -> (,) <$> replace t1 <*> replace t2) skel
     replace n = do
-        tid <- State.get_event_track_at "" UiTest.default_block_id n
+        tid <- State.get_event_track_at UiTest.default_block_id n
         title <- Track.track_title <$> State.get_track tid
         return $ head $ if null (Seq.strip title) then "x" else title

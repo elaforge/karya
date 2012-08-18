@@ -231,7 +231,7 @@ destroy_namespace :: (State.M m) => Id.Namespace -> m ()
 destroy_namespace ns = do
     let in_ns :: (Id.Ident a) => [a] -> [a]
         in_ns = filter $ (==ns) . Id.ident_namespace
-    block_ids <- in_ns <$> State.get_all_block_ids
+    block_ids <- in_ns <$> State.all_block_ids
     blocks <- mapM State.get_block block_ids
     let track_ids = Seq.unique $ concatMap Block.block_track_ids blocks
         ruler_ids = Seq.unique $ concatMap Block.block_ruler_ids blocks

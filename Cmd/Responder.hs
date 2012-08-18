@@ -116,7 +116,6 @@ run_setup_cmd :: Cmd.CmdIO -> State -> IO State
 run_setup_cmd cmd state = fmap snd $ run_responder state $ do
     result <- run_continue "initial setup" $ Right $ do
         cmd
-        State.update_all_tracks
         Cmd.modify $ \st -> st
             { Cmd.state_history = (Cmd.state_history st)
                 { Cmd.hist_last_cmd = Just $ Cmd.Load Nothing ["setup"] }

@@ -126,8 +126,7 @@ integrate state integrated = UiTest.exec state $ do
     itracks <- Block.block_integrated_tracks <$> State.get_block block_id
     dests <- Merge.merge_tracks block_id (mktracks integrated)
         (maybe [] snd (Seq.head itracks))
-    State.modify_block block_id $ \block -> block
-        { Block.block_integrated_tracks = [(UiTest.tid "source", dests)] }
+    State.set_integrated_tracks block_id [(UiTest.tid "source", dests)]
     where block_id = UiTest.default_block_id
 
 modify :: State.StateId a -> State.State -> State.State

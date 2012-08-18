@@ -4,6 +4,7 @@ import qualified Data.ByteString as ByteString
 import qualified Data.List as List
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Memory as Memory
 import qualified Ui.Block as Block
@@ -17,13 +18,17 @@ import qualified Ui.Types as Types
 import Types
 
 
-
 -- | Transform TracklikeIds.
 tracks :: (State.M m) => BlockId
     -> (Block.TracklikeId -> Block.TracklikeId) -> m ()
-tracks block_id f = State.modify_block block_id $ \block ->
-    block { Block.block_tracks = map modify (Block.block_tracks block) }
-    where modify t = t { Block.tracklike_id = f (Block.tracklike_id t) }
+tracks block_id f = do
+    block <- modify <$> State.get_block block_id
+    State.modify $ \st -> st { State.state_blocks =
+        Map.insert block_id block (State.state_blocks st) }
+    where
+    modify block = block
+        { Block.block_tracks = map modify_track (Block.block_tracks block) }
+    modify_track t = t { Block.tracklike_id = f (Block.tracklike_id t) }
 
 -- * map IDs
 

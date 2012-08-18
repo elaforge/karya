@@ -11,7 +11,6 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
@@ -66,8 +65,8 @@ toggle_merge_all block_id = do
         (mapM_ (uncurry (State.merge_track block_id)) note_pitches)
 
 track_merged :: (State.M m) => BlockId -> TrackNum -> m Bool
-track_merged block_id tracknum =
-    not . null . Block.track_merged <$> State.get_block_track block_id tracknum
+track_merged block_id tracknum = not . null . Block.track_merged <$>
+    State.get_block_track_at block_id tracknum
 
 cmd_open_block :: (Cmd.M m) => m ()
 cmd_open_block = do
@@ -117,7 +116,7 @@ cmd_mute_or_unsolo :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_mute_or_unsolo msg = do
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.require $ clicked_track msg
-    flags <- Block.track_flags <$> State.get_block_track block_id tracknum
+    flags <- Block.track_flags <$> State.get_block_track_at block_id tracknum
     if Block.Solo `elem` flags
         then State.remove_track_flag block_id tracknum Block.Solo
         else State.toggle_track_flag block_id tracknum Block.Mute
@@ -138,19 +137,5 @@ cmd_move_tracks msg = do
     from <- Cmd.require (Seq.head tracknums)
     let shift = to - from
         moves = (if shift > 0 then reverse else id) (zip tracknums [to..])
-    mapM_ (uncurry (move_track block_id)) moves
+    mapM_ (uncurry (State.move_track block_id)) moves
     Selection.cmd_shift_selection Config.insert_selnum shift False
-
-move_track :: (State.M m) => BlockId -> TrackNum -> TrackNum -> m ()
-move_track block_id from to = do
-    block <- State.get_block block_id
-    let msg = "move_track: from index " ++ show from ++ " out of range"
-    State.modify_block block_id . const =<< State.require msg
-        (move_block_track from to block)
-
-move_block_track :: TrackNum -> TrackNum -> Block.Block -> Maybe Block.Block
-move_block_track from to block = do
-    tracks <- Seq.move from to (Block.block_tracks block)
-    skel <- Skeleton.move from to (Block.block_skeleton block)
-    return $ block
-        { Block.block_tracks = tracks, Block.block_skeleton = skel }

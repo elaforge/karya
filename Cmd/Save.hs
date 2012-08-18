@@ -101,13 +101,12 @@ set_state :: State.State -> Cmd.CmdT IO ()
 set_state state = do
     Play.cmd_stop
     Cmd.modify $ Cmd.reinit_state (Cmd.empty_history_entry state)
-    State.modify (const (State.clear state))
+    State.put (State.clear state)
     root <- case State.config_root (State.state_config state) of
         Nothing -> return Nothing
         Just root -> Seq.head . Map.keys <$> State.get_views_of root
     let focused = msum [root, Seq.head (Map.keys (State.state_views state))]
     when_just focused ViewConfig.bring_to_front
-    State.update_all_tracks
 
 cmd_save_midi_config :: FilePath -> Cmd.CmdT IO ()
 cmd_save_midi_config fname = do

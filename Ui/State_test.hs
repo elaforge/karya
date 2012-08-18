@@ -3,7 +3,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import Util.Test
 
-import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State

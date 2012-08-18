@@ -21,7 +21,7 @@ cmd_toggle_merged :: (Cmd.M m) => m ()
 cmd_toggle_merged = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     pitch <- Cmd.require =<< Info.pitch_of_note block_id tracknum
-    btrack <- State.get_block_track block_id tracknum
+    btrack <- State.get_block_track_at block_id tracknum
     if null (Block.track_merged btrack)
         then State.merge_track block_id tracknum (State.track_tracknum pitch)
         else State.unmerge_track block_id tracknum

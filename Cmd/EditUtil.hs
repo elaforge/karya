@@ -78,7 +78,7 @@ modify_event_at (State.Pos block_id tracknum pos) zero_dur modify_dur f = do
             step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
             end <- Selection.step_from tracknum pos direction step
             return (end - pos)
-    track_id <- State.get_event_track_at "modify_event_at" block_id tracknum
+    track_id <- State.get_event_track_at block_id tracknum
     (event, created) <- get_event modify_dur track_id pos dur
     -- TODO I could have the modifier take Text, if it were worth it.
     let (val, advance) = f $

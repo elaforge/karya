@@ -241,8 +241,7 @@ find_pitch_track note_id = do
     case maybe_track of
         Nothing -> return Nothing
         Just (block_id, tracknum) -> do
-            track_id <- State.get_event_track_at "NoteTrack.track_of"
-                block_id tracknum
+            track_id <- State.get_event_track_at block_id tracknum
             return $ Just (tracknum, track_id)
 
 

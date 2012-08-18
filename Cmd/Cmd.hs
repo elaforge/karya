@@ -220,7 +220,7 @@ instance (Monad m) => Log.LogMonad (CmdT m) where
 -- | And to the UI state operations.
 instance (Functor m, Monad m) => State.M (CmdT m) where
     get = CmdT State.get
-    put st = CmdT (State.put st)
+    unsafe_put st = CmdT (State.unsafe_put st)
     update upd = CmdT (State.update upd)
     get_updates = CmdT State.get_updates
     throw msg = CmdT (State.throw msg)
@@ -854,7 +854,7 @@ modify_edit_state f = modify $ \st -> st { state_edit = f (state_edit st) }
 set_edit_box :: (M m) => Block.Box -> Block.Box -> m ()
 set_edit_box skel track = do
     modify_edit_state $ \st -> st { state_edit_box = (skel, track) }
-    block_ids <- State.get_all_block_ids
+    block_ids <- State.all_block_ids
     forM_ block_ids $ \bid -> State.set_edit_box bid skel track
 
 is_val_edit :: (M m) => m Bool

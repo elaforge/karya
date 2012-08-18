@@ -18,7 +18,101 @@
     A higher level interface (e.g. "Cmd.Create") may ease this by automatically
     creating objects with automatically generated IDs.
 -}
-module Ui.State (module Ui.State, module Ui.StateConfig) where
+module Ui.State (
+    State(..), views, blocks, tracks, rulers, config
+    , empty, clear
+    -- * config
+    , Config(..)
+    , namespace, project_dir, root, midi, default_
+    , Default(..)
+    , scale, key, instrument, tempo
+    , empty_config, empty_default
+    -- * other types
+    , Pos(..), Track(..), TrackInfo(..)
+    -- * StateT monad
+    , M, StateT, StateId, get, unsafe_put, update, get_updates, throw
+    , run, run_id, eval, eval_rethrow, exec, exec_rethrow
+    , gets, unsafe_modify, put, modify
+    -- ** errors
+    , Error(..)
+    , require, require_right, error_either
+
+    -- * config
+    , get_namespace, set_namespace
+    , get_midi_config, set_midi_config, get_midi_alloc
+    , get_default, modify_default, get_root_id, lookup_root_id, set_root_id
+    , modify_config, get_config
+
+    -- * view
+    , get_view, lookup_view, all_view_ids
+    , create_view, destroy_view
+    , set_view_status
+    -- ** zoom and track scroll
+    , get_zoom, set_zoom, set_track_scroll, set_view_rect
+    , set_track_size
+    -- ** selections
+    , get_selection, set_selection
+    , shift_selection, shift_tracknum
+
+    -- * block
+    , get_block, lookup_block, all_block_ids
+    , create_block, destroy_block
+    , block_of, block_id_of, get_views_of -- TODO rename views_of
+    , get_block_title, set_block_title
+    , modify_block_meta
+    , set_integrated_block, set_integrated_tracks
+    , set_block_config
+    , set_edit_box, set_play_box
+    , block_ruler_end, block_event_end
+    -- ** skeleton
+    , get_skeleton, set_skeleton, modify_skeleton
+    , toggle_skeleton_edge, add_edges, remove_edges
+    , splice_skeleton_above, splice_skeleton_below
+    -- ** tracks
+    , insert_track, remove_track, move_track
+    -- *** tracks by tracknum
+    , track_count
+    , block_track_at, get_block_track_at, track_at
+    , event_track_at, get_event_track_at
+    , ruler_track_at, block_ruler
+    -- *** tracks by TrackId
+    , track_ids_of, all_track_ids_of
+    , tracknum_of, get_tracknum_of
+    -- *** block track
+    , set_track_width
+    , toggle_track_flag, add_track_flag, remove_track_flag
+    , modify_track_flags
+    , set_track_ruler
+    , merge_track, unmerge_track, set_merged_tracks
+    , get_tracklike -- TODO rename to resolve_tracklike?
+
+    -- * track
+    , get_track, lookup_track
+    , create_track, destroy_track
+    , get_track_title, set_track_title, modify_track_title
+    , set_track_bg -- TODO remove?
+    , modify_track_render, set_render_style
+    , blocks_with_track
+    -- ** events
+    , insert_events, insert_sorted_events, insert_event
+    , get_events, get_event, get_all_events
+    , modify_events, modify_some_events, calculate_damage
+    , remove_events, remove_event, remove_event_range
+    , track_event_end
+
+    -- * ruler
+    , get_ruler, lookup_ruler
+    , create_ruler, destroy_ruler, modify_ruler
+    , ruler_of, rulers_of
+    , blocks_with_ruler
+    , no_ruler
+
+    -- * util
+    , find_tracks
+
+    -- * verify
+    , verify -- TODO should be done automatically by put
+) where
 import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Error as Error
@@ -87,7 +181,6 @@ rulers = Lens.lens state_rulers (\v r -> r { state_rulers = v })
 config :: Lens.Lens State Config
 config = Lens.lens state_config (\v r -> r { state_config = v })
 
--- TODO "initial_state" would be more consistent
 empty :: State
 empty = State {
     state_views = Map.empty
@@ -135,7 +228,7 @@ empty_default = Default {
     , default_tempo = 1
     }
 
--- * misc types
+-- * other types
 
 -- These are types not necessarily used directly in this module, but are
 -- generic types used by users of this module.
@@ -170,70 +263,7 @@ instance Pretty.Pretty TrackInfo where
         "(" ++ unwords ["TrackInfo", show title, show track_id, show tracknum]
         ++ ")"
 
--- * constants
-
--- | Since all TracklikeIds must have a ruler, all States have a special empty
--- ruler that can be used in a \"no ruler\" situation.
---
--- This RulerId is implicitly present in every block.  It's not actually in
--- 'state_rulers' to avoid it getting renamed or deleted, but 'get_ruler' will
--- pretend it exists.  As long as everyone that cares about no_ruler (which is
--- only 'verify' and 'get_tracklike' for "Ui.Sync") uses 'get_ruler' then
--- they won't be confused by tracks that have no_ruler.
-no_ruler :: RulerId
-no_ruler = Types.RulerId (Id.global "-no-ruler-")
-
--- | A non-existent ruler, ready for inclusion into create_block's track list.
-no_ruler_track :: Block.Track
-no_ruler_track = Block.track (Block.RId no_ruler) 0
-
 -- * StateT monad
-
--- | Run the given StateT with the given initial state, and return a new
--- state along with updates.  Normally updates are produced by 'Ui.Diff.diff',
--- but for efficiency updates to track data are accumulated when they are
--- actually made.  All the UI needs is a ScoreTime range to redraw in, and
--- redrawing the whole track isn't that expensive.
---
--- See the StateStack comment for more.
-run :: (Monad m) =>
-   State -> StateT m a -> m (Either Error (a, State, [Update.CmdUpdate]))
-run state m = do
-    res <- (Error.runErrorT . Logger.run . flip State.runStateT state
-        . run_state_t) m
-    return $ case res of
-        Left err -> Left err
-        Right ((val, state), updates) -> Right (val, state, updates)
-
-run_id :: State -> StateId a -> Either Error (a, State, [Update.CmdUpdate])
-run_id state m = Identity.runIdentity (run state m)
-
-eval_rethrow :: (M m) => String -> State -> StateId a -> m a
-eval_rethrow msg state = require_right msg . eval state
-
--- | A form of 'run' that returns only the val and automatically runs in
--- Identity.
-eval :: State -> StateId a -> Either Error a
-eval state m = case result of
-        Left err -> Left err
-        Right (val, _, _) -> Right val
-    where result = Identity.runIdentity (run state m)
-
-exec :: State -> StateId a -> Either Error State
-exec state m = case result of
-        Left err -> Left err
-        Right (_, state', _) -> Right state'
-    where result = Identity.runIdentity (run state m)
-
-exec_rethrow :: (M m) => String -> State -> StateId a -> m State
-exec_rethrow msg state = require_right msg . exec state
-
-require_right :: (M m) => String -> Either Error a -> m a
-require_right msg = either (throw . ((msg ++ ": ") ++) . show) return
-
--- | Like 'require_right', but throw an IO exception.  Useful for tests.
-error_either :: (Show a, Monad m) => String -> Either Error a -> m a
-error_either msg = either (error . ((msg ++ ": ") ++) . show) return
 
 -- | TrackUpdates are stored directly instead of being calculated from the
 -- state diff.
@@ -257,6 +287,89 @@ type StateId a = StateT Identity.Identity a
 instance Trans.MonadTrans StateT where
     lift = StateT . lift . lift . lift
 
+-- | Monads implementing this class can call the UI state functions directly.
+class (Applicative.Applicative m, Monad m) => M m where
+    -- Note that these aren't the MonadState get and put, and can't be, because
+    -- when this monad is layered under another state monad (as it is with
+    -- Cmd), MonadState couldn't tell which one you wanted.
+    get :: m State
+    -- | This directly modifies the state, and can break internal invariants.
+    -- 'put' is slower but safer since it checks those invariants.
+    unsafe_put :: State -> m ()
+    update :: Update.CmdUpdate -> m ()
+    get_updates :: m [Update.CmdUpdate]
+    throw :: String -> m a
+
+instance (Applicative.Applicative m, Monad m) => M (StateT m) where
+    get = StateT State.get
+    unsafe_put st = StateT (State.put st)
+    update upd = (StateT . lift) (Logger.log upd)
+    get_updates = (StateT . lift) Logger.peek
+    throw msg = (StateT . lift . lift) (Error.throwError (Error msg))
+
+gets :: (M m) => (State -> a) -> m a
+gets f = fmap f get
+
+-- | As with 'unsafe_put', this directly modifies the state.  'modify' is
+-- the safe version.
+unsafe_modify :: (M m) => (State -> State) -> m ()
+unsafe_modify f = do
+    state <- get
+    unsafe_put $! f state
+
+
+put :: (M m) => State -> m ()
+put state = do
+    -- TODO verify
+    unsafe_put state
+    update_all_tracks
+
+-- | TODO modify and verify
+modify :: (M m) => (State -> State) -> m ()
+modify = unsafe_modify
+
+-- | Run the given StateT with the given initial state, and return a new
+-- state along with updates.  Normally updates are produced by 'Ui.Diff.diff',
+-- but for efficiency updates to track data are accumulated when they are
+-- actually made.  All the UI needs is a ScoreTime range to redraw in, and
+-- redrawing the whole track isn't that expensive.
+--
+-- See the StateStack comment for more.
+run :: (Monad m) =>
+   State -> StateT m a -> m (Either Error (a, State, [Update.CmdUpdate]))
+run state m = do
+    res <- (Error.runErrorT . Logger.run . flip State.runStateT state
+        . run_state_t) m
+    return $ case res of
+        Left err -> Left err
+        Right ((val, state), updates) -> Right (val, state, updates)
+
+run_id :: State -> StateId a -> Either Error (a, State, [Update.CmdUpdate])
+run_id state m = Identity.runIdentity (run state m)
+
+-- | A form of 'run' that returns only the val and automatically runs in
+-- Identity.
+eval :: State -> StateId a -> Either Error a
+eval state m = case result of
+        Left err -> Left err
+        Right (val, _, _) -> Right val
+    where result = Identity.runIdentity (run state m)
+
+eval_rethrow :: (M m) => String -> State -> StateId a -> m a
+eval_rethrow msg state = require_right msg . eval state
+
+exec :: State -> StateId a -> Either Error State
+exec state m = case result of
+        Left err -> Left err
+        Right (_, state', _) -> Right state'
+    where result = Identity.runIdentity (run state m)
+
+exec_rethrow :: (M m) => String -> State -> StateId a -> m State
+exec_rethrow msg state = require_right msg . exec state
+
+
+-- ** error
+
 -- | Abort is used by Cmd, so don't throw it from here.  This isn't exactly
 -- modular, but ErrorT can't be composed and extensible exceptions are too
 -- much bother at the moment.
@@ -268,65 +381,17 @@ instance Pretty.Pretty Error where
     pretty (Error msg) = msg
     pretty Abort = "(abort)"
 
--- | Monads implementing this class can call the UI state functions directly.
-class (Applicative.Applicative m, Monad m) => M m where
-    -- Note that these aren't the MonadState get and put, and can't be, because
-    -- when this monad is layered under another state monad (as it is with
-    -- Cmd), MonadState couldn't tell which one you wanted.
-    get :: m State
-    put :: State -> m ()
-    update :: Update.CmdUpdate -> m ()
-    get_updates :: m [Update.CmdUpdate]
-    throw :: String -> m a
-
-instance (Applicative.Applicative m, Monad m) => M (StateT m) where
-    get = StateT State.get
-    put st = StateT (State.put st)
-    update upd = (StateT . lift) (Logger.log upd)
-    get_updates = (StateT . lift) Logger.peek
-    throw msg = (StateT . lift . lift) (Error.throwError (Error msg))
-
-gets :: (M m) => (State -> a) -> m a
-gets f = fmap f get
-
-modify :: (M m) => (State -> State) -> m ()
-modify f = do
-    state <- get
-    put $! f state
-
 require :: (M m) => String -> Maybe a -> m a
 require err = maybe (throw err) return
 
--- * global
+require_right :: (M m) => String -> Either Error a -> m a
+require_right msg = either (throw . ((msg ++ ": ") ++) . show) return
 
-all_block_ids :: (M m) => m [BlockId]
-all_block_ids = Map.keys . state_blocks <$> get
+-- | Like 'require_right', but throw an IO exception.  Useful for tests.
+error_either :: (Show a, Monad m) => String -> Either Error a -> m a
+error_either msg = either (error . ((msg ++ ": ") ++) . show) return
 
-all_track_ids :: (M m) => m [TrackId]
-all_track_ids = Map.keys . state_tracks <$> get
-
--- * misc
-
--- | Unfortunately there are some invariants to protect within State.  This
--- will check the invariants and return an error if it's broken.
-verify :: State -> Maybe Error
-verify state = either Just (const Nothing) (exec state do_verify)
-
--- TODO
--- check that all TracklikeIds have referents
--- anything else?
-do_verify :: StateId ()
-do_verify = do
-    views <- gets (Map.elems . state_views)
-    mapM_ (get_block . Block.view_block) views
-    block_ids <- get_all_block_ids
-    blocks <- mapM get_block block_ids
-    mapM_ verify_block blocks
-
-verify_block :: (M m) => Block.Block -> m ()
-verify_block block = do
-    mapM_ get_track (Block.block_track_ids block)
-    mapM_ get_ruler (Block.block_ruler_ids block)
+-- * functions
 
 -- * config
 
@@ -363,7 +428,8 @@ set_root_id block_id =
     modify_config $ \st -> st { config_root = Just block_id }
 
 modify_config :: (M m) => (Config -> Config) -> m ()
-modify_config f = modify $ \st -> st { state_config = f (state_config st) }
+modify_config f = unsafe_modify $ \st ->
+    st { state_config = f (state_config st) }
 
 get_config :: (M m) => (Config -> a) -> m a
 get_config f = gets (f . state_config)
@@ -376,8 +442,8 @@ get_view view_id = get >>= lookup_id view_id . state_views
 lookup_view :: (M m) => ViewId -> m (Maybe Block.View)
 lookup_view view_id = get >>= return . Map.lookup view_id . state_views
 
-get_all_view_ids :: (M m) => m [ViewId]
-get_all_view_ids = gets (Map.keys . state_views)
+all_view_ids :: (M m) => m [ViewId]
+all_view_ids = gets (Map.keys . state_views)
 
 -- | Create a new view.  Block.view_tracks can be left empty, since it will
 -- be replaced by views generated from the the block.  If the caller uses the
@@ -398,7 +464,7 @@ create_view id view = do
         Nothing -> view
 
 destroy_view :: (M m) => ViewId -> m ()
-destroy_view view_id = modify $ \st ->
+destroy_view view_id = unsafe_modify $ \st ->
     st { state_views = Map.delete view_id (state_views st) }
 
 -- | Set a status variable on a view.
@@ -452,7 +518,7 @@ set_selection view_id selnum maybe_sel = do
 
 -- ** util
 
-update_view view_id view = modify $ \st -> st
+update_view view_id view = unsafe_modify $ \st -> st
     { state_views = Map.adjust (const view) view_id (state_views st) }
 modify_view view_id f = do
     view <- get_view view_id
@@ -460,35 +526,14 @@ modify_view view_id f = do
 
 -- * block
 
-get_all_block_ids :: (M m) => m [BlockId]
-get_all_block_ids = gets (Map.keys . state_blocks)
-
 get_block :: (M m) => BlockId -> m Block.Block
 get_block block_id = get >>= lookup_id block_id . state_blocks
 
 lookup_block :: (M m) => BlockId -> m (Maybe Block.Block)
 lookup_block block_id = get >>= return . Map.lookup block_id . state_blocks
 
-get_block_title :: (M m) => BlockId -> m String
-get_block_title = fmap Block.block_title . get_block
-
-set_block_title :: (M m) => BlockId -> String -> m ()
-set_block_title block_id title =
-    modify_block block_id (\block -> block { Block.block_title = title })
-
--- | Get the ruler from the given tracknum, or 'no_ruler' if there is none.
-get_ruler_at :: (M m) => BlockId -> TrackNum -> m RulerId
-get_ruler_at block_id tracknum = do
-    maybe_track <- block_track_at block_id tracknum
-    let ruler_id = maybe no_ruler id $ do
-            track <- maybe_track
-            Block.ruler_id_of (Block.tracklike_id track)
-    maybe_ruler <- lookup_ruler ruler_id
-    return $ maybe no_ruler (const ruler_id) maybe_ruler
-
--- | 0 is the conventional ruler tracknum.
-get_block_ruler :: (M m) => BlockId -> m RulerId
-get_block_ruler block_id = get_ruler_at block_id 0
+all_block_ids :: (M m) => m [BlockId]
+all_block_ids = gets (Map.keys . state_blocks)
 
 -- | Make a new block.  If it's the first one, it will be set as the root.
 -- This is the low level version, you probably want to use 'create_block'.
@@ -515,7 +560,7 @@ destroy_block :: (M m) => BlockId -> m ()
 destroy_block block_id = do
     views <- get_views_of block_id
     mapM_ destroy_view (Map.keys views)
-    modify $ \st -> st
+    unsafe_modify $ \st -> st
         { state_blocks = Map.delete block_id (state_blocks st)
         , state_config = let c = state_config st
             in c { config_root = if config_root c == Just block_id
@@ -528,9 +573,32 @@ block_of view_id = get_block . Block.view_block =<< get_view view_id
 block_id_of :: (M m) => ViewId -> m BlockId
 block_id_of view_id = Block.view_block <$> get_view view_id
 
+-- | Get all views of a given block.
+get_views_of :: (M m) => BlockId -> m (Map.Map ViewId Block.View)
+get_views_of block_id = do
+    views <- gets state_views
+    return $ Map.filter ((==block_id) . Block.view_block) views
+
+get_block_title :: (M m) => BlockId -> m String
+get_block_title = fmap Block.block_title . get_block
+
+set_block_title :: (M m) => BlockId -> String -> m ()
+set_block_title block_id title =
+    modify_block block_id (\block -> block { Block.block_title = title })
+
 modify_block_meta :: (M m) => BlockId -> (Block.Meta -> Block.Meta) -> m ()
 modify_block_meta block_id f = modify_block block_id $ \block ->
     block { Block.block_meta = f (Block.block_meta block) }
+
+set_integrated_block :: (M m) => BlockId
+    -> Maybe (BlockId, [Block.TrackDestination]) -> m ()
+set_integrated_block block_id integrated = modify_block block_id $ \block ->
+    block { Block.block_integrated = integrated }
+
+set_integrated_tracks :: (M m) => BlockId
+    -> [(TrackId, [Block.TrackDestination])] -> m ()
+set_integrated_tracks block_id tracks = modify_block block_id $ \block ->
+    block { Block.block_integrated_tracks = tracks }
 
 set_block_config :: (M m) => BlockId -> Block.Config -> m ()
 set_block_config block_id config =
@@ -564,7 +632,7 @@ block_ruler_end block_id = do
 block_event_end :: (M m) => BlockId -> m ScoreTime
 block_event_end block_id = do
     block <- get_block block_id
-    track_ends <- mapM track_end (Block.block_track_ids block)
+    track_ends <- mapM track_event_end (Block.block_track_ids block)
     return $ maximum (0 : track_ends)
 
 -- ** skeleton
@@ -649,9 +717,6 @@ verify_edge :: Block.Block -> Skeleton.Edge -> Maybe String
 verify_edge block (from, to) =
     mplus (verify_track block from) (verify_track block to)
 
--- *** TrackTree
-
-
 -- ** tracks
 
 -- | Insert a track at the given TrackNum.  The TrackNum can be out of range to
@@ -677,7 +742,8 @@ insert_track block_id tracknum track = do
         , Block.block_skeleton =
             Skeleton.insert tracknum (Block.block_skeleton block)
         }
-    modify $ \st -> st { state_views = Map.union views' (state_views st) }
+    unsafe_modify $ \st ->
+        st { state_views = Map.union views' (state_views st) }
 
 -- | Remove the track at the given tracknum.
 remove_track :: (M m) => BlockId -> TrackNum -> m ()
@@ -694,7 +760,22 @@ remove_track block_id tracknum = do
         , Block.block_skeleton =
             Skeleton.remove tracknum (Block.block_skeleton block)
         }
-    modify $ \st -> st { state_views = Map.union views (state_views st) }
+    unsafe_modify $ \st ->
+        st { state_views = Map.union views (state_views st) }
+
+move_track :: (M m) => BlockId -> TrackNum -> TrackNum -> m ()
+move_track block_id from to = do
+    block <- get_block block_id
+    let msg = "move_track: from index " ++ show from ++ " out of range"
+    modify_block block_id . const =<< require msg
+        (move_block_track from to block)
+
+move_block_track :: TrackNum -> TrackNum -> Block.Block -> Maybe Block.Block
+move_block_track from to block = do
+    tracks <- Seq.move from to (Block.block_tracks block)
+    skel <- Skeleton.move from to (Block.block_skeleton block)
+    return $ block
+        { Block.block_tracks = tracks, Block.block_skeleton = skel }
 
 -- *** tracks by TrackNum
 
@@ -713,6 +794,16 @@ block_track_at block_id tracknum
         block <- get_block block_id
         return $ Seq.at (Block.block_tracks block) tracknum
 
+get_block_track_at :: (M m) => BlockId -> TrackNum -> m Block.Track
+get_block_track_at block_id tracknum =
+    tracknum_in_range block_id tracknum =<< block_track_at block_id tracknum
+    where
+    tracknum_in_range block_id tracknum Nothing = do
+        count <- track_count block_id
+        throw $ "track " ++ Pretty.pretty (Track block_id tracknum)
+            ++ " out of range 0--" ++ show count
+    tracknum_in_range _ _ (Just a) = return a
+
 track_at :: (M m) => BlockId -> TrackNum -> m (Maybe Block.TracklikeId)
 track_at block_id tracknum = do
     maybe_track <- block_track_at block_id tracknum
@@ -724,13 +815,13 @@ event_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
     return $ Block.track_id_of =<< maybe_track
 
--- | Like 'event_track_at' but throws if it's not there.
-get_event_track_at :: (M m) => String -> BlockId -> TrackNum -> m TrackId
-get_event_track_at caller block_id tracknum =
-    require msg =<< event_track_at block_id tracknum
-    where
-    msg = caller ++ ": tracknum " ++ show tracknum ++ " not in "
-        ++ show block_id
+-- | Like 'event_track_at' but throws if it's not there or not an event track.
+get_event_track_at :: (M m) => BlockId -> TrackNum -> m TrackId
+get_event_track_at block_id tracknum = do
+    track <- get_block_track_at block_id tracknum
+    require ("track " ++ Pretty.pretty (Track block_id tracknum)
+            ++ " not an event track") $
+        Block.track_id_of (Block.tracklike_id track)
 
 -- | Get the RulerId of an event or ruler track.  It defaults to 'no_ruler'
 -- if the tracknum is out of range or doesn't have a ruler.
@@ -738,6 +829,10 @@ ruler_track_at :: (M m) => BlockId -> TrackNum -> m RulerId
 ruler_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
     return $ fromMaybe no_ruler $ Block.ruler_id_of =<< maybe_track
+
+-- | 0 is the conventional ruler tracknum.
+block_ruler :: (M m) => BlockId -> m RulerId
+block_ruler block_id = ruler_track_at block_id 0
 
 -- *** tracks by TrackId
 
@@ -766,20 +861,6 @@ get_tracknum_of block_id tid =
 
 -- *** block track
 
--- | Resolve a TracklikeId to a Tracklike.
-get_tracklike :: (M m) => Block.TracklikeId -> m Block.Tracklike
-get_tracklike track = case track of
-    Block.TId tid rid -> Block.T <$> get_track tid <*> get_ruler rid
-    Block.RId rid -> Block.R <$> get_ruler rid
-    Block.DId divider -> return (Block.D divider)
-
-get_block_track :: (M m) => BlockId -> TrackNum -> m Block.Track
-get_block_track block_id tracknum = do
-    block <- get_block block_id
-    let msg = "State.get_block_track: bad tracknum for " ++ show block_id
-            ++ ": " ++ show tracknum
-    require msg $ Seq.at (Block.block_tracks block) tracknum
-
 set_track_width :: (M m) => BlockId -> TrackNum -> Types.Width -> m ()
 set_track_width block_id tracknum width =
     modify_block_track block_id tracknum $ \btrack ->
@@ -806,10 +887,16 @@ modify_track_flags block_id tracknum f =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_flags = f (Block.track_flags btrack) }
 
+set_track_ruler :: (M m) => BlockId -> TrackNum -> RulerId -> m ()
+set_track_ruler block_id tracknum ruler_id = do
+    _ <- get_ruler ruler_id -- Throw if it doesn't exist.
+    modify_block_track block_id tracknum $
+        Block.modify_id (Block.set_rid ruler_id)
+
 -- | Merge the @from@ tracknum into the @to@ tracknum and collapse @from@.
 merge_track :: (M m) => BlockId -> TrackNum -> TrackNum -> m ()
 merge_track block_id to from = do
-    from_id <- get_event_track_at "State.merge_track" block_id from
+    from_id <- get_event_track_at block_id from
     modify_block_track block_id to $ \btrack ->
         btrack { Block.track_merged = from_id : Block.track_merged btrack }
     add_track_flag block_id from Block.Collapse
@@ -819,7 +906,7 @@ merge_track block_id to from = do
 -- it's obviously the opposite of \"merge\".
 unmerge_track :: (M m) => BlockId -> TrackNum -> m ()
 unmerge_track block_id tracknum = do
-    track_ids <- Block.track_merged <$> get_block_track block_id tracknum
+    track_ids <- Block.track_merged <$> get_block_track_at block_id tracknum
     unmerged_tracknums <-
         concatMapM (track_id_tracknums block_id) track_ids
     forM_ unmerged_tracknums $ \tracknum ->
@@ -831,6 +918,14 @@ set_merged_tracks block_id tracknum merged =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_merged = merged }
 
+-- | Resolve a TracklikeId to a Tracklike.
+get_tracklike :: (M m) => Block.TracklikeId -> m Block.Tracklike
+get_tracklike track = case track of
+    Block.TId tid rid -> Block.T <$> get_track tid <*> get_ruler rid
+    Block.RId rid -> Block.R <$> get_ruler rid
+    Block.DId divider -> return (Block.D divider)
+
+-- TODO I think this is just tracknum_of
 track_id_tracknums :: (M m) => BlockId -> TrackId -> m [TrackNum]
 track_id_tracknums block_id track_id = do
     block_tracks <- blocks_with_track track_id
@@ -922,7 +1017,7 @@ selectable_tracks block = do
 -- ** util
 
 set_block :: (M m) => BlockId -> Block.Block -> m ()
-set_block block_id block = modify $ \st -> st
+set_block block_id block = unsafe_modify $ \st -> st
     { state_blocks = Map.adjust (const block) block_id (state_blocks st) }
 
 modify_block :: (M m) => BlockId -> (Block.Block -> Block.Block) -> m ()
@@ -959,7 +1054,8 @@ destroy_track track_id = do
     blocks <- blocks_with_track track_id
     forM_ blocks $ \(block_id, tracks) -> forM_ tracks $ \(tracknum, _) ->
         remove_track block_id tracknum
-    modify $ \st -> st { state_tracks = Map.delete track_id (state_tracks st) }
+    unsafe_modify $ \st ->
+        st { state_tracks = Map.delete track_id (state_tracks st) }
 
 get_track_title :: (M m) => TrackId -> m String
 get_track_title = (Track.track_title <$>) . get_track
@@ -983,6 +1079,14 @@ modify_track_render track_id f = modify_track track_id $ \track ->
 set_render_style :: (M m) => Track.RenderStyle -> TrackId -> m ()
 set_render_style style track_id = modify_track_render track_id $
     \render -> render { Track.render_style = style }
+
+-- | Find @track_id@ in all the blocks it exists in, and return the track info
+-- for each tracknum at which @track_id@ lives.  Blocks with no matching tracks
+-- won't be returned, so the return track lists will always be non-null.
+blocks_with_track :: (M m) =>
+    TrackId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
+blocks_with_track track_id =
+    find_tracks_m ((== Just track_id) . Block.track_id_of)
 
 -- ** events
 
@@ -1068,28 +1172,14 @@ remove_event_range track_id start end =
         let evts = Events.ascending (Events.in_range start end events)
         in (Events.remove_events start end events, events_range evts)
 
-map_events_sorted :: (M m) => TrackId -> ScoreTime -> ScoreTime
-    -> ([Event.Event] -> [Event.Event]) -> m ()
-map_events_sorted track_id start end f = _modify_events track_id $ \events ->
-    let old = _events_in_range start end events
-        new = f old
-        deleted = if start == end
-            then Events.remove_event start events
-            else Events.remove_events start end events
-        starts = map Event.min $ mapMaybe Seq.head [old, new]
-        ends = map Event.max $ mapMaybe Seq.last [old, new]
-        ranges = if null starts || null ends then Ranges.nothing
-            else Ranges.range (minimum starts) (maximum ends)
-    in (Events.insert_sorted_events new deleted, ranges)
-
 _events_in_range :: ScoreTime -> ScoreTime -> Events.Events -> [Event.Event]
 _events_in_range start end events
     | start == end = maybe [] (:[]) (Events.at start events)
     | otherwise = Events.ascending (Events.in_range start end events)
 
 -- | Get the end of the last event of the block.
-track_end :: (M m) => TrackId -> m ScoreTime
-track_end track_id =
+track_event_end :: (M m) => TrackId -> m ScoreTime
+track_event_end track_id =
     Events.time_end . Track.track_events <$> get_track track_id
 
 -- | Emit track updates for all tracks.  Use this when events have changed but
@@ -1107,7 +1197,7 @@ update_all_tracks = do
 modify_track :: (M m) => TrackId -> (Track.Track -> Track.Track) -> m ()
 modify_track track_id f = do
     get_track track_id -- Throw if track_id doesn't exist.
-    modify $ \st ->
+    unsafe_modify $ \st ->
         st { state_tracks = Map.adjust f track_id (state_tracks st) }
 
 _modify_events :: (M m) => TrackId
@@ -1117,7 +1207,7 @@ _modify_events track_id f = do
     track <- get_track track_id
     let (new_events, ranges) = f (Track.track_events track)
         new_track = track { Track.track_events = new_events }
-    modify $ \st ->
+    unsafe_modify $ \st ->
         st { state_tracks = Map.insert track_id new_track (state_tracks st) }
     mapM_ update (ranges_to_updates track_id ranges)
 
@@ -1132,13 +1222,6 @@ events_range events = case (Seq.head events, Seq.last events) of
     _ -> Ranges.nothing
 
 -- * ruler
-
-ruler_of :: (M m) => BlockId -> m RulerId
-ruler_of block_id = require ("no ruler in " ++ show block_id)
-    =<< Seq.head <$> Block.block_ruler_ids <$> get_block block_id
-
-rulers_of :: (M m) => BlockId -> m [RulerId]
-rulers_of block_id = Seq.unique . Block.block_ruler_ids <$> get_block block_id
 
 get_ruler :: (M m) => RulerId -> m Ruler.Ruler
 get_ruler ruler_id
@@ -1169,36 +1252,42 @@ destroy_ruler ruler_id = do
             deruler (i, track) = Block.modify_id (setr i) track
         modify_block block_id $ \block -> block { Block.block_tracks =
             map deruler (Seq.enumerate (Block.block_tracks block)) }
-    modify $ \st -> st { state_rulers = Map.delete ruler_id (state_rulers st) }
+    unsafe_modify $ \st ->
+        st { state_rulers = Map.delete ruler_id (state_rulers st) }
 
 modify_ruler :: (M m) => RulerId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
 modify_ruler ruler_id f = do
     ruler <- get_ruler ruler_id
-    modify $ \st ->
+    unsafe_modify $ \st ->
         st { state_rulers = Map.insert ruler_id (f ruler) (state_rulers st) }
     update $ Update.CmdRuler ruler_id
 
--- * search
+ruler_of :: (M m) => BlockId -> m RulerId
+ruler_of block_id = require ("no ruler in " ++ show block_id)
+    =<< Seq.head <$> Block.block_ruler_ids <$> get_block block_id
 
--- | Get all views of a given block.
-get_views_of :: (M m) => BlockId -> m (Map.Map ViewId Block.View)
-get_views_of block_id = do
-    views <- gets state_views
-    return $ Map.filter ((==block_id) . Block.view_block) views
-
--- | Find @track_id@ in all the blocks it exists in, and return the track info
--- for each tracknum at which @track_id@ lives.  Blocks with no matching tracks
--- won't be returned, so the return track lists will always be non-null.
-blocks_with_track :: (M m) =>
-    TrackId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
-blocks_with_track track_id =
-    find_tracks_m ((== Just track_id) . Block.track_id_of)
+rulers_of :: (M m) => BlockId -> m [RulerId]
+rulers_of block_id = Seq.unique . Block.block_ruler_ids <$> get_block block_id
 
 -- | Just like 'blocks_with_track' except for ruler_id.
 blocks_with_ruler :: (M m) =>
     RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 blocks_with_ruler ruler_id =
     find_tracks_m ((== Just ruler_id) . Block.ruler_id_of)
+
+-- | Since all TracklikeIds must have a ruler, all States have a special empty
+-- ruler that can be used in a \"no ruler\" situation.
+--
+-- This RulerId is implicitly present in every block.  It's not actually in
+-- 'state_rulers' to avoid it getting renamed or deleted, but 'get_ruler' will
+-- pretend it exists.  As long as everyone that cares about no_ruler (which is
+-- only 'verify' and 'get_tracklike' for "Ui.Sync") uses 'get_ruler' then
+-- they won't be confused by tracks that have no_ruler.
+no_ruler :: RulerId
+no_ruler = Types.RulerId (Id.global "-no-ruler-")
+
+
+-- * util
 
 find_tracks_m :: (M m) => (Block.TracklikeId -> Bool)
     -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
@@ -1215,9 +1304,8 @@ find_tracks f blocks = do
     all_tracks block = Seq.enumerate (Block.block_tracks block)
     get_tracks block =
         [ (tracknum, Block.tracklike_id track)
-        | (tracknum, track) <- all_tracks block, f (Block.tracklike_id track)]
-
--- * util
+        | (tracknum, track) <- all_tracks block, f (Block.tracklike_id track)
+        ]
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, Show k, M m) => k -> Map.Map k a -> m a
@@ -1233,7 +1321,7 @@ insert key val get_map set_map = do
     state <- get
     when (key `Map.member` get_map state) $
         throw $ show key ++ " already exists"
-    put (set_map (Map.insert key val (get_map state)) state)
+    unsafe_put (set_map (Map.insert key val (get_map state)) state)
     return key
 
 -- | Modify the @i@th element of @xs@ by applying @f@ to it.
@@ -1243,3 +1331,26 @@ modify_at msg xs i f = case post of
         ++ " of list with length " ++ show (length xs)
     (elt:rest) -> return (pre ++ f elt : rest)
     where (pre, post) = splitAt i xs
+
+-- * verify
+
+-- | Unfortunately there are some invariants to protect within State.  This
+-- will check the invariants and return an error if it's broken.
+verify :: State -> Maybe Error
+verify state = either Just (const Nothing) (exec state do_verify)
+
+-- TODO
+-- check that all TracklikeIds have referents
+-- anything else?
+do_verify :: StateId ()
+do_verify = do
+    views <- gets (Map.elems . state_views)
+    mapM_ (get_block . Block.view_block) views
+    block_ids <- all_block_ids
+    blocks <- mapM get_block block_ids
+    mapM_ verify_block blocks
+
+verify_block :: (M m) => Block.Block -> m ()
+verify_block block = do
+    mapM_ get_track (Block.block_track_ids block)
+    mapM_ get_ruler (Block.block_ruler_ids block)

@@ -122,7 +122,7 @@ block_tracks block_id f = do
             =<< f block_id track_id events
 
 all_blocks :: (Cmd.M m) => Track m -> m ()
-all_blocks f = mapM_ (flip block_tracks f) =<< State.get_all_block_ids
+all_blocks f = mapM_ (flip block_tracks f) =<< State.all_block_ids
 
 
 -- * misc

@@ -120,8 +120,7 @@ resolve_instrument :: (Cmd.M m) => BlockId -> TrackNum -> Score.Instrument
 resolve_instrument block_id tracknum inst
     | inst /= Score.default_inst = return inst
     | otherwise = do
-        track_id <- State.get_event_track_at "get_track_status"
-            block_id tracknum
+        track_id <- State.get_event_track_at block_id tracknum
         fromMaybe inst <$> lookup_instrument block_id (Just track_id)
 
 -- | Lookup value from the deriver's Environ at the given block and (possibly)
