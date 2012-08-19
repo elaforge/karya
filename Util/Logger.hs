@@ -9,25 +9,27 @@
 module Util.Logger (
     LoggerT, run, exec, MonadLogger(..), logs
 ) where
-
 import Prelude hiding (log)
+import qualified Control.Applicative as Applicative
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Reader as Reader
-import qualified Control.Monad.State.Strict as State
+import qualified Control.Monad.State.Lazy as Lazy
+import qualified Control.Monad.State.Strict as Strict
 import qualified Control.Monad.Trans as Trans
 import qualified Control.Monad.Writer as Writer
+
 import qualified Data.Monoid as Monoid
 
 
 -- | This uses a plain list for now.  DList is not actually very efficient for
 -- appends because appending nil doesn't strictly eliminate the nil.
-newtype LoggerT w m a = LoggerT { runLoggerT :: State.StateT [w] m a }
-    deriving (Functor, Monad, Trans.MonadTrans, Trans.MonadIO,
-        Error.MonadError e, Reader.MonadReader r)
+newtype LoggerT w m a = LoggerT { runLoggerT :: Strict.StateT [w] m a }
+    deriving (Applicative.Applicative, Functor, Monad, Trans.MonadTrans,
+        Trans.MonadIO, Error.MonadError e, Reader.MonadReader r)
 
 run :: (Monad m) => LoggerT w m a -> m (a, [w])
 run m = do
-    (result, logs) <- State.runStateT (runLoggerT m) []
+    (result, logs) <- Strict.runStateT (runLoggerT m) []
     return (result, reverse logs)
 
 exec :: (Monad m) => LoggerT w m a -> m [w]
@@ -42,21 +44,25 @@ logs msgs = mapM_ log msgs
 
 instance (Monad m) => MonadLogger w (LoggerT w m) where
     log msg = LoggerT $ do
-        ms <- State.get
-        State.put $! (msg:ms)
+        ms <- Strict.get
+        Strict.put $! (msg:ms)
     peek = LoggerT $ do
-        ms <- State.get
+        ms <- Strict.get
         return $! reverse ms
 
 -- | I think I can't automatically derive this because LoggerT itself is
 -- a StateT.
-instance (State.MonadState s m) => State.MonadState s (LoggerT w m) where
-    get = Trans.lift State.get
-    put = Trans.lift . State.put
+instance (Strict.MonadState s m) => Strict.MonadState s (LoggerT w m) where
+    get = Trans.lift Strict.get
+    put = Trans.lift . Strict.put
 
 -- mtl instances
 
-instance (MonadLogger w m) => MonadLogger w (State.StateT s m) where
+instance (MonadLogger w m) => MonadLogger w (Strict.StateT s m) where
+    log = Trans.lift . log
+    peek = Trans.lift peek
+
+instance (MonadLogger w m) => MonadLogger w (Lazy.StateT s m) where
     log = Trans.lift . log
     peek = Trans.lift peek
 
