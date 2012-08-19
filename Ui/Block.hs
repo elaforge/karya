@@ -209,7 +209,7 @@ data TracklikeId =
     TId TrackId RulerId
     | RId RulerId
     | DId Divider
-    deriving (Eq, Show, Read)
+    deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty TracklikeId where
     pretty tlike_id = case tlike_id of

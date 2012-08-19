@@ -111,7 +111,7 @@ module Ui.State (
     , find_tracks
 
     -- * verify
-    , verify -- TODO should be done automatically by put
+    , quick_verify, verify -- TODO should be done automatically by put
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
@@ -316,16 +316,14 @@ unsafe_modify f = do
     state <- get
     unsafe_put $! f state
 
-
+-- | TODO verify
 put :: (M m) => State -> m ()
-put state = do
-    -- TODO verify
-    unsafe_put state
-    update_all_tracks
+put state = unsafe_put state >> update_all_tracks
 
--- | TODO modify and verify
 modify :: (M m) => (State -> State) -> m ()
-modify = unsafe_modify
+modify f = do
+    state <- get
+    put $! f state
 
 -- | Run the given StateT with the given initial state, and return a new
 -- state along with updates.  Normally updates are produced by 'Ui.Diff.diff',
@@ -660,7 +658,7 @@ modify_skeleton block_id f = do
 toggle_skeleton_edge :: (M m) => BlockId -> Skeleton.Edge -> m Bool
 toggle_skeleton_edge block_id edge = do
     block <- get_block block_id
-    when_just (verify_edge block edge) (throw . ("toggle: " ++))
+    when_just (edges_in_range block edge) (throw . ("toggle: " ++))
     let skel = Block.block_skeleton block
     case Skeleton.toggle_edge edge skel of
         Nothing -> return False
@@ -673,7 +671,7 @@ add_edges :: (M m) => BlockId -> [Skeleton.Edge] -> m ()
 add_edges block_id edges = do
     skel <- get_skeleton block_id
     block <- get_block block_id
-    when_just (msum (map (verify_edge block) edges))
+    when_just (msum (map (edges_in_range block) edges))
         (throw . ("add_adges: " ++))
     maybe (throw $ "add_edges " ++ show edges ++ " to " ++ show skel
             ++ " would have caused a cycle")
@@ -697,24 +695,24 @@ splice_skeleton_below = _splice_skeleton False
 _splice_skeleton :: (M m) => Bool -> BlockId -> TrackNum -> TrackNum -> m ()
 _splice_skeleton above block_id new to = do
     block <- get_block block_id
-    when_just (msum (map (verify_track block) [new, to]))
+    when_just (msum (map (edge_in_range block) [new, to]))
         (throw . ("splice: " ++))
     let splice = if above then Skeleton.splice_above else Skeleton.splice_below
     maybe (throw $ "splice_skeleton: " ++ show (new, to)
             ++ " would have caused a cycle")
         (set_skeleton block_id) (splice new to (Block.block_skeleton block))
 
-verify_track :: Block.Block -> TrackNum -> Maybe String
-verify_track block tracknum =
+edge_in_range :: Block.Block -> TrackNum -> Maybe String
+edge_in_range block tracknum =
     case Seq.at (Block.block_tracks block) tracknum of
         Nothing -> Just $ "tracknum out of range: " ++ show tracknum
         Just t -> case Block.tracklike_id t of
             Block.TId {} -> Nothing
             _ -> Just $ "edge points to non-event track: " ++ show t
 
-verify_edge :: Block.Block -> Skeleton.Edge -> Maybe String
-verify_edge block (from, to) =
-    mplus (verify_track block from) (verify_track block to)
+edges_in_range :: Block.Block -> Skeleton.Edge -> Maybe String
+edges_in_range block (from, to) =
+    mplus (edge_in_range block from) (edge_in_range block to)
 
 -- ** tracks
 
@@ -1327,21 +1325,115 @@ modify_at msg xs i f = case post of
 
 -- | Unfortunately there are some invariants to protect within State.  This
 -- will check the invariants and return an error if it's broken.
-verify :: State -> Maybe Error
-verify state = either Just (const Nothing) (exec state do_verify)
+--
+-- 'verify' is better, but more expensive, so I'm reluctant to run it on every
+-- single cmd.  If I run 'verify' before unsafe puts and trust this module to
+-- maintain invariants then I don't need to, but I don't fully trust this
+-- module.
+--
+-- TODO a better approach would be to make sure Sync can't be broken by State.
+quick_verify :: State -> Maybe Error
+quick_verify state = either Just (const Nothing) (exec state do_verify)
+    where
+    do_verify = do
+        views <- gets (Map.elems . state_views)
+        mapM_ (get_block . Block.view_block) views
+        block_ids <- Map.keys <$> gets state_blocks
+        blocks <- mapM get_block block_ids
+        mapM_ verify_block blocks
+    verify_block block = do
+        mapM_ get_track (Block.block_track_ids block)
+        mapM_ get_ruler (Block.block_ruler_ids block)
 
--- TODO
--- check that all TracklikeIds have referents
--- anything else?
-do_verify :: StateId ()
+-- | Unfortunately there are some invariants to protect within State.
+-- They can all be fixed by dropping things, so this will fix them and return
+-- a list of warnings.
+verify :: State -> (State, [String])
+verify state = case run_id state do_verify of
+    Left err -> (state, ["exception: " ++ Pretty.pretty err])
+    Right (errs, state, _) -> (state, errs)
+
+do_verify :: StateId [String]
 do_verify = do
-    views <- gets (Map.elems . state_views)
-    mapM_ (get_block . Block.view_block) views
-    block_ids <- all_block_ids
-    blocks <- mapM get_block block_ids
-    mapM_ verify_block blocks
+    views <- gets (Map.toList . state_views)
+    view_errs <- concatMapM (uncurry verify_view) views
+    blocks <- gets (Map.toList . state_blocks)
+    block_errs <- concatMapM (uncurry verify_block) blocks
+    return $ view_errs ++ block_errs
 
-verify_block :: (M m) => Block.Block -> m ()
-verify_block block = do
-    mapM_ get_track (Block.block_track_ids block)
-    mapM_ get_ruler (Block.block_ruler_ids block)
+-- | BlockId is valid.
+verify_view :: ViewId -> Block.View -> StateId [String]
+verify_view view_id view = do
+    block <- lookup_block (Block.view_block view)
+    case block of
+        Just _ -> return []
+        Nothing -> do
+            destroy_view view_id
+            return [show view_id ++ ": dropped because of invalid "
+                ++ show (Block.view_block view)]
+
+-- | TODO
+-- - Valid block_integrated.
+-- - Valid integrated tracks, and track ids are from on this block.
+-- - Valid TrackDestinations.
+-- - No TrackIds duplicated between TrackDestinations.
+-- - No null TrackDestinations.
+--
+-- TODO set_integrated_tracks and set_integrated_block should also check these
+-- invariants.
+verify_block :: BlockId -> Block.Block -> StateId [String]
+verify_block block_id block =
+    map ((show block_id ++ ": ") ++) . concat <$> sequence
+        [ valid_track_ids block_id block
+        , unique_track_ids block_id block
+        , valid_ruler_ids block_id block
+        , valid_skeleton block_id block
+        , concatMapM (valid_merged block_id) tracks
+        ]
+    where tracks = zip [0..] (Block.block_tracks block)
+
+-- | Drop invalid track ids.
+valid_track_ids :: BlockId -> Block.Block -> StateId [String]
+valid_track_ids block_id block = do
+    all_track_ids <- gets state_tracks
+    let is_valid = (`Map.member` all_track_ids)
+    let invalid = filter (not . is_valid . snd) (block_event_tracknums block)
+    mapM_ (remove_track block_id) (map fst invalid)
+    return ["tracknum " ++ show tracknum ++ ": dropped invalid "
+        ++ show track_id | (tracknum, track_id) <- invalid]
+
+-- | Replace invalid ruler ids with no_ruler.
+valid_ruler_ids :: BlockId -> Block.Block -> StateId [String]
+valid_ruler_ids _block_id _block = return [] -- TODO
+
+-- | Each TrackId of a block is unique.
+unique_track_ids :: BlockId -> Block.Block -> StateId [String]
+unique_track_ids block_id block = do
+    let invalid = concatMap snd $ snd $
+            Seq.partition_dups snd (block_event_tracknums block)
+    mapM_ (remove_track block_id) (map fst invalid)
+    return ["tracknum " ++ show tracknum ++ ": dropped duplicate "
+        ++ show track_id | (tracknum, track_id) <- invalid]
+
+-- | Skeleton tracknums in range.
+valid_skeleton :: BlockId -> Block.Block -> StateId [String]
+valid_skeleton _block_id _block = return [] -- TODO
+
+-- | Strip invalid Block.track_merged.
+valid_merged :: BlockId -> (TrackNum, Block.Track) -> StateId [String]
+valid_merged block_id (tracknum, track) = do
+    all_track_ids <- gets state_tracks
+    let is_valid = (`Map.member` all_track_ids)
+    let (valid, invalid) = List.partition is_valid (Block.track_merged track)
+    unless (null invalid) $
+        modify_block_track block_id tracknum
+            (const $ track { Block.track_merged = valid })
+    return ["tracknum " ++ show tracknum ++ ": stripped invalid merged "
+        ++ show track_id | track_id <- invalid]
+
+block_event_tracknums :: Block.Block -> [(TrackNum, TrackId)]
+block_event_tracknums block =
+    [(tracknum, track_id) | (tracknum, Just track_id) <- zip [0..] track_ids]
+    where
+    track_ids = map (Block.track_id_of . Block.tracklike_id)
+        (Block.block_tracks block)

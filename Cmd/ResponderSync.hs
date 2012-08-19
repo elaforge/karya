@@ -70,7 +70,7 @@ get_track_signals maybe_root st = fromMaybe Map.empty $ do
 --
 -- If there were a need, Cmd.State verification could go here too.
 verify_state :: State.State -> IO ()
-verify_state state = when_just (State.verify state) $ \err ->
+verify_state state = when_just (State.quick_verify state) $ \err ->
     Log.error $ "state error while verifying: " ++ Pretty.pretty err
 
 modified_view :: Update.UiUpdate -> Bool
