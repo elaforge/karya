@@ -20,6 +20,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.SaveGit as SaveGit
 
+import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -86,8 +87,9 @@ ly_dir = do
     return $ save_file ++ "_ly"
 
 lookup_key :: Cmd.Performance -> Pitch.Key
-lookup_key perf = fromMaybe Twelve.default_key $ msum $
-        map lookup $ Map.elems (Msg.perf_track_environ perf)
+lookup_key perf =
+    fromMaybe Twelve.default_key $ msum $ map (lookup . Derive.state_environ) $
+        Map.elems (Msg.perf_track_dynamic perf)
     where
     lookup environ = case TrackLang.lookup_val TrackLang.v_key environ of
         Right key -> Just (Pitch.Key key)

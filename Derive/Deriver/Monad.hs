@@ -44,7 +44,8 @@ module Derive.Deriver.Monad (
 
     -- * state
     , State(..), initial_state
-    , Dynamic(..), initial_controls, default_dynamic
+    , Dynamic(..), initial_dynamic
+    , initial_controls, default_dynamic
 
     -- ** scope
     , Scope(..), empty_scope, ScopeType(..), empty_scope_type
@@ -62,7 +63,7 @@ module Derive.Deriver.Monad (
 
     -- ** collect
     , Collect(..), Integrated(..)
-    , TrackEnviron
+    , TrackDynamic
 
     -- * calls
     , NoteCallMap, ControlCallMap, PitchCallMap, ValCallMap
@@ -378,7 +379,7 @@ data Dynamic = Dynamic {
     -- | This is a free-form stack which can be used to prefix log msgs with
     -- a certain string.
     , state_log_context :: ![String]
-    }
+    } deriving (Show)
 
 initial_dynamic :: Scope -> TrackLang.Environ -> Dynamic
 initial_dynamic scope environ = Dynamic
@@ -542,7 +543,7 @@ data Collect = Collect {
     -- efficient when it inverts them to get playback position.
     collect_warp_map :: !TrackWarp.WarpMap
     , collect_track_signals :: !Track.TrackSignals
-    , collect_track_environ :: !TrackEnviron
+    , collect_track_dynamic :: !TrackDynamic
     -- | This is how a call records its dependencies.  After evaluation of
     -- a deriver, this will contain the dependencies of the most recent call.
     , collect_local_dep :: !GeneratorDep
@@ -585,7 +586,7 @@ instance Monoid.Monoid Collect where
 --
 -- This is a much simpler solution which will hopefully work well enough in
 -- practice.
-type TrackEnviron = Map.Map (BlockId, TrackId) TrackLang.Environ
+type TrackDynamic = Map.Map (BlockId, TrackId) Dynamic
 
 
 -- ** calls

@@ -177,7 +177,7 @@ performance :: Derive.Result -> Cmd.Performance
 performance result = Cmd.Performance
     { Cmd.perf_derive_cache = Derive.r_cache result
     , Cmd.perf_events = Derive.r_events result
-    , Cmd.perf_track_environ = Derive.r_track_environ result
+    , Cmd.perf_track_dynamic = Derive.r_track_dynamic result
     , Cmd.perf_integrated = Derive.r_integrated result
     , Cmd.perf_score_damage = mempty
     , Cmd.perf_warps = TrackWarp.collections $ Derive.collect_warp_map $

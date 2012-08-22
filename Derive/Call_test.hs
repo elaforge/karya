@@ -211,9 +211,10 @@ test_inverting_n = do
             =<< Derive.pitch_at =<< Derive.real next
         Derive.d_at (Args.start args) $ Util.pitched_note next_pitch 1
 
-test_track_environ = do
+test_track_dynamic = do
     let run = extract . DeriveTest.derive_tracks
-        extract = Map.toList . Map.map e_env . Derive.r_track_environ
+        extract = Map.toList . Map.map (e_env . Derive.state_environ)
+            . Derive.r_track_dynamic
         e_env e = (Pretty.pretty $ Map.lookup TrackLang.v_instrument e,
             Pretty.pretty $ Map.lookup TrackLang.v_scale e)
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
@@ -221,6 +222,27 @@ test_track_environ = do
         [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">inst", "*legong"))
         , ((UiTest.default_block_id, UiTest.mk_tid 2), (">inst", "*legong"))
         ]
+
+-- TODO what's the difference?  Merge these?
+test_track_dynamic2 = do
+    let extract = map extract1 . Map.assocs . Derive.r_track_dynamic
+        extract1 ((bid, tid), dyn) =
+            -- (Pretty.pretty (take 2 (Stack.innermost stack)), env)
+            (bid, tid,
+                Map.lookup TrackLang.v_scale env,
+                Map.lookup TrackLang.v_instrument env)
+            where env = Derive.state_environ dyn
+    let res = DeriveTest.derive_blocks
+            [ ("b", [("*legong", [(0, 0, "1")]), (">i1", [(0, 1, "sub")])])
+            , ("sub", [(">", [(0, 1, "")]), ("*", [(0, 0, "2")])])
+            ]
+    let inst = Just $ TrackLang.VInstrument $ Score.Instrument "i1"
+        scale = Just $ TrackLang.VScaleId $ Legong.scale_id
+    equal (extract res)
+        [ (UiTest.bid "b", UiTest.mk_tid_name "b" 1, scale, Nothing)
+        , (UiTest.bid "b", UiTest.mk_tid_name "b" 2, scale, inst)
+        , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 1, scale, inst)
+        , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 2, scale, inst)
         ]
 
 -- * implementation

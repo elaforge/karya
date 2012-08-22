@@ -80,11 +80,12 @@ insert_environ name val environ =
 
 -- | Figure out the current block and track, and record the current environ
 -- in the Collect.  It only need be recorded once per track.
-record_track_environ :: State -> Collect
-record_track_environ state = case stack of
-        Stack.Track tid : Stack.Block bid : _ ->
-            mempty { collect_track_environ = Map.singleton (bid, tid)
-                (state_environ (state_dynamic state)) }
+record_track_dynamic :: State -> Collect
+record_track_dynamic state = case stack of
+        Stack.Track tid : Stack.Block bid : _ -> mempty
+            { collect_track_dynamic =
+                Map.singleton (bid, tid) (state_dynamic state)
+            }
         _ -> mempty
     where
     -- Strip the stack down to the most recent track and block, since it will

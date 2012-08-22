@@ -122,9 +122,9 @@ extract_derive_result res =
     where
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
-        Cmd.Performance cache events track_env integrated _damage warps tsigs
+        Cmd.Performance cache events track_dyn integrated _damage warps tsigs
             <- Perf.get_root
-        return $ Derive.Result events cache warps tsigs track_env integrated
+        return $ Derive.Result events cache warps tsigs track_dyn integrated
             (error "can't fake a Derive.State for an extracted Result")
 
 update_performance :: State.State -> State.State -> Cmd.State
@@ -366,14 +366,16 @@ set_env root_id block_id track_id environ =
             (Cmd.state_performance st)
         }
     where
-    track_env = Map.singleton (block_id, track_id) (Map.fromList environ)
-    perf = empty_performance { Cmd.perf_track_environ = track_env }
+    track_dyn = Map.singleton (block_id, track_id)
+        (mkdyn (Map.fromList environ))
+    perf = empty_performance { Cmd.perf_track_dynamic = track_dyn }
+    mkdyn = Derive.initial_dynamic Derive.empty_scope
 
 empty_performance :: Msg.Performance
 empty_performance = Cmd.Performance
     { Cmd.perf_derive_cache = mempty
     , Cmd.perf_events = []
-    , Cmd.perf_track_environ = mempty
+    , Cmd.perf_track_dynamic = mempty
     , Cmd.perf_integrated = []
     , Cmd.perf_score_damage = mempty
     , Cmd.perf_warps = []

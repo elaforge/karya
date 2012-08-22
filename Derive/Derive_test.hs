@@ -21,12 +21,10 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
-import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
@@ -134,26 +132,6 @@ test_stack = do
         [ b0 0 1 ++ [Stack.Call "note"]
         , b0 1 2 ++ sub 0 1
         , b0 1 2 ++ sub 1 2
-        ]
-
-test_track_environ = do
-    let extract = map extract1 . Map.assocs . Derive.r_track_environ
-        extract1 ((bid, tid), env) =
-            -- (Pretty.pretty (take 2 (Stack.innermost stack)), env)
-            (bid, tid,
-                Map.lookup TrackLang.v_scale env,
-                Map.lookup TrackLang.v_instrument env)
-    let res = DeriveTest.derive_blocks
-            [ ("b", [("*semar", [(0, 0, "1")]), (">i1", [(0, 1, "sub")])])
-            , ("sub", [(">", [(0, 1, "")]), ("*", [(0, 0, "2")])])
-            ]
-    let inst = Just $ TrackLang.VInstrument $ Score.Instrument "i1"
-        scale = Just $ TrackLang.VScaleId $ Pitch.ScaleId "semar"
-    equal (extract res)
-        [ (UiTest.bid "b", UiTest.mk_tid_name "b" 1, scale, Nothing)
-        , (UiTest.bid "b", UiTest.mk_tid_name "b" 2, scale, inst)
-        , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 1, scale, inst)
-        , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 2, scale, inst)
         ]
 
 test_simple_subderive = do

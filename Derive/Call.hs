@@ -180,7 +180,7 @@ derive_track :: forall derived. (Derive.Derived derived) =>
     -> GetLastSample derived -> [Event.Event]
     -> ([LEvent.LEvents derived], Derive.Collect)
 derive_track state tinfo parse get_last_sample events =
-    go (Internal.record_track_environ state) Nothing "" [] events
+    go (Internal.record_track_dynamic state) Nothing "" [] events
     where
     -- This threads the collect through each event.  I would prefer to map and
     -- mconcat, but it's also quite a bit slower.

@@ -124,7 +124,7 @@ resolve_instrument block_id tracknum inst
         fromMaybe inst <$> lookup_instrument block_id (Just track_id)
 
 -- | Lookup value from the deriver's Environ at the given block and (possibly)
--- track.  See 'Derive.TrackEnviron' for details on the limitations here.
+-- track.  See 'Derive.TrackDynamic' for details on the limitations here.
 --
 -- The value is taken first from the root performance, and then the given
 -- block's performance if not present in the root performance.  This is so
@@ -140,21 +140,28 @@ lookup_val block_id maybe_track_id name =
         either (Cmd.throw . ("Perf.lookup_val: "++)) return
             (TrackLang.checked_val name env)
 
-get_environ :: (Cmd.M m) => BlockId -> Maybe TrackId
-    -> m (Maybe TrackLang.Environ)
-get_environ block_id maybe_track_id = do
-    maybe_val <- maybe Nothing (lookup . Cmd.perf_track_environ) <$> lookup_root
-    case maybe_val of
-        Just val -> return (Just val)
+get_dynamic :: (Cmd.M m) => BlockId -> Maybe TrackId
+    -> m (Maybe Derive.Dynamic)
+get_dynamic block_id maybe_track_id = do
+    maybe_dyn <- maybe Nothing (lookup . Cmd.perf_track_dynamic) <$>
+        lookup_root
+    case maybe_dyn of
+        Just dyn -> return $ Just dyn
         Nothing ->
-            maybe Nothing (lookup . Cmd.perf_track_environ) <$>
+            maybe Nothing (lookup . Cmd.perf_track_dynamic) <$>
                 Cmd.lookup_performance block_id
     where
-    lookup env = case maybe_track_id of
+    lookup track_dyns = case maybe_track_id of
         Nothing -> do
-            (_, env) <- List.find ((==block_id) . fst . fst) (Map.toAscList env)
-            return env
-        Just track_id -> Map.lookup (block_id, track_id) env
+            (_, dyn) <- List.find ((==block_id) . fst . fst)
+                (Map.toAscList track_dyns)
+            return dyn
+        Just track_id -> Map.lookup (block_id, track_id) track_dyns
+
+get_environ :: (Cmd.M m) => BlockId -> Maybe TrackId
+    -> m (Maybe TrackLang.Environ)
+get_environ block_id maybe_track_id =
+    fmap Derive.state_environ <$> get_dynamic block_id maybe_track_id
 
 
 -- * play
