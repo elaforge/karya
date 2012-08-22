@@ -20,6 +20,7 @@ import qualified Ui.Style as Style
 import qualified Ui.Track as Track
 import qualified Ui.Util as Util
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
 
@@ -180,6 +181,8 @@ instance Storable Track.ValName where
     peek _ = error "ValName peek unimplemented"
     poke dp (Track.ValName (val, name)) = do
         -- C is expected to free this!
-        namep <- newCString name
-        (#poke ValName, val) dp val
+        namep <- newCString (Pitch.note_text name)
+        -- TODO the val should be an integral Degree, but I haven't updated
+        -- the c++ yet.
+        (#poke ValName, val) dp (fromIntegral val :: Double)
         (#poke ValName, name) dp namep

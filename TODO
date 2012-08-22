@@ -27,7 +27,9 @@ UNSORTED
     retune, e.g. just.  But it means PitchSignal.Pitches need to emit degrees
     in addition to NoteNumbers, and I'd need an extra derive to compute the
     degree signal.  It would be nice to have a way to skip that for Twelve.
-    - Change Track.make_scale_map to [(Pitch.Note, Pitch.Degree)]
+    * Change Track.make_scale_map to [(Pitch.Note, Pitch.Degree)]
+    - As long as it's just note numbers, I should make the drawing code ignore
+      the scale map.
 
   - I could move cmd_play_msg out of Cmd.PlayC if I moved
     Sync.set_track_signals to the ResponderSync via a magic return value.

@@ -10,6 +10,7 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Types
@@ -120,12 +121,13 @@ instance Pretty.Pretty TrackSignal where
 
 -- | ScaleMaps are sorted by their scale degree number.
 newtype ScaleMap = ScaleMap [ValName] deriving (Show, Eq, Pretty.Pretty)
-newtype ValName = ValName (Double, String) deriving (Show, Eq, Pretty.Pretty)
+newtype ValName = ValName (Pitch.Degree, Pitch.Note)
+    deriving (Show, Eq, Pretty.Pretty)
 
 -- | Create a scale map from [(name, degree)].  The degree is defined per-scale
 -- and are just a way to indicate which degree name the pitch is at.
 --
 -- Not all scales have well defined degrees, so not all scales will have
 -- a scale map.
-make_scale_map :: [(String, Double)] -> ScaleMap
-make_scale_map = ScaleMap . map ValName . List.sort . Tuple.swap
+make_scale_map :: [(Pitch.Note, Pitch.Degree)] -> ScaleMap
+make_scale_map = ScaleMap . map ValName . List.sort . map Tuple.swap

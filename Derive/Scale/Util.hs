@@ -42,8 +42,8 @@ scale_map notes inputs nns = ScaleMap
 type InputMap = Map.Map Pitch.InputKey (Pitch.NoteNumber, Pitch.Note)
 
 make_scale_map :: ScaleMap -> Track.ScaleMap
-make_scale_map smap = Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
-    | (n, d) <- Map.assocs (smap_note_to_degree smap)]
+make_scale_map smap = Track.make_scale_map
+    [(n, d) | (n, d) <- Map.assocs (smap_note_to_degree smap)]
 
 transpose :: ScaleMap -> Pitch.Octave -> Derive.Transpose
 transpose scale_map per_octave = \_key octaves steps note -> do

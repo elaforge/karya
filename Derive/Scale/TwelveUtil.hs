@@ -36,9 +36,8 @@ type Keys = Map.Map Pitch.Key Theory.Key
 -- * functions
 
 scale_map :: System -> Track.ScaleMap
-scale_map sys =
-    Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
-        | (n, (_, d)) <- Map.toList (sys_note_to_degree sys)]
+scale_map sys = Track.make_scale_map
+    [(n, d) | (n, (_, d)) <- Map.toList (sys_note_to_degree sys)]
 
 transpose :: System -> Derive.Transpose
 transpose sys maybe_key octaves steps note = do

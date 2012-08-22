@@ -42,8 +42,8 @@ make_scale scale_id ratios = Scale.Scale
     , Scale.scale_input_to_nn = TwelveUtil.input_to_nn
     }
 
-scale_map :: [(String, Double)]
-scale_map = [(show_pitch p, n) | (n, p) <- zip [0..] pitches]
+scale_map :: [(Pitch.Note, Pitch.Degree)]
+scale_map = [(pitch_note p, n) | (n, p) <- zip [0..] pitches]
     where
     notes = [Theory.Note pc 0 | pc <- [0..6]]
     pitches = [Theory.to_pitch oct note | oct <- [-1..9], note <- notes]
@@ -64,10 +64,10 @@ note_of degreef = Pitch.Note $ Call.Pitch.note_expr note frac
     where
     (degree, frac) = properFraction degreef
     (octave, pc) = degree `divMod` pc_per_octave
-    note = Pitch.Note $ Theory.show_pitch "" "" "" "" $
-        Theory.Pitch (octave - 2) (Theory.Note pc 0) -- XXX
+    note = pitch_note$ Theory.Pitch (octave - 2) (Theory.Note pc 0) -- XXX
 
-show_pitch = Theory.show_pitch "" "" "" ""
+pitch_note :: Theory.Pitch -> Pitch.Note
+pitch_note = Pitch.Note . Theory.show_pitch "" "" "" ""
 
 nn_to_degree :: Vector.Vector Double
 nn_to_degree = Vector.fromList $ take 127 $
@@ -87,7 +87,7 @@ transpose _key oct transpose note = do
     let steps = floor $ case transpose of
             Pitch.Chromatic steps -> steps
             Pitch.Diatonic steps -> steps
-    Right $ TwelveUtil.show_pitch $ Theory.transpose_pitch pc_per_octave
+    Right $ pitch_note $ Theory.transpose_pitch pc_per_octave
         (oct * pc_per_octave + steps) pitch
 
 pc_per_octave :: Theory.PitchClass
