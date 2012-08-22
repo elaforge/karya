@@ -9,7 +9,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.EditUtil as EditUtil
 
-import qualified Derive.Scale.Semar as Semar
+import qualified Derive.Scale.Legong as Legong
 
 
 test_modify_text_key = do
@@ -34,7 +34,7 @@ test_parse_key = do
 
     -- Fake up a Performance that overrides the default *twelve.
     let set_env = CmdTest.set_scale UiTest.default_block_id
-            UiTest.default_block_id (UiTest.mk_tid 2) Semar.scale_id
+            UiTest.default_block_id (UiTest.mk_tid 2) Legong.scale_id
     let f = EditUtil.parse_key
     equal (run (f (Pitch.InputKey 60)))
         (Right (Just (Pitch.Note "4c"), []))

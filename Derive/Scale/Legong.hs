@@ -1,9 +1,9 @@
--- | Saih Semar Pegulingan.
+-- | Saih Pelegongan.
 --
--- Tuning for my pelog instruments.
+-- Tuning for my gender rambat.
 --
 -- TODO: pengisep and pengumbang
-module Derive.Scale.Semar where
+module Derive.Scale.Legong where
 
 import qualified Perform.Pitch as Pitch
 import qualified Derive.Scale as Scale
@@ -21,14 +21,13 @@ scale = Scale.Scale
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = Util.transpose scale_map 5
     , Scale.scale_enharmonics = Util.no_enharmonics
-
     , Scale.scale_note_to_call = Util.note_to_call scale_map
     , Scale.scale_input_to_note = Util.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.input_to_nn scale_map
     }
 
 scale_id :: Pitch.ScaleId
-scale_id = Pitch.ScaleId "semar"
+scale_id = Pitch.ScaleId "legong"
 
 scale_map :: Util.ScaleMap
 scale_map = Util.scale_map (align notes) (align inputs) note_numbers

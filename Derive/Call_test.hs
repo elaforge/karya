@@ -20,6 +20,7 @@ import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Instrument.Util as Instrument.Util
+import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -215,10 +216,11 @@ test_track_environ = do
         extract = Map.toList . Map.map e_env . Derive.r_track_environ
         e_env e = (Pretty.pretty $ Map.lookup TrackLang.v_instrument e,
             Pretty.pretty $ Map.lookup TrackLang.v_scale e)
-    -- Both tracks get *semar, even though >inst has to be inverted to see it.
-    equal (run [(">inst", [(0, 0, "")]), ("*semar", [(0, 0, "1")])])
-        [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">inst", "*semar"))
-        , ((UiTest.default_block_id, UiTest.mk_tid 2), (">inst", "*semar"))
+    -- Both tracks get *legong, even though >inst has to be inverted to see it.
+    equal (run [(">inst", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
+        [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">inst", "*legong"))
+        , ((UiTest.default_block_id, UiTest.mk_tid 2), (">inst", "*legong"))
+        ]
         ]
 
 -- * implementation

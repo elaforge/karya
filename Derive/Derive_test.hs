@@ -312,10 +312,10 @@ test_initial_environ = do
             ]
     -- picks up scale from initial environ
     equal (run "*" "3c") ([[(0, 48)]], [])
-    -- calls replaced by semar calls
-    equal (run "*semar" "3c") ([[]], ["Error: pitch call not found: 3c"])
-    -- just make sure semar actually works
-    equal (run "*semar" "1") ([[(0, 72.46)]], [])
+    -- calls replaced by legong calls
+    equal (run "*legong" "3c") ([[]], ["Error: pitch call not found: 3c"])
+    -- just make sure legong actually works
+    equal (run "*legong" "1") ([[(0, 72.46)]], [])
 
     -- I'd like to test inst, but it's just too hard.  I would have to get
     -- DeriveTest.default_constant to get the inst lookup like
@@ -484,7 +484,7 @@ test_fractional_pitch = do
     -- Note.trim_pitches.
     let res = DeriveTest.derive_tracks
             [ (inst_title, [(0, 16, ""), (16, 16, "")])
-            , ("*semar", [(0, 16, "1"), (16, 16, "2")])
+            , ("*legong", [(0, 16, "1"), (16, 16, "2")])
             ]
     let (_perf_events, mmsgs, logs) =
             DeriveTest.perform_defaults (Derive.r_events res)
