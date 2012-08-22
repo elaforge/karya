@@ -13,7 +13,7 @@ module Util.Pretty (
     , format_commas, text_list, comma_list, record, record_title
     , constructor
     -- * misc
-    , show_float, read_word
+    , show_float, show_float0, read_word
 ) where
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.UTF8 as UTF8
@@ -189,15 +189,20 @@ surround left right x = PP.char left <> x <> PP.char right
 -- and leading zeros.  Haskell requires a 0 before the decimal point, so
 -- this produces unparseable strings.
 show_float :: (RealFloat a) => Int -> a -> String
-show_float precision f = clean $ Numeric.showFFloat Nothing f ""
+show_float precision = drop0 . show_float0 precision
     where
-    clean = drop0 . Seq.rdrop_while (=='.')
-        . (Then.takeWhile (/='.') $ Then.take 1 $
-            \rest -> Seq.rdrop_while (=='0') (take precision rest))
     drop0 "0" = "0"
     drop0 ('-':'0':'.':s) = '-':'.':s
     drop0 ('0':'.':s) = '.':s
     drop0 s = s
+
+-- | Like 'show_float', but use a leading 0, so haskell can parse it.
+show_float0 :: (RealFloat a) => Int -> a -> String
+show_float0 precision f = clean $ Numeric.showFFloat Nothing f ""
+    where
+    clean = Seq.rdrop_while (=='.')
+        . (Then.takeWhile (/='.') $ Then.take 1 $
+            \rest -> Seq.rdrop_while (=='0') (take precision rest))
 
 -- * Read
 

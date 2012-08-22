@@ -83,7 +83,7 @@ newtype NoteNumber = NoteNumber Double
     deriving (Eq, Ord, Fractional, Real, RealFrac, Num)
 
 instance Show NoteNumber where
-    show (NoteNumber nn) = Pretty.show_float 2 nn ++ "nn"
+    show (NoteNumber nn) = Pretty.show_float0 3 nn ++ "nn"
 instance Read NoteNumber where
     readPrec = do
         n <- Read.readPrec

@@ -436,7 +436,7 @@ string = PP.doubleQuotes . PP.text
 show_pitch :: Theory.Pitch -> Either String String
 show_pitch pitch = (++ oct_mark) <$> show_pitch_note note
     where
-    (octave, note) = Theory.split_pitch pitch
+    (octave, note) = Theory.from_pitch pitch
     oct_mark = let oct = octave - 3
         in if oct >= 0 then replicate oct '\'' else replicate (abs oct) ','
 
