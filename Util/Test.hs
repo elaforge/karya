@@ -84,6 +84,8 @@ check_msg_srcpos srcpos ok msg
     | ok = success_srcpos srcpos ("assertion true: " ++ msg)
     | otherwise = failure_srcpos srcpos ("assertion false: " ++ msg)
 
+-- * equal and diff
+
 equal :: (Show a, Eq a) => a -> a -> IO Bool
 equal = equal_srcpos Nothing
 
@@ -144,6 +146,8 @@ diff xs ys = (concatMap fnums diffs, concatMap snums diffs,
 newtype NumberedLine = NumberedLine (Int, String)
 instance Eq NumberedLine where
     NumberedLine (_, s1) == NumberedLine (_, s2) = s1 == s2
+
+-- * other assertions
 
 -- | Strings in the first list match regexes in the second list.
 strings_like :: [String] -> [String] -> IO Bool

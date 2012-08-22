@@ -100,7 +100,7 @@ all_notes :: [Theory.Note]
 all_notes = [Theory.Note pc accs | pc <- [0..6], accs <- [-2..2]]
 
 all_pitches :: [Theory.Pitch]
-all_pitches = [Theory.pitch oct note | oct <- [-2..9], note <- all_notes]
+all_pitches = [Theory.to_pitch oct note | oct <- [-2..9], note <- all_notes]
 
 make_keys :: String -> [Theory.Semi] -> [Theory.Key]
 make_keys name intervals =

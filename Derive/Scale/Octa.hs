@@ -66,7 +66,7 @@ all_notes :: [Theory.Note]
 all_notes = [Theory.Note pc accs | pc <- [0..7], accs <- [-1..1]]
 
 all_pitches :: [Theory.Pitch]
-all_pitches = [Theory.pitch oct note | oct <- [-2..9], note <- all_notes]
+all_pitches = [Theory.to_pitch oct note | oct <- [-2..9], note <- all_notes]
 
 make_keys :: Theory.Layout -> String -> [Theory.Semi] -> [Theory.Key]
 make_keys layout name intervals =

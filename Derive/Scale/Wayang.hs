@@ -38,7 +38,6 @@ make_scale scale_map scale_id = Scale.Scale
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = Util.transpose scale_map 5
     , Scale.scale_enharmonics = Util.no_enharmonics
-
     , Scale.scale_note_to_call = Util.note_to_call scale_map
     , Scale.scale_input_to_note = Util.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.input_to_nn scale_map

@@ -47,14 +47,14 @@ make_scale_map smap = Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
 
 transpose :: ScaleMap -> Pitch.Octave -> Derive.Transpose
 transpose scale_map per_octave = \_key octaves steps note -> do
-        note_degree <- maybe (Left Scale.UnparseableNote) Right $
-            Map.lookup note (smap_note_to_degree scale_map)
-        let degrees = case steps of
-                Pitch.Diatonic steps -> d (floor steps)
-                Pitch.Chromatic steps -> d (floor steps)
-        maybe (Left Scale.InvalidTransposition) Right $
-            Map.lookup (note_degree + d octaves * d per_octave + degrees)
-                (smap_degree_to_note scale_map)
+    note_degree <- maybe (Left Scale.UnparseableNote) Right $
+        Map.lookup note (smap_note_to_degree scale_map)
+    let degrees = case steps of
+            Pitch.Diatonic steps -> d (floor steps)
+            Pitch.Chromatic steps -> d (floor steps)
+    maybe (Left Scale.InvalidTransposition) Right $
+        Map.lookup (note_degree + d octaves * d per_octave + degrees)
+            (smap_degree_to_note scale_map)
     where d = Pitch.Degree
 
 -- | Create a note call that respects chromatic and diatonic transposition.

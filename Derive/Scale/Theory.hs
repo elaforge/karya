@@ -30,11 +30,17 @@ module Derive.Scale.Theory (
     , enharmonics_of
     , pitch_to_semis, semis_to_pitch
     -- * types
-    , PitchClass, pc_char
-    , Pitch(pitch_note), pitch, split_pitch, modify_octave, Note(..), Semi
+    , PitchClass, Degree, Semi, Octave, char_pc, pc_char
+    , Pitch(..), to_pitch, from_pitch
+    , parse_pitch, parse_note
+    , modify_octave, transpose_pitch
+    , Note(..)
     , Key(key_tonic, key_name, key_layout), key, show_key
+    , key_degrees_per_octave
     , layout
     , show_pitch
+    -- * util
+    , diatonic_degree_of
 #ifndef TESTING
     , Layout(layout_intervals)
 #else
@@ -207,6 +213,7 @@ type Degree = Int
 
 -- | Number of semitones.
 type Semi = Int
+-- | Middle C is octave 4.
 type Octave = Int
 
 -- | Positive for sharps, negative for flats.
@@ -229,33 +236,36 @@ data Pitch = Pitch {
 instance Pretty.Pretty Pitch where
     pretty = show_pitch "#" "x" "b" "bb"
 
-pitch :: Octave -> Note -> Pitch
-pitch octave note = Pitch oct note
+-- | Internally octaves wrap at A, but externally they wrap at C.  So don't
+-- export the Pitch constructors so external callers have to use 'to_pitch' and
+-- 'from_pitch', which adjusts the octave.
+to_pitch :: Octave -> Note -> Pitch
+to_pitch octave note = Pitch oct note
     where oct = if note_pc note >= 2 then octave - 1 else octave
+
+from_pitch :: Pitch -> (Octave, Note)
+from_pitch (Pitch octave note) =
+    (if note_pc note >= 2 then octave + 1 else octave, note)
 
 -- | Show and read pitches in the usual letter format.
 show_pitch :: String -> String -> String -> String -> Pitch -> String
 show_pitch sharp sharp2 flat flat2 pitch =
     show oct ++ show_note sharp sharp2 flat flat2 note
-    where (oct, note) = split_pitch pitch
+    where (oct, note) = from_pitch pitch
 
 parse_pitch :: String -> Maybe Pitch
-parse_pitch = ParseBs.maybe_parse_string (tweak <$> p_pitch)
-    where
-    tweak pitch
-        | note_pc (pitch_note pitch) >= 2 =
-            pitch { pitch_octave = pitch_octave pitch - 1 }
-        | otherwise = pitch
-
--- | Internally octaves wrap at A, but externally they wrap at C.  So don't
--- export the Pitch constructors so external callers have to use 'split_pitch',
--- which adjusts the octave.
-split_pitch :: Pitch -> (Octave, Note)
-split_pitch (Pitch octave note) =
-    (if note_pc note >= 2 then octave + 1 else octave, note)
+parse_pitch = ParseBs.maybe_parse_string (uncurry to_pitch <$> p_pitch)
 
 modify_octave :: (Octave -> Octave) -> Pitch -> Pitch
 modify_octave f (Pitch octave note) = Pitch (f octave) note
+
+-- | Transpose a pitch by diatonic steps.  Simpler than 'transpose_diatonic'
+-- in that it doesn't deal with key signatures or non-diatonic scales at all.
+transpose_pitch :: Degree -> Semi -> Pitch -> Pitch
+transpose_pitch per_oct steps (Pitch octave (Note pc accs)) =
+    Pitch (oct + octave) (Note pc2 accs)
+    where (oct, pc2) = (pc + steps) `divMod` per_oct
+
 
 -- *** Note
 
@@ -275,8 +285,8 @@ note_in_layout :: Layout -> Note -> Bool
 note_in_layout layout note =
     0 <= note_pc note && note_pc note < layout_max_pc layout
 
-p_pitch :: A.Parser Pitch
-p_pitch = Pitch <$> ParseBs.p_int <*> p_note
+p_pitch :: A.Parser (Octave, Note)
+p_pitch = (,) <$> ParseBs.p_int <*> p_note
 
 p_note :: A.Parser Note
 p_note = p_note_with "#" "x" "b" "bb"
@@ -405,7 +415,7 @@ layout_max_pc = Vector.length . layout_intervals
 degree_of :: Key -> Note -> Degree
 degree_of key note
     | key_is_diatonic key = diatonic_degree_of key (note_pc note)
-    | otherwise = (Vector.find_before semis (key_intervals key))
+    | otherwise = Vector.find_before semis (key_intervals key)
     where semis = note_to_semis (key_layout key) note
 
 -- | Figure out the score degree of a diatonic key.  In a diatonic key, the

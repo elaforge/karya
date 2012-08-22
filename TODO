@@ -1,4 +1,20 @@
 UNSORTED
+  Just scales, along with TwelveUtil support
+    * simple just scale with no accidentals
+    bugs:
+      - kbd input isn't tuning the just scale properly
+      - pitchbends getting lost, and being audible: save/bug-pitchbend*
+    - test modulating and setting a new base hz
+    - better retuning and gradual retuning
+  - It's a bit unpleasant how I have TwelveUtils for accidental and key using
+    scales, then Scale.Util for simple scales, and then Just is its own thing.
+    Can I unify things into one framework?
+  - Scale.InvalidTransposition isn't right for an nn out of range
+    But that indicates a bug in the scale, right?
+  - The base-C to base-A conversion is messier than it should be.  Really it's
+    just a display issue, so it should be restricted to read/show functions,
+    right?
+
   * if there are no events, \ zoom to fit should zoom to fit the ruler
     Or maybe it should always do that?
   * implement Local.Instrument.Kontakt composite kendang as a stream postproc
@@ -11,6 +27,8 @@ UNSORTED
     retune, e.g. just.  But it means PitchSignal.Pitches need to emit degrees
     in addition to NoteNumbers, and I'd need an extra derive to compute the
     degree signal.  It would be nice to have a way to skip that for Twelve.
+    - Change Track.make_scale_map to [(Pitch.Note, Pitch.Degree)]
+
   - I could move cmd_play_msg out of Cmd.PlayC if I moved
     Sync.set_track_signals to the ResponderSync via a magic return value.
     I could then get rid of the CPP hack in Ui.Ui I think.

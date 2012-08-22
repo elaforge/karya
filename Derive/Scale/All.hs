@@ -10,6 +10,7 @@ import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Just as Just
 import qualified Derive.Scale.Octa as Octa
 import qualified Derive.Scale.Ratio as Ratio
 import qualified Derive.Scale.Semar as Semar
@@ -25,5 +26,5 @@ scales :: Map.Map Pitch.ScaleId Scale.Scale
 shadowed :: [Pitch.ScaleId]
 (scales, shadowed) = mk $
     [Ratio.scale, Twelve.scale, Semar.scale]
-    ++ Wayang.scales ++ Octa.scales
+    ++ Wayang.scales ++ Octa.scales ++ Just.scales
     where mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id
