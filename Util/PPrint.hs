@@ -72,7 +72,9 @@ list xs = concatMap (\(i, x) -> Printf.printf "%d. %s\n" i x)
 parse :: (HsModule -> String) -> String -> String
 parse format s = case Parser.parseModule ("value = " ++ s) of
     Parser.ParseOk m -> format m
-    Parser.ParseFailed _ _   -> s
+    -- The formatted version appends a newline, so the unformatted one should
+    -- too.
+    Parser.ParseFailed _ _   -> s ++ "\n"
 
 format_parsed :: HsModule -> String
 format_parsed = strip_boilerplate . pprint_mode
@@ -94,8 +96,7 @@ strip_match pattern str = go pattern str
     go (p:ps) s = case strip s of
         c : cs | p == c -> go ps cs
         _ -> str
-
-strip = dropWhile Char.isSpace
+    strip = dropWhile Char.isSpace
 
 pprint_mode :: (Pretty.Pretty a) => a -> String
 pprint_mode = Pretty.prettyPrintStyleMode pp_style Pretty.defaultMode
