@@ -142,6 +142,8 @@ pitch_call track maybe_name scale_id expr deriver =
             (signal, logs) <- derive
             -- Ignore errors, they should be logged on conversion.
             (nn_sig, _) <- pitch_signal_to_nn signal
+            -- TODO this is incorrect, the track signal should be degrees, not
+            -- nns.
             stash_signal track (Signal.coerce nn_sig) (to_psig derive)
                 (Just scale_map)
             merge_logs logs $ with_damage $
@@ -328,6 +330,9 @@ eval_signal track expr ctype = case ctype of
         scale <- get_scale scale_id
         -- TODO I log derivation errors... why not log pitch errors?
         (nn_sig, _) <- pitch_signal_to_nn sig
+        -- TODO this is incorrect, it should return scale degrees, not NNs.
+        -- But that would mean that PitchSignal.Pitches need to be able to emit
+        -- degrees in addition to NoteNumbers.
         return $ track_sig nn_sig (Just (Scale.scale_map scale))
     where
     track_sig sig scale_map =

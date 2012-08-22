@@ -6,6 +6,11 @@ UNSORTED
     Map ScoreTime Event, but it would eliminate PosEvent entirely.  And come
     to think about it, the map is private to Ui.Events.
 
+  - If I want pitch signal render to work right, it should be in terms of
+    degrees, not NoteNumbers.  Otherwise it just can't work for scales that
+    retune, e.g. just.  But it means PitchSignal.Pitches need to emit degrees
+    in addition to NoteNumbers, and I'd need an extra derive to compute the
+    degree signal.  It would be nice to have a way to skip that for Twelve.
   - I could move cmd_play_msg out of Cmd.PlayC if I moved
     Sync.set_track_signals to the ResponderSync via a magic return value.
     I could then get rid of the CPP hack in Ui.Ui I think.
