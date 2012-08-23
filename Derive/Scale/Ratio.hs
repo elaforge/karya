@@ -42,7 +42,7 @@ scale = Scale.Scale
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
     , Scale.scale_input_to_note = \_ _ -> Nothing
-    , Scale.scale_input_to_nn = const Nothing
+    , Scale.scale_input_to_nn = Util.direct_input_to_nn
     }
 
 scale_id :: Pitch.ScaleId

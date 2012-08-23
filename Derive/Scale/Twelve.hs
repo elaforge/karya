@@ -37,7 +37,7 @@ scale = Scale.Scale
     , Scale.scale_enharmonics = TwelveUtil.enharmonics system
     , Scale.scale_note_to_call = TwelveUtil.note_to_call system
     , Scale.scale_input_to_note = TwelveUtil.input_to_note system
-    , Scale.scale_input_to_nn = TwelveUtil.input_to_nn
+    , Scale.scale_input_to_nn = Util.direct_input_to_nn
     }
 
 scale_id :: Pitch.ScaleId

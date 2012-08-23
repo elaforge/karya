@@ -862,9 +862,13 @@ data Scale = Scale {
     , scale_input_to_note :: !(Maybe Pitch.Key -> Pitch.InputKey
         -> Maybe Pitch.Note)
     -- | Used by MIDI thru.  This is a shortcut for
-    -- @eval . note_to_call . input_to_note@ but can be implemented more
+    -- @eval . note_to_call . input_to_note@ but can often be implemented more
     -- efficiently by the scale.
-    , scale_input_to_nn :: !(Pitch.InputKey -> Maybe Pitch.NoteNumber)
+    --
+    -- TODO if controls had (shift, stretch) I could shift the controls
+    -- efficiently and not have to worry about passing the pos separately.
+    , scale_input_to_nn ::
+        !(ScoreTime -> Pitch.InputKey -> Deriver (Maybe Pitch.NoteNumber))
     }
 
 type LookupScale = Pitch.ScaleId -> Maybe Scale

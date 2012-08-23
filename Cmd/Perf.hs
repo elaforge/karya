@@ -20,6 +20,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -33,16 +34,22 @@ import Types
 
 -- * notes
 
--- | Convert a note to a degree by running a mini derivation just for it.
--- This means that if the note does anything magic based on its environment,
--- it will get the base environment for a derivation from scratch.
---
--- TODO I could take BlockId and TrackId and derive it in the proper environ.
-note_to_pitch :: (Cmd.M m) => Pitch.ScaleId -> Pitch.Note
-    -> m (Either String PitchSignal.Pitch)
-note_to_pitch scale_id note = do
+-- | Convert a note to a note number by running a mini derivation just for it.
+note_to_pitch :: (Cmd.M m) => Pitch.ScaleId -> BlockId -> TrackId -> ScoreTime
+    -> Pitch.Note -> m (Either String Pitch.NoteNumber)
+note_to_pitch scale_id block_id track_id pos note = do
     scale <- Cmd.get_scale "Perf.note_to_pitch" scale_id
-    derive (Derive.with_scale scale (Call.eval_note (TrackLang.Note note [])))
+    case Scale.scale_note_to_call scale note of
+        Nothing -> return $ Left $ "no call for " ++ show note
+        Just call -> derive_at block_id track_id $ do
+            val <- Call.apply (TrackLang.Symbol (Pitch.note_text note)) call []
+            case val of
+                TrackLang.VPitch pitch -> do
+                    controls <- Derive.controls_at =<< Derive.real pos
+                    either (Derive.throw . show) return $
+                        PitchSignal.eval_pitch pitch controls
+                _ -> Derive.throw $
+                    "note call returned non-pitch: " ++ show val
 
 -- | A cheap quick derivation that sets up the correct initial state, but
 -- runs without the cache and throws away any logs.
@@ -53,8 +60,21 @@ derive deriver = do
         Left err -> Left $ Pretty.pretty err
         Right val -> Right val
 
+derive_at :: (Cmd.M m) => BlockId -> TrackId
+    -> Derive.Deriver a -> m (Either String a)
+derive_at block_id track_id deriver = do
+    dynamic <- fromMaybe empty_dynamic <$> get_dynamic block_id (Just track_id)
+    (val, _, _) <- PlayUtil.run_with_state dynamic deriver
+    return $ either (Left . Pretty.pretty) Right val
+    where
+    empty_dynamic = Derive.initial_dynamic Derive.empty_scope mempty
+
 
 -- * signal
+
+-- TODO this looks in TrackSignal, which are the signals sent to the UI, and
+-- so they're in score time.  If I want the ones in RealTime, or if I want
+-- a PitchSignal, I have to look in TrackDynamic.
 
 -- | Look up the signal of a track from the last derivation.  It's looked up
 -- in the root block's performance.
@@ -140,6 +160,11 @@ lookup_val block_id maybe_track_id name =
         either (Cmd.throw . ("Perf.lookup_val: "++)) return
             (TrackLang.checked_val name env)
 
+get_environ :: (Cmd.M m) => BlockId -> Maybe TrackId
+    -> m (Maybe TrackLang.Environ)
+get_environ block_id maybe_track_id =
+    fmap Derive.state_environ <$> get_dynamic block_id maybe_track_id
+
 get_dynamic :: (Cmd.M m) => BlockId -> Maybe TrackId
     -> m (Maybe Derive.Dynamic)
 get_dynamic block_id maybe_track_id = do
@@ -157,11 +182,6 @@ get_dynamic block_id maybe_track_id = do
                 (Map.toAscList track_dyns)
             return dyn
         Just track_id -> Map.lookup (block_id, track_id) track_dyns
-
-get_environ :: (Cmd.M m) => BlockId -> Maybe TrackId
-    -> m (Maybe TrackLang.Environ)
-get_environ block_id maybe_track_id =
-    fmap Derive.state_environ <$> get_dynamic block_id maybe_track_id
 
 
 -- * play

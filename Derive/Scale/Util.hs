@@ -6,13 +6,16 @@ import qualified Data.Set as Set
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Ui.Track as Track
+import qualified Derive.Call as Call
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Types
 
 
 -- * ScaleMap
@@ -85,10 +88,35 @@ input_to_note smap _key input = flip fmap (lookup_input input input_map) $
     \(_, step, frac) -> join_note (Pitch.note_text step) frac
     where input_map = smap_input_to_note smap
 
-input_to_nn :: ScaleMap -> Pitch.InputKey -> Maybe Pitch.NoteNumber
-input_to_nn smap input =
+-- | Map an InputKey to a NoteNumber through the ScaleMap.
+mapped_input_to_nn :: ScaleMap -> ScoreTime -> Pitch.InputKey
+    -> Derive.Deriver (Maybe Pitch.NoteNumber)
+mapped_input_to_nn smap _ input = return $
     fmap (\(nn, _, _) -> nn) (lookup_input input input_map)
     where input_map = smap_input_to_note smap
+
+-- | An InputKey maps directly to a NoteNumber.  This is for scales tuned to
+-- 12TET.
+direct_input_to_nn :: ScoreTime -> Pitch.InputKey
+    -> Derive.Deriver (Maybe Pitch.NoteNumber)
+direct_input_to_nn _ (Pitch.InputKey nn) = return $ Just (Pitch.NoteNumber nn)
+
+-- | Convert input to nn by going through note_to_call.  This works for
+-- complicated scales that retune based on position but is more work.
+input_to_nn ::  (Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note)
+    -> (Pitch.Note -> Maybe Derive.ValCall)
+    -> ScoreTime -> Pitch.InputKey -> Derive.Deriver (Maybe Pitch.NoteNumber)
+input_to_nn input_to_note note_to_call pos input
+    | Just note <- input_to_note Nothing input,
+            Just call <- note_to_call note = do
+        val <- Call.apply (TrackLang.Symbol (Pitch.note_text note)) call []
+        case val of
+            TrackLang.VPitch pitch -> do
+                controls <- Derive.controls_at =<< Derive.real pos
+                return $ either (const Nothing) Just $
+                    PitchSignal.eval_pitch pitch controls
+            _ -> return $ Nothing
+    | otherwise = return Nothing
 
 lookup_input :: Pitch.InputKey -> InputMap
     -> Maybe (Pitch.NoteNumber, Pitch.Note, Frac)

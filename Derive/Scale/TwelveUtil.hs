@@ -88,9 +88,6 @@ input_to_note sys maybe_key (Pitch.InputKey key_nn) =
         flip Map.lookup (sys_keys sys) =<< maybe_key
     (degree, cents) = properFraction key_nn
 
-input_to_nn :: Pitch.InputKey -> Maybe Pitch.NoteNumber
-input_to_nn (Pitch.InputKey nn) = Just (Pitch.NoteNumber nn)
-
 
 -- * implementation
 

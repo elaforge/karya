@@ -51,6 +51,8 @@ import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import Cmd.InputNote (NoteId)
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Perf as Perf
+import qualified Cmd.Selection as Selection
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -76,7 +78,7 @@ cmd_midi_thru msg = do
     scale <- Cmd.get_scale "cmd_midi_thru" scale_id
     input <- Cmd.require_msg
         (Pretty.pretty scale_id ++ " doesn't have " ++ show input)
-        (map_scale patch_scale scale input)
+        =<< map_scale patch_scale scale input
 
     addrs <- Map.get [] score_inst <$> State.get_midi_alloc
     wdev_state <- Cmd.get_wdev_state
@@ -88,17 +90,27 @@ cmd_midi_thru msg = do
     mapM_ (uncurry Cmd.midi) thru_msgs
     return Cmd.Continue
 
-map_scale :: Instrument.PatchScale -> Scale.Scale -> InputNote.Input
-    -> Maybe InputNote.Input
+map_scale :: (Cmd.M m) => Instrument.PatchScale -> Scale.Scale
+    -> InputNote.Input -> m (Maybe InputNote.Input)
 map_scale patch_scale scale input = case input of
-        InputNote.NoteOn note_id key vel ->
-            fmap (\k -> InputNote.NoteOn note_id k vel) (convert key)
-        InputNote.PitchChange note_id key ->
-            fmap (\k -> InputNote.PitchChange note_id k) (convert key)
-        _ -> Just input
+        InputNote.NoteOn note_id key vel -> do
+            maybe_nn <- convert key
+            return $ fmap (\k -> InputNote.NoteOn note_id k vel) maybe_nn
+        InputNote.PitchChange note_id key -> do
+            maybe_nn <- convert key
+            return $ fmap (\k -> InputNote.PitchChange note_id k) maybe_nn
+        _ -> return $ Just input
     where
-    convert input_key = fmap nn_to_input $
-        map_patch_scale patch_scale =<< Scale.scale_input_to_nn scale input_key
+    convert input_key = do
+        (block_id, _, track_id, pos) <- Selection.get_insert
+        maybe_nn <- Perf.derive_at block_id track_id $
+            Scale.scale_input_to_nn scale pos input_key
+        case maybe_nn of
+            Left err -> Cmd.throw $
+                "error deriving input key's nn: " ++ show err
+            Right Nothing -> return Nothing
+            Right (Just nn) ->
+                return $ nn_to_input <$> map_patch_scale patch_scale nn
     nn_to_input (Pitch.NoteNumber nn) = Pitch.InputKey nn
 
 map_patch_scale :: Instrument.PatchScale -> Pitch.NoteNumber

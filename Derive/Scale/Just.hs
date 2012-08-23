@@ -16,6 +16,7 @@ import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
 
+
 -- Key is just the base note.
 
 scales :: [Scale.Scale]
@@ -38,7 +39,8 @@ make_scale scale_id ratios = Scale.Scale
     , Scale.scale_enharmonics = Util.no_enharmonics
     , Scale.scale_note_to_call = note_to_call ratios
     , Scale.scale_input_to_note = input_to_note
-    , Scale.scale_input_to_nn = input_to_nn
+    , Scale.scale_input_to_nn =
+        Util.input_to_nn input_to_note (note_to_call ratios)
     }
 
 scale_map :: [(Pitch.Note, Pitch.Degree)]
@@ -57,16 +59,6 @@ input_to_note _key (Pitch.InputKey key_nn) = case (degree1, degree2) of
     degree1 = nn_to_degree Vector.!? input_degree
     degree2 = nn_to_degree Vector.!? (input_degree + 1)
     (input_degree, frac) = properFraction key_nn
-
--- TODO
-input_to_nn :: Pitch.InputKey -> Maybe Pitch.NoteNumber
-input_to_nn (Pitch.InputKey nn) = Just (Pitch.NoteNumber nn)
-    -- note = input_to_note key input
-    -- call = note_to_call note
-    -- let dynamic = make_dynamic controls pitches pitch environ no_warp
-    --          no_scope no_damage fake_stack no_log_context
-    -- case Derive.eval environ dynamic $ Call.apply call args of
-    --          VPitch pitch -> PitchSignal.pitch_nn pitch
 
 note_of :: Double -> Pitch.Note
 note_of degreef = Pitch.Note $ Call.Pitch.note_expr note frac

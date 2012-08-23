@@ -79,6 +79,19 @@ run cache damage deriver = do
             (State.default_instrument deflt)
     return $ Derive.derive constant scope env deriver
 
+-- | Run a derivation when you already know the Dynamic.  This is the case when
+-- deriving at a certain point in the score via the TrackDynamic.
+run_with_state :: (Cmd.M m) => Derive.Dynamic -> Derive.Deriver a
+    -> m (Derive.RunResult a)
+run_with_state dynamic deriver = do
+    ui_state <- State.get
+    lookup_scale <- Cmd.get_lookup_scale
+    lookup_inst <- get_lookup_inst
+    let constant = Derive.initial_constant ui_state lookup_scale lookup_inst
+            mempty mempty -- cache damage
+    let state = Derive.State dynamic mempty constant
+    return $ Derive.run state deriver
+
 get_lookup_inst :: (Cmd.M m) => m (Score.Instrument -> Maybe Derive.Instrument)
 get_lookup_inst = do
     inst_db <- Cmd.gets Cmd.state_instrument_db

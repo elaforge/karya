@@ -1,4 +1,5 @@
 UNSORTED
+  - do something about Call_test.test_track_dynamic2
   Just scales, along with TwelveUtil support
     * simple just scale with no accidentals
     - why does 4c seem a semi-tone lower in just?
@@ -9,10 +10,11 @@ UNSORTED
         It needs the environ, and should really have the signals too.  But
         I don't think I save those in TrackEnviron.
         * put the whole Dynamic state into TrackEnviron
-        - get the select pos, then use that to get Dynamic
-        - Then give that to a Derive.eval
-          Fix TODO on Perf.note_to_pitch while I'm at it
-        - use that to implement a fallback scale_input_to_nn
+        * get the select pos, then use that to get Dynamic
+        * Then give that to a Derive.eval
+        * implement Just.input_to_nn
+        * Fix TODO on Perf.note_to_pitch while I'm at it
+        - some chorded keys are not getting the proper pitch bend
       - pitchbends getting lost, and being audible: save/bug-pitchbend*
     - test modulating and setting a new base hz
     - better retuning and gradual retuning

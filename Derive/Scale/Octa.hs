@@ -26,7 +26,7 @@ octa21 = Scale.Scale
     , Scale.scale_enharmonics = TwelveUtil.enharmonics system
     , Scale.scale_note_to_call = TwelveUtil.note_to_call system
     , Scale.scale_input_to_note = TwelveUtil.input_to_note system
-    , Scale.scale_input_to_nn = TwelveUtil.input_to_nn
+    , Scale.scale_input_to_nn = Util.direct_input_to_nn
     }
     where
     system = TwelveUtil.system layout all_pitches keys default_key
@@ -51,7 +51,7 @@ octa12 = Scale.Scale
     , Scale.scale_enharmonics = TwelveUtil.enharmonics system
     , Scale.scale_note_to_call = TwelveUtil.note_to_call system
     , Scale.scale_input_to_note = TwelveUtil.input_to_note system
-    , Scale.scale_input_to_nn = TwelveUtil.input_to_nn
+    , Scale.scale_input_to_nn = Util.direct_input_to_nn
     }
     where
     system = TwelveUtil.system layout all_pitches keys default_key
