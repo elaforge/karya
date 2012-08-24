@@ -30,6 +30,7 @@ module Perform.Pitch (
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
+import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
@@ -83,7 +84,7 @@ middle_octave = 5
 -- It would be less tempered-centric to use hz, but for the moment this seems
 -- practical since note numbers are easier to read.
 newtype NoteNumber = NoteNumber Double
-    deriving (Eq, Ord, Fractional, Real, RealFrac, Num)
+    deriving (ApproxEq.ApproxEq, Eq, Ord, Fractional, Real, RealFrac, Num)
 
 instance Show NoteNumber where
     show (NoteNumber nn) = Pretty.show_float0 3 nn ++ "nn"

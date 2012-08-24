@@ -59,8 +59,9 @@ global_macros = map (SrcposMacro (Just "Util.Log") ["Log"])
 -- These are only substituted in test modules.
 test_macros :: [Macro]
 test_macros = map (SrcposMacro Nothing [])
-    [ "equal", "io_equal", "strings_like", "check_right", "left_like"
-    , "io_human", "throws", "check" , "check_msg"]
+    [ "equal", "equalf", "io_equal", "strings_like", "check_right", "left_like"
+    , "io_human", "throws", "check" , "check_msg"
+    ]
 
 
 main :: IO ()

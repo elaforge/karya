@@ -7,6 +7,7 @@ module Util.Test (
     -- ** pure checks
     , check, check_srcpos, check_msg, check_msg_srcpos
     , equal, equal_srcpos
+    , equalf, equalf_srcpos
     , strings_like, strings_like_srcpos
     , has_string, has_string_srcpos
     , check_right, check_right_srcpos
@@ -53,6 +54,7 @@ import qualified System.Posix.Terminal as Terminal
 
 import Text.Printf
 
+import qualified Util.ApproxEq as ApproxEq
 import qualified Util.CPUTime as CPUTime
 -- avoid ghci bug where a new import messes it up
 -- besides, it's useful to re-export this for tests
@@ -146,6 +148,17 @@ diff xs ys = (concatMap fnums diffs, concatMap snums diffs,
 newtype NumberedLine = NumberedLine (Int, String)
 instance Eq NumberedLine where
     NumberedLine (_, s1) == NumberedLine (_, s2) = s1 == s2
+
+-- * approximately equal
+
+equalf :: (Show a, ApproxEq.ApproxEq a) => Double -> a -> a -> IO Bool
+equalf = equalf_srcpos Nothing
+
+equalf_srcpos :: (Show a, ApproxEq.ApproxEq a) => SrcPos.SrcPos -> Double
+    -> a -> a -> IO Bool
+equalf_srcpos srcpos eta a b
+    | ApproxEq.approx_eq eta a b = success_srcpos srcpos $ "~~ " ++ show a
+    | otherwise = failure_srcpos srcpos $ show a ++ " !~ " ++ show b
 
 -- * other assertions
 
