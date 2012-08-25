@@ -249,15 +249,19 @@ configure = do
     fltkCs <- words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
     fltkVersion <- takeWhile (/='\n') <$> run fltkConfig ["--version"]
+    bindingsInclude <- run "ghc-pkg" ["field", "bindings-DSL", "include-dirs"]
+    bindingsInclude <- case words bindingsInclude of
+        [_, path] -> return path
+        words -> error $ "unexpected output from ghc-pkg: " ++ show words
     return $ \mode -> Config (modeToDir mode) (build </> "hsc") (strip ghcLib)
-        fltkVersion $ setCcFlags (setConfigFlags fltkCs fltkLds mode osFlags)
+        fltkVersion $ setCcFlags $
+            setConfigFlags fltkCs fltkLds mode osFlags bindingsInclude
     where
-    setConfigFlags fltkCs fltkLds mode flags = flags
+    setConfigFlags fltkCs fltkLds mode flags bindingsInclude = flags
         { define = define osFlags
             ++ (if mode `elem` [Test, Profile] then ["-DTESTING"] else [])
             ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
-        , cInclude = ["-I.", "-Ifltk",
-            "-I/usr/local/lib/bindings-DSL-1.0.15/ghc-7.0.3/include"]
+        , cInclude = ["-I.", "-Ifltk", "-I" ++ bindingsInclude]
         , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
         , fltkLd = fltkLds
         , hcFlags = words "-I. -threaded -W -fwarn-tabs -pgml g++"
