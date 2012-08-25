@@ -236,6 +236,9 @@ with_instrument state =
             }
         }
 
+with_key :: String -> Derive.Deriver a -> Derive.Deriver a
+with_key key = Derive.with_val TrackLang.v_key key
+
 -- | Set UI state defaults that every derivation should have.
 set_defaults :: (State.M m) => m ()
 set_defaults = do
@@ -525,16 +528,25 @@ type EventSpec = (RealTime, RealTime, String,
     [(String, [(RealTime, Signal.Y)])], Score.Instrument)
 
 mkevent :: EventSpec -> Score.Event
-mkevent (start, dur, text, controls, inst) = Score.Event
+mkevent (start, dur, pitch, controls, inst) = Score.Event
     { Score.event_start = start
     , Score.event_duration = dur
-    , Score.event_bs = B.pack text
+    , Score.event_bs = B.pack pitch
     , Score.event_controls = mkcontrols controls
-    , Score.event_pitch = pitch_signal [(start, text)]
+    , Score.event_pitch = pitch_signal [(start, pitch)]
     , Score.event_stack = fake_stack
     , Score.event_instrument = inst
     , Score.event_attributes = Score.no_attrs
     }
+
+-- | Like 'mkevent', but the pitch is in the more standard Twelve scale.
+mkevent2 :: EventSpec -> Score.Event
+mkevent2 (start, dur, pitch, controls, inst) =
+    (mkevent (start, dur, "a", controls, inst))
+        { Score.event_pitch = pitch_signal2 [(start, pitch)] }
+    where
+    pitch_signal2 = PitchSignal.signal scale . map (second mkpitch2)
+        where scale = Derive.pitch_signal_scale Twelve.scale
 
 pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal
 pitch_signal = PitchSignal.signal scale . map (second mkpitch)
@@ -543,6 +555,14 @@ pitch_signal = PitchSignal.signal scale . map (second mkpitch)
 mkcontrols :: [(String, [(RealTime, Signal.Y)])] -> Score.ControlMap
 mkcontrols csigs = Map.fromList
     [(Score.Control c, Score.untyped (Signal.signal sig)) | (c, sig) <- csigs]
+
+mkpitch2 :: String -> PitchSignal.Pitch
+mkpitch2 p = case eval State.empty deriver of
+    Left err -> error $ "mkpitch2 " ++ show p ++ ": " ++ err
+    Right pitch -> pitch
+    where
+    deriver = Derive.with_scale Twelve.scale $
+        Call.eval_note (TrackLang.Note (Pitch.Note p) [])
 
 mkpitch :: String -> PitchSignal.Pitch
 mkpitch p = PitchSignal.pitch $ \controls ->

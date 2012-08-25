@@ -26,19 +26,19 @@ module Derive.Scale.Theory (
     -- * symbolic transposition
     , transpose_diatonic, transpose_chromatic
     -- * input
-    , input_to_note
     , enharmonics_of
     , pitch_to_semis, semis_to_pitch
+    , semis_to_nn, nn_to_semis
     -- * types
     , PitchClass, Degree, Semi, Octave, char_pc, pc_char
-    , Pitch(..), to_pitch, from_pitch
+    , Pitch(..)
     , parse_pitch, parse_note
     , modify_octave, transpose_pitch
     , Note(..)
     , Key(key_tonic, key_name, key_layout), key, show_key
     , key_degrees_per_octave
     , layout
-    , show_pitch
+    , show_pitch, pitch_c_octave
     -- * util
     , diatonic_degree_of
 #ifndef TESTING
@@ -131,10 +131,9 @@ transpose_chromatic key steps pitch =
     semis_to_pitch key $ pitch_to_semis layout pitch + steps
     where layout = key_layout key
 
--- This puts 4c at 60, and -1c at 0.
 pitch_to_semis :: Layout -> Pitch -> Semi
-pitch_to_semis layout (Pitch oct note) = a_to_c_offset
-    + oct * layout_semis_per_octave layout + note_to_semis layout note
+pitch_to_semis layout (Pitch oct note) =
+    oct * layout_semis_per_octave layout + note_to_semis layout note
 
 note_to_semis :: Layout -> Note -> Semi
 note_to_semis layout (Note pc accs) =
@@ -163,22 +162,23 @@ semis_to_pitch key semis = mkpitch $ case key_signature key of
     in_scale sig (_, note) =
         sig Vector.!? degree_of key note == Just (note_accidentals note)
     enharmonics = fromMaybe [] $ layout_enharmonics layout Boxed.!? steps
-    (octave, steps) = (semis - a_to_c_offset)
-        `divMod` layout_semis_per_octave layout
+    (octave, steps) = semis `divMod` layout_semis_per_octave layout
     layout = key_layout key
     -- Sharpish looking key signatures favor sharps.
     sharp_signature sig = Vector.count (>0) sig >= Vector.count (<0) sig
     sharp_tonic = (>=0) . note_accidentals . key_tonic
 
-a_to_c_offset :: Semi
-a_to_c_offset = 21
+-- | Convert Semis to integral nns.  Semis count from A while NNs start at C.
+-- It doesn't return NoteNumber because these values are specifically integral,
+-- and are likely going to be turned into an integral flavor of NoteNumbers,
+-- like Pitch.Degree.
+semis_to_nn :: Semi -> Int
+semis_to_nn = subtract 3
+
+nn_to_semis :: Int -> Semi
+nn_to_semis = (+ 3)
 
 -- * input
-
--- | Choose an appropriate enharmonic given an InputKey.
-input_to_note :: Key -> Pitch.InputKey -> (Pitch, Double)
-input_to_note key (Pitch.InputKey input) = (semis_to_pitch key semis, frac)
-    where (semis, frac) = properFraction input
 
 -- | Enharmonics of a note, along with an octave offset if the enharmonic
 -- wrapped an octave boundary.
@@ -236,25 +236,8 @@ data Pitch = Pitch {
 instance Pretty.Pretty Pitch where
     pretty = show_pitch "#" "x" "b" "bb"
 
--- | Internally octaves wrap at A, but externally they wrap at C.  So don't
--- export the Pitch constructors so external callers have to use 'to_pitch' and
--- 'from_pitch', which adjusts the octave.
-to_pitch :: Octave -> Note -> Pitch
-to_pitch octave note = Pitch oct note
-    where oct = if note_pc note >= 2 then octave - 1 else octave
-
-from_pitch :: Pitch -> (Octave, Note)
-from_pitch (Pitch octave note) =
-    (if note_pc note >= 2 then octave + 1 else octave, note)
-
--- | Show and read pitches in the usual letter format.
-show_pitch :: String -> String -> String -> String -> Pitch -> String
-show_pitch sharp sharp2 flat flat2 pitch =
-    show oct ++ show_note sharp sharp2 flat flat2 note
-    where (oct, note) = from_pitch pitch
-
 parse_pitch :: String -> Maybe Pitch
-parse_pitch = ParseBs.maybe_parse_string (uncurry to_pitch <$> p_pitch)
+parse_pitch = ParseBs.maybe_parse_string p_pitch
 
 modify_octave :: (Octave -> Octave) -> Pitch -> Pitch
 modify_octave f (Pitch octave note) = Pitch (f octave) note
@@ -285,8 +268,26 @@ note_in_layout :: Layout -> Note -> Bool
 note_in_layout layout note =
     0 <= note_pc note && note_pc note < layout_max_pc layout
 
-p_pitch :: A.Parser (Octave, Note)
-p_pitch = (,) <$> ParseBs.p_int <*> p_note
+-- | Show and read pitches in the usual letter format.  The inverse of
+-- 'p_pitch'.
+show_pitch :: String -> String -> String -> String -> Pitch -> String
+show_pitch sharp sharp2 flat flat2 pitch =
+    show (oct - 2) ++ show_note sharp sharp2 flat flat2 note
+    where (oct, note) = pitch_c_octave pitch
+
+-- | Extract the octave from the Note, wrapping it at C.
+pitch_c_octave :: Pitch -> (Octave, Note)
+pitch_c_octave (Pitch octave note) =
+    (if note_pc note >= 2 then octave + 1 else octave, note)
+
+-- | Internally octaves wrap at A, but the text representation wraps at C,
+-- since that's how the rest of the world does it.
+p_pitch :: A.Parser Pitch
+p_pitch = do
+    oct <- ParseBs.p_int
+    note <- p_note
+    let octave = if note_pc note >= 2 then oct - 1 else oct
+    return $ Pitch (octave + 2) note
 
 p_note :: A.Parser Note
 p_note = p_note_with "#" "x" "b" "bb"

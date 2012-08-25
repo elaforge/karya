@@ -12,7 +12,7 @@ test_convert = do
     let f quarter = map (fmap extract) . Convert.convert quarter
             . map (LEvent.Event . mkevent)
         mkevent (start, dur, pitch) =
-            DeriveTest.mkevent (start, dur, pitch, [], Score.default_inst)
+            DeriveTest.mkevent2 (start, dur, pitch, [], Score.default_inst)
         extract (Lilypond.Event start dur pitch _ _) = (start, dur, pitch)
-    equal (f 0.05 [(0, 0.05, "c"), (0.05, 0.1, "d")])
-        [LEvent.Event (0, 32, "d'"), LEvent.Event (32, 64, "ds'")]
+    equal (f 0.05 [(0, 0.05, "3b"), (0.05, 0.1, "4c#")])
+        [LEvent.Event (0, 32, "b"), LEvent.Event (32, 64, "cs'")]

@@ -1,12 +1,10 @@
 -- | A version of a just intonation 12 note scale that is tuned based on
 -- a pitch signal.
 module Derive.Scale.Just where
+import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as Vector
 
-import Util.Control
-import qualified Util.Debug as Debug
 import qualified Util.Num as Num
-
 import qualified Ui.Track as Track
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
@@ -17,16 +15,14 @@ import qualified Derive.Scale.Util as Util
 import qualified Perform.Pitch as Pitch
 
 
--- Key is just the base note.
-
 scales :: [Scale.Scale]
 scales = [just_major, just_minor]
 
 just_major :: Scale.Scale
-just_major = make_scale (Pitch.ScaleId "just-major") ratios_major
+just_major = make_scale (Pitch.ScaleId "just-major") major_ratios
 
 just_minor :: Scale.Scale
-just_minor = make_scale (Pitch.ScaleId "just-minor") ratios_minor
+just_minor = make_scale (Pitch.ScaleId "just-minor") minor_ratios
 
 make_scale :: Pitch.ScaleId -> Ratios -> Scale.Scale
 make_scale scale_id ratios = Scale.Scale
@@ -47,37 +43,40 @@ scale_map :: [(Pitch.Note, Pitch.Degree)]
 scale_map = [(pitch_note p, n) | (n, p) <- zip [0..] pitches]
     where
     notes = [Theory.Note pc 0 | pc <- [0..6]]
-    pitches = [Theory.to_pitch oct note | oct <- [-1..9], note <- notes]
+    pitches = [Theory.Pitch oct note | oct <- [-1..9], note <- notes]
 
 -- * input_to_note
 
 input_to_note :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
 input_to_note _key (Pitch.InputKey key_nn) = case (degree1, degree2) of
-    (Just d1, Just d2) -> Just $ note_of (Num.scale d1 d2 frac)
+    (Just d1, Just d2) -> Just $ degree_note (Num.scale d1 d2 frac)
     _ -> Nothing
     where
     degree1 = nn_to_degree Vector.!? input_degree
     degree2 = nn_to_degree Vector.!? (input_degree + 1)
     (input_degree, frac) = properFraction key_nn
 
-note_of :: Double -> Pitch.Note
-note_of degreef = Pitch.Note $ Call.Pitch.note_expr note frac
+degree_note :: Double -> Pitch.Note
+degree_note degreef = Pitch.Note $ Call.Pitch.note_expr note frac
     where
     (degree, frac) = properFraction degreef
     (octave, pc) = degree `divMod` pc_per_octave
-    note = pitch_note$ Theory.Pitch (octave - 2) (Theory.Note pc 0) -- XXX
+    note = pitch_note $ Theory.Pitch octave (Theory.Note pc 0)
 
 pitch_note :: Theory.Pitch -> Pitch.Note
 pitch_note = Pitch.Note . Theory.show_pitch "" "" "" ""
 
+-- | NoteNumber 0 is -1c, and becomes 2.
 nn_to_degree :: Vector.Vector Double
 nn_to_degree = Vector.fromList $ take 127 $
-    to_steps (zip [2..] (cycle [2, 2, 1, 2, 2, 2, 1])) -- XXX
+    -- NN 0 is C, so start from C.
+    to_steps (zip [2..] (cycle [2, 2, 1, 2, 2, 2, 1]))
     where
     to_steps [] = []
     to_steps ((n, step) : steps)
         | step == 2 = n : n + 0.5 : to_steps steps
         | otherwise = n : to_steps steps
+
 
 -- * transpose
 
@@ -124,20 +123,10 @@ note_to_call ratios note = case read_pitch note of
     note_number :: Theory.Pitch -> Scale.GetNoteNumber
     note_number pitch chromatic diatonic maybe_str_key = do
         key <- maybe (Right default_key) read_key maybe_str_key
-        let hz = Debug.trace "hz" $ transpose_to_hz ratios Nothing key (chromatic+diatonic) pitch
+        let hz = transpose_to_hz ratios Nothing key (chromatic+diatonic) pitch
             nn = Pitch.hz_to_nn hz
-        if Num.in_range 1 127 nn then Right nn
+        if Num.in_range 0 127 nn then Right nn
             else Left Scale.InvalidTransposition
-
-data Key = Key { key_tonic :: !Theory.PitchClass } deriving (Show)
-
-default_key :: Key
-default_key = Key 2 -- C
-
-read_key :: Pitch.Key -> Either Scale.ScaleError Key
-read_key (Pitch.Key [key]) | pc >= 0 && pc < pc_per_octave = Right $ Key pc
-    where pc = Theory.char_pc key
-read_key _ = Left Scale.UnparseableKey
 
 transpose_to_hz :: Ratios -> Maybe Pitch.Hz -> Key -> Double
     -> Theory.Pitch -> Pitch.Hz
@@ -145,36 +134,57 @@ transpose_to_hz ratios base_hz key frac_steps pitch = Num.scale hz1 hz2 frac
     where
     (steps, frac) = properFraction frac_steps
     pitch1 = Theory.transpose_pitch pc_per_octave steps pitch
-    hz1 = degree_to_hz pc_per_octave ratios base_hz tonic pitch1
-    hz2 = degree_to_hz pc_per_octave ratios base_hz tonic
+    hz1 = degree_to_hz pc_per_octave ratios base_hz key pitch1
+    hz2 = degree_to_hz pc_per_octave ratios base_hz key
         (Theory.transpose_pitch pc_per_octave 1 pitch1)
-    tonic = key_tonic key
 
--- | Given a key's tonic, convert a pitch in that key to its hz value.
+-- | Given a Key, convert a pitch in that key to its hz value.
 -- If the base hz is given, this is the frequency of the key's tonic.
 -- Otherwise, the base is taken from the 12TET value.
 degree_to_hz :: Theory.Degree -> Ratios -> Maybe Pitch.Hz
-    -> Theory.PitchClass -> Theory.Pitch -> Pitch.Hz
-degree_to_hz per_oct ratios maybe_base_hz key_tonic pitch = base * ratio
+    -> Key -> Theory.Pitch -> Pitch.Hz
+degree_to_hz per_oct ratios maybe_base_hz key pitch = base * ratio
     where
-    -- Add 1 to the octave, since nn 0 is (-1, C).
-    base = base_hz * 2 ^^ (Theory.pitch_octave degree + 1) -- XXX
-    base_hz = normalize_octave $
-        fromMaybe (Pitch.nn_to_hz (pc_to_nn key_tonic)) maybe_base_hz
+    base = base_hz * 2 ^^ (Theory.pitch_octave degree)
+    base_hz = Pitch.nn_to_hz $ normalize_octave $
+        maybe (key_tonic_nn key) Pitch.hz_to_nn maybe_base_hz
     ratio = index_mod ratios (Theory.note_pc (Theory.pitch_note degree))
-    degree = Theory.transpose_pitch per_oct (-key_tonic) pitch
+    degree = Theory.transpose_pitch per_oct (- key_tonic key) pitch
 
-pc_to_nn :: Theory.PitchClass -> Pitch.NoteNumber
-pc_to_nn = Pitch.nn . (subtract 3)
+-- | Normalize a NoteNumber to lie within the first 'Theory.Pitch' octave.
+-- Since Pitches start at A and NoteNumbers start at C, it's -3--9 rather than
+-- 0--12.
+normalize_octave :: Pitch.NoteNumber -> Pitch.NoteNumber
+normalize_octave nn
+    | nn > -3 + 12 = normalize_octave (nn - 12)
+    | otherwise = nn
 
--- | Normalize the given hz to lie within the octave 0, according to
--- Pitch.nn_to_hz, which uses MIDI note numbers.
-normalize_octave :: Pitch.Hz -> Pitch.Hz
-normalize_octave hz
-    | hz < lowest = normalize_octave (hz * 2)
-    | hz > lowest * 2 = normalize_octave (hz / 2)
-    | otherwise = hz
-    where lowest = Pitch.nn_to_hz 0
+-- * key
+
+data Key = Key {
+    -- | PitchClass starts at A, not C.
+    key_tonic :: !Theory.PitchClass
+    -- | NoteNumber in the bottom octave as returned by 'normalize_octave',
+    -- e.g. -3--9.
+    , key_tonic_nn :: !Pitch.NoteNumber
+    } deriving (Show)
+
+all_keys :: Map.Map Char Key
+all_keys =
+    Map.fromList $ take 7 [(char, Key pc nn)
+        | (char, pc, nn) <- zip3 ['a'..] [0..] nns]
+    where
+    -- Start at A which is nn -3.  This is like 'nn_to_degree', but the other
+    -- way.  Pesky pesky conversions.
+    nns = scanl (+) (-3) (cycle [2, 1, 2, 2, 2, 1, 2])
+
+default_key :: Key
+Just default_key = Map.lookup 'c' all_keys
+
+read_key :: Pitch.Key -> Either Scale.ScaleError Key
+read_key (Pitch.Key [key]) =
+    maybe (Left Scale.UnparseableKey) Right $ Map.lookup key all_keys
+read_key _ = Left Scale.UnparseableKey
 
 -- * ratios
 
@@ -184,12 +194,12 @@ index_mod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
 type Ratios = Vector.Vector Double
 
 -- | 5-limit diatonic, with just major triads.
-ratios_major :: Ratios
-ratios_major = Vector.fromList [1/1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8]
+major_ratios :: Ratios
+major_ratios = Vector.fromList [1/1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8]
 
 -- | 5-limit diatonic, with just minor triads.
-ratios_minor :: Ratios
-ratios_minor = Vector.fromList [1/1, 9/8, 6/5, 4/3, 3/2, 9/5, 9/5]
+minor_ratios :: Ratios
+minor_ratios = Vector.fromList [1/1, 9/8, 6/5, 4/3, 3/2, 9/5, 9/5]
 
 
 {- Retuning scales:
@@ -227,7 +237,7 @@ ratios_minor = Vector.fromList [1/1, 9/8, 6/5, 4/3, 3/2, 9/5, 9/5]
 
     But how could this work if pitches are moving up and down?
 
-    f0 = build ratios_major 7
+    f0 = build major_ratios 7
     b1 = f0 0 440
     b2 = f0 2 550
     b3 = f0 0 (458 + 1/3)

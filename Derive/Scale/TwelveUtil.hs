@@ -78,7 +78,8 @@ note_to_call sys note = case Map.lookup note (sys_note_to_degree sys) of
 input_to_note :: System
     -> Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
 input_to_note sys maybe_key (Pitch.InputKey key_nn) =
-    case pitch_note sys $ Theory.semis_to_pitch key degree of
+    case pitch_note sys $
+            Theory.semis_to_pitch key (Theory.nn_to_semis nn_semis) of
         Left _ -> Nothing
         Right note -> Just $ Pitch.Note $ Call.Pitch.note_expr note cents
     where
@@ -86,7 +87,7 @@ input_to_note sys maybe_key (Pitch.InputKey key_nn) =
     -- empty score!
     key = fromMaybe (sys_default_key sys) $
         flip Map.lookup (sys_keys sys) =<< maybe_key
-    (degree, cents) = properFraction key_nn
+    (nn_semis, cents) = properFraction key_nn
 
 
 -- * implementation
@@ -97,7 +98,7 @@ make_note_to_degree layout all_pitches = Map.fromList $ filter in_range $
         | p <- all_pitches]
     where
     note s s2 f f2 p = (Pitch.Note $ Theory.show_pitch s s2 f f2 p,
-        (p, Pitch.Degree $ Theory.pitch_to_semis layout p))
+        (p, Pitch.Degree $ Theory.semis_to_nn $ Theory.pitch_to_semis layout p))
     in_range = Num.in_range 1 128 . snd . snd
 
 -- | Don't emit a 'Pitch.Note' that's out of range, because it won't be

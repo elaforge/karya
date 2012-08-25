@@ -73,8 +73,8 @@ test_transpose_diatonic = do
         ["1bb", "2c", "2db", "2eb", "2e", "2gb", "2g", "2a", "2bb"]
 
 test_pitch_to_semis = do
-    let semis = Theory.pitch_to_semis Twelve.layout
-        pitch k = Theory.semis_to_pitch (key k)
+    let semis = Theory.semis_to_nn . Theory.pitch_to_semis Twelve.layout
+        pitch k = Theory.semis_to_pitch (key k) . Theory.nn_to_semis
     equal (map (semis . p) ["0c", "0c#", "0cx"]) [12, 13, 14]
     equal (map (semis . p) ["0c", "0cb", "0cbb"]) [12, 11, 10]
     equal (map (semis . p) ["1c", "1d", "1e", "1f", "1g", "1a"])
@@ -115,11 +115,6 @@ test_calculate_signature = do
     equal (f (n "cb") [2, 2, 1, 2, 2, 2, 1]) -- cb-major
         [-1, -1, -1, -1, -1, -1, -1]
 
-test_input_to_note = do
-    let f key = Pretty.pretty . Theory.input_to_note key . Pitch.InputKey
-    pprint (map (f (key "c-maj")) [12..24])
-    pprint (map (f (key "f-maj")) [19..24])
-
 test_enharmonics_of = do
     let f = map Pretty.pretty . Theory.enharmonics_of Twelve.layout . p
     equal (f "1e") ["1fb", "1dx"]
@@ -143,6 +138,12 @@ test_degree_of = do
         [0, 0, 0, 1]
     equal (map (f "a-octa21") ["a", "b", "c", "d", "d#"])
         [0, 1, 2, 3, 4]
+
+test_nn_to_semis = do
+    let f = Theory.semis_to_pitch (key "c-maj") . Theory.nn_to_semis
+    equal (Pretty.pretty (f 0)) "-1c"
+    equal (Pretty.pretty (f 60)) "4c"
+    equal (Pretty.pretty (f 59)) "3b"
 
 
 -- * util

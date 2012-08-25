@@ -2,7 +2,7 @@ UNSORTED
   - do something about Call_test.test_track_dynamic2
   Just scales, along with TwelveUtil support
     * simple just scale with no accidentals
-    - why does 4c seem a semi-tone lower in just?
+    * why does 4c seem a semi-tone lower in just?
     bugs:
       kbd input isn't tuning the just scale properly
         input_to_nn needs context if it is to handle retuning scales properly.
