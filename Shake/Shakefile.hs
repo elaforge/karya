@@ -96,14 +96,16 @@ data Flags = Flags {
     , fltkLd :: [String]
     , hcFlags :: [String]
     , hLinkFlags :: [String]
+    -- | Extra flags for ghci.
+    , ghciFlags :: [String]
     } deriving (Show)
 
 instance Monoid.Monoid Flags where
-    mempty = Flags [] [] [] [] [] [] [] []
-    mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1)
-            (Flags a2 b2 c2 d2 e2 f2 g2 h2) =
+    mempty = Flags [] [] [] [] [] [] [] [] []
+    mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1)
+            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2) =
         Flags (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2) (f1<>f2) (g1<>g2)
-            (h1<>h2)
+            (h1<>h2) (i1<>i2)
 
 -- * binaries
 
@@ -275,12 +277,18 @@ configure = do
                 -- timing and stats, not individual cost centers.  I can turn
                 -- those on when debugging.
                 Profile -> ["-O", "-prof"]
-        , hLinkFlags = ["-lgit2", "-rtsopts", "-threaded"]
+        , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
             ++ if mode == Profile then ["-prof", "-auto-all"] else []
+        -- Hackery, make sure ghci gets link flags, otherwise it wants to
+        -- load everything as bytecode and fails on missing symbols.  Actually,
+        -- these only apply to loading the modules for the main app.  But
+        -- that's where I care most about load time.
+        , ghciFlags = libs ++ ["Util/Git/libgit_wrappers.cc"]
         }
     setCcFlags flags = flags
         { ccFlags = fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall"]
         }
+    libs = ["-lgit2"]
     osFlags = case System.Info.os of
         -- In C and C++ programs the OS specific defines like __APPLE__ and
         -- __linux__ are already defined, but ghc doesn't define them.
@@ -617,7 +625,7 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
 
 compileHs :: Config -> FilePath -> Cmdline
 compileHs config hs = ("GHC", hs,
-    [ghcBinary, "-c"] ++ ghciFlags config ++ hcFlags (configFlags config)
+    [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
         ++ main_is ++ [hs, "-o", srcToObj config hs])
     where
     main_is = if hs `elem` Map.elems nameToMain
@@ -638,15 +646,22 @@ writeGhciFlags :: (Mode -> Config) -> IO ()
 writeGhciFlags modeConfig =
     forM_ (map modeConfig [Debug, Test, Opt]) $ \config -> do
         Directory.createDirectoryIfMissing True (buildDir config)
-        -- Make sure -osuf .hs.o is in the flags, otherwise ghci won't know
-        -- how to find the .o files.
         writeFile (buildDir config </> "ghci-flags") $
-            -- -I. so that CPP-using files can find hsconfig.h
-            unwords (["-I.", "-osuf", ".hs.o"] ++ ghciFlags config) ++ "\n"
+            unwords (flags config) ++ "\n"
+    where
+    -- Make sure -osuf .hs.o is in the flags, otherwise ghci won't know
+    -- how to find the .o files.
+    -- -I. so that CPP-using files can find hsconfig.h
+    flags config = ["-I.", "-osuf", ".hs.o"]
+        ++ ghcFlags config
+        ++ map (resolveSrc config) (ghciFlags (configFlags config))
+    resolveSrc config arg
+        | FilePath.takeExtension arg == ".cc" = srcToObj config arg
+        | otherwise = arg
 
 -- | Get the file-independent flags for a haskell compile.
-ghciFlags :: Config -> [String]
-ghciFlags config =
+ghcFlags :: Config -> [String]
+ghcFlags config =
     -- -osuf is unnecessary because of the -o, but as of 7.4.1 ghci won't
     -- load the .o files if it notices this flag is different.
     (if ghc741 then ["-osuf", ".hs.o"] else []) ++
