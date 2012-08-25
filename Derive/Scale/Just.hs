@@ -199,7 +199,7 @@ major_ratios = Vector.fromList [1/1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8]
 
 -- | 5-limit diatonic, with just minor triads.
 minor_ratios :: Ratios
-minor_ratios = Vector.fromList [1/1, 9/8, 6/5, 4/3, 3/2, 9/5, 9/5]
+minor_ratios = Vector.fromList [1/1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5]
 
 
 {- Retuning scales:
