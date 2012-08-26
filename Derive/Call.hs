@@ -103,6 +103,9 @@ import Types
 eval_one :: TrackLang.Expr -> Derive.EventDeriver
 eval_one = eval_one_at 0 1
 
+eval_one_call :: TrackLang.Call -> Derive.EventDeriver
+eval_one_call = eval_one . (:| [])
+
 eval_one_at :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
 eval_one_at start dur expr = eval_expr (note_dinfo, cinfo) expr
     where
@@ -116,6 +119,10 @@ reapply :: Derive.PassedArgs Score.Event -> TrackLang.Expr
     -> Derive.EventDeriver
 reapply args expr = eval_expr (note_dinfo, cinfo) expr
     where cinfo = Derive.passed_info args
+
+reapply_call :: Derive.PassedArgs Score.Event -> TrackLang.Call
+    -> Derive.EventDeriver
+reapply_call args call = reapply args (call :| [])
 
 -- | A version of 'eval' specialized to evaluate note calls.
 eval_note :: TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
@@ -281,18 +288,13 @@ repeat_call_of prev cur
 apply_toplevel :: (Derive.Derived d) => Derive.State -> Info d
     -> TrackLang.Expr
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-apply_toplevel state info expr = case Seq.viewr expr of
-        (transform_calls, Just generator_call) -> run $
+apply_toplevel state info expr = case Seq.ne_viewr expr of
+        (transform_calls, generator_call) -> run $
             apply_transformer info transform_calls $
                 apply_generator info generator_call
-        _ -> (Right mempty, [err], Derive.state_collect state)
     where
     run d = case Derive.run state d of
         (result, state, logs) -> (result, logs, Derive.state_collect state)
-    err = Log.msg Log.Warn
-        (Just (Stack.to_strings
-            (Derive.state_stack (Derive.state_dynamic state))))
-        "event with no calls at all (this shouldn't happen)"
 
 apply_generator :: (Derive.Derived derived) => Info derived -> TrackLang.Call
     -> Derive.LogsDeriver derived
@@ -321,8 +323,9 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
         Nothing -> Derive.throw $ "non-generator in generator position: "
             ++ Derive.call_name call
 
-apply_transformer :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
-    -> Derive.LogsDeriver derived -> Derive.LogsDeriver derived
+apply_transformer :: (Derive.Derived derived) => Info derived
+    -> [TrackLang.Call] -> Derive.LogsDeriver derived
+    -> Derive.LogsDeriver derived
 apply_transformer _ [] deriver = deriver
 apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
         deriver = do

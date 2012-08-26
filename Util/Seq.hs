@@ -3,6 +3,7 @@ import Prelude hiding (head, tail, last)
 import qualified Data.Char as Char
 import Data.Function
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.Ordered as Ordered
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -196,7 +197,7 @@ keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
 --
 -- The sublists are never null.
 group_on :: (Ord b) => (a -> b) -> [a] -> [[a]]
-group_on key = List.groupBy ((==) `on` key) . sort_on key
+group_on key = group key . sort_on key
 
 group :: (Ord b) => (a -> b) -> [a] -> [[a]]
 group key = List.groupBy ((==) `on` key)
@@ -431,6 +432,10 @@ viewr :: [a] -> ([a], Maybe a)
 viewr [] = ([], Nothing)
 viewr [x] = ([], Just x)
 viewr (x:xs) = let (first, last) = viewr xs in (x:first, last)
+
+ne_viewr :: NonEmpty a -> ([a], a)
+ne_viewr (x :| xs) = case viewr (x : xs) of
+    (first, last) -> (first, Maybe.fromJust last)
 
 -- | Split @xs@ before places where @f@ matches.
 --

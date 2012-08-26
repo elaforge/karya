@@ -4,6 +4,7 @@ module Derive.Call.Block (
     , eval_root_block, lookup_note_block
     , lookup_control_block
 ) where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
 import Util.Control
@@ -44,7 +45,7 @@ eval_root_block :: BlockId -> Derive.EventDeriver
     -- Derive.d_tempo does a bit of magic to stretch all blocks to length 1,
     -- except the root one.  The root block should operate in real time, so
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
-eval_root_block block_id = Call.eval_one [call_from_block_id block_id]
+eval_root_block block_id = Call.eval_one_call $ call_from_block_id block_id
 
 -- * note block calls
 
@@ -82,7 +83,8 @@ d_block block_id = do
     deriver <- Derive.eval_ui ("d_block " ++ show block_id)
         (BlockUtil.note_deriver block_id)
 
-    let transform = if null title then id else Call.apply_transformer info expr
+    let transform = if null title then id
+            else Call.apply_transformer info (NonEmpty.toList expr)
         info = (Call.note_dinfo, Derive.dummy_call_info 0 1 "block title")
     -- Record a dependency on this block.
     Internal.add_block_dep block_id

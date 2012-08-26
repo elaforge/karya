@@ -650,7 +650,7 @@ data CallInfo derived = CallInfo {
 -- neither to generators for that matter.
 dummy_call_info :: ScoreTime -> ScoreTime -> String -> CallInfo derived
 dummy_call_info start dur text = CallInfo
-    { info_expr = []
+    { info_expr = TrackLang.Call (TrackLang.Symbol "") [] :| []
     , info_prev_val = Nothing
     , info_event = Event.event start dur s
     , info_prev_events = []

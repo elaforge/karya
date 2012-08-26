@@ -236,11 +236,11 @@ pitched_note :: PitchSignal.Pitch -> Signal.Y -> Derive.EventDeriver
 pitched_note pitch dynamic = with_pitch pitch $ with_dynamic dynamic note
 
 note :: Derive.EventDeriver
-note = Call.eval_one [TrackLang.call "" []]
+note = Call.eval_one_call $ TrackLang.call "" []
 
 -- | A zero-duration 'note'.
 triggered_note :: Derive.EventDeriver
-triggered_note = Call.eval_one_at 0 0 [TrackLang.call "" []]
+triggered_note = Call.eval_one_at 0 0 $ TrackLang.call "" [] :| []
 
 -- * call transformers
 

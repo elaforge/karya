@@ -128,6 +128,7 @@
     a departing note.
 -}
 module Derive.Note where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -165,13 +166,13 @@ with_title title deriver
         track_expr <- either (Derive.throw . ("track title: "++)) return
             (TrackInfo.parse_note title)
         let transform = if is_empty_title track_expr then id
-                else Call.apply_transformer info track_expr
+                else Call.apply_transformer info (NonEmpty.toList track_expr)
         transform deriver
     where info = (Call.note_dinfo, Derive.dummy_call_info 0 1 "note track")
 
 is_empty_title :: TrackLang.Expr -> Bool
-is_empty_title [TrackLang.Call sym [TrackLang.Literal
-        (TrackLang.VInstrument inst)]] =
+is_empty_title (TrackLang.Call sym
+        [TrackLang.Literal (TrackLang.VInstrument inst)] :| []) =
     inst == Score.Instrument "" && sym == TrackLang.Symbol "note-track"
 is_empty_title _ = False
 

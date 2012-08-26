@@ -34,13 +34,12 @@ import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
+import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Numeric
 
 import Util.Control
 import qualified Util.ParseBs as Parse
-import qualified Util.Seq as Seq
-
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
@@ -56,7 +55,6 @@ from_string = UTF8.fromString
 to_string :: Text -> String
 to_string = UTF8.toString
 
--- | The returned Expr is never null.
 type ParseExpr = Text -> Either String TrackLang.Expr
 
 parse_expr, parse_num_expr :: ParseExpr
@@ -66,7 +64,8 @@ parse_num_expr = parse p_num_pipeline
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
-parse_control_title :: String -> Either String ([TrackLang.Val], TrackLang.Expr)
+parse_control_title :: String
+    -> Either String ([TrackLang.Val], [TrackLang.Call])
 parse_control_title = Parse.parse_all p_control_title . from_string
 
 -- | Parse a single Val.  This takes a String since it's used with Notes and
@@ -77,9 +76,8 @@ parse_val = Parse.parse_all (lexeme p_val) . from_string
 -- | Extract only the call part of the text.
 parse_call :: Text -> Maybe String
 parse_call text = case parse_expr text of
-    Right expr -> case Seq.last expr of
-        Just (TrackLang.Call (TrackLang.Symbol call) _) -> Just call
-        _ -> Nothing
+    Right expr -> case NonEmpty.last expr of
+        TrackLang.Call (TrackLang.Symbol call) _ -> Just call
     _ -> Nothing
 
 parse :: A.Parser a -> Text -> Either String a
@@ -116,20 +114,26 @@ p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
 
 -- * toplevel parsers
 
-p_control_title :: A.Parser ([TrackLang.Val], TrackLang.Expr)
+p_control_title :: A.Parser ([TrackLang.Val], [TrackLang.Call])
 p_control_title = do
     vals <- A.many (lexeme p_val)
-    expr <- A.option [] (p_pipe >> p_pipeline)
+    expr <- A.option [] (p_pipe >> NonEmpty.toList <$> p_pipeline)
     return (vals, expr)
 
 p_pipeline :: A.Parser TrackLang.Expr
-p_pipeline = A.sepBy p_expr p_pipe
+p_pipeline = do
+    -- It definitely matches at least one, because p_null_call always matches.
+    c : cs <- A.sepBy1 p_expr p_pipe
+    return $ c :| cs
 
 p_expr :: A.Parser TrackLang.Call
 p_expr = A.try p_equal <|> A.try p_call <|> p_null_call
 
 p_num_pipeline :: A.Parser TrackLang.Expr
-p_num_pipeline = A.sepBy p_num_expr p_pipe
+p_num_pipeline = do
+    -- It definitely matches at least one, because p_null_call always matches.
+    c : cs <- A.sepBy1 p_num_expr p_pipe
+    return $ c :| cs
 
 p_pipe :: A.Parser ()
 p_pipe = lexeme (A.char '|') >> return ()

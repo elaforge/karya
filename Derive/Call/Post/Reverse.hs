@@ -37,7 +37,7 @@ reverse_tracks start events = Seq.merge_lists Score.event_start
     end = fromMaybe 0 $ Seq.maximum
         [Score.event_end last | last : _ <- by_track]
 
--- | Partition up events by the track their in.
+-- | Partition up events by the track they're in.
 partition_tracks :: [Score.Event] -> [(TrackId, [Score.Event])]
 partition_tracks = strip . Seq.keyed_group_on track_of
     where strip xs = [(track_id, events) | (Just track_id, events) <- xs]

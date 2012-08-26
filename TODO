@@ -48,7 +48,9 @@ UNSORTED
   * Seq.pair_sorted and similar can return 'First a | Second b | Both a b'
     to avoid the bogus (Nothing, Nothing).  So can Seq.zip_padded
   use NonEmpty list from semigroups
-    - Seq.*group*
+    / Seq.*group*
+      Not worth it.
+    * Expr returned by Derive.ParseBs
     * Block.block_integrated, block_integrated_track
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds

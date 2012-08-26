@@ -56,7 +56,7 @@ d_control_track (Tree.Node track _) deriver = do
         return (TrackInfo.parse_control_expr title)
     eval_track track expr ctype deriver
 
-eval_track :: TrackTree.TrackEvents -> TrackLang.Expr
+eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
 eval_track track expr ctype deriver = case ctype of
     TrackInfo.Tempo ->
@@ -132,7 +132,7 @@ merge_logs logs deriver = do
     return $ Derive.merge_events (map LEvent.Log logs) events
 
 pitch_call :: TrackTree.TrackEvents -> Maybe Score.Control -> Pitch.ScaleId
-    -> TrackLang.Expr -> Derive.EventDeriver -> Derive.EventDeriver
+    -> [TrackLang.Call] -> Derive.EventDeriver -> Derive.EventDeriver
 pitch_call track maybe_name scale_id expr deriver =
     Internal.track_setup track $ do
         scale <- get_scale scale_id
@@ -177,7 +177,7 @@ with_control_damage maybe_track_id track_range =
 type TrackResults sig = (sig, [Log.Msg])
 
 -- | Derive the signal of a control track.
-derive_control :: TrackTree.TrackEvents -> TrackLang.Expr
+derive_control :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control track expr = do
     stream <- Call.apply_transformer
@@ -203,7 +203,7 @@ derive_control track expr = do
         ([], []) dinfo
     last_sample prev chunk = Signal.last chunk `mplus` prev
 
-derive_pitch :: TrackTree.TrackEvents -> TrackLang.Expr
+derive_pitch :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Pitch)
 derive_pitch track expr = do
     stream <- Call.apply_transformer
@@ -313,7 +313,7 @@ track_signal track
         run_sub $ Derive.in_real_time $ eval_signal track expr ctype
     where title = TrackTree.tevents_title track
 
-eval_signal :: TrackTree.TrackEvents -> TrackLang.Expr
+eval_signal :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal
 eval_signal track expr ctype = case ctype of
     TrackInfo.Tempo -> do

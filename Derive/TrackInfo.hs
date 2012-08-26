@@ -32,7 +32,7 @@ data ControlType =
 parse_control :: String -> Either String ControlType
 parse_control = fmap fst . parse_control_expr
 
-parse_control_expr :: String -> Either String (ControlType, TrackLang.Expr)
+parse_control_expr :: String -> Either String (ControlType, [TrackLang.Call])
 parse_control_expr title = do
     (vals, expr) <- Parse.parse_control_title title
     ctrack <- parse_control_vals vals

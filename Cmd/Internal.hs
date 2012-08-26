@@ -1,6 +1,7 @@
 -- | Internal Cmds, that keep bits of Cmd.State up to date that everyone else
 -- relies on.
 module Cmd.Internal where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -225,8 +226,8 @@ set_style title _pos event =
         | otherwise = Config.integrated_style
     syntax (Left _) = Config.Error
     syntax (Right expr)
-        | TrackInfo.is_note_track title = case expr of
-            TrackLang.Call call _ : _ | call == TrackLang.c_equal ->
+        | TrackInfo.is_note_track title = case NonEmpty.head expr of
+            TrackLang.Call call _ | call == TrackLang.c_equal ->
                 Config.Declaration
             _ -> Config.Default
         | TrackInfo.is_pitch_track title = Config.Pitch

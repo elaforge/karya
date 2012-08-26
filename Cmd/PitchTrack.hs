@@ -158,12 +158,12 @@ modify_expr :: (String -> Either String String) -> String
 modify_expr f text = case ParseBs.parse_expr (ParseBs.from_string text) of
     Left _ -> Right text
     Right expr -> case expr of
-        [TrackLang.Call sym (TrackLang.ValCall _ : _)]
+        TrackLang.Call sym (TrackLang.ValCall _ : _) :| []
             | sym /= TrackLang.c_equal ->
                 let (pre, within) = break (=='(') text
                     (note, post) = Then.break1 (==')') within
                 in (\n -> pre ++ n ++ post) <$> f note
-        [TrackLang.Call sym _]
+        TrackLang.Call sym _ :| []
             | sym /= TrackLang.c_equal ->
                 let (pre, post) = break (==' ') text
                 in (++post) <$> f pre

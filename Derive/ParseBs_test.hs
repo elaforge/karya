@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Derive.ParseBs_test where
+import qualified Data.List.NonEmpty as NonEmpty
+
 import Util.Control
 import qualified Util.ParseBs as Util.Parse
 import Util.Test
@@ -16,7 +18,7 @@ import qualified Perform.Pitch as Pitch
 
 
 test_parse_expr = do
-    let f = Parse.parse_expr
+    let f = fmap NonEmpty.toList . Parse.parse_expr
         vnum = VNum . Score.untyped
     equal (f "a | b") $ Right
         [Call (Symbol "a") [], Call (Symbol "b") []]
@@ -147,7 +149,7 @@ test_p_equal = do
     equal (f "a = =b") (eq (sym "a")
         (Literal (VRelativeAttr (TrackLang.RelativeAttr (Set, "b")))))
 
-    let parse = Parse.parse_expr
+    let parse = fmap NonEmpty.toList . Parse.parse_expr
     equal (parse "a =b") $ Right [Call (Symbol "a")
         [Literal (VRelativeAttr (TrackLang.RelativeAttr (Set, "b")))]]
     equal (parse "a= b") $ Right [Call (Symbol "a=") [Literal (symbol "b")]]

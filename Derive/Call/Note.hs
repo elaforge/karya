@@ -15,6 +15,7 @@ module Derive.Call.Note (
 #endif
 ) where
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
@@ -251,7 +252,7 @@ invert_call after args = case Derive.info_sub_tracks info of
     -- transformers are discarded.  But 'inverting' only applies to generators
     -- so those transformers should have already done their thing.
     -- See comment above and on ShowVal typeclass.
-    expr = maybe "" TrackLang.show_val $ Seq.last (Derive.info_expr info)
+    expr = TrackLang.show_val $ NonEmpty.last (Derive.info_expr info)
     info = Derive.passed_info args
 
 invert :: Int -> (ScoreTime, ScoreTime) -> TrackTree.EventsTree -> ScoreTime

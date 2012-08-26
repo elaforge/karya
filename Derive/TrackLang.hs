@@ -33,11 +33,14 @@ module Derive.TrackLang (
     module Derive.TrackLang, module Derive.BaseTypes
 ) where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
@@ -385,12 +388,12 @@ v_seed = Symbol "seed"
 -- * expressions
 
 -- | The only operator is @|@, so a list suffices for an AST.
-type Expr = [Call]
+type Expr = NonEmpty Call
 data Call = Call CallId [Term] deriving (Show)
 data Term = ValCall Call | Literal Val deriving (Show)
 
 instance ShowVal Expr where
-    show_val expr = Seq.join " | " (map show_val expr)
+    show_val expr = Seq.join " | " (map show_val (NonEmpty.toList expr))
 instance ShowVal Call where
     show_val (Call call_id terms) =
         show_val call_id ++ if null terms then ""
