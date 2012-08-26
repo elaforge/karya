@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Cmd.Integrate.Merge_test where
+import qualified Data.List.NonEmpty as NonEmpty
+
 import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
@@ -125,8 +127,9 @@ integrate :: State.State -> [(UiTest.TrackSpec, [UiTest.TrackSpec])]
 integrate state integrated = UiTest.exec state $ do
     itracks <- Block.block_integrated_tracks <$> State.get_block block_id
     dests <- Merge.merge_tracks block_id (mktracks integrated)
-        (maybe [] snd (Seq.head itracks))
-    State.set_integrated_tracks block_id [(UiTest.tid "source", dests)]
+        (maybe [] (NonEmpty.toList . snd) (Seq.head itracks))
+    when_just (NonEmpty.nonEmpty dests) $ \dests ->
+        State.set_integrated_tracks block_id [(UiTest.tid "source", dests)]
     where block_id = UiTest.default_block_id
 
 modify :: State.StateId a -> State.State -> State.State

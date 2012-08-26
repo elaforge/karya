@@ -588,12 +588,12 @@ modify_block_meta block_id f = modify_block block_id $ \block ->
     block { Block.block_meta = f (Block.block_meta block) }
 
 set_integrated_block :: (M m) => BlockId
-    -> Maybe (BlockId, [Block.TrackDestination]) -> m ()
+    -> Maybe (BlockId, (NonEmpty Block.TrackDestination)) -> m ()
 set_integrated_block block_id integrated = modify_block block_id $ \block ->
     block { Block.block_integrated = integrated }
 
 set_integrated_tracks :: (M m) => BlockId
-    -> [(TrackId, [Block.TrackDestination])] -> m ()
+    -> [(TrackId, (NonEmpty Block.TrackDestination))] -> m ()
 set_integrated_tracks block_id tracks = modify_block block_id $ \block ->
     block { Block.block_integrated_tracks = tracks }
 

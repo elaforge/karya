@@ -41,17 +41,15 @@ UNSORTED
     in addition to NoteNumbers, and I'd need an extra derive to compute the
     degree signal.  It would be nice to have a way to skip that for Twelve.
     * Change Track.make_scale_map to [(Pitch.Note, Pitch.Degree)]
-    - As long as it's just note numbers, I should make the drawing code ignore
-      the scale map.
 
   - I could move cmd_play_msg out of Cmd.PlayC if I moved
     Sync.set_track_signals to the ResponderSync via a magic return value.
     I could then get rid of the CPP hack in Ui.Ui I think.
   * Seq.pair_sorted and similar can return 'First a | Second b | Both a b'
     to avoid the bogus (Nothing, Nothing).  So can Seq.zip_padded
-  - use NonEmpty list from semigroups
-    Seq.*group*
-    Block.block_integrated, block_integrated_track
+  use NonEmpty list from semigroups
+    - Seq.*group*
+    * Block.block_integrated, block_integrated_track
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.

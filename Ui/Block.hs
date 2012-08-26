@@ -3,6 +3,7 @@ module Ui.Block where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -30,9 +31,9 @@ data Block = Block {
     , block_tracks :: ![Track]
     , block_skeleton :: !Skeleton.Skeleton
     -- | Present if this block was integrated from another.
-    , block_integrated :: !(Maybe (BlockId, [TrackDestination]))
+    , block_integrated :: !(Maybe (BlockId, (NonEmpty TrackDestination)))
     -- | [(source_track, destinations)]
-    , block_integrated_tracks :: ![(TrackId, [TrackDestination])]
+    , block_integrated_tracks :: ![(TrackId, (NonEmpty TrackDestination))]
     , block_meta :: !Meta
     } deriving (Eq, Read, Show)
 
@@ -77,7 +78,7 @@ integrate_skeleton block =
     edge_of (source_id, dests) = do
         source <- tracknum_of source_id
         Just $ map ((,) source)
-            (mapMaybe (tracknum_of . fst . dest_note) dests)
+            (mapMaybe (tracknum_of . fst . dest_note) (NonEmpty.toList dests))
     tracknum_of track_id = List.findIndex (== Just track_id) track_ids
     track_ids = map (track_id_of . tracklike_id) (block_tracks block)
 

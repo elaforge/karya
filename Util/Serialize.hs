@@ -17,6 +17,7 @@ module Util.Serialize (
 import qualified Data.Array.IArray as IArray
 import qualified Data.ByteString as ByteString
 import Data.ByteString (ByteString)
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Serialize as Serialize
 import Data.Serialize (Get, Put, getWord8, putWord8)
@@ -138,6 +139,10 @@ instance (Serialize a, Serialize b, Serialize c) => Serialize (a, b, c) where
 instance (Serialize a) => Serialize [a] where
     put = Serialize.putListOf put
     get = Serialize.getListOf get
+
+instance (Serialize a) => Serialize (NonEmpty a) where
+    put = put . NonEmpty.toList
+    get = fmap NonEmpty.fromList get
 
 instance (Serialize a) => Serialize (Maybe a) where
     put Nothing = putWord8 0

@@ -1,6 +1,7 @@
 module Derive.Call.Integrate (
     note_calls, unwarp
 ) where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -108,8 +109,8 @@ only_destinations_damaged block_id track_id = do
         return $ Set.null $ damaged `Set.difference` destinations tracks
     where
     destinations tracks = Set.fromList $ concat
-        [concatMap dest_ids dests | (source_id, dests) <- tracks,
-            source_id == track_id]
+        [concatMap dest_ids (NonEmpty.toList dests)
+            | (source_id, dests) <- tracks, source_id == track_id]
     dest_ids (Block.TrackDestination (track_id, _) controls) =
         track_id : map fst (Map.elems controls)
 

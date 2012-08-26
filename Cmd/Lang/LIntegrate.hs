@@ -1,7 +1,9 @@
 module Cmd.Lang.LIntegrate where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.State as State
@@ -23,7 +25,8 @@ block block_id = do
     key <- Perf.get_key block_id Nothing
     tracks <- Convert.convert events key
     (new_block_id, dests) <- Merge.create_block block_id tracks
-    State.set_integrated_block new_block_id $ Just (block_id, dests)
+    when_just (NonEmpty.nonEmpty dests) $ \dests ->
+        State.set_integrated_block new_block_id $ Just (block_id, dests)
     Cmd.derive_immediately [new_block_id]
     Create.view new_block_id
 
@@ -37,12 +40,13 @@ edits block_id track_id = do
     let (deleted, edits) = Merge.diff_events index events
     return (Set.toList deleted, filter Merge.is_modified edits)
 
-indices_of :: Maybe (BlockId, [Block.TrackDestination])
-    -> [(TrackId, [Block.TrackDestination])] -> [(TrackId, Block.EventIndex)]
+indices_of :: Maybe (BlockId, NonEmpty Block.TrackDestination)
+    -> [(TrackId, NonEmpty Block.TrackDestination)]
+    -> [(TrackId, Block.EventIndex)]
 indices_of integrated integrated_tracks =
     block_indices integrated ++ concatMap track_indices integrated_tracks
     where
-    block_indices = maybe [] (concatMap dest_indices . snd)
-    track_indices = concatMap dest_indices . snd
+    block_indices = maybe [] (concatMap dest_indices . NonEmpty.toList . snd)
+    track_indices = concatMap dest_indices . NonEmpty.toList . snd
     dest_indices (Block.TrackDestination note controls) =
         note : Map.elems controls

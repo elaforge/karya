@@ -1,4 +1,5 @@
 module Cmd.Integrate (cmd_integrate) where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
 import Util.Control
@@ -22,7 +23,9 @@ cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf))
     | null (Cmd.perf_integrated perf) = return Cmd.Continue
     | otherwise = do
         integrated <- concatMapM (integrate block_id) (Cmd.perf_integrated perf)
-        State.set_integrated_tracks block_id integrated
+        State.set_integrated_tracks block_id
+            [(track_id, dests) | (track_id, Just dests)
+                <- map (second NonEmpty.nonEmpty) integrated]
         return Cmd.Continue
 cmd_integrate _ = return Cmd.Continue
 
@@ -43,7 +46,8 @@ integrate_tracks block_id track_id tracks = do
     itracks <- Block.block_integrated_tracks <$> State.get_block block_id
     new_dests <- case filter ((==track_id) . fst) itracks of
         [] -> (:[]) <$> Merge.merge_tracks block_id tracks []
-        dests -> mapM (Merge.merge_tracks block_id tracks . snd) dests
+        dests -> mapM
+            (Merge.merge_tracks block_id tracks . NonEmpty.toList . snd) dests
     Log.notice $ "integrated " ++ show track_id ++ " to: "
         ++ Pretty.pretty new_dests
     Cmd.derive_immediately [block_id]
@@ -60,11 +64,13 @@ integrate_block block_id tracks = do
             Create.view block_id
             return [(block_id, dests)]
         integrated -> forM integrated $ \(block_id, track_dests) ->
-            ((,) block_id) <$> Merge.merge_block block_id tracks track_dests
+            ((,) block_id) <$> Merge.merge_block block_id tracks
+                (NonEmpty.toList track_dests)
     Log.notice $ "integrated " ++ show block_id ++ " to: "
         ++ Pretty.pretty (map fst new_blocks)
     forM_ new_blocks $ \(new_block_id, track_dests) ->
-        State.set_integrated_block new_block_id $ Just (block_id, track_dests)
+        when_just (NonEmpty.nonEmpty track_dests) $ \dests ->
+            State.set_integrated_block new_block_id $ Just (block_id, dests)
     Cmd.derive_immediately (map fst new_blocks)
     where
     integrated_from source_block_id block_map =

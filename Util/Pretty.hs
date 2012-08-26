@@ -18,6 +18,7 @@ module Util.Pretty (
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Char as Char
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -62,6 +63,8 @@ class Pretty a where
 
 instance Pretty Doc where format = id
 instance (Pretty a) => Pretty [a] where format = format_list
+instance (Pretty a) => Pretty (NonEmpty a) where
+    format = format_list . NonEmpty.toList
 instance Pretty Char where
     format = PP.quotes . PP.char
     format_list = PP.doubleQuotes . PP.text

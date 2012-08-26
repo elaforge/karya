@@ -20,10 +20,13 @@ module Util.Control (
     -- * state
     , (<#>)
     , module Control.Monad
+    -- * nonempty
+    , module Data.List.NonEmpty
 ) where
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import Control.Monad
 import qualified Data.Monoid as Monoid
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.Monoid (mempty, mconcat)
 import Data.Maybe (mapMaybe, fromMaybe)
 import Util.Functor0 (fmap0)

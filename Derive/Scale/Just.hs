@@ -43,7 +43,7 @@ make_scale scale_id ratios = Scale.Scale
 scale_map :: [(Pitch.Note, Pitch.Degree)]
 scale_map = [(pitch_note p, n) | (n, p) <- zip [0..] pitches]
     where
-    notes = [Theory.Note pc 0 | pc <- [0..6]]
+    notes = [Theory.Note pc 0 | pc <- [0..pc_per_octave-1]]
     pitches = [Theory.Pitch oct note | oct <- [-1..9], note <- notes]
 
 -- * input_to_note
