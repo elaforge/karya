@@ -1,0 +1,91 @@
+# vim: set sw=2 ts=2 ai foldmethod=indent :
+
+These are all known inefficiencies, but it doesn't mean they're actually
+contributing to application slowness or memory hogginess.  In fact, many
+problems are probably caused by unknown or accidental inefficiencies, which
+should be uncovered by profiling and fixed as bugs.
+
+ui / fltk
+  - The UI uses transparent rectangles for selection, and since it's not
+    supported diretly by fltk I use a gross hack where I create an image
+    with an alpha channel and draw that.  I could stop using transparent
+    rectangles, use direct OS level support to draw them, or at least only
+    allocate the rect once and clip out the bits I want.
+  - Everything that has to be sent to the UI for drawing has to be
+    serialized and then copied again.  So when scrolling the events are
+    being constantly reserialized and copied.  But since scrolling on
+    redraws the revealed bit, that's mostly just a single event.
+  - When a new signal is generated, the whole thing is copied instead of
+    just passing a pointer because getting haskell to pass the GC
+    responsibility to C I think means a separate callback to dealloc the
+    ForeignPtr.  But memcpy() is very fast.  Still, I could do the
+    ForeignPtr dance if it mattered.
+  - UI events are stored in a Map.  But I don't generally need fast random
+    access lookup, I mostly need an ordered access and persistence.  A map
+    of array chunks might be more memory efficient.  Of course, scores are
+    handwritten so maybe they are never big enough to matter.
+
+cmd
+  The first place Cmd inefficiencies are noticeable is when thru gets laggy,
+  and it's very annoying.
+  - Cmd level recreates the list of context sensitive (i.e. track specefic)
+    Cmds on every single Cmd.
+  - Cmd.TimeStep creates a list of all possible time steps to step down it
+    once.  Of course laziness means they won't all be created, but it's still
+    probably needlessly inefficient.  The list could be cached.
+  - Playback is constantly sampling the inverse tempo map to find out the
+    current possition of the playback mark.  This means a bsearch every
+    time even though it's almost always increasing in time.  It could
+    remember the last position and do a linear search from there.
+  - The cmd model of offering the Msg to each Cmd in turn is flexible but
+    not efficient.  Keymaps combine many cmds into one Map lookup, so there
+    aren't actually that many Cmds to traverse, but every new Cmd in that
+    list adds a bit of time to every msg that enters the system.  It's
+    mostly not a problem I think, except that MIDI thru is also implemented
+    this way, and can generate lots of latency-sensitive data.
+    If this is a problem, I could think about hardcoding the response for
+    certain cmds, e.g. MIDI.
+  - Speaking of MIDI thru, it's very complicated and involves looking up
+    instruments, keeping track of output device state, remapping channels,
+    etc.  That's not great for latency.  This is kind of hard to avoid
+    though, given how much flexibility I need to implement fancy scales and
+    instruments.
+
+derive
+  - Derive writes a list of Score.Events.  The list is constructed with (++)
+    so each part is copied at least once.  Possible fix is to use a lazy list
+    of array chunks, and use a builder like lazy bytestring.
+  - Profiling shows lots of time spent in ScoreTime->RealTime conversion.
+    This winds up being a bsearch into the warp every time.  Each query is
+    mostly in increasing time order, though I'm not sure how to make use of
+    this, or if it would help if I could.
+  - Tempo signal is converted to warp with the 'Signal.integrate' function.
+    To keep it simple, integrate only understands a fixed sampling rate,
+    which means that even a constant tempo has to emit lots of samples.
+    On the other hand, this removes the need for a resample.  But I could
+    teach 'integrate' to handle separate sampling rates.  I actually
+    originally did it this way but it was complicated and buggy so I gave
+    up.
+  - Moving Score.Events after they are created is inefficient because the
+    controls have to be moved, and moving the controls means adding to every
+    single X coordinate.  Currently I don't really move events, but if
+    I need to, the signals could get shift/stretch annotations like the
+    warp.  This would fuse multiple shifts and stretches and only make you
+    pay the cost once when they are flattened, and only for the samples
+    which are needed.  Or the control signals could be changed to be
+    relative to the start of the event, which would make moving free, but
+    would incur a cost for every event on creation time, even if it wasn't
+    moved afterwards.
+
+perform
+  - Perform.Midi starts with all notes on separate channels and tries to
+    merge channels by comparing each note with each overlapping one.  It
+    doesn't know when two tracks share the same controls and can be merged
+    with no comparison.
+  - When Perform.Midi wants to merge two notes it has to compare their
+    controls.  To do that it has to resample them to have the same sample
+    points.  Resample is implemented by converting it to a list.  This is
+    good for laziness, so I don't resample any more of the signal than is
+    needed to be compared, but presumably means boxing and consing up every
+    sample.  I could pass the compare function into resample and reimplement
+    resample to iterate directly over the arrays.
