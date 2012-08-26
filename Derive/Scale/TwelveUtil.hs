@@ -9,6 +9,8 @@ import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.Util as Util
+import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
 
@@ -60,20 +62,24 @@ note_to_call :: System -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call sys note = case Map.lookup note (sys_note_to_degree sys) of
     Nothing -> Nothing
     Just (pitch, degree) ->
-        Just $ Call.Pitch.note_call note (note_number pitch degree)
+        Just $ Call.Pitch.note_call note (note_call pitch degree)
     where
     -- The Degree can be derived from the Pitch given the layout, so it's
     -- redundant to pass both, but convenient to precompute the Degrees.
-    note_number :: Theory.Pitch -> Pitch.Degree -> Scale.GetNoteNumber
-    note_number pitch (Pitch.Degree degree) chromatic diatonic mb_str_key = do
-        dsteps <- if diatonic == 0 then Right 0 else do
-            str_key <- maybe (Left Scale.KeyNeeded) Right mb_str_key
-            key <- read_key sys (Just str_key)
-            return $ Theory.diatonic_to_chromatic key
-                (Theory.pitch_note pitch) diatonic
-        let nn = Pitch.NoteNumber $ fromIntegral degree + chromatic + dsteps
-        if Num.in_range 1 127 nn then Right nn
-            else Left Scale.InvalidTransposition
+    note_call :: Theory.Pitch -> Pitch.Degree -> Scale.NoteCall
+    note_call pitch (Pitch.Degree degree) mb_str_key controls =
+        Util.pitch_error diatonic chromatic mb_str_key $ do
+            dsteps <- if diatonic == 0 then Right 0 else do
+                str_key <- maybe (Left Scale.KeyNeeded) Right mb_str_key
+                key <- read_key sys (Just str_key)
+                return $ Theory.diatonic_to_chromatic key
+                    (Theory.pitch_note pitch) diatonic
+            let nn = Pitch.NoteNumber $ fromIntegral degree + chromatic + dsteps
+            if Num.in_range 1 127 nn then Right nn
+                else Left Scale.InvalidTransposition
+        where
+        chromatic = Map.findWithDefault 0 Score.c_chromatic controls
+        diatonic = Map.findWithDefault 0 Score.c_diatonic controls
 
 input_to_note :: System
     -> Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note

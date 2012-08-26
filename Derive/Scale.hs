@@ -1,16 +1,11 @@
-module Derive.Scale (
-    Scale(..)
-    , GetNoteNumber
-    , ScaleError(..)
-    , nn_to_note
-) where
+module Derive.Scale (Scale(..), ScaleError(..), module Derive.Scale) where
 import Derive.Derive (Scale(..), ScaleError(..))
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
 
 
--- | Chromatic -> Diatonic -> Key -> NoteNumber
-type GetNoteNumber = Double -> Double -> Maybe Pitch.Key
-    -> Either ScaleError Pitch.NoteNumber
+type NoteCall = Maybe Pitch.Key -> PitchSignal.Controls
+    -> Either PitchSignal.PitchError Pitch.NoteNumber
 
 nn_to_note :: Scale -> Maybe Pitch.Key -> Pitch.NoteNumber -> Maybe Pitch.Note
 nn_to_note scale key nn = scale_input_to_note scale key (to_input nn)

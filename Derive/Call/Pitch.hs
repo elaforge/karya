@@ -5,7 +5,6 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
@@ -33,32 +32,19 @@ import Types
 -- Intended for fractional scale degrees.
 --
 -- [hz /Num/ @0@] Add an absolute hz value to the output.
-note_call :: Pitch.Note -> Scale.GetNoteNumber -> Derive.ValCall
+note_call :: Pitch.Note -> Scale.NoteCall -> Derive.ValCall
 note_call note note_number =
     Derive.ValCall ("degree: " ++ Pitch.note_text note) $ \args ->
     CallSig.call2 args (optional "frac" 0, optional "hz" 0) $ \frac hz -> do
         key <- Util.lookup_key
         return $ TrackLang.VPitch $ PitchSignal.pitch (call frac hz key)
     where
-    call frac hz key = \controls -> do
-        let get c = Map.findWithDefault 0 c controls
-            dia = get Score.c_diatonic
-            chrom = get Score.c_chromatic + frac / 100
-            hz_sig = get Score.c_hz
-        either (Left . errmsg dia chrom (hz + hz_sig) key)
-            (Right . Pitch.add_hz (hz + hz_sig)) (note_number chrom dia key)
-    errmsg dia chrom hz key err = PitchSignal.PitchError $ case err of
-        Scale.InvalidTransposition -> "note can't be transposed: "
-            ++ unwords (filter (not . null)
-                [show_val "d" dia, show_val "c" chrom, show_val "hz" hz])
-        Scale.KeyNeeded ->
-            "no key is set, but this transposition needs one"
-        Scale.UnparseableKey ->
-            "key unparseable by given scale: " ++ Pretty.pretty key
-        Scale.UnparseableNote ->
-            "unparseable note (shouldn't happen)"
-    show_val _ 0 = ""
-    show_val code val = Pretty.pretty val ++ code
+    call frac hz key controls =
+        Pitch.add_hz (hz + hz_sig) <$> note_number key
+            (if frac == 0 then controls
+                else Map.insertWith' (+) Score.c_chromatic (frac / 100)
+                    controls)
+        where hz_sig = Map.findWithDefault 0 Score.c_hz controls
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.

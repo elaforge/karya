@@ -8,7 +8,6 @@ module Instrument.Serialize (serialize, unserialize) where
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 
-import qualified Util.Serialize as Serialize
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import qualified Cmd.Serialize
 import qualified Derive.Score as Score

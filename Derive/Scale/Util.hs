@@ -4,7 +4,9 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Track as Track
 import qualified Derive.Call as Call
 import qualified Derive.Call.Pitch as Call.Pitch
@@ -15,6 +17,7 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import Types
 
 
@@ -67,20 +70,40 @@ transpose scale_map per_octave = \_key octaves steps note -> do
 note_to_call :: ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call smap note = case Map.lookup note (smap_note_to_degree smap) of
         Nothing -> Nothing
-        Just degree -> Just $ Call.Pitch.note_call note (note_number degree)
+        Just degree -> Just $ Call.Pitch.note_call note (note_call degree)
     where
-    note_number :: Pitch.Degree -> Scale.GetNoteNumber
-    note_number (Pitch.Degree degree) chromatic diatonic _key
-        | frac == 0 = maybe (Left Scale.InvalidTransposition) Right maybe_nn
-        | otherwise = case (maybe_nn, maybe_nn1) of
-            (Just nn, Just nn1) ->
-                Right $ Num.scale nn nn1 (Pitch.NoteNumber frac)
-            _ -> Left Scale.InvalidTransposition
+    note_call :: Pitch.Degree -> Scale.NoteCall
+    note_call (Pitch.Degree degree) key controls =
+        pitch_error diatonic chromatic key $ if frac == 0
+            then maybe (Left Scale.InvalidTransposition) Right maybe_nn
+            else case (maybe_nn, maybe_nn1) of
+                (Just nn, Just nn1) ->
+                    Right $ Num.scale nn nn1 (Pitch.NoteNumber frac)
+                _ -> Left Scale.InvalidTransposition
         where
+        chromatic = Map.findWithDefault 0 Score.c_chromatic controls
+        diatonic = Map.findWithDefault 0 Score.c_diatonic controls
         (int, frac) = properFraction $
             fromIntegral degree + chromatic + diatonic
         maybe_nn = Map.lookup int (smap_degree_to_nn smap)
         maybe_nn1 = Map.lookup (int+1) (smap_degree_to_nn smap)
+
+pitch_error :: Signal.Y -> Signal.Y -> Maybe Pitch.Key
+    -> Either Scale.ScaleError a -> Either PitchSignal.PitchError a
+pitch_error diatonic chromatic key = either (Left . msg) Right
+    where
+    msg err = PitchSignal.PitchError $ case err of
+        Scale.InvalidTransposition -> "note can't be transposed: "
+            ++ unwords (filter (not . null)
+                [show_val "d" diatonic, show_val "c" chromatic])
+        Scale.KeyNeeded ->
+            "no key is set, but this transposition needs one"
+        Scale.UnparseableKey ->
+            "key unparseable by given scale: " ++ Pretty.pretty key
+        Scale.UnparseableNote ->
+            "unparseable note (shouldn't happen)"
+    show_val _ 0 = ""
+    show_val code val = Pretty.pretty val ++ code
 
 input_to_note :: ScaleMap -> Maybe Pitch.Key -> Pitch.InputKey
     -> Maybe Pitch.Note

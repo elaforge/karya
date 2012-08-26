@@ -846,7 +846,8 @@ data Scale = Scale {
 
     -- | The controls that will casue a pitch from this scale to change.
     -- This is used by 'PitchSignal.apply_controls' to know when to reevaluate
-    -- a given pitch.
+    -- a given pitch.  Other controls can affect the pitch, but if they aren't
+    -- in this set, the pitch won't be reevaluated when they change.
     , scale_transposers :: !(Set.Set Score.Control)
 
     -- | Transpose a Note by a given number of octaves and integral degrees.

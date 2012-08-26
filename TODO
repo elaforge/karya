@@ -15,15 +15,16 @@ UNSORTED
         * implement Just.input_to_nn
         * Fix TODO on Perf.note_to_pitch while I'm at it
         - some chorded keys are not getting the proper pitch bend
+        It's a pianoteq problem.
       - pitchbends getting lost, and being audible: save/bug-pitchbend*
-    - test modulating and setting a new base hz
+    * test modulating and setting a new base hz
     - better retuning and gradual retuning
   - It's a bit unpleasant how I have TwelveUtils for accidental and key using
     scales, then Scale.Util for simple scales, and then Just is its own thing.
     Can I unify things into one framework?
   - Scale.InvalidTransposition isn't right for an nn out of range
     But that indicates a bug in the scale, right?
-  - The base-C to base-A conversion is messier than it should be.  Really it's
+  * The base-C to base-A conversion is messier than it should be.  Really it's
     just a display issue, so it should be restricted to read/show functions,
     right?
 

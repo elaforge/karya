@@ -11,6 +11,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Util as Util
+import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
 
@@ -106,27 +107,28 @@ valid_pitch pitch = Theory.note_accidentals note == 0
 
 -- * note_to_call
 
--- | TODO currently there's no way to set the base freq, so modulating from one
--- just scale to another is not too useful.  Since it'll use 12TET as the base,
--- all the keys will change tuning.  If I can set base hz, it's still awkward,
--- but doable given a few extra val calls:
+-- | Currently modulating from one just scale to another is awkward:
 --
 -- Set to 440.  Then if I modulate to C, set to
 -- "key = 'c'", "base = * 5:4 (hz (4c))"
 note_to_call :: Ratios -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call ratios note = case read_pitch note of
     Left _ -> Nothing
-    Right pitch ->
-        -- TODO need to augment note_call to get the base_hz from the environ
-        Just $ Call.Pitch.note_call note (note_number pitch)
+    Right pitch -> Just $ Call.Pitch.note_call note (note_call pitch)
     where
-    note_number :: Theory.Pitch -> Scale.GetNoteNumber
-    note_number pitch chromatic diatonic maybe_str_key = do
-        key <- maybe (Right default_key) read_key maybe_str_key
-        let hz = transpose_to_hz ratios Nothing key (chromatic+diatonic) pitch
-            nn = Pitch.hz_to_nn hz
-        if Num.in_range 0 127 nn then Right nn
-            else Left Scale.InvalidTransposition
+    note_call :: Theory.Pitch -> Scale.NoteCall
+    note_call pitch maybe_str_key controls =
+        Util.pitch_error chromatic diatonic maybe_str_key $ do
+            key <- maybe (Right default_key) read_key maybe_str_key
+            let hz = transpose_to_hz ratios base_hz key
+                    (chromatic + diatonic) pitch
+                nn = Pitch.hz_to_nn hz
+            if Num.in_range 0 127 nn then Right nn
+                else Left Scale.InvalidTransposition
+        where
+        chromatic = Map.findWithDefault 0 Score.c_chromatic controls
+        diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+        base_hz = Map.lookup (Score.Control "just-base") controls
 
 transpose_to_hz :: Ratios -> Maybe Pitch.Hz -> Key -> Double
     -> Theory.Pitch -> Pitch.Hz
