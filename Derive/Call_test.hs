@@ -212,22 +212,8 @@ test_inverting_n = do
         Derive.d_at (Args.start args) $ Util.pitched_note next_pitch 1
 
 test_track_dynamic = do
-    let run = extract . DeriveTest.derive_tracks
-        extract = Map.toList . Map.map (e_env . Derive.state_environ)
-            . Derive.r_track_dynamic
-        e_env e = (Pretty.pretty $ Map.lookup TrackLang.v_instrument e,
-            Pretty.pretty $ Map.lookup TrackLang.v_scale e)
-    -- Both tracks get *legong, even though >inst has to be inverted to see it.
-    equal (run [(">inst", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
-        [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">inst", "*legong"))
-        , ((UiTest.default_block_id, UiTest.mk_tid 2), (">inst", "*legong"))
-        ]
-
--- TODO what's the difference?  Merge these?
-test_track_dynamic2 = do
     let extract = map extract1 . Map.assocs . Derive.r_track_dynamic
         extract1 ((bid, tid), dyn) =
-            -- (Pretty.pretty (take 2 (Stack.innermost stack)), env)
             (bid, tid,
                 Map.lookup TrackLang.v_scale env,
                 Map.lookup TrackLang.v_instrument env)
@@ -243,6 +229,20 @@ test_track_dynamic2 = do
         , (UiTest.bid "b", UiTest.mk_tid_name "b" 2, scale, inst)
         , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 1, scale, inst)
         , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 2, scale, inst)
+        ]
+
+test_track_dynamic_invert = do
+    -- Ensure the correct TrackDynamic is collected even in the presence of
+    -- inversion.
+    let run = extract . DeriveTest.derive_tracks
+        extract = Map.toList . Map.map (e_env . Derive.state_environ)
+            . Derive.r_track_dynamic
+        e_env e = (Pretty.pretty $ Map.lookup TrackLang.v_instrument e,
+            Pretty.pretty $ Map.lookup TrackLang.v_scale e)
+    -- Both tracks get *legong, even though >inst has to be inverted to see it.
+    equal (run [(">inst", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
+        [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">inst", "*legong"))
+        , ((UiTest.default_block_id, UiTest.mk_tid 2), (">inst", "*legong"))
         ]
 
 -- * implementation

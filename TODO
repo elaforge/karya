@@ -1,5 +1,5 @@
 UNSORTED
-  - do something about Call_test.test_track_dynamic2
+  * do something about Call_test.test_track_dynamic2
   Just scales, along with TwelveUtil support
     * simple just scale with no accidentals
     * why does 4c seem a semi-tone lower in just?
@@ -18,7 +18,7 @@ UNSORTED
         It's a pianoteq problem.
       - pitchbends getting lost, and being audible: save/bug-pitchbend*
     * test modulating and setting a new base hz
-    - better retuning and gradual retuning
+    - interpolate between just scales in different keys
   - It's a bit unpleasant how I have TwelveUtils for accidental and key using
     scales, then Scale.Util for simple scales, and then Just is its own thing.
     Can I unify things into one framework?
