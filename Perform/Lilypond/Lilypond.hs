@@ -1,14 +1,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond where
+import qualified Control.Monad.State.Strict as State
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-
-import qualified Text.PrettyPrint as PP
-import Text.PrettyPrint (Doc)
-import Text.PrettyPrint ((<+>), ($+$))
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.ParseBs as ParseBs
@@ -350,7 +348,7 @@ parse_time_signature sig = do
 
 type Staff = (Clef, Score.Instrument, [[Note]])
 
-make_ly :: Config -> Score -> [Event] -> Doc
+make_ly :: Config -> Score -> [Event] -> ([Text.Text], StackMap)
 make_ly config score events = ly_file score
     (make_staves config (score_clef score) (score_time score) events)
 
@@ -375,64 +373,6 @@ round_up interval n
 inst_name :: Score.Instrument -> String
 inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
 
-ly_file :: Score -> [Staff] -> Doc
-ly_file (Score title time_sig _clef (key, mode)) staves =
-    command "version" <+> string "2.14.2"
-    $+$ command "language" <+> string "english"
-    -- Could I put the stack in there so I can click on the notes and get them
-    -- highlighted in the original score?
-    $+$ command "pointAndClickOff"
-    $+$ brackets (command "header")
-        [assign name <+> string val | (name, val)
-            <- [("title", title), ("tagline", "")]]
-    $+$ command "score" <+> "{" <+> "<<"
-
-    $+$ command "new" <+> "StaffGroup" <+> "<<"
-    $+$ vsep (map mkstaff staves)
-    $+$ ">>"
-    $+$ ">>" <+> "}"
-    where
-    mkstaff (clef, inst, measures) = command "new" <+> "Staff"
-        <+> "{"
-            <+> command "clef" <+> string clef <+> "{"
-            <+> command "key" <+> PP.text key
-                <+> command (map Char.toLower (show mode))
-            <+> command "time" <+> PP.text (to_lily time_sig)
-            $+$ set "Staff.instrumentName" (string (inst_name inst))
-            $+$ set "Staff.shortInstrumentName" (string (inst_name inst))
-            $+$ brackets mempty [show_measures measures]
-            <+> "}"
-        <+> "}"
-    -- Show 4 measures per line and comment with the measure number.
-    show_measures measures =
-        vsep $ zipWith measure_group [0, 4 ..] (group 4 measures)
-    measure_group num measures =
-        PP.hsep (map show_measure measures) <+> PP.text ("% " ++ show num)
-    show_measure notes = PP.hsep (map (PP.text . to_lily) notes) <+> PP.char '|'
-    group _ [] = []
-    group n ms = let (pre, post) = splitAt n ms in pre : group n post
-
-command :: String -> Doc
-command text = PP.char '\\' <> PP.text text
-
-bcommand :: String -> [Doc] -> Doc
-bcommand text contents = command text <+> PP.char '{'
-    $+$ PP.nest 2 (PP.fsep contents)
-    $+$ PP.char '}'
-
-brackets :: Doc -> [Doc] -> Doc
-brackets prefix contents = prefix
-    <+> PP.char '{' $+$ PP.nest 2 (PP.fsep contents) $+$ PP.char '}'
-
-assign :: String -> Doc
-assign name = PP.text name <+> PP.char '='
-
-set :: String -> Doc -> Doc
-set var val = command "set" <+> PP.text var <+> PP.char '=' <+> val
-
-string :: String -> Doc
-string = PP.doubleQuotes . PP.text
-
 show_pitch :: Theory.Pitch -> Either String String
 show_pitch pitch = (++ oct_mark) <$> show_pitch_note note
     where
@@ -452,7 +392,77 @@ show_pitch_note (Theory.Note pc accs) = do
     return $ Theory.pc_char pc : acc
 
 
--- * util
+-- * output
 
-vsep :: [Doc] -> Doc
-vsep = foldr ($+$) mempty
+ly_file :: Score -> [Staff] -> ([Text.Text], StackMap)
+ly_file (Score title time_sig _clef (key, mode)) staves = run_output $ do
+    output $ Text.unlines
+        [ "\\version" <+> str "2.14.2"
+        , "\\language" <+> str "english"
+        , "\\header { title =" <+> str title <+> "tagline = \"\" }"
+        , "\\score { <<"
+        , "\\new StaffGroup <<"
+        ]
+    mapM_ mkstaff staves
+    output $ Text.unlines
+        [ ">>"
+        , ">> }"
+        ]
+    where
+    str text = "\"" <> Text.pack text <> "\""
+    x <+> y = x <> " " <> y
+
+    mkstaff (clef, inst, measures) = do
+        output $ "\\new Staff { \\clef" <+> str clef
+            <+> "{ \\key" <+> Text.pack key <+> "\\"
+                <> Text.pack (map Char.toLower (show mode))
+            <+> "\\time" <+> Text.pack (to_lily time_sig) <> "\n"
+        output $ "\\set Staff.instrumentName =" <+> str (inst_name inst)
+            <> "\n\\set Staff.shortInstrumentName =" <+> str (inst_name inst)
+            <> "\n{\n"
+        mapM_ show_measures (zip [0, 4 ..] (group 4 measures))
+        output $ "} } }\n\n"
+    -- Show 4 measures per line and comment with the measure number.
+    show_measures (num, measures) = do
+        output "  "
+        mapM_ show_measure measures
+        output $ "%" <+> Text.pack (show num) <> "\n"
+    show_measure notes = do
+        mapM_ show_note notes
+        output "| "
+    show_note note = do
+        -- record_pos (note_stack note)
+        output $ Text.pack (to_lily note) <> " "
+    group _ [] = []
+    group n ms = let (pre, post) = splitAt n ms in pre : group n post
+
+type Output a = State.State OutputState a
+-- | Map (row, col) to stack.
+type StackMap = Map.Map (Int, Int) String
+
+run_output :: Output a -> ([Text.Text], StackMap)
+run_output m = (reverse (output_chunks state), output_map state)
+    where state = State.execState m (OutputState [] Map.empty 0 0)
+
+data OutputState = OutputState {
+    -- | Chunks of text to write, in reverse order.  I could use
+    -- Text.Lazy.Builder, but this is simpler and performance is probably ok.
+    output_chunks :: ![Text.Text]
+    , output_map :: !StackMap
+    , output_line :: !Int
+    , output_col :: !Int
+    } deriving (Show)
+
+output :: Text.Text -> Output ()
+output text = State.modify $ \(OutputState chunks omap line col) ->
+    let (line2, col2) = increment_lines line col text
+    in OutputState (text:chunks) omap line2 col2
+
+record_pos :: String -> Output ()
+record_pos stack = State.modify $ \st -> st { output_map =
+    Map.insert (output_line st, output_col st) stack (output_map st) }
+
+increment_lines :: Int -> Int -> Text.Text -> (Int, Int)
+increment_lines line col text = case Text.breakOnAll "\n" text of
+    [] -> (line, col + Text.length text)
+    lines -> (line + length lines, Text.length (snd (last lines)) - 1)

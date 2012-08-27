@@ -62,4 +62,7 @@ from_events key clef time_sig config events = do
     block_id <- Cmd.get_focused_block
     score <- make_score key clef time_sig block_id
     dir <- Cmd.Lilypond.ly_dir
-    Trans.liftIO $ Cmd.Lilypond.compile_ly dir block_id config score events
+    stack_map <- Trans.liftIO $
+        Cmd.Lilypond.compile_ly dir block_id config score events
+    -- TODO save stack_map
+    return ()

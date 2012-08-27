@@ -1,5 +1,5 @@
 import-order: Util Midi Ui Cmd Derive Perform Instrument Local LogView App
 prio-package-high:
-prio-package-low: haskell98 ghc
+prio-package-low: haskell98 ghc darcs
 prio-module-high: Ui
 prio-module-low: GHC

@@ -1,12 +1,13 @@
 module Perform.Lilypond.Lilypond_test where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+
 import qualified System.Process as Process
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -65,7 +66,7 @@ test_convert_duration = do
         concat $ replicate 2 ["2", "8.", "4.", "16", "4", "8.", "8", "16"]
 
 test_make_ly = do
-    let (score, staves, events) = run (mkmeta "title" "treble" "4/4")
+    let ((score, smap), staves, events) = run (mkmeta "title" "treble" "4/4")
             -- complicated rhythm
             [ (">s/i1", [(0, 1, "4c"), (1.5, 2, "4d#")], [])
             -- rhythm starts after 0, long multi measure note
@@ -81,14 +82,15 @@ test_make_ly = do
         ]
     -- compile_ly score
     pprint events
-    pprint score >> putChar '\n'
+    Text.IO.putStrLn $ mconcat score
+    pprint smap
 
 
 -- * util
 
-compile_ly :: Pretty.Doc -> IO ()
+compile_ly :: [Text.Text] -> IO ()
 compile_ly score = do
-    writeFile "build/test/test.ly" (Pretty.formatted score)
+    Text.IO.writeFile "build/test/test.ly" (mconcat score)
     void $ Process.rawSystem
         "lilypond" ["-o", "build/test/test", "build/test/test.ly"]
 
@@ -111,7 +113,7 @@ mkmeta title clef sig = Map.fromList
     ]
 
 run :: Map.Map String String -> [UiTest.NoteSpec]
-    -> (Pretty.Doc, [Lilypond.Staff], [Lilypond.Event])
+    -> (([Text.Text], Lilypond.StackMap), [Lilypond.Staff], [Lilypond.Event])
 run meta notes = (Lilypond.make_ly config score events, staves, events)
     where
     staves = Lilypond.make_staves config (Lilypond.score_clef score) sig events
