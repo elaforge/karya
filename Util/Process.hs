@@ -4,11 +4,12 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Data.ByteString as ByteString
 import qualified System.Exit as Exit
 import qualified System.IO as IO
-
 import qualified System.Process as Process
 
+import qualified Util.Log as Log
 
--- | Similar to System.Process.readProcessWithExitCode but return ByteStrings
+
+-- | Similar to 'Process.readProcessWithExitCode' but return ByteStrings
 -- instead of String.
 readProcessWithExitCode :: Maybe [(String, String)] -> FilePath -> [String]
     -> ByteString.ByteString
@@ -32,3 +33,22 @@ readProcessWithExitCode env cmd args stdin = do
     IO.hClose errh
     ex <- Process.waitForProcess pid
     return (ex, out, err)
+
+-- | Like 'Process.createProcess', but log if the binary wasn't found or
+-- failed.
+logged :: Process.CreateProcess -> IO (Maybe IO.Handle,
+       Maybe IO.Handle, Maybe IO.Handle, Process.ProcessHandle)
+logged create = do
+    r@(_, _, _, pid) <- Process.createProcess create
+    Concurrent.forkIO $ do
+        code <- Process.waitForProcess pid
+        case code of
+            Exit.ExitFailure c -> Log.error $
+                "subprocess " ++ show (binaryOf create) ++ " failed: "
+                ++ if c == 127 then "binary not found" else show c
+            _ -> return ()
+    return r
+    where
+    binaryOf create = case Process.cmdspec create of
+        Process.RawCommand fn _ -> fn
+        Process.ShellCommand cmd -> fst $ break (==' ') cmd

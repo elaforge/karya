@@ -43,7 +43,7 @@
     Unfortunately cmds also use getDirectoryContents, forkIO, killThread, etc.
 -}
 module Cmd.Cmd (
-    module Cmd.Cmd, Performance(..)
+    module Cmd.Cmd, Performance(..), StackMap
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent as Concurrent
@@ -79,7 +79,7 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
-import Cmd.Msg (Performance(..)) -- avoid a circular import
+import Cmd.Msg (Performance(..), StackMap) -- avoid a circular import
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.TimeStep as TimeStep
 
@@ -381,6 +381,7 @@ data PlayState = PlayState {
     -- waiting to see if a new score is worth compiling.  If set to True and
     -- the compile hasn't begun yet, it will be cancelled.
     , state_lilypond_compiles :: !(Map.Map BlockId CancelLilypond)
+    , state_lilypond_stack_maps :: !(Map.Map BlockId StackMap)
     -- | Some play commands can start playing from a short distance before the
     -- cursor.
     , state_play_step :: !TimeStep.TimeStep
@@ -404,6 +405,7 @@ initial_play_state = PlayState
     , state_current_performance = Map.empty
     , state_performance_threads = Map.empty
     , state_lilypond_compiles = Map.empty
+    , state_lilypond_stack_maps = Map.empty
     , state_play_step =
         TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 2)
     , state_step = Nothing

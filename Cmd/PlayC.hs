@@ -52,7 +52,7 @@ cmd_play_msg msg = do
             st { Cmd.state_play_control = Nothing }
         Transport.Died err_msg -> Log.warn ("player died: " ++ err_msg)
     derive_status_msg block_id status = do
-        State.set_play_box block_id (derive_status_color status)
+        when_just (derive_status_color status) (State.set_play_box block_id)
         case status of
             Msg.OutOfDate perf ->
                 Cmd.modify_play_state $ \st ->
@@ -65,12 +65,17 @@ cmd_play_msg msg = do
                 ui_state <- State.get
                 Trans.liftIO $ Sync.set_track_signals block_id ui_state
                     (Cmd.perf_track_signals perf)
+            Msg.LilypondComplete stack_map -> Cmd.modify_play_state $ \st -> st
+                { Cmd.state_lilypond_stack_maps = Map.insert block_id
+                    stack_map (Cmd.state_lilypond_stack_maps st)
+                }
             _ -> return ()
     derive_status_color status = case status of
-        Msg.OutOfDate {} -> Color.brightness 1.5 Config.busy_color
-        Msg.Deriving {} -> Config.busy_color
-        Msg.DeriveComplete {} -> Config.box_color
-        Msg.Killed {} -> Config.box_color
+        Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
+        Msg.Deriving {} -> Just $ Config.busy_color
+        Msg.DeriveComplete {} -> Just $ Config.box_color
+        Msg.Killed {} -> Just $ Config.box_color
+        Msg.LilypondComplete {} -> Nothing
 
 
 -- * updater

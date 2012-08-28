@@ -13,9 +13,11 @@ import qualified Util.ParseBs as ParseBs
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Cmd.Cmd as Cmd
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
 
@@ -86,15 +88,16 @@ data Event = Event {
     , event_pitch :: !String
     , event_instrument :: !Score.Instrument
     , event_dynamic :: !Double
+    , event_stack :: !Stack.Stack
     } deriving (Show)
 
 event_end :: Event -> Time
 event_end event = event_start event + event_duration event
 
 instance Pretty.Pretty Event where
-    format (Event start dur pitch inst dyn) = Pretty.constructor "Event"
-        [Pretty.format start, Pretty.format dur, Pretty.text pitch,
-            Pretty.format inst, Pretty.format dyn]
+    format (Event start dur pitch inst dyn _stack) =
+        Pretty.constructor "Event" [Pretty.format start, Pretty.format dur,
+            Pretty.text pitch, Pretty.format inst, Pretty.format dyn]
 
 -- ** Note
 
@@ -105,13 +108,14 @@ data Note = Note {
     , note_tie :: !Bool
     -- | Additional code to append to the note.
     , note_code :: !String
+    , note_stack :: !(Maybe Stack.UiFrame)
     } deriving (Show)
 
 rest :: NoteDuration -> Note
-rest dur = Note [] dur False ""
+rest dur = Note [] dur False "" Nothing
 
 instance ToLily Note where
-    to_lily (Note pitches dur tie code) = case pitches of
+    to_lily (Note pitches dur tie code _stack) = case pitches of
             [] -> 'r' : ly_dur ++ code
             [pitch] -> pitch ++ ly_dur ++ code
             _ -> '<' : unwords pitches ++ ">" ++ ly_dur ++ code
@@ -139,6 +143,7 @@ convert_notes config sig end events = go Nothing 0 events
             , note_tie = any (> start + allowed_time) (map event_end here)
             , note_code = if not (null dyn) && maybe True (/=dyn) prev_dyn
                 then '\\':dyn else ""
+            , note_stack = Seq.last (Stack.to_ui (event_stack event))
             }
         (here, rest) = break ((>start) . event_start) events
         end = subtract start $ fromMaybe (event_end event) $
@@ -348,7 +353,7 @@ parse_time_signature sig = do
 
 type Staff = (Clef, Score.Instrument, [[Note]])
 
-make_ly :: Config -> Score -> [Event] -> ([Text.Text], StackMap)
+make_ly :: Config -> Score -> [Event] -> ([Text.Text], Cmd.StackMap)
 make_ly config score events = ly_file score
     (make_staves config (score_clef score) (score_time score) events)
 
@@ -394,7 +399,7 @@ show_pitch_note (Theory.Note pc accs) = do
 
 -- * output
 
-ly_file :: Score -> [Staff] -> ([Text.Text], StackMap)
+ly_file :: Score -> [Staff] -> ([Text.Text], Cmd.StackMap)
 ly_file (Score title time_sig _clef (key, mode)) staves = run_output $ do
     output $ Text.unlines
         [ "\\version" <+> str "2.14.2"
@@ -431,24 +436,22 @@ ly_file (Score title time_sig _clef (key, mode)) staves = run_output $ do
         mapM_ show_note notes
         output "| "
     show_note note = do
-        -- record_pos (note_stack note)
+        when_just (note_stack note) record_stack
         output $ Text.pack (to_lily note) <> " "
     group _ [] = []
     group n ms = let (pre, post) = splitAt n ms in pre : group n post
 
 type Output a = State.State OutputState a
--- | Map (row, col) to stack.
-type StackMap = Map.Map (Int, Int) String
 
-run_output :: Output a -> ([Text.Text], StackMap)
+run_output :: Output a -> ([Text.Text], Cmd.StackMap)
 run_output m = (reverse (output_chunks state), output_map state)
-    where state = State.execState m (OutputState [] Map.empty 0 0)
+    where state = State.execState m (OutputState [] Map.empty 1 1)
 
 data OutputState = OutputState {
     -- | Chunks of text to write, in reverse order.  I could use
     -- Text.Lazy.Builder, but this is simpler and performance is probably ok.
     output_chunks :: ![Text.Text]
-    , output_map :: !StackMap
+    , output_map :: !Cmd.StackMap
     , output_line :: !Int
     , output_col :: !Int
     } deriving (Show)
@@ -458,8 +461,8 @@ output text = State.modify $ \(OutputState chunks omap line col) ->
     let (line2, col2) = increment_lines line col text
     in OutputState (text:chunks) omap line2 col2
 
-record_pos :: String -> Output ()
-record_pos stack = State.modify $ \st -> st { output_map =
+record_stack :: Stack.UiFrame -> Output ()
+record_stack stack = State.modify $ \st -> st { output_map =
     Map.insert (output_line st, output_col st) stack (output_map st) }
 
 increment_lines :: Int -> Int -> Text.Text -> (Int, Int)

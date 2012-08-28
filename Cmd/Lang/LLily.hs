@@ -1,7 +1,10 @@
 module Cmd.Lang.LLily where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
+import qualified System.FilePath as FilePath
+import qualified System.Process as Process
 
+import qualified Util.Process
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -61,8 +64,17 @@ from_events :: String -> String -> String -> Cmd.Lilypond.TimeConfig
 from_events key clef time_sig config events = do
     block_id <- Cmd.get_focused_block
     score <- make_score key clef time_sig block_id
-    dir <- Cmd.Lilypond.ly_dir
+    filename <- Cmd.Lilypond.ly_filename block_id
     stack_map <- Trans.liftIO $
-        Cmd.Lilypond.compile_ly dir block_id config score events
-    -- TODO save stack_map
+        Cmd.Lilypond.compile_ly filename config score events
+    Cmd.modify_play_state $ \st -> st
+        { Cmd.state_lilypond_stack_maps = Map.insert block_id
+            stack_map (Cmd.state_lilypond_stack_maps st)
+        }
+
+view_pdf :: BlockId -> Cmd.CmdL ()
+view_pdf block_id = do
+    filename <- Cmd.Lilypond.ly_filename block_id
+    Trans.liftIO $ Util.Process.logged $
+        (Process.proc "open" [FilePath.replaceExtension filename ".pdf"])
     return ()

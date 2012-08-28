@@ -28,6 +28,8 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
+
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.Config as Config
 import Types
@@ -279,6 +281,14 @@ create_block :: (State.M m) => String -> String
     -> [(Block.TracklikeId, Types.Width)] -> m BlockId
 create_block block_name title tracks = State.create_block (mkid block_name)
     title (map (uncurry Block.track) tracks)
+
+mkstack :: (TrackNum, ScoreTime, ScoreTime) -> Stack.Stack
+mkstack (tracknum, s, e) = mkstack_block (default_block_name, tracknum, s, e)
+
+mkstack_block :: (String, TrackNum, ScoreTime, ScoreTime) -> Stack.Stack
+mkstack_block (block, tracknum, s, e) = Stack.from_outermost
+    [Stack.Block (bid block), Stack.Track (mk_tid_name block tracknum),
+        Stack.Region s e]
 
 -- ** track
 

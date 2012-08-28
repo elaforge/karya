@@ -3,13 +3,18 @@ module Cmd.Lilypond where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+
 import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
+import qualified System.IO as IO
 import qualified System.Process as Process
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
+import qualified Util.Process
 import qualified Util.Thread as Thread
 
 import qualified Ui.Block as Block
@@ -38,14 +43,16 @@ import Types
 compile_delay :: Thread.Seconds
 compile_delay = 3
 
-cmd_compile :: Msg.Msg -> Cmd.CmdIO
-cmd_compile (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
-    compile block_id perf
+cmd_compile :: (BlockId -> Cmd.StackMap -> IO ()) -> Msg.Msg -> Cmd.CmdIO
+cmd_compile send_stack_map
+        (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
+    compile send_stack_map block_id perf
     return Cmd.Continue
-cmd_compile _ = return Cmd.Continue
+cmd_compile _ _ = return Cmd.Continue
 
-compile :: BlockId -> Cmd.Performance -> Cmd.CmdT IO ()
-compile block_id perf = do
+compile :: (BlockId -> Cmd.StackMap -> IO ()) -> BlockId -> Cmd.Performance
+    -> Cmd.CmdT IO ()
+compile send_stack_map block_id perf = do
     meta <- Block.block_meta <$> State.get_block block_id
     case Lilypond.meta_to_score (Just (lookup_key perf)) meta of
         Nothing -> return ()
@@ -64,13 +71,14 @@ compile block_id perf = do
         Cmd.modify_play_state $ \st -> st { Cmd.state_lilypond_compiles =
             Map.insert block_id (Cmd.CancelLilypond var)
                 (Cmd.state_lilypond_compiles st) }
-        dir <- ly_dir
-        Trans.liftIO $ void $ Thread.start $ do
+        filename <- ly_filename block_id
+        Trans.liftIO $ Thread.start $ do
             Thread.delay compile_delay
             cancelled <- IORef.readIORef var
             unless cancelled $
-                compile_ly dir block_id config score
+                send_stack_map block_id =<< compile_ly filename config score
                     (LEvent.events_of (Cmd.perf_events perf))
+        return ()
     -- TODO if I still want to do automatic lilypond derivation, I'll have to
     -- stick this in Block.Meta, but that means I should probably use
     -- Data.Dynamic instead of strings.
@@ -81,10 +89,10 @@ data TimeConfig = TimeConfig
     , time_quantize :: Lilypond.Duration
     }
 
-ly_dir :: (State.M m) => m FilePath
-ly_dir = do
+ly_filename :: (State.M m) => BlockId -> m FilePath
+ly_filename block_id = do
     save_file <- SaveGit.save_file False <$> State.get
-    return $ save_file ++ "_ly"
+    return $ (save_file ++ "_ly") </> (Id.ident_name block_id ++ ".ly")
 
 lookup_key :: Cmd.Performance -> Pitch.Key
 lookup_key perf =
@@ -95,18 +103,21 @@ lookup_key perf =
         Right key -> Just (Pitch.Key key)
         Left _ -> Nothing
 
-compile_ly :: FilePath -> BlockId -> TimeConfig -> Lilypond.Score
-    -> [Score.Event] -> IO ()
-compile_ly dir block_id config score events = do
-    let (ly, logs) = make_ly config score events
+compile_ly :: FilePath -> TimeConfig -> Lilypond.Score
+    -> [Score.Event] -> IO Cmd.StackMap
+compile_ly ly_filename config score events = do
+    let ((ly, stack_map), logs) = make_ly config score events
     mapM_ Log.write logs
-    Directory.createDirectoryIfMissing True dir
-    let fname = dir </> Id.ident_name block_id
-    writeFile (fname ++ ".ly") (Pretty.formatted ly)
-    void $ Process.rawSystem "lilypond" ["-o", fname, fname ++ ".ly"]
+    Directory.createDirectoryIfMissing True
+        (FilePath.takeDirectory ly_filename)
+    IO.withFile ly_filename IO.WriteMode $ \hdl ->
+        mapM_ (Text.IO.hPutStr hdl) ly
+    Util.Process.logged $ Process.proc "lilypond"
+        ["-o", FilePath.dropExtension ly_filename, ly_filename]
+    return stack_map
 
 make_ly :: TimeConfig -> Lilypond.Score -> [Score.Event]
-    -> (Pretty.Doc, [Log.Msg])
+    -> (([Text.Text], Cmd.StackMap), [Log.Msg])
 make_ly (TimeConfig quarter quantize_dur) score score_events =
     (Lilypond.make_ly Lilypond.default_config score
         (postproc quantize_dur events), logs)

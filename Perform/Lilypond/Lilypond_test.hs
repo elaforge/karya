@@ -7,8 +7,11 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Process as Process
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import Util.Test
+
 import qualified Ui.UiTest as UiTest
+import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
@@ -68,9 +71,9 @@ test_convert_duration = do
 test_make_ly = do
     let ((score, smap), staves, events) = run (mkmeta "title" "treble" "4/4")
             -- complicated rhythm
-            [ (">s/i1", [(0, 1, "4c"), (1.5, 2, "4d#")], [])
+            [ ("s/i1", [(0, 1, "4c"), (1.5, 2, "4d#")], [])
             -- rhythm starts after 0, long multi measure note
-            , (">s/i2", [(1, 1, "4g"), (2, 12, "3a")], [])
+            , ("s/i2", [(1, 1, "4g"), (2, 12, "3a")], [])
             ]
         extract_staff (clef, inst, measures) = (clef, Lilypond.inst_name inst,
             map (map Lilypond.to_lily) measures)
@@ -81,7 +84,7 @@ test_make_ly = do
             [["r4", "g'4", "a2~"], ["a1~"], ["a1~"], ["a2", "r2"]])
         ]
     -- compile_ly score
-    pprint events
+    Pretty.pprint events
     Text.IO.putStrLn $ mconcat score
     pprint smap
 
@@ -97,7 +100,7 @@ compile_ly score = do
 read_note :: String -> Lilypond.Note
 read_note text
     | pitch == "r" = Lilypond.rest dur
-    | otherwise = Lilypond.Note [pitch] dur (tie == "~") ""
+    | otherwise = Lilypond.Note [pitch] dur (tie == "~") "" Nothing
     where
     (pitch, rest) = break Char.isDigit text
     (dur_text, tie) = break (=='~') rest
@@ -113,7 +116,7 @@ mkmeta title clef sig = Map.fromList
     ]
 
 run :: Map.Map String String -> [UiTest.NoteSpec]
-    -> (([Text.Text], Lilypond.StackMap), [Lilypond.Staff], [Lilypond.Event])
+    -> (([Text.Text], Cmd.StackMap), [Lilypond.Staff], [Lilypond.Event])
 run meta notes = (Lilypond.make_ly config score events, staves, events)
     where
     staves = Lilypond.make_staves config (Lilypond.score_clef score) sig events
@@ -127,9 +130,14 @@ mkevent (start, dur, pitch) = mkevent_inst (start, dur, pitch, "")
 
 mkevent_inst :: (RealTime, RealTime, String, String) -> Lilypond.Event
 mkevent_inst (start, dur, pitch, inst) =
-    Lilypond.Event (Convert.real_to_time 1 start)
-        (Convert.real_to_time 1 dur) pitch
-        (Score.Instrument inst) 0.5
+    Lilypond.Event
+        { Lilypond.event_start = Convert.real_to_time 1 start
+        , Lilypond.event_duration = Convert.real_to_time 1 dur
+        , Lilypond.event_pitch = pitch
+        , Lilypond.event_instrument = Score.Instrument inst
+        , Lilypond.event_dynamic = 0.5
+        , Lilypond.event_stack = UiTest.mkstack (1, 0, 1)
+        }
 
 sig :: Int -> Int -> Lilypond.TimeSignature
 sig num denom = Lilypond.TimeSignature num dur
