@@ -450,27 +450,21 @@ type Output a = State.State OutputState a
 
 run_output :: Output a -> ([Text.Text], Cmd.StackMap)
 run_output m = (reverse (output_chunks state), output_map state)
-    where state = State.execState m (OutputState [] Map.empty 1 1)
+    where state = State.execState m (OutputState [] Map.empty 1)
 
 data OutputState = OutputState {
     -- | Chunks of text to write, in reverse order.  I could use
     -- Text.Lazy.Builder, but this is simpler and performance is probably ok.
     output_chunks :: ![Text.Text]
     , output_map :: !Cmd.StackMap
-    , output_line :: !Int
-    , output_col :: !Int
+    -- | Running sum of the length of the chunks.
+    , output_char_num :: !Int
     } deriving (Show)
 
 output :: Text.Text -> Output ()
-output text = State.modify $ \(OutputState chunks omap line col) ->
-    let (line2, col2) = increment_lines line col text
-    in OutputState (text:chunks) omap line2 col2
+output text = State.modify $ \(OutputState chunks omap num) ->
+    OutputState (text:chunks) omap (num + Text.length text)
 
 record_stack :: Stack.UiFrame -> Output ()
 record_stack stack = State.modify $ \st -> st { output_map =
-    Map.insert (output_line st, output_col st) stack (output_map st) }
-
-increment_lines :: Int -> Int -> Text.Text -> (Int, Int)
-increment_lines line col text = case Text.breakOnAll "\n" text of
-    [] -> (line, col + Text.length text)
-    lines -> (line + length lines, Text.length (snd (last lines)) - 1)
+    Map.insert (output_char_num st) stack (output_map st) }

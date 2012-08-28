@@ -83,7 +83,7 @@ UNSORTED
     - can I make a click on a note in the pdf highlight in the sequencer?
       Hung up on getting preview to send clicks to a program, notes in
       App/LilypondClick.hs
-      - StackMap can be just char pos
+      * StackMap can be just char pos
 
     - to support things like trills, I'd need to have an alternate lilypond
       derivation.  Set lilypond=true in the environ, then various calls can

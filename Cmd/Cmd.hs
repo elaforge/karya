@@ -388,11 +388,10 @@ data PlayState = PlayState {
     , state_play_multiplier :: RealTime
     } deriving (Show, Generics.Typeable)
 
--- | Map (row, col) in a written .ly score to stack position of the generating
--- event.  Lilypond can have the generated PDF can report clicks in (row, col)
--- coordinates, but I need to map them back to stacks to highlight the clicked
--- note.
-type StackMap = Map.Map (Int, Int) Stack.UiFrame
+-- | Map char number in a written .ly score to stack position of the generating
+-- event.  Lilypond can have the generated PDF can report clicks, but I need to
+-- map them back to stacks to highlight the clicked note.
+type StackMap = Map.Map Int Stack.UiFrame
 
 initial_play_state :: PlayState
 initial_play_state = PlayState
