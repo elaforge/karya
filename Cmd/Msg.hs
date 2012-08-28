@@ -1,6 +1,5 @@
 module Cmd.Msg where
 import Control.Monad
-import qualified Data.Map as Map
 import qualified System.IO as IO
 
 import qualified Util.Pretty as Pretty
@@ -11,9 +10,7 @@ import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.InputNote as InputNote
 import qualified Derive.Derive as Derive
-import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
-
 import qualified Perform.Transport as Transport
 import Types
 
@@ -55,7 +52,6 @@ data DeriveStatus =
     | Deriving
     | DeriveComplete Performance
     | Killed
-    | LilypondComplete StackMap
     deriving (Show)
 
 instance Pretty.Pretty DeriveStatus where pretty = show
@@ -85,12 +81,6 @@ data Performance = Performance {
 instance Show Performance where
     show perf = "((Performance " ++ Pretty.pretty len ++ "))"
         where len = Derive.cache_size (perf_derive_cache perf)
-
--- | Map (row, col) in a written .ly score to stack position of the generating
--- event.  Lilypond can have the generated PDF can report clicks in (row, col)
--- coordinates, but I need to map them back to stacks to highlight the clicked
--- note.
-type StackMap = Map.Map (Int, Int) Stack.UiFrame
 
 -- * views
 

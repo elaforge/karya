@@ -43,7 +43,7 @@
     Unfortunately cmds also use getDirectoryContents, forkIO, killThread, etc.
 -}
 module Cmd.Cmd (
-    module Cmd.Cmd, Performance(..), StackMap
+    module Cmd.Cmd, Performance(..)
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent as Concurrent
@@ -54,7 +54,6 @@ import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
 
 import qualified Data.Generics as Generics
-import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -79,7 +78,7 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
-import Cmd.Msg (Performance(..), StackMap) -- avoid a circular import
+import Cmd.Msg (Performance(..)) -- avoid a circular import
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.TimeStep as TimeStep
 
@@ -377,10 +376,6 @@ data PlayState = PlayState {
     -- new performance is needed before the old one is complete, it can be
     -- killed off.
     , state_performance_threads :: !(Map.Map BlockId Concurrent.ThreadId)
-    -- | This has an entry for each lilypond compile, each of which may be
-    -- waiting to see if a new score is worth compiling.  If set to True and
-    -- the compile hasn't begun yet, it will be cancelled.
-    , state_lilypond_compiles :: !(Map.Map BlockId CancelLilypond)
     , state_lilypond_stack_maps :: !(Map.Map BlockId StackMap)
     -- | Some play commands can start playing from a short distance before the
     -- cursor.
@@ -393,10 +388,11 @@ data PlayState = PlayState {
     , state_play_multiplier :: RealTime
     } deriving (Show, Generics.Typeable)
 
--- | Just make the IORef showable.
-newtype CancelLilypond = CancelLilypond (IORef.IORef Bool)
-instance Show CancelLilypond where
-    show _ = "((CancelLilypond))"
+-- | Map (row, col) in a written .ly score to stack position of the generating
+-- event.  Lilypond can have the generated PDF can report clicks in (row, col)
+-- coordinates, but I need to map them back to stacks to highlight the clicked
+-- note.
+type StackMap = Map.Map (Int, Int) Stack.UiFrame
 
 initial_play_state :: PlayState
 initial_play_state = PlayState
@@ -404,7 +400,6 @@ initial_play_state = PlayState
     , state_performance = Map.empty
     , state_current_performance = Map.empty
     , state_performance_threads = Map.empty
-    , state_lilypond_compiles = Map.empty
     , state_lilypond_stack_maps = Map.empty
     , state_play_step =
         TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 2)

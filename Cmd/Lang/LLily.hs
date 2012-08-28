@@ -1,3 +1,8 @@
+-- | Lilypond compiles are always kicked off manually.
+--
+-- I used to have some support for automatically reinvoking lilypond after
+-- changes to a block, but it didn't seem too useful, since any useful amount
+-- of lilypond score takes quite a while to compile.
 module Cmd.Lang.LLily where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
@@ -5,10 +10,7 @@ import qualified System.FilePath as FilePath
 import qualified System.Process as Process
 
 import qualified Util.Process
-import qualified Ui.Block as Block
 import qualified Ui.Id as Id
-import qualified Ui.State as State
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Lilypond
 import qualified Derive.LEvent as LEvent
@@ -19,31 +21,6 @@ import qualified Perform.Pitch as Pitch
 
 import Types
 
-
--- | Turn on lilypond derivation for this block.
-enable_lilypond :: String -> String -> BlockId -> Cmd.CmdL ()
-enable_lilypond clef time_sig block_id =
-    State.modify_block_meta block_id $
-        Map.union (make_meta clef time_sig block_id)
-
-make_meta :: String -> String -> BlockId -> Block.Meta
-make_meta clef time_sig block_id = Map.fromList
-    [ (Lilypond.meta_ly, "true")
-    , (Lilypond.meta_title, Id.ident_string block_id)
-    , (Lilypond.meta_clef, clef)
-    , (Lilypond.meta_time_signature, time_sig)
-    ]
-
-make_score :: String -> String -> String -> BlockId
-    -> Cmd.CmdL Lilypond.Score
-make_score key_str clef time_sig block_id =
-    case Lilypond.meta_to_score key meta of
-        Nothing -> Cmd.throw "no score"
-        Just (Left err) -> Cmd.throw $ "parsing lily score: " ++ err
-        Just (Right score) -> return score
-    where
-    key = Just (Pitch.Key key_str)
-    meta = make_meta clef time_sig block_id
 
 pipa = from_events "c-maj" "treble" "4/4" config . clean
     where config = Cmd.Lilypond.TimeConfig 0.125 Lilypond.D16
@@ -78,3 +55,15 @@ view_pdf block_id = do
     Trans.liftIO $ Util.Process.logged $
         (Process.proc "open" [FilePath.replaceExtension filename ".pdf"])
     return ()
+
+make_score :: (Cmd.M m) => String -> Lilypond.Clef -> String -> BlockId
+    -> m Lilypond.Score
+make_score key_str clef time_sig block_id = either Cmd.throw return $ do
+    key <- Lilypond.parse_key (Pitch.Key key_str)
+    tsig <- Lilypond.parse_time_signature time_sig
+    return $ Lilypond.Score
+        { Lilypond.score_title = Id.ident_name block_id
+        , Lilypond.score_time = tsig
+        , Lilypond.score_clef = clef
+        , Lilypond.score_key = key
+        }

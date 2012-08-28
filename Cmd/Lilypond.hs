@@ -1,7 +1,5 @@
 -- | Cmd-level support for the lilypond backend.
 module Cmd.Lilypond where
-import qualified Control.Monad.Trans as Trans
-import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -15,12 +13,9 @@ import qualified System.Process as Process
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Process
-import qualified Util.Thread as Thread
 
-import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.State as State
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.SaveGit as SaveGit
@@ -37,52 +32,6 @@ import qualified Perform.Pitch as Pitch
 
 import Types
 
-
--- | Wait this many seconds before kicking off a compile.  This is on top
--- of the usual derive delay.
-compile_delay :: Thread.Seconds
-compile_delay = 3
-
-cmd_compile :: (BlockId -> Cmd.StackMap -> IO ()) -> Msg.Msg -> Cmd.CmdIO
-cmd_compile send_stack_map
-        (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
-    compile send_stack_map block_id perf
-    return Cmd.Continue
-cmd_compile _ _ = return Cmd.Continue
-
-compile :: (BlockId -> Cmd.StackMap -> IO ()) -> BlockId -> Cmd.Performance
-    -> Cmd.CmdT IO ()
-compile send_stack_map block_id perf = do
-    meta <- Block.block_meta <$> State.get_block block_id
-    case Lilypond.meta_to_score (Just (lookup_key perf)) meta of
-        Nothing -> return ()
-        Just (Left err) -> Log.warn $ "can't convert to lilypond: " ++ err
-        Just (Right score) -> run score
-    where
-    run score = do
-        old_compiles <- Cmd.gets
-            (Cmd.state_lilypond_compiles . Cmd.state_play)
-        -- Cancel the last one, if any.
-        case Map.lookup block_id old_compiles of
-            Just (Cmd.CancelLilypond var) ->
-                Trans.liftIO $ IORef.writeIORef var True
-            _ -> return ()
-        var <- Trans.liftIO $ IORef.newIORef False
-        Cmd.modify_play_state $ \st -> st { Cmd.state_lilypond_compiles =
-            Map.insert block_id (Cmd.CancelLilypond var)
-                (Cmd.state_lilypond_compiles st) }
-        filename <- ly_filename block_id
-        Trans.liftIO $ Thread.start $ do
-            Thread.delay compile_delay
-            cancelled <- IORef.readIORef var
-            unless cancelled $
-                send_stack_map block_id =<< compile_ly filename config score
-                    (LEvent.events_of (Cmd.perf_events perf))
-        return ()
-    -- TODO if I still want to do automatic lilypond derivation, I'll have to
-    -- stick this in Block.Meta, but that means I should probably use
-    -- Data.Dynamic instead of strings.
-    config = TimeConfig 1 Lilypond.D64
 
 data TimeConfig = TimeConfig
     { time_quarter :: RealTime

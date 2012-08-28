@@ -50,7 +50,6 @@ import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Lang as Lang
-import qualified Cmd.Lilypond as Lilypond
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayC as PlayC
 import qualified Cmd.ResponderSync as ResponderSync
@@ -337,9 +336,8 @@ run_core_cmds msg = do
     let config = state_static_config state
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
-    let io_cmds = hardcoded_io_cmds (state_loopback state)
-            (state_transport_info state) (state_session state)
-            (StaticConfig.local_lang_dirs config)
+    let io_cmds = hardcoded_io_cmds (state_transport_info state)
+            (state_session state) (StaticConfig.local_lang_dirs config)
     mapM_ (run_throw . Right . ($msg)) io_cmds
 
 -- | Everyone always gets these commands.
@@ -348,12 +346,10 @@ hardcoded_cmds =
     [Track.track_cmd, Internal.cmd_update_ui_state, Internal.cmd_record_focus]
 
 -- | And these special commands that run in IO.
-hardcoded_io_cmds :: Loopback -> Transport.Info -> Lang.Session -> [FilePath]
+hardcoded_io_cmds :: Transport.Info -> Lang.Session -> [FilePath]
     -> [Msg.Msg -> Cmd.CmdIO]
-hardcoded_io_cmds loopback transport_info lang_session lang_dirs =
+hardcoded_io_cmds transport_info lang_session lang_dirs =
     [ Lang.cmd_language lang_session lang_dirs
-    , Lilypond.cmd_compile $ \block_id smap ->
-        loopback $ Msg.DeriveStatus block_id (Msg.LilypondComplete smap)
     , Integrate.cmd_integrate
     , PlayC.cmd_play_msg
     ] ++ GlobalKeymap.io_cmds transport_info

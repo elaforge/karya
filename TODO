@@ -81,13 +81,10 @@ UNSORTED
       performance.
     - Instrument -> Clef mapping
     - can I make a click on a note in the pdf highlight in the sequencer?
-      LYEDITOR=xyz %(line)s %(column)s %(file)s
-      How to turn line:col into a stack?
-      I would need to have make_ly return a Map (line, col) Stack
-      That means I probably stop using pretty print because I need control
-      over line numbers.  Make a simple Output monad that keeps track of
-      col and line number and can keep the Map.
-      Then stick the map in a Performance or something.
+      Hung up on getting preview to send clicks to a program, notes in
+      App/LilypondClick.hs
+      - StackMap can be just char pos
+
     - to support things like trills, I'd need to have an alternate lilypond
       derivation.  Set lilypond=true in the environ, then various calls can
       e.g. emit lily code instead of notes.

@@ -294,6 +294,7 @@ data Score = Score {
     score_title :: String
     , score_time :: TimeSignature
     , score_clef :: Clef
+    -- | (tonic, Mode)
     , score_key :: (String, Mode)
     } deriving (Show)
 
@@ -309,6 +310,8 @@ meta_clef = "ly.clef"
 meta_time_signature = "ly.time-signature"
 -- meta_duration1 = "ly.duration1"
 
+-- | This was used by the automatic lilypond derivation, but is no longer
+-- used.  TODO remove it someday
 meta_to_score :: Maybe Pitch.Key -> Map.Map String String
     -> Maybe (Either String Score)
 meta_to_score maybe_score_key meta = case Map.lookup meta_ly meta of
@@ -327,16 +330,18 @@ meta_to_score maybe_score_key meta = case Map.lookup meta_ly meta of
     title = get "" meta_title
     clef = get "treble" meta_clef
     get deflt k = Map.findWithDefault deflt k meta
-    parse_key key = case Map.lookup key Twelve.all_keys of
-        Nothing -> Left $ "key not found: " ++ show key
-        Just k -> do
-            tonic <- show_pitch_note (Theory.key_tonic k)
-            mode <- case Theory.key_name k of
-                "maj" -> Right Major
-                "min" -> Right Minor
-                -- Actually lilypond supports a few church modes too.
-                mode -> Left $ "unknown mode: " ++ show mode
-            return (tonic, mode)
+
+parse_key :: Pitch.Key -> Either String (String, Mode)
+parse_key key = case Map.lookup key Twelve.all_keys of
+    Nothing -> Left $ "key not found: " ++ show key
+    Just k -> do
+        tonic <- show_pitch_note (Theory.key_tonic k)
+        mode <- case Theory.key_name k of
+            "maj" -> Right Major
+            "min" -> Right Minor
+            -- Actually lilypond supports a few church modes too.
+            mode -> Left $ "unknown mode: " ++ show mode
+        return (tonic, mode)
 
 parse_time_signature :: String -> Either String TimeSignature
 parse_time_signature sig = do
