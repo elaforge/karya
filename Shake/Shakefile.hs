@@ -194,7 +194,7 @@ hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 -- automatically like --make?
 packages :: [String]
 packages = words $ "fixed-list deepseq data-ordlist cereal storablevector "
-    ++ "dlist parsec text stm network haskell-src regex-pcre "
+    ++ "semigroups dlist parsec text stm network haskell-src regex-pcre "
     ++ "bytestring attoparsec utf8-string "
     ++ "mersenne-random-pure64 hashable random-shuffle "
     ++ "containers filepath transformers vector "
