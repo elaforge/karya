@@ -1,6 +1,7 @@
 module Ui.Skeleton where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Graph as Graph
+import qualified Data.List as List
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -15,10 +16,16 @@ import Types
 -- used at the UI level only to display the hierarchy visually, but the
 -- deriver level will presumably use it for derivation.  A given track may
 -- appear multiple times or not at all.
-newtype Skeleton = Skeleton Graph.Graph deriving (Eq, Read, Show)
+newtype Skeleton = Skeleton Graph.Graph deriving (Read, Show)
 
 instance Pretty.Pretty Skeleton where
     pretty = Pretty.pretty . flatten
+
+-- Data.Graph is just a type synonym to Data.Array, which means that
+-- 'make [(1, 2), (1, 3)]' compare inequal even though they describe the same
+-- graph.
+instance Eq Skeleton where
+    s1 == s2 = flatten s1 == flatten s2
 
 -- | This is @(parent, child)@.
 type Edge = (TrackNum, TrackNum)
@@ -44,7 +51,7 @@ lonely_vertex :: Skeleton -> TrackNum -> Bool
 lonely_vertex (Skeleton graph) = Graph.lonely_vertex graph
 
 flatten :: Skeleton -> [Edge]
-flatten (Skeleton graph) = Graph.edges graph
+flatten (Skeleton graph) = List.sort (Graph.edges graph)
 
 to_forest :: TrackNum -- ^ Total number of tracks.  This is needed because the
     -- underlying graph may be smaller than the number of tracks.  I don't

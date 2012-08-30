@@ -73,8 +73,7 @@ run_skel m ntracks skel (start_track, end_track) =
     tracks = [(show (n+1), []) | n <- [0..ntracks-1]]
     extract = CmdTest.extract_state $ \ustate _ -> extract_skel ustate
     extract_skel ustate = UiTest.eval ustate $ do
-        skel <- List.sort . Skeleton.flatten <$>
-            State.get_skeleton UiTest.default_block_id
+        skel <- Skeleton.flatten <$> State.get_skeleton UiTest.default_block_id
         mapM (\(t1, t2) -> (,) <$> replace t1 <*> replace t2) skel
     replace n = do
         tid <- State.get_event_track_at UiTest.default_block_id n

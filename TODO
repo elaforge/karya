@@ -359,6 +359,12 @@ MILESTONES
 ----------------------------------------------------------------------
 
 integrate
+  * continual reintegrations are back!
+  - bug: can't undo past a integrate create, it just creates a new one
+  - bug: create tracks, delete them, remove <, re-add <, does it work?
+  - bug: mute or solo a derived track and it regenerates more
+  - bug: can't delete a derived track, it just gets regenerated
+
   / Optimize block integration: similar to only_destinations_damaged,
     if only the destination blocks are damaged, don't rederive the source.
     Actually, this doesn't seem to be necessary.
