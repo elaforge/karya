@@ -6,13 +6,15 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Midi.Midi as Midi
+import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Cache as Cache
-import qualified Derive.Call.Block as Block
+import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Convert as Convert
@@ -126,12 +128,35 @@ events_from start events
         | Cache.is_cache_log msg = e : go logs es
         | otherwise = go (e:logs) es
 
+-- | Filter events according to the Solo and Mute flags in the tracks of the
+-- given blocks.
+filter_muted :: [Block.Block] -> Derive.Events -> Derive.Events
+filter_muted blocks
+    | not (Set.null soloed) =
+        filter (maybe True (stack_contains soloed) . LEvent.event)
+    | not (Set.null muted) =
+        filter (maybe True (not . stack_contains muted) . LEvent.event)
+    | otherwise = id
+    where
+    stack_contains track_ids = any (`Set.member` track_ids) . stack_tracks
+    stack_tracks = mapMaybe Stack.track_of . Stack.innermost . Score.event_stack
+    soloed = with_flag Block.Solo
+    muted = with_flag Block.Mute
+    with_flag flag = Set.fromList
+        [ track_id
+        | block <- blocks
+        , track <- Block.block_tracks block
+        , Just track_id <- [Block.track_id_of (Block.tracklike_id track)]
+        , flag `elem` Block.track_flags track
+        ]
+
 perform_events :: (Cmd.M m) => Derive.Events -> m Perform.MidiEvents
 perform_events events = do
     midi_config <- State.get_midi_config
     lookup <- get_convert_lookup
+    blocks <- State.gets (Map.elems . State.state_blocks)
     return $ fst $ Perform.perform Perform.initial_state midi_config $
-        Convert.convert lookup events
+        Convert.convert lookup (filter_muted blocks events)
 
 get_convert_lookup :: (Cmd.M m) => m Convert.Lookup
 get_convert_lookup = do

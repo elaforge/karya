@@ -1,12 +1,10 @@
 module Ui.TrackTree where
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.Tree as Tree
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
@@ -20,8 +18,6 @@ import Types
 
 -- | A TrackTree is the Skeleton resolved to the tracks it references.
 type TrackTree = [Tree.Tree State.TrackInfo]
--- | A TrackTree annotated with which tracks are muted.
-type TrackTreeMutes = [Tree.Tree (State.TrackInfo, Bool)]
 
 tracks_of :: (State.M m) => BlockId -> m [State.TrackInfo]
 tracks_of block_id = do
@@ -52,38 +48,6 @@ get_track_tree block_id = do
         State.throw $ "skeleton of " ++ show block_id
             ++ " names missing tracknums: " ++ show really_missing
     return resolved
-
-get_track_tree_mutes :: (State.M m) => BlockId -> m TrackTreeMutes
-get_track_tree_mutes block_id = do
-    tree <- get_track_tree block_id
-    block <- State.get_block block_id
-    return $ track_tree_mutes (muted_tracknums block tree) tree
-
-muted_tracknums :: Block.Block -> TrackTree -> [TrackNum]
-muted_tracknums block tree
-    | null solo = mute
-    | otherwise = map fst tracks List.\\ soloed
-    where
-    tracks =
-        [(i, track) | (i, track) <- Seq.enumerate (Block.block_tracks block),
-            is_track track]
-    is_track track = case Block.tracklike_id track of
-        Block.TId {} -> True
-        _ -> False
-    solo = [i | (i, t) <- tracks, Block.Solo `elem` Block.track_flags t]
-    mute = [i | (i, t) <- tracks, Block.Mute `elem` Block.track_flags t]
-    -- A soloed track will keep all its parents and children unmuted.
-    soloed = List.nub $ concat
-        [ State.track_tracknum t : map State.track_tracknum (ps ++ cs)
-        | (t, ps, cs) <- Tree.flat_paths tree
-        , State.track_tracknum t `elem` solo
-        ]
-
-track_tree_mutes :: [TrackNum] -> TrackTree -> TrackTreeMutes
-track_tree_mutes muted forest = map f forest
-    where
-    f (Tree.Node info subs) = Tree.Node (add_mute info) (map f subs)
-    add_mute info = (info, State.track_tracknum info `elem` muted)
 
 -- | Resolve the TrackNum indices in a tree into whatever values as given by
 -- a map.

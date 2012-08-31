@@ -1,4 +1,10 @@
 UNSORTED
+  - Pretty on a lot of events causes a stack overflow
+  - use . for ka instead of _ in generated
+  - solo on one track in a sub-block causes all other blocks to be filtered out.
+    It more intuitive that it only apply to that block.  That means solo would
+    have to record the block that it's soloed on, and only filter events on that
+    block.  Or simpler, turn a solo into a mute of all the other tracks.
   * do something about Call_test.test_track_dynamic2
   Just scales, along with TwelveUtil support
     * simple just scale with no accidentals
@@ -360,10 +366,19 @@ MILESTONES
 
 integrate
   * continual reintegrations are back!
+  * bug: mute or solo a derived track and it regenerates more
+    The problem is that solo looks just like deleting the source track.
+    Post filtering events by stack would solve this problem.
+    Any way to do it with the current scheme?
+    I thought it ignores integrate when there is no integrated output?
+    But not the title, because that would get rid of insts.
+    It's because the < is in the title, and it does count the title.  Or not?
+    * add filtering to play
+    * remove track tree remove thing
+    * remove diff that makes it rederive
+  - bug: can't delete a derived track, it just gets regenerated
   - bug: can't undo past a integrate create, it just creates a new one
   - bug: create tracks, delete them, remove <, re-add <, does it work?
-  - bug: mute or solo a derived track and it regenerates more
-  - bug: can't delete a derived track, it just gets regenerated
 
   / Optimize block integration: similar to only_destinations_damaged,
     if only the destination blocks are damaged, don't rederive the source.

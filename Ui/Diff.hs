@@ -233,9 +233,9 @@ run_derive_diff = snd . Identity.runIdentity . Writer.runWriterT
 -- | This diff is meant to determine score damage for the block, which
 -- determines what will have to be rederived, if anything.
 --
--- This is repeating some work done in 'diff', but is cleaner than reusing
--- 'diff' output because derive cares about specific things like mute, solo,
--- or track title changes.
+-- This is repeating some work done in 'diff', but is fundamentally different
+-- because it cares about nonvisible changes, e.g. track title change on
+-- a block without a view.
 derive_diff :: State.State -> State.State -> [Update.UiUpdate]
     -> Derive.ScoreDamage
 derive_diff st1 st2 updates = postproc $ run_derive_diff $ do
@@ -265,27 +265,9 @@ derive_diff_block block_id block1 block2 = do
     let unequal f = unequal_on f block1 block2
     when (unequal Block.block_title || unequal Block.block_skeleton)
         block_damage
-
-    let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
-    let tpairs = Seq.indexed_pairs_on Block.tracklike_id ts1 ts2
-    forM_ tpairs $ \(_, paired) -> case paired of
-        Seq.Both track1 track2
-            | flags_differ track1 track2 -> block_damage
-            | otherwise -> return ()
-        _ -> block_damage
     where
     block_damage =
         Writer.tell $ mempty { Derive.sdamage_blocks = Set.singleton block_id }
-
--- | True if the tracks flags differ in an a way that will require
--- rederivation.
-flags_differ :: Block.Track -> Block.Track -> Bool
-flags_differ track1 track2 = relevant track1 /= relevant track2
-    where
-    relevant = filter flag . Block.track_flags
-    flag Block.Collapse = False
-    flag Block.Mute = True
-    flag Block.Solo = True
 
 derive_diff_track :: TrackId -> Track.Track -> Track.Track -> DeriveDiffM ()
 derive_diff_track track_id track1 track2 =

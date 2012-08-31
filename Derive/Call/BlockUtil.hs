@@ -111,25 +111,7 @@ get_tree block_id = do
     info_tree <- TrackTree.get_track_tree block_id
     block_end <- State.block_event_end block_id
     tree <- TrackTree.events_tree block_end info_tree
-    block <- State.get_block block_id
-    let mutes_tree = TrackTree.track_tree_mutes
-            (TrackTree.muted_tracknums block info_tree) info_tree
-    return (strip_mutes mutes_tree tree, block_end)
-
--- | Strip the events out of muted tracks.  If the tracks themselves were
--- stripped out it looks like there are orphans.  This way they are just tracks
--- that produce nothing.
---
--- It's ugly how the two trees are zipped up, but otherwise I have yet another
--- type for EventTreeMutes or hairy parameterization just for this one
--- function.
-strip_mutes :: TrackTree.TrackTreeMutes -> TrackTree.EventsTree
-    -> TrackTree.EventsTree
-strip_mutes mutes tree = zipWith mute_node mutes tree
-    where
-    mute_node (Tree.Node (_, muted) ms) (Tree.Node track ts) =
-        Tree.Node (if muted then mute track else track) (strip_mutes ms ts)
-    mute track = track { TrackTree.tevents_events = Events.empty }
+    return (tree, block_end)
 
 derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
 derive_tree block_end tree = with_default_tempo (derive_tracks tree)
