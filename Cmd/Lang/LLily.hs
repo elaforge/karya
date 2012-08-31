@@ -9,12 +9,17 @@ import qualified Data.Map as Map
 import qualified System.FilePath as FilePath
 import qualified System.Process as Process
 
+import qualified Util.Log as Log
 import qualified Util.Process
 import qualified Ui.Id as Id
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Lang.LPerf as LPerf
 import qualified Cmd.Lilypond
+
+import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
@@ -22,15 +27,21 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
+pipa :: Derive.Events -> Cmd.CmdL ()
 pipa = from_events "c-maj" "treble" "4/4" config . clean
-    where config = Cmd.Lilypond.TimeConfig 0.125 Lilypond.D16
+    where
+    config = Cmd.Lilypond.TimeConfig 0.125 Lilypond.D16
+    clean = filter_inst ["fm8/pipa", "fm8/dizi", "ptq/yangqin"]
+        . LEvent.events_of
+        -- . filter_inst ["ptq/yangqin"]
 
-ly_events quarter events = LEvent.partition $
-    Convert.convert quarter (map LEvent.Event (clean events))
+bloom :: Cmd.CmdL ()
+bloom = from_events "a-maj" "treble" "5/4" config . LEvent.events_of
+        =<< LPerf.sel_events
+    where config = Cmd.Lilypond.TimeConfig 0.5 Lilypond.D16
 
-clean = filter_inst ["fm8/pipa", "fm8/dizi", "ptq/yangqin"]
-    -- . filter_inst ["ptq/yangqin"]
-    . LEvent.events_of
+ly_events :: RealTime -> Derive.Events -> ([Lilypond.Event], [Log.Msg])
+ly_events quarter = LEvent.partition . Convert.convert quarter
 
 filter_inst :: [String] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
