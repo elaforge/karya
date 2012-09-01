@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {- | Implement a clipboard, and copy and paste from a selection.
 
     Who knew copy and paste was so complicated?  Copying is complicated because
@@ -30,7 +31,15 @@
     flexible than editing operations.  However, there could be a "derive in
     place" cmd to flatten deriver structure.
 -}
-module Cmd.Clip where
+module Cmd.Clip (
+    state_to_clip, clear_clip
+    , cmd_cut_selection, cmd_copy_selection
+    , cmd_paste_overwrite, cmd_paste_merge, cmd_paste_soft_merge
+    , cmd_paste_insert, cmd_paste_stretch
+#ifdef TESTING
+    , state_to_namespace
+#endif
+) where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
