@@ -356,6 +356,8 @@ MILESTONES
       slurs, calls that render lilypond ornaments e.g. trill
     + documentation
   future
+    - Unify environ, controls, and pitch signals by making signals of
+      arbitrary type.
     - print scores
     - mouse oriented signal editing
     - render audio
@@ -364,7 +366,15 @@ MILESTONES
 
 ----------------------------------------------------------------------
 
-integrate
+integrate:
+  - adding a new note to save/kendang-integrate makes a pitch track, and makes
+    new dests
+    So what affects cmds.  The inst should be in scope, right?
+    Log what inst is in scope and why.
+    Probably due to environ lookup.
+    Environ tends to be Nothing, due to rederives.
+    * Why does LPerf.environ cause a rederive?
+  - adding a {soft} stroke appears to apply the soft again the the dyn track
   * continual reintegrations are back!
   * bug: mute or solo a derived track and it regenerates more
     The problem is that solo looks just like deleting the source track.

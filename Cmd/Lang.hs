@@ -108,7 +108,8 @@ run_cmdio cmd = do
             Right (val, ui_state, updates) -> do
                 mapM_ (uncurry Cmd.midi) midi
                 Cmd.put cmd_state
-                State.put ui_state
+                -- Should be safe, because I'm writing the updates.
+                State.unsafe_put ui_state
                 mapM_ State.update updates
                 return val
 
