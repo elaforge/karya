@@ -81,9 +81,17 @@ c_track_integrate = Derive.transformer "track-integrate" $ \args deriver ->
     CallSig.call0 args $ do
         stack <- Internal.get_stack
         case (frame_of Stack.block_of stack, frame_of Stack.track_of stack) of
-            (Just block_id, Just track_id) ->
-                unlessM (only_destinations_damaged block_id track_id) $ do
-                    events <- deriver
+            (Just block_id, Just track_id) -> do
+                -- The derive is intentionally outside of the
+                -- 'only_destinations_damaged' check.  This is because I need
+                -- the collect from it, specifically 'collect_track_dynamic'.
+                -- I could avoid derivation by retaining the track dynamics
+                -- from the previous performance, but it seems like this would
+                -- lead to it hanging on to lots of garbage, especially since
+                -- it would never drop track dynamics entries for deleted
+                -- tracks.
+                events <- deriver
+                unlessM (only_destinations_damaged block_id track_id) $
                     track_integrate block_id track_id events
             _ -> return ()
         return []

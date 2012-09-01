@@ -43,11 +43,14 @@ get_track_cmds = do
         tcmds = track_cmds edit_mode track
     kcmds <- keymap_cmds track
     -- The order is important:
-    -- Per-instrument cmds can override all others.
-    -- The note cmds make sure that kbd entry can take over the kbd, and midi
+    -- - Per-instrument cmds can override all others.
+    --
+    -- - The note cmds make sure that kbd entry can take over the kbd, and midi
     -- thru gets first whack at incoming midi.
-    -- Track cmds are also wanting to take over the whole keyboard.
-    -- Keymap cmds are "background" and only apply if no more special mode is
+    --
+    -- - Track cmds are also wanting to take over the whole keyboard.
+    --
+    -- - Keymap cmds are "background" and only apply if no more special mode is
     -- active, so they go last.
     return $ icmds ++ note_cmd : tcmds ++ kcmds
 

@@ -76,6 +76,10 @@ derive
     relative to the start of the event, which would make moving free, but
     would incur a cost for every event on creation time, even if it wasn't
     moved afterwards.
+  - Collect works by mappending an 'mempty { x = y }' which is convenient but
+    possible inefficient.  Try profiling or make it modify the collect
+    directly.  Also, it does redundant work, e.g. track_dynamic is collected
+    for every single inverted slice, even though only one is needed.
 
 perform
   - Perform.Midi starts with all notes on separate channels and tries to

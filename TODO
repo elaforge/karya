@@ -367,13 +367,22 @@ MILESTONES
 ----------------------------------------------------------------------
 
 integrate:
-  - adding a new note to save/kendang-integrate makes a pitch track, and makes
+  * adding a new note to save/kendang-integrate makes a pitch track, and makes
     new dests
     So what affects cmds.  The inst should be in scope, right?
     Log what inst is in scope and why.
     Probably due to environ lookup.
     Environ tends to be Nothing, due to rederives.
     * Why does LPerf.environ cause a rederive?
+    * No dynamic for t2 and t3, why?
+      They show up at the integrate call, but why doesn't the collect make it?
+      Because it's the *second* derive, the one that has no integrateds.
+      I need to merge in the TrackDynamics.
+      Is it ok in general to merge them?  Or to start with the prev one?
+
+      Wait, no integrateds is normal because of only_destinations_damaged.
+      But that sholudn't stop track dyn.  No, it skips the deriver entirely.
+      That means no collect.
   - adding a {soft} stroke appears to apply the soft again the the dyn track
   * continual reintegrations are back!
   * bug: mute or solo a derived track and it regenerates more
