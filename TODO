@@ -1,6 +1,6 @@
 UNSORTED
   - Pretty on a lot of events causes a stack overflow
-  - use . for ka instead of _ in generated
+  * use . for ka instead of _ in generated
   - solo on one track in a sub-block causes all other blocks to be filtered out.
     It more intuitive that it only apply to that block.  That means solo would
     have to record the block that it's soloed on, and only filter events on that

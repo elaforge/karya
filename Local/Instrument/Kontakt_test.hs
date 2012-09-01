@@ -34,9 +34,11 @@ test_kendang = do
             ["PL", "k", "P", "t", "T", "t", "T"]
     equal logs []
     equal [(p, attrs) | (p, inst, attrs) <- events, inst == lanang_inst]
-        [(1, ka), (2, pak), (3, ka), (4, pang), (5, pak), (6, pang)]
+        [(1, ka <> soft), (2, pak), (3, ka <> soft), (4, pang), (5, pak),
+            (6, pang)]
     equal [(p, attrs) | (p, inst, attrs) <- events, inst == wadon_inst]
-        [(0, plak), (1, pak), (2, ka), (3, pang), (4, pak), (5, pang), (6, pak)]
+        [(0, plak), (1, pak), (2, ka <> soft), (3, pang), (4, pak), (5, pang),
+            (6, pak)]
 
     -- Soft attributes.
     let e_vel = DeriveTest.extract $ \e ->

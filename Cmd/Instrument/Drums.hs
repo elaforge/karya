@@ -57,9 +57,10 @@ kendang_composite = map resolve
     , ("Ø", Lanang, tut <> left, 't', 1)
     -- kenawan
     , ("+", Wadon, de, 'z', 1) -- de
-    , ("o", Lanang, de, 'x', 1) -- tut
-    , ("u", Wadon, tut, 'c', 1) -- kum
-    , ("U", Lanang, tut, 'v', 1) -- pung
+    , ("-", Wadon, de <> soft, 'x', 0.3) -- de
+    , ("o", Lanang, de, 'c', 1) -- tut
+    , ("u", Wadon, tut, 'v', 1) -- kum
+    , ("U", Lanang, tut, 'b', 1) -- pung
     -- kebot
     , ("k", Wadon, pak, 'q', 1) -- ka
     , ("P", Lanang, pak, 'w', 1) -- pak
@@ -86,14 +87,15 @@ kendang_tunggal =
     , (Note "+." (de <> thumb)   'c' 1.0, Key.f2)
     , (Note "o"  tut             'v' 1.0, Key.c3)
     , (Note "."  (ka <> soft)    'b' 0.3, Key.g3)
+    , (Note "+/" (de <> muted)   'n' 1.0, Key.c1)
     -- This should be rarely used, but '.' should definitely be soft, but
     -- if it is there is no way to emit a normal 'ka'.
-    , (Note "_"  ka              'n' 1.0, Key.g3)
+    , (Note ".."  ka             'n' 1.0, Key.g3)
     ] ++ map (flip (,) Kebot)
     [ (Note "T"  pang            'q' 1.0, Key.g4)
     , (Note "P"  pak             'w' 1.0, Key.c5)
     , (Note "^"  (pak <> soft)   'e' 0.3, Key.c5)
-    , (Note "`O+`" (de <> left)  'r' 1.0, Key.d4) -- TODO d4 not set yet
+    , (Note "`O+`" (de <> left)  'r' 1.0, Key.d4)
     , (Note "Ø"  (tut <> left)   't' 1.0, Key.c4)
     -- TODO cedugan
     ]

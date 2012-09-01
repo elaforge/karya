@@ -217,7 +217,7 @@ emit_kendang insts prev (event, Just (attrs, kendang)) next =
         -- Use left hand if the pattern is T-T or T-+
         | prev_attrs == pang && next_attrs `elem` [pang, de, mempty] =
             Just pak
-        | otherwise = Just ka
+        | otherwise = Just (ka <> soft)
     prev_attrs = attrs_of prev
     next_attrs = attrs_of next
     attrs_of events = fromMaybe mempty $
