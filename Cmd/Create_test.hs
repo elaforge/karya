@@ -1,6 +1,4 @@
 module Cmd.Create_test where
-import qualified Data.List as List
-
 import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test

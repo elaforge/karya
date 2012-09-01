@@ -73,8 +73,6 @@ test_derive_diff = do
         (mkdamage [] [] [])
     equal (f (State.add_track_flag bid 2 Block.Collapse))
         (mkdamage [] [] [])
-    equal (f (State.add_track_flag bid 2 Block.Mute))
-        (mkdamage [] [] [bid])
 
 test_derive_diff_updates = do
     let ([_, tid2], ustate) = UiTest.run_mkblock
