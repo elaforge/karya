@@ -134,6 +134,11 @@ cmd_shift_selection selnum shift extend = do
     set_and_scroll view_id selnum
         (if extend then merge_sel sel sel' else sel')
 
+-- | Progressive selection: select the rest of the track, then the entire
+-- track, then the whole block.
+--
+-- Tracknum 0, assumed to be a ruler, is omitted, since selecting the ruler is
+-- not only not useful, it tends to make cmds that want to get a TrackId abort.
 cmd_track_all :: (Cmd.M m) => Types.SelNum -> m ()
 cmd_track_all selnum = do
     view_id <- Cmd.get_focused_view
@@ -143,8 +148,6 @@ cmd_track_all selnum = do
     tracks <- length . Block.block_tracks <$> State.get_block block_id
     set_selnum view_id selnum (Just (select_track_all dur tracks sel))
 
--- | Progressive selection: select the rest of the track, then the entire
--- track, then the whole block.
 select_track_all :: ScoreTime -> TrackNum -> Types.Selection -> Types.Selection
 select_track_all dur tracks sel
     | sel == select_tracks = select_all
@@ -153,7 +156,7 @@ select_track_all dur tracks sel
     where
     select_rest = sel { Types.sel_cur_pos = dur }
     select_tracks = sel { Types.sel_start_pos = 0, Types.sel_cur_pos = dur }
-    select_all = Types.selection 0 0 tracks dur
+    select_all = Types.selection 1 0 tracks dur
 
 merge_sel :: Types.Selection -> Types.Selection -> Types.Selection
 merge_sel (Types.Selection strack spos _ _) (Types.Selection _ _ ctrack cpos) =
