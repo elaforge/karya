@@ -553,6 +553,13 @@ data Collect = Collect {
     , collect_integrated :: ![Integrated]
     } deriving (Show)
 
+instance Monoid.Monoid Collect where
+    mempty = Collect mempty mempty mempty mempty mempty mempty
+    mappend (Collect warps1 signals1 env1 deps1 cache1 integrated1)
+            (Collect warps2 signals2 env2 deps2 cache2 integrated2) =
+        Collect (warps1 <> warps2) (signals1 <> signals2) (env1 <> env2)
+            (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
+
 data Integrated = Integrated {
     -- BlockId for a block integration, TrackId for a track integration.
     integrated_source :: !(Either BlockId TrackId)
@@ -565,12 +572,12 @@ data Integrated = Integrated {
     , integrated_key :: !(Maybe Pitch.Key)
     } deriving (Show)
 
-instance Monoid.Monoid Collect where
-    mempty = Collect mempty mempty mempty mempty mempty mempty
-    mappend (Collect warps1 signals1 env1 deps1 cache1 integrated1)
-            (Collect warps2 signals2 env2 deps2 cache2 integrated2) =
-        Collect (warps1 <> warps2) (signals1 <> signals2) (env1 <> env2)
-            (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
+instance Pretty.Pretty Integrated where
+    format (Integrated source events key) = Pretty.record_title "Integrated"
+        [ ("source", Pretty.format source)
+        , ("events", Pretty.format events)
+        , ("key", Pretty.format key)
+        ]
 
 -- | Snapshots of the environ at each track.  This is used by the Cmd layer to
 -- figure out what the scale and instrument are for a given track.
