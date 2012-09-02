@@ -7,6 +7,7 @@
 #include "SeqInput.h"
 #include "EventTrack.h"
 #include "SymbolTable.h"
+#include "MsgCollector.h"
 
 
 // #define DEBUG(X) ;
@@ -220,6 +221,17 @@ EventTrackView::resize(int x, int y, int w, int h)
     this->bg_box.resize(x, y, w, h);
 }
 
+void
+EventTrackView::set_title(const char *title)
+{
+    this->title_input->set_text(title);
+    if (strcmp(title, " ") == 0) {
+        this->title_input->take_focus();
+        // Since focus goes to the text input, the msg collector won't receive
+        // any subsequent key ups.
+        MsgCollector::get()->all_keys_up();
+    }
+}
 
 void
 EventTrackView::set_zoom(const ZoomInfo &new_zoom)

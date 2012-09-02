@@ -194,6 +194,8 @@ public:
         return &*msgs.begin();
     }
     int msgs_size() const { return msgs.size(); }
+    // Clear out the keydown map manually.
+    void all_keys_up();
     void clear();
 
     // If true, log all collected msgs for debugging.

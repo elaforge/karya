@@ -126,11 +126,7 @@ public:
     virtual const char *get_title() const {
         return this->title_input->value();
     }
-    virtual void set_title(const char *title) {
-        this->title_input->set_text(title);
-        if (strcmp(title, " ") == 0)
-            this->title_input->take_focus();
-    }
+    virtual void set_title(const char *title);
     void set_zoom(const ZoomInfo &new_zoom);
     virtual void set_selection(int selnum, int tracknum, const Selection &sel)
     {

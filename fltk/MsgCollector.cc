@@ -2,8 +2,8 @@
 #include <ctype.h>
 
 #include "util.h"
-
 #include "MsgCollector.h"
+
 
 // UiMsg /////////////////////
 
@@ -377,6 +377,13 @@ MsgCollector::event_handler(int evt)
         DEBUG("unknown event: " << show_event(evt));
     }
     return 0;
+}
+
+
+void
+MsgCollector::all_keys_up()
+{
+    keys_down.clear();
 }
 
 

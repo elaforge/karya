@@ -1,5 +1,8 @@
 UNSORTED
-  - Pretty on a lot of events causes a stack overflow
+  * need ^t twice to add a new track
+    It's because the first one shows up as a repeat.  But not in 'block'.
+  / Pretty on a lot of events causes a stack overflow
+    Can't reproduce.
   * use . for ka instead of _ in generated
   - solo on one track in a sub-block causes all other blocks to be filtered out.
     It more intuitive that it only apply to that block.  That means solo would
@@ -100,6 +103,8 @@ UNSORTED
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   - a new empty inst with a scale doesn't get the scale right, should fall
     back on looking down the skeleton
+    I'm not getting the dynamic from an empty child track, because nothing in
+    the parent calls it.
   - but even when it does (on the scale itself) it doesn't do thru
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
     a bit of editing it's up to 750mb, who is leaking?  Undo history?
