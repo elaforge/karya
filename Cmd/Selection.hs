@@ -394,17 +394,20 @@ get_insert_pos = do
 lookup_insert :: (Cmd.M m) => m (Maybe Point)
 lookup_insert = fmap (fmap snd) $ lookup_selnum_insert Config.insert_selnum
 
--- | Return the leftmost tracknum and trackpos, even if it's not an event
--- track.
-get_any_insert :: (Cmd.M m) => m (ViewId, AnyPoint)
-get_any_insert = Cmd.require =<< lookup_any_selnum_insert Config.insert_selnum
-
 lookup_selnum_insert :: (Cmd.M m) => Types.SelNum -> m (Maybe (ViewId, Point))
 lookup_selnum_insert selnum =
     justm (lookup_any_selnum_insert selnum) $
     \(view_id, (block_id, tracknum, pos)) ->
     justm (State.event_track_at block_id tracknum) $ \track_id ->
     return $ Just (view_id, (block_id, tracknum, track_id, pos))
+
+-- | Return the leftmost tracknum and trackpos, even if it's not an event
+-- track.
+get_any_insert :: (Cmd.M m) => m (ViewId, AnyPoint)
+get_any_insert = Cmd.require =<< lookup_any_insert
+
+lookup_any_insert :: (Cmd.M m) => m (Maybe (ViewId, AnyPoint))
+lookup_any_insert = lookup_any_selnum_insert Config.insert_selnum
 
 -- | The most general insertion point function.
 lookup_any_selnum_insert :: (Cmd.M m) => Types.SelNum

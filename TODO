@@ -23,10 +23,6 @@ UNSORTED
         * Then give that to a Derive.eval
         * implement Just.input_to_nn
         * Fix TODO on Perf.note_to_pitch while I'm at it
-        - some chorded keys are not getting the proper pitch bend
-          It's a pianoteq problem.
-          Track it down and send it to them?
-      - pitchbends getting lost, and being audible: save/bug-pitchbend*
     * test modulating and setting a new base hz
     - interpolate between just scales in different keys
   - It's a bit unpleasant how I have TwelveUtils for accidental and key using
@@ -50,7 +46,7 @@ UNSORTED
     degree signal.  It would be nice to have a way to skip that for Twelve.
     * Change Track.make_scale_map to [(Pitch.Note, Pitch.Degree)]
 
-  - I could move cmd_play_msg out of Cmd.PlayC if I moved
+  / I could move cmd_play_msg out of Cmd.PlayC if I moved
     Sync.set_track_signals to the ResponderSync via a magic return value.
     I could then get rid of the CPP hack in Ui.Ui I think.
   * Seq.pair_sorted and similar can return 'First a | Second b | Both a b'
@@ -429,6 +425,12 @@ integrate:
     calls)
 
 external
+  - chorded keys are not getting the proper pitch bend
+    It's a pianoteq problem.
+    Track it down and send it to them?
+  - problem with pianoteq: if the same note occurs on two channels, one
+    will be dropped.  Report to pianoteq.  I could work around, but it won't
+    occur with real multitimbral instruments anyway.
   - shakefile: can I print [# of #] when compiling?
   - send a patch to improve Random.Shuffle?
   - patch for hsc2hs for #alignment
@@ -1280,9 +1282,3 @@ future:
     e.g. portmidi?  Maybe the ability to send midi to e.g. local apps in
     standalone mode?  Or would be be better to support vst?
   - sync via jack with e.g. ardour, rosegarden
-
-OTHER
-  - #(poke Mispeled, field) fieldp field results in compiler bus error
-  - problem with pianoteq: if the same note occurs on two channels, one
-    will be dropped.  Report to pianoteq.  I could work around, but it won't
-    occur with real multitimbral instruments anyway.

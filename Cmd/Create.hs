@@ -296,18 +296,17 @@ splice_above_ancestors = do
 -- | Insert a track after the selection, or just append one if there isn't one.
 -- This is useful for empty blocks which of course have no selection.
 insert_track :: (Cmd.M m) => m TrackId
-insert_track = maybe append_track (const insert_track_after_selection)
-    =<< Selection.lookup_insert
+insert_track = do
+    sel <- Selection.lookup_any_insert
+    case sel of
+        Nothing -> append_track
+        Just (_, (block_id, tracknum, _)) ->
+            focused_track block_id (tracknum + 1)
 
 append_track :: (Cmd.M m) => m TrackId
 append_track = do
     block_id <- Cmd.get_focused_block
     focused_track block_id 99999
-
-insert_track_after_selection :: (Cmd.M m) => m TrackId
-insert_track_after_selection = do
-    (_, (block_id, tracknum, _)) <- Selection.get_any_insert
-    focused_track block_id (tracknum + 1)
 
 -- | Add a new track, give keyboard focus to the title, and scroll the view to
 -- make sure it's visible.

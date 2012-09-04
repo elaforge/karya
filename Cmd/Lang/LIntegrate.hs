@@ -13,6 +13,7 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.Integrate.Merge as Merge
 import qualified Cmd.Perf as Perf
+import qualified Cmd.Selection as Selection
 
 import qualified Derive.Call.Integrate as Call.Integrate
 import Types
@@ -29,6 +30,11 @@ block block_id = do
         State.set_integrated_block new_block_id $ Just (block_id, dests)
     Cmd.derive_immediately [new_block_id]
     Create.view new_block_id
+
+sel_edits :: Cmd.CmdL ([Event.IndexKey], [Merge.Edit])
+sel_edits = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    edits block_id track_id
 
 edits :: (Cmd.M m) => BlockId -> TrackId -> m ([Event.IndexKey], [Merge.Edit])
 edits block_id track_id = do
