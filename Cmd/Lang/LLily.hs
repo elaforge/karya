@@ -9,8 +9,10 @@ import qualified Data.Map as Map
 import qualified System.FilePath as FilePath
 import qualified System.Process as Process
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Process
+
 import qualified Ui.Id as Id
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Lang.LPerf as LPerf
@@ -46,6 +48,19 @@ ly_events quarter = LEvent.partition . Convert.convert quarter
 filter_inst :: [String] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
     where insts = map Score.Instrument inst_s
+
+block :: Lilypond.Score -> Cmd.Lilypond.TimeConfig -> BlockId -> Cmd.CmdL ()
+block score config block_id = do
+    (events, logs) <- LEvent.partition . Derive.r_events <$>
+        Cmd.Lilypond.derive block_id
+    mapM_ Log.write logs
+    filename <- Cmd.Lilypond.ly_filename block_id
+    stack_map <- Trans.liftIO $
+        Cmd.Lilypond.compile_ly filename config score events
+    Cmd.modify_play_state $ \st -> st
+        { Cmd.state_lilypond_stack_maps = Map.insert block_id
+            stack_map (Cmd.state_lilypond_stack_maps st)
+        }
 
 from_events :: String -> String -> String -> Cmd.Lilypond.TimeConfig
     -> [Score.Event] -> Cmd.CmdL ()

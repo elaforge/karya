@@ -18,8 +18,10 @@ import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.SaveGit as SaveGit
 
+import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Twelve as Twelve
@@ -52,6 +54,15 @@ lookup_key perf =
         Right key -> Just (Pitch.Key key)
         Left _ -> Nothing
 
+-- | Run a derivation in lilypond context, which will cause certain calls to
+-- behave differently.
+derive :: (Cmd.M m) => BlockId -> m Derive.Result
+derive block_id = do
+    state <- (State.config#State.default_#State.tempo #= 1) <$> State.get
+    Derive.extract_result <$> PlayUtil.run_ui state mempty mempty
+        (Derive.with_val TrackLang.v_lilypond_derive "true"
+            (Call.Block.eval_root_block block_id))
+
 compile_ly :: FilePath -> TimeConfig -> Lilypond.Score
     -> [Score.Event] -> IO Cmd.StackMap
 compile_ly ly_filename config score events = do
@@ -73,8 +84,6 @@ make_ly (TimeConfig quarter quantize_dur) score score_events =
     where
     (events, logs) = LEvent.partition $
         Convert.convert quarter (map LEvent.Event score_events)
-        -- Filter out existing logs because those will be reported by normal
-        -- performance.
 
 -- * postproc
 

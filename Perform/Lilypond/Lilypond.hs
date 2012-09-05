@@ -14,6 +14,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -88,6 +89,7 @@ data Event = Event {
     , event_pitch :: !String
     , event_instrument :: !Score.Instrument
     , event_dynamic :: !Double
+    , event_attributes :: !Score.Attributes
     , event_stack :: !Stack.Stack
     } deriving (Show)
 
@@ -95,9 +97,10 @@ event_end :: Event -> Time
 event_end event = event_start event + event_duration event
 
 instance Pretty.Pretty Event where
-    format (Event start dur pitch inst dyn _stack) =
+    format (Event start dur pitch inst dyn attrs _stack) =
         Pretty.constructor "Event" [Pretty.format start, Pretty.format dur,
-            Pretty.text pitch, Pretty.format inst, Pretty.format dyn]
+            Pretty.text pitch, Pretty.format inst, Pretty.format dyn,
+            Pretty.format attrs]
 
 -- ** Note
 
@@ -141,8 +144,8 @@ convert_notes config sig end events = go Nothing 0 events
             { note_pitch = map event_pitch here
             , note_duration = allowed_dur
             , note_tie = any (> start + allowed_time) (map event_end here)
-            , note_code = if not (null dyn) && maybe True (/=dyn) prev_dyn
-                then '\\':dyn else ""
+            , note_code = attributes_to_code (event_attributes event)
+                ++ dynamic_to_code prev_dyn dyn
             , note_stack = Seq.last (Stack.to_ui (event_stack event))
             }
         (here, rest) = break ((>start) . event_start) events
@@ -172,6 +175,21 @@ get_dynamic dynamics dyn = case dynamics of
     ((val, dyn_str) : dynamics)
         | null dynamics || val >= dyn -> dyn_str
         | otherwise -> get_dynamic dynamics dyn
+
+dynamic_to_code :: Maybe String -> String -> String
+dynamic_to_code prev_dyn dyn
+    | not (null dyn) && maybe True (/=dyn) prev_dyn = '\\':dyn
+    | otherwise = ""
+
+attributes_to_code :: Score.Attributes -> String
+attributes_to_code =
+    concat . mapMaybe (flip Map.lookup attributes . Score.attr)
+        . Score.attrs_list
+    where
+    attributes = Map.fromList
+        [ (Attrs.trill, "\\trill")
+        , (Attrs.trem, ":32")
+        ]
 
 -- | Clip off the part of the event before the given time, or Nothing if it
 -- was entirely clipped off.

@@ -59,7 +59,7 @@ d_control_track (Tree.Node track _) deriver = do
 eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
 eval_track track expr ctype deriver = case ctype of
-    TrackInfo.Tempo ->
+    TrackInfo.Tempo -> ifM Derive.is_lilypond_derive deriver $
         tempo_call track (derive_control tempo_track expr) deriver
     TrackInfo.Control maybe_op control ->
         control_call track control maybe_op (derive_control track expr) deriver

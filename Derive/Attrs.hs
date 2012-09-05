@@ -16,11 +16,12 @@ dim = attr "dim"
 sfz = attr "sfz"
 soft = attr "soft"
 loud = attr "loud"
+trill = attr "trill"
+trem = attr "trem" -- tremolo
 
 -- * strings
 
 pizz = attr "pizz" -- pizzicato
-trem = attr "trem" -- tremolo
 
 -- * drums
 

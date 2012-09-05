@@ -45,6 +45,7 @@ convert_event quarter event = do
         , Lilypond.event_pitch = pitch
         , Lilypond.event_instrument = Score.event_instrument event
         , Lilypond.event_dynamic = Score.initial_dynamic event
+        , Lilypond.event_attributes = Score.event_attributes event
         , Lilypond.event_stack = Score.event_stack event
         }
 

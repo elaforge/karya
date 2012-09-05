@@ -61,15 +61,22 @@ prev_events = Derive.info_prev_events . info
 range :: PassedArgs d -> (ScoreTime, ScoreTime)
 range = Event.range . event
 
+real_range :: PassedArgs d -> Derive.Deriver (RealTime, RealTime)
+real_range args = (,) <$> Derive.real start <*> Derive.real end
+    where (start, end) = range args
+
 -- | Start and duration of the event.  This is probably the right thing for
 -- calls that generate a note since it will give a negative duration when
 -- appropriate.
 extent :: PassedArgs d -> (ScoreTime, ScoreTime)
 extent = (\e -> (Event.start e, Event.duration e)) . event
 
-real_range :: PassedArgs d -> Derive.Deriver (RealTime, RealTime)
-real_range args = (,) <$> Derive.real start <*> Derive.real end
-    where (start, end) = range args
+real_extent :: PassedArgs d -> Derive.Deriver (RealTime, RealTime)
+real_extent args = do
+    let e = event args
+    start <- Derive.real (Event.start e)
+    end <- Derive.real (Event.end e)
+    return (start, end - start)
 
 -- | Event range as it appears on the track, regardless of slicing.
 range_on_track :: PassedArgs d -> (ScoreTime, ScoreTime)

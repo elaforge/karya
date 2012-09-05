@@ -136,6 +136,7 @@ mkevent_inst (start, dur, pitch, inst) =
         , Lilypond.event_pitch = pitch
         , Lilypond.event_instrument = Score.Instrument inst
         , Lilypond.event_dynamic = 0.5
+        , Lilypond.event_attributes = mempty
         , Lilypond.event_stack = UiTest.mkstack (1, 0, 1)
         }
 

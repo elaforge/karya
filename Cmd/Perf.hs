@@ -64,7 +64,7 @@ derive_at :: (Cmd.M m) => BlockId -> TrackId
     -> Derive.Deriver a -> m (Either String a)
 derive_at block_id track_id deriver = do
     dynamic <- fromMaybe empty_dynamic <$> get_dynamic block_id (Just track_id)
-    (val, _, _) <- PlayUtil.run_with_state dynamic deriver
+    (val, _, _) <- PlayUtil.run_with_dynamic dynamic deriver
     return $ either (Left . Pretty.pretty) Right val
     where
     empty_dynamic = Derive.initial_dynamic Derive.empty_scope mempty

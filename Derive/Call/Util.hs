@@ -232,15 +232,24 @@ with_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
 with_dynamic =
     Derive.with_control Score.c_dynamic . Score.untyped . Signal.constant
 
+-- | Generate a single note, from 0 to 1.
+note :: Derive.EventDeriver
+note = Call.eval_one_call $ TrackLang.call "" []
+
+-- | Override the pitch signal and generate a single note.
 pitched_note :: PitchSignal.Pitch -> Signal.Y -> Derive.EventDeriver
 pitched_note pitch dynamic = with_pitch pitch $ with_dynamic dynamic note
 
-note :: Derive.EventDeriver
-note = Call.eval_one_call $ TrackLang.call "" []
+-- | Add an attribute and generate a single note.
+attr_note :: Score.Attributes -> Derive.EventDeriver
+attr_note attrs = add_attrs attrs note
 
 -- | A zero-duration 'note'.
 triggered_note :: Derive.EventDeriver
 triggered_note = Call.eval_one_at 0 0 $ TrackLang.call "" [] :| []
+
+place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
+place = uncurry (Derive.d_place) . Args.extent
 
 -- * call transformers
 
@@ -470,3 +479,15 @@ map_controls_pitches controls pitch_controls state events f = go state events
         let vals = maybe rest_vals
                 ((:rest_vals) . map LEvent.Event . snd) result
         return (final_state, vals)
+
+
+-- * lilypond
+
+when_lilypond :: Derive.Deriver a -> Derive.Deriver a -> Derive.Deriver a
+when_lilypond = ifM Derive.is_lilypond_derive
+
+-- | When in a lilypond derive, replace a deriver with a single note having
+-- the given attributes.
+lilypond_attr :: Derive.PassedArgs d -> Score.Attributes
+    -> Derive.EventDeriver -> Derive.EventDeriver
+lilypond_attr args attrs = when_lilypond (place args (attr_note attrs))

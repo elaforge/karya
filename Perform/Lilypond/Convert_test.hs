@@ -13,6 +13,7 @@ test_convert = do
             . map (LEvent.Event . mkevent)
         mkevent (start, dur, pitch) =
             DeriveTest.mkevent2 (start, dur, pitch, [], Score.default_inst)
-        extract (Lilypond.Event start dur pitch _ _ _) = (start, dur, pitch)
+        extract e = (Lilypond.event_start e, Lilypond.event_duration e,
+            Lilypond.event_pitch e)
     equal (f 0.05 [(0, 0.05, "3b"), (0.05, 0.1, "4c#")])
         [LEvent.Event (0, 32, "b"), LEvent.Event (32, 64, "cs'")]

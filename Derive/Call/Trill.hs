@@ -29,6 +29,7 @@ module Derive.Call.Trill where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -63,7 +64,7 @@ c_note_trill = Derive.stream_generator "trill" $ Note.inverting $ \args ->
     CallSig.call2 args (
         optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic),
         optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
-    \neighbor speed -> do
+    \neighbor speed -> Util.lilypond_attr args Attrs.trill $ do
         mode <- get_mode
         (transpose, control) <- trill_from_controls args mode neighbor speed
         xs <- mapM Derive.score $ map fst $ Signal.unsignal transpose
@@ -80,7 +81,7 @@ c_tremolo :: Derive.NoteCall
 c_tremolo = Derive.stream_generator "tremolo" $ Note.inverting $ \args ->
     CallSig.call1 args (
         optional "speed" (typed_control "tremolo-speed" 10 Score.Real)) $
-    \speed -> do
+    \speed -> Util.lilypond_attr args Attrs.trem $ do
         (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
         notes <- case time_type of
             Util.Real -> do

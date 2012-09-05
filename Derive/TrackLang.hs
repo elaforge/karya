@@ -384,6 +384,13 @@ v_srate = Symbol "srate"
 v_seed :: ValName
 v_seed = Symbol "seed"
 
+-- | This is is set (to anything, the value doesn't matter) when the derive is
+-- being run for conversion to lilypond.  Various calls can check for its
+-- presence and derive differently (e.g. trill should emit a trill attr instead
+-- of notes).
+v_lilypond_derive :: ValName
+v_lilypond_derive = Symbol "lilypond-derive"
+
 
 -- * expressions
 
