@@ -7,11 +7,31 @@ import qualified Util.Regex as Regex
 import qualified App.SendCmd as SendCmd
 
 
--- Unfortunately handling clicks in previous is encrusted with apple gunk as
--- usual.  You can't just tell it what to do with clicks, you have to have
--- a running app with CFBundleURLName in Info.plist and then a magic function
--- which is called by the OS runloop.  I'd probably have to make a small
--- python or applescript process that gets the URL and runs this program.
+{-
+    Unfortunately handling clicks in previous is encrusted with apple gunk as
+    usual.  You can't just tell it what to do with clicks, you have to have
+    a running app with CFBundleURLName in Info.plist and then a magic function
+    which is called by the OS runloop.  I'd probably have to make a small
+    python or applescript process that gets the URL and runs this program.
+
+    Put in Info.plist:
+
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleTypeRole</key>
+                <string>Editor</string>
+                <key>CFBundleURLName</key>
+                <string>text editor via url</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>textedit</string>
+                </array>
+                <key>NSDocumentClass</key>
+                <string>TinyTinyDocument</string>
+            </dict>
+        </array>
+-}
 
 
 main :: IO ()
