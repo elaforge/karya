@@ -1,9 +1,18 @@
 UNSORTED
+  - j and k seem to be causing corruption
+    Maybe just due to me forgetting cmd?  It seems confusing that in val edit
+    the note track doesn't need it but the control track does.
+  * Control mode edit shouldn't accept - chars.
+  - Undo during edit (i.e. a suppressed cmd) destroys changes and you can't
+    get them back.  And it's confusing.  Maybe undo shouldn't work?
+  - It would be nice for there to be some place to put notes.  Comment in the
+    block text?  But I can't write much in there.
   - Get rid of Scale.scale_pattern, I can't think of a use for it.  If I want
     valid calls I should have another function to get the Notes of a scale.
   - wayang: ornament for ngoret: transformer that's either up or down,
     and adds a grace note above or below.  The note rings until a default
     amount of time, or the hand-down symbol, which also mutes the rambat tick.
+    Maybe too complicated, I can just have a damp-time setting.
   - Hand damping: manually place hand damp positions.   Post proc, where tick
     and ngoret ornaments set an attribute or something so it knows which ones
     to extend.
@@ -89,33 +98,6 @@ UNSORTED
     event?  Last event necessitates the '--' hack.  Update doc/derivation.
   - There's a zillion things to stitch together for an instrument.
     Add yet more utils in MidiInst to make this easier.
-  lilypond output
-    - make rhythm spelling work properly for non-duple meters
-    - make rhythm spelling work for compound meters
-    - get pitches right, and keep the enharmonics
-    lilypond-specific derive:
-      * put a key in the environ and calls can use it to add an attr
-      * key omits tempo tracks
-      * function to run a ly derive: set TrackLang.v_lilypond_derive and unset
-        default_tempo
-      - is there a way to set attrs for pitch calls?  I can't totally override
-        the pitch track because I still need the pitches, it needs to return
-        attrs in addition to signal.  The only way I can think is another
-        return val, e.g. collect [(RealTime, Attributes)]
-      * then lilypond perform has to map attrs to ly code
-      - set time sig and cleff with attrs?
-      - manually add ly tweaks, could be done with special "ly." attrs, or
-        maybe not, since attrs have naming restrictions.  Maybe an event_meta?
-    - support for slurs, I think I write them as a NoteTransformer which
-      attaches metadata.  It can also affect note durations in normal
-      performance.  E.g. make it legato to trigger keyed legato.
-    - Special attrs for clefs.
-    - Left and right hand attrs, with a piano instrument can split events
-      between hands.
-    - can I make a click on a note in the pdf highlight in the sequencer?
-      Hung up on getting preview to send clicks to a program, notes in
-      App/LilypondClick.hs
-      * StackMap can be just char pos
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   - a new empty inst with a scale doesn't get the scale right, should fall
     back on looking down the skeleton
@@ -418,7 +400,9 @@ integrate:
     * remove diff that makes it rederive
   - bug: can't delete a derived track, it just gets regenerated
   - bug: can't undo past a integrate create, it just creates a new one
-  - bug: create tracks, delete them, remove <, re-add <, does it work?
+    Maybe I could not record the integrate step?
+  - bug: create tracks, remove <, re-add <, does it work?
+    Removing < should break the integrate links.
 
   / Optimize block integration: similar to only_destinations_damaged,
     if only the destination blocks are damaged, don't rederive the source.
@@ -443,6 +427,36 @@ integrate:
   - quantization
   - split tracks on overlapping notes since some calls make them (e.g. block
     calls)
+
+lilypond:
+  - make rhythm spelling work properly for non-duple meters
+  - make rhythm spelling work for compound meters
+  - get pitches right, and keep the enharmonics
+  lilypond-specific derive:
+    * put a key in the environ and calls can use it to add an attr
+    * key omits tempo tracks
+    * function to run a ly derive: set TrackLang.v_lilypond_derive and unset
+      default_tempo
+    * then lilypond perform has to map attrs to ly code
+  - set time sig and cleff with attrs?
+    But it seems like I'd want values, e.g. clef=treble or time-sig=5/4,
+    otherwise what does +treble +bass mean?  I guess the instruments have to
+    get the environ too.  But maybe this can replace the "metadata"?
+  - Left and right hand attrs, with a piano instrument can split events
+    between hands.
+  - manually add ly tweaks, could be done with special "ly." attrs, or
+    maybe not, since attrs have naming restrictions.  Maybe an event_meta?
+  - support for slurs, I think I write them as a NoteTransformer which
+    attaches metadata.  It can also affect note durations in normal
+    performance.  E.g. make it legato to trigger keyed legato.
+  - is there a way to turn pitch signal calls e.g. 'tr' into an attr on the
+    note? I can't totally override the pitch track because I still need the
+    pitches, it needs to return attrs in addition to signal.  The only way
+    I can think is another return val, e.g. collect [(RealTime, Attributes)]
+  + can I make a click on a note in the pdf highlight in the sequencer?
+    Hung up on getting preview to send clicks to a program, notes in
+    App/LilypondClick.hs
+    * StackMap can be just char pos
 
 external
   - chorded keys are not getting the proper pitch bend
@@ -1267,14 +1281,22 @@ jack: JACK:
 misc ideas:
   - Staff notation represents chords well, but tracks don't.  Think of a more
     compact notation.
-  - Staff notation output via lilypond?  This can be implemented as another
+  * Staff notation output via lilypond?  This can be implemented as another
     kind of backend.  I think events would need metadata so I have a place to
     put formatting info.  Maybe tracks and blocks need it too so I can express
     staff associations.
-  - if derivation needs event IDs, maybe I can use the value-supply package
-  - safecopy package does version controlled serialization
-  - think about yi's approach to keybindings as a parser and keybinding state
-  - also investigate yi's approach to configuration
+  - I could have control calls that modify samples beneath them.  Calls
+    starting with '-' are skipped by Args.next, and then they can add multiply
+    or whatever to samples.  Oh wait, except they're not in scope, they're
+    combined with mconcat.
+  - Why can't I write a 'tr' that generates pitch signal in some cases, and
+    adds an attribute in others?  It would be redesigning control tracks so
+    they are just note tracks that slice their children and apply
+    a transformer to them.  I'm not sure that will coexist with the curve
+    description language that control tracks currently implement.
+    It would be interesting to get rid of track types entirely though.
+  - How can I have calls that generate multiple controls, e.g. pitch-dyn track
+    to implement fall + decresc?
 
 planning
   Composition of score fragments.  I think I want to display subderived

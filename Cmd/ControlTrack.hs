@@ -92,7 +92,8 @@ update_hex val key
     | Just c2 <- parse_val val = case key of
         Key.Backspace -> Just Nothing
         Key.Char c | higit c -> Just $ Just $ ParseBs.hex_prefix ++ [c2, c]
-        _ -> Nothing
+        -- The field is hex, but this wasn't a higit, so ignore it.
+        _ -> Just $ Just val
     | otherwise = Nothing -- not hex at all
     where
     higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'

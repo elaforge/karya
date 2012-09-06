@@ -29,5 +29,3 @@ test_cmd_val_edit = do
 
 thread pos cmd msgs = CmdTest.thread_tracks [("*", []), ("c", [])] id
     (CmdTest.set_point_sel 2 pos : map cmd msgs)
-
-
