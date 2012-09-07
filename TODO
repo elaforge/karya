@@ -448,7 +448,10 @@ lilypond:
       default_tempo
     * then lilypond perform has to map attrs to ly code
   * Replace event_attributes with event_environ.
-  - set time sig, clef, and key from event environs
+  set from event environ
+    * clef
+    - time sig
+    - key
   * Left and right hand attrs, with a piano instrument can split events
     between hands.
   - manually add ly tweaks, could be done with special ly environ val

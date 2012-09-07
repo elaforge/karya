@@ -30,7 +30,7 @@ import Types
 
 
 pipa :: Derive.Events -> Cmd.CmdL ()
-pipa = from_events "c-maj" "treble" "4/4" config . clean
+pipa = from_events "c-maj" "4/4" config . clean
     where
     config = Cmd.Lilypond.TimeConfig 0.125 Lilypond.D16
     clean = filter_inst ["fm8/pipa", "fm8/dizi", "ptq/yangqin"]
@@ -38,7 +38,7 @@ pipa = from_events "c-maj" "treble" "4/4" config . clean
         -- . filter_inst ["ptq/yangqin"]
 
 bloom :: Cmd.CmdL ()
-bloom = from_events "a-maj" "treble" "5/4" config . LEvent.events_of
+bloom = from_events "a-maj" "5/4" config . LEvent.events_of
         =<< LPerf.sel_events
     where config = Cmd.Lilypond.TimeConfig 0.5 Lilypond.D16
 
@@ -62,11 +62,11 @@ block score config block_id = do
             stack_map (Cmd.state_lilypond_stack_maps st)
         }
 
-from_events :: String -> String -> String -> Cmd.Lilypond.TimeConfig
-    -> [Score.Event] -> Cmd.CmdL ()
-from_events key clef time_sig config events = do
+from_events :: String -> String -> Cmd.Lilypond.TimeConfig -> [Score.Event]
+    -> Cmd.CmdL ()
+from_events key time_sig config events = do
     block_id <- Cmd.get_focused_block
-    score <- make_score key clef time_sig block_id
+    score <- make_score key time_sig block_id
     filename <- Cmd.Lilypond.ly_filename block_id
     stack_map <- Trans.liftIO $
         Cmd.Lilypond.compile_ly filename config score events
@@ -82,14 +82,12 @@ view_pdf block_id = do
         (Process.proc "open" [FilePath.replaceExtension filename ".pdf"])
     return ()
 
-make_score :: (Cmd.M m) => String -> Lilypond.Clef -> String -> BlockId
-    -> m Lilypond.Score
-make_score key_str clef time_sig block_id = either Cmd.throw return $ do
+make_score :: (Cmd.M m) => String -> String -> BlockId -> m Lilypond.Score
+make_score key_str time_sig block_id = either Cmd.throw return $ do
     key <- Lilypond.parse_key (Pitch.Key key_str)
     tsig <- Lilypond.parse_time_signature time_sig
     return $ Lilypond.Score
         { Lilypond.score_title = Id.ident_name block_id
         , Lilypond.score_time = tsig
-        , Lilypond.score_clef = clef
         , Lilypond.score_key = key
         }

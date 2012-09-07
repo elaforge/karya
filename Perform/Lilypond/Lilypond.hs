@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond where
 import qualified Control.Monad.State.Strict as State
@@ -23,6 +24,14 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 
+
+-- * constants
+
+v_hand :: TrackLang.ValName
+v_hand = TrackLang.Symbol "hand"
+
+v_clef :: TrackLang.ValName
+v_clef = TrackLang.Symbol "clef"
 
 -- * types
 
@@ -111,13 +120,15 @@ instance Pretty.Pretty Event where
 
 data Note = Note {
     -- | [] means this is a rest, and greater than one pitch indicates a chord.
-    note_pitch :: ![String]
-    , note_duration :: !NoteDuration
-    , note_tie :: !Bool
+    _note_pitch :: ![String]
+    , _note_duration :: !NoteDuration
+    , _note_tie :: !Bool
     -- | Additional code to append to the note.
-    , note_code :: !String
-    , note_stack :: !(Maybe Stack.UiFrame)
-    } deriving (Show)
+    , _note_code :: !String
+    , _note_stack :: !(Maybe Stack.UiFrame)
+    }
+    | Clef String
+    deriving (Show)
 
 rest :: NoteDuration -> Note
 rest dur = Note [] dur False "" Nothing
@@ -128,10 +139,15 @@ instance ToLily Note where
             [pitch] -> pitch ++ ly_dur ++ code
             _ -> '<' : unwords pitches ++ ">" ++ ly_dur ++ code
         where ly_dur = to_lily dur ++ if tie then "~" else ""
+    to_lily (Clef clef) = "\\clef " ++ clef
 
 note_time :: Note -> Time
-note_time = note_dur_to_time . note_duration
+note_time note@(Note {}) = note_dur_to_time (_note_duration note)
+note_time (Clef {}) = 0
 
+note_stack :: Note -> Maybe Stack.UiFrame
+note_stack note@(Note {}) = _note_stack note
+note_stack _ = Nothing
 
 -- * convert
 
@@ -140,19 +156,24 @@ note_time = note_dur_to_time . note_duration
 convert_notes :: Config -> TimeSignature -> Time -> [Event] -> [Note]
 convert_notes config sig end events = go Nothing 0 events
     where
-    go :: Maybe String -> Time -> [Event] -> [Note]
-    go _ prev [] = trailing_rests prev
-    go prev_dyn prev events@(event:_) = mkrests prev start
-        ++ note : go (Just dyn) (start + allowed_time) (clipped ++ rest)
+    go :: Maybe Event -> Time -> [Event] -> [Note]
+    go _ prev_end [] = trailing_rests prev_end
+    go prev_event prev_end events@(event:_) =
+        mkrests prev_end start ++ clef_change ++ note
+            : go (Just event) (start + allowed_time) (clipped ++ rest)
         where
         note = Note
-            { note_pitch = map event_pitch here
-            , note_duration = allowed_dur
-            , note_tie = any (> start + allowed_time) (map event_end here)
-            , note_code = attributes_to_code (event_attributes event)
-                ++ dynamic_to_code prev_dyn dyn
-            , note_stack = Seq.last (Stack.to_ui (event_stack event))
+            { _note_pitch = map event_pitch here
+            , _note_duration = allowed_dur
+            , _note_tie = any (> start + allowed_time) (map event_end here)
+            , _note_code = attributes_to_code (event_attributes event)
+                ++ dynamic_to_code config prev_event event
+            , _note_stack = Seq.last (Stack.to_ui (event_stack event))
             }
+        clef_change
+            | maybe True ((/= cur) . event_clef) prev_event = [Clef cur]
+            | otherwise = []
+            where cur = event_clef event
         (here, rest) = break ((>start) . event_start) events
         end = subtract start $ fromMaybe (event_end event) $
             Seq.minimum (next ++ map event_end here)
@@ -162,7 +183,6 @@ convert_notes config sig end events = go Nothing 0 events
         allowed_time = note_dur_to_time allowed_dur
         clipped = mapMaybe (clip_event (start + allowed_time)) here
         start = event_start event
-        dyn = get_dynamic (config_dynamics config) (event_dynamic event)
 
     mkrests prev start
         | prev < start = map rest $ convert_duration sig
@@ -173,6 +193,11 @@ convert_notes config sig end events = go Nothing 0 events
         convert_duration sig (config_dotted_rests config) prev
             (max 0 (end - prev))
 
+event_clef :: Event -> String
+event_clef event = case TrackLang.lookup_val v_clef (event_environ event) of
+    Right val -> val
+    _ -> "treble"
+
 -- | Guess a dynamic from the dyn control.
 get_dynamic :: [(Double, String)] -> Double -> String
 get_dynamic dynamics dyn = case dynamics of
@@ -181,10 +206,15 @@ get_dynamic dynamics dyn = case dynamics of
         | null dynamics || val >= dyn -> dyn_str
         | otherwise -> get_dynamic dynamics dyn
 
-dynamic_to_code :: Maybe String -> String -> String
-dynamic_to_code prev_dyn dyn
-    | not (null dyn) && maybe True (/=dyn) prev_dyn = '\\':dyn
-    | otherwise = ""
+dynamic_to_code :: Config -> Maybe Event -> Event -> String
+dynamic_to_code config prev_event event =
+    to_code (get <$> prev_event) (get event)
+    where
+    get = get_dynamic (config_dynamics config) . event_dynamic
+    to_code :: Maybe String -> String -> String
+    to_code prev_dyn dyn
+        | not (null dyn) && maybe True (/=dyn) prev_dyn = '\\':dyn
+        | otherwise = ""
 
 attributes_to_code :: Score.Attributes -> String
 attributes_to_code =
@@ -249,7 +279,7 @@ split_measures sig = go
     split prev (n:ns)
         | t > measure = ([], n:ns)
         | otherwise = let (pre, post) = split t ns in (n:pre, post)
-        where t = prev + note_dur_to_time (note_duration n)
+        where t = prev + note_time n
     measure = measure_time sig
 
 -- * duration / time conversion
@@ -316,20 +346,17 @@ measure_duration (TimeSignature num denom) =
 data Score = Score {
     score_title :: String
     , score_time :: TimeSignature
-    , score_clef :: Clef
     -- | (tonic, Mode)
     , score_key :: (String, Mode)
     } deriving (Show)
 
 data Mode = Major | Minor deriving (Show)
-type Clef = String
 
 meta_ly :: String
 meta_ly = "ly"
 
-meta_title, meta_clef, meta_time_signature :: String
+meta_title, meta_time_signature :: String
 meta_title = "ly.title"
-meta_clef = "ly.clef"
 meta_time_signature = "ly.time-signature"
 -- meta_duration1 = "ly.duration1"
 
@@ -346,12 +373,10 @@ meta_to_score maybe_score_key meta = case Map.lookup meta_ly meta of
         return $ Score
             { score_title = title
             , score_time = time_sig
-            , score_clef = clef
             , score_key = key
             }
     where
     title = get "" meta_title
-    clef = get "treble" meta_clef
     get deflt k = Map.findWithDefault deflt k meta
 
 parse_key :: Pitch.Key -> Either String (String, Mode)
@@ -383,16 +408,13 @@ data StaffGroup = StaffGroup Score.Instrument [Staff]
     deriving (Show)
 
 -- | List of measures, where each measure is a list of Notes.
-data Staff = Staff Clef [[Note]] deriving (Show)
-
-v_hand :: TrackLang.ValName
-v_hand = TrackLang.Symbol "hand"
+data Staff = Staff [[Note]] deriving (Show)
 
 -- | Group a stream of events into individual staves based on instrument, and
 -- for keyboard instruments, left or right hand.
-split_staves :: Config -> String -> TimeSignature -> [Event] -> [StaffGroup]
-split_staves config clef time_sig events =
-    [ staff_group config clef time_sig end inst inst_events
+split_staves :: Config -> TimeSignature -> [Event] -> [StaffGroup]
+split_staves config time_sig events =
+    [ staff_group config time_sig end inst inst_events
     | (inst, inst_events) <- Seq.keyed_group_on event_instrument events
     ]
     where
@@ -402,14 +424,14 @@ split_staves config clef time_sig events =
 -- | Right hand goes at the top, left hand goes at the bottom.  Any other hands
 -- goe below that.  Events that are don't have a hand are assumed to be in the
 -- right hand.
-staff_group :: Config -> Clef -> TimeSignature -> Time
+staff_group :: Config -> TimeSignature -> Time
     -> Score.Instrument -> [Event] -> StaffGroup
-staff_group config clef time_sig end inst events =
-    StaffGroup inst $ map (Staff clef) $
+staff_group config time_sig end inst events =
+    StaffGroup inst $ map Staff $
         map measures $ Seq.group_on (lookup_hand . event_environ) events
     where
     lookup_hand environ = case TrackLang.lookup_val v_hand environ of
-        Right (TrackLang.VString val)
+        Right (val :: String)
             | val == "right" -> 0
             | val == "left" -> 1
             | otherwise -> 2
@@ -428,7 +450,7 @@ round_up interval n
 
 make_ly :: Config -> Score -> [Event] -> ([Text.Text], Cmd.StackMap)
 make_ly config score events = ly_file score
-    (split_staves config (score_clef score) (score_time score) events)
+    (split_staves config (score_time score) events)
 
 inst_name :: Score.Instrument -> String
 inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
@@ -455,7 +477,7 @@ show_pitch_note (Theory.Note pc accs) = do
 -- * output
 
 ly_file :: Score -> [StaffGroup] -> ([Text.Text], Cmd.StackMap)
-ly_file (Score title time_sig _clef (key, mode)) staff_groups = run_output $ do
+ly_file (Score title time_sig (key, mode)) staff_groups = run_output $ do
     outputs
         [ "\\version" <+> str "2.14.2"
         , "\\language" <+> str "english"
@@ -476,8 +498,8 @@ ly_file (Score title time_sig _clef (key, mode)) staff_groups = run_output $ do
             outputs ["\n\\new PianoStaff <<"]
             mapM_ (ly_staff inst) staves
             output ">>\n"
-    ly_staff inst (Staff clef measures) = do
-        output $ "\\new Staff { \\clef" <+> str clef
+    ly_staff inst (Staff measures) = do
+        output $ "\\new Staff { "
             <+> "{ \\key" <+> Text.pack key <+> "\\"
                 <> Text.pack (map Char.toLower (show mode))
             <+> "\\time" <+> Text.pack (to_lily time_sig) <> "\n"
