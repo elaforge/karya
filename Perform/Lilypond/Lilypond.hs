@@ -19,6 +19,7 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 
@@ -77,7 +78,8 @@ instance ToLily Duration where
 instance ToLily NoteDuration where
     to_lily (NoteDuration dur dot) = to_lily dur ++ if dot then "." else ""
 
-data TimeSignature = TimeSignature { time_num :: !Int, time_denom :: !Duration }
+data TimeSignature = TimeSignature
+    { time_num :: !Int, time_denom :: !Duration }
     deriving (Show)
 
 instance ToLily TimeSignature where
@@ -89,12 +91,15 @@ data Event = Event {
     , event_pitch :: !String
     , event_instrument :: !Score.Instrument
     , event_dynamic :: !Double
-    , event_attributes :: !Score.Attributes
+    , event_environ :: !TrackLang.Environ
     , event_stack :: !Stack.Stack
     } deriving (Show)
 
 event_end :: Event -> Time
 event_end event = event_start event + event_duration event
+
+event_attributes :: Event -> Score.Attributes
+event_attributes = Score.environ_attributes . event_environ
 
 instance Pretty.Pretty Event where
     format (Event start dur pitch inst dyn attrs _stack) =
@@ -371,25 +376,46 @@ parse_time_signature sig = do
     TimeSignature <$> maybe unparseable return (ParseBs.int num)
         <*> maybe unparseable return (read_duration denom)
 
+-- * split staves
 
--- * make_ly
+-- | If the staff group has >1 staff, it is bracketed as a grand staff.
+data StaffGroup = StaffGroup Score.Instrument [Staff]
+    deriving (Show)
 
-type Staff = (Clef, Score.Instrument, [[Note]])
+-- | List of measures, where each measure is a list of Notes.
+data Staff = Staff Clef [[Note]] deriving (Show)
 
-make_ly :: Config -> Score -> [Event] -> ([Text.Text], Cmd.StackMap)
-make_ly config score events = ly_file score
-    (make_staves config (score_clef score) (score_time score) events)
+v_hand :: TrackLang.ValName
+v_hand = TrackLang.Symbol "hand"
 
-make_staves :: Config -> String -> TimeSignature -> [Event] -> [Staff]
-make_staves config clef time_sig events =
-    [ (clef, inst, measures inst_events)
+-- | Group a stream of events into individual staves based on instrument, and
+-- for keyboard instruments, left or right hand.
+split_staves :: Config -> String -> TimeSignature -> [Event] -> [StaffGroup]
+split_staves config clef time_sig events =
+    [ staff_group config clef time_sig end inst inst_events
     | (inst, inst_events) <- Seq.keyed_group_on event_instrument events
     ]
     where
     end = round_up (measure_time time_sig) $ fromMaybe 0 $
         Seq.maximum (map event_end events)
-    measures inst_events = split_measures time_sig
-        (convert_notes config time_sig end inst_events)
+
+-- | Right hand goes at the top, left hand goes at the bottom.  Any other hands
+-- goe below that.  Events that are don't have a hand are assumed to be in the
+-- right hand.
+staff_group :: Config -> Clef -> TimeSignature -> Time
+    -> Score.Instrument -> [Event] -> StaffGroup
+staff_group config clef time_sig end inst events =
+    StaffGroup inst $ map (Staff clef) $
+        map measures $ Seq.group_on (lookup_hand . event_environ) events
+    where
+    lookup_hand environ = case TrackLang.lookup_val v_hand environ of
+        Right (TrackLang.VString val)
+            | val == "right" -> 0
+            | val == "left" -> 1
+            | otherwise -> 2
+        _ -> 0
+    measures events = split_measures time_sig
+        (convert_notes config time_sig end events)
 
 round_up :: (Integral a) => a -> a -> a
 round_up interval n
@@ -397,6 +423,12 @@ round_up interval n
     | otherwise = (d+1) * interval
     where
     (d, m) = n `divMod` interval
+
+-- * make_ly
+
+make_ly :: Config -> Score -> [Event] -> ([Text.Text], Cmd.StackMap)
+make_ly config score events = ly_file score
+    (split_staves config (score_clef score) (score_time score) events)
 
 inst_name :: Score.Instrument -> String
 inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
@@ -422,25 +454,29 @@ show_pitch_note (Theory.Note pc accs) = do
 
 -- * output
 
-ly_file :: Score -> [Staff] -> ([Text.Text], Cmd.StackMap)
-ly_file (Score title time_sig _clef (key, mode)) staves = run_output $ do
-    output $ Text.unlines
+ly_file :: Score -> [StaffGroup] -> ([Text.Text], Cmd.StackMap)
+ly_file (Score title time_sig _clef (key, mode)) staff_groups = run_output $ do
+    outputs
         [ "\\version" <+> str "2.14.2"
         , "\\language" <+> str "english"
         , "\\header { title =" <+> str title <+> "tagline = \"\" }"
         , "\\score { <<"
-        , "\\new StaffGroup <<"
         ]
-    mapM_ mkstaff staves
-    output $ Text.unlines
-        [ ">>"
-        , ">> }"
-        ]
+    mapM_ ly_staff_group staff_groups
+    outputs [">> }"]
     where
     str text = "\"" <> Text.pack text <> "\""
     x <+> y = x <> " " <> y
 
-    mkstaff (clef, inst, measures) = do
+    ly_staff_group (StaffGroup inst staves) = case staves of
+        [staff] -> do
+            output "\n"
+            ly_staff inst staff
+        _ -> do
+            outputs ["\n\\new PianoStaff <<"]
+            mapM_ (ly_staff inst) staves
+            output ">>\n"
+    ly_staff inst (Staff clef measures) = do
         output $ "\\new Staff { \\clef" <+> str clef
             <+> "{ \\key" <+> Text.pack key <+> "\\"
                 <> Text.pack (map Char.toLower (show mode))
@@ -449,7 +485,7 @@ ly_file (Score title time_sig _clef (key, mode)) staves = run_output $ do
             <> "\n\\set Staff.shortInstrumentName =" <+> str (inst_name inst)
             <> "\n{\n"
         mapM_ show_measures (zip [0, 4 ..] (group 4 measures))
-        output $ "} } }\n\n"
+        output "} } }\n"
     -- Show 4 measures per line and comment with the measure number.
     show_measures (num, measures) = do
         output "  "
@@ -478,6 +514,9 @@ data OutputState = OutputState {
     -- | Running sum of the length of the chunks.
     , output_char_num :: !Int
     } deriving (Show)
+
+outputs :: [Text.Text] -> Output ()
+outputs = output . Text.unlines
 
 output :: Text.Text -> Output ()
 output text = State.modify $ \(OutputState chunks omap num) ->

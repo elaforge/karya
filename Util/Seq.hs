@@ -153,7 +153,7 @@ maximum xs = Just (List.maximum xs)
 
 -- * ordered lists
 
--- | Sort on a cheap key function.
+-- | Stable sort on a cheap key function.
 sort_on :: (Ord b) => (a -> b) -> [a] -> [a]
 sort_on = Ordered.sortOn'
 
@@ -197,7 +197,7 @@ keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
 --
 -- The sublists are never null.
 group_on :: (Ord b) => (a -> b) -> [a] -> [[a]]
-group_on key = group key . sort_on key
+group_on key = group key . sort_on key -- TODO faster to use a map?
 
 group :: (Ord b) => (a -> b) -> [a] -> [[a]]
 group key = List.groupBy ((==) `on` key)

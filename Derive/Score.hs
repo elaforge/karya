@@ -59,10 +59,12 @@ empty_event :: Event
 empty_event = Event 0 0 mempty mempty mempty Stack.empty default_inst mempty
 
 event_attributes :: Event -> Attributes
-event_attributes event =
-    case Map.lookup BaseTypes.v_attributes (event_environ event) of
-        Just (BaseTypes.VAttributes attrs) -> attrs
-        _ -> mempty
+event_attributes = environ_attributes . event_environ
+
+environ_attributes :: BaseTypes.Environ -> Attributes
+environ_attributes environ = case Map.lookup BaseTypes.v_attributes environ of
+    Just (BaseTypes.VAttributes attrs) -> attrs
+    _ -> mempty
 
 modify_attributes :: (Attributes -> Attributes) -> Event -> Event
 modify_attributes modify event =

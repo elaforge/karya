@@ -1,4 +1,10 @@
 UNSORTED
+  upgrade to ghc 7.6
+    - update to new ghc api
+    - fix hsc2hs
+    - remove exports ReadDevice and WriteDevice from Midi.Midi
+    - experiment again with replacing storablevector with vector, since it
+      optimizes it better
   - if Map.fromList now checks for sortedness, can I pull the same trick and
     eliminate the from_sorted type things?  no not really, just wait for new
     version of containers
@@ -442,14 +448,10 @@ lilypond:
       default_tempo
     * then lilypond perform has to map attrs to ly code
   * Replace event_attributes with event_environ.
-  - set time sig and cleff with attrs?
-    But it seems like I'd want values, e.g. clef=treble or time-sig=5/4,
-    otherwise what does +treble +bass mean?  I guess the instruments have to
-    get the environ too.  But maybe this can replace the "metadata"?
-  - Left and right hand attrs, with a piano instrument can split events
+  - set time sig, clef, and key from event environs
+  * Left and right hand attrs, with a piano instrument can split events
     between hands.
-  - manually add ly tweaks, could be done with special "ly." attrs, or
-    maybe not, since attrs have naming restrictions.  Maybe an event_meta?
+  - manually add ly tweaks, could be done with special ly environ val
   - support for slurs, I think I write them as a NoteTransformer which
     attaches metadata.  It can also affect note durations in normal
     performance.  E.g. make it legato to trigger keyed legato.
