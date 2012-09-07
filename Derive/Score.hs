@@ -18,6 +18,7 @@ import qualified Data.Set as Set
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Instrument(..), Control(..), Type(..), Typed(..), untyped,
         merge_typed, type_to_code, code_to_type, TypedSignal, TypedVal,
@@ -35,8 +36,7 @@ import Types
 -- * Event
 
 data Event = Event {
-    -- | These are the core attributes that define an event.  UI display
-    -- attributes like font style are not preserved here.
+    -- | These are the core attributes that define an event.
     event_start :: !RealTime
     , event_duration :: !RealTime
     -- | Event text, carried over from 'Ui.Event.event_bs' for debugging.
@@ -49,15 +49,27 @@ data Event = Event {
     -- UI can be highlighted.
     , event_stack :: !Stack.Stack
 
-    -- | These are optional parameters that may or may not be required by the
-    -- performer.
+    -- | The interpretation of these fields is up to the performer.
     , event_instrument :: !Instrument
-    , event_attributes :: !Attributes
+    , event_environ :: !BaseTypes.Environ
     }
-    deriving (Read, Show)
+    deriving (Show)
 
 empty_event :: Event
 empty_event = Event 0 0 mempty mempty mempty Stack.empty default_inst mempty
+
+event_attributes :: Event -> Attributes
+event_attributes event =
+    case Map.lookup BaseTypes.v_attributes (event_environ event) of
+        Just (BaseTypes.VAttributes attrs) -> attrs
+        _ -> mempty
+
+modify_attributes :: (Attributes -> Attributes) -> Event -> Event
+modify_attributes modify event =
+    event { event_environ = modified (event_environ event) }
+    where
+    modified = Map.insert BaseTypes.v_attributes
+        (BaseTypes.VAttributes (modify (event_attributes event)))
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch _ _ _) =

@@ -181,6 +181,17 @@ type Environ = Map.Map ValName Val
 -- | Symbols to look up a val in the 'ValMap'.
 type ValName = Symbol
 
+-- | Even though Environ is a type synonym, you can use this to avoid depending
+-- directly on that.
+insert_val :: ValName -> Val -> Environ -> Environ
+insert_val = Map.insert
+
+-- | Environ key for the default attributes.
+--
+-- This is defined here so 'Derive.Score.event_attributes' can use it.
+v_attributes :: ValName
+v_attributes = Symbol "attr"
+
 -- ** Val
 
 data Val =

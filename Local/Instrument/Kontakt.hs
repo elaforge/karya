@@ -193,17 +193,13 @@ emit_kendang :: (Score.Instrument, Score.Instrument)
     -> [(Score.Event, Maybe KendangEvent)] -> [Score.Event]
 emit_kendang _ _ (event, Nothing) _ = [event]
 emit_kendang insts prev (event, Just (attrs, kendang)) next =
-    event
-        { Score.event_attributes = attrs
-        , Score.event_instrument = main_inst
-        }
+    make_event attrs main_inst
     : case filler of
         Nothing -> []
-        Just second_attrs -> (:[]) $ event
-            { Score.event_attributes = second_attrs
-            , Score.event_instrument = second_inst
-            }
+        Just second_attrs -> [make_event second_attrs second_inst]
     where
+    make_event attrs inst = Score.modify_attributes (const attrs) $
+        event { Score.event_instrument = inst }
     (main_inst, second_inst) = case kendang of
         Drums.Wadon -> insts
         Drums.Lanang -> (snd insts, fst insts)

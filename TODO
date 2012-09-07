@@ -1,4 +1,7 @@
 UNSORTED
+  - if Map.fromList now checks for sortedness, can I pull the same trick and
+    eliminate the from_sorted type things?  no not really, just wait for new
+    version of containers
   - j and k seem to be causing corruption
     Maybe just due to me forgetting cmd?  It seems confusing that in val edit
     the note track doesn't need it but the control track does.
@@ -438,6 +441,7 @@ lilypond:
     * function to run a ly derive: set TrackLang.v_lilypond_derive and unset
       default_tempo
     * then lilypond perform has to map attrs to ly code
+  * Replace event_attributes with event_environ.
   - set time sig and cleff with attrs?
     But it seems like I'd want values, e.g. clef=treble or time-sig=5/4,
     otherwise what does +treble +bass mean?  I guess the instruments have to

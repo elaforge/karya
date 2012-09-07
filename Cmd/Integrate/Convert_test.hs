@@ -33,7 +33,8 @@ test_integrate = do
         , []
         )
     -- Attributes get mapped back to their call.
-    equal (f [(no_pitch (0, 1, [])) { Score.event_attributes = Attrs.plak }])
+    let set = Score.modify_attributes . const
+    equal (f [set Attrs.plak (no_pitch (0, 1, []))])
         ( [(">inst", [(0, 1, "plak")])]
         , []
         )

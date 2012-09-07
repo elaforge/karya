@@ -102,8 +102,9 @@ generate_note n_inst rel_attrs event next_start = do
         Just inst -> return inst
         Nothing -> fromMaybe Score.default_inst <$>
             Derive.lookup_val TrackLang.v_instrument
-    attrs <- fromMaybe Score.no_attrs <$>
-        Derive.lookup_val TrackLang.v_attributes
+    environ <- Internal.get_dynamic Derive.state_environ
+    let attrs = either (const Score.no_attrs) id $
+            TrackLang.lookup_val TrackLang.v_attributes environ
     st <- Derive.gets Derive.state_dynamic
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
@@ -119,7 +120,10 @@ generate_note n_inst rel_attrs event next_start = do
         , Score.event_pitch = pitch_sig
         , Score.event_stack = Derive.state_stack st
         , Score.event_instrument = inst
-        , Score.event_attributes = apply rel_attrs attrs
+        , Score.event_environ =
+            TrackLang.insert_val TrackLang.v_attributes
+                (TrackLang.VAttributes (apply rel_attrs attrs))
+                environ
         }
     where
     apply rel_attrs attrs =

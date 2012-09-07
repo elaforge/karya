@@ -44,7 +44,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
-import Derive.BaseTypes (Environ, ValName)
+import Derive.BaseTypes (Environ, ValName, insert_val)
 import Derive.BaseTypes
        (ShowVal(..), Val(..), Symbol(..), AttrMode(..), RelativeAttr(..),
         ControlRef(..), PitchControl, ValControl, Note(..))
@@ -301,10 +301,10 @@ put_val :: (Typecheck val) => ValName -> val -> Environ -> Either Type Environ
 put_val name val environ = case maybe_old of
     Nothing -> case Map.lookup name hardcoded_types of
         Just expected | type_of new_val /= expected -> Left expected
-        _ -> Right $ Map.insert name new_val environ
+        _ -> Right $ insert_val name new_val environ
     Just old_val
         | type_of old_val == type_of new_val ->
-            Right $ Map.insert name (environ_val environ name val) environ
+            Right $ insert_val name (environ_val environ name val) environ
         | otherwise -> Left (type_of old_val)
     where
     maybe_old = Map.lookup name environ
@@ -353,14 +353,14 @@ checked_val name environ = case lookup_val name environ of
             Left $ show name ++ ": expected " ++ Pretty.pretty return_type
                 ++ " but val type is " ++ Pretty.pretty typ
         Right v -> return (Just v)
-    where return_type = to_type (Prelude.error "checked_val" :: a)
+    where return_type = to_type (error "checked_val" :: a)
 
 -- Define a few inhabitants of Environ which are used by the built-in set
 -- of calls.
 
 -- | Default set of attrs.
 v_attributes :: ValName
-v_attributes = Symbol "attr"
+v_attributes = Score.v_attributes
 
 -- | Default instrument.
 v_instrument :: ValName

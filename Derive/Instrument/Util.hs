@@ -27,8 +27,8 @@ note_call name transform =
 -- | Make a note and add the attribute if it's 0 duration.
 note0_attrs :: Score.Attributes -> Derive.NoteCall
 note0_attrs attrs = postproc_note $ \evt ->
-    if Score.event_duration evt /= 0 then evt else evt
-        { Score.event_attributes = attrs <> Score.event_attributes evt }
+    if Score.event_duration evt /= 0 then evt
+        else Score.modify_attributes (attrs<>) evt
 
 -- | Just like the default note call, except apply a function to the output.
 postproc_note :: (Score.Event -> Score.Event) -> Derive.NoteCall

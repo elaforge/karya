@@ -412,14 +412,20 @@ c_note s_start dur = do
     start <- Derive.real s_start
     end <- Derive.real (s_start + dur)
     inst <- Derive.get_val TrackLang.v_instrument
-    attrs <- fromMaybe Score.no_attrs <$>
-        Derive.lookup_val TrackLang.v_attributes
+    environ <- Internal.get_dynamic Derive.state_environ
     st <- Derive.gets Derive.state_dynamic
     let controls = Derive.state_controls st
         pitch_sig = Derive.state_pitch st
-    return $ LEvent.one $ LEvent.Event $
-        Score.Event start (end-start) (B.pack "evt") controls pitch_sig
-            Stack.empty inst attrs
+    return $ LEvent.one $ LEvent.Event $ Score.Event
+        { Score.event_start = start
+        , Score.event_duration = end - start
+        , Score.event_bs = B.pack "evt"
+        , Score.event_controls = controls
+        , Score.event_pitch = pitch_sig
+        , Score.event_stack = Stack.empty
+        , Score.event_instrument = inst
+        , Score.event_environ = environ
+        }
 
 -- | Not supposed to do this in general, but it's ok for tests.
 modify_dynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()
@@ -536,7 +542,7 @@ mkevent (start, dur, pitch, controls, inst) = Score.Event
     , Score.event_pitch = pitch_signal [(start, pitch)]
     , Score.event_stack = fake_stack
     , Score.event_instrument = inst
-    , Score.event_attributes = Score.no_attrs
+    , Score.event_environ = mempty
     }
 
 -- | Like 'mkevent', but the pitch is in the more standard Twelve scale.
