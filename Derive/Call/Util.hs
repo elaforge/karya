@@ -77,6 +77,9 @@ with_controls args controls f = do
 control_at :: TrackLang.ValControl -> RealTime -> Derive.Deriver Signal.Y
 control_at control pos = Score.typed_val <$> typed_control_at control pos
 
+real_time_at :: TrackLang.ValControl -> RealTime -> Derive.Deriver RealTime
+real_time_at control pos = RealTime.seconds <$> control_at control pos
+
 typed_control_at :: TrackLang.ValControl -> RealTime
     -> Derive.Deriver Score.TypedVal
 typed_control_at control pos = case control of
@@ -93,12 +96,11 @@ time_control_at :: TimeType -> TrackLang.ValControl -> RealTime
 time_control_at default_type control pos = do
     Score.Typed typ val <- typed_control_at control pos
     time_type <- case typ of
-            Score.Untyped -> return default_type
-            Score.Score -> return Score
-            Score.Real -> return Real
-            _ -> Derive.throw $ "expected time type for "
-                ++ TrackLang.show_val control ++ " but got "
-                ++ Pretty.pretty typ
+        Score.Untyped -> return default_type
+        Score.Score -> return Score
+        Score.Real -> return Real
+        _ -> Derive.throw $ "expected time type for "
+            ++ TrackLang.show_val control ++ " but got " ++ Pretty.pretty typ
     return $ case time_type of
         Real -> TrackLang.Real (RealTime.seconds val)
         Score -> TrackLang.Score (ScoreTime.double val)
@@ -112,8 +114,7 @@ transpose_control_at default_type control pos = do
         Score.Chromatic -> return Chromatic
         Score.Diatonic -> return Diatonic
         _ -> Derive.throw $ "expected transpose type for "
-            ++ TrackLang.show_val control ++ " but got "
-            ++ Pretty.pretty typ
+            ++ TrackLang.show_val control ++ " but got " ++ Pretty.pretty typ
     return (val, transpose_type)
 
 -- | Convert a 'TrackLang.ValControl' to a signal.
@@ -329,12 +330,20 @@ _random_generator pos = do
 
 -- * time
 
+real_time :: TrackLang.RealOrScore -> Derive.Deriver RealTime
+real_time (TrackLang.Score t) = Derive.real t
+real_time (TrackLang.Real t) = return t
+
+score_time :: TrackLang.RealOrScore -> Derive.Deriver ScoreTime
+score_time (TrackLang.Score t) = return t
+score_time (TrackLang.Real t) = Derive.score t
+
 -- | A time range from the event start until a given duration.
 duration_from_start :: Derive.PassedArgs d -> TrackLang.RealOrScore
     -> Derive.Deriver (RealTime, RealTime)
-duration_from_start args time = do
+duration_from_start args duration = do
     start <- Args.real_start args
-    case time of
+    case duration of
         TrackLang.Real t -> return (start, start + t)
         TrackLang.Score t -> (,) start <$> Derive.real (Args.start args + t)
 
@@ -364,9 +373,9 @@ delay start time = do
 -- by a certain amount.  If the delay amount is already ScoreTime then
 -- it's trivial, but if it's RealTime then the returned ScoreTime has to
 -- be relative to the given start time.
-delay_relative :: ScoreTime -> TrackLang.RealOrScore -> Derive.Deriver ScoreTime
-delay_relative _ (TrackLang.Score t) = return t
-delay_relative start (TrackLang.Real t) = do
+duration_from :: ScoreTime -> TrackLang.RealOrScore -> Derive.Deriver ScoreTime
+duration_from _ (TrackLang.Score t) = return t
+duration_from start (TrackLang.Real t) = do
     score_t <- delay start t
     return $ score_t - start
 

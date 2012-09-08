@@ -25,6 +25,9 @@ prev_val = Derive.info_prev_val . info
 start :: PassedArgs d -> ScoreTime
 start = Event.start . event
 
+duration :: PassedArgs d -> ScoreTime
+duration = Event.duration . event
+
 real_start :: PassedArgs d -> Derive.Deriver RealTime
 real_start = Derive.real . start
 

@@ -5,6 +5,8 @@ UNSORTED
     - remove exports ReadDevice and WriteDevice from Midi.Midi
     - experiment again with replacing storablevector with vector, since it
       optimizes it better
+  - parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
+    say 'r' was an unknown suffix
   - if Map.fromList now checks for sortedness, can I pull the same trick and
     eliminate the from_sorted type things?  no not really, just wait for new
     version of containers

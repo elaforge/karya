@@ -31,7 +31,7 @@ note_calls = Derive.make_calls
 c_delay :: Derive.NoteCall
 c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
     (optional "time" (typed_control "delay-time" 0.1 Score.Real)) $ \time -> do
-        delay <- Util.delay_relative (Args.start args)
+        delay <- Util.duration_from (Args.start args)
             =<< Util.time_control_at Util.Real time
             =<< Args.real_start args
         Derive.d_at delay deriver

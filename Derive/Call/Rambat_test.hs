@@ -54,3 +54,11 @@ test_tick = do
         , (1, 1, Just 61, vel)
         , (2, 1, Just 60, vel)
         ]
+
+test_neighbor = do
+    let run = DeriveTest.extract DeriveTest.e_note2 $ DeriveTest.derive_tracks
+            [ ("tempo", [(0, 0, "2")])
+            , (">s/1", [(2, 8, "up .15s 1s")])
+            , ("*", [(0, 0, "4c")])
+            ]
+    equal run ([(0.85, 1, "4d"), (1, 4, "4c")], [])
