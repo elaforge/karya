@@ -85,7 +85,7 @@ extract_run _ (Left err) = Left err
 extract_run f (Right (val, _, msgs)) = Right $ trace_logs msgs (f val)
 
 run_events :: (a -> b)
-    -> Either String (Derive.EventStream a, Derive.State, [Log.Msg])
+    -> Either String (LEvent.LEvents a, Derive.State, [Log.Msg])
     -> Either String ([b], [String])
 run_events f = extract_run $
     first (map f) . second (map show_log . trace_low_prio) . LEvent.partition

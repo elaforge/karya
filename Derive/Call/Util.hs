@@ -415,9 +415,9 @@ equal_transformer args deriver = case Derive.passed_vals args of
 -- simple for transformers.  Hopefully functions here can mostly hide LEvents
 -- from transformers.
 
--- | Head of an LEvent list.
-event_head :: Derive.EventStream d
-    -> (d -> Derive.EventStream d -> Derive.LogsDeriver d)
+-- | Apply a function on the first Event of an LEvent stream.
+event_head :: LEvent.LEvents d
+    -> (d -> LEvent.LEvents d -> Derive.Deriver (LEvent.LEvents d))
     -> Derive.LogsDeriver d
 event_head [] _ = return []
 event_head (log@(LEvent.Log _) : rest) f = (log:) <$> event_head rest f

@@ -449,7 +449,7 @@ d_merge derivers = do
         { state_collect = Monoid.mconcat (state_collect state : collects) }
     return (Seq.merge_lists _event_start streams)
 
-type PureResult d = (Stream (LEvent.LEvent d), Collect)
+type PureResult d = (LEvent.LEvents d, Collect)
 
 -- | Run the given deriver and return the relevant data.
 run_sub :: State -> LogsDeriver derived -> PureResult derived

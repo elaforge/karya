@@ -37,7 +37,7 @@ module Derive.Deriver.Monad (
 
     -- * derived types
     , Derived(..)
-    , LogsDeriver, Stream, EventStream
+    , LogsDeriver
 
     , EventDeriver, Events
     , ControlDeriver, PitchDeriver
@@ -291,8 +291,6 @@ class (Show (Elem derived), Show derived) => Derived derived where
     to_cache_entry :: CallType derived -> CacheEntry
 
 type LogsDeriver d = Deriver (LEvent.LEvents d)
-type Stream d = LEvent.Stream d
-type EventStream d = LEvent.Stream (LEvent.LEvent d)
 
 -- ** event
 
@@ -708,7 +706,8 @@ type GeneratorCall derived = PassedArgs derived -> LogsDeriver derived
 -- | Create the most common kind of generator.  The result is wrapped in
 -- LEvent.Event.
 generator :: (Derived derived) =>
-    String -> (PassedArgs derived -> Deriver (Stream derived)) -> Call derived
+    String -> (PassedArgs derived -> Deriver (LEvent.Stream derived))
+    -> Call derived
 generator name func = stream_generator name ((map LEvent.Event <$>) . func)
 
 -- | Since Signals themselves are collections, there's little reason for a
