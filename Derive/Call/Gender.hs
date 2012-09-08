@@ -1,4 +1,10 @@
-module Derive.Call.Rambat where
+-- | Ornaments for gender.  The unique thing about gender technique is the
+-- delayed damping, so these calls should deal with delayed damping.
+--
+-- TODO Currently damping is just a certain value, but I could also put it in
+-- the score by adding a special attribute, and then a transformer to set notes
+-- with the attribute to the next 'damp' symbol.
+module Derive.Call.Gender where
 import Data.FixedList (Cons(..), Nil(..))
 
 import Util.Control
@@ -78,8 +84,15 @@ stretch prev next offset = do
 
 -- * neighbor
 
--- | This has to be a generator, not a transformer, because otherwise the
+-- | Glissando from a neighboring note.
+--
+-- This has to be a generator, not a transformer, because otherwise the
 -- inversion doesn't work out.
+--
+-- [time /Control/ @%neighbor-time,.1s@] Grace note falls this much time before
+-- the main note.
+--
+-- [duration /Control/ @%neighbor-duration,.5s@] Duration of the grace note.
 c_neighbor :: Pitch.Transpose -> Derive.NoteCall
 c_neighbor transpose = Derive.stream_generator "neighbor" $
     Note.inverting $ \args -> CallSig.call2 args

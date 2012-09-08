@@ -1,4 +1,4 @@
-module Derive.Call.Rambat_test where
+module Derive.Call.Gender_test where
 import Util.Test
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest

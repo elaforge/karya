@@ -6,6 +6,7 @@ import qualified Util.Map as Map
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
+import qualified Derive.Call.Gender as Gender
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Note as Note
@@ -13,7 +14,6 @@ import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Call.Post.Reverse as Reverse
-import qualified Derive.Call.Rambat as Rambat
 import qualified Derive.Call.Sekar as Sekar
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Derive as Derive
@@ -46,7 +46,7 @@ note_calls :: Derive.NoteCallMap
 (note_calls, shadowed_notes) = unions
     [ Block.note_calls, Echo.note_calls, Integrate.note_calls, Note.note_calls
     , NoteTransformer.note_calls, Ornament.note_calls, Reverse.note_calls
-    , Rambat.note_calls, Sekar.note_calls, String.note_calls, Trill.note_calls
+    , Gender.note_calls, Sekar.note_calls, String.note_calls, Trill.note_calls
     ]
 
 control_calls :: Derive.ControlCallMap
