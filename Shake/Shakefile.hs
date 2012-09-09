@@ -36,7 +36,7 @@ import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty)
 
 import qualified Development.Shake as Shake
-import Development.Shake ((?==), (?>), (*>), action, system', need)
+import Development.Shake ((?==), (?>), (*>), action, need)
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
@@ -50,7 +50,7 @@ import qualified Util.PPrint as PPrint
 import qualified Shake.CcDeps as CcDeps
 import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Util as Util
-import Shake.Util (Cmdline, system)
+import Shake.Util (system)
 
 
 -- * config
@@ -65,7 +65,7 @@ hspp = modeToDir Opt </> "hspp"
 shakeOptions :: Shake.ShakeOptions
 shakeOptions = Shake.shakeOptions
     { Shake.shakeFiles = build </> "shake"
-    , Shake.shakeVerbosity = Shake.Normal
+    , Shake.shakeVerbosity = Shake.Quiet
     , Shake.shakeThreads = 4
     , Shake.shakeReport = Just $ build </> "report.html"
     }
@@ -185,7 +185,7 @@ hsToCc = Map.fromList $
 -- basically does, and that way I don't have to strictly separate all the FFI
 -- headers from the C++.
 --
--- Unfortunately, g++ breaks the macros using by bindings-dsl:
+-- Unfortunately, g++ breaks the macros used by bindings-dsl:
 hsc2hsNeedsC :: [FilePath]
 hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 
@@ -325,7 +325,7 @@ data Flag = Verbosity Shake.Verbosity | Jobs Int deriving (Eq, Show)
 cmdOptions :: [GetOpt.OptDescr Flag]
 cmdOptions =
     [ GetOpt.Option ['v'] []
-        (GetOpt.OptArg (maybe (Verbosity Shake.Loud) readVerbosity)
+        (GetOpt.OptArg (maybe (Verbosity Shake.Normal) readVerbosity)
             "verbosity") $ "Verbosity, from 0 to 4."
     , GetOpt.Option ['j'] [] (GetOpt.ReqArg (Jobs . read) "jobs") $
         "Number of jobs to run simultaneously."
@@ -369,16 +369,16 @@ main = do
         hspp *> \fn -> do
             -- But I need to mark hspp's deps so it will rebuild.
             need =<< HsDeps.transitiveImportsOf (const Nothing) "Util/Hspp.hs"
-            system $ makeHs (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
+            Util.cmdline $ makeHs (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
         matchObj "fltk/fltk.a" ?> \fn -> do
             let config = infer fn
             need (fltkDeps config)
-            system' "ar" $ ["-rs", fn] ++ fltkDeps config
+            system "ar" $ ["-rs", fn] ++ fltkDeps config
         forM_ ccBinaries $ \binary -> matchBinary (ccName binary) ?> \fn -> do
             let config = infer fn
             let objs = map (oDir config </>) (ccDeps binary)
             need objs
-            system $ linkCc config fn objs
+            Util.cmdline $ linkCc config fn objs
             makeBundle fn Nothing
         forM_ hsBinaries $ \binary -> matchBinary (hsName binary) ?> \fn -> do
             let config = infer fn
@@ -442,8 +442,8 @@ dispatch config target = case target of
     "clean" -> action $ do
         -- The shake database will remain because shake creates it after the
         -- shakefile runs, but that's probably ok.
-        system' "rm" ["-rf", build]
-        system' "mkdir" [build]
+        system "rm" ["-rf", build]
+        system "mkdir" [build]
     "doc" -> action $ makeDocumentation config
     "md" -> action $ need . map docToHtml =<< getMarkdown
     "checkin" -> do
@@ -456,16 +456,16 @@ dispatch config target = case target of
         -- dispatch config "complete-tests"
     "tests" -> action $ do
         need [runTests Nothing]
-        system' "test/run_tests" [runTests Nothing]
+        system "test/run_tests" [runTests Nothing]
     (dropPrefix "tests-" -> Just tests) -> action $ do
         need [runTests (Just tests)]
-        system' "test/run_tests" [runTests (Just tests)]
+        system "test/run_tests" [runTests (Just tests)]
     "complete-tests" -> action $ do
         need [runTests Nothing]
-        system' "test/run_tests" [runTests Nothing, "normal-", "gui-"]
+        system "test/run_tests" [runTests Nothing, "normal-", "gui-"]
     "profile" -> action $ do
         need [modeToDir Profile </> "RunProfile"]
-        system' "tools/summarize_profile.py" []
+        system "tools/summarize_profile.py" []
     _ -> Shake.want [target]
     where
     runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
@@ -477,7 +477,7 @@ makeDocumentation config = do
     docs <- getMarkdown
     need $ (docDir </> "keymap.html")
         : map (hscToHs (hscDir config)) hscs ++ map docToHtml docs
-    system' "haddock" $
+    system "haddock" $
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
         , "--source-module=../hscolour/%{MODULE/.//}.html"
@@ -490,7 +490,7 @@ makeDocumentation config = do
         ++ hs ++ map (hscToHs (hscDir config)) hscs
     -- TODO do these individually so they can be parallelized and won't run
     -- each time
-    system' "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
+    system "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
     where
     flags = configFlags config
 
@@ -510,7 +510,7 @@ haddock hs = not $ hs `elem` map hsMain hsBinaries
     -- TODO sorta hacky
     || hs == "Midi/JackMidi.hsc"
 
-makeHs :: FilePath -> FilePath -> FilePath -> Cmdline
+makeHs :: FilePath -> FilePath -> FilePath -> Util.Cmdline
 makeHs dir out main = ("GHC-MAKE", out, cmdline)
     where
     cmdline = [ghcBinary, "--make", "-outputdir", dir, "-O2", "-o", out,
@@ -524,12 +524,12 @@ buildHs config deps hs fn = do
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ deps
     logDeps config "build" fn objs
-    system $ linkHs config fn packages objs
+    Util.cmdline $ linkHs config fn packages objs
 
 makeBundle :: FilePath -> Maybe FilePath -> Shake.Action ()
 makeBundle binary icon
     | System.Info.os == "darwin" =
-        system' "tools/make_bundle" (binary : maybe [] (:[]) icon)
+        system "tools/make_bundle" (binary : maybe [] (:[]) icon)
     | otherwise = return ()
 
 -- * tests and profiles
@@ -544,10 +544,10 @@ testRules config = do
         -- automatically added when any .o that uses it is linked in.
         buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
         -- This sticks around and breaks hpc.
-        system' "rm" ["-f",
+        system "rm" ["-f",
             FilePath.replaceExtension (FilePath.takeFileName fn) "tix"]
         -- This gets reset on each new test run.
-        system' "rm" ["-f", "test.output"]
+        system "rm" ["-f", "test.output"]
 
 profileRules :: Config -> Shake.Rules ()
 profileRules config = do
@@ -570,7 +570,7 @@ generateTestHs hsSuffix fn = do
     when (null tests) $
         errorIO $ "no tests match pattern: " ++ show pattern
     need $ "test/generate_run_tests.py" : tests
-    system' "test/generate_run_tests.py" (fn : tests)
+    system "test/generate_run_tests.py" (fn : tests)
 
 -- * markdown
 
@@ -578,7 +578,7 @@ markdownRule :: FilePath -> Shake.Rules ()
 markdownRule linkifyBin = docDir </> "*.md.html" *> \html -> do
     let doc = htmlToDoc html
     need [linkifyBin, doc]
-    system' "tools/convert_doc" [doc, html]
+    system "tools/convert_doc" [doc, html]
 
 -- | build/doc/xyz.md.html -> doc/xyz.md
 htmlToDoc :: FilePath -> FilePath
@@ -604,7 +604,7 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     need includes
     let his = map (objToHi . srcToObj config) imports
     logDeps config "hs" obj (hs:his)
-    system $ compileHs config hs
+    Util.cmdline $ compileHs config hs
     -- FFI-using files with a "wrapper" callback generate a _stub.c file
     -- and compile it.  Merge it with the module's .o so I don't have to
     -- worry about linking it later.  This also makes ghci able to load the
@@ -617,14 +617,14 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     let stub = FilePath.dropExtension (srcToObj config hs) ++ "_stub.o"
     Util.whenM (Trans.liftIO $ Directory.doesFileExist stub) $ do
         Trans.liftIO $ Directory.renameFile obj (obj ++ "2")
-        system' "ld" ["-r", "-o", obj, obj ++ "2", stub]
+        system "ld" ["-r", "-o", obj, obj ++ "2", stub]
         -- Get rid of the stub.o.  Otherwise if this rule fires again but
         -- ghc decides not to recompile, the old .o file will be left alone.
         -- Then the ld -r will try to merge the stub again and will fail with
         -- a duplicate symbol error.
         Trans.liftIO $ Directory.removeFile stub
 
-compileHs :: Config -> FilePath -> Cmdline
+compileHs :: Config -> FilePath -> Util.Cmdline
 compileHs config hs = ("GHC", hs,
     [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
         ++ main_is ++ [hs, "-o", srcToObj config hs])
@@ -633,7 +633,7 @@ compileHs config hs = ("GHC", hs,
         then ["-main-is", pathToModule hs]
         else []
 
-linkHs :: Config -> FilePath -> [String] -> [FilePath] -> Cmdline
+linkHs :: Config -> FilePath -> [String] -> [FilePath] -> Util.Cmdline
 linkHs config output packages objs = ("LD-HS", output,
     ghcBinary : fltkLd flags ++ midiLibs flags ++ hLinkFlags flags
         ++ ["-lstdc++"]
@@ -679,13 +679,13 @@ ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
     let cc = objToSrc config obj
     includes <- includesOf "ccORule" config cc
     logDeps config "cc" obj (cc:includes)
-    system $ compileCc config cc obj
+    Util.cmdline $ compileCc config cc obj
 
-compileCc :: Config -> FilePath -> FilePath -> Cmdline
+compileCc :: Config -> FilePath -> FilePath -> Util.Cmdline
 compileCc config cc obj = ("C++", obj,
     ["g++", "-c"] ++ ccFlags (configFlags config) ++ ["-o", obj, cc])
 
-linkCc :: Config -> FilePath -> [FilePath] -> Cmdline
+linkCc :: Config -> FilePath -> [FilePath] -> Util.Cmdline
 linkCc config binary objs = ("LD-CC", binary,
     "g++" : objs ++ fltkLd (configFlags config) ++ ["-o", binary])
 
@@ -696,9 +696,9 @@ hsRule config = hscDir config ++ "//*.hs" *> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
     includes <- includesOf "hsRule" config hsc
     logDeps config "hsc" hs (hsc : includes)
-    system $ hsc2hs config (hsc `notElem` hsc2hsNeedsC) hs hsc
+    Util.cmdline $ hsc2hs config (hsc `notElem` hsc2hsNeedsC) hs hsc
 
-hsc2hs :: Config -> Bool -> FilePath -> FilePath -> Cmdline
+hsc2hs :: Config -> Bool -> FilePath -> FilePath -> Util.Cmdline
 hsc2hs config useCpp hs hsc = ("hsc2hs", hs,
     ["hsc2hs", "-I" ++ ghcLib config </> "include"]
     ++ (if useCpp

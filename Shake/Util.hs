@@ -1,6 +1,6 @@
 module Shake.Util (
     -- * shake specific
-    Cmdline, system, shell, putNormalLoud
+    Cmdline, cmdline, system, shell, putQuietNormal
     , findFiles, findHs, runIO
 
     -- * general
@@ -21,19 +21,30 @@ import System.FilePath ((</>))
 
 -- * shake specific
 
+-- | (short_name_for_cmd, output_file_name, [cmd])
 type Cmdline = (String, String, [String])
 
-system :: Cmdline -> Shake.Action ()
-system (abbr, output, cmd_:args) = do
+-- | This is like 'system', but expect a Cmdline.  It logs an abbreviated
+-- cmdline at quiet, and a complete cmdline at normal.
+--
+-- Shake logs @# key@ msgs at and cmds at loud.  However, I think cmds should
+-- be at normal, and the keys should be at loud, because the cmds give
+-- a progress indication, while the keys just make any compiler errors scroll
+-- off the screen.
+cmdline :: Cmdline -> Shake.Action ()
+cmdline (abbr, output, cmd_:args) = do
     let cmd = FilePath.toNative cmd_
-    let desc = abbr ++ ": " ++ output
-    putNormalLoud desc (unwords (cmd:args))
-    res <- Shake.traced (crunch ("system: " ++ desc)) $
+    let desc = abbr ++ if null output then "" else ": " ++ output
+    putQuietNormal desc (unwords (cmd:args))
+    res <- Shake.traced (crunch ("cmdline: " ++ desc)) $
         Cmd.rawSystem "nice" (cmd : args)
     when (res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ unwords (cmd : args)
-system (abbr, output, []) =
-    error $ "0 args for system: " ++ show (abbr, output)
+cmdline (abbr, output, []) =
+    error $ "0 args for cmdline: " ++ show (abbr, output)
+
+system :: FilePath -> [String] -> Shake.Action ()
+system cmd args = cmdline (unwords (cmd:args), "", cmd:args)
 
 shell :: String -> Shake.Action ()
 shell cmd = do
@@ -45,11 +56,12 @@ shell cmd = do
 -- Work around shake bug where only the first word is taken.
 crunch = filter (/=' ')
 
-putNormalLoud :: String -> String -> Shake.Action ()
-putNormalLoud normal loud = do
+-- | Log one thing at quiet, and another at normal or above.
+putQuietNormal :: String -> String -> Shake.Action ()
+putQuietNormal quiet normal = do
     verbosity <- Shake.getVerbosity
-    if verbosity == Shake.Normal then Shake.putNormal normal
-        else if verbosity >= Shake.Loud then Shake.putLoud loud
+    if verbosity == Shake.Quiet then Shake.putQuiet quiet
+        else if verbosity > Shake.Quiet then Shake.putNormal normal
         else return ()
 
 -- | Recursively find files below a directory.
