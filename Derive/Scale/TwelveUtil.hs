@@ -67,11 +67,11 @@ note_to_call sys note = case Map.lookup note (sys_note_to_degree sys) of
     -- The Degree can be derived from the Pitch given the layout, so it's
     -- redundant to pass both, but convenient to precompute the Degrees.
     note_call :: Theory.Pitch -> Pitch.Degree -> Scale.NoteCall
-    note_call pitch (Pitch.Degree degree) mb_str_key controls =
-        Util.pitch_error diatonic chromatic mb_str_key $ do
+    note_call pitch (Pitch.Degree degree) maybe_str_key controls =
+        Util.pitch_error diatonic chromatic maybe_str_key $ do
             dsteps <- if diatonic == 0 then Right 0 else do
-                str_key <- maybe (Left Scale.KeyNeeded) Right mb_str_key
-                key <- read_key sys (Just str_key)
+                key <- maybe (return $ sys_default_key sys)
+                    (read_key sys . Just) maybe_str_key
                 return $ Theory.diatonic_to_chromatic key
                     (Theory.pitch_note pitch) diatonic
             let nn = Pitch.NoteNumber $ fromIntegral degree + chromatic + dsteps
