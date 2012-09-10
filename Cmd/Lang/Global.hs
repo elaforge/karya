@@ -42,7 +42,6 @@ import qualified Ui.State as State
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
 import Cmd.Lang.LEvent ()
 import qualified Cmd.Lang.LInst as LInst
@@ -53,15 +52,9 @@ import Cmd.Lang.LTrack ()
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
-import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
 
-import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
-
 import qualified App.Config as Config
 import Types
 
@@ -161,45 +154,6 @@ show_history :: Cmd.CmdL String
 show_history = do
     hist <- Cmd.gets Cmd.state_history
     return $ Pretty.formatted hist
-
-show_step :: Cmd.CmdL TimeStep.TimeStep
-show_step = Cmd.gets (Cmd.state_time_step . Cmd.state_edit)
-
-set_step :: TimeStep.TimeStep -> Cmd.CmdL ()
-set_step step = Cmd.modify_edit_state $
-    \st -> st { Cmd.state_time_step = step }
-
-set_note_duration :: TimeStep.TimeStep -> Cmd.CmdL ()
-set_note_duration step = Cmd.modify_edit_state $ \st ->
-    st { Cmd.state_note_duration = step }
-
--- | Set play step to current step.
-set_play_step :: Cmd.CmdL ()
-set_play_step = do
-    step <- Cmd.get_current_step
-    Cmd.modify_play_state $ \st -> st { Cmd.state_play_step = step }
-
-show_octave :: Cmd.CmdL Pitch.Octave
-show_octave = Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
-
-set_octave :: Pitch.Octave -> Cmd.CmdL ()
-set_octave n = Edit.cmd_modify_octave (const n) >> return ()
-
-set_default_tempo :: Signal.Y -> Cmd.CmdL ()
-set_default_tempo t =
-    State.modify_default $ \d -> d { State.default_tempo = t }
-
-set_default_inst :: String -> Cmd.CmdL ()
-set_default_inst inst = State.modify_default $ \d ->
-    d { State.default_instrument = Just (Score.Instrument inst) }
-
-set_default_scale :: String -> Cmd.CmdL ()
-set_default_scale scale = State.modify_default $ \d ->
-    d { State.default_scale = Pitch.ScaleId scale }
-
-set_play_multiplier :: Double -> Cmd.CmdL ()
-set_play_multiplier d = Cmd.modify_play_state $ \st ->
-    st { Cmd.state_play_multiplier = RealTime.seconds d }
 
 -- * load / save
 
