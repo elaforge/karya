@@ -1,10 +1,12 @@
 module Ui.TrackTree where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Tree as Tree
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
@@ -30,6 +32,16 @@ tracks_of block_id = do
         (i, Block.TId tid _) <- Seq.enumerate (Block.block_tracklike_ids block)
         track <- maybe mzero (:[]) (Map.lookup tid tracks)
         return (i, tid, track)
+
+parents_children_of :: (State.M m) => BlockId -> TrackId
+    -> m (Maybe ([State.TrackInfo], [State.TrackInfo]))
+parents_children_of block_id track_id = do
+    tree <- get_track_tree block_id
+    case List.find (\(t, _, _) -> State.track_id t == track_id)
+            (Tree.flat_paths tree) of
+        Nothing -> return Nothing
+        Just (track, parents, children) ->
+            return $ Just (parents, track : children)
 
 get_track_tree :: (State.M m) => BlockId -> m TrackTree
 get_track_tree block_id = do

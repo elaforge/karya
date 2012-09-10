@@ -14,6 +14,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
@@ -22,6 +23,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -115,11 +117,26 @@ get_nn_at track_id ps = do
 -- * environ
 
 -- | Get the scale in scope in a certain track on a certain block, falling
--- back on the default scale if there is none.
+-- back on the track titles and then the default scale.
 get_scale_id :: (Cmd.M m) => BlockId -> Maybe TrackId -> m Pitch.ScaleId
 get_scale_id block_id maybe_track_id =
-    maybe (State.get_default State.default_scale) return
+    try (State.get_default State.default_scale)
+        =<< try (maybe (return Nothing)
+            (scale_from_titles block_id) maybe_track_id)
         =<< lookup_val block_id maybe_track_id TrackLang.v_scale
+    where try m = maybe m return
+
+scale_from_titles :: (State.M m) => BlockId -> TrackId
+    -> m (Maybe Pitch.ScaleId)
+scale_from_titles block_id track_id = do
+    tracks <- TrackTree.parents_children_of block_id track_id
+    return $ case tracks of
+        Nothing -> Nothing
+        Just (parents, children) -> msum $ map scale_of (children ++ parents)
+    where
+    scale_of track = case TrackInfo.title_to_scale (State.track_title track) of
+        Just scale_id | scale_id /= Pitch.empty_scale -> Just scale_id
+        _ -> Nothing
 
 -- | As with 'get_scale_id' but for the Key.
 get_key :: (Cmd.M m) => BlockId -> Maybe TrackId -> m (Maybe Pitch.Key)
