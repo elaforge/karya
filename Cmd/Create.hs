@@ -300,8 +300,9 @@ insert_track = do
     sel <- Selection.lookup_any_insert
     case sel of
         Nothing -> append_track
-        Just (_, (block_id, tracknum, _)) ->
-            focused_track block_id (tracknum + 1)
+        Just (_, (block_id, tracknum, _)) -> do
+            block <- State.get_block block_id
+            focused_track block_id (track_after block tracknum)
 
 append_track :: (Cmd.M m) => m TrackId
 append_track = do
@@ -430,9 +431,6 @@ clip_tracknum block_id tracknum = do
 
 -- | Get the track to the right of the given tracknum.  This isn't just (+1)
 -- because it skips collapsed tracks.
---
--- TODO Currently unused.  At one time I thought newly added tracks should
--- skip collapsed ones, but now I don't think so.
 track_after :: Block.Block -> TrackNum -> TrackNum
 track_after block tracknum
     -- It must already be the rightmost tracknum.

@@ -1,5 +1,5 @@
 UNSORTED
-  - new track to the left of a collapsed track should open to its right
+  * new track to the left of a collapsed track should open to its right
   * cmd-b aborts: (vid "kendang/b06.v01") already exists
 
   upgrade to ghc 7.6
@@ -25,8 +25,10 @@ UNSORTED
     - remove exports ReadDevice and WriteDevice from Midi.Midi
     - experiment again with replacing storablevector with vector, since it
       optimizes it better
-  - parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
+  / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
     say 'r' was an unknown suffix
+    Can't get attoparsec to consistently report an error.  Kind of hard when
+    it always backtracks.
   - if Map.fromList now checks for sortedness, can I pull the same trick and
     eliminate the from_sorted type things?  no not really, just wait for new
     version of containers
