@@ -31,9 +31,9 @@ data Block = Block {
     , block_tracks :: ![Track]
     , block_skeleton :: !Skeleton.Skeleton
     -- | Present if this block was integrated from another.
-    , block_integrated :: !(Maybe (BlockId, (NonEmpty TrackDestination)))
+    , block_integrated :: !(Maybe (BlockId, NonEmpty TrackDestination))
     -- | [(source_track, destinations)]
-    , block_integrated_tracks :: ![(TrackId, (NonEmpty TrackDestination))]
+    , block_integrated_tracks :: ![(TrackId, NonEmpty TrackDestination)]
     , block_meta :: !Meta
     } deriving (Eq, Read, Show)
 

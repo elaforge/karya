@@ -88,12 +88,14 @@ test_integrate = do
 
     -- New tracks are appended.
     state <- f (mkblock [(">", events "ab")]) [((">a", events "cd"), [])]
-    equal (extract state) [(">", events "ab"), (">a", events "cd")]
+    equal (extract state)
+        [(">source", []), (">", events "ab"), (">a", events "cd")]
     -- Added events are merged into the reintegration.
-    state <- f (modify (UiTest.insert_event 2 (1, 1, "z")) state)
+    state <- f (modify (UiTest.insert_event 3 (1, 1, "z")) state)
         [((">a", events "cf"), [])]
     equal (extract state)
-        [ (">", events "ab")
+        [ (">source", [])
+        , (">", events "ab")
         , (">a", [(0, 1, "c"), (1, 1, "z"), (2, 1, "f")])
         ]
 
@@ -101,26 +103,30 @@ test_integrate = do
     state <- f (mkblock [])
         [((">a", []), [("ca", events "12")]), ((">b", []), [])]
     equal (extract state)
-        [(">a", []), ("ca", events "12"), (">b", [])]
-    equal (UiTest.extract_skeleton state) [(1, 2)]
+        [(">source", []), (">a", []), ("ca", events "12"), (">b", [])]
+    equal (UiTest.extract_skeleton state) [(2, 3)]
     state <- f
-        (modify (Create.track UiTest.default_block_id 4 ">z" mempty) state)
+        (modify (Create.track UiTest.default_block_id 5 ">z" mempty) state)
         [((">a", []), []), ((">b", []), [("ba", [])])]
     -- It won't delete a track, but will clear the events out.
     equal (extract state)
-        [(">a", []), ("ca", []), (">b", []), ("ba", []), (">z", [])]
-    equal (UiTest.extract_skeleton state) [(1, 2), (3, 4)]
+        [ (">source", [])
+        , (">a", []), ("ca", []), (">b", []), ("ba", []), (">z", [])
+        ]
+    equal (UiTest.extract_skeleton state) [(2, 3), (4, 5)]
 
     -- Only non-generated events are cleared.
     state <- f (mkblock []) [((">a", events "ab"), [])]
-    state <- f (modify (UiTest.insert_event 1 (1, 1, "z")) state) []
-    equal (extract state) [(">a", [(1, 1, "z")])]
+    state <- f (modify (UiTest.insert_event 2 (1, 1, "z")) state) []
+    equal (extract state) [(">source", []), (">a", [(1, 1, "z")])]
 
     -- Interacts properly with aded events.
     -- state <- f (mkblock []) [((">a", events "ab"), [])]
 
 mkblock :: [UiTest.TrackSpec] -> State.State
-mkblock = snd . UiTest.run_mkblock
+mkblock = snd . UiTest.run_mkblock . ((">source", []):)
+    -- Add a track that 'integrate' can set as the source since the integrated
+    -- track source is required to exist.
 
 integrate :: State.State -> [(UiTest.TrackSpec, [UiTest.TrackSpec])]
     -> State.State
@@ -129,7 +135,7 @@ integrate state integrated = UiTest.exec state $ do
     dests <- Merge.merge_tracks block_id (mktracks integrated)
         (maybe [] (NonEmpty.toList . snd) (Seq.head itracks))
     when_just (NonEmpty.nonEmpty dests) $ \dests ->
-        State.set_integrated_tracks block_id [(UiTest.tid "source", dests)]
+        State.set_integrated_tracks block_id [(UiTest.mk_tid 1, dests)]
     where block_id = UiTest.default_block_id
 
 modify :: State.StateId a -> State.State -> State.State
