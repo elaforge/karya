@@ -135,8 +135,8 @@ block_from_template include_tracks template_id = do
 block :: (State.M m) => RulerId -> m BlockId
 block ruler_id = do
     ns <- State.get_namespace
-    blocks <- State.gets State.state_blocks
-    block_id <- require "block id" $ generate_block_id ns blocks
+    block_id <- require "block id"
+        . generate_block_id ns =<< State.gets State.state_blocks
     State.create_block block_id ""
         [Block.track (Block.RId ruler_id) Config.ruler_width]
 
@@ -171,8 +171,8 @@ generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
 
 view :: (State.M m) => BlockId -> m ViewId
 view block_id = do
-    views <- State.views_of block_id
-    view_id <- require "view id" $ generate_view_id block_id views
+    view_id <- require "view id"
+        . generate_view_id block_id =<< State.gets State.state_views
     rect <- State.gets (find_rect Config.view_size . map Block.view_rect
         . Map.elems . State.state_views)
     State.create_view view_id $ Block.view block_id rect Config.zoom
@@ -192,8 +192,8 @@ fitted_view block_id = do
     --
     -- It's gross, but still probably better than tracking a whole bunch of
     -- fltk state that I don't otherwise need.
-    views <- State.views_of block_id
-    view_id <- require "view id" $ generate_view_id block_id views
+    view_id <- require "view id"
+        . generate_view_id block_id =<< State.gets State.state_views
     block <- State.get_block block_id
     block_end <- State.block_event_end block_id
     let w = sum $ map Block.display_track_width (Block.block_tracks block)
@@ -341,8 +341,8 @@ track block_id tracknum title events = do
 track_events :: (State.M m) =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> Track.Track -> m TrackId
 track_events block_id ruler_id tracknum width track = do
-    tracks <- State.gets State.state_tracks
-    track_id <- require "track id" $ generate_track_id block_id "t" tracks
+    track_id <- require "track id"
+        . generate_track_id block_id "t" =<< State.gets State.state_tracks
     tid <- State.create_track track_id track
     State.insert_track block_id tracknum
         (Block.track (Block.TId tid ruler_id) width)

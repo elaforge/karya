@@ -1,7 +1,27 @@
 UNSORTED
+  - new track to the left of a collapsed track should open to its right
+  * cmd-b aborts: (vid "kendang/b06.v01") already exists
+
   upgrade to ghc 7.6
     - update to new ghc api
-    - fix hsc2hs
+    * fix hsc2hs
+      Problem is that it creates a wrapper C file for fputs and whatnot, and
+      C allows calls to undeclared functions.
+      - int hsc_fputs(const char *s, void *stream) {
+          return fputs(s, stream);
+        }
+        C allows you to cast the (void*) to FILE.
+
+        - The generated *_utils.c says "can't use FILE because we don't want
+          to include stdio.h", but it *does* include stdio!  Check the git
+          history for when that happened.
+          Wait, it doesn't want to include stdio.h in template-hsc.h, so it
+          has void.  Then cast!
+
+      Totally simple, just cast (FILE *) in the generated utils.c.
+      - Send patch to ghc.
+      - Alternately, I could fix my code by surrounding the c++ bits with
+        #ifndef HSC2HS
     - remove exports ReadDevice and WriteDevice from Midi.Midi
     - experiment again with replacing storablevector with vector, since it
       optimizes it better
@@ -20,7 +40,7 @@ UNSORTED
     block text?  But I can't write much in there.
   - Get rid of Scale.scale_pattern, I can't think of a use for it.  If I want
     valid calls I should have another function to get the Notes of a scale.
-  - wayang: ornament for ngoret: transformer that's either up or down,
+  * wayang: ornament for ngoret: transformer that's either up or down,
     and adds a grace note above or below.  The note rings until a default
     amount of time, or the hand-down symbol, which also mutes the rambat tick.
     Maybe too complicated, I can just have a damp-time setting.
@@ -33,6 +53,12 @@ UNSORTED
       symbols reversed? 入 兩
     - various numpuk
     - makilit / kilitan derivations from melody
+  calls for define randomized scores:
+    - 'omit 20' is a transformer that omits its argument 20% of the time
+    - alternate b1 b2 b3 - calls one of variabnt calls
+    - pick from values as ValCall: d (? .1 .2 .2) |
+    - or a random range: d (-? 0 1)
+    - how could I omit a transformer?
   * need ^t twice to add a new track
     It's because the first one shows up as a repeat.  But not in 'block'.
   / Pretty on a lot of events causes a stack overflow
