@@ -246,8 +246,10 @@ view_config_bindings = concat
         (ViewConfig.cmd_zoom_around_insert (*1.25))
     , plain_char '\\' "zoom to ruler"
         (ViewConfig.zoom_to_ruler =<< Cmd.get_focused_view)
-    , command_char  'R' "resize to fit"
-        (ViewConfig.resize_to_fit =<< Cmd.get_focused_view)
+    , command_char 'R' "resize to fit"
+        (ViewConfig.resize_to_fit False =<< Cmd.get_focused_view)
+    , command_char '\\' "maximize and zoom"
+        (ViewConfig.maximize_and_zoom =<< Cmd.get_focused_view)
     ]
 
 block_config_bindings :: (Cmd.M m) => [Keymap.Binding m]

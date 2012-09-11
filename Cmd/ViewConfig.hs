@@ -59,23 +59,26 @@ zoom_to_ruler view_id = do
 
 -- * resize
 
-resize_to_fit :: (Cmd.M m) => ViewId -> m ()
-resize_to_fit view_id = do
+resize_to_fit :: (Cmd.M m) => Bool -> ViewId -> m ()
+resize_to_fit maximize view_id = do
     view <- State.get_view view_id
     screen <- Cmd.get_screen (Rect.upper_left (Block.view_rect view))
     rect <- view_rect view
     State.set_view_rect view_id $ Rect.intersection screen $
-        scootch screen $ Block.set_visible_rect view rect
+        scootch screen $ Block.set_visible_rect view $
+        if maximize then max_height view screen rect else rect
     where
     -- Move the rect over so it fits on the screen.
     scootch screen r =
         Rect.move (min (Rect.rx r) (Rect.rr screen - Rect.rw r)) (Rect.ry r) r
+    max_height view screen r =
+        Rect.xywh (Rect.rx r) (Rect.ry screen) (Rect.rw r) (Rect.rh screen)
 
 -- | Get the View's Rect, resized to fit its contents.  Its position is
 -- unchanged.
 view_rect :: (State.M m) => Block.View -> m Rect.Rect
 view_rect view = do
-    block_end <- State.block_event_end (Block.view_block view)
+    block_end <- State.block_ruler_end (Block.view_block view)
     block <- State.get_block (Block.view_block view)
     let (x, y) = Rect.upper_left (Block.view_rect view)
         w = sum $ map Block.display_track_width (Block.block_tracks block)
@@ -83,6 +86,11 @@ view_rect view = do
     return $ Rect.xywh x y (max w 40) (max h 40)
 
 -- * misc
+
+maximize_and_zoom :: (Cmd.M m) => ViewId -> m ()
+maximize_and_zoom view_id = do
+    resize_to_fit True view_id
+    zoom_to_ruler view_id
 
 bring_to_front :: (Cmd.M m) => ViewId -> m ()
 bring_to_front view_id = do
