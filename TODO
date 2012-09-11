@@ -1,6 +1,11 @@
 UNSORTED
   * new track to the left of a collapsed track should open to its right
   * cmd-b aborts: (vid "kendang/b06.v01") already exists
+  * block-from-template analogue for tracks: add new tracks with same title
+    and skel as this track and its children
+  - paste creates events past the end of the ruler which are then un-deletable
+  - cmd to vertically maximize a view and zoom to fit
+  - upgrade saves and remove old versions
 
   upgrade to ghc 7.6
     - update to new ghc api
@@ -23,6 +28,7 @@ UNSORTED
       - Alternately, I could fix my code by surrounding the c++ bits with
         #ifndef HSC2HS
     - remove exports ReadDevice and WriteDevice from Midi.Midi
+    - get rid of ld -r hack in shakefile, since new ghcs do that automatically
     - experiment again with replacing storablevector with vector, since it
       optimizes it better
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
@@ -38,8 +44,10 @@ UNSORTED
   * Control mode edit shouldn't accept - chars.
   - Undo during edit (i.e. a suppressed cmd) destroys changes and you can't
     get them back.  And it's confusing.  Maybe undo shouldn't work?
+    Or it should commit the current suppressed cmd and then undo it.
   - It would be nice for there to be some place to put notes.  Comment in the
-    block text?  But I can't write much in there.
+    block text?  But I can't write much in there.  I could have block text
+    expand to multiple lines if necessary.
   - Get rid of Scale.scale_pattern, I can't think of a use for it.  If I want
     valid calls I should have another function to get the Notes of a scale.
   * wayang: ornament for ngoret: transformer that's either up or down,

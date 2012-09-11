@@ -12,9 +12,12 @@
     should be nameable.
 -}
 module Cmd.Create where
+import qualified Control.Monad.State.Strict as Monad.State
+import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Rect as Rect
@@ -292,6 +295,58 @@ splice_above_ancestors = do
             Just (track, parents, _) ->
                 Just $ State.track_tracknum $ last (track : parents)
         where find (track, _, _) = State.track_tracknum track == tracknum
+
+append_tracks_from_template :: (Cmd.M m) => m ()
+append_tracks_from_template = do
+    (block_id, tracknum, _, _) <- Selection.get_insert
+    append_tracks_from_template_at block_id tracknum
+
+-- | Insert tracks using the given one and its children as a template.
+-- If the source track has a parent, the new tracks are spliced below its
+-- rightmost child, otherwise they are appended.
+append_tracks_from_template_at :: (Cmd.M m) => BlockId -> TrackNum -> m ()
+append_tracks_from_template_at block_id source = do
+    tree <- TrackTree.get_track_tree block_id
+    case Tree.find_with_parents ((==source) . State.track_tracknum) tree of
+        Nothing -> Cmd.throw $ "selected track doesn't exist: "
+            ++ show (block_id, source)
+        Just (track, parents)
+            -- If there's a parent, find it's right most child.
+            | Tree.Node parent siblings : _ <- parents -> do
+                let at = rightmost siblings + 1
+                append_below at track
+                State.add_edges block_id [(State.track_tracknum parent, at)]
+            -- Otherwise, take the rightmost of the block.
+            | otherwise -> append_below (rightmost tree + 1) track
+    where
+    -- Starting at tracknum, insert track and its children.
+    append_below tracknum track_node = do
+        forM_ tracks $ \(n, title) -> track block_id n title mempty
+        State.add_edges block_id skel
+        where
+        (tracks, skel) = make_tracks tracknum [track_node]
+    rightmost :: TrackTree.TrackTree -> Int
+    rightmost = List.foldl' max 0
+        . map (Foldable.foldl' (\x -> max x . State.track_tracknum) 0)
+
+make_tracks :: TrackNum -> TrackTree.TrackTree
+    -> ([(TrackNum, String)], [(TrackNum, TrackNum)])
+make_tracks tracknum tree =
+    (concatMap Tree.flatten tracks, Tree.edges (map (fmap fst) tracks))
+    where tracks = assign_tracknums tracknum tree
+
+-- | Assign ascending tracknums to the given tree in depth-first order.  Return
+-- (tracknum, title) pairs.
+assign_tracknums :: TrackNum -> TrackTree.TrackTree
+    -> [Tree.Tree (TrackNum, String)]
+assign_tracknums tracknum tree =
+    Monad.State.evalState (mapM assign tree) tracknum
+    where
+    assign (Tree.Node track children) = do
+        tracknum <- next
+        children <- mapM assign children
+        return $ Tree.Node (tracknum, State.track_title track) children
+        where next = Monad.State.get <* Monad.State.modify (+1)
 
 -- | Insert a track after the selection, or just append one if there isn't one.
 -- This is useful for empty blocks which of course have no selection.

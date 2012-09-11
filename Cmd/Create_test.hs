@@ -1,4 +1,6 @@
 module Cmd.Create_test where
+import qualified Data.Tree as Tree
+
 import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
@@ -6,6 +8,7 @@ import Util.Test
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -55,13 +58,53 @@ test_splice_below = do
     equal (run 4 [(2, 1), (2, 4)] 2)
         (Right ([('2', 'x'), ('x', '1'), ('x', '4')], []))
 
+test_append_tracks_from_template = do
+    let run titles skel sel_track = CmdTest.extract_ui_state extract $
+            run_cmd titles skel (CmdTest.set_point_sel sel_track 0
+                >> Create.append_tracks_from_template)
+        extract state = (map fst $ UiTest.extract_tracks state,
+            UiTest.extract_skeleton state)
+    equal (run ["tempo", ">inst", "dyn"] [(1, 2), (2, 3)] 2) $ Right
+        ( (["tempo", ">inst", "dyn", ">inst", "dyn"],
+            [(1, 2), (1, 4), (2, 3), (4, 5)])
+        , []
+        )
+    equal (run [">inst", "dyn"] [(1, 2)] 1) $ Right
+        ( ([">inst", "dyn", ">inst", "dyn"],
+            [(1, 2), (3, 4)])
+        , []
+        )
+
+test_make_tracks = do
+    let f tracknum = Create.make_tracks tracknum . make_tree
+        make_tree :: [Tree.Tree String] -> TrackTree.TrackTree
+        make_tree  = map $ fmap $ \title ->
+            State.TrackInfo title (UiTest.mk_tid 0) 0
+    equal (f 1
+            [ Tree.Node "1" [Tree.Node "11" [], Tree.Node "12" []]
+            , Tree.Node "2" []
+            ])
+        ([(1, "1"), (2, "11"), (3, "12"), (4, "2")], [(1, 2), (1, 3)])
+
+run_cmd :: [String] -> [(TrackNum, TrackNum)] -> Cmd.CmdId a -> CmdTest.Result a
+run_cmd titles skel cmd = CmdTest.run state CmdTest.default_cmd_state cmd
+    where
+    state = UiTest.exec State.empty $ do
+        UiTest.mkblocks_skel [((UiTest.default_block_name,
+            [(title, []) | title <- titles]), skel)]
+        UiTest.mkview UiTest.default_block_id
+
+run_skel_point :: Cmd.CmdId a -> Int -> [Skeleton.Edge] -> TrackNum
+    -> Either String ([(Char, Char)], [String])
 run_skel_point m ntracks skel track = run_skel m ntracks skel (track, track)
 
 -- | Put the selection on the given track, create a block with the given
 -- skeleton, and run the cmd.  Return the skeleton as a list of edges,
--- replacing the tracknums with the track titles.  The new track is named @x@.
+-- replacing the tracknums with the track titles.  Tracks with no title (likely
+-- new tracks) get an 'x'.
 run_skel :: Cmd.CmdId a -> Int -> [Skeleton.Edge] -> (TrackNum, TrackNum)
     -> Either String ([(Char, Char)], [String])
+    -- ^ (edges as titles, logs)
 run_skel m ntracks skel (start_track, end_track) =
     extract $ CmdTest.run_tracks tracks $ do
         State.set_skeleton UiTest.default_block_id (Skeleton.make skel)
@@ -69,7 +112,7 @@ run_skel m ntracks skel (start_track, end_track) =
         m
     where
     tracks = [(show (n+1), []) | n <- [0..ntracks-1]]
-    extract = CmdTest.extract_state $ \ustate _ -> extract_skel ustate
+    extract = CmdTest.extract_ui_state extract_skel
     extract_skel ustate = UiTest.eval ustate $ do
         skel <- Skeleton.flatten <$> State.get_skeleton UiTest.default_block_id
         mapM (\(t1, t2) -> (,) <$> replace t1 <*> replace t2) skel

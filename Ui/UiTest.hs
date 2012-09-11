@@ -66,7 +66,7 @@ save ui_state fname = do
 
 -- * monadic mk- functions
 
--- | (block_name, tracks)
+-- | (block_id, tracks)
 type BlockSpec = (String, [TrackSpec])
 -- | (track_title, events)
 type TrackSpec = (String, [EventSpec])

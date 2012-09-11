@@ -353,7 +353,9 @@ pitch_bindings = concat
 create_bindings :: (Cmd.M m) => [Keymap.Binding m]
 create_bindings = concat
     [ command_char 't' "insert track" Create.insert_track
-    , command_char 'T' "splice track below" Create.splice_below
+    , command_char 'T' "insert track from template"
+       Create.append_tracks_from_template
+    , command_char 'h' "splice track below" Create.splice_below
     , command_char 'H' "splice track above ancestors"
         Create.splice_above_ancestors
     , command_char 'd' "delete tracks" Create.destroy_selected_tracks
