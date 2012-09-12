@@ -12,7 +12,7 @@ UNSORTED
     max height is 1050 - 1006
     somehow it knows about this when creating the window, but not when calling
     resize().  Maybe just ask fltk-users.
-  - should send resize when the block title changes size
+  * should send resize when the block title changes size
   - unset win->border() to avoid the title bar?  Yes, but I still need a small
     one to move the window.
   - upgrade saves and remove old versions

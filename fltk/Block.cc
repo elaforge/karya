@@ -658,11 +658,13 @@ BlockView::title_cb(Fl_Widget *_w, void *vp)
         if (self->title.visible()) {
             self->title.hide();
             self->set_view_config();
+            MsgCollector::get()->block(UiMsg::msg_resize, self);
         }
     } else {
         if (!self->title.visible()) {
             self->title.show();
             self->set_view_config();
+            MsgCollector::get()->block(UiMsg::msg_resize, self);
         }
     }
 }
