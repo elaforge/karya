@@ -11,6 +11,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Selection as Selection
 
+import qualified App.Config as Config
 import Types
 
 
@@ -63,7 +64,7 @@ resize_to_fit :: (Cmd.M m) => Bool -> ViewId -> m ()
 resize_to_fit maximize view_id = do
     view <- State.get_view view_id
     screen <- Cmd.get_screen (Rect.upper_left (Block.view_rect view))
-    rect <- view_rect view
+    rect <- contents_rect view
     State.set_view_rect view_id $ Rect.intersection screen $
         scootch screen $ Block.set_visible_rect view $
         if maximize then max_height view screen rect else rect
@@ -71,13 +72,14 @@ resize_to_fit maximize view_id = do
     -- Move the rect over so it fits on the screen.
     scootch screen r =
         Rect.move (min (Rect.rx r) (Rect.rr screen - Rect.rw r)) (Rect.ry r) r
-    max_height view screen r =
-        Rect.xywh (Rect.rx r) (Rect.ry screen) (Rect.rw r) (Rect.rh screen)
+    max_height view screen r = Rect.xywh (Rect.rx r) (Rect.ry screen)
+        (Rect.rw r) (Rect.rh screen - Block.view_time_padding view
+            - Config.vertical_overhead)
 
 -- | Get the View's Rect, resized to fit its contents.  Its position is
 -- unchanged.
-view_rect :: (State.M m) => Block.View -> m Rect.Rect
-view_rect view = do
+contents_rect :: (State.M m) => Block.View -> m Rect.Rect
+contents_rect view = do
     block_end <- State.block_ruler_end (Block.view_block view)
     block <- State.get_block (Block.view_block view)
     let (x, y) = Rect.upper_left (Block.view_rect view)

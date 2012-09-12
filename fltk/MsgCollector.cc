@@ -39,8 +39,8 @@ operator<<(std::ostream &os, const UiMsg &m)
         os << *m.zoom.zoom;
         break;
     case UiMsg::msg_resize:
-        os << *m.resize.rect << " track=(" << m.resize.visible_track
-            << ", " << m.resize.visible_time << ")";
+        os << *m.resize.rect << " track=(" << m.resize.track_padding
+            << ", " << m.resize.time_padding << ")";
         break;
     case UiMsg::msg_track_width:
         os << m.track_width.width;
@@ -247,9 +247,9 @@ set_update(UiMsg &m, UiMsg::MsgType type)
     case UiMsg::msg_resize:
         {
             m.resize.rect = new IRect(rect(block->window()));
-            IPoint track_size = block->get_track_size();
-            m.resize.visible_track = track_size.x;
-            m.resize.visible_time = track_size.y;
+            IPoint padding = block->get_padding();
+            m.resize.track_padding = padding.x;
+            m.resize.time_padding = padding.y;
         }
         break;
     case UiMsg::msg_track_width:

@@ -65,10 +65,12 @@ struct UiMsg {
         msg_screen_size
     };
     static const char **msg_type_names() {
-        static const char *names[] = { "event", "input",
-            "track_scroll", "zoom", "view_resize",
-            "track_width", "close",
-            "screen_size" };
+        static const char *names[] =
+            { "event", "input"
+            , "track_scroll", "zoom", "view_resize"
+            , "track_width", "close"
+            , "screen_size"
+            };
         return names;
     }
 
@@ -119,7 +121,7 @@ struct UiMsg {
 
     struct Resize {
         IRect *rect;
-        int visible_track, visible_time;
+        int track_padding, time_padding;
     };
 
     struct Zoom {

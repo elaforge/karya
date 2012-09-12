@@ -266,6 +266,8 @@ bconfig_box = (box_color, ' ')
 max_selections :: Int
 max_selections = #const Config::max_selections
 
+-- ** fiddly pixel bits
+
 -- | This is the number of pixels taken up by the various gizmos in the window
 -- track beyond the main track view.  Only correct when the window is first
 -- created, since the skel_height may be dragged around.
@@ -282,6 +284,9 @@ block_title_height = #const Config::View::block_title_height
 view_track_padding :: Int
 view_track_padding = #const Config::View::sb_size
 
+-- | Documented in fltk/config.h.
+vertical_overhead :: Int
+vertical_overhead = #const Config::vertical_overhead
 
 -- * fonts
 

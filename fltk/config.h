@@ -12,6 +12,15 @@ namespace Config {
 enum {
     // Color as a word so haskell can get to it easily.
     abbreviation_color_word = 0x0000ff00
+
+    // The amount of vertical pixels taken up by OS.  On OS X this is 22 for
+    // the menubar, and 22 for the window title bar.  TODO not quite right
+    // because only one screen has the menu bar.
+#ifdef __APPLE__
+    , vertical_overhead = 44
+#else
+    , vertical_overhead = 0
+#endif
 };
 
 // This color signifies that some content has been omitted due to lack of

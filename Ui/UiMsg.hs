@@ -57,7 +57,7 @@ data UiUpdate =
     UpdateInput String
     | UpdateTrackScroll Types.Width
     | UpdateZoom Types.Zoom
-    -- | Size of entire block window, and (visible_track, visible_time).
+    -- | Size of entire block window, and (track_padding, time_padding).
     | UpdateViewResize Rect.Rect (Int, Int)
     | UpdateTrackWidth Types.Width
     -- | The given view was closed.

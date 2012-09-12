@@ -164,11 +164,12 @@ ui_update :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> Cmd.CmdId ()
 ui_update maybe_tracknum view_id update = case update of
     UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
     UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
-    UiMsg.UpdateViewResize rect track_size -> do
+    UiMsg.UpdateViewResize rect padding -> do
         view <- State.get_view view_id
         when (rect /= Block.view_rect view) $ State.set_view_rect view_id rect
-        let sz = (Block.view_visible_track view, Block.view_visible_time view)
-        when (track_size /= sz) $ State.set_track_size view_id track_size
+        let old_padding =
+                (Block.view_track_padding view, Block.view_time_padding view)
+        when (old_padding /= padding) $ State.set_view_padding view_id padding
     UiMsg.UpdateTrackWidth width -> case maybe_tracknum of
         Just tracknum -> do
             block_id <- State.block_id_of view_id

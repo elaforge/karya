@@ -156,11 +156,8 @@ parse_skeleton block_id = do
     return $ ParseSkeleton.default_parser tracks
 
 mkview :: (State.M m) => BlockId -> m ViewId
-mkview block_id = do
-    view_id <- State.create_view (Id.unpack_id (mk_vid block_id)) $
-        Block.view block_id default_rect default_zoom
-    State.set_track_size view_id (400, 800)
-    return view_id
+mkview block_id = State.create_view (Id.unpack_id (mk_vid block_id)) $
+    Block.view block_id default_rect default_zoom
 
 mkblock_view :: (State.M m) => BlockSpec -> m [TrackId]
 mkblock_view block_spec = mkblock block_spec <* mkview (bid (fst block_spec))

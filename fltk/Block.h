@@ -100,10 +100,12 @@ public:
     // Get and set trackwise scrolling, in pixels.
     int get_track_scroll() const;
     void set_track_scroll(int offset);
-    IPoint get_track_size() const {
+    // Get the pixels devoted to non-track overhead like scrollbars, in the
+    // (track, time) dimensions.
+    IPoint get_padding() const {
+        // Subtract, rather than try to remember every widget to add them up.
         IPoint p = track_tile.visible_pixels();
-        p.x += ruler_track->w();
-        return p;
+        return IPoint(w() - (p.x + ruler_track->w()), h() - p.y);
     }
 
     void set_selection(int selnum, const Selection &sel);

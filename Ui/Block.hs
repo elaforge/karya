@@ -269,24 +269,23 @@ data View = View {
     -- | view_block should never change.
     -- TODO Views that point to a BlockId not in state_blocks should be
     -- destroyed.
-    view_block :: BlockId
-    , view_rect :: Rect.Rect
+    view_block :: !BlockId
+    , view_rect :: !Rect.Rect
 
-    -- | Pixel width and height of the track area of the view, i.e. view_rect
-    -- with scrollbars and other things subtracted.
+    -- | Pixel width and height of stuff in the view that is not the track area,
+    -- i.e. scrollbars, skeleton display, block title, etc.
     --
-    -- These two are derived from view_rect, but only fltk knows the width of
-    -- all the various widgets.  It's cached here so pure code doesn't have
-    -- to call to the UI and import BlockC.
-    , view_visible_track :: Int
-    , view_visible_time :: Int
-    , view_status :: Map.Map String String
+    -- Only fltk knows the width of all the various widgets, but it's cached
+    -- here so pure code doesn't have to call to the UI and import BlockC.
+    , view_track_padding :: !Int
+    , view_time_padding :: !Int
+    , view_status :: !(Map.Map String String)
 
     -- | Scroll and zoom
-    , view_track_scroll :: Types.Width
-    , view_zoom :: Types.Zoom
+    , view_track_scroll :: !Types.Width
+    , view_zoom :: !Types.Zoom
 
-    , view_selections :: Map.Map Types.SelNum Types.Selection
+    , view_selections :: !(Map.Map Types.SelNum Types.Selection)
     } deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty View where
@@ -312,10 +311,10 @@ view :: BlockId -> Rect.Rect -> Types.Zoom -> View
 view block_id rect zoom = View
     { view_block = block_id
     , view_rect = rect
-    -- view_visible_track and view_visible_time are unknown, but will
-    -- be filled in when the new view emits its initial resize msg.
-    , view_visible_track = 0
-    , view_visible_time = 0
+    -- These are unknown, but will be filled in when the new view emits its
+    -- initial resize msg.
+    , view_track_padding = 0
+    , view_time_padding = 0
     , view_status = Map.empty
     , view_track_scroll = 0
     , view_zoom = zoom
@@ -346,13 +345,13 @@ visible_track = view_visible_track
 -- area to a certain size.
 set_visible_rect :: View -> Rect.Rect -> Rect.Rect
 set_visible_rect view rect = rect
-    -- Add a bit of padding to look nicer.
-    { Rect.rw = Rect.rw rect + dw + 2
-    , Rect.rh = Rect.rh rect + dh
+    { Rect.rw = Rect.rw rect + view_track_padding view
+    , Rect.rh = Rect.rh rect + view_time_padding view
     }
-    where
-    dw = Rect.rw (view_rect view) - view_visible_track view
-    dh = Rect.rh (view_rect view) - view_visible_time view
+
+view_visible_track, view_visible_time :: View -> Int
+view_visible_track view = Rect.rw (view_rect view) - view_track_padding view
+view_visible_time view = Rect.rh (view_rect view) - view_time_padding view
 
 -- | The actual window size is this much larger than the sum of the widths
 -- of the tracks, but only after first creation, when 'view_visible_track'
@@ -361,4 +360,4 @@ default_time_padding, default_track_padding :: Block -> Int
 default_time_padding block = Config.view_time_padding
     + if not (null (block_title block))
         then Config.block_title_height else 0
-default_track_padding = const $ Config.view_track_padding + 2
+default_track_padding = const $ Config.view_track_padding

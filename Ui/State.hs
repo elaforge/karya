@@ -49,7 +49,7 @@ module Ui.State (
     , set_view_status
     -- ** zoom and track scroll
     , get_zoom, set_zoom, set_track_scroll, set_view_rect
-    , set_track_size
+    , set_view_padding
     -- ** selections
     , get_selection, set_selection
     , shift_selection, shift_tracknum
@@ -491,13 +491,13 @@ set_view_rect :: (M m) => ViewId -> Rect.Rect -> m ()
 set_view_rect view_id rect =
     modify_view view_id (\view -> view { Block.view_rect = rect })
 
--- | Only 'Cmd.Cmd.ui_update' is supposed to call this, because track_size is
--- only set from the UI.
-set_track_size :: (M m) => ViewId -> (Int, Int) -> m ()
-set_track_size view_id (visible_track, visible_time) =
-    modify_view view_id $ \view -> view {
-        Block.view_visible_track = visible_track
-        , Block.view_visible_time = visible_time }
+-- | Only 'Cmd.Cmd.ui_update' is supposed to call this, because the UI is
+-- responsible for the padding.
+set_view_padding :: (M m) => ViewId -> (Int, Int) -> m ()
+set_view_padding view_id (track, time) = modify_view view_id $ \view -> view
+    { Block.view_track_padding = track
+    , Block.view_time_padding = time
+    }
 
 -- ** selections
 

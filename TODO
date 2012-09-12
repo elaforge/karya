@@ -4,14 +4,17 @@ UNSORTED
   * block-from-template analogue for tracks: add new tracks with same title
     and skel as this track and its children
   - paste creates events past the end of the ruler which are then un-deletable
-  + cmd to vertically maximize a view and zoom to fit
+    can insert_events just clip everything after the ruler end?
+  * cmd to vertically maximize a view and zoom to fit
     I should change Block.view_visible_* to view_y_padding and view_x_padding,
     because those stay constant until modified.
     Can I have fltk resize the window down so it fits on the screen?
     max height is 1050 - 1006
     somehow it knows about this when creating the window, but not when calling
     resize().  Maybe just ask fltk-users.
-  - unset win->border() to avoid the title bar?
+  - should send resize when the block title changes size
+  - unset win->border() to avoid the title bar?  Yes, but I still need a small
+    one to move the window.
   - upgrade saves and remove old versions
 
   upgrade to ghc 7.6
