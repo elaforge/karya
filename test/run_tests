@@ -44,6 +44,7 @@ echo $failures failed / $passes passed / $tests tests
 
 echo 'Generating hpc markup (in the background)...'
 (
+    mkdir -p build/hpc
     hpc markup --destdir=build/hpc RunTests | grep -v Writing
     # I'm more used to typing index.html
     (cd build/hpc && ln -fs hpc_index.html index.html)
