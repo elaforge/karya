@@ -3,8 +3,9 @@ UNSORTED
   * cmd-b aborts: (vid "kendang/b06.v01") already exists
   * block-from-template analogue for tracks: add new tracks with same title
     and skel as this track and its children
-  - paste creates events past the end of the ruler which are then un-deletable
+  * paste creates events past the end of the ruler which are then un-deletable
     can insert_events just clip everything after the ruler end?
+    No, because it takes a track id, and tracks don't have rulers.
   * cmd to vertically maximize a view and zoom to fit
     I should change Block.view_visible_* to view_y_padding and view_x_padding,
     because those stay constant until modified.

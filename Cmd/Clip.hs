@@ -40,6 +40,7 @@ module Cmd.Clip (
     , state_to_namespace
 #endif
 ) where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -255,29 +256,33 @@ destroy_namespace ns = do
 -- the tracks in the destination selection, and the events from the clipboard
 -- paired with the track it should go into.  The clipboard events are truncated
 -- to start--end and shifted into the paste range.
-paste_info :: (Cmd.M m) =>
-    m (ScoreTime, ScoreTime, [(TrackId, [Event.Event])])
+paste_info :: (Cmd.M m) => m (ScoreTime, ScoreTime, [(TrackId, [Event.Event])])
 paste_info = do
     (track_ids, clip_track_ids, start, end) <- get_paste_area
-    clip_events <- mapM (clip_track_events start end) clip_track_ids
-    return (start, end, zip track_ids clip_events)
+    paste_events <- mapM (clip_track_events start end) clip_track_ids
+    return (start, end, zip track_ids paste_events)
 
 clip_track_events :: (State.M m) =>
     ScoreTime -> ScoreTime -> TrackId -> m [Event.Event]
 clip_track_events start end track_id = do
     track <- State.get_track track_id
-    let events = clip_events (end-start)
+    let events = clip_to_selection start end
             (Events.ascending (Track.track_events track))
         shifted = map (Event.move (+start)) events
     return shifted
 
+clip_to_selection :: ScoreTime -> ScoreTime -> [Event.Event] -> [Event.Event]
+clip_to_selection start end
+    -- A point selection should be able to paste a 0 dur event.
+    | start == end = maybe [] (:[])
+        . List.find (\e -> Event.start e == 0 && Event.duration e == 0)
+    | otherwise = clip_events (end - start)
+
 -- | Clip off the events after the given end time.  Also shorten the last
--- event so it doesn't cross the end, if necessary.  If the end is 0 then
--- events are not clipped at all.
+-- event so it doesn't cross the end, if necessary.
 clip_events :: ScoreTime -> [Event.Event] -> [Event.Event]
 clip_events _ [] = []
 clip_events end (event : events)
-    | end == 0 = event : events
     | Event.start event >= end = []
     | Event.end event > end =
         [Event.modify_duration (\d -> min d (end - Event.start event)) event]
@@ -287,14 +292,17 @@ clip_events end (event : events)
 -- paste selection.
 --
 -- During pastes, a point selection extends to the end of the last pasted
--- event.
+-- event.  However, the paste range is limited to the end of the ruler on the
+-- block.  Otherwise, it's easy to paste events past the end of the block,
+-- which are then difficult to edit.
 get_paste_area :: (Cmd.M m) => m ([TrackId], [TrackId], ScoreTime, ScoreTime)
 get_paste_area = do
-    (_, tracknums, track_ids, start, end) <- Selection.tracks
+    (block_id, tracknums, track_ids, start, end) <- Selection.tracks
+    block_end <- State.block_ruler_end block_id
     clip_block <- State.get_block clip_block_id
     -- If the clip block has any rulers or anything, I skip them.
     let clip_track_ids =
             take (length tracknums) (Block.block_track_ids clip_block)
     clip_end <- State.block_event_end clip_block_id
     return (track_ids, clip_track_ids, start,
-        if start == end then start + clip_end else end)
+        min block_end $ if start == end then start + clip_end else end)

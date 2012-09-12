@@ -1,6 +1,7 @@
 module Cmd.Clip_test where
 import Util.Test
 import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
@@ -54,6 +55,14 @@ run_sel state cmd strack spos ctrack cpos = e_tracks UiTest.default_block_id $
         CmdTest.set_sel strack spos ctrack cpos
         cmd
 
+test_paste_past_block_end = do
+    let state = mkstate [("t1", [])] clip_tracks
+        run = run_sel state Clip.cmd_paste_overwrite
+    equal (run 1 0 1 0) $ Right [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
+    let end = Ruler.time_end UiTest.default_ruler
+    equal (run 1 (end-1) 1 (end-1)) $ Right [("t1", [(end-1, 1, "c1")])]
+    equal (run 1 end 1 end) $ Right [("t1", [])]
+
 test_cmd_paste_overwrite = do
     let state = mkstate [track1, track2] clip_tracks
         run = run_sel state Clip.cmd_paste_overwrite
@@ -81,7 +90,7 @@ test_cmd_paste_overwrite = do
         ]
     -- TODO test pasting in two tracks
 
-    -- Pasting zero dur events works.
+    -- A point selection will paste a zero dur event.
     let empty = mkstate [("t1", [])] [("t1", [(0, 0, "e")])]
         run = run_sel empty Clip.cmd_paste_overwrite
     equal (run 1 1 1 1) $ Right [("t1", [(1, 0, "e")])]

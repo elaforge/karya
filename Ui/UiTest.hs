@@ -308,8 +308,13 @@ extract_event event =
 
 -- ** ruler
 
+default_ruler :: Ruler.Ruler
 default_ruler = mkruler 16 1
+
+no_ruler :: Ruler.Ruler
 no_ruler = mkruler 0 0
+
+ruler_until :: ScoreTime -> Ruler.Ruler
 ruler_until pos = ruler [("until", Ruler.marklist [(pos, Ruler.null_mark)])]
 
 -- | TimeStep to step by 1 ScoreTime on the default ruler.
