@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleContexts #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleContexts, FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {- | Generic functions over vectors of Samples which have a RealTime
     attribute.

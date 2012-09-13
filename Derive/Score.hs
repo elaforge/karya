@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- for Monoid and NFData instance
+{-# LANGUAGE CPP, GeneralizedNewtypeDeriving #-}
 {- | This has the basic data structures for the deriver level.
 
     The events here are generated from UI Events, and will eventually be
@@ -89,10 +89,12 @@ instance Pretty.Pretty Event where
             , ("attributes", Pretty.format attrs)
             ]
 
+#if __GLASGOW_HASKELL__ < 74
 -- | This is not a great place, maybe I can make a special module for NFData
 -- orphans.
 instance DeepSeq.NFData B.ByteString where
     rnf b = b `seq` () -- bytestrings are already strict
+#endif
 
 type ControlMap = Map.Map Control TypedSignal
 type PitchMap = Map.Map Control PitchSignal.Signal

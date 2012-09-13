@@ -11,6 +11,7 @@ vector # pitch signals
 dlist # Perform.SignalBase
 bindings-dsl # Util.Git.LibGit2
 fclabels # Util.Lens
+semigroups # Data.List.NonEmpty
 
 ghc-paths haskeline # repl
 

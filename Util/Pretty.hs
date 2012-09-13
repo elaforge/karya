@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP, OverloadedStrings #-}
 {- | Like Show, but designed to be easy to read rather than unambiguous and
     complete.
 -}
@@ -20,9 +20,7 @@ import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
-import qualified Data.String as String
 import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Storable as Storable
@@ -40,15 +38,20 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
-
-default_width :: Int
-default_width = 78
+#if __GLASGOW_HASKELL__ < 74
+import qualified Data.Monoid as Monoid
+import qualified Data.String as String
 
 instance Monoid.Monoid Doc where
     mempty = PP.empty
     mappend = (PP.<>)
 
 instance String.IsString Doc where fromString = PP.text
+#endif
+
+
+default_width :: Int
+default_width = 78
 
 -- | Format values in an eye-pleasing way.  Unlike Show, this isn't intended
 -- to produce any kind of valid syntax, or even preserve information.

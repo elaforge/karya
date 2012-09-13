@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, ViewPatterns #-}
+{-# LANGUAGE CPP, FlexibleContexts, ViewPatterns #-}
 {- | Shakefile for seq and associated binaries.
 
     - Setting the 'repl' env var will add the -DINTERPRETER_GHC flag.
@@ -59,7 +59,6 @@ import Shake.Util (system)
 build = "build"
 fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
 ghcBinary = "ghc"
-ghc741 = False -- special hacks for ghc 7.4.1
 hspp = modeToDir Opt </> "hspp"
 
 shakeOptions :: Shake.ShakeOptions
@@ -651,8 +650,12 @@ writeGhciFlags modeConfig =
             unwords (flags config) ++ "\n"
     where
     -- Make sure -osuf .hs.o is in the flags, otherwise ghci won't know
-    -- how to find the .o files.
-    -- -I. so that CPP-using files can find hsconfig.h
+    -- how to find the .o files.  But it's redundant for the ghc compile,
+    -- which uses -o.
+    -- I have to add -I. manually too since it's in hcFlags along with
+    -- non-ghci stuff, not ghcFlags.  I'd have to add a new config field for
+    -- non-file-specific ghc flags, or put -I in 'define', where it doesn't
+    -- belong.
     flags config = ["-I.", "-osuf", ".hs.o"]
         ++ ghcFlags config
         ++ map (resolveSrc config) (ghciFlags (configFlags config))
@@ -663,9 +666,6 @@ writeGhciFlags modeConfig =
 -- | Get the file-independent flags for a haskell compile.
 ghcFlags :: Config -> [String]
 ghcFlags config =
-    -- -osuf is unnecessary because of the -o, but as of 7.4.1 ghci won't
-    -- load the .o files if it notices this flag is different.
-    (if ghc741 then ["-osuf", ".hs.o"] else []) ++
     [ "-outputdir", oDir config
     , "-i" ++ oDir config ++ ":" ++ hscDir config
     ] ++ define (configFlags config)

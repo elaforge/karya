@@ -35,9 +35,7 @@ UNSORTED
           has void.  Then cast!
 
       Totally simple, just cast (FILE *) in the generated utils.c.
-      - Send patch to ghc.
-      - Alternately, I could fix my code by surrounding the c++ bits with
-        #ifndef HSC2HS
+      * Send patch to ghc.
     - remove exports ReadDevice and WriteDevice from Midi.Midi
     - get rid of ld -r hack in shakefile, since new ghcs do that automatically
     - experiment again with replacing storablevector with vector, since it
