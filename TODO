@@ -14,9 +14,10 @@ UNSORTED
     somehow it knows about this when creating the window, but not when calling
     resize().  Maybe just ask fltk-users.
   * should send resize when the block title changes size
-  - unset win->border() to avoid the title bar?  Yes, but I still need a small
-    one to move the window.
-  - upgrade saves and remove old versions
+  + fltk: mac version gets increasingly saturated when it scrolls
+    It's fl_scroll, write a simple test case that just uses fl_scroll.
+    created repro, sent to list
+  * upgrade saves and remove old versions
 
   upgrade to ghc 7.6
     broken dependencies:
@@ -26,8 +27,8 @@ UNSORTED
     update to new ghc api
       * Exception: Cannot add module Cmd.Lang.Environ to context: not a home
         module
-      - Ask about GHC.getWarnings
-      - How to link in .o files?
+      * Ask about GHC.getWarnings
+      * How to link in .o files?
     * fix hsc2hs
       Problem is that it creates a wrapper C file for fputs and whatnot, and
       C allows calls to undeclared functions.
@@ -56,9 +57,9 @@ UNSORTED
   - if Map.fromList now checks for sortedness, can I pull the same trick and
     eliminate the from_sorted type things?  no not really, just wait for new
     version of containers
-  - j and k seem to be causing corruption
-    Maybe just due to me forgetting cmd?  It seems confusing that in val edit
-    the note track doesn't need it but the control track does.
+  - It seems confusing that in val edit the note track doesn't need cmd but
+    the control track does.
+    Maybe I should get rid of the optional cmd- thing?
   * Control mode edit shouldn't accept - chars.
   - Undo during edit (i.e. a suppressed cmd) destroys changes and you can't
     get them back.  And it's confusing.  Maybe undo shouldn't work?

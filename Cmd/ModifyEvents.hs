@@ -64,24 +64,8 @@ events f = do
         events <- concatMapM f events
         State.insert_events track_id events
 
--- | This is like 'events'.  It's more efficient but the modify function must
--- promise to return events in sorted order.
-events_sorted :: (Cmd.M m) => PosEvent m -> m ()
-events_sorted f = do
-    selected <- Selection.events
-    forM_ selected $ \(track_id, (start, end), events) -> do
-        State.remove_events track_id start end
-        events <- concatMapM f events
-        State.insert_sorted_events track_id events
-
 tracks :: (Cmd.M m) => Track m -> m ()
-tracks f = tracks_sorted $ \block_id track_id events ->
-    fmap (Seq.sort_on Event.start) <$> f block_id track_id events
-
--- | As with 'events_sorted', this is a more efficient version for sorted
--- events.
-tracks_sorted :: (Cmd.M m) => Track m -> m ()
-tracks_sorted f = do
+tracks f = do
     block_id <- Cmd.get_focused_block
     track_events <- Selection.events
     forM_ track_events $ \(track_id, (start, end), events) -> do
@@ -89,7 +73,7 @@ tracks_sorted f = do
         case maybe_new_events of
             Just new_events -> do
                 State.remove_events track_id start end
-                State.insert_sorted_events track_id new_events
+                State.insert_events track_id new_events
             Nothing -> return ()
 
 -- | Make a 'PosEvent' into a 'Track' that only maps over certain named tracks.

@@ -275,7 +275,7 @@ cmd_insert_time = do
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min (Event.start event) start)
                     (track_end + 1)
-                State.insert_sorted_events track_id
+                State.insert_events track_id
                     (map (insert_time start end) events)
 
 -- | Modify the event to insert time from @start@ to @end@, lengthening
@@ -315,7 +315,7 @@ cmd_delete_time = do
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min (Event.start event) start)
                     (track_end + 1)
-                State.insert_sorted_events track_id
+                State.insert_events track_id
                     (mapMaybe (delete_time start end) events)
 
 -- | Modify the event to delete the time from @start@ to @end@, shortening it

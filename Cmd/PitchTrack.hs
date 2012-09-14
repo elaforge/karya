@@ -194,12 +194,11 @@ cycle_enharmonics scale maybe_key note = show_err $ do
     return $ fromMaybe note (Seq.head enharmonics)
 
 pitches :: (Cmd.M m) => ModifyPitch -> m ()
-pitches = ModifyEvents.tracks_sorted . pitch_tracks
+pitches = ModifyEvents.tracks . pitch_tracks
 
 -- | Apply a ModifyPitch to only pitch tracks.
 pitch_tracks :: (Cmd.M m) => ModifyPitch -> ModifyEvents.Track m
-pitch_tracks f =
-    ModifyEvents.tracks_named TrackInfo.is_pitch_track $
+pitch_tracks f = ModifyEvents.tracks_named TrackInfo.is_pitch_track $
         \block_id track_id events -> do
     scale_id <- Perf.get_scale_id block_id (Just track_id)
     scale <- Cmd.get_scale "PitchTrack.pitches" scale_id

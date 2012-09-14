@@ -94,7 +94,7 @@ module Ui.State (
     , modify_track_render, set_render_style
     , blocks_with_track
     -- ** events
-    , insert_events, insert_sorted_events, insert_event
+    , insert_events, insert_event
     , get_events, get_event, get_all_events
     , modify_events, modify_some_events, calculate_damage
     , remove_events, remove_event, remove_event_range
@@ -1098,18 +1098,14 @@ blocks_with_track track_id =
 
 -- | Insert events into track_id as per 'Events.insert_events'.
 insert_events :: (M m) => TrackId -> [Event.Event] -> m ()
-insert_events track_id events =
+insert_events track_id events_ = _modify_events track_id $ \old_events ->
+    (Events.insert_sorted_events events old_events, events_range events)
+    where events = Seq.sort_on Event.start events_
     -- Calculating updates is easiest if it's sorted, and insert likes sorted
     -- anyway.
-    insert_sorted_events track_id (Seq.sort_on Event.start events)
-
--- | Like 'insert_events', but more efficient and dangerous.
-insert_sorted_events :: (M m) => TrackId -> [Event.Event] -> m ()
-insert_sorted_events track_id new_events = _modify_events track_id $ \events ->
-    (Events.insert_sorted_events new_events events, events_range new_events)
 
 insert_event :: (M m) => TrackId -> Event.Event -> m ()
-insert_event track_id event = insert_sorted_events track_id [event]
+insert_event track_id event = insert_events track_id [event]
 
 get_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m [Event.Event]
 get_events track_id start end = do
