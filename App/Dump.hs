@@ -9,10 +9,8 @@ import qualified System.Exit
 
 import Text.Printf
 
-import qualified Util.Git.Git as Git
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Ui.State as State
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Serialize as Serialize
@@ -66,7 +64,7 @@ dump_git flags repo maybe_arg = do
         Nothing -> return Nothing
         Just arg -> do
             commit <- maybe (die $ "couldn't find commit for " ++ show arg)
-                return =<< Git.infer_commit repo arg
+                return =<< SaveGit.infer_commit repo arg
             return (Just commit)
     (state, commit, names) <- either
         (die . (("reading " ++ show repo ++ ":") ++)) return

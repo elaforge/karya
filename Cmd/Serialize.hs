@@ -87,6 +87,8 @@ data SaveState = SaveState {
     , save_date :: Time.UTCTime
     -- undo-related metadata?
     } deriving (Read, Show)
+
+save_state :: State.State -> IO SaveState
 save_state ui_state = do
     utc <- Time.getCurrentTime
     return (SaveState ui_state utc)
