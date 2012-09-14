@@ -19,7 +19,15 @@ UNSORTED
   - upgrade saves and remove old versions
 
   upgrade to ghc 7.6
-    - update to new ghc api
+    broken dependencies:
+      - pandoc, seems to want old version of directory
+      * shake, uses 'catch' in Paths_shake.hs
+      * storablevector, also has catch problem
+    update to new ghc api
+      * Exception: Cannot add module Cmd.Lang.Environ to context: not a home
+        module
+      - Ask about GHC.getWarnings
+      - How to link in .o files?
     * fix hsc2hs
       Problem is that it creates a wrapper C file for fputs and whatnot, and
       C allows calls to undeclared functions.
@@ -36,7 +44,8 @@ UNSORTED
 
       Totally simple, just cast (FILE *) in the generated utils.c.
       * Send patch to ghc.
-    - remove exports ReadDevice and WriteDevice from Midi.Midi
+    / remove exports ReadDevice and WriteDevice from Midi.Midi
+      Still buggy, asked on ghc-users
     - get rid of ld -r hack in shakefile, since new ghcs do that automatically
     - experiment again with replacing storablevector with vector, since it
       optimizes it better

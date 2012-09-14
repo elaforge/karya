@@ -2,11 +2,12 @@
 {-# LANGUAGE MagicHash, ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 -- | REPL implementation that directly uses the GHC API.
+--
+-- Supported versions: 70, 74
 module Cmd.LangGhc (
     Session(..), make_session
     , interpreter, interpret
 ) where
-import qualified Bag
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
@@ -14,11 +15,15 @@ import Control.Monad
 import System.FilePath ((</>))
 
 import qualified Data.IORef as IORef
+
+-- GHC imports
+#if __GLASGOW_HASKELL__ == 70
+import qualified Bag
 import qualified ErrUtils
+#endif
 import qualified GHC
 import qualified GHC.Exts
 import qualified GHC.Paths
-
 -- The liftIO here is not the same one in Control.Monad.Trans!
 -- GHC defines its own MonadIO.
 import MonadUtils (MonadIO, liftIO)
@@ -62,9 +67,24 @@ interpret (Session chan) _local_modules ui_state _cmd_state expr = do
 ghci_flags :: FilePath
 ghci_flags = BUILD_DIR </> "ghci-flags"
 
+-- load .o:
+-- target <- GHC.guessTarget fname Nothing (phase)
+--
+-- guessTarget appears to only be for haskell modules
+-- look at Target: Target { targetId :: TargetId, targetAllowObjCode = ?,
+--      targetContents = Nothing }
+--      TargetId: TargetFile fpath Nothing
+--
+-- Main.hs does: mapM_ (consIORef v_Ld_inputs) (reverse objs)
+-- TODO using objTarget below causes it to silently not link anything.  Am
+-- I losing a warning?
+
 interpreter :: Session -> IO ()
 interpreter (Session chan) = do
     GHC.parseStaticFlags []  -- not sure if this is necessary
+    -- let ofile = "build/test/obj/Util/Git/libgit_wrappers.cc.o"
+    -- let objTarget = GHC.Target (GHC.TargetFile ofile Nothing) False Nothing
+    -- IORef.modifyIORef GHC.v_Ld_inputs ("hi":)
     flags <- Exception.try (readFile ghci_flags)
     args <- case flags of
         Left (exc :: Exception.SomeException) -> do
@@ -79,7 +99,10 @@ interpreter (Session chan) = do
     --          . GHC.defaultCleanupHandler dflags
     GHC.runGhcT (Just GHC.Paths.libdir) $ do
         parse_flags args
-        GHC.setTargets [make_target False toplevel]
+        -- Otherwise I get
+        -- Cannot add module Cmd.Lang.Environ to context: not interpreted
+        GHC.setTargets $ [make_target False toplevel]
+        -- GHC.setTargets $ objTarget : [make_target True toplevel]
         (result, logs, warns) <- reload
         case result of
             Left err -> liftIO $
@@ -165,11 +188,18 @@ compile expr = do
 
 set_context :: [String] -> Ghc ()
 set_context mod_names = do
+#if __GLASGOW_HASKELL__ >= 74
+    let prelude = GHC.simpleImportDecl (GHC.mkModuleName "Prelude")
+    GHC.setContext $ GHC.IIDecl prelude
+        : map (GHC.IIModule . GHC.mkModuleName) mod_names
+#else
     mods <- sequence
         [GHC.findModule (GHC.mkModuleName m) Nothing | m <- mod_names]
     prelude <- GHC.findModule (GHC.mkModuleName "Prelude") Nothing
-    -- First arg is interpreted in scope, second line is non HPT imports.
+    -- Get the entire top level scope of the first arg, and the exports
+    -- from the second (non HPT imports).
     GHC.setContext mods [(prelude, Nothing)]
+#endif
 
 -- | Run a Ghc action and collect logs and warns.
 handle_errors :: Ghc a -> Ghc (Result a)
@@ -183,9 +213,12 @@ handle_errors action = do
     where
     catch_logs logs = modify_flags $ \flags ->
         flags { GHC.log_action = log_action logs }
-    log_action logs _severity _span style msg =
+    -- log_action :: GHC.DynFlags -> GHC.Severity -> GHC.SrcSpan -> PprStyle
+    --     -> MsgDoc -> IO ()
+    log_action logs dflags _severity _span style msg =
         liftIO $ IORef.modifyIORef logs (err:)
-        where err = Outputable.showSDoc $ Outputable.withPprStyle style msg
+        where
+        err = Outputable.showSDoc dflags $ Outputable.withPprStyle style msg
             -- ErrUtils.mkLocMessage span msg
 
 modify_flags :: (GHC.DynFlags -> GHC.DynFlags) -> Ghc ()
@@ -194,6 +227,11 @@ modify_flags f = do
     void $ GHC.setSessionDynFlags $! f dflags
 
 get_warnings :: Ghc [String]
+#if __GLASGOW_HASKELL__ >= 74
+-- getWarnings is gone, apparently replaced by either printing directly or
+-- throwing an exception, e.g. compiler/main/HscTypes.lhs:handleFlagWarnings.
+get_warnings = return []
+#else
 get_warnings = do
     warns <- GHC.getWarnings
     GHC.clearWarnings
@@ -201,6 +239,7 @@ get_warnings = do
     where
     extract = map (Outputable.showSDoc . ErrUtils.errMsgShortDoc)
         . Bag.bagToList
+#endif
 
 parse_flags :: [String] -> Ghc ()
 parse_flags args = do
@@ -223,8 +262,8 @@ parse_flags args = do
 make_target :: Bool -> String -> GHC.Target
 make_target obj_allowed module_name = GHC.Target
     { GHC.targetId = GHC.TargetModule (GHC.mkModuleName module_name)
-    -- I don't know what this flag does, but it doesn't control whether the
-    -- target is compiled or not...
+    -- ghci unsets this if the module name starts with *, so I guess it means
+    -- you can load the .o or must interpret.
     , GHC.targetAllowObjCode = obj_allowed
     , GHC.targetContents = Nothing
     }
