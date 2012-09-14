@@ -710,11 +710,10 @@ void
 BlockViewWindow::resize(int X, int Y, int W, int H)
 {
     int sx, sy, sw, sh;
-    Fl::screen_xywh(sx, sy, sw, sh, X, Y);
+    Fl::screen_work_area(sx, sy, sw, sh, X, Y);
+    int titlebar = this->decorated_h() - this->h();
     // Don't make the window taller than will fit on the screen.
-    // TODO only applies to the window with the menubar.  Better to get the OS
-    // to do this, which fltk does somehow when creating the window.
-    H = std::min(H, sh - Config::vertical_overhead);
+    H = std::min(H, sh - titlebar);
     Fl_Window::resize(X, Y, W, H);
     MsgCollector::get()->view(UiMsg::msg_resize, this);
 }

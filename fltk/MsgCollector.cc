@@ -336,7 +336,7 @@ MsgCollector::screen_update()
     for (int screen = 0; screen < screens; screen++) {
         int x, y, w, h;
         UiMsg m;
-        Fl::screen_xywh(x, y, w, h, screen);
+        Fl::screen_work_area(x, y, w, h, screen);
         m.type = UiMsg::msg_screen_size;
         m.screen.screen = screen;
         m.screen.screens = screens;

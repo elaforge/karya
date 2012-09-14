@@ -284,9 +284,20 @@ block_title_height = #const Config::View::block_title_height
 view_track_padding :: Int
 view_track_padding = #const Config::View::sb_size
 
--- | Documented in fltk/config.h.
-vertical_overhead :: Int
-vertical_overhead = #const Config::vertical_overhead
+-- | How many pixels the window bar consumes above the window.  This is
+-- needed because to place windows I need an accurate idea of their
+-- dimensions.  I can wait to get the resized msg back from fltk, but that's
+-- too late if if I want to change the size of a window and do something (e.g.
+-- zoom) based on the new size.
+--
+-- TODO I should actually be getting this from fltk but it's easier to
+-- hardcode for now.
+window_decoration_h :: Int
+#ifdef __APPLE__
+window_decoration_h = 22
+#else
+window_decoration_h = 0
+#endif
 
 -- * fonts
 

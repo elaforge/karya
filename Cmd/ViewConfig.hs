@@ -74,7 +74,7 @@ resize_to_fit maximize view_id = do
         Rect.move (min (Rect.rx r) (Rect.rr screen - Rect.rw r)) (Rect.ry r) r
     max_height view screen r = Rect.xywh (Rect.rx r) (Rect.ry screen)
         (Rect.rw r) (Rect.rh screen - Block.view_time_padding view
-            - Config.vertical_overhead)
+            - Config.window_decoration_h)
 
 -- | Get the View's Rect, resized to fit its contents.  Its position is
 -- unchanged.
