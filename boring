@@ -1,5 +1,5 @@
 # Not generated, but also not in source control:
-^save/
+^save.*/
 ^inst_db/
 
 # Generated files:

@@ -4,16 +4,23 @@
 setopt err_exit
 setopt extended_glob
 
-make build/update
+update=build/opt/update
 
-for f in save/**/*(.); do
+bin/mk $update
+mkdir -p save.new
+
+for f in save/*; do
     to=save.new/${f#save/}
-    if [[ $f = save/README ]]; then
-        mv $f $to
+    if [[ $to = *.git ]]; then
+        # update flattens it, so it's not a .git anymore.
+        to=${to%git}ex-git
+    fi
+    echo "$f -> $to"
+    # *_ly contains saved lilypond scores.
+    if [[ $f = save/README || $f = *_ly* ]]; then
+        cp -r $f $to
     else
-        mkdir -p $(dirname $to)
-        echo $f -> $to
-        build/update $f $to
+        $update $f $to
     fi
 done
 

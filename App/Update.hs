@@ -1,9 +1,14 @@
 -- | Load and save files to update them to the latest version.  Useful when
 -- a non-versioned datatype changes.
+--
+-- Git saves are flattened into a plain saves.
 module App.Update where
 import qualified System.Environment as Environment
 import qualified System.Exit as Exit
 import qualified System.IO as IO
+
+import Util.Control
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Serialize as Serialize
 
 
@@ -16,12 +21,19 @@ main = do
 
 update :: String -> String -> IO ()
 update from_fn to_fn = do
-    either_state <- Serialize.unserialize from_fn
+    either_state <- if SaveGit.is_git from_fn
+        then load_git from_fn
+        else Serialize.unserialize from_fn
     case either_state of
-        Left exc -> err_msg $
-            "Error reading " ++ show from_fn ++ ": " ++ show exc
+        Left err -> fail_with $ "Reading " ++ show from_fn ++ ": " ++ err
         Right (Serialize.SaveState st dt) ->
             Serialize.serialize to_fn (Serialize.SaveState st dt)
+
+load_git :: SaveGit.Repo -> IO (Either String Serialize.SaveState)
+load_git repo = do
+    result <- SaveGit.load repo Nothing
+    either (return . Left)
+        (\(state, _, _) -> Right <$> Serialize.save_state state) result
 
 err_msg :: String -> IO ()
 err_msg = IO.hPutStrLn IO.stderr
