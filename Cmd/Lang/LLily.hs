@@ -15,9 +15,7 @@ import qualified Util.Process
 
 import qualified Ui.Id as Id
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Lang.LPerf as LPerf
 import qualified Cmd.Lilypond
-
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -37,10 +35,14 @@ pipa = from_events "c-maj" "4/4" config . clean
         . LEvent.events_of
         -- . filter_inst ["ptq/yangqin"]
 
-bloom :: Cmd.CmdL ()
-bloom = from_events "a-maj" "5/4" config . LEvent.events_of
-        =<< LPerf.sel_events
-    where config = Cmd.Lilypond.TimeConfig 0.5 Lilypond.D16
+bloom :: BlockId -> Cmd.CmdL ()
+bloom block_id = do
+    score <- make_score "a-maj" "5/4" block_id
+    let config = Cmd.Lilypond.TimeConfig 0.5 Lilypond.D16
+    block score config block_id
+
+events :: BlockId -> Cmd.CmdL Derive.Events
+events block_id = Derive.r_events <$> Cmd.Lilypond.derive block_id
 
 ly_events :: RealTime -> Derive.Events -> ([Lilypond.Event], [Log.Msg])
 ly_events quarter = LEvent.partition . Convert.convert quarter

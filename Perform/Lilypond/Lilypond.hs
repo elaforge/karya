@@ -224,6 +224,10 @@ attributes_to_code =
     attributes = Map.fromList
         [ (Attrs.trill, "\\trill")
         , (Attrs.trem, ":32")
+        -- There are (arpeggio <> up) and (arpeggio <> down), but supporting
+        -- them is a bit annoying because I have to match multiple attrs, and
+        -- have to prepend \arpeggioArrowUp \arpeggioArrowDown \arpeggioNormal
+        , (Attrs.arpeggio, "\\arpeggio")
         ]
 
 -- | Clip off the part of the event before the given time, or Nothing if it

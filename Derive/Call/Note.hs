@@ -6,7 +6,7 @@ module Derive.Call.Note (
     -- * inversion
     , inverting, inverting_n
     -- ** events
-    , Event(..), event_end, map_event
+    , Event(..), event_end, map_event, map_events
     , sub_events
     , place, place_at
 #ifdef TESTING
@@ -320,6 +320,9 @@ event_end event = event_start event + event_duration event
 
 map_event :: (Derive.EventDeriver -> Derive.EventDeriver) -> Event -> Event
 map_event f event = event { event_deriver = f (event_deriver event) }
+
+map_events :: (Derive.EventDeriver -> Derive.EventDeriver) -> [Event] -> [Event]
+map_events f = map (map_event f)
 
 instance Show Event where
     show (Event start dur _) =

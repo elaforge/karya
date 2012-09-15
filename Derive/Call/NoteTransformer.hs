@@ -4,6 +4,8 @@ module Derive.Call.NoteTransformer where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -49,7 +51,13 @@ data Arpeggio = ToRight | ToLeft | Random deriving (Show)
 c_real_arpeggio :: Arpeggio -> Derive.NoteCall
 c_real_arpeggio arp = Derive.stream_generator "arpeggio" $ \args ->
     CallSig.call1 args (optional "time" 0.1) $ \time ->
+    Lily.note_transformer args arpeggio_attrs $
         arpeggio arp (RealTime.seconds time) (Note.sub_events args)
+    where
+    arpeggio_attrs = case arp of
+        ToRight -> Attrs.arpeggio <> Attrs.up
+        ToLeft -> Attrs.arpeggio <> Attrs.down
+        Random -> Attrs.arpeggio
 
 -- | Shift each track of notes by a successive amount.
 arpeggio :: Arpeggio -> RealTime -> [[Note.Event]] -> Derive.EventDeriver

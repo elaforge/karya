@@ -488,15 +488,3 @@ map_controls_pitches controls pitch_controls state events f = go state events
         let vals = maybe rest_vals
                 ((:rest_vals) . map LEvent.Event . snd) result
         return (final_state, vals)
-
-
--- * lilypond
-
-when_lilypond :: Derive.Deriver a -> Derive.Deriver a -> Derive.Deriver a
-when_lilypond = ifM Derive.is_lilypond_derive
-
--- | When in a lilypond derive, replace a deriver with a single note having
--- the given attributes.
-lilypond_attr :: Derive.PassedArgs d -> Score.Attributes
-    -> Derive.EventDeriver -> Derive.EventDeriver
-lilypond_attr args attrs = when_lilypond (place args (attr_note attrs))

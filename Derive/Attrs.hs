@@ -18,6 +18,7 @@ soft = attr "soft"
 loud = attr "loud"
 trill = attr "trill"
 trem = attr "trem" -- tremolo
+arpeggio = attr "arpeggio"
 
 -- * strings
 
@@ -78,6 +79,9 @@ muted = attr "muted"
 low = attr "low"
 middle = attr "middle"
 high = attr "high"
+
+up = attr "up"
+down = attr "down"
 
 -- * misc
 
