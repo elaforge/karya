@@ -143,11 +143,6 @@ instance Serialize State.Default where
     get = do
         v <- Serialize.get_version
         case v of
-            0 -> do
-                scale :: Pitch.ScaleId <- get
-                inst :: Maybe Score.Instrument <- get
-                tempo :: Signal.Y <- get
-                return $ State.Default scale Nothing inst tempo
             1 -> do
                 scale :: Pitch.ScaleId <- get
                 key :: Maybe Pitch.Key <- get
@@ -166,27 +161,6 @@ instance Serialize Block.Block where
     get = do
         v <- Serialize.get_version
         case v of
-            4 -> do
-                title :: String <- get
-                tracks :: [Block.Track] <- get
-                skel :: Skeleton.Skeleton <- get
-                return $ Block.Block title Block.default_config tracks skel
-                    Nothing [] Map.empty
-            5 -> do
-                title :: String <- get
-                tracks :: [Block.Track] <- get
-                skel :: Skeleton.Skeleton <- get
-                meta :: Map.Map String String <- get
-                return $ Block.Block title Block.default_config tracks skel
-                    Nothing [] meta
-            6 -> do
-                title :: String <- get
-                tracks :: [Block.Track] <- get
-                skel :: Skeleton.Skeleton <- get
-                _integrated :: Maybe BlockId <- get
-                meta :: Map.Map String String <- get
-                return $ Block.Block title Block.default_config tracks skel
-                    Nothing [] meta
             7 -> do
                 title :: String <- get
                 tracks :: [Block.Track] <- get
@@ -355,19 +329,6 @@ instance Serialize Track.Track where
     get = do
         v <- Serialize.get_version
         case v of
-            1 -> do
-                title :: String <- get
-                events :: Events.Events <- get
-                color :: Color.Color <- get
-                render :: Track.RenderConfig <- get
-                return $ Track.Track title events color render
-            2 -> do
-                title :: String <- get
-                events :: Events.Events <- get
-                color :: Color.Color <- get
-                render :: Track.RenderConfig <- get
-                _integrated :: Maybe TrackId <- get
-                return $ Track.Track title events color render
             3 -> do
                 title :: String <- get
                 events :: Events.Events <- get
@@ -408,10 +369,6 @@ instance Serialize Instrument.Config where
         case v of
             3 -> do
                 alloc :: Map.Map Score.Instrument [Instrument.Addr] <- get
-                return $ Instrument.Config alloc
-            4 -> do
-                alloc :: Map.Map Score.Instrument [Instrument.Addr] <- get
-                _ :: Map.Map Midi.WriteDevice Midi.WriteDevice <- get
                 return $ Instrument.Config alloc
             _ -> Serialize.bad_version "Instrument.Config" v
 

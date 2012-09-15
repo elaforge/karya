@@ -348,15 +348,6 @@ instance Serialize.Serialize Events where
     get = do
         v <- Serialize.get_version
         case v of
-            0 -> do
-                events :: Map.Map ScoreTime Event.Event0 <- Serialize.get
-                return $ Events (Map.mapWithKey Event.convert0 events)
-            1 -> do
-                events :: Map.Map ScoreTime Event.Event1 <- Serialize.get
-                return $ Events (Map.mapWithKey Event.convert1 events)
-            2 -> do
-                events :: Map.Map ScoreTime Event.Event2 <- Serialize.get
-                return $ Events (Map.mapWithKey Event.convert2 events)
             3 -> do
                 events :: Map.Map ScoreTime Event.Event <- Serialize.get
                 return $ Events events

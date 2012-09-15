@@ -17,7 +17,7 @@ UNSORTED
   + fltk: mac version gets increasingly saturated when it scrolls
     It's fl_scroll, write a simple test case that just uses fl_scroll.
     created repro, sent to list
-  - upgrade saves and remove old versions
+  * upgrade saves and remove old versions
 
   - segfault:
     seq(37545,0x7fff706dfcc0) malloc: *** error for object 0x11c247c20: pointer

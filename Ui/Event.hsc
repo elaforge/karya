@@ -37,8 +37,6 @@ module Ui.Event (
     , set_stack, strip_stack
     -- * style
     , modify_style, modified, SetStyle
-    -- * serialize
-    , Event0, Event1, Event2, convert0, convert1, convert2
 ) where
 import Prelude hiding (min, max)
 import qualified Prelude
@@ -220,50 +218,12 @@ instance Serialize.Serialize Event where
         stack :: Maybe Stack <- get
         return $ Event start dur text style stack
 
-data Event0 = Event0 !Text !ScoreTime !Style.StyleId
-instance Serialize.Serialize Event0 where
-    put (Event0 a b c) = put a >> put b >> put c
-    get = do
-        text :: B.ByteString <- get
-        dur :: ScoreTime <- get
-        style :: Style.StyleId <- get
-        return $ Event0 text dur style
-
-data Event1 = Event1 !Text !ScoreTime !Style.StyleId !(Maybe Stack.Stack)
-instance Serialize.Serialize Event1 where
-    put (Event1 a b c d) = put a >> put b >> put c >> put d
-    get = do
-        text :: B.ByteString <- get
-        dur :: ScoreTime <- get
-        style :: Style.StyleId <- get
-        stack :: Maybe Stack.Stack <- get
-        return $ Event1 text dur style stack
-
-data Event2 = Event2 !Text !ScoreTime !Style.StyleId !(Maybe Stack)
-instance Serialize.Serialize Event2 where
-    put (Event2 a b c d) = put a >> put b >> put c >> put d
-    get = do
-        text :: B.ByteString <- get
-        dur :: ScoreTime <- get
-        style :: Style.StyleId <- get
-        stack :: Maybe Stack <- get
-        return $ Event2 text dur style stack
-
 instance Serialize.Serialize Stack where
     put (Stack a b) = put a >> put b
     get = do
         stack :: Stack.Stack <- get
         key :: IndexKey <- get
         return $ Stack stack key
-
-convert0 :: ScoreTime -> Event0 -> Event
-convert0 start (Event0 bs dur style) = Event start dur bs style Nothing
-
-convert1 :: ScoreTime -> Event1 -> Event
-convert1 start (Event1 bs dur style _stack) = Event start dur bs style Nothing
-
-convert2 :: ScoreTime -> Event2 -> Event
-convert2 start (Event2 bs dur style stack) = Event start dur bs style stack
 
 -- * storable
 
