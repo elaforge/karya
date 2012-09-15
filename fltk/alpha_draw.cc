@@ -13,13 +13,11 @@ void alpha_rectf(IRect r, Color c)
     if (!fl_not_clipped(r.x, r.y, r.w, r.h))
         return;
     // If it has no alpha, don't bother doing the aplha stuff.
-    /*
     if (c.a == 0xff) {
         fl_color(color_to_fl(c));
         fl_rectf(r.x, r.y, r.w, r.h);
         return;
     }
-    */
     int nbytes = r.w * r.h * 4;
     // Don't crash if the caller wants a negative sized rect.
     if (nbytes <= 0)

@@ -400,10 +400,10 @@ RulerTrackView::draw()
         int scroll = ruler.zoom.to_pixels(ruler.zoom.offset)
             - ruler.zoom.to_pixels(ruler.last_offset);
         fl_scroll(draw_area.x, draw_area.y, draw_area.w, draw_area.h,
-                0, -scroll, dummy_scroll_draw, NULL);
+            0, -scroll, dummy_scroll_draw, NULL);
         ScoreTime shift_pos = std::max(
-                ruler.zoom.offset - ruler.last_offset,
-                ruler.last_offset - ruler.zoom.offset);
+            ruler.zoom.offset - ruler.last_offset,
+            ruler.last_offset - ruler.zoom.offset);
         if (scroll > 0) { // Contents moved up, bottom is damaged.
             ScoreTime bottom = ruler.zoom.offset
                 + ruler.zoom.to_time(draw_area.h);
@@ -412,7 +412,7 @@ RulerTrackView::draw()
             draw_area.h = scroll;
         } else if (scroll < 0) { // Contents moved down, top is damaged.
             this->ruler.damage_range(
-                    ruler.zoom.offset, ruler.zoom.offset + shift_pos);
+                ruler.zoom.offset, ruler.zoom.offset + shift_pos);
             draw_area.h = -scroll;
         } else {
             draw_area.h = 0;

@@ -330,9 +330,9 @@ EventTrackView::draw()
         int scroll = zoom.to_pixels(zoom.offset) - zoom.to_pixels(last_offset);
         // DEBUG("scroll " << SHOW_RANGE(draw_area) << " " << -scroll);
         fl_scroll(draw_area.x, draw_area.y, draw_area.w, draw_area.h,
-                0, -scroll, dummy_scroll_draw, NULL);
+            0, -scroll, dummy_scroll_draw, NULL);
         ScoreTime shift_pos = std::max(
-                zoom.offset - last_offset, last_offset - zoom.offset);
+            zoom.offset - last_offset, last_offset - zoom.offset);
         if (scroll > 0) { // Contents moved up, bottom is damaged.
             ScoreTime bottom = zoom.offset + zoom.to_time(draw_area.h);
             this->overlay_ruler.damage_range(bottom - shift_pos, bottom);
@@ -340,7 +340,7 @@ EventTrackView::draw()
             draw_area.h = scroll;
         } else if (scroll < 0) { // Contents moved down, top is damaged.
             this->overlay_ruler.damage_range(
-                    zoom.offset, zoom.offset + shift_pos);
+                zoom.offset, zoom.offset + shift_pos);
             draw_area.h = -scroll;
         } else {
             draw_area.h = 0;
