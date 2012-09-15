@@ -17,7 +17,12 @@ UNSORTED
   + fltk: mac version gets increasingly saturated when it scrolls
     It's fl_scroll, write a simple test case that just uses fl_scroll.
     created repro, sent to list
-  * upgrade saves and remove old versions
+  - upgrade saves and remove old versions
+
+  - segfault:
+    seq(37545,0x7fff706dfcc0) malloc: *** error for object 0x11c247c20: pointer
+    being freed was not allocated
+    - If ghc dosen't use malloc and free() then that must be my c++, right?
 
   upgrade to ghc 7.6
     broken dependencies:
@@ -54,7 +59,7 @@ UNSORTED
     say 'r' was an unknown suffix
     Can't get attoparsec to consistently report an error.  Kind of hard when
     it always backtracks.
-  - if Map.fromList now checks for sortedness, can I pull the same trick and
+  * if Map.fromList now checks for sortedness, can I pull the same trick and
     eliminate the from_sorted type things?  no not really, just wait for new
     version of containers
   - It seems confusing that in val edit the note track doesn't need cmd but
@@ -67,6 +72,7 @@ UNSORTED
   - It would be nice for there to be some place to put notes.  Comment in the
     block text?  But I can't write much in there.  I could have block text
     expand to multiple lines if necessary.
+    Actually, I should use a score-specific module for this.
   - Get rid of Scale.scale_pattern, I can't think of a use for it.  If I want
     valid calls I should have another function to get the Notes of a scale.
   * wayang: ornament for ngoret: transformer that's either up or down,
@@ -165,11 +171,10 @@ UNSORTED
   - There's a zillion things to stitch together for an instrument.
     Add yet more utils in MidiInst to make this easier.
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
-  - a new empty inst with a scale doesn't get the scale right, should fall
+  + a new empty inst with a scale doesn't get the scale right, should fall
     back on looking down the skeleton
     I'm not getting the dynamic from an empty child track, because nothing in
     the parent calls it.
-  - but even when it does (on the scale itself) it doesn't do thru
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
     a bit of editing it's up to 750mb, who is leaking?  Undo history?
     * Write size profile that loads a big score and reports the size increase.
@@ -405,7 +410,7 @@ MILESTONES
     * record chords
     + integration
     - record continuum
-    - Just scales, and other ratio-oriented scales that use letters and
+    + Just scales, and other ratio-oriented scales that use letters and
       accidentals
     - complete Idiom.Wind, experiment with the Idiom postprocs
     - bring back negative duration / arrival beats
@@ -427,6 +432,7 @@ MILESTONES
   future
     - Unify environ, controls, and pitch signals by making signals of
       arbitrary type.
+    - Lazy signals?
     - print scores
     - mouse oriented signal editing
     - render audio
@@ -495,6 +501,12 @@ integrate:
     calls)
 
 lilypond:
+  enough to render bloom nicely:
+    - make sure it supports 5/4
+    - add hand annotations
+    - have to support changing time signatures
+    - possibly support voices, should be able to do it the same as hand
+      splitting
   - make rhythm spelling work properly for non-duple meters
   - make rhythm spelling work for compound meters
   - get pitches right, and keep the enharmonics
@@ -1007,7 +1019,8 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 Cmd:
-  - Can I have a general in-place derive cmd for note transformers?
+  * Can I have a general in-place derive cmd for note transformers?
+    integrate basically does this
   - step play StepPlay could work even when notes were moved by annotating
     the midi output with the UI event that produced it.  This might be useful
     for debugging too.
@@ -1109,10 +1122,10 @@ Derive:
       Maybe I can get rid of the Instrument.inst_control_map if I do the
       mapping in generate_note?
 
-  - implement postproc calls
-    - framework for determining scope of a postproc: per inst, per track,
+  * implement postproc calls
+    / framework for determining scope of a postproc: per inst, per track,
       for pre or post overlaps, etc.
-    - Think about how to keep incremental recomputation in the presence of
+    / Think about how to keep incremental recomputation in the presence of
       postproc.  I suppose they have to declare how much they depend on.
     examples of postprocs:
       * echo
@@ -1142,8 +1155,6 @@ Derive:
     when it's 1?
   - combine ornaments, like "hold 1s | tr" to hold the first note for 1 score
     time before starting the trill.  I think this could work by warping tr
-  - time interval literal, so I can specify e.g. trill speed in terms of beats
-    This means Derive has to have access to the rulers.
 
   deriver customization
     - set dynamic env vals, especially if a family of derivers use the same
@@ -1152,25 +1163,15 @@ Derive:
     - derivers call other derivers, which can be rebound
 
   - test Calls that return overlapping events
-  - block-level calls
   - x = _ will unset x
-
   - come up with a syntax for Ui.Event preproc calls
     >inst1 | echo < preproc1 < preproc2
-  - also I can have a post-parse "macro" preproc pass, this is more suited
-    for prepending a call
-  - re-implement directives: derive_notes returns (EventDeriver, [Event])
-    wait until I have a call that wants to use it (suppress event?)
-
-  - When looking for the next note on, I should skip notes which are just
-    'statements' that produce no notes.  That way a var set won't interrupt
-    the pitch sig.
   - some kind of notation for replacing the track interpreter, e.g.
     TrackId -> EventDeriver.
     This could be used to implement macros, and also preproc.
-
   val calls:
-    - val calls to get the next/prev TimeStep
+    - val calls to get the next/prev TimeStep e.g. trill speed in terms of
+      beats.  This means Derive has to have access to the rulers.
 
   note calls:
     * Implement tick as a call:
@@ -1233,12 +1234,12 @@ Derive:
   ControlTrack control
     interpolators
       - sine
-      - constant slope, exp slope (i.e. slope until next control event)
+      * constant slope, exp slope (i.e. slope until next control event)
       - continuous tempo warping for signals
         tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
   Derive.Scale scales
     - implement pengumbang pengisep
-    - just intonation tuned to a pitch signal
+    + just intonation tuned to a pitch signal
     - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
@@ -1247,7 +1248,7 @@ Derive:
       Should be able to do this with val calls.
     - parser for scala .scl files
 
-   - Control track management?  It should be possible to have a note or a bunch
+   * Control track management?  It should be possible to have a note or a bunch
      of note tracks with a bunch of control tracks and control the clutter.
      Ideas: collapse has limited usefulness when there are too many, even with
      color coding.  I could do this with logview: selecting a note track logs
@@ -1267,11 +1268,8 @@ Derive:
      Inst (track 1): fm8/inst1, fm8:0,1,2, [vel {hide 2}, pedal {show 3}]
 
   - set controller within control track?
-  - instrument aliases to make a shorthand for setting instrument, and also
-    setting keyswitch on current instrument
-
-  - reflect derivation back into a block
-  - merge block level changes with derivation
+  * reflect derivation back into a block
+  * merge block level changes with derivation
 
 Perform:
   - damper pedal causes all notes to extend until the pedal comes up, should
@@ -1370,7 +1368,6 @@ planning
 
 research:
   - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
-  - check out Ben Johnston's just notation
 
 future:
   - I need to sync with a DAW but don't want to implement rewire.
