@@ -116,15 +116,30 @@ get_nn_at track_id ps = do
 
 -- * environ
 
--- | Get the scale in scope in a certain track on a certain block, falling
--- back on the track titles and then the default scale.
+-- | Get the scale in scope in a certain track on a certain block.
+--
+-- Unlike the other Environ functions like 'get_key', this looks at the track
+-- titles before falling back on the Environ.  That's because the scale is
+-- needed to make sure note entry uses the right notes, and it's especially
+-- annoying if the first note entry uses the wrong scale.  The Environ for
+-- a newly added note track will always be the default scale, even if
+-- a different scale is below it, because there aren't any events to trigger
+-- inversion.
 get_scale_id :: (Cmd.M m) => BlockId -> Maybe TrackId -> m Pitch.ScaleId
-get_scale_id block_id maybe_track_id =
-    try (State.get_default State.default_scale)
-        =<< try (maybe (return Nothing)
-            (scale_from_titles block_id) maybe_track_id)
-        =<< lookup_val block_id maybe_track_id TrackLang.v_scale
-    where try m = maybe m return
+get_scale_id block_id maybe_track_id = first_just
+    [ maybe (return Nothing) (scale_from_titles block_id) maybe_track_id
+    , lookup_val block_id maybe_track_id TrackLang.v_scale
+    ]
+    (State.get_default State.default_scale)
+
+-- | Try a bunch of actions, and return the first one that is Just, or
+-- fall back on a default.
+-- TODO could go in Util.Control if it's generally useful.
+first_just :: (Monad m) => [m (Maybe a)] -> m a -> m a
+first_just [] deflt = deflt
+first_just (m:ms) deflt = do
+    v <- m
+    maybe (first_just ms deflt) return v
 
 scale_from_titles :: (State.M m) => BlockId -> TrackId
     -> m (Maybe Pitch.ScaleId)

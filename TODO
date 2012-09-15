@@ -171,7 +171,7 @@ UNSORTED
   - There's a zillion things to stitch together for an instrument.
     Add yet more utils in MidiInst to make this easier.
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
-  + a new empty inst with a scale doesn't get the scale right, should fall
+  * a new empty inst with a scale doesn't get the scale right, should fall
     back on looking down the skeleton
     I'm not getting the dynamic from an empty child track, because nothing in
     the parent calls it.
