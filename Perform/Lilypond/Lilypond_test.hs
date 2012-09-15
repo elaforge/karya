@@ -107,7 +107,11 @@ test_clefs = do
     -- Right hand goes in first.
     equal (event_staves events)
         [("1", [[["\\clef bass", "c'2", "\\clef alto", "c'2~"], ["c'1"]]])]
-    -- compile_ly $ fst $ make_ly default_score events
+
+    -- The first clef is moved ahead of rests.
+    let staves = event_staves $ fst $ derive
+            [(">s/1", [(1, 3, "")]), ("*", [(0, 0, "4c")])]
+    equal staves [("1", [[["\\clef treble", "r4", "c'2."]]])]
 
 test_tempo = do
     -- Lilypond derivation is unaffected by the tempo.
@@ -120,7 +124,6 @@ test_tempo = do
     equal logs []
     equal (map extract events)
         [(0, whole), (whole, whole)]
-    -- putStrLn $ fst $ make_ly default_score events
 
 test_trill = do
     let (events, logs) = derive

@@ -504,7 +504,7 @@ lilypond:
   enough to render bloom nicely:
     * arpeggio call should emit arp
     - Why does the cmd have to wait until lilypond is done?  Should be async.
-    - added an extra clef after the first rest
+    * added an extra clef after the first rest
     - staff group should put inst name on the group instead of each staff
     - make sure it supports 5/4
     + add hand annotations to score
