@@ -3,7 +3,6 @@
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond where
 import qualified Control.Monad.State.Strict as State
-import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -130,6 +129,7 @@ data Note = Note {
     , _note_stack :: !(Maybe Stack.UiFrame)
     }
     | Clef String
+    | Key String Mode
     deriving (Show)
 
 rest :: NoteDuration -> Note
@@ -146,10 +146,11 @@ instance ToLily Note where
             _ -> '<' : unwords pitches ++ ">" ++ ly_dur ++ code
         where ly_dur = to_lily dur ++ if tie then "~" else ""
     to_lily (Clef clef) = "\\clef " ++ clef
+    to_lily (Key tonic mode) = "\\key " ++ tonic ++ " \\" ++ mode
 
 note_time :: Note -> Time
 note_time note@(Note {}) = note_dur_to_time (_note_duration note)
-note_time (Clef {}) = 0
+note_time _ = 0
 
 note_stack :: Note -> Maybe Stack.UiFrame
 note_stack note@(Note {}) = _note_stack note
@@ -165,8 +166,8 @@ convert_notes config sig end events = go Nothing 0 events
     go :: Maybe Event -> Time -> [Event] -> [Note]
     go _ prev_end [] = trailing_rests prev_end
     go prev_event prev_end events@(event:_) =
-        mkrests prev_end start ++ clef_change ++ note
-            : go (Just event) (start + allowed_time) (clipped ++ rest)
+        mkrests prev_end start ++ clef_change ++ key_change
+            ++ note : go (Just event) (start + allowed_time) (clipped ++ rest)
         where
         note = Note
             { _note_pitch = map event_pitch here
@@ -180,6 +181,12 @@ convert_notes config sig end events = go Nothing 0 events
             | maybe True ((/= cur) . event_clef) prev_event = [Clef cur]
             | otherwise = []
             where cur = event_clef event
+        key_change
+            | maybe True ((/= cur) . event_key) prev_event,
+                Just (tonic, mode) <- parse_key cur = [Key tonic mode]
+            | otherwise = []
+            where cur = event_key event
+
         (here, rest) = break ((>start) . event_start) events
         end = subtract start $ fromMaybe (event_end event) $
             Seq.minimum (next ++ map event_end here)
@@ -203,6 +210,12 @@ event_clef :: Event -> String
 event_clef event = case TrackLang.lookup_val v_clef (event_environ event) of
     Right val -> val
     _ -> "treble"
+
+event_key :: Event -> Pitch.Key
+event_key event =
+    case TrackLang.lookup_val TrackLang.v_key (event_environ event) of
+        Right val -> Pitch.Key val
+        _ -> Twelve.default_key
 
 -- | Guess a dynamic from the dyn control.
 get_dynamic :: [(Double, String)] -> Double -> String
@@ -356,50 +369,23 @@ measure_duration (TimeSignature num denom) =
 data Score = Score {
     score_title :: String
     , score_time :: TimeSignature
-    -- | (tonic, Mode)
-    , score_key :: (String, Mode)
     } deriving (Show)
 
-data Mode = Major | Minor deriving (Show)
+type Mode = String
 
-meta_ly :: String
-meta_ly = "ly"
-
-meta_title, meta_time_signature :: String
-meta_title = "ly.title"
-meta_time_signature = "ly.time-signature"
--- meta_duration1 = "ly.duration1"
-
--- | This was used by the automatic lilypond derivation, but is no longer
--- used.  TODO remove it someday
-meta_to_score :: Maybe Pitch.Key -> Map.Map String String
-    -> Maybe (Either String Score)
-meta_to_score maybe_score_key meta = case Map.lookup meta_ly meta of
-    Nothing -> Nothing
-    Just _ -> Just $ do
-        score_key <- maybe (Left "key required") return maybe_score_key
-        key <- parse_key score_key
-        time_sig <- parse_time_signature $ get "4/4" meta_time_signature
-        return $ Score
-            { score_title = title
-            , score_time = time_sig
-            , score_key = key
-            }
+parse_key :: Pitch.Key -> Maybe (String, Mode)
+parse_key pkey = do
+    key <- Map.lookup pkey Twelve.all_keys
+    tonic <- either (const Nothing) Just $
+        show_pitch_note (Theory.key_tonic key)
+    mode <- Map.lookup (Theory.key_name key) modes
+    return (tonic, mode)
     where
-    title = get "" meta_title
-    get deflt k = Map.findWithDefault deflt k meta
-
-parse_key :: Pitch.Key -> Either String (String, Mode)
-parse_key key = case Map.lookup key Twelve.all_keys of
-    Nothing -> Left $ "key not found: " ++ show key
-    Just k -> do
-        tonic <- show_pitch_note (Theory.key_tonic k)
-        mode <- case Theory.key_name k of
-            "maj" -> Right Major
-            "min" -> Right Minor
-            -- Actually lilypond supports a few church modes too.
-            mode -> Left $ "unknown mode: " ++ show mode
-        return (tonic, mode)
+    modes = Map.fromList
+        [ ("min", "minor"), ("locrian", "locrian"), ("maj", "major")
+        , ("dorian", "dorian"), ("phrygian", "phrygian"), ("lydian", "lydian")
+        , ("mixo", "mixolydian")
+        ]
 
 parse_time_signature :: String -> Either String TimeSignature
 parse_time_signature sig = do
@@ -494,7 +480,7 @@ show_pitch_note (Theory.Note pc accs) = do
 -- * output
 
 ly_file :: Score -> [StaffGroup] -> ([Text.Text], Cmd.StackMap)
-ly_file (Score title time_sig (key, mode)) staff_groups = run_output $ do
+ly_file (Score title time_sig) staff_groups = run_output $ do
     outputs
         [ "\\version" <+> str "2.14.2"
         , "\\language" <+> str "english"
@@ -516,15 +502,13 @@ ly_file (Score title time_sig (key, mode)) staff_groups = run_output $ do
             mapM_ (ly_staff inst) staves
             output ">>\n"
     ly_staff inst (Staff measures) = do
-        output $ "\\new Staff { "
-            <+> "{ \\key" <+> Text.pack key <+> "\\"
-                <> Text.pack (map Char.toLower (show mode))
+        output $ "\\new Staff {"
             <+> "\\time" <+> Text.pack (to_lily time_sig) <> "\n"
         output $ "\\set Staff.instrumentName =" <+> str (inst_name inst)
             <> "\n\\set Staff.shortInstrumentName =" <+> str (inst_name inst)
             <> "\n{\n"
         mapM_ show_measures (zip [0, 4 ..] (group 4 measures))
-        output "} } }\n"
+        output "} }\n"
     -- Show 4 measures per line and comment with the measure number.
     show_measures (num, measures) = do
         output "  "

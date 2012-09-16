@@ -19,8 +19,6 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
-import qualified Perform.Pitch as Pitch
-
 import Types
 
 
@@ -104,7 +102,6 @@ test_clefs = do
             , ("*", [(0, 0, "4c")])
             ]
     equal logs []
-    -- Right hand goes in first.
     equal (event_staves events)
         [("1", [[["\\clef bass", "c'2", "\\clef alto", "c'2~"], ["c'1"]]])]
 
@@ -112,6 +109,16 @@ test_clefs = do
     let staves = event_staves $ fst $ derive
             [(">s/1", [(1, 3, "")]), ("*", [(0, 0, "4c")])]
     equal staves [("1", [[["\\clef treble", "r4", "c'2."]]])]
+
+test_key = do
+    let (events, logs) = derive
+            [ (">s/1 | key = 'a-mixo'", [(0, 2, ""), (2, 2, "key = 'c-maj' |")])
+            , ("*", [(0, 0, "4c")])
+            ]
+    equal logs []
+    equal (event_staves events)
+        [("1", [[["\\clef treble", "\\key a \\mixolydian", "c'2",
+            "\\key c \\major", "c'2"]]])]
 
 test_tempo = do
     -- Lilypond derivation is unaffected by the tempo.
@@ -138,13 +145,13 @@ test_trill = do
     -- putStrLn $ fst $ make_ly default_score events
 
 default_score :: Lilypond.Score
-default_score = make_score "c-maj" "4/4"
+default_score = make_score "4/4"
 
 -- * util
 
-compile_ly :: String -> IO ()
-compile_ly score = do
-    writeFile "build/test/test.ly" score
+compile_ly :: [Lilypond.Event] -> IO ()
+compile_ly events = do
+    writeFile "build/test/test.ly" (fst (make_ly default_score events))
     void $ Process.rawSystem
         "lilypond" ["-o", "build/test/test", "build/test/test.ly"]
 
@@ -158,16 +165,13 @@ read_note text
     Just dur = flip Lilypond.NoteDuration False <$>
         Lilypond.read_duration dur_text
 
-make_score :: String -> String -> Lilypond.Score
-make_score key_str time_sig =
-    either (error . ("make_score: " ++)) id $ do
-        key <- Lilypond.parse_key (Pitch.Key key_str)
-        tsig <- Lilypond.parse_time_signature time_sig
-        return $ Lilypond.Score
-            { Lilypond.score_title = "title"
-            , Lilypond.score_time = tsig
-            , Lilypond.score_key = key
-            }
+make_score :: String -> Lilypond.Score
+make_score time_sig = either (error . ("make_score: " ++)) id $ do
+    tsig <- Lilypond.parse_time_signature time_sig
+    return $ Lilypond.Score
+        { Lilypond.score_title = "title"
+        , Lilypond.score_time = tsig
+        }
 
 mkevent :: (RealTime, RealTime, String) -> Lilypond.Event
 mkevent (start, dur, pitch) = mkevent_inst (start, dur, pitch, "")
