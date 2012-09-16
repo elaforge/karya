@@ -9,7 +9,6 @@ module Util.Control (
     , concatMapM, mapMaybeM
     , mapMaybe, fromMaybe
 
-    -- , finally
     , justm
     , fmap0
 
@@ -106,15 +105,9 @@ mapMaybeM f as = go as
     go [] = return []
     go (a:as) = maybe (go as) (\b -> liftM (b:) (go as)) =<< f a
 
--- -- | Finally a finally for MonadError.
--- finally :: (Error.MonadError e m) => m a -> m () -> m a
--- finally action handler =
---     Error.catchError (action >>= \v -> handler >> return v) $
---         \exc -> handler >> Error.throwError exc
-
--- | This is sort of like a monad transformer, but the Maybe is on the inside
--- instead of the outside.
+-- | Run the second action only if the first action returns Just.
 --
--- What I really want here is MaybeT, but it requres explicit lifting...
+-- This is like MaybeT, but using MaybeT itself required lots of annoying
+-- explicit lifting.
 justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
 justm op1 op2 = maybe (return Nothing) op2 =<< op1
