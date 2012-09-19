@@ -103,12 +103,15 @@ test_clefs = do
             ]
     equal logs []
     equal (event_staves events)
-        [("1", [[["\\clef bass", "c'2", "\\clef alto", "c'2~"], ["c'1"]]])]
+        [ ("1",
+            [[["\\clef bass", "\\key c \\major", "c'2", "\\clef alto",
+                "c'2~"], ["c'1"]]])
+        ]
 
-    -- The first clef is moved ahead of rests.
+    -- The first clef and key are moved ahead of rests.
     let staves = event_staves $ fst $ derive
             [(">s/1", [(1, 3, "")]), ("*", [(0, 0, "4c")])]
-    equal staves [("1", [[["\\clef treble", "r4", "c'2."]]])]
+    equal staves [("1", [[["\\clef treble", "\\key c \\major", "r4", "c'2."]]])]
 
 test_key = do
     let (events, logs) = derive
@@ -203,8 +206,6 @@ derive tracks = (ly_events, extract_logs logs)
         Derive.r_events (derive_ly tracks)
     extract_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio
 
--- TODO use Cmd.Lilypond.derive instead?
--- derive :: (Cmd.M m) => BlockId -> m Derive.Result
 derive_ly :: [UiTest.TrackSpec] -> Derive.Result
 derive_ly = DeriveTest.derive_tracks_with_ui
     (Derive.with_val TrackLang.v_lilypond_derive "true")
@@ -218,15 +219,18 @@ make_ly score events = (strip texts, stack_map)
 
 -- ** staves
 
-event_staves :: [Lilypond.Event] -> [(String, [[[String]]])]
+-- | (title, [Staff]) where Staff = [Measure] where Measure = [String]
+type StaffGroup = (String, [[[String]]])
+
+event_staves :: [Lilypond.Event] -> [StaffGroup]
 event_staves = map extract_staff . derive_staves default_score
 
-event_staves_pitches :: [Lilypond.Event] -> [(String, [[[String]]])]
-event_staves_pitches = map (second filter_clefs) . event_staves
+event_staves_pitches :: [Lilypond.Event] -> [StaffGroup]
+event_staves_pitches = map (second filter_annotations) . event_staves
     where
-    filter_clefs = map $ map $ filter (not . ("\\clef " `List.isPrefixOf`))
+    filter_annotations = map $ map $ filter (not . ("\\" `List.isPrefixOf`))
 
-extract_staff :: Lilypond.StaffGroup -> (String, [[[String]]])
+extract_staff :: Lilypond.StaffGroup -> StaffGroup
 extract_staff (Lilypond.StaffGroup inst staves) =
     (Lilypond.inst_name inst, map extract staves)
     where

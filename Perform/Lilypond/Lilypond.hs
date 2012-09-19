@@ -433,14 +433,16 @@ staff_group config time_sig end inst events =
             | otherwise -> 2
         _ -> 0
     measures events = split_measures time_sig
-        (promote_clef (convert_notes config time_sig end events))
-    -- Normally a clef change goes right before the note with the changed clef.
-    -- But if it's the first clef, it should go before any rests.
-    promote_clef notes = case break is_clef notes of
-        (pre, clef@(Clef _) : rest) | all is_rest pre -> clef : pre ++ rest
-        _ -> notes
-    is_clef (Clef {}) = True
-    is_clef _ = False
+        (promote (convert_notes config time_sig end events))
+    -- Normally clef or key changes go right before the note with the changed
+    -- status.  But if there are leading rests, the annotations should go at
+    -- the beginning of the score.
+    promote notes = annots ++ pre ++ rest
+        where
+        (pre, post) = span is_rest notes
+        (annots, rest) = span is_annot post
+    is_annot (Note {}) = False
+    is_annot _ = True
 
 round_up :: (Integral a) => a -> a -> a
 round_up interval n
