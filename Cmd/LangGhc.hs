@@ -15,6 +15,7 @@ import Control.Monad
 import System.FilePath ((</>))
 
 import qualified Data.IORef as IORef
+import qualified Data.List as List
 
 -- GHC imports
 #if __GLASGOW_HASKELL__ == 70
@@ -38,9 +39,6 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.ParseBs as ParseBs
 
-
--- TODO A lot of symbols moved to the GHC API in 7.4.1, when I switch I can
--- remove the direct imports of internal modules.
 
 -- | The actual session runs in another thread, so this is the communication
 -- channel.  @(expr, namespace, response_mvar)@
@@ -67,26 +65,14 @@ interpret (Session chan) _local_modules ui_state _cmd_state expr = do
 ghci_flags :: FilePath
 ghci_flags = BUILD_DIR </> "ghci-flags"
 
--- load .o:
--- target <- GHC.guessTarget fname Nothing (phase)
---
--- guessTarget appears to only be for haskell modules
--- look at Target: Target { targetId :: TargetId, targetAllowObjCode = ?,
---      targetContents = Nothing }
---      TargetId: TargetFile fpath Nothing
---
--- Main.hs does: mapM_ (consIORef v_Ld_inputs) (reverse objs)
--- TODO using objTarget below causes it to silently not link anything.  Am
--- I losing a warning?
-
 interpreter :: Session -> IO ()
 interpreter (Session chan) = do
     GHC.parseStaticFlags []  -- not sure if this is necessary
-    -- let ofile = "build/test/obj/Util/Git/libgit_wrappers.cc.o"
-    -- let objTarget = GHC.Target (GHC.TargetFile ofile Nothing) False Nothing
-    -- IORef.modifyIORef GHC.v_Ld_inputs ("hi":)
     flags <- Exception.try (readFile ghci_flags)
-    args <- case flags of
+    -- Ghc moved .o to dyn flags, but I'll have to wait for 7.8, or make a .a
+    -- and use -l.
+    let is_obj fn = BUILD_DIR `List.isPrefixOf` fn && ".o" `List.isSuffixOf` fn
+    args <- filter (not . is_obj) <$>  case flags of
         Left (exc :: Exception.SomeException) -> do
             Log.error $ "error reading ghci flags from "
                 ++ show ghci_flags ++ ": " ++ show exc
@@ -94,15 +80,11 @@ interpreter (Session chan) = do
             return []
         Right flags -> return $ words flags
 
-    -- run :: GHC.DynFlags -> Ghc a -> Ghc a
-    -- run dflags = GHC.defaultErrorHandler dflags
-    --          . GHC.defaultCleanupHandler dflags
     GHC.runGhcT (Just GHC.Paths.libdir) $ do
         parse_flags args
-        -- Otherwise I get
+        -- obj_allowed must be False, otherwise I get
         -- Cannot add module Cmd.Lang.Environ to context: not interpreted
         GHC.setTargets $ [make_target False toplevel]
-        -- GHC.setTargets $ objTarget : [make_target True toplevel]
         (result, logs, warns) <- reload
         case result of
             Left err -> liftIO $
@@ -116,7 +98,7 @@ interpreter (Session chan) = do
                 _ -> normal_cmd namespace expr
                     `GHC.gcatch` \(exc :: Exception.SomeException) ->
                         -- set_context throws if the reload failed.
-                        return $ return $  "Exception: " ++ show exc
+                        return $ return $ "Exception: " ++ show exc
             liftIO $ MVar.putMVar return_mvar result
     where
     toplevel = "Cmd.Lang.Environ"
