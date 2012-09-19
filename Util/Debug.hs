@@ -9,6 +9,7 @@ module Util.Debug (
 ) where
 import qualified Control.Monad.Trans as Trans
 import qualified Debug.Trace as Trace
+import qualified System.IO as IO
 
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
@@ -55,13 +56,18 @@ tracesM msg = Trace.trace msg (return ())
 -- These are like putStrLn, but more easily greppable.
 
 puts :: (Trans.MonadIO m) => String -> m ()
-puts = Trans.liftIO . putStrLn . (prefix++)
+puts = put_line . (prefix++)
 
 put :: (Trans.MonadIO m, Show a) => String -> a -> m ()
-put msg = Trans.liftIO . putStrLn . (with_msg msg) . pshow
+put msg = put_line . (with_msg msg) . pshow
 
 putp :: (Trans.MonadIO m, Pretty.Pretty a) => String -> a -> m ()
-putp msg = Trans.liftIO . putStrLn . (with_msg msg) . Pretty.formatted
+putp msg = put_line . (with_msg msg) . Pretty.formatted
+
+put_line :: (Trans.MonadIO m) => String -> m ()
+put_line s = Trans.liftIO $ do
+    putStrLn s
+    IO.hFlush IO.stdout
 
 
 -- * implementation
