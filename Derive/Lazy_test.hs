@@ -106,7 +106,7 @@ test_cache = do
     let ustate = mkblock 10
         derive cache damage = do
             (log, deriver) <- with_logging $
-                Call.Block.eval_root_block (UiTest.bid "top")
+                Call.Block.eval_root_block "" (UiTest.bid "top")
             return (log, DeriveTest.derive_cache cache damage ustate deriver)
     (log, res1) <- derive mempty mempty
     equal (extract_start res1) (map (Left . RealTime.seconds) [0..10])
@@ -206,7 +206,7 @@ test_1_note_deriver = do
 
 test_2_root = do
     let ustate = flat_block 20
-    (log, deriver) <- with_logging $ Block.eval_root_block default_block_id
+    (log, deriver) <- with_logging $ Block.eval_root_block "" default_block_id
     let result = DeriveTest.run_ ustate deriver
     print $ extract_run 5 result
     evaluated <- get_log log

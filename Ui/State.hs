@@ -23,7 +23,7 @@ module Ui.State (
     , empty, clear
     -- * config
     , Config(..)
-    , namespace, project_dir, root, midi, default_
+    , namespace, project_dir, root, midi, global_transform, default_
     , Default(..)
     , scale, key, instrument, tempo
     , empty_config, empty_default
@@ -220,6 +220,7 @@ empty_config = Config
     , config_project_dir = "save"
     , config_root = Nothing
     , config_midi = Instrument.config []
+    , config_global_transform = ""
     , config_default = empty_default
     }
 

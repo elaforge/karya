@@ -34,6 +34,7 @@ data Config = Config {
 
     -- | This maps the midi instruments used in this State to their Addrs.
     , config_midi :: !Instrument.Config
+    , config_global_transform :: !String
     , config_default :: !Default
     } deriving (Eq, Read, Show, Generics.Typeable)
 
@@ -42,6 +43,8 @@ project_dir =
     Lens.lens config_project_dir (\v r -> r { config_project_dir = v })
 root = Lens.lens config_root (\v r -> r { config_root = v })
 midi = Lens.lens config_midi (\v r -> r { config_midi = v })
+global_transform = Lens.lens config_global_transform
+    (\v r -> r { config_global_transform = v })
 default_ = Lens.lens config_default (\v r -> r { config_default = v })
 
 -- | Initial values for derivation.
@@ -65,12 +68,13 @@ instrument = Lens.lens default_instrument (\v r -> r { default_instrument = v })
 tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 
 instance Pretty.Pretty Config where
-    format (Config namespace dir root midi default_) =
+    format (Config namespace dir root midi global_transform default_) =
         Pretty.record_title "Config"
             [ ("namespace", Pretty.format namespace)
             , ("project_dir", Pretty.format dir)
             , ("root", Pretty.format root)
             , ("midi", Pretty.format midi)
+            , ("global_transform", Pretty.format global_transform)
             , ("default", Pretty.format default_)
             ]
 

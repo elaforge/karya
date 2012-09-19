@@ -3,6 +3,7 @@ module Cmd.Lang.LState where
 import qualified Control.Monad.Trans as Trans
 import qualified System.IO as IO
 
+import Util.Control
 import qualified Util.PPrint as PPrint
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -29,6 +30,12 @@ set_default_inst inst = State.modify_default $ \d ->
 set_default_scale :: String -> Cmd.CmdL ()
 set_default_scale scale = State.modify_default $ \d ->
     d { State.default_scale = Pitch.ScaleId scale }
+
+set_global_transform :: String -> Cmd.CmdL ()
+set_global_transform = State.modify . (State.config#State.global_transform #=)
+
+get_global_transform :: Cmd.CmdL String
+get_global_transform = State.config#State.global_transform <#> State.get
 
 -- * transform
 

@@ -37,15 +37,28 @@ note_calls = Derive.make_calls
     , (BlockUtil.capture_null_control, c_capture_null_control)
     ]
 
+-- * root block
+
 -- | Evaluate the root block in a performance.  Making this an ordinary call
 -- means it participates in the derive cache just like all other calls.
---
--- TODO put global postproc here, like negative duration
-eval_root_block :: BlockId -> Derive.EventDeriver
+eval_root_block :: String -> BlockId -> Derive.EventDeriver
     -- Derive.d_tempo does a bit of magic to stretch all blocks to length 1,
     -- except the root one.  The root block should operate in real time, so
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
-eval_root_block block_id = Call.eval_one_call $ call_from_block_id block_id
+eval_root_block global_transform block_id =
+    apply_transform "global transform" global_transform $
+        Call.eval_one_call $ call_from_block_id block_id
+
+apply_transform :: String -> String -> Derive.EventDeriver
+    -> Derive.EventDeriver
+apply_transform name expr_str deriver = do
+    expr <- case ParseBs.parse_expr (ParseBs.from_string expr_str) of
+        Left err -> Derive.throw $ name ++ ": " ++ err
+        Right expr -> return expr
+    let transform = if null expr_str then id
+            else Call.apply_transformer info (NonEmpty.toList expr)
+        info = (Call.note_dinfo, Derive.dummy_call_info 0 1 name)
+    transform deriver
 
 -- * note block calls
 
@@ -77,18 +90,12 @@ d_block block_id = do
     title <- case Map.lookup block_id blocks of
         Nothing -> Derive.throw $ "block_id not found"
         Just block -> return $ Block.block_title block
-    expr <- case ParseBs.parse_expr (ParseBs.from_string title) of
-        Left err -> Derive.throw $ "block title: " ++ err
-        Right expr -> return expr
-    deriver <- Derive.eval_ui ("d_block " ++ show block_id)
-        (BlockUtil.note_deriver block_id)
-
-    let transform = if null title then id
-            else Call.apply_transformer info (NonEmpty.toList expr)
-        info = (Call.note_dinfo, Derive.dummy_call_info 0 1 "block title")
-    -- Record a dependency on this block.
-    Internal.add_block_dep block_id
-    transform deriver
+    apply_transform "block title" title $ do
+        -- Record a dependency on this block.
+        Internal.add_block_dep block_id
+        deriver <- Derive.eval_ui ("d_block " ++ show block_id)
+            (BlockUtil.note_deriver block_id)
+        deriver
 
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> TrackLang.Call

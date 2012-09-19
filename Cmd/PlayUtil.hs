@@ -64,9 +64,10 @@ clear_cache block_id = Cmd.modify_play_state $ \st -> st
 -- | Derive the contents of the given block to score events.
 derive :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage -> BlockId
     -> m Derive.Result
-derive cache damage block_id =
+derive cache damage block_id = do
+    global_transform <- State.config#State.global_transform <#> State.get
     Derive.extract_result <$> run cache damage
-        (Call.Block.eval_root_block block_id)
+        (Call.Block.eval_root_block global_transform block_id)
 
 run :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage
     -> Derive.Deriver a -> m (Derive.RunResult a)

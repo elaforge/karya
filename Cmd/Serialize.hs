@@ -123,8 +123,8 @@ instance Serialize State.State where
             _ -> Serialize.bad_version "State.State" v
 
 instance Serialize State.Config where
-    put (State.Config a b c d e) = Serialize.put_version 0
-        >> put a >> put b >> put c >> put d >> put e
+    put (State.Config a b c d e f) = Serialize.put_version 1
+        >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
         v <- Serialize.get_version
         case v of
@@ -134,7 +134,15 @@ instance Serialize State.Config where
                 root :: Maybe BlockId <- get
                 midi :: Instrument.Config <- get
                 defaults :: State.Default <- get
-                return $ State.Config ns dir root midi defaults
+                return $ State.Config ns dir root midi [] defaults
+            1 -> do
+                ns :: Id.Namespace <- get
+                dir :: String <- get
+                root :: Maybe BlockId <- get
+                midi :: Instrument.Config <- get
+                transform :: String <- get
+                defaults :: State.Default <- get
+                return $ State.Config ns dir root midi transform defaults
             _ -> Serialize.bad_version "State.Config" v
 
 instance Serialize State.Default where

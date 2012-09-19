@@ -3,8 +3,9 @@ UNSORTED
     * postproc
     - ensure inversion works (it should slice >start <=end)
     - ensure redraw works
-    - implement global postproc
-  - If I add a State Default global transformer string I can resolve negative
+      I have to make SymbolTable wrap text above too.
+    * implement global postproc
+  * If I add a State Default global transformer string I can resolve negative
     durations globally.  This is a string that's prepended to any derivation.
   - arpeggio up arrow separated from its wiggle
   * new track to the left of a collapsed track should open to its right
