@@ -169,7 +169,9 @@ place :: ScoreTime -> ScoreTime -> Event -> Event
 place pos dur event = modified $ event { start = pos, duration = dur }
 
 set_duration :: ScoreTime -> Event -> Event
-set_duration dur event = modified $ event { duration = dur }
+set_duration dur event
+    | dur /= duration event = modified $ event { duration = dur }
+    | otherwise = event
 
 modify_duration :: (ScoreTime -> ScoreTime) -> Event -> Event
 modify_duration f evt = set_duration (f (duration evt)) evt

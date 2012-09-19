@@ -15,7 +15,7 @@ import qualified Derive.Stack as Stack
 
 -- * LEvent
 
-data LEvent derived = Event !derived | Log !Log.Msg
+data LEvent a = Event !a | Log !Log.Msg
     deriving (Read, Show)
 
 instance Functor LEvent where
@@ -44,7 +44,7 @@ format_msg msg = Pretty.fsep
         Nothing -> Pretty.text "[]"
         Just stack -> Stack.format_ui (Stack.from_strings stack)
 
-event :: LEvent derived -> Maybe derived
+event :: LEvent a -> Maybe a
 event (Event d) = Just d
 event _ = Nothing
 
@@ -55,6 +55,11 @@ is_event _ = False
 either :: (d -> a) -> (Log.Msg -> a) -> LEvent d -> a
 either f1 _ (Event event) = f1 event
 either _ f2 (Log log) = f2 log
+
+find :: (a -> Bool) -> [LEvent a] -> Maybe a
+find _ [] = Nothing
+find f (Log _ : rest) = find f rest
+find f (Event event : rest) = if f event then Just event else find f rest
 
 events_of :: [LEvent d] -> [d]
 events_of [] = []
@@ -78,7 +83,7 @@ map_state state f (Log log : rest) = Log log : map_state state f rest
 map_state state f (Event event : rest) = Event event2 : map_state state2 f rest
     where (event2, state2) = f state event
 
-instance (DeepSeq.NFData derived) => DeepSeq.NFData (LEvent derived) where
+instance (DeepSeq.NFData a) => DeepSeq.NFData (LEvent a) where
     rnf (Event event) = DeepSeq.rnf event
     rnf (Log msg) = DeepSeq.rnf msg
 
