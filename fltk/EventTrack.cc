@@ -701,7 +701,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         if (event.is_negative()) {
             // I think this should be next_ranked_rect, but that's too much of
             // a bother to get.
-            draw_text = text_rect.x >= prev_offset;
+            draw_text = text_rect.y >= prev_offset;
             if (rank && text_rect.intersects(prev_unranked_rect))
                 draw_text = false;
         } else {
