@@ -271,20 +271,6 @@ insert_track track_id tracknum = do
     State.insert_track block_id tracknum
         (Block.track (Block.TId track_id ruler_id) Config.track_width)
 
--- * time
-
-sel_to_real :: Cmd.CmdL [RealTime]
-sel_to_real = do
-    (block_id, _, track_id, pos) <- Selection.get_insert
-    tempo <- Cmd.perf_tempo <$> Cmd.get_performance block_id
-    return $ tempo block_id track_id pos
-
--- * show / modify keymap
-
--- TODO
--- | Run the Cmd that is bound to the given KeySpec, if there is one.
--- keymap :: Keymap.KeySpec -> Cmd.CmdL ()
-
 -- Modify global keymap
 
 -- | Called from the browser.

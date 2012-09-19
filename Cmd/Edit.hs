@@ -411,6 +411,16 @@ cmd_modify_octave :: (Cmd.M m) => (Pitch.Octave -> Pitch.Octave) -> m ()
 cmd_modify_octave f = Cmd.modify_edit_state $ \st -> st
     { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
 
+-- | Toggle the note duration between the end of the block, and the current
+-- time step.
+toggle_note_duration :: (Cmd.M m) => m ()
+toggle_note_duration = do
+    dur <- Cmd.gets $ Cmd.state_note_duration . Cmd.state_edit
+    step <- Cmd.gets $ Cmd.state_time_step . Cmd.state_edit
+    Cmd.modify_edit_state $ \st ->
+        st { Cmd.state_note_duration = if dur == to_end then step else to_end }
+    where to_end = TimeStep.step TimeStep.BlockEnd
+
 
 -- * recent note
 

@@ -48,6 +48,12 @@ environ = do
     (block_id, _, track_id, _) <- Selection.get_insert
     Perf.get_environ block_id (Just track_id)
 
+sel_to_real :: Cmd.CmdL [RealTime]
+sel_to_real = do
+    (block_id, _, track_id, pos) <- Selection.get_insert
+    tempo <- Cmd.perf_tempo <$> get block_id
+    return $ tempo block_id track_id pos
+
 -- * derive
 
 -- These are mostly for testing, to find problems in performer output.
