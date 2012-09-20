@@ -87,10 +87,10 @@ kendang_tunggal =
     , (Note "+." (de <> thumb)   'c' 1.0, Key.f2)
     , (Note "o"  tut             'v' 1.0, Key.c3)
     , (Note "."  (ka <> soft)    'b' 0.3, Key.g3)
-    , (Note "+/" (de <> muted)   'n' 1.0, Key.c1)
     -- This should be rarely used, but '.' should definitely be soft, but
     -- if it is there is no way to emit a normal 'ka'.
     , (Note ".."  ka             'n' 1.0, Key.g3)
+    , (Note "+/" (de <> muted)   'm' 1.0, Key.c1)
     ] ++ map (flip (,) Kebot)
     [ (Note "T"  pang            'q' 1.0, Key.g4)
     , (Note "P"  pak             'w' 1.0, Key.c5)
