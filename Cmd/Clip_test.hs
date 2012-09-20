@@ -56,6 +56,7 @@ run_sel state cmd strack spos ctrack cpos = e_tracks UiTest.default_block_id $
         cmd
 
 test_paste_past_block_end = do
+    -- Events pasted past the end of the block are clipped off.
     let state = mkstate [("t1", [])] clip_tracks
         run = run_sel state Clip.cmd_paste_overwrite
     equal (run 1 0 1 0) $ Right [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
@@ -64,36 +65,36 @@ test_paste_past_block_end = do
     equal (run 1 end 1 end) $ Right [("t1", [])]
 
 test_cmd_paste_overwrite = do
-    let state = mkstate [track1, track2] clip_tracks
-        run = run_sel state Clip.cmd_paste_overwrite
+    let run state = run_sel state Clip.cmd_paste_overwrite
+    let f = run (mkstate [track1, track2] clip_tracks)
 
     -- From sel onwards replaced by clipboard.
-    equal (run 1 1 1 1) $ Right
+    equal (f 1 1 1 1) $ Right
         [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"), (8, 2, "e13")])
         , track2
         ]
     -- Second track isn't overwritten because clip has no second track.
     -- So this is the same as above.
-    equal (run 1 1 2 1) $ Right
+    equal (f 1 1 2 1) $ Right
         [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"), (8, 2, "e13")])
         , track2
         ]
     -- Only replace the second event, since clipboard is clipped to sel.
-    equal (run 1 1 1 4) $ Right
+    equal (f 1 1 1 4) $ Right
         [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (4, 2, "e12"), (8, 2, "e13")])
         , track2
         ]
     -- Pasted events are clipped to the selection.
-    equal (run 1 2 1 7) $ Right
+    equal (f 1 2 1 7) $ Right
         [ ("t1", [(0, 2, "e11"), (2, 2, "c1"), (6, 1, "c2"), (8, 2, "e13")])
         , track2
         ]
-    -- TODO test pasting in two tracks
 
     -- A point selection will paste a zero dur event.
-    let empty = mkstate [("t1", [])] [("t1", [(0, 0, "e")])]
-        run = run_sel empty Clip.cmd_paste_overwrite
-    equal (run 1 1 1 1) $ Right [("t1", [(1, 0, "e")])]
+    let f = run (mkstate [("t1", [])] [("t1", [(0, 0, "e")])])
+    equal (f 1 1 1 1) $ Right [("t1", [(1, 0, "e")])]
+    let f = run (mkstate [("t1", [])] [("t1", [(0, 0, "a"), (1, 0, "b")])])
+    equal (f 1 1 1 1) $ Right [("t1", [(1, 0, "a"), (2, 0, "b")])]
 
 test_cmd_paste_merge = do
     let state = mkstate [track1, track2] clip_tracks

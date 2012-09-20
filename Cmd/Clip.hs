@@ -304,5 +304,7 @@ get_paste_area = do
     let clip_track_ids =
             take (length tracknums) (Block.block_track_ids clip_block)
     clip_end <- State.block_event_end clip_block_id
+    -- If start==end, I have to set the end past the end of the clip in case
+    -- the last event has dur 0.
     return (track_ids, clip_track_ids, start,
-        min block_end $ if start == end then start + clip_end else end)
+        min block_end $ if start == end then start + clip_end + 1 else end)

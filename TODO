@@ -1,4 +1,6 @@
 UNSORTED
+  * paste is not pasting the last 0-dur event
+  - the dyn track of the kendang is getting kendang notes
   revive negative duration
     * postproc
     - ensure inversion works (it should slice >start <=end)
