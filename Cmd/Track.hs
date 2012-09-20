@@ -27,7 +27,8 @@ track_cmd msg = do
 -- | Get cmds according to the currently focused block and track.
 get_track_cmds :: Cmd.CmdId [Cmd.Cmd]
 get_track_cmds = do
-    -- No track cmds if the track type can't be determined.
+    -- If this fails, it means the the track type can't be determined and there
+    -- will be no track cmds.
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
     maybe_track_id <- State.event_track_at block_id tracknum
@@ -57,9 +58,11 @@ get_track_cmds = do
 lookup_instrument_cmds :: (Cmd.M m) => BlockId -> TrackId
     -> m (Maybe [Cmd.Cmd])
 lookup_instrument_cmds block_id track_id =
-    justm (Perf.lookup_instrument block_id (Just track_id)) $ \inst ->
-    justm (Cmd.lookup_instrument_info inst) $ \info ->
-    return $ Just $ Cmd.inst_cmds (MidiDb.info_code info)
+    ifM (not . TrackInfo.is_note_track <$> State.get_track_title track_id)
+    (return Nothing) $
+        justm (Perf.lookup_instrument block_id (Just track_id)) $ \inst ->
+        justm (Cmd.lookup_instrument_info inst) $ \info ->
+        return $ Just $ Cmd.inst_cmds (MidiDb.info_code info)
 
 -- | Cmds that use InputNotes, and hence must be called with
 -- 'NoteEntry.cmds_with_note'.
