@@ -82,52 +82,46 @@ void t1_set()
     StyleId style = 0;
     StyleId style2 = 1;
 
-    e.push_back(EventInfo(0,
-        Event(ScoreTime(0), ScoreTime(16), "`mordent`", style)));
-    e.push_back(EventInfo(0,
-        Event(ScoreTime(16), ScoreTime(16), "a`tamil-i``xie`", style)));
-    e.push_back(EventInfo(0,
-        Event(ScoreTime(32), ScoreTime(4), "`nosym`", style)));
-    e.push_back(EventInfo(0,
-        Event(ScoreTime(36), ScoreTime(4), "overlap", style)));
-    e.push_back(EventInfo(0,
-        Event(ScoreTime(44), ScoreTime(4), "6--", style)));
-    e.push_back(EventInfo(0,
-        Event(ScoreTime(50), ScoreTime(4), "mis`match", style)));
-    e.push_back(EventInfo(0,
-        Event(ScoreTime(128), ScoreTime(64), "`0x`ff", style2)));
-    // coincident with rank 0
-    e.push_back(EventInfo(1,
-        Event(ScoreTime(128), ScoreTime(8), "bg1", style)));
-    // overlaps with rank 0
-    e.push_back(EventInfo(1,
-        Event(ScoreTime(160), ScoreTime(8), "bg2", style)));
-    e.push_back(EventInfo(1,
-        Event(ScoreTime(164), ScoreTime(8), "bg2.5", style)));
-    // coincedent with end of rank 0
-    e.push_back(EventInfo(1,
-        Event(ScoreTime(128+64), ScoreTime(0), "bg3", style)));
-    // doesn't overlap rank 0
-    e.push_back(EventInfo(0,
-        Event(ScoreTime(230), ScoreTime(0), "bg4", style)));
-
-    /*
-    for (int i = 0; i < 100; i++) {
-        char buf[32];
-        sprintf(buf, "e%d", i);
-        e.push_back(EventInfo(1,
-            Event(ScoreTime(i*8), ScoreTime(8), strdup(buf), style)));
-    }
-    */
-
     if (arrival_beats) {
-        for (size_t i = 0; i < e.size(); i++) {
-            ScoreTime p = e[i].event.start;
-            ScoreTime dur = e[i].event.duration;
-            e[i].event.start = p + dur;
-            e[i].event.duration = -dur;
-        }
-        std::sort(e.begin(), e.end());
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(8), ScoreTime(-8), "a", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(16), ScoreTime(-8), "b", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(24), ScoreTime(-8), "c", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(32), ScoreTime(-8), "d", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(40), ScoreTime(-8), "e", style)));
+    } else {
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(0), ScoreTime(16), "`arp-down`", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(16), ScoreTime(16), "a`tamil-i``xie`", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(32), ScoreTime(4), "`nosym`", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(36), ScoreTime(4), "overlap", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(44), ScoreTime(4), "6--", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(50), ScoreTime(4), "mis`match", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(128), ScoreTime(64), "`0x`ff", style2)));
+        // coincident with rank 0
+        e.push_back(EventInfo(1,
+            Event(ScoreTime(128), ScoreTime(8), "bg1", style)));
+        // overlaps with rank 0
+        e.push_back(EventInfo(1,
+            Event(ScoreTime(160), ScoreTime(8), "bg2", style)));
+        e.push_back(EventInfo(1,
+            Event(ScoreTime(164), ScoreTime(8), "bg2.5", style)));
+        // coincedent with end of rank 0
+        e.push_back(EventInfo(1,
+            Event(ScoreTime(128+64), ScoreTime(0), "bg3", style)));
+        // doesn't overlap rank 0
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(230), ScoreTime(0), "bg4", style)));
     }
 }
 
@@ -361,9 +355,9 @@ main(int argc, char **argv)
 
     if (draw_lots_of_stuff) {
         view.block.insert_track(0, Tracklike(&ruler), 20);
-        // view.block.insert_track(1, Tracklike(&divider), 10);
         view.block.insert_track(1, Tracklike(&empty_track, &truler), 60);
         view.block.insert_track(2, Tracklike(&track1, &truler), 130);
+
         view.block.insert_track(3, Tracklike(&track2, &truler), 40);
         view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
         view.block.insert_track(5, Tracklike(&track2, &truler), 80);
@@ -466,11 +460,10 @@ main(int argc, char **argv)
     t->insert("mordent", SymbolTable::Symbol(
         SymbolTable::Glyph("\xee\x86\x8c", music, 4, DPoint(0, 0))));
     t->insert("arp-up", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xee\x86\x8a", music, 8, DPoint(-.14, -.62), 0),
+        SymbolTable::Glyph("\xee\x86\x8a", music, 8, DPoint(-.14, -.25), 0),
         SymbolTable::Glyph("\xee\x86\x8e", music, 4, DPoint(0, 0), 90)));
-
     t->insert("arp-down", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xee\x86\x89", music, 8, DPoint(-.14, .25), 0),
+        SymbolTable::Glyph("\xee\x86\x89", music, 8, DPoint(-.14, .5), 0),
         SymbolTable::Glyph("\xee\x86\x8e", music, 4, DPoint(0, 0), 90)));
 
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2

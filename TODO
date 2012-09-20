@@ -9,7 +9,7 @@ UNSORTED
     * implement global postproc
   * If I add a State Default global transformer string I can resolve negative
     durations globally.  This is a string that's prepended to any derivation.
-  - arpeggio up arrow separated from its wiggle
+  * arpeggio up arrow separated from its wiggle
   * new track to the left of a collapsed track should open to its right
   * cmd-b aborts: (vid "kendang/b06.v01") already exists
   * block-from-template analogue for tracks: add new tracks with same title

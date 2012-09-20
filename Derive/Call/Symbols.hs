@@ -21,9 +21,9 @@ staff_symbols =
     , symbol "mordent2" "\xe18e"
     , symbol "rmordent2" "\xe18f"
     , Symbol.symbol "arp-up"
-        [arp, Symbol.glyph_at 8 (-0.14, -0.62) arp_arrow_up]
+        [arp, Symbol.glyph_at 8 (-0.14, -0.25) arp_arrow_up]
     , Symbol.symbol "arp-down"
-        [arp, Symbol.glyph_at 8 (-0.14, 0.25) arp_arrow_down]
+        [arp, Symbol.glyph_at 8 (-0.14, 0.5) arp_arrow_down]
     , symbol "ped" "\xe1b7"
     ]
     where
