@@ -1,12 +1,8 @@
 UNSORTED
   * paste is not pasting the last 0-dur event
   * the dyn track of the kendang is getting kendang notes
-  revive negative duration
-    * postproc
-    - ensure inversion works (it should slice >start <=end)
-    - ensure redraw works
-      I have to make SymbolTable wrap text above too.
-    * implement global postproc
+  * "has no tempo information" error should print out any logs
+    Repro: put an error in the global transformer.
   * If I add a State Default global transformer string I can resolve negative
     durations globally.  This is a string that's prepended to any derivation.
   * arpeggio up arrow separated from its wiggle
@@ -552,6 +548,19 @@ lilypond:
     Hung up on getting preview to send clicks to a program, notes in
     App/LilypondClick.hs
     * StackMap can be just char pos
+
+negative duration / arrival beats:
+  - Figure out how arrival works with controls.  It's most natural for
+    a pitch for a call to go at the end of the call, but for that to work
+    negative dur controls have to extend to their *previous* note.  Seems
+    like this requires a flag on the control to use a different Signal.at.
+    But that's not right for normal notes, whose pitch really does extend
+    afterwards.
+  * postproc
+  - ensure inversion works (it should slice >start <=end)
+  - ensure redraw works
+    I have to make SymbolTable wrap text above too.
+  * implement global postproc
 
 external
   - chorded keys are not getting the proper pitch bend

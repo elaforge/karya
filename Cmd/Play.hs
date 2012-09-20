@@ -82,6 +82,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
@@ -90,6 +91,7 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
 import Types
@@ -131,7 +133,13 @@ cmd_play transport_info block_id (start_track, start_pos) = do
 
     perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
-    start <- Perf.get_realtime perf block_id start_track start_pos
+    maybe_start <- Perf.lookup_realtime perf block_id start_track start_pos
+    start <- case maybe_start of
+        Nothing -> do
+            -- Otherwise we don't get to see why it failed.
+            mapM_ Log.write $ LEvent.logs_of (Cmd.perf_events perf)
+            Cmd.throw $ "play " ++ show block_id ++ " has no tempo information"
+        Just start -> return start
     multiplier <- gets Cmd.state_play_multiplier
     msgs <- PlayUtil.shift_messages multiplier start <$>
         PlayUtil.perform_from start perf
