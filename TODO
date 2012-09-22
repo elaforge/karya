@@ -643,10 +643,10 @@ cleanup:
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved
     more than once.
-  - get rid of Perform.SignalBase and do something about the code
+  * get rid of Perform.SignalBase and do something about the code
     duplication between PitchSignal and Signal
-    - port SignalBase to vector
-    - port Perform.Signal to Util.TimeVector
+    * port SignalBase to vector
+    * port Perform.Signal to Util.TimeVector
     If I want an unpacked TimeVector then I need to abstract out the way
     to unpack it.
     I should use Data.Vector.Storable since I want to pass the data to C++,

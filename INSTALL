@@ -6,7 +6,6 @@ transformers mtl deepseq data-ordlist cereal text stm network
 attoparsec # Derive: tracklang parsing
 fixed-list-0.1.5 # Derive.Call.Util: for typesafe mapping
 mersenne-random-pure64 hashable random-shuffle # Derive: score randomization
-storablevector # control signals (drags in: QuickCheck utility-ht non-negative)
 vector # pitch signals
 dlist # Perform.SignalBase
 bindings-dsl # Util.Git.LibGit2

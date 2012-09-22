@@ -4,7 +4,6 @@
 -- have to produce structs as expected by C.
 module Perform.SignalStorable where
 import Foreign
-import qualified Perform.SignalBase as SignalBase
 import qualified Perform.RealTime as RealTime
 
 
@@ -13,7 +12,7 @@ import qualified Perform.RealTime as RealTime
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 
-instance Storable (SignalBase.X, Double) where
+instance Storable (RealTime.RealTime, Double) where
     sizeOf _ = #size ControlSample
     alignment _ = #{alignment ControlSample}
     poke sp (time, val) = do
