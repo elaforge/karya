@@ -60,7 +60,7 @@ UNSORTED
     / remove exports ReadDevice and WriteDevice from Midi.Midi
       Still buggy, asked on ghc-users
     - get rid of ld -r hack in shakefile, since new ghcs do that automatically
-    - experiment again with replacing storablevector with vector, since it
+    * experiment again with replacing storablevector with vector, since it
       optimizes it better
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
     say 'r' was an unknown suffix
@@ -520,8 +520,7 @@ lilypond:
     - possibly support voices, should be able to do it the same as hand
       splitting
   - make rhythm spelling work properly for non-duple meters
-  - also support compound meters, e.g. 5/4 as 3+2 or 2+3
-  - make rhythm spelling work for compound meters
+  - support compound meters, e.g. 5/4 as 3+2 or 2+3
   - get pitches right, and keep the enharmonics
   lilypond-specific derive:
     * put a key in the environ and calls can use it to add an attr
@@ -556,6 +555,7 @@ negative duration / arrival beats:
     like this requires a flag on the control to use a different Signal.at.
     But that's not right for normal notes, whose pitch really does extend
     afterwards.
+    Perhaps it needs to be via integration.
   * postproc
   - ensure inversion works (it should slice >start <=end)
   - ensure redraw works

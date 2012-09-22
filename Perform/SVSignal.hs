@@ -1,15 +1,17 @@
-{-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE TypeSynonymInstances, EmptyDataDecls #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
-{- | Sample values are doubles, which means each point in the signal is 8*2
+{- | Instantiation of "Perform.SignalBase" for control signals.
+
+    Sample values are doubles, which means each point in the signal is 8*2
     bytes.  The double resolution is overkill for the value, but float would
-    be too small for time given the time stretching.
+    be too small for time given the time stretching mentioned above.
 
     TODO split this into Float and Double versions since only Warp really
     needs Double.  Or does Warp really need Double?
 -}
-module Perform.Signal2 (
+module Perform.SVSignal (
     -- * types
-    Signal, sig_vec
+    Signal(Signal), sig_vec
     , X, Y, x_to_y, y_to_real, y_to_score, y_to_nn, nn_to_y
     , tempo_srate
 
@@ -42,49 +44,67 @@ module Perform.Signal2 (
     , pitches_share
 ) where
 import qualified Prelude
-import Prelude hiding (last, length, null, take, truncate)
+import Prelude hiding (take, last, truncate, length, null)
+import qualified Control.Arrow as Arrow
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
+import qualified Data.StorableVector as V
+import qualified Data.StorableVector.Base as StorableVector.Base
+
 import qualified Foreign
 import qualified Text.Read as Read
 
-import Util.Control hiding (first)
+import Util.Control ((<>))
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.TimeVector as V
 
 import qualified Midi.Midi as Midi
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import qualified Perform.SignalBase as SignalBase
+import Perform.SignalStorable ()
+
 import Types
 
 
 -- * types
 
--- These are boxed, I want unboxed.
-newtype Signal y = Signal { sig_vec :: V.Unboxed }
-    deriving (DeepSeq.NFData, Pretty.Pretty, Eq)
+newtype Signal y = Signal { sig_vec :: SignalBase.SigVec Y }
+    -- The Eq instance is only for tests, since it may be quite expensive on
+    -- a real signal.
+    deriving (Eq, DeepSeq.NFData)
 
 instance Show (Signal y) where
-    show (Signal vec) = "Signal " ++ show (V.unsignal vec)
+    show (Signal vec) = "Signal " ++ show (SignalBase.unsignal vec)
 instance Read.Read (Signal y) where
     readPrec = do
         Pretty.read_word
         vec <- Read.readPrec
-        return $ Signal (V.signal vec)
+        return (Signal (SignalBase.signal vec))
+
+instance Pretty.Pretty (Signal y) where
+    format = Pretty.format_commas '<' '>' . map sample . unsignal
+        where
+        sample (x, y) = Pretty.format x <> Pretty.char ':' <> Pretty.format y
+
+instance SignalBase.Y Y where
+    zero_y = 0
+    to_double = id
 
 instance Monoid.Monoid (Signal y) where
     mempty = empty
     mappend s1 s2 = Monoid.mconcat [s1, s2]
     mconcat = merge
 
-type X = V.X
-type Y = Double
-
-modify_vec :: (V.Unboxed -> V.Unboxed) -> Signal y -> Signal y
+modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y)
+    -> Signal y0 -> Signal y1
 modify_vec f = Signal . f . sig_vec
+
+type X = SignalBase.X
+type Y = Double
+instance SignalBase.Signal Y
 
 -- | This is the type of performer-interpreted controls that go into the
 -- event's control map.
@@ -151,15 +171,14 @@ zero = signal [(0, 0)]
 tempo_srate :: X
 tempo_srate = RealTime.seconds 0.1
 
-
 -- * construction / deconstruction
 
 signal :: [(X, Y)] -> Signal y
-signal = Signal . V.signal
+signal ys = Signal (SignalBase.signal ys)
 
 -- | The inverse of the 'signal' function.
 unsignal :: Signal y -> [(X, Y)]
-unsignal = V.unsignal . sig_vec
+unsignal = SignalBase.unsignal . sig_vec
 
 constant :: Y -> Signal y
 constant n = signal [(0, n)]
@@ -174,46 +193,32 @@ null = V.null . sig_vec
 coerce :: Signal y0 -> Signal y1
 coerce (Signal vec) = Signal vec
 
-with_ptr :: Display -> (Foreign.Ptr (V.Sample Double) -> Int -> IO a) -> IO a
-with_ptr sig f = V.with_ptr (sig_vec sig) $ \sigp ->
-    f sigp (V.length (sig_vec sig))
+with_ptr :: Display -> (Foreign.Ptr (X, Y) -> Int -> IO a) -> IO a
+with_ptr = StorableVector.Base.withStartPtr . sig_vec
 
 -- * access
 
-at :: X -> Signal y -> Y
-at x sig = fromMaybe 0 $ V.at x (sig_vec sig)
-
-at_linear :: X -> Signal y -> Y
-at_linear x sig =
-    interpolate x (sig_vec sig) (V.highest_index x (sig_vec sig))
-    where
-    interpolate x vec i
-        | V.null vec = 0
-        | i + 1 >= V.length vec = y0
-        | i < 0 = 0
-        | otherwise = V.y_at x0 y0 x1 y1 x
-        where
-        (x0, y0) = V.to_pair $ V.index vec i
-        (x1, y1) = V.to_pair $ V.index vec (i+1)
+at, at_linear :: X -> Signal y -> Y
+at x sig = SignalBase.at x (sig_vec sig)
+at_linear x sig = SignalBase.at_linear x (sig_vec sig)
 
 is_constant :: Signal y -> Bool
-is_constant sig = case V.viewL (sig_vec sig) of
+is_constant (Signal vec) = case V.viewL vec of
     Nothing -> True
-    Just (V.Sample x0 y0, rest)
-        | x0 == 0 -> V.all ((==y0) . V.sy) rest
-        | otherwise -> V.all ((==0) . V.sy) (sig_vec sig)
+    Just ((x0, y0), rest)
+        | x0 == 0 -> V.all ((==y0) . snd) rest
+        | otherwise -> V.all ((==0) . snd) vec
 
 first :: Signal y -> Maybe (X, Y)
-first = fmap V.to_pair . V.head . sig_vec
+first = fmap fst . V.viewL . sig_vec
 
 last :: Signal y -> Maybe (X, Y)
-last = fmap V.to_pair . V.last . sig_vec
-
+last = fmap snd . V.viewR . sig_vec
 
 -- * transformation
 
 merge :: [Signal y] -> Signal y
-merge = Signal . V.merge . map sig_vec
+merge = Signal . SignalBase.merge . map sig_vec
 
 sig_add, sig_subtract, sig_multiply :: Control -> Control -> Control
 sig_add = sig_op (+)
@@ -245,15 +250,15 @@ clip_bounds :: Signal y -> (Signal y, [(X, X)])
 clip_bounds sig = (clipped, reverse out_of_range)
     where
     clipped = if Prelude.null out_of_range then sig
-        else map_y (Num.clamp low high) sig
+        else Signal $ V.map (Arrow.second (Num.clamp low high)) (sig_vec sig)
     (ranges, in_clip) = V.foldl' go ([], Nothing) (sig_vec sig)
     out_of_range = case (in_clip, last sig) of
         (Just start, Just (end, _)) -> (start, end) : ranges
         _ -> ranges
-    go state@(accum, Nothing) (V.Sample x y)
+    go state@(accum, Nothing) (x, y)
         | y < low || y > high = (accum, Just x)
         | otherwise = state
-    go state@(accum, Just start) (V.Sample x y)
+    go state@(accum, Just start) (x, y)
         | y < low || y > high = state
         | otherwise = ((start, x) : accum, Nothing)
     low = 0
@@ -261,7 +266,7 @@ clip_bounds sig = (clipped, reverse out_of_range)
 
 shift :: X -> Signal y -> Signal y
 shift 0 = id
-shift x = modify_vec (V.shift x)
+shift x = modify_vec (SignalBase.shift x)
 
 scale :: Y -> Signal y -> Signal y
 scale mult vec
@@ -273,19 +278,20 @@ take :: Int -> Signal y -> Signal y
 take = modify_vec . V.take
 
 truncate :: X -> Signal y -> Signal y
-truncate = modify_vec . V.truncate
+truncate x = modify_vec (SignalBase.truncate x)
 
 drop_before :: X -> Signal y -> Signal y
-drop_before = modify_vec . V.drop_before
+drop_before x = modify_vec (SignalBase.drop_before x)
 
 map_x :: (X -> X) -> Signal y -> Signal y
-map_x = modify_vec . V.map_x
+map_x f = modify_vec (SignalBase.map_x f)
 
 map_y :: (Y -> Y) -> Signal y -> Signal y
-map_y = modify_vec . V.map_y
+map_y f = modify_vec (SignalBase.map_y f)
 
 sig_op :: (Y -> Y -> Y) -> Signal y -> Signal y -> Signal y
-sig_op op sig0 sig1 = Signal $ V.sig_op 0 op (sig_vec sig0) (sig_vec sig1)
+sig_op op sig0 sig1 =
+    Signal (SignalBase.sig_op op (sig_vec sig0) (sig_vec sig1))
 
 -- ** special functions
 
@@ -293,7 +299,7 @@ sig_op op sig0 sig1 = Signal $ V.sig_op 0 op (sig_vec sig0) (sig_vec sig1)
 -- non-decreasing.
 --
 -- Unlike the other signal functions, this takes a single Y instead of
--- a signal, and as a RealTime.  This is because it's used by the play updater
+-- a signal, and as a Timestamp.  This is because it's used by the play updater
 -- for the inverse tempo map, and the play updater polls on intervals defined
 -- by IO latency, so even when signals are lazy it would be impossible to
 -- generate the input signal without unsafeInterleaveIO.  If I really want to
@@ -305,24 +311,15 @@ inverse_at :: RealTime -> Warp -> Maybe X
 inverse_at pos sig
     | i >= V.length vec = Nothing
     | y1 == y = Just x1
-    | otherwise = Just $ V.x_at x0 y0 x1 y1 y
+    | otherwise = Just $ y_to_real $
+        SignalBase.x_at (x_to_y x0) y0 (x_to_y x1) y1 y
     where
     vec = sig_vec sig
     y = x_to_y pos
-    i = bsearch_y y vec
+    i = SignalBase.bsearch_on vec snd y
         -- This can create x0==x1, but y1 should == y in that case.
-    V.Sample x0 y0 = if i-1 < 0 then V.Sample 0 0 else V.index vec (i-1)
-    V.Sample x1 y1 = V.index vec i
-
-bsearch_y :: Y -> V.Unboxed -> Int
-bsearch_y y vec = go vec 0 (V.length vec)
-    where
-    go vec low high
-        | low == high = low
-        | y <= V.sy (V.unsafeIndex vec mid) = go vec low mid
-        | otherwise = go vec (mid+1) high
-        where mid = (low + high) `div` 2
-
+    (x0, y0) = if i-1 < 0 then (0, 0) else V.index vec (i-1)
+    (x1, y1) = V.index vec i
 
 -- | Compose the first signal with the second.
 --
@@ -344,8 +341,8 @@ bsearch_y y vec = go vec 0 (V.length vec)
 --
 -- TODO Wait, what if the warps don't line up at 0?  Does that happen?
 compose :: Warp -> Warp -> Warp
-compose f g = Signal $ V.map_y go (sig_vec g)
-    where go y = at_linear (y_to_real y) f
+compose f g = Signal $ SignalBase.map_y go (sig_vec g)
+    where go y = SignalBase.at_linear (y_to_real y) (sig_vec f)
     -- TODO Walking down f would be more efficient, especially once Signal is
     -- lazy.
 
@@ -364,15 +361,15 @@ compose f g = Signal $ V.map_y go (sig_vec g)
 -- is enough.  To this end, the tempo track deriver in "Derive.Control" has
 -- a hack to ensure a sample at the end of the track.
 integrate :: X -> Tempo -> Warp
-integrate srate = coerce . modify_vec (V.concat_map_accum 0 go final 0)
+integrate srate = modify_vec (SignalBase.concat_map_accum go final 0)
     where
     go accum x0 y0 x1 y1 = integrate_segment srate accum x0 y0 x1 y1
-    final accum (V.Sample x _) = [V.Sample x accum]
+    final accum (x, _) = [(x, accum)]
 
-integrate_segment :: X -> Y -> X -> Y -> X -> Y -> (Y, [V.Sample Y])
+integrate_segment :: X -> Y -> X -> Y -> X -> Y -> (Y, [(X, Y)])
 integrate_segment srate accum x0 y0 x1 _y1
     | x0 >= x1 = (accum, [])
-    | otherwise = (y_at x1, [V.Sample x (y_at x) | x <- xs])
+    | otherwise = (y_at x1, [(x, y_at x) | x <- xs])
     where
     xs = Seq.range' x0 x1 srate
     y_at x = accum + x_to_y (x-x0) * y0
@@ -401,16 +398,16 @@ pitches_share in_decay start end initial0 sig0 initial1 sig1
     | otherwise = all pitch_eq ((start, at start sig0, at start sig1)
         : (end, at end sig0, at end sig1) : samples)
     where
-    in0 = V.within start end (sig_vec sig0)
-    in1 = V.within start end (sig_vec sig1)
+    in0 = SignalBase.within start end (sig_vec sig0)
+    in1 = SignalBase.within start end (sig_vec sig1)
     -- I need to sample points from start to end, including the start and the
     -- end.  Unfortunately it's not as simple as it seems it should be,
     -- especially since this function is a hotspot and must be efficient.
     --
-    -- V.within may return samples before start to get the proper
+    -- SignalBase.within may return samples before start to get the proper
     -- value so I have to drop them before testing.  Start itself is tested
     -- explicitly above.
     samples = dropWhile (\(t, _, _) -> t <= start) $
-        V.resample_to_list 0 in0 in1
+        SignalBase.resample_to_list in0 in1
     pitch_eq (_, ay, by) = floor ((ay - Midi.from_key initial0) * 1000)
         == floor ((by - Midi.from_key initial1) * 1000)

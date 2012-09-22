@@ -8,7 +8,7 @@ module Util.TimeVector (
     , Sample(..)
     , module Data.Vector.Generic
 ) where
-import Prelude hiding (head, last, truncate)
+import Prelude hiding (head, last, take, truncate)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.DList as DList
 import qualified Data.Vector as Vector
@@ -53,6 +53,10 @@ to_foreign_ptr :: (Storable.Storable a) =>
     Storable.Vector a -> (Foreign.ForeignPtr a, Int)
 to_foreign_ptr = Storable.unsafeToForeignPtr0
 
+with_ptr :: (Storable.Storable a) =>
+    Storable.Vector a -> (Foreign.Ptr a -> IO b) -> IO b
+with_ptr = Storable.unsafeWith
+
 -- * implementation
 
 index :: (V.Vector v a) => v a -> Int -> a
@@ -73,6 +77,8 @@ viewL v
 
 -- ** TimeVector specific
 
+{-# INLINEABLE signal #-}
+{-# SPECIALIZE signal :: [(X, Double)] -> Unboxed #-}
 signal :: (V.Vector v (Sample y)) => [(X, y)] -> v (Sample y)
 signal = V.fromList . map (uncurry Sample)
 
@@ -106,6 +112,8 @@ merge vecs = V.unfoldrN len go vecs
 
 -- | Find the value of the signal at the X value.  Nothing if the X is before
 -- the first sample.
+{-# INLINEABLE at #-}
+{-# SPECIALIZE at :: X -> Unboxed -> Maybe Double #-}
 at :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Maybe y
 at x vec
     | i >= 0 = Just $ sy (V.unsafeIndex vec i)
@@ -120,14 +128,19 @@ shift offset vec
 
 -- | Truncate a signal.  It's just a view of the old signal, so it
 -- doesn't allocate a new signal.
+{-# SPECIALIZE truncate :: X -> Unboxed -> Unboxed #-}
 truncate :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 truncate x vec = fst $ V.splitAt (bsearch_x x vec) vec
+
+take :: (V.Vector v a) => Int -> v a -> v a
+take = V.take
 
 -- | The dual of 'truncate'.  Trim a signal's head up until, but not including,
 -- the given X.  If there is no sample at @x@, keep one sample before it to
 -- preserve the value at @x@.
 --
 -- As with 'truncate', this doesn't do any copying.
+{-# SPECIALIZE drop_before :: X -> Unboxed -> Unboxed #-}
 drop_before :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 drop_before x vec
     | i < V.length vec && sx (V.unsafeIndex vec i) == x =
@@ -201,6 +214,7 @@ x_at x0 y0 x1 y1 y
 
 -- | A version of 'bsearch_on' specialized to search X.  Profiling says
 -- this gets called a lot and apparently the specialization makes a difference.
+{-# SPECIALIZE bsearch_x :: X -> Unboxed -> Int #-}
 bsearch_x :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
 bsearch_x x vec = go vec 0 (V.length vec)
     where
@@ -213,6 +227,7 @@ bsearch_x x vec = go vec 0 (V.length vec)
 -- | Return the highest index of the given X.  So the next value is
 -- guaranteed to have a higher x, if it exists.  Return -1 if @x@ is before
 -- the first element.
+{-# SPECIALIZE highest_index :: X -> Unboxed -> Int #-}
 highest_index :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Int
 highest_index x vec
     | V.null vec = -1
@@ -220,6 +235,7 @@ highest_index x vec
     where i = bsearch_above x vec
 
 -- | This gets the index of the value *after* @x@.
+{-# SPECIALIZE bsearch_above :: X -> Unboxed -> Int #-}
 bsearch_above :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Int
 bsearch_above x vec = go vec 0 (V.length vec)
     where
