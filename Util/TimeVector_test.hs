@@ -65,6 +65,8 @@ test_drop_before = do
 
 test_sig_op = do
     let f vec0 vec1 = unsignal $ V.sig_op 0 (+) (signal vec0) (signal vec1)
+    equal (f [(1, 1)] []) [(1, 1)]
+    equal (f [] [(1, 1)]) [(1, 1)]
     equal (f [(0, 0), (2, 2), (4, 0)] [(0, 1)])
         [(0, 1), (2, 3), (4, 1)]
     equal (f [(0, 0), (2, 2), (4, 0)] [(1, 1), (3, 0)])

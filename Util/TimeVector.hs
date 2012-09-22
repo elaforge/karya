@@ -157,12 +157,25 @@ map_x f = V.map $ \(Sample x y) -> Sample (f x) y
 map_y :: (V.Vector v (Sample y)) => (y -> y) -> v (Sample y) -> v (Sample y)
 map_y f = V.map $ \(Sample x y) -> Sample x (f y)
 
+{-# SPECIALIZE sig_op :: Double -> (Double -> Double -> Double)
+    -> Unboxed -> Unboxed -> Unboxed #-}
+{-# INLINEABLE sig_op #-}
 sig_op :: (V.Vector v (Sample y)) =>
     y -> (y -> y -> y) -> v (Sample y) -> v (Sample y) -> v (Sample y)
-sig_op zero f vec0 vec1 = V.fromList
-    -- TODO This inefficiently unpacks to a list and back.  Later implement
-    -- a resample that doesn't unpack.
-    [Sample x (f y0 y1) | (x, y0, y1) <- resample_to_list zero vec0 vec1]
+sig_op zero f vec1 vec2 = V.unfoldr go (zero, zero, 0, 0)
+    where
+    go (prev_ay, prev_by, i1, i2)
+        | i1 >= len1 && i2 >= len2 = Nothing
+        | i1 >= len1 = Just (Sample bx (f prev_ay by), (prev_ay, by, i1, i2+1))
+        | i2 >= len2 = Just (Sample ax (f ay prev_by), (ay, prev_by, i1+1, i2))
+        | ax == bx = Just (Sample ax (f ay by), (ay, by, i1+1, i2+1))
+        | ax < bx = Just (Sample ax (f ay prev_by), (ay, prev_by, i1+1, i2))
+        | otherwise = Just (Sample bx (f prev_ay by), (prev_ay, by, i1, i2+1))
+        where
+        Sample ax ay = V.unsafeIndex vec1 i1
+        Sample bx by = V.unsafeIndex vec2 i2
+    len1 = V.length vec1
+    len2 = V.length vec2
 
 resample_to_list :: (V.Vector v (Sample y)) =>
     y -> v (Sample y) -> v (Sample y) -> [(X, y, y)]
@@ -176,19 +189,6 @@ resample prev_ay prev_by as@((ax, ay) : rest_a) bs@((bx, by) : rest_b)
     | ax == bx = (ax, ay, by) : resample ay by rest_a rest_b
     | ax < bx = (ax, ay, prev_by) : resample ay prev_by rest_a bs
     | otherwise = (bx, prev_ay, by) : resample prev_ay by as rest_b
-
--- ** unfinished
-
-sig_op_fast :: (V.Vector v (Sample y)) =>
-    (y -> y -> y) -> v (Sample y) -> v (Sample y) -> v (Sample y)
-sig_op_fast f vec0 vec1 = V.zipWith merge r0 r1
-    where
-    (r0, r1) = resample_vectors vec0 vec1
-    merge (Sample x y0) (Sample _ y1) = Sample x (f y0 y1)
-
-resample_vectors :: (V.Vector v (Sample y)) =>
-    v (Sample y) -> v (Sample y) -> (v (Sample y), v (Sample y))
-resample_vectors vec0 vec1 = undefined
 
 -- * util
 
