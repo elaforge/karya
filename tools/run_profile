@@ -27,6 +27,9 @@ fi
 
 basename=$(basename $run_profile[1])
 out=prof
+if whence ps2pdf; then
+    has_ps2pdf=t
+fi
 
 flags=(
     # time profiling
@@ -64,8 +67,13 @@ for prof in $profiles; do
     runghc tools/Columnize.hs <$basename.prof >$stem.prof
     rm $basename.prof
     if [[ -e $stem.hp ]]; then
-        echo $stem.pdf
-        hp2ps -b -c <$stem.hp | ps2pdf - - >$stem.pdf
+        if [[ -n $has_ps2pdf ]]; then
+            echo $stem.pdf
+            hp2ps -b -c <$stem.hp | ps2pdf - - >$stem.pdf
+        else
+            echo $stem.ps
+            hp2ps -b -c <$stem.hp >$stem.ps
+        fi
     fi
 done
 
