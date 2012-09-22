@@ -1,8 +1,10 @@
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
--- | Storable instances for the signal values.  The Storable instances are
--- used both by storablevector and when the signals are copied to C, so they
--- have to produce structs as expected by C.
-module Perform.SignalStorable where
+-- | Storable instances for unboxed TimeVector values, declared separately to
+-- avoid an hsc dependence for TimeVector.
+--
+-- The Storable instances are used both by vector and when the signals are
+-- copied to C, so they have to produce structs as expected by C.
+module Util.TimeVectorStorable where
 import Foreign
 import qualified Perform.RealTime as RealTime
 
@@ -11,8 +13,9 @@ import qualified Perform.RealTime as RealTime
 -- See comment in BlockC.hsc.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
+type X = RealTime.RealTime
 
-instance Storable (RealTime.RealTime, Double) where
+instance Storable (X, Double) where
     sizeOf _ = #size ControlSample
     alignment _ = #{alignment ControlSample}
     poke sp (time, val) = do
@@ -35,6 +38,6 @@ instance Storable (Sample Double) where
         return $ Sample time val
 
 data Sample y = Sample {
-    sx :: {-# UNPACK #-} !RealTime.RealTime
+    sx :: {-# UNPACK #-} !X
     , sy :: !y
     } deriving (Read, Show, Eq)

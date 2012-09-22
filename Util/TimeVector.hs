@@ -5,7 +5,7 @@
 -}
 module Util.TimeVector (
     module Util.TimeVector
-    , Sample(..)
+    , module Util.TimeVectorStorable
     , module Data.Vector.Generic
 ) where
 import Prelude hiding (head, last, take, truncate)
@@ -20,10 +20,8 @@ import qualified Foreign
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Perform.RealTime as RealTime
-import Perform.SignalStorable (Sample(..))
+import Util.TimeVectorStorable (X, Sample(..))
 
-
-type X = RealTime.RealTime
 
 x_to_double :: X -> Double
 x_to_double = RealTime.to_seconds
