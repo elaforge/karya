@@ -164,18 +164,27 @@ sig_op :: (V.Vector v (Sample y)) =>
     y -> (y -> y -> y) -> v (Sample y) -> v (Sample y) -> v (Sample y)
 sig_op zero f vec1 vec2 = V.unfoldr go (zero, zero, 0, 0)
     where
-    go (prev_ay, prev_by, i1, i2)
-        | i1 >= len1 && i2 >= len2 = Nothing
-        | i1 >= len1 = Just (Sample bx (f prev_ay by), (prev_ay, by, i1, i2+1))
-        | i2 >= len2 = Just (Sample ax (f ay prev_by), (ay, prev_by, i1+1, i2))
-        | ax == bx = Just (Sample ax (f ay by), (ay, by, i1+1, i2+1))
-        | ax < bx = Just (Sample ax (f ay prev_by), (ay, prev_by, i1+1, i2))
-        | otherwise = Just (Sample bx (f prev_ay by), (prev_ay, by, i1, i2+1))
-        where
-        Sample ax ay = V.unsafeIndex vec1 i1
-        Sample bx by = V.unsafeIndex vec2 i2
+    go (prev_ay, prev_by, i1, i2) =
+        case resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
+            Nothing -> Nothing
+            Just (x, ay, by, i1, i2) ->
+                Just (Sample x (f ay by), (ay, by, i1, i2))
     len1 = V.length vec1
     len2 = V.length vec2
+
+{-# INLINE resample1 #-}
+resample1 :: (V.Vector v (Sample y)) => y -> y -> Int -> Int -> Int -> Int
+    -> v (Sample y) -> v (Sample y) -> Maybe (X, y, y, Int, Int)
+resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2
+    | i1 >= len1 && i2 >= len2 = Nothing
+    | i1 >= len1 = Just (bx, prev_ay, by, i1, i2+1)
+    | i2 >= len2 = Just (ax, ay, prev_by, i1+1, i2)
+    | ax == bx = Just (ax, ay, by, i1+1, i2+1)
+    | ax < bx = Just (ax, ay, prev_by, i1+1, i2)
+    | otherwise = Just (bx, prev_ay, by, i1, i2+1)
+    where
+    Sample ax ay = V.unsafeIndex vec1 i1
+    Sample bx by = V.unsafeIndex vec2 i2
 
 resample_to_list :: (V.Vector v (Sample y)) =>
     y -> v (Sample y) -> v (Sample y) -> [(X, y, y)]

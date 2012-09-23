@@ -285,7 +285,7 @@ map_y :: (Y -> Y) -> Signal y -> Signal y
 map_y = modify_vec . V.map_y
 
 sig_op :: (Y -> Y -> Y) -> Signal y -> Signal y -> Signal y
-sig_op op sig0 sig1 = Signal $ V.sig_op 0 op (sig_vec sig0) (sig_vec sig1)
+sig_op op sig1 sig2 = Signal $ V.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
 
 -- ** special functions
 
@@ -381,36 +381,48 @@ integrate_segment srate accum x0 y0 x1 _y1
 
 -- | Can the pitch signals share a channel within the given range?
 --
--- This operates on control signals, not PitchSignals.  By the time this is
--- called, the PitchSignal has been converted to a regular Signal.
---
 -- Pitch is complicated.  Like other controls, if the pitch curves are
 -- different they may not share a channel.  However, if the pitch curves
 -- are integral transpositions of each other, and the transposition is not
 -- 0, they should share.  Unless the overlap occurs during the decay of one or
 -- both notes, at which point 0 transposition is ok.
 --
--- TODO this is actually a MIDI notion, so it should go in Perform.Midi
+-- This is actually a MIDI notion, so it should normally go in Perform.Midi,
+-- but it fusses around with signal internals for efficiency.
 --
 -- This function will be confused by multiple samples at the same time, so
 -- don't do that.
 pitches_share :: Bool -> X -> X
     -> Midi.Key -> NoteNumber -> Midi.Key -> NoteNumber -> Bool
-pitches_share in_decay start end initial0 sig0 initial1 sig1
-    | not in_decay && initial0 == initial1 = False
-    | otherwise = all pitch_eq ((start, at start sig0, at start sig1)
-        : (end, at end sig0, at end sig1) : samples)
+pitches_share in_decay start end initial1 sig1 initial2 sig2
+    | not in_decay && initial1 == initial2 = False
+    | otherwise = pitch_eq (at start sig1) (at start sig2)
+        && pitch_eq (at end sig1) (at end sig2)
+        && signals_share start initial1 initial2 in1 in2
     where
-    in0 = V.within start end (sig_vec sig0)
     in1 = V.within start end (sig_vec sig1)
-    -- I need to sample points from start to end, including the start and the
-    -- end.  Unfortunately it's not as simple as it seems it should be,
-    -- especially since this function is a hotspot and must be efficient.
-    --
-    -- V.within may return samples before start to get the proper
-    -- value so I have to drop them before testing.  Start itself is tested
-    -- explicitly above.
-    samples = dropWhile (\(t, _, _) -> t <= start) $
-        V.resample_to_list 0 in0 in1
-    pitch_eq (_, ay, by) = floor ((ay - Midi.from_key initial0) * 1000)
-        == floor ((by - Midi.from_key initial1) * 1000)
+    in2 = V.within start end (sig_vec sig2)
+    pitch_eq = nns_share initial1 initial2
+
+-- I need to sample points from start to end, including the start and the end.
+-- Unfortunately it's not as simple as it seems it should be, especially since
+-- this function is a hotspot and must be efficient.
+--
+-- V.within may return samples before start to get the proper value so I ignore
+-- samples before the start.  Start itself is tested explicitly above.
+signals_share :: X -> Midi.Key -> Midi.Key -> V.Unboxed -> V.Unboxed -> Bool
+signals_share start initial1 initial2 vec1 vec2 = go 0 0 0 0
+    where
+    go prev_ay prev_by i1 i2 =
+        case V.resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
+            Nothing -> True
+            Just (x, ay, by, i1, i2) ->
+                (x <= start || pitch_eq ay by) && go ay by i1 i2
+    len1 = V.length vec1
+    len2 = V.length vec2
+    pitch_eq = nns_share initial1 initial2
+
+nns_share :: Midi.Key -> Midi.Key -> Y -> Y -> Bool
+nns_share initial1 initial2 nn1 nn2 =
+    floor ((nn1 - Midi.from_key initial1) * 1000)
+        == floor ((nn2 - Midi.from_key initial2) * 1000)
