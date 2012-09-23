@@ -555,7 +555,18 @@ negative duration / arrival beats:
     like this requires a flag on the control to use a different Signal.at.
     But that's not right for normal notes, whose pitch really does extend
     afterwards.
-    Perhaps it needs to be via integration.
+
+    Currently, if I want to set pitch or control for a call, I have to put the
+    control slightly after the start of the call, so it encompasses the call
+    but not the note before.  That's awkward.
+
+    If -0 dur control points go from >start <=end, then the pitch has to go
+    at the end of the event (earlier in time), which is even more awkward.
+
+    I think the controls have to go at the note's start, and have to logically
+    extend backwards to the note's end.  That means I can't write anything
+    other than a straight pitch because the actual sounding note is implicit.
+    So it has to be via integration
   * postproc
   - ensure inversion works (it should slice >start <=end)
   - ensure redraw works

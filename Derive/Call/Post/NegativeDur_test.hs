@@ -49,3 +49,21 @@ test_negative_duration = do
         , (6, 2, "--11"), (6, deflt, "--21"), (8, deflt, "--12")
         ]
     equal logs []
+
+-- test_slice = do
+--     let extract = DeriveTest.extract DeriveTest.e_note2
+--     let (events, logs) = extract $ DeriveTest.derive_blocks
+--             [ ("root",
+--                 [ ("> | negative-duration", [(2, -2, "sub"), (4, -2, "sub")])
+--                 , ("*", [(0, 0, "4c"), (2, 0, "4e")])
+--                 ])
+--             , ("sub",
+--                 [ (">", [(1, -1, ""), (2, -1, "")])
+--                 , ("t-diatonic", [(1, -0, "1"), (2, -0, "0")])
+--                 ])
+--             ]
+--     equal logs []
+--     equal events
+--         [ (1, 1, "4d"), (2, 1, "4c")
+--         , (3, 1, "4f"), (4, 1, "4e")
+--         ]
