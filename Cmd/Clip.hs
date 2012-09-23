@@ -180,7 +180,7 @@ cmd_paste_insert = do
 -- | Paste the clipboard, but stretch or compress it to fit the selection.
 cmd_paste_stretch :: (Cmd.M m) => m ()
 cmd_paste_stretch = do
-    (track_ids, clip_track_ids, start, end) <- get_paste_area
+    (track_ids, clip_track_ids, start, end, _) <- get_paste_area
     events <- mapM (fmap Track.track_events . State.get_track) clip_track_ids
     let m_clip_s = Seq.minimum $ map Events.time_begin $
             filter (not . Events.null) events
@@ -258,18 +258,12 @@ destroy_namespace ns = do
 -- to start--end and shifted into the paste range.
 paste_info :: (Cmd.M m) => m (ScoreTime, ScoreTime, [(TrackId, [Event.Event])])
 paste_info = do
-    (track_ids, clip_track_ids, start, end) <- get_paste_area
-    paste_events <- mapM (clip_track_events start end) clip_track_ids
-    return (start, end, zip track_ids paste_events)
-
-clip_track_events :: (State.M m) =>
-    ScoreTime -> ScoreTime -> TrackId -> m [Event.Event]
-clip_track_events start end track_id = do
-    track <- State.get_track track_id
-    let events = clip_to_selection start end
-            (Events.ascending (Track.track_events track))
-        shifted = map (Event.move (+start)) events
-    return shifted
+    (track_ids, clip_track_ids, start, sel_end, event_end) <- get_paste_area
+    tracks <- mapM State.get_track clip_track_ids
+    let clip_and_move = map (Event.move (+start))
+            . clip_to_selection start event_end
+            . Events.ascending . Track.track_events
+    return (start, sel_end, zip track_ids (map clip_and_move tracks))
 
 clip_to_selection :: ScoreTime -> ScoreTime -> [Event.Event] -> [Event.Event]
 clip_to_selection start end
@@ -295,7 +289,8 @@ clip_events end (event : events)
 -- event.  However, the paste range is limited to the end of the ruler on the
 -- block.  Otherwise, it's easy to paste events past the end of the block,
 -- which are then difficult to edit.
-get_paste_area :: (Cmd.M m) => m ([TrackId], [TrackId], ScoreTime, ScoreTime)
+get_paste_area :: (Cmd.M m) =>
+    m ([TrackId], [TrackId], ScoreTime, ScoreTime, ScoreTime)
 get_paste_area = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     block_end <- State.block_ruler_end block_id
@@ -307,4 +302,5 @@ get_paste_area = do
     -- If start==end, I have to set the end past the end of the clip in case
     -- the last event has dur 0.
     return (track_ids, clip_track_ids, start,
-        min block_end $ if start == end then start + clip_end + 1 else end)
+        min block_end (if start == end then start + clip_end else end),
+        if start == end then block_end else end)
