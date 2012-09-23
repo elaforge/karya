@@ -172,7 +172,8 @@ cmd_paste_insert :: (Cmd.M m) => m ()
 cmd_paste_insert = do
     (start, end, track_events) <- paste_info
     -- Only shift the tracks that are in clip_events.
-    mapM_ (ModifyEvents.move_track_events start (end-start))
+    block_end <- State.block_ruler_end =<< Cmd.get_focused_block
+    mapM_ (ModifyEvents.move_track_events block_end start (end-start))
         (map fst track_events)
     forM_  track_events $ \(track_id, events) ->
         State.insert_events track_id events
@@ -207,8 +208,6 @@ stretch (start, end) (clip_s, clip_e) = map reposition
 -- * implementation
 
 -- ** copy
-
--- *** namespace
 
 -- | Rename the blocks and tracks in the given state into the given namespace
 -- and replace the IDs already in that namespace with it.  Rulers are ignored.
@@ -270,17 +269,7 @@ clip_to_selection start end
     -- A point selection should be able to paste a 0 dur event.
     | start == end = maybe [] (:[])
         . List.find (\e -> Event.start e == 0 && Event.duration e == 0)
-    | otherwise = clip_events (end - start)
-
--- | Clip off the events after the given end time.  Also shorten the last
--- event so it doesn't cross the end, if necessary.
-clip_events :: ScoreTime -> [Event.Event] -> [Event.Event]
-clip_events _ [] = []
-clip_events end (event : events)
-    | Event.start event >= end = []
-    | Event.end event > end =
-        [Event.modify_duration (\d -> min d (end - Event.start event)) event]
-    | otherwise = event : clip_events end events
+    | otherwise = Events.clip (end - start)
 
 -- | Get the destination and clip tracks involved in a paste, along with the
 -- paste selection.

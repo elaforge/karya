@@ -20,6 +20,7 @@ module Ui.Events (
 
     -- ** transformation
     , map_events, map_sorted
+    , clip
 
     -- ** insert / remove
     , insert_events, insert_sorted_events
@@ -101,6 +102,17 @@ map_events f =
 
 map_sorted :: (Event.Event -> Event.Event) -> Events -> Events
 map_sorted f = emap (from_asc_list . map f . to_asc_list)
+
+-- | Clip off the events after the given end time.  Also shorten the last
+-- event so it doesn't cross the end, if necessary.
+clip :: ScoreTime -> [Event.Event] -> [Event.Event]
+clip _ [] = []
+clip end (event : events)
+    | Event.start event >= end = []
+    | Event.end event > end =
+        [Event.modify_duration (\d -> min d (end - Event.start event)) event]
+    | otherwise = event : clip end events
+    -- TODO negative durations
 
 -- ** insert / remove
 

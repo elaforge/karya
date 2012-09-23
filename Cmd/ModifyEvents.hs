@@ -112,19 +112,23 @@ all_blocks f = mapM_ (flip block_tracks f) =<< State.all_block_ids
 -- * misc
 
 -- | Move everything at or after @start@ by @shift@.
-move_track_events :: (State.M m) => ScoreTime -> ScoreTime -> TrackId -> m ()
-move_track_events start shift track_id = State.modify_events track_id $
-    \events -> move_events start shift events
+move_track_events :: (State.M m) => ScoreTime -> ScoreTime -> ScoreTime
+    -> TrackId -> m ()
+move_track_events block_end start shift track_id =
+    State.modify_events track_id $ \events ->
+        move_events block_end start shift events
 
 -- | All events starting at and after a point to the end are shifted by the
 -- given amount.
-move_events :: ScoreTime -> ScoreTime -> Events.Events -> Events.Events
-move_events point shift events = merged
+move_events :: ScoreTime -- ^ events past the block end are shortened or removed
+    -> ScoreTime -> ScoreTime -> Events.Events -> Events.Events
+move_events block_end point shift events = merged
     where
     -- If the last event has 0 duration, the selection will not include it.
     -- Ick.  Maybe I need a less error-prone way to say "select until the end
     -- of the track"?
     end = Events.time_end events + 1
-    shifted = map (Event.move (+shift)) (Events.at_after point events)
+    shifted = Events.clip block_end $
+        map (Event.move (+shift)) (Events.at_after point events)
     merged = Events.insert_sorted_events shifted
         (Events.remove_events point end events)

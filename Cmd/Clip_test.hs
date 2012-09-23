@@ -125,7 +125,7 @@ test_cmd_paste_insert = do
     -- Point selection pushes by inserted length.
     equal (run 1 1 1 1) $ Right
         [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"),
-            (10, 2, "e12"), (14, 2, "e13")])
+            (10, 2, "e12"), (14, 1, "e13")])
         , track2
         ]
     -- Selection pushes by selection length.
@@ -133,6 +133,16 @@ test_cmd_paste_insert = do
         [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (6, 2, "e12"), (10, 2, "e13")])
         , track2
         ]
+    -- Events pushed off the end of the block are clipped.
+    let end = Ruler.time_end UiTest.default_ruler
+        state = mkstate [("t1", [(end-2, 2, "t")])] [("c1", [(0, 2, "c")])]
+        run = run_sel state Clip.cmd_paste_insert
+    -- Inserted event shortened because of selection, original event shortened
+    -- because of block end.
+    equal (run 1 (end-2) 1 (end-1)) $ Right
+        [("t1", [(end-2, 1, "c"), (end-1, 1, "t")])]
+    equal (run 1 (end-2) 1 (end-2)) $ Right
+        [("t1", [(end-2, 2, "c")])]
 
 test_cmd_paste_stretch = do
     let run clip_tracks = run_sel (mkstate [("t1", []), ("t2", [])] clip_tracks)
