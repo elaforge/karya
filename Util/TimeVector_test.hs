@@ -83,15 +83,3 @@ test_concat_map_accum = do
         , (1, 1), (2, 2)
         , (20, 23)
         ]
-
-test_resample_to_list = do
-    let f vec0 vec1 = V.resample_to_list 0 (signal vec0) (signal vec1)
-    equal (f [(1, 1), (2, 2)] []) [(1, 1, 0), (2, 2, 0)]
-    equal (f [] [(1, 1), (2, 2)]) [(1, 0, 1), (2, 0, 2)]
-    equal (f [(1, 1), (2, 2)] [(1, 3), (2, 4)])
-        [(1, 1, 3), (2, 2, 4)]
-
-    -- Values before the first sample are zero.
-    equal (f [(1, 1)] [(0, 2), (2, 4), (3, 6)])
-        [(0, 0, 2), (1, 1, 2), (2, 1, 4), (3, 1, 6)]
-    equal (f [(0, 1)] [(1, 2)]) [(0, 1, 0), (1, 1, 2)]

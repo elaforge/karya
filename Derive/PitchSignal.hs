@@ -118,23 +118,18 @@ apply_controls controls sig
     | V.null (sig_vec sig) = sig
     | otherwise = sig { sig_vec = resampled }
     where
-    resampled = V.fromList $
-        map (\(x, pitch, cs) -> TimeVector.Sample x (apply cs pitch)) $
-        TimeVector.resample initial_pitch prev_controls
-            (unsignal sig) transpose
+    resampled = TimeVector.sig_op2 initial_controls initial_pitch
+        apply
+        (sample_controls controls (sig_transposers sig))
+        (sig_vec sig)
     TimeVector.Sample start initial_pitch = V.unsafeHead (sig_vec sig)
-    prev_controls = controls_at start controls
-    transpose = resample_signals controls (sig_transposers sig)
-
--- | 'apply_controls' specialized for a single control.
-apply_control :: Score.Control -> Score.TypedSignal -> Signal -> Signal
-apply_control cont sig = apply_controls (Map.singleton cont sig)
+    initial_controls = controls_at start controls
 
 -- | Sample the ControlMap on the sample points of the given set of controls.
-resample_signals :: ControlMap -> Set.Set Score.Control
-    -> [(RealTime, Controls)]
-resample_signals controls transposers =
-    zip xs (map (flip controls_at controls) xs)
+sample_controls :: ControlMap -> Set.Set Score.Control
+    -> TimeVector.Boxed Controls
+sample_controls controls transposers =
+    TimeVector.signal $ zip xs (map (flip controls_at controls) xs)
     where
     xs = Seq.drop_dups id $ Seq.merge_asc_lists id (map xs_of sigs)
     sigs = mapMaybe (\c -> Map.lookup c controls)
@@ -144,6 +139,10 @@ resample_signals controls transposers =
     -- the values instead of stepping along in order, but if the tsigs are
     -- sparse then it's probably more efficient to sample.  I expect in many
     -- cases there will be 0 or 1 transposition values.
+
+-- | 'apply_controls' specialized for a single control.
+apply_control :: Score.Control -> Score.TypedSignal -> Signal -> Signal
+apply_control cont sig = apply_controls (Map.singleton cont sig)
 
 controls_at :: RealTime -> ControlMap -> Controls
 controls_at t = Map.map (Signal.at t . Score.typed_val)

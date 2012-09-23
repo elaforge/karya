@@ -38,9 +38,14 @@ instance DeepSeq.NFData (Boxed y) where
 
 -- * unboxed
 
+-- A number of functions in here are SPECIALIZEd on Unboxed.  This improves
+-- performance significantly since the functions are heavily used and the
+-- specialization likely enables some unboxing in inner loops.
+
 -- (Vector a) already has a monoid instance, so I can't make my own.
 -- I tried making newtypes for Boxed and Unboxed, but couldn't then figure
--- out how to get the generic functions to apply to them.
+-- out how to get the generic functions to apply to them.  So clients have to
+-- implement Monoid themselves, using 'merge'.
 
 type Unboxed = Storable.Vector (Sample Double)
 
@@ -75,6 +80,7 @@ viewL v
 
 -- ** TimeVector specific
 
+-- | Construct a TimeVector from a list.
 {-# INLINEABLE signal #-}
 {-# SPECIALIZE signal :: [(X, Double)] -> Unboxed #-}
 signal :: (V.Vector v (Sample y)) => [(X, y)] -> v (Sample y)
@@ -161,8 +167,9 @@ map_y f = V.map $ \(Sample x y) -> Sample x (f y)
     -> Unboxed -> Unboxed -> Unboxed #-}
 {-# INLINEABLE sig_op #-}
 sig_op :: (V.Vector v (Sample y)) =>
-    y -> (y -> y -> y) -> v (Sample y) -> v (Sample y) -> v (Sample y)
-sig_op zero f vec1 vec2 = V.unfoldr go (zero, zero, 0, 0)
+    y -- ^ the implicit y value of a vector before its first sample
+    -> (y -> y -> y) -> v (Sample y) -> v (Sample y) -> v (Sample y)
+sig_op initial f vec1 vec2 = V.unfoldr go (initial, initial, 0, 0)
     where
     go (prev_ay, prev_by, i1, i2) =
         case resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
@@ -172,9 +179,28 @@ sig_op zero f vec1 vec2 = V.unfoldr go (zero, zero, 0, 0)
     len1 = V.length vec1
     len2 = V.length vec2
 
+-- | Polymorphic variant of 'sig_op'.
+--
+-- The signature is specialized to Boxed since you might as well use 'sig_op'
+-- for Unboxed vectors.
+sig_op2 :: y1 -> y2 -> (y1 -> y2 -> y3)
+    -> Boxed y1 -> Boxed y2 -> Boxed y3
+sig_op2 initial1 initial2 f vec1 vec2 = V.unfoldr go (initial1, initial2, 0, 0)
+    where
+    -- Yeah I could probably make 'sig_op' a specialization of this, but can't
+    -- be bothered at the moment.
+    go (prev_ay, prev_by, i1, i2) =
+        case resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
+            Nothing -> Nothing
+            Just (x, ay, by, i1, i2) ->
+                Just (Sample x (f ay by), (ay, by, i1, i2))
+    len1 = V.length vec1
+    len2 = V.length vec2
+
 {-# INLINE resample1 #-}
-resample1 :: (V.Vector v (Sample y)) => y -> y -> Int -> Int -> Int -> Int
-    -> v (Sample y) -> v (Sample y) -> Maybe (X, y, y, Int, Int)
+resample1 :: (V.Vector v1 (Sample y1), V.Vector v2 (Sample y2)) => y1 -> y2
+    -> Int -> Int -> Int -> Int
+    -> v1 (Sample y1) -> v2 (Sample y2) -> Maybe (X, y1, y2, Int, Int)
 resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2
     | i1 >= len1 && i2 >= len2 = Nothing
     | i1 >= len1 = Just (bx, prev_ay, by, i1, i2+1)
@@ -185,19 +211,6 @@ resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2
     where
     Sample ax ay = V.unsafeIndex vec1 i1
     Sample bx by = V.unsafeIndex vec2 i2
-
-resample_to_list :: (V.Vector v (Sample y)) =>
-    y -> v (Sample y) -> v (Sample y) -> [(X, y, y)]
-resample_to_list zero vec0 vec1 =
-    resample zero zero (unsignal vec0) (unsignal vec1)
-
-resample :: y0 -> y1 -> [(X, y0)] -> [(X, y1)] -> [(X, y0, y1)]
-resample _ prev_by as [] = [(x, y, prev_by) | (x, y) <- as]
-resample prev_ay _ [] bs = [(x, prev_ay, y) | (x, y) <- bs]
-resample prev_ay prev_by as@((ax, ay) : rest_a) bs@((bx, by) : rest_b)
-    | ax == bx = (ax, ay, by) : resample ay by rest_a rest_b
-    | ax < bx = (ax, ay, prev_by) : resample ay prev_by rest_a bs
-    | otherwise = (bx, prev_ay, by) : resample prev_ay by as rest_b
 
 -- * util
 
@@ -217,7 +230,6 @@ x_at x0 y0 x1 y1 y
         ++ show ((x0, y0), (x1, y1), y)
     | otherwise =
         double_to_x (y - y0) / (double_to_x (y1 - y0) / (x1 - x0)) + x0
-
 
 -- | A version of 'bsearch_on' specialized to search X.  Profiling says
 -- this gets called a lot and apparently the specialization makes a difference.
