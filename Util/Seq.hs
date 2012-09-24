@@ -419,6 +419,12 @@ drop_prefix pref list = go pref list
         | p == x = go ps xs
         | otherwise = (list, False)
 
+drop_suffix :: (Eq a) => [a] -> [a] -> ([a], Bool)
+drop_suffix suffix list
+    | post == suffix = (pre, True)
+    | otherwise = (list, False)
+    where (pre, post) = splitAt (length list - length suffix) list
+
 -- ** splitting and joining
 
 break_tails :: ([a] -> Bool) -> [a] -> ([a], [a])

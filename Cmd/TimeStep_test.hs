@@ -33,7 +33,7 @@ test_get_points = do
                 , ("c", [(0, 0, "1"), (5, 0, "2")])
                 ])
             State.modify_ruler UiTest.default_ruler_id $
-                const (UiTest.mkruler 8 1)
+                const (UiTest.mkruler 7 1)
     let f pos step = UiTest.eval ustate $
             TimeStep.get_points step UiTest.default_block_id 1 pos
     equal (f 0 (mk 0 (Absolute 32))) (Just [0])

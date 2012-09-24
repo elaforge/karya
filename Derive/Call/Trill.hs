@@ -1,6 +1,16 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {- | Various kinds of trills.
 
+    Trills want to generate an integral number of cycles.  For the purpose of
+    counting integral cycles, trills count the end (either the end of the
+    event, or the start of the next event).  This is different than other
+    control calls, which tend to omit the end point, expecting that the next
+    call will place a sample there.  This is so that a trill can end on an off
+    note if it exactly fits into its allotted space, otherwise a 16th note
+    trill in a quarter note would degenerate into a mordent.
+
+    Various flavors of trills:
+
     - Trill cycles depend on real duration of note.  Cycle durations are given
     in real time.
 
@@ -67,7 +77,8 @@ c_note_trill = Derive.stream_generator "trill" $ Note.inverting $ \args ->
         optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
     \neighbor speed -> Lily.note args Attrs.trill $ do
         mode <- get_mode
-        (transpose, control) <- trill_from_controls args mode neighbor speed
+        (transpose, control) <- trill_from_controls
+            (Args.start args, Args.end args) mode neighbor speed
         xs <- mapM Derive.score $ map fst $ Signal.unsignal transpose
         let end = snd $ Args.range args
         let notes = do
@@ -138,7 +149,8 @@ c_pitch_trill maybe_mode = Derive.generator1 "pitch_trill" $ \args ->
         optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
     \note neighbor speed -> do
         mode <- maybe get_mode return maybe_mode
-        (transpose, control) <- trill_from_controls args mode neighbor speed
+        (transpose, control) <- trill_from_controls
+            (Args.start args, Args.next args) mode neighbor speed
         start <- Args.real_start args
         PitchSignal.apply_control control (Score.untyped transpose) <$>
             Util.pitch_signal [(start, note)]
@@ -166,7 +178,8 @@ c_control_trill maybe_mode = Derive.generator1 "control_trill" $ \args ->
         optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
     \neighbor speed -> do
         mode <- maybe get_mode return maybe_mode
-        fst <$> trill_from_controls args mode neighbor speed
+        fst <$> trill_from_controls (Args.start args, Args.next args)
+            mode neighbor speed
 
 
 -- * util
@@ -184,13 +197,12 @@ get_mode = do
             | otherwise -> Derive.throw $ "unknown trill mode: " ++ show name
 
 -- | Create a transposition signal from neighbor and speed controls.
-trill_from_controls :: Derive.PassedArgs d -> Mode -> TrackLang.ValControl
+trill_from_controls :: (ScoreTime, ScoreTime) -> Mode -> TrackLang.ValControl
     -> TrackLang.ValControl -> Derive.Deriver (Signal.Control, Score.Control)
-trill_from_controls args mode neighbor speed = do
+trill_from_controls range mode neighbor speed = do
     (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
     (neighbor_sig, control) <- Util.to_transpose_signal Util.Diatonic neighbor
-    transpose <- time_trill time_type mode (Args.start args, Args.next args)
-        neighbor_sig speed_sig
+    transpose <- time_trill time_type mode range neighbor_sig speed_sig
     return (transpose, control)
     where
     time_trill Util.Real = real_trill
@@ -255,6 +267,8 @@ make_square xs = Signal.signal (zip xs (cycle [0, 1]))
 
 integral_cycles :: (Ord a) => a -> [a] -> [a]
 integral_cycles end (x0:x1:x2:xs)
+    -- This is what makes trills include the end, as documented in the module
+    -- haddock.
     | x2 > end = [x0]
     | otherwise = x0 : x1 : integral_cycles end (x2:xs)
 integral_cycles _ xs = take 1 xs

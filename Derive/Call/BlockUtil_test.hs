@@ -46,7 +46,7 @@ test_compile = do
     equal logs []
     -- The pitch signal gets truncated so it doesn't look like the note's decay
     -- wants to change pitch.
-    equal (pitches events) [psig 1, psig 2, psig 6]
+    equal (pitches events) [psig 1, psig 2, psig 7]
 
 test_extract_orphans = do
     let extract = fst . DeriveTest.extract Score.event_start

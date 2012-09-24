@@ -39,7 +39,7 @@ test_display_track = do
     -- TODO add more tests if I modify Diff
 
 test_merge_updates = do
-    let ([tid1, tid2], st) = UiTest.run State.empty $ do
+    let ((_, [tid1, tid2]), st) = UiTest.run State.empty $ do
             tids <- UiTest.mkblock (UiTest.default_block_name,
                 [(">", []), ("*", [])])
             State.merge_track bid 1 2

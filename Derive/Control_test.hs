@@ -147,17 +147,19 @@ test_stash_signal = do
     let tsig samples p x = Right (Signal.signal samples, p, x)
 
     equal (run [ctrack, itrack]) [Right (csig, 0, 1)]
-    -- constant tempo stretches track sig
-    -- tempo track itself is unstretched
+    -- Constant tempo stretches track sig.
+    -- Tempo track itself is unstretched.
+    -- Extra sample at the end of the tempo track due to the set-prev hack.
+    let end = RealTime.score UiTest.default_block_end
     equal (run [("tempo", [(0, 0, "2")]), ctrack, itrack]) $
-        [ tsig [(0, 2), (1, 2)] 0 1
+        [ tsig [(0, 2), (end, 2)] 0 1
         , tsig [(0, 1), (0.5, 0)] 0 0.5
         ]
 
     -- but a complicated tempo forces a rederive so output is still in
     -- RealTime
     equal (run [("tempo", [(0, 0, "2"), (4, 0, "i 1")]), ctrack, itrack])
-        [ tsig [(0, 2), (1, 1.75), (2, 1.5), (3, 1.25), (4, 1)] 0 1
+        [ tsig [(0, 2), (1, 1.75), (2, 1.5), (3, 1.25), (4, 1), (end, 1)] 0 1
         , tsig [(0, 1), (1, 0)] 0 1
         ]
 

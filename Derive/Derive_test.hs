@@ -11,6 +11,7 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Midi.Midi as Midi
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -137,7 +138,7 @@ test_stack = do
 test_simple_subderive = do
     let (events, msgs) = extract_events $ DeriveTest.derive_blocks
             [ ("parent", [(">i1", [(0, 2, "sub"), (2, 1, "sub")])])
-            , ("sub", [(">", [(0, 1, "--1"), (1, 1, "--2")])])
+            , ("sub=ruler", [(">", [(0, 1, "--1"), (1, 1, "--2")])])
             ]
     equal msgs []
     equal events
@@ -151,7 +152,7 @@ test_subderive = do
                 [ ("tempo", [(0, 0, "2")])
                 , (">i1", evts)
                 ])
-            , ("sub", [(">i2", [(1, 1, "--sub1")])])
+            , ("sub=ruler", [(">i2", [(1, 1, "--sub1")])])
             , ("empty", [(">i", [])])
             ]
     -- I used to test recursive call, but now that the block call doesn't
@@ -177,8 +178,8 @@ test_subderive = do
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos),
             (UiTest.mk_tid_name "b0" 2, pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
-    equal (map (inv_tempo res) [0, 2 .. 10])
-        [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16], []]
+    equal (map (inv_tempo res) [0, 2 .. 8])
+        [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16]]
 
     -- For eyeball verification.
     -- pprint (r_events res)
@@ -192,7 +193,7 @@ test_subderive_timing = do
                 [ ("tempo", [(0, 0, ".5")])
                 , (">i", [(0, 2, "sub"), (5, 1, "sub")])
                 ])
-            , ("sub", [(">i", [(0, 1, ""), (1, 1, "")])])
+            , ("sub=ruler", [(">i", [(0, 1, ""), (1, 1, "")])])
             ]
     equal events
         [ (0, 2, ""), (2, 2, "")
@@ -217,7 +218,7 @@ test_subderive_multiple = do
                 , ("dyn", [(0, 0, "1"), (8, 0, "i 0")])
                 , (inst_title, [(0, 8, "sub")])
                 ])
-            , ("sub",
+            , ("sub=ruler",
                 [ (">", [(0, 1, "--1-1"), (1, 1, "--1-2")])
                 , ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
                 , (">", [(0, 1, "--2-1"), (1, 1, "--2-2")])
@@ -235,7 +236,7 @@ test_multiple_subderive = do
     -- make sure a sequence of sub calls works
     let res = DeriveTest.derive_blocks
             [ ("b0", [(">i1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])])
-            , ("sub", [(">", [(0, 1, "--sub1")])])
+            , ("sub=ruler", [(">", [(0, 1, "--sub1")])])
             ]
     equal (extract_events res)
         ([(0, 2, "--sub1"), (2, 2, "--sub1"), (4, 2, "--sub1")], [])
@@ -249,13 +250,13 @@ test_multiple_subderive = do
         sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
     equal (map List.sort pos)
         [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0], [b0 3, sub 0.5]
-        , [b0 4, sub 0], [b0 5, sub 0.5], []
+        , [b0 4, sub 0], [b0 5, sub 0.5], [b0 6]
         ]
 
 test_tempo_compose = do
     let run tempo events sub_tempo = extract_events $ DeriveTest.derive_blocks
             [ ("b0", [("tempo", tempo), (">i1", events)])
-            , ("sub",
+            , ("sub=ruler",
                 [ ("tempo", sub_tempo)
                 , (">", [(0, 1, ""), (1, 1, "")])
                 ])
@@ -397,34 +398,32 @@ test_shift_control = do
     equal (run $ Derive.shift_control 2) $ Right
         ([(2, 1), (4, 2), (6, 0)], [(2, 60)])
 
+track_specs :: [UiTest.TrackSpec]
 track_specs =
     [ ("tempo", [(0, 0, "2")])
     , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
     ]
 
 test_tempo_funcs1 = do
-    let bid = UiTest.bid "b0"
-
-    let ([t_tid, tid1], ui_state) = UiTest.run State.empty $
+    let ((bid, [t_tid, tid1]), ui_state) = UiTest.run State.empty $
             UiTest.mkblock ("b0", track_specs)
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_log_strings res) []
 
     -- [(BlockId, [(TrackId, ScoreTime)])]
     let b0 pos = (bid, [(t_tid, pos), (tid1, pos)])
-    equal (map (inv_tempo res) [0, 2 .. 10])
-        [[b0 0], [b0 4], [b0 8], [b0 12], [b0 16], []]
+    equal (map (inv_tempo res) [0, 2, 4, 6]) [[b0 0], [b0 4], [b0 8], [b0 12]]
+    equal (inv_tempo res (ScoreTime.to_double UiTest.default_block_end)) []
 
     equal (map (r_tempo res bid t_tid) (Seq.range 0 10 2))
         (map ((:[]) . RealTime.seconds) (Seq.range 0 5 1))
 
 test_tempo_funcs2 = do
-    let ([t_tid1, tid1, t_tid2, tid2], ui_state) = UiTest.run State.empty $
-            UiTest.mkblock ("b0", track_specs
+    let ((bid, [t_tid1, tid1, t_tid2, tid2]), ui_state) =
+            UiTest.run State.empty $ UiTest.mkblock ("b0", track_specs
                 ++ [ ("tempo", [(0, 0, "1")])
                 , (">i2", [(0, 16, "--2b1")])
                 ])
-        bid = UiTest.bid "b0"
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_log_strings res) []
     equal (map (r_tempo res bid t_tid1) (Seq.range 0 10 2))
@@ -450,7 +449,7 @@ test_tempo_funcs_multiple_subblocks = do
     -- A single score time can imply multiple real times.
     let res = DeriveTest.derive_blocks
             [ ("parent", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
-            , ("sub", [(">i", [(0, 1, "")])])
+            , ("sub=ruler", [(">i", [(0, 1, "")])])
             ]
     equal (r_tempo res (UiTest.bid "sub") (UiTest.mk_tid_name "sub" 1) 0.5)
         [0.5, 1.5]

@@ -21,9 +21,10 @@ UNSORTED
     somehow it knows about this when creating the window, but not when calling
     resize().  Maybe just ask fltk-users.
   * should send resize when the block title changes size
-  + fltk: mac version gets increasingly saturated when it scrolls
+  * fltk: mac version gets increasingly saturated when it scrolls
     It's fl_scroll, write a simple test case that just uses fl_scroll.
     created repro, sent to list
+    fixed in fltk HEAD
   * upgrade saves and remove old versions
 
   - segfault:
@@ -57,8 +58,9 @@ UNSORTED
 
       Totally simple, just cast (FILE *) in the generated utils.c.
       * Send patch to ghc.
-    / remove exports ReadDevice and WriteDevice from Midi.Midi
+    * remove exports ReadDevice and WriteDevice from Midi.Midi
       Still buggy, asked on ghc-users
+      Fixed in ghc HEAD.
     - get rid of ld -r hack in shakefile, since new ghcs do that automatically
     * experiment again with replacing storablevector with vector, since it
       optimizes it better
@@ -76,10 +78,6 @@ UNSORTED
   - Undo during edit (i.e. a suppressed cmd) destroys changes and you can't
     get them back.  And it's confusing.  Maybe undo shouldn't work?
     Or it should commit the current suppressed cmd and then undo it.
-  - It would be nice for there to be some place to put notes.  Comment in the
-    block text?  But I can't write much in there.  I could have block text
-    expand to multiple lines if necessary.
-    Actually, I should use a score-specific module for this.
   - Get rid of Scale.scale_pattern, I can't think of a use for it.  If I want
     valid calls I should have another function to get the Notes of a scale.
   * wayang: ornament for ngoret: transformer that's either up or down,
@@ -107,9 +105,10 @@ UNSORTED
     Can't reproduce.
   * use . for ka instead of _ in generated
   - solo on one track in a sub-block causes all other blocks to be filtered out.
-    It more intuitive that it only apply to that block.  That means solo would
-    have to record the block that it's soloed on, and only filter events on that
-    block.  Or simpler, turn a solo into a mute of all the other tracks.
+    It seems more intuitive that it only apply to that block.  That means solo
+    would have to record the block that it's soloed on, and only filter events
+    on that block.  Or simpler, turn a solo into a mute of all the other
+    tracks.
   * do something about Call_test.test_track_dynamic2
   Just scales, along with TwelveUtil support
     * simple just scale with no accidentals
@@ -165,6 +164,9 @@ UNSORTED
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
+    Also, I'm not sure how to do this.  fltk doesn't seem to give access to
+    text stretching and scaling in OS X.
+    - ask on the list?
   * make Derive.Args functions more consistent, especially start vs. end
   * ParseBs.strip_comment is incorrect since it doesn't understand strings.
     It should be integrated into the parser.
@@ -173,7 +175,7 @@ UNSORTED
     Is there a generic lazy array implementation out there?
     It would be nice for LoggerT implementation as well.
     storablevector has a builder, but only for Storable types.
-  - why not have blocks extend to the end of the ruler instead of the last
+  * Why not have blocks extend to the end of the ruler instead of the last
     event?  Last event necessitates the '--' hack.  Update doc/derivation.
   - There's a zillion things to stitch together for an instrument.
     Add yet more utils in MidiInst to make this easier.

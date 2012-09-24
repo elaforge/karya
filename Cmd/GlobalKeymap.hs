@@ -321,7 +321,6 @@ event_bindings = concat
     , plain_command_char 'z' "toggle zero-dur" Edit.cmd_toggle_zero_duration
     , plain_command_char 'g' "set beginning" Edit.cmd_set_beginning
 
-    , plain_char '_' "insert track end" Edit.cmd_insert_track_end
     , plain_char '!' "insert recent 1" (Edit.cmd_insert_recent 1)
     , plain_char '@' "insert recent 2" (Edit.cmd_insert_recent 2)
     , plain_char '#' "insert recent 3" (Edit.cmd_insert_recent 3)

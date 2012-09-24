@@ -11,17 +11,13 @@ test_sub_tracks = do
     let (events, logs) = DeriveTest.extract extract_c $ run
             [ (">", [(0, 2, "--1"), (2, 2, "--2")])
             , ("c1", [(0, 0, "0"), (1, 0, "1"), (2, 0, "2")])
-            , ("c2", [(0, 0, "3"), (6, 0, "4"), (7, 0, "5")])
+            , ("c2", [(0, 0, "3"), (6, 0, "4")])
             ]
     equal logs []
     -- Unfortunately the comment is lost since the expression is recreated
     -- from the parsed version.
     equal events
         [ ((0, 2, ""), Just [(0, 0), (1, 1)], Just [(0, 3)])
-        -- (2 2) included since it matches start, (0, 3) included since it's
-        -- the previous sample.  (6, 4) included since (7, 0, "5") pushes the
-        -- end of the block past it.  (7, 0, "5") itself is clipped off since
-        -- it's right at the end of the block.
         , ((2, 2, ""), Just [(2, 2)], Just [(0, 3), (6, 4)])
         ]
 
@@ -43,7 +39,7 @@ test_sub_tracks = do
             ]
     equal events
         [ ((0, 2, ""), [(0, 60), (1, 60.5)])
-        , ((2, 2, ""), [(2, 61), (3, 61.5)])
+        , ((2, 2, ""), [(2, 61), (3, 61.5), (4, 62)])
         ]
 
 -- c_subs :: Derive.NoteCall

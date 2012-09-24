@@ -1,7 +1,6 @@
 module Cmd.Clip_test where
 import Util.Test
 import qualified Ui.Id as Id
-import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
@@ -60,7 +59,7 @@ test_paste_past_block_end = do
     let state = mkstate [("t1", [])] clip_tracks
         run = run_sel state Clip.cmd_paste_overwrite
     equal (run 1 0 1 0) $ Right [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
-    let end = Ruler.time_end UiTest.default_ruler
+    let end = UiTest.default_block_end
     equal (run 1 (end-1) 1 (end-1)) $ Right [("t1", [(end-1, 1, "c1")])]
     equal (run 1 end 1 end) $ Right [("t1", [])]
 
@@ -125,7 +124,7 @@ test_cmd_paste_insert = do
     -- Point selection pushes by inserted length.
     equal (run 1 1 1 1) $ Right
         [ ("t1", [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"),
-            (10, 2, "e12"), (14, 1, "e13")])
+            (10, 2, "e12"), (14, 2, "e13")])
         , track2
         ]
     -- Selection pushes by selection length.
@@ -134,7 +133,7 @@ test_cmd_paste_insert = do
         , track2
         ]
     -- Events pushed off the end of the block are clipped.
-    let end = Ruler.time_end UiTest.default_ruler
+    let end = UiTest.default_block_end
         state = mkstate [("t1", [(end-2, 2, "t")])] [("c1", [(0, 2, "c")])]
         run = run_sel state Clip.cmd_paste_insert
     -- Inserted event shortened because of selection, original event shortened

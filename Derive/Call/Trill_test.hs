@@ -12,7 +12,7 @@ import qualified Perform.Signal as Signal
 
 test_note_trill = do
     let run notes pitches = extract $ DeriveTest.derive_tracks
-            [(">", notes), ("*twelve", pitches)]
+            [(">", notes), ("*", pitches)]
         extract = DeriveTest.extract DeriveTest.e_note2
     equal (run [(0, 3, "tr 1 1")] [(0, 0, "4c")])
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c")], [])
@@ -36,22 +36,23 @@ test_tremolo = do
 -- * pitch calls
 
 test_trill = do
-    let run tracks = extract $ DeriveTest.derive_tracks $
-            (">", [(0, 3, "")]) : tracks
+    let run text = extract $ DeriveTest.derive_tracks
+            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
         extract = DeriveTest.extract DeriveTest.e_pitch
-    -- Defaults to diatonic.
-    equal (run [("*twelve", [(0, 0, "tr (4c) 1 1")])])
+    -- -- Defaults to diatonic.
+    equal (run "tr (4c) 1 1")
         ([[(0, 60), (1, 62), (2, 60)]], [])
-    equal (run [("*twelve", [(0, 0, "tr (4c) 1c 1")])])
+    equal (run "tr (4c) 1c 1")
         ([[(0, 60), (1, 61), (2, 60)]], [])
-    equal (run [("*twelve", [(0, 0, "tr (4c) 1d 1")])])
+    equal (run "tr (4c) 1d 1")
         ([[(0, 60), (1, 62), (2, 60)]], [])
-    equal (run [("*twelve", [(0, 0, "tr (4c) -1d 1")])])
+    equal (run "tr (4c) -1d 1")
         ([[(0, 60), (1, 59), (2, 60)]], [])
 
-    let run_neighbor suffix val = run
-            [ ("trill-neighbor" ++ suffix, [(0, 0, val)])
-            , ("*twelve", [(0, 0, "tr (4c) _ 1")])
+    let run_neighbor suffix val = extract $ DeriveTest.derive_tracks
+            [ (">", [(0, 3, "")])
+            , ("trill-neighbor" ++ suffix, [(0, 0, val)])
+            , ("*", [(0, 0, "tr (4c) _ 1"), (3, 0, "--")])
             ]
     equal (run_neighbor "" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
     equal (run_neighbor "" "-2") ([[(0, 60), (1, 57), (2, 60)]], [])
@@ -64,12 +65,12 @@ test_trill = do
             [ ("tempo", [(0, 0, "2")])
             , (">", [(0, 3, "")])
             , ("trill-speed" ++ suffix, [(0, 0, "2")])
-            , ("*twelve", [(0, 0, "tr (4c) 1")])
+            , ("*", [(0, 0, "tr (4c) 1"), (3, 0, "--")])
             ]
         trill xs = [zip xs (cycle [60, 62])]
     equal (run_speed "") (trill [0, 0.5, 1], [])
     equal (run_speed ":s") (trill [0, 0.5, 1], [])
-    equal (run_speed ":t") (trill [0, 0.25, 0.5, 0.75, 1, 1.25], [])
+    equal (run_speed ":t") (trill [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5], [])
     equal (run_speed ":d") ([[]],
         ["Error: expected time type for %trill-speed,14s but got Diatonic"])
 
@@ -80,15 +81,17 @@ test_moving_trill = do
         extract = DeriveTest.extract DeriveTest.e_pitch
     -- Trill transitions from 2 semitones to 1 semitone.
     equal (run
-        [ ("*twelve", [(0, 0, "4a"), (4, 0, "i (4b)")])
-        , ("t-diatonic", [(0, 0, "tr 1 1")])
+        [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])
+        , ("t-diatonic", [(0, 0, "tr 1 1"), (6, 0, "--")])
         ])
-        ([[(0, 69), (1, 71.25), (2, 70), (3, 71.75), (4, 71), (5, 72)]], [])
+        ([[(0, 69), (1, 71.25), (2, 70), (3, 71.75), (4, 71), (5, 72),
+            (6, 71)]], [])
     equal (run
-        [ ("*twelve", [(0, 0, "4a"), (4, 0, "i (4b)")])
-        , ("t-chromatic", [(0, 0, "tr 1 1")])
+        [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])
+        , ("t-chromatic", [(0, 0, "tr 1 1"), (6, 0, "--")])
         ])
-        ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72)]], [])
+        ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72),
+            (6, 71)]], [])
 
 test_real_trill = do
     let f = Trill.real_trill Trill.UnisonFirst (0, 1)
@@ -143,19 +146,19 @@ test_pitch_trill = do
 -- * control calls
 
 test_control_trill = do
-    let run tempo events = extract $ DeriveTest.derive_tracks
+    let run tempo text = extract $ DeriveTest.derive_tracks
             [ ("tempo", [(0, 0, show tempo)])
             , (">", [(0, 3, "")])
-            , ("cont", events)
+            , ("cont", [(0, 0, text), (3, 0, "--")])
             ]
         extract = DeriveTest.extract (DeriveTest.e_control "cont")
         trill xs = Just (zip xs (cycle [0, 1]))
-    equal (run 1 [(0, 0, "tr 1 1")]) ([trill [0, 1, 2]], [])
+    equal (run 1 "tr 1 1") ([trill [0, 1, 2]], [])
     -- Defaults to RealTime, but stretches with ScoreTime if asked.
-    equal (run 0.5 [(0, 0, "tr 1 1")]) ([trill [0, 1, 2, 3, 4, 5]], [])
-    equal (run 0.5 [(0, 0, "tr 1 1s")]) ([trill [0, 1, 2, 3, 4, 5]], [])
-    equal (run 0.5 [(0, 0, "tr 1 1t")]) ([trill [0, 2, 4]], [])
-    equal (run 1 [(0, 0, "tr 1 1d")])
+    equal (run 0.5 "tr 1 1") ([trill [0, 1, 2, 3, 4, 5, 6]], [])
+    equal (run 0.5 "tr 1 1s") ([trill [0, 1, 2, 3, 4, 5, 6]], [])
+    equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4]], [])
+    equal (run 1 "tr 1 1d")
         ([Just []], ["Error: expected time type for 1d but got Diatonic"])
 
 -- * util

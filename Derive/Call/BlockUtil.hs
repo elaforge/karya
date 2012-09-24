@@ -109,7 +109,7 @@ derive_control_tree block_end tree = do
 get_tree :: (State.M m) => BlockId -> m (TrackTree.EventsTree, ScoreTime)
 get_tree block_id = do
     info_tree <- TrackTree.get_track_tree block_id
-    block_end <- State.block_event_end block_id
+    block_end <- State.block_ruler_end block_id
     tree <- TrackTree.events_tree block_end info_tree
     return (tree, block_end)
 

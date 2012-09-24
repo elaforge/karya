@@ -8,7 +8,7 @@ test_c_block = do
     let run evts = DeriveTest.extract DeriveTest.e_everything $
             DeriveTest.derive_blocks
                 [ ("b1", [(">", evts)])
-                , ("sub", [(">", [(0, 22, "--sub")])])
+                , ("sub=ruler", [(">", [(0, 22, "--sub")])])
                 ]
     let (evts, logs) = run [(0, 1, "nosuch")]
     equal evts []
@@ -48,9 +48,9 @@ test_c_control_block = do
         derive caller callee = DeriveTest.extract extract $
             DeriveTest.derive_blocks
                 [ ("top", [("cont", caller), (">", [(0, 4, "")])])
-                , ("sub", [("%", callee)])
+                , ("sub=ruler", [("%", callee)])
                 ]
-        sub = [(0, 0, "1"), (2, 0, "2"), (4, 0, "4")]
+        sub = [(0, 0, "1"), (16, 0, "2"), (32, 0, "4")]
     let (evts, logs) = derive [(0, 2, "nosuch")] []
     equal evts [Just []]
     strings_like logs ["control call not found: nosuch"]
@@ -66,7 +66,7 @@ test_c_control_block_stack = do
             [ (">", [(3, 1, "")])
             , ("c", [(0, 2, "sub")])
             ]
-        -- Failed call will produce a log msg.
+        -- Failed call will produce a log msg, which has the stack.
         sub = [("%", [(0, 0, "no-call")])]
     let res = DeriveTest.derive_blocks blocks
     strings_like (map DeriveTest.show_log_stack (DeriveTest.r_logs res))

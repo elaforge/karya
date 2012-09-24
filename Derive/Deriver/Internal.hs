@@ -292,14 +292,13 @@ add_new_track_warp track_id = do
     merge_collect $ mempty { collect_warp_map = Map.singleton stack tw }
 
 -- | Sub-derived blocks are stretched according to their length, and this
--- function defines the length of a block.  'State.block_event_end' seems the
--- most intuitive, but then you can't make blocks with trailing space.  You
--- can work around it though by appending a comment dummy event.
+-- function defines the length of a block.  Using 'State.block_ruler_end' which
+-- makes the ruler the decider of block length, as it does at the Cmd layer.
 get_block_dur :: BlockId -> Deriver ScoreTime
 get_block_dur block_id = do
     ui_state <- gets (state_ui . state_constant)
     either (throw . ("get_block_dur: "++) . show) return
-        (State.eval ui_state (State.block_event_end block_id))
+        (State.eval ui_state (State.block_ruler_end block_id))
 
 
 -- * track

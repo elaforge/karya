@@ -5,11 +5,11 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_reverse = do
     let run sub_tracks = extract $ DeriveTest.derive_blocks
-            [ ("top",
+            [ ("top=ruler",
                 [ ("tempo", [(0, 0, "1")])
                 , (">", [(1, 4, "reverse | sub")])
                 ])
-            , ("sub", sub_tracks)
+            , ("sub=ruler", sub_tracks)
             ]
         extract = DeriveTest.extract DeriveTest.e_note2
     equal (run

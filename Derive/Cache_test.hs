@@ -211,8 +211,8 @@ parent_sub = mkblocks
 
 test_collect = do
     let blocks = mkblocks
-            [ ("top", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
-            , ("sub",
+            [ ("top=ruler", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
+            , ("sub=ruler",
                 [ (">i", [(0, 1, "")])
                 , ("cont", [(0, 0, "1")])
                 ])

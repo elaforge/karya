@@ -164,8 +164,7 @@ the end.  `v1` is a val call whose result is passed to `t2`.
 Comments start with `--`.  As a special hack, an event containing only `--` is
 completely ignored rather than considered a null call.  This can be useful to
 mark an event boundary but not actually produce a value.  For instance, some
-calls may extend to the next event, and blocks are considered to end at the
-end of the last event.
+calls may extend to the next event, and this can make them end earlier.
 
 There are a couple of hacks in the syntax to make scores look nicer:
 
