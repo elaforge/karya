@@ -26,7 +26,7 @@ import Types
 
 
 pipa :: Derive.Events -> Cmd.CmdL ()
-pipa = from_events "4/4" config . clean
+pipa = from_events config . clean
     where
     config = Cmd.Lilypond.TimeConfig 0.125 Lilypond.D16
     clean = filter_inst ["fm8/pipa", "fm8/dizi", "ptq/yangqin"]
@@ -35,9 +35,9 @@ pipa = from_events "4/4" config . clean
 
 bloom :: BlockId -> Cmd.CmdL ()
 bloom block_id = do
-    score <- make_score "5/4" block_id
+    let title = Id.ident_name block_id
     let config = Cmd.Lilypond.TimeConfig 0.5 Lilypond.D16
-    block score config block_id
+    block title config block_id
 
 events :: BlockId -> Cmd.CmdL Derive.Events
 events block_id = Derive.r_events <$> Cmd.Lilypond.derive block_id
@@ -49,26 +49,28 @@ filter_inst :: [String] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
     where insts = map Score.Instrument inst_s
 
-block :: Lilypond.Score -> Cmd.Lilypond.TimeConfig -> BlockId -> Cmd.CmdL ()
-block score config block_id = do
+block :: Lilypond.Title -> Cmd.Lilypond.TimeConfig -> BlockId -> Cmd.CmdL ()
+block title config block_id = do
     (events, logs) <- LEvent.partition . Derive.r_events <$>
         Cmd.Lilypond.derive block_id
     mapM_ Log.write logs
     filename <- Cmd.Lilypond.ly_filename block_id
-    stack_map <- Trans.liftIO $
-        Cmd.Lilypond.compile_ly filename config score events
+    result <- Trans.liftIO $
+        Cmd.Lilypond.compile_ly filename config title events
+    stack_map <- Cmd.require_right ("compile_ly: "++) result
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_lilypond_stack_maps = Map.insert block_id
             stack_map (Cmd.state_lilypond_stack_maps st)
         }
 
-from_events :: String -> Cmd.Lilypond.TimeConfig -> [Score.Event] -> Cmd.CmdL ()
-from_events time_sig config events = do
+from_events :: Cmd.Lilypond.TimeConfig -> [Score.Event] -> Cmd.CmdL ()
+from_events config events = do
     block_id <- Cmd.get_focused_block
-    score <- make_score time_sig block_id
     filename <- Cmd.Lilypond.ly_filename block_id
-    stack_map <- Trans.liftIO $
-        Cmd.Lilypond.compile_ly filename config score events
+    let title = Id.ident_name block_id
+    result <- Trans.liftIO $
+        Cmd.Lilypond.compile_ly filename config title events
+    stack_map <- Cmd.require_right ("compile_ly: "++) result
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_lilypond_stack_maps = Map.insert block_id
             stack_map (Cmd.state_lilypond_stack_maps st)
@@ -80,11 +82,3 @@ view_pdf block_id = do
     Trans.liftIO $ Util.Process.logged $
         (Process.proc "open" [FilePath.replaceExtension filename ".pdf"])
     return ()
-
-make_score :: (Cmd.M m) => String -> BlockId -> m Lilypond.Score
-make_score time_sig block_id = either Cmd.throw return $ do
-    tsig <- Lilypond.parse_time_signature time_sig
-    return $ Lilypond.Score
-        { Lilypond.score_title = Id.ident_name block_id
-        , Lilypond.score_time = tsig
-        }

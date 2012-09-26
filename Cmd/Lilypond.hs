@@ -64,23 +64,26 @@ derive block_id = do
         (Derive.with_val TrackLang.v_lilypond_derive "true"
             (Call.Block.eval_root_block global_transform block_id))
 
-compile_ly :: FilePath -> TimeConfig -> Lilypond.Score
-    -> [Score.Event] -> IO Cmd.StackMap
-compile_ly ly_filename config score events = do
-    let ((ly, stack_map), logs) = make_ly config score events
+compile_ly :: FilePath -> TimeConfig -> Lilypond.Title
+    -> [Score.Event] -> IO (Either String Cmd.StackMap)
+compile_ly ly_filename config title events = do
+    let (result, logs) = make_ly config title events
     mapM_ Log.write logs
-    Directory.createDirectoryIfMissing True
-        (FilePath.takeDirectory ly_filename)
-    IO.withFile ly_filename IO.WriteMode $ \hdl ->
-        mapM_ (Text.IO.hPutStr hdl) ly
-    Util.Process.logged $ Process.proc "lilypond"
-        ["-o", FilePath.dropExtension ly_filename, ly_filename]
-    return stack_map
+    case result of
+        Left err -> return $ Left err
+        Right (ly, stack_map) -> do
+            Directory.createDirectoryIfMissing True
+                (FilePath.takeDirectory ly_filename)
+            IO.withFile ly_filename IO.WriteMode $ \hdl ->
+                mapM_ (Text.IO.hPutStr hdl) ly
+            Util.Process.logged $ Process.proc "lilypond"
+                ["-o", FilePath.dropExtension ly_filename, ly_filename]
+            return $ Right stack_map
 
-make_ly :: TimeConfig -> Lilypond.Score -> [Score.Event]
-    -> (([Text.Text], Cmd.StackMap), [Log.Msg])
-make_ly (TimeConfig quarter quantize_dur) score score_events =
-    (Lilypond.make_ly Lilypond.default_config score
+make_ly :: TimeConfig -> Lilypond.Title -> [Score.Event]
+    -> (Either String ([Text.Text], Cmd.StackMap), [Log.Msg])
+make_ly (TimeConfig quarter quantize_dur) title score_events =
+    (Lilypond.make_ly Lilypond.default_config title
         (postproc quantize_dur events), logs)
     where
     (events, logs) = LEvent.partition $

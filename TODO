@@ -518,7 +518,7 @@ lilypond:
     * added an extra clef after the first rest
     - staff group should put inst name on the group instead of each staff
     + add hand annotations to score
-    - have to support changing time signatures
+    * have to support changing time signatures
     - possibly support voices, should be able to do it the same as hand
       splitting
   - make rhythm spelling work properly for non-duple meters
@@ -533,7 +533,7 @@ lilypond:
   * Replace event_attributes with event_environ.
   set from event environ
     * clef
-    - time sig
+    * time sig
     * key
   * Left and right hand attrs, with a piano instrument can split events
     between hands.

@@ -1,15 +1,16 @@
 module Perform.Lilypond.Lilypond_test where
 import qualified Data.Char as Char
-import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified System.Process as Process
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import Util.Test
+
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Cmd as Cmd
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -22,40 +23,77 @@ import qualified Perform.Lilypond.Lilypond as Lilypond
 import Types
 
 
-config :: Lilypond.Config
-config = Lilypond.Config False []
+default_config :: Lilypond.Config
+default_config = Lilypond.Config
+    { Lilypond.config_dotted_rests = False
+    , Lilypond.config_dynamics = []
+    }
 
-test_convert_notes = do
-    let f sig = convert_notes sig
-        s44 = sig 4 4
-    equal (f s44 [(0, 1, "a"), (1, 1, "b")]) ["a4", "b4", "r2"]
+test_convert_measures = do
+    let f = extract_staves [] . map simple_event
 
+    equal (f [(0, 1, "a"), (1, 1, "b")]) $ Right [["a4", "b4", "r2"]]
+    equal (f [(1, 1, "a"), (2, 8, "b")]) $ Right
+        [["r4", "a4", "b2~"], ["b1~"], ["b2", "r2"]]
     -- Rests are not dotted, even when they could be.
-    equal (f s44 [(0, 1, "a"), (1.5, 1, "b")])
-        ["a4", "r8", "b8~", "b8", "r8", "r4"]
-    equal (f s44 [(0, 2, "a"), (3.5, 0.25, "b"), (3.75, 0.25, "c")])
-        ["a2", "r4", "r8", "b16", "c16"]
-    equal (f s44 [(0, 0.5, "a"), (0.5, 1, "b"), (1.5, 0.5, "c")])
-        ["a8", "b4", "c8", "r2"]
+    equal (f [(0, 1, "a"), (1.5, 1, "b")]) $ Right
+        [["a4", "r8", "b8~", "b8", "r8", "r4"]]
+    equal (f [(0, 2, "a"), (3.5, 0.25, "b"), (3.75, 0.25, "c")]) $ Right
+        [["a2", "r4", "r8", "b16", "c16"]]
+    equal (f [(0, 0.5, "a"), (0.5, 1, "b"), (1.5, 0.5, "c")]) $ Right
+        [["a8", "b4", "c8", "r2"]]
+
+test_change_time_signature = do
+    let f = extract_staves ["time"] . map time_sig_event
+    equal (f [(0, 5, "a", "4/4"), (6, 2, "b", "4/4")]) $ Right
+        [["\\time 4/4", "a1~"], ["a4", "r4", "b2"]]
+    -- Change signature on the measure boundary.
+    equal (f [(0, 2, "a", "2/4"), (2, 2, "b", "4/4")]) $ Right
+        [["\\time 2/4", "a2"], ["\\time 4/4", "b2", "r2"]]
+
+    -- Time signature changes during a note.
+    equal (f [(0, 3, "a", "2/4"), (3, 4, "b", "4/4")]) $ Right
+        [["\\time 2/4", "a2~"], ["a4", "b4~"], ["\\time 4/4", "b2.", "r4"]]
+    equal (f [(0, 3, "a", "2/4"), (4, 4, "b", "4/4")]) $ Right
+        [["\\time 2/4", "a2~"], ["a4", "r4"], ["\\time 4/4", "b1"]]
+
+    -- Inconsistent time signatures cause an error.
+    let run = extract_staves [] . fst . derive . concatMap UiTest.note_spec
+    left_like (run
+            [ ("s/i1 | time-sig = '2/4'", [(0, 4, "4a")], [])
+            , ("s/i2 | time-sig = '4/4'", [(0, 4, "4b")], [])
+            ])
+        "staff for >s/i2: inconsistent time signatures"
+
+test_parse_error = do
+    let f = extract_staves [] . map environ_event
+    left_like (f [(0, 1, "a", [(TrackLang.v_key, "oot-greet")])]) "unknown key"
+    left_like (f [(0, 1, "a", [(Lilypond.v_time_signature, "oot-greet")])])
+        "signature must be"
 
 test_chords = do
-    let f = convert_notes (sig 4 4)
+    let f = extract_staves [] . map simple_event
     -- Homogenous durations.
-    equal (f [(0, 1, "a"), (0, 1, "c")])
-        ["<a c>4", "r4", "r2"]
+    equal (f [(0, 1, "a"), (0, 1, "c")]) $ Right
+        [["<a c>4", "r4", "r2"]]
     -- Starting at the same time.
-    equal (f [(0, 2, "a"), (0, 1, "c")])
-        ["<a c>4~", "a4", "r2"]
+    equal (f [(0, 2, "a"), (0, 1, "c")]) $ Right
+        [["<a c>4~", "a4", "r2"]]
     -- Starting at different times.
-    equal (f [(0, 2, "a"), (1, 1, "c")])
-        ["a4~", "<a c>4", "r2"]
-    equal (f [(0, 2, "a"), (1, 2, "c"), (2, 2, "e")])
-        ["a4~", "<a c>4~", "<c e>4~", "e4"]
+    equal (f [(0, 2, "a"), (1, 1, "c")]) $ Right
+        [["a4~", "<a c>4", "r2"]]
+    equal (f [(0, 2, "a"), (1, 2, "c"), (2, 2, "e")]) $ Right
+        [["a4~", "<a c>4~", "<c e>4~", "e4"]]
 
-convert_notes :: Lilypond.TimeSignature -> [(RealTime, RealTime, String)]
-    -> [String]
-convert_notes sig = filter (not . (=="\\") . take 1) . map Lilypond.to_lily
-    . Lilypond.convert_notes config sig whole . map mkevent
+test_extract_time_signatures = do
+    let f = fmap (map Pretty.pretty) . Lilypond.extract_time_signatures
+            . map (\(s, d, tsig) -> time_sig_event (s, d, "a", tsig))
+    equal (f [(0, 1, "4/4")]) $ Right ["4/4"]
+    equal (f [(0, 5, "4/4")]) $ Right ["4/4", "4/4"]
+    equal (f [(5, 5, "4/4")]) $ Right ["4/4", "4/4", "4/4"]
+    equal (f [(5, 5, "6/4")]) $ Right ["6/4", "6/4"]
+    equal (f [(0, 2, "4/4"), (2, 4, "6/4")]) $ Right ["4/4", "6/4"]
+    equal (f [(0, 2, "4/4"), (1, 2, "4/4"), (2, 2, "4/4")]) $ Right ["4/4"]
 
 test_convert_duration = do
     let f sig pos = Lilypond.to_lily $ head $
@@ -76,12 +114,15 @@ test_make_ly = do
             , ("s/i2", [(1, 1, "4g"), (2, 12, "3a")], [])
             ]
     equal logs []
-    equal (event_staves_pitches events)
+    -- Shorter staff is padded out to the length of the longer one.
+    equal (extract [] events) $ Right
         [ ("i1",
             [[["c'4", "r8", "ds'8~", "ds'4.", "r8"], ["r1"], ["r1"], ["r1"]]])
         , ("i2",
             [[["r4", "g'4", "a2~"], ["a1~"], ["a1~"], ["a2", "r2"]]])
         ]
+    -- putStrLn $ make_ly events
+    -- compile_ly events
 
 test_hands = do
     let (events, logs) = derive $ concatMap UiTest.note_spec
@@ -91,37 +132,40 @@ test_hands = do
             ]
     equal logs []
     -- Right hand goes in first.
-    equal (event_staves_pitches events)
+    equal (extract [] events) $ Right
         [ ("1", [[["c'1"]], [["d'1"]]])
         , ("2", [[["e'1"]]])
         ]
 
 test_clefs = do
-    let (events, logs) = derive
+    let f = first (extract_staves ["clef"]) . derive
+    equal (f
             [ (">s/1 | clef = 'bass'", [(0, 2, ""), (2, 6, "clef = 'alto' |")])
             , ("*", [(0, 0, "4c")])
-            ]
-    equal logs []
-    equal (event_staves events)
-        [ ("1",
-            [[["\\clef bass", "\\key c \\major", "c'2", "\\clef alto",
-                "c'2~"], ["c'1"]]])
-        ]
+            ])
+        (Right [["\\clef bass", "c'2", "\\clef alto", "c'2~"], ["c'1"]], [])
 
+    -- test annotation promote
     -- The first clef and key are moved ahead of rests.
-    let staves = event_staves $ fst $ derive
-            [(">s/1", [(1, 3, "")]), ("*", [(0, 0, "4c")])]
-    equal staves [("1", [[["\\clef treble", "\\key c \\major", "r4", "c'2."]]])]
+    equal (f $ UiTest.note_spec ("s/1", [(1, 3, "4c")], []))
+        (Right [["\\clef treble", "r4", "c'2."]], [])
+
+    -- Even if there are measures of rests.
+    equal (f $ UiTest.note_spec ("s/1", [(5, 3, "4c")], []))
+        (Right [["\\clef treble", "r1"], ["r4", "c'2."]], [])
 
 test_key = do
-    let (events, logs) = derive
+    let f = first (extract_staves ["key"]) . derive
+    equal (f
             [ (">s/1 | key = 'a-mixo'", [(0, 2, ""), (2, 2, "key = 'c-maj' |")])
             , ("*", [(0, 0, "4c")])
-            ]
-    equal logs []
-    equal (event_staves events)
-        [("1", [[["\\clef treble", "\\key a \\mixolydian", "c'2",
-            "\\key c \\major", "c'2"]]])]
+            ])
+        (Right [["\\key a \\mixolydian", "c'2", "\\key c \\major", "c'2"]], [])
+
+-- * test lilypond derivation
+
+-- These actually test derivation in lilypond mode.  So maybe they should go
+-- in derive, but if I put them here I can test all the way to lilypond score.
 
 test_tempo = do
     -- Lilypond derivation is unaffected by the tempo.
@@ -145,16 +189,13 @@ test_trill = do
     equal logs []
     equal (map extract events)
         [(0, "c'", Attrs.trill), (64, "d'", mempty)]
-    -- putStrLn $ fst $ make_ly default_score events
-
-default_score :: Lilypond.Score
-default_score = make_score "4/4"
+    putStrLn $ make_ly events
 
 -- * util
 
 compile_ly :: [Lilypond.Event] -> IO ()
 compile_ly events = do
-    writeFile "build/test/test.ly" (fst (make_ly default_score events))
+    writeFile "build/test/test.ly" (make_ly events)
     void $ Process.rawSystem
         "lilypond" ["-o", "build/test/test", "build/test/test.ly"]
 
@@ -168,25 +209,27 @@ read_note text
     Just dur = flip Lilypond.NoteDuration False <$>
         Lilypond.read_duration dur_text
 
-make_score :: String -> Lilypond.Score
-make_score time_sig = either (error . ("make_score: " ++)) id $ do
-    tsig <- Lilypond.parse_time_signature time_sig
-    return $ Lilypond.Score
-        { Lilypond.score_title = "title"
-        , Lilypond.score_time = tsig
-        }
+simple_event :: (RealTime, RealTime, String) -> Lilypond.Event
+simple_event (start, dur, pitch) = make_event start dur pitch "" []
 
-mkevent :: (RealTime, RealTime, String) -> Lilypond.Event
-mkevent (start, dur, pitch) = mkevent_inst (start, dur, pitch, "")
+environ_event :: (RealTime, RealTime, String, [(TrackLang.ValName, String)])
+    -> Lilypond.Event
+environ_event (start, dur, pitch, env) = make_event start dur pitch "" env
 
-mkevent_inst :: (RealTime, RealTime, String, String) -> Lilypond.Event
-mkevent_inst (start, dur, pitch, inst) = Lilypond.Event
+time_sig_event :: (RealTime, RealTime, String, String) -> Lilypond.Event
+time_sig_event (s, d, p, tsig) =
+    environ_event (s, d, p, [(Lilypond.v_time_signature, tsig)])
+
+make_event :: RealTime -> RealTime -> String -> String
+    -> [(TrackLang.ValName, String)] -> Lilypond.Event
+make_event start dur pitch inst env = Lilypond.Event
     { Lilypond.event_start = Convert.real_to_time 1 start
     , Lilypond.event_duration = Convert.real_to_time 1 dur
     , Lilypond.event_pitch = pitch
     , Lilypond.event_instrument = Score.Instrument inst
     , Lilypond.event_dynamic = 0.5
-    , Lilypond.event_environ = mempty
+    , Lilypond.event_environ = Map.fromList
+        [(name, TrackLang.VString val) | (name, val) <- env]
     , Lilypond.event_stack = UiTest.mkstack (1, 0, 1)
     }
 
@@ -198,6 +241,23 @@ whole :: Lilypond.Time
 whole = Lilypond.time_per_whole
 
 -- * derive
+
+-- | (title, [Staff]) where Staff = [Measure] where Measure = [String]
+type StaffGroup = (String, [[[String]]])
+
+extract_staves :: [String] -> [Lilypond.Event] -> Either String [[String]]
+extract_staves wanted = fmap (concatMap (concat . snd)) . extract wanted
+
+extract :: [String] -> [Lilypond.Event] -> Either String [StaffGroup]
+extract wanted events =
+    map extract_staves <$> Lilypond.convert_staff_groups default_config events
+    where
+    extract_staves (Lilypond.StaffGroup inst staves) =
+        (Lilypond.inst_name inst, map extract_staff staves)
+    extract_staff (Lilypond.Staff measures) =
+        map (filter is_wanted . map Lilypond.to_lily) measures
+    is_wanted ('\\':note) = takeWhile (/=' ') note `elem` wanted
+    is_wanted _ = True
 
 derive :: [UiTest.TrackSpec] -> ([Lilypond.Event], [String])
 derive tracks = (ly_events, extract_logs logs)
@@ -211,32 +271,7 @@ derive_ly = DeriveTest.derive_tracks_with_ui
     (Derive.with_val TrackLang.v_lilypond_derive "true")
     (State.config#State.default_#State.tempo #= 1)
 
-make_ly :: Lilypond.Score -> [Lilypond.Event] -> (String, Cmd.StackMap)
-make_ly score events = (strip texts, stack_map)
-    where
-    strip = Text.unpack . Text.strip . mconcat
-    (texts, stack_map) = Lilypond.make_ly Lilypond.default_config score events
-
--- ** staves
-
--- | (title, [Staff]) where Staff = [Measure] where Measure = [String]
-type StaffGroup = (String, [[[String]]])
-
-event_staves :: [Lilypond.Event] -> [StaffGroup]
-event_staves = map extract_staff . derive_staves default_score
-
-event_staves_pitches :: [Lilypond.Event] -> [StaffGroup]
-event_staves_pitches = map (second filter_annotations) . event_staves
-    where
-    filter_annotations = map $ map $ filter (not . ("\\" `List.isPrefixOf`))
-
-extract_staff :: Lilypond.StaffGroup -> StaffGroup
-extract_staff (Lilypond.StaffGroup inst staves) =
-    (Lilypond.inst_name inst, map extract staves)
-    where
-    extract (Lilypond.Staff measures) =
-        map (map Lilypond.to_lily) measures
-
-derive_staves :: Lilypond.Score -> [Lilypond.Event] -> [Lilypond.StaffGroup]
-derive_staves score events = Lilypond.split_staves config
-    (Lilypond.score_time score) events
+make_ly :: [Lilypond.Event] -> String
+make_ly events = Text.unpack $ Text.strip $ Text.concat $ fst $
+    expect_right "make_ly" $
+        Lilypond.make_ly Lilypond.default_config "title" events

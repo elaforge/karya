@@ -2,7 +2,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond where
+import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
+
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -32,6 +35,9 @@ v_hand = TrackLang.Symbol "hand"
 v_clef :: TrackLang.ValName
 v_clef = TrackLang.Symbol "clef"
 
+v_time_signature :: TrackLang.ValName
+v_time_signature = TrackLang.Symbol "time-sig"
+
 -- * types
 
 -- | Configure how the lilypond score is generated.
@@ -52,7 +58,6 @@ default_config = Config
     }
 
 -- | Convert a value to its lilypond representation.
--- TODO go to Pretty.Doc instead of String?
 class ToLily a where
     to_lily :: a -> String
 
@@ -61,7 +66,7 @@ class ToLily a where
 newtype Time = Time Int deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
 
 instance Pretty.Pretty Time where
-    pretty (Time t) = show t ++ "t"
+    pretty t = show (fromIntegral t / fromIntegral time_per_whole) ++ "t"
 
 time_per_whole :: Time
 time_per_whole = Time 128
@@ -88,8 +93,9 @@ instance ToLily NoteDuration where
 
 data TimeSignature = TimeSignature
     { time_num :: !Int, time_denom :: !Duration }
-    deriving (Show)
+    deriving (Eq, Show)
 
+instance Pretty.Pretty TimeSignature where pretty = to_lily
 instance ToLily TimeSignature where
     to_lily (TimeSignature num denom) = show num ++ "/" ++ to_lily denom
 
@@ -128,8 +134,9 @@ data Note = Note {
     , _note_code :: !String
     , _note_stack :: !(Maybe Stack.UiFrame)
     }
-    | Clef String
-    | Key String Mode
+    | ClefChange String
+    | KeyChange Key
+    | TimeChange TimeSignature
     deriving (Show)
 
 rest :: NoteDuration -> Note
@@ -145,8 +152,9 @@ instance ToLily Note where
             [pitch] -> pitch ++ ly_dur ++ code
             _ -> '<' : unwords pitches ++ ">" ++ ly_dur ++ code
         where ly_dur = to_lily dur ++ if tie then "~" else ""
-    to_lily (Clef clef) = "\\clef " ++ clef
-    to_lily (Key tonic mode) = "\\key " ++ tonic ++ " \\" ++ mode
+    to_lily (ClefChange clef) = "\\clef " ++ clef
+    to_lily (KeyChange (tonic, mode)) = "\\key " ++ tonic ++ " \\" ++ mode
+    to_lily (TimeChange tsig) = "\\time " ++ to_lily tsig
 
 note_time :: Note -> Time
 note_time note@(Note {}) = note_dur_to_time (_note_duration note)
@@ -156,84 +164,218 @@ note_stack :: Note -> Maybe Stack.UiFrame
 note_stack note@(Note {}) = _note_stack note
 note_stack _ = Nothing
 
+-- * time signature
+
+-- | Get a time signature map for the events.  There is one TimeSignature for
+-- each measure.
+extract_time_signatures :: [Event] -> Either String [TimeSignature]
+extract_time_signatures events = go 0 default_time_signature events
+    where
+    go _ _ [] = Right []
+    go at prev_tsig events = do
+        tsig <- maybe (return prev_tsig) lookup_time_signature (Seq.head events)
+        let end = at + measure_time tsig
+        rest <- go end tsig (dropWhile ((<=end) . event_end) events)
+        return $ tsig : rest
+
+    lookup_time_signature = lookup_val v_time_signature parse_time_signature
+        default_time_signature
+    lookup_val :: TrackLang.ValName -> (String -> Either String a) -> a -> Event
+        -> Either String a
+    lookup_val key parse deflt event = prefix $ do
+        maybe_val <- TrackLang.checked_val key (event_environ event)
+        maybe (Right deflt) parse maybe_val
+        where
+        prefix = either (Error.throwError . ((Pretty.pretty key ++ ": ") ++))
+            return
+
 -- * convert
 
+type ConvertM a = State.StateT State (Error.ErrorT String Identity.Identity) a
+
+data State = State {
+    -- constant
+    state_config :: Config
+    -- change on each measure
+    , state_times :: [TimeSignature]
+    , state_measure_start :: Time
+    , state_measure_end :: Time
+
+    -- change on each note
+    -- | End of the previous note.
+    , state_note_end :: Time
+    , state_dynamic :: Maybe String
+    , state_clef :: Maybe Clef
+    , state_key :: Maybe Key
+    } deriving (Show)
+
 -- | Turn Events, which are in absolute Time, into Notes, which are divided up
--- into tied Durations depending on the time signature.
-convert_notes :: Config -> TimeSignature -> Time -> [Event] -> [Note]
-convert_notes config sig end events = go Nothing 0 events
+-- into tied Durations depending on the time signature.  The Notes are divided
+-- up by measure.
+convert_measures :: Config -> [TimeSignature] -> [Event]
+    -> Either String [[Note]]
+convert_measures config time_sigs events =
+    run_convert initial $ add_time_changes <$> go events
     where
-    go :: Maybe Event -> Time -> [Event] -> [Note]
-    go _ prev_end [] = trailing_rests prev_end
-    go prev_event prev_end events@(event:_) =
-        mkrests prev_end start ++ clef_change ++ key_change
-            ++ note : go (Just event) (start + allowed_time) (clipped ++ rest)
+    initial = State config time_sigs 0 0 0 Nothing Nothing Nothing
+    go [] = return []
+    go events = do
+        (measure, events) <- convert_measure events
+        measures <- go events
+        return (measure : measures)
+
+    -- Add TimeChanges when the time signature changes, and pad with empty
+    -- measures until I run out of time signatures.
+    add_time_changes = map add_time . Seq.zip_padded2 (Seq.zip_prev time_sigs)
+    add_time ((prev_tsig, tsig), maybe_measure) = time_change
+        ++ fromMaybe (make_rests config tsig 0 (measure_time tsig))
+            maybe_measure
         where
-        note = Note
-            { _note_pitch = map event_pitch here
-            , _note_duration = allowed_dur
-            , _note_tie = any (> start + allowed_time) (map event_end here)
-            , _note_code = attributes_to_code (event_attributes event)
-                ++ dynamic_to_code config prev_event event
-            , _note_stack = Seq.last (Stack.to_ui (event_stack event))
+        time_change = if maybe True (/=tsig) prev_tsig
+            then [TimeChange tsig] else []
+
+-- TODO The time signatures are still not correct.  Since time sig is only on
+-- notes, I can't represent a time sig change during silence.  I would need to
+-- generate something other than notes, or create a silent note for each time
+-- sig change.
+convert_measure :: [Event] -> ConvertM ([Note], [Event])
+convert_measure events = case events of
+    [] -> return ([], []) -- Out of events at the beginning of a measure.
+    first_event : _ -> do
+        tsig <- State.gets state_times >>= \x -> case x of
+            [] -> Error.throwError $
+                "out of time signatures but not out of events: "
+                ++ show first_event
+            tsig : tsigs -> do
+                State.modify $ \state -> state { state_times = tsigs }
+                return tsig
+        event_tsig <- lookup_time_signature first_event
+        when (event_tsig /= tsig) $
+            Error.throwError $ "inconsistent time signatures, "
+                ++ "analysis says it should be " ++ show tsig
+                ++ " but the event has " ++ show event_tsig
+
+        State.modify $ \state -> state
+            { state_measure_start = state_measure_end state
+            , state_measure_end = state_measure_end state + measure_time tsig
             }
-        clef_change
-            | maybe True ((/= cur) . event_clef) prev_event = [Clef cur]
-            | otherwise = []
-            where cur = event_clef event
-        key_change
-            | maybe True ((/= cur) . event_key) prev_event,
-                Just (tonic, mode) <- parse_key cur = [Key tonic mode]
-            | otherwise = []
-            where cur = event_key event
-
-        (here, rest) = break ((>start) . event_start) events
-        end = subtract start $ fromMaybe (event_end event) $
-            Seq.minimum (next ++ map event_end here)
-        next = maybe [] ((:[]) . event_start) (Seq.head rest)
-        allowed = min end $ allowed_dotted_time sig start
-        allowed_dur = time_to_note_dur allowed
-        allowed_time = note_dur_to_time allowed_dur
-        clipped = mapMaybe (clip_event (start + allowed_time)) here
-        start = event_start event
-
-    mkrests prev start
-        | prev < start = map rest $ convert_duration sig
-            (config_dotted_rests config) prev (start - prev)
-        | otherwise = []
-
-    trailing_rests prev = map rest $
-        convert_duration sig (config_dotted_rests config) prev
-            (max 0 (end - prev))
-
-event_clef :: Event -> String
-event_clef event = case TrackLang.lookup_val v_clef (event_environ event) of
-    Right val -> val
-    _ -> "treble"
-
-event_key :: Event -> Pitch.Key
-event_key event =
-    case TrackLang.lookup_val TrackLang.v_key (event_environ event) of
-        Right val -> Pitch.Key val
-        _ -> Twelve.default_key
-
--- | Guess a dynamic from the dyn control.
-get_dynamic :: [(Double, String)] -> Double -> String
-get_dynamic dynamics dyn = case dynamics of
-    [] -> ""
-    ((val, dyn_str) : dynamics)
-        | null dynamics || val >= dyn -> dyn_str
-        | otherwise -> get_dynamic dynamics dyn
-
-dynamic_to_code :: Config -> Maybe Event -> Event -> String
-dynamic_to_code config prev_event event =
-    to_code (get <$> prev_event) (get event)
+        measure1 tsig events
     where
-    get = get_dynamic (config_dynamics config) . event_dynamic
-    to_code :: Maybe String -> String -> String
-    to_code prev_dyn dyn
-        | not (null dyn) && maybe True (/=dyn) prev_dyn = '\\':dyn
-        | otherwise = ""
+    measure1 tsig [] = trailing_rests tsig []
+    measure1 tsig (event : events) = do
+        state <- State.get
+        -- This assumes that events that happen at the same time all have the
+        -- same clef and key.
+        measure_end <- State.gets state_measure_end
+        if event_start event >= measure_end
+            then trailing_rests tsig (event : events)
+            else note_column state tsig event events
+    note_column state tsig event events = do
+        clef <- lookup_clef event
+        let clef_change = if Just clef /= state_clef state
+                then [ClefChange clef] else []
+        key <- lookup_key event
+        let key_change = if Just key /= state_key state
+                then [KeyChange key] else []
+        let (note, end, rest_events) = convert_note state tsig event events
+            leading_rests = make_rests (state_config state) tsig
+                (state_note_end state) (event_start event)
+            notes = leading_rests ++ clef_change ++ key_change ++ [note]
+        State.modify $ \state -> state
+            { state_clef = Just clef
+            , state_key = Just key
+            , state_dynamic = Just $ get_dynamic (state_config state) event
+            , state_note_end = end
+            }
+        (rest_notes, rest_events) <- measure1 tsig rest_events
+        return (notes ++ rest_notes, rest_events)
+    trailing_rests tsig events = do
+        state <- State.get
+        let end = state_measure_start state + measure_time tsig
+        let rests = make_rests (state_config state) tsig
+                (state_note_end state) end
+        State.modify $ \state -> state { state_note_end = end }
+        return (rests, events)
+
+convert_note :: State -> TimeSignature -> Event -> [Event]
+    -> (Note, Time, [Event])
+convert_note state tsig event events = (note, end, clipped ++ rest)
+    where
+    note = Note
+        { _note_pitch = map event_pitch here
+        , _note_duration = allowed_dur
+        , _note_tie = any (> end) (map event_end here)
+        , _note_code = attributes_to_code (event_attributes event)
+            ++ dynamic_to_code (state_config state) (state_dynamic state) event
+        , _note_stack = Seq.last (Stack.to_ui (event_stack event))
+        }
+    (here, rest) = break ((> start) . event_start) (event : events)
+    allowed_dur = time_to_note_dur allowed
+    allowed_time = note_dur_to_time allowed_dur
+    allowed = min (max_end - start) (allowed_dotted_time tsig start)
+    -- Maximum end, the actual end may be shorter since it has to conform to
+    -- a Duration.
+    max_end = fromMaybe (event_end event) $
+        Seq.minimum (next ++ map event_end here)
+    clipped = mapMaybe (clip_event end) here
+    start = event_start event
+    end = start + allowed_time
+    next = maybe [] ((:[]) . event_start) (Seq.head rest)
+
+make_rests :: Config -> TimeSignature -> Time -> Time -> [Note]
+make_rests config tsig start end
+    | start < end = map rest $ convert_duration tsig
+        (config_dotted_rests config) start (end - start)
+    | otherwise = []
+
+-- ** util
+
+run_convert :: State -> ConvertM a -> Either String a
+run_convert state = fmap fst . Identity.runIdentity . Error.runErrorT
+    . flip State.runStateT state
+
+lookup_time_signature :: Event -> ConvertM TimeSignature
+lookup_time_signature =
+    lookup_val v_time_signature parse_time_signature default_time_signature
+
+default_time_signature :: TimeSignature
+default_time_signature = TimeSignature 4 D4
+
+lookup_clef :: Event -> ConvertM Clef
+lookup_clef = lookup_val v_clef Right default_clef
+
+default_clef :: Clef
+default_clef = "treble"
+
+lookup_key :: Event -> ConvertM Key
+lookup_key = lookup_val TrackLang.v_key parse_key default_key
+
+default_key :: Key
+default_key = ("c", "major")
+
+lookup_val :: TrackLang.ValName -> (String -> Either String a) -> a -> Event
+    -> ConvertM a
+lookup_val key parse deflt event = prefix $ do
+    maybe_val <- TrackLang.checked_val key (event_environ event)
+    maybe (Right deflt) parse maybe_val
+    where
+    prefix = either (Error.throwError . ((Pretty.pretty key ++ ": ") ++))
+        return
+
+get_dynamic :: Config -> Event -> String
+get_dynamic config event = get (config_dynamics config) (event_dynamic event)
+    where
+    get dynamics dyn = case dynamics of
+        [] -> ""
+        ((val, dyn_str) : dynamics)
+            | null dynamics || val >= dyn -> dyn_str
+            | otherwise -> get dynamics dyn
+
+dynamic_to_code :: Config -> Maybe String -> Event -> String
+dynamic_to_code config prev_dyn event
+    | not (null dyn) && prev_dyn /= Just dyn = '\\' : dyn
+    | otherwise = ""
+    where dyn = get_dynamic config event
 
 attributes_to_code :: Score.Attributes -> String
 attributes_to_code =
@@ -290,21 +432,6 @@ allowed_dotted_time sig measure_pos
 allowed_time :: TimeSignature -> Time -> Time
 allowed_time sig pos = 2 ^ (log2 (allowed_dotted_time sig pos))
 
--- * split_measures
-
-split_measures :: TimeSignature -> [Note] -> [[Note]]
-split_measures sig = go
-    where
-    go [] = []
-    go ns = pre : go post
-        where (pre, post) = split 0 ns
-    split _ [] = ([], [])
-    split prev (n:ns)
-        | t > measure = ([], n:ns)
-        | otherwise = let (pre, post) = split t ns in (n:pre, post)
-        where t = prev + note_time n
-    measure = measure_time sig
-
 -- * duration / time conversion
 
 note_dur_to_time :: NoteDuration -> Time
@@ -357,6 +484,7 @@ log2 = go 0
         | otherwise = n
         where (div, mod) = val `divMod` 2
 
+-- | Duration of a measure, in Time.
 measure_time :: TimeSignature -> Time
 measure_time sig = Time (time_num sig) * dur_to_time (time_denom sig)
 
@@ -364,21 +492,21 @@ measure_duration :: TimeSignature -> Duration
 measure_duration (TimeSignature num denom) =
     time_to_dur $ Time num * dur_to_time denom
 
--- * score
+-- * types
 
-data Score = Score {
-    score_title :: String
-    , score_time :: TimeSignature
-    } deriving (Show)
-
+type Title = String
 type Mode = String
+type Clef = String
+-- | (tonic, Mode)
+type Key = (String, Mode)
 
-parse_key :: Pitch.Key -> Maybe (String, Mode)
-parse_key pkey = do
-    key <- Map.lookup pkey Twelve.all_keys
-    tonic <- either (const Nothing) Just $
-        show_pitch_note (Theory.key_tonic key)
-    mode <- Map.lookup (Theory.key_name key) modes
+parse_key :: String -> Either String Key
+parse_key key_name = do
+    key <- maybe (Left $ "unknown key: " ++ key_name) Right $
+        Map.lookup (Pitch.Key key_name) Twelve.all_keys
+    tonic <- show_pitch_note (Theory.key_tonic key)
+    mode <- maybe (Left $ "unknown mode: " ++ Theory.key_name key) Right $
+        Map.lookup (Theory.key_name key) modes
     return (tonic, mode)
     where
     modes = Map.fromList
@@ -407,55 +535,88 @@ data StaffGroup = StaffGroup Score.Instrument [Staff]
 data Staff = Staff [[Note]] deriving (Show)
 
 -- | Group a stream of events into individual staves based on instrument, and
--- for keyboard instruments, left or right hand.
-split_staves :: Config -> TimeSignature -> [Event] -> [StaffGroup]
-split_staves config time_sig events =
-    [ staff_group config time_sig end inst inst_events
-    | (inst, inst_events) <- Seq.keyed_group_on event_instrument events
-    ]
-    where
-    end = round_up (measure_time time_sig) $ fromMaybe 0 $
-        Seq.maximum (map event_end events)
+-- for keyboard instruments, left or right hand.  Then convert each staff of
+-- Events to Notes, divided up into measures.
+convert_staff_groups :: Config -> [Event] -> Either String [StaffGroup]
+convert_staff_groups config events = do
+    let staff_groups = split_events events
+    time_sigs <- get_time_signatures staff_groups
+    forM staff_groups $ \(inst, staves) ->
+        staff_group config time_sigs inst staves
 
--- | Right hand goes at the top, left hand goes at the bottom.  Any other hands
--- goe below that.  Events that are don't have a hand are assumed to be in the
--- right hand.
-staff_group :: Config -> TimeSignature -> Time
-    -> Score.Instrument -> [Event] -> StaffGroup
-staff_group config time_sig end inst events =
-    StaffGroup inst $ map Staff $
-        map measures $ Seq.group_on (lookup_hand . event_environ) events
+-- | Get the per-measure time signatures from the longest staff and verify it
+-- against the time signatures from the other staves.
+get_time_signatures :: [(Score.Instrument, [[Event]])]
+    -> Either String [TimeSignature]
+get_time_signatures staff_groups = do
+    let with_inst inst = error_context ("staff for " ++ Pretty.pretty inst)
+    with_tsigs <- forM staff_groups $ \(inst, staves) -> with_inst inst $ do
+        time_sigs <- mapM extract_time_signatures staves
+        return (inst, zip time_sigs staves)
+    let flatten (_inst, measures) = map fst measures
+        maybe_longest = Seq.maximum_on length (concatMap flatten with_tsigs)
+    when_just maybe_longest $ \longest -> forM_ with_tsigs $ \(inst, staves) ->
+        with_inst inst $ forM_ staves $ \(time_sigs, _measures) ->
+            unless (time_sigs `List.isPrefixOf` longest) $
+                Left $ "inconsistent time signatures: "
+                    ++ Pretty.pretty time_sigs ++ " is not a prefix of "
+                    ++ Pretty.pretty longest
+    return $ fromMaybe [] maybe_longest
+
+error_context :: String -> Either String a -> Either String a
+error_context msg = either (Left . ((msg ++ ": ") ++)) Right
+
+split_events :: [Event] -> [(Score.Instrument, [[Event]])]
+split_events events =
+    [(inst, Seq.group_on (lookup_hand . event_environ) events)
+        | (inst, events) <- by_inst]
     where
+    by_inst = Seq.keyed_group_on event_instrument events
     lookup_hand environ = case TrackLang.lookup_val v_hand environ of
         Right (val :: String)
             | val == "right" -> 0
             | val == "left" -> 1
             | otherwise -> 2
         _ -> 0
-    measures events = split_measures time_sig
-        (promote (convert_notes config time_sig end events))
-    -- Normally clef or key changes go right before the note with the changed
-    -- status.  But if there are leading rests, the annotations should go at
-    -- the beginning of the score.
-    promote notes = annots ++ pre ++ rest
+
+-- | Right hand goes at the top, left hand goes at the bottom.  Any other hands
+-- goe below that.  Events that are don't have a hand are assumed to be in the
+-- right hand.
+staff_group :: Config -> [TimeSignature] -> Score.Instrument -> [[Event]]
+    -> Either String StaffGroup
+staff_group config time_sigs inst staves = do
+    staff_measures <- mapM (convert_measures config time_sigs) staves
+    return $ StaffGroup inst $ map (Staff . promote_annotations) staff_measures
+
+-- | Normally clef or key changes go right before the note with the changed
+-- status.  But if there are leading rests, the annotations should go at the
+-- beginning of the score.  It's more complicated because I have to skip
+-- leading measures of rests.
+promote_annotations :: [[Note]] -> [[Note]]
+promote_annotations measures = case empty ++ stripped of
+        [] -> []
+        measure : measures -> (annots ++ measure) : measures
+    where
+    -- Yack.  There must be a better way.
+    (empty, rest_measures) = span (all not_note) measures
+    (annots, stripped) = strip rest_measures
+    strip [] = ([], [])
+    strip (measure:measures) = (annots, (pre ++ rest) : measures)
         where
-        (pre, post) = span is_rest notes
+        (pre, post) = span not_note measure
         (annots, rest) = span is_annot post
+    not_note n = is_time n || is_rest n
     is_annot (Note {}) = False
     is_annot _ = True
-
-round_up :: (Integral a) => a -> a -> a
-round_up interval n
-    | m == 0 = n
-    | otherwise = (d+1) * interval
-    where
-    (d, m) = n `divMod` interval
+    is_time (TimeChange {}) = True
+    is_time _ = False
 
 -- * make_ly
 
-make_ly :: Config -> Score -> [Event] -> ([Text.Text], Cmd.StackMap)
-make_ly config score events = ly_file score
-    (split_staves config (score_time score) events)
+make_ly :: Config -> Title -> [Event]
+    -> Either String ([Text.Text], Cmd.StackMap)
+make_ly config title events =
+    ly_file title <$> convert_staff_groups config events
 
 inst_name :: Score.Instrument -> String
 inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
@@ -481,8 +642,8 @@ show_pitch_note (Theory.Note pc accs) = do
 
 -- * output
 
-ly_file :: Score -> [StaffGroup] -> ([Text.Text], Cmd.StackMap)
-ly_file (Score title time_sig) staff_groups = run_output $ do
+ly_file :: Title -> [StaffGroup] -> ([Text.Text], Cmd.StackMap)
+ly_file title staff_groups = run_output $ do
     outputs
         [ "\\version" <+> str "2.14.2"
         , "\\language" <+> str "english"
@@ -505,7 +666,6 @@ ly_file (Score title time_sig) staff_groups = run_output $ do
             output ">>\n"
     ly_staff inst (Staff measures) = do
         output $ "\\new Staff {"
-            <+> "\\time" <+> Text.pack (to_lily time_sig) <> "\n"
         output $ "\\set Staff.instrumentName =" <+> str (inst_name inst)
             <> "\n\\set Staff.shortInstrumentName =" <+> str (inst_name inst)
             <> "\n{\n"
