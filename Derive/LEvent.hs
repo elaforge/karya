@@ -71,6 +71,10 @@ logs_of [] = []
 logs_of (Event _ : rest) = logs_of rest
 logs_of (Log log : rest) = log : logs_of rest
 
+write_logs :: (Log.LogMonad m) => [LEvent d] -> m [d]
+write_logs events = mapM_ Log.write logs >> return vals
+    where (vals, logs) = partition events
+
 partition :: Stream (LEvent d) -> ([d], [Log.Msg])
 partition = Seq.partition_either . map to_either
     where

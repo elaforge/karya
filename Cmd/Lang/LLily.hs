@@ -15,7 +15,10 @@ import qualified Util.Process
 
 import qualified Ui.Id as Id
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Lang.Global as Global
+import qualified Cmd.Lang.LPerf as LPerf
 import qualified Cmd.Lilypond
+
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -34,10 +37,20 @@ pipa = from_events config . clean
         -- . filter_inst ["ptq/yangqin"]
 
 bloom :: BlockId -> Cmd.CmdL ()
-bloom block_id = do
-    let title = Id.ident_name block_id
-    let config = Cmd.Lilypond.TimeConfig 0.5 Lilypond.D16
-    block title config block_id
+bloom = block (Cmd.Lilypond.TimeConfig 0.5 Lilypond.D16)
+
+bloom_until :: RealTime -> Cmd.CmdL ()
+bloom_until end = do
+    -- (block_id, _, track_ids, _, _) <- Selection.tracks
+    -- Selection.realtime is not accurate since lilypond derive ignores tempo
+    let block_id = Global.bid "bloom/order"
+    -- block_id <- Cmd.get_focused_block
+    result <- Cmd.Lilypond.derive block_id
+    events <- LEvent.write_logs $
+        LPerf.in_range Score.event_start 0 end (Derive.r_events result)
+    let config = Cmd.Lilypond.TimeConfig (measure / 5) Lilypond.D16
+        measure = 10.166666666666666
+    void $ compile_ly block_id config events
 
 events :: BlockId -> Cmd.CmdL Derive.Events
 events block_id = Derive.r_events <$> Cmd.Lilypond.derive block_id
@@ -49,15 +62,11 @@ filter_inst :: [String] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
     where insts = map Score.Instrument inst_s
 
-block :: Lilypond.Title -> Cmd.Lilypond.TimeConfig -> BlockId -> Cmd.CmdL ()
-block title config block_id = do
-    (events, logs) <- LEvent.partition . Derive.r_events <$>
-        Cmd.Lilypond.derive block_id
-    mapM_ Log.write logs
-    filename <- Cmd.Lilypond.ly_filename block_id
-    result <- Trans.liftIO $
-        Cmd.Lilypond.compile_ly filename config title events
-    stack_map <- Cmd.require_right ("compile_ly: "++) result
+block :: Cmd.Lilypond.TimeConfig -> BlockId -> Cmd.CmdL ()
+block config block_id = do
+    events <- LEvent.write_logs . Derive.r_events
+        =<< Cmd.Lilypond.derive block_id
+    stack_map <- compile_ly block_id config events
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_lilypond_stack_maps = Map.insert block_id
             stack_map (Cmd.state_lilypond_stack_maps st)
@@ -66,15 +75,19 @@ block title config block_id = do
 from_events :: Cmd.Lilypond.TimeConfig -> [Score.Event] -> Cmd.CmdL ()
 from_events config events = do
     block_id <- Cmd.get_focused_block
-    filename <- Cmd.Lilypond.ly_filename block_id
-    let title = Id.ident_name block_id
-    result <- Trans.liftIO $
-        Cmd.Lilypond.compile_ly filename config title events
-    stack_map <- Cmd.require_right ("compile_ly: "++) result
+    stack_map <- compile_ly block_id config events
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_lilypond_stack_maps = Map.insert block_id
             stack_map (Cmd.state_lilypond_stack_maps st)
         }
+
+compile_ly :: BlockId -> Cmd.Lilypond.TimeConfig -> [Score.Event]
+    -> Cmd.CmdL Cmd.StackMap
+compile_ly block_id config events = do
+    filename <- Cmd.Lilypond.ly_filename block_id
+    result <- Trans.liftIO $
+        Cmd.Lilypond.compile_ly filename config (title_of block_id) events
+    Cmd.require_right ("compile_ly: "++) result
 
 view_pdf :: BlockId -> Cmd.CmdL ()
 view_pdf block_id = do
@@ -82,3 +95,6 @@ view_pdf block_id = do
     Trans.liftIO $ Util.Process.logged $
         (Process.proc "open" [FilePath.replaceExtension filename ".pdf"])
     return ()
+
+title_of :: BlockId -> Lilypond.Title
+title_of = Id.ident_name

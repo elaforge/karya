@@ -148,6 +148,12 @@ get_sel event_start event_stack from_root derive_events = do
     return $ in_tracks event_stack track_ids $
         in_range event_start start end events
 
+score_in_selection :: [TrackId] -> RealTime -> RealTime
+    -> Derive.Events -> Derive.Events
+score_in_selection track_ids start end =
+    in_tracks Score.event_stack track_ids
+    . in_range Score.event_start start end
+
 in_tracks :: (d -> Stack.Stack) -> [TrackId] -> Events d -> Events d
 in_tracks event_stack track_ids =
     filter $ is_event (has . tracks_of . event_stack)
