@@ -881,6 +881,9 @@ data Scale = Scale {
 type LookupScale = Pitch.ScaleId -> Maybe Scale
 type Transpose = Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose
     -> Pitch.Note -> Either ScaleError Pitch.Note
+-- | Get the enharmonics of the note.  The given note is omitted, and the
+-- enharmonics are in ascending order until they wrap around, so if you always
+-- take the head of the list you will cycle through all of the enharmonics.
 type Enharmonics = Maybe Pitch.Key -> Pitch.Note
     -> Either ScaleError [Pitch.Note]
 

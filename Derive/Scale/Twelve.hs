@@ -50,6 +50,9 @@ system = TwelveUtil.system layout all_pitches all_keys key
 default_key :: Pitch.Key
 default_key = Pitch.Key "c-maj"
 
+read_pitch :: Pitch.Note -> Either Scale.ScaleError Theory.Pitch
+read_pitch = TwelveUtil.read_pitch layout
+
 -- * constants
 
 middle_c :: Pitch.Degree

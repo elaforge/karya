@@ -44,7 +44,8 @@ scale_map sys = Track.make_scale_map
 transpose :: System -> Derive.Transpose
 transpose sys maybe_key octaves steps note = do
     key <- read_key sys maybe_key
-    pitch <- Theory.modify_octave (+octaves) <$> read_pitch key note
+    pitch <- Theory.modify_octave (+octaves) <$>
+        read_pitch (Theory.key_layout key) note
     case steps of
         Pitch.Chromatic steps -> pitch_note sys $
             Theory.transpose_chromatic key (floor steps) pitch
@@ -54,7 +55,7 @@ transpose sys maybe_key octaves steps note = do
 enharmonics :: System -> Derive.Enharmonics
 enharmonics sys maybe_key note = do
     key <- read_key sys maybe_key
-    pitch <- read_pitch key note
+    pitch <- read_pitch (Theory.key_layout key) note
     return $ Either.rights $ map (pitch_note sys) $
         Theory.enharmonics_of (Theory.key_layout key) pitch
 
@@ -124,6 +125,7 @@ read_key sys Nothing = Right (sys_default_key sys)
 read_key sys (Just key) = maybe (Left Scale.UnparseableKey) Right $
     Map.lookup key (sys_keys sys)
 
-read_pitch :: Theory.Key -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
-read_pitch key note = maybe (Left Scale.UnparseableNote) Right $
-    Theory.read_pitch (Theory.key_layout key) (Pitch.note_text note)
+read_pitch :: Theory.Layout -> Pitch.Note
+    -> Either Scale.ScaleError Theory.Pitch
+read_pitch layout note = maybe (Left Scale.UnparseableNote) Right $
+    Theory.read_pitch layout (Pitch.note_text note)

@@ -64,6 +64,7 @@ events f = do
         events <- concatMapM f events
         State.insert_events track_id events
 
+-- | Map a function over the selected tracks.
 tracks :: (Cmd.M m) => Track m -> m ()
 tracks f = do
     block_id <- Cmd.get_focused_block

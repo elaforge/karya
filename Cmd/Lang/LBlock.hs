@@ -10,10 +10,17 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
+
+import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.Twelve as Twelve
 
 import Types
 
+
+-- * block call
 
 -- | Rename a block and all occurrances in the current block.
 --
@@ -34,7 +41,6 @@ replace_block_call from to text
     | text == Id.ident_name from = Id.ident_name to
     | text == Id.ident_string from = Id.ident_string to
     | otherwise = text
-
 
 -- * create
 
@@ -60,3 +66,22 @@ can_create name = do
         Just block_id -> not . Map.member block_id
             <$> State.gets State.state_blocks
         Nothing -> return False
+
+-- * pitch
+
+simplify_block :: BlockId -> Cmd.CmdL ()
+simplify_block block_id =
+    ModifyEvents.block_tracks block_id simplify_enharmonics
+
+-- | This only works for Twelve at the moment.  For it to work for any scale
+-- I need a way to parse to Theory.Pitch.  Can't use scale_enharmonics because
+-- I don't want to mess with ones that are already simple.
+simplify_enharmonics :: (Cmd.M m) => ModifyEvents.Track m
+simplify_enharmonics = PitchTrack.pitch_tracks $ \scale key note ->
+    case Twelve.read_pitch note of
+        Left _ -> Right note
+        Right pitch
+            | abs (Theory.pitch_accidentals pitch) < 2 -> Right note
+            | otherwise -> case Scale.scale_enharmonics scale key note of
+                Right (simpler : _) -> Right simpler
+                _ -> Right note

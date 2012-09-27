@@ -31,7 +31,7 @@ module Derive.Scale.Theory (
     , semis_to_nn, nn_to_semis
     -- * types
     , PitchClass, Degree, Semi, Octave, char_pc, pc_char
-    , Pitch(..)
+    , Pitch(..), pitch_accidentals
     , parse_pitch, parse_note
     , modify_octave, transpose_pitch
     , Note(..)
@@ -39,6 +39,7 @@ module Derive.Scale.Theory (
     , key_degrees_per_octave
     , layout
     , show_pitch, pitch_c_octave
+    , show_note
     -- * util
     , diatonic_degree_of
 #ifndef TESTING
@@ -235,6 +236,9 @@ data Pitch = Pitch {
 
 instance Pretty.Pretty Pitch where
     pretty = show_pitch "#" "x" "b" "bb"
+
+pitch_accidentals :: Pitch -> Accidentals
+pitch_accidentals = note_accidentals . pitch_note
 
 parse_pitch :: String -> Maybe Pitch
 parse_pitch = ParseBs.maybe_parse_string p_pitch
