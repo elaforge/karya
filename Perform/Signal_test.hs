@@ -24,7 +24,7 @@ test_at_linear = do
 -- * transformation
 
 test_inverse_at = do
-    let f sig pos_list = Signal.inverse_at pos_list (signal sig)
+    let f sig pos = Signal.inverse_at pos (signal sig)
     equal (map (f [(0, 0), (2, 2)]) (Seq.range 0 3 1))
         [Just 0, Just 1, Just 2, Nothing]
     equal (map (f [(1, 1), (2, 2)]) (Seq.range 0 3 1))
@@ -36,6 +36,9 @@ test_inverse_at = do
     -- hurt to handle them correctly anyway.
     equal (map (f [(1, 1), (1, 2), (2, 3)]) (Seq.range 0 4 1))
         [Just 0, Just 1, Just 1, Just 2, Nothing]
+
+    equal (f [(0, 0), (1, 1)] 5) Nothing
+    equal (f [(0, 0), (1, 1)] (-1)) (Just (-1))
 
 test_compose = do
     let sig0 = signal [(0, 0), (10, 20)]

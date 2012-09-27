@@ -215,7 +215,8 @@ resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2
 -- * util
 
 -- | Given a line defined by the two points, find the y at the given x.
--- Crashes if called on a vertical line (y0==y1).
+-- Crashes if called on a vertical line (y0==y1).  Yeah, it's inconsistent
+-- with 'x_at'.
 y_at :: X -> Double -> X -> Double -> X -> Double
 y_at x0 y0 x1 y1 x
     | x0 == x1 = error $ "y_at on vertical line: "
@@ -223,12 +224,10 @@ y_at x0 y0 x1 y1 x
     | otherwise = (y1 - y0) / x_to_double (x1 - x0) * x_to_double (x - x0) + y0
 
 -- | Given a line defined by the two points, find the x at the given y.
--- Crashes if called on a horizontal line (x0==x1).
-x_at :: X -> Double -> X -> Double -> Double -> X
+x_at :: X -> Double -> X -> Double -> Double -> Maybe X
 x_at x0 y0 x1 y1 y
-    | y0 == y1 = error $ "x_at on horizontal line: "
-        ++ show ((x0, y0), (x1, y1), y)
-    | otherwise =
+    | y0 == y1 = Nothing -- line is horizontal
+    | otherwise = Just $
         double_to_x (y - y0) / (double_to_x (y1 - y0) / (x1 - x0)) + x0
 
 -- | A version of 'bsearch_on' specialized to search X.  Profiling says

@@ -304,23 +304,26 @@ sig_op op sig1 sig2 = Signal $ V.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
 inverse_at :: RealTime -> Warp -> Maybe X
 inverse_at pos sig
     | i >= V.length vec = Nothing
+    -- This can happen if 'pos' is before the start of 'sig', which can happen
+    -- if an events starts at a negative time.  Assume the signal is linear
+    -- before the first sample.
+    | i <= 0 = Just pos
     | y1 == y = Just x1
-    | otherwise = Just $ V.x_at x0 y0 x1 y1 y
+    | otherwise = V.x_at x0 y0 x1 y1 y
     where
     vec = sig_vec sig
     y = x_to_y pos
     i = bsearch_y y vec
-        -- This can create x0==x1, but y1 should == y in that case.
-    V.Sample x0 y0 = if i-1 < 0 then V.Sample 0 0 else V.index vec (i-1)
+    V.Sample x0 y0 = if i <= 0 then V.Sample 0 0 else V.index vec (i-1)
     V.Sample x1 y1 = V.index vec i
 
 bsearch_y :: Y -> V.Unboxed -> Int
-bsearch_y y vec = go vec 0 (V.length vec)
+bsearch_y y vec = go 0 (V.length vec)
     where
-    go vec low high
+    go low high
         | low == high = low
-        | y <= V.sy (V.unsafeIndex vec mid) = go vec low mid
-        | otherwise = go vec (mid+1) high
+        | y <= V.sy (V.unsafeIndex vec mid) = go low mid
+        | otherwise = go (mid+1) high
         where mid = (low + high) `div` 2
 
 
