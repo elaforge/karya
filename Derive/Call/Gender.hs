@@ -93,6 +93,8 @@ stretch prev next offset = do
 -- the main note.
 --
 -- [duration /Control/ @%neighbor-duration,.5s@] Duration of the grace note.
+-- It's intended to overlap with the main note, but will be clipped to the main
+-- note's duration.
 c_neighbor :: Pitch.Transpose -> Derive.NoteCall
 c_neighbor transpose = Derive.stream_generator "neighbor" $
     Note.inverting $ \args -> CallSig.call2 args
@@ -104,8 +106,9 @@ c_neighbor transpose = Derive.stream_generator "neighbor" $
         duration <- Util.time_control_at Util.Real duration start
         grace_start <- Derive.score (start - time)
         grace_dur <- Util.duration_from grace_start duration
+        let clipped = min grace_dur (Args.end args - grace_start)
 
         pitch <- Derive.require "pitch" =<< Derive.pitch_at start
-        Derive.d_place grace_start grace_dur
+        Derive.d_place grace_start clipped
                 (Util.with_pitch (Pitches.transpose transpose pitch) Util.note)
             <> Derive.d_place (Args.start args) (Args.duration args) Util.note

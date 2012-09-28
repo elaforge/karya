@@ -56,10 +56,17 @@ test_tick = do
         ]
 
 test_neighbor = do
-    let run start dur = DeriveTest.extract DeriveTest.e_note2 $
-            DeriveTest.derive_tracks
-                [ ("tempo", [(0, 0, "2")])
-                , (">s/1", [(2, 8, "up .15s 1s")])
-                , ("*", [(0, 0, "4c")])
-                ]
-    equal (run 2 8) ([(0.85, 1, "3b"), (1, 4, "4c")], [])
+    let run = DeriveTest.extract DeriveTest.e_note2
+            .  DeriveTest.derive_tracks . (++ [("*", [(0, 0, "4c")])])
+    let result = run
+            [ ("tempo", [(0, 0, "2")])
+            , (">s/1", [(2, 8, "up .15s 2s")])
+            ]
+    equal result ([(0.85, 2, "3b"), (1, 4, "4c")], [])
+    -- Starting at zero means the grace note is negative, but it gets mashed up
+    -- to 0.
+    equal (run [(">s/1", [(0, 1, "up .15 1")])])
+        ([(0, 0.85, "3b"), (0, 1, "4c")], [])
+    -- Stops when main note does.
+    equal (run [(">s/1", [(1, 1, "up .5 4")])])
+        ([(0.5, 1.5, "3b"), (1, 1, "4c")], [])
