@@ -56,9 +56,10 @@ test_tick = do
         ]
 
 test_neighbor = do
-    let run = DeriveTest.extract DeriveTest.e_note2 $ DeriveTest.derive_tracks
-            [ ("tempo", [(0, 0, "2")])
-            , (">s/1", [(2, 8, "up .15s 1s")])
-            , ("*", [(0, 0, "4c")])
-            ]
-    equal run ([(0.85, 1, "4d"), (1, 4, "4c")], [])
+    let run start dur = DeriveTest.extract DeriveTest.e_note2 $
+            DeriveTest.derive_tracks
+                [ ("tempo", [(0, 0, "2")])
+                , (">s/1", [(2, 8, "up .15s 1s")])
+                , ("*", [(0, 0, "4c")])
+                ]
+    equal (run 2 8) ([(0.85, 1, "3b"), (1, 4, "4c")], [])

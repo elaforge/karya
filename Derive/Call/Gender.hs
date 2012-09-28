@@ -27,8 +27,8 @@ import Types
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("tick", c_tick)
-    , ("up", c_neighbor (Pitch.Diatonic 1))
-    , ("dn", c_neighbor (Pitch.Diatonic (-1)))
+    , ("up", c_neighbor (Pitch.Diatonic (-1)))
+    , ("dn", c_neighbor (Pitch.Diatonic 1))
     ]
 
 -- | Insert an intermediate grace note in the rambat style.  The grace note
