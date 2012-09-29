@@ -4,55 +4,60 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
-import qualified Perform.RealTime as RealTime
-
 
 test_tick = do
     -- This also tests some error checking and absolute warp functions.
     let extract = DeriveTest.extract $ \e ->
-            (Score.event_start e, Score.event_duration e, Score.initial_nn e,
-                Score.initial_dynamic e)
-    let run invert evts pitches = extract $ DeriveTest.linear_derive_tracks id
-            (("tempo", [(0, 0, ".5")])
-            : if invert then [note, ("*twelve", pitches)]
-                else [("*twelve", pitches), note])
-            where note = (DeriveTest.default_inst_title, evts)
-    let vel = Derive.default_dynamic
+            (Score.event_start e, Score.event_duration e,
+                DeriveTest.e_twelve e, Score.initial_dynamic e)
+    let run = extract . DeriveTest.linear_derive_tracks id
+    let dyn = Derive.default_dynamic
+        ctod evt1 evt2 evt3 =
+            [ (">", [(0, 1, evt1), (1, 1, evt2), (2, 1, evt3)])
+            , ("*", [(0, 0, "4c"), (2, 0, "4d")])
+            ]
 
-    let (_evts, logs) = run False
-            [(0, 1, "tick"), (1, 1, "tick"), (2, 1, "")]
-            [(0, 0, "4c"), (2, 0, "4d")]
-    strings_like logs ["previous event"]
+    strings_like (snd $ run $ ctod "'" "'" "") ["previous event"]
 
     -- tick is a constant time before second note regardless of tempo
-    let (evts, logs) = run False [(0, 1, ""), (1, 1, "tick .5"), (2, 1, "")]
-            [(0, 0, "4c"), (2, 0, "4d")]
+    let (evts, logs) = run $
+            ("tempo", [(0, 0, ".5")]) : ctod "" "' .5 .5" ""
     equal logs []
     equal evts
-        [ (0, 2, Just 60, vel)
-        , (RealTime.seconds 3.5, RealTime.seconds 0.5, Just 61, vel*0.5)
-        , (4, 2, Just 62, vel)
+        [ (0, 2, "4c", dyn)
+        , (3.5, 1, "4c#", dyn*0.5)
+        , (4, 2, "4d", dyn)
         ]
 
-    -- Tick works under inversion as well.
-    equal (run True
-            [(0, 1, ""), (1, 1, "tick .5"), (2, 1, "")]
-            [(0, 0, "4c"), (2, 0, "4d")])
-        ([ (0, 2, Just 60, vel)
-        , (RealTime.seconds 3.5, RealTime.seconds 0.5, Just 61, vel*0.5)
-        , (4, 2, Just 62, vel)
-        ], [])
-
-    -- a tick that doesn't have room for the requested duration will go halfway
-    -- between the two notes
-    let (evts, logs) = run False
-            [(0, 0.5, ""), (0.5, 0.5, "tick 10 1"), (1, 0.5, "")]
-            [(0, 0, "4d"), (1, 0, "4c")]
+    -- tick damp time doesn't go past second note
+    let (evts, logs) = run $ ctod "" "' .5 5 1" ""
     equal logs []
     equal evts
-        [ (0, 1, Just 62, vel)
-        , (1, 1, Just 61, vel)
-        , (2, 1, Just 60, vel)
+        [ (0, 1, "4c", dyn)
+        , (1.5, 1.5, "4c#", dyn) -- dyn_scale arg is 1
+        , (2, 1, "4d", dyn)
+        ]
+
+    -- If it doesn't have room for the requested duration it will go halfway
+    -- between the two notes
+    let (evts, logs) = run $ ctod "" "' 10 1 1" ""
+    equal logs []
+    equal evts
+        [ (0, 1, "4c", dyn)
+        , (1, 2, "4c#", dyn)
+        , (2, 1, "4d", dyn)
+        ]
+
+    -- Tick works when not inverted as well.
+    let (evts, logs) = run
+            [ ("*", [(0, 0, "4c"), (2, 0, "4d")])
+            , (">", [(0, 1, ""), (1, 1, "' .5 1 1"), (2, 1, "")])
+            ]
+    equal logs []
+    equal evts
+        [ (0, 1, "4c", dyn)
+        , (1.5, 1.5, "4c#", dyn)
+        , (2, 1, "4d", dyn)
         ]
 
 test_neighbor = do
@@ -62,11 +67,11 @@ test_neighbor = do
             [ ("tempo", [(0, 0, "2")])
             , (">s/1", [(2, 8, "up .15s 2s")])
             ]
-    equal result ([(0.85, 2, "3b"), (1, 4, "4c")], [])
+    equal result ([(0.85, 2.15, "3b"), (1, 4, "4c")], [])
     -- Starting at zero means the grace note is negative, but it gets mashed up
     -- to 0.
-    equal (run [(">s/1", [(0, 1, "up .15 1")])])
-        ([(0, 0.85, "3b"), (0, 1, "4c")], [])
+    equal (run [(">s/1", [(0, 1, "up .15 .5")])])
+        ([(0, 0.5, "3b"), (0, 1, "4c")], [])
     -- Stops when main note does.
     equal (run [(">s/1", [(1, 1, "up .5 4")])])
         ([(0.5, 1.5, "3b"), (1, 1, "4c")], [])

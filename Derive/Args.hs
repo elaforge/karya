@@ -42,15 +42,19 @@ end = Event.end . event
 next :: PassedArgs d -> ScoreTime
 next = Derive.info_event_end . info
 
+-- | End of the next event, or the end of the block if there is no next event.
+next_end :: PassedArgs d -> ScoreTime
+next_end args = maybe (next args) Event.end (Seq.head (next_events args))
+
 -- | Get the start of the next event, if there is one.
 --
 -- This is similar to 'next', except that it will be Nothing at the end of
 -- the block.
 next_start :: PassedArgs d -> Maybe ScoreTime
-next_start = fmap Event.start . Seq.head . Derive.info_next_events . info
+next_start = fmap Event.start . Seq.head . next_events
 
 prev_start :: PassedArgs d -> Maybe ScoreTime
-prev_start = fmap Event.start . Seq.head . Derive.info_prev_events . info
+prev_start = fmap Event.start . Seq.head . prev_events
 
 prev_events, next_events :: PassedArgs d -> [Event.Event]
 next_events = Derive.info_next_events . info

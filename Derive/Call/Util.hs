@@ -65,6 +65,9 @@ join_transpose :: Double -> TransposeType -> Pitch.Transpose
 join_transpose c Chromatic = Pitch.Chromatic c
 join_transpose c Diatonic = Pitch.Diatonic c
 
+-- | This is just a shorthand way to look up a bunch of controls at once.
+-- TODO Now that lots of controls are typed it may not be so useful, unless
+-- I add type annotations to the controls list.
 with_controls :: (FixedList.FixedList list) => Derive.PassedArgs d
     -> list TrackLang.ValControl -> (list Signal.Y -> Derive.Deriver a)
     -> Derive.Deriver a

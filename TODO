@@ -511,6 +511,8 @@ integrate:
 
 lilypond:
   enough to render bloom nicely:
+    - pedal should emit pedal sign
+    - the manual pedal notes I guess should be pedal-ified
     * arpeggio call should emit arp
     / Why does the cmd have to wait until lilypond is done?  Should be async.
       No idea.  It says it wrote the response, but the repl doesn't give

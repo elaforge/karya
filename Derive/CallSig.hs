@@ -66,7 +66,7 @@ optional :: String -> a -> Arg a
 optional name deflt = Arg name (Just deflt)
 
 -- | The argument's value is taken from the given signal, with the given
--- default.
+-- default.  If the value isn't given, the default is Untyped.
 control :: String -> Signal.Y -> TrackLang.ValControl
 control name deflt = typed_control name deflt Score.Untyped
 
