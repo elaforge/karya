@@ -73,11 +73,12 @@ objects that can have other values applied to them, for instance chromatic or
 diatonic transposition, and later evaluated to a normal control signal
 representing frequency.  The warp signal is the same as a control signal,
 except it's used to control [ScoreTime to RealTime
-mapping](#scoretime-and-realtime).  The Environ ('Derive.TrackLang.Environ')
+mapping](#scoretime-and-realtime).  The environ ('Derive.TrackLang.Environ')
 is different: it holds constant values ('Derive.TrackLang.Val'), but they they
 may be typed.  For instance, the key of a section of music is stored as a
 string, or the current instrument or scale in scope is stored as a instrument
-or scale respectively.
+or scale respectively.  As documented in [Calls](#calls), the environ is also
+used for argument defaulting.
 
 Actually, control signals may also carry types also, for instance to document
 whether a transposition signal is in chromatic or diatonic steps, or whether a
@@ -131,7 +132,8 @@ Val.  Each of note, control, and pitch calls are only in scope in their
 relevant tracks, but val calls are in scope in all tracks.
 
 A call may have zero or more arguments, which are parsed as
-'Derive.TrackLang.Val's.
+'Derive.TrackLang.Val's.  Argument parsing and the defaulting scheme (which
+uses the dynamic environ) is documented in 'Derive.CallSig'.
 
 Furthermore, calls are divided into generator and transform calls.  Generator
 calls produce values of their appropriate type, while transform calls are
@@ -195,6 +197,17 @@ the prefix application `= x 42`.  The default behaviour of this call is a
 transformer that sets the given value in the dynamic environ of its generator.
 
 Evaluation is implemented by 'Derive.Call.apply_toplevel'.
+
+## Vals
+
+TODO document various types of tracklang literals.
+
+### numeric types
+
+TODO document literal suffixes, e.g. 1s 1t 1d 1c, control track suffixes
+
+The interaction between typed controls and arguments is also documented in
+'Derive.CallSig'.
 
 ## track evaluation
 

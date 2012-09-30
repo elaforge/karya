@@ -1,9 +1,83 @@
 {-# LANGUAGE ScopedTypeVariables #-}
--- | Functions to help define call signatures.
---
--- This is not in TrackLang because it needs Derive.PassedArgs and Derive
--- already imports TrackLang.  It could be in Derive.Call but Call is already
--- big so let's leaeve it separate for now.
+{- | Functions to help define call signatures.
+
+    This module, along with the 'TrackLang.Typecheck' class, define a little
+    DSL to express function signatures.  Check existing calls for examples.
+
+    Argument passing, in an effort to be flexible, got a bit complicated.  Each
+    'Arg' has a name and a possible default.  So right off there are three ways
+    to provide an argument:
+
+    1. Pass it explicitly.
+
+    2. If it is omitted, or @_@ is passed explicitly, it will be sought in the
+    dynamic environ, under the name @callid-name@.  E.g. given a call
+    @generator "name" $ \args -> call1 (required "arg1") ...@ then
+    @call-arg1 = 42 | call _@ will get 42.  Note that it uses the call name,
+    and not the symbol it happens to bound to in this scope.  This is because,
+    while you may bind different kinds of trills to @tr@ depending on the needs
+    of the score, the two kinds of trills may have different arguments with
+    different meanings.
+
+    3. If it's omitted, and not in the dynamic environ, the default will be
+    used, provided there is one.
+
+    In addition, an arg may be a 'TrackLang.PitchControl' or
+    'TrackLang.ValControl', which introduces yet another way to provide the
+    value.  An argument @required_control "c"@ will pass
+    a 'TrackLang.LiteralControl'.  Technically it's then up to the call to
+    decide what to do with it, but it will likely look it up at its chosen
+    point in time, which means you can provide the value by providing a @c@
+    control track or binding it explicitly e.g. @%c = .5 | call@.
+
+    - To further complicate the matter, the control arg may itself have a
+    default, to relieve the caller from always having to provide that control.
+    So an argument @control "c" 0.5@ or an explicitly provided control val
+    @call %c,.5@ will default to 0.5 if the @c@ control is not in scope.
+
+    Since the arg defaulting and control defaulting are orthogonal, they can be
+    combined:
+
+    1. Pass it explicitly with a default: @call %c,.5@.  This is either the
+    value of @%c@ or 0.5.
+
+    2. Pass it via the dynamic environ: @call-arg1 = %c,.5 | call@.  This is
+    the same as the above, only the argument is provided implicitly.
+
+    3. Fall back on the built-in default: @control "c" 0.5@ and then just
+    @call@.
+
+    I originally envisioned the dynamic environ passing scheme to be a way to
+    default certain arguments within the context of a track, to be used in
+    a relatively ad-hoc way in specific parts of the score (e.g. all trills
+    within this section of melody default to minor thirds), is not limited to
+    numeric types, and is constant in time.  A control, however, is intended to
+    capture musical parameters that change in time over the course of the
+    piece, and is numeric or a pitch.  So while dynamic environ args are forced
+    to be specific to a certain call by prepending the call's name, control
+    names should generally have more general and abstract names.
+
+    On the subject of controls, controls (and numeric vals in general) have
+    another layer of complexity since they carry types.  For example, here's
+    a gloriously complicated argument:
+    @optional "speed" (typed_control "tremolo-speed" 10 Score.Real)@.  This
+    argument defaults to @%tremolo-speed,10s@.  If it's not given, it will
+    have the value @10s@.  If the @%tremolo-speed@ control is in scope but
+    untyped, its values will be interpreted as RealTime.  If it's in scope
+    and typed (e.g. with a @tremolo-speed:t@ track), then its values will
+    be interpreted as ScoreTime.
+
+    Another wrinkle in argument passing is that, in addition to being
+    'required', which has no default, or being 'optional', which has a default,
+    they can be 'optional' with a default of Nothing.  This passes the argument
+    as a @Maybe a@ instead of @a@ and lets the call distinguish whether an
+    argument was provided or not.  This is for arguments which are optional but
+    need a more complicated defaulting strategy than simply a constant.
+
+    This module is split off from "Derive.TrackLang" because it needs
+    'Derive.PassedArgs' and Derive already imports TrackLang.  It could be in
+    Derive.Call but Call is already big so let's leave it separate for now.
+-}
 module Derive.CallSig where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -79,6 +153,32 @@ required_control :: String  -> TrackLang.ValControl
 required_control name = TrackLang.LiteralControl (Score.Control name)
 
 -- * extract and call
+
+{- Here's what a typeclass based approach could look like.  However, I don't
+    feel like writing call1, call2, etc. is that big of a problem, so the
+    typeclass is probably not worth it, especially since it makes the zero and
+    one arg cases a bit less graceful:
+
+    class Call a where
+        type ArgsOf a :: *
+        call :: PassedArgs d -> ArgsOf a -> (a -> Derive.Deriver result)
+            -> Derive.Deriver result
+
+    instance Call () where
+        type ArgsOf () = ()
+        call vals () f = call0 vals (f ())
+
+    newtype S a = S a
+    instance (Typecheck a) => Call (S a) where
+        type ArgsOf (S a) = Arg a
+        call vals arg1 f = call1 vals arg1 $ \v1 -> f (S v1)
+
+    instance (Typecheck a, Typecheck b) => Call (a, b) where
+        type ArgsOf (a, b) = (Arg a, Arg b)
+        call vals (arg1, arg2) f = call2 vals (arg1, arg2) $
+            \v1 v2 -> f (v1, v2)
+-}
+
 
 -- | Each call function will typecheck and call a function.
 call0 :: PassedArgs y -> Derive.Deriver a -> Derive.Deriver a
@@ -200,6 +300,8 @@ pure_extract_arg :: (Typecheck a) => Int -> Arg a -> Maybe TrackLang.Val
     -> Either Derive.CallError a
 pure_extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
         (Nothing, Nothing) -> err Nothing
+        -- A val from the dynamic env takes precedence over the call's built-in
+        -- default.
         (_, Just val) -> check val
         (Just v, Nothing) -> Right v
     where
