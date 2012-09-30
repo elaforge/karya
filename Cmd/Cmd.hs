@@ -725,6 +725,18 @@ lookup_performance block_id =
 get_performance :: (M m) => BlockId -> m Performance
 get_performance block_id = require =<< lookup_performance block_id
 
+-- | Clear all performances, which will cause them to be rederived.
+-- It could get out of IO by using unsafePerformIO to kill the threads (it
+-- should be safe), but I won't do it unless I have to.
+invalidate_performances :: CmdT IO ()
+invalidate_performances = do
+    threads <- gets (Map.elems . state_performance_threads . state_play)
+    Trans.liftIO $ mapM_ Concurrent.killThread threads
+    modify_play_state $ \state -> state
+        { state_performance = mempty
+        , state_performance_threads = mempty
+        }
+
 -- | Keys currently held down, as in 'state_keys_down'.
 keys_down :: (M m) => m (Map.Map Modifier Modifier)
 keys_down = gets state_keys_down

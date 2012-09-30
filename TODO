@@ -1,4 +1,5 @@
 UNSORTED
+  * changing default tempo should cause everything to rederive
   * paste is not pasting the last 0-dur event
   * the dyn track of the kendang is getting kendang notes
   * "has no tempo information" error should print out any logs
@@ -584,7 +585,8 @@ external
   - problem with pianoteq: if the same note occurs on two channels, one
     will be dropped.  Report to pianoteq.  I could work around, but it won't
     occur with real multitimbral instruments anyway.
-  - shakefile: can I print [# of #] when compiling?
+  + shakefile: can I print [# of #] when compiling?
+    asked neilm about it
   - send a patch to improve Random.Shuffle?
   - patch for hsc2hs for #alignment
   srcloc_annotate pragma

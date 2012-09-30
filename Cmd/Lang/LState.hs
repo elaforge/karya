@@ -19,17 +19,25 @@ import Types
 
 -- * configure
 
+get_config :: Cmd.CmdL State.Config
+get_config = State.config <#> State.get
+
+get_default :: Cmd.CmdL State.Default
+get_default = State.config#State.default_ <#> State.get
+
 set_default_tempo :: Signal.Y -> Cmd.CmdL ()
-set_default_tempo t =
-    State.modify_default $ \d -> d { State.default_tempo = t }
+set_default_tempo t = modify_config $ State.default_#State.tempo #= t
 
 set_default_inst :: String -> Cmd.CmdL ()
-set_default_inst inst = State.modify_default $ \d ->
-    d { State.default_instrument = Just (Score.Instrument inst) }
+set_default_inst inst = modify_config $
+    State.default_#State.instrument #= Just (Score.Instrument inst)
 
 set_default_scale :: String -> Cmd.CmdL ()
-set_default_scale scale = State.modify_default $ \d ->
-    d { State.default_scale = Pitch.ScaleId scale }
+set_default_scale scale = modify_config $
+    State.default_#State.scale #= Pitch.ScaleId scale
+
+modify_config :: (State.Config -> State.Config) -> Cmd.CmdL ()
+modify_config f = State.modify_config f >> Cmd.invalidate_performances
 
 set_global_transform :: String -> Cmd.CmdL ()
 set_global_transform = State.modify . (State.config#State.global_transform #=)

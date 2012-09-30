@@ -40,12 +40,12 @@ infixr 9 #
 (#$) = get
 infixr 1 #$
 
--- | Set: @a#b =# 42 record@
+-- | Set: @a#b #= 42 record@
 (#=) :: Lens f a -> a -> f -> f
 (#=) = Pure.set
 infix 1 #=
 
--- | Modify: @a#b =% (+1) record@
+-- | Modify: @a#b %= (+1) record@
 (%=) :: Lens f a -> (a -> a) -> f -> f
 (%=) = modify
 infix 1 %=
