@@ -12,66 +12,53 @@ test_tick = do
                 DeriveTest.e_twelve e, Score.initial_dynamic e)
     let run = extract . DeriveTest.linear_derive_tracks id
     let dyn = Derive.default_dynamic
-        ctod evt1 evt2 evt3 =
-            [ (">", [(0, 1, evt1), (1, 1, evt2), (2, 1, evt3)])
-            , ("*", [(0, 0, "4c"), (2, 0, "4d")])
+        c_to_e evt1 evt2 =
+            [ (">", [(0, 1, evt1), (2, 1, evt2)])
+            , ("*", [(0, 0, "4c"), (2, 0, "4e")])
             ]
 
-    strings_like (snd $ run $ ctod "'" "'" "") ["previous event"]
+    strings_like (snd $ run $ c_to_e "'" "'") ["previous event"]
 
     -- tick is a constant time before second note regardless of tempo
-    let (evts, logs) = run $
-            ("tempo", [(0, 0, ".5")]) : ctod "" "' .5 .5" ""
+    let (evts, logs) = run $ ("tempo", [(0, 0, ".5")]) : c_to_e "" "' .5 .5"
     equal logs []
     equal evts
         [ (0, 2, "4c", dyn)
-        , (3.5, 1, "4c#", dyn*0.5)
-        , (4, 2, "4d", dyn)
+        , (3.5, 1, "4d", dyn*0.75)
+        , (4, 2, "4e", dyn)
         ]
 
     -- tick damp time doesn't go past second note
-    let (evts, logs) = run $ ctod "" "' .5 5 1" ""
+    let (evts, logs) = run $ c_to_e "" "' .5 5 1"
     equal logs []
     equal evts
         [ (0, 1, "4c", dyn)
-        , (1.5, 1.5, "4c#", dyn) -- dyn_scale arg is 1
-        , (2, 1, "4d", dyn)
+        , (1.5, 1.5, "4d", dyn) -- dyn_scale arg is 1
+        , (2, 1, "4e", dyn)
         ]
 
     -- If it doesn't have room for the requested duration it will go halfway
     -- between the two notes
-    let (evts, logs) = run $ ctod "" "' 10 1 1" ""
+    let (evts, logs) = run $ c_to_e "" "' 10 1 1"
     equal logs []
     equal evts
         [ (0, 1, "4c", dyn)
-        , (1, 2, "4c#", dyn)
-        , (2, 1, "4d", dyn)
+        , (1, 2, "4d", dyn)
+        , (2, 1, "4e", dyn)
         ]
 
     -- Tick works when not inverted as well.
     let (evts, logs) = run
-            [ ("*", [(0, 0, "4c"), (2, 0, "4d")])
-            , (">", [(0, 1, ""), (1, 1, "' .5 1 1"), (2, 1, "")])
+            [ ("*", [(0, 0, "4c"), (2, 0, "4e")])
+            , (">", [(0, 1, ""), (2, 1, "' .5 1 1")])
             ]
     equal logs []
     equal evts
         [ (0, 1, "4c", dyn)
-        , (1.5, 1.5, "4c#", dyn)
-        , (2, 1, "4d", dyn)
+        , (1.5, 1.5, "4d", dyn)
+        , (2, 1, "4e", dyn)
         ]
 
-test_neighbor = do
-    let run = DeriveTest.extract DeriveTest.e_note2
-            .  DeriveTest.derive_tracks . (++ [("*", [(0, 0, "4c")])])
-    let result = run
-            [ ("tempo", [(0, 0, "2")])
-            , (">s/1", [(2, 8, "up .15s 2s")])
-            ]
-    equal result ([(0.85, 2.15, "3b"), (1, 4, "4c")], [])
-    -- Starting at zero means the grace note is negative, but it gets mashed up
-    -- to 0.
-    equal (run [(">s/1", [(0, 1, "up .15 .5")])])
-        ([(0, 0.5, "3b"), (0, 1, "4c")], [])
-    -- Stops when main note does.
-    equal (run [(">s/1", [(1, 1, "up .5 4")])])
-        ([(0.5, 1.5, "3b"), (1, 1, "4c")], [])
+    -- Explicit down tick.
+    equal (run $ c_to_e "" "'v .5 .5 1")
+        ([(0, 1, "4c", dyn), (1.5, 1, "4f", dyn), (2, 1, "4e", dyn)], [])

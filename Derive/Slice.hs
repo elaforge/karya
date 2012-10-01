@@ -54,7 +54,7 @@ extract_orphans :: TrackTree.TrackEvents -> TrackTree.EventsTree
     -> TrackTree.EventsTree
 extract_orphans _ [] = []
 extract_orphans track subs = filter has_note $
-    concatMap (\(exclusive, s, e) -> slice exclusive 1 s e Nothing subs) $
+    concatMap (\(exclusive, s, e) -> slice exclusive (1, 1) s e Nothing subs) $
         event_gaps (Events.ascending (TrackTree.tevents_events track))
             (TrackTree.tevents_end track)
     where
@@ -92,10 +92,8 @@ data InsertEvent = InsertEvent {
     } deriving (Show)
 
 -- | Slice the tracks below me to lie within start and end, and optionally put
--- a note track with a single event of given string at the bottom.  Control
--- tracks actually get an event at or before and after the slice boundaries
--- since control calls usually want to interpolate from the previous event or
--- to the next one.
+-- a note track with a single event of given string at the bottom.  Sliced
+-- control tracks usually get events beyond the slice boundaries for context.
 --
 -- Tracks thare are empty as a result of slicing are omitted from the output.
 -- This is necessary for note tracks because otherwise empty ones will stop
@@ -105,17 +103,26 @@ data InsertEvent = InsertEvent {
 -- The result is [] if there are no events intersecting the given range.
 slice :: Bool -- ^ Omit events than begin at the start.  'event_gaps' documents
     -- why this is necessary.
-    -> Int -- ^ Capture this many control points after the slice boundary.
-    -- Usually this is 1 since control calls usually generate samples from
-    -- their predecessor, but may be more for inverting calls that want to
-    -- see control values of succeeding events.
+    -> (Int, Int)
+    -- ^ Capture this many control points at+before and after the slice
+    -- boundaries.  For the purposes of getting events around, the event at the
+    -- start is considered before.  This is so that getting 1 event before
+    -- means at or before, which is is appropriate for many control calls which
+    -- generate samples from the previous event.  Usually it's (1, 1) for one
+    -- at+before event and one following event, which is enough context for the
+    -- typical control call, but may be more for inverting calls that want to
+    -- see control values of preceeding or succeeding events.
+    --
+    -- TODO the use of (before, after) is probably incorrect.  It should be
+    -- that many note track events worth of control events before or after the
+    -- slice range.
     -> ScoreTime -> ScoreTime
     -> Maybe InsertEvent
     -- ^ If given, insert an event at the bottom with the given text and dur.
     -- The created track will have the given track_range, so it can create
     -- a Stack.Region entry.
     -> TrackTree.EventsTree -> TrackTree.EventsTree
-slice exclusive after start end insert_event = concatMap strip . map do_slice
+slice exclusive around start end insert_event = concatMap strip . map do_slice
     where
     do_slice (Tree.Node track subs) = Tree.Node (slice_t track)
         (if null subs then insert else map do_slice subs)
@@ -123,17 +130,18 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
         Nothing -> []
         Just insert_event -> [Tree.Node (make insert_event) []]
     -- The synthesized bottom track.
-    make (InsertEvent text dur trange around track_id) = TrackTree.TrackEvents
-        { TrackTree.tevents_title = ">"
-        , TrackTree.tevents_events =
-            Events.singleton (Event.event start dur text)
-        , TrackTree.tevents_track_id = track_id
-        , TrackTree.tevents_end = end
-        , TrackTree.tevents_range = trange
-        , TrackTree.tevents_sliced = True
-        , TrackTree.tevents_around = around
-        , TrackTree.tevents_shifted = 0
-        }
+    make (InsertEvent text dur trange events_around track_id) =
+        TrackTree.TrackEvents
+            { TrackTree.tevents_title = ">"
+            , TrackTree.tevents_events =
+                Events.singleton (Event.event start dur text)
+            , TrackTree.tevents_track_id = track_id
+            , TrackTree.tevents_end = end
+            , TrackTree.tevents_range = trange
+            , TrackTree.tevents_sliced = True
+            , TrackTree.tevents_around = events_around
+            , TrackTree.tevents_shifted = 0
+            }
     slice_t track = track
         { TrackTree.tevents_events = events track
         , TrackTree.tevents_end = sliced_start + end
@@ -150,7 +158,7 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
             (if exclusive then Events.remove_event start else id)
                 (Events.in_range start end es)
         | otherwise = events_around (TrackInfo.is_pitch_track title)
-            after start end es
+            around start end es
         where
         es = TrackTree.tevents_events track
         title = TrackTree.tevents_title track
@@ -160,16 +168,16 @@ slice exclusive after start end insert_event = concatMap strip . map do_slice
             concatMap strip subs
         | otherwise = [Tree.Node track (concatMap strip subs)]
 
-events_around :: Bool -> Int -> ScoreTime -> ScoreTime -> Events.Events
+events_around :: Bool -> (Int, Int) -> ScoreTime -> ScoreTime -> Events.Events
     -> Events.Events
-events_around is_pitch_track after start end events =
-    Events.from_ascending $ List.reverse prev
+events_around is_pitch_track (before, after) start end events =
+    Events.from_ascending $ List.reverse (take_prev before pre)
         ++ Then.takeWhile ((<end) . Event.start) (take after) post
     where
-    (pre, post) = Events.split start events
-    prev = take_repeats $ case post of
-        at : _ | Event.start at == start -> at : pre
-        _ -> pre
+    -- Implements the "before is at+before" as documented in 'slice'.
+    (pre, post) = case Events.split start events of
+        (pre, at : post) | Event.start at == start -> (at : pre, post)
+        a -> a
     -- This is an icky hack.  The problem is that some calls rely on the
     -- previous value.  So slicing back to them doesn't do any good, I need the
     -- event before.  The problem is that this low level machinery isn't
@@ -179,7 +187,9 @@ events_around is_pitch_track after start end events =
     -- evaluated, and at that point I could get rid of slicing entirely.  But
     -- I can't think of how to do that at the moment.
     call_of = Maybe.fromMaybe "" . ParseBs.parse_call . Event.event_bytestring
-    take_repeats = Then.takeWhile1 ((`Set.member` require_previous) . call_of)
+    take_prev before =
+        Then.takeWhile ((`Set.member` require_previous) . call_of)
+        (take before)
     require_previous = if is_pitch_track then Pitch.require_previous
         else Control.require_previous
 
@@ -227,7 +237,7 @@ slice_notes start end =
             | otherwise = Events.in_range start end tevents
         make_tree [] = [Tree.Node track subs]
         make_tree (p:ps) = [Tree.Node p (make_tree ps)]
-    slice_event tree event = (s, e - s, slice False 1 s e Nothing tree)
+    slice_event tree event = (s, e - s, slice False (1, 1) s e Nothing tree)
         where (s, e) = Event.range event
     shift (shift, stretch, tree) =
         (shift, stretch, map (fmap (shift_tree shift)) tree)

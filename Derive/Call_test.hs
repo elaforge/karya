@@ -193,9 +193,9 @@ test_events_around = do
         Log.warn $ "next: " ++ show (map Event.start (Args.next_events args))
         return []
 
-test_inverting_n = do
+test_inverting_around = do
     -- Ensure calls that want to look at the next pitch work, with the help of
-    -- events around and inverting_n.
+    -- events around and inverting_around.
     let (evts, logs) = extract $ DeriveTest.derive_tracks_with with_call
             [ (">", [(0, 1, ""), (1, 1, "next"), (2, 1, "")])
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
@@ -205,11 +205,12 @@ test_inverting_n = do
     equal evts [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d")]
     equal logs []
     where
-    c_next = Derive.stream_generator "next" $ Note.inverting_n 2 $ \args -> do
-        next <- Derive.require "next event" $ Args.next_start args
-        next_pitch <- Derive.require "next pitch"
-            =<< Derive.pitch_at =<< Derive.real next
-        Derive.d_at (Args.start args) $ Util.pitched_note next_pitch 1
+    c_next = Derive.stream_generator "next" $ Note.inverting_around (2, 2) $
+        \args -> do
+            next <- Derive.require "next event" $ Args.next_start args
+            next_pitch <- Derive.require "next pitch"
+                =<< Derive.pitch_at =<< Derive.real next
+            Derive.d_at (Args.start args) $ Util.pitched_note next_pitch 1
 
 test_track_dynamic = do
     let extract = map extract1 . Map.assocs . Derive.r_track_dynamic

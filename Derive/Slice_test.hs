@@ -39,7 +39,8 @@ test_event_gaps = do
 
 test_slice = do
     let f exclusive after s e insert =
-            extract_tree . Slice.slice exclusive after s e insert . make_tree
+            extract_tree . Slice.slice exclusive (1, after) s e insert
+            . make_tree
     equal (f False 1 1 2 Nothing [Node (make_notes 2 "ab") []]) []
     equal (f False 1 1 2 Nothing [Node (make_notes 1 "ab") []])
         [Node (">", [(1, 1, "a")]) []]
