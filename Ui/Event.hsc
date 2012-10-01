@@ -46,6 +46,7 @@ import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
 import Foreign
 
+import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
@@ -100,8 +101,8 @@ instance DeepSeq.NFData Event where
 
 instance Pretty.Pretty Event where
     format (Event start dur bs _style stack) =
-        Pretty.format (Pretty.format start, Pretty.format dur,
-            Pretty.format bs, dur, Pretty.format stack)
+        -- Event(0t, 1t, "text", Nothing)
+        Pretty.text "Event" <> Pretty.format (start, dur, bs, stack)
 
 instance Pretty.Pretty Stack where
     format (Stack stack key) =
