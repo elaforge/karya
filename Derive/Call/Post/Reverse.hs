@@ -19,8 +19,8 @@ note_calls = Derive.make_calls
 -- * reverse
 
 c_reverse :: Derive.NoteCall
-c_reverse = Derive.transformer "reverse" $ \args deriver ->
-    CallSig.call0 args $ do
+c_reverse = Derive.transformer "reverse" "Reverse the events." $
+    CallSig.call0t $ \args deriver -> do
         start <- Args.real_start args
         (events, logs) <- LEvent.partition <$> deriver
         return $ map LEvent.Log logs ++ map LEvent.Event

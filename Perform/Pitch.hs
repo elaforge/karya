@@ -34,6 +34,8 @@ import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
+import qualified Derive.ShowVal as ShowVal
+
 -- There are many representations for pitch.  The types here are ordered
 -- from abstract to concrete.  'Degree', 'NoteNumber', and 'Hz' can be relative
 -- or absolute, but at the moment no distinctions are made at the type level.
@@ -172,11 +174,10 @@ instance Pretty.Pretty Degree where
 data Transpose = Chromatic Double | Diatonic Double
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Transpose where
-    -- TODO these are tracklang vals, so they should use TrackLang.show_num,
-    -- which I suppose should move to a lower level module
-    pretty (Chromatic d) = Pretty.show_float 2 d ++ "c"
-    pretty (Diatonic d) = Pretty.show_float 2 d ++ "d"
+instance Pretty.Pretty Transpose where pretty = ShowVal.show_val
+instance ShowVal.ShowVal Transpose where
+    show_val (Chromatic d) = ShowVal.show_val d ++ "c"
+    show_val (Diatonic d) = ShowVal.show_val d ++ "d"
 
 -- | Diatonic transposition often requires a Key for context.
 --

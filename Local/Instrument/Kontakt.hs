@@ -54,7 +54,7 @@ patches = concat [hang, wayang, kendang_patches]
 
 hang_code :: MidiInst.Code
 hang_code = MidiInst.empty_code
-    { MidiInst.note_calls = [Derive.make_lookup hang_calls]
+    { MidiInst.note_calls = [Derive.map_lookup hang_calls]
     , MidiInst.cmds = [hang_cmd]
     }
 
@@ -87,7 +87,7 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 wayang_code :: MidiInst.Code
 wayang_code = MidiInst.empty_code
-    { MidiInst.note_calls = CUtil.make_lookup [("", DUtil.note0_attrs muted)] }
+    { MidiInst.note_calls = CUtil.map_lookup [("", DUtil.note0_attrs muted)] }
 
 wayang_ks :: [(Score.Attributes, Midi.Key)]
 wayang_ks = [(muted, Key.gs2), (open, Key.g2), (mempty, Key.g2)]
@@ -128,9 +128,9 @@ kendang_patches =
 
 kendang_composite_code :: (Score.Instrument, Score.Instrument) -> MidiInst.Code
 kendang_composite_code insts@(wadon, lanang) = MidiInst.empty_code
-    { MidiInst.note_calls = CUtil.make_lookup $
+    { MidiInst.note_calls = CUtil.map_lookup $
         ("realize", c_realize_kendang insts)
-        : CUtil.drum_calls (map (fst . fst) Drums.kendang_composite)
+            : CUtil.drum_calls (map (fst . fst) Drums.kendang_composite)
     , MidiInst.cmds = [CUtil.inst_drum_cmd note_insts]
     }
     where
@@ -140,8 +140,9 @@ kendang_composite_code insts@(wadon, lanang) = MidiInst.empty_code
     inst_of Drums.Lanang = lanang
 
 c_realize_kendang :: (Score.Instrument, Score.Instrument) -> Derive.NoteCall
-c_realize_kendang insts = Derive.transformer "realize-kendang" $
-    \args deriver -> CallSig.call0 args $ do
+c_realize_kendang insts = Derive.transformer "realize-kendang"
+    ("Realize a composite kendang score into separate lanang and wadon parts."
+    ) $ CallSig.call0t $ \_ deriver -> do
         events <- deriver
         return $ realize_kendang insts events
 
@@ -193,8 +194,7 @@ emit_kendang :: (Score.Instrument, Score.Instrument)
     -> [(Score.Event, Maybe KendangEvent)] -> [Score.Event]
 emit_kendang _ _ (event, Nothing) _ = [event]
 emit_kendang insts prev (event, Just (attrs, kendang)) next =
-    make_event attrs main_inst
-    : case filler of
+    make_event attrs main_inst : case filler of
         Nothing -> []
         Just second_attrs -> [make_event second_attrs second_inst]
     where

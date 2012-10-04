@@ -1,5 +1,9 @@
+-- | Block level cmds.
 module Cmd.Lang.LBlock where
+import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import Util.Control
 import qualified Ui.Event as Event
@@ -9,6 +13,7 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.DeriveDoc as DeriveDoc
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
@@ -19,6 +24,19 @@ import qualified Derive.Scale.Twelve as Twelve
 
 import Types
 
+
+-- * doc
+
+doc :: Cmd.CmdL Text.Text
+doc = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    DeriveDoc.doc_text <$> DeriveDoc.track block_id track_id
+
+write_doc :: Cmd.CmdL ()
+write_doc = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    doc <- DeriveDoc.doc_text <$> DeriveDoc.track block_id track_id
+    Trans.liftIO $ Text.IO.writeFile "build/derive_doc" doc
 
 -- * block call
 

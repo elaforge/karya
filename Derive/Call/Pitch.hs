@@ -27,15 +27,14 @@ import Types
 -- | Create a note val call for the given scale degree.  This is intended to
 -- be used by scales to generate their val calls, but of course each scale may
 -- define degrees in its own way.
---
--- [frac /Num/ @0@] Add this many hundredths of a scale degree to the output.
--- Intended for fractional scale degrees.
---
--- [hz /Num/ @0@] Add an absolute hz value to the output.
 note_call :: Pitch.Note -> Scale.NoteCall -> Derive.ValCall
-note_call note note_number =
-    Derive.ValCall ("degree: " ++ Pitch.note_text note) $ \args ->
-    CallSig.call2 args (optional "frac" 0, optional "hz" 0) $ \frac hz -> do
+note_call note note_number = Derive.val_call
+    "pitch" ("Emit a pitch for scale degree: " <> Pitch.note_text note) $
+    CallSig.call2g
+    ( optional "frac" 0
+        "Add this many hundredths of a scale degree to the output."
+    , optional "hz" 0 "Add an absolute hz value to the output."
+    ) $ \frac hz _ -> do
         key <- Util.lookup_key
         return $ TrackLang.VPitch $ PitchSignal.pitch (call frac hz key)
     where
@@ -58,7 +57,7 @@ note_expr (Pitch.Note note) frac
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
-    [ ("=", Derive.transformer "equal" Util.equal_transformer)
+    [ ("=", Util.c_equal)
     , ("", c_set)
     , ("set", c_set)
     , ("'", c_set_prev)
@@ -77,15 +76,16 @@ require_previous :: Set.Set String
 require_previous = Set.fromList ["'", "u", "d"]
 
 c_set :: Derive.PitchCall
-c_set = Derive.generator1 "set" $ \args -> CallSig.call1 args
-    (required "pitch") $ \pitch -> do
+c_set = Derive.generator1 "set" "Emit a pitch with no interpolation." $
+    CallSig.call1g (required "pitch" "Destination pitch.") $ \pitch args -> do
         pos <- Args.real_start args
         Util.pitch_signal [(pos, pitch)]
 
 -- | Re-set the previous val.  This can be used to extend a breakpoint.
 c_set_prev :: Derive.PitchCall
-c_set_prev = Derive.generator "set-prev" $ \args -> CallSig.call0 args $
-    case Args.prev_val args of
+c_set_prev = Derive.generator "set-prev"
+    ("Re-set the previous pitch.  This can be used to extend a breakpoint."
+    ) $ CallSig.call0g $ \args -> case Args.prev_val args of
         Nothing -> return []
         Just (prev_x, prev_y) -> do
             pos <- Args.real_start args
@@ -93,30 +93,39 @@ c_set_prev = Derive.generator "set-prev" $ \args -> CallSig.call0 args $
                 else return []
 
 c_linear :: Derive.PitchCall
-c_linear = Derive.generator1 "linear" $ \args ->
-    CallSig.call1 args (required "pitch") (interpolate_prev id args)
+c_linear = Derive.generator1 "linear"
+    ("Interpolate from the previous pitch to the given one in a straight"
+    <> " line, ending at the current time."
+    ) $ CallSig.call1g (required "pitch" "Destination pitch.") $ \pitch args ->
+        interpolate_prev id args pitch
 
--- | Linear interpolation from the previous value.  This is different than
--- 'c_linear' because it starts interpolating *after* the call and
--- continues for a given amount of time, or until the next event.
---
--- [val /Pitch/] Destination value.
---
--- [time /Maybe ScoreOrReal/ Nothing] Time taken to get there.  If not given,
--- slide until the next event.
 c_linear_next :: Derive.PitchCall
-c_linear_next = Derive.generator1 "linear-next" $ \args -> CallSig.call2 args
-    (required "pitch", optional "time" Nothing) (interpolate_next id args)
+c_linear_next = Derive.generator1 "linear-next"
+    ("Interpolate from the previous pitch to the given one in a straight"
+    <> " line, starting here and ending at some time in the future."
+    ) $ CallSig.call2g
+    ( required "pitch" "Destination pitch."
+    , optional "time" Nothing "Time to get to destination pitch."
+    ) $ \pitch maybe_time args -> interpolate_next id args pitch maybe_time
 
 c_exponential :: Derive.PitchCall
-c_exponential = Derive.generator1 "exponential" $ \args ->
-    CallSig.call2 args (required "pitch", optional "exp" 2) $ \pitch exp ->
-        interpolate_prev (Control.expon exp) args pitch
+c_exponential = Derive.generator1 "exponential"
+    ("Interpolate from the previous pitch to the given one in a curve,"
+    <> " ending at the current time."
+    ) $ CallSig.call2g
+    ( required "pitch" "Destination pitch."
+    , optional "exp" 2 Control.exp_doc
+    ) $ \pitch exp args -> interpolate_prev (Control.expon exp) args pitch
 
 c_exponential_next :: Derive.PitchCall
-c_exponential_next = Derive.generator1 "exponential-next" $ \args ->
-    CallSig.call3 args (required "pitch", optional "exp" 2,
-            optional "time" Nothing) $ \pitch exp maybe_time ->
+c_exponential_next = Derive.generator1 "exponential-next"
+    ("Interpolate from the previous pitch to the given one in a curve,"
+    <> " starting here and ending at some time in the future."
+    ) $ CallSig.call3g
+    ( required "pitch" "Destination pitch."
+    , optional "exp" 2 Control.exp_doc
+    , optional "time" Nothing "Time to get to destination pitch."
+    ) $ \pitch exp maybe_time args ->
         interpolate_next (Control.expon exp) args pitch maybe_time
 
 -- | Emit a slide from a neighboring pitch in absolute time.
@@ -127,25 +136,31 @@ c_exponential_next = Derive.generator1 "exponential-next" $ \args ->
 --
 -- [time /ScoreOrReal/ @.3@] Time taken to get to the destination pitch.
 c_neighbor :: Derive.PitchCall
-c_neighbor = Derive.generator1 "neighbor" $ \args ->
-    CallSig.call3 args (required "pitch",
-        optional "neighbor" (Pitch.Chromatic 1),
-        optional "time" (TrackLang.real 0.1)) $
-    \pitch neighbor (TrackLang.DefaultReal time) -> do
+c_neighbor = Derive.generator1 "neighbor"
+    ("Emit a slide from a neighboring pitch to the given one."
+    ) $ CallSig.call3g
+    ( required "pitch" "Destination pitch."
+    , optional "neighbor" (Pitch.Chromatic 1) "Neighobr interval."
+    , optional "time" (TrackLang.real 0.1) "Time to get to destination pitch."
+    ) $ \pitch neighbor (TrackLang.DefaultReal time) args -> do
         (start, end) <- Util.duration_from_start args time
         let pitch1 = Pitches.transpose neighbor pitch
         make_interpolator id True start pitch1 end pitch
 
 c_up :: Derive.PitchCall
-c_up = Derive.generator1 "up" (slope 1)
+c_up = Derive.generator1 "up"
+    "Ascend at the given speed until the next event." $ slope "Ascend" 1
 
 c_down :: Derive.PitchCall
-c_down = Derive.generator1 "down" (slope (-1))
+c_down = Derive.generator1 "down"
+    "Descend at the given speed until the next event." $ slope "Descend" (-1)
 
-slope :: Double -> Derive.PassedArgs PitchSignal.Signal
-    -> Derive.Deriver PitchSignal.Signal
-slope sign args = CallSig.call1 args (optional "speed" (Pitch.Chromatic 1)) $
-    \speed -> case Args.prev_val args of
+slope :: String -> Double -> Derive.WithArgDoc
+    (Derive.PassedArgs PitchSignal.Signal -> Derive.Deriver PitchSignal.Signal)
+slope word sign =
+    CallSig.call1g (optional "speed" (Pitch.Chromatic 1)
+        (word <> " this many steps per second.")) $
+    \speed args -> case Args.prev_val args of
         Nothing -> Util.pitch_signal []
         Just (_, prev_y) -> do
             start <- Args.real_start args

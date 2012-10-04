@@ -71,11 +71,17 @@ note_calls = Derive.make_calls
 --
 -- The args are the same as 'c_pitch_trill'.
 c_note_trill :: Derive.NoteCall
-c_note_trill = Derive.stream_generator "trill" $ Note.inverting $ \args ->
-    CallSig.call2 args (
-        optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic),
-        optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
-    \neighbor speed -> Lily.note args Attrs.trill $ do
+c_note_trill = Derive.stream_generator "trill"
+    ("Generate a note with a trill."
+    <> "\nUnlike a trill on a pitch track, this generates events for each"
+    <> " note of the trill. This is more appropriate for fingered trills,"
+    <> " or monophonic instruments that use legato to play slurred notes."
+    ) $ CallSig.call2g
+    ( optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
+        "Alternate with a pitch at this interval."
+    , speed_arg
+    ) $ \neighbor speed -> Note.inverting $ \args ->
+    Lily.note args Attrs.trill $ do
         mode <- get_mode
         (transpose, control) <- trill_from_controls
             (Args.start args, Args.end args) mode neighbor speed
@@ -90,10 +96,11 @@ c_note_trill = Derive.stream_generator "trill" $ Note.inverting $ \args ->
 
 -- | TODO randomize dyn, randomize starts
 c_tremolo :: Derive.NoteCall
-c_tremolo = Derive.stream_generator "tremolo" $ Note.inverting $ \args ->
-    CallSig.call1 args (
-        optional "speed" (typed_control "tremolo-speed" 10 Score.Real)) $
-    \speed -> Lily.note args Attrs.trem $ do
+c_tremolo = Derive.stream_generator "tremolo" "Repeat a single note." $
+    CallSig.call1g
+    (optional "speed" (typed_control "tremolo-speed" 10 Score.Real) $
+        "Tremolo at this speed. Its meaning is the same as the trill speed."
+    ) $ \speed -> Note.inverting $ \args -> Lily.note args Attrs.trem $ do
         (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
         notes <- case time_type of
             Util.Real -> do
@@ -143,11 +150,17 @@ pitch_calls = Derive.make_calls
 -- unaffected by the tempo.  If it's a ScoreTime, the value is the number
 -- of cycles per ScoreTime unit, and will stretch along with tempo changes.
 c_pitch_trill :: Maybe Mode -> Derive.PitchCall
-c_pitch_trill maybe_mode = Derive.generator1 "pitch_trill" $ \args ->
-    CallSig.call3 args (required "note",
-        optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic),
-        optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
-    \note neighbor speed -> do
+c_pitch_trill maybe_mode = Derive.generator1 "pitch_trill"
+    ("Generate a pitch signal of alternating pitches. `tr1` will start with"
+    <> " the unison, while `tr2` will start with the neighbor. `tr` will"
+    <> " use the `trill-mode` env var, which should be either `'unison'`"
+    <> " or `'neighbor'`, defaulting to unison."
+    ) $ CallSig.call3g
+    ( required "note" "Base pitch."
+    , optional "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
+        "Alternate with a pitch at this interval."
+    , speed_arg
+    ) $ \note neighbor speed args -> do
         mode <- maybe get_mode return maybe_mode
         (transpose, control) <- trill_from_controls
             (Args.start args, Args.next args) mode neighbor speed
@@ -172,14 +185,25 @@ control_calls = Derive.make_calls
 --
 -- Args are the same as 'c_pitch_trill'.
 c_control_trill :: Maybe Mode -> Derive.ControlCall
-c_control_trill maybe_mode = Derive.generator1 "control_trill" $ \args ->
-    CallSig.call2 args (
-        optional "neighbor" (control "trill-neighbor" 1),
-        optional "speed" (typed_control "trill-speed" 14 Score.Real)) $
-    \neighbor speed -> do
+c_control_trill maybe_mode = Derive.generator1 "control_trill"
+    ("The control version of the pitch trill.  It generates a signal of values"
+    <> " alternating with 0, which can be used as a transposition signal."
+    ) $ CallSig.call2g
+    ( optional "neighbor" (control "trill-neighbor" 1)
+        "Alternate with this value."
+    , speed_arg
+    ) $ \neighbor speed args -> do
         mode <- maybe get_mode return maybe_mode
         fst <$> trill_from_controls (Args.start args, Args.next args)
             mode neighbor speed
+
+speed_arg :: CallSig.Arg TrackLang.ValControl
+speed_arg = optional "speed" (typed_control "trill-speed" 14 Score.Real) $
+    "Trill at this speed. If it's a RealTime, the value is the number of"
+    <> " cycles per second, which will be unaffected by the tempo. If it's"
+    <> " a ScoreTime, the value is the number of cycles per ScoreTime"
+    <> " unit, and will stretch along with tempo changes. In either case,"
+    <> " this will emit an integral number of cycles."
 
 
 -- * util

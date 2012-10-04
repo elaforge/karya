@@ -2,7 +2,7 @@
 -- | Basic calls for note tracks.
 module Derive.Call.Note (
     note_calls
-    , note_generate, note_transform
+    , c_note, note_generate, note_transform
     -- * inversion
     , inverting, inverting_around
     -- ** events
@@ -29,6 +29,7 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
+import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -56,13 +57,22 @@ note_calls = Derive.make_calls
 
 -- * note
 
--- | The note call is the default deriver for a track.  As a convenience, it
--- will interpret @>inst@ and @+attr@ args as the relevant assignments,
--- which means you can assign these to a note generator or a call with an
--- abbreviated syntax: @+attr@ to generate a note with that attr, or
--- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
-c_note = Derive.Call "note" (Just note_generate) (Just note_transform)
+c_note = Derive.Call
+    { Derive.call_name = "note"
+    , Derive.call_generator = Just $ Derive.generator_call
+        ("The note call is the main note generator, and will emit a single"
+            <> " score event. It interprets `>inst` and `+attr` args by"
+            <> " setting those fields of the event.  This is bound to the"
+            <> " null call, \"\", but any potential arguments would wind up"
+            <> " looking like a different call, so it's bound to `n` as well.")
+        (CallSig.parsed_manually note_arg_doc note_generate)
+    , Derive.call_transformer = Just $ Derive.transformer_call
+        ("This takes the same arguments as the generator and instead sets"
+            <> " those values in the transformed score, similar to the `=`"
+            <> " call.")
+        (CallSig.parsed_manually note_arg_doc note_transform)
+    }
 
 note_generate :: Derive.PassedArgs d -> Derive.EventDeriver
 note_generate = inverting generate
@@ -85,7 +95,14 @@ note_transform args deriver =
 -- | This is implicitly the call for note track titles---the \">...\" will be
 -- the first argument.
 c_note_track :: Derive.NoteCall
-c_note_track = Derive.Call "note-track" Nothing (Just note_transform)
+c_note_track =
+    Derive.transformer "note-track" ("This is used internally as the implicit"
+        <> " call for note track titles. Similar to the note transformer, it"
+        <> " takes `>inst` and `+attr` args and sets them in the environment.")
+    (CallSig.parsed_manually note_arg_doc note_transform)
+
+note_arg_doc :: String
+note_arg_doc = "Variable number of `>inst` or `+attr`."
 
 -- ** generate
 
@@ -204,7 +221,15 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
 -- * c_equal
 
 c_equal :: Derive.NoteCall
-c_equal = Derive.Call "equal" (Just generate) (Just Util.equal_transformer)
+c_equal = Derive.Call
+    { Derive.call_name = "equal"
+    , Derive.call_generator = Just $ Derive.generator_call
+        ("Similar to the transformer, this will evaluate the notes below in"
+            <> " a transformed environ.")
+        (CallSig.parsed_manually Util.equal_arg_doc generate)
+    , Derive.call_transformer = Just $ Derive.transformer_call Util.equal_doc
+        (CallSig.parsed_manually Util.equal_arg_doc Util.equal_transformer)
+    }
     where
     generate args = place $ map (map_event (Util.equal_transformer args)) $
         concat $ sub_events args

@@ -57,15 +57,15 @@ import Types
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls [("negative-duration", c_negative_duration)]
 
--- | Postprocess events to replace negative durations with positive ones.
---
--- [negative-duration /Num/ @1@] Notes with negative duration have an implicit
--- sounding duration which depends on the following note.  However, this means
--- the duration of the final note on a track is ambiguous.
 c_negative_duration :: Derive.NoteCall
-c_negative_duration = Derive.transformer "negative-duration" $ \args deriver ->
-    CallSig.call1 args (CallSig.optional "default-duration" 1) $ \dur -> do
-        negative_duration dur <$> deriver
+c_negative_duration = Derive.transformer "negative-duration"
+    ("Postprocess events to replace negative durations with postive ones."
+    ) $ CallSig.call1t
+    ( CallSig.optional "default-duration" 1 $
+        "Notes with negative duration have an implicit sounding duration"
+        <> " which depends on the following note. This means that the"
+        <> " duration of the final note of the score is ambiguous."
+    ) $ \dur _args deriver -> negative_duration dur <$> deriver
 
 negative_duration :: RealTime -> Derive.Events -> Derive.Events
 negative_duration default_dur events = go events

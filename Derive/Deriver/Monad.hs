@@ -49,7 +49,9 @@ module Derive.Deriver.Monad (
 
     -- ** scope
     , Scope(..), empty_scope, ScopeType(..), empty_scope_type
-    , LookupCall, make_lookup
+    , DocumentedCall(..), LookupDocs(..)
+    , LookupCall(lookup_call, lookup_docs)
+    , map_lookup, map_val_lookup, programmatic_lookup
 
     -- ** constant
     , Constant(..), initial_constant
@@ -69,16 +71,21 @@ module Derive.Deriver.Monad (
     , NoteCallMap, ControlCallMap, PitchCallMap, ValCallMap
     , CallInfo(..), dummy_call_info
     , Call(..)
-    , NoteCall, ControlCall, PitchCall, ValCall(..)
+    , CallDoc(..), ArgDoc(..), ArgDocs(..)
+    , NoteCall, ControlCall, PitchCall
+    , WithArgDoc
     , PassedArgs(..)
 
     -- ** generator
-    , GeneratorCall
-    , generator, generator1, stream_generator
+    , GeneratorCall(..), GeneratorFunc
+    , generator, generator1, stream_generator, generator_call
 
     -- ** transformer
-    , TransformerCall
-    , transformer
+    , TransformerCall(..), TransformerFunc
+    , transformer, transformer_call
+
+    -- ** val
+    , ValCall(..), val_call
 
     -- ** cache types
     -- $cache_doc
@@ -446,12 +453,59 @@ instance Show (ScopeType call) where
 -- It's in Deriver because this same type is used for at the top-level track
 -- derivation lookup, so it needs to look in the environment for the Scope.
 -- The lookup itself presumably won't use Deriver and will just be a return, as
--- in 'make_lookup' or 'Derive.Call.lookup_scale_val'.
-type LookupCall call = TrackLang.CallId -> Deriver (Maybe call)
+-- in 'map_lookup' or 'Derive.Call.lookup_scale_val'.
+data LookupCall call = LookupCall {
+    lookup_call :: TrackLang.CallId -> Deriver (Maybe call)
+    , lookup_docs :: LookupDocs
+    }
 
--- | In the common case, a scope is simply a static map.
-make_lookup :: Map.Map TrackLang.CallId call -> LookupCall call
-make_lookup cmap call_id = return $ Map.lookup call_id cmap
+data LookupDocs =
+    -- | Documentation for a table of calls.
+    LookupMap (Map.Map TrackLang.CallId DocumentedCall)
+    -- | Documentation for a programmatic lookup.  This is for calls that need
+    -- to inspect the CallId.  The String should document what kinds of CallIds
+    -- this lookup will match.
+    | LookupPattern String DocumentedCall
+
+-- | This is like 'Call', but with only documentation.
+data DocumentedCall =
+    -- Name (Maybe GeneratorDoc) (Maybe TransformerDoc)
+    DocumentedCall String (Maybe CallDoc) (Maybe CallDoc)
+    | DocumentedValCall String CallDoc
+
+-- | In the common case, a lookup is simply a static map.
+map_lookup :: Map.Map TrackLang.CallId (Call d) -> LookupCall (Call d)
+map_lookup cmap = LookupCall
+    { lookup_call = \call_id -> return $ Map.lookup call_id cmap
+    , lookup_docs = LookupMap $ Map.map extract_doc cmap
+    }
+
+-- | Like 'map_lookup', but for val calls.  It's too bad this is no longer
+-- the same as 'map_lookup', but val calls don't have the weird generator
+-- transformer namespace split, so their doc format is different.
+map_val_lookup :: Map.Map TrackLang.CallId ValCall -> LookupCall ValCall
+map_val_lookup cmap = LookupCall
+    { lookup_call = \call_id -> return $ Map.lookup call_id cmap
+    , lookup_docs = LookupMap $ Map.map extract cmap
+    }
+    where
+    extract vcall = DocumentedValCall (vcall_name vcall) (vcall_doc vcall)
+
+-- | Create a lookup that uses a function instead of a Map.
+programmatic_lookup :: String
+    -> Call d -- ^ An example Call that the lookup will return. Its
+    -- documentation is used for the lookup's documentation, so the Call itself
+    -- is not evaluated.
+    -> (TrackLang.CallId -> Deriver (Maybe call))
+    -> LookupCall call
+programmatic_lookup pattern call lookup_call = LookupCall
+    { lookup_call = lookup_call
+    , lookup_docs = LookupPattern pattern (extract_doc call)
+    }
+
+extract_doc :: Call d -> DocumentedCall
+extract_doc (Call name generator transformer) = DocumentedCall name
+    (generator_doc <$> generator) (transformer_doc <$> transformer)
 
 -- ** constant
 
@@ -686,53 +740,111 @@ instance Show (Call derived) where
         tags = [t | (t, True) <- [("generator", Maybe.isJust gen),
             ("transformer", Maybe.isJust trans)]]
 
+-- | Documentation for a call.  The documentation is in markdown format, except
+-- that a single newline will be replaced with two, so a single \n is enough
+-- to start a new paragraph.
+data CallDoc = CallDoc {
+    cdoc_doc :: String
+    , cdoc_args :: ArgDocs
+    } deriving (Show)
+data ArgDocs = ArgDocs [ArgDoc]
+    -- | This means the call parses the args itself in some special way.
+    | ArgsParsedSpecially String
+    deriving (Show)
+data ArgDoc = ArgDoc {
+    arg_name :: String
+    , arg_type :: TrackLang.Type
+    , arg_default :: Maybe String
+    , arg_doc :: String
+    } deriving (Show)
+
 type NoteCall = Call Score.Event
 type ControlCall = Call Signal.Control
 type PitchCall = Call PitchSignal.Signal
 
-data ValCall = ValCall {
-    vcall_name :: !String
-    , vcall_call :: PassedArgs TrackLang.Val -> Deriver TrackLang.Val
-    }
-
-instance Show ValCall where
-    show (ValCall name _) = "((ValCall " ++ show name ++ "))"
+-- | A value annotated with argument docs.  This is returned by the functions
+-- in "Derive.CallSig", and accepted by the Call constructors here.
+type WithArgDoc f = (f, ArgDocs)
 
 -- ** generator
 
--- | args -> deriver
-type GeneratorCall derived = PassedArgs derived -> LogsDeriver derived
+data GeneratorCall d = GeneratorCall
+    { generator_func :: GeneratorFunc d
+    , generator_doc :: CallDoc
+    }
+type GeneratorFunc d = PassedArgs d -> LogsDeriver d
 
--- | Create the most common kind of generator.  The result is wrapped in
+-- | Create a generator that expects a list of derived values (e.g. Score.Event
+-- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
-generator :: (Derived derived) =>
-    String -> (PassedArgs derived -> Deriver (LEvent.Stream derived))
-    -> Call derived
-generator name func = stream_generator name ((map LEvent.Event <$>) . func)
+generator :: (Derived d) =>
+    String -> String -> WithArgDoc (PassedArgs d -> Deriver (LEvent.Stream d))
+    -> Call d
+generator name doc (func, arg_docs) =
+    stream_generator name doc ((map LEvent.Event <$>) . func, arg_docs)
 
 -- | Since Signals themselves are collections, there's little reason for a
 -- signal generator to return a Stream of events.  So wrap the generator result
 -- in a Stream singleton.
-generator1 :: (Derived derived) =>
-    String -> (PassedArgs derived -> Deriver derived) -> Call derived
-generator1 name func = generator name ((LEvent.one <$>) . func)
+generator1 :: (Derived d) =>
+    String -> String -> WithArgDoc (PassedArgs d -> Deriver d) -> Call d
+generator1 name doc (func, arg_docs) =
+    generator name doc ((LEvent.one <$>) . func, arg_docs)
 
 -- | Like 'generator', but the deriver returns 'LEvent.LEvents' which already
 -- have logs mixed in.  Useful if the generator calls a sub-deriver which will
 -- already have merged the logs into the output.
-stream_generator :: (Derived derived) =>
-    String -> GeneratorCall derived -> Call derived
-stream_generator name func = Call name (Just func) Nothing
+stream_generator :: (Derived d) =>
+    String -> String -> WithArgDoc (PassedArgs d -> LogsDeriver d) -> Call d
+stream_generator name doc with_docs = Call
+    { call_name = name
+    , call_generator = Just $ generator_call doc with_docs
+    , call_transformer = Nothing
+    }
+
+generator_call :: String -> (GeneratorFunc d, ArgDocs) -> GeneratorCall d
+generator_call doc (func, arg_docs) = GeneratorCall func (CallDoc doc arg_docs)
 
 -- ** transformer
 
 -- | args -> deriver -> deriver
-type TransformerCall derived =
-    PassedArgs derived -> LogsDeriver derived -> LogsDeriver derived
+data TransformerCall d = TransformerCall
+    { transformer_func :: TransformerFunc d
+    , transformer_doc :: CallDoc
+    }
+type TransformerFunc d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
 
-transformer :: (Derived derived) =>
-    String -> TransformerCall derived -> Call derived
-transformer name func = Call name Nothing (Just func)
+transformer :: (Derived d) =>
+    String -> String
+    -> WithArgDoc (PassedArgs d -> LogsDeriver d -> LogsDeriver d) -> Call d
+transformer name doc with_docs = Call
+    { call_name = name
+    , call_generator = Nothing
+    , call_transformer = Just $ transformer_call doc with_docs
+    }
+
+transformer_call :: String -> (TransformerFunc d, ArgDocs) -> TransformerCall d
+transformer_call doc (func, arg_docs) =
+    TransformerCall func (CallDoc doc arg_docs)
+
+-- ** val
+
+data ValCall = ValCall {
+    vcall_name :: !String
+    , vcall_call :: PassedArgs TrackLang.Val -> Deriver TrackLang.Val
+    , vcall_doc :: !CallDoc
+    }
+
+instance Show ValCall where
+    show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
+
+val_call :: String -> String
+    -> WithArgDoc (PassedArgs TrackLang.Val -> Deriver TrackLang.Val) -> ValCall
+val_call name doc (call, arg_docs) = ValCall
+    { vcall_name = name
+    , vcall_call = call
+    , vcall_doc = CallDoc doc arg_docs
+    }
 
 
 -- ** cache types

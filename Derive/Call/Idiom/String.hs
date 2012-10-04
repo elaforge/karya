@@ -34,15 +34,24 @@ note_calls = Derive.make_calls
     ]
     where notes = map (flip TrackLang.note [])
 
--- | A string idiom in the style of a 古箏 or other zither where strings must
--- be manually bent to tune them.
 c_guzheng :: [TrackLang.Note] -> Derive.NoteCall
-c_guzheng strings = Derive.transformer "guzheng" $ \args deriver ->
-    CallSig.call3 args
-    ( optional "attack" (control "guzheng-attack" 0.5)
-    , optional "release" (control "guzheng-release" 0.5)
-    , optional "delay" (control "guzheng-delay" 0)) $
-    \attack release delay -> do
+c_guzheng strings = Derive.transformer "guzheng"
+    ("Post-process events to play in a monophonic string-like idiom, where"
+    <> " strings must be bent or stopped to reach non-open pitches."
+    <> " Originally it was meant to play in the style of a 古箏 or"
+    <> " or other zither, but may also be appropriate for stopped strings"
+    <> " like the violin family.  Further documentation is in"
+    <> " 'Derive.Call.Idiom.String'."
+    ) $ CallSig.call3t
+    ( optional "attack" (control "string-attack" 0.5) $
+        "Time for a string to be bent to its desired pitch. A fast attack"
+        <> " sounds like a stopped string."
+    , optional "release" (control "string-release" 0.5) $
+        "Time for a string to return to its original pitch."
+    , optional "delay" (control "string-delay" 0) $
+        "If the string won't be used for the following note, it will be"
+        <> "released after this delay."
+    ) $ \attack release delay _args deriver -> do
         string_pitches <- mapM Call.eval_note strings
         srate <- Util.get_srate
         events <- deriver
@@ -53,9 +62,11 @@ c_guzheng strings = Derive.transformer "guzheng" $ \args deriver ->
 -- | A string idiom in the style of stopped strings like the violin family.
 -- Strings instantly jump to their pitches.
 c_violin :: [TrackLang.Note] -> Derive.NoteCall
-c_violin strings = Derive.transformer "violin" $ \args deriver ->
-    CallSig.call1 args (optional "delay" (control "string-delay" 0)) $
-    \delay -> do
+c_violin strings = Derive.transformer "violin"
+    "A specialization of `string-guzheng` for stopped strings." $
+    CallSig.call1t
+    ( optional "delay" (control "string-delay" 0) "String release delay time."
+    ) $ \delay _args deriver -> do
         string_pitches <- mapM Call.eval_note strings
         srate <- Util.get_srate
         events <- deriver

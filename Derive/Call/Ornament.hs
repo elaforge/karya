@@ -29,10 +29,15 @@ note_calls = Derive.make_calls
 --
 -- [dyn /Number/ @.3@] Scale the dynamic of the generated grace notes.
 c_mordent :: Pitch.Transpose -> Derive.NoteCall
-c_mordent default_neighbor = Derive.stream_generator "mordent" $
-    Note.inverting $ \args -> CallSig.call2 args
-    (optional "neighbor" default_neighbor, optional "dyn" 0.3) $
-    \neighbor dyn -> mordent grace_dur (Args.extent args) dyn neighbor
+c_mordent default_neighbor = Derive.stream_generator "mordent"
+    ("Generate some grace notes for a mordent, similar to a brief trill."
+    <> " The grace notes fall before the onset of the main note, and"
+    <> " are in absolute RealTime, unaffected by tempo changes."
+    ) $ CallSig.call2g
+    ( optional "neighbor" default_neighbor "Neighbor pitch."
+    , optional "dyn" 0.3 "Scale the dyn of the generated grace notes."
+    ) $ \neighbor dyn -> Note.inverting $ \args ->
+        mordent grace_dur (Args.extent args) dyn neighbor
     where grace_dur = RealTime.seconds (1/12)
 
 mordent :: RealTime -> (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Transpose

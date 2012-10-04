@@ -46,7 +46,7 @@ track_signals = do
 environ :: Cmd.CmdL (Maybe TrackLang.Environ)
 environ = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    Perf.get_environ block_id (Just track_id)
+    Perf.lookup_environ block_id (Just track_id)
 
 sel_to_real :: Cmd.CmdL [RealTime]
 sel_to_real = do

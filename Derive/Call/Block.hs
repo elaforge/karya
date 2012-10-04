@@ -8,7 +8,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -63,23 +62,22 @@ apply_transform name expr_str deriver = do
 -- * note block calls
 
 lookup_note_block :: Derive.LookupCall Derive.NoteCall
-lookup_note_block sym = fmap c_block <$> symbol_to_block_id sym
+lookup_note_block = Derive.programmatic_lookup
+    "block id; if it doesn't contain a /, the default namespace is applied"
+    -- Not evaluated, so it doesn't matter if the BlockId is invalid.
+    (c_block (Types.BlockId (Id.read_id "fake/block")))
+    (\sym -> fmap c_block <$> symbol_to_block_id sym)
 
 c_block :: BlockId -> Derive.NoteCall
-c_block block_id = Derive.stream_generator ("block " ++ show block_id) $
-    Note.inverting $ \args ->
+c_block block_id = Derive.stream_generator ("block " ++ show block_id)
+        "Substitute the named block into the score." $
+    CallSig.call0g $ Note.inverting $ \args ->
+        -- I have to put the block on the stack before calling 'd_block'
+        -- because 'Cache.caching_call' relies on on the block id already being
+        -- on the stack.
         Internal.with_stack_block block_id (Cache.caching_call run args)
-    -- I have to put the block on the stack before calling 'd_block' because
-    -- 'Cache.caching_call' relies on on the block id already being on the
-    -- stack.
     where
-    run args
-        | null (Derive.passed_vals args) =
-            Derive.d_place start (end-start) (d_block block_id)
-        | otherwise =
-            Derive.throw_arg_error $
-                "args for block call not implemented yet: "
-                ++ Pretty.pretty (Derive.passed_vals args)
+    run args = Derive.d_place start (end-start) (d_block block_id)
         where (start, end) = Args.range args
 
 d_block :: BlockId -> Derive.EventDeriver
@@ -119,18 +117,21 @@ make_block_id namespace (TrackLang.Symbol call) =
 
 -- ** clip
 
--- | Call a block, but clip it instead of stretching it to fit the event.
---
--- This is useful to cut a certain sequence short, for example to substitute
--- a different ending.
---
--- It's not necessarily super easy to use because the callee block may not be
--- in the same time scale as the calling block.  TODO wait until I actually
--- start using this to see if it's worth coming up with a solution for that.
 c_clip :: Derive.NoteCall
-c_clip = Derive.stream_generator "clip" $
-    Note.inverting $ \args ->
-    CallSig.call1 args (required "block_id") $ \sym -> do
+c_clip = Derive.stream_generator "clip"
+    ("Like the normal block call, this will substitute the named block into"
+    <> " the score.  But instead of stretching the block to fit the event"
+    <> " length, the block will be substituted with no stretching. Any"
+    <> " events that lie beyond the end of the event will be clipped off."
+    <> " This can be used to cut a sequence short, for example to substitute"
+    <> " a different ending."
+    <> "\nIt's not necessarily easy to use because the callee block"
+    <> " may not be in the same time scale as the calling block."
+    -- TODO wait until I actually start using this to see if it's worth
+    -- coming up with a solution for that.
+    ) $ CallSig.call1g (required "block_id" ("Derive this block. If it doesn't "
+            <> "contain a /, the default namespace is applied.")) $
+    \sym -> Note.inverting $ \args -> do
         block_id <- maybe
             (Derive.throw $ "block not found: " ++ TrackLang.show_val sym)
             return =<< symbol_to_block_id sym
@@ -148,22 +149,22 @@ c_clip = Derive.stream_generator "clip" $
 -- * control call
 
 lookup_control_block :: Derive.LookupCall Derive.ControlCall
-lookup_control_block sym = fmap c_control_block <$> symbol_to_block_id sym
-
--- TODO can I factor out repetition with d_block?
--- call_name error_msg
+lookup_control_block = Derive.programmatic_lookup
+    "block id; if it doesn't contain a /, the default namespace is applied"
+    -- Not evaluated, so it doesn't matter if the BlockId is invalid.
+    (c_control_block (Types.BlockId (Id.read_id "fake/block")))
+    (\sym -> fmap c_control_block <$> symbol_to_block_id sym)
 
 c_control_block :: BlockId -> Derive.ControlCall
-c_control_block block_id = Derive.stream_generator "control-block" run
-    where
-    run args
-        | null (Derive.passed_vals args) =
-            Derive.d_place start (end-start) (d_control_block block_id)
-        | otherwise =
-            Derive.throw_arg_error $
-                "args for control block call not implemented yet: "
-                ++ Pretty.pretty (Derive.passed_vals args)
-        where (start, end) = Args.range args
+c_control_block block_id = Derive.stream_generator "control-block"
+    ("Substitute the control signal from the named control block."
+    <> " A control block should consist of a single branch ending in"
+    <> " a track named `%`.  The signal from that track will be"
+    <> " substituted."
+    ) $
+    CallSig.call0g $ \args -> do
+        let (start, end) = Args.range args
+        Derive.d_place start (end-start) (d_control_block block_id)
 
 d_control_block :: BlockId -> Derive.ControlDeriver
 d_control_block block_id = Internal.with_stack_block block_id $ do
@@ -178,8 +179,10 @@ d_control_block block_id = Internal.with_stack_block block_id $ do
     deriver
 
 c_capture_null_control :: Derive.NoteCall
-c_capture_null_control = Derive.generator1 BlockUtil.capture_null_control $
-    \args -> CallSig.call0 args $ do
+c_capture_null_control = Derive.generator1 BlockUtil.capture_null_control
+    ("This is an internal call used to capture the control signal at the"
+    <> " bottom of a control block."
+    ) $ CallSig.call0g $ \_ -> do
         sig <- Derive.require "no null control to capture"
             =<< Derive.get_control Score.c_null
         stack <- Derive.get_stack

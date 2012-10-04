@@ -65,7 +65,8 @@ derive deriver = do
 derive_at :: (Cmd.M m) => BlockId -> TrackId
     -> Derive.Deriver a -> m (Either String a)
 derive_at block_id track_id deriver = do
-    dynamic <- fromMaybe empty_dynamic <$> get_dynamic block_id (Just track_id)
+    dynamic <- fromMaybe empty_dynamic <$>
+        lookup_dynamic block_id (Just track_id)
     (val, _, _) <- PlayUtil.run_with_dynamic dynamic deriver
     return $ either (Left . Pretty.pretty) Right val
     where
@@ -188,18 +189,18 @@ lookup_val :: (Cmd.M m, TrackLang.Typecheck a) => BlockId
     -- expect the env val to be constant for the entire block.
     -> TrackLang.ValName -> m (Maybe a)
 lookup_val block_id maybe_track_id name =
-    justm (get_environ block_id maybe_track_id) $ \env ->
+    justm (lookup_environ block_id maybe_track_id) $ \env ->
         either (Cmd.throw . ("Perf.lookup_val: "++)) return
             (TrackLang.checked_val name env)
 
-get_environ :: (Cmd.M m) => BlockId -> Maybe TrackId
+lookup_environ :: (Cmd.M m) => BlockId -> Maybe TrackId
     -> m (Maybe TrackLang.Environ)
-get_environ block_id maybe_track_id =
-    fmap Derive.state_environ <$> get_dynamic block_id maybe_track_id
+lookup_environ block_id maybe_track_id =
+    fmap Derive.state_environ <$> lookup_dynamic block_id maybe_track_id
 
-get_dynamic :: (Cmd.M m) => BlockId -> Maybe TrackId
+lookup_dynamic :: (Cmd.M m) => BlockId -> Maybe TrackId
     -> m (Maybe Derive.Dynamic)
-get_dynamic block_id maybe_track_id = do
+lookup_dynamic block_id maybe_track_id = do
     maybe_dyn <- maybe Nothing (lookup . Cmd.perf_track_dynamic) <$>
         lookup_root
     case maybe_dyn of

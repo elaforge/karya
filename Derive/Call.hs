@@ -148,7 +148,7 @@ data DeriveInfo derived = DeriveInfo {
     -- because there can be a static mapping between the derived type and the
     -- lookup.  Unfortunately ValCall is a problem since sinced it's not
     -- a derived type like the others.
-    info_lookup :: Derive.LookupCall (Derive.Call derived)
+    info_lookup :: LookupCall (Derive.Call derived)
     -- | Name of the lookup scope.  It would be cleaner to get this out of
     -- 'derived' by using the typeclass, but this is simpler.  I could do this
     -- with 'Derive.with_msg' but this seems more direct.
@@ -319,7 +319,7 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
     let args = Derive.PassedArgs vals call_id cinfo
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_generator call of
-        Just call -> call args
+        Just gen -> Derive.generator_func gen args
         Nothing -> Derive.throw $ "non-generator in generator position: "
             ++ Derive.call_name call
 
@@ -335,7 +335,7 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
     let args = Derive.PassedArgs vals call_id cinfo
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
-        Just trans -> trans args new_deriver
+        Just trans -> Derive.transformer_func trans args new_deriver
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             ++ Derive.call_name call
 
@@ -354,8 +354,7 @@ apply call_id call args = do
     Derive.with_msg ("val call " ++ Derive.vcall_name call) $
         Derive.vcall_call call args
 
-get_call :: TrackLang.CallId -> String
-    -> (TrackLang.CallId -> Derive.Deriver (Maybe call)) -> Derive.Deriver call
+get_call :: TrackLang.CallId -> String -> LookupCall call -> Derive.Deriver call
 get_call call_id name lookup =
     maybe (Derive.throw (unknown_call_id name call_id)) return
         =<< lookup call_id
@@ -370,22 +369,23 @@ fallback_call_id = TrackLang.Symbol ""
 
 -- * lookup call
 
+type LookupCall call = TrackLang.CallId -> Derive.Deriver (Maybe call)
+
 -- | First priority is the blocks.  So a block with a certain name will shadow
 -- everything else with that name.
-lookup_note_call :: Derive.LookupCall Derive.NoteCall
+lookup_note_call :: LookupCall Derive.NoteCall
 lookup_note_call = lookup_with Derive.scope_note
 
-lookup_control_call :: Derive.LookupCall Derive.ControlCall
+lookup_control_call :: LookupCall Derive.ControlCall
 lookup_control_call = lookup_with Derive.scope_control
 
-lookup_pitch_call :: Derive.LookupCall Derive.PitchCall
+lookup_pitch_call :: LookupCall Derive.PitchCall
 lookup_pitch_call = lookup_with Derive.scope_pitch
 
-lookup_val_call :: Derive.LookupCall Derive.ValCall
+lookup_val_call :: LookupCall Derive.ValCall
 lookup_val_call = lookup_with Derive.scope_val
 
-lookup_with :: (Derive.Scope -> Derive.ScopeType call)
-    -> Derive.LookupCall call
+lookup_with :: (Derive.Scope -> Derive.ScopeType call) -> LookupCall call
 lookup_with get call_id = do
     lookups <- get_scopes get
     lookup_scopes lookups call_id
@@ -399,7 +399,8 @@ get_scopes get = do
 
 -- | Convert a list of lookups into a single lookup by returning the first
 -- one to yield a Just.
-lookup_scopes :: [Derive.LookupCall call] -> Derive.LookupCall call
+lookup_scopes :: [Derive.LookupCall call] -> LookupCall call
 lookup_scopes [] _ = return Nothing
 lookup_scopes (lookup:rest) call_id =
-    maybe (lookup_scopes rest call_id) (return . Just) =<< lookup call_id
+    maybe (lookup_scopes rest call_id) (return . Just)
+        =<< Derive.lookup_call lookup call_id

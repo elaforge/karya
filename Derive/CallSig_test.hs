@@ -16,7 +16,8 @@ import Derive.TrackLang (Val(..))
 test_extract = do
     -- tests extract_arg
     let sig :: (Arg Double, Arg Double)
-        sig = (CallSig.required "required", CallSig.optional "optional" 42)
+        sig = (CallSig.required "required" "doc",
+            CallSig.optional "optional" 42 "doc")
         f args = DeriveTest.eval State.empty (CallSig.extract2 args sig)
 
     left_like (f (mkargs [])) "too few arguments"
@@ -26,8 +27,8 @@ test_extract = do
         "arg 0/required: expected Num but got String: 'hi'"
 
 test_maybe_arg = do
-    let opt = CallSig.optional "opt"
-        req = CallSig.required "req"
+    let opt deflt = CallSig.optional "opt" deflt "doc"
+        req = CallSig.required "req" "doc"
     let f sig args = DeriveTest.eval State.empty
             (CallSig.extract1 (mkargs args) sig)
     equal (f (req :: Arg (Maybe Double)) [vnum 1]) $ Right (Just 1)

@@ -328,6 +328,8 @@ is_strict_id s = not (B.null s) && Id.ascii_lower (B.head s)
 is_id :: Text -> Bool
 is_id s = not (B.null s) && B.all Id.is_id_char s
 
+-- | A string is anything between single quotes.  A single quote itself is
+-- represented by two single quotes in a row.
 p_single_string :: A.Parser Text
 p_single_string = do
     chunks <- A.many1 $

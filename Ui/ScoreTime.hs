@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Ui.ScoreTime (ScoreTime, to_double, double) where
+module Ui.ScoreTime (ScoreTime, to_double, double, suffix) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Foreign
 import qualified Text.ParserCombinators.ReadP as ReadP
@@ -16,9 +16,8 @@ newtype ScoreTime = ScoreTime Double
     deriving (DeepSeq.NFData, Foreign.Storable, Num, Fractional, Real,
         RealFrac, Eq, Ord, Serialize.Serialize)
 
--- t is for time, since RealTime uses s for seconds
 instance Show ScoreTime where
-    show (ScoreTime n) = show n ++ "t"
+    show (ScoreTime n) = show n ++ [suffix]
 
 instance Read.Read ScoreTime where
     readPrec = do
@@ -28,10 +27,14 @@ instance Read.Read ScoreTime where
         return (ScoreTime n)
 
 instance Pretty.Pretty ScoreTime where
-    pretty (ScoreTime p) = Pretty.show_float 3 p ++ "t"
+    pretty (ScoreTime p) = Pretty.show_float 3 p ++ [suffix]
 
 to_double :: ScoreTime -> Double
 to_double (ScoreTime p) = p
 
 double :: Double -> ScoreTime
 double = ScoreTime
+
+-- | t is for time, since RealTime uses s for seconds
+suffix :: Char
+suffix = 't'

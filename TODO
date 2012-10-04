@@ -2,18 +2,53 @@ UNSORTED
   * tick has to be like up and dn, in fact make them all the same
   * Now inverting_n needs to get n *prev* events.  Should I take both next and
     prev?
-  consider generating the call documentation automatically
+  - tick is still not right because it needs to extend the previous note.
+    I'll need to do the postproc thing.
+  generate the call documentation automatically
     It means I'd have to move the args up to the top level, so they are
     inside the WhateverCall toplevel data structure.
     pros:
-      Arg documentation is complicated and easily gets out of date.
+      . Arg documentation is complicated and easily gets out of date.
+      . It can document names in scope, and the bound name, which haddock
+        can't.
     cons:
-      - It's less compositional.
-      - I have to come up with my own way to format it and write it to a file,
+      . It's less compositional.
+      . I have to come up with my own way to format it and write it to a file,
         instead of having haddock do it for me.  I guess I could write
         a markdown and have the usual markdown formatter deal with it.
-      - The haddock pages are a natural place for it.  Can I at least get
+      . The haddock pages are a natural place for it.  Can I at least get
         cross-links?  I'd need to somehow get the module name from the symbol
+    I can get the standard calls out of Derive.Call.All, but per-inst calls
+    are only visible in Scope.
+    Goes into Derive.Call, thence to NoteCall and thence to NoteCallMap,
+    then Deriver.Monad.make_lookup needs to pass it through so LookkpCall
+    goes from 'CallId -> Deriver (Maybe call)' to
+    (LookupCall call, CallMeta)
+
+    * Need a bunch of ShowVal instances, move class to Derive.ShowVal so
+      they don't have to be orphans.
+      Define them in ParseBs?
+    / Maybe then I can export show_val from ParseBs?
+    * Ok, it works, but make sure I can get it out of the scopes.
+    * DeriveDoc is still formatting unpleasantly, try wl-pprint-text
+      nope, doesn't do what I want
+    * I'll need to keep track of current indent and column in a state monad
+      for manual formatting.
+    - Unicode getting mangled.
+    * doc in CallSig about call1g type unpleasantness.
+      Technically call1g is for val calls too... should I care?
+    - emit markdown, or just html
+    * Spaces at the beginning of wrapped strings, consistent with operators
+      and don't have to add a space after a period if I add another sentence.
+    - Cmd.DeriveDoc should group duplicates together.
+      It could get even smarter by allowing different args, to account for
+      minor variations.
+    * verify the inverting calls still work
+    * doc formatter should replace \n with \n\n
+    - make sure things like 'Maybe DefaultReal' get documented as optional but
+      defaults to real
+    - Add doc for scale calls.
+
   * changing default tempo should cause everything to rederive
   * paste is not pasting the last 0-dur event
   * the dyn track of the kendang is getting kendang notes

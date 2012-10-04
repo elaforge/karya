@@ -105,6 +105,7 @@ data Arg a = Arg {
     -- defaulted, or you can default a control arg to a constant without going
     -- to the bother of making a track for it.
     arg_name :: String
+    , arg_doc_ :: String
     , arg_default :: Maybe a
     } deriving (Eq, Show)
 
@@ -119,11 +120,19 @@ arg_environ_default (TrackLang.Symbol call) arg_name =
 arg_required :: Arg a -> (Bool, String)
 arg_required arg = (Maybe.isNothing (arg_default arg), arg_name arg)
 
+arg_doc :: (Typecheck a) => Arg a -> Derive.ArgDoc
+arg_doc arg = Derive.ArgDoc
+    { Derive.arg_name = arg_name arg
+    , Derive.arg_type = arg_type arg
+    , Derive.arg_default = TrackLang.show_val <$> arg_default arg
+    , Derive.arg_doc = arg_doc_ arg
+    }
+
 -- Utilities to describe function signatures.
 
 -- | Required argument with the given name.
-required :: String -> Arg a
-required name = Arg name Nothing
+required :: String -> String -> Arg a
+required name doc = Arg name doc Nothing
 
 -- | This requires a default value.  However, if you give the default as
 -- Nothing, this will select the Maybe instance of Typecheck, and the resulting
@@ -136,8 +145,8 @@ required name = Arg name Nothing
 -- satisfying implementation would admit only
 -- @Required a | Defaulted a | Optional (Maybe a)@, but I'm not sure how to
 -- make that work with Typecheck.
-optional :: String -> a -> Arg a
-optional name deflt = Arg name (Just deflt)
+optional :: String -> a -> String -> Arg a
+optional name deflt doc = Arg name doc (Just deflt)
 
 -- | The argument's value is taken from the given signal, with the given
 -- default.  If the value isn't given, the default is Untyped.
@@ -180,18 +189,77 @@ required_control name = TrackLang.LiteralControl (Score.Control name)
 -}
 
 
--- | Each call function will typecheck and call a function.
-call0 :: PassedArgs y -> Derive.Deriver a -> Derive.Deriver a
-call0 vals f = check_args vals [] >> f
+-- | Just pass the arguments through, and let the call process them.
+parsed_manually :: String -> a -> Derive.WithArgDoc a
+parsed_manually doc f = (f, Derive.ArgsParsedSpecially doc)
+
+with_doc :: [Derive.ArgDoc] -> a -> Derive.WithArgDoc a
+with_doc docs f = (f, Derive.ArgDocs docs)
+
+type Generator y result = Derive.PassedArgs y -> Derive.Deriver result
+type Transformer y result =
+    Derive.PassedArgs y -> Derive.Deriver result -> Derive.Deriver result
+
+-- 0
+
+-- | Call a 0 argument generator or val call.
+--
+-- Args are checked and defaulted with a series of functions.  The @g@ variants
+-- pass only the args to the underlying call, and are for generators and val
+-- calls.  The @t@ variants pass both args and a deriver, for transformers.
+--
+-- Previously these functions just took args to the parsed out values, so they
+-- didn't have to care about other arguments, but since they now have to
+-- propagate documentation up to the call constructor we can't have any lambdas
+-- in the way.  I tried numerous ways to keep them from having to pass in
+-- the PassedArgs and deriver themselves, but it seemed like if there was such
+-- a way it would be complicated.  So just pick the right function.
+--
+-- The pattern is @call#g (arg, arg, ...) $ \arg arg ... args -> ...@
+-- or @call#t (arg, arg, ...) $ \arg arg ... args deriver -> ...@.
+call0g :: Generator y result -> Derive.WithArgDoc (Generator y result)
+call0g f = with_doc [] $ \vals -> check_args vals [] >> f vals
+
+-- | Call a 0 argument transformer.
+call0t :: Transformer y result -> Derive.WithArgDoc (Transformer y result)
+call0t f = with_doc [] $ \vals deriver -> check_args vals [] >> f vals deriver
+
+-- 1
+
+call1g :: (Typecheck a) => Arg a -> (a -> Generator y result)
+    -> Derive.WithArgDoc (Generator y result)
+call1g arg1 f = with_doc [arg_doc arg1] $ \vals -> do
+    val1 <- extract1 vals arg1
+    f val1 vals
+
+call1t :: (Typecheck a) => (Arg a) -> (a -> Transformer y result)
+    -> Derive.WithArgDoc (Transformer y result)
+call1t arg1 f = with_doc [arg_doc arg1] $
+    \vals deriver -> do
+        val1 <- extract1 vals arg1
+        f val1 vals deriver
 
 extract1 :: (Typecheck a) => PassedArgs y -> Arg a -> Derive.Deriver a
 extract1 vals sig0 = do
     arg0 : _ <- check_args vals [arg_required sig0]
     extract_arg 0 sig0 arg0
 
-call1 :: (Typecheck a) => PassedArgs y -> Arg a
-    -> (a -> Derive.Deriver result) -> Derive.Deriver result
-call1 vals arg0 f = f =<< extract1 vals arg0
+-- 2
+
+call2g :: (Typecheck a, Typecheck b) =>
+    (Arg a, Arg b) -> (a -> b -> Generator y result)
+    -> Derive.WithArgDoc (Generator y result)
+call2g (arg1, arg2) f = with_doc [arg_doc arg1, arg_doc arg2] $ \vals -> do
+    (val1, val2) <- extract2 vals (arg1, arg2)
+    f val1 val2 vals
+
+call2t :: (Typecheck a, Typecheck b) => (Arg a, Arg b)
+    -> (a -> b -> Transformer y result)
+    -> Derive.WithArgDoc (Transformer y result)
+call2t (arg1, arg2) f = with_doc [arg_doc arg1, arg_doc arg2] $
+    \vals deriver -> do
+        (val1, val2) <- extract2 vals (arg1, arg2)
+        f val1 val2 vals deriver
 
 extract2 :: (Typecheck a, Typecheck b) =>
     PassedArgs y -> (Arg a, Arg b) -> Derive.Deriver (a, b)
@@ -199,12 +267,23 @@ extract2 vals (sig0, sig1) = do
     arg0 : arg1 : _ <- check_args vals [arg_required sig0, arg_required sig1]
     (,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
 
-call2 :: (Typecheck a, Typecheck b) =>
-    PassedArgs y -> (Arg a, Arg b) -> (a -> b -> Derive.Deriver result)
-    -> Derive.Deriver result
-call2 vals (arg0, arg1) f = do
-    (val0, val1) <- extract2 vals (arg0, arg1)
-    f val0 val1
+-- 3
+
+call3g :: (Typecheck a, Typecheck b, Typecheck c) =>
+    (Arg a, Arg b, Arg c) -> (a -> b -> c -> Generator y result)
+    -> Derive.WithArgDoc (Generator y result)
+call3g (arg1, arg2, arg3) f =
+    with_doc [arg_doc arg1, arg_doc arg2, arg_doc arg3] $ \vals -> do
+        (val1, val2, val3) <- extract3 vals (arg1, arg2, arg3)
+        f val1 val2 val3 vals
+
+call3t :: (Typecheck a, Typecheck b, Typecheck c) => (Arg a, Arg b, Arg c)
+    -> (a -> b -> c -> Transformer y result)
+    -> Derive.WithArgDoc (Transformer y result)
+call3t (arg1, arg2, arg3) f =
+    with_doc [arg_doc arg1, arg_doc arg2, arg_doc arg3] $ \vals deriver -> do
+        (val1, val2, val3) <- extract3 vals (arg1, arg2, arg3)
+        f val1 val2 val3 vals deriver
 
 extract3 :: (Typecheck a, Typecheck b, Typecheck c) =>
     PassedArgs y -> (Arg a, Arg b, Arg c) -> Derive.Deriver (a, b, c)
@@ -214,13 +293,27 @@ extract3 vals (sig0, sig1, sig2) = do
     (,,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
         <*> extract_arg 2 sig2 arg2
 
-call3 :: (Typecheck a, Typecheck b, Typecheck c) =>
-    PassedArgs y -> (Arg a, Arg b, Arg c)
-    -> (a -> b -> c -> Derive.Deriver result)
-    -> Derive.Deriver result
-call3 vals (arg0, arg1, arg2) f = do
-    (val0, val1, val2) <- extract3 vals (arg0, arg1, arg2)
-    f val0 val1 val2
+-- 4
+
+call4g :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
+    (Arg a, Arg b, Arg c, Arg d)
+    -> (a -> b -> c -> d -> Generator y result)
+    -> Derive.WithArgDoc (Generator y result)
+call4g (arg1, arg2, arg3, arg4) f =
+    with_doc [arg_doc arg1, arg_doc arg2, arg_doc arg3, arg_doc arg4] $
+        \vals -> do
+            (val1, val2, val3, val4) <- extract4 vals (arg1, arg2, arg3, arg4)
+            f val1 val2 val3 val4 vals
+
+call4t :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
+    (Arg a, Arg b, Arg c, Arg d)
+    -> (a -> b -> c -> d -> Transformer y result)
+    -> Derive.WithArgDoc (Transformer y result)
+call4t (arg1, arg2, arg3, arg4) f =
+    with_doc [arg_doc arg1, arg_doc arg2, arg_doc arg3, arg_doc arg4] $
+        \vals deriver -> do
+            (val1, val2, val3, val4) <- extract4 vals (arg1, arg2, arg3, arg4)
+            f val1 val2 val3 val4 vals deriver
 
 extract4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
     PassedArgs y -> (Arg a, Arg b, Arg c, Arg d)
@@ -232,13 +325,7 @@ extract4 vals (sig0, sig1, sig2, sig3) = do
     (,,,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
         <*> extract_arg 2 sig2 arg2 <*> extract_arg 3 sig3 arg3
 
-call4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
-    PassedArgs y -> (Arg a, Arg b, Arg c, Arg d)
-    -> (a -> b -> c -> d -> Derive.Deriver result)
-    -> Derive.Deriver result
-call4 vals (arg0, arg1, arg2, arg3) f = do
-    (val0, val1, val2, val3) <- extract4 vals (arg0, arg1, arg2, arg3)
-    f val0 val1 val2 val3
+-- * check_args
 
 -- | The call sequence is a little complicated because an argument can be
 -- given explicitly, given implicitly by the environment, or defaulted if

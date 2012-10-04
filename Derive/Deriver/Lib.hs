@@ -187,9 +187,11 @@ with_scale scale = with_val TrackLang.v_scale (scale_id scale)
     where
     set stype = stype { stype_scale = [lookup_scale_val scale] }
     lookup_scale_val :: Scale -> LookupCall ValCall
-    lookup_scale_val scale call_id =
-        return $ scale_note_to_call scale (to_note call_id)
-        where to_note (TrackLang.Symbol sym) = Pitch.Note sym
+    lookup_scale_val scale = programmatic_lookup (scale_pattern scale)
+        example_call
+        (\call_id -> return $ scale_note_to_call scale (to_note call_id))
+    example_call = Call "TODO" Nothing Nothing -- TODO get this from the scale
+    to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do
@@ -362,7 +364,7 @@ with_scope modify_scope = Internal.local $ \st ->
 -- * calls
 
 -- | Make a call map.
-make_calls :: [(String, call)] -> Map.Map TrackLang.CallId call
+make_calls :: [(String, Call d)] -> Map.Map TrackLang.CallId (Call d)
 make_calls = Map.fromList . map (first TrackLang.Symbol)
 
 -- * postproc

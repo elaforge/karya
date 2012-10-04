@@ -30,7 +30,7 @@
     %note-pitch,*5c
 -}
 module Derive.TrackLang (
-    module Derive.TrackLang, module Derive.BaseTypes
+    module Derive.TrackLang, module Derive.BaseTypes, show_val
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List.NonEmpty as NonEmpty
@@ -46,8 +46,9 @@ import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes (Environ, ValName, insert_val)
 import Derive.BaseTypes
-       (ShowVal(..), Val(..), Symbol(..), AttrMode(..), RelativeAttr(..),
+       (Val(..), Symbol(..), AttrMode(..), RelativeAttr(..),
         ControlRef(..), PitchControl, ValControl, Note(..))
+import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -98,8 +99,22 @@ newtype DefaultScore = DefaultScore RealOrScore deriving (Eq, Show)
 -- the methods in Integral and Fractional.
 real :: RealTime -> DefaultReal
 real = DefaultReal . Real
+
 score :: ScoreTime -> DefaultScore
 score = DefaultScore . Score
+
+-- * show val
+
+instance (ShowVal a) => ShowVal (Maybe a) where
+    show_val Nothing = "<no default>"
+    show_val (Just a) = show_val a
+
+instance ShowVal DefaultReal where show_val (DefaultReal x) = show_val x
+instance ShowVal DefaultScore where show_val (DefaultScore x) = show_val x
+instance ShowVal DefaultDiatonic where show_val (DefaultDiatonic x) = show_val x
+instance ShowVal RealOrScore where
+    show_val (Real x) = show_val x
+    show_val (Score x) = show_val x
 
 -- * types
 
@@ -130,7 +145,7 @@ type_of val = case val of
     VSymbol {} -> TSymbol
     VNotGiven -> TNotGiven
 
-class (Show a) => Typecheck a where
+class (Show a, ShowVal a) => Typecheck a where
     from_val :: Val -> Maybe a
     to_val :: a -> Val
     -- | This shouldn't evaluate its argument, so you can use

@@ -14,8 +14,7 @@ test_c_block = do
     equal evts []
     strings_like logs ["note call not found: nosuch"]
 
-    strings_like (snd (run [(0, 1, "sub >arg")]))
-        ["args for block call not implemented yet"]
+    strings_like (snd (run [(0, 1, "sub >arg")])) ["too many arguments"]
 
     -- subderived stuff is stretched and placed, inherits instrument
     let (evts, logs) = run [(0, 1, "sub"), (1, 2, "n >i +a | sub")]

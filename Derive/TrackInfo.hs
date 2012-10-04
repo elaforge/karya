@@ -19,6 +19,16 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 
 
+data Type = TempoTrack | ControlTrack | PitchTrack | NoteTrack
+    deriving (Eq, Show)
+
+track_type :: String -> Type
+track_type title
+    | is_note_track title = NoteTrack
+    | is_pitch_track title = PitchTrack
+    | is_tempo_track title = TempoTrack
+    | otherwise = ControlTrack
+
 -- * control tracks
 
 data ControlType =

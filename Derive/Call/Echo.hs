@@ -1,9 +1,10 @@
 -- | Echo and delay oriented calls.
 --
--- TODO echo with RealTime delay
+-- TODO event delay
 module Derive.Call.Echo where
 import Data.FixedList (Cons(..), Nil(..))
 
+import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -25,41 +26,37 @@ note_calls = Derive.make_calls
 
 -- * note calls
 
--- | Simple delay.
---
--- [time /Signal/ @%delay-time@] Delay this much time.
 c_delay :: Derive.NoteCall
-c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
-    (optional "time" (typed_control "delay-time" 0.1 Score.Real)) $ \time -> do
+c_delay = Derive.transformer "delay"
+    ("Simple abstract delay. As with `echo`, abstract means it happens in the"
+    <> " score, so events may not be delayed evenly if the tempo is changing."
+    ) $ CallSig.call1t
+    ( optional "time" (typed_control "delay-time" 0.1 Score.Real) "Delay time."
+    ) $ \time args deriver -> do
         delay <- Util.duration_from (Args.start args)
             =<< Util.time_control_at Util.Real time
             =<< Args.real_start args
         Derive.d_at delay deriver
 
--- | This echo works on Derivers instead of Events, which means that the echoes
--- happen in score time, so they will change tempo with the rest of the score,
--- and the realization may change due to a different dynamic.
---
--- The controls are only sampled at the beginning of the echo, so you can't
--- vary them over the scope of an echo call like you can with @event-echo@.
--- You would have to wrap every event in an @echo@ for that.
---
--- [delay /Control/ @%echo-delay,1@] Each echo is delayed this long in score
--- time.
---
--- [feedback /Control/ @%echo-feedback,.4@] The dynamics of each echo are
--- multiplied by this amount.
---
--- [times /Control/ @%echo-times,1@] This many echoes, not counting the
--- un-echoed notes.
+-- TODO typed delay time
 c_echo :: Derive.NoteCall
-c_echo = Derive.transformer "echo" $ \args deriver -> CallSig.call3 args
-    ( optional "delay" (control "echo-delay" 1)
+c_echo = Derive.transformer "echo"
+    ("Abstract echo. This means the echoes happen in score time, so they will"
+    <> " change tempo with the rest of the score, and their derivation may"
+    <> " change due to different dynamics."
+    <> "\nThe controls are only sampled at the beginning of the echo,"
+    <> " so you can't vary them over the scope of the echo like you can"
+    <> " with `e-echo`."
+    ) $ CallSig.call3t
+    ( optional "delay" (control "echo-delay" 1) "Delay time."
     , optional "feedback" (control "echo-feedback" 0.4)
-    , optional "times" (control "echo-times" 1)) $ \delay feedback times ->
-    Util.with_controls args (delay :. feedback :. times :. Nil) $
-        \(delay :. feedback :. times :. Nil) ->
-            echo (Signal.y_to_score delay) feedback (floor times) deriver
+        "The %dyn of each echo are multiplied by this amount."
+    , optional "times" (control "echo-times" 1)
+        "Number of echoes, not counting the original."
+    ) $ \delay feedback times args deriver ->
+        Util.with_controls args (delay :. feedback :. times :. Nil) $
+            \(delay :. feedback :. times :. Nil) ->
+                echo (Signal.y_to_score delay) feedback (floor times) deriver
 
 echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver
     -> Derive.EventDeriver
@@ -79,11 +76,17 @@ scale_dyn = Derive.multiply_control Score.c_dynamic
 -- Args are the same as 'c_echo', except that their signals are sampled at
 -- every event, so parameters can vary over the course of the effect.
 c_event_echo :: Derive.NoteCall
-c_event_echo = Derive.transformer "post echo" $ \args deriver ->
-    CallSig.call3 args
-    ( optional "delay" (control "echo-delay" 1)
+c_event_echo = Derive.transformer "event echo"
+    ("Concrete echo.  All events are delayed by the same amount.  Also, the"
+    <> " parameter signals are sampled at every event, so they can vary"
+    <> " over the course of the echo."
+    ) $ CallSig.call3t
+    ( optional "delay" (control "echo-delay" 1) "Delay time."
     , optional "feedback" (control "echo-feedback" 0.4)
-    , optional "times" (control "echo-times" 1)) $ \delay feedback times ->
+        "The %dyn of each echo are multiplied by this amount."
+    , optional "times" (control "echo-times" 1)
+        "Number of echoes, not counting the original."
+    ) $ \delay feedback times _args deriver ->
         Util.map_controls_asc (delay :. feedback :. times :. Nil) () deriver $
             \(delay :. feedback :. times :. Nil) ->
                 go (Score.typed_val delay) (Score.typed_val feedback)

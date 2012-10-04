@@ -36,7 +36,13 @@
     so hopefully any imprecision can be accounted for by the operations that
     care about it and eventually be removed from the final result.
 -}
-module Perform.RealTime where
+module Perform.RealTime (
+    RealTime, div, mul, large, suffix
+    -- * convert from
+    , seconds, milliseconds, microseconds, score
+    -- * convert to
+    , to_seconds, to_milliseconds, to_microseconds, to_score
+) where
 import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Foreign as Foreign
@@ -61,7 +67,7 @@ newtype RealTime = RealTime Double
 -- | This loses precision so show /= read, but no one should be relying on that
 -- anyway.
 instance Show RealTime where
-    show (RealTime t) = show t ++ "s"
+    show (RealTime t) = show t ++ [suffix]
 instance Read.Read RealTime where
     readPrec = do
         n <- Read.readPrec
@@ -69,7 +75,7 @@ instance Read.Read RealTime where
         's' <- Read.get
         return (seconds n)
 instance Pretty.Pretty RealTime where
-    pretty t = Pretty.show_float 2 (to_seconds t) ++ "s"
+    pretty t = Pretty.show_float 2 (to_seconds t) ++ [suffix]
 
 div :: RealTime -> Double -> RealTime
 div a b = seconds (to_seconds a / b)
@@ -83,6 +89,9 @@ infixl 7 `mul`
 -- too easily, and will also fit in a Signal.Y.
 large :: RealTime
 large = RealTime (2^32)
+
+suffix :: Char
+suffix = 's'
 
 -- * convert from
 

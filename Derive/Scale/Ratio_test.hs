@@ -20,5 +20,4 @@ test_ratio = do
             , ("*ratio", [(0, 0, "1/1")])
             , ("*twelve #ratio-source", [(0, 0, "4c")])
             ])
-        ([[]], ["Error: required: ratio scale requires %ratio-source "
-            ++ "pitch signal"])
+        ([[]], ["Error: required: ratio scale requires #ratio-source"])

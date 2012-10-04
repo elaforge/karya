@@ -25,8 +25,8 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
 
 
-make_lookup :: [(String, call)] -> [Derive.LookupCall call]
-make_lookup = (:[]) . Derive.make_lookup . Derive.make_calls
+map_lookup :: [(String, Derive.Call d)] -> [Derive.LookupCall (Derive.Call d)]
+map_lookup = (:[]) . Derive.map_lookup . Derive.make_calls
 
 -- * keymap
 
@@ -114,14 +114,14 @@ keyswitches inputs = \msg -> do
 
 drum_code :: [(Drums.Note, Midi.Key)] -> MidiInst.Code
 drum_code note_keys = MidiInst.empty_code
-    { MidiInst.note_calls = make_lookup $ drum_calls (map fst note_keys)
+    { MidiInst.note_calls = map_lookup $ drum_calls (map fst note_keys)
     , MidiInst.cmds = [drum_cmd note_keys]
     }
 
 inst_drum_code :: [(Drums.Note, Midi.Key, Score.Instrument)] -> MidiInst.Code
 inst_drum_code note_keys = MidiInst.empty_code
     { MidiInst.note_calls =
-        make_lookup $ drum_calls [note | (note, _, _) <- note_keys]
+        map_lookup $ drum_calls [note | (note, _, _) <- note_keys]
     , MidiInst.cmds = [inst_drum_cmd note_keys]
     }
 

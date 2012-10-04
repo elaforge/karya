@@ -60,17 +60,21 @@ with_val_call :: String -> Derive.ValCall
     -> Derive.Deriver a -> Derive.Deriver a
 with_val_call name call = Derive.with_scope $ \scope -> scope
     { Derive.scope_val =
-        add_builtin (single_lookup name call) (Derive.scope_val scope) }
+        add_builtin (single_val_lookup name call) (Derive.scope_val scope) }
 
 add_builtin :: Derive.LookupCall call -> Derive.ScopeType call
     -> Derive.ScopeType call
 add_builtin lookup stype =
     stype { Derive.stype_builtin = lookup : Derive.stype_builtin stype }
 
-single_lookup :: String -> call -> Derive.LookupCall call
-single_lookup name call call_id
-    | TrackLang.Symbol name == call_id = return $ Just call
-    | otherwise = return Nothing
+single_lookup :: String -> Derive.Call d -> Derive.LookupCall (Derive.Call d)
+single_lookup name call =
+    Derive.map_lookup (Map.singleton (TrackLang.Symbol name) call)
+
+single_val_lookup :: String -> Derive.ValCall
+    -> Derive.LookupCall Derive.ValCall
+single_val_lookup name call =
+    Derive.map_val_lookup (Map.singleton (TrackLang.Symbol name) call)
 
 
 -- * PassedArgs

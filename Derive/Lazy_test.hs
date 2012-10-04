@@ -258,8 +258,8 @@ with_calls mvar = CallTest.with_note_call "" (mk_logging_call mvar)
     . CallTest.with_control_call "" (c_set mvar)
 
 mk_logging_call :: Log -> Derive.NoteCall
-mk_logging_call log_var  = Derive.stream_generator "logging-note" $
-    Call.Note.inverting $ \args ->
+mk_logging_call log_var  = Derive.stream_generator "logging-note" "doc" $
+    CallSig.call0g $ Call.Note.inverting $ \args ->
         c_note log_var (Args.event args) (Args.next args)
 
 c_note :: Log -> Event.Event -> ScoreTime -> Derive.EventDeriver
@@ -275,8 +275,8 @@ c_note log_mvar event next_start = do
     return $! LEvent.one $! LEvent.Event $! write_log `seq` sevent
 
 c_set :: Log -> Derive.ControlCall
-c_set log_mvar = Derive.generator1 "set" $ \args -> CallSig.call1 args
-    (CallSig.required "val") $ \val -> do
+c_set log_mvar = Derive.generator1 "set" "doc" $ CallSig.call1g
+    (CallSig.required "val" "doc") $ \val args -> do
         pos <- Args.real_start args
         st <- Derive.gets Derive.state_dynamic
         let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $

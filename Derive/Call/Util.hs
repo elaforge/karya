@@ -27,6 +27,7 @@ import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
+import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -386,7 +387,22 @@ duration_from start (TrackLang.Real t) = do
 -- * c_equal
 
 c_equal :: (Derive.Derived derived) => Derive.Call derived
-c_equal = Derive.transformer "equal" equal_transformer
+c_equal = Derive.transformer "equal" equal_doc
+    (CallSig.parsed_manually equal_arg_doc equal_transformer)
+
+equal_arg_doc :: String
+equal_arg_doc =
+    "The left hand side can be a symbol, %control-name, or "
+    <> "#pitch-control-name. The right hand side is anything when binding "
+    <> "a symbol, a number or %control-name when binding a %control, or "
+    <> "a pitch or #pitch-name when binding a #pitch."
+
+equal_doc :: String
+equal_doc =
+    "Evaluate the deriver with a value set. Set environ vals with `x = 42`, "
+    <> "or set a control or pitch signal with `%c = .5` or "
+    <> "`#pitch = (4c)`."
+    <> "\nA special parsing rule means that this call can be written infix."
 
 equal_transformer :: Derive.PassedArgs derived -> Derive.Deriver a
     -> Derive.Deriver a

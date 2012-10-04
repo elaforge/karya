@@ -22,26 +22,32 @@ import qualified Derive.TrackLang as TrackLang
 
 
 scope :: Derive.Scope
-scope = Derive.Scope note_lookups control_lookups (make_lookup pitch_calls)
-    (make_lookup val_calls)
+scope = Derive.Scope
+    { Derive.scope_note = note_lookups
+    , Derive.scope_control = control_lookups
+    , Derive.scope_pitch = map_lookup pitch_calls
+    , Derive.scope_val = Derive.empty_scope_type
+        { Derive.stype_builtin = [Derive.map_val_lookup val_calls] }
+    }
 
 -- | Note calls are special in that they look for a block with that name first.
 note_lookups :: Derive.ScopeType Derive.NoteCall
 note_lookups = Derive.empty_scope_type { Derive.stype_builtin =
-    [Block.lookup_note_block, Derive.make_lookup note_calls] }
+    [Block.lookup_note_block, Derive.map_lookup note_calls] }
 
 -- | Well ok, control calls are special too.
 control_lookups :: Derive.ScopeType Derive.ControlCall
 control_lookups = Derive.empty_scope_type
     { Derive.stype_builtin =
         [ Block.lookup_control_block
-        , Derive.make_lookup control_calls
+        , Derive.map_lookup control_calls
         ]
     }
 
-make_lookup :: Map.Map TrackLang.CallId call -> Derive.ScopeType call
-make_lookup cmap = Derive.empty_scope_type
-    { Derive.stype_builtin = [Derive.make_lookup cmap] }
+map_lookup :: Map.Map TrackLang.CallId (Derive.Call d)
+    -> Derive.ScopeType (Derive.Call d)
+map_lookup cmap = Derive.empty_scope_type
+    { Derive.stype_builtin = [Derive.map_lookup cmap] }
 
 note_calls :: Derive.NoteCallMap
 (note_calls, shadowed_notes) = unions

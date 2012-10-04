@@ -22,35 +22,27 @@ note_calls = Derive.make_calls
     , ("'v", c_tick (Just (Pitch.Diatonic 1)))
     ]
 
--- | Insert an intermediate grace note in the \"ngoret\" rambat style.  The
--- grace note precedes the following note, and is one step above or one step
--- below depending on the preceding note.
---
 -- TODO prev note duration also must be extended!  But to do this I have to
 -- either insert a hack where a call can modify previous events, or do a hybrid
 -- postproc thing.  E.g. tick creates its note but adds an attr.  Postproc
 -- goes and extends the duration of events previous to one with that attr.
---
--- The controls are called @ngoret-whatever@, and all instruments that have
--- variations on the ngoret glissando should use the same control names.
---
--- [time /Control/ @%ngoret-time,.15@] Time from the grace note to the following
--- note.  This is in absolute time, but will be halfway between the previous
--- and next note if there isn't this much time.
---
--- [damp /Control/ @%ngoret-damp,.5s@] Time that the grace note overlaps with
--- the following note.  So the total duration is time+damp, though it will be
--- clipped to the following note's damp time.
---
--- [dyn /Control/ @%ngoret-dyn,.5@] Grace note dynamic will be this
--- percentage of the following note.
 c_tick :: Maybe Pitch.Transpose -> Derive.NoteCall
-c_tick transpose = Derive.stream_generator "tick" $
-    Note.inverting_around (2, 1) $ \args -> CallSig.call3 args
-    ( optional "time" (typed_control "ngoret-time" 0.1 Score.Real)
-    , optional "damp" (typed_control "ngoret-damp" 0.5 Score.Real)
-    , optional "dyn" (control "ngoret-dyn" 0.75)
-    ) $ \time damp dyn_scale -> do
+c_tick transpose = Derive.stream_generator "tick"
+    ("Insert an intermediate grace note in the \"ngoret\" rambat style."
+    <> " The grace note moves up for `'^`, down for `'v`, or is based"
+    <> " on the previous note's pitch for `'`."
+    ) $ CallSig.call3g
+    ( optional "time" (typed_control "ngoret-time" 0.1 Score.Real) $
+        "Time between the grace note start and the main note. If there isn't"
+        <> " enough room after the previous note, it will be halfway between"
+        <> " the previous note and this one."
+    , optional "damp" (typed_control "ngoret-damp" 0.5 Score.Real) $
+        "Time that the grace note overlaps with this one. So the total"
+        <> " duration is time+damp, though it will be clipped to the"
+        <> " end of the current note."
+    , optional "dyn" (control "ngoret-dyn" 0.75) $
+        "The grace note's dyn will be this multiplier of the current dyn."
+    ) $ \time damp dyn_scale -> Note.inverting_around (2, 1) $ \args -> do
         start <- Args.real_start args
         transpose <- maybe (infer_transpose args start) return transpose
         time <- Util.real_time =<< Util.time_control_at Util.Real time start

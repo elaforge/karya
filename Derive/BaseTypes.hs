@@ -36,7 +36,10 @@ import Util.Functor0 (Elem)
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Ui.ScoreTime as ScoreTime
+import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -49,8 +52,8 @@ import qualified Perform.Signal as Signal
 newtype Instrument = Instrument String
     deriving (DeepSeq.NFData, Eq, Ord, Show, Read)
 
-instance Pretty.Pretty Instrument where pretty = show_val
-instance ShowVal Instrument where
+instance Pretty.Pretty Instrument where pretty = ShowVal.show_val
+instance ShowVal.ShowVal Instrument where
     show_val (Instrument inst) = '>' : inst
 
 newtype Control = Control String
@@ -67,8 +70,8 @@ type_to_code typ = case typ of
     Untyped -> ""
     Chromatic -> "c"
     Diatonic -> "d"
-    Score -> "t" -- t for time
-    Real -> "s" -- s for seconds
+    Score -> ScoreTime.suffix : "" -- t for time
+    Real -> RealTime.suffix : "" -- s for seconds
 
 code_to_type :: String -> Maybe Type
 code_to_type s = case s of
@@ -84,8 +87,8 @@ instance Monoid.Monoid Type where
     mappend Untyped typed = typed
     mappend typed _ = typed
 
-instance Pretty.Pretty Control where pretty = show_val
-instance ShowVal Control where
+instance Pretty.Pretty Control where pretty = ShowVal.show_val
+instance ShowVal.ShowVal Control where
     show_val (Control c) = '%' : c
 
 data Typed a = Typed {
@@ -113,8 +116,8 @@ untyped = Typed Untyped
 type TypedSignal = Typed Signal.Control
 type TypedVal = Typed Signal.Y
 
-instance ShowVal TypedVal where
-    show_val (Typed typ val) = show_val val ++ type_to_code typ
+instance ShowVal.ShowVal TypedVal where
+    show_val (Typed typ val) = ShowVal.show_val val ++ type_to_code typ
 
 -- ** Attributes
 
@@ -126,8 +129,9 @@ type Attribute = String
 newtype Attributes = Attributes (Set.Set Attribute)
     deriving (Monoid.Monoid, Eq, Ord, Read, Show)
 
-instance Pretty.Pretty Attributes where
-    pretty attrs = if null alist then "-" else '+' : Seq.join "+" alist
+instance Pretty.Pretty Attributes where pretty = ShowVal.show_val
+instance ShowVal.ShowVal Attributes where
+    show_val attrs = if null alist then "-" else '+' : Seq.join "+" alist
         where alist = attrs_list attrs
 
 attrs_set :: Attributes -> Set.Set Attribute
@@ -258,50 +262,41 @@ data Val =
     | VNotGiven
     deriving (Show)
 
--- | Instances of ShowVal can be turned back into tracklang syntax.  Everything
--- produced by show_val should be parseable by "Derive.ParseBs", except values
--- that have no literal syntax, such as VPitch.
---
--- At least one place that relies on this is 'Derive.Call.Note.inverting'.
-class ShowVal a where
-    show_val :: a -> String
-
-instance ShowVal Val where
+instance ShowVal.ShowVal Val where
     show_val val = case val of
-        VNum d -> show_val d
-        VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
-        VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
-            Add -> '+' : attr
-            Remove -> '-' : attr
-            Set -> '=' : attr
-            Clear -> "=-"
-        VAttributes (Attributes attrs) -> Seq.join "+" (Set.toList attrs)
-        VControl control -> show_val control
-        VPitchControl control -> show_val control
-        VScaleId scale_id -> show_val scale_id
-        -- No literal syntax.
-        VPitch pitch -> "<pitch: " ++ Pretty.pretty pitch ++ ">"
-        VInstrument inst -> show_val inst
-        VSymbol sym -> show_val sym
+        VNum d -> ShowVal.show_val d
+        VString s -> ShowVal.show_val s
+        VRelativeAttr rel -> ShowVal.show_val rel
+        VAttributes attrs -> ShowVal.show_val attrs
+        VControl control -> ShowVal.show_val control
+        VPitchControl control -> ShowVal.show_val control
+        VScaleId scale_id -> ShowVal.show_val scale_id
+        VPitch pitch -> ShowVal.show_val pitch
+        VInstrument inst -> ShowVal.show_val inst
+        VSymbol sym -> ShowVal.show_val sym
         VNotGiven -> "_"
 
--- | Convert a haskell number into a tracklang number.
-show_num :: (RealFloat a) => a -> String
-show_num = Pretty.show_float 2
+-- | Pitchas have no literal syntax, but I have to print something.
+instance ShowVal.ShowVal Pitch where
+    show_val pitch = "<pitch: " ++ Pretty.pretty pitch ++ ">"
 
-instance Pretty.Pretty Val where pretty = show_val
-instance ShowVal Pitch.ScaleId where
+instance Pretty.Pretty Val where pretty = ShowVal.show_val
+instance ShowVal.ShowVal Pitch.ScaleId where
     show_val (Pitch.ScaleId s) = '*' : s
 
-instance ShowVal Double where
-    show_val = Pretty.show_float 3
-
 newtype Symbol = Symbol String deriving (Eq, Ord, Show)
-instance Pretty.Pretty Symbol where pretty = show_val
-instance ShowVal Symbol where show_val (Symbol s) = s
+instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
+instance ShowVal.ShowVal Symbol where show_val (Symbol s) = s
 
 data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
 newtype RelativeAttr = RelativeAttr (AttrMode, Attribute) deriving (Eq, Show)
+
+instance ShowVal.ShowVal RelativeAttr where
+    show_val (RelativeAttr (mode, attr)) = case mode of
+        Add -> '+' : attr
+        Remove -> '-' : attr
+        Set -> '=' : attr
+        Clear -> "=-"
 
 data ControlRef val =
     -- | A constant signal.  For 'Control', this is coerced from a VNum
@@ -316,15 +311,15 @@ data ControlRef val =
 type PitchControl = ControlRef Note
 type ValControl = ControlRef TypedVal
 
-instance Pretty.Pretty PitchControl where pretty = show_val
-instance ShowVal PitchControl where
+instance Pretty.Pretty PitchControl where pretty = ShowVal.show_val
+instance ShowVal.ShowVal PitchControl where
     -- The PitchControl syntax doesn't support args for the signal default yet.
     show_val = show_control '#' (Pitch.note_text . note_sym)
 
-instance Pretty.Pretty ValControl where pretty = show_val
-instance ShowVal ValControl where
+instance Pretty.Pretty ValControl where pretty = ShowVal.show_val
+instance ShowVal.ShowVal ValControl where
     show_val = show_control '%' $ \(Typed typ num) ->
-        show_val num ++ type_to_code typ
+        ShowVal.show_val num ++ type_to_code typ
 
 show_control :: Char -> (val -> String) -> ControlRef val -> String
 show_control prefix show_val control = case control of

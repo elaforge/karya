@@ -117,8 +117,9 @@ test_call_errors = do
     equal (run_evt "test-t 2 | test-t 1 |")
         (Right [(0, 1, "test-t 2 | test-t 1 |")])
     where
-    trans = Derive.transformer "trans" $ \args deriver -> CallSig.call1 args
-        (CallSig.optional "arg1" (CallSig.required_control "test")) $ \c -> do
+    trans = Derive.transformer "trans" "doc" $ CallSig.call1t
+        (CallSig.optional "arg1" (CallSig.required_control "test") "doc") $
+        \c _args deriver -> do
             Util.control_at c 0
             deriver
 
@@ -140,8 +141,9 @@ test_val_call = do
     strings_like logs ["too many arguments"]
     where
     add_one :: Derive.ValCall
-    add_one = Derive.ValCall "add" $ \args -> CallSig.call1 args
-        (CallSig.required "v") $ \val -> return (TrackLang.num (val + 1))
+    add_one = Derive.val_call "add" "doc" $ CallSig.call1g
+        (CallSig.required "v" "doc") $
+        \val _ -> return (TrackLang.num (val + 1))
 
 test_inst_call = do
     let extract = DeriveTest.extract (Score.attrs_list . Score.event_attributes)
@@ -161,7 +163,7 @@ test_recursive_call = do
     equal result ([], ["Error: call stack too deep: recursive"])
     where
     recursive :: Derive.NoteCall
-    recursive = Derive.stream_generator "recursive" $
+    recursive = Derive.stream_generator "recursive" "doc" $ CallSig.call0g $
         \args -> Call.reapply_call args (TrackLang.call "recur" [])
 
 test_repeat = do
@@ -172,9 +174,10 @@ test_repeat = do
     equal (run [(0, 1, "show 1"), (1, 1, "\""), (2, 1, "\" 2")])
         ["[1]", "[1]", "[2]"]
     where
-    c_show = Derive.stream_generator "show" $ \args -> do
-        Log.warn $ Pretty.pretty (Derive.passed_vals args)
-        return []
+    c_show = Derive.stream_generator "show" "doc" $
+        CallSig.parsed_manually "doc" $ \args -> do
+            Log.warn $ Pretty.pretty (Derive.passed_vals args)
+            return []
 
 test_events_around = do
     -- Ensure sliced inverting notes still have access to prev and next events
@@ -188,10 +191,13 @@ test_events_around = do
     equal logs ["prev: [0.0t]", "next: [2.0t]"]
 
     where
-    c_around = Derive.stream_generator "around" $ Note.inverting $ \args -> do
-        Log.warn $ "prev: " ++ show (map Event.start (Args.prev_events args))
-        Log.warn $ "next: " ++ show (map Event.start (Args.next_events args))
-        return []
+    c_around = Derive.stream_generator "around" "doc" $ CallSig.call0g $
+        Note.inverting $ \args -> do
+            Log.warn $ "prev: "
+                ++ show (map Event.start (Args.prev_events args))
+            Log.warn $ "next: "
+                ++ show (map Event.start (Args.next_events args))
+            return []
 
 test_inverting_around = do
     -- Ensure calls that want to look at the next pitch work, with the help of
@@ -205,8 +211,8 @@ test_inverting_around = do
     equal evts [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d")]
     equal logs []
     where
-    c_next = Derive.stream_generator "next" $ Note.inverting_around (2, 2) $
-        \args -> do
+    c_next = Derive.stream_generator "next" "doc" $ CallSig.call0g $
+        Note.inverting_around (2, 2) $ \args -> do
             next <- Derive.require "next event" $ Args.next_start args
             next_pitch <- Derive.require "next pitch"
                 =<< Derive.pitch_at =<< Derive.real next
@@ -258,7 +264,7 @@ midi_db :: MidiDb.MidiDb Cmd.InstrumentCode
     sdescs = MidiInst.make $ (MidiInst.softsynth "s" (-2, 2) [])
         { MidiInst.extra_patches = [(patch, code)] }
     code = MidiInst.empty_code
-        { MidiInst.note_calls = [Derive.make_lookup calls] }
+        { MidiInst.note_calls = [Derive.map_lookup calls] }
     calls = Derive.make_calls [("sn", Instrument.Util.attrs_note Attrs.snare)]
 
 lookup_inst :: Score.Instrument -> Maybe Derive.Instrument

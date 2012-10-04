@@ -11,8 +11,6 @@
 module Derive.Scale.Ratio where
 import Util.Control
 import qualified Util.ParseBs as Parse
-import qualified Util.Pretty as Pretty
-
 import qualified Ui.Track as Track
 import qualified Derive.Args as Args
 import qualified Derive.CallSig as CallSig
@@ -22,6 +20,7 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -30,7 +29,7 @@ import qualified Perform.Pitch as Pitch
 scale :: Scale.Scale
 scale = Scale.Scale
     { Scale.scale_id = scale_id
-    , Scale.scale_pattern = "[+-]?\\d+/\\d+"
+    , Scale.scale_pattern = "[+-]?\\d+/\\d+ e.g. 2/5 or -4/3"
     -- no real sensible way to display this
     , Scale.scale_map = Track.make_scale_map []
     , Scale.scale_symbols = []
@@ -53,16 +52,21 @@ note_to_call note = note_call <$>
     Parse.maybe_parse_string p_note (Pitch.note_text note)
 
 note_call :: (Double -> Double) -> Derive.ValCall
-note_call ratio = Derive.ValCall "ratio" $ \args ->
-    CallSig.call1 args (optional "hz" 0) $ \hz -> do
+note_call ratio = Derive.val_call "ratio" ("Generate a frequency that is the"
+    <> " ratio of the frequency of the " <> pitch_control <> " signal."
+    <> " A negative ration divides, a positive one multiplies."
+    ) $ CallSig.call1g
+    (optional "hz" 0 "Add an absolute hz value to the output.") $
+    \hz args -> do
         start <- Args.real_start args
-        nn <- Derive.require
-            ("ratio scale requires " ++ Pretty.pretty cont ++ " pitch signal")
-            =<< Derive.named_nn_at cont start
+        nn <- Derive.require ("ratio scale requires " ++ pitch_control)
+            =<< Derive.named_nn_at control start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
         return $ TrackLang.VPitch $ PitchSignal.pitch $ const $ return out_nn
     where
-    cont = Score.Control "ratio-source"
+    pitch_control = ShowVal.show_val
+        (TrackLang.LiteralControl control :: TrackLang.PitchControl)
+    control = Score.Control "ratio-source"
 
 -- | Ratios look like @2/5@, @-4/3@.  A negative ratio divides, a positive one
 -- multiplies.
