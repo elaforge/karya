@@ -30,8 +30,7 @@ import qualified Data.Word as Word
 import qualified Numeric
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.PrettyPrint as PP
-import Text.PrettyPrint (Doc)
-import Text.PrettyPrint ((<+>))
+import Text.PrettyPrint ((<+>), Doc)
 import qualified Text.Read as Read
 
 import Util.Control
