@@ -45,15 +45,17 @@ indented n m = do
 wrapped_words :: Int -> Int -> Text -> FormatM ()
 wrapped_words width indent text = case Text.words text of
         [] -> return ()
-        w : ws -> write_word w >> indented indent (mapM_ write_word ws)
+        w : ws -> do
+            write_word True w
+            indented indent (mapM_ (write_word False) ws)
     where
-    write_word word = write1 word =<< get
-    write1 word state
+    write_word is_first word = write1 is_first word =<< get
+    write1 is_first word state
         -- +1 for the leading space.
         | not at_begin && state_col state + Text.length word + 1 > width =
             newline >> write word
         | at_begin = write word
-        | otherwise = write (" " <> word)
+        | otherwise = write $ if is_first then word else " " <> word
         where at_begin = state_col state == 0
 
 newline :: FormatM ()

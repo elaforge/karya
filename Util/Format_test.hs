@@ -31,3 +31,5 @@ test_format = do
         , "    this-word-is-too-long"
         , "    to wrap"
         ]
+    equal (run $ Format.write "hi" >> Format.wrapped_words 15 4 "ho ho")
+        ["hiho ho"]
