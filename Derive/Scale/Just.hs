@@ -110,7 +110,7 @@ valid_pitch pitch = Theory.note_accidentals note == 0
 -- | Currently modulating from one just scale to another is awkward:
 --
 -- Set to 440.  Then if I modulate to C, set to
--- "key = 'c'", "base = * 5:4 (hz (4c))"
+-- @key = 'c'@, @base = * 5:4 (hz (4c))@
 note_to_call :: Ratios -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call ratios note = case read_pitch note of
     Left _ -> Nothing

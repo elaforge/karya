@@ -88,7 +88,7 @@ down = attr "down"
 -- Many of these attributes are meant to be combined with others.
 
 -- | Generic variations.  E.g. if there are two snares you can have
--- @snare <> v1@ and @snare <> v2\@.
+-- @snare \<> v1@ and @snare \<> v2@.
 v1 = attr "1"
 v2 = attr "2"
 v3 = attr "3"

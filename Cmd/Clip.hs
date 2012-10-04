@@ -18,7 +18,7 @@
 
     Further ideas:
 
-    - use two selections and a "swap" command
+    - use two selections and a \"swap\" command
 
     - mouse chording for copy paste
 

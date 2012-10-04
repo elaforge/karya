@@ -126,7 +126,8 @@ instance Pretty.Pretty Event where
 data Note = Note {
     -- _* functions are partial.
 
-    -- | [] means this is a rest, and greater than one pitch indicates a chord.
+    -- | @[]@ means this is a rest, and greater than one pitch indicates
+    -- a chord.
     _note_pitch :: ![String]
     , _note_duration :: !NoteDuration
     , _note_tie :: !Bool

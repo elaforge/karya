@@ -24,7 +24,7 @@
 
     In addition, an arg may be a 'TrackLang.PitchControl' or
     'TrackLang.ValControl', which introduces yet another way to provide the
-    value.  An argument @required_control "c"@ will pass
+    value.  An argument @required_control \"c\"@ will pass
     a 'TrackLang.LiteralControl'.  Technically it's then up to the call to
     decide what to do with it, but it will likely look it up at its chosen
     point in time, which means you can provide the value by providing a @c@
@@ -32,7 +32,7 @@
 
     - To further complicate the matter, the control arg may itself have a
     default, to relieve the caller from always having to provide that control.
-    So an argument @control "c" 0.5@ or an explicitly provided control val
+    So an argument @control \"c\" 0.5@ or an explicitly provided control val
     @call %c,.5@ will default to 0.5 if the @c@ control is not in scope.
 
     Since the arg defaulting and control defaulting are orthogonal, they can be
@@ -44,7 +44,7 @@
     2. Pass it via the dynamic environ: @call-arg1 = %c,.5 | call@.  This is
     the same as the above, only the argument is provided implicitly.
 
-    3. Fall back on the built-in default: @control "c" 0.5@ and then just
+    3. Fall back on the built-in default: @control \"c\" 0.5@ and then just
     @call@.
 
     I originally envisioned the dynamic environ passing scheme to be a way to
@@ -60,7 +60,7 @@
     On the subject of controls, controls (and numeric vals in general) have
     another layer of complexity since they carry types.  For example, here's
     a gloriously complicated argument:
-    @optional "speed" (typed_control "tremolo-speed" 10 Score.Real)@.  This
+    @optional \"speed\" (typed_control \"tremolo-speed\" 10 Score.Real)@.  This
     argument defaults to @%tremolo-speed,10s@.  If it's not given, it will
     have the value @10s@.  If the @%tremolo-speed@ control is in scope but
     untyped, its values will be interpreted as RealTime.  If it's in scope
@@ -100,7 +100,7 @@ import qualified Perform.Signal as Signal
 -- | A single argument in the signature of a call.
 data Arg a = Arg {
     -- | An arg that is not explicitly given will be looked for in the dynamic
-    -- environment as \<callid>-<argname\>.  Of course control args get this
+    -- environment as \<callid>-\<argname>.  Of course control args get this
     -- already through the control map, but this way non control args can be
     -- defaulted, or you can default a control arg to a constant without going
     -- to the bother of making a track for it.

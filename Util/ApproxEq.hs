@@ -1,5 +1,5 @@
--- | Verify simple ApproxEq class for comparing floating point numbers.
-module Util.ApproxEq (ApproxEq, approx_eq) where
+-- | ApproxEq class for comparing floating point numbers.
+module Util.ApproxEq (ApproxEq(approx_eq)) where
 
 
 class ApproxEq a where

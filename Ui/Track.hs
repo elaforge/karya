@@ -23,8 +23,6 @@ data Track = Track {
     , track_events :: !Events.Events
     , track_bg :: !Color.Color
     , track_render :: !RenderConfig
-    -- | Analogous to 'Ui.Block.block_integrated', this is the source track if
-    -- this track was integrated from another.
     } deriving (Eq, Show, Read)
 
 instance Pretty.Pretty Track where
