@@ -62,8 +62,7 @@ apply_transform name expr_str deriver = do
 -- * note block calls
 
 lookup_note_block :: Derive.LookupCall Derive.NoteCall
-lookup_note_block = Derive.programmatic_lookup
-    "block id; if it doesn't contain a /, the default namespace is applied"
+lookup_note_block = Derive.programmatic_lookup "block id"
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
     (c_block (Types.BlockId (Id.read_id "fake/block")))
     (\sym -> fmap c_block <$> symbol_to_block_id sym)
@@ -129,8 +128,11 @@ c_clip = Derive.stream_generator "clip"
     <> " may not be in the same time scale as the calling block."
     -- TODO wait until I actually start using this to see if it's worth
     -- coming up with a solution for that.
-    ) $ CallSig.call1g (required "block_id" ("Derive this block. If it doesn't "
-            <> "contain a /, the default namespace is applied.")) $
+    ) $ CallSig.call1g
+    ( required "block_id" $
+        "Derive this block. If it doesn't contain a /, the default namespace"
+        <> " is applied."
+    ) $
     \sym -> Note.inverting $ \args -> do
         block_id <- maybe
             (Derive.throw $ "block not found: " ++ TrackLang.show_val sym)
@@ -149,8 +151,7 @@ c_clip = Derive.stream_generator "clip"
 -- * control call
 
 lookup_control_block :: Derive.LookupCall Derive.ControlCall
-lookup_control_block = Derive.programmatic_lookup
-    "block id; if it doesn't contain a /, the default namespace is applied"
+lookup_control_block = Derive.programmatic_lookup "block id"
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
     (c_control_block (Types.BlockId (Id.read_id "fake/block")))
     (\sym -> fmap c_control_block <$> symbol_to_block_id sym)

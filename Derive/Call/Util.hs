@@ -392,10 +392,10 @@ c_equal = Derive.transformer "equal" equal_doc
 
 equal_arg_doc :: String
 equal_arg_doc =
-    "The left hand side can be a symbol, %control-name, or "
-    <> "#pitch-control-name. The right hand side is anything when binding "
-    <> "a symbol, a number or %control-name when binding a %control, or "
-    <> "a pitch or #pitch-name when binding a #pitch."
+    "The left hand side can be a symbol, `%control-name`, or"
+    <> " `#pitch-control-name`. The right hand side is anything when binding"
+    <> " a symbol, a number or `%control-name` when binding a `%control`, or"
+    <> " a pitch or `#pitch-name` when binding a `#pitch`."
 
 equal_doc :: String
 equal_doc =
