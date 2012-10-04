@@ -444,6 +444,7 @@ dispatch config target = case target of
         system "rm" ["-rf", build]
         system "mkdir" [build]
     "doc" -> action $ makeDocumentation config
+    "haddock" -> action $ makeHaddock config
     "md" -> action $ need . map docToHtml =<< getMarkdown
     "checkin" -> do
         let debug = (modeToDir Debug </>)
@@ -469,6 +470,7 @@ dispatch config target = case target of
     where
     runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
 
+-- | Make all documentation.
 makeDocumentation :: Config -> Shake.Action ()
 makeDocumentation config = do
     hscs <- filter haddock <$> Util.findHs "*.hsc" "."
@@ -476,6 +478,20 @@ makeDocumentation config = do
     docs <- getMarkdown
     need $ (docDir </> "keymap.html")
         : map (hscToHs (hscDir config)) hscs ++ map docToHtml docs
+    makeHaddock config
+    -- TODO do these individually so they can be parallelized and won't run
+    -- each time
+    system "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
+
+getMarkdown :: Shake.Action [FilePath]
+getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" "*.md"
+
+makeHaddock :: Config -> Shake.Action ()
+makeHaddock config = do
+    hscs <- filter haddock <$> Util.findHs "*.hsc" "."
+    hs <- filter haddock <$> Util.findHs "*.hs" "."
+    need $ map (hscToHs (hscDir config)) hscs
+    let flags = configFlags config
     system "haddock" $
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
@@ -487,14 +503,6 @@ makeDocumentation config = do
         , "-o", build </> "haddock"
         ] ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags]
         ++ hs ++ map (hscToHs (hscDir config)) hscs
-    -- TODO do these individually so they can be parallelized and won't run
-    -- each time
-    system "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
-    where
-    flags = configFlags config
-
-getMarkdown :: Shake.Action [FilePath]
-getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" "*.md"
 
 -- | Should this module have haddock documentation generated?
 haddock :: FilePath -> Bool
