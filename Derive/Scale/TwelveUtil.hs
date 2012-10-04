@@ -4,9 +4,13 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
+
 import qualified Ui.Track as Track
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Util as Util
@@ -96,6 +100,24 @@ input_to_note sys maybe_key (Pitch.InputKey key_nn) =
         flip Map.lookup (sys_keys sys) =<< maybe_key
     (nn_semis, cents) = properFraction key_nn
 
+call_doc :: Pitch.ScaleId -> String -> System -> Derive.DocumentedCall
+call_doc scale_id example_note sys =
+    Derive.annotate_doc extra_doc $ Derive.extract_val_doc call
+    where
+    call = Call.Pitch.note_call (Pitch.Note example_note) $ \_ _ ->
+        Left $ PitchSignal.PitchError "it was just an example!"
+    extra_doc = "Note in scale " ++ Pretty.pretty scale_id ++ ":\n" ++ join
+        [ ("note range", note_range)
+        , ("keys", Seq.join ", " (map Pretty.pretty (Map.keys (sys_keys sys))))
+        , ("default key", Pretty.pretty $ Theory.show_key (sys_default_key sys))
+        ]
+    join = unlines . map (\(k, v) -> k ++ ": " ++ v) . filter (not . null . snd)
+    note_range = case (Seq.minimum_on (snd . snd) notes,
+            Seq.maximum_on (snd . snd) notes) of
+        (Just (note1, _), Just (note2, _)) ->
+            Pretty.pretty note1 ++ " to " ++ Pretty.pretty note2
+        _ -> ""
+    notes = Map.toList (sys_note_to_degree sys)
 
 -- * implementation
 

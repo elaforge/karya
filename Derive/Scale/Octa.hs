@@ -11,38 +11,20 @@ import qualified Perform.Pitch as Pitch
 
 
 scales :: [Scale.Scale]
-scales = [octa21, octa12]
-
--- * octa21
-
-octa21 :: Scale.Scale
-octa21 = Scale.Scale
-    { Scale.scale_id = octa21_id
-    , Scale.scale_pattern = "[-1-9][a-h](b|bb|#|x)?"
-    , Scale.scale_map = TwelveUtil.scale_map system
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = TwelveUtil.transpose system
-    , Scale.scale_enharmonics = TwelveUtil.enharmonics system
-    , Scale.scale_note_to_call = TwelveUtil.note_to_call system
-    , Scale.scale_input_to_note = TwelveUtil.input_to_note system
-    , Scale.scale_input_to_nn = Util.direct_input_to_nn
-    }
-    where
-    system = TwelveUtil.system layout all_pitches keys default_key
-        where Just default_key = Map.lookup (Pitch.Key "a-21") keys
-    keys = all_keys layout "21"
-    layout = Theory.layout [2, 1, 2, 1, 2, 1, 2, 1]
+scales =
+    [ make_scale octa21_id (Theory.layout [2, 1, 2, 1, 2, 1, 2, 1]) "21"
+    , make_scale octa12_id (Theory.layout [1, 2, 1, 2, 1, 2, 1, 2]) "12"
+    ]
 
 octa21_id :: Pitch.ScaleId
 octa21_id = Pitch.ScaleId "octa21"
 
+octa12_id :: Pitch.ScaleId
+octa12_id = Pitch.ScaleId "octa12"
 
--- * octa12
-
-octa12 :: Scale.Scale
-octa12 = Scale.Scale
-    { Scale.scale_id = octa12_id
+make_scale :: Pitch.ScaleId -> Theory.Layout -> String -> Scale.Scale
+make_scale scale_id layout key_suffix = Scale.Scale
+    { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-h](b|bb|#|x)?"
     , Scale.scale_map = TwelveUtil.scale_map system
     , Scale.scale_symbols = []
@@ -52,15 +34,12 @@ octa12 = Scale.Scale
     , Scale.scale_note_to_call = TwelveUtil.note_to_call system
     , Scale.scale_input_to_note = TwelveUtil.input_to_note system
     , Scale.scale_input_to_nn = Util.direct_input_to_nn
+    , Scale.scale_call_doc = TwelveUtil.call_doc scale_id "4c" system
     }
     where
-    system = TwelveUtil.system layout all_pitches keys default_key
-        where Just default_key = Map.lookup (Pitch.Key "a-12") keys
-    keys = all_keys layout "12"
-    layout = Theory.layout [1, 2, 1, 2, 1, 2, 1, 2]
-
-octa12_id :: Pitch.ScaleId
-octa12_id = Pitch.ScaleId "octa12"
+    system = TwelveUtil.system layout all_pitches keys deflt
+        where Just deflt = Map.lookup (Pitch.Key $ "a-" ++ key_suffix) keys
+    keys = all_keys layout key_suffix
 
 all_notes :: [Theory.Note]
 all_notes = [Theory.Note pc accs | pc <- [0..7], accs <- [-1..1]]

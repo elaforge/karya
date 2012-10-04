@@ -47,7 +47,9 @@ UNSORTED
     * doc formatter should replace \n with \n\n
     - make sure things like 'Maybe DefaultReal' get documented as optional but
       defaults to real
-    - Add doc for scale calls.
+    * Add doc for scale calls.
+    - cmd to extract all docs: all standard calls, all standard scales,
+      perhaps even extract all the instruments along with their calls
 
   * changing default tempo should cause everything to rederive
   * paste is not pasting the last 0-dur event

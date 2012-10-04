@@ -24,6 +24,7 @@ scale = Scale.Scale
     , Scale.scale_note_to_call = Util.note_to_call scale_map
     , Scale.scale_input_to_note = Util.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.mapped_input_to_nn scale_map
+    , Scale.scale_call_doc = Util.call_doc scale_id "1" scale_map
     }
 
 scale_id :: Pitch.ScaleId

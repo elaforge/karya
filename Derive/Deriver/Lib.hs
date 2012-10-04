@@ -49,6 +49,7 @@ import Derive.Deriver.Monad
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
@@ -187,10 +188,10 @@ with_scale scale = with_val TrackLang.v_scale (scale_id scale)
     where
     set stype = stype { stype_scale = [lookup_scale_val scale] }
     lookup_scale_val :: Scale -> LookupCall ValCall
-    lookup_scale_val scale = programmatic_lookup (scale_pattern scale)
-        example_call
+    lookup_scale_val scale = pattern_lookup name
+        (scale_call_doc scale)
         (\call_id -> return $ scale_note_to_call scale (to_note call_id))
-    example_call = Call "TODO" Nothing Nothing -- TODO get this from the scale
+    name = ShowVal.show_val (scale_id scale) ++ ": " ++ scale_pattern scale
     to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d

@@ -461,6 +461,8 @@ mkscale name notes = Scale.Scale
     , Scale.scale_note_to_call = Scale.Util.note_to_call scale_map
     , Scale.scale_input_to_note = Scale.Util.input_to_note scale_map
     , Scale.scale_input_to_nn = Scale.Util.mapped_input_to_nn scale_map
+    , Scale.scale_call_doc = Scale.Util.call_doc (Pitch.ScaleId name)
+        (fst (head notes)) scale_map
     }
     where
     scale_map = Scale.Util.scale_map (map (Pitch.Note . fst) notes)

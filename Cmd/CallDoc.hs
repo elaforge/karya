@@ -139,7 +139,7 @@ html_doc = map_html postproc . html . Text.pack
     where
     map_html f (Html text) = Html (f text)
     postproc = para . backticks
-    para = Text.replace "\n" "\n<p>"
+    para = Text.replace "\n" "\n<br>"
     backticks = mconcat . codify . Text.split (=='`')
     -- foo `bar` ba`z` -> ["foo ", "bar", "ba", "z", ""]
     codify (x:y:zs) = x : ("<code>" <> y <> "</code>") : codify zs
@@ -193,12 +193,12 @@ type SymbolName = Text
 lookup_docs :: [Derive.LookupDocs] -> [CallBindings]
 lookup_docs = group . snd . List.mapAccumL go Set.empty . concatMap flatten
     where
-    flatten (Derive.LookupPattern lookup_doc call) = [(Left lookup_doc, call)]
+    flatten (Derive.LookupPattern pattern call) = [(Left pattern, call)]
     flatten (Derive.LookupMap cmap) =
         [(Right sym, call) | (sym, call) <- Map.toAscList cmap]
-    go shadowed (Left lookup_doc, call) =
+    go shadowed (Left pattern, call) =
         -- There's no way to know if a programmatic lookup shadows.
-        (shadowed, ((False, "lookup: " <> Text.pack lookup_doc),
+        (shadowed, ((False, "lookup: " <> Text.pack pattern),
             documented_call call))
     go shadowed (Right sym, call) = (Set.insert sym shadowed,
         ((sym `Set.member` shadowed, show_sym sym), documented_call call))

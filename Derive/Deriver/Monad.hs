@@ -49,9 +49,11 @@ module Derive.Deriver.Monad (
 
     -- ** scope
     , Scope(..), empty_scope, ScopeType(..), empty_scope_type
-    , DocumentedCall(..), LookupDocs(..)
+    , DocumentedCall(..), annotate_doc
+    , LookupDocs(..)
     , LookupCall(lookup_call, lookup_docs)
-    , map_lookup, map_val_lookup, programmatic_lookup
+    , map_lookup, map_val_lookup, pattern_lookup
+    , extract_doc, extract_val_doc
 
     -- ** constant
     , Constant(..), initial_constant
@@ -473,6 +475,16 @@ data DocumentedCall =
     DocumentedCall String (Maybe CallDoc) (Maybe CallDoc)
     | DocumentedValCall String CallDoc
 
+-- | Prepend a bit of text to the documentation.
+annotate_doc :: String -> DocumentedCall -> DocumentedCall
+annotate_doc text doc = case doc of
+    DocumentedCall name generator transformer ->
+        DocumentedCall name (annotate <$> generator) (annotate <$> transformer)
+    DocumentedValCall name cdoc -> DocumentedValCall name (annotate cdoc)
+    where
+    annotate (CallDoc cdoc args) = CallDoc (text ++ "\n" ++ cdoc) args
+
+
 -- | In the common case, a lookup is simply a static map.
 map_lookup :: Map.Map TrackLang.CallId (Call d) -> LookupCall (Call d)
 map_lookup cmap = LookupCall
@@ -486,26 +498,21 @@ map_lookup cmap = LookupCall
 map_val_lookup :: Map.Map TrackLang.CallId ValCall -> LookupCall ValCall
 map_val_lookup cmap = LookupCall
     { lookup_call = \call_id -> return $ Map.lookup call_id cmap
-    , lookup_docs = LookupMap $ Map.map extract cmap
+    , lookup_docs = LookupMap $ Map.map extract_val_doc cmap
     }
-    where
-    extract vcall = DocumentedValCall (vcall_name vcall) (vcall_doc vcall)
 
 -- | Create a lookup that uses a function instead of a Map.
-programmatic_lookup :: String
-    -> Call d -- ^ An example Call that the lookup will return. Its
-    -- documentation is used for the lookup's documentation, so the Call itself
-    -- is not evaluated.
+pattern_lookup :: String -> DocumentedCall
     -> (TrackLang.CallId -> Deriver (Maybe call))
     -> LookupCall call
-programmatic_lookup pattern call lookup_call = LookupCall
-    { lookup_call = lookup_call
-    , lookup_docs = LookupPattern pattern (extract_doc call)
-    }
+pattern_lookup name doc lookup = LookupCall lookup (LookupPattern name doc)
 
 extract_doc :: Call d -> DocumentedCall
 extract_doc (Call name generator transformer) = DocumentedCall name
     (generator_doc <$> generator) (transformer_doc <$> transformer)
+
+extract_val_doc :: ValCall -> DocumentedCall
+extract_val_doc vcall = DocumentedValCall (vcall_name vcall) (vcall_doc vcall)
 
 -- ** constant
 
@@ -988,6 +995,10 @@ data Scale = Scale {
     -- efficiently and not have to worry about passing the pos separately.
     , scale_input_to_nn ::
         !(ScoreTime -> Pitch.InputKey -> Deriver (Maybe Pitch.NoteNumber))
+
+    -- | Documentation for all of the ValCalls that 'scale_note_to_call' can
+    -- return.
+    , scale_call_doc :: !DocumentedCall
     }
 
 type LookupScale = Pitch.ScaleId -> Maybe Scale

@@ -42,6 +42,7 @@ scale = Scale.Scale
     -- keyboard.
     , Scale.scale_input_to_note = \_ _ -> Nothing
     , Scale.scale_input_to_nn = Util.direct_input_to_nn
+    , Scale.scale_call_doc = Derive.extract_val_doc (note_call id)
     }
 
 scale_id :: Pitch.ScaleId

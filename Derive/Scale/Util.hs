@@ -3,6 +3,7 @@ module Derive.Scale.Util where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Map as Map
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -200,3 +201,31 @@ no_enharmonics _ _ = Right []
 standard_transposers :: Set.Set Score.Control
 standard_transposers = Set.fromList
     [Score.c_chromatic, Score.c_diatonic, Score.c_hz]
+
+call_doc :: Pitch.ScaleId -> String -> ScaleMap -> Derive.DocumentedCall
+call_doc scale_id example_note smap =
+    annotate_call_doc scale_id fields $ note_call_doc example_note
+    where
+    fields =
+        [ ("note range", map_range snd (smap_degree_to_note smap))
+        , ("input range", map_range fst (smap_input_to_note smap))
+        , ("nn range", map_range snd (smap_degree_to_nn smap))
+        ]
+    map_range extract fm = case (Map.min fm, Map.max fm) of
+        (Just kv1, Just kv2) ->
+            Pretty.pretty (extract kv1) ++ " to " ++ Pretty.pretty (extract kv2)
+        _ -> ""
+
+-- | Documentation of the standard 'Call.Pitch.note_call'.
+note_call_doc :: String -> Derive.DocumentedCall
+note_call_doc example_note = Derive.extract_val_doc $
+    Call.Pitch.note_call (Pitch.Note example_note) $ \_ _ ->
+        Left $ PitchSignal.PitchError "it was just an example!"
+
+annotate_call_doc :: Pitch.ScaleId -> [(String, String)]
+    -> Derive.DocumentedCall -> Derive.DocumentedCall
+annotate_call_doc scale_id fields = Derive.annotate_doc extra_doc
+    where
+    extra_doc = "Note in scale " ++ Pretty.pretty scale_id ++ ":\n"
+        ++ join fields
+    join = unlines . map (\(k, v) -> k ++ ": " ++ v) . filter (not . null . snd)

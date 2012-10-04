@@ -38,6 +38,8 @@ make_scale scale_id ratios = Scale.Scale
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn =
         Util.input_to_nn input_to_note (note_to_call ratios)
+    -- TODO annotate
+    , Scale.scale_call_doc = Util.note_call_doc "4c"
     }
 
 scale_map :: [(Pitch.Note, Pitch.Degree)]
@@ -128,7 +130,10 @@ note_to_call ratios note = case read_pitch note of
         where
         chromatic = Map.findWithDefault 0 Score.c_chromatic controls
         diatonic = Map.findWithDefault 0 Score.c_diatonic controls
-        base_hz = Map.lookup (Score.Control "just-base") controls
+        base_hz = Map.lookup just_base_control controls
+
+just_base_control :: Score.Control
+just_base_control = Score.Control "just-base"
 
 transpose_to_hz :: Ratios -> Maybe Pitch.Hz -> Key -> Double
     -> Theory.Pitch -> Pitch.Hz

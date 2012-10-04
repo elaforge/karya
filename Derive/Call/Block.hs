@@ -62,10 +62,12 @@ apply_transform name expr_str deriver = do
 -- * note block calls
 
 lookup_note_block :: Derive.LookupCall Derive.NoteCall
-lookup_note_block = Derive.programmatic_lookup "block id"
-    -- Not evaluated, so it doesn't matter if the BlockId is invalid.
-    (c_block (Types.BlockId (Id.read_id "fake/block")))
+lookup_note_block = Derive.pattern_lookup "block id"
+    (Derive.extract_doc fake_call)
     (\sym -> fmap c_block <$> symbol_to_block_id sym)
+    where
+    -- Not evaluated, so it doesn't matter if the BlockId is invalid.
+    fake_call = c_block (Types.BlockId (Id.read_id "fake/block"))
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = Derive.stream_generator ("block " ++ show block_id)
@@ -151,10 +153,12 @@ c_clip = Derive.stream_generator "clip"
 -- * control call
 
 lookup_control_block :: Derive.LookupCall Derive.ControlCall
-lookup_control_block = Derive.programmatic_lookup "block id"
-    -- Not evaluated, so it doesn't matter if the BlockId is invalid.
-    (c_control_block (Types.BlockId (Id.read_id "fake/block")))
+lookup_control_block = Derive.pattern_lookup "block id"
+    (Derive.extract_doc fake_call)
     (\sym -> fmap c_control_block <$> symbol_to_block_id sym)
+    where
+    -- Not evaluated, so it doesn't matter if the BlockId is invalid.
+    fake_call = c_control_block (Types.BlockId (Id.read_id "fake/block"))
 
 c_control_block :: BlockId -> Derive.ControlCall
 c_control_block block_id = Derive.stream_generator "control-block"

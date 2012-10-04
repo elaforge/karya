@@ -54,7 +54,8 @@ instance Pretty.Pretty Note where
 -- * InputKey
 
 -- | A physically played key that hasn't been mapped to a scale yet.
-newtype InputKey = InputKey Double deriving (Num, Eq, Ord, Real, Show)
+newtype InputKey = InputKey Double
+    deriving (Num, Eq, Ord, Real, Show, Pretty.Pretty)
 type Octave = Int
 
 -- | Useful to orient scales around a common center.
