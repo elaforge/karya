@@ -38,7 +38,7 @@ doc_text = Format.run . mapM_ section
         mapM_ call_binds calls
     call_binds (binds, sections) = do
         mapM_ show_bind binds
-        show_sections sections
+        Format.indented 2 $ show_sections sections
         Format.newline
     show_bind (shadowed, sym, name) = do
         Format.write $ if shadowed then strikeout sym else sym
@@ -47,7 +47,7 @@ doc_text = Format.run . mapM_ section
     show_sections [(ValCall, Derive.CallDoc doc args)] = do
         write_doc doc
         Format.indented 2 $ arg_docs args
-    show_sections sections = Format.indented 2 $ mapM_ call_section sections
+    show_sections sections = mapM_ call_section sections
     call_section (call_type, Derive.CallDoc doc args) = do
         Format.write $ show_call_type call_type <> ": "
         write_doc doc
@@ -77,18 +77,20 @@ doc_html = un_html . (header <>) . mconcatMap section
         tag "h2" (html call_type) <> "\n\n"
         <> mconcatMap scope_doc scope_docs
     scope_doc (source, calls) =
-        tag "h3" ("from " <> html source) <> "\n\n<dl>\n"
+        tag "h3" ("from " <> html source) <> "\n\n<dl class=main>\n"
         <> mconcatMap call_binds calls
         <> "</dl>\n"
     call_binds (binds, sections) =
-        mconcatMap show_bind binds
-        <> "<dd> <dl class=compact\n" <> show_sections sections <> "</dl>\n\n"
+        mconcatMap show_bind binds <> show_sections sections <> "\n\n"
     show_bind (shadowed, sym, name) =
         "<dt>" <> (if shadowed then strikeout sym else tag "code" (html sym))
         <> " &mdash; " <> tag "b" (html name) <> ":\n"
     strikeout sym = tag "strike" (tag "code" (html sym))
         <> tag "em" "(shadowed)"
-    show_sections sections = mconcatMap call_section sections
+    show_sections [(ValCall, Derive.CallDoc doc args)] =
+        "<dd>" <> html_doc doc <> "\n<dd>" <> tag "ul" (arg_docs args)
+    show_sections sections = "<dd> <dl class=compact>\n"
+        <> mconcatMap call_section sections <> "</dl>\n"
     call_section (call_type, Derive.CallDoc doc args) =
         "<dt>" <> tag "em" (html (show_call_type call_type)) <> ": "
         <> "<dd>" <> html_doc doc <> "\n<dd>" <> tag "ul" (arg_docs args)
@@ -102,14 +104,15 @@ doc_html = un_html . (header <>) . mconcatMap section
     show_default = maybe "" ((" = " <>) . tag "code" . html . Text.pack)
 
     header = "<style type=text/css>\n" <> css <> "</style>\n"
-    css = "dl.compact {\n\
+    css = ".main dt { border-top: 1px solid #999 }\n\
+        \dl.compact {\n\
         \    margin: 0px;\n\
         \    padding: 0;\n\
-        \    border-bottom: 1px solid #999;\n\
         \}\n\
         \.compact dt {\n\
         \    margin: 0;\n\
         \    padding: 0;\n\
+        \    border-top: 0px;\n\
         \}\n\
         \.compact dd {\n\
         \    margin: 0 0 1em 0;\n\
@@ -119,6 +122,7 @@ doc_html = un_html . (header <>) . mconcatMap section
     tag :: Html -> Html -> Html
     tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"
     mconcatMap f = mconcat . map f
+
 
 newtype Html = Html Text.Text
     deriving (Monoid.Monoid, String.IsString, Show)
