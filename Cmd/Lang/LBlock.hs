@@ -11,9 +11,9 @@ import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 
+import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.DeriveDoc as DeriveDoc
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
@@ -28,18 +28,18 @@ import Types
 -- * doc
 
 doc :: Cmd.CmdL Text.Text
-doc = DeriveDoc.doc_text <$> track_doc
+doc = CallDoc.doc_text <$> track_doc
 
 html_doc :: Cmd.CmdL ()
 html_doc = do
     doc <- track_doc
     Trans.liftIO $ Text.IO.writeFile "build/derive_doc.html"
-        (DeriveDoc.doc_html doc)
+        (CallDoc.doc_html doc)
 
-track_doc :: Cmd.CmdL DeriveDoc.Document
+track_doc :: Cmd.CmdL CallDoc.Document
 track_doc = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    DeriveDoc.track block_id track_id
+    CallDoc.track block_id track_id
 
 -- * block call
 

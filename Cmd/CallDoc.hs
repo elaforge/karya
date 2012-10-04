@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving #-}
 -- | Pull deriver call documentation out of a Performance and format it nicely.
-module Cmd.DeriveDoc where
+module Cmd.CallDoc where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
