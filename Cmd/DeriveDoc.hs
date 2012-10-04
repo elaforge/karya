@@ -1,9 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving #-}
 -- | Pull deriver call documentation out of a Performance and format it nicely.
 module Cmd.DeriveDoc where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
+import qualified Data.String as String
 import qualified Data.Text as Text
 import Data.Text (Text)
 
@@ -21,7 +23,9 @@ import qualified Derive.TrackInfo as TrackInfo
 import Types
 
 
--- | Convert Document to plain text.
+-- * output
+
+-- | Convert a Document to plain text.
 doc_text :: Document -> Text.Text
 doc_text = Format.run . mapM_ section
     where
@@ -36,13 +40,13 @@ doc_text = Format.run . mapM_ section
         Format.write $ " -- " <> name <> ": "
         show_sections sections
         Format.newline
+    strikeout sym = "~~" <> sym <> "~~ (shadowed)"
     show_sections [(ValCall, Derive.CallDoc doc args)] = do
         write_doc doc
         Format.indented 2 $ arg_docs args
     show_sections sections = Format.indented 2 $ do
         Format.newline
         mapM_ call_section sections
-    strikeout sym = "~~" <> sym <> "~~ (shadowed)"
     call_section (call_type, Derive.CallDoc doc args) = do
         Format.write $ show_call_type call_type <> ": "
         write_doc doc
@@ -61,6 +65,79 @@ write_doc :: String -> Format.FormatM ()
 write_doc text = do
     Format.wrapped_words 75 4 (Text.pack text)
     Format.newline
+
+-- ** html output
+
+-- | Convert a Document to HTML.
+doc_html :: Document -> Text.Text
+doc_html = un_html . (header <>) . mconcatMap section
+    where
+    section (call_type, scope_docs) =
+        tag "h2" (html call_type) <> "\n\n"
+        <> mconcatMap scope_doc scope_docs
+    scope_doc (source, calls) =
+        tag "h3" ("from " <> html source) <> "\n\n<dl>\n"
+        <> mconcatMap named_call_doc calls
+        <> "</dl>\n"
+    named_call_doc (shadowed, sym, (name, sections)) =
+        "<dt>" <> (if shadowed then strikeout sym else tag "code" (html sym))
+        <> " &mdash; " <> tag "b" (html name) <> ":\n"
+        <> "<dd> <dl class=compact\n" <> show_sections sections <> "</dl>\n\n"
+    strikeout sym = tag "strike" (tag "code" (html sym))
+        <> tag "em" "(shadowed)"
+    show_sections sections = mconcatMap call_section sections
+    call_section (call_type, Derive.CallDoc doc args) =
+        "<dt>" <> tag "em" (html (show_call_type call_type)) <> ": "
+        <> "<dd>" <> html_doc doc <> "\n<dd>" <> tag "ul" (arg_docs args)
+    arg_docs (Derive.ArgsParsedSpecially doc) =
+        "\n<li><b>Args parsed by call:</b> " <> html_doc doc
+    arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
+    arg_doc (Derive.ArgDoc name typ deflt doc) =
+        "<li>" <> tag "code" (html (Text.pack name)) <> " :: "
+        <> tag "em" (html (Text.pack (Pretty.pretty typ)))
+        <> show_default deflt <> " &mdash; " <> html_doc doc <> "\n"
+    show_default = maybe "" ((" = " <>) . tag "code" . html . Text.pack)
+
+    header = "<style type=text/css>\n" <> css <> "</style>\n"
+    css = "dl.compact {\n\
+        \    margin: 0px;\n\
+        \    padding: 0;\n\
+        \    border-bottom: 1px solid #999;\n\
+        \}\n\
+        \.compact dt {\n\
+        \    margin: 0;\n\
+        \    padding: 0;\n\
+        \}\n\
+        \.compact dd {\n\
+        \    margin: 0 0 1em 0;\n\
+        \    padding: 0;\n\
+        \}\n"
+
+    tag :: Html -> Html -> Html
+    tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"
+    mconcatMap f = mconcat . map f
+
+newtype Html = Html Text.Text
+    deriving (Monoid.Monoid, String.IsString, Show)
+
+un_html :: Html -> Text.Text
+un_html (Html text) = text
+
+html :: Text.Text -> Html
+html = Html . Text.replace "<" "&lt;" . Text.replace ">" "&gt;"
+        . Text.replace "&" "&amp;"
+
+html_doc :: String -> Html
+html_doc = map_html postproc . html . Text.pack
+    where
+    map_html f (Html text) = Html (f text)
+    postproc = para . backticks
+    para = Text.replace "\n" "\n<p>"
+    backticks = mconcat . codify . Text.split (=='`')
+    -- foo `bar` ba`z` -> ["foo ", "bar", "ba", "z", ""]
+    codify (x:y:zs) = x : ("<code>" <> y <> "</code>") : codify zs
+    codify xs = xs
+
 
 -- * doc
 

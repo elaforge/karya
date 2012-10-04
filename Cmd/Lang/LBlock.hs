@@ -28,15 +28,18 @@ import Types
 -- * doc
 
 doc :: Cmd.CmdL Text.Text
-doc = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    DeriveDoc.doc_text <$> DeriveDoc.track block_id track_id
+doc = DeriveDoc.doc_text <$> track_doc
 
-write_doc :: Cmd.CmdL ()
-write_doc = do
+html_doc :: Cmd.CmdL ()
+html_doc = do
+    doc <- track_doc
+    Trans.liftIO $ Text.IO.writeFile "build/derive_doc.html"
+        (DeriveDoc.doc_html doc)
+
+track_doc :: Cmd.CmdL DeriveDoc.Document
+track_doc = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    doc <- DeriveDoc.doc_text <$> DeriveDoc.track block_id track_id
-    Trans.liftIO $ Text.IO.writeFile "build/derive_doc" doc
+    DeriveDoc.track block_id track_id
 
 -- * block call
 

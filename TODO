@@ -37,7 +37,7 @@ UNSORTED
     - Unicode getting mangled.
     * doc in CallSig about call1g type unpleasantness.
       Technically call1g is for val calls too... should I care?
-    - emit markdown, or just html
+    * emit markdown, or just html
     * Spaces at the beginning of wrapped strings, consistent with operators
       and don't have to add a space after a period if I add another sentence.
     - Cmd.DeriveDoc should group duplicates together.
