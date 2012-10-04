@@ -121,7 +121,7 @@ instance ShowVal RealOrScore where
 data Type = TNum | TString | TRelativeAttr | TAttributes
     | TControl | TPitchControl | TScaleId | TPitch | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TVal
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Type where
     pretty (TMaybe typ) = "Maybe " ++ Pretty.pretty typ

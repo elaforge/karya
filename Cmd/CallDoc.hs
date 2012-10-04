@@ -12,6 +12,7 @@ import Data.Text (Text)
 import Util.Control
 import qualified Util.Format as Format
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -34,19 +35,19 @@ doc_text = Format.run . mapM_ section
         mapM_ scope_doc scope_docs
     scope_doc (source, calls) = do
         Format.write $ "### from " <> source <> "\n\n"
-        mapM_ named_call_doc calls
-    named_call_doc (shadowed, sym, (name, sections)) = do
-        Format.write $ if shadowed then strikeout sym else sym
-        Format.write $ " -- " <> name <> ": "
+        mapM_ call_binds calls
+    call_binds (binds, sections) = do
+        mapM_ show_bind binds
         show_sections sections
         Format.newline
+    show_bind (shadowed, sym, name) = do
+        Format.write $ if shadowed then strikeout sym else sym
+        Format.write $ " -- " <> name <> ":\n"
     strikeout sym = "~~" <> sym <> "~~ (shadowed)"
     show_sections [(ValCall, Derive.CallDoc doc args)] = do
         write_doc doc
         Format.indented 2 $ arg_docs args
-    show_sections sections = Format.indented 2 $ do
-        Format.newline
-        mapM_ call_section sections
+    show_sections sections = Format.indented 2 $ mapM_ call_section sections
     call_section (call_type, Derive.CallDoc doc args) = do
         Format.write $ show_call_type call_type <> ": "
         write_doc doc
@@ -77,12 +78,14 @@ doc_html = un_html . (header <>) . mconcatMap section
         <> mconcatMap scope_doc scope_docs
     scope_doc (source, calls) =
         tag "h3" ("from " <> html source) <> "\n\n<dl>\n"
-        <> mconcatMap named_call_doc calls
+        <> mconcatMap call_binds calls
         <> "</dl>\n"
-    named_call_doc (shadowed, sym, (name, sections)) =
+    call_binds (binds, sections) =
+        mconcatMap show_bind binds
+        <> "<dd> <dl class=compact\n" <> show_sections sections <> "</dl>\n\n"
+    show_bind (shadowed, sym, name) =
         "<dt>" <> (if shadowed then strikeout sym else tag "code" (html sym))
         <> " &mdash; " <> tag "b" (html name) <> ":\n"
-        <> "<dd> <dl class=compact\n" <> show_sections sections <> "</dl>\n\n"
     strikeout sym = tag "strike" (tag "code" (html sym))
         <> tag "em" "(shadowed)"
     show_sections sections = mconcatMap call_section sections
@@ -167,7 +170,7 @@ generate ttype dynamic = (\d -> [d, val_doc]) $ case ttype of
     Derive.Scope note control pitch val = Derive.state_scope dynamic
 
 -- | Documentation for one type of scope: (scope_source, calls)
-type ScopeDoc = (Text, [NamedCallDoc])
+type ScopeDoc = (Text, [CallBindings])
 
 -- | Walk up the scopes, keeping track of shadowed names.
 scope_doc :: Derive.ScopeType call -> [ScopeDoc]
@@ -177,37 +180,45 @@ scope_doc (Derive.ScopeType inst scale builtin) = filter (not . null . snd)
     , ("builtins", lookup_docs (map Derive.lookup_docs builtin))
     ]
 
--- | (is_shadowed, bound_symbol, doc)
-type NamedCallDoc = (Bool, Text, DocumentedCall)
+-- | Multiple bound symbols with the same DocumentedCall are grouped together:
+-- ([(is_shadowed, bound_symbol, call_name)], doc)
+type CallBindings = ([(Bool, SymbolName, CallName)], DocumentedCall)
+type CallName = Text
+type SymbolName = Text
 
-lookup_docs :: [Derive.LookupDocs] -> [NamedCallDoc]
-lookup_docs = snd . List.mapAccumL go Set.empty . concatMap flatten
+lookup_docs :: [Derive.LookupDocs] -> [CallBindings]
+lookup_docs = group . snd . List.mapAccumL go Set.empty . concatMap flatten
     where
     flatten (Derive.LookupPattern lookup_doc call) = [(Left lookup_doc, call)]
     flatten (Derive.LookupMap cmap) =
         [(Right sym, call) | (sym, call) <- Map.toAscList cmap]
     go shadowed (Left lookup_doc, call) =
         -- There's no way to know if a programmatic lookup shadows.
-        (shadowed, (False, "lookup: " <> Text.pack lookup_doc,
+        (shadowed, ((False, "lookup: " <> Text.pack lookup_doc),
             documented_call call))
     go shadowed (Right sym, call) = (Set.insert sym shadowed,
-        (sym `Set.member` shadowed, show_sym sym, documented_call call))
+        ((sym `Set.member` shadowed, show_sym sym), documented_call call))
     show_sym sym
         | null s = "\"\""
         | otherwise = Text.pack s
         where s = ShowVal.show_val sym
+    group :: [((Bool, SymbolName), (CallName, DocumentedCall))]
+        -> [CallBindings]
+    group pairs = [(extract names, doc_call)
+        | (doc_call, names) <- Seq.keyed_group_on (snd . snd) pairs]
+    extract names =
+        [(shadowed, name, cname) | ((shadowed, name), (cname, _)) <- names]
 
--- | (name, sections)
-type DocumentedCall = (Text, [(CallType, Derive.CallDoc)])
+type DocumentedCall = [(CallType, Derive.CallDoc)]
 data CallType = ValCall | GeneratorCall | TransformerCall
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 show_call_type :: CallType -> Text
 show_call_type ValCall = "val"
 show_call_type GeneratorCall = "generator"
 show_call_type TransformerCall = "transformer"
 
-documented_call :: Derive.DocumentedCall -> DocumentedCall
+documented_call :: Derive.DocumentedCall -> (CallName, DocumentedCall)
 documented_call (Derive.DocumentedCall name generator transformer) =
     (Text.pack name,
         doc GeneratorCall generator ++ doc TransformerCall transformer)

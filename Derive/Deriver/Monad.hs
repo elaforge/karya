@@ -746,17 +746,17 @@ instance Show (Call derived) where
 data CallDoc = CallDoc {
     cdoc_doc :: String
     , cdoc_args :: ArgDocs
-    } deriving (Show)
+    } deriving (Eq, Ord, Show)
 data ArgDocs = ArgDocs [ArgDoc]
     -- | This means the call parses the args itself in some special way.
     | ArgsParsedSpecially String
-    deriving (Show)
+    deriving (Eq, Ord, Show)
 data ArgDoc = ArgDoc {
     arg_name :: String
     , arg_type :: TrackLang.Type
     , arg_default :: Maybe String
     , arg_doc :: String
-    } deriving (Show)
+    } deriving (Eq, Ord, Show)
 
 type NoteCall = Call Score.Event
 type ControlCall = Call Signal.Control

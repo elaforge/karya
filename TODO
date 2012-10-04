@@ -40,8 +40,8 @@ UNSORTED
     * emit markdown, or just html
     * Spaces at the beginning of wrapped strings, consistent with operators
       and don't have to add a space after a period if I add another sentence.
-    - Cmd.DeriveDoc should group duplicates together.
-      It could get even smarter by allowing different args, to account for
+    * Cmd.DeriveDoc should group duplicates together.
+    - It could get even smarter by allowing different args, to account for
       minor variations.
     * verify the inverting calls still work
     * doc formatter should replace \n with \n\n
