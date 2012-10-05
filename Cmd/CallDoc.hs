@@ -104,7 +104,7 @@ doc_html = un_html . (header <>) . mconcatMap section
     show_default = maybe "" ((" = " <>) . tag "code" . html . Text.pack)
 
     header = "<style type=text/css>\n" <> css <> "</style>\n"
-    css = ".main dt { border-top: 1px solid #999 }\n\
+    css = ".main dl { border-bottom: 1px solid #999 }\n\
         \dl.compact {\n\
         \    margin: 0px;\n\
         \    padding: 0;\n\
@@ -112,7 +112,6 @@ doc_html = un_html . (header <>) . mconcatMap section
         \.compact dt {\n\
         \    margin: 0;\n\
         \    padding: 0;\n\
-        \    border-top: 0px;\n\
         \}\n\
         \.compact dd {\n\
         \    margin: 0 0 1em 0;\n\

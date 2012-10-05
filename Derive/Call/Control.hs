@@ -101,8 +101,8 @@ c_exponential_next = Derive.generator1 "exponential-next"
     ) $ CallSig.call3g
     ( required "val" "Destination value."
     , optional "exp" 2 exp_doc
-    , optional "time" Nothing $ "Time to reach destination.  If not given, it "
-        <> "is the start of the next event."
+    , optional "time" Nothing $ "Time to reach destination.  If not given, it"
+        <> " is the start of the next event."
     ) $ \val exp maybe_time args ->
         interpolate_next (expon exp) args val maybe_time
 

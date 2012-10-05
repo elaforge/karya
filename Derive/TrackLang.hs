@@ -118,13 +118,37 @@ instance ShowVal RealOrScore where
 
 -- * types
 
-data Type = TNum | TString | TRelativeAttr | TAttributes
+data Type = TNum NumType
+    | TString | TRelativeAttr | TAttributes
     | TControl | TPitchControl | TScaleId | TPitch | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TVal
     deriving (Eq, Ord, Show)
 
+data NumType = TUntyped | TTranspose | TDefaultDiatonic | TDefaultChromatic
+    | TTime | TDefaultReal | TDefaultScore | TRealTime | TScoreTime
+    deriving (Eq, Ord, Show)
+
+to_num_type :: Score.Type -> NumType
+to_num_type typ = case typ of
+    Score.Untyped -> TUntyped
+    Score.Real -> TTime
+    Score.Score -> TTime
+    Score.Diatonic -> TTranspose
+    Score.Chromatic -> TTranspose
+
 instance Pretty.Pretty Type where
     pretty (TMaybe typ) = "Maybe " ++ Pretty.pretty typ
+    pretty (TNum typ) = join "Num" $ case typ of
+        TUntyped -> ""
+        TTranspose -> "transposition"
+        TDefaultDiatonic -> "transposition, default diatonic"
+        TDefaultChromatic -> "transposition, default chromatic"
+        TTime -> "time"
+        TDefaultReal -> "time, default real"
+        TDefaultScore -> "time, default score"
+        TRealTime -> "realtime"
+        TScoreTime -> "scoretime"
+        where join x y = if null y then x else x ++ " (" ++ y ++ ")"
     pretty typ = drop 1 (show typ)
 
 type_of :: Val -> Type
@@ -133,7 +157,7 @@ type_of val = case val of
     -- a VMaybe and doing @type_of . to_val@, but 'to_val' and 'type_of' both
     -- promising to not evaluate the value seems even more hacky than just
     -- 'to_type' making that promise.
-    VNum {} -> TNum
+    VNum num -> TNum (to_num_type (Score.type_of num))
     VString {} -> TString
     VRelativeAttr {} -> TRelativeAttr
     VAttributes {} -> TAttributes
@@ -173,7 +197,7 @@ instance Typecheck Double where
     from_val (VNum (Score.Typed _ a)) = Just a
     from_val _ = Nothing
     to_val = VNum . Score.untyped
-    to_type _ = TNum
+    to_type _ = TNum TUntyped
 
 -- | VNums can also be coerced into chromatic transposition, so you can write
 -- a plain number if you don't care about diatonic.
@@ -186,7 +210,7 @@ instance Typecheck Pitch.Transpose where
     from_val _ = Nothing
     to_val (Pitch.Chromatic a) = to_val a
     to_val (Pitch.Diatonic a) = to_val a
-    to_type _ = TNum
+    to_type _ = TNum TTranspose
 
 -- | But some calls want to default to diatonic, not chromatic.
 instance Typecheck DefaultDiatonic where
@@ -197,7 +221,7 @@ instance Typecheck DefaultDiatonic where
         _ -> Nothing
     from_val _ = Nothing
     to_val (DefaultDiatonic a) = to_val a
-    to_type _ = TNum
+    to_type _ = TNum TDefaultDiatonic
 
 instance Typecheck ScoreTime where
     from_val (VNum (Score.Typed typ val)) = case typ of
@@ -206,7 +230,7 @@ instance Typecheck ScoreTime where
         _ -> Nothing
     from_val _ = Nothing
     to_val a = VNum $ Score.Typed Score.Score (ScoreTime.to_double a)
-    to_type _ = TNum
+    to_type _ = TNum TScoreTime
 
 instance Typecheck RealTime where
     from_val (VNum (Score.Typed typ val)) = case typ of
@@ -215,7 +239,7 @@ instance Typecheck RealTime where
         _ -> Nothing
     from_val _ = Nothing
     to_val a = VNum $ Score.Typed Score.Real (RealTime.to_seconds a)
-    to_type _ = TNum
+    to_type _ = TNum TRealTime
 
 instance Typecheck RealOrScore where
     from_val (VNum (Score.Typed typ val)) = case typ of
@@ -227,7 +251,7 @@ instance Typecheck RealOrScore where
     from_val _ = Nothing
     to_val (Score a) = to_val a
     to_val (Real a) = to_val a
-    to_type _ = TNum
+    to_type _ = TNum TTime
 
 instance Typecheck DefaultReal where
     from_val (VNum (Score.Typed typ val)) = case typ of
@@ -237,7 +261,7 @@ instance Typecheck DefaultReal where
         _ -> Nothing
     from_val _ = Nothing
     to_val (DefaultReal a) = to_val a
-    to_type _ = TNum
+    to_type _ = TNum TDefaultReal
 
 instance Typecheck DefaultScore where
     from_val (VNum (Score.Typed typ val)) = case typ of
@@ -247,7 +271,7 @@ instance Typecheck DefaultScore where
         _ -> Nothing
     from_val _ = Nothing
     to_val (DefaultScore a) = to_val a
-    to_type _ = TNum
+    to_type _ = TNum TDefaultScore
 
 instance Typecheck String where
     from_val (VString s) = Just s
@@ -346,8 +370,8 @@ hardcoded_types = Map.fromList
     , (v_key, TString)
     , (v_instrument, TInstrument)
     , (v_scale, TScaleId)
-    , (v_srate, TNum)
-    , (v_seed, TNum)
+    , (v_srate, TNum TUntyped)
+    , (v_seed, TNum TUntyped)
     ]
 
 data LookupError = NotFound | WrongType Type deriving (Show)
