@@ -336,9 +336,10 @@ test_selection = do
         set_selection t_view_id (Types.selection 0 10 0 20)
     return ()
 
+cue_marklist :: Ruler.Marklist
 cue_marklist = Ruler.marklist
     [ (0, UiTest.mark "start")
-    , (90, UiTest.mark "head explodes")
+    , (2, UiTest.mark "head explodes")
     ]
 
 test_modify_ruler = do
@@ -349,6 +350,9 @@ test_modify_ruler = do
         State.modify_ruler t_ruler_id $ Ruler.set_marklist "cue" cue_marklist
     state <- io_human "meter goes away" $ run state $
         State.modify_ruler t_ruler_id $ Ruler.remove_marklist "cue"
+    state <- io_human "doesn't crash when a track is collapsed" $ run state $ do
+        State.add_track_flag t_block_id 1 Block.Collapse
+        State.modify_ruler t_ruler_id $ Ruler.clip 10
     return ()
 
 -- | Selection is correct even when tracks are added or deleted.
@@ -376,6 +380,8 @@ test_insert_into_selection = do
         State.remove_track t_block_id 1
     return ()
 
+insert_track :: (State.M m) => BlockId -> TrackNum -> Block.TracklikeId
+    -> Types.Width -> m ()
 insert_track bid tracknum tracklike_id width =
     State.insert_track bid tracknum (Block.track tracklike_id width)
 
@@ -423,6 +429,7 @@ parse_dump = either (error . ("failed to parse dump: "++)) id . Dump.parse
 
 -- * util
 
+set_selection :: (State.M m) => ViewId -> Types.Selection -> m ()
 set_selection view_id sel = State.set_selection view_id 0 (Just sel)
 
 t_block = "b1"
@@ -436,7 +443,7 @@ run_setup = run State.empty setup_state
 
 setup_state :: (State.M m) => m ViewId
 setup_state = do
-    ruler <- create_ruler "r1" (UiTest.mkruler 20 10)
+    ruler <- create_ruler "r1" (UiTest.mkruler 20 1)
     t1 <- create_track "b1.t1" (UiTest.empty_track "t1")
     b1 <- create_block t_block "hi b1"
         [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]

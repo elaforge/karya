@@ -77,7 +77,7 @@ do_updates :: Track.TrackSignals -> Event.SetStyle -> [Update.DisplayUpdate]
 do_updates track_signals set_style updates = do
     actions <- mapM (run_update track_signals set_style) updates
     -- when (not (null updates)) $
-    --     Trans.liftIO $ putStr $ "sync updates: " ++ PPrint.pshow updates
+    --     Debug.putp "sync updates" updates
     Trans.liftIO (Ui.send_action (sequence_ actions))
 
 set_track_signals :: BlockId -> State.State -> Track.TrackSignals -> IO ()
@@ -297,7 +297,7 @@ run_update track_signals set_style (Update.BlockUpdate block_id update) = do
                 _ -> return ()
 
 run_update _ set_style (Update.TrackUpdate track_id update) = do
-    block_ids <- map fst <$> State.blocks_with_track track_id
+    block_ids <- map fst <$> dtracks_with_track_id track_id
     ustate <- State.get
     acts <- forM block_ids $ \block_id -> do
         block <- State.get_block block_id
@@ -337,15 +337,13 @@ run_update _ set_style (Update.TrackUpdate track_id update) = do
                 merged set_style
 
 run_update _ set_style (Update.RulerUpdate ruler_id) = do
-    blocks <- State.blocks_with_ruler ruler_id
+    blocks <- dtracks_with_ruler_id ruler_id
     let tinfo = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
     fmap sequence_ $ forM tinfo $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
-        -- A ruler track doesn't have merged events so don't bother to look for
-        -- them.
-        fmap sequence_ $ forM view_ids $ \view_id -> return $
+        return $ sequence_ $ flip map view_ids $ \view_id ->
             BlockC.update_entire_track True view_id tracknum tracklike []
                 set_style
 
@@ -373,3 +371,29 @@ events_of_track_ids ustate track_ids = mapMaybe events_of track_ids
 
 to_csel :: Types.SelNum -> Maybe Types.Selection -> Maybe BlockC.CSelection
 to_csel selnum = fmap (BlockC.CSelection (Config.lookup_selection_color selnum))
+
+dtracks_with_ruler_id :: (State.M m) =>
+    RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
+dtracks_with_ruler_id ruler_id =
+    find_dtracks ((== Just ruler_id) . Block.ruler_id_of)
+        <$> State.gets State.state_blocks
+
+dtracks_with_track_id :: (State.M m) =>
+    TrackId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
+dtracks_with_track_id track_id =
+    find_dtracks ((== Just track_id) . Block.track_id_of)
+        <$> State.gets State.state_blocks
+
+find_dtracks :: (Block.TracklikeId -> Bool) -> Map.Map BlockId Block.Block
+    -> [(BlockId, [(TrackNum, Block.TracklikeId)])]
+find_dtracks f blocks = do
+    (bid, b) <- Map.assocs blocks
+    let tracks = get_tracks b
+    guard (not (null tracks))
+    return (bid, tracks)
+    where
+    all_tracks block = Seq.enumerate (Block.block_display_tracks block)
+    get_tracks block =
+        [ (tracknum, Block.dtracklike_id track)
+        | (tracknum, track) <- all_tracks block, f (Block.dtracklike_id track)
+        ]
