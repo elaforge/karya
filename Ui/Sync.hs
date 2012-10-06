@@ -298,12 +298,12 @@ run_update track_signals set_style (Update.BlockUpdate block_id update) = do
 
 run_update _ set_style (Update.TrackUpdate track_id update) = do
     block_ids <- map fst <$> dtracks_with_track_id track_id
-    ustate <- State.get
+    state <- State.get
     acts <- forM block_ids $ \block_id -> do
         block <- State.get_block block_id
         view_ids <- fmap Map.keys (State.views_of block_id)
         forM (tracklikes track_id block) $ \(tracknum, tracklike_id) -> do
-            let merged = get_merged ustate block tracknum
+            let merged = merged_events_of state block tracknum
             tracklike <- State.get_tracklike tracklike_id
             forM view_ids $ \view_id ->
                 track_update view_id tracklike tracknum merged update
@@ -315,10 +315,6 @@ run_update _ set_style (Update.TrackUpdate track_id update) = do
         ]
         where
         tracks = map Block.dtracklike_id (Block.block_display_tracks block)
-    get_merged ustate block tracknum =
-        case Seq.at (Block.block_tracks block) tracknum of
-            Just track -> events_of_track_ids ustate (Block.track_merged track)
-            Nothing -> []
     track_update view_id tracklike tracknum merged update = case update of
         Update.TrackEvents low high -> return $
             BlockC.update_track False view_id tracknum tracklike merged
@@ -338,16 +334,25 @@ run_update _ set_style (Update.TrackUpdate track_id update) = do
 
 run_update _ set_style (Update.RulerUpdate ruler_id) = do
     blocks <- dtracks_with_ruler_id ruler_id
+    state <- State.get
     let tinfo = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
     fmap sequence_ $ forM tinfo $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
+        block <- State.get_block block_id
+        let merged = merged_events_of state block tracknum
         return $ sequence_ $ flip map view_ids $ \view_id ->
-            BlockC.update_entire_track True view_id tracknum tracklike []
+            BlockC.update_entire_track True view_id tracknum tracklike merged
                 set_style
 
 run_update _ _ (Update.StateUpdate ()) = return (return ())
+
+merged_events_of :: State.State -> Block.Block -> TrackNum -> [Events.Events]
+merged_events_of state block tracknum =
+    case Seq.at (Block.block_tracks block) tracknum of
+        Just track -> events_of_track_ids state (Block.track_merged track)
+        Nothing -> []
 
 -- | Don't send a track signal to a track unless it actually wants to draw it.
 wants_tsig :: [Block.TrackFlag] -> Track.Track -> Bool

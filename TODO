@@ -3,7 +3,7 @@ UNSORTED
   * J on a note event with duration makes it 0 dur
   * cmd to clip a ruler to the selection, or double a ruler
   - LRuler.double should renumber the marks
-  - clip ruler lost the merged track events
+  * clip ruler lost the merged track events
   - LRuler.replace sets ruler track width really small
   * Ruler.last_pos -> marklist_end
   - Ui.Ui.hs TESTING hack breaks UI tests
@@ -484,7 +484,7 @@ plugins:
     map.
 
 bugs:
-  - Create.rename_project loses the merged tracks
+  * Create.rename_project loses the merged tracks
   * track down ghc rts crashes, assertion failure
     - make a repro case if ghc guys want it
   - run under valgrind every once and a while, just for fun
