@@ -64,7 +64,7 @@ double :: Cmd.CmdL ()
 double = do
     block_id <- Cmd.get_focused_block
     modify_block block_id $ Ruler.modify_marklist meter $ \mlist ->
-        mlist <> Ruler.shift (Ruler.last_pos mlist) mlist
+        mlist <> Ruler.shift (Ruler.marklist_end mlist) mlist
 
 -- | Clip the ruler to the selection.
 clip :: Cmd.CmdL ()

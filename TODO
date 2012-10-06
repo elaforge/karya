@@ -5,7 +5,7 @@ UNSORTED
   - LRuler.double should renumber the marks
   - clip ruler lost the merged track events
   - LRuler.replace sets ruler track width really small
-  - Ruler.last_pos -> marklist_end
+  * Ruler.last_pos -> marklist_end
   - Ui.Ui.hs TESTING hack breaks UI tests
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
     say 'r' was an unknown suffix

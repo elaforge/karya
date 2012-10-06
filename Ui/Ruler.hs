@@ -70,7 +70,7 @@ clip pos = map_marklists (clip_marklist pos)
 
 -- | Get the position of the last mark of the ruler.
 time_end :: Ruler -> ScoreTime
-time_end = maximum . (0 :) . map last_pos . Map.elems . ruler_marklists
+time_end = maximum . (0 :) . map marklist_end . Map.elems . ruler_marklists
 
 -- * marklist
 
@@ -113,7 +113,7 @@ place :: ScoreTime -> ScoreTime -> Marklist -> Marklist
 place start dur m = mapm (Map.mapKeys ((+start) . (*factor))) m
     where
     factor = if mdur == 0 then 1 else dur / mdur
-    mdur = last_pos m
+    mdur = marklist_end m
 
 insert_mark :: ScoreTime -> Mark -> Marklist -> Marklist
 insert_mark pos mark = mapm $ Map.insert pos mark
@@ -128,8 +128,8 @@ clip_marklist pos (Marklist m) =
     where (pre, at, _) = Map.splitLookup pos m
 
 -- | Get the position of the last mark.
-last_pos :: Marklist -> ScoreTime
-last_pos (Marklist m) = maybe 0 fst (Map.max m)
+marklist_end :: Marklist -> ScoreTime
+marklist_end (Marklist m) = maybe 0 fst (Map.max m)
 
 first_pos :: Marklist -> ScoreTime
 first_pos (Marklist m) = maybe 0 fst (Map.min m)

@@ -234,7 +234,8 @@ step_points marklists cur events pos (step, skip) = stride skip $ case step of
     track_events AllTracks = events
     track_events CurrentTrack = maybe [] (:[]) (Seq.at events cur)
     track_events (TrackNums tracknums) = mapMaybe (Seq.at events) tracknums
-    end = fromMaybe 0 $ Seq.maximum $ map Ruler.last_pos (Map.elems marklists)
+    end = fromMaybe 0 $ Seq.maximum $
+        map Ruler.marklist_end (Map.elems marklists)
     matches names matcher = match_all matcher
         (get_marks marklists names)
     shift points = case find_before_equal pos points of
