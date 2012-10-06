@@ -1,140 +1,16 @@
 UNSORTED
-  * tick has to be like up and dn, in fact make them all the same
-  * Now inverting_n needs to get n *prev* events.  Should I take both next and
-    prev?
-  * tick is still not right because it needs to extend the previous note.
-    I'll need to do the postproc thing.
-    Postproc on the track, if the next one has the attr, then extend to its
-    end.
-    If I want ornaments to be able to affect the notes around them, then I
-    need a preproc step.
-  generate the call documentation automatically
-    It means I'd have to move the args up to the top level, so they are
-    inside the WhateverCall toplevel data structure.
-    pros:
-      . Arg documentation is complicated and easily gets out of date.
-      . It can document names in scope, and the bound name, which haddock
-        can't.
-    cons:
-      . It's less compositional.
-      . I have to come up with my own way to format it and write it to a file,
-        instead of having haddock do it for me.  I guess I could write
-        a markdown and have the usual markdown formatter deal with it.
-      . The haddock pages are a natural place for it.  Can I at least get
-        cross-links?  I'd need to somehow get the module name from the symbol
-    I can get the standard calls out of Derive.Call.All, but per-inst calls
-    are only visible in Scope.
-    Goes into Derive.Call, thence to NoteCall and thence to NoteCallMap,
-    then Deriver.Monad.make_lookup needs to pass it through so LookkpCall
-    goes from 'CallId -> Deriver (Maybe call)' to
-    (LookupCall call, CallMeta)
-
-    * Need a bunch of ShowVal instances, move class to Derive.ShowVal so
-      they don't have to be orphans.
-      Define them in ParseBs?
-    / Maybe then I can export show_val from ParseBs?
-    * Ok, it works, but make sure I can get it out of the scopes.
-    * DeriveDoc is still formatting unpleasantly, try wl-pprint-text
-      nope, doesn't do what I want
-    * I'll need to keep track of current indent and column in a state monad
-      for manual formatting.
-    * doc in CallSig about call1g type unpleasantness.
-      Technically call1g is for val calls too... should I care?
-    * emit markdown, or just html
-    * Spaces at the beginning of wrapped strings, consistent with operators
-      and don't have to add a space after a period if I add another sentence.
-    * Cmd.DeriveDoc should group duplicates together.
-    / It could get even smarter by allowing different args, to account for
-      minor variations.
-    * verify the inverting calls still work
-    * doc formatter should replace \n with \n\n
-    * make sure things like 'Maybe DefaultReal' get documented as optional but
-      defaults to real
-      Nope, it's <no default>, I would have to put it in the type I guess.
-    - scale can document the transposing signals
-    * Add doc for scale calls.
-    - cmd to extract all docs: all standard calls, all standard scales,
-      perhaps even extract all the instruments along with their calls
-
-  * changing default tempo should cause everything to rederive
-  * paste is not pasting the last 0-dur event
-  * the dyn track of the kendang is getting kendang notes
-  * "has no tempo information" error should print out any logs
-    Repro: put an error in the global transformer.
-  * If I add a State Default global transformer string I can resolve negative
-    durations globally.  This is a string that's prepended to any derivation.
-  * arpeggio up arrow separated from its wiggle
-  * new track to the left of a collapsed track should open to its right
-  * cmd-b aborts: (vid "kendang/b06.v01") already exists
-  * block-from-template analogue for tracks: add new tracks with same title
-    and skel as this track and its children
-  * paste creates events past the end of the ruler which are then un-deletable
-    can insert_events just clip everything after the ruler end?
-    No, because it takes a track id, and tracks don't have rulers.
-  * cmd to vertically maximize a view and zoom to fit
-    I should change Block.view_visible_* to view_y_padding and view_x_padding,
-    because those stay constant until modified.
-    Can I have fltk resize the window down so it fits on the screen?
-    max height is 1050 - 1006
-    somehow it knows about this when creating the window, but not when calling
-    resize().  Maybe just ask fltk-users.
-  * should send resize when the block title changes size
-  * fltk: mac version gets increasingly saturated when it scrolls
-    It's fl_scroll, write a simple test case that just uses fl_scroll.
-    created repro, sent to list
-    fixed in fltk HEAD
-  * upgrade saves and remove old versions
-
-  upgrade to ghc 7.6
-    broken dependencies:
-      - pandoc, seems to want old version of directory
-      * shake, uses 'catch' in Paths_shake.hs
-      * storablevector, also has catch problem
-    update to new ghc api
-      * Exception: Cannot add module Cmd.Lang.Environ to context: not a home
-        module
-      * Ask about GHC.getWarnings
-      * How to link in .o files?
-    * fix hsc2hs
-      Problem is that it creates a wrapper C file for fputs and whatnot, and
-      C allows calls to undeclared functions.
-      - int hsc_fputs(const char *s, void *stream) {
-          return fputs(s, stream);
-        }
-        C allows you to cast the (void*) to FILE.
-
-        - The generated *_utils.c says "can't use FILE because we don't want
-          to include stdio.h", but it *does* include stdio!  Check the git
-          history for when that happened.
-          Wait, it doesn't want to include stdio.h in template-hsc.h, so it
-          has void.  Then cast!
-
-      Totally simple, just cast (FILE *) in the generated utils.c.
-      * Send patch to ghc.
-    * remove exports ReadDevice and WriteDevice from Midi.Midi
-      Still buggy, asked on ghc-users
-      Fixed in ghc HEAD.
-    - get rid of ld -r hack in shakefile, since new ghcs do that automatically
-    * experiment again with replacing storablevector with vector, since it
-      optimizes it better
+  - get rid of ld -r hack in shakefile, since new ghcs do that automatically
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
     say 'r' was an unknown suffix
     Can't get attoparsec to consistently report an error.  Kind of hard when
     it always backtracks.
-  * if Map.fromList now checks for sortedness, can I pull the same trick and
-    eliminate the from_sorted type things?  no not really, just wait for new
-    version of containers
+  - remove all uses of Map.fromListAsc
   - It seems confusing that in val edit the note track doesn't need cmd but
     the control track does.
     Maybe I should get rid of the optional cmd- thing?
-  * Control mode edit shouldn't accept - chars.
   - Undo during edit (i.e. a suppressed cmd) destroys changes and you can't
     get them back.  And it's confusing.  Maybe undo shouldn't work?
     Or it should commit the current suppressed cmd and then undo it.
-  * wayang: ornament for ngoret: transformer that's either up or down,
-    and adds a grace note above or below.  The note rings until a default
-    amount of time, or the hand-down symbol, which also mutes the rambat tick.
-    Maybe too complicated, I can just have a damp-time setting.
   - Hand damping: manually place hand damp positions.   Post proc, where tick
     and ngoret ornaments set an attribute or something so it knows which ones
     to extend.
@@ -144,52 +20,24 @@ UNSORTED
       symbols reversed? 入 兩
     - various numpuk
     - makilit / kilitan derivations from melody
-  calls for define randomized scores:
+  calls to define randomized scores:
     - 'omit 20' is a transformer that omits its argument 20% of the time
     - alternate b1 b2 b3 - calls one of variabnt calls
     - pick from values as ValCall: d (? .1 .2 .2) |
     - or a random range: d (-? 0 1)
     - how could I omit a transformer?
-  * need ^t twice to add a new track
-    It's because the first one shows up as a repeat.  But not in 'block'.
   / Pretty on a lot of events causes a stack overflow
     Can't reproduce.
-  * use . for ka instead of _ in generated
   - solo on one track in a sub-block causes all other blocks to be filtered out.
     It seems more intuitive that it only apply to that block.  That means solo
     would have to record the block that it's soloed on, and only filter events
     on that block.  Or simpler, turn a solo into a mute of all the other
     tracks.
-  * do something about Call_test.test_track_dynamic2
   Just scales, along with TwelveUtil support
-    * simple just scale with no accidentals
-    * why does 4c seem a semi-tone lower in just?
-    bugs:
-      kbd input isn't tuning the just scale properly
-        input_to_nn needs context if it is to handle retuning scales properly.
-        Specifically, it needs to make a ValCall.
-        It needs the environ, and should really have the signals too.  But
-        I don't think I save those in TrackEnviron.
-        * put the whole Dynamic state into TrackEnviron
-        * get the select pos, then use that to get Dynamic
-        * Then give that to a Derive.eval
-        * implement Just.input_to_nn
-        * Fix TODO on Perf.note_to_pitch while I'm at it
-    * test modulating and setting a new base hz
     - interpolate between just scales in different keys
   - It's a bit unpleasant how I have TwelveUtils for accidental and key using
     scales, then Scale.Util for simple scales, and then Just is its own thing.
     Can I unify things into one framework?
-  * The base-C to base-A conversion is messier than it should be.  Really it's
-    just a display issue, so it should be restricted to read/show functions,
-    right?
-
-  * if there are no events, \ zoom to fit should zoom to fit the ruler
-    Or maybe it should always do that?
-  * implement Local.Instrument.Kontakt composite kendang as a stream postproc
-  * Putting start into the event would introduce redundancy with the
-    Map ScoreTime Event, but it would eliminate PosEvent entirely.  And come
-    to think about it, the map is private to Ui.Events.
 
   - If I want pitch signal render to work right, it should be in terms of
     degrees, not NoteNumbers.  Otherwise it just can't work for scales that
@@ -202,39 +50,20 @@ UNSORTED
     a selector.
     Actually, I should be able to map Degree to Note, so I only need two.
 
-  / I could move cmd_play_msg out of Cmd.PlayC if I moved
-    Sync.set_track_signals to the ResponderSync via a magic return value.
-    I could then get rid of the CPP hack in Ui.Ui I think.
-  * Seq.pair_sorted and similar can return 'First a | Second b | Both a b'
-    to avoid the bogus (Nothing, Nothing).  So can Seq.zip_padded
-  use NonEmpty list from semigroups
-    / Seq.*group*
-      Not worth it.
-    * Expr returned by Derive.ParseBs
-    * Block.block_integrated, block_integrated_track
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
     Also, I'm not sure how to do this.  fltk doesn't seem to give access to
     text stretching and scaling in OS X.
     - ask on the list?
-  * make Derive.Args functions more consistent, especially start vs. end
-  * ParseBs.strip_comment is incorrect since it doesn't understand strings.
-    It should be integrated into the parser.
   - can I use a lazy array + builder to make score generation more efficient?
     It would also be nice to use a lazy array inside the performer.
     Is there a generic lazy array implementation out there?
     It would be nice for LoggerT implementation as well.
     storablevector has a builder, but only for Storable types.
-  * Why not have blocks extend to the end of the ruler instead of the last
-    event?  Last event necessitates the '--' hack.  Update doc/derivation.
   - There's a zillion things to stitch together for an instrument.
     Add yet more utils in MidiInst to make this easier.
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
-  * a new empty inst with a scale doesn't get the scale right, should fall
-    back on looking down the skeleton
-    I'm not getting the dynamic from an empty child track, because nothing in
-    the parent calls it.
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
     a bit of editing it's up to 750mb, who is leaking?  Undo history?
     * Write size profile that loads a big score and reports the size increase.
@@ -501,35 +330,19 @@ MILESTONES
 
 ----------------------------------------------------------------------
 
-integrate:
-  * adding a new note to save/kendang-integrate makes a pitch track, and makes
-    new dests
-    So what affects cmds.  The inst should be in scope, right?
-    Log what inst is in scope and why.
-    Probably due to environ lookup.
-    Environ tends to be Nothing, due to rederives.
-    * Why does LPerf.environ cause a rederive?
-    * No dynamic for t2 and t3, why?
-      They show up at the integrate call, but why doesn't the collect make it?
-      Because it's the *second* derive, the one that has no integrateds.
-      I need to merge in the TrackDynamics.
-      Is it ok in general to merge them?  Or to start with the prev one?
+documentation
+  - doc/derivation.md
+  - doc/performance.md, and reorganize derivation under it, and integrate with
+    doc/score.md
+  - doc/ui.md
+  - doc/cmd.md
+  call doc:
+    - scale can document the transposing signals
+    - cmd to extract all docs: all standard calls, all standard scales,
+      perhaps even extract all the instruments along with their calls
 
-      Wait, no integrateds is normal because of only_destinations_damaged.
-      But that sholudn't stop track dyn.  No, it skips the deriver entirely.
-      That means no collect.
+integrate:
   - adding a {soft} stroke appears to apply the soft again the the dyn track
-  * continual reintegrations are back!
-  * bug: mute or solo a derived track and it regenerates more
-    The problem is that solo looks just like deleting the source track.
-    Post filtering events by stack would solve this problem.
-    Any way to do it with the current scheme?
-    I thought it ignores integrate when there is no integrated output?
-    But not the title, because that would get rid of insts.
-    It's because the < is in the title, and it does count the title.  Or not?
-    * add filtering to play
-    * remove track tree remove thing
-    * remove diff that makes it rederive
   - bug: can't delete a derived track, it just gets regenerated
   - bug: can't undo past a integrate create, it just creates a new one
     Maybe I could not record the integrate step?
@@ -542,16 +355,9 @@ integrate:
   - single track mode that doesn't split tracks
   - integrate not logging means that integrate errors only show up on play
   - It may be possible to parallelize multiple integrations.
-  / Don't allow Set, if the text is completely different then consider it an
-    Add and remove the stack.  Rationale is that for a control track event,
-    position and text are its only salient characteristics.
-    Wait, this means that a note that is changed to a different note won't
-    eval in a different place.  So I want Set after all.
   - Convert.Tracks should mirror TrackDestination structure.  Or
     parameterize TrackDestination?
   - Figure out how multiple levels of track integration work.
-  * Use skeleton display to draw a line from integrated to generated
-    track, in a different color.
   - If integrate is committing changes to a track, can that bite me if
     a "canceled" derivation comes through?  Think about this later.
   - What if an integrate wants to produce a note transformer track?  I
@@ -564,32 +370,16 @@ lilypond:
   enough to render bloom nicely:
     - pedal should emit pedal sign
     - the manual pedal notes I guess should be pedal-ified
-    * arpeggio call should emit arp
     / Why does the cmd have to wait until lilypond is done?  Should be async.
       No idea.  It says it wrote the response, but the repl doesn't give
       me a prompt back.  It's just a repl thing, the app continues normally.
-    * added an extra clef after the first rest
     - staff group should put inst name on the group instead of each staff
     + add hand annotations to score
-    * have to support changing time signatures
     - possibly support voices, should be able to do it the same as hand
       splitting
   - make rhythm spelling work properly for non-duple meters
   - support compound meters, e.g. 5/4 as 3+2 or 2+3
   - get pitches right, and keep the enharmonics
-  lilypond-specific derive:
-    * put a key in the environ and calls can use it to add an attr
-    * key omits tempo tracks
-    * function to run a ly derive: set TrackLang.v_lilypond_derive and unset
-      default_tempo
-    * then lilypond perform has to map attrs to ly code
-  * Replace event_attributes with event_environ.
-  set from event environ
-    * clef
-    * time sig
-    * key
-  * Left and right hand attrs, with a piano instrument can split events
-    between hands.
   - manually add ly tweaks, could be done with special ly environ val
   - support for slurs, I think I write them as a NoteTransformer which
     attaches metadata.  It can also affect note durations in normal
@@ -601,7 +391,6 @@ lilypond:
   + can I make a click on a note in the pdf highlight in the sequencer?
     Hung up on getting preview to send clicks to a program, notes in
     App/LilypondClick.hs
-    * StackMap can be just char pos
 
 negative duration / arrival beats:
   - Figure out how arrival works with controls.  It's most natural for
@@ -622,21 +411,18 @@ negative duration / arrival beats:
     extend backwards to the note's end.  That means I can't write anything
     other than a straight pitch because the actual sounding note is implicit.
     So it has to be via integration
-  * postproc
   - ensure inversion works (it should slice >start <=end)
   - ensure redraw works
     I have to make SymbolTable wrap text above too.
-  * implement global postproc
 
 external
+  - pandoc doesn't build on ghc 7.6
   - chorded keys are not getting the proper pitch bend
     It's a pianoteq problem.
     Track it down and send it to them?
   - problem with pianoteq: if the same note occurs on two channels, one
     will be dropped.  Report to pianoteq.  I could work around, but it won't
     occur with real multitimbral instruments anyway.
-  + shakefile: can I print [# of #] when compiling?
-    asked neilm about it
   - send a patch to improve Random.Shuffle?
   - patch for hsc2hs for #alignment
   srcloc_annotate pragma
@@ -710,102 +496,6 @@ cleanup:
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved
     more than once.
-  * get rid of Perform.SignalBase and do something about the code
-    duplication between PitchSignal and Signal
-    * port SignalBase to vector
-    * port Perform.Signal to Util.TimeVector
-    If I want an unpacked TimeVector then I need to abstract out the way
-    to unpack it.
-    I should use Data.Vector.Storable since I want to pass the data to C++,
-    and can pass by pointer or memcpy (as I currently do).  Data.Vector.Generic
-    abstracts out the access functions.
-
-  tracknum TrackNum
-    Get rid of TrackIds, use (BlockId, TrackNum) for track addresses.
-    When do I want to have tracks shared between blocks?  Well, maybe if I have
-    a repeating pattern?  Shouldn't I then make it a call then?
-    Consequences of getting rid of TrackIds:
-      - all that get_track stuff goes away
-      - don't have to worry about TrackId names
-      - orphan tracks gone
-      - but can't name a track with a (tid ...), I have to use
-        (BlockId, TrackNum).  But it would be nice to get rid of
-        (BlockId, TrackId) which is ambiguous.
-      search for TrackId, where are the uses?
-        - Cmd.Clip
-        + Cmd.Create ->Track, orphan tracks gone
-        + Cmd.EditUtil ->redundant
-        + Cmd.Perf ->(BlockId, TrackNum)
-        + Cmd.Selection ->redundant
-        + Derive.TrackWarp: I think TrackNums, and would also be more accurate
-        - Ui.Block - has track_merged, but can't replace those with TrackNum
-          since merged tracks will be joined (but they're Collapsed, not gone)
-        + Ui.State: have to take (BlockId, TrackNum)
-    Big change, and I'm not sure it's worth it.  The tids should just be
-    opaque most of the time, I don't think it matters much whether they match
-    their block.  But maybe I should use (BlockId, TrackNum) more in Derive,
-    e.g. TrackWarps and DisplaySignals
-    More rationale:
-    - I think the Cmd.Perf environ stuff should use (BlockId, TrackNum), not
-      (Block. TrackId), because the same track may occur in different contexts.
-      But for that to work, the stack also needs to use TrackNum.  But TrackNum
-      by itself is not enough to identify the track, so perhaps BlockId and
-      TrackNum should be merged.  This is going to get into getting rid of
-      TrackId entirely though, which is a big job.
-    - I think if the same TrackId appears in multiple places, it will be
-      derived redundantly.  I should be able to cache the signal output in
-      a TrackSignal.  But with any luck derive caching will take care of this.
-    - TrackSignals is per TrackId, but the same TrackId may render to different
-      signals in different positions because it has a differnt environment.  It
-      should be (BlockId, TrackNum) + TrackId to verify in case the state was
-      modified
-
-    Lots of changes, e.g. Selection etc..  I'm afraid I'll wind up needing
-    TrackId, and now everything is more complicated with both a TrackNum and
-    a TrackId.  TrackId is convenient because I don't need the block, but
-    I guess that's what State.Track is for.  TrackId is clearly broken when
-    there are >1 per block.
-
-    - Also need to change State functions to deal with TrackNum and State.Track
-      e.g. get event tracknums.
-    - Do I want to have an EventTrack TrackNum wrapper that's only created for
-      event tracks?
-    - put TrackNum into Stack.Track as well
-    - Update Perf.lookup_val to use tracknum
-
-    Integrate now assumes each TrackId can be mapped to one TrackNum.  But
-    I don't think I can use plain (BlockId, TrackNum) because they would all
-    get out of date when a track is added or deleted.  One way is to update
-    them all:
-      - Skeleton is already updated.
-      - Cache, but it gets cleared when you add or remove a track, right?
-      - Integrate index has Stacks, which would have TrackNums.
-        I can't have integration break just because I added a track.
-
-    Or I can make put the Map TrackId Track in the block, then rely on
-    Ui.Block modify functions to preserve invariants.
-
-    It would also be nice to only have one address type, so I'd want to either
-    use TrackNum everywhere or TrackId everywhere.
-
-    Remember nothing stops TrackIds from going stale either.  They're just
-    less likely, only when a track is removed, not if a track to the left is
-    added or removed.
-
-    TrackId: ns/block/#
-
-    - However, a case for retaining TrackIds that can be shared among blocks
-    is to create a "view" of a score.  E.g. I want to see two parts together,
-    and edit them together, but they're really part of a larger score.
-    I could do this by putting the same TrackIds into two different blocks.
-    I could get the same effect with solo and moving the tracks, but at least
-    how solo is currently implemented I have to rederive each time I change
-    it.  With shared tracks, I could add new tracks that are not reflected in
-    the source block... but is that good or bad?
-
-    However, this still doesn't require a track to occur more than once in
-    a block.  So I could enforce the only-once invariant at the Ui.State
-    level, to support TrackId -> TrackNum.
 
   - Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.
