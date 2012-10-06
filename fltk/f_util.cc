@@ -227,11 +227,10 @@ do_show_children(const Fl_Widget *w, int nlevels, int recurse,
     const Fl_Group *g = dynamic_cast<const Fl_Group *>(w);
     if (g) {
         for (int i = 0; i < g->children(); i++) {
-            if (!g->child(i)->visible())
-                continue;
             for (int r = recurse; r; r--)
                 out << "    ";
-            out << 'c' << i << ": ";
+            out << 'c' << i << (g->child(i)->visible() ? "" : " (invisible)")
+                << ": ";
             do_show_children(g->child(i), nlevels, recurse+1, out);
         }
     }
@@ -239,20 +238,20 @@ do_show_children(const Fl_Widget *w, int nlevels, int recurse,
 
 
 const char *
-show_children(const Fl_Widget *w, int nlevels, int recurse)
+show_children(const Fl_Widget *w, int nlevels)
 {
     std::ostringstream out;
     static std::string outs;
-    do_show_children(w, nlevels, recurse, out);
+    do_show_children(w, nlevels, 0, out);
     outs = out.str();
     return outs.c_str();
 }
 
 
 void
-print_children(const Fl_Widget *w, int nlevels, int recurse)
+print_children(const Fl_Widget *w, int nlevels)
 {
-    printf("%s\n", show_children(w, nlevels, recurse));
+    printf("%s\n", show_children(w, nlevels));
 }
 
 

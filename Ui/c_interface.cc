@@ -277,7 +277,7 @@ insert_style(StyleId id, EventStyle *style)
 const char *
 i_show_children(const BlockViewWindow *w, int nlevels)
 {
-    return show_children(w, nlevels, 0);
+    return show_children(w, nlevels);
 }
 
 const char *

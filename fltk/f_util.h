@@ -44,7 +44,9 @@ const char *show_event_info(int ev);
 const char *show_event_state(int state);
 const char *show_damage(uchar d);
 const char *show_widget(const Fl_Widget *w);
-const char *show_children(const Fl_Widget *w, int nlevels=-1, int recurse=0);
+// nlevels is how deep to display children.  A negative number displays all
+// children.
+const char *show_children(const Fl_Widget *w, int nlevels=-1);
 
 class show_string {
 public:
@@ -55,7 +57,8 @@ public:
 std::ostream &operator<<(std::ostream &os, const show_string &s);
 
 void print_widget(const Fl_Widget *w);
-void print_children(const Fl_Widget *w, int nlevels=-1, int recurse = 0);
+// This is the same as 'show_children', but print them.
+void print_children(const Fl_Widget *w, int nlevels=-1);
 
 // RAII style clipping
 
