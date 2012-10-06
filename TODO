@@ -4,7 +4,7 @@ UNSORTED
   * cmd to clip a ruler to the selection, or double a ruler
   - LRuler.double should renumber the marks
   * clip ruler lost the merged track events
-  - LRuler.replace sets ruler track width really small
+  * LRuler.replace sets ruler track width really small
   * Ruler.last_pos -> marklist_end
   - Ui.Ui.hs TESTING hack breaks UI tests
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should

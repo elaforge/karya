@@ -130,6 +130,11 @@ instance (Pretty a) => Pretty (Tree.Tree a) where
     format (Tree.Node val children) =
         constructor "Node" [format val, format children]
 
+instance (Pretty a, Pretty b) => Pretty (Seq.Paired a b) where
+    format (Seq.First a) = PP.text "First" <+> format a
+    format (Seq.Second b) = PP.text "Second" <+> format b
+    format (Seq.Both a b) = PP.text "Both" <+> format a <+> format b
+
 formatted :: (Pretty a) => a -> String
 formatted = (++"\n") . render default_width . format
 

@@ -199,6 +199,7 @@ keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
 group_on :: (Ord b) => (a -> b) -> [a] -> [[a]]
 group_on key = group key . sort_on key -- TODO faster to use a map?
 
+-- | This is just 'List.groupBy' except with a key function.
 group :: (Ord b) => (a -> b) -> [a] -> [[a]]
 group key = List.groupBy ((==) `on` key)
 

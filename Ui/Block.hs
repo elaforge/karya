@@ -164,7 +164,13 @@ data DisplayTrack = DisplayTrack {
     } deriving (Eq, Show, Read)
 
 instance Pretty.Pretty DisplayTrack where
-    pretty = show
+    format (DisplayTrack tlike_id width merged status _bright) =
+        Pretty.record_title "DisplayTrack"
+            [ ("tracklike_id", Pretty.format tlike_id)
+            , ("width", Pretty.format width)
+            , ("merged", Pretty.format merged)
+            , ("status", Pretty.format status)
+            ]
 
 -- | Most of these only make sense for event tracks.
 data TrackFlag =

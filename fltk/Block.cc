@@ -231,6 +231,7 @@ BlockView::set_ruler_width(int width)
 
     int x = this->ruler_track->x();
     this->body.position(x + ruler_track->w(), body.y(), x + width, body.y());
+    this->body.init_sizes();
 }
 
 
@@ -456,6 +457,7 @@ BlockView::insert_track_view(int tracknum, TrackView *track, int width)
 {
     if (tracknum == 0) {
         TrackView *replaced = this->replace_ruler_track(track, width);
+        // Manually emulate that inserting a track will bump the others over.
         if (replaced != this->no_ruler)
             track_tile.insert_track(0, replaced, replaced->w());
         this->ruler_track->set_zoom(this->zoom);
@@ -475,8 +477,11 @@ TrackView *
 BlockView::replace_ruler_track(TrackView *track, int width)
 {
     TrackView *removed = NULL;
+    // The only time ruler_track is NULL is when replace_ruler_track is called
+    // from the constructor on no_ruler.
     if (this->ruler_track) {
         // 0 width is ok for the ruler track, but causes problems elsewhere.
+        // Since this track will be bumped into tracknum 1 it can't be 0 width.
         if (ruler_track->w() < 1)
             this->set_ruler_width(1);
         this->ruler_group.remove(ruler_track);
@@ -486,8 +491,9 @@ BlockView::replace_ruler_track(TrackView *track, int width)
     // Initially the widths match, so the inserted track is layed out
     // correctly.
     IRect p = rect(this->ruler_group);
-    ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
-            removed ? removed->w() : 1, time_sb.h());
+    ruler_track->resize(
+        p.x + time_sb.w(), p.y + track_box.h(),
+        removed ? removed->w() : 1, time_sb.h());
     ruler_group.add(track);
     ruler_group.resizable(ruler_track);
     this->set_ruler_width(width);

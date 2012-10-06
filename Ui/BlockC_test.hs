@@ -165,6 +165,14 @@ test_symbols = do
         insert_track view 1
             (event_track (UiTest.make_track ("syms", [(0, 16, "`1^`")]))) 40
 
+test_set_ruler_width = do
+    view_id <- create_empty_view
+    io_human "insert wide then narrow rulers" $ do
+        -- 50 width ruler bumps over the 10 width ruler.
+        insert_track view_id 0 (Block.R (UiTest.mkruler 10 10)) 10
+        insert_track view_id 0 (Block.R (UiTest.mkruler 10 5)) 50
+    return ()
+
 -- TODO
 -- test_print_children
 
@@ -177,13 +185,16 @@ insert_track :: ViewId -> TrackNum -> Block.Tracklike -> Types.Width -> IO ()
 insert_track view tracknum tracklike width = send $
     BlockC.insert_track view tracknum tracklike [] set_style width
 
+event_track :: Track.Track -> Block.Tracklike
 event_track events = Block.T events UiTest.no_ruler
 
+long_event_track, event_track_1, event_track_2 :: Track.Track
 long_event_track = UiTest.make_track
     ("long", [(0, 16, "hi"), (400, 32, "there")])
 event_track_1 = UiTest.make_track ("1", [(0, 16, "hi"), (30, 32, "there")])
 event_track_2 = UiTest.make_track ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
+create_empty_view :: IO ViewId
 create_empty_view = do
     let view_id = Types.ViewId (UiTest.mkid "default")
     send $ BlockC.create_view view_id "some title" UiTest.default_rect
