@@ -121,14 +121,12 @@ cmd_move_event_back = move_event $ \pos events ->
 move_event :: (Cmd.M m) =>
     (ScoreTime -> Events.Events -> Maybe Event.Event) -> m ()
 move_event get_event = do
-    (_, _, track_ids, start, end) <- Selection.tracks
-    let pos = Selection.point_pos start end
-        dur = abs (end - start)
+    (_, _, track_ids, pos, _) <- Selection.tracks
     forM_ track_ids $ \track_id -> do
         events <- Track.track_events <$> State.get_track track_id
         when_just (get_event pos events) $ \event -> do
             State.remove_event track_id (Event.start event)
-            State.insert_event track_id $ place pos dur event
+            State.insert_event track_id $ Event.move (const pos) event
 
 
 -- | Extend the events in the selection to either the end of the selection or

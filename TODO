@@ -1,6 +1,6 @@
 UNSORTED
   - get rid of ld -r hack in shakefile, since new ghcs do that automatically
-  - J on a note event with duration makes it 0 dur
+  * J on a note event with duration makes it 0 dur
   * cmd to clip a ruler to the selection, or double a ruler
   - LRuler.double should renumber the marks
   - clip ruler lost the merged track events
