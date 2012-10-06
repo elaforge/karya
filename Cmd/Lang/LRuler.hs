@@ -25,14 +25,6 @@ import qualified Cmd.Selection as Selection
 import Types
 
 
--- | Replace the meter for the rulers of this block.
-set_meter :: MakeRuler.Meter -> BlockId -> Cmd.CmdL ()
-set_meter meter block_id = do
-    dur <- State.block_event_end block_id
-    when (dur <= 0) $
-        Cmd.throw $ "can't set ruler for block with 0 duration"
-    replace_marklist_in block_id (MakeRuler.fit_ruler dur meter)
-
 
 {- Examples:
 Create.ruler [MakeRuler.meter_ruler 16 MakeRuler.m44] "meter_44"
@@ -49,6 +41,9 @@ Make a new ruler:
 assign_new "new-ruler" (map bid [...])
 -}
 
+meter :: Ruler.Name
+meter = "meter"
+
 show_ruler :: RulerId -> Cmd.CmdL String
 show_ruler ruler_id = do
     Ruler.Ruler mlists bg show_names use_alpha align_to_bottom full_width
@@ -60,6 +55,73 @@ show_ruler ruler_id = do
         , ("align_to_bottom", show align_to_bottom)
         , ("marklists", PPrint.list (Map.keys mlists))
         ]
+
+-- * general purpose
+
+-- | Double the 'meter' marklist in the current block. You can then trim it
+-- down to size.
+double :: Cmd.CmdL ()
+double = do
+    block_id <- Cmd.get_focused_block
+    modify_block block_id $ Ruler.modify_marklist meter $ \mlist ->
+        mlist <> Ruler.shift (Ruler.last_pos mlist) mlist
+
+-- | Clip the ruler to the selection.
+clip :: Cmd.CmdL ()
+clip = do
+    (block_id, _, _, pos) <- Selection.get_insert
+    modify_block block_id $ Ruler.clip pos
+
+-- | Copy the ruler under the selection and append it.
+--
+-- Extract 'meter' under each ruler.  Then make a modifier that appends it to
+-- each ruler, and pass to 'modify' for each ruler id.
+append :: Cmd.CmdL ()
+append = do
+    (view_id, sel) <- Selection.get
+    block_id <- State.block_id_of view_id
+    let (start, end) = Types.sel_range sel
+    modify_block block_id (append_range MakeRuler.meter_marklist start end)
+
+append_range :: Ruler.Name -> ScoreTime -> ScoreTime -> Ruler.Ruler
+    -> Ruler.Ruler
+append_range name start end = Ruler.modify_marklist name $ \mlist ->
+        mlist <> Ruler.marklist (shift (extract mlist))
+    where
+    extract mlist = takeWhile ((<end) . fst) $ Ruler.ascending mlist start
+    shift = map (first (+ (end-start)))
+
+-- * extract
+
+extract :: Cmd.CmdL ()
+extract = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    extract_from block_id track_id
+
+-- | Extract the meter marklists from the sub-blocks called on the given
+-- track, concatenate them, and replace the current meter with it.
+extract_from :: (Cmd.M m) => BlockId -> TrackId -> m ()
+extract_from block_id track_id = do
+    subs <- extract_subs track_id
+    ruler_ids <- mapM State.ruler_of [bid | (_, _, bid) <- subs]
+    mlists <- mapM (get_marklist MakeRuler.meter_marklist) ruler_ids
+    let big_mlist = Ruler.place_marklists
+            [(start, dur, mlist) | ((start, dur, _), mlist) <- zip subs mlists]
+    replace_marklist_in block_id
+        (MakeRuler.meter_marklist, MakeRuler.recalculate_zoom big_mlist)
+
+extract_subs :: (Cmd.M m) => TrackId -> m [(ScoreTime, ScoreTime, BlockId)]
+extract_subs track_id = do
+    events <- Events.ascending . Track.track_events <$>
+        State.get_track track_id
+    ns <- State.get_namespace
+    let call = NoteTrack.block_call ns . Event.event_string
+    return $ do
+        event <- events
+        Just block_id <- return (call event)
+        return (Event.start event, Event.duration event, block_id)
+
+-- * individual marklists
 
 show_marklist :: RulerId -> Ruler.Name -> Cmd.CmdL String
 show_marklist ruler_id marklist_name = do
@@ -78,12 +140,36 @@ lookup_marklist :: (Cmd.M m) => Ruler.Name -> RulerId
 lookup_marklist name ruler_id =
     Ruler.lookup_marklist name <$> State.get_ruler ruler_id
 
+-- | Replace the meter for the rulers of this block.
+set_meter :: MakeRuler.Meter -> BlockId -> Cmd.CmdL ()
+set_meter meter block_id = do
+    dur <- State.block_event_end block_id
+    when (dur <= 0) $
+        Cmd.throw $ "can't set ruler for block with 0 duration"
+    replace_marklist_in block_id (MakeRuler.fit_ruler dur meter)
 
 -- | Replace or add a marklist with the given name.
 replace_marklist :: (Cmd.M m) => RulerId -> (Ruler.Name, Ruler.Marklist)
     -> m ()
 replace_marklist ruler_id (name, mlist) =
     State.modify_ruler ruler_id (Ruler.set_marklist name mlist)
+
+-- * cue
+
+-- | Drop a mark at the selected point in the "cue" ruler.
+add_cue :: String -> Cmd.CmdL ()
+add_cue text = do
+    (block_id, _, _, pos) <- Selection.get_insert
+    add_cue_at block_id pos text
+
+add_cue_at :: BlockId -> ScoreTime -> String -> Cmd.CmdL ()
+add_cue_at block_id pos text = modify_ruler block_id $
+    Ruler.modify_marklist "cue" $ Ruler.insert_mark pos (cue_mark text)
+
+cue_mark :: String -> Ruler.Mark
+cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
+
+-- * util
 
 -- | Modify just the given marklist.
 modify_marklist :: (Cmd.M m) => RulerId -> Ruler.Name
@@ -130,52 +216,23 @@ replace ruler_id block_id = do
         State.lookup_ruler overlay_id
     State.set_track_ruler block_id 0 ruler_id
     count <- State.track_count block_id
-    forM_ [1..count] $ \tracknum ->
+    forM_ [1..count-1] $ \tracknum ->
         State.set_track_ruler block_id tracknum overlay_id
 
--- | Drop a mark at the selected point in the "cue" ruler.
-add_cue :: String -> Cmd.CmdL ()
-add_cue text = do
-    (block_id, _, _, pos) <- Selection.get_insert
-    add_cue_at block_id pos text
-
-add_cue_at :: BlockId -> ScoreTime -> String -> Cmd.CmdL ()
-add_cue_at block_id pos text = modify_ruler block_id $
-    Ruler.modify_marklist "cue" $ Ruler.insert_mark pos (cue_mark text)
-
-cue_mark :: String -> Ruler.Mark
-cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
-
--- * modify
-
--- | Copy the ruler under the selection and append it.
---
--- Extract "meter" under each ruler.  Then make a modifier that appends it to
--- each ruler, and pass to unique_copy for each ruler id.
-append :: Cmd.CmdL ()
-append = do
-    (view_id, sel) <- Selection.get
-    block_id <- State.block_id_of view_id
-    let (start, end) = Types.sel_range sel
+-- | Modify all the rulers on a block.
+modify_block :: (State.M m) => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
+modify_block block_id f = do
     ruler_ids <- State.rulers_of block_id
-    forM_ ruler_ids $ \ruler_id ->
-        unique_copy block_id ruler_id
-            (append_range MakeRuler.meter_marklist start end)
-
-append_range :: Ruler.Name -> ScoreTime -> ScoreTime -> Ruler.Ruler
-    -> Ruler.Ruler
-append_range name start end = Ruler.modify_marklist name $ \mlist ->
-        mlist <> Ruler.marklist (shift (extract mlist))
-    where
-    extract mlist = takeWhile ((<end) . fst) $ Ruler.ascending mlist start
-    shift = map (first (+ (end-start)))
+    mapM_ (modify f block_id) ruler_ids
 
 -- | Modify the given RulerId, making a new one if it's already in use on
 -- a block other than the give one.
-unique_copy :: BlockId -> RulerId -> (Ruler.Ruler -> Ruler.Ruler)
-    -> Cmd.CmdL RulerId
-unique_copy block_id ruler_id modify = do
-    blocks <- State.blocks_with_ruler ruler_id
+--
+-- TODO if there's another ruler with the same content, share them
+modify :: (State.M m) => (Ruler.Ruler -> Ruler.Ruler) -> BlockId -> RulerId
+    -> m RulerId
+modify modify block_id ruler_id = do
+    blocks <- State.tracks_with_ruler_id ruler_id
     case blocks of
         [(rblock_id, _)] | block_id == rblock_id -> do
             State.modify_ruler ruler_id modify
@@ -203,40 +260,3 @@ ruler_id_for_block block_id ruler_id =
 
 copy :: (State.M m) => Id.Id -> RulerId -> m RulerId
 copy ident ruler_id = State.create_ruler ident =<< State.get_ruler ruler_id
-
--- | Double the ruler in the given block.
--- double :: BlockId -> Cmd.CmdL ()
--- double block_id = do
-
--- | Clip the ruler to the selection.
--- clip :: BlockId -> Cmd.CmdL ()
-
--- * extract
-
-extract :: Cmd.CmdL ()
-extract = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    extract_from block_id track_id
-
--- | Extract the meter marklists from the sub-blocks called on the given
--- track, concatenate them, and replace the current meter with it.
-extract_from :: (Cmd.M m) => BlockId -> TrackId -> m ()
-extract_from block_id track_id = do
-    subs <- extract_subs track_id
-    ruler_ids <- mapM State.ruler_of [bid | (_, _, bid) <- subs]
-    mlists <- mapM (get_marklist MakeRuler.meter_marklist) ruler_ids
-    let big_mlist = Ruler.place_marklists
-            [(start, dur, mlist) | ((start, dur, _), mlist) <- zip subs mlists]
-    replace_marklist_in block_id
-        (MakeRuler.meter_marklist, MakeRuler.recalculate_zoom big_mlist)
-
-extract_subs :: (Cmd.M m) => TrackId -> m [(ScoreTime, ScoreTime, BlockId)]
-extract_subs track_id = do
-    events <- Events.ascending . Track.track_events <$>
-        State.get_track track_id
-    ns <- State.get_namespace
-    let call = NoteTrack.block_call ns . Event.event_string
-    return $ do
-        event <- events
-        Just block_id <- return (call event)
-        return (Event.start event, Event.duration event, block_id)
