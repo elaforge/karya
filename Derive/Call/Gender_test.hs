@@ -62,3 +62,11 @@ test_tick = do
     -- Explicit down tick.
     equal (run $ c_to_e "" "'v .5 .5 1")
         ([(0, 1, "4c", dyn), (1.5, 1, "4f", dyn), (2, 1, "4e", dyn)], [])
+
+test_tick_damp = do
+    let run notes pitches = extract $ DeriveTest.derive_tracks
+            [("> | realize-damp", notes), ("*", pitches)]
+        extract = DeriveTest.extract DeriveTest.e_note2
+    equal (run [(0, 1, ""), (1, 1, "' .1 .5")] [(0, 0, "4c"), (1, 0, "4e")])
+        ([(0, 1.5, "4c"), (0.9, 0.6, "4d"), (1, 1, "4e")], [])
+

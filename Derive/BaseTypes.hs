@@ -137,6 +137,10 @@ instance ShowVal.ShowVal Attributes where
 attrs_set :: Attributes -> Set.Set Attribute
 attrs_set (Attributes attrs) = attrs
 
+attrs_remove :: Attributes -> Attributes -> Attributes
+attrs_remove (Attributes remove) (Attributes attrs) =
+    Attributes $ attrs `Set.difference` remove
+
 attrs_list :: Attributes -> [Attribute]
 attrs_list = Set.toList . attrs_set
 

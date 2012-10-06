@@ -22,7 +22,7 @@ import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Instrument(..), Control(..), Type(..), Typed(..), untyped,
         merge_typed, type_to_code, code_to_type, TypedSignal, TypedVal,
-        Attributes(..), Attribute, attrs_set, attrs_list, no_attrs)
+        Attributes(..), Attribute, attrs_set, attrs_remove, attrs_list, no_attrs)
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
 
@@ -61,6 +61,10 @@ empty_event = Event 0 0 mempty mempty mempty Stack.empty default_inst mempty
 event_attributes :: Event -> Attributes
 event_attributes = environ_attributes . event_environ
 
+has_attribute :: Attributes -> Event -> Bool
+has_attribute attr =
+    (attrs_set attr `Set.isSubsetOf`) . attrs_set . event_attributes
+
 environ_attributes :: BaseTypes.Environ -> Attributes
 environ_attributes environ = case Map.lookup BaseTypes.v_attributes environ of
     Just (BaseTypes.VAttributes attrs) -> attrs
@@ -72,6 +76,9 @@ modify_attributes modify event =
     where
     modified = Map.insert BaseTypes.v_attributes
         (BaseTypes.VAttributes (modify (event_attributes event)))
+
+remove_attributes :: Attributes -> Event -> Event
+remove_attributes attrs = modify_attributes (attrs_remove attrs)
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch _ _ _) =
@@ -125,6 +132,9 @@ move_start offset =
 
 duration :: (RealTime -> RealTime) -> Event -> Event
 duration f event = event { event_duration = f (event_duration event) }
+
+set_duration :: RealTime -> Event -> Event
+set_duration = duration . const
 
 -- *** control
 

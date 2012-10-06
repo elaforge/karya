@@ -104,19 +104,19 @@ doc_html = un_html . (header <>) . mconcatMap section
     show_default = maybe "" ((" = " <>) . tag "code" . html . Text.pack)
 
     header = "<style type=text/css>\n" <> css <> "</style>\n"
-    css = ".main dl { border-bottom: 1px solid #999 }\n\
-        \dl.compact {\n\
-        \    margin: 0px;\n\
-        \    padding: 0;\n\
-        \}\n\
-        \.compact dt {\n\
-        \    margin: 0;\n\
-        \    padding: 0;\n\
-        \}\n\
-        \.compact dd {\n\
-        \    margin: 0 0 1em 0;\n\
-        \    padding: 0;\n\
-        \}\n"
+    css = ".main dl { border-bottom: 1px solid #999 }\n"
+        <> "dl.compact {\n"
+        <> "    margin: 0px;\n"
+        <> "    padding: 0;\n"
+        <> "}\n"
+        <> ".compact dt {\n"
+        <> "    margin: 0;\n"
+        <> "    padding: 0;\n"
+        <> "}\n"
+        <> ".compact dd {\n"
+        <> "    margin: 0 0 1em 0;\n"
+        <> "    padding: 0;\n"
+        <> "}\n"
 
     tag :: Html -> Html -> Html
     tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"

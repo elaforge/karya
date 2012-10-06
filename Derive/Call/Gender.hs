@@ -3,6 +3,7 @@
 module Derive.Call.Gender where
 import Util.Control
 import qualified Derive.Args as Args
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -10,6 +11,7 @@ import Derive.CallSig (control, optional, typed_control)
 import qualified Derive.Derive as Derive
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import Types
@@ -20,6 +22,7 @@ note_calls = Derive.make_calls
     [ ("'", c_tick Nothing)
     , ("'^", c_tick (Just (Pitch.Diatonic (-1))))
     , ("'v", c_tick (Just (Pitch.Diatonic 1)))
+    , ("realize-damp", c_realize_damp)
     ]
 
 -- TODO prev note duration also must be extended!  But to do this I have to
@@ -60,8 +63,9 @@ c_tick transpose = Derive.stream_generator "tick"
 
         pitch <- Derive.require "pitch" =<< Derive.pitch_at start
         Derive.d_place grace_start (grace_end - grace_start)
-                (Util.pitched_note (Pitches.transpose transpose pitch)
-                    (dyn * dyn_scale))
+                (Util.add_attrs damped_tag $
+                    Util.pitched_note (Pitches.transpose transpose pitch)
+                        (dyn * dyn_scale))
             <> Derive.d_place (Args.start args) (Args.duration args) Util.note
 
 infer_transpose :: Derive.PassedArgs d -> RealTime
@@ -73,3 +77,25 @@ infer_transpose args start = do
     this_pitch <- Derive.require "this pitch" =<< Derive.pitch_at start
     ifM ((<=) <$> Pitches.pitch_nn prev_pitch <*> Pitches.pitch_nn this_pitch)
         (return (Pitch.Diatonic (-1))) (return (Pitch.Diatonic 1))
+
+c_realize_damp :: Derive.NoteCall
+c_realize_damp = Derive.transformer "realize-damp"
+    ("Extend the duration of events preceding one with a "
+    <> ShowVal.show_val damped_tag <> " to the end of the event with the attr."
+    <> " This is because the tick call can't modify its previous note."
+    <> " To avoid having to re-extract the next note of a track once they are"
+    <> " all mixed together, this should be applied on the lowest level, which"
+    <> " means it may be applied redundantly. But it's fast so it should be ok."
+    ) $ CallSig.call0t $ \_ deriver -> do
+        events <- deriver
+        return $ Util.map_around_asc events $ \_prev event next ->
+            Score.remove_attributes damped_tag $ case next of
+                next : _ | Score.has_attribute damped_tag next ->
+                    Score.set_duration
+                        (Score.event_end next - Score.event_start event) event
+                _ -> event
+
+-- | Mark events that were damped late, and whose previous event should be
+-- extended to be damped together.
+damped_tag :: Score.Attributes
+damped_tag = Score.attr "damped-tag"

@@ -443,6 +443,18 @@ equal_transformer args deriver = case Derive.passed_vals args of
 -- simple for transformers.  Hopefully functions here can mostly hide LEvents
 -- from transformers.
 
+map_around_asc :: Derive.Events
+    -> ([Score.Event] -> Score.Event -> [Score.Event] -> Score.Event)
+    -> Derive.Events
+map_around_asc events f = go [] events
+    where
+    go prev (event : events) = case event of
+        LEvent.Log log -> LEvent.Log log : go prev events
+        LEvent.Event event ->
+            let out = f prev event (LEvent.events_of events)
+            in LEvent.Event out : go (out : prev) events
+    go _ [] = []
+
 -- | Apply a function on the first Event of an LEvent stream.
 event_head :: LEvent.LEvents d
     -> (d -> LEvent.LEvents d -> Derive.Deriver (LEvent.LEvents d))

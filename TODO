@@ -2,8 +2,12 @@ UNSORTED
   * tick has to be like up and dn, in fact make them all the same
   * Now inverting_n needs to get n *prev* events.  Should I take both next and
     prev?
-  - tick is still not right because it needs to extend the previous note.
+  * tick is still not right because it needs to extend the previous note.
     I'll need to do the postproc thing.
+    Postproc on the track, if the next one has the attr, then extend to its
+    end.
+    If I want ornaments to be able to affect the notes around them, then I
+    need a preproc step.
   generate the call documentation automatically
     It means I'd have to move the args up to the top level, so they are
     inside the WhateverCall toplevel data structure.
@@ -40,7 +44,7 @@ UNSORTED
     * Spaces at the beginning of wrapped strings, consistent with operators
       and don't have to add a space after a period if I add another sentence.
     * Cmd.DeriveDoc should group duplicates together.
-    - It could get even smarter by allowing different args, to account for
+    / It could get even smarter by allowing different args, to account for
       minor variations.
     * verify the inverting calls still work
     * doc formatter should replace \n with \n\n
@@ -80,11 +84,6 @@ UNSORTED
     created repro, sent to list
     fixed in fltk HEAD
   * upgrade saves and remove old versions
-
-  - segfault:
-    seq(37545,0x7fff706dfcc0) malloc: *** error for object 0x11c247c20: pointer
-    being freed was not allocated
-    - If ghc dosen't use malloc and free() then that must be my c++, right?
 
   upgrade to ghc 7.6
     broken dependencies:
@@ -132,8 +131,6 @@ UNSORTED
   - Undo during edit (i.e. a suppressed cmd) destroys changes and you can't
     get them back.  And it's confusing.  Maybe undo shouldn't work?
     Or it should commit the current suppressed cmd and then undo it.
-  - Get rid of Scale.scale_pattern, I can't think of a use for it.  If I want
-    valid calls I should have another function to get the Notes of a scale.
   * wayang: ornament for ngoret: transformer that's either up or down,
     and adds a grace note above or below.  The note rings until a default
     amount of time, or the hand-down symbol, which also mutes the rambat tick.
