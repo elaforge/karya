@@ -262,7 +262,7 @@ place start dur = Event.move (const start) . set_dur dur
 -- a point, insert one timestep.
 cmd_insert_time :: (Cmd.M m) => m ()
 cmd_insert_time = do
-    (_, tracknums, track_ids, start, end) <- Selection.tracks
+    (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     (start, end) <- expand_range tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id -> do
         track <- State.get_track track_id
@@ -273,7 +273,7 @@ cmd_insert_time = do
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min (Event.start event) start)
                     (track_end + 1)
-                State.insert_events track_id
+                State.insert_block_events block_id track_id
                     (map (insert_time start end) events)
 
 -- | Modify the event to insert time from @start@ to @end@, lengthening
@@ -302,7 +302,7 @@ insert_time start end event
 -- the selection is a point, delete one timestep.
 cmd_delete_time :: (Cmd.M m) => m ()
 cmd_delete_time = do
-    (_, tracknums, track_ids, start, end) <- Selection.tracks
+    (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     (start, end) <- expand_range tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id -> do
         track <- State.get_track track_id
@@ -313,7 +313,7 @@ cmd_delete_time = do
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min (Event.start event) start)
                     (track_end + 1)
-                State.insert_events track_id
+                State.insert_block_events block_id track_id
                     (mapMaybe (delete_time start end) events)
 
 -- | Modify the event to delete the time from @start@ to @end@, shortening it

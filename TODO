@@ -1,4 +1,11 @@
 UNSORTED
+  * move events down move should clip events post the end of the block
+  - time step is still not right, it can get stuck on the wrong marks, or am
+    I accidentally in relative mode?
+  - lots of ghc panics, do I get them in debug mode?
+    try valgrind again
+    - See if it happens without LangGhc.
+    - See if it happens in debug mode.
   - get rid of ld -r hack in shakefile, since new ghcs do that automatically
   * J on a note event with duration makes it 0 dur
   * cmd to clip a ruler to the selection, or double a ruler

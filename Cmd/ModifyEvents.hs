@@ -59,22 +59,23 @@ track_text = track_events . text
 events :: (Cmd.M m) => PosEvent m -> m ()
 events f = do
     selected <- Selection.events
+    block_id <- Cmd.get_focused_block
     forM_ selected $ \(track_id, (start, end), events) -> do
         State.remove_events track_id start end
         events <- concatMapM f events
-        State.insert_events track_id events
+        State.insert_block_events block_id track_id events
 
 -- | Map a function over the selected tracks.
 tracks :: (Cmd.M m) => Track m -> m ()
 tracks f = do
+    selected <- Selection.events
     block_id <- Cmd.get_focused_block
-    track_events <- Selection.events
-    forM_ track_events $ \(track_id, (start, end), events) -> do
+    forM_ selected $ \(track_id, (start, end), events) -> do
         maybe_new_events <- f block_id track_id events
         case maybe_new_events of
             Just new_events -> do
                 State.remove_events track_id start end
-                State.insert_events track_id new_events
+                State.insert_block_events block_id track_id new_events
             Nothing -> return ()
 
 -- | Make a 'PosEvent' into a 'Track' that only maps over certain named tracks.

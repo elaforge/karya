@@ -94,7 +94,7 @@ module Ui.State (
     , modify_track_render, set_render_style
     , tracks_with_track_id
     -- ** events
-    , insert_events, insert_event
+    , insert_events, insert_block_events, insert_event
     , get_events, get_event, get_all_events
     , modify_events, modify_some_events, calculate_damage
     , remove_events, remove_event, remove_event_range
@@ -1101,6 +1101,12 @@ tracks_with_track_id track_id =
 insert_events :: (M m) => TrackId -> [Event.Event] -> m ()
 insert_events track_id events = _modify_events track_id $ \old_events ->
     (Events.insert events old_events, events_range events)
+
+-- | Like 'insert_events', but clip the events to the end of a block.
+insert_block_events :: (M m) => BlockId -> TrackId -> [Event.Event] -> m ()
+insert_block_events block_id track_id events = do
+    end <- block_ruler_end block_id
+    insert_events track_id (Events.clip end events)
 
 insert_event :: (M m) => TrackId -> Event.Event -> m ()
 insert_event track_id event = insert_events track_id [event]
