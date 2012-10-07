@@ -14,17 +14,14 @@ module Ui.Events (
     , empty, null, length, time_begin, time_end
 
     -- ** list conversion
-    , singleton
-    , from_list, from_ascending
+    , singleton, from_list
     , ascending, descending
 
     -- ** transformation
-    , map_events, map_sorted
-    , clip
+    , map_events, clip
 
     -- ** insert / remove
-    , insert_events, insert_sorted_events
-    , remove_events, remove_event
+    , insert_events, remove_events, remove_event
     , merge
 
     -- ** lookup
@@ -82,10 +79,6 @@ singleton event = Events $ Map.singleton (Event.start event) event
 from_list :: [Event.Event] -> Events
 from_list evts = insert_events evts empty
 
--- | Like 'from_list', but more efficient and the input must be sorted.
-from_ascending :: [Event.Event] -> Events
-from_ascending evts = insert_sorted_events evts empty
-
 -- | Get all events in ascending order.  Like @snd . split (ScoreTime 0)@.
 ascending :: Events -> [Event.Event]
 ascending = to_asc_list . get
@@ -97,11 +90,7 @@ descending = to_desc_list . get
 
 -- | Map a function across the events in Events.
 map_events :: (Event.Event -> Event.Event) -> Events -> Events
-map_events f =
-    emap (Map.fromList . Seq.key_on Event.start . map f . to_asc_list)
-
-map_sorted :: (Event.Event -> Event.Event) -> Events -> Events
-map_sorted f = emap (from_asc_list . map f . to_asc_list)
+map_events f = from_list . map f . ascending
 
 -- | Clip off the events after the given end time.  Also shorten the last
 -- event so it doesn't cross the end, if necessary.
@@ -123,14 +112,11 @@ clip end (event : events)
 -- This should be the the only way to create a 'Events', short of
 -- debugging, since it enforces important invariants.
 insert_events :: [Event.Event] -> Events -> Events
-insert_events events = insert_sorted_events (Seq.sort_on Event.start events)
-
--- | Like 'insert_events', but more efficient and the input must be sorted.
-insert_sorted_events :: [Event.Event] -> Events -> Events
-insert_sorted_events [] events = events
-insert_sorted_events new_events events =
-    merge (Events (from_asc_list clipped)) events
-    where clipped = clip_events new_events
+insert_events [] events = events
+insert_events new_events events = merge clipped events
+    where
+    clipped = Events $ Map.fromAscList $
+        Seq.key_on Event.start (clip_events (Seq.sort_on Event.start new_events))
 
 -- | Remove events in range.
 remove_events :: ScoreTime -> ScoreTime -> Events -> Events
@@ -242,9 +228,6 @@ newtype Events = Events EventMap
     deriving (DeepSeq.NFData, Eq, Show, Read)
 type EventMap = Map.Map ScoreTime Event.Event
 
-from_asc_list :: [Event.Event] -> EventMap
-from_asc_list = Map.fromAscList . Seq.key_on Event.start
-
 to_asc_list :: EventMap -> [Event.Event]
 to_asc_list = map snd . Map.toAscList
 
@@ -327,7 +310,8 @@ merge (Events evts1) (Events evts2)
 -- clipped.  If a positive duration event is followed by a negative duration
 -- event, the duration of the positive one will clip the negative one.
 --
--- The postcondition is that no [pos .. pos+dur) ranges will overlap.
+-- The precondition is that the input events are sorted, the postcondition is
+-- that no [pos .. pos+dur) ranges will overlap.
 clip_events :: [Event.Event] -> [Event.Event]
 clip_events =
     map clip_duration . Seq.zip_neighbors . Seq.drop_initial_dups Event.start

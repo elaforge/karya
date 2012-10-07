@@ -131,5 +131,5 @@ move_events block_end point shift events = merged
     end = Events.time_end events + 1
     shifted = Events.clip block_end $
         map (Event.move (+shift)) (Events.at_after point events)
-    merged = Events.insert_sorted_events shifted
+    merged = Events.insert_events shifted
         (Events.remove_events point end events)

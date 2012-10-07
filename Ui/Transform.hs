@@ -163,7 +163,7 @@ intern_text state =
         (Map.toAscList (State.state_tracks state))
     intern_track state (track_id, track) =
         (state2, (track_id, track
-            { Track.track_events = Events.from_ascending events }))
+            { Track.track_events = Events.from_list events }))
         where
         (state2, events) = List.mapAccumL Event.intern_event state
             (Events.ascending (Track.track_events track))

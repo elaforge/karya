@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable, BangPatterns #-}
 {- | The overall UI state is described here.  This is an immutable data
     structure that contains all the tracks, rulers, note data, and so forth.
     It exports a StateT monad for modification and access.
@@ -1099,11 +1099,8 @@ tracks_with_track_id track_id =
 
 -- | Insert events into track_id as per 'Events.insert_events'.
 insert_events :: (M m) => TrackId -> [Event.Event] -> m ()
-insert_events track_id events_ = _modify_events track_id $ \old_events ->
-    (Events.insert_sorted_events events old_events, events_range events)
-    where events = Seq.sort_on Event.start events_
-    -- Calculating updates is easiest if it's sorted, and insert likes sorted
-    -- anyway.
+insert_events track_id events = _modify_events track_id $ \old_events ->
+    (Events.insert_events events old_events, events_range events)
 
 insert_event :: (M m) => TrackId -> Event.Event -> m ()
 insert_event track_id event = insert_events track_id [event]
@@ -1157,7 +1154,8 @@ remove_event :: (M m) => TrackId -> ScoreTime -> m ()
 remove_event track_id pos = _modify_events track_id $ \events ->
     case Events.at pos events of
         Nothing -> (events, Ranges.nothing)
-        Just event -> (Events.remove_event pos events, events_range [event])
+        Just event ->
+            (Events.remove_event pos events, events_range [event])
 
 -- | Remove any events whose starting positions strictly fall within the
 -- half-open range given.
@@ -1212,9 +1210,15 @@ ranges_to_updates track_id ranges = case Ranges.extract ranges of
     Just pairs -> [Update.CmdTrackEvents track_id s e | (s, e) <- pairs]
 
 events_range :: [Event.Event] -> Ranges.Ranges ScoreTime
-events_range events = case (Seq.head events, Seq.last events) of
-    (Just e1, Just e2) -> Ranges.range (Event.min e1) (Event.max e2)
-    _ -> Ranges.nothing
+events_range events = case minmax events of
+        Just (emin, emax) -> Ranges.range emin emax
+        Nothing -> Ranges.nothing
+    where
+    minmax (e:es) = Just $ go (Event.min e) (Event.max e) es
+    minmax [] = Nothing
+    go !emin !emax (e:es) =
+        go (min emin (Event.min e)) (max emax (Event.max e)) es
+    go emin emax [] = (emin, emax)
 
 -- * ruler
 

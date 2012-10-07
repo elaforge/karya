@@ -171,7 +171,7 @@ slice exclusive around start end insert_event = concatMap strip . map do_slice
 events_around :: Bool -> (Int, Int) -> ScoreTime -> ScoreTime -> Events.Events
     -> Events.Events
 events_around is_pitch_track (before, after) start end events =
-    Events.from_ascending $ List.reverse (take_prev before pre)
+    Events.from_list $ List.reverse (take_prev before pre)
         ++ Then.takeWhile ((<end) . Event.start) (take after) post
     where
     -- Implements the "before is at+before" as documented in 'slice'.
@@ -243,7 +243,7 @@ slice_notes start end =
         (shift, stretch, map (fmap (shift_tree shift)) tree)
     shift_tree shift track = track
         { TrackTree.tevents_end = TrackTree.tevents_end track - shift
-        , TrackTree.tevents_events = Events.map_sorted
+        , TrackTree.tevents_events = Events.map_events
             (Event.move (subtract shift)) (TrackTree.tevents_events track)
         , TrackTree.tevents_shifted = TrackTree.tevents_shifted track + shift
         }

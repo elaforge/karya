@@ -4,6 +4,7 @@ UNSORTED
   * cmd to clip a ruler to the selection, or double a ruler
   * LRuler.double should renumber the marks
   - rename Ruler.marks_of to marklist_to_list and Ruler.
+  - Events.insert_events and remove_events can lose the _events
   * clip ruler lost the merged track events
   * LRuler.replace sets ruler track width really small
   * Ruler.last_pos -> marklist_end
@@ -12,7 +13,7 @@ UNSORTED
     say 'r' was an unknown suffix
     Can't get attoparsec to consistently report an error.  Kind of hard when
     it always backtracks.
-  - remove all uses of Map.fromListAsc
+  * remove all uses of Map.fromListAsc
   - It seems confusing that in val edit the note track doesn't need cmd but
     the control track does.
     Maybe I should get rid of the optional cmd- thing?

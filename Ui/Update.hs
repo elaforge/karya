@@ -151,8 +151,8 @@ instance (Pretty.Pretty t) => Pretty.Pretty (BlockUpdate t) where
             [Pretty.format skel, Pretty.format int_skel]
         RemoveTrack n -> Pretty.constructor "RemoveTrack"
             [Pretty.format n]
-        InsertTrack n _ -> Pretty.constructor "InsertTrack"
-            [Pretty.format n]
+        InsertTrack n t -> Pretty.constructor "InsertTrack"
+            [Pretty.format n, Pretty.format t]
         BlockTrack n _ -> Pretty.constructor "BlockTrack"
             [Pretty.format n]
 

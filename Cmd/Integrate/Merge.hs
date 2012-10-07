@@ -107,7 +107,7 @@ merge_pair block_id pair = case pair of
     (Just (Convert.Track title events), Left tracknum) -> do
         -- Track was deleted or never existed.
         track_id <- Create.track block_id tracknum title
-            (Events.from_ascending (map unmodified events))
+            (Events.from_list (map unmodified events))
         return $ Just (title, track_id, make_index events)
     (Nothing, Right (track_id, _)) -> do
         -- Integrate no longer wants the track.
@@ -174,8 +174,7 @@ type Dest = (TrackId, Block.EventIndex)
 
 clear_generated_events :: (State.M m) => TrackId -> m ()
 clear_generated_events track_id = State.modify_events track_id $
-    Events.from_ascending . filter (Maybe.isNothing . Event.stack)
-        . Events.ascending
+    Events.from_list . filter (Maybe.isNothing . Event.stack) . Events.ascending
 
 merge_track :: (State.M m) => Convert.Track -> Dest -> m ()
 merge_track (Convert.Track _ integrated_events) (track_id, index) = do

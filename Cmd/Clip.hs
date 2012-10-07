@@ -127,7 +127,7 @@ get_selection (block_id, tracknums, _, start, end) = do
 
 select_events :: ScoreTime -> ScoreTime -> Events.Events -> Events.Events
 select_events start end events =
-    Events.map_sorted (Event.move (subtract start)) selected
+    Events.map_events (Event.move (subtract start)) selected
     where
     selected = if start == end
         then maybe Events.empty Events.singleton (Events.at start events)
