@@ -21,7 +21,7 @@ module Ui.Events (
     , map_events, clip
 
     -- ** insert / remove
-    , insert_events, remove_events, remove_event
+    , insert, remove, remove_event
     , merge
 
     -- ** lookup
@@ -77,7 +77,7 @@ singleton :: Event.Event -> Events
 singleton event = Events $ Map.singleton (Event.start event) event
 
 from_list :: [Event.Event] -> Events
-from_list evts = insert_events evts empty
+from_list evts = insert evts empty
 
 -- | Get all events in ascending order.  Like @snd . split (ScoreTime 0)@.
 ascending :: Events -> [Event.Event]
@@ -111,16 +111,16 @@ clip end (event : events)
 --
 -- This should be the the only way to create a 'Events', short of
 -- debugging, since it enforces important invariants.
-insert_events :: [Event.Event] -> Events -> Events
-insert_events [] events = events
-insert_events new_events events = merge clipped events
+insert :: [Event.Event] -> Events -> Events
+insert [] events = events
+insert new_events events = merge clipped events
     where
     clipped = Events $ Map.fromAscList $
         Seq.key_on Event.start (clip_events (Seq.sort_on Event.start new_events))
 
 -- | Remove events in range.
-remove_events :: ScoreTime -> ScoreTime -> Events -> Events
-remove_events start end events =
+remove :: ScoreTime -> ScoreTime -> Events -> Events
+remove start end events =
     emap (`Map.difference` deletes) events
     where (_, deletes, _) = _split_range start end (get events)
 

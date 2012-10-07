@@ -71,8 +71,7 @@ eval_track track expr ctype deriver = case ctype of
     -- are on the 'Perform.Signal.integrate' doc.
     tempo_events
         | Maybe.isNothing (Events.at (snd track_range) evts) =
-            Events.insert_events
-                [Event.event (snd track_range) 0 "set-prev"] evts
+            Events.insert [Event.event (snd track_range) 0 "set-prev"] evts
         | otherwise = evts
         where
         track_range = TrackTree.tevents_range track

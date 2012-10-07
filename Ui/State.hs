@@ -1097,10 +1097,10 @@ tracks_with_track_id track_id =
 -- select an event at a certain point (functions use the singular), and select
 -- events in the relaxed half-open range (functions use the plural).
 
--- | Insert events into track_id as per 'Events.insert_events'.
+-- | Insert events into track_id as per 'Events.insert'.
 insert_events :: (M m) => TrackId -> [Event.Event] -> m ()
 insert_events track_id events = _modify_events track_id $ \old_events ->
-    (Events.insert_events events old_events, events_range events)
+    (Events.insert events old_events, events_range events)
 
 insert_event :: (M m) => TrackId -> Event.Event -> m ()
 insert_event track_id event = insert_events track_id [event]
@@ -1163,7 +1163,7 @@ remove_event_range :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m ()
 remove_event_range track_id start end =
     _modify_events track_id $ \events ->
         let evts = Events.ascending (Events.in_range start end events)
-        in (Events.remove_events start end events, events_range evts)
+        in (Events.remove start end events, events_range evts)
 
 _events_in_range :: ScoreTime -> ScoreTime -> Events.Events -> [Event.Event]
 _events_in_range start end events

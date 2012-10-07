@@ -40,9 +40,9 @@ test_split_at_before = do
     equal (f 1) ([0], [1, 2])
     equal (f 1.5) ([0], [1, 2])
 
-test_insert_events = do
+test_insert = do
     let f evts0 evts1 = extract $
-            Events.insert_events (pos_events evts0) (from_list evts1)
+            Events.insert (pos_events evts0) (from_list evts1)
 
     equal (f [(0, 1, "a0")] [(3, 1, "b0")])
         [(0, 1, "a0"), (3, 1, "b0")]
@@ -62,7 +62,7 @@ test_insert_events = do
 
 test_insert_negative_events = do
     let f evts0 evts1 = extract $
-            Events.insert_events (pos_events evts0) (from_list evts1)
+            Events.insert (pos_events evts0) (from_list evts1)
     equal (f
         [(1, -1, "a0")] [(2, -0.5, "b0")]) [(1, -1, "a0"), (2, -0.5, "b0")]
     equal (f [(1, -1, "a0")] [(2, -2, "b0")]) [(1, -1, "a0"), (2, -1, "b0")]
@@ -84,12 +84,12 @@ test_clip_events = do
 
     equal (f [(0, 0.5, "a0"), (1, -5, "b0")]) [(0, 0.5, "a0"), (1, -0.5, "b0")]
 
-test_remove_events = do
+test_remove = do
     let te1 = from_list [(0, 0, "0"), (16, 1, "16")]
     -- able to remove 0 dur events
     equal (extract $ Events.remove_event 0 te1) [(16, 1, "16")]
 
-    let f = Events.remove_events
+    let f = Events.remove
     -- doesn't include end of range
     equal (extract $ f 0 16 te1) [(16, 1, "16")]
     -- get it all
