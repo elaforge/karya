@@ -3,7 +3,6 @@
 module Derive.Call.Gender where
 import Util.Control
 import qualified Derive.Args as Args
-import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig

@@ -108,11 +108,6 @@ fit_ruler dur meter = meter_ruler stretch meter
 data Meter = T (Ratio Integer) | D [Meter]
     deriving (Eq, Show)
 
--- | Map the given function over all @T@s in the given Meter.
-replace_t :: (Ratio Integer -> Meter) -> Meter -> Meter
-replace_t f (D ts) = D (map (replace_t f) ts)
-replace_t f (T x) = f x
-
 -- | Subdivide each mark into the given number @D@s.  The duration of each
 -- mark is lost as each one is unconditionally replaced with the given number
 -- of bars.  This has the effect of putting one layer of subdivision under
@@ -137,26 +132,38 @@ regular_subdivision :: [Int] -> Meter
     -- small divisions on the right, so reverse the list.
 regular_subdivision ns = foldr subdivide (T 1) (reverse ns)
 
-meter_length :: Meter -> Ratio Integer
-meter_length (D ms) = sum (map meter_length ms)
-meter_length (T d) = d
-
 -- ** predefined meters
 
-m44, m34, m332 :: Meter
+m54, m44, m34, m332 :: Meter
+m54 = regular_subdivision [4, 5, 4, 4]
 m44 = regular_subdivision [4, 4, 4, 4]
 m34 = regular_subdivision [4, 3, 4, 4]
 m332 = repeat 4 $ subdivide 4 $ subdivide_dur $ D (map T [3, 3, 2])
 
+-- *** Meter utils
+
 -- | It's easier to visualize a meter as a list of its ranks.
-mshow :: Meter -> [Int]
+mshow :: Meter -> [Rank]
 mshow = map snd . meter_marks 1
+
+-- | Map the given function over all @T@s in the given Meter.
+replace_t :: (Ratio Integer -> Meter) -> Meter -> Meter
+replace_t f (D ts) = D (map (replace_t f) ts)
+replace_t f (T x) = f x
+
+map_t :: (Ratio Integer -> Ratio Integer) -> Meter -> Meter
+map_t f = replace_t (T . f)
+
+meter_length :: Meter -> Ratio Integer
+meter_length (D ms) = sum (map meter_length ms)
+meter_length (T d) = d
 
 
 -- ** meter implementation
 
 -- | Simplified description of a mark with just (pos, rank).
-type MarkRank = (ScoreTime, Int)
+type MarkRank = (ScoreTime, Rank)
+type Rank = Int
 
 -- | Convert a Meter into [MarkRank], which can later be turned into [PosMark].
 meter_marks :: Double -> Meter -> [MarkRank]
@@ -167,8 +174,6 @@ meter_marks stretch meter = map minimum $ List.groupBy ((==) `on` fst) marks
 convert_meter rank (T v) = [(realToFrac v, rank)]
 convert_meter rank (D meter) =
     (0, rank) : concatMap (convert_meter (rank+1)) meter
-
-map_t f = replace_t (T . f)
 
 -- | Convert marks with time durations to ones with absolute times.
 -- A rank 0 mark will be appended to mark the end of the meter.
@@ -181,8 +186,8 @@ dur_to_pos marks = timed ++ [(final, 0)]
 marks_to_ruler :: [MarkRank] -> (Ruler.Name, Ruler.Marklist)
 marks_to_ruler marks = (meter_marklist, Ruler.marklist pos_marks)
     where
-    pos_marks = [(pos, mark dur rank name)
-        | ((pos, rank), dur, name) <- zip3 marks durs (mark_names marks)]
+    pos_marks = [(pos, mark dur rank name) | ((pos, rank), dur, name)
+        <- zip3 marks durs (rank_names (map snd marks))]
     -- I know I just converted dur_to_pos, but go back to dur again, now that
     -- they're at their final positions.
     durs = mark_durs marks
@@ -191,6 +196,23 @@ marks_to_ruler marks = (meter_marklist, Ruler.marklist pos_marks)
             zoom = pixels_to_zoom dur pixels
         in Ruler.Mark rank width color name (zoom*2) zoom
     ranks = length meter_ranks
+
+-- | Renumber an existing marklist according to rank.
+renumber_marklist :: Ruler.Marklist -> Ruler.Marklist
+renumber_marklist = snd . marks_to_ruler
+    . uncurry zip . second ensure_zero . unzip
+    . map (second Ruler.mark_rank) . Ruler.marks_of
+    where
+    -- By convention, rank 0 is only at the beginning and end of the block.
+    -- 'meter_marks' will establish this, but marklist manipulating functions
+    -- that need to renumber may destroy it.
+    ensure_zero :: [Rank] -> [Rank]
+    ensure_zero [] = []
+    ensure_zero (_:xs) = 0 : go xs
+        where
+        go [] = []
+        go [_] = [0]
+        go (x:xs) = max 1 x : go xs
 
 -- | If a marklist has been stretched, the zoom values will need to be
 -- recalculated.
@@ -225,12 +247,14 @@ mark_dur [] = 0
 mark_dur ((pos, rank) : marks) = next_pos - pos
     where (next_pos, _) = maybe (0, 0) id (List.find ((<=rank) . snd) marks)
 
-
-mark_names :: [MarkRank] -> [String]
-mark_names marks = map (Seq.join "." . map show . drop 1 . reverse) $ snd $
-    List.mapAccumL mkname (-1, []) marks
+-- | Name the MarkRanks in a #.#.# format.
+--
+-- TODO starts at 0, but maybe I should start at 1?
+rank_names :: [Rank] -> [String]
+rank_names = map (Seq.join "." . map show . drop 1 . reverse)
+    . snd . List.mapAccumL mkname (-1, [])
     where
-    mkname (prev_rank, prev_path) (_pos, rank) = ((rank, path), path)
+    mkname (prev_rank, prev_path) rank = ((rank, path), path)
         where
         path
             | rank > prev_rank =
