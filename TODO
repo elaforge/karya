@@ -1,11 +1,18 @@
 UNSORTED
+  - ruler changes should trigger a rederive
+  - undo after ruler changes doesn't seem to do anything
+  * append doesn't do what I want, it should append the given selection no
+    matter where it is, and renumber
+  - The meter ruler works with [(ScoreTime, Rank)] rather than Marks, I sohuld
+    have an api for manipulating the meter ruler.
   * move events down move should clip events post the end of the block
   - time step is still not right, it can get stuck on the wrong marks, or am
     I accidentally in relative mode?
   - lots of ghc panics, do I get them in debug mode?
     try valgrind again
+    * See if it happens after a rebuild. Yes
     - See if it happens without LangGhc.
-    - See if it happens in debug mode.
+    + See if it happens in debug mode.
   - get rid of ld -r hack in shakefile, since new ghcs do that automatically
   * J on a note event with duration makes it 0 dur
   * cmd to clip a ruler to the selection, or double a ruler

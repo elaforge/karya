@@ -87,10 +87,13 @@ append = do
 append_range :: Ruler.Name -> ScoreTime -> ScoreTime -> Ruler.Ruler
     -> Ruler.Ruler
 append_range name start end = Ruler.modify_marklist name $ \mlist ->
-        mlist <> Ruler.marklist (shift (extract mlist))
+        MakeRuler.renumber_marklist $
+            mlist <> Ruler.marklist (shift mlist (extract mlist))
     where
-    extract mlist = takeWhile ((<end) . fst) $ Ruler.ascending mlist start
-    shift = map (first (+ (end-start)))
+    -- Include the end, because the ruler's end mark will be replaced by the
+    -- extracted range's first mark.
+    extract mlist = takeWhile ((<=end) . fst) $ Ruler.ascending mlist start
+    shift mlist = map (first (+ (Ruler.marklist_end mlist - start)))
 
 -- * extract
 
