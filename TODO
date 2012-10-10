@@ -1,6 +1,6 @@
 UNSORTED
   rulers
-    - ruler track draw clips off a few too many pixels on the right of ruler
+    * ruler track draw clips off a few too many pixels on the right of ruler
       labels
     - ruler changes should trigger a rederive
     - undo after ruler changes doesn't seem to do anything

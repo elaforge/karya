@@ -265,7 +265,8 @@ OverlayRuler::draw_mark(bool at_zero, int offset, const Mark &mark)
     if (this->zoom.factor >= mark.name_zoom_level && this->config.show_names
         && mark.name)
     {
-        int text_width = fl_width(mark.name);
+        // Extra pixels to keep from bumping into the bezel.
+        int text_width = fl_width(mark.name) + 2;
         int xmin = x() + 2;
         int xmax = x() + w() - text_width;
         // Try to be right to the left of the mark, but align with the left
