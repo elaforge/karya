@@ -175,7 +175,10 @@ meter_marklist meter_ = Ruler.marklist pos_marks
         [(pos, mark rank_dur rank name) | ((rank, _), pos, rank_dur, name)
             <- List.zip4 meter mark_pos (rank_durs meter)
                 (rank_names (map fst meter))]
-    meter = meter_ ++ [(0, 0)]
+    -- By convention, the block begins and ends with a rank 0 mark.
+    meter = (++ [(0, 0)]) $ case meter_ of
+        (_, d) : rest -> (0, d) : map (first (max 1)) rest
+        [] -> []
     mark_pos = scanl (+) 0 (map snd meter)
     mark rank_dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks_len

@@ -77,6 +77,10 @@ set_meter :: ScoreTime -> Meter.AbstractMeter -> BlockId -> Cmd.CmdL ()
 set_meter dur meter block_id =
     local_meter block_id $ const $ Meter.fit_meter dur meter
 
+get_meter :: (State.M m) => BlockId -> m Meter.Meter
+get_meter block_id =
+    Meter.ruler_meter <$> (State.get_ruler =<< State.ruler_of block_id)
+
 -- | Just like 'RulerUtil.local_meter' but invalidate performances.  Since
 -- block calls use the ruler length to determine the duration of the block,
 -- changing the ruler can affect the performance.

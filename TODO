@@ -1,6 +1,6 @@
 UNSORTED
   rulers
-    - LRuler.double shouldn't make a new 0 rank mark in the middle
+    * LRuler.double shouldn't make a new 0 rank mark in the middle
     * ruler track draw clips off a few too many pixels on the right of ruler
       labels
     * ruler changes should trigger a rederive
