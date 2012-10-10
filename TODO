@@ -2,11 +2,11 @@ UNSORTED
   rulers
     * ruler track draw clips off a few too many pixels on the right of ruler
       labels
-    - ruler changes should trigger a rederive
+    * ruler changes should trigger a rederive
     - undo after ruler changes doesn't seem to do anything
     * append doesn't do what I want, it should append the given selection no
       matter where it is, and renumber
-    - The meter ruler works with [(ScoreTime, Rank)] rather than Marks, I sohuld
+    * The meter ruler works with [(ScoreTime, Rank)] rather than Marks, I sohuld
       have an api for manipulating the meter ruler.
       * naming in Cmd.Meter is messy, clean it up to distinguish between
         abstract meter [T | D], meter [(pos, rank)], marklist, and ruler
