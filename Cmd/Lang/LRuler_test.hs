@@ -26,7 +26,7 @@ test_extract = do
                 RulerUtil.meter_ruler 16 (Meter.repeat 3 (Meter.T 1))
             return (top, UiTest.mk_tid_block top 1)
     equal (e_ruler bid ui_state) []
-    let res = CmdTest.run_ui ui_state $ LRuler.extract_from bid tid
+    res <- CmdTest.run_ui_io ui_state $ LRuler.extract_from bid tid
     equal (e_ruler bid (CmdTest.result_ui_state res))
         [ (0, 2.5), (1, 2.5), (1, 2.5), (1, 2.5)
         , (0, 2), (1, 2), (1, 2)

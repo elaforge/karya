@@ -81,8 +81,20 @@ run ustate1 cstate1 cmd = Result val cstate2 ustate2 updates logs midi_msgs
         Left err -> (Left (Pretty.pretty err), ustate1, [])
         Right (v, ustate2, updates) -> (Right v, ustate2, updates)
 
+run_io :: State.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
+run_io ustate1 cstate1 cmd = do
+    (cstate2, midi_msgs, logs, result) <-
+        Cmd.run Nothing ustate1 cstate1 (Just <$> cmd)
+    let (val, ustate2, updates) = case result of
+            Left err -> (Left (Pretty.pretty err), ustate1, [])
+            Right (v, ustate2, updates) -> (Right v, ustate2, updates)
+    return $ Result val cstate2 ustate2 updates logs midi_msgs
+
 run_ui :: State.State -> Cmd.CmdId a -> Result a
 run_ui ustate = run ustate default_cmd_state
+
+run_ui_io :: State.State -> Cmd.CmdT IO a -> IO (Result a)
+run_ui_io ustate = run_io ustate default_cmd_state
 
 -- | Run a Cmd and return just the value.
 eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
