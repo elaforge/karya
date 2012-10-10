@@ -157,7 +157,7 @@ cppFlags config fn
         cInclude (configFlags config) ++ define (configFlags config)
     | otherwise = Nothing
     where
-    cppFiles = ["App/Main.hs", "Cmd/Lang.hs", "Midi/TestMidi.hs", "Ui/Ui.hs"]
+    cppFiles = ["App/Main.hs", "Cmd/Lang.hs", "Midi/TestMidi.hs", "Ui/Sync.hs"]
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
