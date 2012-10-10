@@ -387,7 +387,7 @@ track :: (State.M m) => BlockId -> TrackNum -> String -> Events.Events
 track block_id tracknum title events = do
     -- Clip to valid range so callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
-    ruler_id <- get_overlay_ruler_id block_id (tracknum-1)
+    ruler_id <- State.ruler_track_at block_id (max 0 (tracknum-1))
     track_events block_id ruler_id tracknum Config.track_width
         (Track.track title events)
 
@@ -457,25 +457,6 @@ swap_tracks block_id num0 num1 = do
 
 -- ** util
 
--- | Given a hypothetical track at @tracknum@, what should it's ruler id be?
-get_overlay_ruler_id :: (State.M m) => BlockId -> TrackNum -> m RulerId
-get_overlay_ruler_id block_id tracknum = do
-    track <- State.block_track_at block_id tracknum
-    -- The overlay suffix is just a convention, so it's not guaranteed to
-    -- exist.
-    let ruler_id = case fmap Block.tracklike_id track of
-            Just (Block.TId _ rid) -> rid
-            Just (Block.RId rid) -> add_overlay_suffix rid
-            _ -> State.no_ruler
-    maybe_ruler <- State.lookup_ruler ruler_id
-    return $ maybe State.no_ruler (const ruler_id) maybe_ruler
-
-add_overlay_suffix :: RulerId -> RulerId
-add_overlay_suffix ruler_id
-    | overlay_suffix `List.isSuffixOf` ident = ruler_id
-    | otherwise = Types.RulerId (Id.unsafe_id ns (ident ++ overlay_suffix))
-    where (ns, ident) = Id.un_id (Id.unpack_id ruler_id)
-
 -- | Clip the tracknum to within the valid range.
 clip_tracknum :: (State.M m) => BlockId -> TrackNum -> m TrackNum
 clip_tracknum block_id tracknum = do
@@ -498,35 +479,24 @@ generate_track_id block_id code tracks =
 
 -- * ruler
 
--- | This creates both a ruler with the given name, and an overlay version
--- named with .overlay.
-ruler :: (State.M m) => String -> Ruler.Ruler -> m (RulerId, RulerId)
+-- | Create a ruler with the given name.
+ruler :: (State.M m) => String -> Ruler.Ruler -> m RulerId
 ruler name ruler = do
     ident <- make_id name
-    overlay_ident <- make_id (name ++ overlay_suffix)
     rid <- State.create_ruler ident ruler
-    over_rid <- State.create_ruler overlay_ident (as_overlay ruler)
-    return (rid, over_rid)
-
--- | Convert a ruler to be suitable as an overlay ruler.
-as_overlay :: Ruler.Ruler -> Ruler.Ruler
-as_overlay ruler = ruler
-    { Ruler.ruler_show_names = False
-    , Ruler.ruler_use_alpha = True
-    , Ruler.ruler_full_width = True
-    }
+    return rid
 
 -- | Set a block to a new ruler.
 new_ruler :: (State.M m) => BlockId -> String -> Ruler.Ruler -> m RulerId
 new_ruler block_id name r = do
-    (ruler_id, overlay_id) <- ruler name r
-    set_block_ruler ruler_id overlay_id block_id
+    ruler_id <- ruler name r
+    set_block_ruler ruler_id block_id
     return ruler_id
 
-set_block_ruler :: (State.M m) => RulerId -> RulerId -> BlockId -> m ()
-set_block_ruler ruler_id overlay_id block_id = Transform.tracks block_id set
+set_block_ruler :: (State.M m) => RulerId -> BlockId -> m ()
+set_block_ruler ruler_id block_id = Transform.tracks block_id set
     where
-    set (Block.TId tid _) = Block.TId tid overlay_id
+    set (Block.TId tid _) = Block.TId tid ruler_id
     set (Block.RId _) = Block.RId ruler_id
     set t = t
 
@@ -536,10 +506,6 @@ make_id :: (State.M m) => String -> m Id.Id
 make_id name = do
     ns <- State.get_namespace
     State.require ("make_id: invalid name: " ++ show name) $ Id.id ns name
-
--- | An overlay versions of a ruler has id ruler_id ++ suffix.
-overlay_suffix :: String
-overlay_suffix = ".overlay"
 
 -- * general util
 

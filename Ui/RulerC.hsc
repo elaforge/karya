@@ -61,12 +61,16 @@ instance Storable Ruler.Ruler where
 
 -- Doesn't poke the marklists, since those are passed separately, since the
 -- real RulerConfig uses an STL vector which has to be serialized in c++.
-poke_ruler rulerp (Ruler.Ruler mlists bg show_names use_alpha align_to_bottom
-        full_width) = do
+poke_ruler :: Ptr Ruler.Ruler -> Ruler.Ruler -> IO ()
+poke_ruler rulerp (Ruler.Ruler mlists bg show_names align_to_bottom) = do
     (#poke RulerConfig, bg) rulerp bg
     (#poke RulerConfig, show_names) rulerp show_names
-    (#poke RulerConfig, use_alpha) rulerp use_alpha
-    (#poke RulerConfig, full_width) rulerp full_width
+    -- The haskell layer no longer differentiates between ruler track rulers
+    -- and event track overlay rulers, so these are hardcoded.  This way the
+    -- fltk layer doesn't have to know anything about that and simply does
+    -- what it's told.
+    (#poke RulerConfig, use_alpha) rulerp True
+    (#poke RulerConfig, full_width) rulerp True
     (#poke RulerConfig, align_to_bottom) rulerp align_to_bottom
     (#poke RulerConfig, last_mark_pos) rulerp
         (last_mark_pos (Map.elems mlists))
@@ -78,6 +82,7 @@ instance Storable Ruler.Mark where
     peek = error "Mark peek unimplemented"
     poke = poke_mark
 
+poke_mark :: Ptr Ruler.Mark -> Ruler.Mark -> IO ()
 poke_mark markp (Ruler.Mark
     { Ruler.mark_rank = rank
     , Ruler.mark_width = width

@@ -327,12 +327,9 @@ main(int argc, char **argv)
     mlists.push_back(m44_marks);
     Marklists nomarks;
 
-    RulerConfig ruler(ruler_bg, true, false, false, arrival_beats,
+    RulerConfig ruler(ruler_bg, false, true, true, arrival_beats,
         m44_last_pos);
     ruler.marklists = mlists;
-    RulerConfig truler(ruler_bg, false, true, true, arrival_beats,
-        m44_last_pos);
-    truler.marklists = mlists;
     DividerConfig divider(Color(0x00, 0xff, 0x00));
 
     int i = t1_events.size() - 1;
@@ -355,12 +352,12 @@ main(int argc, char **argv)
 
     if (draw_lots_of_stuff) {
         view.block.insert_track(0, Tracklike(&ruler), 20);
-        view.block.insert_track(1, Tracklike(&empty_track, &truler), 60);
-        view.block.insert_track(2, Tracklike(&track1, &truler), 130);
+        view.block.insert_track(1, Tracklike(&empty_track, &ruler), 60);
+        view.block.insert_track(2, Tracklike(&track1, &ruler), 130);
 
-        view.block.insert_track(3, Tracklike(&track2, &truler), 40);
-        view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
-        view.block.insert_track(5, Tracklike(&track2, &truler), 80);
+        view.block.insert_track(3, Tracklike(&track2, &ruler), 40);
+        view.block.insert_track(4, Tracklike(&empty_track, &ruler), 40);
+        view.block.insert_track(5, Tracklike(&track2, &ruler), 80);
 
         view.block.set_status("ABC`tamil-i` ABC `xie`", Color::white);
         view.block.set_title("hi there");
@@ -380,7 +377,7 @@ main(int argc, char **argv)
         SkeletonConfig skel(4, edges);
         view.block.set_skeleton(skel);
     } else {
-        view.block.insert_track(1, Tracklike(&empty_track, &truler), 130);
+        view.block.insert_track(1, Tracklike(&empty_track, &ruler), 130);
         view.block.set_track_signal(1, *control_track_signal());
     }
 

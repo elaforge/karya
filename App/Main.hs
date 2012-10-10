@@ -441,13 +441,13 @@ setup_big = do
 
 empty_block :: (Cmd.M m) => m (BlockId, ViewId)
 empty_block = do
-    (rid, over_rid) <- Create.ruler "meter44"
+    rid <- Create.ruler "meter44"
         (RulerUtil.ruler [(Meter.meter, Meter.make_marklist (1/16) Meter.m44)])
         { Ruler.ruler_align_to_bottom = arrival_beats }
 
     bid <- Create.block rid
     vid <- Create.view bid
-    t_tempo <- Create.named_track bid over_rid 1 "tempo"
+    t_tempo <- Create.named_track bid rid 1 "tempo"
         (Track.track "tempo" Events.empty)
     State.set_track_width bid 1 40
     State.insert_events t_tempo $ map UiTest.make_event [(0, 0, "1")]

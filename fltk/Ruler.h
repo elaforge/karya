@@ -1,9 +1,8 @@
 /*
-Rulers appear in two places: on a dedicated ruler track, and as an overlay on
-an event track.  The former can be implemented as an overlay onto a plain box.
-There are some differences though: I may want to disable names for the event
-track overlay, and alpha for the ruler track.
-
+    Rulers appear in two places: on a dedicated ruler track, and as an overlay
+    on an event track.  The former can be implemented as an overlay onto a
+    plain box.  There are some differences though: I may want to disable names
+    for the event track overlay, and alpha for the ruler track.
 */
 
 #ifndef __RULER_H
@@ -75,6 +74,7 @@ struct RulerConfig {
 
     // So I can share marklists but have different display styles.
     bool show_names;
+    // Use the alpha channel in the Mark colors.  Otherwise, they are opaque.
     bool use_alpha;
     // Always draw marks across the full width of the track.
     bool full_width;
@@ -105,7 +105,6 @@ public:
     enum { DAMAGE_RANGE = FL_DAMAGE_USER1 };
     // This area needs to be redrawn.
     IRect damaged_area;
-
     RulerConfig config;
 
     // Remember how much I've scrolled, to do fl_scroll() optimization.

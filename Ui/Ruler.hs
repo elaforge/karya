@@ -17,16 +17,15 @@ import Types
 data Ruler = Ruler {
     -- | The marklists are drawn in order, and the draw order is determined
     -- by the order of the string key.
-    ruler_marklists :: Marklists
-    , ruler_bg :: Color.Color
-    , ruler_show_names :: Bool
-    , ruler_use_alpha :: Bool
+    ruler_marklists :: !Marklists
+    , ruler_bg :: !Color.Color
+    -- | Show the names if this is on an event track.  Ruler tracks always show
+    -- the names.
+    , ruler_show_names :: !Bool
     -- | Align bottoms of marks to beats, instead of the top.  Looks good used
     -- with negative duration events (arrival beats).
-    , ruler_align_to_bottom :: Bool
-    , ruler_full_width :: Bool
+    , ruler_align_to_bottom :: !Bool
     } deriving (Eq, Show, Read)
-ruler = Ruler
 
 instance Pretty.Pretty Ruler where
     pretty ruler = "((Ruler "
@@ -34,12 +33,16 @@ instance Pretty.Pretty Ruler where
         ++ "))"
 
 instance DeepSeq.NFData Ruler where
-    rnf (Ruler mlists bg names alpha align full) = DeepSeq.rnf mlists
-        `seq` bg `seq` names `seq` alpha `seq` align `seq` full `seq` ()
+    rnf (Ruler mlists _ _ _) = DeepSeq.rnf mlists
 
 -- | Empty ruler.
 no_ruler :: Ruler
-no_ruler = ruler Map.empty Color.black False False False False
+no_ruler = Ruler
+    { ruler_marklists = Map.empty
+    , ruler_bg = Color.black
+    , ruler_show_names = False
+    , ruler_align_to_bottom = False
+    }
 
 lookup_marklist :: Name -> Ruler -> Maybe Marklist
 lookup_marklist name = Map.lookup name . ruler_marklists

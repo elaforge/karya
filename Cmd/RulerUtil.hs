@@ -6,7 +6,6 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 
-import qualified Cmd.Create as Create
 import qualified Cmd.Meter as Meter
 import qualified App.Config as Config
 import Types
@@ -16,22 +15,17 @@ import Types
 
 -- | Constructor for "plain" rulers.
 ruler :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
-ruler marklists = Ruler.ruler (Map.fromList marklists) Config.ruler_bg
-    True False False False
+ruler marklists = Ruler.Ruler
+    { Ruler.ruler_marklists = Map.fromList marklists
+    , Ruler.ruler_bg = Config.ruler_bg
+    , Ruler.ruler_show_names = False
+    , Ruler.ruler_align_to_bottom = False
+    }
 
 -- | Create a ruler with a meter of the given duration.
 meter_ruler :: ScoreTime -> Meter.AbstractMeter -> Ruler.Ruler
 meter_ruler dur meter =
     ruler [(Meter.meter, Meter.meter_marklist (Meter.fit_meter dur meter))]
-
--- | Replace the rulers in the block with the given ruler_id.  If there is an
--- overlay version, it will be given to all but the first track.
-set_ruler :: (State.M m) => RulerId -> BlockId -> m ()
-set_ruler ruler_id block_id = do
-    let overlay_id = Create.add_overlay_suffix ruler_id
-    overlay_id <- fmap (maybe ruler_id (const overlay_id)) $
-        State.lookup_ruler overlay_id
-    Create.set_block_ruler ruler_id overlay_id block_id
 
 -- | Replace or add a marklist with the given name.
 set_marklist :: (State.M m) => RulerId -> Ruler.Name -> Ruler.Marklist -> m ()
@@ -88,8 +82,7 @@ local_modify block_id ruler_id f = do
                 return $ State.set_track_ruler block_id tracknum new_ruler_id
             return new_ruler_id
 
--- | Make a RulerId with the same name as the BlockId.  But I should preserve
--- .overlay.  So, use the ruler_id but prepend the block name.
+-- | Make a RulerId with the same name as the BlockId.
 --
 -- TODO Id should have a concat_id so I don't have to use unsafe_id
 ruler_id_for_block :: BlockId -> RulerId -> Id.Id

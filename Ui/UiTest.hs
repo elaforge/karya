@@ -353,8 +353,12 @@ mkruler :: Int -> ScoreTime -> Ruler.Ruler
 mkruler marks dist = ruler [(Meter.meter, marklist (marks + 1) dist)]
 
 ruler :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
-ruler mlists =
-    Ruler.Ruler (Map.fromList mlists) Config.ruler_bg True False False False
+ruler marklists = Ruler.Ruler
+    { Ruler.ruler_marklists = Map.fromList marklists
+    , Ruler.ruler_bg = Config.ruler_bg
+    , Ruler.ruler_show_names = False
+    , Ruler.ruler_align_to_bottom = False
+    }
 
 marklist :: Int -> ScoreTime -> Ruler.Marklist
 marklist n dist = Ruler.marklist (take n $ zip (Seq.range_ 0 dist) m44)
@@ -367,14 +371,6 @@ m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
 
 mark :: String -> Ruler.Mark
 mark name = Ruler.Mark 0 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
-
--- | Convert a ruler config for an overlay ruler.
-overlay_ruler :: Ruler.Ruler -> Ruler.Ruler
-overlay_ruler ruler = ruler
-    { Ruler.ruler_show_names = False
-    , Ruler.ruler_use_alpha = True
-    , Ruler.ruler_full_width = True
-    }
 
 
 -- * config

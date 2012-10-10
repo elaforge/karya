@@ -65,7 +65,7 @@ test_scroll_zoom = do
 test_set_selection = do
     view <- create_empty_view
     let ruler = UiTest.mkruler 20 10
-    insert_track view 1 (Block.T event_track_1 (UiTest.overlay_ruler ruler)) 30
+    insert_track view 1 (Block.T event_track_1 ruler) 30
     let c = Color.brightness 1.5 Color.blue
     io_human "point selection appears" $
         send $ BlockC.set_selection True view 0 (cselection c 1 0 1 0)
@@ -108,14 +108,13 @@ test_update_track = do
     let ruler = UiTest.mkruler 20 10
     insert_track view 0 (Block.D UiTest.default_divider) 5
     insert_track view 1 (Block.R ruler) 30
-    insert_track view 2 (Block.T event_track_1 (UiTest.overlay_ruler ruler)) 30
+    insert_track view 2 (Block.T event_track_1 ruler) 30
 
     io_human "ruler gets wider, both events change" $ do
         send $ BlockC.update_entire_track True view 1
             (Block.R (UiTest.mkruler 20 16)) [] set_style
         send $ BlockC.update_track True view 2
-            (Block.T event_track_2 (UiTest.overlay_ruler ruler))
-            [] set_style 0 60
+            (Block.T event_track_2 ruler) [] set_style 0 60
 
 test_insert_remove_track = do
     view <- create_empty_view

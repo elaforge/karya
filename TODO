@@ -15,7 +15,7 @@ UNSORTED
       * If I change Meter from (pos, rank) to (rank, dur), I can concatenate
         them with less irregularity.
     - make constants for each of the ranks, e.g. block, measure, quarter, eighth
-    - can I get rid of .overlay entirely by doing the transformation at the fltk
+    * can I get rid of .overlay entirely by doing the transformation at the fltk
       level?  I can't think of a reason to have non-overlay attributes on an
       overlay ruler.
     * move events down move should clip events post the end of the block

@@ -11,3 +11,9 @@ test_make_meter = do
 
     let marks = Ruler.marks_of (Meter.meter_marklist meter)
     equal (map fst marks) (Seq.range 0 16 1)
+
+test_rank_names = do
+    let f = Meter.rank_names
+    equal (f [0, 2, 2, 1, 2, 2, 0])
+        ["", "0.1", "0.2", "1", "1.1", "1.2", ""]
+        -- ["1", "1.2", "1.3", "1.4", "2", "2.2", "2.3", "2.4", "3"]

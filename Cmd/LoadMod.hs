@@ -48,9 +48,8 @@ create :: (State.M m) => Id.Namespace -> [UiBlock] -> m ()
 create name ui_blocks = do
     State.set_namespace name
     let mkid = Id.unsafe_id name
-    (rid, track_rid) <- Create.ruler "meter44"
-        (RulerUtil.meter_ruler 16 Meter.m44)
-    block_ids <- mapM (uncurry (create_block mkid rid track_rid ""))
+    rid <- Create.ruler "meter44" (RulerUtil.meter_ruler 16 Meter.m44)
+    block_ids <- mapM (uncurry (create_block mkid rid ""))
         (zip [0..] ui_blocks)
     root <- create_order_block mkid block_ids
     State.set_root_id root
@@ -59,10 +58,10 @@ create name ui_blocks = do
     Create.view root
     return ()
 
-create_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId
+create_block :: (State.M m) => (String -> Id.Id) -> RulerId
     -> String -> Int -> UiBlock -> m (BlockId, BlockRows)
-create_block mkid rid track_rid inst num (ui_block, block_rows) = do
-    block_id <- make_block mkid rid track_rid ("b" ++ show num)
+create_block mkid rid inst num (ui_block, block_rows) = do
+    block_id <- make_block mkid rid ("b" ++ show num)
         (concatMap mktrack ui_block)
     return (block_id, block_rows)
     where mktrack (ntrack, ctracks) = (">" ++ inst, ntrack) : ctracks
@@ -70,10 +69,9 @@ create_block mkid rid track_rid inst num (ui_block, block_rows) = do
 create_order_block :: (State.M m) => (String -> Id.Id)
     -> [(BlockId, BlockRows)] -> m BlockId
 create_order_block mkid block_ids = do
-    (rid, track_rid) <- Create.ruler "order"
+    rid <- Create.ruler "order"
         (RulerUtil.ruler [(Meter.meter, order_meter block_rows)])
-    make_block mkid rid track_rid "order"
-        [("tempo", tempo), (">ptq/c1", events)]
+    make_block mkid rid "order" [("tempo", tempo), (">ptq/c1", events)]
     where
     block_rows = map snd block_ids
     tempo = [Event.event 0 0 "6"]
@@ -88,14 +86,14 @@ order_meter :: [BlockRows] -> Ruler.Marklist
 order_meter = Meter.make_marklist 1 . Meter.D . map mkd
     where mkd dur = Meter.D (replicate dur (Meter.T 1))
 
-make_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId -> String
+make_block :: (State.M m) => (String -> Id.Id) -> RulerId -> String
     -> [(String, [Event.Event])] -> m BlockId
-make_block mkid rid track_rid name tracks = do
+make_block mkid rid name tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, (title, events)) ->
         State.create_track (mkid (name ++ ".t" ++ show i)) $
             Track.track title (Events.from_list events)
     let block_tracks = Block.track (Block.RId rid) 20
-            : [Block.track (Block.TId tid track_rid) 25 | tid <- tids]
+            : [Block.track (Block.TId tid rid) 25 | tid <- tids]
     block_id <- State.create_block (mkid name) ""  block_tracks
     State.set_skeleton block_id =<<
         ParseSkeleton.default_parser <$> TrackTree.tracks_of block_id

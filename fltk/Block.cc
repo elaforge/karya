@@ -399,7 +399,15 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
     if (track.track) {
         t = new EventTrackView(*track.track, *track.ruler);
     } else if (track.ruler) {
-        t = new RulerTrackView(*track.ruler);
+        RulerConfig config = *track.ruler;
+        // No matter what the config, ruler tracks always have these settings.
+        // This means that event tracks can look like ruler tracks if they want
+        // to, but in general the same RulerConfig can be used for both event
+        // and ruler tracks.
+        config.show_names = true;
+        config.use_alpha = false;
+        config.full_width = false;
+        t = new RulerTrackView(config);
     } else {
         t = new DividerView(*track.divider);
     }

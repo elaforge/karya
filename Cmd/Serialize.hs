@@ -295,8 +295,8 @@ instance Serialize Color.Color where
 -- ** Ruler
 
 instance Serialize Ruler.Ruler where
-    put (Ruler.Ruler a b c d e f) = Serialize.put_version 2
-        >> put a >> put b >> put c >> put d >> put e >> put f
+    put (Ruler.Ruler a b c d) = Serialize.put_version 3
+        >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
         case v of
@@ -304,11 +304,16 @@ instance Serialize Ruler.Ruler where
                 marklists :: Map.Map Ruler.Name Ruler.Marklist <- get
                 bg :: Color.Color <- get
                 show_names :: Bool <- get
-                use_alpha :: Bool <- get
+                _use_alpha :: Bool <- get
                 align_to_bottom :: Bool <- get
-                full_width :: Bool <- get
-                return $ Ruler.Ruler marklists bg show_names use_alpha
-                    align_to_bottom full_width
+                _full_width :: Bool <- get
+                return $ Ruler.Ruler marklists bg show_names align_to_bottom
+            3 -> do
+                marklists :: Map.Map Ruler.Name Ruler.Marklist <- get
+                bg :: Color.Color <- get
+                show_names :: Bool <- get
+                align_to_bottom :: Bool <- get
+                return $ Ruler.Ruler marklists bg show_names align_to_bottom
             _ -> Serialize.bad_version "Ruler.Ruler" v
 
 instance Serialize Ruler.Marklist where

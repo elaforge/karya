@@ -109,7 +109,7 @@ make_nested_controls = make_nested
 -- This doesn't produce intermediate tempo or control curves.
 make_nested :: (State.M m) => [UiTest.TrackSpec] -> Int -> Int -> Int -> m ()
 make_nested bottom_tracks size depth bottom_size = do
-    (ruler_id, _) <- Create.ruler "ruler" UiTest.default_ruler
+    ruler_id <- Create.ruler "ruler" UiTest.default_ruler
     go ruler_id UiTest.default_block_name depth
     State.modify set_midi_config
     where
