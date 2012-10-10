@@ -20,6 +20,20 @@ const static int selection_min_size = 2;
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()
 
 
+OverlayRuler::OverlayRuler(const RulerConfig &config, bool is_ruler_track) :
+    Fl_Widget(0, 0, 1, 1), config(config)
+{
+    // No matter what the config, ruler tracks always have these settings.
+    // This means that event tracks can look like ruler tracks if they want
+    // to, but in general the same RulerConfig can be used for both event
+    // and ruler tracks.
+    if (is_ruler_track) {
+        this->config.show_names = true;
+        this->config.use_alpha = false;
+        this->config.full_width = false;
+    }
+}
+
 void
 OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
 {
@@ -72,11 +86,17 @@ OverlayRuler::time_end() const
 
 
 void
-OverlayRuler::set_config(const RulerConfig &config, FinalizeCallback finalizer,
-        ScoreTime start, ScoreTime end)
+OverlayRuler::set_config(bool is_ruler_track, const RulerConfig &config,
+    FinalizeCallback finalizer, ScoreTime start, ScoreTime end)
 {
     this->delete_config();
     this->config = config;
+    // Same as is_ruler_track in constructor.
+    if (is_ruler_track) {
+        this->config.show_names = true;
+        this->config.use_alpha = false;
+        this->config.full_width = false;
+    }
     this->damage_range(start, end);
 }
 
@@ -326,7 +346,7 @@ RulerTrackView::RulerTrackView(const RulerConfig &config) :
     TrackView("ruler"),
     title_box(0),
     bg_box(0, 0, 1, 1),
-    ruler(config)
+    ruler(config, true)
 {
     this->add(bg_box);
     this->add(ruler);
@@ -371,7 +391,7 @@ RulerTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
 {
     ASSERT_MSG(track.ruler && !track.track,
         "updated a ruler track with an event track config");
-    this->ruler.set_config(*track.ruler, finalizer, start, end);
+    this->ruler.set_config(true, *track.ruler, finalizer, start, end);
     if (color_to_fl(track.ruler->bg) != bg_box.color()) {
         bg_box.color(color_to_fl(track.ruler->bg));
         bg_box.redraw();

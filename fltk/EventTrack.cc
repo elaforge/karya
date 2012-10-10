@@ -197,7 +197,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
     config(config), last_offset(0), brightness(1), bg_color(config.bg_color),
     title_input(NULL),
     bg_box(0, 0, 1, 1),
-    overlay_ruler(ruler_config)
+    overlay_ruler(ruler_config, false)
 {
     // this->resizable(0); // don't resize children
     end(); // make sure no one else falls in
@@ -274,7 +274,8 @@ EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
     // which set_config is going to do.
     finalizer((void *) this->config.find_events);
     if (track.ruler)
-        this->overlay_ruler.set_config(*track.ruler, finalizer, start, end);
+        this->overlay_ruler.set_config(
+            false, *track.ruler, finalizer, start, end);
     if (this->config.bg_color != track.track->bg_color) {
         this->bg_color = track.track->bg_color;
         this->set_event_brightness(this->brightness);
