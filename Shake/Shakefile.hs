@@ -278,7 +278,7 @@ configure = do
                 -- those on when debugging.
                 Profile -> ["-O", "-prof"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
-            ++ if mode == Profile then ["-prof", "-auto-all"] else []
+            ++ if mode == Profile then ["-prof"] else []
         -- Hackery, make sure ghci gets link flags, otherwise it wants to
         -- load everything as bytecode and fails on missing symbols.  Actually,
         -- these only apply to loading the modules for the main app.  But
