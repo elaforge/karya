@@ -55,7 +55,7 @@ import Cmd.Keymap
        (plain_key, plain_char, bind_key, bind_key_status, bind_repeatable,
         bind_click, bind_drag, plain_command_char, command_char,
         SimpleMod(..))
-import qualified Cmd.MakeRuler as MakeRuler
+import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
@@ -273,7 +273,7 @@ edit_state_bindings = concat
     , bind_key [Shift] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
 
-    -- The convention from MakeRuler is: 0 = block, 1 = block section,
+    -- The convention from Meter is: 0 = block, 1 = block section,
     -- 2 = whole, 3 = quarter, 4 = 16th, etc.  Since it goes to /4 after
     -- rank 2, I use a skip to keep the note divisions binary.
     , command_char '0' "step rank 0+0" (step_rank 0 0) -- block
@@ -297,7 +297,7 @@ edit_state_bindings = concat
     , plain_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
     ]
     where
-    meter = TimeStep.NamedMarklists [MakeRuler.meter_marklist]
+    meter = TimeStep.NamedMarklists [Meter.meter]
     step_rank rank skips = Edit.set_step_rank
         (TimeStep.time_step skips (TimeStep.AbsoluteMark meter rank))
         rank skips

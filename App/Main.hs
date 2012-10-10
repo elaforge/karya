@@ -51,8 +51,9 @@ import qualified Cmd.Create as Create
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Lang as Lang
 import qualified Cmd.LoadMod as LoadMod
-import qualified Cmd.MakeRuler as MakeRuler
+import qualified Cmd.Meter as Meter
 import qualified Cmd.Responder as Responder
+import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
@@ -441,7 +442,7 @@ setup_big = do
 empty_block :: (Cmd.M m) => m (BlockId, ViewId)
 empty_block = do
     (rid, over_rid) <- Create.ruler "meter44"
-        (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
+        (RulerUtil.ruler [(Meter.meter, Meter.make_marklist (1/16) Meter.m44)])
         { Ruler.ruler_align_to_bottom = arrival_beats }
 
     bid <- Create.block rid

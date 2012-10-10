@@ -26,7 +26,8 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Create as Create
-import qualified Cmd.MakeRuler as MakeRuler
+import qualified Cmd.Meter as Meter
+import qualified Cmd.RulerUtil as RulerUtil
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.Score as Score
@@ -48,7 +49,7 @@ create name ui_blocks = do
     State.set_namespace name
     let mkid = Id.unsafe_id name
     (rid, track_rid) <- Create.ruler "meter44"
-        (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
+        (RulerUtil.meter_ruler 16 Meter.m44)
     block_ids <- mapM (uncurry (create_block mkid rid track_rid ""))
         (zip [0..] ui_blocks)
     root <- create_order_block mkid block_ids
@@ -70,7 +71,7 @@ create_order_block :: (State.M m) => (String -> Id.Id)
     -> [(BlockId, BlockRows)] -> m BlockId
 create_order_block mkid block_ids = do
     (rid, track_rid) <- Create.ruler "order"
-        (MakeRuler.ruler [order_meter block_rows])
+        (RulerUtil.ruler [(Meter.meter, order_meter block_rows)])
     make_block mkid rid track_rid "order"
         [("tempo", tempo), (">ptq/c1", events)]
     where
@@ -83,10 +84,9 @@ create_order_block mkid block_ids = do
         | (start, (bid, dur)) <- zip starts block_ids
         ]
 
-order_meter :: [BlockRows] -> (Ruler.Name, Ruler.Marklist)
-order_meter = MakeRuler.meter_ruler 1 . MakeRuler.D . map mkd
-    where
-    mkd dur = MakeRuler.D (replicate dur (MakeRuler.T 1))
+order_meter :: [BlockRows] -> Ruler.Marklist
+order_meter = Meter.make_marklist 1 . Meter.D . map mkd
+    where mkd dur = Meter.D (replicate dur (Meter.T 1))
 
 make_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId -> String
     -> [(String, [Event.Event])] -> m BlockId

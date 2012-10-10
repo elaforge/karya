@@ -53,11 +53,11 @@ import qualified Cmd.Lang.LState as LState
 -- import qualified Cmd.Lang.LSymbol as LSymbol
 import qualified Cmd.Lang.LTrack as LTrack
 import qualified Cmd.Lang.LView as LView
-import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Play as Play
 import qualified Cmd.PlayUtil as PlayUtil
+import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple

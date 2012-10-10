@@ -44,6 +44,9 @@ no_ruler = ruler Map.empty Color.black False False False False
 lookup_marklist :: Name -> Ruler -> Maybe Marklist
 lookup_marklist name = Map.lookup name . ruler_marklists
 
+get_marklist :: Name -> Ruler -> Marklist
+get_marklist name = fromMaybe mempty . lookup_marklist name
+
 set_marklist :: Name -> Marklist -> Ruler -> Ruler
 set_marklist name mlist = modify_marklists (Map.insert name mlist)
 
@@ -52,8 +55,8 @@ remove_marklist = modify_marklists . Map.delete
 
 -- | If the marklist isn't set, modify will be given an empty one.
 modify_marklist :: Name -> (Marklist -> Marklist) -> Ruler -> Ruler
-modify_marklist name modify ruler = set_marklist name new ruler
-    where new = maybe (modify mempty) modify (lookup_marklist name ruler)
+modify_marklist name modify ruler =
+    set_marklist name (modify (get_marklist name ruler)) ruler
 
 -- | Transform all the marklists in a ruler.
 map_marklists :: (Marklist -> Marklist) -> Ruler -> Ruler
@@ -103,17 +106,8 @@ instance Monoid.Monoid Marklist where
         where start = first_pos m2
     mconcat = List.foldl' Monoid.mappend Monoid.mempty
 
-place_marklists :: [(ScoreTime, ScoreTime, Marklist)] -> Marklist
-place_marklists = mconcat . map (\(p, s, m) -> place p s m)
-
 shift :: ScoreTime -> Marklist -> Marklist
 shift offset = mapm $ Map.mapKeys (+offset)
-
-place :: ScoreTime -> ScoreTime -> Marklist -> Marklist
-place start dur m = mapm (Map.mapKeys ((+start) . (*factor))) m
-    where
-    factor = if mdur == 0 then 1 else dur / mdur
-    mdur = marklist_end m
 
 insert_mark :: ScoreTime -> Mark -> Marklist -> Marklist
 insert_mark pos mark = mapm $ Map.insert pos mark

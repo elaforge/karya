@@ -35,9 +35,7 @@ import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Selection as Selection
-
 import qualified App.Config as Config
 import Types
 
@@ -507,8 +505,16 @@ ruler name ruler = do
     ident <- make_id name
     overlay_ident <- make_id (name ++ overlay_suffix)
     rid <- State.create_ruler ident ruler
-    over_rid <- State.create_ruler overlay_ident (MakeRuler.as_overlay ruler)
+    over_rid <- State.create_ruler overlay_ident (as_overlay ruler)
     return (rid, over_rid)
+
+-- | Convert a ruler to be suitable as an overlay ruler.
+as_overlay :: Ruler.Ruler -> Ruler.Ruler
+as_overlay ruler = ruler
+    { Ruler.ruler_show_names = False
+    , Ruler.ruler_use_alpha = True
+    , Ruler.ruler_full_width = True
+    }
 
 -- | Set a block to a new ruler.
 new_ruler :: (State.M m) => BlockId -> String -> Ruler.Ruler -> m RulerId

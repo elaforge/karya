@@ -1,13 +1,26 @@
 UNSORTED
-  - ruler changes should trigger a rederive
-  - undo after ruler changes doesn't seem to do anything
-  * append doesn't do what I want, it should append the given selection no
-    matter where it is, and renumber
-  - The meter ruler works with [(ScoreTime, Rank)] rather than Marks, I sohuld
-    have an api for manipulating the meter ruler.
-  * move events down move should clip events post the end of the block
-  - time step is still not right, it can get stuck on the wrong marks, or am
-    I accidentally in relative mode?
+  rulers
+    - ruler track draw clips off a few too many pixels on the right of ruler
+      labels
+    - ruler changes should trigger a rederive
+    - undo after ruler changes doesn't seem to do anything
+    * append doesn't do what I want, it should append the given selection no
+      matter where it is, and renumber
+    - The meter ruler works with [(ScoreTime, Rank)] rather than Marks, I sohuld
+      have an api for manipulating the meter ruler.
+      * naming in Cmd.Meter is messy, clean it up to distinguish between
+        abstract meter [T | D], meter [(pos, rank)], marklist, and ruler
+      * further complication: make_meter has a different definition of duration,
+        it's until the next mark with >=rank
+      * If I change Meter from (pos, rank) to (rank, dur), I can concatenate
+        them with less irregularity.
+    - make constants for each of the ranks, e.g. block, measure, quarter, eighth
+    - can I get rid of .overlay entirely by doing the transformation at the fltk
+      level?  I can't think of a reason to have non-overlay attributes on an
+      overlay ruler.
+    * move events down move should clip events post the end of the block
+    - time step is still not right, it can get stuck on the wrong marks, or am
+      I accidentally in relative mode?
   - lots of ghc panics, do I get them in debug mode?
     try valgrind again
     * See if it happens after a rebuild. Yes

@@ -21,7 +21,7 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 
 import qualified Cmd.Create as Create
-import qualified Cmd.MakeRuler as MakeRuler
+import qualified Cmd.Meter as Meter
 import qualified Cmd.Serialize as Serialize
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
@@ -350,20 +350,26 @@ steps n = TimeStep.time_step n (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
 -- The end of the ruler should be at marks*dist.  An extra mark is created
 -- since marks start at 0.
 mkruler :: Int -> ScoreTime -> Ruler.Ruler
-mkruler marks dist = ruler [marklist (marks + 1) dist]
+mkruler marks dist = ruler [(Meter.meter, marklist (marks + 1) dist)]
 
+ruler :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
 ruler mlists =
-    Ruler.Ruler (Map.fromList mlists) ruler_bg True False False False
-ruler_bg = Color.rgb 1 0.85 0.5
-marklist n dist = (MakeRuler.meter_marklist,
-    Ruler.marklist (take n $ zip (Seq.range_ 0 dist) m44))
-m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
-major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
-minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
+    Ruler.Ruler (Map.fromList mlists) Config.ruler_bg True False False False
 
+marklist :: Int -> ScoreTime -> Ruler.Marklist
+marklist n dist = Ruler.marklist (take n $ zip (Seq.range_ 0 dist) m44)
+
+m44 :: [Ruler.Mark]
+m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
+    where
+    major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
+    minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
+
+mark :: String -> Ruler.Mark
 mark name = Ruler.Mark 0 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
 
--- Convert a ruler config for an overlay ruler.
+-- | Convert a ruler config for an overlay ruler.
+overlay_ruler :: Ruler.Ruler -> Ruler.Ruler
 overlay_ruler ruler = ruler
     { Ruler.ruler_show_names = False
     , Ruler.ruler_use_alpha = True
