@@ -264,7 +264,9 @@ configure = do
             ++ (if mode `elem` [Test, Profile] then ["-DTESTING"] else [])
             ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
         , cInclude = ["-I.", "-Ifltk", "-I" ++ bindingsInclude]
-        , fltkCc = fltkCs ++ if mode == Opt then ["-O2"] else []
+        -- Always compile c++ with optimization because I don't have much of
+        -- it and it compiles quickly.
+        , fltkCc = fltkCs ++ ["-O2"]
         , fltkLd = fltkLds
         , hcFlags = words "-I. -threaded -W -fwarn-tabs -pgml g++"
             ++ ["-F", "-pgmF", hspp]
