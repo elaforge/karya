@@ -4,7 +4,7 @@ UNSORTED
     * ruler track draw clips off a few too many pixels on the right of ruler
       labels
     * ruler changes should trigger a rederive
-    - undo after ruler changes doesn't seem to do anything
+    * undo after ruler changes doesn't seem to do anything
     * append doesn't do what I want, it should append the given selection no
       matter where it is, and renumber
     * The meter ruler works with [(ScoreTime, Rank)] rather than Marks, I sohuld
@@ -416,6 +416,7 @@ lilypond:
       splitting
   - make rhythm spelling work properly for non-duple meters
   - support compound meters, e.g. 5/4 as 3+2 or 2+3
+    TimeSignature needs to get fancier
   - get pitches right, and keep the enharmonics
   - manually add ly tweaks, could be done with special ly environ val
   - support for slurs, I think I write them as a NoteTransformer which

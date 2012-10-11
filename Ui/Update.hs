@@ -210,11 +210,12 @@ to_cmd (TrackUpdate track_id (TrackEvents s e)) =
     Just $ CmdTrackEvents track_id s e
 to_cmd (TrackUpdate track_id TrackAllEvents) =
     Just $ CmdTrackAllEvents track_id
+to_cmd (RulerUpdate ruler_id) = Just $ CmdRuler ruler_id
 to_cmd  _ = Nothing
 
 -- * functions
 
--- | Updates which purely manipulate the view are treated differently by undo.
+-- | Updates which purely manipulate the view are not recorded by undo.
 is_view_update :: UiUpdate -> Bool
 is_view_update update = case update of
     ViewUpdate _ view_update -> case view_update of
