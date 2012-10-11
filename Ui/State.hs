@@ -20,13 +20,14 @@
 -}
 module Ui.State (
     State(..), views, blocks, tracks, rulers, config
-    , empty, clear
+    , empty, create, clear
     -- * config
     , Config(..)
-    , namespace, project_dir, root, midi, global_transform, default_
+    , namespace, project_dir, meta, root, midi, global_transform, default_
+    , Meta(..), creation, notes
     , Default(..)
     , scale, key, instrument, tempo
-    , empty_config, empty_default
+    , empty_config, empty_meta, empty_default
     -- * other types
     , Pos(..), Track(..), TrackInfo(..)
     -- * StateT monad
@@ -114,8 +115,8 @@ module Ui.State (
     -- * verify
     , quick_verify, verify -- TODO should be done automatically by put
 ) where
-import Control.Arrow ((***))
 import qualified Control.Applicative as Applicative
+import Control.Arrow ((***))
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
@@ -128,6 +129,7 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Time as Time
 
 import Util.Control
 import qualified Util.Lens as Lens
@@ -194,6 +196,12 @@ empty = State {
     , state_config = empty_config
     }
 
+-- | Like 'empty', but the state is initialized with the current creation time.
+create :: IO State
+create = do
+    now <- Time.getCurrentTime
+    return $ (config#meta#creation #= now) empty
+
 -- | Clear out data that shouldn't be saved.
 clear :: State -> State
 clear state = state { state_views = Map.map clear_view (state_views state) }
@@ -215,10 +223,14 @@ instance DeepSeq.NFData State where
         `seq` DeepSeq.rnf tracks `seq` DeepSeq.rnf rulers
         `seq` config `seq` ()
 
+empty_meta :: Meta
+empty_meta = Meta (Time.UTCTime (Time.ModifiedJulianDay 0) 0) ""
+
 empty_config :: Config
 empty_config = Config
     { config_namespace = Id.unsafe_namespace "untitled"
     , config_project_dir = "save"
+    , config_meta = empty_meta
     , config_root = Nothing
     , config_midi = Instrument.config []
     , config_global_transform = ""

@@ -104,10 +104,17 @@ responder config msg_reader midi_interface setup_cmd lang_session
             midi_interface
             (StaticConfig.instrument_db config)
             (StaticConfig.global_scope config)
-    updater_state <- MVar.newMVar State.empty
-    state <- run_setup_cmd setup_cmd $
-        State config State.empty cmd_state lang_session loopback Sync.sync
-            updater_state
+    ui_state <- State.create
+    updater_state <- MVar.newMVar ui_state
+    state <- run_setup_cmd setup_cmd $ State
+        { state_static_config = config
+        , state_ui = ui_state
+        , state_cmd = cmd_state
+        , state_session = lang_session
+        , state_loopback = loopback
+        , state_sync = Sync.sync
+        , state_updater_state = updater_state
+        }
     respond_loop state msg_reader
 
 -- | A special run-and-sync that runs before the respond loop gets started.

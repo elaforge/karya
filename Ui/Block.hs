@@ -295,11 +295,11 @@ data View = View {
     } deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty View where
-    format (View block rect vis_track vis_time status tscroll zoom sels) =
+    format (View block rect track_pad time_pad status tscroll zoom sels) =
         Pretty.record_title "View"
             [ ("block", Pretty.format block)
             , ("rect", Pretty.format rect)
-            , ("visible", Pretty.format (vis_track, vis_time))
+            , ("padding", Pretty.format (track_pad, time_pad))
             , ("status", Pretty.format status)
             , ("scroll/zoom", Pretty.format (tscroll, zoom))
             , ("selections", Pretty.format sels)

@@ -22,7 +22,8 @@ import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
-import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
+import Util.Serialize
+       (Serialize, get, put, get_tag, put_tag, bad_tag)
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
@@ -123,27 +124,45 @@ instance Serialize State.State where
             _ -> Serialize.bad_version "State.State" v
 
 instance Serialize State.Config where
-    put (State.Config a b c d e f) = Serialize.put_version 1
-        >> put a >> put b >> put c >> put d >> put e >> put f
-    get = do
-        v <- Serialize.get_version
-        case v of
-            0 -> do
-                ns :: Id.Namespace <- get
-                dir :: String <- get
-                root :: Maybe BlockId <- get
-                midi :: Instrument.Config <- get
-                defaults :: State.Default <- get
-                return $ State.Config ns dir root midi [] defaults
-            1 -> do
-                ns :: Id.Namespace <- get
-                dir :: String <- get
-                root :: Maybe BlockId <- get
-                midi :: Instrument.Config <- get
-                transform :: String <- get
-                defaults :: State.Default <- get
-                return $ State.Config ns dir root midi transform defaults
-            _ -> Serialize.bad_version "State.Config" v
+    put (State.Config a b c d e f g) = Serialize.put_version 2
+        >> put a >> put b >> put c >> put d >> put e >> put f >> put g
+    get = Serialize.get_version >>= \v -> case v of
+        0 -> do
+            ns :: Id.Namespace <- get
+            dir :: String <- get
+            root :: Maybe BlockId <- get
+            midi :: Instrument.Config <- get
+            defaults :: State.Default <- get
+            return $ State.Config ns dir State.empty_meta root midi
+                [] defaults
+        1 -> do
+            ns :: Id.Namespace <- get
+            dir :: String <- get
+            root :: Maybe BlockId <- get
+            midi :: Instrument.Config <- get
+            transform :: String <- get
+            defaults :: State.Default <- get
+            return $ State.Config ns dir State.empty_meta root midi
+                transform defaults
+        2 -> do
+            ns :: Id.Namespace <- get
+            dir :: String <- get
+            meta :: State.Meta <- get
+            root :: Maybe BlockId <- get
+            midi :: Instrument.Config <- get
+            transform :: String <- get
+            defaults :: State.Default <- get
+            return $ State.Config ns dir meta root midi transform defaults
+        _ -> Serialize.bad_version "State.Config" v
+
+instance Serialize State.Meta where
+    put (State.Meta a b) = Serialize.put_version 0 >> put a >> put b
+    get = Serialize.get_version >>= \v -> case v of
+        0 -> do
+            creation :: Time.UTCTime <- get
+            notes :: String <- get
+            return $ State.Meta creation notes
+        _ -> Serialize.bad_version "State.Meta" v
 
 instance Serialize State.Default where
     put (State.Default a b c d) =

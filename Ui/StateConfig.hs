@@ -6,6 +6,7 @@
 module Ui.StateConfig where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
+import qualified Data.Time as Time
 
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
@@ -25,6 +26,7 @@ data Config = Config {
     config_namespace :: !Id.Namespace
     -- | Save into this directory by default.
     , config_project_dir :: !String
+    , config_meta :: !Meta
     -- | Derivation can start from any block, but it's useful to know which
     -- block represents the entire piece.  This way, given a position on some
     -- block I can determine where in the piece it lies, if anywhere.  This is
@@ -41,11 +43,21 @@ data Config = Config {
 namespace = Lens.lens config_namespace (\v r -> r { config_namespace = v })
 project_dir =
     Lens.lens config_project_dir (\v r -> r { config_project_dir = v })
+meta = Lens.lens config_meta (\v r -> r { config_meta = v })
 root = Lens.lens config_root (\v r -> r { config_root = v })
 midi = Lens.lens config_midi (\v r -> r { config_midi = v })
 global_transform = Lens.lens config_global_transform
     (\v r -> r { config_global_transform = v })
 default_ = Lens.lens config_default (\v r -> r { config_default = v })
+
+-- | Extra data that doesn't have any effect on the score.
+data Meta = Meta {
+    meta_creation :: !Time.UTCTime
+    , meta_notes :: !String
+    } deriving (Eq, Read, Show, Generics.Typeable)
+
+creation = Lens.lens meta_creation (\v r -> r { meta_creation = v })
+notes = Lens.lens meta_notes (\v r -> r { meta_notes = v })
 
 -- | Initial values for derivation.
 data Default = Default {
@@ -68,15 +80,22 @@ instrument = Lens.lens default_instrument (\v r -> r { default_instrument = v })
 tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 
 instance Pretty.Pretty Config where
-    format (Config namespace dir root midi global_transform default_) =
+    format (Config namespace dir meta root midi global_transform default_) =
         Pretty.record_title "Config"
             [ ("namespace", Pretty.format namespace)
             , ("project_dir", Pretty.format dir)
+            , ("meta", Pretty.format meta)
             , ("root", Pretty.format root)
             , ("midi", Pretty.format midi)
             , ("global_transform", Pretty.format global_transform)
             , ("default", Pretty.format default_)
             ]
+
+instance Pretty.Pretty Meta where
+    format (Meta creation notes) = Pretty.record_title "Meta"
+        [ ("creation", Pretty.text (show creation))
+        , ("notes", Pretty.text notes)
+        ]
 
 instance Pretty.Pretty Default where
     format (Default scale key instrument tempo) =

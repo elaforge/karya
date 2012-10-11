@@ -1,6 +1,7 @@
 -- | Lang cmds providing general UI state operations.
 module Cmd.Lang.LState where
 import qualified Control.Monad.Trans as Trans
+import qualified Data.Time as Time
 import qualified System.IO as IO
 
 import Util.Control
@@ -44,6 +45,20 @@ set_global_transform = State.modify . (State.config#State.global_transform #=)
 
 get_global_transform :: Cmd.CmdL String
 get_global_transform = State.config#State.global_transform <#> State.get
+
+-- ** meta
+
+get_meta :: Cmd.CmdL State.Meta
+get_meta = State.config#State.meta <#> State.get
+
+set_creation_time :: Cmd.CmdL ()
+set_creation_time = do
+    now <- Trans.liftIO Time.getCurrentTime
+    State.modify $ State.config#State.meta#State.creation #= now
+
+set_notes :: String -> Cmd.CmdL ()
+set_notes = State.modify . (State.config#State.meta#State.notes #=)
+
 
 -- * transform
 
