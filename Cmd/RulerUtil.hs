@@ -73,7 +73,9 @@ local_modify block_id ruler_id f = do
             State.modify_ruler ruler_id f
             return ruler_id
         _ -> do
-            new_ruler_id <- copy (ruler_id_for_block block_id ruler_id) ruler_id
+            -- Give the ruler the same name as the block, since it's now local
+            -- to that block.
+            new_ruler_id <- copy (Id.unpack_id block_id) ruler_id
             State.modify_ruler new_ruler_id f
             sequence_ $ do
                 (rblock_id, tracks) <- blocks
@@ -81,16 +83,6 @@ local_modify block_id ruler_id f = do
                 (tracknum, _) <- tracks
                 return $ State.set_track_ruler block_id tracknum new_ruler_id
             return new_ruler_id
-
--- | Make a RulerId with the same name as the BlockId.
---
--- TODO Id should have a concat_id so I don't have to use unsafe_id
-ruler_id_for_block :: BlockId -> RulerId -> Id.Id
-ruler_id_for_block block_id ruler_id =
-    Id.unsafe_id ns (block_name ++ "." ++ ruler_name)
-    where
-    block_name = Id.ident_name block_id
-    (ns, ruler_name) = Id.un_id (Id.unpack_id ruler_id)
 
 copy :: (State.M m) => Id.Id -> RulerId -> m RulerId
 copy ident ruler_id = State.create_ruler ident =<< State.get_ruler ruler_id
