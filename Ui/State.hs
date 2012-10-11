@@ -899,7 +899,7 @@ set_track_ruler :: (M m) => BlockId -> TrackNum -> RulerId -> m ()
 set_track_ruler block_id tracknum ruler_id = do
     _ <- get_ruler ruler_id -- Throw if it doesn't exist.
     modify_block_track block_id tracknum $
-        Block.modify_id (Block.set_rid ruler_id)
+        Block.modify_id (Block.set_ruler_id ruler_id)
 
 -- | Merge the @from@ tracknum into the @to@ tracknum and collapse @from@.
 merge_track :: (M m) => BlockId -> TrackNum -> TrackNum -> m ()
@@ -936,7 +936,8 @@ replace_ruler_id block_id from to = modify_block block_id $ \block ->
     replace_track track = track
         { Block.tracklike_id = replace (Block.tracklike_id track) }
     replace tlike_id
-        | Block.ruler_id_of tlike_id == Just from = Block.set_rid to tlike_id
+        | Block.ruler_id_of tlike_id == Just from =
+            Block.set_ruler_id to tlike_id
         | otherwise = tlike_id
 
 -- | Resolve a TracklikeId to a Tracklike.
@@ -1274,7 +1275,8 @@ destroy_ruler ruler_id = do
     blocks <- tracks_with_ruler_id ruler_id
     forM_ blocks $ \(block_id, tracks) -> do
         let tracknums = map fst tracks
-            setr i = if i `elem` tracknums then Block.set_rid no_ruler else id
+            setr i = if i `elem` tracknums
+                then Block.set_ruler_id no_ruler else id
             deruler (i, track) = Block.modify_id (setr i) track
         modify_block block_id $ \block -> block { Block.block_tracks =
             map deruler (Seq.enumerate (Block.block_tracks block)) }

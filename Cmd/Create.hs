@@ -494,11 +494,8 @@ new_ruler block_id name r = do
     return ruler_id
 
 set_block_ruler :: (State.M m) => RulerId -> BlockId -> m ()
-set_block_ruler ruler_id block_id = Transform.tracks block_id set
-    where
-    set (Block.TId tid _) = Block.TId tid ruler_id
-    set (Block.RId _) = Block.RId ruler_id
-    set t = t
+set_block_ruler ruler_id block_id =
+    Transform.tracks block_id (Block.set_ruler_id ruler_id)
 
 -- ** util
 

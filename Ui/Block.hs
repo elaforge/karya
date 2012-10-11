@@ -239,10 +239,10 @@ ruler_id_of _ = Nothing
 ruler_ids_of :: [TracklikeId] -> [RulerId]
 ruler_ids_of = mapMaybe ruler_id_of
 
-set_rid :: RulerId -> TracklikeId -> TracklikeId
-set_rid rid (TId tid _) = TId tid rid
-set_rid rid (RId _) = RId rid
-set_rid _ t = t
+set_ruler_id :: RulerId -> TracklikeId -> TracklikeId
+set_ruler_id rid (TId tid _) = TId tid rid
+set_ruler_id rid (RId _) = RId rid
+set_ruler_id _ t = t
 
 data Tracklike =
     T Track.Track Ruler.Ruler
