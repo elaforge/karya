@@ -9,6 +9,7 @@ import Util.Test
 import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
@@ -75,6 +76,19 @@ test_checkpoint = do
         (Right (state4, []))
     io_equal (SaveGit.load_from repo commit1 (Just commit4) state1)
         (Right (state4, [update 1 2 4]))
+
+test_ruler_checkpoint = do
+    repo <- new_repo
+    states <- checkpoint_sequence repo
+        [ ("create", mkview [("1", [])])
+        , (,) "destroy" $ do
+            State.modify_ruler UiTest.default_ruler_id (const Ruler.no_ruler)
+            State.destroy_ruler UiTest.default_ruler_id
+        ]
+    -- Mostly just verify that when a ruler is modified and deleted the update
+    -- will be cancelled by 'Ui.Diff.cancel_updates' and won't crash or log
+    -- here.  Of course I can't test for the log :/
+    equal (length states) 2
 
 test_more_checkpoints = check_sequence
     [ mkview [("1", [])]

@@ -14,6 +14,7 @@ import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.Git.Git2 as Git
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -151,10 +152,13 @@ checkpoint repo hist@(SaveHistory state prev_commit updates names) =
             Git.init repo
             Right . fst <$> do_save repo hist
         Just prev_commit -> do
-            -- TODO disable event saving because loading isn't implemented
-            let (errs, mods) = dump_diff False state
+            let (warns, mods) = dump_diff False state
                     (filter checkpoint_update updates)
-            if not (null errs) then return (Left (Seq.join ", " errs)) else do
+            unless (null warns) $
+                Log.warn $ "ignored updates for nonexistent "
+                    ++ Seq.join ", " warns
+                    ++ "; this probably means 'Ui.Diff.cancel_updates didn't"
+                    ++ " do it's job"
             last_tree <- Git.commit_tree <$> Git.read_commit repo prev_commit
             tree <- Git.modify_tree repo last_tree mods
             commit <- commit_tree repo tree (Just prev_commit) $
@@ -178,6 +182,8 @@ commit_tree repo tree maybe_parent desc = do
 
 -- ** events update
 
+-- | TODO disabled event because loading isn't implemented.  Should probably
+-- just delete it all.
 dump_events :: State.State -> TrackId -> ScoreTime -> ScoreTime
     -> Git.Modification
 dump_events state track_id start end =
@@ -308,6 +314,7 @@ dump_map m = do
 -- extras.
 dump_diff :: Bool -> State.State -> [Update.UiUpdate]
     -> ([String], [Git.Modification])
+    -- ^ warnings for updates to values that no longer exist
 dump_diff track_dir state =
     -- I use Left "" as a nop, so filter those out.
     first (filter (not . null)) . Seq.partition_either . map mk
@@ -317,12 +324,11 @@ dump_diff track_dir state =
         Update.BringToFront -> Left ""
         _ | Just view <- Map.lookup view_id (State.state_views state) ->
             Right $ Git.Add (id_to_path view_id) (Serialize.encode view)
-        _ -> Left $ "update for nonexistent view_id: " ++ Pretty.pretty u
+        _ -> Left $ "view_id: " ++ Pretty.pretty u
     mk u@(Update.BlockUpdate block_id _)
         | Just block <- Map.lookup block_id (State.state_blocks state) =
             Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
-        | otherwise = Left $ "update for nonexistent block_id: "
-            ++ Pretty.pretty u
+        | otherwise = Left $ "block_id: " ++ Pretty.pretty u
     mk u@(Update.TrackUpdate track_id update)
         | Just track <- Map.lookup track_id (State.state_tracks state) =
             case update of
@@ -330,13 +336,11 @@ dump_diff track_dir state =
                     Right $ dump_events state track_id start end
                 _ -> Right $
                     Git.Add (id_to_path track_id) (Serialize.encode track)
-        | otherwise = Left $ "update for nonexistent track_id: "
-            ++ Pretty.pretty u
+        | otherwise = Left $ "track_id: " ++ Pretty.pretty u
     mk (Update.RulerUpdate ruler_id)
         | Just ruler <- Map.lookup ruler_id (State.state_rulers state) =
             Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
-        | otherwise = Left $ "update for nonexistent ruler_id: "
-            ++ Pretty.pretty ruler_id
+        | otherwise = Left $ "ruler_id: " ++ Pretty.pretty ruler_id
     mk (Update.StateUpdate update) = case update of
         Update.Config config ->
             Right $ Git.Add "config" (Serialize.encode config)
@@ -415,7 +419,7 @@ undump_diff state = foldM apply (state, [])
         ["rulers", ns, name] -> do
             (state_to, updates) <- add ns name Types.RulerId State.rulers
             rid <- path_to_id Types.RulerId ns name
-            return (state_to, [Update.CmdRuler rid] ++ updates)
+            return (state_to, Update.CmdRuler rid : updates)
         ["config"] -> do
             val <- decode path bytes
             return ((State.config #= val) state, updates)

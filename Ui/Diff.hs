@@ -10,6 +10,7 @@ module Ui.Diff (
 ) where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -65,11 +66,35 @@ diff cmd_updates st1 st2 = postproc $ run $ do
     -- Here's where the three different kinds of updates come together.
     -- CmdUpdates are converted into UiUpdates, and then all of them converted
     -- to DisplayUpdates.
-    postproc (ui_updates, display_updates) = (ui_updates2,
+    postproc (ui_updates, display_updates) = (cancel_updates ui_updates2,
         display_updates ++ to_display (merge_updates st2 ui_updates2))
         where
         ui_updates2 = map Update.to_ui cmd_updates ++ ui_updates
         to_display = mapMaybe Update.to_display
+
+-- | DestroyView, DestroyBlock, DestroyTrack, and DestroyRuler cancel out
+-- previous updates.
+--
+-- This isn't technically necessary since callers should be robust against that,
+-- but cancelling means less work for them and their warnings are more likely
+-- to indicate a real problem.
+cancel_updates :: [Update.UiUpdate] -> [Update.UiUpdate]
+cancel_updates updates = map fst $ filter (not . destroyed) $
+    zip updates (drop 1 (List.tails updates))
+    where
+    destroyed (update, future) = case update of
+        Update.ViewUpdate vid view -> case view of
+            Update.DestroyView -> False
+            _ -> any (== Update.ViewUpdate vid Update.DestroyView) future
+        Update.BlockUpdate bid _ -> future_has (Update.DestroyBlock bid)
+        Update.TrackUpdate tid _ -> future_has (Update.DestroyTrack tid)
+        Update.RulerUpdate rid -> future_has (Update.DestroyRuler rid)
+        Update.StateUpdate update -> case update of
+            Update.CreateBlock bid _ -> future_has (Update.DestroyBlock bid)
+            Update.CreateTrack tid _ -> future_has (Update.DestroyTrack tid)
+            Update.CreateRuler rid _ -> future_has (Update.DestroyRuler rid)
+            _ -> False
+        where future_has destroy = any (== Update.StateUpdate destroy) future
 
 -- | Given the track updates, figure out which other tracks have those tracks
 -- merged and should also be updated.

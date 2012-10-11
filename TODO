@@ -1,4 +1,6 @@
 UNSORTED
+  * error committing history: checkpoint:
+    update for nonexistent ruler_id: (rid "bloom/meter5-4.overlay")
   - repl should run with NoMonomorphismRestriction
   * rename Block.set_rid to set_ruler_id
   rulers
