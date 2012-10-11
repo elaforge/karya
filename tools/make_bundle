@@ -23,10 +23,12 @@ if [[ -n $default_cores ]]; then
 fi
 
 # Make a shell script that runs the bundled executable
+# Use $(basename $0) internally so you can rename it.
 cat >"$binpath.run" <<EOF
 #!/bin/sh
 dir=\$(dirname "\$0")
-exec "\$dir/$name.app/Contents/MacOS/$name" $rts_flags "\$@"
+bin=\$(basename "\$0")
+exec "\$dir/\$bin.app/Contents/MacOS/$name" $rts_flags "\$@"
 EOF
 chmod +x "$binpath.run"
 
