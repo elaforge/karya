@@ -23,7 +23,10 @@
     - TODO: inspect a meter
 -}
 module Cmd.Lang.LRuler where
+import qualified Data.Map as Map
+
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -33,6 +36,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
 import qualified Cmd.Meter as Meter
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.RulerUtil as RulerUtil
@@ -41,8 +45,39 @@ import qualified Cmd.Selection as Selection
 import Types
 
 
-
 -- * general purpose
+
+-- | Destroy all unrefereced rulers, and return their now-invalid RulerIds.
+gc :: (State.M m) => m [RulerId]
+gc = do
+    ruler_ids <- Create.orphan_rulers
+    mapM_ State.destroy_ruler ruler_ids
+    return ruler_ids
+
+-- | Blocks that contain the given ruler.
+blocks_of :: (State.M m) => RulerId -> m [BlockId]
+blocks_of = fmap (map fst) . State.tracks_with_ruler_id
+
+-- | Group together rulers that are the same, replace all the duplicates with
+-- the first ruler in each group, then gc away the duplicates.
+unify_rulers :: Cmd.CmdL [[RulerId]]
+unify_rulers = do
+    groups <- Seq.group_eq snd <$>
+        State.gets (Map.toAscList . State.state_rulers)
+    mapM_ unify groups
+    gc
+    return $ map (map fst) groups
+    where
+    unify ((rid, _) : dups) = forM_ (map fst dups) $ \dup_rid ->
+        replace_ruler_id dup_rid rid
+    unify _ = return ()
+
+-- | Replace all occurrences of one RulerId with another.
+replace_ruler_id :: (State.M m) => RulerId -> RulerId -> m ()
+replace_ruler_id old new = do
+    blocks <- State.tracks_with_ruler_id old
+    forM_ (map fst blocks) $ \block_id ->
+        State.replace_ruler_id block_id old new
 
 -- | Double the meter of the current block. You can then trim it down to size.
 double :: Cmd.CmdL ()

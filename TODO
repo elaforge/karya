@@ -1,4 +1,6 @@
 UNSORTED
+  - repl should run with NoMonomorphismRestriction
+  - rename Block.set_rid to set_ruler_id
   rulers
     * LRuler.double shouldn't make a new 0 rank mark in the middle
     * ruler track draw clips off a few too many pixels on the right of ruler

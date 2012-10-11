@@ -189,18 +189,26 @@ merge_asc_lists key = foldr go []
 -- after @key@ is applied to them.  List is returned in sorted order.
 --
 -- The sublists are never null.
-keyed_group_on :: (Ord b) => (a -> b) -> [a] -> [(b, [a])]
+keyed_group_on :: (Ord key) => (a -> key) -> [a] -> [(key, [a])]
 keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
--- function instead of equality.  List is returned in sorted order.
+-- function instead of equality.  The list is returned in sorted order.
 --
 -- The sublists are never null.
-group_on :: (Ord b) => (a -> b) -> [a] -> [[a]]
+group_on :: (Ord key) => (a -> key) -> [a] -> [[a]]
 group_on key = group key . sort_on key -- TODO faster to use a map?
 
--- | This is just 'List.groupBy' except with a key function.
-group :: (Ord b) => (a -> b) -> [a] -> [[a]]
+-- | Like 'group_on', but only requires Eq, not Ord, and is O(n^2) rather than
+-- O(n log n).  The group elements appear in their original order.
+group_eq :: (Eq key) => (a -> key) -> [a] -> [[a]]
+group_eq _ [] = []
+group_eq key (x:xs) = (x : equal) : group_eq key inequal
+    where (equal, inequal) = List.partition ((== key x) . key) xs
+
+-- | This is just 'List.groupBy' except with a key function.  It only groups
+-- adjacent elements.
+group :: (Eq key) => (a -> key) -> [a] -> [[a]]
 group key = List.groupBy ((==) `on` key)
 
 -- | Pair each element with the following element.  The last element is paired

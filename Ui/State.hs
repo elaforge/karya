@@ -84,10 +84,11 @@ module Ui.State (
     , modify_track_flags
     , set_track_ruler
     , merge_track, unmerge_track, set_merged_tracks
+    , replace_ruler_id
     , get_tracklike
 
     -- * track
-    , get_track, lookup_track
+    , get_track, lookup_track, all_track_ids
     , create_track, destroy_track
     , get_track_title, set_track_title, modify_track_title
     , set_track_bg
@@ -101,7 +102,7 @@ module Ui.State (
     , track_event_end
 
     -- * ruler
-    , get_ruler, lookup_ruler
+    , get_ruler, lookup_ruler, all_ruler_ids
     , create_ruler, destroy_ruler, modify_ruler
     , ruler_of, rulers_of
     , tracks_with_ruler_id
@@ -924,6 +925,20 @@ set_merged_tracks block_id tracknum merged =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_merged = merged }
 
+-- | Replace one RulerId with another on the given block.
+--
+-- It's more convenient to do here than removing and inserting tracks, and easy
+-- since there's no "one per block" invariant to maintain with ruler ids.
+replace_ruler_id :: (M m) => BlockId -> RulerId -> RulerId -> m ()
+replace_ruler_id block_id from to = modify_block block_id $ \block ->
+    block { Block.block_tracks = map replace_track (Block.block_tracks block) }
+    where
+    replace_track track = track
+        { Block.tracklike_id = replace (Block.tracklike_id track) }
+    replace tlike_id
+        | Block.ruler_id_of tlike_id == Just from = Block.set_rid to tlike_id
+        | otherwise = tlike_id
+
 -- | Resolve a TracklikeId to a Tracklike.
 get_tracklike :: (M m) => Block.TracklikeId -> m Block.Tracklike
 get_tracklike track = case track of
@@ -1031,6 +1046,9 @@ get_track track_id = get >>= lookup_id track_id . state_tracks
 
 lookup_track :: (M m) => TrackId -> m (Maybe Track.Track)
 lookup_track track_id = get >>= return . Map.lookup track_id . state_tracks
+
+all_track_ids :: (M m) => m [TrackId]
+all_track_ids = gets (Map.keys . state_tracks)
 
 -- | Insert the given track with the given ID.
 --
@@ -1235,6 +1253,9 @@ get_ruler ruler_id
 
 lookup_ruler :: (M m) => RulerId -> m (Maybe Ruler.Ruler)
 lookup_ruler ruler_id = get >>= return . Map.lookup ruler_id . state_rulers
+
+all_ruler_ids :: (M m) => m [RulerId]
+all_ruler_ids = gets (Map.keys . state_rulers)
 
 -- | Insert the given ruler with the given ID.
 --
