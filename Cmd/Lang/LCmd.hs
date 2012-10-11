@@ -36,3 +36,8 @@ set_play_step = do
 set_play_multiplier :: Double -> Cmd.CmdL ()
 set_play_multiplier d = Cmd.modify_play_state $ \st ->
     st { Cmd.state_play_multiplier = RealTime.seconds d }
+
+-- * undo
+
+get_history :: Cmd.CmdL Cmd.History
+get_history = Cmd.gets Cmd.state_history

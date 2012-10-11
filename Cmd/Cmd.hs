@@ -667,16 +667,18 @@ empty_history_entry :: State.State -> HistoryEntry
 empty_history_entry state = HistoryEntry state [] [] Nothing
 
 instance Pretty.Pretty History where
-    format (History past present future _undo_redo) =
+    format (History past present future last_cmd) =
         Pretty.record_title "History"
             [ ("past", Pretty.format past)
             , ("present", Pretty.format present)
             , ("future", Pretty.format future)
+            , ("last_cmd", Pretty.text (show last_cmd))
             ]
 
 instance Pretty.Pretty HistoryEntry where
-    format (HistoryEntry _ _ commands commit) =
+    format (HistoryEntry _state updates commands commit) =
         Pretty.format commit Pretty.<+> Pretty.text_list commands
+        Pretty.<+> Pretty.format updates
 
 
 -- *** modifier

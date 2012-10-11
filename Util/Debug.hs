@@ -1,6 +1,6 @@
 module Util.Debug (
     -- * forced by evaluation
-    trace, tracep, traces
+    trace, tracep, traces, traceps
     , tracef, trace_ret
     -- * forced by monad
     , traceM, tracepM, tracesM
@@ -27,6 +27,10 @@ tracep msg val = Trace.trace (with_msg msg (Pretty.formatted val)) val
 -- | Print a showable value.
 traces :: String -> a -> a
 traces =  Trace.trace . (prefix++)
+
+-- | Pretty print an arbitrary value.
+traceps :: (Pretty.Pretty b) => String -> b -> a -> a
+traceps msg traced val = traces (with_msg msg (Pretty.formatted traced)) val
 
 -- | Print a value after applying a function to it.
 tracef :: (Show b) => (a -> b) -> a -> a

@@ -182,6 +182,9 @@ instance Pretty.Pretty StateUpdate where
         DestroyRuler ruler_id -> Pretty.constructor "DestroyRuler"
             [Pretty.format ruler_id]
 
+instance Pretty.Pretty CmdUpdate where
+    pretty = show
+
 -- | Convert a UiUpdate to a DisplayUpdate by stripping out all the UiUpdate
 -- parts.
 to_display :: UiUpdate -> Maybe DisplayUpdate

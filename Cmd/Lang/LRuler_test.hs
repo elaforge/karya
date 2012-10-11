@@ -29,7 +29,7 @@ test_extract = do
     res <- CmdTest.run_ui_io ui_state $ LRuler.extract_from bid tid
     equal (e_ruler bid (CmdTest.result_ui_state res))
         [ (0, 2.5), (1, 2.5), (1, 2.5), (1, 2.5)
-        , (0, 2), (1, 2), (1, 2)
+        , (1, 2), (1, 2), (1, 2)
         ]
 
 e_ruler :: BlockId -> State.State -> Meter.Meter

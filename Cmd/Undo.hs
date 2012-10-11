@@ -172,8 +172,8 @@ merge_config new old = new
 merge_view :: Map.Map ViewId Block.View -> ViewId -> Block.View -> Block.View
 merge_view old_views view_id new = Map.findWithDefault new view_id old_views
 
-merge_block :: Map.Map BlockId Block.Block
-    -> BlockId -> Block.Block -> Block.Block
+merge_block :: Map.Map BlockId Block.Block -> BlockId -> Block.Block
+    -> Block.Block
 merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
     Nothing -> new
     Just old -> new { Block.block_config = Block.block_config old }
@@ -188,9 +188,8 @@ keep_clip clip_ns old new =
 
 -- * responder support
 
--- Undo has a hook directly in the responder, since it needs to be run after
+-- | Undo has a hook directly in the responder, since it needs to be run after
 -- cmds.
-
 maintain_history :: State.State -> Cmd.State -> [Update.UiUpdate]
     -> IO Cmd.State
 maintain_history ui_state cmd_state updates = do
@@ -329,4 +328,4 @@ merge_into_suppressed (Just (SaveGit.SaveHistory _ _ updates1 names1))
     SaveGit.SaveHistory state2 commit2 (updates1 ++ updates2) names1
 
 should_record :: [Update.UiUpdate] -> Bool
-should_record = any (not . Update.is_view_update)
+should_record = not . all Update.is_view_update
