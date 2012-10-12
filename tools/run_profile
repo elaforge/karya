@@ -12,7 +12,7 @@ prefixes=("$@")
 # Take flags from $heap and split on spaces.
 # This way you can pass 'hc hbdrag', (-hc -hbdrag) will be passed, and the
 # output will be named hc_hbdrag.*
-heap_flags=(${=${heap:-hm}})
+heap_flags=(${=${heap:-hc}})
 
 if [[ $prefixes[1] = seq ]]; then
     run_profile=(build/profile/seq $prefixes[2,-1])
@@ -27,9 +27,6 @@ fi
 
 basename=$(basename $run_profile[1])
 out=prof
-if whence ps2pdf; then
-    has_ps2pdf=t
-fi
 
 flags=(
     # time profiling
@@ -59,15 +56,13 @@ for prof in $profiles; do
             | tee $basename.stdout
     fi
 
-    for suf in gc hp aux tix stdout; do
+    for suf in gc hp aux tix stdout prof; do
         if [[ -e $basename.$suf ]]; then
             mv $basename.$suf $stem.$suf
         fi
     done
-    runghc tools/Columnize.hs <$basename.prof >$stem.prof
-    rm $basename.prof
     if [[ -e $stem.hp ]]; then
-        if [[ -n $has_ps2pdf ]]; then
+        if whence ps2pdf; then
             echo $stem.pdf
             hp2ps -b -c <$stem.hp | ps2pdf - - >$stem.pdf
         else
