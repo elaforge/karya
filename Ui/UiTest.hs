@@ -1,6 +1,7 @@
 module Ui.UiTest where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Rect as Rect
@@ -131,8 +132,11 @@ mkblock (block_name, tracks) = do
     (ruler_id, block_name) <- case Seq.drop_suffix "=ruler" block_name of
         (block_name, True) -> do
             let len = event_end tracks
-            ruler_id <- State.create_ruler
-                (Id.unsafe_id test_ns ("r" ++ show len)) (mkruler len 1)
+                rid = Id.unsafe_id test_ns ("r" ++ show len)
+            ruler_id <- ifM
+                (Maybe.isJust <$> State.lookup_ruler (Types.RulerId rid))
+                (return (Types.RulerId rid))
+                (State.create_ruler rid (mkruler len 1))
             return (ruler_id, block_name)
         (block_name, False) -> do
             ruler_id <- maybe
