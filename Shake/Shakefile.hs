@@ -264,9 +264,7 @@ configure = do
             ++ (if mode `elem` [Test, Profile] then ["-DTESTING"] else [])
             ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
         , cInclude = ["-I.", "-Ifltk", "-I" ++ bindingsInclude]
-        -- Always compile c++ with optimization because I don't have much of
-        -- it and it compiles quickly.
-        , fltkCc = fltkCs ++ ["-O2"]
+        , fltkCc = fltkCs
         , fltkLd = fltkLds
         , hcFlags = words "-I. -threaded -W -fwarn-tabs -pgml g++"
             ++ ["-F", "-pgmF", hspp]
@@ -288,7 +286,10 @@ configure = do
         , ghciFlags = libs ++ ["Util/Git/libgit_wrappers.cc"]
         }
     setCcFlags flags = flags
-        { ccFlags = fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall"]
+        { ccFlags =
+            -- Always compile c++ with optimization because I don't have much
+            -- of it and it compiles quickly.
+            fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall", "-O2"]
         }
     libs = ["-lgit2"]
     osFlags = case System.Info.os of
