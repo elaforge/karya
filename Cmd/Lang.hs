@@ -25,6 +25,7 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -34,6 +35,7 @@ import qualified Ui.State as State
 import qualified Cmd.Lang.Fast as Fast
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Cmd.SaveGit as SaveGit
 
 #include "hsconfig.h"
 #if defined(TESTING)
@@ -76,18 +78,19 @@ cmd_language session lang_dirs msg = do
         -- 'interpret' catches errors in 'merge_cmd_state'
         Nothing -> Trans.liftIO $ LangImpl.interpret session
             local_modules ui_state cmd_state text
-    response <- run_cmdio (Cmd.name ("repl: " ++ text) cmd)
+    (response, success) <- run_cmdio (Cmd.name ("repl: " ++ text) cmd)
     Trans.liftIO $ catch_io_errors $ do
         unless (null response) $
             IO.hPutStrLn response_hdl response
         IO.hClose response_hdl
+    when success (write_cmd text)
     return $ if response == Fast.magic_quit_string then Cmd.Quit else Cmd.Done
     where
     catch_io_errors = Exception.handle $ \(exc :: IOError) ->
         Log.warn $ "caught exception from socket write: " ++ show exc
 
 -- | Run the Cmd under an IO exception handler.
-run_cmdio :: Cmd.CmdT IO String -> Cmd.CmdT IO String
+run_cmdio :: Cmd.CmdT IO String -> Cmd.CmdT IO (String, Bool)
 run_cmdio cmd = do
     ui_state <- State.get
     cmd_state <- Cmd.get
@@ -102,16 +105,16 @@ run_cmdio cmd = do
         return (cmd_state, midi, result)
     case result of
         Left (exc :: Exception.SomeException) ->
-            return $ "IO exception: " ++ show exc
+            return ("IO exception: " ++ show exc, False)
         Right (cmd_state, midi, result) -> case result of
-            Left err -> return $ "State error: " ++ Pretty.pretty err
+            Left err -> return ("State error: " ++ Pretty.pretty err, False)
             Right (val, ui_state, updates) -> do
                 mapM_ (uncurry Cmd.midi) midi
                 Cmd.put cmd_state
                 -- Should be safe, because I'm writing the updates.
                 State.unsafe_put ui_state
                 mapM_ State.update updates
-                return val
+                return (val, True)
 
 get_local_modules :: FilePath -> Cmd.CmdT IO [String]
 get_local_modules lang_dir = do
@@ -127,3 +130,8 @@ get_local_modules lang_dir = do
 
 is_hs :: FilePath -> Bool
 is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
+
+write_cmd :: String -> Cmd.CmdT IO ()
+write_cmd text = do
+    save_file <- SaveGit.save_file False <$> State.get
+    Trans.liftIO $ IO.appendFile (save_file ++ ".repl") (text ++ "\n")

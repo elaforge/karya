@@ -11,6 +11,7 @@ import qualified Util.Seq as Seq
 import qualified App.SendCmd as SendCmd
 
 
+settings :: Haskeline.Settings IO
 settings = Haskeline.defaultSettings
     { Haskeline.historyFile = Just "repl.history"
     , Haskeline.autoAddHistory = True

@@ -1,7 +1,11 @@
 UNSORTED
+  - I should make a dir for each save so I can put the state, .git, _ly, and
+    repl history into it
   * error committing history: checkpoint:
     update for nonexistent ruler_id: (rid "bloom/meter5-4.overlay")
-  - repl should run with NoMonomorphismRestriction
+  / repl should run with NoMonomorphismRestriction
+    Actually it doesn't make a difference because the repl doesn't bind
+    anything.
   * rename Block.set_rid to set_ruler_id
   rulers
     * LRuler.double shouldn't make a new 0 rank mark in the middle
@@ -29,8 +33,14 @@ UNSORTED
   - lots of ghc panics, do I get them in debug mode?
     try valgrind again
     * See if it happens after a rebuild. Yes
-    - See if it happens without LangGhc.
+    * See if it happens without LangGhc. Yes.
     + See if it happens in debug mode.
+    + See if -O2 debug binary crashes.
+    - See if -O0 opt binary crashes.
+    It seems likely due to FFI, perhaps a bug in C++.  Optimization could be
+    making some change that makes it more sensitive to the bug.  Or it could
+    be optimization in the c++.
+
   - get rid of ld -r hack in shakefile, since new ghcs do that automatically
   * J on a note event with duration makes it 0 dur
   * cmd to clip a ruler to the selection, or double a ruler
@@ -172,7 +182,6 @@ UNSORTED
     error msg when an exception is caught.
   - Breath kbd_input keys only work if chorded with a note, since otherwise
     controls with a NoteOff'ed note_id are not emitted.  Change this?
-  - I feel like show_val should be exported from ParseBs.
   - Suppressed undo for val edit is surprising since I tend to do a lot of
     edits without leaving val edit.  Maybe don't do it for pitch val edit.
     Try going back to using the name to suppress, but ignore cmds with no
@@ -180,7 +189,7 @@ UNSORTED
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
   incremental save
-    - got "error committing history: update for non-existent view id: ...
+    * got "error committing history: update for non-existent view id: ...
       CreateView"
     + try saving individual events for incremental save
       Seems to be just as slow as full save, probably most of the time is in
@@ -303,7 +312,7 @@ UNSORTED
   * some way to get symbol feedback instantly to make it easier to compose them
     - But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
-  - glyph placement is messed up on linux, see up arpeggios
+  * glyph placement is messed up on linux, see up arpeggios
   + automate the manual tests
 
   wait until I want it
@@ -314,7 +323,7 @@ UNSORTED
       It's hard to know what blocks to auto-show, and I'd need yet another
       play mode, and a way to communicate new view ids back to the responder,
       so let's wait until I really want it.
-    - save repl history along with current song, so you can search for
+    * save repl history along with current song, so you can search for
       previous cmds
 
   debugging
