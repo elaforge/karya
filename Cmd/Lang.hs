@@ -25,17 +25,14 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
-
 import qualified Cmd.Lang.Fast as Fast
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
-import qualified Cmd.SaveGit as SaveGit
 
 #include "hsconfig.h"
 #if defined(TESTING)
@@ -133,5 +130,5 @@ is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
 
 write_cmd :: String -> Cmd.CmdT IO ()
 write_cmd text = do
-    save_file <- SaveGit.save_file False <$> State.get
-    Trans.liftIO $ IO.appendFile (save_file ++ ".repl") (text ++ "\n")
+    dir <- State.gets State.save_dir
+    Trans.liftIO $ IO.appendFile (FilePath.combine dir "repl") (text ++ "\n")

@@ -52,18 +52,8 @@ data SaveHistory =
     deriving (Show)
 
 save_repo :: State.State -> Git.Repo
-save_repo = save_file True
-
-save_file :: Bool -> State.State -> Git.Repo
-save_file for_git state =
-    FilePath.combine dir $
-        map sanitize (Id.un_namespace ns) ++ if for_git then ".git" else ""
-    where
-    dir = State.config#State.project_dir #$ state
-    ns = State.config#State.namespace #$ state
-    -- This shouldn't be necessary because of the Namespace naming
-    -- restrictions, but it doesn't hurt to be careful anyway.
-    sanitize c = if FilePath.isPathSeparator c then '_' else c
+save_repo state =
+    FilePath.combine (State.save_dir state) (State.save_name state ++ ".git")
 
 is_git :: FilePath -> Bool
 is_git = (".git" `List.isSuffixOf`)

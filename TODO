@@ -1,5 +1,5 @@
 UNSORTED
-  - I should make a dir for each save so I can put the state, .git, _ly, and
+  * I should make a dir for each save so I can put the state, .git, _ly, and
     repl history into it
   * error committing history: checkpoint:
     update for nonexistent ruler_id: (rid "bloom/meter5-4.overlay")

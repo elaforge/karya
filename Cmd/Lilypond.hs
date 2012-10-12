@@ -19,7 +19,6 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
-import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
@@ -42,8 +41,8 @@ data TimeConfig = TimeConfig
 
 ly_filename :: (State.M m) => BlockId -> m FilePath
 ly_filename block_id = do
-    save_file <- SaveGit.save_file False <$> State.get
-    return $ (save_file ++ "_ly") </> (Id.ident_name block_id ++ ".ly")
+    dir <- State.gets State.save_dir
+    return $ dir </> "ly" </> Id.ident_name block_id ++ ".ly"
 
 lookup_key :: Cmd.Performance -> Pitch.Key
 lookup_key perf =

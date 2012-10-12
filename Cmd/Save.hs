@@ -3,6 +3,7 @@
 module Cmd.Save where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
+import qualified System.FilePath as FilePath
 
 import Util.Control
 import qualified Util.Log as Log
@@ -18,7 +19,10 @@ import qualified Cmd.ViewConfig as ViewConfig
 
 
 get_save_file :: (State.M m) => m FilePath
-get_save_file = State.gets (SaveGit.save_file False)
+get_save_file = do
+    state <- State.get
+    return $ FilePath.combine (State.save_dir state)
+        (State.save_name state ++ ".state")
 
 -- * plain serialize
 
@@ -48,7 +52,7 @@ cmd_load fname = do
 cmd_save_git :: Cmd.CmdT IO ()
 cmd_save_git = do
     state <- State.get
-    let repo = SaveGit.save_file True state
+    let repo = SaveGit.save_repo state
     cmd_state <- Cmd.get
     let prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
     (commit, save) <- Cmd.require_right (("save git " ++ repo ++ ": ") ++)
@@ -80,7 +84,7 @@ cmd_load_git repo maybe_commit = do
 -- | Revert to given save point, or the last one.
 cmd_revert :: Maybe String -> Cmd.CmdT IO ()
 cmd_revert maybe_ref = do
-    repo <- State.gets (SaveGit.save_file True)
+    repo <- State.gets SaveGit.save_repo
     save <- case maybe_ref of
         Nothing -> Cmd.require_msg "no last save"
             =<< Trans.liftIO (SaveGit.read_last_save repo Nothing)

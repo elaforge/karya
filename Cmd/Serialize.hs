@@ -15,6 +15,8 @@ import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 
+import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
 import qualified System.IO as IO
 
 import Util.Control
@@ -46,20 +48,23 @@ import Types
 
 serialize :: (Serialize a) => FilePath -> a -> IO ()
 serialize fname state = do
-    File.backup_file fname
+    backup_file fname
+    make_dir fname
     ByteString.writeFile fname $ Serialize.encode state
 
 serialize_text :: (Show a) => FilePath -> a -> IO ()
 serialize_text fname state = do
-    File.backup_file fname
-    IO.writeFile fname (show state ++ "\n")
+    backup_file fname
+    make_dir fname
+    writeFile fname (show state ++ "\n")
 
 -- | Like 'serialize_text' but pretty-print it.  Probably not suitable for
 -- giant things.
 serialize_pretty_text :: (Show a) => FilePath -> a -> IO ()
 serialize_pretty_text fname state = do
-    File.backup_file fname
-    IO.writeFile fname (PPrint.pshow state)
+    backup_file fname
+    make_dir fname
+    writeFile fname (PPrint.pshow state)
 
 unserialize :: (Serialize a) => FilePath -> IO (Either String a)
 unserialize fname = do
@@ -80,6 +85,15 @@ unserialize_text fname = do
         Left (exc :: Exception.SomeException) -> Left (show exc)
         Right val -> Right val
 
+
+-- | Move the file to file.last.  Do this before writing a new one that may
+-- fail.
+backup_file :: FilePath -> IO ()
+backup_file fname =
+    void $ File.ignore_enoent $ Directory.renameFile fname (fname ++ ".last")
+
+make_dir :: FilePath -> IO ()
+make_dir = Directory.createDirectoryIfMissing True . FilePath.takeDirectory
 
 -- * data types
 
