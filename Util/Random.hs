@@ -11,5 +11,5 @@ shuffle xs = Shuffle.shuffle xs . mangle
     where
     -- Shuffle has a really complicated precondition and crashes if it doesn't
     -- get it.
-    mangle rs = [Num.restrict 0 (len-i) v | (i, v) <- zip [0..] (take len rs)]
+    mangle rs = [Num.restrict 0 (len+1-i) v | (i, v) <- zip [0..] (take len rs)]
     len = length xs - 1
