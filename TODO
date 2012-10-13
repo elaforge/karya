@@ -1,4 +1,8 @@
 UNSORTED
+  - if I could make Derive.Call.reapply polymorphic, I could reuse
+    Random.c_alternate in different tracks.
+  - gender is complaining about extra attrs, maybe instruments should ignore
+    them?
   * I should make a dir for each save so I can put the state, .git, _ly, and
     repl history into it
   * error committing history: checkpoint:
@@ -72,10 +76,10 @@ UNSORTED
     - various numpuk
     - makilit / kilitan derivations from melody
   calls to define randomized scores:
-    - 'omit 20' is a transformer that omits its argument 20% of the time
-    - alternate b1 b2 b3 - calls one of variabnt calls
-    - pick from values as ValCall: d (? .1 .2 .2) |
-    - or a random range: d (-? 0 1)
+    * 'omit 20' is a transformer that omits its argument 20% of the time
+    - alternate b1 b2 b3 - calls one of variant calls
+    * pick from values as ValCall: d (? .1 .2 .2) |
+    * or a random range: d (-? 0 1)
     - how could I omit a transformer?
   / Pretty on a lot of events causes a stack overflow
     Can't reproduce.

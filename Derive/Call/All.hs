@@ -15,6 +15,7 @@ import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Call.Post.NegativeDur as NegativeDur
 import qualified Derive.Call.Post.Reverse as Reverse
+import qualified Derive.Call.Random as Random
 import qualified Derive.Call.Sekar as Sekar
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Derive as Derive
@@ -53,20 +54,21 @@ note_calls :: Derive.NoteCallMap
 (note_calls, shadowed_notes) = unions
     [ Block.note_calls, Echo.note_calls, Integrate.note_calls
     , NegativeDur.note_calls, Note.note_calls, NoteTransformer.note_calls
-    , Ornament.note_calls , Reverse.note_calls
+    , Ornament.note_calls , Random.note_calls, Reverse.note_calls
     , Gender.note_calls, Sekar.note_calls, String.note_calls, Trill.note_calls
     ]
 
 control_calls :: Derive.ControlCallMap
 (control_calls, shadowed_controls) = unions
-    [Control.control_calls, Trill.control_calls]
+    [Control.control_calls, Random.control_calls, Trill.control_calls]
 
 pitch_calls :: Derive.PitchCallMap
 (pitch_calls, shadowed_pitches) = unions
-    [Pitch.pitch_calls, Trill.pitch_calls]
+    [Pitch.pitch_calls, Random.pitch_calls, Trill.pitch_calls]
 
 val_calls :: Derive.ValCallMap
-(val_calls, shadowed_vals) = unions []
+(val_calls, shadowed_vals) = unions
+    [Random.val_calls]
 
 unions :: [Map.Map TrackLang.Symbol a]
     -> (Map.Map TrackLang.Symbol a, [TrackLang.Symbol])

@@ -311,8 +311,23 @@ random = head <$> randoms
 random_in :: (Random a, Real a) => a -> a -> Derive.Deriver a
 random_in low high = Num.restrict low high <$> random
 
+-- | If the chance is 1, return true all the time, if it's 0.5, return it half
+-- of the time.
+chance :: Double -> Derive.Deriver Bool
+chance v
+    | v >= 1 = return True
+    | v <= 0 = return False
+    | otherwise = do
+        r <- random_in 0 1
+        return $ r <= v
+
 shuffle :: [a] -> Derive.Deriver [a]
 shuffle xs = Random.shuffle xs <$> randoms
+
+pick :: [a] -> Derive.Deriver a
+pick xs = shuffle xs >>= \x -> case x of
+    [] -> Derive.throw "Derive.Call.Util.pick expected non-null list"
+    x : _ -> return x
 
 _make_randoms :: (Pure64.PureMT -> (a, Pure64.PureMT)) -> Derive.Deriver [a]
 _make_randoms f = do
