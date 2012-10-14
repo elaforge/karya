@@ -216,7 +216,7 @@ save_git states = do
     File.recursive_rm_dir repo
     ResponderTest.respond_cmd (first set_dir states) Save.cmd_save_git
     where
-    set_dir = (State.config#State.project_dir #= "build/test")
+    set_dir = (State.config#State.project_dir #= "build")
         . (State.config#State.namespace #= Id.unsafe_namespace "test")
 
 repo :: SaveGit.Repo
