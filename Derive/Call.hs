@@ -89,7 +89,6 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as Parse
 import qualified Derive.PitchSignal as PitchSignal
-import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
@@ -100,14 +99,15 @@ import Types
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: TrackLang.Expr -> Derive.EventDeriver
+eval_one :: (Derive.Derived d) => TrackLang.Expr -> Derive.LogsDeriver d
 eval_one = eval_one_at 0 1
 
-eval_one_call :: TrackLang.Call -> Derive.EventDeriver
+eval_one_call :: (Derive.Derived d) => TrackLang.Call -> Derive.LogsDeriver d
 eval_one_call = eval_one . (:| [])
 
-eval_one_at :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
-eval_one_at start dur expr = eval_expr (note_dinfo, cinfo) expr
+eval_one_at :: (Derive.Derived d) => ScoreTime -> ScoreTime -> TrackLang.Expr
+    -> Derive.LogsDeriver d
+eval_one_at start dur expr = eval_expr cinfo expr
     where
     -- Set the event start and duration instead of using Derive.d_place since
     -- this way I can have zero duration events.
@@ -115,13 +115,13 @@ eval_one_at start dur expr = eval_expr (note_dinfo, cinfo) expr
         ("eval_one: " ++ TrackLang.show_val expr)
 
 -- | Apply an expr with the current call info.
-reapply :: Derive.PassedArgs Score.Event -> TrackLang.Expr
-    -> Derive.EventDeriver
-reapply args expr = eval_expr (note_dinfo, cinfo) expr
+reapply :: (Derive.Derived d) => Derive.PassedArgs d -> TrackLang.Expr
+    -> Derive.LogsDeriver d
+reapply args expr = eval_expr cinfo expr
     where cinfo = Derive.passed_info args
 
-reapply_call :: Derive.PassedArgs Score.Event -> TrackLang.Call
-    -> Derive.EventDeriver
+reapply_call :: (Derive.Derived d) => Derive.PassedArgs d -> TrackLang.Call
+    -> Derive.LogsDeriver d
 reapply_call args call = reapply args (call :| [])
 
 -- | A version of 'eval' specialized to evaluate note calls.
@@ -130,11 +130,11 @@ eval_note note = CallSig.cast ("eval note " ++ show note)
     =<< eval (TrackLang.note_call note)
 
 -- | Evaluate a single expression.
-eval_expr :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
-    -> Derive.LogsDeriver derived
-eval_expr info expr = do
+eval_expr :: (Derive.Derived d) => Derive.CallInfo d -> TrackLang.Expr
+    -> Derive.LogsDeriver d
+eval_expr cinfo expr = do
     state <- Derive.get
-    let (res, logs, collect) = apply_toplevel state info expr
+    let (res, logs, collect) = apply_toplevel state cinfo expr
     -- I guess this could set collect to mempty and then merge it back in,
     -- but I think this is the same with less work.
     Derive.modify $ \st -> st { Derive.state_collect = collect }
@@ -142,21 +142,8 @@ eval_expr info expr = do
 
 -- * derive_track
 
-data DeriveInfo derived = DeriveInfo {
-    -- | TODO If I could get rid of this I could make functions like 'eval_one'
-    -- and 'reapply' polymorphic.  It seems like this should be possible
-    -- because there can be a static mapping between the derived type and the
-    -- lookup.  Unfortunately ValCall is a problem since sinced it's not
-    -- a derived type like the others.
-    info_lookup :: LookupCall (Derive.Call derived)
-    -- | Name of the lookup scope.  It would be cleaner to get this out of
-    -- 'derived' by using the typeclass, but this is simpler.  I could do this
-    -- with 'Derive.with_msg' but this seems more direct.
-    , info_name :: String
-    }
-
 -- | Just a spot to stick all the per-track parameters.
-data TrackInfo derived = TrackInfo {
+data TrackInfo = TrackInfo {
     -- | Either the end of the block, or the next event after the slice.
     -- These fields are take directly from 'State.TrackEvents'.
     tinfo_events_end :: !ScoreTime
@@ -164,13 +151,7 @@ data TrackInfo derived = TrackInfo {
     , tinfo_shifted :: !ScoreTime
     , tinfo_sub_tracks :: !TrackTree.EventsTree
     , tinfo_events_around :: !([Event.Event], [Event.Event])
-    , tinfo_derive_info :: !(DeriveInfo derived)
     }
-
-note_dinfo :: DeriveInfo Score.Event
-note_dinfo = DeriveInfo lookup_note_call "note"
-
-type Info derived = (DeriveInfo derived, Derive.CallInfo derived)
 
 type GetLastSample d =
     Maybe (RealTime, Derive.Elem d) -> d -> Maybe (RealTime, Derive.Elem d)
@@ -181,19 +162,19 @@ type GetLastSample d =
 -- There's a certain amount of hairiness in here because note and control
 -- tracks are mostly but not quite the same and because calls get a lot of
 -- auxiliary data in 'Derive.CallInfo'.
-derive_track :: forall derived. (Derive.Derived derived) =>
+derive_track :: forall d. (Derive.Derived d) =>
     -- forall and ScopedTypeVariables needed for the inner 'go' signature
-    Derive.State -> TrackInfo derived -> Parse.ParseExpr
-    -> GetLastSample derived -> [Event.Event]
-    -> ([LEvent.LEvents derived], Derive.Collect)
+    Derive.State -> TrackInfo -> Parse.ParseExpr
+    -> GetLastSample d -> [Event.Event]
+    -> ([LEvent.LEvents d], Derive.Collect)
 derive_track state tinfo parse get_last_sample events =
     go (Internal.record_track_dynamic state) Nothing "" [] events
     where
     -- This threads the collect through each event.  I would prefer to map and
     -- mconcat, but it's also quite a bit slower.
-    go :: Derive.Collect -> Maybe (RealTime, Derive.Elem derived)
+    go :: Derive.Collect -> Maybe (RealTime, Derive.Elem d)
         -> B.ByteString -> [Event.Event] -> [Event.Event]
-        -> ([LEvent.LEvents derived], Derive.Collect)
+        -> ([LEvent.LEvents d], Derive.Collect)
     go collect _ _ _ [] = ([], collect)
     go collect prev_sample repeat_call prev (cur : rest) =
         (events : rest_events, final_collect)
@@ -225,7 +206,7 @@ derive_track state tinfo parse get_last_sample events =
 --         Stack.to_ui (Derive.state_stack state)
 
 derive_event :: (Derive.Derived d) =>
-    Derive.State -> TrackInfo d -> Parse.ParseExpr
+    Derive.State -> TrackInfo -> Parse.ParseExpr
     -> Maybe (RealTime, Derive.Elem d)
     -> B.ByteString -- ^ repeat call, substituted with @\"@
     -> [Event.Event] -- ^ previous events, in reverse order
@@ -241,7 +222,7 @@ derive_event st tinfo parse prev_sample repeat_call prev event next
     text = Event.event_bytestring event
     parse_error = Log.msg Log.Warn $
         Just (Stack.to_strings (Derive.state_stack (Derive.state_dynamic st)))
-    run_call expr = apply_toplevel state (dinfo, cinfo expr) expr
+    run_call expr = apply_toplevel state (cinfo expr) expr
     state = st
         { Derive.state_dynamic = (Derive.state_dynamic st)
             { Derive.state_stack = Stack.add
@@ -264,7 +245,7 @@ derive_event st tinfo parse prev_sample repeat_call prev event next
         , Derive.info_sub_tracks = subs
         }
     region s e = Stack.Region (shifted + s) (shifted + e)
-    TrackInfo events_end track_range shifted subs around dinfo = tinfo
+    TrackInfo events_end track_range shifted subs around = tinfo
 
 -- | Replace @\"@ with the previous non-@\"@ call, if there was one.
 --
@@ -285,36 +266,37 @@ repeat_call_of prev cur
     | otherwise = prev
 
 -- | Apply a toplevel expression.
-apply_toplevel :: (Derive.Derived d) => Derive.State -> Info d
+apply_toplevel :: (Derive.Derived d) => Derive.State -> Derive.CallInfo d
     -> TrackLang.Expr
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-apply_toplevel state info expr = case Seq.ne_viewr expr of
+apply_toplevel state cinfo expr = case Seq.ne_viewr expr of
         (transform_calls, generator_call) -> run $
-            apply_transformer info transform_calls $
-                apply_generator info generator_call
+            apply_transformer cinfo transform_calls $
+                apply_generator cinfo generator_call
     where
     run d = case Derive.run state d of
         (result, state, logs) -> (result, logs, Derive.state_collect state)
 
-apply_generator :: (Derive.Derived derived) => Info derived -> TrackLang.Call
-    -> Derive.LogsDeriver derived
-apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
-    maybe_call <- info_lookup dinfo call_id
+apply_generator :: forall d. (Derive.Derived d) => Derive.CallInfo d
+    -> TrackLang.Call -> Derive.LogsDeriver d
+apply_generator cinfo (TrackLang.Call call_id args) = do
+    maybe_call <- Derive.lookup_callable call_id
     (call, vals) <- case maybe_call of
         Just call -> do
             vals <- mapM eval args
             return (call, vals)
+        -- If I didn't find a call, look for a val call and pass its result to
+        -- "".  This is what makes pitch tracks work, since scales are val
+        -- calls.
         Nothing -> do
-            maybe_call <- lookup_val_call call_id
-            case maybe_call of
-                Nothing -> Derive.throw $
-                    unknown_call_id (info_name dinfo) call_id
-                Just vcall -> do
-                    val <- apply call_id vcall args
-                    -- We only do this fallback thing once.
-                    fb_call <- get_call fallback_call_id
-                        (info_name dinfo) (info_lookup dinfo)
-                    return (fb_call, [val])
+            -- Use the outer name, not val call's "val", otherwise every failed
+            -- lookup says it's a failed val lookup.
+            vcall <- require_call call_id name
+                =<< Derive.lookup_val_call call_id
+            val <- apply call_id vcall args
+            -- We only do this fallback thing once.
+            call <- get_call fallback_call_id
+            return (call, [val])
 
     let args = Derive.PassedArgs vals call_id cinfo
         with_stack = Internal.with_stack_call (Derive.call_name call)
@@ -322,16 +304,18 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
         Just gen -> Derive.generator_func gen args
         Nothing -> Derive.throw $ "non-generator in generator position: "
             ++ Derive.call_name call
+    where
+    name = Derive.callable_name
+        (error "Derive.callable_name shouldn't evaluate its argument." :: d)
 
-apply_transformer :: (Derive.Derived derived) => Info derived
-    -> [TrackLang.Call] -> Derive.LogsDeriver derived
-    -> Derive.LogsDeriver derived
+apply_transformer :: (Derive.Derived d) => Derive.CallInfo d
+    -> [TrackLang.Call] -> Derive.LogsDeriver d
+    -> Derive.LogsDeriver d
 apply_transformer _ [] deriver = deriver
-apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
-        deriver = do
+apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
     vals <- mapM eval args
-    let new_deriver = apply_transformer info calls deriver
-    call <- get_call call_id (info_name dinfo) (info_lookup dinfo)
+    let new_deriver = apply_transformer cinfo calls deriver
+    call <- get_call call_id
     let args = Derive.PassedArgs vals call_id cinfo
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
@@ -342,7 +326,7 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
 eval :: TrackLang.Term -> Derive.Deriver TrackLang.Val
 eval (TrackLang.Literal val) = return val
 eval (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
-    call <- get_call call_id "val" lookup_val_call
+    call <- get_val_call call_id
     apply call_id call terms
 
 apply :: TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
@@ -354,10 +338,20 @@ apply call_id call args = do
     Derive.with_msg ("val call " ++ Derive.vcall_name call) $
         Derive.vcall_call call args
 
-get_call :: TrackLang.CallId -> String -> LookupCall call -> Derive.Deriver call
-get_call call_id name lookup =
+get_val_call :: TrackLang.CallId -> Derive.Deriver Derive.ValCall
+get_val_call call_id =
+    require_call call_id "val" =<< Derive.lookup_val_call call_id
+
+get_call :: forall d. (Derive.Derived d) =>
+    TrackLang.CallId -> Derive.Deriver (Derive.Call d)
+get_call call_id = require_call call_id name =<< Derive.lookup_callable call_id
+    where
+    name = Derive.callable_name
+        (error "Derive.callable_name shouldn't evaluate its argument." :: d)
+
+require_call :: TrackLang.CallId -> String -> Maybe a -> Derive.Deriver a
+require_call call_id name =
     maybe (Derive.throw (unknown_call_id name call_id)) return
-        =<< lookup call_id
 
 unknown_call_id :: String -> TrackLang.CallId -> String
 unknown_call_id name call_id =
@@ -365,42 +359,3 @@ unknown_call_id name call_id =
 
 fallback_call_id :: TrackLang.CallId
 fallback_call_id = TrackLang.Symbol ""
-
-
--- * lookup call
-
-type LookupCall call = TrackLang.CallId -> Derive.Deriver (Maybe call)
-
--- | First priority is the blocks.  So a block with a certain name will shadow
--- everything else with that name.
-lookup_note_call :: LookupCall Derive.NoteCall
-lookup_note_call = lookup_with Derive.scope_note
-
-lookup_control_call :: LookupCall Derive.ControlCall
-lookup_control_call = lookup_with Derive.scope_control
-
-lookup_pitch_call :: LookupCall Derive.PitchCall
-lookup_pitch_call = lookup_with Derive.scope_pitch
-
-lookup_val_call :: LookupCall Derive.ValCall
-lookup_val_call = lookup_with Derive.scope_val
-
-lookup_with :: (Derive.Scope -> Derive.ScopeType call) -> LookupCall call
-lookup_with get call_id = do
-    lookups <- get_scopes get
-    lookup_scopes lookups call_id
-
-get_scopes :: (Derive.Scope -> Derive.ScopeType call)
-    -> Derive.Deriver [Derive.LookupCall call]
-get_scopes get = do
-    Derive.ScopeType inst scale builtin <-
-        get <$> Internal.get_dynamic Derive.state_scope
-    return $ inst ++ scale ++ builtin
-
--- | Convert a list of lookups into a single lookup by returning the first
--- one to yield a Just.
-lookup_scopes :: [Derive.LookupCall call] -> LookupCall call
-lookup_scopes [] _ = return Nothing
-lookup_scopes (lookup:rest) call_id =
-    maybe (lookup_scopes rest call_id) (return . Just)
-        =<< Derive.lookup_call lookup call_id

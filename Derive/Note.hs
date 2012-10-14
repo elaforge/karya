@@ -121,7 +121,7 @@ with_title title deriver
         let transform = if is_empty_title track_expr then id
                 else Call.apply_transformer info (NonEmpty.toList track_expr)
         transform deriver
-    where info = (Call.note_dinfo, Derive.dummy_call_info 0 1 "note track")
+    where info = Derive.dummy_call_info 0 1 "note track"
 
 is_empty_title :: TrackLang.Expr -> Bool
 is_empty_title (TrackLang.Call sym
@@ -150,4 +150,3 @@ derive_notes events_end track_range shifted subs events_around events = do
     return $ Derive.merge_asc_events event_groups
     where
     tinfo = Call.TrackInfo events_end track_range shifted subs events_around
-        Call.note_dinfo

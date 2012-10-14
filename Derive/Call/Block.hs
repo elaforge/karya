@@ -56,7 +56,7 @@ apply_transform name expr_str deriver = do
         Right expr -> return expr
     let transform = if null expr_str then id
             else Call.apply_transformer info (NonEmpty.toList expr)
-        info = (Call.note_dinfo, Derive.dummy_call_info 0 1 name)
+        info = Derive.dummy_call_info 0 1 name
     transform deriver
 
 -- * note block calls

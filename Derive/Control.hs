@@ -180,7 +180,7 @@ derive_control :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control track expr = do
     stream <- Call.apply_transformer
-        (dinfo, Derive.dummy_call_info 0 1 "control track") expr deriver
+        (Derive.dummy_call_info 0 1 "control track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         signal = Signal.merge signal_chunks
     return (signal, logs)
@@ -195,18 +195,17 @@ derive_control track expr = do
         -- will be merged with Signal.merge and I don't care if the logs
         -- are a little out of order.
         return (concat stream)
-    dinfo = Call.DeriveInfo Call.lookup_control_call "control"
     tinfo = Call.TrackInfo (TrackTree.tevents_end track)
         (TrackTree.tevents_range track) (TrackTree.tevents_shifted track) []
         -- TODO provide events around for control tracks?
-        ([], []) dinfo
+        ([], [])
     last_sample prev chunk = Signal.last chunk `mplus` prev
 
 derive_pitch :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Pitch)
 derive_pitch track expr = do
     stream <- Call.apply_transformer
-        (dinfo, Derive.dummy_call_info 0 1 "pitch track") expr deriver
+        (Derive.dummy_call_info 0 1 "pitch track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         signal = mconcat signal_chunks
     return (signal, logs)
@@ -217,10 +216,9 @@ derive_pitch track expr = do
                 Parse.parse_expr last_sample (tevents track)
         Internal.merge_collect collect
         return (concat stream)
-    dinfo = Call.DeriveInfo Call.lookup_pitch_call "pitch"
     tinfo = Call.TrackInfo (TrackTree.tevents_end track)
         (TrackTree.tevents_range track) (TrackTree.tevents_shifted track) []
-        ([], []) dinfo
+        ([], [])
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
 tevents :: TrackTree.TrackEvents -> [Event.Event]

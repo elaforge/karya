@@ -1,8 +1,10 @@
 UNSORTED
-  - if I could make Derive.Call.reapply polymorphic, I could reuse
+  * if I could make Derive.Call.reapply polymorphic, I could reuse
     Random.c_alternate in different tracks.
-  - gender is complaining about extra attrs, maybe instruments should ignore
+    Either do the class thing to make reapply dynamic, or stuff all lookups in
+    call info and propagate.
     them?
+  - shake target hlint everything
   * I should make a dir for each save so I can put the state, .git, _ly, and
     repl history into it
   * error committing history: checkpoint:

@@ -22,11 +22,13 @@ note_calls = Derive.make_calls
 control_calls :: Derive.ControlCallMap
 control_calls = Derive.make_calls
     [ ("omit", c_omit)
+    , ("alt", c_alternate)
     ]
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
     [ ("omit", c_omit)
+    , ("alt", c_alternate)
     ]
 
 c_omit :: (Derive.Derived d) => Derive.Call d
@@ -38,8 +40,7 @@ c_omit = Derive.transformer "omit"
     ) $ \retain _args deriver ->
         ifM (Util.chance retain) deriver (return mempty)
 
-c_alternate :: Derive.NoteCall
--- c_alternate :: (Derive.Derived d) => Derive.Call d
+c_alternate :: (Derive.Derived d) => Derive.Call d
 c_alternate = Derive.stream_generator "alternate"
     ("Pick one of several expressions and evaluate it."
     <> " They have to be strings since calls themselves are not first class."

@@ -54,6 +54,7 @@ module Derive.Deriver.Monad (
     , LookupCall(lookup_call, lookup_docs)
     , map_lookup, map_val_lookup, pattern_lookup
     , extract_doc, extract_val_doc
+    , lookup_val_call
 
     -- ** constant
     , Constant(..), initial_constant
@@ -298,6 +299,8 @@ class (Show (Elem derived), Show derived) => Derived derived where
     -- that right now.
     from_cache_entry :: CacheEntry -> Maybe (CallType derived)
     to_cache_entry :: CallType derived -> CacheEntry
+    lookup_callable :: TrackLang.CallId -> Deriver (Maybe (Call derived))
+    callable_name :: derived -> String
 
 type LogsDeriver d = Deriver (LEvent.LEvents d)
 
@@ -319,6 +322,8 @@ instance Derived Score.Event where
     from_cache_entry (CachedEvents ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedEvents
+    lookup_callable = lookup_with scope_note
+    callable_name _ = "note"
 
 -- ** control
 
@@ -329,6 +334,8 @@ instance Derived Signal.Control where
     from_cache_entry (CachedControl ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedControl
+    lookup_callable = lookup_with scope_control
+    callable_name _ = "control"
 
 -- ** pitch
 
@@ -339,6 +346,8 @@ instance Derived PitchSignal.Signal where
     from_cache_entry (CachedPitch ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedPitch
+    lookup_callable = lookup_with scope_pitch
+    callable_name _ = "pitch"
 
 
 -- * state
@@ -484,7 +493,6 @@ annotate_doc text doc = case doc of
     where
     annotate (CallDoc cdoc args) = CallDoc (text ++ "\n" ++ cdoc) args
 
-
 -- | In the common case, a lookup is simply a static map.
 map_lookup :: Map.Map TrackLang.CallId (Call d) -> LookupCall (Call d)
 map_lookup cmap = LookupCall
@@ -513,6 +521,30 @@ extract_doc (Call name generator transformer) = DocumentedCall name
 
 extract_val_doc :: ValCall -> DocumentedCall
 extract_val_doc vcall = DocumentedValCall (vcall_name vcall) (vcall_doc vcall)
+
+-- ** lookup
+
+lookup_val_call :: TrackLang.CallId -> Deriver (Maybe ValCall)
+lookup_val_call = lookup_with scope_val
+
+lookup_with :: (Scope -> ScopeType call)
+    -> (TrackLang.CallId -> Deriver (Maybe call))
+lookup_with get call_id = do
+    lookups <- get_scopes get
+    lookup_scopes lookups call_id
+
+get_scopes :: (Scope -> ScopeType call) -> Deriver [LookupCall call]
+get_scopes get = do
+    ScopeType inst scale builtin <- get <$> gets (state_scope . state_dynamic)
+    return $ inst ++ scale ++ builtin
+
+-- | Convert a list of lookups into a single lookup by returning the first
+-- one to yield a Just.
+lookup_scopes :: [LookupCall call] -> (TrackLang.CallId -> Deriver (Maybe call))
+lookup_scopes [] _ = return Nothing
+lookup_scopes (lookup:rest) call_id =
+    maybe (lookup_scopes rest call_id) (return . Just)
+        =<< lookup_call lookup call_id
 
 -- ** constant
 
