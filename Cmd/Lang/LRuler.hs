@@ -33,7 +33,6 @@ import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -57,6 +56,11 @@ gc = do
 -- | Blocks that contain the given ruler.
 blocks_of :: (State.M m) => RulerId -> m [BlockId]
 blocks_of = fmap (map fst) . State.tracks_with_ruler_id
+
+set_ruler_id :: (State.M m) => RulerId -> BlockId -> m ()
+set_ruler_id ruler_id block_id = do
+    old <- State.block_ruler block_id
+    State.replace_ruler_id block_id old ruler_id
 
 -- | Group together rulers that are the same, replace all the duplicates with
 -- the first ruler in each group, then gc away the duplicates.
@@ -94,10 +98,22 @@ clip = do
 -- | Copy the meter under the selection and append it to the end of the ruler.
 append :: Cmd.CmdL ()
 append = do
-    (view_id, sel) <- Selection.get
-    block_id <- State.block_id_of view_id
-    let (start, end) = Types.sel_range sel
+    (block_id, _, _, start, end) <- Selection.tracks
     local_meter block_id $ \meter -> meter <> Meter.clip start end meter
+
+append_ruler_id :: RulerId -> Cmd.CmdL ()
+append_ruler_id ruler_id = do
+    block_id <- Cmd.get_focused_block
+    other <- Meter.ruler_meter <$> State.get_ruler ruler_id
+    local_meter block_id (<> other)
+
+-- | Remove the selected ruler.
+delete :: Cmd.CmdL ()
+delete = do
+    (block_id, _, _, start, end) <- Selection.tracks
+    ruler_end <- State.block_ruler_end block_id
+    local_meter block_id $ \meter ->
+        Meter.clip 0 start meter <> Meter.clip end ruler_end meter
 
 -- | Replace the meter for the rulers of this block, fitted to the end of the
 -- last event on the block.

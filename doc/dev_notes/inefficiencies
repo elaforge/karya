@@ -55,6 +55,8 @@ derive
   - Derive writes a list of Score.Events.  The list is constructed with (++)
     so each part is copied at least once.  Possible fix is to use a lazy list
     of array chunks, and use a builder like lazy bytestring.
+    I tried Util.AppendList but it was even slower, perhaps because an
+    AppendList has more pointers than a plain list.
   - Profiling shows lots of time spent in ScoreTime->RealTime conversion.
     This winds up being a bsearch into the warp every time.  Each query is
     mostly in increasing time order, though I'm not sure how to make use of

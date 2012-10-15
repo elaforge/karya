@@ -1,4 +1,26 @@
 UNSORTED
+  - doesn't seem to save track widths, I keep making it narrow but reload it's
+    still wide.
+  - it's annoying having to set the scale along with the inst, can I have the
+    wayang insts also set a scale?
+  - kontakt wayang inst is not balanced, ff to a0 change is too dramatic
+  - managed to crash by undoing while editing, I think.  Needs to be fixed!
+  - note dur timestep is important, it should be visible
+  - it would be really nice to be able to add ticks at the first note of
+    a block.  I'm beginning to think it should be a postproc entirely.
+    But it needs to either use the stack to figure out the next note on the
+    track, or I need a way to consistently apply it at the "lowest" level.
+  - Sometimes it makes more sense as at attribute of the previous note, or
+    perhaps a freestanding ornament, since it can happen or not on a repeat.
+  - I should be able to get leading ornaments to work by adding
+    (abs (max 0 (head events))) to event times.
+  - window management to tile the windows
+  - I do a lot of appending a block along with it's ruler, I could have
+    a single cmd to do that.
+  - A more radical approach would be a block mode where the block calls are
+    simply additive, and their duration doesn't matter.  This would mean I'd
+    have to edit the tempo on the subblocks though, which in turn means it
+    couldn't vary independently.
   * if I could make Derive.Call.reapply polymorphic, I could reuse
     Random.c_alternate in different tracks.
     Either do the class thing to make reapply dynamic, or stuff all lookups in
@@ -46,6 +68,7 @@ UNSORTED
     It seems likely due to FFI, perhaps a bug in C++.  Optimization could be
     making some change that makes it more sensitive to the bug.  Or it could
     be optimization in the c++.
+    . It's also possible it's in the git code, maybe try removing that.
 
   - get rid of ld -r hack in shakefile, since new ghcs do that automatically
   * J on a note event with duration makes it 0 dur
