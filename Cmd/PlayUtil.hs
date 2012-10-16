@@ -112,16 +112,23 @@ perform_from start = perform_events . events_from start . Cmd.perf_events
 
 shift_messages :: RealTime -> RealTime -> Perform.MidiEvents
     -> Perform.MidiEvents
-shift_messages multiplier start = map $ fmap $
-    Midi.modify_timestamp ((* multiplier) . subtract start)
+shift_messages multiplier start events = shift start events
+    where
+    shift offset = map $ fmap $
+        Midi.modify_timestamp ((* multiplier) . subtract offset)
+
+first_time :: LEvent.LEvents Midi.WriteMessage -> RealTime
+first_time msgs = case LEvent.events_of msgs of
+    event : _ -> Midi.wmsg_ts event
+    [] -> 0
 
 -- | As a special case, a start <= 0 will get all events, including negative
 -- ones.  This is so notes pushed before 0 won't be clipped on a play from 0.
 --
 -- Cache log msgs are emitted even if they are before @start@ because otherwise
 -- you never see the cache status unless you play from the beginning.  Cache
--- msgs tend to go before the others because 'Derive.d_merge' puts logs before
--- events and all the events on a track are merged.
+-- msgs tend to show up first because 'Derive.d_merge' puts logs before events
+-- and all the events on a track are merged.
 events_from :: RealTime -> Derive.Events -> Derive.Events
 events_from start events
     | start <= 0 = events

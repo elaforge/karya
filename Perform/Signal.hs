@@ -162,7 +162,7 @@ unsignal :: Signal y -> [(X, Y)]
 unsignal = V.unsignal . sig_vec
 
 constant :: Y -> Signal y
-constant n = signal [(0, n)]
+constant = Signal . V.constant
 
 length :: Signal y -> Int
 length = V.length . sig_vec
@@ -171,7 +171,7 @@ null :: Signal y -> Bool
 null = V.null . sig_vec
 
 -- | Sometimes signal types need to be converted.
-coerce :: Signal y0 -> Signal y1
+coerce :: Signal y1 -> Signal y2
 coerce (Signal vec) = Signal vec
 
 with_ptr :: Display -> (Foreign.Ptr (V.Sample Double) -> Int -> IO a) -> IO a
@@ -197,11 +197,7 @@ at_linear x sig =
         (x1, y1) = V.to_pair $ V.index vec (i+1)
 
 is_constant :: Signal y -> Bool
-is_constant sig = case V.viewL (sig_vec sig) of
-    Nothing -> True
-    Just (V.Sample x0 y0, rest)
-        | x0 == 0 -> V.all ((==y0) . V.sy) rest
-        | otherwise -> V.all ((==0) . V.sy) (sig_vec sig)
+is_constant = V.is_constant . sig_vec
 
 first :: Signal y -> Maybe (X, Y)
 first = fmap V.to_pair . V.head . sig_vec

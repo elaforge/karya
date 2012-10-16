@@ -83,7 +83,8 @@ instance Pretty.Pretty Signal where
         [Pretty.text "Pitch", Pretty.format scale_id, Pretty.format vec]
 
 constant :: Scale -> Pitch -> Signal
-constant scale pitch = signal scale [(0, pitch)]
+constant (Scale scale_id transposers) =
+    Signal transposers scale_id . TimeVector.constant
 
 signal :: Scale -> [(RealTime, Pitch)] -> Signal
 signal (Scale scale_id transposers) =

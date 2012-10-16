@@ -141,8 +141,15 @@ cmd_play transport_info block_id (start_track, start_pos) = do
             Cmd.throw $ "play " ++ show block_id ++ " has no tempo information"
         Just start -> return start
     multiplier <- gets Cmd.state_play_multiplier
-    msgs <- PlayUtil.shift_messages multiplier start <$>
-        PlayUtil.perform_from start perf
+
+    -- Events can wind up before 0, say if there's a grace note on a note at 0.
+    -- To have them play correctly, perform_from will give me negative events
+    -- when starting from 0, and then I have to shift the start time back to
+    -- consider the first event the new 0.
+    msgs <- PlayUtil.perform_from start perf
+    start <- let mstart = PlayUtil.first_time msgs
+        in return $ if start == 0 && mstart < 0 then mstart else start
+    msgs <- return $ PlayUtil.shift_messages multiplier start msgs
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs
 

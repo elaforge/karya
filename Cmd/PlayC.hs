@@ -108,7 +108,10 @@ data UpdaterState = UpdaterState {
 
 updater_loop :: UpdaterState -> IO ()
 updater_loop state = do
-    now <- subtract (updater_offset state) <$> updater_get_now state
+    -- now can start negative if the events themselves started negative, say
+    -- due to an ornament that moves things back in time.  Cmd.Play.cmd_play
+    -- will have moved the events up to 0 in this case.
+    now <- max 0 . subtract (updater_offset state) <$> updater_get_now state
     let fail err = Log.error ("state error in updater: " ++ show err)
             >> return []
     ui_state <- MVar.readMVar (updater_ui_state state)

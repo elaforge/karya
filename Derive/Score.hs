@@ -243,10 +243,10 @@ is_id_warp :: Warp -> Bool
 is_id_warp = (== id_warp)
 
 warp_pos :: ScoreTime -> Warp -> RealTime
-warp_pos pos warp@(Warp sig shift stretch)
-    | is_id_warp warp = to_real pos
-    | otherwise = Signal.y_to_real $
-        Signal.at_linear (to_real (pos*stretch + shift)) sig
+warp_pos pos (Warp sig shift stretch)
+    | sig == id_warp_signal = pos1
+    | otherwise = Signal.y_to_real $ Signal.at_linear pos1 sig
+    where pos1 = to_real $ pos * stretch + shift
 
 -- | Unlike 'warp_pos', 'unwarp_pos' can fail.  This asymmetry is because
 -- at_linear will project a signal on forever, but inverse_at won't.
@@ -376,5 +376,8 @@ c_hz = Control "t-hz"
 
 -- * util
 
+to_real :: ScoreTime -> RealTime
 to_real = RealTime.score
+
+to_score :: RealTime -> ScoreTime
 to_score = RealTime.to_score

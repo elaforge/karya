@@ -2,18 +2,20 @@ UNSORTED
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
   - it's annoying having to set the scale along with the inst, can I have the
-    wayang insts also set a scale?
+    wayang insts also set a scale?  Or should there be one wayang scale, and
+    switch ngumbang and ngisep with an env var?
   - kontakt wayang inst is not balanced, ff to a0 change is too dramatic
-  - managed to crash by undoing while editing, I think.  Needs to be fixed!
+  - Managed to crash by undoing while editing, I think.  I wound up with
+    note events on a control track and when I tried to undo and delete it
+    I got an update on wrong kind of track assertion error.
   - note dur timestep is important, it should be visible
-  - it would be really nice to be able to add ticks at the first note of
-    a block.  I'm beginning to think it should be a postproc entirely.
-    But it needs to either use the stack to figure out the next note on the
-    track, or I need a way to consistently apply it at the "lowest" level.
-  - Sometimes it makes more sense as at attribute of the previous note, or
+  * it would be really nice to be able to add ticks at the first note of
+    a block.
+  - I either need an easy way to apply realize-damp at the "lowest" level of
+    each note track, or it needs to use the stack to figure out what the next
+    event is.
+  - Sometimes tick makes more sense as at attribute of the previous note, or
     perhaps a freestanding ornament, since it can happen or not on a repeat.
-  - I should be able to get leading ornaments to work by adding
-    (abs (max 0 (head events))) to event times.
   - window management to tile the windows
   - I do a lot of appending a block along with it's ruler, I could have
     a single cmd to do that.

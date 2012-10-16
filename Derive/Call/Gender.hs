@@ -24,10 +24,6 @@ note_calls = Derive.make_calls
     , ("realize-damp", c_realize_damp)
     ]
 
--- TODO prev note duration also must be extended!  But to do this I have to
--- either insert a hack where a call can modify previous events, or do a hybrid
--- postproc thing.  E.g. tick creates its note but adds an attr.  Postproc
--- goes and extends the duration of events previous to one with that attr.
 c_tick :: Maybe Pitch.Transpose -> Derive.NoteCall
 c_tick transpose = Derive.stream_generator "tick"
     ("Insert an intermediate grace note in the \"ngoret\" rambat style."
@@ -55,8 +51,10 @@ c_tick transpose = Derive.stream_generator "tick"
         grace_start <- Derive.score (start - time)
         -- If there isn't room for the grace note, use the midpoint between the
         -- prev note and this one.
-        grace_start <- return $ max grace_start $
-            maybe 0 ((/2) . (+ Args.start args)) (Args.prev_start args)
+        grace_start <- return $ case Args.prev_start args of
+            Nothing -> grace_start
+            Just prev -> max grace_start $ (prev + Args.start args) / 2
+
         overlap <- Util.duration_from (Args.start args) damp
         let grace_end = min (Args.end args) (Args.start args + overlap)
 

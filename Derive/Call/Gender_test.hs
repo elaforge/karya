@@ -19,6 +19,11 @@ test_tick = do
 
     strings_like (snd $ run $ c_to_e "'" "'") ["previous event"]
 
+    -- Starting at 0 will emit an event at negative time.
+    -- Thanks to the "x <= 0 means constant" hack the pitch is accurate even
+    -- though TimeVector.constant starts it at 0.
+    equal (run $ c_to_e "'^ .5 .5 1" "")
+        ([(-0.5, 1, "3b", dyn), (0, 1, "4c", dyn), (2, 1, "4e", dyn)], [])
     -- tick is a constant time before second note regardless of tempo
     let (evts, logs) = run $ ("tempo", [(0, 0, ".5")]) : c_to_e "" "' .5 .5"
     equal logs []
@@ -69,4 +74,3 @@ test_tick_damp = do
         extract = DeriveTest.extract DeriveTest.e_note2
     equal (run [(0, 1, ""), (1, 1, "' .1 .5")] [(0, 0, "4c"), (1, 0, "4e")])
         ([(0, 1.5, "4c"), (0.9, 0.6, "4d"), (1, 1, "4e")], [])
-

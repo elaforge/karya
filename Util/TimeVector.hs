@@ -1,7 +1,39 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleContexts, FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
-{- | Generic functions over vectors of Samples which have a RealTime
-    attribute.
+{- | Generic functions over vectors of 'Sample's.
+
+    The samples should be sorted, though this is currently not enforced by
+    the constructors.
+
+    The meaning of the samples is defined by the 'at' implementation.  Each
+    sample starts at its time and extends up to, but not including, the next
+    sample.  Therefore if there are multiple samples at the same time, only the
+    last one is visible.
+
+    There is a special rule that says a sample at <=0 is considered to extend
+    backwards indefinitely.  So @at (-1) [(1, 1)]@ is 0, but @at (-1) [(0, 1)]@
+    is 1.  This is weird and I've gone back and forth a couple times on the
+    design so I should document how this came up.
+
+    The idea is that some calls will move events back in time (e.g. grace
+    notes).  If the call starts at 0, the events will start at negative time.
+    Controls start at 0, so these events will have no pitch and no controls.
+    Even if the pitch is set explicitly via 'constant', it still starts at 0.
+    I could solve the problem with 'constant' by starting it at -bignum, but
+    that introduces an inconsistency since control tracks still start at 0.
+
+    Since tracks provide no way to say what the value should be before they
+    start, I have to do something implicit (well, technically they could, but
+    it seems awkward).  So the idea is that a sample at 0 gives the value for
+    negative times as well.  Actually the implementation is <=0, since it seems
+    weird that translating a signal back from 0 would change its meaning.  This
+    still leaves a bit of weirdness where translating a signal back from
+    positive to will change its definition when it crosses 0.  Hopefully this
+    won't be a problem in practice.
+
+    This solves the problem for 'constant' and for tracks in the same way, and
+    doesn't result in any ugly arbitrary -bignum values suddenly showing up in
+    signals.
 -}
 module Util.TimeVector (
     module Util.TimeVector
@@ -89,6 +121,18 @@ signal = V.fromList . map (uncurry Sample)
 unsignal :: (V.Vector v (Sample y)) => v (Sample y) -> [(X, y)]
 unsignal = map to_pair . V.toList
 
+{-# INLINEABLE constant #-}
+{-# SPECIALIZE constant :: Double -> Unboxed #-}
+constant :: (V.Vector v (Sample y)) => y -> v (Sample y)
+constant y = V.singleton (Sample 0 y)
+
+is_constant :: Unboxed -> Bool
+is_constant vec = case viewL vec of
+    Nothing -> True
+    Just (Sample x0 y0, rest)
+        | x0 <= 0 -> V.all ((==y0) . sy) rest
+        | otherwise -> V.all ((==0) . sy) vec
+
 to_pair :: Sample y -> (X, y)
 to_pair (Sample x y) = (x, y)
 
@@ -116,12 +160,18 @@ merge vecs = V.unfoldrN len go vecs
 
 -- | Find the value of the signal at the X value.  Nothing if the X is before
 -- the first sample.
+--
+-- There is a special rule that says a sample at <=0 is considered to extend
+-- backwards indefinitely.  So @at (-1) [(1, 1)]@ is 0, but
+-- @at (-1) [(0, 1)]@ is 1.  More documentation in the module haddock.
 {-# INLINEABLE at #-}
 {-# SPECIALIZE at :: X -> Unboxed -> Maybe Double #-}
 at :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Maybe y
 at x vec
     | i >= 0 = Just $ sy (V.unsafeIndex vec i)
-    | otherwise = Nothing
+    | otherwise = case viewL vec of
+        Just (Sample x y, _) | x <= 0 -> Just y
+        _ -> Nothing
     where i = highest_index x vec
 
 -- | Shift the signal in time.
