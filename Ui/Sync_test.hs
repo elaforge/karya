@@ -152,10 +152,10 @@ test_zoom_scroll = do
 test_set_status = do
     state <- run_setup
     state <- io_human "status set" $ run state $ do
-        State.set_view_status t_view_id "lol" (Just "o hai")
-        State.set_view_status t_view_id "brick" (Just "krazy")
+        State.set_view_status t_view_id (0, "lol") (Just "o hai")
+        State.set_view_status t_view_id (1, "brick") (Just "krazy")
     state <- io_human "'lol' status cleared" $ run state $ do
-        State.set_view_status t_view_id "lol" Nothing
+        State.set_view_status t_view_id (0, "lol") Nothing
     return ()
 
 test_set_track_flags = do

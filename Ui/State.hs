@@ -497,7 +497,7 @@ destroy_view view_id = unsafe_modify $ \st ->
     st { state_views = Map.delete view_id (state_views st) }
 
 -- | Set a status variable on a view.
-set_view_status :: (M m) => ViewId -> String -> Maybe String -> m ()
+set_view_status :: (M m) => ViewId -> (Int, String) -> Maybe String -> m ()
 set_view_status view_id key val =
     modify_view view_id $ \view -> view { Block.view_status =
         Map.alter (const val) key (Block.view_status view) }

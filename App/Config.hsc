@@ -56,49 +56,51 @@ instrument_cache_dir = "db"
 -- * status view
 
 -- The block status bar is not very big, so it's important to control what
--- goes in there.
+-- goes in there.  The format is (sort_key, text).
 
 -- ** per-view
 
--- | Selection start and range.
-status_selection :: String
-status_selection = "s"
+-- | Selection start and range.  This goes at the end because it changes width
+-- a lot.
+status_selection :: (Int, String)
+status_selection = (8, "s")
 
 -- | Zoom and scroll of the visible area.
-status_zoom :: String
-status_zoom = "z"
+status_zoom :: (Int, String)
+status_zoom = (9, "z")
 
 -- ** per block
 
--- | Show the source block for blocks integrated from another block.
-status_integrate_source :: String
-status_integrate_source = "src"
-
--- ** global
-
 -- | Base octave of the kbd note entry.
-status_octave :: String
-status_octave = "8"
+status_octave :: (Int, String)
+status_octave = (0, "8")
 
 -- | Current time step.
-status_step :: String
-status_step = "t"
+status_step :: (Int, String)
+status_step = (1, "t")
+
+status_note_duration :: (Int, String)
+status_note_duration = (2, "d")
+
+-- | Various record flags.  Most are reflected in the color of the edit box,
+-- but the secondary ones go here.
+status_record :: (Int, String)
+status_record = (4, "r")
 
 -- | Text of the last note, even if it didn't create an event.  Useful to know
 -- what a key would enter.
-status_note :: String
-status_note = "n"
+status_note :: (Int, String)
+status_note = (5, "n")
 
 -- | Track 'Cmd.state_note_text', which is the previously entered note track
 -- text.  This is useful e.g. to set an attribute and maintain that for
 -- several notes in a row.
-status_note_text :: String
-status_note_text = "note"
+status_note_text :: (Int, String)
+status_note_text = (5, "note")
 
--- | Various record flags.  Most are reflected in the color of the edit box,
--- but the secondary ones go here.
-status_record :: String
-status_record = "r"
+-- | Show the source block for blocks integrated from another block.
+status_integrate_source :: (Int, String)
+status_integrate_source = (8, "src")
 
 
 -- * lang

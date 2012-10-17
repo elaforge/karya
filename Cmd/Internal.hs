@@ -305,10 +305,13 @@ edit_color mode = case mode of
 sync_step_status :: (Cmd.M m) => m ()
 sync_step_status = do
     st <- Cmd.gets Cmd.state_edit
-    let status = TimeStep.show_step (Just (Cmd.state_note_direction st))
-            (Cmd.state_time_step st)
-    Cmd.set_status Config.status_step (Just status)
-    Cmd.set_global_status "step" status
+    let step_status = TimeStep.show_step Nothing (Cmd.state_time_step st)
+        dur_status = TimeStep.show_step (Just (Cmd.state_note_direction st))
+            (Cmd.state_note_duration st)
+    Cmd.set_status Config.status_step (Just step_status)
+    Cmd.set_global_status "step" step_status
+    Cmd.set_status Config.status_note_duration (Just dur_status)
+    Cmd.set_global_status "note dur" dur_status
 
 sync_octave_status :: (Cmd.M m) => m ()
 sync_octave_status = do
@@ -340,11 +343,12 @@ sync_ui_config config = do
             State.default_scale (State.config_default config)
     Cmd.set_global_status "scale" scale
 
+-- Zoom is actually not very useful.
 sync_zoom_status :: (Cmd.M m) => ViewId -> m ()
-sync_zoom_status view_id = do
-    view <- State.get_view view_id
-    Cmd.set_view_status view_id Config.status_zoom
-        (Just (Pretty.pretty (Block.view_zoom view)))
+sync_zoom_status _view_id = return ()
+    -- view <- State.get_view view_id
+    -- Cmd.set_view_status view_id Config.status_zoom
+    --     (Just (Pretty.pretty (Block.view_zoom view)))
 
 -- * selection
 

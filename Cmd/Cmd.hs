@@ -774,7 +774,7 @@ get_insert_tracknum = do
 
 -- | This just calls 'State.set_view_status', but all status setting should
 -- go through here so they can be uniformly filtered or logged or something.
-set_view_status :: (M m) => ViewId -> String -> Maybe String -> m ()
+set_view_status :: (M m) => ViewId -> (Int, String) -> Maybe String -> m ()
 set_view_status view_id key val = State.set_view_status view_id key val
 
 set_global_status :: (M m) => String -> String -> m ()
@@ -786,7 +786,7 @@ set_global_status key val = do
         Log.debug $ "global status: " ++ key ++ " -- " ++ val
 
 -- | Set a status variable on all views.
-set_status :: (M m) => String -> Maybe String -> m ()
+set_status :: (M m) => (Int, String) -> Maybe String -> m ()
 set_status key val = do
     view_ids <- State.gets (Map.keys . State.state_views)
     forM_ view_ids $ \view_id -> set_view_status view_id key val

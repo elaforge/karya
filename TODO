@@ -8,12 +8,16 @@ UNSORTED
   - Managed to crash by undoing while editing, I think.  I wound up with
     note events on a control track and when I tried to undo and delete it
     I got an update on wrong kind of track assertion error.
-  - note dur timestep is important, it should be visible
+  - Should 'mul' be default for 'dyn'?  Default for all controls?  I could
+    have '=' for replace, nothing for mul, '+' for add.
+  * note dur timestep is important, it should be visible
   * it would be really nice to be able to add ticks at the first note of
     a block.
   - I either need an easy way to apply realize-damp at the "lowest" level of
     each note track, or it needs to use the stack to figure out what the next
     event is.
+  - Damp can't work across blocks unless I structure by hand.  Or add a hand
+    attr.  It seems like too much work just to get some damping right.
   - Sometimes tick makes more sense as at attribute of the previous note, or
     perhaps a freestanding ornament, since it can happen or not on a repeat.
   - window management to tile the windows

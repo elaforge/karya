@@ -278,7 +278,7 @@ instance Serialize Block.Divider where
         return $ Block.Divider color
 
 instance Serialize Block.View where
-    put (Block.View a b c d e f g h) = Serialize.put_version 3
+    put (Block.View a b c d e f g h) = Serialize.put_version 4
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
     get = do
         v <- Serialize.get_version
@@ -288,7 +288,18 @@ instance Serialize Block.View where
                 rect :: Rect.Rect <- get
                 visible_track :: Int <- get
                 visible_time :: Int <- get
-                status :: Map.Map String String <- get
+                _status :: Map.Map String String <- get
+                track_scroll :: Types.Width <- get
+                zoom :: Types.Zoom <- get
+                selections :: Map.Map Types.SelNum Types.Selection <- get
+                return $ Block.View block rect visible_track visible_time
+                    mempty track_scroll zoom selections
+            4 -> do
+                block :: Types.BlockId <- get
+                rect :: Rect.Rect <- get
+                visible_track :: Int <- get
+                visible_time :: Int <- get
+                status :: Map.Map (Int, String) String <- get
                 track_scroll :: Types.Width <- get
                 zoom :: Types.Zoom <- get
                 selections :: Map.Map Types.SelNum Types.Selection <- get

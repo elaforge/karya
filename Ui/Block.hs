@@ -285,7 +285,8 @@ data View = View {
     -- here so pure code doesn't have to call to the UI and import BlockC.
     , view_track_padding :: !Int
     , view_time_padding :: !Int
-    , view_status :: !(Map.Map String String)
+    -- | Map (sort_order, name) contents
+    , view_status :: !(Map.Map (Int, String) String)
 
     -- | Scroll and zoom
     , view_track_scroll :: !Types.Width
@@ -335,8 +336,9 @@ status_color block_id block maybe_root_id
         Config.status_integrate_destination
     | otherwise = Config.status_default
 
-show_status :: Map.Map String String -> String
-show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v) . Map.assocs
+show_status :: Map.Map (Int, String) String -> String
+show_status =
+    Seq.join " | " . map (\((_, k), v) -> k ++ ": " ++ v) . Map.toAscList
 
 -- | Return how much track is in view.
 visible_time :: View -> ScoreTime
