@@ -35,10 +35,9 @@ c_omit :: (Derive.Derived d) => Derive.Call d
 c_omit = Derive.transformer "omit"
     "Omit the derived call a certain percentage of the time."
     $ CallSig.call1t
-    (optional "retain" 0.5
-        "Chance, from 0 to 1, that the transformed note will actually happen."
-    ) $ \retain _args deriver ->
-        ifM (Util.chance retain) deriver (return mempty)
+    (optional "omit" 0.5
+        "Chance, from 0 to 1, that the transformed note will be omitted."
+    ) $ \omit _args deriver -> ifM (Util.chance omit) (return mempty) deriver
 
 c_alternate :: (Derive.Derived d) => Derive.Call d
 c_alternate = Derive.stream_generator "alternate"

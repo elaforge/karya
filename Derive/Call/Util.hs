@@ -23,7 +23,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Random as Random
 import qualified Util.Seq as Seq
 
-import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -339,10 +338,8 @@ _make_randoms f = do
 _random_generator :: ScoreTime -> Derive.Deriver Pure64.PureMT
 _random_generator pos = do
     seed <- Derive.lookup_val TrackLang.v_seed :: Derive.Deriver (Maybe Double)
-    track_id <- Seq.head . mapMaybe Stack.track_of . Stack.innermost <$>
-        Derive.get_stack
-    let track = maybe 0 (Hashable.hash . Id.show_id . Id.unpack_id) track_id
-        cseed = Hashable.hash track
+    stack <- Stack.innermost <$> Derive.get_stack
+    let cseed = Hashable.hash (map show stack)
             `Hashable.hashWithSalt` fromMaybe 0 seed
             `Hashable.hashWithSalt` ScoreTime.to_double pos
     return $ Pure64.pureMT (fromIntegral cseed)

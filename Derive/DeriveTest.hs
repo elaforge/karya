@@ -366,6 +366,9 @@ e_twelve e = fromMaybe "?" $ do
     return (Pitch.note_text note)
     where to_input (Pitch.NoteNumber n) = Pitch.InputKey n
 
+e_start_dur :: Score.Event -> (RealTime, RealTime)
+e_start_dur e = (Score.event_start e, Score.event_duration e)
+
 -- | (start, dur, pitch), the melodic essentials of a note.
 e_note :: Score.Event -> (RealTime, RealTime, Pitch.NoteNumber)
 e_note e = (Score.event_start e, Score.event_duration e,
