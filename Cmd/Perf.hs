@@ -242,7 +242,7 @@ lookup_realtime perf block_id maybe_track_id pos = do
 get_realtimes :: Cmd.Performance -> BlockId -> TrackId -> [ScoreTime]
     -> [(ScoreTime, RealTime)]
 get_realtimes perf block_id track_id ps =
-    [(p, t) | (p, (t:_))
+    [(p, t) | (p, t : _)
         <- zip ps (map (Cmd.perf_tempo perf block_id track_id) ps)]
 
 -- | Take a RealTime to all the ScoreTimes it corresponds to, if any.

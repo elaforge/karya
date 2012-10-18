@@ -13,7 +13,7 @@ symbols :: [Symbol.Symbol] -> IO ()
 symbols syms = do
     forM_ syms $ \sym -> do
         missing <- SymbolC.insert_symbol sym
-        when (not (null missing)) $
+        unless (null missing) $
             Log.warn $ "failed to load symbol " ++ show (Symbol.sym_name sym)
                 ++ ", fonts not found: " ++ show missing
     Log.notice $ "loaded " ++ show (length syms) ++ " symbols"

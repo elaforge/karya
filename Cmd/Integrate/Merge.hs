@@ -63,11 +63,11 @@ create_block :: (State.M m) => BlockId -> Convert.Tracks
 create_block source_block_id tracks = do
     ruler_id <- State.block_ruler source_block_id
     block_id <- Create.block ruler_id
-    ((,) block_id) <$> merge_block block_id tracks []
+    (,) block_id <$> merge_block block_id tracks []
 
 merge_block :: (State.M m) => BlockId -> Convert.Tracks
     -> [Block.TrackDestination] -> m [Block.TrackDestination]
-merge_block block_id tracks dests = merge_tracks block_id tracks dests
+merge_block = merge_tracks
 
 
 -- * tracks

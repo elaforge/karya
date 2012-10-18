@@ -343,7 +343,7 @@ reinit_state present cstate = cstate
     }
 
 -- | Get a midi writer that takes the 'state_wdev_map' into account.
-state_midi_writer :: State -> (Midi.WriteMessage -> IO ())
+state_midi_writer :: State -> Midi.WriteMessage -> IO ()
 state_midi_writer state (Midi.WriteMessage wdev ts msg) = do
     putStrLn $ "PLAY " ++ Pretty.pretty wdev ++ "->" ++ Pretty.pretty wmsg
     ok <- Midi.Interface.write_message (state_midi_interface state) wmsg
@@ -717,7 +717,7 @@ modify_play_state f = modify $ \st ->
 get_screen :: (M m) => (Int, Int) -> m Rect.Rect
 get_screen point = do
     screens <- gets state_screens
-    return $ maybe Rect.empty id $
+    return $ fromMaybe Rect.empty $
         Seq.minimum_on (Rect.distance point) screens
 
 lookup_performance :: (M m) => BlockId -> m (Maybe Performance)
@@ -775,7 +775,7 @@ get_insert_tracknum = do
 -- | This just calls 'State.set_view_status', but all status setting should
 -- go through here so they can be uniformly filtered or logged or something.
 set_view_status :: (M m) => ViewId -> (Int, String) -> Maybe String -> m ()
-set_view_status view_id key val = State.set_view_status view_id key val
+set_view_status = State.set_view_status
 
 set_global_status :: (M m) => String -> String -> m ()
 set_global_status key val = do
@@ -828,7 +828,7 @@ get_scale caller scale_id = do
 get_rdev_state :: (M m) => Midi.ReadDevice -> m InputNote.ControlState
 get_rdev_state rdev = do
     cmap <- gets state_rdev_state
-    return $ maybe (InputNote.empty_state Config.control_pb_range) id
+    return $ fromMaybe (InputNote.empty_state Config.control_pb_range)
         (Map.lookup rdev cmap)
 
 set_rdev_state :: (M m) => Midi.ReadDevice -> InputNote.ControlState -> m ()

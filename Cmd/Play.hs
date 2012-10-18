@@ -114,14 +114,14 @@ cmd_play_from_previous_step transport_info = do
     step <- gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     prev <- TimeStep.rewind step block_id tracknum pos
-    cmd_play transport_info block_id (Just track_id, maybe 0 id prev)
+    cmd_play transport_info block_id (Just track_id, fromMaybe 0 prev)
 
 cmd_play_from_previous_root_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_root_step transport_info = do
     (block_id, tracknum, track_id, pos) <- Selection.get_root_insert
     step <- gets Cmd.state_play_step
     prev <- TimeStep.rewind step block_id tracknum pos
-    cmd_play transport_info block_id (Just track_id, maybe 0 id prev)
+    cmd_play transport_info block_id (Just track_id, fromMaybe 0 prev)
 
 cmd_play :: Transport.Info -> BlockId -> (Maybe TrackId, ScoreTime)
     -> Cmd.CmdIO
@@ -174,8 +174,8 @@ cmd_context_stop = do
     maybe_ctl <- gets Cmd.state_play_control
     if_just maybe_ctl (done . Trans.liftIO . Transport.stop_player) $ do
     step_playing <- Cmd.gets (Maybe.isJust . Cmd.state_step . Cmd.state_play)
-    if step_playing then (done StepPlay.cmd_clear) else do
-    done Cmd.all_notes_off
+    if step_playing then done StepPlay.cmd_clear
+        else done Cmd.all_notes_off
     where
     done = (>> return Cmd.Done)
 

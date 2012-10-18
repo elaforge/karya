@@ -52,9 +52,8 @@ get_mode = Cmd.gets (Cmd.state_edit_mode . Cmd.state_edit)
 -- | Turn on kbd entry mode, putting a K in the edit box as a reminder.  This
 -- is orthogonal to the previous edit modes.
 cmd_toggle_kbd_entry :: (Cmd.M m) => m ()
-cmd_toggle_kbd_entry = do
-    Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
+cmd_toggle_kbd_entry = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
 
 -- ** util
 
@@ -475,7 +474,7 @@ record_recent note recent0 = (key, note) : recent
     key = fromMaybe (length recent) $
         (fst <$> List.find ((==note) . snd) recent0)
         `mplus`
-        Seq.head (filter (`notElem` (map fst recent)) [1..max_recent])
+        Seq.head (filter (`notElem` map fst recent) [1..max_recent])
     max_recent = 4
     match (Cmd.RecentNote n1 _) (Cmd.RecentNote n2 _) =
         Seq.head (words n1) == Seq.head (words n2)

@@ -253,7 +253,7 @@ triggered_note :: Derive.EventDeriver
 triggered_note = Call.eval_one_at 0 0 $ TrackLang.call "" [] :| []
 
 place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
-place = uncurry (Derive.d_place) . Args.extent
+place = uncurry Derive.d_place . Args.extent
 
 -- * call transformers
 

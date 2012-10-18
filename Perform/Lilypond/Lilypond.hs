@@ -231,9 +231,7 @@ convert_measures config time_sigs events =
     add_time ((prev_tsig, tsig), maybe_measure) = time_change
         ++ fromMaybe (make_rests config tsig 0 (measure_time tsig))
             maybe_measure
-        where
-        time_change = if maybe True (/=tsig) prev_tsig
-            then [TimeChange tsig] else []
+        where time_change = [TimeChange tsig | maybe True (/=tsig) prev_tsig]
 
 -- TODO The time signatures are still not correct.  Since time sig is only on
 -- notes, I can't represent a time sig change during silence.  I would need to
@@ -273,11 +271,9 @@ convert_measure events = case events of
             else note_column state tsig event events
     note_column state tsig event events = do
         clef <- lookup_clef event
-        let clef_change = if Just clef /= state_clef state
-                then [ClefChange clef] else []
+        let clef_change = [ClefChange clef | Just clef /= state_clef state]
         key <- lookup_key event
-        let key_change = if Just key /= state_key state
-                then [KeyChange key] else []
+        let key_change = [KeyChange key | Just key /= state_key state]
         let (note, end, rest_events) = convert_note state tsig event events
             leading_rests = make_rests (state_config state) tsig
                 (state_note_end state) (event_start event)
@@ -431,7 +427,7 @@ allowed_dotted_time sig measure_pos
 
 -- | Like 'allowed_dotted_time', but only emit powers of two.
 allowed_time :: TimeSignature -> Time -> Time
-allowed_time sig pos = 2 ^ (log2 (allowed_dotted_time sig pos))
+allowed_time sig pos = 2 ^ log2 (allowed_dotted_time sig pos)
 
 -- * duration / time conversion
 
@@ -666,7 +662,7 @@ ly_file title staff_groups = run_output $ do
             mapM_ (ly_staff inst) staves
             output ">>\n"
     ly_staff inst (Staff measures) = do
-        output $ "\\new Staff {"
+        output "\\new Staff {"
         output $ "\\set Staff.instrumentName =" <+> str (inst_name inst)
             <> "\n\\set Staff.shortInstrumentName =" <+> str (inst_name inst)
             <> "\n{\n"

@@ -117,7 +117,7 @@ eval_one_at start dur expr = eval_expr cinfo expr
 -- | Apply an expr with the current call info.
 reapply :: (Derive.Derived d) => Derive.PassedArgs d -> TrackLang.Expr
     -> Derive.LogsDeriver d
-reapply args expr = eval_expr (Derive.passed_info args) expr
+reapply args = eval_expr (Derive.passed_info args)
 
 reapply_call :: (Derive.Derived d) => Derive.PassedArgs d -> TrackLang.Call
     -> Derive.LogsDeriver d

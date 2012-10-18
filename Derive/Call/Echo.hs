@@ -62,10 +62,8 @@ echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver
     -> Derive.EventDeriver
 echo delay feedback times deriver
     | times <= 0 = deriver
-    | otherwise = do
-        Derive.d_merge [deriver,
-            Derive.shift_control delay $ Derive.d_at delay $
-                scale_dyn feedback $ echo delay feedback (times - 1) deriver]
+    | otherwise = deriver <> Derive.shift_control delay (Derive.d_at delay
+        (scale_dyn feedback $ echo delay feedback (times - 1) deriver))
 
 scale_dyn :: Signal.Y -> Derive.EventDeriver -> Derive.EventDeriver
 scale_dyn = Derive.multiply_control Score.c_dynamic

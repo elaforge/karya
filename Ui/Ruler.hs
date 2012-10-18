@@ -149,7 +149,7 @@ instance DeepSeq.NFData Mark where
 
 instance Pretty Mark where
     pretty m = "<mark: " ++ show (mark_rank m) ++ name ++ ">"
-        where name = if null (mark_name m) then "" else " " ++ mark_name m
+        where name = if null (mark_name m) then "" else ' ' : mark_name m
 
 split :: Marklist -> ScoreTime -> ([PosMark], [PosMark])
 split (Marklist m) pos = (Map.toDescList pre, Map.toAscList post)

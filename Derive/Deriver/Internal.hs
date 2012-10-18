@@ -41,7 +41,7 @@ get_constant f = gets (f . state_constant)
 -- (i.e. except Collect) from the sub derivation is discarded, whatever state
 -- it's in after the exception shouldn't matter.
 local :: (Dynamic -> Dynamic) -> Deriver a -> Deriver a
-local modify_state deriver = localm (return . modify_state) deriver
+local modify_state = localm (return . modify_state)
 
 localm :: (Dynamic -> Deriver Dynamic) -> Deriver a -> Deriver a
 localm modify_state deriver = do

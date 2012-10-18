@@ -54,7 +54,7 @@ map_widths wanted f = do
                 TrackTree.tracks_of block_id
         widths <- map Block.track_width <$>
             mapM (State.get_block_track_at block_id) tracknums
-        sequence_ $ zipWith (State.set_track_width block_id)
+        zipWithM_ (State.set_track_width block_id)
             tracknums (map f widths)
 
 -- | Transform all track titles.

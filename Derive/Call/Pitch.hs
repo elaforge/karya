@@ -221,7 +221,7 @@ make_interpolator f include_initial x1 note1 x2 note2 = do
 interpolator :: Scale.Scale -> RealTime -> (Double -> Double)
     -> Interpolator
 interpolator scale srate f include_initial x1 note1 x2 note2 =
-    Util.signal scale $ (if include_initial then id else drop 1) $
+    Util.signal scale $ (if include_initial then id else drop 1)
         [(x, pitch_of x) | x <- Seq.range_end x1 x2 srate]
     where
     pitch_of = Pitches.interpolated note1 note2

@@ -81,7 +81,7 @@ track_type_of (Tree.Node track subs, parents)
     | otherwise = Control $ children
         -- If there is a note track above assume it will invert itself below
         -- the control stack.
-        ++ (maybe [] (:[]) $ List.find is_note (map Tree.rootLabel parents))
+        ++ maybe [] (:[]) (List.find is_note (map Tree.rootLabel parents))
     where
     children = concatMap Tree.flatten subs
     is_single (Tree.Node _ [_]) = True
@@ -119,7 +119,7 @@ note_of_pitch block_id tracknum = do
 -- | Get the instrument of a track, or fail.  Try to resolve the default
 -- instrument based on the root performance.
 get_instrument_of :: (Cmd.M m) => BlockId -> TrackNum -> m Score.Instrument
-get_instrument_of block_id tracknum = do
+get_instrument_of block_id tracknum =
     State.require ("get_instrument_of expected a note track: "
         ++ show (block_id, tracknum)) =<< lookup_instrument_of block_id tracknum
 
@@ -188,7 +188,7 @@ show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
 set_inst_status :: (Cmd.M m) => BlockId -> TrackNum -> m ()
 set_inst_status block_id tracknum = do
     status <- get_track_status block_id tracknum
-    when_just status $ (Cmd.set_global_status "inst")
+    when_just status $ Cmd.set_global_status "inst"
 
 -- | Looks like:
 -- title (tracknum): inst_name, allocation, [control tracks]

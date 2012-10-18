@@ -152,7 +152,7 @@ degree_to_hz :: Theory.Degree -> Ratios -> Maybe Pitch.Hz
     -> Key -> Theory.Pitch -> Pitch.Hz
 degree_to_hz per_oct ratios maybe_base_hz key pitch = base * ratio
     where
-    base = base_hz * 2 ^^ (Theory.pitch_octave degree)
+    base = base_hz * 2 ^^ Theory.pitch_octave degree
     base_hz = Pitch.nn_to_hz $ normalize_octave $
         maybe (key_tonic_nn key) Pitch.hz_to_nn maybe_base_hz
     ratio = index_mod ratios (Theory.note_pc (Theory.pitch_note degree))
@@ -202,11 +202,11 @@ type Ratios = Vector.Vector Double
 
 -- | 5-limit diatonic, with just major triads.
 major_ratios :: Ratios
-major_ratios = Vector.fromList [1/1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8]
+major_ratios = Vector.fromList [1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8]
 
 -- | 5-limit diatonic, with just minor triads.
 minor_ratios :: Ratios
-minor_ratios = Vector.fromList [1/1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5]
+minor_ratios = Vector.fromList [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5]
 
 
 {- Retuning scales:

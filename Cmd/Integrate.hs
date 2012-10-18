@@ -64,7 +64,7 @@ integrate_block block_id tracks = do
             Create.view block_id
             return [(block_id, dests)]
         integrated -> forM integrated $ \(block_id, track_dests) ->
-            ((,) block_id) <$> Merge.merge_block block_id tracks
+            (,) block_id <$> Merge.merge_block block_id tracks
                 (NonEmpty.toList track_dests)
     Log.notice $ "integrated " ++ show block_id ++ " to: "
         ++ Pretty.pretty (map fst new_blocks)

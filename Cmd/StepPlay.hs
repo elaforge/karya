@@ -183,7 +183,7 @@ zip_state step_state forward = do
     let zipper = (Cmd.step_before step_state, Cmd.step_after step_state)
         (before, after) = if forward
             then zip_forward zipper else zip_backward zipper
-    when (not (null after)) $
+    unless (null after) $
         put $ Just $
             step_state { Cmd.step_before = before, Cmd.step_after = after }
     return $ if forward
@@ -225,6 +225,6 @@ set_selections view_ids pos tracks = sequence_
 get :: (Cmd.M m) => m (Maybe Cmd.StepState)
 get = Cmd.gets (Cmd.state_step . Cmd.state_play)
 
-put :: (Cmd.M m) => (Maybe Cmd.StepState) -> m ()
+put :: (Cmd.M m) => Maybe Cmd.StepState -> m ()
 put step_state = Cmd.modify_play_state $ \st ->
     st { Cmd.state_step = step_state }

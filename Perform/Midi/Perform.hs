@@ -132,7 +132,7 @@ channelize_event inst_addrs overlapping event =
     inst_name = Instrument.inst_score (event_instrument event)
     -- If there's no shareable channel, make up a channel one higher than the
     -- maximum channel in use.
-    chan = maybe (maximum (-1 : map snd overlapping) + 1) id maybe_chan
+    chan = fromMaybe (maximum (-1 : map snd overlapping) + 1) maybe_chan
     (maybe_chan, reasons) = shareable_chan overlapping event
     logs =
         [ Log.msg Log.Warn (Just (Stack.to_strings (event_stack event))) $

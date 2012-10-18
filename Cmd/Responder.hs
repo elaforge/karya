@@ -241,7 +241,7 @@ save_updates updates = Monad.State.modify $ \st ->
 -}
 run_responder :: State -> ResponderM Result -> IO (Bool, State)
 run_responder state m = do
-    (val, (RState _ ui_from ui_to cmd_from cmd_to cmd_updates))
+    (val, RState _ ui_from ui_to cmd_from cmd_to cmd_updates)
         <- Monad.State.runStateT m (make_rstate state)
     case val of
         Left err -> do

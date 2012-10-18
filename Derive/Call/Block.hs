@@ -87,7 +87,7 @@ d_block block_id = do
     -- Do some error checking.  These are all caught later, but if I throw here
     -- I can give more specific error msgs.
     title <- case Map.lookup block_id blocks of
-        Nothing -> Derive.throw $ "block_id not found"
+        Nothing -> Derive.throw "block_id not found"
         Just block -> return $ Block.block_title block
     apply_transform "block title" title $ do
         -- Record a dependency on this block.

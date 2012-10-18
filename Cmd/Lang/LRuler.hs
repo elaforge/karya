@@ -121,7 +121,7 @@ fitted_meter :: Meter.AbstractMeter -> BlockId -> Cmd.CmdL ()
 fitted_meter meter block_id = do
     dur <- State.block_event_end block_id
     when (dur <= 0) $
-        Cmd.throw $ "can't set ruler for block with 0 duration"
+        Cmd.throw "can't set ruler for block with 0 duration"
     local_meter block_id $ const $ Meter.fit_meter dur meter
 
 set_meter :: ScoreTime -> Meter.AbstractMeter -> BlockId -> Cmd.CmdL ()

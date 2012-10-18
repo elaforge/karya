@@ -84,7 +84,7 @@ interpreter (Session chan) = do
         parse_flags args
         -- obj_allowed must be False, otherwise I get
         -- Cannot add module Cmd.Lang.Environ to context: not interpreted
-        GHC.setTargets $ [make_target False toplevel]
+        GHC.setTargets [make_target False toplevel]
         (result, logs, warns) <- reload
         case result of
             Left err -> liftIO $

@@ -30,8 +30,10 @@
 module Cmd.InputNote where
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Num as Num
+
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
@@ -84,7 +86,7 @@ data ControlState = ControlState
     } deriving (Eq, Show)
 
 empty_state :: Control.PbRange -> ControlState
-empty_state pb_range = ControlState Map.empty Map.empty pb_range
+empty_state = ControlState Map.empty Map.empty
 
 from_midi :: ControlState -> Midi.ReadDevice -> Midi.Message
     -> Maybe (Input, ControlState)
@@ -137,7 +139,7 @@ pb_to_input (low, high) pb key =
     offset = if pb < 0 then -pb * fromIntegral low else pb * fromIntegral high
 
 cc_to_control :: Midi.Control -> Score.Control
-cc_to_control cc = maybe (Score.Control ("cc" ++ show cc)) id
+cc_to_control cc = fromMaybe (Score.Control ("cc" ++ show cc))
     (Map.lookup cc cc_control)
 
 control_to_cc :: Score.Control -> Maybe Midi.Control

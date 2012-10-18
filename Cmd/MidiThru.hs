@@ -98,7 +98,7 @@ map_scale patch_scale scale input = case input of
             return $ fmap (\k -> InputNote.NoteOn note_id k vel) maybe_nn
         InputNote.PitchChange note_id key -> do
             maybe_nn <- convert key
-            return $ fmap (\k -> InputNote.PitchChange note_id k) maybe_nn
+            return $ fmap (InputNote.PitchChange note_id) maybe_nn
         _ -> return $ Just input
     where
     convert input_key = do
@@ -174,7 +174,7 @@ alloc_addr note_addr addr_serial serial addrs input
         (Map.insert note_id addr note_addr, Map.insert addr serial addr_serial)
     unassign addr = Just
         (Map.delete note_id note_addr, Map.insert addr serial addr_serial)
-    (allocated, free) = List.partition (`elem` (Map.elems note_addr)) addrs
+    (allocated, free) = List.partition (`elem` Map.elems note_addr) addrs
     old_addr = Seq.minimum_on (flip Map.lookup addr_serial) allocated
 
 pb_of :: Midi.PitchBendValue -> [Midi.ChannelMessage] -> Midi.PitchBendValue

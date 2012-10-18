@@ -489,7 +489,7 @@ hlint config = do
 hlintIgnore :: [String]
 hlintIgnore =
     [ "Use camelCase", "Use &&&", "Use ***", "Use uncurry", "Use section"
-    , "Use infix", "Use maybeToList"
+    , "Use infix", "Use maybeToList", "Use join", "Use String"
     ]
 
 -- | Make all documentation.

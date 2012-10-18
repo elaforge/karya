@@ -48,7 +48,7 @@ track_doc = do
 -- It doesn't update TrackIds so they may still be named under their old block,
 -- but track id names aren't supposed to carry meaning anyway.
 rename :: BlockId -> BlockId -> Cmd.CmdL ()
-rename from to = Create.rename_block from to
+rename = Create.rename_block
 
 -- | Rename block calls in a single block.
 replace :: BlockId -> BlockId -> Cmd.CmdL ()

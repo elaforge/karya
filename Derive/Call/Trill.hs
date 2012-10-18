@@ -85,7 +85,7 @@ c_note_trill = Derive.stream_generator "trill"
         mode <- get_mode
         (transpose, control) <- trill_from_controls
             (Args.start args, Args.end args) mode neighbor speed
-        xs <- mapM Derive.score $ map fst $ Signal.unsignal transpose
+        xs <- mapM (Derive.score . fst) (Signal.unsignal transpose)
         let end = snd $ Args.range args
         let notes = do
                 (x, maybe_next) <- Seq.zip_next xs
@@ -98,7 +98,7 @@ c_note_trill = Derive.stream_generator "trill"
 c_tremolo :: Derive.NoteCall
 c_tremolo = Derive.stream_generator "tremolo" "Repeat a single note." $
     CallSig.call1g
-    (optional "speed" (typed_control "tremolo-speed" 10 Score.Real) $
+    (optional "speed" (typed_control "tremolo-speed" 10 Score.Real)
         "Tremolo at this speed. Its meaning is the same as the trill speed."
     ) $ \speed -> Note.inverting $ \args -> Lily.note args Attrs.trem $ do
         (speed_sig, time_type) <- Util.to_time_signal Util.Real speed

@@ -110,8 +110,8 @@ data Arg a = Arg {
     } deriving (Eq, Show)
 
 arg_type :: (Typecheck a) => Arg a -> TrackLang.Type
-arg_type arg = TrackLang.to_type
-    (maybe (error "arg_type shouldn't evaluate this") id (arg_default arg))
+arg_type arg = TrackLang.to_type $
+    fromMaybe (error "arg_type shouldn't evaluate this") (arg_default arg)
 
 arg_environ_default :: TrackLang.CallId -> String -> TrackLang.ValName
 arg_environ_default (TrackLang.Symbol call) arg_name =
@@ -232,7 +232,7 @@ call1g arg1 f = with_doc [arg_doc arg1] $ \vals -> do
     val1 <- extract1 vals arg1
     f val1 vals
 
-call1t :: (Typecheck a) => (Arg a) -> (a -> Transformer y result)
+call1t :: (Typecheck a) => Arg a -> (a -> Transformer y result)
     -> Derive.WithArgDoc (Transformer y result)
 call1t arg1 f = with_doc [arg_doc arg1] $
     \vals deriver -> do

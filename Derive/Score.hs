@@ -127,7 +127,7 @@ place start dur event = (move (const start) event) { event_duration = dur }
 
 move_start :: RealTime -> Event -> Event
 move_start offset =
-    duration (if offset >= 0 then (subtract offset) else (+offset))
+    duration (if offset >= 0 then subtract offset else (+offset))
         . move (+offset)
 
 duration :: (RealTime -> RealTime) -> Event -> Event

@@ -191,7 +191,7 @@ get_tempo_damage track_id track_range = do
 score_to_control :: TrackId -> (ScoreTime, ScoreTime) -> ScoreDamage
     -> ControlDamage
 score_to_control track_id track_range score =
-    ControlDamage $ in_range $ maybe Ranges.nothing id $
+    ControlDamage $ in_range $ fromMaybe Ranges.nothing $
         Map.lookup track_id (Derive.sdamage_tracks score)
     where in_range = Ranges.intersection $ uncurry Ranges.range track_range
 

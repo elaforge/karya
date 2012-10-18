@@ -34,7 +34,7 @@ get_track_cmds = do
     maybe_track_id <- State.event_track_at block_id tracknum
     track <- Cmd.require =<< Info.lookup_track_type block_id tracknum
 
-    icmds <- maybe [] id <$> case maybe_track_id of
+    icmds <- fromMaybe [] <$> case maybe_track_id of
         Just track_id -> lookup_instrument_cmds block_id track_id
         Nothing -> return Nothing
     edit_state <- Cmd.gets Cmd.state_edit

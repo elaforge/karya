@@ -77,7 +77,7 @@ check_control_tree block_end forest = case forest of
         ++ show (map (TrackTree.tevents_title . Tree.rootLabel) tracks)
     where
     events = Events.singleton (Event.event 0 block_end capture_null_control)
-    capture_track = (TrackTree.track_events ">" events block_end)
+    capture_track = TrackTree.track_events ">" events block_end
 
 derive_control_tree :: ScoreTime -> TrackTree.EventsTree
     -> Derive.ControlDeriver

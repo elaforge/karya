@@ -62,7 +62,7 @@ get_track_signals :: Maybe BlockId -> Cmd.State -> Track.TrackSignals
 get_track_signals maybe_root st = fromMaybe Map.empty $ do
     root <- maybe_root
     Cmd.perf_track_signals <$>
-        (Map.lookup root $ Cmd.state_performance (Cmd.state_play st))
+        Map.lookup root (Cmd.state_performance (Cmd.state_play st))
 
 -- | This should be run before every sync, since if errors get to sync they'll
 -- result in bad UI display, a C++ exception, or maybe even a segfault (but C++

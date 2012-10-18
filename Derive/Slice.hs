@@ -219,8 +219,7 @@ slice_notes :: ScoreTime -> ScoreTime -> TrackTree.EventsTree
     -> [[(ScoreTime, ScoreTime, TrackTree.EventsTree)]]
     -- ^ One list per note track, in right to left order.  Each track is
     -- @[(shift, stretch, tree)]@, in no guaranteed order.
-slice_notes start end =
-    map (map shift) . map slice_track . concatMap note_tracks
+slice_notes start end = map (map shift . slice_track) . concatMap note_tracks
     where
     note_tracks (Tree.Node track subs)
         | TrackInfo.is_note_track (TrackTree.tevents_title track) =

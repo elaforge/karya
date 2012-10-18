@@ -68,9 +68,9 @@ cmd_play_msg msg = do
             _ -> return ()
     derive_status_color status = case status of
         Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
-        Msg.Deriving {} -> Just $ Config.busy_color
-        Msg.DeriveComplete {} -> Just $ Config.box_color
-        Msg.Killed {} -> Just $ Config.box_color
+        Msg.Deriving {} -> Just Config.busy_color
+        Msg.DeriveComplete {} -> Just Config.box_color
+        Msg.Killed {} -> Just Config.box_color
 
 
 -- * updater

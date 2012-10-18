@@ -61,7 +61,7 @@ toggle_merge_all block_id = do
                 (TrackInfo.is_pitch_track . State.track_title) controls
             return (State.track_tracknum note, State.track_tracknum pitch)
     ifM (andM [track_merged block_id tracknum | (tracknum, _) <- note_pitches])
-        (mapM_ (State.unmerge_track block_id) (map fst note_pitches))
+        (mapM_ (State.unmerge_track block_id . fst) note_pitches)
         (mapM_ (uncurry (State.merge_track block_id)) note_pitches)
 
 track_merged :: (State.M m) => BlockId -> TrackNum -> m Bool

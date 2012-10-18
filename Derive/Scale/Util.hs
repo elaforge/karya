@@ -139,8 +139,7 @@ input_to_nn input_to_note note_to_call pos input
                 controls <- Derive.controls_at =<< Derive.real pos
                 return $ either (const Nothing) Just $
                     PitchSignal.eval_pitch pitch controls
-            _ -> do
-                return $ Nothing
+            _ -> return Nothing
     | otherwise = return Nothing
 
 lookup_input :: Pitch.InputKey -> InputMap

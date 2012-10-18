@@ -26,6 +26,7 @@ import qualified Data.Set as Set
 
 import qualified System.Info
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -148,10 +149,7 @@ make_cmd cmd_map msg = do
     bindable <- Cmd.require (msg_to_bindable msg)
     mods <- mods_down (Maybe.isJust (Msg.char msg))
     case Map.lookup (KeySpec mods bindable) cmd_map of
-        Nothing -> do
-            -- Log.warn $ "key " ++ show (mods, bindable) ++ " not in "
-            --     ++ show (Map.keys cmd_map)
-            return Cmd.Continue
+        Nothing -> return Cmd.Continue
         Just (CmdSpec name cmd) -> do
             Log.debug $ "running command " ++ show name
             Cmd.name name (cmd msg)
@@ -344,7 +342,7 @@ show_bindable show_repeatable b = case b of
 -- TODO isn't there some way I can get this at compile time?  template haskell?
 physical_key :: Char -> Char
 physical_key c =
-    maybe (error $ "Keymap.physical_key " ++ show c ++ " not found") id $
+    fromMaybe (error $ "Keymap.physical_key " ++ show c ++ " not found") $
         Map.lookup c hardcoded_kbd_layout
 
 

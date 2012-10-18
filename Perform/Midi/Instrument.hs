@@ -148,7 +148,7 @@ default_decay :: RealTime
 default_decay = 1.0
 
 inst_decay :: Instrument -> RealTime
-inst_decay = maybe default_decay id . inst_maybe_decay
+inst_decay = fromMaybe default_decay . inst_maybe_decay
 
 -- * config
 

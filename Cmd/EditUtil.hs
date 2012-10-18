@@ -51,7 +51,7 @@ get_event :: (State.M m) =>
 get_event modify_dur track_id pos dur = do
     track <- State.get_track track_id
     let modify = if modify_dur then Event.set_duration dur else id
-    return $ maybe ((Event.event pos dur ""), True)
+    return $ maybe (Event.event pos dur "", True)
         (\evt -> (modify evt, False))
         (Events.at pos (Track.track_events track))
 

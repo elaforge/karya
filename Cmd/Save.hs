@@ -38,7 +38,7 @@ cmd_load fname = do
     Log.notice $ "load state from " ++ show fname
     Serialize.SaveState state _ <- Cmd.require_right
         (("load " ++ fname ++ ": ") ++)
-        =<< (Trans.liftIO $ Serialize.unserialize fname)
+        =<< Trans.liftIO (Serialize.unserialize fname)
     set_state state
 
 -- * git serialize
@@ -69,7 +69,7 @@ cmd_load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
 cmd_load_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " ++ repo ++ ": ") ++)
-        =<< (Trans.liftIO $ SaveGit.load repo maybe_commit)
+        =<< Trans.liftIO (SaveGit.load repo maybe_commit)
     last_save <- rethrow "read_last_save" $
         SaveGit.read_last_save repo (Just commit)
     Log.notice $ "loaded from " ++ show repo ++ ", at " ++ Pretty.pretty commit
@@ -124,5 +124,5 @@ cmd_load_midi_config fname = do
     Log.notice $ "load midi config from " ++ show fname
     config <- Cmd.require_right
         (("unserializing midi config " ++ show fname ++ ": ") ++)
-        =<< (Trans.liftIO $ Serialize.unserialize_text fname)
+        =<< Trans.liftIO (Serialize.unserialize_text fname)
     State.set_midi_config config

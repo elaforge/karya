@@ -46,7 +46,7 @@ c_guzheng strings = Derive.transformer "guzheng"
     ( optional "attack" (control "string-attack" 0.5) $
         "Time for a string to be bent to its desired pitch. A fast attack"
         <> " sounds like a stopped string."
-    , optional "release" (control "string-release" 0.5) $
+    , optional "release" (control "string-release" 0.5)
         "Time for a string to return to its original pitch."
     , optional "delay" (control "string-delay" 0) $
         "If the string won't be used for the following note, it will be"

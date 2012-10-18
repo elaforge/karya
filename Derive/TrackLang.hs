@@ -44,10 +44,10 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
-import Derive.BaseTypes (Environ, ValName, insert_val)
 import Derive.BaseTypes
-       (Val(..), Symbol(..), AttrMode(..), RelativeAttr(..),
-        ControlRef(..), PitchControl, ValControl, Note(..))
+       (Environ, ValName, insert_val, Val(..), Symbol(..), AttrMode(..),
+        RelativeAttr(..), ControlRef(..), PitchControl, ValControl,
+        Note(..))
 import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch
@@ -191,7 +191,8 @@ instance (Typecheck a) => Typecheck (Maybe a) where
         Just v -> Just (Just v)
     to_val Nothing = VNotGiven
     to_val (Just a) = to_val a
-    to_type val = TMaybe (to_type (maybe undefined id val))
+    to_type val = TMaybe $ to_type $
+        fromMaybe (error "to_type shouldn't evaluate its argument") val
 
 instance Typecheck Double where
     from_val (VNum (Score.Typed _ a)) = Just a
@@ -443,7 +444,7 @@ instance ShowVal Expr where
 instance ShowVal Call where
     show_val (Call call_id terms) =
         show_val call_id ++ if null terms then ""
-            else " " ++ Seq.join " " (map show_val terms)
+            else ' ' : Seq.join " " (map show_val terms)
 instance ShowVal Term where
     show_val (ValCall call) = "(" ++ show_val call ++ ")"
     show_val (Literal val) = show_val val

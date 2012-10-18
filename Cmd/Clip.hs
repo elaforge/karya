@@ -111,7 +111,7 @@ selected_to_state block_id selected = State.exec State.empty $ do
     State.set_namespace $ Id.ident_namespace block_id
     State.create_block (Id.unpack_id block_id) ""
         [Block.track (Block.RId State.no_ruler) 0]
-    forM_ (zip [0..] selected) $ \(tracknum, (title, events)) -> do
+    forM_ (zip [0..] selected) $ \(tracknum, (title, events)) ->
         Create.track_events block_id State.no_ruler tracknum
             Config.track_width (Track.track title
                 (Events.map_events Event.strip_stack events))
@@ -173,8 +173,8 @@ cmd_paste_insert = do
     (start, end, track_events) <- paste_info
     -- Only shift the tracks that are in clip_events.
     block_end <- State.block_ruler_end =<< Cmd.get_focused_block
-    mapM_ (ModifyEvents.move_track_events block_end start (end-start))
-        (map fst track_events)
+    mapM_ (ModifyEvents.move_track_events block_end start (end-start) . fst)
+        track_events
     forM_  track_events $ \(track_id, events) ->
         State.insert_events track_id events
 

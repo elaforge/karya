@@ -145,7 +145,7 @@ highlight_error (bid, maybe_tid, maybe_range) = do
 unerror :: Cmd.CmdL ()
 unerror = do
     view_ids <- State.all_view_ids
-    forM_ view_ids $ \vid -> do
+    forM_ view_ids $ \vid ->
         Selection.set_selnum vid Config.error_selnum Nothing
 
 -- * show / modify cmd state
@@ -161,7 +161,7 @@ save :: Cmd.CmdL ()
 save = Save.cmd_save =<< Save.get_save_file
 
 save_as :: FilePath -> Cmd.CmdL ()
-save_as fn = Save.cmd_save fn
+save_as = Save.cmd_save
 
 load :: FilePath -> Cmd.CmdL ()
 load fn

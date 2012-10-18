@@ -61,10 +61,10 @@ create name ui_blocks = do
 create_block :: (State.M m) => (String -> Id.Id) -> RulerId
     -> String -> Int -> UiBlock -> m (BlockId, BlockRows)
 create_block mkid rid inst num (ui_block, block_rows) = do
-    block_id <- make_block mkid rid ("b" ++ show num)
+    block_id <- make_block mkid rid ('b' : show num)
         (concatMap mktrack ui_block)
     return (block_id, block_rows)
-    where mktrack (ntrack, ctracks) = (">" ++ inst, ntrack) : ctracks
+    where mktrack (ntrack, ctracks) = ('>' : inst, ntrack) : ctracks
 
 create_order_block :: (State.M m) => (String -> Id.Id)
     -> [(BlockId, BlockRows)] -> m BlockId
@@ -135,7 +135,7 @@ convert_block (Block rows) = (map convert_track clipped, block_length)
     where
     to_tracks rows = Seq.rotate (map (\(Row ns) -> ns) rows)
     tracks = to_tracks rows
-    block_length = maybe 0 id (Seq.minimum (map track_length tracks))
+    block_length = fromMaybe 0 $ Seq.minimum (map track_length tracks)
     clipped = map (take block_length) tracks
 
 track_length :: [Note] -> BlockRows
@@ -172,7 +172,7 @@ note_start :: [Effect] -> ScoreTime -> ScoreTime
 note_start effects at =
     at + recip frames * ScoreTime.double (fromIntegral delay)
     where
-    delay = maybe 0 id $ Seq.maximum $ map delay_effect effects
+    delay = fromMaybe 0 $ Seq.maximum $ map delay_effect effects
     frames = 8
 
 -- TODO retrigger not implemented, it's the lower 4 bits
@@ -198,7 +198,7 @@ convert_pitch :: Note -> Maybe (String, String)
 convert_pitch (Note pitch _ _)
     | pitch == 0 = Nothing
     | otherwise =
-        Just ("*", maybe "?" id (Map.lookup pitch degree_to_note))
+        Just ("*", fromMaybe "?" $ Map.lookup pitch degree_to_note)
 
 convert_effect :: Effect -> Maybe (String, String)
 convert_effect (fx, arg)

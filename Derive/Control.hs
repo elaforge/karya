@@ -263,7 +263,7 @@ stash_signal track sig derive_sig scale_map =
             stash track_id =<< linear_tempo
         _ -> return ()
     where
-    stash track_id (Just (shift, stretch)) = do
+    stash track_id (Just (shift, stretch)) =
         put_track_signal track_id $ Right $
             Track.TrackSignal (Signal.coerce sig) shift stretch scale_map
     stash track_id Nothing = do

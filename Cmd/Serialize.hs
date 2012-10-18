@@ -207,9 +207,8 @@ instance Serialize Block.Block where
                 tracks :: [Block.Track] <- get
                 skel :: Skeleton.Skeleton <- get
                 integrated ::
-                    Maybe (BlockId, (NonEmpty Block.TrackDestination)) <- get
-                itracks ::
-                    [(TrackId, (NonEmpty Block.TrackDestination))] <- get
+                    Maybe (BlockId, NonEmpty Block.TrackDestination) <- get
+                itracks :: [(TrackId, NonEmpty Block.TrackDestination)] <- get
                 meta :: Map.Map String String <- get
                 return $ Block.Block title Block.default_config tracks skel
                     integrated itracks meta

@@ -52,7 +52,7 @@ convert levents key = do
     mapM_ Log.write (Log.add_prefix "integrate" logs)
     -- If something failed to derive I shouldn't integrate that into the block.
     when (any ((>=Log.Warn) . Log.msg_prio) logs) $
-        Cmd.throw $ "aborting integrate due to warnings"
+        Cmd.throw "aborting integrate due to warnings"
     unless (null errs) $
         Cmd.throw $ "integrating events: " ++ Seq.join "; " errs
     return tracks

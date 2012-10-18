@@ -53,7 +53,7 @@ doc_text = Format.run . mapM_ section
         write_doc doc
         Format.indented 2 $ arg_docs args
     arg_docs (Derive.ArgsParsedSpecially doc) = do
-        Format.write $ "Args parsed by call: "
+        Format.write "Args parsed by call: "
         write_doc doc
     arg_docs (Derive.ArgDocs args) = mapM_ arg_doc args
     arg_doc (Derive.ArgDoc name typ deflt doc) = do
@@ -225,6 +225,6 @@ documented_call :: Derive.DocumentedCall -> (CallName, DocumentedCall)
 documented_call (Derive.DocumentedCall name generator transformer) =
     (Text.pack name,
         doc GeneratorCall generator ++ doc TransformerCall transformer)
-    where doc typ = maybe [] ((:[]) . ((,) typ))
+    where doc typ = maybe [] ((:[]) . (,) typ)
 documented_call (Derive.DocumentedValCall name cdoc) =
     (Text.pack name, [(ValCall, cdoc)])

@@ -285,7 +285,7 @@ splice_above_ancestors = do
     let ancestors = Seq.unique $ mapMaybe (ancestor tree) tracknums
     insert_at <- Cmd.require_msg "no selected tracks" $ Seq.minimum ancestors
     track_id <- focused_track block_id insert_at
-    State.add_edges block_id (map ((,) insert_at) (map (+1) ancestors))
+    State.add_edges block_id (map ((,) insert_at . (+1)) ancestors)
     return track_id
     where
     ancestor tree tracknum = case List.find find (Tree.flat_paths tree) of
@@ -483,8 +483,7 @@ generate_track_id block_id code tracks =
 ruler :: (State.M m) => String -> Ruler.Ruler -> m RulerId
 ruler name ruler = do
     ident <- make_id name
-    rid <- State.create_ruler ident ruler
-    return rid
+    State.create_ruler ident ruler
 
 -- | Set a block to a new ruler.
 new_ruler :: (State.M m) => BlockId -> String -> Ruler.Ruler -> m RulerId

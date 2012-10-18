@@ -368,4 +368,4 @@ default_time_padding, default_track_padding :: Block -> Int
 default_time_padding block = Config.view_time_padding
     + if not (null (block_title block))
         then Config.block_title_height else 0
-default_track_padding = const $ Config.view_track_padding
+default_track_padding = const Config.view_track_padding

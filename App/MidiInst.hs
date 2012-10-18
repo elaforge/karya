@@ -86,7 +86,7 @@ with_empty_code = with_code empty_code
 
 default_scale :: Pitch.ScaleId -> Code -> Code
 default_scale scale_id code = code
-    { environ = Map.singleton (TrackLang.v_scale) (TrackLang.VScaleId scale_id)
+    { environ = Map.singleton TrackLang.v_scale (TrackLang.VScaleId scale_id)
     }
 
 make_code :: Code -> Cmd.InstrumentCode

@@ -38,7 +38,7 @@ c_tick transpose = Derive.stream_generator "tick"
         "Time that the grace note overlaps with this one. So the total"
         <> " duration is time+damp, though it will be clipped to the"
         <> " end of the current note."
-    , optional "dyn" (control "ngoret-dyn" 0.75) $
+    , optional "dyn" (control "ngoret-dyn" 0.75)
         "The grace note's dyn will be this multiplier of the current dyn."
     ) $ \time damp dyn_scale -> Note.inverting_around (2, 1) $ \args -> do
         start <- Args.real_start args

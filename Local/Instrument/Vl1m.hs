@@ -55,7 +55,7 @@ parse_file fn = do
         ".syx" -> syx_split <$> File.read_binary fn
         ".txt" -> return []
         _ -> Log.warn ("skipping " ++ show fn) >> return []
-    txt <- fmap (maybe "" id) $
+    txt <- fromMaybe "" <$>
         File.ignore_enoent (readFile (FilePath.replaceExtension fn ".txt"))
     return $ map (parse fn txt) syxs
 

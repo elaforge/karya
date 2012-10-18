@@ -98,7 +98,7 @@ modify_event_at pos f = EditUtil.modify_event_at pos True True
 modify :: ((String, String) -> (String, String)) -> Event.Event -> Event.Event
 modify f event = Event.set_string text event
     where
-    text = maybe "" id (process (Event.event_string event))
+    text = fromMaybe "" $ process (Event.event_string event)
     process = unparse . justify . f . parse
     justify (a, b) = (Just a, Just b)
 

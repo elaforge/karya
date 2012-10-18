@@ -93,7 +93,7 @@ view_pdf :: BlockId -> Cmd.CmdL ()
 view_pdf block_id = do
     filename <- Cmd.Lilypond.ly_filename block_id
     Trans.liftIO $ Util.Process.logged $
-        (Process.proc "open" [FilePath.replaceExtension filename ".pdf"])
+        Process.proc "open" [FilePath.replaceExtension filename ".pdf"]
     return ()
 
 title_of :: BlockId -> Lilypond.Title

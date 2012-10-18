@@ -144,8 +144,7 @@ generate_note n_inst rel_attrs event next_start = do
                 environ
         }
     where
-    apply rel_attrs attrs =
-        List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs
+    apply rel_attrs = List.foldl' (.) id (map TrackLang.set_attr rel_attrs)
 
 -- | Interpret the c_start_rnd and c_dur_rnd controls.
 --

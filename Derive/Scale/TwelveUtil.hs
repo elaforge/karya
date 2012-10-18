@@ -123,7 +123,7 @@ call_doc scale_id example_note sys =
 
 make_note_to_degree :: Theory.Layout -> [Theory.Pitch] -> NoteToDegree
 make_note_to_degree layout all_pitches = Map.fromList $ filter in_range $
-    concat $ [[note "#" "x" "b" "bb" p, note "`#`" "`##`" "`b`" "`bb`" p]
+    concat [[note "#" "x" "b" "bb" p, note "`#`" "`##`" "`b`" "`bb`" p]
         | p <- all_pitches]
     where
     note s s2 f f2 p = (Pitch.Note $ Theory.show_pitch s s2 f f2 p,

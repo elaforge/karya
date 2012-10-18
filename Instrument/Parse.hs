@@ -103,7 +103,7 @@ p_bank_decl = do
     Parsec.skipMany1 Parsec.space
     n <- p_nat
     st <- Parsec.getState
-    Parsec.setState (st { state_bank = (fromIntegral n), state_patch_num = 0 })
+    Parsec.setState (st { state_bank = fromIntegral n, state_patch_num = 0 })
     return Nothing
 
 p_rest_of_line :: Parser (Maybe PatchLine)
@@ -197,8 +197,8 @@ byte_sat f = byte_tok $ \b -> if f b then Just b else Nothing
 byte :: Word8 -> ByteParser Word8
 byte b = byte_sat (==b) <?> ("byte " ++ hex b)
 
-match_bytes [] = return []
-match_bytes (b:bs) = byte b >> match_bytes bs
+match_bytes :: [Word8] -> ByteParser ()
+match_bytes = mapM_ byte
 
 n_bytes :: Int -> ByteParser [Word8]
 n_bytes n = Parsec.count n any_byte

@@ -163,7 +163,7 @@ patch_map patches =
     strip_init (name, patches) = do
         let (unique, dups) =
                 Seq.partition_dups (Instrument.patch_initialize . fst) patches
-        forM dups $ \(patch, dups) ->
+        forM_ dups $ \(patch, dups) ->
             log ("dropped patches with the same initialization as "
                 ++ details patch) dups
         return (name, unique)
@@ -214,7 +214,7 @@ logged_synths :: Instrument.Synth -> [PatchCode code] -> IO (SynthDesc code)
 logged_synths synth patches = do
     let (pmap, msgs) = patch_map patches
     let prefix = "synth " ++ Instrument.synth_name synth ++ ": "
-    mapM (Log.warn . (prefix++)) msgs
+    mapM_ (Log.warn . (prefix++)) msgs
     return (synth, pmap)
 
 -- | Build a PatchMap for a synth that has whatever patch you name.
