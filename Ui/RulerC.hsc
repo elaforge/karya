@@ -1,4 +1,3 @@
-{-# LANGUAGE EmptyDataDecls #-}
 {- | A ruler is also a Track, and can be mixed with them freely.  Rulers have
     Marks at various positions.  Marks have width, color, translucency, and an
     optional name.  They also have a display at zoom value.  Marks are only

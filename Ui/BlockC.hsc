@@ -111,7 +111,7 @@ get_id viewp = do
 -- | Create an empty block view with the given configs.  Tracks must be
 -- inserted separately.
 create_view :: ViewId -> String -> Rect.Rect -> Block.Config -> Fltk ()
-create_view view_id window_title rect block_config = do
+create_view view_id window_title rect block_config =
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
         when (view_id `Map.member` ptr_map) $
             throw $ show view_id ++ " already in displayed view list: "
@@ -415,7 +415,7 @@ instance Storable Block.DisplayTrack where
     poke = poke_display_track
 
 poke_display_track dtrackp (Block.DisplayTrack _ width _ status bright) = do
-    let (statusc, status_color) = maybe ('\NUL', Color.black) id status
+    let (statusc, status_color) = fromMaybe ('\NUL', Color.black) status
     (#poke DisplayTrack, event_brightness) dtrackp bright
     (#poke DisplayTrack, width) dtrackp width
     (#poke DisplayTrack, status_color) dtrackp status_color

@@ -146,7 +146,7 @@ play_position_selnum :: Types.SelNum
     ] = zip [0..] selection_colors
 
 selection_colors :: [Color.Color]
-selection_colors = map to_sel $ take max_selections $
+selection_colors = map to_sel $ take max_selections
     [Color.blue, Color.green, Color.yellow, Color.red, Color.purple,
         Color.turquoise]
     where to_sel = Color.alpha 0.3 . Color.brightness 1.25

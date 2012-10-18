@@ -170,7 +170,7 @@ track_regions stack track_id =
     where
     grps = Seq.split_with (== Track track_id) (outermost stack)
     get_region frames = case dropWhile is_call frames of
-        (Region s e) : _ -> [(s, e)]
+        Region s e : _ -> [(s, e)]
         _ -> []
     is_call (Call {}) = True
     is_call _ = False

@@ -9,7 +9,7 @@ import Foreign.C
 #include <sys/resource.h>
 
 getCPUTime :: IO Integer
-getCPUTime = do
+getCPUTime =
     allocaBytes (#const sizeof(struct rusage)) $ \ p_rusage -> do
     throwErrnoIfMinus1_ "getrusage" $ getrusage (#const RUSAGE_SELF) p_rusage
 

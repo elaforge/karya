@@ -478,8 +478,8 @@ hlint :: Config -> Shake.Action ()
 hlint config = do
     hscs <- filter haddock <$> Util.findHs "*.hsc" "."
     hs <- filter haddock <$> Util.findHs "*.hs" "."
-    system "hlint" $ mkIgnore hlintIgnore ++ hs
-    system "hlint" $ mkIgnore
+    Util.staunchSystem "hlint" $ mkIgnore hlintIgnore ++ hs
+    Util.staunchSystem "hlint" $ mkIgnore
         -- hsc2hs triggers these, not my fault.
         (hlintIgnore ++ ["Redundant bracket", "Avoid lambda"])
         ++ map (hscToHs (hscDir config)) hscs

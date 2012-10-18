@@ -1,6 +1,6 @@
 module Shake.Util (
     -- * shake specific
-    Cmdline, cmdline, system, shell, putQuietNormal
+    Cmdline, cmdline, system, staunchSystem, shell, putQuietNormal
     , findFiles, findHs, runIO
 
     -- * general
@@ -32,19 +32,26 @@ type Cmdline = (String, String, [String])
 -- a progress indication, while the keys just make any compiler errors scroll
 -- off the screen.
 cmdline :: Cmdline -> Shake.Action ()
-cmdline (abbr, output, cmd_:args) = do
+cmdline = doCmdline False
+
+doCmdline :: Bool -> Cmdline -> Shake.Action ()
+doCmdline staunch (abbr, output, cmd_:args) = do
     let cmd = FilePath.toNative cmd_
     let desc = abbr ++ if null output then "" else ": " ++ output
     putQuietNormal desc (unwords (cmd:args))
     res <- Shake.traced (crunch ("cmdline: " ++ desc)) $
         Cmd.rawSystem "nice" (cmd : args)
-    when (res /= Exit.ExitSuccess) $
+    when (not staunch && res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ unwords (cmd : args)
-cmdline (abbr, output, []) =
+doCmdline _ (abbr, output, []) =
     error $ "0 args for cmdline: " ++ show (abbr, output)
 
 system :: FilePath -> [String] -> Shake.Action ()
 system cmd args = cmdline (unwords (cmd:args), "", cmd:args)
+
+-- | Like 'system', but don't ignore the exit code.
+staunchSystem :: FilePath -> [String] -> Shake.Action ()
+staunchSystem cmd args = doCmdline True (unwords (cmd:args), "", cmd:args)
 
 shell :: String -> Shake.Action ()
 shell cmd = do
