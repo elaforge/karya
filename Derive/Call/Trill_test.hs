@@ -159,7 +159,7 @@ test_control_trill = do
     equal (run 0.5 "tr 1 1s") ([trill [0, 1, 2, 3, 4, 5, 6]], [])
     equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4]], [])
     equal (run 1 "tr 1 1d")
-        ([[]], ["Error: expected time type for 1d but got Diatonic"])
+        ([[(0, 0)]], ["Error: expected time type for 1d but got Diatonic"])
 
 -- * util
 

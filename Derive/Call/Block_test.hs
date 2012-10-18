@@ -51,7 +51,7 @@ test_c_control_block = do
                 ]
         sub = [(0, 0, "1"), (16, 0, "2"), (32, 0, "4")]
     let (evts, logs) = derive [(0, 2, "nosuch")] []
-    equal evts [[]]
+    equal evts [[(0, 0)]]
     strings_like logs ["control call not found: nosuch"]
 
     -- The last sample is clipped off since it's at the end of the block.

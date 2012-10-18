@@ -416,9 +416,11 @@ initial_controls = Map.fromList
     [ (Score.c_dynamic, Score.untyped (Signal.constant default_dynamic))
     ]
 
--- | See 'Perform.Midi.Perform.default_velocity' for 0.79.
+-- | A default dynamic that's not 0 is useful because otherwise you have to add
+-- dyn to everything.  Since control tracks multiply by default, 1 is the most
+-- convenient value.
 default_dynamic :: Signal.Y
-default_dynamic = 0.79
+default_dynamic = 1
 
 -- ** scope
 

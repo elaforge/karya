@@ -241,28 +241,20 @@ with_control :: Score.Control -> Score.TypedSignal -> Deriver a -> Deriver a
 with_control cont signal = Internal.local $ \st ->
     st { state_controls = Map.insert cont signal (state_controls st) }
 
-with_control_operator :: Score.Control -> TrackLang.CallId
-    -> Score.TypedSignal -> Deriver a -> Deriver a
-with_control_operator cont c_op signal deriver = do
-    op <- lookup_control_op c_op
-    with_relative_control cont op signal deriver
-
 -- | Modify an existing control.
 --
 -- If both signals are typed, the existing type wins over the relative
 -- signal's type.  If one is untyped, the typed one wins.
 with_relative_control :: Score.Control -> ControlOp -> Score.TypedSignal
     -> Deriver a -> Deriver a
-with_relative_control cont (op, empty) signal deriver
-    | Score.typed_val signal == mempty = deriver
-    | otherwise = do
-        controls <- get_controls
-        let old = Map.findWithDefault empty_sig cont controls
-        with_control cont (apply old signal) deriver
+with_relative_control cont (op, ident) signal deriver = do
+    controls <- get_controls
+    let old = Map.findWithDefault ident_sig cont controls
+    with_control cont (apply old signal) deriver
     where
     apply old new = Score.Typed (Score.type_of old <> Score.type_of new)
         (op (Score.typed_val old) (Score.typed_val new))
-    empty_sig = Score.Typed (Score.type_of signal) (Signal.constant empty)
+    ident_sig = Score.Typed (Score.type_of signal) (Signal.constant ident)
 
 with_added_control :: Score.Control -> Score.TypedSignal -> Deriver a
     -> Deriver a
@@ -278,8 +270,8 @@ multiply_control cont val
     | otherwise = with_multiplied_control cont
         (Score.untyped (Signal.constant val))
 
-lookup_control_op :: TrackLang.CallId -> Deriver ControlOp
-lookup_control_op c_op = do
+get_control_op :: TrackLang.CallId -> Deriver ControlOp
+get_control_op c_op = do
     op_map <- gets (state_control_op_map . state_constant)
     maybe (throw ("unknown control op: " ++ show c_op)) return
         (Map.lookup c_op op_map)

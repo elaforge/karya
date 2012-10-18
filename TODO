@@ -10,8 +10,10 @@ UNSORTED
   - Managed to crash by undoing while editing, I think.  I wound up with
     note events on a control track and when I tried to undo and delete it
     I got an update on wrong kind of track assertion error.
-  - Should 'mul' be default for 'dyn'?  Default for all controls?  I could
-    have '=' for replace, nothing for mul, '+' for add.
+  * Should 'mul' be default for 'dyn'?  Default for all controls?  I could
+    have 'set' for replace, nothing for mul.
+    I guess this means I have to get rid of the default dyn, otherwise there's
+    no way to go above it.
   * note dur timestep is important, it should be visible
   * it would be really nice to be able to add ticks at the first note of
     a block.

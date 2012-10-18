@@ -1,10 +1,11 @@
 module Derive.Call.Control_test where
-
 import Util.Test
-
 import qualified Derive.Call.CallTest as CallTest
+import qualified Perform.Signal as Signal
+import Types
 
 
+run :: [(ScoreTime, String)] -> [(RealTime, Signal.Y)]
 run = CallTest.run_control
 
 test_set = do
@@ -12,7 +13,7 @@ test_set = do
     equal (run [(0, "1"), (1, "")]) [(0, 1)]
 
 test_linear = do
-    equal (run [(1, "1"), (3, "i 0")]) [(1, 1), (2, 0.5), (3, 0)]
+    equal (run [(0, "1"), (2, "i 0")]) [(0, 1), (1, 0.5), (2, 0)]
 
 test_exponential = do
     equal (run [(0, "1"), (4, "e 0")])

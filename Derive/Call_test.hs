@@ -117,12 +117,13 @@ test_val_call = do
     let run evt = extract $ DeriveTest.derive_tracks_with with_add1
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
         with_add1 = CallTest.with_val_call "add1" add_one
-    equal (run "foobar") ([[]], ["Error: control call not found: foobar"])
+    equal (run "foobar")
+        ([[(0, 0)]], ["Error: control call not found: foobar"])
     equal (run "set 1") ([[(0, 1)]], [])
     equal (run "set (add1 1)") ([[(0, 2)]], [])
     equal (run "set (add1 (add1 1))") ([[(0, 3)]], [])
     let (res, logs) = run "set (add1 1 2)"
-    equal res [[]]
+    equal res [[(0, 0)]]
     strings_like logs ["too many arguments"]
     where
     add_one :: Derive.ValCall

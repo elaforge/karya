@@ -38,7 +38,8 @@ test_basic = do
     -- 1: derivation to score events
     let res = DeriveTest.derive_tracks
             [ (inst_title, [(0, 16, ""), (16, 16, "")])
-            , ("*twelve", [(0, 0, "4c"), (16, 0, "4c#")])
+            , ("*", [(0, 0, "4c"), (16, 0, "4c#")])
+            , ("dyn", [(0, 0, "1"), (16, 0, ".5")])
             ]
     let (perf_events, mmsgs, logs) =
             DeriveTest.perform_defaults (Derive.r_events res)
@@ -53,7 +54,7 @@ test_basic = do
         ]
 
     -- 3: performance to midi protocol events
-    equal (note_on_keys mmsgs) [60, 61]
+    equal (DeriveTest.note_on_times mmsgs) [(0, 60, 127), (16000, 61, 64)]
     equal logs []
     where
     mkstack (s, e) = Stack.from_outermost
@@ -63,6 +64,7 @@ test_basic = do
         -- track title and event for note track
         , Stack.Call "note-track", Stack.Region s e, Stack.Call "note"
         , Stack.Track (UiTest.mk_tid 2)
+        , Stack.Track (UiTest.mk_tid 3)
         -- t1 shows up again inverted
         , Stack.Track (UiTest.mk_tid 1)
         -- inverted note track has no note-track Call for ">"
@@ -484,10 +486,10 @@ test_overlapping_controls = do
     equal (fst $ DeriveTest.extract (e_control "cc1") res)
         [Just [(0, 0)], Just [(1, 1)]]
     equal (extract_mm mmsgs)
-        [ (0, Midi.ChannelMessage 0 (Midi.NoteOn 60 100))
-        , (1000, Midi.ChannelMessage 0 (Midi.NoteOff 60 100))
-        , (1000, Midi.ChannelMessage 1 (Midi.NoteOn 60 100))
-        , (2000, Midi.ChannelMessage 1 (Midi.NoteOff 60 100))
+        [ (0, Midi.ChannelMessage 0 (Midi.NoteOn 60 127))
+        , (1000, Midi.ChannelMessage 0 (Midi.NoteOff 60 127))
+        , (1000, Midi.ChannelMessage 1 (Midi.NoteOn 60 127))
+        , (2000, Midi.ChannelMessage 1 (Midi.NoteOff 60 127))
         ]
 
     -- Event is far enough away for the control to not interfere.
@@ -498,10 +500,10 @@ test_overlapping_controls = do
             ]
     let (_, mmsgs, _) = DeriveTest.perform_defaults (Derive.r_events res)
     equal (extract_mm mmsgs)
-        [ (0, Midi.ChannelMessage 0 (Midi.NoteOn 60 100))
-        , (1000, Midi.ChannelMessage 0 (Midi.NoteOff 60 100))
-        , (5000, Midi.ChannelMessage 0 (Midi.NoteOn 60 100))
-        , (6000, Midi.ChannelMessage 0 (Midi.NoteOff 60 100))
+        [ (0, Midi.ChannelMessage 0 (Midi.NoteOn 60 127))
+        , (1000, Midi.ChannelMessage 0 (Midi.NoteOff 60 127))
+        , (5000, Midi.ChannelMessage 0 (Midi.NoteOn 60 127))
+        , (6000, Midi.ChannelMessage 0 (Midi.NoteOff 60 127))
         ]
 
 e_control :: String -> Score.Event -> Maybe [(Signal.X, Signal.Y)]

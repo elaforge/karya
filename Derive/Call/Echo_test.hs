@@ -40,14 +40,14 @@ test_echo = do
             [("*twelve", [(0, 0, "4c"), (1, 0, "4d")])]
     equal logs []
     equal (DeriveTest.note_on_times mmsgs)
-        [(0, 60, 100), (1000, 62, 100), (2000, 60, 40), (3000, 62, 40)]
+        [(0, 60, 127), (1000, 62, 127), (2000, 60, 51), (3000, 62, 51)]
 
 test_event_echo = do
     let (mmsgs, logs) = perform ("e-echo 2", [(0, 1, "--1"), (1, 1, "--2")])
             [("*twelve", [(0, 0, "4c"), (1, 0, "4d")])]
     equal logs []
     equal (DeriveTest.note_on_times mmsgs)
-        [(0, 60, 100), (1000, 62, 100), (2000, 60, 40), (3000, 62, 40)]
+        [(0, 60, 127), (1000, 62, 127), (2000, 60, 51), (3000, 62, 51)]
 
     let (mmsgs, logs) = perform
             ("e-echo %edelay", [(0, 1, "--1"), (1, 1, "--2")])
@@ -56,8 +56,8 @@ test_event_echo = do
                     ("echo-times", [(0, 0, "1"), (1, 0, "2")])]
     equal logs []
     equal (DeriveTest.note_on_times mmsgs)
-        [(0, 60, 100), (1000, 62, 100),
-            (2000, 60, 40), (5000, 62, 40), (9000, 62, 16)]
+        [(0, 60, 127), (1000, 62, 127),
+            (2000, 60, 51), (5000, 62, 51), (9000, 62, 20)]
 
 perform :: (String, [UiTest.EventSpec]) -> [UiTest.TrackSpec]
      -> ([(Integer, Midi.Message)], [String])

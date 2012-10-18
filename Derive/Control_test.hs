@@ -33,7 +33,7 @@ test_control_track = do
     strings_like logs ["track title: control track must be one of"]
 
     let (val, logs) = derive ("cont", [(0, 0, "abc"), (1, 0, "def")])
-    equal val [[]]
+    equal val [[(0, 0)]]
     strings_like logs ["call not found: abc", "call not found: def"]
     equal (derive ("cont", events)) ([[(0, 1), (1, 2)]], [])
 
@@ -100,14 +100,15 @@ test_pitch_track = do
         ([[(0, 60), (1, 61), (2, 62)]], [])
 
 test_relative_control = do
-    let run suf add_suf = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run suf add_suf = extract $ DeriveTest.derive_tracks
             [ (">", [(0, 5, "")])
-            , ("*twelve", [(0, 0, "4c")])
+            , ("*", [(0, 0, "4c")])
             , ("cont" ++ suf, [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])
             , ("add cont" ++ add_suf, [(0, 0, "1")])
             ]
-        extract = (\(Score.Typed typ sig) -> (typ, map (at sig) [0..5]))
-            . (Map.! Score.Control "cont") . Score.event_controls
+        extract = DeriveTest.extract $
+            (\(Score.Typed typ sig) -> (typ, map (at sig) [0..5]))
+                . (Map.! Score.Control "cont") . Score.event_controls
         at sig t = Signal.at (RealTime.seconds t) sig
     equal (run "" "") ([(Score.Untyped, [1, 2, 3, 2, 1, 1])], [])
     -- No type on the relative signal means it gets the absolute signal's
@@ -120,17 +121,16 @@ test_relative_control = do
 
     -- Putting relative and absolute in the wrong order is ok since addition
     -- is a monoid.
-    let (events, logs) = DeriveTest.extract Score.event_controls $
-            DeriveTest.derive_tracks
-                [ (">", [(0, 10, "")])
-                , ("add cont", [(0, 0, "1")])
-                , ("cont", [(0, 0, "1")])
-                ]
-    let controls = Map.union Derive.initial_controls $
-            Map.fromList [(Score.Control "cont",
-                Score.untyped $ Signal.signal [(0, 1)])]
-    equal events [controls]
-    strings_like logs []
+    let run2 c1 v1 c2 v2 = extract $ DeriveTest.derive_tracks
+            [ (">", [(0, 10, "")])
+            , (c1, [(0, 0, v1)])
+            , (c2, [(0, 0, v2)])
+            ]
+        extract = DeriveTest.extract $ DeriveTest.e_control "cont"
+    equal (run2 "add cont" "1" "add cont" "1") ([[(0, 2)]], [])
+    -- Default is multiply, set replaces.
+    equal (run2 "cont" ".5" "cont" ".5") ([[(0, 0.25)]], [])
+    equal (run2 "cont" ".5" "set cont" ".5") ([[(0, 0.5)]], [])
 
 test_stash_signal = do
     -- make sure that TrackSignals are recorded when control tracks are derived

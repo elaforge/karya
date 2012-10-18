@@ -29,14 +29,14 @@ test_make_states = do
         extract (Midi.State.State chans) = Map.elems $
             Map.map (Map.toList . Midi.State.chan_notes)  chans
     let msgs =
-            [ (0, Midi.NoteOn 60 100)
+            [ (0, Midi.NoteOn 60 127)
             , (1, Midi.NoteOff 60 0)
-            , (1, Midi.NoteOn 61 100)
+            , (1, Midi.NoteOn 61 127)
             , (2, Midi.NoteOff 61 0)
             ]
     equal (f [0, 1, 2] msgs)
-        [ [[(60, 100)]]
-        , [[(61, 100)]]
+        [ [[(60, 127)]]
+        , [[(61, 127)]]
         , [[]]
         ]
 
@@ -51,10 +51,10 @@ test_move_to = do
         return (e_midi res, CmdTest.extract_ui get_sel res)
     -- Ensure that cmd_set picks the previous step pos, rounding downward
     -- if the match isn't exact.
-    io_equal (sel_from 2) ([Midi.NoteOn 62 100], Right ((Just 1), []))
-    io_equal (sel_from 1) ([Midi.NoteOn 60 100], Right ((Just 0), []))
-    io_equal (sel_from 0) ([Midi.NoteOn 60 100], Right ((Just 0), []))
-    io_equal (sel_from 1.5) ([Midi.NoteOn 60 100], Right ((Just 0), []))
+    io_equal (sel_from 2) ([Midi.NoteOn 62 127], Right ((Just 1), []))
+    io_equal (sel_from 1) ([Midi.NoteOn 60 127], Right ((Just 0), []))
+    io_equal (sel_from 0) ([Midi.NoteOn 60 127], Right ((Just 0), []))
+    io_equal (sel_from 1.5) ([Midi.NoteOn 60 127], Right ((Just 0), []))
 
 test_move = do
     res <- prepare_blocks UiTest.default_block_name simple_block
@@ -62,11 +62,11 @@ test_move = do
     res <- return $ CmdTest.run_again res $ do
         CmdTest.set_point_sel 1 3
         StepPlay.cmd_set False
-    equal (e_midi res) [Midi.NoteOn 64 100]
+    equal (e_midi res) [Midi.NoteOn 64 127]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 2, [])
 
     res <- return $ CmdTest.run_again res StepPlay.cmd_advance
-    equal (e_midi res) [Midi.NoteOff 64 0, Midi.NoteOn 65 100]
+    equal (e_midi res) [Midi.NoteOff 64 0, Midi.NoteOn 65 127]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 3, [])
 
     res <- return $ CmdTest.run_again res StepPlay.cmd_advance
@@ -80,7 +80,7 @@ test_move = do
 
     -- Rewind
     res <- return $ CmdTest.run_again res StepPlay.cmd_rewind
-    equal (e_midi res) [Midi.NoteOn 65 100]
+    equal (e_midi res) [Midi.NoteOn 65 127]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 3, [])
 
     -- Go back forward to make sure zipping is zipping properly.
@@ -96,7 +96,7 @@ test_move_tracks = do
     res <- return $ CmdTest.run_again res $ do
         CmdTest.set_point_sel 2 3
         StepPlay.cmd_set True
-    equal (e_midi res) [Midi.NoteOn 64 100]
+    equal (e_midi res) [Midi.NoteOn 64 127]
     -- Ensure the selection is only on one track.
     equal (CmdTest.extract_ui get_sel_tracks res) $ Right (Just (2, [2]), [])
 

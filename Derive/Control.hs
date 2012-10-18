@@ -1,14 +1,20 @@
-{- | Derivers for control tracks.
+{- | Derivers for control tracks.  That means tempo, control, and pitch.
 
-    Interpolation methods:
+    Control tracks (specifically control tracks, not tempo or pitch) can have
+    a combining operator.  If no operator is given, they are combined with
+    @mul@.  @set@ will replace the signal.  So two tracks named @c@ will
+    multiply, same as if the second were @mul c@.  If you want to override @c@
+    then @set c@ will do that.
 
-    - s - Set value at the point.  This is the default if there is no method.
+    A control with a combining operator but nothing to combine with should still
+    do something sensible because operators come with an identity value, e.g.
+    @1@ for @mul@ and @0@ for @add@.
 
-    - i - Approach with linear interpolation.
-
-    - #e - Approach with exponential interpolation with #.  # defaults to 2.
-
-    - method;val - Approach val with method, then jump to val.
+    Tempo tracks don't support operators because they are converted into
+    a warp, which is then combined via composition.  Pitch tracks always
+    replace each other because adding together absolute pitches is undefined.
+    Relative pitches can be added or multiplied, and this is expressed via
+    normal controls using transposition signals like 'Score.c_chromatic'.
 -}
 module Derive.Control where
 import qualified Data.Map as Map
@@ -61,8 +67,9 @@ eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
 eval_track track expr ctype deriver = case ctype of
     TrackInfo.Tempo -> ifM Derive.is_lilypond_derive deriver $
         tempo_call track (derive_control tempo_track expr) deriver
-    TrackInfo.Control maybe_op control ->
-        control_call track control maybe_op (derive_control track expr) deriver
+    TrackInfo.Control maybe_op control -> do
+        op <- lookup_op maybe_op
+        control_call track control op (derive_control track expr) deriver
     TrackInfo.Pitch scale_id maybe_name ->
         pitch_call track maybe_name scale_id expr deriver
     where
@@ -76,6 +83,13 @@ eval_track track expr ctype deriver = case ctype of
         where
         track_range = TrackTree.tevents_range track
         evts = TrackTree.tevents_events track
+
+lookup_op :: Maybe TrackLang.CallId -> Derive.Deriver (Maybe Derive.ControlOp)
+lookup_op op = case op of
+    Nothing -> return $ Just Derive.op_mul
+    Just sym
+        | sym == TrackLang.Symbol "set" -> return Nothing
+        | otherwise -> Just <$> Derive.get_control_op sym
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
@@ -102,7 +116,7 @@ tempo_call track sig_deriver deriver = do
     track_range = TrackTree.tevents_range track
 
 control_call :: TrackTree.TrackEvents -> Score.Typed Score.Control
-    -> Maybe TrackLang.CallId -> Derive.Deriver (TrackResults Signal.Control)
+    -> Maybe Derive.ControlOp -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
 control_call track control maybe_op control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track control_deriver
@@ -117,7 +131,7 @@ control_call track control maybe_op control_deriver deriver = do
         (TrackTree.tevents_range track)
     with_control (Score.Typed typ control) signal deriver = case maybe_op of
         Nothing -> Derive.with_control control sig deriver
-        Just op -> Derive.with_control_operator control op sig deriver
+        Just op -> Derive.with_relative_control control op sig deriver
         where sig = Score.Typed typ signal
 
 to_display :: TrackResults Signal.Control -> Signal.Display
