@@ -336,8 +336,8 @@ e_everything e =
 e_inst :: Score.Event -> String
 e_inst = Score.inst_name . Score.event_instrument
 
-e_control :: String -> Score.Event -> Maybe [(RealTime, Signal.Y)]
-e_control cont event = fmap (Signal.unsignal . Score.typed_val) $
+e_control :: String -> Score.Event -> [(RealTime, Signal.Y)]
+e_control cont event = maybe [] (Signal.unsignal . Score.typed_val) $
     Map.lookup (Score.Control cont) (Score.event_controls event)
 
 e_pitch :: Score.Event -> [(RealTime, Pitch.NoteNumber)]

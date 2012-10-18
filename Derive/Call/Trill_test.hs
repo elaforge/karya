@@ -152,14 +152,14 @@ test_control_trill = do
             , ("cont", [(0, 0, text), (3, 0, "--")])
             ]
         extract = DeriveTest.extract (DeriveTest.e_control "cont")
-        trill xs = Just (zip xs (cycle [0, 1]))
+        trill xs = zip xs (cycle [0, 1])
     equal (run 1 "tr 1 1") ([trill [0, 1, 2]], [])
     -- Defaults to RealTime, but stretches with ScoreTime if asked.
     equal (run 0.5 "tr 1 1") ([trill [0, 1, 2, 3, 4, 5, 6]], [])
     equal (run 0.5 "tr 1 1s") ([trill [0, 1, 2, 3, 4, 5, 6]], [])
     equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4]], [])
     equal (run 1 "tr 1 1d")
-        ([Just []], ["Error: expected time type for 1d but got Diatonic"])
+        ([[]], ["Error: expected time type for 1d but got Diatonic"])
 
 -- * util
 

@@ -1,7 +1,6 @@
 module Derive.Call_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -35,43 +34,33 @@ test_assign_controls = do
             , ("*twelve", [(0, 0, "4c")])
             , (inst_title, [(0, 1, "")])
             ]
-        extract = DeriveTest.extract e_event
-        e_event e = (head (DeriveTest.e_pitch e),
-            head <$> DeriveTest.e_control "cont" e)
+        extract = DeriveTest.extract $ \e ->
+            (DeriveTest.e_twelve e, DeriveTest.e_control "cont" e)
 
     -- normal
-    equal (run ">i" "cont" "1")
-        ([((0, 60), Just (0, 1))], [])
+    equal (run ">i" "cont" "1") ([("4c", [(0, 1)])], [])
     -- not seen
-    equal (run ">i" "gont" "1")
-        ([((0, 60), Nothing)], [])
+    equal (run ">i" "gont" "1") ([("4c", [])], [])
 
     -- a non-existent control with no default is an error
     let (events, logs) = run ">i | %cont = %bonk" "gont" "1"
     equal events []
     strings_like logs ["not found: Control \"bonk\""]
     -- control assigned
-    equal (run ">i | %cont = %gont" "gont" "1")
-        ([((0, 60), Just (0, 1))], [])
+    equal (run ">i | %cont = %gont" "gont" "1") ([("4c", [(0, 1)])], [])
 
     -- set a constant signal
-    equal (run ">i | %cont = 42" "gont" "1")
-        ([((0, 60), Just (0, 42))], [])
+    equal (run ">i | %cont = 42" "gont" "1") ([("4c", [(0, 42)])], [])
     -- set constant signal with a default
-    equal (run ">i | %cont = %gont,42" "bonk" "1")
-        ([((0, 60), Just (0, 42))], [])
-    equal (run ">i | %cont = %gont,42" "gont" "1")
-        ([((0, 60), Just (0, 1))], [])
+    equal (run ">i | %cont = %gont,42" "bonk" "1") ([("4c", [(0, 42)])], [])
+    equal (run ">i | %cont = %gont,42" "gont" "1") ([("4c", [(0, 1)])], [])
 
     -- named pitch doesn't show up
-    equal (run ">i" "*twelve #foo" "2c")
-        ([((0, 60), Nothing)], [])
+    equal (run ">i" "*twelve #foo" "2c") ([("4c", [])], [])
     -- assigned to default pitch, so it shows up
-    equal (run ">i | # = #foo" "*twelve #foo" "2c")
-        ([((0, 36), Nothing)], [])
+    equal (run ">i | # = #foo" "*twelve #foo" "2c") ([("2c", [])], [])
     -- set constant pitch
-    equal (run ">i | # = (1c)" "*twelve #foo" "2c")
-        ([((0, 24), Nothing)], [])
+    equal (run ">i | # = (1c)" "*twelve #foo" "2c") ([("1c", [])], [])
 
 test_environ_across_tracks = do
     let run tracks = DeriveTest.extract (DeriveTest.e_control "cont") $
@@ -80,16 +69,16 @@ test_environ_across_tracks = do
     -- first make sure srate works as I expect
     let interpolated = [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]
     equal (run [("cont", [(0, 0, "0"), (4, 0, "i 1")])])
-        ([Just interpolated], [])
-    equal (run [("cont | srate = 2", [(1, 0, "0"), (5, 0, "i 1")])])
-        ([Just [(1, 0), (3, 0.5), (5, 1)]], [])
+        ([interpolated], [])
+    equal (run [("set cont | srate = 2", [(1, 0, "0"), (5, 0, "i 1")])])
+        ([[(1, 0), (3, 0.5), (5, 1)]], [])
 
     -- now make sure srate in one track doesn't affect another
     let cont = ("cont", [(0, 0, "0"), (4, 0, "i 1")])
     equal (run [("cont2 | srate = 2", []), cont])
-        ([Just interpolated], [])
+        ([interpolated], [])
     equal (run [cont, ("cont2 | srate = 2", [])])
-        ([Just interpolated], [])
+        ([interpolated], [])
 
 test_call_errors = do
     let derive = extract . DeriveTest.derive_tracks_with with_trans
@@ -128,16 +117,12 @@ test_val_call = do
     let run evt = extract $ DeriveTest.derive_tracks_with with_add1
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
         with_add1 = CallTest.with_val_call "add1" add_one
-    equal (run "foobar")
-        ([Just []], ["Error: control call not found: foobar"])
-    equal (run "set 1")
-        ([Just [(0, 1)]], [])
-    equal (run "set (add1 1)")
-        ([Just [(0, 2)]], [])
-    equal (run "set (add1 (add1 1))")
-        ([Just [(0, 3)]], [])
+    equal (run "foobar") ([[]], ["Error: control call not found: foobar"])
+    equal (run "set 1") ([[(0, 1)]], [])
+    equal (run "set (add1 1)") ([[(0, 2)]], [])
+    equal (run "set (add1 (add1 1))") ([[(0, 3)]], [])
     let (res, logs) = run "set (add1 1 2)"
-    equal res [Just []]
+    equal res [[]]
     strings_like logs ["too many arguments"]
     where
     add_one :: Derive.ValCall

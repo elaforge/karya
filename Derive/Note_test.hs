@@ -17,8 +17,8 @@ test_sub_tracks = do
     -- Unfortunately the comment is lost since the expression is recreated
     -- from the parsed version.
     equal events
-        [ ((0, 2, ""), Just [(0, 0), (1, 1)], Just [(0, 3)])
-        , ((2, 2, ""), Just [(2, 2)], Just [(0, 3), (6, 4)])
+        [ ((0, 2, ""), [(0, 0), (1, 1)], [(0, 3)])
+        , ((2, 2, ""), [(2, 2)], [(0, 3), (6, 4)])
         ]
 
     let extract_p e = (DeriveTest.e_event e, DeriveTest.e_pitch e)

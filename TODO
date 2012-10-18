@@ -1,10 +1,12 @@
 UNSORTED
+  - have the DeriveTest log trace filter important msgs
+  - Ornament_test can use e_twelve
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
   - it's annoying having to set the scale along with the inst, can I have the
     wayang insts also set a scale?  Or should there be one wayang scale, and
-    switch ngumbang and ngisep with an env var?
-  - kontakt wayang inst is not balanced, ff to a0 change is too dramatic
+    switch ngumbang and ngisep with an env var?  An 'ombak' control could set
+    width.
   - Managed to crash by undoing while editing, I think.  I wound up with
     note events on a control track and when I tried to undo and delete it
     I got an update on wrong kind of track assertion error.

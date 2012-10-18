@@ -51,12 +51,12 @@ test_c_control_block = do
                 ]
         sub = [(0, 0, "1"), (16, 0, "2"), (32, 0, "4")]
     let (evts, logs) = derive [(0, 2, "nosuch")] []
-    equal evts [Just []]
+    equal evts [[]]
     strings_like logs ["control call not found: nosuch"]
 
     -- The last sample is clipped off since it's at the end of the block.
     equal (derive [(0, 0, "0"), (1, 2, "sub"), (3, 0, "3")] sub)
-        ([Just [(0, 0), (1, 1), (2, 2), (3, 3)]], [])
+        ([[(0, 0), (1, 1), (2, 2), (3, 3)]], [])
 
 test_c_control_block_stack = do
     -- Ensure the stack is correct for control block calls.

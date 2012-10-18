@@ -33,22 +33,22 @@ test_control_track = do
     strings_like logs ["track title: control track must be one of"]
 
     let (val, logs) = derive ("cont", [(0, 0, "abc"), (1, 0, "def")])
-    equal val [Just []]
+    equal val [[]]
     strings_like logs ["call not found: abc", "call not found: def"]
-    equal (derive ("cont", events)) ([Just [(0, 1), (1, 2)]], [])
+    equal (derive ("cont", events)) ([[(0, 1), (1, 2)]], [])
 
 test_hex = do
     let derive events =
             do_derive (DeriveTest.e_control "cont") ("cont", events)
     equal (derive [(0, 0, "`0x`ff"), (1, 0, "`0x`33"), (2, 0, "`0x`00")])
-        ([Just [(0, 1), (1, 0.2), (2, 0)]], [])
+        ([[(0, 1), (1, 0.2), (2, 0)]], [])
 
 test_track_expression = do
     let derive = do_derive (DeriveTest.e_control "cont")
     equal (derive ("cont", [(0, 0, "0"), (4, 0, "i 1")]))
-        ([Just [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]], [])
+        ([[(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]], [])
     equal (derive ("cont | srate = 2", [(0, 0, "0"), (4, 0, "i 1")]))
-        ([Just [(0, 0), (2, 0.5), (4, 1)]], [])
+        ([[(0, 0), (2, 0.5), (4, 1)]], [])
 
     let derive_pitch = do_derive DeriveTest.e_pitch
     equal (derive_pitch ("*twelve | srate = 2",
