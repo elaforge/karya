@@ -152,10 +152,10 @@ msg_srcpos srcpos prio stack text =
 -- | Create a msg with the give prio and text.
 initialized_msg_srcpos :: (LogMonad m) => SrcPos.SrcPos -> Prio -> String
     -> m Msg
-initialized_msg_srcpos srcpos prio text = make_msg srcpos prio Nothing text
+initialized_msg_srcpos srcpos prio = make_msg srcpos prio Nothing
 
 initialized_msg :: (LogMonad m) => Prio -> String -> m Msg
-initialized_msg prio = initialized_msg_srcpos Nothing prio
+initialized_msg = initialized_msg_srcpos Nothing
 
 -- | This is the main way to construct a Msg since 'initialize_msg' is called.
 make_msg :: (LogMonad m) =>
@@ -268,7 +268,7 @@ add_time log_msg
     | otherwise = return log_msg
 
 instance (Monad m) => LogMonad (LogT m) where
-    write log_msg = write_msg log_msg
+    write = write_msg
 
 write_msg :: Monad m => Msg -> LogT m ()
 write_msg = LogT . Logger.log

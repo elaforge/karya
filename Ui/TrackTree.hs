@@ -65,7 +65,7 @@ get_track_tree block_id = do
 -- a map.
 resolve_track_tree :: Map.Map TrackNum a -> [Tree.Tree TrackNum]
     -> ([Tree.Tree a], [TrackNum]) -- ^ resolved tree, and missing TrackNums
-resolve_track_tree tracknums = foldr cat_tree ([], []) . map go
+resolve_track_tree tracknums = foldr (cat_tree . go) ([], [])
     where
     go (Tree.Node tracknum subs) = case Map.lookup tracknum tracknums of
         Nothing -> (Nothing, [tracknum])

@@ -6,6 +6,7 @@ import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.Ordered as Ordered
 import qualified Data.Maybe as Maybe
+import qualified Data.Ord as Ord
 import qualified Data.Set as Set
 
 
@@ -159,7 +160,7 @@ sort_on = Ordered.sortOn'
 
 -- | Like 'sort_on', but sort highest-to-lowest.
 reverse_sort_on :: (Ord b) => (a -> b) -> [a] -> [a]
-reverse_sort_on f = List.sortBy $ \a b -> compare (f b) (f a)
+reverse_sort_on f = List.sortBy $ \a b -> Ord.comparing f b a
 
 -- | Merge sorted lists.  If two elements compare equal, the one from the left
 -- list comes first.
@@ -170,7 +171,7 @@ merge_by :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
 merge_by = Ordered.mergeBy
 
 merge_on :: (Ord k) => (a -> k) -> [a] -> [a] -> [a]
-merge_on key = Ordered.mergeBy (compare `on` key)
+merge_on key = Ordered.mergeBy (Ord.comparing key)
 
 merge_lists :: (Ord k) => (a -> k) -> [[a]] -> [a]
 merge_lists key = foldr (merge_on key) []
@@ -291,7 +292,7 @@ indexed_pairs eq xs ys = zip (indexed pairs) pairs
         f i _ = i+1
 
 indexed_pairs_on :: (Eq eq) => (a -> eq) -> [a] -> [a] -> [(Int, Paired a a)]
-indexed_pairs_on key xs ys = indexed_pairs (\a b -> key a == key b) xs ys
+indexed_pairs_on key = indexed_pairs (\a b -> key a == key b)
 
 -- | Pair up two lists of sorted pairs by their first element.
 pair_sorted :: (Ord k) => [(k, a)] -> [(k, b)] -> [(k, Paired a b)]
@@ -495,7 +496,7 @@ split1 sep xs = (pre, drop (length sep) post)
 
 -- | Concat a list with 'sep' in between.
 join :: [a] -> [[a]] -> [a]
-join sep = concat . List.intersperse sep
+join = List.intercalate
 
 -- | Binary join, but drops null values.
 join2 :: [a] -> [a] -> [a] -> [a]

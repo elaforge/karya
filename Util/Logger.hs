@@ -40,7 +40,7 @@ class (Monad m) => MonadLogger w m | m -> w where
     peek :: m [w]
 
 logs :: (MonadLogger w m) => [w] -> m ()
-logs msgs = mapM_ log msgs
+logs = mapM_ log
 
 instance (Monad m) => MonadLogger w (LoggerT w m) where
     log msg = LoggerT $ do

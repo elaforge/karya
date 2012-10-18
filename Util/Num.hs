@@ -18,7 +18,7 @@ clamp low high = min high . max low
 restrict :: (Real a) => a -> a -> a -> a
 restrict low high
     | high == low = const low -- avoid dividing by 0 in fmod
-    | otherwise = (+low) . (`fmod` (high-low)) . (subtract low)
+    | otherwise = (+low) . (`fmod` (high-low)) . subtract low
 
 in_range :: (Ord a) => a -> a -> a -> Bool
 in_range low high x = low <= x && x < high

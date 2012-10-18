@@ -490,6 +490,9 @@ hlintIgnore :: [String]
 hlintIgnore =
     [ "Use camelCase", "Use &&&", "Use ***", "Use uncurry", "Use section"
     , "Use infix", "Use maybeToList", "Use join", "Use String"
+    , "Redundant lambda", "Avoid lambda" -- I do it on purpose for clarity.
+    , "Use import/export shortcut" -- Weird, don't like it.
+    , "Use elem" -- I don't use elem for 2 element lists.
     ]
 
 -- | Make all documentation.

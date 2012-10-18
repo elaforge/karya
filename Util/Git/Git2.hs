@@ -246,8 +246,8 @@ write_commit :: Repo -> String -> String -> [Commit] -> Tree -> String
     -> IO Commit
 write_commit repo user email parents tree description =
     with_repo repo $ \repop -> with_sig $ \sigp ->
-    with_commits repop parents $ \parents_len parentsp -> do
-    with_tree repop tree $ \treep -> withCString description $ \descp -> do
+    with_commits repop parents $ \parents_len parentsp ->
+    with_tree repop tree $ \treep -> withCString description $ \descp ->
     withCString "HEAD" $ \headp -> alloca $ \commitp -> do
         G.check "write_commit" $ G.c'git_commit_create commitp repop headp
             sigp sigp nullPtr descp treep (fromIntegral parents_len) parentsp
@@ -316,7 +316,7 @@ diff_tree_repo repop old new =
             G.c'git_diff_tree_to_tree repop nullPtr oldp newp listpp
         listp <- peek listpp
         ref <- IORef.newIORef []
-        with_fptr (G.mk'git_diff_data_fn (diff_cb ref)) $ \callback -> do
+        with_fptr (G.mk'git_diff_data_fn (diff_cb ref)) $ \callback ->
             G.check "diff_print_compact" $
                 G.c'git_diff_print_compact listp nullPtr callback
         IORef.readIORef ref
@@ -412,9 +412,9 @@ read_symbolic_ref repo sym = with_repo repo $ \repop ->
     with_ref repop sym $ \symp -> alloca $ \refpp -> do
         refp <- G.check_lookup "reference_resolve" refpp $
             G.c'git_reference_resolve refpp symp
-        if refp == nullPtr then return Nothing else do
-        fmap Just $ peek_ref_name ("ref of " ++ show sym ++ " ")
-            =<< G.c'git_reference_name refp
+        if refp == nullPtr then return Nothing
+            else fmap Just $ peek_ref_name ("ref of " ++ show sym ++ " ")
+                =<< G.c'git_reference_name refp
 
 -- *** HEAD
 

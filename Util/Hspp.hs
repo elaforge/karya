@@ -21,6 +21,7 @@
     a silly definition anyway.
 -}
 module Util.Hspp where
+import Control.Monad
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified System.Environment
@@ -68,7 +69,7 @@ main :: IO ()
 main = do
     args <- System.Environment.getArgs
     [orig_fn, src_fn, dest_fn] <- if length args == 3 then return args
-        else error $ "usage: hspp <orig_fn> <src_fn> <dest_fn>"
+        else error "usage: hspp <orig_fn> <src_fn> <dest_fn>"
     input <- readFile src_fn
     let macros = if "_test.hs" `List.isSuffixOf` orig_fn
             then test_macros else global_macros
@@ -152,7 +153,7 @@ annotate lines =
 scan_line :: Annotation -> String -> Annotation
 scan_line old_annot line = Annotation
     (a_line old_annot + 1)
-    (maybe (a_func_name old_annot) Just (line_to_func line))
+    (line_to_func line `mplus` a_func_name old_annot)
     (Regex.matches declaration line || "import " `List.isPrefixOf` line)
     -- fooled by 'where' in comment or inside another word
     -- doesn't work at all for modules without a name or imports

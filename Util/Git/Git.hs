@@ -108,7 +108,7 @@ data CommitData = CommitData {
     } deriving (Eq, Show)
 
 read_commit :: Repo -> Commit -> IO CommitData
-read_commit repo (Commit commit) = do
+read_commit repo (Commit commit) =
     parse =<< git repo ["cat-file", "-p", unparse_hash commit] ""
     where
     -- Output looks like 'tree hexhex\nparent hexhex\n...
@@ -166,7 +166,7 @@ gc repo = void $ git repo ["gc", "--aggressive"] ""
 -- ** refs
 
 write_ref :: Repo -> Commit -> Ref -> IO ()
-write_ref repo (Commit commit) ref = do
+write_ref repo (Commit commit) ref =
     void $ git repo ["update-ref", "refs" </> ref, unparse_hash commit] ""
 
 read_ref :: Repo -> Ref -> IO (Maybe Commit)

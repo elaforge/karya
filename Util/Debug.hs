@@ -30,7 +30,7 @@ traces =  Trace.trace . (prefix++)
 
 -- | Pretty print an arbitrary value.
 traceps :: (Pretty.Pretty b) => String -> b -> a -> a
-traceps msg traced val = traces (with_msg msg (Pretty.formatted traced)) val
+traceps msg traced = traces (with_msg msg (Pretty.formatted traced))
 
 -- | Print a value after applying a function to it.
 tracef :: (Show b) => (a -> b) -> a -> a
@@ -63,7 +63,7 @@ puts :: (Trans.MonadIO m) => String -> m ()
 puts = put_line . (prefix++)
 
 put :: (Trans.MonadIO m, Show a) => String -> a -> m ()
-put msg = put_line . (with_msg msg) . pshow
+put msg = put_line . with_msg msg . pshow
 
 putp :: (Trans.MonadIO m, Pretty.Pretty a) => String -> a -> m ()
 putp msg = put_line . (with_msg msg) . Pretty.formatted

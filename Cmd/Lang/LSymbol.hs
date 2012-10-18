@@ -35,7 +35,7 @@ make = do
 set :: Symbol.Symbol -> Cmd.CmdL ()
 set sym = do
     fonts <- Trans.liftIO $ SymbolC.insert_symbol sym
-    unless (null fonts) $ do
+    unless (null fonts) $
         Cmd.throw $ "Missing fonts: " ++ Pretty.pretty fonts
     (_, _, tid, _) <- Selection.get_insert
     State.insert_event tid $

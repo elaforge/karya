@@ -5,7 +5,7 @@ import qualified Ui.Style as Style
 
 
 insert_style :: Style.StyleId -> Style.Style -> IO ()
-insert_style (Style.StyleId style_id) style = do
+insert_style (Style.StyleId style_id) style =
     with style $ \stylep -> c_insert_style (fromIntegral style_id) stylep
 
 foreign import ccall "insert_style"

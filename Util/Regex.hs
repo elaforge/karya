@@ -23,7 +23,7 @@ make :: String -> Regex
 make = either error id . makeM
 
 matches :: Regex -> String -> Bool
-matches (Regex _ reg) str = PCRE.matchTest reg str
+matches (Regex _ reg) = PCRE.matchTest reg
 
 -- | Return (complete_match, [group_match]).
 find_groups :: Regex -> String -> [(String, [String])]

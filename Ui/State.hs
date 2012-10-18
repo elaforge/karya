@@ -469,7 +469,7 @@ get_view :: (M m) => ViewId -> m Block.View
 get_view view_id = get >>= lookup_id view_id . state_views
 
 lookup_view :: (M m) => ViewId -> m (Maybe Block.View)
-lookup_view view_id = get >>= return . Map.lookup view_id . state_views
+lookup_view view_id = gets (Map.lookup view_id . state_views)
 
 all_view_ids :: (M m) => m [ViewId]
 all_view_ids = gets (Map.keys . state_views)
@@ -541,9 +541,11 @@ set_selection :: (M m) => ViewId -> Types.SelNum
     -> Maybe Types.Selection -> m ()
 set_selection view_id selnum maybe_sel = do
     view <- get_view view_id
-    update_view view_id $ view { Block.view_selections =
-        (maybe (Map.delete selnum) (Map.insert selnum) maybe_sel)
-        (Block.view_selections view) }
+    update_view view_id $ view
+        { Block.view_selections =
+            maybe (Map.delete selnum) (Map.insert selnum) maybe_sel
+                (Block.view_selections view)
+        }
 
 -- ** util
 
@@ -620,7 +622,7 @@ modify_block_meta block_id f = modify_block block_id $ \block ->
     block { Block.block_meta = f (Block.block_meta block) }
 
 set_integrated_block :: (M m) => BlockId
-    -> Maybe (BlockId, (NonEmpty Block.TrackDestination)) -> m ()
+    -> Maybe (BlockId, NonEmpty Block.TrackDestination) -> m ()
 set_integrated_block block_id integrated = do
     modify_block block_id $ \block ->
         block { Block.block_integrated = integrated }
@@ -628,7 +630,7 @@ set_integrated_block block_id integrated = do
     validate "set_integrated_block" (fix_integrated_block block_id block)
 
 set_integrated_tracks :: (M m) => BlockId
-    -> [(TrackId, (NonEmpty Block.TrackDestination))] -> m ()
+    -> [(TrackId, NonEmpty Block.TrackDestination)] -> m ()
 set_integrated_tracks block_id tracks = do
     modify_block block_id $ \block ->
         block { Block.block_integrated_tracks = tracks }
@@ -1073,7 +1075,7 @@ get_track :: (M m) => TrackId -> m Track.Track
 get_track track_id = get >>= lookup_id track_id . state_tracks
 
 lookup_track :: (M m) => TrackId -> m (Maybe Track.Track)
-lookup_track track_id = get >>= return . Map.lookup track_id . state_tracks
+lookup_track track_id = gets (Map.lookup track_id . state_tracks)
 
 all_track_ids :: (M m) => m [TrackId]
 all_track_ids = gets (Map.keys . state_tracks)
@@ -1233,7 +1235,7 @@ track_event_end track_id =
 update_all_tracks :: (M m) => m ()
 update_all_tracks = do
     st <- get
-    mapM_ update $ map Update.CmdTrackAllEvents (Map.keys (state_tracks st))
+    mapM_ (update . Update.CmdTrackAllEvents) (Map.keys (state_tracks st))
 
 -- ** util
 
@@ -1480,7 +1482,7 @@ unique_track_ids :: BlockId -> Block.Block -> StateId [String]
 unique_track_ids block_id block = do
     let invalid = concatMap snd $ snd $
             Seq.partition_dups snd (block_event_tracknums block)
-    mapM_ (remove_track block_id) (map fst invalid)
+    mapM_ (remove_track block_id . fst) invalid
     return ["tracknum " ++ show tracknum ++ ": dropped duplicate "
         ++ show track_id | (tracknum, track_id) <- invalid]
 
@@ -1516,7 +1518,7 @@ fix_integrated_block block_id block = do
     fix block_ids (Just (iblock, dests))
         | iblock `notElem` block_ids =
             (Nothing, ["removed invalid integrated block: " ++ show iblock])
-        | otherwise = (((,) iblock) <$> NonEmpty.nonEmpty valid, errs)
+        | otherwise = ((,) iblock <$> NonEmpty.nonEmpty valid, errs)
         where
         (valid, invalid) = List.partition
             (fix_track_destination track_ids) (NonEmpty.toList dests)
@@ -1543,7 +1545,7 @@ fix_integrated_tracks block_id block = do
     fix (track_id, dests)
         | track_id `notElem` track_ids =
             (Nothing, ["removed invalid integrated track: " ++ show track_id])
-        | otherwise = (((,) track_id) <$> NonEmpty.nonEmpty valid, errs)
+        | otherwise = ((,) track_id <$> NonEmpty.nonEmpty valid, errs)
         where
         (valid, invalid) = List.partition
             (fix_track_destination track_ids) (NonEmpty.toList dests)

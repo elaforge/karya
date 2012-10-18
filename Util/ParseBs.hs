@@ -83,7 +83,7 @@ p_unsigned_float :: Parser Double
 p_unsigned_float = do
     i <- A.takeWhile A.isDigit
     f <- A.option "" (A.char '.' >> A.takeWhile1 A.isDigit)
-    if (B.null i && B.null f) then mzero else do
+    if B.null i && B.null f then mzero else do
     case (dec i, dec f) of
         (Just i', Just f') -> return $ fromIntegral i'
             + fromIntegral f' / fromIntegral (10 ^ B.length f)

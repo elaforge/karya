@@ -116,9 +116,7 @@ instance Serialize () where
 instance Serialize Bool where
     put False = putWord8 0
     put True = putWord8 1
-    get = do
-        b <- getWord8
-        return $ if b == 0 then False else True
+    get = (/= 0) <$> getWord8
 
 instance Serialize Char where
     put = Serialize.put
@@ -181,7 +179,7 @@ instance (Serialize a, Unboxed.Unbox a) => Serialize (Unboxed.Vector a) where
 -- * versions
 
 put_version :: Word8 -> Put
-put_version n = putWord8 n
+put_version = putWord8
 
 get_version :: Get Word8
 get_version = getWord8

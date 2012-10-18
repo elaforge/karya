@@ -15,7 +15,7 @@
 module Ui.Symbol where
 
 symbol :: String -> [Glyph] -> Symbol
-symbol name glyphs = Symbol name False glyphs
+symbol name = Symbol name False
 
 -- | Make a simple symbol with only text.
 simple :: String -> String -> Symbol

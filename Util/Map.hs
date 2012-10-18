@@ -55,7 +55,7 @@ invert = Map.fromList . map (\(x, y) -> (y, x)) . Map.assocs
 -- | TODO Would it be more efficient to do 'fromListWith (++)'?
 multimap :: (Ord k) => [(k, a)] -> Map.Map k [a]
 multimap = Map.fromAscList . map (\gs -> (fst (head gs), map snd gs))
-    . List.groupBy ((==) `on` fst) . List.sortBy (compare `on` fst)
+    . List.groupBy ((==) `on` fst) . Seq.sort_on fst
 
 -- | Like Map.fromList, but only accept the first of duplicate keys, and also
 -- return the rejected duplicates.
@@ -63,8 +63,7 @@ unique :: (Ord a) => [(a, b)] -> (Map.Map a b, [(a, b)])
 unique assocs = (Map.fromList pairs, concat rest)
     where
     -- List.sort is stable, so only the first keys will make it into the map.
-    separate = unzip . map pair . List.groupBy ((==) `on` fst)
-        . List.sortBy (compare `on` fst)
+    separate = unzip . map pair . List.groupBy ((==) `on` fst) . Seq.sort_on fst
     pair (x:xs) = (x, xs)
     pair [] = error "[]: List.groupBy violated its postcondition"
     (pairs, rest) = separate assocs

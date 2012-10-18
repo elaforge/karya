@@ -325,6 +325,6 @@ concat_map_accum zero f final accum vec = V.fromList (DList.toList result)
         V.foldl' go (accum, Sample 0 zero, DList.empty) vec
     end = if V.null vec then [] else final last_accum (V.last vec)
     result = dlist `DList.append` DList.fromList end
-    go (accum, (Sample x0 y0), lst) (Sample x1 y1) =
-        (accum2, (Sample x1 y1), lst `DList.append` DList.fromList samples)
+    go (accum, Sample x0 y0, lst) (Sample x1 y1) =
+        (accum2, Sample x1 y1, lst `DList.append` DList.fromList samples)
         where (accum2, samples) = f accum x0 y0 x1 y1
