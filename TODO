@@ -36,7 +36,7 @@ UNSORTED
     Either do the class thing to make reapply dynamic, or stuff all lookups in
     call info and propagate.
     them?
-  - shake target hlint everything
+  * shake target hlint everything
   * I should make a dir for each save so I can put the state, .git, _ly, and
     repl history into it
   * error committing history: checkpoint:

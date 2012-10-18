@@ -440,15 +440,6 @@ matchPrefix prefixes pattern fn =
 
 dispatch :: Config -> String -> Shake.Rules ()
 dispatch config target = case target of
-    "show-config" -> action $ Trans.liftIO $ PPrint.pprint config
-    "clean" -> action $ do
-        -- The shake database will remain because shake creates it after the
-        -- shakefile runs, but that's probably ok.
-        system "rm" ["-rf", build]
-        system "mkdir" [build]
-    "doc" -> action $ makeDocumentation config
-    "haddock" -> action $ makeHaddock config
-    "md" -> action $ need . map docToHtml =<< getMarkdown
     "checkin" -> do
         let debug = (modeToDir Debug </>)
         Shake.want [debug "browser", debug "logview", debug "make_db",
@@ -457,21 +448,49 @@ dispatch config target = case target of
         dispatch config "tests"
         -- The gui tests tend to wedge.
         -- dispatch config "complete-tests"
-    "tests" -> action $ do
-        need [runTests Nothing]
-        system "test/run_tests" [runTests Nothing]
-    (dropPrefix "tests-" -> Just tests) -> action $ do
-        need [runTests (Just tests)]
-        system "test/run_tests" [runTests (Just tests)]
-    "complete-tests" -> action $ do
-        need [runTests Nothing]
-        system "test/run_tests" [runTests Nothing, "normal-", "gui-"]
+    "clean" -> action $ do
+        -- The shake database will remain because shake creates it after the
+        -- shakefile runs, but that's probably ok.
+        system "rm" ["-rf", build]
+        system "mkdir" [build]
+    "doc" -> action $ makeDocumentation config
+    "haddock" -> action $ makeHaddock config
+    "hlint" -> action $ hlint config
+    "md" -> action $ need . map docToHtml =<< getMarkdown
     "profile" -> action $ do
         need [modeToDir Profile </> "RunProfile"]
         system "tools/summarize_profile.py" []
+    "show-config" -> action $ Trans.liftIO $ PPrint.pprint config
+    "tests" -> action $ do
+        need [runTests Nothing]
+        system "test/run_tests" [runTests Nothing]
+    "tests-complete" -> action $ do
+        need [runTests Nothing]
+        system "test/run_tests" [runTests Nothing, "normal-", "gui-"]
+    (dropPrefix "tests-" -> Just tests) -> action $ do
+        need [runTests (Just tests)]
+        system "test/run_tests" [runTests (Just tests)]
     _ -> Shake.want [target]
     where
     runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
+
+hlint :: Config -> Shake.Action ()
+hlint config = do
+    hscs <- filter haddock <$> Util.findHs "*.hsc" "."
+    hs <- filter haddock <$> Util.findHs "*.hs" "."
+    system "hlint" $ mkIgnore hlintIgnore ++ hs
+    system "hlint" $ mkIgnore
+        -- hsc2hs triggers these, not my fault.
+        (hlintIgnore ++ ["Redundant bracket", "Avoid lambda"])
+        ++ map (hscToHs (hscDir config)) hscs
+    where
+    mkIgnore = map ("--ignore="++)
+
+hlintIgnore :: [String]
+hlintIgnore =
+    [ "Use camelCase", "Use &&&", "Use ***", "Use uncurry", "Use section"
+    , "Use infix", "Use maybeToList"
+    ]
 
 -- | Make all documentation.
 makeDocumentation :: Config -> Shake.Action ()
