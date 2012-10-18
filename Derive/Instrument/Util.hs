@@ -24,7 +24,7 @@ note_call :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.NoteCall
 note_call name transform = Derive.stream_generator name
     "Invoke the default note call with a certain transform." $
-    CallSig.call0g $ \args -> transform $
+    CallSig.call0g $ \args -> Note.when_under_inversion args transform $
         Call.reapply_call args (TrackLang.call "" [])
 
 -- | Make a note and add the attribute if it's 0 duration.

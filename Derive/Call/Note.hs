@@ -4,6 +4,7 @@ module Derive.Call.Note (
     note_calls
     , c_note, note_generate, note_transform
     -- * inversion
+    , when_under_inversion
     , inverting, inverting_around
     -- ** events
     , Event(..), event_end, map_event, map_events
@@ -235,6 +236,21 @@ c_equal = Derive.Call
         concat $ sub_events args
 
 -- * inversion
+
+-- | Apply the function (likely a transformer) only when at the bottom of
+-- the inversion.  This is useful for transforming an inverted call because
+-- otherwise the transformation happens twice: once before inversion and once
+-- after.  Track calls avoid this because they only invert the last part of
+-- the pipeline, but transformers applied directly in haskell can't do that.
+when_under_inversion :: Derive.PassedArgs d -> (a -> a) -> a -> a
+when_under_inversion args transform deriver
+    | under_inversion args = transform deriver
+    | otherwise = deriver
+
+-- | True if the call will not invert.  This means it has no children, which
+-- possibly means it already inverted and now we're at the \"real\" call.
+under_inversion :: Derive.PassedArgs d -> Bool
+under_inversion = null . Derive.info_sub_tracks . Derive.passed_info
 
 -- | Convert a call into an inverting call.  Documented in doc/inverting_calls.
 --
