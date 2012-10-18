@@ -99,8 +99,9 @@ tempo_func track_warps block_id track_id pos = map (Score.warp_pos pos) warps
 -- This can't use Transport.TempoFunction because I need to pick the
 -- appropriate Warp and then look up multiple ScoreTimes in it.
 closest_warp :: Collections -> Transport.ClosestWarpFunction
-closest_warp track_warps block_id track_id pos = fromMaybe Score.id_warp $
-    fmap (tw_warp . snd) (Seq.minimum_on (abs . subtract pos . fst) annotated)
+closest_warp track_warps block_id track_id pos =
+    maybe Score.id_warp (tw_warp . snd) $
+        Seq.minimum_on (abs . subtract pos . fst) annotated
     where
     annotated = zip (map tw_start warps) warps
     warps = [tw | tw <- track_warps, tw_block tw == block_id,

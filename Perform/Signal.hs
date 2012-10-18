@@ -365,7 +365,7 @@ compose f g = Signal $ V.map_y go (sig_vec g)
 integrate :: X -> Tempo -> Warp
 integrate srate = coerce . modify_vec (V.concat_map_accum 0 go final 0)
     where
-    go accum = integrate_segment srate accum
+    go = integrate_segment srate
     final accum (V.Sample x _) = [V.Sample x accum]
 
 integrate_segment :: X -> Y -> X -> Y -> X -> Y -> (Y, [V.Sample Y])

@@ -478,6 +478,7 @@ hlint :: Config -> Shake.Action ()
 hlint config = do
     hscs <- filter haddock <$> Util.findHs "*.hsc" "."
     hs <- filter haddock <$> Util.findHs "*.hs" "."
+    need $ map (hscToHs (hscDir config)) hscs
     Util.staunchSystem "hlint" $ mkIgnore hlintIgnore ++ hs
     Util.staunchSystem "hlint" $ mkIgnore
         -- hsc2hs triggers these, not my fault.
@@ -493,6 +494,7 @@ hlintIgnore =
     , "Redundant lambda", "Avoid lambda" -- I do it on purpose for clarity.
     , "Use import/export shortcut" -- Weird, don't like it.
     , "Use elem" -- I don't use elem for 2 element lists.
+    , "Use isNothing" -- ==Nothing is nice too.
     ]
 
 -- | Make all documentation.

@@ -56,7 +56,7 @@ cmd_save_git = do
     cmd_state <- Cmd.get
     let prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
     (commit, save) <- Cmd.require_right (("save git " ++ repo ++ ": ") ++)
-        =<< (Trans.liftIO $ SaveGit.save repo state prev_commit)
+        =<< Trans.liftIO (SaveGit.save repo state prev_commit)
     Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
     Cmd.modify $ \st -> st
         { Cmd.state_history_config = (Cmd.state_history_config st)

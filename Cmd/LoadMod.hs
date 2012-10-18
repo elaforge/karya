@@ -49,8 +49,7 @@ create name ui_blocks = do
     State.set_namespace name
     let mkid = Id.unsafe_id name
     rid <- Create.ruler "meter44" (RulerUtil.meter_ruler 16 Meter.m44)
-    block_ids <- mapM (uncurry (create_block mkid rid ""))
-        (zip [0..] ui_blocks)
+    block_ids <- zipWithM (create_block mkid rid "") [0..] ui_blocks
     root <- create_order_block mkid block_ids
     State.set_root_id root
     State.modify_default $ \d ->

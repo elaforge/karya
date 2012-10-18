@@ -286,7 +286,7 @@ indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Paired a b)]
 indexed_pairs eq xs ys = zip (indexed pairs) pairs
     where
     pairs = equal_pairs eq xs ys
-    indexed pairs = scanl f 0 pairs
+    indexed = scanl f 0
         where
         f i (First _) = i
         f i _ = i+1
@@ -535,7 +535,7 @@ replace from to = go
 
 -- | Replace occurrances of an element with zero or more other elements.
 replace1 :: (Eq a) => a -> [a] -> [a] -> [a]
-replace1 from to xs = concatMap (\v -> if v == from then to else [v]) xs
+replace1 from to = concatMap (\v -> if v == from then to else [v])
 
 
 -- * search

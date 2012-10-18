@@ -218,7 +218,7 @@ increment_rederived bid because = do
 increment_cached :: String -> Int -> ProcessM ()
 increment_cached bid vals = do
     modify_cache $ \cache -> cache
-        { cache_total = vals + (cache_total cache)
+        { cache_total = vals + cache_total cache
         , cache_blocks = cache_blocks cache ++ [bid]
         }
     cache <- State.gets state_cache

@@ -158,7 +158,7 @@ events_tree_of block_id = do
     events_tree block_end info_tree
 
 events_tree :: (State.M m) => ScoreTime -> TrackTree -> m EventsTree
-events_tree events_end tree = mapM resolve tree
+events_tree events_end = mapM resolve
     where
     resolve (Tree.Node (State.TrackInfo title track_id _) subs) =
         Tree.Node <$> make title track_id <*> mapM resolve subs

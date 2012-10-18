@@ -79,7 +79,7 @@ integrate_skeleton block =
         source <- tracknum_of source_id
         Just $ map ((,) source)
             (mapMaybe (tracknum_of . fst . dest_note) (NonEmpty.toList dests))
-    tracknum_of track_id = List.findIndex (== Just track_id) track_ids
+    tracknum_of track_id = List.elemIndex (Just track_id) track_ids
     track_ids = map (track_id_of . tracklike_id) (block_tracks block)
 
 block_tracklike_ids :: Block -> [TracklikeId]

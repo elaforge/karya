@@ -889,7 +889,7 @@ all_track_ids_of block_id =
 -- TrackIds to be interchangeable.  This is enforced by 'insert_track'.
 tracknum_of :: (M m) => BlockId -> TrackId -> m (Maybe TrackNum)
 tracknum_of block_id tid = find <$> all_track_ids_of block_id
-    where find = List.findIndex (== Just tid)
+    where find = List.elemIndex (Just tid)
 
 get_tracknum_of :: (M m) => BlockId -> TrackId -> m TrackNum
 get_tracknum_of block_id tid =
@@ -1469,7 +1469,7 @@ fix_track_ids block_id block = do
     all_track_ids <- gets state_tracks
     let is_valid = (`Map.member` all_track_ids)
     let invalid = filter (not . is_valid . snd) (block_event_tracknums block)
-    mapM_ (remove_track block_id) (map fst invalid)
+    mapM_ (remove_track block_id . fst) invalid
     return ["tracknum " ++ show tracknum ++ ": dropped invalid "
         ++ show track_id | (tracknum, track_id) <- invalid]
 

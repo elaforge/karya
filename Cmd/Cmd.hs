@@ -233,7 +233,7 @@ throw = State.throw
 
 -- | Run a subcomputation that is allowed to abort.
 ignore_abort :: (M m) => m a -> m ()
-ignore_abort m = catch_abort m >> return ()
+ignore_abort m = void $ catch_abort m
 
 -- * State
 

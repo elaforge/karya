@@ -47,11 +47,11 @@ track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
 reverse_events :: RealTime -> [Score.Event] -> [Score.Event]
-reverse_events start = rev start
-    where
-    rev _ [] = []
-    rev at [cur] = [move at cur]
-    rev at (cur : rest@(next : _)) = move at cur
-        : rev (at + Score.event_duration cur
+reverse_events at events = case events of
+    [] -> []
+    [cur] -> [move at cur]
+    cur : rest@(next : _) -> move at cur
+        : reverse_events (at + Score.event_duration cur
             + (Score.event_start cur - Score.event_end next)) rest
+    where
     move at = Score.move (const at)

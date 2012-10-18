@@ -45,7 +45,7 @@ module Perform.RealTime (
 ) where
 import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
-import qualified Foreign as Foreign
+import qualified Foreign
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 

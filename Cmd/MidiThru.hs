@@ -167,8 +167,8 @@ alloc_addr note_addr addr_serial serial addrs input
     | otherwise = (Nothing, Nothing) -- addrs must be null
     where
     note_id = InputNote.input_id input
-    new_note (InputNote.NoteOn _ _ _) = True
-    new_note (InputNote.NoteOff _ _) = True
+    new_note (InputNote.NoteOn {}) = True
+    new_note (InputNote.NoteOff {}) = True
     new_note _ = False
     assign addr = Just
         (Map.insert note_id addr note_addr, Map.insert addr serial addr_serial)

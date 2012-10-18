@@ -295,7 +295,7 @@ pure_record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
 pure_record_history updates ui_state cmd_state
     | not is_recordable && Maybe.isNothing suppress =
         ([], (Cmd.state_history_collect cmd_state) { Cmd.state_cmd_names = [] })
-    | is_suppressed = ((,) []) $
+    | is_suppressed = (,) [] $
         Cmd.empty_history_collect
             { Cmd.state_suppressed =
                 Just $ merge_into_suppressed suppressed_entry cur_entry

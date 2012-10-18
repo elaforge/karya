@@ -66,7 +66,7 @@ put :: (Trans.MonadIO m, Show a) => String -> a -> m ()
 put msg = put_line . with_msg msg . pshow
 
 putp :: (Trans.MonadIO m, Pretty.Pretty a) => String -> a -> m ()
-putp msg = put_line . (with_msg msg) . Pretty.formatted
+putp msg = put_line . with_msg msg . Pretty.formatted
 
 put_line :: (Trans.MonadIO m) => String -> m ()
 put_line s = Trans.liftIO $ do

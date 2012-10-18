@@ -165,7 +165,7 @@ pair_tracks track_ids tracks dests = map (filter is_valid) $
     resolve next_tracknum (Seq.Both track dest) = case tracknum_of (fst dest) of
         Nothing -> (next_tracknum + 1, (Just track, Left next_tracknum))
         Just tracknum -> (tracknum + 1, (Just track, Right dest))
-    tracknum_of track_id = List.findIndex (== Just track_id) track_ids
+    tracknum_of track_id = List.elemIndex (Just track_id) track_ids
     is_valid (Nothing, Left _) = False
     is_valid _ = True
 
@@ -203,7 +203,7 @@ track_edges track_ids = concatMap edges
                 let control_nums = mapMaybe (tracknum_of . fst)
                         (Map.elems controls)
                 in zip (tracknum : control_nums) control_nums
-    tracknum_of track_id = List.findIndex (== Just track_id) track_ids
+    tracknum_of track_id = List.elemIndex (Just track_id) track_ids
 
 -- * reintegrate
 

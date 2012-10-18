@@ -136,7 +136,7 @@ p_num_pipeline = do
     return $ c :| cs
 
 p_pipe :: A.Parser ()
-p_pipe = lexeme (A.char '|') >> return ()
+p_pipe = void $ lexeme (A.char '|')
 
 -- | This is just like a 'p_expr', except that a leading number is treated
 -- as a null call with a number argument rather than a call to that number.
@@ -339,6 +339,7 @@ p_single_string = do
 p_word, p_null_word :: A.Parser Text
 p_word = A.takeWhile1 _word_char
 p_null_word = A.takeWhile _word_char
+_word_char :: Char -> Bool
 _word_char c = c /= ' ' && c /= '(' && c /= ')'
 
 lexeme :: A.Parser a -> A.Parser a
