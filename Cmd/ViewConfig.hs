@@ -1,6 +1,13 @@
 -- | Cmds related to view level state.
 module Cmd.ViewConfig where
+import qualified Data.List as List
+import qualified Data.Map as Map
+import qualified Data.Tuple as Tuple
+
+import Util.Control
 import qualified Util.Rect as Rect
+import qualified Util.Seq as Seq
+
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
@@ -76,6 +83,9 @@ resize_to_fit maximize view_id = do
         (Rect.rw r) (Rect.rh screen - Block.view_time_padding view
             - Config.window_decoration_h)
 
+resize_all :: (Cmd.M m) => m ()
+resize_all = mapM_ (resize_to_fit False) =<< State.all_view_ids
+
 -- | Get the View's Rect, resized to fit its contents.  Its position is
 -- unchanged.
 contents_rect :: (State.M m) => Block.View -> m Rect.Rect
@@ -86,6 +96,42 @@ contents_rect view = do
         w = sum $ map Block.display_track_width (Block.block_tracks block)
         h = Types.zoom_to_pixels (Block.view_zoom view) block_end
     return $ Rect.xywh x y (max w 40) (max h 40)
+
+-- * window management
+
+-- | Arrange views horizontally on each screen.  They'll overlap if there isn't
+-- room for all of them.
+horizontal_tile :: (Cmd.M m) => m ()
+horizontal_tile = do
+    view_rects <- State.gets $
+        map (second Block.view_rect) . Map.toList . State.state_views
+    screens <- Cmd.gets Cmd.state_screens
+    let (screen_views, orphaned) = group_with
+            (\s -> Rect.overlapping s . snd) screens view_rects
+    mapM_ (State.destroy_view . fst) orphaned
+    mapM_ (uncurry tile_screen) screen_views
+    where
+    tile_screen screen view_rects =
+        zipWithM_ State.set_view_rect view_ids $
+            horizontal_tile_rects screen rects
+        where (view_ids, rects) = unzip (Seq.sort_on (Rect.rx . snd) view_rects)
+
+horizontal_tile_rects :: Rect.Rect -> [Rect.Rect] -> [Rect.Rect]
+horizontal_tile_rects screen rects = zipWith place rects xs
+    where
+    place rect x = Rect.move x (Rect.ry screen) rect
+    xs = scanl (+) (Rect.rx screen) (map (subtract overlap . Rect.rw) rects)
+    overlap = case rects of
+        _ : _ : _ -> max 0 $
+            (sum (map Rect.rw rects) - Rect.rw screen) `div` (length rects - 1)
+        -- 0 or 1 rects are not going to have any overlap.
+        _ -> 0
+
+group_with :: (key -> val -> Bool) -> [key] -> [val] -> ([(key, [val])], [val])
+group_with cmp keys vals = Tuple.swap $ List.mapAccumL go vals keys
+    where
+    go vals key = (out, (key, inside))
+        where (inside, out) = List.partition (cmp key) vals
 
 -- * misc
 
