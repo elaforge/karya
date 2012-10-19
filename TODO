@@ -1,6 +1,7 @@
 UNSORTED
   - have the DeriveTest log trace filter important msgs
-  - Ornament_test can use e_twelve
+  - Rect.move sounds like it should be a translation, rename to Rect.place
+  * Ornament_test can use e_twelve
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
   - it's annoying having to set the scale along with the inst, can I have the
