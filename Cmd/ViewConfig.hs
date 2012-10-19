@@ -78,7 +78,7 @@ resize_to_fit maximize view_id = do
     where
     -- Move the rect over so it fits on the screen.
     scootch screen r =
-        Rect.move (min (Rect.rx r) (Rect.rr screen - Rect.rw r)) (Rect.ry r) r
+        Rect.place (min (Rect.rx r) (Rect.rr screen - Rect.rw r)) (Rect.ry r) r
     max_height view screen r = Rect.xywh (Rect.rx r) (Rect.ry screen)
         (Rect.rw r) (Rect.rh screen - Block.view_time_padding view
             - Config.window_decoration_h)
@@ -119,7 +119,7 @@ horizontal_tile = do
 horizontal_tile_rects :: Rect.Rect -> [Rect.Rect] -> [Rect.Rect]
 horizontal_tile_rects screen rects = zipWith place rects xs
     where
-    place rect x = Rect.move x (Rect.ry screen) rect
+    place rect x = Rect.place x (Rect.ry screen) rect
     xs = scanl (+) (Rect.rx screen) (map (subtract overlap . Rect.rw) rects)
     overlap = case rects of
         _ : _ : _ -> max 0 $

@@ -8,7 +8,7 @@ module Util.Rect (
     , xywh, empty
 
     -- * transformation
-    , move, resize
+    , place, resize
 
     -- * functions
     , distance, intersection, overlapping, point_distance, contains
@@ -44,8 +44,8 @@ empty = Rect 0 0 0 0
 
 -- * transform
 
-move :: Int -> Int -> Rect -> Rect
-move x y rect = xywh x y (rw rect) (rh rect)
+place :: Int -> Int -> Rect -> Rect
+place x y rect = xywh x y (rw rect) (rh rect)
 
 resize :: Int -> Int -> Rect -> Rect
 resize w h rect = xywh (rx rect) (ry rect) w h

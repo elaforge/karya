@@ -27,7 +27,7 @@ compact :: Rect.Rect -> [(a, Rect.Rect)] -> [(a, Rect.Rect)]
 compact screen =
     snd . List.mapAccumL go (Rect.rx screen, Rect.ry screen, Rect.rh screen)
     where
-    go (x, y, min_h) (view_id, rect) = (next, (view_id, Rect.move x y rect))
+    go (x, y, min_h) (view_id, rect) = (next, (view_id, Rect.place x y rect))
         where
         next
             | x + Rect.rw rect < Rect.rr screen =
