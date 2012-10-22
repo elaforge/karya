@@ -18,7 +18,7 @@ def main():
             subtracts.get(path, 0) + subtract)
 
     longest = max(map(len, normal_by_dir.keys() + test_by_dir.keys()))
-    col1 = 16
+    col1 = 20
     print '%-*s %-*s test' % (longest, 'dir', col1, 'normal')
     for dir in sorted(set(normal_by_dir).union(set(test_by_dir))):
         normal = normal_by_dir.get(dir, (0, 0))
@@ -34,7 +34,7 @@ def sum_diffs(diffs):
     return (sum(map(fst, diffs)), sum(map(snd, diffs)))
 
 def show_diff((add, sub)):
-    return '+%d-%d %d' % (add, abs(sub), add+sub)
+    return '+%d-%d %d (%d)' % (add, abs(sub), add+sub, add + abs(sub))
 
 def parse_whatsnew(lines):
     adds = {}
