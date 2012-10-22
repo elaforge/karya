@@ -13,6 +13,7 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional, required)
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -28,18 +29,18 @@ import Types
 -- be used by scales to generate their val calls, but of course each scale may
 -- define degrees in its own way.
 note_call :: Pitch.Note -> Scale.NoteCall -> Derive.ValCall
-note_call note note_number = Derive.val_call
+note_call note get_note_number = Derive.val_call
     "pitch" ("Emit a pitch for scale degree: " <> Pitch.note_text note) $
     CallSig.call2g
     ( optional "frac" 0
         "Add this many hundredths of a scale degree to the output."
     , optional "hz" 0 "Add an absolute hz value to the output."
     ) $ \frac hz _ -> do
-        key <- Util.lookup_key
-        return $ TrackLang.VPitch $ PitchSignal.pitch (call frac hz key)
+        environ <- Internal.get_dynamic Derive.state_environ
+        return $ TrackLang.VPitch $ PitchSignal.pitch (call frac hz environ)
     where
-    call frac hz key controls =
-        Pitch.add_hz (hz + hz_sig) <$> note_number key
+    call frac hz environ controls =
+        Pitch.add_hz (hz + hz_sig) <$> get_note_number environ
             (if frac == 0 then controls
                 else Map.insertWith' (+) Score.c_chromatic (frac / 100)
                     controls)

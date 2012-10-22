@@ -4,37 +4,22 @@
 --
 -- TODO: pengisep and pengumbang
 module Derive.Scale.Legong where
-
-import qualified Perform.Pitch as Pitch
 import qualified Derive.Scale as Scale
-import qualified Derive.Scale.Util as Util
-import qualified Derive.Scale.Symbols as Symbols
+import qualified Derive.Scale.BaliScales as BaliScales
+import qualified Perform.Pitch as Pitch
 
-
-scale :: Scale.Scale
-scale = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern = "[12356](\\.*|\\^*)"
-    , Scale.scale_map = Util.make_scale_map scale_map
-    -- loaded from Derive.Scale.Symbols
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = Util.transpose scale_map 5
-    , Scale.scale_enharmonics = Util.no_enharmonics
-    , Scale.scale_note_to_call = Util.note_to_call scale_map
-    , Scale.scale_input_to_note = Util.input_to_note scale_map
-    , Scale.scale_input_to_nn = Util.mapped_input_to_nn scale_map
-    , Scale.scale_call_doc = Util.call_doc scale_id "1" scale_map
-    }
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "legong"
 
-scale_map :: Util.ScaleMap
-scale_map = Util.scale_map (align notes) (align inputs) note_numbers
+scale :: Scale.Scale
+scale = BaliScales.scale scale_id scale_map
 
-note_numbers :: [Pitch.NoteNumber]
-note_numbers = map Pitch.nn
+scale_map :: BaliScales.ScaleMap
+scale_map = BaliScales.scale_map 1 umbang isep
+
+umbang :: [Pitch.NoteNumber]
+umbang = map Pitch.nn
     [ 50.8 -- 2.., ugal begin
     , 51.82 -- 3.., rambat begin
     , 55.7
@@ -61,14 +46,5 @@ note_numbers = map Pitch.nn
     , 96.46 -- 1^^, kantilan end
     ]
 
--- Line a list starting with nding up with 'note_numbers'.
-align = take (length note_numbers) . drop 1
-center = 9 -- index of middle pitch
-
-notes :: [Pitch.Note]
-notes = map Symbols.dotted_number
-    [(num, oct) | oct <- [-2..2], num <- [1, 2, 3, 5, 6]]
-
-inputs :: [Pitch.InputKey]
-inputs = [Pitch.middle_c + fromIntegral (o*12) + d | o <- [-2..2], d <- keys]
-    where keys = [Util.i_c, Util.i_d, Util.i_e, Util.i_f, Util.i_g]
+isep :: [Pitch.NoteNumber]
+isep = umbang -- TODO

@@ -384,6 +384,9 @@ lookup_val name environ = case Map.lookup name environ of
         Nothing -> Left (WrongType (type_of val))
         Just v -> Right v
 
+maybe_val :: (Typecheck a) => ValName -> Environ -> Maybe a
+maybe_val name = either (const Nothing) Just . lookup_val name
+
 -- | Like 'lookup_val' but format a WrongType nicely.
 checked_val :: forall a. (Typecheck a) => ValName -> Environ
     -> Either String (Maybe a)
@@ -414,6 +417,11 @@ v_key = Symbol "key"
 -- | Default scale, used by pitch tracks with a @*@ title.
 v_scale :: ValName
 v_scale = Symbol "scale"
+
+-- | Kind of tuning for the scale in scope.  The meaning is dependent on the
+-- scale, e.g. ngumbang ngisep for Balinese scales.
+v_tuning :: ValName
+v_tuning = Symbol "tuning"
 
 -- | Sampling rate used by signal interpolators.
 v_srate :: ValName

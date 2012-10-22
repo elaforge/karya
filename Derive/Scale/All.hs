@@ -11,9 +11,9 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Just as Just
+import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Octa as Octa
 import qualified Derive.Scale.Ratio as Ratio
-import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Scale.Wayang as Wayang
 
@@ -25,6 +25,6 @@ import qualified Perform.Pitch as Pitch
 scales :: Map.Map Pitch.ScaleId Scale.Scale
 shadowed :: [Pitch.ScaleId]
 (scales, shadowed) = mk $
-    [Ratio.scale, Twelve.scale, Legong.scale]
-    ++ Wayang.scales ++ Octa.scales ++ Just.scales
+    [Ratio.scale, Twelve.scale, Legong.scale, Wayang.scale]
+    ++ Octa.scales ++ Just.scales
     where mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id

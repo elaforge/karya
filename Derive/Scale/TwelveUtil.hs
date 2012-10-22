@@ -15,6 +15,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 
@@ -72,11 +73,10 @@ note_to_call sys note = case Map.lookup note (sys_note_to_degree sys) of
     -- The Degree can be derived from the Pitch given the layout, so it's
     -- redundant to pass both, but convenient to precompute the Degrees.
     note_call :: Theory.Pitch -> Pitch.Degree -> Scale.NoteCall
-    note_call pitch (Pitch.Degree degree) maybe_str_key controls =
-        Util.pitch_error diatonic chromatic maybe_str_key $ do
+    note_call pitch (Pitch.Degree degree) env controls =
+        Util.scale_to_pitch_error diatonic chromatic $ do
             dsteps <- if diatonic == 0 then Right 0 else do
-                key <- maybe (return $ sys_default_key sys)
-                    (read_key sys . Just) maybe_str_key
+                key <- read_env_key sys env
                 return $ Theory.diatonic_to_chromatic key
                     (Theory.pitch_note pitch) diatonic
             let nn = Pitch.NoteNumber $ fromIntegral degree + chromatic + dsteps
@@ -142,10 +142,17 @@ pitch_note sys pitch
 show_pitch :: Theory.Pitch -> Pitch.Note
 show_pitch = Pitch.Note . Theory.show_pitch "#" "x" "b" "bb"
 
+read_env_key :: System -> TrackLang.Environ
+    -> Either Scale.ScaleError Theory.Key
+read_env_key sys = Util.read_environ
+    (\k -> Map.lookup (Pitch.Key k) (sys_keys sys))
+    (sys_default_key sys) TrackLang.v_key
+
 read_key :: System -> Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
 read_key sys Nothing = Right (sys_default_key sys)
-read_key sys (Just key) = maybe (Left Scale.UnparseableKey) Right $
-    Map.lookup key (sys_keys sys)
+read_key sys (Just key) =
+    maybe  (Left err) Right $ Map.lookup key (sys_keys sys)
+    where err = Scale.UnparseableEnviron TrackLang.v_key (Pretty.pretty key)
 
 read_pitch :: Theory.Layout -> Pitch.Note
     -> Either Scale.ScaleError Theory.Pitch

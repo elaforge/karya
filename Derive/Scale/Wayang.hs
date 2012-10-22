@@ -1,104 +1,59 @@
 -- | Saih gender wayang.
 module Derive.Scale.Wayang where
-
-import qualified Perform.Pitch as Pitch
 import qualified Derive.Scale as Scale
-import qualified Derive.Scale.Util as Util
-import qualified Derive.Scale.Symbols as Symbols
+import qualified Derive.Scale.BaliScales as BaliScales
+import qualified Perform.Pitch as Pitch
 
 
-scales :: [Scale.Scale]
-scales = [wayang, umbang, isep]
+scale_id :: Pitch.ScaleId
+scale_id = Pitch.ScaleId "wayang"
 
-wayang :: Scale.Scale
-wayang = umbang { Scale.scale_id = wayang_id }
+scale :: Scale.Scale
+scale = BaliScales.scale scale_id scale_map
 
-isep :: Scale.Scale
-isep = make_scale
-    (Util.scale_map (align notes) (align inputs) note_numbers_isep)
-    isep_id
+scale_map :: BaliScales.ScaleMap
+scale_map = BaliScales.scale_map 4 umbang isep
 
-umbang :: Scale.Scale
-umbang = make_scale
-    (Util.scale_map (align notes) (align inputs) note_numbers_umbang)
-    umbang_id
-
-wayang_id, umbang_id, isep_id :: Pitch.ScaleId
-wayang_id = Pitch.ScaleId "wayang"
-umbang_id = Pitch.ScaleId "wayang-umbang"
-isep_id = Pitch.ScaleId "wayang-isep"
-
-make_scale :: Util.ScaleMap -> Pitch.ScaleId -> Scale.Scale
-make_scale scale_map scale_id = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern = "[12356](\\.*|\\^*)"
-    , Scale.scale_map = Util.make_scale_map scale_map
-    -- loaded from Derive.Scale.Symbols
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = Util.transpose scale_map 5
-    , Scale.scale_enharmonics = Util.no_enharmonics
-    , Scale.scale_note_to_call = Util.note_to_call scale_map
-    , Scale.scale_input_to_note = Util.input_to_note scale_map
-    , Scale.scale_input_to_nn = Util.mapped_input_to_nn scale_map
-    , Scale.scale_call_doc = Util.call_doc scale_id "1" scale_map
-    }
-
-note_numbers_umbang :: [Pitch.NoteNumber]
-note_numbers_umbang = map Pitch.nn
-    [ 53 -- 6.., pemade begin
+umbang :: [Pitch.NoteNumber]
+umbang = map Pitch.nn
+    [ 53 -- 6.., pemade begin, dong
 
     , 55.15 -- 1.
     , 57.73
     , 60.4
-    , 62.95 -- 5., pemade middle
+    , 62.95 -- 5., pemade middle, ding
     , 64.7 -- 6., kantilan begin
 
-    , 67.57 -- 1 -- "middle C"
+    , 67.57 -- 1 -- "middle C", deng
     , 69.45
     , 72.1
-    , 74.83 -- 5, pemade end
+    , 74.83 -- 5, pemade end, ding
     , 76.85
 
-    , 79.48
+    , 79.48 -- deng
     , 81.63
     , 84.12
-    , 86.88 -- 5^, kantilan end
+    , 86.88 -- 5^, kantilan end, ding
     ]
 
-note_numbers_isep :: [Pitch.NoteNumber]
-note_numbers_isep = map Pitch.nn
-    [ 52.3
+isep :: [Pitch.NoteNumber]
+isep = map Pitch.nn
+    [ 52.3 -- dong
 
     , 54.55
     , 57.35
     , 59.85
-    , 62.5
+    , 62.5 -- ding
     , 64.45 -- 6., kantilan begin
 
     , 67.26
     , 69.25
     , 71.81
-    , 74.63 -- 5, pemade end
+    , 74.63 -- 5, pemade end, ding
     , 76.73
 
-    , 79.35
+    , 79.35 -- deng
     , 81.51
     , 84
-    , 86.78 -- 5^, kantilan end
+    , 86.78 -- 5^, kantilan end, ding
     ]
-
-note_numbers :: [Pitch.NoteNumber]
-note_numbers = note_numbers_umbang
-
--- Line a list starting with nding up with 'note_numbers'.
-align = take (length note_numbers) . drop 4
-center = 5 -- index of middle pitch
-
-notes :: [Pitch.Note]
-notes = map Symbols.dotted_number
-    [(num, oct) | oct <- [-2..2], num <- [1, 2, 3, 5, 6]]
-
-inputs :: [Pitch.InputKey]
-inputs = [Pitch.middle_c + fromIntegral (o*12) + d | o <- [-2..2], d <- keys]
-    where keys = [Util.i_c, Util.i_d, Util.i_e, Util.i_f, Util.i_g]

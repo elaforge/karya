@@ -1,10 +1,12 @@
 module Derive.Scale (Scale(..), ScaleError(..), module Derive.Scale) where
 import Derive.Derive (Scale(..), ScaleError(..))
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Pitch as Pitch
 
 
-type NoteCall = Maybe Pitch.Key -> PitchSignal.Controls
+type NoteCall = TrackLang.Environ -> PitchSignal.Controls
     -> Either PitchSignal.PitchError Pitch.NoteNumber
 
 -- | TODO this is incorrect, because you can't get from NN to note if the scale

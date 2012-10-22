@@ -39,8 +39,8 @@ test_transpose = do
 test_degree_to_hz = do
     let f base_hz tonic pitch = Just.degree_to_hz Just.pc_per_octave
             Just.major_ratios base_hz tonic (p pitch)
-        Just key_a = Map.lookup 'a' Just.all_keys
-        Just key_b = Map.lookup 'b' Just.all_keys
+        Just key_a = Map.lookup "a" Just.all_keys
+        Just key_b = Map.lookup "b" Just.all_keys
 
     -- tonic A, nice minor triad is in tune
     equal (f Nothing key_a "4a") 440

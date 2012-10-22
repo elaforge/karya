@@ -12,6 +12,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 
@@ -37,7 +38,7 @@ make_scale scale_id ratios = Scale.Scale
     , Scale.scale_note_to_call = note_to_call ratios
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn =
-        Util.input_to_nn input_to_note (note_to_call ratios)
+        Util.computed_input_to_nn input_to_note (note_to_call ratios)
     -- TODO annotate
     , Scale.scale_call_doc = Util.note_call_doc "4c"
     }
@@ -119,9 +120,9 @@ note_to_call ratios note = case read_pitch note of
     Right pitch -> Just $ Call.Pitch.note_call note (note_call pitch)
     where
     note_call :: Theory.Pitch -> Scale.NoteCall
-    note_call pitch maybe_str_key controls =
-        Util.pitch_error chromatic diatonic maybe_str_key $ do
-            key <- maybe (Right default_key) read_key maybe_str_key
+    note_call pitch env controls =
+        Util.scale_to_pitch_error chromatic diatonic $ do
+            key <- read_key env
             let hz = transpose_to_hz ratios base_hz key
                     (chromatic + diatonic) pitch
                 nn = Pitch.hz_to_nn hz
@@ -176,9 +177,9 @@ data Key = Key {
     , key_tonic_nn :: !Pitch.NoteNumber
     } deriving (Show)
 
-all_keys :: Map.Map Char Key
+all_keys :: Map.Map String Key
 all_keys =
-    Map.fromList $ take 7 [(char, Key pc nn)
+    Map.fromList $ take 7 [([char], Key pc nn)
         | (char, pc, nn) <- zip3 ['a'..] [0..] nns]
     where
     -- Start at A which is nn -3.  This is like 'nn_to_degree', but the other
@@ -186,12 +187,11 @@ all_keys =
     nns = scanl (+) (-3) (cycle [2, 1, 2, 2, 2, 1, 2])
 
 default_key :: Key
-Just default_key = Map.lookup 'c' all_keys
+Just default_key = Map.lookup "c" all_keys
 
-read_key :: Pitch.Key -> Either Scale.ScaleError Key
-read_key (Pitch.Key [key]) =
-    maybe (Left Scale.UnparseableKey) Right $ Map.lookup key all_keys
-read_key _ = Left Scale.UnparseableKey
+read_key :: TrackLang.Environ -> Either Scale.ScaleError Key
+read_key = Util.read_environ (\k -> Map.lookup k all_keys)
+    default_key TrackLang.v_key
 
 -- * ratios
 

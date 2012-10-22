@@ -1,13 +1,33 @@
 UNSORTED
+  - get rid of example_note in call_doc
+  - make TrackLang.Environ a newtype
   - have the DeriveTest log trace filter important msgs
   * Rect.move sounds like it should be a translation, rename to Rect.place
   * Ornament_test can use e_twelve
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
   - it's annoying having to set the scale along with the inst, can I have the
-    wayang insts also set a scale?  Or should there be one wayang scale, and
-    switch ngumbang and ngisep with an env var?  An 'ombak' control could set
-    width.
+    wayang insts also set a scale?  How about just setting an env var?
+    Wait, it already sets default scale, is that enough?
+  - the problem with controls is that only env is captured at note time, the
+    controls are intentionally delayed until conversion.  I can't capture
+    them or they'd be applied twice.  But I should be able to capture
+    everything except the transposing controls.
+    That means that '%t-chromatic = 1 | 4c' won't work as expected.  Is there
+    a way around it?
+    It's the controls of the event.  
+  Generalize scale construction stuff
+    repair
+      * TwelveUtil
+      * call doc in Util
+      * Just
+    * repair Util.ScaleUtil
+    - rename TwelveUtil TwelveScales
+    - System to ScaleMap
+
+  * Make wayang and legong look at a env var to switch ngumbang and ngisep.
+  * Wayang and legong variants with an 'ombak' control to ombak speed.
+
   - Managed to crash by undoing while editing, I think.  I wound up with
     note events on a control track and when I tried to undo and delete it
     I got an update on wrong kind of track assertion error.
@@ -1112,7 +1132,7 @@ Derive:
       - continuous tempo warping for signals
         tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
   Derive.Scale scales
-    - implement pengumbang pengisep
+    * implement pengumbang pengisep
     + just intonation tuned to a pitch signal
     - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
     - retune a note depending on the previous interval (e.g. sloppy pitches

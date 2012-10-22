@@ -43,9 +43,9 @@ patches = concat [hang, wayang, kendang_patches]
         [inst "hang1" hang_ks, inst "hang2" hang_ks]
     wayang =
         [ (Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks,
-            MidiInst.default_scale Wayang.umbang_id wayang_code)
+            MidiInst.default_scale Wayang.scale_id wayang_code)
         , (Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks,
-            MidiInst.default_scale Wayang.isep_id wayang_code)
+            MidiInst.default_scale Wayang.scale_id wayang_code)
         ]
     inst name ks = Instrument.set_keyswitches ks $
         Instrument.patch $ Instrument.instrument name [] (-12, 12)
@@ -93,12 +93,10 @@ wayang_ks :: [(Score.Attributes, Midi.Key)]
 wayang_ks = [(muted, Key.gs2), (open, Key.g2), (mempty, Key.g2)]
 
 wayang_umbang :: Instrument.PatchScale
-wayang_umbang =
-    Instrument.make_patch_scale $ zip wayang_keys Wayang.note_numbers_umbang
+wayang_umbang = Instrument.make_patch_scale $ zip wayang_keys Wayang.umbang
 
 wayang_isep :: Instrument.PatchScale
-wayang_isep =
-    Instrument.make_patch_scale $ zip wayang_keys Wayang.note_numbers_isep
+wayang_isep = Instrument.make_patch_scale $ zip wayang_keys Wayang.isep
 
 wayang_keys :: [Midi.Key]
 wayang_keys =

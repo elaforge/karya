@@ -453,24 +453,9 @@ with_scale scale = modify_constant $ \st ->
         (Map.insert (Scale.scale_id scale) scale Scale.All.scales) }
 
 mkscale :: String -> [(String, Pitch.NoteNumber)] -> Scale.Scale
-mkscale name notes = Scale.Scale
-    { Scale.scale_id = Pitch.ScaleId name
-    , Scale.scale_pattern = "test"
-    , Scale.scale_map = Scale.Util.make_scale_map scale_map
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = Scale.Util.standard_transposers
-    , Scale.scale_transpose = Scale.Util.transpose scale_map 5
-    , Scale.scale_enharmonics = Scale.Util.no_enharmonics
-    , Scale.scale_note_to_call = Scale.Util.note_to_call scale_map
-    , Scale.scale_input_to_note = Scale.Util.input_to_note scale_map
-    , Scale.scale_input_to_nn = Scale.Util.mapped_input_to_nn scale_map
-    , Scale.scale_call_doc = Scale.Util.call_doc (Pitch.ScaleId name)
-        (fst (head notes)) scale_map
-    }
-    where
-    scale_map = Scale.Util.scale_map (map (Pitch.Note . fst) notes)
-        (take (length notes) inputs) (map snd notes)
-    inputs = [Scale.Util.i_c + Pitch.InputKey n | n <- [0..]]
+mkscale name notes = Scale.Util.simple_scale 5 "test" (Pitch.ScaleId name)
+    inputs (map (Pitch.Note . fst) notes) (map snd notes)
+    where inputs = [Scale.Util.i_c + Pitch.InputKey n | n <- [0..]]
 
 -- * inst
 
