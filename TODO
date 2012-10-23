@@ -6,7 +6,7 @@ UNSORTED
   * Ornament_test can use e_twelve
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
-  - it's annoying having to set the scale along with the inst, can I have the
+  * it's annoying having to set the scale along with the inst, can I have the
     wayang insts also set a scale?  How about just setting an env var?
     Wait, it already sets default scale, is that enough?
   - the problem with controls is that only env is captured at note time, the

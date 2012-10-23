@@ -21,6 +21,7 @@ import qualified Derive.Instrument.Util as DUtil
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
@@ -43,10 +44,13 @@ patches = concat [hang, wayang, kendang_patches]
         [inst "hang1" hang_ks, inst "hang2" hang_ks]
     wayang =
         [ (Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks,
-            MidiInst.default_scale Wayang.scale_id wayang_code)
+            with_tuning "umbang" wayang_code)
         , (Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks,
-            MidiInst.default_scale Wayang.scale_id wayang_code)
+            with_tuning "isep" wayang_code)
         ]
+    with_tuning tuning =
+        MidiInst.with_environ TrackLang.v_scale Wayang.scale_id
+        . MidiInst.with_environ TrackLang.v_tuning tuning
     inst name ks = Instrument.set_keyswitches ks $
         Instrument.patch $ Instrument.instrument name [] (-12, 12)
 

@@ -6,7 +6,7 @@ module App.MidiInst (
     , make
     -- * code
     , Code(..), empty_code, with_code, with_empty_code
-    , default_scale
+    , with_environ, default_scale
 
     -- * db
     , save_db, save_patches, load_db
@@ -83,11 +83,14 @@ with_code code = map (\p -> (p, code))
 with_empty_code :: [Instrument.Patch] -> [Patch]
 with_empty_code = with_code empty_code
 
-default_scale :: Pitch.ScaleId -> Code -> Code
-default_scale scale_id code = code
-    { environ = TrackLang.insert_val TrackLang.v_scale
-        (TrackLang.VScaleId scale_id) mempty
+with_environ :: (TrackLang.Typecheck a) => TrackLang.ValName -> a
+    -> Code -> Code
+with_environ name val code = code
+    { environ = TrackLang.insert_val name (TrackLang.to_val val) (environ code)
     }
+
+default_scale :: Pitch.ScaleId -> Code -> Code
+default_scale = with_environ TrackLang.v_scale
 
 make_code :: Code -> Cmd.InstrumentCode
 make_code (Code note val environ cmds) =
