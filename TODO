@@ -1,7 +1,7 @@
 UNSORTED
   * get rid of example_note in call_doc
   * make TrackLang.Environ a newtype
-  - have the DeriveTest log trace filter important msgs
+  * have the DeriveTest log trace filter important msgs
   * Rect.move sounds like it should be a translation, rename to Rect.place
   * Ornament_test can use e_twelve
   - doesn't seem to save track widths, I keep making it narrow but reload it's
@@ -16,6 +16,8 @@ UNSORTED
     That means that '%t-chromatic = 1 | 4c' won't work as expected.  Is there
     a way around it?
     It's the controls of the event.
+    Could I say that the pitch track is the wrong place to apply controls?
+    I don't have any real use case for why it should work.
   Generalize scale construction stuff
     repair
       * TwelveUtil

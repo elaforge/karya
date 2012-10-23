@@ -88,7 +88,8 @@ run_events :: (a -> b)
     -> Either String (LEvent.LEvents a, Derive.State, [Log.Msg])
     -> Either String ([b], [String])
 run_events f = extract_run $
-    first (map f) . second (map show_log . trace_low_prio) . LEvent.partition
+    first (map f) . second (map show_log . filter interesting_log)
+        . LEvent.partition
 
 default_constant :: State.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
@@ -268,6 +269,7 @@ default_environ = TrackLang.make_environ
 trace_logs :: [Log.Msg] -> a -> a
 trace_logs logs = Log.trace_logs (filter interesting_log logs)
 
+-- | Filter out low-priority logs and trace them.
 trace_low_prio :: [Log.Msg] -> [Log.Msg]
 trace_low_prio msgs = Log.trace_logs low high
     where (high, low) = List.partition interesting_log msgs
@@ -299,7 +301,7 @@ extract_events e_event result = Log.trace_logs logs (map e_event events)
 
 extract_levents :: (Score.Event -> a) -> Derive.Events -> ([a], [String])
 extract_levents e_event levents =
-    (map e_event events, map show_log (trace_low_prio logs))
+    (map e_event events, map show_log (filter interesting_log logs))
     where (events, logs) = LEvent.partition levents
 
 extract_stream :: (Score.Event -> a) -> Derive.Result -> [Either a String]
