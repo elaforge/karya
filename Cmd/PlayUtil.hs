@@ -28,7 +28,7 @@ import Types
 
 -- | There are a few environ values that almost everything relies on.
 initial_environ :: Pitch.ScaleId -> Maybe Score.Instrument -> TrackLang.Environ
-initial_environ scale_id maybe_inst = Map.fromList $
+initial_environ scale_id maybe_inst = TrackLang.make_environ $
     inst ++
     -- Control interpolators rely on this.
     [ (TrackLang.v_srate, TrackLang.num 0.025)

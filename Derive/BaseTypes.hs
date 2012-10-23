@@ -184,15 +184,24 @@ instance Pretty.Pretty PitchError where pretty (PitchError s) = s
 
 -- * Derive.TrackLang
 
-type Environ = Map.Map ValName Val
+newtype Environ = Environ (Map.Map ValName Val)
+    deriving (Show, Monoid.Monoid, Pretty.Pretty)
+
+make_environ :: [(ValName, Val)] -> Environ
+make_environ = Environ . Map.fromList
+
+-- | Insert a val directly, with no typechecking.
+insert_val :: ValName -> Val -> Environ -> Environ
+insert_val name val (Environ env) = Environ $ Map.insert name val env
+
+lookup_val :: ValName -> Environ -> Maybe Val
+lookup_val name (Environ env) = Map.lookup name env
+
+null_environ :: Environ -> Bool
+null_environ (Environ env) = Map.null env
 
 -- | Symbols to look up a val in the 'ValMap'.
 type ValName = Symbol
-
--- | Even though Environ is a type synonym, you can use this to avoid depending
--- directly on that.
-insert_val :: ValName -> Val -> Environ -> Environ
-insert_val = Map.insert
 
 -- | Environ key for the default attributes.
 --

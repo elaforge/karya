@@ -253,7 +253,7 @@ default_scope :: Derive.Scope
 default_scope = Call.All.scope
 
 default_environ :: TrackLang.Environ
-default_environ = Map.fromList
+default_environ = TrackLang.make_environ
     -- tests are easier to write and read with integral interpolation
     [ (TrackLang.v_srate, TrackLang.num 1)
     , (TrackLang.v_scale, TrackLang.VScaleId Twelve.scale_id)

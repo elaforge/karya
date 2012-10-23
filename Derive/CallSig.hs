@@ -79,7 +79,6 @@
     Derive.Call but Call is already big so let's leave it separate for now.
 -}
 module Derive.CallSig where
-import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
@@ -363,7 +362,7 @@ pure_check_args environ passed args
     defaulted_vals = zipWith deflt (map Just vals ++ repeat Nothing) args
         where
         deflt (Just val) _ = Just val
-        deflt Nothing (_, arg_name) = Map.lookup
+        deflt Nothing (_, arg_name) = TrackLang.lookup_val
             (arg_environ_default (passed_call passed) arg_name) environ
     supplied_args = length (filter Maybe.isJust defaulted_vals)
     bad_required = [(i, name) | (i, (True, name)) <- optional]

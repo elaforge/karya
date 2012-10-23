@@ -66,15 +66,16 @@ has_attribute attr =
     (attrs_set attr `Set.isSubsetOf`) . attrs_set . event_attributes
 
 environ_attributes :: BaseTypes.Environ -> Attributes
-environ_attributes environ = case Map.lookup BaseTypes.v_attributes environ of
-    Just (BaseTypes.VAttributes attrs) -> attrs
-    _ -> mempty
+environ_attributes environ =
+    case BaseTypes.lookup_val BaseTypes.v_attributes environ of
+        Just (BaseTypes.VAttributes attrs) -> attrs
+        _ -> mempty
 
 modify_attributes :: (Attributes -> Attributes) -> Event -> Event
 modify_attributes modify event =
     event { event_environ = modified (event_environ event) }
     where
-    modified = Map.insert BaseTypes.v_attributes
+    modified = BaseTypes.insert_val BaseTypes.v_attributes
         (BaseTypes.VAttributes (modify (event_attributes event)))
 
 remove_attributes :: Attributes -> Event -> Event

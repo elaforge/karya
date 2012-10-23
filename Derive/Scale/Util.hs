@@ -292,7 +292,7 @@ no_enharmonics _ _ = Right []
 
 read_environ :: (TrackLang.Typecheck a) => (a -> Maybe val) -> val
     -> TrackLang.ValName -> TrackLang.Environ -> Either Scale.ScaleError val
-read_environ read_val deflt name env = case TrackLang.lookup_val name env of
+read_environ read_val deflt name env = case TrackLang.get_val name env of
     Left (TrackLang.WrongType expected) ->
         unparseable ("expected type " ++ Pretty.pretty expected)
     Left TrackLang.NotFound -> Right deflt

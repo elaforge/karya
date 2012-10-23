@@ -208,8 +208,8 @@ test_track_dynamic = do
     let extract = map extract1 . Map.assocs . Derive.r_track_dynamic
         extract1 ((bid, tid), dyn) =
             (bid, tid,
-                Map.lookup TrackLang.v_scale env,
-                Map.lookup TrackLang.v_instrument env)
+                TrackLang.lookup_val TrackLang.v_scale env,
+                TrackLang.lookup_val TrackLang.v_instrument env)
             where env = Derive.state_environ dyn
     let res = DeriveTest.derive_blocks
             [ ("b", [("*legong", [(0, 0, "1")]), (">i1", [(0, 1, "sub")])])
@@ -230,8 +230,8 @@ test_track_dynamic_invert = do
     let run = extract . DeriveTest.derive_tracks
         extract = Map.toList . Map.map (e_env . Derive.state_environ)
             . Derive.r_track_dynamic
-        e_env e = (Pretty.pretty $ Map.lookup TrackLang.v_instrument e,
-            Pretty.pretty $ Map.lookup TrackLang.v_scale e)
+        e_env e = (lookup TrackLang.v_instrument e, lookup TrackLang.v_scale e)
+        lookup val = Pretty.pretty . TrackLang.lookup_val val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
     equal (run [(">inst", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
         [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">inst", "*legong"))

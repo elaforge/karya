@@ -11,7 +11,6 @@ module App.MidiInst (
     -- * db
     , save_db, save_patches, load_db
 ) where
-import qualified Data.Map as Map
 import System.FilePath ((</>), (<.>))
 
 import Util.Control
@@ -86,7 +85,8 @@ with_empty_code = with_code empty_code
 
 default_scale :: Pitch.ScaleId -> Code -> Code
 default_scale scale_id code = code
-    { environ = Map.singleton TrackLang.v_scale (TrackLang.VScaleId scale_id)
+    { environ = TrackLang.insert_val TrackLang.v_scale
+        (TrackLang.VScaleId scale_id) mempty
     }
 
 make_code :: Code -> Cmd.InstrumentCode

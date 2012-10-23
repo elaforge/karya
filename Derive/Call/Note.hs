@@ -122,7 +122,7 @@ generate_note n_inst rel_attrs event next_start = do
             Derive.lookup_val TrackLang.v_instrument
     environ <- Internal.get_dynamic Derive.state_environ
     let attrs = either (const Score.no_attrs) id $
-            TrackLang.lookup_val TrackLang.v_attributes environ
+            TrackLang.get_val TrackLang.v_attributes environ
     st <- Derive.gets Derive.state_dynamic
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)

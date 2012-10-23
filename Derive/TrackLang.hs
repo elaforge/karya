@@ -45,9 +45,9 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes
-       (Environ, ValName, insert_val, Val(..), Symbol(..), AttrMode(..),
-        RelativeAttr(..), ControlRef(..), PitchControl, ValControl,
-        Note(..))
+       (Environ, make_environ, insert_val, lookup_val, null_environ,
+        ValName, Val(..), Symbol(..), AttrMode(..), RelativeAttr(..),
+        ControlRef(..), PitchControl, ValControl, Note(..))
 import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch
@@ -329,11 +329,12 @@ instance Typecheck Symbol where
     to_val = VSymbol
     to_type _ = TSymbol
 
--- * dynamic environment
+-- * environ
 
--- | Return either the modified environ or the type expected if the type of the
--- argument was wrong.  Once you put a key of a given type into the environ, it
--- can only ever be overwritten by a Val of the same type.
+-- | Insert a new val, but return Left if it changes the type of an existing
+-- one, so Once you put a key of a given type into the environ, it can only
+-- ever be overwritten by a Val of the same type.  The idea is that being
+-- inconsistent with types will just lead to confusion.
 --
 -- 'RelativeAttr's are never inserted, they combine with existing Attributes or
 -- create new ones.
@@ -344,24 +345,22 @@ put_val name val environ = case maybe_old of
         _ -> Right $ insert_val name new_val environ
     Just old_val
         | type_of old_val == type_of new_val ->
-            Right $ insert_val name (environ_val environ name val) environ
+            Right $ insert_val name (environ_val name val environ) environ
         | otherwise -> Left (type_of old_val)
     where
-    maybe_old = Map.lookup name environ
+    maybe_old = lookup_val name environ
     new_val = case to_val val of
         VRelativeAttr rel_attr -> VAttributes $
             case maybe_old of
                 Just (VAttributes attrs) -> set_attr rel_attr attrs
                 _ -> set_attr rel_attr Score.no_attrs
         _ -> to_val val
-
-environ_val :: (Typecheck val) => Environ -> ValName -> val -> Val
-environ_val environ name val = case to_val val of
-    VRelativeAttr rel_attr -> VAttributes $
-        case Map.lookup name environ of
-            Just (VAttributes attrs) -> set_attr rel_attr attrs
-            _ -> set_attr rel_attr Score.no_attrs
-    new_val -> new_val
+    environ_val name val environ = case to_val val of
+        VRelativeAttr rel_attr -> VAttributes $
+            case lookup_val name environ of
+                Just (VAttributes attrs) -> set_attr rel_attr attrs
+                _ -> set_attr rel_attr Score.no_attrs
+        new_val -> new_val
 
 -- | If a standard val gets set to the wrong type, it will cause confusing
 -- errors later on.
@@ -377,20 +376,20 @@ hardcoded_types = Map.fromList
 
 data LookupError = NotFound | WrongType Type deriving (Show)
 
-lookup_val :: (Typecheck a) => ValName -> Environ -> Either LookupError a
-lookup_val name environ = case Map.lookup name environ of
+get_val :: (Typecheck a) => ValName -> Environ -> Either LookupError a
+get_val name environ = case lookup_val name environ of
     Nothing -> Left NotFound
     Just val -> case from_val val of
         Nothing -> Left (WrongType (type_of val))
         Just v -> Right v
 
 maybe_val :: (Typecheck a) => ValName -> Environ -> Maybe a
-maybe_val name = either (const Nothing) Just . lookup_val name
+maybe_val name = either (const Nothing) Just . get_val name
 
--- | Like 'lookup_val' but format a WrongType nicely.
+-- | Like 'get_val' but format a WrongType nicely.
 checked_val :: forall a. (Typecheck a) => ValName -> Environ
     -> Either String (Maybe a)
-checked_val name environ = case lookup_val name environ of
+checked_val name environ = case get_val name environ of
         Left NotFound -> return Nothing
         Left (WrongType typ) ->
             Left $ show name ++ ": expected " ++ Pretty.pretty return_type

@@ -1,6 +1,6 @@
 UNSORTED
   * get rid of example_note in call_doc
-  - make TrackLang.Environ a newtype
+  * make TrackLang.Environ a newtype
   - have the DeriveTest log trace filter important msgs
   * Rect.move sounds like it should be a translation, rename to Rect.place
   * Ornament_test can use e_twelve

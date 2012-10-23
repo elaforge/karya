@@ -1,6 +1,4 @@
 module Derive.CallSig_test where
-import qualified Data.Map as Map
-
 import Util.Control
 import qualified Util.Pretty as Pretty
 import Util.Test
@@ -60,7 +58,8 @@ test_check_args = do
 
     equal (f mempty (mkargs [vnum 1]) [required, optional])
         (Right [Just (vnum 1), Nothing])
-    let env = Map.fromList [(TrackLang.Symbol "call-required", vnum 10)]
+    let env = TrackLang.make_environ
+            [(TrackLang.Symbol "call-required", vnum 10)]
     equal (f env (mkargs []) [required, optional])
         (Right [Just (vnum 10), Nothing])
 

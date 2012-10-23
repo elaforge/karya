@@ -32,6 +32,7 @@
 module Derive.Deriver.Lib where
 import Prelude hiding (error)
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 
 import Util.Control
@@ -106,10 +107,10 @@ extract_result (result, state, logs) = Result
 with_initial_scope :: TrackLang.Environ -> Deriver d -> Deriver d
 with_initial_scope env deriver = set_inst (set_scale deriver)
     where
-    set_inst = case TrackLang.lookup_val TrackLang.v_instrument env of
+    set_inst = case TrackLang.get_val TrackLang.v_instrument env of
         Right inst -> with_instrument inst
         _ -> id
-    set_scale = case TrackLang.lookup_val TrackLang.v_scale env of
+    set_scale = case TrackLang.get_val TrackLang.v_scale env of
         Right scale_id -> \deriver -> do
             scale <- get_scale scale_id
             with_scale scale deriver
@@ -165,7 +166,8 @@ get_val name = do
     maybe (throw $ "environ val not found: " ++ Pretty.pretty name) return val
 
 is_val_set :: TrackLang.ValName -> Deriver Bool
-is_val_set name = Map.member name <$> Internal.get_dynamic state_environ
+is_val_set name = Maybe.isJust . TrackLang.lookup_val name <$>
+    Internal.get_dynamic state_environ
 
 is_lilypond_derive :: Deriver Bool
 is_lilypond_derive = is_val_set TrackLang.v_lilypond_derive
@@ -214,7 +216,7 @@ with_instrument inst deriver = do
 -- | Merge the given environ into the environ in effect.
 with_environ :: TrackLang.Environ -> Deriver a -> Deriver a
 with_environ environ
-    | Map.null environ = id
+    | TrackLang.null_environ environ = id
     | otherwise = Internal.local $ \st -> st
         { state_environ = environ <> state_environ st }
 

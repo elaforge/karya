@@ -569,7 +569,7 @@ split_events events =
         | (inst, events) <- by_inst]
     where
     by_inst = Seq.keyed_group_on event_instrument events
-    lookup_hand environ = case TrackLang.lookup_val v_hand environ of
+    lookup_hand environ = case TrackLang.get_val v_hand environ of
         Right (val :: String)
             | val == "right" -> 0
             | val == "left" -> 1
