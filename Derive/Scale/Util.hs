@@ -39,7 +39,7 @@ simple_scale per_octave note_pattern scale_id inputs notes nns = Scale.Scale
     , Scale.scale_note_to_call = mapped_note_to_call nn_map dmap
     , Scale.scale_input_to_note = input_to_note input_map dmap
     , Scale.scale_input_to_nn = mapped_input_to_nn input_map nn_map
-    , Scale.scale_call_doc = call_doc scale_id "example" dmap input_map
+    , Scale.scale_call_doc = call_doc scale_id dmap input_map
     }
     where
     dmap = degree_map notes
@@ -139,10 +139,10 @@ note_to_call :: DegreeMap -> DegreeToNoteNumber -> Pitch.Note
 note_to_call dmap degree_to_nn note =
     case Map.lookup note (dm_to_degree dmap) of
         Nothing -> Nothing
-        Just degree -> Just $ Call.Pitch.note_call note (note_call degree)
+        Just degree -> Just $ Call.Pitch.scale_degree (scale_degree degree)
     where
-    note_call :: Pitch.Degree -> Scale.NoteCall
-    note_call (Pitch.Degree degree) env controls =
+    scale_degree :: Pitch.Degree -> Scale.NoteCall
+    scale_degree (Pitch.Degree degree) env controls =
         scale_to_pitch_error diatonic chromatic $
             to_note (fromIntegral degree + chromatic + diatonic)
                 env controls
@@ -257,10 +257,10 @@ join_note step frac = Pitch.Note $ step ++ frac_s
 
 -- ** call_doc
 
-call_doc :: Pitch.ScaleId -> String -> DegreeMap -> InputMap
+call_doc :: Pitch.ScaleId -> DegreeMap -> InputMap
     -> Derive.DocumentedCall
-call_doc scale_id example_note dmap imap =
-    annotate_call_doc scale_id fields $ note_call_doc example_note
+call_doc scale_id dmap imap =
+    annotate_call_doc scale_id fields $ scale_degree_doc
     where
     fields =
         [ ("note range", map_range snd (dm_to_note dmap))
@@ -271,10 +271,10 @@ call_doc scale_id example_note dmap imap =
             Pretty.pretty (extract kv1) ++ " to " ++ Pretty.pretty (extract kv2)
         _ -> ""
 
--- | Documentation of the standard 'Call.Pitch.note_call'.
-note_call_doc :: String -> Derive.DocumentedCall
-note_call_doc example_note = Derive.extract_val_doc $
-    Call.Pitch.note_call (Pitch.Note example_note) $ \_ _ ->
+-- | Documentation of the standard 'Call.Pitch.scale_degree'.
+scale_degree_doc :: Derive.DocumentedCall
+scale_degree_doc = Derive.extract_val_doc $
+    Call.Pitch.scale_degree $ \_ _ ->
         Left $ PitchSignal.PitchError "it was just an example!"
 
 annotate_call_doc :: Pitch.ScaleId -> [(String, String)]

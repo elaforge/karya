@@ -34,7 +34,7 @@ make_scale scale_id layout key_suffix = Scale.Scale
     , Scale.scale_note_to_call = TwelveUtil.note_to_call system
     , Scale.scale_input_to_note = TwelveUtil.input_to_note system
     , Scale.scale_input_to_nn = Util.direct_input_to_nn
-    , Scale.scale_call_doc = TwelveUtil.call_doc scale_id "4c" system
+    , Scale.scale_call_doc = TwelveUtil.call_doc scale_id system
     }
     where
     system = TwelveUtil.system layout all_pitches keys deflt

@@ -52,7 +52,7 @@ scale scale_id (ScaleMap degree_map input_map nn_map) = Scale.Scale
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn =
         Util.computed_input_to_nn input_to_note note_to_call
-    , Scale.scale_call_doc = Util.call_doc scale_id "1" degree_map input_map
+    , Scale.scale_call_doc = Util.call_doc scale_id degree_map input_map
     }
     where
     note_to_call = Util.note_to_call degree_map (degree_to_nn nn_map)

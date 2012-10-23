@@ -68,12 +68,12 @@ note_to_call :: System -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call sys note = case Map.lookup note (sys_note_to_degree sys) of
     Nothing -> Nothing
     Just (pitch, degree) ->
-        Just $ Call.Pitch.note_call note (note_call pitch degree)
+        Just $ Call.Pitch.scale_degree (scale_degree pitch degree)
     where
     -- The Degree can be derived from the Pitch given the layout, so it's
     -- redundant to pass both, but convenient to precompute the Degrees.
-    note_call :: Theory.Pitch -> Pitch.Degree -> Scale.NoteCall
-    note_call pitch (Pitch.Degree degree) env controls =
+    scale_degree :: Theory.Pitch -> Pitch.Degree -> Scale.NoteCall
+    scale_degree pitch (Pitch.Degree degree) env controls =
         Util.scale_to_pitch_error diatonic chromatic $ do
             dsteps <- if diatonic == 0 then Right 0 else do
                 key <- read_env_key sys env
@@ -92,7 +92,7 @@ input_to_note sys maybe_key (Pitch.InputKey key_nn) =
     case pitch_note sys $
             Theory.semis_to_pitch key (Theory.nn_to_semis nn_semis) of
         Left _ -> Nothing
-        Right note -> Just $ Pitch.Note $ Call.Pitch.note_expr note cents
+        Right note -> Just $ Pitch.Note $ Call.Pitch.pitch_expr note cents
     where
     -- Default to a key because otherwise you couldn't enter notes in an
     -- empty score!
@@ -100,11 +100,11 @@ input_to_note sys maybe_key (Pitch.InputKey key_nn) =
         flip Map.lookup (sys_keys sys) =<< maybe_key
     (nn_semis, cents) = properFraction key_nn
 
-call_doc :: Pitch.ScaleId -> String -> System -> Derive.DocumentedCall
-call_doc scale_id example_note sys =
+call_doc :: Pitch.ScaleId -> System -> Derive.DocumentedCall
+call_doc scale_id sys =
     Derive.annotate_doc extra_doc $ Derive.extract_val_doc call
     where
-    call = Call.Pitch.note_call (Pitch.Note example_note) $ \_ _ ->
+    call = Call.Pitch.scale_degree $ \_ _ ->
         Left $ PitchSignal.PitchError "it was just an example!"
     extra_doc = "Note in scale " ++ Pretty.pretty scale_id ++ ":\n" ++ join
         [ ("note range", note_range)

@@ -1,5 +1,5 @@
 UNSORTED
-  - get rid of example_note in call_doc
+  * get rid of example_note in call_doc
   - make TrackLang.Environ a newtype
   - have the DeriveTest log trace filter important msgs
   * Rect.move sounds like it should be a translation, rename to Rect.place
@@ -15,7 +15,7 @@ UNSORTED
     everything except the transposing controls.
     That means that '%t-chromatic = 1 | 4c' won't work as expected.  Is there
     a way around it?
-    It's the controls of the event.  
+    It's the controls of the event.
   Generalize scale construction stuff
     repair
       * TwelveUtil

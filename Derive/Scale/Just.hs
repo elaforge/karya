@@ -40,7 +40,7 @@ make_scale scale_id ratios = Scale.Scale
     , Scale.scale_input_to_nn =
         Util.computed_input_to_nn input_to_note (note_to_call ratios)
     -- TODO annotate
-    , Scale.scale_call_doc = Util.note_call_doc "4c"
+    , Scale.scale_call_doc = Util.scale_degree_doc
     }
 
 scale_map :: [(Pitch.Note, Pitch.Degree)]
@@ -61,7 +61,7 @@ input_to_note _key (Pitch.InputKey key_nn) = case (degree1, degree2) of
     (input_degree, frac) = properFraction key_nn
 
 degree_note :: Double -> Pitch.Note
-degree_note degreef = Pitch.Note $ Call.Pitch.note_expr note frac
+degree_note degreef = Pitch.Note $ Call.Pitch.pitch_expr note frac
     where
     (degree, frac) = properFraction degreef
     (octave, pc) = degree `divMod` pc_per_octave
@@ -117,10 +117,10 @@ valid_pitch pitch = Theory.note_accidentals note == 0
 note_to_call :: Ratios -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call ratios note = case read_pitch note of
     Left _ -> Nothing
-    Right pitch -> Just $ Call.Pitch.note_call note (note_call pitch)
+    Right pitch -> Just $ Call.Pitch.scale_degree (scale_degree pitch)
     where
-    note_call :: Theory.Pitch -> Scale.NoteCall
-    note_call pitch env controls =
+    scale_degree :: Theory.Pitch -> Scale.NoteCall
+    scale_degree pitch env controls =
         Util.scale_to_pitch_error chromatic diatonic $ do
             key <- read_key env
             let hz = transpose_to_hz ratios base_hz key

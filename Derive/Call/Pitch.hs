@@ -25,13 +25,12 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
--- | Create a note val call for the given scale degree.  This is intended to
--- be used by scales to generate their val calls, but of course each scale may
--- define degrees in its own way.
-note_call :: Pitch.Note -> Scale.NoteCall -> Derive.ValCall
-note_call note get_note_number = Derive.val_call
-    "pitch" ("Emit a pitch for scale degree: " <> Pitch.note_text note) $
-    CallSig.call2g
+-- | Create a pitch val call for the given scale degree.  This is intended to
+-- be used by scales to generate their calls, but of course each scale may
+-- define calls in its own way.
+scale_degree :: Scale.NoteCall -> Derive.ValCall
+scale_degree get_note_number = Derive.val_call
+    "pitch" "Emit the pitch of a scale degree." $ CallSig.call2g
     ( optional "frac" 0
         "Add this many hundredths of a scale degree to the output."
     , optional "hz" 0 "Add an absolute hz value to the output."
@@ -48,8 +47,8 @@ note_call note get_note_number = Derive.val_call
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.
-note_expr :: Pitch.Note -> Double -> String
-note_expr (Pitch.Note note) frac
+pitch_expr :: Pitch.Note -> Double -> String
+pitch_expr (Pitch.Note note) frac
     | frac == 0 = note
     | otherwise = note ++ " " ++ show (floor (frac * 100))
 
