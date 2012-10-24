@@ -531,3 +531,24 @@ map_controls_pitches controls pitch_controls state events f = go state events
         let vals = maybe rest_vals
                 ((:rest_vals) . map LEvent.Event . snd) result
         return (final_state, vals)
+
+-- * next in track
+
+-- | Return only the events that follow the given event on its track.
+filter_next_in_track :: Score.Event -> [Score.Event] -> [Score.Event]
+filter_next_in_track event = filter (next_in_track (stack event) . stack)
+    where stack = Stack.to_ui . Score.event_stack
+
+-- | Is the second stack from an event that occurs later on the same track as
+-- the first?  This is more complicated than it may seem at first because the
+-- second event could come from a different deriver.  So it should look like
+-- @same ; same ; bid same / tid same / range higher ; *@.
+next_in_track :: [Stack.UiFrame] -> [Stack.UiFrame] -> Bool
+next_in_track (s1@(bid1, tid1, r1) : stack1) (s2@(bid2, tid2, r2) : stack2)
+    | s1 == s2 = next_in_track stack1 stack2
+    | bid1 == bid2 && tid1 == tid2 && r1 `before` r2 = True
+    | otherwise = False
+    where
+    before (Just (s1, _)) (Just (s2, _)) = s1 < s2
+    before _ _ = False
+next_in_track _ _ = True

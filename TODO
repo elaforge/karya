@@ -1,4 +1,6 @@
 UNSORTED
+  - remove leading 0s in track and block names, integrate should sort by
+    tracknum
   * get rid of example_note in call_doc
   * make TrackLang.Environ a newtype
   * have the DeriveTest log trace filter important msgs
@@ -45,6 +47,10 @@ UNSORTED
     event is.
   - Damp can't work across blocks unless I structure by hand.  Or add a hand
     attr.  It seems like too much work just to get some damping right.
+    In general the problem is that tracks between blocks don't necessarily
+    have any correspondance.
+    It could be worth putting in hand if there were other things I can do
+    with it.
   - Sometimes tick makes more sense as at attribute of the previous note, or
     perhaps a freestanding ornament, since it can happen or not on a repeat.
   * window management to tile the windows
@@ -98,12 +104,13 @@ UNSORTED
     + See if it happens in debug mode.
     + See if -O2 debug binary crashes.
     - See if -O0 opt binary crashes.
+    + Try with the shell version of git.  If that works, update libgit2.
     It seems likely due to FFI, perhaps a bug in C++.  Optimization could be
     making some change that makes it more sensitive to the bug.  Or it could
     be optimization in the c++.
-    . It's also possible it's in the git code, maybe try removing that.
 
   - get rid of ld -r hack in shakefile, since new ghcs do that automatically
+  - I think I can also get rid of Util.CPUTime since new ghcs fixed that bug
   * J on a note event with duration makes it 0 dur
   * cmd to clip a ruler to the selection, or double a ruler
   * LRuler.double should renumber the marks
@@ -338,9 +345,6 @@ UNSORTED
     replaces samples.  Is still no good if the samples don't line up, but I'll
     need an event-level merge anyway for notes.
 
-  - Serialize logs with Serialize rather than as text, but I need a record
-    format.  This also makes it easier to change Show for various logged types
-    like Derive.Stack since I don't then have to write a Read.
   - tempo composition is problematic because it means you can't change the
     length of a block from within the block.  So slowing down one part will
     speed up another.  How can I get local tempo like I want?  Or just edit
@@ -414,7 +418,8 @@ MILESTONES
     + Just scales, and other ratio-oriented scales that use letters and
       accidentals
     - complete Idiom.Wind, experiment with the Idiom postprocs
-    - bring back negative duration / arrival beats
+    + bring back negative duration / arrival beats
+      No longer sure how to do this.
     * scales and keyswitches
     + efficient thru
     * tracklang complete with set of basic calls
@@ -529,14 +534,14 @@ negative duration / arrival beats:
     I have to make SymbolTable wrap text above too.
 
 external
-  - pandoc doesn't build on ghc 7.6
+  * pandoc doesn't build on ghc 7.6
   - chorded keys are not getting the proper pitch bend
     It's a pianoteq problem.
     Track it down and send it to them?
   - problem with pianoteq: if the same note occurs on two channels, one
     will be dropped.  Report to pianoteq.  I could work around, but it won't
     occur with real multitimbral instruments anyway.
-  - send a patch to improve Random.Shuffle?
+  + send a patch to improve Random.Shuffle?
   - patch for hsc2hs for #alignment
   srcloc_annotate pragma
     I think a ghc pragma is needed.
@@ -566,7 +571,6 @@ use fixed-binary instead of Doubles for ScoreTime and RealTime:
 plugins:
   - Either dynamically load local inst definitions and local StaticConfig, or
     auto-generate the link file Local/Instrument.hs.
-
   - come up with plan for reloading inst config and static config
     Really what I want to be able to do is recompile the static config
     incrementally, relink it with the main binary *quickly*, and restart the
@@ -763,7 +767,7 @@ fltk:
     assertion error 'title->w() == body->w()'
     solution: text entry is collapsed by track add, remove, or resize
   - factor scroll redrawing into a single class
-  - draw arrows in SkeletonDisplay.cc properly
+  / draw arrows in SkeletonDisplay.cc properly meh, they look ok
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
@@ -895,7 +899,6 @@ test:
 
 misc:
   - program to launch logview and seq together
-  - ^T on the cmdline prints stuff!?
 
 integrator / midi record:
   - implement
@@ -1222,6 +1225,8 @@ jack: JACK:
       - Try stashing port from port_by_name port instead of jack_register_port.
     - jack2 hangs for a long time on jack_connect when I reconnect due to a
       notify.  Try looking at logging to see what it's waiting on.
+      Problem is probably that you're not supposed to call back to jack from
+      a jack callback.
   - de-globalize MidiClientRef?
   - Ensure that shutdown stuff is being called correctly.  I don't care but
     maybe JACK does?
@@ -1258,28 +1263,10 @@ misc ideas:
   - How can I have calls that generate multiple controls, e.g. pitch-dyn track
     to implement fall + decresc?
 
-planning
+planning / research
   Composition of score fragments.  I think I want to display subderived
   notes within the call event.  And then some way to put edits on top of it.
-
-research:
   - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
 
-future:
-  - I need to sync with a DAW but don't want to implement rewire.
-    Which DAWs support jack?  ardour, reaper?, ...?
-
-    Can I use ardour as vst host, DAW, and track freezer?  It has OSC support
-    and I could add more.  Downside: no windows.
-
-    - vst host: Need to programmatically load plugins, configure plugins, route
-      audio.
-    - DAW: Need to sync play position.
-    - track freezer: Record plugin output, sync play position.
-
-  - check out jack some more.  I don't necessarily support it in the beginning
-    but should have an idea at least.
-    Looks like I could use it for midi i/o, but what's the advantage over
-    e.g. portmidi?  Maybe the ability to send midi to e.g. local apps in
-    standalone mode?  Or would be be better to support vst?
-  - sync via jack with e.g. ardour, rosegarden
+  - If I implement a VST host or patch a DAW to accept VST controls like MIDI
+    controls can I get low latency high res controls?

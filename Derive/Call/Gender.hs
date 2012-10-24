@@ -80,17 +80,19 @@ c_realize_damp = Derive.transformer "realize-damp"
     ("Extend the duration of events preceding one with a "
     <> ShowVal.show_val damped_tag <> " to the end of the event with the attr."
     <> " This is because the tick call can't modify its previous note."
-    <> " To avoid having to re-extract the next note of a track once they are"
-    <> " all mixed together, this should be applied on the lowest level, which"
-    <> " means it may be applied redundantly. But it's fast so it should be ok."
+    <> " TODO: Since there's no correspondence between tracks in different"
+    <> " blocks, the damping can't extend across block boundaries. I'd need"
+    <> " something like a 'hand' attribute to fix this."
     ) $ CallSig.call0t $ \_ deriver -> do
         events <- deriver
         return $ Util.map_around_asc events $ \_prev event next ->
-            Score.remove_attributes damped_tag $ case next of
-                next : _ | Score.has_attribute damped_tag next ->
-                    Score.set_duration
-                        (Score.event_end next - Score.event_start event) event
-                _ -> event
+            Score.remove_attributes damped_tag $
+                case Util.filter_next_in_track event next of
+                    next : _ | Score.has_attribute damped_tag next ->
+                        Score.set_duration
+                            (Score.event_end next - Score.event_start event)
+                            event
+                    _ -> event
 
 -- | Mark events that were damped late, and whose previous event should be
 -- extended to be damped together.

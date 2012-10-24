@@ -45,11 +45,12 @@
 -}
 module Derive.Call.Post.NegativeDur where
 import Util.Control
+import qualified Util.Seq as Seq
+import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
 
 import Types
 
@@ -81,29 +82,12 @@ negative_duration default_dur events = go events
         | otherwise = event
 
 positive_duration :: RealTime -> Score.Event -> Derive.Events -> RealTime
-positive_duration default_dur event events = case find_next event events of
-    Nothing -> default_dur
-    Just next -> calculate_duration
-        (Score.event_start event) (Score.event_duration event)
-        (Score.event_start next) (Score.event_duration next)
-
-find_next :: Score.Event -> Derive.Events -> Maybe Score.Event
-find_next event = LEvent.find $ next_in_track (stack event) . stack
-    where stack = Stack.to_ui . Score.event_stack
-
--- | Is the second stack from an event that occurs later on the same track as
--- the first?  This is more complicated than it may seem at first because the
--- second event could come from a different deriver.  So it should look like
--- @same ; same ; bid same / tid same / range higher ; *@.
-next_in_track :: [Stack.UiFrame] -> [Stack.UiFrame] -> Bool
-next_in_track (s1@(bid1, tid1, r1) : stack1) (s2@(bid2, tid2, r2) : stack2)
-    | s1 == s2 = next_in_track stack1 stack2
-    | bid1 == bid2 && tid1 == tid2 && r1 `before` r2 = True
-    | otherwise = False
-    where
-    before (Just (s1, _)) (Just (s2, _)) = s1 < s2
-    before _ _ = False
-next_in_track _ _ = True
+positive_duration default_dur event events =
+    case Seq.head $ Util.filter_next_in_track event (LEvent.events_of events) of
+        Nothing -> default_dur
+        Just next -> calculate_duration
+            (Score.event_start event) (Score.event_duration event)
+            (Score.event_start next) (Score.event_duration next)
 
 calculate_duration :: RealTime -> RealTime -> RealTime -> RealTime -> RealTime
 calculate_duration cur_pos cur_dur next_pos next_dur
