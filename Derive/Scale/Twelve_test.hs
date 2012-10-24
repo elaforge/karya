@@ -3,13 +3,14 @@ import qualified Data.Map as Map
 
 import Util.Test
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Scale.TwelveUtil as TwelveUtil
+import qualified Derive.Scale.TwelveScales as TwelveScales
 import qualified Perform.Pitch as Pitch
 
 
 test_note_to_nn = do
     let f = fmap snd
-            . flip Map.lookup (TwelveUtil.sys_note_to_degree Twelve.system)
+            . flip Map.lookup
+                (TwelveScales.smap_note_to_degree Twelve.scale_map)
             . Pitch.Note
     equal (f "4c") (Just 60)
     equal (f "-1c") Nothing

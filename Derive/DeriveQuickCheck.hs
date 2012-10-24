@@ -41,7 +41,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Scale.TwelveUtil as TwelveUtil
+import qualified Derive.Scale.TwelveScales as TwelveScales
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
@@ -178,8 +178,8 @@ parse_pitch text = maybe (error $ "unparseable pitch: " ++ show text)
     where
     to_nn (Pitch.Degree d) = Pitch.NoteNumber (fromIntegral d)
 
-note_to_degree :: TwelveUtil.NoteToDegree
-note_to_degree = TwelveUtil.sys_note_to_degree Twelve.system
+note_to_degree :: TwelveScales.NoteToDegree
+note_to_degree = TwelveScales.smap_note_to_degree Twelve.scale_map
 
 parse_control :: String -> Signal.Y
 parse_control text = fromMaybe

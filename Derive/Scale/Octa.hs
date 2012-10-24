@@ -4,7 +4,7 @@ import qualified Data.Vector.Unboxed as Vector
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Scale.TwelveUtil as TwelveUtil
+import qualified Derive.Scale.TwelveScales as TwelveScales
 import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
@@ -26,18 +26,18 @@ make_scale :: Pitch.ScaleId -> Theory.Layout -> String -> Scale.Scale
 make_scale scale_id layout key_suffix = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-h](b|bb|#|x)?"
-    , Scale.scale_map = TwelveUtil.track_scale_map scale_map
+    , Scale.scale_map = TwelveScales.track_scale_map scale_map
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = TwelveUtil.transpose scale_map
-    , Scale.scale_enharmonics = TwelveUtil.enharmonics scale_map
-    , Scale.scale_note_to_call = TwelveUtil.note_to_call scale_map
-    , Scale.scale_input_to_note = TwelveUtil.input_to_note scale_map
+    , Scale.scale_transpose = TwelveScales.transpose scale_map
+    , Scale.scale_enharmonics = TwelveScales.enharmonics scale_map
+    , Scale.scale_note_to_call = TwelveScales.note_to_call scale_map
+    , Scale.scale_input_to_note = TwelveScales.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.direct_input_to_nn
-    , Scale.scale_call_doc = TwelveUtil.call_doc scale_id scale_map
+    , Scale.scale_call_doc = TwelveScales.call_doc scale_id scale_map
     }
     where
-    scale_map = TwelveUtil.scale_map layout all_pitches keys deflt
+    scale_map = TwelveScales.scale_map layout all_pitches keys deflt
         where Just deflt = Map.lookup (Pitch.Key $ "a-" ++ key_suffix) keys
     keys = all_keys layout key_suffix
 

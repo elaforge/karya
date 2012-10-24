@@ -24,7 +24,7 @@ UNSORTED
       * call doc in Util
       * Just
     * repair Util.ScaleUtil
-    - rename TwelveUtil TwelveScales
+    * rename TwelveUtil TwelveScales
     * System to ScaleMap
 
   * Make wayang and legong look at a env var to switch ngumbang and ngisep.

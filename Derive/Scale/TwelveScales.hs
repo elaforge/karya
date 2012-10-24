@@ -1,4 +1,4 @@
-module Derive.Scale.TwelveUtil where
+module Derive.Scale.TwelveScales where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 

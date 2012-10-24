@@ -1,8 +1,6 @@
 module Perform.Lilypond.Lilypond_test where
 import qualified Data.Char as Char
-import qualified Data.Map as Map
 import qualified Data.Text as Text
-
 import qualified System.Process as Process
 
 import Util.Control

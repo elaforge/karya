@@ -7,7 +7,7 @@ import Util.Test
 
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Scale.TwelveUtil as TwelveUtil
+import qualified Derive.Scale.TwelveScales as TwelveScales
 
 import qualified Perform.Pitch as Pitch
 
@@ -150,7 +150,7 @@ test_nn_to_semis = do
 
 key :: String -> Theory.Key
 key name = either (error $ "can't parse key: " ++ show name) id $
-    TwelveUtil.read_key Twelve.system (Just (Pitch.Key name))
+    TwelveScales.read_key Twelve.scale_map (Just (Pitch.Key name))
 
 p :: String -> Theory.Pitch
 p s = fromMaybe (error $ "can't parse pitch: " ++ show s) $

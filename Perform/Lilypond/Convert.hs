@@ -12,7 +12,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Scale.TwelveUtil as TwelveUtil
+import qualified Derive.Scale.TwelveScales as TwelveScales
 import qualified Derive.Score as Score
 
 import qualified Perform.ConvertUtil as ConvertUtil
@@ -72,7 +72,7 @@ degree_to_pitch :: Map.Map Pitch.Degree Theory.Pitch
 degree_to_pitch =
     Map.fromList $ mapMaybe (Seq.minimum_on (simplicity . snd)) $
         Seq.group_on fst $ map Tuple.swap $ Map.elems $
-        TwelveUtil.smap_note_to_degree Twelve.scale_map
+        TwelveScales.smap_note_to_degree Twelve.scale_map
     where
     simplicity pitch = (accs < 0, abs accs)
         where accs = Theory.note_accidentals (Theory.pitch_note pitch)

@@ -20,7 +20,7 @@ import qualified Data.Vector.Unboxed as Vector
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Scale.TwelveUtil as TwelveUtil
+import qualified Derive.Scale.TwelveScales as TwelveScales
 import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
@@ -30,29 +30,29 @@ scale :: Scale.Scale
 scale = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-g](b|bb|#|x)?"
-    , Scale.scale_map = TwelveUtil.track_scale_map scale_map
+    , Scale.scale_map = TwelveScales.track_scale_map scale_map
     , Scale.scale_symbols = [] -- later maybe I can use fancy sharps and flats
     , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = TwelveUtil.transpose scale_map
-    , Scale.scale_enharmonics = TwelveUtil.enharmonics scale_map
-    , Scale.scale_note_to_call = TwelveUtil.note_to_call scale_map
-    , Scale.scale_input_to_note = TwelveUtil.input_to_note scale_map
+    , Scale.scale_transpose = TwelveScales.transpose scale_map
+    , Scale.scale_enharmonics = TwelveScales.enharmonics scale_map
+    , Scale.scale_note_to_call = TwelveScales.note_to_call scale_map
+    , Scale.scale_input_to_note = TwelveScales.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.direct_input_to_nn
-    , Scale.scale_call_doc = TwelveUtil.call_doc scale_id scale_map
+    , Scale.scale_call_doc = TwelveScales.call_doc scale_id scale_map
     }
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
 
-scale_map :: TwelveUtil.ScaleMap
-scale_map = TwelveUtil.scale_map layout all_pitches all_keys key
+scale_map :: TwelveScales.ScaleMap
+scale_map = TwelveScales.scale_map layout all_pitches all_keys key
     where Just key = Map.lookup default_key all_keys
 
 default_key :: Pitch.Key
 default_key = Pitch.Key "c-maj"
 
 read_pitch :: Pitch.Note -> Either Scale.ScaleError Theory.Pitch
-read_pitch = TwelveUtil.read_pitch layout
+read_pitch = TwelveScales.read_pitch layout
 
 -- * constants
 
