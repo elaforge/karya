@@ -49,7 +49,7 @@ lookup_key perf =
     fromMaybe Twelve.default_key $ msum $ map (lookup . Derive.state_environ) $
         Map.elems (Msg.perf_track_dynamic perf)
     where
-    lookup environ = case TrackLang.lookup_val TrackLang.v_key environ of
+    lookup environ = case TrackLang.get_val TrackLang.v_key environ of
         Right key -> Just (Pitch.Key key)
         Left _ -> Nothing
 
