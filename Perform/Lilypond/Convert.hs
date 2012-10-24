@@ -72,7 +72,7 @@ degree_to_pitch :: Map.Map Pitch.Degree Theory.Pitch
 degree_to_pitch =
     Map.fromList $ mapMaybe (Seq.minimum_on (simplicity . snd)) $
         Seq.group_on fst $ map Tuple.swap $ Map.elems $
-        TwelveUtil.sys_note_to_degree Twelve.system
+        TwelveUtil.smap_note_to_degree Twelve.scale_map
     where
     simplicity pitch = (accs < 0, abs accs)
         where accs = Theory.note_accidentals (Theory.pitch_note pitch)

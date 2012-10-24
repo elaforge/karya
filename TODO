@@ -25,7 +25,7 @@ UNSORTED
       * Just
     * repair Util.ScaleUtil
     - rename TwelveUtil TwelveScales
-    - System to ScaleMap
+    * System to ScaleMap
 
   * Make wayang and legong look at a env var to switch ngumbang and ngisep.
   * Wayang and legong variants with an 'ombak' control to ombak speed.
@@ -48,7 +48,7 @@ UNSORTED
   - Sometimes tick makes more sense as at attribute of the previous note, or
     perhaps a freestanding ornament, since it can happen or not on a repeat.
   * window management to tile the windows
-  - I do a lot of appending a block along with it's ruler, I could have
+  - I do a lot of appending a block along with its ruler, I could have
     a single cmd to do that.
   - A more radical approach would be a block mode where the block calls are
     simply additive, and their duration doesn't matter.  This would mean I'd

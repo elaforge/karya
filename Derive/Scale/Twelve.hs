@@ -30,22 +30,22 @@ scale :: Scale.Scale
 scale = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-g](b|bb|#|x)?"
-    , Scale.scale_map = TwelveUtil.scale_map system
+    , Scale.scale_map = TwelveUtil.track_scale_map scale_map
     , Scale.scale_symbols = [] -- later maybe I can use fancy sharps and flats
     , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = TwelveUtil.transpose system
-    , Scale.scale_enharmonics = TwelveUtil.enharmonics system
-    , Scale.scale_note_to_call = TwelveUtil.note_to_call system
-    , Scale.scale_input_to_note = TwelveUtil.input_to_note system
+    , Scale.scale_transpose = TwelveUtil.transpose scale_map
+    , Scale.scale_enharmonics = TwelveUtil.enharmonics scale_map
+    , Scale.scale_note_to_call = TwelveUtil.note_to_call scale_map
+    , Scale.scale_input_to_note = TwelveUtil.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.direct_input_to_nn
-    , Scale.scale_call_doc = TwelveUtil.call_doc scale_id system
+    , Scale.scale_call_doc = TwelveUtil.call_doc scale_id scale_map
     }
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
 
-system :: TwelveUtil.System
-system = TwelveUtil.system layout all_pitches all_keys key
+scale_map :: TwelveUtil.ScaleMap
+scale_map = TwelveUtil.scale_map layout all_pitches all_keys key
     where Just key = Map.lookup default_key all_keys
 
 default_key :: Pitch.Key

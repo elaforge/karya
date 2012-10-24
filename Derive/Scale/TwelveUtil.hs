@@ -23,18 +23,16 @@ import qualified Perform.Pitch as Pitch
 -- | This contains all that is needed to define a western-like key system.
 -- It fills a similar role to 'Derive.Call.Util.ScaleMap' for non-keyed scales.
 --
--- TODO the name is crummy.
---
 -- TODO this will need to be extended to handle non-equal-tempered scales.
-data System = System {
-    sys_note_to_degree :: NoteToDegree
-    , sys_keys :: Keys
-    , sys_default_key :: Theory.Key
+data ScaleMap = ScaleMap {
+    smap_note_to_degree :: NoteToDegree
+    , smap_keys :: Keys
+    , smap_default_key :: Theory.Key
     }
 
-system :: Theory.Layout -> [Theory.Pitch] -> Keys -> Theory.Key -> System
-system layout pitches keys default_key =
-    System (make_note_to_degree layout pitches) keys default_key
+scale_map :: Theory.Layout -> [Theory.Pitch] -> Keys -> Theory.Key -> ScaleMap
+scale_map layout pitches keys default_key =
+    ScaleMap (make_note_to_degree layout pitches) keys default_key
 
 type NoteToDegree = Map.Map Pitch.Note (Theory.Pitch, Pitch.Degree)
 type Keys = Map.Map Pitch.Key Theory.Key
@@ -42,30 +40,30 @@ type Keys = Map.Map Pitch.Key Theory.Key
 
 -- * functions
 
-scale_map :: System -> Track.ScaleMap
-scale_map sys = Track.make_scale_map
-    [(n, d) | (n, (_, d)) <- Map.toList (sys_note_to_degree sys)]
+track_scale_map :: ScaleMap -> Track.ScaleMap
+track_scale_map smap = Track.make_scale_map
+    [(n, d) | (n, (_, d)) <- Map.toList (smap_note_to_degree smap)]
 
-transpose :: System -> Derive.Transpose
-transpose sys maybe_key octaves steps note = do
-    key <- read_key sys maybe_key
+transpose :: ScaleMap -> Derive.Transpose
+transpose smap maybe_key octaves steps note = do
+    key <- read_key smap maybe_key
     pitch <- Theory.modify_octave (+octaves) <$>
         read_pitch (Theory.key_layout key) note
     case steps of
-        Pitch.Chromatic steps -> pitch_note sys $
+        Pitch.Chromatic steps -> pitch_note smap $
             Theory.transpose_chromatic key (floor steps) pitch
-        Pitch.Diatonic steps -> pitch_note sys $
+        Pitch.Diatonic steps -> pitch_note smap $
             Theory.transpose_diatonic key (floor steps) pitch
 
-enharmonics :: System -> Derive.Enharmonics
-enharmonics sys maybe_key note = do
-    key <- read_key sys maybe_key
+enharmonics :: ScaleMap -> Derive.Enharmonics
+enharmonics smap maybe_key note = do
+    key <- read_key smap maybe_key
     pitch <- read_pitch (Theory.key_layout key) note
-    return $ Either.rights $ map (pitch_note sys) $
+    return $ Either.rights $ map (pitch_note smap) $
         Theory.enharmonics_of (Theory.key_layout key) pitch
 
-note_to_call :: System -> Pitch.Note -> Maybe Derive.ValCall
-note_to_call sys note = case Map.lookup note (sys_note_to_degree sys) of
+note_to_call :: ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
+note_to_call smap note = case Map.lookup note (smap_note_to_degree smap) of
     Nothing -> Nothing
     Just (pitch, degree) ->
         Just $ Call.Pitch.scale_degree (scale_degree pitch degree)
@@ -76,7 +74,7 @@ note_to_call sys note = case Map.lookup note (sys_note_to_degree sys) of
     scale_degree pitch (Pitch.Degree degree) env controls =
         Util.scale_to_pitch_error diatonic chromatic $ do
             dsteps <- if diatonic == 0 then Right 0 else do
-                key <- read_env_key sys env
+                key <- read_env_key smap env
                 return $ Theory.diatonic_to_chromatic key
                     (Theory.pitch_note pitch) diatonic
             let nn = Pitch.NoteNumber $ fromIntegral degree + chromatic + dsteps
@@ -86,30 +84,32 @@ note_to_call sys note = case Map.lookup note (sys_note_to_degree sys) of
         chromatic = Map.findWithDefault 0 Score.c_chromatic controls
         diatonic = Map.findWithDefault 0 Score.c_diatonic controls
 
-input_to_note :: System
+input_to_note :: ScaleMap
     -> Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
-input_to_note sys maybe_key (Pitch.InputKey key_nn) =
-    case pitch_note sys $
+input_to_note smap maybe_key (Pitch.InputKey key_nn) =
+    case pitch_note smap $
             Theory.semis_to_pitch key (Theory.nn_to_semis nn_semis) of
         Left _ -> Nothing
         Right note -> Just $ Pitch.Note $ Call.Pitch.pitch_expr note cents
     where
     -- Default to a key because otherwise you couldn't enter notes in an
     -- empty score!
-    key = fromMaybe (sys_default_key sys) $
-        flip Map.lookup (sys_keys sys) =<< maybe_key
+    key = fromMaybe (smap_default_key smap) $
+        flip Map.lookup (smap_keys smap) =<< maybe_key
     (nn_semis, cents) = properFraction key_nn
 
-call_doc :: Pitch.ScaleId -> System -> Derive.DocumentedCall
-call_doc scale_id sys =
+call_doc :: Pitch.ScaleId -> ScaleMap -> Derive.DocumentedCall
+call_doc scale_id smap =
     Derive.annotate_doc extra_doc $ Derive.extract_val_doc call
     where
     call = Call.Pitch.scale_degree $ \_ _ ->
         Left $ PitchSignal.PitchError "it was just an example!"
     extra_doc = "Note in scale " ++ Pretty.pretty scale_id ++ ":\n" ++ join
         [ ("note range", note_range)
-        , ("keys", Seq.join ", " (map Pretty.pretty (Map.keys (sys_keys sys))))
-        , ("default key", Pretty.pretty $ Theory.show_key (sys_default_key sys))
+        , ("keys", Seq.join ", " $
+            map Pretty.pretty (Map.keys (smap_keys smap)))
+        , ("default key", Pretty.pretty $
+            Theory.show_key (smap_default_key smap))
         ]
     join = unlines . map (\(k, v) -> k ++ ": " ++ v) . filter (not . null . snd)
     note_range = case (Seq.minimum_on (snd . snd) notes,
@@ -117,7 +117,7 @@ call_doc scale_id sys =
         (Just (note1, _), Just (note2, _)) ->
             Pretty.pretty note1 ++ " to " ++ Pretty.pretty note2
         _ -> ""
-    notes = Map.toList (sys_note_to_degree sys)
+    notes = Map.toList (smap_note_to_degree smap)
 
 -- * implementation
 
@@ -132,26 +132,26 @@ make_note_to_degree layout all_pitches = Map.fromList $ filter in_range $
 
 -- | Don't emit a 'Pitch.Note' that's out of range, because it won't be
 -- recognized when it comes time to play it back.
-pitch_note :: System -> Theory.Pitch
+pitch_note :: ScaleMap -> Theory.Pitch
     -> Either Scale.ScaleError Pitch.Note
-pitch_note sys pitch
-    | Map.member note (sys_note_to_degree sys) = Right note
+pitch_note smap pitch
+    | Map.member note (smap_note_to_degree smap) = Right note
     | otherwise = Left Scale.InvalidTransposition
     where note = show_pitch pitch
 
 show_pitch :: Theory.Pitch -> Pitch.Note
 show_pitch = Pitch.Note . Theory.show_pitch "#" "x" "b" "bb"
 
-read_env_key :: System -> TrackLang.Environ
+read_env_key :: ScaleMap -> TrackLang.Environ
     -> Either Scale.ScaleError Theory.Key
-read_env_key sys = Util.read_environ
-    (\k -> Map.lookup (Pitch.Key k) (sys_keys sys))
-    (sys_default_key sys) TrackLang.v_key
+read_env_key smap = Util.read_environ
+    (\k -> Map.lookup (Pitch.Key k) (smap_keys smap))
+    (smap_default_key smap) TrackLang.v_key
 
-read_key :: System -> Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
-read_key sys Nothing = Right (sys_default_key sys)
-read_key sys (Just key) =
-    maybe  (Left err) Right $ Map.lookup key (sys_keys sys)
+read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
+read_key smap Nothing = Right (smap_default_key smap)
+read_key smap (Just key) =
+    maybe  (Left err) Right $ Map.lookup key (smap_keys smap)
     where err = Scale.UnparseableEnviron TrackLang.v_key (Pretty.pretty key)
 
 read_pitch :: Theory.Layout -> Pitch.Note
