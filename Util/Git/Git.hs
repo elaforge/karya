@@ -2,7 +2,7 @@
 -- | Low level interaction with the git object store.
 --
 -- This uses the git cmdline, which is easy but inefficient for lots of
--- small operations.  TODO Look into binding to libgit.
+-- small operations.
 module Util.Git.Git where
 import Prelude hiding (init)
 import qualified Control.Exception as Exception
@@ -82,6 +82,11 @@ read_tree repo (Tree tree) = do
             | otherwise ->
                 throw $ "unknown type from ls-tree: " ++ show typ
         words -> throw $ "unparseable line from ls-tree: " ++ show words
+
+parse_commit :: String -> Maybe Commit
+parse_commit str
+    | length str == 40 = Just $ Commit $ Char8.pack str
+    | otherwise = Nothing
 
 write_commit :: Repo -> String -> String -> [Commit] -> Tree -> String
     -> IO Commit
