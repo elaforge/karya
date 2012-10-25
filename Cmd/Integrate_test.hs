@@ -22,11 +22,11 @@ test_block_integrate = do
     res <- start states $ UiTest.insert_event 1 (1, 1, "")
     -- create a new block
     equal (e_tracks res)
-        [ (UiTest.bid "b01",
+        [ (UiTest.bid "b1",
             [ (">s/i1", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4d")])
             ])
-        , (UiTest.bid "b02",
+        , (UiTest.bid "b2",
             [ (">s/i1", [(0, 1, ""), (1, 1, "")])
             , ("*twelve", [(0, 0, "4d"), (1, 0, "4c")])
             ])
@@ -35,28 +35,25 @@ test_block_integrate = do
     res <- next res $
         UiTest.insert_event 1 (2, 1, "") >> UiTest.insert_event 2 (2, 0, "4e")
     equal (last (e_tracks res))
-        (UiTest.bid "b02",
+        (UiTest.bid "b2",
             [ (">s/i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("*twelve", [(0, 0, "4e"), (1, 0, "4d"), (2, 0, "4c")])
             ])
     -- delete an event, then change the source
     -- cde -> edc ;; cdf -> f c
     res <- next res $
-        -- UiTest created tracks start at t01 so that I can write the IDs as
-        -- strings and have the number equal the tracknum.  But Cmd.Create
-        -- created tracks start at 00.
-        UiTest.remove_event_in "b02" 1 1 >> UiTest.remove_event_in "b02" 2 1
+        UiTest.remove_event_in "b2" 1 1 >> UiTest.remove_event_in "b2" 2 1
         >> UiTest.insert_event 2 (2, 0, "4f")
     equal (last (e_tracks res))
-        (UiTest.bid "b02",
+        (UiTest.bid "b2",
             [ (">s/i1", [(0, 1, ""), (2, 1, "")])
             , ("*twelve", [(0, 0, "4f"), (2, 0, "4c")])
             ])
 
 test_block_integrate2 = do
     let states = mkstates "<<" ("s/i1", [(0, 1, "4c"), (1, 1, "4g")], [])
-        source = "b01"
-        dest = "b02"
+        source = "b1"
+        dest = "b2"
         pitch_track = fmap (snd . last) . lookup (UiTest.bid dest) . e_tracks
     res <- start states (return ())
     res <- next res $ do

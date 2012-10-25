@@ -32,7 +32,7 @@ cmd_integrate _ = return Cmd.Continue
 integrate :: (Cmd.M m) => BlockId -> Derive.Integrated
     -> m [(TrackId, [Block.TrackDestination])]
 integrate block_id integrated = do
-    tracks <- Convert.convert (Derive.integrated_events integrated)
+    tracks <- Convert.convert block_id (Derive.integrated_events integrated)
         (Derive.integrated_key integrated)
     case Derive.integrated_source integrated of
         Left block_id -> do

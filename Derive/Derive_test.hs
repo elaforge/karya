@@ -122,9 +122,9 @@ test_stack = do
         track name num = Stack.Track (UiTest.mk_tid_name name num)
         call = Stack.Call
     equal (map (map Stack.unparse_ui_frame . Stack.to_ui) stacks)
-        [ ["test/b0 test/b0.t01 0-1"]
-        , ["test/b0 test/b0.t01 1-2", "test/sub test/sub.t01 0-1"]
-        , ["test/b0 test/b0.t01 1-2", "test/sub test/sub.t01 1-2"]
+        [ ["test/b0 test/b0.t1 0-1"]
+        , ["test/b0 test/b0.t1 1-2", "test/sub test/sub.t1 0-1"]
+        , ["test/b0 test/b0.t1 1-2", "test/sub test/sub.t1 1-2"]
         ]
 
     let b0 s e = [block_call "b0", block "b0", track "b0" 1, call "note-track",
@@ -167,7 +167,7 @@ test_subderive = do
     strings_like (map DeriveTest.show_log msgs) ["call not found: nosuch"]
 
     equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
-        ["b0 b0.t02 0-1"]
+        ["b0 b0.t2 0-1"]
 
     let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
         (events, msgs) = DeriveTest.r_split res

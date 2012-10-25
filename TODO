@@ -1,5 +1,5 @@
 UNSORTED
-  - remove leading 0s in track and block names, integrate should sort by
+  * remove leading 0s in track and block names, integrate should sort by
     tracknum
   * get rid of example_note in call_doc
   * make TrackLang.Environ a newtype

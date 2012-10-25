@@ -24,7 +24,7 @@ block block_id = do
     perf <- Cmd.get_performance block_id
     events <- Call.Integrate.unwarp block_id (Cmd.perf_events perf)
     key <- Perf.get_key block_id Nothing
-    tracks <- Convert.convert events key
+    tracks <- Convert.convert block_id events key
     (new_block_id, dests) <- Merge.create_block block_id tracks
     when_just (NonEmpty.nonEmpty dests) $ \dests ->
         State.set_integrated_block new_block_id $ Just (block_id, dests)

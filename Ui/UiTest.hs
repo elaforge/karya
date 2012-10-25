@@ -84,13 +84,15 @@ default_block_id :: BlockId
 default_block_id = bid default_block_name
 
 default_block_name :: String
-default_block_name = "b01"
+default_block_name = "b1"
 
 default_view_id :: ViewId
 default_view_id = mk_vid default_block_id
 
 default_ruler_id :: RulerId
-default_ruler_id = rid "r01"
+default_ruler_id = rid "r0"
+    -- r1 would conflict with ruler automatically generated because of the
+    -- =ruler suffix
 
 -- | Return the val and state, throwing an IO error on an exception.  Intended
 -- for tests that don't expect to fail here.

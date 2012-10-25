@@ -10,6 +10,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
+import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -40,15 +41,18 @@ data Track = Track {
 -- | (note track, control tracks)
 type Tracks = [(Track, [Track])]
 
-convert :: (Cmd.M m) => Derive.Events -> Maybe Pitch.Key -> m Tracks
-convert levents key = do
+convert :: (Cmd.M m) => BlockId -> Derive.Events -> Maybe Pitch.Key -> m Tracks
+convert source_block levents key = do
     lookup_scale <- Cmd.get_lookup_scale
     inst_db <- Cmd.gets Cmd.state_instrument_db
     let lookup_attrs = fromMaybe mempty
             . fmap (Instrument.patch_attribute_map . MidiDb.info_patch)
             . Instrument.Db.db_lookup inst_db
+    track_ids <- State.all_track_ids_of source_block
+    let tracknums = Map.fromList
+            [(track_id, n) | (n, Just track_id) <- zip [0..] track_ids]
     let (events, logs) = LEvent.partition levents
-        (tracks, errs) = integrate lookup_scale lookup_attrs key events
+        (tracks, errs) = integrate lookup_scale lookup_attrs tracknums key events
     mapM_ Log.write (Log.add_prefix "integrate" logs)
     -- If something failed to derive I shouldn't integrate that into the block.
     when (any ((>=Log.Warn) . Log.msg_prio) logs) $
@@ -65,21 +69,29 @@ type LookupAttrs = Score.Instrument -> Instrument.AttributeMap
 --
 -- TODO and overlapping events should be split, deal with that later
 -- TODO optionally quantize the ui events
-integrate :: Derive.LookupScale -> LookupAttrs -> Maybe Pitch.Key
-    -> [Score.Event] -> (Tracks, [String]) -- ^ (tracks, errs)
-integrate lookup_scale lookup_attrs key = Tuple.swap . Seq.partition_either
+integrate :: Derive.LookupScale -> LookupAttrs -> Map.Map TrackId TrackNum
+    -> Maybe Pitch.Key -> [Score.Event] -> (Tracks, [String]) -- ^ (tracks, errs)
+integrate lookup_scale lookup_attrs tracknums key =
+    Tuple.swap . Seq.partition_either
     . map (integrate_track lookup_scale lookup_attrs key)
     . Seq.keyed_group_on group_key
     where
-    group_key event = (track_of event, Score.event_instrument event,
-        PitchSignal.sig_scale_id (Score.event_pitch event))
+    -- Sort by tracknum so an integrated block's tracks come out in the same
+    -- order as the original.
+    group_key :: Score.Event -> TrackKey
+    group_key event =
+        (tracknum_of =<< track_of event, Score.event_instrument event,
+            PitchSignal.sig_scale_id (Score.event_pitch event))
+    tracknum_of tid = Map.lookup tid tracknums
 
 track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
+type TrackKey = (Maybe TrackNum, Score.Instrument, Pitch.ScaleId)
+
 integrate_track :: Derive.LookupScale -> LookupAttrs -> Maybe Pitch.Key
-    -> ((Maybe TrackId, Score.Instrument, Pitch.ScaleId), [Score.Event])
+    -> (TrackKey, [Score.Event])
     -> Either String (Track, [Track])
 integrate_track lookup_scale lookup_attrs key ((_, inst, scale_id), events) = do
     pitch_track <- if no_pitch_signals events then return [] else do
@@ -101,9 +113,9 @@ note_events inst attr_map events =
 
 note_event :: Instrument.AttributeMap -> Score.Event -> Event.Event
 note_event attr_map event = ui_event (Score.event_stack event)
-        (RealTime.to_score (Score.event_start event))
-        (RealTime.to_score (Score.event_duration event))
-        (Map.findWithDefault "" (Score.event_attributes event) attr_map)
+    (RealTime.to_score (Score.event_start event))
+    (RealTime.to_score (Score.event_duration event))
+    (Map.findWithDefault "" (Score.event_attributes event) attr_map)
 
 -- ** pitch
 

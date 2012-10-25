@@ -18,8 +18,9 @@ import qualified Perform.Pitch as Pitch
 
 test_integrate = do
     let f = first (map extract . concatMap flatten) . integrate
-        integrate = Convert.integrate lookup_scale lookup_attrs Nothing
+        integrate = Convert.integrate lookup_scale lookup_attrs tracknums Nothing
         lookup_attrs = const $ Map.fromList [(Attrs.plak, "plak")]
+        tracknums = Map.fromList [(UiTest.mk_tid n, n) | n <- [1..10]]
         flatten (note, controls) = note : controls
         extract (Convert.Track title events) =
             (title, map UiTest.extract_event events)

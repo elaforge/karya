@@ -55,11 +55,11 @@ test_two = do
     evaluated <- get_log log
     -- 4+1 extra because it has to evaluate one in advance to know how to merge
     equal evaluated
-        [ "b01 b01.t01 0-1 note at: 0s"
-        , "b01 b01.t02 0-1 note at: 0s"
-        , "b01 b01.t01 1-2 note at: 1s"
-        , "b01 b01.t02 2-3 note at: 2s"
-        , "b01 b01.t01 2-3 note at: 2s"
+        [ "b1 b1.t1 0-1 note at: 0s"
+        , "b1 b1.t2 0-1 note at: 0s"
+        , "b1 b1.t1 1-2 note at: 1s"
+        , "b1 b1.t2 2-3 note at: 2s"
+        , "b1 b1.t1 2-3 note at: 2s"
         ]
 
 test_control = do
@@ -148,7 +148,7 @@ test_everything = do
         ["Error: note call not found: bad"]
     evaluated <- get_log log
     equal evaluated
-        ["b01 b01.t02 0-1 note at: 0s", "sub sub.t01 0-1 note at: 2s"]
+        ["b1 b1.t2 0-1 note at: 0s", "sub sub.t1 0-1 note at: 2s"]
     where
     perform :: Derive.Result -> [Either DeriveTest.Midi String]
     perform result = map (LEvent.either Left (Right . DeriveTest.show_log)) $
@@ -164,7 +164,7 @@ test_track_signal = do
             , (">", [(0, 1, "")])
             ]
     (log, res) <- derive_block ustate
-    let t1_derived = length . filter ("b01.t02" `List.isInfixOf`) <$>
+    let t1_derived = length . filter ("b1.t2" `List.isInfixOf`) <$>
             get_log log
     -- force just the events
     print (DeriveTest.extract Score.event_controls res)

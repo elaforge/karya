@@ -10,14 +10,15 @@ test_omit = do
             [(">", [(p, 1, n) | p <- Seq.range 0 5 1])]
     equal (run "omit 0 |") ([(p, 1) | p <- Seq.range 0 5 1], [])
     equal (run "omit 1 |") ([], [])
-    equal (run "omit .5 |") ([(1, 1), (2, 1), (3, 1), (5, 1)], [])
+    equal (run "omit .5 |") ([(0, 1), (3, 1), (5, 1)], [])
 
     -- Ensure different calls to the same block are differently random.
     let blocks ns = extract $ DeriveTest.derive_blocks
             [ ("top", [(">", [(p, 1, n) | (p, n) <- zip (Seq.range_ 0 1) ns])])
             , ("sub=ruler", [(">", [(0, 1, "omit .5 |")])])
             ]
-    equal (blocks (replicate 10 "sub")) ([(6, 1), (7, 1), (9, 1)], [])
+    equal (blocks (replicate 10 "sub"))
+        ([(0, 1), (4, 1), (6, 1), (7, 1), (9, 1)], [])
 
 test_alternate = do
     let run s = DeriveTest.extract DeriveTest.e_twelve $ DeriveTest.derive_blocks
@@ -28,9 +29,9 @@ test_alternate = do
 
     -- Yes I'm testing "randomness", but it should be consistent.
     equal (run "alt 's1' 's2'")
-        (["4d", "4d", "4d", "4c", "4d", "4c"], [])
+        (["4c", "4c", "4d", "4c", "4d", "4d"], [])
     equal (run "seed = 42 | alt 's1' 's2'")
-        (["4c", "4d", "4d", "4c", "4d", "4c"], [])
+        (["4c", "4c", "4c", "4c", "4d", "4d"], [])
     let (ps, logs) = run "alt 'bad (call' 's2'"
-    equal ps ["4d", "4d", "4d", "4d"]
-    strings_like logs ["parse error", "parse error"]
+    equal ps ["4d", "4d", "4d"]
+    strings_like logs ["parse error", "parse error", "parse error"]
