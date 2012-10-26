@@ -1,12 +1,12 @@
     HASKELL DEPS
 
 # basic deps
-transformers mtl deepseq data-ordlist cereal text stm network
+transformers mtl deepseq data-ordlist cereal text stm network vector
+utf8-string # Ui.Event
 
 attoparsec # Derive: tracklang parsing
 fixed-list-0.1.5 # Derive.Call.Util: for typesafe mapping
 mersenne-random-pure64 hashable random-shuffle # Derive: score randomization
-vector # pitch signals
 dlist # Perform.SignalBase
 bindings-dsl # Util.Git.LibGit2
 fclabels # Util.Lens
@@ -18,8 +18,7 @@ parsec # Instrument.Parse, could use attoparsec, but parsec errors are better
 haskell-src # Util.PPrint
 regex-pcre Diff # Util.Test
 
-utf8-string # Ui.Event
-
+QuickCheck # Derive.DeriveQuickCheck
 shake # build system
 pandoc # documentation
 
@@ -28,7 +27,7 @@ pandoc # documentation
 libpcre library from http://www.pcre.org
 
 libgit2 - It has no official releases, but I synced to 1.7.0:
-https://github.com/libgit2/libgit2 1835c51f58a670e23c9546f942259d53fe626fa2
+https://github.com/libgit2/libgit2 6f6b0c013c6eff2aca2a7ada1027044f2e20f578
 
 lilypond, for some fonts
 
