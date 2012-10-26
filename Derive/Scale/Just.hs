@@ -2,9 +2,14 @@
 -- a pitch signal.
 module Derive.Scale.Just where
 import qualified Data.Map as Map
-import qualified Data.Vector.Unboxed as Vector
+import qualified Data.Ratio as Ratio
+import Data.Ratio ((%))
+import qualified Data.Vector as Vector
 
+import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
+
 import qualified Ui.Track as Track
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
@@ -26,7 +31,7 @@ just_major = make_scale (Pitch.ScaleId "just-major") major_ratios
 just_minor :: Scale.Scale
 just_minor = make_scale (Pitch.ScaleId "just-minor") minor_ratios
 
-make_scale :: Pitch.ScaleId -> Ratios -> Scale.Scale
+make_scale :: Pitch.ScaleId -> Vector.Vector Ratio.Rational -> Scale.Scale
 make_scale scale_id ratios = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-g]"
@@ -35,13 +40,18 @@ make_scale scale_id ratios = Scale.Scale
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = transpose
     , Scale.scale_enharmonics = Util.no_enharmonics
-    , Scale.scale_note_to_call = note_to_call ratios
+    , Scale.scale_note_to_call = note_to_call double_ratios
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn =
-        Util.computed_input_to_nn input_to_note (note_to_call ratios)
-    -- TODO annotate
-    , Scale.scale_call_doc = Util.scale_degree_doc
+        Util.computed_input_to_nn input_to_note (note_to_call double_ratios)
+    , Scale.scale_call_doc = flip Derive.annotate_doc Util.scale_degree_doc $
+        "Just scales are tuned by ratios from a base frequency.\
+        \ That frequency is taken from the `%just-base` control and the key.\
+        \ For example, `%just-base = 440 | key = 'a-maj'` means the scale is\
+        \ If the base hz isn't given, it defaults to the 12TET tuning of the\
+        \ key.\nRatios: " <> Pretty.pretty ratios
     }
+    where double_ratios = Vector.map realToFrac ratios
 
 scale_map :: [(Pitch.Note, Pitch.Degree)]
 scale_map = [(pitch_note p, n) | (n, p) <- zip [0..] pitches]
@@ -195,18 +205,18 @@ read_key = Util.read_environ (\k -> Map.lookup k all_keys)
 
 -- * ratios
 
-index_mod :: (Vector.Unbox a) => Vector.Vector a -> Int -> a
+index_mod :: Vector.Vector a -> Int -> a
 index_mod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
 
 type Ratios = Vector.Vector Double
 
 -- | 5-limit diatonic, with just major triads.
-major_ratios :: Ratios
-major_ratios = Vector.fromList [1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8]
+major_ratios :: Vector.Vector Ratio.Rational
+major_ratios = Vector.fromList [1, 9%8, 5%4, 4%3, 3%2, 5%3, 15%8]
 
 -- | 5-limit diatonic, with just minor triads.
-minor_ratios :: Ratios
-minor_ratios = Vector.fromList [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5]
+minor_ratios :: Vector.Vector Ratio.Rational
+minor_ratios = Vector.fromList [1, 9%8, 6%5, 4%3, 3%2, 8%5, 9%5]
 
 
 {- Retuning scales:

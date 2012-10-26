@@ -11,7 +11,8 @@ scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "wayang"
 
 scale :: Scale.Scale
-scale = Util.add_doc "Saih gender wayang." $ BaliScales.scale scale_id scale_map
+scale = Util.add_doc (BaliScales.scale scale_id scale_map)
+    "Saih gender wayang."
 
 scale_map :: BaliScales.ScaleMap
 scale_map = BaliScales.scale_map 4 umbang isep

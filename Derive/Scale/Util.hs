@@ -282,8 +282,8 @@ annotate_call_doc doc fields = Derive.annotate_doc extra_doc
     extra_doc = doc ++ "\n\n" ++ join fields
     join = unlines . map (\(k, v) -> k ++ ": " ++ v) . filter (not . null . snd)
 
-add_doc :: String -> Scale.Scale -> Scale.Scale
-add_doc doc scale = scale
+add_doc :: Scale.Scale -> String -> Scale.Scale
+add_doc scale doc = scale
     { Scale.scale_call_doc =
         Derive.annotate_doc doc (Scale.scale_call_doc scale)
     }

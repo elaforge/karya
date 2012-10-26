@@ -20,6 +20,7 @@ import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
@@ -80,6 +81,9 @@ instance Pretty Word.Word64 where pretty = show
 instance Pretty Double where pretty = show_float 3
 instance Pretty Float where pretty = show_float 3
 instance Pretty Bool where pretty = show
+
+instance (Integral a, Pretty a) => Pretty (Ratio.Ratio a) where
+    pretty r = pretty (Ratio.numerator r) <> "/" <> pretty (Ratio.denominator r)
 
 instance Pretty (a -> b) where
     pretty _ = "<function>"

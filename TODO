@@ -459,7 +459,7 @@ documentation
   - doc/cmd.md
   call doc:
     - use Text instead of String
-    - doc for Just scales
+    * doc for Just scales
     - scale can document the transposing signals
     - linkify single quotes
     * BaliScales should document umbang isep
