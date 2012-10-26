@@ -32,8 +32,8 @@ note_calls = Derive.make_calls
 
 c_block_integrate :: Derive.NoteCall
 c_block_integrate = Derive.transformer "block-integrate"
-    ("Integrate the output into a new block. The events are returned as-is"
-    <> " so the block can still be played normally."
+    ("Integrate the output into a new block. The events are returned as-is\
+    \ so the block can still be played normally."
     ) $ CallSig.call0t $ \_ deriver -> do
         events <- deriver
         block_integrate events
@@ -75,18 +75,18 @@ uses_default_tempo block_id =
 
 c_track_integrate :: Derive.NoteCall
 c_track_integrate = Derive.transformer "track-integrate"
-    ("Integrate the output into new tracks. Events will be split into tracks"
-    <> " based on source track, instrument, and scale, as documented in"
-    <> " 'Cmd.Integrate.Convert'. Unlike other tracks, integrated tracks"
-    <> " should probably *not* be under the tempo track, since that would"
-    <> " apply the tempo twice: once during integration, and again during"
-    <> " derivation of the integrated output."
-    <> "\nUnlike block integrate, this doesn't return the events."
-    <> " While an integrated block's output is likely to be playable, and"
-    <> " you can chose whether or not to play it, an integrated track"
-    <> " is part of a block, so it plays whether you want it or not."
-    <> " Also, it can't be hooked up to the tempo track so it's unlikely"
-    <> " to play normally."
+    ("Integrate the output into new tracks. Events will be split into tracks\
+    \ based on source track, instrument, and scale, as documented in\
+    \ 'Cmd.Integrate.Convert'. Unlike other tracks, integrated tracks\
+    \ should probably *not* be under the tempo track, since that would\
+    \ apply the tempo twice: once during integration, and again during\
+    \ derivation of the integrated output.\
+    \\nUnlike block integrate, this doesn't return the events.\
+    \ While an integrated block's output is likely to be playable, and\
+    \ you can chose whether or not to play it, an integrated track\
+    \ is part of a block, so it plays whether you want it or not.\
+    \ Also, it can't be hooked up to the tempo track so it's unlikely\
+    \ to play normally."
     ) $ CallSig.call0t $ \_ deriver -> do
         stack <- Internal.get_stack
         case (frame_of Stack.block_of stack, frame_of Stack.track_of stack) of

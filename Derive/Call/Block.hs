@@ -120,20 +120,20 @@ make_block_id namespace (TrackLang.Symbol call) =
 
 c_clip :: Derive.NoteCall
 c_clip = Derive.stream_generator "clip"
-    ("Like the normal block call, this will substitute the named block into"
-    <> " the score.  But instead of stretching the block to fit the event"
-    <> " length, the block will be substituted with no stretching. Any"
-    <> " events that lie beyond the end of the event will be clipped off."
-    <> " This can be used to cut a sequence short, for example to substitute"
-    <> " a different ending."
-    <> "\nIt's not necessarily easy to use because the callee block"
-    <> " may not be in the same time scale as the calling block."
+    ("Like the normal block call, this will substitute the named block into\
+    \ the score. But instead of stretching the block to fit the event\
+    \ length, the block will be substituted with no stretching. Any\
+    \ events that lie beyond the end of the event will be clipped off.\
+    \ This can be used to cut a sequence short, for example to substitute\
+    \ a different ending.\
+    \\nIt's not necessarily easy to use because the callee block\
+    \ may not be in the same time scale as the calling block."
     -- TODO wait until I actually start using this to see if it's worth
     -- coming up with a solution for that.
     ) $ CallSig.call1g
     ( required "block_id" $
-        "Derive this block. If it doesn't contain a /, the default namespace"
-        <> " is applied."
+        "Derive this block. If it doesn't contain a /, the default namespace\
+        \ is applied."
     ) $
     \sym -> Note.inverting $ \args -> do
         block_id <- maybe
@@ -162,10 +162,10 @@ lookup_control_block = Derive.pattern_lookup "block id"
 
 c_control_block :: BlockId -> Derive.ControlCall
 c_control_block block_id = Derive.stream_generator "control-block"
-    ("Substitute the control signal from the named control block."
-    <> " A control block should consist of a single branch ending in"
-    <> " a track named `%`.  The signal from that track will be"
-    <> " substituted."
+    ("Substitute the control signal from the named control block.\
+    \ A control block should consist of a single branch ending in\
+    \ a track named `%`.  The signal from that track will be\
+    \ substituted."
     ) $
     CallSig.call0g $ \args -> do
         let (start, end) = Args.range args
@@ -185,8 +185,8 @@ d_control_block block_id = Internal.with_stack_block block_id $ do
 
 c_capture_null_control :: Derive.NoteCall
 c_capture_null_control = Derive.generator1 BlockUtil.capture_null_control
-    ("This is an internal call used to capture the control signal at the"
-    <> " bottom of a control block."
+    ("This is an internal call used to capture the control signal at the\
+    \ bottom of a control block."
     ) $ CallSig.call0g $ \_ -> do
         sig <- Derive.require "no null control to capture"
             =<< Derive.get_control Score.c_null

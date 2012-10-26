@@ -57,9 +57,9 @@ c_set = Derive.generator1 "set" "Emit a sample with no interpolation." $
 -- in 'Perform.Signal.integrate'.
 c_set_prev :: Derive.ControlCall
 c_set_prev = Derive.generator "set-prev"
-    ("Re-set the previous value.  This can be used to extend a breakpoint,"
-    <> " and is also automatically set by the control track deriver for"
-    <> " the hack described in 'Perform.Signal.integrate'."
+    ("Re-set the previous value.  This can be used to extend a breakpoint,\
+    \ and is also automatically set by the control track deriver for\
+    \ the hack described in 'Perform.Signal.integrate'."
     ) $ CallSig.call0g $ \args -> case Args.prev_val args of
         Nothing -> return []
         Just (prev_x, prev_y) -> do
@@ -70,34 +70,34 @@ c_set_prev = Derive.generator "set-prev"
 
 c_linear :: Derive.ControlCall
 c_linear = Derive.generator1 "linear"
-    ("Interpolate from the previous sample to the given value in a straight"
-    <> " line, ending at the current time."
+    ("Interpolate from the previous sample to the given value in a straight\
+    \ line, ending at the current time."
     ) $ CallSig.call1g (required "val" "Destination value.") $ \val args ->
         interpolate_prev id args val
 
 c_linear_next :: Derive.ControlCall
 c_linear_next = Derive.generator1 "linear-next"
-    ("Interpolate from the previous sample to the given value in a straight"
-    <> " line, starting here and ending at some time in the future."
+    ("Interpolate from the previous sample to the given value in a straight\
+    \ line, starting here and ending at some time in the future."
     ) $ CallSig.call2g
     ( required "val" "Destination value."
-    , optional "time" Nothing $ "Time to reach destination.  If not given, it "
-        <> "is the start of the next event."
+    , optional "time" Nothing $ "Time to reach destination.  If not given, it\
+        \ is the start of the next event."
     ) $ \val maybe_time args -> interpolate_next id args val maybe_time
 
 c_exponential :: Derive.ControlCall
 c_exponential = Derive.generator1 "exponential"
-    ( "Interpolate from the previous sample to the given value in a curve,"
-    <> " ending at the current time."
+    ( "Interpolate from the previous sample to the given value in a curve,\
+    \ ending at the current time."
     ) $ CallSig.call2g
-    (required "val" "Destination value."
+    ( required "val" "Destination value."
     , optional "exp" 2 exp_doc
     ) $ \val exp args -> interpolate_prev (expon exp) args val
 
 c_exponential_next :: Derive.ControlCall
 c_exponential_next = Derive.generator1 "exponential-next"
-    ("Interpolate from the previous sample to the given value in a curve,"
-    <> " starting here and ending at some time in the future."
+    ("Interpolate from the previous sample to the given value in a curve,\
+    \ starting here and ending at some time in the future."
     ) $ CallSig.call3g
     ( required "val" "Destination value."
     , optional "exp" 2 exp_doc
@@ -107,15 +107,15 @@ c_exponential_next = Derive.generator1 "exponential-next"
         interpolate_next (expon exp) args val maybe_time
 
 exp_doc :: String
-exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n` "
-    <> "and will generate a slowly departing and rapidly approaching "
-    <> "curve. Negative `-n` is taken as `x^1/n`, which will generate a "
-    <> "rapidly departing and slowly approaching curve."
+exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
+    \and will generate a slowly departing and rapidly approaching\
+    \curve. Negative `-n` is taken as `x^1/n`, which will generate a\
+    \rapidly departing and slowly approaching curve."
 
 c_neighbor :: Derive.ControlCall
 c_neighbor = Derive.generator1 "neighbor"
-    ("Emit a slide from a value to 0 in absolute time. This is the control"
-    <> " equivalent of the neighbor pitch call."
+    ("Emit a slide from a value to 0 in absolute time. This is the control\
+    \ equivalent of the neighbor pitch call."
     ) $ CallSig.call2g
     ( optional "neighbor" 1 "Start at this value."
     , optional "time" (TrackLang.real 0.1) "Time taken to get to 0."
@@ -160,9 +160,9 @@ slope args f = case Args.prev_val args of
 
 c_pedal :: Derive.ControlCall
 c_pedal = Derive.generator1 "pedal"
-    ("Unlike most control events, this uses a duration. Set the control to"
-    <> " the given value for the event's duration, and reset to the old"
-    <> " value afterwards."
+    ("Unlike most control events, this uses a duration. Set the control to\
+    \ the given value for the event's duration, and reset to the old\
+    \ value afterwards."
     ) $ CallSig.call1g (optional "val" 1 "Set to this value.") $
     \val args -> do
         (start, end) <- Args.real_range args

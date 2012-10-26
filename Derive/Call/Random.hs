@@ -41,8 +41,8 @@ c_omit = Derive.transformer "omit"
 
 c_alternate :: (Derive.Derived d) => Derive.Call d
 c_alternate = Derive.stream_generator "alternate"
-    ("Pick one of several expressions and evaluate it."
-    <> " They have to be strings since calls themselves are not first class."
+    ("Pick one of several expressions and evaluate it.\
+    \ They have to be strings since calls themselves are not first class."
     ) $ CallSig.parsed_manually "Variable number of string arguments." $
     \args -> do
         exprs <- mapM string_of (zip [1..] (Derive.passed_vals args))

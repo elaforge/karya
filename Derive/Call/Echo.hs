@@ -28,8 +28,8 @@ note_calls = Derive.make_calls
 
 c_delay :: Derive.NoteCall
 c_delay = Derive.transformer "delay"
-    ("Simple abstract delay. As with `echo`, abstract means it happens in the"
-    <> " score, so events may not be delayed evenly if the tempo is changing."
+    ("Simple abstract delay. As with `echo`, abstract means it happens in the\
+    \ score, so events may not be delayed evenly if the tempo is changing."
     ) $ CallSig.call1t
     ( optional "time" (typed_control "delay-time" 0.1 Score.Real) "Delay time."
     ) $ \time args deriver -> do
@@ -41,12 +41,12 @@ c_delay = Derive.transformer "delay"
 -- TODO typed delay time
 c_echo :: Derive.NoteCall
 c_echo = Derive.transformer "echo"
-    ("Abstract echo. This means the echoes happen in score time, so they will"
-    <> " change tempo with the rest of the score, and their derivation may"
-    <> " change due to different dynamics."
-    <> "\nThe controls are only sampled at the beginning of the echo,"
-    <> " so you can't vary them over the scope of the echo like you can"
-    <> " with `e-echo`."
+    ("Abstract echo. This means the echoes happen in score time, so they will\
+    \ change tempo with the rest of the score, and their derivation may\
+    \ change due to different dynamics.\
+    \\nThe controls are only sampled at the beginning of the echo,\
+    \ so you can't vary them over the scope of the echo like you can\
+    \ with `e-echo`."
     ) $ CallSig.call3t
     ( optional "delay" (control "echo-delay" 1) "Delay time."
     , optional "feedback" (control "echo-feedback" 0.4)
@@ -75,9 +75,9 @@ scale_dyn = Derive.multiply_control Score.c_dynamic
 -- every event, so parameters can vary over the course of the effect.
 c_event_echo :: Derive.NoteCall
 c_event_echo = Derive.transformer "event echo"
-    ("Concrete echo.  All events are delayed by the same amount.  Also, the"
-    <> " parameter signals are sampled at every event, so they can vary"
-    <> " over the course of the echo."
+    ("Concrete echo.  All events are delayed by the same amount.  Also, the\
+    \ parameter signals are sampled at every event, so they can vary\
+    \ over the course of the echo."
     ) $ CallSig.call3t
     ( optional "delay" (control "echo-delay" 1) "Delay time."
     , optional "feedback" (control "echo-feedback" 0.4)

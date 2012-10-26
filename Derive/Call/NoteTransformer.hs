@@ -30,10 +30,10 @@ note_calls = Derive.make_calls
 
 c_tuplet :: Derive.NoteCall
 c_tuplet = Derive.stream_generator "tuplet"
-    ("A generalized tuplet. The notes within its scope are stretched so that"
-    <> " their collective duration is the same as the tuplet's duration."
-    <> "\nIf there are multiple note tracks, they will all be stretched"
-    <> " the same amount."
+    ("A generalized tuplet. The notes within its scope are stretched so that\
+    \ their collective duration is the same as the tuplet's duration.\
+    \\nIf there are multiple note tracks, they will all be stretched\
+    \ the same amount."
     ) $ CallSig.call0g $ \args ->
         Note.place_at (Args.range args) (concat (Note.sub_events args))
 
@@ -49,12 +49,12 @@ data Arpeggio = ToRight | ToLeft | Random deriving (Show)
 
 c_real_arpeggio :: Arpeggio -> Derive.NoteCall
 c_real_arpeggio arp = Derive.stream_generator "arpeggio"
-    ("Arpeggiate the transformed notes. This shifts each note's start time"
-    <> " by a different amount, increasing to the right for `arp-up`,"
-    <> " to the left for `arp-down`, and randomly for `arp-rnd`."
-    <> " Since it transforms score and not events, it doesn't know the"
-    <> " pitches of the sub notes (they may not have a single pitch) so"
-    <> " it's not actually \"up\" or \"down\"."
+    ("Arpeggiate the transformed notes. This shifts each note's start time\
+    \ by a different amount, increasing to the right for `arp-up`,\
+    \ to the left for `arp-down`, and randomly for `arp-rnd`.\
+    \ Since it transforms score and not events, it doesn't know the\
+    \ pitches of the sub notes (they may not have a single pitch) so\
+    \ it's not actually \"up\" or \"down\"."
     ) $ CallSig.call1g
     ( optional "time" 0.1 "This much RealTime between each note."
     ) $ \time args -> Lily.note_transformer args arpeggio_attrs $

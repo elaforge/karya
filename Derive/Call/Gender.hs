@@ -26,18 +26,18 @@ note_calls = Derive.make_calls
 
 c_tick :: Maybe Pitch.Transpose -> Derive.NoteCall
 c_tick transpose = Derive.stream_generator "tick"
-    ("Insert an intermediate grace note in the \"ngoret\" rambat style."
-    <> " The grace note moves up for `'^`, down for `'v`, or is based"
-    <> " on the previous note's pitch for `'`."
+    ("Insert an intermediate grace note in the \"ngoret\" rambat style.\
+    \ The grace note moves up for `'^`, down for `'v`, or is based\
+    \ on the previous note's pitch for `'`."
     ) $ CallSig.call3g
     ( optional "time" (typed_control "ngoret-time" 0.1 Score.Real) $
-        "Time between the grace note start and the main note. If there isn't"
-        <> " enough room after the previous note, it will be halfway between"
-        <> " the previous note and this one."
+        "Time between the grace note start and the main note. If there isn't\
+        \ enough room after the previous note, it will be halfway between\
+        \ the previous note and this one."
     , optional "damp" (typed_control "ngoret-damp" 0.5 Score.Real) $
-        "Time that the grace note overlaps with this one. So the total"
-        <> " duration is time+damp, though it will be clipped to the"
-        <> " end of the current note."
+        "Time that the grace note overlaps with this one. So the total\
+        \ duration is time+damp, though it will be clipped to the\
+        \ end of the current note."
     , optional "dyn" (control "ngoret-dyn" 0.75)
         "The grace note's dyn will be this multiplier of the current dyn."
     ) $ \time damp dyn_scale -> Note.inverting_around (2, 1) $ \args -> do
@@ -78,11 +78,11 @@ infer_transpose args start = do
 c_realize_damp :: Derive.NoteCall
 c_realize_damp = Derive.transformer "realize-damp"
     ("Extend the duration of events preceding one with a "
-    <> ShowVal.show_val damped_tag <> " to the end of the event with the attr."
-    <> " This is because the tick call can't modify its previous note."
-    <> " TODO: Since there's no correspondence between tracks in different"
-    <> " blocks, the damping can't extend across block boundaries. I'd need"
-    <> " something like a 'hand' attribute to fix this."
+    <> ShowVal.show_val damped_tag <> " to the end of the event with the attr.\
+    \ This is because the tick call can't modify its previous note.\
+    \ TODO: Since there's no correspondence between tracks in different\
+    \ blocks, the damping can't extend across block boundaries. I'd need\
+    \ something like a 'hand' attribute to fix this."
     ) $ CallSig.call0t $ \_ deriver -> do
         events <- deriver
         return $ Util.map_around_asc events $ \_prev event next ->

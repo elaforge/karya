@@ -26,8 +26,8 @@ c_sekar :: Derive.NoteCall
 c_sekar = Derive.stream_generator "sekar" "Plain sekaran derivation." $
     CallSig.call1g
     ( required "pattern" $
-        "Apply this pattern to the encompassed notes. The pattern is"
-        <> " documented by 'Derive.Call.Sekar.make_pattern'."
+        "Apply this pattern to the encompassed notes. The pattern is\
+        \ documented by 'Derive.Call.Sekar.make_pattern'."
     ) $ \pattern args -> do
         pattern <- make_pattern pattern
         Note.place_at (Args.range args) $

@@ -94,15 +94,15 @@ c_set_prev = Derive.generator "set-prev"
 
 c_linear :: Derive.PitchCall
 c_linear = Derive.generator1 "linear"
-    ("Interpolate from the previous pitch to the given one in a straight"
-    <> " line, ending at the current time."
+    ("Interpolate from the previous pitch to the given one in a straight\
+    \ line, ending at the current time."
     ) $ CallSig.call1g (required "pitch" "Destination pitch.") $ \pitch args ->
         interpolate_prev id args pitch
 
 c_linear_next :: Derive.PitchCall
 c_linear_next = Derive.generator1 "linear-next"
-    ("Interpolate from the previous pitch to the given one in a straight"
-    <> " line, starting here and ending at some time in the future."
+    ("Interpolate from the previous pitch to the given one in a straight\
+    \ line, starting here and ending at some time in the future."
     ) $ CallSig.call2g
     ( required "pitch" "Destination pitch."
     , optional "time" Nothing "Time to get to destination pitch."
@@ -110,8 +110,8 @@ c_linear_next = Derive.generator1 "linear-next"
 
 c_exponential :: Derive.PitchCall
 c_exponential = Derive.generator1 "exponential"
-    ("Interpolate from the previous pitch to the given one in a curve,"
-    <> " ending at the current time."
+    ("Interpolate from the previous pitch to the given one in a curve,\
+    \ ending at the current time."
     ) $ CallSig.call2g
     ( required "pitch" "Destination pitch."
     , optional "exp" 2 Control.exp_doc
@@ -119,8 +119,8 @@ c_exponential = Derive.generator1 "exponential"
 
 c_exponential_next :: Derive.PitchCall
 c_exponential_next = Derive.generator1 "exponential-next"
-    ("Interpolate from the previous pitch to the given one in a curve,"
-    <> " starting here and ending at some time in the future."
+    ("Interpolate from the previous pitch to the given one in a curve,\
+    \ starting here and ending at some time in the future."
     ) $ CallSig.call3g
     ( required "pitch" "Destination pitch."
     , optional "exp" 2 Control.exp_doc
