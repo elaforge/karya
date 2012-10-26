@@ -129,11 +129,11 @@ hsBinaries =
     , plain "linkify" "Util/Linkify.hs"
     , plain "make_db" "Instrument/MakeDb.hs"
     , plain "pprint" "App/PPrint.hs"
-    -- PrintKeymap wants the global keymap, which winds up importing cmds that
+    -- ExtractDoc wants the global keymap, which winds up importing cmds that
     -- directly call UI level functions.  Even though it doesn't call the
     -- cmds, they're packaged together with the keybindings, so I wind up
     -- having to link in all that stuff anyway.
-    , HsBinary "print_keymap" "App/PrintKeymap.hs" ["fltk/fltk.a"] Nothing
+    , HsBinary "extract_doc" "App/ExtractDoc.hs" ["fltk/fltk.a"] Nothing
     , plain "repl" "App/Repl.hs"
     , plain "send" "App/Send.hs"
     , plain "lilypond_click" "App/LilypondClick.hs"
@@ -390,10 +390,8 @@ main = do
             case hsGui binary of
                 Just icon -> makeBundle fn icon
                 _ -> return ()
-        docDir </> "keymap.html" *> \fn -> do
-            let bin = buildDir (modeConfig Debug) </> "print_keymap"
-            need [bin]
-            Util.shell $ bin ++ " >" ++ fn
+        forM_ extractableDocs $ \fn ->
+            fn *> extractDoc (modeConfig Debug)
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
         markdownRule (buildDir (modeConfig Opt) </> "linkify")
@@ -442,9 +440,11 @@ dispatch :: Config -> String -> Shake.Rules ()
 dispatch config target = case target of
     "checkin" -> do
         let debug = (modeToDir Debug </>)
-        Shake.want [debug "browser", debug "logview", debug "make_db",
-            debug "seq", debug "update", docDir </> "keymap.html",
-            modeToDir Profile </> "RunProfile"]
+        Shake.want $
+            [ debug "browser", debug "logview", debug "make_db"
+            , debug "seq", debug "update"
+            , modeToDir Profile </> "RunProfile"
+            ] ++ extractableDocs
         dispatch config "tests"
         -- The gui tests tend to wedge.
         -- dispatch config "complete-tests"
@@ -497,18 +497,31 @@ hlintIgnore =
     , "Use isNothing" -- ==Nothing is nice too.
     ]
 
+-- * doc
+
 -- | Make all documentation.
 makeAllDocumentation :: Config -> Shake.Action ()
 makeAllDocumentation config = do
     hscs <- filter haddock <$> Util.findHs "*.hsc" "."
     hs <- filter haddock <$> Util.findHs "*.hs" "."
     docs <- getMarkdown
-    need $ (docDir </> "keymap.html")
-        : map (hscToHs (hscDir config)) hscs ++ map docToHtml docs
+    need $ extractableDocs
+        ++ map (hscToHs (hscDir config)) hscs ++ map docToHtml docs
     makeHaddock config
     -- TODO do these individually so they can be parallelized and won't run
     -- each time
     system "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
+
+-- | Docs produced by extract_doc.
+extractableDocs :: [FilePath]
+extractableDocs = map (docDir </>) ["keymap.html", "calls.html", "scales.html"]
+
+extractDoc :: Config -> FilePath -> Shake.Action ()
+extractDoc config fn = do
+    let bin = buildDir config </> "extract_doc"
+    need [bin]
+    let name = FilePath.takeFileName (FilePath.dropExtension fn)
+    Util.shell $ unwords [bin, name, ">", fn]
 
 getMarkdown :: Shake.Action [FilePath]
 getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" "*.md"

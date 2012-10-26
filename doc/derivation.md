@@ -394,13 +394,13 @@ transformation that happens at when a track is derived.
 
 ### Attributes
 
-Instruments can also have attributes attached to them.  Attributes are just a
+Score events can also have attributes attached to them.  Attributes are just a
 set of strings, that are intended to be interpreted by the performer based on
 the instrument.  For instance, a "pizz" attribute may cause an instrument that
 understands it to emit a keyswitch to play the affected notes as pizzicato.
 Attributes can also be used by percussion, e.g. +sn for a snare, or +hh for
-high-hat.  Drums are also likely to support combinations of attributes, such
-as +hh+open.  Attributes can be any string, but a set of standard names is in
+high-hat.  Drums are also likely to support combinations of attributes, such as
++hh+open.  Attributes can be any string, but a set of standard names is in
 'Derive.Attrs'.
 
 Attributes are a set, so you can add and remove individual attributes.  For
@@ -422,5 +422,7 @@ priority which one to apply.  Details are in
 talk about how abstract transposition works
 
 caveat about how you can't write `%t-chromatic = 1 | 4c`
+
+[Scale docs](scales.html)
 
 ## Logging

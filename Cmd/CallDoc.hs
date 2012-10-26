@@ -18,6 +18,7 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale as Scale
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackInfo as TrackInfo
 
@@ -71,17 +72,37 @@ write_doc text = do
 
 -- | Convert a Document to HTML.
 doc_html :: Document -> Text.Text
-doc_html = un_html . (header <>) . mconcatMap section
+doc_html = un_html . (html_header <>) . mconcatMap section
     where
     section (call_type, scope_docs) =
         tag "h2" (html call_type) <> "\n\n"
         <> mconcatMap scope_doc scope_docs
     scope_doc (source, calls) =
         tag "h3" ("from " <> html source) <> "\n\n<dl class=main>\n"
-        <> mconcatMap call_binds calls
+        <> mconcatMap call_bindings_html calls
         <> "</dl>\n"
-    call_binds (binds, sections) =
-        mconcatMap show_bind binds <> show_sections sections <> "\n\n"
+
+html_header :: Html
+html_header = "<style type=text/css>\n" <> css <> "</style>\n"
+    where
+    css = ".main dl { border-bottom: 1px solid #999 }\n"
+        <> "dl.compact {\n"
+        <> "    margin: 0px;\n"
+        <> "    padding: 0;\n"
+        <> "}\n"
+        <> ".compact dt {\n"
+        <> "    margin: 0;\n"
+        <> "    padding: 0;\n"
+        <> "}\n"
+        <> ".compact dd {\n"
+        <> "    margin: 0 0 1em 0;\n"
+        <> "    padding: 0;\n"
+        <> "}\n"
+
+call_bindings_html :: CallBindings -> Html
+call_bindings_html (binds, sections) =
+    mconcatMap show_bind binds <> show_sections sections <> "\n\n"
+    where
     show_bind (shadowed, sym, name) =
         "<dt>" <> (if shadowed then strikeout sym else tag "code" (html sym))
         <> " &mdash; " <> tag "b" (html name) <> ":\n"
@@ -103,25 +124,11 @@ doc_html = un_html . (header <>) . mconcatMap section
         <> show_default deflt <> " &mdash; " <> html_doc doc <> "\n"
     show_default = maybe "" ((" = " <>) . tag "code" . html . Text.pack)
 
-    header = "<style type=text/css>\n" <> css <> "</style>\n"
-    css = ".main dl { border-bottom: 1px solid #999 }\n"
-        <> "dl.compact {\n"
-        <> "    margin: 0px;\n"
-        <> "    padding: 0;\n"
-        <> "}\n"
-        <> ".compact dt {\n"
-        <> "    margin: 0;\n"
-        <> "    padding: 0;\n"
-        <> "}\n"
-        <> ".compact dd {\n"
-        <> "    margin: 0 0 1em 0;\n"
-        <> "    padding: 0;\n"
-        <> "}\n"
+tag :: Html -> Html -> Html
+tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"
 
-    tag :: Html -> Html -> Html
-    tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"
-    mconcatMap f = mconcat . map f
-
+mconcatMap :: (Monoid.Monoid b) => (a -> b) -> [a] -> b
+mconcatMap f = mconcat . map f
 
 newtype Html = Html Text.Text
     deriving (Monoid.Monoid, String.IsString, Show)
@@ -144,6 +151,20 @@ html_doc = map_html postproc . html . Text.pack
     codify (x:y:zs) = x : ("<code>" <> y <> "</code>") : codify zs
     codify xs = xs
 
+-- * scale doc
+
+type Scale = [CallBindings]
+
+scales_html :: [Scale] -> Text.Text
+scales_html scales = un_html $ html_header
+        <> "<h2> Scales </h2>\n"
+        <> "<dl class=main>\n" <> mconcatMap scale_html scales
+        <> "</dl>\n"
+    where scale_html = mconcatMap call_bindings_html
+
+scale_doc :: Scale.Scale -> Scale
+scale_doc scale =
+    lookup_docs [Derive.lookup_docs $ Derive.scale_to_lookup scale]
 
 -- * doc
 
@@ -156,7 +177,7 @@ builtin :: (Cmd.M m) => m Document
 builtin = all_sections <$> Cmd.gets Cmd.state_global_scope
 
 all_sections :: Derive.Scope -> [Section]
-all_sections (Derive.Scope note control pitch val)=
+all_sections (Derive.Scope note control pitch val) =
     [ ("note", scope_doc note)
     , ("control", scope_doc control)
     , ("pitch", scope_doc pitch)

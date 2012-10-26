@@ -55,7 +55,7 @@ staunchSystem cmd args = doCmdline True (unwords (cmd:args), "", cmd:args)
 
 shell :: String -> Shake.Action ()
 shell cmd = do
-    Shake.putLoud cmd
+    Shake.putQuiet cmd
     res <- Shake.traced (crunch ("shell: " ++ cmd)) $ Cmd.system cmd
     when (res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ cmd

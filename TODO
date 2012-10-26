@@ -459,7 +459,9 @@ documentation
   - doc/cmd.md
   call doc:
     - scale can document the transposing signals
-    + cmd to extract all docs: all standard calls, all standard scales,
+    - BaliScales should document umbang isep
+    - scales should have general documentation
+    * cmd to extract all docs: all standard calls, all standard scales,
       perhaps even extract all the instruments along with their calls
     * Have the doc build stick this in build/doc so docs can link to it.
 

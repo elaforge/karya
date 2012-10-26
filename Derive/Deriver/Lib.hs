@@ -188,11 +188,13 @@ with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale = with_val TrackLang.v_scale (scale_id scale)
     . with_scope (\scope -> scope { scope_val = set (scope_val scope) })
     where
-    set stype = stype { stype_scale = [lookup_scale_val scale] }
-    lookup_scale_val :: Scale -> LookupCall ValCall
-    lookup_scale_val scale = pattern_lookup name
-        (scale_call_doc scale)
+    set stype = stype { stype_scale = [scale_to_lookup scale] }
+
+scale_to_lookup :: Scale -> LookupCall ValCall
+scale_to_lookup scale =
+    pattern_lookup name (scale_call_doc scale)
         (\call_id -> return $ scale_note_to_call scale (to_note call_id))
+    where
     name = ShowVal.show_val (scale_id scale) ++ ": " ++ scale_pattern scale
     to_note (TrackLang.Symbol sym) = Pitch.Note sym
 

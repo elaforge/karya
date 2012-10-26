@@ -2,7 +2,6 @@ module App.ExtractDoc where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified System.Environment as Environment
@@ -20,6 +19,7 @@ import qualified Cmd.Keymap as Keymap
 import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 
 import qualified Derive.Call.All as Call.All
+import qualified Derive.Scale.All as Scale.All
 
 
 main :: IO ()
@@ -27,14 +27,12 @@ main = do
     args <- Environment.getArgs
     case args of
         ["keymap"] -> putStr keymap_doc
-        ["calls"] -> Text.IO.putStr call_doc
-        _ -> error $ "usage: extract_doc [ keymap | calls ]"
-
--- * call doc
-
-call_doc :: Text.Text
-call_doc = CallDoc.doc_html $ CallDoc.all_sections Call.All.scope
-    -- TODO include scales and instruments
+        ["calls"] -> Text.IO.putStr $
+            CallDoc.doc_html $ CallDoc.all_sections Call.All.scope
+        ["scales"] -> Text.IO.putStr $
+            CallDoc.scales_html $ map CallDoc.scale_doc $
+                Map.elems Scale.All.scales
+        _ -> error $ "usage: extract_doc [ keymap | calls | scales ]"
 
 -- * extract keymap
 
