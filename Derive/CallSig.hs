@@ -76,7 +76,7 @@
 
     This module is split off from "Derive.TrackLang" because it needs
     'Derive.PassedArgs' and Derive already imports TrackLang.  It could be in
-    Derive.Call but Call is already big so let's leave it separate for now.
+    "Derive.Call" but Call is already big so let's leave it separate for now.
 -}
 module Derive.CallSig where
 import qualified Data.Maybe as Maybe

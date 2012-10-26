@@ -384,7 +384,7 @@ data Dynamic = Dynamic {
     , state_pitch :: !PitchSignal.Signal
     , state_environ :: !TrackLang.Environ
     , state_warp :: !Score.Warp
-    -- | Stack of calls currently in scope.
+    -- | Calls currently in scope.
     , state_scope :: !Scope
     , state_control_damage :: !ControlDamage
 

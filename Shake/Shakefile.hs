@@ -453,7 +453,7 @@ dispatch config target = case target of
         -- shakefile runs, but that's probably ok.
         system "rm" ["-rf", build]
         system "mkdir" [build]
-    "doc" -> action $ makeDocumentation config
+    "doc" -> action $ makeAllDocumentation config
     "haddock" -> action $ makeHaddock config
     "hlint" -> action $ hlint config
     "md" -> action $ need . map docToHtml =<< getMarkdown
@@ -498,8 +498,8 @@ hlintIgnore =
     ]
 
 -- | Make all documentation.
-makeDocumentation :: Config -> Shake.Action ()
-makeDocumentation config = do
+makeAllDocumentation :: Config -> Shake.Action ()
+makeAllDocumentation config = do
     hscs <- filter haddock <$> Util.findHs "*.hsc" "."
     hs <- filter haddock <$> Util.findHs "*.hs" "."
     docs <- getMarkdown
@@ -612,7 +612,7 @@ markdownRule :: FilePath -> Shake.Rules ()
 markdownRule linkifyBin = docDir </> "*.md.html" *> \html -> do
     let doc = htmlToDoc html
     need [linkifyBin, doc]
-    system "tools/convert_doc" [doc, html]
+    system "tools/convert_doc" [doc, html] -- wrapper around pandoc
 
 -- | build/doc/xyz.md.html -> doc/xyz.md
 htmlToDoc :: FilePath -> FilePath

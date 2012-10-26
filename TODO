@@ -1,4 +1,5 @@
 UNSORTED
+  - git is starting to enforce CAPS_UNDER for sym ref names
   * remove leading 0s in track and block names, integrate should sort by
     tracknum
   * get rid of example_note in call_doc
@@ -448,8 +449,10 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
-  - doc/derivation.md
-  - doc/performance.md, and reorganize derivation under it, and integrate with
+  + doc/derivation.md
+  - integrate doc/tracklang into derivation.md
+  - split up derivation.md into separate files
+  * doc/performance.md, and reorganize derivation under it, and integrate with
     doc/score.md
   - doc/ui.md
   - doc/cmd.md
@@ -457,6 +460,7 @@ documentation
     - scale can document the transposing signals
     - cmd to extract all docs: all standard calls, all standard scales,
       perhaps even extract all the instruments along with their calls
+    - Have the doc build stick this in build/doc so docs can link to it.
 
 integrate:
   - adding a {soft} stroke appears to apply the soft again the the dyn track

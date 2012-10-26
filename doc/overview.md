@@ -245,6 +245,22 @@ used to send a single command from shell scripts.
 
 For the purposes of documentation, there are three major layers:
 
-- [ui](ui.md.html)
-- [score / derivation](score.md.html)
-- [performance](performance.md.html)
+- [UI](ui.md.html) handles user interaction, score editing, the GUI, and the
+REPL.  It's divided into UI which is just the GUI part, and Cmd, which is the
+infrastructure to turn user actions into score edits.
+
+- [Derivation](derivation.md.html) is the process of converting the UI-level
+score into medium-level score events.  This is where the complexity of score
+interpretation is.
+
+- [Performance](performance.md.html) converts the medium-level score events to
+the low level output that can directly produce sound.  What this is depends on
+the backend.  For example, the MIDI backend converts score events to MIDI
+messages, while the lilypond backend converts them to a lilypond score. Unlike
+derivation, there's likely nothing user-configurable here.  The idea is that
+score events are basically backend-independent, but there are various hacks due
+to the different capabilities of backends, and a certain amount of tangle due
+to instruments.  Conceptually, an instrument is just a string at the derivation
+level, but in practice they have various attributes which affect the derivation
+level, e.g. a default scale, or even affect the Cmd layer by bringing custom
+Cmds into scope.
