@@ -41,8 +41,8 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State as State
-import qualified Control.Monad.State.Strict as State.Strict
 import qualified Control.Monad.State.Lazy as State.Lazy
+import qualified Control.Monad.State.Strict as State.Strict
 import qualified Control.Monad.Trans as Trans
 import qualified Control.Monad.Writer.Lazy as Writer
 
@@ -52,12 +52,13 @@ import qualified Data.Text as Text
 import qualified Data.Time as Time
 
 import qualified Debug.Trace as Trace
+import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
+
 import Text.Printf (printf)
 
 import qualified Util.AppendList as AppendList
-import qualified Util.CPUTime as CPUTime
 import Util.Control
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty

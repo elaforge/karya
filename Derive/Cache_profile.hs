@@ -5,11 +5,10 @@
 module Derive.Cache_profile where
 import qualified Data.Monoid as Monoid
 import qualified Data.Time as Time
+import qualified System.CPUTime as CPUTime
 
-import qualified Util.CPUTime as CPUTime
 import Util.Control
 import Util.Test
-
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.State as State

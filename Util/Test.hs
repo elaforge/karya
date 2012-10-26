@@ -47,6 +47,7 @@ import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Time as Time
 
+import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified System.Posix.IO as IO
@@ -55,7 +56,6 @@ import qualified System.Posix.Terminal as Terminal
 import Text.Printf
 
 import qualified Util.ApproxEq as ApproxEq
-import qualified Util.CPUTime as CPUTime
 -- avoid ghci bug where a new import messes it up
 -- besides, it's useful to re-export this for tests
 import Util.Debug as Debug

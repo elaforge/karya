@@ -29,7 +29,6 @@ UNSORTED
     * repair Util.ScaleUtil
     * rename TwelveUtil TwelveScales
     * System to ScaleMap
-
   * Make wayang and legong look at a env var to switch ngumbang and ngisep.
   * Wayang and legong variants with an 'ombak' control to ombak speed.
 
@@ -43,7 +42,7 @@ UNSORTED
   * note dur timestep is important, it should be visible
   * it would be really nice to be able to add ticks at the first note of
     a block.
-  - I either need an easy way to apply realize-damp at the "lowest" level of
+  * I either need an easy way to apply realize-damp at the "lowest" level of
     each note track, or it needs to use the stack to figure out what the next
     event is.
   - Damp can't work across blocks unless I structure by hand.  Or add a hand
@@ -98,20 +97,22 @@ UNSORTED
     * move events down move should clip events post the end of the block
     - time step is still not right, it can get stuck on the wrong marks, or am
       I accidentally in relative mode?
-  - lots of ghc panics, do I get them in debug mode?
-    try valgrind again
+  lots of ghc panics
+    - try on linux
+    - use valgrind on linux
     * See if it happens after a rebuild. Yes
     * See if it happens without LangGhc. Yes.
     + See if it happens in debug mode.
     + See if -O2 debug binary crashes.
     - See if -O0 opt binary crashes.
-    + Try with the shell version of git.  If that works, update libgit2.
+    * Try with the shell version of git.  If that works, update libgit2.
+      No, it's probably not git.
     It seems likely due to FFI, perhaps a bug in C++.  Optimization could be
     making some change that makes it more sensitive to the bug.  Or it could
     be optimization in the c++.
 
   - get rid of ld -r hack in shakefile, since new ghcs do that automatically
-  - I think I can also get rid of Util.CPUTime since new ghcs fixed that bug
+  * I think I can also get rid of Util.CPUTime since new ghcs fixed that bug
   * J on a note event with duration makes it 0 dur
   * cmd to clip a ruler to the selection, or double a ruler
   * LRuler.double should renumber the marks

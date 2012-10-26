@@ -1,10 +1,11 @@
 module Derive.Derive_profile where
 import qualified Data.Time as Time
+import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.Mem as Mem
+
 import qualified Text.Printf as Printf
 
-import qualified Util.CPUTime as CPUTime
 import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
