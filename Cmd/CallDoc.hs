@@ -151,26 +151,38 @@ html_doc = map_html postproc . html . Text.pack
 -- textual output.
 type Document = [Section]
 
+-- | Emit docs for all calls in the default scope.
+builtin :: (Cmd.M m) => m Document
+builtin = all_sections <$> Cmd.gets Cmd.state_global_scope
+
+all_sections :: Derive.Scope -> [Section]
+all_sections (Derive.Scope note control pitch val)=
+    [ ("note", scope_doc note)
+    , ("control", scope_doc control)
+    , ("pitch", scope_doc pitch)
+    , ("val", scope_doc val)
+    ]
+
+-- ** track doc
+
 -- | Get documentation for calls in scope at the given block and track.
 track :: (Cmd.M m) => BlockId -> TrackId -> m Document
 track block_id track_id = do
     dynamic <- Cmd.require_msg "dynamic for doc"
         =<< Perf.lookup_dynamic block_id (Just track_id)
     ttype <- TrackInfo.track_type <$> State.get_track_title track_id
-    return $ generate ttype dynamic
+    return $ track_sections ttype (Derive.state_scope dynamic)
 
 -- | (call type, docs)
 type Section = (Text, [ScopeDoc])
 
-generate :: TrackInfo.Type -> Derive.Dynamic -> [Section]
-generate ttype dynamic = (\d -> [d, val_doc]) $ case ttype of
+track_sections :: TrackInfo.Type -> Derive.Scope -> [Section]
+track_sections ttype (Derive.Scope note control pitch val) =
+    (\d -> [d, ("val", scope_doc val)]) $ case ttype of
+        TrackInfo.NoteTrack -> ("note", scope_doc note)
         TrackInfo.ControlTrack -> ("control", scope_doc control)
         TrackInfo.TempoTrack -> ("tempo", scope_doc control)
         TrackInfo.PitchTrack -> ("pitch", scope_doc pitch)
-        TrackInfo.NoteTrack -> ("note", scope_doc note)
-    where
-    val_doc = ("val", scope_doc val)
-    Derive.Scope note control pitch val = Derive.state_scope dynamic
 
 -- | Documentation for one type of scope: (scope_source, calls)
 type ScopeDoc = (Text, [CallBindings])

@@ -1,7 +1,11 @@
-module App.PrintKeymap where
+module App.ExtractDoc where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+
+import qualified System.Environment as Environment
 import qualified Text.Printf as Printf
 
 import Util.Control
@@ -9,14 +13,33 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Key as Key
+import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 
+import qualified Derive.Call.All as Call.All
+
 
 main :: IO ()
-main = mapM_ putStrLn
+main = do
+    args <- Environment.getArgs
+    case args of
+        ["keymap"] -> putStr keymap_doc
+        ["calls"] -> Text.IO.putStr call_doc
+        _ -> error $ "usage: extract_doc [ keymap | calls ]"
+
+-- * call doc
+
+call_doc :: Text.Text
+call_doc = CallDoc.doc_html $ CallDoc.all_sections Call.All.scope
+    -- TODO include scales and instruments
+
+-- * extract keymap
+
+keymap_doc :: String
+keymap_doc = unlines
     [ "<html> <head> <title> keymaps </title> </head> <body>"
     , html_fmt "global" $ extract GlobalKeymap.all_cmd_map
     , html_fmt "note track" $ extract $ fst $ NoteTrackKeymap.make_keymap
@@ -25,8 +48,6 @@ main = mapM_ putStrLn
 
 type CmdMap = Keymap.CmdMap (Cmd.CmdT Identity.Identity)
 type Binds = [(String, [Keymap.KeySpec])]
-
--- * extract
 
 extract :: CmdMap -> Binds
 extract = sort . strip . group . Map.toList

@@ -293,7 +293,7 @@ Maybe GeneratorCall) pair: 'Derive.Deriver.Monad.Call'.  The exception is
 'Derive.Deriver.Monad.ValCall's, which don't have transformer and generator
 versions.
 
-In addition to the syntax hacks, call evaluation also has some:
+In addition to the syntax hacks, call evaluation also has one:
 
 - ValCall fallback: If a generator call is not found in the appropriate scope
 for the track (note, control, or pitch), the evaluator looks for a val call
@@ -305,6 +305,24 @@ but if it occurs alone in a pitch track its Pitch is passed to the null call,
 which for pitch tracks just sets the pitch signal to that pitch.
 
 Evaluation is implemented by 'Derive.Call.apply_toplevel'.
+
+### call docs
+
+[Documentation for individual calls](calls.html) is included in the calls
+themselves, and is extracted and formatted by 'Cmd.CallDoc'.  'Cmd.Lang.LBlock'
+provides some functions to emit documentation for the calls in scope at the
+cursor.
+
+### Block calls
+
+As mentioned in the overview, a note call with the same name as another block
+will substitute the contents of that block, stretching and shifting it into
+place.  If the sub-block uses relative pitches and controls the generated
+notes will wind up depending on the calling environment.
+
+Block calls are note calls and go on a note track, but there's also a variant
+for control tracks.  The sub-block is expected to have a control track titled
+`%` whose signal will be substituted into the signal of the calling track.
 
 ## track evaluation
 
@@ -362,25 +380,6 @@ start and duration, along with previous and subsequent events, so calls know
 where their neighbors are.  It also gets the last value of the previous call,
 which is used by control calls, some of which want to interpolate from the
 previous value.
-
-### call docs
-
-Documentation for individual calls is included in the calls themselves, and is
-extracted and formatted by 'Cmd.CallDoc'.  'Cmd.Lang.LBlock' provides some
-functions to emit documentation for the calls in scope at the cursor.
-
-TODO I should emit documentation for all builtin calls and link it from here.
-
-### Block calls
-
-As mentioned in the overview, a note call with the same name as another block
-will substitute the contents of that block, stretching and shifting it into
-place.  If the sub-block uses relative pitches and controls the generated
-notes will wind up depending on the calling environment.
-
-Block calls are note calls and go on a note track, but there's also a variant
-for control tracks.  The sub-block is expected to have a control track titled
-`%` whose signal will be substituted into the signal of the calling track.
 
 ### Slicing and inversion
 
