@@ -4,10 +4,6 @@
 --
 -- TODO
 -- - Is git_tree_diff recursive?
---
--- - Apparently there's no way to modify an index directly, without going
--- through a filesystem.  E.g. no equivalent to git update-index --index-info.
--- git_index_add() insists the file exists.
 module Util.Git.Git2 (
     Blob, Tree, Commit
     , Repo, FileName, Ref
@@ -43,6 +39,7 @@ import qualified Data.ByteString as ByteString
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Unsafe as ByteString.Unsafe
+import qualified Data.Char as Char
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -399,13 +396,15 @@ peek_ref_name prefix str = do
 -- *** symbolic
 
 write_symbolic_ref :: Repo -> Ref -> Ref -> IO ()
-write_symbolic_ref repo sym ref = with_repo repo $ \repop ->
-    with_ref_name ref $ \namep -> withCString sym $ \symp ->
-    alloca $ \refpp -> do
-        refp <- G.check_lookup "reference_create_symbolic" refpp $
-            G.c'git_reference_create_symbolic refpp repop symp namep 1
-        when (refp /= nullPtr) $
-            G.c'git_reference_free refp
+write_symbolic_ref repo sym ref
+    | not (valid_symbolic_ref sym) = G.throw $ "ref should be ALL_CAPS: " ++ sym
+    | otherwise = with_repo repo $ \repop ->
+        with_ref_name ref $ \namep -> withCString sym $ \symp ->
+        alloca $ \refpp -> do
+            refp <- G.check_lookup "reference_create_symbolic" refpp $
+                G.c'git_reference_create_symbolic refpp repop symp namep 1
+            when (refp /= nullPtr) $
+                G.c'git_reference_free refp
 
 read_symbolic_ref :: Repo -> Ref -> IO (Maybe Ref)
 read_symbolic_ref repo sym = with_repo repo $ \repop ->
@@ -415,6 +414,12 @@ read_symbolic_ref repo sym = with_repo repo $ \repop ->
         if refp == nullPtr then return Nothing
             else fmap Just $ peek_ref_name ("ref of " ++ show sym ++ " ")
                 =<< G.c'git_reference_name refp
+
+-- | Rationale documented at: https://github.com/libgit2/libgit2/pull/938
+valid_symbolic_ref :: Ref -> Bool
+valid_symbolic_ref ref =
+    not (null ref) && all (\c -> Char.isAsciiUpper c || c == '_') ref
+        && head ref /= '_' && last ref /= '_'
 
 -- *** HEAD
 

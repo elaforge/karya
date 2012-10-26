@@ -42,8 +42,8 @@ test_misc = do
         Map.fromList [("heads/master", commit2), ("tags/0", commit)]
 
     -- sym -> ref
-    Git.write_symbolic_ref repo "sym" ref
-    io_equal (Git.read_symbolic_ref repo "sym") (Just ref)
+    Git.write_symbolic_ref repo "SYM" ref
+    io_equal (Git.read_symbolic_ref repo "SYM") (Just ref)
 
     -- HEAD -> ref -> commit
     Git.write_head repo ref

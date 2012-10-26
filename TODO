@@ -1,5 +1,5 @@
 UNSORTED
-  - git is starting to enforce CAPS_UNDER for sym ref names
+  * git is starting to enforce CAPS_UNDER for sym ref names
   * remove leading 0s in track and block names, integrate should sort by
     tracknum
   * get rid of example_note in call_doc
