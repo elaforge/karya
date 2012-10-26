@@ -30,6 +30,16 @@ data ScaleMap = ScaleMap {
     , smap_default_key :: Theory.Key
     }
 
+twelve_doc :: String
+twelve_doc = "Scales in the \"twelve\" family use western style note naming."
+    <> " That is, note names look like octave-letter-accidentals like \"4c#\"."
+    <> " They have a notion of a \"layout\", which is a pattern of half and"
+    <> " whole steps, e.g. the piano layout, and a key, which is a subset of"
+    <> " notes from the scale along with a preferred spelling for them. The"
+    <> " rules of how enharmonic spelling works are complicated, and documented"
+    <> " in 'Derive.Scale.Theory'. The key is read from the `key` env var, and"
+    <> " each scale has a list of keys it will accept."
+
 scale_map :: Theory.Layout -> [Theory.Pitch] -> Keys -> Theory.Key -> ScaleMap
 scale_map layout pitches keys default_key =
     ScaleMap (make_note_to_degree layout pitches) keys default_key
@@ -98,20 +108,20 @@ input_to_note smap maybe_key (Pitch.InputKey key_nn) =
         flip Map.lookup (smap_keys smap) =<< maybe_key
     (nn_semis, cents) = properFraction key_nn
 
-call_doc :: Pitch.ScaleId -> ScaleMap -> Derive.DocumentedCall
-call_doc scale_id smap =
-    Derive.annotate_doc extra_doc $ Derive.extract_val_doc call
+call_doc :: ScaleMap -> String -> Derive.DocumentedCall
+call_doc smap doc =
+    Util.annotate_call_doc extra_doc fields $ Derive.extract_val_doc call
     where
     call = Call.Pitch.scale_degree $ \_ _ ->
         Left $ PitchSignal.PitchError "it was just an example!"
-    extra_doc = "Note in scale " ++ Pretty.pretty scale_id ++ ":\n" ++ join
+    extra_doc = doc <> "\n" <> twelve_doc
+    fields =
         [ ("note range", note_range)
-        , ("keys", Seq.join ", " $
-            map Pretty.pretty (Map.keys (smap_keys smap)))
         , ("default key", Pretty.pretty $
             Theory.show_key (smap_default_key smap))
+        , ("keys", Seq.join ", " $
+            map Pretty.pretty (Map.keys (smap_keys smap)))
         ]
-    join = unlines . map (\(k, v) -> k ++ ": " ++ v) . filter (not . null . snd)
     note_range = case (Seq.minimum_on (snd . snd) notes,
             Seq.maximum_on (snd . snd) notes) of
         (Just (note1, _), Just (note2, _)) ->

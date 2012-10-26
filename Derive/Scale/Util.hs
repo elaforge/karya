@@ -26,9 +26,9 @@ import Types
 
 -- | Make a simple scale where there is a simple mapping from input to note to
 -- nn.
-simple_scale :: Pitch.Octave -> String -> Pitch.ScaleId
+simple_scale :: String -> Pitch.Octave -> String -> Pitch.ScaleId
     -> [Pitch.InputKey] -> [Pitch.Note] -> [Pitch.NoteNumber] -> Scale.Scale
-simple_scale per_octave note_pattern scale_id inputs notes nns = Scale.Scale
+simple_scale doc per_octave note_pattern scale_id inputs notes nns = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = note_pattern
     , Scale.scale_map = track_scale_map dmap
@@ -39,7 +39,7 @@ simple_scale per_octave note_pattern scale_id inputs notes nns = Scale.Scale
     , Scale.scale_note_to_call = mapped_note_to_call nn_map dmap
     , Scale.scale_input_to_note = input_to_note input_map dmap
     , Scale.scale_input_to_nn = mapped_input_to_nn input_map nn_map
-    , Scale.scale_call_doc = call_doc scale_id dmap input_map
+    , Scale.scale_call_doc = call_doc dmap input_map doc
     }
     where
     dmap = degree_map notes
@@ -257,10 +257,8 @@ join_note step frac = Pitch.Note $ step ++ frac_s
 
 -- ** call_doc
 
-call_doc :: Pitch.ScaleId -> DegreeMap -> InputMap
-    -> Derive.DocumentedCall
-call_doc scale_id dmap imap =
-    annotate_call_doc scale_id fields $ scale_degree_doc
+call_doc :: DegreeMap -> InputMap -> String -> Derive.DocumentedCall
+call_doc dmap imap doc = annotate_call_doc doc fields $ scale_degree_doc
     where
     fields =
         [ ("note range", map_range snd (dm_to_note dmap))
@@ -277,13 +275,18 @@ scale_degree_doc = Derive.extract_val_doc $
     Call.Pitch.scale_degree $ \_ _ ->
         Left $ PitchSignal.PitchError "it was just an example!"
 
-annotate_call_doc :: Pitch.ScaleId -> [(String, String)]
+annotate_call_doc :: String -> [(String, String)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall
-annotate_call_doc scale_id fields = Derive.annotate_doc extra_doc
+annotate_call_doc doc fields = Derive.annotate_doc extra_doc
     where
-    extra_doc = "Note in scale " ++ Pretty.pretty scale_id ++ ":\n"
-        ++ join fields
+    extra_doc = doc ++ "\n\n" ++ join fields
     join = unlines . map (\(k, v) -> k ++ ": " ++ v) . filter (not . null . snd)
+
+add_doc :: String -> Scale.Scale -> Scale.Scale
+add_doc doc scale = scale
+    { Scale.scale_call_doc =
+        Derive.annotate_doc doc (Scale.scale_call_doc scale)
+    }
 
 -- * util
 

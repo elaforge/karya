@@ -6,6 +6,8 @@
 module Derive.Scale.Legong where
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
+import qualified Derive.Scale.Util as Util
+
 import qualified Perform.Pitch as Pitch
 
 
@@ -13,7 +15,8 @@ scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "legong"
 
 scale :: Scale.Scale
-scale = BaliScales.scale scale_id scale_map
+scale = Util.add_doc "Saih pelegongan. Tuning from my gender rambat." $
+    BaliScales.scale scale_id scale_map
 
 scale_map :: BaliScales.ScaleMap
 scale_map = BaliScales.scale_map 1 umbang isep

@@ -455,8 +455,9 @@ with_scale scale = modify_constant $ \st ->
         (Map.insert (Scale.scale_id scale) scale Scale.All.scales) }
 
 mkscale :: String -> [(String, Pitch.NoteNumber)] -> Scale.Scale
-mkscale name notes = Scale.Util.simple_scale 5 "test" (Pitch.ScaleId name)
-    inputs (map (Pitch.Note . fst) notes) (map snd notes)
+mkscale name notes =
+    Scale.Util.simple_scale "simple test scale" 5 "test" (Pitch.ScaleId name)
+        inputs (map (Pitch.Note . fst) notes) (map snd notes)
     where inputs = [Scale.Util.i_c + Pitch.InputKey n | n <- [0..]]
 
 -- * inst

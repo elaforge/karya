@@ -34,7 +34,10 @@ make_scale scale_id layout key_suffix = Scale.Scale
     , Scale.scale_note_to_call = TwelveScales.note_to_call scale_map
     , Scale.scale_input_to_note = TwelveScales.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.direct_input_to_nn
-    , Scale.scale_call_doc = TwelveScales.call_doc scale_id scale_map
+    , Scale.scale_call_doc = TwelveScales.call_doc scale_map $
+        "Octatonic scales as true 8 note scales, using notes from a-h.\
+        \ There are two variants: octa21 starts with a whole step, while\
+        \ octa12 starts with a half-step."
     }
     where
     scale_map = TwelveScales.scale_map layout all_pitches keys deflt
