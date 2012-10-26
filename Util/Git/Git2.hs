@@ -472,7 +472,7 @@ walk walkp flags = do
     where
     next oidp = do
         errno <- G.c'git_revwalk_next oidp walkp
-        if errno == G.c'GIT_REVWALKOVER then return Nothing else do
+        if errno == G.c'GIT_ITEROVER then return Nothing else do
         G.check "revwalk_next" (return errno)
         oid <- peek oidp
         return (Just (Commit oid))

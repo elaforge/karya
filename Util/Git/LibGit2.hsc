@@ -290,7 +290,7 @@ type Error = CInt
 #num GIT_ERROR
 #num GIT_ENOTFOUND
 #num GIT_EEXISTS
-#num GIT_REVWALKOVER
+#num GIT_ITEROVER
 
 error_msg :: Error -> Maybe String
 error_msg errno
@@ -305,7 +305,7 @@ error_msg errno
         , ((#const GIT_EAMBIGUOUS), "short oid is ambiguous")
         , ((#const GIT_EBUFS), "undocumented GIT_EBUFS")
         , ((#const GIT_PASSTHROUGH), "passthrough")
-        , ((#const GIT_REVWALKOVER), "rev walk over")
+        , ((#const GIT_ITEROVER), "iteration over")
         ]
 
 newtype GitException = GitException String deriving (Typeable.Typeable)
