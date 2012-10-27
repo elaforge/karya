@@ -323,8 +323,12 @@ write_message(Client *client, const char *port, uint64_t time, void *bytes,
 {
     midi_event event;
     event.port = jack_port_by_name(client->client, port);
-    if (!event.port)
-        return "write_message: port not found";
+    if (!event.port) {
+        // This just means a MIDI msg went to a nonexistent device.
+        // Return "" to tell the caller to return False but not otherwise freak
+        // out.
+        return "";
+    }
     // DEBUG("write msg port " << port << ": " << event.port);
     event.event.size = size;
     event.event.time = jack_time_to_frames(client->client, time);

@@ -215,5 +215,6 @@ check msg err
     | err == nullPtr = return True
     | otherwise = do
         error_msg <- peekCString err
-        Log.error $ "JACK error: " ++ msg ++ ": " ++ error_msg
+        unless (null error_msg) $
+            Log.error $ "JACK error: " ++ msg ++ ": " ++ error_msg
         return False
