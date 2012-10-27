@@ -1,5 +1,6 @@
 module Midi.JackMidi where
 import Control.Applicative ((<$>))
+import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
@@ -10,7 +11,7 @@ import qualified Data.Set as Set
 import qualified Data.IORef as IORef
 import qualified Data.Word as Word
 import Foreign.C
-import Foreign
+import Foreign hiding (void)
 
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
@@ -64,8 +65,7 @@ interface client chan = Interface.Interface
     }
 
 close_client :: Client -> IO ()
-close_client client =
-    Control.Monad.void . c_jack_client_close =<< jack_client client
+close_client client = void . c_jack_client_close =<< jack_client client
 
 foreign import ccall "create_client"
     c_create_client :: CString -> FunPtr NotifyCallback -> Ptr (Ptr CClient)
@@ -92,24 +92,20 @@ foreign import ccall "read_event"
 notify_callback :: IORef.IORef (Set.Set Midi.ReadDevice)
     -> IORef.IORef (Set.Set Midi.WriteDevice) -> NotifyCallback
 notify_callback wanted_reads wanted_writes clientp namep c_is_add c_is_read =
-    when (toBool c_is_add) $ do
-        name <- peekCString namep
-        putStrLn $ "notify: " ++ name ++ " -- "
-            ++ if c_is_read == 0 then "output" else "input"
-        if toBool c_is_read
-            then notify_read =<< Midi.peek_rdev namep
-            else notify_write =<< Midi.peek_wdev namep
+    when (toBool c_is_add) $ if toBool c_is_read
+        then notify_read =<< Midi.peek_rdev namep
+        else notify_write =<< Midi.peek_wdev namep
     where
     notify_read dev = do
         b <- Set.member dev <$> IORef.readIORef wanted_reads
-        when b $ putStrLn $ "wanted read"
-        when b $ Control.Monad.void $ Midi.with_rdev dev $ \devp ->
-            check =<< c_create_read_port clientp devp
+        when b $ void $ Concurrent.forkIO $
+            void $ Midi.with_rdev dev $ \devp ->
+                check =<< c_create_read_port clientp devp
     notify_write dev = do
         b <- Set.member dev <$> IORef.readIORef wanted_writes
-        when b $ putStrLn $ "wanted write"
-        when b $ Control.Monad.void $ Midi.with_wdev dev $ \devp ->
-            check =<< c_create_write_port clientp devp
+        when b $ void $ Concurrent.forkIO $
+            void $ Midi.with_wdev dev $ \devp ->
+                check =<< c_create_write_port clientp devp
 
 type NotifyCallback = Ptr CClient -> CString -> CInt -> CInt -> IO ()
 -- typedef void (*NotifyCallback)(

@@ -248,7 +248,7 @@ create_read_port(Client *client, const char *remote_name)
     std::string local_name = remote_name;
     std::string local_long_name = prepend_client(client, local_name.c_str());
 
-    DEBUG("connect read: " << local_long_name << " <- " << remote_name);
+    // DEBUG("connect read: " << local_long_name << " <- " << remote_name);
     jack_port_t *port = jack_port_by_name(
         client->client, local_long_name.c_str());
     if (!port) {
@@ -275,7 +275,7 @@ remove_read_port(Client *client, const char *remote_name)
     jack_port_t *port = jack_port_by_name(client->client, local_name.c_str());
     if (!port)
         return "local port not found";
-    DEBUG("disconnect read: " << local_name << " <- " << remote_name);
+    // DEBUG("disconnect read: " << local_name << " <- " << remote_name);
     client->remove_read_port(port);
     jack_port_disconnect(client->client, port);
     // I never unregister ports.  This ensures that any read ports still on
@@ -289,7 +289,7 @@ create_write_port(Client *client, const char *remote_name)
     std::string local_name = remote_name;
     std::string local_long_name = prepend_client(client, local_name.c_str());
 
-    DEBUG("connect write: " << local_long_name << " <- " << remote_name);
+    // DEBUG("connect write: " << local_long_name << " <- " << remote_name);
     jack_port_t *port = jack_port_by_name(
         client->client, local_long_name.c_str());
     if (!port) {
@@ -305,7 +305,7 @@ create_write_port(Client *client, const char *remote_name)
     if (jack_connect(client->client, local_long_name.c_str(), remote_name)) {
         return "can't connect to remote port";
     }
-    DEBUG("jack_connect() completed");
+    // DEBUG("jack_connect() completed");
     return NULL;
 }
 

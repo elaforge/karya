@@ -42,6 +42,8 @@ import qualified Midi.Interface as Interface
 -- depend on the implementation, so switching backends is relatively easy.
 #if defined(CORE_MIDI)
 import qualified Midi.CoreMidi as MidiDriver
+#elif defined(JACK_MIDI)
+import qualified Midi.JackMidi as MidiDriver
 #else
 import qualified Midi.StubMidi as MidiDriver
 #endif
