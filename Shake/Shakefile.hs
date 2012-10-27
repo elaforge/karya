@@ -140,7 +140,6 @@ hsBinaries =
     , gui "seq" "App/Main.hs" ["fltk/fltk.a"] (Just "doc/seq.icns")
     , plain "shakefile" "Shake/Shakefile.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
-    , plain "test_jack_midi" "Midi/TestJackMidi.hs"
     , plain "timer" "LogView/Timer.hs"
     , plain "update" "App/Update.hs"
     ]
