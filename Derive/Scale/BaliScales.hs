@@ -54,19 +54,20 @@ scale scale_id (ScaleMap degree_map input_map nn_map) = Scale.Scale
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn =
         Util.computed_input_to_nn input_to_note note_to_call
-    , Scale.scale_call_doc = Util.call_doc degree_map input_map doc
+    , Scale.scale_call_doc =
+        Util.call_doc Util.standard_transposers degree_map input_map doc
     }
     where
     note_to_call = Util.note_to_call degree_map (degree_to_nn nn_map)
     input_to_note = Util.input_to_note input_map degree_map
     doc =
-        "Balinese scales come in detuned pairs. They use the `tuning` env var"
-        <> " to select between pengumbang and pengisep tuning. The env var"
-        <> " should be set to either `'umbang'` or `'isep'`, and if it's not"
-        <> " set, `'umbang'` is assumed. Normally the umbang and isep"
-        <> " frequencies are hardcoded according to the scale, but if the "
-        <> ShowVal.show_val c_ombak <> " control is present, they will be tuned"
-        <> " that many hz apart."
+        "Balinese scales come in detuned pairs. They use the `tuning` env var\
+        \ to select between pengumbang and pengisep tuning. The env var\
+        \ should be set to either `'umbang'` or `'isep'`, and if it's not\
+        \ set, `'umbang'` is assumed. Normally the umbang and isep\
+        \ frequencies are hardcoded according to the scale, but if the "
+        <> ShowVal.show_val c_ombak <> " control is present, they will be tuned\
+        \ that many hz apart."
 
 data Tuning = Umbang | Isep deriving (Show)
 

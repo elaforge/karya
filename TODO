@@ -460,7 +460,7 @@ documentation
   call doc:
     - use Text instead of String
     * doc for Just scales
-    - scale can document the transposing signals
+    * scale can document the transposing signals
     - linkify single quotes
     * BaliScales should document umbang isep
     * scales should have general documentation

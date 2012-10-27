@@ -1,6 +1,7 @@
 module Derive.Scale.TwelveScales where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Num as Num
@@ -108,9 +109,10 @@ input_to_note smap maybe_key (Pitch.InputKey key_nn) =
         flip Map.lookup (smap_keys smap) =<< maybe_key
     (nn_semis, cents) = properFraction key_nn
 
-call_doc :: ScaleMap -> String -> Derive.DocumentedCall
-call_doc smap doc =
-    Util.annotate_call_doc extra_doc fields $ Derive.extract_val_doc call
+call_doc :: Set.Set Score.Control -> ScaleMap -> String -> Derive.DocumentedCall
+call_doc transposers smap doc =
+    Util.annotate_call_doc transposers extra_doc fields $
+        Derive.extract_val_doc call
     where
     call = Call.Pitch.scale_degree $ \_ _ ->
         Left $ PitchSignal.PitchError "it was just an example!"

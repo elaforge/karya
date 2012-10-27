@@ -6,10 +6,8 @@ import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-
 import qualified Ui.Track as Track
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
@@ -44,12 +42,13 @@ make_scale scale_id ratios = Scale.Scale
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn =
         Util.computed_input_to_nn input_to_note (note_to_call double_ratios)
-    , Scale.scale_call_doc = flip Derive.annotate_doc Util.scale_degree_doc $
-        "Just scales are tuned by ratios from a base frequency.\
+    , Scale.scale_call_doc = Util.annotate_call_doc Util.standard_transposers
+        ("Just scales are tuned by ratios from a base frequency.\
         \ That frequency is taken from the `%just-base` control and the key.\
         \ For example, `%just-base = 440 | key = 'a-maj'` means the scale is\
         \ If the base hz isn't given, it defaults to the 12TET tuning of the\
-        \ key.\nRatios: " <> Pretty.pretty ratios
+        \ key."
+        ) [("ratios", Pretty.pretty ratios)] Util.scale_degree_doc
     }
     where double_ratios = Vector.map realToFrac ratios
 

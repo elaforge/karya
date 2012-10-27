@@ -1,6 +1,7 @@
 module Derive.Scale.Just_test where
 import qualified Data.Map as Map
-import qualified Data.Vector.Unboxed as Vector
+import qualified Data.Ratio as Ratio
+import qualified Data.Vector as Vector
 
 import Util.Control
 import Util.Test
@@ -38,7 +39,8 @@ test_transpose = do
 
 test_degree_to_hz = do
     let f base_hz tonic pitch = Just.degree_to_hz Just.pc_per_octave
-            Just.major_ratios base_hz tonic (p pitch)
+            major base_hz tonic (p pitch)
+        major = convert Just.major_ratios
         Just key_a = Map.lookup "a" Just.all_keys
         Just key_b = Map.lookup "b" Just.all_keys
 
@@ -50,16 +52,19 @@ test_degree_to_hz = do
     -- just major scale from A to A
     let hzs = map (f Nothing key_a)
             ["3a", "3b", "4c", "4d", "4e", "4f", "4g", "4a"]
-    equalf 0.01 (ratios hzs) (take (length hzs) (make_ratios Just.major_ratios))
+    equalf 0.01 (ratios hzs) (take (length hzs) (make_ratios major))
 
     -- Base should be 3b, ratios should be major.
     let hzs = map (f Nothing key_b)
             ["3b", "4c", "4d", "4e", "4f", "4g", "4a", "4b"]
-    equalf 0.01 (ratios hzs) (take (length hzs) (make_ratios Just.major_ratios))
+    equalf 0.01 (ratios hzs) (take (length hzs) (make_ratios major))
 
     -- Key is B and B is tuned to 10hz.
     let hzs = map (f (Just 10) key_b) ["-2a", "-2b", "-1c"]
     equalf 0.01 hzs [9.375, 10, 11.25]
+
+convert :: Vector.Vector Ratio.Rational -> Just.Ratios
+convert = Vector.map realToFrac
 
 
 -- * implementation

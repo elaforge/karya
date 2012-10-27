@@ -49,7 +49,7 @@ module Derive.Deriver.Monad (
 
     -- ** scope
     , Scope(..), empty_scope, ScopeType(..), empty_scope_type
-    , DocumentedCall(..), annotate_doc
+    , DocumentedCall(..), prepend_doc
     , LookupDocs(..)
     , LookupCall(lookup_call, lookup_docs)
     , map_lookup, map_val_lookup, pattern_lookup
@@ -487,13 +487,16 @@ data DocumentedCall =
     | DocumentedValCall String CallDoc
 
 -- | Prepend a bit of text to the documentation.
-annotate_doc :: String -> DocumentedCall -> DocumentedCall
-annotate_doc text doc = case doc of
+prepend_doc :: String -> DocumentedCall -> DocumentedCall
+prepend_doc text = modify_doc ((text ++ "\n") ++)
+
+modify_doc :: (String -> String) -> DocumentedCall -> DocumentedCall
+modify_doc modify doc = case doc of
     DocumentedCall name generator transformer ->
         DocumentedCall name (annotate <$> generator) (annotate <$> transformer)
     DocumentedValCall name cdoc -> DocumentedValCall name (annotate cdoc)
     where
-    annotate (CallDoc cdoc args) = CallDoc (text ++ "\n" ++ cdoc) args
+    annotate (CallDoc cdoc args) = CallDoc (modify cdoc) args
 
 -- | In the common case, a lookup is simply a static map.
 map_lookup :: Map.Map TrackLang.CallId (Call d) -> LookupCall (Call d)
