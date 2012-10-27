@@ -1,104 +1,21 @@
 UNSORTED
-  * git is starting to enforce CAPS_UNDER for sym ref names
-  * remove leading 0s in track and block names, integrate should sort by
-    tracknum
-  * get rid of example_note in call_doc
-  * make TrackLang.Environ a newtype
-  * have the DeriveTest log trace filter important msgs
-  * Rect.move sounds like it should be a translation, rename to Rect.place
-  * Ornament_test can use e_twelve
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
-  * it's annoying having to set the scale along with the inst, can I have the
-    wayang insts also set a scale?  How about just setting an env var?
-    Wait, it already sets default scale, is that enough?
-  - the problem with controls is that only env is captured at note time, the
-    controls are intentionally delayed until conversion.  I can't capture
-    them or they'd be applied twice.  But I should be able to capture
-    everything except the transposing controls.
-    That means that '%t-chromatic = 1 | 4c' won't work as expected.  Is there
-    a way around it?
-    It's the controls of the event.
-    Could I say that the pitch track is the wrong place to apply controls?
-    I don't have any real use case for why it should work.
-  Generalize scale construction stuff
-    repair
-      * TwelveUtil
-      * call doc in Util
-      * Just
-    * repair Util.ScaleUtil
-    * rename TwelveUtil TwelveScales
-    * System to ScaleMap
-  * Make wayang and legong look at a env var to switch ngumbang and ngisep.
-  * Wayang and legong variants with an 'ombak' control to ombak speed.
-
   - Managed to crash by undoing while editing, I think.  I wound up with
     note events on a control track and when I tried to undo and delete it
     I got an update on wrong kind of track assertion error.
-  * Should 'mul' be default for 'dyn'?  Default for all controls?  I could
-    have 'set' for replace, nothing for mul.
-    I guess this means I have to get rid of the default dyn, otherwise there's
-    no way to go above it.
-  * note dur timestep is important, it should be visible
-  * it would be really nice to be able to add ticks at the first note of
-    a block.
-  * I either need an easy way to apply realize-damp at the "lowest" level of
-    each note track, or it needs to use the stack to figure out what the next
-    event is.
-  - Damp can't work across blocks unless I structure by hand.  Or add a hand
-    attr.  It seems like too much work just to get some damping right.
-    In general the problem is that tracks between blocks don't necessarily
-    have any correspondance.
-    It could be worth putting in hand if there were other things I can do
-    with it.
   - Sometimes tick makes more sense as at attribute of the previous note, or
     perhaps a freestanding ornament, since it can happen or not on a repeat.
-  * window management to tile the windows
   - I do a lot of appending a block along with its ruler, I could have
     a single cmd to do that.
   - A more radical approach would be a block mode where the block calls are
     simply additive, and their duration doesn't matter.  This would mean I'd
     have to edit the tempo on the subblocks though, which in turn means it
     couldn't vary independently.
-  * if I could make Derive.Call.reapply polymorphic, I could reuse
-    Random.c_alternate in different tracks.
-    Either do the class thing to make reapply dynamic, or stuff all lookups in
-    call info and propagate.
-    them?
-  * shake target hlint everything
-  * I should make a dir for each save so I can put the state, .git, _ly, and
-    repl history into it
-  * error committing history: checkpoint:
-    update for nonexistent ruler_id: (rid "bloom/meter5-4.overlay")
-  / repl should run with NoMonomorphismRestriction
-    Actually it doesn't make a difference because the repl doesn't bind
-    anything.
-  * rename Block.set_rid to set_ruler_id
-  rulers
-    * LRuler.double shouldn't make a new 0 rank mark in the middle
-    * ruler track draw clips off a few too many pixels on the right of ruler
-      labels
-    * ruler changes should trigger a rederive
-    * undo after ruler changes doesn't seem to do anything
-    * append doesn't do what I want, it should append the given selection no
-      matter where it is, and renumber
-    * The meter ruler works with [(ScoreTime, Rank)] rather than Marks, I sohuld
-      have an api for manipulating the meter ruler.
-      * naming in Cmd.Meter is messy, clean it up to distinguish between
-        abstract meter [T | D], meter [(pos, rank)], marklist, and ruler
-      * further complication: make_meter has a different definition of duration,
-        it's until the next mark with >=rank
-      * If I change Meter from (pos, rank) to (rank, dur), I can concatenate
-        them with less irregularity.
-    - make constants for each of the ranks, e.g. block, measure, quarter, eighth
-    * can I get rid of .overlay entirely by doing the transformation at the fltk
-      level?  I can't think of a reason to have non-overlay attributes on an
-      overlay ruler.
-    * move events down move should clip events post the end of the block
-    - time step is still not right, it can get stuck on the wrong marks, or am
-      I accidentally in relative mode?
+  - make constants for each of the ruler ranks, e.g. block, measure, quarter,
+    eighth
   lots of ghc panics
-    - try on linux
+    * try on linux, yes seems to happen there too
     - use valgrind on linux
     * See if it happens after a rebuild. Yes
     * See if it happens without LangGhc. Yes.
@@ -111,23 +28,12 @@ UNSORTED
     making some change that makes it more sensitive to the bug.  Or it could
     be optimization in the c++.
 
-  - get rid of ld -r hack in shakefile, since new ghcs do that automatically
-  * I think I can also get rid of Util.CPUTime since new ghcs fixed that bug
-  * J on a note event with duration makes it 0 dur
-  * cmd to clip a ruler to the selection, or double a ruler
-  * LRuler.double should renumber the marks
   - rename Ruler.marks_of to marklist_to_list and Ruler.
-  * Events.insert_events and remove_events can lose the _events
-  * clip ruler lost the merged track events
-  * LRuler.replace sets ruler track width really small
-  * Ruler.last_pos -> marklist_end
-  * Ui.Ui.hs TESTING hack breaks UI tests
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
     say 'r' was an unknown suffix
     Can't get attoparsec to consistently report an error.  Kind of hard when
     it always backtracks.
-  * remove all uses of Map.fromListAsc
-  - It seems confusing that in val edit the note track doesn't need cmd but
+  - It seems confusing that in val edit the note track doesn't need cmd-x but
     the control track does.
     Maybe I should get rid of the optional cmd- thing?
   - Undo during edit (i.e. a suppressed cmd) destroys changes and you can't
@@ -143,10 +49,7 @@ UNSORTED
     - various numpuk
     - makilit / kilitan derivations from melody
   calls to define randomized scores:
-    * 'omit 20' is a transformer that omits its argument 20% of the time
     - alternate b1 b2 b3 - calls one of variant calls
-    * pick from values as ValCall: d (? .1 .2 .2) |
-    * or a random range: d (-? 0 1)
     - how could I omit a transformer?
   / Pretty on a lot of events causes a stack overflow
     Can't reproduce.
@@ -166,7 +69,6 @@ UNSORTED
     retune, e.g. just.  But it means PitchSignal.Pitches need to emit degrees
     in addition to NoteNumbers, and I'd need an extra derive to compute the
     degree signal.  It would be nice to have a way to skip that for Twelve.
-    * Change Track.make_scale_map to [(Pitch.Note, Pitch.Degree)]
   - Also, if I want to get spelling right in lilypond or integration, I need
     Pitch -> Note as well.  I can store 3 functions, or 1 function that takes
     a selector.
@@ -260,8 +162,6 @@ UNSORTED
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
   incremental save
-    * got "error committing history: update for non-existent view id: ...
-      CreateView"
     + try saving individual events for incremental save
       Seems to be just as slow as full save, probably most of the time is in
       the call to git.  Test again with larger tracks.
@@ -380,8 +280,6 @@ UNSORTED
   * some way to get symbol feedback instantly to make it easier to compose them
     - But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
-  * glyph placement is messed up on linux, see up arpeggios
-  + automate the manual tests
 
   wait until I want it
     - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
@@ -391,8 +289,6 @@ UNSORTED
       It's hard to know what blocks to auto-show, and I'd need yet another
       play mode, and a way to communicate new view ids back to the responder,
       so let's wait until I really want it.
-    * save repl history along with current song, so you can search for
-      previous cmds
 
   debugging
     - cmd to save and load cache to disk
@@ -458,15 +354,7 @@ documentation
   - doc/ui.md
   - doc/cmd.md
   call doc:
-    - use Text instead of String
-    * doc for Just scales
-    * scale can document the transposing signals
     - linkify single quotes
-    * BaliScales should document umbang isep
-    * scales should have general documentation
-    * cmd to extract all docs: all standard calls, all standard scales,
-      perhaps even extract all the instruments along with their calls
-    * Have the doc build stick this in build/doc so docs can link to it.
 
 integrate:
   - adding a {soft} stroke appears to apply the soft again the the dyn track
@@ -544,7 +432,6 @@ negative duration / arrival beats:
     I have to make SymbolTable wrap text above too.
 
 external
-  * pandoc doesn't build on ghc 7.6
   - chorded keys are not getting the proper pitch bend
     It's a pianoteq problem.
     Track it down and send it to them?
@@ -658,6 +545,8 @@ cleanup:
     once.
 
 performance:
+  - look into Debug.Trace.traceEventIO to see how long various things take as
+    in http://www.yesodweb.com/blog/2012/10/future-work-warp
   efficient signals
     control
       - make Ui.Events into 'Map ScoreTime (Event | Chunk Signal)'
@@ -1040,8 +929,6 @@ Derive:
       * echo
       - retune a note depending on the previous interval (e.g. sloppy pitches
         when playing quickly)
-      - negative duration
-        I think I'd rather do this as part of the instrument, though.
       * string emulation:  Every note is assigned a string.  When
         a legato new note is played, it either stops an existing string or takes
         a new one.  The previous note will either ring for a decay if the
@@ -1059,7 +946,6 @@ Derive:
         two neighboring notes at a time.
 
   * sustain signal, to control staccato vs. legato
-
   - to cut the middle out of a pattern: a cut signal that disabled derivation
     when it's 1?
   - combine ornaments, like "hold 1s | tr" to hold the first note for 1 score
@@ -1233,11 +1119,6 @@ jack: JACK:
       and then they get continuously spammed.  Apparently the jack_port_t*
       from the registration and the lookup are different.
       - Try stashing port from port_by_name port instead of jack_register_port.
-    * jack2 hangs for a long time on jack_connect when I reconnect due to a
-      notify.  Try looking at logging to see what it's waiting on.
-      Problem is probably that you're not supposed to call back to jack from
-      a jack callback.
-  - de-globalize MidiClientRef?
   - Ensure that shutdown stuff is being called correctly.  I don't care but
     maybe JACK does?
   use jack transport
