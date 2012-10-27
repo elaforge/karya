@@ -18,10 +18,6 @@ import qualified Data.IORef as IORef
 import qualified Data.List as List
 
 -- GHC imports
-#if __GLASGOW_HASKELL__ == 70
-import qualified Bag
-import qualified ErrUtils
-#endif
 import qualified GHC
 import qualified GHC.Exts
 import qualified GHC.Paths
@@ -170,18 +166,9 @@ compile expr = do
 
 set_context :: [String] -> Ghc ()
 set_context mod_names = do
-#if __GLASGOW_HASKELL__ >= 74
     let prelude = GHC.simpleImportDecl (GHC.mkModuleName "Prelude")
     GHC.setContext $ GHC.IIDecl prelude
         : map (GHC.IIModule . GHC.mkModuleName) mod_names
-#else
-    mods <- sequence
-        [GHC.findModule (GHC.mkModuleName m) Nothing | m <- mod_names]
-    prelude <- GHC.findModule (GHC.mkModuleName "Prelude") Nothing
-    -- Get the entire top level scope of the first arg, and the exports
-    -- from the second (non HPT imports).
-    GHC.setContext mods [(prelude, Nothing)]
-#endif
 
 -- | Run a Ghc action and collect logs and warns.
 handle_errors :: Ghc a -> Ghc (Result a)
@@ -209,19 +196,9 @@ modify_flags f = do
     void $ GHC.setSessionDynFlags $! f dflags
 
 get_warnings :: Ghc [String]
-#if __GLASGOW_HASKELL__ >= 74
--- getWarnings is gone, apparently replaced by either printing directly or
+-- GHC.getWarnings is gone, apparently replaced by either printing directly or
 -- throwing an exception, e.g. compiler/main/HscTypes.lhs:handleFlagWarnings.
 get_warnings = return []
-#else
-get_warnings = do
-    warns <- GHC.getWarnings
-    GHC.clearWarnings
-    return (extract warns)
-    where
-    extract = map (Outputable.showSDoc . ErrUtils.errMsgShortDoc)
-        . Bag.bagToList
-#endif
 
 parse_flags :: [String] -> Ghc ()
 parse_flags args = do

@@ -38,17 +38,6 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
-#if __GLASGOW_HASKELL__ < 74
-import qualified Data.Monoid as Monoid
-import qualified Data.String as String
-
-instance Monoid.Monoid Doc where
-    mempty = PP.empty
-    mappend = (PP.<>)
-
-instance String.IsString Doc where fromString = PP.text
-#endif
-
 
 default_width :: Int
 default_width = 78
