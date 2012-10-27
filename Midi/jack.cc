@@ -261,8 +261,9 @@ create_read_port(Client *client, const char *remote_name)
     }
 
     if (jack_connect(client->client, remote_name, local_long_name.c_str())) {
-        // jack_port_unregister(client->client, port);
-        return "can't connect to remote port";
+        // It's normal to create a port with no corresponding remote one.
+        // It'll get connected if and when it does appears.
+        return NULL;
     }
     return NULL;
 }
@@ -303,7 +304,9 @@ create_write_port(Client *client, const char *remote_name)
     }
 
     if (jack_connect(client->client, local_long_name.c_str(), remote_name)) {
-        return "can't connect to remote port";
+        // It's normal to create a port with no corresponding remote one.
+        // It'll get connected if and when it does appears.
+        return NULL;
     }
     // DEBUG("jack_connect() completed");
     return NULL;
@@ -325,17 +328,17 @@ write_message(Client *client, const char *port, uint64_t time, void *bytes,
     event.port = jack_port_by_name(client->client, port);
     if (!event.port) {
         // This just means a MIDI msg went to a nonexistent device.
-        // Return "" to tell the caller to return False but not otherwise freak
-        // out.
+        // Return "" to tell the caller to report a failure but not otherwise
+        // freak out.
         return "";
     }
     // DEBUG("write msg port " << port << ": " << event.port);
     event.event.size = size;
     event.event.time = jack_time_to_frames(client->client, time);
     event.event.buffer = (jack_midi_data_t *) bytes;
-    jack_ringbuffer_t *buffer =
+    jack_ringbuffer_t *ring =
         time == 0 ? client->immediate_output : client-> output;
-    if (!jack_ringbuffer_write(buffer, (char *) &event, sizeof(event))) {
+    if (!jack_ringbuffer_write(ring, (char *) &event, sizeof(event))) {
         return "output buffer overrun";
     }
     return NULL;

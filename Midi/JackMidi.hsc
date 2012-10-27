@@ -9,6 +9,7 @@ import Control.Monad
 import qualified Data.ByteString as ByteString
 import qualified Data.Set as Set
 import qualified Data.IORef as IORef
+import qualified Data.List as List
 import qualified Data.Word as Word
 import Foreign.C
 import Foreign hiding (void)
@@ -43,19 +44,23 @@ initialize app_name app = do
             Thread.start $ forever $ do
                 event <- read_event client
                 STM.atomically $ TChan.writeTChan chan event
-            app (Right (interface client chan))
+            app (Right (interface app_name client chan))
                 `Exception.finally` do
                     freeHaskellFunPtr notify
                     close_client client
 
-interface :: Client -> Interface.ReadChan -> Interface.Interface
-interface client chan = Interface.Interface
+interface :: String -> Client -> Interface.ReadChan -> Interface.Interface
+interface app_name client chan = Interface.Interface
     { Interface.name = "JACK"
     , Interface.read_channel = chan
     , Interface.read_devices =
-        map Midi.read_device <$> get_ports client jackportisoutput
+        -- Ignore my own write ports.
+        map Midi.read_device . filter (not . is_local) <$>
+            get_ports client jackportisoutput
     , Interface.write_devices =
-        map Midi.write_device <$> get_ports client jackportisinput
+        -- If I don't filter local ports, I wind up seeing my own read ports.
+        map Midi.write_device . filter (not . is_local) <$>
+            get_ports client jackportisinput
     , Interface.connect_read_device = connect_read_device client
     , Interface.disconnect_read_device = disconnect_read_device client
     , Interface.connect_write_device = connect_write_device client
@@ -63,6 +68,7 @@ interface client chan = Interface.Interface
     , Interface.abort = abort client
     , Interface.now = now client
     }
+    where is_local = ((app_name ++ ":") `List.isPrefixOf`)
 
 close_client :: Client -> IO ()
 close_client client = void . c_jack_client_close =<< jack_client client
@@ -157,7 +163,7 @@ write_message :: Client -> Midi.WriteMessage -> IO Bool
 write_message client (Midi.WriteMessage dev time msg) =
     Midi.with_wdev dev $ \devp ->
     ByteString.useAsCStringLen (Parse.encode msg) $ \(bytesp, len) ->
-    check ("write_message " ++ show dev)
+    check ("write_message " ++ show (dev, time, msg))
         =<< c_write_message (client_ptr client) devp
             (fromIntegral (RealTime.to_microseconds time))
             bytesp (fromIntegral len)
