@@ -52,9 +52,9 @@ interface client chan = Interface.Interface
     { Interface.name = "JACK"
     , Interface.read_channel = chan
     , Interface.read_devices =
-        map Midi.ReadDevice <$> get_ports client jackportisoutput
+        map Midi.read_device <$> get_ports client jackportisoutput
     , Interface.write_devices =
-        map Midi.WriteDevice <$> get_ports client jackportisinput
+        map Midi.write_device <$> get_ports client jackportisinput
     , Interface.connect_read_device = connect_read_device client
     , Interface.disconnect_read_device = disconnect_read_device client
     , Interface.connect_write_device = connect_write_device client
@@ -81,7 +81,7 @@ read_event client = do
         size <- c_read_event (client_ptr client) portp timep eventp
         bytesp <- peek eventp
         bytes <- ByteString.packCStringLen (bytesp, fromIntegral size)
-        rdev <- Midi.ReadDevice <$> (peekCString =<< peek portp)
+        rdev <- Midi.peek_rdev =<< peek portp
         time <- decode_time <$> peek timep
         return $ Midi.ReadMessage rdev time (Parse.decode bytes)
 
@@ -96,19 +96,20 @@ notify_callback wanted_reads wanted_writes clientp namep c_is_add c_is_read =
         name <- peekCString namep
         putStrLn $ "notify: " ++ name ++ " -- "
             ++ if c_is_read == 0 then "output" else "input"
-        if toBool c_is_read then notify_read (Midi.ReadDevice name)
-            else notify_write (Midi.WriteDevice name)
+        if toBool c_is_read
+            then notify_read =<< Midi.peek_rdev namep
+            else notify_write =<< Midi.peek_wdev namep
     where
-    notify_read dev@(Midi.ReadDevice name) = do
+    notify_read dev = do
         b <- Set.member dev <$> IORef.readIORef wanted_reads
         when b $ putStrLn $ "wanted read"
-        when b $ Control.Monad.void $ withCString name $ \namep ->
-            check =<< c_create_read_port clientp namep
-    notify_write dev@(Midi.WriteDevice name) = do
+        when b $ Control.Monad.void $ Midi.with_rdev dev $ \devp ->
+            check =<< c_create_read_port clientp devp
+    notify_write dev = do
         b <- Set.member dev <$> IORef.readIORef wanted_writes
         when b $ putStrLn $ "wanted write"
-        when b $ Control.Monad.void $ withCString name $ \namep ->
-            check =<< c_create_write_port clientp namep
+        when b $ Control.Monad.void $ Midi.with_wdev dev $ \devp ->
+            check =<< c_create_write_port clientp devp
 
 type NotifyCallback = Ptr CClient -> CString -> CInt -> CInt -> IO ()
 -- typedef void (*NotifyCallback)(
@@ -122,28 +123,28 @@ foreign import ccall "wrapper"
 foreign import ccall "now" c_now :: Ptr CClient -> IO CJackTime
 
 connect_read_device :: Client -> Midi.ReadDevice -> IO Bool
-connect_read_device client dev@(Midi.ReadDevice name) = do
+connect_read_device client dev = do
     IORef.modifyIORef (client_wanted_reads client) (Set.insert dev)
-    withCString name $ \namep ->
-        check =<< c_create_read_port (client_ptr client) namep
+    Midi.with_rdev dev $ \devp ->
+        check =<< c_create_read_port (client_ptr client) devp
 
 foreign import ccall "create_read_port"
     c_create_read_port :: Ptr CClient -> CString -> IO CString
 
 disconnect_read_device :: Client -> Midi.ReadDevice -> IO Bool
-disconnect_read_device client dev@(Midi.ReadDevice name) = do
+disconnect_read_device client dev = do
     IORef.modifyIORef (client_wanted_reads client) (Set.delete dev)
-    withCString name $ \namep ->
-        check =<< c_remove_read_port (client_ptr client) namep
+    Midi.with_rdev dev $ \devp ->
+        check =<< c_remove_read_port (client_ptr client) devp
 
 foreign import ccall "remove_read_port"
     c_remove_read_port :: Ptr CClient -> CString -> IO CString
 
 connect_write_device :: Client -> Midi.WriteDevice -> IO Bool
-connect_write_device client dev@(Midi.WriteDevice name) = do
+connect_write_device client dev = do
     IORef.modifyIORef (client_wanted_writes client) (Set.insert dev)
-    withCString name $ \namep ->
-        check =<< c_create_write_port (client_ptr client) namep
+    Midi.with_wdev dev $ \devp ->
+        check =<< c_create_write_port (client_ptr client) devp
 
 foreign import ccall "create_write_port"
     c_create_write_port :: Ptr CClient -> CString -> IO CString
@@ -152,11 +153,12 @@ foreign import ccall "create_write_port"
 -- * write
 
 write_message :: Client -> Midi.WriteMessage -> IO Bool
-write_message client (Midi.WriteMessage (Midi.WriteDevice dev) time msg) = do
-    withCString dev $ \devp -> ByteString.useAsCStringLen (Parse.encode msg) $
-        \(bytesp, len) -> check =<< c_write_message (client_ptr client) devp
-            (fromIntegral (RealTime.to_microseconds time))
-            bytesp (fromIntegral len)
+write_message client (Midi.WriteMessage dev time msg) =
+    Midi.with_wdev dev $ \devp ->
+    ByteString.useAsCStringLen (Parse.encode msg) $ \(bytesp, len) ->
+    check =<< c_write_message (client_ptr client) devp
+        (fromIntegral (RealTime.to_microseconds time))
+        bytesp (fromIntegral len)
 
 foreign import ccall "write_message"
     c_write_message :: Ptr CClient -> CString -> CJackTime -> Ptr CChar

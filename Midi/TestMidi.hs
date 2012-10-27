@@ -9,6 +9,7 @@ import qualified Data.ByteString as ByteString
 import qualified Data.Time as Time
 import qualified System.Environment
 
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -36,50 +37,50 @@ test :: Either String Interface.Interface -> IO ()
 test (Left err) = error $ "initializing midi: " ++ err
 test (Right interface) = do
     rdevs <- Interface.read_devices interface
-    putStrLn $ "read devs: " ++ Seq.join ", " (map Midi.un_read_device rdevs)
+    putStrLn $ "read devs: " ++ Pretty.pretty rdevs
     wdevs <- Interface.write_devices interface
-    putStrLn $ "write devs: " ++ Seq.join ", " (map Midi.un_write_device wdevs)
+    putStrLn $ "write devs: " ++ Pretty.pretty wdevs
 
     let open = open_devs interface
     args <- System.Environment.getArgs
     case args of
-        ["help"] -> putStrLn usage
         [] -> do
             putStrLn "monitoring (pass arg 'help' for help)"
             (_, read_msg) <- open True rdevs Nothing
             monitor read_msg
-        ("monitor" : mdevs@(_:_)) -> do
-            putStrLn $ "monitoring: " ++ Seq.join ", " mdevs
-            (_, read_msg) <- open True (map Midi.ReadDevice mdevs) Nothing
-            monitor read_msg
-        ["thru", out_dev] -> do
-            putStrLn "playing thru"
-            (write_msg, read_msg) <- open True
-                rdevs (Just (Midi.WriteDevice out_dev))
-            thru_loop write_msg read_msg
+        ["help"] -> putStrLn usage
         ["melody", out_dev] -> do
             putStrLn "playing melody"
-            (write_msg, _) <- open True [] (Just (Midi.WriteDevice out_dev))
+            (write_msg, _) <- open True [] (Just (Midi.write_device out_dev))
             melody interface write_msg
             putStrLn "return to quit... "
             void getLine
         ["melody-thru", out_dev] -> do
             putStrLn "playing melody + thru"
             (write_msg, read_msg) <- open True
-                rdevs (Just (Midi.WriteDevice out_dev))
+                rdevs (Just (Midi.write_device out_dev))
             thru_melody interface write_msg read_msg
+        ("monitor" : mdevs@(_:_)) -> do
+            putStrLn $ "monitoring: " ++ Seq.join ", " mdevs
+            (_, read_msg) <- open True (map Midi.read_device mdevs) Nothing
+            monitor read_msg
         ["spam", out_dev, n_str] -> do
             putStrLn $ "spamming " ++ n_str ++ " msgs"
             (write_msg, _) <- open True
-                rdevs (Just (Midi.WriteDevice out_dev))
+                rdevs (Just (Midi.write_device out_dev))
             n <- readIO n_str
             spam interface write_msg n
             getChar
             return ()
         ["test", loopback] -> do
             (write_msg, read_msg) <- open False
-                [Midi.ReadDevice loopback] (Just (Midi.WriteDevice loopback))
+                [Midi.read_device loopback] (Just (Midi.write_device loopback))
             run_tests interface write_msg read_msg
+        ["thru", out_dev] -> do
+            putStrLn "playing thru"
+            (write_msg, read_msg) <- open True
+                rdevs (Just (Midi.write_device out_dev))
+            thru_loop write_msg read_msg
         _ -> do
             putStrLn "unknown command"
             putStrLn usage

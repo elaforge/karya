@@ -8,8 +8,10 @@ module Midi.Midi (
     , ReadDevice, WriteDevice, read_device, write_device
     , read_device_string, write_device_string
     , read_device_bs, write_device_bs
+    , peek_wdev, peek_rdev, with_wdev, with_rdev
     , add_timestamp, modify_timestamp
-    -- TODO due ghc bug: http://hackage.haskell.org/trac/ghc/ticket/5252
+    -- TODO I don't want to export the constructors, but must due a ghc bug:
+    -- http://hackage.haskell.org/trac/ghc/ticket/5252
     , ReadDevice(ReadDevice), WriteDevice(WriteDevice)
 
     -- * constructors
@@ -47,6 +49,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Data.Word (Word8)
 
+import qualified Foreign.C
 import qualified Text.Printf as Printf
 
 import qualified Util.Pretty as Pretty
@@ -112,6 +115,18 @@ read_device_bs (ReadDevice bs) = bs
 
 write_device_bs :: WriteDevice -> ByteString.ByteString
 write_device_bs (WriteDevice bs) = bs
+
+peek_wdev :: Foreign.C.CString -> IO WriteDevice
+peek_wdev = fmap WriteDevice . ByteString.packCString
+
+peek_rdev :: Foreign.C.CString -> IO ReadDevice
+peek_rdev = fmap ReadDevice . ByteString.packCString
+
+with_wdev :: WriteDevice -> (Foreign.C.CString -> IO a) -> IO a
+with_wdev (WriteDevice dev) = ByteString.useAsCString dev
+
+with_rdev :: ReadDevice -> (Foreign.C.CString -> IO a) -> IO a
+with_rdev (ReadDevice dev) = ByteString.useAsCString dev
 
 instance Pretty.Pretty ReadDevice where pretty = read_device_string
 instance Pretty.Pretty WriteDevice where pretty = write_device_string
