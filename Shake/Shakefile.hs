@@ -651,24 +651,6 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     let his = map (objToHi . srcToObj config) imports
     logDeps config "hs" obj (hs:his)
     Util.cmdline $ compileHs config hs
-    -- FFI-using files with a "wrapper" callback generate a _stub.c file
-    -- and compile it.  Merge it with the module's .o so I don't have to
-    -- worry about linking it later.  This also makes ghci able to load the
-    -- file.
-    --
-    -- A bug in ghc 7.0.3 causes the compiled stub .o files to have a
-    -- strange name when -o is used:
-    -- .../BlockC.hs.o -> .../BlockC.hs_stub.o
-    -- should be .../BlockC_stub.o
-    let stub = FilePath.dropExtension (srcToObj config hs) ++ "_stub.o"
-    Util.whenM (Trans.liftIO $ Directory.doesFileExist stub) $ do
-        Trans.liftIO $ Directory.renameFile obj (obj ++ "2")
-        system "ld" ["-r", "-o", obj, obj ++ "2", stub]
-        -- Get rid of the stub.o.  Otherwise if this rule fires again but
-        -- ghc decides not to recompile, the old .o file will be left alone.
-        -- Then the ld -r will try to merge the stub again and will fail with
-        -- a duplicate symbol error.
-        Trans.liftIO $ Directory.removeFile stub
 
 compileHs :: Config -> FilePath -> Util.Cmdline
 compileHs config hs = ("GHC", hs,
