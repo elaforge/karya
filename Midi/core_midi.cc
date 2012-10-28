@@ -307,7 +307,8 @@ core_midi_write_message(DeviceId dev, Timestamp timestamp, int len,
         } else {
             MIDITimeStamp ts =
                 AudioConvertNanosToHostTime(timestamp) * NANO_FACTOR;
-            MIDIPacketListAdd(&packets, sizeof packets, packet, ts, len, bytes);
+            MIDIPacketListAdd(
+                &packets, sizeof packets, packet, ts, len, bytes);
             err = MIDISend(g_out_port, dest, &packets);
         }
     }

@@ -33,6 +33,8 @@ data State = State {
     , state_bank :: Int
     , state_patch_num :: Midi.Program
     }
+
+empty_state :: State
 empty_state = State "" 0 0
 
 -- | name, category, bank, patch_num
@@ -80,7 +82,10 @@ make_patch pb_range (PatchLine name cat bank patch_num) =
     inst = Instrument.instrument name [] pb_range
     tags = [Instrument.tag "category" cat]
 
+p_patch_lines :: Parser [PatchLine]
 p_patch_lines = fmap Maybe.catMaybes $ Parsec.many p_line
+
+p_line :: Parser (Maybe PatchLine)
 p_line = Parsec.try p_bank_decl <|> p_rest_of_line <|> fmap Just p_patch_line
 
 p_patch_line :: Parser PatchLine

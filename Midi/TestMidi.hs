@@ -8,6 +8,7 @@ import Control.Monad
 import qualified Data.ByteString as ByteString
 import qualified Data.Time as Time
 import qualified System.Environment
+import qualified System.IO as IO
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -28,7 +29,10 @@ import qualified Perform.RealTime as RealTime
 
 
 main :: IO ()
-main = MidiDriver.initialize "test_midi" (const True) test
+main = MidiDriver.initialize "test_midi" want_message test
+    where
+    want_message (Midi.RealtimeMessage Midi.ActiveSense) = False
+    want_message _ = True
 
 type ReadMsg = IO (Maybe Midi.ReadMessage)
 type WriteMsg = (RealTime.RealTime, Midi.Message) -> IO ()
@@ -75,6 +79,9 @@ test (Right interface) = do
             spam interface write_msg n
             getChar
             return ()
+        ["program", out_dev] ->
+            uncurry program_change
+                =<< open False [] (Just (Midi.write_device out_dev))
         ["test", loopback] -> do
             (write_msg, read_msg) <- open False
                 [Midi.read_device loopback] (Just (Midi.write_device loopback))
@@ -125,6 +132,17 @@ usage = unlines
     , "test         run some semi-automatic tests"
     ]
 
+
+-- * program change
+
+program_change :: WriteMsg -> ReadMsg -> IO ()
+program_change write_message read_message = forever $ do
+    putStr "> "
+    IO.hFlush IO.stdout
+    line <- getLine
+    let msg = Midi.ChannelMessage 0 $ Midi.ProgramChange (read line)
+    print msg
+    write_message (0, msg)
 
 -- * monitor
 
