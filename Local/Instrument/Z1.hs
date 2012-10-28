@@ -9,6 +9,7 @@ import System.FilePath ((</>))
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Parse as Parse
 import qualified App.MidiInst as MidiInst
@@ -71,23 +72,30 @@ current_program_dump = do
 korg_patch :: [Word8] -> Instrument.Patch
 korg_patch bytes = make_patch (name, category, (pb_up, pb_down), osc1, osc2)
     where
-    -- These come from the sysex spec PROG_PRM.TXT from korg.
+    -- These come from the sysex spec MIDIImp_z1 PROG_PRM.TXT from korg.
     common_off = 25 + 19*4 + 11*4
     osc1_off = common_off + 9
     osc2_off = osc1_off + 52
-    [cat, u_pb_up, u_pb_down, osc1_type, osc2_type] =
-        map (fromIntegral . (bytes!!))
-        [16, common_off, common_off+1, osc1_off, osc2_off]
-    pb_up = to_signed u_pb_up
+    -- The doc says [Intensity(+), Intensity(-)] but that seems to
+    -- mean [down, up].
+    [cat, u_pb_down, u_pb_up, osc1_type, osc2_type] =
+        map (bytes!!) [16, common_off, common_off+1, osc1_off, osc2_off]
     pb_down = to_signed u_pb_down
+    pb_up = to_signed u_pb_up
     name = Seq.strip $ Parse.to_string (take 16 bytes)
     category = Seq.at categories cat
     osc1 = Seq.at osc_types osc1_type
     osc2 = Seq.at osc_types osc2_type
 
--- TODO convert to 2s complement signed
-to_signed = fromIntegral
+-- | Convert an 8 bit 2s complement word to a signed integer.
+to_signed :: Word8 -> Integer
+to_signed b
+    | Bits.testBit b 7 = negate $ fromIntegral $ Bits.complement b + 1
+    | otherwise = fromIntegral b
 
+make_patch ::
+    (String, Maybe String, Control.PbRange, Maybe String, Maybe String)
+    -> Instrument.Patch
 make_patch (name, cat, pb_range, osc1, osc2) =
     -- Initialization will be filled in later.
     (Instrument.patch inst) { Instrument.patch_tags = tags }
