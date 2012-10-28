@@ -1,24 +1,47 @@
-module Midi.Parse where
-import qualified Data.ByteString as B
-import Data.Word (Word8)
+module Midi.Parse (decode, encode) where
 import Data.Bits
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Unsafe as Unsafe
+import Data.Word (Word8)
 
 import Midi.Midi
 
 
 decode :: B.ByteString -> Message
-decode bytes
-    | B.length bytes < 3 = UnknownMessage 0 0 0
+decode bytes = case B.length bytes of
+        0 -> UnknownMessage 0 0 0
+        1 -> decode1 b0
+        2 -> UnknownMessage b0 0 0
+        _ -> decode3 bytes
+    where
+    b0 = Unsafe.unsafeIndex bytes 0
+
+decode1 :: Word8 -> Message
+decode1 status
+    | st == 0xf = case code of
+        0x6 -> CommonMessage TuneRequest
+        0x7 -> CommonMessage EOX -- this shouldn't happen by itself
+        0x8 -> RealtimeMessage TimingClock
+        0xa -> RealtimeMessage Start
+        0xb -> RealtimeMessage Continue
+        0xc -> RealtimeMessage Stop
+        0xe -> RealtimeMessage ActiveSense
+        0xf -> RealtimeMessage Reset
+        _ -> RealtimeMessage $ UndefinedRealtime code
+    | otherwise = UnknownMessage status 0 0
+    where (st, code) = split4 status
+
+decode3 :: B.ByteString -> Message
+decode3 bytes
     | st == 0xf && chan < 0x8 = CommonMessage common_msg
-    | st == 0xf = RealtimeMessage realtime_msg
     | st == 0xb && d1 >= 0x78 = ChannelMessage chan channel_mode_msg
     | st >= 0x8 = ChannelMessage chan channel_msg
     | otherwise = UnknownMessage status d1 d2
     where
     (st, chan) = split4 status
-    status = B.index bytes 0
-    d1 = B.index bytes 1
-    d2 = B.index bytes 2
+    status = Unsafe.unsafeIndex bytes 0
+    d1 = Unsafe.unsafeIndex bytes 1
+    d2 = Unsafe.unsafeIndex bytes 2
     channel_msg = case st of
         0x8 -> NoteOff (Key d1) d2
             -- Hide this bit of midi irregularity from clients.
@@ -41,17 +64,7 @@ decode bytes
         0x0 -> SystemExclusive d1 (B.drop 2 bytes)
         0x2 -> SongPositionPointer (join14 d1 d2)
         0x3 -> SongSelect d1
-        0x6 -> TuneRequest
-        0x7 -> EOX -- this shouldn't happen by itself
         _ -> UndefinedCommon chan
-    realtime_msg = case chan of
-        0x8 -> TimingClock
-        0xa -> Start
-        0xb -> Continue
-        0xc -> Stop
-        0xe -> ActiveSense
-        0xf -> Reset
-        _ -> UndefinedRealtime chan
 
 encode :: Message -> B.ByteString
 encode (ChannelMessage chan msg) = B.pack [join4 st chan, d1, d2]
@@ -109,6 +122,7 @@ encode_pb v = split14 (floor (v*m + 0x2000))
 -- | Split a Word8 into (msb, lsb) nibbles, and join back.
 split4 :: Word8 -> (Word8, Word8)
 split4 word = (shiftR word 4 .&. 0xf, word .&. 0xf)
+
 -- | Join msb and lsb into a Word8.
 join4 :: Word8 -> Word8 -> Word8
 join4 d1 d2 = (shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)
