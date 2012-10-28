@@ -318,6 +318,31 @@ get_midi_ports(Client *client, unsigned long flags)
     return jack_get_ports(client->client, NULL, JACK_DEFAULT_MIDI_TYPE, flags);
 }
 
+const char *
+get_port_aliases(Client *client, const char *name, char **alias1, char **alias2)
+{
+    static char *aliases[2];
+    if (aliases[0] == NULL) {
+        aliases[0] = (char *) malloc(jack_port_name_size());
+        aliases[1] = (char *) malloc(jack_port_name_size());
+    }
+
+    jack_port_t *port = jack_port_by_name(client->client, name);
+
+    *alias1 = NULL;
+    *alias2 = NULL;
+    if (!port) {
+        return "port not found";
+    }
+
+    int n = jack_port_get_aliases(port, aliases);
+    if (n >= 1)
+        *alias1 = aliases[0];
+    if (n >= 2)
+        *alias2 = aliases[1];
+    return NULL;
+}
+
 // read / write
 
 const char *

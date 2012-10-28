@@ -15,9 +15,10 @@ data Interface = Interface {
     -- | ReadMessages from the opened ReadDevices become available on this
     -- channel.
     , read_channel :: ReadChan
-    -- | Get currently connected read and write devices.
-    , read_devices :: IO [Midi.ReadDevice]
-    , write_devices :: IO [Midi.WriteDevice]
+    -- | Get currently connected read and write devices, along with a list
+    -- of aliases for each one.
+    , read_devices :: IO [(Midi.ReadDevice, [Midi.ReadDevice])]
+    , write_devices :: IO [(Midi.WriteDevice, [Midi.WriteDevice])]
 
     -- | Start receiving messages on 'read_channel' from the given device.
     -- If it doesn't exist, return False.  But it's ok to connect to

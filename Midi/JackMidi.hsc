@@ -1,11 +1,11 @@
 module Midi.JackMidi where
-import Control.Applicative ((<$>))
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import Control.Monad
 
+import Util.Control
 import qualified Data.ByteString as ByteString
 import qualified Data.Set as Set
 import qualified Data.IORef as IORef
@@ -55,11 +55,11 @@ interface app_name client chan = Interface.Interface
     , Interface.read_channel = chan
     , Interface.read_devices =
         -- Ignore my own write ports.
-        map Midi.read_device . filter (not . is_local) <$>
+        map (convert Midi.read_device) . filter (not . is_local . fst) <$>
             get_ports client jackportisoutput
     , Interface.write_devices =
         -- If I don't filter local ports, I wind up seeing my own read ports.
-        map Midi.write_device . filter (not . is_local) <$>
+        map (convert Midi.write_device) . filter (not . is_local . fst) <$>
             get_ports client jackportisinput
     , Interface.connect_read_device = connect_read_device client
     , Interface.disconnect_read_device = disconnect_read_device client
@@ -68,7 +68,9 @@ interface app_name client chan = Interface.Interface
     , Interface.abort = abort client
     , Interface.now = now client
     }
-    where is_local = ((app_name ++ ":") `List.isPrefixOf`)
+    where
+    is_local = ((app_name ++ ":") `List.isPrefixOf`)
+    convert f (port, aliases) = (f port, map f aliases)
 
 close_client :: Client -> IO ()
 close_client client = void . c_jack_client_close =<< jack_client client
@@ -200,20 +202,38 @@ jack_client = (#peek Client, client) . client_ptr
 decode_time :: CJackTime -> RealTime
 decode_time = RealTime.microseconds . fromIntegral
 
-get_ports :: Client -> CULong -> IO [String]
+-- | Get all the ports, and the aliases of each port.
+get_ports :: Client -> CULong -> IO [(String, [String])]
 get_ports client flags = do
     array <- c_get_midi_ports (client_ptr client) flags
     namesp <- if array == nullPtr then return [] else peekArray0 nullPtr array
     names <- mapM peekCString namesp
     -- I'm not supposed to free the port names.
     free array
-    return names
+    aliases <- mapM (get_port_aliases client) names
+    return $ zip names aliases
 
 foreign import ccall "get_midi_ports"
     c_get_midi_ports :: Ptr CClient -> CULong -> IO (Ptr CString)
 
 #enum CULong, id, JackPortIsInput, JackPortIsOutput, JackPortIsPhysical, \
     JackPortCanMonitor, JackPortIsTerminal
+
+get_port_aliases :: Client -> String -> IO [String]
+get_port_aliases client name = do
+    alloca $ \alias1p -> alloca $ \alias2p -> withCString name $ \namep -> do
+        check ("get_port_aliases " ++ show name)
+            =<< c_get_port_aliases (client_ptr client) namep alias1p alias2p
+        (++) <$> maybe_peek alias1p <*> maybe_peek alias2p
+    where
+    maybe_peek pp = do
+        p <- peek pp
+        if p == nullPtr then return []
+            else (:[]) <$> peekCString p
+
+foreign import ccall "get_port_aliases"
+    c_get_port_aliases :: Ptr CClient -> CString -> Ptr CString -> Ptr CString
+        -> IO CString
 
 -- | Log any error and return False if there was one.
 check :: String -> CString -> IO Bool

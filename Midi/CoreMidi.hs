@@ -65,8 +65,10 @@ initialize app_name app = do
     mkinterface client chan = Interface.Interface
         { Interface.name = "CoreMIDI"
         , Interface.read_channel = chan
-        , Interface.read_devices = map Midi.read_device <$> get_devices True
-        , Interface.write_devices = map Midi.write_device <$> get_devices False
+        , Interface.read_devices =
+            map ((\d -> (d, [])) . Midi.read_device) <$> get_devices True
+        , Interface.write_devices =
+            map ((\d -> (d, [])) . Midi.write_device) <$> get_devices False
         , Interface.connect_read_device = connect_read_device client
         , Interface.disconnect_read_device = disconnect_read_device client
         , Interface.connect_write_device = connect_write_device client

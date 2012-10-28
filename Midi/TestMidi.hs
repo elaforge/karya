@@ -37,9 +37,12 @@ test :: Either String Interface.Interface -> IO ()
 test (Left err) = error $ "initializing midi: " ++ err
 test (Right interface) = do
     rdevs <- Interface.read_devices interface
-    putStrLn $ "read devs: " ++ Pretty.pretty rdevs
+    putStrLn $ "read devs:"
+    mapM_ (putStrLn . ("    " ++) . Pretty.pretty) rdevs
     wdevs <- Interface.write_devices interface
-    putStrLn $ "write devs: " ++ Pretty.pretty wdevs
+    putStrLn $ "write devs:"
+    mapM_ (putStrLn . ("    " ++) . Pretty.pretty) wdevs
+    rdevs <- return $ map fst rdevs
 
     let open = open_devs interface
     args <- System.Environment.getArgs

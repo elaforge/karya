@@ -177,10 +177,12 @@ device_of inst = do
 
 -- * midi interface
 
-read_devices :: Cmd.CmdL [Midi.ReadDevice]
+-- | Every read device on the system, along with any aliases it may have.
+read_devices :: Cmd.CmdL [(Midi.ReadDevice, [Midi.ReadDevice])]
 read_devices = run_interface Interface.read_devices
 
-write_devices :: Cmd.CmdL [Midi.WriteDevice]
+-- | Every write device on the system, along with any aliases it may have.
+write_devices :: Cmd.CmdL [(Midi.WriteDevice, [Midi.WriteDevice])]
 write_devices = run_interface Interface.write_devices
 
 connect_read_device :: Midi.ReadDevice -> Cmd.CmdL Bool

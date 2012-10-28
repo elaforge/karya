@@ -90,7 +90,7 @@ main = initialize $ \lang_socket midi_interface -> do
     rdevs <- Interface.read_devices midi_interface
     mapM_ (Interface.connect_read_device midi_interface) (Set.toList open_read)
     wdevs <- Interface.write_devices midi_interface
-    forM_ wdevs (Interface.connect_write_device midi_interface)
+    forM_ (map fst wdevs) (Interface.connect_write_device midi_interface)
     print_devs open_read rdevs wdevs
 
     setup_cmd <- StaticConfig.setup_cmd static_config <$>
@@ -138,7 +138,7 @@ main = initialize $ \lang_socket midi_interface -> do
             Log.error $ "ui died from exception: " ++ show exc
 
     Interface.abort midi_interface
-    all_notes_off (Interface.write_message midi_interface) wdevs
+    all_notes_off (Interface.write_message midi_interface) (map fst wdevs)
     Log.notice "app quitting"
 
 -- | Do one-time startup tasks.
@@ -184,13 +184,17 @@ remap_read_message :: Map.Map Midi.ReadDevice Midi.ReadDevice
 remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
     rmsg { Midi.rmsg_dev = Map.get dev dev dev_map }
 
-print_devs :: Set.Set Midi.ReadDevice -> [Midi.ReadDevice]
-    -> [Midi.WriteDevice] -> IO ()
+print_devs :: Set.Set Midi.ReadDevice -> [(Midi.ReadDevice, [Midi.ReadDevice])]
+    -> [(Midi.WriteDevice, [Midi.WriteDevice])] -> IO ()
 print_devs opened_rdevs rdevs wdevs = do
     putStrLn "read devs:"
-    forM_ rdevs $ \rdev ->
-        let prefix = if rdev `Set.member` opened_rdevs then "* " else "  "
-        in putStrLn $ prefix ++ show rdev
+    forM_ rdevs $ \(rdev, aliases) ->
+        let prefix = if opened rdev aliases then "* " else "  "
+        in putStrLn $ prefix ++ Pretty.pretty rdev ++ " "
+            ++ Pretty.pretty aliases
     putStrLn "write devs:"
-    forM_ wdevs $ \wdev ->
-        putStrLn $ "* " ++ show wdev
+    forM_ wdevs $ \(wdev, aliases) ->
+        putStrLn $ "* " ++ Pretty.pretty wdev ++ " " ++ Pretty.pretty aliases
+    where
+    opened rdev aliases = rdev `Set.member` opened_rdevs
+        || any (`Set.member` opened_rdevs) aliases
