@@ -236,8 +236,12 @@ lc = map Char.toLower
 -- hard to type.  This affects the key under which the instrument is stored
 -- and therefore lookup, but the inst_name field remains unchanged.
 clean_inst_name :: String -> String
-clean_inst_name = Seq.replace " " "_" . unwords . words
-    . filter (`elem` valid_chars) . lc
+clean_inst_name =
+    map replace . unwords . words . filter (`elem` valid_chars) . lc
+    where
+    replace ' ' = '-'
+    replace '_' = '-'
+    replace c = c
 
 valid_chars :: [Char]
 valid_chars = ['0'..'9'] ++ ['a'..'z'] ++ " _-"
