@@ -10,7 +10,7 @@ midi_config db = StaticConfig.Midi
     , StaticConfig.wdev_map = StaticConfig.make_wdev_map $
         -- Give all the softsynths a default mapping so they're easy to play
         -- with.
-        wdev_map ++ [(dev, iac 1) | dev <- Db.synths db]
+        [(dev, iac 1) | dev <- Db.synths db] ++ wdev_map
     , StaticConfig.read_devices = StaticConfig.make_read_devices read_devices
     }
 
@@ -24,9 +24,8 @@ wdev_map =
     ++ [ ("fm8", "Native Instruments FM8 Virtual Input")
     , ("z1", tapco 1)
     , ("vl1", tapco 2)
-    , ("morpheus", tapco 2)
-    , ("pc2496", tapco 3)
-    , ("capybara", tapco 4)
+    , ("morpheus", tapco 3)
+    , ("pc2496", tapco 4)
     ]
 
 rdev_map :: [(String, String)]
