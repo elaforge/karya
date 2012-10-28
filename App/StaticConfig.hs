@@ -29,14 +29,27 @@ data StaticConfig = StaticConfig {
     -- Remember that no block is focused when this is run, so cmds that need
     -- a focused block will abort.
     , setup_cmd :: [String] -> Cmd.CmdIO
+    , midi :: Midi
+    }
 
+empty :: StaticConfig
+empty = StaticConfig {
+    instrument_db = Instrument.Db.empty
+    , local_lang_dirs = []
+    , global_cmds = []
+    , global_scope = Derive.empty_scope
+    , setup_cmd = const (return Cmd.Done)
+    , midi = empty_midi
+    }
+
+data Midi = Midi {
     -- | Reroute the hardware level read and write devices.  This way,
     -- instruments and saved scores can use symbolic names which are then
     -- mapped to the devices exported by the MIDI driver.
     --
     -- Because input devices are likely to be relatively static, the
     -- read device map is only configured here.
-    , rdev_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
+    rdev_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
     -- | WriteDevices may vary per score, e.g. softsynths may listen at any
     -- number of virtual devices.  This map is taken as a default, but may
     -- be overridden by the score loaded.
@@ -50,16 +63,18 @@ data StaticConfig = StaticConfig {
     -- There's no corresponding write_devices because if you don't want
     -- to write to a device, just don't write to it!
     , read_devices :: Set.Set Midi.ReadDevice
-    }
+    } deriving (Show)
 
-empty :: StaticConfig
-empty = StaticConfig {
-    instrument_db = Instrument.Db.empty
-    , local_lang_dirs = []
-    , global_cmds = []
-    , global_scope = Derive.empty_scope
-    , setup_cmd = const (return Cmd.Done)
-    , rdev_map = Map.empty
-    , wdev_map = Map.empty
-    , read_devices = Set.empty
-    }
+empty_midi :: Midi
+empty_midi = Midi Map.empty Map.empty Set.empty
+
+make_rdev_map :: [(String, String)] -> Map.Map Midi.ReadDevice Midi.ReadDevice
+make_rdev_map =
+    Map.fromList . map (\(k, v) -> (Midi.read_device k, Midi.read_device v))
+
+make_wdev_map :: [(String, String)] -> Map.Map Midi.WriteDevice Midi.WriteDevice
+make_wdev_map =
+    Map.fromList . map (\(k, v) -> (Midi.write_device k, Midi.write_device v))
+
+make_read_devices :: [String] -> Set.Set Midi.ReadDevice
+make_read_devices = Set.fromList . map Midi.read_device

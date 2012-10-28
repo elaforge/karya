@@ -1,6 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Cmd.SaveGit (module Cmd.SaveGit, Git.Commit, Git.Repo) where
-import Prelude hiding (catch)
 import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
 import qualified Data.Char as Char

@@ -9,7 +9,7 @@ module Util.Control (
     , concatMapM, mapMaybeM
     , mapMaybe, fromMaybe
 
-    , justm
+    , justm, errorIO
     , fmap0
 
     -- * lens
@@ -23,11 +23,15 @@ module Util.Control (
     , module Data.List.NonEmpty
 ) where
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
+import qualified Control.Exception as Exception
 import Control.Monad
-import qualified Data.Monoid as Monoid
+import qualified Control.Monad.Trans as Trans
+
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.Monoid (mempty, mconcat)
 import Data.Maybe (mapMaybe, fromMaybe)
+import qualified Data.Monoid as Monoid
+import Data.Monoid (mempty, mconcat)
+
 import Util.Functor0 (fmap0)
 import Util.Lens
 
@@ -111,3 +115,6 @@ mapMaybeM f as = go as
 -- explicit lifting.
 justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
 justm op1 op2 = maybe (return Nothing) op2 =<< op1
+
+errorIO :: (Trans.MonadIO m) => String -> m a
+errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall

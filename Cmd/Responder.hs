@@ -100,10 +100,11 @@ responder config msg_reader midi_interface setup_cmd lang_session
     Log.debug "start responder"
 
     let cmd_state = Cmd.initial_state
-            (StaticConfig.rdev_map config) (StaticConfig.wdev_map config)
+            (StaticConfig.rdev_map midi) (StaticConfig.wdev_map midi)
             midi_interface
             (StaticConfig.instrument_db config)
             (StaticConfig.global_scope config)
+        midi = StaticConfig.midi config
     ui_state <- State.create
     updater_state <- MVar.newMVar ui_state
     state <- run_setup_cmd setup_cmd $ State
