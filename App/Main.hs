@@ -64,12 +64,15 @@ initialize app = do
     log_hdl <- IO.openFile "seq.log" IO.AppendMode
     Log.configure $ const $
         Log.State (Just log_hdl) Log.Debug Log.serialize_msg
-    MidiDriver.initialize "seq" $ \interface -> case interface of
+    MidiDriver.initialize "seq" want_message $ \interface -> case interface of
         Left err -> error $ "initializing midi: " ++ err
         Right midi_interface -> Network.withSocketsDo $ do
             Config.initialize_lang_port
             socket <- Network.listenOn Config.lang_port
             app socket midi_interface
+    where
+    want_message (Midi.RealtimeMessage Midi.ActiveSense) = False
+    want_message _ = True
 
 main :: IO ()
 main = initialize $ \lang_socket midi_interface -> do

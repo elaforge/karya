@@ -28,7 +28,7 @@ import qualified Perform.RealTime as RealTime
 
 
 main :: IO ()
-main = MidiDriver.initialize "test_midi" test
+main = MidiDriver.initialize "test_midi" (const True) test
 
 type ReadMsg = IO (Maybe Midi.ReadMessage)
 type WriteMsg = (RealTime.RealTime, Midi.Message) -> IO ()

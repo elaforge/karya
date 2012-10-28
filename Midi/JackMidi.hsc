@@ -27,8 +27,10 @@ import Types
 
 -- * initialize
 
-initialize :: String -> (Either String Interface.Interface -> IO a) -> IO a
-initialize app_name app = do
+initialize :: String -- ^ register this name with JACK
+    -> (Midi.Message -> Bool) -- ^ read msgs that return false are filtered
+    -> (Either String Interface.Interface -> IO a) -> IO a
+initialize app_name want_message app = do
     chan <- TChan.newTChanIO
     reads <- IORef.newIORef Set.empty
     writes <- IORef.newIORef Set.empty
@@ -42,8 +44,9 @@ initialize app_name app = do
         Left err -> app (Left err)
         Right client -> do
             Thread.start $ forever $ do
-                event <- read_event client
-                STM.atomically $ TChan.writeTChan chan event
+                msg <- read_event client
+                when (want_message (Midi.rmsg_msg msg)) $
+                    STM.atomically $ TChan.writeTChan chan msg
             app (Right (interface app_name client chan))
                 `Exception.finally` do
                     freeHaskellFunPtr notify

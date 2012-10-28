@@ -104,8 +104,8 @@ encode (CommonMessage msg) = case msg of
     EOX -> B.pack [0xf7] -- this should have been in SystemExclusive
     _ -> error $ "unknown CommonMessage " ++ show msg
 
-encode (UnknownMessage st d1 d2)
-    = error $ "UnknownMessage: " ++ show (st, d1, d2)
+encode (UnknownMessage st d1 d2) =
+    error $ "UnknownMessage: " ++ show (st, d1, d2)
 
 -- | I map a 2s complement range to inclusive -1--1, so this is a little
 -- tricky.

@@ -30,8 +30,10 @@ import Perform.RealTime (RealTime)
 
 -- * initialize
 
-initialize :: String -> (Either String Interface.Interface -> IO a) -> IO a
-initialize app_name app = do
+initialize :: String -- ^ register this name with CoreMIDI
+    -> (Midi.Message -> Bool) -- ^ read msgs that return false are filtered
+    -> (Either String Interface.Interface -> IO a) -> IO a
+initialize app_name want_message app = do
     chan <- STM.newTChanIO
     client <- make_client
     with_read_cb chan $ \read_cb -> with_notify_cb client $ \notify_cb ->
@@ -59,7 +61,8 @@ initialize app_name app = do
                         `Exception.finally` terminate
     where
     with_read_cb chan = Exception.bracket
-        (make_read_callback (chan_callback chan)) freeHaskellFunPtr
+        (make_read_callback (read_callback want_message chan))
+        freeHaskellFunPtr
     with_notify_cb client = Exception.bracket
         (make_notify_callback (notify_callback client)) freeHaskellFunPtr
     mkinterface client chan = Interface.Interface
@@ -101,15 +104,15 @@ foreign import ccall "core_midi_prime_runloop" c_prime_runloop :: IO ()
 -- be low latency which means no allocation, but haskell has plenty of
 -- allocation.  On the other hand, it hasn't been a problem in practice and
 -- a separate thread monitoring a ringbuffer would just add more latency.
-chan_callback :: Interface.ReadChan -> ReadCallback
-chan_callback chan sourcep ctimestamp len bytesp = do
+read_callback :: (Midi.Message -> Bool) -> Interface.ReadChan -> ReadCallback
+read_callback want_message chan sourcep ctimestamp len bytesp = do
     -- Oddly enough, even though ByteString is Word8, the ptr packing function
     -- wants CChar.
     bytes <- ByteString.packCStringLen (castPtr bytesp, fromIntegral len)
     rdev <- deRefStablePtr sourcep
-    let rmsg = Midi.ReadMessage
-            rdev (decode_time ctimestamp) (Parse.decode bytes)
-    STM.atomically $ STM.writeTChan chan rmsg
+    let msg = Parse.decode bytes
+    when (want_message msg) $ STM.atomically $ STM.writeTChan chan $
+        Midi.ReadMessage rdev (decode_time ctimestamp) msg
 
 notify_callback :: Client -> NotifyCallback
 notify_callback client namep _dev_id c_is_added c_is_read = do
