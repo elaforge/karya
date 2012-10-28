@@ -23,25 +23,36 @@ type Search = Query -> [Score.Instrument]
 -- | A simple tag-oriented query language.  Instruments match whose tags match
 -- all of the given TagKeys exactly, and whose corresponding vals have the
 -- queried val as a substring.  All the pairs must match, but pairs that
--- match nothing won't cause the match to fail.
+-- match nothing won't cause the match to fail.  A tag beginning with @!@ will
+-- subtract its matches from the result.
 --
 -- For example, a single word @tag1@ will match all instruments that have the
--- given tag.  @tag1=x@ requires that tag1 has an \"x\" in it, and
--- @tag1=x tag2=y@ requires both tags to match.
-type Query = [(Instrument.TagKey, Instrument.TagVal)]
+-- given tag.  @tag1=x@ requires that tag1 has an \"x\" in it.
+--
+-- @tag1=x tag2=y !bad !not=want@ requires both tags to match, the
+-- @bad@ tag to not be present, and the @not@ tag to not contain \"want\".
+newtype Query = Query [Clause]
+    deriving (Show)
+
+-- | Clause inverted? tag val
+data Clause = Clause Bool Instrument.TagKey Instrument.TagVal
+    deriving (Show)
 
 -- | Search the db.  The input Query is in the parsed db query language, and
 -- the output is the names of matching patches, along with their backend.
 --
 -- An empty query matches everything.
 search :: Index -> Search
-search idx query
-    | null query = Map.keys (idx_inverted idx)
-    | null matches = []
-    | otherwise = Set.toList (foldl1 Set.intersection matches)
+search idx (Query []) = Map.keys (idx_inverted idx)
+search idx (Query clauses)
+    | null positive = []
+    | otherwise = Set.toList $
+        foldl1 Set.intersection positive `Set.difference` negative
     where
-    matches = filter (not . Set.null) $
-        map Set.fromList (query_matches idx query)
+    positive = filter (not . Set.null) $ map Set.fromList $
+        query_matches idx [(k, v) | Clause False k v <- clauses]
+    negative = Set.fromList $ concat $
+        query_matches idx [(k, v) | Clause True k v <- clauses]
 
 tags_of :: Index -> Score.Instrument -> Maybe [Instrument.Tag]
 tags_of idx inst = Map.lookup inst (idx_inverted idx)
@@ -69,20 +80,24 @@ make_index midi_db =
     inv_idx = inverted_index midi_db
     idx = [(key, (val, inst)) | (inst, tags) <- inv_idx, (key, val) <- tags]
 
--- | The query language looks like \"a b= c=d\", which means
+-- | The query language looks like \"a b= c=d !e=f\", which means
 --
--- > [("a", ""), ("b", ""), ("c", "d")]
+-- > Query [Clause False "a" "", Clause False "b" "", Clause False "c" "d",
+-- >    Clause True "e" "f"]
 --
 -- TODO parse quotes for keys or vals with spaces
--- TODO parse '-' for negative assertions
 parse :: String -> Query
-parse = map split . words
-    where split w = let (pre, post) = break (=='=') w in (pre, drop 1 post)
+parse = Query . map clause . words
+    where
+    clause word = case break (=='=') word of
+        ('!':pre, post) -> Clause True pre (drop 1 post)
+        (pre, post) -> Clause False pre (drop 1 post)
 
 -- * implementation
 
-query_matches :: Index -> Query -> [[Score.Instrument]]
-query_matches (Index idx _) query = map with_tag query
+query_matches :: Index -> [(Instrument.TagKey, Instrument.TagVal)]
+    -> [[Score.Instrument]]
+query_matches (Index idx _) = map with_tag
     where
     with_tag (key, val) = case Map.lookup key idx of
         Nothing -> []

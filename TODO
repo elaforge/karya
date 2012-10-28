@@ -16,7 +16,7 @@ UNSORTED
     eighth
   lots of ghc panics
     * try on linux, yes seems to happen there too
-    - use valgrind on linux
+    * use valgrind on linux
     * See if it happens after a rebuild. Yes
     * See if it happens without LangGhc. Yes.
     + See if it happens in debug mode.
@@ -1109,11 +1109,13 @@ Instrument DB / browser:
     Wait, but attoparsec doesn't even keep track of the current byte.
     Should be able to use a Parsec instance for ByteString though.
   - search lang supports quotes
-  - search lang supports ! to exclude a term
+  * search lang supports ! to exclude a term
   - ability to edit tags, esp. add "favorite rating"
 
 jack: JACK:
   bugs
+    - something is still wrong, I get "no space in output port" and then
+      corrupted output
     ? jack1 doesn't work at all: other clients don't see writes, until I quit,
       and then they get continuously spammed.  Apparently the jack_port_t*
       from the registration and the lookup are different.
