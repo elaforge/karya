@@ -20,22 +20,22 @@ import qualified Instrument.Parse as Parse
 import qualified App.MidiInst as MidiInst
 
 
-db_name :: String
-db_name = "vl1"
+name :: String
+name = "vl1"
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load = MidiInst.load_db (const MidiInst.empty_code) db_name
+load = MidiInst.load_db (const MidiInst.empty_code) name
 
 -- | Read the patch file, scan the sysex dir, and save the results in a cache.
 make_db :: FilePath -> IO ()
 make_db dir = do
     vc_syxs <- parse_dir (dir </> "vl1_vc")
     syxs <- parse_dir (dir </> "vl1_syx")
-    patches <- Parse.patch_file (dir </> "vl1")
-    MidiInst.save_patches synth (vc_syxs ++ syxs ++ patches) db_name dir
+    patches <- Parse.patch_file (dir </> name)
+    MidiInst.save_patches synth (vc_syxs ++ syxs ++ patches) name dir
 
 synth :: Instrument.Synth
-synth = Instrument.synth "vl1" []
+synth = Instrument.synth name []
 
 parse_dir :: FilePath -> IO [Instrument.Patch]
 parse_dir dir = do

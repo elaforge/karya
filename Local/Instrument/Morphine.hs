@@ -5,7 +5,7 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    MidiInst.softsynth "morph" (-12, 12) controls
+    MidiInst.softsynth "morphine" (-12, 12) controls
 
 controls =
     [

@@ -14,6 +14,7 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Local.Instrument.Drumaxx as Drumaxx
 import qualified Local.Instrument.Fm8 as Fm8
 import qualified Local.Instrument.Kontakt as Kontakt
+import qualified Local.Instrument.Morpheus as Morpheus
 import qualified Local.Instrument.Morphine as Morphine
 import qualified Local.Instrument.Pianoteq as Pianoteq
 import qualified Local.Instrument.Reaktor as Reaktor
@@ -27,8 +28,8 @@ import qualified App.Config as Config
 load :: FilePath -> IO Cmd.InstrumentDb
 load app_dir = do
     synth_descs <- concatMapM ($ app_dir </> Config.instrument_dir)
-        [ Drumaxx.load, Fm8.load, Kontakt.load, Morphine.load, Pianoteq.load
-        , Reaktor.load, Tassman.load, Vl1m.load, Z1.load
+        [ Drumaxx.load, Fm8.load, Kontakt.load, Morpheus.load, Morphine.load
+        , Pianoteq.load, Reaktor.load, Tassman.load, Vl1m.load, Z1.load
         ]
     let (midi_db, warns) = MidiDb.midi_db synth_descs
     forM_ warns $ \msg -> Log.warn $ "inst db: " ++ msg
@@ -36,4 +37,4 @@ load app_dir = do
 
 make_dbs :: FilePath -> IO ()
 make_dbs dir = mapM_ ($ dir </> Config.instrument_dir)
-    [Vl1m.make_db, Z1.make_db]
+    [Morpheus.make_db, Vl1m.make_db, Z1.make_db]

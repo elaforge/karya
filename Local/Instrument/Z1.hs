@@ -15,21 +15,21 @@ import qualified Instrument.Parse as Parse
 import qualified App.MidiInst as MidiInst
 
 
-db_name :: FilePath
-db_name = "z1"
+name :: FilePath
+name = "z1"
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load = MidiInst.load_db (const MidiInst.empty_code) db_name
+load = MidiInst.load_db (const MidiInst.empty_code) name
 
 make_db :: FilePath -> IO ()
 make_db dir = do
     patches <- (++) <$>
-        Parse.patch_file (dir </> "z1")
+        Parse.patch_file (dir </> name)
         <*> Parse.parse_sysex_dir korg_sysex (dir </> "z1_sysex")
-    MidiInst.save_patches synth patches db_name dir
+    MidiInst.save_patches synth patches name dir
 
 synth :: Instrument.Synth
-synth = Instrument.synth "z1" synth_controls
+synth = Instrument.synth name synth_controls
 
 synth_controls :: [(Midi.Control, String)]
 synth_controls =

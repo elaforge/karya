@@ -32,7 +32,7 @@ wdev_map :: [(String, String)]
 wdev_map =
     [ ("z1", tapco 1)
     , ("vl1", tapco 2)
-    , ("morpheus", tapco 2)
+    , ("morph", tapco 2)
     , ("pc2496", tapco 3)
     , ("capybara", tapco 4)
     ]

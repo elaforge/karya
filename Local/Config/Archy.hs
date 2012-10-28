@@ -24,7 +24,7 @@ wdev_map =
     ++ [ ("fm8", "Native Instruments FM8 Virtual Input")
     , ("z1", tapco 1)
     , ("vl1", tapco 2)
-    , ("morpheus", tapco 3)
+    , ("morph", tapco 3)
     , ("pc2496", tapco 4)
     ]
 
