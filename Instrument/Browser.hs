@@ -1,4 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
+{- | The instrument browser is a standalone program to browse the instrument
+    database.
+
+    The query syntax is documented at 'Search.Query'.
+-}
 module Instrument.Browser where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
@@ -39,7 +44,7 @@ main = SendCmd.initialize $ do
     IO.hFlush IO.stdout
     db <- Local.Instrument.load app_dir
     putStrLn $ show (Db.size db)
-    win <- BrowserC.create 50 50 400 200
+    win <- BrowserC.create 50 50 500 300
     let index_db = Db db (Search.make_index (Db.db_midi_db db))
     Concurrent.forkIO $ handle_msgs win index_db
         `Exception.finally` putStrLn "handler thread died"
@@ -50,9 +55,6 @@ data Db = Db {
     db_db :: Cmd.InstrumentDb
     , db_index :: Search.Index
     }
-
-search :: Db -> Search.Search
-search = Search.search . db_index
 
 data State = State {
     state_displayed :: [Score.Instrument]
@@ -85,24 +87,23 @@ show_info win db inst = Fltk.send_action $ BrowserC.set_info win info
 
 info_of :: Db -> Score.Instrument -> MidiDb.Info code -> String
 info_of db score_inst (MidiDb.Info synth patch _) =
-    printf "%s -- %s\n\n" synth_name name
-        ++ info_sections
-            [ ("Instrument controls", show_control_map inst_cmap)
-            , ("Flags", Seq.join ", " flags)
-            , ("Keymap", if Map.null (Instrument.inst_keymap inst) then ""
-                else Pretty.pretty (Instrument.inst_keymap inst))
-            , ("Keyswitches", if null keyswitches then ""
-                else Pretty.pretty keyswitches)
-            , ("Synth controls", show_control_map synth_cmap)
-            , ("Pitchbend range", show (Instrument.inst_pitch_bend_range inst))
-            , ("Scale", maybe "" Pretty.pretty scale)
-            , ("Attribute map",
-                if Map.null attr_map then "" else Pretty.pretty attr_map)
-            , ("Initialization", show_initialize initialize)
-            , ("Text", text)
-            , ("File", file)
-            , ("Tags", tags)
-            ]
+    printf "%s -- %s\n\n" synth_name name ++ info_sections
+        [ ("Instrument controls", show_control_map inst_cmap)
+        , ("Flags", Seq.join ", " flags)
+        , ("Keymap", if Map.null (Instrument.inst_keymap inst) then ""
+            else Pretty.pretty (Instrument.inst_keymap inst))
+        , ("Keyswitches", if null keyswitches then ""
+            else Pretty.pretty keyswitches)
+        , ("Synth controls", show_control_map synth_cmap)
+        , ("Pitchbend range", show (Instrument.inst_pitch_bend_range inst))
+        , ("Scale", maybe "" Pretty.pretty scale)
+        , ("Attribute map",
+            if Map.null attr_map then "" else Pretty.pretty attr_map)
+        , ("Initialization", show_initialize initialize)
+        , ("Text", text)
+        , ("File", file)
+        , ("Tags", tags)
+        ]
     where
     Instrument.Synth synth_name synth_cmap = synth
     Instrument.Patch {
@@ -164,8 +165,7 @@ choose_instrument inst = do
 process_query :: BrowserC.Window -> Db -> [Score.Instrument] -> String
     -> IO [Score.Instrument]
 process_query win db displayed query = do
-    -- putStrLn $ "query: " ++ show (Search.parse query)
-    let matches = search db (Search.parse query)
+    let matches = Search.search (db_index db) (Search.parse query)
         diff = Seq.indexed_pairs (==) displayed matches
     forM_ diff $ \(i, paired) -> case paired of
         Seq.Second inst -> Fltk.send_action $
@@ -173,8 +173,4 @@ process_query win db displayed query = do
         Seq.First _inst -> Fltk.send_action $
             BrowserC.remove_line win (i+1)
         _ -> return ()
-    -- pprint (filter interesting diff)
-    return $ mapMaybe (Seq.paired_first . snd) diff
-    -- where
-    -- interesting (_, Just _, Just _) = False
-    -- interesting _ = True
+    return matches

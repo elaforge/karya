@@ -1101,16 +1101,15 @@ Perform:
       now.
 
 Instrument DB / browser:
+  - colorize the info_pane so tags are easier to read
   - switch sysex parsing stuff to use attoparsec and ByteStrings
     I don't use state, but I parse [(SrcPos, Word8)] so that I always get the
     byte position correct.  But I should be able to run a sub-parse with byte
     already set.
     Wait, but attoparsec doesn't even keep track of the current byte.
     Should be able to use a Parsec instance for ByteString though.
-  - browser search lang: can I write !sysex to search for patches without the
-    sysex tag?
   - search lang supports quotes
-  - search lang supports - to exclude a term
+  - search lang supports ! to exclude a term
   - ability to edit tags, esp. add "favorite rating"
 
 jack: JACK:

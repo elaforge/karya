@@ -1,4 +1,6 @@
 {- | A simple tag-oriented query language, and an index for fast-ish searching.
+
+    The syntax is documented by 'Query'.
 -}
 module Instrument.Search where
 import qualified Control.Arrow as Arrow
@@ -22,6 +24,10 @@ type Search = Query -> [Score.Instrument]
 -- all of the given TagKeys exactly, and whose corresponding vals have the
 -- queried val as a substring.  All the pairs must match, but pairs that
 -- match nothing won't cause the match to fail.
+--
+-- For example, a single word @tag1@ will match all instruments that have the
+-- given tag.  @tag1=x@ requires that tag1 has an \"x\" in it, and
+-- @tag1=x tag2=y@ requires both tags to match.
 type Query = [(Instrument.TagKey, Instrument.TagVal)]
 
 -- | Search the db.  The input Query is in the parsed db query language, and

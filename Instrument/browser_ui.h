@@ -2,10 +2,10 @@
 #define __BROWSER_UI_H
 
 /*
-A simple browser with a search box, a list to select from, and an info pane.
+    A simple browser with a search box, a list to select from, and an info pane.
 
        body (Tile) --\
-       /            info_pane (Text_Display)
+       /            info_pane (Fl_Text_Display)
     select_pane (Group) ____
         |                   \
     query (Input)   matches (Browser)
