@@ -3,6 +3,8 @@
 module Instrument.Parse where
 import Data.Bits as Bits
 import qualified Data.ByteString as ByteString
+import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Data.Word (Word8)
 
@@ -29,23 +31,25 @@ import qualified Instrument.Tag as Tag
 type Parser a = Parsec.GenParser Char State a
 
 data State = State {
-    state_prev :: String
-    , state_bank :: Int
+    state_bank :: Int
     , state_patch_num :: Midi.Program
     }
 
 empty_state :: State
-empty_state = State "" 0 0
+empty_state = State 0 0
 
 -- | name, category, bank, patch_num
-data PatchLine = PatchLine String String Int Midi.Program deriving (Show)
+data PatchLine = PatchLine {
+    patch_name :: String
+    , patch_bank :: Int
+    , patch_program :: Midi.Program
+    , patch_tags :: Map.Map Instrument.TagKey Instrument.TagVal
+    } deriving (Show)
 
 patch_file :: FilePath -> IO [Instrument.Patch]
-patch_file fn = do
-    parsed <- parse_patch_file fn
-    case parsed of
-        Left err -> error $ "parse patches: " ++ show err
-        Right patches -> return $ map (add_file fn) patches
+patch_file fn =
+    either (errorIO . ("parse patches: " ++) . show) return
+        =<< parse_patch_file fn
 
 -- | Parse a simple ad-hoc text file format to describe a synth's built-in
 -- patches.
@@ -64,23 +68,31 @@ patch_file fn = do
 parse_patch_file :: String -> IO (Either Parsec.ParseError [Instrument.Patch])
 parse_patch_file fn = do
     contents <- readFile fn
-    return $ Parsec.runParser p_patch_file empty_state fn contents
+    let result = Parsec.runParser p_patch_file empty_state fn contents
+    return $ map (add_file fn) <$> result
 
 p_patch_file :: Parser [Instrument.Patch]
 p_patch_file = do
-    plines <- p_patch_lines
-    return $ map (make_patch (-2, 2)) plines
+    patches <- p_patch_lines
+    return $ map (make_patch (-2, 2)) (inherit_prev_category patches)
+    where
+    inherit_prev_category = snd . List.mapAccumL inherit Nothing
+    inherit maybe_prev patch = case Map.lookup Tag.category tags of
+            Nothing -> case maybe_prev of
+                Nothing -> (Nothing, patch)
+                Just prev -> (Just prev,
+                    patch { patch_tags = Map.insert Tag.category prev tags })
+            Just cat -> (Just cat, patch)
+        where tags = patch_tags patch
 
 make_patch :: Control.PbRange -> PatchLine -> Instrument.Patch
-make_patch pb_range (PatchLine name cat bank patch_num) =
+make_patch pb_range (PatchLine name bank patch_num tags) =
     (Instrument.patch inst)
         { Instrument.patch_initialize = Instrument.InitializeMidi $
             map (Midi.ChannelMessage 0) (Midi.program_change bank patch_num)
-        , Instrument.patch_tags = tags
+        , Instrument.patch_tags = Map.toList tags
         }
-    where
-    inst = Instrument.instrument name [] pb_range
-    tags = [Instrument.tag "category" cat]
+    where inst = Instrument.instrument name [] pb_range
 
 p_patch_lines :: Parser [PatchLine]
 p_patch_lines = fmap Maybe.catMaybes $ Parsec.many p_line
@@ -88,19 +100,29 @@ p_patch_lines = fmap Maybe.catMaybes $ Parsec.many p_line
 p_line :: Parser (Maybe PatchLine)
 p_line = Parsec.try p_bank_decl <|> p_rest_of_line <|> fmap Just p_patch_line
 
+-- | name, category, tag=val
 p_patch_line :: Parser PatchLine
 p_patch_line = do
     st <- Parsec.getState
-    name <- word <?> "name"
-    cat <- opt (state_prev st) word
-    Parsec.setState $
-        st { state_prev = cat, state_patch_num = state_patch_num st + 1 }
+    name <- Parsec.many1 (Parsec.noneOf "\n,")
+    tags <- Map.fromList <$>
+        Parsec.option [] (comma >> Parsec.sepBy1 p_tag comma)
+    Parsec.setState $ st { state_patch_num = state_patch_num st + 1 }
     p_rest_of_line
-    return $ PatchLine name cat (state_bank st) (state_patch_num st)
+    return $ PatchLine name (state_bank st) (state_patch_num st) tags
     where
-    opt def p = Parsec.option def (comma >> p)
-    word = Parsec.many1 (Parsec.noneOf "\n,")
-    comma = Parsec.string ", "
+    comma = Parsec.char ',' >> spaces
+    spaces = Parsec.skipMany (Parsec.char ' ')
+
+p_tag :: Parser (Instrument.TagKey, Instrument.TagVal)
+p_tag = do
+    key <- Parsec.many1 (Parsec.alphaNum <|> Parsec.char '-')
+    val <- Parsec.option Nothing $ do
+        Parsec.char '='
+        Just <$> Parsec.many (Parsec.noneOf " \n")
+    return $ case val of
+        Nothing -> (Tag.category, key)
+        Just val -> (key, val)
 
 p_bank_decl :: Parser (Maybe PatchLine)
 p_bank_decl = do

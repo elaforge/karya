@@ -1,4 +1,6 @@
 UNSORTED
+  * program change not working for z1
+  * z1 rt msgs show up as UnknownMessage
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
   - Managed to crash by undoing while editing, I think.  I wound up with
@@ -1101,6 +1103,14 @@ Perform:
       now.
 
 Instrument DB / browser:
+  - make patch_tag into a Map
+  * add my own tags to an instrument
+    I need a separate "annotations" db
+    Or why not just edit the patch file directly?
+  - when merging a sysex inst with a bank file one, the tags from the bank
+    file should win
+  - patch files could go in the Local/Instrument dir with the source?
+    at least it should go in source control
   - colorize the info_pane so tags are easier to read
   - switch sysex parsing stuff to use attoparsec and ByteStrings
     I don't use state, but I parse [(SrcPos, Word8)] so that I always get the

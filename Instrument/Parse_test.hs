@@ -1,28 +1,51 @@
 module Instrument.Parse_test where
--- import qualified Data.Word as Word
-import Util.Test
+import qualified Text.ParserCombinators.Parsec as Parsec
 
+import Util.Test
 import qualified Midi.Midi as Midi
-import qualified Instrument.Parse as Parse
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Parse as Parse
 
 
 test_parse_file = do
-    patches <- Parse.patch_file "Instrument/test_patch_file"
-    let inits = map Instrument.patch_initialize patches
-        init_msgs = [[m | Midi.ChannelMessage _ m <- msgs]
-            | Instrument.InitializeMidi msgs <- inits]
+    let parse f = extract f
+            . Parsec.runParser Parse.p_patch_file Parse.empty_state "test"
+        extract f = either (Left . show) (Right . map f)
+
+    let e_init patch = case Instrument.patch_initialize patch of
+            Instrument.InitializeMidi msgs ->
+                [m | Midi.ChannelMessage _ m <- msgs]
+            init -> error $ "unexpected init: " ++ show init
+        e_tags = Instrument.patch_tags
+
     let cc = Midi.ControlChange
-    equal init_msgs
+    equal (parse e_init patch_file) $ Right
         [ [cc 0 0, cc 32 0, Midi.ProgramChange 0]
         , [cc 0 0, cc 32 0, Midi.ProgramChange 1]
         , [cc 0 0, cc 32 1, Midi.ProgramChange 0]
         , [cc 0 0, cc 32 1, Midi.ProgramChange 1]
         ]
-    equal (map Instrument.patch_tags patches) $
-        map (("file", "test_patch_file") :) $
-            replicate 3 [("category", "boring")]
-                ++ [[("category", "interesting")]]
+
+    equal (parse e_tags patch_file) $ Right $
+        replicate 3 [("category", "boring")] ++ [[("category", "interesting")]]
+    equal (parse e_tags "p1, tag=\np2, cat, tag2=b\n") $ Right
+        [ [("tag", "")]
+        , [("category", "cat"), ("tag2", "b")]
+        ]
+    left_like (parse e_tags "p0\np1, bad_tag=blah") "unexpected \"_\""
+
+
+patch_file :: String
+patch_file =
+    "# some synth\n\
+    \\n\
+    \*bank 0\n\
+    \Patch 1, boring\n\
+    \Patch 2\n\
+    \\n\
+    \*bank 1\n\
+    \Patch 1/0\n\
+    \Patch 1/1, interesting\n"
 
 test_parse_sysex = do
     let parse p s = case Parse.parse_sysex p "" s of

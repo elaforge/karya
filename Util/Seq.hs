@@ -71,7 +71,8 @@ cartesian (xs:rest) = [x:ps | x <- xs, ps <- cartesian rest]
 -- * indexing lists
 
 -- | Get @xs !! n@, but return Nothing if the index is out of range.
-at :: [a] -> Int -> Maybe a
+{-# SPECIALIZE at :: [a] -> Int -> Maybe a #-}
+at :: (Num i, Ord i) => [a] -> i -> Maybe a
 at xs n
     | n < 0 = Nothing
     | otherwise = _at xs n

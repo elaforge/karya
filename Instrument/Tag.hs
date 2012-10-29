@@ -6,6 +6,9 @@ module Instrument.Tag where
 import Perform.Midi.Instrument (TagKey)
 
 
+category :: TagKey
+category = "category"
+
 -- | One control tag is given for each control signal the instrument
 -- supports.  Automatically added.
 control :: TagKey
