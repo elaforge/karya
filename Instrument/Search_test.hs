@@ -8,6 +8,7 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
+import qualified Instrument.Tag as Tag
 
 
 test_search = do
@@ -59,6 +60,6 @@ mkpatch :: (String, String, [(Midi.Control, String)])
     -> MidiDb.PatchCode Cmd.InstrumentCode
 mkpatch (name, cat, conts) = (patch, Cmd.empty_code)
     where
-    tags = map (uncurry Instrument.tag) [("category", cat)]
     inst = Instrument.instrument name conts (-2, 2)
-    patch = (Instrument.patch inst) { Instrument.patch_tags = tags }
+    patch = (Instrument.patch inst)
+        { Instrument.patch_tags = [(Tag.category, cat)] }

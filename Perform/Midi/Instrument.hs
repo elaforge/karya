@@ -204,7 +204,8 @@ data Patch = Patch {
     -- instrument is looked up without a keyswitch.
     , patch_keyswitches :: KeyswitchMap
     , patch_attribute_map :: AttributeMap
-    -- | Key-value pairs used to index the patch.
+    -- | Key-value pairs used to index the patch.  A key may appear more than
+    -- once with different values.
     , patch_tags :: [Tag]
     -- | Some free form text about the patch.
     , patch_text :: String
@@ -387,10 +388,6 @@ keys_of (KeyswitchMap attr_ks) = Set.fromList $ map (ks_key . snd) attr_ks
 type AttributeMap = Map.Map Score.Attributes String
 
 type Tag = (TagKey, TagVal)
-
-tag :: String -> String -> Tag
-tag = (,)
-
 type TagKey = String
 type TagVal = String
 

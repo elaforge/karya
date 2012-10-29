@@ -191,8 +191,7 @@ add_file :: FilePath -> Instrument.Patch -> Instrument.Patch
 add_file fn patch = patch
     { Instrument.patch_file = fn
     , Instrument.patch_tags =
-        Instrument.tag Tag.file (FilePath.takeFileName fn)
-            : Instrument.patch_tags patch
+        (Tag.file, FilePath.takeFileName fn) : Instrument.patch_tags patch
     }
 
 -- | Tack the sysex on to the patch's initialize field.

@@ -103,7 +103,7 @@ make_patch (name, cat, pb_range, osc1, osc2) =
     inst = Instrument.instrument name [] pb_range
     tags = maybe_tags
         [("z1-category", cat), ("z1-osc", osc1), ("z1-osc", osc2)]
-    maybe_tags tags = [Instrument.tag k v | (k, Just v) <- tags]
+    maybe_tags tags = [(k, v) | (k, Just v) <- tags]
 
 -- | The Z1 has a built-in set of categories. Map the category index to the
 -- name.

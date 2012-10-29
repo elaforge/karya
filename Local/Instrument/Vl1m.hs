@@ -139,7 +139,7 @@ vl1_patch name (pb_range1, name1, cc_groups1) (pb_range2, name2, cc_groups2) =
     highest_prio cs = List.find (`elem` cs) control_prios
 
 maybe_tags :: [(String, String)] -> [Instrument.Tag]
-maybe_tags tags = [Instrument.tag k v | (k, v) <- tags, not (null v)]
+maybe_tags = filter (not . null . snd)
 
 -- | Each voice has two elements, each with their own PbRange, name, and
 -- controls.

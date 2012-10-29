@@ -124,14 +124,14 @@ instrument_tags (MidiDb.MidiDb synths) =
 synth_tags :: Instrument.Synth -> MidiDb.PatchMap code -> [[Instrument.Tag]]
 synth_tags synth patches = map (stags++) (patch_tags patches)
     where
-    stags = Instrument.tag Tag.synth (Instrument.synth_name synth)
+    stags = (Tag.synth, Instrument.synth_name synth)
         : control_tags (Instrument.synth_control_map synth)
 
 -- | Get tags for the patch, including automatically generated ones.
 patch_tags :: MidiDb.PatchMap code -> [[Instrument.Tag]]
 patch_tags (MidiDb.PatchMap patches) = map ptags (Map.assocs patches)
     where
-    ptags (inst_name, (patch, _)) = Instrument.tag Tag.name inst_name
+    ptags (inst_name, (patch, _)) = (Tag.name, inst_name)
             : control_tags (Instrument.inst_control_map inst)
             ++ Instrument.patch_tags patch
             ++ has_sysex
@@ -139,9 +139,9 @@ patch_tags (MidiDb.PatchMap patches) = map ptags (Map.assocs patches)
         inst = Instrument.patch_instrument patch
         has_sysex = case Instrument.patch_initialize patch of
             Instrument.InitializeMidi msgs
-                | any Midi.is_sysex msgs -> [Instrument.tag Tag.sysex ""]
+                | any Midi.is_sysex msgs -> [(Tag.sysex, "")]
                 | otherwise -> []
             _ -> []
 
 control_tags :: Control.ControlMap -> [Instrument.Tag]
-control_tags = map (Instrument.tag Tag.control) . Control.control_map_names
+control_tags = map ((,) Tag.control) . Control.control_map_names
