@@ -85,9 +85,11 @@ load inst_name = do
     tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
     track_id <- Cmd.require =<< State.event_track_at block_id tracknum
 
-    -- TODO fix this, parse the title to look for an inst
-    -- old_inst <- Cmd.require =<< fmap inst_type (LTrack.info block_id tracknum)
-    -- dealloc_instrument old_inst
+    -- Deallocate the old instrument.
+    title <- State.get_track_title
+        =<< State.get_event_track_at block_id tracknum
+    when_just (TrackInfo.title_to_instrument title) dealloc_instrument
+
     dev <- Cmd.require_msg ("no device for " ++ show inst)  =<< device_of inst
     chan <- find_chan_for dev
     alloc_instrument inst [(dev, chan)]
