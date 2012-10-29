@@ -43,24 +43,27 @@ data Clause = Clause Bool Instrument.TagKey Instrument.TagVal
 --
 -- An empty query matches everything.
 search :: Index -> Search
-search idx (Query []) = Map.keys (idx_inverted idx)
+search idx (Query []) = Map.keys (idx_instrument_tags idx)
 search idx (Query clauses)
     | null positive = []
     | otherwise = Set.toList $
         foldl1 Set.intersection positive `Set.difference` negative
     where
-    positive = filter (not . Set.null) $ map Set.fromList $
-        query_matches idx [(k, v) | Clause False k v <- clauses]
+    positive
+        | null kvs = [Map.keysSet (idx_instrument_tags idx)]
+        | otherwise = filter (not . Set.null) $ map Set.fromList $
+            query_matches idx kvs
+        where kvs = [(k, v) | Clause False k v <- clauses]
     negative = Set.fromList $ concat $
         query_matches idx [(k, v) | Clause True k v <- clauses]
 
 tags_of :: Index -> Score.Instrument -> Maybe [Instrument.Tag]
-tags_of idx inst = Map.lookup inst (idx_inverted idx)
+tags_of idx inst = Map.lookup inst (idx_instrument_tags idx)
 
 data Index = Index {
     idx_by_key :: Map.Map Instrument.TagKey
         (Map.Map Instrument.TagVal [Score.Instrument])
-    , idx_inverted :: Map.Map Score.Instrument [Instrument.Tag]
+    , idx_instrument_tags :: Map.Map Score.Instrument [Instrument.Tag]
     } deriving (Show)
 
 empty_index = Index Map.empty Map.empty
@@ -75,10 +78,10 @@ merge_indices (Index keys0 inv0) (Index keys1 inv1) =
 
 make_index :: MidiDb.MidiDb code -> Index
 make_index midi_db =
-    Index (Map.map Map.multimap (Map.multimap idx)) (Map.fromList inv_idx)
+    Index (Map.map Map.multimap (Map.multimap idx)) (Map.fromList inst_tags)
     where
-    inv_idx = inverted_index midi_db
-    idx = [(key, (val, inst)) | (inst, tags) <- inv_idx, (key, val) <- tags]
+    inst_tags = instrument_tags midi_db
+    idx = [(key, (val, inst)) | (inst, tags) <- inst_tags, (key, val) <- tags]
 
 -- | The query language looks like \"a b= c=d !e=f\", which means
 --
@@ -104,8 +107,8 @@ query_matches (Index idx _) = map with_tag
         Just vals -> concatMap snd $ filter ((val `List.isInfixOf`) . fst)
             (Map.assocs vals)
 
-inverted_index :: MidiDb.MidiDb code -> [(Score.Instrument, [Instrument.Tag])]
-inverted_index (MidiDb.MidiDb synths) = inst_tags2
+instrument_tags :: MidiDb.MidiDb code -> [(Score.Instrument, [Instrument.Tag])]
+instrument_tags (MidiDb.MidiDb synths) = inst_tags2
     where
     all_tags = concat [synth_tags synth patches
         | (synth, patches) <- Map.elems synths]
