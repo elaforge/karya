@@ -3,13 +3,13 @@
     The syntax is documented by 'Query'.
 -}
 module Instrument.Search where
-import qualified Control.Arrow as Arrow
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Map as Map
+import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
@@ -108,18 +108,17 @@ query_matches (Index idx _) = map with_tag
             (Map.assocs vals)
 
 instrument_tags :: MidiDb.MidiDb code -> [(Score.Instrument, [Instrument.Tag])]
-instrument_tags (MidiDb.MidiDb synths) = inst_tags2
+instrument_tags (MidiDb.MidiDb synths) =
+    [(inst, tags) | (Just inst, tags)
+        <- Seq.key_on inst_of (map lower all_tags)]
     where
     all_tags = concat [synth_tags synth patches
         | (synth, patches) <- Map.elems synths]
-    lc_tags = let lc = map Char.toLower in map (lc Arrow.*** lc)
+    lower = map $ \(k, v) -> (map Char.toLower k, map Char.toLower v)
     inst_of tags = do
         synth <- lookup Tag.synth tags
         name <- lookup Tag.name tags
         return $ Score.instrument synth name
-
-    inst_tags1 = [(inst_of tags, tags) | tags <- map lc_tags all_tags]
-    inst_tags2 = [(inst, tags) | (Just inst, tags) <- inst_tags1]
 
 -- | Get tags for the synth, including automatically generated synth tags.
 synth_tags :: Instrument.Synth -> MidiDb.PatchMap code -> [[Instrument.Tag]]

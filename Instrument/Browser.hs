@@ -137,7 +137,8 @@ show_control_map cmap =
         | (Control.Control cont, num) <- Map.assocs cmap]
 
 show_tags :: [(String, String)] -> String
-show_tags tags = unwords [quote k ++ "=" ++ quote v | (k, v) <- tags]
+show_tags tags =
+    unwords [quote k ++ "=" ++ quote v | (k, v) <- Seq.sort_on fst tags]
 
 show_initialize :: Instrument.InitializePatch -> String
 show_initialize Instrument.NoInitialization = ""
