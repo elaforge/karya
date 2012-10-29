@@ -1,8 +1,8 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {- | Do things with files.
 -}
 module Util.File where
 import qualified Control.Exception as Exception
-import Control.Monad
 import qualified Data.ByteString as ByteString
 import qualified Data.Word as Word
 import qualified System.Directory as Directory
@@ -10,6 +10,9 @@ import System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
+
+import Util.Control
+import qualified Util.Log as Log
 
 
 lazy_read_binary :: FilePath -> IO [Word.Word8]
@@ -52,3 +55,15 @@ recursive_rm_dir dir = void $ Process.rawSystem "rm" ["-rf", dir]
 ignore_enoent :: IO a -> IO (Maybe a)
 ignore_enoent op = Exception.handleJust (guard . IO.Error.isDoesNotExistError)
     (const (return Nothing)) (fmap Just op)
+
+ignore_io_error :: IO a -> IO (Maybe a)
+ignore_io_error op = fmap Just op
+    `Exception.catch` \(_ :: Exception.IOException) -> return Nothing
+
+-- | Catch and log an IOException.
+log_io_error :: String -> IO a -> IO (Maybe a)
+log_io_error msg op = Exception.handle handler (fmap Just op)
+    where
+    handler (exc :: Exception.IOException) = do
+        Log.warn $ msg ++ ": " ++ show exc
+        return Nothing

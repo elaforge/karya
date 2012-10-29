@@ -25,6 +25,7 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -131,4 +132,5 @@ is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
 write_cmd :: String -> Cmd.CmdT IO ()
 write_cmd text = do
     dir <- State.gets State.save_dir
-    Trans.liftIO $ IO.appendFile (FilePath.combine dir "repl") (text ++ "\n")
+    Trans.liftIO $ void $ File.log_io_error "write_cmd" $
+        IO.appendFile (FilePath.combine dir "repl") (text ++ "\n")

@@ -1,4 +1,7 @@
 UNSORTED
+  - can I create enough sysex to automatically configure z1 multi mode?
+  - responder should catch exceptions
+  * LState.rename causes an exception: save/z1/repl: inappropriate type
   * program change not working for z1
   * z1 rt msgs show up as UnknownMessage
   - doesn't seem to save track widths, I keep making it narrow but reload it's
@@ -1103,7 +1106,9 @@ Perform:
       now.
 
 Instrument DB / browser:
-  - make patch_tag into a Map
+  - To add tags to a sysex-only instrument, add a *sysex "bank" which creates
+    patches with no initialization.  When they get merged with a sysex patch,
+    the sysex wins.
   * add my own tags to an instrument
     I need a separate "annotations" db
     Or why not just edit the patch file directly?
@@ -1111,15 +1116,10 @@ Instrument DB / browser:
   - patch files could go in the Local/Instrument dir with the source?
     at least it should go in source control
   - colorize the info_pane so tags are easier to read
-  - switch sysex parsing stuff to use attoparsec and ByteStrings
-    I don't use state, but I parse [(SrcPos, Word8)] so that I always get the
-    byte position correct.  But I should be able to run a sub-parse with byte
-    already set.
-    Wait, but attoparsec doesn't even keep track of the current byte.
-    Should be able to use a Parsec instance for ByteString though.
+  - use ByteString parsec instance to parse sysex files
   - search lang supports quotes
   * search lang supports ! to exclude a term
-  - ability to edit tags, esp. add "favorite rating"
+  * ability to edit tags, esp. add "favorite rating"
 
 jack: JACK:
   bugs
