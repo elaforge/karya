@@ -1107,8 +1107,7 @@ Instrument DB / browser:
   * add my own tags to an instrument
     I need a separate "annotations" db
     Or why not just edit the patch file directly?
-  - when merging a sysex inst with a bank file one, the tags from the bank
-    file should win
+  * when merging a sysex inst with a bank file one merge tags too
   - patch files could go in the Local/Instrument dir with the source?
     at least it should go in source control
   - colorize the info_pane so tags are easier to read

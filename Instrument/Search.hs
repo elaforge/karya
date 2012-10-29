@@ -66,6 +66,7 @@ data Index = Index {
     , idx_instrument_tags :: Map.Map Score.Instrument [Instrument.Tag]
     } deriving (Show)
 
+empty_index :: Index
 empty_index = Index Map.empty Map.empty
 
 -- | Merge the indices, favoring instruments from the left one.
@@ -77,8 +78,10 @@ merge_indices (Index keys0 inv0) (Index keys1 inv1) =
     merge_vals = Map.unionWith (++)
 
 make_index :: MidiDb.MidiDb code -> Index
-make_index midi_db =
-    Index (Map.map Map.multimap (Map.multimap idx)) (Map.fromList inst_tags)
+make_index midi_db = Index
+    { idx_by_key = Map.map Map.multimap (Map.multimap idx)
+    , idx_instrument_tags = Map.fromList inst_tags
+    }
     where
     inst_tags = instrument_tags midi_db
     idx = [(key, (val, inst)) | (inst, tags) <- inst_tags, (key, val) <- tags]
@@ -110,15 +113,18 @@ query_matches (Index idx _) = map with_tag
 instrument_tags :: MidiDb.MidiDb code -> [(Score.Instrument, [Instrument.Tag])]
 instrument_tags (MidiDb.MidiDb synths) =
     [(inst, tags) | (Just inst, tags)
-        <- Seq.key_on inst_of (map lower all_tags)]
+        <- Seq.key_on inst_of (map normalize_tags all_tags)]
     where
     all_tags = concat [synth_tags synth patches
         | (synth, patches) <- Map.elems synths]
-    lower = map $ \(k, v) -> (map Char.toLower k, map Char.toLower v)
     inst_of tags = do
         synth <- lookup Tag.synth tags
         name <- lookup Tag.name tags
         return $ Score.instrument synth name
+
+normalize_tags :: [Instrument.Tag] -> [Instrument.Tag]
+normalize_tags = Seq.drop_dups id . List.sort . lower
+    where lower = map $ \(k, v) -> (map Char.toLower k, map Char.toLower v)
 
 -- | Get tags for the synth, including automatically generated synth tags.
 synth_tags :: Instrument.Synth -> MidiDb.PatchMap code -> [[Instrument.Tag]]

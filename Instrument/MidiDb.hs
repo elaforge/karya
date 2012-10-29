@@ -179,11 +179,10 @@ patch_map patches =
             | pc_init p1 && sysex_init p2 = merge_init p1 p2
             | pc_init p2 && sysex_init p1 = merge_init p2 p1
         go patches = return patches
-    merge_init pc_patch@(pc, _) sysex_patch@(sysex, code) = do
+    merge_init pc_patch sysex_patch = do
         log "merging program-change patch into sysex patch"
             [pc_patch, sysex_patch]
-        return [(sysex { Instrument.patch_initialize =
-            Instrument.patch_initialize pc }, code)]
+        return [merge_patches pc_patch sysex_patch]
 
     pc_init patch = case Instrument.patch_initialize (fst patch) of
         Instrument.InitializeMidi msgs -> not (any Midi.is_sysex msgs)
@@ -204,6 +203,15 @@ patch_map patches =
     details patch = patch_name patch
         ++ " (" ++ FilePath.takeFileName (Instrument.patch_file (fst patch))
         ++ ")"
+
+merge_patches :: PatchCode code -> PatchCode code -> PatchCode code
+merge_patches (pc_patch, _) (sysex_patch, code) = (patch, code)
+    where
+    patch = sysex_patch
+        { Instrument.patch_initialize = Instrument.patch_initialize pc_patch
+        , Instrument.patch_tags = Instrument.patch_tags pc_patch
+            <> Instrument.patch_tags sysex_patch
+        }
 
 type NamedPatch code = (String, [PatchCode code])
 type Merge = Logger.LoggerT String Identity.Identity
