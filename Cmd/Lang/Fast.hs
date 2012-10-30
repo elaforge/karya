@@ -3,7 +3,6 @@
 module Cmd.Lang.Fast where
 import qualified Data.Char as Char
 
-import qualified Util.PPrint as PPrint
 import qualified Util.Then as Then
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -55,13 +54,10 @@ interpret toks = case toks of
         ["State.lookup_root_id"] -> Just $ fmap show State.lookup_root_id
         ["State.set_root_id", str] | Just arg <- val str ->
             action $ State.set_root_id arg
-        ["State.get_midi_config"] -> pretty State.get_midi_config
+        ["State.get_midi_config"] -> action State.get_midi_config
         _ -> Nothing
     where
-    -- Command that doesn't return a value.
-    action c = Just (c >> return "")
-    -- Command returns a value to be pretty-printed.
-    pretty c = Just (fmap PPrint.pshow c)
+    action c = Just (fmap show c)
 
 val :: (Read a) => String -> Maybe a
 val text = case reads text of

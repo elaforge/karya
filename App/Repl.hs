@@ -8,6 +8,7 @@ import Control.Monad.Trans (liftIO)
 import qualified System.Console.Haskeline as Haskeline
 import qualified System.Console.Terminfo as Terminfo
 
+import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 import qualified App.SendCmd as SendCmd
 
@@ -24,8 +25,8 @@ main = SendCmd.initialize $ Haskeline.runInputT settings $ do
     term <- liftIO $ Terminfo.setupTermFromEnv
     while (repl term)
 
-withBg :: Terminfo.Terminal -> Terminfo.Color -> String -> String
-withBg term color s =
+with_bg :: Terminfo.Terminal -> Terminfo.Color -> String -> String
+with_bg term color s =
     case Terminfo.getCapability term Terminfo.withBackgroundColor of
         Just with -> with color s
         Nothing -> s
@@ -34,14 +35,18 @@ repl :: Terminfo.Terminal -> Haskeline.InputT IO Bool
 repl term =
     -- Colorize the prompt to make it stand out.
     maybe (return False) ((>> return True) . handle)
-        =<< Haskeline.getInputLine (withBg term Terminfo.Cyan "> ")
+        =<< Haskeline.getInputLine (with_bg term Terminfo.Cyan "> ")
     where
     handle line
         | null (Seq.strip line) = return ()
         | otherwise = do
             response <- liftIO $ SendCmd.send line `Exception.catch` catch_all
             unless (null response) $
-                liftIO $ putStrLn response
+                liftIO $ putStrLn (format_response response)
+
+format_response :: String -> String
+format_response "()" = ""
+format_response s = Seq.strip $ PPrint.format_str s
 
 while :: (Monad m) => m Bool -> m ()
 while action = do

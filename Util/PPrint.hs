@@ -4,8 +4,8 @@
     flags because my terminal is 80 chars wide, not the 137-whatever default.
 -}
 module Util.PPrint (
-    pprint, pshow, str_pshow
-    , format
+    pprint, pshow
+    , format, format_str
     -- * util
     , record, list
 ) where
@@ -30,10 +30,16 @@ pprint = putStr . pshow
 pshow :: (Show a) => a -> String
 pshow = format . show
 
--- | Pretty print the given value, unless it's a string, in which case return
--- it unchanged.  As a special case for "Cmd.Lang", @()@ becomes \"\".
-str_pshow :: (Show a) => a -> String
-str_pshow = parse format_nonstr . show
+-- * String
+
+-- | Pretty up a string containing a parseable haskell value.
+format :: String -> String
+format = parse format_parsed
+
+-- | Pretty up haskell value, unless it's a string, in which case return it
+-- directly.
+format_str :: String -> String
+format_str = parse format_nonstr
     where
     format_nonstr m = Maybe.fromMaybe (format_parsed m) (is_str m)
     is_str (HsModule _ _ _ _ [HsPatBind _ _ (HsUnGuardedRhs rhs) _]) =
@@ -42,12 +48,6 @@ str_pshow = parse format_nonstr . show
             HsCon (Special HsUnitCon) -> Just ""
             _ -> Nothing
     is_str _ = Nothing
-
--- * String
-
--- | Pretty up a string containing a parseable haskell value.
-format :: String -> String
-format = parse format_parsed
 
 -- * util
 

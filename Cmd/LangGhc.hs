@@ -161,7 +161,7 @@ compile expr = do
     (hval, logs, warns) <- handle_errors $ GHC.compileExpr typed_expr
     return (fmap coerce hval, logs, warns)
     where
-    typed_expr = "fmap PPrint.str_pshow (" ++ expr ++ ") :: " ++ cmd_type
+    typed_expr = "fmap show (" ++ expr ++ ") :: " ++ cmd_type
     coerce val = GHC.Exts.unsafeCoerce# val :: Cmd
 
 set_context :: [String] -> Ghc ()

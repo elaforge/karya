@@ -1,6 +1,6 @@
 UNSORTED
   repl
-    - do pprint formatting in the repl
+    * do pprint formatting in the repl
     * colorize prompt
     - colorize string literals
   - the same place that updates the status could use updates to clear caches
