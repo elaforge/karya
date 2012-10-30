@@ -19,6 +19,7 @@ import Data.Word (Word8)
 
 import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 
@@ -42,6 +43,14 @@ spec_to_record = RMap . Map.delete "" . List.foldl' add Map.empty
     add_bit rec (name, (_, Range {})) = Map.insert name (RNum 0) rec
     add_bit rec (name, (_, Enum (enum : _))) = Map.insert name (REnum enum) rec
     add_bit _ (name, (_, Enum [])) = error $ name ++ " had an empty Enum"
+
+instance Pretty.Pretty Record where
+    format rec = case rec of
+        RMap x -> Pretty.format x
+        RList x -> Pretty.format x
+        RNum x -> Pretty.format x
+        RStr x -> Pretty.format x
+        REnum x -> Pretty.text x
 
 -- * encode
 

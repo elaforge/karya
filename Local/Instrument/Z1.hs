@@ -231,27 +231,42 @@ effect_overdrive =
     , byte "drive" 99
     , byte "output level" 99
     , byte "pre low cutoff" 99
-    , eq_level "low"
-    , eq_level "mid low"
-    , eq_level "mid high"
-    , eq_level "high"
+    , eq "low", eq "mid low", eq "mid high", eq "high"
     , effect_balance
     ]
+    where eq prefix = SubSpec (prefix ++ " eq") eq_settings
 
 effect_compressor :: [Spec]
 effect_compressor =
     [ ranged_byte "sensitivity" (1, 99)
     , ranged_byte "attack" (1, 99)
-    -- ...
+    , byte "eq trim" 99
+    , gain "pre low eq gain"
+    , gain "pre high eq gain"
+    , byte "output level" 99
     , effect_balance
     ]
 
-eq_level :: String -> Spec
-eq_level prefix = SubSpec (prefix ++ " eq")
-    [ byte "freq" 49
-    , byte "q" 95
-    , ranged_byte "gain" (-36, 36)
+effect_4_band_peq :: [Spec]
+effect_4_band_peq =
+    [ byte "trim" 99
+    , SubSpec "low eq" $
+        enum_byte "type" ["peaking", "shelving"] : eq_settings
+    , SubSpec "mid low eq" $ eq_settings ++
+        [ enum_byte "gain mod source" mod_source_list_2
+        , gain "gain mod intensity"
+        ]
+    , SubSpec "mid high eq" eq_settings
+    , SubSpec "high eq" $
+        enum_byte "type" ["peaking", "shelving"] : eq_settings
+    , effect_balance
     ]
+
+eq_settings :: [Spec]
+eq_settings = [byte "freq" 49, byte "q" 95, gain "gain"]
+
+gain :: Sysex.Name -> Spec
+gain name = ranged_byte name (-36, 36)
 
 effect_balance :: Spec
 effect_balance = SubSpec "effect balance"
