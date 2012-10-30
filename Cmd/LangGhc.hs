@@ -115,7 +115,7 @@ interpreter (Session chan) = do
 -- | Convert warnings and a possibly failed compile into a chatty cmd.
 format_response :: (Either String Cmd, [String], [String]) -> Cmd
 format_response (result, logs, warns) = decorate $ case result of
-        Left err -> return $ "Failed: " ++ err
+        Left err -> Cmd.throw $ "compile error: " ++ err
         Right cmd -> cmd
     where
     decorate = fmap (\s -> log_msg ++ s ++ warn_msg)

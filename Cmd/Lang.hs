@@ -17,7 +17,6 @@ module Cmd.Lang (
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import Control.Monad
-import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 
 import qualified System.IO as IO
@@ -68,15 +67,10 @@ cmd_language session lang_dirs msg = do
     local_modules <- fmap concat (mapM get_local_modules lang_dirs)
 
     cmd <- case Fast.fast_interpret text of
-        Just cmd -> return $ cmd `Error.catchError` \err -> case err of
-            State.Error err -> do
-                Log.warn $ "state error in repl cmd: " ++ err
-                return $ "error: " ++ err
-            State.Abort -> return "aborted"
-        -- 'interpret' catches errors in 'merge_cmd_state'
-        Nothing -> Trans.liftIO $ LangImpl.interpret session
-            local_modules ui_state cmd_state text
-    (response, success) <- run_cmdio (Cmd.name ("repl: " ++ text) cmd)
+        Just cmd -> return cmd
+        Nothing -> Trans.liftIO $
+            LangImpl.interpret session local_modules ui_state cmd_state text
+    (response, success) <- run_cmdio $ Cmd.name ("repl: " ++ text) cmd
     Trans.liftIO $ catch_io_errors $ do
         unless (null response) $
             IO.hPutStrLn response_hdl response
