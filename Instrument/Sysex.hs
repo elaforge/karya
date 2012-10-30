@@ -23,7 +23,9 @@ import qualified Util.Seq as Seq
 
 
 data Record =
-    RMap (Map.Map String Record) | RNum Int | RStr String | REnum String
+    RMap (Map.Map String Record)
+    | RList [Record]
+    | RNum Int | RStr String | REnum String
     deriving (Eq, Show)
 type Error = String
 
@@ -35,6 +37,8 @@ spec_to_record = RMap . Map.delete "" . List.foldl' add Map.empty
     add rec (Bits bits) = List.foldl' add_bit rec bits
     add rec (Str name _) = Map.insert name (RStr "") rec
     add rec (SubSpec name specs) = Map.insert name (spec_to_record specs) rec
+    add rec (List name elts specs) =
+        Map.insert name (RList (replicate elts (spec_to_record specs))) rec
     add_bit rec (name, (_, Range {})) = Map.insert name (RNum 0) rec
     add_bit rec (name, (_, Enum (enum : _))) = Map.insert name (REnum enum) rec
     add_bit _ (name, (_, Enum [])) = error $ name ++ " had an empty Enum"
@@ -71,6 +75,15 @@ encode_spec path record spec = case spec of
     SubSpec name specs -> do
         sub_record <- lookup name
         mapM_ (encode_spec (name:path) sub_record) specs
+    List name elts specs -> do
+        records <- lookup name >>= \x -> case x of
+            RList records
+                | length records == elts -> return records
+                | otherwise -> throw name $ "expected list of length "
+                    ++ show elts ++ " but got length " ++ show (length records)
+            val -> throw name $ "expected a list, but got " ++ show val
+        forM_ (zip [0..] records) $ \(i, rec) ->
+            mapM_ (encode_spec ((name ++ show i) : path) rec) specs
     where
     lookup = either (uncurry throw) return . rmap_lookup record
     throw name msg = Error.throwError $ show_path (name:path) ++ msg
@@ -119,6 +132,10 @@ decode specs bytes = Get.runGetState (rmap [] specs) bytes 0
     field path (SubSpec name specs) = do
         subs <- rmap (name : path) specs
         return [(name, subs)]
+    field path (List name elts specs) = do
+        subs <- forM [0 .. elts-1] $ \i ->
+            rmap ((name ++ show i) : path) specs
+        return [(name, RList subs)]
 
 decode_byte :: [Name] -> [(Name, BitField)] -> Word8
     -> Either String [(String, Record)]
@@ -178,7 +195,9 @@ from_signed bits num
 
 -- * spec
 
-data Spec = Bits [(Name, BitField)] | Str Name Int | SubSpec Name [Spec]
+data Spec =
+    Bits [(Name, BitField)] | Str Name Int | SubSpec Name [Spec]
+    | List Name Int [Spec]
     deriving (Show)
 
 data Range = Range Int Int | Enum [String]

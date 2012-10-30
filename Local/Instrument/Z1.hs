@@ -1,6 +1,7 @@
 -- | Korg Z1 keyboard.
 module Local.Instrument.Z1 where
 import qualified Data.Bits as Bits
+import qualified Data.ByteString as ByteString
 import qualified Data.List as List
 import Data.Word (Word8)
 
@@ -133,13 +134,7 @@ dekorgify (b7:bytes) =
 
 -- * parse / generate sysex
 
--- file = ByteString.readFile "multi1.syx"
--- strip = dekorg . ByteString.drop 9
--- dekorg = ByteString.pack . Sysex.dekorgify . ByteString.unpack
---
--- test = do
---     b <- strip <$> file
---     return $ Sysex.decode Sysex.multiset b
+file = ByteString.readFile "multi1.syx"
 
 -- F0,42,3g,46 header
 -- 4d -- multi setup dump
@@ -148,14 +143,21 @@ dekorgify (b7:bytes) =
 -- mm -- multi num
 -- 00
 -- data
+strip = dekorg . ByteString.drop 9
+dekorg = ByteString.pack . dekorgify . ByteString.unpack
+
+test = do
+    b <- strip <$> file
+    return $ Sysex.decode multiset b
+
+rec = Sysex.spec_to_record multiset
 
 -- | Spec to both parse and generate a multiset dump.
 multiset :: [Spec]
 multiset = Sysex.assert_valid "multiset" $
     [ Str "name" 16
-    ] ++ [SubSpec ("timbre" ++ show n) timbre | n <- [1..6]]
-    ++
-    [ enum_byte "effect1 select" effect_type1
+    , List "timbre" 6 timbre
+    , enum_byte "effect1 select" effect_type1
     , SubSpec "effect1 setting" effect_setting
     , enum_byte "effect2 select" effect_type2
     , SubSpec "effect2 setting" effect_setting
@@ -222,6 +224,79 @@ effect_type1 = effect_type2 ++
 
 effect_setting :: [Spec]
 effect_setting = reserved_space 22
+
+effect_overdrive :: [Spec]
+effect_overdrive =
+    [ enum_byte "mode" ["overdrive", "distortion"]
+    , byte "drive" 99
+    , byte "output level" 99
+    , byte "pre low cutoff" 99
+    , eq_level "low"
+    , eq_level "mid low"
+    , eq_level "mid high"
+    , eq_level "high"
+    , effect_balance
+    ]
+
+effect_compressor :: [Spec]
+effect_compressor =
+    [ ranged_byte "sensitivity" (1, 99)
+    , ranged_byte "attack" (1, 99)
+    -- ...
+    , effect_balance
+    ]
+
+eq_level :: String -> Spec
+eq_level prefix = SubSpec (prefix ++ " eq")
+    [ byte "freq" 49
+    , byte "q" 95
+    , ranged_byte "gain" (-36, 36)
+    ]
+
+effect_balance :: Spec
+effect_balance = SubSpec "effect balance"
+    [ byte "balance" 100
+    , enum_byte "effect balance mod source" mod_source_list_2
+    , ranged_byte "effect balance mod intensity" (-99, 99)
+    ]
+
+-- | TODO like mod_source_list_1 except entries 1--10 are invalid.
+mod_source_list_2 :: [String]
+mod_source_list_2 = mod_source_list_1
+
+mod_source_list_1 :: [String]
+mod_source_list_1 =
+    [ "off"
+    , "eg1", "eg2", "eg3", "eg4"
+    , "amp eg"
+    , "lfo1", "lfo2", "lfo3", "lfo4"
+    , "portamento"
+    , "note [linear]", "note [exp]"
+    , "note split [high]", "note split [low]"
+    , "velocity [soft]", "velocity [medium]", "velocity [hard]"
+    , "pitch bend"
+    , "after touch"
+    , "modulation wheel (cc#1)"
+    , "atouch + mod.wheel"
+    , "athalf + mod.wheel"
+    , "x [+/-] (cc#16)", "x [+] (cc#16)", "x [-] (cc#16)"
+    , "y [+/-] (cc#17)", "y [+] (cc#17)", "y [-] (cc#17)"
+    , "knob1 (cc#19)", "knob2 (cc#20)", "knob3 (cc#21)", "knob4 (cc#22)"
+    , "knob5 (cc#23)"
+    , "mod.sw1 (cc#80)", "mod.sw2 (cc#81)"
+    , "foot sw (cc#82)"
+    , "foot pedal (cc#4)"
+    , "damper (cc#64)"
+    , "sostenuto (cc#66)"
+    , "midi breath control (cc#2)"
+    , "midi volume (cc#7)"
+    , "midi panpot (cc#10)"
+    , "midi expression (cc#11)"
+    , "midi portamento time (cc#5)"
+    , "midi portamento sw (cc#65)"
+    , "master fx off/on (cc#92)"
+    , "fx1 off/on (cc#94)", "fx2 off/on (cc#95)"
+    ]
 
 master_effect_type :: [String]
 master_effect_type = ["stereo delay", "reverb-hall", "reverb-room"]
