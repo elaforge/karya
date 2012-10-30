@@ -12,6 +12,11 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Parse as Parse
+import qualified Instrument.Sysex as Sysex
+import Instrument.Sysex
+       (Spec(..), bits, ranged_bits, byte, boolean, boolean1, enum_byte,
+        enum_bits, reserved_space, ranged_byte)
+
 import qualified App.MidiInst as MidiInst
 
 
@@ -80,18 +85,12 @@ korg_patch bytes = make_patch (name, category, (pb_up, pb_down), osc1, osc2)
     -- mean [down, up].
     [cat, u_pb_down, u_pb_up, osc1_type, osc2_type] =
         map (bytes!!) [16, common_off, common_off+1, osc1_off, osc2_off]
-    pb_down = to_signed u_pb_down
-    pb_up = to_signed u_pb_up
+    pb_down = fromIntegral $ Sysex.to_signed 8 u_pb_down
+    pb_up = fromIntegral $ Sysex.to_signed 8 u_pb_up
     name = Seq.strip $ Parse.to_string (take 16 bytes)
     category = Seq.at categories cat
     osc1 = Seq.at osc_types osc1_type
     osc2 = Seq.at osc_types osc2_type
-
--- | Convert an 8 bit 2s complement word to a signed integer.
-to_signed :: Word8 -> Integer
-to_signed b
-    | Bits.testBit b 7 = negate $ fromIntegral $ Bits.complement b + 1
-    | otherwise = fromIntegral b
 
 make_patch ::
     (String, Maybe String, Control.PbRange, Maybe String, Maybe String)
@@ -130,3 +129,102 @@ dekorgify (b7:bytes) =
     (b7group, rest) = List.splitAt 7 bytes
     copy_bit from i to = if Bits.testBit from i
         then Bits.setBit to 7 else Bits.clearBit to 7
+
+
+-- * parse / generate sysex
+
+-- file = ByteString.readFile "multi1.syx"
+-- strip = dekorg . ByteString.drop 9
+-- dekorg = ByteString.pack . Sysex.dekorgify . ByteString.unpack
+--
+-- test = do
+--     b <- strip <$> file
+--     return $ Sysex.decode Sysex.multiset b
+
+-- F0,42,3g,46 header
+-- 4d -- multi setup dump
+-- 00
+-- ub -- unit bank
+-- mm -- multi num
+-- 00
+-- data
+
+-- | Spec to both parse and generate a multiset dump.
+multiset :: [Spec]
+multiset = Sysex.assert_valid "multiset" $
+    [ Str "name" 16
+    ] ++ [SubSpec ("timbre" ++ show n) timbre | n <- [1..6]]
+    ++
+    [ enum_byte "effect1 select" effect_type1
+    , SubSpec "effect1 setting" effect_setting
+    , enum_byte "effect2 select" effect_type2
+    , SubSpec "effect2 setting" effect_setting
+    , enum_byte "master effect select" master_effect_type
+    , SubSpec "master effect setting" master_effect_setting
+    ]
+
+timbre :: [Spec]
+timbre =
+    -- timbre
+    [ Bits
+        [ ("program bank", bits 1)
+        , ("program number", bits 7)
+        ]
+    , byte "reserve voice" 12
+    -- pitch
+    , ranged_byte "transpose" (-24, 24)
+    , ranged_byte "detune" (-50, 50)
+    , Bits
+        [ ("scale select", enum_bits 4 ["common", "program"])
+        , ("arpeggiator", (4, boolean))
+        ]
+    -- mixer
+    , byte "output level" 128 -- 128 is PROG
+    , byte "panpot" 128 -- 128 is PROG
+    , byte "effect send" 101 -- 101 is PROG
+    -- zone
+    , byte "key zone top" 127
+    , byte "key zone bottom" 127
+    , ranged_byte "velocity zone top" (1, 127)
+    , ranged_byte "velocity zone bottom" (1, 127)
+    -- MIDI
+    , Bits
+        [ ("program change", boolean1)
+        , ("midi channel", ranged_bits 7 (0, 16)) -- 16 is GLOBAL
+        ]
+    , Bits
+        [ ("pitch bend", enum_bits 2 ["off", "common", "program"])
+        , ("after touch", boolean1)
+        , ("modulation wheel", boolean1)
+        , ("x-y pad controller", boolean1)
+        , ("damper", boolean1)
+        , ("portamento sw", boolean1)
+        , ("realtime edit", boolean1)
+        ]
+    , Bits
+        [ ("performance edit", boolean1)
+        , ("others", boolean1)
+        , ("", bits 6)
+        ]
+    ] ++ reserved_space 1
+
+effect_type2 :: [String]
+effect_type2 =
+    [ "overdrive", "compressor", "parametric eq", "wah", "exciter"
+    , "decimator", "chorus", "flanger", "phaser", "rotary speaker-small"
+    , "delay-mono"
+    ]
+
+effect_type1 :: [String]
+effect_type1 = effect_type2 ++
+    [ "talking modulator", "multitap delay", "ensemble", "rotary speaker-large"
+    ]
+
+effect_setting :: [Spec]
+effect_setting = reserved_space 22
+
+master_effect_type :: [String]
+master_effect_type = ["stereo delay", "reverb-hall", "reverb-room"]
+
+master_effect_setting :: [Spec]
+master_effect_setting = reserved_space 18

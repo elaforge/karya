@@ -1,5 +1,12 @@
 UNSORTED
-  - can I create enough sysex to automatically configure z1 multi mode?
+  - the same place that updates the status could use updates to clear caches
+    for cmds or for TimeStep
+    Clear when: inst changed, so if any performance was regenerated.  In fact,
+    if I pu the cache in the performance then this happens automatically.
+    But where do I put it while the performance is still waiting?  I guess
+    I can stick stuff in the performance without forcing the events.
+  - TimeStep could use vector instead of list
+  - can I create sysex to automatically configure z1 multi mode?
   - responder should catch exceptions
   * LState.rename causes an exception: save/z1/repl: inappropriate type
   * program change not working for z1
@@ -20,11 +27,12 @@ UNSORTED
   - make constants for each of the ruler ranks, e.g. block, measure, quarter,
     eighth
   lots of ghc panics
+    - change all alignment = 1 lines to 4
     * try on linux, yes seems to happen there too
     * use valgrind on linux
     * See if it happens after a rebuild. Yes
     * See if it happens without LangGhc. Yes.
-    + See if it happens in debug mode.
+    * See if it happens in debug mode. Yes.
     + See if -O2 debug binary crashes.
     - See if -O0 opt binary crashes.
     * Try with the shell version of git.  If that works, update libgit2.
@@ -800,9 +808,6 @@ plugin host freeze audio
 test:
   - tests count number of tests in addition to checks within each test
   - use generics or Foldable or something to write a generic StructEqual
-
-misc:
-  - program to launch logview and seq together
 
 integrator / midi record:
   - implement
