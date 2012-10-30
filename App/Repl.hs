@@ -6,6 +6,7 @@ import Control.Monad
 import Control.Monad.Trans (liftIO)
 
 import qualified System.Console.Haskeline as Haskeline
+import qualified System.Console.Terminfo as Terminfo
 
 import qualified Util.Seq as Seq
 import qualified App.SendCmd as SendCmd
@@ -20,21 +21,32 @@ settings = Haskeline.defaultSettings
 main :: IO ()
 main = SendCmd.initialize $ Haskeline.runInputT settings $ do
     liftIO $ putStrLn "^D to quit"
-    repl
+    term <- liftIO $ Terminfo.setupTermFromEnv
+    while (repl term)
 
-repl :: Haskeline.InputT IO ()
-repl = do
-    maybe_line <- Haskeline.getInputLine "> "
-    case maybe_line of
-        Just line
-            | null (Seq.strip line) -> repl
-            | otherwise -> do
-                response <- liftIO $ SendCmd.send line
-                    `Exception.catch` catch_all
-                unless (null response) $
-                    liftIO $ putStrLn response
-                repl
-        Nothing -> return ()
+withBg :: Terminfo.Terminal -> Terminfo.Color -> String -> String
+withBg term color s =
+    case Terminfo.getCapability term Terminfo.withBackgroundColor of
+        Just with -> with color s
+        Nothing -> s
+
+repl :: Terminfo.Terminal -> Haskeline.InputT IO Bool
+repl term =
+    -- Colorize the prompt to make it stand out.
+    maybe (return False) ((>> return True) . handle)
+        =<< Haskeline.getInputLine (withBg term Terminfo.Cyan "> ")
+    where
+    handle line
+        | null (Seq.strip line) = return ()
+        | otherwise = do
+            response <- liftIO $ SendCmd.send line `Exception.catch` catch_all
+            unless (null response) $
+                liftIO $ putStrLn response
+
+while :: (Monad m) => m Bool -> m ()
+while action = do
+    b <- action
+    if b then while action else return ()
 
 catch_all :: Exception.SomeException -> IO String
 catch_all exc = return ("error: " ++ show exc)

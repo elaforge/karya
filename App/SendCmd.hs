@@ -20,7 +20,7 @@ initialize app = Network.withSocketsDo $ do
 send :: String -> IO String
 send msg = do
     hdl <- Network.connectTo "localhost" Config.lang_port
-    IO.hSetBuffering hdl IO.NoBuffering
     IO.hPutStr hdl msg
     IO.hPutStr hdl Config.message_complete_token
+    IO.hFlush hdl
     fmap Seq.rstrip $ IO.hGetContents hdl
