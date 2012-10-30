@@ -40,7 +40,7 @@ import qualified Util.Then as Then
 
 
 default_width :: Int
-default_width = 78
+default_width = 75
 
 -- | Format values in an eye-pleasing way.  Unlike Show, this isn't intended
 -- to produce any kind of valid syntax, or even preserve information.

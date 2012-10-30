@@ -111,8 +111,9 @@ infixl 0 $>
 (.>) = flip (.)
 infixl 9 .>
 
-pp :: (Pretty.Pretty a) => Cmd.CmdL a -> Cmd.CmdL Pretty.Doc
-pp = fmap Pretty.format
+-- | Pretty-print the result of a cmd with 'Pretty.format'.
+pp :: (Pretty.Pretty a) => Cmd.CmdL a -> Cmd.CmdL String
+pp = fmap Pretty.formatted
 
 -- * errors
 
