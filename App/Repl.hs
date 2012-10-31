@@ -41,8 +41,9 @@ repl term =
         | null (Seq.strip line) = return ()
         | otherwise = do
             response <- liftIO $ SendCmd.send line `Exception.catch` catch_all
-            unless (null response) $
-                liftIO $ putStrLn (format_response response)
+            let formatted = format_response response
+            unless (null formatted) $
+                liftIO $ putStrLn formatted
 
 format_response :: String -> String
 format_response "()" = ""
