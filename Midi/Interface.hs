@@ -66,8 +66,12 @@ type State =
 -- | Annotate a WriteMessage with additional control messages.
 data Message =
     Midi Midi.WriteMessage
-    -- Turn off sounding notes and reset controls on all devices and channels.
+    -- | Turn off sounding notes and reset controls on all devices and channels.
     | ResetAll RealTime
+    -- | Emit PitchBend 0 for all devices that have been used.  This doesn't
+    -- care if they have sounding notes because pitch bend state persists
+    -- after NoteOff.
+    | ResetAllPitch RealTime
     deriving (Show)
 
 type TrackerM a = State.StateT State IO a
@@ -103,6 +107,8 @@ note_tracker write = do
         return []
         where dev = Midi.wmsg_dev wmsg
     handle_msg (ResetAll time) = reset_all time
+    handle_msg (ResetAllPitch time) = send_devices time
+        [Midi.ChannelMessage chan (Midi.PitchBend 0) | chan <- [0..15]]
 
 -- if dev in state:
 --      state[dev][chan][key] = False
@@ -128,6 +134,14 @@ note_on dev chan (Midi.Key key) = when (Num.in_range 0 129 key) $ do
     where
     set chans = Trans.liftIO $
         Mutable.write (chans ! fromIntegral chan) (fromIntegral key) True
+
+-- | Send the given messages on all devices.
+send_devices :: RealTime -> [Midi.Message] -> TrackerM [Midi.WriteMessage]
+send_devices time msgs = do
+    state <- State.get
+    return $ concatMap mkmsgs (Map.keys state)
+    where
+    mkmsgs dev = map (Midi.WriteMessage dev time) msgs
 
 reset_all :: RealTime -> TrackerM [Midi.WriteMessage]
 reset_all time = do
