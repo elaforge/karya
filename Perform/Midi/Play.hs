@@ -110,18 +110,10 @@ send_all write_midi addrs ts chan_msg =
         (Midi.WriteMessage dev ts (Midi.ChannelMessage chan chan_msg))
 
 reset_midi :: (Midi.WriteMessage -> IO ()) -> RealTime -> AddrsSeen -> IO ()
-reset_midi write_midi time addrs = do
-    send_all write_midi addrs time Midi.AllNotesOff
-    -- Some breath oriented instruments don't pay attention to note on and note
-    -- off.
-    send_all write_midi addrs time (Midi.ControlChange CC.breath 0)
-    -- Ok, so there's this weird bug (?) in CoreMIDI, where an abort will
-    -- convert deschedued pitchbends to -1 pitchbends.  So abort, wait for it
-    -- to send its bogus pitchbend, and then reset it.  So I reported it on an
-    -- apple mailing list, they confirmed it, and in the next version of the OS
-    -- it's gone... did apple fix a bug?
-    Thread.delay 0.15
-    send_all write_midi addrs (time + RealTime.seconds 0.15) (Midi.PitchBend 0)
+reset_midi write_midi time addrs =
+    forM_ (Set.elems addrs) $ \(dev, chan) ->
+        mapM_ (write_midi . Midi.WriteMessage dev time)
+            (Midi.reset_channel chan)
 
 -- Force 'addrs_seen' so I don't drag on 'wmsgs'.
 update_addrs :: AddrsSeen -> [Midi.WriteMessage] -> AddrsSeen

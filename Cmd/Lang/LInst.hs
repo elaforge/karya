@@ -25,14 +25,6 @@ import Types
 
 -- * instrument config
 
--- | Send AllNotesOff msgs to all inst addr.
-all_notes_off :: Cmd.CmdL ()
-all_notes_off = do
-    alloc <- State.get_midi_alloc
-    let addrs = Seq.unique $ concat $ Map.elems alloc
-    let notes_off chan = Midi.ChannelMessage chan Midi.AllNotesOff
-    sequence_ [Cmd.midi dev (notes_off chan) | (dev, chan) <- addrs]
-
 lookup :: String -> Cmd.CmdL (Maybe Cmd.MidiInfo)
 lookup = Cmd.lookup_instrument_info . Score.Instrument
 

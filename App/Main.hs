@@ -167,9 +167,8 @@ startup_initialization = do
 all_notes_off :: (Midi.WriteMessage -> IO a) -> [Midi.WriteDevice] -> IO ()
 all_notes_off write_midi devs = mapM_ write_midi (concat (map msgs devs))
     where
-    msgs dev = map (Midi.WriteMessage dev 0) (concat (map off [0..15]))
-    off chan = [Midi.ChannelMessage chan Midi.AllNotesOff,
-            Midi.ChannelMessage chan Midi.ResetAllControls]
+    msgs dev = map (Midi.WriteMessage dev 0)
+        (concat (map Midi.reset_channel [0..15]))
 
 {-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do

@@ -923,6 +923,5 @@ require_right mkmsg = either (throw . mkmsg) return
 all_notes_off :: (M m) => m ()
 all_notes_off = do
     addrs <- concat . Map.elems <$> State.get_midi_alloc
-    forM_ addrs $ \(dev, chan) -> do
-        midi dev (Midi.ChannelMessage chan Midi.AllNotesOff)
-        midi dev (Midi.ChannelMessage chan Midi.ResetAllControls)
+    forM_ addrs $ \(dev, chan) ->
+        mapM_ (midi dev) (Midi.reset_channel chan)

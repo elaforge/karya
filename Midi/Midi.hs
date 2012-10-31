@@ -10,12 +10,12 @@ module Midi.Midi (
     , read_device_bs, write_device_bs
     , peek_wdev, peek_rdev, with_wdev, with_rdev
     , add_timestamp, modify_timestamp
-    -- TODO I don't want to export the constructors, but must due a ghc bug:
+    -- TODO I don't want to export the constructors, but must due to a ghc bug:
     -- http://hackage.haskell.org/trac/ghc/ticket/5252
     , ReadDevice(ReadDevice), WriteDevice(WriteDevice)
 
     -- * constructors
-    , program_change, pitch_bend_sensitivity
+    , program_change, pitch_bend_sensitivity, reset_channel
 
     -- * constants
     , sox_byte, eox_byte
@@ -157,6 +157,13 @@ pitch_bend_sensitivity range =
     where
     (semitones, frac) = properFraction range
     cents = round (frac * 100)
+
+reset_channel :: Channel -> [Message]
+reset_channel chan =
+    -- There is also AllNotesOff, but AllSoundOff seems more widely supported.
+    [ ChannelMessage chan AllSoundOff
+    , ChannelMessage chan ResetAllControls
+    ]
 
 -- * constants
 
