@@ -196,16 +196,20 @@ valid_chan_msg msg = case msg of
     _ -> error $ "valid_chan_msg: unknown msg: " ++ show msg
     where val7 v = 0 <= v && v < 128
 
+is_cc :: Message -> Bool
 is_cc (ChannelMessage _ (ControlChange _ _)) = True
 is_cc _ = False
 
+is_sysex :: Message -> Bool
 is_sysex (CommonMessage (SystemExclusive _ _)) = True
 is_sysex _ = False
 
+is_note :: Message -> Bool
 is_note (ChannelMessage _ (NoteOn _ _)) = True
 is_note (ChannelMessage _ (NoteOff _ _)) = True
 is_note _ = False
 
+is_note_on :: Message -> Bool
 is_note_on (ChannelMessage _ (NoteOn _ _)) = True
 is_note_on _ = False
 
