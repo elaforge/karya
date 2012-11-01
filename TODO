@@ -4,8 +4,10 @@ UNSORTED
     * colorize prompt
     - colorize string literals
   - in save/z1, second lower octave note doesn't trigger
-  - If you save a state with the step play selection on, it gets stuck on
+  * If you save a state with the step play selection on, it gets stuck on
     since stop won't clear it and advance thinks there's a step state.
+  - In fact I shouldn't save selections at all, or maybe just the insert
+    selection.  Clear them on load.
   - It's annoying how you have to rebuild the entire inst db when you update
     a bank file.  It should keep track of timestamps.  Why not use shake?
     Or just load from the bank files each time.

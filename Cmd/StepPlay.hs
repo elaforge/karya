@@ -23,6 +23,7 @@ module Cmd.StepPlay (
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -49,8 +50,8 @@ selnum = Config.step_play_selnum
 
 cmd_set_or_advance :: (Cmd.M m) => Bool -> m ()
 cmd_set_or_advance play_selected_tracks =
-    maybe (cmd_set play_selected_tracks) (const cmd_advance)
-        =<< Selection.lookup_selnum selnum
+    ifM (Maybe.isJust <$> get)
+        cmd_advance (cmd_set play_selected_tracks)
 
 -- | Place the play step position at the 'Cmd.state_play_step' before the
 -- insert point and prepare the performance.
