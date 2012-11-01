@@ -29,7 +29,7 @@ import Types
 
 initialize :: String -- ^ register this name with JACK
     -> (Midi.Message -> Bool) -- ^ read msgs that return false are filtered
-    -> (Either String Interface.Interface -> IO a) -> IO a
+    -> (Either String Interface.RawInterface Midi.WriteMessage -> IO a) -> IO a
 initialize app_name want_message app = do
     chan <- TChan.newTChanIO
     reads <- IORef.newIORef Set.empty

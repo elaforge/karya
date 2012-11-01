@@ -403,8 +403,7 @@ run_cmd cmd = do
             Cmd.run_io (rstate_ui_to rstate) (rstate_cmd_to rstate) cmd
     Trans.liftIO $ do
         mapM_ Log.write logs
-        mapM_ (Cmd.state_midi_writer (rstate_cmd_to rstate))
-            [Midi.WriteMessage dev 0 msg | (dev, msg) <- midi]
+        mapM_ (Cmd.state_midi_writer (rstate_cmd_to rstate)) midi
     case result of
         Left err -> return (Left err, cmd_state)
         Right (status, ui_state, updates) -> do

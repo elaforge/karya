@@ -180,6 +180,8 @@ type CmdStack m = State.StateT
         (Logger.LoggerT MidiThru
             (Log.LogT m)))
 
+type MidiThru = Midi.Interface.Message
+
 newtype CmdT m a = CmdT (CmdStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError State.Error,
         Applicative.Applicative)
@@ -188,9 +190,11 @@ class (Log.LogMonad m, State.M m) => M m where
     -- Not in MonadState for the same reasons as 'Ui.State.M'.
     get :: m State
     put :: State -> m ()
-    -- | Log some midi to send out immediately.  This is the midi thru
-    -- mechanism.
-    midi :: Midi.WriteDevice -> Midi.Message -> m ()
+    -- | Log some midi to send out.  This is the midi thru mechanism.
+    -- You can give it a timestamp, but it should be 0 for thru, which
+    -- will cause it to go straight to the front of the queue.  Use 'midi'
+    -- for normal midi thru.
+    write_midi :: Midi.Interface.Message -> m ()
     -- | An abort is an exception to get out of CmdT, but it's considered the
     -- same as returning Continue.  It's so a command can back out if e.g. it's
     -- selected by the 'Keymap' but has an additional prerequisite such as
@@ -201,12 +205,15 @@ class (Log.LogMonad m, State.M m) => M m where
 instance (Applicative.Applicative m, Monad m) => M (CmdT m) where
     get = (CmdT . lift) MonadState.get
     put st = (CmdT . lift) (MonadState.put st)
-    midi dev msg = (CmdT . lift . lift) (Logger.log (dev, msg))
+    write_midi msg = (CmdT . lift . lift) (Logger.log msg)
     abort = Error.throwError State.Abort
     catch_abort m = Error.catchError (fmap Just m) catch
         where
         catch State.Abort = return Nothing
         catch err = Error.throwError err
+
+midi :: (M m) => Midi.WriteDevice -> Midi.Message -> m ()
+midi dev msg = write_midi $ Midi.Interface.Midi $ Midi.WriteMessage dev 0 msg
 
 -- | For some reason, newtype deriving doesn't work on MonadTrans.
 instance Trans.MonadTrans CmdT where
@@ -223,8 +230,6 @@ instance (Functor m, Monad m) => State.M (CmdT m) where
     update upd = CmdT (State.update upd)
     get_updates = CmdT State.get_updates
     throw msg = CmdT (State.throw msg)
-
-type MidiThru = (Midi.WriteDevice, Midi.Message)
 
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
@@ -300,7 +305,8 @@ data State = State {
 
 initial_state :: Map.Map Midi.ReadDevice Midi.ReadDevice
     -> Map.Map Midi.WriteDevice Midi.WriteDevice
-    -> Midi.Interface.Interface -> InstrumentDb -> Derive.Scope -> State
+    -> Midi.Interface.Interface -> InstrumentDb -> Derive.Scope
+    -> State
 initial_state rdev_map wdev_map interface inst_db global_scope = State
     { state_midi_interface = interface
     , state_rdev_map = rdev_map
@@ -343,14 +349,18 @@ reinit_state present cstate = cstate
     }
 
 -- | Get a midi writer that takes the 'state_wdev_map' into account.
-state_midi_writer :: State -> Midi.WriteMessage -> IO ()
-state_midi_writer state (Midi.WriteMessage wdev ts msg) = do
-    putStrLn $ "PLAY " ++ Pretty.pretty wdev ++ "->" ++ Pretty.pretty wmsg
-    ok <- Midi.Interface.write_message (state_midi_interface state) wmsg
-    unless ok $ Log.warn $ "error writing " ++ Pretty.pretty wmsg
+state_midi_writer :: State -> Midi.Interface.Message -> IO ()
+state_midi_writer state imsg = do
+    let out = case imsg of
+            Midi.Interface.Midi wmsg -> Midi.Interface.Midi $ map_wdev wmsg
+            _ -> imsg
+    putStrLn $ "PLAY " ++ Pretty.pretty out
+    ok <- Midi.Interface.write_message (state_midi_interface state) out
+    unless ok $ Log.warn $ "error writing " ++ Pretty.pretty out
     where
-    wmsg = Midi.WriteMessage real_wdev ts msg
-    real_wdev = Map.findWithDefault wdev wdev (state_wdev_map state)
+    map_wdev (Midi.WriteMessage wdev time msg) =
+        Midi.WriteMessage (lookup_wdev wdev) time msg
+    lookup_wdev wdev = Map.findWithDefault wdev wdev (state_wdev_map state)
 
 -- | This is a hack so I can use the default Show instance for 'State'.
 newtype LookupScale = LookupScale Derive.LookupScale
@@ -919,9 +929,7 @@ require_msg msg = maybe (throw msg) return
 require_right :: (M m) => (err -> String) -> Either err a -> m a
 require_right mkmsg = either (throw . mkmsg) return
 
--- | Turn off all sounding notes and reset all controls.
+-- | Turn off all sounding notes.
+-- TODO clear out WriteDeviceState?
 all_notes_off :: (M m) => m ()
-all_notes_off = do
-    addrs <- concat . Map.elems <$> State.get_midi_alloc
-    forM_ addrs $ \(dev, chan) ->
-        mapM_ (midi dev) (Midi.reset_channel chan)
+all_notes_off = write_midi $ Midi.Interface.AllNotesOff 0

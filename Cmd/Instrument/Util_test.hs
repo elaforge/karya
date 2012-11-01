@@ -28,5 +28,4 @@ run_tracks tracks val_edit cmd = extract $ CmdTest.run_sel 0 tracks $ do
         }
     cmd
 
-extract res = (CmdTest.trace_logs (CmdTest.e_tracks res),
-    map snd (CmdTest.result_midi res))
+extract res = (CmdTest.trace_logs (CmdTest.e_tracks res), CmdTest.e_midi res)

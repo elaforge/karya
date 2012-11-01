@@ -15,9 +15,7 @@ import Util.Test
 import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
-import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
-
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
@@ -198,8 +196,7 @@ respond1 (ui_state, cmd_state) maybe_cmd msg = do
             , CmdTest.result_ui_state = Responder.state_ui rstate
             , CmdTest.result_updates = []
             , CmdTest.result_logs = []
-            , CmdTest.result_midi =
-                [(Midi.wmsg_dev m, Midi.wmsg_msg m) | m <- midi]
+            , CmdTest.result_midi = midi
             }
     return $ Result
         { result_msg = msg
@@ -231,7 +228,7 @@ make_rstate update_chan loopback_chan ui_state cmd_state maybe_cmd =
     -- Tests should link with the dummy interpreter.
     lang_session = ()
 
-make_midi_interface :: IO (Interface.Interface, TVar.TVar [Midi.WriteMessage])
+make_midi_interface :: IO (Interface.Interface, TVar.TVar [Interface.Message])
 make_midi_interface = do
     midi_chan <- new_chan
     int <- StubMidi.interface

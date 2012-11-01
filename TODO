@@ -3,9 +3,18 @@ UNSORTED
     * do pprint formatting in the repl
     * colorize prompt
     - colorize string literals
-  - z1 doesn't respond to AllSoundsOff in multi mode.  Reaper always sends
+  - in save/z1, second lower octave note doesn't trigger
+  - If you save a state with the step play selection on, it gets stuck on
+    since stop won't clear it and advance thinks there's a step state.
+  - It's annoying how you have to rebuild the entire inst db when you update
+    a bank file.  It should keep track of timestamps.  Why not use shake?
+    Or just load from the bank files each time.
+  * z1 doesn't respond to AllSoundsOff in multi mode.  Reaper always sends
     NoteOff, so I think NoteOff is the only reliable way.
     So I need to keep track of the note-on map
+    I think to be reliable this should go at the low level, otherwise Cmd
+    needs a note-on map and play needs one and they may step on each other.
+    I think a wrapper around the midi out could do that.
   - the same place that updates the status could use updates to clear caches
     for cmds or for TimeStep
     Clear when: inst changed, so if any performance was regenerated.  In fact,

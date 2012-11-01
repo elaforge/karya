@@ -69,6 +69,7 @@ initialize app = do
         Right midi_interface -> Network.withSocketsDo $ do
             Config.initialize_lang_port
             socket <- Network.listenOn Config.lang_port
+            midi_interface <- Interface.track_interface midi_interface
             app socket midi_interface
     where
     want_message (Midi.RealtimeMessage Midi.ActiveSense) = False
@@ -141,7 +142,8 @@ main = initialize $ \lang_socket midi_interface -> do
             Log.error $ "ui died from exception: " ++ show exc
 
     Interface.abort midi_interface
-    all_notes_off (Interface.write_message midi_interface) (map fst wdevs)
+    mapM_ (Interface.write_message midi_interface)
+        [Interface.AllNotesOff 0, Interface.reset_pitch 0]
     Log.notice "app quitting"
 
 -- | Do one-time startup tasks.
@@ -163,12 +165,6 @@ startup_initialization = do
         , ("pitch", Call.All.shadowed_pitches)
         , ("val", Call.All.shadowed_vals)
         ]
-
-all_notes_off :: (Midi.WriteMessage -> IO a) -> [Midi.WriteDevice] -> IO ()
-all_notes_off write_midi devs = mapM_ write_midi (concat (map msgs devs))
-    where
-    msgs dev = map (Midi.WriteMessage dev 0)
-        (concat (map Midi.reset_channel [0..15]))
 
 {-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do

@@ -14,7 +14,7 @@ test_note_tracker = do
         dev2 = Midi.write_device "dev2"
         note_on k = Midi.NoteOn k 1
         note_off k = Midi.NoteOff k 0
-    let end_with_off msgs = map midi_msg msgs ++ [Interface.ResetAll 0]
+    let end_with_off msgs = map midi_msg msgs ++ [Interface.AllNotesOff 0]
         midi_msg = Interface.Midi . mkmsg
 
     -- Note off is emitted.
@@ -33,7 +33,7 @@ test_note_tracker = do
         , (dev1, 0, note_off 1), (dev2, 0, note_off 1)
         ]
 
-    -- State is reset after the ResetAll.
+    -- State is reset after the AllNotesOff.
     io_equal (f (end_with_off [(dev1, 0, note_on 10)] ++ end_with_off []))
         [(dev1, 0, note_on 10), (dev1, 0, note_off 10)]
 

@@ -101,7 +101,7 @@ run_cmdio cmd = do
         Right (cmd_state, midi, result) -> case result of
             Left err -> return ("State error: " ++ Pretty.pretty err, False)
             Right (val, ui_state, updates) -> do
-                mapM_ (uncurry Cmd.midi) midi
+                mapM_ Cmd.write_midi midi
                 Cmd.put cmd_state
                 -- Should be safe, because I'm writing the updates.
                 State.unsafe_put ui_state

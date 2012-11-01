@@ -2,6 +2,7 @@
 module Midi.Interface where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM.TChan as TChan
+import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.State.Strict as State
 import qualified Control.Monad.Trans as Trans
 
@@ -14,6 +15,8 @@ import qualified Data.Vector.Unboxed.Mutable as Mutable
 
 import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
+
 import qualified Midi.Midi as Midi
 import Perform.RealTime (RealTime)
 
@@ -21,7 +24,7 @@ import Perform.RealTime (RealTime)
 type ReadChan = TChan.TChan Midi.ReadMessage
 
 -- | Produced by an @initialize@ function.
-data Interface = Interface {
+data RawInterface write_message = Interface {
     -- | Name of the MIDI driver.  Just for debugging.
     name :: String
     -- | ReadMessages from the opened ReadDevices become available on this
@@ -50,31 +53,61 @@ data Interface = Interface {
     --
     -- Messages should be written in increasing time order, with a special
     -- case that timestamp 0 messages will be written immediately.
-    , write_message :: Midi.WriteMessage -> IO Bool
+    , write_message :: write_message -> IO Bool
     -- | Deschedule all pending write messages.
     , abort :: IO ()
     -- | Current time according to the MIDI driver.
     , now :: IO RealTime
     }
 
-instance Show Interface where
+instance Show (RawInterface a) where
     show interface = "((MidiInterface " ++ name interface ++ "))"
 
-type State =
-    Map.Map Midi.WriteDevice (Vector.Vector (Mutable.IOVector Bool))
+type Interface = RawInterface Message
 
 -- | Annotate a WriteMessage with additional control messages.
 data Message =
-    Midi Midi.WriteMessage
-    -- | Turn off sounding notes and reset controls on all devices and channels.
-    | ResetAll RealTime
-    -- | Emit PitchBend 0 for all devices that have been used.  This doesn't
-    -- care if they have sounding notes because pitch bend state persists
-    -- after NoteOff.
-    | ResetAllPitch RealTime
+    Midi !Midi.WriteMessage
+    -- | Turn off sounding notes on all devices and channels.
+    | AllNotesOff !RealTime
+    -- | Emit the messages for all devices that have been used.  This doesn't
+    -- care if they have sounding notes because control state persists after
+    -- NoteOff.
+    | AllDevices !RealTime ![Midi.Message]
     deriving (Show)
 
+instance Pretty.Pretty Message where
+    pretty msg = case msg of
+        Midi msg -> Pretty.pretty msg
+        AllNotesOff time -> unwords ["AllNotesOff", Pretty.pretty time]
+        AllDevices time msgs ->
+            unwords ["AllDevices", Pretty.pretty time, Pretty.pretty msgs]
+
+instance DeepSeq.NFData Message where
+    rnf (Midi msg) = DeepSeq.rnf msg
+    rnf (AllNotesOff _) = ()
+    rnf (AllDevices _ msgs) = DeepSeq.rnf msgs
+
+track_interface :: RawInterface Midi.WriteMessage -> IO Interface
+track_interface interface = do
+    tracker <- note_tracker (write_message interface)
+    return $ interface { write_message = tracker }
+
+reset_pitch :: RealTime -> Message
+reset_pitch time = AllDevices time $ all_channels (Midi.PitchBend 0)
+
+reset_controls :: RealTime -> Message
+reset_controls time = AllDevices time $ concatMap all_channels
+    [Midi.ResetAllControls, Midi.PitchBend 0]
+
+all_channels :: Midi.ChannelMessage -> [Midi.Message]
+all_channels msg = [Midi.ChannelMessage chan msg | chan <- [0..15]]
+
+-- * implementation
+
 type TrackerM a = State.StateT State IO a
+type State =
+    Map.Map Midi.WriteDevice (Vector.Vector (Mutable.IOVector Bool))
 
 run :: State -> TrackerM Bool -> IO (State, Bool)
 run state = fmap Tuple.swap . flip State.runStateT state
@@ -82,7 +115,7 @@ run state = fmap Tuple.swap . flip State.runStateT state
 -- | Wrap a 'write_message' and keep track of which notes are on.  It can
 -- then handle reset messages which need to know current state to reset it.
 --
--- This is necessary because some synthesizers do not support ResetAll,
+-- This is necessary because some synthesizers do not support AllNotesOff,
 -- but also relieves callers of having to track which devices and channels
 -- have active notes.
 note_tracker :: (Midi.WriteMessage -> IO Bool) -> IO (Message -> IO Bool)
@@ -106,9 +139,8 @@ note_tracker write = do
             _ -> return ()
         return []
         where dev = Midi.wmsg_dev wmsg
-    handle_msg (ResetAll time) = reset_all time
-    handle_msg (ResetAllPitch time) = send_devices time
-        [Midi.ChannelMessage chan (Midi.PitchBend 0) | chan <- [0..15]]
+    handle_msg (AllNotesOff time) = all_notes_off time
+    handle_msg (AllDevices time msgs) = send_devices time msgs
 
 -- if dev in state:
 --      state[dev][chan][key] = False
@@ -143,18 +175,16 @@ send_devices time msgs = do
     where
     mkmsgs dev = map (Midi.WriteMessage dev time) msgs
 
-reset_all :: RealTime -> TrackerM [Midi.WriteMessage]
-reset_all time = do
+all_notes_off :: RealTime -> TrackerM [Midi.WriteMessage]
+all_notes_off time = do
     state <- State.get
     msgs <- Trans.liftIO $ forM (Map.toList state) $ \(dev, chans) ->
         forM (zip [0..] (Vector.toList chans)) $ \(chan, notes) -> do
             keys <- Unboxed.toList <$> Unboxed.freeze notes
             let on = [Midi.Key (fromIntegral i) | (i, True) <- zip [0..] keys]
             Trans.liftIO $ Mutable.set notes False
-            return $ concatMap (note_off dev chan) on
+            return $ map (note_off dev chan) on
     return (concat (concat msgs))
     where
-    note_off dev chan key =
-        map (Midi.WriteMessage dev time . Midi.ChannelMessage chan)
-            [Midi.NoteOff key 0, Midi.ResetAllControls]
-        -- send PitchBend 0 in case someone doesn't listen to ResetAllControls?
+    note_off dev chan key = Midi.WriteMessage dev time $
+        Midi.ChannelMessage chan $ Midi.NoteOff key 0

@@ -11,8 +11,10 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
+import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
+
 import qualified Ui.Diff as Diff
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -57,7 +59,7 @@ data Result val = Result {
     , result_ui_state :: State.State
     , result_updates :: [Update.CmdUpdate]
     , result_logs :: [Log.Msg]
-    , result_midi :: [(Midi.WriteDevice, Midi.Message)]
+    , result_midi :: [Interface.Message]
     }
 
 result_failed :: Result a -> Maybe String
@@ -242,6 +244,9 @@ e_performance block_id = Map.lookup block_id . Cmd.state_performance
 
 e_events :: BlockId -> Result a -> Derive.Events
 e_events block_id = maybe [] Cmd.perf_events . e_performance block_id
+
+e_midi :: Result a -> [Midi.Message]
+e_midi result = [Midi.wmsg_msg msg | Interface.Midi msg <- result_midi result]
 
 
 -- ** val
