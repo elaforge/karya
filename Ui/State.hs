@@ -208,7 +208,14 @@ create = do
 -- | Clear out data that shouldn't be saved.
 clear :: State -> State
 clear state = state { state_views = Map.map clear_view (state_views state) }
-    where clear_view view = view { Block.view_status = mempty }
+    where
+    clear_view view = view
+        { Block.view_status = mempty
+        , Block.view_selections =
+            -- Non-insert selections indicate ephemeral state.
+            maybe mempty (Map.singleton Config.insert_selnum) $
+                Map.lookup Config.insert_selnum (Block.view_selections view)
+        }
 
 instance Pretty.Pretty State where
     format (State views blocks tracks rulers config) =
