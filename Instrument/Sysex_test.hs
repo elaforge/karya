@@ -36,7 +36,7 @@ test_encode_decode = do
     uncurry equal (success str_spec (rmap [("name", RStr "ho")]))
     left_like (f str_spec (rmap [("name", RStr "too long")]))
         "too many characters"
-    left_like (f str_spec (rmap [])) "name not found"
+    left_like (f str_spec (rmap [])) "not found"
     left_like (f str_spec (RStr "foo")) "can't lookup name in non-map"
 
     let bits_spec = [Sysex.Bits
@@ -56,6 +56,26 @@ test_encode_decode = do
     uncurry equal (success enum_spec (enum_rmap "x"))
     uncurry equal (success enum_spec (enum_rmap "y"))
     left_like (f enum_spec (enum_rmap "z")) "unknown enum"
+
+test_union = do
+    let f specs = Sysex.decode specs <=< Sysex.encode specs
+    let success specs record = (f specs record, Right (record, ""))
+
+    let union_spec =
+            [ Sysex.enum_byte "type" ["a", "b"]
+            , Sysex.Union "field" "type" 8
+                [ ("a", [Sysex.Str "name" 4])
+                , ("b", [Sysex.byte "val" 255])
+                ]
+            ]
+        union_rmap typ field = rmap
+            [("type", REnum typ), ("field", RUnion (rmap field))]
+    uncurry equal (success union_spec (union_rmap "a" [("name", RStr "abc")]))
+    uncurry equal (success union_spec (union_rmap "b" [("val", RNum 42)]))
+    left_like (f union_spec (union_rmap "c" [("val", RNum 42)]))
+        "unknown enum: c"
+    left_like (f union_spec (union_rmap "a" [("xyz", RStr "abc")]))
+        "field.name: not found"
 
 rmap :: [(String, Record)] -> Record
 rmap = RMap . Map.fromList

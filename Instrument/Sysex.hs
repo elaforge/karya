@@ -24,11 +24,14 @@ import qualified Util.Seq as Seq
 
 
 data Record =
-    RMap (Map.Map String Record)
+    RMap (Map.Map Name Record)
     | RList [Record]
-    | RNum Int | RStr String | REnum String
+    -- | Which one this is is determined by an REnum elsewhere.
+    | RUnion Record
+    | RNum Int | RStr String | REnum EnumName
     deriving (Eq, Show)
 type Error = String
+type EnumName = String
 
 -- | Create a Record from a Spec, defaulting everything to 0, "", or the first
 -- enum val.
@@ -40,6 +43,10 @@ spec_to_record = RMap . Map.delete "" . List.foldl' add Map.empty
     add rec (SubSpec name specs) = Map.insert name (spec_to_record specs) rec
     add rec (List name elts specs) =
         Map.insert name (RList (replicate elts (spec_to_record specs))) rec
+    add rec (Union name _enum_name _bytes ((_, specs) : _)) =
+        Map.insert name (RUnion (spec_to_record specs)) rec
+    add _ (Union name _enum_name _bytes []) =
+        error $ name ++ " had an empty Union"
     add_bit rec (name, (_, Range {})) = Map.insert name (RNum 0) rec
     add_bit rec (name, (_, Enum (enum : _))) = Map.insert name (REnum enum) rec
     add_bit _ (name, (_, Enum [])) = error $ name ++ " had an empty Enum"
@@ -51,27 +58,28 @@ instance Pretty.Pretty Record where
         RNum x -> Pretty.format x
         RStr x -> Pretty.format x
         REnum x -> Pretty.text x
+        RUnion x -> Pretty.format x
 
 -- * encode
 
-type Put a = Error.ErrorT Error (Writer.Writer Builder.Builder) a
+type EncodeM a = Error.ErrorT Error (Writer.Writer Builder.Builder) a
 
 encode :: [Spec] -> Record -> Either Error ByteString
 encode specs record = run_encode (mapM_ (encode_spec [] record) specs)
 
-run_encode :: Put () -> Either Error ByteString
+run_encode :: EncodeM () -> Either Error ByteString
 run_encode m = case Writer.runWriter (Error.runErrorT m) of
     (Left err, _) -> Left err
     (Right (), builder) ->
         Right $ Lazy.toStrict $ Builder.toLazyByteString builder
 
-encode_spec :: [String] -> Record -> Spec -> Put ()
+encode_spec :: [String] -> Record -> Spec -> EncodeM ()
 encode_spec path record spec = case spec of
     Bits bits -> do
         b <- either (uncurry throw) return $ encode_byte record bits
         Writer.tell (Builder.word8 b)
     Str name chars -> do
-        str <- lookup name >>= \x -> case x of
+        str <- lookup_record name >>= \x -> case x of
             RStr str -> return str
             val -> throw name $ "expected a string, but got " ++ show val
         let diff = chars - length str
@@ -82,10 +90,10 @@ encode_spec path record spec = case spec of
                 ++ ": " ++ show str
         Writer.tell (Builder.string7 padded)
     SubSpec name specs -> do
-        sub_record <- lookup name
+        sub_record <- lookup_record name
         mapM_ (encode_spec (name:path) sub_record) specs
     List name elts specs -> do
-        records <- lookup name >>= \x -> case x of
+        records <- lookup_record name >>= \x -> case x of
             RList records
                 | length records == elts -> return records
                 | otherwise -> throw name $ "expected list of length "
@@ -93,8 +101,23 @@ encode_spec path record spec = case spec of
             val -> throw name $ "expected a list, but got " ++ show val
         forM_ (zip [0..] records) $ \(i, rec) ->
             mapM_ (encode_spec ((name ++ show i) : path) rec) specs
+    Union name enum_name nbytes enum_specs -> do
+        union_record <- lookup_record name >>= \x -> case x of
+            RUnion union_record -> return union_record
+            val -> throw name $ "expected a union, but got " ++ show val
+        enum <- lookup_record enum_name >>= \x -> case x of
+            REnum enum -> return enum
+            val -> throw name $ "expeted an enum, but got " ++ show val
+        specs <- case lookup enum enum_specs of
+            Just specs -> return specs
+            Nothing -> throw name $ "not found in union "
+                ++ show (map fst enum_specs) ++ ": " ++ enum
+        bytes <- either Error.throwError return $
+            run_encode (mapM_ (encode_spec (name:path) union_record) specs)
+        Writer.tell $ Builder.byteString $ bytes
+            <> Char8.replicate (nbytes - Char8.length bytes) '\0'
     where
-    lookup = either (uncurry throw) return . rmap_lookup record
+    lookup_record = either (uncurry throw) return . rmap_lookup record
     throw name msg = Error.throwError $ show_path (name:path) ++ msg
 
 encode_byte :: Record -> [(Name, BitField)] -> Either (Name, Error) Word8
@@ -112,7 +135,7 @@ encode_byte record bits = do
         | otherwise = Right (fromIntegral val)
     encode1 (name, (_, Enum enums)) (REnum enum) =
         case List.elemIndex enum enums of
-            Nothing -> Left (name, "unknown enum: " ++ show enum)
+            Nothing -> Left (name, "unknown enum: " ++ enum)
             Just i -> return $ fromIntegral i
     encode1 (name, field) val = Left
         (name, "field " ++ show field ++ " not appropriate for " ++ show val)
@@ -121,30 +144,49 @@ rmap_lookup :: Record -> Name -> Either (Name, Error) Record
 rmap_lookup _ "" = Right $ RNum 0 -- null name means it's a reserved section
 rmap_lookup record name = case record of
     RMap rmap -> case Map.lookup name rmap of
-        Nothing -> Left (name, "name not found")
+        Nothing -> Left (name, "not found")
         Just val -> Right val
     _ -> Left (name, "can't lookup name in non-map " ++ show record)
 
 -- * decode
 
 decode :: [Spec] -> ByteString -> Either Error (Record, ByteString)
-decode specs bytes = Get.runGetState (rmap [] specs) bytes 0
+decode = decode_from []
     where
-    rmap path specs = RMap . Map.fromList <$> concatMapM (field path) specs
-    field :: [Name] -> Spec -> Get.Get [(String, Record)]
-    field path (Bits bits) =
-        either (fail . (show_path path ++)) return
-            . decode_byte path bits =<< Get.getWord8
-    field _ (Str name chars) = do
+    decode_from path specs bytes = Get.runGetState (rmap path [] specs) bytes 0
+    rmap _ collect [] = return $ RMap (Map.fromList collect)
+    rmap path collect (spec:specs) = do
+        vals <- field path collect spec
+        rmap path (vals ++ collect) specs
+
+    -- rmap path specs = RMap . Map.fromList <$> concatMapM (field path) specs
+    field :: [Name] -> [(Name, Record)] -> Spec -> Get.Get [(String, Record)]
+    field path _ (Bits bits) =
+        either (throw path) return . decode_byte path bits =<< Get.getWord8
+    field _ _ (Str name chars) = do
         str <- Get.getByteString chars
         return [(name, RStr (Seq.strip (Char8.unpack str)))]
-    field path (SubSpec name specs) = do
-        subs <- rmap (name : path) specs
+    field path _ (SubSpec name specs) = do
+        subs <- rmap (name : path) [] specs
         return [(name, subs)]
-    field path (List name elts specs) = do
+    field path _ (List name elts specs) = do
         subs <- forM [0 .. elts-1] $ \i ->
-            rmap ((name ++ show i) : path) specs
+            rmap ((name ++ show i) : path) [] specs
         return [(name, RList subs)]
+    field path prev_record (Union name enum_name bytes enum_specs) = do
+        path <- return (name : path)
+        enum <- case lookup enum_name prev_record of
+            Just (REnum enum) -> return enum
+            _ -> throw path $ "previous enum not found: " ++ enum_name
+        specs <- case lookup enum enum_specs of
+            Just specs -> return specs
+            Nothing -> throw path $
+                "union doesn't contain enum: " ++ enum
+        bytes <- Get.getByteString bytes
+        record <- either (throw path) (return . fst) $
+            decode_from path specs bytes
+        return [(name, RUnion record)]
+    throw path = fail . (show_path path ++)
 
 decode_byte :: [Name] -> [(Name, BitField)] -> Word8
     -> Either String [(String, Record)]
@@ -205,26 +247,49 @@ from_signed bits num
 -- * spec
 
 data Spec =
-    Bits [(Name, BitField)] | Str Name Int | SubSpec Name [Spec]
+    Bits [(Name, BitField)] | Str Name Bytes | SubSpec Name [Spec]
     | List Name Int [Spec]
+    -- | The content of this section depends on a previous enum value.
+    -- Name of this field, name of the enum to reference
+    | Union Name Name Bytes [(EnumName, [Spec])]
     deriving (Show)
 
-data Range = Range Int Int | Enum [String]
+data Range = Range Int Int | Enum [EnumName]
     deriving (Show)
 
 type BitField = (Bits, Range)
 type Name = String
 type Bits = Int
+type Bytes = Int
 
 validate :: [Spec] -> Maybe String
-validate = msum . map check
+validate specs = msum (map check specs)
     where
     check (Bits bits)
         | total /= 8 = Just $
             show (map fst bits) ++ " - bits should sum to 8: " ++ show total
         | otherwise = Nothing
         where total = sum [n | (_, (n, _)) <- bits]
+    check (Union name enum_name _bytes fields) = case lookup_spec enum_name of
+        Just (Left (_, Enum enums))
+            | List.sort enums /= List.sort (map fst fields) -> Just $
+                name ++ ": enums not equal: " ++ show (enums, map fst fields)
+            -- TODO fields sum up to < bytes
+            -- check recursively on specs
+        _ -> Just $ name ++ ": enum not found"
     check _ = Nothing
+    lookup_spec wanted = msum (map find specs)
+        where
+        find spec = case spec of
+            Bits bits -> msum (map find_bit bits)
+            Str name _ | name == wanted -> Just $ Right spec
+            SubSpec name _ | name == wanted -> Just $ Right spec
+            List name _ _ | name == wanted -> Just $ Right spec
+            Union name _ _ _ | name == wanted -> Just $ Right spec
+            _ -> Nothing
+        find_bit (name, field)
+            | name == wanted = Just $ Left field
+            | otherwise = Nothing
 
 -- | Hokey runtime check to make sure Bits constructors all add up to one byte.
 assert_valid :: String -> [Spec] -> [Spec]

@@ -157,12 +157,17 @@ multiset :: [Spec]
 multiset = Sysex.assert_valid "multiset" $
     [ Str "name" 16
     , List "timbre" 6 timbre
-    , enum_byte "effect1 select" effect_type1
-    , SubSpec "effect1 setting" effect_setting
-    , enum_byte "effect2 select" effect_type2
-    , SubSpec "effect2 setting" effect_setting
+    , enum_byte "effect 1 select" effect_type1
+    , Union "effect 1 setting" "effect 1 select" 22 $ zip effect_type1
+        [ effect_overdrive, effect_compressor, effect_4_band_peq
+        ]
+    , enum_byte "effect 2 select" effect_type2
+    , Union "effect 2 setting" "effect 2 select" 22 $ zip effect_type2
+        []
     , enum_byte "master effect select" master_effect_type
-    , SubSpec "master effect setting" master_effect_setting
+    , Union "master effect setting" "master effect select" 18 $
+        zip master_effect_type
+        []
     ]
 
 timbre :: [Spec]
