@@ -36,7 +36,7 @@ import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty)
 
 import qualified Development.Shake as Shake
-import Development.Shake ((?==), (?>), (*>), action, need)
+import Development.Shake ((?==), (?>), (*>), need)
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
@@ -347,10 +347,6 @@ main = do
         Environment.getArgs
     when (not (null errors)) $
         error $ "Errors parsing flags: " ++ unlines errors
-
-    let target = case targets of
-            [target] -> target
-            _ -> error "expected one argument"
     modeConfig <- configure
     let options = shakeOptions
             { Shake.shakeThreads =
@@ -403,7 +399,7 @@ main = do
         -- be recompiled.
         "//*.hi" *> \hi -> need [hiToObj hi]
         ccORule infer
-        dispatch (modeConfig Debug) target
+        dispatch (modeConfig Debug) targets
 
 setupOracle :: Config -> Shake.Rules ()
 setupOracle config = do
@@ -435,42 +431,47 @@ matchPrefix prefixes pattern fn =
         Nothing -> False
         Just rest -> pattern ?== (dropWhile (=='/') rest)
 
-dispatch :: Config -> String -> Shake.Rules ()
-dispatch config target = case target of
-    "checkin" -> do
-        let debug = (modeToDir Debug </>)
-        Shake.want $
-            [ debug "browser", debug "logview", debug "make_db"
-            , debug "seq", debug "update"
-            , modeToDir Profile </> "RunProfile"
-            ] ++ extractableDocs
-        dispatch config "tests"
-        -- The gui tests tend to wedge.
-        -- dispatch config "complete-tests"
-    "clean" -> action $ do
-        -- The shake database will remain because shake creates it after the
-        -- shakefile runs, but that's probably ok.
-        system "rm" ["-rf", build]
-        system "mkdir" [build]
-    "doc" -> action $ makeAllDocumentation config
-    "haddock" -> action $ makeHaddock config
-    "hlint" -> action $ hlint config
-    "md" -> action $ need . map docToHtml =<< getMarkdown
-    "profile" -> action $ do
-        need [modeToDir Profile </> "RunProfile"]
-        system "tools/summarize_profile.py" []
-    "show-config" -> action $ Trans.liftIO $ PPrint.pprint config
-    "tests" -> action $ do
-        need [runTests Nothing]
-        system "test/run_tests" [runTests Nothing]
-    "tests-complete" -> action $ do
-        need [runTests Nothing]
-        system "test/run_tests" [runTests Nothing, "normal-", "gui-"]
-    (dropPrefix "tests-" -> Just tests) -> action $ do
-        need [runTests (Just tests)]
-        system "test/run_tests" [runTests (Just tests)]
-    _ -> Shake.want [target]
+dispatch :: Config -> [String] -> Shake.Rules ()
+dispatch config targets = do
+    handled <- mapM hardcoded targets
+    Shake.want [target | (False, target) <- zip handled targets]
     where
+    hardcoded target = case target of
+        "checkin" -> do
+            let debug = (modeToDir Debug </>)
+            Shake.want $
+                [ debug "browser", debug "logview", debug "make_db"
+                , debug "seq", debug "update"
+                , modeToDir Profile </> "RunProfile"
+                ] ++ extractableDocs
+            dispatch config ["tests"]
+            -- The gui tests tend to wedge.
+            -- dispatch config "complete-tests"
+            return True
+        "clean" -> action $ do
+            -- The shake database will remain because shake creates it after the
+            -- shakefile runs, but that's probably ok.
+            system "rm" ["-rf", build]
+            system "mkdir" [build]
+        "doc" -> action $ makeAllDocumentation config
+        "haddock" -> action $ makeHaddock config
+        "hlint" -> action $ hlint config
+        "md" -> action $ need . map docToHtml =<< getMarkdown
+        "profile" -> action $ do
+            need [modeToDir Profile </> "RunProfile"]
+            system "tools/summarize_profile.py" []
+        "show-config" -> action $ Trans.liftIO $ PPrint.pprint config
+        "tests" -> action $ do
+            need [runTests Nothing]
+            system "test/run_tests" [runTests Nothing]
+        "tests-complete" -> action $ do
+            need [runTests Nothing]
+            system "test/run_tests" [runTests Nothing, "normal-", "gui-"]
+        (dropPrefix "tests-" -> Just tests) -> action $ do
+            need [runTests (Just tests)]
+            system "test/run_tests" [runTests (Just tests)]
+        _ -> return False
+    action act = Shake.action act >> return True
     runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
 
 hlint :: Config -> Shake.Action ()
