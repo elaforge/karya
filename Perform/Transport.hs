@@ -7,7 +7,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Data.IORef as IORef
 
 import qualified Util.Thread as Thread
-import qualified Midi.Midi as Midi
+import qualified Midi.Interface as Interface
 import qualified Ui.State as State
 import qualified Derive.Score as Score
 import Types
@@ -24,7 +24,7 @@ data Status = Playing | Stopped | Died String
 data Info = Info {
     -- | Send status messages back to the responder loop.
     info_send_status :: Status -> IO ()
-    , info_midi_writer :: Midi.WriteMessage -> IO ()
+    , info_midi_writer :: Interface.Message -> IO ()
     -- | Action that will abort any pending midi msgs written with the midi
     -- writer.
     , info_midi_abort :: IO ()
