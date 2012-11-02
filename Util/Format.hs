@@ -21,15 +21,24 @@ data State = State {
     , state_indent :: !Int
     -- | Chunks of text, stored backward.
     , state_text :: ![Text]
+    -- | 'wrapped_words' will wrap text at this width, or not wrap at all if
+    -- it's Nothing.
+    , state_wrap_width :: !(Maybe Int)
     } deriving (Show)
 
 newtype FormatM a = FormatM (State.State State a)
-    deriving (Functor, Monad)
+    deriving (Functor, Monad, State.MonadState State)
 
-run :: FormatM a -> Text
-run (FormatM m) = extract $ State.execState m (State 0 0 [])
+run :: Maybe Int -> FormatM a -> Text
+run wrap_width (FormatM m) = extract $ State.execState m state
     where
     extract = (<>"\n") . Text.stripEnd . mconcat . List.reverse . state_text
+    state = State
+        { state_col = 0
+        , state_indent = 0
+        , state_text = []
+        , state_wrap_width = wrap_width
+        }
 
 -- | Run the given format in an increased indentation level.  Indentation
 -- takes effect after the next newline.
@@ -41,19 +50,24 @@ indented n m = do
     modify $ \state -> state { state_indent = indent }
     return result
 
--- | Write until the width, then wrap.  The wrapped lines get extra indent.
-wrapped_words :: Int -> Int -> Text -> FormatM ()
-wrapped_words width indent text = case Text.words text of
+-- | Write until the 'state_wrap_width', then wrap.  The wrapped lines get
+-- extra indent.
+wrapped_words :: Int -> Text -> FormatM ()
+wrapped_words indent text = do
+    maybe_width <- State.gets state_wrap_width
+    case Text.words text of
         [] -> return ()
         w : ws -> do
-            write_word True w
-            indented indent (mapM_ (write_word False) ws)
+            write_word maybe_width True w
+            indented indent (mapM_ (write_word maybe_width False) ws)
     where
-    write_word is_first word = write1 is_first word =<< get
-    write1 is_first word state
+    write_word maybe_width is_first word =
+        write1 maybe_width is_first word =<< get
+    write1 maybe_width is_first word state
         -- +1 for the leading space.
-        | not at_begin && state_col state + Text.length word + 1 > width =
-            newline >> write word
+        | Just width <- maybe_width,
+            not at_begin && state_col state + Text.length word + 1 > width =
+                newline >> write word
         | at_begin = write word
         | otherwise = write $ if is_first then word else " " <> word
         where at_begin = state_col state == 0

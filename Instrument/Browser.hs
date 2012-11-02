@@ -159,9 +159,9 @@ show_cmds cmds = show (length cmds) ++ " cmds (cmds can't be introspected yet)"
 
 show_calls :: [Derive.LookupCall call] -> String
 show_calls lookups =
-    Text.unpack $ Format.run $
-        -- Pass a giant width because I should let fltk do the wrapping.
-        mapM_ (CallDoc.call_bindings_text 500) call_bindings
+    -- Pass a Nothing for width because I should let fltk do the wrapping.
+    Text.unpack $ Format.run Nothing $
+        mapM_ CallDoc.call_bindings_text call_bindings
     where
     call_bindings = CallDoc.lookup_docs (map Derive.lookup_docs lookups)
 

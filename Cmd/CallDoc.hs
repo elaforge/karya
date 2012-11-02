@@ -29,17 +29,17 @@ import Types
 
 -- | Convert a Document to plain text.
 doc_text :: Document -> Text.Text
-doc_text = Format.run . mapM_ section
+doc_text = Format.run (Just 75) . mapM_ section
     where
     section (call_type, scope_docs) = do
         Format.write $ "## " <> call_type <> " calls" <> "\n\n"
         mapM_ scope_doc scope_docs
     scope_doc (source, calls) = do
         Format.write $ "### from " <> source <> "\n\n"
-        mapM_ (call_bindings_text 75) calls
+        mapM_ call_bindings_text calls
 
-call_bindings_text :: Int -> CallBindings -> Format.FormatM ()
-call_bindings_text wrap_width (binds, sections) = do
+call_bindings_text :: CallBindings -> Format.FormatM ()
+call_bindings_text (binds, sections) = do
         mapM_ show_bind binds
         Format.indented 2 $ show_sections sections
         Format.newline
@@ -49,26 +49,26 @@ call_bindings_text wrap_width (binds, sections) = do
         Format.write $ " -- " <> name <> ":\n"
     strikeout sym = "~~" <> sym <> "~~ (shadowed)"
     show_sections [(ValCall, Derive.CallDoc doc args)] = do
-        write_doc wrap_width doc
+        write_doc doc
         Format.indented 2 $ arg_docs args
     show_sections sections = mapM_ call_section sections
     call_section (call_type, Derive.CallDoc doc args) = do
         Format.write $ show_call_type call_type <> ": "
-        write_doc wrap_width doc
+        write_doc doc
         Format.indented 2 $ arg_docs args
     arg_docs (Derive.ArgsParsedSpecially doc) = do
         Format.write "Args parsed by call: "
-        write_doc wrap_width doc
+        write_doc doc
     arg_docs (Derive.ArgDocs args) = mapM_ arg_doc args
     arg_doc (Derive.ArgDoc name typ deflt doc) = do
         Format.write $ Text.pack name <> " :: "
             <> Text.pack (Pretty.pretty typ) <> show_default deflt <> " -- "
-        write_doc wrap_width doc
+        write_doc doc
     show_default = maybe "" ((" = "<>) . Text.pack)
 
-write_doc :: Int -> String -> Format.FormatM ()
-write_doc wrap_width text = do
-    Format.wrapped_words wrap_width 4 (Text.pack text)
+write_doc :: String -> Format.FormatM ()
+write_doc text = do
+    Format.wrapped_words 4 (Text.pack text)
     Format.newline
 
 -- ** html output
