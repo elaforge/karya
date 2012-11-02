@@ -71,6 +71,8 @@ void
 Browser::set_info(const char *info)
 {
     this->info_buffer.text(info);
+    // Scroll to the top when new info is displayed.
+    this->info_pane.scroll(0, 0);
 }
 
 

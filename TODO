@@ -3,6 +3,7 @@ UNSORTED
     * do pprint formatting in the repl
     * colorize prompt
     - colorize string literals
+  * browser should scroll up the info pane when you select a new instrument
   clean up z1 patches
     - dump all patches from z1, remove the dups
     - modify them all to have (-24, +24) pitch bend and send back
