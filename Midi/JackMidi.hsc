@@ -29,7 +29,8 @@ import Types
 
 initialize :: String -- ^ register this name with JACK
     -> (Midi.Message -> Bool) -- ^ read msgs that return false are filtered
-    -> (Either String Interface.RawInterface Midi.WriteMessage -> IO a) -> IO a
+    -> (Either String (Interface.RawInterface Midi.WriteMessage) -> IO a)
+    -> IO a
 initialize app_name want_message app = do
     chan <- TChan.newTChanIO
     reads <- IORef.newIORef Set.empty
@@ -52,7 +53,8 @@ initialize app_name want_message app = do
                     freeHaskellFunPtr notify
                     close_client client
 
-interface :: String -> Client -> Interface.ReadChan -> Interface.Interface
+interface :: String -> Client -> Interface.ReadChan
+  -> Interface.RawInterface Midi.WriteMessage
 interface app_name client chan = Interface.Interface
     { Interface.name = "JACK"
     , Interface.read_channel = chan
