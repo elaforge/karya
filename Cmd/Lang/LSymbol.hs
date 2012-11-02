@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Tools for interactively tweaking Symbol parameters.
 --
 -- TODO using this module on linux will break the REPL.  Apparently

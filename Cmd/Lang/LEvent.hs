@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Lang cmds to deal with events.
 module Cmd.Lang.LEvent where
 import Util.Control

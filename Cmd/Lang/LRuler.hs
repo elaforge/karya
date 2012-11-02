@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {- | Work with rulers and meters.  A meter is just a ruler specialized to
     display regular numbered subdivisions.
 

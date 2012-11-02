@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds to deal with Cmd.Performance, derivation, and performance.
 module Cmd.Lang.LPerf where
 import qualified Data.Map as Map

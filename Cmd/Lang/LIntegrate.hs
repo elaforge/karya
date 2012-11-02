@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 module Cmd.Lang.LIntegrate where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map

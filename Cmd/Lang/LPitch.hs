@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds meant to be used from the REPL, for dealing with pitch tracks.
 --
 -- TODO It seems a little arbitrary to divide these cmds out like this.

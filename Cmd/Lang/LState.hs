@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Lang cmds providing general UI state operations.
 module Cmd.Lang.LState where
 import qualified Control.Monad.Trans as Trans

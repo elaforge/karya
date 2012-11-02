@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds to modify cmd state.
 module Cmd.Lang.LCmd where
 import qualified Cmd.Cmd as Cmd

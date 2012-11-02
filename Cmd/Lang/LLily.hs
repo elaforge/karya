@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Lilypond compiles are always kicked off manually.
 --
 -- I used to have some support for automatically reinvoking lilypond after

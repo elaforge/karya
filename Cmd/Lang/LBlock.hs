@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Block level cmds.
 module Cmd.Lang.LBlock where
 import qualified Control.Monad.Trans as Trans

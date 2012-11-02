@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds for track level operations.
 module Cmd.Lang.LTrack where
 import qualified Data.Set as Set
