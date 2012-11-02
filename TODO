@@ -8,7 +8,10 @@ UNSORTED
     - dump all patches from z1, remove the dups
     - modify them all to have (-24, +24) pitch bend and send back
   * browser should show what calls an instrument introduces, and which cmds
-  - in save/z1, second lower octave note doesn't trigger
+  / in save/z1, second lower octave note doesn't trigger
+    For some reason the performer is putting it on channel 4, but only when
+    the other notes are present.
+    Not a bug!
   * If you save a state with the step play selection on, it gets stuck on
     since stop won't clear it and advance thinks there's a step state.
   * In fact I shouldn't save selections at all, or maybe just the insert

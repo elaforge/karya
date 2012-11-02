@@ -42,6 +42,7 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
 import qualified Cmd.Lang.LBlock as LBlock
 import qualified Cmd.Lang.LCmd as LCmd
+import qualified Cmd.Lang.LDebug as LDebug
 import qualified Cmd.Lang.LEvent as LEvent
 import qualified Cmd.Lang.LInst as LInst
 import qualified Cmd.Lang.LIntegrate as LIntegrate

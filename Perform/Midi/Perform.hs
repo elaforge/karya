@@ -40,7 +40,8 @@ import qualified Perform.Signal as Signal
 
 -- * constants
 
--- | Turn on debug logging.
+-- | Turn on debug logging.  This is hardcoded because debugging can generate
+-- lots of logs and performance has to be efficient.
 logging :: Bool
 logging = False
 
@@ -119,6 +120,9 @@ channelize :: ChannelizeState -> InstAddrs -> Events
 channelize overlapping inst_addrs events =
     overlap_map overlapping (channelize_event inst_addrs) events
 
+-- | This doesn't pay any mind to instrument channel assignments, except as an
+-- optimization for instruments with only a single channel.  Channels are
+-- actually assigned later by 'allot'.
 channelize_event :: InstAddrs -> [(Event, Channel)] -> Event
     -> (Channel, [Log.Msg])
 channelize_event inst_addrs overlapping event =
@@ -134,11 +138,13 @@ channelize_event inst_addrs overlapping event =
     -- maximum channel in use.
     chan = fromMaybe (maximum (-1 : map snd overlapping) + 1) maybe_chan
     (maybe_chan, reasons) = shareable_chan overlapping event
-    logs =
-        [ Log.msg Log.Warn (Just (Stack.to_strings (event_stack event))) $
-            "can't share with " ++ show chan ++ ": " ++ err
-        | (chan, err) <- reasons
-        ]
+    logs = map (Log.msg Log.Warn (Just stack)) $
+        ("found chan " ++ show maybe_chan ++ ", picked " ++ show chan)
+        : map mkmsg reasons
+    stack = Stack.to_strings (event_stack event)
+    mkmsg (chan, reason) =
+        Pretty.pretty inst_name ++ " at " ++ Pretty.pretty (event_start event)
+            ++ " can't share with " ++ show chan ++ ": " ++ reason
 
 -- | Find a channel from the list of overlapping (Event, Channel) all of whose
 -- events can share with the given event.  Return the rest of the channels and
@@ -161,7 +167,8 @@ can_share_chan :: Event -> Event -> Maybe String
 can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         _ | start >= end -> Nothing
         _ | event_instrument old /= event_instrument new ->
-            Just "instruments differ"
+            Just $ "instruments differ: "
+                ++ Pretty.pretty (event_instrument old)
         (Just (initial_old, _), Just (initial_new, _))
             | not (Signal.pitches_share in_decay start end
                 initial_old (event_pitch old) initial_new (event_pitch new)) ->
@@ -209,6 +216,10 @@ controls_equal cs0 cs1 = all eq pairs
 -- | 'channelize' will assign channels based on whether the notes can coexist
 -- without interfering with each other.  'allot' reduces those channels down
 -- to the real midi channels assigned to the instrument, stealing if necessary.
+--
+-- allot assigns notes to the longest-unused channel, which means that even if
+-- notes could coexist but don't have to, they will wind up on separate
+-- channels.
 --
 -- Events with instruments that have no address allocation in the config
 -- will be dropped.
@@ -577,6 +588,17 @@ instance DeepSeq.NFData Event where
         where
         rnf :: DeepSeq.NFData a => a -> ()
         rnf = DeepSeq.rnf
+
+instance Pretty.Pretty Event where
+    format (Event inst start dur controls pitch stack) = Pretty.record_title
+        "Event"
+        [ ("instrument", Pretty.format (Instrument.inst_score inst))
+        , ("start", Pretty.format start)
+        , ("duration", Pretty.format dur)
+        , ("controls", Pretty.format controls)
+        , ("pitch", Pretty.format pitch)
+        , ("stack", Pretty.format stack)
+        ]
 
 event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event

@@ -24,7 +24,8 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Convert as Midi.Convert
-import qualified Perform.Midi.Perform as Midi.Perform
+import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 
 import Types
@@ -91,13 +92,13 @@ derive_tempo block_id = do
 -- * block
 
 block_events :: BlockId -> Cmd.CmdL Derive.Events
-block_events block_id = Derive.r_events <$> derive block_id
+block_events block_id = Derive.r_events <$> PlayUtil.cached_derive block_id
 
 block_uncached_events :: BlockId -> Cmd.CmdL Derive.Events
 block_uncached_events block_id = Derive.r_events <$> uncached_derive block_id
 
 -- | Derive all the way to MIDI.
-block_midi :: BlockId -> Cmd.CmdL Midi.Perform.MidiEvents
+block_midi :: BlockId -> Cmd.CmdL Perform.MidiEvents
 block_midi block_id = do
     perf <- Performance.performance <$> PlayUtil.cached_derive block_id
     PlayUtil.perform_from 0 perf
@@ -123,7 +124,7 @@ events_from = do
     return $ LEvent.events_of $
         PlayUtil.events_from start (Cmd.perf_events perf)
 
-perform_from :: Cmd.CmdL Midi.Perform.MidiEvents
+perform_from :: Cmd.CmdL Perform.MidiEvents
 perform_from = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     perf <- Cmd.get_performance block_id
@@ -168,19 +169,25 @@ in_range start_of start end =
         . dropWhile (is_event ((<start) . start_of))
     where is_event f = LEvent.either f (const True)
 
--- * conversion
+-- * perform_events
 
-perform_events :: Derive.Events -> Cmd.CmdL Midi.Perform.MidiEvents
-perform_events = PlayUtil.perform_events
-
-convert :: Derive.Events -> Cmd.CmdL (Events Midi.Perform.Event)
+convert :: Derive.Events -> Cmd.CmdL (Events Perform.Event)
 convert events = do
     lookup <- PlayUtil.get_convert_lookup
     return $ Midi.Convert.convert lookup events
 
+perf_event_inst :: Perform.Event -> String
+perf_event_inst =
+    Score.inst_name . Instrument.inst_score . Perform.event_instrument
+
+-- * midi
+
+perform_events :: Derive.Events -> Cmd.CmdL Perform.MidiEvents
+perform_events = PlayUtil.perform_events
+
 -- * util
 
 -- | Reduce MIDI to an easier to read form.
-simple_midi :: Midi.Perform.MidiEvents -> [(RealTime, Midi.Message)]
+simple_midi :: Perform.MidiEvents -> [(RealTime, Midi.Message)]
 simple_midi = map f . LEvent.events_of
     where f wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)

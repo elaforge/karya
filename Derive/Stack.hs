@@ -156,6 +156,8 @@ show_ui_ = Seq.join ": " . map unparse_ui_frame_ . to_ui
 to_strings :: Stack -> [String]
 to_strings = map show . outermost
 
+-- | Turn strings back into a stack.  This uses 'read' so it WILL CRASH if
+-- the input isn't parseable.
 from_strings :: [String] -> Stack
 from_strings = from_outermost . map read
 

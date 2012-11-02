@@ -3,20 +3,15 @@
 module Cmd.Lang.LState where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Time as Time
-import qualified System.IO as IO
 
 import Util.Control
-import qualified Util.PPrint as PPrint
 import qualified Ui.Id as Id
 import qualified Ui.State as State
-import qualified Ui.UiTest as UiTest
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Types
 
 
 -- * configure
@@ -62,19 +57,6 @@ set_notes = State.modify . (State.config#State.meta#State.notes #=)
 
 
 -- * transform
-
--- | Save state in a format that can be copy-pasted into a test.
-save_test :: FilePath -> Cmd.CmdL ()
-save_test fname = do
-    st <- State.get
-    Trans.liftIO $ IO.writeFile fname $ PPrint.pshow (UiTest.to_spec st)
-
--- | Save the given block in a format that can be copy-pasted into a test.
-save_test_block :: FilePath -> BlockId -> Cmd.CmdL ()
-save_test_block fname block_id = do
-    st <- State.get
-    Trans.liftIO $ IO.writeFile fname $
-        PPrint.pshow [UiTest.block_to_spec block_id st]
 
 rename :: String -> Cmd.CmdL ()
 rename ns = case Id.namespace ns of

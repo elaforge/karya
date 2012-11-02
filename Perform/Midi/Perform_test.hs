@@ -12,6 +12,7 @@ import qualified Util.TimeVector as TimeVector
 
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
+import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score

@@ -38,6 +38,11 @@ parse_all p text = go (A.parse p text)
 
 -- * casual parsing
 
+maybe_read :: (Read a) => String -> Maybe a
+maybe_read str = case reads str of
+    (a, "") : _ -> Just a
+    _ -> Nothing
+
 maybe_parse :: Parser a -> B.ByteString -> Maybe a
 maybe_parse parser text = either (const Nothing) Just (parse_all parser text)
 
