@@ -14,17 +14,23 @@ import Control.Monad.Trans (liftIO)
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import qualified System.IO as IO
 import Text.Printf
 
 import Util.Control
 import qualified Util.Fltk as Fltk
+import qualified Util.Format as Format
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.BrowserC as BrowserC
@@ -85,21 +91,31 @@ show_info win db inst = Fltk.send_action $ BrowserC.set_info win info
         info <- Db.db_lookup (db_db db) inst
         return $ info_of db inst info
 
-info_of :: Db -> Score.Instrument -> MidiDb.Info code -> String
-info_of db score_inst (MidiDb.Info synth patch _) =
+info_of :: Db -> Score.Instrument -> Cmd.MidiInfo -> String
+info_of db score_inst (MidiDb.Info synth patch code) =
     printf "%s -- %s\n\n" synth_name name ++ info_sections
-        [ ("Instrument controls", show_control_map inst_cmap)
-        , ("Flags", Seq.join ", " flags)
+        -- important properties
+        [ ("Flags", Seq.join ", " flags)
+        , ("Instrument controls", show_control_map inst_cmap)
+        , ("Synth controls", show_control_map synth_cmap)
         , ("Keymap", if Map.null (Instrument.inst_keymap inst) then ""
             else Pretty.pretty (Instrument.inst_keymap inst))
+        -- code
+        , ("Cmds", show_cmds (Cmd.inst_cmds code))
+        , ("Note calls", show_calls note_calls)
+        , ("Val calls", show_calls val_calls)
+        , ("Environ", if TrackLang.null_environ (Cmd.inst_environ code) then ""
+            else Pretty.pretty (Cmd.inst_environ code))
+
+        -- implementation details
         , ("Keyswitches", if null keyswitches then ""
             else Pretty.pretty keyswitches)
-        , ("Synth controls", show_control_map synth_cmap)
         , ("Pitchbend range", show (Instrument.inst_pitch_bend_range inst))
         , ("Scale", maybe "" Pretty.pretty scale)
         , ("Attribute map",
             if Map.null attr_map then "" else Pretty.pretty attr_map)
         , ("Initialization", show_initialize initialize)
+        -- info
         , ("Text", text)
         , ("File", file)
         , ("Tags", tags)
@@ -119,6 +135,7 @@ info_of db score_inst (MidiDb.Info synth patch _) =
     flags = map show (Set.toList pflags)
     name = let n = Instrument.inst_name inst in if null n then "*" else n
     inst_cmap = Instrument.inst_control_map inst
+    Derive.InstrumentCalls note_calls val_calls = Cmd.inst_calls code
     tags = maybe "" show_tags $ Search.tags_of (db_index db) score_inst
 
 info_sections :: [(String, String)] -> String
@@ -135,6 +152,18 @@ show_control_map :: Control.ControlMap -> String
 show_control_map cmap =
     Seq.join ", " [cont ++ " (" ++ show num ++ ")"
         | (Control.Control cont, num) <- Map.assocs cmap]
+
+show_cmds :: [Cmd.Cmd] -> String
+show_cmds [] = ""
+show_cmds cmds = show (length cmds) ++ " cmds (cmds can't be introspected yet)"
+
+show_calls :: [Derive.LookupCall call] -> String
+show_calls lookups =
+    Text.unpack $ Format.run $
+        -- Pass a giant width because I should let fltk do the wrapping.
+        mapM_ (CallDoc.call_bindings_text 500) call_bindings
+    where
+    call_bindings = CallDoc.lookup_docs (map Derive.lookup_docs lookups)
 
 show_tags :: [(String, String)] -> String
 show_tags tags =

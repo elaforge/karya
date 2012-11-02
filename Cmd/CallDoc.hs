@@ -36,36 +36,39 @@ doc_text = Format.run . mapM_ section
         mapM_ scope_doc scope_docs
     scope_doc (source, calls) = do
         Format.write $ "### from " <> source <> "\n\n"
-        mapM_ call_binds calls
-    call_binds (binds, sections) = do
+        mapM_ (call_bindings_text 75) calls
+
+call_bindings_text :: Int -> CallBindings -> Format.FormatM ()
+call_bindings_text wrap_width (binds, sections) = do
         mapM_ show_bind binds
         Format.indented 2 $ show_sections sections
         Format.newline
+    where
     show_bind (shadowed, sym, name) = do
         Format.write $ if shadowed then strikeout sym else sym
         Format.write $ " -- " <> name <> ":\n"
     strikeout sym = "~~" <> sym <> "~~ (shadowed)"
     show_sections [(ValCall, Derive.CallDoc doc args)] = do
-        write_doc doc
+        write_doc wrap_width doc
         Format.indented 2 $ arg_docs args
     show_sections sections = mapM_ call_section sections
     call_section (call_type, Derive.CallDoc doc args) = do
         Format.write $ show_call_type call_type <> ": "
-        write_doc doc
+        write_doc wrap_width doc
         Format.indented 2 $ arg_docs args
     arg_docs (Derive.ArgsParsedSpecially doc) = do
         Format.write "Args parsed by call: "
-        write_doc doc
+        write_doc wrap_width doc
     arg_docs (Derive.ArgDocs args) = mapM_ arg_doc args
     arg_doc (Derive.ArgDoc name typ deflt doc) = do
         Format.write $ Text.pack name <> " :: "
             <> Text.pack (Pretty.pretty typ) <> show_default deflt <> " -- "
-        write_doc doc
+        write_doc wrap_width doc
     show_default = maybe "" ((" = "<>) . Text.pack)
 
-write_doc :: String -> Format.FormatM ()
-write_doc text = do
-    Format.wrapped_words 75 4 (Text.pack text)
+write_doc :: Int -> String -> Format.FormatM ()
+write_doc wrap_width text = do
+    Format.wrapped_words wrap_width 4 (Text.pack text)
     Format.newline
 
 -- ** html output
@@ -182,6 +185,15 @@ all_sections (Derive.Scope note control pitch val) =
     , ("control", scope_doc control)
     , ("pitch", scope_doc pitch)
     , ("val", scope_doc val)
+    ]
+
+-- ** instrument doc
+
+-- | Get docs for the calls introduced by an instrument.
+instrument_calls :: Derive.InstrumentCalls -> [ScopeDoc]
+instrument_calls (Derive.InstrumentCalls notes vals) =
+    [ ("note", lookup_docs (map Derive.lookup_docs notes))
+    , ("val", lookup_docs (map Derive.lookup_docs vals))
     ]
 
 -- ** track doc

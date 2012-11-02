@@ -3,6 +3,10 @@ UNSORTED
     * do pprint formatting in the repl
     * colorize prompt
     - colorize string literals
+  clean up z1 patches
+    - dump all patches from z1, remove the dups
+    - modify them all to have (-24, +24) pitch bend and send back
+  * browser should show what calls an instrument introduces, and which cmds
   - in save/z1, second lower octave note doesn't trigger
   * If you save a state with the step play selection on, it gets stuck on
     since stop won't clear it and advance thinks there's a step state.
@@ -11,6 +15,10 @@ UNSORTED
   - It's annoying how you have to rebuild the entire inst db when you update
     a bank file.  It should keep track of timestamps.  Why not use shake?
     Or just load from the bank files each time.
+    But then I would get warnings about merges etc. on every load.
+    So I think make_db has to take an arg about which db to rebuild.
+    Then 'mk db' will build make_db, and rerun it for the dbs that need
+    updating.
   * z1 doesn't respond to AllSoundsOff in multi mode.  Reaper always sends
     NoteOff, so I think NoteOff is the only reliable way.
     So I need to keep track of the note-on map
