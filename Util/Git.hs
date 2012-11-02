@@ -2,6 +2,6 @@
 -- implementation (libgit2 FFI binding, faster but more dangerous).
 --
 -- There's nothing keeping the APIs consistent except good intentions.
-module Util.Git (module Util.Git.Git) where
-import Util.Git.Git
--- import Util.Git.Git2
+module Util.Git (module Util.Git.Git2) where
+-- import Util.Git.Git
+import Util.Git.Git2
