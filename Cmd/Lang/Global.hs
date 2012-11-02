@@ -105,7 +105,7 @@ root = State.get_root_id
 
 ($>) :: (Functor f) => f a -> (a -> b) -> f b
 ($>) = flip (<$>)
-infixl 0 $>
+infixl 1 $> -- put it above ($) but below everything else
 
 (.>) :: (a -> b) -> (b -> c) -> (a -> c)
 (.>) = flip (.)
