@@ -8,6 +8,7 @@ import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Writer.Strict as Writer
 import qualified Data.Bits as Bits
 import Data.Bits ((.&.), (.|.))
+import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy as Lazy
@@ -24,8 +25,8 @@ import qualified Util.Seq as Seq
 
 
 data Record =
+    -- | A List is represented as an RMap with numbered keys.
     RMap (Map.Map Name Record)
-    | RList [Record]
     -- | Which one this is is determined by an REnum elsewhere.
     | RUnion Record
     | RNum Int | RStr String | REnum EnumName
@@ -42,14 +43,16 @@ spec_to_record = RMap . Map.delete "" . List.foldl' add Map.empty
     add rec (Bits bits) = List.foldl' add_bit rec bits
     add rec (Str name _) = Map.insert name (RStr "") rec
     add rec (SubSpec name specs) = Map.insert name (spec_to_record specs) rec
-    add rec (List name elts specs) =
-        Map.insert name (RList (replicate elts (spec_to_record specs))) rec
+    add rec (List name elts specs) = Map.insert name
+        (RMap $ Map.fromList $
+            zip (map show [0..elts-1]) (repeat (spec_to_record specs)))
+        rec
     add rec (Union name _enum_name _bytes ((_, specs) : _)) =
         Map.insert name (RUnion (spec_to_record specs)) rec
     add _ (Union name _enum_name _bytes []) =
         error $ name ++ " had an empty Union"
     add rec (Unparsed name nbytes) =
-        Map.insert name (RUnparsed (Char8.replicate nbytes '\0')) rec
+        Map.insert name (RUnparsed (B.replicate nbytes 0)) rec
     add_bit rec (name, (_, Range {})) = Map.insert name (RNum 0) rec
     add_bit rec (name, (_, Enum (enum : _))) = Map.insert name (REnum enum) rec
     add_bit _ (name, (_, Enum [])) = error $ name ++ " had an empty Enum"
@@ -57,12 +60,11 @@ spec_to_record = RMap . Map.delete "" . List.foldl' add Map.empty
 instance Pretty.Pretty Record where
     format rec = case rec of
         RMap x -> Pretty.format x
-        RList x -> Pretty.format x
         RNum x -> Pretty.format x
         RStr x -> Pretty.format x
         REnum x -> Pretty.text x
         RUnion x -> Pretty.format x
-        RUnparsed x -> Pretty.text $ show (Char8.length x) ++ " unparsed bytes"
+        RUnparsed x -> Pretty.text $ show (B.length x) ++ " unparsed bytes"
 
 -- * encode
 
@@ -83,7 +85,7 @@ encode_spec path record spec = case spec of
         b <- either (uncurry throw) return $ encode_byte record bits
         Writer.tell (Builder.word8 b)
     Str name chars -> do
-        str <- lookup_record name >>= \x -> case x of
+        str <- lookup_field name >>= \x -> case x of
             RStr str -> return str
             val -> throw name $ "expected RStr, but got " ++ show val
         let diff = chars - length str
@@ -94,22 +96,24 @@ encode_spec path record spec = case spec of
                 ++ ": " ++ show str
         Writer.tell (Builder.string7 padded)
     SubSpec name specs -> do
-        sub_record <- lookup_record name
+        sub_record <- lookup_field name
         mapM_ (encode_spec (name:path) sub_record) specs
     List name elts specs -> do
-        records <- lookup_record name >>= \x -> case x of
-            RList records
-                | length records == elts -> return records
-                | otherwise -> throw name $ "expected list of length "
-                    ++ show elts ++ " but got length " ++ show (length records)
-            val -> throw name $ "expected RList, but got " ++ show val
+        records <- lookup_field name >>= \x -> case x of
+            RMap records
+                | Map.size records == elts ->
+                    mapM lookup_field (map show [0..elts-1])
+                | otherwise -> throw name $ "expected RMap list of length "
+                    ++ show elts ++ " but got length "
+                    ++ show (Map.size records)
+            val -> throw name $ "expected RMap list, but got " ++ show val
         forM_ (zip [0..] records) $ \(i, rec) ->
             mapM_ (encode_spec ((name ++ show i) : path) rec) specs
     Union name enum_name nbytes enum_specs -> do
-        union_record <- lookup_record name >>= \x -> case x of
+        union_record <- lookup_field name >>= \x -> case x of
             RUnion union_record -> return union_record
             val -> throw name $ "expected RUnion, but got " ++ show val
-        enum <- lookup_record enum_name >>= \x -> case x of
+        enum <- lookup_field enum_name >>= \x -> case x of
             REnum enum -> return enum
             val -> throw name $ "expeted REnum, but got " ++ show val
         specs <- case lookup enum enum_specs of
@@ -119,19 +123,19 @@ encode_spec path record spec = case spec of
         bytes <- either Error.throwError return $
             run_encode (mapM_ (encode_spec (name:path) union_record) specs)
         Writer.tell $ Builder.byteString $ bytes
-            <> Char8.replicate (nbytes - Char8.length bytes) '\0'
+            <> B.replicate (nbytes - B.length bytes) 0
     Unparsed name nbytes -> do
-        bytes <- lookup_record name >>= \x -> case x of
+        bytes <- lookup_field name >>= \x -> case x of
             RUnparsed bytes
-                | Char8.length bytes /= nbytes -> throw name $
+                | B.length bytes /= nbytes -> throw name $
                     "Unparsed expected " ++ show nbytes ++ " bytes but got "
-                    ++ show (Char8.length bytes)
+                    ++ show (B.length bytes)
                 | otherwise -> return bytes
             val -> throw name $ "expected RUnparsed, but got " ++ show val
 
         Writer.tell (Builder.byteString bytes)
     where
-    lookup_record = either (uncurry throw) return . rmap_lookup record
+    lookup_field = either (uncurry throw) return . rmap_lookup record
     throw name msg = Error.throwError $ show_path (name:path) ++ msg
 
 encode_byte :: Record -> [(Name, BitField)] -> Either (Name, Error) Word8
@@ -174,7 +178,6 @@ decode = decode_from []
         -- Debug.tracepM "vals" vals
         rmap path (vals ++ collect) specs
 
-    -- rmap path specs = RMap . Map.fromList <$> concatMapM (field path) specs
     field :: [Name] -> [(Name, Record)] -> Spec -> Get.Get [(String, Record)]
     field path _ (Bits bits) =
         either (throw path) return . decode_byte path bits =<< Get.getWord8
@@ -187,7 +190,7 @@ decode = decode_from []
     field path _ (List name elts specs) = do
         subs <- forM [0 .. elts-1] $ \i ->
             rmap ((name ++ show i) : path) [] specs
-        return [(name, RList subs)]
+        return [(name, RMap $ Map.fromList $ zip (map show [0..elts-1]) subs)]
     field path prev_record (Union name enum_name bytes enum_specs) = do
         path <- return (name : path)
         enum <- case lookup enum_name prev_record of
@@ -203,9 +206,9 @@ decode = decode_from []
         return [(name, RUnion record)]
     field path _ (Unparsed name nbytes) = do
         bytes <- Get.getByteString nbytes
-        when (Char8.length bytes < nbytes) $
+        when (B.length bytes < nbytes) $
             throw path $ "expected " ++ show nbytes ++ " bytes, but got "
-                ++ show (Char8.length bytes)
+                ++ show (B.length bytes)
         return [(name, RUnparsed bytes)]
     throw path = fail . (show_path path ++)
 
