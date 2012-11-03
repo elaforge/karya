@@ -2,8 +2,10 @@ module Ui.UiTest where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified System.IO as IO
 
 import Util.Control
+import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
@@ -243,16 +245,23 @@ note_spec (inst, pitches, controls) =
 
 -- * state to spec
 
--- | These can be used from 'Cmd.Lang.LState.save_test' to dump state in
+-- | These can be used from 'Cmd.Lang.LDebug.dump_blocks' to dump state in
 -- a form that can be pasted into a test, trimmed down by hand, and passed to
--- 'mkblocks_skel'.  This way problems that show up in the app can be pasted
+-- 'read_blocks'.  This way problems that show up in the app can be pasted
 -- into a test.
-to_spec :: State.State -> [(BlockSpec, [Skeleton.Edge])]
-to_spec state = map (flip block_to_spec state)
+dump_blocks :: FilePath -> State.State -> IO ()
+dump_blocks fname state =
+    IO.writeFile fname $ PPrint.pshow (show_blocks state)
+
+read_blocks :: (State.M m) => [(BlockSpec, [Skeleton.Edge])] -> m ()
+read_blocks = mkblocks_skel
+
+show_blocks :: State.State -> [(BlockSpec, [Skeleton.Edge])]
+show_blocks state = map (flip show_block state)
     (Map.keys (State.state_blocks state))
 
-block_to_spec :: BlockId -> State.State -> (BlockSpec, [Skeleton.Edge])
-block_to_spec block_id state = ((block_name, map dump_track tracks), skel)
+show_block :: BlockId -> State.State -> (BlockSpec, [Skeleton.Edge])
+show_block block_id state = ((block_name, map dump_track tracks), skel)
     where
     (id_str, _, tracks, skel) = eval state (Simple.dump_block block_id)
     block_name = snd (Id.un_id (Id.read_id id_str))
@@ -260,10 +269,10 @@ block_to_spec block_id state = ((block_name, map dump_track tracks), skel)
     convert (start, dur, text) =
         (ScoreTime.double start, ScoreTime.double dur, text)
 
--- | Like 'block_to_spec' but strip out everything but the tracks.
+-- | Like 'show_block' but strip out everything but the tracks.
 extract_tracks_of :: BlockId -> State.State -> [TrackSpec]
 extract_tracks_of block_id state = tracks
-    where ((_, tracks), _) = block_to_spec block_id state
+    where ((_, tracks), _) = show_block block_id state
 
 -- | Get the names and tracks of the default block.
 extract_tracks :: State.State -> [TrackSpec]

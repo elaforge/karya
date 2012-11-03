@@ -25,7 +25,7 @@ module Midi.Midi (
 
     -- * predicates
     , valid_msg, valid_chan_msg, is_cc, is_sysex, is_note, is_note_on, is_state
-    , channel_message
+    , channel_message, message_channel
 
     -- * types
     , Message(..), Channel, Velocity, Control, Program, ControlValue
@@ -222,9 +222,15 @@ is_state (ChannelMessage _ msg) = case msg of
     _ -> True
 is_state _ = False
 
+-- * projections
+
 channel_message :: Message -> Maybe ChannelMessage
 channel_message (ChannelMessage _ m) = Just m
 channel_message _ = Nothing
+
+message_channel :: Message -> Maybe Channel
+message_channel (ChannelMessage chan _) = Just chan
+message_channel _ = Nothing
 
 -- * types
 
