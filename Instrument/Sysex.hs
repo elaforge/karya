@@ -171,6 +171,7 @@ decode = decode_from []
     rmap _ collect [] = return $ RMap (Map.fromList collect)
     rmap path collect (spec:specs) = do
         vals <- field path collect spec
+        -- Debug.tracepM "vals" vals
         rmap path (vals ++ collect) specs
 
     -- rmap path specs = RMap . Map.fromList <$> concatMapM (field path) specs
@@ -224,7 +225,8 @@ decode_byte path bits byte =
         Enum enums
             | Just enum <- Seq.at enums val -> return (name, REnum enum)
             | otherwise -> Left $
-                show_path (name:path) ++ "not a valid enum index: " ++ show val
+                show_path (name:path) ++ " bit of byte " ++ show byte
+                    ++ ": not a valid enum index: " ++ show val
     convert_signs :: BitField -> Word8 -> Int
     convert_signs (width, range) val
         | is_signed range = to_signed width val

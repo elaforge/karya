@@ -131,6 +131,20 @@ dekorgify (b7:bytes) =
     copy_bit from i to = if Bits.testBit from i
         then Bits.setBit to 7 else Bits.clearBit to 7
 
+dekorgify2 :: ByteString.ByteString -> ByteString.ByteString
+dekorgify2 = mconcat . map smoosh . chunks
+    where
+    smoosh bs = case ByteString.uncons bs of
+        Just (b7, bytes) -> snd $
+            ByteString.mapAccumL (\i to -> (i+1, copy_bit b7 i to)) 0 bytes
+        Nothing -> mempty
+    copy_bit from i to = if Bits.testBit from i
+        then Bits.setBit to 7 else Bits.clearBit to 7
+    chunks bs
+        | ByteString.length bs < 8 = [bs]
+        | otherwise =
+            let (pre, post) = ByteString.splitAt 8 bs
+            in pre : chunks post
 
 
 z1_patch :: [Spec]
@@ -164,8 +178,10 @@ z1_patch =
     , SubSpec "pitch bend"
         [ ranged_byte "intensity +" (-60, 24)
         , ranged_byte "intensity -" (-60, 24)
-        , enum_byte "step +" $ ["0", "1/8", "1/4", "1/2"] ++ map show [1..12]
-        , enum_byte "step -" $ ["0", "1/8", "1/4", "1/2"] ++ map show [1..12]
+        , Bits $ let vals = ["0", "1/8", "1/4", "1/2"] ++ map show [1..12] in
+            [ ("step +", enum_bits 4 vals)
+            , ("step -", enum_bits 4 vals)
+            ]
         ]
     , enum_byte "common pitch mod source" mod_source_list_1
     , modulation_intensity "common pitch mod intensity"
@@ -230,23 +246,26 @@ modulation_intensity name = ranged_byte name (-99, 99)
 -- mm -- multi num
 -- 00
 -- data
-dekorg = ByteString.pack . dekorgify . ByteString.unpack
 
 test_multiset = do
-    b <- dekorg . ByteString.drop 9 <$> ByteString.readFile "inst_db/multi1.syx"
-    return $ Sysex.decode multiset b
+    bytes <- ByteString.drop 9 <$> ByteString.readFile "inst_db/multi1.syx"
+    return $ Sysex.decode multiset (dekorgify2 bytes)
 
 test_patch = do
     -- F0, 42, 30, 46
     -- 40, 01
-    b <- dekorg . ByteString.drop 6 <$> ByteString.readFile
+    b <- dekorgify2 . ByteString.drop 6 <$> ByteString.readFile
         "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
     return $ Sysex.decode z1_patch b
 
-rd = dekorg . ByteString.drop 6 <$> ByteString.readFile
+rd = dekorgify2 . ByteString.drop 6 <$> ByteString.readFile
     "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
 
 rec = Sysex.spec_to_record multiset
+
+binary :: Word8 -> String
+binary b = map extract [7, 6 .. 0]
+    where extract i = if Bits.testBit b i then '1' else '0'
 
 -- | Spec to both parse and generate a multiset dump.
 multiset :: [Spec]
