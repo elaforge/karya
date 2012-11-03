@@ -1,3 +1,4 @@
+include: build/hsc
 import-order: Util Midi Ui Cmd Derive Perform Instrument Local LogView App
 prio-package-high:
 prio-package-low: haskell98 ghc darcs
