@@ -29,6 +29,7 @@ data Record =
     -- | Which one this is is determined by an REnum elsewhere.
     | RUnion Record
     | RNum Int | RStr String | REnum EnumName
+    | RUnparsed ByteString
     deriving (Eq, Show)
 type Error = String
 type EnumName = String
@@ -47,6 +48,8 @@ spec_to_record = RMap . Map.delete "" . List.foldl' add Map.empty
         Map.insert name (RUnion (spec_to_record specs)) rec
     add _ (Union name _enum_name _bytes []) =
         error $ name ++ " had an empty Union"
+    add rec (Unparsed name nbytes) =
+        Map.insert name (RUnparsed (Char8.replicate nbytes '\0')) rec
     add_bit rec (name, (_, Range {})) = Map.insert name (RNum 0) rec
     add_bit rec (name, (_, Enum (enum : _))) = Map.insert name (REnum enum) rec
     add_bit _ (name, (_, Enum [])) = error $ name ++ " had an empty Enum"
@@ -59,6 +62,7 @@ instance Pretty.Pretty Record where
         RStr x -> Pretty.format x
         REnum x -> Pretty.text x
         RUnion x -> Pretty.format x
+        RUnparsed x -> Pretty.text $ show (Char8.length x) ++ " unparsed bytes"
 
 -- * encode
 
@@ -81,7 +85,7 @@ encode_spec path record spec = case spec of
     Str name chars -> do
         str <- lookup_record name >>= \x -> case x of
             RStr str -> return str
-            val -> throw name $ "expected a string, but got " ++ show val
+            val -> throw name $ "expected RStr, but got " ++ show val
         let diff = chars - length str
         padded <- if diff >= 0
             then return $ str ++ replicate diff ' '
@@ -98,16 +102,16 @@ encode_spec path record spec = case spec of
                 | length records == elts -> return records
                 | otherwise -> throw name $ "expected list of length "
                     ++ show elts ++ " but got length " ++ show (length records)
-            val -> throw name $ "expected a list, but got " ++ show val
+            val -> throw name $ "expected RList, but got " ++ show val
         forM_ (zip [0..] records) $ \(i, rec) ->
             mapM_ (encode_spec ((name ++ show i) : path) rec) specs
     Union name enum_name nbytes enum_specs -> do
         union_record <- lookup_record name >>= \x -> case x of
             RUnion union_record -> return union_record
-            val -> throw name $ "expected a union, but got " ++ show val
+            val -> throw name $ "expected RUnion, but got " ++ show val
         enum <- lookup_record enum_name >>= \x -> case x of
             REnum enum -> return enum
-            val -> throw name $ "expeted an enum, but got " ++ show val
+            val -> throw name $ "expeted REnum, but got " ++ show val
         specs <- case lookup enum enum_specs of
             Just specs -> return specs
             Nothing -> throw name $ "not found in union "
@@ -116,6 +120,16 @@ encode_spec path record spec = case spec of
             run_encode (mapM_ (encode_spec (name:path) union_record) specs)
         Writer.tell $ Builder.byteString $ bytes
             <> Char8.replicate (nbytes - Char8.length bytes) '\0'
+    Unparsed name nbytes -> do
+        bytes <- lookup_record name >>= \x -> case x of
+            RUnparsed bytes
+                | Char8.length bytes /= nbytes -> throw name $
+                    "Unparsed expected " ++ show nbytes ++ " bytes but got "
+                    ++ show (Char8.length bytes)
+                | otherwise -> return bytes
+            val -> throw name $ "expected RUnparsed, but got " ++ show val
+
+        Writer.tell (Builder.byteString bytes)
     where
     lookup_record = either (uncurry throw) return . rmap_lookup record
     throw name msg = Error.throwError $ show_path (name:path) ++ msg
@@ -186,6 +200,12 @@ decode = decode_from []
         record <- either (throw path) (return . fst) $
             decode_from path specs bytes
         return [(name, RUnion record)]
+    field path _ (Unparsed name nbytes) = do
+        bytes <- Get.getByteString nbytes
+        when (Char8.length bytes < nbytes) $
+            throw path $ "expected " ++ show nbytes ++ " bytes, but got "
+                ++ show (Char8.length bytes)
+        return [(name, RUnparsed bytes)]
     throw path = fail . (show_path path ++)
 
 decode_byte :: [Name] -> [(Name, BitField)] -> Word8
@@ -219,13 +239,13 @@ show_path = (++": ") . Seq.join "." . reverse
 
 encode_bits :: [Int] -> [Word8] -> Word8
 encode_bits widths vals =
-    List.foldl' (.|.) 0 $ zipWith Bits.shiftL (reverse vals) offsets
-    where offsets = scanl (+) 0 (reverse widths)
+    List.foldl' (.|.) 0 $ zipWith Bits.shiftL vals offsets
+    where offsets = scanl (+) 0 widths
 
 decode_bits :: [Int] -> Word8 -> [Word8]
-decode_bits widths byte = reverse $ zipWith extract bs (drop 1 bs)
+decode_bits widths byte = zipWith extract bs (drop 1 bs)
     where
-    bs = scanl (+) 0 (reverse widths)
+    bs = scanl (+) 0 widths
     extract start end = Bits.shiftR (set start end .&. byte) start
     set start end = List.foldl' Bits.setBit 0 [start .. end-1]
 
@@ -252,6 +272,7 @@ data Spec =
     -- | The content of this section depends on a previous enum value.
     -- Name of this field, name of the enum to reference
     | Union Name Name Bytes [(EnumName, [Spec])]
+    | Unparsed Name Bytes
     deriving (Show)
 
 data Range = Range Int Int | Enum [EnumName]

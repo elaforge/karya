@@ -19,14 +19,15 @@ test_decode_encode_bits = do
     let f widths = Sysex.encode_bits widths . Sysex.decode_bits widths
     equal (map (f [1, 3]) [0..15]) [0..15]
     equal (map (f [1, 1, 1, 1]) [0..15]) [0..15]
-    equal (map (Sysex.decode_bits [1, 1, 1]) [0..7])
-        [ [0, 0, 0], [0, 0, 1], [0, 1, 0], [0, 1, 1]
-        , [1, 0, 0], [1, 0, 1], [1, 1, 0], [1, 1, 1]
-        ]
-    equal (map (Sysex.decode_bits [1, 2]) [0..7])
-        [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3]]
+    equal (map (Sysex.encode_bits [1, 1, 1])
+            [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1]])
+        [0, 1, 2, 3, 4]
+    equal (map (Sysex.decode_bits [1, 1, 1]) [0..4])
+        [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1]]
     equal (map (Sysex.decode_bits [2, 1]) [0..7])
-        [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1], [3, 0], [3, 1]]
+        [[0, 0], [1, 0], [2, 0], [3, 0], [0, 1], [1, 1], [2, 1], [3, 1]]
+    equal (map (Sysex.decode_bits [1, 2]) [0..7])
+        [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2], [0, 3], [1, 3]]
 
 test_encode_decode = do
     let f specs = Sysex.decode specs <=< Sysex.encode specs

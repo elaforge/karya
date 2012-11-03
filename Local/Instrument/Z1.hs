@@ -132,9 +132,96 @@ dekorgify (b7:bytes) =
         then Bits.setBit to 7 else Bits.clearBit to 7
 
 
--- * parse / generate sysex
 
-file = ByteString.readFile "multi1.syx"
+z1_patch :: [Spec]
+z1_patch =
+    [ Str "name" 16
+    , enum_byte "category" categories
+    , byte "user group" 15
+    , Bits
+        [ ("hold", bits 1)
+        , ("key priority", enum_bits 2 ["last", "low", "high"])
+        , ("voice assign mode", enum_bits 5
+            ["mono multi", "mono single", "poly"])
+        ]
+    , enum_byte "retrigger controllor" mod_source_list_2
+    , ranged_byte "retrigger control threshold" (1, 127)
+    , Bits
+        [ ("unison type", enum_bits 2 ["off", "2", "3", "6"])
+        , ("unison sw", boolean1)
+        , ("unison mode", enum_bits 5 ["fixed", "dynamic"])
+        ]
+    , byte "unison detune" 99
+    -- scale
+    , Bits
+        [ ("scale key", ranged_bits 4 (0, 11))
+        , ("scale type", enum_bits 4 scale_types)
+        ]
+    , byte "random pitch intensity" 99
+    , List "eg" 4 [Unparsed "unparsed" 19]
+    , List "lfo" 4 [Unparsed "unparsed" 11]
+    -- osc common
+    , SubSpec "pitch bend"
+        [ ranged_byte "intensity +" (-60, 24)
+        , ranged_byte "intensity -" (-60, 24)
+        , enum_byte "step +" $ ["0", "1/8", "1/4", "1/2"] ++ map show [1..12]
+        , enum_byte "step -" $ ["0", "1/8", "1/4", "1/2"] ++ map show [1..12]
+        ]
+    , enum_byte "common pitch mod source" mod_source_list_1
+    , modulation_intensity "common pitch mod intensity"
+    , SubSpec "portamento"
+        [ Bits
+            [ ("sw", boolean1)
+            , ("mode", enum_bits 7 ["normal", "fingered"])
+            ]
+        , byte "time" 99
+        , enum_byte "mod source" mod_source_list_1
+        , modulation_intensity "mod intensity"
+        ]
+    , List "osc" 2
+        [ enum_byte "type" osc_types
+        , enum_byte "octave" ["-2", "-1", "0", "1"] -- 32', 16', 8', 4'
+        , ranged_byte "semi tone" (-12, 12)
+        , ranged_byte "fine tune" (-50, 50)
+        , ranged_byte "frequency offset" (-100, 100)
+        -- pitch slope
+        , byte "center key" 127
+        , ranged_byte "lower slope" (-50, 100)
+        , ranged_byte "higher slope" (-50, 100)
+        -- pitch modulation
+        , enum_byte "mod1 source" mod_source_list_1
+        , modulation_intensity "mod1 intensity"
+        , enum_byte "mod1 intensity controller" mod_source_list_1
+        , modulation_intensity "mod1 intensity controller intensity"
+        , enum_byte "mod2 source" mod_source_list_1
+        , modulation_intensity "mod2 intensity"
+        , Unparsed "setting" 38 -- union of osc params
+        ]
+    , Unparsed "sub osc" 14
+    , Unparsed "noise generator" 8
+    , Unparsed "mixer" 31
+    , Unparsed "filter" 1
+    , List "filter" 2 [Unparsed "unparsed" 27]
+    , List "amp" 2 [Unparsed "unparsed" 9]
+    , Unparsed "amp eg" 19
+    , Unparsed "output" 4
+    , Unparsed "effect" 72
+    , Unparsed "controller" 4
+    , Unparsed "link arpeggio" 13
+    , List "pe knob" 5 [Unparsed "unparsed" 16]
+    ]
+
+scale_types :: [Sysex.EnumName]
+scale_types =
+    [ "equal temperament", "pure major temperament", "pure minor temperament"
+    , "arabic temperament", "pythagorean", "werckmeister", "kirnberger"
+    , "slendro", "pelog", "user scale 1", "user scale 2", "user scale 3"
+    ]
+
+modulation_intensity :: String -> Spec
+modulation_intensity name = ranged_byte name (-99, 99)
+
+-- * parse / generate sysex
 
 -- F0,42,3g,46 header
 -- 4d -- multi setup dump
@@ -143,12 +230,21 @@ file = ByteString.readFile "multi1.syx"
 -- mm -- multi num
 -- 00
 -- data
-strip = dekorg . ByteString.drop 9
 dekorg = ByteString.pack . dekorgify . ByteString.unpack
 
-test = do
-    b <- strip <$> file
+test_multiset = do
+    b <- dekorg . ByteString.drop 9 <$> ByteString.readFile "inst_db/multi1.syx"
     return $ Sysex.decode multiset b
+
+test_patch = do
+    -- F0, 42, 30, 46
+    -- 40, 01
+    b <- dekorg . ByteString.drop 6 <$> ByteString.readFile
+        "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
+    return $ Sysex.decode z1_patch b
+
+rd = dekorg . ByteString.drop 6 <$> ByteString.readFile
+    "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
 
 rec = Sysex.spec_to_record multiset
 
@@ -158,32 +254,35 @@ multiset = Sysex.assert_valid "multiset" $
     [ Str "name" 16
     , List "timbre" 6 timbre
     , enum_byte "effect 1 select" effect_type1
-    , Union "effect 1 setting" "effect 1 select" 22 $ zip effect_type1
-        [ effect_overdrive, effect_compressor, effect_4_band_peq
-        ]
+    , Unparsed "effect 1 setting" 22
+    -- , Union "effect 1 setting" "effect 1 select" 22 $ zip effect_type1
+    --     [ effect_overdrive, effect_compressor, effect_parametric_eq
+    --     , [], [], [], [], [], [], [], []
+    --     ]
     , enum_byte "effect 2 select" effect_type2
-    , Union "effect 2 setting" "effect 2 select" 22 $ zip effect_type2
-        []
+    , Unparsed "effect 2 setting" 22
+    -- , Union "effect 2 setting" "effect 2 select" 22 $ zip effect_type2 []
     , enum_byte "master effect select" master_effect_type
-    , Union "master effect setting" "master effect select" 18 $
-        zip master_effect_type
-        []
+    , Unparsed "master effect setting" 18
+    -- , Union "master effect setting" "master effect select" 18 $
+    --     zip master_effect_type
+    --     []
     ]
 
 timbre :: [Spec]
 timbre =
     -- timbre
     [ Bits
-        [ ("program bank", bits 1)
-        , ("program number", bits 7)
+        [ ("program number", bits 7)
+        , ("program bank", bits 1)
         ]
     , byte "reserve voice" 12
     -- pitch
     , ranged_byte "transpose" (-24, 24)
     , ranged_byte "detune" (-50, 50)
     , Bits
-        [ ("scale select", enum_bits 4 ["common", "program"])
-        , ("arpeggiator", (4, boolean))
+        [ ("arpeggiator", (4, boolean))
+        , ("scale select", enum_bits 4 ["common", "program"])
         ]
     -- mixer
     , byte "output level" 128 -- 128 is PROG
@@ -196,22 +295,22 @@ timbre =
     , ranged_byte "velocity zone bottom" (1, 127)
     -- MIDI
     , Bits
-        [ ("program change", boolean1)
-        , ("midi channel", ranged_bits 7 (0, 16)) -- 16 is GLOBAL
+        [ ("midi channel", ranged_bits 7 (0, 16)) -- 16 is GLOBAL
+        , ("program change", boolean1)
         ]
     , Bits
-        [ ("pitch bend", enum_bits 2 ["off", "common", "program"])
-        , ("after touch", boolean1)
-        , ("modulation wheel", boolean1)
-        , ("x-y pad controller", boolean1)
-        , ("damper", boolean1)
+        [ ("realtime edit", boolean1)
         , ("portamento sw", boolean1)
-        , ("realtime edit", boolean1)
+        , ("damper", boolean1)
+        , ("x-y pad controller", boolean1)
+        , ("modulation wheel", boolean1)
+        , ("after touch", boolean1)
+        , ("pitch bend", enum_bits 2 ["off", "common", "program"])
         ]
     , Bits
-        [ ("performance edit", boolean1)
+        [ ("", bits 6)
+        , ("performance edit", boolean1)
         , ("others", boolean1)
-        , ("", bits 6)
         ]
     ] ++ reserved_space 1
 
@@ -252,8 +351,8 @@ effect_compressor =
     , effect_balance
     ]
 
-effect_4_band_peq :: [Spec]
-effect_4_band_peq =
+effect_parametric_eq :: [Spec]
+effect_parametric_eq =
     [ byte "trim" 99
     , SubSpec "low eq" $
         enum_byte "type" ["peaking", "shelving"] : eq_settings
@@ -277,7 +376,7 @@ effect_balance :: Spec
 effect_balance = SubSpec "effect balance"
     [ byte "balance" 100
     , enum_byte "effect balance mod source" mod_source_list_2
-    , ranged_byte "effect balance mod intensity" (-99, 99)
+    , modulation_intensity "effect balance mod intensity"
     ]
 
 -- | TODO like mod_source_list_1 except entries 1--10 are invalid.
