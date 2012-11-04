@@ -53,7 +53,7 @@ test_encode_decode = do
     left_like (f bits_spec (bits_rmap 1 2 1)) "val out of range"
 
     let enum_spec = [Sysex.Bits [("a", (1, Sysex.Enum ["x", "y"]))]]
-        enum_rmap a = rmap [("a", REnum a)]
+        enum_rmap a = rmap [("a", RStr a)]
     uncurry equal (success enum_spec (enum_rmap "x"))
     uncurry equal (success enum_spec (enum_rmap "y"))
     left_like (f enum_spec (enum_rmap "z")) "unknown enum"
@@ -70,7 +70,7 @@ test_union = do
                 ]
             ]
         union_rmap typ field = rmap
-            [("type", REnum typ), ("field", RUnion (rmap field))]
+            [("type", RStr typ), ("field", RUnion (rmap field))]
     uncurry equal (success union_spec (union_rmap "a" [("name", RStr "abc")]))
     uncurry equal (success union_spec (union_rmap "b" [("val", RNum 42)]))
     left_like (f union_spec (union_rmap "c" [("val", RNum 42)]))

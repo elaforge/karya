@@ -73,11 +73,11 @@ parse_patch bytes = do
     let lookup :: (Sysex.RecordVal a) => String -> Either String a
         lookup = flip Sysex.lookup_record record
     name <- lookup "name"
-    Sysex.EnumVal category <- lookup "category"
+    category <- lookup "category"
     pb_range <- (,) <$> lookup "pitch bend.intensity -"
         <*> lookup "pitch bend.intensity +"
-    Sysex.EnumVal osc1 <- lookup "osc.0.type"
-    Sysex.EnumVal osc2 <- lookup "osc.1.type"
+    osc1 <- lookup "osc.0.type"
+    osc2 <- lookup "osc.1.type"
     return $ (Instrument.patch (Instrument.instrument name [] pb_range))
         { Instrument.patch_tags =
             [("category", category), ("z1-osc", osc1), ("z1-osc", osc2)]

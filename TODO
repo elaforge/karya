@@ -1,5 +1,5 @@
 UNSORTED
-  - get rid of RUnion and REnum
+  * get rid of REnum
   repl
     * do pprint formatting in the repl
     * colorize prompt

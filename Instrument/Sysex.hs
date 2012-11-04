@@ -68,15 +68,15 @@ parse_file parser fn = do
 data Record =
     -- | A List is represented as an RMap with numbered keys.
     RMap (Map.Map Name Record)
-    -- | Which one this is is determined by an REnum elsewhere.
+    -- | Which one this is is determined by an RStr elsewhere.
     | RUnion Record
-    | RNum Int | RStr String | REnum EnumName
+    | RNum Int | RStr String
     | RUnparsed ByteString
     deriving (Eq, Show)
 type Error = String
 type EnumName = String
 
-data RecordType = TMap | TUnion | TNum | TStr | TEnum | TUnparsed
+data RecordType = TMap | TUnion | TNum | TStr | TUnparsed
     deriving (Show)
 
 -- | Create a Record from a Spec, defaulting everything to 0, "", or the first
@@ -98,7 +98,7 @@ spec_to_record = RMap . Map.delete "" . List.foldl' add Map.empty
     add rec (Unparsed name nbytes) =
         Map.insert name (RUnparsed (B.replicate nbytes 0)) rec
     add_bit rec (name, (_, Range {})) = Map.insert name (RNum 0) rec
-    add_bit rec (name, (_, Enum (enum : _))) = Map.insert name (REnum enum) rec
+    add_bit rec (name, (_, Enum (enum : _))) = Map.insert name (RStr enum) rec
     add_bit _ (name, (_, Enum [])) = error $ name ++ " had an empty Enum"
 
 instance Pretty.Pretty Record where
@@ -106,7 +106,6 @@ instance Pretty.Pretty Record where
         RMap x -> Pretty.format x
         RNum x -> Pretty.format x
         RStr x -> Pretty.format x
-        REnum x -> Pretty.text x
         RUnion x -> Pretty.format x
         RUnparsed x -> Pretty.text $ show (B.length x) ++ " unparsed bytes"
 
@@ -124,13 +123,6 @@ instance RecordVal String where
     to_val (RStr x) = Just x
     to_val _ = Nothing
 
-newtype EnumVal = EnumVal EnumName deriving (Show)
-
-instance RecordVal EnumVal where
-    from_val (EnumVal x) = REnum x
-    to_val (REnum x) = Just (EnumVal x)
-    to_val _ = Nothing
-
 val_type :: (RecordVal a) => a -> RecordType
 val_type = record_type . from_val
 
@@ -140,7 +132,6 @@ record_type r = case r of
     RUnion {} -> TUnion
     RNum {} -> TNum
     RStr {} -> TStr
-    REnum {} -> TEnum
     RUnparsed {} -> TUnparsed
 
 lookup_record :: forall a. (RecordVal a) => String -> Record -> Either String a
@@ -231,8 +222,8 @@ encode_spec path record spec = case spec of
             RUnion union_record -> return union_record
             val -> throw name $ "expected RUnion, but got " ++ show val
         enum <- lookup_field enum_name >>= \x -> case x of
-            REnum enum -> return enum
-            val -> throw name $ "expeted REnum, but got " ++ show val
+            RStr enum -> return enum
+            val -> throw name $ "expeted RStr, but got " ++ show val
         specs <- case lookup enum enum_specs of
             Just specs -> return specs
             Nothing -> throw name $ "not found in union "
@@ -268,7 +259,7 @@ encode_byte record bits = do
                 ++ show val)
         | low < 0 = Right $ from_signed width val
         | otherwise = Right (fromIntegral val)
-    encode1 (name, (_, Enum enums)) (REnum enum) =
+    encode1 (name, (_, Enum enums)) (RStr enum) =
         case List.elemIndex enum enums of
             Nothing -> Left (name, "unknown enum: " ++ enum)
             Just i -> return $ fromIntegral i
@@ -311,7 +302,7 @@ decode = decode_from []
     field path prev_record (Union name enum_name bytes enum_specs) = do
         path <- return (name : path)
         enum <- case lookup enum_name prev_record of
-            Just (REnum enum) -> return enum
+            Just (RStr enum) -> return enum
             _ -> throw path $ "previous enum not found: " ++ enum_name
         specs <- case lookup enum enum_specs of
             Just specs -> return specs
@@ -343,7 +334,7 @@ decode_byte path bits byte =
             | otherwise -> Left $
                 show_path (name:path) ++ "out of range: " ++ show val
         Enum enums
-            | Just enum <- Seq.at enums val -> return (name, REnum enum)
+            | Just enum <- Seq.at enums val -> return (name, RStr enum)
             | otherwise -> Left $
                 show_path (name:path) ++ " bit of byte " ++ show byte
                     ++ ": not a valid enum index: " ++ show val
