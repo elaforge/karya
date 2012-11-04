@@ -41,7 +41,7 @@ instance Pretty.Pretty Control where
 
 -- | Pitchbend range in tempered semitones below and above unity.  The first
 -- integer should probably be negative.
-type PbRange = (Integer, Integer)
+type PbRange = (Int, Int)
 
 -- | Convert from a control to a function that creates its MIDI message.
 control_constructor :: ControlMap -> Control

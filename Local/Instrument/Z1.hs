@@ -2,13 +2,11 @@
 module Local.Instrument.Z1 where
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as ByteString
-import qualified Data.List as List
-import Data.Word (Word8)
+import Data.ByteString (ByteString)
 
 import System.FilePath ((</>))
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -31,7 +29,7 @@ make_db :: FilePath -> IO ()
 make_db dir = do
     patches <- (++) <$>
         Parse.patch_file (dir </> name)
-        <*> Parse.parse_sysex_dir korg_sysex (dir </> "z1_sysex")
+        <*> Sysex.parse_dir parse_patch (dir </> "z1_sysex")
     MidiInst.save_patches synth patches name dir
 
 synth :: Instrument.Synth
@@ -57,41 +55,20 @@ synth_controls =
 --
 -- I should write something to convert them into current program format.
 
--- Interactive testing.
--- tparse = Parse.parse_sysex_dir korg_sysex "Local/Instrument/z1_sysex"
--- tshow ps = mapM_ putStrLn (map Instrument.patch_summary ps)
-
-korg_sysex :: Parse.ByteParser Instrument.Patch
-korg_sysex = do
-    Parse.start_sysex Midi.korg_code
-    Parse.match_bytes [0x30, 0x46]
-    patch <- current_program_dump
-    Parse.end_sysex
-    return patch
-
-current_program_dump :: Parse.ByteParser Instrument.Patch
-current_program_dump = do
-    Parse.match_bytes [0x40, 0x01]
-    contents <- fmap dekorgify Parse.to_eox
-    return $ korg_patch contents
-
-korg_patch :: [Word8] -> Instrument.Patch
-korg_patch bytes = make_patch (name, category, (pb_up, pb_down), osc1, osc2)
-    where
-    -- These come from the sysex spec MIDIImp_z1 PROG_PRM.TXT from korg.
-    common_off = 25 + 19*4 + 11*4
-    osc1_off = common_off + 9
-    osc2_off = osc1_off + 52
-    -- The doc says [Intensity(+), Intensity(-)] but that seems to
-    -- mean [down, up].
-    [cat, u_pb_down, u_pb_up, osc1_type, osc2_type] =
-        map (bytes!!) [16, common_off, common_off+1, osc1_off, osc2_off]
-    pb_down = fromIntegral $ Sysex.to_signed 8 u_pb_down
-    pb_up = fromIntegral $ Sysex.to_signed 8 u_pb_up
-    name = Seq.strip $ Parse.to_string (take 16 bytes)
-    category = Seq.at categories cat
-    osc1 = Seq.at osc_types osc1_type
-    osc2 = Seq.at osc_types osc2_type
+parse_patch :: ByteString -> Either String Instrument.Patch
+parse_patch bytes = do
+    bytes <- Sysex.expect_bytes bytes $
+        ByteString.pack [0xf0, Midi.korg_code, 0x30, 0x46, 0x40, 0x01]
+    (record, _) <- Sysex.decode z1_patch $ dekorgify bytes
+    let lookup :: (Sysex.RecordVal a) => String -> Either String a
+        lookup = flip Sysex.lookup_record record
+    name <- lookup "name"
+    Sysex.EnumVal category <- lookup "category"
+    pb_range <- (,) <$> lookup "pitch bend.intensity -"
+        <*> lookup "pitch bend.intensity +"
+    Sysex.EnumVal osc1 <- lookup "osc.0.type"
+    Sysex.EnumVal osc2 <- lookup "osc.1.type"
+    return $ make_patch (name, Just category, pb_range, Just osc1, Just osc2)
 
 make_patch ::
     (String, Maybe String, Control.PbRange, Maybe String, Maybe String)
@@ -104,35 +81,10 @@ make_patch (name, cat, pb_range, osc1, osc2) =
     tags = maybe_tags [("category", cat), ("z1-osc", osc1), ("z1-osc", osc2)]
     maybe_tags tags = [(k, v) | (k, Just v) <- tags]
 
--- | The Z1 has a built-in set of categories. Map the category index to the
--- name.
-categories :: [String]
-categories =
-    [ "Synth-Hard", "Synth-Soft", "Synth-Lead", "Synth-Motion", "Synth-Bass"
-    , "E.Piano", "Organ", "Keyboard", "Bell", "Strings", "Band/Choir"
-    , "Brass", "Reed/Wind", "Guitar/Plucked", "Bass", "Percussive"
-    , "Argpeggio", "SFX/Other"
-    ]
-
-osc_types :: [String]
-osc_types =
-    [ "standard", "comb", "vpm", "resonance", "ring-mod", "cross-mod", "sync"
-    , "organ", "electric-piano", "brass", "reed", "plucked", "bowed"
-    ]
-
 -- | Z1 sysexes use a scheme where the eighth bits are packed into a single
 -- byte preceeding its 7 7bit bytes.
-dekorgify :: [Word8] -> [Word8]
-dekorgify [] = []
-dekorgify (b7:bytes) =
-    [copy_bit b7 i b | (i, b) <- zip [0..] b7group] ++ dekorgify rest
-    where
-    (b7group, rest) = List.splitAt 7 bytes
-    copy_bit from i to = if Bits.testBit from i
-        then Bits.setBit to 7 else Bits.clearBit to 7
-
-dekorgify2 :: ByteString.ByteString -> ByteString.ByteString
-dekorgify2 = mconcat . map smoosh . chunks
+dekorgify :: ByteString.ByteString -> ByteString.ByteString
+dekorgify = mconcat . map smoosh . chunks
     where
     smoosh bs = case ByteString.uncons bs of
         Just (b7, bytes) -> snd $
@@ -146,6 +98,7 @@ dekorgify2 = mconcat . map smoosh . chunks
             let (pre, post) = ByteString.splitAt 8 bs
             in pre : chunks post
 
+-- * spec
 
 z1_patch :: [Spec]
 z1_patch =
@@ -227,6 +180,22 @@ z1_patch =
     , List "pe knob" 5 [Unparsed "unparsed" 16]
     ]
 
+osc_types :: [String]
+osc_types =
+    [ "standard", "comb", "vpm", "resonance", "ring-mod", "cross-mod", "sync"
+    , "organ", "electric-piano", "brass", "reed", "plucked", "bowed"
+    ]
+
+-- | The Z1 has a built-in set of categories. Map the category index to the
+-- name.
+categories :: [String]
+categories =
+    [ "Synth-Hard", "Synth-Soft", "Synth-Lead", "Synth-Motion", "Synth-Bass"
+    , "E.Piano", "Organ", "Keyboard", "Bell", "Strings", "Band/Choir"
+    , "Brass", "Reed/Wind", "Guitar/Plucked", "Bass", "Percussive"
+    , "Argpeggio", "SFX/Other"
+    ]
+
 scale_types :: [Sysex.EnumName]
 scale_types =
     [ "equal temperament", "pure major temperament", "pure minor temperament"
@@ -249,23 +218,19 @@ modulation_intensity name = ranged_byte name (-99, 99)
 
 test_multiset = do
     bytes <- ByteString.drop 9 <$> ByteString.readFile "inst_db/multi1.syx"
-    return $ Sysex.decode multiset (dekorgify2 bytes)
+    return $ Sysex.decode multiset (dekorgify bytes)
 
 test_patch = do
     -- F0, 42, 30, 46
     -- 40, 01
-    b <- dekorgify2 . ByteString.drop 6 <$> ByteString.readFile
+    bytes <- ByteString.readFile
+        "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
+    return $ parse_patch bytes
+
+read_patch = do
+    b <- dekorgify . ByteString.drop 6 <$> ByteString.readFile
         "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
     return $ Sysex.decode z1_patch b
-
-rd = dekorgify2 . ByteString.drop 6 <$> ByteString.readFile
-    "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
-
-rec = Sysex.spec_to_record multiset
-
-binary :: Word8 -> String
-binary b = map extract [7, 6 .. 0]
-    where extract i = if Bits.testBit b i then '1' else '0'
 
 -- | Spec to both parse and generate a multiset dump.
 multiset :: [Spec]

@@ -172,7 +172,7 @@ get_control bytes (name, offset, depth, upper_lower) = do
     valid_control c = c>0 && (c<11 || c>15) && c<120
     -- TODO 120 is aftertouch, which I could support if ControlMap did
 
-get_7bit :: [Word8] -> Int -> Integer
+get_7bit :: [Word8] -> Int -> Int
 get_7bit bytes offset = Parse.from_signed_8bit (Midi.join14 msb lsb)
     where [msb, lsb] = take 2 (drop offset bytes)
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
 {- | Support for generating and parsing sysex files from a "spec" file.
 
     TODO I need to support disjoint subsections, e.g. the different effects
@@ -18,11 +19,51 @@ import qualified Data.Map as Map
 import qualified Data.Serialize.Get as Get
 import Data.Word (Word8)
 
+import qualified Numeric
+import qualified System.FilePath as FilePath
+
 import Util.Control
+import qualified Util.File as File
+import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Tag as Tag
+
+
+-- * parse files
+
+parse_dir :: (ByteString -> Either String Instrument.Patch) -> FilePath
+    -> IO [Instrument.Patch]
+parse_dir parser dir = do
+    fns <- File.list_dir dir
+    results <- mapM (parse_file parser) fns
+    sequence_ [Log.warn $ "parsing " ++ fn ++ ": " ++ err
+        | (fn, Left err) <- zip fns results]
+    return [patch | Right patch <- results]
+
+parse_file :: (ByteString -> Either String Instrument.Patch) -> FilePath
+    -> IO (Either String Instrument.Patch)
+parse_file parser fn = do
+    bytes <- B.readFile fn
+    case B.uncons (B.drop 1 bytes) of
+        Nothing -> return $ Left $ "not a valid sysex: " ++ show bytes
+        Just (manuf, rest) -> do
+            let init = Instrument.InitializeMidi
+                    [Midi.CommonMessage (Midi.SystemExclusive manuf rest)]
+            return $ annotate init <$> parser bytes
+    where
+    annotate init patch = patch
+        { Instrument.patch_file = fn
+        , Instrument.patch_tags = (Tag.file, FilePath.takeFileName fn)
+            : Instrument.patch_tags patch
+        , Instrument.patch_initialize = init
+        }
+
+-- * record
 
 data Record =
     -- | A List is represented as an RMap with numbered keys.
@@ -34,6 +75,9 @@ data Record =
     deriving (Eq, Show)
 type Error = String
 type EnumName = String
+
+data RecordType = TMap | TUnion | TNum | TStr | TEnum | TUnparsed
+    deriving (Show)
 
 -- | Create a Record from a Spec, defaulting everything to 0, "", or the first
 -- enum val.
@@ -65,6 +109,79 @@ instance Pretty.Pretty Record where
         REnum x -> Pretty.text x
         RUnion x -> Pretty.format x
         RUnparsed x -> Pretty.text $ show (B.length x) ++ " unparsed bytes"
+
+class RecordVal a where
+    from_val :: a -> Record
+    to_val :: Record -> Maybe a
+
+instance RecordVal Int where
+    from_val = RNum
+    to_val (RNum x) = Just x
+    to_val _ = Nothing
+
+instance RecordVal String where
+    from_val = RStr
+    to_val (RStr x) = Just x
+    to_val _ = Nothing
+
+newtype EnumVal = EnumVal EnumName deriving (Show)
+
+instance RecordVal EnumVal where
+    from_val (EnumVal x) = REnum x
+    to_val (REnum x) = Just (EnumVal x)
+    to_val _ = Nothing
+
+val_type :: (RecordVal a) => a -> RecordType
+val_type = record_type . from_val
+
+record_type :: Record -> RecordType
+record_type r = case r of
+    RMap {} -> TMap
+    RUnion {} -> TUnion
+    RNum {} -> TNum
+    RStr {} -> TStr
+    REnum {} -> TEnum
+    RUnparsed {} -> TUnparsed
+
+lookup_record :: forall a. (RecordVal a) => String -> Record -> Either String a
+lookup_record path record =
+    to_val_error =<< lookup1 (Seq.split "." path) record
+    where
+    lookup1 [] record = Right record
+    lookup1 (field : fields) record = case record of
+        RMap m -> lookup1 fields
+            =<< maybe (Left $ "not found: " ++ show field)
+                Right (Map.lookup field m)
+        RUnion rec -> lookup1 (field:fields) rec
+        _ -> Left $ "can't lookup " ++ show field ++ " in non-map"
+    to_val_error v = case to_val v of
+        Nothing -> Left $ path ++ ": expected a "
+            ++ show (val_type rtype) ++ " but got " ++ show v
+        Just val -> Right val
+    rtype :: a
+    rtype = error "unevaluated"
+
+put_record :: (RecordVal a) => String -> a -> Record -> Record
+put_record path val record = put (Seq.split "." path) val record
+    where
+    put [] val _ = from_val val
+    put (field : fields) val record = case record of
+        RMap m ->
+            let sub = Map.findWithDefault (RMap mempty) field m
+            in RMap $ Map.insert field (put fields val sub) m
+        RUnion rec -> put (field:fields) val rec
+        _ -> RMap $ Map.singleton field (put fields val (RMap mempty))
+
+-- * util
+
+expect_bytes :: ByteString -> ByteString -> Either String ByteString
+expect_bytes bytes prefix
+    | pre == prefix = Right post
+    | otherwise = Left $ "expected " ++ hex prefix ++ " but got " ++ hex pre
+    where (pre, post) = B.splitAt (B.length prefix) bytes
+
+hex :: ByteString -> String
+hex = unwords . map (\b -> Numeric.showHex b "") . B.unpack
 
 -- * encode
 

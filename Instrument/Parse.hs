@@ -249,9 +249,10 @@ to_eox = Parsec.many (byte_sat (/=Midi.eox_byte))
 to_string :: [Word8] -> String
 to_string = map (toEnum . fromIntegral)
 
-from_signed_7bit :: Word8 -> Integer
+from_signed_7bit :: Word8 -> Int
 from_signed_7bit b = fromIntegral b .&. 0x3f - fromIntegral b .&. 0x40
-from_signed_8bit :: (Integral a) => a -> Integer
+
+from_signed_8bit :: (Integral a) => a -> Int
 from_signed_8bit b = fromIntegral b .&. 0x7f - fromIntegral b .&. 0x80
 -- 76543210
 -- 10000000 0x80
