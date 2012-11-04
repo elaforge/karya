@@ -38,3 +38,14 @@ load app_dir = do
 make_dbs :: FilePath -> IO ()
 make_dbs dir = mapM_ ($ dir </> Config.instrument_dir)
     [Morpheus.make_db, Vl1m.make_db, Z1.make_db]
+
+make_named_dbs :: [String] -> FilePath -> IO ()
+make_named_dbs names dir = mapM_ ($ dir </> Config.instrument_dir)
+    [make | (name, make) <- dbs, name `elem` names]
+
+dbs :: [(String, FilePath -> IO ())]
+dbs =
+    [ (Morpheus.name, Morpheus.make_db)
+    , (Vl1m.name, Vl1m.make_db)
+    , (Z1.name, Z1.make_db)
+    ]
