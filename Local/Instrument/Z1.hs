@@ -27,8 +27,7 @@ load = MidiInst.load_db (const MidiInst.empty_code) name
 
 make_db :: FilePath -> IO ()
 make_db dir = do
-    patches <- (++) <$>
-        Parse.patch_file (dir </> name)
+    patches <- (++) <$> Parse.patch_file (dir </> name)
         <*> Sysex.parse_dir parse_patch (dir </> "z1_sysex")
     MidiInst.save_patches synth patches name dir
 
