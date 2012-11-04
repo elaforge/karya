@@ -9,8 +9,12 @@ UNSORTED
     * parse patch dump
     * try parsing sysex as multi dump or single dump
     * remove the duplicates, use the multi dump instead
-    - get bank and patch num from the dump, and get rid of the bank file,
+    * get bank and patch num from the dump, and get rid of the bank file,
       except for extra tags
+    - bank file can't be used just for annotations, because it wants to set
+      the program change.  I should have a annotation format that's
+      inst-name tag= tag=..., e.g. z1/percussive-ring good=
+    - fix or remove parse failures
     - modify them all to have (-24, +24) pitch bend and send back
   * browser should show what calls an instrument introduces, and which cmds
   / in save/z1, second lower octave note doesn't trigger

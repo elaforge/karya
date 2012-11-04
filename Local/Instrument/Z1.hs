@@ -26,8 +26,14 @@ load = MidiInst.load_db (const MidiInst.empty_code) name
 
 make_db :: FilePath -> IO ()
 make_db dir = do
-    patches <- (++) <$> Parse.patch_file (dir </> name)
-        <*> Sysex.parse_dir [parse_patch, parse_patch_dump] (dir </> "z1_sysex")
+    bank_a <- Sysex.parse_bank_dump 0 parse_patch_dump
+        (dir </> name </> "bank_a.syx")
+    bank_b <- Sysex.parse_bank_dump 1 parse_patch_dump
+        (dir </> name </> "bank_b.syx")
+    sysex <- Sysex.parse_dir [parse_patch, parse_patch_dump]
+        (dir </> name </> "sysex")
+    -- annot <- Parse.patch_file (dir </> name </> "patches")
+    let patches = concat [bank_a, bank_b, sysex] -- , annot]
     MidiInst.save_patches synth patches name dir
 
 synth :: Instrument.Synth
