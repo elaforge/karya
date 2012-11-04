@@ -52,26 +52,33 @@ synth_controls =
     -- amp
     , (76, "amp-attack"), (77, "amp-decay"), (78, "amp-sustain")
     , (79, "amp-release")
-
-    -- Various filter cutoff etc.
     ]
 
 -- * parse sysex
 
--- TODO some of the dumps are program data dump format which starts
--- f0 42 30 46 - 4c <ub> <pp> 00
--- instead of
--- f0 42 30 46 - 40 01
---
--- I should write something to convert them into current program format.
-
-parse_patch :: ByteString -> Either String Instrument.Patch
+parse_patch :: ByteString -> Either String [Instrument.Patch]
 parse_patch bytes = do
     bytes <- Sysex.expect_bytes bytes $
-        ByteString.pack [0xf0, Midi.korg_code, 0x30, 0x46, 0x40, 0x01]
-    (record, _) <- Sysex.decode z1_patch $ dekorgify bytes
-    let lookup :: (Sysex.RecordVal a) => String -> Either String a
-        lookup = flip Sysex.lookup_record record
+        korg_header <> ByteString.pack [0x40, 0x01]
+    (record, _) <- Sysex.decode patch_spec $ dekorgify bytes
+    (:[]) <$> extract_patch record
+
+parse_patch_dump :: ByteString -> Either String [Instrument.Patch]
+parse_patch_dump bytes = do
+    bytes <- Sysex.expect_bytes bytes $ korg_header <> ByteString.pack [0x4c]
+    -- Drop bank, program number, and 0 byte.
+    patches $ dekorgify $ ByteString.drop 3 bytes
+    where
+    patches bytes
+        | ByteString.length bytes >= Sysex.spec_bytes patch_spec = do
+            (record, bytes) <- Sysex.decode patch_spec bytes
+            patch <- extract_patch record
+            patches <- patches bytes
+            return (patch : patches)
+        | otherwise = return []
+
+extract_patch :: Sysex.Record -> Either String Instrument.Patch
+extract_patch record = do
     name <- lookup "name"
     category <- lookup "category"
     pb_range <- (,) <$> lookup "pitch bend.intensity -"
@@ -82,6 +89,14 @@ parse_patch bytes = do
         { Instrument.patch_tags =
             [("category", category), ("z1-osc", osc1), ("z1-osc", osc2)]
         }
+    where
+    lookup :: (Sysex.RecordVal a) => String -> Either String a
+    lookup = flip Sysex.lookup_record record
+
+-- | I think 0x30 should be 0x3g where g is the global channel, but I use 0
+-- so this works.
+korg_header :: ByteString.ByteString
+korg_header = ByteString.pack [0xf0, Midi.korg_code, 0x30, 0x46]
 
 -- | Z1 sysexes use a scheme where the eighth bits are packed into a single
 -- byte preceeding its 7 7bit bytes.
@@ -100,10 +115,10 @@ dekorgify = mconcat . map smoosh . chunks
             let (pre, post) = ByteString.splitAt 8 bs
             in pre : chunks post
 
--- * spec
+-- * specs
 
-z1_patch :: [Spec]
-z1_patch =
+patch_spec :: [Spec]
+patch_spec = Sysex.assert_valid "patch_spec"
     [ Str "name" 16
     , enum_byte "category" categories
     , byte "user group" 15
@@ -210,21 +225,15 @@ modulation_intensity name = ranged_byte name (-99, 99)
 
 -- * parse / generate sysex
 
--- F0,42,3g,46 header
--- 4d -- multi setup dump
--- 00
--- ub -- unit bank
--- mm -- multi num
--- 00
--- data
-
 test_multiset = do
     bytes <- ByteString.drop 9 <$> ByteString.readFile "inst_db/multi1.syx"
-    return $ Sysex.decode multiset (dekorgify bytes)
+    return $ Sysex.decode multiset_spec (dekorgify bytes)
+
+test_dump = do
+    bytes <- ByteString.readFile "inst_db/z1_patches_b.syx"
+    return $ parse_patch_dump bytes
 
 test_patch = do
-    -- F0, 42, 30, 46
-    -- 40, 01
     bytes <- ByteString.readFile
         "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
     return $ parse_patch bytes
@@ -232,11 +241,11 @@ test_patch = do
 read_patch = do
     b <- dekorgify . ByteString.drop 6 <$> ByteString.readFile
         "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
-    return $ Sysex.decode z1_patch b
+    return $ Sysex.decode patch_spec b
 
 -- | Spec to both parse and generate a multiset dump.
-multiset :: [Spec]
-multiset = Sysex.assert_valid "multiset" $
+multiset_spec :: [Spec]
+multiset_spec = Sysex.assert_valid "multiset_spec"
     [ Str "name" 16
     , List "timbre" 6 timbre
     , enum_byte "effect 1 select" effect_type1

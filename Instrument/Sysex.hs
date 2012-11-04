@@ -36,17 +36,17 @@ import qualified Instrument.Tag as Tag
 
 -- * parse files
 
-parse_dir :: (ByteString -> Either String Instrument.Patch) -> FilePath
+parse_dir :: (ByteString -> Either String [Instrument.Patch]) -> FilePath
     -> IO [Instrument.Patch]
 parse_dir parser dir = do
     fns <- File.list_dir dir
     results <- mapM (parse_file parser) fns
     sequence_ [Log.warn $ "parsing " ++ fn ++ ": " ++ err
         | (fn, Left err) <- zip fns results]
-    return [patch | Right patch <- results]
+    return $ concat [patches | Right patches <- results]
 
-parse_file :: (ByteString -> Either String Instrument.Patch) -> FilePath
-    -> IO (Either String Instrument.Patch)
+parse_file :: (ByteString -> Either String [Instrument.Patch]) -> FilePath
+    -> IO (Either String [Instrument.Patch])
 parse_file parser fn = do
     bytes <- B.readFile fn
     case B.uncons (B.drop 1 bytes) of
@@ -54,7 +54,7 @@ parse_file parser fn = do
         Just (manuf, rest) -> do
             let init = Instrument.InitializeMidi
                     [Midi.CommonMessage (Midi.SystemExclusive manuf rest)]
-            return $ annotate init <$> parser bytes
+            return $ map (annotate init) <$> parser bytes
     where
     annotate init patch = patch
         { Instrument.patch_file = fn
@@ -396,9 +396,21 @@ type Name = String
 type Bits = Int
 type Bytes = Int
 
+spec_bytes :: [Spec] -> Int
+spec_bytes = sum . map bytes_of
+    where
+    bytes_of (Bits {}) = 1
+    bytes_of (Str _ n) = n
+    bytes_of (SubSpec _ specs) = spec_bytes specs
+    bytes_of (List _ n specs) = spec_bytes specs * n
+    bytes_of (Union _ _ n _) = n
+    bytes_of (Unparsed _ n) = n
+
 validate :: [Spec] -> Maybe String
 validate specs = msum (map check specs)
     where
+    -- TODO assert each name is unique
+    -- names can't have dots
     check (Bits bits)
         | total /= 8 = Just $
             show (map fst bits) ++ " - bits should sum to 8: " ++ show total
