@@ -8,7 +8,6 @@ import System.FilePath ((</>))
 
 import Util.Control
 import qualified Midi.Midi as Midi
-import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Parse as Parse
 import qualified Instrument.Sysex as Sysex
@@ -38,10 +37,22 @@ synth_controls :: [(Midi.Control, String)]
 synth_controls =
     -- The PE controls are the "performance expression" knobs whose effect
     -- depends on the instrument.
-    [ (13, "pe1"), (20, "pe2"), (21, "pe3"), (22, "pe4"), (23, "pe5")
+    [ (19, "knob1"), (20, "knob2"), (21, "knob3"), (22, "knob4"), (23, "knob5")
     , (16, "pad-x"), (17, "pad-y")
-    , (65, "z1-port-sw") -- Turn portamento on and off.
-    , (80, "z1-sw-1"), (81, "z1-sw-2") -- General purpose on/off switches.
+    , (65, "port-sw") -- Turn portamento on and off.
+    , (80, "sw1"), (81, "sw2") -- General purpose on/off switches.
+    -- filter 1
+    , (85, "filter1-cutoff"), (86, "filter1-q"), (87, "filter1-eg")
+    , (24, "filter1-attack"), (25, "filter1-decay"), (26, "filter1-sustain")
+    , (27, "filter1-release")
+    -- filter 2
+    , (88, "filter2-cutoff"), (89, "filter2-q"), (90, "filter2-eg")
+    , (28, "filter2-attack"), (29, "filter2-decay"), (30, "filter2-sustain")
+    , (31, "filter2-release")
+    -- amp
+    , (76, "amp-attack"), (77, "amp-decay"), (78, "amp-sustain")
+    , (79, "amp-release")
+
     -- Various filter cutoff etc.
     ]
 
@@ -67,18 +78,10 @@ parse_patch bytes = do
         <*> lookup "pitch bend.intensity +"
     Sysex.EnumVal osc1 <- lookup "osc.0.type"
     Sysex.EnumVal osc2 <- lookup "osc.1.type"
-    return $ make_patch (name, Just category, pb_range, Just osc1, Just osc2)
-
-make_patch ::
-    (String, Maybe String, Control.PbRange, Maybe String, Maybe String)
-    -> Instrument.Patch
-make_patch (name, cat, pb_range, osc1, osc2) =
-    -- Initialization will be filled in later.
-    (Instrument.patch inst) { Instrument.patch_tags = tags }
-    where
-    inst = Instrument.instrument name [] pb_range
-    tags = maybe_tags [("category", cat), ("z1-osc", osc1), ("z1-osc", osc2)]
-    maybe_tags tags = [(k, v) | (k, Just v) <- tags]
+    return $ (Instrument.patch (Instrument.instrument name [] pb_range))
+        { Instrument.patch_tags =
+            [("category", category), ("z1-osc", osc1), ("z1-osc", osc2)]
+        }
 
 -- | Z1 sysexes use a scheme where the eighth bits are packed into a single
 -- byte preceeding its 7 7bit bytes.
