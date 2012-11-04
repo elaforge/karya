@@ -2,12 +2,27 @@
 -- | Miscellaneous functions on numbers.  Things that could have gone in
 -- Numeric.
 module Util.Num where
+import qualified Data.Bits as Bits
 import qualified Data.Fixed as Fixed
 import qualified Foreign.C as C
 import qualified GHC.Prim as Prim
 import qualified GHC.Types as Types
 import qualified Unsafe.Coerce as Coerce
 
+
+-- * show
+
+-- | Show a word as binary.
+--
+-- Warning: for some reason, Integer is an instance of Bits, but bitSize will
+-- crash.
+binary :: (Bits.Bits a) => a -> String
+binary b = map extract [bits-1, bits-2 .. 0]
+    where
+    extract i = if Bits.testBit b i then '1' else '0'
+    bits = Bits.bitSize b
+
+-- * transform
 
 -- | Clamp a value to be between @low@ and @high@.
 clamp :: (Ord a) => a -> a -> a -> a
