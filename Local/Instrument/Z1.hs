@@ -27,7 +27,7 @@ load = MidiInst.load_db (const MidiInst.empty_code) name
 make_db :: FilePath -> IO ()
 make_db dir = do
     patches <- (++) <$> Parse.patch_file (dir </> name)
-        <*> Sysex.parse_dir parse_patch (dir </> "z1_sysex")
+        <*> Sysex.parse_dir [parse_patch, parse_patch_dump] (dir </> "z1_sysex")
     MidiInst.save_patches synth patches name dir
 
 synth :: Instrument.Synth
@@ -320,9 +320,6 @@ effect_type1 :: [String]
 effect_type1 = effect_type2 ++
     [ "talking modulator", "multitap delay", "ensemble", "rotary speaker-large"
     ]
-
-effect_setting :: [Spec]
-effect_setting = reserved_space 22
 
 effect_overdrive :: [Spec]
 effect_overdrive =

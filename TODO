@@ -7,8 +7,10 @@ UNSORTED
   * browser should scroll up the info pane when you select a new instrument
   clean up z1 patches
     * parse patch dump
-    - try parsing sysex as multi dump or single dump
-    - remove the duplicates, use the multi dump instead
+    * try parsing sysex as multi dump or single dump
+    * remove the duplicates, use the multi dump instead
+    - get bank and patch num from the dump, and get rid of the bank file,
+      except for extra tags
     - modify them all to have (-24, +24) pitch bend and send back
   * browser should show what calls an instrument introduces, and which cmds
   / in save/z1, second lower octave note doesn't trigger

@@ -14,6 +14,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Builder as Builder
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Serialize.Get as Get
@@ -36,26 +37,34 @@ import qualified Instrument.Tag as Tag
 
 -- * parse files
 
-parse_dir :: (ByteString -> Either String [Instrument.Patch]) -> FilePath
-    -> IO [Instrument.Patch]
-parse_dir parser dir = do
-    fns <- File.list_dir dir
-    results <- mapM (parse_file parser) fns
+type Parser = ByteString -> Either String [Instrument.Patch]
+
+-- | For every file below the directory ending with .syx, try all of the
+-- given parsers on it.
+parse_dir :: [Parser] -> FilePath -> IO [Instrument.Patch]
+parse_dir parsers dir = do
+    fns <- filter ((==".syx") . FilePath.takeExtension) <$>
+        File.recursive_list_dir (const True) dir
+    results <- mapM (\fn -> parse_file parsers fn <$> B.readFile fn) fns
     sequence_ [Log.warn $ "parsing " ++ fn ++ ": " ++ err
         | (fn, Left err) <- zip fns results]
     return $ concat [patches | Right patches <- results]
 
-parse_file :: (ByteString -> Either String [Instrument.Patch]) -> FilePath
-    -> IO (Either String [Instrument.Patch])
-parse_file parser fn = do
-    bytes <- B.readFile fn
-    case B.uncons (B.drop 1 bytes) of
-        Nothing -> return $ Left $ "not a valid sysex: " ++ show bytes
-        Just (manuf, rest) -> do
-            let init = Instrument.InitializeMidi
-                    [Midi.CommonMessage (Midi.SystemExclusive manuf rest)]
-            return $ map (annotate init) <$> parser bytes
+parse_file :: [Parser] -> FilePath -> ByteString
+    -> Either String [Instrument.Patch]
+parse_file parsers fn bytes
+    | Just (manuf, rest) <- B.uncons (B.drop 1 bytes) =
+        case Either.rights parses of
+            patches : _ ->
+                Right $ map (annotate (initialize manuf rest)) patches
+            [] -> case Either.lefts parses of
+                err : _ -> Left err
+                [] -> Left $ "no parsers given for " ++ show fn
+    | otherwise = Left $ "sysex too short: " ++ show bytes
     where
+    parses = map ($bytes) parsers
+    initialize manuf rest = Instrument.InitializeMidi
+        [Midi.CommonMessage (Midi.SystemExclusive manuf rest)]
     annotate init patch = patch
         { Instrument.patch_file = fn
         , Instrument.patch_tags = (Tag.file, FilePath.takeFileName fn)
