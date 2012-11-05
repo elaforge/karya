@@ -17,6 +17,7 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Parse as Parse
+import qualified Instrument.Sysex as Sysex
 import qualified App.MidiInst as MidiInst
 
 
@@ -65,7 +66,7 @@ parse fn txt syx = combine fn txt syx <$> Parse.parse_sysex vl1_sysex fn syx
 
 combine :: FilePath -> String -> [Word8] -> Instrument.Patch
     -> Instrument.Patch
-combine fn txt syx patch = Parse.add_file fn $ patch
+combine fn txt syx patch = Sysex.add_file fn $ patch
     { Instrument.patch_text = Seq.strip txt
     , Instrument.patch_initialize = Parse.make_sysex_init syx
     }

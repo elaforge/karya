@@ -9,12 +9,10 @@ import System.FilePath ((</>))
 import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.Parse as Parse
 import qualified Instrument.Sysex as Sysex
 import Instrument.Sysex
        (Spec(..), bits, ranged_bits, byte, boolean, boolean1, enum_byte,
         enum_bits, reserved_space, ranged_byte)
-
 import qualified App.MidiInst as MidiInst
 
 
@@ -32,9 +30,7 @@ make_db dir = do
         (dir </> name </> "bank_b.syx")
     sysex <- Sysex.parse_dir [parse_patch, parse_patch_dump]
         (dir </> name </> "sysex")
-    -- annot <- Parse.patch_file (dir </> name </> "patches")
-    let patches = concat [bank_a, bank_b, sysex] -- , annot]
-    MidiInst.save_patches synth patches name dir
+    MidiInst.save_patches synth (concat [bank_a, bank_b, sysex]) name dir
 
 synth :: Instrument.Synth
 synth = Instrument.synth name synth_controls

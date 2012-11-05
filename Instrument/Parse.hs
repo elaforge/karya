@@ -4,12 +4,10 @@ module Instrument.Parse where
 import Data.Bits as Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Data.Word (Word8)
 
 import qualified Numeric
-import qualified System.FilePath as FilePath
 import qualified Text.ParserCombinators.Parsec as Parsec
 import Text.ParserCombinators.Parsec ((<|>), (<?>))
 import qualified Text.ParserCombinators.Parsec.Pos as Parsec.Pos
@@ -17,71 +15,112 @@ import qualified Text.ParserCombinators.Parsec.Pos as Parsec.Pos
 import Util.Control hiding ((<|>))
 import qualified Util.File as File
 import qualified Midi.Midi as Midi
+import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Sysex as Sysex
 import qualified Instrument.Tag as Tag
+
+
+type Parser st a = Parsec.GenParser Char st a
+
+-- * annotation file
+
+type Annotation = Instrument.Tag
+
+-- | Format is @synth/inst-name tag1=x tag2=y@.
+--
+-- TODO other attributes are not supported, but if there were, they could look
+-- like @*pb-range=12 *flag=pressure@@
+parse_annotations :: FilePath
+    -> IO (Either String [(Score.Instrument, [Annotation])])
+parse_annotations fn = do
+    result <- Parsec.parseFromFile p_annotation_file fn
+    return $ either (Left . show) Right result
+
+p_annotation_file :: Parser st [(Score.Instrument, [Annotation])]
+p_annotation_file = concat <$> Parsec.many line
+    where
+    line = ((:[]) <$> Parsec.try p_annotation_line) <|> (p_eol >> return [])
+
+p_annotation_line :: Parser st (Score.Instrument, [Annotation])
+p_annotation_line =
+    ((,) <$> lexeme p_instrument <*> Parsec.many (lexeme p_tag)) <* p_eol
+
+p_instrument :: Parser st Score.Instrument
+p_instrument = do
+    synth <- Parsec.many1 $ Parsec.oneOf Score.inst_valid_chars
+    Parsec.char '/'
+    name <- Parsec.many1 $ Parsec.oneOf Score.inst_valid_chars
+    return $ Score.Instrument $ synth ++ '/' : name
+    <?> "instrument"
+
+p_tag :: Parser st Instrument.Tag
+p_tag = (,) <$> Parsec.many1 tag_char
+        <*> Parsec.option "" (Parsec.char '=' *> Parsec.many1 tag_char)
+    where tag_char = Parsec.alphaNum <|> Parsec.char '-'
+
+lexeme :: Parser st a -> Parser st a
+lexeme p = p <* p_whitespace
+
+p_eol :: Parser st ()
+p_eol = p_whitespace <* Parsec.char '\n'
+
+p_whitespace :: Parser st ()
+p_whitespace = Parsec.skipMany (Parsec.oneOf " \t") >> Parsec.optional comment
+    where comment = Parsec.string "#" >> Parsec.skipMany (Parsec.noneOf "\n")
 
 
 -- * patch file
 
--- | This module uses parsec.  The rest of the modules use attoparsec so it
--- would be nice to entirely get rid of parsec dependency by using it here too,
--- but I use state to have nicer error msgs and attoparsec doesn't support
--- user state.
-type Parser a = Parsec.GenParser Char State a
-
-data State = State {
-    state_bank :: Int
-    , state_patch_num :: Midi.Program
-    }
-
-empty_state :: State
-empty_state = State 0 0
-
--- | name, category, bank, patch_num
-data PatchLine = PatchLine {
-    patch_name :: String
-    , patch_bank :: Int
-    , patch_program :: Midi.Program
-    , patch_tags :: Map.Map Instrument.TagKey Instrument.TagVal
-    } deriving (Show)
-
-patch_file :: FilePath -> IO [Instrument.Patch]
-patch_file fn =
-    either (errorIO . ("parse patches: " ++) . show) return
-        =<< parse_patch_file fn
-
 -- | Parse a simple ad-hoc text file format to describe a synth's built-in
 -- patches.
 --
--- If a line looks like @<word>, <word>@, the first word will be the patch
--- name and the second will be be the @category@ tag.  If there is only one
--- word, the patch inherits the previous line's category.
+-- Each line should look like @inst-name, tag=val, tag=val, ...@.
+-- The instrument name can contain any character except a comma, but the
+-- tags are restricted to [a-z0-9-].  The @category@ tag is treated specially:
+-- if not set it will be inherited from the previous category.
 --
 -- The patch's program change is incremented for each patch.  A line like
 -- @*bank <num>@ sets the bank number and resets the program change to 0.
 --
 -- Comments start with @#@, and blank lines are ignored.
---
--- There is no support currently for other attributes, but they could be added
--- later if needed.
+patch_file :: FilePath -> IO [Instrument.Patch]
+patch_file fn = either (errorIO . ("parse patches: " ++) . show) return
+    =<< parse_patch_file fn
+
 parse_patch_file :: String -> IO (Either Parsec.ParseError [Instrument.Patch])
 parse_patch_file fn = do
     contents <- readFile fn
     let result = Parsec.runParser p_patch_file empty_state fn contents
-    return $ map (add_file fn) <$> result
+    return $ map (Sysex.add_file fn) <$> result
 
-p_patch_file :: Parser [Instrument.Patch]
+data State = State {
+    state_bank :: Int
+    , state_patch_num :: Midi.Program
+    } deriving (Show)
+
+empty_state :: State
+empty_state = State 0 0
+
+data PatchLine = PatchLine {
+    patch_name :: String
+    , patch_bank :: Int
+    , patch_program :: Midi.Program
+    , patch_tags :: [Instrument.Tag]
+    } deriving (Show)
+
+p_patch_file :: Parser State [Instrument.Patch]
 p_patch_file = do
-    patches <- p_patch_lines
+    patches <- Maybe.catMaybes <$> Parsec.many p_line
     return $ map (make_patch (-2, 2)) (inherit_prev_category patches)
     where
     inherit_prev_category = snd . List.mapAccumL inherit Nothing
-    inherit maybe_prev patch = case Map.lookup Tag.category tags of
+    inherit maybe_prev patch = case lookup Tag.category tags of
             Nothing -> case maybe_prev of
                 Nothing -> (Nothing, patch)
                 Just prev -> (Just prev,
-                    patch { patch_tags = Map.insert Tag.category prev tags })
+                    patch { patch_tags = (Tag.category, prev) : tags })
             Just cat -> (Just cat, patch)
         where tags = patch_tags patch
 
@@ -90,64 +129,41 @@ make_patch pb_range (PatchLine name bank patch_num tags) =
     (Instrument.patch inst)
         { Instrument.patch_initialize = Instrument.InitializeMidi $
             map (Midi.ChannelMessage 0) (Midi.program_change bank patch_num)
-        , Instrument.patch_tags = Map.toList tags
+        , Instrument.patch_tags = tags
         }
     where inst = Instrument.instrument name [] pb_range
 
-p_patch_lines :: Parser [PatchLine]
-p_patch_lines = fmap Maybe.catMaybes $ Parsec.many p_line
+p_line :: Parser State (Maybe PatchLine)
+p_line = Parsec.try (p_bank_decl >> return Nothing)
+    <|> (p_eol >> return Nothing) <|> fmap Just p_patch_line
 
-p_line :: Parser (Maybe PatchLine)
-p_line = Parsec.try p_bank_decl <|> p_rest_of_line <|> fmap Just p_patch_line
-
--- | name, category, tag=val
-p_patch_line :: Parser PatchLine
+p_patch_line :: Parser State PatchLine
 p_patch_line = do
-    st <- Parsec.getState
     name <- Parsec.many1 (Parsec.noneOf "\n,")
-    tags <- Map.fromList <$>
-        Parsec.option [] (comma >> Parsec.sepBy1 p_tag comma)
+    tags <- Parsec.option [] $ comma >> Parsec.sepBy1 p_tag comma
+    p_eol
+    st <- Parsec.getState
     Parsec.setState $ st { state_patch_num = state_patch_num st + 1 }
-    p_rest_of_line
     return $ PatchLine name (state_bank st) (state_patch_num st) tags
     where
-    comma = Parsec.char ',' >> spaces
-    spaces = Parsec.skipMany (Parsec.char ' ')
+    comma = lexeme (Parsec.char ',')
 
-p_tag :: Parser (Instrument.TagKey, Instrument.TagVal)
-p_tag = do
-    key <- Parsec.many1 (Parsec.alphaNum <|> Parsec.char '-')
-    val <- Parsec.option Nothing $ do
-        Parsec.char '='
-        Just <$> Parsec.many (Parsec.noneOf " \n")
-    return $ case val of
-        Nothing -> (Tag.category, key)
-        Just val -> (key, val)
-
-p_bank_decl :: Parser (Maybe PatchLine)
+p_bank_decl :: Parser State ()
 p_bank_decl = do
     Parsec.string "*bank"
     Parsec.skipMany1 Parsec.space
     n <- p_nat
     st <- Parsec.getState
     Parsec.setState (st { state_bank = fromIntegral n, state_patch_num = 0 })
-    return Nothing
 
-p_rest_of_line :: Parser (Maybe PatchLine)
-p_rest_of_line = do
-    spaces
-    Parsec.optional (Parsec.char '#' >> Parsec.skipMany (Parsec.noneOf "\n"))
-    Parsec.newline
-    return Nothing
-    where spaces = Parsec.skipMany (Parsec.oneOf " \t")
-
-p_nat :: Parsec.CharParser st Integer
+p_nat :: Parser st Integer
 p_nat = do
     i <- Parsec.many Parsec.digit
     case Numeric.readDec i of
         (n, _) : _ -> return n
         _ -> Parsec.pzero -- this should never happen
     <?> "natural int"
+
 
 -- * sysex
 
@@ -178,7 +194,7 @@ parse_sysex_file :: ByteParser Instrument.Patch -> FilePath
     -> IO (Either Parsec.ParseError Instrument.Patch)
 parse_sysex_file parser fn = do
     bytes <- File.read_binary fn
-    return $ add_sysex bytes . add_file fn <$> parse_sysex parser fn bytes
+    return $ add_sysex bytes . Sysex.add_file fn <$> parse_sysex parser fn bytes
 
 parse_sysex :: ByteParser a -> FilePath -> [Word8]
     -> Either Parsec.ParseError a
@@ -186,13 +202,6 @@ parse_sysex parser fn bytes = Parsec.parse parser fn (annotate bytes)
     where
     annotate bytes =
         [(Parsec.Pos.newPos fn 1 n, byte) | (n, byte) <- zip [1..] bytes]
-
-add_file :: FilePath -> Instrument.Patch -> Instrument.Patch
-add_file fn patch = patch
-    { Instrument.patch_file = fn
-    , Instrument.patch_tags =
-        (Tag.file, FilePath.takeFileName fn) : Instrument.patch_tags patch
-    }
 
 -- | Tack the sysex on to the patch's initialize field.
 add_sysex :: [Word8] -> Instrument.Patch -> Instrument.Patch

@@ -3,11 +3,24 @@ import qualified Text.ParserCombinators.Parsec as Parsec
 
 import Util.Test
 import qualified Midi.Midi as Midi
+import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Parse as Parse
 
 
-test_parse_file = do
+test_parse_annotations = do
+    let f = either (Left . show) (Right . map extract)
+            .  Parsec.runParser Parse.p_annotation_file () "test"
+        extract (inst, annots) = (Score.inst_name inst, annots)
+    equal (f "s/1 there\n") $ Right [("s/1", [("there", "")])]
+    equal (f "s/1\n") $ Right [("s/1", [])]
+    equal (f "s/1 a=b c=d\n") $
+        Right [("s/1", [("a", "b"), ("c", "d")])]
+    equal (f "s/1 a=b c=d # comment\n") $
+        Right [("s/1", [("a", "b"), ("c", "d")])]
+    equal (f "# empty\n") $ Right []
+
+test_parse_patch_file = do
     let parse f = extract f
             . Parsec.runParser Parse.p_patch_file Parse.empty_state "test"
         extract f = either (Left . show) (Right . map f)
@@ -25,27 +38,25 @@ test_parse_file = do
         , [cc 0 0, cc 32 1, Midi.ProgramChange 0]
         , [cc 0 0, cc 32 1, Midi.ProgramChange 1]
         ]
-
     equal (parse e_tags patch_file) $ Right $
         replicate 3 [("category", "boring")] ++ [[("category", "interesting")]]
-    equal (parse e_tags "p1, tag=\np2, cat, tag2=b\n") $ Right
-        [ [("tag", "")]
-        , [("category", "cat"), ("tag2", "b")]
-        ]
-    left_like (parse e_tags "p0\np1, bad_tag=blah") "unexpected \"_\""
 
+    equal (parse e_tags "p1, tag\np2, tag2=b\n") $ Right
+        [[("tag", "")], [("tag2", "b")]]
+    left_like (parse e_tags "p0\np1, bad_tag=blah") "unexpected \"_\""
+    left_like (parse e_tags "p, tag=") "unexpected end of input"
 
 patch_file :: String
 patch_file =
     "# some synth\n\
     \\n\
     \*bank 0\n\
-    \Patch 1, boring\n\
+    \Patch 1, category=boring\n\
     \Patch 2\n\
     \\n\
     \*bank 1\n\
     \Patch 1/0\n\
-    \Patch 1/1, interesting\n"
+    \Patch 1/1, category=interesting\n"
 
 test_parse_sysex = do
     let parse p s = case Parse.parse_sysex p "" s of

@@ -301,6 +301,10 @@ place_warp shift stretch warp = compose_warps warp
 
 -- * instrument
 
+-- | Set of characters allowed in an instrument name.
+inst_valid_chars :: [Char]
+inst_valid_chars = '-' : ['0'..'9'] ++ ['a'..'z']
+
 inst_name :: Instrument -> String
 inst_name (Instrument s) = s
 

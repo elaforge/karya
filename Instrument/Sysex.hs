@@ -58,7 +58,8 @@ parse_bank_dump bank parser fn = do
             Log.warn $ "parsing " ++ fn ++ ": " ++ err
             return []
         Right patches -> return
-            [annotate_patch fn (initialize n) p | (n, p) <- zip [0..] patches]
+            [(Instrument.initialize #= initialize n) $ add_file fn p
+                | (n, p) <- zip [0..] patches]
     where
     -- Assume the sysex midi channel is 0.
     initialize n = Instrument.InitializeMidi $
@@ -69,8 +70,9 @@ parse_file :: [Parser] -> FilePath -> ByteString
 parse_file parsers fn bytes
     | Just (manuf, rest) <- B.uncons (B.drop 1 bytes) =
         case Either.rights parses of
-            patches : _ ->
-                Right $ map (annotate_patch fn (initialize manuf rest)) patches
+            patches : _ -> Right $ map
+                ((Instrument.initialize #= initialize manuf rest) . add_file fn)
+                patches
             [] -> case Either.lefts parses of
                 err : _ -> Left err
                 [] -> Left $ "no parsers given for " ++ show fn
@@ -80,13 +82,11 @@ parse_file parsers fn bytes
     initialize manuf rest = Instrument.InitializeMidi
         [Midi.CommonMessage (Midi.SystemExclusive manuf rest)]
 
-annotate_patch :: FilePath -> Instrument.InitializePatch
-    -> Instrument.Patch -> Instrument.Patch
-annotate_patch fn init patch = patch
+add_file :: FilePath -> Instrument.Patch -> Instrument.Patch
+add_file fn patch = patch
     { Instrument.patch_file = fn
-    , Instrument.patch_tags = (Tag.file, FilePath.takeFileName fn)
-        : Instrument.patch_tags patch
-    , Instrument.patch_initialize = init
+    , Instrument.patch_tags =
+        (Tag.file, FilePath.takeFileName fn) : Instrument.patch_tags patch
     }
 
 -- * record

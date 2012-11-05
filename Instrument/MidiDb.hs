@@ -144,7 +144,7 @@ newtype PatchMap code =
 wildcard_inst_name :: Instrument.InstrumentName
 wildcard_inst_name = "*"
 
--- | Build a PatchMad to give to 'midi_db'.  Simplified names are generated
+-- | Build a 'PatchMap' to give to 'midi_db'.  Simplified names are generated
 -- for each patch, and if names collide various heuristics are tried to
 -- discard or combine them, or they are disambiguated with numbers.
 patch_map :: [PatchCode code] -> (PatchMap code, [String])
@@ -245,14 +245,11 @@ lc = map Char.toLower
 -- and therefore lookup, but the inst_name field remains unchanged.
 clean_inst_name :: String -> String
 clean_inst_name =
-    map replace . unwords . words . filter (`elem` valid_chars) . lc
+    Seq.drop_with (\a b -> a == '-' && b == '-') . map replace . lc
     where
-    replace ' ' = '-'
-    replace '_' = '-'
-    replace c = c
-
-valid_chars :: [Char]
-valid_chars = ['0'..'9'] ++ ['a'..'z'] ++ " _-"
+    replace c
+        | c `elem` " _/" = '-'
+        | otherwise = c
 
 score_inst :: Instrument.Synth -> Instrument.Patch -> Score.Instrument
 score_inst synth patch =
