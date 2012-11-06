@@ -19,6 +19,7 @@ test_parse_annotations = do
     equal (f "s/1 a=b c=d # comment\n") $
         Right [("s/1", [("a", "b"), ("c", "d")])]
     equal (f "# empty\n") $ Right []
+    left_like (f "bad inst\n") "unexpected \" \""
 
 test_parse_patch_file = do
     let parse f = extract f

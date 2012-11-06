@@ -4,6 +4,7 @@ module Instrument.Parse where
 import Data.Bits as Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Data.Word (Word8)
 
@@ -33,13 +34,13 @@ type Annotation = Instrument.Tag
 -- TODO other attributes are not supported, but if there were, they could look
 -- like @*pb-range=12 *flag=pressure@@
 parse_annotations :: FilePath
-    -> IO (Either String [(Score.Instrument, [Annotation])])
+    -> IO (Either String (Map.Map Score.Instrument [Annotation]))
 parse_annotations fn = do
     result <- Parsec.parseFromFile p_annotation_file fn
-    return $ either (Left . show) Right result
+    return $ either (Left . show) (Right . Map.fromListWith (++)) result
 
 p_annotation_file :: Parser st [(Score.Instrument, [Annotation])]
-p_annotation_file = concat <$> Parsec.many line
+p_annotation_file = concat <$> Parsec.many line <* Parsec.eof
     where
     line = ((:[]) <$> Parsec.try p_annotation_line) <|> (p_eol >> return [])
 
