@@ -5,6 +5,7 @@ module Instrument.MidiDb where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 
 import qualified System.FilePath as FilePath
@@ -23,28 +24,10 @@ import qualified Perform.Midi.Instrument as Instrument
 
 -- * midi db
 
--- | Pair a Patch up with its code.
---
--- The code parameter is extra data that can't be defined here to avoid
--- circular imports.  Instruments want to have Cmds in them, but the "Cmd.Cmd"
--- module must import this one.  However, it would be quite annoying to have to
--- try to move this entire module into Cmd.Cmd.
-type PatchCode code = (Instrument.Patch, code)
-
 newtype MidiDb code = MidiDb {
     midi_db_map :: Map.Map Instrument.SynthName
         (Instrument.Synth, PatchMap code)
     } deriving (Show)
-
--- | Merge the MidiDbs, favoring instruments in the leftmost one.
-merge :: MidiDb code -> MidiDb code -> (MidiDb code, [Score.Instrument])
-merge (MidiDb db1) (MidiDb db2) =
-    (MidiDb (Map.unionWith merge_synth db1 db2), rejects)
-    where
-    merge_synth (synth, pmap1) (_, pmap2) = (synth, pmap1 <> pmap2)
-    rejects = concatMap find_dups (Map.zip_intersection db1 db2)
-    find_dups (synth, (_, PatchMap ps1), (_, PatchMap ps2)) =
-        map (Score.instrument synth) (Map.keys (Map.intersection ps2 ps1))
 
 -- | Construct and validate a MidiDb, returning any errors that occurred.
 midi_db :: [SynthDesc code] -> (MidiDb code, [String])
@@ -64,6 +47,44 @@ validate synth_pmaps = concatMap check_synth synth_pmaps
         where
         prefix = Pretty.pretty $ Score.instrument
             (Instrument.synth_name synth) (Instrument.patch_name patch)
+
+-- | Merge the MidiDbs, favoring instruments in the leftmost one.
+merge :: MidiDb code -> MidiDb code -> (MidiDb code, [Score.Instrument])
+merge (MidiDb db1) (MidiDb db2) =
+    (MidiDb (Map.unionWith merge_synth db1 db2), rejects)
+    where
+    merge_synth (synth, pmap1) (_, pmap2) = (synth, pmap1 <> pmap2)
+    rejects = concatMap find_dups (Map.zip_intersection db1 db2)
+    find_dups (synth, (_, PatchMap ps1), (_, PatchMap ps2)) =
+        map (Score.instrument synth) (Map.keys (Map.intersection ps2 ps1))
+
+-- | Apply the given annotations to the instruments in the MidiDb, and
+-- return non-existent instruments.
+annotate :: Map.Map Score.Instrument [Instrument.Tag] -> MidiDb code
+    -> (MidiDb code, [Score.Instrument])
+annotate annots midi_db = (Map.foldrWithKey annot midi_db annots, not_found)
+    where
+    annot inst tags = modify_patch inst (add_tags tags)
+    add_tags tags = Instrument.tags %= (tags++)
+    not_found =
+        filter (Maybe.isNothing . lookup_instrument midi_db) (Map.keys annots)
+
+-- | Modify the patch with the given instrument name, if it exists.
+-- If it doesn't exist but a 'wildcard_inst_name' does, a new patch will be
+-- inserted.
+modify_patch :: Score.Instrument
+    -> (Instrument.Patch -> Instrument.Patch) -> MidiDb code -> MidiDb code
+modify_patch inst modify (MidiDb synths) =
+    MidiDb $ Map.adjust (second modify_pmap) synth_name synths
+    where
+    (synth_name, inst_name) = Score.split_inst inst
+    modify_pmap (PatchMap patches)
+        | Just (patch, code) <- Map.lookup inst_name patches =
+            PatchMap $ Map.insert inst_name (modify patch, code) patches
+        | Just (patch, code) <- Map.lookup wildcard_inst_name patches =
+            PatchMap $ Map.insert inst_name
+                (modify (set_patch_name inst_name patch), code) patches
+        | otherwise = PatchMap patches
 
 size :: MidiDb code -> Int
 size (MidiDb synths) = sum $ map ssize (Map.elems synths)
@@ -139,6 +160,14 @@ type SynthDesc code = (Instrument.Synth, PatchMap code)
 newtype PatchMap code =
     PatchMap (Map.Map Instrument.InstrumentName (PatchCode code))
     deriving (Show, Monoid.Monoid)
+
+-- | Pair a Patch up with its code.
+--
+-- The code parameter is extra data that can't be defined here to avoid
+-- circular imports.  Instruments want to have Cmds in them, but the "Cmd.Cmd"
+-- module must import this one.  However, it would be quite annoying to have
+-- to move this entire module into Cmd.Cmd.
+type PatchCode code = (Instrument.Patch, code)
 
 -- | This patch takes whatever name you give.
 wildcard_inst_name :: Instrument.InstrumentName

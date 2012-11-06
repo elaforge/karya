@@ -1,0 +1,6 @@
+# Add tags to instruments.
+# The format is "inst-name tag[=val] tag=val ...".
+
+z1/square-hollow good
+z1/percussive-ring good
+z1/osiris good

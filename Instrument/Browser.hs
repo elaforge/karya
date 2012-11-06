@@ -16,7 +16,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified System.IO as IO
 import Text.Printf
 
 import Util.Control
@@ -46,10 +45,8 @@ import qualified App.SendCmd as SendCmd
 main :: IO ()
 main = SendCmd.initialize $ do
     app_dir <- Config.get_app_dir
-    putStr "Loading instruments... "
-    IO.hFlush IO.stdout
     db <- Local.Instrument.load app_dir
-    putStrLn $ show (Db.size db)
+    putStrLn $ "Loaded " ++ show (Db.size db) ++ " instruments."
     win <- BrowserC.create 50 50 500 300
     let index_db = Db db (Search.make_index (Db.db_midi_db db))
     Concurrent.forkIO $ handle_msgs win index_db
