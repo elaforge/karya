@@ -21,6 +21,8 @@ UNSORTED
     - modify z1 patches to have (-24, +24) pitch bend and send back
 
     - convert vl1 to new sysex scheme
+      parse a given .all file for the loaded patches
+    - utility to send vl1 .all files
     - get rid of old sysex parser
     - parser for morpheus
 

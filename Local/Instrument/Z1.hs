@@ -1,7 +1,8 @@
 -- | Korg Z1 keyboard.
 module Local.Instrument.Z1 where
 import qualified Data.Bits as Bits
-import qualified Data.ByteString as ByteString
+import Data.Bits ((.|.))
+import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
 
 import System.FilePath ((</>))
@@ -24,13 +25,16 @@ load = MidiInst.load_db (const MidiInst.empty_code) name
 
 make_db :: FilePath -> IO ()
 make_db dir = do
-    bank_a <- Sysex.parse_bank_dump 0 parse_patch_dump
+    bank_a <- Sysex.parse_bank_dump 0 patch_dump
         (dir </> name </> "bank_a.syx")
-    bank_b <- Sysex.parse_bank_dump 1 parse_patch_dump
+    bank_b <- Sysex.parse_bank_dump 1 patch_dump
         (dir </> name </> "bank_b.syx")
-    sysex <- Sysex.parse_dir [parse_patch, parse_patch_dump]
+    sysex <- Sysex.parse_dir [patch, patch_dump]
         (dir </> name </> "sysex")
     MidiInst.save_patches synth (concat [bank_a, bank_b, sysex]) name dir
+    where
+    patch = fmap (:[]) . (record_to_patch <=< parse_patch)
+    patch_dump = mapM record_to_patch <=< parse_patch_dump
 
 synth :: Instrument.Synth
 synth = Instrument.synth name synth_controls
@@ -58,29 +62,50 @@ synth_controls =
 
 -- * parse sysex
 
-parse_patch :: ByteString -> Either String [Instrument.Patch]
+parse_patch :: ByteString -> Either String Sysex.Record
 parse_patch bytes = do
     bytes <- Sysex.expect_bytes bytes $
-        korg_header <> ByteString.pack [0x40, 0x01]
-    (record, _) <- Sysex.decode patch_spec $ dekorgify bytes
-    (:[]) <$> extract_patch record
+        korg_header <> B.pack [0x40, 0x01]
+    fst <$> Sysex.decode patch_spec (dekorg bytes)
 
-parse_patch_dump :: ByteString -> Either String [Instrument.Patch]
+unparse_patch :: Sysex.Record -> Either String ByteString
+unparse_patch record = do
+    body <- enkorg <$> Sysex.encode patch_spec record
+    return $ korg_header <> B.pack [0x40, 0x01] <> body
+
+set_pitch_bend :: FilePath -> IO ()
+set_pitch_bend fn = do
+    bytes <- B.readFile fn
+    records <- require "parse" $ parse_patch_dump bytes
+    records <- require "set" $ mapM set records
+    bytes <- require "unparse" $ unparse_patch_dump records
+    B.writeFile (fn ++ ".modified") bytes
+    where
+    set = Sysex.put_record "pitch bend.intensity +" (24 :: Int)
+        <=< Sysex.put_record "pitch bend.intensity -" (-24 :: Int)
+    require msg = either (errorIO . ((msg ++ ": ") ++)) return
+
+parse_patch_dump :: ByteString -> Either String [Sysex.Record]
 parse_patch_dump bytes = do
-    bytes <- Sysex.expect_bytes bytes $ korg_header <> ByteString.pack [0x4c]
+    bytes <- Sysex.expect_bytes bytes $ korg_header <> B.pack [0x4c]
     -- Drop bank, program number, and 0 byte.
-    patches $ dekorgify $ ByteString.drop 3 bytes
+    patches $ dekorg $ B.drop 3 bytes
     where
     patches bytes
-        | ByteString.length bytes >= Sysex.spec_bytes patch_spec = do
+        | B.length bytes >= Sysex.spec_bytes patch_spec = do
             (record, bytes) <- Sysex.decode patch_spec bytes
-            patch <- extract_patch record
-            patches <- patches bytes
-            return (patch : patches)
+            records <- patches bytes
+            return (record : records)
         | otherwise = return []
 
-extract_patch :: Sysex.Record -> Either String Instrument.Patch
-extract_patch record = do
+unparse_patch_dump :: [Sysex.Record] -> Either String ByteString
+unparse_patch_dump records = do
+    body <- enkorg . mconcat <$> mapM (Sysex.encode patch_spec) records
+    -- 0s for bank, program number, and padding.
+    return $ korg_header <> B.pack [0x4c, 0, 0, 0] <> body
+
+record_to_patch :: Sysex.Record -> Either String Instrument.Patch
+record_to_patch record = do
     name <- lookup "name"
     category <- lookup "category"
     pb_range <- (,) <$> lookup "pitch bend.intensity -"
@@ -97,25 +122,35 @@ extract_patch record = do
 
 -- | I think 0x30 should be 0x3g where g is the global channel, but I use 0
 -- so this works.
-korg_header :: ByteString.ByteString
-korg_header = ByteString.pack [0xf0, Midi.korg_code, 0x30, 0x46]
+korg_header :: ByteString
+korg_header = B.pack [0xf0, Midi.korg_code, 0x30, 0x46]
 
 -- | Z1 sysexes use a scheme where the eighth bits are packed into a single
 -- byte preceeding its 7 7bit bytes.
-dekorgify :: ByteString.ByteString -> ByteString.ByteString
-dekorgify = mconcat . map smoosh . chunks
+dekorg :: ByteString -> ByteString
+dekorg = mconcat . map smoosh . chunked 8
     where
-    smoosh bs = case ByteString.uncons bs of
+    smoosh bs = case B.uncons bs of
         Just (b7, bytes) -> snd $
-            ByteString.mapAccumL (\i to -> (i+1, copy_bit b7 i to)) 0 bytes
+            B.mapAccumL (\i to -> (i+1, copy_bit b7 i to)) 0 bytes
         Nothing -> mempty
     copy_bit from i to = if Bits.testBit from i
         then Bits.setBit to 7 else Bits.clearBit to 7
-    chunks bs
-        | ByteString.length bs < 8 = [bs]
-        | otherwise =
-            let (pre, post) = ByteString.splitAt 8 bs
-            in pre : chunks post
+
+enkorg :: ByteString -> ByteString
+enkorg = mconcat . map expand . chunked 7
+    where
+    expand bs = B.cons bits (B.map (`Bits.clearBit` 7) bs)
+        where bits = B.foldl' get_bits 0 bs
+    get_bits accum b =
+        Bits.shiftL accum 1 .|.  (if Bits.testBit b 7 then 1 else 0)
+
+chunked :: Int -> ByteString -> [ByteString]
+chunked size bs
+    | B.length bs <= size = [bs]
+    | otherwise =
+        let (pre, post) = B.splitAt size bs
+        in pre : chunked size post
 
 -- * specs
 
@@ -188,7 +223,7 @@ patch_spec = Sysex.assert_valid "patch_spec"
     , Unparsed "sub osc" 14
     , Unparsed "noise generator" 8
     , Unparsed "mixer" 31
-    , Unparsed "filter" 1
+    , Unparsed "filter setting" 1
     , List "filter" 2 [Unparsed "unparsed" 27]
     , List "amp" 2 [Unparsed "unparsed" 9]
     , Unparsed "amp eg" 19
@@ -228,20 +263,25 @@ modulation_intensity name = ranged_byte name (-99, 99)
 -- * parse / generate sysex
 
 test_multiset = do
-    bytes <- ByteString.drop 9 <$> ByteString.readFile "inst_db/multi1.syx"
-    return $ Sysex.decode multiset_spec (dekorgify bytes)
+    bytes <- B.drop 9 <$> B.readFile "inst_db/multi1.syx"
+    return $ Sysex.decode multiset_spec (dekorg bytes)
 
 test_dump = do
-    bytes <- ByteString.readFile "inst_db/z1_patches_b.syx"
+    bytes <- B.readFile "inst_db/z1/bank_b.syx"
     return $ parse_patch_dump bytes
 
+test_encode = do
+    bytes <- B.readFile "inst_db/z1/bank_b.syx"
+    let Right recs = parse_patch_dump bytes
+    return $ Sysex.encode patch_spec (head recs)
+
 test_patch = do
-    bytes <- ByteString.readFile
+    bytes <- B.readFile
         "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
     return $ parse_patch bytes
 
 read_patch = do
-    b <- dekorgify . ByteString.drop 6 <$> ByteString.readFile
+    b <- dekorg . B.drop 6 <$> B.readFile
         "inst_db/z1_sysex/z1 o00o00 ANALOG INIT.syx"
     return $ Sysex.decode patch_spec b
 
@@ -413,6 +453,3 @@ mod_source_list_1 =
 
 master_effect_type :: [String]
 master_effect_type = ["stereo delay", "reverb-hall", "reverb-room"]
-
-master_effect_setting :: [Spec]
-master_effect_setting = reserved_space 18

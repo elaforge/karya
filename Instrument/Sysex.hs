@@ -103,7 +103,7 @@ type Error = String
 type EnumName = String
 
 data RecordType = TMap | TUnion | TNum | TStr | TUnparsed
-    deriving (Show)
+    deriving (Eq, Show)
 
 -- | Create a Record from a Spec, defaulting everything to 0, "", or the first
 -- enum val.
@@ -178,16 +178,24 @@ lookup_record path record =
     rtype :: a
     rtype = error "unevaluated"
 
-put_record :: (RecordVal a) => String -> a -> Record -> Record
+put_record :: (Show a, RecordVal a) => String -> a -> Record
+    -> Either String Record
 put_record path val record = put (Seq.split "." path) val record
     where
-    put [] val _ = from_val val
+    put [] val old_val
+        | record_type old_val == record_type (from_val val) =
+            Right (from_val val)
+        | otherwise = Left $ "old val " ++ show old_val
+            ++ " is a different type than " ++ show val
     put (field : fields) val record = case record of
-        RMap m ->
-            let sub = Map.findWithDefault (RMap mempty) field m
-            in RMap $ Map.insert field (put fields val sub) m
+        RMap m -> do
+            sub <- maybe (Left $ "field not found: " ++ field) return $
+                Map.lookup field m
+            rec <- put fields val sub
+            return $ RMap $ Map.insert field rec m
         RUnion rec -> put (field:fields) val rec
-        _ -> RMap $ Map.singleton field (put fields val (RMap mempty))
+        _ -> Left $ "can't look up " ++ field ++ " in non-map: "
+            ++ show (record_type record)
 
 -- * util
 
@@ -236,20 +244,23 @@ encode_spec path record spec = case spec of
         records <- lookup_field name >>= \x -> case x of
             RMap records
                 | Map.size records == elts ->
-                    mapM lookup_field (map show [0..elts-1])
+                    mapM (\k -> lookup_map name k records)
+                        (map show [0..elts-1])
                 | otherwise -> throw name $ "expected RMap list of length "
                     ++ show elts ++ " but got length "
                     ++ show (Map.size records)
-            val -> throw name $ "expected RMap list, but got " ++ show val
+            val -> throw name $ "expected RMap list, but got "
+                ++ Pretty.pretty val
         forM_ (zip [0..] records) $ \(i, rec) ->
             mapM_ (encode_spec ((name ++ show i) : path) rec) specs
     Union name enum_name nbytes enum_specs -> do
         union_record <- lookup_field name >>= \x -> case x of
             RUnion union_record -> return union_record
-            val -> throw name $ "expected RUnion, but got " ++ show val
+            val -> throw name $ "expected RUnion, but got "
+                ++ Pretty.pretty val
         enum <- lookup_field enum_name >>= \x -> case x of
             RStr enum -> return enum
-            val -> throw name $ "expeted RStr, but got " ++ show val
+            val -> throw name $ "expeted RStr, but got " ++ Pretty.pretty val
         specs <- case lookup enum enum_specs of
             Just specs -> return specs
             Nothing -> throw name $ "not found in union "
@@ -265,10 +276,13 @@ encode_spec path record spec = case spec of
                     "Unparsed expected " ++ show nbytes ++ " bytes but got "
                     ++ show (B.length bytes)
                 | otherwise -> return bytes
-            val -> throw name $ "expected RUnparsed, but got " ++ show val
+            val -> throw name $ "expected RUnparsed, but got "
+                ++ Pretty.pretty val
 
         Writer.tell (Builder.byteString bytes)
     where
+    lookup_map name k rmap = maybe (throw name (k ++ " not found")) return $
+        Map.lookup k rmap
     lookup_field = either (uncurry throw) return . rmap_lookup record
     throw name msg = Error.throwError $ show_path (name:path) ++ msg
 
@@ -296,7 +310,7 @@ rmap_lookup :: Record -> Name -> Either (Name, Error) Record
 rmap_lookup _ "" = Right $ RNum 0 -- null name means it's a reserved section
 rmap_lookup record name = case record of
     RMap rmap -> case Map.lookup name rmap of
-        Nothing -> Left (name, "not found")
+        Nothing -> Left (name, "not found in " ++ show (Map.keys rmap))
         Just val -> Right val
     _ -> Left (name, "can't lookup name in non-map " ++ show record)
 
@@ -479,6 +493,9 @@ ranged_byte name range = Bits [(name, ranged_bits 8 range)]
 
 byte :: Name -> Int -> Spec
 byte name max = Bits [(name, (8, Range 0 max))]
+
+bool :: Name -> Spec
+bool name = Bits [(name, (8, boolean))]
 
 reserved_space :: Int -> [Spec]
 reserved_space bytes = replicate bytes (byte "" 256)
