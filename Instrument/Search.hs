@@ -112,42 +112,36 @@ query_matches (Index idx _) = map with_tag
 
 instrument_tags :: MidiDb.MidiDb code -> [(Score.Instrument, [Instrument.Tag])]
 instrument_tags (MidiDb.MidiDb synths) =
-    [(inst, tags) | (Just inst, tags)
-        <- Seq.key_on inst_of (map normalize_tags all_tags)]
+    concatMap (uncurry synth_tags) (Map.elems synths)
+
+synth_tags :: Instrument.Synth -> MidiDb.PatchMap code
+    -> [(Score.Instrument, [Instrument.Tag])]
+synth_tags synth (MidiDb.PatchMap patches) = do
+    (inst_name, (patch, _)) <- Map.toList patches
+    let inst = Score.instrument (Instrument.synth_name synth) inst_name
+    return (inst, patch_tags synth inst_name patch)
+
+-- | Get tags of a patch, including automatically generated tags.
+patch_tags :: Instrument.Synth -> Instrument.InstrumentName -> Instrument.Patch
+    -> [Instrument.Tag]
+patch_tags synth inst_name patch = normalize_tags $
+    (Tag.synth, Instrument.synth_name synth)
+        : (Tag.name, inst_name)
+        : control_tags (Instrument.synth_control_map synth)
+        ++ control_tags
+            (Instrument.inst_control_map (Instrument.patch_instrument patch))
+        ++ Instrument.patch_tags patch
+        ++ has_sysex
     where
-    all_tags = concat [synth_tags synth patches
-        | (synth, patches) <- Map.elems synths]
-    inst_of tags = do
-        synth <- lookup Tag.synth tags
-        name <- lookup Tag.name tags
-        return $ Score.instrument synth name
+    has_sysex = case Instrument.patch_initialize patch of
+        Instrument.InitializeMidi msgs
+            | any Midi.is_sysex msgs -> [(Tag.sysex, "")]
+            | otherwise -> []
+        _ -> []
 
 normalize_tags :: [Instrument.Tag] -> [Instrument.Tag]
 normalize_tags = Seq.drop_dups id . List.sort . lower
     where lower = map $ \(k, v) -> (map Char.toLower k, map Char.toLower v)
-
--- | Get tags for the synth, including automatically generated synth tags.
-synth_tags :: Instrument.Synth -> MidiDb.PatchMap code -> [[Instrument.Tag]]
-synth_tags synth patches = map (stags++) (patch_tags patches)
-    where
-    stags = (Tag.synth, Instrument.synth_name synth)
-        : control_tags (Instrument.synth_control_map synth)
-
--- | Get tags for the patch, including automatically generated ones.
-patch_tags :: MidiDb.PatchMap code -> [[Instrument.Tag]]
-patch_tags (MidiDb.PatchMap patches) = map ptags (Map.assocs patches)
-    where
-    ptags (inst_name, (patch, _)) = (Tag.name, inst_name)
-            : control_tags (Instrument.inst_control_map inst)
-            ++ Instrument.patch_tags patch
-            ++ has_sysex
-        where
-        inst = Instrument.patch_instrument patch
-        has_sysex = case Instrument.patch_initialize patch of
-            Instrument.InitializeMidi msgs
-                | any Midi.is_sysex msgs -> [(Tag.sysex, "")]
-                | otherwise -> []
-            _ -> []
 
 control_tags :: Control.ControlMap -> [Instrument.Tag]
 control_tags = map ((,) Tag.control) . Control.control_map_names
