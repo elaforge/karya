@@ -577,6 +577,9 @@ data InstrumentCode = InstrumentCode {
     , inst_cmds :: ![Cmd]
     }
 
+instance Show InstrumentCode where
+    show _ = "((InstrumentCode))"
+
 derive_instrument :: MidiInfo -> Derive.Instrument
 derive_instrument info = Derive.Instrument
     { Derive.inst_calls = inst_calls (MidiDb.info_code info)

@@ -41,8 +41,8 @@ test_patch_map = do
         name = Instrument.inst_name . Instrument.patch_instrument . fst
     -- different initialization gets split
     equal (f [("a", pgm_change 1), ("*a", pgm_change 2)])
-        ([("a1", "*a"), ("a2", "a")],
-            ["split into a1, a2: *a (*a.vc), a (a.vc)"])
+        ([("a1", "a"), ("a2", "*a")],
+            ["split into a1, a2: a (a.vc), *a (*a.vc)"])
 
     equal (f [("a", pgm_change 1), ("*a", pgm_change 1)])
         ([("a", "a")], ["dropped patches with the same initialization as "
@@ -50,16 +50,6 @@ test_patch_map = do
     -- no dropping needed if the names are different
     equal (f [("a", pgm_change 1), ("b", pgm_change 1)])
         ([("a", "a"), ("b", "b")], [])
-
-    -- Uses the pgm_change from the first, and the sysex from the second.
-    -- I don't actually verify that but it's probably right.
-    equal (f [("a", pgm_change 1), ("a", sysex "abc")])
-        ([("a", "a")], ["merging program-change patch into sysex patch: "
-            ++ "a (a.vc), a (a.vc)"])
-    -- but not if the names differ
-    equal (f [("a", pgm_change 1), ("*a", sysex "abc")])
-        ([("a1", "*a"), ("a2", "a")],
-            ["split into a1, a2: *a (*a.vc), a (a.vc)"])
 
 mkpatches ps = map (uncurry mkpatch) ps
 

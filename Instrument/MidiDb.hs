@@ -17,7 +17,6 @@ import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
@@ -28,6 +27,8 @@ newtype MidiDb code = MidiDb {
     midi_db_map :: Map.Map Instrument.SynthName
         (Instrument.Synth, PatchMap code)
     } deriving (Show)
+
+type SynthDesc code = (Instrument.Synth, PatchMap code)
 
 -- | Construct and validate a MidiDb, returning any errors that occurred.
 midi_db :: [SynthDesc code] -> (MidiDb code, [String])
@@ -155,8 +156,6 @@ lookup_patch inst_name (PatchMap patches) =
 
 -- * patch map
 
-type SynthDesc code = (Instrument.Synth, PatchMap code)
-
 newtype PatchMap code =
     PatchMap (Map.Map Instrument.InstrumentName (PatchCode code))
     deriving (Show, Monoid.Monoid)
@@ -178,8 +177,7 @@ wildcard_inst_name = "*"
 -- discard or combine them, or they are disambiguated with numbers.
 patch_map :: [PatchCode code] -> (PatchMap code, [String])
     -- ^ (PatchMap, log notices)
-patch_map patches =
-    run $ concatMapM split =<< mapM merge =<< mapM strip_init by_name
+patch_map patches = run $ concatMapM split =<< mapM strip_init by_name
     where
     by_name = Seq.keyed_group_on (clean_inst_name . patch_name) patches
     patch_name = Instrument.inst_name . Instrument.patch_instrument . fst
@@ -197,27 +195,6 @@ patch_map patches =
                 ++ details patch) dups
         return (name, unique)
 
-    -- Merge patches that have the same name and where one is a pgm change and
-    -- the other is a sysex.
-    merge :: NamedPatch code -> Merge (NamedPatch code)
-    merge (name, patches) = do
-        merged <- concatMapM go (Seq.group_on patch_name patches)
-        return (name, merged)
-        where
-        go [p1, p2]
-            | pc_init p1 && sysex_init p2 = merge_init p1 p2
-            | pc_init p2 && sysex_init p1 = merge_init p2 p1
-        go patches = return patches
-    merge_init pc_patch sysex_patch = do
-        log "merging program-change patch into sysex patch"
-            [pc_patch, sysex_patch]
-        return [merge_patches pc_patch sysex_patch]
-
-    pc_init patch = case Instrument.patch_initialize (fst patch) of
-        Instrument.InitializeMidi msgs -> not (any Midi.is_sysex msgs)
-        _ -> False
-    sysex_init = not . pc_init
-
     -- Remaining patches are probably different and just happened to get the
     -- same name, so number them to disambiguate.
     split :: NamedPatch code -> Merge [(String, PatchCode code)]
@@ -232,15 +209,6 @@ patch_map patches =
     details patch = patch_name patch
         ++ " (" ++ FilePath.takeFileName (Instrument.patch_file (fst patch))
         ++ ")"
-
-merge_patches :: PatchCode code -> PatchCode code -> PatchCode code
-merge_patches (pc_patch, _) (sysex_patch, code) = (patch, code)
-    where
-    patch = sysex_patch
-        { Instrument.patch_initialize = Instrument.patch_initialize pc_patch
-        , Instrument.patch_tags = Instrument.patch_tags pc_patch
-            <> Instrument.patch_tags sysex_patch
-        }
 
 type NamedPatch code = (String, [PatchCode code])
 type Merge = Logger.LoggerT String Identity.Identity

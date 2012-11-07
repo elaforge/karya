@@ -15,10 +15,10 @@ UNSORTED
       the program change.  I should have a annotation format that's
       inst-name tag= tag=..., e.g. z1/percussive-ring good=
     * need a mechanism to merge the annotations
-    - I can get rid of the patch merging stuff while I'm at it
+    * I can get rid of the patch merging stuff while I'm at it
     - fix z1 parse failures
-    - implement encode for z1 specs
-    - modify z1 patches to have (-24, +24) pitch bend and send back
+    * implement encode for z1 specs
+    * modify z1 patches to have (-24, +24) pitch bend and send back
 
     - convert vl1 to new sysex scheme
       parse a given .all file for the loaded patches
