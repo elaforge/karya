@@ -28,7 +28,7 @@ UNSORTED
       addition to just number.
     * Unparsed "" is special cased to always be zeros and not go into the
       Record.
-    - Specs = [(Name, Spec)], and Bits can have a dummy name
+    * Specs = [(Name, Spec)], and Bits can have a dummy name
 
     - convert vl1 to new sysex scheme
     - utility to send vl1 .all files

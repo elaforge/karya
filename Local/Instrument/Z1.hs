@@ -12,7 +12,7 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Sysex as Sysex
 import Instrument.Sysex
-       (Spec(..), bits, ranged_bits, unsigned, bool_bit, enum, enum_bits,
+       (Specs, Spec(..), bits, ranged_bits, unsigned, bool_bit, enum, enum_bits,
         ranged)
 import qualified App.MidiInst as MidiInst
 
@@ -92,7 +92,7 @@ parse_patch_dump bytes = do
     patches $ dekorg $ B.drop 3 bytes
     where
     patches bytes
-        | B.length bytes >= Sysex.spec_bytes parse_config patch_spec = do
+        | B.length bytes >= Sysex.spec_bytes config patch_spec = do
             (record, bytes) <- decode patch_spec bytes
             records <- patches bytes
             return (record : records)
@@ -154,106 +154,94 @@ chunked size bs
 
 -- * specs
 
-encode :: [Spec] -> Sysex.Record -> Either String ByteString
-encode = Sysex.encode parse_config
+config :: Sysex.Config
+config = Sysex.config_8bit
 
-decode :: [Spec] -> ByteString -> Either String (Sysex.Record, ByteString)
-decode = Sysex.decode parse_config
+encode :: Specs -> Sysex.Record -> Either String ByteString
+encode = Sysex.encode config
 
-parse_config :: Sysex.Config
-parse_config = Sysex.Config decode_num encode_num (const 1)
+decode :: Specs -> ByteString -> Either String (Sysex.Record, ByteString)
+decode = Sysex.decode config
 
--- | Z1 nums are always one 8bit byte.
-decode_num :: Sysex.NumRange -> ByteString -> Int
-decode_num (low, _) bytes = case B.uncons bytes of
-    Nothing -> 0
-    Just (b, _)
-        | low < 0 -> Sysex.to_signed 8 b
-        | otherwise -> fromIntegral b
-
-encode_num :: Sysex.NumRange -> Int -> ByteString
-encode_num (low, _) num
-    | low < 0 = B.singleton $ Sysex.from_signed 8 num
-    | otherwise = B.singleton (fromIntegral num)
-
-patch_spec :: [Spec]
+patch_spec :: Specs
 patch_spec = Sysex.assert_valid "patch_spec"
-    [ Str "name" 16
-    , enum "category" categories
-    , unsigned "user group" 15
-    , Bits
+    [ ("name", Str 16)
+    , ("category", enum categories)
+    , ("user group", unsigned 15)
+    , ("", Bits
         [ ("hold", bits 1)
         , ("key priority", enum_bits 2 ["last", "low", "high"])
         , ("voice assign mode", enum_bits 5
             ["mono multi", "mono single", "poly"])
-        ]
-    , enum "retrigger controllor" mod_source_list_2
-    , ranged "retrigger control threshold" 1 127
-    , Bits
+        ])
+    , ("retrigger controllor", enum mod_source_list_2)
+    , ("retrigger control threshold", ranged 1 127)
+    , ("", Bits
         [ ("unison type", enum_bits 2 ["off", "2", "3", "6"])
         , ("unison sw", bool_bit)
         , ("unison mode", enum_bits 5 ["fixed", "dynamic"])
-        ]
-    , unsigned "unison detune" 99
+        ])
+    , ("unison detune", unsigned 99)
     -- scale
-    , Bits
+    , ("", Bits
         [ ("scale key", ranged_bits 4 (0, 11))
         , ("scale type", enum_bits 4 scale_types)
-        ]
-    , unsigned "random pitch intensity" 99
-    , List "eg" 4 [Unparsed "unparsed" 19]
-    , List "lfo" 4 [Unparsed "unparsed" 11]
+        ])
+    , ("random pitch intensity", unsigned 99)
+    , ("eg", List 4 [("unparsed", Unparsed 19)])
+    , ("lfo", List 4 [("unparsed", Unparsed 11)])
     -- osc common
-    , SubSpec "pitch bend"
-        [ ranged "intensity +" (-60) 24
-        , ranged "intensity -" (-60) 24
-        , Bits $ let vals = ["0", "1/8", "1/4", "1/2"] ++ map show [1..12] in
+    , ("pitch bend", SubSpec
+        [ ("intensity +", ranged (-60) 24)
+        , ("intensity -", ranged (-60) 24)
+        , ("", Bits $
+            let vals = ["0", "1/8", "1/4", "1/2"] ++ map show [1..12] in
             [ ("step +", enum_bits 4 vals)
             , ("step -", enum_bits 4 vals)
-            ]
-        ]
-    , enum "common pitch mod source" mod_source_list_1
-    , modulation_intensity "common pitch mod intensity"
-    , SubSpec "portamento"
-        [ Bits
+            ])
+        ])
+    , ("common pitch mod source", enum mod_source_list_1)
+    , ("common pitch mod intensity", modulation_intensity)
+    , ("portamento", SubSpec
+        [ ("", Bits
             [ ("sw", bool_bit)
             , ("mode", enum_bits 7 ["normal", "fingered"])
-            ]
-        , unsigned "time" 99
-        , enum "mod source" mod_source_list_1
-        , modulation_intensity "mod intensity"
-        ]
-    , List "osc" 2
-        [ enum "type" osc_types
-        , enum "octave" ["-2", "-1", "0", "1"] -- 32', 16', 8', 4'
-        , ranged "semi tone" (-12) 12
-        , ranged "fine tune" (-50) 50
-        , ranged "frequency offset" (-100) 100
+            ])
+        , ("time", unsigned 99)
+        , ("mod source", enum mod_source_list_1)
+        , ("mod intensity", modulation_intensity)
+        ])
+    , ("osc", List 2
+        [ ("type", enum osc_types)
+        , ("octave", enum ["-2", "-1", "0", "1"]) -- 32', 16', 8', 4'
+        , ("semi tone", ranged (-12) 12)
+        , ("fine tune", ranged (-50) 50)
+        , ("frequency offset", ranged (-100) 100)
         -- pitch slope
-        , unsigned "center key" 127
-        , ranged "lower slope" (-50) 100
-        , ranged "higher slope" (-50) 100
+        , ("center key", unsigned 127)
+        , ("lower slope", ranged (-50) 100)
+        , ("higher slope", ranged (-50) 100)
         -- pitch modulation
-        , enum "mod1 source" mod_source_list_1
-        , modulation_intensity "mod1 intensity"
-        , enum "mod1 intensity controller" mod_source_list_1
-        , modulation_intensity "mod1 intensity controller intensity"
-        , enum "mod2 source" mod_source_list_1
-        , modulation_intensity "mod2 intensity"
-        , Unparsed "setting" 38 -- union of osc params
-        ]
-    , Unparsed "sub osc" 14
-    , Unparsed "noise generator" 8
-    , Unparsed "mixer" 31
-    , Unparsed "filter setting" 1
-    , List "filter" 2 [Unparsed "unparsed" 27]
-    , List "amp" 2 [Unparsed "unparsed" 9]
-    , Unparsed "amp eg" 19
-    , Unparsed "output" 4
-    , Unparsed "effect" 72
-    , Unparsed "controller" 4
-    , Unparsed "link arpeggio" 13
-    , List "pe knob" 5 [Unparsed "unparsed" 16]
+        , ("mod1 source", enum mod_source_list_1)
+        , ("mod1 intensity", modulation_intensity)
+        , ("mod1 intensity controller", enum mod_source_list_1)
+        , ("mod1 intensity controller intensity", modulation_intensity)
+        , ("mod2 source", enum mod_source_list_1)
+        , ("mod2 intensity", modulation_intensity)
+        , ("setting", Unparsed 38) -- union of osc params
+        ])
+    , ("sub osc", Unparsed 14)
+    , ("noise generator", Unparsed 8)
+    , ("mixer", Unparsed 31)
+    , ("filter setting", Unparsed 1)
+    , ("filter", List 2 [("unparsed", Unparsed 27)])
+    , ("amp", List 2 [("unparsed", Unparsed 9)])
+    , ("amp eg", Unparsed 19)
+    , ("output", Unparsed 4)
+    , ("effect", Unparsed 72)
+    , ("controller", Unparsed 4)
+    , ("link arpeggio", Unparsed 13)
+    , ("pe knob", List 5 [("unparsed", Unparsed 16)])
     ]
 
 osc_types :: [String]
@@ -279,8 +267,8 @@ scale_types =
     , "slendro", "pelog", "user scale 1", "user scale 2", "user scale 3"
     ]
 
-modulation_intensity :: String -> Spec
-modulation_intensity name = ranged name (-99) 99
+modulation_intensity :: Spec
+modulation_intensity = ranged (-99) 99
 
 -- * parse / generate sysex
 
@@ -308,56 +296,56 @@ read_patch = do
     return $ decode patch_spec b
 
 -- | Spec to both parse and generate a multiset dump.
-multiset_spec :: [Spec]
+multiset_spec :: Specs
 multiset_spec = Sysex.assert_valid "multiset_spec"
-    [ Str "name" 16
-    , List "timbre" 6 timbre
-    , enum "effect 1 select" effect_type1
-    , Unparsed "effect 1 setting" 22
+    [ ("name", Str 16)
+    , ("timbre", List 6 timbre)
+    , ("effect 1 select", enum effect_type1)
+    , ("effect 1 setting", Unparsed 22)
     -- , Union "effect 1 setting" "effect 1 select" 22 $ zip effect_type1
     --     [ effect_overdrive, effect_compressor, effect_parametric_eq
     --     , [], [], [], [], [], [], [], []
     --     ]
-    , enum "effect 2 select" effect_type2
-    , Unparsed "effect 2 setting" 22
+    , ("effect 2 select", enum effect_type2)
+    , ("effect 2 setting", Unparsed 22)
     -- , Union "effect 2 setting" "effect 2 select" 22 $ zip effect_type2 []
-    , enum "master effect select" master_effect_type
-    , Unparsed "master effect setting" 18
+    , ("master effect select", enum master_effect_type)
+    , ("master effect setting", Unparsed 18)
     -- , Union "master effect setting" "master effect select" 18 $
     --     zip master_effect_type
     --     []
     ]
 
-timbre :: [Spec]
+timbre :: Specs
 timbre =
     -- timbre
-    [ Bits
+    [ ("", Bits
         [ ("program number", bits 7)
         , ("program bank", bits 1)
-        ]
-    , unsigned "reserve voice" 12
+        ])
+    , ("reserve voice", unsigned 12)
     -- pitch
-    , ranged "transpose" (-24) 24
-    , ranged "detune" (-50) 50
-    , Bits
+    , ("transpose", ranged (-24) 24)
+    , ("detune", ranged (-50) 50)
+    , ("", Bits
         [ ("arpeggiator", (4, Sysex.Enum ["on", "off"]))
         , ("scale select", enum_bits 4 ["common", "program"])
-        ]
+        ])
     -- mixer
-    , unsigned "output level" 128 -- 128 is PROG
-    , unsigned "panpot" 128 -- 128 is PROG
-    , unsigned "effect send" 101 -- 101 is PROG
+    , ("output level", unsigned 128) -- 128 is PROG
+    , ("panpot", unsigned 128) -- 128 is PROG
+    , ("effect send", unsigned 101) -- 101 is PROG
     -- zone
-    , unsigned "key zone top" 127
-    , unsigned "key zone bottom" 127
-    , ranged "velocity zone top" 1 127
-    , ranged "velocity zone bottom" 1 127
+    , ("key zone top", unsigned 127)
+    , ("key zone bottom", unsigned 127)
+    , ("velocity zone top", ranged 1 127)
+    , ("velocity zone bottom", ranged 1 127)
     -- MIDI
-    , Bits
+    , ("", Bits
         [ ("midi channel", ranged_bits 7 (0, 16)) -- 16 is GLOBAL
         , ("program change", bool_bit)
-        ]
-    , Bits
+        ])
+    , ("", Bits
         [ ("realtime edit", bool_bit)
         , ("portamento sw", bool_bit)
         , ("damper", bool_bit)
@@ -365,13 +353,13 @@ timbre =
         , ("modulation wheel", bool_bit)
         , ("after touch", bool_bit)
         , ("pitch bend", enum_bits 2 ["off", "common", "program"])
-        ]
-    , Bits
+        ])
+    , ("", Bits
         [ ("unused", bits 6)
         , ("performance edit", bool_bit)
         , ("others", bool_bit)
-        ]
-    , Unparsed "" 1
+        ])
+    , ("", Unparsed 1)
     ]
 
 effect_type2 :: [String]
@@ -386,55 +374,55 @@ effect_type1 = effect_type2 ++
     [ "talking modulator", "multitap delay", "ensemble", "rotary speaker-large"
     ]
 
-effect_overdrive :: [Spec]
+effect_overdrive :: Specs
 effect_overdrive =
-    [ enum "mode" ["overdrive", "distortion"]
-    , unsigned "drive" 99
-    , unsigned "output level" 99
-    , unsigned "pre low cutoff" 99
+    [ ("mode", enum ["overdrive", "distortion"])
+    , ("drive", unsigned 99)
+    , ("output level", unsigned 99)
+    , ("pre low cutoff", unsigned 99)
     , eq "low", eq "mid low", eq "mid high", eq "high"
     , effect_balance
     ]
-    where eq prefix = SubSpec (prefix ++ " eq") eq_settings
+    where eq prefix = (prefix ++ " eq", SubSpec eq_settings)
 
-effect_compressor :: [Spec]
+effect_compressor :: Specs
 effect_compressor =
-    [ ranged "sensitivity" 1 99
-    , ranged "attack" 1 99
-    , unsigned "eq trim" 99
-    , gain "pre low eq gain"
-    , gain "pre high eq gain"
-    , unsigned "output level" 99
+    [ ("sensitivity", ranged 1 99)
+    , ("attack", ranged 1 99)
+    , ("eq trim", unsigned 99)
+    , ("pre low eq gain", gain)
+    , ("pre high eq gain", gain)
+    , ("output level", unsigned 99)
     , effect_balance
     ]
 
-effect_parametric_eq :: [Spec]
+effect_parametric_eq :: Specs
 effect_parametric_eq =
-    [ unsigned "trim" 99
-    , SubSpec "low eq" $
-        enum "type" ["peaking", "shelving"] : eq_settings
-    , SubSpec "mid low eq" $ eq_settings ++
-        [ enum "gain mod source" mod_source_list_2
-        , gain "gain mod intensity"
-        ]
-    , SubSpec "mid high eq" eq_settings
-    , SubSpec "high eq" $
-        enum "type" ["peaking", "shelving"] : eq_settings
+    [ ("trim", unsigned 99)
+    , ("low eq", SubSpec $
+        ("type", enum ["peaking", "shelving"]) : eq_settings)
+    , ("mid low eq", SubSpec $ eq_settings ++
+        [ ("gain mod source", enum mod_source_list_2)
+        , ("gain mod intensity", gain)
+        ])
+    , ("mid high eq", SubSpec eq_settings)
+    , ("high eq", SubSpec $
+        ("type", enum ["peaking", "shelving"]) : eq_settings)
     , effect_balance
     ]
 
-eq_settings :: [Spec]
-eq_settings = [unsigned "freq" 49, unsigned "q" 95, gain "gain"]
+eq_settings :: Specs
+eq_settings = [("freq", unsigned 49), ("q", unsigned 95), ("gain", gain)]
 
-gain :: Sysex.Name -> Spec
-gain name = ranged name (-36) 36
+gain :: Spec
+gain = ranged (-36) 36
 
-effect_balance :: Spec
-effect_balance = SubSpec "effect balance"
-    [ unsigned "balance" 100
-    , enum "effect balance mod source" mod_source_list_2
-    , modulation_intensity "effect balance mod intensity"
-    ]
+effect_balance :: (Sysex.Name, Spec)
+effect_balance = ("effect balance", SubSpec
+    [ ("balance", unsigned 100)
+    , ("effect balance mod source", enum mod_source_list_2)
+    , ("effect balance mod intensity", modulation_intensity)
+    ])
 
 -- | TODO like mod_source_list_1 except entries 1--10 are invalid.
 mod_source_list_2 :: [String]
