@@ -26,8 +26,7 @@ UNSORTED
       parse functions to specialize for each synth.
       Really only Num needs to be specialized, and Num needs a Enum in
       addition to just number.
-    - restore spec_bytes
-    - Unparsed "" is special cased to always be zeros and not go into the
+    * Unparsed "" is special cased to always be zeros and not go into the
       Record.
     - Specs = [(Name, Spec)], and Bits can have a dummy name
 

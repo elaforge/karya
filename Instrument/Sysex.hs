@@ -108,7 +108,7 @@ data RecordType = TMap | TUnion | TNum | TStr | TUnparsed
 -- | Create a Record from a Spec, defaulting everything to 0, "", or the first
 -- enum val.
 spec_to_record :: [Spec] -> Record
-spec_to_record = RMap . Map.delete "" . List.foldl' add Map.empty
+spec_to_record = RMap . List.foldl' add Map.empty
     where
     add rec (Num name (Range {})) = Map.insert name (RNum 0) rec
     add rec (Num name (Enum (enum:_))) = Map.insert name (RStr enum) rec
@@ -125,6 +125,7 @@ spec_to_record = RMap . Map.delete "" . List.foldl' add Map.empty
         Map.insert name (RUnion (spec_to_record specs)) rec
     add _ (Union name _enum_name _bytes []) =
         error $ name ++ " had an empty Union"
+    add rec (Unparsed "" _) = rec
     add rec (Unparsed name nbytes) =
         Map.insert name (RUnparsed (B.replicate nbytes 0)) rec
     add_bit rec (name, (_, Range {})) = Map.insert name (RNum 0) rec
@@ -288,6 +289,8 @@ encode_spec config path record spec = case spec of
             mapM_ (encode_spec config (name:path) union_record) specs
         Writer.tell $ Builder.byteString $ bytes
             <> B.replicate (nbytes - B.length bytes) 0
+    Unparsed "" nbytes ->
+        Writer.tell $ Builder.byteString $ B.replicate nbytes 0
     Unparsed name nbytes -> do
         bytes <- lookup_field name >>= \x -> case x of
             RUnparsed bytes
@@ -297,7 +300,6 @@ encode_spec config path record spec = case spec of
                 | otherwise -> return bytes
             val -> throw name $ "expected RUnparsed, but got "
                 ++ Pretty.pretty val
-
         Writer.tell (Builder.byteString bytes)
     where
     lookup_map name k rmap = maybe (throw name (k ++ " not found")) return $
@@ -330,7 +332,6 @@ encode_range _ record =
     Left $ "expected a num or str, but got " ++ show record
 
 rmap_lookup :: Record -> Name -> Either (Name, Error) Record
-rmap_lookup _ "" = Right $ RNum 0 -- null name means it's a reserved section
 rmap_lookup record name = case record of
     RMap rmap -> case Map.lookup name rmap of
         Nothing -> Left (name, "not found in " ++ show (Map.keys rmap))
@@ -379,6 +380,7 @@ decode config = decode_from []
         bytes <- Get.getByteString bytes
         record <- either fail (return . fst) $ decode_from path specs bytes
         return [(name, RUnion record)]
+    field _ _ (Unparsed "" bytes) = Get.skip bytes >> return []
     field path _ (Unparsed name nbytes) = do
         bytes <- Get.getByteString nbytes
         when (B.length bytes < nbytes) $
@@ -460,6 +462,9 @@ data Spec =
     -- | The content of this section depends on a previous enum value.
     -- Name of this field, name of the enum to reference
     | Union Name Name Bytes [(EnumName, [Spec])]
+    -- | A chunk of unparsed bytes.  If the name is "", then its considered
+    -- unused padding.  On input it will be ignored, and on output will become
+    -- zeros.
     | Unparsed Name Bytes
     deriving (Show)
 

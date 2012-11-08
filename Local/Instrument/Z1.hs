@@ -367,7 +367,7 @@ timbre =
         , ("pitch bend", enum_bits 2 ["off", "common", "program"])
         ]
     , Bits
-        [ ("", bits 6)
+        [ ("unused", bits 6)
         , ("performance edit", bool_bit)
         , ("others", bool_bit)
         ]
