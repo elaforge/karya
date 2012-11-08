@@ -30,44 +30,46 @@ test_decode_encode_bits = do
         [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2], [0, 3], [1, 3]]
 
 test_encode_decode = do
-    let f specs = Sysex.decode specs <=< Sysex.encode specs
+    let f specs = decode specs <=< encode specs
     let success specs record = (f specs record, Right (record, ""))
 
-    let str_spec = [Sysex.Str "name" 4]
+    let str_spec = [("name", Sysex.Str 4)]
     uncurry equal (success str_spec (rmap [("name", RStr "ho")]))
     left_like (f str_spec (rmap [("name", RStr "too long")]))
         "too many characters"
     left_like (f str_spec (rmap [])) "not found"
     left_like (f str_spec (RStr "foo")) "can't lookup name in non-map"
 
-    let bits_spec = [Sysex.Bits
+    let bits_spec = [("", Sysex.Bits
             [ ("a", Sysex.bits 1)
             , ("b", Sysex.ranged_bits 3 (0, 1))
             , ("c", Sysex.ranged_bits 3 (-1, 1))
-            , ("", Sysex.bits 1)
-            ]]
+            ])]
         bits_rmap a b c = rmap [("a", RNum a), ("b", RNum b), ("c", RNum c)]
     uncurry equal (success bits_spec (bits_rmap 1 1 1))
     uncurry equal (success bits_spec (bits_rmap 1 1 (-1)))
-    left_like (f bits_spec (bits_rmap 3 1 1)) "val out of range"
-    left_like (f bits_spec (bits_rmap 1 2 1)) "val out of range"
+    left_like (f bits_spec (bits_rmap 3 1 1)) "a: num out of range"
+    left_like (f bits_spec (bits_rmap 1 2 1)) "b: num out of range"
 
-    let enum_spec = [Sysex.Bits [("a", (1, Sysex.Enum ["x", "y"]))]]
-        enum_rmap a = rmap [("a", RStr a)]
-    uncurry equal (success enum_spec (enum_rmap "x"))
-    uncurry equal (success enum_spec (enum_rmap "y"))
-    left_like (f enum_spec (enum_rmap "z")) "unknown enum"
+    let enum_spec =
+            [ ("", Sysex.Bits [("a", (1, Sysex.Enum ["x", "y"]))])
+            , ("b", Sysex.enum ["c", "d"])
+            ]
+        enum_rmap a b = rmap [("a", RStr a), ("b", RStr b)]
+    uncurry equal (success enum_spec (enum_rmap "x" "c"))
+    uncurry equal (success enum_spec (enum_rmap "y" "d"))
+    left_like (f enum_spec (enum_rmap "z" "c")) "unknown enum"
 
 test_union = do
-    let f specs = Sysex.decode specs <=< Sysex.encode specs
+    let f specs = decode specs <=< encode specs
     let success specs record = (f specs record, Right (record, ""))
 
     let union_spec =
-            [ Sysex.enum_byte "type" ["a", "b"]
-            , Sysex.Union "field" "type" 8
-                [ ("a", [Sysex.Str "name" 4])
-                , ("b", [Sysex.byte "val" 255])
-                ]
+            [ ("type", Sysex.enum ["a", "b"])
+            , ("field", Sysex.Union "type" 8
+                [ ("a", [("name", Sysex.Str 4)])
+                , ("b", [("val", Sysex.unsigned 255)])
+                ])
             ]
         union_rmap typ field = rmap
             [("type", RStr typ), ("field", RUnion (rmap field))]
@@ -80,3 +82,6 @@ test_union = do
 
 rmap :: [(String, Record)] -> Record
 rmap = RMap . Map.fromList
+
+encode = Sysex.encode Sysex.config_8bit
+decode = Sysex.decode Sysex.config_8bit

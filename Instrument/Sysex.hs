@@ -376,43 +376,45 @@ decode config = decode_from []
 
     field :: [Name] -> [(Name, Record)] -> (Name, Spec)
         -> Get.Get [(String, Record)]
-    field path _ (_, Bits bits) =
-        either fail return . decode_byte path bits =<< Get.getWord8
-    field path _ (name, Num range) = do
-        bytes <- Get.getBytes $ range_bytes config (num_range range)
-        let num = decode_num config (num_range range) bytes
-        either (throw path) (return . (:[]) . ((,) name)) $
-            decode_range num range
-    field _ _ (name, Str chars) = do
-        str <- Get.getByteString chars
-        return [(name, RStr (Seq.strip (Char8.unpack str)))]
-    field path _ (name, SubSpec specs) = do
-        subs <- rmap (name : path) [] specs
-        return [(name, subs)]
-    field path _ (name, List elts specs) = do
-        subs <- forM [0 .. elts-1] $ \i ->
-            rmap (show i : name : path) [] specs
-        return [(name, RMap $ Map.fromList $ zip (map show [0..elts-1]) subs)]
-    field path prev_record (name, Union enum_name bytes enum_specs) = do
-        path <- return (name : path)
-        enum <- case lookup enum_name prev_record of
-            Just (RStr enum) -> return enum
-            _ -> throw path $ "previous enum not found: " ++ enum_name
-        specs <- case lookup enum enum_specs of
-            Just specs -> return specs
-            Nothing -> throw path $
-                "union doesn't contain enum: " ++ enum
-        bytes <- Get.getByteString bytes
-        record <- either fail (return . fst) $ decode_from path specs bytes
-        return [(name, RUnion record)]
-    field _ _ ("", Unparsed bytes) = Get.skip bytes >> return []
-    field path _ (name, Unparsed nbytes) = do
-        bytes <- Get.getByteString nbytes
-        when (B.length bytes < nbytes) $
-            throw path $ "expected " ++ show nbytes ++ " bytes, but got "
-                ++ show (B.length bytes)
-        return [(name, RUnparsed bytes)]
-    throw path = fail . (show_path path ++)
+    field path prev_record (name, spec) = case spec of
+        Bits bits ->
+            either fail return . decode_byte path bits =<< Get.getWord8
+        Num range -> do
+            bytes <- Get.getBytes $ range_bytes config (num_range range)
+            let num = decode_num config (num_range range) bytes
+            either throw (return . (:[]) . ((,) name)) $ decode_range num range
+        Str chars -> do
+            str <- Get.getByteString chars
+            return [(name, RStr (Seq.strip (Char8.unpack str)))]
+        SubSpec specs -> do
+            subs <- rmap (name : path) [] specs
+            return [(name, subs)]
+        List elts specs -> do
+            subs <- forM [0 .. elts-1] $ \i ->
+                rmap (show i : name : path) [] specs
+            return [(name, RMap $ Map.fromList $
+                zip (map show [0..elts-1]) subs)]
+        Union enum_name bytes enum_specs -> do
+            path <- return (name : path)
+            enum <- case lookup enum_name prev_record of
+                Just (RStr enum) -> return enum
+                _ -> throw $ "previous enum not found: " ++ enum_name
+            specs <- case lookup enum enum_specs of
+                Just specs -> return specs
+                Nothing -> throw $ "union doesn't contain enum: " ++ enum
+            bytes <- Get.getByteString bytes
+            record <- either fail (return . fst) $ decode_from path specs bytes
+            return [(name, RUnion record)]
+        Unparsed nbytes
+            | null name -> Get.skip nbytes >> return []
+            | otherwise -> do
+                bytes <- Get.getByteString nbytes
+                when (B.length bytes < nbytes) $
+                    throw $ "expected " ++ show nbytes ++ " bytes, but got "
+                        ++ show (B.length bytes)
+                return [(name, RUnparsed bytes)]
+        where
+        throw = fail . (show_path (name:path) ++)
 
 decode_range :: Int -> Range -> Either String Record
 decode_range num (Range low high)
@@ -464,7 +466,7 @@ decode_bits widths byte = zipWith extract bs (drop 1 bs)
     set start end = List.foldl' Bits.setBit 0 [start .. end-1]
 
 -- | Convert an n bit 2s complement word to a signed integer.
-to_signed :: Int -> Word8 -> Int
+to_signed :: (Integral a, Bits.Bits a) => Int -> a -> Int
 to_signed bits b
     | Bits.testBit b (bits-1) = negate $
         fromIntegral $ (Bits.complement b .&. (2^bits - 1)) + 1
