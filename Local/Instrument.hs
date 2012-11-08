@@ -18,6 +18,7 @@ import qualified Instrument.Parse as Parse
 import qualified Local.Instrument.Drumaxx as Drumaxx
 import qualified Local.Instrument.Fm8 as Fm8
 import qualified Local.Instrument.Kontakt as Kontakt
+import qualified Local.Instrument.Massive as Massive
 import qualified Local.Instrument.Morpheus as Morpheus
 import qualified Local.Instrument.Morphine as Morphine
 import qualified Local.Instrument.Pianoteq as Pianoteq
@@ -32,8 +33,9 @@ import qualified App.Config as Config
 load :: FilePath -> IO Cmd.InstrumentDb
 load app_dir = do
     synth_descs <- concatMapM ($ app_dir </> Config.instrument_dir)
-        [ Drumaxx.load, Fm8.load, Kontakt.load, Morpheus.load, Morphine.load
-        , Pianoteq.load, Reaktor.load, Tassman.load, Vl1m.load, Z1.load
+        [ Drumaxx.load, Fm8.load, Kontakt.load, Massive.load, Morpheus.load
+        , Morphine.load, Pianoteq.load, Reaktor.load, Tassman.load, Vl1m.load
+        , Z1.load
         ]
     let annot_fn = app_dir </> Config.local_dir </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \x -> case x of

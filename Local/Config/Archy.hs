@@ -20,8 +20,9 @@ tapco n = "Tapco Port " ++ show n
 
 wdev_map :: [(String, String)]
 wdev_map =
-    [("loop" ++ show n, iac n) | n <- [1..4]]
-    ++ [ ("fm8", "Native Instruments FM8 Virtual Input")
+    [("loop" ++ show n, iac n) | n <- [1..4]] ++
+    [ ("fm8", "Native Instruments FM8 Virtual Input")
+    , ("msv", "Massive Virtual Input")
     , ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morph", tapco 3)
