@@ -30,7 +30,7 @@ UNSORTED
       Record.
     * Specs = [(Name, Spec)], and Bits can have a dummy name
 
-    - convert vl1 to new sysex scheme
+    + convert vl1 to new sysex scheme
     - utility to send vl1 .all files
     - get rid of old sysex parser
     - parser for morpheus
