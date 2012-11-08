@@ -110,6 +110,10 @@ data RecordType = TMap | TUnion | TNum | TStr | TUnparsed
 spec_to_record :: [Spec] -> Record
 spec_to_record = RMap . Map.delete "" . List.foldl' add Map.empty
     where
+    add rec (Num name (Range {})) = Map.insert name (RNum 0) rec
+    add rec (Num name (Enum (enum:_))) = Map.insert name (RStr enum) rec
+    add _ (Num name (Enum [])) = error $ name ++ " had an empty Enum"
+
     add rec (Bits bits) = List.foldl' add_bit rec bits
     add rec (Str name _) = Map.insert name (RStr "") rec
     add rec (SubSpec name specs) = Map.insert name (spec_to_record specs) rec
@@ -210,10 +214,20 @@ hex = unwords . map (\b -> Numeric.showHex b "") . B.unpack
 
 -- * encode
 
+data Config = Config {
+    decode_num :: NumRange -> ByteString -> Int
+    , encode_num :: NumRange -> Int -> ByteString
+    -- | The number of bytes needd to encode a number in the given range.
+    -- This should agree with 'decode_num', since it will be given that many
+    -- bytes to decode.
+    , range_bytes :: NumRange -> Int
+    }
+
 type EncodeM a = Error.ErrorT Error (Writer.Writer Builder.Builder) a
 
-encode :: [Spec] -> Record -> Either Error ByteString
-encode specs record = run_encode (mapM_ (encode_spec [] record) specs)
+encode :: Config -> [Spec] -> Record -> Either Error ByteString
+encode config specs record =
+    run_encode (mapM_ (encode_spec config [] record) specs)
 
 run_encode :: EncodeM () -> Either Error ByteString
 run_encode m = case Writer.runWriter (Error.runErrorT m) of
@@ -221,8 +235,13 @@ run_encode m = case Writer.runWriter (Error.runErrorT m) of
     (Right (), builder) ->
         Right $ Lazy.toStrict $ Builder.toLazyByteString builder
 
-encode_spec :: [String] -> Record -> Spec -> EncodeM ()
-encode_spec path record spec = case spec of
+encode_spec :: Config -> [String] -> Record -> Spec -> EncodeM ()
+encode_spec config path record spec = case spec of
+    Num name range -> do
+        num <- either (throw name) return . encode_range range
+            =<< lookup_field name
+        Writer.tell $ Builder.byteString $
+            encode_num config (num_range range) num
     Bits bits -> do
         b <- either (uncurry throw) return $ encode_byte record bits
         Writer.tell (Builder.word8 b)
@@ -239,7 +258,7 @@ encode_spec path record spec = case spec of
         Writer.tell (Builder.string7 padded)
     SubSpec name specs -> do
         sub_record <- lookup_field name
-        mapM_ (encode_spec (name:path) sub_record) specs
+        mapM_ (encode_spec config (name:path) sub_record) specs
     List name elts specs -> do
         records <- lookup_field name >>= \x -> case x of
             RMap records
@@ -252,7 +271,7 @@ encode_spec path record spec = case spec of
             val -> throw name $ "expected RMap list, but got "
                 ++ Pretty.pretty val
         forM_ (zip [0..] records) $ \(i, rec) ->
-            mapM_ (encode_spec ((name ++ show i) : path) rec) specs
+            mapM_ (encode_spec config (name : show i : path) rec) specs
     Union name enum_name nbytes enum_specs -> do
         union_record <- lookup_field name >>= \x -> case x of
             RUnion union_record -> return union_record
@@ -265,8 +284,8 @@ encode_spec path record spec = case spec of
             Just specs -> return specs
             Nothing -> throw name $ "not found in union "
                 ++ show (map fst enum_specs) ++ ": " ++ enum
-        bytes <- either Error.throwError return $
-            run_encode (mapM_ (encode_spec (name:path) union_record) specs)
+        bytes <- either Error.throwError return $ run_encode $
+            mapM_ (encode_spec config (name:path) union_record) specs
         Writer.tell $ Builder.byteString $ bytes
             <> B.replicate (nbytes - B.length bytes) 0
     Unparsed name nbytes -> do
@@ -293,18 +312,22 @@ encode_byte record bits = do
     bs <- zipWithM encode1 (zip names fields) vals
     return $ encode_bits (map fst fields) bs
     where
-    encode1 (name, (width, Range low high)) (RNum val)
-        | not (low <= val && val <= high) =
-            Left (name, "val out of range " ++ show (low, high) ++ ": "
-                ++ show val)
-        | low < 0 = Right $ from_signed width val
-        | otherwise = Right (fromIntegral val)
-    encode1 (name, (_, Enum enums)) (RStr enum) =
-        case List.elemIndex enum enums of
-            Nothing -> Left (name, "unknown enum: " ++ enum)
-            Just i -> return $ fromIntegral i
-    encode1 (name, field) val = Left
-        (name, "field " ++ show field ++ " not appropriate for " ++ show val)
+    encode1 (name, (width, range)) rec = either (Left . ((,) name)) Right $ do
+        num <- encode_range range rec
+        return $ if range_signed range then from_signed width num
+            -- encode_range should have already checked the range of 'num'.
+            else fromIntegral num
+
+encode_range :: Range -> Record -> Either String Int
+encode_range (Range low high) (RNum num)
+    | low <= num && num <= high = Right num
+    | otherwise = Left $ "num out of range " ++ show (low, high) ++ ": "
+        ++ show num
+encode_range (Enum enums) (RStr enum)
+    | Just i <- List.elemIndex enum enums = Right i
+    | otherwise = Left $ "unknown enum: " ++ enum
+encode_range _ record =
+    Left $ "expected a num or str, but got " ++ show record
 
 rmap_lookup :: Record -> Name -> Either (Name, Error) Record
 rmap_lookup _ "" = Right $ RNum 0 -- null name means it's a reserved section
@@ -316,8 +339,8 @@ rmap_lookup record name = case record of
 
 -- * decode
 
-decode :: [Spec] -> ByteString -> Either Error (Record, ByteString)
-decode = decode_from []
+decode :: Config -> [Spec] -> ByteString -> Either Error (Record, ByteString)
+decode config = decode_from []
     where
     decode_from path specs bytes = Get.runGetState (rmap path [] specs) bytes 0
     rmap _ collect [] = return $ RMap (Map.fromList collect)
@@ -328,7 +351,12 @@ decode = decode_from []
 
     field :: [Name] -> [(Name, Record)] -> Spec -> Get.Get [(String, Record)]
     field path _ (Bits bits) =
-        either (throw path) return . decode_byte path bits =<< Get.getWord8
+        either fail return . decode_byte path bits =<< Get.getWord8
+    field path _ (Num name range) = do
+        bytes <- Get.getBytes $ range_bytes config (num_range range)
+        let num = decode_num config (num_range range) bytes
+        either (throw path) (return . (:[]) . ((,) name)) $
+            decode_range num range
     field _ _ (Str name chars) = do
         str <- Get.getByteString chars
         return [(name, RStr (Seq.strip (Char8.unpack str)))]
@@ -337,7 +365,7 @@ decode = decode_from []
         return [(name, subs)]
     field path _ (List name elts specs) = do
         subs <- forM [0 .. elts-1] $ \i ->
-            rmap ((name ++ show i) : path) [] specs
+            rmap (show i : name : path) [] specs
         return [(name, RMap $ Map.fromList $ zip (map show [0..elts-1]) subs)]
     field path prev_record (Union name enum_name bytes enum_specs) = do
         path <- return (name : path)
@@ -349,8 +377,7 @@ decode = decode_from []
             Nothing -> throw path $
                 "union doesn't contain enum: " ++ enum
         bytes <- Get.getByteString bytes
-        record <- either (throw path) (return . fst) $
-            decode_from path specs bytes
+        record <- either fail (return . fst) $ decode_from path specs bytes
         return [(name, RUnion record)]
     field path _ (Unparsed name nbytes) = do
         bytes <- Get.getByteString nbytes
@@ -359,6 +386,15 @@ decode = decode_from []
                 ++ show (B.length bytes)
         return [(name, RUnparsed bytes)]
     throw path = fail . (show_path path ++)
+
+decode_range :: Int -> Range -> Either String Record
+decode_range num (Range low high)
+    | low <= num && num <= high = Right (RNum num)
+    | otherwise = Left $ "out of range " ++ show (low, high) ++ ": "
+        ++ show num
+decode_range num (Enum enums)
+    | Just enum <- Seq.at enums num = Right (RStr enum)
+    | otherwise = Left $ "out of range for enum: " ++ show num
 
 decode_byte :: [Name] -> [(Name, BitField)] -> Word8
     -> Either String [(String, Record)]
@@ -376,14 +412,12 @@ decode_byte path bits byte =
         Enum enums
             | Just enum <- Seq.at enums val -> return (name, RStr enum)
             | otherwise -> Left $
-                show_path (name:path) ++ " bit of byte " ++ show byte
+                show_path (name:path) ++ "bit of byte " ++ show byte
                     ++ ": not a valid enum index: " ++ show val
     convert_signs :: BitField -> Word8 -> Int
     convert_signs (width, range) val
-        | is_signed range = to_signed width val
+        | range_signed range = to_signed width val
         | otherwise = fromIntegral val
-    is_signed (Range low _) = low < 0
-    is_signed _ = False
 
 show_path :: [Name] -> String
 show_path = (++": ") . Seq.join "." . reverse
@@ -420,7 +454,8 @@ from_signed bits num
 -- * spec
 
 data Spec =
-    Bits [(Name, BitField)] | Str Name Bytes | SubSpec Name [Spec]
+    Bits [(Name, BitField)]
+    | Num Name Range | Str Name Bytes | SubSpec Name [Spec]
     | List Name Int [Spec]
     -- | The content of this section depends on a previous enum value.
     -- Name of this field, name of the enum to reference
@@ -430,19 +465,29 @@ data Spec =
 
 data Range = Range Int Int | Enum [EnumName]
     deriving (Show)
+type NumRange = (Int, Int)
+
+num_range :: Range -> NumRange
+num_range (Range low high) = (low, high)
+num_range (Enum enums) = (0, length enums - 1)
+
+range_signed :: Range -> Bool
+range_signed (Range low _) = low < 0
+range_signed _ = False
 
 type BitField = (Bits, Range)
 type Name = String
 type Bits = Int
 type Bytes = Int
 
-spec_bytes :: [Spec] -> Int
-spec_bytes = sum . map bytes_of
+spec_bytes :: Config -> [Spec] -> Int
+spec_bytes config = sum . map bytes_of
     where
     bytes_of (Bits {}) = 1
+    bytes_of (Num _ range) = range_bytes config (num_range range)
     bytes_of (Str _ n) = n
-    bytes_of (SubSpec _ specs) = spec_bytes specs
-    bytes_of (List _ n specs) = spec_bytes specs * n
+    bytes_of (SubSpec _ specs) = spec_bytes config specs
+    bytes_of (List _ n specs) = spec_bytes config specs * n
     bytes_of (Union _ _ n _) = n
     bytes_of (Unparsed _ n) = n
 
@@ -482,32 +527,32 @@ assert_valid :: String -> [Spec] -> [Spec]
 assert_valid name spec =
     maybe spec (error . ((name ++ ": ") ++)) (validate spec)
 
+-- * convenience
+
+-- ** num
+
+unsigned :: Name -> Int -> Spec
+unsigned name max = Num name (Range 0 max)
+
+ranged :: Name -> Int -> Int -> Spec
+ranged name low high = Num name (Range low high)
+
+enum :: Name -> [String] -> Spec
+enum name enums = Num name (Enum enums)
+
+bool :: Name -> Spec
+bool name = enum name ["off", "on"]
+
+-- ** bits
+
 bits :: Int -> BitField
 bits n = (n, Range 0 (2^n))
 
 ranged_bits :: Int -> (Int, Int) -> BitField
 ranged_bits n (min, max) = (n, Range min max)
 
-ranged_byte :: Name -> (Int, Int) -> Spec
-ranged_byte name range = Bits [(name, ranged_bits 8 range)]
-
-byte :: Name -> Int -> Spec
-byte name max = Bits [(name, (8, Range 0 max))]
-
-bool :: Name -> Spec
-bool name = Bits [(name, (8, boolean))]
-
-reserved_space :: Int -> [Spec]
-reserved_space bytes = replicate bytes (byte "" 256)
-
-enum_byte :: Name -> [String] -> Spec
-enum_byte name vals = Bits [(name, (8, Enum vals))]
-
 enum_bits :: Int -> [String] -> BitField
 enum_bits n vals = (n, Enum vals)
 
-boolean :: Range
-boolean = Enum ["off", "on"]
-
-boolean1 :: BitField
-boolean1 = (1, boolean)
+bool_bit :: BitField
+bool_bit = (1, Enum ["off", "on"])

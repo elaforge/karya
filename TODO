@@ -20,8 +20,18 @@ UNSORTED
     * implement encode for z1 specs
     * modify z1 patches to have (-24, +24) pitch bend and send back
 
+    * sysex encode decode needs to get two bytes for 7bit
+      have a separate 7 bit mode
+      Actually e-mu does it in yet another way, I think I want to pass in
+      parse functions to specialize for each synth.
+      Really only Num needs to be specialized, and Num needs a Enum in
+      addition to just number.
+    - restore spec_bytes
+    - Unparsed "" is special cased to always be zeros and not go into the
+      Record.
+    - Specs = [(Name, Spec)], and Bits can have a dummy name
+
     - convert vl1 to new sysex scheme
-      parse a given .all file for the loaded patches
     - utility to send vl1 .all files
     - get rid of old sysex parser
     - parser for morpheus
