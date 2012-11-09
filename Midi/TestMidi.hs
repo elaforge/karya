@@ -10,6 +10,8 @@ import qualified Data.Time as Time
 import qualified System.Environment
 import qualified System.IO as IO
 
+import Util.Control
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
@@ -24,12 +26,15 @@ import qualified Midi.JackMidi as MidiDriver
 
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
+import qualified Midi.Parse
 
 import qualified Perform.RealTime as RealTime
 
 
+type Interface = Interface.RawInterface Midi.WriteMessage
+
 main :: IO ()
-main = MidiDriver.initialize "test_midi" want_message test
+main = MidiDriver.initialize "test_midi" want_message test_midi
     where
     want_message (Midi.RealtimeMessage Midi.ActiveSense) = False
     want_message _ = True
@@ -37,9 +42,9 @@ main = MidiDriver.initialize "test_midi" want_message test
 type ReadMsg = IO (Maybe Midi.ReadMessage)
 type WriteMsg = (RealTime.RealTime, Midi.Message) -> IO ()
 
-test :: Either String Interface.Interface -> IO ()
-test (Left err) = error $ "initializing midi: " ++ err
-test (Right interface) = do
+test_midi :: Either String Interface -> IO ()
+test_midi (Left err) = error $ "initializing midi: " ++ err
+test_midi (Right interface) = do
     rdevs <- Interface.read_devices interface
     putStrLn $ "read devs:"
     mapM_ (putStrLn . ("    " ++) . Pretty.pretty) rdevs
@@ -55,17 +60,22 @@ test (Right interface) = do
             putStrLn "monitoring (pass arg 'help' for help)"
             (_, read_msg) <- open True rdevs Nothing
             monitor read_msg
+        ["record-sysex"] -> do
+            (_, read_msg) <- open True rdevs Nothing
+            record_sysex read_msg
+        ["send-sysex", out_dev] -> do
+            (write_msg, _) <- open True [] (Just out_dev)
+            send_sysex write_msg
         ["help"] -> putStrLn usage
         ["melody", out_dev] -> do
             putStrLn "playing melody"
-            (write_msg, _) <- open True [] (Just (Midi.write_device out_dev))
+            (write_msg, _) <- open True [] (Just out_dev)
             melody interface write_msg
             putStrLn "return to quit... "
             void getLine
         ["melody-thru", out_dev] -> do
             putStrLn "playing melody + thru"
-            (write_msg, read_msg) <- open True
-                rdevs (Just (Midi.write_device out_dev))
+            (write_msg, read_msg) <- open True rdevs (Just out_dev)
             thru_melody interface write_msg read_msg
         ("monitor" : mdevs@(_:_)) -> do
             putStrLn $ "monitoring: " ++ Seq.join ", " mdevs
@@ -73,37 +83,34 @@ test (Right interface) = do
             monitor read_msg
         ["spam", out_dev, n_str] -> do
             putStrLn $ "spamming " ++ n_str ++ " msgs"
-            (write_msg, _) <- open True
-                rdevs (Just (Midi.write_device out_dev))
+            (write_msg, _) <- open True rdevs (Just out_dev)
             n <- readIO n_str
             spam interface write_msg n
             getChar
             return ()
         ["program", out_dev] ->
-            uncurry program_change
-                =<< open False [] (Just (Midi.write_device out_dev))
+            uncurry program_change =<< open False [] (Just out_dev)
         ["test", loopback] -> do
             (write_msg, read_msg) <- open False
-                [Midi.read_device loopback] (Just (Midi.write_device loopback))
+                [Midi.read_device loopback] (Just loopback)
             run_tests interface write_msg read_msg
         ["thru", out_dev] -> do
             putStrLn "playing thru"
-            (write_msg, read_msg) <- open True
-                rdevs (Just (Midi.write_device out_dev))
+            (write_msg, read_msg) <- open True rdevs (Just out_dev)
             thru_loop write_msg read_msg
         _ -> do
             putStrLn "unknown command"
             putStrLn usage
     where
-    open_devs :: Interface.Interface -> Bool -> [Midi.ReadDevice]
-        -> (Maybe Midi.WriteDevice) -> IO (WriteMsg, ReadMsg)
+    open_devs :: Interface -> Bool -> [Midi.ReadDevice]
+        -> (Maybe String) -> IO (WriteMsg, ReadMsg)
     open_devs interface blocking rdevs maybe_wdev = do
         oks <- mapM (Interface.connect_read_device interface) rdevs
         forM_ [rdev | (rdev, False) <- zip rdevs oks] $ \missing ->
             putStrLn $ "rdev not found: " ++ show missing
         let read_msg = (if blocking then blocking_get else nonblocking_get)
                 (Interface.read_channel interface)
-        case maybe_wdev of
+        case Midi.write_device <$> maybe_wdev of
             Nothing -> return
                 (const (error "write device not opened"), read_msg)
             Just wdev -> do
@@ -136,13 +143,35 @@ usage = unlines
 -- * program change
 
 program_change :: WriteMsg -> ReadMsg -> IO ()
-program_change write_message read_message = forever $ do
+program_change write_message _read_message = forever $ do
     putStr "> "
     IO.hFlush IO.stdout
     line <- getLine
     let msg = Midi.ChannelMessage 0 $ Midi.ProgramChange (read line)
     print msg
     write_message (0, msg)
+
+-- * sysex
+
+record_sysex :: ReadMsg -> IO ()
+record_sysex read_msg = loop 0
+    where
+    loop n = do
+        Just (Midi.ReadMessage (Midi.ReadDevice _) _ msg) <- read_msg
+        wrote <- case msg of
+            Midi.CommonMessage (Midi.SystemExclusive manuf bytes) -> do
+                putStrLn $ "sysex " ++ Num.hex manuf ++ " "
+                    ++ show (ByteString.length bytes) ++ " bytes"
+                ByteString.writeFile ("record-sysex" ++ show n ++ ".syx") $
+                    Midi.Parse.encode msg
+                return True
+            _ -> return False
+        loop (if wrote then n+1 else n)
+
+send_sysex :: WriteMsg -> IO ()
+send_sysex write_msg = do
+    msg <- Midi.Parse.decode <$> ByteString.getContents
+    write_msg (0, msg)
 
 -- * monitor
 
@@ -164,12 +193,12 @@ thru_loop write_msg read_msg = forever $ do
 -- * melody
 
 -- | Play a melody while also allowing msgs thru, to test merging.
-thru_melody :: Interface.Interface -> WriteMsg -> ReadMsg -> IO ()
+thru_melody :: Interface -> WriteMsg -> ReadMsg -> IO ()
 thru_melody interface write_msg read_msg = do
     melody interface write_msg
     thru_loop write_msg read_msg
 
-melody :: Interface.Interface -> WriteMsg -> IO ()
+melody :: Interface -> WriteMsg -> IO ()
 melody interface write_msg = do
     now <- Interface.now interface
     mapM_ write_msg (notes now)
@@ -184,7 +213,7 @@ notes start_ts = concat
 
 -- * spam
 
-spam :: Interface.Interface -> WriteMsg -> Int -> IO ()
+spam :: Interface -> WriteMsg -> Int -> IO ()
 spam interface write_msg n = do
     now <- Interface.now interface
     mapM_ write_msg [(now + RealTime.milliseconds (i*10), msg)
@@ -196,7 +225,7 @@ spam interface write_msg n = do
 -- * tests
 
 -- | Test a few things by writing and reading both ends of the same port.
-run_tests :: Interface.Interface -> WriteMsg -> ReadMsg -> IO ()
+run_tests :: Interface -> WriteMsg -> ReadMsg -> IO ()
 run_tests interface write_msg read_msg = do
     putStrLn "---- abort"
     test_abort interface write_msg read_msg
@@ -206,7 +235,7 @@ run_tests interface write_msg read_msg = do
     test_sysex write_msg read_msg
 
 -- | Ensure that aborts really cancel pending msgs.
-test_abort :: Interface.Interface -> WriteMsg -> ReadMsg -> IO ()
+test_abort :: Interface -> WriteMsg -> ReadMsg -> IO ()
 test_abort interface write_msg read_msg = do
     now <- Interface.now interface
     let msgs = [note_on 10, note_on 20, chan_msg (Midi.PitchBend 42)]
@@ -231,7 +260,7 @@ test_abort interface write_msg read_msg = do
 
 -- | Ensure that timestamp 0 msgs get merged in ahead of timed msgs, as per
 -- 'Interface.write_message'.
-test_merge :: Interface.Interface -> WriteMsg -> ReadMsg -> IO ()
+test_merge :: Interface -> WriteMsg -> ReadMsg -> IO ()
 test_merge interface write_msg read_msg = do
     now <- Interface.now interface
     mapM_ write_msg

@@ -320,12 +320,11 @@ instance DeepSeq.NFData RealtimeMessage where rnf _ = ()
 
 -- * util
 
--- | Split an Int into (lsb, msb)
-split14 :: Int -> (Word8, Word8)
+-- | Split an Int into two 7 bit words.
+split14 :: Int -> (Word8, Word8) -- ^ (LSB, MSB)
 split14 i = (fromIntegral (i .&. 0x7f), fromIntegral (shiftR i 7 .&. 0x7f))
 
--- | Split an Int into two 7-bit Word8s, or go the other way.  MIDI sends
--- the lsb first, so the args will usually be swapped.
+-- | Join (LSB, MSB) 7-bit words into an int.
 join14 :: Word8 -> Word8 -> Int
 join14 lsb msb =
     shiftL (fromIntegral msb .&. 0x7f) 7 .|. (fromIntegral lsb .&. 0x7f)

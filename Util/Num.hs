@@ -7,6 +7,7 @@ import qualified Data.Fixed as Fixed
 import qualified Foreign.C as C
 import qualified GHC.Prim as Prim
 import qualified GHC.Types as Types
+import qualified Numeric
 import qualified Unsafe.Coerce as Coerce
 
 
@@ -21,6 +22,9 @@ binary b = map extract [bits-1, bits-2 .. 0]
     where
     extract i = if Bits.testBit b i then '1' else '0'
     bits = Bits.bitSize b
+
+hex :: (Integral a, Show a) => a -> String
+hex n = Numeric.showHex n ""
 
 -- * transform
 
