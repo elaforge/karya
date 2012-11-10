@@ -44,8 +44,6 @@ UNSORTED
     * get rid of old sysex parser
     - parser for morpheus
 
-  - do I want to enforce instrument naming?  If so I think InstrumentName
-    becomes a newtype with clean_inst_name as the constructor.
   * browser should show what calls an instrument introduces, and which cmds
   / in save/z1, second lower octave note doesn't trigger
     For some reason the performer is putting it on channel 4, but only when

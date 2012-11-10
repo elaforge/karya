@@ -53,9 +53,8 @@ parse_dir parsers dir = do
 
 parse_file :: [Parser] -> FilePath -> ByteString
     -> Either String [Instrument.Patch]
-parse_file parsers fn bytes = case Either.rights $ map ($bytes) parsers of
-    patches : _ -> Right $ map (initialize_sysex bytes . add_file fn) patches
-    _ -> Left $ "sysex too short: " ++ show bytes
+parse_file parsers fn bytes =
+    map (initialize_sysex bytes . add_file fn) <$> try_parsers parsers bytes
 
 -- | Parse a file just like 'parse_file'.  But this file is expected to be
 -- the dump of the patches currently loaded in the synthesizer, and will be
@@ -69,6 +68,14 @@ parse_builtins bank parser fn = do
             return []
         Right patches ->
             return $ zipWith (initialize_program bank) [0..] patches
+
+-- | Try each parser in turn, and fail only if they all fail.
+try_parsers :: [Parser] -> ByteString -> Either String [Instrument.Patch]
+try_parsers parsers bytes = case Either.rights results of
+    patches : _ -> Right patches
+    _ -> Left $ "didn't match any parsers: "
+        ++ Seq.join "; " (Either.lefts results)
+    where results = map ($bytes) parsers
 
 -- Assume the sysex midi channel is 0.
 initialize_program :: Int -> Midi.Program -> Instrument.Patch
@@ -227,6 +234,23 @@ expect_bytes bytes prefix
 
 hex :: ByteString -> String
 hex = unwords . map (\b -> Numeric.showHex b "") . B.unpack
+
+-- | Extract substrings delimited by Midi.sox_byte and Midi.eox_byte.  Bytes
+-- not within the delimeters are stripped.
+extract_sysex :: ByteString -> [ByteString]
+extract_sysex bytes
+    | B.null bytes = []
+    | not $ B.singleton Midi.eox_byte `B.isSuffixOf` sysex = []
+    | B.null sysex = extract_sysex post
+    | otherwise = sysex : extract_sysex post
+    where
+    (sysex, post) = break_after (==Midi.eox_byte) $
+        B.dropWhile (/=Midi.sox_byte) bytes
+
+break_after :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+break_after f bytes = case B.findIndex f bytes of
+    Nothing -> (bytes, mempty)
+    Just i -> B.splitAt (i+1) bytes
 
 -- * config
 

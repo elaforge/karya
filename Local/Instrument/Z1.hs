@@ -4,6 +4,7 @@ import qualified Data.Bits as Bits
 import Data.Bits ((.|.))
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as Char8
 
 import System.FilePath ((</>))
 
@@ -12,8 +13,8 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Sysex as Sysex
 import Instrument.Sysex
-       (Specs, Spec(..), bits, ranged_bits, unsigned, bool_bit, enum, enum_bits,
-        ranged)
+       (Specs, Spec(..), bits, ranged_bits, unsigned, bool_bit, enum,
+        enum_bits, ranged)
 import qualified App.MidiInst as MidiInst
 
 
@@ -68,10 +69,31 @@ parse_patch bytes = do
         korg_header <> B.pack [0x40, 0x01]
     fst <$> decode patch_spec (dekorg bytes)
 
-unparse_patch :: Sysex.Record -> Either String ByteString
-unparse_patch record = do
-    body <- enkorg <$> encode patch_spec record
-    return $ korg_header <> B.pack [0x40, 0x01] <> body
+parse_patch_dump :: ByteString -> Either String [Sysex.Record]
+parse_patch_dump bytes = do
+    bytes <- Sysex.expect_bytes bytes $ korg_header <> B.pack [0x4c]
+    -- Drop 3 for bank, program number, and 0 byte.
+    patches $ dekorg $ B.drop 3 bytes
+    where
+    patches bytes
+        | B.length bytes >= Sysex.spec_bytes config patch_spec = do
+            (record, bytes) <- decode patch_spec bytes
+            records <- patches bytes
+            return (record : records)
+        | otherwise = return []
+
+parse_sysex_manager :: ByteString -> Either String [Sysex.Record]
+parse_sysex_manager bytes = do
+    bytes <- Sysex.expect_bytes bytes $ Char8.pack "Sysex Manager"
+    let sysexes = Sysex.extract_sysex bytes
+    mapM parse_patch (drop 1 sysexes) -- The first one is something else.
+
+test_parse = do
+    let fn = "inst_db/z1/sysex/lib2/apollo44.syx"
+    -- let fn = "inst_db/z1/sysex/lib1/z1 o00o05 Composite Synth.syx"
+    parse_sysex_manager <$> B.readFile fn
+
+-- * unparse
 
 set_pitch_bend :: FilePath -> IO ()
 set_pitch_bend fn = do
@@ -85,24 +107,18 @@ set_pitch_bend fn = do
         <=< Sysex.put_record "pitch bend.intensity -" (-24 :: Int)
     require msg = either (errorIO . ((msg ++ ": ") ++)) return
 
-parse_patch_dump :: ByteString -> Either String [Sysex.Record]
-parse_patch_dump bytes = do
-    bytes <- Sysex.expect_bytes bytes $ korg_header <> B.pack [0x4c]
-    -- Drop bank, program number, and 0 byte.
-    patches $ dekorg $ B.drop 3 bytes
-    where
-    patches bytes
-        | B.length bytes >= Sysex.spec_bytes config patch_spec = do
-            (record, bytes) <- decode patch_spec bytes
-            records <- patches bytes
-            return (record : records)
-        | otherwise = return []
+unparse_patch :: Sysex.Record -> Either String ByteString
+unparse_patch record = do
+    body <- enkorg <$> encode patch_spec record
+    return $ korg_header <> B.pack [0x40, 0x01] <> body
 
 unparse_patch_dump :: [Sysex.Record] -> Either String ByteString
 unparse_patch_dump records = do
     body <- enkorg . mconcat <$> mapM (encode patch_spec) records
     -- 0s for bank, program number, and padding.
     return $ korg_header <> B.pack [0x4c, 0, 0, 0] <> body
+
+-- ** record
 
 record_to_patch :: Sysex.Record -> Either String Instrument.Patch
 record_to_patch record = do

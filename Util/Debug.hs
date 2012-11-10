@@ -18,13 +18,15 @@ import qualified Util.Seq as Seq
 
 -- * forced by evaluation
 
+-- | Print a showable value.
 trace :: (Show a) => String -> a -> a
 trace msg val = Trace.trace (with_msg msg (pshow val)) val
 
+-- | Pretty print the returned value.
 tracep :: (Pretty.Pretty a) => String -> a -> a
 tracep msg val = Trace.trace (with_msg msg (Pretty.formatted val)) val
 
--- | Print a showable value.
+-- | Print a string.
 traces :: String -> a -> a
 traces =  Trace.trace . (prefix++)
 
