@@ -187,6 +187,9 @@ patch_map patches = run $ concatMapM split =<< mapM strip_init by_name
     -- Remember synths form a namespace above inst, so these are already on
     -- the same synth.
     strip_init :: NamedPatch code -> Merge (NamedPatch code)
+    strip_init ("", patches) = do
+        log "dropped patches with no name" patches
+        return ("", [])
     strip_init (name, patches) = do
         let (unique, dups) =
                 Seq.partition_dups (Instrument.patch_initialize . fst) patches
