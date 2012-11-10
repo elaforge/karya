@@ -36,7 +36,8 @@ midi_db synth_pmaps = (MidiDb db_map, validate synth_pmaps)
     where
     db_map = Map.fromList
         [ (lc (Instrument.synth_name synth), (synth, pmap))
-        | (synth, pmap) <- synth_pmaps]
+        | (synth, pmap) <- synth_pmaps
+        ]
 
 validate :: [SynthDesc a] -> [String]
 validate synth_pmaps = concatMap check_synth synth_pmaps
@@ -176,11 +177,11 @@ wildcard_inst_name = "*"
 -- for each patch, and if names collide various heuristics are tried to
 -- discard or combine them, or they are disambiguated with numbers.
 patch_map :: [PatchCode code] -> (PatchMap code, [String])
-    -- ^ (PatchMap, log notices)
+    -- ^ (PatchMap, log msgs)
 patch_map patches = run $ concatMapM split =<< mapM strip_init by_name
     where
-    by_name = Seq.keyed_group_on (clean_inst_name . patch_name) patches
-    patch_name = Instrument.inst_name . Instrument.patch_instrument . fst
+    by_name = Seq.keyed_group_on (score_instrument_name . patch_inst) patches
+    patch_inst = Instrument.patch_instrument . fst
     run = first (PatchMap . Map.fromList) . Identity.runIdentity . Logger.run
 
     -- If the initialization is the same, they are likely duplicates.
@@ -209,7 +210,7 @@ patch_map patches = run $ concatMapM split =<< mapM strip_init by_name
 
     log _ [] = return ()
     log msg ps = Logger.log $ msg ++ ": " ++ Seq.join ", " (map details ps)
-    details patch = patch_name patch
+    details patch = Instrument.inst_name (patch_inst patch)
         ++ " (" ++ FilePath.takeFileName (Instrument.patch_file (fst patch))
         ++ ")"
 
@@ -222,7 +223,7 @@ logged_synths :: Instrument.Synth -> [PatchCode code] -> IO (SynthDesc code)
 logged_synths synth patches = do
     let (pmap, msgs) = patch_map patches
     let prefix = "synth " ++ Instrument.synth_name synth ++ ": "
-    mapM_ (Log.warn . (prefix++)) msgs
+    mapM_ (Log.notice . (prefix++)) msgs
     return (synth, pmap)
 
 -- | Build a PatchMap for a synth that has whatever patch you name.
@@ -230,6 +231,15 @@ wildcard_patch_map :: PatchCode code -> PatchMap code
 wildcard_patch_map patch = PatchMap $ Map.singleton wildcard_inst_name patch
 
 -- * util
+
+-- | Guess a score inst name from the instrument name.  This may not be the
+-- final name because they may still be processed for uniqueness.
+--
+-- When instruments are being constructed, they don't have a score name.
+-- That's because 'Score.Instrument's have to be globally unique so I need the
+-- whole inst db to figure them out.
+score_instrument_name :: Instrument.Instrument -> Instrument.InstrumentName
+score_instrument_name = clean_inst_name . Instrument.inst_name
 
 -- | Since instruments are stored in the index as lower case for case
 -- insensitive lookup, they should be stored as lower case here too.

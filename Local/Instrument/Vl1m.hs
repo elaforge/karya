@@ -124,7 +124,8 @@ file_to_syx fn = map fix_sysex <$> case FilePath.takeExtension fn of
     -- | Convert .1vc format to .syx format.  Derived by looking at vlone70
     -- conversions with od.
     split_1vc bytes = [bytes_to_syx Nothing (B.drop 0xc00 bytes)]
-    split_syx = B.split Midi.eox_byte
+    split_syx = map (<> B.singleton Midi.eox_byte) . filter (not . B.null)
+        . B.split Midi.eox_byte
 
 split_1bk :: Maybe Word8 -> ByteString -> [ByteString]
 split_1bk memory =
@@ -148,7 +149,14 @@ vl1_header nbytes = B.pack
 -- some omit it entirely.
 fix_sysex :: ByteString -> ByteString
 fix_sysex bytes
-    | B.isPrefixOf short bytes = long <> B.drop 3 bytes
+    | B.isPrefixOf short bytes = long <> B.drop (B.length short) bytes
+    | otherwise = bytes
+    where
+    long = B.pack [0xf0, Midi.yamaha_code, 0, 0x7a]
+    short = B.pack [0xf0, Midi.yamaha_code, 0x7a]
+
+unfix_sysex bytes
+    | B.isPrefixOf long bytes = short <> B.drop 4 bytes
     | otherwise = bytes
     where
     long = B.pack [0xf0, Midi.yamaha_code, 0, 0x7a]
@@ -188,28 +196,24 @@ type ElementInfo = (Control.PbRange, String, [(Midi.Control, [String])])
 record_to_patch :: Sysex.Record -> Either String Instrument.Patch
 record_to_patch record = do
     name <- lookup "name"
-    elt1 <- ifM ((=="on") <$> lookup "elem1 on")
-        (Just <$> extract_element 0 record)
-        (return Nothing)
-    elt2 <- ifM ((=="on") <$> lookup "elem2 on")
+    elt1 <- extract_element 0 record
+    maybe_elt2 <- ifM ((=="dual") <$> lookup "voice mode")
         (Just <$> extract_element 1 record)
         (return Nothing)
-    vl1_patch name elt1 elt2
+    vl1_patch name elt1 maybe_elt2
     where
     lookup :: (Sysex.RecordVal a) => String -> Either String a
     lookup = flip Sysex.lookup_record record
 
-vl1_patch :: Instrument.InstrumentName -> Maybe ElementInfo
+vl1_patch :: Instrument.InstrumentName -> ElementInfo
     -> Maybe ElementInfo -> Either String Instrument.Patch
-vl1_patch name Nothing Nothing = Left $ "both elements off: " ++ name
-vl1_patch name elt1 elt2 =
+vl1_patch name elt1 maybe_elt2 =
     return $ (Instrument.patch inst)
         { Instrument.patch_tags = map ((,) "vl1-element") names }
     where
     inst = Instrument.instrument name cmap pb_range
-    -- These lists are guaranteed to have at least 1 because of the Nothing
-    -- Nothing pattern match above.
-    (pb_ranges, names, cc_groups) = unzip3 $ Maybe.catMaybes [elt1, elt2]
+    (pb_ranges, names, cc_groups) =
+        unzip3 $ elt1 : Maybe.maybeToList maybe_elt2
 
     -- Optimistically take the widest range.
     Just pb_range = Seq.maximum_on (\(low, high) -> max (abs low) (abs high))

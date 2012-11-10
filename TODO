@@ -35,8 +35,13 @@ UNSORTED
       * pull control info out
       / ByteString instance for unparsed makes "" ambiguous
       * read txt files
-    - utility to send vl1 .all files
-    - get rid of old sysex parser
+      * lots of "both elements off", what does that really mean?
+      - test sending sysexes back
+      - move patches to new format
+    - figure out how to set category for vl1 patches
+      *word shorthand for category=word?
+      but I want to use the inst name, not the score name...
+    * get rid of old sysex parser
     - parser for morpheus
 
   - do I want to enforce instrument naming?  If so I think InstrumentName
