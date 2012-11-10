@@ -130,13 +130,15 @@ blocking_get read_chan = STM.atomically $ fmap Just (STM.readTChan read_chan)
 
 usage :: String
 usage = unlines
-    [ "(no arg)     monitor all inputs"
-    , "monitor <a> <b> ... monitor 'a' and 'b'"
-    , "help         print this usage"
-    , "thru <out>   msgs from any input are relayed to <out>"
-    , "melody <out> play a melody on <out>, also relaying msgs thru"
-    , "spam <out> n spam <out> with 'n' msgs in rapid succession"
-    , "test         run some semi-automatic tests"
+    [ "(no arg)             monitor all inputs"
+    , "record-sysex         save incoming sysex msgs to files"
+    , "send-sysex <out>     read a raw sysex from stdin and send it to the port"
+    , "monitor <a> <b> ...  monitor input ports 'a' and 'b'"
+    , "help                 print this usage"
+    , "thru <out>           msgs from any input are relayed to <out>"
+    , "melody <out>         play a melody on <out>, also relaying msgs thru"
+    , "spam <out> n         spam <out> with 'n' msgs in rapid succession"
+    , "test                 run some semi-automatic tests"
     ]
 
 
@@ -160,10 +162,11 @@ record_sysex read_msg = loop 0
         Just (Midi.ReadMessage (Midi.ReadDevice _) _ msg) <- read_msg
         wrote <- case msg of
             Midi.CommonMessage (Midi.SystemExclusive manuf bytes) -> do
+                let fn = "record-sysex" ++ show n ++ ".syx"
                 putStrLn $ "sysex " ++ Num.hex manuf ++ " "
-                    ++ show (ByteString.length bytes) ++ " bytes"
-                ByteString.writeFile ("record-sysex" ++ show n ++ ".syx") $
-                    Midi.Parse.encode msg
+                    ++ show (ByteString.length bytes) ++ " bytes -> "
+                    ++ fn
+                ByteString.writeFile fn (Midi.Parse.encode msg)
                 return True
             _ -> return False
         loop (if wrote then n+1 else n)
