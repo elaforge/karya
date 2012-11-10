@@ -30,7 +30,11 @@ UNSORTED
       Record.
     * Specs = [(Name, Spec)], and Bits can have a dummy name
 
+    * add Constant Spec so I can assert sysex headers
     + convert vl1 to new sysex scheme
+      * pull control info out
+      / ByteString instance for unparsed makes "" ambiguous
+      * read txt files
     - utility to send vl1 .all files
     - get rid of old sysex parser
     - parser for morpheus
@@ -87,7 +91,7 @@ UNSORTED
   - make constants for each of the ruler ranks, e.g. block, measure, quarter,
     eighth
   lots of ghc panics
-    - change all alignment = 1 lines to 4
+    + change all alignment = 1 lines to 4
     * try on linux, yes seems to happen there too
     * use valgrind on linux
     * See if it happens after a rebuild. Yes

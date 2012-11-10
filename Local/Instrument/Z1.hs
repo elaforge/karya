@@ -17,27 +17,27 @@ import Instrument.Sysex
 import qualified App.MidiInst as MidiInst
 
 
-name :: FilePath
-name = "z1"
+synth_name :: FilePath
+synth_name = "z1"
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load = MidiInst.load_db (const MidiInst.empty_code) name
+load = MidiInst.load_db (const MidiInst.empty_code) synth_name
 
 make_db :: FilePath -> IO ()
 make_db dir = do
-    bank_a <- Sysex.parse_bank_dump 0 patch_dump
-        (dir </> name </> "bank_a.syx")
-    bank_b <- Sysex.parse_bank_dump 1 patch_dump
-        (dir </> name </> "bank_b.syx")
+    bank_a <- Sysex.parse_builtins 0 patch_dump
+        (dir </> synth_name </> "bank_a.syx")
+    bank_b <- Sysex.parse_builtins 1 patch_dump
+        (dir </> synth_name </> "bank_b.syx")
     sysex <- Sysex.parse_dir [patch, patch_dump]
-        (dir </> name </> "sysex")
-    MidiInst.save_patches synth (concat [bank_a, bank_b, sysex]) name dir
+        (dir </> synth_name </> "sysex")
+    MidiInst.save_patches synth (concat [bank_a, bank_b, sysex]) synth_name dir
     where
     patch = fmap (:[]) . (record_to_patch <=< parse_patch)
     patch_dump = mapM record_to_patch <=< parse_patch_dump
 
 synth :: Instrument.Synth
-synth = Instrument.synth name synth_controls
+synth = Instrument.synth synth_name synth_controls
 
 synth_controls :: [(Midi.Control, String)]
 synth_controls =

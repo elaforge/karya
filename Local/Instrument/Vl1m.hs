@@ -1,99 +1,281 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Yamaha VL1 synthesizer.
 module Local.Instrument.Vl1m where
 import qualified Data.Bits as Bits
 import Data.Bits ((.|.), (.&.))
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as Char8
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import Data.Word (Word8)
 
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
-import qualified Text.Parsec as Parsec
 
 import Util.Control
 import qualified Util.File as File
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
+import qualified Midi.Parse
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.Parse as Parse
 import qualified Instrument.Sysex as Sysex
 import Instrument.Sysex
        (Specs, Spec(..), unsigned, bool, enum, ranged)
-
 import qualified App.MidiInst as MidiInst
 
 
-name :: String
-name = "vl1"
+synth_name :: String
+synth_name = "vl1"
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load = MidiInst.load_db (const MidiInst.empty_code) name
+load = MidiInst.load_db (const MidiInst.empty_code) synth_name
+
+builtin :: FilePath
+builtin = "vl1v2-factory/vl1_ver2.all"
 
 -- | Read the patch file, scan the sysex dir, and save the results in a cache.
 make_db :: FilePath -> IO ()
 make_db dir = do
-    vc_syxs <- parse_dir (dir </> name </> "vc")
-    syxs <- parse_dir (dir </> name </> "sysex")
-    patches <- Parse.patch_file (dir </> name </> "patches")
-    MidiInst.save_patches synth (vc_syxs ++ syxs ++ patches) name dir
+    vc_patches <- parse_dir (dir </> synth_name </> "vc")
+    sysex_patches <- parse_dir (dir </> synth_name </> "sysex")
+    builtins <- parse_builtins (dir </> synth_name </> builtin)
+    MidiInst.save_patches synth (builtins ++ vc_patches ++ sysex_patches)
+        synth_name dir
 
 synth :: Instrument.Synth
-synth = Instrument.synth name []
+synth = Instrument.synth synth_name []
 
--- * spec
+-- * parse
 
-test = do
-    syxs <- file_to_syx "patchman1.syx"
-    return $ parse_sysex (head syxs)
+test_check = do
+    fs <- File.list_dir "flugel"
+    forM_ fs $ \f -> do
+        bs <- fix_sysex <$> B.readFile f
+        print (f, checksum bs, Num.hex $ B.index bs (B.length bs - 2))
+
+test_split = do
+    bytes <- B.readFile $ "inst_db" </> synth_name </> builtin
+    let syxs = split_1bk (Just 0) bytes
+    forM_ (zip [0..] syxs) $ \(n, syx) ->
+        B.writeFile ("tmp/vl" ++ show n ++ ".syx") syx
+
+test_record = do
+    -- syxs <- file_to_syx "patchman1.syx"
+    -- syxs <- file_to_syx $ "inst_db" </> synth_name </> builtin
+    syxs <- file_to_syx $ "patchman1.syx"
+    return $ map parse_sysex syxs
+
+test_patch = do
+    Right r : _ <- test_record
+    return $ record_to_patch r
+
+parse_builtins :: FilePath -> IO [Instrument.Patch]
+parse_builtins fn = do
+    results <- parse_file fn
+    mapM_ Log.warn (Either.lefts results)
+    return [Sysex.initialize_program 0 i patch
+        | (i, Right patch) <- zip [0..] results]
+
+parse_dir :: FilePath -> IO [Instrument.Patch]
+parse_dir dir = do
+    fns <- File.recursive_list_dir (const True) dir
+    (warns, patches) <- Seq.partition_either . concat <$> mapM parse_file fns
+    mapM_ Log.warn warns
+    return patches
+
+parse_file :: FilePath -> IO [Either String Instrument.Patch]
+parse_file fn = do
+    syxs <- file_to_syx fn
+    txt <- fromMaybe "" <$>
+        File.ignore_enoent (readFile (FilePath.replaceExtension fn ".txt"))
+    let results = map (record_to_patch <=< parse_sysex) syxs
+    return [either (Left . failed i) (Right . combine fn txt syx) result
+        | (i, syx, result) <- zip3 [1..] syxs results]
+    where
+    failed i msg = "parsing " ++ show fn ++ "/" ++ show i ++ ": " ++ msg
+
+combine :: FilePath -> String -> ByteString -> Instrument.Patch
+    -> Instrument.Patch
+combine fn txt syx patch = Sysex.add_file fn $ patch
+    { Instrument.patch_text = Seq.strip txt
+    , Instrument.patch_initialize =
+        Instrument.InitializeMidi [Midi.Parse.decode syx]
+    }
 
 parse_sysex :: ByteString -> Either String Sysex.Record
-parse_sysex bytes = do
-    Sysex.expect_bytes bytes $ B.pack [0xf0, Midi.yamaha_code, 0]
-    fst <$> decode patch_spec bytes
+parse_sysex bytes = fst <$> decode patch_spec bytes
 
 file_to_syx :: FilePath -> IO [ByteString]
-file_to_syx fn = case FilePath.takeExtension fn of
-        ".all" -> split_all <$> B.readFile fn
+file_to_syx fn = map fix_sysex <$> case FilePath.takeExtension fn of
+        ".all" -> split_1bk Nothing <$> B.readFile fn
         ".1vc" -> split_1vc <$> B.readFile fn
-        ".1bk" -> split_1bk <$> B.readFile fn
+        ".1bk" -> split_1bk Nothing <$> B.readFile fn
         ".syx" -> split_syx <$> B.readFile fn
         ".txt" -> return []
-        _ -> return [] -- TODO log warn
+        _ -> Log.warn ("skipping " ++ show fn) >> return []
     where
     -- | Convert .1vc format to .syx format.  Derived by looking at vlone70
     -- conversions with od.
-    split_1vc bytes = [bytes_to_syx (B.drop 0xc00 bytes)]
-    split_1bk = map bytes_to_syx . split
-        where
-        split bytes = takeWhile (not . B.all (==0) . B.take 20) $
-            map (flip B.drop bytes) offsets
-        offsets = [0xc00, 0x1800..]
-    split_all = split_1bk -- turns out they're the same
+    split_1vc bytes = [bytes_to_syx Nothing (B.drop 0xc00 bytes)]
     split_syx = B.split Midi.eox_byte
 
+split_1bk :: Maybe Word8 -> ByteString -> [ByteString]
+split_1bk memory =
+    zipWith (\n -> bytes_to_syx ((+n) <$> memory)) [0..] . split
+    where
+    split bytes = takeWhile (not . B.all (==0) . B.take 20) $
+        map (flip B.drop bytes) offsets
+    offsets = [0xc00, 0x1800..]
+
+vl1_header :: Int -> ByteString
+vl1_header nbytes = B.pack
+    -- spec sheet says there's a 'device number' after yamaha_code
+    [ 0xf0, Midi.yamaha_code, 0, 0x7a
+    , msb, lsb -- size counts from 'L' char until the checksum
+    ] <> magic
+    where
+    (lsb, msb) = Midi.split14 (nbytes + B.length magic)
+    magic = Char8.pack "LM 20117VC"
+
+-- | For some reason, some sysexes come out with a 0 for device numbers, and
+-- some omit it entirely.
+fix_sysex :: ByteString -> ByteString
+fix_sysex bytes
+    | B.isPrefixOf short bytes = long <> B.drop 3 bytes
+    | otherwise = bytes
+    where
+    long = B.pack [0xf0, Midi.yamaha_code, 0, 0x7a]
+    short = B.pack [0xf0, Midi.yamaha_code, 0x7a]
+
 -- | Wrap sysex codes around the raw bytes.
-bytes_to_syx :: ByteString -> ByteString
-bytes_to_syx bytes = vl1_header
-    <> B.pack [0x7f, 0] -- memory type, memory number
-    <> B.replicate 14 0 -- padding
-    <> B.take size bytes
-    -- 0x42 is the checksum, but vl1 doesn't seem to care if it's right or
-    -- not.
-    <> B.pack [0x42, Midi.eox_byte]
+bytes_to_syx :: Maybe Word8 -> ByteString -> ByteString
+bytes_to_syx memory bytes = append_suffix $
+    vl1_header (2 + 14 + size)
+        -- memory type, memory number
+        <> B.pack (maybe [0x7f, 0] (\n -> [0, n]) memory)
+        <> B.replicate 14 0 -- padding
+        <> B.take size bytes
     where size = 0xc1c - 0x20
 
+append_suffix :: ByteString -> ByteString
+append_suffix bytes = bytes <> B.pack [checksum, Midi.eox_byte]
+    where
+    -- Checksum is the 2s complement of 7bit sum of the data.
+    checksum = (2^7 - val) .&. 0x7f
+    -- Drop vl1_header but keep the magic string.
+    val = B.foldl (+) 0 (B.drop 6 bytes)
 
-vl1_header :: ByteString
-vl1_header = B.pack
-    [ 0xf0, Midi.yamaha_code, 0, 0x7a
-    , 0x18, 0x16 -- byte count
-    ] <> "LM 20117VC"
+checksum :: ByteString -> Word8
+checksum bytes = (2^7 - val) .&. 0x7f
+    where
+    suf = B.drop 6 bytes
+    bs = B.take (B.length suf - 2) suf
+    val = B.foldl (+) 0 bs
+
+-- * record
+
+-- | Each voice has two elements, each with their own PbRange, name, and
+-- controls.
+type ElementInfo = (Control.PbRange, String, [(Midi.Control, [String])])
+
+record_to_patch :: Sysex.Record -> Either String Instrument.Patch
+record_to_patch record = do
+    name <- lookup "name"
+    elt1 <- ifM ((=="on") <$> lookup "elem1 on")
+        (Just <$> extract_element 0 record)
+        (return Nothing)
+    elt2 <- ifM ((=="on") <$> lookup "elem2 on")
+        (Just <$> extract_element 1 record)
+        (return Nothing)
+    vl1_patch name elt1 elt2
+    where
+    lookup :: (Sysex.RecordVal a) => String -> Either String a
+    lookup = flip Sysex.lookup_record record
+
+vl1_patch :: Instrument.InstrumentName -> Maybe ElementInfo
+    -> Maybe ElementInfo -> Either String Instrument.Patch
+vl1_patch name Nothing Nothing = Left $ "both elements off: " ++ name
+vl1_patch name elt1 elt2 =
+    return $ (Instrument.patch inst)
+        { Instrument.patch_tags = map ((,) "vl1-element") names }
+    where
+    inst = Instrument.instrument name cmap pb_range
+    -- These lists are guaranteed to have at least 1 because of the Nothing
+    -- Nothing pattern match above.
+    (pb_ranges, names, cc_groups) = unzip3 $ Maybe.catMaybes [elt1, elt2]
+
+    -- Optimistically take the widest range.
+    Just pb_range = Seq.maximum_on (\(low, high) -> max (abs low) (abs high))
+        pb_ranges
+    cmap = Map.assocs $ Map.mapMaybe highest_prio $
+        Map.unionsWith (++) (map Map.fromList cc_groups)
+    highest_prio cs = List.find (`elem` cs) (map fst vl1_control_map)
+
+extract_element :: Int -> Sysex.Record -> Either String ElementInfo
+extract_element n record = do
+    controls <- forM vl1_control_map $ \(name, has_upper_lower) -> do
+        cc <- lookup [name, "control"]
+        depths <- if has_upper_lower
+            then do
+                upper <- lookup [name, "upper depth"]
+                lower <- lookup [name, "lower depth"]
+                return [upper, lower]
+            else (:[]) <$> lookup [name, "depth"]
+        return (name, cc, depths)
+    pb_up <- lookup ["pitch", "upper depth"]
+    pb_down <- lookup ["pitch", "lower depth"]
+    name <- lookup ["name"]
+    return ((pb_up, pb_down), name, process_controls controls)
+    where
+    lookup :: (Sysex.RecordVal a) => [String] -> Either String a
+    lookup k =
+        Sysex.lookup_record (Seq.join "." (["element", show n] ++ k)) record
+    -- The vl1 mostly uses the midi control list, except sticks some
+    -- internal ones in there.
+    valid_control cc = cc>0 && (cc<11 || cc>15) && cc<120
+    -- TODO 120 is aftertouch, which I could support if ControlMap did
+
+    process_controls :: [(String, Midi.Control, [Word8])]
+        -> [(Midi.Control, [String])]
+    process_controls controls =
+        [(cc, map snd grp) | (cc, grp) <- Seq.keyed_group_on fst by_cc]
+        where
+        by_cc = [(cc, name) | (name, cc, depths) <- controls, valid_control cc,
+            maximum (map abs depths) >= 32]
+
+-- | Vaguely \"more audible\" controls come first.  Having more than one seq
+-- control affecting the same vl1 control is confusing, so when a control is
+-- assigned to more than one control, the one first in this list will get
+-- the control.  That way, if contoller 2 is assigned to both pressure and
+-- amplitude, the control will be called @pressure@.
+--
+-- Of course prominence is also highly dependent on depth, but this is simpler.
+-- I ignore controls below a certain depth anyway.
+--
+-- Paired with the byte offset in the @element parameters@ sysex section.
+vl1_control_map :: [(String, Bool)]
+vl1_control_map =
+    [ ("embouchure", True)
+    , ("pressure", False)
+    , ("amplitude", False)
+    , ("scream", False)
+    , ("growl", False)
+    , ("vibrato", False)
+    , ("dynamic-filter", False)
+    , ("throat-formant", False)
+    , ("breath-noise", False)
+    , ("harmonic-enhancer", False)
+    , ("tonguing", False)
+    , ("damping", False)
+    , ("absorption", False)
+    ]
 
 
 -- * config
@@ -142,9 +324,8 @@ encode = Sysex.encode config
 
 patch_spec :: Specs
 patch_spec = Sysex.assert_valid "patch_spec"
-    [ ("header", Unparsed 6)
-    , ("sysex type", Str 10)
-    , ("memory type", unsigned 127)
+    [ ("header", Constant (vl1_header 3084))
+    , ("memory type", unsigned 127) -- 0 = memory, 7f = buffer
     , ("memory number", unsigned 127)
     , ("", Unparsed 14)
     ] ++ common_spec
@@ -153,8 +334,8 @@ common_spec :: Specs
 common_spec =
     [ ("name", Str 10)
     , ("", Unparsed 6)
-    , ("key mode", unsigned 3)
-    , ("voice mode", unsigned 1)
+    , ("key mode", enum ["mono", "unison", "poly", "part"])
+    , ("voice mode", enum ["single", "dual"])
     , ("split mode", unsigned 2)
     , ("split point", unsigned 127)
     , ("split interval", unsigned 24)
@@ -200,8 +381,8 @@ common_spec =
         [ "flanger", "pitch change", "distortion", "chorus", "phaser"
         , "symphonic", "celeste", "distortion+flanger", "distortion+wah"
         ])
-    , ("elem1 on", bool)
-    , ("elem2 on", bool)
+    , ("elem1 on", enum ["on", "off"]) -- naturally 0 is on, 1 is off
+    , ("elem2 on", enum ["on", "off"])
     , ("effect", Unparsed 10)
     , ("feedback/reverb mode", bool)
     -- TODO just guessing about off
@@ -215,185 +396,43 @@ common_spec =
     ]
 
 element_spec :: Specs
-element_spec =
-    [ ("unparsed", Unparsed 1479)
+element_spec = controls_spec ++
+    [ ("unparsed1", Unparsed (231 - Sysex.spec_bytes config controls_spec))
+    , ("name", Str 10)
+    , ("unparsed2", Unparsed (total - 240)) -- or 242?
     ]
+    where total = 1479
 
-
--- * old
-
-parse_dir :: FilePath -> IO [Instrument.Patch]
-parse_dir dir = do
-    fns <- File.recursive_list_dir (const True) dir
-    parses <- fmap concat $ mapM parse_file fns
-    Parse.warn_parses parses
-
-parse_file :: FilePath -> IO [Either Parsec.ParseError Instrument.Patch]
-parse_file fn = do
-    syxs <- case FilePath.takeExtension fn of
-        -- The patchman .all dumps have 128 patches, but only the first 64
-        -- have valid instruments.
-        ".all" | "patchman" `List.isInfixOf` fn ->
-            take 64 . syx_all <$> File.read_binary fn
-        ".1vc" -> syx_1vc <$> File.read_binary fn
-        ".1bk" -> syx_1bk <$> File.read_binary fn
-        ".syx" -> syx_split <$> File.read_binary fn
-        ".txt" -> return []
-        _ -> Log.warn ("skipping " ++ show fn) >> return []
-    txt <- fromMaybe "" <$>
-        File.ignore_enoent (readFile (FilePath.replaceExtension fn ".txt"))
-    return $ map (parse fn txt) syxs
-
-parse :: FilePath -> String -> [Word8]
-    -> Either Parsec.ParseError Instrument.Patch
-parse fn txt syx = combine fn txt syx <$> Parse.parse_sysex vl1_sysex fn syx
-
-combine :: FilePath -> String -> [Word8] -> Instrument.Patch
-    -> Instrument.Patch
-combine fn txt syx patch = Sysex.add_file fn $ patch
-    { Instrument.patch_text = Seq.strip txt
-    , Instrument.patch_initialize = Parse.make_sysex_init syx
-    }
-
--- | Convert .1vc format to .syx format.  Derived by looking at vlone70
--- conversions with od.
-syx_1vc :: [Word8] -> [[Word8]]
-syx_1vc bytes = [words_to_syx (drop 0xc00 bytes)]
-
-syx_1bk :: [Word8] -> [[Word8]]
-syx_1bk = map words_to_syx . split_1bk
-    where
-    split_1bk bytes =
-        takeWhile (not . all (==0) . take 20) $ map (flip drop bytes) offsets
-    offsets = [0xc00, 0x1800..]
-
-syx_all :: [Word8] -> [[Word8]]
-syx_all = syx_1bk -- turns out they're the same
-
-syx_split :: [Word8] -> [[Word8]]
-    -- The first elt is stuff before the SOX so it's probably null.
-syx_split = drop 1 . Seq.split_with (==Midi.sox_byte)
-
--- | Wrap sysex codes around the raw bytes.
-words_to_syx :: [Word8] -> [Word8]
-words_to_syx bytes = syx_bytes ++ [checksum syx_bytes, 0xf7]
-    where
-    size = 0xc1c - 0x20
-    syx_bytes =
-        [ 0xf0, Midi.yamaha_code, 0, 0x7a
-        , 0x18, 0x16 -- byte count
-        ] ++ map (fromIntegral . fromEnum) ("LM 20117VC" :: String) ++
-        [ 0x7f, 0 ] -- memory type, memory number
-        ++ replicate 14 0 -- padding
-        ++ take size bytes
-    checksum _ = 0x42 -- vl1 doesn't seem to care if this is right or not
-
-vl1_sysex :: Parse.ByteParser Instrument.Patch
-vl1_sysex = do
-    Parse.start_sysex Midi.yamaha_code
-    Parse.one_byte -- device num
-    Parse.match_bytes [0x7a]
-    Parse.n_bytes 2 -- byte count
-    Parse.match_bytes (map (fromIntegral . fromEnum) ("LM 20117VC" :: String))
-    Parse.one_byte -- memory type
-    Parse.one_byte -- memory number
-    Parse.n_bytes 14 -- nulls
-    common <- fmap common_data (Parse.n_bytes 108) -- 32~139
-    elt1 <- fmap element (Parse.n_bytes 1480) -- 140~1619
-    elt2 <- fmap element (Parse.n_bytes 1480) -- 1620~3099
-    return $ vl1_patch common elt1 elt2
-    -- Parse.end_sysex
-    where
-    common_data :: [Word8] -> String
-    common_data = Seq.strip . Parse.to_string . take 10
-
-vl1_patch :: Instrument.InstrumentName -> ElementInfo -> ElementInfo
-    -> Instrument.Patch
-vl1_patch name (pb_range1, name1, cc_groups1) (pb_range2, name2, cc_groups2) =
-    -- Initialization and text will be filled in later.
-    (Instrument.patch inst) { Instrument.patch_tags = tags }
-    where
-    -- Optimistically take the widest range.
-    pb_range = if range pb_range1 > range pb_range2
-        then pb_range1 else pb_range2
-    range (low, high) = max (abs low) (abs high)
-    inst = Instrument.instrument name cmap pb_range
-    tags = maybe_tags [("vl1_elt1", name1), ("vl1_elt2", name2)]
-    cmap = Map.assocs $ Map.mapMaybe highest_prio $
-        Map.unionWith (++) (Map.fromList cc_groups1) (Map.fromList cc_groups2)
-    highest_prio cs = List.find (`elem` cs) control_prios
-
-maybe_tags :: [(String, String)] -> [Instrument.Tag]
-maybe_tags = filter (not . null . snd)
-
--- | Each voice has two elements, each with their own PbRange, name, and
--- controls.
-type ElementInfo = (Control.PbRange, String, [(Midi.Control, [String])])
-
-element :: [Word8] -> ElementInfo
-element bytes = ((pb_up, pb_down), name, c_groups)
-    where
-    (pb_up, pb_down) =
-        (Parse.from_signed_7bit (bytes!!12),
-            Parse.from_signed_7bit (bytes!!13))
-    -- doc says 231~240
-    name = Seq.strip $ Parse.to_string $ take 10 $ drop 231 bytes
-    controls = mapMaybe (get_control bytes) vl1_control_map
-    c_groups = [(cc, map fst grp)
-        | (cc, grp) <- Seq.keyed_group_on snd controls]
-
-get_control :: [Word8] -> Vl1Control -> Maybe (String, Midi.Control)
-get_control bytes (name, offset, depth, upper_lower) = do
-    midi_control <- require valid_control control
-    require (>=32) $ maximum $ map abs depth_bytes
-    return (name, midi_control)
-    where
-    control = fromIntegral (bytes !! offset)
-    depth_bytes = [get_7bit bytes (offset+depth)]
-        ++ if upper_lower then [get_7bit bytes (offset+depth+2)] else []
-    require f v = if f v then Just v else Nothing
-        -- The vl1 mostly uses the midi control list, except sticks some
-        -- internal ones in there.
-    valid_control c = c>0 && (c<11 || c>15) && c<120
-    -- TODO 120 is aftertouch, which I could support if ControlMap did
-
-get_7bit :: [Word8] -> Int -> Int
-get_7bit bytes offset = Parse.from_signed_8bit (Midi.join14 msb lsb)
-    where [msb, lsb] = take 2 (drop offset bytes)
-
--- | (name, sysex_offset, depth_offset, has_upper_lower)
-type Vl1Control = (String, Int, Int, Bool)
-
--- | Vaguely \"more audible\" controls come first.  Having more than one seq
--- control affecting the same vl1 control is confusing, so when a control is
--- assigned to more than one control, the one first in this list will get
--- the control.  That way, if contoller 2 is assigned to both pressure and
--- amplitude, the control will be called @pressure@.
---
--- Of course prominence is also highly dependent on depth, but this is simpler.
--- I ignore controls below a certain depth anyway.
---
--- Paired with the byte offset in the @element parameters@ sysex section.
-vl1_control_map :: [Vl1Control]
-vl1_control_map =
-    [ ("embouchure", 4, 2, True)
-    , ("pressure", 0, 2, False)
-    , ("amplitude", 22, 2, False)
-
-    , ("scream", 26, 3, False)
-    , ("growl", 36, 3, False)
-    , ("vibrato", 14, 2, False)
-
-    , ("dynamic-filter", 46, 2, False)
-    , ("throat-formant", 41, 3, False)
-
-    , ("breath-noise", 31, 3, False)
-    , ("harmonic-enhancer", 50, 2, False)
-
-    , ("tonguing", 18, 2, False)
-    , ("damping", 54, 2, False)
-    , ("absorption", 58, 2, False)
+controls_spec :: Specs
+controls_spec =
+    [ ("pressure", c_simple)
+    , ("embouchure", SubSpec
+        [c_control, c_mode, ("upper depth", depth), ("lower depth", depth)])
+    , ("pitch", SubSpec
+        [ c_control, c_mode
+        , ("upper depth", ranged (-12) 12), ("lower depth", ranged (-12) 12)
+        ])
+    , ("vibrato", SubSpec [c_control, ("", Unparsed 1), c_depth])
+    , ("tonguing", c_simple)
+    , ("amplitude", c_simple)
+    , ("scream", c_complete)
+    , ("breath-noise", c_complete)
+    , ("growl", c_complete)
+    , ("throat-formant", c_complete)
+    , ("dynamic-filter", c_simple)
+    , ("harmonic-enhancer", c_simple)
+    , ("damping", c_simple)
+    , ("absorption", c_simple)
     ]
+    where
+    c_simple = SubSpec [c_control, c_curve, c_depth]
+    c_complete = SubSpec [c_control, c_value, c_curve, c_depth]
 
-control_prios :: [String]
-control_prios = [c | (c, _, _, _) <- vl1_control_map]
+    -- I think if the control is 127, then this control is disabled and
+    -- the rest can be ignored.
+    c_control = ("control", unsigned 127) -- 124)
+    c_value = ("value", unsigned 127)
+    c_mode = ("mode", enum ["mode1", "mode2"]) -- TODO what are these really?
+    c_curve = ("curve", ranged (-16) 16)
+    c_depth = ("depth", depth)
+    depth = ranged (-127) 127

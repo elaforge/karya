@@ -9,22 +9,22 @@ import qualified Instrument.Parse as Parse
 import qualified App.MidiInst as MidiInst
 
 
-name :: FilePath
-name = "morph"
+synth_name :: FilePath
+synth_name = "morph"
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load = MidiInst.load_db (const MidiInst.empty_code) name
+load = MidiInst.load_db (const MidiInst.empty_code) synth_name
 
 make_db :: FilePath -> IO ()
 make_db dir = do
-    patches <- Parse.patch_file (dir </> name)
+    patches <- Parse.patch_file (dir </> synth_name)
     patches <- return $ map
         (Instrument.instrument_#Instrument.pitch_bend_range #= (-12, 12))
         patches
-    MidiInst.save_patches synth patches name dir
+    MidiInst.save_patches synth patches synth_name dir
 
 synth :: Instrument.Synth
-synth = Instrument.synth name synth_controls
+synth = Instrument.synth synth_name synth_controls
 
 synth_controls :: [(Midi.Control, String)]
 synth_controls =

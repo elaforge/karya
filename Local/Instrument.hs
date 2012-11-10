@@ -60,7 +60,7 @@ make_named_dbs names dir = mapM_ ($ dir </> Config.instrument_dir)
 
 dbs :: [(String, FilePath -> IO ())]
 dbs =
-    [ (Morpheus.name, Morpheus.make_db)
-    , (Vl1m.name, Vl1m.make_db)
-    , (Z1.name, Z1.make_db)
+    [ (Morpheus.synth_name, Morpheus.make_db)
+    , (Vl1m.synth_name, Vl1m.make_db)
+    , (Z1.synth_name, Z1.make_db)
     ]

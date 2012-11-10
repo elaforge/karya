@@ -31,6 +31,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
+import qualified Midi.Parse
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Tag as Tag
 
@@ -50,37 +51,36 @@ parse_dir parsers dir = do
         | (fn, Left err) <- zip fns results]
     return $ concat [patches | Right patches <- results]
 
-parse_bank_dump :: Int -> Parser -> FilePath -> IO [Instrument.Patch]
-parse_bank_dump bank parser fn = do
+parse_file :: [Parser] -> FilePath -> ByteString
+    -> Either String [Instrument.Patch]
+parse_file parsers fn bytes = case Either.rights $ map ($bytes) parsers of
+    patches : _ -> Right $ map (initialize_sysex bytes . add_file fn) patches
+    _ -> Left $ "sysex too short: " ++ show bytes
+
+-- | Parse a file just like 'parse_file'.  But this file is expected to be
+-- the dump of the patches currently loaded in the synthesizer, and will be
+-- given ProgramChange msgs for initialization rather than sysex dumps.
+parse_builtins :: Int -> Parser -> FilePath -> IO [Instrument.Patch]
+parse_builtins bank parser fn = do
     bytes <- B.readFile fn
     case parser bytes of
         Left err -> do
             Log.warn $ "parsing " ++ fn ++ ": " ++ err
             return []
-        Right patches -> return
-            [(Instrument.initialize #= initialize n) $ add_file fn p
-                | (n, p) <- zip [0..] patches]
-    where
-    -- Assume the sysex midi channel is 0.
-    initialize n = Instrument.InitializeMidi $
-        map (Midi.ChannelMessage 0) (Midi.program_change bank n)
+        Right patches ->
+            return $ zipWith (initialize_program bank) [0..] patches
 
-parse_file :: [Parser] -> FilePath -> ByteString
-    -> Either String [Instrument.Patch]
-parse_file parsers fn bytes
-    | Just (manuf, rest) <- B.uncons (B.drop 1 bytes) =
-        case Either.rights parses of
-            patches : _ -> Right $ map
-                ((Instrument.initialize #= initialize manuf rest) . add_file fn)
-                patches
-            [] -> case Either.lefts parses of
-                err : _ -> Left err
-                [] -> Left $ "no parsers given for " ++ show fn
-    | otherwise = Left $ "sysex too short: " ++ show bytes
-    where
-    parses = map ($bytes) parsers
-    initialize manuf rest = Instrument.InitializeMidi
-        [Midi.CommonMessage (Midi.SystemExclusive manuf rest)]
+-- Assume the sysex midi channel is 0.
+initialize_program :: Int -> Midi.Program -> Instrument.Patch
+    -> Instrument.Patch
+initialize_program bank n =
+    Instrument.initialize #= Instrument.InitializeMidi
+        (map (Midi.ChannelMessage 0) (Midi.program_change bank n))
+
+initialize_sysex :: ByteString -> Instrument.Patch -> Instrument.Patch
+initialize_sysex bytes =
+    Instrument.initialize #= Instrument.InitializeMidi
+        [Midi.Parse.decode bytes]
 
 add_file :: FilePath -> Instrument.Patch -> Instrument.Patch
 add_file fn patch = patch
@@ -110,27 +110,32 @@ data RecordType = TMap | TUnion | TNum | TStr | TUnparsed
 spec_to_record :: Specs -> Record
 spec_to_record = RMap . List.foldl' add Map.empty
     where
-    add rec (name, Num (Range {})) = Map.insert name (RNum 0) rec
-    add rec (name, Num (Enum (enum:_))) = Map.insert name (RStr enum) rec
-    add _ (name, Num (Enum [])) = error $ name ++ " had an empty Enum"
+    add rec (name, spec) = case spec of
+        Num (Range {}) -> Map.insert name (RNum 0) rec
+        Num (Enum (enum:_)) -> Map.insert name (RStr enum) rec
+        Num (Enum []) -> error $ name ++ " had an empty Enum"
 
-    add rec (_, Bits bits) = List.foldl' add_bit rec bits
-    add rec (name, Str _) = Map.insert name (RStr "") rec
-    add rec (name, SubSpec specs) = Map.insert name (spec_to_record specs) rec
-    add rec (name, List elts specs) = Map.insert name
-        (RMap $ Map.fromList $
-            zip (map show [0..elts-1]) (repeat (spec_to_record specs)))
-        rec
-    add rec (name, Union _enum_name _bytes ((_, specs) : _)) =
-        Map.insert name (RUnion (spec_to_record specs)) rec
-    add _ (name, Union _enum_name _bytes []) =
-        error $ name ++ " had an empty Union"
-    add rec ("", Unparsed _) = rec
-    add rec (name, Unparsed nbytes) =
-        Map.insert name (RUnparsed (B.replicate nbytes 0)) rec
-    add_bit rec (name, (_, Range {})) = Map.insert name (RNum 0) rec
-    add_bit rec (name, (_, Enum (enum : _))) = Map.insert name (RStr enum) rec
-    add_bit _ (name, (_, Enum [])) = error $ name ++ " had an empty Enum"
+        Bits bits -> List.foldl' add_bit rec bits
+        Str _ -> Map.insert name (RStr "") rec
+        SubSpec specs -> Map.insert name (spec_to_record specs) rec
+        List elts specs -> Map.insert name
+            (RMap $ Map.fromList $
+                zip (map show [0..elts-1]) (repeat (spec_to_record specs)))
+            rec
+        Union _enum_name _bytes ((_, specs) : _) ->
+            Map.insert name (RUnion (spec_to_record specs)) rec
+        Union _enum_name _bytes [] ->
+            error $ name ++ " had an empty Union"
+        Unparsed nbytes
+            | null name -> rec
+            | otherwise ->
+                Map.insert name (RUnparsed (B.replicate nbytes 0)) rec
+        Constant {} -> rec
+
+    add_bit rec (name, (_, range)) = case range of
+        Range {} -> Map.insert name (RNum 0) rec
+        Enum (enum : _) -> Map.insert name (RStr enum) rec
+        Enum [] -> error $ name ++ " had an empty Enum"
 
 instance Pretty.Pretty Record where
     format rec = case rec of
@@ -149,9 +154,19 @@ instance RecordVal Int where
     to_val (RNum x) = Just x
     to_val _ = Nothing
 
+instance RecordVal Word8 where
+    from_val = RNum . fromIntegral
+    to_val (RNum x) = Just (fromIntegral x)
+    to_val _ = Nothing
+
 instance RecordVal String where
     from_val = RStr
     to_val (RStr x) = Just x
+    to_val _ = Nothing
+
+instance RecordVal ByteString where
+    from_val = RUnparsed
+    to_val (RUnparsed x) = Just x
     to_val _ = Nothing
 
 val_type :: (RecordVal a) => a -> RecordType
@@ -317,6 +332,7 @@ encode_spec config path record (name, spec) = case spec of
                 val -> throw $ "expected RUnparsed, but got "
                     ++ Pretty.pretty val
             Writer.tell (Builder.byteString bytes)
+    Constant bytes -> Writer.tell (Builder.byteString bytes)
     where
     lookup_map k rmap = maybe (throw (k ++ " not found")) return $
         Map.lookup k rmap
@@ -413,6 +429,11 @@ decode config = decode_from []
                     throw $ "expected " ++ show nbytes ++ " bytes, but got "
                         ++ show (B.length bytes)
                 return [(name, RUnparsed bytes)]
+        Constant expected -> do
+            bytes <- Get.getByteString (B.length expected)
+            if bytes == expected then return []
+                else throw $ "expected " ++ hex expected ++ " but got "
+                    ++ hex bytes
         where
         throw = fail . (show_path (name:path) ++)
 
@@ -494,6 +515,9 @@ data Spec =
     -- unused padding.  On input it will be ignored, and on output will become
     -- zeros.
     | Unparsed Bytes
+    -- | Assert that these bytes are set literally.  This is useful for
+    -- failing quickly when the required header isn't found.
+    | Constant ByteString
     deriving (Show)
 
 data Range = Range Int Int | Enum [EnumName]
@@ -523,6 +547,7 @@ spec_bytes config = sum . map (bytes_of . snd)
     bytes_of (List n specs) = spec_bytes config specs * n
     bytes_of (Union _ n _) = n
     bytes_of (Unparsed n) = n
+    bytes_of (Constant bytes) = B.length bytes
 
 validate :: Specs -> Maybe String
 validate specs = msum (map check specs)
