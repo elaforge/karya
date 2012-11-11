@@ -255,7 +255,8 @@ lc = map Char.toLower
 -- and therefore lookup, but the inst_name field remains unchanged.
 clean_inst_name :: String -> String
 clean_inst_name =
-    Seq.drop_with (\a b -> a == '-' && b == '-')
+    Seq.rdrop_while (=='-') . dropWhile (=='-')
+        . Seq.drop_with (\a b -> a == '-' && b == '-')
         . filter (`elem` Score.inst_valid_chars) . map replace . lc
     where
     replace c
