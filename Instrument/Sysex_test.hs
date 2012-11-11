@@ -70,8 +70,8 @@ test_union = do
                 , ("b", [("val", Sysex.unsigned 255)])
                 ])
             ]
-        union_rmap typ field = rmap
-            [("type", RStr typ), ("field", RUnion (RMap $ rmap field))]
+        union_rmap typ fields = rmap
+            [("type", RStr typ), ("field", RUnion $ rmap fields)]
     uncurry equal (success union_spec (union_rmap "a" [("name", RStr "abc")]))
     uncurry equal (success union_spec (union_rmap "b" [("val", RNum 42)]))
     left_like (f union_spec (union_rmap "c" [("val", RNum 42)]))

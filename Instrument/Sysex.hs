@@ -103,9 +103,7 @@ data Record =
     -- | A List is represented as an RMap with numbered keys.
     RMap RMap
     -- | Which one this is is determined by an RStr elsewhere.
-    -- TODO technically a union could be a scalar, but in practice it's always
-    -- an RMap.  Should I make it an RMap here?
-    | RUnion Record
+    | RUnion RMap
     | RNum Int | RStr String
     | RUnparsed ByteString
     deriving (Eq, Show)
@@ -134,7 +132,7 @@ spec_to_rmap = List.foldl' add Map.empty
                 zip (map show [0..elts-1]) (repeat (spec_to_record specs)))
             rec
         Union _enum_name _bytes ((_, specs) : _) ->
-            Map.insert name (RUnion (spec_to_record specs)) rec
+            Map.insert name (RUnion (spec_to_rmap specs)) rec
         Union _enum_name _bytes [] ->
             error $ name ++ " had an empty Union"
         Unparsed nbytes
@@ -203,7 +201,7 @@ lookup_rmap path rmap = to_val_error $ lookup1 (Seq.split "." path) rmap
                 RMap submap -> case lookup1 fields submap of
                     Left (children, msg) -> Left (field : children, msg)
                     Right val -> Right val
-                RUnion (RMap submap) -> lookup1 (field:fields) submap
+                RUnion submap -> lookup1 (field:fields) submap
                 _ -> Left ([field], "can't lookup field in non-map")
     to_val_error (Left (fields, msg)) =
         Left $ Seq.join "." fields ++ ": " ++ msg
@@ -228,7 +226,7 @@ put_rmap path val rmap = format_err $ put (Seq.split "." path) val rmap
                 RMap submap -> case put fields val submap of
                     Left (children, msg) -> Left (field:children, msg)
                     Right submap -> Right $ Map.insert field (RMap submap) rmap
-                RUnion (RMap submap) -> put (field:fields) val submap
+                RUnion submap -> put (field:fields) val submap
                 _ -> Left ([field], "can't lookup field " ++ show next_field
                     ++ " in non-map")
             | record_type record /= record_type (from_val val) ->
@@ -349,7 +347,7 @@ encode_spec config path rmap (name, spec) = case spec of
             mapM_ (encode_spec config (name : show i : path) rmap) specs
     Union enum_name nbytes enum_specs -> do
         union_rmap <- lookup_field name >>= \x -> case x of
-            RUnion (RMap union_rmap) -> return union_rmap
+            RUnion union_rmap -> return union_rmap
             val -> throw $ "expected RUnion RMap, but got " ++ Pretty.pretty val
         enum <- lookup_field enum_name >>= \x -> case x of
             RStr enum -> return enum
@@ -461,7 +459,7 @@ decode config = decode_from []
                 Nothing -> throw $ "union doesn't contain enum: " ++ enum
             bytes <- Get.getByteString bytes
             record <- either fail (return . fst) $ decode_from path specs bytes
-            return [(name, RUnion (RMap record))]
+            return [(name, RUnion record)]
         Unparsed nbytes
             | null name -> Get.skip nbytes >> return []
             | otherwise -> do

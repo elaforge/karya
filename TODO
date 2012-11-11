@@ -17,7 +17,7 @@ UNSORTED
     * need a mechanism to merge the annotations
     * I can get rid of the patch merging stuff while I'm at it
     * fix z1 parse failures
-    - make RUnion etc. have RMaps instead of Records
+    * make RUnion etc. have RMaps instead of Records
     * drop leading spaces from inst names
     * implement encode for z1 specs
     * modify z1 patches to have (-24, +24) pitch bend and send back
