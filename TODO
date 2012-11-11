@@ -1,81 +1,4 @@
 UNSORTED
-  * get rid of REnum
-  repl
-    * do pprint formatting in the repl
-    * colorize prompt
-    - colorize string literals
-  * browser should scroll up the info pane when you select a new instrument
-  sysex
-    * parse patch dump
-    * try parsing sysex as multi dump or single dump
-    * remove the duplicates, use the multi dump instead
-    * get bank and patch num from the dump, and get rid of the bank file,
-      except for extra tags
-    * bank file can't be used just for annotations, because it wants to set
-      the program change.  I should have a annotation format that's
-      inst-name tag= tag=..., e.g. z1/percussive-ring good=
-    * need a mechanism to merge the annotations
-    * I can get rid of the patch merging stuff while I'm at it
-    * fix z1 parse failures
-    * make RUnion etc. have RMaps instead of Records
-    * drop leading spaces from inst names
-    * implement encode for z1 specs
-    * modify z1 patches to have (-24, +24) pitch bend and send back
-
-    * sysex encode decode needs to get two bytes for 7bit
-      have a separate 7 bit mode
-      Actually e-mu does it in yet another way, I think I want to pass in
-      parse functions to specialize for each synth.
-      Really only Num needs to be specialized, and Num needs a Enum in
-      addition to just number.
-    * Unparsed "" is special cased to always be zeros and not go into the
-      Record.
-    * Specs = [(Name, Spec)], and Bits can have a dummy name
-    z1
-      - convert patches to larger pitch bend and send them back
-      - split large sysexes, otherwise initialization wants to send the entire
-        dump
-      - I need control over which program and bank the patches go when they
-        are initialized.  I can use the card as scratch space.
-      - I also need to initialize a new multiset, and give the score
-        a multiset config, or derive one from the midi config.
-
-    * add Constant Spec so I can assert sysex headers
-    + convert vl1 to new sysex scheme
-      * pull control info out
-      / ByteString instance for unparsed makes "" ambiguous
-      * read txt files
-      * lots of "both elements off", what does that really mean?
-      - test sending sysexes back
-      - move patches to new format
-    - figure out how to set category for vl1 patches
-      *word shorthand for category=word?
-      but I want to use the inst name, not the score name...
-    * get rid of old sysex parser
-    - parser for morpheus
-
-  * browser should show what calls an instrument introduces, and which cmds
-  / in save/z1, second lower octave note doesn't trigger
-    For some reason the performer is putting it on channel 4, but only when
-    the other notes are present.
-    Not a bug!
-  * If you save a state with the step play selection on, it gets stuck on
-    since stop won't clear it and advance thinks there's a step state.
-  * In fact I shouldn't save selections at all, or maybe just the insert
-    selection.  Clear them on load.
-  - It's annoying how you have to rebuild the entire inst db when you update
-    a bank file.  It should keep track of timestamps.  Why not use shake?
-    Or just load from the bank files each time.
-    But then I would get warnings about merges etc. on every load.
-    So I think make_db has to take an arg about which db to rebuild.
-    Then 'mk db' will build make_db, and rerun it for the dbs that need
-    updating.
-  * z1 doesn't respond to AllSoundsOff in multi mode.  Reaper always sends
-    NoteOff, so I think NoteOff is the only reliable way.
-    So I need to keep track of the note-on map
-    I think to be reliable this should go at the low level, otherwise Cmd
-    needs a note-on map and play needs one and they may step on each other.
-    I think a wrapper around the midi out could do that.
   - the same place that updates the status could use updates to clear caches
     for cmds or for TimeStep
     Clear when: inst changed, so if any performance was regenerated.  In fact,
@@ -83,11 +6,7 @@ UNSORTED
     But where do I put it while the performance is still waiting?  I guess
     I can stick stuff in the performance without forcing the events.
   - TimeStep could use vector instead of list
-  + can I create sysex to automatically configure z1 multi mode?
   - responder should catch exceptions
-  * LState.rename causes an exception: save/z1/repl: inappropriate type
-  * program change not working for z1
-  * z1 rt msgs show up as UnknownMessage
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
   - Managed to crash by undoing while editing, I think.  I wound up with
@@ -1202,6 +1121,21 @@ Instrument DB / browser:
   - search lang supports quotes
   * search lang supports ! to exclude a term
   * ability to edit tags, esp. add "favorite rating"
+  sysex
+    z1
+      - convert patches to larger pitch bend and send them back
+      - split large sysexes, otherwise initialization wants to send the entire
+        dump
+      - I need control over which program and bank the patches go when they
+        are initialized.  I can use the card as scratch space.
+      - I also need to initialize a new multiset, and give the score
+        a multiset config, or derive one from the midi config.
+    vl1
+      - test sending sysexes back
+      - move patches to new format
+      - figure out how to set category for builtin patches
+        *word shorthand for category=word?
+        but I want to use the inst name, not the score name...
 
 jack: JACK:
   bugs
