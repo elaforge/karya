@@ -19,6 +19,7 @@ import Util.Control
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Num as Num
+import Util.Pretty (pprint)
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -55,22 +56,37 @@ synth = Instrument.synth synth_name []
 -- * parse
 
 test_check = do
-    fs <- File.list_dir "flugel"
-    forM_ fs $ \f -> do
-        bs <- fix_sysex <$> B.readFile f
-        print (f, checksum bs, Num.hex $ B.index bs (B.length bs - 2))
+    bs <- fix_sysex <$> B.readFile "tmp/vl0.syx"
+    print (Num.hex (checksum bs))
+    -- fs <- File.list_dir "flugel"
+    -- forM_ fs $ \f -> do
+    --     bs <- fix_sysex <$> B.readFile f
+    --     print (f, checksum bs, Num.hex $ B.index bs (B.length bs - 2))
 
 test_split = do
     bytes <- B.readFile $ "inst_db" </> synth_name </> builtin
     let syxs = split_1bk (Just 0) bytes
-    forM_ (zip [0..] syxs) $ \(n, syx) ->
-        B.writeFile ("tmp/vl" ++ show n ++ ".syx") syx
+    forM_ (zip [0..] (take 1 syxs)) $ \(n, syx) ->
+        B.writeFile ("tmp/vl" ++ show n ++ ".syx") (unfix_sysex syx)
 
 test_record = do
-    -- syxs <- file_to_syx "patchman1.syx"
-    -- syxs <- file_to_syx $ "inst_db" </> synth_name </> builtin
-    syxs <- file_to_syx $ "patchman1.syx"
+    -- let fn = "./inst_db/vl1/sysex/krikke/babyphon/septictank(vl1).syx"
+    -- let fn = "tmp/vl0.syx"
+    -- let fn = "record-sysex0.syx"
+    -- let fn = "inst_db/vl1/" ++ builtin
+    let fn = "patchman1.syx"
+    syxs <- file_to_syx fn
     return $ map parse_sysex syxs
+
+dump_instruments :: FilePath -> IO ()
+dump_instruments fn = do
+    results <- parse_file fn
+    let name_of = Instrument.inst_name . Instrument.patch_instrument
+    pprint $ map (fmap name_of) results
+
+-- ***  Local/Instrument/Vl1m.hs:91 [parse_dir] - parsing "./inst_db/vl1/sysex/krikke/babyphon/septictank(vl1).syx"/1: both elements off: SepticTank
+-- ***  Local/Instrument/Vl1m.hs:91 [parse_dir] - parsing "./inst_db/vl1/sysex/krikke/babyphon/septictank(vl1).syx"/2: too few bytes
+-- From:   demandInput
 
 test_patch = do
     Right r : _ <- test_record
@@ -109,7 +125,7 @@ combine fn txt syx patch = Sysex.add_file fn $ patch
         Instrument.InitializeMidi [Midi.Parse.decode syx]
     }
 
-parse_sysex :: ByteString -> Either String Sysex.Record
+parse_sysex :: ByteString -> Either String Sysex.RMap
 parse_sysex bytes = fst <$> decode patch_spec bytes
 
 file_to_syx :: FilePath -> IO [ByteString]
@@ -193,17 +209,17 @@ checksum bytes = (2^7 - val) .&. 0x7f
 -- controls.
 type ElementInfo = (Control.PbRange, String, [(Midi.Control, [String])])
 
-record_to_patch :: Sysex.Record -> Either String Instrument.Patch
-record_to_patch record = do
+record_to_patch :: Sysex.RMap -> Either String Instrument.Patch
+record_to_patch rmap = do
     name <- lookup "name"
-    elt1 <- extract_element 0 record
+    elt1 <- extract_element 0 rmap
     maybe_elt2 <- ifM ((=="dual") <$> lookup "voice mode")
-        (Just <$> extract_element 1 record)
+        (Just <$> extract_element 1 rmap)
         (return Nothing)
     vl1_patch name elt1 maybe_elt2
     where
     lookup :: (Sysex.RecordVal a) => String -> Either String a
-    lookup = flip Sysex.lookup_record record
+    lookup = flip Sysex.lookup_rmap rmap
 
 vl1_patch :: Instrument.InstrumentName -> ElementInfo
     -> Maybe ElementInfo -> Either String Instrument.Patch
@@ -222,8 +238,8 @@ vl1_patch name elt1 maybe_elt2 =
         Map.unionsWith (++) (map Map.fromList cc_groups)
     highest_prio cs = List.find (`elem` cs) (map fst vl1_control_map)
 
-extract_element :: Int -> Sysex.Record -> Either String ElementInfo
-extract_element n record = do
+extract_element :: Int -> Sysex.RMap -> Either String ElementInfo
+extract_element n rmap = do
     controls <- forM vl1_control_map $ \(name, has_upper_lower) -> do
         cc <- lookup [name, "control"]
         depths <- if has_upper_lower
@@ -239,8 +255,7 @@ extract_element n record = do
     return ((pb_up, pb_down), name, process_controls controls)
     where
     lookup :: (Sysex.RecordVal a) => [String] -> Either String a
-    lookup k =
-        Sysex.lookup_record (Seq.join "." (["element", show n] ++ k)) record
+    lookup k = Sysex.lookup_rmap (Seq.join "." (["element", show n] ++ k)) rmap
     -- The vl1 mostly uses the midi control list, except sticks some
     -- internal ones in there.
     valid_control cc = cc>0 && (cc<11 || cc>15) && cc<120
@@ -318,10 +333,10 @@ range_bytes :: Sysex.NumRange -> Int
 range_bytes (low, high) = ceiling $ logBase 2 (fromIntegral range + 1) / 7
     where range = if low < 0 then high - low else high
 
-decode :: Specs -> ByteString -> Either String (Sysex.Record, ByteString)
+decode :: Specs -> ByteString -> Either String (Sysex.RMap, ByteString)
 decode = Sysex.decode config
 
-encode :: Specs -> Sysex.Record -> Either String ByteString
+encode :: Specs -> Sysex.RMap -> Either String ByteString
 encode = Sysex.encode config
 
 -- * specs

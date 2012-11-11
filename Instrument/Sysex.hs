@@ -74,7 +74,7 @@ try_parsers :: [Parser] -> ByteString -> Either String [Instrument.Patch]
 try_parsers parsers bytes = case Either.rights results of
     patches : _ -> Right patches
     _ -> Left $ "didn't match any parsers: "
-        ++ Seq.join "; " (Either.lefts results)
+        ++ Seq.join "; " (map Seq.strip (Either.lefts results))
     where results = map ($bytes) parsers
 
 -- Assume the sysex midi channel is 0.
@@ -98,10 +98,13 @@ add_file fn patch = patch
 
 -- * record
 
+type RMap = Map.Map Name Record
 data Record =
     -- | A List is represented as an RMap with numbered keys.
-    RMap (Map.Map Name Record)
+    RMap RMap
     -- | Which one this is is determined by an RStr elsewhere.
+    -- TODO technically a union could be a scalar, but in practice it's always
+    -- an RMap.  Should I make it an RMap here?
     | RUnion Record
     | RNum Int | RStr String
     | RUnparsed ByteString
@@ -114,9 +117,10 @@ data RecordType = TMap | TUnion | TNum | TStr | TUnparsed
 
 -- | Create a Record from a Spec, defaulting everything to 0, "", or the first
 -- enum val.
-spec_to_record :: Specs -> Record
-spec_to_record = RMap . List.foldl' add Map.empty
+spec_to_rmap :: Specs -> RMap
+spec_to_rmap = List.foldl' add Map.empty
     where
+    spec_to_record = RMap . spec_to_rmap
     add rec (name, spec) = case spec of
         Num (Range {}) -> Map.insert name (RNum 0) rec
         Num (Enum (enum:_)) -> Map.insert name (RStr enum) rec
@@ -187,42 +191,52 @@ record_type r = case r of
     RStr {} -> TStr
     RUnparsed {} -> TUnparsed
 
-lookup_record :: forall a. (RecordVal a) => String -> Record -> Either String a
-lookup_record path record =
-    to_val_error =<< lookup1 (Seq.split "." path) record
+lookup_rmap :: forall a. (RecordVal a) => String -> RMap -> Either String a
+lookup_rmap path rmap = to_val_error $ lookup1 (Seq.split "." path) rmap
     where
-    lookup1 [] record = Right record
-    lookup1 (field : fields) record = case record of
-        RMap m -> lookup1 fields
-            =<< maybe (Left $ "not found: " ++ show field)
-                Right (Map.lookup field m)
-        RUnion rec -> lookup1 (field:fields) rec
-        _ -> Left $ "can't lookup " ++ show field ++ " in non-map"
-    to_val_error v = case to_val v of
+    lookup1 [] _ = Left ([], "can't lookup empty field")
+    lookup1 (field : fields) rmap = case Map.lookup field rmap of
+        Nothing -> Left ([field], "not found")
+        Just record
+            | null fields -> Right record
+            | otherwise -> case record of
+                RMap submap -> case lookup1 fields submap of
+                    Left (children, msg) -> Left (field : children, msg)
+                    Right val -> Right val
+                RUnion (RMap submap) -> lookup1 (field:fields) submap
+                _ -> Left ([field], "can't lookup field in non-map")
+    to_val_error (Left (fields, msg)) =
+        Left $ Seq.join "." fields ++ ": " ++ msg
+    to_val_error (Right v) = case to_val v of
         Nothing -> Left $ path ++ ": expected a "
             ++ show (val_type rtype) ++ " but got " ++ show v
         Just val -> Right val
     rtype :: a
     rtype = error "unevaluated"
 
-put_record :: (Show a, RecordVal a) => String -> a -> Record
-    -> Either String Record
-put_record path val record = put (Seq.split "." path) val record
+-- | Put the given val into the rmap at a certain path.  This only modifies
+-- existing fields, it won't create new ones, and you can't change the type
+-- of a field.
+put_rmap :: (Show a, RecordVal a) => String -> a -> RMap -> Either String RMap
+put_rmap path val rmap = format_err $ put (Seq.split "." path) val rmap
     where
-    put [] val old_val
-        | record_type old_val == record_type (from_val val) =
-            Right (from_val val)
-        | otherwise = Left $ "old val " ++ show old_val
-            ++ " is a different type than " ++ show val
-    put (field : fields) val record = case record of
-        RMap m -> do
-            sub <- maybe (Left $ "field not found: " ++ field) return $
-                Map.lookup field m
-            rec <- put fields val sub
-            return $ RMap $ Map.insert field rec m
-        RUnion rec -> put (field:fields) val rec
-        _ -> Left $ "can't look up " ++ field ++ " in non-map: "
-            ++ show (record_type record)
+    put [] _ _ = Left ([], "can't put empty field")
+    put (field : fields) val rmap = case Map.lookup field rmap of
+        Nothing -> Left ([field], "not found")
+        Just record
+            | next_field : _ <- fields -> case record of
+                RMap submap -> case put fields val submap of
+                    Left (children, msg) -> Left (field:children, msg)
+                    Right submap -> Right $ Map.insert field (RMap submap) rmap
+                RUnion (RMap submap) -> put (field:fields) val submap
+                _ -> Left ([field], "can't lookup field " ++ show next_field
+                    ++ " in non-map")
+            | record_type record /= record_type (from_val val) ->
+                Left ([field], "old val " ++ show record
+                    ++ " is a different type than " ++ show val)
+            | otherwise -> Right $ Map.insert field (from_val val) rmap
+    format_err (Left (fields, msg)) = Left $ Seq.join "." fields ++ ": " ++ msg
+    format_err (Right val) = Right val
 
 -- * util
 
@@ -283,9 +297,8 @@ config_8bit = Config decode_num encode_num (const 1)
 
 type EncodeM a = Error.ErrorT Error (Writer.Writer Builder.Builder) a
 
-encode :: Config -> Specs -> Record -> Either Error ByteString
-encode config specs record =
-    run_encode (mapM_ (encode_spec config [] record) specs)
+encode :: Config -> Specs -> RMap -> Either Error ByteString
+encode config specs rmap = run_encode (mapM_ (encode_spec config [] rmap) specs)
 
 run_encode :: EncodeM () -> Either Error ByteString
 run_encode m = case Writer.runWriter (Error.runErrorT m) of
@@ -293,15 +306,15 @@ run_encode m = case Writer.runWriter (Error.runErrorT m) of
     (Right (), builder) ->
         Right $ Lazy.toStrict $ Builder.toLazyByteString builder
 
-encode_spec :: Config -> [String] -> Record -> (Name, Spec) -> EncodeM ()
-encode_spec config path record (name, spec) = case spec of
+encode_spec :: Config -> [String] -> RMap -> (Name, Spec) -> EncodeM ()
+encode_spec config path rmap (name, spec) = case spec of
     Num range -> do
         num <- either throw return . encode_range range
             =<< lookup_field name
         Writer.tell $ Builder.byteString $
             encode_num config (num_range range) num
     Bits bits -> do
-        b <- either (uncurry throw_with) return $ encode_byte record bits
+        b <- either (uncurry throw_with) return $ encode_byte rmap bits
         Writer.tell (Builder.word8 b)
     Str chars -> do
         str <- lookup_field name >>= \x -> case x of
@@ -314,25 +327,30 @@ encode_spec config path record (name, spec) = case spec of
                 ++ ": " ++ show str
         Writer.tell (Builder.string7 padded)
     SubSpec specs -> do
-        sub_record <- lookup_field name
+        sub_record <- lookup_field name >>= \x -> case x of
+            RMap rmap -> return rmap
+            rec -> throw $ "non-RMap child of a SubSpec: " ++ Pretty.pretty rec
         mapM_ (encode_spec config (name:path) sub_record) specs
     List elts specs -> do
         records <- lookup_field name >>= \x -> case x of
-            RMap records
-                | Map.size records == elts ->
-                    mapM (\k -> lookup_map k records) (map show [0..elts-1])
+            RMap rmap
+                | Map.size rmap == elts ->
+                    mapM (\k -> lookup_map k rmap) (map show [0..elts-1])
                 | otherwise -> throw $ "expected RMap list of length "
                     ++ show elts ++ " but got length "
-                    ++ show (Map.size records)
+                    ++ show (Map.size rmap)
             val -> throw $ "expected RMap list, but got "
                 ++ Pretty.pretty val
-        forM_ (zip [0..] records) $ \(i, rec) ->
-            mapM_ (encode_spec config (name : show i : path) rec) specs
+        rmaps <- forM records $  \x -> case x of
+            RMap rmap -> return rmap
+            rec -> throw $ "non-RMap child of an RMap list: "
+                ++ Pretty.pretty rec
+        forM_ (zip [0..] rmaps) $ \(i, rmap) ->
+            mapM_ (encode_spec config (name : show i : path) rmap) specs
     Union enum_name nbytes enum_specs -> do
-        union_record <- lookup_field name >>= \x -> case x of
-            RUnion union_record -> return union_record
-            val -> throw $ "expected RUnion, but got "
-                ++ Pretty.pretty val
+        union_rmap <- lookup_field name >>= \x -> case x of
+            RUnion (RMap union_rmap) -> return union_rmap
+            val -> throw $ "expected RUnion RMap, but got " ++ Pretty.pretty val
         enum <- lookup_field enum_name >>= \x -> case x of
             RStr enum -> return enum
             val -> throw $ "expeted RStr, but got " ++ Pretty.pretty val
@@ -341,7 +359,7 @@ encode_spec config path record (name, spec) = case spec of
             Nothing -> throw $ "not found in union "
                 ++ show (map fst enum_specs) ++ ": " ++ enum
         bytes <- either Error.throwError return $ run_encode $
-            mapM_ (encode_spec config (name:path) union_record) specs
+            mapM_ (encode_spec config (name:path) union_rmap) specs
         Writer.tell $ Builder.byteString $ bytes
             <> B.replicate (nbytes - B.length bytes) 0
     Unparsed nbytes
@@ -360,9 +378,9 @@ encode_spec config path record (name, spec) = case spec of
     where
     lookup_map k rmap = maybe (throw (k ++ " not found")) return $
         Map.lookup k rmap
-    lookup_field field = case rmap_lookup record field of
-        Left err -> Error.throwError $ prefix ++ err
-        Right val -> return val
+    lookup_field field = case rmap_lookup rmap field of
+            Left err -> Error.throwError $ prefix ++ err
+            Right val -> return val
         where
         prefix
             | field == name = show_path (name : path)
@@ -370,10 +388,10 @@ encode_spec config path record (name, spec) = case spec of
     throw msg = Error.throwError $ show_path (name:path) ++ msg
     throw_with field msg = Error.throwError $ show_path (field:path) ++ msg
 
-encode_byte :: Record -> [(Name, BitField)] -> Either (Name, Error) Word8
-encode_byte record bits = do
+encode_byte :: RMap -> [(Name, BitField)] -> Either (Name, Error) Word8
+encode_byte rmap bits = do
     let (names, fields) = unzip bits
-    vals <- mapM (\name -> add_name name $ rmap_lookup record name) names
+    vals <- mapM (\name -> add_name name $ rmap_lookup rmap name) names
     bs <- zipWithM encode1 (zip names fields) vals
     return $ encode_bits (map fst fields) bs
     where
@@ -395,20 +413,19 @@ encode_range (Enum enums) (RStr enum)
 encode_range _ record =
     Left $ "expected a num or str, but got " ++ show record
 
-rmap_lookup :: Record -> Name -> Either Error Record
-rmap_lookup record name = case record of
-    RMap rmap -> case Map.lookup name rmap of
-        Nothing -> Left $ "not found in: " ++ Pretty.pretty (Map.keys rmap)
-        Just val -> Right val
-    _ -> Left $ "can't lookup name in non-map " ++ show record
+rmap_lookup :: RMap -> Name -> Either Error Record
+rmap_lookup rmap name = case Map.lookup name rmap of
+    Nothing -> Left $ "not found in: " ++ Pretty.pretty (Map.keys rmap)
+    Just val -> Right val
 
 -- * decode
 
-decode :: Config -> Specs -> ByteString -> Either Error (Record, ByteString)
+decode :: Config -> Specs -> ByteString -> Either Error (RMap, ByteString)
 decode config = decode_from []
     where
-    decode_from path specs bytes = Get.runGetState (rmap path [] specs) bytes 0
-    rmap _ collect [] = return $ RMap (Map.fromList collect)
+    decode_from path specs bytes = either (Left . Seq.strip) Right $
+        Get.runGetState (rmap path [] specs) bytes 0
+    rmap _ collect [] = return (Map.fromList collect)
     rmap path collect (spec:specs) = do
         vals <- field path collect spec
         -- Debug.tracepM "vals" vals
@@ -428,10 +445,10 @@ decode config = decode_from []
             return [(name, RStr (Seq.strip (Char8.unpack str)))]
         SubSpec specs -> do
             subs <- rmap (name : path) [] specs
-            return [(name, subs)]
+            return [(name, RMap subs)]
         List elts specs -> do
             subs <- forM [0 .. elts-1] $ \i ->
-                rmap (show i : name : path) [] specs
+                RMap <$> rmap (show i : name : path) [] specs
             return [(name, RMap $ Map.fromList $
                 zip (map show [0..elts-1]) subs)]
         Union enum_name bytes enum_specs -> do
@@ -444,7 +461,7 @@ decode config = decode_from []
                 Nothing -> throw $ "union doesn't contain enum: " ++ enum
             bytes <- Get.getByteString bytes
             record <- either fail (return . fst) $ decode_from path specs bytes
-            return [(name, RUnion record)]
+            return [(name, RUnion (RMap record))]
         Unparsed nbytes
             | null name -> Get.skip nbytes >> return []
             | otherwise -> do
@@ -529,13 +546,17 @@ from_signed bits num
 
 type Specs = [(Name, Spec)]
 data Spec =
+    -- | A set of bitfields encoded in a single byte.  The BitField widths must
+    -- add up to 8.  They start at the least significant end of the byte, so
+    -- given @[(\"a\", (1, Range 0 1)), (\"b\", (7, Range 0 1))]@, @a@ is from
+    -- the least significant bit.
     Bits [(Name, BitField)]
     | Num Range | Str Bytes | SubSpec Specs
     | List Int Specs
     -- | The content of this section depends on a previous enum value.
     -- The Name is the name of the enum to reference
     | Union Name Bytes [(EnumName, Specs)]
-    -- | A chunk of unparsed bytes.  If the name is "", then its considered
+    -- | A chunk of unparsed bytes.  If the name is \"\", then its considered
     -- unused padding.  On input it will be ignored, and on output will become
     -- zeros.
     | Unparsed Bytes

@@ -38,7 +38,6 @@ test_encode_decode = do
     left_like (f str_spec (rmap [("name", RStr "too long")]))
         "too many characters"
     left_like (f str_spec (rmap [])) "not found"
-    left_like (f str_spec (RStr "foo")) "can't lookup name in non-map"
 
     let bits_spec = [("", Sysex.Bits
             [ ("a", Sysex.bits 1)
@@ -72,7 +71,7 @@ test_union = do
                 ])
             ]
         union_rmap typ field = rmap
-            [("type", RStr typ), ("field", RUnion (rmap field))]
+            [("type", RStr typ), ("field", RUnion (RMap $ rmap field))]
     uncurry equal (success union_spec (union_rmap "a" [("name", RStr "abc")]))
     uncurry equal (success union_spec (union_rmap "b" [("val", RNum 42)]))
     left_like (f union_spec (union_rmap "c" [("val", RNum 42)]))
@@ -80,8 +79,35 @@ test_union = do
     left_like (f union_spec (union_rmap "a" [("xyz", RStr "abc")]))
         "field.name: not found"
 
-rmap :: [(String, Record)] -> Record
-rmap = RMap . Map.fromList
+type Val = Either String
+
+test_lookup_put_rmap = do
+    let make str num substr = rmap
+            [ ("str", RStr str), ("num", RNum num)
+            , ("rmap", RMap $ rmap [("a", RStr substr)])
+            ]
+        rm = make "str" 0 "substr"
+    let lookup :: (Sysex.RecordVal a) => String -> Val a
+        lookup k = Sysex.lookup_rmap k rm
+        put :: (Show a, Sysex.RecordVal a) => String -> a -> Val Sysex.RMap
+        put k v = Sysex.put_rmap k v rm
+    equal (lookup "str" :: Val String) (Right "str")
+    equal (lookup "rmap.a" :: Val String) (Right "substr")
+    left_like (lookup "str" :: Val Int) "str: expected a TNum"
+    left_like (lookup "rmap.a" :: Val Int) "rmap.a: expected a TNum"
+    left_like (lookup "rmap.z" :: Val Int) "rmap.z: not found"
+
+    equal (put "str" ("new" :: String)) $ Right (make "new" 0 "substr")
+    equal (put "num" (10 :: Int)) $ Right (make "str" 10 "substr")
+    equal (put "rmap.a" ("new" :: String)) $ Right (make "str" 0 "new")
+    left_like (put "str" (0 :: Int)) "str: *is a different type"
+    left_like (put "rmap.a" (0 :: Int)) "rmap.a: *is a different type"
+    left_like (put "rmap.z" (0 :: Int)) "rmap.z: not found"
+    left_like (put "str.a" (0 :: Int))
+        "str: can't lookup field \"a\" in non-map"
+
+rmap :: [(String, Record)] -> Sysex.RMap
+rmap = Map.fromList
 
 encode = Sysex.encode Sysex.config_8bit
 decode = Sysex.decode Sysex.config_8bit
