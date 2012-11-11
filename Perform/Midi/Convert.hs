@@ -85,7 +85,8 @@ convert_inst lookup_inst score_inst attrs = do
     case maybe_key of
         Nothing | kmap_attrs /= Score.no_attrs ->
             Log.warn $ "attrs have no match in keyswitches or keymap of "
-                ++ Pretty.pretty midi_inst ++ ": " ++ Pretty.pretty kmap_attrs
+                ++ Pretty.pretty (Instrument.inst_score midi_inst) ++ ": "
+                ++ Pretty.pretty kmap_attrs
         -- If there was a keymap and lookup succeeded then all the attributes
         -- are accounted for.
         _ -> return ()
