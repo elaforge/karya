@@ -10,9 +10,10 @@ import Util.Test
 import qualified Util.Thread as Thread
 import qualified Util.TimeVector as TimeVector
 
+import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
-import qualified Ui.UiTest as UiTest
+
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -227,10 +228,6 @@ run_timeout timeout action = do
     mapM_ Concurrent.killThread [th1, th2]
     return result
 
--- print_msgs = mapM_ (putStrLn . show_msg)
--- show_msg (Midi.WriteMessage dev ts msg) =
---     show dev ++ ": " ++ pretty ts ++ ": " ++ show msg
-
 test_pitch_curve = do
     let event pitch = mkpevent (1, 0.5, pitch, [])
     let f evt = Seq.drop_dups id (map Midi.wmsg_msg msgs)
@@ -268,26 +265,64 @@ test_no_pitch = do
     equal logs ["Perform: no pitch signal"]
 
 test_keyswitch = do
-    let extract msgs = [(wmsg_ts wmsg, key)
-            | wmsg@(Midi.WriteMessage { Midi.wmsg_msg =
-                Midi.ChannelMessage _ (Midi.NoteOn key _) })
-            <- msgs]
-        ks_inst ks = inst1 { Instrument.inst_keyswitch = ks }
-        with_addr (ks, note, start, dur) =
-            (mkevent (ks_inst ks, note, start, dur, []), (dev1, 0))
-        ks1 = Just (Instrument.Keyswitch 1)
-        ks2 = Just (Instrument.Keyswitch 2)
-    let f evts = (extract msgs, warns)
-            where (msgs, warns) = perform_notes (map with_addr evts)
+    let e_note_on = mapMaybe $ \wmsg ->
+            ((,) (wmsg_ts wmsg)) <$> note_on_key (Midi.wmsg_msg wmsg)
+        e_note = mapMaybe $ \wmsg ->
+            ((,) (wmsg_ts wmsg)) <$> note_key (Midi.wmsg_msg wmsg)
+        ks_inst ks hold = inst1
+            { Instrument.inst_keyswitch = ks
+            , Instrument.inst_hold_keyswitch = hold
+            }
+        with_addr (ks, hold, note, start, dur) =
+            (mkevent (ks_inst ks hold, note, start, dur, []), (dev1, 0))
+        ks1 = Just (Instrument.Keyswitch Key.c1)
+        ks2 = Just (Instrument.Keyswitch Key.d1)
+    let f extract evts = first extract $ perform_notes (map with_addr evts)
 
-    -- redundant ks suppressed.
-    equal (f [(ks1, "a", 0, 1), (ks1, "b", 10, 10)])
-        ([(-4, 1), (0, 60), (10000, 61)], [])
-    equal (f [(ks1, "a", 0, 1), (ks2, "b", 10, 10)])
-        ([(-4, 1), (0, 60), (9996, 2), (10000, 61)], [])
+    -- Redundant ks not emitted.
+    equal (f e_note_on [(ks1, False, "a", 0, 1), (ks1, False, "b", 10, 10)])
+        ( [ (-4, Key.c1)
+          , (0, Key.c4)
+          , (10000, Key.cs4)
+          ]
+        , []
+        )
+    -- Keyswitch changed.
+    equal (f e_note_on [(ks1, False, "a", 0, 1), (ks2, False, "b", 10, 10)])
+        ( [ (-4, Key.c1), (0, Key.c4)
+          , (9996, Key.d1), (10000, Key.cs4)
+          ]
+        , []
+        )
+    -- No keyswitch to keyswitch.
+    equal (f e_note_on [(Nothing, False, "a", 0, 1), (ks1, False, "b", 10, 10)])
+        ( [ (0, Key.c4)
+          , (9996, Key.c1), (10000, Key.cs4)
+          ]
+        , []
+        )
 
-    equal (f [(Nothing, "a", 0, 1), (ks1, "b", 10, 10)])
-        ([(0, 60), (9996, 1), (10000, 61)], [])
+    -- Hold keyswitch.
+    equal (f e_note [(ks1, True, "a", 0, 1), (ks1, True, "b", 1, 1),
+            (Nothing, False, "c", 2, 1)])
+        ( [ (-4, (True, Key.c1))
+          , (0, (True, Key.c4))
+          , (1000, (False, Key.c4)), (1000, (True, Key.cs4))
+          , (2000, (False, Key.cs4)), (2000, (False, Key.c1))
+          , (2000, (True, Key.d4)), (3000, (False, Key.d4))
+          ]
+        , []
+        )
+
+note_on_key :: Midi.Message -> Maybe Midi.Key
+note_on_key key
+    | Just (True, key) <- note_key key = Just key
+    | otherwise = Nothing
+
+note_key :: Midi.Message -> Maybe (Bool, Midi.Key)
+note_key (Midi.ChannelMessage _ (Midi.NoteOn key _)) = Just (True, key)
+note_key (Midi.ChannelMessage _ (Midi.NoteOff key _)) = Just (False, key)
+note_key _ = Nothing
 
 perform :: Instrument.Config -> [Perform.Event]
     -> ([Midi.WriteMessage], [String])

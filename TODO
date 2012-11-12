@@ -1,5 +1,5 @@
 UNSORTED
-  - spicy guitar uses key swiches that have to be held down.  I could set an
+  * spicy guitar uses key swiches that have to be held down.  I could set an
     instrument config, but what if I want to apply the articulation to a note
     that's already sounding?  I guess in that case I can just write it as
     a plain note, with a call that just sets the keyswitch pitch.

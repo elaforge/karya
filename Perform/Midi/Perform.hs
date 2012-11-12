@@ -11,7 +11,7 @@
 
     Score.Event level Attributes are mapped to keyswitches.  This happens at
     Convert by 'MidiDb.LookupMidiInstrument' so that the Perform.Events can get
-    their slightly different Instruments.  It's up to the conversion code to
+    their slightly different Instruments.  It's up to "Perform.Midi.Convert" to
     convert an arbitrary set of attributes into a keyswitch.
 -}
 module Perform.Midi.Perform where
@@ -302,7 +302,7 @@ type NoteOffMap = Map.Map Instrument.Addr RealTime
 empty_perform_state :: PerformState
 empty_perform_state = (Map.empty, Map.empty)
 
--- | Given an ordered list of note events, produce the apprapriate midi msgs.
+-- | Given an ordered list of note events, produce the appropriate midi msgs.
 -- The input events are ordered, but may overlap.
 perform_notes :: PerformState -> [LEvent.LEvent (Event, Instrument.Addr)]
     -> (MidiEvents, PerformState)
@@ -314,7 +314,7 @@ perform_notes state events =
     go state (LEvent.Event event) = _perform_note state event
 
 _perform_note :: PerformState -> (Event, Instrument.Addr)
-    -> ((AddrInst, NoteOffMap), MidiEvents)
+    -> (PerformState, MidiEvents)
 _perform_note (addr_inst, note_off_map) (event, addr) =
     ((addr_inst2, Map.insert addr note_off note_off_map), msgs)
     where
@@ -322,7 +322,6 @@ _perform_note (addr_inst, note_off_map) (event, addr) =
         (Map.findWithDefault 0 addr note_off_map) event addr
     (chan_state_msgs, addr_inst2) = adjust_chan_state addr_inst addr event
     msgs = Seq.merge_on levent_start chan_state_msgs note_msgs
-
 
 -- | Figure out of any msgs need to be emitted to convert the channel state to
 -- the given event on the given addr.
@@ -350,11 +349,12 @@ adjust_chan_state addr_inst addr event =
 chan_state_msgs :: Instrument.Addr -> RealTime
     -> Maybe Instrument.Instrument -> Instrument.Instrument
     -> Either String [Midi.WriteMessage]
-chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
+chan_state_msgs addr@(wdev, chan) start maybe_old_inst new_inst
     | not same_synth = Left $ "two synths on " ++ show addr ++ ": " ++ inst_desc
     | not same_inst = Left $ "program change not supported yet on "
         ++ show addr ++ ": " ++ inst_desc
-    | not same_ks = Right ks_msgs
+    | not same_ks = Right $
+        keyswitch_messages maybe_old_inst new_inst wdev chan start
     | otherwise = Right []
     where
     inst_desc = show (fmap extract maybe_old_inst, extract new_inst)
@@ -363,23 +363,45 @@ chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
     same_synth = case maybe_old_inst of
         Nothing -> True
         Just o -> Instrument.inst_synth o == Instrument.inst_synth new_inst
-    same_inst = same_synth && case maybe_old_inst of
+    same_inst = case maybe_old_inst of
         Nothing -> True -- when pchange is supported I can assume false
         Just o -> Instrument.inst_name o == Instrument.inst_name new_inst
-    same_ks = same_inst && case maybe_old_inst of
-        Nothing -> False
-        Just o -> Maybe.isNothing (Instrument.inst_keyswitch new_inst)
-            || Instrument.inst_keyswitch o == Instrument.inst_keyswitch new_inst
+    -- No previous inst is the same as not having a keyswitch.
+    same_ks = (Instrument.inst_keyswitch =<< maybe_old_inst)
+        == Instrument.inst_keyswitch new_inst
 
-    ks_msgs = maybe [] (mk_ks . Instrument.ks_key)
-        (Instrument.inst_keyswitch new_inst)
-    -- The velocity is arbitrary, but this is loud enough to hear if you got
-    -- the keyswitches wrong.
-    mk_ks nn = [mkmsg start (Midi.NoteOn nn 64),
-        mkmsg (nudge start) (Midi.NoteOff nn 64)]
-    nudge = (+ RealTime.milliseconds 2)
+-- TODO if the last note was a hold keyswitch, this will leave the keyswitch
+-- down.  Technically I should clean that up, but it's a hassle because
+-- I'd need to keep the keyswitch down state in the PerformState so
+-- 'perform_notes' can clean them all up, or let 'adjust_chan_state' look into
+-- the future so it knows if there will be another note.  But in practice,
+-- all notes get turned off after playing so the keyswitch should be cleaned up
+-- by that.
+keyswitch_messages :: Maybe Instrument.Instrument -> Instrument.Instrument
+    -> Midi.WriteDevice -> Midi.Channel -> RealTime -> [Midi.WriteMessage]
+keyswitch_messages maybe_old_inst new_inst wdev chan start =
+    prev_ks_off ++ new_ks_on
+    where
+    -- Hold keyswitches have to stay down for the for the duration they are in
+    -- effect.  So they just emit a NoteOn.  If I am switching keyswitches
+    -- and the previous one was a hold-keyswitch, then it must be down, and
+    -- I have to emit a NoteOff for it.
+    prev_ks_off = Maybe.fromMaybe [] $ do
+        old <- maybe_old_inst
+        guard (Instrument.inst_hold_keyswitch old)
+        ks <- Instrument.inst_keyswitch old
+        return [note_off start ks]
+    new_ks_on = Maybe.fromMaybe [] $ do
+        ks <- Instrument.inst_keyswitch new_inst
+        return $ if Instrument.inst_hold_keyswitch new_inst
+            then [note_on ks_start ks]
+            else [note_on ks_start ks,
+                note_off (ks_start + RealTime.milliseconds 2) ks]
+    ks_start = start - keyswitch_interval
+
+    note_on ts ks = mkmsg ts (Midi.NoteOn (Instrument.ks_key ks) 64)
+    note_off ts ks = mkmsg ts (Midi.NoteOff (Instrument.ks_key ks) 64)
     mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
-    start = ts - keyswitch_interval
 
 -- ** perform note
 

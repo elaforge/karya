@@ -1,7 +1,8 @@
 -- | Spicy guitar, free at http://www.spicyguitar.com/
 module Local.Instrument.Spicy where
-import qualified Midi.Midi as Midi
+import Util.Control
 import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
@@ -11,7 +12,9 @@ import qualified App.MidiInst as MidiInst
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
     (MidiInst.softsynth "spicy" pb_range controls)
-        { MidiInst.modify_wildcard = Instrument.set_keyswitches keyswitches
+        { MidiInst.modify_wildcard =
+            (Instrument.instrument_#Instrument.hold_keyswitch #= True)
+            . Instrument.set_keyswitches keyswitches
         }
 
 pb_range = (-3, 3)

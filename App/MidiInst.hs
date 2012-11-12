@@ -37,8 +37,10 @@ data Softsynth = Softsynth {
     name :: Instrument.SynthName
     , pb_range :: Control.PbRange
     , controls :: [(Midi.Control, String)]
+    -- | Add explicit non-wildcard patches.
     , extra_patches :: [Patch]
-    , modify_patch :: Instrument.Patch -> Instrument.Patch
+    -- | Configure the wildcard patch.
+    , modify_wildcard :: Instrument.Patch -> Instrument.Patch
     , code :: Code
     }
 
@@ -54,14 +56,14 @@ softsynth name pb_range controls =
     Softsynth name pb_range controls [] id empty_code
 
 make :: Softsynth -> [SynthDesc]
-make (Softsynth name pb_range controls extra_patches modify_patch code)
+make (Softsynth name pb_range controls extra_patches modify_wildcard code)
     = [(synth, pmap <> extra)]
     where
     (extra, _) = MidiDb.patch_map (map (second make_code) extra_patches)
     (synth, wildcard_patch) =
         Instrument.make_softsynth name pb_range controls
     pmap = MidiDb.wildcard_patch_map
-        (modify_patch wildcard_patch, make_code code)
+        (modify_wildcard wildcard_patch, make_code code)
 
 -- * code
 

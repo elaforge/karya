@@ -71,6 +71,9 @@ data Instrument = Instrument {
     , inst_score :: Score.Instrument
     , inst_synth :: SynthName
     , inst_keyswitch :: Maybe Keyswitch
+    -- | If true, the keysitch has to be held while the note is playing.
+    -- Otherwise, it will just be tapped before the note starts.
+    , inst_hold_keyswitch :: !Bool
 
     -- | Some midi instruments, like drum kits, have a different sound on each
     -- key.  If there is a match in this map, the pitch will be replaced with
@@ -91,6 +94,8 @@ name = Lens.lens inst_name (\v r -> r { inst_name = v })
 score = Lens.lens inst_score (\v r -> r { inst_score = v })
 synth_ = Lens.lens inst_synth (\v r -> r { inst_synth = v })
 keyswitch = Lens.lens inst_keyswitch (\v r -> r { inst_keyswitch = v })
+hold_keyswitch =
+    Lens.lens inst_hold_keyswitch (\v r -> r { inst_hold_keyswitch = v })
 keymap = Lens.lens inst_keymap (\v r -> r { inst_keymap = v })
 control_map = Lens.lens inst_control_map (\v r -> r { inst_control_map = v })
 pitch_bend_range =
@@ -103,12 +108,14 @@ instance NFData Instrument where
     rnf inst = rnf (inst_score inst)
 
 instance Pretty.Pretty Instrument where
-    format (Instrument name score synth keyswitch keymap cmap pb_range decay) =
+    format (Instrument name score synth keyswitch hold_keyswitch keymap cmap
+            pb_range decay) =
         Pretty.record_title "Instrument"
             [ ("name", Pretty.format name)
             , ("score", Pretty.format score)
             , ("synth", Pretty.format synth)
             , ("keyswitch", Pretty.format keyswitch)
+            , ("hold_keyswitch", Pretty.format hold_keyswitch)
             , ("keymap", Pretty.format keymap)
             , ("control_map", Pretty.format cmap)
             , ("pb_range", Pretty.format pb_range)
@@ -136,11 +143,12 @@ instance Pretty.Pretty Instrument where
 -- set.  The rest can be initialized with set_* functions.
 instrument :: InstrumentName -> [(Midi.Control, String)] -> Control.PbRange
     -> Instrument
-instrument name cmap pb_range = Instrument {
-    inst_name = name
+instrument name cmap pb_range = Instrument
+    { inst_name = name
     , inst_score = Score.Instrument ""
     , inst_synth = ""
     , inst_keyswitch = Nothing
+    , inst_hold_keyswitch = False
     , inst_keymap = Map.empty
     , inst_control_map = Control.control_map cmap
     , inst_pitch_bend_range = pb_range
