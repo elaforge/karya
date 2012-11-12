@@ -1,4 +1,9 @@
 UNSORTED
+  - spicy guitar uses key swiches that have to be held down.  I could set an
+    instrument config, but what if I want to apply the articulation to a note
+    that's already sounding?  I guess in that case I can just write it as
+    a plain note, with a call that just sets the keyswitch pitch.
+  - general purpose harmonic, mute, and legato ornaments
   - the same place that updates the status could use updates to clear caches
     for cmds or for TimeStep
     Clear when: inst changed, so if any performance was regenerated.  In fact,
@@ -1107,9 +1112,6 @@ Perform:
       now.
 
 Instrument DB / browser:
-  - To add tags to a sysex-only instrument, add a *sysex "bank" which creates
-    patches with no initialization.  When they get merged with a sysex patch,
-    the sysex wins.
   * add my own tags to an instrument
     I need a separate "annotations" db
     Or why not just edit the patch file directly?
@@ -1117,7 +1119,6 @@ Instrument DB / browser:
   - patch files could go in the Local/Instrument dir with the source?
     at least it should go in source control
   - colorize the info_pane so tags are easier to read
-  - use ByteString parsec instance to parse sysex files
   - search lang supports quotes
   * search lang supports ! to exclude a term
   * ability to edit tags, esp. add "favorite rating"

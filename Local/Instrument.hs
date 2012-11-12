@@ -23,6 +23,7 @@ import qualified Local.Instrument.Morpheus as Morpheus
 import qualified Local.Instrument.Morphine as Morphine
 import qualified Local.Instrument.Pianoteq as Pianoteq
 import qualified Local.Instrument.Reaktor as Reaktor
+import qualified Local.Instrument.Spicy as Spicy
 import qualified Local.Instrument.Tassman as Tassman
 import qualified Local.Instrument.Vl1m as Vl1m
 import qualified Local.Instrument.Z1 as Z1
@@ -30,13 +31,27 @@ import qualified Local.Instrument.Z1 as Z1
 import qualified App.Config as Config
 
 
+-- | Load functions for each synthesizer.
+synths :: [FilePath -> IO [Cmd.SynthDesc]]
+synths =
+    [ Drumaxx.load, Fm8.load, Kontakt.load, Massive.load, Morpheus.load
+    , Morphine.load, Pianoteq.load, Reaktor.load, Spicy.load, Tassman.load
+    , Vl1m.load, Z1.load
+    ]
+
+-- | make_db functions for each synthesizer that needs more elaborate setup,
+-- i.e. loading patches from sysexes.
+dbs :: [(String, FilePath -> IO ())]
+dbs =
+    [ (Morpheus.synth_name, Morpheus.make_db)
+    , (Vl1m.synth_name, Vl1m.make_db)
+    , (Z1.synth_name, Z1.make_db)
+    ]
+
+
 load :: FilePath -> IO Cmd.InstrumentDb
 load app_dir = do
-    synth_descs <- concatMapM ($ app_dir </> Config.instrument_dir)
-        [ Drumaxx.load, Fm8.load, Kontakt.load, Massive.load, Morpheus.load
-        , Morphine.load, Pianoteq.load, Reaktor.load, Tassman.load, Vl1m.load
-        , Z1.load
-        ]
+    synth_descs <- concatMapM ($ app_dir </> Config.instrument_dir) synths
     let annot_fn = app_dir </> Config.local_dir </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \x -> case x of
         -- The parsec error already includes the filename.
@@ -57,10 +72,3 @@ make_dbs dir = mapM_ ($ dir </> Config.instrument_dir)
 make_named_dbs :: [String] -> FilePath -> IO ()
 make_named_dbs names dir = mapM_ ($ dir </> Config.instrument_dir)
     [make | (name, make) <- dbs, name `elem` names]
-
-dbs :: [(String, FilePath -> IO ())]
-dbs =
-    [ (Morpheus.synth_name, Morpheus.make_db)
-    , (Vl1m.synth_name, Vl1m.make_db)
-    , (Z1.synth_name, Z1.make_db)
-    ]

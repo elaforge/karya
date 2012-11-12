@@ -233,7 +233,6 @@ current_program_dump_header =
     , ("", Constant $ B.pack [0x40, 0x01])
     ]
 
-
 patch_spec :: Specs
 patch_spec = Sysex.assert_valid "patch_spec"
     [ ("name", Str 16)

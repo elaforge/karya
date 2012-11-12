@@ -19,10 +19,13 @@ loud = attr "loud"
 trill = attr "trill"
 trem = attr "trem" -- tremolo
 arpeggio = attr "arpeggio"
+legato = attr "legato"
+mute = attr "mute" -- brass mute, string mute, or guitar palm mute
 
 -- * strings
 
 pizz = attr "pizz" -- pizzicato
+harmonic = attr "harmonic"
 
 -- * drums
 
@@ -61,7 +64,7 @@ tom = attr "tom"
 
 pedal = attr "pedal"
 
--- * technique
+-- ** technique
 
 left = attr "left" -- played with left hand
 right = attr "right" -- played with right hand
