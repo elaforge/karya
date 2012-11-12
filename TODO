@@ -3,7 +3,19 @@ UNSORTED
     instrument config, but what if I want to apply the articulation to a note
     that's already sounding?  I guess in that case I can just write it as
     a plain note, with a call that just sets the keyswitch pitch.
-  - general purpose harmonic, mute, and legato ornaments
+  * general purpose harmonic, mute, and legato ornaments
+  - held keyswitches aren't getting cleared after play
+  - legato attribute should make notes overlap by a variable amount
+  - NoteTransformers apply a transformer to notes.  So why can't I apply
+    any transformer as a note transformer?  NoteTransformers are actually more
+    powerful because they can treat multiple args differently, but any
+    transformer should be lifted.
+    If I make "" work as a note transformer, then I can write 'trans |',
+    right?  But that also means if I apply "" directly to subtracks it'll just
+    output them directly, do I really want that?  It's kind of a way of
+    grouping them together so the transformer can apply to them.
+    Then 'harmonic' is the same as 'n +harmonic |' is the same as
+    'attrs = +harmonic'
   - the same place that updates the status could use updates to clear caches
     for cmds or for TimeStep
     Clear when: inst changed, so if any performance was regenerated.  In fact,

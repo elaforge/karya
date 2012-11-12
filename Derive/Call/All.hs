@@ -3,6 +3,7 @@ module Derive.Call.All where
 import qualified Data.Map as Map
 
 import qualified Util.Map as Map
+import qualified Derive.Call.Attribute as Attribute
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
@@ -52,10 +53,11 @@ map_lookup cmap = Derive.empty_scope_type
 
 note_calls :: Derive.NoteCallMap
 (note_calls, shadowed_notes) = unions
-    [ Block.note_calls, Echo.note_calls, Integrate.note_calls
+    [ Attribute.note_calls, Block.note_calls, Echo.note_calls
+    , Gender.note_calls, Integrate.note_calls
     , NegativeDur.note_calls, Note.note_calls, NoteTransformer.note_calls
     , Ornament.note_calls , Random.note_calls, Reverse.note_calls
-    , Gender.note_calls, Sekar.note_calls, String.note_calls, Trill.note_calls
+    , Sekar.note_calls, String.note_calls, Trill.note_calls
     ]
 
 control_calls :: Derive.ControlCallMap
