@@ -1,4 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+-- | This module is responsible for actually scheduling MIDI messages with the
+-- OS's MIDI driver.
 module Perform.Midi.Play (play) where
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
@@ -85,10 +87,11 @@ play_msgs state msgs = do
     let timeout = if null rest then RealTime.mul write_ahead 2 else write_ahead
     stop <- Transport.check_for_stop (RealTime.to_seconds timeout)
         (state_play_control state)
+    let reset_midi = mapM_ write_midi
+            [Interface.AllNotesOff now, Interface.reset_controls now]
     case (stop, rest) of
         (True, _) -> do
             Transport.info_midi_abort (state_info state)
-            mapM_ write_midi
-                [Interface.AllNotesOff now, Interface.reset_controls now]
-        (_, []) -> write_midi $ Interface.reset_pitch now
+            reset_midi
+        (_, []) -> reset_midi
         _ -> play_msgs state rest

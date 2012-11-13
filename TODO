@@ -4,7 +4,7 @@ UNSORTED
     that's already sounding?  I guess in that case I can just write it as
     a plain note, with a call that just sets the keyswitch pitch.
   * general purpose harmonic, mute, and legato ornaments
-  - held keyswitches aren't getting cleared after play
+  * held keyswitches aren't getting cleared after play
   * legato attribute should make notes overlap by a variable amount
   * why is ( a syntax error?
   - Util.map_* functions should take the function first, as is customary
