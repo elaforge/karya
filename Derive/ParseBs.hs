@@ -340,7 +340,10 @@ p_word, p_null_word :: A.Parser Text
 p_word = A.takeWhile1 _word_char
 p_null_word = A.takeWhile _word_char
 _word_char :: Char -> Bool
-_word_char c = c /= ' ' && c /= '(' && c /= ')'
+_word_char c = c /= ' ' && c /= ')'
+    -- I need to exclude ')' because otherwise I can't tell where the symbol
+    -- ends in a subcall like '(a)'.  But '(' is just fine, though it would
+    -- look weird in a subcall: '(()'.
 
 lexeme :: A.Parser a -> A.Parser a
 lexeme p = p <* spaces

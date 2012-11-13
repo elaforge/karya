@@ -46,11 +46,11 @@ test_parse_expr = do
     -- Symbols can have anything in them as long as they start with a letter.
     equal (f "a|b=4") $ Right [Call (Symbol "a|b=4") []]
 
-    -- Except parens, which start a subcall.
-    equal (f "a(b(4))") $
-        Right [Call (Symbol "a") [val_call "b" [val_call "4" []]]]
+    -- Except a close paren, for subcalls.
     equal (f "a (b) c") $
         Right [Call (Symbol "a") [val_call "b" [], Literal (symbol "c")]]
+    equal (f "a (()") $
+        Right [Call (Symbol "a") [val_call "(" []]]
     -- Unbalanced parens.
     -- The error msg is strange for this one, I don't know why.
     left_like (f "a (b") "parse error"

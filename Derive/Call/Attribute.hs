@@ -26,7 +26,7 @@ note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("o", attributed_note Attrs.harmonic)
     , ("m", attributed_note Attrs.mute)
-    , ("{", c_legato) -- "(" is unavailable because it's a syntax error
+    , ("(", c_legato)
     ]
 
 
