@@ -30,6 +30,8 @@ filter f done cont = go
         | f x = x : go xs
         | otherwise = go xs
 
+-- | Like 'List.mapAccumL', except that you can do something with the final
+-- state and append that to the list.
 mapAccumL :: (acc -> x -> (acc, y)) -> acc -> (acc -> [y]) -> [x] -> [y]
 mapAccumL f acc cont = go acc
     where

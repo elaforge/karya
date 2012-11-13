@@ -5,7 +5,9 @@ UNSORTED
     a plain note, with a call that just sets the keyswitch pitch.
   * general purpose harmonic, mute, and legato ornaments
   - held keyswitches aren't getting cleared after play
-  - legato attribute should make notes overlap by a variable amount
+  * legato attribute should make notes overlap by a variable amount
+  - why is ( a syntax error?
+  - Util.map_* functions should take the function first, as is customary
   - NoteTransformers apply a transformer to notes.  So why can't I apply
     any transformer as a note transformer?  NoteTransformers are actually more
     powerful because they can treat multiple args differently, but any
@@ -380,6 +382,8 @@ documentation
   - doc/ui.md
   - doc/cmd.md
   call doc:
+    - I could go look through arg docs for controls and list all the controls
+      that have someone listening to them in a certain scope.
     - linkify single quotes
 
 integrate:

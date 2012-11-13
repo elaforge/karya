@@ -29,6 +29,7 @@ import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Scale.Util as Scale.Util
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
@@ -376,8 +377,12 @@ e_note :: Score.Event -> (RealTime, RealTime, Pitch.NoteNumber)
 e_note e = (Score.event_start e, Score.event_duration e,
     fromMaybe (-1) (Score.initial_nn e))
 
+-- | Like 'e_note', but return a string note name instead of NoteNumber.
 e_note2 :: Score.Event -> (RealTime, RealTime, String)
 e_note2 e = (Score.event_start e, Score.event_duration e, e_twelve e)
+
+e_attributes :: Score.Event -> String
+e_attributes = ShowVal.show_val . Score.event_attributes
 
 -- ** extract log msgs
 

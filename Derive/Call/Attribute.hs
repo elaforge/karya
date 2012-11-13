@@ -6,23 +6,60 @@
 -- TODO There are too many ways to apply attributes to notes, and they work
 -- in inconsistent ways.
 module Derive.Call.Attribute where
+import Util.Control
+import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
+import Derive.CallSig (optional, typed_control)
 import qualified Derive.Derive as Derive
+import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
+
+import Types
 
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("o", attributed_note Attrs.harmonic)
     , ("m", attributed_note Attrs.mute)
-    , ("{", attributed_note Attrs.legato)
+    , ("{", c_legato) -- "(" is unavailable because it's a syntax error
     ]
 
+
+-- TODO: in lilypond mode, ignore the overlap but apply the attribute
+c_legato :: Derive.NoteCall
+c_legato = Derive.stream_generator "legato"
+    ("Play the transformed notes legato.  This extends their duration and\
+     \ applies `+legato`."
+    ) $ CallSig.call1g
+    (optional "overlap" (typed_control "legato" 0.1 Score.Real)
+        "All notes except the last one overlap with the next note by this\
+        \ amount."
+    ) $ \overlap args -> do
+        overlap <- Util.real_duration Util.Real (Args.start args)
+            =<< Util.typed_control_at overlap =<< Args.real_start args
+        mconcat $ map (legato overlap) (Note.sub_events args)
+
+legato :: RealTime -> [Note.Event] -> Derive.EventDeriver
+legato overlap = fmap (flip Util.map_around_asc (extend_duration overlap))
+    . Note.place . Note.map_events (Util.add_attrs Attrs.legato)
+
+extend_duration :: RealTime -> [Score.Event] -> Score.Event -> [Score.Event]
+    -> Score.Event
+extend_duration _ _ cur [] = cur
+extend_duration overlap _prev cur (next:_) = Score.set_duration dur cur
+    where dur = Score.event_start next - Score.event_start cur + overlap
+
+-- | Map on all elts except the last.
+map_1 :: (a -> a) -> [a] -> [a]
+map_1 _ [] = []
+map_1 f (x:xs)
+    | null xs = [x]
+    | otherwise = f x : map_1 f xs
 
 attributed_note :: Attrs.Attributes -> Derive.NoteCall
 attributed_note attrs = Derive.Call
