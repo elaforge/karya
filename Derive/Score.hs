@@ -22,7 +22,8 @@ import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Instrument(..), Control(..), Type(..), Typed(..), untyped,
         merge_typed, type_to_code, code_to_type, TypedSignal, TypedVal,
-        Attributes(..), Attribute, attrs_set, attrs_remove, attrs_list, no_attrs)
+        Attributes(..), Attribute, attrs_set, attrs_remove, attrs_list,
+        no_attrs)
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
 
@@ -62,8 +63,7 @@ event_attributes :: Event -> Attributes
 event_attributes = environ_attributes . event_environ
 
 has_attribute :: Attributes -> Event -> Bool
-has_attribute attr =
-    (attrs_set attr `Set.isSubsetOf`) . attrs_set . event_attributes
+has_attribute attr = (`attrs_contain` attr) . event_attributes
 
 environ_attributes :: BaseTypes.Environ -> Attributes
 environ_attributes environ =
@@ -331,6 +331,10 @@ attributes = Attributes . Set.fromList
 
 attr :: String -> Attributes
 attr = Attributes . Set.singleton
+
+-- | True if the first argument contains the attributes in the second.
+attrs_contain :: Attributes -> Attributes -> Bool
+attrs_contain (Attributes super) (Attributes sub) = sub `Set.isSubsetOf` super
 
 -- ** controls
 

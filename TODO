@@ -21,7 +21,7 @@ UNSORTED
   - the same place that updates the status could use updates to clear caches
     for cmds or for TimeStep
     Clear when: inst changed, so if any performance was regenerated.  In fact,
-    if I pu the cache in the performance then this happens automatically.
+    if I put the cache in the performance then this happens automatically.
     But where do I put it while the performance is still waiting?  I guess
     I can stick stuff in the performance without forcing the events.
   - TimeStep could use vector instead of list
@@ -359,7 +359,7 @@ MILESTONES
     + jack support on linux
     - simple csound backend
     + lilypond backend
-      slurs, calls that render lilypond ornaments e.g. trill
+      calls that render lilypond ornaments e.g. trill
     + documentation
   future
     - Unify environ, controls, and pitch signals by making signals of
@@ -427,7 +427,7 @@ lilypond:
     TimeSignature needs to get fancier
   - get pitches right, and keep the enharmonics
   - manually add ly tweaks, could be done with special ly environ val
-  - support for slurs, I think I write them as a NoteTransformer which
+  * support for slurs, I think I write them as a NoteTransformer which
     attaches metadata.  It can also affect note durations in normal
     performance.  E.g. make it legato to trigger keyed legato.
   - is there a way to turn pitch signal calls e.g. 'tr' into an attr on the

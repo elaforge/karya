@@ -10,6 +10,7 @@ import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
@@ -39,7 +40,7 @@ c_legato = Derive.stream_generator "legato"
     (optional "overlap" (typed_control "legato" 0.1 Score.Real)
         "All notes except the last one overlap with the next note by this\
         \ amount."
-    ) $ \overlap args -> do
+    ) $ \overlap args -> Lily.note_transformer args Attrs.legato $ do
         overlap <- Util.real_duration Util.Real (Args.start args)
             =<< Util.typed_control_at overlap =<< Args.real_start args
         mconcat $ map (legato overlap) (Note.sub_events args)

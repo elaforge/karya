@@ -131,6 +131,8 @@ data Note = Note {
     _note_pitch :: ![String]
     , _note_duration :: !NoteDuration
     , _note_tie :: !Bool
+    -- | A slur goes across a consecutive series of legato notes.
+    , _note_legato :: !Bool
     -- | Additional code to append to the note.
     , _note_code :: !String
     , _note_stack :: !(Maybe Stack.UiFrame)
@@ -141,14 +143,18 @@ data Note = Note {
     deriving (Show)
 
 rest :: NoteDuration -> Note
-rest dur = Note [] dur False "" Nothing
+rest dur = Note [] dur False False "" Nothing
 
 is_rest :: Note -> Bool
 is_rest note@(Note {}) = null (_note_pitch note)
 is_rest _ = False
 
+is_note :: Note -> Bool
+is_note (Note {}) = True
+is_note _ = False
+
 instance ToLily Note where
-    to_lily (Note pitches dur tie code _stack) = case pitches of
+    to_lily (Note pitches dur tie _legato code _stack) = case pitches of
             [] -> 'r' : ly_dur ++ code
             [pitch] -> pitch ++ ly_dur ++ code
             _ -> '<' : unwords pitches ++ ">" ++ ly_dur ++ code
@@ -216,7 +222,7 @@ data State = State {
 convert_measures :: Config -> [TimeSignature] -> [Event]
     -> Either String [[Note]]
 convert_measures config time_sigs events =
-    run_convert initial $ add_time_changes <$> go events
+    fmap convert_slurs $ run_convert initial $ add_time_changes <$> go events
     where
     initial = State config time_sigs 0 0 0 Nothing Nothing Nothing
     go [] = return []
@@ -302,6 +308,8 @@ convert_note state tsig event events = (note, end, clipped ++ rest)
         { _note_pitch = map event_pitch here
         , _note_duration = allowed_dur
         , _note_tie = any (> end) (map event_end here)
+        , _note_legato =
+            Score.attrs_contain (event_attributes event) Attrs.legato
         , _note_code = attributes_to_code (event_attributes event)
             ++ dynamic_to_code (state_config state) (state_dynamic state) event
         , _note_stack = Seq.last (Stack.to_ui (event_stack event))
@@ -324,6 +332,24 @@ make_rests config tsig start end
     | start < end = map rest $ convert_duration tsig
         (config_dotted_rests config) start (end - start)
     | otherwise = []
+
+-- ** slurs
+
+-- | Convert consecutive @+legato@ attrs to a start and end slur mark.
+convert_slurs :: [[Note]] -> [[Note]]
+convert_slurs = snd . List.mapAccumL convert_slurs1 False
+
+convert_slurs1 :: Bool -> [Note] -> (Bool, [Note])
+convert_slurs1 in_slur = List.mapAccumL go in_slur . Seq.zip_next
+    where
+    go in_slur (note, maybe_next)
+        | not (is_note note) = (in_slur, note)
+        | Just next <- maybe_next, in_slur && not (_note_legato next) =
+            (False, add_code ")" note)
+        | not in_slur && _note_legato note = (True, add_code "(" note)
+        | otherwise = (in_slur, note)
+    add_code c note = note { _note_code = _note_code note ++ c }
+
 
 -- ** util
 
