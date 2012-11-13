@@ -45,7 +45,7 @@ c_legato = Derive.stream_generator "legato"
         mconcat $ map (legato overlap) (Note.sub_events args)
 
 legato :: RealTime -> [Note.Event] -> Derive.EventDeriver
-legato overlap = fmap (flip Util.map_around_asc (extend_duration overlap))
+legato overlap = fmap (Util.map_around_asc (extend_duration overlap))
     . Note.place . Note.map_events (Util.add_attrs Attrs.legato)
 
 extend_duration :: RealTime -> [Score.Event] -> Score.Event -> [Score.Event]

@@ -119,9 +119,9 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
             ++ show (Score.initial_nn event)
         Just state -> do
             (final, result) <- Util.map_controls
-                (attack :. delay :. release :. Nil) state events $
-                    \(attack :. delay :. release :. Nil) ->
-                        go attack delay release
+                (attack :. delay :. release :. Nil) state
+                (\(attack :. delay :. rel :. Nil) -> go attack delay rel)
+                events
             return $! Derive.merge_asc_events result
                 ++ [LEvent.Event $ state_event final]
     where

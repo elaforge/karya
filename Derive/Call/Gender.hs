@@ -83,16 +83,14 @@ c_realize_damp = Derive.transformer "realize-damp"
     \ TODO: Since there's no correspondence between tracks in different\
     \ blocks, the damping can't extend across block boundaries. I'd need\
     \ something like a 'hand' attribute to fix this."
-    ) $ CallSig.call0t $ \_ deriver -> do
-        events <- deriver
-        return $ Util.map_around_asc events $ \_prev event next ->
-            Score.remove_attributes damped_tag $
-                case Util.filter_next_in_track event next of
-                    next : _ | Score.has_attribute damped_tag next ->
-                        Score.set_duration
-                            (Score.event_end next - Score.event_start event)
-                            event
-                    _ -> event
+    ) $ CallSig.call0t $ \_ deriver -> Util.map_around_asc realize <$> deriver
+    where
+    realize _prev event next = Score.remove_attributes damped_tag $
+        case Util.filter_next_in_track event next of
+            next : _ | Score.has_attribute damped_tag next ->
+                Score.set_duration
+                    (Score.event_end next - Score.event_start event) event
+            _ -> event
 
 -- | Mark events that were damped late, and whose previous event should be
 -- extended to be damped together.

@@ -455,10 +455,9 @@ equal_transformer args deriver = case Derive.passed_vals args of
 -- simple for transformers.  Hopefully functions here can mostly hide LEvents
 -- from transformers.
 
-map_around_asc :: Derive.Events
-    -> ([Score.Event] -> Score.Event -> [Score.Event] -> Score.Event)
-    -> Derive.Events
-map_around_asc events f = go [] events
+map_around_asc :: ([Score.Event] -> Score.Event -> [Score.Event] -> Score.Event)
+    -> Derive.Events -> Derive.Events
+map_around_asc f events = go [] events
     where
     go prev (event : events) = case event of
         LEvent.Log log -> LEvent.Log log : go prev events
@@ -475,35 +474,34 @@ event_head [] _ = return []
 event_head (log@(LEvent.Log _) : rest) f = (log:) <$> event_head rest f
 event_head (LEvent.Event event : rest) f = f event rest
 
-map_events_asc :: state -> Derive.Events
+map_events_asc :: state
     -> (state -> Score.Event -> Derive.Deriver (state, [Score.Event]))
-    -> Derive.EventDeriver
-map_events_asc state events f = do
-    (_, result) <- map_controls Nil state events (\Nil -> f)
+    -> Derive.Events -> Derive.EventDeriver
+map_events_asc state f events = do
+    (_, result) <- map_controls Nil state (\Nil -> f) events
     return $ Derive.merge_asc_events result
 
 -- | Specialization of 'map_controls' where the transformation will return
 -- events in ascending order.
 map_controls_asc :: (FixedList.FixedList cs) => cs TrackLang.ValControl
-    -> state -> Derive.EventDeriver
+    -> state
     -> (cs Score.TypedVal -> state -> Score.Event
         -> Derive.Deriver (state, [Score.Event]))
-    -> Derive.EventDeriver
-map_controls_asc controls state deriver f = do
-    events <- deriver
-    (_, result) <- map_controls controls state events f
+    -> Derive.EventDeriver -> Derive.EventDeriver
+map_controls_asc controls state f deriver = do
+    (_, result) <- map_controls controls state f =<< deriver
     return $ Derive.merge_asc_events result
 
 -- | Specialization of 'map_controls_pitches' with no pitch signals.  Also,
 -- the mapped function is not in Deriver since you are expected to be
 -- depending only on the control values.
 map_controls :: (FixedList.FixedList cs) => cs TrackLang.ValControl
-    -> state -> Derive.Events
+    -> state
     -> (cs Score.TypedVal -> state -> Score.Event
         -> Derive.Deriver (state, [Score.Event]))
-    -> Derive.Deriver (state, [Derive.Events])
-map_controls controls state events f =
-    map_controls_pitches controls Nil state events $ \cs Nil -> f cs
+    -> Derive.Events -> Derive.Deriver (state, [Derive.Events])
+map_controls controls state f =
+    map_controls_pitches controls Nil state (\cs Nil -> f cs)
 
 -- | Map a function with state over events and lookup pitch and controls vals
 -- for each event.  Exceptions are caught and logged.
@@ -511,11 +509,11 @@ map_controls controls state events f =
 -- This is the most general transformer map over events.
 map_controls_pitches :: (FixedList.FixedList cs, FixedList.FixedList ps) =>
     cs TrackLang.ValControl -> ps TrackLang.PitchControl
-    -> state -> Derive.Events
+    -> state
     -> (cs Score.TypedVal -> ps PitchSignal.Pitch -> state -> Score.Event
         -> Derive.Deriver (state, [Score.Event]))
-    -> Derive.Deriver (state, [Derive.Events])
-map_controls_pitches controls pitch_controls state events f = go state events
+    -> Derive.Events -> Derive.Deriver (state, [Derive.Events])
+map_controls_pitches controls pitch_controls state f events = go state events
     where
     go state [] = return (state, [])
     go state (log@(LEvent.Log _) : rest) = do

@@ -7,7 +7,7 @@ UNSORTED
   * held keyswitches aren't getting cleared after play
   * legato attribute should make notes overlap by a variable amount
   * why is ( a syntax error?
-  - Util.map_* functions should take the function first, as is customary
+  * Util.map_* functions should take the function first, as is customary
   - NoteTransformers apply a transformer to notes.  So why can't I apply
     any transformer as a note transformer?  NoteTransformers are actually more
     powerful because they can treat multiple args differently, but any

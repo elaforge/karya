@@ -84,8 +84,8 @@ c_event_echo = Derive.transformer "event echo"
         "The %dyn of each echo are multiplied by this amount."
     , optional "times" (control "echo-times" 1)
         "Number of echoes, not counting the original."
-    ) $ \delay feedback times _args deriver ->
-        Util.map_controls_asc (delay :. feedback :. times :. Nil) () deriver $
+    ) $ \delay feedback times _args ->
+        Util.map_controls_asc (delay :. feedback :. times :. Nil) () $
             \(delay :. feedback :. times :. Nil) ->
                 go (Score.typed_val delay) (Score.typed_val feedback)
                     (Score.typed_val times)
