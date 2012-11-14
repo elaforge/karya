@@ -598,8 +598,8 @@ type SynthDesc = MidiDb.SynthDesc InstrumentCode
 
 -- *** history
 
+-- | Ghosts of state past, present, and future.
 data History = History {
-    -- | Ghosts of state past, present, and future.
     hist_past :: ![HistoryEntry]
     -- | The present is actually the immediate past.  When you undo, the
     -- undo itself is actually in the future of the state you want to undo.
@@ -653,6 +653,7 @@ data HistoryCollect = HistoryCollect {
     -- This is a bit of a hack so that every keystroke in a raw edit isn't
     -- recorded separately.
     , state_suppress_edit :: !(Maybe EditMode)
+    -- | The Git.Commit in the SaveHistory should definitely be Nothing.
     , state_suppressed :: !(Maybe SaveGit.SaveHistory)
     } deriving (Show, Generics.Typeable)
 

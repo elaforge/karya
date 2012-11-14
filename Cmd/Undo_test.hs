@@ -83,6 +83,30 @@ test_suppress_history = do
     res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_raw_edit
     equal (e_hist_names res) (["setup: 12"], "+z: zq", [])
 
+test_undo_while_suppressed = do
+    let states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
+    let suppress = Cmd.suppress_history Cmd.RawEdit
+
+    -- Unsuppressed.
+    res <- ResponderTest.respond_cmd states $ Cmd.name "+a" $ insert_event 0 "a"
+
+    -- Suppressed.
+    res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_raw_edit
+    res <- next res $ suppress "+b" $ insert_event 0 "b"
+    -- The 'b' cmd is buried in suppression.
+    equal (e_hist_names res) (["setup: 12"], "+a: a2", [])
+    equal (extract_ui res) "b2"
+    res <- next res Undo.undo
+    -- Undo turns the suppressed cmd turns into a real cmd, and goes into the
+    -- future.
+    equal (e_hist_names res) (["setup: 12"], "+a: a2", ["+b: b2"])
+    equal (extract_ui res) "a2"
+
+    -- And I can go back to it.
+    res <- next res Undo.redo
+    equal (e_hist_names res) (["+a: a2", "setup: 12"], "+b: b2", [])
+    equal (extract_ui res) "b2"
+
 test_undo_merge = do
     let states = ResponderTest.mkstates [(">", [])]
         vid = UiTest.default_view_id

@@ -18,6 +18,7 @@ UNSORTED
     grouping them together so the transformer can apply to them.
     Then 'harmonic' is the same as 'n +harmonic |' is the same as
     'attrs = +harmonic'
+    But "" is already inverting!
   - the same place that updates the status could use updates to clear caches
     for cmds or for TimeStep
     Clear when: inst changed, so if any performance was regenerated.  In fact,
@@ -64,7 +65,7 @@ UNSORTED
   - It seems confusing that in val edit the note track doesn't need cmd-x but
     the control track does.
     Maybe I should get rid of the optional cmd- thing?
-  - Undo during edit (i.e. a suppressed cmd) destroys changes and you can't
+  * Undo during edit (i.e. a suppressed cmd) destroys changes and you can't
     get them back.  And it's confusing.  Maybe undo shouldn't work?
     Or it should commit the current suppressed cmd and then undo it.
   - Hand damping: manually place hand damp positions.   Post proc, where tick

@@ -53,6 +53,9 @@ import Types
 
 undo :: Cmd.CmdT IO ()
 undo = do
+    -- If there is a suppressed record, then undo that and put it in the
+    -- future.
+    record_suppressed
     hist <- Cmd.gets Cmd.state_history
     -- undo is asymmetrical with 'redo' because 'undo' itself is a cmd, and
     -- is happening after the state that is going to be undone.  So the current
@@ -188,11 +191,35 @@ keep_clip clip_ns old new =
 
 -- * responder support
 
--- | Undo has a hook directly in the responder, since it needs to be run after
--- cmds.
+-- | This is the toplevel function to record one Cmd's worth of history.
+--
+-- It's called by the responder after the Cmds are run and the updates are
+-- available.
 maintain_history :: State.State -> Cmd.State -> [Update.UiUpdate]
     -> IO Cmd.State
-maintain_history ui_state cmd_state updates = do
+maintain_history ui_state cmd_state updates =
+    save_history ui_state cmd_state hist collect uncommitted
+    where
+    (hist, collect, uncommitted) = update_history updates ui_state cmd_state
+
+-- | Save the suppressed history, if there is any.
+record_suppressed :: Cmd.CmdT IO ()
+record_suppressed = do
+    cmd_state <- Cmd.get
+    ui_state <- State.get
+    let uncommitted = Maybe.maybeToList $ Cmd.state_suppressed $
+            Cmd.state_history_collect cmd_state
+        hist = Cmd.state_history cmd_state
+        collect = Cmd.empty_history_collect
+    cmd_state <- Trans.liftIO $
+        save_history ui_state cmd_state hist collect uncommitted
+    Cmd.put cmd_state
+
+-- | Write the given 'SaveGit.SaveHistory's to disk (if I'm recording into
+-- git), and update the Cmd.State accordingly.
+save_history :: State.State -> Cmd.State -> Cmd.History -> Cmd.HistoryCollect
+    -> [SaveGit.SaveHistory] -> IO Cmd.State
+save_history ui_state cmd_state hist collect uncommitted = do
     entries <- if has_saved then commit_entries repo prev_commit uncommitted
         else return $ map (history_entry Nothing) uncommitted
     let (present, past) = bump_updates (Cmd.hist_present hist) entries
@@ -209,12 +236,11 @@ maintain_history ui_state cmd_state updates = do
             }
         }
     where
-    (hist, collect, uncommitted) = record_history updates ui_state cmd_state
+    keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
+    prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
     has_saved = Maybe.isJust $ Cmd.hist_last_save $
         Cmd.state_history_config cmd_state
-    keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
     repo = SaveGit.save_repo ui_state
-    prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
 
 -- | The present is expected to have no updates, so bump the updates off the
 -- new present onto the old present, as described in [undo-and-updates].
@@ -234,6 +260,8 @@ zip_next :: a -> [a] -> [(a, a)]
 zip_next _ [] = []
 zip_next prev (x : xs) = (prev, x) : zip_next x xs
 
+-- | Convert 'SaveGit.SaveHistory's to 'Cmd.HistoryEntry's by writing the
+-- commits to disk.
 commit_entries :: SaveGit.Repo -> Maybe SaveGit.Commit -> [SaveGit.SaveHistory]
     -> IO [Cmd.HistoryEntry]
 commit_entries _ _ [] = return []
@@ -263,10 +291,12 @@ history_entry commit (SaveGit.SaveHistory state _ updates names) =
     Cmd.HistoryEntry state (mapMaybe Update.to_cmd updates)
         names commit
 
--- | Record 'Cmd.HistoryEntry's, if required.
-record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
+-- | Integrate the latest updates into the history.  This could mean
+-- accumulating them if history record is suppressed, or putting them into
+-- new 'SaveGit.SaveHistory's if it isn't.
+update_history :: [Update.UiUpdate] -> State.State -> Cmd.State
     -> (Cmd.History, Cmd.HistoryCollect, [SaveGit.SaveHistory])
-record_history updates ui_state cmd_state
+update_history updates ui_state cmd_state
     | Just (Cmd.Load commit names) <- Cmd.hist_last_cmd hist =
         -- Switching over to someone else's history.  Wipe out existing
         -- history and record the current state as a commit.
@@ -284,15 +314,18 @@ record_history updates ui_state cmd_state
         -- transaction that was cancelled.
         (hist, Cmd.empty_history_collect, [])
     | otherwise =
-        let (entries, collect) = pure_record_history updates ui_state cmd_state
+        let (entries, collect) = record_history updates ui_state cmd_state
         in (hist, collect, entries)
     where
     hist = Cmd.state_history cmd_state
 
 -- | Get any history entries that should be saved, and the new HistoryCollect.
-pure_record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
+-- There may be no saveable history if this cmd doesn't need to be recorded
+-- or was suppressed, and there may be more than one if a suppressed history
+-- must now be recorded.
+record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
     -> ([SaveGit.SaveHistory], Cmd.HistoryCollect)
-pure_record_history updates ui_state cmd_state
+record_history updates ui_state cmd_state
     | not is_recordable && Maybe.isNothing suppress =
         ([], (Cmd.state_history_collect cmd_state) { Cmd.state_cmd_names = [] })
     | is_suppressed = (,) [] $
