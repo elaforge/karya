@@ -28,7 +28,7 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Sysex as Sysex
 import Instrument.Sysex
-       (Specs, Spec(..), unsigned, bool, enum, ranged)
+       (Specs, Spec(..), unsigned, bool, enum, ranged, signed)
 import qualified App.MidiInst as MidiInst
 
 
@@ -376,8 +376,8 @@ common_spec =
     , ("portamento time", unsigned 127)
     , ("elem1 portamento", bool)
     , ("elem2 portamento", bool)
-    , ("elem1 detune", ranged (-7) 7)
-    , ("elem2 detune", ranged (-7) 7)
+    , ("elem1 detune", signed 7)
+    , ("elem2 detune", signed 7)
     , ("elem1 note shift", ranged (-64) 63)
     , ("elem2 note shift", ranged (-64) 63)
     , ("elem1 rand pitch", unsigned 7)
@@ -429,7 +429,7 @@ controls_spec =
         [c_control, c_mode, ("upper depth", depth), ("lower depth", depth)])
     , ("pitch", SubSpec
         [ c_control, c_mode
-        , ("upper depth", ranged (-12) 12), ("lower depth", ranged (-12) 12)
+        , ("upper depth", signed 12), ("lower depth", signed 12)
         ])
     , ("vibrato", SubSpec [c_control, ("", Unparsed 1), c_depth])
     , ("tonguing", c_simple)
@@ -449,9 +449,121 @@ controls_spec =
 
     -- I think if the control is 127, then this control is disabled and
     -- the rest can be ignored.
-    c_control = ("control", unsigned 127) -- 124)
+    -- c_control = ("control", unsigned 127) -- 124)
+    c_control = ("control", unsigned 124)
     c_value = ("value", unsigned 127)
     c_mode = ("mode", enum ["mode1", "mode2"]) -- TODO what are these really?
-    c_curve = ("curve", ranged (-16) 16)
+    c_curve = ("curve", signed 16)
     c_depth = ("depth", depth)
-    depth = ranged (-127) 127
+    depth = signed 127
+
+
+-- * modulation effects
+
+wet_dry :: (String, Sysex.Spec)
+wet_dry = ("wet/dry balance", unsigned 100)
+
+flanger_specs :: Specs
+flanger_specs =
+    [ ("wave", unsigned 2)
+    , ("freq", unsigned 127)
+    , ("depth", unsigned 100)
+    , ("delay", unsigned 126)
+    , ("phase", signed 8)
+    , ("fb gain", signed 100)
+    , ("high", unsigned 9)
+    , ("analog feel", unsigned 10)
+    , wet_dry
+    ]
+
+pitch_change_specs :: Specs
+pitch_change_specs =
+    [ ("mode", unsigned 1) -- enum
+    , ("pitch 1", signed 12)
+    , ("fine 1", signed 100)
+    , ("out 1", unsigned 100)
+    , ("pitch 2", signed 12)
+    , ("fine 2", signed 100)
+    , ("out 2", unsigned 100)
+    , wet_dry
+    ]
+
+distortion_specs :: Specs
+distortion_specs =
+    [ ("overdrive", unsigned 100)
+    , ("", Unparsed 2)
+    , ("device", unsigned 4)
+    , ("speaker", unsigned 5)
+    , ("presence", signed 10)
+    , ("output level", unsigned 100)
+    ]
+
+chorus_specs :: Specs
+chorus_specs =
+    [ ("mode", unsigned 1) -- enum
+    , ("freq", unsigned 127)
+    , ("depth", unsigned 100)
+    , ("delay", unsigned 126)
+    , ("fb gain", signed 100)
+    , ("high", unsigned 9)
+    , wet_dry
+    ]
+
+phaser_specs :: Specs
+phaser_specs =
+    [ ("mode", unsigned 1) -- enum
+    , ("stage", unsigned 3) -- enum
+    , ("freq", unsigned 127)
+    , ("depth", unsigned 100)
+    , ("offset", unsigned 100)
+    , ("phase", signed 8) -- diffusion 0--1 when mode=0
+    , ("fb gain", signed 100)
+    , wet_dry
+    ]
+
+symphonic_specs :: Specs
+symphonic_specs =
+    [ ("mode", unsigned 1) -- enum
+    , ("freq", unsigned 127)
+    , ("depth", unsigned 100)
+    , ("diffusion", unsigned 10)
+    , ("lo-fi", unsigned 12)
+    , wet_dry
+    ]
+
+celeste_specs :: Specs
+celeste_specs =
+    [ ("mode", unsigned 1)
+    , ("freq", unsigned 127)
+    , ("depth", unsigned 100)
+    , ("delay", unsigned 126)
+    , ("fb gain", signed 100)
+    , ("lo-fi", unsigned 12)
+    , wet_dry
+    ]
+
+distortion_flanger_specs :: Specs
+distortion_flanger_specs =
+    [ ("overdrive", unsigned 100)
+    , ("speaker", unsigned 5)
+    , ("output level", unsigned 100)
+    , ("freq", unsigned 127)
+    , ("depth", unsigned 100)
+    , ("delay", unsigned 126)
+    , ("phase", signed 8)
+    , ("fb gain", unsigned 100)
+    , ("high", unsigned 9)
+    , ("flanger balance", unsigned 100)
+    ]
+
+distortion_wah_specs :: Specs
+distortion_wah_specs =
+    [ ("overdrive", unsigned 100)
+    , ("speaker", unsigned 5)
+    , ("output level", unsigned 100)
+    , ("mode", unsigned 3)
+    , ("wah pre/post", unsigned 1)
+    , ("cutoff freq", unsigned 127)
+    , ("resonance", unsigned 127)
+    , ("sensitivity", unsigned 100)
+    ]

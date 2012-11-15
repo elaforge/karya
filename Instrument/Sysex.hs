@@ -38,11 +38,11 @@ import qualified Instrument.Tag as Tag
 
 -- * parse files
 
-type Parser = ByteString -> Either String [Instrument.Patch]
+type Parser a = ByteString -> Either String a
 
 -- | For every file below the directory ending with .syx, try all of the
 -- given parsers on it.
-parse_dir :: [Parser] -> FilePath -> IO [Instrument.Patch]
+parse_dir :: [Parser [Instrument.Patch]] -> FilePath -> IO [Instrument.Patch]
 parse_dir parsers dir = do
     fns <- filter ((==".syx") . FilePath.takeExtension) <$>
         File.recursive_list_dir (const True) dir
@@ -51,7 +51,7 @@ parse_dir parsers dir = do
         | (fn, Left err) <- zip fns results]
     return $ concat [patches | Right patches <- results]
 
-parse_file :: [Parser] -> FilePath -> ByteString
+parse_file :: [Parser [Instrument.Patch]] -> FilePath -> ByteString
     -> Either String [Instrument.Patch]
 parse_file parsers fn bytes =
     map (initialize_sysex bytes . add_file fn) <$> try_parsers parsers bytes
@@ -59,7 +59,8 @@ parse_file parsers fn bytes =
 -- | Parse a file just like 'parse_file'.  But this file is expected to be
 -- the dump of the patches currently loaded in the synthesizer, and will be
 -- given ProgramChange msgs for initialization rather than sysex dumps.
-parse_builtins :: Int -> Parser -> FilePath -> IO [Instrument.Patch]
+parse_builtins :: Int -> Parser [Instrument.Patch] -> FilePath
+    -> IO [Instrument.Patch]
 parse_builtins bank parser fn = do
     bytes <- B.readFile fn
     case parser bytes of
@@ -70,7 +71,7 @@ parse_builtins bank parser fn = do
             return $ zipWith (initialize_program bank) [0..] patches
 
 -- | Try each parser in turn, and fail only if they all fail.
-try_parsers :: [Parser] -> ByteString -> Either String [Instrument.Patch]
+try_parsers :: [Parser a] -> ByteString -> Either String a
 try_parsers parsers bytes = case Either.rights results of
     patches : _ -> Right patches
     _ -> Left $ "didn't match any parsers: "
@@ -277,17 +278,16 @@ data Config = Config {
 
 -- | Encode for 8bit bytes, where numbers are never more than 1 byte.
 config_8bit :: Config
-config_8bit = Config decode_num encode_num (const 1)
+config_8bit = Config decode_8bit_num encode_8bit_num (const 1)
     where
-    decode_num :: NumRange -> ByteString -> Int
-    decode_num (low, _) bytes = case B.uncons bytes of
+    decode_8bit_num :: NumRange -> ByteString -> Int
+    decode_8bit_num (low, _) bytes = case B.uncons bytes of
         Nothing -> 0
         Just (b, _)
             | low < 0 -> to_signed 8 b
             | otherwise -> fromIntegral b
-
-    encode_num :: NumRange -> Int -> ByteString
-    encode_num (low, _) num
+    encode_8bit_num :: NumRange -> Int -> ByteString
+    encode_8bit_num (low, _) num
         | low < 0 = B.singleton $ from_signed 8 num
         | otherwise = B.singleton (fromIntegral num)
 
@@ -635,6 +635,9 @@ unsigned max = Num (Range 0 max)
 ranged :: Int -> Int -> Spec
 ranged low high = Num (Range low high)
 
+signed :: Int -> Spec
+signed high = ranged (-high) high
+
 enum :: [String] -> Spec
 enum enums = Num (Enum enums)
 
@@ -647,10 +650,13 @@ bits :: Int -> BitField
 bits n = (n, Range 0 (2^n))
 
 ranged_bits :: Int -> (Int, Int) -> BitField
-ranged_bits n (min, max) = (n, Range min max)
+ranged_bits n (low, high) = (n, Range low high)
 
 enum_bits :: Int -> [String] -> BitField
 enum_bits n vals = (n, Enum vals)
 
 bool_bit :: BitField
 bool_bit = (1, Enum ["off", "on"])
+
+unparsed_bits :: Int -> (String, BitField)
+unparsed_bits n = ("", bits n)

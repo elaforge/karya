@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Instrument.Sysex_test where
 import qualified Data.Map as Map
+import Data.ByteString (ByteString)
 
 import Util.Control
 import Util.Test
@@ -109,5 +110,9 @@ test_lookup_put_rmap = do
 rmap :: [(String, Record)] -> Sysex.RMap
 rmap = Map.fromList
 
+encode :: Sysex.Specs -> Sysex.RMap -> Either Sysex.Error ByteString
 encode = Sysex.encode Sysex.config_8bit
+
+decode :: Sysex.Specs -> ByteString
+    -> Either Sysex.Error (Sysex.RMap, ByteString)
 decode = Sysex.decode Sysex.config_8bit
