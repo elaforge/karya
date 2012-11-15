@@ -231,9 +231,15 @@ destroy_view view_id = do
 -- be inserted to the right of the selected track.
 splice_below :: (Cmd.M m) => m TrackId
 splice_below = do
-    (block_id, tracknum, _, _) <- Selection.get_insert
-    track_id <- focused_track block_id (tracknum+1)
-    State.splice_skeleton_below block_id (tracknum+1) tracknum
+    -- I want to add a track to the right of the selected track.  Taking the
+    -- maximum means I should splice after a merged pitch track, if there is
+    -- one.
+    (block_id, sel_tracknums, _, _, _) <- Selection.tracks
+    let sel_tracknum = maximum (1 : sel_tracknums)
+    block <- State.get_block block_id
+    let tracknum = track_after block sel_tracknum
+    track_id <- focused_track block_id tracknum
+    State.splice_skeleton_below block_id tracknum sel_tracknum
     return track_id
 
 {-

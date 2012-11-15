@@ -1,4 +1,6 @@
 UNSORTED
+  * create a new track should place the track to the right of any collapsed
+    tracks
   * spicy guitar uses key swiches that have to be held down.  I could set an
     instrument config, but what if I want to apply the articulation to a note
     that's already sounding?  I guess in that case I can just write it as
