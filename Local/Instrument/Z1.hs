@@ -119,16 +119,14 @@ test_decode = do
 --     if has_bank then encode_current_program rmap else encode_program_dump rmap
 
 encode_current_program :: Sysex.RMap -> Either String ByteString
-encode_current_program rmap = do
-    header <- encode current_program_dump_header rmap
-    body <- encode patch_spec rmap
-    return $ header <> enkorg body
+encode_current_program rmap =
+    encode_sysex (encode current_program_dump_header rmap)
+        (encode patch_spec rmap)
 
 encode_program_dump :: Sysex.RMap -> Either String ByteString
-encode_program_dump rmap = do
-    header <- encode program_dump_header rmap
-    body <- encode patch_spec rmap
-    return $ header <> enkorg body
+encode_program_dump rmap =
+    encode_sysex (encode program_dump_header rmap)
+        (encode patch_spec rmap)
 
 data Unit = Program | Bank | All deriving (Show)
 data Bank = A | B deriving (Show)
@@ -136,12 +134,18 @@ data Bank = A | B deriving (Show)
 encode_bank_dump :: Unit -> Bank -> [Sysex.RMap] -> Either String ByteString
 encode_bank_dump unit bank rmaps = do
     header_rmap <- set_bank $ Sysex.spec_to_rmap program_dump_header
-    header <- encode program_dump_header header_rmap
-    body <- enkorg . mconcat <$> mapM (encode patch_spec) rmaps
-    return $ header <> body
+    encode_sysex (encode program_dump_header header_rmap)
+        (mconcat <$> mapM (encode patch_spec) rmaps)
     where
     set_bank = Sysex.put_rmap "bank" (map Char.toLower (show bank))
         <=< Sysex.put_rmap "unit" (map Char.toLower (show unit))
+
+encode_sysex :: Either String ByteString -> Either String ByteString
+    -> Either String ByteString
+encode_sysex encode_header encode_body = do
+    header <- encode_header
+    body <- encode_body
+    return $ header <> enkorg body <> B.singleton Midi.eox_byte
 
 -- ** record
 
@@ -183,9 +187,9 @@ enkorg :: ByteString -> ByteString
 enkorg = mconcat . map expand . chunks 7
     where
     expand bs = B.cons bits (B.map (`Bits.clearBit` 7) bs)
-        where bits = B.foldl' get_bits 0 bs
-    get_bits accum b =
-        Bits.shiftL accum 1 .|.  (if Bits.testBit b 7 then 1 else 0)
+        where bits = B.foldr get_bits 0 bs
+    get_bits b accum =
+        Bits.shiftL accum 1 .|. (if Bits.testBit b 7 then 1 else 0)
 
 chunks :: Int -> ByteString -> [ByteString]
 chunks size bs

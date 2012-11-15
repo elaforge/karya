@@ -19,6 +19,7 @@ load _dir = return $ MidiInst.make $
 
 pb_range = (-3, 3)
 
+-- WARNING: changing these while playing tends to crash the vst.
 controls :: [(Midi.Control, String)]
 controls =
     [ (20, "position") -- 0 for bridge, 1 for middle
