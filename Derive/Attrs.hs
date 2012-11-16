@@ -56,6 +56,8 @@ pang = attr "pang" -- rim
 -- ** western
 
 snare = attr "snare" -- snare
+rim = attr "rim" -- rim on snare
+stick = attr "stick"
 bd = attr "bd" -- base drum
 hh = attr "hh" -- high-hat
 crash = attr "crash" -- crash cymbal

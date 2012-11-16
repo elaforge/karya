@@ -28,10 +28,13 @@ data Note = Note {
 
 
 c_bd    = Note "bd"     bd              'z' 1
+c_bd2   = Note "bd2"    (bd <> v2)      's' 1
 c_sn    = Note "sn"     snare           'x' 1
-c_ltom  = Note "ltom"   (tom <> low)    'c' 1
-c_mtom  = Note "mtom"   (tom <> middle) 'v' 1
-c_htom  = Note "htom"   (tom <> high)   'b' 1
+c_sn2   = Note "sn2"    (snare <> v2)   'd' 1
+c_rim   = Note "rim"    rim             'v' 1
+c_ltom  = Note "ltom"   (tom <> low)    'b' 1
+c_mtom  = Note "mtom"   (tom <> middle) 'n' 1
+c_htom  = Note "htom"   (tom <> high)   'm' 1
 
 c_hh    = Note "hh"     hh              'q' 1
 c_ohh   = Note "ohh"    (open <> hh)    'q' 1

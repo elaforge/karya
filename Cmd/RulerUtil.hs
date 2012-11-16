@@ -64,8 +64,8 @@ modify_block block_id f = mapM_ (\ruler_id -> local_modify block_id ruler_id f)
 
 -- | Modify the given RulerId, making a new one if it's already in use on
 -- a block other than the give one.
-local_modify :: (State.M m) => BlockId -> RulerId -> (Ruler.Ruler -> Ruler.Ruler)
-    -> m RulerId
+local_modify :: (State.M m) => BlockId -> RulerId
+    -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId
 local_modify block_id ruler_id f = do
     blocks <- State.tracks_with_ruler_id ruler_id
     case blocks of
