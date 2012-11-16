@@ -89,10 +89,21 @@ can_create name = do
             <$> State.gets State.state_blocks
         Nothing -> return False
 
+-- * stretch
+
+stretch_block :: ScoreTime -> BlockId -> Cmd.CmdL ()
+stretch_block factor block_id =
+    ModifyEvents.block_tracks block_id $
+        ModifyEvents.track_events (stretch factor)
+
+stretch :: (Monad m) => ScoreTime -> ModifyEvents.PosEvent m
+stretch factor =
+    ModifyEvents.event (Event.move (*factor) . Event.modify_duration (*factor))
+
 -- * pitch
 
-simplify_block :: BlockId -> Cmd.CmdL ()
-simplify_block block_id =
+simplify_block_enharmonics :: BlockId -> Cmd.CmdL ()
+simplify_block_enharmonics block_id =
     ModifyEvents.block_tracks block_id simplify_enharmonics
 
 -- | This only works for Twelve at the moment.  For it to work for any scale
