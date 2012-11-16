@@ -75,6 +75,10 @@ meter_ranks =
     , (mcolor 0.0 0.0 0.0, 1, 8)    -- 256th
     ]
 
+-- | These are the conventional meanings for the ranks.
+r_block, r_section, r_1, r_4, r_16, r_64, r_256 :: Rank
+r_block : r_section : r_1 : r_4 : r_16 : r_64 : r_256 : _ = [0..]
+
 rank_to_pixels :: [Int]
 rank_to_pixels = [pixels | (_, _, pixels) <- meter_ranks]
 
