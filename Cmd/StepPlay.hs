@@ -112,8 +112,10 @@ initialize view_id block_id tracknum track_id pos play_tracks = do
         Cmd.StepState view_id play_tracks []
             (zip score_steps (make_states real_steps msgs)) }
     where
-    play_step = TimeStep.merge 0 (TimeStep.EventEnd step_tracks) $
-        TimeStep.step (TimeStep.EventStart step_tracks)
+    play_step = TimeStep.TimeStep
+        [ (TimeStep.EventStart step_tracks, 0)
+        , (TimeStep.EventEnd step_tracks, 0)
+        ]
     step_tracks = if null play_tracks then TimeStep.AllTracks
         else TimeStep.TrackNums play_tracks
 

@@ -377,9 +377,9 @@ set_step_rank deflt rank skip = Cmd.modify_edit_state $ \st ->
         set (TimeStep.to_list (Cmd.state_time_step st)) }
     where
     set [(TimeStep.AbsoluteMark names _, _)] =
-        TimeStep.time_step skip (TimeStep.AbsoluteMark names rank)
+        TimeStep.time_step (TimeStep.AbsoluteMark names rank) skip
     set [(TimeStep.RelativeMark names _, _)] =
-        TimeStep.time_step skip (TimeStep.RelativeMark names rank)
+        TimeStep.time_step (TimeStep.RelativeMark names rank) skip
     set _ = deflt
 
 -- | Toggle between absolute and relative mark step.
@@ -389,9 +389,9 @@ toggle_mark_step = Cmd.modify_edit_state $ \st ->
     where
     toggle step = case TimeStep.to_list step of
         [(TimeStep.AbsoluteMark names rank, skip)] ->
-            TimeStep.time_step skip (TimeStep.RelativeMark names rank)
+            TimeStep.time_step (TimeStep.RelativeMark names rank) skip
         [(TimeStep.RelativeMark names rank, skip)] ->
-            TimeStep.time_step skip (TimeStep.AbsoluteMark names rank)
+            TimeStep.time_step (TimeStep.AbsoluteMark names rank) skip
         _ -> step
 
 set_step :: (Cmd.M m) => TimeStep.TimeStep -> m ()

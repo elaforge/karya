@@ -4,11 +4,11 @@
 -}
 module Cmd.TimeStep (
     -- * TimeStep
-    TimeStep, Skip, time_step, step, merge, to_list
+    TimeStep(..), Skip, time_step, step, to_list
     , Step(..), Tracks(..)
     , MarklistMatch(..), Rank
     , Direction(..)
-    , show_step
+    , show_time_step, parse_time_step, show_direction
 
     -- * step
     , snap
@@ -20,15 +20,18 @@ module Cmd.TimeStep (
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Text.Parsec as P
 
 import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Parse as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
@@ -45,16 +48,18 @@ newtype TimeStep = TimeStep [(Step, Skip)]
 
 -- | Natural number.  Skip this many Steps.  So a skip of 0 will match at
 -- every point the Step matches, and a skip of 1 will match every other point.
+--
+-- A negative skip will match a fraction of the way to the next Step,
+-- which is recip (abs skip + 1), e.g.  -1 will match half way, -2 one-third,
+-- etc.
+-- TODO implement
 type Skip = Int
 
-time_step :: Skip -> Step -> TimeStep
-time_step skip step = TimeStep [(step, abs skip)]
-
 step :: Step -> TimeStep
-step = time_step 0
+step ts = TimeStep [(ts, 0)]
 
-merge :: Skip -> Step -> TimeStep -> TimeStep
-merge skip step (TimeStep steps) = TimeStep ((step, abs skip) : steps)
+time_step :: Step -> Rank -> TimeStep
+time_step step rank = TimeStep [(step, rank)]
 
 to_list :: TimeStep -> [(Step, Skip)]
 to_list (TimeStep steps) = steps
@@ -88,30 +93,85 @@ type Rank = Int
 -- | Another way to express a 'step_from' of 1 or -1.
 data Direction = Advance | Rewind deriving (Eq, Show)
 
-show_step :: Maybe Direction -> TimeStep -> String
-show_step direction (TimeStep steps) = dir_s ++ Seq.join ";" (map show1 steps)
+-- | Convert a TimeStep to a compact and yet somehow still somewhat readable
+-- representation.
+show_time_step :: TimeStep -> String
+show_time_step (TimeStep steps) = Seq.join ";" (map show1 steps)
     where
-    show1 (step, skip) = show_skip skip ++ case step of
-            Absolute pos -> "abs:" ++ Pretty.pretty pos
-            AbsoluteMark mlists match ->
-                "mark:" ++ show_marklists mlists ++ show_match match
-            RelativeMark mlists match ->
-                "rel:" ++ show_marklists mlists ++ show_match match
-            BlockEnd -> "end"
-            EventStart tracks -> "start" ++ show_tracks tracks
-            EventEnd tracks -> "end" ++ show_tracks tracks
-    show_skip skip = if skip > 0 then show (skip+1) ++ "*" else ""
-    dir_s = case direction of
-        Just Advance -> "+"
-        Just Rewind -> "-"
-        Nothing -> ""
-    show_match rank = "r" ++ show rank
+    -- The keywords and symbols are chosen carefully to allow unambiguous
+    -- parsing.
+    show1 (step, skip) = show_step step ++ show_skip skip
+    show_step step = case step of
+        Absolute pos -> "a:" ++ Pretty.pretty pos
+        RelativeMark mlists rank ->
+            "r:" ++ show_marklists mlists ++ show_rank rank
+        BlockEnd -> "END"
+        EventStart tracks -> "start" ++ show_tracks tracks
+        EventEnd tracks -> "end" ++ show_tracks tracks
+        AbsoluteMark mlists rank -> show_marklists mlists ++ show_rank rank
+    show_skip skip
+        | skip > 0 = '*' : show (skip + 1)
+        | skip < 0 = '/' : show (abs skip + 1)
+        | otherwise = ""
     show_marklists AllMarklists = ""
-    show_marklists (NamedMarklists mlists) = Seq.join "," mlists ++ "/"
+    show_marklists (NamedMarklists mlists) = Seq.join "," mlists ++ "|"
     show_tracks CurrentTrack = ""
     show_tracks AllTracks = "s"
     show_tracks (TrackNums tracks) = "s:" ++ Seq.join "," (map show tracks)
 
+show_rank :: Rank -> String
+show_rank rank = case rank of
+    0 -> "block"
+    1 -> "section"
+    2 -> "w"
+    3 -> "q"
+    4 -> "s"
+    5 -> "64"
+    6 -> "256"
+    _ -> 'R' : show rank
+
+-- | Parse that curiously somewhat readable representation back to a TimeStep.
+parse_time_step :: String -> Either String TimeStep
+parse_time_step = Parse.parse p_time_step
+    where
+    p_time_step = TimeStep <$> P.sepBy p_pair (P.char ';')
+    p_pair = (,) <$> p_step <*> p_skip
+    -- P.choice must backtrack because AbsoluteMark parses can overlap.
+    p_step = P.choice $ map P.try
+        [ str "a:" *> (Absolute <$>
+            (ScoreTime.double <$> (Parse.p_float <* P.char ScoreTime.suffix)))
+        , str "r:" *> (RelativeMark <$> p_marklists <*> p_rank)
+        , str "END" *> return BlockEnd
+        , str "start" *> (EventStart <$> p_tracks)
+        , str "end" *> (EventEnd <$> p_tracks)
+        , AbsoluteMark <$> p_marklists <*> p_rank
+        ]
+    p_skip = (subtract 1 <$> (P.char '*' *> Parse.p_positive))
+        <|> (negate . subtract 1 <$> (P.char '/' *> Parse.p_positive))
+        <|> return 0
+    p_marklists =
+        P.try ((NamedMarklists <$> P.sepBy p_name (P.char ',')) <* P.char '|')
+        <|> return AllMarklists
+    p_name = P.many1 (P.lower <|> P.char '-')
+    p_tracks = P.option CurrentTrack $
+        P.try (TrackNums <$> (str "s:" *> p_tracknums))
+        <|> P.char 's' *> return AllTracks
+    p_tracknums = P.sepBy Parse.p_nat (P.char ',')
+    p_rank = P.choice $ map P.try
+        [ str "block" *> return 0
+        , str "section" *> return 1
+        , str "w" *> return 2
+        , str "q" *> return 3
+        , str "s" *> return 4
+        , str "64" *> return 5
+        , str "256" *> return 6
+        , P.char 'R' *> Parse.p_nat
+        ]
+    str = P.string
+
+show_direction :: Direction -> String
+show_direction Advance = "+"
+show_direction Rewind = "-"
 
 -- * snap
 

@@ -4,11 +4,12 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Numeric
-import qualified Text.ParserCombinators.Parsec as Parsec
-import Text.ParserCombinators.Parsec ((<|>), (<?>))
+import qualified Text.Parsec as Parsec
+import Text.Parsec ((<?>))
+import qualified Text.Parsec.String as Parsec.String
 
-import Util.Control hiding ((<|>))
+import Util.Control
+import qualified Util.Parse as Parse
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
@@ -17,7 +18,7 @@ import qualified Instrument.Sysex as Sysex
 import qualified Instrument.Tag as Tag
 
 
-type Parser st a = Parsec.GenParser Char st a
+type Parser st a = Parsec.Parsec String st a
 
 -- * annotation file
 
@@ -30,7 +31,7 @@ type Annotation = Instrument.Tag
 parse_annotations :: FilePath
     -> IO (Either String (Map.Map Score.Instrument [Annotation]))
 parse_annotations fn = do
-    result <- Parsec.parseFromFile p_annotation_file fn
+    result <- Parsec.String.parseFromFile p_annotation_file fn
     return $ either (Left . show) (Right . Map.fromListWith (++)) result
 
 p_annotation_file :: Parser st [(Score.Instrument, [Annotation])]
@@ -147,14 +148,6 @@ p_bank_decl :: Parser State ()
 p_bank_decl = do
     Parsec.string "*bank"
     Parsec.skipMany1 Parsec.space
-    n <- p_nat
+    n <- Parse.p_nat
     st <- Parsec.getState
     Parsec.setState (st { state_bank = fromIntegral n, state_patch_num = 0 })
-
-p_nat :: Parser st Integer
-p_nat = do
-    i <- Parsec.many Parsec.digit
-    case Numeric.readDec i of
-        (n, _) : _ -> return n
-        _ -> Parsec.pzero -- this should never happen
-    <?> "natural int"

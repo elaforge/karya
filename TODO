@@ -3,8 +3,14 @@ UNSORTED
   - insert dividers
   - why does drumaxx only enter keys in kbd edit mode?
   - use trill/roll for drums
-  - will need timstep calls, e.g. 32nd / 2
-    So I need a parseable and succinct notation for timesteps
+  timestep
+    - timestep 64*2 skips two 's', because 's' is the minimum match
+      skip should be ignored when the match is larger rank than exists, or maybe
+      step should fail.
+    - will need timstep calls, e.g. as a trill arg
+    * So I need a parseable and succinct notation for timesteps
+    - use NE list for TimeStep
+    - TimeStep should support negative skip as a fractional skip
   - other drumaxx controls?
   - split and join blocks, use dividers
   * create a new track should place the track to the right of any collapsed

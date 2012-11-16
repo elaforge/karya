@@ -298,7 +298,7 @@ edit_state_bindings = concat
     where
     meter = TimeStep.NamedMarklists [Meter.meter]
     step_rank rank skips = Edit.set_step_rank
-        (TimeStep.time_step skips (TimeStep.AbsoluteMark meter rank))
+        (TimeStep.time_step (TimeStep.AbsoluteMark meter rank) skips)
         rank skips
 
 -- delete = remove events and move following events back

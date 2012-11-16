@@ -9,22 +9,36 @@ import qualified Cmd.TimeStep as TimeStep
 import Cmd.TimeStep (Step(..), MarklistMatch(..), Tracks(..))
 
 
-mk = TimeStep.time_step
-merge = TimeStep.merge
+test_show_parse_time_step = do
+    let f step = (trip step, Right (mk step))
+        trip = TimeStep.parse_time_step . TimeStep.show_time_step . mk
+        mk = TimeStep.TimeStep
+    uncurry equal (f [(Absolute 2, 0)])
+    uncurry equal (f [(Absolute 0.5, 1)])
+    uncurry equal (f [(RelativeMark (NamedMarklists ["hi", "there"]) 5, 2)])
+    uncurry equal (f [(RelativeMark AllMarklists 5, 2)])
+    uncurry equal (f [(BlockEnd, 0)])
 
-test_show_step = do
-    let f step = TimeStep.show_step (Just TimeStep.Advance) (mk 0 step)
-    equal (f (Absolute 2)) "+abs:2t"
-    equal (TimeStep.show_step (Just TimeStep.Advance) (mk 1 (Absolute 2)))
-        "+2*abs:2t"
+    uncurry equal (f [(EventStart CurrentTrack, 1)])
+    uncurry equal (f [(EventStart AllTracks, 1)])
+    uncurry equal (f [(EventStart (TrackNums [1, 2]), 1)])
+    uncurry equal (f [(EventEnd CurrentTrack, 1)])
+    uncurry equal (f [(EventEnd AllTracks, 1)])
+    uncurry equal (f [(EventEnd (TrackNums [1, 2]), 1)])
 
-    equal (f (AbsoluteMark AllMarklists 3)) "+mark:r3"
-    equal (f (AbsoluteMark (NamedMarklists ["a", "b"]) 3))
-        "+mark:a,b/r3"
-    equal (f BlockEnd) "+end"
-    equal (TimeStep.show_step Nothing
-            (merge 0 (EventStart CurrentTrack) (mk 0 (EventEnd CurrentTrack))))
-        "start;end"
+    -- Test AbsoluteMark especially well because it's at the end of the parse
+    -- and has no special prefix.
+    uncurry equal (f [(AbsoluteMark (NamedMarklists ["hi"]) 6, 2)])
+    uncurry equal (f [(AbsoluteMark AllMarklists 7, 0)])
+    forM_ [0..7] $ \rank ->
+        uncurry equal (f [(AbsoluteMark AllMarklists rank, 0)])
+    forM_ [0..7] $ \rank ->
+        uncurry equal (f [(AbsoluteMark AllMarklists rank, 1)])
+    forM_ [0..7] $ \rank ->
+        uncurry equal (f [(AbsoluteMark AllMarklists rank, -1)])
+
+    uncurry equal (f
+        [(Absolute 2, 0), (RelativeMark (NamedMarklists ["hi", "there"]) 5, 2)])
 
 test_get_points = do
     let ustate = UiTest.exec State.empty $ do
@@ -34,6 +48,7 @@ test_get_points = do
                 ])
             State.modify_ruler UiTest.default_ruler_id $
                 const (UiTest.mkruler 7 1)
+        mk rank ts = TimeStep.TimeStep [(ts, rank)]
     let f pos step = UiTest.eval ustate $
             TimeStep.get_points step UiTest.default_block_id 1 pos
     equal (f 0 (mk 0 (Absolute 32))) (Just [0])
@@ -54,8 +69,11 @@ test_get_points = do
     equal (f 0 (mk 0 (EventStart (TrackNums [1, 2])))) (Just [0, 2, 5])
     equal (f 0 (mk 0 (EventEnd CurrentTrack))) (Just [1, 3])
     -- merged
-    let merged ts1 ts2 = (f 0 (merge 0 ts1 (mk 0 ts2)), Seq.drop_dups id <$>
-            (Seq.merge <$> f 0 (mk 0 ts1) <*> f 0 (mk 0 ts2)))
+    let merged ts1 ts2 =
+            (f 0 step, Seq.drop_dups id <$>
+                (Seq.merge <$> f 0 (mk 0 ts1) <*> f 0 (mk 0 ts2)))
+            where
+            step = TimeStep.TimeStep [(ts1, 0), (ts2, 0)]
     uncurry equal $ merged (EventEnd AllTracks) (EventStart AllTracks)
     uncurry equal $ merged (EventEnd AllTracks) (EventStart (TrackNums [1]))
     uncurry equal $

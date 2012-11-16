@@ -305,9 +305,9 @@ edit_color mode = case mode of
 sync_step_status :: (Cmd.M m) => m ()
 sync_step_status = do
     st <- Cmd.gets Cmd.state_edit
-    let step_status = TimeStep.show_step Nothing (Cmd.state_time_step st)
-        dur_status = TimeStep.show_step (Just (Cmd.state_note_direction st))
-            (Cmd.state_note_duration st)
+    let step_status = TimeStep.show_time_step (Cmd.state_time_step st)
+        dur_status = TimeStep.show_direction (Cmd.state_note_direction st)
+            ++ TimeStep.show_time_step (Cmd.state_note_duration st)
     Cmd.set_status Config.status_step (Just step_status)
     Cmd.set_global_status "step" step_status
     Cmd.set_status Config.status_note_duration (Just dur_status)
