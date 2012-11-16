@@ -12,6 +12,7 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -184,10 +185,12 @@ derive ui_state deriver = Derive.extract_result $
         default_environ deriver
 
 type Transform a = Derive.Deriver a -> Derive.Deriver a
+
+
+-- ** derive with ui
+
 type TransformUi = State.State -> State.State
 
-
--- ** derive utils
 
 -- | Derive tracks but with a linear skeleton.  Good for testing note
 -- transformers since the default skeleton parsing won't create those.
@@ -203,6 +206,9 @@ linear_skel tracks =
 set_skel :: [Skeleton.Edge] -> State.State -> State.State
 set_skel skel state = UiTest.exec state $
     State.set_skeleton UiTest.default_block_id (Skeleton.make skel)
+
+set_ruler :: Ruler.Ruler -> State.State -> State.State
+set_ruler ruler = State.rulers %= Map.insert UiTest.default_ruler_id ruler
 
 -- ** derive with cache
 

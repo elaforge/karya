@@ -11,8 +11,11 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
+
 import Derive.Deriver.Monad
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -125,6 +128,37 @@ with_empty_collect deriver = do
     return (result, collect)
 
 
+-- * ui state
+
+get_ui_state :: (State.State -> a) -> Deriver a
+get_ui_state f = gets (f . state_ui . state_constant)
+
+get_ui_config :: (State.Config -> a) -> Deriver a
+get_ui_config f = get_ui_state (f . State.state_config)
+
+-- | Because Deriver is not a UiStateMonad.
+--
+-- TODO I suppose it could be, but then I'd be tempted to make
+-- a ReadOnlyUiStateMonad.  And I'd have to merge the exceptions.
+get_track :: TrackId -> Deriver Track.Track
+get_track track_id = lookup_id track_id =<< get_ui_state State.state_tracks
+
+get_block :: BlockId -> Deriver Block.Block
+get_block block_id = lookup_id block_id =<< get_ui_state State.state_blocks
+
+-- | Evaluate a State.M computation, rethrowing any errors.
+eval_ui :: String -> State.StateId a -> Deriver a
+eval_ui caller action = do
+    ui_state <- get_ui_state id
+    let rethrow exc = throw $ caller ++ ": " ++ show exc
+    either rethrow return (State.eval ui_state action)
+
+-- | Lookup @map!key@, throwing if it doesn't exist.
+lookup_id :: (Ord k, Show k) => k -> Map.Map k a -> Deriver a
+lookup_id key map = case Map.lookup key map of
+    Nothing -> throw $ "unknown " ++ show key
+    Just val -> return val
+
 -- * stack
 
 get_current_block_id :: Deriver BlockId
@@ -132,7 +166,18 @@ get_current_block_id = do
     stack <- get_stack
     case [bid | Stack.Block bid <- Stack.innermost stack] of
         [] -> throw "no blocks in stack"
-        block_id : _ -> return block_id
+        bid : _ -> return bid
+
+get_current_tracknum :: Deriver (BlockId, TrackNum)
+get_current_tracknum = do
+    stack <- get_stack
+    track_id <- case [tid | Stack.Track tid <- Stack.innermost stack] of
+        [] -> throw "no tracks in stack"
+        tid : _ -> return tid
+    block_id <- get_current_block_id
+    tracknum <- eval_ui "get_current_tracknum" $
+        State.get_tracknum_of block_id track_id
+    return (block_id, tracknum)
 
 -- | Make a quick trick block stack.
 with_stack_block :: BlockId -> Deriver a -> Deriver a

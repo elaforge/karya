@@ -126,7 +126,8 @@ reapply_call args call = reapply args (call :| [])
 -- | A version of 'eval' specialized to evaluate note calls.
 eval_note :: TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
 eval_note note = CallSig.cast ("eval note " ++ show note)
-    =<< eval (TrackLang.note_call note)
+    =<< eval 0 (TrackLang.note_call note)
+    -- Note calls shouldn't care about their pos.
 
 -- | Evaluate a single expression.
 eval_expr :: (Derive.Derived d) => Derive.CallInfo d -> TrackLang.Expr
@@ -282,7 +283,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
     maybe_call <- Derive.lookup_callable call_id
     (call, vals) <- case maybe_call of
         Just call -> do
-            vals <- mapM eval args
+            vals <- mapM (eval (event_start cinfo)) args
             return (call, vals)
         -- If I didn't find a call, look for a val call and pass its result to
         -- "".  This is what makes pitch tracks work, since scales are val
@@ -292,7 +293,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             -- lookup says it's a failed val lookup.
             vcall <- require_call call_id name
                 =<< Derive.lookup_val_call call_id
-            val <- apply call_id vcall args
+            val <- apply (event_start cinfo) call_id vcall args
             -- We only do this fallback thing once.
             call <- get_call fallback_call_id
             return (call, [val])
@@ -312,7 +313,7 @@ apply_transformer :: (Derive.Derived d) => Derive.CallInfo d
     -> Derive.LogsDeriver d
 apply_transformer _ [] deriver = deriver
 apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
-    vals <- mapM eval args
+    vals <- mapM (eval (event_start cinfo)) args
     let new_deriver = apply_transformer cinfo calls deriver
     call <- get_call call_id
     let args = Derive.PassedArgs vals call_id cinfo
@@ -322,20 +323,23 @@ apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             ++ Derive.call_name call
 
-eval :: TrackLang.Term -> Derive.Deriver TrackLang.Val
-eval (TrackLang.Literal val) = return val
-eval (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
+eval :: ScoreTime -> TrackLang.Term -> Derive.Deriver TrackLang.Val
+eval _ (TrackLang.Literal val) = return val
+eval pos (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
     call <- get_val_call call_id
-    apply call_id call terms
+    apply pos call_id call terms
 
-apply :: TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
+apply :: ScoreTime -> TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
     -> Derive.Deriver TrackLang.Val
-apply call_id call args = do
-    vals <- mapM eval args
+apply pos call_id call args = do
+    vals <- mapM (eval pos) args
     let args = Derive.PassedArgs vals call_id
-            (Derive.dummy_call_info 0 1 "val-call")
+            (Derive.val_call_info pos "val-call")
     Derive.with_msg ("val call " ++ Derive.vcall_name call) $
         Derive.vcall_call call args
+
+event_start :: Derive.CallInfo d -> ScoreTime
+event_start = Event.start . Derive.info_event
 
 get_val_call :: TrackLang.CallId -> Derive.Deriver Derive.ValCall
 get_val_call call_id =

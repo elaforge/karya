@@ -40,12 +40,8 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.Block as Block
-import qualified Ui.State as State
 import qualified Ui.Track as Track
-
 import qualified Derive.Deriver.Internal as Internal
-import Derive.Deriver.Internal (real)
 import Derive.Deriver.Monad
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -371,7 +367,7 @@ make_calls = Map.fromList . map (first TrackLang.Symbol)
 -- do this yet, so I can leave these here for the moment.
 shift_control :: ScoreTime -> Deriver a -> Deriver a
 shift_control shift deriver = do
-    real <- real shift
+    real <- Internal.real shift
     Internal.local
         (\st -> st
             { state_controls = nudge real (state_controls st)
@@ -383,35 +379,6 @@ shift_control shift deriver = do
 
 
 -- * utils
-
-get_ui_state :: (State.State -> a) -> Deriver a
-get_ui_state f = gets (f . state_ui . state_constant)
-
-get_ui_config :: (State.Config -> a) -> Deriver a
-get_ui_config f = get_ui_state (f . State.state_config)
-
--- | Because Deriver is not a UiStateMonad.
---
--- TODO I suppose it could be, but then I'd be tempted to make
--- a ReadOnlyUiStateMonad.  And I'd have to merge the exceptions.
-get_track :: TrackId -> Deriver Track.Track
-get_track track_id = lookup_id track_id =<< get_ui_state State.state_tracks
-
-get_block :: BlockId -> Deriver Block.Block
-get_block block_id = lookup_id block_id =<< get_ui_state State.state_blocks
-
--- | Evaluate a State.M computation, rethrowing any errors.
-eval_ui :: String -> State.StateId a -> Deriver a
-eval_ui caller action = do
-    ui_state <- get_ui_state id
-    let rethrow exc = throw $ caller ++ ": " ++ show exc
-    either rethrow return (State.eval ui_state action)
-
--- | Lookup @map!key@, throwing if it doesn't exist.
-lookup_id :: (Ord k, Show k) => k -> Map.Map k a -> Deriver a
-lookup_id key map = case Map.lookup key map of
-    Nothing -> throw $ "unknown " ++ show key
-    Just val -> return val
 
 -- | Run a computation in a logging context of a certain event.  Catch and
 -- log any exception thrown.

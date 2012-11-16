@@ -72,7 +72,7 @@ module Derive.Deriver.Monad (
 
     -- * calls
     , NoteCallMap, ControlCallMap, PitchCallMap, ValCallMap
-    , CallInfo(..), dummy_call_info
+    , CallInfo(..), dummy_call_info, val_call_info
     , Call(..)
     , CallDoc(..), ArgDoc(..), ArgDocs(..)
     , NoteCall, ControlCall, PitchCall
@@ -762,6 +762,11 @@ dummy_call_info start dur text = CallInfo
     , info_track_range = (start, start + dur)
     , info_sub_tracks = []
     } where s = if null text then "<no-event>" else "<" ++ text ++ ">"
+
+-- | Construct a CallInfo for val calls.  They expect to have a valid start
+-- time since some val calls need that.
+val_call_info :: ScoreTime -> String -> CallInfo derived
+val_call_info start text = dummy_call_info start 0 text
 
 -- | A Call will be called as either a generator or a transformer, depending on
 -- its position.  A call at the end of a compose pipeline will be called as

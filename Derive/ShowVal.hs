@@ -17,6 +17,9 @@ class ShowVal a where
 -- Really these instances should go in Derive.ParseBs, but it imports
 -- Derive.TrackLang, which needs them.
 
+instance ShowVal Int where
+    show_val = show
+
 instance ShowVal Double where
     show_val = Pretty.show_float 3
 

@@ -5,6 +5,7 @@ import Util.Test
 
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
+import qualified Cmd.Meter as Meter
 import qualified Cmd.TimeStep as TimeStep
 import Cmd.TimeStep (Step(..), MarklistMatch(..), Tracks(..))
 
@@ -48,7 +49,7 @@ test_get_points = do
                 ])
             State.modify_ruler UiTest.default_ruler_id $
                 const (UiTest.mkruler 7 1)
-        mk rank ts = TimeStep.TimeStep [(ts, rank)]
+        mk steps ts = TimeStep.TimeStep [(ts, steps)]
     let f pos step = UiTest.eval ustate $
             TimeStep.get_points step UiTest.default_block_id 1 pos
     equal (f 0 (mk 0 (Absolute 32))) (Just [0])
@@ -56,12 +57,13 @@ test_get_points = do
     equal (f 0 (mk 0 (Absolute 3))) (Just [0, 3, 6])
     equal (f 1 (mk 0 (Absolute 3))) (Just [1, 4, 7])
     equal (f 0 (mk 1 (Absolute 3))) (Just [0, 6])
-    equal (f 0 (mk 0 (AbsoluteMark AllMarklists 1))) (Just [0, 4])
-    equal (f 1 (mk 0 (AbsoluteMark AllMarklists 1))) (Just [0, 4])
-    equal (f 0 (mk 0 (AbsoluteMark AllMarklists 2))) (Just (Seq.range 0 7 1))
-    equal (f 0 (mk 1 (AbsoluteMark AllMarklists 2))) (Just [0, 2, 4, 6])
-    equal (f 0 (mk 0 (RelativeMark AllMarklists 1))) (Just [0, 4])
-    equal (f 1 (mk 0 (RelativeMark AllMarklists 1))) (Just [1, 5])
+    equal (f 0 (mk 0 (AbsoluteMark AllMarklists Meter.r_1))) (Just [0, 4])
+    equal (f 1 (mk 0 (AbsoluteMark AllMarklists Meter.r_1))) (Just [0, 4])
+    equal (f 0 (mk 0 (AbsoluteMark AllMarklists Meter.r_4)))
+        (Just (Seq.range 0 7 1))
+    equal (f 0 (mk 1 (AbsoluteMark AllMarklists Meter.r_4))) (Just [0, 2, 4, 6])
+    equal (f 0 (mk 0 (RelativeMark AllMarklists Meter.r_1))) (Just [0, 4])
+    equal (f 1 (mk 0 (RelativeMark AllMarklists Meter.r_1))) (Just [1, 5])
     equal (f 0 (mk 0 BlockEnd)) (Just [0, 7])
     equal (f 0 (mk 0 (EventStart CurrentTrack))) (Just [0, 2])
     equal (f 0 (mk 0 (EventStart AllTracks))) (Just [0, 2, 5])

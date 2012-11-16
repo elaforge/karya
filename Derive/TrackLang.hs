@@ -81,6 +81,16 @@ c_equal = Symbol "="
 num :: Double -> Val
 num = VNum . Score.untyped
 
+score_time :: ScoreTime -> Val
+score_time = VNum . Score.Typed Score.Score . ScoreTime.to_double
+
+real_time :: RealTime -> Val
+real_time = VNum . Score.Typed Score.Real . RealTime.to_seconds
+
+transposition :: Pitch.Transpose -> Val
+transposition (Pitch.Diatonic d) = VNum $ Score.Typed Score.Diatonic d
+transposition (Pitch.Chromatic d) = VNum $ Score.Typed Score.Chromatic d
+
 -- * time
 
 -- | Some calls can operate in either RealTime or ScoreTime.
@@ -198,6 +208,15 @@ instance Typecheck Double where
     from_val (VNum (Score.Typed _ a)) = Just a
     from_val _ = Nothing
     to_val = VNum . Score.untyped
+    to_type _ = TNum TUntyped
+
+instance Typecheck Int where
+    from_val (VNum (Score.Typed _ a))
+        | frac == 0 = Just int
+        | otherwise = Nothing
+        where (int, frac) = properFraction a
+    from_val _ = Nothing
+    to_val = VNum . Score.untyped . fromIntegral
     to_type _ = TNum TUntyped
 
 -- | VNums can also be coerced into chromatic transposition, so you can write

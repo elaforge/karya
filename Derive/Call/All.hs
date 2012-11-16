@@ -19,6 +19,7 @@ import qualified Derive.Call.Post.Reverse as Reverse
 import qualified Derive.Call.Random as Random
 import qualified Derive.Call.Sekar as Sekar
 import qualified Derive.Call.Trill as Trill
+import qualified Derive.Call.Val as Val
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 
@@ -70,7 +71,7 @@ pitch_calls :: Derive.PitchCallMap
 
 val_calls :: Derive.ValCallMap
 (val_calls, shadowed_vals) = unions
-    [Random.val_calls]
+    [Random.val_calls, Val.val_calls]
 
 unions :: [Map.Map TrackLang.Symbol a]
     -> (Map.Map TrackLang.Symbol a, [TrackLang.Symbol])

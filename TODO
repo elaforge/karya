@@ -2,15 +2,23 @@ UNSORTED
   * cmd to compress or stretch a block by 2, use ModifyEvents
   - insert dividers
   - why does drumaxx only enter keys in kbd edit mode?
-  - use trill/roll for drums
+  - use trill/trem for drums
+  - trill or trem with negative duration lines the integral number up to the
+    end.
+  - better error msg for integer call args
   timestep
     - timestep 64*2 skips two 's', because 's' is the minimum match
-      skip should be ignored when the match is larger rank than exists, or maybe
-      step should fail.
-    - will need timstep calls, e.g. as a trill arg
+      skip should be ignored when the match is a larger rank than exists, or
+      maybe step should fail.
+    * will need timstep calls, e.g. as a trill arg
     * So I need a parseable and succinct notation for timesteps
     - use NE list for TimeStep
     - TimeStep should support negative skip as a fractional skip
+    - points use vector instead of list
+    - cache points by returning CachedTimeStep = Points
+    - TimeStep.snap should optimize steps that don't do any snapping when
+      prev_val is Nothing, e.g. RelativeMark and Absolute
+    - Absolute is badly named, it should be Relative
   - other drumaxx controls?
   - split and join blocks, use dividers
   * create a new track should place the track to the right of any collapsed
@@ -41,7 +49,7 @@ UNSORTED
     if I put the cache in the performance then this happens automatically.
     But where do I put it while the performance is still waiting?  I guess
     I can stick stuff in the performance without forcing the events.
-  - TimeStep could use vector instead of list
+
   - responder should catch exceptions
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.

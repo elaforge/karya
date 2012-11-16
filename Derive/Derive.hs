@@ -11,7 +11,8 @@ module Derive.Derive (
 ) where
 import Derive.Deriver.Monad
 import Derive.Deriver.Lib
-import Derive.Deriver.Internal (
-    score, real, d_at, d_stretch, d_place, in_real_time
+import Derive.Deriver.Internal
+    ( score, real, d_at, d_stretch, d_place, in_real_time
     , get_block_dur
+    , get_ui_state, get_ui_config, get_track, get_block, eval_ui
     )
