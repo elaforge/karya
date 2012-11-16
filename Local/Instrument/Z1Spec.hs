@@ -1,4 +1,8 @@
-module Local.Instrument.Z1Spec where
+module Local.Instrument.Z1Spec (
+    decode, encode, spec_bytes
+    , program_dump_header, current_program_dump_header
+    , patch_spec, multiset_spec
+) where
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
 

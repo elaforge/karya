@@ -16,7 +16,7 @@ import Util.Pretty (pprint)
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Sysex as Sysex
-import qualified Local.Instrument.Z1Spec as Z1Spec
+import Local.Instrument.Z1Spec
 import qualified App.MidiInst as MidiInst
 
 
@@ -77,8 +77,8 @@ decode_sysex = Sysex.try_parsers parsers
 
 decode_current_program :: ByteString -> Either String Sysex.RMap
 decode_current_program bytes = do
-    (header, bytes) <- Z1Spec.decode Z1Spec.current_program_dump_header bytes
-    (rmap, _) <- Z1Spec.decode Z1Spec.patch_spec (dekorg bytes)
+    (header, bytes) <- decode current_program_dump_header bytes
+    (rmap, _) <- decode patch_spec (dekorg bytes)
     return $ header <> rmap
 
 -- | Decode a dump for a program at a certain memory location.  This also
@@ -88,10 +88,10 @@ decode_program_dump :: ByteString -> Either String [Sysex.RMap]
 decode_program_dump bytes = do
     -- If there is just one, then the bank and unit fields are valid.
     -- Otherwise, they are 0.
-    (rmap, bytes) <- Z1Spec.decode Z1Spec.program_dump_header bytes
+    (rmap, bytes) <- decode program_dump_header bytes
     let syxs = exact_chunks
-            (Z1Spec.spec_bytes Z1Spec.patch_spec) (dekorg bytes)
-    mapM (fmap ((rmap <>) . fst) . Z1Spec.decode Z1Spec.patch_spec) syxs
+            (spec_bytes patch_spec) (dekorg bytes)
+    mapM (fmap ((rmap <>) . fst) . decode patch_spec) syxs
 
 decode_sysex_manager :: ByteString -> Either String [Sysex.RMap]
 decode_sysex_manager bytes = do
@@ -128,22 +128,22 @@ set_bank_pitch_bend bank fn = do
 
 encode_current_program :: Sysex.RMap -> Either String ByteString
 encode_current_program rmap =
-    encode_sysex (Z1Spec.encode Z1Spec.current_program_dump_header rmap)
-        (Z1Spec.encode Z1Spec.patch_spec rmap)
+    encode_sysex (encode current_program_dump_header rmap)
+        (encode patch_spec rmap)
 
 encode_program_dump :: Sysex.RMap -> Either String ByteString
 encode_program_dump rmap =
-    encode_sysex (Z1Spec.encode Z1Spec.program_dump_header rmap)
-        (Z1Spec.encode Z1Spec.patch_spec rmap)
+    encode_sysex (encode program_dump_header rmap)
+        (encode patch_spec rmap)
 
 data Unit = Program | Bank | All deriving (Show)
 data Bank = A | B deriving (Show)
 
 encode_bank_dump :: Unit -> Bank -> [Sysex.RMap] -> Either String ByteString
 encode_bank_dump unit bank rmaps = do
-    header_rmap <- set_bank $ Sysex.spec_to_rmap Z1Spec.program_dump_header
-    encode_sysex (Z1Spec.encode Z1Spec.program_dump_header header_rmap)
-        (mconcat <$> mapM (Z1Spec.encode Z1Spec.patch_spec) rmaps)
+    header_rmap <- set_bank $ Sysex.spec_to_rmap program_dump_header
+    encode_sysex (encode program_dump_header header_rmap)
+        (mconcat <$> mapM (encode patch_spec) rmaps)
     where
     set_bank = Sysex.put_rmap "bank" (map Char.toLower (show bank))
         <=< Sysex.put_rmap "unit" (map Char.toLower (show unit))
@@ -215,7 +215,7 @@ exact_chunks size bs
 
 test_multiset = do
     bytes <- B.drop 9 <$> B.readFile "inst_db/multi1.syx"
-    return $ Z1Spec.decode Z1Spec.multiset_spec (dekorg bytes)
+    return $ decode multiset_spec (dekorg bytes)
 
 test_dump = do
     bytes <- B.readFile "inst_db/z1/bank_b.syx"
@@ -224,7 +224,7 @@ test_dump = do
 test_encode = do
     bytes <- B.readFile "inst_db/z1/bank_b.syx"
     let Right recs = decode_program_dump bytes
-    return $ Z1Spec.encode Z1Spec.patch_spec (head recs)
+    return $ encode patch_spec (head recs)
 
 test_patch = do
     bytes <- B.readFile
@@ -234,4 +234,4 @@ test_patch = do
 read_patch = do
     b <- dekorg . B.drop 6 <$> B.readFile
         "inst_db/z1/sysex/lib1/z1 o00o00 ANALOG INIT.syx"
-    return $ Z1Spec.decode Z1Spec.patch_spec b
+    return $ decode patch_spec b
