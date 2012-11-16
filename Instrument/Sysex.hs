@@ -620,10 +620,17 @@ validate specs = msum (map check specs)
             | name == wanted = Just $ Left field
             | otherwise = Nothing
 
--- | Hokey runtime check to make sure Bits constructors all add up to one byte.
-assert_valid :: String -> Specs -> Specs
-assert_valid name spec =
-    maybe spec (error . ((name ++ ": ") ++)) (validate spec)
+-- | Hokey runtime check to make sure the Specs is valid and has the expected
+-- size.
+assert_valid :: Config -> String -> Int -> Specs -> Specs
+assert_valid config name size specs
+    | Just err <- validate specs = crash err
+    | actual_size /= size = crash $ "expected " ++ show size
+        ++ " bytes, but was " ++ show actual_size
+    | otherwise = specs
+    where
+    actual_size = spec_bytes config specs
+    crash msg = error $ name ++ ": " ++ msg
 
 -- * convenience
 

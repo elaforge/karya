@@ -21,6 +21,9 @@ decode = Sysex.decode config
 spec_bytes :: Specs -> Int
 spec_bytes = Sysex.spec_bytes config
 
+assert_valid :: String -> Int -> Specs -> Specs
+assert_valid = Sysex.assert_valid config
+
 -- | I think 0x30 should be 0x3g where g is the global channel, but I use 0
 -- so this works.
 z1_header :: ByteString
@@ -47,7 +50,7 @@ current_program_dump_header =
 -- * program / patch
 
 patch_spec :: Specs
-patch_spec = Sysex.assert_valid "patch_spec"
+patch_spec = Sysex.assert_valid config "patch_spec" 576
     [ ("name", Str 16)
     , ("category", enum categories)
     , ("user group", unsigned 15)
@@ -100,13 +103,12 @@ patch_spec = Sysex.assert_valid "patch_spec"
     , ("mixer", SubSpec mixer_spec)
     , ("filter common", SubSpec filter_common_spec)
     , ("filter", List 2 filter_spec)
-    , ("amp", List 2 amp_spec)
-    , ("amp eg", SubSpec amp_eg_spec)
-    , ("output", Unparsed 4)
-    , ("effect", Unparsed 72)
-    , ("controller", Unparsed 4)
-    , ("link arpeggio", Unparsed 13)
-    , ("pe knob", List 5 [("unparsed", Unparsed 16)])
+    , ("amp", SubSpec amp_spec)
+    , ("output", SubSpec output_spec)
+    , ("effect", SubSpec effect_spec)
+    , ("controller", SubSpec controller_spec)
+    , ("link arpeggio", SubSpec link_arpeggio_spec)
+    , ("pe knob", List 5 pe_knob_spec)
     ]
 
 eg_spec :: Specs
@@ -316,16 +318,56 @@ filter_spec =
         , intensity "lower", intensity "higher"
         ]
 
--- * amp
+-- * other
 
 amp_spec :: Specs
-amp_spec =
-    [ ("unparsed", Unparsed 9)
+amp_spec = assert_valid "amp" 37
+    [ ("amp", List 2 [("unparsed", Unparsed 9)]) -- TODO
+    , ("eg", SubSpec
+        [ ("unparsed", Unparsed 19) -- TODO
+        ])
     ]
 
-amp_eg_spec :: Specs
-amp_eg_spec =
-    [ ("unparsed", Unparsed 19)
+output_spec :: Specs
+output_spec = assert_valid "output" 4
+    [ ("panpot", unsigned 127)
+    , mod_source_1 "panpot"
+    , intensity "panpot mod"
+    , ("output", unsigned 127)
+    ]
+
+effect_spec :: Specs
+effect_spec = assert_valid "effect" 72
+    [ ("effect send", unsigned 100)
+    , mod_source_1 "effect send"
+    , intensity "effect send mod"
+    , ("effect1 select", enum effect_type1)
+    , ("effect1 setting", Unparsed 22)
+    , ("effect2 select", enum effect_type1)
+    , ("effect2 setting", Unparsed 22)
+    , ("master effect select", enum master_effect_type)
+    , ("master effect setting", Unparsed 18)
+    , ("eq", SubSpec
+        [ ("low freq", freq)
+        , ("low gain", gain)
+        , ("high freq", freq)
+        , ("high gain", gain)
+        ])
+    ]
+
+controller_spec :: Specs
+controller_spec = assert_valid "controller" 4
+    [ ("unparsed", Unparsed 4) -- TODO
+    ]
+
+link_arpeggio_spec :: Specs
+link_arpeggio_spec = assert_valid "link arpeggio" 13
+    [ ("unparsed", Unparsed 13) -- TODO
+    ]
+
+pe_knob_spec :: Specs
+pe_knob_spec = assert_valid "pe knob" 16
+    [ ("unparsed", Unparsed 16) -- TODO
     ]
 
 -- * util
@@ -346,7 +388,7 @@ intensity name = (name ++ " intensity", signed 99)
 
 -- | Spec to both parse and generate a multiset dump.
 multiset_spec :: Specs
-multiset_spec = Sysex.assert_valid "multiset_spec"
+multiset_spec = Sysex.assert_valid config "multiset_spec" 208
     [ ("name", Str 16)
     , ("timbre", List 6 timbre_spec)
     , ("effect 1 select", enum effect_type1)
@@ -363,6 +405,7 @@ multiset_spec = Sysex.assert_valid "multiset_spec"
     -- , Union "master effect setting" "master effect select" 18 $
     --     zip master_effect_type
     --     []
+    -- TODO
     ]
 
 timbre_spec :: Specs
@@ -463,10 +506,15 @@ effect_parametric_eq =
     ]
 
 eq_settings :: Specs
-eq_settings = [("freq", unsigned 49), ("q", unsigned 95), ("gain", gain)]
+eq_settings = [("freq", freq), ("q", unsigned 95), ("gain", gain)]
 
+-- | Gain in dB.
 gain :: Spec
 gain = ranged (-36) 36
+
+-- | Frequency in Hz.
+freq :: Spec
+freq = unsigned 49
 
 effect_balance :: (Sysex.Name, Spec)
 effect_balance = ("effect balance", SubSpec

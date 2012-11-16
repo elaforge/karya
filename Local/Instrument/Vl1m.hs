@@ -339,18 +339,22 @@ decode = Sysex.decode config
 encode :: Specs -> Sysex.RMap -> Either String ByteString
 encode = Sysex.encode config
 
+assert_valid :: String -> Int -> Specs -> Specs
+assert_valid = Sysex.assert_valid config
+
 -- * specs
 
 patch_spec :: Specs
-patch_spec = Sysex.assert_valid "patch_spec"
-    [ ("header", Constant (vl1_header 3084))
+patch_spec = assert_valid "patch_spec" size $
+    [ ("header", Constant (vl1_header (size - B.length (vl1_header 0))))
     , ("memory type", unsigned 127) -- 0 = memory, 7f = buffer
     , ("memory number", unsigned 127)
     , ("", Unparsed 14)
-    ] ++ common_spec
+    ] ++ common_spec ++ [("element", List 2 element_spec)]
+    where size = 3100
 
 common_spec :: Specs
-common_spec =
+common_spec = assert_valid "common_spec" 108
     [ ("name", Str 10)
     , ("", Unparsed 6)
     , ("key mode", enum ["mono", "unison", "poly", "part"])
@@ -411,16 +415,83 @@ common_spec =
     , ("reverb type", unsigned 8) -- presumably an enum
     , ("reverb data", Unparsed 10)
     , ("", Unparsed 2)
-    , ("element", List 2 element_spec)
     ]
 
+-- | One unsigned byte.
+unsigned1 :: Spec
+unsigned1 = unsigned 127
+
+signed64 :: Spec
+signed64 = ranged (-64) 63
+
 element_spec :: Specs
-element_spec = controls_spec ++
-    [ ("unparsed1", Unparsed (231 - Sysex.spec_bytes config controls_spec))
+element_spec = assert_valid "element_spec" 1480 $ controls_spec ++
+    [ ("trigger mode", unsigned 1) -- enum?
+    , ("xfade speed", unsigned 96)
+    , ("interpolate speed", unsigned 50)
+    , ("breath noise", SubSpec
+        [ ("level", unsigned1)
+        , ("level break", breakpoints64 6)
+        , ("hpf", unsigned 125)
+        , ("hpf break", breakpoints64 2)
+        , ("lpf", unsigned1)
+        , ("lpf break", breakpoints64 2)
+        , ("noise", unsigned 22)
+        , ("key on reset", bool)
+        , ("slit drive", unsigned 32)
+        , ("control balance", signed64)
+        ])
+    , ("throat formant", SubSpec
+        [ ("pitch tracking", bool)
+        , ("pitch", unsigned 176) -- TODO -128 127 if pitch tracking == off
+        , ("break", breakpoints127 8)
+        , ("intensity", signed 127)
+        , ("intensity break", breakpoints127 4)
+        , ("amount", signed64)
+        , ("amount break", breakpoints64 4)
+        , ("hpf", unsigned 125)
+        , ("hpf break", breakpoints64 3)
+        , ("lpf", unsigned1)
+        , ("lpf break", breakpoints64 3)
+        ])
+    , ("driver", SubSpec
+        [ ("output", unsigned1)
+        , ("break", breakpoints64 6)
+        ])
+    , ("pipe/string", SubSpec
+        [ ("output", unsigned1)
+        , ("break", breakpoints64 6)
+        ])
+    , ("tap", SubSpec
+        [ ("output", unsigned1)
+        , ("break", breakpoints64 6)
+        , ("sign", unsigned 1)
+        , ("setting", unsigned 4) -- enum?
+        , ("location", unsigned1)
+        , ("location break", breakpoints64 8)
+        ])
+    , ("amplitude", SubSpec
+        [ ("level", unsigned1)
+        , ("break", breakpoints64 8)
+        ])
     , ("name", Str 10)
-    , ("unparsed2", Unparsed (total - 240)) -- or 242?
+    , ("", Unparsed 467)
+    -- 708 -> 1479
+    -- TODO
+    , ("unparsed2", Unparsed 772)
     ]
-    where total = 1479
+
+breakpoints64 :: Int -> Spec
+breakpoints64 n = List n
+    [ ("break", unsigned1)
+    , ("offset", signed64)
+    ]
+
+breakpoints127 :: Int -> Spec
+breakpoints127 n = List n
+    [ ("break", unsigned1)
+    , ("offset", signed 127)
+    ]
 
 controls_spec :: Specs
 controls_spec =
