@@ -2,6 +2,8 @@ module Local.Instrument.Vl1mSpec (
     encode, decode
     , vl1_header
     , patch_spec
+
+    , decode_num, encode_num
 ) where
 import qualified Data.Bits as Bits
 import Data.Bits ((.|.), (.&.))
