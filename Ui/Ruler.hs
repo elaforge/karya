@@ -132,7 +132,7 @@ first_pos :: Marklist -> ScoreTime
 first_pos (Marklist m) = maybe 0 fst (Map.min m)
 
 data Mark = Mark {
-    mark_rank :: Int
+    mark_rank :: Rank
     , mark_width :: Int
     , mark_color :: Color.Color
     , mark_name :: String
@@ -142,6 +142,8 @@ data Mark = Mark {
 
 null_mark :: Mark
 null_mark = Mark 0 0 Color.black "" 0 0
+
+type Rank = Int
 
 instance DeepSeq.NFData Mark where
     rnf (Mark rank width color name name_zoom zoom) = rank `seq` width

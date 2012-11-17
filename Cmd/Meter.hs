@@ -27,8 +27,7 @@ import Types
 meter :: Ruler.Name
 meter = "meter"
 
-type Meter = [(Rank, ScoreTime)] -- (rank, duration)
-type Rank = Int
+type Meter = [(Ruler.Rank, ScoreTime)] -- (rank, duration)
 
 modify_meter :: (Meter -> Meter) -> Ruler.Ruler -> Ruler.Ruler
 modify_meter f = Ruler.modify_marklist meter $
@@ -76,7 +75,7 @@ meter_ranks =
     ]
 
 -- | These are the conventional meanings for the ranks.
-r_block, r_section, r_1, r_4, r_16, r_64, r_256 :: Rank
+r_block, r_section, r_1, r_4, r_16, r_64, r_256 :: Ruler.Rank
 r_block : r_section : r_1 : r_4 : r_16 : r_64 : r_256 : _ = [0..]
 
 rank_to_pixels :: [Int]
@@ -133,7 +132,7 @@ m332 = repeat 4 $ subdivide 4 $ subdivide_dur $ D (map T [3, 3, 2])
 -- *** AbstractMeter utils
 
 -- | It's easier to visualize a meter as a list of its ranks.
-mshow :: AbstractMeter -> [Rank]
+mshow :: AbstractMeter -> [Ruler.Rank]
 mshow = map fst . make_meter 1
 
 -- | Map the given function over all @T@s in the given AbstractMeter.
@@ -209,7 +208,7 @@ rank_durs = map rank_dur . List.tails
 -- | Name the MarkRanks in a #.#.# format.
 --
 -- TODO starts at 0, but maybe I should start at 1?
-rank_names :: [Rank] -> [String]
+rank_names :: [Ruler.Rank] -> [String]
 rank_names = map (Seq.join "." . map show . drop 1 . reverse)
     . snd . List.mapAccumL mkname (-1, [])
     where

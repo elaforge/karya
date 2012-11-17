@@ -9,6 +9,7 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -370,8 +371,8 @@ cmd_clear_and_advance = do
 
 -- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank and skips
 -- to the given ones.  Otherwise, set it to the deflt.
-set_step_rank :: (Cmd.M m) => TimeStep.TimeStep
-    -> TimeStep.Rank -> TimeStep.Skip -> m ()
+set_step_rank :: (Cmd.M m) => TimeStep.TimeStep -> Ruler.Rank
+    -> TimeStep.Skip -> m ()
 set_step_rank deflt rank skip = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_time_step =
         set (TimeStep.to_list (Cmd.state_time_step st)) }

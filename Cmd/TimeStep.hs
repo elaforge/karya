@@ -6,7 +6,7 @@ module Cmd.TimeStep (
     -- * TimeStep
     TimeStep(..), Skip, time_step, step, to_list
     , Step(..), Tracks(..)
-    , MarklistMatch(..), Rank
+    , MarklistMatch(..)
     , Direction(..)
     , show_time_step, parse_time_step, show_direction
 
@@ -58,7 +58,7 @@ type Skip = Int
 step :: Step -> TimeStep
 step ts = TimeStep [(ts, 0)]
 
-time_step :: Step -> Rank -> TimeStep
+time_step :: Step -> Ruler.Rank -> TimeStep
 time_step step rank = TimeStep [(step, rank)]
 
 to_list :: TimeStep -> [(Step, Skip)]
@@ -70,9 +70,9 @@ data Step =
      -- selection, rather than absolute from the beginning of the block.
     Duration ScoreTime
     -- | Until the next mark that matches.
-    | AbsoluteMark MarklistMatch Rank
+    | AbsoluteMark MarklistMatch Ruler.Rank
     -- | Until next matching mark + offset from previous mark.
-    | RelativeMark MarklistMatch Rank
+    | RelativeMark MarklistMatch Ruler.Rank
     -- | Until the end or beginning of the block.
     | BlockEnd
     -- | Until event edges.  EventStart is after EventEnd if the duration is
@@ -87,9 +87,6 @@ data Tracks = CurrentTrack | AllTracks | TrackNums [TrackNum]
 
 data MarklistMatch = AllMarklists | NamedMarklists [Ruler.Name]
     deriving (Eq, Show, Read)
-
--- | Match the given rank.
-type Rank = Int
 
 -- | Another way to express a 'step_from' of 1 or -1.
 data Direction = Advance | Rewind deriving (Eq, Show)
@@ -149,7 +146,7 @@ parse_time_step = Parse.parse p_time_step
     p_tracknums = P.sepBy Parse.p_nat (P.char ',')
     str = P.string
 
-show_rank :: Rank -> String
+show_rank :: Ruler.Rank -> String
 show_rank rank = case rank of
     0 -> "block"
     1 -> "section"
@@ -160,7 +157,7 @@ show_rank rank = case rank of
     6 -> "256"
     _ -> 'R' : show rank
 
-parse_rank :: Parse.Parser st Rank
+parse_rank :: Parse.Parser st Ruler.Rank
 parse_rank = P.choice $ map P.try
     [ str "block" *> return 0
     , str "section" *> return 1
@@ -299,13 +296,12 @@ step_points marklists cur events pos (step, skip) = stride skip $ case step of
     track_events (TrackNums tracknums) = mapMaybe (Seq.at events) tracknums
     end = fromMaybe 0 $ Seq.maximum $
         map Ruler.marklist_end (Map.elems marklists)
-    matches names matcher = match_all matcher
-        (get_marks marklists names)
+    matches names matcher = match_all matcher (get_marks marklists names)
     shift points = case find_before_equal pos points of
         Just p | p < pos -> map (+ (pos-p)) points
         _ -> points
 
-match_all :: Rank -> [(ScoreTime, Ruler.Mark)] -> [ScoreTime]
+match_all :: Ruler.Rank -> [(ScoreTime, Ruler.Mark)] -> [ScoreTime]
 match_all rank = map fst .  filter ((<=rank) . Ruler.mark_rank . snd)
 
 -- | Get all marks from the marklists that match the proper names and
