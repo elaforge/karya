@@ -33,7 +33,7 @@ test_timestep = do
     equal (run 1 "'q' -1") ([0], [])
     let (evts, logs) = run 1 "'q' 1.5"
     equal evts []
-    strings_like logs ["expected Num but got"] -- TODO error should say Int
+    strings_like logs ["expected Num (integral) but got"]
 
     -- TODO should be an error, there are no sixteenths
     equal (run 0 "'s'") ([1], [])

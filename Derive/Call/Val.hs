@@ -1,6 +1,4 @@
 module Derive.Call.Val where
-import Util.Control
-import qualified Ui.State as State
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.CallSig as CallSig
@@ -9,8 +7,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
-
-import Types
 
 
 val_calls :: Derive.ValCallMap

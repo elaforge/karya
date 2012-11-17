@@ -5,7 +5,7 @@ UNSORTED
   - use trill/trem for drums
   - trill or trem with negative duration lines the integral number up to the
     end.
-  - better error msg for integer call args
+  * better error msg for integer call args
   timestep
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or

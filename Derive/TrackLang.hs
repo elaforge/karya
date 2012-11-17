@@ -136,6 +136,7 @@ data Type = TNum NumType
 
 data NumType = TUntyped | TTranspose | TDefaultDiatonic | TDefaultChromatic
     | TTime | TDefaultReal | TDefaultScore | TRealTime | TScoreTime
+    | TInt
     deriving (Eq, Ord, Show)
 
 to_num_type :: Score.Type -> NumType
@@ -150,6 +151,7 @@ instance Pretty.Pretty Type where
     pretty (TMaybe typ) = "Maybe " ++ Pretty.pretty typ
     pretty (TNum typ) = join "Num" $ case typ of
         TUntyped -> ""
+        TInt -> "integral"
         TTranspose -> "transposition"
         TDefaultDiatonic -> "transposition, default diatonic"
         TDefaultChromatic -> "transposition, default chromatic"
@@ -217,7 +219,7 @@ instance Typecheck Int where
         where (int, frac) = properFraction a
     from_val _ = Nothing
     to_val = VNum . Score.untyped . fromIntegral
-    to_type _ = TNum TUntyped
+    to_type _ = TNum TInt
 
 -- | VNums can also be coerced into chromatic transposition, so you can write
 -- a plain number if you don't care about diatonic.
