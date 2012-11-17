@@ -46,7 +46,7 @@ test_move_to = do
         res <- return $ CmdTest.run_again res $ do
             CmdTest.set_point_sel 1 p
             Cmd.modify_play_state $ \st -> st { Cmd.state_play_step =
-                TimeStep.step (TimeStep.Absolute 1) }
+                TimeStep.step (TimeStep.Duration 1) }
             StepPlay.cmd_set False
         return (e_midi res, CmdTest.extract_ui get_sel res)
     -- Ensure that cmd_set picks the previous step pos, rounding downward

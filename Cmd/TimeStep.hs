@@ -66,8 +66,9 @@ to_list (TimeStep steps) = steps
 
 -- | The possible matchers for a TimeStep.
 data Step =
-     -- | Absolute time step.
-    Absolute ScoreTime
+     -- | Step a certain amount of time.  It's measured relative to the current
+     -- selection, rather than absolute from the beginning of the block.
+    Duration ScoreTime
     -- | Until the next mark that matches.
     | AbsoluteMark MarklistMatch Rank
     -- | Until next matching mark + offset from previous mark.
@@ -102,7 +103,7 @@ show_time_step (TimeStep steps) = Seq.join ";" (map show1 steps)
     -- parsing.
     show1 (step, skip) = show_step step ++ show_skip skip
     show_step step = case step of
-        Absolute pos -> "a:" ++ Pretty.pretty pos
+        Duration pos -> "d:" ++ Pretty.pretty pos
         RelativeMark mlists rank ->
             "r:" ++ show_marklists mlists ++ show_rank rank
         BlockEnd -> "END"
@@ -119,17 +120,6 @@ show_time_step (TimeStep steps) = Seq.join ";" (map show1 steps)
     show_tracks AllTracks = "s"
     show_tracks (TrackNums tracks) = "s:" ++ Seq.join "," (map show tracks)
 
-show_rank :: Rank -> String
-show_rank rank = case rank of
-    0 -> "block"
-    1 -> "section"
-    2 -> "w"
-    3 -> "q"
-    4 -> "s"
-    5 -> "64"
-    6 -> "256"
-    _ -> 'R' : show rank
-
 -- | Parse that curiously somewhat readable representation back to a TimeStep.
 parse_time_step :: String -> Either String TimeStep
 parse_time_step = Parse.parse p_time_step
@@ -138,13 +128,13 @@ parse_time_step = Parse.parse p_time_step
     p_pair = (,) <$> p_step <*> p_skip
     -- P.choice must backtrack because AbsoluteMark parses can overlap.
     p_step = P.choice $ map P.try
-        [ str "a:" *> (Absolute <$>
+        [ str "d:" *> (Duration <$>
             (ScoreTime.double <$> (Parse.p_float <* P.char ScoreTime.suffix)))
-        , str "r:" *> (RelativeMark <$> p_marklists <*> p_rank)
+        , str "r:" *> (RelativeMark <$> p_marklists <*> parse_rank)
         , str "END" *> return BlockEnd
         , str "start" *> (EventStart <$> p_tracks)
         , str "end" *> (EventEnd <$> p_tracks)
-        , AbsoluteMark <$> p_marklists <*> p_rank
+        , AbsoluteMark <$> p_marklists <*> parse_rank
         ]
     p_skip = (subtract 1 <$> (P.char '*' *> Parse.p_positive))
         <|> (negate . subtract 1 <$> (P.char '/' *> Parse.p_positive))
@@ -157,17 +147,31 @@ parse_time_step = Parse.parse p_time_step
         P.try (TrackNums <$> (str "s:" *> p_tracknums))
         <|> P.char 's' *> return AllTracks
     p_tracknums = P.sepBy Parse.p_nat (P.char ',')
-    p_rank = P.choice $ map P.try
-        [ str "block" *> return 0
-        , str "section" *> return 1
-        , str "w" *> return 2
-        , str "q" *> return 3
-        , str "s" *> return 4
-        , str "64" *> return 5
-        , str "256" *> return 6
-        , P.char 'R' *> Parse.p_nat
-        ]
     str = P.string
+
+show_rank :: Rank -> String
+show_rank rank = case rank of
+    0 -> "block"
+    1 -> "section"
+    2 -> "w"
+    3 -> "q"
+    4 -> "s"
+    5 -> "64"
+    6 -> "256"
+    _ -> 'R' : show rank
+
+parse_rank :: Parse.Parser st Rank
+parse_rank = P.choice $ map P.try
+    [ str "block" *> return 0
+    , str "section" *> return 1
+    , str "w" *> return 2
+    , str "q" *> return 3
+    , str "s" *> return 4
+    , str "64" *> return 5
+    , str "256" *> return 6
+    , P.char 'R' *> Parse.p_nat
+    ]
+    where str = P.string
 
 show_direction :: Direction -> String
 show_direction Advance = "+"
@@ -255,7 +259,7 @@ get_points time_step@(TimeStep steps) block_id tracknum pos = do
             all_points marklists tracknum track_events pos time_step
     where
     wants_ruler = List.foldl' (||) False $ flip map steps $ \s -> case s of
-        (Absolute {}, _) -> True
+        (Duration {}, _) -> True
         (AbsoluteMark {}, _) -> True
         (RelativeMark {}, _) -> True
         (BlockEnd, _) -> True
@@ -281,7 +285,7 @@ all_points marklists cur events pos (TimeStep steps) = Seq.drop_dups id $
 step_points :: Ruler.Marklists -> TrackNum -> [[Event.Event]]
     -> ScoreTime -> (Step, Skip) -> [ScoreTime]
 step_points marklists cur events pos (step, skip) = stride skip $ case step of
-        Absolute incr -> Seq.range (Num.fmod pos incr) end incr
+        Duration incr -> Seq.range (Num.fmod pos incr) end incr
         AbsoluteMark names matcher -> matches names matcher
         RelativeMark names matcher -> shift (matches names matcher)
         BlockEnd -> [0, end]

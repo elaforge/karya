@@ -14,8 +14,8 @@ test_show_parse_time_step = do
     let f step = (trip step, Right (mk step))
         trip = TimeStep.parse_time_step . TimeStep.show_time_step . mk
         mk = TimeStep.TimeStep
-    uncurry equal (f [(Absolute 2, 0)])
-    uncurry equal (f [(Absolute 0.5, 1)])
+    uncurry equal (f [(Duration 2, 0)])
+    uncurry equal (f [(Duration 0.5, 1)])
     uncurry equal (f [(RelativeMark (NamedMarklists ["hi", "there"]) 5, 2)])
     uncurry equal (f [(RelativeMark AllMarklists 5, 2)])
     uncurry equal (f [(BlockEnd, 0)])
@@ -39,7 +39,7 @@ test_show_parse_time_step = do
         uncurry equal (f [(AbsoluteMark AllMarklists rank, -1)])
 
     uncurry equal (f
-        [(Absolute 2, 0), (RelativeMark (NamedMarklists ["hi", "there"]) 5, 2)])
+        [(Duration 2, 0), (RelativeMark (NamedMarklists ["hi", "there"]) 5, 2)])
 
 test_get_points = do
     let ustate = UiTest.exec State.empty $ do
@@ -52,11 +52,11 @@ test_get_points = do
         mk steps ts = TimeStep.TimeStep [(ts, steps)]
     let f pos step = UiTest.eval ustate $
             TimeStep.get_points step UiTest.default_block_id 1 pos
-    equal (f 0 (mk 0 (Absolute 32))) (Just [0])
-    equal (f 3 (mk 0 (Absolute 32))) (Just [3])
-    equal (f 0 (mk 0 (Absolute 3))) (Just [0, 3, 6])
-    equal (f 1 (mk 0 (Absolute 3))) (Just [1, 4, 7])
-    equal (f 0 (mk 1 (Absolute 3))) (Just [0, 6])
+    equal (f 0 (mk 0 (Duration 32))) (Just [0])
+    equal (f 3 (mk 0 (Duration 32))) (Just [3])
+    equal (f 0 (mk 0 (Duration 3))) (Just [0, 3, 6])
+    equal (f 1 (mk 0 (Duration 3))) (Just [1, 4, 7])
+    equal (f 0 (mk 1 (Duration 3))) (Just [0, 6])
     equal (f 0 (mk 0 (AbsoluteMark AllMarklists Meter.r_1))) (Just [0, 4])
     equal (f 1 (mk 0 (AbsoluteMark AllMarklists Meter.r_1))) (Just [0, 4])
     equal (f 0 (mk 0 (AbsoluteMark AllMarklists Meter.r_4)))

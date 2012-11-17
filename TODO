@@ -18,7 +18,7 @@ UNSORTED
     - cache points by returning CachedTimeStep = Points
     - TimeStep.snap should optimize steps that don't do any snapping when
       prev_val is Nothing, e.g. RelativeMark and Absolute
-    - Absolute is badly named, it should be Relative
+    * Absolute is badly named, it should be Relative
   - other drumaxx controls?
   - split and join blocks, use dividers
   * create a new track should place the track to the right of any collapsed
