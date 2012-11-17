@@ -67,7 +67,7 @@ alpha a' (Color r g b _a) = rgba r g b a'
 
 instance Storable Color where
     sizeOf _ = #size Color
-    alignment _ = #{alignment Color}
+    alignment _ = 4 -- #{alignment Color}
     peek = peek_color
     poke = poke_color
 

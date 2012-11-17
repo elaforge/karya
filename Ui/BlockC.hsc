@@ -365,7 +365,7 @@ foreign import ccall "dump_view" c_dump_view :: Ptr CView -> IO CString
 
 instance Storable Block.Divider where
     sizeOf _ = #size DividerConfig
-    alignment _ = #{alignment DividerConfig}
+    alignment _ = 4 -- #{alignment DividerConfig}
     poke dividerp (Block.Divider color) =
         (#poke DividerConfig, color) dividerp color
 
@@ -403,7 +403,7 @@ poke_block_model_config configp
 
 instance Storable Block.Box where
     sizeOf _ = #size BlockBox
-    alignment _ = #{alignment BlockBox}
+    alignment _ = 4 -- #{alignment BlockBox}
     poke boxp (Block.Box color char) = do
         (#poke BlockBox, color) boxp color
         (#poke BlockBox, c) boxp char
