@@ -370,7 +370,9 @@ cmd_clear_and_advance = do
         Selection.advance
 
 -- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank and skips
--- to the given ones.  Otherwise, set it to the deflt.
+-- to the given ones.  Otherwise, set it to the deflt.  This means the marklist
+-- names are sticky, so if you set it manually the default bindings won't mess
+-- it up.
 set_step_rank :: (Cmd.M m) => TimeStep.TimeStep -> Ruler.Rank
     -> TimeStep.Skip -> m ()
 set_step_rank deflt rank skip = Cmd.modify_edit_state $ \st ->
