@@ -38,6 +38,7 @@
 module Derive.Call.Trill where
 import Util.Control
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
@@ -63,13 +64,6 @@ note_calls = Derive.make_calls
     , ("trem", c_tremolo)
     ]
 
--- | Generate a note with a trill.
---
--- Unlike a trill on a pitch track, this generates events for each note of
--- the trill.  This is more appropriate for fingered trills, or monophonic
--- instruments that use legato to play slurred notes.
---
--- The args are the same as 'c_pitch_trill'.
 c_note_trill :: Derive.NoteCall
 c_note_trill = Derive.stream_generator "trill"
     ("Generate a note with a trill.\

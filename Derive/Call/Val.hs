@@ -1,4 +1,5 @@
 module Derive.Call.Val where
+import Util.Control
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.CallSig as CallSig
@@ -12,6 +13,7 @@ import qualified Derive.TrackLang as TrackLang
 val_calls :: Derive.ValCallMap
 val_calls = Derive.make_calls
     [ ("t", c_timestep)
+    , ("ts", c_timestep_reciprocal)
     ]
 
 c_timestep :: Derive.ValCall
@@ -33,3 +35,12 @@ c_timestep = Derive.val_call "timestep"
             =<< Derive.eval_ui "c_timestep"
                 (TimeStep.step_from steps timestep block_id tracknum start)
         return $ TrackLang.score_time (end - start)
+
+c_timestep_reciprocal :: Derive.ValCall
+c_timestep_reciprocal = CallSig.modify_vcall c_timestep "timestep-reciprocal"
+    ("This is the same as `timestep` except it returns the reciprocal. This is\
+    \ useful for e.g. trills which take cycles per second rather than duration."
+    ) reciprocal
+    where
+    reciprocal (TrackLang.VNum num) = TrackLang.VNum $ recip <$> num
+    reciprocal val = val

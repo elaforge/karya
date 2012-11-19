@@ -160,6 +160,18 @@ typed_control name deflt typ =
 required_control :: String  -> TrackLang.ValControl
 required_control name = TrackLang.LiteralControl (Score.Control name)
 
+-- * modify calls
+
+-- | Make a new ValCall from an existing one, by mapping over its output.
+modify_vcall :: Derive.ValCall -> String -> String
+    -> (TrackLang.Val -> TrackLang.Val) -> Derive.ValCall
+modify_vcall vcall name doc f = vcall
+    { Derive.vcall_name = name
+    , Derive.vcall_doc = Derive.CallDoc doc
+        (Derive.cdoc_args (Derive.vcall_doc vcall))
+    , Derive.vcall_call = fmap f . (Derive.vcall_call vcall)
+    }
+
 -- * extract and call
 
 {- Here's what a typeclass based approach could look like.  However, I don't

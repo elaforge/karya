@@ -3,6 +3,8 @@ UNSORTED
   - insert dividers
   - why does drumaxx only enter keys in kbd edit mode?
   - use trill/trem for drums
+  - I still can't use trem on drums, because they are already a generator!
+    'trem' needs to be a transformer too.
   - trill or trem with negative duration lines the integral number up to the
     end.
   * better error msg for integer call args
@@ -10,11 +12,13 @@ UNSORTED
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or
       maybe step should fail.
+
     * will need timstep calls, e.g. as a trill arg
     * So I need a parseable and succinct notation for timesteps
     - use NE list for TimeStep
     - TimeStep should support negative skip as a fractional skip
     - points use vector instead of list
+      But then I lose laziness.  Maybe only worth it if I cache.
     - cache points by returning CachedTimeStep = Points
     - TimeStep.snap should optimize steps that don't do any snapping when
       prev_val is Nothing, e.g. RelativeMark and Absolute
