@@ -136,8 +136,8 @@ eg_spec =
     , intensity "release time"
     ]
     where
-    level name = (name ++ " level", signed 99)
-    time name = (name ++ " time", unsigned 99)
+    level name = (name <+> "level", signed 99)
+    time name = (name <+> "time", unsigned 99)
 
 lfo_spec :: Specs
 lfo_spec =
@@ -282,7 +282,7 @@ filter_common_spec :: Specs
 filter_common_spec =
     [ ("", Bits
         [ ("filter routing", enum_bits 2 ["serial1", "serial2", "parallel"])
-        , ("filter2 link switch", bool_bit)
+        , ("filter2 link switch", enum_bits 2 ["off", "on"])
         , ("filter eg knob target", enum_bits 5
             ["", "filter1", "filter2", "both"])
         ])
@@ -293,7 +293,7 @@ filter_spec =
     [ ("filter type", enum ["", "lpf", "hpf", "bpf", "brf", "2bpf"])
     , ("a", SubSpec $ filter_common ++
         [ ("cutoff frequency", SubSpec
-            [ ("mod eg", enum ["", "eg1", "eg2", "eg3", "eg4", "amp eg"])
+            [ ("mod eg", egs)
             , intensity "mod eg"
             , ("mod1 source", enum mod_source_list_1), intensity "mod1"
             , ("mod2 source", enum mod_source_list_1), intensity "mod2"
@@ -322,15 +322,50 @@ filter_spec =
         , intensity "lower", intensity "higher"
         ]
 
+egs :: Spec
+egs = enum ["", "eg1", "eg2", "eg3", "eg4", "amp eg"]
+    -- TODO 0 is undocumented but I assume off?  Or invalid?
+
 -- * other
 
 amp_spec :: Specs
 amp_spec = assert_valid "amp" 37
-    [ ("amp", List 2 [("unparsed", Unparsed 9)]) -- TODO
+    [ ("amp", List 2
+        [ ("amplitude", unsigned 99)
+        , ("low key", midi_key)
+        , ("high key", midi_key)
+        , intensity "lower"
+        , intensity "higher"
+        , ("mod eg", egs)
+        , ("", Unparsed 1)
+        , mod_source_1 ""
+        , intensity "mod"
+        ])
     , ("eg", SubSpec
-        [ ("unparsed", Unparsed 19) -- TODO
+        [ ("", Unparsed 1)
+        , time "attack"
+        , level "attack"
+        , time "decay"
+        , level "break"
+        , time "slope"
+        , level "sustain"
+        , time "release"
+        , ("", Unparsed 1)
+        , mod_source_1 "eg level"
+        , intensity "eg level mod"
+        , ("eg velocity control", signed 99)
+        , mod_source_1 "eg time"
+        , intensity "eg time mod"
+        , mod_source_1 "eg node time"
+        , intensity "attack time mod"
+        , intensity "decay time mod"
+        , intensity "slope time mod"
+        , intensity "release time mod"
         ])
     ]
+    where
+    level name = (name <+> "level", signed 99)
+    time name = (name <+> "time", unsigned 99)
 
 output_spec :: Specs
 output_spec = assert_valid "output" 4
@@ -361,8 +396,42 @@ effect_spec = assert_valid "effect" 72
 
 controller_spec :: Specs
 controller_spec = assert_valid "controller" 4
-    [ ("unparsed", Unparsed 4) -- TODO
+    [ ("", Bits
+        [ ("sw1 function", enum_bits 7 sw1_function)
+        , ("sw1 mode", latch)
+        ])
+    , ("", Bits
+        [ ("sw2 function", enum_bits 7 sw2_function)
+        , ("sw2 mode", latch)
+        ])
+    , ("", Bits
+        [ ("foot sw function", enum_bits 7 foot_sw_function)
+        , ("foot sw mode", latch)
+        ])
+    , ("", Bits
+        [ ("pedal function", enum_bits 3 pedal_function)
+        , ("pad hold", enum_bits 5 ["off", "on"])
+        ])
     ]
+    where
+    latch = enum_bits 1 ["latch", "unlatch"]
+    sw1_function =
+        [ "mod sw 1", "master fx", "fx1", "fx2", "octave up", "octave down"
+        , "mono sw", "unison"
+        ]
+    sw2_function =
+        [ "mod sw 2", "master fx", "fx1", "fx2", "octave up", "octave down"
+        , "mono sw", "unison"
+        ]
+    foot_sw_function =
+        [ "foot sw", "midi damper", "midi portamento", "midi sostenuto"
+        , "master fx", "fx1", "fx2", "octave up", "octave down", "mono sw"
+        , "unison", "arpeggio", "pad hold"
+        ]
+    pedal_function =
+        [ "pedal", "breath control", "portamento time", "volume", "panpot"
+        , "expression"
+        ]
 
 link_arpeggio_spec :: Specs
 link_arpeggio_spec = assert_valid "link arpeggio" 13
@@ -371,8 +440,19 @@ link_arpeggio_spec = assert_valid "link arpeggio" 13
 
 pe_knob_spec :: Specs
 pe_knob_spec = assert_valid "pe knob" 16
-    [ ("unparsed", Unparsed 16) -- TODO
+    [ ("p0", SubSpec knob)
+    , ("p1", SubSpec knob)
+    , ("p2", SubSpec knob)
+    , ("p3", SubSpec knob)
     ]
+    where
+    knob =
+        -- TODO
+        [ ("parameter", enum $ "off" : ["unknown " ++ show n | n <- [1..230]])
+        , ("left value", percent)
+        , ("right value", percent)
+        , ("curve", enum ["linear", "exponential", "log", "sw"])
+        ]
 
 -- * util
 
@@ -380,13 +460,19 @@ midi_key :: Spec
 midi_key = unsigned 127
 
 mod_source_1 :: String -> (String, Spec)
-mod_source_1 name = (name ++ " mod source", enum mod_source_list_1)
-
-mod_source_2 :: String -> (String, Spec)
-mod_source_2 name = (name ++ " mod source", enum mod_source_list_2)
+mod_source_1 name = (name <+> "mod source", enum mod_source_list_1)
 
 intensity :: String -> (String, Spec)
-intensity name = (name ++ " intensity", signed 99)
+intensity name = (name <+> "intensity", signed 99)
+
+percent :: Spec
+percent = unsigned 100
+
+(<+>) :: String -> String -> String
+x <+> y
+    | null x = y
+    | null y = x
+    | otherwise = x ++ " " ++ y
 
 -- * multiset
 
