@@ -124,9 +124,9 @@ regular_subdivision ns = foldr subdivide (T 1) (reverse ns)
 -- ** predefined meters
 
 m54, m44, m34, m332 :: AbstractMeter
-m54 = regular_subdivision [4, 5, 4, 4]
-m44 = regular_subdivision [4, 4, 4, 4]
-m34 = regular_subdivision [4, 3, 4, 4]
+m54 = regular_subdivision [4, 5, 4, 4, 4]
+m44 = regular_subdivision [4, 4, 4, 4, 4]
+m34 = regular_subdivision [4, 3, 4, 4, 4]
 m332 = repeat 4 $ subdivide 4 $ subdivide_dur $ D (map T [3, 3, 2])
 
 -- *** AbstractMeter utils
