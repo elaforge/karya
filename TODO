@@ -2,8 +2,7 @@ UNSORTED
   * cmd to compress or stretch a block by 2, use ModifyEvents
   - insert dividers
   - why does drumaxx only enter keys in kbd edit mode?
-  - use trill/trem for drums
-  - I still can't use trem on drums, because they are already a generator!
+  * I still can't use trem on drums, because they are already a generator!
     'trem' needs to be a transformer too.
   - trill or trem with negative duration lines the integral number up to the
     end.

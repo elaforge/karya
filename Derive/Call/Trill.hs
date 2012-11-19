@@ -38,7 +38,6 @@
 module Derive.Call.Trill where
 import Util.Control
 import qualified Util.Seq as Seq
-
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
@@ -90,24 +89,41 @@ c_note_trill = Derive.stream_generator "trill"
 
 -- | TODO randomize dyn, randomize starts
 c_tremolo :: Derive.NoteCall
-c_tremolo = Derive.stream_generator "tremolo" "Repeat a single note." $
-    CallSig.call1g
-    (optional "speed" (typed_control "tremolo-speed" 10 Score.Real)
-        "Tremolo at this speed. Its meaning is the same as the trill speed."
-    ) $ \speed -> Note.inverting $ \args -> Lily.note args Attrs.trem $ do
+c_tremolo = Derive.Call
+    { Derive.call_name = "tremolo"
+    , Derive.call_generator = Just $ Derive.generator_call
+        "Repeat a single note." generator
+    , Derive.call_transformer = Just $ Derive.transformer_call
+        "Repeat the transformed note. The generator is creating the notes so it\
+        \ can set them to the appropriate duration, but this one has to stretch\
+        \ them to fit." transformer
+    }
+    where
+    transformer = CallSig.call1t
+        (optional "speed" (typed_control "tremolo-speed" 10 Score.Real)
+            "Tremolo at this speed. Its meaning is the same as the trill speed."
+        ) $ \speed args deriver ->
+            tremolo speed args (Args.normalized args deriver)
+    generator = CallSig.call1g
+        (optional "speed" (typed_control "tremolo-speed" 10 Score.Real)
+            "Tremolo at this speed. Its meaning is the same as the trill speed."
+        ) $ \speed -> Note.inverting $ \args -> Lily.note args Attrs.trem $
+            tremolo speed args Util.note
+    tremolo speed args note = do
         (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
         notes <- case time_type of
             Util.Real -> do
-                (start, end) <- Args.real_range args
+                (start, end) <-
+                    (\(s, e) -> (,) <$> Derive.real s <*> Derive.real e) $
+                        Args.range_or_next args
                 mapM Derive.score $ take_full_notes end $
                     real_pos_at_speed speed_sig start
             Util.Score -> do
-                let (start, end) = Args.range args
+                let (start, end) = Args.range_or_next args
                 notes <- score_pos_at_speed speed_sig start end
                 return $ take_full_notes end notes
-        let events = [Note.Event start (end - start) Util.note
-                | (start, end) <- zip notes (drop 1 notes)]
-        Note.place events
+        Note.place $ [Note.Event start (end - start) note
+            | (start, end) <- zip notes (drop 1 notes)]
 
 take_full_notes :: (Ord a) => a -> [a] -> [a]
 take_full_notes _ [] = []

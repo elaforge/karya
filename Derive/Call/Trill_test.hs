@@ -1,6 +1,7 @@
 module Derive.Call.Trill_test where
 import Util.Test
 import qualified Ui.State as State
+import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Derive as Derive
@@ -32,6 +33,30 @@ test_tremolo = do
     equal (run "1" [(0, 2, "trem 1t")]) ([(0, 1, "4c"), (1, 1, "4c")], [])
     equal (run "1" [(2, 2, "trem 1t")]) ([(2, 1, "4c"), (3, 1, "4c")], [])
     equal (run "2" [(0, 2, "trem 1t")]) ([(0, 0.5, "4c"), (0.5, 0.5, "4c")], [])
+
+test_tremolo_transformer = do
+    let run notes = extract $ DeriveTest.derive_tracks $
+            [ (">", notes)
+            , ("*", [(s, 0, p) | ((s, _, _), p)
+                <- zip notes (cycle ["4a", "4b", "4c"])])
+            ]
+        extract = DeriveTest.extract_events DeriveTest.e_note2
+    equal (run [(0, 2, ""), (2, 2, "trem 1 |"), (4, 2, "")])
+        [ (0, 2, "4a")
+        , (2, 1, "4b"), (3, 1, "4b")
+        , (4, 2, "4c")
+        ]
+    equal (run [(0, 2, ""), (3, 3, "trem 1 |"), (6, 1, "")])
+        [ (0, 2, "4a")
+        , (3, 1, "4b"), (4, 1, "4b"), (5, 1, "4b")
+        , (6, 1, "4c")
+        ]
+    -- Tremolo on a 0 dur note extends to the next event.
+    equal (run [(0, 2, ""), (2, 0, "trem 1 |"), (4, 2, "")])
+        [ (0, 2, "4a")
+        , (2, 0, "4b"), (3, 0, "4b")
+        , (4, 2, "4c")
+        ]
 
 -- * pitch calls
 

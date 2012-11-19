@@ -68,6 +68,13 @@ prev_events = Derive.info_prev_events . info
 range :: PassedArgs d -> (ScoreTime, ScoreTime)
 range = Event.range . event
 
+-- | Like 'range', but if the duration is 0, then the end is 'next' event.
+range_or_next :: PassedArgs d -> (ScoreTime, ScoreTime)
+range_or_next args
+    | start == end = (start, next args)
+    | otherwise = (start, end)
+    where (start, end) = range args
+
 real_range :: PassedArgs d -> Derive.Deriver (RealTime, RealTime)
 real_range args = (,) <$> Derive.real start <*> Derive.real end
     where (start, end) = range args
@@ -91,3 +98,13 @@ range_on_track args = (track_start + start, track_start + end)
     where
     (start, end) = range args
     track_start = fst (Derive.info_track_range (info args))
+
+-- | This normalizes a deriver to start at 0 and have a duration of 1, provided
+-- that the deriver is placed at the start and dur of the given args.  This is
+-- the case if the deriver is a transformer arg, so this is useful for
+-- a transformer to manipulate its argument.
+normalized :: PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
+normalized args = Derive.d_place (- (start / dur)) (1 / dur)
+    where
+    (start, dur_) = extent args
+    dur = if dur_ == 0 then 1 else dur_

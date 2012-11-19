@@ -243,8 +243,8 @@ d_place shift stretch = d_warp
 d_warp :: Score.Warp -> Deriver a -> Deriver a
 d_warp warp deriver
     | Score.is_id_warp warp = deriver
-    | Score.warp_stretch warp <= 0 =
-        throw $ "stretch <= 0: " ++ Pretty.pretty (Score.warp_stretch warp)
+    | Score.warp_stretch warp < 0 =
+        throw $ "stretch < 0: " ++ Pretty.pretty (Score.warp_stretch warp)
             ++ " (shift: " ++ Pretty.pretty (Score.warp_shift warp) ++ ")"
     | otherwise = local
         (\st -> st { state_warp = Score.compose_warps (state_warp st) warp })
