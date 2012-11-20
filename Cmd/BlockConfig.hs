@@ -78,7 +78,7 @@ cmd_open_block = do
         when_just (call_of (Event.event_string event)) $ \block_id ->
             whenM (Maybe.isJust <$> State.lookup_block block_id) $ do
                 views <- State.views_of block_id
-                maybe (Create.fitted_view block_id >> return ())
+                maybe (Create.view block_id >> return ())
                     ViewConfig.bring_to_front (Seq.head (Map.keys views))
 
 cmd_add_block_title :: (Cmd.M m) => Msg.Msg -> m ()

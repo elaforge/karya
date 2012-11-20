@@ -29,7 +29,7 @@ make = do
     Create.track_events bid State.no_ruler 1 100 $
         Track.track "" (Events.singleton (Event.event 0 5 "symbol"))
     State.set_track_width bid 0 0
-    vid <- Create.fitted_view bid
+    vid <- Create.view bid
     Selection.set vid (Just (Types.point_selection 1 0))
 
 -- | Put the given Symbol into the test block.

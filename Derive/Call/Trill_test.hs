@@ -1,7 +1,6 @@
 module Derive.Call.Trill_test where
 import Util.Test
 import qualified Ui.State as State
-import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Derive as Derive

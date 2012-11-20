@@ -54,7 +54,7 @@ create name ui_blocks = do
     State.set_root_id root
     State.modify_default $ \d ->
         d { State.default_instrument = Just (Score.Instrument "ptq/c1") }
-    Create.view root
+    Create.unfitted_view root
     return ()
 
 create_block :: (State.M m) => (String -> Id.Id) -> RulerId

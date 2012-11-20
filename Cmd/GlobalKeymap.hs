@@ -363,17 +363,16 @@ create_bindings = concat
         Create.splice_above_ancestors
     , command_char 'd' "delete tracks" Create.destroy_selected_tracks
 
-    , command_char 'n' "create view"
-        (Create.fitted_view =<< Cmd.get_focused_block)
+    , command_char 'n' "create view" (Create.view =<< Cmd.get_focused_block)
     -- For the moment, never destroy blocks when closing the view.
     , command_char 'w' "destroy view"
         (State.destroy_view =<< Cmd.get_focused_view)
     , command_char 'W' "destroy block"
         (Create.destroy_block =<< Cmd.get_focused_block)
     , command_char 'b' "create block"
-        (Create.block_from_template False =<< Cmd.get_focused_block)
-    , command_char 'B' "create block template"
-        (Create.block_from_template True =<< Cmd.get_focused_block)
+        (Create.view_from_template False =<< Cmd.get_focused_block)
+    , command_char 'B' "create block from template"
+        (Create.view_from_template True =<< Cmd.get_focused_block)
     ]
 
 clip_bindings :: (Cmd.M m) => [Keymap.Binding m]

@@ -50,7 +50,7 @@ setup_generate gen = do
         _ -> error gen
     State.set_midi_config $
         make_midi_config "fm8" [("fm8/1", [0..2]), ("fm8/2", [3])]
-    Create.view (UiTest.bid "b01")
+    Create.unfitted_view (UiTest.bid "b01")
     Create.map_track_titles set_inst
     return Cmd.Done
     where
@@ -71,7 +71,7 @@ load_mod fn = do
 
 setup_small :: (Cmd.M m) => m Cmd.Status
 setup_small = do
-    (bid, vid) <- empty_block
+    bid <- empty_block
     note <- Create.empty_track bid 2
     State.insert_events note $ map UiTest.make_event
         [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")]
@@ -84,12 +84,13 @@ setup_small = do
         render { Track.render_style = Track.Line }
     State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3)]
     State.set_midi_config (make_midi_config "ptq" [("ptq/c", [0..2])])
+    vid <- Create.view bid
     Selection.set vid (Just (Types.point_selection 2 0))
     return Cmd.Done
 
 setup_normal :: (Cmd.M m) => m Cmd.Status
 setup_normal = do
-    (bid, vid) <- empty_block
+    bid <- empty_block
     -- tempo is track 1
 
     mod <- Create.empty_track bid 2
@@ -123,6 +124,7 @@ setup_normal = do
     State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3), (3, 4), (4, 5)]
 
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
+    vid <- Create.view bid
     Selection.set vid (Just (Types.point_selection 0 0))
     return Cmd.Done
     where
@@ -136,7 +138,7 @@ setup_normal = do
 
 setup_big :: (Cmd.M m) => m Cmd.Status
 setup_big = do
-    (b, view) <- empty_block
+    b <- empty_block
     t0 <- Create.empty_track b 2
     State.set_track_title t0 ">fm8/bass"
     t0_p <- Create.empty_track b 3
@@ -168,22 +170,22 @@ setup_big = do
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
     State.modify_default $ \d ->
         d { State.default_instrument = Just (Score.Instrument "fm8/bass") }
-    Selection.set view (Just (Types.point_selection 0 0))
+    vid <- Create.view b
+    Selection.set vid (Just (Types.point_selection 0 0))
     return Cmd.Done
 
-empty_block :: (Cmd.M m) => m (BlockId, ViewId)
+empty_block :: (Cmd.M m) => m BlockId
 empty_block = do
     rid <- Create.ruler "meter44"
         (RulerUtil.meter_ruler 16 Meter.m44)
         { Ruler.ruler_align_to_bottom = arrival_beats }
 
     bid <- Create.block rid
-    vid <- Create.view bid
     t_tempo <- Create.named_track bid rid 1 "tempo"
         (Track.track "tempo" Events.empty)
     State.set_track_width bid 1 40
     State.insert_events t_tempo $ map UiTest.make_event [(0, 0, "1")]
-    return (bid, vid)
+    return bid
 
 make_midi_config :: String -> [(String, [Midi.Channel])] -> Instrument.Config
 make_midi_config dev config = Instrument.config

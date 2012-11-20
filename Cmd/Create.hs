@@ -129,6 +129,12 @@ block_from_template include_tracks template_id = do
                     State.set_track_title new_tid title
                 _ -> State.insert_track block_id tracknum track
         State.set_skeleton block_id =<< State.get_skeleton template_id
+    return block_id
+
+-- | Like 'block_from_template', but create a view too.
+view_from_template :: (Cmd.M m) => Bool -> BlockId -> m BlockId
+view_from_template include_tracks template_id = do
+    block_id <- block_from_template include_tracks template_id
     view block_id
     return block_id
 
@@ -170,19 +176,21 @@ generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
 
 -- * view
 
-view :: (State.M m) => BlockId -> m ViewId
-view block_id = do
+-- | Create a view with the default dimensions.
+unfitted_view :: (State.M m) => BlockId -> m ViewId
+unfitted_view block_id = do
     view_id <- require "view id"
         . generate_view_id block_id =<< State.gets State.state_views
     rect <- State.gets (find_rect Config.view_size . map Block.view_rect
         . Map.elems . State.state_views)
     State.create_view view_id $ Block.view block_id rect Config.zoom
 
--- | This is like 'view', but tries to fit the view size to its contents.
+-- | This is like 'unfitted_view', but tries to fit the view size to its
+-- contents.
 --
 -- It's in Cmd.M since it needs the screen dimensions.
-fitted_view :: (Cmd.M m) => BlockId -> m ViewId
-fitted_view block_id = do
+view :: (Cmd.M m) => BlockId -> m ViewId
+view block_id = do
     -- This is similar to ViewConfig.resize_to_fit, but not the same.  The
     -- reason is that resize_to_fit relies on Block.view_visible_track/block
     -- being set, which is in turn because the haskell layer doesn't track

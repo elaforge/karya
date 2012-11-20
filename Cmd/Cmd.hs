@@ -731,7 +731,10 @@ modify_play_state f = modify $ \st ->
 get_screen :: (M m) => (Int, Int) -> m Rect.Rect
 get_screen point = do
     screens <- gets state_screens
-    return $ fromMaybe Rect.empty $
+    -- There are no screens yet during setup, so pick something somewhat
+    -- reasonable so windows don't all try to crunch themselves down to
+    -- nothing.
+    return $ fromMaybe (Rect.xywh 0 0 800 600) $
         Seq.minimum_on (Rect.distance point) screens
 
 lookup_performance :: (M m) => BlockId -> m (Maybe Performance)

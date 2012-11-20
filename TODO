@@ -1,6 +1,7 @@
 UNSORTED
-  - Create.view should create a fitted view
-  - I can crash by creating a fitten view with no contents
+  - why not initialize block display width with Reasonable Defaults so I don't
+    need Create.fitted_view nastiness?
+  * Create.view should create a fitted view
   * cmd to compress or stretch a block by 2, use ModifyEvents
   * insert dividers
   - why does drumaxx only enter keys in kbd edit mode?

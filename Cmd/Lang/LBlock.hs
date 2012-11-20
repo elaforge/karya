@@ -80,8 +80,8 @@ make_named :: Maybe BlockId -> String -> Cmd.CmdL ()
 make_named template name = whenM (can_create name) $ case template of
     Nothing -> do
         template_id <- Cmd.get_focused_block
-        Create.block_from_template False template_id
-    Just template_id -> Create.block_from_template True template_id
+        Create.view_from_template False template_id
+    Just template_id -> Create.view_from_template True template_id
 
 can_create :: (State.M m) => String -> m Bool
 can_create "" = return False
