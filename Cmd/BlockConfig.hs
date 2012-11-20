@@ -11,6 +11,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
@@ -86,6 +87,25 @@ cmd_add_block_title _ = do
     title <- State.get_block_title block_id
     when (null title) $
         State.set_block_title block_id " "
+
+-- * merge blocks
+
+append :: (State.M m) => BlockId -> BlockId -> m ()
+append dest source = do
+    -- By convention the first track is just a ruler.
+    tracks <- drop 1 . Block.block_tracks <$> State.get_block source
+    tracknum <- State.track_count dest
+    tracknum <- if tracknum <= 1 then return tracknum else do
+        State.insert_track dest tracknum Block.divider
+        return (tracknum + 1)
+    forM_ (zip [tracknum..] tracks) $ \(i, track) ->
+        State.insert_track dest i track
+    skel <- State.get_skeleton dest
+    edges <- Skeleton.flatten <$> State.get_skeleton source
+    let offset = tracknum - 1 -- -1 because I dropped the first track.
+    skel <- State.require "couldn't add edges to skel" $
+        Skeleton.add_edges [(s+offset, e+offset) | (s, e) <- edges] skel
+    State.set_skeleton dest skel
 
 -- * track
 

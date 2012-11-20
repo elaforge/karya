@@ -367,8 +367,7 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
 
 -- | Get the \"point\" position of a Selection.
 point :: Types.Selection -> ScoreTime
-point sel =
-    point_pos (Types.sel_start_pos sel) (Types.sel_cur_pos sel)
+point sel = point_pos (Types.sel_start_pos sel) (Types.sel_cur_pos sel)
 
 -- | Given a selection start and end, give the \"point\" position for it.
 point_pos :: ScoreTime -> ScoreTime -> ScoreTime

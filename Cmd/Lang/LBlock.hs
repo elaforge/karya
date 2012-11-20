@@ -2,16 +2,19 @@
 -- | Block level cmds.
 module Cmd.Lang.LBlock where
 import qualified Control.Monad.Trans as Trans
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import Util.Control
+import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 
+import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -88,6 +91,39 @@ can_create name = do
         Just block_id -> not . Map.member block_id
             <$> State.gets State.state_blocks
         Nothing -> return False
+
+-- * dividers
+
+-- | Insert a divider to the right of the selection.
+divide :: Cmd.CmdL ()
+divide = do
+    (block_id, tracknum, _, _) <- Selection.get_insert
+    State.insert_track block_id (tracknum+1) Block.divider
+
+-- | Remove a divider to the right of the selection.  The selection likes to
+-- skip dividers so they can't be deleted normally.
+undivide :: Cmd.CmdL ()
+undivide = do
+    (block_id, tracknum, _, _) <- Selection.get_insert
+    tracks <- Block.block_tracks <$> State.get_block block_id
+    let found = List.find ((==Block.divider) . snd)
+            (drop tracknum (zip [0..] tracks))
+    when_just found $ \(n, _) -> State.remove_track block_id n
+
+-- * merge
+
+append :: (Cmd.M m) => BlockId -> m ()
+append source = do
+    dest <- Cmd.get_focused_block
+    BlockConfig.append dest source
+
+create_merged :: (Cmd.M m) => BlockId -> BlockId -> m ViewId
+create_merged b1 b2 = do
+    ruler_id <- State.block_ruler b1
+    new <- Create.block ruler_id
+    BlockConfig.append new b1
+    BlockConfig.append new b2
+    Create.view new
 
 -- * stretch
 

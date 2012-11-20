@@ -130,8 +130,10 @@ instance Pretty.Pretty Box where
 -- This is the higher level track that is visible at the haskell level.
 data Track = Track {
     tracklike_id :: TracklikeId
-    -- | The current width is in the View, but this width is a default if
-    -- a new View is created from this Block.
+    -- | Formerly the width was in the view since each view could have
+    -- a different width and this was just the default width, but that turned
+    -- out to be too much of a hassle, so now all occurences of a track have
+    -- the same width.
     , track_width :: Types.Width
     -- | Track display state flags.
     , track_flags :: [TrackFlag]
@@ -148,6 +150,12 @@ instance Pretty.Pretty Track where
 -- | Construct a 'Track' with defaults.
 track :: TracklikeId -> Types.Width -> Track
 track tracklike_id width = Track tracklike_id width [] []
+
+colored_divider :: Color.Color -> Track
+colored_divider color = track (DId (Divider color)) 3
+
+divider :: Track
+divider = colored_divider Color.black
 
 track_collapsed :: Track -> Bool
 track_collapsed = (Collapse `elem`) . track_flags

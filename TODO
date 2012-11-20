@@ -1,6 +1,8 @@
 UNSORTED
+  - Create.view should create a fitted view
+  - I can crash by creating a fitten view with no contents
   * cmd to compress or stretch a block by 2, use ModifyEvents
-  - insert dividers
+  * insert dividers
   - why does drumaxx only enter keys in kbd edit mode?
   * I still can't use trem on drums, because they are already a generator!
     'trem' needs to be a transformer too.
@@ -22,7 +24,6 @@ UNSORTED
     - TimeStep.snap should optimize steps that don't do any snapping when
       prev_val is Nothing, e.g. RelativeMark and Absolute
     * Absolute is badly named, it should be Relative
-  - other drumaxx controls?
   - split and join blocks, use dividers
   * create a new track should place the track to the right of any collapsed
     tracks
