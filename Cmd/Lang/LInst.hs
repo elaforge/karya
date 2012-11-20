@@ -192,3 +192,12 @@ run_interface :: (Interface.Interface -> IO a) -> Cmd.CmdL a
 run_interface op = do
     interface <- Cmd.gets Cmd.state_midi_interface
     Trans.liftIO (op interface)
+
+
+-- * misc
+
+-- | Send a CC MIDI message on the given device.  This is for synths that use
+-- MIDI learn.
+teach :: String -> Midi.Channel -> Midi.Control -> Cmd.CmdL ()
+teach dev chan cc = Cmd.midi (Midi.write_device dev) $
+    Midi.ChannelMessage chan (Midi.ControlChange cc 1)
