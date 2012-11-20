@@ -36,6 +36,8 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
+import qualified Cmd.ViewConfig as ViewConfig
+
 import qualified App.Config as Config
 import Types
 
@@ -179,40 +181,26 @@ generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
 -- | Create a view with the default dimensions.
 unfitted_view :: (State.M m) => BlockId -> m ViewId
 unfitted_view block_id = do
+    block <- State.get_block block_id
     view_id <- require "view id"
         . generate_view_id block_id =<< State.gets State.state_views
-    rect <- State.gets (find_rect Config.view_size . map Block.view_rect
-        . Map.elems . State.state_views)
-    State.create_view view_id $ Block.view block_id rect Config.zoom
+    rect <- State.gets $ find_rect Config.view_size . map Block.view_rect
+        . Map.elems . State.state_views
+    State.create_view view_id $ Block.view block block_id rect Config.zoom
 
 -- | This is like 'unfitted_view', but tries to fit the view size to its
 -- contents.
 --
 -- It's in Cmd.M since it needs the screen dimensions.
+--
+-- Views created during setup are likely to not have the correct height.
+-- That's because I haven't received the screen resolution from fltk yet so
+-- I make a guess in 'Cmd.get_screen'.
 view :: (Cmd.M m) => BlockId -> m ViewId
 view block_id = do
-    -- This is similar to ViewConfig.resize_to_fit, but not the same.  The
-    -- reason is that resize_to_fit relies on Block.view_visible_track/block
-    -- being set, which is in turn because the haskell layer doesn't track
-    -- the size of the various widgets and so it has to wait for fltk to tell
-    -- it after the view has been created.  So instead I add up the default
-    -- sizes, which only works before the view has been created since that
-    -- pesky user hasn't had a chance to change them yet.
-    --
-    -- It's gross, but still probably better than tracking a whole bunch of
-    -- fltk state that I don't otherwise need.
-    view_id <- require "view id"
-        . generate_view_id block_id =<< State.gets State.state_views
-    block <- State.get_block block_id
-    block_end <- State.block_event_end block_id
-    let w = sum $ map Block.display_track_width (Block.block_tracks block)
-        h = Types.zoom_to_pixels Config.zoom block_end
-    rects <- State.gets (map Block.view_rect . Map.elems . State.state_views)
-    screen <- Cmd.get_screen (0, 0) -- just pick the main screen for now
-    let dimensions = (w + Block.default_track_padding block,
-            h + Block.default_time_padding block)
-    let vrect = find_screen_rect dimensions rects screen
-    State.create_view view_id $ Block.view block_id vrect Config.zoom
+    view_id <- unfitted_view block_id
+    ViewConfig.resize_to_fit False view_id
+    return view_id
 
 block_view :: (Cmd.M m) => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view
@@ -545,11 +533,8 @@ find_rect :: (Int, Int) -> [Rect.Rect] -> Rect.Rect
 find_rect (w, h) rects = Rect.xywh right bottom w h
     where
     right = maximum $ 0 : map Rect.rr rects
-    bottom = 10
-
-find_screen_rect :: (Int, Int) -> [Rect.Rect] -> Rect.Rect -> Rect.Rect
-find_screen_rect (w, h) rects screen =
-    Rect.intersection screen (Rect.xywh right bottom w h)
-    where
-    right = min (maximum (0 : map Rect.rr rects) ) (Rect.rr screen - w)
-    bottom = 10
+    -- TODO This is an OSX specific hack: the main screen has a title bar and
+    -- prevents you from creating a window on it.  If the view rect doesn't
+    -- have the right y value then it can think its height is bigger than it
+    -- will actually be, and winds up being too short.
+    bottom = 44

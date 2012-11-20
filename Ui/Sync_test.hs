@@ -93,8 +93,8 @@ test_create_two_views = thread run_setup $
     ("view created, has big track, track title changes", do
         b2 <- create_block "b2" "" [(Block.RId t_ruler_id, 20),
             (Block.TId t_track1_id t_ruler_id, 30)]
-        v2 <- create_view "v2" $
-            Block.view b2 (Rect.place 300 20 UiTest.default_rect)
+        v2 <- create_view "v2" =<<
+            make_view b2 (Rect.place 300 20 UiTest.default_rect)
                 UiTest.default_zoom
         State.set_track_title t_track1_id "title changed!"
         State.set_track_width b2 1 300
@@ -180,9 +180,9 @@ test_set_track_flags = do
 test_set_track_width = do
     state <- io_human "two views" $ run State.empty $ do
         UiTest.mkblock (t_block, [(">", [])])
-        create_view "v1" $ Block.view UiTest.default_block_id
+        create_view "v1" =<< make_view UiTest.default_block_id
             UiTest.default_rect UiTest.default_zoom
-        create_view "v2" $ Block.view UiTest.default_block_id
+        create_view "v2" =<< make_view UiTest.default_block_id
             (Rect.place 300 0 UiTest.default_rect) UiTest.default_zoom
     state <- io_human "both tracks change size" $ run state $ do
         State.set_track_width t_block_id 1 100
@@ -447,7 +447,12 @@ setup_state = do
     t1 <- create_track "b1.t1" (UiTest.empty_track "t1")
     b1 <- create_block t_block "hi b1"
         [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]
-    create_view "v1" (Block.view b1 UiTest.default_rect UiTest.default_zoom)
+    create_view "v1" =<< make_view b1 UiTest.default_rect UiTest.default_zoom
+
+make_view :: (State.M m) => BlockId -> Rect.Rect -> Types.Zoom -> m Block.View
+make_view block_id rect zoom = do
+    block <- State.get_block block_id
+    return $ Block.view block block_id rect zoom
 
 create_view a b = State.create_view (mkid a) b
 create_block block_name title tracks =

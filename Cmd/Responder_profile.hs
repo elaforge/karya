@@ -21,17 +21,17 @@ import qualified Derive.Derive_profile as Derive_profile
 profile_edits_middle = do
     -- Test editing a large score in the middle as a real user would.
     Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
-    let edit_block = UiTest.bid "b1.5.0"
+    let edit_block_id = UiTest.bid "b1.5.0"
     let (view_id, ui_state) = UiTest.run State.empty $ do
             ResponderTest.set_midi_config
             Derive_profile.make_nested_controls 15 3 60
-            view_id <- Create.view edit_block
+            view_id <- Create.unfitted_view edit_block_id
             UiTest.select_point view_id 1 0.0
             return view_id
     let cmd_state = modify_edit_state
             (ResponderTest.mk_cmd_state ui_state view_id) $ \st ->
                 st { Cmd.state_edit_mode = Cmd.ValEdit }
-    -- pprint (UiTest.extract_tracks_of edit_block ui_state)
+    -- pprint (UiTest.extract_tracks_of edit_block_id ui_state)
 
     let wait = [(CmdTest.make_key UiMsg.KeyDown Key.ShiftL, 0.1),
             (CmdTest.make_key UiMsg.KeyUp Key.ShiftL, 4)]

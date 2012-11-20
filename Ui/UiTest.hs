@@ -56,10 +56,8 @@ vid = Types.ViewId . mkid
 tid = Types.TrackId . mkid
 rid = Types.RulerId . mkid
 
+default_zoom :: Types.Zoom
 default_zoom = Config.zoom
-
-default_view :: Block.View
-default_view = Block.view default_block_id default_rect default_zoom
 
 -- | Save the state to disk, so I can load it into the app and see it.
 save :: State.State -> FilePath -> IO ()
@@ -180,8 +178,10 @@ parse_skeleton block_id = do
     return $ ParseSkeleton.default_parser tracks
 
 mkview :: (State.M m) => BlockId -> m ViewId
-mkview block_id = State.create_view (Id.unpack_id (mk_vid block_id)) $
-    Block.view block_id default_rect default_zoom
+mkview block_id = do
+    block <- State.get_block block_id
+    State.create_view (Id.unpack_id (mk_vid block_id)) $
+        Block.view block block_id default_rect default_zoom
 
 mkblock_view :: (State.M m) => BlockSpec -> m [TrackId]
 mkblock_view block_spec =

@@ -322,14 +322,14 @@ instance DeepSeq.NFData View where
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since 'State.create_view'
 -- overwrites view_tracks, and maybe more in the future.
-view :: BlockId -> Rect.Rect -> Types.Zoom -> View
-view block_id rect zoom = View
+view :: Block -> BlockId -> Rect.Rect -> Types.Zoom -> View
+view block block_id rect zoom = View
     { view_block = block_id
     , view_rect = rect
-    -- These are unknown, but will be filled in when the new view emits its
-    -- initial resize msg.
-    , view_track_padding = 0
-    , view_time_padding = 0
+    -- These will be filled in when the new view emits its initial resize msg,
+    -- but it should start off with the defaults.
+    , view_track_padding = default_track_padding block
+    , view_time_padding = default_time_padding block
     , view_status = Map.empty
     , view_track_scroll = 0
     , view_zoom = zoom
@@ -350,8 +350,7 @@ show_status =
 
 -- | Return how much track is in view.
 visible_time :: View -> ScoreTime
-visible_time view =
-    Types.zoom_to_time (view_zoom view) (view_visible_time view)
+visible_time view = Types.zoom_to_time (view_zoom view) (view_visible_time view)
 
 visible_track :: View -> Types.Width
 visible_track = view_visible_track

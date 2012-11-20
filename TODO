@@ -1,6 +1,7 @@
 UNSORTED
-  - why not initialize block display width with Reasonable Defaults so I don't
+  * why not initialize block display width with Reasonable Defaults so I don't
     need Create.fitted_view nastiness?
+  - maybe adding a new track should embiggen the view?
   * Create.view should create a fitted view
   * cmd to compress or stretch a block by 2, use ModifyEvents
   * insert dividers
@@ -25,7 +26,7 @@ UNSORTED
     - TimeStep.snap should optimize steps that don't do any snapping when
       prev_val is Nothing, e.g. RelativeMark and Absolute
     * Absolute is badly named, it should be Relative
-  - split and join blocks, use dividers
+  * split and join blocks, use dividers
   * create a new track should place the track to the right of any collapsed
     tracks
   * spicy guitar uses key swiches that have to be held down.  I could set an

@@ -67,7 +67,8 @@ zoom_to_ruler view_id = do
 
 -- * resize
 
-resize_to_fit :: (Cmd.M m) => Bool -> ViewId -> m ()
+resize_to_fit :: (Cmd.M m) => Bool -- ^ maximize the window vertically
+    -> ViewId -> m ()
 resize_to_fit maximize view_id = do
     view <- State.get_view view_id
     screen <- Cmd.get_screen (Rect.upper_left (Block.view_rect view))
