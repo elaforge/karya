@@ -17,6 +17,16 @@ static const int mac_resizer_width = 0;
 static const double mousewheel_time_scale = 3;
 static const double mousewheel_track_scale = 3;
 
+// If you create windows that are too small, the initial widget placement gets
+// messed up.  Rather than trying to figure all that out, just forbid windows
+// below a certain size.
+static const int min_height =
+    Config::View::block_title_height
+    + Config::View::track_title_height
+    + Config::View::skel_height + Config::View::status_size
+    + Config::View::sb_size;
+static const int min_width = Config::View::sb_size + 60;
+
 
 BlockView::BlockView(int X, int Y, int W, int H,
         const BlockModelConfig &model_config) :
@@ -692,8 +702,10 @@ block_view_window_cb(Fl_Window *win, void *p)
 BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
         const char *label,
         const BlockModelConfig &model_config) :
-    Fl_Double_Window(X, Y, W, H, label),
-    block(X, Y, W, H, model_config), testing(false)
+    Fl_Double_Window(
+            X, Y, std::max(min_width, W), std::max(min_height, H), label),
+    block(X, Y, std::max(min_width, W), std::max(min_height, H), model_config),
+    testing(false)
 {
     this->callback((Fl_Callback *) block_view_window_cb);
     this->resizable(this);
@@ -703,7 +715,7 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
     // to work around the problem.
     // Contrary to the documentation, setting maxw and maxh to 0 does not
     // automatically pick screen-filling sizes.
-    this->size_range(10, 10, 10000, 10000);
+    this->size_range(min_width, min_height, 10000, 10000);
 
     // Turn off some annoying defaults.
     Fl::dnd_text_ops(false); // don't do drag and drop text
