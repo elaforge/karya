@@ -40,7 +40,7 @@ import qualified Derive.ShowVal as ShowVal
 -- from abstract to concrete.  'Degree', 'NoteNumber', and 'Hz' can be relative
 -- or absolute, but at the moment no distinctions are made at the type level.
 
--- * Pitch
+-- * Note
 
 -- | A Note belongs to a scale and describes a certain note in that scale.
 newtype Note = Note String deriving (Eq, Ord, Show)

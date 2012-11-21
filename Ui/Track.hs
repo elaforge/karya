@@ -2,9 +2,7 @@
 -- | The 'Track' type and supporting functions.
 module Ui.Track where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Tuple as Tuple
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -128,4 +126,6 @@ newtype ValName = ValName (Pitch.Degree, Pitch.Note)
 -- Not all scales have well defined degrees, so not all scales will have
 -- a scale map.
 make_scale_map :: [(Pitch.Note, Pitch.Degree)] -> ScaleMap
-make_scale_map = ScaleMap . map ValName . List.sort . map Tuple.swap
+-- TODO it's disabled for now because it's complicated to get right and I'm
+-- not even sure I want it.
+make_scale_map = const (ScaleMap [])

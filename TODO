@@ -1,6 +1,6 @@
 UNSORTED
   - use Either for Or types
-  - remove scale_map
+  * remove scale_map
   - Sync_test warnings
   - osc backend: make up a simple osc reaktor instrument and see if increased
     resolution makes a difference

@@ -154,9 +154,6 @@ no_attrs = Attributes Set.empty
 -- a NoteNumber.  The values are expected to contain transpositions that this
 -- Pitch understands, for example 'Derive.Score.c_chromatic' and
 -- 'Derive.Score.c_diatonic'.
---
--- TODO why have TypedVals, if the chromatic and diatonic transpose signals are
--- separate?
 newtype Pitch = Pitch PitchCall
 type PitchCall = Map.Map Control Signal.Y -> Either PitchError Pitch.NoteNumber
 
@@ -166,10 +163,10 @@ instance Eq Pitch where
 instance Show Pitch where
     show (Pitch p) = show (p Map.empty)
 
+-- | This is just for debugging convenience, since it doesn't preserve the
+-- structure of the pitch.
 instance Read Pitch where
-    readPrec = do
-        val <- Read.readPrec
-        return $ Pitch $ \_ -> val
+    readPrec = Pitch . const . Right <$> Read.readPrec
 
 instance Pretty.Pretty Pitch where
     pretty (Pitch p) = either show Pretty.pretty (p Map.empty)
