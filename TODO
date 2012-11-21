@@ -1,27 +1,12 @@
 UNSORTED
-  - use Either for Or types
-  * remove scale_map
-  - Sync_test warnings
-  - osc backend: make up a simple osc reaktor instrument and see if increased
-    resolution makes a difference
-    - But reaktor doesn't support bundles with times, so if I use it I'd have
-      to write my own scheduler.
-  * i> and e> could take a transposition in addition to destination pitch
+  - I have my old scores saved as MIDI, right?  Write a MIDI loader?
   - why is it that [(1, "")] [(0, 0, "4c"), (1, 0, "i (4d)")] gives the wrong
     pitch?  I'm guessing the pitchbend msg gets out of order on the single
     channel available.
-  * why not initialize block display width with Reasonable Defaults so I don't
-    need Create.fitted_view nastiness?
-  * maybe adding a new track should embiggen the view?
-  * Create.view should create a fitted view
-  * cmd to compress or stretch a block by 2, use ModifyEvents
-  * insert dividers
-  - why does drumaxx only enter keys in kbd edit mode?
-  * I still can't use trem on drums, because they are already a generator!
-    'trem' needs to be a transformer too.
+  - should instrument bound keys (i.e. drum strokes) work in ValEdit?
+    It's awkward to have to go back and forth from kbd entry.
   - trill or trem with negative duration lines the integral number up to the
     end.
-  * better error msg for integer call args
   timestep
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or
@@ -37,18 +22,6 @@ UNSORTED
     - TimeStep.snap should optimize steps that don't do any snapping when
       prev_val is Nothing, e.g. RelativeMark and Absolute
     * Absolute is badly named, it should be Relative
-  * split and join blocks, use dividers
-  * create a new track should place the track to the right of any collapsed
-    tracks
-  * spicy guitar uses key swiches that have to be held down.  I could set an
-    instrument config, but what if I want to apply the articulation to a note
-    that's already sounding?  I guess in that case I can just write it as
-    a plain note, with a call that just sets the keyswitch pitch.
-  * general purpose harmonic, mute, and legato ornaments
-  * held keyswitches aren't getting cleared after play
-  * legato attribute should make notes overlap by a variable amount
-  * why is ( a syntax error?
-  * Util.map_* functions should take the function first, as is customary
   - NoteTransformers apply a transformer to notes.  So why can't I apply
     any transformer as a note transformer?  NoteTransformers are actually more
     powerful because they can treat multiple args differently, but any
@@ -81,8 +54,6 @@ UNSORTED
     simply additive, and their duration doesn't matter.  This would mean I'd
     have to edit the tempo on the subblocks though, which in turn means it
     couldn't vary independently.
-  - make constants for each of the ruler ranks, e.g. block, measure, quarter,
-    eighth
   lots of ghc panics
     * change all alignment = 1 lines to 4.  Still crashes.
     * try on linux, yes seems to happen there too
@@ -105,9 +76,6 @@ UNSORTED
   - It seems confusing that in val edit the note track doesn't need cmd-x but
     the control track does.
     Maybe I should get rid of the optional cmd- thing?
-  * Undo during edit (i.e. a suppressed cmd) destroys changes and you can't
-    get them back.  And it's confusing.  Maybe undo shouldn't work?
-    Or it should commit the current suppressed cmd and then undo it.
   - Hand damping: manually place hand damp positions.   Post proc, where tick
     and ngoret ornaments set an attribute or something so it knows which ones
     to extend.
@@ -133,43 +101,23 @@ UNSORTED
     scales, then Scale.Util for simple scales, and then Just is its own thing.
     Can I unify things into one framework?
 
-  - If I want pitch signal render to work right, it should be in terms of
-    degrees, not NoteNumbers.  Otherwise it just can't work for scales that
-    retune, e.g. just.  But it means PitchSignal.Pitches need to emit degrees
-    in addition to NoteNumbers, and I'd need an extra derive to compute the
-    degree signal.  It would be nice to have a way to skip that for Twelve.
-  - Also, if I want to get spelling right in lilypond or integration, I need
-    Pitch -> Note as well.  I can store 3 functions, or 1 function that takes
-    a selector.
-    Actually, I should be able to map Degree to Note, so I only need two.
-    But the scale then needs degree->note I think.  Actually, that's what the
-    scale map is, yes?
-    . This isn't going to work because I need the enharmonics!  So I need the
-      note names.
-    - turn scale map into degree->note, send that to fltk
-    - have lilypond use the scale map to get the note name
-    3 uses:
-      - Signal render.  Not sure I want it.  What's more, it can't easily work
-        for retuning scales, though I suppose it still could if I send the
-        FractionalNotes instead of NNs.
-      - Lilypond enharmonics.  FractionalNote can do this but is actually
-        overkill since I just need one.
-      - to_relative.  FractionalNote can't really do this, I need
-        Note - Note = Semis.  I just need a way to get semis.
+  fancier pitch signals:
+    - Pitch signal render:
+      To get it right, Pitch needs to emit (Note, Note, Frac) and send that to
+      fltk instead of NNs.  But I'm not sure I even want it, the NNs actually
+      look ok.
+    - Lilypond enharmonics: they way I spelled it on the score should be the
+      way it's spelled in lilypond.  (Note, Note, Frac) can do this but it's
+      actually overkill since I'll probably just pick the bottom Note.
+    - to_relatve: This needs Note - Note = Semis.  I think I could just add
+      a field in Scale, but I'm not totally sure I really want this.
 
-  - I could set certain Symbols to stretch to the length of their event, this
-    would yield a nicer looking score.  But it would mess up the bounds
-    detection.
-    Also, I'm not sure how to do this.  fltk doesn't seem to give access to
-    text stretching and scaling in OS X.
-    - ask on the list?
   - can I use a lazy array + builder to make score generation more efficient?
     It would also be nice to use a lazy array inside the performer.
     Is there a generic lazy array implementation out there?
     It would be nice for LoggerT implementation as well.
     storablevector has a builder, but only for Storable types.
-  - There's a zillion things to stitch together for an instrument.
-    Add yet more utils in MidiInst to make this easier.
+    - Write a [Vector] builder, based on ByteString and Text builders.
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
     a bit of editing it's up to 750mb, who is leaking?  Undo history?
@@ -296,7 +244,6 @@ UNSORTED
 
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
-  - fltk: some way to scroll that's not the scroll wheel
   - Cmd.Lang.LPitch.to_relative: I would need to implement Scale.scale_diff
     but I'm reluctant until I need to_relative or something similar
 
@@ -368,10 +315,6 @@ UNSORTED
     - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
     - do tuplets by setting local ruler?
     - lang cmd to show state hierarchically... or does it already exist?
-    / there should be a way for play to bring up blocks as they are played
-      It's hard to know what blocks to auto-show, and I'd need yet another
-      play mode, and a way to communicate new view ids back to the responder,
-      so let's wait until I really want it.
 
   debugging
     - cmd to save and load cache to disk
@@ -381,10 +324,8 @@ UNSORTED
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
 
-  play:
-    - playback should have multiple lines when a block is derived multiple
-      times have a set of playback selnums?
-
+  - playback should have multiple lines when a block is derived multiple
+    times have a set of playback selnums?
   - If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
 
@@ -414,7 +355,6 @@ MILESTONES
     + jack support on linux
     - simple csound backend
     + lilypond backend
-      calls that render lilypond ornaments e.g. trill
     + documentation
   future
     - Unify environ, controls, and pitch signals by making signals of
@@ -740,7 +680,13 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
-  - implement labels for pitch tracks in fltk/EventTrack.cc
+  - some way to scroll that's not the scroll wheel
+  - I could set certain Symbols to stretch to the length of their event, this
+    would yield a nicer looking score.  But it would mess up the bounds
+    detection.
+    * gmail: subject:(scaling text)
+      But it's OSX only.
+  / implement labels for pitch tracks in fltk/EventTrack.cc
   - skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.
   - rethrow c++ exceptions as FltkError
@@ -754,6 +700,12 @@ fltk:
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
     it doesn't get any kbd input
   - can I get the windows into an os x windows menu?
+  incremental redraw / scrolling
+    I don't like the current situation of incremental redraw and scrolling.
+    It's also buggy, i.e. one pixel difference between scroll and redraw.
+    Get rid of damage and redraw everything every time.  Then I have to make
+    it fast to fetch the data for one screenful.  What makes that slow
+    currently?
   draw bugs:
     - redraw after track range damage draws things a pixel too low
     - when scrolling upwards, ruler mark text is not drawn completely
@@ -1205,6 +1157,15 @@ Instrument DB / browser:
       - figure out how to set category for builtin patches
         *word shorthand for category=word?
         but I want to use the inst name, not the score name...
+
+OSC backend
+  osc backend: make up a simple osc reaktor instrument and see if increased
+  resolution makes a difference
+    . But reaktor doesn't support bundles with times, so if I use it I'd have
+      to write my own scheduler.  What about supercollider?
+    . OSC: hosc, supercollider: hsc3, hsc3-process
+  - Write high-res synthesizer in FAUST, that can be plugged in to a generic
+    OSC host.
 
 jack: JACK:
   bugs
