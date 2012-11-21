@@ -119,6 +119,9 @@ instance (ShowVal a) => ShowVal (Maybe a) where
     show_val Nothing = "<no default>"
     show_val (Just a) = show_val a
 
+instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
+    show_val = either show_val show_val
+
 instance ShowVal DefaultReal where show_val (DefaultReal x) = show_val x
 instance ShowVal DefaultScore where show_val (DefaultScore x) = show_val x
 instance ShowVal DefaultDiatonic where show_val (DefaultDiatonic x) = show_val x
@@ -131,7 +134,7 @@ instance ShowVal RealOrScore where
 data Type = TNum NumType
     | TString | TRelativeAttr | TAttributes
     | TControl | TPitchControl | TScaleId | TPitch | TInstrument | TSymbol
-    | TNotGiven | TMaybe Type | TVal
+    | TNotGiven | TMaybe Type | TEither Type Type | TVal
     deriving (Eq, Ord, Show)
 
 data NumType = TUntyped | TTranspose | TDefaultDiatonic | TDefaultChromatic
@@ -149,6 +152,7 @@ to_num_type typ = case typ of
 
 instance Pretty.Pretty Type where
     pretty (TMaybe typ) = "Maybe " ++ Pretty.pretty typ
+    pretty (TEither a b) = Pretty.pretty a ++ " or " ++ Pretty.pretty b
     pretty (TNum typ) = join "Num" $ case typ of
         TUntyped -> ""
         TInt -> "integral"
@@ -205,6 +209,18 @@ instance (Typecheck a) => Typecheck (Maybe a) where
     to_val (Just a) = to_val a
     to_type val = TMaybe $ to_type $
         fromMaybe (error "to_type shouldn't evaluate its argument") val
+
+instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
+    from_val a = case from_val a of
+        Just left -> Just $ Left left
+        Nothing -> case from_val a of
+            Just right -> Just $ Right right
+            Nothing -> Nothing
+    to_val = either to_val to_val
+    to_type val = TEither (to_type left) (to_type right)
+        where
+        Right right = val
+        Left left = val
 
 instance Typecheck Double where
     from_val (VNum (Score.Typed _ a)) = Just a

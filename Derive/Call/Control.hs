@@ -108,9 +108,9 @@ c_exponential_next = Derive.generator1 "exponential-next"
 
 exp_doc :: String
 exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
-    \and will generate a slowly departing and rapidly approaching\
-    \curve. Negative `-n` is taken as `x^1/n`, which will generate a\
-    \rapidly departing and slowly approaching curve."
+    \ and will generate a slowly departing and rapidly approaching\
+    \ curve. Negative `-n` is taken as `x^1/n`, which will generate a\
+    \ rapidly departing and slowly approaching curve."
 
 c_neighbor :: Derive.ControlCall
 c_neighbor = Derive.generator1 "neighbor"

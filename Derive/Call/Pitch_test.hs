@@ -2,6 +2,8 @@ module Derive.Call.Pitch_test where
 import Util.Test
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Perform.Pitch as Pitch
+import Types
 
 
 test_interpolated_transpose = do
@@ -51,14 +53,24 @@ test_neighbor = do
 
 test_linear_next = do
     -- no arg goes to the next event
-    equal (run_tempo 1 [(0, "4c"), (4, "i> (4d)"), (6, "4c")])
+    equal (run [(0, "4c"), (4, "i> (4d)"), (6, "4c")])
         [(0, 60), (4, 60), (5, 61), (6, 60)]
-    equal (run_tempo 1 [(0, "4c"), (4, "i> (4d) 2"), (8, "4c")])
+    equal (run [(0, "4c"), (4, "i> (4d) 2"), (8, "4c")])
         [(0, 60), (4, 60), (5, 61), (6, 62), (8, 60)]
     -- if the time is too long, it is clipped
-    equal (run_tempo 1 [(0, "4c"), (4, "i> (4d) 4"), (6, "4c")])
+    equal (run [(0, "4c"), (4, "i> (4d) 4"), (6, "4c")])
         [(0, 60), (4, 60), (5, 60.5), (6, 60)]
 
+    -- A number is interpreted as a transposition of the previous pitch.
+    equal (run [(0, "4c"), (4, "i> 4"), (6, "4c")])
+        [(0, 60), (4, 60), (5, 62), (6, 60)]
+    equal (run [(0, "4c"), (4, "i> -4"), (6, "4c")])
+        [(0, 60), (4, 60), (5, 58), (6, 60)]
+
+run :: [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
+run = run_tempo 1
+
+run_tempo :: Int -> [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
 run_tempo tempo events = extract $ DeriveTest.derive_tracks
     [ ("tempo", [(0, 0, show tempo)])
     , (">", [(0, 10, "")])

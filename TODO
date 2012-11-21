@@ -1,4 +1,15 @@
 UNSORTED
+  - use Either for Or types
+  - remove scale_map
+  - Sync_test warnings
+  - osc backend: make up a simple osc reaktor instrument and see if increased
+    resolution makes a difference
+    - But reaktor doesn't support bundles with times, so if I use it I'd have
+      to write my own scheduler.
+  * i> and e> could take a transposition in addition to destination pitch
+  - why is it that [(1, "")] [(0, 0, "4c"), (1, 0, "i (4d)")] gives the wrong
+    pitch?  I'm guessing the pitchbend msg gets out of order on the single
+    channel available.
   * why not initialize block display width with Reasonable Defaults so I don't
     need Create.fitted_view nastiness?
   - maybe adding a new track should embiggen the view?
