@@ -188,8 +188,9 @@ respond_loop rstate msg_reader = do
     -- putStrLn $ "msg: " ++ Pretty.pretty msg
     result <- Exception.try $ respond rstate msg
     case result of
-        Left (exc :: Exception.SomeException) ->
+        Left (exc :: Exception.SomeException) -> do
             Log.error $ "exception caught in respond_loop: " ++ show exc
+            respond_loop rstate msg_reader
         Right (quit, rstate) -> unless quit (respond_loop rstate msg_reader)
 
 -- | State maintained for a single responder cycle.

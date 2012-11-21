@@ -40,7 +40,7 @@ UNSORTED
     But where do I put it while the performance is still waiting?  I guess
     I can stick stuff in the performance without forcing the events.
 
-  - responder should catch exceptions
+  * responder should catch exceptions
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
   - Managed to crash by undoing while editing, I think.  I wound up with
