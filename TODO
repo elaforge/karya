@@ -12,7 +12,7 @@ UNSORTED
     channel available.
   * why not initialize block display width with Reasonable Defaults so I don't
     need Create.fitted_view nastiness?
-  - maybe adding a new track should embiggen the view?
+  * maybe adding a new track should embiggen the view?
   * Create.view should create a fitted view
   * cmd to compress or stretch a block by 2, use ModifyEvents
   * insert dividers
@@ -84,13 +84,12 @@ UNSORTED
   - make constants for each of the ruler ranks, e.g. block, measure, quarter,
     eighth
   lots of ghc panics
-    + change all alignment = 1 lines to 4
+    * change all alignment = 1 lines to 4.  Still crashes.
     * try on linux, yes seems to happen there too
     * use valgrind on linux
-    * See if it happens after a rebuild. Yes
     * See if it happens without LangGhc. Yes.
     * See if it happens in debug mode. Yes.
-    + See if -O2 debug binary crashes.
+    * See if -O2 debug binary crashes. Yes, at least once.
     - See if -O0 opt binary crashes.
     * Try with the shell version of git.  If that works, update libgit2.
       No, it's probably not git.
@@ -143,6 +142,20 @@ UNSORTED
     Pitch -> Note as well.  I can store 3 functions, or 1 function that takes
     a selector.
     Actually, I should be able to map Degree to Note, so I only need two.
+    But the scale then needs degree->note I think.  Actually, that's what the
+    scale map is, yes?
+    . This isn't going to work because I need the enharmonics!  So I need the
+      note names.
+    - turn scale map into degree->note, send that to fltk
+    - have lilypond use the scale map to get the note name
+    3 uses:
+      - Signal render.  Not sure I want it.  What's more, it can't easily work
+        for retuning scales, though I suppose it still could if I send the
+        FractionalNotes instead of NNs.
+      - Lilypond enharmonics.  FractionalNote can do this but is actually
+        overkill since I just need one.
+      - to_relative.  FractionalNote can't really do this, I need
+        Note - Note = Semis.  I just need a way to get semis.
 
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds

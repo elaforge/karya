@@ -355,6 +355,12 @@ visible_time view = Types.zoom_to_time (view_zoom view) (view_visible_time view)
 visible_track :: View -> Types.Width
 visible_track = view_visible_track
 
+view_visible_rect :: View -> Rect.Rect
+view_visible_rect view@(View { view_rect = rect }) = rect
+    { Rect.rw = Rect.rw rect - view_track_padding view
+    , Rect.rh = Rect.rh rect - view_time_padding view
+    }
+
 -- | If the given Rect is the visible area, expand it to be what the
 -- 'view_rect' would be for that visible area.  Use this to set the visible
 -- area to a certain size.

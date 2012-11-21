@@ -364,17 +364,19 @@ append_track = do
     block_id <- Cmd.get_focused_block
     focused_track block_id 99999
 
--- | Add a new track, give keyboard focus to the title, and scroll the view to
--- make sure it's visible.
+-- | Add a new track, give keyboard focus to the title, and embiggen the view
+-- to make sure it's visible.
 focused_track :: (Cmd.M m) => BlockId -> TrackNum -> m TrackId
 focused_track block_id tracknum = do
     -- This " " is a hack to tell fltk to set keyboard focus.
     track_id <- track block_id tracknum " " Events.empty
-    block <- State.get_block =<< Cmd.get_focused_block
     view_id <- Cmd.get_focused_view
     view <- State.get_view view_id
-    State.set_track_scroll view_id $ Selection.auto_track_scroll block view
-        (Types.point_selection tracknum 0)
+    embiggened <- ViewConfig.contents_rect view
+    let rect = Block.view_visible_rect view
+    when (Rect.rw embiggened > Rect.rw rect) $
+        State.set_view_rect view_id $ Block.set_visible_rect view $
+            Rect.resize (Rect.rw embiggened) (Rect.rh rect) rect
     return track_id
 
 empty_track :: (State.M m) => BlockId -> TrackNum -> m TrackId
