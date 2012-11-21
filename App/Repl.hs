@@ -41,13 +41,15 @@ repl term =
         | null (Seq.strip line) = return ()
         | otherwise = do
             response <- liftIO $ SendCmd.send line `Exception.catch` catch_all
-            let formatted = format_response response
+            let formatted = Seq.strip $ format_response response
             unless (null formatted) $
                 liftIO $ putStrLn formatted
 
 format_response :: String -> String
 format_response "()" = ""
-format_response s = Seq.strip $ PPrint.format_str s
+format_response s
+    | Seq.count '\n' s <= 1 = s
+    | otherwise = PPrint.format_str s
 
 while :: (Monad m) => m Bool -> m ()
 while action = do
