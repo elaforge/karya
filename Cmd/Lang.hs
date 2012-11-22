@@ -35,9 +35,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
 #include "hsconfig.h"
-#if defined(TESTING)
-import qualified Cmd.LangStub as LangImpl
-#elif defined(INTERPRETER_GHC)
+#if defined(INTERPRETER_GHC)
 import qualified Cmd.LangGhc as LangImpl
 #else
 import qualified Cmd.LangStub as LangImpl

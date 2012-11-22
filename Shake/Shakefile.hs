@@ -87,15 +87,28 @@ docDir = build </> "doc"
 -- * flags
 
 data Flags = Flags {
+    -- | -D flags.
     define :: [String]
+    -- | Linker flags to link in whatever MIDI driver we are using today.
+    -- There should be corresponding flags in 'define' to enable said driver.
     , midiLibs :: [String]
+    -- | There's one global list of include dirs, for both haskell and C++.
+    -- Technically they don't all need the same dirs, but it doesn't hurt to
+    -- have unneeded ones.
     , cInclude :: [String]
+
+    -- | Flags for g++.  This is the complete list and includes the 'define's
+    -- and 'cInclude's.
     , ccFlags :: [String]
+    -- | Additional flags needed when compiling fltk.
     , fltkCc :: [String]
+    -- | Additional flags needed when linking fltk.
     , fltkLd :: [String]
+    -- | GHC-specific flags.  Unlike 'ccFlags', this *isn't* the complete list.
     , hcFlags :: [String]
+    -- | Flags needed when linking haskell.  Doesn't include the -packages.
     , hLinkFlags :: [String]
-    -- | Extra flags for ghci.
+    -- | Flags needed only by ghci.
     , ghciFlags :: [String]
     } deriving (Show)
 
@@ -262,10 +275,11 @@ configure = do
         { define = define osFlags
             ++ (if mode `elem` [Test, Profile] then ["-DTESTING"] else [])
             ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
-        , cInclude = ["-I.", "-Ifltk", "-I" ++ bindingsInclude]
+        , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk",
+            "-I" ++ bindingsInclude]
         , fltkCc = fltkCs
         , fltkLd = fltkLds
-        , hcFlags = words "-I. -threaded -W -fwarn-tabs -pgml g++"
+        , hcFlags = words "-threaded -W -fwarn-tabs -pgml g++"
             ++ ["-F", "-pgmF", hspp]
             ++ case mode of
                 Debug -> []
@@ -309,7 +323,7 @@ configure = do
             { midiLibs = ["-ljack"]
             , define = ["-D__linux__"]
             }
-        unknown -> error $ "unknown os: " ++ show unknown
+        _ -> mempty -- Use the stub driver.
     run cmd args = Process.readProcess cmd args ""
 
 type InferConfig = FilePath -> Config
@@ -357,10 +371,10 @@ main = do
                     mlast [v | Verbosity v <- flags]
             }
     writeGhciFlags modeConfig
-    writeConfigH
+    env <- Environment.getEnvironment
     Shake.shake options $ do
         let infer = inferConfig modeConfig
-        setupOracle (modeConfig Debug)
+        setupOracle env (modeConfig Debug)
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
         hspp *> \fn -> do
@@ -371,13 +385,13 @@ main = do
             let config = infer fn
             need (fltkDeps config)
             system "ar" $ ["-rs", fn] ++ fltkDeps config
-        forM_ ccBinaries $ \binary -> matchBinary (ccName binary) ?> \fn -> do
+        forM_ ccBinaries $ \binary -> matchBuildDir (ccName binary) ?> \fn -> do
             let config = infer fn
             let objs = map (oDir config </>) (ccDeps binary)
             need objs
             Util.cmdline $ linkCc config fn objs
             makeBundle fn Nothing
-        forM_ hsBinaries $ \binary -> matchBinary (hsName binary) ?> \fn -> do
+        forM_ hsBinaries $ \binary -> matchBuildDir (hsName binary) ?> \fn -> do
             let config = infer fn
             hs <- maybe (errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
@@ -387,6 +401,7 @@ main = do
                 _ -> return ()
         forM_ extractableDocs $ \fn ->
             fn *> extractDoc (modeConfig Debug)
+        configHeaderRule
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
         markdownRule (buildDir (modeConfig Opt) </> "linkify")
@@ -401,29 +416,43 @@ main = do
         ccORule infer
         dispatch (modeConfig Debug) targets
 
-setupOracle :: Config -> Shake.Rules ()
-setupOracle config = do
+setupOracle :: [(String, String)] -> Config -> Shake.Rules ()
+setupOracle env config = do
     Shake.addOracle ["ghc"] $ return [ghcLib config]
     Shake.addOracle ["fltk"] $ return [fltkVersion config]
+    let useRepl = "repl" `elem` map fst env
+    Shake.addOracle ["repl"] $ return $ if useRepl then ["t"] else []
 
-writeConfigH :: IO ()
-writeConfigH = do
-    useRepl <- fmap (("repl" `elem`) . map fst) Environment.getEnvironment
-    if useRepl then mangle [ghc] []
-        else mangle [] [ghc] -- use stub
-    where
-    mangle = CcDeps.enableDefines "hsconfig.h"
-    ghc = "INTERPRETER_GHC"
+-- | Write a header to configure the haskell compilation.
+--
+-- It's in a separate file so that the relevant haskell files can include it.
+-- This way only those files will recompile when the config changes.
+configHeaderRule :: Shake.Rules ()
+configHeaderRule = matchBuildDir "hsconfig.h" ?> \fn -> do
+    useRepl <- not . null <$> Shake.askOracle ["repl"]
+    useRepl <- return $ useRepl && targetToMode fn /= Just Test
+    let midiDriver = case System.Info.os of
+            "darwin" -> "CORE_MIDI"
+            "linux" -> "JACK_MIDI"
+            _ -> "" -- use the stub driver
+    Shake.writeFile' fn $ unlines
+        [ "/* Created automatically by the shakefile. */"
+        , "#ifndef __HSCONFIG_H"
+        , "#define __HSCONFIG_H"
+        , if useRepl then "#define INTERPRETER_GHC" else ""
+        , if not (null midiDriver) then "#define " ++ midiDriver else ""
+        , "#endif"
+        ]
 
--- | Match a file in @build/<mode>/obj/@.
+-- | Match a file in @build/<mode>/obj/@ or @build/<mode>/@.
 matchObj :: Shake.FilePattern -> FilePath -> Bool
 matchObj pattern fn =
     matchPrefix (map ((</> "obj") . modeToDir) allModes) pattern fn
     || matchPrefix (map modeToDir allModes) pattern fn
 
 -- | Match a file in @build/<mode>/@.
-matchBinary :: Shake.FilePattern -> FilePath -> Bool
-matchBinary = matchPrefix (map modeToDir allModes)
+matchBuildDir :: Shake.FilePattern -> FilePath -> Bool
+matchBuildDir = matchPrefix (map modeToDir allModes)
 
 matchPrefix :: [Shake.FilePattern] -> Shake.FilePattern -> FilePath -> Bool
 matchPrefix prefixes pattern fn =
@@ -566,6 +595,8 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Shake.Action ()
 buildHs config deps hs fn = do
+    -- I need the include to record its dependency.
+    need [buildDir config </> "hsconfig.h"]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
@@ -644,7 +675,7 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     isHsc <- Trans.liftIO $
         Directory.doesFileExist (objToSrc config obj ++ "c")
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
-    need [hspp]
+    need [hspp, buildDir config </> "hsconfig.h"]
     imports <- HsDeps.importsOf (cppFlags config hs) hs
     includes <- if Maybe.isJust (cppFlags config hs)
         then includesOf "hsORule" config hs else return []
@@ -674,10 +705,10 @@ linkHs config output packages objs = ("LD-HS", output,
 -- with or it won't load them.
 writeGhciFlags :: (Mode -> Config) -> IO ()
 writeGhciFlags modeConfig =
-    forM_ (map modeConfig [Debug, Test, Opt]) $ \config -> do
+    forM_ (map modeConfig allModes) $ \config -> do
         Directory.createDirectoryIfMissing True (buildDir config)
         writeFile (buildDir config </> "ghci-flags") $
-            unwords (flags config) ++ "\n"
+            unwords (getFlags config) ++ "\n"
     where
     -- Make sure -osuf .hs.o is in the flags, otherwise ghci won't know
     -- how to find the .o files.  But it's redundant for the ghc compile,
@@ -686,7 +717,7 @@ writeGhciFlags modeConfig =
     -- non-ghci stuff, not ghcFlags.  I'd have to add a new config field for
     -- non-file-specific ghc flags, or put -I in 'define', where it doesn't
     -- belong.
-    flags config = ["-I.", "-osuf", ".hs.o"]
+    getFlags config = ["-osuf", ".hs.o"]
         ++ ghcFlags config
         ++ map (resolveSrc config) (ghciFlags (configFlags config))
     resolveSrc config arg
@@ -699,6 +730,7 @@ ghcFlags config =
     [ "-outputdir", oDir config
     , "-i" ++ oDir config ++ ":" ++ hscDir config
     ] ++ define (configFlags config)
+    ++ cInclude (configFlags config)
 
 -- * cc
 
@@ -814,6 +846,7 @@ includesOf caller config fn = do
     when (not (null not_found)) $
         Trans.liftIO $ putStrLn $ caller
             ++ ": WARNING: c includes not found: " ++ show not_found
+            ++ " (looked in " ++ show dirs ++ ")"
     return includes
 
 dropPrefix :: String -> String -> Maybe String
