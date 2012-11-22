@@ -285,11 +285,7 @@ configure = do
                 Debug -> []
                 Opt -> ["-O"]
                 Test -> ["-fhpc"]
-                -- Omit -auto-all because it slows down the profile quite
-                -- a bit.  Usually when profiling I'm looking for overall
-                -- timing and stats, not individual cost centers.  I can turn
-                -- those on when debugging.
-                Profile -> ["-O", "-prof"]
+                Profile -> ["-O", "-prof", "-auto-all", "-caf-all"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
             ++ if mode == Profile then ["-prof"] else []
         -- Hackery, make sure ghci gets link flags, otherwise it wants to
