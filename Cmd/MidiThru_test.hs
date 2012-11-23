@@ -43,7 +43,7 @@ test_input_to_midi = do
 
     -- once assigned a note_id, controls get mapped to that channel
     equal (f [note_on 64 64 127, note_on 66 66 127,
-            control 64 "modulation" 127, control 66 "breath" 64])
+            control 64 "mod" 127, control 66 "breath" 64])
         [(0, Midi.NoteOn 64 127), (1, Midi.NoteOn 66 127),
             (0, Midi.ControlChange 1 127), (1, Midi.ControlChange 2 64)]
 

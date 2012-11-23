@@ -128,7 +128,7 @@ c_aftertouch = Control "aftertouch"
 -- TODO an array would be a little faster
 cc_map :: [(Midi.Control, String)]
 cc_map = [(n, "cc" ++ show n) | n <- [0..127]] ++
-    [ (1, "modulation")
+    [ (1, "mod")
     , (2, "breath")
     , (4, "foot")
     , (7, "volume")
@@ -151,7 +151,7 @@ c_breath = Control "breath"
 
 -- Pull one out as a symbol for tests.
 c_mod :: String
-c_mod = "modulation"
+c_mod = "mod"
 
 -- * util
 
