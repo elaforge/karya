@@ -8,6 +8,9 @@ module App.MidiInst (
     , Code(..), empty_code, with_code, with_empty_code
     , with_environ, default_scale
 
+    -- * making patches
+    , patch, pressure
+
     -- * db
     , save_db, save_patches, load_db
 ) where
@@ -97,6 +100,18 @@ default_scale = with_environ TrackLang.v_scale
 make_code :: Code -> Cmd.InstrumentCode
 make_code (Code note val environ cmds) =
     Cmd.InstrumentCode (Derive.InstrumentCalls note val) environ cmds
+
+-- * making patches
+
+-- | Make a patch, with a few parameters that tend to be unique per patch.
+patch :: Control.PbRange -> Instrument.InstrumentName
+    -> [(Midi.Control, String)] -> Instrument.Patch
+patch pb_range name controls =
+    Instrument.patch (Instrument.instrument name controls pb_range)
+
+-- | Set a patch to pressure control.
+pressure :: Instrument.Patch -> Instrument.Patch
+pressure = Instrument.set_decay 0 . Instrument.set_flag Instrument.Pressure
 
 
 -- * db

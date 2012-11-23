@@ -381,7 +381,7 @@ documentation
       that have someone listening to them in a certain scope.
     - linkify single quotes
 
-integrate:
+integrate / integration:
   - adding a {soft} stroke appears to apply the soft again the the dyn track
   - bug: can't delete a derived track, it just gets regenerated
   - bug: can't undo past a integrate create, it just creates a new one
@@ -1164,6 +1164,9 @@ OSC backend
     . But reaktor doesn't support bundles with times, so if I use it I'd have
       to write my own scheduler.  What about supercollider?
     . OSC: hosc, supercollider: hsc3, hsc3-process
+  - Even if reaktor and supercollider don't understand bundles, I could write
+    a scheduler server that takes bundles and emits their msgs at the correct
+    time.
   - Write high-res synthesizer in FAUST, that can be plugged in to a generic
     OSC host.
 

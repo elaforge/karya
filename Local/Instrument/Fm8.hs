@@ -20,6 +20,5 @@ controls =
 
 patches :: [Instrument.Patch]
 patches =
-    [ Instrument.set_decay 0 $ Instrument.set_flag Instrument.Pressure $
-        Instrument.patch $ Instrument.instrument "trumpet" [] pb_range
+    [ MidiInst.pressure $ MidiInst.patch pb_range "trumpet" []
     ]
