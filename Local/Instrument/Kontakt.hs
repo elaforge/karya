@@ -31,7 +31,7 @@ load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return synth_descs
 
 synth_descs :: [MidiInst.SynthDesc]
-synth_descs = MidiInst.make $ (MidiInst.softsynth synth (-12, 12) [])
+synth_descs = MidiInst.make $ (MidiInst.softsynth synth pb_range [])
     { MidiInst.extra_patches = patches }
 
 synth :: Instrument.SynthName
@@ -52,7 +52,9 @@ patches = concat [hang, wayang, kendang_patches]
         MidiInst.with_environ TrackLang.v_scale Wayang.scale_id
         . MidiInst.with_environ TrackLang.v_tuning tuning
     inst name ks = Instrument.set_keyswitches ks $
-        Instrument.patch $ Instrument.instrument name [] (-12, 12)
+        Instrument.patch $ Instrument.instrument name [] pb_range
+
+pb_range = (-12, 12)
 
 -- * hang
 

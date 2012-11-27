@@ -5,7 +5,7 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
 
-ksmap = Instrument.keyswitch_map
+ksmap = Instrument.simple_keyswitches
     [ (mkattrs "pizz", 0)
     , (mkattrs "sfz trem", 1)
     , (mkattrs "sfz", 2)
@@ -25,7 +25,7 @@ test_get_keyswitch = do
     -- equal (f ("cresc.fast")) (Just "cresc")
 
 test_overlapping_keyswitches = do
-    let overlapping = Instrument.keyswitch_map
+    let overlapping = Instrument.simple_keyswitches
             [(mkattrs "", 0), (mkattrs "a b", 1)]
     let f = Instrument.overlapping_keyswitches
     equal (f ksmap) []

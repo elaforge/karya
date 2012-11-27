@@ -275,48 +275,74 @@ test_keyswitch = do
             }
         with_addr (ks, hold, note, start, dur) =
             (mkevent (ks_inst ks hold, note, start, dur, []), (dev1, 0))
-        ks1 = Just (Instrument.Keyswitch Key.c1)
-        ks2 = Just (Instrument.Keyswitch Key.d1)
-    let f extract evts = first extract $ perform_notes (map with_addr evts)
+        ks1 = [Instrument.Keyswitch Key.c1]
+        ks2 = [Instrument.Keyswitch Key.d1]
+    let f extract evts = extract $ expect_no_logs $
+            perform_notes (map with_addr evts)
 
     -- Redundant ks not emitted.
     equal (f e_note_on [(ks1, False, "a", 0, 1), (ks1, False, "b", 10, 10)])
-        ( [ (-4, Key.c1)
-          , (0, Key.c4)
-          , (10000, Key.cs4)
-          ]
-        , []
-        )
+        [ (-4, Key.c1)
+        , (0, Key.c4)
+        , (10000, Key.cs4)
+        ]
     -- Keyswitch changed.
     equal (f e_note_on [(ks1, False, "a", 0, 1), (ks2, False, "b", 10, 10)])
-        ( [ (-4, Key.c1), (0, Key.c4)
-          , (9996, Key.d1), (10000, Key.cs4)
-          ]
-        , []
-        )
+        [ (-4, Key.c1), (0, Key.c4)
+        , (9996, Key.d1), (10000, Key.cs4)
+        ]
+
     -- No keyswitch to keyswitch.
-    equal (f e_note_on [(Nothing, False, "a", 0, 1), (ks1, False, "b", 10, 10)])
-        ( [ (0, Key.c4)
-          , (9996, Key.c1), (10000, Key.cs4)
-          ]
-        , []
-        )
+    equal (f e_note_on [([], False, "a", 0, 1), (ks1, False, "b", 10, 10)])
+        [ (0, Key.c4)
+        , (9996, Key.c1), (10000, Key.cs4)
+        ]
+
+    -- Multiple keyswitches.
+    equal (f e_note [(ks1 ++ ks2, False, "a", 0, 1)])
+        [ (-6, (True, Key.c1)), (-4, (False, Key.c1))
+        , (-4, (True, Key.d1)), (-2, (False, Key.d1))
+        , (0, (True, Key.c4)), (1000, (False, Key.c4))
+        ]
+    -- If one keyswitch is emitted, they all are.
+    equal (f e_note [(ks1 ++ ks2, False, "a", 0, 1), (ks1, False, "b", 1, 1)])
+        [ (-6, (True, Key.c1)), (-4, (False, Key.c1))
+        , (-4, (True, Key.d1)), (-2, (False, Key.d1))
+        , (0, (True, Key.c4))
+        , (996, (True, Key.c1)), (998, (False, Key.c1))
+        , (1000, (False, Key.c4))
+        , (1000, (True, Key.cs4)), (2000, (False, Key.cs4))
+        ]
 
     -- Hold keyswitch.
     equal (f e_note [(ks1, True, "a", 0, 1), (ks1, True, "b", 1, 1),
-            (Nothing, False, "c", 2, 1)])
-        ( [ (-4, (True, Key.c1))
-          , (0, (True, Key.c4))
-          , (1000, (False, Key.c4)), (1000, (True, Key.cs4))
-          , (2000, (False, Key.cs4)), (2000, (False, Key.c1))
-          , (2000, (True, Key.d4)), (3000, (False, Key.d4))
-          ]
-        , []
-        )
+            ([], False, "c", 2, 1)])
+        [ (-4, (True, Key.c1))
+        , (0, (True, Key.c4))
+        , (1000, (False, Key.c4)), (1000, (True, Key.cs4))
+        , (2000, (False, Key.cs4)), (2000, (False, Key.c1))
+        , (2000, (True, Key.d4)), (3000, (False, Key.d4))
+        ]
+
+    -- control switches
+    let cs1 = [Instrument.ControlSwitch 1 10]
+        cs2 = [Instrument.ControlSwitch 1 20]
+        e_msg = mapMaybe $ \wmsg ->
+            ((,) (wmsg_ts wmsg) <$> note_on_cc (Midi.wmsg_msg wmsg))
+    equal (f e_msg [(cs1, False, "a", 0, 1), (cs2, False, "b", 1, 1)])
+        [ (-4, Midi.ChannelMessage 0 (Midi.ControlChange 1 10))
+        , (0, Midi.ChannelMessage 0 (Midi.NoteOn Key.c4 100))
+        , (996, Midi.ChannelMessage 0 (Midi.ControlChange 1 20))
+        , (1000, Midi.ChannelMessage 0 (Midi.NoteOn Key.cs4 100))
+        ]
 
 note_on_key :: Midi.Message -> Maybe Midi.Key
 note_on_key key
     | Just (True, key) <- note_key key = Just key
+    | otherwise = Nothing
+
+note_on_cc msg
+    | Midi.is_note_on msg || Midi.is_cc msg = Just msg
     | otherwise = Nothing
 
 note_key :: Midi.Message -> Maybe (Bool, Midi.Key)
@@ -334,7 +360,12 @@ perform_notes :: [(Perform.Event, Instrument.Addr)]
 perform_notes = split_logs . fst
     . Perform.perform_notes Perform.empty_perform_state . map LEvent.Event
 
+split_logs :: [LEvent.LEvent d] -> ([d], [String])
 split_logs = second (map DeriveTest.show_log) . LEvent.partition
+
+expect_no_logs :: (a, [String]) -> a
+expect_no_logs (val, []) = val
+expect_no_logs (_, logs) = error $ "expected no logs: " ++ Seq.join "\n" logs
 
 -- * post process
 
@@ -603,6 +634,3 @@ midi_config1 = Instrument.config
 midi_config2 = Instrument.config
     [ (Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])
     , (Instrument.inst_score inst2, [(dev2, 2)]) ]
-default_ksmap = Instrument.keyswitch_map $
-    map (first (Score.attributes . words))
-        [("a1 a2", 0), ("a0", 1), ("a1", 2), ("a2", 3)]

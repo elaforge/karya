@@ -367,7 +367,7 @@ chan_state_msgs addr@(wdev, chan) start maybe_old_inst new_inst
         Nothing -> True -- when pchange is supported I can assume false
         Just o -> Instrument.inst_name o == Instrument.inst_name new_inst
     -- No previous inst is the same as not having a keyswitch.
-    same_ks = (Instrument.inst_keyswitch =<< maybe_old_inst)
+    same_ks = maybe [] Instrument.inst_keyswitch maybe_old_inst
         == Instrument.inst_keyswitch new_inst
 
 -- TODO if the last note was a hold keyswitch, this will leave the keyswitch
@@ -389,18 +389,26 @@ keyswitch_messages maybe_old_inst new_inst wdev chan start =
     prev_ks_off = Maybe.fromMaybe [] $ do
         old <- maybe_old_inst
         guard (Instrument.inst_hold_keyswitch old)
-        ks <- Instrument.inst_keyswitch old
-        return [note_off start ks]
-    new_ks_on = Maybe.fromMaybe [] $ do
-        ks <- Instrument.inst_keyswitch new_inst
-        return $ if Instrument.inst_hold_keyswitch new_inst
-            then [note_on ks_start ks]
-            else [note_on ks_start ks,
-                note_off (ks_start + RealTime.milliseconds 2) ks]
-    ks_start = start - keyswitch_interval
+        return $ concatMap (ks_off start) (Instrument.inst_keyswitch old)
 
-    note_on ts ks = mkmsg ts (Midi.NoteOn (Instrument.ks_key ks) 64)
-    note_off ts ks = mkmsg ts (Midi.NoteOff (Instrument.ks_key ks) 64)
+    new_ks = Instrument.inst_keyswitch new_inst
+    is_hold = Instrument.inst_hold_keyswitch new_inst
+    ks_start =
+        start - keyswitch_interval - delta * fromIntegral (length new_ks - 1)
+    ks_starts = iterate (+delta) ks_start
+    delta = RealTime.milliseconds 2
+
+    new_ks_on
+        | is_hold = zipWith ks_on ks_starts new_ks
+        | otherwise = concat [ks_on t ks : ks_off (t+delta) ks
+            | (t, ks) <- zip ks_starts new_ks]
+
+    ks_on ts ks = mkmsg ts $ case ks of
+        Instrument.Keyswitch key -> Midi.NoteOn key 64
+        Instrument.ControlSwitch cc val -> Midi.ControlChange cc val
+    ks_off ts ks = map (mkmsg ts) $ case ks of
+        Instrument.Keyswitch key -> [Midi.NoteOff key 64]
+        Instrument.ControlSwitch {} -> []
     mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
 
 -- ** perform note

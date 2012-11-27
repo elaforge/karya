@@ -120,8 +120,15 @@ instance Serialize Instrument.KeyswitchMap where
     get = get >>= \a -> return (Instrument.KeyswitchMap a)
 
 instance Serialize Instrument.Keyswitch where
-    put (Instrument.Keyswitch a) = put a
-    get = get >>= \a -> return (Instrument.Keyswitch a)
+    put (Instrument.Keyswitch a) = put_tag 0 >> put a
+    put (Instrument.ControlSwitch a b) = put_tag 1 >> put a >> put b
+    get = do
+        tag <- get_tag
+        case tag of
+            0 -> get >>= \a -> return (Instrument.Keyswitch a)
+            1 -> get >>= \a -> get >>= \b ->
+                return (Instrument.ControlSwitch a b)
+            _ -> bad_tag "Instrument.Keyswitch" tag
 
 instance Serialize Score.Attributes where
     put (Score.Attributes a) = put a

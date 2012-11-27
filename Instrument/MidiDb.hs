@@ -130,7 +130,7 @@ make_inst synth patch score_inst attrs = (inst
         { Instrument.inst_control_map = Map.union inst_cmap synth_cmap
         , Instrument.inst_score = score_inst
         , Instrument.inst_synth = Instrument.synth_name synth
-        , Instrument.inst_keyswitch = fmap fst ks_attrs
+        , Instrument.inst_keyswitch = maybe [] fst ks_attrs
         }, maybe Score.no_attrs snd ks_attrs)
     where
     inst = Instrument.patch_instrument patch

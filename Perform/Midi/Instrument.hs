@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
 {- | Description of a midi-specific instrument, as well as the runtime midi
     device and channel mapping.
 
@@ -70,7 +70,7 @@ data Instrument = Instrument {
     -- Synth and Patch when the instrument is looked up in the db.
     , inst_score :: Score.Instrument
     , inst_synth :: SynthName
-    , inst_keyswitch :: Maybe Keyswitch
+    , inst_keyswitch :: [Keyswitch]
     -- | If true, the keysitch has to be held while the note is playing.
     -- Otherwise, it will just be tapped before the note starts.
     , inst_hold_keyswitch :: !Bool
@@ -147,7 +147,7 @@ instrument name cmap pb_range = Instrument
     { inst_name = name
     , inst_score = Score.Instrument ""
     , inst_synth = ""
-    , inst_keyswitch = Nothing
+    , inst_keyswitch = []
     , inst_hold_keyswitch = False
     , inst_keymap = Map.empty
     , inst_control_map = Control.control_map cmap
@@ -199,11 +199,16 @@ instance Pretty.Pretty Config where
 type Addr = (Midi.WriteDevice, Midi.Channel)
 
 -- | Key to activate a keyswitch.
-newtype Keyswitch = Keyswitch { ks_key :: Midi.Key }
+data Keyswitch =
+    Keyswitch !Midi.Key
+    -- | This keyswitch is triggered by a control change.
+    | ControlSwitch !Midi.Control !Midi.ControlValue
     deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Keyswitch where
-    format ks = Pretty.format (ks_key ks)
+    format (Keyswitch key) = "ks:" <> Pretty.format key
+    format (ControlSwitch cc val) =
+        "cc:" <> Pretty.format cc <> "/" <> Pretty.format val
 
 -- * instrument db types
 
@@ -315,7 +320,7 @@ patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
 
 set_keyswitches :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
-set_keyswitches ks = keyswitches #= keyswitch_map ks
+set_keyswitches ks = keyswitches #= simple_keyswitches ks
 
 set_attribute_map :: [(Score.Attributes, String)] -> Patch -> Patch
 set_attribute_map attrs = attribute_map #= Map.fromList attrs
@@ -364,20 +369,16 @@ instance Pretty.Pretty Flag where pretty = show
 -- that.
 --
 -- Two keyswitches with the same key will act as aliases for each other.
---
--- TODO implement qualified attributes, like cresc.fast.  Do the matching by
--- succesively stripping off trailing attributes and only try the next
--- when all permutations are exhausted.
-newtype KeyswitchMap = KeyswitchMap [(Score.Attributes, Keyswitch)]
+newtype KeyswitchMap = KeyswitchMap [(Score.Attributes, [Keyswitch])]
     deriving (Eq, Show, Pretty.Pretty)
 
 -- | Make a 'KeyswitchMap'.
 --
 -- An empty string will be the empty set keyswitch, which is used for notes
 -- with no attrs.
-keyswitch_map :: [(Score.Attributes, Midi.Key)] -> KeyswitchMap
-keyswitch_map attr_keys =
-    KeyswitchMap [(attrs, Keyswitch key) | (attrs, key) <- attr_keys]
+simple_keyswitches :: [(Score.Attributes, Midi.Key)] -> KeyswitchMap
+simple_keyswitches attr_keys =
+    KeyswitchMap [(attrs, [Keyswitch key]) | (attrs, key) <- attr_keys]
 
 overlapping_keyswitches :: KeyswitchMap -> [String]
 overlapping_keyswitches (KeyswitchMap attr_ks) =
@@ -393,15 +394,12 @@ overlapping_keyswitches (KeyswitchMap attr_ks) =
 -- | Implement attribute priorities as described in 'KeyswitchMap'.  Return
 -- the attributes matched in addition to the Keyswitch.
 get_keyswitch :: KeyswitchMap -> Score.Attributes
-    -> Maybe (Keyswitch, Score.Attributes)
+    -> Maybe ([Keyswitch], Score.Attributes)
 get_keyswitch (KeyswitchMap attr_ks) attrs =
     fmap (uncurry (flip (,))) (List.find is_subset attr_ks)
     where
     is_subset (inst_attrs, _) = Score.attrs_set inst_attrs
         `Set.isSubsetOf` Score.attrs_set attrs
-
-keys_of :: KeyswitchMap -> Set.Set Midi.Key
-keys_of (KeyswitchMap attr_ks) = Set.fromList $ map (ks_key . snd) attr_ks
 
 -- ** misc
 
