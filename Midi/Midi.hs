@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Midi.Midi (
     WriteMessages, ReadMessages
@@ -53,6 +54,7 @@ import qualified Foreign.C
 import qualified Text.Printf as Printf
 
 import qualified Util.Pretty as Pretty
+import Util.Pretty (pretty, format, (<+>))
 import qualified Midi.CC as CC
 import Perform.RealTime (RealTime)
 
@@ -82,10 +84,10 @@ instance DeepSeq.NFData ReadMessage where
 
 instance Pretty.Pretty ReadMessage where
     pretty (ReadMessage dev ts msg) = Printf.printf "%s %s: %s"
-        (Pretty.pretty dev) (Pretty.pretty ts) (Pretty.pretty msg)
+        (pretty dev) (pretty ts) (pretty msg)
 instance Pretty.Pretty WriteMessage where
     pretty (WriteMessage dev ts msg) = Printf.printf "%s %s: %s"
-        (Pretty.pretty dev) (Pretty.pretty ts) (Pretty.pretty msg)
+        (pretty dev) (pretty ts) (pretty msg)
 
 -- * devices
 
@@ -246,7 +248,7 @@ instance Pretty.Pretty Message where
         Printf.printf "sysex %s <%d bytes>" (manufacturer_name manuf)
             (ByteString.length bytes)
     pretty (ChannelMessage chan msg) =
-        Printf.printf "chan:%d %s" chan (show msg)
+        Printf.printf "chan:%d %s" chan (pretty msg)
     pretty msg = show msg
 
 -- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.
@@ -317,6 +319,13 @@ instance DeepSeq.NFData Message where rnf _ = ()
 instance DeepSeq.NFData ChannelMessage where rnf _ = ()
 instance DeepSeq.NFData CommonMessage where rnf _ = ()
 instance DeepSeq.NFData RealtimeMessage where rnf _ = ()
+
+instance Pretty.Pretty ChannelMessage where
+    format msg = case msg of
+        NoteOff key vel -> "NoteOff" <+> format key <+> format vel
+        NoteOn key vel -> "NoteOn" <+> format key <+> format vel
+        Aftertouch key vel -> "Aftertouch" <+> format key <+> format vel
+        _ -> Pretty.text (show msg)
 
 -- * util
 
