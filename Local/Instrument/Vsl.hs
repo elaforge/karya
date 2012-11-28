@@ -46,7 +46,7 @@ keyswitch_map :: [Keyswitch] -> Instrument.KeyswitchMap
 keyswitch_map =
     Instrument.KeyswitchMap . Seq.sort_on (attr_key . fst) . process
     where
-    process keyswitches = zip (strip_attributes attrs) ks
+    process keyswitches = zip (strip_attributes (simplify_secs attrs)) ks
         where (attrs, ks) = unzip (drop_dups keyswitches)
     drop_dups = Seq.unique_on fst
     attr_key = negate . Set.size . Score.attrs_set
@@ -71,6 +71,24 @@ strip_attributes attrs = reverse $ foldr strip [] $ reverse attrs
         , short, long
         , v1, v2, v3
         ]
+
+-- | Exchange specific sec# attrs for generic @fast@, @medium@, @slow@ ones.
+simplify_secs :: [Attributes] -> [Attributes]
+simplify_secs attrs = case found of
+        [fast_secs, medium_secs, slow_secs] ->
+            replace slow_secs slow $ replace medium_secs medium $
+                replace fast_secs fast attrs
+        [fast_secs, slow_secs] ->
+            replace slow_secs slow $ replace fast_secs fast attrs
+        [slow_secs] -> map (Score.attrs_remove slow_secs) attrs
+        _ -> attrs
+    where
+    replace old new = map $ \attr -> if Score.attrs_contain attr old
+        then new <> Score.attrs_remove old attr
+        else attr
+    found = map Score.attr $ Set.toAscList $ mconcat $
+        map (Set.intersection secs . Score.attrs_set) attrs
+    secs = mconcat $ map (Score.attrs_set . sec) [0..9]
 
 -- * solo strings
 
@@ -143,22 +161,22 @@ woodwinds1 = concat
     where inst = preset3_standard
 
 flute1 = matrix keys
-    [staccato, sustain <> vibrato, pfp <> sec3, fp, flutter, trill <> half]
-    [portato, sustain <> nv, pfp <> sec6, sfz, flutter <> dyn, trill <> whole]
+    [staccato, sustain <> vibrato, pfp <> sec 3, fp, flutter, trill <> half]
+    [portato, sustain <> nv, pfp <> sec 6, sfz, flutter <> dyn, trill <> whole]
 
 oboe2 = matrix keys
-    [staccato, sustain <> vibrato, pfp <> sec2, fp, flutter, trill <> half]
-    [portato, sustain <> nv, pfp <> sec4, sfz, flutter <> dyn, trill <> whole]
+    [staccato, sustain <> vibrato, pfp <> sec 2, fp, flutter, trill <> half]
+    [portato, sustain <> nv, pfp <> sec 4, sfz, flutter <> dyn, trill <> whole]
 
 clarinet = matrix keys
-    [staccato, sustain <> vibrato, pfp <> sec2, fp, flutter, trill <> half]
-    [portato <> short, portato <> long, pfp <> sec4, sfz, flutter <> dyn,
+    [staccato, sustain <> vibrato, pfp <> sec 2, fp, flutter, trill <> half]
+    [portato <> short, portato <> long, pfp <> sec 4, sfz, flutter <> dyn,
         trill <> whole]
 
 bassoon = matrix_low
-    [staccato, sustain <> vibrato, pfp <> vibrato <> sec3, fp <> nv, flutter,
+    [staccato, sustain <> vibrato, pfp <> vibrato <> sec 3, fp <> nv, flutter,
         trill <> half]
-    [portato <> short, sustain <> nv, pfp <> vibrato <> sec5, sfz <> nv,
+    [portato <> short, sustain <> nv, pfp <> vibrato <> sec 5, sfz <> nv,
         flutter, trill <> whole]
 
 flutes = matrix keys
@@ -195,54 +213,55 @@ woodwinds2 = concat
     where inst = preset3_standard
 
 piccolo = matrix keys
-    [staccato, sustain <> vibrato <> v1, pfp <> vibrato <> sec6, fp <> vibrato,
-        flutter, trill <> half]
+    [staccato, sustain <> vibrato <> v1, pfp <> vibrato <> sec 6,
+        fp <> vibrato, flutter, trill <> half]
     [portato <> short, sustain <> progressive <> vibrato,
-        fpf <> vibrato <> sec5, sfz <> vibrato <> v1, flutter, trill <> whole]
+        fpf <> vibrato <> sec 5, sfz <> vibrato <> v1, flutter,
+        trill <> whole]
 
 flute2 = matrix keys
-    [staccato, sustain <> progressive <> vibrato, pfp <> vibrato <> sec2,
+    [staccato, sustain <> progressive <> vibrato, pfp <> vibrato <> sec 2,
         fp <> vibrato, flutter, trill <> half]
-    [portato <> short, sustain <> nv, pfp <> vibrato <> sec4, sfz <> vibrato,
+    [portato <> short, sustain <> nv, pfp <> vibrato <> sec 4, sfz <> vibrato,
         flutter <> dyn, trill <> whole]
 
 alto_flute = matrix keys
-    [staccato, sustain <> vibrato, pfp <> vibrato <> sec3, fp <> vibrato,
+    [staccato, sustain <> vibrato, pfp <> vibrato <> sec 3, fp <> vibrato,
         flutter, trill <> half]
-    [portato <> short, sustain <> nv, pfp <> vibrato <> sec5, sfz <> vibrato,
+    [portato <> short, sustain <> nv, pfp <> vibrato <> sec 5, sfz <> vibrato,
         flutter <> cresc, trill <> whole]
 
 oboe1 = matrix keys
-    [staccato, sustain <> progressive <> vibrato, pfp <> sec2, fp, flutter,
+    [staccato, sustain <> progressive <> vibrato, pfp <> sec 2, fp, flutter,
         trill <> half]
-    [portato <> short, sustain <> nv, pfp <> sec6, sfz, flutter <> cresc,
+    [portato <> short, sustain <> nv, pfp <> sec 6, sfz, flutter <> cresc,
         trill <> whole]
 
 english_horn1 = matrix keys
-    [staccato, sustain <> vibrato, pfp <> vibrato <> sec2, fp, flutter,
+    [staccato, sustain <> vibrato, pfp <> vibrato <> sec 2, fp, flutter,
         trill <> half]
-    [portato <> short, sustain <> nv, pfp <> nv <> sec6, sfz, flutter <> cresc,
-        trill <> whole]
+    [portato <> short, sustain <> nv, pfp <> nv <> sec 6, sfz,
+        flutter <> cresc, trill <> whole]
 
 english_horn2 = matrix keys
-    [staccato, sustain <> vibrato, pfp <> vibrato <> sec2, fp, flutter,
+    [staccato, sustain <> vibrato, pfp <> vibrato <> sec 2, fp, flutter,
         trill <> half]
     [portato <> short, sustain <> progressive <> vibrato,
-        pfp <> vibrato <> sec4, sfz, flutter <> dyn, trill <> whole]
+        pfp <> vibrato <> sec 4, sfz, flutter <> dyn, trill <> whole]
 
 clarinet_eb = matrix keys
-    [staccato, sustain <> nv, pfp <> sec2, fp, flutter, trill <> half]
-    [portato <> short, portato <> long <> attack, pfp <> sec4, sfz,
+    [staccato, sustain <> nv, pfp <> sec 2, fp, flutter, trill <> half]
+    [portato <> short, portato <> long <> attack, pfp <> sec 4, sfz,
         flutter <> cresc, trill <> whole]
 
 bass_clarinet = matrix keys
-    [staccato, sustain <> nv, pfp <> sec2, fp, flutter, trill <> half]
-    [portato <> short, portato <> long <> nv, pfp <> sec4, sfz, flutter,
+    [staccato, sustain <> nv, pfp <> sec 2, fp, flutter, trill <> half]
+    [portato <> short, portato <> long <> nv, pfp <> sec 4, sfz, flutter,
         trill <> whole]
 
 contra_bassoon = matrix_low
-    [staccato, sustain <> vibrato, pfp <> sec2, fp, flutter]
-    [portato <> short, sustain <> nv, pfp <> sec4, sfz, flutter <> cresc]
+    [staccato, sustain <> vibrato, pfp <> sec 2, fp, flutter]
+    [portato <> short, sustain <> nv, pfp <> sec 4, sfz, flutter <> cresc]
 
 -- * special woodwinds
 
@@ -297,66 +316,69 @@ brass1 = concat
     where inst = preset3_standard
 
 trumpet_c = matrix keys
-    [staccato, sustain <> light <> vibrato, pfp <> vibrato <> sec4, fp,
+    [staccato, sustain <> light <> vibrato, pfp <> vibrato <> sec 4, fp,
         flutter, trill <> fast <> half]
-    [portato <> short, sustain <> nv, pfp <> vibrato <> sec8, sfz,
+    [portato <> short, sustain <> nv, pfp <> vibrato <> sec 8, sfz,
         flutter <> cresc, trill <> fast <> whole]
 
 trumpet_c_mute = matrix keys
-    [staccato, sustain <> vibrato, pfp <> vibrato <> sec2, fp <> flutter,
+    [staccato, sustain <> vibrato, pfp <> vibrato <> sec 2, fp <> flutter,
         trill <> half]
-    [portato <> short, sustain <> nv, pfp <> vibrato <> sec5, sfz,
+    [portato <> short, sustain <> nv, pfp <> vibrato <> sec 5, sfz,
         flutter <> cresc, trill <> whole]
 
 horn = matrix keys
-    [staccato, sustain <> vibrato, pfp <> nv <> sec6, fp, flutter,
+    [staccato, sustain <> vibrato, pfp <> nv <> sec 6, fp, flutter,
         trill <> half]
-    [portato <> short, sustain <> nv, pfp <> nv <> sec8, sfz, flutter <> cresc,
+    [portato <> short, sustain <> nv, pfp <> nv <> sec 8, sfz,
+        flutter <> cresc,
         trill <> whole]
 
 trombone = matrix keys
-    [staccato, sustain <> light <> vibrato, pfp <> nv <> sec6, fp, flutter]
-    [portato <> short, sustain <> nv, pfp <> nv <> sec6, sfz, flutter <> cresc]
+    [staccato, sustain <> light <> vibrato, pfp <> nv <> sec 6, fp, flutter]
+    [portato <> short, sustain <> nv, pfp <> nv <> sec 6, sfz,
+        flutter <> cresc]
 
 trombone_mute_a = matrix keys
-    [staccato, sustain <> progressive <> vibrato, pfp <> nv <> sec2, fp,
+    [staccato, sustain <> progressive <> vibrato, pfp <> nv <> sec 2, fp,
         flutter]
-    [portato <> short, sustain <> nv, pfp <> nv <> sec4, sfz, flutter]
+    [portato <> short, sustain <> nv, pfp <> nv <> sec 4, sfz, flutter]
 
 trombone_mute_b = matrix keys
-    [staccato, sustain <> progressive <> vibrato, pfp <> nv <> sec2, fp,
+    [staccato, sustain <> progressive <> vibrato, pfp <> nv <> sec 2, fp,
         flutter]
-    [portato <> short, sustain <> nv, pfp <> nv <> sec4, sfz, flutter <> cresc]
+    [portato <> short, sustain <> nv, pfp <> nv <> sec 4, sfz,
+        flutter <> cresc]
 
 tuba = matrix_low
-    [staccato, sustain <> vibrato <> v1, pfp <> nv <> sec4, fp, flutter,
+    [staccato, sustain <> vibrato <> v1, pfp <> nv <> sec 4, fp, flutter,
         trill <> half]
-    [portato <> medium, sustain <> nv, pfp <> nv <> sec4, sfz,
+    [portato <> medium, sustain <> nv, pfp <> nv <> sec 4, sfz,
         flutter <> cresc, trill <> whole]
 
 trumpets = matrix keys
-    [staccato, sustain <> vibrato, pfp <> sec2, fp, flutter, trill <> half]
-    [portato <> short, sustain <> nv, pfp <> sec4, sfz, flutter <> cresc,
+    [staccato, sustain <> vibrato, pfp <> sec 2, fp, flutter, trill <> half]
+    [portato <> short, sustain <> nv, pfp <> sec 4, sfz, flutter <> cresc,
         trill <> whole]
 
 trumpets_mute = matrix keys
-    [staccato, sustain, pfp <> sec2, fp, flutter]
-    [portato <> short, sustain, pfp <> sec4, sfz, flutter <> cresc]
+    [staccato, sustain, pfp <> sec 2, fp, flutter]
+    [portato <> short, sustain, pfp <> sec 4, sfz, flutter <> cresc]
 
 horns = matrix keys
-    [staccato, sustain, pfp <> sec4, fp, flutter]
-    [portato <> short, marcato, pfp <> sec6, sfz, flutter <> cresc]
+    [staccato, sustain, pfp <> sec 4, fp, flutter]
+    [portato <> short, marcato, pfp <> sec 6, sfz, flutter <> cresc]
 
 -- doesn't have any articulations
 horns_stopped = matrix keys [] []
 
 trombones = matrix keys
-    [staccato, sustain, pfp <> sec4, fp, flutter]
-    [portato <> short, marcato, pfp <> sec6, sfz, flutter <> cresc]
+    [staccato, sustain, pfp <> sec 4, fp, flutter]
+    [portato <> short, marcato, pfp <> sec 6, sfz, flutter <> cresc]
 
 trombones_mute = matrix keys
-    [staccato, sustain, pfp <> sec2, fp, flutter]
-    [portato <> short, sustain, pfp <> sec4, sfz, flutter <> cresc]
+    [staccato, sustain, pfp <> sec 2, fp, flutter]
+    [portato <> short, sustain, pfp <> sec 4, sfz, flutter <> cresc]
 
 -- * brass 2
 
@@ -370,45 +392,45 @@ brass2 =
     ]
 
 trumpet_piccolo = matrix keys
-    [staccato, sustain <> light <> vibrato, pfp <> vibrato <> sec5, fp,
+    [staccato, sustain <> light <> vibrato, pfp <> vibrato <> sec 5, fp,
         flutter, trill <> fast <> half]
-    [portato <> short, sustain <> nv, pfp <> vibrato <> sec9, sfz,
+    [portato <> short, sustain <> nv, pfp <> vibrato <> sec 9, sfz,
         flutter <> cresc, trill <> fast <> whole]
 
 bass_trumpet = matrix keys
-    [staccato, sustain <> vibrato, pfp <> vibrato <> sec6, fp, flutter,
+    [staccato, sustain <> vibrato, pfp <> vibrato <> sec 6, fp, flutter,
         trill <> half]
-    [portato <> short, sustain <> nv, pfp <> vibrato <> sec6, sfz,
+    [portato <> short, sustain <> nv, pfp <> vibrato <> sec 6, sfz,
         flutter <> cresc, trill <> whole]
 
 horn_triple = matrix keys
-    [staccato, sustain, pfp <> sec2, fp, flutter]
-    [portato <> short, sustain, pfp <> sec4, sfz, flutter <> cresc]
+    [staccato, sustain, pfp <> sec 2, fp, flutter]
+    [portato <> short, sustain, pfp <> sec 4, sfz, flutter <> cresc]
 
 bass_trombone = matrix_low
-    [staccato, sustain <> vibrato, dyn <> medium <> sec2, fp, flutter]
-    [portato <> medium, sustain <> nv, dyn <> medium <> sec4, sfz,
+    [staccato, sustain <> vibrato, dyn <> medium <> sec 2, fp, flutter]
+    [portato <> medium, sustain <> nv, dyn <> medium <> sec 4, sfz,
         flutter <> cresc]
 
 contrabass_trombone = matrix_low
-    [staccato, sustain, pfp <> sec4, fp, flutter]
-    [portato <> medium, sustain, pfp <> sec6, sfz, flutter <> cresc]
+    [staccato, sustain, pfp <> sec 4, fp, flutter]
+    [portato <> medium, sustain, pfp <> sec 6, sfz, flutter <> cresc]
 
 contrabass_tuba = matrix_low
-    [staccato, sustain, dyn <> sec2, fp, flutter, trill <> half]
-    [portato <> medium, sustain, dyn <> sec4, sfz, flutter, trill <> whole]
+    [staccato, sustain, dyn <> sec 2, fp, flutter, trill <> half]
+    [portato <> medium, sustain, dyn <> sec 4, sfz, flutter, trill <> whole]
 
 wagner_tuba = matrix keys
-    [staccato, sustain, pfp <> sec4, fp, flutter]
-    [portato <> short, sustain, pfp <> sec6, sfz, flutter <> cresc]
+    [staccato, sustain, pfp <> sec 4, fp, flutter]
+    [portato <> short, sustain, pfp <> sec 6, sfz, flutter <> cresc]
 
 cimbasso = matrix_low
-    [staccato, sustain, dyn <> medium <> sec2, fp, flutter]
-    [portato <> medium, sustain, dyn <> medium <> sec4, sfz, flutter]
+    [staccato, sustain, dyn <> medium <> sec 2, fp, flutter]
+    [portato <> medium, sustain, dyn <> medium <> sec 4, sfz, flutter]
 
 horns_a8 = matrix keys
-    [staccato, sustain, pfp <> sec6, fp, flutter, trill <> half]
-    [portato <> short, sustain <> blared, pfp <> sec6, sfz, flutter <> cresc,
+    [staccato, sustain, pfp <> sec 6, fp, flutter, trill <> half]
+    [portato <> short, sustain <> blared, pfp <> sec 6, sfz, flutter <> cresc,
         trill <> whole]
 
 -- * special_brass
@@ -558,3 +580,8 @@ expand_modes_with modes up_key down_key (attrs, ks) =
             , (attrs <> down, ks ++ [Instrument.Keyswitch down_key])
             ]
         Nothing -> [(attrs, ks)]
+
+-- * attrs
+
+sec :: Int -> Score.Attributes
+sec n = Score.attr ("sec" ++ show n)

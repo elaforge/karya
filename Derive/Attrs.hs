@@ -57,18 +57,6 @@ loud = attr "loud"
 half = attr "half"
 whole = attr "whole"
 
--- * duration
-
-sec1 = attr "sec1"
-sec2 = attr "sec2"
-sec3 = attr "sec3"
-sec4 = attr "sec4"
-sec5 = attr "sec5"
-sec6 = attr "sec6"
-sec7 = attr "sec7"
-sec8 = attr "sec8"
-sec9 = attr "sec9"
-
 -- * strings
 
 pizz = attr "pizz" -- pizzicato

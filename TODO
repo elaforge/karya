@@ -16,7 +16,7 @@ UNSORTED
     * harp
     * check if the same articulations really are the same, if so, filter them
       out
-    - replace sec# with short and long?
+    * replace sec# with short and long?
     * include up/down variants via. mode keyswitch
       I could do that with a special updown attr that is replaced with
       a ks with up and a ks with down.
