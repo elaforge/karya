@@ -400,6 +400,8 @@ drop_initial_dups key (x:xs@(next:_))
 unique :: Ord a => [a] -> [a]
 unique = unique_on id
 
+-- | This is like 'drop_dups', except that it's not limited to just adjacent
+-- elts.  The output list is in the same order as the input.
 unique_on :: Ord k => (a -> k) -> [a] -> [a]
 unique_on f xs = go Set.empty xs
     where

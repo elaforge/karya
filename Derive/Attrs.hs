@@ -9,23 +9,81 @@ import Derive.Score (Attributes, attr)
 no_attrs :: Attributes
 no_attrs = Score.no_attrs
 
+-- TODO Dunno
+
+auto = attr "auto" -- TODO what's this?
+
 -- * articulations
 
-cresc = attr "cresc"
-dim = attr "dim"
-sfz = attr "sfz"
-soft = attr "soft"
-loud = attr "loud"
+sustain = attr "sustain"
+-- modifies another articulation to grow in strength
+progressive = attr "progressive"
+attack = attr "attack" -- hard attack
+
+flautando = attr "flautando"
+staccato = attr "staccato"
+spiccato = attr "spiccato"
+detache = attr "detache"
+marcato = attr "marcato"
+portato = attr "portato"
 trill = attr "trill"
 trem = attr "trem" -- tremolo
 arpeggio = attr "arpeggio"
 legato = attr "legato"
+porta = attr "porta" -- portamento
+gliss = attr "gliss" -- glissando
 mute = attr "mute" -- brass mute, string mute, or guitar palm mute
+
+vibrato = attr "vibrato"
+nv = attr "nv" -- no vibrato
+
+cluster = attr "cluster" -- cluster of tones
+
+-- * dynamics
+
+-- For instruments whose dynamics are controlled in some other way, i.e. via
+-- another keyswitch.
+dyn = attr "dyn"
+cresc = attr "cresc"
+dim = attr "dim"
+sfz = attr "sfz"
+fp = attr "fp"
+pfp = attr "pfp"
+fpf = attr "fpf"
+soft = attr "soft"
+loud = attr "loud"
+
+-- Whole note and half note variants, e.g. for trills.
+half = attr "half"
+whole = attr "whole"
+
+-- * duration
+
+sec1 = attr "sec1"
+sec2 = attr "sec2"
+sec3 = attr "sec3"
+sec4 = attr "sec4"
+sec5 = attr "sec5"
+sec6 = attr "sec6"
+sec7 = attr "sec7"
+sec8 = attr "sec8"
+sec9 = attr "sec9"
 
 -- * strings
 
 pizz = attr "pizz" -- pizzicato
+snap = attr "snap" -- snap pizz, aka Bartok pizz
 harmonic = attr "harmonic"
+
+pont = attr "pont" -- ponticello
+tasto = attr "tasto" -- sul tasto
+
+bisbig = attr "bisbig" -- bisbigliando
+
+-- * winds
+
+flutter = attr "flutter"
+blared = attr "blared" -- brass
 
 -- * drums
 
@@ -87,6 +145,16 @@ high = attr "high"
 
 up = attr "up"
 down = attr "down"
+
+short = attr "short"
+long = attr "long"
+
+fast = attr "fast"
+medium = attr "medium"
+slow = attr "slow"
+
+light = attr "light"
+heavy = attr "heavy"
 
 -- * misc
 

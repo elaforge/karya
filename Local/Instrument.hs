@@ -26,6 +26,7 @@ import qualified Local.Instrument.Reaktor as Reaktor
 import qualified Local.Instrument.Spicy as Spicy
 import qualified Local.Instrument.Tassman as Tassman
 import qualified Local.Instrument.Vl1m as Vl1m
+import qualified Local.Instrument.Vsl as Vsl
 import qualified Local.Instrument.Z1 as Z1
 
 import qualified App.Config as Config
@@ -36,7 +37,7 @@ synths :: [FilePath -> IO [Cmd.SynthDesc]]
 synths =
     [ Drumaxx.load, Fm8.load, Kontakt.load, Massive.load, Morpheus.load
     , Morphine.load, Pianoteq.load, Reaktor.load, Spicy.load, Tassman.load
-    , Vl1m.load, Z1.load
+    , Vl1m.load, Vsl.load, Z1.load
     ]
 
 -- | make_db functions for each synthesizer that needs more elaborate setup,
