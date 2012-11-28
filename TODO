@@ -22,7 +22,7 @@ UNSORTED
       a ks with up and a ks with down.
     * fix instruments whose keyswitches are above rather than below
     - add level 2 samples
-  - browser: show keyswitches in a nice tabular format
+  * browser: show keyswitches in a nice tabular format
   - I have my old scores saved as MIDI, right?  Write a MIDI loader?
   - why is it that [(1, "")] [(0, 0, "4c"), (1, 0, "i (4d)")] gives the wrong
     pitch?  I'm guessing the pitchbend msg gets out of order on the single

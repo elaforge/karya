@@ -105,8 +105,7 @@ info_of db score_inst (MidiDb.Info synth patch code) =
             else Pretty.pretty (Cmd.inst_environ code))
 
         -- implementation details
-        , ("Keyswitches", if null keyswitches then ""
-            else Pretty.pretty keyswitches)
+        , ("Keyswitches", show_keyswitches keyswitches)
         , ("Pitchbend range", show (Instrument.inst_pitch_bend_range inst))
         , ("Scale", maybe "" Pretty.pretty scale)
         , ("Attribute map",
@@ -124,7 +123,7 @@ info_of db score_inst (MidiDb.Info synth patch code) =
         , Instrument.patch_scale = scale
         , Instrument.patch_flags = pflags
         , Instrument.patch_initialize = initialize
-        , Instrument.patch_keyswitches = Instrument.KeyswitchMap keyswitches
+        , Instrument.patch_keyswitches = keyswitches
         , Instrument.patch_attribute_map = attr_map
         , Instrument.patch_text = text
         , Instrument.patch_file = file
@@ -144,6 +143,11 @@ info_section (title, raw_text)
     | length text < 40 && '\n' `notElem` text = title ++ ": " ++ text ++ "\n"
     | otherwise = "\t" ++ title ++ ":\n" ++ text ++ "\n"
     where text = Seq.strip raw_text
+
+show_keyswitches :: Instrument.KeyswitchMap -> String
+show_keyswitches (Instrument.KeyswitchMap keyswitches) = unlines
+    [Pretty.pretty attrs ++ "\t" ++ Pretty.pretty ks
+        | (attrs, ks) <- keyswitches]
 
 show_control_map :: Control.ControlMap -> String
 show_control_map cmap =

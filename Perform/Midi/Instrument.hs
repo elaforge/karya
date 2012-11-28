@@ -206,7 +206,7 @@ data Keyswitch =
     deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Keyswitch where
-    format (Keyswitch key) = "ks:" <> Pretty.format key
+    format (Keyswitch key) = "key:" <> Pretty.format key
     format (ControlSwitch cc val) =
         "cc:" <> Pretty.format cc <> "/" <> Pretty.format val
 
