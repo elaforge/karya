@@ -16,7 +16,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Text.Printf
+import Text.Printf (printf)
 
 import Util.Control
 import qualified Util.Fltk as Fltk
@@ -146,8 +146,12 @@ info_section (title, raw_text)
 
 show_keyswitches :: Instrument.KeyswitchMap -> String
 show_keyswitches (Instrument.KeyswitchMap keyswitches) = unlines
-    [Pretty.pretty attrs ++ "\t" ++ Pretty.pretty ks
-        | (attrs, ks) <- keyswitches]
+    -- Still not quite right for lining up columns.
+    [printf "%-*s\t%s" longest attr ks | (attr, ks) <- zip attrs kss]
+    where
+    attrs = map (Pretty.pretty . fst) keyswitches
+    kss = map (Pretty.pretty . snd) keyswitches
+    longest = fromMaybe 0 $ Seq.maximum (map length attrs)
 
 show_control_map :: Control.ControlMap -> String
 show_control_map cmap =
