@@ -210,6 +210,7 @@ packages = words $ "fixed-list deepseq data-ordlist cereal "
     ++ "mersenne-random-pure64 hashable random-shuffle "
     ++ "containers filepath transformers vector "
     ++ "QuickCheck fclabels syb "
+    ++ "zmidi-core " -- midi file loading
     ++ "Diff " -- Util.Test
     ++ "ghc ghc-paths haskeline " -- repl
     ++ "shake " -- shakefile

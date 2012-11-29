@@ -1,4 +1,9 @@
 UNSORTED
+  load midi
+    - making bad parent->child
+    - what's more, bad skel can kill the responder:
+      **** Cmd/Responder.hs:381 [run_continue] - sync_status: skeleton of (bid
+      "pnovla2/b1") names missing tracknums: [0]
   vsl
     * put keyswitches in specific->general order
     find out what they mean
@@ -22,6 +27,10 @@ UNSORTED
       a ks with up and a ks with down.
     * fix instruments whose keyswitches are above rather than below
     / add level 2 samples
+  - Score.instrument should strip invalid chars
+  - shake does a complete rebuild if I build something else
+    what's going on?  Is it related to the hsconfig.h change?
+  - and scrolling the giant block is super slow!
   * browser: show keyswitches in a nice tabular format
   - I have my old scores saved as MIDI, right?  Write a MIDI loader?
   - why is it that [(1, "")] [(0, 0, "4c"), (1, 0, "i (4d)")] gives the wrong

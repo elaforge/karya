@@ -46,6 +46,7 @@ parse_args argv = case argv of
     [] -> Setup.auto_setup_cmd
     ["generate", gen] -> Setup.setup_generate gen
     ["mod", fn] -> Setup.load_mod fn
+    ["midi", fn] -> Setup.load_midi fn
     ["-a"] -> do
         Save.cmd_load "save/default"
         State.set_namespace (Id.unsafe_namespace "untitled")

@@ -7,7 +7,7 @@ module Ui.Id (
 
     -- * naming enforcement
     , is_id, is_id_char, is_strict_id, is_strict_id_char, ascii_lower
-    , enforce_id, enforce_strict_id
+    , clean_id, enforce_id, enforce_strict_id
 
     -- * access
     , un_id, id_name, set_name, id_namespace, set_namespace
@@ -26,6 +26,7 @@ module Ui.Id (
 import Prelude hiding (id)
 import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
+import qualified Data.Char as Char
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 import qualified Text.Read as Read
@@ -117,6 +118,18 @@ ascii_lower c = 'a' <= c && c <= 'z'
 ascii_digit :: Char -> Bool
 ascii_digit c = '0' <= c && c <= '9'
 
+clean_id :: Bool -> String -> (String, Maybe String)
+clean_id null_ok s
+    | null cleaned = ("", Just $
+        "identifier consisted entirely of illegal characters: " ++ show s)
+    | not null_ok && null s = ("", Just "null identifier")
+    | s /= cleaned =
+        (cleaned, Just $ "stripped illegal characters from " ++ show s)
+    | otherwise = (cleaned, Nothing)
+    where
+    cleaned = filter is_strict_id_char $ dropWhile (not . ascii_lower) $
+        map Char.toLower s
+
 -- | Enforce that a String conforms to the rules for a strict ID.
 --
 -- Illegal characters are stripped, but it's a runtime error if that results
@@ -127,15 +140,11 @@ ascii_digit c = '0' <= c && c <= '9'
 -- TODO not too happy with unsafe logging and runtime errros
 enforce_strict_id :: String -> String
 enforce_strict_id s
-    | null s = error "enforce_strict_id: null identifier"
-    | null cleaned = error $ "enforce_strict_id: identifier consisted "
-        ++ "entirely of illegal characters: " ++ show s
-    | s /= cleaned = Unsafe.unsafePerformIO $ do
-        Log.warn $ "enforce_strict_id: stripped illegal characters from "
-            ++ show s
-        return cleaned
-    | otherwise = cleaned
-    where cleaned = filter is_strict_id_char $ dropWhile (not . ascii_lower) s
+    | Just warn <- maybe_warn = Unsafe.unsafePerformIO $ do
+        Log.warn $ "enforce_strict_id: " ++ warn
+        return result
+    | otherwise = result
+    where (result, maybe_warn) = clean_id False s
 
 enforce_strict_id_null_ok :: String -> String
 enforce_strict_id_null_ok s = if null s then s else enforce_strict_id s

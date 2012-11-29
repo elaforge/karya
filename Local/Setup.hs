@@ -3,6 +3,7 @@
 module Local.Setup where
 import qualified Control.Monad.Trans as Trans
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.Event as Event
@@ -17,7 +18,8 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.LoadMod as LoadMod
+import qualified Cmd.Load.Midi as Load.Midi
+import qualified Cmd.Load.Mod as Mod
 import qualified Cmd.Meter as Meter
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
@@ -59,14 +61,21 @@ setup_generate gen = do
         | title == Derive_profile.inst2 = ">fm8/2"
         | otherwise = title
 
-load_mod :: String -> Cmd.CmdIO
+load_mod :: FilePath -> Cmd.CmdIO
 load_mod fn = do
-    blocks <- either Cmd.throw return =<< Trans.liftIO (LoadMod.parse fn)
-    let blocks2 = map (LoadMod.map_block (LoadMod.add_default_volume 1 38))
-            blocks
-    LoadMod.create (Id.unsafe_namespace $ head (Seq.split "." fn))
-        (LoadMod.convert_blocks 0.25 blocks2)
+    blocks <- either Cmd.throw return =<< Trans.liftIO (Mod.parse fn)
+    let blocks2 = map (Mod.map_block (Mod.add_default_volume 1 38)) blocks
+    Mod.create (Id.unsafe_namespace $ head (Seq.split "." fn))
+        (Mod.convert_blocks 0.25 blocks2)
     State.set_midi_config $ make_midi_config "ptq" [("ptq/c1", [0..8])]
+    return Cmd.Done
+
+load_midi :: FilePath -> Cmd.CmdIO
+load_midi fn = do
+    result <- Trans.liftIO $ Load.Midi.load fn
+    case result of
+        Left err -> Log.error $ "loading " ++ fn ++ ": " ++ err
+        Right state -> State.unsafe_put state
     return Cmd.Done
 
 setup_small :: (Cmd.M m) => m Cmd.Status
