@@ -14,10 +14,10 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
 
@@ -172,14 +172,14 @@ control_track events control =
         | Score.typed_val control == Score.c_dynamic && Event.start event == 0
             && Event.event_string event == default_dyn = []
     drop_dyn events = events
-    default_dyn = ParseBs.show_hex_val Derive.default_dynamic
+    default_dyn = ShowVal.show_hex_val Derive.default_dynamic
     tidy_controls = clip_to_zero . drop_dups . clip_concat
 
 signal_events :: Score.Control -> Score.Event -> [Event.Event]
 signal_events control event = case Map.lookup control controls of
     Nothing -> []
     Just sig -> [ui_event (Score.event_stack event)
-            (RealTime.to_score x) 0 (ParseBs.show_hex_val y)
+            (RealTime.to_score x) 0 (ShowVal.show_hex_val y)
         | (x, y) <- samples (Score.typed_val sig)]
     where
     samples = align_signal start . Signal.drop_before start

@@ -1,5 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Derive.ShowVal where
+import qualified Numeric
+
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
@@ -13,6 +15,13 @@ import qualified Perform.RealTime as RealTime
 -- At least one place that relies on this is 'Derive.Call.Note.inverting'.
 class ShowVal a where
     show_val :: a -> String
+
+hex_prefix :: String
+hex_prefix = "`0x`"
+
+show_hex_val :: Double -> String
+show_hex_val n = hex_prefix ++ if length h == 1 then '0' : h else h
+    where h = Numeric.showHex (round (n * 0xff)) ""
 
 -- Really these instances should go in Derive.ParseBs, but it imports
 -- Derive.TrackLang, which needs them.

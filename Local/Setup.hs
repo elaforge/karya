@@ -19,16 +19,16 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Load.Midi as Load.Midi
-import qualified Cmd.Load.Mod as Mod
+import qualified Cmd.Load.Mod as Load.Mod
 import qualified Cmd.Meter as Meter
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive_profile as Derive_profile
-import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
@@ -63,10 +63,11 @@ setup_generate gen = do
 
 load_mod :: FilePath -> Cmd.CmdIO
 load_mod fn = do
-    blocks <- either Cmd.throw return =<< Trans.liftIO (Mod.parse fn)
-    let blocks2 = map (Mod.map_block (Mod.add_default_volume 1 38)) blocks
-    Mod.create (Id.unsafe_namespace $ head (Seq.split "." fn))
-        (Mod.convert_blocks 0.25 blocks2)
+    blocks <- either Cmd.throw return =<< Trans.liftIO (Load.Mod.parse fn)
+    let blocks2 = map
+            (Load.Mod.map_block (Load.Mod.add_default_volume 1 38)) blocks
+    Load.Mod.create (Id.unsafe_namespace $ head (Seq.split "." fn))
+        (Load.Mod.convert_blocks 0.25 blocks2)
     State.set_midi_config $ make_midi_config "ptq" [("ptq/c1", [0..8])]
     return Cmd.Done
 
@@ -126,7 +127,7 @@ setup_normal = do
 
     dyn <- Create.empty_track bid 5
     State.insert_events dyn $ map (control_event . UiTest.make_event)
-        [(0, 0, ParseBs.show_hex_val 0.7), (1, 0, ParseBs.show_hex_val 0.4)]
+        [(0, 0, ShowVal.show_hex_val 0.7), (1, 0, ShowVal.show_hex_val 0.4)]
     State.set_track_title dyn "dyn"
 
     -- tempo 1 -> mod -> note -> pitch

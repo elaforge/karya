@@ -24,6 +24,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseBs
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
@@ -99,7 +100,7 @@ to_hex :: String -> String
 to_hex text = case Derive.ParseBs.parse_val val of
     Right (TrackLang.VNum (Score.Typed Score.Untyped n))
         | 0 <= n && n <= 1 -> fromMaybe "" $ ControlTrack.unparse
-            (Just method, Just (Derive.ParseBs.show_hex_val n))
+            (Just method, Just (ShowVal.show_hex_val n))
     _ -> val
     where (method, val) = ControlTrack.parse text
 

@@ -19,12 +19,6 @@ module Derive.ParseBs (
 
     -- * expand macros
     , expand_macros
-    -- * hex
-    , hex_prefix
-    -- It feels like this should live with show_val... so maybe show_val should
-    -- move here?
-    , show_hex_val
-    , TrackLang.show_val
 #ifdef TESTING
     , p_equal
 #endif
@@ -36,14 +30,14 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.List.NonEmpty as NonEmpty
 
-import qualified Numeric
-
 import Util.Control
 import qualified Util.ParseBs as Parse
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Pitch as Pitch
 
 
@@ -203,14 +197,7 @@ p_hex = do
     c1 <- A.satisfy higit
     c2 <- A.satisfy higit
     return $ Score.untyped (fromIntegral (parse_hex c1 c2) / 0xff)
-    where prefix = UTF8.fromString hex_prefix
-
-hex_prefix :: String
-hex_prefix = "`0x`"
-
-show_hex_val :: Double -> String
-show_hex_val n = hex_prefix ++ if length h == 1 then '0' : h else h
-    where h = Numeric.showHex (round (n * 0xff)) ""
+    where prefix = UTF8.fromString ShowVal.hex_prefix
 
 parse_hex :: Char -> Char -> Int
 parse_hex c1 c2 = higit c1 * 16 + higit c2

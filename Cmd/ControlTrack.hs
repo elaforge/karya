@@ -12,7 +12,9 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Signal as Signal
 
 
@@ -87,11 +89,11 @@ update_hex :: String -> Key.Key -> Maybe (Maybe String)
 update_hex val key
     | null val = case key of
         Key.Backspace -> Just Nothing
-        Key.Char c | higit c -> Just $ Just $ ParseBs.hex_prefix ++ ['0', c]
+        Key.Char c | higit c -> Just $ Just $ ShowVal.hex_prefix ++ ['0', c]
         _ -> Nothing
     | Just c2 <- parse_val val = case key of
         Key.Backspace -> Just Nothing
-        Key.Char c | higit c -> Just $ Just $ ParseBs.hex_prefix ++ [c2, c]
+        Key.Char c | higit c -> Just $ Just $ ShowVal.hex_prefix ++ [c2, c]
         -- The field is hex, but this wasn't a higit, so ignore it.
         _ -> Just $ Just val
     | otherwise = Nothing -- not hex at all
@@ -116,7 +118,7 @@ cmd_method_edit msg =
 
 val_edit_at :: (Cmd.M m) => State.Pos -> Signal.Y -> m ()
 val_edit_at pos val = modify_event_at pos $ \(method, _) ->
-    ((Just method, Just (ParseBs.show_hex_val val)), False)
+    ((Just method, Just (ShowVal.show_hex_val val)), False)
 
 type Modify = (String, String) -> ((Maybe String, Maybe String), Bool)
 
