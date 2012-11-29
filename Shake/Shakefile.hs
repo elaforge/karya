@@ -672,7 +672,7 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
     isHsc <- Trans.liftIO $
         Directory.doesFileExist (objToSrc config obj ++ "c")
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
-    need [hspp, buildDir config </> "hsconfig.h"]
+    need [hspp]
     imports <- HsDeps.importsOf (cppFlags config hs) hs
     includes <- if Maybe.isJust (cppFlags config hs)
         then includesOf "hsORule" config hs else return []

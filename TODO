@@ -28,7 +28,7 @@ UNSORTED
     * fix instruments whose keyswitches are above rather than below
     / add level 2 samples
   - Score.instrument should strip invalid chars
-  - shake does a complete rebuild if I build something else
+  * shake does a complete rebuild if I build something else
     what's going on?  Is it related to the hsconfig.h change?
   - and scrolling the giant block is super slow!
   * browser: show keyswitches in a nice tabular format
