@@ -16,9 +16,12 @@ auto = attr "auto" -- TODO what's this?
 -- * articulations
 
 sustain = attr "sustain"
--- modifies another articulation to grow in strength
+-- | Modifies another articulation to grow in strength.
 progressive = attr "progressive"
+-- Like @progressive@, but fading in strength.
+fading = attr "fading"
 attack = attr "attack" -- hard attack
+harsh = attr "harsh"
 
 flautando = attr "flautando"
 staccato = attr "staccato"
@@ -26,6 +29,7 @@ spiccato = attr "spiccato"
 detache = attr "detache"
 marcato = attr "marcato"
 portato = attr "portato"
+espres = attr "espres" -- espressivo
 trill = attr "trill"
 trem = attr "trem" -- tremolo
 arpeggio = attr "arpeggio"
@@ -41,12 +45,10 @@ cluster = attr "cluster" -- cluster of tones
 
 -- * dynamics
 
--- For instruments whose dynamics are controlled in some other way, i.e. via
--- another keyswitch.
-dyn = attr "dyn"
 cresc = attr "cresc"
 dim = attr "dim"
 sfz = attr "sfz"
+sffz = attr "sffz"
 fp = attr "fp"
 pfp = attr "pfp"
 fpf = attr "fpf"
@@ -62,9 +64,14 @@ whole = attr "whole"
 pizz = attr "pizz" -- pizzicato
 snap = attr "snap" -- snap pizz, aka Bartok pizz
 harmonic = attr "harmonic"
+one_string = attr "one-string"
+zigane = attr "zigane" -- Apparently a gypsy thing.
 
 pont = attr "pont" -- ponticello
 tasto = attr "tasto" -- sul tasto
+
+natural = attr "natural" -- as in natural harmonics
+artificial = attr "artificial"
 
 bisbig = attr "bisbig" -- bisbigliando
 

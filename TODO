@@ -9,7 +9,7 @@ UNSORTED
       And also other bass instruments.
     * Check presets for other instruments manually, they aren't necessarily
       the same.
-    - putting the matrix keyswitch on adds a redundant ks on every note,
+    / putting the matrix keyswitch on adds a redundant ks on every note,
       revisit note emitting leading keyswitches.  Or just filter as before,
       but make sure vsl keeps the horizontal setting.
       No, you only get ks when it changes.
@@ -21,7 +21,7 @@ UNSORTED
       I could do that with a special updown attr that is replaced with
       a ks with up and a ks with down.
     * fix instruments whose keyswitches are above rather than below
-    - add level 2 samples
+    / add level 2 samples
   * browser: show keyswitches in a nice tabular format
   - I have my old scores saved as MIDI, right?  Write a MIDI loader?
   - why is it that [(1, "")] [(0, 0, "4c"), (1, 0, "i (4d)")] gives the wrong

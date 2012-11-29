@@ -117,6 +117,46 @@ solo_string_art keys = matrix keys
         pont <> sustain, pont <> trem <> auto, harmonic <> sustain,
         fast <> gliss, snap]
 
+-- TODO ok new plan, I put these in when I need them
+-- there are TONS of them, and they'll really clutter up the browser.
+
+str2_perf_universal = named "perf-universal" $ add_mod $ map keyswitches
+    [[legato], [marcato], [spiccato]]
+
+str2_perf_legato_all = named "perf-legato-all" $ matrix keys
+    (map (legato<>) [mempty, one_string, zigane, progressive <> vibrato])
+    (map (porta<>) [mempty, one_string, zigane, progressive <> vibrato])
+
+str2_short_long_all = named "short-long-all" $
+    add_mod $ map (keyswitches_from Key.c1 . keyswitches)
+        [ prefix ++ [sustain <> vibrato]
+        , prefix ++ [nv]
+        , prefix ++ [progressive <> vibrato]
+        , prefix ++ [marcato]
+        , prefix ++ [down <> vibrato]
+        ]
+    where prefix = [staccato, detache <> short, detache <> long]
+
+-- TODO cell crossfade for vibrato/nv
+str2_perf_harsh = named "perf-harsh" $ keyswitches_from Key.c1 $ keyswitches
+    [sustain <> vibrato, sustain <> progressive <> vibrato, pont, harsh]
+
+str2_short_notes_all = named "short-notes-all" $
+    keyswitches_from Key.c1 $ keyswitches
+        [staccato, detache <> short, detache <> long <> vibrato,
+            detache <> long <> nv]
+
+str2_long_notes_all = named "long-notes-all" $
+    keyswitches_from Key.c1 $ keyswitches $ map (sustain<>)
+        [vibrato, marcato, espres, progressive <> vibrato, fading <> vibrato,
+            nv]
+
+str2_dynamics_small = named "dynamics-small" $
+    add_mod $ map row [medium <> dyn <> vibrato, fp, sfz, sffz]
+    where
+    row attrs = keyswitches_from Key.c1 $ keyswitches $
+        map (attrs<>) [sec 1, sec 3, sec 4]
+
 -- * string sections
 
 string_sections :: [Instrument]
@@ -492,6 +532,9 @@ harp1_gliss_special = add_mod $ map (keyswitches_from Key.c1 . keyswitches)
 
 -- * util
 
+named :: String -> [Keyswitch] -> Instrument
+named name = ((,) name)
+
 -- | Keyswitch configuration.
 data Keys = Keys {
     key_a :: Midi.Key
@@ -585,3 +628,8 @@ expand_modes_with modes up_key down_key (attrs, ks) =
 
 sec :: Int -> Score.Attributes
 sec n = Score.attr ("sec" ++ show n)
+
+-- | Articulations with this keyswitch are split into @cresc@ and @dim@
+-- articulations.
+dyn :: Score.Attributes
+dyn = Score.attr "dyn"
