@@ -67,7 +67,7 @@ test_derive_diff = do
         (mkdamage [(tid2, Ranges.everything)] [bid] [])
     equal (f (State.set_block_title bid "new"))
         (mkdamage [] [] [bid])
-    equal (f (State.set_skeleton bid (Skeleton.make [(1, 0)])))
+    equal (f (State.set_skeleton bid (Skeleton.make [(2, 1)])))
         (mkdamage [] [] [bid])
     equal (f (State.set_skeleton bid (Skeleton.make [(1, 2)])))
         (mkdamage [] [] [])

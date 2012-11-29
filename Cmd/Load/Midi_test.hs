@@ -8,7 +8,6 @@ import qualified Midi.Midi as M
 import qualified Ui.Skeleton as Skeleton
 import qualified Cmd.Load.Midi as Midi
 import qualified Derive.Score as Score
-import Types
 
 
 test_convert_tracks = do
@@ -32,7 +31,7 @@ test_convert_tracks = do
         , ("mod", [(1, (0, ".33"))])
         ]
     equal (Skeleton.flatten skel)
-        [(0, 1), (1, 2), (3, 4), (4, 5), (6, 7), (7, 8), (8, 9)]
+        [(1, 2), (2, 3), (4, 5), (5, 6), (7, 8), (8, 9), (9, 10)]
     equal warns []
 
 test_split_track = do

@@ -694,7 +694,7 @@ modify_skeleton block_id f = do
     let skel = f (Block.block_skeleton block)
         tracks = length $ Block.block_tracks block
     forM_ (Skeleton.flatten skel) $ \(parent, child) ->
-        unless (0<=parent && parent < tracks && 0 <= child && child < tracks) $
+        unless (1<=parent && parent < tracks && 1 <= child && child < tracks) $
             throw $ "modify_skeleton: edge " ++ show (parent, child)
                 ++ " out of range for " ++ show block_id
     modify_block block_id $ \block -> block { Block.block_skeleton = skel }

@@ -81,8 +81,7 @@ parse fn = either (Left . show_error) Right <$> Z.readMidi fn
 
 convert :: Z.MidiFile -> ([(String, Track)], Skeleton.Skeleton, [String])
 convert = extract . convert_tracks . extract_tracks
-    where
-    extract (tracks, skel, warns) = (tracks, skel, warns)
+    where extract (tracks, skel, warns) = (tracks, skel, warns)
 
 test = do
     let fn = "pno_vla2.mid"
@@ -111,7 +110,6 @@ extract_track per_sec (Z.MidiTrack msgs) =
         [name | Z.MetaEvent (Z.TextEvent _ name) <- take 10 (map snd msgs)]
     times = drop 1 $ scanl (+) 0 $
         map ((/per_sec) . RealTime.seconds . fromIntegral . fst) msgs
-        -- (map ((/per_sec) . RealTime.seconds . fromIntegral . fst) msgs)
 
 extract_message :: (RealTime, Z.MidiEvent) -> [Midi]
 extract_message (time, msg) = case msg of
@@ -162,7 +160,8 @@ convert_tracks midi_tracks = (concatMap convert tracks, skeleton, warns)
             | (control, track) <- Map.toAscList controls]
 
 note_track_edges :: [NoteTrack] -> [Skeleton.Edge]
-note_track_edges = concat . snd . List.mapAccumL edges 0
+note_track_edges = concat . snd . List.mapAccumL edges 1
+    -- The skeleton starts at 1, because it can't go on the 0th track.
     where
     edges n (NoteTrack _ _ controls) = (end, zip ns (drop 1 ns))
         where

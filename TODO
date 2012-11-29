@@ -1,7 +1,7 @@
 UNSORTED
   load midi
-    - making bad parent->child
-    - what's more, bad skel can kill the responder:
+    * making bad parent->child
+    * what's more, bad skel can kill the responder:
       **** Cmd/Responder.hs:381 [run_continue] - sync_status: skeleton of (bid
       "pnovla2/b1") names missing tracknums: [0]
   vsl
