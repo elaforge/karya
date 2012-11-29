@@ -14,13 +14,15 @@ midi_config db = StaticConfig.Midi
     , StaticConfig.read_devices = StaticConfig.make_read_devices read_devices
     }
 
-iac, tapco :: Int -> String
+iac, tapco, network :: Int -> String
 iac n = "IAC Synth " ++ show n
 tapco n = "Tapco Port " ++ show n
+network n = "Network archy" ++ show n
 
 wdev_map :: [(String, String)]
 wdev_map =
     [("loop" ++ show n, iac n) | n <- [1..4]] ++
+    [("net" ++ show n, network n) | n <- [1..4]] ++
     [ ("fm8", "Native Instruments FM8 Virtual Input")
     , ("msv", "Massive Virtual Input")
     , ("z1", tapco 1)
