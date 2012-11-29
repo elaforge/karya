@@ -246,7 +246,7 @@ cc_to_control cc =
         Map.fromList [(cc, Score.Control c) | (cc, c) <- Control.cc_map]
 
 show_val :: Word.Word8 -> String -- the Midi types are aliases for Word8
-show_val val = ShowVal.show_val $ d / 0x7f
+show_val val = ShowVal.show_hex_val $ d / 0x7f
     where
     d :: Double
     d = fromIntegral val
