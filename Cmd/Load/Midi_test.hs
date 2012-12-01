@@ -20,15 +20,15 @@ test_convert_tracks = do
     equal (map (fmap Map.toList) tracks)
         [ (">s/a", [(0, (2, ""))])
         , ("*", [(0, (0, "4c"))])
-        , ("dyn", [(0, (0, "1"))])
+        , ("dyn", [(0, (0, "`0x`ff"))])
         , (">s/a", [(1, (2, ""))])
         , ("*", [(1, (0, "4d"))])
-        , ("dyn", [(1, (0, "1"))])
+        , ("dyn", [(1, (0, "`0x`ff"))])
 
         , (">s/b", [(0, (2, ""))])
         , ("*", [(0, (0, "4e"))])
-        , ("dyn", [(0, (0, "1"))])
-        , ("mod", [(1, (0, ".33"))])
+        , ("dyn", [(0, (0, "`0x`ff"))])
+        , ("mod", [(1, (0, "`0x`54"))])
         ]
     equal (Skeleton.flatten skel)
         [(1, 2), (2, 3), (4, 5), (5, 6), (7, 8), (8, 9), (9, 10)]
@@ -40,7 +40,7 @@ test_split_track = do
         extract (Midi.NoteTrack notes pitches controls) =
             (Map.toList notes, Map.toList pitches,
                 Map.toList (Map.map Map.toList controls))
-        dyn ps = [(Score.c_dynamic, [(p, (0, "1")) | p <- ps])]
+        dyn ps = [(Score.c_dynamic, [(p, (0, "`0x`ff")) | p <- ps])]
         notes ps = [(p, (d, "")) | (p, d) <- ps]
         pitches ps = [(p, (0, n)) | (p, n) <- ps]
     equal (f [(0, on Key.c4), (1, off Key.c4)])
