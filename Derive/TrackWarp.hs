@@ -22,7 +22,7 @@ import Types
 
 
 newtype TrackWarp =
-    -- | (start, dur, warp, block_id, track of tempo track if there is one)
+    -- | (start, end, warp, block_id, track of tempo track if there is one)
     TrackWarp (RealTime, RealTime, Score.Warp, BlockId, Maybe TrackId)
     deriving (Eq, Show, Pretty.Pretty)
 
