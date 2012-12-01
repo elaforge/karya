@@ -26,6 +26,7 @@ module Ui.Id (
 import Prelude hiding (id)
 import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
+import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
@@ -40,9 +41,9 @@ import qualified Util.Serialize as Serialize
 --
 -- It doesn't so much belong in this module, but Ui.Block etc. all use it and
 -- it's easier to put it here than make a whole new module.
-newtype Namespace = Namespace String
+newtype Namespace = Namespace B.ByteString
     deriving (Eq, Ord, Show, Read, DeepSeq.NFData)
-data Id = Id !Namespace !String
+data Id = Id !Namespace !B.ByteString
     deriving (Eq, Ord, Show, Read)
 
 instance Serialize.Serialize Id where
@@ -56,15 +57,15 @@ instance Serialize.Serialize Namespace where
 -- | Create a namespace, if the characters are valid.
 namespace :: String -> Maybe Namespace
 namespace ns
-    | null ns || is_strict_id ns = Just (Namespace ns)
+    | null ns || is_strict_id ns = Just (Namespace (B.pack ns))
     | otherwise = Nothing
 
 -- | Like 'namespace', but will strip and log invalid characters.
 unsafe_namespace :: String -> Namespace
-unsafe_namespace = Namespace . enforce_strict_id_null_ok
+unsafe_namespace = Namespace . B.pack . enforce_strict_id_null_ok
 
 un_namespace :: Namespace -> String
-un_namespace (Namespace s) = s
+un_namespace (Namespace s) = B.unpack s
 
 instance DeepSeq.NFData Id where
     rnf (Id ns ident) = ns `seq` ident `seq` ()
@@ -77,12 +78,12 @@ instance Pretty.Pretty Id where pretty = show_id
 -- | Construct an Id, or return Nothing if there were invalid characters in it.
 id :: Namespace -> String -> Maybe Id
 id ns ident
-    | is_id ident = Just $ Id ns ident
+    | is_id ident = Just $ Id ns (B.pack ident)
     | otherwise = Nothing
 
 -- | Like 'id', but will strip and log invalid characters.
 unsafe_id :: Namespace -> String -> Id
-unsafe_id ns ident = Id ns (enforce_id ident)
+unsafe_id ns ident = Id ns (B.pack (enforce_id ident))
 
 -- | A smarter constructor that only applies the namespace if the string
 -- doesn't already have one.
@@ -165,10 +166,10 @@ enforce_id s
 -- * access
 
 un_id :: Id -> (Namespace, String)
-un_id (Id ns ident) = (ns, ident)
+un_id (Id ns ident) = (ns, B.unpack ident)
 
 id_name :: Id -> String
-id_name (Id _ name) = name
+id_name (Id _ name) = B.unpack name
 
 set_name :: String -> Id -> Id
 set_name name (Id ns _) = unsafe_id ns name
@@ -177,7 +178,7 @@ id_namespace :: Id -> Namespace
 id_namespace (Id ns _) = ns
 
 set_namespace :: Namespace -> Id -> Id
-set_namespace ns (Id _ name) = unsafe_id ns name
+set_namespace ns (Id _ name) = unsafe_id ns (B.unpack name)
 
 -- * read / show
 
@@ -186,7 +187,7 @@ read_id s = unsafe_id (unsafe_namespace pre) (drop 1 post)
     where (pre, post) = break (=='/') s
 
 show_id :: Id -> String
-show_id (Id ns ident) = Pretty.pretty ns ++ "/" ++ ident
+show_id (Id ns ident) = Pretty.pretty ns ++ "/" ++ B.unpack ident
 
 
 -- * Ident

@@ -31,7 +31,7 @@ UNSORTED
   - Score.instrument should strip invalid chars
   - see if directly modifying Derive.Collect instead of merging new ones
     helps performance
-  - make Id a ByteString instead of String, that should speed up (==)
+  * make Id a ByteString instead of String, that should speed up (==)
   * shake does a complete rebuild if I build something else
     what's going on?  Is it related to the hsconfig.h change?
   and scrolling the giant block is super slow!
