@@ -4,6 +4,7 @@
 -}
 module Derive.Deriver.Internal where
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -253,11 +254,11 @@ d_warp warp deriver
         (\st -> st { state_warp = Score.compose_warps (state_warp st) warp })
         deriver
 
--- | Tempo is the tempo signal, which is the standard musical definition of
+-- | Warp a block with the given deriver with the given signal.
+
+-- Tempo is the tempo signal, which is the standard musical definition of
 -- tempo: trackpos over time.  Warp is the time warping that the tempo
 -- implies, which is integral (1/tempo).
-
--- | Warp a block with the given deriver with the given signal.
 --
 -- TODO what to do about blocks with multiple tempo tracks?  I think it would
 -- be best to stretch the block to the first one.  I could break out
@@ -323,7 +324,8 @@ add_track_warp :: TrackId -> Deriver ()
 add_track_warp track_id = do
     stack <- get_stack
     merge_collect $ mempty
-        { collect_warp_map = Map.singleton stack (Right track_id) }
+        { collect_warp_map =
+            Map.singleton (strip_stack stack) (Right track_id) }
 
 -- | Start a new track warp for the current block_id.
 --
@@ -337,7 +339,21 @@ add_new_track_warp track_id = do
     end <- real =<< get_block_dur block_id
     warp <- get_dynamic state_warp
     let tw = Left $ TrackWarp.TrackWarp (start, end, warp, block_id, track_id)
-    merge_collect $ mempty { collect_warp_map = Map.singleton stack tw }
+    merge_collect $ mempty
+        { collect_warp_map = Map.singleton (strip_stack stack) tw }
+
+-- | Strip the Regions out of a stack.
+--
+-- Every inversion will put its own 'TrackWarp.TrackWarp' into 'Collect'.
+-- I need one to know the tempo of that track, but no more than one, since the
+-- tempo of one track is all the same.  When the TrackWarps are collected into
+-- a 'TrackWarp.Collection.tw_tracks' the duplicated TrackIds are dropped, but
+-- it seems a bit more efficient to avoid collecting them in the first place.
+-- This only avoids collecting most of them, since the uninverted stack and
+-- inverted stacks are still different, even after stripping the Regions.
+strip_stack :: Stack.Stack -> Stack.Stack
+strip_stack = Stack.from_innermost . filter (Maybe.isNothing . Stack.region_of)
+    . Stack.innermost
 
 -- | Sub-derived blocks are stretched according to their length, and this
 -- function defines the length of a block.  Using 'State.block_ruler_end' which

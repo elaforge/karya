@@ -108,7 +108,7 @@ data UpdaterState = UpdaterState {
 
 updater_loop :: UpdaterState -> IO ()
 updater_loop state = do
-    -- now can start negative if the events themselves started negative, say
+    -- 'now' can start negative if the events themselves started negative, say
     -- due to an ornament that moves things back in time.  Cmd.Play.cmd_play
     -- will have moved the events up to 0 in this case.
     now <- max 0 . subtract (updater_offset state) <$> updater_get_now state
@@ -117,7 +117,7 @@ updater_loop state = do
     ui_state <- MVar.readMVar (updater_ui_state state)
     play_pos <- either fail return $ State.eval ui_state $
         Perf.find_play_pos (updater_inv_tempo_func state)
-        (now / updater_multiplier state)
+            (now / updater_multiplier state)
     Sync.set_play_position play_pos
 
     let active_sels = Set.fromList

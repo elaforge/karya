@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | TrackWarps are collected throughout derivation each time there is a new
     warp context.  By the end, they represent a complete mapping from ScoreTime
     to RealTime and back again, and can be used to create a TempoFunction and
@@ -6,9 +7,12 @@
 module Derive.TrackWarp where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Id as Id
 import qualified Ui.Types as Types
 import qualified Derive.Score as Score
@@ -20,7 +24,7 @@ import Types
 newtype TrackWarp =
     -- | (start, dur, warp, block_id, track of tempo track if there is one)
     TrackWarp (RealTime, RealTime, Score.Warp, BlockId, Maybe TrackId)
-    deriving (Eq, Show)
+    deriving (Eq, Show, Pretty.Pretty)
 
 -- | Each TrackWarp is collected at the Stack of the track it represents.
 -- A Left is a new TrackWarp and a Right is a track that uses the warp in
@@ -38,11 +42,11 @@ type Frames = [Stack.Frame]
 -- These are used by the updater to figure out where the play position
 -- indicator is at a given point in real time.
 data Collection = Collection {
-    tw_start :: RealTime
-    , tw_end :: RealTime
-    , tw_block :: BlockId
-    , tw_tracks :: [TrackId]
-    , tw_warp :: Score.Warp
+    tw_start :: !RealTime
+    , tw_end :: !RealTime
+    , tw_block :: !BlockId
+    , tw_tracks :: !(Set.Set TrackId)
+    , tw_warp :: !Score.Warp
     } deriving (Eq, Show)
 
 type Collections = [Collection]
@@ -52,7 +56,7 @@ collections = map convert . collect_warps
 
 convert :: (TrackWarp, [TrackId]) -> Collection
 convert (TrackWarp (start, end, warp, block_id, maybe_track_id), tracks) =
-    Collection start end block_id track_ids warp
+    Collection start end block_id (Set.fromList track_ids) warp
     where track_ids = maybe tracks (:tracks) maybe_track_id
 
 collect_warps :: WarpMap -> [(TrackWarp, [TrackId])]
@@ -84,7 +88,7 @@ tempo_func :: Collections -> Transport.TempoFunction
 tempo_func track_warps block_id track_id pos = map (Score.warp_pos pos) warps
     where
     warps = [tw_warp tw | tw <- track_warps, tw_block tw == block_id,
-        track_id `elem` tw_tracks tw]
+        Set.member track_id (tw_tracks tw)]
 
 -- | If a block is called in multiple places, a score time on it may occur at
 -- multiple real times.  Find the Warp which is closest to a given RealTime, or
@@ -105,12 +109,12 @@ closest_warp track_warps block_id track_id pos =
     where
     annotated = zip (map tw_start warps) warps
     warps = [tw | tw <- track_warps, tw_block tw == block_id,
-        track_id `elem` tw_tracks tw]
+        Set.member track_id (tw_tracks tw)]
 
 inverse_tempo_func :: Collections -> Transport.InverseTempoFunction
 inverse_tempo_func track_warps ts = do
     (block_id, track_ids, Just pos) <- track_pos
-    return (block_id, [(track_id, pos) | track_id <- track_ids])
+    return (block_id, [(track_id, pos) | track_id <- Set.toList track_ids])
     where
     track_pos = [(tw_block tw, tw_tracks tw, Score.unwarp_pos ts (tw_warp tw))
         | tw <- track_warps, tw_start tw <= ts && ts < tw_end tw]

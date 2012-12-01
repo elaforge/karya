@@ -260,7 +260,7 @@ block_pos_to_play_pos block_pos = fmap concat (mapM convert block_pos)
 convert :: (State.M m) => (BlockId, [(TrackId, ScoreTime)])
     -> m [(ViewId, [(TrackNum, ScoreTime)])]
 convert (block_id, track_pos) = do
-    view_ids <- fmap Map.keys (State.views_of block_id)
+    view_ids <- Map.keys <$> State.views_of block_id
     block <- State.get_block block_id
     let tracknum_pos = concatMap (tracknums_of block) track_pos
     return [(view_id, tracknum_pos) | view_id <- view_ids]
@@ -270,7 +270,8 @@ tracknums_of block (track_id, pos) =
     [ (tracknum, pos)
     | (tracknum, Block.TId tid _)
         <- zip [0..] (Block.block_tracklike_ids block)
-    , tid == track_id ]
+    , tid == track_id
+    ]
 
 -- ** find score times
 

@@ -4,6 +4,7 @@
 module Derive.Derive_test where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
@@ -534,7 +535,7 @@ test_make_inverse_tempo_func = do
     let track_id = Types.TrackId (UiTest.mkid "warp")
         warp = Internal.tempo_to_warp (Signal.constant 2)
         track_warps = [TrackWarp.Collection
-                0 2 UiTest.default_block_id [track_id] warp]
+                0 2 UiTest.default_block_id (Set.singleton track_id) warp]
     let f = TrackWarp.inverse_tempo_func track_warps
         with_block pos = [(UiTest.default_block_id, [(track_id, pos)])]
     -- Fast tempo means ScoreTime passes quickly relative to Timestamps.
@@ -546,7 +547,7 @@ test_tempo_roundtrip = do
     let track_id = Types.TrackId (UiTest.mkid "warp")
         warp = Internal.tempo_to_warp (Signal.constant 0.987)
         track_warps = [TrackWarp.Collection
-                0 10 UiTest.default_block_id [track_id] warp]
+                0 10 UiTest.default_block_id (Set.singleton track_id) warp]
     let inv = TrackWarp.inverse_tempo_func track_warps
         tempo = TrackWarp.tempo_func track_warps
     let rtimes = concatMap (tempo UiTest.default_block_id track_id)
