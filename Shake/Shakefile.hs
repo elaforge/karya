@@ -411,7 +411,7 @@ main = do
         -- be recompiled.
         "//*.hi" *> \hi -> need [hiToObj hi]
         ccORule infer
-        dispatch (modeConfig Debug) targets
+        dispatch modeConfig targets
 
 setupOracle :: [(String, String)] -> Config -> Shake.Rules ()
 setupOracle env config = do
@@ -457,8 +457,8 @@ matchPrefix prefixes pattern fn =
         Nothing -> False
         Just rest -> pattern ?== (dropWhile (=='/') rest)
 
-dispatch :: Config -> [String] -> Shake.Rules ()
-dispatch config targets = do
+dispatch :: (Mode -> Config) -> [String] -> Shake.Rules ()
+dispatch modeConfig targets = do
     handled <- mapM hardcoded targets
     Shake.want [target | (False, target) <- zip handled targets]
     where
@@ -470,7 +470,7 @@ dispatch config targets = do
                 , debug "seq", debug "update"
                 , modeToDir Profile </> "RunProfile"
                 ] ++ extractableDocs
-            dispatch config ["tests"]
+            dispatch modeConfig ["tests"]
             -- The gui tests tend to wedge.
             -- dispatch config "complete-tests"
             return True
@@ -485,7 +485,10 @@ dispatch config targets = do
         "md" -> action $ need . map docToHtml =<< getMarkdown
         "profile" -> action $ do
             need [modeToDir Profile </> "RunProfile"]
-            system "tools/summarize_profile.py" []
+            let with_scc = "-auto-all"
+                    `elem` hcFlags (configFlags (modeConfig Profile))
+            system "tools/summarize_profile.py"
+                [if with_scc then "scc" else "no-scc"]
         "show-config" -> action $ Trans.liftIO $ PPrint.pprint config
         "tests" -> action $ do
             need [runTests Nothing]
@@ -499,6 +502,7 @@ dispatch config targets = do
         _ -> return False
     action act = Shake.action act >> return True
     runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
+    config = modeConfig Debug
 
 hlint :: Config -> Shake.Action ()
 hlint config = do

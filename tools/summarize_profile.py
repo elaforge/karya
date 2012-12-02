@@ -15,17 +15,31 @@ profiles = [
     ['notes', 'control', 'complex', 'multiplex']]
 
 def main():
+    if sys.argv[-1] == 'scc':
+        with_scc = True
+    elif sys.argv[-1] == 'no-scc':
+        with_scc = False
+    else:
+        print 'usage: summarize_profile.py [ -n ] [ scc | no-scc ]'
+        print 'SCC means it was compiled with -auto-all -caf-all'
+        sys.exit(1)
     global write_files
     if '-n' in sys.argv[1:]:
         write_files = False
+
     date = datetime.datetime.now().strftime('%y-%m-%d')
     mach_readable = []
     for prof in profiles:
-        dir = os.path.join('prof/summary', prof)
+        if with_scc:
+            dir = os.path.join('prof/summary', prof)
+        else:
+            dir = os.path.join('prof/summary-no-scc', prof)
         subprocess.call(['mkdir', '-p', dir])
         summary = run(prof)
         write(os.path.join(dir, date), 'w', alist_to_str(summary) + '\n')
         summary = [('profile', prof), ('date', date)] + summary
+        if with_scc:
+            summary = [('with_scc', 'true')] + summary
         mach_readable.append(summary)
     summary = '\n'.join(map(str, mach_readable)) + '\n'
     write('prof/summary/machine_readable', 'a', summary)
