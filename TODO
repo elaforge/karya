@@ -1,6 +1,6 @@
 UNSORTED
   * quantize, so I can clean up pno-vla
-  - figure out why the note after 'd 20' is bogus
+  * figure out why the note after 'd 20' is bogus
   - experiment with morph-x morph-y
   load midi
     * making bad parent->child
@@ -52,7 +52,7 @@ UNSORTED
 
   * browser: show keyswitches in a nice tabular format
   * I have my old scores saved as MIDI, right?  Write a MIDI loader?
-  - why is it that [(1, "")] [(0, 0, "4c"), (1, 0, "i (4d)")] gives the wrong
+  * why is it that [(1, "")] [(0, 0, "4c"), (1, 0, "i (4d)")] gives the wrong
     pitch?  I'm guessing the pitchbend msg gets out of order on the single
     channel available.
   - should instrument bound keys (i.e. drum strokes) work in ValEdit?

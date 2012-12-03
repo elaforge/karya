@@ -135,8 +135,11 @@ test_everything = do
     let ustate = UiTest.exec State.empty $ UiTest.mkblocks
             [ (default_block,
                 [ ("*twelve", [(0, 0, "4c")])
-                , (">s/1", [(0, 1, ""), (1, 1, "bad"), (2, 1, "sub"),
-                    (3, 1, "sub")])
+                , (">s/1",
+                    [ (0, 1, ""), (1, 1, "bad"), (2, 1, "sub")
+                    , (3, 1, "sub"), (4, 1, ""), (5, 1, "")
+                    , (6, 1, ""), (7, 1, "")
+                    ])
                 ])
             , ("sub", [(">", [(0, 1, "")])])
             ]
@@ -148,7 +151,13 @@ test_everything = do
         ["Error: note call not found: bad"]
     evaluated <- get_log log
     equal evaluated
-        ["b1 b1.t2 0-1 note at: 0s", "sub sub.t1 0-1 note at: 2s"]
+        [ "b1 b1.t2 0-1 note at: 0s"
+        , "sub sub.t1 0-1 note at: 2s"
+        -- This is less lazy than it used to be because Perform.perform_notes
+        -- now looks into the future a bit.
+        , "sub sub.t1 0-1 note at: 3s"
+        , "b1 b1.t2 4-5 note at: 4s"
+        ]
     where
     perform :: Derive.Result -> [Either DeriveTest.Midi String]
     perform result = map (LEvent.either Left (Right . DeriveTest.show_log)) $

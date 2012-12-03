@@ -11,7 +11,7 @@ test_keyed_group_on = do
     equal (f [(5, 'a'), (0, 'b'), (5, 'c')])
         [(0, [(0, 'b')]), (5, [(5, 'a'), (5, 'c')])]
 
-test_merge_lists = do
+test_merge_asc_lists = do
     let f = Seq.merge_asc_lists fst
 
     equal (f [[(0, "0a"), (1, "1a")], [(1, "1b"), (2, "2b")]])

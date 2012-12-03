@@ -309,17 +309,20 @@ perform_notes :: PerformState -> [LEvent.LEvent (Event, Instrument.Addr)]
 perform_notes state events =
     (Seq.merge_asc_lists levent_start midi_msgs, final_state)
     where
-    (final_state, midi_msgs) = List.mapAccumL go state events
-    go state (LEvent.Log log) = (state, [LEvent.Log log])
-    go state (LEvent.Event event) = _perform_note state event
+    (final_state, midi_msgs) = List.mapAccumL go state
+        (zip events (drop 1 (List.tails events)))
+    go state (LEvent.Log log, _) = (state, [LEvent.Log log])
+    go state (LEvent.Event event@(_, addr), future) =
+        _perform_note state (find_addr addr future) event
+    find_addr addr = fmap (event_start . fst) . LEvent.find ((==addr) . snd)
 
-_perform_note :: PerformState -> (Event, Instrument.Addr)
+_perform_note :: PerformState -> Maybe RealTime -> (Event, Instrument.Addr)
     -> (PerformState, MidiEvents)
-_perform_note (addr_inst, note_off_map) (event, addr) =
+_perform_note (addr_inst, note_off_map) next_note_on (event, addr) =
     ((addr_inst2, Map.insert addr note_off note_off_map), msgs)
     where
     (note_msgs, note_off) = perform_note
-        (Map.findWithDefault 0 addr note_off_map) event addr
+        (Map.findWithDefault 0 addr note_off_map) next_note_on event addr
     (chan_state_msgs, addr_inst2) = adjust_chan_state addr_inst addr event
     msgs = Seq.merge_on levent_start chan_state_msgs note_msgs
 
@@ -414,9 +417,9 @@ keyswitch_messages maybe_old_inst new_inst wdev chan start =
 -- ** perform note
 
 -- | Emit MIDI for a single event.
-perform_note :: RealTime -> Event -> Instrument.Addr
+perform_note :: RealTime -> Maybe RealTime -> Event -> Instrument.Addr
     -> (MidiEvents, RealTime) -- ^ (msgs, note_off)
-perform_note prev_note_off event addr =
+perform_note prev_note_off next_note_on event addr =
     case event_pitch_at (event_pb_range event) event (event_start event) of
         Nothing -> ([LEvent.Log $ event_warning event "no pitch signal"],
             prev_note_off)
@@ -429,7 +432,16 @@ perform_note prev_note_off event addr =
     -- big function.  Splitting it apart led to a bit of duplicated work but
     -- hopefully it's easier to understand this way.
     _note_msgs = perform_note_msgs event addr
-    _control_msgs = perform_control_msgs prev_note_off event addr
+    _control_msgs =
+        perform_control_msgs prev_note_off next_note_cutoff event addr
+    -- Drop msgs that would overlap with the next note on.
+    -- The controls after the note off are clipped to make room for the next
+    -- note's leading controls.  Lead time will get pushed forward if the
+    -- note really is adjacent, but if it's supposedly off then it's lower
+    -- priority and I can clip off its controls.  Otherwise, the lead-time
+    -- controls get messed up by controls from the last note.
+    next_note_cutoff = max (event_end event) . subtract control_lead_time <$>
+        next_note_on
 
 -- | Perform the note on and note off.
 perform_note_msgs :: Event -> Instrument.Addr -> Midi.Key
@@ -448,11 +460,12 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     chan_msg pos msg = Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)
 
 -- | Perform control change messages.
-perform_control_msgs :: RealTime -> Event -> Instrument.Addr -> Midi.Key
-    -> MidiEvents
-perform_control_msgs prev_note_off event (dev, chan) midi_nn =
-    map LEvent.Event control_msgs ++ map LEvent.Log warns
+perform_control_msgs :: RealTime -> Maybe RealTime -> Event -> Instrument.Addr
+    -> Midi.Key -> MidiEvents
+perform_control_msgs prev_note_off next_note_on event (dev, chan) midi_nn =
+    map LEvent.Event (trim control_msgs) ++ map LEvent.Log warns
     where
+    trim = maybe id (\t -> takeWhile ((<t) . Midi.wmsg_ts)) next_note_on
     control_msgs = merge_messages $
         map (map chan_msg) (pitch_pos_msgs : control_pos_msgs)
     control_sigs = Map.assocs (event_controls event)

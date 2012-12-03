@@ -31,22 +31,20 @@ import Types
 -- * perform
 
 test_perform = do
-    let t_perform events = do
-        let evts = Seq.sort_on Perform.event_start (concatMap mkevents events)
-        -- pprint evts
-        let (msgs, warns) = perform midi_config2 evts
-        -- print_msgs msgs
-        -- putStrLn ""
-        equal warns []
-        return (map unpack_msg (filter (Midi.is_note . Midi.wmsg_msg) msgs))
+    let f events = do
+            let (msgs, warns) = perform midi_config2 $
+                    Seq.sort_on Perform.event_start (map mkevent events)
+            equal warns []
+            return $ extract msgs
+        extract = map extract_msg . filter (Midi.is_note . Midi.wmsg_msg)
 
     -- fractional notes get their own channels
-    msgs <- t_perform
-        [ [ (inst1, "a", 0, 1, [])
+    msgs <- f
+        [ (inst1, "a", 0, 1, [])
         , (inst1, "a2", 1, 1, [])
         , (inst1, "b", 2, 1, [])
         , (inst1, "b2", 3, 1, [])
-        ] ]
+        ]
     equal msgs
         [ ("dev1", 0.0, 0, NoteOn 60 100)
         , ("dev1", 1.0, 0, NoteOff 60 100)
@@ -62,10 +60,10 @@ test_perform = do
         ]
 
     -- channel 0 reused for inst1, inst2 gets its own channel
-    msgs <- t_perform
-        [ [(inst1, "a", 0, 1, [])]
-        , [(inst1, "b", 0, 1, [])]
-        , [(inst2, "c", 0, 1, [])]
+    msgs <- f
+        [ (inst1, "a", 0, 1, [])
+        , (inst1, "b", 0, 1, [])
+        , (inst2, "c", 0, 1, [])
         ]
     equal msgs
         [ ("dev1", 0.0, 0, NoteOn 60 100)
@@ -77,9 +75,9 @@ test_perform = do
         ]
 
     -- identical notes get split across channels 0 and 1
-    msgs <- t_perform
-        [ [(inst1, "a", 0, 2, [])]
-        , [(inst1, "a", 1, 2, [])]
+    msgs <- f
+        [ (inst1, "a", 0, 2, [])
+        , (inst1, "a", 1, 2, [])
         ]
     equal msgs
         [ ("dev1", 0.0, 0, NoteOn 60 100)
@@ -90,11 +88,11 @@ test_perform = do
         ]
 
     -- velocity curve shows up in NoteOns and NoteOffs
-    let c_vel = (Control.c_velocity, mksignal [(0, 1), (4, 0)])
-    msgs <- t_perform
-        [ [ (inst1, "a", 0, 2, [c_vel])
+    let c_vel = (Control.c_velocity, linear_interp [(0, 1), (4, 0)])
+    msgs <- f
+        [ (inst1, "a", 0, 2, [c_vel])
         , (inst1, "b", 2, 2, [c_vel])
-        ] ]
+        ]
     equal msgs
         [ ("dev1", 0, 0, NoteOn 60 127)
         , ("dev1", 2, 0, NoteOff 60 64)
@@ -102,17 +100,60 @@ test_perform = do
         , ("dev1", 4, 0, NoteOff 61 0)
         ]
 
-    -- Legato does not apply to consecutive notes with the same pitch, since
-    -- that makes the NoteOff abiguous.
-    msgs <- t_perform
-        [ [ (inst1, "a", 0, 1, [])
+    -- Consecutive notes with the same pitch have NoteOff / NoteOn in the right
+    -- order.
+    msgs <- f
+        [ (inst1, "a", 0, 1, [])
         , (inst1, "a", 1, 1, [])
-        ] ]
+        ]
     equal msgs
         [ ("dev1", 0.0, 0, NoteOn 60 100)
         , ("dev1", 1.0, 0, NoteOff 60 100)
         , ("dev1", 1.0, 0, NoteOn 60 100)
         , ("dev1", 2.0, 0, NoteOff 60 100)
+        ]
+
+test_controls_after_note_off = do
+    -- Test that controls happen during note off, but don't interfere with
+    -- other notes.  This corresponds to the comment in 'Perform.perform_note'.
+    let f = map extract . fst . perform midi_config2 . map mkevent
+        extract msg = case extract_msg msg of
+            (_, start, _, m) -> (start, m)
+        sig xs = [(vol_cc, Signal.signal xs)]
+    let msgs = f
+            [ (inst2, "a", 0, 1, sig [(0, 1), (1.95, 0.5)])
+            , (inst2, "b", 2, 1, sig [(2, 1)])
+            ]
+    -- Signal at 1.95 dropped because of the next note on.
+    equal msgs
+        [ (0, PitchBend 0), (0, ControlChange 7 127), (0, NoteOn 60 100)
+        , (1, NoteOff 60 100)
+        , (2, NoteOn 61 100), (3, NoteOff 61 100)
+        ]
+
+    let msgs = f
+            [ (inst2, "a", 0, 2, sig [(0, 1), (1.95, 0.5)])
+            , (inst2, "b", 2, 1, sig [(2, 1)])
+            ]
+    -- But not this time.
+    equal msgs
+        [ (0, PitchBend 0), (0, ControlChange 7 127), (0, NoteOn 60 100)
+        , (1.95, ControlChange 7 64)
+        , (2, NoteOff 60 100)
+        , (2, ControlChange 7 127), (2, NoteOn 61 100), (3, NoteOff 61 100)
+        ]
+
+    let msgs = f
+            [ (inst2, "a", 0, 1, sig [(0, 1), (1.5, 0.5)])
+            , (inst2, "b", 2, 1, sig [(2, 1)])
+            ]
+    -- Room enough for both.
+    equal msgs
+        [ (0, PitchBend 0), (0, ControlChange 7 127), (0, NoteOn 60 100)
+        , (1, NoteOff 60 100)
+        , (1.5, ControlChange 7 64)
+        , (1.9, ControlChange 7 127)
+        , (2, NoteOn 61 100), (3, NoteOff 61 100)
         ]
 
 test_control_lead_time = do
@@ -134,7 +175,7 @@ test_control_lead_time = do
         , (8000, 1, NoteOff 61 100)
         ], [])
 
-    let vol = (vol_cc, mksignal [(4, 0), (6, 1)])
+    let vol = (vol_cc, linear_interp [(4, 0), (6, 1)])
     equal (f [("a", 0, 4, []), ("b", 4, 4, [vol])])
         ([ (0, 0, PitchBend 0)
         , (0, 0, NoteOn 60 100)
@@ -174,7 +215,7 @@ test_control_lead_time = do
         ], [])
 
 -- Bad signal that goes over 1 at 1 and 3.
-badsig cont = (cont, mksignal [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
+badsig cont = (cont, linear_interp [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
 
 test_clip_warns = do
     let events = [mkevent (inst1, "a", 0, 4, [badsig vol_cc])]
@@ -202,9 +243,11 @@ all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
 midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
 midi_cc_of _ = Nothing
 
-unpack_msg (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) =
+extract_msg :: Midi.WriteMessage -> (String, Double, Midi.Channel,
+    Midi.ChannelMessage)
+extract_msg (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) =
     (Pretty.pretty dev, RealTime.to_seconds ts, chan, msg)
-unpack_msg (Midi.WriteMessage _ _ msg) = error $ "unknown msg: " ++ show msg
+extract_msg (Midi.WriteMessage _ _ msg) = error $ "unknown msg: " ++ show msg
 
 test_perform_lazy = do
     let perform evts = perform_notes [(evt, (dev1, 0)) | evt <- evts]
@@ -233,7 +276,7 @@ test_pitch_curve = do
     let f evt = Seq.drop_dups id (map Midi.wmsg_msg msgs)
             where
             msgs = LEvent.events_of $ fst $
-                Perform.perform_note 0 evt (dev1, 1)
+                Perform.perform_note 0 Nothing evt (dev1, 1)
         chan msgs = map (Midi.ChannelMessage 1) msgs
 
     equal (f (event [(1, 42.5)]))
@@ -250,7 +293,7 @@ test_pitch_curve = do
     let notes prev evt = [(Midi.wmsg_ts msg, Midi.wmsg_msg msg) | msg <- msgs]
             where
             msgs = LEvent.events_of $ fst $
-                Perform.perform_note (secs prev) evt (dev1, 1)
+                Perform.perform_note (secs prev) Nothing evt (dev1, 1)
     -- Try to use the control_lead_time unless the previous note is too close.
     equal (head (notes 0 (event [(1, 42.5)])))
         (0.9, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
@@ -399,7 +442,8 @@ test_drop_dup_controls = do
 
 test_perform_control = do
     -- Bad signal that goes over 1 in two places.
-    let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
+    let sig = (vol_cc, linear_interp
+            [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
         (msgs, warns) = Perform.perform_control Control.empty_map
             (secs 0) (secs 0) sig
 
@@ -579,8 +623,10 @@ secs = RealTime.seconds
 
 -- | Name will determine the pitch.  It can be a-z, or a2-z2, which will
 -- yield fractional pitches.
-type EventSpec = (Instrument.Instrument, String, RealTime, RealTime,
-    [(Control.Control, Signal.Control)])
+--
+-- (inst, text, start, dur, controls)
+type EventSpec = (Instrument.Instrument, String, RealTime, RealTime, [Control])
+type Control = (Control.Control, Signal.Control)
 
 mkevent :: EventSpec -> Perform.Event
 mkevent (inst, pitch, start, dur, controls) =
@@ -592,23 +638,30 @@ mkevent (inst, pitch, start, dur, controls) =
     pitch_map = zip (map (:"") ['a'..'z']) [60..]
         ++ zip (map (:"2") ['a'..'z']) [60.5..]
 
--- Similar to mkevent, but allow a pitch curve.
+-- | Similar to mkevent, but allow a pitch curve.
+mkpevent :: (RealTime, RealTime, [(Signal.X, Signal.Y)],
+        [(String, [(Signal.X, Signal.Y)])])
+    -> Perform.Event
 mkpevent (start, dur, psig, conts) =
     Perform.Event inst1 start dur (mkcontrols conts) (Signal.signal psig)
         Stack.empty
 
+mkevents_inst :: [(String, RealTime, RealTime, [Control])] -> [Perform.Event]
 mkevents_inst = map (\(a, b, c, d) -> mkevent (inst1, a, b, c, d))
 
 mkevents :: [EventSpec] -> [Perform.Event]
 mkevents = map mkevent
 
-mkcontrols :: [(String, [(RealTime, Signal.Y)])] -> Perform.ControlMap
+set_inst :: Instrument.Instrument -> Perform.Event -> Perform.Event
+set_inst inst event = event { Perform.event_instrument = inst }
+
+mkcontrols :: [(String, [(Signal.X, Signal.Y)])] -> Perform.ControlMap
 mkcontrols csigs = Map.fromList
     [(Control.Control c, Signal.signal sig) | (c, sig) <- csigs]
 
 -- | Make a signal with linear interpolation between the points.
-mksignal :: [(RealTime, Signal.Y)] -> Signal.Control
-mksignal = Signal.signal . interpolate
+linear_interp :: [(Signal.X, Signal.Y)] -> Signal.Control
+linear_interp = Signal.signal . interpolate
     where
     interpolate :: [(RealTime, Signal.Y)] -> [(RealTime, Signal.Y)]
     interpolate ((x0, y0) : rest@((x1, y1) : _))
