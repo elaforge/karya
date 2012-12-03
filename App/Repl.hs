@@ -47,9 +47,7 @@ repl term =
 
 format_response :: String -> String
 format_response "()" = ""
-format_response s
-    | Seq.count '\n' s <= 1 = s
-    | otherwise = PPrint.format_str s
+format_response s = PPrint.format_str s
 
 while :: (Monad m) => m Bool -> m ()
 while action = do
