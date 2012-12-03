@@ -143,8 +143,7 @@ type FindEvents = Ptr ScoreTime -> Ptr ScoreTime
     -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
 
 cb_find_events :: SetStyle -> [Events.Events] -> FindEvents
-cb_find_events set_style event_lists startp endp ret_events
-        ret_ranks = do
+cb_find_events set_style event_lists startp endp ret_events ret_ranks = do
     start <- peek startp
     end <- peek endp
     let (events, ranks) = unzip $ Seq.sort_on key

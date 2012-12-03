@@ -28,15 +28,24 @@ UNSORTED
       a ks with up and a ks with down.
     * fix instruments whose keyswitches are above rather than below
     / add level 2 samples
-  - Score.instrument should strip invalid chars
-  - see if directly modifying Derive.Collect instead of merging new ones
-    helps performance
+  / Score.instrument should strip invalid chars
+    The thing is, MidiDb strips them before joining them with the synth name.
   * make Id a ByteString instead of String, that should speed up (==)
   * shake does a complete rebuild if I build something else
     what's going on?  Is it related to the hsconfig.h change?
   and scrolling the giant block is super slow!
     * profile says it's in Perf.find_play_pos
     - drawing is stil slow, I'll have to look at the fltk layer
+      It happens when the block is wide.  Use test_block to see if it's just
+      fltk.
+      . It's fltk.  Not alpha draw though.
+      Scrolling is weirdly chunky near the top when fl_scroll() is on.
+      Curiously it doesn't seem to help at all.
+    - Would it be faster to call fl_scroll once for all the tracks?  I could
+      also theoretically call find_events all at once too, though that
+      shows up low on the profile, so maybe it's not a big deal.
+    . The thing is, it seems like fl_scroll doesn't actually help scrolling
+      speed at all.  Maybe all the time is spent elsewhere?
 
   * browser: show keyswitches in a nice tabular format
   * I have my old scores saved as MIDI, right?  Write a MIDI loader?
@@ -397,14 +406,16 @@ MILESTONES
     + lilypond backend
     + documentation
   future
+    - OSC output, and OSC-using instruments, e.g. faust-stk
+    - custom sampler / vst host with high resolution OSC or MIDI?
+    - more complicated control curve calls, e.g. splines
+    - mouse oriented signal editing
     - Unify environ, controls, and pitch signals by making signals of
       arbitrary type.
     - Lazy signals?
     - print scores
-    - mouse oriented signal editing
     - render audio
     - include audio inline
-    - custom sampler / vst host with high resolution OSC or MIDI?
 
 ----------------------------------------------------------------------
 

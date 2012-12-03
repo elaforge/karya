@@ -67,11 +67,11 @@ detached_local modify_state deriver = do
     return result
 
 -- | Collect is only ever accumulated.
+--
+-- Direct modification would be potentially more efficient, but according to
+-- profiling it doesn't make a difference.
 merge_collect :: Collect -> Deriver ()
 merge_collect c = modify $ \st -> st { state_collect = c <> state_collect st }
-
-modify_collect :: (Collect -> Collect) -> Deriver ()
-modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
 
 -- * environ
 

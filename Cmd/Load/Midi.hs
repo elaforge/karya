@@ -19,7 +19,6 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
-import Util.Pretty (pprint)
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -82,13 +81,6 @@ parse fn = either (Left . show_error) Right <$> Z.readMidi fn
 convert :: Z.MidiFile -> ([(String, Track)], Skeleton.Skeleton, [String])
 convert = extract . convert_tracks . extract_tracks
     where extract (tracks, skel, warns) = (tracks, skel, warns)
-
-test = do
-    let fn = "pno_vla2.mid"
-    Right m@(Z.MidiFile header _) <- parse fn
-    -- return (map Z.getTrackMessages tracks)
-    -- return (header, extract_tracks m)
-    return (convert m)
 
 -- * extract
 
