@@ -31,7 +31,7 @@ module Ui.Event (
     , intern_event
     -- * start, duration
     , end, min, max, range, overlaps
-    , move, place, set_duration, modify_duration
+    , move, place, set_duration, modify_duration, modify_end
     , positive, negative
     -- * stack
     , set_stack, strip_stack
@@ -176,6 +176,10 @@ set_duration dur event
 
 modify_duration :: (ScoreTime -> ScoreTime) -> Event -> Event
 modify_duration f evt = set_duration (f (duration evt)) evt
+
+modify_end :: (ScoreTime -> ScoreTime) -> Event -> Event
+modify_end f evt =
+    modify_duration (\dur -> f (start evt + dur) - start evt) evt
 
 -- | 0 is considered both positive and negative because they're ambiguous.
 -- For example, Track._split_range which includes them in both ends.
