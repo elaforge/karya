@@ -58,7 +58,7 @@ rename = Create.rename_block
 replace :: BlockId -> BlockId -> Cmd.CmdL ()
 replace from to = do
     block_id <- Cmd.get_focused_block
-    ModifyEvents.block_tracks block_id $ ModifyEvents.track_text $
+    ModifyEvents.block block_id $ ModifyEvents.text $
         replace_block_call from to
 
 replace_block_call :: BlockId -> BlockId -> String -> String
@@ -128,19 +128,17 @@ create_merged b1 b2 = do
 -- * stretch
 
 stretch_block :: ScoreTime -> BlockId -> Cmd.CmdL ()
-stretch_block factor block_id =
-    ModifyEvents.block_tracks block_id $
-        ModifyEvents.track_events (stretch factor)
+stretch_block factor block_id = ModifyEvents.block block_id $
+    ModifyEvents.event (stretch factor)
 
-stretch :: (Monad m) => ScoreTime -> ModifyEvents.PosEvent m
-stretch factor =
-    ModifyEvents.event (Event.move (*factor) . Event.modify_duration (*factor))
+stretch :: ScoreTime -> ModifyEvents.Event
+stretch factor = Event.move (*factor) . Event.modify_duration (*factor)
 
 -- * pitch
 
 simplify_block_enharmonics :: BlockId -> Cmd.CmdL ()
 simplify_block_enharmonics block_id =
-    ModifyEvents.block_tracks block_id simplify_enharmonics
+    ModifyEvents.block block_id simplify_enharmonics
 
 -- | This only works for Twelve at the moment.  For it to work for any scale
 -- I need a way to parse to Theory.Pitch.  Can't use scale_enharmonics because

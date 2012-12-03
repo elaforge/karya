@@ -194,7 +194,7 @@ cycle_enharmonics scale maybe_key note = show_err $ do
     return $ fromMaybe note (Seq.head enharmonics)
 
 pitches :: (Cmd.M m) => ModifyPitch -> m ()
-pitches = ModifyEvents.tracks . pitch_tracks
+pitches = ModifyEvents.selection . pitch_tracks
 
 -- | Apply a ModifyPitch to only pitch tracks.
 pitch_tracks :: (Cmd.M m) => ModifyPitch -> ModifyEvents.Track m

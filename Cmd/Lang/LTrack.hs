@@ -4,9 +4,7 @@ module Cmd.Lang.LTrack where
 import qualified Data.Set as Set
 
 import Util.Control
-import qualified Util.ParseBs as ParseBs
 import qualified Util.Seq as Seq
-
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -75,26 +73,22 @@ map_block_titles block_id f = do
     tids <- map State.track_id <$> TrackTree.tracks_of block_id
     mapM_ (flip State.modify_track_title f) tids
 
-replace x y val
-    | val == x = y
-    | otherwise = val
-
 -- * control tracks
 
 map_control_val :: String -> (Signal.Y -> Signal.Y) -> Cmd.CmdL ()
-map_control_val name f = ModifyEvents.tracks $
-    ModifyEvents.tracks_named (==name) $ ModifyEvents.track_text $ \text ->
+map_control_val name f = ModifyEvents.selection $
+    ModifyEvents.tracks_named (==name) $ ModifyEvents.text $ \text ->
         fromMaybe text (ControlTrack.modify_val f text)
 
 score_to_hex :: Cmd.CmdL ()
 score_to_hex = ModifyEvents.all_blocks $
     ModifyEvents.tracks_named TrackInfo.is_signal_track $
-        ModifyEvents.track_text to_hex
+        ModifyEvents.text to_hex
 
 block_to_hex :: BlockId -> Cmd.CmdL ()
-block_to_hex block_id = ModifyEvents.block_tracks block_id $
+block_to_hex block_id = ModifyEvents.block block_id $
     ModifyEvents.tracks_named TrackInfo.is_signal_track $
-        ModifyEvents.track_text to_hex
+        ModifyEvents.text to_hex
 
 to_hex :: String -> String
 to_hex text = case Derive.ParseBs.parse_val val of
@@ -114,27 +108,8 @@ events track_id start end = do
 
 -- * strip controls
 
--- | Strip repeated controls, e.g. @.5@ followed by @.5@.
-strip_block_controls :: BlockId -> Cmd.CmdL ()
-strip_block_controls block_id =
-    ModifyEvents.block_tracks block_id strip_track_controls
-
-strip_track_controls :: (Cmd.M m) => ModifyEvents.Track m
-strip_track_controls _ track_id events = do
-    title <- State.get_track_title track_id
-    return $ if TrackInfo.is_signal_track title
-        then Just (strip_controls events)
-        else Nothing
-
-strip_controls :: [Event.Event] -> [Event.Event]
-strip_controls = map snd . filter same . Seq.zip_prev
-    where
-    same (Nothing, _) = True
-    same (Just prev, cur) = not $ is_set (str prev) && str prev == str cur
-    str = Event.event_bytestring
-    is_set = right . ParseBs.parse_all ParseBs.p_float
-    right (Right _) = True -- why isn't this in Data.Either?
-    right (Left _) = False
+drop_dups :: (Cmd.M m) => ModifyEvents.Events m
+drop_dups = return . Seq.drop_dups Event.event_bytestring
 
 
 -- * signal render

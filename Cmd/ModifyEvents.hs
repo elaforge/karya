@@ -13,21 +13,24 @@ import qualified Derive.TrackInfo as TrackInfo
 import Types
 
 
--- | Replace an event with zero or more events.
-type PosEvent m = Event.Event -> m [Event.Event]
-
--- | Map a function over the selected events, passing the track id.  Returning
--- Nothing will leave the track unchanged.
+-- | Map a function over events on a certain track.  Returning Nothing will
+-- leave the track unchanged.
 type Track m = BlockId -> TrackId -> [Event.Event] -> m (Maybe [Event.Event])
 
--- | The transformation functions take the most general 'PosEvent', but most
--- uses won't need that generality, so these functions convert to more specific
--- usage.
-event :: (Monad m) => (Event.Event -> Event.Event) -> PosEvent m
-event f = \event -> return [f event]
+-- | Map a function over a set of events.
+type Events m = [Event.Event] -> m [Event.Event]
 
-text :: (Monad m) => (String -> String) -> PosEvent m
-text f = \event -> return [Event.modify_string f event]
+type Event = Event.Event -> Event.Event
+
+events :: (Monad m) => Events m -> Track m
+events f _ _ = liftM Just . f
+
+-- | Many transforms don't need the generality of 'Track' or 'Events'.
+event :: (Monad m) => Event -> Track m
+event f = events (return . map f)
+
+text :: (Monad m) => (String -> String) -> Track m
+text = event . Event.modify_string
 
 -- | Take a text transformation that can fail to a Track transformation that
 -- transforms all the events and throws if any of the text transformations
@@ -45,29 +48,12 @@ failable_texts f block_id track_id events = do
         Left err -> Left (err, event)
         Right text -> Right $ Event.set_string text event
 
--- | Convert a PosEvent function to work on a Track.
-track_events :: (Monad m) => PosEvent m -> Track m
-track_events f = \_bid _tid events -> (liftM (Just . concat) (mapM f events))
-
-track_text :: (Monad m) => (String -> String) -> Track m
-track_text = track_events . text
-
 
 -- * modify selections
 
 -- | Map a function over the selected events.
-events :: (Cmd.M m) => PosEvent m -> m ()
-events f = do
-    selected <- Selection.events
-    block_id <- Cmd.get_focused_block
-    forM_ selected $ \(track_id, (start, end), events) -> do
-        State.remove_events track_id start end
-        events <- concatMapM f events
-        State.insert_block_events block_id track_id events
-
--- | Map a function over the selected tracks.
-tracks :: (Cmd.M m) => Track m -> m ()
-tracks f = do
+selection :: (Cmd.M m) => Track m -> m ()
+selection f = do
     selected <- Selection.events
     block_id <- Cmd.get_focused_block
     forM_ selected $ \(track_id, (start, end), events) -> do
@@ -78,7 +64,7 @@ tracks f = do
                 State.insert_block_events block_id track_id new_events
             Nothing -> return ()
 
--- | Make a 'PosEvent' into a 'Track' that only maps over certain named tracks.
+-- | Map over tracks whose name matches the predicate.
 tracks_named :: (Cmd.M m) => (String -> Bool) -> Track m -> Track m
 tracks_named wanted f = \block_id track_id events ->
     ifM (not . wanted <$> State.get_track_title track_id)
@@ -86,20 +72,20 @@ tracks_named wanted f = \block_id track_id events ->
 
 -- | Like 'tracks' but only for note tracks.
 note_tracks :: (Cmd.M m) => Track m -> m ()
-note_tracks = tracks . tracks_named TrackInfo.is_note_track
+note_tracks = selection . tracks_named TrackInfo.is_note_track
 
 control_tracks :: (Cmd.M m) => Track m -> m ()
-control_tracks = tracks . tracks_named TrackInfo.is_signal_track
+control_tracks = selection . tracks_named TrackInfo.is_signal_track
 
 pitch_tracks :: (Cmd.M m) => Track m -> m ()
-pitch_tracks = tracks . tracks_named TrackInfo.is_pitch_track
+pitch_tracks = selection . tracks_named TrackInfo.is_pitch_track
 
 
 -- * block tracks
 
--- | Like 'tracks', but maps over an entire block.
-block_tracks :: (Cmd.M m) => BlockId -> Track m -> m ()
-block_tracks block_id f = do
+-- | Like 'selection', but maps over an entire block.
+block :: (Cmd.M m) => BlockId -> Track m -> m ()
+block block_id f = do
     track_ids <- Block.block_track_ids <$> State.get_block block_id
     forM_ track_ids $ \track_id -> do
         events <- State.get_all_events track_id
@@ -108,7 +94,7 @@ block_tracks block_id f = do
             =<< f block_id track_id events
 
 all_blocks :: (Cmd.M m) => Track m -> m ()
-all_blocks f = mapM_ (flip block_tracks f) =<< State.all_block_ids
+all_blocks f = mapM_ (flip block f) =<< State.all_block_ids
 
 
 -- * misc

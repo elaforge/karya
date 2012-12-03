@@ -141,8 +141,8 @@ cmd_set_duration = do
     (if Types.sel_is_point sel then set_prev_dur else set_sel_dur)
         (snd (Types.sel_range sel))
     where
-    set_sel_dur sel_pos = ModifyEvents.events $ ModifyEvents.event $ \event ->
-        set_dur (sel_pos - Event.start event) event
+    set_sel_dur sel_pos = ModifyEvents.selection $ ModifyEvents.event $
+        \event -> set_dur (sel_pos - Event.start event) event
     set_prev_dur sel_pos = do
         -- Wow it's a lot of work as soon as it's not the standard selection.
         (_, _, track_ids, _, _) <- Selection.tracks
@@ -162,7 +162,7 @@ cmd_toggle_zero_duration = do
     (_, sel) <- Selection.get
     let point = Selection.point sel
     (_, end) <- expand_range [Selection.point_track sel] point point
-    ModifyEvents.events $ ModifyEvents.event (toggle end point)
+    ModifyEvents.selection $ ModifyEvents.event (toggle end point)
     where
     toggle end point event
         | Event.duration event /= 0 = Event.set_duration 0 event
@@ -212,7 +212,7 @@ cmd_set_beginning = do
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
 cmd_modify_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
-cmd_modify_dur f = ModifyEvents.events  $ ModifyEvents.event $ \evt ->
+cmd_modify_dur f = ModifyEvents.selection  $ ModifyEvents.event $ \evt ->
     Event.set_duration (apply (Event.duration evt)) evt
     where apply dur = if dur == 0 then dur else f dur
 

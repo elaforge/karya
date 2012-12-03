@@ -34,10 +34,10 @@ nn_to_note key = Scale.scale_input_to_note Twelve.scale Nothing
 
 -- TODO these should invert position of control events too
 to_negative, to_positive :: Cmd.CmdL ()
-to_negative = ModifyEvents.events $ \evt ->
-    return [if Event.negative evt then evt else negate_event evt]
-to_positive = ModifyEvents.events $ \evt ->
-    return [if Event.positive evt then evt else negate_event evt]
+to_negative = ModifyEvents.selection $ ModifyEvents.event $ \evt ->
+    if Event.negative evt then evt else negate_event evt
+to_positive = ModifyEvents.selection $ ModifyEvents.event $ \evt ->
+    if Event.positive evt then evt else negate_event evt
 
 negate_event :: Event.Event -> Event.Event
 negate_event event =
@@ -63,7 +63,7 @@ transpose_all octs steps = ModifyEvents.all_blocks $ PitchTrack.pitch_tracks $
 -- subtracting all the notes from the given base note.
 to_relative :: Bool -> String -> Cmd.CmdL ()
 to_relative diatonic note_s =
-    ModifyEvents.tracks $ \block_id track_id events -> do
+    ModifyEvents.selection $ \block_id track_id events -> do
         -- This is tricky because it's converting a pitch track to a control
         -- track, and hoping the same calls apply.
         let base = Pitch.Note note_s
