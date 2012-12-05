@@ -19,7 +19,7 @@ test_random = do
     check (run 0 rand /= run 1 rand)
     check $ run 2 (Internal.with_stack_region 0 1 rand)
         /= run 2 (Internal.with_stack_region 1 1 rand)
-    equal (run 0 (Util.shuffle ['a'..'f'])) (Right "aebcdf") -- ya ya ya :)
+    equal (run 0 (Util.shuffle ['a'..'f'])) (Right "ebdfca") -- ya ya ya :)
 
 test_c_equal = do
     -- Test the '=' call, but also test the special parsing Derive.Note deriver

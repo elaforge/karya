@@ -17,6 +17,7 @@ import qualified Prelude
 import Prelude hiding (length)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
+import qualified Data.Hashable as Hashable
 import qualified Text.Read as Read
 
 import Util.Control
@@ -40,7 +41,7 @@ import Types
 -- I originally used "Data.Sequence" but it generates more garbage and
 -- I couldn't figure out how to stop that from happening.
 newtype Stack = Stack [Frame]
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, Hashable.Hashable)
 
 instance Show Stack where
     show stack = "Stack.from_outermost " ++ show (outermost stack)
@@ -140,6 +141,12 @@ instance Serialize.Serialize Frame where
                 s :: String <- Serialize.get
                 return $ Call s
             _ -> Serialize.bad_tag "Stack.Frame" tag
+
+instance Hashable.Hashable Frame where
+    hash (Block block_id) = Hashable.hash block_id
+    hash (Track track_id) = Hashable.hash track_id
+    hash (Region s e) = Hashable.hash s `Hashable.hashWithSalt` e
+    hash (Call call) = Hashable.hash call
 
 format_ui :: Stack -> Pretty.Doc
 format_ui = Pretty.text_list . map unparse_ui_frame . to_ui

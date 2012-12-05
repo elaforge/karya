@@ -14,6 +14,7 @@ module Ui.Types (
     , sel_range, sel_set_duration
 ) where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Hashable as Hashable
 import Text.Read -- for Read class with readPrec
 import Foreign
 import Foreign.C
@@ -101,17 +102,17 @@ zoom_to_time zoom pixels =
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
 newtype BlockId = BlockId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, Hashable.Hashable)
 
 -- | Reference to a View, as per 'BlockId'.
 newtype ViewId = ViewId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, Hashable.Hashable)
 
 newtype TrackId = TrackId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, Hashable.Hashable)
 
 newtype RulerId = RulerId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, Hashable.Hashable)
 
 instance Show BlockId where show = Id.show_ident
 instance Show ViewId where show = Id.show_ident

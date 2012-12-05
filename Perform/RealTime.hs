@@ -45,6 +45,7 @@ module Perform.RealTime (
 ) where
 import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Hashable as Hashable
 import qualified Foreign
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
@@ -62,7 +63,7 @@ import qualified Ui.ScoreTime as ScoreTime
 -- RealTime.
 newtype RealTime = RealTime Double
     deriving (DeepSeq.NFData, Foreign.Storable, Num, Fractional, Real, Eq, Ord,
-        Serialize.Serialize)
+        Serialize.Serialize, Hashable.Hashable)
 
 -- | This loses precision so show /= read, but no one should be relying on that
 -- anyway.

@@ -28,6 +28,8 @@ import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
+import qualified Data.Hashable as Hashable
+
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 import qualified Text.Read as Read
@@ -42,7 +44,7 @@ import qualified Util.Serialize as Serialize
 -- It doesn't so much belong in this module, but Ui.Block etc. all use it and
 -- it's easier to put it here than make a whole new module.
 newtype Namespace = Namespace B.ByteString
-    deriving (Eq, Ord, Show, Read, DeepSeq.NFData)
+    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Hashable.Hashable)
 data Id = Id !Namespace !B.ByteString
     deriving (Eq, Ord, Show, Read)
 
@@ -53,6 +55,9 @@ instance Serialize.Serialize Id where
 instance Serialize.Serialize Namespace where
     put = Serialize.put . un_namespace
     get = Serialize.get >>= \a -> return (unsafe_namespace a)
+
+instance Hashable.Hashable Id where
+    hash (Id ns name) = Hashable.hash ns `Hashable.hashWithSalt` name
 
 -- | Create a namespace, if the characters are valid.
 namespace :: String -> Maybe Namespace

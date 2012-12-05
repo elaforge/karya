@@ -338,10 +338,10 @@ _make_randoms f = do
 _random_generator :: ScoreTime -> Derive.Deriver Pure64.PureMT
 _random_generator pos = do
     seed <- Derive.lookup_val TrackLang.v_seed :: Derive.Deriver (Maybe Double)
-    stack <- Stack.innermost <$> Derive.get_stack
-    let cseed = Hashable.hash (map show stack)
+    stack <- Derive.get_stack
+    let cseed = Hashable.hash stack
             `Hashable.hashWithSalt` fromMaybe 0 seed
-            `Hashable.hashWithSalt` ScoreTime.to_double pos
+            `Hashable.hashWithSalt` pos
     return $ Pure64.pureMT (fromIntegral cseed)
 
 -- * time
