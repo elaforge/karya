@@ -32,7 +32,7 @@ module Util.Test (
     -- * pretty printing
     , printf
     , plist, pslist, pmlist
-    , module PPrint
+    , prettyp, PPrint.pprint
 
     -- * debugging
     , module Debug
@@ -56,10 +56,9 @@ import qualified System.Posix.Terminal as Terminal
 import Text.Printf
 
 import qualified Util.ApproxEq as ApproxEq
--- avoid ghci bug where a new import messes it up
--- besides, it's useful to re-export this for tests
 import Util.Debug as Debug
-import Util.PPrint as PPrint
+import qualified Util.PPrint as PPrint
+import qualified Util.Pretty as Pretty
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
@@ -227,7 +226,7 @@ left_like_srcpos srcpos gotten expected = case gotten of
 
 -- | This is a simplified pattern that only has the @*@ operator, which is
 -- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
--- to write.
+-- to write.  You can escape @*@ with a backslash.
 pattern_matches :: String -> String -> Bool
 pattern_matches pattern s = not $ null $
     Regex.find_groups (pattern_to_reg pattern) s
@@ -236,7 +235,7 @@ pattern_to_reg :: String -> Regex.Regex
 pattern_to_reg = Regex.make . mkstar . Regex.escape
     where
     mkstar "" = ""
-    mkstar ('\\' : '\\' : '*' : cs) = '\\' : '*' : mkstar cs
+    mkstar ('\\' : '\\' : '\\' : '*' : cs) = '\\' : '*' : mkstar cs
     mkstar ('\\' : '*' : cs) = '.' : '*' : '?' : mkstar cs
     mkstar (c : cs) = c : mkstar cs
 
@@ -356,6 +355,9 @@ pmlist :: (Show a) => String -> [a] -> IO ()
 pmlist msg xs
     | null xs = return ()
     | otherwise = putStrLn (msg++":") >> plist xs
+
+prettyp :: (Pretty.Pretty a) => a -> IO ()
+prettyp = Pretty.pprint
 
 
 -- These used to write to stderr, but the rest of the diagnostic output goes to
