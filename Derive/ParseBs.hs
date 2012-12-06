@@ -222,9 +222,9 @@ p_string = p_single_string <?> "string"
 -- force some standardization on the names.
 p_rel_attr :: A.Parser TrackLang.RelativeAttr
 p_rel_attr = do
-    let as m c = A.char c >> return m
-    mode <- A.choice
-        [as TrackLang.Add '+', as TrackLang.Remove '-', as TrackLang.Set '=']
+    mode <- (A.char '+' *> return TrackLang.Add)
+        <|> (A.char '-' *> return TrackLang.Remove)
+        <|> (A.char '=' *> return TrackLang.Set)
     attr <- case mode of
         TrackLang.Set -> (A.char '-' >> return "") <|> p_identifier ""
         _ -> p_identifier ""
