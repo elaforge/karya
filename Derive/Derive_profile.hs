@@ -92,6 +92,11 @@ profile_bloom_derive =
 profile_bloom_perform =
     profile_saved True "prof/bloom" (UiTest.bid "bloom/order")
 
+profile_pnovla_derive =
+    profile_saved False "prof/pnovla.state" (UiTest.bid "pnovla2/b1")
+profile_pnovla_perform =
+    profile_saved True "prof/pnovla.state" (UiTest.bid "pnovla2/b1")
+
 -- * make states
 
 make_nested_notes :: (State.M m) => Int -> Int -> Int -> m ()
@@ -144,9 +149,9 @@ profile_saved with_perform fname block_id = do
     state <- case result of
         Left err -> error $ "loading " ++ show fname ++ ": " ++ err
         Right (Serialize.SaveState state _) -> return state
-    let look = DeriveTest.lookup_from_state state
+    let lookup = DeriveTest.lookup_from_state state
     if with_perform
-        then replicateM_ 6 $ run_profile (Just look) block_id state
+        then replicateM_ 6 $ run_profile (Just lookup) block_id state
         else replicateM_ 6 $ run_profile Nothing block_id state
 
 derive_size :: State.StateId a -> IO ()
