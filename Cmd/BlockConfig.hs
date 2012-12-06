@@ -4,6 +4,7 @@ module Cmd.BlockConfig where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
@@ -13,6 +14,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -87,6 +89,29 @@ cmd_add_block_title _ = do
     title <- State.get_block_title block_id
     when (null title) $
         State.set_block_title block_id " "
+
+-- * collapse / expand tracks
+
+-- | Collapse all the children of this track.
+collapse_children :: (State.M m) => BlockId -> TrackId -> m ()
+collapse_children block_id track_id = do
+    children <- State.require ("no children: " ++ show track_id)
+        =<< TrackTree.children_of block_id track_id
+    forM_ children $ \track -> State.add_track_flag
+        block_id (State.track_tracknum track) Block.Collapse
+
+-- | Expand all collapsed children of this track.  Tracks that were merged
+-- when they were collapsed will be left merged.
+expand_children :: (State.M m) => BlockId -> TrackId -> m ()
+expand_children block_id track_id = do
+    children <- State.require ("no children: " ++ show track_id)
+        =<< TrackTree.children_of block_id track_id
+    merged <- Set.fromList . concatMap Block.track_merged . Block.block_tracks
+        <$> State.get_block block_id
+    forM_ children $ \track ->
+        when (Set.member (State.track_id track) merged) $
+            State.remove_track_flag
+                block_id (State.track_tracknum track) Block.Collapse
 
 -- * merge blocks
 

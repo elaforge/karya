@@ -110,6 +110,16 @@ undivide = do
             (drop tracknum (zip [0..] tracks))
     when_just found $ \(n, _) -> State.remove_track block_id n
 
+collapse_children :: (Cmd.M m) => m ()
+collapse_children = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    BlockConfig.collapse_children block_id track_id
+
+expand_children :: (Cmd.M m) => m ()
+expand_children = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    BlockConfig.expand_children block_id track_id
+
 -- * merge
 
 append :: (Cmd.M m) => BlockId -> m ()

@@ -33,6 +33,7 @@ tracks_of block_id = do
         track <- maybe mzero (:[]) (Map.lookup tid tracks)
         return (i, tid, track)
 
+-- | Return @(parents, self : children)@.
 parents_children_of :: (State.M m) => BlockId -> TrackId
     -> m (Maybe ([State.TrackInfo], [State.TrackInfo]))
 parents_children_of block_id track_id = do
@@ -42,6 +43,14 @@ parents_children_of block_id track_id = do
         Nothing -> return Nothing
         Just (track, parents, children) ->
             return $ Just (parents, track : children)
+
+-- | This is like 'parents_children_of', but only the children, and it doesn't
+-- include the given TrackId.
+children_of :: (State.M m) => BlockId -> TrackId -> m (Maybe [State.TrackInfo])
+children_of block_id track_id =
+    parents_children_of block_id track_id >>= \x -> return $ case x of
+        Just (_, _ : children) -> Just children
+        _ -> Nothing
 
 get_track_tree :: (State.M m) => BlockId -> m TrackTree
 get_track_tree block_id = do
