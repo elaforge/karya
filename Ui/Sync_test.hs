@@ -22,6 +22,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import Util.Test
@@ -418,7 +419,8 @@ match_dumps desc dumps attrs = allM match (Seq.padded_zip dumps attrs)
     match (Seq.Both dump attrs)
         | null missing = pass $ "found " ++ show attrs
         | otherwise =
-            fail $ "attrs " ++ show missing ++ " not in dump: " ++ pshow dump
+            fail $ "attrs " ++ show missing ++ " not in dump: "
+                ++ PPrint.pshow dump
         where missing = filter (`notElem` dump) attrs
     allM f xs = List.foldl' (&&) True <$> mapM f xs
     fail = failure . ((desc ++ ": ") ++)
