@@ -668,8 +668,7 @@ performance:
     blocks.  I can't actually see how dynamic scope makes sense, it should be
     attached to blocks.  So keep it how it is, but call through generator
     cache.
-
-  - I want to do better tests about speed vs. space, cache hits and misses.
+  * I want to do better tests about speed vs. space, cache hits and misses.
     Improve logging so that I can see, given a change, which areas of score
     were rederived.
   Cmd

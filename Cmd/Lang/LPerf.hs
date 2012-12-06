@@ -16,6 +16,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
 
+import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -191,3 +192,35 @@ perform_events = PlayUtil.perform_events
 simple_midi :: Perform.MidiEvents -> [(RealTime, Midi.Message)]
 simple_midi = map f . LEvent.events_of
     where f wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
+
+-- * cache
+
+cache_stats :: BlockId -> Cmd.CmdL String
+cache_stats block_id = do
+    perf <- Cmd.get_performance block_id
+    let logs = filter Cache.is_cache_log $ LEvent.logs_of (Cmd.perf_events perf)
+    return $ unlines
+        [format_stack msg ++ ": " ++ Log.msg_string msg | msg <- logs]
+    where
+    format_stack =
+        maybe "" (Stack.show_ui_ . Stack.from_strings) . Log.msg_stack
+
+show_cache :: (Cmd.M m) => BlockId -> m String
+show_cache block_id = do
+    perf <- Cmd.get_performance block_id
+    return $ unlines (pretty_cache (Cmd.perf_derive_cache perf))
+
+pretty_cache :: Derive.Cache -> [String]
+pretty_cache (Derive.Cache cache) =
+    [Stack.show_ui_ stack ++ ": " ++ pretty_cached cached
+        | (stack, cached) <- Map.toAscList cache]
+    where
+    pretty_cached Derive.Invalid = "Invalid"
+    pretty_cached (Derive.Cached entry) =
+        show (entry_events entry) ++ " events"
+
+entry_events :: Derive.CacheEntry -> Int
+entry_events entry = case entry of
+    Derive.CachedEvents c -> length (snd c)
+    Derive.CachedControl c -> length (snd c)
+    Derive.CachedPitch c -> length (snd c)

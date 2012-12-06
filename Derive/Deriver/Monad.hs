@@ -904,7 +904,7 @@ val_call name doc (call, arg_docs) = ValCall
 
 -- instead of a stack, this could be a tree of frames
 newtype Cache = Cache (Map.Map Stack.Stack Cached)
-    deriving (Monoid.Monoid, Show)
+    deriving (Monoid.Monoid, Show, Pretty.Pretty)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
 
@@ -916,6 +916,10 @@ data Cached = Cached CacheEntry | Invalid
 
 cache_size :: Cache -> Int
 cache_size (Cache c) = Map.size c
+
+instance Pretty.Pretty Cached where
+    format Invalid = Pretty.text "Invalid"
+    format (Cached entry) = Pretty.format entry
 
 -- | Since an entire track is one type but will have many different calls of
 -- different types, the deriver type division goes above the call type
@@ -929,6 +933,11 @@ data CacheEntry =
 -- | The type here should match the type of the stack it's associated with,
 -- but I'm not quite up to those type gymnastics yet.
 type CallType derived = (Collect, LEvent.LEvents derived)
+
+instance Pretty.Pretty CacheEntry where
+    format (CachedEvents c) = Pretty.format (snd c)
+    format (CachedControl c) = Pretty.format (snd c)
+    format (CachedPitch c) = Pretty.format (snd c)
 
 -- ** deps
 
