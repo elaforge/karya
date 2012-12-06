@@ -419,6 +419,17 @@ setupOracle env config = do
     Shake.addOracle ["fltk"] $ return [fltkVersion config]
     let useRepl = "repl" `elem` map fst env
     Shake.addOracle ["repl"] $ return $ if useRepl then ["t"] else []
+    let midiDriver = case lookup "midi" env of
+          Just "stub" -> ""
+          Just "jack" -> "JACK_MIDI"
+          Just "core" -> "CORE_MIDI"
+          Just unknown -> error $ "midi driver should be stub, jack, or core: "
+            ++ show unknown
+          Nothing -> case System.Info.os of
+              "darwin" -> "CORE_MIDI"
+              "linux" -> "JACK_MIDI"
+              _ -> ""
+    Shake.addOracle ["midi"] $ return [midiDriver]
 
 -- | Write a header to configure the haskell compilation.
 --
@@ -428,10 +439,7 @@ configHeaderRule :: Shake.Rules ()
 configHeaderRule = matchBuildDir "hsconfig.h" ?> \fn -> do
     useRepl <- not . null <$> Shake.askOracle ["repl"]
     useRepl <- return $ useRepl && targetToMode fn /= Just Test
-    let midiDriver = case System.Info.os of
-            "darwin" -> "CORE_MIDI"
-            "linux" -> "JACK_MIDI"
-            _ -> "" -- use the stub driver
+    [midiDriver] <- Shake.askOracle ["midi"]
     Shake.writeFile' fn $ unlines
         [ "/* Created automatically by the shakefile. */"
         , "#ifndef __HSCONFIG_H"
