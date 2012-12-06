@@ -23,6 +23,7 @@ import qualified Util.Thread as Thread
 
 import qualified Ui.Id as Id
 import qualified Derive.Stack as Stack
+import Types
 
 
 -- | Only display timing msgs that take longer than this.
@@ -176,14 +177,17 @@ process_cache msg
     | Regex.matches start_play_pattern (Log.msg_string msg) = do
         modify_cache $ const initial_cache
         modify_status $ Map.filter_key ((/="~") . take 1)
-    | Just because <- extract rederived_pattern =
+    -- Only keep track of block cache msgs.
+    | Just bid <- get_block_id msg, Just because <- extract rederived_pattern =
         increment_rederived bid because
-    | Just nvals <- extract cached_pattern, Just vals <- ParseBs.int nvals =
+    | Just bid <- get_block_id msg, Just nvals <- extract cached_pattern,
+            Just vals <- ParseBs.int nvals =
         increment_cached bid vals
     | otherwise = return ()
     where
-    bid = maybe "<nostack>" (stack_block . Stack.from_strings)
-        (Log.msg_stack msg)
+    get_block_id = Stack.block_of
+        <=< Seq.head . Stack.innermost . Stack.from_strings
+        <=< Log.msg_stack
     extract regex = case Regex.find_groups regex (Log.msg_string msg) of
         [] -> Nothing
         [(_, [match])] -> Just match
@@ -200,11 +204,11 @@ process_cache msg
 
 -- | Add the block of the given msg to the status string.  E.g.,
 -- \"[13] bid1 bid2 ...\" -> \"14 bid0 bid1 ...\"
-increment_rederived :: String -> String -> ProcessM ()
+increment_rederived :: BlockId -> String -> ProcessM ()
 increment_rederived bid because = do
     bids <- State.gets (Map.get [] because . cache_rederived . state_cache)
     -- append so they appear in order of appearance
-    let new_bids = bids ++ [bid]
+    let new_bids = bids ++ [Id.ident_name bid]
     modify_cache $ \cache -> cache { cache_rederived =
         Map.insert because new_bids (cache_rederived cache) }
     modify_status $
@@ -215,11 +219,11 @@ increment_rederived bid because = do
 
 -- | Add the number of cached blocks and total cached events.  E.g.,
 -- \"cached: 10 [42]: bid1 bid2 bid3 ...\"
-increment_cached :: String -> Int -> ProcessM ()
+increment_cached :: BlockId -> Int -> ProcessM ()
 increment_cached bid vals = do
     modify_cache $ \cache -> cache
         { cache_total = vals + cache_total cache
-        , cache_blocks = cache_blocks cache ++ [bid]
+        , cache_blocks = cache_blocks cache ++ [Id.ident_name bid]
         }
     cache <- State.gets state_cache
     modify_status $ Map.insert "~cached" (cached cache)
@@ -227,10 +231,6 @@ increment_cached bid vals = do
     cached cache = ellide 25 $ Printf.printf "%d [%d] %s"
         (length (cache_blocks cache)) (cache_total cache)
         (unwords (cache_blocks cache))
-
-stack_block :: Stack.Stack -> String
-stack_block = maybe "<noblock>" Id.ident_name . msum . map Stack.block_of
-    . Stack.innermost
 
 ellide :: Int -> String -> String
 ellide len s
