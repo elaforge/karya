@@ -98,6 +98,8 @@ data StyledText = StyledText {
     style_text :: String
     , style_style :: String
     } deriving (Show)
+
+extract_style :: StyledText -> (String, String)
 extract_style (StyledText text style) = (text, style)
 
 type ProcessM = State.StateT State Identity.Identity
@@ -107,10 +109,10 @@ type ProcessM = State.StateT State Identity.Identity
 -- catch and timing.
 process_msg :: State -> Log.Msg -> (Maybe StyledText, State)
 process_msg state msg = run $ do -- suppress_last msg $ do
-    let styled = format_msg msg
     filt <- State.gets state_filter
     process_cache msg
     process_catch
+    let styled = format_msg msg
     return $ if eval_filter filt msg (style_text styled)
         then Just styled
         else Nothing
@@ -284,6 +286,8 @@ format_msg msg = run_formatter $ do
     prio_stars Log.Timer = "-"
     prio_stars prio = replicate (fromEnum prio) '*'
 
+-- | Pair together text along with the magic Style characters.  The Styles
+-- should be the same length as the string.
 type Formatter = Writer.Writer [(String, [Style])] ()
 
 run_formatter :: Formatter -> StyledText
@@ -296,9 +300,13 @@ emit_srcpos (file, func_name, line) = do
         (\func -> with_style style_func_name ("[" ++ func ++ "]")) func_name
 
 emit_stack :: Stack.Stack -> Formatter
-emit_stack stack =
+emit_stack stack = do
     with_style style_clickable $ Seq.join "/" (map fmt (Stack.to_ui stack))
-    where fmt frame = "{s " ++ show (Stack.unparse_ui_frame frame) ++ "}"
+    when_just (last_call stack) $ \call ->
+        with_plain $ ' ' : call ++ ": "
+    where
+    fmt frame = "{s " ++ show (Stack.unparse_ui_frame frame) ++ "}"
+    last_call = Seq.head . mapMaybe Stack.call_of . Stack.innermost
 
 emit_msg_text :: Style -> String -> Formatter
 emit_msg_text = with_style
@@ -317,8 +325,13 @@ regex_style default_style regex_styles txt =
     go i = maybe default_style snd $ List.find ((i `within`) . fst) ranges
     within i (lo, hi) = lo <= i && i < hi
 
+with_plain :: String -> Formatter
 with_plain = with_style style_plain
+
+with_style :: Style -> String -> Formatter
 with_style style text = Writer.tell [(text, replicate (length text) style)]
+
+literal_style :: [Style] -> String -> Formatter
 literal_style style text = Writer.tell [(text, style)]
 
 type Style = Char
