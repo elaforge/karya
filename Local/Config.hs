@@ -4,7 +4,7 @@ import qualified Control.Monad.Trans as Trans
 import qualified Network.BSD
 import System.FilePath ((</>))
 
-import Util.Control
+import qualified Util.Log as Log
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -39,7 +39,9 @@ get_midi_config :: Cmd.InstrumentDb -> IO StaticConfig.Midi
 get_midi_config db = Network.BSD.getHostName >>= \x -> case x of
     "tammananny" -> return $ Tammananny.midi_config db
     "archy" -> return $ Archy.midi_config db
-    host -> errorIO $ "no midi configuration for host: " ++ show host
+    host -> do
+      Log.warn $ "no midi configuration for host: " ++ show host
+      return StaticConfig.empty_midi
 
 parse_args :: [String] -> Cmd.CmdIO
 parse_args argv = case argv of
