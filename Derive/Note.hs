@@ -137,6 +137,8 @@ stash_sub_signals subs = do
         [(track_id, tsig) | (Just track_id, tsig)
             <- zip (map TrackTree.tevents_track_id tracks) sigs]
 
+-- | It could just pass the 'TrackTree.TrackInfo', but this way
+-- "Derive.Lazy_test" can pass an infinite events list.
 derive_notes :: ScoreTime -> (ScoreTime, ScoreTime) -> ScoreTime
     -> TrackTree.EventsTree -> ([Event.Event], [Event.Event])
     -> [Event.Event] -> Derive.EventDeriver

@@ -209,7 +209,7 @@ test_1_note_deriver = do
         Internal.with_stack_block default_block_id $ UiTest.eval ustate $
             BlockUtil.note_deriver default_block_id
     let result = DeriveTest.run_ ustate deriver
-    print $ extract_run 5 result
+    print $ extract_run_nolog 5 result
     evaluated <- get_log log
     equal (length evaluated) 5
 
@@ -235,6 +235,15 @@ extract_run :: Int
     -> Either String [RealTime]
 extract_run n = fmap (take n) . DeriveTest.extract_run
     (map Score.event_start . LEvent.events_of)
+
+-- | Printing the cached log msg will force all the msgs, so this one discards
+-- the logs.
+extract_run_nolog :: Int
+    -> Either String ([LEvent.LEvent Score.Event], Derive.State, [Log.Msg])
+    -> [LEvent.LEvent RealTime]
+extract_run_nolog n result = case result of
+    Left err -> error err
+    Right (events, _st, _logs) -> map (fmap Score.event_start) $ take n events
 
 
 -- * implementation

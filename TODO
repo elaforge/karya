@@ -1,7 +1,6 @@
 UNSORTED
   * quantize, so I can clean up pno-vla
   * figure out why the note after 'd 20' is bogus
-  - experiment with morph-x morph-y
   load midi
     * making bad parent->child
     * what's more, bad skel can kill the responder:
@@ -36,6 +35,13 @@ UNSORTED
   * make Id a ByteString instead of String, that should speed up (==)
   * shake does a complete rebuild if I build something else
     what's going on?  Is it related to the hsconfig.h change?
+  slow
+    - fltk drawing is slow
+    - maybe slower when there's haskell behind it?
+    - rederiving is slow
+    - it also makes the UI seize up, even when it should be waiting?
+    big block is slow
+      * track level caching should speed up rederives
   and scrolling the giant block is super slow!
     * profile says it's in Perf.find_play_pos
     - drawing is stil slow, I'll have to look at the fltk layer
@@ -116,6 +122,7 @@ UNSORTED
     - See if -O0 opt binary crashes.
     * Try with the shell version of git.  If that works, update libgit2.
       No, it's probably not git.
+    . But with git saving off it seems pretty stable...
     It seems likely due to FFI, perhaps a bug in C++.  Optimization could be
     making some change that makes it more sensitive to the bug.  Or it could
     be optimization in the c++.
@@ -147,6 +154,7 @@ UNSORTED
     would have to record the block that it's soloed on, and only filter events
     on that block.  Or simpler, turn a solo into a mute of all the other
     tracks.
+  - Also, solo can no longer be used to temporarily turn off a controls track.
   Just scales, along with TwelveUtil support
     - interpolate between just scales in different keys
   - It's a bit unpleasant how I have TwelveUtils for accidental and key using
@@ -164,12 +172,6 @@ UNSORTED
     - to_relatve: This needs Note - Note = Semis.  I think I could just add
       a field in Scale, but I'm not totally sure I really want this.
 
-  - can I use a lazy array + builder to make score generation more efficient?
-    It would also be nice to use a lazy array inside the performer.
-    Is there a generic lazy array implementation out there?
-    It would be nice for LoggerT implementation as well.
-    storablevector has a builder, but only for Storable types.
-    - Write a [Vector] builder, based on ByteString and Text builders.
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
     a bit of editing it's up to 750mb, who is leaking?  Undo history?
@@ -650,13 +652,13 @@ performance:
       until the next time the cache is demanded, unless I force it.
     - see if the cache filtering logs is causing significant copying and
       remove
-  - make tracks into calls, so they cache and the sub-run stuff works the
+  * make tracks into calls, so they cache and the sub-run stuff works the
     same with them as other calls
     It would be nice to make them calls in the scopes, so they can be
     rebound like other calls.  This is effectively moving the Schema into
     calls.  Then I can entirely get rid of it.
     * move Schema.default_schema_deriver into c_block
-    - make Schema.derive_track into a call
+    / make Schema.derive_track into a call
     The thing is block takes 'BlockId' and track takes (BlockId, TreeNode),
     not CallArgs.  And it doesn't make sense to call from the tracks anyway,
     so maybe not in Scopes.
@@ -667,7 +669,7 @@ performance:
     attached to blocks.  So keep it how it is, but call through generator
     cache.
 
-    I want to do better tests about speed vs. space, cache hits and misses.
+  - I want to do better tests about speed vs. space, cache hits and misses.
     Improve logging so that I can see, given a change, which areas of score
     were rederived.
   Cmd

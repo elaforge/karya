@@ -11,7 +11,10 @@ module Derive.Call.BlockUtil (
     , derive_tree
 #endif
 ) where
+import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -21,6 +24,7 @@ import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
+import qualified Derive.Cache as Cache
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -136,7 +140,7 @@ derive_tracks = mconcat . map derive_track
 derive_track :: TrackTree.EventsNode -> Derive.EventDeriver
 derive_track node@(Tree.Node track subs)
     | TrackInfo.is_note_track (TrackTree.tevents_title track) =
-        with_stack $ derive_orphans (TrackTree.tevents_title track)
+        with_stack $ cached $ derive_orphans (TrackTree.tevents_title track)
             (Slice.extract_orphans track subs)
             (Internal.track_setup track (Note.d_note_track node))
     -- I'd like track_setup up here, but tempo tracks are treated differently,
@@ -152,6 +156,12 @@ derive_track node@(Tree.Node track subs)
         | otherwise = (<> Note.with_title title (derive_tracks orphans))
     with_stack = maybe id Internal.with_stack_track
         (TrackTree.tevents_track_id track)
+    cached
+        | TrackTree.tevents_sliced track
+            || Maybe.isNothing (TrackTree.tevents_track_id track) = id
+        | otherwise = Cache.cache_track children
+    children = List.foldl' (flip Set.insert) Set.empty $
+        mapMaybe TrackTree.tevents_track_id $ Tree.flatten node
 
 -- | Does this tree have any non-tempo tracks at the top level?
 has_nontempo_track :: TrackTree.EventsTree -> Bool

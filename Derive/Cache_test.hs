@@ -60,13 +60,33 @@ test_invalidate_damaged = do
 -- Test interaction with the rest of the evaluation system.
 
 test_no_damage = do
-    let (_, cached, uncached) = compare_cached parent_sub (return ())
+    let create = mkblocks
+            [ ("top", [(">i", [(0, 1, ""), (1, 2, "sub")])])
+            , ("sub", [(">i", [(0, 1, ""), (1, 1, "subsub")])])
+            , ("subsub", [(">i", [(0, 1, "")])])
+            ]
+    let (_, cached, uncached) = compare_cached create (return ())
     equal (diff_events cached uncached) []
 
     -- should not have rederived sub
     strings_like (r_cache_logs cached) ["using cache"]
     -- make sure there's stuff in the cache now
     check (not (null (r_cache_stacks cached)))
+
+test_cached_track = do
+    -- If one track is damaged, it rederives and the other is cached.
+    let create = fmap fst $ UiTest.mkblock $ ((,) "top")
+            [ (">1", [(0, 1, "")])
+            , (">2", [(1, 1, "")])
+            ]
+    let (_, cached, uncached) = compare_cached create $
+            insert_event "top.t2" 4 1 ""
+    equal (diff_events cached uncached) []
+    strings_like (r_cache_logs cached)
+        [ "top top.t1 \\*: using cache"
+        , "top top.t2 \\*: rederived"
+        , "top \\* \\*: rederived"
+        ]
 
 test_add_remove = do
     -- Make sure I get event damage from adding and removing event.
@@ -113,17 +133,22 @@ test_logs = do
     let (_, cached, uncached) = compare_cached create $
             insert_event "sub2.t1" 1 1 ""
     -- Make sure errors are still present in the cached output.
-    strings_like (r_logs uncached)
-        [ "sub1 * rederived"
-        , "sub1.t1 * note call not found"
-        , "sub2 * rederived"
-        , "top"
+    strings_like (r_all_logs uncached)
+        [ "top top.t1 0-1: sub1 sub1.t1 \\*: rederived"
+        , "top top.t1 0-1: sub1 \\* \\*: rederived"
+        , "top top.t1 0-1: sub1 sub1.t1 0-1: * note call not found"
+        , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
+        , "top top.t1 2-3: sub2 \\* \\*: rederived"
+        , "top top.t1 \\*: rederived"
+        , "top \\* \\*: rederived"
         ]
-    strings_like (r_logs cached)
-        [ "sub1 * using cache"
-        , "sub1.t1 * note call not found"
-        , "sub2 * rederived"
-        , "top"
+    strings_like (r_all_logs cached)
+        [ "top top.t1 0-1: sub1 \\* \\*: using cache"
+        , "top top.t1 0-1: sub1 sub1.t1 0-1: * note call not found"
+        , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
+        , "top top.t1 2-3: sub2 \\* \\*: rederived"
+        , "top top.t1 \\*: rederived"
+        , "top \\* \\*: rederived"
         ]
 
 test_extend_control_damage = do
@@ -132,12 +157,30 @@ test_extend_control_damage = do
             (Ranges.ranges [(2, 5)]))
         (Ranges.ranges [(0, 4)])
 
-r_logs :: Derive.Result -> [String]
-r_logs = map DeriveTest.show_log_stack . snd . LEvent.partition
-    . Derive.r_events
+-- | Extract cache logs so I can tell who rederived and who used the cache.
+-- I use strings instead of parsing it into structured data because strings
+-- make more informative errors when they don't match.
+r_cache_logs :: Derive.Result -> [String]
+r_cache_logs =
+    map DeriveTest.show_log_stack . filter DeriveTest.cache_msg . r_logs
 
-r_logs2 :: Derive.Result -> [String]
-r_logs2 = map DeriveTest.show_log . snd . LEvent.partition . Derive.r_events
+-- | Sometimes the cache msgs for the track cache are just clutter.
+r_block_logs :: Derive.Result -> [String]
+r_block_logs =
+    map DeriveTest.show_log_stack . filter (not . track_stack)
+        . filter DeriveTest.cache_msg . r_logs
+    where
+    track_stack msg = case Log.msg_stack msg of
+        Just stack -> case Stack.innermost (Stack.from_strings stack) of
+            Stack.Track _ : _ -> True
+            _ -> False
+        _ -> False
+
+r_all_logs :: Derive.Result -> [String]
+r_all_logs = map DeriveTest.show_log_stack . r_logs
+
+r_logs :: Derive.Result -> [Log.Msg]
+r_logs = LEvent.logs_of . Derive.r_events
 
 -- TODO test fail track parse, should damage track
 -- TODO test localdeps... how do they get reset anyway?
@@ -150,7 +193,7 @@ test_failed_sub_track = do
     let (_, cached, uncached) = compare_cached create $
             State.set_track_title (UiTest.tid "sub.t1") "*broken"
     -- TODO shouldn't I be checking this?
-    pprint (r_logs cached)
+    pprint (r_all_logs cached)
     equal (diff_events cached uncached) []
 
 test_has_score_damage = do
@@ -165,7 +208,7 @@ test_has_score_damage = do
     let (_, cached, uncached) = compare_cached create $
             insert_event "top.t1" 1 1 "sub2"
     equal (diff_events cached uncached) []
-    strings_like (r_cache_logs cached)
+    strings_like (r_block_logs cached)
         [ "top.t1 0-1: * using cache"
         , "top.t1 1-2: * rederived * not in cache"
         , "top.t1 2-3: * using cache"
@@ -174,22 +217,28 @@ test_has_score_damage = do
 
 test_callee_damage = do
     -- test callee damage: sub-block is damaged, it should be rederived
+    let parent_sub = mkblocks
+            [ ("top", [(">i", [(0, 1, ""), (1, 2, "sub")])])
+            , ("sub", [(">i", [(0, 1, ""), (1, 1, "subsub")])])
+            , ("subsub", [(">i", [(0, 1, "")])])
+            ]
     let (_, cached, uncached) = compare_cached parent_sub $
             insert_event "sub.t1" 0 0.5 ""
     equal (diff_events cached uncached) []
-    strings_like (r_cache_logs cached)
+    strings_like (r_block_logs cached)
         [ "top.t1 1-3: * rederived * because of block"
         , "sub.t1 1-2: * using cache"
         , toplevel_rederived False
         ]
     -- The cached call to "sub" depends on "sub" and "subsub" transitively.
-    equal (r_cache_deps cached)
-        [ ("top * *",
-            Just [UiTest.bid "sub", UiTest.bid "subsub", UiTest.bid "top"])
-        , ("top top.t1 1-3: sub * *",
-            Just [UiTest.bid "sub", UiTest.bid "subsub"])
-        , ("top top.t1 1-3: sub sub.t1 1-2: subsub * *",
-            Just [UiTest.bid "subsub"])
+    equal (r_cache_deps cached) $ map (second (Just . map UiTest.bid))
+        [ ("top * *", ["sub", "subsub", "top"])
+        , ("top top.t1 *", ["sub", "subsub"])
+        , ("top top.t1 1-3: sub * *", ["sub", "subsub"])
+
+        , ("top top.t1 1-3: sub sub.t1 *", ["subsub"])
+        , ("top top.t1 1-3: sub sub.t1 1-2: subsub * *", ["subsub"])
+        , ("top top.t1 1-3: sub sub.t1 1-2: subsub subsub.t1 *", [])
         ]
     -- sub is 1-3, its first elt should be 1-2, except I replaced it with .5
 
@@ -197,17 +246,11 @@ test_callee_damage = do
     let (_, cached, uncached) = compare_cached parent_sub $
             insert_event "subsub.t1" 0 0.5 ""
     equal (diff_events cached uncached) []
-    strings_like (r_cache_logs cached)
+    strings_like (r_block_logs cached)
         [ "top.t1 1-3: * rederived * sub-block damage"
         , "sub.t1 1-2: * rederived * block damage"
         , toplevel_rederived False
         ]
-
-parent_sub = mkblocks
-    [ ("top", [(">i", [(0, 1, ""), (1, 2, "sub")])])
-    , ("sub", [(">i", [(0, 1, ""), (1, 1, "subsub")])])
-    , ("subsub", [(">i", [(0, 1, "")])])
-    ]
 
 test_collect = do
     let blocks = mkblocks
@@ -259,7 +302,6 @@ test_sliced_score_damage = do
     let (_prev, cached, uncached) = compare_cached create $
             insert_event "b9.t2" 4 0 "7c"
     equal (diff_events cached uncached) []
-    -- pslist $ map Pretty.pretty (r_cache_stacks prev)
     where
     blocks =
         [ (("b9", b9), [(1, 2), (2, 3)])
@@ -279,7 +321,7 @@ test_sliced_control_damage = do
     let (_prev, cached, uncached) = compare_cached create $
             insert_event "top.t1" 6 0 "0"
     equal (diff_events cached uncached) []
-    strings_like (r_logs cached)
+    strings_like (r_block_logs cached)
         ["sub * control damage", "top * block damage"]
     where
     blocks =
@@ -314,6 +356,7 @@ test_control_damage = do
     strings_like (r_cache_logs cached)
         [ "top.t2 0-1: * using cache"
         , "top.t2 1-2: * using cache"
+        , "top.t2 \\*: rederived"
         , toplevel_rederived True
         ]
 
@@ -323,7 +366,9 @@ test_control_damage = do
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
         [ "top.t2 0-1: * using cache"
-        , "top.t2 1-2: * control damage"
+        , "top.t2 1-2: sub sub.t1 \\*: * control damage"
+        , "top.t2 1-2: sub \\* \\*: * control damage"
+        , "top.t2 \\*: * control damage"
         , toplevel_rederived True
         ]
 
@@ -333,8 +378,11 @@ test_control_damage = do
             insert_event "top.t1" 0 0 ".5"
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t2 0-1: * control damage"
+        [ "top.t2 0-1: sub sub.t1 \\*: * control damage"
+        , "top.t2 0-1: sub \\* \\*: * control damage"
         , "top.t2 1-2: * control damage"
+        , "top.t2 1-2: sub \\* \\*: * control damage"
+        , "top.t2 \\*: * control damage"
         , toplevel_rederived True
         ]
 
@@ -380,7 +428,7 @@ test_inverted_control_damage = do
     let (_, cached, uncached) = compare_cached create $
             insert_event "top.t2" 1 0 ".5"
     equal (diff_events cached uncached) []
-    strings_like (r_cache_logs cached)
+    strings_like (r_block_logs cached)
         [ "top.t1 0-1: * using cache"
         , "top top.t1 1-2: sub * control damage"
         , toplevel_rederived True
@@ -399,7 +447,7 @@ test_tempo_damage = do
             insert_event "top.t1" 1 0 "2"
     equal (diff_events cached uncached) []
     -- first is cached, second and third are not
-    strings_like (r_cache_logs cached)
+    strings_like (r_block_logs cached)
         [ "top.t2 0-1: * using cache"
         , "top.t2 1-2: * control damage"
         , "top.t2 2-3: * control damage"
@@ -455,13 +503,6 @@ run state m = case result of
         Left err -> error $ "state error: " ++ show err
         Right (val, state', updates) -> (val, state', updates)
     where result = Identity.runIdentity (State.run state m)
-
--- | Extract cache logs so I can tell who rederived and who used the cache.
--- I use strings instead of parsing it into structured data because strings
--- make more informative errors when they don't match.
-r_cache_logs :: Derive.Result -> [String]
-r_cache_logs = map DeriveTest.show_log_stack . filter DeriveTest.cache_msg
-    . snd . LEvent.partition . Derive.r_events
 
 log_with_stack :: Log.Msg -> String
 log_with_stack msg = Pretty.pretty (Stack.from_strings <$> Log.msg_stack msg)

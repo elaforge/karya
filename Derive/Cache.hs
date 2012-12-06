@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, OverloadedStrings #-}
 module Derive.Cache (
-    caching_call
+    cache_block, cache_track
     , get_control_damage, get_tempo_damage
     , is_cache_log
 
@@ -33,22 +33,40 @@ import qualified Derive.Stack as Stack
 import Types
 
 
--- * caching_call
+-- * cache_block
+
+-- | Unfortunately caching is not entirely general, and cache invalidation
+-- works a bit differently for blocks and tracks.
+data Type = Block
+    -- | Cache a track.  The set is its TrackId along with its children, so
+    -- it knows what sort of damage will invalidate the cache.  If the track
+    -- has children, it's assumed to be inverting, so that it depends on all of
+    -- its children.
+    | Track (Set.Set TrackId)
+    deriving (Show)
 
 -- | If the given generator has a cache entry, relevant derivation context is
 -- the same as the cache entry's, and there is no damage under the generator,
 -- I can reuse the cached values for it.  This is effectively a kind of
 -- memoization.  If the generator is called, the results will be put in the
 -- cache before being returned.
-caching_call :: (Derive.PassedArgs d -> Derive.EventDeriver)
+cache_block :: (Derive.PassedArgs d -> Derive.EventDeriver)
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
-caching_call call args = do
+cache_block call args = caching_deriver Block range (call args)
+    where range = uncurry Ranges.range (Args.range_on_track args)
+
+cache_track :: (Derive.Derived d) => Set.Set TrackId
+    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+cache_track children = caching_deriver (Track children) Ranges.everything
+
+caching_deriver :: (Derive.Derived d) => Type -> Ranges.Ranges ScoreTime
+    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+caching_deriver typ range call = do
     st <- Derive.get
     let cdamage = Derive.state_control_damage (Derive.state_dynamic st)
         sdamage = Derive.state_score_damage (Derive.state_constant st)
         stack = Derive.state_stack (Derive.state_dynamic st)
-    generate stack $ find_generator_cache stack
-        (uncurry Ranges.range (Args.range_on_track args))
+    generate stack $ find_generator_cache typ stack range
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
@@ -58,7 +76,7 @@ caching_call call args = do
         Internal.merge_collect collect
         return cached
     generate stack (Left reason) = do
-        (result, collect) <- with_collect (call args)
+        (result, collect) <- with_collect call
         Log.debug $ rederived_msg reason
         Internal.merge_collect $
             mempty { Derive.collect_cache = make_cache stack collect result }
@@ -76,11 +94,11 @@ caching_call call args = do
             st { Derive.state_collect = collect <> Derive.state_collect st }
         return (result, collect)
 
-find_generator_cache :: (Derive.Derived derived) =>
-    Stack.Stack -> Ranges.Ranges ScoreTime -> ScoreDamage -> ControlDamage
+find_generator_cache :: (Derive.Derived derived) => Type
+    -> Stack.Stack -> Ranges.Ranges ScoreTime -> ScoreDamage -> ControlDamage
     -> Cache -> Either String (Derive.Collect, LEvent.LEvents derived)
-find_generator_cache stack event_range score_damage
-        (ControlDamage control_damage) (Cache cache) = do
+find_generator_cache typ stack event_range score (ControlDamage control)
+        (Cache cache) = do
     cached <- maybe (Left "not in cache") Right (Map.lookup stack cache)
     (collect, stream) <- case cached of
         Invalid -> Left "cache invalidated by score damage"
@@ -88,14 +106,19 @@ find_generator_cache stack event_range score_damage
             (Derive.from_cache_entry entry)
     let Derive.GeneratorDep block_deps = Derive.collect_local_dep collect
     let damaged_blocks = Set.union
-            (sdamage_track_blocks score_damage) (sdamage_blocks score_damage)
-    case msum (map Stack.block_of (Stack.innermost stack)) of
-        Just this_block | this_block `Set.member` damaged_blocks ->
-            Left "block damage"
-        _ -> return ()
+            (sdamage_track_blocks score) (sdamage_blocks score)
+    case typ of
+        Block -> case msum (map Stack.block_of (Stack.innermost stack)) of
+            Just this_block | this_block `Set.member` damaged_blocks ->
+                Left "block damage"
+            _ -> return ()
+        Track children
+            | any (`Set.member` children) (Map.keys (sdamage_tracks score)) ->
+                Left "track damage"
+            | otherwise -> return ()
     unless (Set.null (Set.intersection damaged_blocks block_deps)) $
         Left "sub-block damage"
-    when (Ranges.overlapping control_damage event_range) $
+    when (Ranges.overlapping control event_range) $
         Left "control damage"
     return (collect, stream)
 
@@ -121,22 +144,15 @@ make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     -- be just a filter too.  At least this way it only happens once.
     cache_log = LEvent.either (const False) is_cache_log
 
--- | This is a terrible hack so the log msgs from caching can be treated
--- differently from other log msgs.  Perhaps log msgs should have a general
--- purpose field for tags like this?
---
--- TODO But logview still wants to extract vals from it, so I'd need something
--- more elaborate, and typed.  Map.Map String Dynamic?
 cached_msg :: Int -> String
 cached_msg ncached = "using cache, " ++ show ncached ++ " vals"
 
 rederived_msg :: String -> String
 rederived_msg reason = "rederived generator because of " ++ reason
-    -- This destroys laziness, though I'm not sure why since the
-    -- log msg shouldn't be forced until the msgs already have been
-    -- forced themselves.
-    -- ++ show (LEvent.length stream) ++ " vals)"
 
+-- | This is a terrible hack so the log msgs from caching can be treated
+-- differently from other log msgs.  Perhaps log msgs should have a general
+-- purpose field for tags like this?
 is_cache_log :: Log.Msg -> Bool
 is_cache_log msg = prefix "using cache, " || prefix "rederived generator "
     where prefix = (`Text.isPrefixOf` Log.msg_text msg)
