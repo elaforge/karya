@@ -1,4 +1,24 @@
 UNSORTED
+  add 'approach' call
+    - do just plain 'a' approach call first
+      use eval_event to get the next pitch
+    . For this I need to know the next value.  So I need a way to evaluate the
+      future.
+    . But then I need to parse the future.  But control tracks use a different
+      parser.  So either add a is_control flag to CallInfo, and make every
+      derive have to tell if it's a control track or not, or add a self_eval
+      val call to 'scope_control'.
+    . The former is pretty icky, but the latter involves more overhead, and
+      p_unsigned_float is near the top of the profile.  Of course, I don't
+      really understand the profile, since the top is Serialiaze.get.
+    . Fundamentally there is different parsing for control tracks.  So eval
+      calls need to know if they are in a control track.  Even if I use the
+      self_eval trick, then I need a ControlScope.  But that happens by
+      type inference, since there's a lookup_callable method.
+
+    - add (<) and (>) val calls for the previous and next val, respectively
+    - This means val calls are also going to need next events.  Should be ok.
+  - make TrackLang.Symbol into ByteString?
   * quantize, so I can clean up pno-vla
   * figure out why the note after 'd 20' is bogus
   load midi

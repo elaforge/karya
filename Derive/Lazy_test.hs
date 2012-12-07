@@ -26,8 +26,10 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -79,6 +81,7 @@ test_control = do
     -- Fails as expected... but can I at least make it go forwards?  Or does
     -- it matter?
     evaluated <- get_log log
+    print evaluated
     equal (length (filter ("note at" `List.isInfixOf`) evaluated)) 3
     equal (length (filter ("control at" `List.isInfixOf`) evaluated)) 21
 
@@ -273,7 +276,7 @@ print_log log = pslist =<< get_log log
 
 with_calls :: Log -> Derive.Deriver a -> Derive.Deriver a
 with_calls mvar = CallTest.with_note_call "" (mk_logging_call mvar)
-    . CallTest.with_control_call "" (c_set mvar)
+    . CallTest.with_control_lookup (c_set mvar)
 
 mk_logging_call :: Log -> Derive.NoteCall
 mk_logging_call log_var  = Derive.stream_generator "logging-note" "doc" $
@@ -292,13 +295,20 @@ c_note log_mvar event next_start = do
         stack = Stack.unparse_ui_frame_ $ last $ Stack.to_ui st
     return $! LEvent.one $! LEvent.Event $! write_log `seq` sevent
 
-c_set :: Log -> Derive.ControlCall
-c_set log_mvar = Derive.generator1 "set" "doc" $ CallSig.call1g
-    (CallSig.required "val" "doc") $ \val args -> do
-        pos <- Args.real_start args
-        st <- Derive.gets Derive.state_dynamic
-        let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $
-                stack ++ " control at: " ++ Pretty.pretty pos
-            stack = Stack.unparse_ui_frame_ $ last $
-                Stack.to_ui (Derive.state_stack st)
-        return $! write_log `seq` Signal.signal [(pos, val)]
+c_set :: Log -> Derive.LookupCall Derive.ControlCall
+c_set log_mvar = Derive.pattern_lookup "numbers and hex" doc $
+    \(TrackLang.Symbol sym) -> case ParseBs.parse_num sym of
+        Left _ -> return Nothing
+        Right num -> return $ Just $ set num
+    where
+    set :: Signal.Y -> Derive.ControlCall
+    set num = Derive.generator1 "self-eval" "This does blah blah." $
+        CallSig.call0g $ \args -> do
+            pos <- Args.real_start args
+            st <- Derive.gets Derive.state_dynamic
+            let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $
+                    stack ++ " control at: " ++ Pretty.pretty pos
+                stack = Stack.unparse_ui_frame_ $ last $
+                    Stack.to_ui (Derive.state_stack st)
+            return $! write_log `seq` Signal.signal [(pos, num)]
+    doc = Derive.extract_doc (set 0)

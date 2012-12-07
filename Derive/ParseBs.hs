@@ -14,8 +14,9 @@
 -- Special characters should probably be written with backticks anyway.
 module Derive.ParseBs (
     from_string, to_string, ParseExpr
-    , parse_expr, parse_num_expr, parse_control_title
-    , parse_val, parse_call
+    , parse_expr
+    , parse_control_title
+    , parse_val, parse_num, parse_call
 
     -- * expand macros
     , expand_macros
@@ -39,6 +40,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 
 type Text = Event.Text
@@ -51,9 +53,8 @@ to_string = UTF8.toString
 
 type ParseExpr = Text -> Either String TrackLang.Expr
 
-parse_expr, parse_num_expr :: ParseExpr
+parse_expr :: ParseExpr
 parse_expr = parse p_pipeline
-parse_num_expr = parse p_num_pipeline
 
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
@@ -66,6 +67,10 @@ parse_control_title = Parse.parse_all p_control_title . from_string
 -- Symbols, which are still Strings.
 parse_val :: String -> Either String TrackLang.Val
 parse_val = Parse.parse_all (lexeme p_val) . from_string
+
+-- | Parse a number or hex code, without a type suffix.
+parse_num :: String -> Either String Signal.Y
+parse_num = Parse.parse_all (lexeme (p_hex <|> p_untyped_num)) . from_string
 
 -- | Extract only the call part of the text.
 parse_call :: Text -> Maybe String
@@ -123,20 +128,8 @@ p_pipeline = do
 p_expr :: A.Parser TrackLang.Call
 p_expr = A.try p_equal <|> A.try p_call <|> p_null_call
 
-p_num_pipeline :: A.Parser TrackLang.Expr
-p_num_pipeline = do
-    -- It definitely matches at least one, because p_null_call always matches.
-    c : cs <- A.sepBy1 p_num_expr p_pipe
-    return $ c :| cs
-
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
-
--- | This is just like a 'p_expr', except that a leading number is treated
--- as a null call with a number argument rather than a call to that number.
--- This saves parsing the number once as a symbol and again as a number.
-p_num_expr :: A.Parser TrackLang.Call
-p_num_expr = A.try p_equal <|> p_num_call <|> A.try p_call <|> p_null_call
 
 p_equal :: A.Parser TrackLang.Call
 p_equal = do
@@ -153,13 +146,6 @@ p_call = TrackLang.Call <$> lexeme p_call_symbol <*> A.many p_term
 
 p_null_call :: A.Parser TrackLang.Call
 p_null_call = return (TrackLang.Call (TrackLang.Symbol "") []) <?> "null call"
-
-p_num_call :: A.Parser TrackLang.Call
-p_num_call = do
-    num <- TrackLang.VNum <$> (A.try p_hex <|> p_num)
-    rest <- A.many p_term
-    return $ TrackLang.Call (TrackLang.Symbol "")
-        (TrackLang.Literal num : rest)
 
 -- | Any word in call position is considered a Symbol.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or
@@ -181,7 +167,6 @@ p_val =
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
     <|> TrackLang.VRelativeAttr <$> A.try p_rel_attr
-    <|> TrackLang.VNum <$> A.try p_hex
     <|> TrackLang.VNum <$> p_num
     <|> (TrackLang.VString . to_string) <$> p_string
     <|> TrackLang.VControl <$> p_control
@@ -190,13 +175,13 @@ p_val =
     <|> (A.char '_' >> return TrackLang.VNotGiven)
     <|> TrackLang.VSymbol <$> p_symbol
 
-p_hex :: A.Parser Score.TypedVal
+p_hex :: A.Parser Signal.Y
 p_hex = do
     A.string prefix
     let higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
     c1 <- A.satisfy higit
     c2 <- A.satisfy higit
-    return $ Score.untyped (fromIntegral (parse_hex c1 c2) / 0xff)
+    return $ fromIntegral (parse_hex c1 c2) / 0xff
     where prefix = UTF8.fromString ShowVal.hex_prefix
 
 parse_hex :: Char -> Char -> Int
@@ -208,12 +193,14 @@ parse_hex c1 c2 = higit c1 * 16 + higit c2
 
 p_num :: A.Parser Score.TypedVal
 p_num = do
-    num <- Parse.p_float
+    num <- p_untyped_num
     suffix <- A.option "" ((:"") <$> A.letter_ascii)
     case Score.code_to_type suffix of
-        Nothing ->
-            fail $ "p_num expected suffix in [cdsr]: " ++ show suffix
+        Nothing -> fail $ "p_num expected suffix in [cdsr]: " ++ show suffix
         Just typ -> return $ Score.Typed typ num
+
+p_untyped_num :: A.Parser Signal.Y
+p_untyped_num = Parse.p_float
 
 p_string :: A.Parser Text
 p_string = p_single_string <?> "string"

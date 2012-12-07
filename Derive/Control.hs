@@ -34,7 +34,6 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseBs as Parse
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -203,16 +202,20 @@ derive_control track expr = do
     deriver = do
         state <- Derive.get
         let (stream, collect) = Call.derive_track state tinfo
-                Parse.parse_num_expr last_sample (tevents track)
+                last_sample (tevents track)
         Internal.merge_collect collect
         -- I can use concat instead of merge_asc_events because the signals
         -- will be merged with Signal.merge and I don't care if the logs
         -- are a little out of order.
         return (concat stream)
-    tinfo = Call.TrackInfo (TrackTree.tevents_end track)
-        (TrackTree.tevents_range track) (TrackTree.tevents_shifted track) []
+    tinfo = Call.TrackInfo
+        { Call.tinfo_events_end = TrackTree.tevents_end track
+        , Call.tinfo_track_range = TrackTree.tevents_range track
+        , Call.tinfo_shifted = TrackTree.tevents_shifted track
+        , Call.tinfo_sub_tracks = []
         -- TODO provide events around for control tracks?
-        ([], [])
+        , Call.tinfo_events_around = ([], [])
+        }
     last_sample prev chunk = Signal.last chunk `mplus` prev
 
 derive_pitch :: TrackTree.TrackEvents -> [TrackLang.Call]
@@ -227,12 +230,17 @@ derive_pitch track expr = do
     deriver = do
         state <- Derive.get
         let (stream, collect) = Call.derive_track state tinfo
-                Parse.parse_expr last_sample (tevents track)
+                last_sample (tevents track)
         Internal.merge_collect collect
         return (concat stream)
-    tinfo = Call.TrackInfo (TrackTree.tevents_end track)
-        (TrackTree.tevents_range track) (TrackTree.tevents_shifted track) []
-        ([], [])
+    tinfo = Call.TrackInfo
+        { Call.tinfo_events_end = TrackTree.tevents_end track
+        , Call.tinfo_track_range = TrackTree.tevents_range track
+        , Call.tinfo_shifted = TrackTree.tevents_shifted track
+        , Call.tinfo_sub_tracks = []
+        -- TODO provide events around for control tracks?
+        , Call.tinfo_events_around = ([], [])
+        }
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
 tevents :: TrackTree.TrackEvents -> [Event.Event]

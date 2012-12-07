@@ -52,9 +52,12 @@ with_note_call name call = Derive.with_scope $ \scope -> scope
 
 with_control_call :: String -> Derive.ControlCall
     -> Derive.Deriver a -> Derive.Deriver a
-with_control_call name call = Derive.with_scope $ \scope -> scope
-    { Derive.scope_control =
-        add_builtin (single_lookup name call) (Derive.scope_control scope) }
+with_control_call name call = with_control_lookup (single_lookup name call)
+
+with_control_lookup :: Derive.LookupCall Derive.ControlCall
+    -> Derive.Deriver a -> Derive.Deriver a
+with_control_lookup lookup = Derive.with_scope $ \scope -> scope
+    { Derive.scope_control = add_builtin lookup (Derive.scope_control scope) }
 
 with_val_call :: String -> Derive.ValCall
     -> Derive.Deriver a -> Derive.Deriver a

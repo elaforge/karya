@@ -93,7 +93,6 @@ import qualified Derive.Call as Call
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
@@ -146,9 +145,15 @@ derive_notes events_end track_range shifted subs events_around events = do
     -- You'd think 'd_note_track' should just pass TrackEvents, but then I
     -- can't test for laziness by passing an infinite events list.
     state <- Derive.get
-    let (event_groups, collect) = Call.derive_track
-            state tinfo Parse.parse_expr (\_ _ -> Nothing) events
+    let (event_groups, collect) = Call.derive_track state tinfo
+            (\_ _ -> Nothing) events
     Internal.merge_collect collect
     return $ Derive.merge_asc_events event_groups
     where
-    tinfo = Call.TrackInfo events_end track_range shifted subs events_around
+    tinfo = Call.TrackInfo
+        { Call.tinfo_events_end = events_end
+        , Call.tinfo_track_range = track_range
+        , Call.tinfo_shifted = shifted
+        , Call.tinfo_sub_tracks = subs
+        , Call.tinfo_events_around = events_around
+        }

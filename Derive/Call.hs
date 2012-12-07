@@ -87,7 +87,7 @@ import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseBs as Parse
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -113,6 +113,17 @@ eval_one_at start dur expr = eval_expr cinfo expr
     -- this way I can have zero duration events.
     cinfo = Derive.dummy_call_info start dur
         ("eval_one: " ++ TrackLang.show_val expr)
+
+-- | Like 'derive_event' but evaluate the event outside of its track context.
+-- This is useful if you want to evaluate things out of order, i.e. evaluate
+-- the /next/ pitch.
+eval_event :: (Derive.Derived d) => Event.Event
+    -> Derive.Deriver (Either String (LEvent.LEvents d))
+eval_event event = case ParseBs.parse_expr (Event.event_bytestring event) of
+    Left err -> return $ Left err
+    Right expr -> Right <$>
+        -- TODO eval it separately to catch any exception?
+        eval_one_at (Event.start event) (Event.duration event) expr
 
 -- | Apply an expr with the current call info.
 reapply :: (Derive.Derived d) => Derive.PassedArgs d -> TrackLang.Expr
@@ -164,10 +175,9 @@ type GetLastSample d =
 -- auxiliary data in 'Derive.CallInfo'.
 derive_track :: forall d. (Derive.Derived d) =>
     -- forall and ScopedTypeVariables needed for the inner 'go' signature
-    Derive.State -> TrackInfo -> Parse.ParseExpr
-    -> GetLastSample d -> [Event.Event]
+    Derive.State -> TrackInfo -> GetLastSample d -> [Event.Event]
     -> ([LEvent.LEvents d], Derive.Collect)
-derive_track state tinfo parse get_last_sample events =
+derive_track state tinfo get_last_sample events =
     go (Internal.record_track_dynamic state) Nothing "" [] events
     where
     -- This threads the collect through each event.  I would prefer to map and
@@ -182,7 +192,7 @@ derive_track state tinfo parse get_last_sample events =
         (result, logs, next_collect) =
             -- trace ("derive " ++ show_pos state (fst cur) ++ "**") $
             derive_event (state { Derive.state_collect = collect })
-                tinfo parse prev_sample repeat_call prev cur rest
+                tinfo prev_sample repeat_call prev cur rest
         (rest_events, final_collect) =
             go next_collect next_sample next_repeat_call (cur : prev) rest
         events = map LEvent.Log logs ++ case result of
@@ -206,18 +216,19 @@ derive_track state tinfo parse get_last_sample events =
 --         Stack.to_ui (Derive.state_stack state)
 
 derive_event :: (Derive.Derived d) =>
-    Derive.State -> TrackInfo -> Parse.ParseExpr
-    -> Maybe (RealTime, Derive.Elem d)
+    Derive.State -> TrackInfo -> Maybe (RealTime, Derive.Elem d)
     -> B.ByteString -- ^ repeat call, substituted with @\"@
     -> [Event.Event] -- ^ previous events, in reverse order
     -> Event.Event -- ^ cur event
     -> [Event.Event] -- ^ following events
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-derive_event st tinfo parse prev_sample repeat_call prev event next
+derive_event st tinfo prev_sample repeat_call prev event next
     | text == "--" = (Right mempty, [], Derive.state_collect st)
-    | otherwise = case parse (substitute_repeat repeat_call text) of
-        Left err -> (Right mempty, [parse_error err], Derive.state_collect st)
-        Right expr -> run_call expr
+    | otherwise =
+        case ParseBs.parse_expr (substitute_repeat repeat_call text) of
+            Left err ->
+                (Right mempty, [parse_error err], Derive.state_collect st)
+            Right expr -> run_call expr
     where
     text = Event.event_bytestring event
     parse_error = Log.msg Log.Warn $

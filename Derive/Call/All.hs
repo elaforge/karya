@@ -42,7 +42,8 @@ note_lookups = Derive.empty_scope_type { Derive.stype_builtin =
 control_lookups :: Derive.ScopeType Derive.ControlCall
 control_lookups = Derive.empty_scope_type
     { Derive.stype_builtin =
-        [ Block.lookup_control_block
+        [ Control.lookup_number
+        , Block.lookup_control_block
         , Derive.map_lookup control_calls
         ]
     }

@@ -11,12 +11,36 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (required, optional)
 import qualified Derive.Derive as Derive
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 
+
+-- | This is a special lookup for control tracks that lets you directly type
+-- a number, and have that be interpreted as setting the control to that value.
+-- In addition, it allows a special hex syntax
+--
+-- Formerly, control tracks used a slightly different parser to enable the same
+-- thing, but that turned out to be awkward when I wanted to implement
+-- 'Call.eval_event'.
+lookup_number :: Derive.LookupCall Derive.ControlCall
+lookup_number = Derive.pattern_lookup "numbers and hex" doc $
+    \(TrackLang.Symbol sym) -> case ParseBs.parse_num sym of
+        Left _ -> return Nothing
+        Right num -> return $ Just $ set num
+    where
+    set :: Signal.Y -> Derive.ControlCall
+    set num = Derive.generator1 "self-eval"
+        "Emit a sample with no interpolation. This accepts either decimal\
+        \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
+        \ is divided by 255, so they represent a number between 0 and 1." $
+        CallSig.call0g $ \args -> do
+            pos <- Args.real_start args
+            return $! Signal.signal [(pos, num)]
+    doc = Derive.extract_doc (set 0)
 
 -- * call map
 

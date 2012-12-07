@@ -111,14 +111,8 @@ test_parse_val = do
             , ("-", Nothing)
             , ("_", Just VNotGiven)
             ]
-    -- Vals that don't convert back into the original val after
-    -- parse . show_val.
-    let not_invertible =
-            [ ("`0x`00", Just (VNum (Score.untyped 0)))
-            , ("`0x`001", Nothing)
-            , ("`0x`ff", Just (VNum (Score.untyped 1)))
-            ]
-    let exprs = map ((,) True) invertible ++ map ((,) False) not_invertible
+    -- No longer any noninvertable ones, but maybe there will be again someday.
+    let exprs = map ((,) True) invertible
     forM_ exprs $ \(invertible, (expr, expected)) -> do
         let res = Parse.parse_val expr
         case (res, expected) of
@@ -131,6 +125,12 @@ test_parse_val = do
                 when invertible $
                     void $ equal (TrackLang.show_val val) expr
             _ -> void $ success $ show res ++ " == " ++ show expected
+
+test_parse_num = do
+    let f = Parse.parse_num
+    equal (f "`0x`00") (Right 0)
+    equal (f "`0x`ff") (Right 1)
+    left_like (f "`0x`000") "parse error"
 
 test_p_equal = do
     let eq a b = Right (Call (Symbol "=") [Literal a, b])
