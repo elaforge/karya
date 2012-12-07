@@ -45,7 +45,9 @@ make_scale scale_id ratios = Scale.Scale
     , Scale.scale_call_doc = Util.annotate_call_doc Util.standard_transposers
         ("Just scales are tuned by ratios from a base frequency.\
         \ That frequency is taken from the `%just-base` control and the key.\
-        \ For example, `%just-base = 440 | key = 'a-maj'` means the scale is\
+        \ For example, `%just-base = 440 | key = 'a-maj'` means that A in the\
+        \ middle octave is 440hz and the scale will use the major just ratios\
+        \ starting from A.\
         \ If the base hz isn't given, it defaults to the 12TET tuning of the\
         \ key."
         ) [("ratios", Pretty.pretty ratios)] Util.scale_degree_doc

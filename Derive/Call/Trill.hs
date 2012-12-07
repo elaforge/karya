@@ -160,7 +160,7 @@ pitch_calls = Derive.make_calls
 -- unaffected by the tempo.  If it's a ScoreTime, the value is the number
 -- of cycles per ScoreTime unit, and will stretch along with tempo changes.
 c_pitch_trill :: Maybe Mode -> Derive.PitchCall
-c_pitch_trill maybe_mode = Derive.generator1 "pitch_trill"
+c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill"
     ("Generate a pitch signal of alternating pitches. `tr1` will start with\
     \ the unison, while `tr2` will start with the neighbor. `tr` will\
     \ use the `trill-mode` env var, which should be either `'unison'`\
