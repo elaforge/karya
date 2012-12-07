@@ -1,5 +1,6 @@
 module Derive.Call.Pitch_test where
 import Util.Test
+import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Pitch as Pitch
@@ -9,11 +10,11 @@ import Types
 test_interpolated_transpose = do
     -- An even interpolation on an un-equal tempered scale should remain even
     -- after transposition.
-    let scale = DeriveTest.mkscale "test" [("a", 1), ("b", 3), ("c", 4)]
+    let scale = DeriveTest.mkscale "test" [("A", 1), ("B", 3), ("C", 4)]
     let run title = extract $ DeriveTest.derive_tracks_with
             (DeriveTest.with_scale scale)
             [ (title, [(0, 5, "")])
-            , ("*test", [(0, 0, "a"), (4, 0, "i (b)")])
+            , ("*test", [(0, 0, "A"), (4, 0, "i (B)")])
             ]
         extract = head . DeriveTest.extract_events DeriveTest.e_pitch
     equal (run ">") [(0, 1), (1, 1.5), (2, 2), (3, 2.5), (4, 3)]
@@ -50,6 +51,15 @@ test_neighbor = do
     equal (run_tempo 2 [(0, "n (4c) 1d 1")]) [(0, 62), (1, 60)]
     -- Except when explicitly set to ScoreTime.
     equal (run_tempo 2 [(0, "n (4c) 1d 1t")]) [(0, 62), (0.5, 60)]
+
+test_approach = do
+    equal (CallTest.run_pitch [(0, "4c"), (10, "a 2s"), (20, "4d")])
+        [(0, 60), (10, 60), (11, 61), (12, 62), (20, 62)]
+
+    let run = DeriveTest.extract DeriveTest.e_pitch
+            . DeriveTest.derive_tracks . UiTest.note_spec
+    equal (run ("", [(0, 10, "4c"), (10, 10, "a 2s"), (20, 10, "4d")], []))
+        ([[(0, 60)], [(10, 60), (11, 61), (12, 62)], [(20, 62)]], [])
 
 test_linear_next = do
     -- no arg goes to the next event

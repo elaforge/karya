@@ -1,6 +1,6 @@
 UNSORTED
   add 'approach' call
-    - do just plain 'a' approach call first
+    * do just plain 'a' approach call first
       use eval_event to get the next pitch
     . For this I need to know the next value.  So I need a way to evaluate the
       future.

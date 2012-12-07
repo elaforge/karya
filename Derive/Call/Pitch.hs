@@ -7,13 +7,16 @@ import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
+import qualified Ui.Event as Event
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional, required)
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -66,6 +69,7 @@ pitch_calls = Derive.make_calls
     , ("e", c_exponential)
     , ("e>", c_exponential_next)
     , ("n", c_neighbor)
+    , ("a", c_approach)
     , ("u", c_up)
     , ("d", c_down)
     ]
@@ -73,7 +77,7 @@ pitch_calls = Derive.make_calls
 -- | This should contain the calls that require the previous value.  It's used
 -- by a hack in 'Derive.Slice.slice'.
 require_previous :: Set.Set String
-require_previous = Set.fromList ["'", "u", "d"]
+require_previous = Set.fromList ["'", "u", "d", "a"]
 
 c_set :: Derive.PitchCall
 c_set = Derive.generator1 "set" "Emit a pitch with no interpolation." $
@@ -131,6 +135,10 @@ c_exponential_next = Derive.generator1 "exponential-next"
     ) $ \pitch exp maybe_time args ->
         interpolate_next (Control.expon exp) args pitch maybe_time
 
+pitch_arg :: CallSig.Arg (Either PitchSignal.Pitch Pitch.Transpose)
+pitch_arg = required "pitch"
+    "Destination pitch, or a transposition from the previous one."
+
 c_neighbor :: Derive.PitchCall
 c_neighbor = Derive.generator1 "neighbor"
     ("Emit a slide from a neighboring pitch to the given one."
@@ -143,9 +151,26 @@ c_neighbor = Derive.generator1 "neighbor"
         let pitch1 = Pitches.transpose neighbor pitch
         make_interpolator id True start pitch1 end pitch
 
-pitch_arg :: CallSig.Arg (Either PitchSignal.Pitch Pitch.Transpose)
-pitch_arg = required "pitch"
-    "Destination pitch, or a transposition from the previous one."
+c_approach :: Derive.PitchCall
+c_approach = Derive.generator1 "approach"
+    "Slide to the next pitch." $ CallSig.call1g
+    ( optional "time" (TrackLang.real 0.2) "Time to get to destination pitch."
+    ) $ \(TrackLang.DefaultReal time) args -> do
+        maybe_next <- next_pitch args
+        (start, end) <- Util.duration_from_start args time
+        case (Args.prev_val args, maybe_next) of
+            (Just (_, prev), Just next) ->
+                make_interpolator id True start prev end next
+            _ -> Util.pitch_signal []
+
+next_pitch :: Derive.PassedArgs d -> Derive.Deriver (Maybe PitchSignal.Pitch)
+next_pitch = maybe (return Nothing) eval_pitch . Seq.head . Args.next_events
+
+eval_pitch :: Event.Event -> Derive.Deriver (Maybe PitchSignal.Pitch)
+eval_pitch event =
+    justm (either (const Nothing) Just <$> Call.eval_event event) $ \strm -> do
+    start <- Derive.real (Event.start event)
+    return $ PitchSignal.at start $ mconcat $ LEvent.events_of strm
 
 c_up :: Derive.PitchCall
 c_up = Derive.generator1 "up"
