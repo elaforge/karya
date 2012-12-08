@@ -155,7 +155,7 @@ colored_divider :: Color.Color -> Track
 colored_divider color = track (DId (Divider color)) 3
 
 divider :: Track
-divider = colored_divider Color.black
+divider = colored_divider (Color.rgb 0.8 0.8 0.8)
 
 track_collapsed :: Track -> Bool
 track_collapsed = (Collapse `elem`) . track_flags
