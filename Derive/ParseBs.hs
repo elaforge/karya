@@ -167,6 +167,7 @@ p_val =
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
     <|> TrackLang.VRelativeAttr <$> A.try p_rel_attr
+    <|> TrackLang.VNum . Score.untyped <$> p_hex
     <|> TrackLang.VNum <$> p_num
     <|> (TrackLang.VString . to_string) <$> p_string
     <|> TrackLang.VControl <$> p_control
@@ -174,6 +175,17 @@ p_val =
     <|> TrackLang.VScaleId <$> p_scale_id
     <|> (A.char '_' >> return TrackLang.VNotGiven)
     <|> TrackLang.VSymbol <$> p_symbol
+
+p_num :: A.Parser Score.TypedVal
+p_num = do
+    num <- p_untyped_num
+    suffix <- A.option "" ((:"") <$> A.letter_ascii)
+    case Score.code_to_type suffix of
+        Nothing -> fail $ "p_num expected suffix in [cdsr]: " ++ show suffix
+        Just typ -> return $ Score.Typed typ num
+
+p_untyped_num :: A.Parser Signal.Y
+p_untyped_num = Parse.p_float
 
 p_hex :: A.Parser Signal.Y
 p_hex = do
@@ -190,17 +202,6 @@ parse_hex c1 c2 = higit c1 * 16 + higit c2
     higit c
         | '0' <= c && c <= '9' = fromEnum c - fromEnum '0'
         | otherwise = fromEnum c - fromEnum 'a' + 10
-
-p_num :: A.Parser Score.TypedVal
-p_num = do
-    num <- p_untyped_num
-    suffix <- A.option "" ((:"") <$> A.letter_ascii)
-    case Score.code_to_type suffix of
-        Nothing -> fail $ "p_num expected suffix in [cdsr]: " ++ show suffix
-        Just typ -> return $ Score.Typed typ num
-
-p_untyped_num :: A.Parser Signal.Y
-p_untyped_num = Parse.p_float
 
 p_string :: A.Parser Text
 p_string = p_single_string <?> "string"
