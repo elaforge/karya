@@ -65,10 +65,10 @@ eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
 eval_track track expr ctype deriver = case ctype of
     TrackInfo.Tempo -> ifM Derive.is_lilypond_derive deriver $
-        tempo_call track (derive_control tempo_track expr) deriver
+        tempo_call track (derive_control True tempo_track expr) deriver
     TrackInfo.Control maybe_op control -> do
         op <- lookup_op maybe_op
-        control_call track control op (derive_control track expr) deriver
+        control_call track control op (derive_control False track expr) deriver
     TrackInfo.Pitch scale_id maybe_name ->
         pitch_call track maybe_name scale_id expr deriver
     where
@@ -189,9 +189,9 @@ with_control_damage maybe_track_id track_range =
 type TrackResults sig = (sig, [Log.Msg])
 
 -- | Derive the signal of a control track.
-derive_control :: TrackTree.TrackEvents -> [TrackLang.Call]
+derive_control :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Signal.Control)
-derive_control track expr = do
+derive_control is_tempo track expr = do
     stream <- Call.apply_transformer
         (Derive.dummy_call_info 0 1 "control track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
@@ -215,6 +215,8 @@ derive_control track expr = do
         , Call.tinfo_sub_tracks = []
         -- TODO provide events around for control tracks?
         , Call.tinfo_events_around = ([], [])
+        , Call.tinfo_type =
+            if is_tempo then TrackInfo.TempoTrack else TrackInfo.ControlTrack
         }
     last_sample prev chunk = Signal.last chunk `mplus` prev
 
@@ -240,6 +242,7 @@ derive_pitch track expr = do
         , Call.tinfo_sub_tracks = []
         -- TODO provide events around for control tracks?
         , Call.tinfo_events_around = ([], [])
+        , Call.tinfo_type = TrackInfo.PitchTrack
         }
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
@@ -336,11 +339,11 @@ eval_signal :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal
 eval_signal track expr ctype = case ctype of
     TrackInfo.Tempo -> do
-        (sig, logs) <- derive_control track expr
+        (sig, logs) <- derive_control True track expr
         mapM_ Log.write logs
         return $ track_sig sig Nothing
     TrackInfo.Control _ _ -> do
-        (sig, logs) <- derive_control track expr
+        (sig, logs) <- derive_control False track expr
         mapM_ Log.write logs
         return $ track_sig sig Nothing
     TrackInfo.Pitch scale_id _ -> do

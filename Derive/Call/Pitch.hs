@@ -82,7 +82,7 @@ require_previous = Set.fromList ["'", "u", "d", "a"]
 c_set :: Derive.PitchCall
 c_set = Derive.generator1 "set" "Emit a pitch with no interpolation." $
     -- This could take a transpose too, but then set has to be in
-    -- 'require_previous', it doesn't work for "" because of scales that use
+    -- 'require_previous', it gets shadowed for "" because of scales that use
     -- numbers, and it's not clearly useful.
     CallSig.call1g (required "pitch" "Destination pitch.") $ \pitch args -> do
         pos <- Args.real_start args

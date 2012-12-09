@@ -572,7 +572,7 @@ mkpitch2 p = case eval State.empty deriver of
     Right pitch -> pitch
     where
     deriver = Derive.with_scale Twelve.scale $
-        Call.eval_note (TrackLang.Note (Pitch.Note p) [])
+        Call.eval_note 0 (TrackLang.Note (Pitch.Note p) [])
 
 mkpitch :: String -> PitchSignal.Pitch
 mkpitch p = PitchSignal.pitch $ \controls ->

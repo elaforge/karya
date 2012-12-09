@@ -1,11 +1,15 @@
 module Derive.Call.CallTest where
 import qualified Data.Map as Map
 
+import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Ui.State as State
+import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -79,6 +83,14 @@ single_val_lookup :: String -> Derive.ValCall
 single_val_lookup name call =
     Derive.map_val_lookup (Map.singleton (TrackLang.Symbol name) call)
 
+-- * calls
+
+c_show_args :: (Derive.Derived d) => Derive.Call d
+c_show_args = Derive.generator "show-args" "doc" $
+    CallSig.parsed_manually "doc" $ \args -> do
+        Log.warn $ Seq.join ", " $
+            map ShowVal.show_val (Derive.passed_vals args)
+        return []
 
 -- * PassedArgs
 

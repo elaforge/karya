@@ -223,10 +223,8 @@ computed_input_to_nn ::  (Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note)
     -> (Pitch.Note -> Maybe Derive.ValCall)
     -> ScoreTime -> Pitch.InputKey -> Derive.Deriver (Maybe Pitch.NoteNumber)
 computed_input_to_nn input_to_note note_to_call pos input
-    | Just note <- input_to_note Nothing input,
-            Just call <- note_to_call note = do
-        val <- Call.apply pos (TrackLang.Symbol (Pitch.note_text note)) call []
-        case val of
+    | Just note <- input_to_note Nothing input, Just call <- note_to_call note =
+        Call.apply_note pos note call >>= \val -> case val of
             TrackLang.VPitch pitch -> do
                 controls <- Derive.controls_at =<< Derive.real pos
                 return $ either (const Nothing) Just $

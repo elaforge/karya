@@ -89,9 +89,12 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Pitch as Pitch
 import Types
 
 
@@ -135,10 +138,19 @@ reapply_call :: (Derive.Derived d) => Derive.PassedArgs d -> TrackLang.Call
 reapply_call args call = reapply args (call :| [])
 
 -- | A version of 'eval' specialized to evaluate note calls.
-eval_note :: TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
-eval_note note = CallSig.cast ("eval note " ++ show note)
-    =<< eval 0 (TrackLang.note_call note)
+eval_note :: ScoreTime -> TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
+eval_note pos note = CallSig.cast ("eval note " ++ show note)
+    =<< eval (Derive.dummy_call_info pos 0 "<eval_note>")
+        (TrackLang.note_call note)
     -- Note calls shouldn't care about their pos.
+
+-- | This is like 'eval_note' when you already know the call, presumably
+-- because you asked 'Derive.scale_note_to_call'.
+apply_note :: ScoreTime -> Pitch.Note -> Derive.ValCall
+    -> Derive.Deriver TrackLang.Val
+apply_note pos note call =
+    apply cinfo (TrackLang.Symbol (Pitch.note_text note)) call []
+    where cinfo = Derive.dummy_call_info pos 0 "<apply_note>"
 
 -- | Evaluate a single expression.
 eval_expr :: (Derive.Derived d) => Derive.CallInfo d -> TrackLang.Expr
@@ -162,6 +174,7 @@ data TrackInfo = TrackInfo {
     , tinfo_shifted :: !ScoreTime
     , tinfo_sub_tracks :: !TrackTree.EventsTree
     , tinfo_events_around :: !([Event.Event], [Event.Event])
+    , tinfo_type :: !TrackInfo.Type
     }
 
 type GetLastSample d =
@@ -254,9 +267,10 @@ derive_event st tinfo prev_sample repeat_call prev event next
             event : _ -> Event.start event
         , Derive.info_track_range = track_range
         , Derive.info_sub_tracks = subs
+        , Derive.info_track_type = Just ttype
         }
     region s e = Stack.Region (shifted + s) (shifted + e)
-    TrackInfo events_end track_range shifted subs around = tinfo
+    TrackInfo events_end track_range shifted subs around ttype = tinfo
 
 -- | Replace @\"@ with the previous non-@\"@ call, if there was one.
 --
@@ -294,7 +308,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
     maybe_call <- Derive.lookup_callable call_id
     (call, vals) <- case maybe_call of
         Just call -> do
-            vals <- mapM (eval (event_start cinfo)) args
+            vals <- mapM (eval cinfo) args
             return (call, vals)
         -- If I didn't find a call, look for a val call and pass its result to
         -- "".  This is what makes pitch tracks work, since scales are val
@@ -304,7 +318,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             -- lookup says it's a failed val lookup.
             vcall <- require_call call_id name
                 =<< Derive.lookup_val_call call_id
-            val <- apply (event_start cinfo) call_id vcall args
+            val <- apply (strip_call_info cinfo) call_id vcall args
             -- We only do this fallback thing once.
             call <- get_call fallback_call_id
             return (call, [val])
@@ -324,7 +338,7 @@ apply_transformer :: (Derive.Derived d) => Derive.CallInfo d
     -> Derive.LogsDeriver d
 apply_transformer _ [] deriver = deriver
 apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
-    vals <- mapM (eval (event_start cinfo)) args
+    vals <- mapM (eval cinfo) args
     let new_deriver = apply_transformer cinfo calls deriver
     call <- get_call call_id
     let args = Derive.PassedArgs vals call_id cinfo
@@ -334,20 +348,25 @@ apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             ++ Derive.call_name call
 
-eval :: ScoreTime -> TrackLang.Term -> Derive.Deriver TrackLang.Val
+eval :: Derive.CallInfo d -> TrackLang.Term -> Derive.Deriver TrackLang.Val
 eval _ (TrackLang.Literal val) = return val
-eval pos (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
+eval cinfo (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
     call <- get_val_call call_id
-    apply pos call_id call terms
+    apply (strip_call_info cinfo) call_id call terms
 
-apply :: ScoreTime -> TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
-    -> Derive.Deriver TrackLang.Val
-apply pos call_id call args = do
-    vals <- mapM (eval pos) args
-    let args = Derive.PassedArgs vals call_id
-            (Derive.val_call_info pos "val-call")
+apply :: Derive.CallInfo () -> TrackLang.CallId -> Derive.ValCall
+    -> [TrackLang.Term] -> Derive.Deriver TrackLang.Val
+apply cinfo call_id call args = do
+    vals <- mapM (eval cinfo) args
+    let passed = Derive.PassedArgs vals call_id cinfo
     Derive.with_msg ("val call " ++ Derive.vcall_name call) $
-        Derive.vcall_call call args
+        Derive.vcall_call call passed
+
+-- | Strip off the polymorphic part of the CallInfo so it can be given to
+-- a 'Derive.ValCall'.  Otherwise, ValCall would have to be polymorphic too,
+-- which means it would hard to write generic ones.
+strip_call_info :: Derive.CallInfo d -> Derive.CallInfo ()
+strip_call_info cinfo = cinfo { Derive.info_prev_val = Nothing }
 
 event_start :: Derive.CallInfo d -> ScoreTime
 event_start = Event.start . Derive.info_event

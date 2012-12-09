@@ -43,10 +43,8 @@ note_to_pitch scale_id block_id track_id pos note = do
     scale <- Cmd.get_scale "Perf.note_to_pitch" scale_id
     case Scale.scale_note_to_call scale note of
         Nothing -> return $ Left $ "no call for " ++ show note
-        Just call -> derive_at block_id track_id $ do
-            val <- Call.apply pos (TrackLang.Symbol (Pitch.note_text note))
-                call []
-            case val of
+        Just call -> derive_at block_id track_id $
+            Call.apply_note pos note call >>= \val -> case val of
                 TrackLang.VPitch pitch -> do
                     controls <- Derive.controls_at =<< Derive.real pos
                     either (Derive.throw . show) return $

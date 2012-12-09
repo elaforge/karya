@@ -58,7 +58,7 @@ test_track_expression = do
 test_derive_control = do
     let ex (sig, logs) = (Signal.unsignal sig, map DeriveTest.show_log logs)
     let derive events = DeriveTest.extract_run ex $ DeriveTest.run State.empty
-            (Control.derive_control (mktrack 10 (0, 10) events) [])
+            (Control.derive_control True (mktrack 10 (0, 10) events) [])
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
     equal (derive [(0, 0, "1"), (2, 0, "i 2")])

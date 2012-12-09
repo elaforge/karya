@@ -16,8 +16,11 @@ UNSORTED
       self_eval trick, then I need a ControlScope.  But that happens by
       type inference, since there's a lookup_callable method.
 
-    - add (<) and (>) val calls for the previous and next val, respectively
-    - This means val calls are also going to need next events.  Should be ok.
+    * add (<) and (>) val calls for the previous and next val, respectively
+    * This means val calls are also going to need next events.  Should be ok.
+    * I also need the track type.
+      Otherwise I don't know how to evaluate the events, this is tied to
+      ValCall being monomorphic.
   - make TrackLang.Symbol into ByteString?
   * quantize, so I can clean up pno-vla
   * figure out why the note after 'd 20' is bogus

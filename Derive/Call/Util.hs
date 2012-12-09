@@ -169,20 +169,20 @@ to_time_signal default_type control = do
         _ -> Derive.throw $ "expected time type for "
             ++ TrackLang.show_val control ++ " but got " ++ Pretty.pretty typ
 
+-- TODO maybe pos should be be ScoreTime so I can pass it to eval_note?
 pitch_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver PitchSignal.Pitch
 pitch_at pos control = case control of
-    TrackLang.ConstantControl deflt -> Call.eval_note deflt
+    TrackLang.ConstantControl deflt -> Call.eval_note 0 deflt
     TrackLang.DefaultedControl cont deflt -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
-        maybe (Call.eval_note deflt) return maybe_pitch
+        maybe (Call.eval_note 0 deflt) return maybe_pitch
     TrackLang.LiteralControl cont -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
         maybe (Derive.throw $ "pitch not found and no default given: "
             ++ show cont) return maybe_pitch
 
-to_pitch_signal :: TrackLang.PitchControl
-    -> Derive.Deriver PitchSignal.Signal
+to_pitch_signal :: TrackLang.PitchControl -> Derive.Deriver PitchSignal.Signal
 to_pitch_signal control = case control of
     TrackLang.ConstantControl deflt -> constant deflt
     TrackLang.DefaultedControl cont deflt -> do
@@ -194,7 +194,7 @@ to_pitch_signal control = case control of
     where
     constant note = do
         scale <- get_scale
-        constant_pitch scale <$> Call.eval_note note
+        constant_pitch scale <$> Call.eval_note 0 note
 
 nn_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver (Maybe Pitch.NoteNumber)

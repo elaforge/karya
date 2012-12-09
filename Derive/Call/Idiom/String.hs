@@ -52,7 +52,8 @@ c_guzheng strings = Derive.transformer "guzheng"
         "If the string won't be used for the following note, it will be"
         <> "released after this delay."
     ) $ \attack release delay _args deriver -> do
-        string_pitches <- mapM Call.eval_note strings
+        -- TODO if I care about retuning notes I should pass a time
+        string_pitches <- mapM (Call.eval_note 0) strings
         srate <- Util.get_srate
         events <- deriver
         scale <- Util.get_scale
@@ -67,7 +68,7 @@ c_violin strings = Derive.transformer "violin"
     CallSig.call1t
     ( optional "delay" (control "string-delay" 0) "String release delay time."
     ) $ \delay _args deriver -> do
-        string_pitches <- mapM Call.eval_note strings
+        string_pitches <- mapM (Call.eval_note 0) strings
         srate <- Util.get_srate
         events <- deriver
         scale <- Util.get_scale

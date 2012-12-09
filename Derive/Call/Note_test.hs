@@ -64,8 +64,17 @@ mkargs text subs = Derive.PassedArgs [] call_id info
     where
     event = Event.event 0 1 text
     call_id = TrackLang.Symbol "call"
-    info = Derive.CallInfo (CallTest.expr (Event.event_string event))
-        Nothing event prev next event_end (0, event_end) (make_tree subs)
+    info = Derive.CallInfo
+        { Derive.info_expr = CallTest.expr (Event.event_string event)
+        , Derive.info_prev_val = Nothing
+        , Derive.info_event = event
+        , Derive.info_prev_events = prev
+        , Derive.info_next_events = next
+        , Derive.info_event_end = event_end
+        , Derive.info_track_range = (0, event_end)
+        , Derive.info_sub_tracks = make_tree subs
+        , Derive.info_track_type = Nothing
+        }
     prev = []
     next = [Event.event (Event.end event) 0 "next"]
     event_end = 100

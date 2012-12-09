@@ -72,7 +72,7 @@ module Derive.Deriver.Monad (
 
     -- * calls
     , NoteCallMap, ControlCallMap, PitchCallMap, ValCallMap
-    , CallInfo(..), dummy_call_info, val_call_info
+    , CallInfo(..), dummy_call_info
     , Call(..)
     , CallDoc(..), ArgDoc(..), ArgDocs(..)
     , NoteCall, ControlCall, PitchCall
@@ -133,6 +133,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
@@ -712,12 +713,14 @@ data PassedArgs derived = PassedArgs {
 -- | Additional data for a call.  This part is invariant for all calls on
 -- an event.
 --
--- Not used at all for val calls.  The events not used for transform calls.
--- TODO make separate types so the irrelevent data need not be passed
+-- The events are not used for transform calls.
+--
+-- TODO make separate types so the irrelevent data need not be passed?
 data CallInfo derived = CallInfo {
     -- | The expression currently being evaluated.  Why I need this is
     -- documented in 'Derive.Call.Note.inverting'.
     info_expr :: !TrackLang.Expr
+
     -- The below is not used at all for val calls, and the events are not
     -- used for transform calls.  It might be cleaner to split those out, but
     -- too much bother.
@@ -747,6 +750,7 @@ data CallInfo derived = CallInfo {
 
     -- | The track tree below note tracks.  Not given for control tracks.
     , info_sub_tracks :: !TrackTree.EventsTree
+    , info_track_type :: !(Maybe TrackInfo.Type)
     }
 
 -- | Transformer calls don't necessarily apply to any particular event, and
@@ -761,12 +765,8 @@ dummy_call_info start dur text = CallInfo
     , info_event_end = start + dur
     , info_track_range = (start, start + dur)
     , info_sub_tracks = []
+    , info_track_type = Nothing
     } where s = if null text then "<no-event>" else "<" ++ text ++ ">"
-
--- | Construct a CallInfo for val calls.  They expect to have a valid start
--- time since some val calls need that.
-val_call_info :: ScoreTime -> String -> CallInfo derived
-val_call_info start text = dummy_call_info start 0 text
 
 -- | A Call will be called as either a generator or a transformer, depending on
 -- its position.  A call at the end of a compose pipeline will be called as
@@ -880,7 +880,7 @@ transformer_call doc (func, arg_docs) =
 
 data ValCall = ValCall {
     vcall_name :: !String
-    , vcall_call :: PassedArgs TrackLang.Val -> Deriver TrackLang.Val
+    , vcall_call :: PassedArgs () -> Deriver TrackLang.Val
     , vcall_doc :: !CallDoc
     }
 
@@ -888,7 +888,7 @@ instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
 val_call :: String -> String
-    -> WithArgDoc (PassedArgs TrackLang.Val -> Deriver TrackLang.Val) -> ValCall
+    -> WithArgDoc (PassedArgs () -> Deriver TrackLang.Val) -> ValCall
 val_call name doc (call, arg_docs) = ValCall
     { vcall_name = name
     , vcall_call = call

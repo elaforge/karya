@@ -156,4 +156,5 @@ derive_notes events_end track_range shifted subs events_around events = do
         , Call.tinfo_shifted = shifted
         , Call.tinfo_sub_tracks = subs
         , Call.tinfo_events_around = events_around
+        , Call.tinfo_type = TrackInfo.NoteTrack
         }
