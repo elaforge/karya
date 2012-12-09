@@ -219,6 +219,10 @@ instance Pretty.Pretty Warp where
                 Pretty.<+> Pretty.format (shift, stretch))
             [("signal", Pretty.format sig)]
 
+instance DeepSeq.NFData Warp where
+    rnf (Warp sig shift stretch) =
+        DeepSeq.rnf sig `seq` DeepSeq.rnf shift `seq` DeepSeq.rnf stretch
+
 -- | Convert a Signal to a Warp.
 signal_to_warp :: Signal.Warp -> Warp
 signal_to_warp sig = Warp sig 0 1

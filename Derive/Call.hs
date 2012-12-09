@@ -79,6 +79,7 @@ import qualified Data.ByteString.Char8 as B
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
@@ -203,7 +204,7 @@ derive_track state tinfo get_last_sample events =
         (events : rest_events, final_collect)
         where
         (result, logs, next_collect) =
-            -- trace ("derive " ++ show_pos state (fst cur) ++ "**") $
+            -- Debug.traces ("derive " ++ show_pos state cur ++ "**") $
             derive_event (state { Derive.state_collect = collect })
                 tinfo prev_sample repeat_call prev cur rest
         (rest_events, final_collect) =
@@ -220,13 +221,14 @@ derive_track state tinfo get_last_sample events =
         next_repeat_call =
             repeat_call_of repeat_call (Event.event_bytestring cur)
 
--- Used with trace to observe laziness.
--- show_pos :: Derive.State -> ScoreTime -> String
--- show_pos state pos = stack ++ ": " ++ Pretty.pretty now
---     where
---     now = Score.warp_pos pos (Derive.state_warp state)
---     stack = Seq.join ", " $ map Stack.unparse_ui_frame $
---         Stack.to_ui (Derive.state_stack state)
+-- | Used with trace to observe laziness.
+show_pos :: Derive.State -> Event.Event -> String
+show_pos state event = stack ++ ": " ++ Pretty.pretty now
+    where
+    now = Score.warp_pos (Event.start event) (Derive.state_warp dyn)
+    stack = Seq.join ", " $ map Stack.unparse_ui_frame $
+        Stack.to_ui (Derive.state_stack dyn)
+    dyn = Derive.state_dynamic state
 
 derive_event :: (Derive.Derived d) =>
     Derive.State -> TrackInfo -> Maybe (RealTime, Derive.Elem d)

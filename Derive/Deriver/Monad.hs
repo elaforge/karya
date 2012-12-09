@@ -93,7 +93,7 @@ module Derive.Deriver.Monad (
     -- ** cache types
     -- $cache_doc
     , Cache(..), Cached(..), cache_size
-    , CacheEntry(..), CallType
+    , CacheEntry(..), CallType(..)
     , GeneratorDep(..)
 
     -- ** damage
@@ -109,6 +109,9 @@ module Derive.Deriver.Monad (
     , invalidate_damaged
 ) where
 import qualified Control.Applicative as Applicative
+import qualified Control.DeepSeq as DeepSeq
+import Control.DeepSeq (rnf)
+
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
@@ -423,6 +426,24 @@ initial_controls = Map.fromList
 default_dynamic :: Signal.Y
 default_dynamic = 1
 
+instance Pretty.Pretty Dynamic where
+    format (Dynamic controls pitches pitch environ warp scope damage stack _) =
+        Pretty.record_title "Dynamic"
+            [ ("controls", Pretty.format controls)
+            , ("pitches", Pretty.format pitches)
+            , ("pitch", Pretty.format pitch)
+            , ("environ", Pretty.format environ)
+            , ("warp", Pretty.format warp)
+            , ("scope", Pretty.format scope)
+            , ("damage", Pretty.format damage)
+            , ("stack", Pretty.format stack)
+            ]
+
+instance DeepSeq.NFData Dynamic where
+    rnf (Dynamic controls pitches pitch environ warp scope damage stack _) =
+        rnf controls `seq` rnf pitches `seq` rnf pitch `seq` rnf environ
+        `seq` rnf warp `seq` rnf scope `seq` rnf damage `seq` rnf stack
+
 -- ** scope
 
 -- | This represents all calls in scope.  Different types of calls are in scope
@@ -438,6 +459,17 @@ data Scope = Scope {
 empty_scope :: Scope
 empty_scope = Scope empty_scope_type empty_scope_type empty_scope_type
     empty_scope_type
+
+instance Pretty.Pretty Scope where
+    format (Scope note control pitch val) = Pretty.record_title "Scope"
+        [ ("note", Pretty.format note)
+        , ("control", Pretty.format control)
+        , ("pitch", Pretty.format pitch)
+        , ("val", Pretty.format val)
+        ]
+
+instance DeepSeq.NFData Scope where
+    rnf (Scope _ _ _ _) = ()
 
 -- | An instrument or scale may put calls into scope.  If that instrument
 -- or scale is replaced with another, the old calls must be replaced with
@@ -459,6 +491,8 @@ instance Show (ScopeType call) where
     show (ScopeType inst scale builtin) =
         "((ScopeType" ++ n inst ++ n scale ++ n builtin ++ "))"
         where n = (" "++) . show . length
+
+instance Pretty.Pretty (ScopeType call) where pretty = show
 
 -- | For flexibility, a scope is represented not by a map from symbols to
 -- derivers, but a function.  That way, it can inspect the CallId and return
@@ -657,6 +691,11 @@ instance Monoid.Monoid Collect where
         Collect (warps1 <> warps2) (signals1 <> signals2) (env1 <> env2)
             (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
 
+instance DeepSeq.NFData Collect where
+    rnf (Collect warp_map tsigs track_dyn local_dep cache integrated) =
+        rnf warp_map `seq` rnf tsigs `seq` rnf track_dyn
+        `seq` rnf local_dep `seq` rnf cache `seq` rnf integrated
+
 data Integrated = Integrated {
     -- BlockId for a block integration, TrackId for a track integration.
     integrated_source :: !(Either BlockId TrackId)
@@ -675,6 +714,9 @@ instance Pretty.Pretty Integrated where
         , ("events", Pretty.format events)
         , ("key", Pretty.format key)
         ]
+
+instance DeepSeq.NFData Integrated where
+    rnf (Integrated source events _key) = rnf source `seq` rnf events
 
 -- | Snapshots of the environ at each track.  This is used by the Cmd layer to
 -- figure out what the scale and instrument are for a given track.
@@ -904,22 +946,26 @@ val_call name doc (call, arg_docs) = ValCall
 
 -- instead of a stack, this could be a tree of frames
 newtype Cache = Cache (Map.Map Stack.Stack Cached)
-    deriving (Monoid.Monoid, Show, Pretty.Pretty)
+    deriving (Monoid.Monoid, Show, Pretty.Pretty, DeepSeq.NFData)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
-
--- | When cache entries are invalidated by ScoreDamage, a marker is left in
--- their place.  This is just for a nicer log msg that can tell the difference
--- between never evaluated and damaged.
-data Cached = Cached CacheEntry | Invalid
-    deriving (Show)
 
 cache_size :: Cache -> Int
 cache_size (Cache c) = Map.size c
 
+-- | When cache entries are invalidated by ScoreDamage, a marker is left in
+-- their place.  This is just for a nicer log msg that can tell the difference
+-- between never evaluated and damaged.
+data Cached = Cached !CacheEntry | Invalid
+    deriving (Show)
+
 instance Pretty.Pretty Cached where
     format Invalid = Pretty.text "Invalid"
     format (Cached entry) = Pretty.format entry
+
+instance DeepSeq.NFData Cached where
+    rnf Invalid = ()
+    rnf (Cached entry) = rnf entry
 
 -- | Since an entire track is one type but will have many different calls of
 -- different types, the deriver type division goes above the call type
@@ -930,19 +976,28 @@ data CacheEntry =
     | CachedPitch !(CallType PitchSignal.Signal)
     deriving (Show)
 
+instance Pretty.Pretty CacheEntry where
+    format (CachedEvents (CallType _ events)) = Pretty.format events
+    format (CachedControl (CallType _ events)) = Pretty.format events
+    format (CachedPitch (CallType _ events)) = Pretty.format events
+
+instance DeepSeq.NFData CacheEntry where
+    rnf (CachedEvents c) = rnf c
+    rnf (CachedControl c) = rnf c
+    rnf (CachedPitch c) = rnf c
+
 -- | The type here should match the type of the stack it's associated with,
 -- but I'm not quite up to those type gymnastics yet.
-type CallType derived = (Collect, LEvent.LEvents derived)
+data CallType derived = CallType !Collect !(LEvent.LEvents derived)
+    deriving (Show)
 
-instance Pretty.Pretty CacheEntry where
-    format (CachedEvents c) = Pretty.format (snd c)
-    format (CachedControl c) = Pretty.format (snd c)
-    format (CachedPitch c) = Pretty.format (snd c)
+instance (DeepSeq.NFData d) => DeepSeq.NFData (CallType d) where
+    rnf (CallType collect events) = rnf collect `seq` rnf events
 
 -- ** deps
 
 newtype GeneratorDep = GeneratorDep (Set.Set BlockId)
-    deriving (Monoid.Monoid, Show, Eq)
+    deriving (Monoid.Monoid, Show, Eq, DeepSeq.NFData)
 
 -- ** damage
 
@@ -975,6 +1030,10 @@ instance Pretty.Pretty ScoreDamage where
             , ("blocks", Pretty.format blocks)
             ]
 
+instance DeepSeq.NFData ScoreDamage where
+    rnf (ScoreDamage tracks track_blocks blocks) =
+        rnf tracks `seq` rnf track_blocks `seq` rnf blocks
+
 -- | Clear the damaged portions out of the cache so they will rederive.
 invalidate_damaged :: ScoreDamage -> Cache -> Cache
 invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
@@ -995,7 +1054,7 @@ invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
 -- modified.  It's dynamically scoped over the same range as the control
 -- itself, so that events that depend on it can be rederived.
 newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
-    deriving (Pretty.Pretty, Monoid.Monoid, Eq, Show)
+    deriving (Pretty.Pretty, Monoid.Monoid, Eq, Show, DeepSeq.NFData)
 
 
 -- * scale

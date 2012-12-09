@@ -221,6 +221,6 @@ pretty_cache (Derive.Cache cache) =
 
 entry_events :: Derive.CacheEntry -> Int
 entry_events entry = case entry of
-    Derive.CachedEvents c -> length (snd c)
-    Derive.CachedControl c -> length (snd c)
-    Derive.CachedPitch c -> length (snd c)
+    Derive.CachedEvents (Derive.CallType _ events) -> length events
+    Derive.CachedControl (Derive.CallType _ events) -> length events
+    Derive.CachedPitch (Derive.CallType _ events) -> length events

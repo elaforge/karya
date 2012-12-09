@@ -498,10 +498,6 @@ instance DeepSeq.NFData Call where
 instance DeepSeq.NFData Term where
     rnf (ValCall call) = DeepSeq.rnf call
     rnf (Literal val) = DeepSeq.rnf val
-instance DeepSeq.NFData Val where
-    rnf (VNum d) = DeepSeq.rnf d
-    rnf (VSymbol (Symbol s)) = DeepSeq.rnf s
-    rnf _ = ()
 
 -- | Convenient constructor for Call.  Not to be confused with 'call0'--calln.
 call :: String -> [Term] -> Call

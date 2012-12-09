@@ -1,5 +1,8 @@
 module Cmd.Msg where
+import qualified Control.DeepSeq as DeepSeq
+import Control.DeepSeq (rnf)
 import Control.Monad
+import qualified Data.Map as Map
 import qualified System.IO as IO
 
 import qualified Util.Pretty as Pretty
@@ -66,21 +69,40 @@ instance Pretty.Pretty DeriveStatus where pretty = show
 -- same, but Performance wasn't always the same and may not be the same in the
 -- future.
 data Performance = Performance {
-    perf_derive_cache :: Derive.Cache
-    , perf_events :: Derive.Events
-    , perf_track_dynamic :: Derive.TrackDynamic
-    , perf_integrated :: [Derive.Integrated]
+    perf_derive_cache :: !Derive.Cache
+    , perf_events :: !Derive.Events
+    , perf_track_dynamic :: !Derive.TrackDynamic
+    , perf_integrated :: ![Derive.Integrated]
     -- | Score damage on top of the Performance, used by the derive cache.
     -- This is empty when the Performance is first created and collects
     -- thereafter.
-    , perf_score_damage :: Derive.ScoreDamage
-    , perf_warps :: [TrackWarp.Collection]
-    , perf_track_signals :: Track.TrackSignals
+    , perf_score_damage :: !Derive.ScoreDamage
+    , perf_warps :: ![TrackWarp.Collection]
+    , perf_track_signals :: !Track.TrackSignals
     }
 
 instance Show Performance where
     show perf = "((Performance " ++ Pretty.pretty len ++ "))"
         where len = Derive.cache_size (perf_derive_cache perf)
+
+instance Pretty.Pretty Performance where
+    format (Performance cache events _track_dyn integrated damage warps
+            _tsigs) =
+        Pretty.record_title "Performance"
+            [ ("cache", Pretty.format (Map.keys c))
+            , ("events", Pretty.format (length events))
+            -- , ("track_dynamic", Pretty.format track_dyn)
+            , ("integrated", Pretty.format integrated)
+            , ("score_damage", Pretty.format damage)
+            , ("warps", Pretty.format warps)
+            -- , ("track_signals", Pretty.format tsigs)
+            ]
+        where Derive.Cache c = cache
+
+instance DeepSeq.NFData Performance where
+    rnf (Performance cache events track_dyn integrated damage warps tsigs) =
+        rnf cache `seq` rnf events `seq` rnf track_dyn `seq` rnf integrated
+        `seq` rnf damage `seq` rnf warps `seq` rnf tsigs
 
 -- * views
 

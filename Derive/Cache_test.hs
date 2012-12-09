@@ -36,7 +36,7 @@ import Types
 test_invalidate_damaged = do
     let mkdamage tracks blocks = Derive.ScoreDamage
             (Map.fromList tracks) Set.empty (Set.fromList blocks)
-        empty = Derive.CachedEvents (mempty, [])
+        empty = Derive.CachedEvents (Derive.CallType mempty [])
         mkcache stack = Derive.Cache $
             Map.singleton stack (Derive.Cached empty)
     let extract (stack, Derive.Invalid) = (stack, False)
@@ -515,7 +515,8 @@ r_cache_collect result = Seq.sort_on fst
         | (stack, ctype) <- Map.assocs cmap]
     where
     cmap = uncache (Derive.r_cache result)
-    collect (Derive.Cached (Derive.CachedEvents (collect, _))) = Just collect
+    collect (Derive.Cached (Derive.CachedEvents (Derive.CallType collect _))) =
+        Just collect
     collect _ = Nothing
 
 r_cache_deps :: Derive.Result -> [(String, Maybe [BlockId])]

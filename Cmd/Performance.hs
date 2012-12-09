@@ -8,6 +8,7 @@
 -- UI latency).
 module Cmd.Performance (SendStatus, update_performance, performance) where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 
@@ -166,9 +167,9 @@ evaluate_performance wait send_status block_id perf = do
     send_status block_id (Msg.OutOfDate perf)
     Thread.delay wait
     send_status block_id Msg.Deriving
-    secs <- Log.time_eval (Cmd.perf_inv_tempo perf 0)
+    secs <- Log.time_eval (DeepSeq.rnf perf)
     when (secs > 1) $
-        Log.notice $ "perform: " ++ show block_id ++ ": primed evaluation in "
+        Log.notice $ "derived " ++ show block_id ++ " in "
             ++ Pretty.pretty (RealTime.seconds secs)
     send_status block_id $ Msg.DeriveComplete perf
 

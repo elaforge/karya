@@ -100,7 +100,7 @@ find_generator_cache :: (Derive.Derived derived) => Type
 find_generator_cache typ stack event_range score (ControlDamage control)
         (Cache cache) = do
     cached <- maybe (Left "not in cache") Right (Map.lookup stack cache)
-    (collect, stream) <- case cached of
+    Derive.CallType collect stream <- case cached of
         Invalid -> Left "cache invalidated by score damage"
         Cached entry -> maybe (Left "cache has wrong type") Right
             (Derive.from_cache_entry entry)
@@ -135,7 +135,8 @@ make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
         -- So this reduces unnecessary integration as well.
         , Derive.collect_integrated = []
         }
-    entry = Derive.to_cache_entry (stripped, filter (not . cache_log) stream)
+    entry = Derive.to_cache_entry $
+        Derive.CallType stripped (filter (not . cache_log) stream)
     -- I do want a cached chunk to retain its log msgs, since those include
     -- errors deriving.  However, it's confusing if it also includes cache
     -- msgs because then it looks like it wasn't cached after all.

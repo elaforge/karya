@@ -1,4 +1,51 @@
 UNSORTED
+  cache tracks
+    - put the "cached" log msg at the end of the cache results?
+      Otherwise it immediately forces all of them.
+      Wait, why should it?  Just cons on the front.
+  parallelism?
+    . why does priming take so long?
+      It needs the tempo.  Since signals are eager, that means evaluating
+      the tempo track at least.  But not just tempo obviously, or it would be
+      fast.
+      What else?  Well, I need signals if they are being rendered.
+    - Can I fork a spark for each note track being merged?
+      Perhaps I should abandon the idea fo lazy derivation, it's likely not
+      happening anyway.  I still want the evaluation incremental, but I could
+      parallel force each track.
+    - Try Util.AppendList again, but just at the track and block call level.
+      At the block level it's to reduce copying, at the track level I can
+      run a strategy on a multi-way merge to eval them in parallel.
+      . Does this offer an advantage over embedding the parallel in BlockUtil?
+        Well, parallelism depends on evaluation, and the track derivation is
+        lazy.  So I think I'd have to put some bangs in track derivation.
+      . Maybe I should try that anyway?
+  strict derivation
+    - If I'm forcing entirely, I can put in a merge at the cache level, so
+      tracks and blocks would become merges, but all other calls are just (++)
+      as before.  Then I can apply a parallel strategy at the merge level.
+    - Also, consecutive signals should be mconcated.
+  - try giving a big heap to speed startup? +RTS -H512m
+  control memory leaks
+    . Lots of lag and drag.
+    . How big is each event?  Maybe the caches aren't so expensive because they
+      share events?
+    . Alternately, I could try doing the strict/parallel thing, and see if
+      that clears it up.  Or at least strictifying.
+    * use strict pair for cache entry (collect, events)
+    * force the events when priming a perf
+    * try lifecycle profiling, lots of void and drag
+    * try retainer profiling
+      - it's buggy and crashes, go mention it on the ghc bug
+    - The drag is Map, and is eliminated when I clear the performances
+      Narrow it down.
+      . Forcing does nothing, but clearing the cache gets rid of a big
+        portion.
+    - If each event or unevaluated event has future and past it will keep
+      the UI alive.  Maybe forcing the result of each event will clean that
+      up.
+  - maybe pitch signal render could normalize on low and high, that way it's
+    not all up against the right side
   add 'approach' call
     * do just plain 'a' approach call first
       use eval_event to get the next pitch
@@ -21,7 +68,18 @@ UNSORTED
     * I also need the track type.
       Otherwise I don't know how to evaluate the events, this is tied to
       ValCall being monomorphic.
-  - make TrackLang.Symbol into ByteString?
+
+  make TrackLang.Symbol into ByteString?
+    . means fewer conversions
+    . maybe faster lookups
+    . But ByteString is not necessarily more compact for small strings, e.g.
+      1 char = 4 words, 2 char = 8 words
+    . Actually space isn't a big concern, it's probably more about looking
+      up in maps, bytestrings may be faster, but on the other hand strings can
+      abort early in comparison.
+    . Also ByteString is pinned.
+    / I think the number of calls is actually not that high.  Doesn't seem
+      worth it.
   * quantize, so I can clean up pno-vla
   * figure out why the note after 'd 20' is bogus
   load midi

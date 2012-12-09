@@ -182,7 +182,7 @@ instance Pretty.Pretty PitchError where pretty (PitchError s) = s
 -- * Derive.TrackLang
 
 newtype Environ = Environ (Map.Map ValName Val)
-    deriving (Show, Monoid.Monoid, Pretty.Pretty)
+    deriving (Show, Monoid.Monoid, Pretty.Pretty, DeepSeq.NFData)
 
 make_environ :: [(ValName, Val)] -> Environ
 make_environ = Environ . Map.fromList
@@ -212,12 +212,12 @@ data Val =
     -- | A number with an optional type suffix.
     --
     -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@
-    VNum TypedVal
+    VNum !TypedVal
 
     -- | Escape a quote by doubling it.
     --
     -- Literal: @\'hello\'@, @\'quinn\'\'s hat\'@
-    | VString String
+    | VString !String
 
     -- | Relative attribute adjustment.
     --
@@ -225,36 +225,36 @@ data Val =
     -- or -= operators.
     --
     -- Literal: @+attr@, @-attr@, @=attr@, @=-@ (to clear attributes).
-    | VRelativeAttr RelativeAttr
+    | VRelativeAttr !RelativeAttr
     -- | A set of Attributes for an instrument.  No literal, since you can use
     -- VRelativeAttr.
-    | VAttributes Attributes
+    | VAttributes !Attributes
 
     -- | A control name.  An optional value gives a default if the control
     -- isn't present.
     --
     -- Literal: @%control@, @%control,.4@
-    | VControl ValControl
+    | VControl !ValControl
     -- | If a control name starts with a *, it denotes a pitch signal and the
     -- scale is taken from the environ.  Unlike a control signal, the empty
     -- string is a valid signal name and means the default pitch signal.
     --
     -- Literal: @\#pitch,4c@, @\#,4@, @\#@
-    | VPitchControl PitchControl
+    | VPitchControl !PitchControl
 
     -- | The literal names a ScaleId, and will probably result in an exception
     -- if the lookup fails.  The empty scale is taken to mean the relative
     -- scale.
     --
     -- Literal: @*scale@, @*@.
-    | VScaleId Pitch.ScaleId
+    | VScaleId !Pitch.ScaleId
     -- | No literal yet, but is returned from val calls.
     | VPitch Pitch
     -- | Sets the instrument in scope for a note.  An empty instrument doesn't
     -- set the instrument, but can be used to mark a track as a note track.
     --
     -- Literal: @>@, @>inst@
-    | VInstrument Instrument
+    | VInstrument !Instrument
 
     -- | A call to a function.  Symbol parsing is special in that the first
     -- word is always parsed as a symbol.  So you can have symbols of numbers
@@ -264,7 +264,7 @@ data Val =
     -- symbol can't have are space and parens.
     --
     -- Literal: @func@
-    | VSymbol Symbol
+    | VSymbol !Symbol
     -- | An explicit not-given arg for functions so you can use positional
     -- args with defaults.
     --
@@ -286,6 +286,12 @@ instance ShowVal.ShowVal Val where
         VSymbol sym -> ShowVal.show_val sym
         VNotGiven -> "_"
 
+instance DeepSeq.NFData Val where
+    rnf (VNum d) = DeepSeq.rnf d
+    rnf (VSymbol (Symbol s)) = DeepSeq.rnf s
+    rnf (VString s) = DeepSeq.rnf s
+    rnf _ = ()
+
 -- | Pitchas have no literal syntax, but I have to print something.
 instance ShowVal.ShowVal Pitch where
     show_val pitch = "<pitch: " ++ Pretty.pretty pitch ++ ">"
@@ -294,7 +300,7 @@ instance Pretty.Pretty Val where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Pitch.ScaleId where
     show_val (Pitch.ScaleId s) = '*' : s
 
-newtype Symbol = Symbol String deriving (Eq, Ord, Show)
+newtype Symbol = Symbol String deriving (Eq, Ord, Show, DeepSeq.NFData)
 instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Symbol where show_val (Symbol s) = s
 

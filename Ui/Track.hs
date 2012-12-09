@@ -106,7 +106,7 @@ data TrackSignal = TrackSignal {
     ts_signal :: !Signal.Display
     , ts_shift :: !ScoreTime
     , ts_stretch :: !ScoreTime
-    , ts_scale_map :: Maybe ScaleMap
+    , ts_scale_map :: !(Maybe ScaleMap)
     } deriving (Show, Eq)
 
 instance Pretty.Pretty TrackSignal where
@@ -114,6 +114,9 @@ instance Pretty.Pretty TrackSignal where
         Pretty.record (Pretty.text "TrackSignal"
                 Pretty.<+> Pretty.format (shift, stretch))
             [("signal", Pretty.format sig), ("scale_map", Pretty.format scale)]
+
+instance DeepSeq.NFData TrackSignal where
+    rnf (TrackSignal sig _ _ _) = DeepSeq.rnf sig
 
 -- | ScaleMaps are sorted by their scale degree number.
 newtype ScaleMap = ScaleMap [ValName] deriving (Show, Eq, Pretty.Pretty)

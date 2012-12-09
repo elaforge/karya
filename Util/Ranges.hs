@@ -5,6 +5,7 @@ module Util.Ranges (
     , overlapping, intersection
 ) where
 import Prelude hiding (fmap)
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
@@ -26,6 +27,10 @@ instance (Pretty.Pretty n) => Pretty.Pretty (Ranges n) where
     format (Ranges rs) = Pretty.text_list (map f rs)
         where f (s, e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
     format Everything = Pretty.text "[*--*]"
+
+instance (DeepSeq.NFData n) => DeepSeq.NFData (Ranges n) where
+    rnf Everything = ()
+    rnf (Ranges xs) = DeepSeq.rnf xs
 
 -- | It has a different type from the real fmap, but it wants to be an fmap.
 fmap :: (Ord b) => ((a, a) -> Maybe (b, b)) -> Ranges a -> Ranges b

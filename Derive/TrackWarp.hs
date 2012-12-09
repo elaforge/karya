@@ -5,6 +5,7 @@
     InverseTempoFunction, among other things.
 -}
 module Derive.TrackWarp where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -24,7 +25,7 @@ import Types
 newtype TrackWarp =
     -- | (start, end, warp, block_id, track of tempo track if there is one)
     TrackWarp (RealTime, RealTime, Score.Warp, BlockId, Maybe TrackId)
-    deriving (Eq, Show, Pretty.Pretty)
+    deriving (Eq, Show, Pretty.Pretty, DeepSeq.NFData)
 
 -- | Each TrackWarp is collected at the Stack of the track it represents.
 -- A Left is a new TrackWarp and a Right is a track that uses the warp in
@@ -48,6 +49,19 @@ data Collection = Collection {
     , tw_tracks :: !(Set.Set TrackId)
     , tw_warp :: !Score.Warp
     } deriving (Eq, Show)
+
+instance Pretty.Pretty Collection where
+    format (Collection start end block tracks warp) =
+        Pretty.record_title "Collection"
+            [ ("start", Pretty.format start)
+            , ("end", Pretty.format end)
+            , ("block", Pretty.format block)
+            , ("tracks", Pretty.format tracks)
+            , ("warp", Pretty.format warp)
+            ]
+
+instance DeepSeq.NFData Collection where
+    rnf tw = DeepSeq.rnf (tw_tracks tw) `seq` DeepSeq.rnf (tw_warp tw)
 
 type Collections = [Collection]
 
