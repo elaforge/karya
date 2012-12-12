@@ -1,4 +1,5 @@
 UNSORTED
+  - pitch signal redraw messed up in save/untitled
   cache tracks
     - put the "cached" log msg at the end of the cache results?
       Otherwise it immediately forces all of them.

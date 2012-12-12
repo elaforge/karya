@@ -95,7 +95,6 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Pitch as Pitch
 import Types
 
 
@@ -147,10 +146,8 @@ eval_note pos note = CallSig.cast ("eval note " ++ show note)
 
 -- | This is like 'eval_note' when you already know the call, presumably
 -- because you asked 'Derive.scale_note_to_call'.
-apply_note :: ScoreTime -> Pitch.Note -> Derive.ValCall
-    -> Derive.Deriver TrackLang.Val
-apply_note pos note call =
-    apply cinfo (TrackLang.Symbol (Pitch.note_text note)) call []
+apply_note :: ScoreTime -> Derive.ValCall -> Derive.Deriver TrackLang.Val
+apply_note pos call = apply cinfo call []
     where cinfo = Derive.dummy_call_info pos 0 "<apply_note>"
 
 -- | Evaluate a single expression.
@@ -320,12 +317,12 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             -- lookup says it's a failed val lookup.
             vcall <- require_call call_id name
                 =<< Derive.lookup_val_call call_id
-            val <- apply (strip_call_info cinfo) call_id vcall args
+            val <- apply (strip_call_info cinfo) vcall args
             -- We only do this fallback thing once.
             call <- get_call fallback_call_id
             return (call, [val])
 
-    let args = Derive.PassedArgs vals call_id cinfo
+    let args = Derive.PassedArgs vals (Derive.call_name call) cinfo
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_generator call of
         Just gen -> Derive.generator_func gen args
@@ -343,7 +340,7 @@ apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
     vals <- mapM (eval cinfo) args
     let new_deriver = apply_transformer cinfo calls deriver
     call <- get_call call_id
-    let args = Derive.PassedArgs vals call_id cinfo
+    let args = Derive.PassedArgs vals (Derive.call_name call) cinfo
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
         Just trans -> Derive.transformer_func trans args new_deriver
@@ -354,13 +351,13 @@ eval :: Derive.CallInfo d -> TrackLang.Term -> Derive.Deriver TrackLang.Val
 eval _ (TrackLang.Literal val) = return val
 eval cinfo (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
     call <- get_val_call call_id
-    apply (strip_call_info cinfo) call_id call terms
+    apply (strip_call_info cinfo) call terms
 
-apply :: Derive.CallInfo () -> TrackLang.CallId -> Derive.ValCall
+apply :: Derive.CallInfo () -> Derive.ValCall
     -> [TrackLang.Term] -> Derive.Deriver TrackLang.Val
-apply cinfo call_id call args = do
+apply cinfo call args = do
     vals <- mapM (eval cinfo) args
-    let passed = Derive.PassedArgs vals call_id cinfo
+    let passed = Derive.PassedArgs vals (Derive.vcall_name call) cinfo
     Derive.with_msg ("val call " ++ Derive.vcall_name call) $
         Derive.vcall_call call passed
 

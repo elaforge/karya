@@ -60,10 +60,9 @@ make_controls title ps = (title, [(to_score p, 0, show p) | p <- ps])
 to_score = ScoreTime.double . fromIntegral
 
 mkargs :: String -> Slice_test.EventsTree -> Derive.PassedArgs d
-mkargs text subs = Derive.PassedArgs [] call_id info
+mkargs text subs = Derive.PassedArgs [] "call" info
     where
     event = Event.event 0 1 text
-    call_id = TrackLang.Symbol "call"
     info = Derive.CallInfo
         { Derive.info_expr = CallTest.expr (Event.event_string event)
         , Derive.info_prev_val = Nothing

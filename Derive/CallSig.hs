@@ -11,9 +11,9 @@
     1. Pass it explicitly.
 
     2. If it is omitted, or @_@ is passed explicitly, it will be sought in the
-    dynamic environ, under the name @callid-name@.  E.g. given a call
-    @generator "name" $ \args -> call1 (required "arg1") ...@ then
-    @call-arg1 = 42 | call _@ will get 42.  Note that it uses the call name,
+    dynamic environ, under the name @<call_name>-<arg_name>@.  E.g. given
+    a call @generator "name" $ \args -> call1 (required "arg1") ...@ then
+    @name-arg1 = 42 | call _@ will get 42.  Note that it uses the call name,
     and not the symbol it happens to bound to in this scope.  This is because,
     while you may bind different kinds of trills to @tr@ depending on the needs
     of the score, the two kinds of trills may have different arguments with
@@ -99,7 +99,7 @@ import qualified Perform.Signal as Signal
 -- | A single argument in the signature of a call.
 data Arg a = Arg {
     -- | An arg that is not explicitly given will be looked for in the dynamic
-    -- environment as \<callid>-\<argname>.  Of course control args get this
+    -- environment as \<callname>-\<argname>.  Of course control args get this
     -- already through the control map, but this way non control args can be
     -- defaulted, or you can default a control arg to a constant without going
     -- to the bother of making a track for it.
@@ -112,9 +112,9 @@ arg_type :: (Typecheck a) => Arg a -> TrackLang.Type
 arg_type arg = TrackLang.to_type $
     fromMaybe (error "arg_type shouldn't evaluate this") (arg_default arg)
 
-arg_environ_default :: TrackLang.CallId -> String -> TrackLang.ValName
-arg_environ_default (TrackLang.Symbol call) arg_name =
-    TrackLang.Symbol $ call ++ "-" ++ arg_name
+arg_environ_default :: String -> String -> TrackLang.ValName
+arg_environ_default call_name arg_name =
+    TrackLang.Symbol $ call_name ++ "-" ++ arg_name
 
 arg_required :: Arg a -> (Bool, String)
 arg_required arg = (Maybe.isNothing (arg_default arg), arg_name arg)
@@ -375,7 +375,7 @@ pure_check_args environ passed args
         where
         deflt (Just val) _ = Just val
         deflt Nothing (_, arg_name) = TrackLang.lookup_val
-            (arg_environ_default (passed_call passed) arg_name) environ
+            (arg_environ_default (passed_call_name passed) arg_name) environ
     supplied_args = length (filter Maybe.isJust defaulted_vals)
     bad_required = [(i, name) | (i, (True, name)) <- optional]
 
