@@ -70,18 +70,20 @@ replace_block_call from to text
 -- * create
 
 -- | If the events under the cursor are a block calls, create blocks that don't
--- already exist.  Optionally use a model block.
+-- already exist.  Optionally use a template block.
 block_for_event :: Maybe BlockId -> Cmd.CmdL ()
-block_for_event model = mapM_ make =<< Selection.events
+block_for_event template = mapM_ make =<< Selection.events
     where
-    make (_, _, events) = mapM_ (make_named model . Event.event_string) events
+    make (_, _, events) = mapM_
+        (make_named template . Event.event_string) events
 
 make_named :: Maybe BlockId -> String -> Cmd.CmdL ()
-make_named template name = whenM (can_create name) $ case template of
-    Nothing -> do
-        template_id <- Cmd.get_focused_block
-        Create.view_from_template False template_id
-    Just template_id -> Create.view_from_template True template_id
+make_named template name = whenM (can_create name) $
+    Create.view =<< case template of
+        Nothing -> do
+            template_id <- Cmd.get_focused_block
+            Create.named_block name =<< State.block_ruler template_id
+        Just template_id -> Create.named_block_from_template template_id name
 
 can_create :: (State.M m) => String -> m Bool
 can_create "" = return False

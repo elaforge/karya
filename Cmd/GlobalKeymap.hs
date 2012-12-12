@@ -370,9 +370,10 @@ create_bindings = concat
     , command_char 'W' "destroy block"
         (Create.destroy_block =<< Cmd.get_focused_block)
     , command_char 'b' "create block"
-        (Create.view_from_template False =<< Cmd.get_focused_block)
+        (Create.view =<< Create.block =<< State.block_ruler
+            =<< Cmd.get_focused_block)
     , command_char 'B' "create block from template"
-        (Create.view_from_template True =<< Cmd.get_focused_block)
+        (Create.view =<< Create.block_from_template =<< Cmd.get_focused_block)
     ]
 
 clip_bindings :: (Cmd.M m) => [Keymap.Binding m]

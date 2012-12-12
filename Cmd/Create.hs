@@ -115,29 +115,32 @@ map_track_titles f = do
 
 -- * block
 
-block_from_template :: (State.M m) => Bool -> BlockId -> m BlockId
-block_from_template include_tracks template_id = do
-    ruler_id <- State.block_ruler template_id
-    block_id <- block ruler_id
-    when include_tracks $ do
-        template <- State.get_block template_id
-        let tracks = drop 1 (Block.block_tracks template)
-        forM_ (zip [1..] tracks) $ \(tracknum, track) ->
-            case Block.tracklike_id track of
-                Block.TId tid rid -> do
-                    new_tid <- track_events block_id rid tracknum
-                        (Block.track_width track) Track.empty
-                    title <- fmap Track.track_title (State.get_track tid)
-                    State.set_track_title new_tid title
-                _ -> State.insert_track block_id tracknum track
-        State.set_skeleton block_id =<< State.get_skeleton template_id
-    return block_id
+block_name :: (State.M m) => m String
+block_name = do
+    ns <- State.get_namespace
+    id <- require "block id" . generate_block_id ns
+        =<< State.gets State.state_blocks
+    return $ Id.id_name id
 
--- | Like 'block_from_template', but create a view too.
-view_from_template :: (Cmd.M m) => Bool -> BlockId -> m BlockId
-view_from_template include_tracks template_id = do
-    block_id <- block_from_template include_tracks template_id
-    view block_id
+block_from_template :: (State.M m) => BlockId -> m BlockId
+block_from_template template_id =
+    named_block_from_template template_id =<< block_name
+
+named_block_from_template :: (State.M m) => BlockId -> String -> m BlockId
+named_block_from_template template_id name = do
+    ruler_id <- State.block_ruler template_id
+    block_id <- named_block name ruler_id
+    template <- State.get_block template_id
+    let tracks = drop 1 (Block.block_tracks template)
+    forM_ (zip [1..] tracks) $ \(tracknum, track) ->
+        case Block.tracklike_id track of
+            Block.TId tid rid -> do
+                new_tid <- track_events block_id rid tracknum
+                    (Block.track_width track) Track.empty
+                title <- fmap Track.track_title (State.get_track tid)
+                State.set_track_title new_tid title
+            _ -> State.insert_track block_id tracknum track
+    State.set_skeleton block_id =<< State.get_skeleton template_id
     return block_id
 
 -- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
