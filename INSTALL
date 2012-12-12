@@ -22,6 +22,8 @@ QuickCheck # Derive.DeriveQuickCheck
 shake # build system
 pandoc # documentation
 
+ekg # if Shakefile useEkg is True
+
     INSTALLED SEPARATELY
 
 libpcre library from http://www.pcre.org

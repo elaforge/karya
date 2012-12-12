@@ -4,6 +4,7 @@
 -- Dumadak tan wenten alangan.
 -- 希望沒有錯誤。
 module App.Main where
+#include "hsconfig.h"
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
@@ -13,6 +14,10 @@ import qualified Data.Set as Set
 import qualified Network
 import qualified System.Environment
 import qualified System.IO as IO
+#ifdef USE_EKG
+import qualified Data.ByteString.Char8 as ByteString
+import qualified System.Remote.Monitoring
+#endif
 
 import Util.Control
 import qualified Util.Log as Log
@@ -24,7 +29,6 @@ import qualified Ui.Ui as Ui
 import qualified Midi.Midi as Midi
 import qualified Midi.Interface as Interface
 
-#include "hsconfig.h"
 -- This is the actual midi implementation.  This is the only module that should
 -- depend on the implementation, so switching backends is relatively easy.
 #if defined(CORE_MIDI)
@@ -77,6 +81,9 @@ initialize app = do
 
 main :: IO ()
 main = initialize $ \lang_socket midi_interface -> do
+#ifdef USE_EKG
+    System.Remote.Monitoring.forkServer (ByteString.pack "localhost") 8080
+#endif
     -- Handy to filter debugging output.
     IO.hSetBuffering IO.stdout IO.LineBuffering
     Log.notice "app starting"

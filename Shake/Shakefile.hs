@@ -55,6 +55,10 @@ import Shake.Util (system)
 
 -- * config
 
+-- | If true, link in the EKG library for realtime monitoring.
+useEkg :: Bool
+useEkg = True
+
 -- Static constants.
 build = "build"
 fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
@@ -204,16 +208,17 @@ hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 -- just union all the packages.  TODO can I ask ghc to infer packages
 -- automatically like --make?
 packages :: [String]
-packages = words $ "fixed-list deepseq data-ordlist cereal "
-    ++ "semigroups dlist parsec text stm network haskell-src regex-pcre "
-    ++ "bytestring attoparsec utf8-string "
-    ++ "mersenne-random-pure64 hashable random-shuffle "
-    ++ "containers filepath transformers vector "
-    ++ "QuickCheck fclabels syb "
-    ++ "zmidi-core " -- midi file loading
-    ++ "Diff " -- Util.Test
-    ++ "ghc ghc-paths haskeline " -- repl
-    ++ "shake " -- shakefile
+packages = words $ "fixed-list deepseq data-ordlist cereal"
+    ++ " semigroups dlist parsec text stm network haskell-src regex-pcre"
+    ++ " bytestring attoparsec utf8-string"
+    ++ " mersenne-random-pure64 hashable random-shuffle"
+    ++ " containers filepath transformers vector"
+    ++ " QuickCheck fclabels syb"
+    ++ " zmidi-core" -- midi file loading
+    ++ " Diff" -- Util.Test
+    ++ " ghc ghc-paths haskeline" -- repl
+    ++ " shake" -- shakefile
+    ++ if useEkg then " ekg" else ""
 
 -- ** cc
 
@@ -289,6 +294,7 @@ configure = do
                 Profile -> ["-O", "-prof", "-auto-all", "-caf-all"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
             ++ if mode == Profile then ["-prof"] else []
+            ++ if useEkg then ["-with-rtsopts=-T"] else []
         -- Hackery, make sure ghci gets link flags, otherwise it wants to
         -- load everything as bytecode and fails on missing symbols.  Actually,
         -- these only apply to loading the modules for the main app.  But
@@ -444,10 +450,13 @@ configHeaderRule = matchBuildDir "hsconfig.h" ?> \fn -> do
         [ "/* Created automatically by the shakefile. */"
         , "#ifndef __HSCONFIG_H"
         , "#define __HSCONFIG_H"
-        , if useRepl then "#define INTERPRETER_GHC" else ""
-        , if not (null midiDriver) then "#define " ++ midiDriver else ""
+        , define useRepl "INTERPRETER_GHC"
+        , define (not (null midiDriver)) midiDriver
+        , define useEkg "USE_EKG"
         , "#endif"
         ]
+    where
+    define b name = if b then "#define " ++ name else ""
 
 -- | Match a file in @build/<mode>/obj/@ or @build/<mode>/@.
 matchObj :: Shake.FilePattern -> FilePath -> Bool
