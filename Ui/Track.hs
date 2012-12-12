@@ -131,4 +131,8 @@ newtype ValName = ValName (Pitch.Degree, Pitch.Note)
 make_scale_map :: [(Pitch.Note, Pitch.Degree)] -> ScaleMap
 -- TODO it's disabled for now because it's complicated to get right and I'm
 -- not even sure I want it.
-make_scale_map = const (ScaleMap [])
+--
+-- But... add something bogus, since that's what tells fltk its a pitch track
+-- and turns on the "auto normalize" feature.  If I'm going to get rid of
+-- ScaleMaps I should just set a flag.
+make_scale_map = const (ScaleMap [ValName (Pitch.Degree 0, Pitch.Note "")])
