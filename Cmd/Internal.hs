@@ -363,5 +363,9 @@ sync_selection view_id maybe_sel = do
 selection_status :: Types.Selection -> String
 selection_status sel =
     Pretty.pretty start
-        ++ if start == end then "" else '-' : Pretty.pretty end
-    where (start, end) = Types.sel_range sel
+        ++ (if start == end then "" else '-' : Pretty.pretty end)
+    ++ " " ++ show tstart
+        ++ (if tstart == tend then "" else '-' : show tend)
+    where
+    (start, end) = Types.sel_range sel
+    (tstart, tend) = Types.sel_track_range sel
