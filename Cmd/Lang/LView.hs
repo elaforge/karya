@@ -5,6 +5,8 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Rect as Rect
+import qualified Util.Seq as Seq
+
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -22,7 +24,8 @@ arrange_screen point = do
     view_rects <- filter (Rect.overlapping screen . snd)
         . map (second Block.view_rect) . Map.toList . State.state_views
         <$> State.get
-    mapM_ (uncurry State.set_view_rect) (compact screen view_rects)
+    mapM_ (uncurry State.set_view_rect) $
+        compact screen (Seq.sort_on snd view_rects)
 
 compact :: Rect.Rect -> [(a, Rect.Rect)] -> [(a, Rect.Rect)]
 compact screen =
