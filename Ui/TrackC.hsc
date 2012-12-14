@@ -130,7 +130,6 @@ initialize_track_signal tsigp = do
     (#poke TrackSignal, val_names) tsigp nullPtr
     (#poke TrackSignal, val_names_length) tsigp (0 :: CInt)
 
-
 encode_style :: Track.RenderStyle -> (#type RenderConfig::RenderStyle)
 encode_style style = case style of
     Track.NoRender -> (#const RenderConfig::render_none)

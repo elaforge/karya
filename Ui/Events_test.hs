@@ -5,8 +5,6 @@ import qualified Ui.Events as Events
 import Types
 
 
--- TODO improve tests
-
 test_split_range = do
     let extract (a, b, c) =
             (map Event.start (Events.descending a),
@@ -14,22 +12,23 @@ test_split_range = do
                 map Event.start (Events.ascending c))
     let f start end evts = extract $ Events.split_range start end
             (from_list [(p, d, show p) | (p, d) <- evts])
+
     equal (f 1 2 [(0, 1), (1, 1), (2, 1), (3, 1)])
         ([0], [1], [2, 3])
     equal (f 1 2 [(0, 0.5), (1, -0.5), (2, 1), (3, 1)])
         ([1, 0], [], [2, 3])
     equal (f 1 2 [(0, 1), (1, 0.5), (2, -0.5), (3, 1)])
         ([0], [1, 2], [3])
-    equal (f 1 1 [(1, 1)])
-        ([], [], [1])
-    equal (f 1 1 [(1, -1)])
-        ([1], [], [])
     -- 0 dur events included at beginning, -0 included at end
     equal (f 1 2 [(0, 0), (1, 0), (2, 0), (3, 0)])
         ([0], [1], [2, 3])
     equal (f 1 2 [(0, -0), (1, -0), (2, -0), (3, -0)])
         ([1, 0], [2], [3])
 
+    -- A point selection divides into before and after, even for negative
+    -- events.
+    equal (f 1 1 [(1, 1)]) ([], [], [1])
+    equal (f 1 1 [(1, -1)]) ([], [], [1])
 
 test_split_at_before = do
     let e1 = from_list [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]

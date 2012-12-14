@@ -118,10 +118,10 @@ insert new_events events = merge clipped events
     clipped = Events $ Map.fromAscList $
         Seq.key_on Event.start (clip_events (Seq.sort_on Event.start new_events))
 
--- | Remove events in range.
+-- | Remove events in the half-open range.  Since the range is half-open, if
+-- start==end this will never remove any events.  Use 'remove_event' for that.
 remove :: ScoreTime -> ScoreTime -> Events -> Events
-remove start end events =
-    emap (`Map.difference` deletes) events
+remove start end events = emap (`Map.difference` deletes) events
     where (_, deletes, _) = _split_range start end (get events)
 
 -- | Remove an event if it occurs exactly at the given pos.
@@ -154,6 +154,14 @@ last (Events events) = snd <$> Map.max events
 
 -- | Split into tracks before, within, and after the half-open range.
 -- @before@ events are descending, the rest are ascending.
+--
+-- This is complicated due to negative events.  The idea is that when positive
+-- events are present, the range is half-open where the end is excluded, as is
+-- normal.  But whn negative events are present, it's the other way around, the
+-- start of the range is excluded and the end is excluded.
+--
+-- Since this is a half-open range, if start==end then within will always be
+-- empty.
 split_range :: ScoreTime -> ScoreTime -> Events -> (Events, Events, Events)
 split_range start end events = (Events pre, Events within, Events post)
     where (pre, within, post) = _split_range start end (get events)
@@ -247,13 +255,18 @@ instance Monoid.Monoid Events where
 get :: Events -> EventMap
 get (Events evts) = evts
 
--- | Events is not in Functor because this should be private.
 emap :: (EventMap -> EventMap) -> Events -> Events
 emap f (Events evts) = Events (f evts)
 
+-- | The hairiness here is documented in 'split_range'.
 _split_range :: ScoreTime -> ScoreTime -> EventMap
     -> (EventMap, EventMap, EventMap)
-_split_range start end events = (pre2, within3, post2)
+_split_range start end events
+    -- A point selection always divides events into pre and post.
+    | start == end =
+        let (pre, post) = Map.split2 start events
+        in (pre, mempty, post)
+    | otherwise = (pre2, within3, post2)
     where
     (pre, within, post) = Map.split3 start end events
     (within2, post2) = case Map.min post of
