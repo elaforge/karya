@@ -73,6 +73,16 @@ map_block_titles block_id f = do
     tids <- map State.track_id <$> TrackTree.tracks_of block_id
     mapM_ (flip State.modify_track_title f) tids
 
+-- * manipulation
+
+-- | Duplicate a track from one block to another.  The underlying track is
+-- the same, so edits in one of its occurrances will be reflected in all of its
+-- blocks.
+duplicate :: (State.M m) => BlockId -> TrackNum -> BlockId -> TrackNum -> m ()
+duplicate source_block source_tracknum dest_block dest_tracknum = do
+    track <- State.get_block_track_at source_block source_tracknum
+    State.insert_track dest_block dest_tracknum track
+
 -- * control tracks
 
 map_control_val :: String -> (Signal.Y -> Signal.Y) -> Cmd.CmdL ()
