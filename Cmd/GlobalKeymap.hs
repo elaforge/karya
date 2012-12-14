@@ -317,6 +317,7 @@ event_bindings = concat
     -- mode to remove events.  Maybe I'll change that later.
     , plain_key Key.Backspace "clear selected" Edit.cmd_clear_and_advance
     , plain_command_char 'o' "join events" Edit.cmd_join_events
+    , plain_command_char 'O' "split events" Edit.cmd_split_events
 
     , plain_command_char 's' "set dur" Edit.cmd_set_duration
     , plain_command_char 'z' "toggle zero-dur" Edit.cmd_toggle_zero_duration

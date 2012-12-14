@@ -7,6 +7,7 @@ import qualified Data.List as List
 
 import Util.Control
 import qualified Util.Seq as Seq
+
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
@@ -247,6 +248,24 @@ cmd_join_events = mapM_ process =<< Selection.events_around
                 State.insert_event track_id $
                     set_dur (start - Event.start evt2) evt2
             _ -> return () -- no sensible way to join these
+
+-- | Split the events under the cursor.
+cmd_split_events :: (Cmd.M m) => m ()
+cmd_split_events = do
+    (_, _, _, p) <- Selection.get_insert
+    ModifyEvents.overlapping $ ModifyEvents.events $
+        return . concatMap (split p)
+    where
+    split p event
+        | not (Event.overlaps p event) || p == Event.start event = [event]
+        | Event.positive event =
+            [ Event.set_duration (p - Event.start event) event
+            , Event.place p (Event.end event - p) event
+            ]
+        | otherwise =
+            [ Event.place p (Event.end event - p) event
+            , Event.set_duration (- (Event.start event - p)) event
+            ]
 
 -- | Zero dur events are never lengthened.
 set_dur :: ScoreTime -> Event.Event -> Event.Event

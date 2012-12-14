@@ -6,6 +6,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
@@ -58,11 +59,23 @@ selection f = do
     block_id <- Cmd.get_focused_block
     forM_ selected $ \(track_id, (start, end), events) -> do
         maybe_new_events <- f block_id track_id events
-        case maybe_new_events of
-            Just new_events -> do
-                State.remove_events track_id start end
+        when_just maybe_new_events $ \new_events -> do
+            State.remove_events track_id start end
+            State.insert_block_events block_id track_id new_events
+
+-- | Map a function over the events that overlap the selection point.
+overlapping :: (Cmd.M m) => Track m -> m ()
+overlapping f = do
+    (block_id, _, track_ids, start, end) <- Selection.tracks
+    let pos = Selection.point_pos start end
+    forM_ track_ids $ \track_id -> do
+        maybe_event <- Events.overlapping pos . Track.track_events <$>
+            State.get_track track_id
+        when_just maybe_event $ \event -> do
+            maybe_new_events <- f block_id track_id [event]
+            when_just maybe_new_events $ \new_events -> do
+                State.remove_event track_id pos
                 State.insert_block_events block_id track_id new_events
-            Nothing -> return ()
 
 -- | Map over tracks whose name matches the predicate.
 tracks_named :: (Cmd.M m) => (String -> Bool) -> Track m -> Track m
