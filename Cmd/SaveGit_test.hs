@@ -92,7 +92,7 @@ test_ruler_checkpoint = do
 
 test_more_checkpoints = check_sequence
     [ mkview [("1", [])]
-    , void $ Create.block_from_template False UiTest.default_block_id
+    , void $ Create.block_from_template UiTest.default_block_id
     , void $ Create.empty_track UiTest.default_block_id 2
     , Create.destroy_track UiTest.default_block_id 2
     , Create.destroy_block UiTest.default_block_id
