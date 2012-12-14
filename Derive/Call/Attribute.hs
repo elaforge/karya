@@ -28,39 +28,8 @@ note_calls = Derive.make_calls
     [ ("o", attributed_note Attrs.harmonic)
     , ("m", attributed_note Attrs.mute)
     , ("(", c_legato)
+    , ("{", c_portamento)
     ]
-
-
--- TODO: in lilypond mode, ignore the overlap but apply the attribute
-c_legato :: Derive.NoteCall
-c_legato = Derive.stream_generator "legato"
-    ("Play the transformed notes legato.  This extends their duration and\
-     \ applies `+legato`."
-    ) $ CallSig.call1g
-    (optional "overlap" (typed_control "legato" 0.1 Score.Real)
-        "All notes except the last one overlap with the next note by this\
-        \ amount."
-    ) $ \overlap args -> Lily.note_transformer args Attrs.legato $ do
-        overlap <- Util.real_duration Util.Real (Args.start args)
-            =<< Util.typed_control_at overlap =<< Args.real_start args
-        mconcat $ map (legato overlap) (Note.sub_events args)
-
-legato :: RealTime -> [Note.Event] -> Derive.EventDeriver
-legato overlap = fmap (Util.map_around_asc (extend_duration overlap))
-    . Note.place . Note.map_events (Util.add_attrs Attrs.legato)
-
-extend_duration :: RealTime -> [Score.Event] -> Score.Event -> [Score.Event]
-    -> Score.Event
-extend_duration _ _ cur [] = cur
-extend_duration overlap _prev cur (next:_) = Score.set_duration dur cur
-    where dur = Score.event_start next - Score.event_start cur + overlap
-
--- | Map on all elts except the last.
-map_1 :: (a -> a) -> [a] -> [a]
-map_1 _ [] = []
-map_1 f (x:xs)
-    | null xs = [x]
-    | otherwise = f x : map_1 f xs
 
 attributed_note :: Attrs.Attributes -> Derive.NoteCall
 attributed_note attrs = Derive.Call
@@ -80,3 +49,32 @@ attributed_note attrs = Derive.Call
         subs -> Note.place (Note.map_events add_attrs (concat subs))
     transformer = CallSig.call0t $ \_ deriver -> add_attrs deriver
     add_attrs = Util.add_attrs attrs
+
+c_legato :: Derive.NoteCall
+c_legato = Derive.stream_generator "legato"
+    ("Play the transformed notes legato.  This extends their duration and\
+     \ applies `+legato`."
+    ) $ CallSig.call1g
+    (optional "overlap" (typed_control "legato" 0.1 Score.Real)
+        "All notes except the last one overlap with the next note by this\
+        \ amount."
+    ) $ \overlap args -> Lily.note_transformer args Attrs.legato $ do
+        overlap <- Util.real_duration Util.Real (Args.start args)
+            =<< Util.typed_control_at overlap =<< Args.real_start args
+        mconcat $ map (legato overlap Attrs.legato) (Note.sub_events args)
+
+legato :: RealTime -> Score.Attributes -> [Note.Event] -> Derive.EventDeriver
+legato overlap attr = fmap (Util.map_around_asc (extend_duration overlap))
+    . Note.place . Note.map_events (Util.add_attrs attr)
+
+extend_duration :: RealTime -> [Score.Event] -> Score.Event -> [Score.Event]
+    -> Score.Event
+extend_duration _ _ cur [] = cur
+extend_duration overlap _prev cur (next:_) = Score.set_duration dur cur
+    where dur = Score.event_start next - Score.event_start cur + overlap
+
+c_portamento :: Derive.NoteCall
+c_portamento = Derive.stream_generator "portamento"
+    "Make the notes overlap and apply `+legato`." $
+    CallSig.call0g $ \args -> Lily.note_transformer args Attrs.legato $ do
+        mconcat $ map (legato 0.1 Attrs.porta) (Note.sub_events args)
