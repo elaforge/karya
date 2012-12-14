@@ -35,8 +35,13 @@ scope = Derive.Scope
 
 -- | Note calls are special in that they look for a block with that name first.
 note_lookups :: Derive.ScopeType Derive.NoteCall
-note_lookups = Derive.empty_scope_type { Derive.stype_builtin =
-    [Block.lookup_note_block, Derive.map_lookup note_calls] }
+note_lookups = Derive.empty_scope_type
+    { Derive.stype_builtin =
+        [ Block.lookup_note_block
+        , Attribute.lookup_attr
+        , Derive.map_lookup note_calls
+        ]
+    }
 
 -- | Well ok, control calls are special too.
 control_lookups :: Derive.ScopeType Derive.ControlCall

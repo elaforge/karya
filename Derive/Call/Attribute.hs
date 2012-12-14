@@ -16,12 +16,25 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional, typed_control)
 import qualified Derive.Derive as Derive
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import Types
 
+
+lookup_attr :: Derive.LookupCall Derive.NoteCall
+lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
+    \(TrackLang.Symbol sym) -> parse_symbol sym
+    where
+    parse_symbol sym@('+':_) = case ParseBs.parse_val sym of
+        Right (TrackLang.VRelativeAttr (TrackLang.RelativeAttr
+            (TrackLang.Add, attr))) -> return $ Just $
+                attributed_note (Score.attr attr)
+        _ -> return Nothing
+    parse_symbol _ = return Nothing
+    doc = Derive.extract_doc (attributed_note (Score.attr "example-attr"))
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
