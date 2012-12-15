@@ -1,5 +1,8 @@
 UNSORTED
-  - pitch signal redraw messed up in save/untitled
+  - support poly aftertouch
+  * pitch signal redraw messed up in save/untitled
+  - in addition, it seems the signal doesn't update if I change the default
+    environ assignment on another track
   cache tracks
     - put the "cached" log msg at the end of the cache results?
       Otherwise it immediately forces all of them.

@@ -519,7 +519,6 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     const int min_x = x() + 2;
     const int max_x = x() + w() - 2;
     int prev_xpos = min_x;
-    int prev_offset = INT_MIN;
     const char *prev_lower = NULL;
     const char *prev_upper = NULL;
 
@@ -529,8 +528,16 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     for (int i = found; i < tsig.length; i++) {
         // Skip coincident samples, or at least ones that are too close.
         int offset = y + tsig.time_at(zoom, i);
-        if (offset <= prev_offset && i > found)
-            continue;
+        if (i + 1 < tsig.length) {
+            int next_offset = y + tsig.time_at(zoom, i+1);
+            // If the next sample is too close then don't draw.
+            // TODO I'd also like to skip samples that are too close to make
+            // much difference, but I still have to draw some or a series of
+            // close samples would be omitted entirely, so it's quite a bit
+            // more complicated.
+            if (next_offset <= offset)
+                continue;
+        }
         const char *lower, *upper;
         double val = tsig.val_at(i, &lower, &upper);
         int xpos = floor(::scale(double(min_x), double(max_x),
@@ -619,7 +626,6 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
         }
         // DEBUG("draw " << i << " @ " << offset << "--" << next_offset);
 
-        prev_offset = offset;
         prev_xpos = xpos;
         prev_lower = lower;
         prev_upper = upper;

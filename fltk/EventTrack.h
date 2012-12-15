@@ -1,7 +1,6 @@
-/*
-Display a number of events and an overlay ruler.
+/* Display a number of events and an overlay ruler.
 
-Events don't overlap.
+    Events don't overlap.
 */
 
 #ifndef __EVENT_TRACK_H
