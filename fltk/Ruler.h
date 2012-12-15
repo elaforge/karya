@@ -93,7 +93,7 @@ public:
     void set_selection(int selnum, int tracknum, const Selection &sel);
     ScoreTime time_end() const;
     void set_config(bool is_ruler_track, const RulerConfig &config,
-        FinalizeCallback finalizer, ScoreTime start, ScoreTime end);
+        ScoreTime start, ScoreTime end);
     // Deallocate marklist memory.
     void delete_config();
     // Mark a segment of the track as needing to be redrawn.

@@ -87,7 +87,7 @@ OverlayRuler::time_end() const
 
 void
 OverlayRuler::set_config(bool is_ruler_track, const RulerConfig &config,
-    FinalizeCallback finalizer, ScoreTime start, ScoreTime end)
+    ScoreTime start, ScoreTime end)
 {
     this->delete_config();
     this->config = config;
@@ -386,12 +386,12 @@ RulerTrackView::set_zoom(const ZoomInfo &new_zoom)
 
 
 void
-RulerTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
-        ScoreTime start, ScoreTime end)
+RulerTrackView::update(const Tracklike &track, FinalizeCallback _finalizer,
+    ScoreTime start, ScoreTime end)
 {
     ASSERT_MSG(track.ruler && !track.track,
         "updated a ruler track with an event track config");
-    this->ruler.set_config(true, *track.ruler, finalizer, start, end);
+    this->ruler.set_config(true, *track.ruler, start, end);
     if (color_to_fl(track.ruler->bg) != bg_box.color()) {
         bg_box.color(color_to_fl(track.ruler->bg));
         bg_box.redraw();
