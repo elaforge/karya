@@ -99,47 +99,78 @@ import Types
 
 -- * cmds
 
-cmd_play_focused :: Transport.Info -> Cmd.CmdIO
-cmd_play_focused transport_info = do
+local_block :: Transport.Info -> Cmd.CmdIO
+local_block transport_info = do
     block_id <- Cmd.get_focused_block
-    cmd_play transport_info block_id (Nothing, 0)
+    from_score transport_info block_id Nothing 0
 
-cmd_play_from_insert :: Transport.Info -> Cmd.CmdIO
-cmd_play_from_insert transport_info = do
+local_selection :: Transport.Info -> Cmd.CmdIO
+local_selection transport_info = do
     (block_id, _, track_id, pos) <- Selection.get_insert
-    cmd_play transport_info block_id (Just track_id, pos)
+    from_score transport_info block_id (Just track_id) pos
 
-cmd_play_from_previous_step :: Transport.Info -> Cmd.CmdIO
-cmd_play_from_previous_step transport_info = do
+local_previous :: Transport.Info -> Cmd.CmdIO
+local_previous transport_info = do
     step <- gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     prev <- TimeStep.rewind step block_id tracknum pos
-    cmd_play transport_info block_id (Just track_id, fromMaybe 0 prev)
+    from_score transport_info block_id (Just track_id) (fromMaybe 0 prev)
 
-cmd_play_from_previous_root_step :: Transport.Info -> Cmd.CmdIO
-cmd_play_from_previous_root_step transport_info = do
-    (block_id, tracknum, track_id, pos) <- Selection.get_root_insert
+-- | Play the root block from the beginning.
+root_block :: Transport.Info -> Cmd.CmdIO
+root_block transport_info = do
+    block_id <- State.get_root_id
+    from_score transport_info block_id Nothing 0
+
+-- | Play the root performance from the selection on the root block.  This
+-- is useful to manually set a point to start playing.
+root_selection :: Transport.Info -> Cmd.CmdIO
+root_selection transport_info = do
+    (block_id, _, track_id, pos) <- Selection.get_root_insert
+    from_score transport_info block_id (Just track_id) pos
+
+-- | Find the previous step on the focused block, get its RealTime, and play
+-- from the root at that RealTime.
+root_previous :: Transport.Info -> Cmd.CmdIO
+root_previous transport_info = do
+    (block_id, tracknum, track_id, pos) <- Selection.get_insert
     step <- gets Cmd.state_play_step
-    prev <- TimeStep.rewind step block_id tracknum pos
-    cmd_play transport_info block_id (Just track_id, fromMaybe 0 prev)
+    prev <- fromMaybe pos <$> TimeStep.rewind step block_id tracknum pos
+    start <- get_realtime block_id (Just track_id) prev
+    root_id <- State.get_root_id
+    from_realtime transport_info root_id start
 
-cmd_play :: Transport.Info -> BlockId -> (Maybe TrackId, ScoreTime)
+from_score :: Transport.Info -> BlockId
+    -> Maybe TrackId -- ^ Track to play from.  Since different tracks can have
+    -- different tempos, a track is needed to convert to RealTime.  If not
+    -- given, use the first track that has tempo information.
+    -> ScoreTime -- ^ Convert to RealTime and start playing from this time.
     -> Cmd.CmdIO
-cmd_play transport_info block_id (start_track, start_pos) = do
-    state <- gets id
-    case Cmd.state_play_control state of
-        Just _ -> Cmd.throw "player already running"
-        _ -> return ()
+from_score transport_info block_id start_track start_pos = do
+    start <- get_realtime block_id start_track start_pos
+    from_realtime transport_info block_id start
 
+get_realtime :: (Cmd.M m) => BlockId -> Maybe TrackId -> ScoreTime
+    -> m RealTime
+get_realtime block_id track pos = do
     perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
-    maybe_start <- Perf.lookup_realtime perf block_id start_track start_pos
-    start <- case maybe_start of
+    maybe_start <- Perf.lookup_realtime perf block_id track pos
+    case maybe_start of
         Nothing -> do
             -- Otherwise we don't get to see why it failed.
             mapM_ Log.write $ LEvent.logs_of (Cmd.perf_events perf)
             Cmd.throw $ "play " ++ show block_id ++ " has no tempo information"
         Just start -> return start
+
+-- | Play the performance of the given block starting from the given time.
+from_realtime :: Transport.Info -> BlockId -> RealTime -> Cmd.CmdIO
+from_realtime transport_info block_id start = do
+    play_control <- gets Cmd.state_play_control
+    when_just play_control $ \_ -> Cmd.throw "player already running"
+
+    perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
+        =<< lookup_current_performance block_id
     multiplier <- gets Cmd.state_play_multiplier
 
     -- Events can wind up before 0, say if there's a grace note on a note at 0.

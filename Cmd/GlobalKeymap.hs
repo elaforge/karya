@@ -126,17 +126,25 @@ undo_bindings = concat
 -- map on each call.  Since there are not many cmds, I opt for the latter.
 player_bindings :: Transport.Info -> [Keymap.Binding (Cmd.CmdT IO)]
 player_bindings transport_info = concat
-    [ bind_key_status [] Key.Enter "play block"
-        (Play.cmd_play_focused transport_info)
-    , bind_key_status [Shift] Key.Enter "play from insert"
-        (Play.cmd_play_from_insert transport_info)
-    , bind_key_status [PrimaryCommand] Key.Enter "play from previous step"
-        (Play.cmd_play_from_previous_step transport_info)
-    , bind_key_status [Shift, PrimaryCommand] Key.Enter
-        "play from previous root step"
-        (Play.cmd_play_from_previous_root_step transport_info)
+    -- The pattern is that the modifiers select where to start playing, and
+    -- the key says whether it's the local block or from the root block.
+    [ bind block local "play local block" Play.local_block
+    , bind sel local "play local selection" Play.local_selection
+    , bind prev local "play local previous step" Play.local_previous
+    , bind block root "play root block" Play.root_block
+    -- It plays from the selection on the root, instead of the local one, which
+    -- is a little irregular.
+    , bind [] (Key.Char '?') "play root selection" Play.root_selection
+    , bind prev root "play root previous step" Play.root_previous
     , plain_char ' ' "stop" Play.cmd_context_stop
     ]
+    where
+    bind mods key name cmd = bind_key_status mods key name (cmd transport_info)
+    block = [PrimaryCommand]
+    sel = [Shift]
+    prev = []
+    local = Key.Enter
+    root = Key.Char '/'
 
 -- | Quit is special because it's the only Cmd that returns Cmd.Quit.
 -- See how annoying it is to make a keymap by hand?

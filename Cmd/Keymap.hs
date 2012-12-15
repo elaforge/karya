@@ -65,6 +65,7 @@ command_char = bind_key [PrimaryCommand] . Key.Char
 bind_key :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a -> [Binding m]
 bind_key smods key desc cmd = bind smods (Key False key) desc (const cmd)
 
+-- | Bind a key with a Cmd that returns Status.
 bind_key_status :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String
     -> m Cmd.Status -> [Binding m]
 bind_key_status smods key desc cmd =
