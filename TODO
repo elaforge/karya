@@ -197,20 +197,32 @@ UNSORTED
     simply additive, and their duration doesn't matter.  This would mean I'd
     have to edit the tempo on the subblocks though, which in turn means it
     couldn't vary independently.
-  lots of ghc panics
-    * change all alignment = 1 lines to 4.  Still crashes.
+
+  ghc panics
+    . It still happens without git, but seems less frequent.
+      Maybe both libgit2 and finalization have a problem.
+      But it happens with finalizers commented out, though seemingly much more
+      rarely.
+    + try commenting out finalizers, maybe it's incorrect finalization
+      Look for use after free?
+    * change all alignment = 1 lines to 4.  Still crashes.  But less?
     * try on linux, yes seems to happen there too
     * use valgrind on linux
     * See if it happens without LangGhc. Yes.
     * See if it happens in debug mode. Yes.
     * See if -O2 debug binary crashes. Yes, at least once.
-    - See if -O0 opt binary crashes.
+    * See if -O0 opt binary crashes.
     * Try with the shell version of git.  If that works, update libgit2.
       No, it's probably not git.
-    . But with git saving off it seems pretty stable...
+    + try with no git at all, i.e. turn off git saving and save normally
+      Yes, but rarely?
+    - should opt/ghci-flags have -O?
     It seems likely due to FFI, perhaps a bug in C++.  Optimization could be
     making some change that makes it more sensitive to the bug.  Or it could
     be optimization in the c++.
+
+    I need a repro.  Profiling doesn't do it.  Maybe it's due to the UI?  Can
+    I automate lots of UI banging?
 
   - rename Ruler.marks_of to marklist_to_list and Ruler.
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
