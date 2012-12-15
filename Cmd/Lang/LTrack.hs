@@ -118,8 +118,9 @@ events track_id start end = do
 
 -- * strip controls
 
-drop_dups :: (Cmd.M m) => ModifyEvents.Events m
-drop_dups = return . Seq.drop_dups Event.event_bytestring
+drop_dups :: Cmd.CmdL ()
+drop_dups = ModifyEvents.selection $ ModifyEvents.events $
+    return . Seq.drop_dups Event.event_bytestring
 
 
 -- * signal render

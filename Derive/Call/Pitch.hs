@@ -77,7 +77,7 @@ pitch_calls = Derive.make_calls
 -- | This should contain the calls that require the previous value.  It's used
 -- by a hack in 'Derive.Slice.slice'.
 require_previous :: Set.Set String
-require_previous = Set.fromList ["'", "u", "d", "a"]
+require_previous = Set.fromList ["'", "u", "d", "a", "i>", "e>"]
 
 c_set :: Derive.PitchCall
 c_set = Derive.generator1 "set" "Emit a pitch with no interpolation." $
