@@ -97,87 +97,69 @@ fix = do
     gc
 
 -- | Double the meter of the current block. You can then trim it down to size.
-double :: Cmd.CmdL ()
+double :: (Cmd.M m) => m Modify
 double = do
     block_id <- Cmd.get_focused_block
-    local_meter block_id $ \meter -> meter <> meter
+    return (block_id, \meter -> meter <> meter)
 
 -- | Clip the meter to the selection.
-clip :: Cmd.CmdL ()
+clip :: (Cmd.M m) => m Modify
 clip = do
     (block_id, _, _, pos) <- Selection.get_insert
-    local_meter block_id $ Meter.clip 0 pos
+    return (block_id, Meter.clip 0 pos)
 
 -- | Copy the meter under the selection and append it to the end of the ruler.
-append :: Cmd.CmdL ()
+append :: (Cmd.M m) => m Modify
 append = do
     (block_id, _, _, start, end) <- Selection.tracks
-    local_meter block_id $ \meter -> meter <> Meter.clip start end meter
+    return (block_id, \meter -> meter <> Meter.clip start end meter)
 
-append_ruler_id :: RulerId -> Cmd.CmdL ()
+append_ruler_id :: (Cmd.M m) => RulerId -> m Modify
 append_ruler_id ruler_id = do
     block_id <- Cmd.get_focused_block
     other <- Meter.ruler_meter <$> State.get_ruler ruler_id
-    local_meter block_id (<> other)
+    return (block_id, (<> other))
 
--- | Remove the selected ruler.
-delete :: Cmd.CmdL ()
+-- | Remove the selected range of the ruler and shift the rest up.
+delete :: (Cmd.M m) => m Modify
 delete = do
     (block_id, _, _, start, end) <- Selection.tracks
-    ruler_end <- State.block_ruler_end block_id
-    local_meter block_id $ \meter ->
-        Meter.clip 0 start meter <> Meter.clip end ruler_end meter
+    return (block_id, Meter.remove start end)
 
 -- | Replace the meter for the rulers of this block, fitted to the end of the
 -- last event on the block.
-fitted_meter :: Meter.AbstractMeter -> BlockId -> Cmd.CmdL ()
+fitted_meter :: (Cmd.M m) => Meter.AbstractMeter -> BlockId -> m Modify
 fitted_meter meter block_id = do
     dur <- State.block_event_end block_id
     when (dur <= 0) $
         Cmd.throw "can't set ruler for block with 0 duration"
-    local_meter block_id $ const $ Meter.fit_meter dur meter
+    return (block_id, const $ Meter.fit_meter dur meter)
 
-set_meter :: ScoreTime -> Meter.AbstractMeter -> BlockId -> Cmd.CmdL ()
+set_meter :: ScoreTime -> Meter.AbstractMeter -> BlockId -> Modify
 set_meter dur meter block_id =
-    local_meter block_id $ const $ Meter.fit_meter dur meter
+    (block_id, const $ Meter.fit_meter dur meter)
 
 get_meter :: (State.M m) => BlockId -> m Meter.Meter
 get_meter block_id =
     Meter.ruler_meter <$> (State.get_ruler =<< State.ruler_of block_id)
 
--- | Just like 'RulerUtil.local_meter' but invalidate performances.  Since
--- block calls use the ruler length to determine the duration of the block,
--- changing the ruler can affect the performance.
---
--- I don't add this directly to 'RulerUtil.local_meter' because that would make
--- it be in Cmd and IO.
-local_meter :: BlockId -> (Meter.Meter -> Meter.Meter) -> Cmd.CmdL ()
-local_meter block_id f = do
-    RulerUtil.local_meter block_id f
-    Cmd.invalidate_performances
-
-modify_block :: BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> Cmd.CmdL ()
-modify_block block_id f = do
-    RulerUtil.modify_block block_id f
-    Cmd.invalidate_performances
-
 -- * extract
 
-extract :: Cmd.CmdL ()
+extract :: (Cmd.M m) => m Modify
 extract = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    extract_from block_id track_id
+    all_meters <- extract_meters track_id
+    return (block_id, const all_meters)
 
 -- | Extract the meter marklists from the sub-blocks called on the given
 -- track, concatenate them, and replace the current meter with it.
-extract_from :: BlockId -> TrackId -> Cmd.CmdL ()
-extract_from block_id track_id = do
+extract_meters :: (Cmd.M m) => TrackId -> m Meter.Meter
+extract_meters track_id = do
     subs <- extract_calls track_id
     ruler_ids <- mapM State.ruler_of [bid | (_, _, bid) <- subs]
     meters <- mapM RulerUtil.get_meter ruler_ids
-    let all_meters = concat [Meter.scale dur meter
-            | ((_start, dur, _), meter) <- zip subs meters]
-    local_meter block_id (const all_meters)
+    return $ concat [Meter.scale dur meter
+        | ((_start, dur, _), meter) <- zip subs meters]
 
 extract_calls :: (State.M m) => TrackId -> m [(ScoreTime, ScoreTime, BlockId)]
 extract_calls track_id = do
@@ -189,6 +171,26 @@ extract_calls track_id = do
         event <- events
         Just block_id <- return (call event)
         return (Event.start event, Event.duration event, block_id)
+
+-- * modify
+
+type Modify = (BlockId, Meter.Meter -> Meter.Meter)
+
+-- | Just like 'RulerUtil.local_meter' but invalidate performances.  Since
+-- block calls use the ruler length to determine the duration of the block,
+-- changing the ruler can affect the performance.
+--
+-- I don't add this directly to 'RulerUtil.local_meter' because that would make
+-- it be in Cmd and IO.
+local :: Modify -> Cmd.CmdL ()
+local (block_id, f) = do
+    RulerUtil.local_meter block_id f
+    Cmd.invalidate_performances
+
+modify :: Modify -> Cmd.CmdL ()
+modify (block_id, f) = do
+    RulerUtil.modify_meter block_id f
+    Cmd.invalidate_performances
 
 
 -- * cue
@@ -208,3 +210,8 @@ add_cue_at block_id pos text = modify_block block_id $
 
 cue_mark :: String -> Ruler.Mark
 cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
+
+modify_block :: BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> Cmd.CmdL ()
+modify_block block_id f = do
+    RulerUtil.modify_block block_id f
+    Cmd.invalidate_performances

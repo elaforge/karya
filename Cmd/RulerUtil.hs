@@ -46,9 +46,11 @@ copy_marklist name from_ruler_id to_ruler_id = do
 local_meter :: (State.M m) => BlockId -> (Meter.Meter -> Meter.Meter) -> m ()
 local_meter block_id f = modify_block block_id (Meter.modify_meter f)
 
--- | Modify a meter on all blocks that have it.
-modify_meter :: (State.M m) => RulerId -> (Meter.Meter -> Meter.Meter) -> m ()
-modify_meter ruler_id f = State.modify_ruler ruler_id (Meter.modify_meter f)
+-- | Modify a meter destructively.
+modify_meter :: (State.M m) => BlockId -> (Meter.Meter -> Meter.Meter) -> m ()
+modify_meter block_id f = do
+    ruler_id <- State.ruler_of block_id
+    State.modify_ruler ruler_id (Meter.modify_meter f)
 
 get_meter :: (State.M m) => RulerId -> m Meter.Meter
 get_meter = fmap Meter.ruler_meter . State.get_ruler
@@ -58,9 +60,6 @@ get_meter = fmap Meter.ruler_meter . State.get_ruler
 modify_block :: (State.M m) => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
 modify_block block_id f = mapM_ (\ruler_id -> local_modify block_id ruler_id f)
     =<< State.rulers_of block_id
-
--- TODO two techniques: modify a copy, or modify the original.  I should have
--- a modify for both
 
 -- | Modify the given RulerId, making a new one if it's already in use on
 -- a block other than the give one.

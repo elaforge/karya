@@ -13,20 +13,23 @@ import Types
 
 
 test_extract = do
-    let ((bid, tid), ui_state) = UiTest.run State.empty $ do
+    let ((vid, bid), ui_state) = UiTest.run State.empty $ do
             [top, b1, b2] <- UiTest.mkblocks
                 [ ("top", [(">", [(0, 10, "b1"), (10, 6, "b2")])])
                 , ("b1", [])
                 , ("b2", [])
                 ]
+            vid <- Create.unfitted_view top
             Create.new_ruler top "r.top" $ RulerUtil.ruler []
             Create.new_ruler b1 "r.b1" $
                 RulerUtil.meter_ruler 16 (Meter.repeat 4 (Meter.T 1))
             Create.new_ruler b2 "r.b2" $
                 RulerUtil.meter_ruler 16 (Meter.repeat 3 (Meter.T 1))
-            return (top, UiTest.mk_tid_block top 1)
+            return (vid, top)
     equal (e_ruler bid ui_state) []
-    res <- CmdTest.run_ui_io ui_state $ LRuler.extract_from bid tid
+    res <- CmdTest.run_ui_io ui_state $ do
+        CmdTest.set_sel_on vid 1 0 1 0
+        LRuler.modify =<< LRuler.extract
     equal (e_ruler bid (CmdTest.result_ui_state res))
         [ (0, 2.5), (1, 2.5), (1, 2.5), (1, 2.5)
         , (1, 2), (1, 2), (1, 2)

@@ -43,6 +43,14 @@ clip start end meter =
         zip durs meter
     where durs = scanl (+) 0 (map snd meter)
 
+-- | Remove the half-open range.
+remove :: ScoreTime -> ScoreTime -> Meter -> Meter
+remove start end meter = map snd pre ++ map snd post
+    where
+    (pre, within) = break ((>=start) . fst) (zip durs meter)
+    post = dropWhile ((<end) . fst) within
+    durs = scanl (+) 0 (map snd meter)
+
 scale :: ScoreTime -> Meter -> Meter
 scale dur meter = map (second (*factor)) meter
     where factor = if dur == 0 then 1 else dur / time_end meter
