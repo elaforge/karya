@@ -21,6 +21,8 @@ type Repo = Ptr C'git_repository
 
 #opaque_t git_repository
 
+data Void
+
 -- int git_repository_init(git_repository **repo_out, const char *path,
 -- unsigned is_bare);
 #ccall git_repository_init, Ptr Repo -> CString -> CUInt -> IO Error
@@ -88,50 +90,62 @@ type ObjType = CInt
 -- void git_treebuilder_free(git_treebuilder *bld);
 #ccall git_treebuilder_free, Ptr <git_treebuilder> -> IO ()
 
--- ** index
-
--- int git_tree_create_fromindex(git_oid *oid, git_index *index);
-#ccall git_tree_create_fromindex, Ptr OID -> Ptr <git_index> -> IO Error
-
 -- * diff
 
 #opaque_t git_diff_list
 #opaque_t git_diff_options
 
--- int git_diff_tree_to_tree(git_repository *repo, const git_diff_options
--- *opts, git_tree *old_tree, git_tree *new_tree, git_diff_list **diff);
-#ccall git_diff_tree_to_tree, Repo -> Ptr <git_diff_options> \
-    -> Ptr <git_tree> -> Ptr <git_tree> -> Ptr (Ptr <git_diff_list>) \
+-- int git_diff_tree_to_tree(
+--         git_diff_list **diff,
+--         git_repository *repo,
+--         git_tree *old_tree,
+--         git_tree *new_tree,
+--         const git_diff_options *opts)
+#ccall git_diff_tree_to_tree, Ptr (Ptr <git_diff_list>) -> Repo \
+    -> Ptr <git_tree> -> Ptr <git_tree> \
+    -> Ptr <git_diff_options> \
     -> IO Error
 
 #ccall git_diff_list_free, Ptr <git_diff_list> -> IO ()
 
--- int git_diff_print_compact( git_diff_list *diff, void *cb_data,
--- git_diff_data_fn print_cb);
-#ccall git_diff_print_compact, Ptr <git_diff_list> -> Ptr CChar \
-    -> <git_diff_data_fn> -> IO Error
+-- int git_diff_print_compact(
+--         git_diff_list *diff,
+--         git_diff_data_cb print_cb,
+--         void *payload)
+#ccall git_diff_print_compact, Ptr <git_diff_list> \
+    -> <git_diff_data_cb> -> Ptr Void -> IO Error
 
 #opaque_t git_diff_range
 
--- typedef int (*git_diff_data_fn)(
---         void *cb_data,
---         git_diff_delta *delta,
---         git_diff_range *range,
+-- typedef int (*git_diff_data_cb)(
+--         const git_diff_delta *delta,
+--         const git_diff_range *range,
 --         char line_origin, /**< GIT_DIFF_LINE_... value from above */
 --         const char *content,
---         size_t content_len);
-#callback git_diff_data_fn, Ptr CChar -> Ptr <git_diff_delta> \
-    -> Ptr <git_diff_range> -> CChar -> CString -> CSize -> IO Error
+--         size_t content_len,
+--         void *payload);
+#callback git_diff_data_cb, Ptr <git_diff_delta> \
+    -> Ptr <git_diff_range> -> CChar -> CString -> CSize -> Ptr Void \
+    -> IO Error
 
 #integral_t git_delta_t
 #num GIT_DELTA_ADDED
 #num GIT_DELTA_DELETED
 #num GIT_DELTA_MODIFIED
 
+-- typedef struct {
+--         git_diff_file old_file;
+--         git_diff_file new_file;
+--         git_delta_t   status;
+--         unsigned int  similarity; /**< for RENAMED and COPIED, value 0-100 */
+--         int           binary;
+-- } git_diff_delta;
 #starttype git_diff_delta
 #field old_file, <git_diff_file>
 #field new_file, <git_diff_file>
 #field status, <git_delta_t>
+#field similarity, CUInt
+#field binary, CInt
 #stoptype
 
 #starttype git_diff_file
@@ -180,9 +194,9 @@ type ObjType = CInt
 #ccall git_signature_free, Ptr <git_signature> -> IO ()
 
 #ccall git_commit_author, Ptr <git_commit> -> IO (Ptr <git_signature>)
-#ccall git_commit_tree_oid, Ptr  <git_commit> -> IO (Ptr OID)
+#ccall git_commit_tree_id, Ptr  <git_commit> -> IO (Ptr OID)
 #ccall git_commit_parentcount, Ptr <git_commit> -> IO CUInt
-#ccall git_commit_parent_oid, Ptr <git_commit> -> CUInt -> IO (Ptr OID)
+#ccall git_commit_parent_id, Ptr <git_commit> -> CUInt -> IO (Ptr OID)
 #ccall git_commit_message, Ptr <git_commit> -> IO CString
 
 -- * ref
@@ -196,18 +210,18 @@ type ObjType = CInt
 -- void git_reference_free(git_reference *ref);
 #ccall git_reference_free, Ptr <git_reference> -> IO ()
 
--- int git_reference_name_to_oid(git_oid *out, git_repository *repo, const char
+-- int git_reference_name_to_id(git_oid *out, git_repository *repo, const char
 -- *name);
-#ccall git_reference_name_to_oid, Ptr OID -> Repo -> CString -> IO CInt
+#ccall git_reference_name_to_id, Ptr OID -> Repo -> CString -> IO CInt
 
--- int git_reference_create_oid(git_reference **ref_out, git_repository *repo,
+-- int git_reference_create(git_reference **ref_out, git_repository *repo,
 -- const char *name, const git_oid *id, int force);
-#ccall git_reference_create_oid, Ptr (Ptr <git_reference>) -> Repo \
+#ccall git_reference_create, Ptr (Ptr <git_reference>) -> Repo \
     -> CString -> Ptr OID -> CInt -> IO Error
 -- const char * git_reference_name(git_reference *ref);
 #ccall git_reference_name, Ptr <git_reference> -> IO CString
--- const git_oid * git_reference_oid(git_reference *ref);
-#ccall git_reference_oid, Ptr <git_reference> -> IO (Ptr OID)
+-- const git_oid * git_reference_target(git_reference *ref);
+#ccall git_reference_target, Ptr <git_reference> -> IO (Ptr OID)
 
 -- int git_reference_list(git_strarray *array, git_repository *repo, unsigned
 -- int list_flags);
@@ -215,9 +229,9 @@ type ObjType = CInt
 
 -- ** symbolic
 
--- int git_reference_create_symbolic(git_reference **ref_out, git_repository
+-- int git_reference_symbolic_create(git_reference **ref_out, git_repository
 -- *repo, const char *name, const char *target, int force);
-#ccall git_reference_create_symbolic, Ptr (Ptr <git_reference>) -> Repo \
+#ccall git_reference_symbolic_create, Ptr (Ptr <git_reference>) -> Repo \
     -> CString -> CString -> CInt -> IO Error
 -- int git_reference_resolve(git_reference **resolved_ref, git_reference *ref);
 #ccall git_reference_resolve, Ptr (Ptr <git_reference>) \

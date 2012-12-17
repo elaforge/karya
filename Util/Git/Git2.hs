@@ -274,10 +274,10 @@ read_commit repo commit =
 read_commit_repo :: G.Repo -> Commit -> IO CommitData
 read_commit_repo repop commit = with_commit repop commit $ \commitp -> do
     author <- peek_user =<< peek =<< G.c'git_commit_author commitp
-    tree <- peek =<< G.c'git_commit_tree_oid commitp
+    tree <- peek =<< G.c'git_commit_tree_id commitp
     parents_len <- G.c'git_commit_parentcount commitp
     parents <- mapM peek
-        =<< mapM (G.c'git_commit_parent_oid commitp)
+        =<< mapM (G.c'git_commit_parent_id commitp)
             (if parents_len == 0 then [] else [0..parents_len-1])
     desc <- peekCString =<< G.c'git_commit_message commitp
     return $ CommitData (Tree tree) (map Commit parents) author desc
@@ -310,12 +310,12 @@ diff_tree_repo repop old new =
     with_tree repop old $ \oldp -> with_tree repop new $ \newp -> do
     diffs <- alloca $ \listpp -> do
         G.check "diff_tree" $
-            G.c'git_diff_tree_to_tree repop nullPtr oldp newp listpp
+            G.c'git_diff_tree_to_tree listpp repop oldp newp nullPtr
         listp <- peek listpp
         ref <- IORef.newIORef []
-        with_fptr (G.mk'git_diff_data_fn (diff_cb ref)) $ \callback ->
+        with_fptr (G.mk'git_diff_data_cb (diff_cb ref)) $ \callback ->
             G.check "diff_print_compact" $
-                G.c'git_diff_print_compact listp nullPtr callback
+                G.c'git_diff_print_compact listp callback nullPtr
         IORef.readIORef ref
     concatMapM to_mod diffs
     where
@@ -326,8 +326,8 @@ diff_tree_repo repop old new =
             return [Add path bytes]
         | otherwise = G.throw $ "diff_trees " ++ show (old, new)
             ++ ": unknown status: " ++ show status
-    diff_cb ref _data deltap _rangep _line_origin _contentp _content_len = do
-        G.C'git_diff_delta _old new status <- peek deltap
+    diff_cb ref deltap _rangep _line_origin _contentp _content_len _data = do
+        G.C'git_diff_delta _old new status _ _ <- peek deltap
         let G.C'git_diff_file oid pathp _mode = new
         path <- peekCString pathp
         IORef.modifyIORef ref ((status, path, oid):)
@@ -340,7 +340,7 @@ write_ref repo (Commit commit) ref = with_repo repo $ \repop ->
     with commit $ \commitp -> with_ref_name ref $ \namep ->
     alloca $ \refpp -> do
         G.check ("write_ref " ++ show ref) $
-            G.c'git_reference_create_oid refpp repop namep commitp 1
+            G.c'git_reference_create refpp repop namep commitp 1
         refp <- peek refpp
         when (refp /= nullPtr) $
             G.c'git_reference_free refp
@@ -351,7 +351,7 @@ read_ref repo ref = with_repo repo $ \repop -> read_ref_repo repop ref
 read_ref_repo :: G.Repo -> Ref -> IO (Maybe Commit)
 read_ref_repo repop ref = with_ref_name ref $ \namep ->
     alloca $ \oidp -> do
-        code <- G.c'git_reference_name_to_oid oidp repop namep
+        code <- G.c'git_reference_name_to_id oidp repop namep
         if code /= G.c'GIT_OK then return Nothing else do
         oid <- peek oidp
         return (Just (Commit oid))
@@ -401,8 +401,8 @@ write_symbolic_ref repo sym ref
     | otherwise = with_repo repo $ \repop ->
         with_ref_name ref $ \namep -> withCString sym $ \symp ->
         alloca $ \refpp -> do
-            refp <- G.check_lookup "reference_create_symbolic" refpp $
-                G.c'git_reference_create_symbolic refpp repop symp namep 1
+            refp <- G.check_lookup "reference_symbolic_create" refpp $
+                G.c'git_reference_symbolic_create refpp repop symp namep 1
             when (refp /= nullPtr) $
                 G.c'git_reference_free refp
 

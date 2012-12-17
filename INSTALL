@@ -7,7 +7,7 @@ utf8-string # Ui.Event
 attoparsec # Derive: tracklang parsing
 fixed-list-0.1.5 # Derive.Call.Util: for typesafe mapping
 mersenne-random-pure64 hashable random-shuffle # Derive: score randomization
-dlist # Perform.SignalBase
+dlist # Util.TimeVector
 bindings-dsl # Util.Git.LibGit2
 fclabels # Util.Lens
 semigroups # Data.List.NonEmpty
@@ -28,8 +28,8 @@ ekg # if Shakefile useEkg is True
 
 libpcre library from http://www.pcre.org
 
-libgit2 - It has no official releases, but I synced to 1.7.0:
-https://github.com/libgit2/libgit2 6f6b0c013c6eff2aca2a7ada1027044f2e20f578
+libgit2 - It has no official releases, but I synced to:
+https://github.com/libgit2/libgit2 be5869fce0ab9c61a294020e9baa9755c58ee8a3
 
 lilypond, for some fonts
 
