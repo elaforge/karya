@@ -91,7 +91,8 @@ cmd_map_errors  :: [String]
 io_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 io_bindings = concat
     [ file_bindings, undo_bindings, quit_bindings
-    , player_bindings
+    -- This actually belongs in 'player_bindings', but needs to be in IO.
+    , plain_char ' ' "stop" Play.cmd_context_stop
     ]
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
@@ -107,32 +108,6 @@ undo_bindings = concat
     , command_char 'r' "redo" Undo.redo
     ]
 
--- | This is unfortunate.  In order to construct the cmd map only once, I want
--- it to be a CAF.  However, these Cmds take an argument, which means I need to
--- either have the CmdMap map to Cmds that take an argument, or recreate the
--- map on each call.  Since there are not many cmds, I opt for the latter.
-player_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
-player_bindings = concat
-    -- The pattern is that the modifiers select where to start playing, and
-    -- the key says whether it's the local block or from the root block.
-    [ bind_key_status block local "play local block" Play.local_block
-    , bind_key_status sel local "play local selection" Play.local_selection
-    , bind_key_status prev local "play local previous step" Play.local_previous
-    , bind_key_status block root "play root block" Play.root_block
-    -- It plays from the selection on the root, instead of the local one, which
-    -- is a little irregular.
-    , bind_key_status [] (Key.Char '?') "play root selection"
-        Play.root_selection
-    , bind_key_status prev root "play root previous step" Play.root_previous
-    , plain_char ' ' "stop" Play.cmd_context_stop
-    ]
-    where
-    block = [PrimaryCommand]
-    sel = [Shift]
-    prev = []
-    local = Key.Enter
-    root = Key.Char '/'
-
 -- | Quit is special because it's the only Cmd that returns Cmd.Quit.
 -- See how annoying it is to make a keymap by hand?
 quit_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
@@ -147,10 +122,32 @@ quit_bindings = [(kspec, cspec) | kspec <- kspecs]
 
 pure_bindings :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]
 pure_bindings = concat
-    [ mouse_bindings, selection_bindings, step_play_bindings
+    [ player_bindings, mouse_bindings, selection_bindings, step_play_bindings
     , view_config_bindings, block_config_bindings, edit_state_bindings
     , event_bindings, pitch_bindings, create_bindings, clip_bindings
     ]
+
+player_bindings :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]
+player_bindings = concat
+    -- The pattern is that the modifiers select where to start playing, and
+    -- the key says whether it's the local block or from the root block.
+    [ bind block local "play local block" Play.local_block
+    , bind sel local "play local selection" Play.local_selection
+    , bind prev local "play local previous step" Play.local_previous
+    , bind block root "play root block" Play.root_block
+    -- It plays from the selection on the root, instead of the local one, which
+    -- is a little irregular.
+    , bind [] (Key.Char '?') "play root selection" Play.root_selection
+    , bind prev root "play root previous step" Play.root_previous
+    ]
+    where
+    bind smods key desc cmd = bind_key_status smods key desc
+        (Cmd.PlayMidi <$> cmd)
+    block = [PrimaryCommand]
+    sel = [Shift]
+    prev = []
+    local = Key.Enter
+    root = Key.Char '/'
 
 -- | I bind the mouse by device rather than function, since I can't detect
 -- overlaps as easily for mouse bindings.
