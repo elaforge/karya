@@ -76,13 +76,14 @@
     clears the updater control.
 -}
 module Cmd.Play where
-import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
+
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
@@ -92,63 +93,62 @@ import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.LEvent as LEvent
-import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
 import Types
 
 
 -- * cmds
 
-local_block :: Transport.Info -> Cmd.CmdIO
-local_block transport_info = do
+local_block :: Cmd.CmdIO
+local_block = do
     block_id <- Cmd.get_focused_block
-    from_score transport_info block_id Nothing 0
+    from_score block_id Nothing 0
 
-local_selection :: Transport.Info -> Cmd.CmdIO
-local_selection transport_info = do
+local_selection :: Cmd.CmdIO
+local_selection = do
     (block_id, _, track_id, pos) <- Selection.get_insert
-    from_score transport_info block_id (Just track_id) pos
+    from_score block_id (Just track_id) pos
 
-local_previous :: Transport.Info -> Cmd.CmdIO
-local_previous transport_info = do
+local_previous :: Cmd.CmdIO
+local_previous = do
     step <- gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     prev <- TimeStep.rewind step block_id tracknum pos
-    from_score transport_info block_id (Just track_id) (fromMaybe 0 prev)
+    from_score block_id (Just track_id) (fromMaybe 0 prev)
 
 -- | Play the root block from the beginning.
-root_block :: Transport.Info -> Cmd.CmdIO
-root_block transport_info = do
+root_block :: Cmd.CmdIO
+root_block = do
     block_id <- State.get_root_id
-    from_score transport_info block_id Nothing 0
+    from_score block_id Nothing 0
 
 -- | Play the root performance from the selection on the root block.  This
 -- is useful to manually set a point to start playing.
-root_selection :: Transport.Info -> Cmd.CmdIO
-root_selection transport_info = do
+root_selection :: Cmd.CmdIO
+root_selection = do
     (block_id, _, track_id, pos) <- Selection.get_root_insert
-    from_score transport_info block_id (Just track_id) pos
+    from_score block_id (Just track_id) pos
 
 -- | Find the previous step on the focused block, get its RealTime, and play
 -- from the root at that RealTime.
-root_previous :: Transport.Info -> Cmd.CmdIO
-root_previous transport_info = do
+root_previous :: Cmd.CmdIO
+root_previous = do
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     step <- gets Cmd.state_play_step
     prev <- fromMaybe pos <$> TimeStep.rewind step block_id tracknum pos
     start <- get_realtime block_id (Just track_id) prev
     root_id <- State.get_root_id
-    from_realtime transport_info root_id start
+    from_realtime root_id start
 
-from_score :: Transport.Info -> BlockId
+from_score :: BlockId
     -> Maybe TrackId -- ^ Track to play from.  Since different tracks can have
     -- different tempos, a track is needed to convert to RealTime.  If not
     -- given, use the first track that has tempo information.
     -> ScoreTime -- ^ Convert to RealTime and start playing from this time.
     -> Cmd.CmdIO
-from_score transport_info block_id start_track start_pos = do
+from_score block_id start_track start_pos = do
     start <- get_realtime block_id start_track start_pos
-    from_realtime transport_info block_id start
+    from_realtime block_id start
 
 get_realtime :: (Cmd.M m) => BlockId -> Maybe TrackId -> ScoreTime
     -> m RealTime
@@ -164,8 +164,8 @@ get_realtime block_id track pos = do
         Just start -> return start
 
 -- | Play the performance of the given block starting from the given time.
-from_realtime :: Transport.Info -> BlockId -> RealTime -> Cmd.CmdIO
-from_realtime transport_info block_id start = do
+from_realtime :: BlockId -> RealTime -> Cmd.CmdIO
+from_realtime block_id start = do
     play_control <- gets Cmd.state_play_control
     when_just play_control $ \_ -> Cmd.throw "player already running"
 
@@ -181,18 +181,10 @@ from_realtime transport_info block_id start = do
     start <- let mstart = PlayUtil.first_time msgs
         in return $ if start == 0 && mstart < 0 then mstart else start
     msgs <- return $ PlayUtil.shift_messages multiplier start msgs
-    (play_ctl, updater_ctl) <- Trans.liftIO $
-        Midi.Play.play transport_info block_id msgs
-
-    ui_state <- State.get
-    -- Pass the current state in the MVar.  ResponderSync will keep it up
-    -- to date afterwards, but only if blocks are added or removed.
-    Trans.liftIO $ MVar.modifyMVar_ (Transport.info_state transport_info)
-        (const (return ui_state))
-    Cmd.modify_play_state $ \st -> st { Cmd.state_play_control = Just play_ctl }
     -- See doc for "Cmd.PlayC".
-    return $ Cmd.Play $
-        Cmd.UpdaterArgs updater_ctl (Cmd.perf_inv_tempo perf) start multiplier
+    return $ Cmd.PlayMidi $
+        Cmd.PlayMidiArgs (Pretty.pretty block_id) msgs
+            (Just (Cmd.perf_inv_tempo perf . (+start) . (/multiplier)))
 
 lookup_current_performance :: (Cmd.M m) => BlockId -> m (Maybe Cmd.Performance)
 lookup_current_performance block_id = Map.lookup block_id <$>

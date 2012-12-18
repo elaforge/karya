@@ -21,7 +21,7 @@ instance Eq Cmd.Status where
     Cmd.Done == Cmd.Done = True
     Cmd.Continue == Cmd.Continue = True
     Cmd.Quit == Cmd.Quit = True
-    Cmd.Play _ == Cmd.Play _ = True
+    Cmd.PlayMidi _ == Cmd.PlayMidi _ = True
     _ == _ = False
 
 #endif

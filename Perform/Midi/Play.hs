@@ -20,25 +20,25 @@ type Messages = [LEvent.LEvent Midi.WriteMessage]
 
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
-play :: Transport.Info -> BlockId -> Messages
+play :: Transport.Info -> String -> Messages
     -> IO (Transport.PlayControl, Transport.UpdaterControl)
-play transport_info block_id midi_msgs = do
-    state <- make_state transport_info block_id
+play transport_info name midi_msgs = do
+    state <- make_state transport_info
     let ts_offset = state_time_offset state
         -- Catch msgs up to realtime.
         ts_midi_msgs = map (fmap (Midi.add_timestamp ts_offset)) midi_msgs
-    Thread.start_logged "render midi" (player_thread state ts_midi_msgs)
+    Thread.start_logged "render midi" (player_thread name state ts_midi_msgs)
     return (state_play_control state, state_updater_control state)
 
-player_thread :: State -> Messages -> IO ()
-player_thread state msgs = do
-    Log.debug $ "play block " ++ show (state_block_id state)
+player_thread :: String -> State -> Messages -> IO ()
+player_thread name state msgs = do
+    Log.debug $ "play start: " ++ name
     play_msgs state msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Transport.info_send_status (state_info state)
                 (Transport.Died (show exc))
     Transport.player_stopped (state_updater_control state)
-    Log.debug $ "render score " ++ show (state_block_id state) ++ " complete"
+    Log.debug $ "play complete: " ++ name
 
 -- * implementation
 
@@ -46,22 +46,21 @@ player_thread state msgs = do
 -- This is read-only, and shouldn't need to be modified.
 data State = State {
     -- | Communicate into the Player.
-    state_play_control :: Transport.PlayControl
-    , state_updater_control :: Transport.UpdaterControl
-    , state_block_id :: BlockId
+    state_play_control :: !Transport.PlayControl
+    , state_updater_control :: !Transport.UpdaterControl
 
     -- | When play started.  Timestamps relative to the block start should be
     -- added to this to get absolute Timestamps.
-    , state_time_offset :: RealTime
-    , state_info :: Transport.Info
+    , state_time_offset :: !RealTime
+    , state_info :: !Transport.Info
     }
 
-make_state :: Transport.Info -> BlockId -> IO State
-make_state info block_id = do
+make_state :: Transport.Info -> IO State
+make_state info = do
     ts <- Transport.info_get_current_time info
     play_control <- fmap Transport.PlayControl STM.newEmptyTMVarIO
     updater_control <- fmap Transport.UpdaterControl (IORef.newIORef False)
-    return $ State play_control updater_control block_id ts info
+    return $ State play_control updater_control ts info
 
 -- | 'play_msgs' tries to not get too far ahead of now both to avoid flooding
 -- the midi driver and so a stop will happen fairly quickly.

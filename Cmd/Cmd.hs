@@ -92,6 +92,7 @@ import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
@@ -116,13 +117,16 @@ type CmdL a = CmdT IO a
 
 data Status = Done | Continue | Quit
     -- | Hack to control import dependencies, see "Cmd.PlayC".
-    | Play UpdaterArgs
+    | PlayMidi !PlayMidiArgs
     deriving (Show, Generics.Typeable)
 
-data UpdaterArgs = UpdaterArgs
-    Transport.UpdaterControl Transport.InverseTempoFunction RealTime RealTime
-instance Show UpdaterArgs where
-    show _ = "((UpdaterArgs))"
+-- | Arguments for "Cmd.PlayC.play".
+--
+-- descriptive name, events, tempo func to display play position
+data PlayMidiArgs = PlayMidiArgs !String !Midi.Perform.MidiEvents
+    !(Maybe Transport.InverseTempoFunction)
+instance Show PlayMidiArgs where
+    show _ = "((PlayMidiArgs))"
 
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
 -- just to make things uniform.

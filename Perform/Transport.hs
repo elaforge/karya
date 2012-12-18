@@ -31,7 +31,9 @@ data Info = Info {
     -- | Get current RealTime according to timing system.
     , info_get_current_time :: IO RealTime
     -- | A mutable map of the currently active views, so the responder can
-    -- tell the updater thread which views are currently opened.
+    -- tell the updater thread which views are currently opened.  It needs this
+    -- so if you open a new view while it's playing, it can put the updater
+    -- selection on that view.
     , info_state :: MVar.MVar State.State
     }
 

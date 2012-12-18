@@ -9,7 +9,7 @@
     the updater thread.  The responder treats it as a Done but will call
     'start_updater' with the given args.
 -}
-module Cmd.PlayC (cmd_play_msg, start_updater) where
+module Cmd.PlayC (cmd_play_msg, play) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
@@ -29,6 +29,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 
+import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 import Types
@@ -72,26 +73,34 @@ cmd_play_msg msg = do
         Msg.DeriveComplete {} -> Just Config.box_color
         Msg.Killed {} -> Just Config.box_color
 
+-- * play
 
--- * updater
-
-start_updater :: Transport.Info -> Cmd.UpdaterArgs -> IO ()
-start_updater transport_info args =
-    void $ Thread.start $ updater_thread transport_info args
+-- | This actually kicks off a MIDI play thread, and if an inverse tempo
+-- function is given, an updater thread.
+play :: State.State -> Transport.Info -> Cmd.PlayMidiArgs
+    -> IO Transport.PlayControl
+play ui_state transport_info (Cmd.PlayMidiArgs name msgs maybe_inv_tempo) = do
+    (play_ctl, updater_ctl) <- Midi.Play.play transport_info name msgs
+    -- Pass the current state in the MVar.  ResponderSync will keep it up
+    -- to date afterwards, but only if blocks are added or removed.
+    MVar.modifyMVar_ (Transport.info_state transport_info) $
+        const (return ui_state)
+    when_just maybe_inv_tempo $ \inv_tempo -> Trans.liftIO $ void $
+        Thread.start $ updater_thread transport_info updater_ctl inv_tempo
+    return play_ctl
 
 -- | Run along the InverseTempoMap and update the play position selection.
 -- Note that this goes directly to the UI through Sync, bypassing the usual
 -- state diff folderol.
-updater_thread :: Transport.Info -> Cmd.UpdaterArgs -> IO ()
-updater_thread transport_info (Cmd.UpdaterArgs ctl inv_tempo_func start
-        multiplier) = do
+updater_thread :: Transport.Info
+    -> Transport.UpdaterControl -> Transport.InverseTempoFunction -> IO ()
+updater_thread transport_info ctl inv_tempo_func = do
     let get_now = Transport.info_get_current_time transport_info
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
     offset <- get_now
-    let state = UpdaterState ctl (offset - start * multiplier) get_now
+    let state = UpdaterState ctl offset get_now
             inv_tempo_func Set.empty (Transport.info_state transport_info)
-            multiplier
     let send status = Transport.info_send_status transport_info status
     Exception.bracket_ (send Transport.Playing) (send Transport.Stopped)
         (updater_loop state)
@@ -103,7 +112,6 @@ data UpdaterState = UpdaterState {
     , updater_inv_tempo_func :: Transport.InverseTempoFunction
     , updater_active_sels :: Set.Set (ViewId, [TrackNum])
     , updater_ui_state :: MVar.MVar State.State
-    , updater_multiplier :: RealTime
     }
 
 updater_loop :: UpdaterState -> IO ()
@@ -115,9 +123,9 @@ updater_loop state = do
     let fail err = Log.error ("state error in updater: " ++ show err)
             >> return []
     ui_state <- MVar.readMVar (updater_ui_state state)
+    let block_pos = updater_inv_tempo_func state now
     play_pos <- either fail return $ State.eval ui_state $
-        Perf.find_play_pos (updater_inv_tempo_func state)
-            (now / updater_multiplier state)
+        Perf.block_pos_to_play_pos block_pos
     Sync.set_play_position play_pos
 
     let active_sels = Set.fromList
@@ -127,7 +135,7 @@ updater_loop state = do
     state <- return $ state { updater_active_sels = active_sels }
 
     stopped <- Transport.check_player_stopped (updater_ctl state)
-    if stopped || null (updater_inv_tempo_func state now)
+    if stopped || null block_pos
         then mapM_ (Sync.clear_play_position . fst) $
             Set.toList (updater_active_sels state)
         else Thread.delay 0.05 >> updater_loop state

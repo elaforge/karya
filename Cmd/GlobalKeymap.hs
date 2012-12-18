@@ -36,9 +36,7 @@
     events.
 -}
 module Cmd.GlobalKeymap where
-import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Monad.Identity as Identity
-import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
 import qualified Ui.Block as Block
@@ -67,23 +65,14 @@ import qualified Cmd.Undo as Undo
 import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 
 
 pure_cmds :: [Cmd.Cmd]
 pure_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map pure_bindings))]
 
-io_cmds :: Transport.Info -> [Msg.Msg -> Cmd.CmdIO]
-io_cmds transport_info =
-    [ Keymap.make_cmd (fst (Keymap.make_cmd_map io_bindings))
-    -- player_bindings wants an arg, but I want to run 'make_cmd_map' as a CAF
-    -- so I can easily print the errors once on startup, and also be assured
-    -- that the map is only built once.  Otherwise I think I have to thread
-    -- io_cmds through the responder state which is a bit annoying.
-    , Keymap.make_cmd $ fst $ Keymap.make_cmd_map $
-        player_bindings transport_info
-    ]
+io_cmds :: [Msg.Msg -> Cmd.CmdIO]
+io_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map io_bindings))]
 
 -- | 'all_cmd_map' is not useful for actual cmds since the cmds themselves
 -- have been stripped, but it's still useful to find keymap collisions and
@@ -92,20 +81,18 @@ all_cmd_map :: Keymap.CmdMap (Cmd.CmdT Identity.Identity)
 cmd_map_errors  :: [String]
 (all_cmd_map, cmd_map_errors) =
     -- Pure cmds bind before IO cmds since they are extendable.
-    Keymap.make_cmd_map (pure_bindings ++ map strip io_bindings
-        ++ map strip (player_bindings dummy_info))
+    Keymap.make_cmd_map (pure_bindings ++ map strip io_bindings)
     where
     strip = second $ \(Keymap.CmdSpec name _) ->
         Keymap.CmdSpec name (const (return Cmd.Done))
-    -- I'm going to strip the cmds anyway, but the function wants one and
-    -- this is safer than undefined...
-    dummy_info = Transport.Info (const (return ())) (const (return ()))
-        (return ()) (return 0) (Unsafe.unsafePerformIO MVar.newEmptyMVar)
 
 -- * io cmds
 
 io_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
-io_bindings = concat [file_bindings, undo_bindings, quit_bindings]
+io_bindings = concat
+    [ file_bindings, undo_bindings, quit_bindings
+    , player_bindings
+    ]
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
@@ -124,22 +111,22 @@ undo_bindings = concat
 -- it to be a CAF.  However, these Cmds take an argument, which means I need to
 -- either have the CmdMap map to Cmds that take an argument, or recreate the
 -- map on each call.  Since there are not many cmds, I opt for the latter.
-player_bindings :: Transport.Info -> [Keymap.Binding (Cmd.CmdT IO)]
-player_bindings transport_info = concat
+player_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
+player_bindings = concat
     -- The pattern is that the modifiers select where to start playing, and
     -- the key says whether it's the local block or from the root block.
-    [ bind block local "play local block" Play.local_block
-    , bind sel local "play local selection" Play.local_selection
-    , bind prev local "play local previous step" Play.local_previous
-    , bind block root "play root block" Play.root_block
+    [ bind_key_status block local "play local block" Play.local_block
+    , bind_key_status sel local "play local selection" Play.local_selection
+    , bind_key_status prev local "play local previous step" Play.local_previous
+    , bind_key_status block root "play root block" Play.root_block
     -- It plays from the selection on the root, instead of the local one, which
     -- is a little irregular.
-    , bind [] (Key.Char '?') "play root selection" Play.root_selection
-    , bind prev root "play root previous step" Play.root_previous
+    , bind_key_status [] (Key.Char '?') "play root selection"
+        Play.root_selection
+    , bind_key_status prev root "play root previous step" Play.root_previous
     , plain_char ' ' "stop" Play.cmd_context_stop
     ]
     where
-    bind mods key name cmd = bind_key_status mods key name (cmd transport_info)
     block = [PrimaryCommand]
     sel = [Shift]
     prev = []

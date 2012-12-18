@@ -47,7 +47,7 @@ cmd_load fname = do
 --
 -- Unlike 'cmd_save', this doesn't take a FilePath.  This is because
 -- 'Cmd.Undo.maintain_history' will be saving to the repo set by the
--- 'State.state_project_dir' and 'State.state_namespace'.  So if you want to
+-- 'State.config_project_dir' and 'State.config_namespace'.  So if you want to
 -- start saving in a new place, you should change those values.
 cmd_save_git :: Cmd.CmdT IO ()
 cmd_save_git = do

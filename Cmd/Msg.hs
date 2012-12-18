@@ -101,7 +101,9 @@ instance Pretty.Pretty Performance where
 
 instance DeepSeq.NFData Performance where
     rnf (Performance cache events track_dyn integrated damage warps tsigs) =
-        rnf cache `seq` rnf events `seq` rnf track_dyn `seq` rnf integrated
+        -- I don't know if it makes a difference, but I feel like I should
+        -- force the events first, since they can be evaluated incrementally.
+        rnf events `seq` rnf cache `seq` rnf track_dyn `seq` rnf integrated
         `seq` rnf damage `seq` rnf warps `seq` rnf tsigs
 
 -- * views

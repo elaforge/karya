@@ -33,7 +33,7 @@ main = SendCmd.initialize $ do
         then fmap lines getContents
         else return [unwords args]
     forM_ msgs $ \msg -> do
-        putStrLn $ "send " ++ show msg
+        putStrLn $ "---> " ++ msg
         if Timing `elem` flags then do
             (response, time) <- timed $ SendCmd.send (msg ++ "\n")
             Printf.printf "%s - %.3f\n" response time
