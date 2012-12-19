@@ -503,8 +503,8 @@ test_channelize = do
         [0, 0]
 
 test_can_share_chan = do
-    let f evt0 evt1 = Maybe.isNothing $
-            Perform.can_share_chan (mkpevent evt0) (mkpevent evt1)
+    let f evt1 evt2 = Maybe.isNothing $
+            Perform.can_share_chan (mkpevent evt1) (mkpevent evt2)
 
     -- Can't share, becase there is explicitly time for a leading pitch
     -- bend in the second event.
@@ -541,16 +541,20 @@ test_can_share_chan = do
     equal (f (0, 2, [(0, 60), (1, 60.5)], []) (0, 2, [(0, 61), (1, 61.5)], []))
         True
 
-    let cont = ("cont", [(0, 1), (1, 0.5), (2, 0)])
+    let mkc start dur pitch samples =
+            (start, dur, [(0, pitch)], [("c", samples)])
     -- Share with the same controller.
-    equal (f (0, 2, [(0, 60)], [cont]) (0, 2, [(0, 61)], [cont])) True
-    equal (f (0, 2, [(0, 60)], [cont]) (0, 2, [(0, 61)], [])) False
+    equal (f (mkc 0 2 60 [(0, 1), (1, 0)]) (mkc 0 2 61 [(0, 1), (1, 0)])) True
+    equal (f (mkc 0 2 60 [(0, 1), (1, 0)]) (mkc 0 2 61 [])) False
 
     -- The controls are different, but they are the same in the overlapping
     -- part.
-    equal (f (0, 1, [(0, 60)], [("c", [(0, 1), (0.5, 0.5)])])
-            (1, 1, [(0, 61)], [("c", [(0.5, 0.5), (1.5, 1)])]))
+    equal (f (mkc 0 1 60 [(0, 1), (0.5, 0.5)])
+            (mkc 1 1 61 [(0.5, 0.5), (1.5, 1)]))
         True
+
+    equal (f (mkc 2 1 60 [(0, 1)]) (mkc 2 1 61 [(0, 0)]))
+        False
 
 test_overlap_map = do
     let extent e = (Perform.event_start e, Perform.event_duration e)

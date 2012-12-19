@@ -163,6 +163,9 @@ shareable_chan overlapping event =
 -- | Can the two events coexist in the same channel without interfering?
 -- The reason this is not commutative is so I can assume the start of @old@
 -- is equal to or precedes the start of @new@ and save a little computation.
+--
+-- This is by far the most finicky function in the whole module, because
+-- this is the core decision when multiplexing channels.
 can_share_chan :: Event -> Event -> Maybe String
 can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         _ | start >= end -> Nothing
@@ -193,7 +196,7 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
     -- slightly different.
     in_decay = event_end new <= event_start old
         || event_end old <= event_start new
-    c_equal = controls_equal (event_end old) (event_start new)
+    c_equal = controls_equal (event_start new) (event_end old)
         (event_controls old) (event_controls new)
 
 -- | Are the controls equal in the given range?
@@ -219,7 +222,7 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
 -- So perhaps there should be a per-control configuration, but I'll worry about
 -- that only if it ever becomes a problem.
 controls_equal :: RealTime -> RealTime -> ControlMap -> ControlMap -> Bool
-controls_equal start end cs1 cs2 = all eq pairs
+controls_equal start end cs1 cs2 = start >= end || all eq pairs
     where
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
     -- of the controls require their own channel.
