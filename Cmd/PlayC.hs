@@ -85,9 +85,17 @@ play ui_state transport_info (Cmd.PlayMidiArgs name msgs maybe_inv_tempo) = do
     -- to date afterwards, but only if blocks are added or removed.
     MVar.modifyMVar_ (Transport.info_state transport_info) $
         const (return ui_state)
-    when_just maybe_inv_tempo $ \inv_tempo -> Trans.liftIO $ void $
-        Thread.start $ updater_thread transport_info updater_ctl inv_tempo
+    Trans.liftIO $ void $ Thread.start $ case maybe_inv_tempo of
+        Just inv_tempo -> updater_thread transport_info updater_ctl inv_tempo
+        Nothing -> monitor_thread
+            (Transport.info_send_status transport_info) updater_ctl
     return play_ctl
+
+monitor_thread :: (Transport.Status -> IO ()) -> Transport.UpdaterControl
+    -> IO ()
+monitor_thread send updater_ctl = do
+    Exception.bracket_ (send Transport.Playing) (send Transport.Stopped) $
+        Transport.wait_player_stopped updater_ctl
 
 -- | Run along the InverseTempoMap and update the play position selection.
 -- Note that this goes directly to the UI through Sync, bypassing the usual
@@ -101,8 +109,9 @@ updater_thread transport_info ctl inv_tempo_func = do
     offset <- get_now
     let state = UpdaterState ctl offset get_now
             inv_tempo_func Set.empty (Transport.info_state transport_info)
-    let send status = Transport.info_send_status transport_info status
-    Exception.bracket_ (send Transport.Playing) (send Transport.Stopped)
+    Exception.bracket_
+        (Transport.info_send_status transport_info Transport.Playing)
+        (Transport.info_send_status transport_info Transport.Stopped)
         (updater_loop state)
 
 data UpdaterState = UpdaterState {
@@ -134,7 +143,7 @@ updater_loop state = do
         Set.toList (Set.difference (updater_active_sels state) active_sels)
     state <- return $ state { updater_active_sels = active_sels }
 
-    stopped <- Transport.check_player_stopped (updater_ctl state)
+    stopped <- Transport.poll_player_stopped (updater_ctl state)
     if stopped || null block_pos
         then mapM_ (Sync.clear_play_position . fst) $
             Set.toList (updater_active_sels state)

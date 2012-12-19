@@ -68,25 +68,25 @@ cmd_language session lang_dirs msg = do
         Just cmd -> return cmd
         Nothing -> Trans.liftIO $
             LangImpl.interpret session local_modules ui_state cmd_state text
-    (response, success) <- run_cmdio $ Cmd.name ("repl: " ++ text) cmd
+    (response, status, success) <- run_cmdio $ Cmd.name ("repl: " ++ text) cmd
     Trans.liftIO $ catch_io_errors $ do
         unless (null response) $
             IO.hPutStrLn response_hdl response
         IO.hClose response_hdl
     when success (write_cmd text)
-    return $ if response == Fast.magic_quit_string then Cmd.Quit else Cmd.Done
+    return status
     where
     catch_io_errors = Exception.handle $ \(exc :: IOError) ->
         Log.warn $ "caught exception from socket write: " ++ show exc
 
 -- | Run the Cmd under an IO exception handler.
-run_cmdio :: Cmd.CmdT IO String -> Cmd.CmdT IO (String, Bool)
+run_cmdio :: Cmd.CmdT IO String -> Cmd.CmdT IO (String, Cmd.Status, Bool)
 run_cmdio cmd = do
     ui_state <- State.get
     cmd_state <- Cmd.get
     result <- Trans.liftIO $ Exception.try $ do
-        (cmd_state, midi, logs, result) <-
-            Cmd.run "<aborted>" ui_state cmd_state cmd
+        (cmd_state, midi, logs, result) <- Cmd.run "<aborted>" ui_state
+            (cmd_state { Cmd.state_repl_status = Cmd.Done }) cmd
         mapM_ Log.write logs
         case result of
             Left _ -> return ()
@@ -95,16 +95,17 @@ run_cmdio cmd = do
         return (cmd_state, midi, result)
     case result of
         Left (exc :: Exception.SomeException) ->
-            return ("IO exception: " ++ show exc, False)
+            return ("IO exception: " ++ show exc, Cmd.Done, False)
         Right (cmd_state, midi, result) -> case result of
-            Left err -> return ("State error: " ++ Pretty.pretty err, False)
+            Left err ->
+                return ("State error: " ++ Pretty.pretty err, Cmd.Done, False)
             Right (val, ui_state, updates) -> do
                 mapM_ Cmd.write_midi midi
-                Cmd.put cmd_state
+                Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }
                 -- Should be safe, because I'm writing the updates.
                 State.unsafe_put ui_state
                 mapM_ State.update updates
-                return (val, True)
+                return (val, Cmd.state_repl_status cmd_state, True)
 
 get_local_modules :: FilePath -> Cmd.CmdT IO [String]
 get_local_modules lang_dir = do

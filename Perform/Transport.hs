@@ -1,11 +1,22 @@
 {- | The transport is the communication mechanism between the app and the
     performer.  Extensive description is in the Cmd.Play docstring.
 -}
-module Perform.Transport where
+module Perform.Transport (
+    -- * info
+    Status(..), Info(..)
+    -- * play control
+    , PlayControl, play_control
+    , stop_player, poll_stop_player
+    -- * updater control
+    , UpdaterControl, updater_control
+    , player_stopped, poll_player_stopped, wait_player_stopped
+    -- * play timing
+    , TempoFunction, ClosestWarpFunction, InverseTempoFunction
+) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
-import qualified Data.IORef as IORef
 
+import Util.Control
 import qualified Util.Thread as Thread
 import qualified Midi.Interface as Interface
 import qualified Ui.State as State
@@ -37,35 +48,51 @@ data Info = Info {
     , info_state :: MVar.MVar State.State
     }
 
--- * Transport control
+-- * play control
 
--- | Send msgs from the responder loop to the player thread.
--- Communication from the responder to the player (tell the player to stop),
--- and from the player to the updater (tell the updater it's stopped).
-
+-- | Communication from the responder to the player, to tell the player to
+-- stop.
 newtype PlayControl = PlayControl (STM.TMVar ())
 
 -- Make Cmd.State showable for debugging.
 instance Show PlayControl where
     show _ = "((PlayControl))"
 
+play_control :: IO PlayControl
+play_control = PlayControl <$> STM.newEmptyTMVarIO
+
+-- | Signal to the player that you'd like it to start stopping doing whatever
+-- it is that it's doing and just like stop now ok?  Is that ok?
 stop_player :: PlayControl -> IO Bool
 stop_player (PlayControl mv) = STM.atomically (STM.tryPutTMVar mv ())
 
-check_for_stop :: Double -> PlayControl -> IO Bool
-check_for_stop timeout (PlayControl mv) = do
+poll_stop_player :: Double -> PlayControl -> IO Bool
+poll_stop_player timeout (PlayControl mv) = do
     val <- Thread.take_tmvar_timeout timeout mv
     return $ case val of
         Nothing -> False
         Just _ -> True
 
-newtype UpdaterControl = UpdaterControl (IORef.IORef Bool)
+-- * updater control
 
+-- | Communication from the player to the responder, to say when it's stopped.
+newtype UpdaterControl = UpdaterControl (STM.TVar Bool)
+
+updater_control :: IO UpdaterControl
+updater_control = UpdaterControl <$> STM.newTVarIO False
+
+-- | Signal that the player has stopped.
 player_stopped :: UpdaterControl -> IO ()
-player_stopped (UpdaterControl ref) = IORef.writeIORef ref True
+player_stopped (UpdaterControl var) = STM.atomically $ STM.writeTVar var True
 
-check_player_stopped :: UpdaterControl -> IO Bool
-check_player_stopped (UpdaterControl ref) = IORef.readIORef ref
+-- | True if the player has stopped.
+poll_player_stopped :: UpdaterControl -> IO Bool
+poll_player_stopped (UpdaterControl var) = STM.readTVarIO var
+
+wait_player_stopped :: UpdaterControl -> IO ()
+wait_player_stopped (UpdaterControl var) = STM.atomically $ do
+    stopped <- STM.readTVar var
+    unless stopped STM.retry
 
 
 -- * play timing

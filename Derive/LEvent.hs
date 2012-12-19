@@ -48,9 +48,9 @@ event :: LEvent a -> Maybe a
 event (Event d) = Just d
 event _ = Nothing
 
-is_event :: LEvent d -> Bool
-is_event (Event _) = True
-is_event _ = False
+-- | Always true for logs.  Useful for take and drop on events.
+log_or :: (d -> Bool) -> LEvent d -> Bool
+log_or f = either f (const True)
 
 either :: (d -> a) -> (Log.Msg -> a) -> LEvent d -> a
 either f1 _ (Event event) = f1 event

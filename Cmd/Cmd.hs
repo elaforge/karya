@@ -305,6 +305,11 @@ data State = State {
     -- range.
     , state_rdev_state :: !ReadDeviceState
     , state_edit :: !EditState
+    -- | The status return for this Cmd.  This is used only by the REPL, since
+    -- non-REPL cmds simply return Status as their return value.  REPL cmds
+    -- can't do that because they commonly use the return value to return
+    -- an interesting String back to the REPL.
+    , state_repl_status :: !Status
     } deriving (Show, Generics.Typeable)
 
 initial_state :: Map.Map Midi.ReadDevice Midi.ReadDevice
@@ -337,6 +342,7 @@ initial_state rdev_map wdev_map interface inst_db global_scope = State
     , state_wdev_state = empty_wdev_state
     , state_rdev_state = Map.empty
     , state_edit = initial_edit_state
+    , state_repl_status = Continue
     }
 
 -- | Reset the parts of the State which are specific to a \"session\".  This

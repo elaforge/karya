@@ -2,12 +2,11 @@
 -- | This module is responsible for actually scheduling MIDI messages with the
 -- OS's MIDI driver.
 module Perform.Midi.Play (play) where
-import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
-import qualified Data.IORef as IORef
 
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
+
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Derive.LEvent as LEvent
@@ -58,8 +57,8 @@ data State = State {
 make_state :: Transport.Info -> IO State
 make_state info = do
     ts <- Transport.info_get_current_time info
-    play_control <- fmap Transport.PlayControl STM.newEmptyTMVarIO
-    updater_control <- fmap Transport.UpdaterControl (IORef.newIORef False)
+    play_control <- Transport.play_control
+    updater_control <- Transport.updater_control
     return $ State play_control updater_control ts info
 
 -- | 'play_msgs' tries to not get too far ahead of now both to avoid flooding
@@ -84,7 +83,7 @@ play_msgs state msgs = do
     mapM_ write_msg chunk
 
     let timeout = if null rest then RealTime.mul write_ahead 2 else write_ahead
-    stop <- Transport.check_for_stop (RealTime.to_seconds timeout)
+    stop <- Transport.poll_stop_player (RealTime.to_seconds timeout)
         (state_play_control state)
     let reset_midi = mapM_ write_midi
             [Interface.AllNotesOff now, Interface.reset_controls now]

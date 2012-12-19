@@ -1,4 +1,41 @@
 UNSORTED
+  play midi msgs from the repl
+    * change UpdaterArgs to PlayMidiArgs and generalize to play any list of
+      msgs
+    * block_id turns into a plain string description
+    * I think multiplier and start can be baked into the inv_tempo
+    * But for a repl cmd to return PlayMidi, I need to have it return
+      non-String.  Should be possible, but how do I make the common case work?
+      Use a typeclass to select Show-able vs. Cmd.Status?  No I think the
+      cmds have to be monomorphic.
+      Could return by setting a variable.
+      The problem is that the return value is already taken to display to
+      the REPL.
+    * I think I need to shift events back.
+    * space doesn't work to stop the play
+      It's because the I rely on the updater emitting Transport.Stopped when
+      signaled from the player.
+      If there isn't necessarily an updater, I need to emit Stopped directly
+      from the player.  It was originally this way because if there are
+      multiple players then the updater would be the single coordinator.
+      Maybe when there's no updater I could have one that just blocks on the
+      player status.
+    - Rename updater to play monitor.
+    - Indicator for play status.
+  - can I cache long blocks by slicing them if they're >n?
+  - 'u' and 'd' have a problem with long notes because pitches can only be
+    transposed so far
+  - pitch call: like interpolate next, but default to .1s
+  - crescendo in echo bit isn't getting split properly, each track should be
+    on its own channel.
+    Should be able to extract just a few notes, then turn on perform logging.
+    So the guys under the curve in track 1 should share, but they aren't.
+  - I have a feeling like FM8 doesn't obey ResetAllControls
+    Maybe I should extend Midi.Interface.note_tracker to keep track of
+    used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
+    the rest reset to 0.
+    But filtering the midi shows dyn controls mixed into both channels.
+  - redraw problem on sloped signals
   - support poly aftertouch
   * pitch signal redraw messed up in save/untitled
   - in addition, it seems the signal doesn't update if I change the default
@@ -87,6 +124,7 @@ UNSORTED
   * quantize, so I can clean up pno-vla
   * figure out why the note after 'd 20' is bogus
   load midi
+    - order tracks with low pitches to the left
     * making bad parent->child
     * what's more, bad skel can kill the responder:
       **** Cmd/Responder.hs:381 [run_continue] - sync_status: skeleton of (bid
@@ -198,13 +236,44 @@ UNSORTED
     have to edit the tempo on the subblocks though, which in turn means it
     couldn't vary independently.
 
+  memory leak
+    . It seems like starting editing pnovla, it takes 1-2s to rederive, but
+      eventually take 5s.
+    - Run under EKG.  I thought I saw memory drop after scrolling the UI?
+
   ghc panics
+    - Stress test: load a score, apply a change, wait for rederive, apply
+      another, etc.
+      I can use the same thing to watch memory.
+    - Extend it to do UI.
+    . How to compile it?  It should be with opt but not necessarily profiling.
+      Wait, I do want at least SCC-less profiling to get the heap trace.
+      Make a separate binary and put it in opt/.
+      That way I can hook up the UI too.  But how to drive it?
+      . Use Lang, in fact I could just drive the normal seq.  Add a few Fast
+        cmds to add and remove events, and to force the current perf.
+        But I can't interact, e.g. wait for it
+        to be done, all I can do is spam cmds.  Of course if I want to run it
+        until it crashes that's enough.
+      . Try to extend ResponderTest to talk to the UI.
+    - Uses:
+      . Chase the derive memory leaks.
+      . Trigger the libgit2 memory corruption.
+      . Trigger the fltk memory corruption.
+
     . It still happens without git, but seems less frequent.
       Maybe both libgit2 and finalization have a problem.
       But it happens with finalizers commented out, though seemingly much more
       rarely.
+      . LibGit2 sets alignment to sizeOf... is that right?
     + try commenting out finalizers, maybe it's incorrect finalization
       Look for use after free?
+    look for problem in git
+      first eyeball
+        - verify signatures: LibGit2
+        - verify usage: Git2
+      - then write a stress test: large score, make a change, save, rederive,
+        repeat
     * change all alignment = 1 lines to 4.  Still crashes.  But less?
     * try on linux, yes seems to happen there too
     * use valgrind on linux
@@ -1322,6 +1391,13 @@ OSC backend
     time.
   - Write high-res synthesizer in FAUST, that can be plugged in to a generic
     OSC host.
+  - If I have non-realtime synthesis, how do I get the sound to a host?  One
+    way is a separate VST that just plays samples.
+    The OSC synth can write numerous sound files to a directory, corresponding
+    to non-interacting notes, as a cache.  A separate VST monitors the
+    directory and starts playing from a certain time on demand.  I can
+    communicate the time with either high-res cc, or even pitch bend, or
+    song pointer msgs.
 
 jack: JACK:
   bugs

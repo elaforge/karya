@@ -186,7 +186,27 @@ perf_event_inst =
 perform_events :: Derive.Events -> Cmd.CmdL Perform.MidiEvents
 perform_events = PlayUtil.perform_events
 
--- * util
+-- | This is the local block's performance, and the events are filtered to the
+-- selection range, and the filtering is done post-derivation, so they reflect
+-- what would actually be played.
+sel_midi :: Cmd.CmdL Perform.MidiEvents
+sel_midi = do
+    (block_id, start, end) <- Selection.local_realtime
+    events <- block_midi block_id
+    return $ takeWhile (LEvent.log_or $ (<=end) . Midi.wmsg_ts) $
+        dropWhile (LEvent.log_or $ (<start) . Midi.wmsg_ts) events
+
+play_midi :: Perform.MidiEvents -> Cmd.CmdL ()
+play_midi msgs = do
+    let status = Cmd.PlayMidi $ Cmd.PlayMidiArgs "repl" (to_zero msgs) Nothing
+    Cmd.modify $ \st -> st { Cmd.state_repl_status = status }
+    where
+    to_zero msgs = PlayUtil.shift_messages 1 (PlayUtil.first_time msgs) msgs
+
+filter_chan :: Midi.Channel -> [Midi.WriteMessage] -> [Midi.WriteMessage]
+filter_chan chan msgs =
+    [msg | (msg, Just mchan) <- zip msgs chans, mchan == chan]
+    where chans = map (Midi.message_channel . Midi.wmsg_msg) msgs
 
 -- | Reduce MIDI to an easier to read form.
 simple_midi :: Perform.MidiEvents -> [(RealTime, Midi.Message)]
