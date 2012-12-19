@@ -670,8 +670,8 @@ op_mul = (Signal.sig_multiply, 1)
 -- alongside the values.
 data Collect = Collect {
     -- | Remember the warp signal for each track.  A warp usually applies to
-    -- a set of tracks, so remembering them together will make the updater more
-    -- efficient when it inverts them to get playback position.
+    -- a set of tracks, so remembering them together will make the play monitor
+    -- more efficient when it inverts them to get playback position.
     collect_warp_map :: !TrackWarp.WarpMap
     , collect_track_signals :: !Track.TrackSignals
     , collect_track_dynamic :: !TrackDynamic

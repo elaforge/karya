@@ -74,9 +74,9 @@ data State = State {
     -- passed as an argument so tests can run the responder without a UI.
     , state_sync :: ResponderSync.Sync
 
-    -- | Communication channel between the updater thread and the player,
+    -- | Communication channel between the play monitor thread and the player,
     -- passed to 'Transport.info_state'.
-    , state_updater_state :: MVar.MVar State.State
+    , state_monitor_state :: MVar.MVar State.State
     }
 
 state_transport_info :: State -> Transport.Info
@@ -86,7 +86,7 @@ state_transport_info state = Transport.Info
         Cmd.state_midi_writer (state_cmd state)
     , Transport.info_midi_abort = Interface.abort interface
     , Transport.info_get_current_time = Interface.now interface
-    , Transport.info_state = state_updater_state state
+    , Transport.info_state = state_monitor_state state
     }
     where interface = Cmd.state_midi_interface (state_cmd state)
 
@@ -106,7 +106,7 @@ responder config msg_reader midi_interface setup_cmd lang_session
             (StaticConfig.global_scope config)
         midi = StaticConfig.midi config
     ui_state <- State.create
-    updater_state <- MVar.newMVar ui_state
+    monitor_state <- MVar.newMVar ui_state
     state <- run_setup_cmd setup_cmd $ State
         { state_static_config = config
         , state_ui = ui_state
@@ -114,7 +114,7 @@ responder config msg_reader midi_interface setup_cmd lang_session
         , state_session = lang_session
         , state_loopback = loopback
         , state_sync = Sync.sync
-        , state_updater_state = updater_state
+        , state_monitor_state = monitor_state
         }
     respond_loop state msg_reader
 

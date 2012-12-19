@@ -35,7 +35,7 @@ sync :: Sync -> Performance.SendStatus
     -> Cmd.State -> [Update.CmdUpdate] -> MVar.MVar State.State
     -> IO ([Update.UiUpdate], State.State, Cmd.State)
 sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
-        updater_state = do
+        play_monitor_state = do
     -- I'd catch problems closer to their source if I did this from run_cmds,
     -- but it's nice to see that it's definitely happening before syncs.
     verify_state ui_to
@@ -45,7 +45,7 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
     --     Trans.liftIO $ putStrLn $ "update: "
     --          ++ PPrint.pshow display_updates
     when (any modified_view ui_updates) $
-        MVar.modifyMVar_ updater_state (const (return ui_to))
+        MVar.modifyMVar_ play_monitor_state (const (return ui_to))
     let tsigs = get_track_signals
             (State.config_root (State.state_config ui_to)) cmd_state
     err <- sync_func tsigs Internal.set_style ui_to display_updates

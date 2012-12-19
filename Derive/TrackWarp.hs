@@ -40,7 +40,7 @@ type WarpMap = Map.Map Stack.Stack (Either TrackWarp TrackId)
 type Frames = [Stack.Frame]
 
 -- | Each track warp is a warp indexed by the block and tracks it covers.
--- These are used by the updater to figure out where the play position
+-- These are used by the play monitor to figure out where the play position
 -- indicator is at a given point in real time.
 data Collection = Collection {
     tw_start :: !RealTime

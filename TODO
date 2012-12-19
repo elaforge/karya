@@ -20,8 +20,8 @@ UNSORTED
       multiple players then the updater would be the single coordinator.
       Maybe when there's no updater I could have one that just blocks on the
       player status.
-    - Rename updater to play monitor.
-    - Indicator for play status.
+    * Rename updater to play monitor.
+    - Status box indicator for play status.
   - can I cache long blocks by slicing them if they're >n?
   - 'u' and 'd' have a problem with long notes because pitches can only be
     transposed so far

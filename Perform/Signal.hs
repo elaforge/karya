@@ -292,11 +292,11 @@ sig_op op sig1 sig2 = Signal $ V.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
 -- non-decreasing.
 --
 -- Unlike the other signal functions, this takes a single Y instead of
--- a signal, and as a RealTime.  This is because it's used by the play updater
--- for the inverse tempo map, and the play updater polls on intervals defined
+-- a signal, and as a RealTime.  This is because it's used by the play monitor
+-- for the inverse tempo map, and the play monitor polls on intervals defined
 -- by IO latency, so even when signals are lazy it would be impossible to
 -- generate the input signal without unsafeInterleaveIO.  If I really want to
--- pass a signal, I could pass regular samples and let the updater interpolate.
+-- pass a signal, I could pass regular samples and let the monitor interpolate.
 --
 -- This uses a bsearch on the vector, which is only reasonable as long as
 -- its strict.  When I switch to lazy vectors, I'll have to thread the tails.

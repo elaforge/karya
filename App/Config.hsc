@@ -139,7 +139,7 @@ play_position_selnum :: Types.SelNum
     , (temporary_insert_selnum, _)
     -- Highlight errors.
     , (error_selnum, _)
-    -- Display current play position, managed by updater thread.
+    -- Display current play position, managed by play monitor thread.
     , (play_position_selnum, play_selection_color)
     -- Display current step play position.
     , (step_play_selnum, _)

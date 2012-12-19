@@ -7,8 +7,8 @@ module Perform.Transport (
     -- * play control
     , PlayControl, play_control
     , stop_player, poll_stop_player
-    -- * updater control
-    , UpdaterControl, updater_control
+    -- * play monitor control
+    , PlayMonitorControl, play_monitor_control
     , player_stopped, poll_player_stopped, wait_player_stopped
     -- * play timing
     , TempoFunction, ClosestWarpFunction, InverseTempoFunction
@@ -42,8 +42,8 @@ data Info = Info {
     -- | Get current RealTime according to timing system.
     , info_get_current_time :: IO RealTime
     -- | A mutable map of the currently active views, so the responder can
-    -- tell the updater thread which views are currently opened.  It needs this
-    -- so if you open a new view while it's playing, it can put the updater
+    -- tell the play monitor thread which views are currently opened.  It needs
+    -- this so if you open a new view while it's playing, it can put the play
     -- selection on that view.
     , info_state :: MVar.MVar State.State
     }
@@ -73,24 +73,25 @@ poll_stop_player timeout (PlayControl mv) = do
         Nothing -> False
         Just _ -> True
 
--- * updater control
+-- * play monitor control
 
 -- | Communication from the player to the responder, to say when it's stopped.
-newtype UpdaterControl = UpdaterControl (STM.TVar Bool)
+newtype PlayMonitorControl = PlayMonitorControl (STM.TVar Bool)
 
-updater_control :: IO UpdaterControl
-updater_control = UpdaterControl <$> STM.newTVarIO False
+play_monitor_control :: IO PlayMonitorControl
+play_monitor_control = PlayMonitorControl <$> STM.newTVarIO False
 
 -- | Signal that the player has stopped.
-player_stopped :: UpdaterControl -> IO ()
-player_stopped (UpdaterControl var) = STM.atomically $ STM.writeTVar var True
+player_stopped :: PlayMonitorControl -> IO ()
+player_stopped (PlayMonitorControl var) =
+    STM.atomically $ STM.writeTVar var True
 
 -- | True if the player has stopped.
-poll_player_stopped :: UpdaterControl -> IO Bool
-poll_player_stopped (UpdaterControl var) = STM.readTVarIO var
+poll_player_stopped :: PlayMonitorControl -> IO Bool
+poll_player_stopped (PlayMonitorControl var) = STM.readTVarIO var
 
-wait_player_stopped :: UpdaterControl -> IO ()
-wait_player_stopped (UpdaterControl var) = STM.atomically $ do
+wait_player_stopped :: PlayMonitorControl -> IO ()
+wait_player_stopped (PlayMonitorControl var) = STM.atomically $ do
     stopped <- STM.readTVar var
     unless stopped STM.retry
 
@@ -113,8 +114,8 @@ type TempoFunction = BlockId -> TrackId -> ScoreTime -> [RealTime]
 type ClosestWarpFunction = BlockId -> TrackId -> RealTime -> Score.Warp
 
 -- | Return the ScoreTime play position in the various playing blocks at the
--- given physical time.  If the RealTime is past the end of all playing
--- blocks, return [].  The updater thread polls this periodically for all
+-- given physical time.  If the RealTime is past the end of all playing blocks,
+-- return [].  The play monitor thread polls this periodically for all
 -- displayed blocks and updates the play selection accordingly.
 --
 -- Since a given block may be playing in multiple places at the same time (e.g.

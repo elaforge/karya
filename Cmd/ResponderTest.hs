@@ -216,9 +216,9 @@ make_rstate :: TVar.TVar [[Update.DisplayUpdate]]
     -> Responder.State
 make_rstate update_chan loopback_chan ui_state cmd_state maybe_cmd =
     Responder.State config ui_state cmd_state lang_session loopback dummy_sync
-        updater_state
+        play_monitor_state
     where
-    updater_state = Unsafe.unsafePerformIO (MVar.newMVar State.empty)
+    play_monitor_state = Unsafe.unsafePerformIO (MVar.newMVar State.empty)
     config = StaticConfig.empty
         { StaticConfig.global_cmds = maybe [] (:[]) maybe_cmd }
     dummy_sync _ _ _ updates = do

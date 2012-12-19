@@ -164,7 +164,7 @@ set_track_scroll view_id offset = do
 foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
--- | This is called asynchronously by the play updater, so it takes an extra
+-- | This is called asynchronously by the play monitor, so it takes an extra
 -- flag to not throw an exception if the ViewId no longer exists.
 set_selection :: Bool -> ViewId -> Types.SelNum -> Maybe CSelection -> Fltk ()
 set_selection fail_on_view view_id selnum maybe_sel
