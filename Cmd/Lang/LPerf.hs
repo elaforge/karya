@@ -203,10 +203,12 @@ play_midi msgs = do
     where
     to_zero msgs = PlayUtil.shift_messages 1 (PlayUtil.first_time msgs) msgs
 
-filter_chan :: Midi.Channel -> [Midi.WriteMessage] -> [Midi.WriteMessage]
-filter_chan chan msgs =
-    [msg | (msg, Just mchan) <- zip msgs chans, mchan == chan]
-    where chans = map (Midi.message_channel . Midi.wmsg_msg) msgs
+filter_chan :: Midi.Channel -> Perform.MidiEvents -> Perform.MidiEvents
+filter_chan chan events =
+    [LEvent.Event msg | (msg, Just mchan) <- zip msgs chans, mchan == chan]
+    where
+    msgs = LEvent.events_of events
+    chans = map (Midi.message_channel . Midi.wmsg_msg) msgs
 
 -- | Reduce MIDI to an easier to read form.
 simple_midi :: Perform.MidiEvents -> [(RealTime, Midi.Message)]

@@ -175,7 +175,7 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
                     Just $ "pitch signals incompatible: "
                         ++ Pretty.pretty (event_pitch old) ++ " /= "
                         ++ Pretty.pretty (event_pitch new)
-            | not (controls_equal (event_controls new) (event_controls old)) ->
+            | not c_equal ->
                 Just $ "controls differ: " ++ Pretty.pretty (event_controls old)
                     ++ " /= " ++ Pretty.pretty (event_controls new)
             | otherwise -> Nothing
@@ -193,21 +193,40 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
     -- slightly different.
     in_decay = event_end new <= event_start old
         || event_end old <= event_start new
+    c_equal = controls_equal (event_end old) (event_start new)
+        (event_controls old) (event_controls new)
 
 -- | Are the controls equal in the given range?
-controls_equal :: ControlMap -> ControlMap -> Bool
-controls_equal cs0 cs1 = all eq pairs
+--
+-- Previously I insisted that the controls be identical, but now I check within
+-- the overlapping range only.  What's more, I only check where the events
+-- actually overlap, not including decay time.
+--
+-- Each event is supposed to only include the controls within its range.  So
+-- given a series of notes with a changing control, each note includes a bit of
+-- control, which then becomes constant as soon as the next note begins, since
+-- the rest of the control belongs to the next note.  This means the two notes
+-- can't share, because one has a flat signal during its decay while the other
+-- has the moving signal.  But in practice this turns out to be inconvenient,
+-- because it means that a series of notes with a crescendo will be divided
+-- across multiple channels.  That's ok if there are enough channels, but if
+-- there aren't, then this can introduce lots of bad-sounding channel stealing.
+--
+-- TODO However, not counting the decay means that very audible controls will
+-- be shared and cause artifacts.  I think the real difference is that controls
+-- like dyn and mod are not very audible during the decay, so it's ok to share
+-- them.  But another control, like a filter cutoff, might be very obvious.
+-- So perhaps there should be a per-control configuration, but I'll worry about
+-- that only if it ever becomes a problem.
+controls_equal :: RealTime -> RealTime -> ControlMap -> ControlMap -> Bool
+controls_equal start end cs1 cs2 = all eq pairs
     where
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
     -- of the controls require their own channel.
     relevant = Map.filterWithKey (\k _ -> Control.is_channel_control k)
-    pairs = Map.pairs (relevant cs0) (relevant cs1)
-    -- Previously I would compare only the overlapping range.  But controls
-    -- for multiplexed instruments are trimmed to the event start and end
-    -- already.  Comparing the entire signal will fail to merge events that
-    -- have different signals after the decay is over, but what are you
-    -- doing creating those anyway?
-    eq (_, Seq.Both sig0 sig1) = sig0 == sig1
+    pairs = Map.pairs (relevant cs1) (relevant cs2)
+    eq (_, Seq.Both sig1 sig2) =
+        Signal.within start end sig1 == Signal.within start end sig2
     eq _ = False
 
 

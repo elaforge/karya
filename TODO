@@ -26,10 +26,12 @@ UNSORTED
   - 'u' and 'd' have a problem with long notes because pitches can only be
     transposed so far
   - pitch call: like interpolate next, but default to .1s
-  - crescendo in echo bit isn't getting split properly, each track should be
+  + crescendo in echo bit isn't getting split properly, each track should be
     on its own channel.
     Should be able to extract just a few notes, then turn on perform logging.
     So the guys under the curve in track 1 should share, but they aren't.
+    - Still not quite right, some events are now being shared that shouldn't
+      be shared.
   - I have a feeling like FM8 doesn't obey ResetAllControls
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,

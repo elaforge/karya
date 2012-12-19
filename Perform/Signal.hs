@@ -34,7 +34,7 @@ module Perform.Signal (
     , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift, scale
-    , take, truncate, drop_before
+    , take, within, truncate, drop_before
     , map_x, map_y
 
     -- ** special functions
@@ -268,6 +268,9 @@ scale mult vec
 take :: Int -> Signal y -> Signal y
 take = modify_vec . V.take
 
+within :: X -> X -> Signal y -> Signal y
+within start end = modify_vec $ V.within start end
+
 truncate :: X -> Signal y -> Signal y
 truncate = modify_vec . V.truncate
 
@@ -397,29 +400,29 @@ pitches_share in_decay start end initial1 sig1 initial2 sig2
     | not in_decay && initial1 == initial2 = False
     | otherwise = pitch_eq (at start sig1) (at start sig2)
         && pitch_eq (at end sig1) (at end sig2)
-        && signals_share start initial1 initial2 in1 in2
+        && signals_share pitch_eq start in1 in2
     where
     in1 = V.within start end (sig_vec sig1)
     in2 = V.within start end (sig_vec sig2)
     pitch_eq = nns_share initial1 initial2
 
--- I need to sample points from start to end, including the start and the end.
--- Unfortunately it's not as simple as it seems it should be, especially since
--- this function is a hotspot and must be efficient.
+-- | I need to sample points from start to end, including the start and the
+-- end.  Unfortunately it's not as simple as it seems it should be, especially
+-- since this function is a hotspot and must be efficient.
 --
 -- V.within may return samples before start to get the proper value so I ignore
 -- samples before the start.  Start itself is tested explicitly above.
-signals_share :: X -> Midi.Key -> Midi.Key -> V.Unboxed -> V.Unboxed -> Bool
-signals_share start initial1 initial2 vec1 vec2 = go 0 0 0 0
+{-# INLINE signals_share #-}
+signals_share :: (Y -> Y -> Bool) -> X -> V.Unboxed -> V.Unboxed -> Bool
+signals_share eq start vec1 vec2 = go 0 0 0 0
     where
     go prev_ay prev_by i1 i2 =
         case V.resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
             Nothing -> True
             Just (x, ay, by, i1, i2) ->
-                (x <= start || pitch_eq ay by) && go ay by i1 i2
+                (x <= start || eq ay by) && go ay by i1 i2
     len1 = V.length vec1
     len2 = V.length vec2
-    pitch_eq = nns_share initial1 initial2
 
 nns_share :: Midi.Key -> Midi.Key -> Y -> Y -> Bool
 nns_share initial1 initial2 nn1 nn2 =

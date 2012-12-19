@@ -546,6 +546,12 @@ test_can_share_chan = do
     equal (f (0, 2, [(0, 60)], [cont]) (0, 2, [(0, 61)], [cont])) True
     equal (f (0, 2, [(0, 60)], [cont]) (0, 2, [(0, 61)], [])) False
 
+    -- The controls are different, but they are the same in the overlapping
+    -- part.
+    equal (f (0, 1, [(0, 60)], [("c", [(0, 1), (0.5, 0.5)])])
+            (1, 1, [(0, 61)], [("c", [(0.5, 0.5), (1.5, 1)])]))
+        True
+
 test_overlap_map = do
     let extent e = (Perform.event_start e, Perform.event_duration e)
     let f overlapping event =
