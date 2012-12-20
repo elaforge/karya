@@ -290,8 +290,7 @@ sync_edit_box_status = do
 skel_color :: Cmd.EditMode -> Bool -> Color.Color
 skel_color Cmd.NoEdit _ = edit_color Cmd.NoEdit
 skel_color _ advance
-    -- Advance mode is only relevent for ValEdit, but it looks weird when
-    -- switching to
+    -- Advance mode is only relevent for ValEdit.
     | advance = Config.advance_color
     | otherwise = Config.no_advance_color
 

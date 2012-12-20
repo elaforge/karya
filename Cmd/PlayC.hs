@@ -45,12 +45,16 @@ cmd_play_msg msg = do
     return Cmd.Done
     where
     transport_msg status = case status of
-        Transport.Playing -> return ()
+        Transport.Playing -> set_all_play_boxes Config.play_color
         -- Either the performer has declared itself stopped, or the play
         -- monitor has declared it stopped.  In any case, I don't need
         -- a transport to tell it what to do anymore.
-        Transport.Stopped -> Cmd.modify_play_state $ \st ->
-            st { Cmd.state_play_control = Nothing }
+        Transport.Stopped -> do
+            Cmd.modify_play_state $ \st ->
+                st { Cmd.state_play_control = Nothing }
+            -- This will cover up derive status info, but that should be ok.
+            -- And play normally only comes after derive is completed.
+            set_all_play_boxes Config.box_color
         Transport.Died err_msg -> Log.warn ("player died: " ++ err_msg)
     derive_status_msg block_id status = do
         when_just (derive_status_color status) (State.set_play_box block_id)
@@ -72,6 +76,10 @@ cmd_play_msg msg = do
         Msg.Deriving {} -> Just Config.busy_color
         Msg.DeriveComplete {} -> Just Config.box_color
         Msg.Killed {} -> Just Config.box_color
+
+set_all_play_boxes :: (State.M m) => Color.Color -> m ()
+set_all_play_boxes color =
+    mapM_ (flip State.set_play_box color) =<< State.all_block_ids
 
 -- * play
 

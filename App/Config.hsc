@@ -171,8 +171,11 @@ advance_color, no_advance_color :: Color.Color
 advance_color = play_color
 no_advance_color = val_edit_color
 
-play_color, warning_color :: Color.Color
+-- | Set when playing.
+play_color :: Color.Color
 play_color = Color.rgb 0 0.6 0
+
+warning_color :: Color.Color
 warning_color = Color.rgb 1 0.2 0.2
 
 abbreviation_color :: Color.Color

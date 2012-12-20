@@ -1,4 +1,9 @@
 UNSORTED
+  - editing the control value has to be manual when 'e' has an argument.
+    Maybe I should reverse the args to put the val at the end, and teach the
+    editor to look for 0x as the last word?
+    But the exponent is last because it's optional.  Can I instead have the
+    editor look for the first word?
   play midi msgs from the repl
     * change UpdaterArgs to PlayMidiArgs and generalize to play any list of
       msgs
@@ -21,7 +26,7 @@ UNSORTED
       Maybe when there's no updater I could have one that just blocks on the
       player status.
     * Rename updater to play monitor.
-    - Status box indicator for play status.
+    * Status box indicator for play status.
   - can I cache long blocks by slicing them if they're >n?
   - 'u' and 'd' have a problem with long notes because pitches can only be
     transposed so far
