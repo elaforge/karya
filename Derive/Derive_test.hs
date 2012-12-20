@@ -474,39 +474,6 @@ test_fractional_pitch = do
             <- map snd mmsgs]
         [(0, 72), (1, 73)]
 
-test_overlapping_controls = do
-    -- Make sure an event that has a different control during its decay winds
-    -- up in its own channel.
-    let res = DeriveTest.derive_tracks
-            [ (inst_title, [(0, 1, ""), (1, 1, "")])
-            , ("*twelve", [(0, 0, "4c")])
-            , ("cc1", [(0, 0, "0"), (1, 0, "1")])
-            ]
-    let (_, mmsgs, _) = DeriveTest.perform_defaults (Derive.r_events res)
-    let extract_mm = filter (Midi.is_note . snd)
-    equal (fst $ DeriveTest.extract (e_control "cc1") res)
-        [Just [(0, 0)], Just [(1, 1)]]
-    equal (extract_mm mmsgs)
-        [ (0, Midi.ChannelMessage 0 (Midi.NoteOn 60 127))
-        , (1000, Midi.ChannelMessage 0 (Midi.NoteOff 60 127))
-        , (1000, Midi.ChannelMessage 1 (Midi.NoteOn 60 127))
-        , (2000, Midi.ChannelMessage 1 (Midi.NoteOff 60 127))
-        ]
-
-    -- Event is far enough away for the control to not interfere.
-    let res = DeriveTest.derive_tracks
-            [ (inst_title, [(0, 1, ""), (5, 1, "")])
-            , ("*twelve", [(0, 0, "4c")])
-            , ("cc1", [(0, 0, "0"), (5, 0, "1")])
-            ]
-    let (_, mmsgs, _) = DeriveTest.perform_defaults (Derive.r_events res)
-    equal (extract_mm mmsgs)
-        [ (0, Midi.ChannelMessage 0 (Midi.NoteOn 60 127))
-        , (1000, Midi.ChannelMessage 0 (Midi.NoteOff 60 127))
-        , (5000, Midi.ChannelMessage 0 (Midi.NoteOn 60 127))
-        , (6000, Midi.ChannelMessage 0 (Midi.NoteOff 60 127))
-        ]
-
 e_control :: String -> Score.Event -> Maybe [(Signal.X, Signal.Y)]
 e_control cont = fmap (Signal.unsignal . Score.typed_val)
     . Map.lookup (Score.Control cont) . Score.event_controls

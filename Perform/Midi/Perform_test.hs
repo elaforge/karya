@@ -175,20 +175,31 @@ test_control_lead_time = do
         , (8000, 1, NoteOff 61 100)
         ], [])
 
-    let vol = (vol_cc, linear_interp [(4, 0), (6, 1)])
-    equal (f [("a", 0, 4, []), ("b", 4, 4, [vol])])
-        ([ (0, 0, PitchBend 0)
+    let vol start = (vol_cc, linear_interp [(start, 0), (start + 2, 1)])
+    equal (f [("a", 0, 4, []), ("b", 2, 4, [vol 2])])
+        ([(0, 0, PitchBend 0)
         , (0, 0, NoteOn 60 100)
 
-        , (4000 - lead, 1, PitchBend 0)
-        , (4000 - lead, 1, ControlChange 7 0)
+        , (2000 - lead, 1, PitchBend 0)
+        , (2000 - lead, 1, ControlChange 7 0)
 
+        , (2000, 1, NoteOn 61 100)
+        , (3000, 1, ControlChange 7 64)
         , (4000, 0, NoteOff 60 100)
-
-        , (4000, 1, NoteOn 61 100)
-        , (5000, 1, ControlChange 7 64)
-        , (6000, 1, ControlChange 7 127)
-        , (8000, 1, NoteOff 61 100)
+        , (4000, 1, ControlChange 7 127)
+        , (6000, 1, NoteOff 61 100)
+        ], [])
+    -- Non-overlapping notes means they go on the same channel, but there's no
+    -- room for control lead.
+    equal (f [("a", 0, 4, []), ("b", 4, 4, [vol 4])])
+        ([(0, 0, PitchBend 0)
+        , (0, 0, NoteOn 60 100)
+        , (4000, 0, NoteOff 60 100)
+        , (4000, 0, ControlChange 7 0)
+        , (4000, 0, NoteOn 61 100)
+        , (5000, 0, ControlChange 7 64)
+        , (6000, 0, ControlChange 7 127)
+        , (8000, 0, NoteOff 61 100)
         ], [])
 
     -- Force them to be on the same channel, so there shouldn't be any
@@ -203,7 +214,7 @@ test_control_lead_time = do
         , (8000, 2, NoteOff 61 100)
         ], [])
 
-    equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b", 4, 4, [vol])])
+    equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b", 4, 4, [vol 4])])
         ([ (0, 2, PitchBend 0)
         , (0, 2, NoteOn 60 100)
         , (4000, 2, NoteOff 60 100)
