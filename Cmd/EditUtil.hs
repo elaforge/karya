@@ -192,7 +192,8 @@ parse_key input = do
 -- * modify
 
 -- | Since there's no use for leading spaces, just a space makes an empty
--- event.  Backspacing an empty event deletes it.
+-- event.  Backspacing an empty event returns Nothing, which should delete the
+-- event itself.
 modify_text_key :: Key.Key -> String -> Maybe String
 modify_text_key key s = case key of
     Key.Backspace -> backspace s

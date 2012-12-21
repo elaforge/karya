@@ -101,12 +101,12 @@ block_to_hex block_id = ModifyEvents.block block_id $
         ModifyEvents.text to_hex
 
 to_hex :: String -> String
-to_hex text = case Derive.ParseBs.parse_val val of
+to_hex text = case Derive.ParseBs.parse_val (ControlTrack.event_val event) of
     Right (TrackLang.VNum (Score.Typed Score.Untyped n))
-        | 0 <= n && n <= 1 -> fromMaybe "" $ ControlTrack.unparse
-            (Just method, Just (ShowVal.show_hex_val n))
-    _ -> val
-    where (method, val) = ControlTrack.parse text
+        | 0 <= n && n <= 1 -> ControlTrack.unparse $
+            event { ControlTrack.event_val = ShowVal.show_hex_val n }
+    _ -> text
+    where event = ControlTrack.parse text
 
 -- * events
 

@@ -7,17 +7,22 @@ import qualified Cmd.ControlTrack as ControlTrack
 
 test_parse = do
     let f = ControlTrack.parse
-    equal (f "a b") ("a", "b")
-    equal (f "a") ("", "a")
-    equal (f "") ("", "")
+        e = ControlTrack.Event
+    equal (f "") $ e "" "" ""
+    equal (f "a") $ e "" "a" ""
+    equal (f "a ") $ e "a" "" ""
+    equal (f "a b") $ e "a" "b" ""
+    equal (f "a b c") $ e "a" "b" "c"
+    equal (f "a (b ')z') c") $ e "a" "(b ')z')" "c"
 
 test_unparse = do
     let f = ControlTrack.unparse
-    equal (f (Nothing, Nothing)) Nothing
-    equal (f (Just "", Just "")) Nothing
-    equal (f (Just "a", Just "")) (Just "a ")
-    equal (f (Just "", Just "b")) (Just "b")
-    equal (f (Just "a", Just "b")) (Just "a b")
+        e = ControlTrack.Event
+    equal (f (e "" "" "")) ""
+    equal (f (e "a" "" "")) "a "
+    equal (f (e "" "b" "")) "b"
+    equal (f (e "a" "b" "")) "a b"
+    equal (f (e "a" "b" "c")) "a b c"
 
 test_cmd_val_edit = do
     let f pos msgs = fmap extract $ thread pos ControlTrack.cmd_val_edit msgs

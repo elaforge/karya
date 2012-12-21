@@ -3,7 +3,7 @@
 
     This module creates the pitches that are later parsed by Derive.Control.
 -}
-module Cmd.PitchTrack where
+module Cmd.PitchTrack (module Cmd.PitchTrack, module Cmd.ControlTrack) where
 import qualified Data.List as List
 
 import Util.Control
@@ -15,6 +15,8 @@ import qualified Ui.Key as Key
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.ControlTrack as ControlTrack
+import Cmd.ControlTrack (Event(..))
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -68,12 +70,14 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
     return Cmd.Done
 
 val_edit_at :: (Cmd.M m) => State.Pos -> Pitch.Note -> m ()
-val_edit_at pos note = modify_event_at pos $ \(method, _) ->
-    ((Just method, Just (Pitch.note_text note)), False)
+val_edit_at pos note = modify_event_at pos $ \event ->
+    (Just $ event { event_val = Pitch.note_text note }, False)
 
 method_edit_at :: (Cmd.M m) => State.Pos -> Key.Key -> m ()
-method_edit_at pos key = modify_event_at pos $ \(method, val) ->
-    ((EditUtil.modify_text_key key method, Just val), False)
+method_edit_at pos key = modify_event_at pos $ \event ->
+    (Just $ event { event_call = fromMaybe "" $
+            EditUtil.modify_text_key key (event_call event) },
+        False)
 
 -- | Record the last note entered.  Should be called by 'with_note'.
 cmd_record_note_status :: Cmd.Cmd
@@ -87,52 +91,55 @@ cmd_record_note_status msg = do
 
 -- * implementation
 
-modify_event_at :: (Cmd.M m) => State.Pos
-    -> ((String, String) -> ((Maybe String, Maybe String), Bool))
-    -> m ()
+-- | old_event -> (new_event, advance?)
+type Modify = Event -> (Maybe Event, Bool)
+
+modify_event_at :: (Cmd.M m) => State.Pos -> Modify -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True True
-    (first unparse . f . parse. fromMaybe "")
+    (first (fmap unparse) . f . parse . fromMaybe "")
 
 -- | Modify event text.  This is not used within this module but is exported
 -- for others as a more general variant of 'modify_event_at'.
-modify :: ((String, String) -> (String, String)) -> Event.Event -> Event.Event
+modify :: (Event -> Event) -> Event.Event -> Event.Event
 modify f event = Event.set_string text event
     where
-    text = fromMaybe "" $ process (Event.event_string event)
-    process = unparse . justify . f . parse
-    justify (a, b) = (Just a, Just b)
+    text = process (Event.event_string event)
+    process = unparse . f . parse
 
--- | Try to figure out the call part of the expression and split it from the
--- rest.
+-- | Like 'ControlTrack.parse', but complicated by the fact that pitch calls
+-- can take args.
 --
--- Like 'Derive.ControlTrack.parse', this is merely a heuristic.  It tries to
--- get the simple case right, but may be fooled by complex expressions.
-parse :: String -> (String, String)
+-- > "x"        -> Event { call = "", val = "x", args = "" }
+-- > "x "       -> Event { call = "x", val = "", args = "" }
+-- > "x y"      -> Event { call = "", val = "x y", args = "" }
+-- > "x (y)"    -> Event { call = "x", val = "(y)", args = "" }
+-- > "x (y) z"  -> Event { call = "x", val = "(y)", args = "z" }
+parse :: String -> Event
 parse s
-    | '(' `notElem` s =
-        if " " `List.isSuffixOf` s then (pre, "") else ("", s)
-    | otherwise = (pre, drop 1 post)
+    | null post = Event "" pre ""
+    | post == " " = Event pre "" ""
+    | " (" `List.isPrefixOf` post = ControlTrack.split_args pre (drop 1 post)
+    | otherwise = Event "" s ""
     where (pre, post) = break (==' ') s
 
--- | Put the parsed halves back together.  Return Nothing if the event should
--- be deleted.
-unparse :: (Maybe String, Maybe String) -> Maybe String
-unparse (method, val) = case (pre, post) of
-        ("", "") -> Nothing
-        -- If the method is gone, the note no longer needs its parens.
-        -- Any args after the paren belonged to the method, and can go too.
-        ("", '(':rest) -> Just (strip_right_paren rest)
-        ("", _:_) -> Just post
-        (_:_, "") -> Just $ pre ++ " "
-        (_:_, '(':_) -> Just $ pre ++ ' ' : post
-        -- And add parens if the method is new.
-        (_:_, _:_) -> Just $ pre ++ ' ' : '(' : post ++ ")"
+-- | This is a bit more complicated than 'ControlTrack.unparse', since it needs
+-- to add or strip parens.
+unparse :: Event -> String
+unparse (ControlTrack.Event call val args)
+    | null call && null val = ""
+    -- If the call is gone, the note no longer needs its parens.
+    | null call = strip_parens val
+    | otherwise = unwords $
+        call : add_parens val : if null args then [] else [args]
     where
-    strip_right_paren text
-        | ')' `elem` text = reverse $ drop 1 $ dropWhile (/=')') $ reverse text
-        | otherwise = text
-    pre = fromMaybe "" method
-    post = fromMaybe "" val
+    strip_parens ('(':s) = case reverse s of
+        ')' : rest -> reverse rest
+        _ -> '(' : s -- oops, not matched, put it back on I guess
+    strip_parens s = s
+    -- If there's a call and it doesn't already have parens, it'll need them.
+    add_parens val
+        | null val || "(" `List.isPrefixOf` val = val
+        | otherwise = '(' : val ++ ")"
 
 -- | Try to figure out where the pitch call part is in event text and modify
 -- that with the given function.  The function can signal failure by returning

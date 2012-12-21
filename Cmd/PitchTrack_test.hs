@@ -36,7 +36,7 @@ test_cmd_method_edit = do
     equal (run [("*", [(0, 0, "x (y)")])] (f CmdTest.backspace)) $
         Right [("*", [(0, 0, "y")])]
     equal (run [("*", [(0, 0, "x ")])] (f CmdTest.backspace)) $
-        Right [("*", [])]
+        Right [("*", [(0, 0, "")])]
 
     equal (run [("*", [(0, 0, "x y")])] (f (CmdTest.key_down 'z'))) $
         Right [("*", [(0, 0, "z (x y)")])]
@@ -49,19 +49,21 @@ test_cmd_method_edit = do
 
 test_parse = do
     let f = PitchTrack.parse
-    equal (f "f x") ("", "f x")
-    equal (f "f (x) y") ("f", "(x) y")
-    equal (f "f x (y)") ("f", "x (y)")
-    equal (f "f x y") ("", "f x y")
-    equal (f "f (x)") ("f", "(x)")
-    equal (f "f ") ("f", "")
+        e = PitchTrack.Event
+    -- Uses parens to disambiguate between call and val vs. val with args.
+    equal (f "4c 0") $ e "" "4c 0" ""
+    equal (f "i (4c)") $ e "i" "(4c)" ""
+    equal (f "i (4c 0)") $ e "i" "(4c 0)" ""
+    equal (f "i (4c 0) x") $ e "i" "(4c 0)" "x"
 
 test_unparse = do
     let f = PitchTrack.unparse
-    equal (f (Just "i", Just "4c")) (Just "i (4c)")
-    equal (f (Just "", Just "(4c)")) (Just "4c")
-    equal (f (Just "i", Just "4c .2")) (Just "i (4c .2)")
-    equal (f (Just "", Just "(4c) .2")) (Just "4c")
+        e = PitchTrack.Event
+    equal (f (e "i" "" "")) "i "
+    equal (f (e "i" "4c" "")) "i (4c)"
+    equal (f (e "i" "4c 0" "")) "i (4c 0)"
+    equal (f (e "i" "4c 0" "x")) "i (4c 0) x"
+    equal (f (e "" "(4c)" "")) "4c"
 
 test_modify_note = do
     let f = PitchTrack.modify_note

@@ -1,9 +1,10 @@
 UNSORTED
-  - editing the control value has to be manual when 'e' has an argument.
+  * editing the control value has to be manual when 'e' has an argument.
     Maybe I should reverse the args to put the val at the end, and teach the
     editor to look for 0x as the last word?
     But the exponent is last because it's optional.  Can I instead have the
     editor look for the first word?
+  - rename "method" to "call"
   play midi msgs from the repl
     * change UpdaterArgs to PlayMidiArgs and generalize to play any list of
       msgs

@@ -17,6 +17,7 @@ module Derive.ParseBs (
     , parse_expr
     , parse_control_title
     , parse_val, parse_num, parse_call
+    , lex1
 
     -- * expand macros
     , expand_macros
@@ -82,6 +83,12 @@ parse_call text = case parse_expr text of
 parse :: A.Parser a -> Text -> Either String a
 parse p = Parse.parse_all (spaces >> p)
 
+-- * lex
+
+lex1 :: Text -> Maybe (Text, Text)
+lex1 text = case parse ((,) <$> p_term <*> A.takeWhile (const True)) text of
+    Right (_, rest) -> Just (B.take (B.length text - B.length rest) text, rest)
+    Left _ -> Nothing
 
 -- * expand macros
 

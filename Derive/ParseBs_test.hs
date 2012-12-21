@@ -155,6 +155,12 @@ test_p_equal = do
     equal (parse "a= b") $ Right [Call (Symbol "a=") [Literal (symbol "b")]]
     equal (parse "a=b") $ Right [Call (Symbol "a=b") []]
 
+test_lex1 = do
+    let f = Parse.lex1
+    pprint (f "a b c")
+    pprint (f "(a b) c")
+    pprint (f "(a ')' (x) b) c")
+
 val_call :: String -> [Term] -> Term
 val_call sym args = ValCall (Call (Symbol sym) args)
 

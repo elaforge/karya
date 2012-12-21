@@ -101,4 +101,4 @@ add_control control = TrackInfo.unparse_control $
 
 set_note :: Pitch.Note -> Event.Event -> Event.Event
 set_note note = PitchTrack.modify f
-    where f (meth, _) = (meth, Pitch.note_text note)
+    where f event = event { PitchTrack.event_val = Pitch.note_text note }
