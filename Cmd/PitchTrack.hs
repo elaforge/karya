@@ -75,8 +75,8 @@ val_edit_at pos note = modify_event_at pos $ \event ->
 
 method_edit_at :: (Cmd.M m) => State.Pos -> Key.Key -> m ()
 method_edit_at pos key = modify_event_at pos $ \event ->
-    (Just $ event { event_call = fromMaybe "" $
-            EditUtil.modify_text_key key (event_call event) },
+    (Just $ event { event_method = fromMaybe "" $
+            EditUtil.modify_text_key key (event_method event) },
         False)
 
 -- | Record the last note entered.  Should be called by 'with_note'.
@@ -109,11 +109,11 @@ modify f event = Event.set_string text event
 -- | Like 'ControlTrack.parse', but complicated by the fact that pitch calls
 -- can take args.
 --
--- > "x"        -> Event { call = "", val = "x", args = "" }
--- > "x "       -> Event { call = "x", val = "", args = "" }
--- > "x y"      -> Event { call = "", val = "x y", args = "" }
--- > "x (y)"    -> Event { call = "x", val = "(y)", args = "" }
--- > "x (y) z"  -> Event { call = "x", val = "(y)", args = "z" }
+-- > "x"        -> Event { method = "", val = "x", args = "" }
+-- > "x "       -> Event { method = "x", val = "", args = "" }
+-- > "x y"      -> Event { method = "", val = "x y", args = "" }
+-- > "x (y)"    -> Event { method = "x", val = "(y)", args = "" }
+-- > "x (y) z"  -> Event { method = "x", val = "(y)", args = "z" }
 parse :: String -> Event
 parse s
     | null post = Event "" pre ""
@@ -125,18 +125,18 @@ parse s
 -- | This is a bit more complicated than 'ControlTrack.unparse', since it needs
 -- to add or strip parens.
 unparse :: Event -> String
-unparse (ControlTrack.Event call val args)
-    | null call && null val = ""
-    -- If the call is gone, the note no longer needs its parens.
-    | null call = strip_parens val
+unparse (ControlTrack.Event method val args)
+    | null method && null val = ""
+    -- If the method is gone, the note no longer needs its parens.
+    | null method = strip_parens val
     | otherwise = unwords $
-        call : add_parens val : if null args then [] else [args]
+        method : add_parens val : if null args then [] else [args]
     where
     strip_parens ('(':s) = case reverse s of
         ')' : rest -> reverse rest
         _ -> '(' : s -- oops, not matched, put it back on I guess
     strip_parens s = s
-    -- If there's a call and it doesn't already have parens, it'll need them.
+    -- If there's a method and it doesn't already have parens, it'll need them.
     add_parens val
         | null val || "(" `List.isPrefixOf` val = val
         | otherwise = '(' : val ++ ")"

@@ -4,7 +4,18 @@ UNSORTED
     editor to look for 0x as the last word?
     But the exponent is last because it's optional.  Can I instead have the
     editor look for the first word?
-  - rename "method" to "call"
+  / rename "method" to "call"
+    But the val is technically a call too.
+  - intonation: think about how to do e.g. meantone melody, just harmony
+    . Do a postproc to analyze simultaneous notes.  If I use an attr to
+      tag the melody, I can tune everyone else to it.  But how do I retune
+      notes with non-trivial pitch curves?  Well, I could use a transpose
+      signal to tell the pitch calls what's going on.  Might need something
+      richer than just a number.
+    . Do an analysis path, and insert environment that says what the harmony
+      is.  Then pitch calls use that to tune.  Doing the analysis might be
+      tricky since I have to extract a "principle pitch" from each event,
+      but it might be useful in general to have an analysis framework.
   play midi msgs from the repl
     * change UpdaterArgs to PlayMidiArgs and generalize to play any list of
       msgs
@@ -243,6 +254,12 @@ UNSORTED
     simply additive, and their duration doesn't matter.  This would mean I'd
     have to edit the tempo on the subblocks though, which in turn means it
     couldn't vary independently.
+    . Could do this with a block call that acts as a note transformer, which
+      simply pastes together sub-blocks.  I'd still want to cache the
+      sub-blocks if possible, unless I do the block-range caching thing.
+      Another bonus is I could probably get next/prev events working across
+      block boundaries this way.  Maybe this could be used as an integrator
+      input.
 
   memory leak
     . It seems like starting editing pnovla, it takes 1-2s to rederive, but

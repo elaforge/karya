@@ -108,8 +108,8 @@ cmd_method_edit msg =
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.method_key -> Just key) -> modify_event $ \event ->
-            (Just $ event { event_call = fromMaybe "" $
-                    EditUtil.modify_text_key key (event_call event) },
+            (Just $ event { event_method = fromMaybe "" $
+                    EditUtil.modify_text_key key (event_method event) },
                 False)
         _ -> Cmd.abort
     return Cmd.Done
@@ -122,7 +122,7 @@ val_edit_at pos val = modify_event_at pos $ \event ->
     (Just $ event { event_val = ShowVal.show_hex_val val }, False)
 
 data Event = Event {
-    event_call :: String
+    event_method :: String
     , event_val :: String
     , event_args :: String
     } deriving (Eq, Show)
@@ -144,14 +144,14 @@ modify_event_at pos f = EditUtil.modify_event_at pos True True
 --
 -- I use a trailing space to tell the difference between a method and a val.
 --
--- > "x"        -> Event { call = "", val = x, args = "" }
--- > "x "       -> Event { call = x, val = "", args = "" }
--- > "x y"      -> Event { call = x, val = y, args = "" }
--- > "x y z"    -> Event { call = x, val = y, args = z }
+-- > "x"        -> Event { method = "", val = x, args = "" }
+-- > "x "       -> Event { method = x, val = "", args = "" }
+-- > "x y"      -> Event { method = x, val = y, args = "" }
+-- > "x y z"    -> Event { method = x, val = y, args = z }
 --
 -- The val itself can't have args, because it will then be mistaken for the
--- call.  E.g. given @.5 0@, the @0@ will be considered the val while @.5@ is
--- the call.  This isn't a problem for control calls, which are just numbers
+-- method.  E.g. given @.5 0@, the @0@ will be considered the val while @.5@ is
+-- the method.  This isn't a problem for control calls, which are just numbers
 -- and don't take arguments.
 --
 -- TODO The event is already bytestring, why don't I just directly give it to
@@ -164,17 +164,17 @@ parse s
     where (pre, post) = break (==' ') s
 
 split_args :: String -> String -> Event
-split_args call rest = case ParseBs.lex1 (ParseBs.from_string rest) of
-    Nothing -> Event call rest ""
-    Just (w, ws) -> Event call (ParseBs.to_string (rstrip w))
+split_args method rest = case ParseBs.lex1 (ParseBs.from_string rest) of
+    Nothing -> Event method rest ""
+    Just (w, ws) -> Event method (ParseBs.to_string (rstrip w))
         (ParseBs.to_string ws)
     where rstrip = fst . ByteString.Char8.spanEnd (==' ')
 
 unparse :: Event -> String
-unparse (Event call val args)
-    | null call && null val = ""
-    | null call = val -- No call means no args, see comment on 'parse'.
-    | otherwise = unwords $ call : val : if null args then [] else [args]
+unparse (Event method val args)
+    | null method && null val = ""
+    | null method = val -- No method means no args, see comment on 'parse'.
+    | otherwise = unwords $ method : val : if null args then [] else [args]
 
 -- | Try to figure out where the note part is in event text and modify that
 -- with the given function.
