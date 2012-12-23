@@ -12,6 +12,9 @@ import Instrument.Sysex
        (Specs, Spec(..), bits, ranged_bits, unsigned, bool_bit, enum,
         enum_bits, ranged, signed)
 
+-- TODO
+-- - finish the effects
+-- - put them in patch_spec and multiset_spec
 
 config :: Sysex.Config
 config = Sysex.config_8bit
@@ -74,22 +77,14 @@ patch_spec = Sysex.assert_valid config "patch_spec" 576
     , ("unison detune", unsigned 99)
     -- scale
     , ("", Bits
-        [ ("scale key", ranged_bits 4 (0, 11))
+        [ ("scale key", enum_bits 4 scale_keys)
         , ("scale type", enum_bits 4 scale_types)
         ])
     , ("random pitch intensity", unsigned 99)
     , ("eg", List 4 eg_spec)
     , ("lfo", List 4 lfo_spec)
     -- osc common
-    , ("pitch bend", SubSpec
-        [ ("intensity +", ranged (-60) 24)
-        , ("intensity -", ranged (-60) 24)
-        , ("", Bits $
-            let vals = ["0", "1/8", "1/4", "1/2"] ++ map show [1..12] in
-            [ ("step +", enum_bits 4 vals)
-            , ("step -", enum_bits 4 vals)
-            ])
-        ])
+    , pitch_bend
     , ("common pitch mod source", enum mod_source_list_1)
     , intensity "common pitch mod"
     , ("portamento", SubSpec
@@ -111,9 +106,20 @@ patch_spec = Sysex.assert_valid config "patch_spec" 576
     , ("output", SubSpec output_spec)
     , ("effect", SubSpec effect_spec)
     , ("controller", SubSpec controller_spec)
-    , ("link arpeggio", SubSpec link_arpeggio_spec)
+    , ("link arpeggio", SubSpec (link_arpeggio_spec 7))
     , ("pe knob", List 5 pe_knob_spec)
     ]
+
+pitch_bend :: (Sysex.Name, Spec)
+pitch_bend = ("pitch bend", SubSpec
+    [ ("intensity +", ranged (-60) 24)
+    , ("intensity -", ranged (-60) 24)
+    , ("", Bits $
+        let vals = ["0", "1/8", "1/4", "1/2"] ++ map show [1..12] in
+        [ ("step +", enum_bits 4 vals)
+        , ("step -", enum_bits 4 vals)
+        ])
+    ])
 
 eg_spec :: Specs
 eg_spec =
@@ -179,6 +185,10 @@ categories =
     , "Brass", "Reed/Wind", "Guitar/Plucked", "Bass", "Percussive"
     , "Argpeggio", "SFX/Other"
     ]
+
+scale_keys :: [Sysex.EnumName]
+scale_keys =
+    [ "c", "cs", "d", "ds", "e", "f", "g", "gs", "a", "as", "b"]
 
 scale_types :: [Sysex.EnumName]
 scale_types =
@@ -249,6 +259,59 @@ noise_generator_spec =
     , mod_source_1 "cutoff mod2"
     , intensity "cutoff mod2"
     , ("resonance", unsigned 99)
+    ]
+
+-- ** osc types
+
+standard_osc :: Specs
+standard_osc =
+    [ ("wave", enum ["saw", "pulse"])
+    , ("wave edge", unsigned 99)
+    , ("wave level", unsigned 99)
+    , ("triangle level", unsigned 99)
+    , ("sine level", unsigned 99)
+    , ("triangle phase shift", signed 99)
+    , ("wave form", SubSpec
+        [ ("wave form", signed 99)
+        , ("mod lfo",
+            -- TODO For some reason, the range is 6--9, take a look at z1
+            enum ["", "", "", "", "", "", "lfo1", "lfo2", "lfo3", "lfo4"])
+        , intensity "mod lfo"
+        , mod_source_1 ""
+        , intensity "mod"
+        ])
+    , ("wave shape", SubSpec
+        [ ("input level", unsigned 99)
+        , mod_source_1 "input level"
+        , intensity "input level mod"
+        , ("offset", signed 99)
+        , ("table", enum ["clip", "reso"])
+        , ("wave shape", unsigned 99)
+        , mod_source_1 ""
+        , intensity "mod"
+        , ("balance", unsigned 99)
+        , mod_source_1 "balance"
+        , intensity "balance mod"
+        ])
+    ]
+
+comb_filter_osc :: Specs
+comb_filter_osc =
+    [ ("input select", enum ["sc1+noise", "subosc+noise", "filter1+noise",
+        "filter2+noise", "pulse noise", "impulse"])
+    , ("input wave level", unsigned 99)
+    , ("noise level", unsigned 99)
+    , ("width", unsigned 99)
+    , mod_source_1 "input level"
+    , intensity "input level mod"
+    , ("comb filter feedback", unsigned 99)
+    , mod_source_1 "feedback 1"
+    , intensity "feedback 1 mod"
+    , mod_source_1 "feedback 2"
+    , intensity "feedback 2 mod"
+    , ("high damp", unsigned 99)
+    , mod_source_1 "high damp"
+    , intensity "high damp mod"
     ]
 
 -- * mixer
@@ -433,9 +496,10 @@ controller_spec = assert_valid "controller" 4
         , "expression"
         ]
 
-link_arpeggio_spec :: Specs
-link_arpeggio_spec = assert_valid "link arpeggio" 13
-    [ ("unparsed", Unparsed 13) -- TODO
+link_arpeggio_spec :: Int -> Specs
+link_arpeggio_spec reserved = assert_valid "link arpeggio" (6 + reserved)
+    [ ("unparsed", Unparsed 6) -- TODO
+    , ("", Unparsed reserved)
     ]
 
 pe_knob_spec :: Specs
@@ -454,25 +518,6 @@ pe_knob_spec = assert_valid "pe knob" 16
         , ("curve", enum ["linear", "exponential", "log", "sw"])
         ]
 
--- * util
-
-midi_key :: Spec
-midi_key = unsigned 127
-
-mod_source_1 :: String -> (String, Spec)
-mod_source_1 name = (name <+> "mod source", enum mod_source_list_1)
-
-intensity :: String -> (String, Spec)
-intensity name = (name <+> "intensity", signed 99)
-
-percent :: Spec
-percent = unsigned 100
-
-(<+>) :: String -> String -> String
-x <+> y
-    | null x = y
-    | null y = x
-    | otherwise = x ++ " " ++ y
 
 -- * multiset
 
@@ -481,21 +526,36 @@ multiset_spec :: Specs
 multiset_spec = Sysex.assert_valid config "multiset_spec" 208
     [ ("name", Str 16)
     , ("timbre", List 6 timbre_spec)
-    , ("effect 1 select", enum effect_type1)
-    , ("effect 1 setting", Unparsed 22)
-    -- , Union "effect 1 setting" "effect 1 select" 22 $ zip effect_type1
-    --     [ effect_overdrive, effect_compressor, effect_parametric_eq
-    --     , [], [], [], [], [], [], [], []
-    --     ]
-    , ("effect 2 select", enum effect_type2)
-    , ("effect 2 setting", Unparsed 22)
-    -- , Union "effect 2 setting" "effect 2 select" 22 $ zip effect_type2 []
-    , ("master effect select", enum master_effect_type)
-    , ("master effect setting", Unparsed 18)
-    -- , Union "master effect setting" "master effect select" 18 $
-    --     zip master_effect_type
-    --     []
-    -- TODO
+    -- effect
+    , ("effect 1", SubSpec
+        [ ("select", enum effect_type1)
+        , ("setting", Unparsed 22)
+        ])
+    , ("effect 2", SubSpec
+        [ ("effect 2 select", enum effect_type2)
+        , ("effect 2 setting", Unparsed 22)
+        ])
+    , ("master effect", SubSpec
+        [ ("select", enum master_effect_type)
+        , ("setting", Unparsed 18)
+        , ("low eq freq", unsigned 49)
+        , ("low eq gain", gain)
+        , ("high eq freq", unsigned 49)
+        , ("high eq gain", gain)
+        ])
+    -- common
+    , pitch_bend
+    , ("", Bits
+        [ ("scale key", enum_bits 4 scale_keys)
+        , ("scale type", enum_bits 4 scale_types)
+        ])
+    , ("", Bits
+        [ ("portamento sw", bool_bit)
+        , ("unison sw", enum_bits 7 ["off", "on"])
+        ])
+    , ("", Unparsed 10)
+    , ("controller", SubSpec controller_spec)
+    , ("link arpeggio", SubSpec (link_arpeggio_spec 2))
     ]
 
 timbre_spec :: Specs
@@ -595,12 +655,98 @@ effect_parametric_eq =
     , effect_balance
     ]
 
+effect_wah :: Specs
+effect_wah =
+    [ ("frequency bottom", unsigned 99)
+    , ("frequency top", unsigned 99)
+    , ("sweep mode", enum ["auto", "mod source"])
+    , ("sweep source", enum mod_source_list_2)
+    , ("sweep response", unsigned 99)
+    , ("envelope sensitivity", unsigned 99)
+    , ("envelope shape", signed 99)
+    , ("resonance", unsigned 99)
+    , ("filter mode", enum ["bpf", "lpf"])
+    , effect_balance
+    ]
+
+effect_exciter :: Specs
+effect_exciter =
+    [ mod_source_intensity "blend" (signed 99)
+    , mod_source_intensity "emphatic point" (signed 99)
+    , ("pre eq input trim", unsigned 99)
+    , ("pre low eq gain", gain)
+    , ("pre high eq gain", gain)
+    , effect_balance
+    ]
+
+effect_decimator :: Specs
+effect_decimator =
+    [ ("pre lpf", bool)
+    , ("sampling frequency", ranged 5 120) -- 1.0k~24.0kHz
+    , mod_source_2 "sampling frequency"
+    -- Different from other intensities!
+    , ("sampling frequency mod intensity", signed 120) -- -24.0k~+24.0kHz
+    , ("resolution", ranged 4 24)
+    , ("high damp", unsigned 99)
+    , ("output level", unsigned 99)
+    , effect_balance
+    ]
+
+effect_chorus :: Specs
+effect_chorus =
+    [ ("delay time", unsigned 140) -- 0-50 msec
+    , ("lfo wave form", enum ["triangle", "sine"])
+    , ("lfo frequency", ranged 1 115) -- 00.04~20.00Hz
+    , mod_source_2 "lfo frequency"
+    , ("lfo frequency mod intensity", signed 115) -- -20.00~+20.00Hz
+    , ("midi sync", Bits
+        [ ("time", ranged_bits 4 (0, 15))
+        , ("base", ranged_bits 3 (0, 7)) -- 16th to whole
+        , ("val", bool_bit)
+        ])
+    , mod_source_intensity "depth" (unsigned 99)
+    , ("pre eq input trim", unsigned 99)
+    , ("pre low eq gain", gain)
+    , ("pre high eq gain", gain)
+    , effect_balance
+    ]
+
+-- * util
+
 eq_settings :: Specs
 eq_settings = [("freq", freq), ("q", unsigned 95), ("gain", gain)]
+
+mod_source_intensity :: String -> Spec -> (String, Spec)
+mod_source_intensity name range = (name, SubSpec
+    [ ("val", range)
+    , mod_source_2 name
+    , intensity name
+    ])
+
+midi_key :: Spec
+midi_key = unsigned 127
+
+mod_source_1 :: String -> (String, Spec)
+mod_source_1 name = (name <+> "mod source", enum mod_source_list_1)
+
+mod_source_2 :: String -> (String, Spec)
+mod_source_2 name = (name <+> "mod source", enum mod_source_list_2)
+
+intensity :: String -> (String, Spec)
+intensity name = (name <+> "intensity", signed 99)
+
+(<+>) :: String -> String -> String
+x <+> y
+    | null x = y
+    | null y = x
+    | otherwise = x ++ " " ++ y
 
 -- | Gain in dB.
 gain :: Spec
 gain = ranged (-36) 36
+
+bool :: Spec
+bool = enum ["off", "on"]
 
 -- | Frequency in Hz.
 freq :: Spec
@@ -608,10 +754,13 @@ freq = unsigned 49
 
 effect_balance :: (Sysex.Name, Spec)
 effect_balance = ("effect balance", SubSpec
-    [ ("balance", unsigned 100)
-    , ("effect balance mod source", enum mod_source_list_2)
-    , intensity "effect balance mod"
+    [ ("balance", percent)
+    , ("mod source", enum mod_source_list_2)
+    , intensity "mod"
     ])
+
+percent :: Spec
+percent = unsigned 100
 
 -- | TODO like mod_source_list_1 except entries 1--10 are invalid.
 mod_source_list_2 :: [String]
