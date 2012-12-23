@@ -1,0 +1,101 @@
+  vim: set ai sw=2 foldmethod=indent tw=78 :
+
+Learn about physical modeling techniques.
+  - Julius O Smith book on waveguides, Bilbao book on finite difference.
+  - Transcribe STK models.
+  - Other techniques: subtractive, waveshaping, FM, granular, etc.  Check out
+    Henning's synthesizer-llvm for implementations.
+
+Figure out how to write synthesizers.
+  Looks like the options are haskell + llvm as as sort of high level
+  assembler, FAUST, or pure haskell (e.g. jwlato's dsp-extras).  I need to
+  learn more about them to judge.
+  - haskell + llvm: Good performance, but more awkward to write in than pure
+    haskell.
+  - FAUST: Good performance, but likely even more awkward than llvm since it
+    has to go to C++ and then needs a wrapper to interact with haskell.
+    Some people dislike the syntax.
+  - pure haskell: Has the smallest impedence mismatch, but experimental and
+    unpredictable performance.  Even at its best probably won't be as good as
+    LLVM or FAUST.
+
+Write OSC synthesizer host.
+  osc:
+    /inst/0/on [ 'p' <pitch> 'd' <dyn> ... ]
+    /inst/0/c [ 'p' <pitch> ... ]
+    /inst/0/off
+
+    /inst/*/off -- all notes off
+    /*/*/off -- all off
+    /alloc 'inst' [ param param param ... ]
+
+  Each note starts only with the attributes explicitly given in 'on', so
+  there's no state left over from the previous note.
+
+The signals are mixed with loving care by hand picked addition operators for
+a crystal clear warm burnished mix.
+
+How to do a non-realtime synthesizer:
+  - OSC bundles have timestamps, it's the job of the host to schedule them.
+    Realtime and non-realtime should be freely interchangeable.  The only
+    tricky thing is that if I can predict how expensive a second of audio will
+    be then I can guess how far in advance to render.  Of course, disk space
+    and memory is cheap, so it's probably safe to err on the side of caution.
+  cache
+    - To avoid rerendering unnecessarily, I can cache previous renders.
+      But this means the sequencer also needs to send cache-invalidate msgs.
+      The trick then is turn score damage into (instrument, time_range).
+    - Or I could do it memoize style, by remembering the complete set of msgs
+      for each note.  If I receive the same set of msgs I can just directly
+      return the sound.  This requires some kind of GC to time-out old samples
+      since there's nothing explicitly expiring them.  But disk space is cheap.
+    - The granularity of the cache depends on independent notes.  So if each
+      note id is independent, then I can cache each note.  If the notes on the
+      same instrument interact, then I can only cache when all notes are off
+      and all ringing has died down.  But this may never happen, so maybe I
+      should set a cutoff after a certain amount of time.  When I rerender the
+      score from scratch I can do the expensive one-giant-note approach.
+
+    - The sequencer has to start sending OSC over as soon as the score is
+      derived, because it doesn't know where I will start playback.  The
+      explicit cache-expiry approach would require me to send across only the
+      bits that changed, and hope that's accurate.  The memoize approach would
+      require the whole score, and the synthesizer would decide which bits
+      changed.  But sending the whole score will get progressively slower as I
+      edit the end of it.  On the other hand, the synthesizer might want to go
+      back a bit to the start of a sequence of non-overlapping notes (e.g. if
+      the model is a cymbal crash, caching individual notes degenerates to
+      playing samples).  How much interaction each note has depends on the
+      instrument, so this is something the synthesizer knows best.  If it can
+      communicate with the sequencer it can ask for the notes it needs.
+
+    - Actually, the important thing is the cache grouping.  The sequencer can
+      use that same grouping to avoid sending cached notes.  So, sequencer
+      sends the entire score.  The synthesizer breaks that up into chunks, and
+      renders a sample for each one (it can also parallelize).  It tells the
+      sequencer about the chunks (either explicitly, or by creating
+      placeholder files in the cache).  Then the sequencer has
+      [(instrument, time_range)], and can use that to send only the events
+      that lie within it.  The synthesizer then deletes all caches that
+      encompass each note it receives.
+
+    - It's interesting to think about how memoizing degenerates into sampling.
+      If I memoize individual notes and say each note is independent of
+      starting time then I gradually accumulate a sample set.
+
+  - The sound still has to get to a DAW so I can apply effects and mix with the
+    other instruments.
+  - Ways to get audio into a DAW include JACK or VST.  If I used JACK, I'd
+    need a server to schedule and send over the audio, and JACK support is
+    still awkward in everything except ardour, so VST it is.
+  - I think I need a sample player VST that understands the structure of the
+    synthesizer cache.  The sequencer sends an instrument and a start play
+    time, and it starts playing the instrument output from that point in time.
+    I'd need to somehow encode instrument and start into MIDI, but there are
+    lots of hacks^Wpossibilities, e.g. maintain a MIDI channel to instrument
+    mapping, and then encode 14 bits of time into the NoteOn pitch and
+    velocity.
+
+  - If I have the synthesizer cache visible to the sequencer, I can integrate
+    it more directly: I could display the samples inline with the events,
+    or have sample-level transformers.
