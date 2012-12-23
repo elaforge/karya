@@ -109,8 +109,8 @@ c_timestep = Derive.val_call "timestep"
     \ in fact prepends `r:`, so e.g. a quarter note is just `q`."
     ) $ CallSig.call2g
     ( required "timestep"  ("Emit a duration of this timestep.\
-        \This must a relative marklist timestep, and `r:` will be prepended to\
-        \it.")
+        \This must a relative marklist timestep, and `r:` will be prepended\
+        \ to it.")
     , optional "steps" 1 "Step this number of times, negative to step back."
     ) $ \timestep steps args -> do
         timestep <- Derive.require_right ("parsing timestep: "++) $

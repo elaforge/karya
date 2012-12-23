@@ -64,10 +64,16 @@ pitch_calls = Derive.make_calls
     , ("", c_set)
     , ("set", c_set)
     , ("'", c_set_prev)
-    , ("i", c_linear)
+
+    , ("i", c_linear_prev)
+    , ("i<<", c_linear_prev_const)
     , ("i>", c_linear_next)
-    , ("e", c_exponential)
-    , ("e>", c_exponential_next)
+    , ("i>>", c_linear_next_const)
+    , ("e", c_exp_prev)
+    , ("e<<", c_exp_prev_const)
+    , ("e>", c_exp_next)
+    , ("e>>", c_exp_next_const)
+
     , ("n", c_neighbor)
     , ("a", c_approach)
     , ("u", c_up)
@@ -77,7 +83,8 @@ pitch_calls = Derive.make_calls
 -- | This should contain the calls that require the previous value.  It's used
 -- by a hack in 'Derive.Slice.slice'.
 require_previous :: Set.Set String
-require_previous = Set.fromList ["'", "u", "d", "a", "i>", "e>"]
+require_previous = Set.fromList
+    ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "a", "u", "d"]
 
 c_set :: Derive.PitchCall
 c_set = Derive.generator1 "set" "Emit a pitch with no interpolation." $
@@ -99,45 +106,91 @@ c_set_prev = Derive.generator "set-prev"
             if pos > prev_x then (:[]) <$> Util.pitch_signal [(pos, prev_y)]
                 else return []
 
-c_linear :: Derive.PitchCall
-c_linear = Derive.generator1 "linear"
-    ("Interpolate from the previous pitch to the given one in a straight\
-    \ line, ending at the current time."
-    ) $ CallSig.call1g pitch_arg $ \pitch args ->
-        interpolate_prev id args pitch
+-- * linear
+
+type Transpose = Either PitchSignal.Pitch Pitch.Transpose
+
+-- | Linear interpolation, with different start times.
+linear_interpolation :: (TrackLang.Typecheck time) =>
+    String -> time -> String
+    -> (Derive.PassedArgs PitchSignal.Signal -> time
+        -> Derive.Deriver TrackLang.RealOrScore)
+    -> Derive.PitchCall
+linear_interpolation name time_default time_default_doc get_time =
+    Derive.generator1 name doc $
+    CallSig.call2g (pitch_arg, optional "time" time_default time_doc) $
+    \pitch time args -> interpolate id args pitch =<< get_time args time
+    where
+    doc = "Interpolate from the previous pitch to the given one in a straight\
+        \ line."
+    time_doc = "Time to reach destination. " ++ time_default_doc
+
+c_linear_prev :: Derive.PitchCall
+c_linear_prev = linear_interpolation "linear-prev" Nothing
+    "If not given, start from the previous sample." Control.default_prev
+
+c_linear_prev_const :: Derive.PitchCall
+c_linear_prev_const =
+    linear_interpolation "linear-prev-const" (TrackLang.real (-0.1)) "" $
+        \_ -> return . default_real
 
 c_linear_next :: Derive.PitchCall
-c_linear_next = Derive.generator1 "linear-next"
-    ("Interpolate from the previous pitch to the given one in a straight\
-    \ line, starting here and ending at some time in the future."
-    ) $ CallSig.call2g
-    ( pitch_arg
-    , optional "time" Nothing "Time to get to destination pitch."
-    ) $ \pitch maybe_time args -> interpolate_next id args pitch maybe_time
+c_linear_next =
+    linear_interpolation "linear-next" Nothing
+        "If not given, default to the start of the next event." $
+    \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
+    where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
-c_exponential :: Derive.PitchCall
-c_exponential = Derive.generator1 "exponential"
-    ("Interpolate from the previous pitch to the given one in a curve,\
-    \ ending at the current time."
-    ) $ CallSig.call2g
+c_linear_next_const :: Derive.PitchCall
+c_linear_next_const =
+    linear_interpolation "linear-next-const" (TrackLang.real 0.1) "" $
+        \_ -> return . default_real
+
+
+-- * exponential
+
+-- | Exponential interpolation, with different start times.
+exponential_interpolation :: (TrackLang.Typecheck time) =>
+    String -> time -> String
+    -> (Derive.PassedArgs PitchSignal.Signal -> time
+        -> Derive.Deriver TrackLang.RealOrScore)
+    -> Derive.PitchCall
+exponential_interpolation name time_default time_default_doc get_time =
+    Derive.generator1 name doc $ CallSig.call3g
     ( pitch_arg
     , optional "exp" 2 Control.exp_doc
-    ) $ \pitch exp args -> interpolate_prev (Control.expon exp) args pitch
+    , optional "time" time_default time_doc
+    ) $ \pitch exp time args ->
+        interpolate (Control.expon exp) args pitch =<< get_time args time
+    where
+    doc = "Interpolate from the previous pitch to the given one in a curve."
+    time_doc = "Time to reach destination. " ++ time_default_doc
 
-c_exponential_next :: Derive.PitchCall
-c_exponential_next = Derive.generator1 "exponential-next"
-    ("Interpolate from the previous pitch to the given one in a curve,\
-    \ starting here and ending at some time in the future."
-    ) $ CallSig.call3g
-    ( pitch_arg
-    , optional "exp" 2 Control.exp_doc
-    , optional "time" Nothing "Time to get to destination pitch."
-    ) $ \pitch exp maybe_time args ->
-        interpolate_next (Control.expon exp) args pitch maybe_time
+c_exp_prev :: Derive.PitchCall
+c_exp_prev = exponential_interpolation "exp-prev" Nothing
+    "If not given, start from the previous sample." Control.default_prev
 
-pitch_arg :: CallSig.Arg (Either PitchSignal.Pitch Pitch.Transpose)
+c_exp_prev_const :: Derive.PitchCall
+c_exp_prev_const =
+    exponential_interpolation "exp-prev-const" (TrackLang.real (-0.1)) "" $
+        \_ -> return . default_real
+
+c_exp_next :: Derive.PitchCall
+c_exp_next = exponential_interpolation "exp-next" Nothing
+        "If not given default to the start of the next event." $
+    \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
+    where next_dur args = TrackLang.Score $ Args.next args - Args.start args
+
+c_exp_next_const :: Derive.PitchCall
+c_exp_next_const =
+    exponential_interpolation "exp-next-const" (TrackLang.real 0.1) "" $
+        \_ -> return . default_real
+
+pitch_arg :: CallSig.Arg Transpose
 pitch_arg = required "pitch"
     "Destination pitch, or a transposition from the previous one."
+
+-- * misc
 
 c_neighbor :: Derive.PitchCall
 c_neighbor = Derive.generator1 "neighbor"
@@ -197,46 +250,28 @@ slope word sign =
 
 -- * util
 
+default_real :: TrackLang.DefaultReal -> TrackLang.RealOrScore
+default_real (TrackLang.DefaultReal t) = t
+
 type Interpolator = Bool -- ^ include the initial sample or not
     -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
     -- ^ start -> starty -> end -> endy
     -> PitchSignal.Signal
 
--- | Create samples according to an interpolator function.  The function is
--- passed values from 0--1 representing position in time and is expected to
--- return values from 0--1 representing the Y position at that time.  So linear
--- interpolation is simply @id@.
-interpolate_prev :: (Double -> Double) -> Derive.PassedArgs PitchSignal.Signal
-    -> Either PitchSignal.Pitch Pitch.Transpose
+-- | Create an interpolating call, from a certain duration (positive or
+-- negative) from the event start to the event start.
+interpolate :: (Double -> Double) -> Derive.PassedArgs PitchSignal.Signal
+    -> Transpose -> TrackLang.RealOrScore
     -> Derive.Deriver PitchSignal.Signal
-interpolate_prev f args pitch_transpose = do
-    start <- Args.real_start args
+interpolate f args pitch_transpose dur = do
+    (start, end) <- Util.duration_from_start args dur
     case Args.prev_val args of
         Nothing -> case pitch_transpose of
             Left pitch -> Util.pitch_signal [(start, pitch)]
             Right _ -> Util.pitch_signal []
-        Just (prev_t, prev) -> make_interpolator f False prev_t prev start $
-            either id (flip Pitches.transpose prev) pitch_transpose
-
--- | Similar to 'interpolate_prev', except interpolate to the given val between
--- here and a time in the future, rather than between the previous event and
--- here.
-interpolate_next :: (Double -> Double)
-    -> Derive.PassedArgs PitchSignal.Signal
-    -> Either PitchSignal.Pitch Pitch.Transpose
-    -> Maybe TrackLang.DefaultReal
-    -- ^ if given, end at this time, if not end at the next event
-    -> Derive.Deriver PitchSignal.Signal
-interpolate_next f args pitch_transpose maybe_time = do
-    (start, end) <- case maybe_time of
-        Nothing -> (,) <$> Args.real_start args <*> Derive.real (Args.next args)
-        Just (TrackLang.DefaultReal time) -> Util.duration_from_start args time
-    case Args.prev_val args of
-        Nothing -> case pitch_transpose of
-            Left pitch -> Util.pitch_signal [(start, pitch)]
-            Right _ -> Util.pitch_signal []
-        Just (_, prev) -> make_interpolator f True start prev end $
-            either id (flip Pitches.transpose prev) pitch_transpose
+        Just (_, prev) -> do
+            make_interpolator f False (min start end) prev (max start end) $
+                either id (flip Pitches.transpose prev) pitch_transpose
 
 make_interpolator :: (Double -> Double)
     -> Bool -- ^ include the initial sample or not
@@ -247,6 +282,10 @@ make_interpolator f include_initial x1 note1 x2 note2 = do
     srate <- Util.get_srate
     return $ interpolator scale srate f include_initial x1 note1 x2 note2
 
+-- | Create samples according to an interpolator function.  The function is
+-- passed values from 0--1 representing position in time and is expected to
+-- return values from 0--1 representing the Y position at that time.  So linear
+-- interpolation is simply @id@.
 interpolator :: Scale.Scale -> RealTime -> (Double -> Double)
     -> Interpolator
 interpolator scale srate f include_initial x1 note1 x2 note2 =
