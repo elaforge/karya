@@ -105,7 +105,7 @@ extract_track per_sec (Z.MidiTrack msgs) =
 
 extract_message :: (RealTime, Z.MidiEvent) -> [Midi]
 extract_message (time, msg) = case msg of
-    Z.VoiceEvent midi -> (:[]) . ((,) time) $ case midi of
+    Z.VoiceEvent _ midi -> (:[]) . ((,) time) $ case midi of
         Z.NoteOff chan key vel ->
             Midi.ChannelMessage chan (Midi.NoteOff (Midi.Key key) vel)
         Z.NoteOn chan key vel ->

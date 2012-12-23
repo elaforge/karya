@@ -23,6 +23,7 @@ shake # build system
 pandoc # documentation
 
 ekg # if Shakefile useEkg is True
+zmidi-core >= 0.6 # for Cmd.Load.Midi
 
     INSTALLED SEPARATELY
 
