@@ -27,7 +27,6 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
-import qualified Perform.RealTime as RealTime
 
 import Types
 
@@ -82,13 +81,10 @@ derive = PlayUtil.cached_derive
 uncached_derive :: BlockId -> Cmd.CmdL Derive.Result
 uncached_derive = PlayUtil.uncached_derive
 
--- | Test the tempo map output.
--- TODO broken?
-derive_tempo :: BlockId -> Cmd.CmdL [[(BlockId, [(TrackId, ScoreTime)])]]
-derive_tempo block_id = do
-    result <- PlayUtil.cached_derive block_id
-    return $ map (TrackWarp.inverse_tempo_func (Derive.r_track_warps result)
-        . RealTime.seconds) [0..10]
+inverse_tempo_func :: RealTime -> Cmd.CmdL [(BlockId, [(TrackId, ScoreTime)])]
+inverse_tempo_func time = do
+    perf <- get =<< Cmd.get_focused_block
+    return $ TrackWarp.inverse_tempo_func (Cmd.perf_warps perf) time
 
 -- * block
 

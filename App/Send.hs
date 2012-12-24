@@ -28,7 +28,6 @@ main = SendCmd.initialize $ do
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> error $ "flag errors:\n" ++ unlines errs
-    print flags
     msgs <- if null args
         then fmap lines getContents
         else return [unwords args]

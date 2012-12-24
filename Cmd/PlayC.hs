@@ -117,8 +117,14 @@ play_monitor_thread transport_info ctl inv_tempo_func = do
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
     offset <- get_now
-    let state = UpdaterState ctl offset get_now
-            inv_tempo_func Set.empty (Transport.info_state transport_info)
+    let state = UpdaterState
+            { monitor_ctl = ctl
+            , monitor_offset = offset
+            , monitor_get_now = get_now
+            , monitor_inv_tempo_func = inv_tempo_func
+            , monitor_active_sels = Set.empty
+            , monitor_ui_state = Transport.info_state transport_info
+            }
     Exception.bracket_
         (Transport.info_send_status transport_info Transport.Playing)
         (Transport.info_send_status transport_info Transport.Stopped)
@@ -135,10 +141,7 @@ data UpdaterState = UpdaterState {
 
 monitor_loop :: UpdaterState -> IO ()
 monitor_loop state = do
-    -- 'now' can start negative if the events themselves started negative, say
-    -- due to an ornament that moves things back in time.  Cmd.Play.cmd_play
-    -- will have moved the events up to 0 in this case.
-    now <- max 0 . subtract (monitor_offset state) <$> monitor_get_now state
+    now <- subtract (monitor_offset state) <$> monitor_get_now state
     let fail err = Log.error ("state error in play monitor: " ++ show err)
             >> return []
     ui_state <- MVar.readMVar (monitor_ui_state state)

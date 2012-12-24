@@ -253,7 +253,7 @@ find_play_pos inv_tempo = block_pos_to_play_pos . inv_tempo
 -- blocks and tracks to the view-oriented views and tracknums.
 block_pos_to_play_pos :: (State.M m) => [(BlockId, [(TrackId, ScoreTime)])]
     -> m [(ViewId, [(TrackNum, ScoreTime)])]
-block_pos_to_play_pos block_pos = fmap concat (mapM convert block_pos)
+block_pos_to_play_pos = concatMapM convert
 
 convert :: (State.M m) => (BlockId, [(TrackId, ScoreTime)])
     -> m [(ViewId, [(TrackNum, ScoreTime)])]

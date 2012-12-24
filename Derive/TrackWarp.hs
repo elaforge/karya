@@ -126,10 +126,14 @@ closest_warp track_warps block_id track_id pos =
         Set.member track_id (tw_tracks tw)]
 
 inverse_tempo_func :: Collections -> Transport.InverseTempoFunction
-inverse_tempo_func track_warps ts = do
+inverse_tempo_func track_warps time = do
     (block_id, track_ids, Just pos) <- track_pos
     return (block_id, [(track_id, pos) | track_id <- Set.toList track_ids])
     where
+    -- Ornaments and leading keyswitches can result in starting at a negative
+    -- time.  But if this function returns [] the play monitor thread will take
+    -- that to mean the performance is over.
+    ts = max 0 time
     track_pos = [(tw_block tw, tw_tracks tw, Score.unwarp_pos ts (tw_warp tw))
         | tw <- track_warps, tw_start tw <= ts && ts < tw_end tw]
 
