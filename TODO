@@ -1,11 +1,4 @@
 UNSORTED
-  * editing the control value has to be manual when 'e' has an argument.
-    Maybe I should reverse the args to put the val at the end, and teach the
-    editor to look for 0x as the last word?
-    But the exponent is last because it's optional.  Can I instead have the
-    editor look for the first word?
-  / rename "method" to "call"
-    But the val is technically a call too.
   - intonation: think about how to do e.g. meantone melody, with just harmony
     . Do a postproc to analyze simultaneous notes.  If I use an attr to
       tag the melody, I can tune everyone else to it.  But how do I retune
@@ -16,51 +9,19 @@ UNSORTED
       is.  Then pitch calls use that to tune.  Doing the analysis might be
       tricky since I have to extract a "principle pitch" from each event,
       but it might be useful in general to have an analysis framework.
-  play midi msgs from the repl
-    * change UpdaterArgs to PlayMidiArgs and generalize to play any list of
-      msgs
-    * block_id turns into a plain string description
-    * I think multiplier and start can be baked into the inv_tempo
-    * But for a repl cmd to return PlayMidi, I need to have it return
-      non-String.  Should be possible, but how do I make the common case work?
-      Use a typeclass to select Show-able vs. Cmd.Status?  No I think the
-      cmds have to be monomorphic.
-      Could return by setting a variable.
-      The problem is that the return value is already taken to display to
-      the REPL.
-    * I think I need to shift events back.
-    * space doesn't work to stop the play
-      It's because the I rely on the updater emitting Transport.Stopped when
-      signaled from the player.
-      If there isn't necessarily an updater, I need to emit Stopped directly
-      from the player.  It was originally this way because if there are
-      multiple players then the updater would be the single coordinator.
-      Maybe when there's no updater I could have one that just blocks on the
-      player status.
-    * Rename updater to play monitor.
-    * Status box indicator for play status.
   - can I cache long blocks by slicing them if they're >n?
   - 'u' and 'd' have a problem with long notes because pitches can only be
     transposed so far.
     . If I knew how far a pitch could be transposed, I could clip the end time
       to the bottom pitch.  But I don't.
-  * pitch call: like interpolate next, but default to .1s
-  * crescendo in echo bit isn't getting split properly, each track should be
-    on its own channel.
-    Should be able to extract just a few notes, then turn on perform logging.
-    So the guys under the curve in track 1 should share, but they aren't.
-    * Still not quite right, some events are now being shared that shouldn't
-      be shared.
   - I have a feeling like FM8 doesn't obey ResetAllControls
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
     But filtering the midi shows dyn controls mixed into both channels.
-  * redraw problem on sloped signals
   - support poly aftertouch
     This is a control that can always be merged, but it needs to remember the
     NoteOn key.
-  * pitch signal redraw messed up in save/untitled
   - in addition, it seems the signal doesn't update if I change the default
     environ assignment on another track
   cache tracks
@@ -109,8 +70,6 @@ UNSORTED
     - If each event or unevaluated event has future and past it will keep
       the UI alive.  Maybe forcing the result of each event will clean that
       up.
-  * maybe pitch signal render could normalize on low and high, that way it's
-    not all up against the right side
   add 'approach' call
     * do just plain 'a' approach call first
       use eval_event to get the next pitch
@@ -145,52 +104,16 @@ UNSORTED
     . Also ByteString is pinned.
     / I think the number of calls is actually not that high.  Doesn't seem
       worth it.
-  * quantize, so I can clean up pno-vla
-  * figure out why the note after 'd 20' is bogus
   load midi
     - order tracks with low pitches to the left
-    * making bad parent->child
-    * what's more, bad skel can kill the responder:
-      **** Cmd/Responder.hs:381 [run_continue] - sync_status: skeleton of (bid
-      "pnovla2/b1") names missing tracknums: [0]
-    * use 0x instead of .123
-  vsl
-    * put keyswitches in specific->general order
-    find out what they mean
-      . auto - attack automation?
-    * strings orchestra
-    * include the various non-articulation matrices: legato, portato, etc.
-    * fix matrix ks for cello and bass, it probably isn't c2
-      And also other bass instruments.
-    * Check presets for other instruments manually, they aren't necessarily
-      the same.
-    / putting the matrix keyswitch on adds a redundant ks on every note,
-      revisit note emitting leading keyswitches.  Or just filter as before,
-      but make sure vsl keeps the horizontal setting.
-      No, you only get ks when it changes.
-    * harp
-    * check if the same articulations really are the same, if so, filter them
-      out
-    * replace sec# with short and long?
-    * include up/down variants via. mode keyswitch
-      I could do that with a special updown attr that is replaced with
-      a ks with up and a ks with down.
-    * fix instruments whose keyswitches are above rather than below
-    / add level 2 samples
   / Score.instrument should strip invalid chars
     The thing is, MidiDb strips them before joining them with the synth name.
-  * make Id a ByteString instead of String, that should speed up (==)
-  * shake does a complete rebuild if I build something else
-    what's going on?  Is it related to the hsconfig.h change?
   slow
     - fltk drawing is slow
     - maybe slower when there's haskell behind it?
     - rederiving is slow
     - it also makes the UI seize up, even when it should be waiting?
-    big block is slow
-      * track level caching should speed up rederives
   and scrolling the giant block is super slow!
-    * profile says it's in Perf.find_play_pos
     - drawing is stil slow, I'll have to look at the fltk layer
       It happens when the block is wide.  Use test_block to see if it's just
       fltk.
@@ -203,11 +126,6 @@ UNSORTED
     . The thing is, it seems like fl_scroll doesn't actually help scrolling
       speed at all.  Maybe all the time is spent elsewhere?
 
-  * browser: show keyswitches in a nice tabular format
-  * I have my old scores saved as MIDI, right?  Write a MIDI loader?
-  * why is it that [(1, "")] [(0, 0, "4c"), (1, 0, "i (4d)")] gives the wrong
-    pitch?  I'm guessing the pitchbend msg gets out of order on the single
-    channel available.
   - should instrument bound keys (i.e. drum strokes) work in ValEdit?
     It's awkward to have to go back and forth from kbd entry.
   - trill or trem with negative duration lines the integral number up to the
@@ -216,9 +134,6 @@ UNSORTED
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or
       maybe step should fail.
-
-    * will need timstep calls, e.g. as a trill arg
-    * So I need a parseable and succinct notation for timesteps
     - use NE list for TimeStep
     - TimeStep should support negative skip as a fractional skip
     - points use vector instead of list
@@ -226,7 +141,6 @@ UNSORTED
     - cache points by returning CachedTimeStep = Points
     - TimeStep.snap should optimize steps that don't do any snapping when
       prev_val is Nothing, e.g. RelativeMark and Absolute
-    * Absolute is badly named, it should be Relative
   - NoteTransformers apply a transformer to notes.  So why can't I apply
     any transformer as a note transformer?  NoteTransformers are actually more
     powerful because they can treat multiple args differently, but any
@@ -245,7 +159,6 @@ UNSORTED
     But where do I put it while the performance is still waiting?  I guess
     I can stick stuff in the performance without forcing the events.
 
-  * responder should catch exceptions
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
   - Managed to crash by undoing while editing, I think.  I wound up with
@@ -674,9 +587,6 @@ lilypond:
     TimeSignature needs to get fancier
   - get pitches right, and keep the enharmonics
   - manually add ly tweaks, could be done with special ly environ val
-  * support for slurs, I think I write them as a NoteTransformer which
-    attaches metadata.  It can also affect note durations in normal
-    performance.  E.g. make it legato to trigger keyed legato.
   - is there a way to turn pitch signal calls e.g. 'tr' into an attr on the
     note? I can't totally override the pitch track because I still need the
     pitches, it needs to return attrs in addition to signal.  The only way
@@ -768,7 +678,6 @@ plugins:
     map.
 
 bugs:
-  * Create.rename_project loses the merged tracks
   * track down ghc rts crashes, assertion failure
     - make a repro case if ghc guys want it
   - run under valgrind every once and a while, just for fun
@@ -848,25 +757,6 @@ performance:
       until the next time the cache is demanded, unless I force it.
     - see if the cache filtering logs is causing significant copying and
       remove
-  * make tracks into calls, so they cache and the sub-run stuff works the
-    same with them as other calls
-    It would be nice to make them calls in the scopes, so they can be
-    rebound like other calls.  This is effectively moving the Schema into
-    calls.  Then I can entirely get rid of it.
-    * move Schema.default_schema_deriver into c_block
-    / make Schema.derive_track into a call
-    The thing is block takes 'BlockId' and track takes (BlockId, TreeNode),
-    not CallArgs.  And it doesn't make sense to call from the tracks anyway,
-    so maybe not in Scopes.
-    Not much point to trying to put it in Environ or Scope since it's
-    a different type, but it could be dynamically scoped with the others.
-    Basically it's the schema, but dynamically scoped rather than attached to
-    blocks.  I can't actually see how dynamic scope makes sense, it should be
-    attached to blocks.  So keep it how it is, but call through generator
-    cache.
-  * I want to do better tests about speed vs. space, cache hits and misses.
-    Improve logging so that I can see, given a change, which areas of score
-    were rederived.
   Cmd
     - If a msg aborts or doesn't run any cmds, don't bother to run diff.
       Except that hardly ever happens if I do shortcut thru.
@@ -1383,21 +1273,13 @@ Perform:
       now.
 
 Instrument DB / browser:
-  * add my own tags to an instrument
-    I need a separate "annotations" db
-    Or why not just edit the patch file directly?
-  * when merging a sysex inst with a bank file one merge tags too
   - patch files could go in the Local/Instrument dir with the source?
     at least it should go in source control
   - colorize the info_pane so tags are easier to read
   - search lang supports quotes
-  * search lang supports ! to exclude a term
-  * ability to edit tags, esp. add "favorite rating"
   sysex
     z1
       - convert patches to larger pitch bend and send them back
-      - split large sysexes, otherwise initialization wants to send the entire
-        dump
       - I need control over which program and bank the patches go when they
         are initialized.  I can use the card as scratch space.
       - I also need to initialize a new multiset, and give the score
@@ -1410,24 +1292,11 @@ Instrument DB / browser:
         but I want to use the inst name, not the score name...
 
 OSC backend
-  osc backend: make up a simple osc reaktor instrument and see if increased
-  resolution makes a difference
-    . But reaktor doesn't support bundles with times, so if I use it I'd have
-      to write my own scheduler.  What about supercollider?
-    . OSC: hosc, supercollider: hsc3, hsc3-process
+  in doc/dev_notes/sythesizer
   - Write a simple supercollider instrument and try controlling that with OSC.
   - Even if reaktor and supercollider don't understand bundles, I could write
     a scheduler server that takes bundles and emits their msgs at the correct
     time.
-  - Write high-res synthesizer in FAUST, that can be plugged in to a generic
-    OSC host.
-  - If I have non-realtime synthesis, how do I get the sound to a host?  One
-    way is a separate VST that just plays samples.
-    The OSC synth can write numerous sound files to a directory, corresponding
-    to non-interacting notes, as a cache.  A separate VST monitors the
-    directory and starts playing from a certain time on demand.  I can
-    communicate the time with either high-res cc, or even pitch bend, or
-    song pointer msgs.
 
 jack: JACK:
   bugs
@@ -1455,10 +1324,6 @@ jack: JACK:
 misc ideas:
   - Staff notation represents chords well, but tracks don't.  Think of a more
     compact notation.
-  * Staff notation output via lilypond?  This can be implemented as another
-    kind of backend.  I think events would need metadata so I have a place to
-    put formatting info.  Maybe tracks and blocks need it too so I can express
-    staff associations.
   - I could have control calls that modify samples beneath them.  Calls
     starting with '-' are skipped by Args.next, and then they can add multiply
     or whatever to samples.  Oh wait, except they're not in scope, they're
