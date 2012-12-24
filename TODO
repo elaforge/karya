@@ -6,12 +6,12 @@ UNSORTED
     editor look for the first word?
   / rename "method" to "call"
     But the val is technically a call too.
-  - intonation: think about how to do e.g. meantone melody, just harmony
+  - intonation: think about how to do e.g. meantone melody, with just harmony
     . Do a postproc to analyze simultaneous notes.  If I use an attr to
       tag the melody, I can tune everyone else to it.  But how do I retune
       notes with non-trivial pitch curves?  Well, I could use a transpose
-      signal to tell the pitch calls what's going on.  Might need something
-      richer than just a number.
+      signal to tell the pitch calls what's going on.  I think I might just
+      need the frequency of the melody note.
     . Do an analysis path, and insert environment that says what the harmony
       is.  Then pitch calls use that to tune.  Doing the analysis might be
       tricky since I have to extract a "principle pitch" from each event,
@@ -41,7 +41,9 @@ UNSORTED
     * Status box indicator for play status.
   - can I cache long blocks by slicing them if they're >n?
   - 'u' and 'd' have a problem with long notes because pitches can only be
-    transposed so far
+    transposed so far.
+    . If I knew how far a pitch could be transposed, I could clip the end time
+      to the bottom pitch.  But I don't.
   * pitch call: like interpolate next, but default to .1s
   * crescendo in echo bit isn't getting split properly, each track should be
     on its own channel.
@@ -54,8 +56,10 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
     But filtering the midi shows dyn controls mixed into both channels.
-  - redraw problem on sloped signals
+  * redraw problem on sloped signals
   - support poly aftertouch
+    This is a control that can always be merged, but it needs to remember the
+    NoteOn key.
   * pitch signal redraw messed up in save/untitled
   - in addition, it seems the signal doesn't update if I change the default
     environ assignment on another track
@@ -63,6 +67,7 @@ UNSORTED
     - put the "cached" log msg at the end of the cache results?
       Otherwise it immediately forces all of them.
       Wait, why should it?  Just cons on the front.
+      . But it breaks lots of tests.  Is it really worth it?
   parallelism?
     . why does priming take so long?
       It needs the tempo.  Since signals are eager, that means evaluating
@@ -104,7 +109,7 @@ UNSORTED
     - If each event or unevaluated event has future and past it will keep
       the UI alive.  Maybe forcing the result of each event will clean that
       up.
-  - maybe pitch signal render could normalize on low and high, that way it's
+  * maybe pitch signal render could normalize on low and high, that way it's
     not all up against the right side
   add 'approach' call
     * do just plain 'a' approach call first

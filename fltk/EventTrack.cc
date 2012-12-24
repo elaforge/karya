@@ -505,7 +505,6 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
         return;
 
     const int y = this->y() + 1; // avoid bevel
-
     // TODO alpha not supported, I'd need a non-portable drawing routine for
     // it.
     Fl_Color signal_color =
@@ -515,45 +514,35 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     // Account for both the 1 pixel track border and the width of the line.
     const int min_x = x() + 2;
     const int max_x = x() + w() - 2;
-    int prev_xpos = min_x;
+    int prev_xpos = -1;
     const char *prev_lower = NULL;
     const char *prev_upper = NULL;
-
-    const SymbolTable::Style style(Config::font,
-        Config::font_size::pitch_signal, FL_BLACK);
+    const SymbolTable::Style style(
+        Config::font, Config::font_size::pitch_signal, FL_BLACK);
 
     for (int i = found; i < tsig.length; i++) {
-        // Skip coincident samples, or at least ones that are too close.
         int offset = y + tsig.time_at(zoom, i);
-        if (i + 1 < tsig.length) {
-            int next_offset = y + tsig.time_at(zoom, i+1);
-            // If the next sample is too close then don't draw.
-            // TODO I'd also like to skip samples that are too close to make
-            // much difference, but I still have to draw some or a series of
-            // close samples would be omitted entirely, so it's quite a bit
-            // more complicated.
-            if (next_offset <= offset)
-                continue;
+        // Skip coincident samples, or at least ones that are too close.
+        int next_offset;
+        if (i+1 >= tsig.length) {
+            // Out of signal, last sample goes to the bottom.
+            next_offset = max_y;
+        } else {
+            next_offset = y + tsig.time_at(zoom, i+1);
         }
+        // If the next sample is too close then don't draw this one.
+        // TODO I'd also like to skip samples that are too close to make
+        // much difference, but I still have to draw some or a series of
+        // close samples would be omitted entirely, so it's quite a bit
+        // more complicated.  This is a similar problem to the event text
+        // display.
+        if (next_offset <= offset)
+            continue;
         const char *lower, *upper;
         double val = tsig.val_at(i, &lower, &upper);
         int xpos = floor(::scale(double(min_x), double(max_x),
             ::clamp(0.0, 1.0, val)));
         // DEBUG("sample " << i << " val " << val << " offset " << offset);
-
-        // Look for the next offset which is greater than this one and thus
-        // will actually be drawn.
-        int next_offset = offset;
-        {
-            int j = i + 1;
-            for (; j < tsig.length; j++) {
-                next_offset = y + tsig.time_at(zoom, j);
-                if (next_offset > offset)
-                    break;
-            }
-            if (j == tsig.length)
-                next_offset = y + h();
-        }
 
         // Skip drawing things out of the clip area.
         // TODO avoid overlap with event text
@@ -599,7 +588,7 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
                 // connect with the previous sample, which implies the signal
                 // actually made a jump.
                 // And don't draw a jump from prev_xpos if it didn't exist.
-                if (found == i || scale_changed) {
+                if (prev_xpos == -1 || scale_changed) {
                     fl_line(xpos, offset, xpos, next_offset);
                 } else {
                     fl_line(
