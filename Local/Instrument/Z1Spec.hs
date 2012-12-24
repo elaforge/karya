@@ -13,8 +13,9 @@ import Instrument.Sysex
         enum_bits, ranged, signed)
 
 -- TODO
--- - finish the effects
+-- * finish the effects
 -- - put them in patch_spec and multiset_spec
+-- - finish osc types
 
 config :: Sysex.Config
 config = Sysex.config_8bit
@@ -86,7 +87,7 @@ patch_spec = Sysex.assert_valid config "patch_spec" 576
     -- osc common
     , pitch_bend
     , ("common pitch mod source", enum mod_source_list_1)
-    , intensity "common pitch mod"
+    , mod_intensity "common pitch"
     , ("portamento", SubSpec
         [ ("", Bits
             [ ("sw", bool_bit)
@@ -94,7 +95,7 @@ patch_spec = Sysex.assert_valid config "patch_spec" 576
             ])
         , ("time", unsigned 99)
         , ("mod source", enum mod_source_list_1)
-        , intensity "mod"
+        , mod_intensity ""
         ])
     , ("osc", List 2 osc_spec)
     , ("sub osc", SubSpec sub_osc_spec)
@@ -133,13 +134,13 @@ eg_spec =
     , time "release"
     , level "release"
     , mod_source_1 "eg level"
-    , intensity "eg level"
+    , mod_intensity "eg level"
     , ("eg level velocity control", signed 99)
     , mod_source_1 "eg time"
-    , intensity "eg time"
+    , mod_intensity "eg time"
     , mod_source_1 "eg node time"
-    , intensity "attack time", intensity "decay time", intensity "slope time"
-    , intensity "release time"
+    , mod_intensity "attack time", mod_intensity "decay time"
+    , mod_intensity "slope time", mod_intensity "release time"
     ]
     where
     level name = (name <+> "level", signed 99)
@@ -152,13 +153,13 @@ lfo_spec =
         , ("key sync sw", enum_bits 2 ["off", "timbre", "voice"])
         ])
     , ("frequency", unsigned 199)
-    , mod_source_1 "frequency mod1"
-    , intensity "frequency mod1"
-    , mod_source_1 "frequency mod2"
-    , intensity "frequency mod2"
+    , mod_source_1 "frequency 1"
+    , mod_intensity "frequency 1"
+    , mod_source_1 "frequency 2"
+    , mod_intensity "frequency 2"
     , ("fade in", unsigned 99)
-    , mod_source_1 "amplitude mod"
-    , intensity "amplitude mod"
+    , mod_source_1 "amplitude"
+    , mod_intensity "amplitude"
     , ("offset", signed 50)
     , ("", Bits
         [ ("midi sync time", ranged_bits 4 (0, 15))
@@ -214,9 +215,9 @@ osc_spec =
     , ("mod1 source", enum mod_source_list_1)
     , intensity "mod1"
     , ("mod1 intensity controller", enum mod_source_list_1)
-    , intensity "mod1 intensity controller"
+    , ("mod1 intensity controller intensity", signed 99)
     , ("mod2 source", enum mod_source_list_1)
-    , intensity "mod2"
+    , ("mod2 intensity", signed 99)
     , ("setting", Unparsed 38) -- union of osc params
     ]
 
@@ -238,11 +239,11 @@ sub_osc_spec =
     , ("higher slope", ranged (-50) 100)
     -- pitch modulation
     , ("mod1 source", enum mod_source_list_1)
-    , intensity "mod1"
+    , ("mod1 intensity", signed 99)
     , ("mod1 intensity controller", enum mod_source_list_1)
-    , intensity "mod1 intensity controller"
+    , ("mod1 intensity controller intensity", signed 99)
     , ("mod2 source", enum mod_source_list_1)
-    , intensity "mod2"
+    , ("mod2 intensity", signed 99)
     , ("wave form", enum ["saw", "square", "triangle", "sine"])
     ]
 
@@ -255,9 +256,9 @@ noise_generator_spec =
     , ("input trim", unsigned 99)
     , ("cutoff", unsigned 99)
     , mod_source_1 "cutoff mod1"
-    , intensity "cutoff mod1"
+    , ("cutoff mod1 intensity", signed 99)
     , mod_source_1 "cutoff mod2"
-    , intensity "cutoff mod2"
+    , ("cutoff mod2 intensity", signed 99)
     , ("resonance", unsigned 99)
     ]
 
@@ -276,22 +277,22 @@ standard_osc =
         , ("mod lfo",
             -- TODO For some reason, the range is 6--9, take a look at z1
             enum ["", "", "", "", "", "", "lfo1", "lfo2", "lfo3", "lfo4"])
-        , intensity "mod lfo"
+        , mod_intensity "lfo"
         , mod_source_1 ""
-        , intensity "mod"
+        , mod_intensity ""
         ])
     , ("wave shape", SubSpec
         [ ("input level", unsigned 99)
         , mod_source_1 "input level"
-        , intensity "input level mod"
+        , mod_intensity "input level"
         , ("offset", signed 99)
         , ("table", enum ["clip", "reso"])
         , ("wave shape", unsigned 99)
         , mod_source_1 ""
-        , intensity "mod"
+        , mod_intensity ""
         , ("balance", unsigned 99)
         , mod_source_1 "balance"
-        , intensity "balance mod"
+        , mod_intensity "balance"
         ])
     ]
 
@@ -303,15 +304,15 @@ comb_filter_osc =
     , ("noise level", unsigned 99)
     , ("width", unsigned 99)
     , mod_source_1 "input level"
-    , intensity "input level mod"
+    , mod_intensity "input level"
     , ("comb filter feedback", unsigned 99)
     , mod_source_1 "feedback 1"
-    , intensity "feedback 1 mod"
+    , mod_intensity "feedback 1"
     , mod_source_1 "feedback 2"
-    , intensity "feedback 2 mod"
+    , mod_intensity "feedback 2"
     , ("high damp", unsigned 99)
     , mod_source_1 "high damp"
-    , intensity "high damp mod"
+    , mod_intensity "high damp"
     ]
 
 -- * mixer
@@ -336,7 +337,7 @@ mixer_spec =
         (name, SubSpec
             [ ("level", unsigned 99)
             , mod_source_1 "level"
-            , intensity "level mod"
+            , mod_intensity "level"
             ])
 
 -- * filter
@@ -357,14 +358,14 @@ filter_spec =
     , ("a", SubSpec $ filter_common ++
         [ ("cutoff frequency", SubSpec
             [ ("mod eg", egs)
-            , intensity "mod eg"
-            , ("mod1 source", enum mod_source_list_1), intensity "mod1"
-            , ("mod2 source", enum mod_source_list_1), intensity "mod2"
+            , mod_intensity "eg"
+            , mod_source_1 "1", mod_intensity "1"
+            , mod_source_1 "2", mod_intensity "2"
             ])
         -- resonance
         , ("resonance", unsigned 99)
         , mod_source_1 "resonance"
-        , intensity "resonance mod"
+        , mod_intensity "resonance"
         ])
     , ("b", SubSpec $ filter_common ++
         [ ("cutoff frequency", SubSpec
@@ -373,7 +374,7 @@ filter_spec =
             , intensity "mod2"
             ])
         , ("resonance", unsigned 99)
-        , intensity "resonance mod"
+        , mod_intensity "resonance mod"
         ])
     ]
     where
@@ -402,7 +403,7 @@ amp_spec = assert_valid "amp" 37
         , ("mod eg", egs)
         , ("", Unparsed 1)
         , mod_source_1 ""
-        , intensity "mod"
+        , mod_intensity ""
         ])
     , ("eg", SubSpec
         [ ("", Unparsed 1)
@@ -415,15 +416,15 @@ amp_spec = assert_valid "amp" 37
         , time "release"
         , ("", Unparsed 1)
         , mod_source_1 "eg level"
-        , intensity "eg level mod"
+        , mod_intensity "eg level"
         , ("eg velocity control", signed 99)
         , mod_source_1 "eg time"
-        , intensity "eg time mod"
+        , mod_intensity "eg time"
         , mod_source_1 "eg node time"
-        , intensity "attack time mod"
-        , intensity "decay time mod"
-        , intensity "slope time mod"
-        , intensity "release time mod"
+        , mod_intensity "attack time"
+        , mod_intensity "decay time"
+        , mod_intensity "slope time"
+        , mod_intensity "release time"
         ])
     ]
     where
@@ -434,7 +435,7 @@ output_spec :: Specs
 output_spec = assert_valid "output" 4
     [ ("panpot", unsigned 127)
     , mod_source_1 "panpot"
-    , intensity "panpot mod"
+    , mod_intensity "panpot"
     , ("output", unsigned 127)
     ]
 
@@ -442,7 +443,7 @@ effect_spec :: Specs
 effect_spec = assert_valid "effect" 72
     [ ("effect send", unsigned 100)
     , mod_source_1 "effect send"
-    , intensity "effect send mod"
+    , mod_intensity "effect send"
     , ("effect1 select", enum effect_type1)
     , ("effect1 setting", Unparsed 22)
     , ("effect2 select", enum effect_type1)
@@ -699,17 +700,180 @@ effect_chorus =
     , ("lfo frequency", ranged 1 115) -- 00.04~20.00Hz
     , mod_source_2 "lfo frequency"
     , ("lfo frequency mod intensity", signed 115) -- -20.00~+20.00Hz
-    , ("midi sync", Bits
-        [ ("time", ranged_bits 4 (0, 15))
-        , ("base", ranged_bits 3 (0, 7)) -- 16th to whole
-        , ("val", bool_bit)
-        ])
+    , midi_sync
     , mod_source_intensity "depth" (unsigned 99)
     , ("pre eq input trim", unsigned 99)
     , ("pre low eq gain", gain)
     , ("pre high eq gain", gain)
     , effect_balance
     ]
+
+effect_flanger :: Specs
+effect_flanger =
+    [ ("delay time", unsigned 140) -- 0.0~50.0msec
+    , ("lfo", SubSpec
+        [ ("wave form", enum ["triangle", "sine"])
+        , ("shape", signed 99)
+        , ("frequency", ranged 1 115) -- 00.04~20.00Hz
+        , mod_source_2 "frequency"
+        , ("frequency mod intensity", signed 115)
+        ])
+    , midi_sync
+    , ("depth", unsigned 99)
+    , ("feedback", signed 99)
+    , ("high damp", unsigned 99)
+    , ("output phase", enum ["+", "-", "+-"])
+    , effect_balance
+    ]
+
+effect_phaser :: Specs
+effect_phaser =
+    [ ("lfo", SubSpec
+        [ ("wave form", enum ["triangle", "sine"])
+        , ("shape", signed 99)
+        , ("frequency", ranged 1 115) -- 00.04~20.00Hz
+        , mod_source_2 "frequency"
+        , ("frequency mod intensity", signed 115)
+        ])
+    , midi_sync
+    , ("manual", unsigned 99)
+    , ("depth", unsigned 99)
+    , ("resonance", signed 99)
+    , ("high damp", unsigned 99)
+    , ("output phase", enum ["+", "-", "+-"])
+    , effect_balance
+    ]
+
+effect_small_rotary_speaker :: Specs
+effect_small_rotary_speaker =
+    [ ("speed", enum ["slow", "fast"])
+    , ("speed sw", enum mod_source_list_2)
+    , ("horn acceleration", unsigned 99)
+    , ("horn rate", unsigned 99)
+    , ("mic distance", unsigned 99)
+    , ("horn / rotor balance", unsigned 99)
+    , effect_balance
+    ]
+
+effect_delay :: Specs
+effect_delay =
+    [ mod_source_2 "input level"
+    , mod_intensity "input level"
+    , ("delay time", delay_time)
+    , ("feedback", signed 99)
+    , mod_source_2 "feedback"
+    , mod_intensity "feedback"
+    , ("low damp", unsigned 99)
+    , ("high damp", unsigned 99)
+    , effect_balance
+    ]
+
+effect_talking_modulator :: Specs
+effect_talking_modulator =
+    [ ("control mode", enum ["manual", "mod source"])
+    , ("manual control", unsigned 99)
+    , ("control source", enum mod_source_list_2)
+    , ("voice top", enum ["a", "i", "u", "e", "o"])
+    , ("voice center", enum ["a", "i", "u", "e", "o"])
+    , ("voice bottom", enum ["a", "i", "u", "e", "o"])
+    , ("formant shift", signed 99)
+    , ("resonance", unsigned 99)
+    , effect_balance
+    ]
+
+effect_multitap_delay :: Specs
+effect_multitap_delay =
+    [ ("type", enum ["normal", "cross1", "cross2", "pan1", "pan2"])
+    , mod_source_2 "input level"
+    , mod_intensity "input level"
+    , ("tap1 time", delay_time)
+    , ("tap1 level", unsigned 99)
+    , ("tap2 time", delay_time)
+    , ("tap2 level", unsigned 99)
+    , ("feedback", signed 99)
+    , mod_source_2 "feedback"
+    , mod_intensity "feedback"
+    , ("low damp", unsigned 99)
+    , ("high damp", unsigned 99)
+    , ("spread", signed 99)
+    , mod_source_2 "spread"
+    , mod_intensity "spread"
+    , effect_balance
+    ]
+
+effect_ensemble :: Specs
+effect_ensemble =
+    [ ("speed", unsigned 99)
+    , mod_source_2 "speed"
+    , mod_intensity "speed"
+    , ("shimmer", unsigned 99)
+    , ("depth", unsigned 99)
+    , mod_source_2 "depth"
+    , mod_intensity "depth"
+    , effect_balance
+    ]
+
+effect_rotary_speaker :: Specs
+effect_rotary_speaker =
+    [ ("speed", enum ["slow", "fast"])
+    , ("speed sw", enum mod_source_list_2)
+    , ("mode", enum ["rotate", "stop"])
+    , ("mode sw", enum mod_source_list_2)
+    , ("rotor acceleration", unsigned 99)
+    , ("rotor rate", unsigned 99)
+    , ("horn acceleration", unsigned 99)
+    , ("horn rate", unsigned 99)
+    , ("mic distance", unsigned 99)
+    , ("mic spread", unsigned 99)
+    , ("horn / rotor balance", unsigned 99)
+    , effect_balance
+    ]
+
+-- * master effects
+
+effect_stereo_delay :: Specs
+effect_stereo_delay =
+    [ ("type", enum ["stereo", "cross"])
+    , mod_source_2 "input level"
+    , mod_intensity "input level"
+    , ("left delay time", delay_time)
+    , ("right delay time", delay_time)
+    , ("feedback l", signed 99)
+    , ("feedback r", signed 99)
+    , mod_source_2 "feedback"
+    , mod_intensity "feedback"
+    , ("low damp", unsigned 99)
+    , ("high damp", unsigned 99)
+    , effect_balance
+    ]
+
+effect_reverb_hall :: Specs
+effect_reverb_hall =
+    [ ("reverb time", ranged 1 100) -- 0.1~10.0sec
+    , ("pre delay", unsigned 200) -- msec
+    , ("pre delay thru level", unsigned 99)
+    , ("high damp", unsigned 99)
+    , ("pre eq trim", unsigned 99)
+    , ("pre low eq gain", gain)
+    , ("pre high eq gain", gain)
+    , effect_balance
+    ]
+
+effect_reverb_room :: Specs
+effect_reverb_room =
+    [ ("reverb time", ranged 1 30) -- 0.1~3.0sec
+    , ("pre delay", unsigned 200) -- msec
+    , ("pre delay thru level", unsigned 99)
+    , ("high damp", unsigned 99)
+    , ("er level", unsigned 99)
+    , ("reverb level", unsigned 99)
+    , ("pre eq trim", unsigned 99)
+    , ("pre low eq gain", gain)
+    , ("pre high eq gain", gain)
+    ]
+
+delay_time :: Spec
+delay_time = unsigned 251 -- 0~680msec
 
 -- * util
 
@@ -720,7 +884,14 @@ mod_source_intensity :: String -> Spec -> (String, Spec)
 mod_source_intensity name range = (name, SubSpec
     [ ("val", range)
     , mod_source_2 name
-    , intensity name
+    , mod_intensity name
+    ])
+
+midi_sync :: (Sysex.Name, Spec)
+midi_sync = ("midi sync", Bits
+    [ ("time", ranged_bits 4 (0, 15))
+    , ("base", ranged_bits 3 (0, 7)) -- 16th to whole
+    , ("val", bool_bit)
     ])
 
 midi_key :: Spec
@@ -734,6 +905,9 @@ mod_source_2 name = (name <+> "mod source", enum mod_source_list_2)
 
 intensity :: String -> (String, Spec)
 intensity name = (name <+> "intensity", signed 99)
+
+mod_intensity :: String -> (String, Spec)
+mod_intensity name = (name <+> "mod intensity", signed 99)
 
 (<+>) :: String -> String -> String
 x <+> y
@@ -756,7 +930,7 @@ effect_balance :: (Sysex.Name, Spec)
 effect_balance = ("effect balance", SubSpec
     [ ("balance", percent)
     , ("mod source", enum mod_source_list_2)
-    , intensity "mod"
+    , mod_intensity ""
     ])
 
 percent :: Spec
