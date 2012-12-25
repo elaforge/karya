@@ -29,14 +29,12 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Map as Map
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 
 -- Just make sure these are compiled.
 import Midi.Synth ()
 import qualified Ui.Block as Block
-import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -224,21 +222,6 @@ show_blocks match = do
 match_id :: (Id.Ident id) => String -> id -> Bool
 match_id sub = (sub `List.isInfixOf`) . Id.show_id . Id.unpack_id
 
--- | Tracks that don't appear in any block.
-orphan_tracks :: Cmd.CmdL [TrackId]
-orphan_tracks =
-    fmap (\trefs -> [tid | (tid, refs) <- trefs, refs == 0]) track_refs
-
-track_refs :: Cmd.CmdL [(TrackId, Int)]
-track_refs = do
-    st <- State.get
-    let tids = concatMap Block.block_track_ids
-            (Map.elems (State.state_blocks st))
-        insert fm tid = Map.insertWith (+) tid 1 fm
-        ref_map = List.foldl' insert Map.empty tids
-    return [(tid, Map.get 0 tid ref_map)
-        | tid <- Map.keys (State.state_tracks st)]
-
 collapse_track, expand_track :: BlockId -> TrackNum -> Cmd.CmdL ()
 collapse_track block_id tracknum = do
     -- TODO if the track to collapse is a pitch track, merge it with its
@@ -254,24 +237,6 @@ collapse, expand :: TrackNum -> Cmd.CmdL ()
 collapse tracknum = flip collapse_track tracknum =<< Cmd.get_focused_block
 expand tracknum = flip expand_track tracknum =<< Cmd.get_focused_block
 
-
--- ** tracks
-
--- | Some helpers to make it easier to make TracklikeIds.
-track :: String -> String -> Block.TracklikeId
-track track_id ruler_id = Block.TId (tid track_id) (rid ruler_id)
-ruler :: String -> Block.TracklikeId
-ruler ruler_id = Block.RId (rid ruler_id)
-divider :: Color.Color -> Block.TracklikeId
-divider color = Block.DId (Block.Divider color)
-
--- | Insert a track that already exists.
-insert_track :: TrackId -> TrackNum -> Cmd.CmdL ()
-insert_track track_id tracknum = do
-    block_id <- Cmd.get_focused_block
-    ruler_id <- State.ruler_track_at block_id tracknum
-    State.insert_track block_id tracknum
-        (Block.track (Block.TId track_id ruler_id) Config.track_width)
 
 -- Modify global keymap
 

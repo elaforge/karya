@@ -1,6 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds for track level operations.
 module Cmd.Lang.LTrack where
+import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
@@ -30,8 +32,23 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-gc_tracks :: Cmd.CmdL ()
-gc_tracks = mapM_ State.destroy_track . Set.elems =<< Create.orphan_tracks
+gc :: Cmd.CmdL ()
+gc = mapM_ State.destroy_track . Set.elems =<< Create.orphan_tracks
+
+-- | Tracks that don't appear in any block.
+orphans :: Cmd.CmdL [TrackId]
+orphans = Set.elems <$> Create.orphan_tracks
+
+-- | Every track along with how many times it appears in a block.
+refs :: Cmd.CmdL [(TrackId, Int)]
+refs = do
+    st <- State.get
+    let tids = concatMap Block.block_track_ids
+            (Map.elems (State.state_blocks st))
+        insert fm tid = Map.insertWith (+) tid 1 fm
+        ref_map = List.foldl' insert Map.empty tids
+    return [(tid, Map.findWithDefault 0 tid ref_map)
+        | tid <- Map.keys (State.state_tracks st)]
 
 -- | Remove tracks with no events from the given block.
 remove_empty :: BlockId -> Cmd.CmdL ()
