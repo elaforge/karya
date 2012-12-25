@@ -93,8 +93,10 @@ pitch_to_midi pb_range val
     where key = Midi.to_key (floor val)
 
 pb_from_nn :: PbRange -> Midi.Key -> Signal.Y -> Midi.PitchBendValue
-pb_from_nn pb_range key val =
-    realToFrac $ if bend >= 0 then bend / high else bend / (-low)
+pb_from_nn pb_range key val
+    | bend == 0 = 0
+    | bend > 0 = Num.d2f $ bend / high
+    | otherwise = Num.d2f $ bend / (-low)
     where
     (low, high) = (fromIntegral (fst pb_range), fromIntegral (snd pb_range))
     bend = Num.clamp low high (val - Midi.from_key key)
