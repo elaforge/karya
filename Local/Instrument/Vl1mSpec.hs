@@ -263,11 +263,8 @@ controls_spec =
 
 -- * modulation effects
 
-wet_dry :: (String, Sysex.Spec)
-wet_dry = ("wet/dry balance", unsigned 100)
-
-flanger_specs :: Specs
-flanger_specs =
+effect_flanger :: Specs
+effect_flanger =
     [ ("wave", unsigned 2)
     , ("freq", unsigned 127)
     , ("depth", unsigned 100)
@@ -279,8 +276,8 @@ flanger_specs =
     , wet_dry
     ]
 
-pitch_change_specs :: Specs
-pitch_change_specs =
+effect_pitch_change :: Specs
+effect_pitch_change =
     [ ("mode", unsigned 1) -- enum
     , ("pitch 1", signed 12)
     , ("fine 1", signed 100)
@@ -291,8 +288,8 @@ pitch_change_specs =
     , wet_dry
     ]
 
-distortion_specs :: Specs
-distortion_specs =
+effect_distortion :: Specs
+effect_distortion =
     [ ("overdrive", unsigned 100)
     , ("", Unparsed 2)
     , ("device", unsigned 4)
@@ -301,8 +298,8 @@ distortion_specs =
     , ("output level", unsigned 100)
     ]
 
-chorus_specs :: Specs
-chorus_specs =
+effect_chorus :: Specs
+effect_chorus =
     [ ("mode", unsigned 1) -- enum
     , ("freq", unsigned 127)
     , ("depth", unsigned 100)
@@ -312,8 +309,8 @@ chorus_specs =
     , wet_dry
     ]
 
-phaser_specs :: Specs
-phaser_specs =
+effect_phaser :: Specs
+effect_phaser =
     [ ("mode", unsigned 1) -- enum
     , ("stage", unsigned 3) -- enum
     , ("freq", unsigned 127)
@@ -324,8 +321,8 @@ phaser_specs =
     , wet_dry
     ]
 
-symphonic_specs :: Specs
-symphonic_specs =
+effect_symphonic :: Specs
+effect_symphonic =
     [ ("mode", unsigned 1) -- enum
     , ("freq", unsigned 127)
     , ("depth", unsigned 100)
@@ -334,8 +331,8 @@ symphonic_specs =
     , wet_dry
     ]
 
-celeste_specs :: Specs
-celeste_specs =
+effect_celeste :: Specs
+effect_celeste =
     [ ("mode", unsigned 1)
     , ("freq", unsigned 127)
     , ("depth", unsigned 100)
@@ -345,8 +342,8 @@ celeste_specs =
     , wet_dry
     ]
 
-distortion_flanger_specs :: Specs
-distortion_flanger_specs =
+effect_distortion_flanger :: Specs
+effect_distortion_flanger =
     [ ("overdrive", unsigned 100)
     , ("speaker", unsigned 5)
     , ("output level", unsigned 100)
@@ -359,8 +356,8 @@ distortion_flanger_specs =
     , ("flanger balance", unsigned 100)
     ]
 
-distortion_wah_specs :: Specs
-distortion_wah_specs =
+effect_distortion_wah :: Specs
+effect_distortion_wah =
     [ ("overdrive", unsigned 100)
     , ("speaker", unsigned 5)
     , ("output level", unsigned 100)
@@ -370,3 +367,6 @@ distortion_wah_specs =
     , ("resonance", unsigned 127)
     , ("sensitivity", unsigned 100)
     ]
+
+wet_dry :: (String, Sysex.Spec)
+wet_dry = ("wet/dry balance", unsigned 100)
