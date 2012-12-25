@@ -181,25 +181,11 @@ UNSORTED
     - Run under EKG.  I thought I saw memory drop after scrolling the UI?
 
   ghc panics
-    - Stress test: load a score, apply a change, wait for rederive, apply
-      another, etc.
-      I can use the same thing to watch memory.
-    - Extend it to do UI.
-    . How to compile it?  It should be with opt but not necessarily profiling.
-      Wait, I do want at least SCC-less profiling to get the heap trace.
-      Make a separate binary and put it in opt/.
-      That way I can hook up the UI too.  But how to drive it?
-      . Use Lang, in fact I could just drive the normal seq.  Add a few Fast
-        cmds to add and remove events, and to force the current perf.
-        But I can't interact, e.g. wait for it
-        to be done, all I can do is spam cmds.  Of course if I want to run it
-        until it crashes that's enough.
-      . Try to extend ResponderTest to talk to the UI.
-    - Uses:
-      . Chase the derive memory leaks.
-      . Trigger the libgit2 memory corruption.
-      . Trigger the fltk memory corruption.
-
+    I need a way to reproduce the panics
+      bang on it with tools/edit_spam.py and see if I can get a repro
+        * Not happening.  What else is missing?
+        - play notes, what if the corruption is in CoreMidi?
+      - I can use the same thing to watch memory.
     . It still happens without git, but seems less frequent.
       Maybe both libgit2 and finalization have a problem.
       But it happens with finalizers commented out, though seemingly much more
@@ -228,9 +214,6 @@ UNSORTED
     It seems likely due to FFI, perhaps a bug in C++.  Optimization could be
     making some change that makes it more sensitive to the bug.  Or it could
     be optimization in the c++.
-
-    I need a repro.  Profiling doesn't do it.  Maybe it's due to the UI?  Can
-    I automate lots of UI banging?
 
   - rename Ruler.marks_of to marklist_to_list and Ruler.
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
