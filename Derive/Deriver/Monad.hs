@@ -64,10 +64,10 @@ module Derive.Deriver.Monad (
     , Instrument(..), InstrumentCalls(..)
 
     -- ** control
-    , ControlOp
+    , ControlOp(..)
 
     -- ** collect
-    , Collect(..), Integrated(..)
+    , Collect(..), ControlModification(..), Integrated(..)
     , TrackDynamic
 
     -- * calls
@@ -640,7 +640,11 @@ instance Show InstrumentCalls where
 -- is only used when a relative signal is applied when no signal is in scope.
 -- This is useful for e.g. a transposition signal which shouldn't care if
 -- there is or isn't a transposition signal already in scope.
-type ControlOp = (Signal.Control -> Signal.Control -> Signal.Control, Signal.Y)
+data ControlOp = ControlOp
+    !String !(Signal.Control -> Signal.Control -> Signal.Control) !Signal.Y
+
+instance Show ControlOp where
+    show (ControlOp name _ _) = "((ControlOp " ++ name ++ "))"
 
 -- *** control ops
 
@@ -651,16 +655,20 @@ default_control_op_map = Map.fromList $ map (first TrackLang.Symbol)
     [ ("add", op_add)
     , ("sub", op_sub)
     , ("mul", op_mul)
-    -- These values should never be seen since any reasonable combining signal
-    -- will be within this range.
-    , ("max", (Signal.sig_max, -2^32))
-    , ("min", (Signal.sig_min, 2^32))
+    , ("max", op_max)
+    , ("min", op_min)
     ]
 
 op_add, op_sub, op_mul :: ControlOp
-op_add = (Signal.sig_add, 0)
-op_sub = (Signal.sig_subtract, 0)
-op_mul = (Signal.sig_multiply, 1)
+op_add = ControlOp "add" Signal.sig_add 0
+op_sub = ControlOp "subtract" Signal.sig_subtract 0
+op_mul = ControlOp "multiply" Signal.sig_multiply 1
+
+-- These values should never be seen since any reasonable combining signal
+-- will be within this range.
+op_max, op_min :: ControlOp
+op_max = ControlOp "max" Signal.sig_max (-2^32)
+op_min = ControlOp "min" Signal.sig_min (2^32)
 
 
 -- ** collect
@@ -682,17 +690,28 @@ data Collect = Collect {
     -- | New caches accumulating over the course of the derivation.
     , collect_cache :: !Cache
     , collect_integrated :: ![Integrated]
+    , collect_control_modifications :: ![ControlModification]
     } deriving (Show)
 
+-- | This is a hack so a call on a control track can modify other controls.
+-- The motivating case is pitch ornaments that also want to affect the
+-- dynamics.  The modifications are a secondary return value from control
+-- and pitch calls.  The track deriver will extract them and merge them into
+-- the dynamic environment.  [note control-modification]
+data ControlModification =
+    ControlModification !Score.Control !Signal.Control !ControlOp
+    deriving (Show)
+
 instance Monoid.Monoid Collect where
-    mempty = Collect mempty mempty mempty mempty mempty mempty
-    mappend (Collect warps1 signals1 env1 deps1 cache1 integrated1)
-            (Collect warps2 signals2 env2 deps2 cache2 integrated2) =
+    mempty = Collect mempty mempty mempty mempty mempty mempty mempty
+    mappend (Collect warps1 signals1 env1 deps1 cache1 integrated1 cmods1)
+            (Collect warps2 signals2 env2 deps2 cache2 integrated2 cmods2) =
         Collect (warps1 <> warps2) (signals1 <> signals2) (env1 <> env2)
             (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
+            (cmods1 <> cmods2)
 
 instance DeepSeq.NFData Collect where
-    rnf (Collect warp_map tsigs track_dyn local_dep cache integrated) =
+    rnf (Collect warp_map tsigs track_dyn local_dep cache integrated _cmods) =
         rnf warp_map `seq` rnf tsigs `seq` rnf track_dyn
         `seq` rnf local_dep `seq` rnf cache `seq` rnf integrated
 
@@ -1131,3 +1150,39 @@ data ScaleError =
     | UnparseableEnviron !TrackLang.ValName !String
         -- String should be TrackLang.Val except that makes Eq not work.
     deriving (Eq, Show)
+
+{- note control-modification
+    . Control tracks return a single control, and how that merges into the
+      environ is up to the track.
+    . It would be convenient to do it in an existing track, e.g. the pitch
+      track, and not have to add a whole new track just for a few fancy
+      ornaments.  The pitch track is a natural choice, but if it's going to
+      modify other controls it should be beneath them, right?  The pitch track
+      is on top, not for a good reason, but just because it's next to the note
+      track.  I could solve this by reversing the order of the skeleton, at
+      the cost of it looking a little weird.
+    . However, once I'm doing this, why is the pitch track special?  Why
+      wouldn't I want to have calls that affect multiple non-pitch controls?
+    . The note track seems like a natural place for this stuff, but that would
+      require some notion of a non-note event within a note event.  But that
+      means either sub-event text, which seems like a giant increase in
+      complexity, or some awful hack like e.g. events starting with ';' are
+      merged into the non-; note event, and somehow evaluated with it.
+      Besides, this doesn't compose nicely, what if I want multiple high-level
+      control tracks at once?
+    / Generalize control tracks to return
+      'Either (Name, PitchSignal) (Name, ControlSignal, ControlOp).
+      The track call splits them apart, and merges into the environ.  This
+      would make pitch tracks and control tracks the same, just a different
+      default.  But that's no good because they already have separate
+      namespaces, which are very useful.
+    * Control calls and pitch calls can emit "control modifications", which
+      are (control, signal) pairs that will be multiplied with the environ.
+      Each one is an entire signal.  Since the signals are combined with
+      multiplication, it doesn't matter what order they go in.  The
+      modifications can go in Collect.
+      Pitch modification has to transposition, but it would have to use a
+      transpose signal.  However, transpose signals are additive, not
+      multiplicative.  So I need some way to indicate the combining operator
+      after all.
+-}

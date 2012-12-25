@@ -73,6 +73,9 @@ detached_local modify_state deriver = do
 merge_collect :: Collect -> Deriver ()
 merge_collect c = modify $ \st -> st { state_collect = c <> state_collect st }
 
+modify_collect :: (Collect -> Collect) -> Deriver ()
+modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
+
 -- * environ
 
 insert_environ :: (TrackLang.Typecheck val) => TrackLang.ValName

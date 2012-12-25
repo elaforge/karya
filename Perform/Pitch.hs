@@ -24,7 +24,7 @@ module Perform.Pitch (
 
     -- * Scale
     , ScaleId(..), empty_scale, twelve
-    , Degree(..), Transpose(..)
+    , Degree(..), Transpose(..), modify_transpose
     , Key(..)
 ) where
 import qualified Text.ParserCombinators.ReadP as ReadP
@@ -179,6 +179,10 @@ instance Pretty.Pretty Transpose where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Transpose where
     show_val (Chromatic d) = ShowVal.show_val d ++ "c"
     show_val (Diatonic d) = ShowVal.show_val d ++ "d"
+
+modify_transpose :: (Double -> Double) -> Transpose -> Transpose
+modify_transpose f (Chromatic d) = Chromatic (f d)
+modify_transpose f (Diatonic d) = Diatonic (f d)
 
 -- | Diatonic transposition often requires a Key for context.
 --

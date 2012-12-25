@@ -1,4 +1,22 @@
 UNSORTED
+  - maybe new control tracks should start with line render?
+  fancy calls
+    - approach and lower dyn
+    * drop pitch and dyn
+    - accelerating trill
+    - overshoot pitch call, e.g. indian style
+  How to do controls that affect more than one control at a time?  E.g.
+    combined pitch and dyn.
+
+  - convince spicy to use another string so legato works?
+    I have to put it on another channel, but to do that automatically I have
+    to know about the strings and figure out how to allocate.  Simpler would
+    be to have a string attr which then puts the note on that midi channel.
+    But the performer doesn't support that.
+    It could, but seems like a hassle right now.
+  - z1/virus-bass has UnknownMessage for initialization?
+  - browser has lots of empty space on the bottom
+  * play monitor missing when I play from the beginning
   - intonation: think about how to do e.g. meantone melody, with just harmony
     . Do a postproc to analyze simultaneous notes.  If I use an attr to
       tag the melody, I can tune everyone else to it.  But how do I retune
@@ -70,28 +88,6 @@ UNSORTED
     - If each event or unevaluated event has future and past it will keep
       the UI alive.  Maybe forcing the result of each event will clean that
       up.
-  add 'approach' call
-    * do just plain 'a' approach call first
-      use eval_event to get the next pitch
-    . For this I need to know the next value.  So I need a way to evaluate the
-      future.
-    . But then I need to parse the future.  But control tracks use a different
-      parser.  So either add a is_control flag to CallInfo, and make every
-      derive have to tell if it's a control track or not, or add a self_eval
-      val call to 'scope_control'.
-    . The former is pretty icky, but the latter involves more overhead, and
-      p_unsigned_float is near the top of the profile.  Of course, I don't
-      really understand the profile, since the top is Serialiaze.get.
-    . Fundamentally there is different parsing for control tracks.  So eval
-      calls need to know if they are in a control track.  Even if I use the
-      self_eval trick, then I need a ControlScope.  But that happens by
-      type inference, since there's a lookup_callable method.
-
-    * add (<) and (>) val calls for the previous and next val, respectively
-    * This means val calls are also going to need next events.  Should be ok.
-    * I also need the track type.
-      Otherwise I don't know how to evaluate the events, this is tied to
-      ValCall being monomorphic.
 
   make TrackLang.Symbol into ByteString?
     . means fewer conversions

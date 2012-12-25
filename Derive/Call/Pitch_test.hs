@@ -2,7 +2,9 @@ module Derive.Call.Pitch_test where
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+
 import qualified Perform.Pitch as Pitch
 import Types
 
@@ -91,13 +93,29 @@ test_linear_next = do
     equal (run [(0, "4c"), (4, "i> -4"), (6, "4c")])
         [(0, 60), (5, 58), (6, 60)]
 
+test_drop = do
+    let run pitches = extract . run_ 1 pitches
+        extract = head . (DeriveTest.extract_events $ \e ->
+            (DeriveTest.e_pitch e, DeriveTest.e_dyn e))
+    equal (run [(0, "4c"), (1, "drop 2 2")] [("dyn", [(0, 0, "1")])])
+        ( [(0, 60), (2, 59), (3, 58)]
+        , [(0, 1), (1, 1), (2, 0.5), (3, 0)]
+        )
+    equal (run [(0, "4c"), (1, "drop 2 2")] [("dyn", [(0, 0, ".5")])])
+        ( [(0, 60), (2, 59), (3, 58)]
+        , [(0, 0.5), (1, 0.5), (2, 0.25), (3, 0)]
+        )
+
 run :: [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
 run = run_tempo 1
 
 run_tempo :: Int -> [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
-run_tempo tempo events = extract $ DeriveTest.derive_tracks
+run_tempo tempo pitches = extract $ run_ tempo pitches []
+    where extract = head . DeriveTest.extract_events DeriveTest.e_pitch
+
+run_ :: Int -> [(ScoreTime, String)] -> [UiTest.TrackSpec] -> Derive.Result
+run_ tempo pitches tracks = DeriveTest.derive_tracks $
     [ ("tempo", [(0, 0, show tempo)])
     , (">", [(0, 10, "")])
-    , ("*twelve", [(start, 0, text) | (start, text) <- events])
-    ]
-    where extract = head . DeriveTest.extract_events DeriveTest.e_pitch
+    , ("*", [(start, 0, text) | (start, text) <- pitches])
+    ] ++ tracks

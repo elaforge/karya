@@ -78,6 +78,8 @@ pitch_calls = Derive.make_calls
     , ("a", c_approach)
     , ("u", c_up)
     , ("d", c_down)
+
+    , ("drop", c_drop)
     ]
 
 -- | This should contain the calls that require the previous value.  It's used
@@ -240,13 +242,40 @@ slope word sign =
         (word <> " this many steps per second.")) $
     \speed args -> case Args.prev_val args of
         Nothing -> Util.pitch_signal []
-        Just (_, prev_y) -> do
+        Just (_, prev_pitch) -> do
             start <- Args.real_start args
             next <- Derive.real (Args.next args)
             let diff = RealTime.to_seconds (next - start) * speed_val * sign
                 (speed_val, typ) = Util.split_transpose speed
-                dest = Pitches.transpose (Util.join_transpose diff typ) prev_y
-            make_interpolator id True start prev_y next dest
+                dest = Pitches.transpose (Util.join_transpose diff typ)
+                    prev_pitch
+            make_interpolator id True start prev_pitch next dest
+
+-- * high level calls
+
+-- Thees calls emit pitch but also modify other controls, mostly 'dyn'.
+-- The convention is that low level calls have single-letter or letter+symbol
+-- names, while high level calls have words or abbreviated words.
+
+c_drop :: Derive.PitchCall
+c_drop = Derive.generator1 "drop" "Drop pitch and `dyn`." $ CallSig.call2g
+    ( optional "interval" (Pitch.Chromatic 7) "Drop interval."
+    , optional "time" (TrackLang.real 0.25)
+        "Time to drop the given interval and fade to nothing."
+    ) $ \interval (TrackLang.DefaultReal time) args ->
+        case Args.prev_val args of
+            Nothing -> Util.pitch_signal []
+            Just (_, prev_pitch) -> do
+                (start, end) <- Util.duration_from_start args time
+                drop_call start end prev_pitch interval
+
+drop_call :: RealTime -> RealTime -> PitchSignal.Pitch -> Pitch.Transpose
+    -> Derive.Deriver PitchSignal.Signal
+drop_call start end prev_pitch interval = do
+    let dest = Pitches.transpose
+            (Pitch.modify_transpose negate interval) prev_pitch
+    Control.multiply_control Score.c_dynamic id start 1 end 0
+    make_interpolator id False start prev_pitch end dest
 
 -- * util
 

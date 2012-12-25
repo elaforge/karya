@@ -269,9 +269,12 @@ test_collect = do
     let root : _ = r_cache_collect cached
     let tsig = Right $ Track.TrackSignal (Signal.signal [(0, 1)]) 0 1 Nothing
     let extract = second (fmap extract_collect)
-        extract_collect (Derive.Collect wmap tsigs _env ldep _cache _integrat) =
-            (Seq.sort_on fst (map (first Stack.show_ui_) (Map.toAscList wmap)),
-                tsigs, ldep)
+        extract_collect collect =
+            ( Seq.sort_on fst $ map (first Stack.show_ui_) $
+                Map.toAscList (Derive.collect_warp_map collect)
+            , Derive.collect_track_signals collect
+            , Derive.collect_local_dep collect
+            )
 
     -- Wow, this is a hassle, but it's hard to figure out how to verify this
     -- otherwise.

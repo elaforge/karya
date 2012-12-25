@@ -12,6 +12,7 @@ import qualified Derive.CallSig as CallSig
 import Derive.CallSig (required, optional)
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -279,14 +280,12 @@ interpolate f args val dur = do
             (min start end) prev_val (max start end) val
 
 interpolator :: RealTime -> (Double -> Double) -> Interpolator
-interpolator srate f include_initial x0 y0 x1 y1 =
+interpolator srate f include_initial x1 y1 x2 y2 =
     Signal.signal $ (if include_initial then id else drop 1) sig
     where
-    sig = [(x, y_of x) | x <- Seq.range_end x0 x1 srate]
-    y_of = Num.scale y0 y1 . f . Num.normalize (secs x0) (secs x1) . secs
+    sig = [(x, y_of x) | x <- Seq.range_end x1 x2 srate]
+    y_of = Num.scale y1 y2 . f . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds
-
--- * util
 
 -- | Negative exponents produce a curve that jumps from the "starting point"
 -- which doesn't seem too useful, so so hijack the negatives as an easier way
@@ -295,3 +294,26 @@ interpolator srate f include_initial x0 y0 x1 y1 =
 expon :: Double -> Double -> Double
 expon n x = x**exp
     where exp = if n >= 0 then n else 1 / abs n
+
+-- ** control modification
+
+multiply_control :: Score.Control -> (Double -> Double)
+    -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()
+multiply_control control f x1 y1 x2 y2 = do
+    sig <- make_signal f x1 y1 x2 y2
+    -- Since signals are impliitly 0 before the first sample, the modification
+    -- will zero out the control before 'x1'.  That's usually not what I want,
+    -- so assume it's 'y1' before that.
+    Derive.modify_control Derive.op_mul control (Signal.signal [(0, y1)] <> sig)
+
+add_control :: Score.Control -> (Double -> Double)
+    -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()
+add_control control f x1 y1 x2 y2 = do
+    sig <- make_signal f x1 y1 x2 y2
+    Derive.modify_control Derive.op_add control sig
+
+make_signal :: (Double -> Double) -> RealTime -> Signal.Y -> RealTime
+    -> Signal.Y -> Derive.Deriver Signal.Control
+make_signal f x1 y1 x2 y2 = do
+    srate <- Util.get_srate
+    return $ interpolator srate f True x1 y1 x2 y2

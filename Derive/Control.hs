@@ -120,10 +120,12 @@ control_call :: TrackTree.TrackEvents -> Score.Typed Score.Control
 control_call track control maybe_op control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track control_deriver
     stash_signal track signal (to_display <$> control_deriver) Nothing
-    -- I think this forces sequentialness because 'deriver' runs in the state
-    -- from the end of 'control_deriver'.  To make these parallelize, I need
-    -- to run control_deriver as a sub-derive, then mappend the Collect.
-    merge_logs logs $ with_damage $ with_control control signal deriver
+    -- Apply and strip any control modifications made during the above derive.
+    Derive.apply_control_modifications $ merge_logs logs $ with_damage $
+        with_control control signal deriver
+    -- ^ I think this forces sequentialness because 'deriver' runs in the state
+    -- from the end of 'control_deriver'.  To make these parallelize, I need to
+    -- run control_deriver as a sub-derive, then mappend the Collect.
     where
     maybe_track_id = TrackTree.tevents_track_id track
     with_damage = with_control_damage maybe_track_id
@@ -154,11 +156,11 @@ pitch_call track maybe_name scale_id expr deriver =
             (signal, logs) <- derive
             -- Ignore errors, they should be logged on conversion.
             (nn_sig, _) <- pitch_signal_to_nn signal
-            -- TODO this is incorrect, the track signal should be degrees, not
-            -- nns.
             stash_signal track (Signal.coerce nn_sig) (to_psig derive)
                 (Just scale_map)
-            merge_logs logs $ with_damage $
+            -- Apply and strip any control modifications made during the above
+            -- derive.
+            Derive.apply_control_modifications $ merge_logs logs $ with_damage $
                 Derive.with_pitch maybe_name signal deriver
     where
     maybe_track_id = TrackTree.tevents_track_id track

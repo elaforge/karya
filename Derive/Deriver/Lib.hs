@@ -247,7 +247,7 @@ with_control cont signal = Internal.local $ \st ->
 -- signal's type.  If one is untyped, the typed one wins.
 with_relative_control :: Score.Control -> ControlOp -> Score.TypedSignal
     -> Deriver a -> Deriver a
-with_relative_control cont (op, ident) signal deriver = do
+with_relative_control cont (ControlOp _ op ident) signal deriver = do
     controls <- get_controls
     let old = Map.findWithDefault ident_sig cont controls
     with_control cont (apply old signal) deriver
@@ -275,6 +275,24 @@ get_control_op c_op = do
     op_map <- gets (state_control_op_map . state_constant)
     maybe (throw ("unknown control op: " ++ show c_op)) return
         (Map.lookup c_op op_map)
+
+modify_control :: ControlOp -> Score.Control -> Signal.Control -> Deriver ()
+modify_control op control signal = Internal.modify_collect $ \collect ->
+    collect { collect_control_modifications =
+        ControlModification control signal op
+            : collect_control_modifications collect }
+
+-- | Apply the collected control modifications to the given deriver and clear
+-- them out.
+apply_control_modifications :: Deriver a -> Deriver a
+apply_control_modifications deriver = do
+    mods <- gets (collect_control_modifications . state_collect)
+    Internal.modify_collect $ \collect ->
+        collect { collect_control_modifications = [] }
+    foldr ($) deriver (map apply mods)
+    where
+    apply (ControlModification control signal op) =
+        with_relative_control control op (Score.untyped signal)
 
 -- ** pitch
 

@@ -349,6 +349,9 @@ e_control :: String -> Score.Event -> [(RealTime, Signal.Y)]
 e_control cont event = maybe [] (Signal.unsignal . Score.typed_val) $
     Map.lookup (Score.Control cont) (Score.event_controls event)
 
+e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
+e_dyn = e_control ((\(Score.Control c) -> c) Score.c_dynamic)
+
 e_pitch :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_pitch e = signal_to_nn $
     PitchSignal.apply_controls (Score.event_controls e) (Score.event_pitch e)
