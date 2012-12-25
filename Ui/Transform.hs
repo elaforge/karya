@@ -124,6 +124,23 @@ safe_map_keys name f fm0
         ++ show (Map.keys (Map.difference fm0 fm1))
     where fm1 = Map.mapKeys f fm0
 
+-- * namespace
+
+
+-- | Destroy all views, blocks, tracks, and rulers with the given namespace.
+destroy_namespace :: (State.M m) => Id.Namespace -> m ()
+destroy_namespace ns = do
+    -- Will destroy any views too.
+    mapM_ State.destroy_block
+        =<< State.gets (in_ns . Map.keys . State.state_blocks)
+    mapM_ State.destroy_track
+        =<< State.gets (in_ns . Map.keys . State.state_tracks)
+    mapM_ State.destroy_ruler
+        =<< State.gets (in_ns . Map.keys . State.state_rulers)
+    where
+    in_ns :: (Id.Ident a) => [a] -> [a]
+    in_ns = filter $ (==ns) . Id.ident_namespace
+
 
 -- * merge
 

@@ -83,7 +83,7 @@ state_to_clip :: (Cmd.M m) => State.State -> m ()
 state_to_clip state = state_to_namespace state clip_namespace
 
 clear_clip :: (Cmd.M m) => m ()
-clear_clip = destroy_namespace clip_namespace
+clear_clip = Transform.destroy_namespace clip_namespace
 
 -- * copy
 
@@ -216,7 +216,7 @@ stretch (start, end) (clip_s, clip_e) = map reposition
 -- will be flattened into one.  Any collisions will throw an exception.
 state_to_namespace :: (State.M m) => State.State -> Id.Namespace -> m ()
 state_to_namespace state ns = do
-    destroy_namespace ns
+    Transform.destroy_namespace ns
     state2 <- set_namespace ns state
     global_st <- State.get
     merged <- State.require_right "merge states"
@@ -233,21 +233,6 @@ set_namespace ns state = do
         Transform.map_view_ids (Id.set_namespace ns)
         Transform.map_block_ids (Id.set_namespace ns)
         Transform.map_track_ids (Id.set_namespace ns)
-
--- | Destroy all views, blocks, tracks, and rulers with the given namespace.
--- TODO move this to Ui.State?
-destroy_namespace :: (State.M m) => Id.Namespace -> m ()
-destroy_namespace ns = do
-    let in_ns :: (Id.Ident a) => [a] -> [a]
-        in_ns = filter $ (==ns) . Id.ident_namespace
-    block_ids <- in_ns <$> State.all_block_ids
-    blocks <- mapM State.get_block block_ids
-    let track_ids = Seq.unique $ concatMap Block.block_track_ids blocks
-        ruler_ids = Seq.unique $ concatMap Block.block_ruler_ids blocks
-    -- Will destroy any views too.
-    mapM_ State.destroy_block block_ids
-    mapM_ State.destroy_track (in_ns track_ids)
-    mapM_ State.destroy_ruler (in_ns ruler_ids)
 
 -- ** paste
 
