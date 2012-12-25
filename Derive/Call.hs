@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, RankNTypes #-}
 {- | Basic module for call evaluation.
 
     It should also have Deriver utilities that could go in Derive, but are more
@@ -95,6 +95,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Signal as Signal
 import Types
 
 
@@ -175,8 +176,28 @@ data TrackInfo = TrackInfo {
     , tinfo_type :: !TrackInfo.Type
     }
 
-type GetLastSample d =
-    Maybe (RealTime, Derive.Elem d) -> d -> Maybe (RealTime, Derive.Elem d)
+-- | Given the previous sample and derivation results, get the last sample from
+-- the results.
+--
+-- Technically only the last sample part varies, this signature allows note
+-- calls to avoid the work in 'get_last'.
+type GetLastSample d = forall x.  Maybe (RealTime, Derive.Elem d)
+    -> Either x (LEvent.LEvents d) -> Maybe (RealTime, Derive.Elem d)
+
+pitch_last_sample :: GetLastSample PitchSignal.Signal
+pitch_last_sample =
+    get_last (\prev chunk -> PitchSignal.last chunk `mplus` prev)
+
+control_last_sample :: GetLastSample Signal.Control
+control_last_sample =
+    get_last (\prev chunk -> Signal.last chunk `mplus` prev)
+
+get_last :: (val -> d -> val) -> val -> Either x [LEvent.LEvent d] -> val
+get_last _ prev (Left _) = prev
+get_last f prev (Right derived) =
+    case Seq.last (mapMaybe LEvent.event derived) of
+        Just elt -> f prev elt
+        Nothing -> prev
 
 -- | This is the toplevel function to derive a track.  It's responsible for
 -- actually evaluating each event.
@@ -209,12 +230,7 @@ derive_track state tinfo get_last_sample events =
         events = map LEvent.Log logs ++ case result of
             Right stream -> stream
             Left err -> [LEvent.Log (Derive.error_to_warn err)]
-        next_sample = case result of
-            Right derived ->
-                case Seq.last (mapMaybe LEvent.event derived) of
-                    Just elt -> get_last_sample prev_sample elt
-                    Nothing -> prev_sample
-            Left _ -> prev_sample
+        next_sample = get_last_sample prev_sample result
         next_repeat_call =
             repeat_call_of repeat_call (Event.event_bytestring cur)
 

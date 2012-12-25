@@ -204,7 +204,7 @@ derive_control is_tempo track expr = do
     deriver = do
         state <- Derive.get
         let (stream, collect) = Call.derive_track state tinfo
-                last_sample (tevents track)
+                Call.control_last_sample (tevents track)
         Internal.merge_collect collect
         -- I can use concat instead of merge_asc_events because the signals
         -- will be merged with Signal.merge and I don't care if the logs
@@ -220,7 +220,6 @@ derive_control is_tempo track expr = do
         , Call.tinfo_type =
             if is_tempo then TrackInfo.TempoTrack else TrackInfo.ControlTrack
         }
-    last_sample prev chunk = Signal.last chunk `mplus` prev
 
 derive_pitch :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Pitch)
@@ -234,7 +233,7 @@ derive_pitch track expr = do
     deriver = do
         state <- Derive.get
         let (stream, collect) = Call.derive_track state tinfo
-                last_sample (tevents track)
+                Call.pitch_last_sample (tevents track)
         Internal.merge_collect collect
         return (concat stream)
     tinfo = Call.TrackInfo
@@ -246,7 +245,6 @@ derive_pitch track expr = do
         , Call.tinfo_events_around = ([], [])
         , Call.tinfo_type = TrackInfo.PitchTrack
         }
-    last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
 tevents :: TrackTree.TrackEvents -> [Event.Event]
 tevents = Events.ascending . TrackTree.tevents_events
