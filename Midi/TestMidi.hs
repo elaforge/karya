@@ -63,9 +63,9 @@ test_midi (Right interface) = do
         ["record-sysex"] -> do
             (_, read_msg) <- open True rdevs Nothing
             record_sysex read_msg
-        ["send-sysex", out_dev] -> do
+        ["send-sysex", out_dev, fname] -> do
             (write_msg, _) <- open True [] (Just out_dev)
-            send_sysex write_msg
+            send_sysex write_msg fname
         ["help"] -> putStrLn usage
         ["melody", out_dev] -> do
             putStrLn "playing melody"
@@ -132,7 +132,7 @@ usage :: String
 usage = unlines
     [ "(no arg)             monitor all inputs"
     , "record-sysex         save incoming sysex msgs to files"
-    , "send-sysex <out>     read a raw sysex from stdin and send it to the port"
+    , "send-sysex <out> fn  read a raw sysex from fn and send it to the port"
     , "monitor <a> <b> ...  monitor input ports 'a' and 'b'"
     , "help                 print this usage"
     , "thru <out>           msgs from any input are relayed to <out>"
@@ -171,10 +171,13 @@ record_sysex read_msg = loop 0
             _ -> return False
         loop (if wrote then n+1 else n)
 
-send_sysex :: WriteMsg -> IO ()
-send_sysex write_msg = do
-    msg <- Midi.Parse.decode <$> ByteString.getContents
+send_sysex :: WriteMsg -> FilePath -> IO ()
+send_sysex write_msg fname = do
+    msg <- Midi.Parse.decode <$> ByteString.readFile fname
     write_msg (0, msg)
+    putStrLn "sending asynchronously, hit return when the blinkenlights stop"
+    _ <- getLine
+    return ()
 
 -- * monitor
 
@@ -285,8 +288,11 @@ test_sysex write_msg read_msg = do
             (ByteString.pack (take (size*1024) (cycle [0..9]) ++ [0xf7]))
     write_msg (0, msg)
     putStrLn "waiting for sysex to arrive..."
-    Just (out, secs) <- read_until 10 read_msg
-    putStrLn $ show secs ++ " seconds for " ++ show size ++ "k"
+    result <- read_until 10 read_msg
+    (out, secs) <- case result of
+        Nothing -> errorIO "no sysex arrived!"
+        Just val -> return val
+    putStrLn $ show secs ++ " seconds for " ++ show size ++ " bytes"
     let out_msg = Midi.rmsg_msg out
     void $ if out_msg == msg then success "sysex equal"
         else failure $ "got sysex: " ++ show out_msg
