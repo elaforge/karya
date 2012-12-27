@@ -88,15 +88,15 @@ test_lookup_put_rmap = do
             , ("rmap", RMap $ rmap [("a", RStr substr)])
             ]
         rm = make "str" 0 "substr"
-    let lookup :: (Sysex.RecordVal a) => String -> Val a
-        lookup k = Sysex.lookup_rmap k rm
+    let get :: (Sysex.RecordVal a) => String -> Val a
+        get k = Sysex.get_rmap k rm
         put :: (Show a, Sysex.RecordVal a) => String -> a -> Val Sysex.RMap
         put k v = Sysex.put_rmap k v rm
-    equal (lookup "str" :: Val String) (Right "str")
-    equal (lookup "rmap.a" :: Val String) (Right "substr")
-    left_like (lookup "str" :: Val Int) "str: expected a TNum"
-    left_like (lookup "rmap.a" :: Val Int) "rmap.a: expected a TNum"
-    left_like (lookup "rmap.z" :: Val Int) "rmap.z: not found"
+    equal (get "str" :: Val String) (Right "str")
+    equal (get "rmap.a" :: Val String) (Right "substr")
+    left_like (get "str" :: Val Int) "str: expected a TNum"
+    left_like (get "rmap.a" :: Val Int) "rmap.a: expected a TNum"
+    left_like (get "rmap.z" :: Val Int) "rmap.z: not found"
 
     equal (put "str" ("new" :: String)) $ Right (make "new" 0 "substr")
     equal (put "num" (10 :: Int)) $ Right (make "str" 10 "substr")
