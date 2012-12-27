@@ -157,8 +157,9 @@ signed64 :: Spec
 signed64 = ranged (-64) 63
 
 element_spec :: Specs
-element_spec = assert_valid "element_spec" 1480 $ controls_spec ++
-    [ ("trigger mode", unsigned 1) -- enum?
+element_spec = assert_valid "element_spec" 1480
+    [ ("control", SubSpec controls_spec)
+    , ("trigger mode", unsigned 1) -- enum?  starting at 62
     , ("xfade speed", unsigned 96)
     , ("interpolate speed", unsigned 50)
     , ("breath noise", SubSpec
@@ -175,7 +176,8 @@ element_spec = assert_valid "element_spec" 1480 $ controls_spec ++
         ])
     , ("throat formant", SubSpec
         [ ("pitch tracking", bool)
-        , ("pitch", unsigned 176) -- TODO -128 127 if pitch tracking == off
+        -- , ("pitch", unsigned 176) -- TODO -128 127 if pitch tracking == off
+        , ("pitch", ranged (-128) 127)
         , ("break", breakpoints127 8)
         , ("intensity", signed 127)
         , ("intensity break", breakpoints127 4)
@@ -238,11 +240,11 @@ controls_spec =
     , ("tonguing", c_simple)
     , ("amplitude", c_simple)
     , ("scream", c_complete)
-    , ("breath-noise", c_complete)
+    , ("breath noise", c_complete)
     , ("growl", c_complete)
-    , ("throat-formant", c_complete)
-    , ("dynamic-filter", c_simple)
-    , ("harmonic-enhancer", c_simple)
+    , ("throat formant", c_complete)
+    , ("dynamic filter", c_simple)
+    , ("harmonic enhancer", c_simple)
     , ("damping", c_simple)
     , ("absorption", c_simple)
     ]

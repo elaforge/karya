@@ -2,15 +2,9 @@ UNSORTED
   get vl1 working
     * fix parse failures
     ? lots of stuff replaced by nulls, but maybe it's reserved so it's ok?
-    - But even when I send with Sysex Librarian, vl1 has no response.  Maybe
+    * But even when I send with Sysex Librarian, vl1 has no response.  Maybe
       it doesn't receive buffer dumps like that?
-
-    - dump inst_db/vl1/vl1v2-factory/vl1_ver2.all over midi
-      - try dumping one to see if it works
-      - if not, load the patchman one, extract it from .all, compare
-    - modify pb ranges
     - figure out pressure flag
-    - dump a sysex patch to an arbitrary memory location
 
   - undo also undoes the clipboard, which makes undo, copy, redo, paste
     useless

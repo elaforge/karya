@@ -12,21 +12,21 @@ import Data.Word (Word8)
 
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
+import qualified Text.Printf as Printf
 
 import Util.Control
 import qualified Util.File as File
 import qualified Util.Log as Log
-import qualified Util.Num as Num
-import Util.Pretty (pprint)
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Midi.Parse
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Sysex as Sysex
-import qualified App.MidiInst as MidiInst
 import Local.Instrument.Vl1mSpec
+import qualified App.MidiInst as MidiInst
 
 
 synth_name :: String
@@ -41,53 +41,53 @@ builtin = "vl1v2-factory/vl1_ver2.all"
 -- | Read the patch file, scan the sysex dir, and save the results in a cache.
 make_db :: FilePath -> IO ()
 make_db dir = do
-    vc_patches <- parse_dir (dir </> synth_name </> "vc")
-    sysex_patches <- parse_dir (dir </> synth_name </> "sysex")
+    let dirs = map ((dir </> synth_name) </>)
+            ["vc", "sysex", "patchman1", "patchman2"]
+    patches <- concatMapM parse_dir dirs
     builtins <- parse_builtins (dir </> synth_name </> builtin)
-    MidiInst.save_patches synth (builtins ++ vc_patches ++ sysex_patches)
-        synth_name dir
+    MidiInst.save_patches synth (builtins ++ patches) synth_name dir
 
 synth :: Instrument.Synth
 synth = Instrument.synth synth_name []
 
 -- * parse
 
-test_check = do
-    bs <- fix_sysex <$> B.readFile "tmp/vl0.syx"
-    print (Num.hex (checksum bs))
-    -- fs <- File.list_dir "flugel"
-    -- forM_ fs $ \f -> do
-    --     bs <- fix_sysex <$> B.readFile f
-    --     print (f, checksum bs, Num.hex $ B.index bs (B.length bs - 2))
-
-test_split = do
-    bytes <- B.readFile $ "inst_db" </> synth_name </> builtin
-    let syxs = split_1bk (Just 0) bytes
-    forM_ (zip [0..] (take 1 syxs)) $ \(n, syx) ->
-        B.writeFile ("tmp/vl" ++ show n ++ ".syx") (unfix_sysex syx)
-
-test_record = do
-    -- let fn = "./inst_db/vl1/sysex/krikke/babyphon/septictank(vl1).syx"
-    -- let fn = "tmp/vl0.syx"
-    -- let fn = "record-sysex0.syx"
-    -- let fn = "inst_db/vl1/" ++ builtin
-    let fn = "inst_db/vl1/sysex/patchman/patchman1.syx"
+-- | Write .syx and .rec files for the contents of the given file.
+extract_syxs :: FilePath -> FilePath -> IO ()
+extract_syxs dir fn = do
     syxs <- file_to_syx fn
-    return $ map parse_sysex syxs
+    forM_ (zip [0..] syxs) $ \(n, syx) -> do
+        let Right rec = decode_sysex syx
+            Right name = Sysex.get_rmap "name" rec
+            fn = dir </> syx_fname n name
+        B.writeFile (fn ++ ".syx") syx
+        writeFile (fn ++ ".rec") (unlines (Sysex.show_flat rec))
 
-dump_instruments :: FilePath -> IO ()
-dump_instruments fn = do
-    results <- parse_file fn
-    let name_of = Instrument.inst_name . Instrument.patch_instrument
-    pprint $ map (fmap name_of) results
+syx_fname :: Int -> String -> FilePath
+syx_fname num name = Printf.printf "%03d.%s" num (MidiDb.clean_inst_name name)
 
--- ***  Local/Instrument/Vl1m.hs:91 [parse_dir] - parsing "./inst_db/vl1/sysex/krikke/babyphon/septictank(vl1).syx"/1: both elements off: SepticTank
--- ***  Local/Instrument/Vl1m.hs:91 [parse_dir] - parsing "./inst_db/vl1/sysex/krikke/babyphon/septictank(vl1).syx"/2: too few bytes
--- From:   demandInput
+send_to_buffer = modify
+    [ put_int "memory type" 0x7f
+    , put_int "memory number" 0
+    ]
 
-test_patch = do
-    Right r : _ <- test_record
-    return $ record_to_patch r
+send_to_patch num = modify
+    [ put_int "memory type" 0
+    , put_int "memory number" num
+    ]
+
+set_pitch_bend = modify
+    [ put_int "element.0.control.pitch.lower depth" (-12)
+    , put_int "element.0.control.pitch.upper depth" 12
+    , put_int "element.1.control.pitch.lower depth" (-12)
+    , put_int "element.1.control.pitch.upper depth" 12
+    ]
+
+modify :: (Monad m) => [a -> m a] -> a -> m a
+modify = foldr (<=<) return
+
+put_int :: String -> Int -> Sysex.RMap -> Either String Sysex.RMap
+put_int path int = Sysex.put_rmap path int
 
 parse_builtins :: FilePath -> IO [Instrument.Patch]
 parse_builtins fn = do
@@ -108,7 +108,7 @@ parse_file fn = do
     syxs <- file_to_syx fn
     txt <- fromMaybe "" <$>
         File.ignore_enoent (readFile (FilePath.replaceExtension fn ".txt"))
-    let results = map (record_to_patch <=< parse_sysex) syxs
+    let results = map (record_to_patch <=< decode_sysex) syxs
     return [either (Left . failed i) (Right . combine fn txt syx) result
         | (i, syx, result) <- zip3 [1..] syxs results]
     where
@@ -122,16 +122,20 @@ combine fn txt syx patch = Sysex.add_file fn $ patch
         Instrument.InitializeMidi [Midi.Parse.decode syx]
     }
 
-parse_sysex :: ByteString -> Either String Sysex.RMap
-parse_sysex bytes = fst <$> decode patch_spec bytes
+decode_sysex :: ByteString -> Either String Sysex.RMap
+decode_sysex bytes = fst <$> decode patch_spec bytes
+
+encode_sysex :: Sysex.RMap -> Either String ByteString
+encode_sysex = fmap append_suffix . encode patch_spec
 
 file_to_syx :: FilePath -> IO [ByteString]
-file_to_syx fn = map fix_sysex <$> case FilePath.takeExtension fn of
+file_to_syx fn = map add_extra_zero <$> case FilePath.takeExtension fn of
         ".all" -> split_1bk Nothing <$> B.readFile fn
         ".1vc" -> split_1vc <$> B.readFile fn
         ".1bk" -> split_1bk Nothing <$> B.readFile fn
         ".syx" -> split_syx <$> B.readFile fn
         ".txt" -> return []
+        ".rec" -> return []
         _ -> Log.warn ("skipping " ++ show fn) >> return []
     where
     -- | Convert .1vc format to .syx format.  Derived by looking at vlone70
@@ -150,16 +154,17 @@ split_1bk memory =
 
 -- | For some reason, some sysexes come out with a 0 for device numbers, and
 -- some omit it entirely.
-fix_sysex :: ByteString -> ByteString
-fix_sysex bytes
+add_extra_zero :: ByteString -> ByteString
+add_extra_zero bytes
     | B.isPrefixOf short bytes = long <> B.drop (B.length short) bytes
     | otherwise = bytes
     where
     long = B.pack [0xf0, Midi.yamaha_code, 0, 0x7a]
     short = B.pack [0xf0, Midi.yamaha_code, 0x7a]
 
-unfix_sysex bytes
-    | B.isPrefixOf long bytes = short <> B.drop 4 bytes
+drop_extra_zero :: ByteString -> ByteString
+drop_extra_zero bytes
+    | B.isPrefixOf long bytes = short <> B.drop (B.length long) bytes
     | otherwise = bytes
     where
     long = B.pack [0xf0, Midi.yamaha_code, 0, 0x7a]
@@ -198,15 +203,15 @@ type ElementInfo = (Control.PbRange, String, [(Midi.Control, [String])])
 
 record_to_patch :: Sysex.RMap -> Either String Instrument.Patch
 record_to_patch rmap = do
-    name <- lookup "name"
+    name <- get "name"
     elt1 <- extract_element 0 rmap
-    maybe_elt2 <- ifM ((=="dual") <$> lookup "voice mode")
+    maybe_elt2 <- ifM ((=="dual") <$> get "voice mode")
         (Just <$> extract_element 1 rmap)
         (return Nothing)
     vl1_patch name elt1 maybe_elt2
     where
-    lookup :: (Sysex.RecordVal a) => String -> Either String a
-    lookup = flip Sysex.lookup_rmap rmap
+    get :: (Sysex.RecordVal a) => String -> Either String a
+    get = flip Sysex.get_rmap rmap
 
 vl1_patch :: Instrument.InstrumentName -> ElementInfo
     -> Maybe ElementInfo -> Either String Instrument.Patch
@@ -228,25 +233,25 @@ vl1_patch name elt1 maybe_elt2 =
 extract_element :: Int -> Sysex.RMap -> Either String ElementInfo
 extract_element n rmap = do
     controls <- forM vl1_control_map $ \(name, has_upper_lower) -> do
-        cc <- lookup [name, "control"]
+        cc <- get ["control", name, "control"]
         depths <- if has_upper_lower
             then do
-                upper <- lookup [name, "upper depth"]
-                lower <- lookup [name, "lower depth"]
+                upper <- get ["control", name, "upper depth"]
+                lower <- get ["control", name, "lower depth"]
                 return [upper, lower]
-            else (:[]) <$> lookup [name, "depth"]
-        return (name, cc, depths)
-    pb_up <- lookup ["pitch", "upper depth"]
-    pb_down <- lookup ["pitch", "lower depth"]
-    name <- lookup ["name"]
+            else (:[]) <$> get ["control", name, "depth"]
+        return (clean name, cc, depths)
+    pb_up <- get ["control", "pitch", "upper depth"]
+    pb_down <- get ["control", "pitch", "lower depth"]
+    name <- get ["name"]
     return ((pb_up, pb_down), name, process_controls controls)
     where
-    lookup :: (Sysex.RecordVal a) => [String] -> Either String a
-    lookup k = Sysex.lookup_rmap (Seq.join "." (["element", show n] ++ k)) rmap
+    get :: (Sysex.RecordVal a) => [String] -> Either String a
+    get k = Sysex.get_rmap (Seq.join "." (["element", show n] ++ k)) rmap
     -- The vl1 mostly uses the midi control list, except sticks some
-    -- internal ones in there.
+    -- internal ones in there.  TODO 120 is aftertouch.
     valid_control cc = cc>0 && (cc<11 || cc>15) && cc<120
-    -- TODO 120 is aftertouch, which I could support if ControlMap did
+    clean = map (\c -> if c == ' ' then '-' else c)
 
     process_controls :: [(String, Midi.Control, [Word8])]
         -> [(Midi.Control, [String])]
@@ -274,10 +279,10 @@ vl1_control_map =
     , ("scream", False)
     , ("growl", False)
     , ("vibrato", False)
-    , ("dynamic-filter", False)
-    , ("throat-formant", False)
-    , ("breath-noise", False)
-    , ("harmonic-enhancer", False)
+    , ("dynamic filter", False)
+    , ("throat formant", False)
+    , ("breath noise", False)
+    , ("harmonic enhancer", False)
     , ("tonguing", False)
     , ("damping", False)
     , ("absorption", False)

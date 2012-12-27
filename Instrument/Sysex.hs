@@ -155,6 +155,20 @@ instance Pretty.Pretty Record where
         RUnion x -> Pretty.format x
         RUnparsed x -> Pretty.text $ show (B.length x) ++ " unparsed bytes"
 
+-- | Show an RMap as a flat list of paths and values.
+show_flat :: RMap -> [String]
+show_flat = show_map []
+    where
+    show_map fields = concatMap (uncurry (show1 fields)) . Map.toAscList
+    show1 fields field val = case val of
+            RMap rmap -> show_map (field : fields) rmap
+            RUnion rmap -> show_map (field : fields) rmap
+            RNum n -> [path ++ show n]
+            RStr s -> [path ++ s]
+            RUnparsed {} -> []
+        where
+        path = Seq.join "." (reverse (field : fields)) ++ ": "
+
 class RecordVal a where
     from_val :: a -> Record
     to_val :: Record -> Maybe a
@@ -190,8 +204,8 @@ record_type r = case r of
     RStr {} -> TStr
     RUnparsed {} -> TUnparsed
 
-lookup_rmap :: forall a. (RecordVal a) => String -> RMap -> Either String a
-lookup_rmap path rmap = to_val_error $ lookup1 (Seq.split "." path) rmap
+get_rmap :: forall a. (RecordVal a) => String -> RMap -> Either String a
+get_rmap path rmap = to_val_error $ lookup1 (Seq.split "." path) rmap
     where
     lookup1 [] _ = Left ([], "can't lookup empty field")
     lookup1 (field : fields) rmap = case Map.lookup field rmap of

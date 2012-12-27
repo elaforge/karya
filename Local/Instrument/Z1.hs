@@ -34,12 +34,17 @@ make_db dir = do
         (dir </> synth_name </> "bank_b.syx")
     sysex <- Sysex.parse_dir [current_program_dump, program_dump, sysex_manager]
         (dir </> synth_name </> "sysex")
-    MidiInst.save_patches synth (concat [bank_a, bank_b, sysex]) synth_name dir
+    MidiInst.save_patches synth
+        (map override_pb (concat [bank_a, bank_b, sysex])) synth_name dir
     where
     current_program_dump =
         fmap (:[]) . (rmap_to_patch <=< decode_current_program)
     program_dump = mapM rmap_to_patch <=< decode_program_dump
     sysex_manager = mapM rmap_to_patch <=< decode_sysex_manager
+    -- Each patch has its own pb range, but you can override them in the
+    -- multiset.
+    override_pb =
+        Instrument.instrument_#Instrument.pitch_bend_range #= (-24, 24)
 
 synth :: Instrument.Synth
 synth = Instrument.synth synth_name synth_controls
@@ -159,19 +164,19 @@ encode_sysex encode_header encode_body = do
 
 rmap_to_patch :: Sysex.RMap -> Either String Instrument.Patch
 rmap_to_patch rmap = do
-    name <- lookup "name"
-    category <- lookup "category"
-    pb_range <- (,) <$> lookup "pitch bend.intensity -"
-        <*> lookup "pitch bend.intensity +"
-    osc1 <- lookup "osc.0.type"
-    osc2 <- lookup "osc.1.type"
+    name <- get "name"
+    category <- get "category"
+    pb_range <- (,) <$> get "pitch bend.intensity -"
+        <*> get "pitch bend.intensity +"
+    osc1 <- get "osc.0.type"
+    osc2 <- get "osc.1.type"
     return $ (Instrument.patch (Instrument.instrument name [] pb_range))
         { Instrument.patch_tags =
             [("category", category), ("z1-osc", osc1), ("z1-osc", osc2)]
         }
     where
-    lookup :: (Sysex.RecordVal a) => String -> Either String a
-    lookup = flip Sysex.lookup_rmap rmap
+    get :: (Sysex.RecordVal a) => String -> Either String a
+    get = flip Sysex.get_rmap rmap
 
 current_multi_data_dump :: Word8
 current_multi_data_dump = 0x69
