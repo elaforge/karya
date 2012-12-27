@@ -1,0 +1,8 @@
+#!/bin/zsh
+# Diff two binary files.
+
+alias od='od -v -A x -taxC'
+
+od $1 >/tmp/$(basename $1).od
+od $2 >/tmp/$(basename $2).od
+opendiff /tmp/$(basename $1).od /tmp/$(basename $2).od
