@@ -25,7 +25,7 @@ import qualified Local.Instrument.Pianoteq as Pianoteq
 import qualified Local.Instrument.Reaktor as Reaktor
 import qualified Local.Instrument.Spicy as Spicy
 import qualified Local.Instrument.Tassman as Tassman
-import qualified Local.Instrument.Vl1m as Vl1m
+import qualified Local.Instrument.Vl1 as Vl1
 import qualified Local.Instrument.Vsl as Vsl
 import qualified Local.Instrument.Z1 as Z1
 
@@ -37,7 +37,7 @@ synths :: [FilePath -> IO [Cmd.SynthDesc]]
 synths =
     [ Drumaxx.load, Fm8.load, Kontakt.load, Massive.load, Morpheus.load
     , Morphine.load, Pianoteq.load, Reaktor.load, Spicy.load, Tassman.load
-    , Vl1m.load, Vsl.load, Z1.load
+    , Vl1.load, Vsl.load, Z1.load
     ]
 
 -- | make_db functions for each synthesizer that needs more elaborate setup,
@@ -45,7 +45,7 @@ synths =
 dbs :: [(String, FilePath -> IO ())]
 dbs =
     [ (Morpheus.synth_name, Morpheus.make_db)
-    , (Vl1m.synth_name, Vl1m.make_db)
+    , (Vl1.synth_name, Vl1.make_db)
     , (Z1.synth_name, Z1.make_db)
     ]
 
@@ -68,7 +68,7 @@ load app_dir = do
 
 make_dbs :: FilePath -> IO ()
 make_dbs dir = mapM_ ($ dir </> Config.instrument_dir)
-    [Morpheus.make_db, Vl1m.make_db, Z1.make_db]
+    [Morpheus.make_db, Vl1.make_db, Z1.make_db]
 
 make_named_dbs :: [String] -> FilePath -> IO ()
 make_named_dbs names dir = mapM_ ($ dir </> Config.instrument_dir)

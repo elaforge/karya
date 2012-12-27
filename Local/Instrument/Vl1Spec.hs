@@ -1,4 +1,4 @@
-module Local.Instrument.Vl1mSpec (
+module Local.Instrument.Vl1Spec (
     encode, decode
     , vl1_header
     , patch_spec
@@ -31,7 +31,7 @@ vl1_header nbytes = B.pack
 
 -- * config
 
--- | From the Vl1m MIDI spec:
+-- | From the Vl1 MIDI spec:
 --
 -- > 0-127 => 00 - 7f
 -- > 0-127, 128-16383      => 0000 - 007f, 0100 - 7f7f

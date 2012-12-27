@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | Yamaha VL1 synthesizer.
-module Local.Instrument.Vl1m where
+module Local.Instrument.Vl1 where
 import Data.Bits ((.&.))
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
@@ -27,7 +27,7 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Sysex as Sysex
-import Local.Instrument.Vl1mSpec
+import Local.Instrument.Vl1Spec
 import qualified App.MidiInst as MidiInst
 
 
