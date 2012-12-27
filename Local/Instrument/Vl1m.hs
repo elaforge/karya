@@ -19,8 +19,10 @@ import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
+import qualified Midi.CC as CC
 import qualified Midi.Midi as Midi
 import qualified Midi.Parse
+
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
@@ -216,12 +218,15 @@ record_to_patch rmap = do
 vl1_patch :: Instrument.InstrumentName -> ElementInfo
     -> Maybe ElementInfo -> Either String Instrument.Patch
 vl1_patch name elt1 maybe_elt2 =
-    return $ (Instrument.patch inst)
-        { Instrument.patch_tags = map ((,) "vl1-element") names }
+    return $ (if is_pressure then MidiInst.pressure else id)
+        (Instrument.patch inst)
+            { Instrument.patch_tags = map ((,) "vl1-element") names }
     where
     inst = Instrument.instrument name cmap pb_range
     (pb_ranges, names, cc_groups) =
         unzip3 $ elt1 : Maybe.maybeToList maybe_elt2
+    -- If it has a pressure control, then assume it's a breath patch.
+    is_pressure = CC.breath `elem` map fst cmap
 
     -- Optimistically take the widest range.
     Just pb_range = Seq.maximum_on (\(low, high) -> max (abs low) (abs high))

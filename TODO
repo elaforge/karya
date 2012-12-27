@@ -1,10 +1,11 @@
 UNSORTED
+  - pressure insts should send breath cc on kbd input
   get vl1 working
     * fix parse failures
     ? lots of stuff replaced by nulls, but maybe it's reserved so it's ok?
     * But even when I send with Sysex Librarian, vl1 has no response.  Maybe
       it doesn't receive buffer dumps like that?
-    - figure out pressure flag
+    * figure out pressure flag
 
   - undo also undoes the clipboard, which makes undo, copy, redo, paste
     useless
