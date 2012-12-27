@@ -201,6 +201,9 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
 
 -- | Are the controls equal in the given range?
 --
+-- Notes with differing @c_aftertouch@ can always share, since they are
+-- addressed by MIDI key.  If the key is the same, they already can't share.
+--
 -- Previously I insisted that the controls be identical, but now I check within
 -- the overlapping range only.  What's more, I only check where the events
 -- actually overlap, not including decay time.
@@ -493,7 +496,7 @@ perform_control_msgs prev_note_off next_note_on event (dev, chan) midi_nn =
     control_sigs = Map.assocs (event_controls event)
     cmap = Instrument.inst_control_map (event_instrument event)
     (control_pos_msgs, clip_warns) = unzip $
-        map (perform_control cmap prev_note_off note_on) control_sigs
+        map (perform_control cmap prev_note_off note_on midi_nn) control_sigs
     pitch_pos_msgs = perform_pitch (event_pb_range event)
         midi_nn prev_note_off note_on (event_pitch event)
     note_on = event_start event
@@ -560,11 +563,11 @@ perform_pitch pb_range nn prev_note_off start sig =
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
-perform_control :: Control.ControlMap -> RealTime -> RealTime
+perform_control :: Control.ControlMap -> RealTime -> RealTime -> Midi.Key
     -> (Control.Control, Signal.Control)
     -> ([(RealTime, Midi.ChannelMessage)], [ClipRange])
-perform_control cmap prev_note_off start (control, sig) =
-    case Control.control_constructor cmap control of
+perform_control cmap prev_note_off start midi_key (control, sig) =
+    case Control.control_constructor cmap control midi_key of
         Nothing -> ([], []) -- TODO warn about a control not in the cmap
         Just ctor -> ([(x, ctor y) | (x, y) <- pos_vals], clip_warns)
     where
@@ -576,7 +579,6 @@ perform_control cmap prev_note_off start (control, sig) =
         trim (Signal.unsignal clipped)
     trim = dropWhile ((< start) . fst)
     (clipped, out_of_bounds) = Signal.clip_bounds sig
-        -- (tracef (\s -> (start, Signal.first s, Signal.last s)) sig)
     clip_warns = [(s, e) | (s, e) <- out_of_bounds]
 
 -- | I rely on postprocessing to eliminate the redundant msgs.

@@ -39,16 +39,16 @@ test_from_midi = do
             Midi.ChannelPressure 127, Midi.ControlChange 1 127]
     equal (thread state (map chan msgs))
         [ Nothing
-        , Just (InputNote.Control (nid 10) InputNote.c_poly_aftertouch 1)
-        -- note id not remembered after poly aftertouch
+        , Just (InputNote.Control (nid 10) InputNote.c_aftertouch 1)
+        -- note id not remembered after aftertouch
         , Nothing, Nothing
         ]
 
     equal (thread state (map chan (Midi.NoteOn 20 127 : msgs)))
         [ Just (InputNote.NoteOn (nid 20) (input 20) 1)
         , Just (InputNote.PitchChange (nid 20) (input 22))
-        , Just (InputNote.Control (nid 10) InputNote.c_poly_aftertouch 1)
-        , Just (InputNote.Control (nid 20) InputNote.c_aftertouch 1)
+        , Just (InputNote.Control (nid 10) InputNote.c_aftertouch 1)
+        , Just (InputNote.Control (nid 20) InputNote.c_pressure 1)
         , Just (InputNote.Control (nid 20) InputNote.c_mod 1)
         ]
 

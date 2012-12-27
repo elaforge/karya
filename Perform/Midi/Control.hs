@@ -2,8 +2,7 @@
 {- | Support for MIDI controls.
 -}
 module Perform.Midi.Control where
-import Control.DeepSeq
-import Control.Monad
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 
 import qualified Util.Num as Num
@@ -13,8 +12,6 @@ import qualified Derive.Score as Score
 import qualified Perform.Signal as Signal
 
 
--- TODO This means I can't map to aftertouch or something
--- so I have 3 levels: symbolic name, general midi control, specific cc
 type ControlMap = Map.Map Control Midi.Control
 
 control_map :: [(Midi.Control, String)] -> ControlMap
@@ -34,7 +31,7 @@ control_map_names cmap = [name | Control name <- Map.keys cmap]
 -- This is the MIDI performer's version of Control.  The more general
 -- Score.Control is converted along with Score.Events in
 -- Perform.Midi.Convert.
-newtype Control = Control String deriving (Eq, Ord, Show, Read, NFData)
+newtype Control = Control String deriving (Eq, Ord, Show, Read, DeepSeq.NFData)
 
 instance Pretty.Pretty Control where
     pretty (Control s) = '%' : s
@@ -44,40 +41,33 @@ instance Pretty.Pretty Control where
 type PbRange = (Int, Int)
 
 -- | Convert from a control to a function that creates its MIDI message.
-control_constructor :: ControlMap -> Control
+control_constructor :: ControlMap -> Control -> Midi.Key
     -> Maybe (Signal.Y -> Midi.ChannelMessage)
-control_constructor cmap cont = msum
-    [ Map.lookup cont special_controls
-    , fmap make_midi_cc (Map.lookup cont cmap)
-    , fmap make_midi_cc (Map.lookup cont universal_control_map)
-    ]
+control_constructor cmap cont key
+    | Just cc <- Map.lookup cont cmap =
+        Just $ Midi.ControlChange cc . val_to_cc
+    | Just cc <- Map.lookup cont universal_control_map =
+        Just $ Midi.ControlChange cc . val_to_cc
+    | cont == c_pressure = Just $ Midi.ChannelPressure . val_to_cc
+    | cont == c_aftertouch = Just $ Midi.Aftertouch key . val_to_cc
+    | otherwise = Nothing
 
 -- | True if the given control will be used by the MIDI performer.
 -- Takes a Score.Control because being a MIDI control is a precondition for
 -- conversion into 'Control'.
 is_midi_control :: ControlMap -> Score.Control -> Bool
 is_midi_control cmap control = cont == c_velocity
-    || Map.member cont special_controls
     || Map.member cont universal_control_map
     || Map.member cont cmap
+    || cont == c_pressure || cont == c_aftertouch
     where cont = convert_control control
-
-make_midi_cc :: Midi.Control -> Signal.Y -> Midi.ChannelMessage
-make_midi_cc cnum val = Midi.ControlChange cnum (val_to_cc val)
-
-special_controls :: Map.Map Control (Signal.Y -> Midi.ChannelMessage)
-special_controls = Map.fromList
-    [ (c_aftertouch, Midi.ChannelPressure . val_to_cc)
-    -- Don't include pitch becase it's handled separately.
-    -- doing c_poly_aftertouch is a bit trickier because it needs a note number
-    ]
 
 -- | True for controls that must have a channel to themselves.
 -- Midi controls are a subset of what I consider controls, since
 -- I include all variable note parameters.
 is_channel_control :: Control -> Bool
     -- Don't include c_pitch because that is checked for sharing separately.
-is_channel_control cont = cont `notElem` [c_velocity, c_poly_aftertouch]
+is_channel_control cont = cont `notElem` [c_velocity, c_aftertouch]
 
 control_range :: (Signal.Y, Signal.Y)
 control_range = (0, 1)
@@ -111,12 +101,11 @@ convert_control (Score.Control c) = Control c
 c_velocity :: Control
 c_velocity = convert_control Score.c_velocity
 
--- | I call channel pressure \"aftertouch\" because true aftertouch is so rare.
--- All controls here are per-note anyway.  Mainly I want to be able to reuse
--- "pressure" for breath / bow pressure.
-c_poly_aftertouch, c_aftertouch :: Control
-c_poly_aftertouch = Control "poly_aftertouch"
+c_aftertouch :: Control
 c_aftertouch = Control "aftertouch"
+
+c_pressure :: Control
+c_pressure = Control "pressure"
 
 -- ** cc controls
 

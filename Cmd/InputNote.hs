@@ -107,9 +107,9 @@ from_midi state rdev (Midi.ChannelMessage chan chan_msg) = case maybe_input of
         Midi.PitchBend val -> with_last_id $ \last_id ->
             PitchChange last_id (to_pitch val (id_to_key last_id))
         Midi.Aftertouch key val -> Just $
-            Control (key_to_id key) c_poly_aftertouch (to_val val)
+            Control (key_to_id key) c_aftertouch (to_val val)
         Midi.ChannelPressure val -> with_last_id $ \last_id ->
-            Control last_id c_aftertouch (to_val val)
+            Control last_id c_pressure (to_val val)
         _ -> Nothing
     to_pitch = pb_to_input (state_pb_range state)
     to_val v = fromIntegral v / 127
@@ -151,9 +151,11 @@ cc_control = Map.fromList [(cc, Score.Control c) | (cc, c) <- Control.cc_map]
 control_cc :: Map.Map Score.Control Midi.Control
 control_cc = Map.fromList [(Score.Control c, cc) | (cc, c) <- Control.cc_map]
 
-c_poly_aftertouch, c_aftertouch :: Score.Control
-c_poly_aftertouch = convert_control Control.c_poly_aftertouch
+c_aftertouch :: Score.Control
 c_aftertouch = convert_control Control.c_aftertouch
+
+c_pressure :: Score.Control
+c_pressure = convert_control Control.c_pressure
 
 convert_control :: Control.Control -> Score.Control
 convert_control (Control.Control s) = Score.Control s

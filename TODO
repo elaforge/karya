@@ -1,12 +1,25 @@
 UNSORTED
+  get vl1 working
+    * fix parse failures
+    ? lots of stuff replaced by nulls, but maybe it's reserved so it's ok?
+    - But even when I send with Sysex Librarian, vl1 has no response.  Maybe
+      it doesn't receive buffer dumps like that?
+
+    - dump inst_db/vl1/vl1v2-factory/vl1_ver2.all over midi
+      - try dumping one to see if it works
+      - if not, load the patchman one, extract it from .all, compare
+    - modify pb ranges
+    - figure out pressure flag
+    - dump a sysex patch to an arbitrary memory location
+
+  - undo also undoes the clipboard, which makes undo, copy, redo, paste
+    useless
   - maybe new control tracks should start with line render?
   fancy calls
     - approach and lower dyn
     * drop pitch and dyn
     - accelerating trill
     - overshoot pitch call, e.g. indian style
-  How to do controls that affect more than one control at a time?  E.g.
-    combined pitch and dyn.
 
   - convince spicy to use another string so legato works?
     I have to put it on another channel, but to do that automatically I have
@@ -37,9 +50,7 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
     But filtering the midi shows dyn controls mixed into both channels.
-  - support poly aftertouch
-    This is a control that can always be merged, but it needs to remember the
-    NoteOn key.
+  * support poly aftertouch
   - in addition, it seems the signal doesn't update if I change the default
     environ assignment on another track
   cache tracks
@@ -185,6 +196,7 @@ UNSORTED
       bang on it with tools/edit_spam.py and see if I can get a repro
         * Not happening.  What else is missing?
         - play notes, what if the corruption is in CoreMidi?
+          But then why would linux also crash, unless jack is also buggy?
       - I can use the same thing to watch memory.
     . It still happens without git, but seems less frequent.
       Maybe both libgit2 and finalization have a problem.

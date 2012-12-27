@@ -36,7 +36,7 @@ test_perform = do
                     Seq.sort_on Perform.event_start (map mkevent events)
             equal warns []
             return $ extract msgs
-        extract = map extract_msg . filter (Midi.is_note . Midi.wmsg_msg)
+        extract = map extract_dev_msg . filter (Midi.is_note . Midi.wmsg_msg)
 
     -- fractional notes get their own channels
     msgs <- f
@@ -113,12 +113,28 @@ test_perform = do
         , ("dev1", 2.0, 0, NoteOff 60 100)
         ]
 
+test_aftertouch = do
+    let f = map extract_msg . fst . perform midi_config1
+                . Seq.sort_on Perform.event_start . map event
+        event (pitch, start, dur, aftertouch) = mkevent
+            (inst1, pitch, start, dur,
+                [(Control.c_aftertouch, Signal.signal aftertouch)])
+    equal (f [("a", 0, 1, [(0, 1)]), ("b", 0, 1, [(0, 0)])])
+        [ (0, 0, PitchBend 0)
+        , (0, 0, Aftertouch Key.c4 127)
+        , (0, 0, NoteOn Key.c4 100)
+        , (0, 0, Aftertouch Key.cs4 0)
+        , (0, 0, NoteOn Key.cs4 100)
+        , (1, 0, NoteOff Key.c4 100)
+        , (1, 0, NoteOff Key.cs4 100)
+        ]
+
 test_controls_after_note_off = do
     -- Test that controls happen during note off, but don't interfere with
     -- other notes.  This corresponds to the comment in 'Perform.perform_note'.
     let f = map extract . fst . perform midi_config2 . map mkevent
-        extract msg = case extract_msg msg of
-            (_, start, _, m) -> (start, m)
+        extract msg = (start, m)
+            where (start, _, m) = extract_msg msg
         sig xs = [(vol_cc, Signal.signal xs)]
     let msgs = f
             [ (inst2, "a", 0, 1, sig [(0, 1), (1.95, 0.5)])
@@ -254,11 +270,16 @@ all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
 midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
 midi_cc_of _ = Nothing
 
-extract_msg :: Midi.WriteMessage -> (String, Double, Midi.Channel,
+extract_msg :: Midi.WriteMessage -> (Double, Midi.Channel, Midi.ChannelMessage)
+extract_msg wmsg = (time, chan, msg)
+    where (_, time, chan, msg) = extract_dev_msg wmsg
+
+extract_dev_msg :: Midi.WriteMessage -> (String, Double, Midi.Channel,
     Midi.ChannelMessage)
-extract_msg (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) =
+extract_dev_msg (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) =
     (Pretty.pretty dev, RealTime.to_seconds ts, chan, msg)
-extract_msg (Midi.WriteMessage _ _ msg) = error $ "unknown msg: " ++ show msg
+extract_dev_msg (Midi.WriteMessage _ _ msg) =
+    error $ "unknown msg: " ++ show msg
 
 test_perform_lazy = do
     let perform evts = perform_notes [(evt, (dev1, 0)) | evt <- evts]
@@ -456,7 +477,7 @@ test_perform_control = do
     let sig = (vol_cc, linear_interp
             [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
         (msgs, warns) = Perform.perform_control Control.empty_map
-            (secs 0) (secs 0) sig
+            (secs 0) (secs 0) 42 sig
 
     -- controls are not emitted after they reach steady values
     check $ all Midi.valid_chan_msg (map snd msgs)
