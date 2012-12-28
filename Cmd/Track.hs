@@ -34,13 +34,18 @@ get_track_cmds = do
     maybe_track_id <- State.event_track_at block_id tracknum
     track <- Cmd.require =<< Info.lookup_track_type block_id tracknum
 
-    icmds <- fromMaybe [] <$> case maybe_track_id of
-        Just track_id -> lookup_instrument_cmds block_id track_id
-        Nothing -> return Nothing
+    maybe_inst <- maybe (return Nothing) (lookup_instrument block_id)
+        maybe_track_id
+    track_title <- maybe (return Nothing) (fmap Just . State.get_track_title)
+        maybe_track_id
+    let icmds = case (track_title, maybe_inst) of
+            (Just title, Just inst) | TrackInfo.is_note_track title ->
+                Cmd.inst_cmds $ MidiDb.info_code inst
+            _ -> []
     edit_state <- Cmd.gets Cmd.state_edit
     let edit_mode = Cmd.state_edit_mode edit_state
     let note_cmd = NoteEntry.cmds_with_note (Cmd.state_kbd_entry edit_state)
-            (note_cmds edit_mode track)
+            (MidiDb.info_patch <$> maybe_inst) (note_cmds edit_mode track)
         tcmds = track_cmds edit_mode track
     kcmds <- keymap_cmds track
     -- The order is important:
@@ -55,14 +60,16 @@ get_track_cmds = do
     -- active, so they go last.
     return $ icmds ++ note_cmd : tcmds ++ kcmds
 
-lookup_instrument_cmds :: (Cmd.M m) => BlockId -> TrackId
-    -> m (Maybe [Cmd.Cmd])
-lookup_instrument_cmds block_id track_id =
+instrument_cmds :: (Cmd.M m) => TrackId -> Cmd.MidiInfo -> m (Maybe [Cmd.Cmd])
+instrument_cmds track_id inst =
     ifM (not . TrackInfo.is_note_track <$> State.get_track_title track_id)
-    (return Nothing) $
-        justm (Perf.lookup_instrument block_id (Just track_id)) $ \inst ->
-        justm (Cmd.lookup_instrument_info inst) $ \info ->
-        return $ Just $ Cmd.inst_cmds (MidiDb.info_code info)
+        (return Nothing)
+        (return $ Just $ Cmd.inst_cmds $ MidiDb.info_code inst)
+
+lookup_instrument :: (Cmd.M m) => BlockId -> TrackId -> m (Maybe Cmd.MidiInfo)
+lookup_instrument block_id track_id =
+    justm (Perf.lookup_instrument block_id (Just track_id)) $ \inst ->
+    Cmd.lookup_instrument_info inst
 
 -- | Cmds that use InputNotes, and hence must be called with
 -- 'NoteEntry.cmds_with_note'.

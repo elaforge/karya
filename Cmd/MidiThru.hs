@@ -71,19 +71,19 @@ cmd_midi_thru msg = do
         _ -> Cmd.abort
     score_inst <- Cmd.require =<< EditUtil.lookup_instrument
     scale_id <- EditUtil.get_scale_id
-    inst <- Cmd.get_midi_instrument Score.no_attrs score_inst
-    patch_scale <- Instrument.patch_scale <$> Cmd.get_midi_patch score_inst
-    let pb_range = Instrument.inst_pitch_bend_range inst
+    patch <- Cmd.get_midi_patch score_inst
 
     scale <- Cmd.get_scale "cmd_midi_thru" scale_id
     input <- Cmd.require_msg
         (Pretty.pretty scale_id ++ " doesn't have " ++ show input)
-        =<< map_scale patch_scale scale input
+        =<< map_scale (Instrument.patch_scale patch) scale input
 
     addrs <- Map.get [] score_inst <$> State.get_midi_alloc
     wdev_state <- Cmd.get_wdev_state
     let (thru_msgs, maybe_wdev_state) =
             input_to_midi pb_range wdev_state addrs input
+        pb_range = Instrument.inst_pitch_bend_range
+            (Instrument.patch_instrument patch)
     case maybe_wdev_state of
         Just wdev_state -> Cmd.modify_wdev_state (const wdev_state)
         Nothing -> return ()

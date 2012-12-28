@@ -1,9 +1,6 @@
 module Cmd.MidiThru_test where
-
 import Util.Test
-
 import qualified Midi.Midi as Midi
-
 import qualified Cmd.Cmd as Cmd
 import Cmd.CmdTest (note_on, note_off, control, pitch)
 import qualified Cmd.InputNote as InputNote
@@ -23,8 +20,10 @@ test_input_to_midi = do
     -- redundant and unrelated pitch_changes filtered
     equal (f [note_on 64 64 127, pitch 1 65, pitch 64 63,
             pitch 64 1, pitch 64 1])
-        [(0, Midi.NoteOn 64 127), (0, Midi.PitchBend (-0.5)),
-            (0, Midi.PitchBend (-1))]
+        [ (0, Midi.NoteOn 64 127)
+        , (0, Midi.PitchBend (-0.5))
+        , (0, Midi.PitchBend (-1))
+        ]
 
     -- null addrs discards msgs
     equal (thread_inputs [] Cmd.empty_wdev_state [note_on 1 1 127])
@@ -37,15 +36,17 @@ test_input_to_midi = do
     -- note off lets channel 2 be reused
     equal (f [note_on 1 1 127, note_on 2 2 127, note_on 3 3 127,
             note_off 3 127, note_on 4 4 127])
-        [(0, Midi.NoteOn 1 127), (1, Midi.NoteOn 2 127),
-            (2, Midi.NoteOn 3 127), (2, Midi.NoteOff 3 127),
-            (2, Midi.NoteOn 4 127)]
+        [ (0, Midi.NoteOn 1 127), (1, Midi.NoteOn 2 127)
+        , (2, Midi.NoteOn 3 127), (2, Midi.NoteOff 3 127)
+        , (2, Midi.NoteOn 4 127)
+        ]
 
     -- once assigned a note_id, controls get mapped to that channel
     equal (f [note_on 64 64 127, note_on 66 66 127,
             control 64 "mod" 127, control 66 "breath" 64])
-        [(0, Midi.NoteOn 64 127), (1, Midi.NoteOn 66 127),
-            (0, Midi.ControlChange 1 127), (1, Midi.ControlChange 2 64)]
+        [ (0, Midi.NoteOn 64 127), (1, Midi.NoteOn 66 127)
+        , (0, Midi.ControlChange 1 127), (1, Midi.ControlChange 2 64)
+        ]
 
 
 extract_msg (_, Midi.ChannelMessage chan msg) = (chan, msg)

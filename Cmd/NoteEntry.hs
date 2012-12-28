@@ -5,12 +5,10 @@
     cmds to enter notes and to "Cmd.MidiThru" which re-emits them as MIDI.
 -}
 module Cmd.NoteEntry where
-import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
@@ -20,6 +18,7 @@ import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.Score as Score
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 
 
@@ -50,29 +49,32 @@ import qualified Perform.Pitch as Pitch
 -- then mapped input to note.  PitchTrack would still need the scale.  I could
 -- reduce the scope of InputKey or eliminate it entirely for the more universal
 -- NoteNumber.  It seems like a wash at the moment.
-cmds_with_note :: Bool -> [Cmd.Cmd] -> Cmd.Cmd
-cmds_with_note kbd_entry cmds msg = do
+cmds_with_note :: Bool -> Maybe Instrument.Patch -> [Cmd.Cmd] -> Cmd.Cmd
+cmds_with_note kbd_entry maybe_patch cmds msg = do
     has_mods <- are_modifiers_down
-    kbd_note <- if kbd_entry && not has_mods
+    new_msgs <- if kbd_entry && not has_mods
         then do
             octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
-            last_note_id <- Cmd.wdev_last_note_id <$> Cmd.get_wdev_state
-            return $ kbd_input last_note_id octave msg
+            let is_pressure = maybe False
+                    (Instrument.has_flag Instrument.Pressure) maybe_patch
+            return $ kbd_input is_pressure octave msg
         else return Nothing
-    midi_note <- midi_input msg
-    let maybe_new_msg = kbd_note `mplus` midi_note
-    case maybe_new_msg of
-        Just Nothing -> return Cmd.Done
-        Just (Just new_msg) -> do
-            case new_msg of
-                Msg.InputNote (InputNote.NoteOn note_id _ _) ->
-                    Cmd.modify_wdev_state $ \wdev -> wdev
-                        { Cmd.wdev_last_note_id = Just note_id }
-                _ -> return ()
-            Cmd.run_subs cmds new_msg
-            return Cmd.Done -- I mapped a key, so I must be done
-        Just Nothing -> return Cmd.Done
+    new_msgs <- case new_msgs of
+        Nothing -> midi_input msg
+        Just msgs -> return $ Just msgs
+    case new_msgs of
         Nothing -> Cmd.run_subs cmds msg
+        Just msgs -> do
+            mapM_ send msgs
+            return Cmd.Done
+    where
+    send msg = do
+        case msg of
+            Msg.InputNote (InputNote.NoteOn note_id _ _) ->
+                Cmd.modify_wdev_state $ \wdev -> wdev
+                    { Cmd.wdev_last_note_id = Just note_id }
+            _ -> return ()
+        Cmd.run_subs cmds msg
 
 are_modifiers_down :: (Cmd.M m) => m Bool
 are_modifiers_down = fmap (not . Set.null) (Keymap.mods_down False)
@@ -81,36 +83,41 @@ are_modifiers_down = fmap (not . Set.null) (Keymap.mods_down False)
 
 -- | Convert a keyboard key-down to a 'Msg.InputNote'.
 --
--- The double Maybe this and 'midi_input' returns is a little confusing.
--- Nothing means there's no input.  Just Nothing means there was input, but
--- nothing to do.  Just Just means there was input and something should be done
--- with it.
-kbd_input :: Maybe InputNote.NoteId -> Pitch.Octave -> Msg.Msg
-    -> Maybe (Maybe Msg.Msg)
-kbd_input last_note_id octave (Msg.key -> Just (down, key)) = case down of
-    UiMsg.KeyRepeat
-        -- Just Nothing makes the repeats get eaten here, but make sure to only
-        -- suppress them if this key would have generated a note.
-        | Maybe.isJust msg -> Just Nothing
-        | otherwise -> Nothing
-    _ -> msg
+-- @Nothing@ means there's no input, @Just []@ means there was input, but
+-- nothing to do.
+kbd_input :: Bool -- ^ Whether this is a Pressure instrument or not.
+    -- Pressure instruments respond to breath, and a kbd entry note on will
+    -- emit an extra breath control.  This is convenient in practice because
+    -- kbd entry is for quick and easy input and breath control gets in the way
+    -- of that.
+    -> Pitch.Octave -> Msg.Msg -> Maybe [Msg.Msg]
+kbd_input is_pressure octave (Msg.key -> Just (down, key)) =
+    case down of
+        UiMsg.KeyRepeat
+            -- Just [] makes the repeats get eaten here, but make sure to only
+            -- suppress them if this key would have generated a note.
+            | Maybe.isJust msg -> Just []
+            | otherwise -> Nothing
+        _ -> msg
     where
-    msg = (fmap . fmap) Msg.InputNote
-        (key_to_input last_note_id octave (down==UiMsg.KeyDown) key)
+    msg = (fmap . fmap) Msg.InputNote $
+        key_to_input is_pressure octave (down == UiMsg.KeyDown) key
 kbd_input _ _ _ = Nothing
 
-key_to_input :: Maybe InputNote.NoteId -> Pitch.Octave -> Bool -> Key.Key
-    -> Maybe (Maybe InputNote.Input)
-key_to_input last_note_id oct down (Key.Char c)
-    | c == breath_on = Just $ breath (100/127) <$> last_note_id
-    | c == breath_off = Just $ breath 0 <$> last_note_id
-    | otherwise = (fmap . fmap)
-        (InputNote.from_key oct down) (Map.lookup c note_map)
+key_to_input :: Bool -> Pitch.Octave -> Bool -> Key.Key
+    -> Maybe [InputNote.Input]
+key_to_input is_pressure octave is_down (Key.Char c) =
+    case Map.lookup c note_map of
+        Nothing -> Nothing
+        Just Nothing -> Just []
+        Just (Just key) -> Just $ case InputNote.from_key octave is_down key of
+            input@(InputNote.NoteOn note_id _ _) | is_pressure ->
+                -- Breath goes second, otherwise thru won't think it belongs to
+                -- this note.
+                [input, breath note_id (100/127)]
+            input -> [input]
     where
-    breath_off = Keymap.physical_key '.'
-    breath_on = Keymap.physical_key '/'
-    breath val note_id = InputNote.Control note_id Score.c_breath val
-
+    breath note_id val = InputNote.Control note_id Score.c_breath val
 -- Special keys can fall through.
 key_to_input _ _ _ _ = Nothing
 
@@ -138,12 +145,12 @@ make_key_map oct = zipWith mk_input [0..]
 -- ** midi
 
 -- | Convert a 'Msg.Midi' msg into a 'Msg.InputNote'.
-midi_input :: (Cmd.M m) => Msg.Msg -> m (Maybe (Maybe Msg.Msg))
+midi_input :: (Cmd.M m) => Msg.Msg -> m (Maybe [Msg.Msg])
 midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
     rstate <- Cmd.get_rdev_state rdev
     case InputNote.from_midi rstate rdev midi_msg of
         Just (input, rstate2) -> do
             Cmd.set_rdev_state rdev rstate2
-            return (Just (Just (Msg.InputNote input)))
-        Nothing -> return (Just Nothing)
+            return $ Just [Msg.InputNote input]
+        Nothing -> return (Just [])
 midi_input _ = return Nothing

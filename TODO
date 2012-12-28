@@ -1,5 +1,5 @@
 UNSORTED
-  - pressure insts should send breath cc on kbd input
+  * pressure insts should send breath cc on kbd input
   get vl1 working
     * fix parse failures
     ? lots of stuff replaced by nulls, but maybe it's reserved so it's ok?
