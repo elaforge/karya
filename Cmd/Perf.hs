@@ -165,16 +165,6 @@ lookup_instrument block_id maybe_track_id =
     maybe (State.get_default State.default_instrument) return
         =<< lookup_val block_id maybe_track_id TrackLang.v_instrument
 
--- | Resolve the default instrument into whatever it probably resolves to
--- during derivation.
-resolve_instrument :: (Cmd.M m) => BlockId -> TrackNum -> Score.Instrument
-    -> m Score.Instrument
-resolve_instrument block_id tracknum inst
-    | inst /= Score.default_inst = return inst
-    | otherwise = do
-        track_id <- State.get_event_track_at block_id tracknum
-        fromMaybe inst <$> lookup_instrument block_id (Just track_id)
-
 -- | Lookup value from the deriver's Environ at the given block and (possibly)
 -- track.  See 'Derive.TrackDynamic' for details on the limitations here.
 --

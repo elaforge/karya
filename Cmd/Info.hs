@@ -116,8 +116,11 @@ note_of_pitch block_id tracknum = do
 
 -- * misc
 
--- | Get the instrument of a track, or fail.  Try to resolve the default
--- instrument based on the root performance.
+-- | Get the instrument of a track, or fail if it's not a note track.  This is
+-- different than 'Perf.lookup_instrument' because it looks at the track title
+-- first.  This is useful for new tracks which don't have a performance yet.
+-- But if the track title doesn't specify an instrument it falls back on
+-- 'Perf.lookup_instrument'.
 get_instrument_of :: (Cmd.M m) => BlockId -> TrackNum -> m Score.Instrument
 get_instrument_of block_id tracknum =
     State.require ("get_instrument_of expected a note track: "
@@ -126,9 +129,20 @@ get_instrument_of block_id tracknum =
 lookup_instrument_of :: (Cmd.M m) => BlockId -> TrackNum
     -> m (Maybe Score.Instrument)
 lookup_instrument_of block_id tracknum = do
-    track <- State.get_track =<< State.get_event_track_at block_id tracknum
-    justm (return $ TrackInfo.title_to_instrument (Track.track_title track)) $
-        \inst -> Just <$> Perf.resolve_instrument block_id tracknum inst
+    track_id <- State.get_event_track_at block_id tracknum
+    track <- State.get_track track_id
+    case TrackInfo.title_to_instrument (Track.track_title track) of
+        Nothing -> Perf.lookup_instrument block_id (Just track_id)
+        Just inst -> Just <$> get_default_instrument block_id track_id inst
+
+-- | If the instrument is 'Score.default_inst', look up what it really is in
+-- the performance.
+get_default_instrument :: (Cmd.M m) => BlockId -> TrackId
+    -> Score.Instrument -> m Score.Instrument
+get_default_instrument block_id track_id inst
+    | inst == Score.default_inst =
+        fromMaybe inst <$> Perf.lookup_instrument block_id (Just track_id)
+    | otherwise = return inst
 
 
 -- * inst info
@@ -198,7 +212,7 @@ get_track_status block_id tracknum = do
     tree <- TrackTree.get_track_tree block_id
     case find_note_track tree tracknum of
         Just (track, inst) -> do
-            inst <- Perf.resolve_instrument block_id tracknum inst
+            inst <- get_default_instrument block_id (State.track_id track) inst
             Just <$> status block_id tree (State.track_tracknum track) inst
         Nothing -> return Nothing
     where
