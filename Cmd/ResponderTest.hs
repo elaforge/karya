@@ -215,8 +215,15 @@ make_rstate :: TVar.TVar [[Update.DisplayUpdate]]
     -> Chan.Chan Msg.Msg -> State.State -> Cmd.State -> Maybe CmdIO
     -> Responder.State
 make_rstate update_chan loopback_chan ui_state cmd_state maybe_cmd =
-    Responder.State config ui_state cmd_state lang_session loopback dummy_sync
-        play_monitor_state
+    Responder.State
+        { Responder.state_static_config = config
+        , Responder.state_ui = ui_state
+        , Responder.state_cmd = cmd_state
+        , Responder.state_session = lang_session
+        , Responder.state_loopback = loopback
+        , Responder.state_sync = dummy_sync
+        , Responder.state_monitor_state = play_monitor_state
+        }
     where
     play_monitor_state = Unsafe.unsafePerformIO (MVar.newMVar State.empty)
     config = StaticConfig.empty
