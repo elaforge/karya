@@ -35,7 +35,9 @@ repl :: Terminfo.Terminal -> Haskeline.InputT IO Bool
 repl term =
     -- Colorize the prompt to make it stand out.
     maybe (return False) ((>> return True) . handle)
-        =<< Haskeline.getInputLine (with_bg term Terminfo.Cyan "> ")
+        =<< Haskeline.getInputLine "> " -- (with_bg term Terminfo.Cyan "> ")
+        -- TODO disable the colered prompt for now, since it doesn't get along
+        -- with haskeline
     where
     handle line
         | null (Seq.strip line) = return ()
