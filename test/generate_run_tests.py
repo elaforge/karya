@@ -41,7 +41,7 @@ def main():
         lines = list(open(fn))
         test_defs[fn] = get_defs(list(enumerate(lines)))
         if not test_defs[fn]:
-            print >>sys.stderr, 'Warning: no test_* defs in %r' % fn
+            print >>sys.stderr, 'Warning: no (test|profile)_* defs in %r' % fn
         if init_func.search(''.join(lines)):
             init_funcs[fn] = '%s.initialize' % path_to_module(fn)
 
