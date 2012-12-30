@@ -122,9 +122,10 @@ data Status = Done | Continue | Quit
 
 -- | Arguments for "Cmd.PlayC.play".
 --
--- descriptive name, events, tempo func to display play position
+-- Descriptive name, events, tempo func to display play position, optional time
+-- to repeat at.
 data PlayMidiArgs = PlayMidiArgs !String !Midi.Perform.MidiEvents
-    !(Maybe Transport.InverseTempoFunction)
+    !(Maybe Transport.InverseTempoFunction) !(Maybe RealTime)
 instance Show PlayMidiArgs where
     show _ = "((PlayMidiArgs))"
 

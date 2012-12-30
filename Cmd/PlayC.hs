@@ -19,6 +19,7 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Thread as Thread
 
 import qualified Ui.Color as Color
@@ -87,15 +88,17 @@ set_all_play_boxes color =
 -- function is given, a play monitor thread.
 play :: State.State -> Transport.Info -> Cmd.PlayMidiArgs
     -> IO Transport.PlayControl
-play ui_state transport_info (Cmd.PlayMidiArgs name msgs maybe_inv_tempo) = do
-    (play_ctl, monitor_ctl) <- Midi.Play.play transport_info name msgs
+play ui_state transport_info
+        (Cmd.PlayMidiArgs name msgs maybe_inv_tempo repeat_at) = do
+    (play_ctl, monitor_ctl) <-
+        Midi.Play.play transport_info name msgs repeat_at
     -- Pass the current state in the MVar.  ResponderSync will keep it up
     -- to date afterwards, but only if blocks are added or removed.
     MVar.modifyMVar_ (Transport.info_state transport_info) $
         const (return ui_state)
     Trans.liftIO $ void $ Thread.start $ case maybe_inv_tempo of
         Just inv_tempo ->
-            play_monitor_thread transport_info monitor_ctl inv_tempo
+            play_monitor_thread transport_info monitor_ctl inv_tempo repeat_at
         Nothing -> passive_play_monitor_thread
             (Transport.info_send_status transport_info) monitor_ctl
     return play_ctl
@@ -110,9 +113,9 @@ passive_play_monitor_thread send monitor_ctl =
 -- | Run along the InverseTempoMap and update the play position selection.
 -- Note that this goes directly to the UI through Sync, bypassing the usual
 -- state diff folderol.
-play_monitor_thread :: Transport.Info
-    -> Transport.PlayMonitorControl -> Transport.InverseTempoFunction -> IO ()
-play_monitor_thread transport_info ctl inv_tempo_func = do
+play_monitor_thread :: Transport.Info -> Transport.PlayMonitorControl
+    -> Transport.InverseTempoFunction -> Maybe RealTime -> IO ()
+play_monitor_thread transport_info ctl inv_tempo_func repeat_at = do
     let get_now = Transport.info_get_current_time transport_info
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
@@ -124,6 +127,7 @@ play_monitor_thread transport_info ctl inv_tempo_func = do
             , monitor_inv_tempo_func = inv_tempo_func
             , monitor_active_sels = Set.empty
             , monitor_ui_state = Transport.info_state transport_info
+            , monitor_repeat_at = repeat_at
             }
     Exception.bracket_
         (Transport.info_send_status transport_info Transport.Playing)
@@ -132,16 +136,19 @@ play_monitor_thread transport_info ctl inv_tempo_func = do
 
 data UpdaterState = UpdaterState {
     monitor_ctl :: Transport.PlayMonitorControl
+    -- | When the monitor thread started.
     , monitor_offset :: RealTime
     , monitor_get_now :: IO RealTime
     , monitor_inv_tempo_func :: Transport.InverseTempoFunction
     , monitor_active_sels :: Set.Set (ViewId, [TrackNum])
     , monitor_ui_state :: MVar.MVar State.State
+    , monitor_repeat_at :: Maybe RealTime
     }
 
 monitor_loop :: UpdaterState -> IO ()
 monitor_loop state = do
-    now <- subtract (monitor_offset state) <$> monitor_get_now state
+    now <- maybe id (flip Num.fmod) (monitor_repeat_at state)
+        . subtract (monitor_offset state) <$> monitor_get_now state
     let fail err = Log.error ("state error in play monitor: " ++ show err)
             >> return []
     ui_state <- MVar.readMVar (monitor_ui_state state)

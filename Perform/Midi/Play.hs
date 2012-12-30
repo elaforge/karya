@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | This module is responsible for actually scheduling MIDI messages with the
 -- OS's MIDI driver.
-module Perform.Midi.Play (play) where
+module Perform.Midi.Play (play, cycle_messages) where
 import qualified Control.Exception as Exception
 
 import qualified Util.Log as Log
@@ -19,15 +19,18 @@ type Messages = [LEvent.LEvent Midi.WriteMessage]
 
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
-play :: Transport.Info -> String -> Messages
+play :: Transport.Info -> String -> Messages -> Maybe RealTime
+    -- ^ If given, loop back to the beginning when this time is reached.
     -> IO (Transport.PlayControl, Transport.PlayMonitorControl)
-play transport_info name midi_msgs = do
+play transport_info name msgs repeat_at = do
     state <- make_state transport_info
-    let ts_offset = state_time_offset state
-        -- Catch msgs up to realtime.
-        ts_midi_msgs = map (fmap (Midi.add_timestamp ts_offset)) midi_msgs
-    Thread.start_logged "render midi" (player_thread name state ts_midi_msgs)
+    now <- Transport.info_get_current_time transport_info
+    Thread.start_logged "render midi" $
+        player_thread name state (process now repeat_at msgs)
     return (state_play_control state, state_monitor_control state)
+    where
+    -- Catch msgs up to realtime and cycle them if I'm repeating.
+    process now repeat_at = shift_messages now . cycle_messages repeat_at
 
 player_thread :: String -> State -> Messages -> IO ()
 player_thread name state msgs = do
@@ -39,7 +42,20 @@ player_thread name state msgs = do
     Transport.player_stopped (state_monitor_control state)
     Log.debug $ "play complete: " ++ name
 
--- * implementation
+cycle_messages :: Maybe RealTime -> Messages -> Messages
+cycle_messages Nothing msgs = msgs
+cycle_messages (Just repeat_at) msgs =
+    go1 (takeWhile (LEvent.log_or ((<repeat_at) . Midi.wmsg_ts)) msgs)
+    where
+    go1 msgs = msgs ++ go (shift_messages repeat_at (strip msgs))
+    -- Don't bother writing logs the second time around.
+    go msgs = msgs ++ go (shift_messages repeat_at msgs)
+    strip = map LEvent.Event . LEvent.events_of
+
+shift_messages :: RealTime -> Messages -> Messages
+shift_messages ts = map (fmap (Midi.add_timestamp ts))
+
+-- * loop
 
 -- | Access to info that's needed by a particular run of the player.
 -- This is read-only, and shouldn't need to be modified.
@@ -47,19 +63,18 @@ data State = State {
     -- | Communicate into the Player.
     state_play_control :: !Transport.PlayControl
     , state_monitor_control :: !Transport.PlayMonitorControl
-
-    -- | When play started.  Timestamps relative to the block start should be
-    -- added to this to get absolute Timestamps.
-    , state_time_offset :: !RealTime
     , state_info :: !Transport.Info
     }
 
 make_state :: Transport.Info -> IO State
 make_state info = do
-    ts <- Transport.info_get_current_time info
     play_control <- Transport.play_control
     monitor_control <- Transport.play_monitor_control
-    return $ State play_control monitor_control ts info
+    return $ State
+        { state_play_control = play_control
+        , state_monitor_control = monitor_control
+        , state_info = info
+        }
 
 -- | 'play_msgs' tries to not get too far ahead of now both to avoid flooding
 -- the midi driver and so a stop will happen fairly quickly.

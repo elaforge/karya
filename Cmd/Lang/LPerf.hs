@@ -195,6 +195,7 @@ sel_midi = do
 play_midi :: Perform.MidiEvents -> Cmd.CmdL ()
 play_midi msgs = do
     let status = Cmd.PlayMidi $ Cmd.PlayMidiArgs "repl" (to_zero msgs) Nothing
+            Nothing
     Cmd.modify $ \st -> st { Cmd.state_repl_status = status }
     where
     to_zero msgs = PlayUtil.shift_messages 1 (PlayUtil.first_time msgs) msgs

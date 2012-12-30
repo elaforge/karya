@@ -85,6 +85,7 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PlayUtil as PlayUtil
@@ -102,32 +103,38 @@ import Types
 local_block :: (Cmd.M m) => m Cmd.PlayMidiArgs
 local_block = do
     block_id <- Cmd.get_focused_block
-    from_score block_id Nothing 0
+    from_score block_id Nothing 0 Nothing
 
+-- | Start playing from the point selection on the local block.  If the
+-- selection is a range, loop that range forever.
 local_selection :: (Cmd.M m) => m Cmd.PlayMidiArgs
 local_selection = do
-    (block_id, _, track_id, pos) <- Selection.get_insert
-    from_score block_id (Just track_id) pos
+    (block_id, _, track_id, _) <- Selection.get_insert
+    (_, sel) <- Selection.get
+    let (pos, repeat_at) = if Types.sel_is_point sel
+            then (Types.sel_start_pos sel, Nothing)
+            else Just <$> Types.sel_range sel
+    from_score block_id (Just track_id) pos repeat_at
 
 local_previous :: (Cmd.M m) => m Cmd.PlayMidiArgs
 local_previous = do
     step <- gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     prev <- TimeStep.rewind step block_id tracknum pos
-    from_score block_id (Just track_id) (fromMaybe 0 prev)
+    from_score block_id (Just track_id) (fromMaybe 0 prev) Nothing
 
 -- | Play the root block from the beginning.
 root_block :: (Cmd.M m) => m Cmd.PlayMidiArgs
 root_block = do
     block_id <- State.get_root_id
-    from_score block_id Nothing 0
+    from_score block_id Nothing 0 Nothing
 
 -- | Play the root performance from the selection on the root block.  This
 -- is useful to manually set a point to start playing.
 root_selection :: (Cmd.M m) => m Cmd.PlayMidiArgs
 root_selection = do
     (block_id, _, track_id, pos) <- Selection.get_root_insert
-    from_score block_id (Just track_id) pos
+    from_score block_id (Just track_id) pos Nothing
 
 -- | Find the previous step on the focused block, get its RealTime, and play
 -- from the root at that RealTime.
@@ -138,17 +145,20 @@ root_previous = do
     prev <- fromMaybe pos <$> TimeStep.rewind step block_id tracknum pos
     start <- get_realtime block_id (Just track_id) prev
     root_id <- State.get_root_id
-    from_realtime root_id start
+    from_realtime root_id start Nothing
 
 from_score :: (Cmd.M m) => BlockId
     -> Maybe TrackId -- ^ Track to play from.  Since different tracks can have
     -- different tempos, a track is needed to convert to RealTime.  If not
     -- given, use the first track that has tempo information.
     -> ScoreTime -- ^ Convert to RealTime and start playing from this time.
+    -> Maybe ScoreTime
     -> m Cmd.PlayMidiArgs
-from_score block_id start_track start_pos = do
+from_score block_id start_track start_pos repeat_at = do
     start <- get_realtime block_id start_track start_pos
-    from_realtime block_id start
+    repeat_at <- maybe (return Nothing)
+        (fmap Just . get_realtime block_id start_track) repeat_at
+    from_realtime block_id start repeat_at
 
 get_realtime :: (Cmd.M m) => BlockId -> Maybe TrackId -> ScoreTime
     -> m RealTime
@@ -164,8 +174,9 @@ get_realtime block_id track pos = do
         Just start -> return start
 
 -- | Play the performance of the given block starting from the given time.
-from_realtime :: (Cmd.M m) => BlockId -> RealTime -> m Cmd.PlayMidiArgs
-from_realtime block_id start = do
+from_realtime :: (Cmd.M m) => BlockId -> RealTime -> Maybe RealTime
+    -> m Cmd.PlayMidiArgs
+from_realtime block_id start repeat_at = do
     play_control <- gets Cmd.state_play_control
     when_just play_control $ \_ -> Cmd.throw "player already running"
 
@@ -184,6 +195,7 @@ from_realtime block_id start = do
     -- See doc for "Cmd.PlayC".
     return $ Cmd.PlayMidiArgs (Pretty.pretty block_id) msgs
         (Just (Cmd.perf_inv_tempo perf . (+start) . (/multiplier)))
+        (subtract start <$> repeat_at)
 
 lookup_current_performance :: (Cmd.M m) => BlockId -> m (Maybe Cmd.Performance)
 lookup_current_performance block_id = Map.lookup block_id <$>

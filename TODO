@@ -1,4 +1,17 @@
 UNSORTED
+  - per-instrument binds e.g. kendang, should work without kbd entry
+  - collapsing a bunch of tracks in pnovla is really slow.  What's it doing?
+    I think it's copying giant rulers.  Can I speed that up?
+    I could copy each ruler only once by keeping the C version with the Ruler
+    in haskell, and then passing a pointer, which C must release with
+    haskellFree.  Then haskell GC can manage it.
+  - On a similar topic, could I give one freeHaskellFunPtr to C once and for
+    all?  It's ok if that single one leaks, then I never have to allocate or
+    pass another one.
+  - Should fltk collapse adjacent dividers?
+  - Add track "disable", which is like the old mute, in that it removes it
+    entirely from derivation and rederives.
+
   * pressure insts should send breath cc on kbd input
   get vl1 working
     * fix parse failures
@@ -7,6 +20,9 @@ UNSORTED
       it doesn't receive buffer dumps like that?
     * figure out pressure flag
 
+  - haskeline doesn't get along with the prompt colorization in repl
+    I could get rid of it, but is there a way to get haskeline to understand
+    it?
   - undo also undoes the clipboard, which makes undo, copy, redo, paste
     useless
   - maybe new control tracks should start with line render?
@@ -187,6 +203,12 @@ UNSORTED
     - Run under EKG.  I thought I saw memory drop after scrolling the UI?
 
   ghc panics
+    - If it's the old alignment=1 thing, maybe it's a problem with
+      BlockModelConfig, maybe 4 just made it less likely to go over.
+      Go investigate all uses of BlockModelConfig in C++ and look for out of
+      bounds.
+    - Since it doesn't happen under edit_spam.py, maybe it's in kbd mouse
+      input?  Go look at UiMsgC?
     I need a way to reproduce the panics
       bang on it with tools/edit_spam.py and see if I can get a repro
         * Not happening.  What else is missing?
@@ -1035,9 +1057,8 @@ Cmd:
       pvid, etc., or the mangler turns <foo> into <current/foo>
 
   Cmd.Play
-    - play loops
+    * play loops
     - start playing from top of displayed area
-    - start playing from this block's position in the root block
 
   Undo
     + incremental save
