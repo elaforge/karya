@@ -75,7 +75,9 @@ import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Instrument.Db as Db
+
 import Cmd.Lang.Global
+import qualified Local.Instrument.Spicy as Spicy
 
 import qualified App.Config as Config
 import Types

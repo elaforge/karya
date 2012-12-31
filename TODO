@@ -7,7 +7,18 @@ UNSORTED
     I could copy each ruler only once by keeping the C version with the Ruler
     in haskell, and then passing a pointer, which C must release with
     haskellFree.  Then haskell GC can manage it.
-    - Timers on ruler copy first.
+    * Timers on ruler copy first.  Total is 0.6 sec, that's noticeable.
+    . One way is to make fun ptr, which just returns
+    . Make a C++ object with a ref count, then attach that to a ForeignPtr.
+      The Ruler creates the array and holds a ForeignPtr, this guarantees that
+      it remains alive as long as the Ruler exists.  Meanwhile, the refcount
+      in C++ retains it until c++ doesn't want it anymore.
+    - Put a refcount in Marklist.
+    - How does Ruler allocate one?  I guess it needs unsafePerformIO.
+    So this is kind of backpedaling on the decision to switch from callbacks
+    to just dumping the ruler over.  I made that decision because rulers
+    should change rarely.  But it seems kind of bogus because rulers have
+    *way more* data than tracks!
   * On a similar topic, could I give one freeHaskellFunPtr to C once and for
     all?  It's ok if that single one leaks, then I never have to allocate or
     pass another one.
@@ -29,6 +40,15 @@ UNSORTED
     it?
   - undo also undoes the clipboard, which makes undo, copy, redo, paste
     useless
+  - Add a "revert within selection" that searches backward for the last
+    change within the selection.
+  - Along those lines, should each block have its own independent history?
+    This is supported naturally by the git layout since each block has its own
+    file.  Wait, actually it's track, and that would be awkward if I undo one
+    block and it changes tracks on another.  How do a say what position
+    a block is in the history in that case?
+    . One appealing thing is that I don't necessarily want things like config
+      changes to be included in undo.
   - maybe new control tracks should start with line render?
   fancy calls
     - approach and lower dyn
@@ -36,12 +56,21 @@ UNSORTED
     - accelerating trill
     - overshoot pitch call, e.g. indian style
 
-  - convince spicy to use another string so legato works?
+  - Note.transform_note.with_attrs should apply all the attrs together
+  - simplify adding calls by putting Cmd.Instrument.Util.map_lookup in
+    MidiInst
+  - binding "" should also bind "n"
+  * convince spicy to use another string so legato works?
     I have to put it on another channel, but to do that automatically I have
     to know about the strings and figure out how to allocate.  Simpler would
     be to have a string attr which then puts the note on that midi channel.
     But the performer doesn't support that.
     It could, but seems like a hassle right now.
+
+    Instead, have spicy replace the null call with one that checks for
+    +a +e etc. attrs, and if one is set, sets instrument to spicy/xyz-a.
+    Then it also has a midi config to set up the correct string to channel
+    relationship.
   - z1/virus-bass has UnknownMessage for initialization?
   - browser has lots of empty space on the bottom
   * play monitor missing when I play from the beginning
