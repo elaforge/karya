@@ -34,6 +34,8 @@ import Types
 doc :: Cmd.CmdL Text.Text
 doc = CallDoc.doc_text <$> track_doc
 
+-- | Write HTML documentation for the selected track to
+-- @build/derive_doc.html@.
 html_doc :: Cmd.CmdL ()
 html_doc = do
     doc <- track_doc

@@ -24,28 +24,10 @@ import qualified Instrument.MidiDb as MidiDb
 import Types
 
 
--- * instrument config
+-- * instrument info
 
 lookup :: String -> Cmd.CmdL (Maybe Cmd.MidiInfo)
 lookup = Cmd.lookup_instrument_info . Score.Instrument
-
--- | Deallocate the old allocation, and set it to the new one.  Meant for
--- interactive use.
-realloc :: String -> String -> [Midi.Channel] -> Cmd.CmdL ()
-realloc inst_name wdev chans = do
-    let inst = Score.Instrument inst_name
-    dealloc_instrument inst
-    alloc_instrument inst [(Midi.write_device wdev, c) | c <- chans]
-
-dealloc :: String -> Cmd.CmdL ()
-dealloc = dealloc_instrument . Score.Instrument
-
-alloc :: String -> [Midi.Channel] -> Cmd.CmdL ()
-alloc inst_name chans = do
-    let inst = Score.Instrument inst_name
-    wdev <- maybe (Cmd.throw $ "inst not in db: " ++ Pretty.pretty inst) return
-        =<< device_of inst
-    alloc_instrument inst [(wdev, c) | c <- chans]
 
 inst_info :: String -> Cmd.CmdL String
 inst_info inst_name = Info.inst_info (Score.Instrument inst_name)
@@ -55,6 +37,35 @@ all_inst_info = do
     alloc <- State.get_midi_alloc
     info <- mapM Info.inst_info (Map.keys alloc)
     return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n\n" info
+
+-- * allocate a device and channels
+
+-- | Deallocate the old allocation, and set it to the new one.  Meant for
+-- interactive use.
+alloc :: String -> String -> [Midi.Channel] -> Cmd.CmdL ()
+alloc inst_name wdev chans = do
+    let inst = Score.Instrument inst_name
+    dealloc_instrument inst
+    alloc_instrument inst [(Midi.write_device wdev, c) | c <- chans]
+
+dealloc :: String -> Cmd.CmdL ()
+dealloc = dealloc_instrument . Score.Instrument
+
+-- | Allocate the given channels for the instrument using its default device.
+alloc_default :: String -> [Midi.Channel] -> Cmd.CmdL ()
+alloc_default inst_name chans = do
+    let inst = Score.Instrument inst_name
+    wdev <- maybe (Cmd.throw $ "inst not in db: " ++ Pretty.pretty inst) return
+        =<< device_of inst
+    alloc_instrument inst [(wdev, c) | c <- chans]
+
+-- | Merge the given config into the existing one.
+merge :: Instrument.Config -> Cmd.CmdL ()
+merge config = do
+    old <- State.get_midi_config
+    State.set_midi_config (config <> old)
+
+-- * rest
 
 -- | Steps to load a new instrument.  All of them are optional, depending on
 -- the circumstances.

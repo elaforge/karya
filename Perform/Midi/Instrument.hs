@@ -23,6 +23,7 @@ import Control.DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Vector
 
@@ -175,7 +176,7 @@ inst_decay = fromMaybe default_decay . inst_maybe_decay
 -- * config
 
 -- | Per-score instrument configuration.
-data Config = Config {
+newtype Config = Config {
     -- | An instrument may have multiple addresses assigned to it, which means
     -- that it can be multiplexed across multiple channels.  In addition,
     -- multiple instruments can be allocated to overlapping addresses, which is
@@ -183,13 +184,10 @@ data Config = Config {
     -- instrument wishing to use an address will emit an appropriate message to
     -- configure it (probably a keyswitch, possibly a program change).
     config_alloc :: Map.Map Score.Instrument [Addr]
-    } deriving (Eq, Read, Show)
+    } deriving (Monoid.Monoid, Eq, Read, Show)
 
 config :: [(Score.Instrument, [Addr])] -> Config
 config alloc = Config (Map.fromList alloc)
-
-empty_config :: Config
-empty_config = config []
 
 instance Pretty.Pretty Config where
     format (Config alloc) = Pretty.format alloc
