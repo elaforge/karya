@@ -3,10 +3,14 @@ module Util.Thread (
     , Seconds, delay
     , timeout
     , take_tmvar_timeout
+    -- * util
+    , time_action
 ) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
+
+import qualified System.CPUTime as CPUTime
 import qualified System.Timeout as Timeout
 
 import qualified Util.Log as Log
@@ -57,3 +61,17 @@ take_tmvar_timeout seconds tmvar = do
     Concurrent.killThread th1
     Concurrent.killThread th2
     return val
+
+-- * util
+
+-- | Time an IO action in seconds.  Technically not thread related, but I don't
+-- have a better place at the moment.
+time_action :: IO () -> IO Double
+time_action action = do
+    start <- CPUTime.getCPUTime
+    action
+    end <- CPUTime.getCPUTime
+    return $ cpu_to_sec (end - start)
+
+cpu_to_sec :: Integer -> Double
+cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
