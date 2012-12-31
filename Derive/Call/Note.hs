@@ -206,8 +206,9 @@ transform_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
 transform_note n_inst rel_attrs deriver = with_inst (with_attrs deriver)
     where
     with_inst = maybe id Derive.with_instrument n_inst
-    with_attrs =
-        foldl (.) id (map (Derive.with_val TrackLang.v_attributes) rel_attrs)
+    with_attrs
+        | null rel_attrs = id
+        | otherwise = Util.with_attrs (TrackLang.apply_attrs rel_attrs)
 
 process_note_args :: Maybe Score.Instrument
     -> [TrackLang.RelativeAttr] -> [TrackLang.Val]

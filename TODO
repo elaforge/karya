@@ -56,7 +56,7 @@ UNSORTED
     - accelerating trill
     - overshoot pitch call, e.g. indian style
 
-  - Note.transform_note.with_attrs should apply all the attrs together
+  * Note.transform_note.with_attrs should apply all the attrs together
   * simplify adding calls by putting Cmd.Instrument.Util.map_lookup in
     MidiInst
   * binding "" should also bind "n"

@@ -33,6 +33,7 @@ module Derive.TrackLang (
     module Derive.TrackLang, module Derive.BaseTypes, show_val
 ) where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -61,12 +62,15 @@ type CallId = Symbol
 symbol_string :: Symbol -> String
 symbol_string (Symbol t) = t
 
-set_attr :: RelativeAttr -> Score.Attributes -> Score.Attributes
-set_attr (RelativeAttr (mode, attr)) attrs = Score.Attributes $ case mode of
+apply_attr :: RelativeAttr -> Score.Attributes -> Score.Attributes
+apply_attr (RelativeAttr (mode, attr)) attrs = Score.Attributes $ case mode of
     Add -> Set.insert attr (Score.attrs_set attrs)
     Remove -> Set.delete attr (Score.attrs_set attrs)
     Set -> Set.singleton attr
     Clear -> Set.empty
+
+apply_attrs :: [RelativeAttr] -> Score.Attributes -> Score.Attributes
+apply_attrs = List.foldl' (.) id . map apply_attr
 
 -- | An empty instrument literal is a no-op, see 'VInstrument'.
 is_null_instrument :: Score.Instrument -> Bool
@@ -389,14 +393,14 @@ put_val name val environ = case maybe_old of
     new_val = case to_val val of
         VRelativeAttr rel_attr -> VAttributes $
             case maybe_old of
-                Just (VAttributes attrs) -> set_attr rel_attr attrs
-                _ -> set_attr rel_attr Score.no_attrs
+                Just (VAttributes attrs) -> apply_attr rel_attr attrs
+                _ -> apply_attr rel_attr Score.no_attrs
         _ -> to_val val
     environ_val name val environ = case to_val val of
         VRelativeAttr rel_attr -> VAttributes $
             case lookup_val name environ of
-                Just (VAttributes attrs) -> set_attr rel_attr attrs
-                _ -> set_attr rel_attr Score.no_attrs
+                Just (VAttributes attrs) -> apply_attr rel_attr attrs
+                _ -> apply_attr rel_attr Score.no_attrs
         new_val -> new_val
 
 -- | If a standard val gets set to the wrong type, it will cause confusing
