@@ -126,7 +126,7 @@ public:
     }
 
     void insert_track(int tracknum, const Tracklike &track, int width);
-    void remove_track(int tracknum, FinalizeCallback finalizer);
+    void remove_track(int tracknum);
     void set_display_track(int tracknum, const DisplayTrack &dtrack);
 
 private:
@@ -144,7 +144,7 @@ public:
     // 'start' to 'end' should be updated.  If 'end' is ScoreTime(0), the
     // entire range should be updated.
     void update_track(int tracknum, const Tracklike &track,
-            FinalizeCallback finalizer, ScoreTime start, ScoreTime end);
+        ScoreTime start, ScoreTime end);
 
     // Update the signal for this track.
     void set_track_signal(int tracknum, const TrackSignal &tsig);
@@ -210,7 +210,6 @@ private:
     static void title_cb(Fl_Widget *w, void *vp);
 };
 
-
 class BlockViewWindow : public Fl_Double_Window {
 public:
     BlockViewWindow(int X, int Y, int W, int H,
@@ -223,7 +222,7 @@ public:
 
     // This should be called once at app startup to do things that need to be
     // done once.
-    static void initialize();
+    static void initialize(Config::FreeHaskellFunPtr free_haskell_fun_ptr);
 protected:
     int handle(int evt);
 };

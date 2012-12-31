@@ -266,11 +266,9 @@ EventTrackView::time_end() const
 
 
 void
-EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
-        ScoreTime start, ScoreTime end)
+EventTrackView::update(const Tracklike &track, ScoreTime start, ScoreTime end)
 {
     ASSERT_MSG(track.track, "updated an event track with a non-event config");
-    finalizer((void *) this->config.find_events);
     if (track.ruler)
         this->overlay_ruler.set_config(false, *track.ruler, start, end);
     if (this->config.bg_color != track.track->bg_color) {
@@ -279,6 +277,8 @@ EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
     }
 
     TrackSignal tsig = this->config.track_signal;
+    Config::free_haskell_fun_ptr(
+        reinterpret_cast<void *>(this->config.find_events));
     this->config = *track.track;
     // Copy the previous track signal over even though it might be out of date
     // now.  At the least I can't forget the pointers or there's a leak.
@@ -302,9 +302,10 @@ EventTrackView::set_track_signal(const TrackSignal &tsig)
 
 
 void
-EventTrackView::finalize_callbacks(FinalizeCallback finalizer)
+EventTrackView::finalize_callbacks()
 {
-    finalizer((void *) this->config.find_events);
+    Config::free_haskell_fun_ptr(
+        reinterpret_cast<void *>(this->config.find_events));
     this->config.track_signal.free_signals();
     this->overlay_ruler.delete_config();
 }

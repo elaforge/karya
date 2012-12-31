@@ -9,4 +9,17 @@ const Color event_trigger_color = Color(255, 0, 0);
 const Color skeleton_display_bg = Color(0xb0, 0xb0, 0xb0);
 const Color block_bg = Color(0xcc, 0xcc, 0xcc);
 
+FreeHaskellFunPtr _free_haskell_fun_ptr = 0;
+
+void
+free_haskell_fun_ptr(void *val)
+{
+    if (_free_haskell_fun_ptr) {
+        _free_haskell_fun_ptr(val);
+    } else {
+        DEBUG("null _free_haskell_fun_ptr, someone didn't call"
+            " BlockViewWindow::initialize: "  << val);
+    }
+}
+
 }

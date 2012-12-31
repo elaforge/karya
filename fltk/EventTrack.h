@@ -133,11 +133,10 @@ public:
     }
     virtual void set_event_brightness(double d);
     virtual ScoreTime time_end() const;
-    virtual void update(const Tracklike &track, FinalizeCallback finalizer,
-            ScoreTime start, ScoreTime end);
+    virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end);
     // For the moment, only EventTracks can draw a signal.
     virtual void set_track_signal(const TrackSignal &tsig);
-    virtual void finalize_callbacks(FinalizeCallback finalizer);
+    virtual void finalize_callbacks();
     virtual std::string dump() const;
 
 protected:

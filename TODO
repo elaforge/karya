@@ -1,13 +1,17 @@
 UNSORTED
-  - per-instrument binds e.g. kendang, should work without kbd entry
+  / per-instrument binds e.g. kendang, should work without kbd entry
+    However, that means I take over NoEdit for audition, and that means that
+    un-modified keys are unreliable even in NoEdit mode.
   - collapsing a bunch of tracks in pnovla is really slow.  What's it doing?
     I think it's copying giant rulers.  Can I speed that up?
     I could copy each ruler only once by keeping the C version with the Ruler
     in haskell, and then passing a pointer, which C must release with
     haskellFree.  Then haskell GC can manage it.
-  - On a similar topic, could I give one freeHaskellFunPtr to C once and for
+    - Timers on ruler copy first.
+  * On a similar topic, could I give one freeHaskellFunPtr to C once and for
     all?  It's ok if that single one leaks, then I never have to allocate or
     pass another one.
+
   - Should fltk collapse adjacent dividers?
   - Add track "disable", which is like the old mute, in that it removes it
     entirely from derivation and rederives.

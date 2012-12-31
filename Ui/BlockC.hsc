@@ -132,10 +132,9 @@ destroy_view :: ViewId -> Fltk ()
 destroy_view view_id = do
     viewp <- get_ptr view_id
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
-        with_finalizer $ \finalize -> c_destroy viewp finalize
+        c_destroy viewp
         return $ Map.delete view_id ptr_map
-foreign import ccall "destroy"
-    c_destroy :: Ptr CView -> FunPtr (FunPtrFinalizer a) -> IO ()
+foreign import ccall "destroy" c_destroy :: Ptr CView -> IO ()
 
 -- ** Set other attributes
 
@@ -253,8 +252,7 @@ insert_track view_id tracknum tracklike merged set_style width = do
 remove_track :: ViewId -> TrackNum -> Fltk ()
 remove_track view_id tracknum = do
     viewp <- get_ptr view_id
-    with_finalizer $ \finalize ->
-        c_remove_track viewp (Util.c_int tracknum) finalize
+    c_remove_track viewp (Util.c_int tracknum)
 
 update_track :: Bool -- ^ True if the ruler has changed and should be copied
     -- over.  It's a bit of a hack to be a separate flag, but rulers are
@@ -264,11 +262,10 @@ update_track :: Bool -- ^ True if the ruler has changed and should be copied
 update_track update_ruler view_id tracknum tracklike merged set_style start
         end = do
     viewp <- get_ptr view_id
-    with_finalizer $ \finalize ->
-        with start $ \startp -> with end $ \endp ->
-            with_tracklike update_ruler merged set_style tracklike $
-                \tp mlistp len -> c_update_track viewp (Util.c_int tracknum)
-                        tp mlistp len finalize startp endp
+    with start $ \startp -> with end $ \endp ->
+        with_tracklike update_ruler merged set_style tracklike $
+            \tp mlistp len -> c_update_track viewp (Util.c_int tracknum)
+                    tp mlistp len startp endp
 
 -- | Like 'update_track' except update everywhere.
 update_entire_track :: Bool -> ViewId -> TrackNum -> Block.Tracklike
@@ -282,11 +279,10 @@ foreign import ccall "insert_track"
     c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
         -> Ptr Ruler.Marklist -> CInt -> IO ()
 foreign import ccall "remove_track"
-    c_remove_track :: Ptr CView -> CInt -> FunPtr (FunPtrFinalizer a) -> IO ()
+    c_remove_track :: Ptr CView -> CInt -> IO ()
 foreign import ccall "update_track"
     c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
-        -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
-        -> Ptr ScoreTime -> Ptr ScoreTime -> IO ()
+        -> Ptr Ruler.Marklist -> CInt -> Ptr ScoreTime -> Ptr ScoreTime -> IO ()
 
 -- | Unlike other Fltk functions, this doesn't throw if the ViewId is not
 -- found.  That's because it's called asynchronously when derivation is
@@ -298,20 +294,6 @@ set_track_signal view_id tracknum tsig = do
         c_set_track_signal viewp (Util.c_int tracknum) tsigp
 foreign import ccall "set_track_signal"
     c_set_track_signal :: Ptr CView -> CInt -> Ptr Track.TrackSignal -> IO ()
-
--- | When I do anything that will destroy previous callbacks, I have to pass
--- yet another callback which will be used to mark the old callbacks as done,
--- so that the haskell GC knows it can collect the data those callbacks use.
-type FunPtrFinalizer a = FunPtr a -> IO ()
-foreign import ccall "wrapper"
-    c_make_free_fun_ptr :: FunPtrFinalizer a -> IO (FunPtr (FunPtrFinalizer a))
-
-make_free_fun_ptr :: IO (FunPtr (FunPtrFinalizer a))
-make_free_fun_ptr = Util.make_fun_ptr "free_fun_ptr" $
-    c_make_free_fun_ptr Util.free_fun_ptr
-
-with_finalizer :: (FunPtr (FunPtrFinalizer a) -> IO c) -> IO c
-with_finalizer = Exception.bracket make_free_fun_ptr Util.free_fun_ptr
 
 -- | Convert a Tracklike into the set of pointers that c++ knows it as.
 -- A set of event lists can be merged into event tracks.

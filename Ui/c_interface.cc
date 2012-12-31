@@ -11,11 +11,11 @@ extern "C" {
 // UI Event
 
 void
-initialize()
+initialize(Config::FreeHaskellFunPtr finalize)
 {
     // DEBUG("lock");
     Fl::lock();
-    BlockViewWindow::initialize();
+    BlockViewWindow::initialize(finalize);
 }
 
 void
@@ -64,11 +64,11 @@ create(int x, int y, int w, int h, const char *label,
 
 
 void
-destroy(BlockViewWindow *view, FinalizeCallback finalizer)
+destroy(BlockViewWindow *view)
 {
     // Make sure all the callbacks are finalized.
     for (int i = view->block.tracks() - 1; i; i--)
-        view->block.remove_track(i, finalizer);
+        view->block.remove_track(i);
     delete view;
 }
 
@@ -191,16 +191,15 @@ insert_track(BlockViewWindow *view, int tracknum,
 }
 
 void
-remove_track(BlockViewWindow *view, int tracknum,
-        FinalizeCallback finalizer)
+remove_track(BlockViewWindow *view, int tracknum)
 {
-    view->block.remove_track(tracknum, finalizer);
+    view->block.remove_track(tracknum);
 }
 
 void
 update_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, Marklist *marklists, int nmarklists,
-        FinalizeCallback finalizer, ScoreTime *start, ScoreTime *end)
+        ScoreTime *start, ScoreTime *end)
 {
     RulerConfig *old_ruler = track->ruler;
     if (track->ruler) {
@@ -212,12 +211,12 @@ update_track(BlockViewWindow *view, int tracknum,
         for (int i = 0; i < nmarklists; i++)
             config.marklists.push_back(marklists[i]);
         track->ruler = &config;
-        view->block.update_track(tracknum, *track, finalizer, *start, *end);
+        view->block.update_track(tracknum, *track, *start, *end);
         // No one should be reading this afterwards, but don't leave it
         // pointing to out of scope memory.
         track->ruler = old_ruler;
     } else {
-        view->block.update_track(tracknum, *track, finalizer, *start, *end);
+        view->block.update_track(tracknum, *track, *start, *end);
     }
 }
 

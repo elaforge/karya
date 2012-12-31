@@ -386,8 +386,7 @@ RulerTrackView::set_zoom(const ZoomInfo &new_zoom)
 
 
 void
-RulerTrackView::update(const Tracklike &track, FinalizeCallback _finalizer,
-    ScoreTime start, ScoreTime end)
+RulerTrackView::update(const Tracklike &track, ScoreTime start, ScoreTime end)
 {
     ASSERT_MSG(track.ruler && !track.track,
         "updated a ruler track with an event track config");

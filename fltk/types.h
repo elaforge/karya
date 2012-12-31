@@ -8,11 +8,6 @@
 #include "util.h"
 
 
-// Pass the addresses of callbacks to this before they are replaced.  Won't be
-// valid outside of the specific function that passes it, such as update() or
-// remove_track().
-typedef void (*FinalizeCallback)(void *callback);
-
 // Display signals are in RealTime like all signals.  Since the score is in
 // ScoreTime they have to be converted at draw time.
 typedef double RealTime;

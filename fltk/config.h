@@ -7,6 +7,7 @@
 #include "util.h"
 #include "types.h"
 
+
 namespace Config {
 
 enum {
@@ -23,6 +24,14 @@ extern const Color event_trigger_color;
 
 extern const Color skeleton_display_bg;
 extern const Color block_bg;
+
+// Pass the addresses of callbacks to this before they are replaced.  This
+// lets the haskell GC know that C++ no longer references the given value.
+typedef void (*FreeHaskellFunPtr)(void *val);
+
+// private except to BlockViewWindow::initialize
+extern FreeHaskellFunPtr _free_haskell_fun_ptr;
+void free_haskell_fun_ptr(void *val);
 
 // Default sizes for a BlockView.
 //

@@ -14,6 +14,8 @@ import qualified Data.Word as Word
 import qualified Foreign
 import Foreign.C
 
+import qualified Util.Num as Num
+
 
 -- | This is similar to Ui.Types.UI, except that it's intended for the low
 -- level fltk operations.  The difference is that all fltk operations must be
@@ -21,12 +23,6 @@ import Foreign.C
 -- Currently this is just a synonym for IO, but in the future I could guarantee
 -- only the thread gets to run them with some newtype deriving magic.
 type Fltk = IO
-
-bounded_list def max_len xs = take max_len xs
-    ++ replicate (max_len - length xs) def
-
--- make this a hard bound and throw an exception if its out of range?
-bounded lo hi n = max lo (min hi n)
 
 -- | Throw if 'n' isn't between the half open range lo--hi.
 -- Do a fromIntegral as a bonus so it's easy to convert types at the same time.
@@ -44,15 +40,12 @@ c_nat :: Int -> CInt
 c_nat = c_int -- I don't check for > 0 yet, I should catch the c++ exception
 
 c_uchar :: Integral a => a -> CUChar
-c_uchar = fromIntegral . bounded 0 255
+c_uchar = fromIntegral . Num.clamp 0 255
 
-withForeignPtrs :: [Foreign.ForeignPtr a] -> ([Foreign.Ptr a] -> IO b) -> IO b
-withForeignPtrs fps f = withfp [] fps f
-    where
-    withfp ps [] f = f (reverse ps)
-    withfp ps (fp:rest) f = Foreign.withForeignPtr
-        fp (\p -> withfp (p:ps) rest f)
-
+-- | Forgetting to call freeHaskellFunPtr is an easy way to leak memory.
+-- So all FunPtrs should be created with this function, and always bee freed
+-- with 'free_fun_ptr'.  That way I can log creates and frees to ensure they
+-- are balanced.  Use @tools/track_funptr.py@ to automate that.
 make_fun_ptr :: String -> IO (Foreign.FunPtr a) -> IO (Foreign.FunPtr a)
 make_fun_ptr _name make = do
     fptr <- make

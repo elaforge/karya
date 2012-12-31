@@ -10,7 +10,7 @@ extern "C" {
 
 // UI Event
 
-void initialize();
+void initialize(Config::FreeHaskellFunPtr finalize);
 void ui_wait();
 void ui_awake();
 int get_ui_msgs(UiMsg **msgs);
@@ -26,7 +26,7 @@ void clear_ui_msgs();
 // This hack is also in insert_track.
 BlockViewWindow *create(int x, int y, int w, int h, const char *label,
     BlockModelConfig *model_config);
-void destroy(BlockViewWindow *view, FinalizeCallback finalizer);
+void destroy(BlockViewWindow *view);
 
 void set_size(BlockViewWindow *view, int x, int y, int w, int h);
 void get_size(BlockViewWindow *view, int *sz);
@@ -49,11 +49,10 @@ void set_display_track(BlockViewWindow *view, int tracknum,
 void insert_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, int width,
         Marklist *marklists, int nmarklists);
-void remove_track(BlockViewWindow *view, int tracknum,
-        FinalizeCallback finalizer);
+void remove_track(BlockViewWindow *view, int tracknum);
 void update_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, Marklist *marklists, int nmarklists,
-        FinalizeCallback finalizer, ScoreTime *start, ScoreTime *end);
+        ScoreTime *start, ScoreTime *end);
 void set_track_signal(BlockViewWindow *view, int tracknum, TrackSignal *tsig);
 void set_track_title(BlockViewWindow *view, int tracknum, const char *title);
 

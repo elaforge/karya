@@ -423,11 +423,11 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
 // removed from the ruler track.
 
 void
-BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
+BlockView::remove_track(int tracknum)
 {
     if (tracknum != 0) {
         TrackView *t = track_tile.remove_track(tracknum-1);
-        t->finalize_callbacks(finalizer);
+        t->finalize_callbacks();
         delete t;
 
         this->update_scrollbars();
@@ -513,11 +513,11 @@ BlockView::replace_ruler_track(TrackView *track, int width)
 
 void
 BlockView::update_track(int tracknum, const Tracklike &track,
-        FinalizeCallback finalizer, ScoreTime start, ScoreTime end)
+    ScoreTime start, ScoreTime end)
 {
     ASSERT_MSG(track.track || track.ruler || track.divider,
         "totally empty tracklike");
-    this->track_at(tracknum)->update(track, finalizer, start, end);
+    this->track_at(tracknum)->update(track, start, end);
     this->update_scrollbars();
 }
 
@@ -699,11 +699,12 @@ block_view_window_cb(Fl_Window *win, void *p)
 }
 
 
-BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
+BlockViewWindow::BlockViewWindow(
+        int X, int Y, int W, int H,
         const char *label,
         const BlockModelConfig &model_config) :
     Fl_Double_Window(
-            X, Y, std::max(min_width, W), std::max(min_height, H), label),
+        X, Y, std::max(min_width, W), std::max(min_height, H), label),
     block(X, Y, std::max(min_width, W), std::max(min_height, H), model_config),
     testing(false)
 {
@@ -738,8 +739,9 @@ BlockViewWindow::resize(int X, int Y, int W, int H)
 
 
 void
-BlockViewWindow::initialize()
+BlockViewWindow::initialize(Config::FreeHaskellFunPtr free_haskell_fun_ptr)
 {
+    Config::_free_haskell_fun_ptr = free_haskell_fun_ptr;
     // Setup event notification when a screen is added or removed.
     Fl::add_handler(MsgCollector::event_handler);
     MsgCollector::get()->screen_update();

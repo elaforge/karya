@@ -129,12 +129,11 @@ public:
         ruler.set_selection(selnum, tracknum, sel);
     }
     virtual ScoreTime time_end() const { return ruler.time_end(); }
-    virtual void update(const Tracklike &track, FinalizeCallback finalizer,
-            ScoreTime start, ScoreTime end);
+    virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end);
     virtual void set_track_signal(const TrackSignal &tsig) {
         DEBUG("WARNING: got a track signal on a ruler track!");
     }
-    virtual void finalize_callbacks(FinalizeCallback finalizer) {
+    virtual void finalize_callbacks() {
         ruler.delete_config();
     }
     virtual std::string dump() const;

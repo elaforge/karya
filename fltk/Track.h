@@ -76,13 +76,12 @@ public:
 
     // Return the end of the last event.
     virtual ScoreTime time_end() const { return ScoreTime(0); }
-    virtual void update(const Tracklike &track, FinalizeCallback finalizer,
-            ScoreTime start, ScoreTime end)
+    virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
     {}
     virtual void set_track_signal(const TrackSignal &tsig) = 0;
 
     // This is called before the object is deleted.
-    virtual void finalize_callbacks(FinalizeCallback finalizer) {}
+    virtual void finalize_callbacks() {}
 
     // Factory to generate the title widget for this track.  It should be
     // dynamically allocated because it will be passed to TrackTile who will
@@ -103,8 +102,7 @@ class DividerView : public TrackView {
 public:
     explicit DividerView(const DividerConfig &config);
     bool track_resizable() const { return false; }
-    virtual void update(const Tracklike &track, FinalizeCallback finalizer,
-            ScoreTime start, ScoreTime end)
+    virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
     {
         ASSERT_MSG(!(track.track || track.ruler),
             "updated a divider with a non-divider config");

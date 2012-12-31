@@ -132,7 +132,7 @@ player_bindings = concat
     -- The pattern is that the modifiers select where to start playing, and
     -- the key says whether it's the local block or from the root block.
     [ bind block local "play local block" Play.local_block
-    , bind sel local "play local selection" Play.local_selection
+    , bind sel local "play or loop local selection" Play.local_selection
     , bind prev local "play local previous step" Play.local_previous
     , bind block root "play root block" Play.root_block
     -- It plays from the selection on the root, instead of the local one, which
