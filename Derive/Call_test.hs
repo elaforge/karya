@@ -249,9 +249,8 @@ midi_db :: MidiDb.MidiDb Cmd.InstrumentCode
     where
     sdescs = MidiInst.make $ (MidiInst.softsynth "s" (-2, 2) [])
         { MidiInst.extra_patches = [(patch, code)] }
-    code = MidiInst.empty_code
-        { MidiInst.note_calls = [Derive.map_lookup calls] }
-    calls = Derive.make_calls [("sn", Instrument.Util.attrs_note Attrs.snare)]
+    code = MidiInst.note_calls
+        [("sn", Instrument.Util.attrs_note Attrs.snare)]
 
 lookup_inst :: Score.Instrument -> Maybe Derive.Instrument
 lookup_inst = fmap Cmd.derive_instrument . MidiDb.lookup_instrument midi_db

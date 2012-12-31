@@ -44,13 +44,13 @@ patches = concat [hang, wayang, kendang_patches]
         [inst "hang1" hang_ks, inst "hang2" hang_ks]
     wayang =
         [ (Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks,
-            with_tuning "umbang" wayang_code)
+            with_tuning "umbang" <> wayang_code)
         , (Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks,
-            with_tuning "isep" wayang_code)
+            with_tuning "isep" <> wayang_code)
         ]
     with_tuning tuning =
-        MidiInst.with_environ TrackLang.v_scale Wayang.scale_id
-        . MidiInst.with_environ TrackLang.v_tuning tuning
+        MidiInst.environ TrackLang.v_scale Wayang.scale_id
+        <> MidiInst.environ TrackLang.v_tuning tuning
     inst name ks = Instrument.set_keyswitches ks $
         Instrument.patch $ Instrument.instrument name [] pb_range
 
@@ -60,8 +60,8 @@ pb_range = (-12, 12)
 
 hang_code :: MidiInst.Code
 hang_code = MidiInst.empty_code
-    { MidiInst.note_calls = [Derive.map_lookup hang_calls]
-    , MidiInst.cmds = [hang_cmd]
+    { MidiInst.code_note_calls = [Derive.map_lookup hang_calls]
+    , MidiInst.code_cmds = [hang_cmd]
     }
 
 hang_calls :: Derive.NoteCallMap
@@ -92,8 +92,7 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 -- * gender wayang
 
 wayang_code :: MidiInst.Code
-wayang_code = MidiInst.empty_code
-    { MidiInst.note_calls = CUtil.map_lookup [("", DUtil.note0_attrs muted)] }
+wayang_code = MidiInst.null_call (DUtil.note0_attrs muted)
 
 wayang_ks :: [(Score.Attributes, Midi.Key)]
 wayang_ks = [(muted, Key.gs2), (open, Key.g2), (mempty, Key.g2)]
@@ -131,12 +130,10 @@ kendang_patches =
     lanang_name = "kendang-lanang"
 
 kendang_composite_code :: (Score.Instrument, Score.Instrument) -> MidiInst.Code
-kendang_composite_code insts@(wadon, lanang) = MidiInst.empty_code
-    { MidiInst.note_calls = CUtil.map_lookup $
-        ("realize", c_realize_kendang insts)
-            : CUtil.drum_calls (map (fst . fst) Drums.kendang_composite)
-    , MidiInst.cmds = [CUtil.inst_drum_cmd note_insts]
-    }
+kendang_composite_code insts@(wadon, lanang) =
+    MidiInst.note_calls (("realize", c_realize_kendang insts)
+        : CUtil.drum_calls (map (fst . fst) Drums.kendang_composite))
+    <> MidiInst.cmd (CUtil.inst_drum_cmd note_insts)
     where
     note_insts = [(note, key, inst_of kendang)
         | ((note, key), (_, kendang)) <- Drums.kendang_composite]

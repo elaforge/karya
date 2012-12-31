@@ -57,9 +57,9 @@ UNSORTED
     - overshoot pitch call, e.g. indian style
 
   - Note.transform_note.with_attrs should apply all the attrs together
-  - simplify adding calls by putting Cmd.Instrument.Util.map_lookup in
+  * simplify adding calls by putting Cmd.Instrument.Util.map_lookup in
     MidiInst
-  - binding "" should also bind "n"
+  * binding "" should also bind "n"
   * convince spicy to use another string so legato works?
     I have to put it on another channel, but to do that automatically I have
     to know about the strings and figure out how to allocate.  Simpler would

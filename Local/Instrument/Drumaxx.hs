@@ -12,11 +12,9 @@ import qualified App.MidiInst as MidiInst
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $ (MidiInst.softsynth "dmx" (-24, 24) [])
     { MidiInst.modify_wildcard = Util.drum_instrument notes
-    , MidiInst.code = MidiInst.empty_code
-        { MidiInst.note_calls = Util.map_lookup $
-            Util.drum_calls (map fst notes)
-        , MidiInst.cmds = [Util.drum_cmd notes]
-        }
+    , MidiInst.code =
+        MidiInst.note_calls (Util.drum_calls (map fst notes))
+        <> MidiInst.cmd (Util.drum_cmd notes)
     }
 
 -- | The octave numbers on the drummax are one greater than the standard

@@ -4,7 +4,6 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
-import qualified Cmd.Instrument.Util as CUtil
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
@@ -21,8 +20,7 @@ load _dir = return $ MidiInst.make $
         { MidiInst.modify_wildcard =
             (Instrument.instrument_#Instrument.hold_keyswitch #= True)
             . Instrument.set_keyswitches keyswitches
-        , MidiInst.code = MidiInst.empty_code
-            { MidiInst.note_calls = CUtil.map_lookup [("", note_call)] }
+        , MidiInst.code = MidiInst.null_call note_call
         }
 
 synth_name :: String

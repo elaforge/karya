@@ -6,7 +6,9 @@ module App.MidiInst (
     , make
     -- * code
     , Code(..), empty_code, with_code, with_empty_code
-    , with_environ, default_scale
+    , environ, note_calls, null_call
+    , cmd
+    , default_scale
 
     -- * making patches
     , patch, pressure
@@ -14,6 +16,7 @@ module App.MidiInst (
     -- * db
     , save_db, save_patches, load_db
 ) where
+import qualified Data.Monoid as Monoid
 import System.FilePath ((</>), (<.>))
 
 import Util.Control
@@ -73,11 +76,16 @@ make (Softsynth name pb_range controls extra_patches modify_wildcard code)
 -- | A version of 'Cmd.InstrumentCode' that's more convenient for record update
 -- syntax.
 data Code = Code {
-    note_calls :: [Derive.LookupCall Derive.NoteCall]
-    , val_calls :: [Derive.LookupCall Derive.ValCall]
-    , environ :: TrackLang.Environ
-    , cmds :: [Cmd.Cmd]
+    code_note_calls :: [Derive.LookupCall Derive.NoteCall]
+    , code_val_calls :: [Derive.LookupCall Derive.ValCall]
+    , code_environ :: TrackLang.Environ
+    , code_cmds :: [Cmd.Cmd]
     }
+
+instance Monoid.Monoid Code where
+    mempty = Code [] [] mempty []
+    mappend (Code a1 b1 c1 d1) (Code a2 b2 c2 d2) =
+        Code (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
 
 empty_code :: Code
 empty_code = Code [] [] mempty []
@@ -88,18 +96,33 @@ with_code code = map (\p -> (p, code))
 with_empty_code :: [Instrument.Patch] -> [Patch]
 with_empty_code = with_code empty_code
 
-with_environ :: (TrackLang.Typecheck a) => TrackLang.ValName -> a
-    -> Code -> Code
-with_environ name val code = code
-    { environ = TrackLang.insert_val name (TrackLang.to_val val) (environ code)
-    }
-
-default_scale :: Pitch.ScaleId -> Code -> Code
-default_scale = with_environ TrackLang.v_scale
-
 make_code :: Code -> Cmd.InstrumentCode
 make_code (Code note val environ cmds) =
     Cmd.InstrumentCode (Derive.InstrumentCalls note val) environ cmds
+
+-- ** code constructors
+
+-- | Add the given calls to the note track scope.
+note_calls :: [(String, Derive.NoteCall)] -> Code
+note_calls calls = mempty
+    { code_note_calls = [Derive.map_lookup (Derive.make_calls calls)] }
+
+-- | Add the given call as the null note call to the note track.  This also
+-- binds @n@, since @n@ is supposed to be the \"named\" way to call \"\".
+null_call :: Derive.NoteCall -> Code
+null_call call = note_calls [("", call), ("n", call)]
+
+cmd :: Cmd.Cmd -> Code
+cmd c = mempty { code_cmds = [c] }
+
+-- | The instrument will also set the given environ when it comes into scope.
+environ :: (TrackLang.Typecheck a) => TrackLang.ValName -> a -> Code
+environ name val = mempty
+    { code_environ = TrackLang.make_environ [(name, TrackLang.to_val val)] }
+
+-- | The instrument will set the given scale when it comes into scope.
+default_scale :: Pitch.ScaleId -> Code
+default_scale = environ TrackLang.v_scale
 
 -- * making patches
 
