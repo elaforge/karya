@@ -2,7 +2,7 @@
 -- | Basic calls for note tracks.
 module Derive.Call.Note (
     note_calls
-    , c_note, note_generate, note_transform
+    , c_note, transformed_note
     -- * inversion
     , when_under_inversion
     , inverting, inverting_around
@@ -59,28 +59,40 @@ note_calls = Derive.make_calls
 -- * note
 
 c_note :: Derive.NoteCall
-c_note = Derive.Call
+c_note = transformed_note "" id
+
+-- | Create a note call, but wrap the given transformer around the generator.
+transformed_note :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
+    -> Derive.NoteCall
+transformed_note doc transform = Derive.Call
     { Derive.call_name = "note"
-    , Derive.call_generator = Just $ Derive.generator_call
-        ("The note call is the main note generator, and will emit a single"
-            <> " score event. It interprets `>inst` and `+attr` args by"
-            <> " setting those fields of the event.  This is bound to the"
-            <> " null call, \"\", but any potential arguments would wind up"
-            <> " looking like a different call, so it's bound to `n` as well.")
-        (CallSig.parsed_manually note_arg_doc note_generate)
-    , Derive.call_transformer = Just $ Derive.transformer_call
-        ("This takes the same arguments as the generator and instead sets"
-            <> " those values in the transformed score, similar to the `=`"
-            <> " call.")
+    , Derive.call_generator = Just $ Derive.generator_call prepended
+        (CallSig.parsed_manually note_arg_doc (note_generate transform))
+    , Derive.call_transformer = Just $ Derive.transformer_call transformer_doc
         (CallSig.parsed_manually note_arg_doc note_transform)
     }
+    where
+    prepended
+        | null doc = generator_doc
+        | otherwise = "Modified note call: " ++ doc ++ "\n" ++ generator_doc
+    generator_doc =
+        "The note call is the main note generator, and will emit a single"
+        <> " score event. It interprets `>inst` and `+attr` args by"
+        <> " setting those fields of the event.  This is bound to the"
+        <> " null call, \"\", but any potential arguments would wind up"
+        <> " looking like a different call, so it's bound to `n` as well."
+    transformer_doc =
+        "This takes the same arguments as the generator and instead sets"
+        <> " those values in the transformed score, similar to the `=`"
+        <> " call."
 
-note_generate :: Derive.PassedArgs d -> Derive.EventDeriver
-note_generate = inverting generate
+note_generate :: (Derive.EventDeriver -> Derive.EventDeriver)
+    -> Derive.PassedArgs d -> Derive.EventDeriver
+note_generate transform = inverting generate
     where
     generate args = case process (Derive.passed_vals args) of
-        (inst, rel_attrs, []) ->
-            generate_note inst rel_attrs (Args.event args) (Args.next args)
+        (inst, rel_attrs, []) -> transform_note inst rel_attrs $
+            transform $ generate_note (Args.event args) (Args.next args)
         (_, _, invalid) -> Derive.throw_arg_error $
             "expected inst or attr: " ++ show invalid
     process = process_note_args Nothing []
@@ -107,19 +119,16 @@ note_arg_doc = "Variable number of `>inst` or `+attr`."
 
 -- ** generate
 
-generate_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
-    -> Event.Event -> ScoreTime -> Derive.EventDeriver
-generate_note n_inst rel_attrs event next_start = do
+generate_note :: Event.Event -> ScoreTime -> Derive.EventDeriver
+generate_note event next_start = do
     start <- Derive.real (Event.start event)
     end <- Derive.real (Event.end event)
     real_next <- Derive.real next_start
     -- Note that due to negative durations, the end could be before the start.
     -- What this really means is that the sounding duration of the note depends
     -- on the next one, which should be sorted out later by post processing.
-    inst <- case n_inst of
-        Just inst -> return inst
-        Nothing -> fromMaybe Score.default_inst <$>
-            Derive.lookup_val TrackLang.v_instrument
+    inst <- fromMaybe Score.default_inst <$>
+        Derive.lookup_val TrackLang.v_instrument
     environ <- Internal.get_dynamic Derive.state_environ
     let attrs = either (const Score.no_attrs) id $
             TrackLang.get_val TrackLang.v_attributes environ
@@ -140,11 +149,8 @@ generate_note n_inst rel_attrs event next_start = do
         , Score.event_instrument = inst
         , Score.event_environ =
             TrackLang.insert_val TrackLang.v_attributes
-                (TrackLang.VAttributes (apply rel_attrs attrs))
-                environ
+                (TrackLang.VAttributes attrs) environ
         }
-    where
-    apply rel_attrs = List.foldl' (.) id (map TrackLang.set_attr rel_attrs)
 
 -- | Interpret the c_start_rnd and c_dur_rnd controls.
 --

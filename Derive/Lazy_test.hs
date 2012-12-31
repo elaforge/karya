@@ -287,8 +287,7 @@ c_note :: Log -> Event.Event -> ScoreTime -> Derive.EventDeriver
 c_note log_mvar event next_start = do
     -- Call the real one to make sure I'm getting it's laziness
     -- characteristics.
-    [LEvent.Event sevent] <- Call.Note.generate_note Nothing [] event
-        next_start
+    [LEvent.Event sevent] <- Call.Note.generate_note event next_start
     st <- Derive.get_stack
     let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $
             stack ++ " note at: " ++ Pretty.pretty (Score.event_start sevent)
