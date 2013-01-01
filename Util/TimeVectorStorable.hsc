@@ -6,6 +6,7 @@
 -- copied to C, so they have to produce structs as expected by C.
 module Util.TimeVectorStorable where
 import Foreign
+import qualified Ui.Util as Util
 import qualified Perform.RealTime as RealTime
 
 
@@ -15,27 +16,16 @@ import qualified Perform.RealTime as RealTime
 
 type X = RealTime.RealTime
 
-instance Storable (X, Double) where
-    sizeOf _ = #size ControlSample
-    alignment _ = #{alignment ControlSample}
-    poke sp (time, val) = do
-        (#poke ControlSample, time) sp time
-        (#poke ControlSample, val) sp val
-    peek sp = do
-        time <- (#peek ControlSample, time) sp
-        val <- (#peek ControlSample, val) sp
-        return (time, val)
-
 instance Storable (Sample Double) where
     sizeOf _ = #size ControlSample
     alignment _ = #{alignment ControlSample}
     poke sp (Sample time val) = do
         (#poke ControlSample, time) sp time
-        (#poke ControlSample, val) sp val
+        (#poke ControlSample, val) sp (Util.c_double val)
     peek sp = do
         time <- (#peek ControlSample, time) sp
         val <- (#peek ControlSample, val) sp
-        return $ Sample time val
+        return $ Sample time (Util.hs_double val)
 
 data Sample y = Sample {
     sx :: {-# UNPACK #-} !X

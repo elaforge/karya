@@ -27,6 +27,7 @@ import qualified Util.Serialize as Serialize
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import Ui.ScoreTime (ScoreTime)
+import qualified Ui.Util as Util
 
 
 #include "Ui/c_interface.h"
@@ -79,10 +80,10 @@ instance Storable Zoom where
     peek zoomp = do
         offset <- (#peek ZoomInfo, offset) zoomp
         factor <- (#peek ZoomInfo, factor) zoomp :: IO CDouble
-        return $ Zoom offset (Num.c2d factor)
+        return $ Zoom offset (Util.hs_double factor)
     poke zoomp (Zoom offset factor) = do
         (#poke ZoomInfo, offset) zoomp offset
-        (#poke ZoomInfo, factor) zoomp (Num.d2c factor)
+        (#poke ZoomInfo, factor) zoomp (Util.c_double factor)
 
 -- | Convert a position at a given zoom factor to a pixel position.  Doesn't
 -- take the zoom offset into account.

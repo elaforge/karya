@@ -70,10 +70,10 @@ instance Storable GlyphC where
         encoded <- encode_utf8 str
         (#poke SymbolTable::Glyph, utf8) glyphp encoded
         (#poke SymbolTable::Glyph, font) glyphp font
-        (#poke SymbolTable::Glyph, size) glyphp size
-        (#poke SymbolTable::Glyph, align_x) glyphp align_x
-        (#poke SymbolTable::Glyph, align_y) glyphp align_y
-        (#poke SymbolTable::Glyph, rotate) glyphp rotate
+        (#poke SymbolTable::Glyph, size) glyphp (Util.c_int size)
+        (#poke SymbolTable::Glyph, align_x) glyphp (Util.c_double align_x)
+        (#poke SymbolTable::Glyph, align_y) glyphp (Util.c_double align_y)
+        (#poke SymbolTable::Glyph, rotate) glyphp (Util.c_int rotate)
 
 encode_utf8 :: String -> IO CString
 encode_utf8 = Util.unpackCString0 . UTF8.fromString

@@ -7,7 +7,6 @@ module Ui.RulerC (with_ruler, no_ruler) where
 import qualified Data.Map as Map
 import Foreign
 import Foreign.C
-import qualified Util.Num as Num
 
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Util as Util
@@ -68,9 +67,9 @@ poke_ruler rulerp (Ruler.Ruler mlists bg show_names align_to_bottom) = do
     -- and event track overlay rulers, so these are hardcoded.  This way the
     -- fltk layer doesn't have to know anything about that and simply does
     -- what it's told.
-    (#poke RulerConfig, use_alpha) rulerp True
-    (#poke RulerConfig, full_width) rulerp True
-    (#poke RulerConfig, align_to_bottom) rulerp align_to_bottom
+    (#poke RulerConfig, use_alpha) rulerp (Util.c_bool True)
+    (#poke RulerConfig, full_width) rulerp (Util.c_bool True)
+    (#poke RulerConfig, align_to_bottom) rulerp (Util.c_bool align_to_bottom)
     (#poke RulerConfig, last_mark_pos) rulerp
         (last_mark_pos (Map.elems mlists))
     where last_mark_pos mlists = maximum (0 : map Ruler.marklist_end mlists)
@@ -96,5 +95,5 @@ poke_mark markp (Ruler.Mark
         (#poke Mark, width) markp (Util.c_int width)
         (#poke Mark, color) markp color
         (#poke Mark, name) markp namep
-        (#poke Mark, name_zoom_level) markp (Num.d2c name_zoom_level)
-        (#poke Mark, zoom_level) markp (Num.d2c zoom_level)
+        (#poke Mark, name_zoom_level) markp (Util.c_double name_zoom_level)
+        (#poke Mark, zoom_level) markp (Util.c_double zoom_level)

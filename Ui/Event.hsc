@@ -247,8 +247,7 @@ instance Storable Event where
 poke_event :: Ptr Event -> Event -> IO ()
 poke_event eventp (Event start dur text (Style.StyleId style_id) _) = do
     -- Must be freed by the caller, EventTrackView::draw_area.
-    textp <- if B.null text then return nullPtr
-        else Util.unpackCString0 text
+    textp <- if B.null text then return nullPtr else Util.unpackCString0 text
     (#poke Event, start) eventp start
     (#poke Event, duration) eventp dur
     (#poke Event, text) eventp textp

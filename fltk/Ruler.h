@@ -73,14 +73,14 @@ struct RulerConfig {
     Color bg;
 
     // So I can share marklists but have different display styles.
-    bool show_names;
+    char show_names;
     // Use the alpha channel in the Mark colors.  Otherwise, they are opaque.
-    bool use_alpha;
+    char use_alpha;
     // Always draw marks across the full width of the track.
-    bool full_width;
+    char full_width;
     // Align bottoms of marks to beats, instead of the top.  Looks good used
     // with negative duration events (arrival beats).
-    bool align_to_bottom;
+    char align_to_bottom;
 
     ScoreTime last_mark_pos;
 };

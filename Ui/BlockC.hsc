@@ -388,7 +388,7 @@ instance Storable Block.Box where
     alignment _ = 4 -- #{alignment BlockBox}
     poke boxp (Block.Box color char) = do
         (#poke BlockBox, color) boxp color
-        (#poke BlockBox, c) boxp char
+        (#poke BlockBox, c) boxp (Util.c_char char)
 
 instance Storable Block.DisplayTrack where
     sizeOf _ = #size DisplayTrack
@@ -398,10 +398,10 @@ instance Storable Block.DisplayTrack where
 
 poke_display_track dtrackp (Block.DisplayTrack _ width _ status bright) = do
     let (statusc, status_color) = fromMaybe ('\NUL', Color.black) status
-    (#poke DisplayTrack, event_brightness) dtrackp bright
-    (#poke DisplayTrack, width) dtrackp width
+    (#poke DisplayTrack, event_brightness) dtrackp (Util.c_double bright)
+    (#poke DisplayTrack, width) dtrackp (Util.c_int width)
     (#poke DisplayTrack, status_color) dtrackp status_color
-    (#poke DisplayTrack, status) dtrackp statusc
+    (#poke DisplayTrack, status) dtrackp (Util.c_char statusc)
 
 -- ** skeleton
 
@@ -419,7 +419,7 @@ with_skeleton_config :: [SkeletonEdge] -> (Ptr SkeletonConfig -> IO a) -> IO a
 with_skeleton_config edges f =
     withArrayLen edges $ \len edgesp -> alloca $ \skelp -> do
         (#poke SkeletonConfig, edges) skelp edgesp
-        (#poke SkeletonConfig, len) skelp len
+        (#poke SkeletonConfig, len) skelp (Util.c_int len)
         f skelp
 
 data SkeletonConfig

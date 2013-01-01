@@ -42,6 +42,20 @@ c_nat = c_int -- I don't check for > 0 yet, I should catch the c++ exception
 c_uchar :: Integral a => a -> CUChar
 c_uchar = fromIntegral . Num.clamp 0 255
 
+c_char :: Char -> CChar
+c_char = fromIntegral . Num.clamp 0 127 . fromEnum
+
+c_double :: Double -> CDouble
+c_double = CDouble
+
+hs_double :: CDouble -> Double
+hs_double (CDouble d) = d
+
+-- | bool is C++, not C, so I represent bools as chars.
+c_bool :: Bool -> CChar
+c_bool True = 1
+c_bool False = 0
+
 -- | Forgetting to call freeHaskellFunPtr is an easy way to leak memory.
 -- So all FunPtrs should be created with this function, and always bee freed
 -- with 'free_fun_ptr'.  That way I can log creates and frees to ensure they

@@ -4,11 +4,9 @@
 module Util.Num where
 import qualified Data.Bits as Bits
 import qualified Data.Fixed as Fixed
-import qualified Foreign.C as C
 import qualified GHC.Prim as Prim
 import qualified GHC.Types as Types
 import qualified Numeric
-import qualified Unsafe.Coerce as Coerce
 
 
 -- * show
@@ -74,19 +72,13 @@ fmod :: (Real a) => a -> a -> a
 fmod = Fixed.mod'
 
 -- | realToFrac doesn't preserve the special float values and is inefficient.
+--
+-- There are some RULEs for this, but they aren't reliable.
 d2f :: Double -> Float
 d2f (Types.D# d) = Types.F# (Prim.double2Float# d)
 
 f2d :: Float -> Double
 f2d (Types.F# f) = Types.D# (Prim.float2Double# f)
-
--- | There are rule pragmas that do this, but I don't trust them to always
--- fire.
-d2c :: Double -> C.CDouble
-d2c = Coerce.unsafeCoerce
-
-c2d :: C.CDouble -> Double
-c2d = Coerce.unsafeCoerce
 
 -- | Conversion that clamps at INT_MIN / INT_MAX.
 d2i :: Double -> Int
