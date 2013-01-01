@@ -8,10 +8,10 @@ module Ui.Style (
 ) where
 import qualified Data.List as List
 import qualified Data.Word as Word
-import Foreign
 
-import qualified Ui.Color as Color
+import Util.ForeignC
 import qualified Util.Serialize as Serialize
+import qualified Ui.Color as Color
 import qualified Ui.Util as Util
 
 
@@ -40,7 +40,7 @@ newtype StyleId = StyleId Word.Word8
 -- See comment in BlockC.hsc.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
-instance Storable Style where
+instance CStorable Style where
     sizeOf _ = #size EventStyle
     alignment _ = #{alignment EventStyle}
     peek = error "EventStyle peek unimplemented"

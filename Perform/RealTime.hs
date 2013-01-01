@@ -46,12 +46,12 @@ module Perform.RealTime (
 import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Hashable as Hashable
-import qualified Foreign
-import qualified Foreign.C as C
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
+import qualified Foreign
 
 import Util.Control
+import qualified Util.ForeignC as C
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
@@ -76,6 +76,12 @@ instance Foreign.Storable RealTime where
     alignment _ = Foreign.alignment (undefined :: C.CDouble)
     poke p (RealTime d) = Foreign.poke (Foreign.castPtr p) (Util.c_double d)
     peek p = RealTime . Util.hs_double <$> Foreign.peek (Foreign.castPtr p)
+
+instance C.CStorable RealTime where
+    sizeOf = Foreign.sizeOf
+    alignment = Foreign.alignment
+    peek = Foreign.peek
+    poke = Foreign.poke
 
 -- | This loses precision so show /= read, but no one should be relying on that
 -- anyway.

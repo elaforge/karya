@@ -1,7 +1,6 @@
 module Ui.UiMsgC (get_ui_msgs) where
-import Foreign
-import Foreign.C
 import Util.Control
+import Util.ForeignC
 
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Key as Key
@@ -28,7 +27,7 @@ foreign import ccall unsafe "clear_ui_msgs" c_clear_ui_msgs :: IO ()
 -- See comment in BlockC.hsc.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
-instance Storable UiMsg.UiMsg where
+instance CStorable UiMsg.UiMsg where
     sizeOf _ = #size UiMsg
     alignment _ = #{alignment UiMsg}
     peek = peek_msg

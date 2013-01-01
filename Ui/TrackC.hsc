@@ -6,10 +6,8 @@
     modified event map, for derivation (old trackpos -> new trackpos)
 -}
 module Ui.TrackC (with_track) where
-import Foreign
-import Foreign.C
-
 import Util.Control
+import Util.ForeignC
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
@@ -61,7 +59,7 @@ make_find_events :: SetStyle -> [Events.Events] -> IO (FunPtr FindEvents)
 make_find_events set_style events = Util.make_fun_ptr "find_events" $
     c_make_find_events (cb_find_events set_style events)
 
-instance Storable Track.RenderConfig where
+instance CStorable Track.RenderConfig where
     sizeOf _ = #size RenderConfig
     alignment _ = #{alignment RenderConfig}
     peek _ = error "RenderConfig peek unimplemented"
@@ -72,7 +70,7 @@ poke_render_config configp (Track.RenderConfig style color) = do
     (#poke RenderConfig, style) configp (encode_style style)
     (#poke RenderConfig, color) configp color
 
-instance Storable Track.TrackSignal where
+instance CStorable Track.TrackSignal where
     sizeOf _ = #size TrackSignal
     alignment _ = #{alignment TrackSignal}
     peek _ = error "TrackSignal peek unimplemented"

@@ -44,7 +44,7 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
-import Foreign
+import Util.ForeignC
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -238,7 +238,7 @@ instance Serialize.Serialize Stack where
 -- See comment in BlockC.hsc.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
-instance Storable Event where
+instance CStorable Event where
     sizeOf _ = #size Event
     alignment _ = #{alignment Event}
     poke = poke_event

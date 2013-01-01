@@ -6,6 +6,7 @@
 -- copied to C, so they have to produce structs as expected by C.
 module Util.TimeVectorStorable where
 import Foreign
+import qualified Util.ForeignC as C
 import qualified Ui.Util as Util
 import qualified Perform.RealTime as RealTime
 
@@ -26,6 +27,12 @@ instance Storable (Sample Double) where
         time <- (#peek ControlSample, time) sp
         val <- (#peek ControlSample, val) sp
         return $ Sample time (Util.hs_double val)
+
+instance C.CStorable (Sample Double) where
+    sizeOf = sizeOf
+    alignment = alignment
+    peek = peek
+    poke = poke
 
 data Sample y = Sample {
     sx :: {-# UNPACK #-} !X

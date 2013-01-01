@@ -1,8 +1,7 @@
 module Ui.Color where
 import Data.Bits
 import qualified Data.List as List
-import Foreign
-import Foreign.C
+import Util.ForeignC
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -65,7 +64,7 @@ alpha a' (Color r g b _a) = rgba r g b a'
 -- See comment in BlockC.hsc.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
-instance Storable Color where
+instance CStorable Color where
     sizeOf _ = #size Color
     alignment _ = 4 -- #{alignment Color}
     peek = peek_color

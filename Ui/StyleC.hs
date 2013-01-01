@@ -1,6 +1,5 @@
 module Ui.StyleC (insert_style) where
-import Foreign
-import Foreign.C
+import Util.ForeignC
 import qualified Ui.Style as Style
 
 

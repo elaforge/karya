@@ -63,8 +63,7 @@ import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Typeable as Typeable
-import Foreign
-import Foreign.C
+import Util.ForeignC
 import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
@@ -99,7 +98,7 @@ data CView
 -- | Global map of view IDs to their windows.  This is global mutable state
 -- because the underlying window system is also global mutable state, and is
 -- not well represented by a persistent functional state.
-view_id_to_ptr :: MVar.MVar (Map.Map ViewId (Foreign.Ptr CView))
+view_id_to_ptr :: MVar.MVar (Map.Map ViewId (Ptr CView))
 {-# NOINLINE view_id_to_ptr #-}
 view_id_to_ptr = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
 
@@ -366,13 +365,13 @@ foreign import ccall "dump_view" c_dump_view :: Ptr CView -> IO CString
 
 -- ** tracks
 
-instance Storable Block.Divider where
+instance CStorable Block.Divider where
     sizeOf _ = #size DividerConfig
     alignment _ = #{alignment DividerConfig}
     poke dividerp (Block.Divider color) =
         (#poke DividerConfig, color) dividerp color
 
-instance Storable TracklikePtr where
+instance CStorable TracklikePtr where
     sizeOf _ = #size Tracklike
     alignment _ = #{alignment Tracklike}
     poke = poke_tracklike_ptr
@@ -391,7 +390,7 @@ poke_tracklike_ptr tp tracklike_ptr = do
 
 -- ** configs
 
-instance Storable Block.Config where
+instance CStorable Block.Config where
     sizeOf _ = #size BlockModelConfig
     alignment _ = #{alignment BlockModelConfig}
     poke = poke_block_model_config
@@ -402,14 +401,14 @@ poke_block_model_config configp
         (#poke BlockModelConfig, track_box) configp track_box
         (#poke BlockModelConfig, sb_box) configp sb_box
 
-instance Storable Block.Box where
+instance CStorable Block.Box where
     sizeOf _ = #size BlockBox
     alignment _ = #{alignment BlockBox}
     poke boxp (Block.Box color char) = do
         (#poke BlockBox, color) boxp color
         (#poke BlockBox, c) boxp (Util.c_char char)
 
-instance Storable Block.DisplayTrack where
+instance CStorable Block.DisplayTrack where
     sizeOf _ = #size DisplayTrack
     alignment _ = #{alignment DisplayTrack}
     peek = error "DisplayTrack peek unimplemented"
@@ -442,14 +441,14 @@ with_skeleton_config edges f =
         f skelp
 
 data SkeletonConfig
-instance Storable SkeletonConfig where
+instance CStorable SkeletonConfig where
     sizeOf _ = #size SkeletonConfig
     alignment _ = #{alignment SkeletonConfig}
 
 data SkeletonEdge = SkeletonEdge !TrackNum !TrackNum !Types.Width !Color.Color
     deriving (Show)
 
-instance Storable SkeletonEdge where
+instance CStorable SkeletonEdge where
     sizeOf _ = #size SkeletonEdge
     alignment _ = #{alignment SkeletonEdge}
     peek _ = error "SkeletonEdge peek unimplemented"
@@ -465,7 +464,7 @@ instance Storable SkeletonEdge where
 -- Block.config_selection_colors.
 data CSelection = CSelection Color.Color Types.Selection deriving (Show)
 
-instance Storable CSelection where
+instance CStorable CSelection where
     sizeOf _ = #size Selection
     alignment _ = #{alignment Selection}
     peek = error "CSelection peek unimplemented"

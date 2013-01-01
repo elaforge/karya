@@ -16,9 +16,8 @@ module Ui.Types (
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Hashable as Hashable
 import Text.Read -- for Read class with readPrec
-import Foreign
-import Foreign.C
 
+import Util.ForeignC
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
@@ -50,7 +49,7 @@ type MouseButton = Int
 
 -- | It's an orphan, but hscs are annoying to work with from ghci, so let's
 -- just have it live here for now.
-instance Storable Rect.Rect where
+instance CStorable Rect.Rect where
     sizeOf _ = #size IRect
     alignment _ = #{alignment IRect}
     poke = error "Rect poke unimplemented"
@@ -74,7 +73,7 @@ instance Pretty.Pretty Zoom where
     pretty (Zoom offset factor) =
         '+' : Pretty.pretty offset ++ '*' : Pretty.show_float 1 factor
 
-instance Storable Zoom where
+instance CStorable Zoom where
     sizeOf _ = #size ZoomInfo
     alignment _ = #{alignment ZoomInfo}
     peek zoomp = do

@@ -6,9 +6,8 @@
 module Ui.RulerC (with_ruler, no_ruler) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
-import Foreign
-import Foreign.C
 
+import Util.ForeignC
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Util as Util
 import Types
@@ -64,7 +63,7 @@ foreign import ccall "marklist_incref"
 
 newtype PosMark = PosMark (ScoreTime, Ruler.Mark) deriving (Show)
 
-instance Storable PosMark where
+instance CStorable PosMark where
     sizeOf _ = #size PosMark
     alignment _ = #{alignment PosMark}
     peek = error "PosMark peek unimplemented"
@@ -72,7 +71,7 @@ instance Storable PosMark where
         (#poke PosMark, pos) posmarkp pos
         (#poke PosMark, mark) posmarkp mark
 
-instance Storable Ruler.Ruler where
+instance CStorable Ruler.Ruler where
     sizeOf _ = #size RulerConfig
     alignment _ = #{alignment RulerConfig}
     peek = error "Ruler peek unimplemented"
@@ -83,7 +82,7 @@ instance Storable Ruler.Ruler where
 poke_ruler :: Ptr Ruler.Ruler -> Ruler.Ruler -> IO ()
 poke_ruler rulerp (Ruler.Ruler mlists bg show_names align_to_bottom) = do
     (#poke RulerConfig, bg) rulerp bg
-    (#poke RulerConfig, show_names) rulerp show_names
+    (#poke RulerConfig, show_names) rulerp (Util.c_bool show_names)
     -- The haskell layer no longer differentiates between ruler track rulers
     -- and event track overlay rulers, so these are hardcoded.  This way the
     -- fltk layer doesn't have to know anything about that and simply does
@@ -95,7 +94,7 @@ poke_ruler rulerp (Ruler.Ruler mlists bg show_names align_to_bottom) = do
         (last_mark_pos (Map.elems mlists))
     where last_mark_pos mlists = maximum (0 : map Ruler.marklist_end mlists)
 
-instance Storable Ruler.Mark where
+instance CStorable Ruler.Mark where
     sizeOf _ = #size Mark
     alignment _ = #{alignment Mark}
     peek = error "Mark peek unimplemented"
