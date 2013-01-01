@@ -9,7 +9,6 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.Track as Track
 import qualified Derive.Call as Call
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
@@ -31,7 +30,6 @@ simple_scale :: String -> Pitch.Octave -> String -> Pitch.ScaleId
 simple_scale doc per_octave note_pattern scale_id inputs notes nns = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = note_pattern
-    , Scale.scale_map = track_scale_map dmap
     , Scale.scale_symbols = []
     , Scale.scale_transposers = standard_transposers
     , Scale.scale_transpose = transpose dmap per_octave
@@ -91,9 +89,6 @@ note_number_map :: [Pitch.NoteNumber] -> NoteNumberMap
 note_number_map nns = Map.fromList (zip [0..] nns)
 
 -- * scale functions
-
-track_scale_map :: DegreeMap -> Track.ScaleMap
-track_scale_map dmap = Track.make_scale_map (Map.assocs (dm_to_degree dmap))
 
 -- ** transpose
 

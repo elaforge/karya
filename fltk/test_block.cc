@@ -245,13 +245,9 @@ control_track_signal()
     }
     ts->signal = samples;
     ts->length = length;
-    ts->val_names = NULL;
-    ts->val_names_length = 0;
-
     ts->shift = ScoreTime(0);
     ts->stretch = ScoreTime(1);
     ts->calculate_val_bounds();
-
     return ts;
 }
 
@@ -286,18 +282,8 @@ pitch_track_signal()
 
     ts->signal = NULL;
     ts->length = 0;
-
-    ts->val_names = new ValName[5];
-    ts->val_names[0] = ValName(0, "a");
-    ts->val_names[1] = ValName(1, "`1.`");
-    ts->val_names[2] = ValName(2, "c");
-    ts->val_names[3] = ValName(3, "d");
-    ts->val_names[4] = ValName(4, "e");
-    ts->val_names_length = 5;
-
     ts->shift = ScoreTime(0);
     ts->stretch = ScoreTime(1);
-
     return ts;
 }
 

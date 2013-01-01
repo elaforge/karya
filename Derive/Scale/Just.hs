@@ -8,7 +8,6 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Ui.Track as Track
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
@@ -33,7 +32,6 @@ make_scale :: Pitch.ScaleId -> Vector.Vector Ratio.Rational -> Scale.Scale
 make_scale scale_id ratios = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-g]"
-    , Scale.scale_map = Track.make_scale_map scale_map
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = transpose
@@ -53,12 +51,6 @@ make_scale scale_id ratios = Scale.Scale
         ) [("ratios", Pretty.pretty ratios)] Util.scale_degree_doc
     }
     where double_ratios = Vector.map realToFrac ratios
-
-scale_map :: [(Pitch.Note, Pitch.Degree)]
-scale_map = [(pitch_note p, n) | (n, p) <- zip [0..] pitches]
-    where
-    notes = [Theory.Note pc 0 | pc <- [0..pc_per_octave-1]]
-    pitches = [Theory.Pitch oct note | oct <- [-1..9], note <- notes]
 
 -- * input_to_note
 

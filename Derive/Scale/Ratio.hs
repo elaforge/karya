@@ -11,7 +11,6 @@
 module Derive.Scale.Ratio where
 import Util.Control
 import qualified Util.ParseBs as Parse
-import qualified Ui.Track as Track
 import qualified Derive.Args as Args
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional)
@@ -30,8 +29,6 @@ scale :: Scale.Scale
 scale = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[+-]?\\d+/\\d+ e.g. 2/5 or -4/3"
-    -- no real sensible way to display this
-    , Scale.scale_map = Track.make_scale_map []
     , Scale.scale_symbols = []
     , Scale.scale_transposers = mempty
     , Scale.scale_transpose = Util.non_transposing

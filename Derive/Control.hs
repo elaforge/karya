@@ -100,7 +100,7 @@ tempo_call track sig_deriver deriver = do
     when_just maybe_track_id $ \track_id ->
         unless (TrackTree.tevents_sliced track) $
             put_track_signal track_id $ Right $
-                Track.TrackSignal (Signal.coerce signal) 0 1 Nothing
+                Track.TrackSignal (Signal.coerce signal) 0 1 False
     -- 'with_damage' must be applied *inside* 'd_tempo'.  If it were outside,
     -- it would get the wrong RealTimes when it tried to create the
     -- ControlDamage.
@@ -119,7 +119,7 @@ control_call :: TrackTree.TrackEvents -> Score.Typed Score.Control
     -> Derive.EventDeriver -> Derive.EventDeriver
 control_call track control maybe_op control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track control_deriver
-    stash_signal track signal (to_display <$> control_deriver) Nothing
+    stash_signal track signal (to_display <$> control_deriver) False
     -- Apply and strip any control modifications made during the above derive.
     Derive.apply_control_modifications $ merge_logs logs $ with_damage $
         with_control control signal deriver
@@ -151,13 +151,11 @@ pitch_call track maybe_name scale_id expr deriver =
     Internal.track_setup track $ do
         scale <- get_scale scale_id
         Derive.with_scale scale $ do
-            let scale_map = Scale.scale_map scale
-                derive = derive_pitch track expr
+            let derive = derive_pitch track expr
             (signal, logs) <- derive
             -- Ignore errors, they should be logged on conversion.
             (nn_sig, _) <- pitch_signal_to_nn signal
-            stash_signal track (Signal.coerce nn_sig) (to_psig derive)
-                (Just scale_map)
+            stash_signal track (Signal.coerce nn_sig) (to_psig derive) True
             -- Apply and strip any control modifications made during the above
             -- derive.
             Derive.apply_control_modifications $ merge_logs logs $ with_damage $
@@ -265,10 +263,10 @@ stash_signal :: TrackTree.TrackEvents
     -- ^ Both a signal and a deriver to produce the signal are provided.  If
     -- the block has no warp the already derived signal can be reused,
     -- otherwise it must be rederived.
-    -> Maybe Track.ScaleMap
-    -- ^ A pitch track is given a ScaleMap so it can be displayed properly.
+    -> Bool
+    -- ^ True if this is a pitch signal.
     -> Derive.Deriver ()
-stash_signal track sig derive_sig scale_map =
+stash_signal track sig derive_sig is_pitch =
     case TrackTree.tevents_track_id track of
         Just track_id | not (TrackTree.tevents_sliced track) ->
             stash track_id =<< linear_tempo
@@ -276,12 +274,12 @@ stash_signal track sig derive_sig scale_map =
     where
     stash track_id (Just (shift, stretch)) =
         put_track_signal track_id $ Right $
-            Track.TrackSignal (Signal.coerce sig) shift stretch scale_map
+            Track.TrackSignal (Signal.coerce sig) shift stretch is_pitch
     stash track_id Nothing = do
         logs_or_sig <- run_sub $ Derive.in_real_time derive_sig
         put_track_signal track_id $ case logs_or_sig of
             Left logs -> Left logs
-            Right sig -> Right $ Track.TrackSignal sig 0 1 scale_map
+            Right sig -> Right $ Track.TrackSignal sig 0 1 is_pitch
 
 -- | Ensure the computation runs lazily by detaching it from the state.  This
 -- is important because the track signal will not necessarily be demanded.
@@ -338,27 +336,27 @@ track_signal track
 eval_signal :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal
 eval_signal track expr ctype = case ctype of
-    TrackInfo.Tempo -> do
+    TrackInfo.Tempo {} -> do
         (sig, logs) <- derive_control True track expr
         mapM_ Log.write logs
-        return $ track_sig sig Nothing
-    TrackInfo.Control _ _ -> do
+        return $ track_sig sig False
+    TrackInfo.Control {} -> do
         (sig, logs) <- derive_control False track expr
         mapM_ Log.write logs
-        return $ track_sig sig Nothing
-    TrackInfo.Pitch scale_id _ -> do
+        return $ track_sig sig False
+    TrackInfo.Pitch {} -> do
         (sig, logs) <- derive_pitch track expr
         mapM_ Log.write logs
-        scale <- get_scale scale_id
         -- TODO I log derivation errors... why not log pitch errors?
         (nn_sig, _) <- pitch_signal_to_nn sig
-        -- TODO this is incorrect, it should return scale degrees, not NNs.
-        -- But that would mean that PitchSignal.Pitches need to be able to emit
-        -- degrees in addition to NoteNumbers.
-        return $ track_sig nn_sig (Just (Scale.scale_map scale))
+        return $ track_sig nn_sig True
     where
-    track_sig sig scale_map =
-        Track.TrackSignal (Signal.coerce sig) 0 1 scale_map
+    track_sig sig is_pitch = Track.TrackSignal
+        { Track.ts_signal = Signal.coerce sig
+        , Track.ts_shift = 0
+        , Track.ts_stretch = 1
+        , Track.ts_is_pitch = is_pitch
+        }
 
 
 -- * util

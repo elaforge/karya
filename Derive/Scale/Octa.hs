@@ -26,7 +26,6 @@ make_scale :: Pitch.ScaleId -> Theory.Layout -> String -> Scale.Scale
 make_scale scale_id layout key_suffix = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-h](b|bb|#|x)?"
-    , Scale.scale_map = TwelveScales.track_scale_map scale_map
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = TwelveScales.transpose scale_map

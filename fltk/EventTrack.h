@@ -14,16 +14,6 @@
 #include "Event.h"
 
 
-struct ValName {
-    // These are created by haskell and are read-only from here.
-    // TODO should be constant but then it's hard to initialize an array
-    double val;
-    // This won't be modified, but will be freed, so const_cast for that.
-    const char *name;
-    ValName(double val, const char *name) : val(val), name(name) {}
-    ValName() : val(0), name(NULL) {}
-};
-
 // TODO make these const, except test_block wants to initialize them...
 struct ControlSample {
     RealTime time;
@@ -32,9 +22,7 @@ struct ControlSample {
 };
 
 struct TrackSignal {
-    TrackSignal() :
-        signal(NULL), length(0), val_names(NULL), val_names_length(0)
-    {}
+    TrackSignal() : signal(NULL), length(0), is_pitch_signal(false) {}
 
     // The track containing the TrackSignal is responsible for the freeing of
     // the signal pointers.
@@ -46,9 +34,7 @@ struct TrackSignal {
     double val_min, val_max;
     // Length of above signal.
     int length;
-
-    ValName *val_names;
-    int val_names_length;
+    char is_pitch_signal;
 
     // These are to be applied to the signal's time values.
     ScoreTime shift;
@@ -59,11 +45,8 @@ struct TrackSignal {
     // Get the time at the given index, taking shift, stretch, and the given
     // zoom into account.
     int time_at(const ZoomInfo &zoom, int i) const;
-    // Labels probably means this is a pitch signal.
-    bool has_labels() const { return val_names; }
     // Get the val at the given index, normalized between 0--1.
     double val_at(int i, const char **lower, const char **upper) const;
-    const ValName *name_of(double val, bool lower) const;
 
     // Set 'val_min' and 'val_max'.  Normally this would be called by the
     // constructor, but since I construct manually from haskell I don't have

@@ -8,7 +8,6 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Types
@@ -106,33 +105,14 @@ data TrackSignal = TrackSignal {
     ts_signal :: !Signal.Display
     , ts_shift :: !ScoreTime
     , ts_stretch :: !ScoreTime
-    , ts_scale_map :: !(Maybe ScaleMap)
+    , ts_is_pitch :: !Bool
     } deriving (Show, Eq)
 
 instance Pretty.Pretty TrackSignal where
-    format (TrackSignal sig shift stretch scale) =
+    format (TrackSignal sig shift stretch _is_pitch) =
         Pretty.record (Pretty.text "TrackSignal"
                 Pretty.<+> Pretty.format (shift, stretch))
-            [("signal", Pretty.format sig), ("scale_map", Pretty.format scale)]
+            [("signal", Pretty.format sig)]
 
 instance DeepSeq.NFData TrackSignal where
     rnf (TrackSignal sig _ _ _) = DeepSeq.rnf sig
-
--- | ScaleMaps are sorted by their scale degree number.
-newtype ScaleMap = ScaleMap [ValName] deriving (Show, Eq, Pretty.Pretty)
-newtype ValName = ValName (Pitch.Degree, Pitch.Note)
-    deriving (Show, Eq, Pretty.Pretty)
-
--- | Create a scale map from [(name, degree)].  The degree is defined per-scale
--- and are just a way to indicate which degree name the pitch is at.
---
--- Not all scales have well defined degrees, so not all scales will have
--- a scale map.
-make_scale_map :: [(Pitch.Note, Pitch.Degree)] -> ScaleMap
--- TODO it's disabled for now because it's complicated to get right and I'm
--- not even sure I want it.
---
--- But... add something bogus, since that's what tells fltk its a pitch track
--- and turns on the "auto normalize" feature.  If I'm going to get rid of
--- ScaleMaps I should just set a flag.
-make_scale_map = const (ScaleMap [ValName (Pitch.Degree 0, Pitch.Note "")])

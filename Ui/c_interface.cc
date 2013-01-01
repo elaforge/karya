@@ -221,8 +221,7 @@ update_track(BlockViewWindow *view, int tracknum,
 }
 
 void
-set_track_signal(BlockViewWindow *view, int tracknum,
-        TrackSignal *tsig)
+set_track_signal(BlockViewWindow *view, int tracknum, TrackSignal *tsig)
 {
     tsig->calculate_val_bounds();
     view->block.set_track_signal(tracknum, *tsig);

@@ -30,7 +30,6 @@ scale :: Scale.Scale
 scale = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-g](b|bb|#|x)?"
-    , Scale.scale_map = TwelveScales.track_scale_map scale_map
     , Scale.scale_symbols = [] -- later maybe I can use fancy sharps and flats
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = TwelveScales.transpose scale_map

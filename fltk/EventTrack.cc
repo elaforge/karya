@@ -31,12 +31,6 @@ TrackSignal::free_signals()
 {
     if (signal)
         free(signal);
-    if (val_names) {
-        // DEBUG("free valnames " << val_names << " " << val_names_length);
-        for (int i = 0; i < val_names_length; i++)
-            free(const_cast<char *>(val_names[i].name));
-        free(val_names);
-    }
 }
 
 static bool
@@ -90,74 +84,13 @@ TrackSignal::val_at(int i, const char **lower, const char **upper) const
         return normalize(this->val_min, this->val_max, signal[i].val);
     else
         ASSERT_MSG(0, "val_at on empty track signal");
-
-    /*
-    TODO implement looking up in the name_of if val_names is set
-
-    const PitchSample &sample = pitch_signal[i];
-    // If there's no range then no need to look up two, and .5 makes for a
-    // better looking signal than 1.
-    if (sample.from == sample.to) {
-        const ValName *val = name_of(sample.from, true);
-        if (val)
-            *lower = *upper = val->name;
-        return 0.5;
-    }
-    const ValName *low = name_of(std::min(sample.from, sample.to), true);
-    const ValName *high = name_of(std::max(sample.from, sample.to), false);
-    double low_val, high_val;
-    if (low) {
-        *lower = low->name;
-        low_val = low->val;
-    } else {
-        low_val = std::min(sample.from, sample.to);
-    }
-    if (high) {
-        *upper = high->name;
-        high_val = high->val;
-    } else {
-        high_val = std::max(sample.from, sample.to);
-    }
-
-    double mid = double(::scale(sample.from, sample.to, sample.at));
-    double result = ::normalize(low_val, high_val, mid);
-    // DEBUG("(" << sample.from << ", " << sample.to << ", " << mid << "): ("
-    //         << low_val << ", " << (*lower ? *lower : "null") << ") -- ("
-    //         << high_val << ", " << (*upper ? *upper : "null") << ") at "
-    //         << result);
-    return result;
-    */
-}
-
-
-static bool
-compare_val_name(const ValName &s1, const ValName &s2)
-{
-    return s1.val < s2.val;
-}
-
-// Find the closest ValName below or above val, depending on 'lower'.
-const ValName *
-TrackSignal::name_of(double val, bool lower) const {
-    if (!val_names)
-        return NULL;
-    // I don't expect duplicate vals in the map, so upper_bound is not needed.
-    const ValName *found = std::lower_bound(val_names,
-        val_names + val_names_length, ValName(val, ""), compare_val_name);
-    if (lower && found > val_names && found[0].val != val)
-        found--;
-
-    if (found == val_names + val_names_length)
-        return NULL;
-    else
-        return found;
 }
 
 
 void
 TrackSignal::calculate_val_bounds() {
     // Only automatically scale the bounds for pitch signals.
-    if (this->has_labels()) {
+    if (this->is_pitch_signal) {
         val_min = 9999;
         val_max = 1;
         for (ControlSample *s = signal; s < signal + length; s++) {
@@ -616,20 +549,8 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
         prev_xpos = xpos;
         prev_lower = lower;
         prev_upper = upper;
-
-        // I can't necessarily break as soon as offset crosses max_y because
-        // there may still be labels to draw that will stick up.  Unfortunately
-        // I can't know the height of the labels without actually measuring
-        // them.
-        //
-        // So pick a random number of pixels which I think is taller than the
-        // label text and stop after that.  TODO ugh
-        if (tsig.has_labels()) {
-            if (offset > max_y + 40)
-                break;
-        } else if (offset > max_y) {
+        if (offset > max_y)
             break;
-        }
     }
     // Reset line style to not mess up other draw routines.
     fl_line_style(0);

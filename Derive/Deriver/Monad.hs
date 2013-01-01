@@ -1093,9 +1093,6 @@ data Scale = Scale {
     -- doesn't have to follow any particular syntax.  A regex is recommended
     -- though.
     , scale_pattern :: !String
-    -- | This is passed to the UI so it knows what to call scale degrees when
-    -- rendering a pitch signal with this scale.
-    , scale_map :: !Track.ScaleMap
 
     -- | If a scale uses 'Symbol.Symbol's, it can include the definitions here
     -- so they are close to their use.  This symbol list should be loaded as

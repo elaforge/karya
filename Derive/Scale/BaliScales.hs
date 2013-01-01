@@ -44,7 +44,6 @@ scale :: Pitch.ScaleId -> ScaleMap -> Scale.Scale
 scale scale_id (ScaleMap degree_map input_map nn_map) = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[12356](\\.*|\\^*)"
-    , Scale.scale_map = Util.track_scale_map degree_map
     -- loaded from Derive.Scale.Symbols
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers

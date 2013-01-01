@@ -1,4 +1,7 @@
 UNSORTED
+  * remove pitch track valnames
+  - always use C types for #pokes and #peeks
+  - use allocaBytesAligned instead of allocaBytes
   / per-instrument binds e.g. kendang, should work without kbd entry
     However, that means I take over NoEdit for audition, and that means that
     un-modified keys are unreliable even in NoEdit mode.

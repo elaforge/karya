@@ -8,7 +8,6 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.Track as Track
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
@@ -50,10 +49,6 @@ type Keys = Map.Map Pitch.Key Theory.Key
 
 
 -- * functions
-
-track_scale_map :: ScaleMap -> Track.ScaleMap
-track_scale_map smap = Track.make_scale_map
-    [(n, d) | (n, (_, d)) <- Map.toList (smap_note_to_degree smap)]
 
 transpose :: ScaleMap -> Derive.Transpose
 transpose smap maybe_key octaves steps note = do
