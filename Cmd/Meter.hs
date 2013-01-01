@@ -7,6 +7,7 @@
 module Cmd.Meter where
 import Prelude hiding (repeat)
 import qualified Data.List as List
+import qualified Data.Map as Map
 import Data.Ratio
 
 import Util.Control
@@ -180,7 +181,7 @@ make_marklist :: Double -> AbstractMeter -> Ruler.Marklist
 make_marklist stretch = meter_marklist . make_meter stretch
 
 meter_marklist :: Meter -> Ruler.Marklist
-meter_marklist meter_ = Ruler.marklist pos_marks
+meter_marklist meter_ = Ruler.marklist (Map.fromList pos_marks)
     where
     pos_marks =
         [(pos, mark rank_dur rank name) | ((rank, _), pos, rank_dur, name)
@@ -241,7 +242,7 @@ pixels_to_zoom dur pixels
 marklist_meter :: Ruler.Marklist -> Meter
 marklist_meter mlist = zipWith to_dur marks (drop 1 marks)
     where
-    marks = Ruler.marks_of mlist
+    marks = Map.toAscList $ Ruler.marklist_map mlist
     -- This drops the last mark, but by convention that's a rank 0 mark intended
     -- to delemit the duration of the second-to-last mark.
     to_dur (p, m) (next_p, _) = (Ruler.mark_rank m, next_p - p)

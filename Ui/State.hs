@@ -173,7 +173,7 @@ data State = State {
     , state_tracks :: Map.Map TrackId Track.Track
     , state_rulers :: Map.Map RulerId Ruler.Ruler
     , state_config :: Config
-    } deriving (Eq, Read, Show, Generics.Typeable)
+    } deriving (Eq, Show, Generics.Typeable)
 
 views :: Lens.Lens State (Map.Map ViewId Block.View)
 views = Lens.lens state_views (\v r -> r { state_views = v })

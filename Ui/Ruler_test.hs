@@ -9,12 +9,11 @@ import Types
 
 
 marklist :: [ScoreTime] -> Ruler.Marklist
-marklist ps = Ruler.Marklist $
+marklist ps = Ruler.marklist $
     Map.fromList [(p, mark (floor (ScoreTime.to_double p))) | p <- ps]
 
 extract :: Ruler.Marklist -> [(ScoreTime, Int)]
-extract (Ruler.Marklist a) =
-    map (\(p, m) -> (p, Ruler.mark_rank m)) (Map.toList a)
+extract = map (second Ruler.mark_rank) . Map.toList . Ruler.marklist_map
 
 mark :: Int -> Ruler.Mark
 mark rank = Ruler.null_mark { Ruler.mark_rank = rank }

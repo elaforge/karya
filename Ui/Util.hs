@@ -56,6 +56,14 @@ c_bool :: Bool -> CChar
 c_bool True = 1
 c_bool False = 0
 
+with_foreign_ptrs :: [Foreign.ForeignPtr a] -> ([Foreign.Ptr a] -> IO b)
+    -> IO b
+with_foreign_ptrs fps f = withfp [] fps f
+    where
+    withfp ps [] f = f (reverse ps)
+    withfp ps (fp:rest) f = Foreign.withForeignPtr
+        fp (\p -> withfp (p:ps) rest f)
+
 -- | Forgetting to call freeHaskellFunPtr is an easy way to leak memory.
 -- So all FunPtrs should be created with this function, and always bee freed
 -- with 'free_fun_ptr'.  That way I can log creates and frees to ensure they

@@ -7,6 +7,26 @@
     should be converted and thrown as haskell exceptions.
 
     TODO exceptions are not implemented yet
+
+    There are three methods for sharing data with C++:
+
+    - Note tracks pass a callback, that will return events in the given
+    ScoreTime range.  This means the complete map of events exists only on the
+    Haskell side, and changing events means passing a new callback to C++.
+    This is because events change a lot, and it seems wasteful to copy over
+    a whole track of events just because one was added.
+
+    - Rulers have marklists, which are like events but much denser.  They're
+    entirely marshalled to a C array so C++ has direct access to the marks.
+    Because many tracks will share the same ruler, marklists use a reference
+    counting scheme so Haskell can allocate the array once, and then C++
+    and Haskell can cooperate on the memory management.
+
+    - Control signals are just copied, and ownership is given to C++.  This
+    is because control signals are large but are already dense arrays so they
+    can be copied very quickly with memcpy.  They could use a refcounting
+    scheme like ruler marklists, but they're rarely shared so it's probably not
+    worth it.
 -}
 module Ui.BlockC (
     -- | get_id and CView are only exported for Ui.UiMsgC which is a slight
@@ -277,12 +297,13 @@ update_entire_track update_ruler view_id tracknum tracklike merged set_style =
 
 foreign import ccall "insert_track"
     c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
-        -> Ptr Ruler.Marklist -> CInt -> IO ()
+        -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO ()
 foreign import ccall "remove_track"
     c_remove_track :: Ptr CView -> CInt -> IO ()
 foreign import ccall "update_track"
     c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
-        -> Ptr Ruler.Marklist -> CInt -> Ptr ScoreTime -> Ptr ScoreTime -> IO ()
+        -> Ptr (Ptr Ruler.Marklist) -> CInt -> Ptr ScoreTime -> Ptr ScoreTime
+        -> IO ()
 
 -- | Unlike other Fltk functions, this doesn't throw if the ViewId is not
 -- found.  That's because it's called asynchronously when derivation is
@@ -298,7 +319,7 @@ foreign import ccall "set_track_signal"
 -- | Convert a Tracklike into the set of pointers that c++ knows it as.
 -- A set of event lists can be merged into event tracks.
 with_tracklike :: Bool -> [Events.Events] -> Event.SetStyle -> Block.Tracklike
-    -> (Ptr TracklikePtr -> Ptr Ruler.Marklist -> CInt -> IO ()) -> IO ()
+    -> (Ptr TracklikePtr -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO ()) -> IO ()
 with_tracklike update_ruler merged_events set_style tracklike f =
     case tracklike of
         Block.T track ruler -> with_ruler ruler $ \rulerp mlistp len ->

@@ -5,19 +5,19 @@ UNSORTED
   / per-instrument binds e.g. kendang, should work without kbd entry
     However, that means I take over NoEdit for audition, and that means that
     un-modified keys are unreliable even in NoEdit mode.
-  - collapsing a bunch of tracks in pnovla is really slow.  What's it doing?
+  * collapsing a bunch of tracks in pnovla is really slow.  What's it doing?
     I think it's copying giant rulers.  Can I speed that up?
     I could copy each ruler only once by keeping the C version with the Ruler
     in haskell, and then passing a pointer, which C must release with
     haskellFree.  Then haskell GC can manage it.
     * Timers on ruler copy first.  Total is 0.6 sec, that's noticeable.
-    . One way is to make fun ptr, which just returns
-    . Make a C++ object with a ref count, then attach that to a ForeignPtr.
-      The Ruler creates the array and holds a ForeignPtr, this guarantees that
-      it remains alive as long as the Ruler exists.  Meanwhile, the refcount
-      in C++ retains it until c++ doesn't want it anymore.
-    - Put a refcount in Marklist.
-    - How does Ruler allocate one?  I guess it needs unsafePerformIO.
+    * Haskell Marklist constructor uses unsafePerformIO to create a C++
+      Marklist, and attach a ForeignPtr whose finalizer calls decref on it.
+    * Then instead of withArrayLen on marklists, I pull each fptr, incref it,
+      and poke it into the array.
+    * C++ calls decref instead of deleting the marklist.
+    * Attach DEBUGs to ensure that marklists are freed properly.
+    * Make Marklist abstract so the pointer isn't visible from the outside.
     So this is kind of backpedaling on the decision to switch from callbacks
     to just dumping the ruler over.  I made that decision because rulers
     should change rarely.  But it seems kind of bogus because rulers have

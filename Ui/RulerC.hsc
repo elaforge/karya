@@ -4,6 +4,7 @@
     displayed if the zoom level is >= the display at zoom.
 -}
 module Ui.RulerC (with_ruler, no_ruler) where
+import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
 import Foreign
 import Foreign.C
@@ -14,15 +15,15 @@ import Types
 
 
 with_ruler :: Ruler.Ruler
-    -> (Ptr Ruler.Ruler -> Ptr Ruler.Marklist -> CInt -> IO a) -> IO a
-with_ruler ruler f =
-    with ruler $ \rulerp -> withArrayLen marklists $ \len mlists ->
+    -> (Ptr Ruler.Ruler -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO a) -> IO a
+with_ruler ruler f = do
+    with ruler $ \rulerp -> with_marklists marklists $ \len mlists ->
         f rulerp mlists (Util.c_int len)
     where marklists = Map.elems (Ruler.ruler_marklists ruler)
 
-no_ruler :: (Ptr Ruler.Ruler -> Ptr Ruler.Marklist -> CInt -> IO a) -> IO a
+no_ruler :: (Ptr Ruler.Ruler -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO a)
+    -> IO a
 no_ruler f = f nullPtr nullPtr 0
-
 
 -- Storable
 
@@ -30,16 +31,36 @@ no_ruler f = f nullPtr nullPtr 0
 -- See comment in BlockC.hsc.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
-instance Storable Ruler.Marklist where
-    sizeOf _ = #size Marklist
-    alignment _ = #{alignment Marklist}
-    peek = error "Marklist peek unimplemented"
-    poke = poke_marklist
+with_marklists :: [Ruler.Marklist] -> (Int -> Ptr (Ptr Ruler.Marklist) -> IO a)
+    -> IO a
+with_marklists mlists f = do
+    fptrs <- mapM marklist_fptr mlists
+    Util.with_foreign_ptrs fptrs $ \ptrs -> do
+        mapM_ c_marklist_incref ptrs
+        withArrayLen ptrs f
 
-poke_marklist marklistp (Ruler.Marklist marks) = do
-    (#poke Marklist, length) marklistp (Util.c_int (Map.size marks))
-    (#poke Marklist, marks) marklistp
-        =<< newArray (map PosMark (Map.toAscList marks))
+-- | Create and cache a new marklist pointer, or re-used the cached one.
+marklist_fptr :: Ruler.Marklist -> IO (ForeignPtr Ruler.Marklist)
+marklist_fptr mlist = MVar.modifyMVar (Ruler.marklist_fptr mlist) create
+    where
+    create (Just fptr) = return (Just fptr, fptr)
+    create Nothing = do
+        fptr <- create_marklist (Ruler.marklist_map mlist)
+        return (Just fptr, fptr)
+
+create_marklist :: Map.Map ScoreTime Ruler.Mark
+    -> IO (ForeignPtr Ruler.Marklist)
+create_marklist marks = do
+    marksp <- newArray (map PosMark (Map.toAscList marks))
+    mlistp <- c_create_marklist marksp (Util.c_int (Map.size marks))
+    newForeignPtr c_marklist_decref mlistp
+
+foreign import ccall "create_marklist"
+    c_create_marklist :: Ptr PosMark -> CInt -> IO (Ptr Ruler.Marklist)
+foreign import ccall "&marklist_decref"
+    c_marklist_decref :: FunPtr (Ptr Ruler.Marklist -> IO ())
+foreign import ccall "marklist_incref"
+    c_marklist_incref :: Ptr Ruler.Marklist -> IO ()
 
 newtype PosMark = PosMark (ScoreTime, Ruler.Mark) deriving (Show)
 

@@ -1,5 +1,4 @@
-/*
-    Rulers appear in two places: on a dedicated ruler track, and as an overlay
+/* Rulers appear in two places: on a dedicated ruler track, and as an overlay
     on an event track.  The former can be implemented as an overlay onto a
     plain box.  There are some differences though: I may want to disable names
     for the event track overlay, and alpha for the ruler track.
@@ -48,12 +47,23 @@ struct PosMark {
     Mark mark;
 };
 
+// Marklists are reference-counted because they are frequently large, but
+// change rarely.  Haskell uses a ForeignPtr to hold one reference.
+// More documentation in 'Ui.BlockC'.
 struct Marklist {
-    int length;
-    PosMark *marks;
+    Marklist(const PosMark *marks, int length)
+        : references(1), length(length), marks(marks) {}
+    void incref();
+    void decref();
+
+private:
+    int references;
+public:
+    const int length;
+    const PosMark *marks;
 };
 
-typedef std::vector<Marklist> Marklists;
+typedef std::vector<Marklist *> Marklists;
 
 // Markslists will be drawn in the order they are given, so later marklists
 // will draw over earlier ones.
@@ -133,9 +143,7 @@ public:
     virtual void set_track_signal(const TrackSignal &tsig) {
         DEBUG("WARNING: got a track signal on a ruler track!");
     }
-    virtual void finalize_callbacks() {
-        ruler.delete_config();
-    }
+    virtual void finalize_callbacks();
     virtual std::string dump() const;
 
 protected:

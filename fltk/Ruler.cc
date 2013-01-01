@@ -20,6 +20,36 @@ const static int selection_min_size = 2;
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()
 
 
+// Marklist
+
+void
+Marklist::incref()
+{
+    ASSERT(references > 0);
+    references++;
+    // DEBUG("incref " << length << ": " << references);
+}
+
+void
+Marklist::decref()
+{
+    ASSERT(references > 0);
+    references--;
+    // DEBUG("decref " << length << " : " << references);
+    if (references == 0) {
+        for (int i = 0; i < length; i++) {
+            if (marks[i].mark.name)
+                free(marks[i].mark.name);
+        }
+        free((void *) marks);
+        // Make sure if someone uses it they get a segfault right away.
+        marks = NULL;
+    }
+}
+
+
+// OverlayRuler
+
 OverlayRuler::OverlayRuler(const RulerConfig &config, bool is_ruler_track) :
     Fl_Widget(0, 0, 1, 1), config(config)
 {
@@ -100,21 +130,15 @@ OverlayRuler::set_config(bool is_ruler_track, const RulerConfig &config,
     this->damage_range(start, end);
 }
 
-
 void
 OverlayRuler::delete_config()
 {
     for (Marklists::iterator mlist = config.marklists.begin();
             mlist != config.marklists.end(); ++mlist)
     {
-        for (int i = 0; i < mlist->length; i++) {
-            if (mlist->marks[i].mark.name)
-                free(mlist->marks[i].mark.name);
-        }
-        free(mlist->marks);
+        (*mlist)->decref();
     }
 }
-
 
 
 // I redraw the scroll revealed area separately, so pass a dummy to fl_scroll.
@@ -179,12 +203,12 @@ compare_marks(const PosMark &m1, const PosMark &m2)
 
 
 static bool
-prev_text_is_first(PosMark *begin, PosMark *cur)
+prev_text_is_first(const PosMark *begin, const PosMark *cur)
 {
     if (cur == begin)
         return false;
     // True if the prev mark with name == begin
-    PosMark *p = cur - 1;
+    const PosMark *p = cur - 1;
     for (;p >= begin; p--) {
         if (p->mark.name) {
             return p == begin;
@@ -194,8 +218,8 @@ prev_text_is_first(PosMark *begin, PosMark *cur)
 }
 
 
-static PosMark *
-rewind_to_prev_visible(PosMark *begin, PosMark *cur, double zoom)
+static const PosMark *
+rewind_to_prev_visible(const PosMark *begin, const PosMark *cur, double zoom)
 {
     // Ruler marks have their own thickness, so I have to start drawing from
     // the previous visible mark.
@@ -230,11 +254,12 @@ OverlayRuler::draw_marklists()
 
     fl_font(Config::font, Config::font_size::ruler);
     // Later marklists will draw over earlier ones.
-    for (Marklists::const_iterator mlist = config.marklists.begin();
-            mlist != config.marklists.end(); ++mlist)
+    for (Marklists::const_iterator it = config.marklists.begin();
+            it != config.marklists.end(); ++it)
     {
-        PosMark *marks_end = mlist->marks + mlist->length;
-        PosMark *m = std::lower_bound(mlist->marks, marks_end,
+        const Marklist *mlist = *it;
+        const PosMark *marks_end = mlist->marks + mlist->length;
+        const PosMark *m = std::lower_bound(mlist->marks, marks_end,
             PosMark(start, Mark()), compare_marks);
         if (config.show_names && prev_text_is_first(mlist->marks, m))
             m = mlist->marks;
@@ -342,6 +367,8 @@ OverlayRuler::draw_selections()
 }
 
 
+// RulerTrackView
+
 RulerTrackView::RulerTrackView(const RulerConfig &config) :
     TrackView("ruler"),
     title_box(0),
@@ -399,6 +426,12 @@ RulerTrackView::update(const Tracklike &track, ScoreTime start, ScoreTime end)
             title_box->redraw();
         }
     }
+}
+
+void
+RulerTrackView::finalize_callbacks()
+{
+    ruler.delete_config();
 }
 
 void

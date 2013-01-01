@@ -47,14 +47,20 @@ void set_display_track(BlockViewWindow *view, int tracknum,
 // tracks
 
 void insert_track(BlockViewWindow *view, int tracknum,
-        Tracklike *track, int width,
-        Marklist *marklists, int nmarklists);
+        Tracklike *track, int width, Marklist **marklists, int nmarklists);
 void remove_track(BlockViewWindow *view, int tracknum);
 void update_track(BlockViewWindow *view, int tracknum,
-        Tracklike *track, Marklist *marklists, int nmarklists,
+        Tracklike *track, Marklist **marklists, int nmarklists,
         ScoreTime *start, ScoreTime *end);
 void set_track_signal(BlockViewWindow *view, int tracknum, TrackSignal *tsig);
 void set_track_title(BlockViewWindow *view, int tracknum, const char *title);
+
+// rulers
+
+// These can't be methods because the haskell FFI doesn't understand C++.
+Marklist *create_marklist(const PosMark *marks, int length);
+void marklist_incref(Marklist *m);
+void marklist_decref(Marklist *m);
 
 // symbols
 

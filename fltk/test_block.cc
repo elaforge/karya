@@ -32,31 +32,28 @@ BlockModelConfig block_model_config()
     return c;
 }
 
-static Marklist m44_marks;
-static ScoreTime m44_last_pos;
-void m44_set()
+Marklist *m44_set(ScoreTime *last_pos)
 {
-    Marklist &mlist = m44_marks;
     char name[32];
     Color major = Color(116, 70, 0, 90);
     Color minor = Color(225, 100, 50, 90);
 
-    mlist.length = 200;
-    m44_marks.length = 200;
-    mlist.marks = (PosMark *) calloc(sizeof(PosMark), mlist.length);
-    for (int i = 0; i < mlist.length; i++) {
+    int length = 200;
+    PosMark *marks = (PosMark *) calloc(sizeof(PosMark), length);
+    for (int i = 0; i < length; i++) {
         ScoreTime t = ScoreTime(i*8);
         if (i % 4 == 0) {
             sprintf(name, "%d", i / 4);
             Mark m(1, 3, major, strdup(name), 0, 0);
-            mlist.marks[i] = PosMark(t, m);
+            marks[i] = PosMark(t, m);
         } else {
             sprintf(name, "long %d.%d", i / 4, i % 4);
             Mark m(2, 2, minor, strdup(name), 0, 0);
-            mlist.marks[i] = PosMark(t, m);
+            marks[i] = PosMark(t, m);
         }
     }
-    m44_last_pos = ScoreTime((mlist.length-1) * 8);
+    *last_pos = ScoreTime((length-1) * 8);
+    return new Marklist(marks, length);
 }
 
 struct EventInfo {
@@ -186,8 +183,8 @@ timeout_func(void *vp)
     // static ScoreTime t1_time_end = t1_events[i].pos
     //     + t1_events[i].event.duration;
     // static EventTrackConfig track1(track_bg, t1_no_events, t1_time_end);
-    static RulerConfig truler(ruler_bg, false, true, true, arrival_beats,
-        m44_last_pos);
+    // static RulerConfig truler(ruler_bg, false, true, true, arrival_beats,
+    //     m44_last_pos);
 
     std::cout << n << "------------\n";
     switch (n) {
@@ -307,14 +304,14 @@ main(int argc, char **argv)
 
     BlockViewWindow::initialize(NULL);
     t1_set();
-    m44_set();
+    ScoreTime m44_last_pos;
+    Marklist *m44_marks = m44_set(&m44_last_pos);
 
     Marklists mlists;
     mlists.push_back(m44_marks);
     Marklists nomarks;
 
-    RulerConfig ruler(ruler_bg, false, true, true, arrival_beats,
-        m44_last_pos);
+    RulerConfig ruler(ruler_bg, false, true, true, arrival_beats, m44_last_pos);
     ruler.marklists = mlists;
     DividerConfig divider(Color(0x00, 0xff, 0x00));
 

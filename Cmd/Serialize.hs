@@ -100,8 +100,7 @@ make_dir = Directory.createDirectoryIfMissing True . FilePath.takeDirectory
 data SaveState = SaveState {
     save_ui_state :: State.State
     , save_date :: Time.UTCTime
-    -- undo-related metadata?
-    } deriving (Read, Show)
+    }
 
 save_state :: State.State -> IO SaveState
 save_state ui_state = do
@@ -360,10 +359,10 @@ instance Serialize Ruler.Ruler where
             _ -> Serialize.bad_version "Ruler.Ruler" v
 
 instance Serialize Ruler.Marklist where
-    put (Ruler.Marklist a) = put a
+    put mlist = put (Ruler.marklist_map mlist)
     get = do
-        m :: Map.Map ScoreTime Ruler.Mark <- get
-        return $ Ruler.Marklist m
+        marks :: Map.Map ScoreTime Ruler.Mark <- get
+        return $ Ruler.marklist marks
 
 instance Serialize Ruler.Mark where
     put (Ruler.Mark a b c d e f) = put a >> put b >> put c >> put d >> put e

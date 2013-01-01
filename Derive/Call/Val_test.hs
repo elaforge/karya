@@ -1,4 +1,5 @@
 module Derive.Call.Val_test where
+import qualified Data.Map as Map
 import Util.Test
 import qualified Ui.Ruler as Ruler
 import qualified Ui.UiTest as UiTest
@@ -13,7 +14,8 @@ test_timestep = do
                 [(">", [(start, 0, ("d (t " ++ vcall ++ ") |"))])]
         extract = Score.event_start
         ruler = UiTest.ruler [(Meter.meter, mlist)]
-        mlist = Ruler.marklist (zip [0, 1, 2, 3, 4, 6, 8, 10, 12] UiTest.m44)
+        mlist = Ruler.marklist $ Map.fromList
+            (zip [0, 1, 2, 3, 4, 6, 8, 10, 12] UiTest.m44)
     let (evts, logs) = run 0 "'r:z'"
     equal evts []
     strings_like logs ["parsing timestep"]

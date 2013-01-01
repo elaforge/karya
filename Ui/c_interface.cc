@@ -67,7 +67,7 @@ void
 destroy(BlockViewWindow *view)
 {
     // Make sure all the callbacks are finalized.
-    for (int i = view->block.tracks() - 1; i; i--)
+    for (int i = view->block.tracks() - 1; i >= 0; i--)
         view->block.remove_track(i);
     delete view;
 }
@@ -169,8 +169,7 @@ set_display_track(BlockViewWindow *view, int tracknum,
 
 void
 insert_track(BlockViewWindow *view, int tracknum,
-        Tracklike *track, int width,
-        Marklist *marklists, int nmarklists)
+        Tracklike *track, int width, Marklist **marklists, int nmarklists)
 {
     RulerConfig *old_ruler = track->ruler;
     if (track->ruler) {
@@ -198,7 +197,7 @@ remove_track(BlockViewWindow *view, int tracknum)
 
 void
 update_track(BlockViewWindow *view, int tracknum,
-        Tracklike *track, Marklist *marklists, int nmarklists,
+        Tracklike *track, Marklist **marklists, int nmarklists,
         ScoreTime *start, ScoreTime *end)
 {
     RulerConfig *old_ruler = track->ruler;
@@ -231,6 +230,27 @@ void
 set_track_title(BlockViewWindow *view, int tracknum, const char *title)
 {
     view->block.track_at(tracknum)->set_title(title);
+}
+
+
+// rulers
+
+Marklist *
+create_marklist(const PosMark *marks, int length)
+{
+    return new Marklist(marks, length);
+}
+
+void
+marklist_incref(Marklist *m)
+{
+    m->incref();
+}
+
+void
+marklist_decref(Marklist *m)
+{
+    m->decref();
 }
 
 

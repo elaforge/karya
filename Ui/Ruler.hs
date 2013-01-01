@@ -1,9 +1,28 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Ui.Ruler where
+module Ui.Ruler (
+    -- * Ruler
+    Ruler(..), Marklists, Name, no_ruler
+    , lookup_marklist, get_marklist, set_marklist, remove_marklist
+    , modify_marklist, modify_marklists, map_marklists
+    , time_end
+    -- * Marklist
+    , Marklist, PosMark, marklist, marklist_map
+    , marklist_fptr -- This should only be used from Ui.RulerC.
+    , split, ascending, descending
+    , marklist_end, first_pos
+    -- ** modification
+    , shift, insert_mark
+    -- * Mark
+    , Mark(..), null_mark, Rank
+) where
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
+
+import qualified Foreign
+import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
 import qualified Util.Map as Map
@@ -13,6 +32,8 @@ import Util.Pretty
 import qualified Ui.Color as Color
 import Types
 
+
+-- * Ruler
 
 data Ruler = Ruler {
     -- | The marklists are drawn in order, and the draw order is determined
@@ -25,11 +46,15 @@ data Ruler = Ruler {
     -- | Align bottoms of marks to beats, instead of the top.  Looks good used
     -- with negative duration events (arrival beats).
     , ruler_align_to_bottom :: !Bool
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Show)
+
+type Marklists = Map.Map Name Marklist
+type Name = String
 
 instance Pretty.Pretty Ruler where
     pretty ruler = "((Ruler "
-        ++ Pretty.pretty (Map.map marklist_length (ruler_marklists ruler))
+        ++ Pretty.pretty
+            (Map.map (Map.size . marklist_map) (ruler_marklists ruler))
         ++ "))"
 
 instance DeepSeq.NFData Ruler where
@@ -61,18 +86,15 @@ modify_marklist :: Name -> (Marklist -> Marklist) -> Ruler -> Ruler
 modify_marklist name modify ruler =
     set_marklist name (modify (get_marklist name ruler)) ruler
 
--- | Transform all the marklists in a ruler.
-map_marklists :: (Marklist -> Marklist) -> Ruler -> Ruler
-map_marklists f ruler =
-    ruler { ruler_marklists = Map.map f (ruler_marklists ruler) }
-
 modify_marklists :: (Map.Map Name Marklist -> Map.Map Name Marklist)
     -> Ruler -> Ruler
 modify_marklists modify ruler =
     ruler { ruler_marklists = modify (ruler_marklists ruler) }
 
-clip :: ScoreTime -> Ruler -> Ruler
-clip pos = map_marklists (clip_marklist pos)
+-- | Transform all the marklists in a ruler.
+map_marklists :: (Marklist -> Marklist) -> Ruler -> Ruler
+map_marklists f ruler =
+    ruler { ruler_marklists = Map.map f (ruler_marklists ruler) }
 
 -- | Get the position of the last mark of the ruler.
 time_end :: Ruler -> ScoreTime
@@ -80,32 +102,61 @@ time_end = maximum . (0 :) . map marklist_end . Map.elems . ruler_marklists
 
 -- * marklist
 
-newtype Marklist = Marklist (Map.Map ScoreTime Mark)
-    deriving (DeepSeq.NFData, Eq, Show, Read)
+data Marklist = Marklist
+    { marklist_map :: !(Map.Map ScoreTime Mark)
+    -- | This is a cache for the C-marshalled version of the marklist.
+    -- It will be allocated if the Marklist is passed to C, and is managed with
+    -- its own reference count.
+    --
+    -- I think this should be safe as long as 'marklist' is the only
+    -- constructor.
+    , marklist_fptr :: !(MVar.MVar (Maybe (Foreign.ForeignPtr Marklist)))
+    }
+
+type PosMark = (ScoreTime, Mark)
+
+instance Show Marklist where
+    showsPrec _ mlist =
+        ("Ruler.marklist ("++) . shows (marklist_map mlist) . (")"++)
+instance Eq Marklist where
+    m1 == m2 = marklist_map m1 == marklist_map m2
+instance DeepSeq.NFData Marklist where
+    rnf mlist = DeepSeq.rnf (marklist_map mlist)
+
+marklist :: Map.Map ScoreTime Mark -> Marklist
+marklist marks = Marklist marks (Unsafe.unsafePerformIO (MVar.newMVar Nothing))
+
+split :: Marklist -> ScoreTime -> ([PosMark], [PosMark])
+split mlist pos = (Map.toDescList pre, Map.toAscList post)
+    where (pre, post) = Map.split2 pos (marklist_map mlist)
+
+-- | Marks starting at the first mark >= the given pos, to the end.
+ascending :: Marklist -> ScoreTime -> [PosMark]
+ascending mlist 0 = Map.toAscList (marklist_map mlist)
+ascending marklist pos = snd (split marklist pos)
+
+-- | Marks starting at the first mark <= the given pos, to the beginning.
+descending :: Marklist -> ScoreTime -> [PosMark]
+descending marklist pos = fst (split marklist pos)
+
+-- | Get the position of the last mark.
+marklist_end :: Marklist -> ScoreTime
+marklist_end = maybe 0 fst . Map.max . marklist_map
+
+first_pos :: Marklist -> ScoreTime
+first_pos mlist = maybe 0 fst (Map.min (marklist_map mlist))
+
+-- ** modification
 
 mapm :: (Map.Map ScoreTime Mark -> Map.Map ScoreTime Mark)
     -> Marklist -> Marklist
-mapm f (Marklist m) = Marklist (f m)
-
-marklist_length :: Marklist -> Int
-marklist_length (Marklist mlist) = Map.size mlist
-
-type Marklists = Map.Map Name Marklist
-type Name = String
-type PosMark = (ScoreTime, Mark)
-
--- | Construct a Marklist.
-marklist :: [PosMark] -> Marklist
-marklist = Marklist . Map.fromList
-
-marks_of :: Marklist -> [PosMark]
-marks_of (Marklist m) = Map.toList m
+mapm f = marklist . f . marklist_map
 
 instance Monoid.Monoid Marklist where
-    mempty = Marklist mempty
-    mappend m1@(Marklist a1) m2@(Marklist a2)
+    mempty = marklist mempty
+    mappend m1@(Marklist a1 _) m2@(Marklist a2 _)
         | m2 == mempty = m1
-        | otherwise = Marklist $ Map.union (fst (Map.split start a1)) a2
+        | otherwise = marklist $ Map.union (fst (Map.split start a1)) a2
         where start = first_pos m2
     mconcat = List.foldl' Monoid.mappend Monoid.mempty
 
@@ -115,29 +166,15 @@ shift offset = mapm $ Map.mapKeys (+offset)
 insert_mark :: ScoreTime -> Mark -> Marklist -> Marklist
 insert_mark pos mark = mapm $ Map.insert pos mark
 
--- | Clip the marklist before the given pos.
---
--- Unlike most functions that take ranges, the output will *include* the end
--- pos.  This is because it's convenient for rulers to have a mark at the end.
-clip_marklist :: ScoreTime -> Marklist -> Marklist
-clip_marklist pos (Marklist m) =
-    Marklist $ maybe pre (\v -> Map.insert pos v pre) at
-    where (pre, at, _) = Map.splitLookup pos m
-
--- | Get the position of the last mark.
-marklist_end :: Marklist -> ScoreTime
-marklist_end (Marklist m) = maybe 0 fst (Map.max m)
-
-first_pos :: Marklist -> ScoreTime
-first_pos (Marklist m) = maybe 0 fst (Map.min m)
+-- * mark
 
 data Mark = Mark {
-    mark_rank :: Rank
-    , mark_width :: Int
-    , mark_color :: Color.Color
-    , mark_name :: String
-    , mark_name_zoom_level :: Double
-    , mark_zoom_level :: Double
+    mark_rank :: !Rank
+    , mark_width :: !Int
+    , mark_color :: !Color.Color
+    , mark_name :: !String
+    , mark_name_zoom_level :: !Double
+    , mark_zoom_level :: !Double
     } deriving (Eq, Show, Read)
 
 null_mark :: Mark
@@ -152,16 +189,3 @@ instance DeepSeq.NFData Mark where
 instance Pretty Mark where
     pretty m = "<mark: " ++ show (mark_rank m) ++ name ++ ">"
         where name = if null (mark_name m) then "" else ' ' : mark_name m
-
-split :: Marklist -> ScoreTime -> ([PosMark], [PosMark])
-split (Marklist m) pos = (Map.toDescList pre, Map.toAscList post)
-    where (pre, post) = Map.split2 pos m
-
--- | Marks starting at the first mark >= the given pos, to the end.
-ascending :: Marklist -> ScoreTime -> [PosMark]
-ascending (Marklist m) 0 = Map.toAscList m
-ascending marklist pos = snd (split marklist pos)
-
--- | Marks starting at the first mark <= the given pos, to the beginning.
-descending :: Marklist -> ScoreTime -> [PosMark]
-descending marklist pos = fst (split marklist pos)

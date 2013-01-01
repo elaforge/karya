@@ -439,13 +439,16 @@ BlockView::remove_track(int tracknum)
     } else if (this->tracks() == 1) {
         if (this->ruler_track != this->no_ruler) {
             TrackView *t = this->replace_ruler_track(this->no_ruler, 0);
+            t->finalize_callbacks();
             delete t;
         }
     } else {
         TrackView *t = track_tile.remove_track(0);
         TrackView *removed = this->replace_ruler_track(t, t->w());
-        if (removed != this->no_ruler)
+        if (removed != this->no_ruler) {
+            removed->finalize_callbacks();
             delete removed;
+        }
     }
 }
 
