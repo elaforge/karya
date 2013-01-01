@@ -347,7 +347,7 @@ foreign import ccall "dump_view" c_dump_view :: Ptr CView -> IO CString
 
 instance Storable Block.Divider where
     sizeOf _ = #size DividerConfig
-    alignment _ = 4 -- #{alignment DividerConfig}
+    alignment _ = #{alignment DividerConfig}
     poke dividerp (Block.Divider color) =
         (#poke DividerConfig, color) dividerp color
 
@@ -372,9 +372,7 @@ poke_tracklike_ptr tp tracklike_ptr = do
 
 instance Storable Block.Config where
     sizeOf _ = #size BlockModelConfig
-    -- TODO alignment figures the alignment is 1, which seems to be crashing
-    -- the gc.  See if this fixes it.
-    alignment _ = 4 -- #{alignment BlockModelConfig}
+    alignment _ = #{alignment BlockModelConfig}
     poke = poke_block_model_config
 
 poke_block_model_config configp
@@ -385,7 +383,7 @@ poke_block_model_config configp
 
 instance Storable Block.Box where
     sizeOf _ = #size BlockBox
-    alignment _ = 4 -- #{alignment BlockBox}
+    alignment _ = #{alignment BlockBox}
     poke boxp (Block.Box color char) = do
         (#poke BlockBox, color) boxp color
         (#poke BlockBox, c) boxp (Util.c_char char)
