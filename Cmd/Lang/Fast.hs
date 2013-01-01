@@ -39,7 +39,7 @@ interpret toks = case toks of
         ["Create.view", str] | Just arg <- val str -> action $ Create.view arg
 
         -- Misc.
-        ["quit"] -> Just quit
+        ["quit"] -> action Global.quit
         ["save"] -> action Global.save
         ["save_as", str] | Just arg <- val str -> action $ Global.save_as arg
         ["load", str] | Just arg <- val str -> action $ Global.load arg
@@ -63,13 +63,6 @@ val :: (Read a) => String -> Maybe a
 val text = case reads text of
     (val, "") : _ -> Just val
     _ -> Nothing
-
-quit :: Cmd.CmdL String
-quit = return magic_quit_string
-
--- | Hack so that language cmds can quit the app, since they return strings.
-magic_quit_string :: String
-magic_quit_string = "-- * YES, really quit * --"
 
 lex_all :: String -> Maybe [String]
 lex_all text

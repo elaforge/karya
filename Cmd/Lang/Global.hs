@@ -113,6 +113,9 @@ infixl 9 .>
 pp :: (Pretty.Pretty a) => Cmd.CmdL a -> Cmd.CmdL String
 pp = fmap Pretty.formatted
 
+quit :: Cmd.CmdL ()
+quit = Cmd.modify $ \st -> st { Cmd.state_repl_status = Cmd.Quit }
+
 -- * errors
 
 -- | Called from logview
