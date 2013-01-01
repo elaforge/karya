@@ -32,20 +32,20 @@ import Types
 -- 'with'.
 with_track :: Track.Track -> Event.SetStyle -> [Events.Events]
     -> (Ptr Track.Track -> IO a) -> IO a
-with_track track set_style event_lists f = allocaBytes size $ \trackp -> do
-    -- Wrap style is customizable per track, but I'll hardcode it for now.
-    (#poke EventTrackConfig, text_wrap) trackp
-        ((#const EventTrackConfig::wrap) :: CInt)
-    (#poke EventTrackConfig, bg_color) trackp (Track.track_bg track)
-    poke_find_events trackp (set_style (Track.track_title track))
-        (Track.track_events track : event_lists)
-    (#poke EventTrackConfig, render) trackp (Track.track_render track)
-    initialize_track_signal ((#ptr EventTrackConfig, track_signal) trackp)
-    f trackp
+with_track track set_style event_lists f =
+    allocaBytesAligned size align $ \trackp -> do
+        -- Wrap style is customizable per track, but I'll hardcode it for now.
+        (#poke EventTrackConfig, text_wrap) trackp
+            ((#const EventTrackConfig::wrap) :: CInt)
+        (#poke EventTrackConfig, bg_color) trackp (Track.track_bg track)
+        poke_find_events trackp (set_style (Track.track_title track))
+            (Track.track_events track : event_lists)
+        (#poke EventTrackConfig, render) trackp (Track.track_render track)
+        initialize_track_signal ((#ptr EventTrackConfig, track_signal) trackp)
+        f trackp
     where
     size = #size EventTrackConfig
-    -- allocaBytesAligned is not exported from Foreign.Marshal.Alloc
-    -- align = #{alignment EventTrackConfig}
+    align = #{alignment EventTrackConfig}
 
 type SetStyle = ScoreTime -> Event.Event -> Style.StyleId
 
