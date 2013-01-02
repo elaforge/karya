@@ -3,7 +3,9 @@
 module Cmd.Save where
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
+import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.Log as Log
@@ -40,6 +42,24 @@ cmd_load fname = do
         (("load " ++ fname ++ ": ") ++)
         =<< Trans.liftIO (Serialize.unserialize fname)
     set_state state
+
+-- | Try to guess whether the given path is a git save or state save.  If it's
+-- a directory, look inside for a .git or .state save.
+cmd_load_any :: FilePath -> Cmd.CmdT IO ()
+cmd_load_any path
+    | SaveGit.is_git path = cmd_load_git path Nothing
+    | otherwise = ifM (isdir path) look_in_dir (cmd_load path)
+    where
+    look_in_dir =
+        ifM (isdir git) (cmd_load_git git Nothing) $
+        ifM (isfile state) (cmd_load (path </> name ++ ".state")) $
+        Cmd.throw $ "directory contains neither " ++ git ++ " nor " ++ state
+        where
+        git = path </> name ++ ".git"
+        state = path </> name ++ ".state"
+    name = FilePath.takeFileName path
+    isdir = Trans.liftIO . Directory.doesDirectoryExist
+    isfile = Trans.liftIO . Directory.doesFileExist
 
 -- * git serialize
 

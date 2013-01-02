@@ -1,7 +1,8 @@
 UNSORTED
   * modifying the ruler isn't working
   - can't undo after loading a .git
-  - in argv, if I give a directory, it should look inside for .git or .state
+    Also, .git checkmarks are forking unnecessarily, probably related.
+  * in argv, if I give a directory, it should look inside for .git or .state
   * remove pitch track valnames
   * always use C types for #pokes and #peeks
   * use allocaBytesAligned instead of allocaBytes
