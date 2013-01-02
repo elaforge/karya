@@ -54,6 +54,7 @@ import qualified Cmd.Lang.LState as LState
 -- import qualified Cmd.Lang.LSymbol as LSymbol
 import qualified Cmd.Lang.LTrack as LTrack
 import qualified Cmd.Lang.LView as LView
+import qualified Cmd.Meter as Meter
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Play as Play

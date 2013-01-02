@@ -138,6 +138,10 @@ m44 = regular_subdivision [4, 4, 4, 4, 4]
 m34 = regular_subdivision [4, 3, 4, 4, 4]
 m332 = repeat 4 $ subdivide 4 $ subdivide_dur $ D (map T [3, 3, 2])
 
+-- | 4 sections / 4 measures / 6 8th notes / 2 16th notes / 4 64th notes
+m68 :: AbstractMeter
+m68 = regular_subdivision [4, 4, 6, 2, 4]
+
 -- *** AbstractMeter utils
 
 -- | It's easier to visualize a meter as a list of its ranks.

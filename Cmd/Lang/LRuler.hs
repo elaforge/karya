@@ -11,10 +11,14 @@
 
     Examples:
 
-    - Give the current block the standard 4/4 meter.  Since m44 is 4 measures of
-      4/4, stretching by 16 gives each whole note 1t.
+    - Give the current block the standard 4/4 meter.  Since m44 is 4 measures
+    of 4/4, stretching by 16 gives each whole note 1t.
 
-      > LRuler.set_meter 16 Meter.m44 =<< block
+        > LRuler.modify =<< LRuler.fit_to_pos 16 Meter.m44
+
+    - Or put the selection at the where the 4 meters should end and run
+
+        > LRuler.modify =<< LRuler.fit_to_selection Meter.m44
 
     - Make the last measure 5/4 by selecting a quarter note and running
       @LRuler.append@.
@@ -126,18 +130,24 @@ delete = do
     (block_id, _, _, start, end) <- Selection.tracks
     return (block_id, Meter.remove start end)
 
--- | Replace the meter for the rulers of this block, fitted to the end of the
--- last event on the block.
-fitted_meter :: (Cmd.M m) => Meter.AbstractMeter -> BlockId -> m Modify
-fitted_meter meter block_id = do
-    dur <- State.block_event_end block_id
-    when (dur <= 0) $
-        Cmd.throw "can't set ruler for block with 0 duration"
-    return (block_id, const $ Meter.fit_meter dur meter)
+-- | Replace the meter on this block, fitted to the end of the last event on
+-- the block.
+fit_to_end :: (Cmd.M m) => Meter.AbstractMeter -> BlockId -> m Modify
+fit_to_end meter block_id = do
+    end <- State.block_event_end block_id
+    fit_to_pos end meter
 
-set_meter :: ScoreTime -> Meter.AbstractMeter -> BlockId -> Modify
-set_meter dur meter block_id =
-    (block_id, const $ Meter.fit_meter dur meter)
+fit_to_selection :: (Cmd.M m) => Meter.AbstractMeter -> m Modify
+fit_to_selection meter = do
+    (_, _, _, pos) <- Selection.get_insert
+    fit_to_pos pos meter
+
+fit_to_pos :: (Cmd.M m) => ScoreTime -> Meter.AbstractMeter -> m Modify
+fit_to_pos pos meter = do
+    when (pos <= 0) $
+        Cmd.throw "can't set ruler for block with 0 duration"
+    block_id <- Cmd.get_focused_block
+    return (block_id, const $ Meter.fit_meter pos meter)
 
 get_meter :: (State.M m) => BlockId -> m Meter.Meter
 get_meter block_id =
