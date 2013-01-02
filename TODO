@@ -1,4 +1,7 @@
 UNSORTED
+  * modifying the ruler isn't working
+  - can't undo after loading a .git
+  - in argv, if I give a directory, it should look inside for .git or .state
   * remove pitch track valnames
   * always use C types for #pokes and #peeks
   * use allocaBytesAligned instead of allocaBytes
@@ -162,12 +165,7 @@ UNSORTED
     - order tracks with low pitches to the left
   / Score.instrument should strip invalid chars
     The thing is, MidiDb strips them before joining them with the synth name.
-  slow
-    - fltk drawing is slow
-    - maybe slower when there's haskell behind it?
-    - rederiving is slow
-    - it also makes the UI seize up, even when it should be waiting?
-  and scrolling the giant block is super slow!
+  scrolling through giant blocks is slow
     - drawing is stil slow, I'll have to look at the fltk layer
       It happens when the block is wide.  Use test_block to see if it's just
       fltk.
@@ -180,7 +178,7 @@ UNSORTED
     . The thing is, it seems like fl_scroll doesn't actually help scrolling
       speed at all.  Maybe all the time is spent elsewhere?
 
-  - should instrument bound keys (i.e. drum strokes) work in ValEdit?
+  / should instrument bound keys (i.e. drum strokes) work in ValEdit?
     It's awkward to have to go back and forth from kbd entry.
   - trill or trem with negative duration lines the integral number up to the
     end.
@@ -233,11 +231,6 @@ UNSORTED
       block boundaries this way.  Maybe this could be used as an integrator
       input.
 
-  memory leak
-    . It seems like starting editing pnovla, it takes 1-2s to rederive, but
-      eventually take 5s.
-    - Run under EKG.  I thought I saw memory drop after scrolling the UI?
-
   ghc panics
     - If it's the old alignment=1 thing, maybe it's a problem with
       BlockModelConfig, maybe 4 just made it less likely to go over.
@@ -280,7 +273,7 @@ UNSORTED
     making some change that makes it more sensitive to the bug.  Or it could
     be optimization in the c++.
 
-  - rename Ruler.marks_of to marklist_to_list and Ruler.
+  * rename Ruler.marks_of to marklist_to_list and Ruler.
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
     say 'r' was an unknown suffix
     Can't get attoparsec to consistently report an error.  Kind of hard when
@@ -293,6 +286,7 @@ UNSORTED
     to extend.
   trompong / reyong:
     - trompong ngoret, actually I can use rambat tick
+      But damping on reyong is different, you can just forget some notes.
     - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can I draw
       symbols reversed? 入 兩
     - various numpuk
@@ -300,30 +294,13 @@ UNSORTED
   calls to define randomized scores:
     - alternate b1 b2 b3 - calls one of variant calls
     - how could I omit a transformer?
-  / Pretty on a lot of events causes a stack overflow
-    Can't reproduce.
+  - Pretty on a lot of events causes a stack overflow
+    Need a reproduction.
   - solo on one track in a sub-block causes all other blocks to be filtered out.
     It seems more intuitive that it only apply to that block.  That means solo
     would have to record the block that it's soloed on, and only filter events
     on that block.  Or simpler, turn a solo into a mute of all the other
     tracks.
-  - Also, solo can no longer be used to temporarily turn off a controls track.
-  Just scales, along with TwelveUtil support
-    - interpolate between just scales in different keys
-  - It's a bit unpleasant how I have TwelveUtils for accidental and key using
-    scales, then Scale.Util for simple scales, and then Just is its own thing.
-    Can I unify things into one framework?
-
-  fancier pitch signals:
-    - Pitch signal render:
-      To get it right, Pitch needs to emit (Note, Note, Frac) and send that to
-      fltk instead of NNs.  But I'm not sure I even want it, the NNs actually
-      look ok.
-    - Lilypond enharmonics: they way I spelled it on the score should be the
-      way it's spelled in lilypond.  (Note, Note, Frac) can do this but it's
-      actually overkill since I'll probably just pick the bottom Note.
-    - to_relatve: This needs Note - Note = Semis.  I think I could just add
-      a field in Scale, but I'm not totally sure I really want this.
 
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
   Space usage.  On startup it balloons up to 450mb, what is it doing?  After
@@ -384,10 +361,6 @@ UNSORTED
 
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
     and Derive.CallInfo.  Can I factor out the common bits?
-  keys / scales / Theory:
-    - support scales that are different ascending vs. descending
-    - twelve, but relative to key and using numbers, aka jianpu
-    - letter and jianpu but with implicit accidentals based on the key
 
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
@@ -451,8 +424,6 @@ UNSORTED
 
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
-  - Cmd.Lang.LPitch.to_relative: I would need to implement Scale.scale_diff
-    but I'm reluctant until I need to_relative or something similar
 
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
@@ -1247,16 +1218,6 @@ Derive:
       * constant slope, exp slope (i.e. slope until next control event)
       - continuous tempo warping for signals
         tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
-  Derive.Scale scales
-    * implement pengumbang pengisep
-    + just intonation tuned to a pitch signal
-    - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
-    - retune a note depending on the previous interval (e.g. sloppy pitches
-      when playing quickly)
-      I think this has to be postproc.
-    - Ratio based notation where the ratios are from the previous pitch.
-      Should be able to do this with val calls.
-    - parser for scala .scl files
 
    * Control track management?  It should be possible to have a note or a bunch
      of note tracks with a bunch of control tracks and control the clutter.
@@ -1280,6 +1241,39 @@ Derive:
   - set controller within control track?
   * reflect derivation back into a block
   * merge block level changes with derivation
+
+pitch / scales
+  scales / Derive.Scale:
+    * implement pengumbang pengisep
+    just intonation
+      - interpolate between just scales in different keys
+      + just intonation tuned to a pitch signal
+    - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
+    - retune a note depending on the previous interval (e.g. sloppy pitches
+      when playing quickly)
+      I think this has to be postproc.
+    - Ratio based notation where the ratios are from the previous pitch.
+      Should be able to do this with val calls.
+    - parser for scala .scl files
+    - support scales that are different ascending vs. descending
+    - twelve, but relative to key and using numbers, aka jianpu
+    - letter and jianpu but with implicit accidentals based on the key
+  - It's a bit unpleasant how I have TwelveUtils for accidental and key using
+    scales, then Scale.Util for simple scales, and then Just is its own thing.
+    Can I unify things into one framework?
+
+  fancier pitch signals:
+    / Pitch signal render:
+      To get it right, Pitch needs to emit (Note, Note, Frac) and send that to
+      fltk instead of NNs.  But I'm not sure I even want it, the NNs actually
+      look ok.
+    - Lilypond enharmonics: they way I spelled it on the score should be the
+      way it's spelled in lilypond.  (Note, Note, Frac) can do this but it's
+      actually overkill since I'll probably just pick the bottom Note.
+    - to_relatve: This needs Note - Note = Semis.  I think I could just add
+      a field in Scale, but I'm not totally sure I really want this.
+    - Cmd.Lang.LPitch.to_relative: I would need to implement Scale.scale_diff
+      but I'm reluctant until I need to_relative or something similar
 
 Perform:
   - damper pedal causes all notes to extend until the pedal comes up, should
