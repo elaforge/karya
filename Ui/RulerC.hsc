@@ -40,12 +40,14 @@ with_marklists mlists f = do
 
 -- | Create and cache a new marklist pointer, or re-used the cached one.
 marklist_fptr :: Ruler.Marklist -> IO (ForeignPtr Ruler.Marklist)
-marklist_fptr mlist = MVar.modifyMVar (Ruler.marklist_fptr mlist) create
+marklist_fptr mlist = MVar.modifyMVar (extract mlist) create
     where
-    create (Just fptr) = return (Just fptr, fptr)
-    create Nothing = do
+    extract = (\(Ruler.MarklistPtr a) -> a) . Ruler.marklist_fptr
+    create (Right fptr) =
+        return (Right fptr, fptr)
+    create (Left _) = do
         fptr <- create_marklist (Ruler.marklist_map mlist)
-        return (Just fptr, fptr)
+        return (Right fptr, fptr)
 
 create_marklist :: Map.Map ScoreTime Ruler.Mark
     -> IO (ForeignPtr Ruler.Marklist)

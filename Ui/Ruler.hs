@@ -14,6 +14,9 @@ module Ui.Ruler (
     , shift, insert_mark
     -- * Mark
     , Mark(..), null_mark, Rank
+
+    -- * for RulerC's eyes only
+    , MarklistPtr(..)
 ) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
@@ -110,9 +113,21 @@ data Marklist = Marklist
     --
     -- I think this should be safe as long as 'marklist' is the only
     -- constructor.
-    , marklist_fptr :: !(MVar.MVar (Maybe (Foreign.ForeignPtr Marklist)))
+    , marklist_fptr :: !MarklistPtr
     }
 
+-- | This should be opaque, but it needs to be exported for RulerC.  Don't look
+-- inside if you're not RulerC, OK?
+--
+-- The Left value is actually not used, but prevents the unsafePerformIO from
+-- being floated out of the lambda.
+--
+-- It would be nicer to just make this a normal value and let laziness do its
+-- thing, but that would mean I'd have to import RulerC into Ruler, which
+-- would mean basically everything would start depending on FFI, which upsets
+-- ghci.
+newtype MarklistPtr = MarklistPtr
+    (MVar.MVar (Either (Map.Map ScoreTime Mark) (Foreign.ForeignPtr Marklist)))
 type PosMark = (ScoreTime, Mark)
 
 instance Show Marklist where
@@ -123,8 +138,10 @@ instance Eq Marklist where
 instance DeepSeq.NFData Marklist where
     rnf mlist = DeepSeq.rnf (marklist_map mlist)
 
+{-# NOINLINE marklist #-}
 marklist :: Map.Map ScoreTime Mark -> Marklist
-marklist marks = Marklist marks (Unsafe.unsafePerformIO (MVar.newMVar Nothing))
+marklist marks = Marklist marks $ MarklistPtr $ Unsafe.unsafePerformIO $
+    MVar.newMVar (Left marks)
 
 split :: Marklist -> ScoreTime -> ([PosMark], [PosMark])
 split mlist pos = (Map.toDescList pre, Map.toAscList post)
