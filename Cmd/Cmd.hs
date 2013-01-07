@@ -51,7 +51,6 @@ import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as MonadState
 import qualified Control.Monad.Trans as Trans
-import Control.Monad.Trans (lift)
 
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
@@ -761,7 +760,7 @@ get_performance block_id = require =<< lookup_performance block_id
 invalidate_performances :: CmdT IO ()
 invalidate_performances = do
     threads <- gets (Map.elems . state_performance_threads . state_play)
-    Trans.liftIO $ mapM_ Concurrent.killThread threads
+    liftIO $ mapM_ Concurrent.killThread threads
     modify_play_state $ \state -> state
         { state_performance = mempty
         , state_performance_threads = mempty

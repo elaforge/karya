@@ -4,7 +4,6 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.State.Strict as State
-import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
@@ -123,7 +122,7 @@ note_tracker write = do
     mstate <- MVar.newMVar Map.empty
     return $ \msg -> MVar.modifyMVar mstate $ \state -> run state $ do
         new_msgs <- handle_msg msg
-        Trans.liftIO $ do
+        liftIO $ do
             mapM_ write new_msgs
             case msg of
                 Midi wmsg -> write wmsg
@@ -147,7 +146,7 @@ note_tracker write = do
 note_off :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
 note_off dev chan (Midi.Key key) = when (Num.in_range 0 129 key) $ do
     state <- State.get
-    when_just (Map.lookup dev state) $ \chans -> Trans.liftIO $
+    when_just (Map.lookup dev state) $ \chans -> liftIO $
         Mutable.write (chans ! fromIntegral chan) (fromIntegral key) False
 
 -- if dev not in state:
@@ -158,13 +157,13 @@ note_on dev chan (Midi.Key key) = when (Num.in_range 0 129 key) $ do
     state <- State.get
     case Map.lookup dev state of
         Nothing -> do
-            chans <- Trans.liftIO $ Vector.fromList <$>
+            chans <- liftIO $ Vector.fromList <$>
                 replicateM 16 (Mutable.replicate 128 False)
             set chans
             State.modify (Map.insert dev chans)
         Just chans -> set chans
     where
-    set chans = Trans.liftIO $
+    set chans = liftIO $
         Mutable.write (chans ! fromIntegral chan) (fromIntegral key) True
 
 -- | Send the given messages on all devices.
@@ -178,11 +177,11 @@ send_devices time msgs = do
 all_notes_off :: RealTime -> TrackerM [Midi.WriteMessage]
 all_notes_off time = do
     state <- State.get
-    msgs <- Trans.liftIO $ forM (Map.toList state) $ \(dev, chans) ->
+    msgs <- liftIO $ forM (Map.toList state) $ \(dev, chans) ->
         forM (zip [0..] (Vector.toList chans)) $ \(chan, notes) -> do
             keys <- Unboxed.toList <$> Unboxed.freeze notes
             let on = [Midi.Key (fromIntegral i) | (i, True) <- zip [0..] keys]
-            Trans.liftIO $ Mutable.set notes False
+            liftIO $ Mutable.set notes False
             return $ map (note_off dev chan) on
     return (concat (concat msgs))
     where

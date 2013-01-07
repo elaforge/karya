@@ -74,7 +74,7 @@ derive_at block_id track_id deriver = do
 
 -- * signal
 
--- TODO this looks in TrackSignal, which are the signals sent to the UI, and
+-- TODO this looks in TrackSignal, which are the signals sent to the UI,
 -- so they're in score time.  If I want the ones in RealTime, or if I want
 -- a PitchSignal, I have to look in TrackDynamic.
 

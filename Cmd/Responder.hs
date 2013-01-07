@@ -26,7 +26,6 @@ import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.State.Strict as Monad.State
-import qualified Control.Monad.Trans as Trans
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -315,7 +314,7 @@ record_keys msg = do
 -- would be silly.
 record_ui_updates :: Msg.Msg -> ErrorResponderM ()
 record_ui_updates msg = do
-    (result, cmd_state) <- Trans.lift $ run_cmd $ Left $
+    (result, cmd_state) <- lift $ run_cmd $ Left $
         Internal.cmd_record_ui_updates msg
     case result of
         Left err -> Error.throwError $ Done (Left err)
@@ -342,7 +341,7 @@ run_sync_status = do
 
 run_core_cmds :: Msg.Msg -> ErrorResponderM ()
 run_core_cmds msg = do
-    state <- Trans.lift $ Monad.State.gets rstate_state
+    state <- lift $ Monad.State.gets rstate_state
     mapM_ (run_throw . Right . ($msg))
         (StaticConfig.global_cmds (state_static_config state))
     -- Focus commands and the rest of the pure commands come first so text
@@ -381,17 +380,17 @@ run_continue caller cmd = do
     (result, cmd_state) <- run_cmd cmd
     case result of
         Left err -> do
-            Trans.liftIO $ Log.error $ caller ++ ": " ++ Pretty.pretty err
+            liftIO $ Log.error $ caller ++ ": " ++ Pretty.pretty err
             return Nothing
         Right (status, ui_state) -> do
-            when (not_continue status) $ Trans.liftIO $
+            when (not_continue status) $ liftIO $
                 Log.error $ caller ++ ": " ++ "expected Continue: "
                     ++ show status
             return $ Just (status, ui_state, cmd_state)
 
 run_throw :: EitherCmd -> ErrorResponderM ()
 run_throw cmd = do
-    (result, cmd_state) <- Trans.lift $ run_cmd cmd
+    (result, cmd_state) <- lift $ run_cmd cmd
     case result of
         Left err -> Error.throwError $ Done (Left err)
         Right (status, ui_state) -> do
@@ -404,12 +403,12 @@ run_cmd :: EitherCmd -> ResponderM
     (Either State.Error (Cmd.Status, State.State), Cmd.State)
 run_cmd cmd = do
     rstate <- Monad.State.get
-    (cmd_state, midi, logs, result) <- Trans.liftIO $ case cmd of
+    (cmd_state, midi, logs, result) <- liftIO $ case cmd of
         Left cmd ->
             Cmd.run_id_io (rstate_ui_to rstate) (rstate_cmd_to rstate) cmd
         Right cmd ->
             Cmd.run_io (rstate_ui_to rstate) (rstate_cmd_to rstate) cmd
-    Trans.liftIO $ do
+    liftIO $ do
         mapM_ Log.write logs
         mapM_ (Cmd.state_midi_writer (rstate_cmd_to rstate)) midi
     case result of

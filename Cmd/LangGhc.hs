@@ -11,7 +11,6 @@ module Cmd.LangGhc (
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-import Control.Monad
 import System.FilePath ((</>))
 
 import qualified Data.IORef as IORef
@@ -26,7 +25,7 @@ import qualified GHC.Paths
 import MonadUtils (MonadIO, liftIO)
 import qualified Outputable
 
-import Util.Control
+import Util.Control hiding (liftIO)
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 

@@ -1,6 +1,5 @@
 -- | Undo and redo cmds and support.
 module Cmd.Undo (undo, redo, maintain_history) where
-import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -66,7 +65,7 @@ undo = do
         prev : rest -> do_undo hist cur prev rest
         [] -> do
             repo <- State.gets SaveGit.save_repo
-            past <- Trans.liftIO $ load_prev repo cur
+            past <- liftIO $ load_prev repo cur
             case past of
                 [] -> Cmd.throw "no past to undo"
                 prev : rest -> do_undo hist cur prev rest
@@ -100,7 +99,7 @@ redo = do
         next : rest -> do_redo cur (Cmd.hist_past hist) next rest
         [] -> do
             repo <- State.gets SaveGit.save_repo
-            future <- Trans.liftIO $ load_next repo cur
+            future <- liftIO $ load_next repo cur
             case future of
                 [] -> Cmd.throw "no future to redo"
                 next : rest -> do_redo cur (Cmd.hist_past hist) next rest
@@ -211,7 +210,7 @@ record_suppressed = do
             Cmd.state_history_collect cmd_state
         hist = Cmd.state_history cmd_state
         collect = Cmd.empty_history_collect
-    cmd_state <- Trans.liftIO $
+    cmd_state <- liftIO $
         save_history ui_state cmd_state hist collect uncommitted
     Cmd.put cmd_state
 

@@ -1,7 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Lang cmds providing general UI state operations.
 module Cmd.Lang.LState where
-import qualified Control.Monad.Trans as Trans
 import qualified Data.Time as Time
 
 import Util.Control
@@ -49,7 +48,7 @@ get_meta = State.config#State.meta <#> State.get
 
 set_creation_time :: Cmd.CmdL ()
 set_creation_time = do
-    now <- Trans.liftIO Time.getCurrentTime
+    now <- liftIO Time.getCurrentTime
     State.modify $ State.config#State.meta#State.creation #= now
 
 set_notes :: String -> Cmd.CmdL ()

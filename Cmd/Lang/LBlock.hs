@@ -1,7 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Block level cmds.
 module Cmd.Lang.LBlock where
-import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -39,7 +38,7 @@ doc = CallDoc.doc_text <$> track_doc
 html_doc :: Cmd.CmdL ()
 html_doc = do
     doc <- track_doc
-    Trans.liftIO $ Text.IO.writeFile "build/derive_doc.html"
+    liftIO $ Text.IO.writeFile "build/derive_doc.html"
         (CallDoc.doc_html doc)
 
 track_doc :: Cmd.CmdL CallDoc.Document

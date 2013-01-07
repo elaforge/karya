@@ -19,6 +19,7 @@ module Util.Control (
     -- * state
     , (<#>)
     , module Control.Monad
+    , lift, liftIO
     -- * nonempty
     , module Data.List.NonEmpty
 ) where
@@ -26,6 +27,7 @@ import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
+import Control.Monad.Trans (lift, liftIO)
 
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (mapMaybe, fromMaybe)

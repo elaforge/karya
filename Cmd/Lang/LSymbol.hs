@@ -4,8 +4,6 @@
 -- TODO using this module on linux will break the REPL.  Apparently
 -- ghci on linux has a problem when it has to link in a FFI-using module.
 module Cmd.Lang.LSymbol where
-import qualified Control.Monad.Trans as Trans
-
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Ui.Event as Event
@@ -35,7 +33,7 @@ make = do
 -- | Put the given Symbol into the test block.
 set :: Symbol.Symbol -> Cmd.CmdL ()
 set sym = do
-    fonts <- Trans.liftIO $ SymbolC.insert_symbol sym
+    fonts <- liftIO $ SymbolC.insert_symbol sym
     unless (null fonts) $
         Cmd.throw $ "Missing fonts: " ++ Pretty.pretty fonts
     (_, _, tid, _) <- Selection.get_insert
@@ -43,7 +41,7 @@ set sym = do
         Event.event 0 5 ("`" ++ Symbol.sym_name sym ++ "`")
 
 get_fonts :: Cmd.CmdL [Symbol.Font]
-get_fonts = Trans.liftIO SymbolC.get_fonts
+get_fonts = liftIO SymbolC.get_fonts
 
 glyph_at :: Int -> (Double, Double) -> Symbol.Glyph -> Symbol.Glyph
 glyph_at size align glyph =

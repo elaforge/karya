@@ -10,7 +10,6 @@ module Cmd.Performance (SendStatus, update_performance, performance) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
-import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -80,7 +79,7 @@ kill_threads :: Cmd.CmdT IO ()
 kill_threads = do
     threads <- Cmd.gets $
         Map.elems . Cmd.state_performance_threads . Cmd.state_play
-    Trans.liftIO $ mapM_ Concurrent.killThread threads
+    liftIO $ mapM_ Concurrent.killThread threads
     Cmd.modify_play_state $ \st ->
         st { Cmd.state_performance_threads = mempty }
 
@@ -129,10 +128,10 @@ generate_performance :: Thread.Seconds -> SendStatus -> BlockId
     -> Cmd.CmdT IO ()
 generate_performance wait send_status block_id = do
     old_thread <- lookup_thread block_id
-    when_just old_thread (Trans.liftIO . Concurrent.killThread)
+    when_just old_thread (liftIO . Concurrent.killThread)
     ui_state <- State.get
     cmd_state <- Cmd.get
-    th <- Trans.liftIO $ Thread.start $
+    th <- liftIO $ Thread.start $
         performance_thread ui_state cmd_state wait send_status block_id
             `Exception.onException` send_status block_id Msg.Killed
     Cmd.modify_play_state $ \st ->

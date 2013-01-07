@@ -2,7 +2,6 @@
 -- | REPL Cmds dealing with instruments and MIDI config.
 module Cmd.Lang.LInst where
 import Prelude hiding (lookup)
-import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -202,7 +201,7 @@ disconnect_read_device rdev =
 run_interface :: (Interface.Interface -> IO a) -> Cmd.CmdL a
 run_interface op = do
     interface <- Cmd.gets Cmd.state_midi_interface
-    Trans.liftIO (op interface)
+    liftIO (op interface)
 
 
 -- * misc

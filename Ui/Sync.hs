@@ -28,7 +28,6 @@ module Ui.Sync (
     , set_track_signals
     , set_play_position, clear_play_position
 ) where
-import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -79,7 +78,7 @@ do_updates track_signals set_style updates = do
     actions <- mapM (run_update track_signals set_style) updates
     -- when (not (null updates)) $
     --     Debug.putp "sync updates" updates
-    Trans.liftIO (Ui.send_action (sequence_ actions))
+    liftIO (Ui.send_action (sequence_ actions))
 
 set_track_signals :: BlockId -> State.State -> Track.TrackSignals -> IO ()
 set_track_signals block_id state track_signals =
@@ -283,7 +282,7 @@ run_update track_signals set_style (Update.BlockUpdate block_id update) = do
             (State.get_block block_id)
         flags <- case mb_btrack of
             Nothing -> do
-                Trans.liftIO $ Log.warn $
+                liftIO $ Log.warn $
                     "InsertTrack with tracknum that's not in the block's "
                     ++ "tracks: " ++ show update
                 return []

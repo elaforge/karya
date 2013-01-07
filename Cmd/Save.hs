@@ -1,7 +1,6 @@
 {- | Functions to save and restore state to and from files.
 -}
 module Cmd.Save where
-import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
@@ -31,16 +30,16 @@ get_save_file = do
 cmd_save :: FilePath -> Cmd.CmdT IO ()
 cmd_save fname = do
     ui_state <- State.get
-    save <- Trans.liftIO $ Serialize.save_state (State.clear ui_state)
+    save <- liftIO $ Serialize.save_state (State.clear ui_state)
     Log.notice $ "write state to " ++ show fname
-    Trans.liftIO $ Serialize.serialize fname save
+    liftIO $ Serialize.serialize fname save
 
 cmd_load :: FilePath -> Cmd.CmdT IO ()
 cmd_load fname = do
     Log.notice $ "load state from " ++ show fname
     Serialize.SaveState state _ <- Cmd.require_right
         (("load " ++ fname ++ ": ") ++)
-        =<< Trans.liftIO (Serialize.unserialize fname)
+        =<< liftIO (Serialize.unserialize fname)
     set_state state
 
 -- | Try to guess whether the given path is a git save or state save.  If it's
@@ -58,8 +57,8 @@ cmd_load_any path
         git = path </> name ++ ".git"
         state = path </> name ++ ".state"
     name = FilePath.takeFileName path
-    isdir = Trans.liftIO . Directory.doesDirectoryExist
-    isfile = Trans.liftIO . Directory.doesFileExist
+    isdir = liftIO . Directory.doesDirectoryExist
+    isfile = liftIO . Directory.doesFileExist
 
 -- * git serialize
 
@@ -76,7 +75,7 @@ cmd_save_git = do
     cmd_state <- Cmd.get
     let prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
     (commit, save) <- Cmd.require_right (("save git " ++ repo ++ ": ") ++)
-        =<< Trans.liftIO (SaveGit.save repo state prev_commit)
+        =<< liftIO (SaveGit.save repo state prev_commit)
     Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
     Cmd.modify $ \st -> st
         { Cmd.state_history_config = (Cmd.state_history_config st)
@@ -89,7 +88,7 @@ cmd_load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
 cmd_load_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " ++ repo ++ ": ") ++)
-        =<< Trans.liftIO (SaveGit.load repo maybe_commit)
+        =<< liftIO (SaveGit.load repo maybe_commit)
     last_save <- rethrow "read_last_save" $
         SaveGit.read_last_save repo (Just commit)
     Log.notice $ "loaded from " ++ show repo ++ ", at " ++ Pretty.pretty commit
@@ -107,7 +106,7 @@ cmd_revert maybe_ref = do
     repo <- State.gets SaveGit.save_repo
     save <- case maybe_ref of
         Nothing -> Cmd.require_msg "no last save"
-            =<< Trans.liftIO (SaveGit.read_last_save repo Nothing)
+            =<< liftIO (SaveGit.read_last_save repo Nothing)
         Just ref -> Cmd.require_msg ("unparseable SavePoint: " ++ show ref) $
             SaveGit.ref_to_save ref
     commit <- Cmd.require_msg ("save ref not found: " ++ show save)
@@ -117,7 +116,7 @@ cmd_revert maybe_ref = do
 
 rethrow :: String -> IO a -> Cmd.CmdT IO a
 rethrow caller io =
-    Cmd.require_right id =<< Trans.liftIO (SaveGit.try caller io)
+    Cmd.require_right id =<< liftIO (SaveGit.try caller io)
 
 -- * misc
 
@@ -136,7 +135,7 @@ cmd_save_midi_config :: FilePath -> Cmd.CmdT IO ()
 cmd_save_midi_config fname = do
     config <- State.get_config id
     Log.notice $ "write midi config to " ++ show fname
-    Trans.liftIO $ Serialize.serialize_pretty_text fname
+    liftIO $ Serialize.serialize_pretty_text fname
         (State.config_midi config)
 
 cmd_load_midi_config :: FilePath -> Cmd.CmdT IO ()
@@ -144,5 +143,5 @@ cmd_load_midi_config fname = do
     Log.notice $ "load midi config from " ++ show fname
     config <- Cmd.require_right
         (("unserializing midi config " ++ show fname ++ ": ") ++)
-        =<< Trans.liftIO (Serialize.unserialize_text fname)
+        =<< liftIO (Serialize.unserialize_text fname)
     State.set_midi_config config

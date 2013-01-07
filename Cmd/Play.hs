@@ -76,7 +76,6 @@
     clears the PlayMonitorControl.
 -}
 module Cmd.Play where
-import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -206,7 +205,7 @@ lookup_current_performance block_id = Map.lookup block_id <$>
 cmd_context_stop :: Cmd.CmdIO
 cmd_context_stop = do
     maybe_ctl <- gets Cmd.state_play_control
-    if_just maybe_ctl (done . Trans.liftIO . Transport.stop_player) $ do
+    if_just maybe_ctl (done . liftIO . Transport.stop_player) $ do
     step_playing <- Cmd.gets (Maybe.isJust . Cmd.state_step . Cmd.state_play)
     if step_playing then done StepPlay.cmd_clear
         else done Cmd.all_notes_off
@@ -216,7 +215,7 @@ cmd_context_stop = do
 cmd_stop :: Cmd.CmdIO
 cmd_stop = do
     maybe_ctl <- gets Cmd.state_play_control
-    when_just maybe_ctl (void . Trans.liftIO . Transport.stop_player)
+    when_just maybe_ctl (void . liftIO . Transport.stop_player)
     return Cmd.Done
 
 -- * implementation

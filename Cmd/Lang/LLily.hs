@@ -5,7 +5,6 @@
 -- changes to a block, but it didn't seem too useful, since any useful amount
 -- of lilypond score takes quite a while to compile.
 module Cmd.Lang.LLily where
-import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified System.FilePath as FilePath
 import qualified System.Process as Process
@@ -86,14 +85,14 @@ compile_ly :: BlockId -> Cmd.Lilypond.TimeConfig -> [Score.Event]
     -> Cmd.CmdL Cmd.StackMap
 compile_ly block_id config events = do
     filename <- Cmd.Lilypond.ly_filename block_id
-    result <- Trans.liftIO $
+    result <- liftIO $
         Cmd.Lilypond.compile_ly filename config (title_of block_id) events
     Cmd.require_right ("compile_ly: "++) result
 
 view_pdf :: BlockId -> Cmd.CmdL ()
 view_pdf block_id = do
     filename <- Cmd.Lilypond.ly_filename block_id
-    Trans.liftIO $ Util.Process.logged $
+    liftIO $ Util.Process.logged $
         Process.proc "open" [FilePath.replaceExtension filename ".pdf"]
     return ()
 

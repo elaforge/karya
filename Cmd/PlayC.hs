@@ -12,8 +12,6 @@
 module Cmd.PlayC (cmd_play_msg, play) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-import qualified Control.Monad.Trans as Trans
-
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -69,7 +67,7 @@ cmd_play_msg msg = do
                     st { Cmd.state_performance = Map.insert block_id
                          perf (Cmd.state_performance st) }
                 ui_state <- State.get
-                Trans.liftIO $ Sync.set_track_signals block_id ui_state
+                liftIO $ Sync.set_track_signals block_id ui_state
                     (Cmd.perf_track_signals perf)
             _ -> return ()
     derive_status_color status = case status of
@@ -96,7 +94,7 @@ play ui_state transport_info
     -- to date afterwards, but only if blocks are added or removed.
     MVar.modifyMVar_ (Transport.info_state transport_info) $
         const (return ui_state)
-    Trans.liftIO $ void $ Thread.start $ case maybe_inv_tempo of
+    liftIO $ void $ Thread.start $ case maybe_inv_tempo of
         Just inv_tempo ->
             play_monitor_thread transport_info monitor_ctl inv_tempo repeat_at
         Nothing -> passive_play_monitor_thread

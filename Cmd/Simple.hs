@@ -3,9 +3,9 @@
     form, stashing converted simple blocks in the clipboard.
 -}
 module Cmd.Simple where
-import qualified Control.Monad.Trans as Trans
 import qualified Data.Tree as Tree
 
+import Util.Control
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -112,7 +112,7 @@ load_block fn = read_block fn >>= Clip.state_to_clip
 
 read_block :: FilePath -> Cmd.CmdL State.State
 read_block fn = do
-    simple_block <- Trans.liftIO (readIO =<< readFile fn :: IO Block)
+    simple_block <- liftIO (readIO =<< readFile fn :: IO Block)
     convert_block simple_block
 
 convert_block :: (Cmd.M m) => Block -> m State.State

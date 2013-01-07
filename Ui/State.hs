@@ -123,7 +123,6 @@ import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as State
 import qualified Control.Monad.Trans as Trans
-import Control.Monad.Trans (lift)
 
 import qualified Data.Generics as Generics
 import qualified Data.List as List

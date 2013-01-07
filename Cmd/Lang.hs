@@ -16,14 +16,13 @@ module Cmd.Lang (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
-import Control.Monad
-import qualified Control.Monad.Trans as Trans
 
 import qualified System.IO as IO
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import Util.Control
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -66,10 +65,10 @@ cmd_language session lang_dirs msg = do
 
     cmd <- case Fast.fast_interpret text of
         Just cmd -> return cmd
-        Nothing -> Trans.liftIO $
+        Nothing -> liftIO $
             LangImpl.interpret session local_modules ui_state cmd_state text
     (response, status, success) <- run_cmdio $ Cmd.name ("repl: " ++ text) cmd
-    Trans.liftIO $ catch_io_errors $ do
+    liftIO $ catch_io_errors $ do
         unless (null response) $
             IO.hPutStrLn response_hdl response
         IO.hClose response_hdl
@@ -84,7 +83,7 @@ run_cmdio :: Cmd.CmdT IO String -> Cmd.CmdT IO (String, Cmd.Status, Bool)
 run_cmdio cmd = do
     ui_state <- State.get
     cmd_state <- Cmd.get
-    result <- Trans.liftIO $ Exception.try $ do
+    result <- liftIO $ Exception.try $ do
         (cmd_state, midi, logs, result) <- Cmd.run "<aborted>" ui_state
             (cmd_state { Cmd.state_repl_status = Cmd.Done }) cmd
         mapM_ Log.write logs
@@ -109,12 +108,12 @@ run_cmdio cmd = do
 
 get_local_modules :: FilePath -> Cmd.CmdT IO [String]
 get_local_modules lang_dir = do
-    fns <- Trans.liftIO $ Directory.getDirectoryContents lang_dir
+    fns <- liftIO $ Directory.getDirectoryContents lang_dir
         `Exception.catch` \(exc :: IOError) -> do
             Log.warn $ "error reading local lang dir: " ++ show exc
             return []
     let mod_fns = map (lang_dir </>) (filter is_hs fns)
-    mod_fns <- Trans.liftIO $ filterM Directory.doesFileExist mod_fns
+    mod_fns <- liftIO $ filterM Directory.doesFileExist mod_fns
     -- Turn /s into dots to get a module name.  It's kind of a hack.
     return $ map (Seq.replace (FilePath.pathSeparator:"") "."
         . FilePath.dropExtension . FilePath.normalise) mod_fns
@@ -125,5 +124,5 @@ is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
 write_cmd :: String -> Cmd.CmdT IO ()
 write_cmd text = do
     dir <- State.gets State.save_dir
-    Trans.liftIO $ void $ File.log_io_error "write_cmd" $
+    liftIO $ void $ File.log_io_error "write_cmd" $
         IO.appendFile (FilePath.combine dir "repl") (text ++ "\n")
