@@ -121,7 +121,7 @@ instance Pretty ByteString.ByteString where
 
 instance (Pretty a) => Pretty (Tree.Tree a) where
     format (Tree.Node val children) =
-        constructor "Node" [format val, format children]
+        "Node" <+> PP.fsep ["(" <> format val <> ")", format children]
 
 instance (Pretty a, Pretty b) => Pretty (Seq.Paired a b) where
     format (Seq.First a) = PP.text "First" <+> format a
