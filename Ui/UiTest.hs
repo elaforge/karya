@@ -230,7 +230,7 @@ remove_event = remove_event_in default_block_name
 
 -- | This is a simplification of 'TrackSpec' that assumes one pitch per note.
 -- It hardcodes the scale to @*@ and all the control tracks are under a single
--- note track, but in excchange it's easier to write than full TrackSpecs.
+-- note track, but in exchange it's easier to write than full TrackSpecs.
 --
 -- @(inst, [(t, dur, pitch)], [(control, [(t, val)])])@
 type NoteSpec = (String, [EventSpec], [(String, [(ScoreTime, String)])])

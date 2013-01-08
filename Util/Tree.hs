@@ -1,5 +1,6 @@
 -- | Some more utilities for "Data.Tree".
 module Util.Tree where
+import Prelude hiding (filter)
 import Control.Monad
 import qualified Data.List as List
 import qualified Data.Tree as Tree
@@ -44,7 +45,16 @@ first_leaf :: Tree a -> a
 first_leaf (Node a []) = a
 first_leaf (Node _ (child : _)) = first_leaf child
 
-leaves :: [Tree a] -> [Tree a]
-leaves trees = do
-    tree <- trees
-    if null (subForest tree) then [tree] else leaves (subForest tree)
+-- | Get all leaves.  The list will never be null.
+leaves :: Tree a -> [a]
+leaves (Node val subs)
+    | null subs = [val]
+    | otherwise = concatMap leaves subs
+
+-- | Return the first subtrees that match the predicate.
+filter :: (a -> Bool) -> [Tree a] -> [Tree a]
+filter f = concatMap node
+    where
+    node (Node a trees)
+        | f a = [Node a trees]
+        | otherwise = concatMap node trees

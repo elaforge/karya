@@ -310,6 +310,15 @@ pair_sorted_on :: (Ord k) => (a -> k) -> [a] -> [a] -> [Paired a a]
 pair_sorted_on key xs ys =
     map snd $ pair_sorted (key_on key xs) (key_on key ys)
 
+-- | Sort the lists on with the key functions, then pair them up.
+pair_on :: (Ord k) => (a -> k) -> (b -> k) -> [a] -> [b] -> [Paired a b]
+pair_on k1 k2 xs ys = map snd $
+    pair_sorted (sort_on fst (key_on k1 xs)) (sort_on fst (key_on k2 ys))
+
+-- | Like 'pair_on', but when the lists have the same type.
+pair_on1 :: (Ord k) => (a -> k) -> [a] -> [a] -> [Paired a a]
+pair_on1 k = pair_on k k
+
 -- | Left if the val was in the left list but not the right, Right for the
 -- converse.
 diff :: (a -> b -> Bool) -> [a] -> [b] -> [Either a b]

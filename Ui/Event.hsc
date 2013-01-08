@@ -24,7 +24,8 @@
 -}
 module Ui.Event (
     Event, start, duration, style, stack, event_bytestring
-    , Text, Stack(..), IndexKey, event
+    , Text, to_text
+    , Stack(..), IndexKey, event, event_text
     -- * text
     , event_string, set_string, modify_string
     , modify_bytestring
@@ -110,10 +111,13 @@ instance Pretty.Pretty Stack where
 
 -- | Manual event constructor.
 event :: ScoreTime -> ScoreTime -> String -> Event
-event start dur text = Event
+event start dur text = event_text start dur (to_text text)
+
+event_text :: ScoreTime -> ScoreTime -> Text -> Event
+event_text start dur text = Event
     { start = start
     , duration = dur
-    , event_bytestring = to_text text
+    , event_bytestring = text
     , style = Config.default_style
     , stack = Nothing
     }

@@ -47,6 +47,7 @@ import qualified Cmd.Lang.LEvent as LEvent
 import qualified Cmd.Lang.LInst as LInst
 import qualified Cmd.Lang.LIntegrate as LIntegrate
 import qualified Cmd.Lang.LLily as LLily
+import qualified Cmd.Lang.LNote as LNote
 import qualified Cmd.Lang.LPerf as LPerf
 import qualified Cmd.Lang.LPitch as LPitch
 import qualified Cmd.Lang.LRuler as LRuler

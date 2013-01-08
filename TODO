@@ -1,4 +1,22 @@
 UNSORTED
+  framework to manipulate notes, e.g. (start, dur, pitch, controls)
+    . Given a selection, return [Note], given [Note], put them back into
+      tracks, creating controls/pitch if necessary.  Overlapping notes
+      are assigned from left to right, so to sort pitches, group by
+      overlapping, then sort groups, then concat.
+    * Get notes: This is not quite integration, because it operates at the
+      event level, but it has to do derive-like things.
+    * Put notes: have to create tracks as needed.
+      It can be clever and look for a common ancestor, and append the new
+      tracks under that.
+    * write docs for ModifyNotes
+    - new tracks should get the same parent as the other note tracks
+    - get controls out of the derivation by looking for an event with the
+      right stack
+    - merge by pitch
+    * merge all tracks into one
+    * distribute notes among tracks round-robin
+
   * modifying the ruler isn't working
   - can't undo after loading a .git
     Also, .git checkmarks are forking unnecessarily, probably related.
@@ -29,11 +47,9 @@ UNSORTED
   * On a similar topic, could I give one freeHaskellFunPtr to C once and for
     all?  It's ok if that single one leaks, then I never have to allocate or
     pass another one.
-
   - Should fltk collapse adjacent dividers?
   - Add track "disable", which is like the old mute, in that it removes it
     entirely from derivation and rederives.
-
   * pressure insts should send breath cc on kbd input
   get vl1 working
     * fix parse failures
@@ -41,21 +57,6 @@ UNSORTED
     * But even when I send with Sysex Librarian, vl1 has no response.  Maybe
       it doesn't receive buffer dumps like that?
     * figure out pressure flag
-
-  - haskeline doesn't get along with the prompt colorization in repl
-    I could get rid of it, but is there a way to get haskeline to understand
-    it?
-  - undo also undoes the clipboard, which makes undo, copy, redo, paste
-    useless
-  - Add a "revert within selection" that searches backward for the last
-    change within the selection.
-  - Along those lines, should each block have its own independent history?
-    This is supported naturally by the git layout since each block has its own
-    file.  Wait, actually it's track, and that would be awkward if I undo one
-    block and it changes tracks on another.  How do a say what position
-    a block is in the history in that case?
-    . One appealing thing is that I don't necessarily want things like config
-      changes to be included in undo.
   - maybe new control tracks should start with line render?
   fancy calls
     - approach and lower dyn
@@ -81,21 +82,13 @@ UNSORTED
   - z1/virus-bass has UnknownMessage for initialization?
   - browser has lots of empty space on the bottom
   * play monitor missing when I play from the beginning
-  - intonation: think about how to do e.g. meantone melody, with just harmony
-    . Do a postproc to analyze simultaneous notes.  If I use an attr to
-      tag the melody, I can tune everyone else to it.  But how do I retune
-      notes with non-trivial pitch curves?  Well, I could use a transpose
-      signal to tell the pitch calls what's going on.  I think I might just
-      need the frequency of the melody note.
-    . Do an analysis path, and insert environment that says what the harmony
-      is.  Then pitch calls use that to tune.  Doing the analysis might be
-      tricky since I have to extract a "principle pitch" from each event,
-      but it might be useful in general to have an analysis framework.
   - can I cache long blocks by slicing them if they're >n?
   - 'u' and 'd' have a problem with long notes because pitches can only be
     transposed so far.
     . If I knew how far a pitch could be transposed, I could clip the end time
-      to the bottom pitch.  But I don't.
+      to the bottom pitch.  But I don't.  Maybe pitches should be transposable
+      infinitely far, but emit a -1 NN signal when they cross the boundary?
+      Or would this hurt error reporting?
   - I have a feeling like FM8 doesn't obey ResetAllControls
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
@@ -367,10 +360,6 @@ UNSORTED
     error msg when an exception is caught.
   - Breath kbd_input keys only work if chorded with a note, since otherwise
     controls with a NoteOff'ed note_id are not emitted.  Change this?
-  - Suppressed undo for val edit is surprising since I tend to do a lot of
-    edits without leaving val edit.  Maybe don't do it for pitch val edit.
-    Try going back to using the name to suppress, but ignore cmds with no
-    name.
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
   incremental save
@@ -414,18 +403,14 @@ UNSORTED
       a hassle.
     Git docs: http://progit.org/book/ch9-2.html
 
-  - It can be really confusing how undo and redo makes windows pop up and
-    disappear.  Maybe I should make undo not affect views at all?
   - I could have a Cmd state flag that does things relative to the current
     block vs. root block
     - LPerf functions
     - play
-  - do the 'play this list of events' thing, send it over to the play thread
+  * do the 'play this list of events' thing, send it over to the play thread
     just without an updater, so space will still kill it
-
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
-
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.
@@ -450,7 +435,7 @@ UNSORTED
     - stack: generate nested events, check that stack is as expected
 
   - it's annoying how a track with nothing in it won't play, and has no
-    playback.
+    play monitor.
   - when I implement control block calls, I might want to override a control
     at certain points.  It should be possible to add a 'merge' operator that
     replaces samples.  Is still no good if the samples don't line up, but I'll
@@ -482,22 +467,17 @@ UNSORTED
       with the music, e.g. when I play by itself.  On the other hand, if the
       block repeats do I want the tempo to repeat as well?  Sometimes yes,
       sometimes no...
-  - try to make TrackEnviron lazy
   - after an uncollapse, it doesn't redraw the selection that was underneath
     Not a big deal since a selection shouldn't be underneath but still...
   - randomize any control by having the 'set' call look for the -rnd control
   * some way to get symbol feedback instantly to make it easier to compose them
     - But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
-
-  wait until I want it
-    - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
-    - do tuplets by setting local ruler?
-    - lang cmd to show state hierarchically... or does it already exist?
+  - do tuplets by setting local ruler?
 
   debugging
     - cmd to save and load cache to disk
-    - add a Play.play_msgs function that plays the given msgs, normalizing so
+    * add a Play.play_msgs function that plays the given msgs, normalizing so
       fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
 
   - test sending mtc to reapaer
@@ -533,7 +513,7 @@ MILESTONES
     - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
     + jack support on linux
     - simple csound backend
-    + lilypond backend
+    + lilypond backend: good enough to render viola-sonata
     + documentation
   future
     - OSC output, and OSC-using instruments, e.g. faust-stk
@@ -544,8 +524,8 @@ MILESTONES
       arbitrary type.
     - Lazy signals?
     - print scores
-    - render audio
-    - include audio inline
+    - include audio inline, so I can write signal transforms like event
+      transforms
 
 ----------------------------------------------------------------------
 
@@ -991,6 +971,9 @@ integrator / midi record:
   - implement
 
 REPL: repl:
+  - haskeline doesn't get along with the prompt colorization in repl
+    I could get rid of it, but is there a way to get haskeline to understand
+    it?
   - haskeline sucks for long lines, add multiple line editing?
     really I'd prefer plan9 style esc then edit
   - is Cmd.Lang.Fast now obsolete?
@@ -1068,14 +1051,33 @@ Cmd:
     * play loops
     - start playing from top of displayed area
 
-  Undo
+  Undo / UNDO
+    - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
+    - Suppressed undo for val edit is surprising since I tend to do a lot of
+      edits without leaving val edit.  Maybe don't do it for pitch val edit.
+      Try going back to using the name to suppress, but ignore cmds with no
+      name.
+    - It can be really confusing how undo and redo makes windows pop up and
+      disappear.  Maybe I should make undo not affect views at all?
     + incremental save
+    - undo also undoes the clipboard, which makes undo, copy, redo, paste
+      useless
+    - Add a "revert within selection" that searches backward for the last
+      change within the selection.
+    - Along those lines, should each block have its own independent history?
+      This is supported naturally by the git layout since each block has its own
+      file.  Wait, actually it's track, and that would be awkward if I undo one
+      block and it changes tracks on another.  How do a say what position
+      a block is in the history in that case?
+    . One appealing thing is that I don't necessarily want things like config
+      changes to be included in undo.
     - undo as a tree?  On modification, split the undo tree instead of
       throwing away the future.
-    - undo only within selection
+    - Visual display of undo history, because stepping back one-by-one is
+      a bit of a hassle.
     - record view changes, at least zoom / scroll so it can be undone / redone
       separately
-    - if Cmds have a name return, history entries could have names.  Keymap
+    * if Cmds have a name return, history entries could have names.  Keymap
       cmds already have a name to put in.
 
   Cmd.MakeRuler
@@ -1262,6 +1264,16 @@ pitch / scales
   - It's a bit unpleasant how I have TwelveUtils for accidental and key using
     scales, then Scale.Util for simple scales, and then Just is its own thing.
     Can I unify things into one framework?
+  intonation: think about how to do e.g. meantone melody, with just harmony
+    . Do a postproc to analyze simultaneous notes.  If I use an attr to
+      tag the melody, I can tune everyone else to it.  But how do I retune
+      notes with non-trivial pitch curves?  Well, I could use a transpose
+      signal to tell the pitch calls what's going on.  I think I might just
+      need the frequency of the melody note.
+    . Do an analysis pass, and insert environment that says what the harmony
+      is.  Then pitch calls use that to tune.  Doing the analysis might be
+      tricky since I have to extract a "principle pitch" from each event,
+      but it might be useful in general to have an analysis framework.
 
   fancier pitch signals:
     / Pitch signal render:

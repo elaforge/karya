@@ -32,7 +32,7 @@ module Ui.Events (
     , split
     , at_after, after
     , split_at_before
-    , in_range
+    , in_range, in_range_point
     , around
 
 #ifdef TESTING
@@ -191,9 +191,16 @@ split_at_before pos events
     | otherwise = (pre, post)
     where (pre, post) = split pos events
 
+-- | Like 'split_range', but only return the middle part.
 in_range :: ScoreTime -> ScoreTime -> Events -> Events
 in_range start end events = within
     where (_, within, _) = split_range start end events
+
+-- | Like 'in_range', but if start==end then get an event that matches exactly.
+in_range_point :: ScoreTime -> ScoreTime -> Events -> Events
+in_range_point start end events
+    | start == end = maybe mempty singleton $ at start events
+    | otherwise = in_range start end events
 
 -- | Get events in the given range, plus surrounding.  If there is no event at
 -- 'start', the previous event will be included.  The event after 'end' is

@@ -718,7 +718,7 @@ add_edges block_id edges = do
     skel <- get_skeleton block_id
     block <- get_block block_id
     when_just (msum (map (edges_in_range block) edges))
-        (throw . ("add_adges: " ++))
+        (throw . ("add_edges: " ++))
     maybe (throw $ "add_edges " ++ show edges ++ " to " ++ show skel
             ++ " would have caused a cycle")
         (set_skeleton block_id) (Skeleton.add_edges edges skel)
@@ -1168,7 +1168,7 @@ insert_event track_id event = insert_events track_id [event]
 get_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m [Event.Event]
 get_events track_id start end = do
     events <- Track.track_events <$> get_track track_id
-    return (_events_in_range start end events)
+    return $ Events.ascending $ Events.in_range_point start end events
 
 -- | Get an event at or before the given time.
 get_event :: (M m) => TrackId -> ScoreTime -> m (Maybe Event.Event)
@@ -1224,11 +1224,6 @@ remove_event_range track_id start end =
     _modify_events track_id $ \events ->
         let evts = Events.ascending (Events.in_range start end events)
         in (Events.remove start end events, events_range evts)
-
-_events_in_range :: ScoreTime -> ScoreTime -> Events.Events -> [Event.Event]
-_events_in_range start end events
-    | start == end = maybe [] (:[]) (Events.at start events)
-    | otherwise = Events.ascending (Events.in_range start end events)
 
 -- | Get the end of the last event of the block.
 track_event_end :: (M m) => TrackId -> m ScoreTime

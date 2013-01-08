@@ -11,7 +11,9 @@ module Derive.TrackInfo where
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -38,6 +40,8 @@ data ControlType =
     | Pitch Pitch.ScaleId (Maybe Score.Control)
     | Tempo
     deriving (Show)
+
+instance Pretty.Pretty ControlType where pretty = unparse_control
 
 parse_control :: String -> Either String ControlType
 parse_control = fmap fst . parse_control_expr
