@@ -42,12 +42,13 @@ failures=$(grep '^__->' $test_output | wc -l)
 tests=$(grep '^-----' $test_output | wc -l)
 echo $failures failed / $passes passed / $tests tests
 
-echo 'Generating hpc markup (in the background)...'
+echo 'Generating hpc markup in the background...'
 (
     mkdir -p build/hpc
     hpc markup --destdir=build/hpc RunTests | grep -v Writing
     # I'm more used to typing index.html
     (cd build/hpc && ln -fs hpc_index.html index.html)
+    echo Done generating hpc.
 ) &
 
 exit $failures
