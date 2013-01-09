@@ -7,6 +7,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
 import Types
@@ -21,7 +22,10 @@ note_controls :: Cmd.CmdL
     [(ModifyNotes.Note, (Maybe PitchSignal.Pitch, PitchSignal.Controls))]
 note_controls = do
     block_id <- Cmd.get_focused_block
-    ModifyNotes.annotate_controls block_id =<< notes
+    events <- LEvent.events_of . Cmd.perf_events <$>
+        Cmd.get_performance block_id
+    note_track_ids <- notes
+    return $ ModifyNotes.find_controls note_track_ids events
 
 -- * modify
 
@@ -34,8 +38,8 @@ merge = ModifyNotes.selection $ ModifyNotes.modify_note $ set_index 0
 -- notes that rely on control values carried forward, the values will be
 -- different in the new tracks.
 distribute_n :: Int -> Cmd.CmdL ()
-distribute_n tracks = ModifyNotes.selection $ \note_envs -> return $
-        zipWith (modify tracks) [0..] (map fst note_envs)
+distribute_n tracks = ModifyNotes.selection $ \_ notes -> return $
+        zipWith (modify tracks) [0..] (map fst notes)
     where
     modify tracks n note = note { ModifyNotes.note_index = n `mod` tracks }
 
@@ -49,7 +53,7 @@ distribute = do
 -- | Try to compact non-overlapping notes to use the least number of tracks
 -- possible.
 compact :: Cmd.CmdL ()
-compact = ModifyNotes.selection $
+compact = ModifyNotes.selection $ const $
         return . snd . List.mapAccumL allocate [] . map fst
     where
     allocate state note = (next, set_index i note)
@@ -71,10 +75,8 @@ find_index start end = go 0
 -- | If it's above the nn, compact starting at the high_index, otherwise
 -- compact starting at index 0.
 split_on_pitch :: ModifyNotes.Index -> Pitch.NoteNumber -> Cmd.CmdL ()
-split_on_pitch high_index break_nn = do
-    block_id <- Cmd.get_focused_block
-    ModifyNotes.selection $ \notes -> do
-        notes <- ModifyNotes.annotate_nns block_id notes
+split_on_pitch high_index break_nn =
+    ModifyNotes.selection $ ModifyNotes.annotate_nns $ \notes ->
         return $ split notes
     where
     split xs = snd (List.mapAccumL allocate ([], []) xs)

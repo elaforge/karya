@@ -123,7 +123,7 @@ control_call track control maybe_op control_deriver deriver = do
     -- Apply and strip any control modifications made during the above derive.
     Derive.apply_control_modifications $ merge_logs logs $ with_damage $
         with_control control signal deriver
-    -- ^ I think this forces sequentialness because 'deriver' runs in the state
+    -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'control_deriver'.  To make these parallelize, I need to
     -- run control_deriver as a sub-derive, then mappend the Collect.
     where

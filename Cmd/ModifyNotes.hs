@@ -70,8 +70,6 @@ import Types
 
 
 -- | This represents a single event on a note track.
--- Can't have tree, because then notes with different controls always create
--- split skeletons.
 data Note = Note {
     note_start :: !ScoreTime
     , note_duration :: !ScoreTime
@@ -132,11 +130,11 @@ sorted_controls = Seq.sort_on (key . fst) . Map.toList
 -- * selection
 
 -- | Modify notes, annotated with arbitrary additional data.
-type ModifyNotes annot m = [(Note, annot)] -> m [Note]
+type ModifyNotes m = BlockId -> [(Note, TrackId)] -> m [Note]
 
 -- | Modify a single note, with no state.
-modify_note :: (Cmd.M m) => (Note -> Note) -> ModifyNotes annot m
-modify_note f = return . map (f . fst)
+modify_note :: (Cmd.M m) => (Note -> Note) -> ModifyNotes m
+modify_note f _ = return . map (f . fst)
 
 -- | Modify notes on the selected tracks.  Only the top level note tracks are
 -- affected, so you can select an entire block and not worry about mangling
@@ -145,7 +143,7 @@ modify_note f = return . map (f . fst)
 -- This may add new tracks, but will not delete tracks that are made empty.
 -- It could, but it seems easy enough to delete the tracks by hand once
 -- I verify that the transformation worked.  TODO revisit this if it's annoying
-selection :: (Cmd.M m) => ModifyNotes TrackId m -> m ()
+selection :: (Cmd.M m) => ModifyNotes m -> m ()
 selection modify = do
     (block_id, _, track_ids, start, end) <- Selection.tracks
     note_trees <- extract_note_trees block_id track_ids
@@ -153,7 +151,7 @@ selection modify = do
     -- descendents.
     track_ids <- return $ map State.track_id $ concatMap Tree.flatten note_trees
     notes <- Cmd.require_right id =<< notes_from_range note_trees start end
-    notes <- modify notes
+    notes <- modify block_id notes
     -- Clear selected events before merging in new ones.
     forM_ track_ids $ \tid ->  State.remove_events tid start end
     write_tracks block_id track_ids (merge_notes notes)
@@ -166,25 +164,26 @@ selection_notes = do
     note_trees <- extract_note_trees block_id track_ids
     Cmd.require_right id =<< notes_from_range note_trees start end
 
--- ** annotate notes
+-- ** annotated transformations
 
-annotate_nns :: (Cmd.M m) => BlockId -> [(Note, TrackId)]
-    -> m [(Note, Maybe Pitch.NoteNumber)]
-annotate_nns block_id notes = do
-    notes <- annotate_controls block_id notes
-    return $ map (second (eval <=< fst)) notes
+type Annotated a m = [(Note, a)] -> m [Note]
+
+annotate_nns :: (Cmd.M m) => Annotated (Maybe Pitch.NoteNumber) m
+    -> ModifyNotes m
+annotate_nns modify = annotate_controls (modify . map (second (eval <=< fst)))
     where eval = either (const Nothing) Just . PitchSignal.pitch_nn
 
-annotate_controls :: (Cmd.M m) => BlockId -> [(Note, TrackId)]
-    -> m [(Note, (Maybe PitchSignal.Pitch, PitchSignal.Controls))]
-annotate_controls block_id note_track_ids = do
+annotate_controls :: (Cmd.M m) =>
+    Annotated (Maybe PitchSignal.Pitch, PitchSignal.Controls) m
+    -> ModifyNotes m
+annotate_controls modify block_id note_track_ids = do
     events <- LEvent.events_of . Cmd.perf_events <$>
         Cmd.get_performance block_id
-    return $ annotate_controls' note_track_ids events
+    modify $ find_controls note_track_ids events
 
-annotate_controls' :: [(Note, TrackId)] -> [Score.Event]
+find_controls :: [(Note, TrackId)] -> [Score.Event]
     -> [(Note, (Maybe PitchSignal.Pitch, PitchSignal.Controls))]
-annotate_controls' note_track_ids events =
+find_controls note_track_ids events =
     zip (map fst note_track_ids) $
         map (extract . convert events) note_track_ids
     where
