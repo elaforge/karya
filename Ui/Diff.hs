@@ -290,9 +290,22 @@ derive_diff_block block_id block1 block2 = do
     let unequal f = unequal_on f block1 block2
     when (unequal Block.block_title || unequal Block.block_skeleton)
         block_damage
+    let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
+    let tpairs = Seq.indexed_pairs_on Block.tracklike_id ts1 ts2
+    forM_ tpairs $ \(_, pair) -> case pair of
+        Seq.Both track1 track2
+            | flags_differ track1 track2 -> block_damage
+            | otherwise -> return ()
+        _ -> block_damage
     where
     block_damage =
         Writer.tell $ mempty { Derive.sdamage_blocks = Set.singleton block_id }
+
+-- | True if the tracks flags differ in an a way that will require
+-- rederivation.
+flags_differ :: Block.Track -> Block.Track -> Bool
+flags_differ track1 track2 = relevant track1 /= relevant track2
+    where relevant = filter (==Block.Disable) . Block.track_flags
 
 derive_diff_track :: TrackId -> Track.Track -> Track.Track -> DeriveDiffM ()
 derive_diff_track track_id track1 track2 =

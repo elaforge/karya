@@ -161,7 +161,7 @@ cmd_mute_or_unsolo :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_mute_or_unsolo msg = do
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.require $ clicked_track msg
-    flags <- Block.track_flags <$> State.get_block_track_at block_id tracknum
+    flags <- State.track_flags block_id tracknum
     if Block.Solo `elem` flags
         then State.remove_track_flag block_id tracknum Block.Solo
         else State.toggle_track_flag block_id tracknum Block.Mute

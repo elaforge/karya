@@ -248,6 +248,7 @@ block_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
 block_config_bindings = concat
     [ plain_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
     , plain_char 'S' "toggle solo" (BlockConfig.cmd_toggle_flag Block.Solo)
+    , plain_char 'D' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Disable)
     , command_char 'C' "toggle collapse"
         (BlockConfig.cmd_toggle_flag Block.Collapse)
     , command_char 'M' "toggle merge all"

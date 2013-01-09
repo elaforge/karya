@@ -185,10 +185,15 @@ data TrackFlag =
     -- | Track is collapsed to take up less space.
     Collapse
     -- | UI shows solo indication.  If any tracks are soloed on a block, only
-    -- those tracks are derived.
+    -- those tracks are played.
     | Solo
-    -- | UI shows muted indication, deriver should skip this track.
+    -- | UI shows muted indication, player should filter out events from this
+    -- track.
     | Mute
+    -- | This is like Mute, except that the track is entirely omitted from
+    -- derivation.  Since Mute and Solo work after derivation, they don't
+    -- require a rederive but also can't mute a single control track.
+    | Disable
     deriving (Eq, Show, Read)
 
 instance Pretty.Pretty TrackFlag where pretty = show
@@ -212,6 +217,7 @@ display_track_width = dtrack_width . display_track
 
 flags_to_status :: [TrackFlag] -> (Maybe (Char, Color.Color), Double)
 flags_to_status flags
+    | Disable `elem` flags = (Just ('D', Config.mute_color), 0.5)
     | Solo `elem` flags = (Just ('S', Config.solo_color), 1)
     | Mute `elem` flags = (Just ('M', Config.mute_color), 0.75)
     | otherwise = (Nothing, 1)

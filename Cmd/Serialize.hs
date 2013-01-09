@@ -239,15 +239,17 @@ instance Serialize Block.Track where
             _ -> Serialize.bad_version "Block.Track" v
 
 instance Serialize Block.TrackFlag where
-    put (Block.Collapse) = put_tag 0
-    put (Block.Solo) = put_tag 1
-    put (Block.Mute) = put_tag 2
+    put Block.Collapse = put_tag 0
+    put Block.Solo = put_tag 1
+    put Block.Mute = put_tag 2
+    put Block.Disable = put_tag 3
     get = do
         tag <- get_tag
         case tag of
             0 -> return Block.Collapse
             1 -> return Block.Solo
             2 -> return Block.Mute
+            3 -> return Block.Disable
             _ -> bad_tag "Block.TrackFlag" tag
 
 instance Serialize Block.TracklikeId where

@@ -1,4 +1,12 @@
+LEGEND
+  - todo; + in progress; * done; / obsolete or do not want
+  ? open question; . note or observation
+
 UNSORTED
+  - Block.track_flags should be a Set
+  - StepPlay gets messed up by tuplets and the like.  Maybe it should step
+    along the performance (with some eta to account for randomization)
+    instead of the score.
   framework to manipulate notes, e.g. (start, dur, pitch, controls)
     . Given a selection, return [Note], given [Note], put them back into
       tracks, creating controls/pitch if necessary.  Overlapping notes
@@ -48,8 +56,9 @@ UNSORTED
     all?  It's ok if that single one leaks, then I never have to allocate or
     pass another one.
   - Should fltk collapse adjacent dividers?
-  - Add track "disable", which is like the old mute, in that it removes it
-    entirely from derivation and rederives.
+  * Add track "disable", which is like the old mute, in that it removes it
+    entirely from derivation and rederives.  Effectively it unlinks it from
+    the skeleton.
   * pressure insts should send breath cc on kbd input
   get vl1 working
     * fix parse failures
@@ -155,8 +164,6 @@ UNSORTED
     . Also ByteString is pinned.
     / I think the number of calls is actually not that high.  Doesn't seem
       worth it.
-  load midi
-    - order tracks with low pitches to the left
   / Score.instrument should strip invalid chars
     The thing is, MidiDb strips them before joining them with the synth name.
   scrolling through giant blocks is slow
@@ -358,7 +365,7 @@ UNSORTED
 
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
-  - Breath kbd_input keys only work if chorded with a note, since otherwise
+  / Breath kbd_input keys only work if chorded with a note, since otherwise
     controls with a NoteOff'ed note_id are not emitted.  Change this?
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
@@ -403,10 +410,8 @@ UNSORTED
       a hassle.
     Git docs: http://progit.org/book/ch9-2.html
 
-  - I could have a Cmd state flag that does things relative to the current
+  / I could have a Cmd state flag that does things relative to the current
     block vs. root block
-    - LPerf functions
-    - play
   * do the 'play this list of events' thing, send it over to the play thread
     just without an updater, so space will still kill it
   - key not applied in inner blocks, local play should take the root play's
@@ -515,14 +520,15 @@ MILESTONES
     - simple csound backend
     + lilypond backend: good enough to render viola-sonata
     + documentation
+  1.0
+    - defined stable api
+    - solution for local data / code
   future
-    - OSC output, and OSC-using instruments, e.g. faust-stk
-    - custom sampler / vst host with high resolution OSC or MIDI?
-    - more complicated control curve calls, e.g. splines
+    - non-realtime synthesizer: doc/dev_notes/synthesizer
+    - horizontal layout
     - mouse oriented signal editing
     - Unify environ, controls, and pitch signals by making signals of
       arbitrary type.
-    - Lazy signals?
     - print scores
     - include audio inline, so I can write signal transforms like event
       transforms
@@ -571,9 +577,7 @@ lilypond:
   enough to render bloom nicely:
     - pedal should emit pedal sign
     - the manual pedal notes I guess should be pedal-ified
-    / Why does the cmd have to wait until lilypond is done?  Should be async.
-      No idea.  It says it wrote the response, but the repl doesn't give
-      me a prompt back.  It's just a repl thing, the app continues normally.
+    - Why does the cmd have to wait until lilypond is done?  Should be async.
     - staff group should put inst name on the group instead of each staff
     + add hand annotations to score
     - possibly support voices, should be able to do it the same as hand

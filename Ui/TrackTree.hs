@@ -85,6 +85,15 @@ resolve_track_tree tracknums = foldr (cat_tree . go) ([], [])
         Nothing -> (forest, missing ++ all_missing)
         Just tree -> (tree : forest, missing ++ all_missing)
 
+strip_disabled_tracks :: (State.M m) => BlockId -> TrackTree -> m TrackTree
+strip_disabled_tracks block_id = concatMapM strip
+    where
+    strip (Tree.Node track subs) = ifM (disabled track)
+        (concatMapM strip subs)
+        ((:[]) . Tree.Node track <$> concatMapM strip subs)
+    disabled = fmap (Block.Disable `elem`)
+        . State.track_flags block_id . State.track_tracknum
+
 type EventsTree = [EventsNode]
 type EventsNode = Tree.Tree TrackEvents
 
