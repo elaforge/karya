@@ -59,8 +59,12 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
+
 import qualified Perform.Pitch as Pitch
 import Types
 
@@ -77,6 +81,9 @@ data Note = Note {
     , note_controls :: !Controls
     , note_index :: !Index
     } deriving (Eq, Show)
+
+note_end :: Note -> ScoreTime
+note_end note = note_start note + note_duration note
 
 -- | Each note has an Index, which indicates which of the selected note tracks
 -- it came from, or should be written to.
@@ -158,6 +165,51 @@ selection_notes = do
     (block_id, _, track_ids, start, end) <- Selection.tracks
     note_trees <- extract_note_trees block_id track_ids
     Cmd.require_right id =<< notes_from_range note_trees start end
+
+-- ** annotate notes
+
+annotate_nns :: (Cmd.M m) => BlockId -> [(Note, TrackId)]
+    -> m [(Note, Maybe Pitch.NoteNumber)]
+annotate_nns block_id notes = do
+    notes <- annotate_controls block_id notes
+    return $ map (second (eval <=< fst)) notes
+    where eval = either (const Nothing) Just . PitchSignal.pitch_nn
+
+annotate_controls :: (Cmd.M m) => BlockId -> [(Note, TrackId)]
+    -> m [(Note, (Maybe PitchSignal.Pitch, PitchSignal.Controls))]
+annotate_controls block_id note_track_ids = do
+    events <- LEvent.events_of . Cmd.perf_events <$>
+        Cmd.get_performance block_id
+    return $ annotate_controls' note_track_ids events
+
+annotate_controls' :: [(Note, TrackId)] -> [Score.Event]
+    -> [(Note, (Maybe PitchSignal.Pitch, PitchSignal.Controls))]
+annotate_controls' note_track_ids events =
+    zip (map fst note_track_ids) $
+        map (extract . convert events) note_track_ids
+    where
+    convert events (note, track_id) = find_event track_id note events
+    extract Nothing = (Nothing, mempty)
+    extract (Just event) =
+        (PitchSignal.at start (Score.event_pitch event),
+            Score.event_controls_at start event)
+        where start = Score.event_start event
+
+find_event :: TrackId -> Note -> [Score.Event] -> Maybe Score.Event
+find_event track_id note = List.find $ \event ->
+    stack_matches track_id (note_start note) (note_end note) $
+        Score.event_stack event
+
+stack_matches :: TrackId -> ScoreTime -> ScoreTime -> Stack.Stack -> Bool
+stack_matches track_id start end =
+    find_track . find_region start end . Stack.innermost
+    where
+    find_region start end = drop 1 . dropWhile (/= Stack.Region start end)
+    -- Find the Track, but abort if I see a region or block
+    find_track frames = case frames of
+        Stack.Track tid : _ -> track_id == tid
+        Stack.Call {} : rest -> find_track rest
+        _ -> False
 
 -- * read
 

@@ -190,7 +190,6 @@ lookup_environ block_id maybe_track_id =
 get_environ :: (Cmd.M m) => BlockId -> Maybe TrackId -> m TrackLang.Environ
 get_environ block_id = fmap (fromMaybe mempty) . lookup_environ block_id
 
-
 lookup_dynamic :: (Cmd.M m) => BlockId -> Maybe TrackId
     -> m (Maybe Derive.Dynamic)
 lookup_dynamic block_id maybe_track_id = do

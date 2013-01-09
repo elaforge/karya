@@ -1,11 +1,8 @@
 -- | Symbolic names for all the MIDI keys.
 --
--- The octave convention is that C4 is middle C, as in
--- http://en.wikipedia.org/wiki/Scientific_pitch_notation.
---
--- 60 is the grand-staff's middle C, which is C4.
-module Midi.Key where
-import qualified Midi.Midi as Midi
+-- This is the 'Pitch.NoteNumber' version of "Midi.Key".
+module Perform.NN where
+import qualified Perform.Pitch as Pitch
 
 c_1 : cs_1 : d_1 : ds_1 : e_1 : f_1 : fs_1 : g_1 : gs_1 : a_1 : as_1 : b_1
     : c0 : cs0 : d0 : ds0 : e0 : f0 : fs0 : g0 : gs0 : a0 : as0 : b0
@@ -18,4 +15,4 @@ c_1 : cs_1 : d_1 : ds_1 : e_1 : f_1 : fs_1 : g_1 : gs_1 : a_1 : as_1 : b_1
     : c7 : cs7 : d7 : ds7 : e7 : f7 : fs7 : g7 : gs7 : a7 : as7 : b7
     : c8 : cs8 : d8 : ds8 : e8 : f8 : fs8 : g8 : gs8 : a8 : as8 : b8
     : c9 : cs9 : d9 : ds9 : e9 : f9 : fs9 : g9
-    : _ = map Midi.Key [0..] :: [Midi.Key]
+    : _ = map Pitch.NoteNumber [0..]

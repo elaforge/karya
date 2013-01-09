@@ -11,9 +11,9 @@ UNSORTED
       tracks under that.
     * write docs for ModifyNotes
     - new tracks should get the same parent as the other note tracks
-    - get controls out of the derivation by looking for an event with the
+    * get controls out of the derivation by looking for an event with the
       right stack
-    - merge by pitch
+    * merge by pitch
     * merge all tracks into one
     * distribute notes among tracks round-robin
 
