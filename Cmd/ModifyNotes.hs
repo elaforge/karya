@@ -318,9 +318,12 @@ write_tracks block_id track_ids tracks = do
                     : map (first control_to_title) (sorted_controls controls)
             forM_ (zip [tracknum..] tracks) $ \(n, (title, events)) ->
                 Create.track block_id n title events
-            -- TODO I should have an overall parent and append these under it
             State.add_edges block_id $ take (length tracks - 1) $
                 zip [tracknum..] [tracknum+1..]
+            parent <- maybe (return Nothing) (parent_of block_id)
+                (Seq.head track_ids)
+            when_just parent $ \p ->
+                State.add_edges block_id [(State.track_tracknum p, tracknum)]
             create (tracknum + length tracks) rest
 
 merge_controls :: (State.M m) => BlockId -> TrackId -> TrackTree.TrackTree
@@ -362,3 +365,9 @@ bottom_track block_id track_id = do
     tree <- TrackTree.get_track_tree block_id
     return $ Seq.maximum_on State.track_tracknum . Tree.leaves
         =<< Tree.find ((==track_id) . State.track_id) tree
+
+parent_of :: (State.M m) => BlockId -> TrackId -> m (Maybe State.TrackInfo)
+parent_of block_id track_id = do
+    tree <- TrackTree.get_track_tree block_id
+    return $ Seq.head [track | (track, _, children) <- Tree.flat_paths tree,
+        track_id `elem` map State.track_id children]

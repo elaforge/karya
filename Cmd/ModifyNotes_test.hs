@@ -83,6 +83,16 @@ test_write_tracks = do
         , [(1, 2)]
         )
 
+    -- New tracks get the same parent as the old ones.
+    equal (f (snd $ UiTest.run_mkblock [("tempo", []), (">", [])]) [2]
+            [([(0, "a")], []), ([(0, "b")], [])])
+        ( [ ("tempo", [])
+          , (">", [(0, 0, "a")])
+          , (">", [(0, 0, "b")])
+          ]
+        , [(1, 2), (1, 3)]
+        )
+
     -- Merge with existing tracks.
     let state = mkstate
             [ tempo

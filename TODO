@@ -10,7 +10,7 @@ UNSORTED
       It can be clever and look for a common ancestor, and append the new
       tracks under that.
     * write docs for ModifyNotes
-    - new tracks should get the same parent as the other note tracks
+    * new tracks should get the same parent as the other note tracks
     * get controls out of the derivation by looking for an event with the
       right stack
     * merge by pitch
