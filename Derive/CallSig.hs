@@ -94,6 +94,20 @@ import Derive.TrackLang (Typecheck)
 import qualified Perform.Signal as Signal
 
 
+{- This style of argument parsing is pretty inflexible, and when I want
+    something more fancy like 'num? pitch*' I have to write a parser by hand
+    and awkwardly.
+
+    It should be possible to do a monadic style parser and write e.g.:
+
+    (,) <$> optional "num" 0.5 <*> many "pitch"
+
+    It would be even better to use this for all arg parsing, then I can get rid
+    of the call[1234] nonsense.  But how can I get docs out of it without
+    actually running it?  Each combinator has to append both a doc and
+    a parser.
+-}
+
 -- * signatures
 
 -- | A single argument in the signature of a call.
@@ -338,6 +352,11 @@ extract4 vals (sig0, sig1, sig2, sig3) = do
 
 -- * check_args
 
+default_arg :: (Typecheck a) => PassedArgs d -> a -> String
+    -> Derive.Deriver a
+default_arg args deflt name = fromMaybe deflt <$>
+    Derive.lookup_val (arg_environ_default (passed_call_name args) name)
+
 -- | The call sequence is a little complicated because an argument can be
 -- given explicitly, given implicitly by the environment, or defaulted if
 -- it was declared optional.
@@ -388,7 +407,9 @@ pure_check_args environ passed args
         ++ if from_env == 0 then ""
             else " (" ++ show from_env ++ " from environ)"
 
-extract_arg :: (Typecheck a) => Int -> Arg a -> Maybe TrackLang.Val
+extract_arg :: (Typecheck a) => Int -- ^ arg number, for error reporting
+    -> Arg a -- ^ argument signature
+    -> Maybe TrackLang.Val -- ^ argument value
     -> Derive.Deriver a
 extract_arg argno arg maybe_val =
     either (Derive.throw_error . Derive.CallError) return
@@ -409,7 +430,7 @@ pure_extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
     check val = case TrackLang.from_val val of
         Nothing -> err (Just val)
         Just v -> Right v
-    err val = Left (Derive.TypeError argno (arg_name arg) (arg_type arg) val)
+    err val = Left $ Derive.TypeError argno (arg_name arg) (arg_type arg) val
 
 -- | Cast a Val to a haskell val, or throw if it's the wrong type.
 cast :: forall a. (Typecheck a) => String -> TrackLang.Val -> Derive.Deriver a

@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - call for grace notes: g (4c) (4b)
+  * call for grace notes: g (4c) (4b)
   - grace: get dur and overlap from the environ
   - monadic parsing combinators for CallSig
   - in raw edit, midi key creates (pitch) and cmd-backspace deletes one

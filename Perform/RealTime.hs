@@ -46,10 +46,11 @@ module Perform.RealTime (
 import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Hashable as Hashable
+import qualified Foreign
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
-import qualified Foreign
 
+import qualified Util.ApproxEq as ApproxEq
 import Util.Control
 import qualified Util.ForeignC as C
 import qualified Util.Pretty as Pretty
@@ -65,9 +66,10 @@ import qualified Ui.Util as Util
 -- used for the warp map, which is oriented with zero at the note start.  If
 -- a note wants to get the real time before it, it must look up a negative
 -- RealTime.
-newtype RealTime = RealTime Double
-    deriving (DeepSeq.NFData, Num, Fractional, Real, Eq, Ord,
-        Serialize.Serialize, Hashable.Hashable)
+newtype RealTime = RealTime Double deriving
+    ( DeepSeq.NFData, Num, Fractional, Real, Eq, Ord
+    , Serialize.Serialize, Hashable.Hashable, ApproxEq.ApproxEq
+    )
 
 -- I could derive Storable, but technically speaking Double is not necessarily
 -- the same as CDouble.
