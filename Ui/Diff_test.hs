@@ -2,8 +2,10 @@ module Ui.Diff_test where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Util.Ranges as Ranges
 import Util.Test
+
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Skeleton as Skeleton
@@ -22,10 +24,11 @@ test_display_track = do
         st2 = UiTest.exec st1 (State.merge_track bid 1 2)
     let (ui_updates, display_updates) = diff st1 st2
     equal ui_updates
-        [ Update.BlockUpdate bid (Update.BlockTrack 1
-            (Block.Track (Block.TId tid1 rid) 40 [] [tid2]))
-        , Update.BlockUpdate bid (Update.BlockTrack 2
-            (Block.Track (Block.TId tid2 rid) 40 [Block.Collapse] []))
+        [ Update.BlockUpdate bid $ Update.BlockTrack 1 $
+            Block.Track (Block.TId tid1 rid) 40 mempty [tid2]
+        , Update.BlockUpdate bid $ Update.BlockTrack 2 $
+            Block.Track (Block.TId tid2 rid) 40
+                (Set.singleton Block.Collapse) []
         ]
 
     let div = Block.DId (Block.Divider Config.abbreviation_color)

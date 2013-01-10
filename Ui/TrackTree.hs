@@ -1,6 +1,7 @@
 module Ui.TrackTree where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -91,7 +92,7 @@ strip_disabled_tracks block_id = concatMapM strip
     strip (Tree.Node track subs) = ifM (disabled track)
         (concatMapM strip subs)
         ((:[]) . Tree.Node track <$> concatMapM strip subs)
-    disabled = fmap (Block.Disable `elem`)
+    disabled = fmap (Block.Disable `Set.member`)
         . State.track_flags block_id . State.track_tracknum
 
 type EventsTree = [EventsNode]

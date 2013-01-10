@@ -13,6 +13,7 @@ module Cmd.Serialize where
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Time as Time
 
 import qualified System.Directory as Directory
@@ -225,7 +226,7 @@ instance Serialize Skeleton.Skeleton where
     get = get >>= \a -> return (Skeleton.Skeleton a)
 
 instance Serialize Block.Track where
-    put (Block.Track a b c d) = Serialize.put_version 1
+    put (Block.Track a b c d) = Serialize.put_version 2
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
@@ -234,6 +235,12 @@ instance Serialize Block.Track where
                 id :: Block.TracklikeId <- get
                 width :: Types.Width <- get
                 flags :: [Block.TrackFlag] <- get
+                merged :: [Types.TrackId] <- get
+                return $ Block.Track id width (Set.fromList flags) merged
+            2 -> do
+                id :: Block.TracklikeId <- get
+                width :: Types.Width <- get
+                flags :: Set.Set Block.TrackFlag <- get
                 merged :: [Types.TrackId] <- get
                 return $ Block.Track id width flags merged
             _ -> Serialize.bad_version "Block.Track" v

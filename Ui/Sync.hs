@@ -30,6 +30,7 @@ module Ui.Sync (
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Util.Control
@@ -285,7 +286,7 @@ run_update track_signals set_style (Update.BlockUpdate block_id update) = do
                 liftIO $ Log.warn $
                     "InsertTrack with tracknum that's not in the block's "
                     ++ "tracks: " ++ show update
-                return []
+                return mempty
             Just btrack -> return (Block.track_flags btrack)
         return $ forM_ view_ids $ \view_id -> do
             let merged = events_of_track_ids ustate
@@ -365,10 +366,10 @@ merged_events_of state block tracknum =
         Nothing -> []
 
 -- | Don't send a track signal to a track unless it actually wants to draw it.
-wants_tsig :: [Block.TrackFlag] -> Track.Track -> Bool
+wants_tsig :: Set.Set Block.TrackFlag -> Track.Track -> Bool
 wants_tsig flags track =
     Track.render_style (Track.track_render track) /= Track.NoRender
-    && Block.Collapse `notElem` flags
+    && Block.Collapse `Set.notMember` flags
 
 track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)

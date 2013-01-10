@@ -161,7 +161,7 @@ filter_muted blocks
         | block <- blocks
         , track <- Block.block_tracks block
         , Just track_id <- [Block.track_id_of (Block.tracklike_id track)]
-        , flag `elem` Block.track_flags track
+        , flag `Set.member` Block.track_flags track
         ]
 
 perform_events :: (Cmd.M m) => Derive.Events -> m Perform.MidiEvents

@@ -6,6 +6,7 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -129,17 +130,17 @@ instance Pretty.Pretty Box where
 --
 -- This is the higher level track that is visible at the haskell level.
 data Track = Track {
-    tracklike_id :: TracklikeId
+    tracklike_id :: !TracklikeId
     -- | Formerly the width was in the view since each view could have
     -- a different width and this was just the default width, but that turned
     -- out to be too much of a hassle, so now all occurences of a track have
     -- the same width.
-    , track_width :: Types.Width
+    , track_width :: !Types.Width
     -- | Track display state flags.
-    , track_flags :: [TrackFlag]
+    , track_flags :: !(Set.Set TrackFlag)
     -- | Other tracks are displayed behind this one.  Useful to merge a pitch
     -- track into its note track.
-    , track_merged :: [TrackId]
+    , track_merged :: ![TrackId]
     } deriving (Eq, Show, Read, Generics.Typeable)
 
 instance Pretty.Pretty Track where
@@ -149,7 +150,7 @@ instance Pretty.Pretty Track where
 
 -- | Construct a 'Track' with defaults.
 track :: TracklikeId -> Types.Width -> Track
-track tracklike_id width = Track tracklike_id width [] []
+track tracklike_id width = Track tracklike_id width mempty []
 
 colored_divider :: Color.Color -> Track
 colored_divider color = track (DId (Divider color)) 3
@@ -158,7 +159,7 @@ divider :: Track
 divider = colored_divider (Color.rgb 0.8 0.8 0.8)
 
 track_collapsed :: Track -> Bool
-track_collapsed = (Collapse `elem`) . track_flags
+track_collapsed = (Collapse `Set.member`) . track_flags
 
 -- | This is the low-level representation of a track, which directly
 -- corresponds with what is displayed by the UI.  The DisplayTracks should be
@@ -194,7 +195,7 @@ data TrackFlag =
     -- derivation.  Since Mute and Solo work after derivation, they don't
     -- require a rederive but also can't mute a single control track.
     | Disable
-    deriving (Eq, Show, Read)
+    deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty TrackFlag where pretty = show
 
@@ -215,11 +216,11 @@ display_track track =
 display_track_width :: Track -> Types.Width
 display_track_width = dtrack_width . display_track
 
-flags_to_status :: [TrackFlag] -> (Maybe (Char, Color.Color), Double)
+flags_to_status :: Set.Set TrackFlag -> (Maybe (Char, Color.Color), Double)
 flags_to_status flags
-    | Disable `elem` flags = (Just ('D', Config.mute_color), 0.5)
-    | Solo `elem` flags = (Just ('S', Config.solo_color), 1)
-    | Mute `elem` flags = (Just ('M', Config.mute_color), 0.75)
+    | Disable `Set.member` flags = (Just ('D', Config.mute_color), 0.5)
+    | Solo `Set.member` flags = (Just ('S', Config.solo_color), 1)
+    | Mute `Set.member` flags = (Just ('M', Config.mute_color), 0.75)
     | otherwise = (Nothing, 1)
 
 modify_id :: (TracklikeId -> TracklikeId) -> Track -> Track

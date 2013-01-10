@@ -267,7 +267,7 @@ show_track_status block_id status = forM status $ \info -> do
     let cmd_text = case fmap Block.track_flags btrack of
             Nothing -> "?"
             Just flags
-                | Block.Collapse `elem` flags -> "expand"
+                | Block.Collapse `Set.member` flags -> "expand"
                 | otherwise -> "collapse"
     return $ Printf.printf "%s {%s %d}"
         (str (TrackInfo.strip_expr (State.track_title info))) cmd_text tracknum

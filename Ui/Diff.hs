@@ -305,7 +305,7 @@ derive_diff_block block_id block1 block2 = do
 -- rederivation.
 flags_differ :: Block.Track -> Block.Track -> Bool
 flags_differ track1 track2 = relevant track1 /= relevant track2
-    where relevant = filter (==Block.Disable) . Block.track_flags
+    where relevant = Set.filter (==Block.Disable) . Block.track_flags
 
 derive_diff_track :: TrackId -> Track.Track -> Track.Track -> DeriveDiffM ()
 derive_diff_track track_id track1 track2 =

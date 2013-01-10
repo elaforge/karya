@@ -130,6 +130,7 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Time as Time
 
 import qualified System.FilePath as FilePath
@@ -910,7 +911,7 @@ set_track_width block_id tracknum width =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_width = width }
 
-track_flags :: (M m) => BlockId -> TrackNum -> m [Block.TrackFlag]
+track_flags :: (M m) => BlockId -> TrackNum -> m (Set.Set Block.TrackFlag)
 track_flags block_id tracknum =
     Block.track_flags <$> get_block_track_at block_id tracknum
 
@@ -919,18 +920,18 @@ toggle_track_flag block_id tracknum flag =
     modify_track_flags block_id tracknum toggle
     where
     toggle flags
-        | flag `elem` flags = List.delete flag flags
-        | otherwise = flag : flags
+        | flag `Set.member` flags = Set.delete flag flags
+        | otherwise = Set.insert flag flags
 
 add_track_flag, remove_track_flag
     :: (M m) => BlockId -> TrackNum -> Block.TrackFlag -> m ()
 add_track_flag block_id tracknum flag =
-    modify_track_flags block_id tracknum (List.union [flag])
+    modify_track_flags block_id tracknum (Set.insert flag)
 remove_track_flag block_id tracknum flag =
-    modify_track_flags block_id tracknum (List.delete flag)
+    modify_track_flags block_id tracknum (Set.delete flag)
 
 modify_track_flags :: (M m) => BlockId -> TrackNum
-    -> ([Block.TrackFlag] -> [Block.TrackFlag]) -> m ()
+    -> (Set.Set Block.TrackFlag -> Set.Set Block.TrackFlag) -> m ()
 modify_track_flags block_id tracknum f =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_flags = f (Block.track_flags btrack) }

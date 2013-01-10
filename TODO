@@ -3,7 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Block.track_flags should be a Set
+  - call for grace notes: g (4c) (4b)
+  - grace: get dur and overlap from the environ
+  - monadic parsing combinators for CallSig
+  - in raw edit, midi key creates (pitch) and cmd-backspace deletes one
+  * Block.track_flags should be a Set
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
     along the performance (with some eta to account for randomization)
     instead of the score.
