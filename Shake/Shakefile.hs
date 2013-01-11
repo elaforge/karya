@@ -54,6 +54,7 @@ import qualified System.Process as Process
 import qualified Util.PPrint as PPrint
 import qualified Shake.CcDeps as CcDeps
 import qualified Shake.HsDeps as HsDeps
+import qualified Shake.Progress as Progress
 import qualified Shake.Util as Util
 import Shake.Util (system)
 
@@ -76,6 +77,7 @@ shakeOptions = Shake.shakeOptions
     , Shake.shakeVerbosity = Shake.Quiet
     , Shake.shakeThreads = 4
     , Shake.shakeReport = Just $ build </> "report.html"
+    , Shake.shakeProgress = Progress.report
     }
 
 data Config = Config {
