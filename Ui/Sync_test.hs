@@ -94,7 +94,7 @@ test_create_two_views = thread run_setup $
     ("view created, has big track, track title changes", do
         b2 <- create_block "b2" "" [(Block.RId t_ruler_id, 20),
             (Block.TId t_track1_id t_ruler_id, 30)]
-        v2 <- create_view "v2" =<<
+        create_view "v2" =<<
             make_view b2 (Rect.place 300 20 UiTest.default_rect)
                 UiTest.default_zoom
         State.set_track_title t_track1_id "title changed!"
@@ -118,20 +118,19 @@ test_set_block_config = do
             }
 
 test_set_skeleton = do
-    let (tids, state) =
-            UiTest.run_mkview [("t1", []), ("t2", []), ("t3", [])]
+    let (_, state) = UiTest.run_mkview [("t1", []), ("t2", []), ("t3", [])]
     sync_states State.empty state
     state <- io_human "skel set" $ run state $ do
         State.set_skeleton t_block_id (Skeleton.make [(1, 2), (1, 3)])
     state <- io_human "skel set to something else" $ run state $ do
         State.set_skeleton t_block_id (Skeleton.make [(1, 2), (2, 3)])
-    _state <- io_human "skel cleared" $ run state $ do
+    _ <- io_human "skel cleared" $ run state $ do
         State.set_skeleton t_block_id (Skeleton.make [])
     return ()
 
 test_zoom_scroll = do
     state <- run State.empty $ do
-        v1 <- setup_state
+        setup_state
         State.insert_events t_track1_id
             [ Event.event 0 10 "one"
             , Event.event 10 6 "scrunch"
@@ -146,7 +145,7 @@ test_zoom_scroll = do
         State.set_zoom t_view_id (Types.Zoom 0 2)
     state <- io_human "zoom out to .5" $ run state $ do
         State.set_zoom t_view_id (Types.Zoom 0 0.5)
-    state <- io_human "zoom out to 0, should clamp at a low number" $
+    _ <- io_human "zoom out to 0, should clamp at a low number" $
         run state $ State.set_zoom t_view_id (Types.Zoom 0 0)
     return ()
 
@@ -155,7 +154,7 @@ test_set_status = do
     state <- io_human "status set" $ run state $ do
         State.set_view_status t_view_id (0, "lol") (Just "o hai")
         State.set_view_status t_view_id (1, "brick") (Just "krazy")
-    state <- io_human "'lol' status cleared" $ run state $ do
+    _ <- io_human "'lol' status cleared" $ run state $ do
         State.set_view_status t_view_id (0, "lol") Nothing
     return ()
 
@@ -164,17 +163,17 @@ test_set_track_flags = do
         setup_state
         t2 <- create_track "b1.t2" UiTest.event_track_2
         insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
-    state <- io_human "track1 is muted" $ run state $ do
+    state <- io_human "track1 is muted" $ run state $
         State.toggle_track_flag t_block_id 1 Block.Mute
-    state <- io_human "track1 is soloed" $ run state $ do
+    state <- io_human "track1 is soloed" $ run state $
         State.toggle_track_flag t_block_id 1 Block.Solo
-    state <- io_human "collapse" $ run state $ do
+    state <- io_human "collapse" $ run state $
         State.toggle_track_flag t_block_id 1 Block.Collapse
-    state <- io_human "expand" $ run state $ do
+    state <- io_human "expand" $ run state $
         State.toggle_track_flag t_block_id 1 Block.Collapse
-    state <- io_human "unsolo" $ run state $ do
+    state <- io_human "unsolo" $ run state $
         State.toggle_track_flag t_block_id 1 Block.Solo
-    state <- io_human "unmute" $ run state $ do
+    _ <- io_human "unmute" $ run state $
         State.toggle_track_flag t_block_id 1 Block.Mute
     return ()
 
@@ -185,7 +184,7 @@ test_set_track_width = do
             UiTest.default_rect UiTest.default_zoom
         create_view "v2" =<< make_view UiTest.default_block_id
             (Rect.place 300 0 UiTest.default_rect) UiTest.default_zoom
-    state <- io_human "both tracks change size" $ run state $ do
+    _ <- io_human "both tracks change size" $ run state $ do
         State.set_track_width t_block_id 1 100
     return ()
 
@@ -198,37 +197,37 @@ test_adjacent_collapsed_tracks = do
         State.toggle_track_flag t_block_id 2 Block.Collapse
     state <- io_human "collapse track 3" $ run state $ do
         State.toggle_track_flag t_block_id 3 Block.Collapse
-    state <- io_human "expand track 2" $ run state $ do
+    _ <- io_human "expand track 2" $ run state $ do
         State.toggle_track_flag t_block_id 2 Block.Collapse
     return ()
 
 test_created_merged = do
     state <- io_human "already has merged track" $ run State.empty $ do
-        [t1, t2] <- UiTest.mkblock_view (t_block,
+        UiTest.mkblock_view (t_block,
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])
             , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
             ])
         State.merge_track t_block_id 1 2
     state <- io_human "unmerge" $ run state $ do
         State.unmerge_track t_block_id 1
-    state <- io_human "merge" $ run state $ do
+    _ <- io_human "merge" $ run state $ do
         State.merge_track t_block_id 1 2
     return ()
 
 test_set_track_merge = do
-    let ([t1, t2], state) = UiTest.run_mkview
+    let ([_, t2], state) = UiTest.run_mkview
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])
             , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
             ]
     state <- io_human "has two tracks" $ run State.empty $ State.put state
     state <- io_human "t2 merged with t1" $ run state $ do
         State.set_merged_tracks UiTest.default_block_id 1 [t2]
-    state <- io_human "t2 modifications visible in t1" $ run state $ do
+    _ <- io_human "t2 modifications visible in t1" $ run state $ do
         State.insert_event t2 (Event.event 0.5 0 "xxx")
     return ()
 
 test_merge_unmerge_track = do
-    let ([t1, t2], state) = UiTest.run_mkview
+    let ([_, t2], state) = UiTest.run_mkview
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])
             , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
             ]
@@ -239,21 +238,21 @@ test_merge_unmerge_track = do
         State.merge_track UiTest.default_block_id 1 2
     state <- io_human "t2's xxx visible in t1" $ run state $ do
         State.insert_event t2 (Event.event 0.5 0 "xxx")
-    state <- io_human "t1 unmerged, t1 reappears, still wide" $ run state $ do
+    _ <- io_human "t1 unmerged, t1 reappears, still wide" $ run state $ do
         State.unmerge_track UiTest.default_block_id 1
     return ()
 
 test_update_merged = do
-    let ((t1, t2), state) = UiTest.run State.empty $ do
-        [t1, t2] <- UiTest.mkblock_view (UiTest.default_block_name,
+    let (t2, state) = UiTest.run State.empty $ do
+        [_t1, t2] <- UiTest.mkblock_view (UiTest.default_block_name,
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])
             , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
             ])
         State.set_merged_tracks UiTest.default_block_id 1 [t2]
-        return (t1, t2)
+        return t2
     state <- io_human "block with merged track" $ run State.empty $
         State.put state
-    state <- io_human "t2 modifications visible in t1" $ run state $ do
+    _ <- io_human "t2 modifications visible in t1" $ run state $ do
         State.insert_event t2 (Event.event 0.5 0 "xxx")
     return ()
 
@@ -261,7 +260,7 @@ test_insert_remove_track = do
     state <- run_setup
     state <- io_human "new wide track at the end" $ run state $ do
         insert_track t_block_id 2 (Block.TId t_track1_id t_ruler_id) 80
-    state <- io_human "first track replaced by divider" $ run state $ do
+    _ <- io_human "first track replaced by divider" $ run state $ do
         State.remove_track t_block_id 1
         insert_track t_block_id 1 (Block.DId UiTest.default_divider) 5
     return ()
@@ -290,8 +289,7 @@ test_update_ruler_track = do
 test_update_track = do
     -- sync to initial state
     state <- io_human "create view with one track" run_setup
-
-    state <- io_human "add events, get wider, turn green" $ run state $ do
+    _ <- io_human "add events, get wider, turn green" $ run state $ do
         State.insert_events t_track1_id
             [Event.event 70 10 "last1", Event.event 90 15 "last2"]
         State.set_track_width t_block_id 1 50
@@ -301,7 +299,7 @@ test_update_track = do
 -- multiple simultaneous updates
 test_update_two_tracks = do
     state <- run State.empty $ do
-        v1 <- setup_state
+        setup_state
         t2 <- create_track "b1.t2" UiTest.event_track_2
         insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
         return ()
@@ -313,7 +311,7 @@ test_update_two_tracks = do
 test_create_track = do
     state <- run_setup
     let msg = "new track with selection and new title, all bgs green"
-    state <- io_human msg $ run state $ do
+    _ <- io_human msg $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 50
         set_selection t_view_id (Types.selection 1 10 1 60)
         State.set_track_title t_track1_id "new track"
@@ -324,7 +322,7 @@ test_alter_track = do
     state <- run_setup
     state <- io_human "track should get wider" $ run state $ do
         State.set_track_width t_block_id 1 100
-    state <- io_human "lose ruler and stay wide" $ run state $ do
+    _ <- io_human "lose ruler and stay wide" $ run state $ do
         rid <- create_ruler "r2" (UiTest.mkruler 0 0)
         State.set_track_ruler t_block_id 1 rid
     return ()
@@ -333,7 +331,7 @@ test_selection = do
     state <- run_setup
     state <- io_human "selection is set" $ run state $ do
         set_selection t_view_id (Types.selection 0 10 1 20)
-    state <- io_human "selection is cleared" $ run state $ do
+    _ <- io_human "selection is cleared" $ run state $ do
         set_selection t_view_id (Types.selection 0 10 0 20)
     return ()
 
@@ -351,7 +349,7 @@ test_modify_ruler = do
         State.modify_ruler t_ruler_id $ Ruler.set_marklist "cue" cue_marklist
     state <- io_human "meter goes away" $ run state $
         State.modify_ruler t_ruler_id $ Ruler.remove_marklist "cue"
-    state <- io_human "doesn't crash when a track is collapsed" $ run state $ do
+    _ <- io_human "doesn't crash when a track is collapsed" $ run state $ do
         State.add_track_flag t_block_id 1 Block.Collapse
         State.modify_ruler t_ruler_id $ Ruler.map_marklists
             (const (Ruler.marklist $ Map.fromList [(0, UiTest.mark "new")]))
@@ -364,7 +362,7 @@ test_selection_change_tracks = do
         set_selection t_view_id (Types.selection 1 10 1 20)
     state <- io_human "sel moves when new track is added" $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 40
-    state <- io_human "sel moves back" $ run state $ do
+    _ <- io_human "sel moves back" $ run state $ do
         State.remove_track t_block_id 1
     return ()
 
@@ -373,12 +371,12 @@ test_insert_into_selection = do
         v1 <- setup_state
         t2 <- create_track "b1.t2" UiTest.event_track_2
         insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 60
-        t3 <- create_track "b1.t3" UiTest.event_track_2
+        create_track "b1.t3" UiTest.event_track_2
         insert_track t_block_id 2 (Block.TId t2 t_ruler_id) 60
         set_selection v1 (Types.selection 0 10 2 60)
     state <- io_human "insert into sel, gets bigger" $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 20
-    state <- io_human "remove from sel, gets smaller" $ run state $ do
+    _ <- io_human "remove from sel, gets smaller" $ run state $ do
         State.remove_track t_block_id 1
     return ()
 
@@ -485,4 +483,4 @@ sync st1 st2 cmd_updates = do
 
 right :: (Show err) => String -> Either err a -> a
 right msg (Left err) = error $ msg ++ " error: " ++ show err
-right msg (Right x) = x
+right _ (Right x) = x
