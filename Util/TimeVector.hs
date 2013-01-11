@@ -20,7 +20,7 @@
     Controls start at 0, so these events will have no pitch and no controls.
     Even if the pitch is set explicitly via 'constant', it still starts at 0.
     I could solve the problem with 'constant' by starting it at -bignum, but
-    that introduces an inconsistency since control tracks still start at 0.
+    that doesn't help for control tracks, which still start at 0.
 
     Since tracks provide no way to say what the value should be before they
     start, I have to do something implicit (well, technically they could, but
@@ -125,6 +125,7 @@ unsignal = map to_pair . V.toList
 {-# SPECIALIZE constant :: Double -> Unboxed #-}
 constant :: (V.Vector v (Sample y)) => y -> v (Sample y)
 constant y = V.singleton (Sample 0 y)
+    -- Constant starts at 0, as documented in the module haddock.
 
 is_constant :: Unboxed -> Bool
 is_constant vec = case viewL vec of
@@ -180,11 +181,17 @@ shift offset vec
     | offset == 0 = vec
     | otherwise = map_x (+offset) vec
 
--- | Truncate a signal.  It's just a view of the old signal, so it
--- doesn't allocate a new signal.
+-- | Truncate a signal so it doesn't include the given X.  It's just a view of
+-- the old signal, so it doesn't allocate a new signal.
+--
+-- If the x<=0 the signal will still contain up to and including 0.  That's
+-- because, as per the module haddock, a sample <=0 stands in for all values
+-- <=0.
 {-# SPECIALIZE truncate :: X -> Unboxed -> Unboxed #-}
 truncate :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
-truncate x vec = fst $ V.splitAt (bsearch_x x vec) vec
+truncate x vec
+    | x <= 0 = V.takeWhile ((<=0) . sx) vec
+    | otherwise = fst $ V.splitAt (lowest_index x vec) vec
 
 take :: (V.Vector v a) => Int -> v a -> v a
 take = V.take
@@ -197,10 +204,12 @@ take = V.take
 {-# SPECIALIZE drop_before :: X -> Unboxed -> Unboxed #-}
 drop_before :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 drop_before x vec
+    -- | x <= 0 = V.takeWhile ((<=0) . sx) vec
     | i < V.length vec && sx (V.unsafeIndex vec i) == x =
         snd $ V.splitAt i vec
     | otherwise = snd $ V.splitAt (i-1) vec
-    where i = bsearch_x x vec
+    where
+    i = lowest_index x vec
 
 -- | Return samples within a range.  This is a combination of 'drop_before'
 -- and 'truncate'.
@@ -280,11 +289,12 @@ x_at x0 y0 x1 y1 y
     | otherwise = Just $
         double_to_x (y - y0) / (double_to_x (y1 - y0) / (x1 - x0)) + x0
 
--- | A version of 'bsearch_on' specialized to search X.  Profiling says
--- this gets called a lot and apparently the specialization makes a difference.
-{-# SPECIALIZE bsearch_x :: X -> Unboxed -> Int #-}
-bsearch_x :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
-bsearch_x x vec = go vec 0 (V.length vec)
+-- | Find the the index at the lowest index of the given X, or where it would
+-- be if it were present.  So the next value is guaranteed to be >= the given
+-- X.
+{-# SPECIALIZE lowest_index :: X -> Unboxed -> Int #-}
+lowest_index :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
+lowest_index x vec = go vec 0 (V.length vec)
     where
     go vec low high
         | low == high = low
