@@ -7,12 +7,12 @@ module Derive.PitchSignal (
     , apply_controls, apply_control, controls_at
     -- * signal functions
     , null, at, shift, last
-    , truncate, drop_before
+    , take, truncate, drop_before
     -- * Pitch
     , Pitch, PitchError(..), Controls
     , pitch, apply, add_control, eval_pitch, pitch_nn
 ) where
-import Prelude hiding (last, null, truncate)
+import Prelude hiding (take, last, null, truncate)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -164,6 +164,9 @@ last sig
     | V.null (sig_vec sig) = Nothing
     | otherwise = case V.unsafeLast (sig_vec sig) of
         TimeVector.Sample x pitch -> Just (x, pitch)
+
+take :: Int -> Signal -> Signal
+take = modify_vector . TimeVector.take
 
 truncate :: RealTime -> Signal -> Signal
 truncate x = modify_vector (TimeVector.truncate x)

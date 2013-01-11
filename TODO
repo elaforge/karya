@@ -4,7 +4,7 @@ LEGEND
 
 UNSORTED
   * call for grace notes: g (4c) (4b)
-  - grace notes should get dur and overlap from the environ
+  * grace notes should get dur and overlap from the environ
   * bug where negative grace notes have no pitch
   - grace notes could set legato
   - grace notes should emit the correct lilypond

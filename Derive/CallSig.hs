@@ -352,6 +352,7 @@ extract4 vals (sig0, sig1, sig2, sig3) = do
 
 -- * check_args
 
+-- | Get an arg's default value from the environment.
 default_arg :: (Typecheck a) => PassedArgs d -> a -> String
     -> Derive.Deriver a
 default_arg args deflt name = fromMaybe deflt <$>

@@ -147,9 +147,8 @@ generate_note event next_start = do
         , Score.event_pitch = pitch_sig
         , Score.event_stack = Derive.state_stack st
         , Score.event_instrument = inst
-        , Score.event_environ =
-            TrackLang.insert_val TrackLang.v_attributes
-                (TrackLang.VAttributes attrs) environ
+        , Score.event_environ = TrackLang.insert_val TrackLang.v_attributes
+            (TrackLang.VAttributes attrs) environ
         }
 
 -- | Interpret the c_start_rnd and c_dur_rnd controls.
@@ -178,8 +177,9 @@ randomized controls start end
 -- during its decay.
 trimmed_pitch :: RealTime -> RealTime -> PitchSignal.Signal
     -> PitchSignal.Signal
-trimmed_pitch start end =
-    PitchSignal.truncate end . PitchSignal.drop_before start
+trimmed_pitch start end
+    | start == end = PitchSignal.take 1 . PitchSignal.drop_before start
+    | otherwise = PitchSignal.truncate end . PitchSignal.drop_before start
 
 -- | Trim control signals to the given range.
 --
@@ -196,6 +196,9 @@ trimmed_controls start end = Map.map (fmap trim)
     where
     trim = if start == end
         -- Otherwise 0 dur events tend to get no controls.
+        -- I'm not sure exactly when this happens because 'generate_note' trims
+        -- until the start of the next note, but I think it did because
+        -- I added this fix for it...
         then Signal.take 1 . Signal.drop_before start
         else Signal.truncate end . Signal.drop_before start
 

@@ -6,6 +6,7 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 
@@ -30,11 +31,13 @@ test_mordent = do
         ])
         (["4e", "4f", "4e"], [])
 
-    let f = Ornament.mordent 1 0.5
+    let f = Ornament.mordent
         run = DeriveTest.run_events extract
             . DeriveTest.run State.empty
             . Util.with_pitch (DeriveTest.mkpitch "a")
             . Util.with_dynamic 1
+            . Derive.with_val (TrackLang.Symbol "grace-dur") (1 :: Double)
+            . Derive.with_val (TrackLang.Symbol "grace-overlap") (0.5 :: Double)
         extract e = (Score.event_start e, DeriveTest.e_twelve e,
             DeriveTest.e_control "dyn" e)
     equal (run (f (4, 1) 0.25 (Pitch.Chromatic 1))) $ Right
@@ -44,7 +47,7 @@ test_mordent = do
           ]
         , []
         )
-    -- It's in RealTime
+    -- It's in RealTime, so it's not affected by the tempo.
     equal (run (Derive.d_stretch 2 (f (4, 1) 0.25 (Pitch.Chromatic (-1))))) $
         Right
             ( [ (6, "4c", [(0, 0.25)])
@@ -57,10 +60,11 @@ test_mordent = do
 test_grace = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks
         extract e = (DeriveTest.e_note2 e, Score.initial_dynamic e)
-        dur = Ornament.grace_dur
-        overlap = Ornament.grace_overlap
-    equalf 0.001 (run
-        [ (">", [(0, 1, "g (4a) (4b)")])
+        title = "> | grace-dur = 1 | grace-overlap = .5"
+        dur = 1
+        overlap = 0.5
+    equal (run
+        [ (title, [(0, 1, "g (4a) (4b)")])
         , ("*", [(0, 0, "4c")])
         ])
         ( [ ((0-dur*2, dur+overlap, "4a"), 0.5)
@@ -69,8 +73,8 @@ test_grace = do
           ]
         , []
         )
-    equalf 0.001 (run
-        [ (">", [(1, 1, "g 1 (4b)")])
+    equal (run
+        [ (title, [(1, 1, "g 1 (4b)")])
         , ("*", [(1, 0, "4c")])
         ])
         ([((1-dur, dur+overlap, "4b"), 1), ((1, 1, "4c"), 1)], [])

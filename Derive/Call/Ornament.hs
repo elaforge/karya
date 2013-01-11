@@ -28,42 +28,34 @@ note_calls = Derive.make_calls
     , ("g", c_grace)
     ]
 
--- | Mordent.  The generated grace notes are constant time and short, and
--- fall before the onset of the main note.
---
--- [neighbor /Transpose/ @default_neighbor@] Neighbor note.
---
--- [dyn /Number/ @.3@] Scale the dynamic of the generated grace notes.
 c_mordent :: Pitch.Transpose -> Derive.NoteCall
 c_mordent default_neighbor = Derive.stream_generator "mordent"
     ("Generate some grace notes for a mordent, similar to a brief trill.\
     \ The grace notes fall before the onset of the main note, and\
-    \ are in absolute RealTime, unaffected by tempo changes."
-    ) $ CallSig.call2g
+    \ are in absolute RealTime, unaffected by tempo changes.\n"
+    <> grace_doc) $ CallSig.call2g
     ( optional "neighbor" default_neighbor "Neighbor pitch."
     , optional "dyn" 0.5 "Scale the dyn of the generated grace notes."
     ) $ \neighbor dyn -> Note.inverting $ \args ->
-        mordent grace_dur grace_overlap (Args.extent args) dyn neighbor
+        mordent (Args.extent args) dyn neighbor
 
-grace_dur, grace_overlap :: RealTime
-grace_dur = RealTime.seconds (1/12)
-grace_overlap = grace_dur / 2
-
-mordent :: RealTime -> RealTime -> (ScoreTime, ScoreTime) -> Signal.Y
-    -> Pitch.Transpose -> Derive.EventDeriver
-mordent grace_dur grace_overlap (start, dur) dyn_scale neighbor = do
+mordent :: (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Transpose
+    -> Derive.EventDeriver
+mordent (start, dur) dyn_scale neighbor = do
     pos <- Derive.real start
     pitch <- Derive.require ("pitch at " ++ Pretty.pretty pos)
         =<< Util.pitch pos
     dyn <- (*dyn_scale) <$> Util.dynamic pos
-    grace_notes pos grace_dur grace_overlap
+    (grace_dur, overlap) <- grace_dur_overlap
+    grace_notes pos grace_dur overlap
         [ Util.pitched_note pitch dyn
         , Util.pitched_note (Pitches.transpose neighbor pitch) dyn
         ]
         <> Derive.d_place start dur Util.note
 
 c_grace :: Derive.NoteCall
-c_grace = Derive.stream_generator "grace" "Emit grace notes." $
+c_grace = Derive.stream_generator "grace"
+    ("Emit grace notes.\n" <> grace_doc) $
     CallSig.parsed_manually "dyn? pitch*" $ Note.inverting $ \args -> do
         (dyn_scale, pitches) <- parse args
         grace (Args.extent args) dyn_scale pitches
@@ -82,10 +74,9 @@ grace :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch] ->
 grace (start, dur) dyn_scale pitches = do
     pos <- Derive.real start
     dyn <- (*dyn_scale) <$> Util.dynamic pos
-    grace_notes pos grace_dur grace_overlap
-        (map (flip Util.pitched_note dyn) pitches)
+    (grace_dur, overlap) <- grace_dur_overlap
+    grace_notes pos grace_dur overlap (map (flip Util.pitched_note dyn) pitches)
         <> Derive.d_place start dur Util.note
-
 
 grace_notes :: RealTime -- ^ note start time, grace notes fall before this
     -> RealTime -- ^ duration of each grace note
@@ -102,3 +93,21 @@ place start dur d = do
     rstart <- Derive.score start
     rend <- Derive.score (start + dur)
     Derive.d_place rstart (rend - rstart) d
+
+grace_dur_overlap :: Derive.Deriver (RealTime, RealTime)
+grace_dur_overlap = (,) <$> dur <*> overlap
+    where
+    dur = fromMaybe (RealTime.seconds (1/12)) <$>
+        Derive.lookup_val (TrackLang.Symbol "grace-dur")
+    overlap = fromMaybe (RealTime.seconds (1/24)) <$>
+        Derive.lookup_val (TrackLang.Symbol "grace-overlap")
+
+grace_dur_default, grace_overlap_default :: RealTime
+grace_dur_default = RealTime.seconds (1/12)
+grace_overlap_default = grace_dur_default / 2
+
+grace_doc :: String
+grace_doc = "Grace note duration is set by `grace-dur` in the environment and\
+    \ defaults to " <> Pretty.pretty grace_dur_default <> ", overlap time is\
+    \ `grace-overlap` and defaults to " <> Pretty.pretty grace_overlap_default
+    <> "."
