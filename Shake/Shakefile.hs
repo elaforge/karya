@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, FlexibleContexts, ViewPatterns #-}
+{-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
 {- | Shakefile for seq and associated binaries.
 
     - Setting the 'repl' env var will add the -DINTERPRETER_GHC flag.
@@ -24,11 +25,15 @@
 -}
 module Shake.Shakefile where
 import Control.Applicative ((<$>))
+import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 
+import qualified Data.Binary as Binary
 import qualified Data.Char as Char
+import qualified Data.Generics as Generics
+import qualified Data.Hashable as Hashable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -419,23 +424,53 @@ main = do
         ccORule infer
         dispatch modeConfig targets
 
-setupOracle :: [(String, String)] -> Config -> Shake.Rules ()
+newtype OracleGhc = OracleGhc () deriving
+    ( Show, Generics.Typeable, Eq, Hashable.Hashable, Binary.Binary
+    , DeepSeq.NFData
+    )
+newtype OracleFltk = OracleFltk () deriving
+    ( Show, Generics.Typeable, Eq, Hashable.Hashable, Binary.Binary
+    , DeepSeq.NFData
+    )
+newtype OracleRepl = OracleRepl () deriving
+    ( Show, Generics.Typeable, Eq, Hashable.Hashable, Binary.Binary
+    , DeepSeq.NFData
+    )
+newtype OracleMidi = OracleMidi () deriving
+    ( Show, Generics.Typeable, Eq, Hashable.Hashable, Binary.Binary
+    , DeepSeq.NFData
+    )
+
+-- | Not actually used yet, but this would be the safe way to do it.
+data Oracle = Oracle {
+    oracleGhc :: Shake.Action String
+    , oracleFltk :: Shake.Action String
+    , oracleRepl :: Shake.Action Bool
+    , oracleMidi :: Shake.Action String
+    }
+
+setupOracle :: [(String, String)] -> Config -> Shake.Rules Oracle
 setupOracle env config = do
-    Shake.addOracle ["ghc"] $ return [ghcLib config]
-    Shake.addOracle ["fltk"] $ return [fltkVersion config]
-    let useRepl = "repl" `elem` map fst env
-    Shake.addOracle ["repl"] $ return $ if useRepl then ["t"] else []
-    let midiDriver = case lookup "midi" env of
-          Just "stub" -> ""
-          Just "jack" -> "JACK_MIDI"
-          Just "core" -> "CORE_MIDI"
-          Just unknown -> error $ "midi driver should be stub, jack, or core: "
-            ++ show unknown
-          Nothing -> case System.Info.os of
-              "darwin" -> "CORE_MIDI"
-              "linux" -> "JACK_MIDI"
-              _ -> ""
-    Shake.addOracle ["midi"] $ return [midiDriver]
+    ghc <- ($ OracleGhc ()) <$>
+        Shake.addOracle (\(OracleGhc ()) -> return (ghcLib config))
+    fltk <- ($ OracleFltk ()) <$>
+        Shake.addOracle (\(OracleFltk ()) -> return (fltkVersion config))
+    repl <- ($ OracleRepl ()) <$>
+        Shake.addOracle (\(OracleRepl ()) -> return ("repl" `elem` map fst env))
+    midi <- ($ OracleMidi ()) <$>
+        Shake.addOracle (\(OracleMidi ()) -> return midiDriver)
+    return $ Oracle ghc fltk repl midi
+    where
+    midiDriver = case lookup "midi" env of
+      Just "stub" -> ""
+      Just "jack" -> "JACK_MIDI"
+      Just "core" -> "CORE_MIDI"
+      Just unknown -> error $ "midi driver should be stub, jack, or core: "
+        ++ show unknown
+      Nothing -> case System.Info.os of
+          "darwin" -> "CORE_MIDI"
+          "linux" -> "JACK_MIDI"
+          _ -> ""
 
 -- | Write a header to configure the haskell compilation.
 --
@@ -443,9 +478,9 @@ setupOracle env config = do
 -- This way only those files will recompile when the config changes.
 configHeaderRule :: Shake.Rules ()
 configHeaderRule = matchBuildDir "hsconfig.h" ?> \fn -> do
-    useRepl <- not . null <$> Shake.askOracle ["repl"]
+    useRepl <- Shake.askOracle (OracleRepl ())
     useRepl <- return $ useRepl && targetToMode fn /= Just Test
-    [midiDriver] <- Shake.askOracle ["midi"]
+    midiDriver <- Shake.askOracle (OracleMidi ())
     Shake.writeFile' fn $ unlines
         [ "/* Created automatically by the shakefile. */"
         , "#ifndef __HSCONFIG_H"
@@ -688,7 +723,7 @@ docToHtml = (docDir </>) . FilePath.takeFileName . (++".html")
 
 hsORule :: InferConfig -> Shake.Rules ()
 hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
-    Shake.askOracle ["ghc"]
+    Shake.askOracleWith (OracleGhc ()) ""
     let config = infer obj
     isHsc <- Trans.liftIO $
         Directory.doesFileExist (objToSrc config obj ++ "c")
@@ -754,7 +789,7 @@ ghcFlags config =
 
 ccORule :: InferConfig -> Shake.Rules ()
 ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
-    Shake.askOracle ["fltk"]
+    Shake.askOracleWith (OracleFltk ()) ""
     let config = infer obj
     let cc = objToSrc config obj
     includes <- includesOf "ccORule" config cc

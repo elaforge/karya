@@ -19,7 +19,7 @@ haskell-src # Util.PPrint
 regex-pcre Diff # Util.Test
 
 QuickCheck # Derive.DeriveQuickCheck
-shake # build system
+shake-0.6 # build system
 pandoc # documentation
 
 ekg # if Shakefile useEkg is True
