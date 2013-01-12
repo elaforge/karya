@@ -13,6 +13,7 @@ import qualified Data.FixedList as FixedList
 import Data.FixedList (Nil(..))
 import qualified Data.Hashable as Hashable
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Traversable as Traversable
 
 import qualified System.Random.Mersenne.Pure64 as Pure64
@@ -26,7 +27,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
-import qualified Derive.CallSig as CallSig
+import qualified Derive.CallSig2 as CallSig2
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -323,8 +324,8 @@ chance v
 shuffle :: [a] -> Derive.Deriver [a]
 shuffle xs = Random.shuffle xs <$> randoms
 
-pick :: [a] -> Derive.Deriver a
-pick xs = shuffle xs >>= \x -> case x of
+pick :: NonEmpty a -> Derive.Deriver a
+pick xs = shuffle (NonEmpty.toList xs) >>= \x -> case x of
     [] -> Derive.throw "Derive.Call.Util.pick expected non-null list"
     x : _ -> return x
 
@@ -400,7 +401,7 @@ duration_from start (TrackLang.Real t) = do
 
 c_equal :: (Derive.Derived derived) => Derive.Call derived
 c_equal = Derive.transformer "equal" equal_doc
-    (CallSig.parsed_manually equal_arg_doc equal_transformer)
+    (CallSig2.parsed_manually equal_arg_doc equal_transformer)
 
 equal_arg_doc :: String
 equal_arg_doc =

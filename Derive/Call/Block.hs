@@ -18,8 +18,8 @@ import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Note as Note
-import qualified Derive.CallSig as CallSig
-import Derive.CallSig (required)
+import qualified Derive.CallSig2 as CallSig2
+import Derive.CallSig2 (required)
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -67,12 +67,12 @@ lookup_note_block = Derive.pattern_lookup "block id"
     (\sym -> fmap c_block <$> symbol_to_block_id sym)
     where
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
-    fake_call = c_block (Types.BlockId (Id.read_id "fake/block"))
+    fake_call = c_block (Types.BlockId (Id.read_id "example/block"))
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = Derive.stream_generator ("block " ++ show block_id)
         "Substitute the named block into the score." $
-    CallSig.call0g $ Note.inverting $ \args ->
+    CallSig2.call0 $ Note.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.cache_block' relies on on the block id already being
         -- on the stack.
@@ -130,7 +130,7 @@ c_clip = Derive.stream_generator "clip"
     \ may not be in the same time scale as the calling block."
     -- TODO wait until I actually start using this to see if it's worth
     -- coming up with a solution for that.
-    ) $ CallSig.call1g
+    ) $ CallSig2.call
     ( required "block_id" $
         "Derive this block. If it doesn't contain a /, the default namespace\
         \ is applied."
@@ -167,7 +167,7 @@ c_control_block block_id = Derive.stream_generator "control-block"
     \ a track named `%`.  The signal from that track will be\
     \ substituted."
     ) $
-    CallSig.call0g $ \args -> do
+    CallSig2.call0 $ \args -> do
         let (start, end) = Args.range args
         Derive.d_place start (end-start) (d_control_block block_id)
 
@@ -187,7 +187,7 @@ c_capture_null_control :: Derive.NoteCall
 c_capture_null_control = Derive.generator1 BlockUtil.capture_null_control
     ("This is an internal call used to capture the control signal at the\
     \ bottom of a control block."
-    ) $ CallSig.call0g $ \_ -> do
+    ) $ CallSig2.call0 $ \_ -> do
         sig <- Derive.require "no null control to capture"
             =<< Derive.get_control Score.c_null
         stack <- Derive.get_stack

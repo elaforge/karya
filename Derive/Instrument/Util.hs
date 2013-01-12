@@ -5,7 +5,7 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Call as Call
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig as CallSig
+import qualified Derive.CallSig2 as CallSig2
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -17,14 +17,14 @@ attrs_note :: Score.Attributes -> Derive.NoteCall
 attrs_note attrs =
     Derive.stream_generator ("attrs_note " ++ Pretty.pretty attrs)
         "Invoke the default note call with the given attrs." $
-    CallSig.call0g $ \args ->
+    CallSig2.call0 $ \args ->
     Util.add_attrs attrs $ Call.reapply_call args (TrackLang.call "" [])
 
 note_call :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.NoteCall
 note_call name transform = Derive.stream_generator name
     "Invoke the default note call with a certain transform." $
-    CallSig.call0g $ \args -> Note.when_under_inversion args transform $
+    CallSig2.call0 $ \args -> Note.when_under_inversion args transform $
         Call.reapply_call args (TrackLang.call "" [])
 
 -- | Make a note and add the attribute if it's 0 duration.

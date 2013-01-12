@@ -11,8 +11,8 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Call as Call
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig as CallSig
-import Derive.CallSig (control, optional)
+import qualified Derive.CallSig2 as CallSig2
+import Derive.CallSig2 (control, defaulted)
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -42,16 +42,16 @@ c_guzheng strings = Derive.transformer "guzheng"
     <> " or other zither, but may also be appropriate for stopped strings"
     <> " like the violin family.  Further documentation is in"
     <> " 'Derive.Call.Idiom.String'."
-    ) $ CallSig.call3t
-    ( optional "attack" (control "string-attack" 0.5) $
-        "Time for a string to be bent to its desired pitch. A fast attack"
-        <> " sounds like a stopped string."
-    , optional "release" (control "string-release" 0.5)
+    ) $ CallSig2.callt ((,,)
+    <$> defaulted "attack" (control "string-attack" 0.5)
+        "Time for a string to be bent to its desired pitch. A fast attack\
+        \ sounds like a stopped string."
+    <*> defaulted "release" (control "string-release" 0.5)
         "Time for a string to return to its original pitch."
-    , optional "delay" (control "string-delay" 0) $
-        "If the string won't be used for the following note, it will be"
-        <> "released after this delay."
-    ) $ \attack release delay _args deriver -> do
+    <*> defaulted "delay" (control "string-delay" 0)
+        "If the string won't be used for the following note, it will be\
+        \ released after this delay."
+    ) $ \(attack, release, delay) _args deriver -> do
         -- TODO if I care about retuning notes I should pass a time
         string_pitches <- mapM (Call.eval_note 0) strings
         srate <- Util.get_srate
@@ -65,8 +65,8 @@ c_guzheng strings = Derive.transformer "guzheng"
 c_violin :: [TrackLang.Note] -> Derive.NoteCall
 c_violin strings = Derive.transformer "violin"
     "A specialization of `string-guzheng` for stopped strings." $
-    CallSig.call1t
-    ( optional "delay" (control "string-delay" 0) "String release delay time."
+    CallSig2.callt
+    ( defaulted "delay" (control "string-delay" 0) "String release delay time."
     ) $ \delay _args deriver -> do
         string_pitches <- mapM (Call.eval_note 0) strings
         srate <- Util.get_srate

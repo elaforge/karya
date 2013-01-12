@@ -12,8 +12,8 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
-import qualified Derive.CallSig as CallSig
-import Derive.CallSig (required)
+import qualified Derive.CallSig2 as CallSig2
+import Derive.CallSig2 (required)
 import qualified Derive.Derive as Derive
 
 
@@ -24,8 +24,8 @@ note_calls = Derive.make_calls
 
 c_sekar :: Derive.NoteCall
 c_sekar = Derive.stream_generator "sekar" "Plain sekaran derivation." $
-    CallSig.call1g
-    ( required "pattern" $
+    CallSig2.call
+    ( required "pattern"
         "Apply this pattern to the encompassed notes. The pattern is\
         \ documented by 'Derive.Call.Sekar.make_pattern'."
     ) $ \pattern args -> do

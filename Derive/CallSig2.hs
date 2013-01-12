@@ -1,5 +1,96 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module Derive.CallSig2 where
+{- | Functions to help define call signatures.
+
+    This module, along with the 'TrackLang.Typecheck' class, define a little
+    DSL to express function signatures.  Check existing calls for examples.
+
+    Argument passing, in an effort to be flexible, got a bit complicated.  Each
+    'Arg' has a name and a possible default.  So right off there are three ways
+    to provide an argument:
+
+    1. Pass it explicitly.
+
+    2. If it is omitted, or @_@ is passed explicitly, it will be sought in the
+    dynamic environ, under the name @<call_name>-<arg_name>@.  E.g. given
+    a call @generator "name" $ \args -> call1 (required "arg1") ...@ then
+    @name-arg1 = 42 | call _@ will get 42.  Note that it uses the call name,
+    and not the symbol it happens to bound to in this scope.  This is because,
+    while you may bind different kinds of trills to @tr@ depending on the needs
+    of the score, the two kinds of trills may have different arguments with
+    different meanings.
+
+    3. If it's omitted, and not in the dynamic environ, the default will be
+    used, provided there is one.
+
+    In addition, an arg may be a 'TrackLang.PitchControl' or
+    'TrackLang.ValControl', which introduces yet another way to provide the
+    value.  An argument @required_control \"c\"@ will pass
+    a 'TrackLang.LiteralControl'.  Technically it's then up to the call to
+    decide what to do with it, but it will likely look it up at its chosen
+    point in time, which means you can provide the value by providing a @c@
+    control track or binding it explicitly e.g. @%c = .5 | call@.
+
+    - To further complicate the matter, the control arg may itself have a
+    default, to relieve the caller from always having to provide that control.
+    So an argument @control \"c\" 0.5@ or an explicitly provided control val
+    @call %c,.5@ will default to 0.5 if the @c@ control is not in scope.
+
+    Since the arg defaulting and control defaulting are orthogonal, they can be
+    combined:
+
+    1. Pass it explicitly with a default: @call %c,.5@.  This is either the
+    value of @%c@ or 0.5.
+
+    2. Pass it via the dynamic environ: @call-arg1 = %c,.5 | call@.  This is
+    the same as the above, only the argument is provided implicitly.
+
+    3. Fall back on the built-in default: @control \"c\" 0.5@ and then just
+    @call@.
+
+    I originally envisioned the dynamic environ passing scheme to be a way to
+    default certain arguments within the context of a track, to be used in
+    a relatively ad-hoc way in specific parts of the score (e.g. all trills
+    within this section of melody default to minor thirds), is not limited to
+    numeric types, and is constant in time.  A control, however, is intended to
+    capture musical parameters that change in time over the course of the
+    piece, and is numeric or a pitch.  So while dynamic environ args are forced
+    to be specific to a certain call by prepending the call's name, control
+    names should generally have more general and abstract names.
+
+    On the subject of controls, controls (and numeric vals in general) have
+    another layer of complexity since they carry types.  For example, here's
+    a gloriously complicated argument: @defaulted \"speed\" (typed_control
+    \"tremolo-speed\" 10 Score.Real)@.  This argument defaults to
+    @%tremolo-speed,10s@.  If it's not given, it will have the value @10s@.  If
+    the @%tremolo-speed@ control is in scope but untyped, its values will be
+    interpreted as RealTime.  If it's in scope and typed (e.g. with
+    a @tremolo-speed:t@ track), then its values will be interpreted as
+    ScoreTime.
+
+    Another wrinkle in argument passing is that, in addition to being
+    'required', which has no default, or being 'defaulted', which has
+    a default, they can be 'defaulted' with a default of Nothing.  This passes
+    the argument as a @Maybe a@ instead of @a@ and lets the call distinguish
+    whether an argument was provided or not.  This is for arguments which are
+    defaulted but need a more complicated defaulting strategy than simply
+    a constant.
+
+    This module is split off from "Derive.TrackLang" because it needs
+    'Derive.PassedArgs' and Derive already imports TrackLang.  It could be in
+    "Derive.Call" but Call is already big so let's leave it separate for now.
+-}
+module Derive.CallSig2 (
+    Parser
+    -- * parsers
+    , parsed_manually
+    , required, defaulted, optional, many, many1
+    -- ** defaults
+    , control, typed_control, required_control
+    -- * call
+    , call, call0, callt, call0t
+    -- * misc
+    , cast, modify_vcall
+) where
 import qualified Control.Applicative as Applicative
 
 import Util.Control
@@ -13,30 +104,6 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
 
-{- This style of argument parsing is pretty inflexible, and when I want
-    something more fancy like 'num? pitch*' I have to write a parser by hand
-    and awkwardly.
-
-    It should be possible to do a monadic style parser and write e.g.:
-
-    (,) <$> optional "num" 0.5 <*> many "pitch"
-
-    It would be even better to use this for all arg parsing, then I can get rid
-    of the call[1234] nonsense.  But how can I get docs out of it without
-    actually running it?  Each combinator has to append both a doc and
-    a parser.
-
-    If possible, it has to be Applicative, because otherwise it can't generate
-    a doc without values
-
-    fmap :: (a -> b) -> Parser a -> Parser b
-    fmap f (doc, v) = (doc, f v)
-
-    pure :: a -> Parser a
-    pure v = (no_doc, v)
-
-    (doc1, f) <*> (doc2, a) = (doc1 <> doc2, f a)
--}
 
 type Error = Derive.CallError
 type Docs = [Derive.ArgDoc]
@@ -57,7 +124,7 @@ run :: Parser a -> State -> Either Error a
 run (Parser _ parse) state = case parse state of
     Right (state, a) -> case state_vals state of
         [] -> Right a
-        vals -> Left $ Derive.ArgError $ "trailing args: "
+        vals -> Left $ Derive.ArgError $ "too many arguments: "
             ++ Seq.join ", " (map (ShowVal.show_val . snd) vals)
     Left err -> Left err
 
@@ -86,7 +153,7 @@ parsed_manually doc f = (f, Derive.ArgsParsedSpecially doc)
 -- | The argument is required to be present, and have the right type.
 required :: forall a. (TrackLang.Typecheck a) => String -> String -> Parser a
 required name doc = parser arg_doc $ \state -> case get_val state name of
-    Nothing -> Left $ Derive.ArgError $ "not enough args at: " ++ show name
+    Nothing -> Left $ Derive.ArgError $ "too few arguments at: " ++ show name
     Just (state, argnum, val) -> case TrackLang.from_val val of
         Just a -> Right (state, a)
         Nothing -> Left $ Derive.TypeError argnum name expected (Just val)
@@ -262,3 +329,13 @@ cast name val = case TrackLang.from_val val of
             ++ " " ++ TrackLang.show_val val
         Just a -> return a
     where return_type = TrackLang.to_type (error "cast" :: a)
+
+-- | Make a new ValCall from an existing one, by mapping over its output.
+modify_vcall :: Derive.ValCall -> String -> String
+    -> (TrackLang.Val -> TrackLang.Val) -> Derive.ValCall
+modify_vcall vcall name doc f = vcall
+    { Derive.vcall_name = name
+    , Derive.vcall_doc = Derive.CallDoc doc
+        (Derive.cdoc_args (Derive.vcall_doc vcall))
+    , Derive.vcall_call = fmap f . (Derive.vcall_call vcall)
+    }

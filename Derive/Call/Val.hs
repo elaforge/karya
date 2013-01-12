@@ -5,8 +5,8 @@ import qualified Ui.Event as Event
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
-import qualified Derive.CallSig as CallSig
-import Derive.CallSig (optional, required)
+import qualified Derive.CallSig2 as CallSig2
+import Derive.CallSig2 (defaulted, required)
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -30,7 +30,7 @@ val_calls = Derive.make_calls
 c_next_val :: Derive.ValCall
 c_next_val = Derive.val_call "next-val"
     "Evaluate the value of the next event. Only works on pitch and control\
-    \ tracks." $ CallSig.call0g $ \args -> do
+    \ tracks." $ CallSig2.call0 $ \args -> do
         event <- Derive.require "no next event" $
             Seq.head (Args.next_events args)
         start <- Derive.real (Event.start event)
@@ -73,7 +73,7 @@ c_prev_val = Derive.val_call "prev-val"
     ("Return the previous value. Only works on pitch and control tracks.\
     \ Unfortunately, this doesn't work when the next value is on a different\
     \ note, because of slicing."
-    ) $ CallSig.call0g $ \args -> do
+    ) $ CallSig2.call0 $ \args -> do
         event <- Derive.require "no prev event" $
             Seq.head (Args.prev_events args)
         case Derive.info_track_type (Derive.passed_info args) of
@@ -107,12 +107,12 @@ c_timestep = Derive.val_call "timestep"
     ("Compute the duration of the given RelativeMark timestep at the current\
     \ position. This is for durations, so it only works with RelativeMark, and\
     \ in fact prepends `r:`, so e.g. a quarter note is just `q`."
-    ) $ CallSig.call2g
-    ( required "timestep"  ("Emit a duration of this timestep.\
+    ) $ CallSig2.call ((,)
+    <$> required "timestep"  ("Emit a duration of this timestep.\
         \This must a relative marklist timestep, and `r:` will be prepended\
         \ to it.")
-    , optional "steps" 1 "Step this number of times, negative to step back."
-    ) $ \timestep steps args -> do
+    <*> defaulted "steps" 1 "Step this number of times, negative to step back."
+    ) $ \(timestep, steps) args -> do
         timestep <- Derive.require_right ("parsing timestep: "++) $
             TimeStep.parse_time_step ("r:" ++ timestep)
         (block_id, tracknum) <- Internal.get_current_tracknum
@@ -123,7 +123,7 @@ c_timestep = Derive.val_call "timestep"
         return $ TrackLang.score_time (end - start)
 
 c_timestep_reciprocal :: Derive.ValCall
-c_timestep_reciprocal = CallSig.modify_vcall c_timestep "timestep-reciprocal"
+c_timestep_reciprocal = CallSig2.modify_vcall c_timestep "timestep-reciprocal"
     ("This is the same as `timestep` except it returns the reciprocal. This is\
     \ useful for e.g. trills which take cycles per second rather than duration."
     ) reciprocal

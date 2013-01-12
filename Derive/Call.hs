@@ -84,7 +84,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Ui.TrackTree as TrackTree
-import qualified Derive.CallSig as CallSig
+import qualified Derive.CallSig2 as CallSig2
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -140,7 +140,7 @@ reapply_call args call = reapply args (call :| [])
 
 -- | A version of 'eval' specialized to evaluate note calls.
 eval_note :: ScoreTime -> TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
-eval_note pos note = CallSig.cast ("eval note " ++ show note)
+eval_note pos note = CallSig2.cast ("eval note " ++ show note)
     =<< eval (Derive.dummy_call_info pos 0 "<eval_note>")
         (TrackLang.note_call note)
     -- Note calls shouldn't care about their pos.

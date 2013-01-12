@@ -13,8 +13,8 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig as CallSig
-import Derive.CallSig (optional, typed_control)
+import qualified Derive.CallSig2 as CallSig2
+import Derive.CallSig2 (defaulted, typed_control)
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
@@ -57,18 +57,18 @@ attributed_note attrs = Derive.Call
         "Apply attributes to the transformed deriver." transformer
     }
     where
-    generator = CallSig.call0g $ \args -> case Note.sub_events args of
+    generator = CallSig2.call0 $ \args -> case Note.sub_events args of
         [] -> add_attrs $ Call.reapply_call args (TrackLang.call "" [])
         subs -> Note.place (Note.map_events add_attrs (concat subs))
-    transformer = CallSig.call0t $ \_ deriver -> add_attrs deriver
+    transformer = CallSig2.call0t $ \_ deriver -> add_attrs deriver
     add_attrs = Util.add_attrs attrs
 
 c_legato :: Derive.NoteCall
 c_legato = Derive.stream_generator "legato"
     ("Play the transformed notes legato.  This extends their duration and\
      \ applies `+legato`."
-    ) $ CallSig.call1g
-    (optional "overlap" (typed_control "legato" 0.1 Score.Real)
+    ) $ CallSig2.call
+    (defaulted "overlap" (typed_control "legato" 0.1 Score.Real)
         "All notes except the last one overlap with the next note by this\
         \ amount."
     ) $ \overlap args -> Lily.note_transformer args Attrs.legato $ do
@@ -89,5 +89,5 @@ extend_duration overlap _prev cur (next:_) = Score.set_duration dur cur
 c_portamento :: Derive.NoteCall
 c_portamento = Derive.stream_generator "portamento"
     "Make the notes overlap and apply `+legato`." $
-    CallSig.call0g $ \args -> Lily.note_transformer args Attrs.legato $ do
+    CallSig2.call0 $ \args -> Lily.note_transformer args Attrs.legato $ do
         mconcat $ map (legato 0.1 Attrs.porta) (Note.sub_events args)

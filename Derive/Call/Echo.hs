@@ -7,8 +7,8 @@ import Data.FixedList (Cons(..), Nil(..))
 import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig as CallSig
-import Derive.CallSig (optional, typed_control, control)
+import qualified Derive.CallSig2 as CallSig2
+import Derive.CallSig2 (defaulted, typed_control, control)
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
@@ -30,8 +30,8 @@ c_delay :: Derive.NoteCall
 c_delay = Derive.transformer "delay"
     ("Simple abstract delay. As with `echo`, abstract means it happens in the\
     \ score, so events may not be delayed evenly if the tempo is changing."
-    ) $ CallSig.call1t
-    ( optional "time" (typed_control "delay-time" 0.1 Score.Real) "Delay time."
+    ) $ CallSig2.callt
+    ( defaulted "time" (typed_control "delay-time" 0.1 Score.Real) "Delay time."
     ) $ \time args deriver -> do
         delay <- Util.duration_from (Args.start args)
             =<< Util.time_control_at Util.Real time
@@ -47,13 +47,13 @@ c_echo = Derive.transformer "echo"
     \\nThe controls are only sampled at the beginning of the echo,\
     \ so you can't vary them over the scope of the echo like you can\
     \ with `e-echo`."
-    ) $ CallSig.call3t
-    ( optional "delay" (control "echo-delay" 1) "Delay time."
-    , optional "feedback" (control "echo-feedback" 0.4)
+    ) $ CallSig2.callt ((,,)
+    <$> defaulted "delay" (control "echo-delay" 1) "Delay time."
+    <*> defaulted "feedback" (control "echo-feedback" 0.4)
         "The %dyn of each echo are multiplied by this amount."
-    , optional "times" (control "echo-times" 1)
+    <*> defaulted "times" (control "echo-times" 1)
         "Number of echoes, not counting the original."
-    ) $ \delay feedback times args deriver ->
+    ) $ \(delay, feedback, times) args deriver ->
         Util.with_controls args (delay :. feedback :. times :. Nil) $
             \(delay :. feedback :. times :. Nil) ->
                 echo (Signal.y_to_score delay) feedback (floor times) deriver
@@ -78,13 +78,13 @@ c_event_echo = Derive.transformer "event echo"
     ("Concrete echo.  All events are delayed by the same amount.  Also, the\
     \ parameter signals are sampled at every event, so they can vary\
     \ over the course of the echo."
-    ) $ CallSig.call3t
-    ( optional "delay" (control "echo-delay" 1) "Delay time."
-    , optional "feedback" (control "echo-feedback" 0.4)
+    ) $ CallSig2.callt ((,,)
+    <$> defaulted "delay" (control "echo-delay" 1) "Delay time."
+    <*> defaulted "feedback" (control "echo-feedback" 0.4)
         "The %dyn of each echo are multiplied by this amount."
-    , optional "times" (control "echo-times" 1)
+    <*> defaulted "times" (control "echo-times" 1)
         "Number of echoes, not counting the original."
-    ) $ \delay feedback times _args ->
+    ) $ \(delay, feedback, times) _args ->
         Util.map_controls_asc (delay :. feedback :. times :. Nil) () $
             \(delay :. feedback :. times :. Nil) ->
                 go (Score.typed_val delay) (Score.typed_val feedback)

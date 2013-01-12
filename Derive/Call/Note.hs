@@ -15,7 +15,6 @@ module Derive.Call.Note (
     , invert_call, trimmed_controls
 #endif
 ) where
-import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
@@ -30,7 +29,7 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig as CallSig
+import qualified Derive.CallSig2 as CallSig2
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -67,11 +66,12 @@ transformed_note :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
 transformed_note doc transform = Derive.Call
     { Derive.call_name = "note"
     , Derive.call_generator = Just $ Derive.generator_call prepended
-        (CallSig.parsed_manually note_arg_doc (note_generate transform))
+        (CallSig2.call parser (note_generate transform))
     , Derive.call_transformer = Just $ Derive.transformer_call transformer_doc
-        (CallSig.parsed_manually note_arg_doc note_transform)
+        (CallSig2.callt parser note_transform)
     }
     where
+    parser = CallSig2.many "attribute" "Change the instrument or attributes."
     prepended
         | null doc = generator_doc
         | otherwise = "Modified note call: " ++ doc ++ "\n" ++ generator_doc
@@ -87,23 +87,16 @@ transformed_note doc transform = Derive.Call
         <> " call."
 
 note_generate :: (Derive.EventDeriver -> Derive.EventDeriver)
-    -> Derive.PassedArgs d -> Derive.EventDeriver
-note_generate transform = inverting generate
-    where
-    generate args = case process (Derive.passed_vals args) of
-        (inst, rel_attrs, []) -> transform_note inst rel_attrs $
-            transform $ generate_note (Args.event args) (Args.next args)
-        (_, _, invalid) -> Derive.throw_arg_error $
-            "expected inst or attr: " ++ show invalid
-    process = process_note_args Nothing []
-
-note_transform :: Derive.PassedArgs d -> Derive.EventDeriver
+    -> [Either Score.Instrument TrackLang.RelativeAttr] -> Derive.PassedArgs d
     -> Derive.EventDeriver
-note_transform args deriver =
-    case process_note_args Nothing [] (Derive.passed_vals args) of
-        (inst, rel_attrs, []) -> transform_note inst rel_attrs deriver
-        (_, _, invalid) ->
-            Derive.throw_arg_error $ "expected inst or attr: " ++ show invalid
+note_generate transform vals = inverting generate
+    where
+    generate args = transform_note vals $
+        transform $ generate_note (Args.event args) (Args.next args)
+
+note_transform :: [Either Score.Instrument TrackLang.RelativeAttr]
+    -> Derive.PassedArgs d -> Derive.EventDeriver -> Derive.EventDeriver
+note_transform vals _ deriver = transform_note vals deriver
 
 -- | This is implicitly the call for note track titles---the \">...\" will be
 -- the first argument.
@@ -112,10 +105,9 @@ c_note_track =
     Derive.transformer "note-track" ("This is used internally as the implicit"
         <> " call for note track titles. Similar to the note transformer, it"
         <> " takes `>inst` and `+attr` args and sets them in the environment.")
-    (CallSig.parsed_manually note_arg_doc note_transform)
-
-note_arg_doc :: String
-note_arg_doc = "Variable number of `>inst` or `+attr`."
+    (CallSig2.callt parser note_transform)
+    where
+    parser = CallSig2.many "attribute" "Change the instrument or attributes."
 
 -- ** generate
 
@@ -204,28 +196,15 @@ trimmed_controls start end = Map.map (fmap trim)
 
 -- ** transform
 
-transform_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
+transform_note :: [Either Score.Instrument TrackLang.RelativeAttr]
     -> Derive.EventDeriver -> Derive.EventDeriver
-transform_note n_inst rel_attrs deriver = with_inst (with_attrs deriver)
+transform_note vals deriver = with_inst (with_attrs deriver)
     where
-    with_inst = maybe id Derive.with_instrument n_inst
+    (insts, rel_attrs) = Seq.partition_either vals
+    with_inst = maybe id Derive.with_instrument (Seq.last insts)
     with_attrs
         | null rel_attrs = id
         | otherwise = Util.with_attrs (TrackLang.apply_attrs rel_attrs)
-
-process_note_args :: Maybe Score.Instrument
-    -> [TrackLang.RelativeAttr] -> [TrackLang.Val]
-    -> (Maybe Score.Instrument, [TrackLang.RelativeAttr], [TrackLang.Val])
-process_note_args inst attrs args = (inst', attrs', reverse invalid)
-    where
-    (inst', attrs', invalid) = List.foldl' go (inst, attrs, []) args
-    go (inst, attrs, invalid) arg = case arg of
-        TrackLang.VInstrument new_inst
-            | TrackLang.is_null_instrument new_inst -> (inst, attrs, invalid)
-            | otherwise -> (Just new_inst, attrs, invalid)
-        TrackLang.VRelativeAttr rel_attr ->
-            (inst, attrs ++ [rel_attr], invalid)
-        _ -> (inst, attrs, arg : invalid)
 
 
 -- * c_equal
@@ -236,9 +215,9 @@ c_equal = Derive.Call
     , Derive.call_generator = Just $ Derive.generator_call
         ("Similar to the transformer, this will evaluate the notes below in"
             <> " a transformed environ.")
-        (CallSig.parsed_manually Util.equal_arg_doc generate)
+        (CallSig2.parsed_manually Util.equal_arg_doc generate)
     , Derive.call_transformer = Just $ Derive.transformer_call Util.equal_doc
-        (CallSig.parsed_manually Util.equal_arg_doc Util.equal_transformer)
+        (CallSig2.parsed_manually Util.equal_arg_doc Util.equal_transformer)
     }
     where
     generate args = place $ map (map_event (Util.equal_transformer args)) $

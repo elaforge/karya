@@ -4,7 +4,7 @@ import qualified Data.Map as Map
 import Util.Control
 import Util.Test
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.CallSig as CallSig
+import qualified Derive.CallSig2 as CallSig2
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -80,7 +80,7 @@ test_extract_orphans = do
         [0, 1, 2]
     where
     show_subs :: Derive.NoteCall
-    show_subs = Derive.stream_generator "show" "doc" $ CallSig.call0g $ \_ -> do
+    show_subs = Derive.stream_generator "show" "doc" $ CallSig2.call0 $ \_ -> do
         -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
         -- Log.warn $ show (Slice_test.extract_tree subs)
         return []

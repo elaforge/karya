@@ -8,8 +8,8 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig as CallSig
-import Derive.CallSig (optional)
+import qualified Derive.CallSig2 as CallSig2
+import Derive.CallSig2 (defaulted)
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -34,7 +34,7 @@ c_tuplet = Derive.stream_generator "tuplet"
     \ their collective duration is the same as the tuplet's duration.\
     \\nIf there are multiple note tracks, they will all be stretched\
     \ the same amount."
-    ) $ CallSig.call0g $ \args ->
+    ) $ CallSig2.call0 $ \args ->
         Note.place_at (Args.range args) (concat (Note.sub_events args))
 
 
@@ -55,8 +55,8 @@ c_real_arpeggio arp = Derive.stream_generator "arpeggio"
     \ Since it transforms score and not events, it doesn't know the\
     \ pitches of the sub notes (they may not have a single pitch) so\
     \ it's not actually \"up\" or \"down\"."
-    ) $ CallSig.call1g
-    ( optional "time" 0.1 "This much RealTime between each note."
+    ) $ CallSig2.call
+    ( defaulted "time" 0.1 "This much RealTime between each note."
     ) $ \time args -> Lily.note_transformer args arpeggio_attrs $
         arpeggio arp (RealTime.seconds time) (Note.sub_events args)
     where
