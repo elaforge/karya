@@ -115,7 +115,11 @@ parser arg_doc = Parser [arg_doc]
 
 data State = State {
     -- | Pairs of the arg number, starting at 0, and the argument.
-    state_vals :: [(Int, TrackLang.Val)]
+    state_vals :: [TrackLang.Val]
+    -- | This has to be incremented every time a Val is taken.  Pairing argnums
+    -- in state_vals doesn't work because when I run out I don't know where
+    -- I am.
+    , state_argnum :: Int
     , state_environ :: TrackLang.Environ
     , state_call_name :: String
     } deriving (Show)
@@ -125,7 +129,7 @@ run (Parser _ parse) state = case parse state of
     Right (state, a) -> case state_vals state of
         [] -> Right a
         vals -> Left $ Derive.ArgError $ "too many arguments: "
-            ++ Seq.join ", " (map (ShowVal.show_val . snd) vals)
+            ++ Seq.join ", " (map ShowVal.show_val vals)
     Left err -> Left err
 
 parser_docs :: Parser a -> Docs
@@ -154,9 +158,10 @@ parsed_manually doc f = (f, Derive.ArgsParsedSpecially doc)
 required :: forall a. (TrackLang.Typecheck a) => String -> String -> Parser a
 required name doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Left $ Derive.ArgError $ "too few arguments at: " ++ show name
-    Just (state, argnum, val) -> case TrackLang.from_val val of
+    Just (state, val) -> case TrackLang.from_val val of
         Just a -> Right (state, a)
-        Nothing -> Left $ Derive.TypeError argnum name expected (Just val)
+        Nothing -> Left $ Derive.TypeError (state_argnum state) name expected
+            (Just val)
     where
     expected = TrackLang.to_type (undefined :: a)
     arg_doc = Derive.ArgDoc
@@ -172,10 +177,11 @@ defaulted :: forall a. (TrackLang.Typecheck a) => String -> a -> String
     -> Parser a
 defaulted name deflt doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Right (state, deflt)
-    Just (state, _, TrackLang.VNotGiven) -> Right (state, deflt)
-    Just (state, argnum, val) -> case TrackLang.from_val val of
+    Just (state, TrackLang.VNotGiven) -> Right (state, deflt)
+    Just (state, val) -> case TrackLang.from_val val of
         Just a -> Right (state, a)
-        Nothing -> Left $ Derive.TypeError argnum name expected (Just val)
+        Nothing -> Left $ Derive.TypeError (state_argnum state) name expected
+            (Just val)
     where
     expected = TrackLang.to_type (undefined :: a)
     arg_doc = Derive.ArgDoc
@@ -191,7 +197,7 @@ optional :: forall a. (TrackLang.Typecheck a) => String -> String
     -> Parser (Maybe a)
 optional name doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Right (state, Nothing)
-    Just (state2, _, val) -> case TrackLang.from_val val of
+    Just (state2, val) -> case TrackLang.from_val val of
         Just a -> Right (state2, Just a)
         Nothing -> Right (state, Nothing)
     where
@@ -206,7 +212,7 @@ optional name doc = parser arg_doc $ \state -> case get_val state name of
 -- | Collect the rest of the arguments.
 many :: forall a. (TrackLang.Typecheck a) => String -> String -> Parser [a]
 many name doc = parser arg_doc $ \state -> do
-    vals <- mapM typecheck (state_vals state)
+    vals <- mapM typecheck (zip [state_argnum state..] (state_vals state))
     Right (state { state_vals = [] }, vals)
     where
     typecheck (argnum, val) = case TrackLang.from_val val of
@@ -223,13 +229,14 @@ many name doc = parser arg_doc $ \state -> do
 -- | Collect the rest of the arguments, but there must be at least one.
 many1 :: forall a. (TrackLang.Typecheck a) => String -> String
     -> Parser (NonEmpty a)
-many1 name doc = parser arg_doc $ \state -> case state_vals state of
-    [] -> Left $
-        Derive.ArgError $ "many1 arg requires at least one value: " ++ name
-    v : vs -> do
-        v <- typecheck v
-        vs <- mapM typecheck vs
-        Right (state { state_vals = [] }, v :| vs)
+many1 name doc = parser arg_doc $ \state ->
+    case zip [state_argnum state ..] (state_vals state) of
+        [] -> Left $
+            Derive.ArgError $ "many1 arg requires at least one value: " ++ name
+        v : vs -> do
+            v <- typecheck v
+            vs <- mapM typecheck vs
+            Right (state { state_vals = [] }, v :| vs)
     where
     typecheck (argnum, val) = case TrackLang.from_val val of
         Just a -> Right a
@@ -259,14 +266,14 @@ required_control name = TrackLang.LiteralControl (Score.Control name)
 
 -- ** util
 
-get_val :: State -> String -> Maybe (State, Int, TrackLang.Val)
+get_val :: State -> String -> Maybe (State, TrackLang.Val)
 get_val state name = case state_vals state of
-    -- TODO make TypeError take 'ArgNum Int | DefaultedFromEnviron'
-    [] -> ((,,) state (-1)) <$> deflt
-    (argnum, v) : vs -> Just (state { state_vals = vs }, argnum, case v of
+    [] -> (,) next <$> deflt
+    v : vs -> Just (next { state_vals = vs }, case v of
         TrackLang.VNotGiven -> fromMaybe TrackLang.VNotGiven deflt
         _ -> v)
     where
+    next = state { state_argnum = state_argnum state + 1 }
     deflt = TrackLang.lookup_val
         (arg_environ_default (state_call_name state) name)
         (state_environ state)
@@ -311,7 +318,8 @@ run_call parser args = do
         Right a -> return a
     where
     make_state args environ = State
-        { state_vals = zip [0..] (Derive.passed_vals args)
+        { state_vals = Derive.passed_vals args
+        , state_argnum = 0
         , state_environ = environ
         , state_call_name = Derive.passed_call_name args
         }
