@@ -4,7 +4,7 @@ import qualified Data.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.State as State
-import qualified Derive.CallSig2 as CallSig2
+import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseBs as ParseBs
@@ -87,7 +87,7 @@ single_val_lookup name call =
 
 c_show_args :: (Derive.Derived d) => Derive.Call d
 c_show_args = Derive.generator "show-args" "doc" $
-    CallSig2.parsed_manually "doc" $ \args -> do
+    Sig.parsed_manually "doc" $ \args -> do
         Log.warn $ Seq.join ", " $
             map ShowVal.show_val (Derive.passed_vals args)
         return []

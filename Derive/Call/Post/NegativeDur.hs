@@ -47,7 +47,7 @@ module Derive.Call.Post.NegativeDur where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig2 as CallSig2
+import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -61,8 +61,8 @@ note_calls = Derive.make_calls [("negative-duration", c_negative_duration)]
 c_negative_duration :: Derive.NoteCall
 c_negative_duration = Derive.transformer "negative-duration"
     ("Postprocess events to replace negative durations with postive ones."
-    ) $ CallSig2.callt
-    ( CallSig2.defaulted "default-duration" 1
+    ) $ Sig.callt
+    ( Sig.defaulted "default-duration" 1
         "Notes with negative duration have an implicit sounding duration\
         \ which depends on the following note. This means that the\
         \ duration of the final note of the score is ambiguous."

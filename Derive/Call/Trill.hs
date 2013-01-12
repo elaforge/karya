@@ -43,8 +43,8 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig2 as CallSig2
-import Derive.CallSig2 (defaulted, required, typed_control, control)
+import qualified Derive.Sig as Sig
+import Derive.Sig (defaulted, required, typed_control, control)
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -69,7 +69,7 @@ c_note_trill = Derive.stream_generator "trill"
     \\nUnlike a trill on a pitch track, this generates events for each\
     \ note of the trill. This is more appropriate for fingered trills,\
     \ or monophonic instruments that use legato to play slurred notes."
-    ) $ CallSig2.call ((,)
+    ) $ Sig.call ((,)
     <$> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> speed_arg
@@ -99,12 +99,12 @@ c_tremolo = Derive.Call
         \ them to fit." transformer
     }
     where
-    transformer = CallSig2.callt
+    transformer = Sig.callt
         (defaulted "speed" (typed_control "tremolo-speed" 10 Score.Real)
             "Tremolo at this speed. Its meaning is the same as the trill speed."
         ) $ \speed args deriver ->
             tremolo speed args (Args.normalized args deriver)
-    generator = CallSig2.call
+    generator = Sig.call
         (defaulted "speed" (typed_control "tremolo-speed" 10 Score.Real)
             "Tremolo at this speed. Its meaning is the same as the trill speed."
         ) $ \speed -> Note.inverting $ \args -> Lily.note args Attrs.trem $
@@ -165,7 +165,7 @@ c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill"
     \ the unison, while `tr2` will start with the neighbor. `tr` will\
     \ use the `trill-mode` env var, which should be either `'unison'`\
     \ or `'neighbor'`, defaulting to unison."
-    ) $ CallSig2.call ((,,)
+    ) $ Sig.call ((,,)
     <$> required "note" "Base pitch."
     <*> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
@@ -198,7 +198,7 @@ c_control_trill :: Maybe Mode -> Derive.ControlCall
 c_control_trill maybe_mode = Derive.generator1 "control_trill"
     ("The control version of the pitch trill.  It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
-    ) $ CallSig2.call ((,)
+    ) $ Sig.call ((,)
     <$> defaulted "neighbor" (control "trill-neighbor" 1)
         "Alternate with this value."
     <*> speed_arg
@@ -207,7 +207,7 @@ c_control_trill maybe_mode = Derive.generator1 "control_trill"
         fst <$> trill_from_controls (Args.start args, Args.next args)
             mode neighbor speed
 
-speed_arg :: CallSig2.Parser TrackLang.ValControl
+speed_arg :: Sig.Parser TrackLang.ValControl
 speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real) $
     "Trill at this speed. If it's a RealTime, the value is the number of\
     \ cycles per second, which will be unaffected by the tempo. If it's\

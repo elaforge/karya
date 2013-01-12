@@ -5,8 +5,8 @@ import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig2 as CallSig2
-import Derive.CallSig2 (control, defaulted, typed_control)
+import qualified Derive.Sig as Sig
+import Derive.Sig (control, defaulted, typed_control)
 import qualified Derive.Derive as Derive
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -29,7 +29,7 @@ c_tick transpose = Derive.stream_generator "tick"
     ("Insert an intermediate grace note in the \"ngoret\" rambat style.\
     \ The grace note moves up for `'^`, down for `'v`, or is based\
     \ on the previous note's pitch for `'`."
-    ) $ CallSig2.call ((,,)
+    ) $ Sig.call ((,,)
     <$> defaulted "time" (typed_control "ngoret-time" 0.1 Score.Real)
         "Time between the grace note start and the main note. If there isn't\
         \ enough room after the previous note, it will be halfway between\
@@ -83,7 +83,7 @@ c_realize_damp = Derive.transformer "realize-damp"
     \ TODO: Since there's no correspondence between tracks in different\
     \ blocks, the damping can't extend across block boundaries. I'd need\
     \ something like a 'hand' attribute to fix this."
-    ) $ CallSig2.call0t $ \_ deriver -> Util.map_around_asc realize <$> deriver
+    ) $ Sig.call0t $ \_ deriver -> Util.map_around_asc realize <$> deriver
     where
     realize _prev event next = Score.remove_attributes damped_tag $
         case Util.filter_next_in_track event next of

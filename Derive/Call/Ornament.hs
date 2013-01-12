@@ -6,8 +6,8 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig2 as CallSig2
-import Derive.CallSig2 (optional, defaulted, many)
+import qualified Derive.Sig as Sig
+import Derive.Sig (optional, defaulted, many)
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -32,7 +32,7 @@ c_mordent default_neighbor = Derive.stream_generator "mordent"
     ("Generate some grace notes for a mordent, similar to a brief trill.\
     \ The grace notes fall before the onset of the main note, and\
     \ are in absolute RealTime, unaffected by tempo changes.\n" <> grace_doc) $
-    CallSig2.call ((,)
+    Sig.call ((,)
     <$> defaulted "neighbor" default_neighbor "Neighbor pitch."
     <*> defaulted "dyn" 0.5 "Scale the dyn of the generated grace notes."
     ) $ \(neighbor, dyn) -> Note.inverting $ \args ->
@@ -54,7 +54,7 @@ mordent (start, dur) dyn_scale neighbor = do
 
 c_grace :: Derive.NoteCall
 c_grace = Derive.stream_generator "grace"
-    ("Emit grace notes.\n" <> grace_doc) $ CallSig2.call ((,)
+    ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,)
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."
     ) $ \(dyn, pitches) -> Note.inverting $ \args -> do

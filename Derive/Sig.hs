@@ -79,7 +79,7 @@
     'Derive.PassedArgs' and Derive already imports TrackLang.  It could be in
     "Derive.Call" but Call is already big so let's leave it separate for now.
 -}
-module Derive.CallSig2 (
+module Derive.Sig (
     Parser
     -- * parsers
     , parsed_manually

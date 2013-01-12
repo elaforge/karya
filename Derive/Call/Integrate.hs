@@ -12,7 +12,7 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig2 as CallSig2
+import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
@@ -34,7 +34,7 @@ c_block_integrate :: Derive.NoteCall
 c_block_integrate = Derive.transformer "block-integrate"
     ("Integrate the output into a new block. The events are returned as-is\
     \ so the block can still be played normally."
-    ) $ CallSig2.call0t $ \_ deriver -> do
+    ) $ Sig.call0t $ \_ deriver -> do
         events <- deriver
         block_integrate events
         return events
@@ -87,7 +87,7 @@ c_track_integrate = Derive.transformer "track-integrate"
     \ is part of a block, so it plays whether you want it or not.\
     \ Also, it can't be hooked up to the tempo track so it's unlikely\
     \ to play normally."
-    ) $ CallSig2.call0t $ \_ deriver -> do
+    ) $ Sig.call0t $ \_ deriver -> do
         stack <- Internal.get_stack
         case (frame_of Stack.block_of stack, frame_of Stack.track_of stack) of
             (Just block_id, Just track_id) -> do

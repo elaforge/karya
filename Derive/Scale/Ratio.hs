@@ -12,8 +12,8 @@ module Derive.Scale.Ratio where
 import Util.Control
 import qualified Util.ParseBs as Parse
 import qualified Derive.Args as Args
-import qualified Derive.CallSig2 as CallSig2
-import Derive.CallSig2 (defaulted)
+import qualified Derive.Sig as Sig
+import Derive.Sig (defaulted)
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -53,7 +53,7 @@ note_call :: (Double -> Double) -> Derive.ValCall
 note_call ratio = Derive.val_call "ratio" ("Generate a frequency that is the"
     <> " ratio of the frequency of the " <> pitch_control <> " signal."
     <> " A negative ration divides, a positive one multiplies."
-    ) $ CallSig2.call
+    ) $ Sig.call
     (defaulted "hz" 0 "Add an absolute hz value to the output.") $
     \hz args -> do
         start <- Args.real_start args

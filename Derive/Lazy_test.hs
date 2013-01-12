@@ -20,7 +20,7 @@ import qualified Derive.Call.Block as Block
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Note as Call.Note
-import qualified Derive.CallSig2 as CallSig2
+import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
@@ -280,7 +280,7 @@ with_calls mvar = CallTest.with_note_call "" (mk_logging_call mvar)
 
 mk_logging_call :: Log -> Derive.NoteCall
 mk_logging_call log_var  = Derive.stream_generator "logging-note" "doc" $
-    CallSig2.call0 $ Call.Note.inverting $ \args ->
+    Sig.call0 $ Call.Note.inverting $ \args ->
         c_note log_var (Args.event args) (Args.next args)
 
 c_note :: Log -> Event.Event -> ScoreTime -> Derive.EventDeriver
@@ -302,7 +302,7 @@ c_set log_mvar = Derive.pattern_lookup "numbers and hex" doc $
     where
     set :: Signal.Y -> Derive.ControlCall
     set num = Derive.generator1 "self-eval" "This does blah blah." $
-        CallSig2.call0 $ \args -> do
+        Sig.call0 $ \args -> do
             pos <- Args.real_start args
             st <- Derive.gets Derive.state_dynamic
             let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $

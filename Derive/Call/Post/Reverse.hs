@@ -2,7 +2,7 @@ module Derive.Call.Post.Reverse where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
-import qualified Derive.CallSig2 as CallSig2
+import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -20,7 +20,7 @@ note_calls = Derive.make_calls
 
 c_reverse :: Derive.NoteCall
 c_reverse = Derive.transformer "reverse" "Reverse the events." $
-    CallSig2.call0t $ \args deriver -> do
+    Sig.call0t $ \args deriver -> do
         start <- Args.real_start args
         (events, logs) <- LEvent.partition <$> deriver
         return $ map LEvent.Log logs ++ map LEvent.Event

@@ -875,7 +875,7 @@ data ArgDoc = ArgDoc {
     } deriving (Eq, Ord, Show)
 
 -- | These enumerate the different ways an argumnt can be parsed, and
--- correspond to parsers in "Derive.CallSig2".
+-- correspond to parsers in "Derive.Sig".
 data ArgParser = Required | Defaulted !String | Optional | Many | Many1
     deriving (Eq, Ord, Show)
 

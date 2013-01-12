@@ -3,8 +3,8 @@ module Derive.Call.Random where
 import Util.Control
 import qualified Derive.Call as Call
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig2 as CallSig2
-import Derive.CallSig2 (defaulted, many1)
+import qualified Derive.Sig as Sig
+import Derive.Sig (defaulted, many1)
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.TrackLang as TrackLang
@@ -33,7 +33,7 @@ pitch_calls = Derive.make_calls
 c_omit :: (Derive.Derived d) => Derive.Call d
 c_omit = Derive.transformer "omit"
     "Omit the derived call a certain percentage of the time."
-    $ CallSig2.callt
+    $ Sig.callt
     (defaulted "omit" 0.5
         "Chance, from 0 to 1, that the transformed note will be omitted."
     ) $ \omit _args deriver -> ifM (Util.chance omit) (return mempty) deriver
@@ -42,7 +42,7 @@ c_alternate :: (Derive.Derived d) => Derive.Call d
 c_alternate = Derive.stream_generator "alternate"
     ("Pick one of several expressions and evaluate it.\
     \ They have to be strings since calls themselves are not first class."
-    ) $ CallSig2.call (many1 "expr" "Expression to evaluate.") $
+    ) $ Sig.call (many1 "expr" "Expression to evaluate.") $
     \exprs args -> do
         expr <- Util.pick exprs
         case ParseBs.parse_expr (ParseBs.from_string expr) of
@@ -60,12 +60,12 @@ val_calls = Derive.make_calls
 
 c_pick :: Derive.ValCall
 c_pick = Derive.val_call "pick" "Pick one of the arguments randomly." $
-    CallSig2.call (many1 "val" "Value of any type.") $ \vals _ ->
+    Sig.call (many1 "val" "Value of any type.") $ \vals _ ->
         Util.pick vals
 
 c_range :: Derive.ValCall
 c_range = Derive.val_call "range" "Pick a random number within a range." $
-    CallSig2.call ((,)
+    Sig.call ((,)
     <$> defaulted "low" 0 "Bottom of range, inclusive."
     <*> defaulted "high" 1 "Top of range, inclusive."
     ) $ \(low, high) _args -> TrackLang.num <$> Util.random_in low high

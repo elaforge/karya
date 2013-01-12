@@ -29,7 +29,7 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig2 as CallSig2
+import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -66,12 +66,12 @@ transformed_note :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
 transformed_note doc transform = Derive.Call
     { Derive.call_name = "note"
     , Derive.call_generator = Just $ Derive.generator_call prepended
-        (CallSig2.call parser (note_generate transform))
+        (Sig.call parser (note_generate transform))
     , Derive.call_transformer = Just $ Derive.transformer_call transformer_doc
-        (CallSig2.callt parser note_transform)
+        (Sig.callt parser note_transform)
     }
     where
-    parser = CallSig2.many "attribute" "Change the instrument or attributes."
+    parser = Sig.many "attribute" "Change the instrument or attributes."
     prepended
         | null doc = generator_doc
         | otherwise = "Modified note call: " ++ doc ++ "\n" ++ generator_doc
@@ -105,9 +105,9 @@ c_note_track =
     Derive.transformer "note-track" ("This is used internally as the implicit"
         <> " call for note track titles. Similar to the note transformer, it"
         <> " takes `>inst` and `+attr` args and sets them in the environment.")
-    (CallSig2.callt parser note_transform)
+    (Sig.callt parser note_transform)
     where
-    parser = CallSig2.many "attribute" "Change the instrument or attributes."
+    parser = Sig.many "attribute" "Change the instrument or attributes."
 
 -- ** generate
 
@@ -215,9 +215,9 @@ c_equal = Derive.Call
     , Derive.call_generator = Just $ Derive.generator_call
         ("Similar to the transformer, this will evaluate the notes below in"
             <> " a transformed environ.")
-        (CallSig2.parsed_manually Util.equal_arg_doc generate)
+        (Sig.parsed_manually Util.equal_arg_doc generate)
     , Derive.call_transformer = Just $ Derive.transformer_call Util.equal_doc
-        (CallSig2.parsed_manually Util.equal_arg_doc Util.equal_transformer)
+        (Sig.parsed_manually Util.equal_arg_doc Util.equal_transformer)
     }
     where
     generate args = place $ map (map_event (Util.equal_transformer args)) $

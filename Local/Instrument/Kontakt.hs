@@ -15,7 +15,7 @@ import qualified Cmd.Instrument.Util as CUtil
 import qualified Cmd.Keymap as Keymap
 
 import Derive.Attrs
-import qualified Derive.CallSig2 as CallSig2
+import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.Instrument.Util as DUtil
 import qualified Derive.LEvent as LEvent
@@ -143,7 +143,7 @@ kendang_composite_code insts@(wadon, lanang) =
 c_realize_kendang :: (Score.Instrument, Score.Instrument) -> Derive.NoteCall
 c_realize_kendang insts = Derive.transformer "realize-kendang"
     ("Realize a composite kendang score into separate lanang and wadon parts."
-    ) $ CallSig2.call0t $ \_ deriver -> do
+    ) $ Sig.call0t $ \_ deriver -> do
         events <- deriver
         return $ realize_kendang insts events
 
