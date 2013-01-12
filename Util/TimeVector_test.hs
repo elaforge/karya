@@ -51,7 +51,8 @@ test_shift = do
 test_truncate = do
     let vec = signal [(0, 0), (1, 1), (2, 0)]
     let f p = unsignal . V.truncate p
-    equal (f 0 vec) []
+    equal (f (-1) vec) [(0, 0)]
+    equal (f 0 vec) [(0, 0)]
     equal (f 1 vec) [(0, 0)]
     equal (f 2 vec) [(0, 0), (1, 1)]
     equal (f 3 vec) [(0, 0), (1, 1), (2, 0)]
