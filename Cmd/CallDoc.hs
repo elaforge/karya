@@ -95,7 +95,14 @@ doc_html = un_html . (html_header <>) . mconcatMap section
         <> "</dl>\n"
 
 html_header :: Html
-html_header = "<style type=text/css>\n" <> css <> "</style>\n"
+html_header =
+    "<style type=text/css>\n" <> css <> "</style>\n"
+    <> mconcat (List.intersperse "; "
+        [ "<code>arg = val</code> &mdash; arg with default"
+        , "<code>arg<sup>?</sup></code> &mdash; optional arg"
+        , "<code>arg<sup>*</sup></code> &mdash; zero or more args"
+        , "<code>arg<sup>+</sup></code> &mdash; one or more args"
+        ])
     where
     css = ".main dl { border-bottom: 1px solid #999 }\n"
         <> "dl.compact {\n"

@@ -12,7 +12,7 @@ UNSORTED
     * convert Derive.Call.Ornament
     * convert the rest of the calls, and mv CallSig2 CallSig
     - get rid of the -1 argnum in get_val
-    - CallDoc's html output writes a legend to explain *, +, etc. suffixes
+    * CallDoc's html output writes a legend to explain *, +, etc. suffixes
   * in raw edit, midi key creates (pitch) and shift-backspace deletes one
   * Block.track_flags should be a Set
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
