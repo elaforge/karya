@@ -767,10 +767,10 @@ type ValCallMap = Map.Map TrackLang.CallId ValCall
 -- derived, but it's more convenient for the callers to pass the derived.
 data PassedArgs derived = PassedArgs {
     passed_vals :: ![TrackLang.Val]
-    -- | Used by CallSig to look for default arg values in the environment.
-    -- This is technically redundant since a call should know its own name,
-    -- but it turns out to be inconvenient to pass the name to all of those
-    -- functions.
+    -- | Used by "Derive.Sig" to look for default arg values in the
+    -- environment.  This is technically redundant since a call should know its
+    -- own name, but it turns out to be inconvenient to pass the name to all of
+    -- those functions.
     , passed_call_name :: !String
     , passed_info :: !(CallInfo derived)
     }
@@ -884,7 +884,7 @@ type ControlCall = Call Signal.Control
 type PitchCall = Call PitchSignal.Signal
 
 -- | A value annotated with argument docs.  This is returned by the functions
--- in "Derive.CallSig", and accepted by the Call constructors here.
+-- in "Derive.Sig", and accepted by the Call constructors here.
 type WithArgDoc f = (f, ArgDocs)
 
 -- ** generator

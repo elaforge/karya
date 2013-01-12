@@ -107,7 +107,7 @@ newtype DefaultDiatonic = DefaultDiatonic Pitch.Transpose deriving (Show)
 newtype DefaultReal = DefaultReal RealOrScore deriving (Eq, Show)
 newtype DefaultScore = DefaultScore RealOrScore deriving (Eq, Show)
 
--- | Create DefaultReal and DefaultScores for use in CallSig.calln signatures
+-- | Create DefaultReal and DefaultScores for use in "Derive.Sig" signatures
 -- for default values.  It would be nice to use literals and let type
 -- inference do its thing, but there's no good definition for the rest of
 -- the methods in Integral and Fractional.
@@ -203,7 +203,7 @@ instance Typecheck Val where
     to_type _ = TVal
 
 -- | Putting Maybe in Typecheck means I can have optional arguments with no
--- defaults.  Further docs in 'CallSig.optional'.
+-- defaults.  Further docs in 'Derive.Sig.defaulted'.
 instance (Typecheck a) => Typecheck (Maybe a) where
     from_val VNotGiven = Just Nothing
     from_val a = case from_val a of
