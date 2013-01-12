@@ -94,19 +94,6 @@ import Derive.TrackLang (Typecheck)
 import qualified Perform.Signal as Signal
 
 
-{- This style of argument parsing is pretty inflexible, and when I want
-    something more fancy like 'num? pitch*' I have to write a parser by hand
-    and awkwardly.
-
-    It should be possible to do a monadic style parser and write e.g.:
-
-    (,) <$> optional "num" 0.5 <*> many "pitch"
-
-    It would be even better to use this for all arg parsing, then I can get rid
-    of the call[1234] nonsense.  But how can I get docs out of it without
-    actually running it?  Each combinator has to append both a doc and
-    a parser.
--}
 
 -- * signatures
 
@@ -137,7 +124,9 @@ arg_doc :: (Typecheck a) => Arg a -> Derive.ArgDoc
 arg_doc arg = Derive.ArgDoc
     { Derive.arg_name = arg_name arg
     , Derive.arg_type = arg_type arg
-    , Derive.arg_default = TrackLang.show_val <$> arg_default arg
+    , Derive.arg_parser = case arg_default arg of
+        Nothing -> Derive.Required
+        Just val -> Derive.Defaulted (TrackLang.show_val val)
     , Derive.arg_doc = arg_doc_ arg
     }
 

@@ -6,12 +6,11 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.CallSig as CallSig
-import Derive.CallSig (optional)
+import qualified Derive.CallSig2 as CallSig2
+import Derive.CallSig2 (optional, defaulted, many)
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
-import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -32,11 +31,11 @@ c_mordent :: Pitch.Transpose -> Derive.NoteCall
 c_mordent default_neighbor = Derive.stream_generator "mordent"
     ("Generate some grace notes for a mordent, similar to a brief trill.\
     \ The grace notes fall before the onset of the main note, and\
-    \ are in absolute RealTime, unaffected by tempo changes.\n"
-    <> grace_doc) $ CallSig.call2g
-    ( optional "neighbor" default_neighbor "Neighbor pitch."
-    , optional "dyn" 0.5 "Scale the dyn of the generated grace notes."
-    ) $ \neighbor dyn -> Note.inverting $ \args ->
+    \ are in absolute RealTime, unaffected by tempo changes.\n" <> grace_doc) $
+    CallSig2.call ((,)
+    <$> defaulted "neighbor" default_neighbor "Neighbor pitch."
+    <*> defaulted "dyn" 0.5 "Scale the dyn of the generated grace notes."
+    ) $ \(neighbor, dyn) -> Note.inverting $ \args ->
         mordent (Args.extent args) dyn neighbor
 
 mordent :: (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Transpose
@@ -55,19 +54,11 @@ mordent (start, dur) dyn_scale neighbor = do
 
 c_grace :: Derive.NoteCall
 c_grace = Derive.stream_generator "grace"
-    ("Emit grace notes.\n" <> grace_doc) $
-    CallSig.parsed_manually "dyn? pitch*" $ Note.inverting $ \args -> do
-        (dyn_scale, pitches) <- parse args
-        grace (Args.extent args) dyn_scale pitches
-    where
-    parse args = parse_dyn args (zip [0..] (Derive.passed_vals args))
-    parse_dyn _ ((_, TrackLang.VNum (Score.Typed Score.Untyped dyn)) : vals) =
-        ((,) dyn) <$> parse_pitches vals
-    parse_dyn args vals = (,) <$> default_dyn args <*> parse_pitches vals
-    parse_pitches = mapM parse_pitch
-    parse_pitch (i, val) = CallSig.extract_arg i
-        (CallSig.Arg "pitch" "pitch" Nothing) (Just val)
-    default_dyn args = CallSig.default_arg args 0.5 "dyn"
+    ("Emit grace notes.\n" <> grace_doc) $ CallSig2.call ((,)
+    <$> optional "dyn" "Scale the dyn of the grace notes."
+    <*> many "pitch" "Grace note pitches."
+    ) $ \(dyn, pitches) -> Note.inverting $ \args -> do
+        grace (Args.extent args) (fromMaybe 0.5 dyn) pitches
 
 grace :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch] ->
     Derive.EventDeriver
@@ -103,7 +94,7 @@ grace_dur_overlap = (,) <$> dur <*> overlap
         Derive.lookup_val (TrackLang.Symbol "grace-overlap")
 
 grace_dur_default, grace_overlap_default :: RealTime
-grace_dur_default = RealTime.seconds (1/12)
+grace_dur_default = RealTime.seconds 0.8
 grace_overlap_default = grace_dur_default / 2
 
 grace_doc :: String

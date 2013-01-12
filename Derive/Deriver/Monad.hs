@@ -74,7 +74,7 @@ module Derive.Deriver.Monad (
     , NoteCallMap, ControlCallMap, PitchCallMap, ValCallMap
     , CallInfo(..), dummy_call_info
     , Call(..)
-    , CallDoc(..), ArgDoc(..), ArgDocs(..)
+    , CallDoc(..), ArgDoc(..), ArgParser(..), ArgDocs(..)
     , NoteCall, ControlCall, PitchCall
     , WithArgDoc
     , PassedArgs(..)
@@ -861,16 +861,23 @@ data CallDoc = CallDoc {
     cdoc_doc :: String
     , cdoc_args :: ArgDocs
     } deriving (Eq, Ord, Show)
+
 data ArgDocs = ArgDocs [ArgDoc]
     -- | This means the call parses the args itself in some special way.
     | ArgsParsedSpecially String
     deriving (Eq, Ord, Show)
+
 data ArgDoc = ArgDoc {
     arg_name :: String
     , arg_type :: TrackLang.Type
-    , arg_default :: Maybe String
+    , arg_parser :: ArgParser
     , arg_doc :: String
     } deriving (Eq, Ord, Show)
+
+-- | These enumerate the different ways an argumnt can be parsed, and
+-- correspond to parsers in "Derive.CallSig2".
+data ArgParser = Required | Defaulted !String | Optional | Many | Many1
+    deriving (Eq, Ord, Show)
 
 type NoteCall = Call Score.Event
 type ControlCall = Call Signal.Control

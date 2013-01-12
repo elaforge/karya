@@ -60,16 +60,25 @@ call_bindings_text (binds, sections) = do
         Format.write "Args parsed by call: "
         write_doc doc
     arg_docs (Derive.ArgDocs args) = mapM_ arg_doc args
-    arg_doc (Derive.ArgDoc name typ deflt doc) = do
-        Format.write $ Text.pack name <> " :: "
-            <> Text.pack (Pretty.pretty typ) <> show_default deflt <> " -- "
+    arg_doc (Derive.ArgDoc name typ parser doc) = do
+        Format.write $ Text.pack name <> fromMaybe mempty char <> " :: "
+            <> Text.pack (Pretty.pretty typ) <> maybe "" (" = "<>) deflt
+            <> " -- "
         write_doc doc
-    show_default = maybe "" ((" = "<>) . Text.pack)
+        where (char, deflt) = show_parser parser
 
 write_doc :: String -> Format.FormatM ()
 write_doc text = do
     Format.wrapped_words 4 (Text.pack text)
     Format.newline
+
+show_parser :: Derive.ArgParser -> (Maybe Text, Maybe Text)
+show_parser p = case p of
+    Derive.Required -> (Nothing, Nothing)
+    Derive.Defaulted deflt -> (Nothing, Just (Text.pack deflt))
+    Derive.Optional -> (Just "?", Nothing)
+    Derive.Many -> (Just "*", Nothing)
+    Derive.Many1 -> (Just "+", Nothing)
 
 -- ** html output
 
@@ -121,11 +130,13 @@ call_bindings_html (binds, sections) =
     arg_docs (Derive.ArgsParsedSpecially doc) =
         "\n<li><b>Args parsed by call:</b> " <> html_doc doc
     arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
-    arg_doc (Derive.ArgDoc name typ deflt doc) =
-        "<li>" <> tag "code" (html (Text.pack name)) <> " :: "
-        <> tag "em" (html (Text.pack (Pretty.pretty typ)))
+    arg_doc (Derive.ArgDoc name typ parser doc) =
+        "<li>" <> tag "code" (html (Text.pack name)) <> show_char char
+        <> " :: " <> tag "em" (html (Text.pack (Pretty.pretty typ)))
         <> show_default deflt <> " &mdash; " <> html_doc doc <> "\n"
-    show_default = maybe "" ((" = " <>) . tag "code" . html . Text.pack)
+        where (char, deflt) = show_parser parser
+    show_default = maybe "" ((" = " <>) . tag "code" . html)
+    show_char = maybe "" (tag "sup" . html)
 
 tag :: Html -> Html -> Html
 tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"
