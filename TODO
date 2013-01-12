@@ -3,105 +3,25 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * call for grace notes: g (4c) (4b)
-  * grace notes should get dur and overlap from the environ
-  * bug where negative grace notes have no pitch
   - grace notes should emit the correct lilypond
-  monadic parsing combinators for CallSig
-    * implement
-    * convert Derive.Call.Ornament
-    * convert the rest of the calls, and mv CallSig2 CallSig
-    * get rid of the -1 argnum in get_val
-    * CallDoc's html output writes a legend to explain *, +, etc. suffixes
-  * in raw edit, midi key creates (pitch) and shift-backspace deletes one
-  * Block.track_flags should be a Set
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
     along the performance (with some eta to account for randomization)
     instead of the score.
-  framework to manipulate notes, e.g. (start, dur, pitch, controls)
-    . Given a selection, return [Note], given [Note], put them back into
-      tracks, creating controls/pitch if necessary.  Overlapping notes
-      are assigned from left to right, so to sort pitches, group by
-      overlapping, then sort groups, then concat.
-    * Get notes: This is not quite integration, because it operates at the
-      event level, but it has to do derive-like things.
-    * Put notes: have to create tracks as needed.
-      It can be clever and look for a common ancestor, and append the new
-      tracks under that.
-    * write docs for ModifyNotes
-    * new tracks should get the same parent as the other note tracks
-    * get controls out of the derivation by looking for an event with the
-      right stack
-    * merge by pitch
-    * merge all tracks into one
-    * distribute notes among tracks round-robin
 
-  * modifying the ruler isn't working
   - can't undo after loading a .git
     Also, .git checkmarks are forking unnecessarily, probably related.
-  * in argv, if I give a directory, it should look inside for .git or .state
-  * remove pitch track valnames
-  * always use C types for #pokes and #peeks
-  * use allocaBytesAligned instead of allocaBytes
   / per-instrument binds e.g. kendang, should work without kbd entry
     However, that means I take over NoEdit for audition, and that means that
     un-modified keys are unreliable even in NoEdit mode.
-  * collapsing a bunch of tracks in pnovla is really slow.  What's it doing?
-    I think it's copying giant rulers.  Can I speed that up?
-    I could copy each ruler only once by keeping the C version with the Ruler
-    in haskell, and then passing a pointer, which C must release with
-    haskellFree.  Then haskell GC can manage it.
-    * Timers on ruler copy first.  Total is 0.6 sec, that's noticeable.
-    * Haskell Marklist constructor uses unsafePerformIO to create a C++
-      Marklist, and attach a ForeignPtr whose finalizer calls decref on it.
-    * Then instead of withArrayLen on marklists, I pull each fptr, incref it,
-      and poke it into the array.
-    * C++ calls decref instead of deleting the marklist.
-    * Attach DEBUGs to ensure that marklists are freed properly.
-    * Make Marklist abstract so the pointer isn't visible from the outside.
-    So this is kind of backpedaling on the decision to switch from callbacks
-    to just dumping the ruler over.  I made that decision because rulers
-    should change rarely.  But it seems kind of bogus because rulers have
-    *way more* data than tracks!
-  * On a similar topic, could I give one freeHaskellFunPtr to C once and for
-    all?  It's ok if that single one leaks, then I never have to allocate or
-    pass another one.
   - Should fltk collapse adjacent dividers?
-  * Add track "disable", which is like the old mute, in that it removes it
-    entirely from derivation and rederives.  Effectively it unlinks it from
-    the skeleton.
-  * pressure insts should send breath cc on kbd input
-  get vl1 working
-    * fix parse failures
-    ? lots of stuff replaced by nulls, but maybe it's reserved so it's ok?
-    * But even when I send with Sysex Librarian, vl1 has no response.  Maybe
-      it doesn't receive buffer dumps like that?
-    * figure out pressure flag
   - maybe new control tracks should start with line render?
   fancy calls
     - approach and lower dyn
-    * drop pitch and dyn
     - accelerating trill
     - overshoot pitch call, e.g. indian style
 
-  * Note.transform_note.with_attrs should apply all the attrs together
-  * simplify adding calls by putting Cmd.Instrument.Util.map_lookup in
-    MidiInst
-  * binding "" should also bind "n"
-  * convince spicy to use another string so legato works?
-    I have to put it on another channel, but to do that automatically I have
-    to know about the strings and figure out how to allocate.  Simpler would
-    be to have a string attr which then puts the note on that midi channel.
-    But the performer doesn't support that.
-    It could, but seems like a hassle right now.
-
-    Instead, have spicy replace the null call with one that checks for
-    +a +e etc. attrs, and if one is set, sets instrument to spicy/xyz-a.
-    Then it also has a midi config to set up the correct string to channel
-    relationship.
   - z1/virus-bass has UnknownMessage for initialization?
   - browser has lots of empty space on the bottom
-  * play monitor missing when I play from the beginning
   - can I cache long blocks by slicing them if they're >n?
   - 'u' and 'd' have a problem with long notes because pitches can only be
     transposed so far.
@@ -114,7 +34,6 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
     But filtering the midi shows dyn controls mixed into both channels.
-  * support poly aftertouch
   - in addition, it seems the signal doesn't update if I change the default
     environ assignment on another track
   cache tracks
@@ -243,49 +162,6 @@ UNSORTED
       block boundaries this way.  Maybe this could be used as an integrator
       input.
 
-  ghc panics
-    - If it's the old alignment=1 thing, maybe it's a problem with
-      BlockModelConfig, maybe 4 just made it less likely to go over.
-      Go investigate all uses of BlockModelConfig in C++ and look for out of
-      bounds.
-    - Since it doesn't happen under edit_spam.py, maybe it's in kbd mouse
-      input?  Go look at UiMsgC?
-    I need a way to reproduce the panics
-      bang on it with tools/edit_spam.py and see if I can get a repro
-        * Not happening.  What else is missing?
-        - play notes, what if the corruption is in CoreMidi?
-          But then why would linux also crash, unless jack is also buggy?
-      - I can use the same thing to watch memory.
-    . It still happens without git, but seems less frequent.
-      Maybe both libgit2 and finalization have a problem.
-      But it happens with finalizers commented out, though seemingly much more
-      rarely.
-      . LibGit2 sets alignment to sizeOf... is that right?
-    + try commenting out finalizers, maybe it's incorrect finalization
-      Look for use after free?
-    look for problem in git
-      first eyeball
-        - verify signatures: LibGit2
-        - verify usage: Git2
-      - then write a stress test: large score, make a change, save, rederive,
-        repeat
-    * change all alignment = 1 lines to 4.  Still crashes.  But less?
-    * try on linux, yes seems to happen there too
-    * use valgrind on linux
-    * See if it happens without LangGhc. Yes.
-    * See if it happens in debug mode. Yes.
-    * See if -O2 debug binary crashes. Yes, at least once.
-    * See if -O0 opt binary crashes.
-    * Try with the shell version of git.  If that works, update libgit2.
-      No, it's probably not git.
-    + try with no git at all, i.e. turn off git saving and save normally
-      Yes, but rarely?
-    - should opt/ghci-flags have -O?
-    It seems likely due to FFI, perhaps a bug in C++.  Optimization could be
-    making some change that makes it more sensitive to the bug.  Or it could
-    be optimization in the c++.
-
-  * rename Ruler.marks_of to marklist_to_list and Ruler.
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
     say 'r' was an unknown suffix
     Can't get attoparsec to consistently report an error.  Kind of hard when
@@ -376,8 +252,6 @@ UNSORTED
 
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
-  / Breath kbd_input keys only work if chorded with a note, since otherwise
-    controls with a NoteOff'ed note_id are not emitted.  Change this?
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
   incremental save
@@ -423,8 +297,6 @@ UNSORTED
 
   / I could have a Cmd state flag that does things relative to the current
     block vs. root block
-  * do the 'play this list of events' thing, send it over to the play thread
-    just without an updater, so space will still kill it
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
   complete quickcheck derive testing
@@ -493,8 +365,6 @@ UNSORTED
 
   debugging
     - cmd to save and load cache to disk
-    * add a Play.play_msgs function that plays the given msgs, normalizing so
-      fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
 
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
@@ -687,12 +557,6 @@ plugins:
     So I need to be able to re-initialize the responder with a new static
     config.  Actually, the bits I care about are the call map and the cmd
     map.
-
-bugs:
-  * track down ghc rts crashes, assertion failure
-    - make a repro case if ghc guys want it
-  - run under valgrind every once and a while, just for fun
-    - why doesn't valgrind reveal bad memory access from haskell, e.g. poke...
 
 cleanup:
   - split Ui.State into separate modules for views, blocks, tracks, etc.
@@ -1063,7 +927,6 @@ Cmd:
       pvid, etc., or the mangler turns <foo> into <current/foo>
 
   Cmd.Play
-    * play loops
     - start playing from top of displayed area
 
   Undo / UNDO
@@ -1092,8 +955,6 @@ Cmd:
       a bit of a hassle.
     - record view changes, at least zoom / scroll so it can be undone / redone
       separately
-    * if Cmds have a name return, history entries could have names.  Keymap
-      cmds already have a name to put in.
 
   Cmd.MakeRuler
     - functions to modify zoom levels and other mark attributes
@@ -1149,7 +1010,6 @@ Derive:
         as a break with no notes for a certain amount of time.  Can only damp
         two neighboring notes at a time.
 
-  * sustain signal, to control staccato vs. legato
   - to cut the middle out of a pattern: a cut signal that disabled derivation
     when it's 1?
   - combine ornaments, like "hold 1s | tr" to hold the first note for 1 score
@@ -1217,52 +1077,17 @@ Derive:
       - implement deriver like vla/cello duet?  that's a sekaran, but derived
         from another part.
 
-    * Implement trill
-      * absolute tempo version that adds new cycles when stretched
-      * version with n cycles that stretches with tempo
+    Implement trill
       - hybrid where the initial part stretches, final part is absolute
-
-  PitchTrack pitch
-    * Named pitch tracks, so derivers (e.g. tuned just scale) can take pitch
-      track args.  The way this could work is that the state_pitch becomes
-      'Map SignalName PitchSignal' and the "" signal is taken by the note
-      deriver during convert.  Track syntax:
-      "*scale" -> ("", ScaleId scale)
-      "*scale %psig -> ("psig", ScaleId scale)
 
   ControlTrack control
     interpolators
       - sine
-      * constant slope, exp slope (i.e. slope until next control event)
       - continuous tempo warping for signals
         tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
-   * Control track management?  It should be possible to have a note or a bunch
-     of note tracks with a bunch of control tracks and control the clutter.
-     Ideas: collapse has limited usefulness when there are too many, even with
-     color coding.  I could do this with logview: selecting a note track logs
-     a list of its control tracks and whether they are hidden or not.  Clicking
-     on one in logview will emit a cmd that will hide or show that track.
-     Or I could use a UI for adding new controls too: click a track, then a cmd
-     'add_control "vel"', this will unhide and focus the control if it exists,
-     or create a new one and link it with the skeleton if it doesn't.  ^T is
-     intended to create new note tracks, and they're only linked to tempo
-     initially.
-
-     This implies a slightly more generic and acme-ish system for logview:
-     anything enclosed in {}s can be clicked and will be sent verbatim, even if
-     it's in the catch line:
-
-     -- title (tracknum): inst_name, allocation, [control tracks]
-     Inst (track 1): fm8/inst1, fm8:0,1,2, [vel {hide 2}, pedal {show 3}]
-
-  - set controller within control track?
-  * reflect derivation back into a block
-  * merge block level changes with derivation
-
 pitch / scales
   scales / Derive.Scale:
-    * implement pengumbang pengisep
     just intonation
       - interpolate between just scales in different keys
       + just intonation tuned to a pitch signal
@@ -1311,8 +1136,6 @@ Perform:
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn
-  * instruments can have a native scale, so playing that scale won't involve
-    pitch bends
   Instrument
     - some kind of organized way to manage instruments and instrument config
     - some basic midi instrument defs for generic midi (dev, patch)
