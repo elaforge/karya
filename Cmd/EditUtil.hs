@@ -36,9 +36,9 @@ raw_edit zero_dur msg = do
             note <- parse_key key
             modify_event zero_dur False $ \txt ->
                 (modify_text_note note (fromMaybe "" txt), False)
-        (raw_key -> Just key) ->
+        (raw_key -> Just (mods, key)) ->
             modify_event zero_dur False $ \txt ->
-                (modify_text_key key (fromMaybe "" txt), False)
+                (modify_text_key mods key (fromMaybe "" txt), False)
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -139,8 +139,10 @@ alphanum_key :: Msg.Msg -> Maybe Key.Key
 alphanum_key = extract_key $ \c -> Char.isAlphaNum c || c `elem` "_.-"
 
 -- | Extract a key for raw input.  Any printable character plus backspace.
-raw_key :: Msg.Msg -> Maybe Key.Key
-raw_key = extract_key Char.isPrint
+raw_key :: Msg.Msg -> Maybe ([Key.Modifier], Key.Key)
+raw_key msg = case extract_key Char.isPrint msg of
+    Just key -> Just (fromMaybe [] (Msg.key_mods msg), key)
+    Nothing -> Nothing
 
 extract_key :: (Char -> Bool) -> Msg.Msg -> Maybe Key.Key
 extract_key f (Msg.key_down -> Just key) = if ok then Just key else Nothing
@@ -194,9 +196,11 @@ parse_key input = do
 -- | Since there's no use for leading spaces, just a space makes an empty
 -- event.  Backspacing an empty event returns Nothing, which should delete the
 -- event itself.
-modify_text_key :: Key.Key -> String -> Maybe String
-modify_text_key key s = case key of
-    Key.Backspace -> backspace s
+modify_text_key :: [Key.Modifier] -> Key.Key -> String -> Maybe String
+modify_text_key mods key s = case key of
+    Key.Backspace
+        | Key.Shift `elem` mods -> backspace_expr s
+        | otherwise -> backspace s
     Key.Char ' ' | null s -> Just ""
     Key.Char c | Char.isPrint c -> Just (s ++ [c])
     _ -> Just s
@@ -205,6 +209,25 @@ backspace :: String -> Maybe String
 backspace s
     | null s = Nothing
     | otherwise = Just (Seq.rdrop 1 s)
+
+backspace_expr :: String -> Maybe String
+backspace_expr s
+    | null s = Nothing
+    | otherwise = Just $ drop_expr s
+
+drop_expr :: String -> String
+drop_expr expr = reverse rev
+    where
+    rev = case dropWhile (==' ') (reverse expr) of
+        ')' : s -> dropWhile (==' ') (go 1 s)
+        s -> drop 1 s
+    go 0 s = s
+    go nest s = case s of
+        "" -> drop 1 expr -- No balanced paren, just drop 1.
+        -- These are backwards because the string is reversed.
+        ')' : s -> go (nest+1) s
+        '(' : s -> go (nest-1) s
+        _ : s -> go nest s
 
 modify_text_note :: Pitch.Note -> String -> Maybe String
 modify_text_note note s = Just $

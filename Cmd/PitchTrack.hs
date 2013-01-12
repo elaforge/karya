@@ -76,7 +76,7 @@ val_edit_at pos note = modify_event_at pos $ \event ->
 method_edit_at :: (Cmd.M m) => State.Pos -> Key.Key -> m ()
 method_edit_at pos key = modify_event_at pos $ \event ->
     (Just $ event { event_method = fromMaybe "" $
-            EditUtil.modify_text_key key (event_method event) },
+            EditUtil.modify_text_key [] key (event_method event) },
         False)
 
 -- | Record the last note entered.  Should be called by 'with_note'.

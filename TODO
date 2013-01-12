@@ -9,7 +9,7 @@ UNSORTED
   - grace notes could set legato
   - grace notes should emit the correct lilypond
   - monadic parsing combinators for CallSig
-  - in raw edit, midi key creates (pitch) and cmd-backspace deletes one
+  * in raw edit, midi key creates (pitch) and shift-backspace deletes one
   * Block.track_flags should be a Set
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
     along the performance (with some eta to account for randomization)

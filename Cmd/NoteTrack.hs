@@ -46,6 +46,13 @@ import Types
 
 -- * raw edit
 
+-- | Directly edit the text on an event.
+--
+-- A leading space creates a zero-dur event.
+--
+-- MIDI notes append the appropriate pitch for the current scale, while
+-- shift-backspace will delete a parenthesized expression if it's the last text
+-- of the event.  So it can delete the pitches entered by MIDI keys.
 cmd_raw_edit :: Cmd.Cmd
 cmd_raw_edit msg = Cmd.suppress_history Cmd.RawEdit "note track raw edit" $ do
     EditUtil.fallthrough msg
@@ -54,14 +61,13 @@ cmd_raw_edit msg = Cmd.suppress_history Cmd.RawEdit "note track raw edit" $ do
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key key
             modify_event_at pos False False $ \txt ->
-                (EditUtil.modify_text_note note (fromMaybe "" txt),
-                    False)
-        (EditUtil.raw_key -> Just key) ->
+                (EditUtil.modify_text_note note (fromMaybe "" txt), False)
+        (EditUtil.raw_key -> Just (mods, key)) -> do
             -- Create a zero length event on a space.  'modify_text_key' will
             -- eat a lone space, so this is an easy way to create
             -- a zero-length note.
             modify_event_at pos (key == Key.Char ' ') False $ \txt ->
-                (EditUtil.modify_text_key key (fromMaybe "" txt), False)
+                (EditUtil.modify_text_key mods key (fromMaybe "" txt), False)
         _ -> Cmd.abort
     return Cmd.Done
 

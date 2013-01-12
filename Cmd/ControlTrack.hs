@@ -57,9 +57,10 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
     where suppress = Cmd.suppress_history Cmd.ValEdit
 
 modify_num :: Key.Key -> Modify
-modify_num key event = case EditUtil.modify_text_key key (event_val event) of
-    Nothing -> (Nothing, null (event_val event))
-    Just new_val -> (Just $ event { event_val = new_val }, False)
+modify_num key event =
+    case EditUtil.modify_text_key [] key (event_val event) of
+        Nothing -> (Nothing, null (event_val event))
+        Just new_val -> (Just $ event { event_val = new_val }, False)
 
 -- | This is tricky because the editing mode is different depending on whether
 -- the val is hex or not.
@@ -109,7 +110,7 @@ cmd_method_edit msg =
     case msg of
         (EditUtil.method_key -> Just key) -> modify_event $ \event ->
             (Just $ event { event_method = fromMaybe "" $
-                    EditUtil.modify_text_key key (event_method event) },
+                    EditUtil.modify_text_key [] key (event_method event) },
                 False)
         _ -> Cmd.abort
     return Cmd.Done

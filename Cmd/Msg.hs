@@ -132,6 +132,10 @@ key_down msg = case key msg of
     Just (UiMsg.KeyDown, k) -> Just k
     _ -> Nothing
 
+key_mods :: Msg -> Maybe [Key.Modifier]
+key_mods (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd _ mods _)))) = Just mods
+key_mods _ = Nothing
+
 char :: Msg -> Maybe (UiMsg.KbdState, Char)
 char msg = case key msg of
     Just (state, Key.Char c) -> Just (state, c)
