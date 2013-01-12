@@ -53,6 +53,9 @@ lang_dir = local_dir </> "Lang"
 instrument_cache_dir :: FilePath
 instrument_cache_dir = "db"
 
+log_dir :: FilePath
+log_dir = "log"
+
 -- * status view
 
 -- The block status bar is not very big, so it's important to control what

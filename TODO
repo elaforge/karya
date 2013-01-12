@@ -6,7 +6,7 @@ UNSORTED
   logview
     - can I get the standard edit menu and copy/paste?
     * print logs to stdout
-    - rotate the log
+    * rotate the log
   - repl should load the history from save/.../repl, and have a history search
   - grace notes should emit the correct lilypond: \grace { x y z }
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step

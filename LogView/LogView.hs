@@ -13,6 +13,7 @@
     collected together.
 -}
 module LogView.LogView where
+import Control.Applicative ((<$>))
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
@@ -34,11 +35,9 @@ import qualified Util.Seq as Seq
 
 import qualified LogView.LogViewC as LogViewC
 import qualified LogView.Process as Process
+import qualified App.Config as Config
 import qualified App.SendCmd as SendCmd
 
-
-mach_log_filename :: String
-mach_log_filename = "seq.log"
 
 -- | Initial contents of the filter field.
 initial_filter :: String
@@ -81,7 +80,7 @@ options =
     , GetOpt.Option [] ["history"]
         (GetOpt.ReqArg (History . read) (show default_history))
         "remember this many lines"
-    , GetOpt.Option [] ["file"] (GetOpt.ReqArg File mach_log_filename)
+    , GetOpt.Option [] ["file"] (GetOpt.ReqArg File "seq.log")
         "read from this file"
     ]
 
@@ -97,7 +96,7 @@ main = do
 
     let seek = maybe (Just 0) id $ Seq.last [s | Seek s <- flags]
         history = maybe default_history id $ Seq.last [n | History n <- flags]
-        filename = maybe mach_log_filename id $ Seq.last [n | File n <- flags]
+    filename <- maybe default_log_fn return $ Seq.last [n | File n <- flags]
     hdl <- Process.open filename seek
     log_chan <- STM.newTChanIO
     Concurrent.forkIO (Process.tail_file log_chan hdl)
@@ -110,11 +109,14 @@ main = do
         putStr (GetOpt.usageInfo msg options)
         System.Exit.exitFailure
 
+default_log_fn :: IO FilePath
+default_log_fn = (</> Config.log_dir </> "seq.log") <$> Config.get_app_dir
+
 gui :: STM.TChan Log.Msg -> FilePath -> Int -> IO ()
 gui log_chan filename history = do
-    cwd <- Directory.getCurrentDirectory
+    filename <- Directory.canonicalizePath filename
     win <- LogViewC.create 20 20 (fst initial_size) (snd initial_size)
-        (cwd </> filename) default_max_bytes
+        filename default_max_bytes
     LogViewC.set_filter win initial_filter
     let state = (Process.initial_state initial_filter)
             { Process.state_catch_patterns = default_catch_patterns }
