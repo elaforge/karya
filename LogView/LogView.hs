@@ -66,16 +66,18 @@ default_history = 1000
 default_max_bytes :: Int
 default_max_bytes = default_history * 100
 
-data Flag = Help | Seek (Maybe Integer) | History Int | File String
+data Flag = Help | Seek (Maybe Integer) | Print | History Int | File String
     deriving (Eq, Show)
 
 options :: [GetOpt.OptDescr Flag]
 options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
     , GetOpt.Option [] ["seek"] (GetOpt.OptArg (Seek . fmap read) "lines") $
-        "if given no arg, scan the log file from the beginning, if given an "
-        ++ "arg, scan approximately that many lines from the end (assuming "
-        ++ "the average line is 200 bytes)"
+        "if given no arg, scan the log file from the beginning, if given an"
+        ++ " arg, scan approximately that many lines from the end (assuming"
+        ++ " the average line is 200 bytes)"
+    , GetOpt.Option [] ["print"] (GetOpt.NoArg Print)
+        "print formatted logs to stdout instead of bringing up the GUI"
     , GetOpt.Option [] ["history"]
         (GetOpt.ReqArg (History . read) (show default_history))
         "remember this many lines"
@@ -96,21 +98,33 @@ main = do
     let seek = maybe (Just 0) id $ Seq.last [s | Seek s <- flags]
         history = maybe default_history id $ Seq.last [n | History n <- flags]
         filename = maybe mach_log_filename id $ Seq.last [n | File n <- flags]
-    cwd <- Directory.getCurrentDirectory
+    hdl <- Process.open filename seek
+    log_chan <- STM.newTChanIO
+    Concurrent.forkIO (Process.tail_file log_chan hdl)
+    if Print `elem` flags
+        then print_logs log_chan
+        else gui log_chan filename history
+    where
+    usage msg = do
+        putStrLn "usage: logview [ flags ]"
+        putStr (GetOpt.usageInfo msg options)
+        System.Exit.exitFailure
 
+gui :: STM.TChan Log.Msg -> FilePath -> Int -> IO ()
+gui log_chan filename history = do
+    cwd <- Directory.getCurrentDirectory
     win <- LogViewC.create 20 20 (fst initial_size) (snd initial_size)
         (cwd </> filename) default_max_bytes
     LogViewC.set_filter win initial_filter
-
-    log_chan <- STM.newTChanIO
-    Concurrent.forkIO (Process.tail_file log_chan filename seek)
     let state = (Process.initial_state initial_filter)
             { Process.state_catch_patterns = default_catch_patterns }
     Concurrent.forkIO (handle_msgs state history log_chan win)
     Fltk.run
-    where
-    usage msg = putStr (GetOpt.usageInfo msg options)
-        >> System.Exit.exitSuccess
+
+print_logs :: STM.TChan Log.Msg -> IO ()
+print_logs log_chan = forever $ do
+    msg <- STM.atomically $ STM.readTChan log_chan
+    putStrLn $ Log.format_msg msg
 
 
 data Msg = NewLog Log.Msg | ClickedWord String | FilterChanged String

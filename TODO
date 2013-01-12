@@ -3,13 +3,26 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - grace notes should emit the correct lilypond
+  logview
+    - can I get the standard edit menu and copy/paste?
+    * print logs to stdout
+    - rotate the log
+  - repl should load the history from save/.../repl, and have a history search
+  - grace notes should emit the correct lilypond: \grace { x y z }
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
     along the performance (with some eta to account for randomization)
     instead of the score.
 
-  - can't undo after loading a .git
-    Also, .git checkmarks are forking unnecessarily, probably related.
+  git is buggy
+    - can't undo after loading a .git
+    - Also, .git checkmarks are forking unnecessarily, probably related.
+    - messed up undo / redo, and then:
+      . undo [delete time] 7fc8a66084dd385c61d4eaf2b57808eddd3b2fc4 -> [set dur]
+        62a9918ee95e0807da2c397efb29da4f5dd236dc
+      . running command "cut selection"
+      . error committing history: checkpoint: repo:
+        "save/viola-sonata/viola-sonata.git": git_treebuilder_remove:
+        "clip.t6": error
   / per-instrument binds e.g. kendang, should work without kbd entry
     However, that means I take over NoEdit for audition, and that means that
     un-modified keys are unreliable even in NoEdit mode.

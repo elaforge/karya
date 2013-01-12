@@ -353,10 +353,10 @@ style_filename = 'G'
 
 -- * tail file
 
-tail_file :: STM.TChan Log.Msg -> FilePath
+open :: FilePath
     -> Maybe Integer -- ^ no seek if Nothing, else seek n*m bytes from end
-    -> IO ()
-tail_file log_chan filename seek = do
+    -> IO IO.Handle
+open filename seek = do
     -- ReadWriteMode makes it create the file if it doesn't exist, and not
     -- die here.
     hdl <- IO.openFile filename IO.ReadWriteMode
@@ -365,9 +365,12 @@ tail_file log_chan filename seek = do
         Nothing -> return ()
         Just n -> do
             IO.hSeek hdl IO.SeekFromEnd (-n * 200)
-            when (n /= 0) $ do
-                IO.hGetLine hdl -- make sure I'm at a line boundary
-                return ()
+            when (n /= 0) $
+                void $ IO.hGetLine hdl -- make sure I'm at a line boundary
+    return hdl
+
+tail_file :: STM.TChan Log.Msg -> IO.Handle -> IO ()
+tail_file log_chan hdl = do
     loop hdl =<< IO.hFileSize hdl
     where
     loop hdl size = do
