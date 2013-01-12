@@ -124,7 +124,10 @@ run_setup_cmd cmd state = fmap snd $ run_responder state $ do
         cmd
         Cmd.modify $ \st -> st
             { Cmd.state_history = (Cmd.state_history st)
-                { Cmd.hist_last_cmd = Just $ Cmd.Load Nothing ["setup"] }
+                -- If the cmd set hist_last_cmd, don't override it.
+                { Cmd.hist_last_cmd = Cmd.hist_last_cmd (Cmd.state_history st)
+                    `mplus` Just (Cmd.Load Nothing ["setup"])
+                }
             }
         return Cmd.Continue
     when_just result $ \(_, ui_state, cmd_state) -> do

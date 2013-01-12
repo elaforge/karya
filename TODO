@@ -14,7 +14,9 @@ UNSORTED
     instead of the score.
 
   git is buggy
-    - can't undo after loading a .git
+    * can't undo after loading a .git
+    - The namespace should only be the default save dir, if I loaded from
+      a file somplace else, remember that.
     - Also, .git checkmarks are forking unnecessarily, probably related.
     - messed up undo / redo, and then:
       . undo [delete time] 7fc8a66084dd385c61d4eaf2b57808eddd3b2fc4 -> [set dur]
@@ -23,6 +25,7 @@ UNSORTED
       . error committing history: checkpoint: repo:
         "save/viola-sonata/viola-sonata.git": git_treebuilder_remove:
         "clip.t6": error
+    - get libgit2 to stop copying over junk like description and hooks/*
   / per-instrument binds e.g. kendang, should work without kbd entry
     However, that means I take over NoEdit for audition, and that means that
     un-modified keys are unreliable even in NoEdit mode.
