@@ -55,6 +55,7 @@ import qualified Cmd.ResponderSync as ResponderSync
 import qualified Cmd.Track as Track
 import qualified Cmd.Undo as Undo
 
+import qualified Derive.Scale.All as Scale.All
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
@@ -87,35 +88,43 @@ state_transport_info state = Transport.Info
     , Transport.info_get_current_time = Interface.now interface
     , Transport.info_state = state_monitor_state state
     }
-    where interface = Cmd.state_midi_interface (state_cmd state)
+    where
+    interface = Cmd.state_midi_interface (Cmd.state_config (state_cmd state))
 
 type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> Interface.Interface
     -> Cmd.CmdIO -> Lang.Session -> Loopback -> IO ()
-responder config msg_reader midi_interface setup_cmd lang_session
-        loopback = do
+responder config msg_reader midi_interface setup_cmd lang_session loopback = do
     Log.debug "start responder"
-
-    let cmd_state = Cmd.initial_state
-            (StaticConfig.rdev_map midi) (StaticConfig.wdev_map midi)
-            midi_interface
-            (StaticConfig.instrument_db config)
-            (StaticConfig.global_scope config)
-        midi = StaticConfig.midi config
     ui_state <- State.create
     monitor_state <- MVar.newMVar ui_state
     state <- run_setup_cmd setup_cmd $ State
         { state_static_config = config
         , state_ui = ui_state
-        , state_cmd = cmd_state
+        , state_cmd = Cmd.initial_state (cmd_config midi_interface config)
         , state_session = lang_session
         , state_loopback = loopback
         , state_sync = Sync.sync
         , state_monitor_state = monitor_state
         }
     respond_loop state msg_reader
+
+-- | Create a 'Cmd.Config'.  It would be nicer in "Cmd.Cmd", but that would
+-- be a circular import with "App.StaticConfig".
+cmd_config :: Interface.Interface -> StaticConfig.StaticConfig -> Cmd.Config
+cmd_config interface config = Cmd.Config
+    { Cmd.state_midi_interface = interface
+    , Cmd.state_rdev_map = StaticConfig.rdev_map midi
+    , Cmd.state_wdev_map = StaticConfig.wdev_map midi
+    , Cmd.state_instrument_db = StaticConfig.instrument_db config
+    , Cmd.state_global_scope = StaticConfig.global_scope config
+    -- TODO later this should also be merged with static config
+    , Cmd.state_lookup_scale = Cmd.LookupScale $
+        \scale_id -> Map.lookup scale_id Scale.All.scales
+    }
+    where midi = StaticConfig.midi config
 
 -- | A special run-and-sync that runs before the respond loop gets started.
 run_setup_cmd :: Cmd.CmdIO -> State -> IO State

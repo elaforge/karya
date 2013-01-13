@@ -195,7 +195,7 @@ type Document = [Section]
 
 -- | Emit docs for all calls in the default scope.
 builtin :: (Cmd.M m) => m Document
-builtin = all_sections <$> Cmd.gets Cmd.state_global_scope
+builtin = all_sections <$> Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
 
 all_sections :: Derive.Scope -> [Section]
 all_sections (Derive.Scope note control pitch val) =

@@ -84,7 +84,6 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
-import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -245,32 +244,19 @@ throw = State.throw
 ignore_abort :: (M m) => m a -> m ()
 ignore_abort m = void $ catch_abort m
 
+-- | Run an IO action, rethrowing any IO exception as a Cmd exception.
+rethrow_io :: IO a -> CmdT IO a
+rethrow_io =
+    either throw return <=< liftIO . Exception.handle handle . (Right <$>)
+    where
+    handle :: Exception.SomeException -> IO (Either String a)
+    handle = return . Left . ("io exception: "++) . show
+
 -- * State
 
 -- | App global state.  Unlike 'Ui.State.State', this is not saved to disk.
 data State = State {
-    -- Config type variables that change never or rarely.  These come from the
-    -- static config.
-    state_midi_interface :: !Midi.Interface.Interface
-    -- | Reroute MIDI inputs and outputs.  These come from
-    -- 'App.StaticConfig.read_device_map' and
-    -- 'App.StaticConfig.write_device_map' and probably shouldn't be changed
-    -- at runtime.
-    , state_rdev_map :: !(Map.Map Midi.ReadDevice Midi.ReadDevice)
-
-    -- | WriteDevices can be score-specific, though, so another map is kept in
-    -- 'State.State', which may override the one here.
-    , state_wdev_map :: !(Map.Map Midi.WriteDevice Midi.WriteDevice)
-
-    , state_instrument_db :: !InstrumentDb
-    -- | Global namespace for deriver.
-    , state_global_scope :: !Derive.Scope
-    -- | Turn ScaleIds into Scales.
-    , state_lookup_scale :: !LookupScale
-
-    -- Automatically maintained state.  This means only a few cmds should
-    -- modify these.
-
+    state_config :: !Config
     -- | Omit the usual derive delay for these blocks.  This is set by
     -- integration, which modifies a block in response to another block being
     -- derived.  This is cleared after every cmd.
@@ -313,20 +299,9 @@ data State = State {
     , state_repl_status :: !Status
     } deriving (Show, Generics.Typeable)
 
-initial_state :: Map.Map Midi.ReadDevice Midi.ReadDevice
-    -> Map.Map Midi.WriteDevice Midi.WriteDevice
-    -> Midi.Interface.Interface -> InstrumentDb -> Derive.Scope
-    -> State
-initial_state rdev_map wdev_map interface inst_db global_scope = State
-    { state_midi_interface = interface
-    , state_rdev_map = rdev_map
-    , state_wdev_map = wdev_map
-    , state_instrument_db = inst_db
-    , state_global_scope = global_scope
-    -- TODO later this should also be merged with static config
-    , state_lookup_scale = LookupScale $
-        \scale_id -> Map.lookup scale_id Scale.All.scales
-
+initial_state :: Config -> State
+initial_state config = State
+    { state_config = config
     , state_derive_immediately = Set.empty
     -- This is a dummy entry needed to bootstrap a Cmd.State.  Normally
     -- 'hist_present' should always have the current state, but the initial
@@ -359,6 +334,27 @@ reinit_state present cstate = cstate
     , state_edit = initial_edit_state
     }
 
+-- ** Config
+
+-- | Config type variables that change never or rarely.  These mostly come from
+-- the static config.
+data Config = Config {
+    state_midi_interface :: !Midi.Interface.Interface
+    -- | Reroute MIDI inputs and outputs.  These come from
+    -- 'App.StaticConfig.read_device_map' and
+    -- 'App.StaticConfig.write_device_map' and probably shouldn't be changed
+    -- at runtime.
+    , state_rdev_map :: !(Map.Map Midi.ReadDevice Midi.ReadDevice)
+    -- | WriteDevices can be score-specific, though, so another map is kept in
+    -- 'State.State', which may override the one here.
+    , state_wdev_map :: !(Map.Map Midi.WriteDevice Midi.WriteDevice)
+    , state_instrument_db :: !InstrumentDb
+    -- | Global namespace for deriver.
+    , state_global_scope :: !Derive.Scope
+    -- | Turn ScaleIds into Scales.
+    , state_lookup_scale :: !LookupScale
+    } deriving (Show, Generics.Typeable)
+
 -- | Get a midi writer that takes the 'state_wdev_map' into account.
 state_midi_writer :: State -> Midi.Interface.Message -> IO ()
 state_midi_writer state imsg = do
@@ -366,16 +362,20 @@ state_midi_writer state imsg = do
             Midi.Interface.Midi wmsg -> Midi.Interface.Midi $ map_wdev wmsg
             _ -> imsg
     putStrLn $ "PLAY " ++ Pretty.pretty out
-    ok <- Midi.Interface.write_message (state_midi_interface state) out
+    ok <- Midi.Interface.write_message
+        (state_midi_interface (state_config state)) out
     unless ok $ Log.warn $ "error writing " ++ Pretty.pretty out
     where
     map_wdev (Midi.WriteMessage wdev time msg) =
         Midi.WriteMessage (lookup_wdev wdev) time msg
-    lookup_wdev wdev = Map.findWithDefault wdev wdev (state_wdev_map state)
+    lookup_wdev wdev = Map.findWithDefault wdev wdev
+        (state_wdev_map (state_config state))
 
 -- | This is a hack so I can use the default Show instance for 'State'.
 newtype LookupScale = LookupScale Derive.LookupScale
 instance Show LookupScale where show _ = "((LookupScale))"
+
+-- ** PlayState
 
 -- | State concerning derivation, performance, and playing the performance.
 data PlayState = PlayState {
@@ -443,6 +443,8 @@ data StepState = StepState {
     -- | MIDI states after the step play position, in asceding order.
     , step_after :: ![(ScoreTime, Midi.State.State)]
     } deriving (Show, Generics.Typeable)
+
+-- ** EditState
 
 -- | Editing state, modified in the course of editing.
 data EditState = EditState {
@@ -821,12 +823,14 @@ set_status key val = do
 
 get_lookup_midi_instrument :: (M m) => m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument =
-    gets (Instrument.Db.db_lookup_midi . state_instrument_db)
+    gets (Instrument.Db.db_lookup_midi . state_instrument_db . state_config)
 
 lookup_instrument_info :: (M m) => Score.Instrument -> m (Maybe MidiInfo)
-lookup_instrument_info inst = do
-    inst_db <- gets state_instrument_db
-    return $ Instrument.Db.db_lookup inst_db inst
+lookup_instrument_info inst = ($ inst) <$> get_lookup_instrument
+
+get_lookup_instrument :: (M m) => m (Score.Instrument -> Maybe MidiInfo)
+get_lookup_instrument = gets $
+    Instrument.Db.db_lookup . state_instrument_db . state_config
 
 get_midi_patch :: (M m) => Score.Instrument -> m Instrument.Patch
 get_midi_patch inst = do
@@ -843,7 +847,7 @@ get_midi_instrument attrs inst = do
 
 get_lookup_scale :: (M m) => m Derive.LookupScale
 get_lookup_scale = do
-    LookupScale lookup_scale <- gets state_lookup_scale
+    LookupScale lookup_scale <- gets (state_lookup_scale . state_config)
     return lookup_scale
 
 -- | Lookup a scale_id or throw.
@@ -908,14 +912,6 @@ set_note_text txt = do
 
 
 -- * util
-
--- | Run an IO action, rethrowing any IO exception as a Cmd exception.
-rethrow_io :: IO a -> CmdT IO a
-rethrow_io =
-    either throw return <=< liftIO . Exception.handle handle . (Right <$>)
-    where
-    handle :: Exception.SomeException -> IO (Either String a)
-    handle = return . Left . ("io exception: "++) . show
 
 -- | Give a name to a Cmd.  The name is applied when the cmd returns so the
 -- names come out in call order, and it doesn't incur overhead for cmds that

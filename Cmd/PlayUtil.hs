@@ -21,7 +21,6 @@ import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 
-import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import Types
 
@@ -82,7 +81,7 @@ run_ui ui_state cache damage deriver = do
     lookup_inst <- get_lookup_inst
     let constant = Derive.initial_constant ui_state lookup_scale lookup_inst
             cache damage
-    scope <- Cmd.gets Cmd.state_global_scope
+    scope <- Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
     let deflt = State.config_default (State.state_config ui_state)
         env = initial_environ (State.default_scale deflt)
             (State.default_instrument deflt)
@@ -102,9 +101,8 @@ run_with_dynamic dynamic deriver = do
     return $ Derive.run state deriver
 
 get_lookup_inst :: (Cmd.M m) => m (Score.Instrument -> Maybe Derive.Instrument)
-get_lookup_inst = do
-    inst_db <- Cmd.gets Cmd.state_instrument_db
-    return $ fmap Cmd.derive_instrument . Instrument.Db.db_lookup inst_db
+get_lookup_inst =
+    (fmap Cmd.derive_instrument .) <$> Cmd.get_lookup_instrument
 
 perform_from :: (Cmd.M m) => RealTime -> Cmd.Performance
     -> m Perform.MidiEvents
@@ -176,7 +174,7 @@ get_convert_lookup :: (Cmd.M m) => m Convert.Lookup
 get_convert_lookup = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
-    lookup_info <- Cmd.gets (Instrument.Db.db_lookup . Cmd.state_instrument_db)
+    lookup_info <- Cmd.get_lookup_instrument
     return $ Convert.Lookup lookup_scale lookup_inst
         (fmap MidiDb.info_patch . lookup_info)
 

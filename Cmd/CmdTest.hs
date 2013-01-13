@@ -32,6 +32,7 @@ import qualified Cmd.Performance as Performance
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -46,9 +47,7 @@ import Types
 
 
 empty_state :: Cmd.State
-empty_state = Cmd.initial_state Map.empty Map.empty
-    (Unsafe.unsafePerformIO StubMidi.interface) Instrument.Db.empty
-    Derive.empty_scope
+empty_state = Cmd.initial_state empty_cmd_config
 
 -- * running cmds
 
@@ -183,11 +182,27 @@ thread_tracks tracks modify_cmd_state cmds =
 
 default_cmd_state :: Cmd.State
 default_cmd_state = empty_state
-    { Cmd.state_instrument_db = DeriveTest.default_db
-    , Cmd.state_global_scope = Call.All.scope
+    { Cmd.state_config = default_cmd_config
     , Cmd.state_focused_view = Just UiTest.default_view_id
     , Cmd.state_edit = default_edit_state
     , Cmd.state_play = default_play_state
+    }
+
+empty_cmd_config :: Cmd.Config
+empty_cmd_config = Cmd.Config
+    { Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
+    , Cmd.state_rdev_map = mempty
+    , Cmd.state_wdev_map = mempty
+    , Cmd.state_instrument_db = Instrument.Db.empty
+    , Cmd.state_global_scope = Derive.empty_scope
+    , Cmd.state_lookup_scale = Cmd.LookupScale $
+        \scale_id -> Map.lookup scale_id Scale.All.scales
+    }
+
+default_cmd_config :: Cmd.Config
+default_cmd_config = empty_cmd_config
+    { Cmd.state_instrument_db = DeriveTest.default_db
+    , Cmd.state_global_scope = Call.All.scope
     }
 
 default_play_state :: Cmd.PlayState
@@ -288,8 +303,9 @@ extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
 set_insts :: [String] -> State.State -> Cmd.State -> (State.State, Cmd.State)
 set_insts insts ustate cstate =
     (UiTest.set_midi_config config ustate,
-        cstate { Cmd.state_instrument_db = make_inst_db insts })
+        cstate { Cmd.state_config = set_db (Cmd.state_config cstate) })
     where
+    set_db config = config { Cmd.state_instrument_db = make_inst_db insts }
     config = UiTest.midi_config [(inst, [chan])
         | (inst, chan) <- zip insts [0..]]
 

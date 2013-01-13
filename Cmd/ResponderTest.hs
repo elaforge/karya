@@ -206,7 +206,8 @@ respond1 (ui_state, cmd_state) maybe_cmd msg = do
         }
     where
     set_cmd_state interface = cmd_state
-        { Cmd.state_midi_interface = interface
+        { Cmd.state_config = (Cmd.state_config cmd_state)
+            { Cmd.state_midi_interface = interface }
         , Cmd.state_derive_immediately =
             Map.keysSet (State.state_blocks ui_state)
         }

@@ -200,7 +200,7 @@ disconnect_read_device rdev =
 
 run_interface :: (Interface.Interface -> IO a) -> Cmd.CmdL a
 run_interface op = do
-    interface <- Cmd.gets Cmd.state_midi_interface
+    interface <- Cmd.gets (Cmd.state_midi_interface . Cmd.state_config)
     liftIO (op interface)
 
 

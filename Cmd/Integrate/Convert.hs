@@ -26,7 +26,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import Types
 
@@ -44,15 +43,16 @@ type Tracks = [(Track, [Track])]
 convert :: (Cmd.M m) => BlockId -> Derive.Events -> Maybe Pitch.Key -> m Tracks
 convert source_block levents key = do
     lookup_scale <- Cmd.get_lookup_scale
-    inst_db <- Cmd.gets Cmd.state_instrument_db
+    lookup_inst <- Cmd.get_lookup_instrument
     let lookup_attrs = fromMaybe mempty
             . fmap (Instrument.patch_attribute_map . MidiDb.info_patch)
-            . Instrument.Db.db_lookup inst_db
+            . lookup_inst
     track_ids <- State.all_track_ids_of source_block
     let tracknums = Map.fromList
             [(track_id, n) | (n, Just track_id) <- zip [0..] track_ids]
     let (events, logs) = LEvent.partition levents
-        (tracks, errs) = integrate lookup_scale lookup_attrs tracknums key events
+        (tracks, errs) =
+            integrate lookup_scale lookup_attrs tracknums key events
     mapM_ Log.write (Log.add_prefix "integrate" logs)
     -- If something failed to derive I shouldn't integrate that into the block.
     when (any ((>=Log.Warn) . Log.msg_prio) logs) $
