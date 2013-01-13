@@ -149,7 +149,7 @@ get_default_instrument block_id track_id inst
 
 inst_info :: (Cmd.M m) => Score.Instrument -> m String
 inst_info inst = do
-    maybe_info <- Cmd.lookup_instrument_info inst
+    maybe_info <- Cmd.lookup_instrument inst
     alloc <- State.get_midi_alloc
     let show_info = show_instrument_info (Map.findWithDefault [] inst alloc)
     return $ show_inst inst ++ ": " ++ maybe "<not found>" show_info maybe_info

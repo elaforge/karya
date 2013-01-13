@@ -26,7 +26,7 @@ import Types
 -- * instrument info
 
 lookup :: String -> Cmd.CmdL (Maybe Cmd.MidiInfo)
-lookup = Cmd.lookup_instrument_info . Score.Instrument
+lookup = Cmd.lookup_instrument . Score.Instrument
 
 inst_info :: String -> Cmd.CmdL String
 inst_info inst_name = Info.inst_info (Score.Instrument inst_name)
@@ -117,7 +117,7 @@ find_chan_for dev = do
 initialize :: Score.Instrument -> Midi.Channel -> Cmd.CmdL ()
 initialize inst chan = do
     info <- Cmd.require_msg ("inst not found: " ++ show inst)
-        =<< Cmd.lookup_instrument_info inst
+        =<< Cmd.lookup_instrument inst
     let init = Instrument.patch_initialize (MidiDb.info_patch info)
     let dev = Instrument.synth_device (MidiDb.info_synth info)
     send_initialization init inst dev chan
@@ -176,7 +176,7 @@ auto_config block_id = do
 
 device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do
-    maybe_info <- Cmd.lookup_instrument_info inst
+    maybe_info <- Cmd.lookup_instrument inst
     return $ Instrument.synth_device . MidiDb.info_synth <$> maybe_info
 
 

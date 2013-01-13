@@ -14,7 +14,7 @@ UNSORTED
     instead of the score.
   - on an exception response to the REPL, put in some character or something
     makes pprint not format it
-  - rename Cmd.lookup_instrument_info to just lookup_instrument
+  * rename Cmd.lookup_instrument_info to just lookup_instrument
 
   git is buggy
     * can't undo after loading a .git

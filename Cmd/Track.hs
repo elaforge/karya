@@ -69,7 +69,7 @@ instrument_cmds track_id inst =
 lookup_instrument :: (Cmd.M m) => BlockId -> TrackId -> m (Maybe Cmd.MidiInfo)
 lookup_instrument block_id track_id =
     justm (Perf.lookup_instrument block_id (Just track_id)) $ \inst ->
-    Cmd.lookup_instrument_info inst
+    Cmd.lookup_instrument inst
 
 -- | Cmds that use InputNotes, and hence must be called with
 -- 'NoteEntry.cmds_with_note'.

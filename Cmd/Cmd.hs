@@ -825,8 +825,8 @@ get_lookup_midi_instrument :: (M m) => m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument =
     gets (Instrument.Db.db_lookup_midi . state_instrument_db . state_config)
 
-lookup_instrument_info :: (M m) => Score.Instrument -> m (Maybe MidiInfo)
-lookup_instrument_info inst = ($ inst) <$> get_lookup_instrument
+lookup_instrument :: (M m) => Score.Instrument -> m (Maybe MidiInfo)
+lookup_instrument inst = ($ inst) <$> get_lookup_instrument
 
 get_lookup_instrument :: (M m) => m (Score.Instrument -> Maybe MidiInfo)
 get_lookup_instrument = gets $
@@ -835,7 +835,7 @@ get_lookup_instrument = gets $
 get_midi_patch :: (M m) => Score.Instrument -> m Instrument.Patch
 get_midi_patch inst = do
     info <- require_msg ("get_midi_patch " ++ Pretty.pretty inst)
-        =<< lookup_instrument_info inst
+        =<< lookup_instrument inst
     return $ MidiDb.info_patch info
 
 get_midi_instrument :: (M m) => Score.Attributes -> Score.Instrument
