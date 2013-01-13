@@ -39,9 +39,10 @@ data TimeConfig = TimeConfig
     , time_quantize :: Lilypond.Duration
     }
 
-ly_filename :: (State.M m) => BlockId -> m FilePath
+ly_filename :: (Cmd.M m) => BlockId -> m FilePath
 ly_filename block_id = do
-    dir <- State.gets (State.config#State.project_dir #$)
+    dir <- Cmd.require_msg "ly_filename: no save dir"
+        =<< Cmd.gets Cmd.state_save_dir
     return $ dir </> "ly" </> Id.ident_name block_id ++ ".ly"
 
 lookup_key :: Cmd.Performance -> Pitch.Key

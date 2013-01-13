@@ -190,7 +190,8 @@ default_cmd_state = empty_state
 
 empty_cmd_config :: Cmd.Config
 empty_cmd_config = Cmd.Config
-    { Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
+    { Cmd.state_app_dir = "."
+    , Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
     , Cmd.state_rdev_map = mempty
     , Cmd.state_wdev_map = mempty
     , Cmd.state_instrument_db = Instrument.Db.empty

@@ -14,7 +14,9 @@ import qualified Ui.State as State
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
+
 import qualified App.Config as Config
 import Types
 
@@ -64,7 +66,7 @@ undo = do
     case Cmd.hist_past hist of
         prev : rest -> do_undo hist cur prev rest
         [] -> do
-            repo <- State.gets SaveGit.save_repo
+            repo <- Save.get_git_save
             past <- liftIO $ load_prev repo cur
             case past of
                 [] -> Cmd.throw "no past to undo"
@@ -98,7 +100,7 @@ redo = do
     case Cmd.hist_future hist of
         next : rest -> do_redo cur (Cmd.hist_past hist) next rest
         [] -> do
-            repo <- State.gets SaveGit.save_repo
+            repo <- Save.get_git_save
             future <- liftIO $ load_next repo cur
             case future of
                 [] -> Cmd.throw "no future to redo"
@@ -167,7 +169,6 @@ merge_undo_states new old = new
 merge_config :: State.Config -> State.Config -> State.Config
 merge_config new old = new
     { State.config_namespace = State.config_namespace old
-    , State.config_project_dir = State.config_project_dir old
     , State.config_midi = State.config_midi old
     }
 
@@ -239,7 +240,8 @@ save_history ui_state cmd_state hist collect uncommitted = do
     prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
     has_saved = Maybe.isJust $ Cmd.hist_last_save $
         Cmd.state_history_config cmd_state
-    repo = SaveGit.save_repo ui_state
+    repo = Save.git_save_file (State.config#State.namespace #$ ui_state)
+        cmd_state
 
 -- | The present is expected to have no updates, so bump the updates off the
 -- new present onto the old present, as described in [undo-and-updates].

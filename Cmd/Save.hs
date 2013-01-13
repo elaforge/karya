@@ -3,13 +3,16 @@
 module Cmd.Save where
 import qualified Data.Map as Map
 import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import Util.Control
+import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
@@ -17,12 +20,26 @@ import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Serialize as Serialize
 import qualified Cmd.ViewConfig as ViewConfig
 
+import qualified App.Config as Config
 
-get_save_file :: (State.M m) => m FilePath
-get_save_file =
-    State.gets $ (</>"save.state") . (State.config#State.project_dir #$)
 
 -- * plain serialize
+
+get_state_save :: (Cmd.M m) => m FilePath
+get_state_save = do
+    ns <- State.gets (State.config#State.namespace #$)
+    state <- Cmd.get
+    return $ state_save_file ns state
+
+state_save_file :: Id.Namespace -> Cmd.State -> FilePath
+state_save_file ns state = case Cmd.state_save_file state of
+    Nothing -> Cmd.path state Config.save_dir </> Id.un_namespace ns
+        </> default_state
+    Just (Cmd.SaveState fn) -> fn
+    Just (Cmd.SaveGit repo) -> FilePath.replaceExtension repo ".state"
+
+default_state :: FilePath
+default_state = "save.state"
 
 cmd_save :: FilePath -> Cmd.CmdT IO ()
 cmd_save fname = do
@@ -38,6 +55,8 @@ cmd_load fname = do
         (("load " ++ fname ++ ": ") ++)
         =<< liftIO (Serialize.unserialize fname)
     set_state state
+    Cmd.modify $ \st -> st
+        { Cmd.state_save_file = Just $ Cmd.SaveState fname }
 
 -- | Try to guess whether the given path is a git save or state save.  If it's
 -- a directory, look inside for a .git or .state save.
@@ -51,12 +70,28 @@ cmd_load_any path
         ifM (isfile state) (cmd_load state) $
         Cmd.throw $ "directory contains neither " ++ git ++ " nor " ++ state
         where
-        git = path </> SaveGit.default_save_fn
-        state = path </> "save.state"
+        git = path </> default_git
+        state = path </> default_state
     isdir = Cmd.rethrow_io . Directory.doesDirectoryExist
     isfile = Cmd.rethrow_io . Directory.doesFileExist
 
 -- * git serialize
+
+get_git_save :: (Cmd.M m) => m Git.Repo
+get_git_save = do
+    ns <- State.gets (State.config#State.namespace #$)
+    state <- Cmd.get
+    return $ git_save_file ns state
+
+git_save_file :: Id.Namespace -> Cmd.State -> Git.Repo
+git_save_file ns state = case Cmd.state_save_file state of
+    Nothing -> Cmd.path state Config.save_dir </> Id.un_namespace ns
+        </> default_git
+    Just (Cmd.SaveState fn) -> FilePath.replaceExtension fn ".git"
+    Just (Cmd.SaveGit repo) -> repo
+
+default_git :: FilePath
+default_git = "save.git"
 
 -- | Save a SavePoint to a git repo.
 --
@@ -67,8 +102,8 @@ cmd_load_any path
 cmd_save_git :: Cmd.CmdT IO ()
 cmd_save_git = do
     state <- State.get
-    let repo = SaveGit.save_repo state
     cmd_state <- Cmd.get
+    let repo = git_save_file (State.config#State.namespace #$ state) cmd_state
     let prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
     (commit, save) <- Cmd.require_right (("save git " ++ repo ++ ": ") ++)
         =<< liftIO (SaveGit.save repo state prev_commit)
@@ -90,7 +125,8 @@ cmd_load_git repo maybe_commit = do
     Log.notice $ "loaded from " ++ show repo ++ ", at " ++ Pretty.pretty commit
     set_state state
     Cmd.modify $ \st -> st
-        { Cmd.state_history = (Cmd.state_history st)
+        { Cmd.state_save_file = Just $ Cmd.SaveGit repo
+        , Cmd.state_history = (Cmd.state_history st)
             { Cmd.hist_last_cmd = Just $ Cmd.Load (Just commit) names }
         , Cmd.state_history_config = (Cmd.state_history_config st)
             { Cmd.hist_last_save = last_save }
@@ -99,16 +135,25 @@ cmd_load_git repo maybe_commit = do
 -- | Revert to given save point, or the last one.
 cmd_revert :: Maybe String -> Cmd.CmdT IO ()
 cmd_revert maybe_ref = do
-    repo <- State.gets SaveGit.save_repo
-    save <- case maybe_ref of
-        Nothing -> Cmd.require_msg "no last save"
-            =<< liftIO (SaveGit.read_last_save repo Nothing)
-        Just ref -> Cmd.require_msg ("unparseable SavePoint: " ++ show ref) $
-            SaveGit.ref_to_save ref
-    commit <- Cmd.require_msg ("save ref not found: " ++ show save)
-        =<< rethrow "cmd_revert" (SaveGit.read_save_ref repo save)
-    Log.notice $ "revert to " ++ show save
-    cmd_load_git repo (Just commit)
+    save_file <- Cmd.require_msg "can't revert when there is no save file"
+        =<< Cmd.gets Cmd.state_save_file
+    case save_file of
+        Cmd.SaveState fn -> do
+            when_just maybe_ref $ Cmd.throw .
+                ("can't revert to a commit when the save file isn't git: " ++)
+            cmd_load fn
+        Cmd.SaveGit repo -> revert_git repo
+    Log.notice $ "revert to " ++ show save_file
+    where
+    revert_git repo = do
+        save <- case maybe_ref of
+            Nothing -> Cmd.require_msg "no last save"
+                =<< liftIO (SaveGit.read_last_save repo Nothing)
+            Just ref -> Cmd.require_msg ("unparseable SavePoint: " ++ show ref)
+                (SaveGit.ref_to_save ref)
+        commit <- Cmd.require_msg ("save ref not found: " ++ show save)
+            =<< rethrow "cmd_revert" (SaveGit.read_save_ref repo save)
+        cmd_load_git repo (Just commit)
 
 rethrow :: String -> IO a -> Cmd.CmdT IO a
 rethrow caller io =

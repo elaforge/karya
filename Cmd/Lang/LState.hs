@@ -3,6 +3,7 @@
 module Cmd.Lang.LState where
 import qualified Data.Time as Time
 import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 import qualified System.Posix as Posix
 
 import Util.Control
@@ -65,16 +66,25 @@ set_notes = State.modify . (State.config#State.meta#State.notes #=)
 -- | Set the score namespace to the given one.  Also update the project_dir
 -- and move the actual directory.
 rename :: String -> Cmd.CmdL ()
-rename ns = case Id.namespace ns of
-    Nothing -> Cmd.throw $ "invalid namespace: " ++ show ns
-    Just ns -> do
-        Create.rename_project ns
-        old_dir <- State.gets (State.config#State.project_dir #$)
-        new_dir <- State.gets $
-            flip FilePath.replaceFileName (Id.un_namespace ns)
-            . (State.config#State.project_dir #$)
-        liftIO $ print (old_dir, new_dir)
-        -- System.Directory.renameDirectory deletes the destination diretory
-        -- for some reason.  I'd rather throw an exception.
-        Cmd.rethrow_io $ File.ignore_enoent $ Posix.rename old_dir new_dir
-        State.modify_config $ State.project_dir #= new_dir
+rename ns = do
+    ns <- Cmd.require_msg ("invalid namespace: " ++ show ns) (Id.namespace ns)
+    Create.rename_project ns
+    Cmd.gets Cmd.state_save_file >>= \x -> case x of
+        Nothing -> return ()
+        Just (Cmd.SaveState fn) -> Cmd.modify $ \st -> st
+            { Cmd.state_save_file = Just $ Cmd.SaveState $ replace_dir ns fn }
+        Just (Cmd.SaveGit repo) -> do
+            -- System.Directory.renameDirectory deletes the destination
+            -- diretory for some reason.  I'd rather throw an exception.
+            let old_dir = FilePath.takeDirectory repo
+                new_dir = FilePath.replaceFileName old_dir (Id.un_namespace ns)
+            Cmd.rethrow_io $ File.ignore_enoent $ Posix.rename old_dir new_dir
+            Cmd.modify $ \st -> st
+                { Cmd.state_save_file = Just $ Cmd.SaveState $
+                    new_dir </> FilePath.takeFileName repo
+                }
+    where
+    replace_dir ns path = new_dir </> FilePath.takeFileName path
+        where
+        new_dir = FilePath.replaceFileName (FilePath.takeDirectory path)
+            (Id.un_namespace ns)

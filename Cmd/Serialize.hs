@@ -138,35 +138,42 @@ instance Serialize State.State where
             _ -> Serialize.bad_version "State.State" v
 
 instance Serialize State.Config where
-    put (State.Config a b c d e f g) = Serialize.put_version 2
-        >> put a >> put b >> put c >> put d >> put e >> put f >> put g
+    put (State.Config a b c d e f) = Serialize.put_version 3
+        >> put a >> put b >> put c >> put d >> put e >> put f
     get = Serialize.get_version >>= \v -> case v of
         0 -> do
             ns :: Id.Namespace <- get
-            dir :: String <- get
+            _dir :: String <- get
             root :: Maybe BlockId <- get
             midi :: Instrument.Config <- get
             defaults :: State.Default <- get
-            return $ State.Config ns dir State.empty_meta root midi
-                [] defaults
+            return $ State.Config ns State.empty_meta root midi [] defaults
         1 -> do
             ns :: Id.Namespace <- get
-            dir :: String <- get
+            _dir :: String <- get
             root :: Maybe BlockId <- get
             midi :: Instrument.Config <- get
             transform :: String <- get
             defaults :: State.Default <- get
-            return $ State.Config ns dir State.empty_meta root midi
+            return $ State.Config ns State.empty_meta root midi
                 transform defaults
         2 -> do
             ns :: Id.Namespace <- get
-            dir :: String <- get
+            _dir :: String <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
             midi :: Instrument.Config <- get
             transform :: String <- get
             defaults :: State.Default <- get
-            return $ State.Config ns dir meta root midi transform defaults
+            return $ State.Config ns meta root midi transform defaults
+        3 -> do
+            ns :: Id.Namespace <- get
+            meta :: State.Meta <- get
+            root :: Maybe BlockId <- get
+            midi :: Instrument.Config <- get
+            transform :: String <- get
+            defaults :: State.Default <- get
+            return $ State.Config ns meta root midi transform defaults
         _ -> Serialize.bad_version "State.Config" v
 
 instance Serialize State.Meta where

@@ -15,6 +15,7 @@ UNSORTED
   - on an exception response to the REPL, put in some character or something
     makes pprint not format it
   * rename Cmd.lookup_instrument_info to just lookup_instrument
+  - make paths in Config a RelativePath to make sure they get app_dir</>
 
   git is buggy
     * can't undo after loading a .git
@@ -22,7 +23,7 @@ UNSORTED
       a file somplace else, remember that.
       So this means the Ui.state_project_dir is the parent of the .state or
       .git.
-    - If you copy .state or .git to another name, then load that, it'll start
+    * If you copy .state or .git to another name, then load that, it'll start
       saving to save.git, which is dangerous.  I should remember the name of
       the file I loaded from and keep using that.
       Keeping the project_dir and save name inside the State seems dumb

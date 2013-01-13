@@ -57,6 +57,9 @@ import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
+
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
@@ -257,6 +260,9 @@ rethrow_io =
 -- | App global state.  Unlike 'Ui.State.State', this is not saved to disk.
 data State = State {
     state_config :: !Config
+    -- | If set, the current 'State.State' was loaded from this file.
+    -- This is so save can keep saving to the same file.
+    , state_save_file :: !(Maybe SaveFile)
     -- | Omit the usual derive delay for these blocks.  This is set by
     -- integration, which modifies a block in response to another block being
     -- derived.  This is cleared after every cmd.
@@ -299,9 +305,20 @@ data State = State {
     , state_repl_status :: !Status
     } deriving (Show, Generics.Typeable)
 
+data SaveFile = SaveState !FilePath | SaveGit !FilePath
+    deriving (Show, Generics.Typeable)
+
+-- | Directory of the save file.
+state_save_dir :: State -> Maybe FilePath
+state_save_dir state = path state <$> case state_save_file state of
+    Nothing -> Nothing
+    Just (SaveState fn) -> Just $ FilePath.takeDirectory fn
+    Just (SaveGit repo) -> Just $ FilePath.takeDirectory repo
+
 initial_state :: Config -> State
 initial_state config = State
     { state_config = config
+    , state_save_file = Nothing
     , state_derive_immediately = Set.empty
     -- This is a dummy entry needed to bootstrap a Cmd.State.  Normally
     -- 'hist_present' should always have the current state, but the initial
@@ -339,7 +356,9 @@ reinit_state present cstate = cstate
 -- | Config type variables that change never or rarely.  These mostly come from
 -- the static config.
 data Config = Config {
-    state_midi_interface :: !Midi.Interface.Interface
+    -- | App root, initialized from 'Config.get_app_dir'.
+    state_app_dir :: !FilePath
+    , state_midi_interface :: !Midi.Interface.Interface
     -- | Reroute MIDI inputs and outputs.  These come from
     -- 'App.StaticConfig.read_device_map' and
     -- 'App.StaticConfig.write_device_map' and probably shouldn't be changed
@@ -374,6 +393,10 @@ state_midi_writer state imsg = do
 -- | This is a hack so I can use the default Show instance for 'State'.
 newtype LookupScale = LookupScale Derive.LookupScale
 instance Show LookupScale where show _ = "((LookupScale))"
+
+-- | Convert a relative path to place it in the app dir.
+path :: State -> FilePath -> FilePath
+path state = (state_app_dir (state_config state) </>)
 
 -- ** PlayState
 

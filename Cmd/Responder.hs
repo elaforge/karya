@@ -100,10 +100,12 @@ responder config msg_reader midi_interface setup_cmd lang_session loopback = do
     Log.debug "start responder"
     ui_state <- State.create
     monitor_state <- MVar.newMVar ui_state
+    app_dir <- Config.get_app_dir
     state <- run_setup_cmd setup_cmd $ State
         { state_static_config = config
         , state_ui = ui_state
-        , state_cmd = Cmd.initial_state (cmd_config midi_interface config)
+        , state_cmd = Cmd.initial_state $
+            cmd_config app_dir midi_interface config
         , state_session = lang_session
         , state_loopback = loopback
         , state_sync = Sync.sync
@@ -113,9 +115,11 @@ responder config msg_reader midi_interface setup_cmd lang_session loopback = do
 
 -- | Create a 'Cmd.Config'.  It would be nicer in "Cmd.Cmd", but that would
 -- be a circular import with "App.StaticConfig".
-cmd_config :: Interface.Interface -> StaticConfig.StaticConfig -> Cmd.Config
-cmd_config interface config = Cmd.Config
-    { Cmd.state_midi_interface = interface
+cmd_config :: FilePath -> Interface.Interface -> StaticConfig.StaticConfig
+    -> Cmd.Config
+cmd_config app_dir interface config = Cmd.Config
+    { Cmd.state_app_dir = app_dir
+    , Cmd.state_midi_interface = interface
     , Cmd.state_rdev_map = StaticConfig.rdev_map midi
     , Cmd.state_wdev_map = StaticConfig.wdev_map midi
     , Cmd.state_instrument_db = StaticConfig.instrument_db config

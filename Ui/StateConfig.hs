@@ -23,8 +23,6 @@ data Config = Config {
     -- | The default namespace is used for automatically created IDs, so each
     -- project can import other projects without clashes.
     config_namespace :: !Id.Namespace
-    -- | Save into this directory by default.
-    , config_project_dir :: !String
     , config_meta :: !Meta
     -- | Derivation can start from any block, but it's useful to know which
     -- block represents the entire piece.  This way, given a position on some
@@ -49,8 +47,6 @@ data Config = Config {
     } deriving (Eq, Read, Show, Generics.Typeable)
 
 namespace = Lens.lens config_namespace (\v r -> r { config_namespace = v })
-project_dir =
-    Lens.lens config_project_dir (\v r -> r { config_project_dir = v })
 meta = Lens.lens config_meta (\v r -> r { config_meta = v })
 root = Lens.lens config_root (\v r -> r { config_root = v })
 midi = Lens.lens config_midi (\v r -> r { config_midi = v })
@@ -88,10 +84,9 @@ instrument = Lens.lens default_instrument (\v r -> r { default_instrument = v })
 tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 
 instance Pretty.Pretty Config where
-    format (Config namespace dir meta root midi global_transform default_) =
+    format (Config namespace meta root midi global_transform default_) =
         Pretty.record_title "Config"
             [ ("namespace", Pretty.format namespace)
-            , ("project_dir", Pretty.format dir)
             , ("meta", Pretty.format meta)
             , ("root", Pretty.format root)
             , ("midi", Pretty.format midi)

@@ -98,7 +98,7 @@ io_bindings = concat
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
     [ command_char 'S' "save" $ do
-        Save.cmd_save =<< Save.get_save_file
+        Save.cmd_save =<< Save.get_state_save
         Save.cmd_save_git
     ]
 

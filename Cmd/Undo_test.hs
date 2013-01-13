@@ -143,7 +143,7 @@ test_load_previous_history = do
     pprint (e_hist_updates res)
 
     res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
-        Save.cmd_load_git "build/test/save.git" Nothing
+        Save.cmd_load_git repo Nothing
     equal (extract_ui res) "xy"
 
     res <- next res Undo.undo
@@ -180,7 +180,7 @@ test_load_next_history = do
     let ([ent, _], _, _) = e_commits res
         (_, Just commit) = ent
     res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
-        Save.cmd_load_git "build/test/save.git" (Just commit)
+        Save.cmd_load_git repo (Just commit)
     equal (e_hist_names res) ([], "+x: x", [])
     equal (extract_ui res) "x"
 
@@ -238,10 +238,9 @@ read_log commits = do
 save_git :: ResponderTest.States -> IO ResponderTest.Result
 save_git states = do
     File.recursive_rm_dir repo
-    ResponderTest.respond_cmd (first set_dir states) Save.cmd_save_git
+    ResponderTest.respond_cmd (second set_dir states) Save.cmd_save_git
     where
-    set_dir = (State.config#State.project_dir #= "build/test")
-        . (State.config#State.namespace #= Id.unsafe_namespace "test")
+    set_dir state = state { Cmd.state_save_file = Just $ Cmd.SaveGit repo }
 
 repo :: SaveGit.Repo
 repo = "build/test/save.git"

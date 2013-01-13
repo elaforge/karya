@@ -56,6 +56,10 @@ instrument_cache_dir = "db"
 log_dir :: FilePath
 log_dir = "log"
 
+-- | 'Ui.State.state_project_dir' is in this directory, by default.
+save_dir :: FilePath
+save_dir = "save"
+
 -- * status view
 
 -- The block status bar is not very big, so it's important to control what

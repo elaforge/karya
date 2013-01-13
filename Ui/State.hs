@@ -23,7 +23,7 @@ module Ui.State (
     , empty, create, clear
     -- * config
     , Config(..)
-    , namespace, project_dir, meta, root, midi, global_transform, default_
+    , namespace, meta, root, midi, global_transform, default_
     , Meta(..), creation, notes
     , Default(..)
     , scale, key, instrument, tempo
@@ -237,7 +237,6 @@ empty_meta = Meta (Time.UTCTime (Time.ModifiedJulianDay 0) 0) ""
 empty_config :: Config
 empty_config = Config
     { config_namespace = Id.unsafe_namespace "untitled"
-    , config_project_dir = "save/untitled"
     , config_meta = empty_meta
     , config_root = Nothing
     , config_midi = Instrument.config []

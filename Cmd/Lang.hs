@@ -122,7 +122,8 @@ is_hs :: FilePath -> Bool
 is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
 
 write_cmd :: String -> Cmd.CmdT IO ()
-write_cmd text = do
-    dir <- State.config#State.project_dir <#> State.get
-    liftIO $ void $ File.log_io_error "write_cmd" $
-        IO.appendFile (FilePath.combine dir "repl") (text ++ "\n")
+write_cmd text = Cmd.gets Cmd.state_save_dir >>= \x -> case x of
+    Nothing -> return ()
+    Just dir ->
+        liftIO $ void $ File.log_io_error "write_cmd" $
+            IO.appendFile (FilePath.combine dir "repl") (text ++ "\n")
