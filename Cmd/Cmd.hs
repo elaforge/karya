@@ -310,10 +310,11 @@ data SaveFile = SaveState !FilePath | SaveGit !FilePath
 
 -- | Directory of the save file.
 state_save_dir :: State -> Maybe FilePath
-state_save_dir state = path state <$> case state_save_file state of
-    Nothing -> Nothing
-    Just (SaveState fn) -> Just $ FilePath.takeDirectory fn
-    Just (SaveGit repo) -> Just $ FilePath.takeDirectory repo
+state_save_dir state = path state . Config.RelativePath <$>
+    case state_save_file state of
+        Nothing -> Nothing
+        Just (SaveState fn) -> Just $ FilePath.takeDirectory fn
+        Just (SaveGit repo) -> Just $ FilePath.takeDirectory repo
 
 initial_state :: Config -> State
 initial_state config = State
@@ -395,8 +396,9 @@ newtype LookupScale = LookupScale Derive.LookupScale
 instance Show LookupScale where show _ = "((LookupScale))"
 
 -- | Convert a relative path to place it in the app dir.
-path :: State -> FilePath -> FilePath
-path state = (state_app_dir (state_config state) </>)
+path :: State -> Config.RelativePath -> FilePath
+path state (Config.RelativePath path) =
+    state_app_dir (state_config state) </> path
 
 -- ** PlayState
 

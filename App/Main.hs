@@ -87,7 +87,7 @@ initialize app = do
 
 rotate_logs :: IO IO.Handle
 rotate_logs = do
-    log_dir <- (</> Config.log_dir) <$> Config.get_app_dir
+    log_dir <- flip Config.make_path Config.log_dir <$> Config.get_app_dir
     let log_fn = log_dir </> "seq.log"
         rotated_fn n = log_dir </> "seq." ++ show n ++ ".gz"
     size <- maybe 0 Posix.fileSize <$> ignore (Posix.getFileStatus log_fn)

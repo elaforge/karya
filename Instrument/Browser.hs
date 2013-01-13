@@ -9,7 +9,6 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import qualified Control.Monad.State as State
-import Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
 import qualified Data.Map as Map
@@ -44,8 +43,7 @@ import qualified App.SendCmd as SendCmd
 
 main :: IO ()
 main = SendCmd.initialize $ do
-    app_dir <- Config.get_app_dir
-    db <- Local.Instrument.load app_dir
+    db <- Local.Instrument.load =<< Config.get_app_dir
     putStrLn $ "Loaded " ++ show (Db.size db) ++ " instruments."
     win <- BrowserC.create 50 50 500 300
     let index_db = Db db (Search.make_index (Db.db_midi_db db))

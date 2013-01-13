@@ -52,8 +52,10 @@ dbs =
 
 load :: FilePath -> IO Cmd.InstrumentDb
 load app_dir = do
-    synth_descs <- concatMapM ($ app_dir </> Config.instrument_dir) synths
-    let annot_fn = app_dir </> Config.local_dir </> "instrument_annotations"
+    synth_descs <- concatMapM
+        ($ Config.make_path app_dir Config.instrument_dir) synths
+    let annot_fn = Config.make_path app_dir Config.local_dir
+            </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \x -> case x of
         -- The parsec error already includes the filename.
         Left err -> Log.warn err >> return mempty
@@ -67,9 +69,10 @@ load app_dir = do
     return $ Db.db midi_db
 
 make_dbs :: FilePath -> IO ()
-make_dbs dir = mapM_ ($ dir </> Config.instrument_dir)
+make_dbs app_dir = mapM_ ($ Config.make_path app_dir Config.instrument_dir)
     [Morpheus.make_db, Vl1.make_db, Z1.make_db]
 
 make_named_dbs :: [String] -> FilePath -> IO ()
-make_named_dbs names dir = mapM_ ($ dir </> Config.instrument_dir)
-    [make | (name, make) <- dbs, name `elem` names]
+make_named_dbs names app_dir =
+    mapM_ ($ Config.make_path app_dir Config.instrument_dir)
+        [make | (name, make) <- dbs, name `elem` names]

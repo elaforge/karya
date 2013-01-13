@@ -31,6 +31,13 @@ email = "qdunkan@gmail.com"
 
 -- * paths
 
+-- | Paths which are intended to be relative to the app dir get this type,
+-- so it's harder to accidentally use them directly.
+newtype RelativePath = RelativePath FilePath deriving (Show)
+
+make_path :: FilePath -> RelativePath -> FilePath
+make_path app_dir (RelativePath path) = app_dir </> path
+
 -- | All paths should be relative to this one.
 -- I may later change this to an env var, a flag, or just leave it hardcoded.
 get_app_dir :: IO FilePath
@@ -38,27 +45,27 @@ get_app_dir = return "."
 
 -- | All code and data local to an installation (i.e. specific to a particular
 -- configuration) should go here.
-local_dir :: FilePath
-local_dir = "Local"
+local_dir :: RelativePath
+local_dir = RelativePath "Local"
 
 -- | Store instrument db code and data.
-instrument_dir :: FilePath
-instrument_dir = "inst_db"
+instrument_dir :: RelativePath
+instrument_dir = RelativePath "inst_db"
 
 -- | Local CmdL code goes here.
-lang_dir :: FilePath
-lang_dir = local_dir </> "Lang"
+lang_dir :: RelativePath
+lang_dir = RelativePath $ (\(RelativePath p) -> p) local_dir </> "Lang"
 
 -- | Directory for instruments with slow patch loading to save their caches.
-instrument_cache_dir :: FilePath
-instrument_cache_dir = "db"
+instrument_cache_dir :: RelativePath
+instrument_cache_dir = RelativePath "db"
 
-log_dir :: FilePath
-log_dir = "log"
+log_dir :: RelativePath
+log_dir = RelativePath "log"
 
 -- | 'Ui.State.state_project_dir' is in this directory, by default.
-save_dir :: FilePath
-save_dir = "save"
+save_dir :: RelativePath
+save_dir = RelativePath "save"
 
 -- * status view
 

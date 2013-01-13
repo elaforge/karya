@@ -144,8 +144,8 @@ pressure = Instrument.set_decay 0 . Instrument.set_flag Instrument.Pressure
 -- function, which will do the slow parts and save the results in a cache file.
 -- The @load@ function will simply read the cache file, if present.
 save_db :: [MidiDb.SynthDesc code] -> FilePath -> FilePath -> IO ()
-save_db synths db_name app_dir = Serialize.serialize
-    (app_dir </> Config.instrument_cache_dir </> db_name <.> "db") synths
+save_db synths db_name app_dir =
+    Serialize.serialize (db_path app_dir db_name) synths
 
 -- | Specialized version of 'save_db' that takes a list of Patches.
 save_patches :: Instrument.Synth -> [Instrument.Patch] -> FilePath -> FilePath
@@ -160,7 +160,7 @@ save_patches synth patches db_name app_dir = do
 
 load_db :: (Instrument.Patch -> Code) -> FilePath -> FilePath -> IO [SynthDesc]
 load_db code_for db_name app_dir = do
-    let file = app_dir </> Config.instrument_cache_dir </> db_name <.> "db"
+    let file = db_path app_dir db_name
     saved <- Serialize.unserialize (make_code . code_for) file
     case saved of
         Left err -> do
@@ -168,3 +168,7 @@ load_db code_for db_name app_dir = do
                 ++ Seq.strip err
             return []
         Right (_time, synths) -> return synths
+
+db_path :: FilePath -> FilePath -> FilePath
+db_path app_dir name =
+    Config.make_path app_dir Config.instrument_cache_dir </> name <.> "db"

@@ -13,7 +13,6 @@
     collected together.
 -}
 module LogView.LogView where
-import Control.Applicative ((<$>))
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
@@ -110,7 +109,8 @@ main = do
         System.Exit.exitFailure
 
 default_log_fn :: IO FilePath
-default_log_fn = (</> Config.log_dir </> "seq.log") <$> Config.get_app_dir
+default_log_fn = Config.get_app_dir >>= \app_dir -> return $
+    Config.make_path app_dir Config.log_dir </> "seq.log"
 
 gui :: STM.TChan Log.Msg -> FilePath -> Int -> IO ()
 gui log_chan filename history = do

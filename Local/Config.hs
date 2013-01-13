@@ -2,7 +2,6 @@
 module Local.Config where
 import qualified Control.Monad.Trans as Trans
 import qualified Network.BSD
-import System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Ui.Id as Id
@@ -28,7 +27,8 @@ load_static_config = do
     midi <- get_midi_config instrument_db
     return $ StaticConfig.StaticConfig {
         StaticConfig.instrument_db = instrument_db
-        , StaticConfig.local_lang_dirs = [app_dir </> Config.lang_dir]
+        , StaticConfig.local_lang_dirs =
+            [Config.make_path app_dir Config.lang_dir]
         , StaticConfig.global_cmds = []
         , StaticConfig.global_scope = Call.All.scope
         , StaticConfig.setup_cmd = parse_args
