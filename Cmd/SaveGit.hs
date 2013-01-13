@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Numeric
+import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
@@ -56,6 +57,7 @@ is_git = (".git" `List.isSuffixOf`)
 -- * save
 
 -- | Like 'checkpoint', but add a tag too, and write compact tracks.
+-- It will create a new repo if the given path doesn't exist.
 save :: Git.Repo -> State.State -> Maybe Git.Commit
     -> IO (Either String (Git.Commit, SavePoint))
 save repo state prev_commit = try "save" $
@@ -63,6 +65,8 @@ save repo state prev_commit = try "save" $
 
 do_save :: Git.Repo -> SaveHistory -> IO (Git.Commit, SavePoint)
 do_save repo (SaveHistory state prev_commit _updates names) = do
+    exists <- Directory.doesDirectoryExist repo
+    prev_commit <- return $ if not exists then Nothing else prev_commit
     when (Maybe.isNothing prev_commit) $
         void $ Git.init repo
     dir <- either (Git.throw . ("make_dir: "++)) return $

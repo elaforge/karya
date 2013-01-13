@@ -23,6 +23,34 @@ import qualified Cmd.ViewConfig as ViewConfig
 import qualified App.Config as Config
 
 
+-- * universal
+
+-- | Save to the current 'Cmd.state_save_file', or create a new git repo if
+-- there is none.
+cmd_save :: Cmd.CmdT IO ()
+cmd_save = Cmd.gets Cmd.state_save_file >>= \x -> case x of
+    Nothing -> cmd_save_git
+    Just (Cmd.SaveGit _) -> cmd_save_git
+    Just (Cmd.SaveState fn) -> cmd_save_state fn
+
+-- | Try to guess whether the given path is a git save or state save.  If it's
+-- a directory, look inside for a .git or .state save.
+cmd_load :: FilePath -> Cmd.CmdT IO ()
+cmd_load path
+    | SaveGit.is_git path = cmd_load_git path Nothing
+    | otherwise = ifM (isdir path) look_in_dir (cmd_load_state path)
+    where
+    look_in_dir =
+        ifM (isdir git_fn) (cmd_load_git git_fn Nothing) $
+        ifM (isfile state_fn) (cmd_load_state state_fn) $
+        Cmd.throw $ "directory contains neither " ++ git_fn ++ " nor "
+            ++ state_fn
+        where
+        git_fn = path </> default_git
+        state_fn = path </> default_state
+    isdir = Cmd.rethrow_io . Directory.doesDirectoryExist
+    isfile = Cmd.rethrow_io . Directory.doesFileExist
+
 -- * plain serialize
 
 get_state_save :: (Cmd.M m) => m FilePath
@@ -41,15 +69,15 @@ state_save_file ns state = case Cmd.state_save_file state of
 default_state :: FilePath
 default_state = "save.state"
 
-cmd_save :: FilePath -> Cmd.CmdT IO ()
-cmd_save fname = do
+cmd_save_state :: FilePath -> Cmd.CmdT IO ()
+cmd_save_state fname = do
     ui_state <- State.get
     save <- liftIO $ Serialize.save_state (State.clear ui_state)
     Log.notice $ "write state to " ++ show fname
     liftIO $ Serialize.serialize fname save
 
-cmd_load :: FilePath -> Cmd.CmdT IO ()
-cmd_load fname = do
+cmd_load_state :: FilePath -> Cmd.CmdT IO ()
+cmd_load_state fname = do
     Log.notice $ "load state from " ++ show fname
     Serialize.SaveState state _ <- Cmd.require_right
         (("load " ++ fname ++ ": ") ++)
@@ -57,23 +85,6 @@ cmd_load fname = do
     set_state state
     Cmd.modify $ \st -> st
         { Cmd.state_save_file = Just $ Cmd.SaveState fname }
-
--- | Try to guess whether the given path is a git save or state save.  If it's
--- a directory, look inside for a .git or .state save.
-cmd_load_any :: FilePath -> Cmd.CmdT IO ()
-cmd_load_any path
-    | SaveGit.is_git path = cmd_load_git path Nothing
-    | otherwise = ifM (isdir path) look_in_dir (cmd_load path)
-    where
-    look_in_dir =
-        ifM (isdir git) (cmd_load_git git Nothing) $
-        ifM (isfile state) (cmd_load state) $
-        Cmd.throw $ "directory contains neither " ++ git ++ " nor " ++ state
-        where
-        git = path </> default_git
-        state = path </> default_state
-    isdir = Cmd.rethrow_io . Directory.doesDirectoryExist
-    isfile = Cmd.rethrow_io . Directory.doesFileExist
 
 -- * git serialize
 
@@ -93,12 +104,11 @@ git_save_file ns state = case Cmd.state_save_file state of
 default_git :: FilePath
 default_git = "save.git"
 
--- | Save a SavePoint to a git repo.
+-- | Save a SavePoint to the git repo in 'Cmd.state_save_file', or start a new
+-- one.
 --
--- Unlike 'cmd_save', this doesn't take a FilePath.  This is because
--- 'Cmd.Undo.maintain_history' will be saving to the repo set by the
--- 'State.config_project_dir' and 'State.config_namespace'.  So if you want to
--- start saving in a new place, you should change those values.
+-- This doesn't take a FilePath.  This is because 'Cmd.Undo.maintain_history'
+-- will be saving to the repo set by 'Cmd.state_save_file'.
 cmd_save_git :: Cmd.CmdT IO ()
 cmd_save_git = do
     state <- State.get

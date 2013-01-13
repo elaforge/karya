@@ -98,8 +98,12 @@ io_bindings = concat
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
     [ command_char 'S' "save" $ do
-        Save.cmd_save =<< Save.get_state_save
-        Save.cmd_save_git
+        -- Always save a state, but only save a git checkpoint if I'm alreading
+        -- gitting.
+        Save.cmd_save_state =<< Save.get_state_save
+        Cmd.gets Cmd.state_save_file >>= \x -> case x of
+            Just (Cmd.SaveGit _) -> Save.cmd_save_git
+            _ -> return ()
     ]
 
 undo_bindings :: [Keymap.Binding (Cmd.CmdT IO)]

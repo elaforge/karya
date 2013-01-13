@@ -48,7 +48,6 @@ import Cmd.Lang.LPitch ()
 import Cmd.Lang.LRuler ()
 import Cmd.Lang.LTrack ()
 import qualified Cmd.Save as Save
-import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
 import qualified Cmd.ViewConfig as ViewConfig
 
@@ -160,15 +159,22 @@ show_history = do
 -- * load / save
 
 save :: Cmd.CmdL ()
-save = Save.cmd_save =<< Save.get_state_save
+save = Save.cmd_save
 
-save_as :: FilePath -> Cmd.CmdL ()
-save_as = Save.cmd_save
+-- | Save to the given filename and switch to saving plain states.
+save_state :: FilePath -> Cmd.CmdL ()
+save_state fn = do
+    Cmd.modify $ \st -> st { Cmd.state_save_file = Just (Cmd.SaveState fn) }
+    Save.cmd_save_state fn
+
+-- | Save to the given git repo and switch to saving incrementally.
+save_git :: FilePath -> Cmd.CmdL ()
+save_git fn = do
+    Cmd.modify $ \st -> st { Cmd.state_save_file = Just (Cmd.SaveGit fn) }
+    Save.cmd_save_git
 
 load :: FilePath -> Cmd.CmdL ()
-load fn
-    | SaveGit.is_git fn = Save.cmd_load_git fn Nothing
-    | otherwise = Save.cmd_load fn
+load = Save.cmd_load
 
 revert :: Cmd.CmdL ()
 revert = Save.cmd_revert Nothing
