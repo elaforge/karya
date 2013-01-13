@@ -45,7 +45,8 @@ import Types
 -- * global modifications
 
 -- | Set the project to the given value and renamespace the old project to the
--- new one.
+-- new one.  The 'State.state_project_dir' is not modified, so it will keep
+-- saving to the old save file.
 rename_project :: (State.M m) => Id.Namespace -> m ()
 rename_project ns = do
     old_ns <- State.get_namespace

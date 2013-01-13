@@ -123,6 +123,6 @@ is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
 
 write_cmd :: String -> Cmd.CmdT IO ()
 write_cmd text = do
-    dir <- State.gets State.save_dir
+    dir <- State.config#State.project_dir <#> State.get
     liftIO $ void $ File.log_io_error "write_cmd" $
         IO.appendFile (FilePath.combine dir "repl") (text ++ "\n")

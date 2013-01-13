@@ -3,7 +3,6 @@
 module Cmd.Save where
 import qualified Data.Map as Map
 import qualified System.Directory as Directory
-import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import Util.Control
@@ -20,10 +19,8 @@ import qualified Cmd.ViewConfig as ViewConfig
 
 
 get_save_file :: (State.M m) => m FilePath
-get_save_file = do
-    state <- State.get
-    return $ FilePath.combine (State.save_dir state)
-        (State.save_name state ++ ".state")
+get_save_file =
+    State.gets $ (</>"save.state") . (State.config#State.project_dir #$)
 
 -- * plain serialize
 
@@ -51,14 +48,13 @@ cmd_load_any path
     where
     look_in_dir =
         ifM (isdir git) (cmd_load_git git Nothing) $
-        ifM (isfile state) (cmd_load (path </> name ++ ".state")) $
+        ifM (isfile state) (cmd_load state) $
         Cmd.throw $ "directory contains neither " ++ git ++ " nor " ++ state
         where
-        git = path </> name ++ ".git"
-        state = path </> name ++ ".state"
-    name = FilePath.takeFileName path
-    isdir = liftIO . Directory.doesDirectoryExist
-    isfile = liftIO . Directory.doesFileExist
+        git = path </> SaveGit.default_save_fn
+        state = path </> "save.state"
+    isdir = Cmd.rethrow_io . Directory.doesDirectoryExist
+    isfile = Cmd.rethrow_io . Directory.doesFileExist
 
 -- * git serialize
 

@@ -41,7 +41,7 @@ data TimeConfig = TimeConfig
 
 ly_filename :: (State.M m) => BlockId -> m FilePath
 ly_filename block_id = do
-    dir <- State.gets State.save_dir
+    dir <- State.gets (State.config#State.project_dir #$)
     return $ dir </> "ly" </> Id.ident_name block_id ++ ".ly"
 
 lookup_key :: Cmd.Performance -> Pitch.Key

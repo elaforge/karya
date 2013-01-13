@@ -28,7 +28,6 @@ module Ui.State (
     , Default(..)
     , scale, key, instrument, tempo
     , empty_config, empty_meta, empty_default
-    , save_dir, save_name
     -- * other types
     , Pos(..), Track(..), TrackInfo(..)
     -- * StateT monad
@@ -132,8 +131,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Time as Time
-
-import qualified System.FilePath as FilePath
 
 import Util.Control
 import qualified Util.Lens as Lens
@@ -240,7 +237,7 @@ empty_meta = Meta (Time.UTCTime (Time.ModifiedJulianDay 0) 0) ""
 empty_config :: Config
 empty_config = Config
     { config_namespace = Id.unsafe_namespace "untitled"
-    , config_project_dir = "save"
+    , config_project_dir = "save/untitled"
     , config_meta = empty_meta
     , config_root = Nothing
     , config_midi = Instrument.config []
@@ -255,18 +252,6 @@ empty_default = Default {
     , default_instrument = Nothing
     , default_tempo = 1
     }
-
--- | Return a directory for all the random crap associated with a score.
-save_dir :: State -> FilePath
-save_dir state = FilePath.combine dir (save_name state)
-    where dir = config#project_dir #$ state
-
-save_name :: State -> FilePath
-save_name = map sanitize . Id.un_namespace . (config#namespace #$)
-    where
-    -- This shouldn't be necessary because of the Namespace naming
-    -- restrictions, but it doesn't hurt to be careful anyway.
-    sanitize c = if FilePath.isPathSeparator c then '_' else c
 
 -- * other types
 

@@ -50,9 +50,11 @@ data SaveHistory =
     SaveHistory !State.State !(Maybe Git.Commit) [Update.UiUpdate] ![String]
     deriving (Show)
 
+default_save_fn :: Git.Repo
+default_save_fn = "save.git"
+
 save_repo :: State.State -> Git.Repo
-save_repo state =
-    FilePath.combine (State.save_dir state) (State.save_name state ++ ".git")
+save_repo = (</> default_save_fn) . (State.config#State.project_dir #$)
 
 is_git :: FilePath -> Bool
 is_git = (".git" `List.isSuffixOf`)

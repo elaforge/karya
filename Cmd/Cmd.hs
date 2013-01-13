@@ -47,6 +47,7 @@ module Cmd.Cmd (
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as MonadState
@@ -907,6 +908,14 @@ set_note_text txt = do
 
 
 -- * util
+
+-- | Run an IO action, rethrowing any IO exception as a Cmd exception.
+rethrow_io :: IO a -> CmdT IO a
+rethrow_io =
+    either throw return <=< liftIO . Exception.handle handle . (Right <$>)
+    where
+    handle :: Exception.SomeException -> IO (Either String a)
+    handle = return . Left . ("io exception: "++) . show
 
 -- | Give a name to a Cmd.  The name is applied when the cmd returns so the
 -- names come out in call order, and it doesn't incur overhead for cmds that

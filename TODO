@@ -15,12 +15,19 @@ UNSORTED
 
   git is buggy
     * can't undo after loading a .git
-    - The namespace should only be the default save dir, if I loaded from
+    * The namespace should only be the default save dir, if I loaded from
       a file somplace else, remember that.
+      So this means the Ui.state_project_dir is the parent of the .state or
+      .git.
+    - If you copy .state or .git to another name, then load that, it'll start
+      saving to save.git, which is dangerous.  I should remember the name of
+      the file I loaded from and keep using that.
+      Keeping the project_dir and save name inside the State seems dumb
+      actually, should it be in Cmd.State?
     - Also, .git checkmarks are forking unnecessarily, probably related.
     - messed up undo / redo, and then:
-      . undo [delete time] 7fc8a66084dd385c61d4eaf2b57808eddd3b2fc4 -> [set dur]
-        62a9918ee95e0807da2c397efb29da4f5dd236dc
+      . undo [delete time] 7fc8a66084dd385c61d4eaf2b57808eddd3b2fc4
+        -> [set dur] 62a9918ee95e0807da2c397efb29da4f5dd236dc
       . running command "cut selection"
       . error committing history: checkpoint: repo:
         "save/viola-sonata/viola-sonata.git": git_treebuilder_remove:

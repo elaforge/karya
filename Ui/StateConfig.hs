@@ -21,8 +21,7 @@ import Types
 
 data Config = Config {
     -- | The default namespace is used for automatically created IDs, so each
-    -- project can import other projects without clashes.  The save file is
-    -- also derived from the default namespace.
+    -- project can import other projects without clashes.
     config_namespace :: !Id.Namespace
     -- | Save into this directory by default.
     , config_project_dir :: !String
@@ -36,6 +35,15 @@ data Config = Config {
 
     -- | This maps the midi instruments used in this State to their Addrs.
     , config_midi :: !Instrument.Config
+    -- | This is a tracklang transformer expression that's wrapped around every
+    -- derivation.  So if it's @x = 1 | y = 2@ then the environment will be so
+    -- modified for every derivation.
+    --
+    -- It's useful to set config as above, or to apply a postproc.  Of course
+    -- these can also be done within a block, but if you put it on the root
+    -- block then playing in sub-blocks doesn't get the transformation, and
+    -- if you put it in sub-blocks then you repeat yourself and possibly apply
+    -- it multiple times.
     , config_global_transform :: !String
     , config_default :: !Default
     } deriving (Eq, Read, Show, Generics.Typeable)
