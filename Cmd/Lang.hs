@@ -94,10 +94,12 @@ run_cmdio cmd = do
         return (cmd_state, midi, result)
     case result of
         Left (exc :: Exception.SomeException) ->
-            return ("IO exception: " ++ show exc, Cmd.Done, False)
+            return (unformatted $ "IO exception: " ++ show exc,
+                Cmd.Done, False)
         Right (cmd_state, midi, result) -> case result of
             Left err ->
-                return ("State error: " ++ Pretty.pretty err, Cmd.Done, False)
+                return (unformatted $ "State error: " ++ Pretty.pretty err,
+                    Cmd.Done, False)
             Right (val, ui_state, updates) -> do
                 mapM_ Cmd.write_midi midi
                 Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }
@@ -105,6 +107,12 @@ run_cmdio cmd = do
                 State.unsafe_put ui_state
                 mapM_ State.update updates
                 return (val, Cmd.state_repl_status cmd_state, True)
+
+-- | Prepend a magic character that makes the REPL not try to pretty-print the
+-- output.  It won't pretty print it if it's not parseable as haskell, but
+-- lots of error msgs wind up being parseable.
+unformatted :: String -> String
+unformatted = ('!':)
 
 get_local_modules :: FilePath -> Cmd.CmdT IO [String]
 get_local_modules lang_dir = do

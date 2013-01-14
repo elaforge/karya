@@ -873,7 +873,7 @@ integrator / midi record:
   - implement
 
 REPL: repl:
-  - on an exception response to the REPL, put in some character or something
+  * on an exception response to the REPL, put in some character or something
     makes pprint not format it
   - repl should load the history from save/.../repl, and have a history search
     seq will have to tell the REPL what it loaded, so it needs a fancier
