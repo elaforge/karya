@@ -163,7 +163,7 @@ required name doc = parser arg_doc $ \state -> case get_val state name of
         Nothing -> Left $ Derive.TypeError (state_argnum state) name expected
             (Just val)
     where
-    expected = TrackLang.to_type (undefined :: a)
+    expected = TrackLang.to_type (error "Sig.required" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
         , Derive.arg_type = expected
@@ -183,7 +183,7 @@ defaulted name deflt doc = parser arg_doc $ \state -> case get_val state name of
         Nothing -> Left $ Derive.TypeError (state_argnum state) name expected
             (Just val)
     where
-    expected = TrackLang.to_type (undefined :: a)
+    expected = TrackLang.to_type (error "Sig.defaulted" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
         , Derive.arg_type = expected
@@ -199,9 +199,14 @@ optional name doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Right (state, Nothing)
     Just (state2, val) -> case TrackLang.from_val val of
         Just a -> Right (state2, Just a)
-        Nothing -> Right (state, Nothing)
+        Nothing -> case lookup_default state name of
+            Nothing -> Right (state, Nothing)
+            Just val -> case TrackLang.from_val val of
+                Nothing -> Left $ Derive.TypeError (state_argnum state) name
+                    expected (Just val)
+                Just a -> Right (state, Just a)
     where
-    expected = TrackLang.to_type (undefined :: a)
+    expected = TrackLang.to_type (error "Sig.optional" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
         , Derive.arg_type = expected
@@ -218,7 +223,7 @@ many name doc = parser arg_doc $ \state -> do
     typecheck (argnum, val) = case TrackLang.from_val val of
         Just a -> Right a
         Nothing -> Left $ Derive.TypeError argnum name expected (Just val)
-    expected = TrackLang.to_type (undefined :: a)
+    expected = TrackLang.to_type (error "Sig.many" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
         , Derive.arg_type = expected
@@ -241,7 +246,7 @@ many1 name doc = parser arg_doc $ \state ->
     typecheck (argnum, val) = case TrackLang.from_val val of
         Just a -> Right a
         Nothing -> Left $ Derive.TypeError argnum name expected (Just val)
-    expected = TrackLang.to_type (undefined :: a)
+    expected = TrackLang.to_type (error "Sig.many1" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
         , Derive.arg_type = expected
@@ -268,15 +273,17 @@ required_control name = TrackLang.LiteralControl (Score.Control name)
 
 get_val :: State -> String -> Maybe (State, TrackLang.Val)
 get_val state name = case state_vals state of
-    [] -> (,) next <$> deflt
+    [] -> (,) next <$> lookup_default state name
     v : vs -> Just (next { state_vals = vs }, case v of
-        TrackLang.VNotGiven -> fromMaybe TrackLang.VNotGiven deflt
+        TrackLang.VNotGiven ->
+            fromMaybe TrackLang.VNotGiven (lookup_default state name)
         _ -> v)
-    where
-    next = state { state_argnum = state_argnum state + 1 }
-    deflt = TrackLang.lookup_val
-        (arg_environ_default (state_call_name state) name)
-        (state_environ state)
+    where next = state { state_argnum = state_argnum state + 1 }
+
+lookup_default :: State -> String -> Maybe TrackLang.Val
+lookup_default state name = TrackLang.lookup_val
+    (arg_environ_default (state_call_name state) name)
+    (state_environ state)
 
 arg_environ_default :: String -> String -> TrackLang.ValName
 arg_environ_default call_name arg_name =

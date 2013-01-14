@@ -6,6 +6,7 @@ UNSORTED
   logview
     * print logs to stdout
     * rotate the log
+  * grace-dyn=1 apparently not working in viola-sonata?
   - grace notes should emit the correct lilypond: \grace { x y z }
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
     along the performance (with some eta to account for randomization)

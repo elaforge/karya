@@ -6,11 +6,11 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.Sig as Sig
-import Derive.Sig (optional, defaulted, many)
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Sig as Sig
+import Derive.Sig (optional, defaulted, many)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch

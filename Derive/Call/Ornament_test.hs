@@ -78,3 +78,10 @@ test_grace = do
         , ("*", [(1, 0, "4c")])
         ])
         ([((1-dur, dur+overlap, "4b"), 1), ((1, 1, "4c"), 1)], [])
+
+    -- Ensure the grace-dyn default is picked up too.
+    equal (run
+        [ (title ++ "| grace-dyn = 1", [(1, 1, "g (4b)")])
+        , ("*", [(0, 0, "4c")])
+        ])
+        ([((0, 1.5, "4b"), 1), ((1, 1, "4c"), 1)], [])
