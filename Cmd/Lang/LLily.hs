@@ -28,6 +28,11 @@ import qualified Perform.Lilypond.Lilypond as Lilypond
 import Types
 
 
+sonata :: BlockId -> Cmd.CmdL ()
+sonata = block config
+    where
+    config = Cmd.Lilypond.TimeConfig 1 Lilypond.D16
+
 pipa :: Derive.Events -> Cmd.CmdL ()
 pipa = from_events config . clean
     where

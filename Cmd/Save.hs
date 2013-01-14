@@ -119,11 +119,23 @@ cmd_save_git = do
         =<< liftIO (SaveGit.save repo state prev_commit)
     Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
     Cmd.modify $ \st -> st
-        { Cmd.state_history_config = (Cmd.state_history_config st)
+        { Cmd.state_history = reset_history commit (Cmd.state_history st)
+        , Cmd.state_history_config = (Cmd.state_history_config st)
             { Cmd.hist_last_save = Just save
             , Cmd.hist_last_commit = Just commit
             }
         }
+
+-- | If I am starting a new repo, I have to clear out all the remains of the
+-- old repo, since its Commits are no longer valid.
+reset_history :: SaveGit.Commit -> Cmd.History -> Cmd.History
+reset_history commit hist = hist
+    { Cmd.hist_past = map clear (Cmd.hist_past hist)
+    , Cmd.hist_present = (Cmd.hist_present hist)
+        { Cmd.hist_commit = Just commit }
+    , Cmd.hist_future = []
+    }
+    where clear entry = entry { Cmd.hist_commit = Nothing }
 
 cmd_load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
 cmd_load_git repo maybe_commit = do

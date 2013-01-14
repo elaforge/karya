@@ -7,7 +7,6 @@ UNSORTED
     * print logs to stdout
     * rotate the log
   * grace-dyn=1 apparently not working in viola-sonata?
-  - grace notes should emit the correct lilypond: \grace { x y z }
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
     along the performance (with some eta to account for randomization)
     instead of the score.
@@ -25,7 +24,7 @@ UNSORTED
       the file I loaded from and keep using that.
       Keeping the project_dir and save name inside the State seems dumb
       actually, should it be in Cmd.State?
-    - Also, .git checkmarks are forking unnecessarily, probably related.
+    - Also, .git checkpoints are forking unnecessarily, probably related.
     - messed up undo / redo, and then:
       . undo [delete time] 7fc8a66084dd385c61d4eaf2b57808eddd3b2fc4
         -> [set dur] 62a9918ee95e0807da2c397efb29da4f5dd236dc
@@ -57,8 +56,8 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
     But filtering the midi shows dyn controls mixed into both channels.
-  - in addition, it seems the signal doesn't update if I change the default
-    environ assignment on another track
+  - the signal doesn't update if I change the default environ assignment on
+    another track
   cache tracks
     - put the "cached" log msg at the end of the cache results?
       Otherwise it immediately forces all of them.
@@ -478,8 +477,11 @@ integrate / integration:
     calls)
 
 lilypond:
-  enough to render bloom nicely:
+  enough to render bloom / viola-sonata nicely:
     - pedal should emit pedal sign
+    - grace notes should emit the correct lilypond: \grace { x y z }
+    - tuplets: triplet is \times 2/3 { a b c }
+    - need 8ve marks
     - the manual pedal notes I guess should be pedal-ified
     - Why does the cmd have to wait until lilypond is done?  Should be async.
     - staff group should put inst name on the group instead of each staff

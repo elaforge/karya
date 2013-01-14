@@ -732,6 +732,14 @@ instance Pretty.Pretty HistoryEntry where
         Pretty.format commit Pretty.<+> Pretty.text_list commands
         Pretty.<+> Pretty.format updates
 
+instance Pretty.Pretty HistoryConfig where
+    format (HistoryConfig keep last_save last_commit) =
+        Pretty.record_title "HistoryConfig"
+            [ ("keep", Pretty.format keep)
+            , ("last_save", Pretty.format last_save)
+            , ("last_commit", Pretty.format last_commit)
+            ]
+
 
 -- *** modifier
 
