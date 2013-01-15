@@ -243,6 +243,12 @@ note_spec (inst, pitches, controls) =
     pitch_track = ("*", [(t, 0, pitch) | (t, _, pitch) <- pitches])
     control_track (title, events) = (title, [(t, 0, val) | (t, val) <- events])
 
+note_track :: [EventSpec] -> [TrackSpec]
+note_track pitches =
+    [ (">", [(t, dur, "") | (t, dur, _) <- pitches])
+    , ("*", [(t, 0, pitch) | (t, _, pitch) <- pitches])
+    ]
+
 -- * state to spec
 
 -- | These can be used from 'Cmd.Lang.LDebug.dump_blocks' to dump state in

@@ -4,9 +4,7 @@ import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -19,7 +17,6 @@ import qualified Perform.ConvertUtil as ConvertUtil
 import Perform.ConvertUtil (require)
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
 
 import Types
 
@@ -39,9 +36,10 @@ convert_event quarter event = do
     pitch <- either (ConvertUtil.throw . ("show_pitch: " ++)) return
         (Lilypond.show_pitch pitch)
     return $ Lilypond.Event
-        { Lilypond.event_start = real_to_time quarter (Score.event_start event)
+        { Lilypond.event_start =
+            Lilypond.real_to_time quarter (Score.event_start event)
         , Lilypond.event_duration =
-            real_to_time quarter (Score.event_duration event)
+            Lilypond.real_to_time quarter (Score.event_duration event)
         , Lilypond.event_pitch = pitch
         , Lilypond.event_instrument = Score.event_instrument event
         , Lilypond.event_dynamic = Score.initial_dynamic event
@@ -58,15 +56,18 @@ convert_event quarter event = do
 convert_pitch :: RealTime -> Score.ControlMap -> PitchSignal.Signal
     -> ConvertT Theory.Pitch
 convert_pitch start controls psig = do
-    when (PitchSignal.sig_scale_id psig /= Twelve.scale_id) $
-        ConvertUtil.throw $ "scale must be " ++ Pretty.pretty Twelve.scale_id
-            ++ ": " ++ Pretty.pretty (PitchSignal.sig_scale_id psig)
-    pitch <- require "pitch" $ PitchSignal.at start psig
-    nn <- either (ConvertUtil.throw . ("convert_pitch: "++) . show) return $
-        PitchSignal.pitch_nn $
-            PitchSignal.apply (PitchSignal.controls_at start controls) pitch
-    require "pitch in range" $
-        Map.lookup (Pitch.Degree (floor nn)) degree_to_pitch
+    -- when (PitchSignal.sig_scale_id psig /= Twelve.scale_id) $
+    --     ConvertUtil.throw $ "scale must be " ++ Pretty.pretty Twelve.scale_id
+    --         ++ ": " ++ Pretty.pretty (PitchSignal.sig_scale_id psig)
+    case PitchSignal.at start psig of
+        Nothing -> return $ Theory.Pitch 0 (Theory.Note 0 0)
+        Just pitch -> do
+            nn <- either (ConvertUtil.throw . ("convert_pitch: "++) . show)
+                return $ PitchSignal.pitch_nn $
+                    PitchSignal.apply (PitchSignal.controls_at start controls)
+                        pitch
+            require "pitch in range" $
+                Map.lookup (Pitch.Degree (floor nn)) degree_to_pitch
 
 degree_to_pitch :: Map.Map Pitch.Degree Theory.Pitch
 degree_to_pitch =
@@ -76,9 +77,3 @@ degree_to_pitch =
     where
     simplicity pitch = (accs < 0, abs accs)
         where accs = Theory.note_accidentals (Theory.pitch_note pitch)
-
-real_to_time :: RealTime -> RealTime -> Lilypond.Time
-real_to_time quarter = Lilypond.Time . floor . adjust . RealTime.to_seconds
-    where
-    adjust n = n * (1 / RealTime.to_seconds quarter * qtime)
-    qtime = fromIntegral (Lilypond.dur_to_time Lilypond.D4)

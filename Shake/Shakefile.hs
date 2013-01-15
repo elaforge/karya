@@ -215,7 +215,7 @@ hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 -- just union all the packages.  TODO can I ask ghc to infer packages
 -- automatically like --make?
 packages :: [String]
-packages = words $ "fixed-list deepseq data-ordlist cereal"
+packages = words $ "fixed-list deepseq data-ordlist cereal either"
     ++ " semigroups dlist parsec text stm network haskell-src regex-pcre"
     ++ " bytestring attoparsec utf8-string"
     ++ " mersenne-random-pure64 hashable random-shuffle"

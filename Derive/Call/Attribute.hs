@@ -40,6 +40,8 @@ note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("o", attributed_note Attrs.harmonic)
     , ("m", attributed_note Attrs.mute)
+    -- TODO also set sustain to .5, overridable in the environ
+    , (".", attributed_note Attrs.staccato)
     , ("(", c_legato)
     , ("{", c_portamento)
     ]

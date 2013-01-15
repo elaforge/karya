@@ -1,6 +1,5 @@
 module Perform.Lilypond.Lilypond_test where
 import qualified Data.Char as Char
-import qualified Data.Text as Text
 import qualified System.Process as Process
 
 import Util.Control
@@ -8,25 +7,21 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 
-import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Derive as Derive
-import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.LEvent as LEvent
+import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
+import qualified Perform.Lilypond.LilypondTest as LilypondTest
+import Perform.Lilypond.LilypondTest (convert_staves, derive)
+
 import Types
 
-
-default_config :: Lilypond.Config
-default_config = Lilypond.Config
-    { Lilypond.config_dotted_rests = False
-    , Lilypond.config_dynamics = []
-    }
 
 test_convert_measures = do
     let f = convert_staves [] . map simple_event
@@ -114,13 +109,13 @@ test_make_ly = do
             ]
     equal logs []
     -- Shorter staff is padded out to the length of the longer one.
-    equal (convert_events [] events) $ Right
+    equal (LilypondTest.convert_events [] events) $ Right
         [ ("i1",
             [[["c'4", "r8", "ds'8~", "ds'4.", "r8"], ["r1"], ["r1"], ["r1"]]])
         , ("i2",
             [[["r4", "g'4", "a2~"], ["a1~"], ["a1~"], ["a2", "r2"]]])
         ]
-    -- putStrLn $ make_ly events
+    -- putStrLn $ LilypondTest.make_ly events
     -- compile_ly events
 
 test_hands = do
@@ -131,7 +126,7 @@ test_hands = do
             ]
     equal logs []
     -- Right hand goes in first.
-    equal (convert_events [] events) $ Right
+    equal (LilypondTest.convert_events [] events) $ Right
         [ ("1", [[["c'1"]], [["d'1"]]])
         , ("2", [[["e'1"]]])
         ]
@@ -161,6 +156,18 @@ test_key = do
             ])
         (Right [["\\key a \\mixolydian", "c'2", "\\key c \\major", "c'2"]], [])
 
+test_ly_code = do
+    let f = first (convert_staves [])
+            . LilypondTest.derive_linear False
+                (CallTest.with_note_call "code" c_code)
+    equal (f [(">", [(0, 1, "code")])])
+        (Right [["magic-lilypond-code", "r4", "r2"]], [])
+    equal (f [(">", [(0, 0, "code")])])
+        (Right [["magic-lilypond-code", "r1"]], [])
+    where
+    c_code = CallTest.generator $ \args ->
+        Lily.code (Args.extent args) "magic-lilypond-code"
+
 -- * test lilypond derivation
 
 -- These actually test derivation in lilypond mode.  So maybe they should go
@@ -186,10 +193,10 @@ test_trill = do
             Lilypond.event_attributes e)
     equal logs []
     equal (map extract events) [(0, "c'", Attrs.trill), (64, "d'", mempty)]
-    putStrLn $ make_ly events
+    putStrLn $ LilypondTest.make_ly events
 
 test_slur = do
-    let (events, logs) = derive_linear True $
+    let (events, logs) = LilypondTest.derive_linear True id $
             (">", [(1, 2, "(")])
             : UiTest.note_spec ("s/1", [(n, 1, p) | (n, p) <-
                     zip (Seq.range_ 0 1) ["4a", "4b", "4c", "4d"]], [])
@@ -203,7 +210,7 @@ test_slur = do
 
 compile_ly :: [Lilypond.Event] -> IO ()
 compile_ly events = do
-    writeFile "build/test/test.ly" (make_ly events)
+    writeFile "build/test/test.ly" (LilypondTest.make_ly events)
     void $ Process.rawSystem
         "lilypond" ["-o", "build/test/test", "build/test/test.ly"]
 
@@ -254,51 +261,3 @@ sig num denom = Lilypond.TimeSignature num dur
 
 whole :: Lilypond.Time
 whole = Lilypond.time_per_whole
-
--- * derive
-
--- | (title, [Staff]) where Staff = [Measure] where Measure = [String]
-type StaffGroup = (String, [[[String]]])
-
--- | Like 'convert_events', but extract the converted staves to lists of
--- measures.
-convert_staves :: [String] -> [Lilypond.Event] -> Either String [[String]]
-convert_staves wanted = fmap (concatMap (concat . snd)) . convert_events wanted
-
--- | Convert events to lilypond score.
-convert_events ::
-    [String] -- ^ only include lilypond backslash commands listed here
-    -> [Lilypond.Event] -> Either String [StaffGroup]
-convert_events wanted events =
-    map extract_staves <$> Lilypond.convert_staff_groups default_config events
-    where
-    extract_staves (Lilypond.StaffGroup inst staves) =
-        (Lilypond.inst_name inst, map extract_staff staves)
-    extract_staff (Lilypond.Staff measures) =
-        map (filter is_wanted . map Lilypond.to_lily) measures
-    is_wanted ('\\':note) = takeWhile (/=' ') note `elem` wanted
-    is_wanted _ = True
-
-derive :: [UiTest.TrackSpec] -> ([Lilypond.Event], [String])
-derive = derive_linear False
-
-derive_linear :: Bool -> [UiTest.TrackSpec] -> ([Lilypond.Event], [String])
-derive_linear linear tracks = (ly_events, extract_logs logs)
-    where
-    (ly_events, logs) = LEvent.partition $ Convert.convert 1 $
-        Derive.r_events (derive_ly linear tracks)
-    extract_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio
-
-derive_ly :: Bool -> [UiTest.TrackSpec] -> Derive.Result
-derive_ly linear tracks =
-    DeriveTest.derive_tracks_with_ui
-        (Derive.with_val TrackLang.v_lilypond_derive "true")
-        (with_linear . (State.config#State.default_#State.tempo #= 1))
-        tracks
-    where
-    with_linear = if linear then DeriveTest.linear_skel tracks else id
-
-make_ly :: [Lilypond.Event] -> String
-make_ly events = Text.unpack $ Text.strip $ Text.concat $ fst $
-    expect_right "make_ly" $
-        Lilypond.make_ly Lilypond.default_config "title" events

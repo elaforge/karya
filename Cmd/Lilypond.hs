@@ -83,7 +83,7 @@ compile_ly ly_filename config title events = do
 make_ly :: TimeConfig -> Lilypond.Title -> [Score.Event]
     -> (Either String ([Text.Text], Cmd.StackMap), [Log.Msg])
 make_ly (TimeConfig quarter quantize_dur) title score_events =
-    (Lilypond.make_ly Lilypond.default_config title
+    (Lilypond.make_ly (Lilypond.default_config quarter) title
         (postproc quantize_dur events), logs)
     where
     (events, logs) = LEvent.partition $

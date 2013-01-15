@@ -364,21 +364,26 @@ duration_from_start args duration = do
         TrackLang.Real t -> return (start, start + t)
         TrackLang.Score t -> (,) start <$> Derive.real (Args.start args + t)
 
--- | Get the real duration of a typed time val at the given point of score
--- time.  RealTime is linear, so 1 second is always 1 second no matter where
--- it is, but ScoreTime will map to different amounts of RealTime depending
--- on where it is.
+-- | This is 'real_dur', but fancied up to take a TypedVal.
 real_duration :: TimeType -> ScoreTime -> Score.TypedVal
     -> Derive.Deriver RealTime
 real_duration default_type from (Score.Typed typ val)
     | typ == Score.Real || typ == Score.Untyped && default_type == Real =
         return (RealTime.seconds val)
-    | typ == Score.Score || typ == Score.Untyped && default_type == Score = do
-        start <- Derive.real from
-        end <- Derive.real (from + ScoreTime.double val)
-        return (end - start)
+    | typ == Score.Score || typ == Score.Untyped && default_type == Score =
+        real_dur from (ScoreTime.double val)
     | otherwise = Derive.throw $
         "expected time type for " ++ TrackLang.show_val (Score.Typed typ val)
+
+-- | Get the real duration of a typed time val at the given point of score
+-- time.  RealTime is linear, so 1 second is always 1 second no matter where
+-- it is, but ScoreTime will map to different amounts of RealTime depending
+-- on where it is.
+real_dur :: ScoreTime -> ScoreTime -> Derive.Deriver RealTime
+real_dur from dur = do
+    start <- Derive.real from
+    end <- Derive.real (from + dur)
+    return (end - start)
 
 -- | Add a RealTime to a ScoreTime.
 delay :: ScoreTime -> RealTime -> Derive.Deriver ScoreTime

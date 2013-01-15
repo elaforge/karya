@@ -1,7 +1,7 @@
     HASKELL DEPS
 
 # basic deps
-transformers mtl deepseq data-ordlist cereal text stm network vector
+transformers mtl deepseq data-ordlist cereal text stm network vector either
 utf8-string # Ui.Event
 
 attoparsec # Derive: tracklang parsing

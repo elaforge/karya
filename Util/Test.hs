@@ -357,7 +357,8 @@ pmlist msg xs
     | otherwise = putStrLn (msg++":") >> plist xs
 
 prettyp :: (Pretty.Pretty a) => a -> IO ()
-prettyp = Pretty.pprint
+prettyp val = s `DeepSeq.deepseq` putStr s -- ensure log tracing happens first
+    where s = Pretty.formatted val
 
 
 -- These used to write to stderr, but the rest of the diagnostic output goes to

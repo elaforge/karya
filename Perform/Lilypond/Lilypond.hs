@@ -25,34 +25,47 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
+import Types
 
 
 -- * constants
 
+-- | String: @\'right\'@ or @\'left\'@.
 v_hand :: TrackLang.ValName
 v_hand = TrackLang.Symbol "hand"
 
+-- | String: whatever @\\clef@ accepts, defaults to @\'treble\'@.
 v_clef :: TrackLang.ValName
 v_clef = TrackLang.Symbol "clef"
 
+-- | String: should be parseable by parse_time_signature, e.g. @\'3/4\'@.
 v_time_signature :: TrackLang.ValName
 v_time_signature = TrackLang.Symbol "time-sig"
+
+-- | String: in place of the note, include this lilypond code directly.
+v_ly_code :: TrackLang.ValName
+v_ly_code = TrackLang.Symbol "ly-code"
 
 -- * types
 
 -- | Configure how the lilypond score is generated.
 data Config = Config {
+    -- | Amount of RealTime per quarter note.  This is the same value used by
+    -- 'Perform.Lilypond.Convert'.
+    config_quarter_duration :: !RealTime
     -- | Allow dotted rests?
-    config_dotted_rests :: Bool
+    , config_dotted_rests :: !Bool
     -- | If non-null, generate dynamics from each event's dynamic control.
     -- This has cutoffs for each dynamic level, which should be \"p\", \"mf\",
     -- etc.
-    , config_dynamics :: [(Double, String)]
+    , config_dynamics :: ![(Double, String)]
     } deriving (Show)
 
-default_config :: Config
-default_config = Config
-    { config_dotted_rests = False
+default_config :: RealTime -> Config
+default_config quarter = Config
+    { config_quarter_duration = quarter
+    , config_dotted_rests = False
     , config_dynamics =
         map (first (/0xff)) [(0x40, "p"), (0x80, "mf"), (0xff, "f")]
     }
@@ -60,6 +73,8 @@ default_config = Config
 -- | Convert a value to its lilypond representation.
 class ToLily a where
     to_lily :: a -> String
+
+-- ** Time
 
 -- | Time in score units.  The maximum resolution is a 128th note, so one unit
 -- is 128th of a whole note.
@@ -71,10 +86,19 @@ instance Pretty.Pretty Time where
 time_per_whole :: Time
 time_per_whole = Time 128
 
+real_to_time :: RealTime -> RealTime -> Time
+real_to_time quarter = Time . floor . adjust . RealTime.to_seconds
+    where
+    adjust n = n * (1 / RealTime.to_seconds quarter * qtime)
+    qtime = fromIntegral (dur_to_time D4)
+
+-- ** Duration
+
 -- | This time duration measured as the fraction of a whole note.
 data Duration = D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
     deriving (Enum, Eq, Ord, Show)
 
+-- | A Duration plus a possible dot.
 data NoteDuration = NoteDuration Duration Bool
     deriving (Eq, Show)
 
@@ -140,6 +164,7 @@ data Note = Note {
     | ClefChange String
     | KeyChange Key
     | TimeChange TimeSignature
+    | Code !String
     deriving (Show)
 
 rest :: NoteDuration -> Note
@@ -162,6 +187,7 @@ instance ToLily Note where
     to_lily (ClefChange clef) = "\\clef " ++ clef
     to_lily (KeyChange (tonic, mode)) = "\\key " ++ tonic ++ " \\" ++ mode
     to_lily (TimeChange tsig) = "\\time " ++ to_lily tsig
+    to_lily (Code code) = code
 
 note_time :: Note -> Time
 note_time note@(Note {}) = note_dur_to_time (_note_duration note)
@@ -302,7 +328,11 @@ convert_measure events = case events of
 
 convert_note :: State -> TimeSignature -> Event -> [Event]
     -> (Note, Time, [Event])
-convert_note state tsig event events = (note, end, clipped ++ rest)
+    -- ^ (note, note end time, remaining events)
+convert_note state tsig event events
+    | Just code <- TrackLang.maybe_val v_ly_code (event_environ event) =
+        (Code code, event_duration event, events)
+    | otherwise = (note, end, clipped ++ rest)
     where
     note = Note
         { _note_pitch = map event_pitch here
@@ -474,6 +504,13 @@ time_to_note_dur t = case time_to_durs t of
     d : _ -> NoteDuration d False
     -- I have no 0 duration, so I'm forced to pick something.
     [] -> NoteDuration D1 False
+
+-- | Only Just if the Time fits into a NoteDuration.
+is_note_dur :: Time -> Maybe NoteDuration
+is_note_dur t = case time_to_durs t of
+    [d1, d2] | d2 == succ d1 -> Just $ NoteDuration d1 True
+    [d] -> Just $ NoteDuration d False
+    _ -> Nothing
 
 -- | This rounds up to the next Duration, so any Time over a half note will
 -- wind up as a whole note.

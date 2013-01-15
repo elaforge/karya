@@ -4,12 +4,12 @@ import qualified Data.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.State as State
-import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -91,6 +91,10 @@ c_show_args = Derive.generator "show-args" "doc" $
         Log.warn $ Seq.join ", " $
             map ShowVal.show_val (Derive.passed_vals args)
         return []
+
+generator :: (Derive.Derived d) =>
+    (Derive.PassedArgs d -> Derive.LogsDeriver d) -> Derive.Call d
+generator = Derive.stream_generator "test" "test doc" . Sig.call0
 
 -- * PassedArgs
 

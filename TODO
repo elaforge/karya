@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - why does legato vsl always have too-loud connecting samples?
+  - second staccato note at 7.3.5 vla part missing for some reason
+  - network midi, doesn't seem to handle abort?
+    playing the second time doesn't happen
   logview
     * print logs to stdout
     * rotate the log
@@ -477,22 +481,26 @@ integrate / integration:
     calls)
 
 lilypond:
-  enough to render bloom / viola-sonata nicely:
-    - pedal should emit pedal sign
-    - grace notes should emit the correct lilypond: \grace { x y z }
-    - tuplets: triplet is \times 2/3 { a b c }
-    - need 8ve marks
-    - the manual pedal notes I guess should be pedal-ified
-    - Why does the cmd have to wait until lilypond is done?  Should be async.
-    - staff group should put inst name on the group instead of each staff
-    + add hand annotations to score
-    - possibly support voices, should be able to do it the same as hand
-      splitting
+  * tuplets should just emit lilypond directly: ly-code = '\time x/y { a b c }'
+  - same with \grace
+  - same with pitches for the default note call: when_ly $ insert ly-pitch abc
+  - instead of just TimePerQuarter I also need the quantization, so include
+    the TimeConfig.
+  - convert lily code to Text instead of String.  Maybe VString has to become
+    Text then.
+  - pedal should emit pedal sign
+  - need 8ve marks
+  - the manual pedal notes I guess should be pedal-ified
+  - Why does the cmd have to wait until lilypond is done?  Should be async.
+  - staff group should put inst name on the group instead of each staff
+  + add hand annotations to score
+  - possibly support voices, should be able to do it the same as hand
+    splitting
   - make rhythm spelling work properly for non-duple meters
   - support compound meters, e.g. 5/4 as 3+2 or 2+3
     TimeSignature needs to get fancier
   - get pitches right, and keep the enharmonics
-  - manually add ly tweaks, could be done with special ly environ val
+  * manually add ly tweaks, could be done with special ly environ val
   - is there a way to turn pitch signal calls e.g. 'tr' into an attr on the
     note? I can't totally override the pitch track because I still need the
     pitches, it needs to return attrs in addition to signal.  The only way
