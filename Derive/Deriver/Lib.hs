@@ -180,6 +180,14 @@ with_val name val = Internal.localm $ \st -> do
     environ <- Internal.insert_environ name val (state_environ st)
     return $! st { state_environ = environ }
 
+modify_val :: (TrackLang.Typecheck val) => TrackLang.ValName
+    -> (Maybe val -> val) -> Deriver a -> Deriver a
+modify_val name modify = Internal.localm $ \st -> do
+    let env = state_environ st
+    val <- modify <$> either throw return (TrackLang.checked_val name env)
+    return $! st { state_environ =
+        TrackLang.insert_val name (TrackLang.to_val val) env }
+
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale = with_val TrackLang.v_scale (scale_id scale)
     . with_scope (\scope -> scope { scope_val = set (scope_val scope) })

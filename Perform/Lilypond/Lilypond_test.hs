@@ -4,12 +4,10 @@ import qualified System.Process as Process
 
 import Util.Control
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
-import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Score as Score
@@ -190,28 +188,6 @@ test_tempo = do
     equal logs []
     equal (map extract events) [(0, whole), (whole, whole)]
 
-test_trill = do
-    let (events, logs) = derive
-            [ (">s/1", [(0, 2, "tr"), (2, 2, "")])
-            , ("*", [(0, 0, "4c"), (1, 0, "4d")])
-            ]
-        extract e = (Lilypond.event_start e, Lilypond.event_pitch e,
-            Lilypond.event_attributes e)
-    equal logs []
-    equal (map extract events) [(0, "c'", Attrs.trill), (64, "d'", mempty)]
-    putStrLn $ LilypondTest.make_ly events
-
-test_slur = do
-    let (events, logs) = LilypondTest.derive_linear True id $
-            (">", [(1, 2, "(")])
-            : UiTest.note_spec ("s/1", [(n, 1, p) | (n, p) <-
-                    zip (Seq.range_ 0 1) ["4a", "4b", "4c", "4d"]], [])
-    equal logs []
-    equal (map Lilypond.event_attributes events)
-        [Score.no_attrs, Attrs.legato, Attrs.legato, Score.no_attrs]
-    equal (fmap (map unwords) $ convert_staves [] events) $
-        Right ["a'4 b'4( c'4) d'4"]
-
 -- * util
 
 compile_ly :: [Lilypond.Event] -> IO ()
@@ -227,8 +203,8 @@ read_note text
         { Lilypond._note_pitch = [pitch]
         , Lilypond._note_duration = dur
         , Lilypond._note_tie = tie == "~"
-        , Lilypond._note_legato = False
-        , Lilypond._note_code = ""
+        , Lilypond._note_prepend = ""
+        , Lilypond._note_append = ""
         , Lilypond._note_stack = Nothing
         }
     where

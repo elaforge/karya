@@ -39,15 +39,14 @@ module Derive.Call.Trill where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
-import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, required, typed_control, control)
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
+import Derive.Sig (defaulted, required, typed_control, control)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
@@ -74,7 +73,7 @@ c_note_trill = Derive.stream_generator "trill"
         "Alternate with a pitch at this interval."
     <*> speed_arg
     ) $ \(neighbor, speed) -> Note.inverting $ \args ->
-    Lily.note args Attrs.trill $ do
+    Lily.append args "\\trill" $ do
         mode <- get_mode
         (transpose, control) <- trill_from_controls
             (Args.start args, Args.end args) mode neighbor speed
@@ -107,7 +106,7 @@ c_tremolo = Derive.Call
     generator = Sig.call
         (defaulted "speed" (typed_control "tremolo-speed" 10 Score.Real)
             "Tremolo at this speed. Its meaning is the same as the trill speed."
-        ) $ \speed -> Note.inverting $ \args -> Lily.note args Attrs.trem $
+        ) $ \speed -> Note.inverting $ \args -> Lily.append args ":32" $
             tremolo speed args Util.note
     tremolo speed args note = do
         (speed_sig, time_type) <- Util.to_time_signal Util.Real speed

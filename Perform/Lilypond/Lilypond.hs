@@ -17,7 +17,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.Attrs as Attrs
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -46,6 +45,12 @@ v_time_signature = TrackLang.Symbol "time-sig"
 -- | String: in place of the note, include this lilypond code directly.
 v_ly_code :: TrackLang.ValName
 v_ly_code = TrackLang.Symbol "ly-code"
+
+v_ly_code_prepend :: TrackLang.ValName
+v_ly_code_prepend = TrackLang.Symbol "ly-code-prepend"
+
+v_ly_code_append :: TrackLang.ValName
+v_ly_code_append = TrackLang.Symbol "ly-code-append"
 
 -- * types
 
@@ -149,16 +154,15 @@ instance Pretty.Pretty Event where
 
 data Note = Note {
     -- _* functions are partial.
-
     -- | @[]@ means this is a rest, and greater than one pitch indicates
     -- a chord.
     _note_pitch :: ![String]
     , _note_duration :: !NoteDuration
     , _note_tie :: !Bool
-    -- | A slur goes across a consecutive series of legato notes.
-    , _note_legato :: !Bool
+    -- | Additional code to prepend to the note.
+    , _note_prepend :: !String
     -- | Additional code to append to the note.
-    , _note_code :: !String
+    , _note_append :: !String
     , _note_stack :: !(Maybe Stack.UiFrame)
     }
     | ClefChange String
@@ -168,7 +172,14 @@ data Note = Note {
     deriving (Show)
 
 rest :: NoteDuration -> Note
-rest dur = Note [] dur False False "" Nothing
+rest dur = Note
+    { _note_pitch = []
+    , _note_duration = dur
+    , _note_tie = False
+    , _note_prepend = ""
+    , _note_append = ""
+    , _note_stack = Nothing
+    }
 
 is_rest :: Note -> Bool
 is_rest note@(Note {}) = null (_note_pitch note)
@@ -179,10 +190,11 @@ is_note (Note {}) = True
 is_note _ = False
 
 instance ToLily Note where
-    to_lily (Note pitches dur tie _legato code _stack) = case pitches of
-            [] -> 'r' : ly_dur ++ code
-            [pitch] -> pitch ++ ly_dur ++ code
-            _ -> '<' : unwords pitches ++ ">" ++ ly_dur ++ code
+    to_lily (Note pitches dur tie prepend append _stack) =
+        (prepend++) . (++append) $ case pitches of
+            [] -> 'r' : ly_dur
+            [pitch] -> pitch ++ ly_dur
+            _ -> '<' : unwords pitches ++ ">" ++ ly_dur
         where ly_dur = to_lily dur ++ if tie then "~" else ""
     to_lily (ClefChange clef) = "\\clef " ++ clef
     to_lily (KeyChange (tonic, mode)) = "\\key " ++ tonic ++ " \\" ++ mode
@@ -248,7 +260,7 @@ data State = State {
 convert_measures :: Config -> [TimeSignature] -> [Event]
     -> Either String [[Note]]
 convert_measures config time_sigs events =
-    fmap convert_slurs $ run_convert initial $ add_time_changes <$> go events
+    run_convert initial $ add_time_changes <$> go events
     where
     initial = State config time_sigs 0 0 0 Nothing Nothing Nothing
     go [] = return []
@@ -330,17 +342,18 @@ convert_note :: State -> TimeSignature -> Event -> [Event]
     -> (Note, Time, [Event])
     -- ^ (note, note end time, remaining events)
 convert_note state tsig event events
-    | Just code <- TrackLang.maybe_val v_ly_code (event_environ event) =
+    | Just code <- TrackLang.maybe_val v_ly_code env =
         (Code code, start + event_duration event, events)
     | otherwise = (note, end, clipped ++ rest)
     where
+    env = event_environ event
     note = Note
         { _note_pitch = map event_pitch here
         , _note_duration = allowed_dur
         , _note_tie = any (> end) (map event_end here)
-        , _note_legato =
-            Score.attrs_contain (event_attributes event) Attrs.legato
-        , _note_code = attributes_to_code (event_attributes event)
+        , _note_prepend =
+            fromMaybe "" (TrackLang.maybe_val v_ly_code_prepend env)
+        , _note_append = fromMaybe "" (TrackLang.maybe_val v_ly_code_append env)
             ++ dynamic_to_code (state_config state) (state_dynamic state) event
         , _note_stack = Seq.last (Stack.to_ui (event_stack event))
         }
@@ -362,23 +375,6 @@ make_rests config tsig start end
     | start < end = map rest $ convert_duration tsig
         (config_dotted_rests config) start (end - start)
     | otherwise = []
-
--- ** slurs
-
--- | Convert consecutive @+legato@ attrs to a start and end slur mark.
-convert_slurs :: [[Note]] -> [[Note]]
-convert_slurs = snd . List.mapAccumL convert_slurs1 False
-
-convert_slurs1 :: Bool -> [Note] -> (Bool, [Note])
-convert_slurs1 in_slur = List.mapAccumL go in_slur . Seq.zip_next
-    where
-    go in_slur (note, maybe_next)
-        | not (is_note note) = (in_slur, note)
-        | Just next <- maybe_next, in_slur && not (_note_legato next) =
-            (False, add_code ")" note)
-        | not in_slur && _note_legato note = (True, add_code "(" note)
-        | otherwise = (in_slur, note)
-    add_code c note = note { _note_code = _note_code note ++ c }
 
 
 -- ** util
@@ -429,20 +425,6 @@ dynamic_to_code config prev_dyn event
     | not (null dyn) && prev_dyn /= Just dyn = '\\' : dyn
     | otherwise = ""
     where dyn = get_dynamic config event
-
-attributes_to_code :: Score.Attributes -> String
-attributes_to_code =
-    concat . mapMaybe (flip Map.lookup attributes . Score.attr)
-        . Score.attrs_list
-    where
-    attributes = Map.fromList
-        [ (Attrs.trill, "\\trill")
-        , (Attrs.trem, ":32")
-        -- There are (arpeggio <> up) and (arpeggio <> down), but supporting
-        -- them is a bit annoying because I have to match multiple attrs, and
-        -- have to prepend \arpeggioArrowUp \arpeggioArrowDown \arpeggioNormal
-        , (Attrs.arpeggio, "\\arpeggio")
-        ]
 
 -- | Clip off the part of the event before the given time, or Nothing if it
 -- was entirely clipped off.

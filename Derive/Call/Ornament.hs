@@ -68,10 +68,7 @@ lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch]
 lily_grace args pitches _per_quarter = do
     pitches <- mapM Lily.pitch_to_lily pitches
     let ly_notes = map (++ Lilypond.to_lily Lilypond.D8) pitches
-        barred = case ly_notes of
-            [n] -> [n]
-            n : ns -> (n ++ "[") : Seq.rdrop 1 ns ++ [last ns ++ "]"]
-            _ -> ly_notes
+        barred = Seq.first_last (++"[") (++"]") ly_notes
         -- I use \acciaccatura instead of \grace because it adds a slur
         -- automatically.
         code = "\\acciaccatura { " <> unwords barred <> " }"

@@ -8,7 +8,6 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
-import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
@@ -113,13 +112,19 @@ c_real_arpeggio arp = Derive.stream_generator "arpeggio"
     \ it's not actually \"up\" or \"down\"."
     ) $ Sig.call
     ( defaulted "time" 0.1 "This much RealTime between each note."
-    ) $ \time args -> Lily.note_transformer args arpeggio_attrs $
+    ) $ \time args -> lily_code args $
         arpeggio arp (RealTime.seconds time) (Note.sub_events args)
     where
-    arpeggio_attrs = case arp of
-        ToRight -> Attrs.arpeggio <> Attrs.up
-        ToLeft -> Attrs.arpeggio <> Attrs.down
-        Random -> Attrs.arpeggio
+    lily_code = Lily.notes_with
+        (Lily.prepend_code prefix . Lily.append_code suffix)
+    prefix = case arp of
+        ToRight -> "\\arpeggioArrowUp"
+        ToLeft -> "\\arpeggioArrowDown"
+        Random -> "\\arpeggioNormal"
+    suffix = case arp of
+        ToRight -> "\\arpeggio"
+        ToLeft -> "\\arpeggio"
+        Random -> "\\arpeggio"
 
 -- | Shift each track of notes by a successive amount.
 arpeggio :: Arpeggio -> RealTime -> [[Note.Event]] -> Derive.EventDeriver

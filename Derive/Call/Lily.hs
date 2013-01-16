@@ -31,15 +31,53 @@ when_lilypond lily not_lily =
         Nothing -> not_lily
         Just q -> lily (RealTimePerQuarter q)
 
--- | Replace a note generator call with one that generates a single note having
--- the given attributes.
-note :: Derive.PassedArgs d -> Score.Attributes
-    -> Derive.EventDeriver -> Derive.EventDeriver
-note args attrs = when_lilypond $ const $ Util.place args (Util.attr_note attrs)
+append :: Derive.PassedArgs d -> String -> Derive.EventDeriver
+    -> Derive.EventDeriver
+append args code = when_lilypond $
+    const $ append_code code $ Util.place args Util.note
 
-environ :: (TrackLang.Typecheck a) => Derive.PassedArgs d -> TrackLang.ValName
-    -> a -> Derive.EventDeriver
-environ args name val = Derive.with_val name val $ Util.place args Util.note
+-- * note transformer
+
+-- | Replace a note transformer with one that derives its children as-is,
+-- but add lilypond code.
+notes_code :: Code -> Derive.PassedArgs d
+    -> Derive.EventDeriver -> Derive.EventDeriver
+notes_code code = notes_with (add_code code)
+
+-- | This is like 'notes_code', but the first event in each track gets the
+-- start code, and the last event in each track gets the end code.
+notes_around :: Code -> Code -> Derive.PassedArgs d
+    -> Derive.EventDeriver -> Derive.EventDeriver
+notes_around start end args = when_lilypond $
+    const $ Note.place $ concat $ map around $
+        Note.sub_events args
+    where
+    around :: [Note.Event] -> [Note.Event]
+    around = Seq.first_last (Note.map_event (add_code start))
+        (Note.map_event (add_code end))
+
+notes_with :: (Derive.EventDeriver -> Derive.EventDeriver)
+    -> Derive.PassedArgs d
+    -> Derive.EventDeriver -> Derive.EventDeriver
+notes_with f args = when_lilypond $
+    const $ Note.place $ Note.map_events f $ concat (Note.sub_events args)
+
+-- * code
+
+-- | Either prepend or append some code to a lilypond note.
+data Code = Prefix String | Suffix String deriving (Show)
+
+prepend_code :: String -> Derive.EventDeriver -> Derive.EventDeriver
+prepend_code = add_code . Prefix
+
+append_code :: String -> Derive.EventDeriver -> Derive.EventDeriver
+append_code = add_code . Suffix
+
+add_code :: Code -> Derive.EventDeriver -> Derive.EventDeriver
+add_code (Prefix code) = Derive.modify_val Lilypond.v_ly_code_prepend $
+    (code++) . fromMaybe ""
+add_code (Suffix code) = Derive.modify_val Lilypond.v_ly_code_append $
+    (++code) . fromMaybe ""
 
 -- | Emit a note that carries raw lilypond code.  The code is emitted
 -- literally, and assumed to have the duration of the event.  The event's pitch
@@ -48,14 +86,6 @@ environ args name val = Derive.with_val name val $ Util.place args Util.note
 code :: (ScoreTime, ScoreTime) -> String -> Derive.EventDeriver
 code (start, dur) code = Derive.with_val Lilypond.v_ly_code code
     (Derive.d_place start dur Util.note)
-
--- | Replace a note transformer with one that derives its children as-is,
--- but adds the given attributes.
-note_transformer :: Derive.PassedArgs d -> Score.Attributes
-    -> Derive.EventDeriver -> Derive.EventDeriver
-note_transformer args attrs = when_lilypond $
-    const $ Note.place $ Note.map_events (Util.add_attrs attrs) $
-        concat (Note.sub_events args)
 
 -- * convert
 

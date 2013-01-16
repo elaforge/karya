@@ -73,7 +73,8 @@ c_legato = Derive.stream_generator "legato"
     (defaulted "overlap" (typed_control "legato" 0.1 Score.Real)
         "All notes except the last one overlap with the next note by this\
         \ amount."
-    ) $ \overlap args -> Lily.note_transformer args Attrs.legato $ do
+    ) $ \overlap args ->
+    Lily.notes_around (Lily.Suffix "(") (Lily.Suffix ")") args $ do
         overlap <- Util.real_duration Util.Real (Args.start args)
             =<< Util.typed_control_at overlap =<< Args.real_start args
         mconcat $ map (legato overlap Attrs.legato) (Note.sub_events args)
@@ -91,5 +92,6 @@ extend_duration overlap _prev cur (next:_) = Score.set_duration dur cur
 c_portamento :: Derive.NoteCall
 c_portamento = Derive.stream_generator "portamento"
     "Make the notes overlap and apply `+legato`." $
-    Sig.call0 $ \args -> Lily.note_transformer args Attrs.legato $ do
+    Sig.call0 $ \args ->
+    Lily.notes_around (Lily.Suffix "(") (Lily.Suffix ")") args $ do
         mconcat $ map (legato 0.1 Attrs.porta) (Note.sub_events args)

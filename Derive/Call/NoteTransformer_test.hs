@@ -122,3 +122,10 @@ test_arpeggio = do
             ]
     equal (run (tracks "`arp-up` 1")) [(10, 10, "4c"), (11, 9, "4d")]
     equal (run (tracks "`arp-down` 1")) [(10, 10, "4d"), (11, 9, "4c")]
+
+test_slur_ly = do
+    let run = first (LilypondTest.convert_staves [])
+            . LilypondTest.derive_linear True id
+    equal (run $ (">", [(0, 4, "(")]) : UiTest.note_track
+        [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
+        (Right [["a'4(", "b'4", "c'4)", "r4"]], [])

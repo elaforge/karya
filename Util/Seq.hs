@@ -59,6 +59,18 @@ range_ start step = go 0
 key_on :: (a -> k) -> [a] -> [(k, a)]
 key_on f xs = zip (map f xs) xs
 
+-- | Apply a function to the first and last elements.  Middle elements are
+-- unchanged.  A null or singleton list is also unchanged.
+first_last :: (a -> a) -> (a -> a) -> [a] -> [a]
+first_last start end xs = case xs of
+        [] -> []
+        [x] -> [x]
+        x : xs -> start x : go xs
+    where
+    go [] = []
+    go [x] = [end x]
+    go (x:xs) = x : go xs
+
 -- * permutations
 
 -- | The cartesian product of a list of lists.  E.g.

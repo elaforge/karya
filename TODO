@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - shift-backspace in raw edit can delete `symbols` as well
+  - there should be a trill that just applies the trill <> half / whole attr
+    Either vsl insts set environ that causes the normal trill to do that, or
+    they could bind their own "tr".
   - why does legato vsl always have too-loud connecting samples?
   - second staccato note at 7.3.5 vla part missing for some reason
   - network midi, doesn't seem to handle abort?
@@ -483,9 +487,11 @@ integrate / integration:
 lilypond:
   * tuplets should just emit lilypond directly: ly-code = '\times x/y { a b c }'
   * same with \grace
-  - Get rid of Lilypond.attributes_to_code and use a ly-code-append environ
+  - tuplet should be ok with multiple children if the rest are empty
+  * Get rid of Lilypond.attributes_to_code and use a ly-code-append environ
     instead.
-  - staccato, marcato, accent
+  * Slur can also do this.
+  - staccato, marcato, accent, harmonic ^\flageolet
   - instead of just TimePerQuarter I also need the quantization, so include
     the TimeConfig.
   - convert lily code to Text instead of String.  Maybe VString has to become
@@ -493,7 +499,8 @@ lilypond:
   - pedal should emit pedal sign
     I can't use the pedal call for that, since it emits control.  But I can
     look at the pedal signal directly.
-  - need 8ve marks
+  - need 8va marks: \ottava #1 ... \ottava #0
+  - movement marker than emits a page break and a title
   - Why does the cmd have to wait until lilypond is done?  Should be async.
   - staff group should put inst name on the group instead of each staff
   + add hand annotations to score
