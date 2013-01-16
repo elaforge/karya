@@ -6,8 +6,10 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 
 
-type NoteCall = TrackLang.Environ -> PitchSignal.Controls
+type PitchNn = TrackLang.Environ -> PitchSignal.Controls
     -> Either PitchSignal.PitchError Pitch.NoteNumber
+type PitchNote = TrackLang.Environ -> PitchSignal.Controls
+    -> Either PitchSignal.PitchError Pitch.Note
 
 -- | TODO this is incorrect, because you can't get from NN to note if the scale
 -- retunes.

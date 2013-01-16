@@ -15,7 +15,6 @@ import qualified Derive.Call.Lily as Lily
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import Perform.Lilypond.LilypondTest (convert_staves, derive)
@@ -173,6 +172,13 @@ test_ly_code = do
 -- These actually test derivation in lilypond mode.  So maybe they should go
 -- in derive, but if I put them here I can test all the way to lilypond score.
 
+test_enharmonics = do
+    let (events, logs) = derive $ UiTest.note_track
+            [(0, 1, "4c#"), (1, 1, "4db"), (2, 1, "4cx")]
+    equal logs []
+    equal (convert_staves [] events) $
+        Right [["cs'4", "df'4", "css'4", "r4"]]
+
 test_tempo = do
     -- Lilypond derivation is unaffected by the tempo.
     let (events, logs) = derive
@@ -245,8 +251,8 @@ time_sig_event (s, d, p, tsig) =
 make_event :: RealTime -> RealTime -> String -> String
     -> [(TrackLang.ValName, String)] -> Lilypond.Event
 make_event start dur pitch inst env = Lilypond.Event
-    { Lilypond.event_start = Convert.real_to_time 1 start
-    , Lilypond.event_duration = Convert.real_to_time 1 dur
+    { Lilypond.event_start = Lilypond.real_to_time 1 start
+    , Lilypond.event_duration = Lilypond.real_to_time 1 dur
     , Lilypond.event_pitch = pitch
     , Lilypond.event_instrument = Score.Instrument inst
     , Lilypond.event_dynamic = 0.5

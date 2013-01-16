@@ -10,12 +10,12 @@ module Derive.PitchSignal (
     , take, truncate, drop_before
     -- * Pitch
     , Pitch, PitchError(..), Controls
-    , pitch, apply, add_control, eval_pitch, pitch_nn
+    , pitch, apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
 ) where
 import Prelude hiding (take, last, null, truncate)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Vector as V
@@ -26,7 +26,7 @@ import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 
 import qualified Derive.BaseTypes as Score
-import Derive.BaseTypes (Pitch(..), PitchCall, PitchError(..))
+import Derive.BaseTypes (Pitch(..), PitchCall, Controls, PitchError(..))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
@@ -177,25 +177,31 @@ drop_before x = modify_vector (TimeVector.drop_before x)
 -- * Pitch
 
 -- newtype Pitch = Pitch PitchCall
--- type PitchCall =
---      Map.Map Control Signal.Y -> Either PitchError Pitch.NoteNumber
+-- type PitchCall = Controls -> Either PitchError Pitch.NoteNumber
+-- type Controls = Map.Map Score.Control Signal.Y
 
-type Controls = Map.Map Score.Control Signal.Y
-
-pitch :: PitchCall -> Pitch
+pitch :: PitchCall Pitch.NoteNumber -> PitchCall Pitch.Note -> Pitch
 pitch = Pitch
 
 -- | Apply controls to a pitch.
 apply :: Controls -> Pitch -> Pitch
-apply controls = fmap0 $ \pitch controls2 ->
-    pitch $ Map.unionWith (+) controls2 controls
+apply controls (Pitch nn note) = Pitch
+    (\controls2 -> nn $! Map.unionWith (+) controls2 controls)
+    (\controls2 -> note $! Map.unionWith (+) controls2 controls)
 
 add_control :: Score.Control -> Double -> Pitch -> Pitch
-add_control cont val = fmap0 $ \pitch controls ->
-    pitch $ Map.insertWith' (+) cont val controls
+add_control control val (Pitch nn note) = Pitch
+    (\controls -> nn $! Map.insertWith (+) control val controls)
+    (\controls -> note $! Map.insertWith (+) control val controls)
 
-eval_pitch :: Pitch -> PitchCall
-eval_pitch (Pitch p) = p
+eval_pitch :: Pitch -> PitchCall Pitch.NoteNumber
+eval_pitch (Pitch p _) = p
+
+eval_note :: Pitch -> PitchCall Pitch.Note
+eval_note (Pitch _ n) = n
 
 pitch_nn :: Pitch -> Either PitchError Pitch.NoteNumber
 pitch_nn p = eval_pitch p Map.empty
+
+pitch_note :: Pitch -> Either PitchError Pitch.Note
+pitch_note p = eval_note p Map.empty

@@ -331,7 +331,7 @@ convert_note :: State -> TimeSignature -> Event -> [Event]
     -- ^ (note, note end time, remaining events)
 convert_note state tsig event events
     | Just code <- TrackLang.maybe_val v_ly_code (event_environ event) =
-        (Code code, event_duration event, events)
+        (Code code, start + event_duration event, events)
     | otherwise = (note, end, clipped ++ rest)
     where
     note = Note

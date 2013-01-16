@@ -68,10 +68,10 @@ degree_note degreef = Pitch.Note $ Call.Pitch.pitch_expr note frac
     where
     (degree, frac) = properFraction degreef
     (octave, pc) = degree `divMod` pc_per_octave
-    note = pitch_note $ Theory.Pitch octave (Theory.Note pc 0)
+    note = show_pitch $ Theory.Pitch octave (Theory.Note pc 0)
 
-pitch_note :: Theory.Pitch -> Pitch.Note
-pitch_note = Pitch.Note . Theory.show_pitch "" "" "" ""
+show_pitch :: Theory.Pitch -> Pitch.Note
+show_pitch = Pitch.Note . Theory.show_pitch "" "" "" ""
 
 -- | NoteNumber 0 is -1c, and becomes 2.
 nn_to_degree :: Vector.Vector Double
@@ -94,7 +94,7 @@ transpose _key oct transpose note = do
     let steps = floor $ case transpose of
             Pitch.Chromatic steps -> steps
             Pitch.Diatonic steps -> steps
-    Right $ pitch_note $ Theory.transpose_pitch pc_per_octave
+    Right $ show_pitch $ Theory.transpose_pitch pc_per_octave
         (oct * pc_per_octave + steps) pitch
 
 pc_per_octave :: Theory.PitchClass
@@ -113,17 +113,18 @@ valid_pitch pitch = Theory.note_accidentals note == 0
 
 -- * note_to_call
 
--- | Currently modulating from one just scale to another is awkward:
+-- | TODO Modulating from one just scale to another is awkward:
 --
 -- Set to 440.  Then if I modulate to C, set to
 -- @key = 'c'@, @base = * 5:4 (hz (4c))@
 note_to_call :: Ratios -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call ratios note = case read_pitch note of
     Left _ -> Nothing
-    Right pitch -> Just $ Call.Pitch.scale_degree (scale_degree pitch)
+    Right pitch -> Just $ Call.Pitch.scale_degree
+        (pitch_nn pitch) (pitch_note pitch)
     where
-    scale_degree :: Theory.Pitch -> Scale.NoteCall
-    scale_degree pitch env controls =
+    pitch_nn :: Theory.Pitch -> Scale.PitchNn
+    pitch_nn pitch env controls =
         Util.scale_to_pitch_error chromatic diatonic $ do
             key <- read_key env
             let hz = transpose_to_hz ratios base_hz key
@@ -135,6 +136,14 @@ note_to_call ratios note = case read_pitch note of
         chromatic = Map.findWithDefault 0 Score.c_chromatic controls
         diatonic = Map.findWithDefault 0 Score.c_diatonic controls
         base_hz = Map.lookup just_base_control controls
+
+    pitch_note :: Theory.Pitch -> Scale.PitchNote
+    pitch_note pitch _env controls = Right $ show_pitch transposed
+        where
+        transposed = Theory.transpose_pitch pc_per_octave
+            (round (chromatic + diatonic)) pitch
+        chromatic = Map.findWithDefault 0 Score.c_chromatic controls
+        diatonic = Map.findWithDefault 0 Score.c_diatonic controls
 
 just_base_control :: Score.Control
 just_base_control = Score.Control "just-base"

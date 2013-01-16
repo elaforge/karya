@@ -481,16 +481,14 @@ integrate / integration:
     calls)
 
 lilypond:
-  * tuplets should just emit lilypond directly: ly-code = '\time x/y { a b c }'
+  * tuplets should just emit lilypond directly: ly-code = '\times x/y { a b c }'
   - same with \grace
-  - same with pitches for the default note call: when_ly $ insert ly-pitch abc
   - instead of just TimePerQuarter I also need the quantization, so include
     the TimeConfig.
   - convert lily code to Text instead of String.  Maybe VString has to become
     Text then.
   - pedal should emit pedal sign
   - need 8ve marks
-  - the manual pedal notes I guess should be pedal-ified
   - Why does the cmd have to wait until lilypond is done?  Should be async.
   - staff group should put inst name on the group instead of each staff
   + add hand annotations to score
@@ -499,7 +497,7 @@ lilypond:
   - make rhythm spelling work properly for non-duple meters
   - support compound meters, e.g. 5/4 as 3+2 or 2+3
     TimeSignature needs to get fancier
-  - get pitches right, and keep the enharmonics
+  * get pitches right, and keep the enharmonics
   * manually add ly tweaks, could be done with special ly environ val
   - is there a way to turn pitch signal calls e.g. 'tr' into an attr on the
     note? I can't totally override the pitch track because I still need the
@@ -1159,7 +1157,7 @@ pitch / scales
       To get it right, Pitch needs to emit (Note, Note, Frac) and send that to
       fltk instead of NNs.  But I'm not sure I even want it, the NNs actually
       look ok.
-    - Lilypond enharmonics: they way I spelled it on the score should be the
+    * Lilypond enharmonics: they way I spelled it on the score should be the
       way it's spelled in lilypond.  (Note, Note, Frac) can do this but it's
       actually overkill since I'll probably just pick the bottom Note.
     - to_relatve: This needs Note - Note = Semis.  I think I could just add

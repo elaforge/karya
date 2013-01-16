@@ -56,13 +56,13 @@ lookup_key perf =
 
 -- | Run a derivation in lilypond context, which will cause certain calls to
 -- behave differently.
-derive :: (Cmd.M m) => BlockId -> m Derive.Result
-derive block_id = do
+derive :: (Cmd.M m) => TimeConfig -> BlockId -> m Derive.Result
+derive config block_id = do
     state <- (State.config#State.default_#State.tempo #= 1) <$> State.get
     global_transform <- State.config#State.global_transform <#> State.get
     Derive.extract_result <$> PlayUtil.run_ui state mempty mempty
-        (Derive.with_val TrackLang.v_lilypond_derive "true"
-            (Call.Block.eval_root_block global_transform block_id))
+        (Derive.with_val TrackLang.v_lilypond_derive (time_quarter config) $
+            Call.Block.eval_root_block global_transform block_id)
 
 compile_ly :: FilePath -> TimeConfig -> Lilypond.Title
     -> [Score.Event] -> IO (Either String Cmd.StackMap)

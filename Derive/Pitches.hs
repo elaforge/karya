@@ -21,10 +21,13 @@ signal scale = PitchSignal.signal (Derive.pitch_signal_scale scale)
 -- | A pitch interpolated a certain distance between two other pitches.
 interpolated :: PitchSignal.Pitch -> PitchSignal.Pitch -> Double
     -> PitchSignal.Pitch
-interpolated low high dist = PitchSignal.pitch $ \controls -> do
-    low_nn <- PitchSignal.eval_pitch low controls
-    high_nn <- PitchSignal.eval_pitch high controls
-    return $ Num.scale low_nn high_nn (Pitch.NoteNumber dist)
+interpolated low high dist = PitchSignal.pitch nn note
+    where
+    nn controls = do
+        low_nn <- PitchSignal.eval_pitch low controls
+        high_nn <- PitchSignal.eval_pitch high controls
+        return $ Num.scale low_nn high_nn (Pitch.NoteNumber dist)
+    note = PitchSignal.eval_note (if dist < 1 then low else high)
 
 -- | Transpose a pitch.
 transpose :: Pitch.Transpose -> PitchSignal.Pitch -> PitchSignal.Pitch

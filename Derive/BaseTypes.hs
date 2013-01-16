@@ -31,8 +31,6 @@ import qualified Data.Set as Set
 import qualified Text.Read as Read
 
 import Util.Control
-import qualified Util.Functor0 as Functor0
-import Util.Functor0 (Elem)
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -154,26 +152,26 @@ no_attrs = Attributes Set.empty
 -- a NoteNumber.  The values are expected to contain transpositions that this
 -- Pitch understands, for example 'Derive.Score.c_chromatic' and
 -- 'Derive.Score.c_diatonic'.
-newtype Pitch = Pitch PitchCall
-type PitchCall = Map.Map Control Signal.Y -> Either PitchError Pitch.NoteNumber
+data Pitch = Pitch !(PitchCall Pitch.NoteNumber) !(PitchCall Pitch.Note)
+type PitchCall a = Controls -> Either PitchError a
+type Controls = Map.Map Control Signal.Y
 
 instance Eq Pitch where
-    Pitch p1 == Pitch p2 = p1 Map.empty == p2 Map.empty
+    Pitch p1 _ == Pitch p2 _ = p1 Map.empty == p2 Map.empty
 
 instance Show Pitch where
-    show (Pitch p) = show (p Map.empty)
+    show (Pitch p _) = show (p Map.empty)
 
 -- | This is just for debugging convenience, since it doesn't preserve the
 -- structure of the pitch.
 instance Read Pitch where
-    readPrec = Pitch . const . Right <$> Read.readPrec
+    readPrec = mk <$> Read.readPrec
+        where
+        mk nn = Pitch (const (Right nn)) (const (Right (Pitch.Note (show nn))))
 
 instance Pretty.Pretty Pitch where
-    pretty (Pitch p) = either show Pretty.pretty (p Map.empty)
-
-instance Functor0.Functor0 Pitch where
-    type Elem Pitch = PitchCall
-    fmap0 f (Pitch p) = Pitch (f p)
+    pretty (Pitch p n) = either show Pretty.pretty (p Map.empty)
+        <> "(" <> either show Pitch.note_text (n Map.empty) <> ")"
 
 newtype PitchError = PitchError String deriving (Eq, Ord, Read, Show)
 instance Pretty.Pretty PitchError where pretty (PitchError s) = s

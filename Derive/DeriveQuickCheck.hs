@@ -160,7 +160,8 @@ state_pitch_signal = PitchSignal.constant scale . mknote . state_pitch
     where
     scale = PitchSignal.Scale Twelve.scale_id
         (Scale.scale_transposers Twelve.scale)
-    mknote = PitchSignal.pitch . const . return
+    mknote nn = PitchSignal.pitch (const (return nn))
+        (const (return (Pitch.Note (show nn))))
 
 update_state :: [Sample] -> RealTime -> State -> (State, [Sample])
 update_state samples pos state = (List.foldl' go state pre, post)

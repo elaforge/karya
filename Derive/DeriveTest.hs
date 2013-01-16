@@ -578,13 +578,16 @@ mkpitch2 p = case eval State.empty deriver of
         Call.eval_note 0 (TrackLang.Note (Pitch.Note p) [])
 
 mkpitch :: String -> PitchSignal.Pitch
-mkpitch p = PitchSignal.pitch $ \controls ->
-    let get c = Map.findWithDefault 0 c controls
+mkpitch p = PitchSignal.pitch pitch_nn (const (Right (Pitch.Note p)))
+    where
+    pitch_nn controls =
+        maybe (Left (PitchSignal.PitchError $ "no pitch " ++ show p))
+            (Right . Pitch.NoteNumber . (+ (chrom + dia*2)))
+            (lookup p pitch_map)
+        where
+        get c = Map.findWithDefault 0 c controls
         chrom = get Score.c_chromatic
         dia = get Score.c_diatonic
-    in maybe (Left (PitchSignal.PitchError $ "no pitch " ++ show p))
-        (Right . Pitch.NoteNumber . (+ (chrom + dia*2))) (lookup p pitch_map)
-    where
     pitch_map = zip (map (:"") ['a'..'z']) [60..]
         ++ zip (map (:"2") ['a'..'z']) [60.5..]
 

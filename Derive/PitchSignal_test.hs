@@ -29,10 +29,12 @@ mksignal = PitchSignal.signal
     . map (second mkpitch)
 
 mkpitch :: Pitch.NoteNumber -> PitchSignal.Pitch
-mkpitch nn = PitchSignal.pitch $ \controls -> do
-    let t = Pitch.NoteNumber $ Map.findWithDefault 0 c_trans controls
-    if nn + t >= 4 then Left (PitchSignal.PitchError "bad transpose")
-        else Right (nn + t)
+mkpitch nn = PitchSignal.pitch note (const (Right (Pitch.Note (show nn))))
+    where
+    note controls
+        | nn + t >= 4 = Left (PitchSignal.PitchError "bad transpose")
+        | otherwise = Right (nn + t)
+        where t = Pitch.NoteNumber $ Map.findWithDefault 0 c_trans controls
 
 c_normal, c_trans :: Score.Control
 c_normal = Score.Control "normal"

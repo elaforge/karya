@@ -72,12 +72,13 @@ note_to_call :: ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call smap note = case Map.lookup note (smap_note_to_degree smap) of
     Nothing -> Nothing
     Just (pitch, degree) ->
-        Just $ Call.Pitch.scale_degree (scale_degree pitch degree)
+        Just $ Call.Pitch.scale_degree (pitch_nn pitch degree)
+            (pitch_note pitch)
     where
     -- The Degree can be derived from the Pitch given the layout, so it's
     -- redundant to pass both, but convenient to precompute the Degrees.
-    scale_degree :: Theory.Pitch -> Pitch.Degree -> Scale.NoteCall
-    scale_degree pitch (Pitch.Degree degree) env controls =
+    pitch_nn :: Theory.Pitch -> Pitch.Degree -> Scale.PitchNn
+    pitch_nn pitch (Pitch.Degree degree) env controls =
         Util.scale_to_pitch_error diatonic chromatic $ do
             dsteps <- if diatonic == 0 then Right 0 else do
                 key <- read_env_key smap env
@@ -86,6 +87,21 @@ note_to_call smap note = case Map.lookup note (smap_note_to_degree smap) of
             let nn = Pitch.NoteNumber $ fromIntegral degree + chromatic + dsteps
             if Num.in_range 1 127 nn then Right nn
                 else Left Scale.InvalidTransposition
+        where
+        chromatic = Map.findWithDefault 0 Score.c_chromatic controls
+        diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+
+    pitch_note :: Theory.Pitch -> Scale.PitchNote
+    pitch_note pitch env controls =
+        Util.scale_to_pitch_error diatonic chromatic $ do
+            let d = round diatonic
+                c = round chromatic
+            show_pitch <$> if d == 0 && c == 0
+                then return pitch
+                else do
+                    key <- read_env_key smap env
+                    return $ Theory.transpose_chromatic key c $
+                        Theory.transpose_diatonic key d pitch
         where
         chromatic = Map.findWithDefault 0 Score.c_chromatic controls
         diatonic = Map.findWithDefault 0 Score.c_diatonic controls
@@ -109,8 +125,8 @@ call_doc transposers smap doc =
     Util.annotate_call_doc transposers extra_doc fields $
         Derive.extract_val_doc call
     where
-    call = Call.Pitch.scale_degree $ \_ _ ->
-        Left $ PitchSignal.PitchError "it was just an example!"
+    call = Call.Pitch.scale_degree err err
+        where err _ _ = Left $ PitchSignal.PitchError "it was just an example!"
     extra_doc = doc <> "\n" <> twelve_doc
     fields =
         [ ("note range", note_range)

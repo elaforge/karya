@@ -39,18 +39,20 @@ scale = Scale.Scale
     -- keyboard.
     , Scale.scale_input_to_note = \_ _ -> Nothing
     , Scale.scale_input_to_nn = Util.direct_input_to_nn
-    , Scale.scale_call_doc = Derive.extract_val_doc (note_call id)
+    , Scale.scale_call_doc = Derive.extract_val_doc $
+        note_call (Pitch.Note "1/1") id
     }
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "ratio"
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
-note_to_call note = note_call <$>
+note_to_call note = note_call note <$>
     Parse.maybe_parse_string p_note (Pitch.note_text note)
 
-note_call :: (Double -> Double) -> Derive.ValCall
-note_call ratio = Derive.val_call "ratio" ("Generate a frequency that is the"
+note_call :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
+note_call note ratio = Derive.val_call "ratio"
+    ( "Generate a frequency that is the"
     <> " ratio of the frequency of the " <> pitch_control <> " signal."
     <> " A negative ration divides, a positive one multiplies."
     ) $ Sig.call
@@ -60,7 +62,9 @@ note_call ratio = Derive.val_call "ratio" ("Generate a frequency that is the"
         nn <- Derive.require ("ratio scale requires " ++ pitch_control)
             =<< Derive.named_nn_at control start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
-        return $ TrackLang.VPitch $ PitchSignal.pitch $ const $ return out_nn
+        return $ TrackLang.VPitch $ PitchSignal.pitch
+            (const $ return out_nn)
+            (const $ return note)
     where
     pitch_control = ShowVal.show_val
         (TrackLang.LiteralControl control :: TrackLang.PitchControl)

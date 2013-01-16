@@ -6,8 +6,6 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.Lilypond as Lilypond
@@ -75,9 +73,9 @@ test_tuplet_multiple_tracks = do
 
 test_tuplet_code = do
     let f tuplet_dur note_dur pitches = NoteTransformer.tuplet_code
-            tuplet_dur note_dur (map parse_pitch pitches)
-    equal (f Lilypond.D2 Lilypond.D4 ["4a", "4b", "4c"])
-        "\\times 2/3 { a'4 b'4 c'4 }"
+            tuplet_dur note_dur pitches
+    equal (f Lilypond.D2 Lilypond.D4 ["a", "b", "c"])
+        "\\times 2/3 { a4 b4 c4 }"
 
 test_tuplet_ly = do
     let run = first (LilypondTest.convert_staves ["times"])
@@ -95,6 +93,13 @@ test_tuplet_ly = do
         (">", [(0, 2, "t")]) : UiTest.note_track
             [(t, 0.25, p) | (t, p) <- zip (Seq.range 0 1 0.25) pitches])
         (Right [["\\times 4/5 { a'8 b'8 c'8 d'8 e'8 }", "r2"]], [])
+    -- Ensure Lily.note_pitch preserves enharmonics.
+    equal (run $
+        (">", [(0, 2, "t")]) : UiTest.note_track
+            [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 1 0.5)
+                ["4c#", "4db", "4cx"]])
+        (Right [["\\times 2/3 { cs'4 df'4 css'4 }", "r2"]], [])
+
     -- prettyp $ LilypondTest.derive_linear True id $
     --     (">", [(0, 4, "t")]) : UiTest.note_track
     --         [(t, 0.25, p) | (t, p) <- zip (Seq.range 0 1 0.25) pitches]
@@ -112,7 +117,3 @@ test_arpeggio = do
             ]
     equal (run (tracks "`arp-up` 1")) [(10, 10, "4c"), (11, 9, "4d")]
     equal (run (tracks "`arp-down` 1")) [(10, 10, "4d"), (11, 9, "4c")]
-
-parse_pitch :: String -> Theory.Pitch
-parse_pitch s = fromMaybe (error $ "can't parse pitch: " ++ show s) $
-    Theory.read_pitch Twelve.layout s

@@ -50,15 +50,17 @@ bloom_until end = do
     -- Selection.realtime is not accurate since lilypond derive ignores tempo
     let block_id = Global.bid "bloom/order"
     -- block_id <- Cmd.get_focused_block
-    result <- Cmd.Lilypond.derive block_id
+    result <- Cmd.Lilypond.derive config block_id
     events <- LEvent.write_logs $
         LPerf.in_range Score.event_start 0 end (Derive.r_events result)
-    let config = Cmd.Lilypond.TimeConfig (measure / 5) Lilypond.D16
-        measure = 10.166666666666666
     void $ compile_ly block_id config events
+    where
+    config = Cmd.Lilypond.TimeConfig (measure / 5) Lilypond.D16
+    measure = 10.166666666666666
 
-events :: BlockId -> Cmd.CmdL Derive.Events
-events block_id = Derive.r_events <$> Cmd.Lilypond.derive block_id
+events :: Cmd.Lilypond.TimeConfig -> BlockId -> Cmd.CmdL Derive.Events
+events config block_id = Derive.r_events <$>
+    Cmd.Lilypond.derive config block_id
 
 ly_events :: RealTime -> Derive.Events -> ([Lilypond.Event], [Log.Msg])
 ly_events quarter = LEvent.partition . Convert.convert quarter
@@ -70,7 +72,7 @@ filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
 block :: Cmd.Lilypond.TimeConfig -> BlockId -> Cmd.CmdL ()
 block config block_id = do
     events <- LEvent.write_logs . Derive.r_events
-        =<< Cmd.Lilypond.derive block_id
+        =<< Cmd.Lilypond.derive config block_id
     stack_map <- compile_ly block_id config events
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_lilypond_stack_maps = Map.insert block_id

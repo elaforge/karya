@@ -1,14 +1,35 @@
 -- | Utilities for calls to cooperate with the lilypond backend.
 module Derive.Call.Lily where
+import Util.Control
+import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
+
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Lilypond as Lilypond
+import qualified Perform.Pitch as Pitch
 import Types
 
+
+-- | Used to turn RealTime into 'Lilypond.Time'.
+newtype RealTimePerQuarter = RealTimePerQuarter RealTime
+    deriving (Show)
+
+when_lilypond :: (RealTimePerQuarter -> Derive.Deriver a)
+    -- ^ Run if this is a lilypond derive.
+    -> Derive.Deriver a -- ^ Run if this is a normal derive.
+    -> Derive.Deriver a
+when_lilypond lily not_lily =
+    Derive.lookup_val TrackLang.v_lilypond_derive >>= \x -> case x of
+        Nothing -> not_lily
+        Just q -> lily (RealTimePerQuarter q)
 
 -- | Replace a note generator call with one that generates a single note having
 -- the given attributes.
@@ -36,19 +57,6 @@ note_transformer args attrs = when_lilypond $
     const $ Note.place $ Note.map_events (Util.add_attrs attrs) $
         concat (Note.sub_events args)
 
--- | Used to turn RealTime into 'Lilypond.Time'.
-newtype RealTimePerQuarter = RealTimePerQuarter RealTime
-    deriving (Show)
-
-when_lilypond :: (RealTimePerQuarter -> Derive.Deriver a)
-    -- ^ Run if this is a lilypond derive.
-    -> Derive.Deriver a -- ^ Run if this is a normal derive.
-    -> Derive.Deriver a
-when_lilypond lily not_lily =
-    Derive.lookup_val TrackLang.v_lilypond_derive >>= \x -> case x of
-        Nothing -> not_lily
-        Just q -> lily (RealTimePerQuarter q)
-
 -- * convert
 
 -- | Round the RealTime to the nearest NoteDuration.
@@ -67,3 +75,27 @@ is_duration :: RealTimePerQuarter -> RealTime -> Maybe Lilypond.Duration
 is_duration per_quarter t = case is_note_duration per_quarter t of
     Just (Lilypond.NoteDuration dur False) -> Just dur
     _ -> Nothing
+
+note_pitch :: Derive.EventDeriver -> Derive.Deriver String
+note_pitch deriver = do
+    events <- deriver
+    event <- require "had no event" $ Seq.head (LEvent.events_of events)
+    pitch <- require "note had no pitch" $ Score.initial_pitch event
+    let controls = Score.event_controls_at (Score.event_start event) event
+    pitch_to_lily $ PitchSignal.apply controls pitch
+    -- Wow, there are a lot of ways to fail.
+    where
+    require = Derive.require . (prefix <>)
+    prefix = "Lily.note_pitch: "
+
+pitch_to_lily :: PitchSignal.Pitch -> Derive.Deriver String
+pitch_to_lily pitch = do
+    note <- right $ PitchSignal.pitch_note pitch
+    pitch <- require ("unparseable note: " <> Pretty.pretty note) $
+        Theory.parse_pitch (Pitch.note_text note)
+    right $ Lilypond.show_pitch pitch
+    where
+    require = Derive.require . (prefix <>)
+    right :: (Pretty.Pretty a) => Either a b -> Derive.Deriver b
+    right = Derive.require_right ((prefix <>) . Pretty.pretty)
+    prefix = "Lily.pitch_to_lily: "

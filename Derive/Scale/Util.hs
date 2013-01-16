@@ -134,10 +134,11 @@ note_to_call :: DegreeMap -> DegreeToNoteNumber -> Pitch.Note
 note_to_call dmap degree_to_nn note =
     case Map.lookup note (dm_to_degree dmap) of
         Nothing -> Nothing
-        Just degree -> Just $ Call.Pitch.scale_degree (scale_degree degree)
+        Just degree -> Just $ Call.Pitch.scale_degree (pitch_nn degree)
+            (pitch_note degree)
     where
-    scale_degree :: Pitch.Degree -> Scale.NoteCall
-    scale_degree (Pitch.Degree degree) env controls =
+    pitch_nn :: Pitch.Degree -> Scale.PitchNn
+    pitch_nn (Pitch.Degree degree) env controls =
         scale_to_pitch_error diatonic chromatic $
             to_note (fromIntegral degree + chromatic + diatonic)
                 env controls
@@ -149,13 +150,18 @@ note_to_call dmap degree_to_nn note =
         | otherwise = do
             Num.scale <$> to_nn int <*> to_nn (int+1)
                 <*> return (Pitch.NoteNumber frac)
-            -- case (to_nn int, to_nn (int+1)) of
-            -- (Right nn1, Right nn2) ->
-            --     Right $ Num.scale nn1 nn2 (Pitch.NoteNumber frac)
-            -- _ -> Left Scale.InvalidTransposition
         where
         (int, frac) = properFraction degree
         to_nn = degree_to_nn env controls . Pitch.Degree . fromIntegral
+    pitch_note :: Pitch.Degree -> Scale.PitchNote
+    pitch_note (Pitch.Degree degree) _env controls =
+        maybe (Left err) Right $ Map.lookup transposed (dm_to_note dmap)
+        where
+        err = invalid_transposition diatonic chromatic
+        transposed = Pitch.Degree $ round $
+            fromIntegral degree + chromatic + diatonic
+        chromatic = Map.findWithDefault 0 Score.c_chromatic controls
+        diatonic = Map.findWithDefault 0 Score.c_diatonic controls
 
 lookup_key :: TrackLang.Environ -> Maybe Pitch.Key
 lookup_key = fmap Pitch.Key . TrackLang.maybe_val TrackLang.v_key
@@ -164,16 +170,21 @@ scale_to_pitch_error :: Signal.Y -> Signal.Y
     -> Either Scale.ScaleError a -> Either PitchSignal.PitchError a
 scale_to_pitch_error diatonic chromatic = either (Left . msg) Right
     where
-    msg err = PitchSignal.PitchError $ case err of
-        Scale.InvalidTransposition -> "note can't be transposed: "
-            ++ unwords (filter (not . null)
-                [show_val "d" diatonic, show_val "c" chromatic])
-        Scale.KeyNeeded ->
+    msg err = case err of
+        Scale.InvalidTransposition -> invalid_transposition diatonic chromatic
+        Scale.KeyNeeded -> PitchSignal.PitchError
             "no key is set, but this transposition needs one"
-        Scale.UnparseableEnviron name val ->
+        Scale.UnparseableEnviron name val -> PitchSignal.PitchError $
             Pretty.pretty name ++ " unparseable by given scale: " ++ val
-        Scale.UnparseableNote ->
+        Scale.UnparseableNote -> PitchSignal.PitchError
             "unparseable note (shouldn't happen)"
+
+invalid_transposition :: Signal.Y -> Signal.Y -> PitchSignal.PitchError
+invalid_transposition diatonic chromatic =
+    PitchSignal.PitchError $ "note can't be transposed: "
+        ++ unwords (filter (not . null)
+            [show_val "d" diatonic, show_val "c" chromatic])
+    where
     show_val _ 0 = ""
     show_val code val = Pretty.pretty val ++ code
 
@@ -267,8 +278,8 @@ call_doc transposers dmap imap doc =
 -- | Documentation of the standard 'Call.Pitch.scale_degree'.
 scale_degree_doc :: Derive.DocumentedCall
 scale_degree_doc = Derive.extract_val_doc $
-    Call.Pitch.scale_degree $ \_ _ ->
-        Left $ PitchSignal.PitchError "it was just an example!"
+    Call.Pitch.scale_degree err err
+        where err _ _ = Left $ PitchSignal.PitchError "it was just an example!"
 
 annotate_call_doc :: Set.Set Score.Control -> String -> [(String, String)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall

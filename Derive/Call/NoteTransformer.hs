@@ -2,7 +2,6 @@
 -- via 'Note.sub_events'.
 module Derive.Call.NoteTransformer where
 import qualified Control.Monad.Trans.Either as Either
-import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 
 import Util.Control
@@ -16,16 +15,12 @@ import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
 
-import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
-import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
-
 import Types
 
 
@@ -80,7 +75,8 @@ emit_lily_tuplet args not_lily = Lily.when_lilypond lily not_lily
         real_dur <- lift $
             Util.real_dur (Args.start args) (Note.event_duration note)
         note_dur <- is_dur "note" (real_dur * 2)
-        pitches <- lift $ mapM (note_pitch . Note.event_deriver) (note : notes)
+        pitches <- lift $
+            mapM (Lily.note_pitch . Note.event_deriver) (note : notes)
         lift $ Lily.code (Args.extent args)
             (tuplet_code tuplet_dur note_dur pitches)
         where
@@ -91,24 +87,13 @@ emit_lily_tuplet args not_lily = Lily.when_lilypond lily not_lily
         when_just msg $ Log.warn . ("can't convert to ly tuplet: "++)
         not_lily
 
--- | TODO hack that I'm going to get rid of soon
-note_pitch :: Derive.EventDeriver -> Derive.Deriver Theory.Pitch
-note_pitch deriver = do
-    events <- deriver
-    event <- Derive.require "tuplet note had no event" $
-        Seq.head (LEvent.events_of events)
-    nn <- Derive.require "tuplet note had no pitch" $ Score.initial_nn event
-    Derive.require "couldn't convert nn to pitch" $
-        Map.lookup (Pitch.Degree (floor nn)) Convert.degree_to_pitch
-
-tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> [Theory.Pitch]
+tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> [String]
     -> String
 tuplet_code tuplet_dur note_dur pitches =
     "\\times " <> show (Ratio.numerator ratio) <> "/"
         <> show (Ratio.denominator ratio) <> " { " <> unwords ly_notes <> " }"
     where
-    ly_notes = map ((++ Lilypond.to_lily note_dur) . show_pitch) pitches
-    show_pitch = either ("error:"++) id . Lilypond.show_pitch
+    ly_notes = map (++ Lilypond.to_lily note_dur) pitches
     ratio = Ratio.approxRational
         (d tuplet_dur / (d note_dur * fromIntegral (length pitches))) 0.0001
     d :: Lilypond.Duration -> Double

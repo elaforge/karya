@@ -32,8 +32,8 @@ import Types
 -- | Create a pitch val call for the given scale degree.  This is intended to
 -- be used by scales to generate their calls, but of course each scale may
 -- define calls in its own way.
-scale_degree :: Scale.NoteCall -> Derive.ValCall
-scale_degree get_note_number = Derive.val_call
+scale_degree :: Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
+scale_degree pitch_nn pitch_note = Derive.val_call
     "pitch" "Emit the pitch of a scale degree." $ Sig.call ((,)
     <$> defaulted "frac" 0
         "Add this many hundredths of a scale degree to the output."
@@ -44,10 +44,11 @@ scale_degree get_note_number = Derive.val_call
         -- I should make environ more strict so that doesn't happen, but it
         -- doesn't seem to be working.  Meanwhile, here's a hack.
         environ <- DeepSeq.rnf environ `seq` return environ
-        return $ TrackLang.VPitch $ PitchSignal.pitch (call frac hz environ)
+        return $ TrackLang.VPitch $ PitchSignal.pitch
+            (call frac hz environ) (pitch_note environ)
     where
     call frac hz environ controls =
-        Pitch.add_hz (hz + hz_sig) <$> get_note_number environ
+        Pitch.add_hz (hz + hz_sig) <$> pitch_nn environ
             (if frac == 0 then controls
                 else Map.insertWith' (+) Score.c_chromatic (frac / 100)
                     controls)
