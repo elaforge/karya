@@ -65,11 +65,10 @@ derive config block_id = do
             Call.Block.eval_root_block global_transform block_id)
 
 compile_ly :: FilePath -> TimeConfig -> Lilypond.Title
-    -> [Score.Event] -> IO (Either String Cmd.StackMap)
+    -> [Score.Event] -> IO (Either String Cmd.StackMap, [Log.Msg])
 compile_ly ly_filename config title events = do
     let (result, logs) = make_ly config title events
-    mapM_ Log.write logs
-    case result of
+    (flip (,) logs) <$> case result of
         Left err -> return $ Left err
         Right (ly, stack_map) -> do
             Directory.createDirectoryIfMissing True

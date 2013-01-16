@@ -53,7 +53,7 @@ bloom_until end = do
     result <- Cmd.Lilypond.derive config block_id
     events <- LEvent.write_logs $
         LPerf.in_range Score.event_start 0 end (Derive.r_events result)
-    void $ compile_ly block_id config events
+    compile_ly block_id config events
     where
     config = Cmd.Lilypond.TimeConfig (measure / 5) Lilypond.D16
     measure = 10.166666666666666
@@ -73,28 +73,25 @@ block :: Cmd.Lilypond.TimeConfig -> BlockId -> Cmd.CmdL ()
 block config block_id = do
     events <- LEvent.write_logs . Derive.r_events
         =<< Cmd.Lilypond.derive config block_id
-    stack_map <- compile_ly block_id config events
-    Cmd.modify_play_state $ \st -> st
-        { Cmd.state_lilypond_stack_maps = Map.insert block_id
-            stack_map (Cmd.state_lilypond_stack_maps st)
-        }
+    compile_ly block_id config events
 
 from_events :: Cmd.Lilypond.TimeConfig -> [Score.Event] -> Cmd.CmdL ()
 from_events config events = do
     block_id <- Cmd.get_focused_block
-    stack_map <- compile_ly block_id config events
+    compile_ly block_id config events
+
+compile_ly :: BlockId -> Cmd.Lilypond.TimeConfig -> [Score.Event]
+    -> Cmd.CmdL ()
+compile_ly block_id config events = do
+    filename <- Cmd.Lilypond.ly_filename block_id
+    (result, logs) <- liftIO $
+        Cmd.Lilypond.compile_ly filename config (title_of block_id) events
+    mapM_ Log.write logs
+    stack_map <- Cmd.require_right ("compile_ly: "++) result
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_lilypond_stack_maps = Map.insert block_id
             stack_map (Cmd.state_lilypond_stack_maps st)
         }
-
-compile_ly :: BlockId -> Cmd.Lilypond.TimeConfig -> [Score.Event]
-    -> Cmd.CmdL Cmd.StackMap
-compile_ly block_id config events = do
-    filename <- Cmd.Lilypond.ly_filename block_id
-    result <- liftIO $
-        Cmd.Lilypond.compile_ly filename config (title_of block_id) events
-    Cmd.require_right ("compile_ly: "++) result
 
 view_pdf :: BlockId -> Cmd.CmdL ()
 view_pdf block_id = do
