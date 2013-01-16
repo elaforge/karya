@@ -1,4 +1,5 @@
 module Derive.Call.Ornament_test where
+import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Derive.Call.Ornament as Ornament
@@ -8,6 +9,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.Pitch as Pitch
 
 
@@ -85,3 +87,13 @@ test_grace = do
         , ("*", [(0, 0, "4c")])
         ])
         ([((0, 1.5, "4b"), 1), ((1, 1, "4c"), 1)], [])
+
+test_grace_ly = do
+    let run = first (LilypondTest.convert_staves ["acciaccatura"])
+            . LilypondTest.derive
+    equal (run
+        [ (">", [(0, 2, "g (4a) (4b)"), (2, 2, "g (3a)")])
+        , ("*", [(0, 0, "4c"), (2, 0, "4b")])
+        ])
+        (Right [["\\acciaccatura { a'8[ b'8] }", "c'2",
+            "\\acciaccatura { a8 }", "b'2"]], [])

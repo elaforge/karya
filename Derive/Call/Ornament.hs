@@ -4,6 +4,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -13,6 +14,7 @@ import qualified Derive.Sig as Sig
 import Derive.Sig (optional, defaulted, many)
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -57,8 +59,23 @@ c_grace = Derive.stream_generator "grace"
     ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,)
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."
-    ) $ \(dyn, pitches) -> Note.inverting $ \args -> do
-        grace (Args.extent args) (fromMaybe 0.5 dyn) pitches
+    ) $ \(dyn, pitches) -> Note.inverting $ \args ->
+        Lily.when_lilypond (lily_grace args pitches) $
+            grace (Args.extent args) (fromMaybe 0.5 dyn) pitches
+
+lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch]
+    -> Lily.RealTimePerQuarter -> Derive.EventDeriver
+lily_grace args pitches _per_quarter = do
+    pitches <- mapM Lily.pitch_to_lily pitches
+    let ly_notes = map (++ Lilypond.to_lily Lilypond.D8) pitches
+        barred = case ly_notes of
+            [n] -> [n]
+            n : ns -> (n ++ "[") : Seq.rdrop 1 ns ++ [last ns ++ "]"]
+            _ -> ly_notes
+        -- I use \acciaccatura instead of \grace because it adds a slur
+        -- automatically.
+        code = "\\acciaccatura { " <> unwords barred <> " }"
+    Lily.code (Args.start args, 0) code <> Util.place args Util.note
 
 grace :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch] ->
     Derive.EventDeriver
@@ -98,7 +115,9 @@ grace_dur_default = RealTime.seconds 0.8
 grace_overlap_default = grace_dur_default / 2
 
 grace_doc :: String
-grace_doc = "Grace note duration is set by `grace-dur` in the environment and\
+grace_doc = "This variant of grace note doesn't affect the start time of the\
+    \ destination note, and is of a uniform speed, regardless of the tempo.\
+    \ Grace note duration is set by `grace-dur` in the environment and\
     \ defaults to " <> Pretty.pretty grace_dur_default <> ", overlap time is\
     \ `grace-overlap` and defaults to " <> Pretty.pretty grace_overlap_default
     <> "."
