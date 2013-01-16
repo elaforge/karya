@@ -487,7 +487,7 @@ integrate / integration:
 lilypond:
   * tuplets should just emit lilypond directly: ly-code = '\times x/y { a b c }'
   * same with \grace
-  - tuplet should be ok with multiple children if the rest are empty
+  * tuplet should be ok with multiple children if the rest are empty
   * Get rid of Lilypond.attributes_to_code and use a ly-code-append environ
     instead.
   * Slur can also do this.

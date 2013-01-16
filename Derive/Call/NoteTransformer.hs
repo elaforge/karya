@@ -58,10 +58,10 @@ emit_lily_tuplet args not_lily = Lily.when_lilypond lily not_lily
     lily per_quarter = either err return
         =<< Either.runEitherT (check per_quarter)
     check per_quarter = do
-        (note, notes) <- case Note.sub_events args of
+        (note, notes) <- case filter (not . null) (Note.sub_events args) of
             [] -> Either.left $ Just "no sub events"
-            _ : _ : _ -> Either.left $ Just ">1 sub track"
             [[]] -> Either.left $ Just "no sub events"
+            _ : _ : _ -> Either.left $ Just ">1 non-empty sub track"
             [[_]] -> Either.left Nothing
             [n : ns]
                 | not $ all ((== Note.event_duration n) . Note.event_duration)
