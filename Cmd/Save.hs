@@ -69,6 +69,8 @@ state_save_file ns state = case Cmd.state_save_file state of
 default_state :: FilePath
 default_state = "save.state"
 
+-- | Save the state to the given file.  Unlike 'cmd_save_git', this doesn't
+-- set 'Cmd.state_save_file'.
 cmd_save_state :: FilePath -> Cmd.CmdT IO ()
 cmd_save_state fname = do
     ui_state <- State.get
@@ -105,7 +107,8 @@ default_git :: FilePath
 default_git = "save.git"
 
 -- | Save a SavePoint to the git repo in 'Cmd.state_save_file', or start a new
--- one.
+-- one.  Set the 'Cmd.state_save_file' to the repo, so I'll keep saving to
+-- that repo.
 --
 -- This doesn't take a FilePath.  This is because 'Cmd.Undo.maintain_history'
 -- will be saving to the repo set by 'Cmd.state_save_file'.
@@ -119,7 +122,8 @@ cmd_save_git = do
         =<< liftIO (SaveGit.save repo state prev_commit)
     Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
     Cmd.modify $ \st -> st
-        { Cmd.state_history = reset_history commit (Cmd.state_history st)
+        { Cmd.state_save_file = Just $ Cmd.SaveGit repo
+        , Cmd.state_history = reset_history commit (Cmd.state_history st)
         , Cmd.state_history_config = (Cmd.state_history_config st)
             { Cmd.hist_last_save = Just save
             , Cmd.hist_last_commit = Just commit
