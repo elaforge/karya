@@ -2,7 +2,6 @@
 -- via 'Note.sub_events'.
 module Derive.Call.NoteTransformer where
 import qualified Control.Monad.Trans.Either as Either
-import qualified Data.Ratio as Ratio
 
 import Util.Control
 import qualified Util.Log as Log
@@ -87,17 +86,13 @@ emit_lily_tuplet args not_lily = Lily.when_lilypond lily not_lily
         when_just msg $ Log.warn . ("can't convert to ly tuplet: "++)
         not_lily
 
-tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> [String]
-    -> String
+tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> [String] -> String
 tuplet_code tuplet_dur note_dur pitches =
-    "\\times " <> show (Ratio.numerator ratio) <> "/"
-        <> show (Ratio.denominator ratio) <> " { " <> unwords ly_notes <> " }"
+    "\\times " <> show (d tuplet_dur `div` d note_dur) <> "/"
+        <> show (length pitches) <> " { " <> unwords ly_notes <> " }"
     where
     ly_notes = map (++ Lilypond.to_lily note_dur) pitches
-    ratio = Ratio.approxRational
-        (d tuplet_dur / (d note_dur * fromIntegral (length pitches))) 0.0001
-    d :: Lilypond.Duration -> Double
-    d = fromIntegral . Lilypond.dur_to_time
+    d = toInteger . Lilypond.dur_to_time
 
 -- * arpeggio
 

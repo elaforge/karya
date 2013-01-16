@@ -483,11 +483,16 @@ integrate / integration:
 lilypond:
   * tuplets should just emit lilypond directly: ly-code = '\times x/y { a b c }'
   * same with \grace
+  - Get rid of Lilypond.attributes_to_code and use a ly-code-append environ
+    instead.
+  - staccato, marcato, accent
   - instead of just TimePerQuarter I also need the quantization, so include
     the TimeConfig.
   - convert lily code to Text instead of String.  Maybe VString has to become
     Text then.
   - pedal should emit pedal sign
+    I can't use the pedal call for that, since it emits control.  But I can
+    look at the pedal signal directly.
   - need 8ve marks
   - Why does the cmd have to wait until lilypond is done?  Should be async.
   - staff group should put inst name on the group instead of each staff

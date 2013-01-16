@@ -86,6 +86,11 @@ test_tuplet_ly = do
             [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 1 0.5) pitches])
         (Right [["\\times 2/3 { a'4 b'4 c'4 }", "r2"]], [])
     equal (run $
+        (">", [(0, 2, "t")]) : UiTest.note_track
+            [(t, 0.25, p) | (t, p) <- zip (Seq.range 0 1.25 0.25) pitches])
+        (Right [["\\times 4/6 { a'8 b'8 c'8 d'8 e'8 f'8 }", "r2"]], [])
+
+    equal (run $
         (">", [(0, 4, "t")]) : UiTest.note_track
             [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 2 0.5) pitches])
         (Right [["\\times 4/5 { a'4 b'4 c'4 d'4 e'4 }"]], [])
