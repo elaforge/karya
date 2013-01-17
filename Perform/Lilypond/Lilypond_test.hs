@@ -33,6 +33,9 @@ test_convert_measures = do
         [["a2", "r4", "r8", "b16", "c16"]]
     equal (f [(0, 0.5, "a"), (0.5, 1, "b"), (1.5, 0.5, "c")]) $ Right
         [["a8", "b4", "c8", "r2"]]
+    -- Zero durations turn into short notes.
+    equal (f [(0, 0, "a"), (0, 0, "b"), (1, 1, "c")]) $ Right
+        [["<a b>128", "r128", "r64", "r32", "r16", "r8", "c4", "r2"]]
 
 test_change_time_signature = do
     let f = convert_staves ["time"] . map time_sig_event

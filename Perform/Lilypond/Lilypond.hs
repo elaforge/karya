@@ -358,9 +358,9 @@ convert_note state tsig event events
         , _note_stack = Seq.last (Stack.to_ui (event_stack event))
         }
     (here, rest) = break ((> start) . event_start) (event : events)
+    allowed = min (max_end - start) (allowed_dotted_time tsig start)
     allowed_dur = time_to_note_dur allowed
     allowed_time = note_dur_to_time allowed_dur
-    allowed = min (max_end - start) (allowed_dotted_time tsig start)
     -- Maximum end, the actual end may be shorter since it has to conform to
     -- a Duration.
     max_end = fromMaybe (event_end event) $
@@ -480,12 +480,15 @@ dur_to_time dur = Time $ whole `div` case dur of
     D16 -> 16; D32 -> 32; D64 -> 64; D128 -> 128
     where Time whole = time_per_whole
 
+-- | Time 0 becomes D128 since there's no 0 duration.  This puts a bottom bound
+-- on the duration of a note, which is good since 0 duration notes aren't
+-- notateable, but can happen after quantization.
 time_to_note_dur :: Time -> NoteDuration
 time_to_note_dur t = case time_to_durs t of
     [d1, d2] | d2 == succ d1 -> NoteDuration d1 True
     d : _ -> NoteDuration d False
-    -- I have no 0 duration, so I'm forced to pick something.
-    [] -> NoteDuration D1 False
+    -- I have no 0 duration, so pick the smallest available duration.
+    [] -> NoteDuration D128 False
 
 -- | Only Just if the Time fits into a NoteDuration.
 is_note_dur :: Time -> Maybe NoteDuration
