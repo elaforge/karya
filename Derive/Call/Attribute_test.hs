@@ -1,7 +1,11 @@
 module Derive.Call.Attribute_test where
+import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
+
+import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 
 test_legato = do
@@ -35,3 +39,16 @@ test_legato = do
         , (2, 1, "?", "+legato")
         , (4, 1, "?", "-")
         ]
+
+test_attributed_note_ly = do
+    let run = first (LilypondTest.convert_staves [])
+            . LilypondTest.derive_linear True id
+    equal (run $
+        (">", [(0, 2, "m")]) : UiTest.note_track
+            [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
+        (Right [["a'4-+", "b'4-+", "c'4", "r4"]], [])
+    equal (run $
+        [ (">", [(0, 1, "m |"), (1, 1, ""), (2, 1, "m |")])
+        , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
+        ])
+        (Right [["a'4-+", "b'4", "c'4-+", "r4"]], [])

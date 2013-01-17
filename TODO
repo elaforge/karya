@@ -491,7 +491,12 @@ lilypond:
   * Get rid of Lilypond.attributes_to_code and use a ly-code-append environ
     instead.
   * Slur can also do this.
-  - staccato, marcato, accent, harmonic ^\flageolet
+  * staccato, marcato, accent, harmonic ^\flageolet
+  - grace under a tuplet doesn't work because the tuplet directly interprets
+    its notes itself.  For grace to work, it would have to convert the notes
+    to ly, with a mini-convert.
+    Or emit a 0 dur "\times x/y {", then emit the notes, then "}"
+  - 32nd notes becoming whole note chords on measure 30
   - instead of just TimePerQuarter I also need the quantization, so include
     the TimeConfig.
   - convert lily code to Text instead of String.  Maybe VString has to become

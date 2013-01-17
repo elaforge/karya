@@ -31,23 +31,25 @@ lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
     parse_symbol sym@('+':_) = case ParseBs.parse_val sym of
         Right (TrackLang.VRelativeAttr (TrackLang.RelativeAttr
             (TrackLang.Add, attr))) -> return $ Just $
-                attributed_note (Score.attr attr)
+                attributed_note Nothing (Score.attr attr)
         _ -> return Nothing
     parse_symbol _ = return Nothing
-    doc = Derive.extract_doc (attributed_note (Score.attr "example-attr"))
+    doc = Derive.extract_doc $
+        attributed_note Nothing (Score.attr "example-attr")
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("o", attributed_note Attrs.harmonic)
-    , ("m", attributed_note Attrs.mute)
+    [ ("o", attributed_note (Just "-\\flageolet") Attrs.harmonic)
+    , ("m", attributed_note (Just "-+") Attrs.mute)
+    , ("marc", attributed_note (Just "-^") Attrs.marcato)
     -- TODO also set sustain to .5, overridable in the environ
-    , (".", attributed_note Attrs.staccato)
+    , (".", attributed_note (Just "-.") Attrs.staccato)
     , ("(", c_legato)
     , ("{", c_portamento)
     ]
 
-attributed_note :: Attrs.Attributes -> Derive.NoteCall
-attributed_note attrs = Derive.Call
+attributed_note :: Maybe String -> Attrs.Attributes -> Derive.NoteCall
+attributed_note maybe_code attrs = Derive.Call
     { Derive.call_name = "note with " ++ ShowVal.show_val attrs
     , Derive.call_generator = Just $ Derive.generator_call
         ("Apply attributes to notes. When applied as a note transformer\
@@ -59,11 +61,16 @@ attributed_note attrs = Derive.Call
         "Apply attributes to the transformed deriver." transformer
     }
     where
-    generator = Sig.call0 $ \args -> case Note.sub_events args of
+    generator = Sig.call0 $ generate_ly $ \args -> case Note.sub_events args of
         [] -> add_attrs $ Call.reapply_call args (TrackLang.call "" [])
         subs -> Note.place (Note.map_events add_attrs (concat subs))
-    transformer = Sig.call0t $ \_ deriver -> add_attrs deriver
+    transformer = Sig.call0t $ \_args deriver ->
+        Lily.when_lilypond (const $ append_code (add_attrs deriver))
+            (add_attrs deriver)
     add_attrs = Util.add_attrs attrs
+    append_code = maybe id Lily.append_code maybe_code
+    generate_ly f args = maybe (f args)
+        (\c -> Lily.notes_append c args (f args)) maybe_code
 
 c_legato :: Derive.NoteCall
 c_legato = Derive.stream_generator "legato"

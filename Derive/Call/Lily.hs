@@ -44,6 +44,10 @@ notes_code :: Code -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
 notes_code code = notes_with (add_code code)
 
+notes_append :: String -> Derive.PassedArgs d
+    -> Derive.EventDeriver -> Derive.EventDeriver
+notes_append = notes_code . Suffix
+
 -- | This is like 'notes_code', but the first event in each track gets the
 -- start code, and the last event in each track gets the end code.
 notes_around :: Code -> Code -> Derive.PassedArgs d
