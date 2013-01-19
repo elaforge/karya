@@ -641,6 +641,7 @@ promote_annotations measures = case empty ++ stripped of
         (annots, rest) = span is_annot post
     not_note n = is_time n || is_rest n
     is_annot (Note {}) = False
+    is_annot (Code {}) = False
     is_annot _ = True
     is_time (TimeChange {}) = True
     is_time _ = False
