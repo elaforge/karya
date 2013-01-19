@@ -10,6 +10,7 @@ import qualified Derive.Call.Echo as Echo
 import qualified Derive.Call.Gender as Gender
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Integrate as Integrate
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Ornament as Ornament
@@ -62,6 +63,7 @@ note_calls :: Derive.NoteCallMap
 (note_calls, shadowed_notes) = unions
     [ Attribute.note_calls, Block.note_calls, Echo.note_calls
     , Gender.note_calls, Integrate.note_calls
+    , Lily.note_calls
     , NegativeDur.note_calls, Note.note_calls, NoteTransformer.note_calls
     , Ornament.note_calls , Random.note_calls, Reverse.note_calls
     , Sekar.note_calls, String.note_calls, Trill.note_calls

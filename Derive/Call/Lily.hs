@@ -173,3 +173,22 @@ eval_notes (Derive.Lilypond time_config config) time_sig start score_events =
         (Lilypond.real_to_time quarter start)
         (Convert.quantize quantize_dur events)
     Lilypond.TimeConfig quarter quantize_dur = time_config
+
+
+-- * calls
+
+note_calls :: Derive.NoteCallMap
+note_calls = Derive.make_calls
+    [ ("8va", c_8va)
+    ]
+
+c_8va :: Derive.NoteCall
+c_8va = Derive.stream_generator "ottava"
+    "Emit `lilypond \\ottava = #n` around the notes in scope."
+    $ Sig.call (defaulted "octave" 1 "Transpose this many octaves up or down.")
+    $ \oct args -> code0 (Args.start args) (ottava oct)
+        <> Note.place (concat (Note.sub_events args))
+        <> code0 (Args.end args) (ottava 0)
+
+ottava :: Int -> String
+ottava n = "\\ottava #" ++ show n
