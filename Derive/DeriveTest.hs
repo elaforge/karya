@@ -451,9 +451,9 @@ modify_dynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()
 modify_dynamic f = Derive.modify $ \st ->
     st { Derive.state_dynamic = f (Derive.state_dynamic st) }
 
--- | Really not supposed to do this, but should be *mostly* ok for tests, but
--- beware of values baked in to e.g. lookup functions.  This is why modifying
--- UI state is not a good idea.
+-- | Really not supposed to do this, but should be *mostly* ok for tests.
+-- It's only mostly ok because some values are baked in to e.g. lookup
+-- functions.
 modify_constant :: (Derive.Constant -> Derive.Constant)
     -> Derive.Deriver a -> Derive.Deriver a
 modify_constant f deriver = do

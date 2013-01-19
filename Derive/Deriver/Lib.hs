@@ -161,12 +161,11 @@ get_val name = do
     val <- lookup_val name
     maybe (throw $ "environ val not found: " ++ Pretty.pretty name) return val
 
-is_val_set :: TrackLang.ValName -> Deriver Bool
-is_val_set name = Maybe.isJust . TrackLang.lookup_val name <$>
-    Internal.get_dynamic state_environ
-
 is_lilypond_derive :: Deriver Bool
-is_lilypond_derive = is_val_set TrackLang.v_lilypond_derive
+is_lilypond_derive = Maybe.isJust <$> lookup_lilypond_config
+
+lookup_lilypond_config :: Deriver (Maybe Lilypond)
+lookup_lilypond_config = gets (state_lilypond . state_constant)
 
 -- | Set the given val dynamically within the given computation.  This is
 -- analogous to a dynamic let.

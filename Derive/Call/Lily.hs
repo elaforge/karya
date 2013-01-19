@@ -1,9 +1,11 @@
 -- | Utilities for calls to cooperate with the lilypond backend.
 module Derive.Call.Lily where
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -11,25 +13,22 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Sig as Sig
+import Derive.Sig (defaulted)
 
+import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
+
 import Types
 
 
--- | Used to turn RealTime into 'Lilypond.Time'.
-newtype RealTimePerQuarter = RealTimePerQuarter RealTime
-    deriving (Show)
-
-when_lilypond :: (RealTimePerQuarter -> Derive.Deriver a)
+when_lilypond :: (Derive.Lilypond -> Derive.Deriver a)
     -- ^ Run if this is a lilypond derive.
     -> Derive.Deriver a -- ^ Run if this is a normal derive.
     -> Derive.Deriver a
 when_lilypond lily not_lily =
-    Derive.lookup_val TrackLang.v_lilypond_derive >>= \x -> case x of
-        Nothing -> not_lily
-        Just q -> lily (RealTimePerQuarter q)
+    maybe not_lily lily =<< Derive.lookup_lilypond_config
 
 append :: Derive.PassedArgs d -> String -> Derive.EventDeriver
     -> Derive.EventDeriver
@@ -91,22 +90,24 @@ code :: (ScoreTime, ScoreTime) -> String -> Derive.EventDeriver
 code (start, dur) code = Derive.with_val Lilypond.v_ly_code code
     (Derive.d_place start dur Util.note)
 
+-- | Like 'code', but for 0 duration code fragments.
+code0 :: ScoreTime -> String -> Derive.EventDeriver
+code0 start = code (start, 0)
+
 -- * convert
 
 -- | Round the RealTime to the nearest NoteDuration.
-note_duration :: RealTimePerQuarter -> RealTime -> Lilypond.NoteDuration
-note_duration (RealTimePerQuarter q) =
-    Lilypond.time_to_note_dur . Lilypond.real_to_time q
+note_duration :: Derive.Lilypond -> RealTime -> Lilypond.NoteDuration
+note_duration config = Lilypond.time_to_note_dur . to_time config
 
 -- | Like 'note_duration', but only succeeds if the RealTime is exactly
 -- a NoteDuration.
-is_note_duration :: RealTimePerQuarter -> RealTime
+is_note_duration :: Derive.Lilypond -> RealTime
     -> Maybe Lilypond.NoteDuration
-is_note_duration (RealTimePerQuarter q) =
-    Lilypond.is_note_dur . Lilypond.real_to_time q
+is_note_duration config = Lilypond.is_note_dur . to_time config
 
-is_duration :: RealTimePerQuarter -> RealTime -> Maybe Lilypond.Duration
-is_duration per_quarter t = case is_note_duration per_quarter t of
+is_duration :: Derive.Lilypond -> RealTime -> Maybe Lilypond.Duration
+is_duration config t = case is_note_duration config t of
     Just (Lilypond.NoteDuration dur False) -> Just dur
     _ -> Nothing
 
@@ -133,3 +134,42 @@ pitch_to_lily pitch = do
     right :: (Pretty.Pretty a) => Either a b -> Derive.Deriver b
     right = Derive.require_right ((prefix <>) . Pretty.pretty)
     prefix = "Lily.pitch_to_lily: "
+
+to_time :: Derive.Lilypond -> RealTime -> Lilypond.Time
+to_time = Lilypond.real_to_time . Lilypond.time_quarter . Derive.ly_time_config
+
+
+-- * eval
+
+-- | A lilypond \"note\", which is just a chunk of text.
+type Note = String
+
+eval :: Derive.Lilypond -> Derive.PassedArgs d -> [Note.Event]
+    -> Derive.Deriver [Note]
+eval config args notes = do
+    start <- Args.real_start args
+    eval_events config start =<< Note.place notes
+
+eval_events :: Derive.Lilypond -> RealTime -> Derive.Events
+    -> Derive.Deriver [Note]
+eval_events config start events = do
+    time_sig <- maybe (return Lilypond.default_time_signature) parse_time_sig
+        =<< Derive.lookup_val Lilypond.v_time_signature
+    let (notes, logs) = eval_notes config time_sig start events
+    mapM_ Log.write logs
+    return notes
+    where
+    parse_time_sig = either err return . Lilypond.parse_time_signature
+    err = Derive.throw
+        . ("parse " <> Pretty.pretty Lilypond.v_time_signature <>)
+
+eval_notes :: Derive.Lilypond -> Lilypond.TimeSignature
+    -> RealTime -> Derive.Events -> ([Note], [Log.Msg])
+eval_notes (Derive.Lilypond time_config config) time_sig start score_events =
+    (map Lilypond.to_lily notes, logs)
+    where
+    (events, logs) = LEvent.partition $ Convert.convert quarter score_events
+    notes = Lilypond.simple_convert config time_sig
+        (Lilypond.real_to_time quarter start)
+        (Convert.quantize quantize_dur events)
+    Lilypond.TimeConfig quarter quantize_dur = time_config

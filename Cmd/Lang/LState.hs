@@ -25,6 +25,9 @@ get_config = State.config <#> State.get
 get_default :: Cmd.CmdL State.Default
 get_default = State.config#State.default_ <#> State.get
 
+get_default_tempo :: Cmd.CmdL Signal.Y
+get_default_tempo = State.config#State.default_#State.tempo <#> State.get
+
 set_default_tempo :: Signal.Y -> Cmd.CmdL ()
 set_default_tempo t = modify_config $ State.default_#State.tempo #= t
 

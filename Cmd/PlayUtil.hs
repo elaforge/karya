@@ -72,15 +72,17 @@ run :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage
     -> Derive.Deriver a -> m (Derive.RunResult a)
 run cache damage deriver = do
     ui_state <- State.get
-    run_ui ui_state cache damage deriver
+    run_ui ui_state id cache damage deriver
 
-run_ui :: (Cmd.M m) => State.State -> Derive.Cache -> Derive.ScoreDamage
-    -> Derive.Deriver a -> m (Derive.RunResult a)
-run_ui ui_state cache damage deriver = do
+run_ui :: (Cmd.M m) => State.State -> (Derive.Constant -> Derive.Constant)
+    -> Derive.Cache -> Derive.ScoreDamage -> Derive.Deriver a
+    -> m (Derive.RunResult a)
+run_ui ui_state modify_constant cache damage deriver = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- get_lookup_inst
-    let constant = Derive.initial_constant ui_state lookup_scale lookup_inst
-            cache damage
+    let constant = modify_constant $
+            Derive.initial_constant ui_state lookup_scale lookup_inst cache
+                damage
     scope <- Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
     let deflt = State.config_default (State.state_config ui_state)
         env = initial_environ (State.default_scale deflt)

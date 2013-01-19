@@ -473,15 +473,6 @@ v_srate = Symbol "srate"
 v_seed :: ValName
 v_seed = Symbol "seed"
 
--- | This is set when the derive is being run for conversion to lilypond.
--- Various calls can check for its presence and derive differently (e.g. trill
--- should emit a trill attr instead of notes).
---
--- It should be set to the RealTime per quarter note, so calls can create
--- lilypond code themselves if they must.
-v_lilypond_derive :: ValName
-v_lilypond_derive = Symbol "ly-time-per-quarter"
-
 
 -- * expressions
 

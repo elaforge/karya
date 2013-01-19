@@ -1,7 +1,10 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | Convert from Score events to a lilypond score.
-module Perform.Lilypond.Lilypond where
+module Perform.Lilypond.Lilypond (
+    module Perform.Lilypond.Lilypond
+    , module Perform.Lilypond.Types
+) where
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
@@ -16,7 +19,6 @@ import qualified Util.ParseBs as ParseBs
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Cmd.Cmd as Cmd
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -25,6 +27,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import Perform.Lilypond.Types
 import Types
 
 
@@ -54,19 +57,6 @@ v_ly_code_append = TrackLang.Symbol "ly-code-append"
 
 -- * types
 
--- | Configure how the lilypond score is generated.
-data Config = Config {
-    -- | Amount of RealTime per quarter note.  This is the same value used by
-    -- 'Perform.Lilypond.Convert'.
-    config_quarter_duration :: !RealTime
-    -- | Allow dotted rests?
-    , config_dotted_rests :: !Bool
-    -- | If non-null, generate dynamics from each event's dynamic control.
-    -- This has cutoffs for each dynamic level, which should be \"p\", \"mf\",
-    -- etc.
-    , config_dynamics :: ![(Double, String)]
-    } deriving (Show)
-
 default_config :: RealTime -> Config
 default_config quarter = Config
     { config_quarter_duration = quarter
@@ -86,7 +76,8 @@ class ToLily a where
 newtype Time = Time Int deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
 
 instance Pretty.Pretty Time where
-    pretty t = show (fromIntegral t / fromIntegral time_per_whole) ++ "t"
+    pretty t = Pretty.show_float 10
+        (fromIntegral t / fromIntegral time_per_whole) ++ "t"
 
 time_per_whole :: Time
 time_per_whole = Time 128
@@ -99,23 +90,7 @@ real_to_time quarter = Time . floor . adjust . RealTime.to_seconds
 
 -- ** Duration
 
--- | This time duration measured as the fraction of a whole note.
-data Duration = D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
-    deriving (Enum, Eq, Ord, Show)
-
--- | A Duration plus a possible dot.
-data NoteDuration = NoteDuration Duration Bool
-    deriving (Eq, Show)
-
-read_duration :: String -> Maybe Duration
-read_duration s = case s of
-    -- GHC incorrectly reports overlapping patterns.  This bug is fixed in 7.4.
-    "1" -> Just D1; "2" -> Just D2; "4" -> Just D4; "8" -> Just D8
-    "16" -> Just D16; "32" -> Just D32; "64" -> Just D64; "128" -> Just D128
-    _ -> Nothing
-
-instance ToLily Duration where
-    to_lily = drop 1 . show
+instance ToLily Duration where to_lily = drop 1 . show
 
 instance ToLily NoteDuration where
     to_lily (NoteDuration dur dot) = to_lily dur ++ if dot then "." else ""
@@ -277,6 +252,20 @@ convert_measures config time_sigs events =
             maybe_measure
         where time_change = [TimeChange tsig | maybe True (/=tsig) prev_tsig]
 
+-- | This is a simplified version of 'convert_measures', designed for
+-- converting little chunks of lilypond that occur in other expressions.
+-- So it doesn't handle clef changes, time signature changes, or even barlines.
+simple_convert :: Config -> TimeSignature -> Time -> [Event] -> [Note]
+simple_convert config_ time_sig = go
+    where
+    config = config_ { config_dynamics = [] }
+    go _ [] = []
+    go start (event : events) = leading_rests ++ [note] ++ go end rest_events
+        where
+        leading_rests = make_rests config time_sig start (event_start event)
+        (note, end, rest_events) =
+            convert_note config Nothing time_sig event events
+
 -- TODO The time signatures are still not correct.  Since time sig is only on
 -- notes, I can't represent a time sig change during silence.  I would need to
 -- generate something other than notes, or create a silent note for each time
@@ -294,10 +283,9 @@ convert_measure events = case events of
                 return tsig
         event_tsig <- lookup_time_signature first_event
         when (event_tsig /= tsig) $
-            Error.throwError $ "inconsistent time signatures, "
-                ++ "analysis says it should be " ++ show tsig
-                ++ " but the event has " ++ show event_tsig
-
+            Error.throwError $
+                "inconsistent time signatures, analysis says it should be "
+                ++ show tsig ++ " but the event has " ++ show event_tsig
         State.modify $ \state -> state
             { state_measure_start = state_measure_end state
             , state_measure_end = state_measure_end state + measure_time tsig
@@ -318,14 +306,16 @@ convert_measure events = case events of
         let clef_change = [ClefChange clef | Just clef /= state_clef state]
         key <- lookup_key event
         let key_change = [KeyChange key | Just key /= state_key state]
-        let (note, end, rest_events) = convert_note state tsig event events
+        let (note, end, rest_events) = convert_note (state_config state)
+                (state_dynamic state) tsig event events
             leading_rests = make_rests (state_config state) tsig
                 (state_note_end state) (event_start event)
             notes = leading_rests ++ clef_change ++ key_change ++ [note]
         State.modify $ \state -> state
             { state_clef = Just clef
             , state_key = Just key
-            , state_dynamic = Just $ get_dynamic (state_config state) event
+            , state_dynamic = Just $
+                get_dynamic (config_dynamics (state_config state)) event
             , state_note_end = end
             }
         (rest_notes, rest_events) <- measure1 tsig rest_events
@@ -338,10 +328,9 @@ convert_measure events = case events of
         State.modify $ \state -> state { state_note_end = end }
         return (rests, events)
 
-convert_note :: State -> TimeSignature -> Event -> [Event]
-    -> (Note, Time, [Event])
-    -- ^ (note, note end time, remaining events)
-convert_note state tsig event events
+convert_note :: Config -> Maybe String -> TimeSignature -> Event -> [Event]
+    -> (Note, Time, [Event]) -- ^ (note, note end time, remaining events)
+convert_note config prev_dynamic tsig event events
     | Just code <- TrackLang.maybe_val v_ly_code env =
         (Code code, start + event_duration event, events)
     | otherwise = (note, end, clipped ++ rest)
@@ -354,7 +343,7 @@ convert_note state tsig event events
         , _note_prepend =
             fromMaybe "" (TrackLang.maybe_val v_ly_code_prepend env)
         , _note_append = fromMaybe "" (TrackLang.maybe_val v_ly_code_append env)
-            ++ dynamic_to_code (state_config state) (state_dynamic state) event
+            ++ dynamic_to_code (config_dynamics config) prev_dynamic event
         , _note_stack = Seq.last (Stack.to_ui (event_stack event))
         }
     (here, rest) = break ((> start) . event_start) (event : events)
@@ -411,8 +400,8 @@ lookup_val key parse deflt event = prefix $ do
     prefix = either (Error.throwError . ((Pretty.pretty key ++ ": ") ++))
         return
 
-get_dynamic :: Config -> Event -> String
-get_dynamic config event = get (config_dynamics config) (event_dynamic event)
+get_dynamic :: DynamicConfig -> Event -> String
+get_dynamic dynamics event = get dynamics (event_dynamic event)
     where
     get dynamics dyn = case dynamics of
         [] -> ""
@@ -420,11 +409,11 @@ get_dynamic config event = get (config_dynamics config) (event_dynamic event)
             | null dynamics || val >= dyn -> dyn_str
             | otherwise -> get dynamics dyn
 
-dynamic_to_code :: Config -> Maybe String -> Event -> String
-dynamic_to_code config prev_dyn event
+dynamic_to_code :: DynamicConfig -> Maybe String -> Event -> String
+dynamic_to_code dynamics prev_dyn event
     | not (null dyn) && prev_dyn /= Just dyn = '\\' : dyn
     | otherwise = ""
-    where dyn = get_dynamic config event
+    where dyn = get_dynamic dynamics event
 
 -- | Clip off the part of the event before the given time, or Nothing if it
 -- was entirely clipped off.
@@ -658,8 +647,10 @@ promote_annotations measures = case empty ++ stripped of
 
 -- * make_ly
 
-make_ly :: Config -> Title -> [Event]
-    -> Either String ([Text.Text], Cmd.StackMap)
+-- | Same as 'Cmd.Cmd.StackMap', but I don't feel like importing Cmd here.
+type StackMap = Map.Map Int Stack.UiFrame
+
+make_ly :: Config -> Title -> [Event] -> Either String ([Text.Text], StackMap)
 make_ly config title events =
     ly_file title <$> convert_staff_groups config events
 
@@ -687,7 +678,7 @@ show_pitch_note (Theory.Note pc accs) = do
 
 -- * output
 
-ly_file :: Title -> [StaffGroup] -> ([Text.Text], Cmd.StackMap)
+ly_file :: Title -> [StaffGroup] -> ([Text.Text], StackMap)
 ly_file title staff_groups = run_output $ do
     outputs
         [ "\\version" <+> str "2.14.2"
@@ -732,7 +723,7 @@ ly_file title staff_groups = run_output $ do
 
 type Output a = State.State OutputState a
 
-run_output :: Output a -> ([Text.Text], Cmd.StackMap)
+run_output :: Output a -> ([Text.Text], StackMap)
 run_output m = (reverse (output_chunks state), output_map state)
     where state = State.execState m (OutputState [] Map.empty 1)
 
@@ -740,7 +731,7 @@ data OutputState = OutputState {
     -- | Chunks of text to write, in reverse order.  I could use
     -- Text.Lazy.Builder, but this is simpler and performance is probably ok.
     output_chunks :: ![Text.Text]
-    , output_map :: !Cmd.StackMap
+    , output_map :: !StackMap
     -- | Running sum of the length of the chunks.
     , output_char_num :: !Int
     } deriving (Show)

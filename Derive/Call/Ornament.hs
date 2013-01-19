@@ -60,18 +60,17 @@ c_grace = Derive.stream_generator "grace"
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."
     ) $ \(dyn, pitches) -> Note.inverting $ \args ->
-        Lily.when_lilypond (lily_grace args pitches) $
+        Lily.when_lilypond (const $ lily_grace args pitches) $
             grace (Args.extent args) (fromMaybe 0.5 dyn) pitches
 
-lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch]
-    -> Lily.RealTimePerQuarter -> Derive.EventDeriver
-lily_grace args pitches _per_quarter = do
+lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch] -> Derive.EventDeriver
+lily_grace args pitches = do
     pitches <- mapM Lily.pitch_to_lily pitches
     let ly_notes = map (++ Lilypond.to_lily Lilypond.D8) pitches
-        barred = Seq.first_last (++"[") (++"]") ly_notes
+        beamed = Seq.first_last (++"[") (++"]") ly_notes
         -- I use \acciaccatura instead of \grace because it adds a slur
         -- automatically.
-        code = "\\acciaccatura { " <> unwords barred <> " }"
+        code = "\\acciaccatura { " <> unwords beamed <> " }"
     Lily.code (Args.start args, 0) code <> Util.place args Util.note
 
 grace :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch] ->

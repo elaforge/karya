@@ -8,6 +8,7 @@ module Derive.Call.Note (
     , inverting, inverting_around
     -- ** events
     , Event(..), event_end, map_event, map_events
+    , stretch
     , sub_events
     , place, place_at
 #ifdef TESTING
@@ -351,9 +352,13 @@ map_event f event = event { event_deriver = f (event_deriver event) }
 map_events :: (Derive.EventDeriver -> Derive.EventDeriver) -> [Event] -> [Event]
 map_events f = map (map_event f)
 
+stretch :: ScoreTime -> ScoreTime -> Event -> Event
+stretch offset factor (Event start dur deriver) =
+    Event ((start - offset) * factor + offset) (dur * factor) deriver
+
 instance Show Event where
-    show (Event start dur _) =
-        "Event " ++ show start ++ " " ++ show dur ++ " ((deriver))"
+    show (Event start dur _) = "Event " ++ show start ++ " " ++ show dur
+instance Pretty.Pretty Event where pretty = show
 
 -- | Get the Events of subtracks, if any, returning one list of events per sub
 -- note track.  This is the top-level utility for note calls that take other

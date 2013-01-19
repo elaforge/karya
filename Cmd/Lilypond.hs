@@ -34,11 +34,6 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
-data TimeConfig = TimeConfig
-    { time_quarter :: RealTime
-    , time_quantize :: Lilypond.Duration
-    }
-
 ly_filename :: (Cmd.M m) => BlockId -> m FilePath
 ly_filename block_id = do
     dir <- Cmd.require_msg "ly_filename: no save dir"
@@ -56,15 +51,15 @@ lookup_key perf =
 
 -- | Run a derivation in lilypond context, which will cause certain calls to
 -- behave differently.
-derive :: (Cmd.M m) => TimeConfig -> BlockId -> m Derive.Result
+derive :: (Cmd.M m) => Derive.Lilypond -> BlockId -> m Derive.Result
 derive config block_id = do
     state <- (State.config#State.default_#State.tempo #= 1) <$> State.get
     global_transform <- State.config#State.global_transform <#> State.get
-    Derive.extract_result <$> PlayUtil.run_ui state mempty mempty
-        (Derive.with_val TrackLang.v_lilypond_derive (time_quarter config) $
-            Call.Block.eval_root_block global_transform block_id)
+    Derive.extract_result <$> PlayUtil.run_ui state with_ly mempty mempty
+        (Call.Block.eval_root_block global_transform block_id)
+    where with_ly constant = constant { Derive.state_lilypond = Just config }
 
-compile_ly :: FilePath -> TimeConfig -> Lilypond.Title
+compile_ly :: FilePath -> Lilypond.TimeConfig -> Lilypond.Title
     -> [Score.Event] -> IO (Either String Cmd.StackMap, [Log.Msg])
 compile_ly ly_filename config title events = do
     let (result, logs) = make_ly config title events
@@ -79,9 +74,9 @@ compile_ly ly_filename config title events = do
                 ["-o", FilePath.dropExtension ly_filename, ly_filename]
             return $ Right stack_map
 
-make_ly :: TimeConfig -> Lilypond.Title -> [Score.Event]
+make_ly :: Lilypond.TimeConfig -> Lilypond.Title -> [Score.Event]
     -> (Either String ([Text.Text], Cmd.StackMap), [Log.Msg])
-make_ly (TimeConfig quarter quantize_dur) title score_events =
+make_ly (Lilypond.TimeConfig quarter quantize_dur) title score_events =
     (Lilypond.make_ly (Lilypond.default_config quarter) title
         (postproc quantize_dur events), logs)
     where
@@ -91,18 +86,7 @@ make_ly (TimeConfig quarter quantize_dur) title score_events =
 -- * postproc
 
 postproc :: Lilypond.Duration -> [Lilypond.Event] -> [Lilypond.Event]
-postproc quantize_dur = quantize quantize_dur . normalize
-
-quantize :: Lilypond.Duration -> [Lilypond.Event] -> [Lilypond.Event]
-quantize dur = map $ \e -> e
-    { Lilypond.event_start = q (Lilypond.event_start e)
-    , Lilypond.event_duration = q (Lilypond.event_duration e)
-    }
-    where q = quantize_time (Lilypond.dur_to_time dur)
-
-quantize_time :: Lilypond.Time -> Lilypond.Time -> Lilypond.Time
-quantize_time time t =
-    round (fromIntegral t / fromIntegral time :: Double) * time
+postproc quantize_dur = Convert.quantize quantize_dur . normalize
 
 normalize :: [Lilypond.Event] -> [Lilypond.Event]
 normalize [] = []

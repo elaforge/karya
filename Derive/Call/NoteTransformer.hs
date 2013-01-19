@@ -55,9 +55,8 @@ emit_lily_tuplet :: Derive.PassedArgs d -> Derive.EventDeriver
     -> Derive.EventDeriver
 emit_lily_tuplet args not_lily = Lily.when_lilypond lily not_lily
     where
-    lily per_quarter = either err return
-        =<< Either.runEitherT (check per_quarter)
-    check per_quarter = do
+    lily config = either err return =<< Either.runEitherT (check config)
+    check config = do
         (note, notes) <- case filter (not . null) (Note.sub_events args) of
             [] -> Either.left $ Just "no sub events"
             [[]] -> Either.left $ Just "no sub events"
@@ -73,25 +72,24 @@ emit_lily_tuplet args not_lily = Lily.when_lilypond lily not_lily
         real_dur <- lift $
             Util.real_dur (Args.start args) (Note.event_duration note)
         note_dur <- is_dur "note" (real_dur * 2)
-        pitches <- lift $
-            mapM (Lily.note_pitch . Note.event_deriver) (note : notes)
-        lift $ Lily.code (Args.extent args)
-            (tuplet_code tuplet_dur note_dur pitches)
+        ly_notes <- lift $ Lily.eval config args $
+            map (Note.stretch (Args.start args) 2) (note : notes)
+        lift $ Lily.code (Args.extent args) $
+            tuplet_code tuplet_dur note_dur (length notes + 1) ly_notes
         where
         is_dur msg t = maybe
             (Either.left $ Just $ msg ++ " duration must be simple")
-            return (Lily.is_duration per_quarter t)
+            return (Lily.is_duration config t)
     err msg = do
         when_just msg $ Log.warn . ("can't convert to ly tuplet: "++)
         not_lily
 
-tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> [String] -> String
-tuplet_code tuplet_dur note_dur pitches =
+tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> Int -> [Lily.Note]
+    -> String
+tuplet_code tuplet_dur note_dur note_count notes =
     "\\times " <> show (d tuplet_dur `div` d note_dur) <> "/"
-        <> show (length pitches) <> " { " <> unwords ly_notes <> " }"
-    where
-    ly_notes = map (++ Lilypond.to_lily note_dur) pitches
-    d = toInteger . Lilypond.dur_to_time
+        <> show note_count <> " { " <> unwords notes <> " }"
+    where d = toInteger . Lilypond.dur_to_time
 
 -- * arpeggio
 

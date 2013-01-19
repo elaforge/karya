@@ -14,6 +14,7 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Lilypond as Lilypond
+import Perform.Lilypond.Lilypond (Duration(..))
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import Perform.Lilypond.LilypondTest (convert_staves, derive)
 

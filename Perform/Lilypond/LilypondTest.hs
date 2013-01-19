@@ -8,11 +8,9 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
-import qualified Perform.RealTime as RealTime
 
 
 default_config :: Lilypond.Config
@@ -59,12 +57,14 @@ derive_ly :: Bool -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> [UiTest.TrackSpec] -> Derive.Result
 derive_ly linear with tracks =
     DeriveTest.derive_tracks_with_ui
-        (with . Derive.with_val TrackLang.v_lilypond_derive
-            (RealTime.seconds 1))
+        (with . DeriveTest.modify_constant set_ly)
         (with_linear . (State.config#State.default_#State.tempo #= 1))
         tracks
     where
     with_linear = if linear then DeriveTest.linear_skel tracks else id
+    set_ly constant = constant { Derive.state_lilypond = Just $
+        Derive.Lilypond time_config default_config }
+    time_config = Lilypond.TimeConfig 1 Lilypond.D128
 
 make_ly :: [Lilypond.Event] -> String
 make_ly events = Text.unpack $ Text.strip $ Text.concat $ fst $

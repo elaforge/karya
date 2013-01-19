@@ -19,6 +19,8 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
+-- * convert
+
 type ConvertT a = ConvertUtil.ConvertT () a
 
 -- | Convert Score events to Perform events, emitting warnings that may have
@@ -64,3 +66,17 @@ convert_pitch start controls psig = case PitchSignal.at start psig of
                 PitchSignal.apply (PitchSignal.controls_at start controls) pitch
         require ("parseable note: " ++ Pretty.pretty note) $
             Theory.parse_pitch (Pitch.note_text note)
+
+-- * util
+
+quantize :: Lilypond.Duration -> [Lilypond.Event] -> [Lilypond.Event]
+quantize dur = map $ \e -> e
+    { Lilypond.event_start = q (Lilypond.event_start e)
+    , Lilypond.event_duration = q (Lilypond.event_duration e)
+    }
+    where q = quantize_time (Lilypond.dur_to_time dur)
+
+quantize_time :: Lilypond.Time -> Lilypond.Time -> Lilypond.Time
+quantize_time time t =
+    round (fromIntegral t / fromIntegral time :: Double) * time
+
