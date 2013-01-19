@@ -215,11 +215,17 @@ backspace_expr s
     | null s = Nothing
     | otherwise = Just $ drop_expr s
 
+-- | Drop a parenthesized expression, or a `symbol` up to its matching
+-- backtick.
 drop_expr :: String -> String
 drop_expr expr = reverse rev
     where
     rev = case dropWhile (==' ') (reverse expr) of
         ')' : s -> dropWhile (==' ') (go 1 s)
+        '`' : s -> case dropWhile (/='`') s of
+            '`' : rest -> rest
+            "" -> s
+            _ -> s
         s -> drop 1 s
     go 0 s = s
     go nest s = case s of
